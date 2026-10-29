@@ -24,7 +24,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "8014e214463cbb41cc72a4eae99917834a05ff5528ad2b12aa50d42a6ae644c3",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "2f39a28f625ccdda99643aaff4db1965df7769a1a927cfd37fdfdc9a86bef905",
                 [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "4546199d33b3e0bb5d2d405b6131fd9facda5d0714d1e8341a1f695fdb6bbb44",
-                [@"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs"] = "c36e37915793055909f7b54b53fae6be2a622eb84157bb2d15aee4ae4e1d6c50",
+                [@"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs"] = "fba2072f0d5814f9af02fff948ff30ad39f6f57c9acdcc64871cb86e09f656ea",
                 [@"Boot\EfiEntry.DiskEvidence.cs"] = "833c45c55ab4e6e71618cf71e38231adf7e3a49d064822f5b046274eb4f31419",
                 [@"Boot\EfiEntry.DiskBootstrap.cs"] = "89e8acf5685b78d48f1078deba8f8177cf7ca2efa570e1e66a8be9a13f79ec8d",
                 [@"Boot\EfiEntry.DiskNative.cs"] = "c9df5f533561f57f15635344cdbdfd583cf2d117a099ac7edfaa4cefd0d9b8c2",

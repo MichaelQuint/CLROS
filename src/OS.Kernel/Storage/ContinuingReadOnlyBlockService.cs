@@ -317,7 +317,10 @@ public static unsafe class ContinuingReadOnlyBlockService
             if (!Fence(s)) return Fault(s, Status.OrderingFailed);
             byte* source = (byte*)(s->Queue.Layout.Range.CpuVirtualAddress + VirtioBlkDmaLayout.DataOffset);
             if (!Observe(s, ObservationKind.CopyReady, s->CopiedCount + 1, bytes, source)) return Fault(s, Status.ObservationRejected);
-            for (uint i = 0; i < bytes; i++) output[i] = source[i];
+            uint i = 0;
+            if ((((ulong)output | (ulong)source) & 7) == 0)
+                for (; i < (bytes & ~7U); i += 8) *(ulong*)(output + i) = *(ulong*)(source + i);
+            for (; i < bytes; i++) output[i] = source[i];
         }
         s->CopiedCount++; s->Phase = IdlePhase; return Status.Success;
     }

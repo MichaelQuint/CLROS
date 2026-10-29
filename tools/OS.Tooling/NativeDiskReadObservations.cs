@@ -64,7 +64,7 @@ public static class NativeDiskReadObservations
     /// before another submit or terminal success. A ready-result cancellation
     /// without a distinct zero-byte completion is outside this finite contract.
     /// Explicit allowMultiSector admits up to4 sectors: one Copied row followed
-    /// by ordered CopyChunk rows with the same request/copy sequence and exact
+    /// by ordered CopyChunk rows with the same request/copy sequence, clock and exact
     /// chunk indices. The physical copied counter advances only for a complete
     /// group. Every row keeps MaximumRowChars; legacy callers admit512 only.
     /// Return bounded immutable copies; malformed, incomplete, extra or divergent
@@ -101,7 +101,7 @@ public static class NativeDiskReadObservations
         Need(reset is null || boundary.BootstrapCopied == boundary.BootstrapCompleted, "reset_bootstrap");
         List<Observation> result = new(rowCount);
         ulong submitted = boundary.BootstrapCompleted, completed = boundary.BootstrapCompleted,
-            copied = boundary.BootstrapCopied, cancelled = 0, generation = 0, sector = 0, clock = 0;
+            copied = boundary.BootstrapCopied, cancelled = 0, generation = 0, sector = 0, clock = 0, copyClock = 0;
         ushort available = unchecked((ushort)submitted), consumed = unchecked((ushort)completed);
         byte stage = 0; //0 drained,1 submitted,2 awaiting first copy,3 awaiting its remaining chunks.
         uint requestBytes = 0, nextChunk = 0;
@@ -154,6 +154,8 @@ public static class NativeDiskReadObservations
             uint chunk = nextChunk;
             if (kind is 2 or 3)
             {
+                if (stage == 2) copyClock = now;
+                else Need(now == copyClock, "copy_clock");
                 const string prefix = " copied=committed";
                 Need(remaining.StartsWith(prefix, StringComparison.Ordinal), "copy_shape");
                 remaining = remaining[prefix.Length..];

@@ -6,6 +6,97 @@ using Block = OS.Storage.ContinuingReadOnlyBlockService;
 
 internal static unsafe class ContinuingReadOnlyBlockServiceTests
 {
+    [HostTest("block.service copy widths preserve every supported length alignment and destination boundary")]
+    private static void CopyWidthsAndBounds()
+    {
+        for (uint sectors = 1; sectors <= Block.MaximumReadSectors; sectors++)
+            for (int offset = 0; offset < 8; offset++)
+            {
+                uint bytes = sectors * 512;
+                using var f = new Fixture(); f.Hardware->ExpectedBytes = bytes;
+                using var capture = new Capture(f, bytes); HostCheck.Equal(Block.Status.Success, f.Start());
+                byte* allocation = capture.Sink->Output;
+                HostCheck.True(((ulong)allocation & 7) == 0 && ((ulong)(f.Data + 512) & 7) == 0);
+                Span<byte> guarded = new(allocation, (int)bytes + 8); guarded.Fill(0xa5);
+                capture.Sink->Output = allocation + offset;
+                try
+                {
+                    HostCheck.Equal(Block.Status.Success, Submit(f.State, 61, sectors, out var token));
+                    f.Complete(length: bytes + 1); HostCheck.Equal(Block.Status.Ready, Poll(f.State, out _));
+                    new Span<byte>(f.Data + 512 + bytes, 8).Fill(0x77);
+                    byte[] source = new ReadOnlySpan<byte>(f.Data + 512, (int)bytes + 8).ToArray();
+                    // Exact and oversized spans alternate; payload length comes
+                    // from the retained request, never from span capacity.
+                    Span<byte> output = new(capture.Sink->Output, (int)bytes + (offset % 2 == 0 ? 0 : 7 - offset));
+                    HostCheck.Equal(Block.Status.Success, Block.Copy(f.State, token, output));
+                    HostCheck.True(output[..(int)bytes].SequenceEqual(source.AsSpan(0, (int)bytes)));
+                    HostCheck.True(guarded[..offset].IndexOfAnyExcept((byte)0xa5) < 0 &&
+                        guarded[(offset + (int)bytes)..].IndexOfAnyExcept((byte)0xa5) < 0);
+                    HostCheck.True(new ReadOnlySpan<byte>(f.Data + 512, (int)bytes + 8).SequenceEqual(source));
+                    HostCheck.True(!capture.Sink->Bad && capture.Sink->Count == 3 && f.State->Copied == 1);
+                    HostCheck.True(!f.State->ReadReady && f.State->Submitted == 1 && f.State->Completed == 1);
+                    HostCheck.Equal(Block.Status.StaleToken, Block.Copy(f.State, token, output));
+                    HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+                }
+                finally { capture.Sink->Output = allocation; }
+            }
+    }
+
+    [HostTest("block.service copy widths preserve observer rejection cancellation stale owner fence and short output without writes")]
+    private static void CopyWidthsRejectBeforeWrite()
+    {
+        foreach (int offset in new[] { 0, 1 })
+            for (int mode = 0; mode < 5; mode++)
+            {
+                const uint bytes = 2048;
+                using var f = new Fixture(); f.Hardware->ExpectedBytes = bytes;
+                using var capture = new Capture(f, bytes); HostCheck.Equal(Block.Status.Success, f.Start());
+                byte* allocation = capture.Sink->Output;
+                Span<byte> guarded = new(allocation, (int)bytes + 8); guarded.Fill(0xa5);
+                capture.Sink->Output = allocation + offset;
+                try
+                {
+                    Span<byte> output = new(capture.Sink->Output, (int)bytes);
+                    HostCheck.Equal(Block.Status.Success, Submit(f.State, 62, 4, out var token));
+                    if (mode != 3)
+                    {
+                        f.Complete(length: bytes + 1); HostCheck.Equal(Block.Status.Ready, Poll(f.State, out _));
+                        HostCheck.Equal(Block.Status.ShortBuffer, Block.Copy(f.State, token, output[..2047]));
+                        HostCheck.Equal(2U, capture.Sink->Count);
+                    }
+                    Block.Status expected;
+                    if (mode == 0)
+                    {
+                        capture.Sink->Reject = true; capture.Sink->RejectKind = Block.ObservationKind.CopyReady;
+                        expected = Block.Status.ObservationRejected;
+                    }
+                    else if (mode == 2) { token = CorruptToken(token, "Owner"); expected = Block.Status.StaleToken; }
+                    else if (mode == 4)
+                    {
+                        // Two device/config reads and the used-index read
+                        // succeed, then the existing pre-copy fence rejects.
+                        f.Hardware->FailCall = f.Hardware->Calls + 4; expected = Block.Status.OrderingFailed;
+                    }
+                    else
+                    {
+                        HostCheck.Equal(Block.Status.Success, Block.Cancel(f.State, token));
+                        expected = mode == 3 ? Block.Status.Cancelled : Block.Status.StaleToken;
+                    }
+                    HostCheck.Equal(expected, Block.Copy(f.State, token, output));
+                    if (mode == 3)
+                    {
+                        f.Complete(length: bytes + 1); HostCheck.Equal(Block.Status.Cancelled, Poll(f.State, out var completion));
+                        HostCheck.Equal(0U, completion.Bytes);
+                    }
+                    HostCheck.True(guarded.IndexOfAnyExcept((byte)0xa5) < 0 && f.State->Copied == 0 && !capture.Sink->Bad);
+                    if (mode == 4) HostCheck.True(f.Hardware->FailureFired);
+                    HostCheck.Equal(mode == 0 ? 3U : 2U, capture.Sink->Count);
+                    HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+                }
+                finally { capture.Sink->Output = allocation; }
+            }
+    }
+
     [HostTest("block.service explicit one through four sectors retain exact descriptor observation and copy lengths")]
     private static void BoundedReads()
     {

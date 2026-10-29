@@ -55,6 +55,77 @@ internal static class NativeDiskReadObservationTests
         { var changed = f.Image.ToArray(); changed[sector * 512] ^= 1; Deny(f.Rows, changed); }
     }
 
+    [HostTest("disk copy-clock preserves first-copy capture zero and maximum clocks for each bounded group")]
+    private static void CopyClockGroups()
+    {
+        foreach (uint count in new[] { 2U, 3U, 4U })
+        foreach (ulong copyClock in new[] { 0UL, 100UL, 101UL, ulong.MaxValue })
+        {
+            var f = MultiVector(count);
+            string[] rows = f.Rows.Select((row, i) => Set(row, "clock", N(i < 2 ? Math.Min(100UL, copyClock) : copyClock))).ToArray();
+            var actual = Reads.Inspect(rows, f.Image, f.Boundary, allowMultiSector: true);
+            HostCheck.Equal(1UL, actual.Counters.Copied);
+            HostCheck.True(actual.Rows.Skip(2).All(row => row.Clock == copyClock));
+        }
+    }
+
+    [HostTest("disk copy-clock rejects every later continuation even when the complete stream remains monotonic")]
+    private static void CopyClockContinuations()
+    {
+        foreach (uint count in new[] { 2U, 3U, 4U })
+        foreach (ulong copyClock in new[] { 0UL, 100UL })
+        {
+            var f = MultiVector(count);
+            for (int changed = 3; changed < f.Rows.Count; changed++)
+            {
+                string[] rows = f.Rows.Select((row, i) => Set(row, "clock", N(i < changed ? copyClock : copyClock + 1))).ToArray();
+                bool rejected = false;
+                try { _ = Reads.Inspect(rows, f.Image, f.Boundary, allowMultiSector: true); }
+                catch (ToolFailure failure)
+                { HostCheck.Equal("disk_observation_copy_clock", failure.Message); rejected = true; }
+                HostCheck.True(rejected);
+            }
+        }
+    }
+
+    [HostTest("disk copy-clock keeps group boundaries interleaving cancellation and legacy512 contracts")]
+    private static void CopyClockBoundaries()
+    {
+        var first = MultiVector(2); var second = MultiVector(3);
+        string Next(string row)
+        {
+            string changed = Set(Set(Set(row, "generation", "2"), "sequence", "2"), "available", "2");
+            changed = Set(changed, "consumed", row.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal) ? "1" : "2");
+            return Set(changed, "clock", "101");
+        }
+        List<string> joined = [..first.Rows, ..second.Rows.Select(Next)];
+        var final = first.Boundary with { Submitted = 2, Completed = 2, Copied = 2 };
+        var actual = Reads.Inspect(joined, first.Image, final, allowMultiSector: true);
+        HostCheck.Equal(2UL, actual.Counters.Copied); HostCheck.Equal(9, actual.Rows.Count);
+        HostCheck.True(actual.Rows.Take(4).All(row => row.Clock == 100) && actual.Rows.Skip(4).All(row => row.Clock == 101));
+        void Deny(IReadOnlyList<string> rows, Reads.Boundary boundary)
+        {
+            bool rejected = false;
+            try { _ = Reads.Inspect(rows, first.Image, boundary, allowMultiSector: true); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        var interleaved = joined.ToList(); interleaved.Insert(3, interleaved[4]); Deny(interleaved, final);
+        var cancelled = MultiVector(4, true);
+        List<string> withCancellation = [..first.Rows, ..cancelled.Rows.Select(Next)];
+        var cancelledFinal = final with { Copied = 1 };
+        actual = Reads.Inspect(withCancellation, first.Image, cancelledFinal, allowMultiSector: true);
+        HostCheck.True(actual.Counters.Copied == 1 && actual.Cancelled == 1);
+        Deny([..withCancellation, Next(MultiVector(4).Rows[3])], cancelledFinal);
+        var legacy = Vector();
+        foreach (bool multi in new[] { false, true })
+        {
+            actual = Reads.Inspect(legacy.Rows, legacy.Image, legacy.Boundary, allowMultiSector: multi);
+            HostCheck.Equal(2UL, actual.Counters.Copied);
+            HostCheck.True(actual.Rows[2].Clock == 102 && actual.Rows[5].Clock == 105);
+        }
+    }
+
     private static Fixture MultiVector(uint sectors, bool cancelled = false)
     {
         byte[] image = Enumerable.Range(0, 8 * 512).Select(i => unchecked((byte)(i * 31 ^ i >> 8))).ToArray();
