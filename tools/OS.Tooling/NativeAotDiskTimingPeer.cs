@@ -182,7 +182,7 @@ public static partial class NativeAotDiskTimingPeer
         using var owned=CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(owned.Token);deadline.CancelAfter(TimeSpan.FromSeconds(peerTimeoutSeconds));
         Task<ProcessResult> runner=runRunner(port,owned.Token);Task? peer=null;bool complete=false;List<object> rows=[];
-        IReadOnlyDictionary<string,ulong>? metrics=null, dispatchMetrics=null, driverMetrics=null;
+        IReadOnlyDictionary<string,ulong>? metrics=null, dispatchMetrics=null, driverMetrics=null, verificationMetrics=null;
         IReadOnlyList<SelectionObservation>? selections=null;string? failure=null;
         try
         {
@@ -196,9 +196,10 @@ public static partial class NativeAotDiskTimingPeer
             // but fail the diagnostic if later guest bookkeeping failed.
             string finalSerial = await ReadSerial(CancellationToken.None);
             InspectGuestStatus(finalSerial);
-            Need(metrics is not null && dispatchMetrics is not null && driverMetrics is not null && InspectMetrics(finalSerial).SequenceEqual(metrics) &&
+            Need(metrics is not null && dispatchMetrics is not null && driverMetrics is not null && verificationMetrics is not null && InspectMetrics(finalSerial).SequenceEqual(metrics) &&
                 InspectDispatchMetrics(finalSerial, metrics).SequenceEqual(dispatchMetrics) &&
-                InspectDriverMetrics(finalSerial, dispatchMetrics).SequenceEqual(driverMetrics), "final_metrics_changed");
+                InspectDriverMetrics(finalSerial, dispatchMetrics).SequenceEqual(driverMetrics) &&
+                InspectVerificationMetrics(finalSerial, dispatchMetrics).SequenceEqual(verificationMetrics), "final_metrics_changed");
             Need(selections is not null && InspectSelections(finalSerial).SequenceEqual(selections), "final_selections_changed");
             using Socket stopped=new(AddressFamily.InterNetwork,SocketType.Stream,ProtocolType.Tcp);
             using var refusal=new CancellationTokenSource(TimeSpan.FromSeconds(5));bool refused=false;
@@ -222,6 +223,7 @@ public static partial class NativeAotDiskTimingPeer
                     FullAndCleanupQualified=false,Port=port,RunnerTimeoutSeconds=runnerTimeoutSeconds,PeerTimeoutSeconds=peerTimeoutSeconds,
                     ImageSha256=inventory.ImageSha256,Asset=asset,ClockFrequency=Stopwatch.Frequency,
                     Responses=rows,Metrics=metrics,DispatchMetrics=dispatchMetrics,DriverMetrics=driverMetrics,
+                    VerificationSchema,VerificationMetrics=verificationMetrics,
                     SelectionSchema="clros-thread-dispatch-selection-v1",Selections=selections,Failure=failure,RunnerJoined=true,Runner=joined,JoinFault=joinFault},cancellationToken:CancellationToken.None);
                 receipt.Flush(true);
             }
@@ -244,10 +246,13 @@ public static partial class NativeAotDiskTimingPeer
                 string text = await ReadSerial(deadline.Token); InspectGuestStatus(text);
                 if(text.Split('\n').Any(line=>line.StartsWith(DriverMarker,StringComparison.Ordinal)) &&
                     text.LastIndexOf('\n')>text.IndexOf(DriverMarker,StringComparison.Ordinal) &&
+                    text.Split('\n').Any(line=>line.StartsWith(VerificationMarker,StringComparison.Ordinal)) &&
+                    text.LastIndexOf('\n')>text.IndexOf(VerificationMarker,StringComparison.Ordinal) &&
                     text.Split('\n').Any(line=>line.StartsWith(SelectionEndMarker,StringComparison.Ordinal)) &&
                     text.LastIndexOf('\n')>text.IndexOf(SelectionEndMarker,StringComparison.Ordinal))
                 {
                     metrics=InspectMetrics(text);dispatchMetrics=InspectDispatchMetrics(text,metrics);driverMetrics=InspectDriverMetrics(text,dispatchMetrics);
+                    verificationMetrics=InspectVerificationMetrics(text,dispatchMetrics);
                     selections=InspectSelections(text);
                     Need((ulong)selections.Count>=dispatchMetrics["completed"]+dispatchMetrics["clipped"],"selection_dispatch_count");
                     break;

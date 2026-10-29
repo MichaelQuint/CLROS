@@ -193,6 +193,7 @@ internal static partial class NativeAotDiskTimingPeerTests
         " idleCalls=0 idleNs=0 idlePreNs=0 idleDiskNs=0 idlePostNs=0\r\n";
     private const string Dispatch = "M10_018_DISPATCH bytes=65536 phaseNs=20000 pollNs=11200 dispatchNs=16000 nestedPollNs=10000 dispatchNonPollNs=6000 supervisorNonPollNs=2800 completed=2 clipped=2 physicalActive=1 phaseComplete=1\r\n";
     private const string Driver = "M10_018_DRIVER bytes=65536 phaseNs=20000 pollNs=11200 driverNs=12000 nestedPollNs=8000 driverNonPollNs=4000 dispatchShellNonPollNs=2000 completed=2 clipped=2 physicalActive=1 phaseComplete=1\r\n";
+    private const string Verification = "M10_018_VERIFY calls=3 elapsedNs=3000 phaseNs=20000 phaseComplete=1\r\n";
 
     [HostTest("driver aggregate conserves complete dispatch and rejects missing malformed widened or negative child partitions")]
     private static void DriverAggregate()
@@ -373,7 +374,7 @@ internal static partial class NativeAotDiskTimingPeerTests
         string applied=Path.Combine(dir,"timing.raw");
         var receipt=WebRootImageFixture.Apply(root,image,source,WebRootImageFixture.SnapshotPublishedRoot(source),applied);
         var inventory=WebRootDiskInventory.Inspect(applied,File.ReadAllBytes(applied),receipt);
-        foreach(string mode in new[]{"good","body","etag","metrics","dispatch","driver","driver-duplicate","driver-late-change","selection","selection-late-change","late-fault","unconfirmed"})
+        foreach(string mode in new[]{"good","body","etag","metrics","dispatch","driver","driver-duplicate","driver-late-change","verification","verification-duplicate","verification-late-change","selection","selection-late-change","late-fault","unconfirmed"})
             Check(mode).GetAwaiter().GetResult();
 
         async Task Check(string mode)
@@ -398,7 +399,12 @@ internal static partial class NativeAotDiskTimingPeerTests
                 actual.RootElement.GetProperty("RunnerJoined").GetBoolean());
             HostCheck.Equal("clros-disk-read-timing-v7", actual.RootElement.GetProperty("Schema").GetString()!);
             HostCheck.Equal("clros-thread-dispatch-selection-v1", actual.RootElement.GetProperty("SelectionSchema").GetString()!);
-            if (mode == "good") HostCheck.Equal(4, actual.RootElement.GetProperty("Selections").GetArrayLength());
+            if (mode == "good")
+            {
+                HostCheck.Equal(4, actual.RootElement.GetProperty("Selections").GetArrayLength());
+                HostCheck.Equal(NativeAotDiskTimingPeer.VerificationSchema, actual.RootElement.GetProperty("VerificationSchema").GetString()!);
+                HostCheck.Equal(3000UL, actual.RootElement.GetProperty("VerificationMetrics").GetProperty("elapsedNs").GetUInt64());
+            }
             if (mode is "good" or "late-fault" or "driver-late-change")
             {
                 HostCheck.Equal(1UL, actual.RootElement.GetProperty("DispatchMetrics").GetProperty("phaseComplete").GetUInt64());
@@ -432,6 +438,8 @@ internal static partial class NativeAotDiskTimingPeerTests
                             (mode=="dispatch"?Dispatch.Replace("nestedPollNs=10000","nestedPollNs=20000"):Dispatch)+
                             (mode=="driver"?Driver.Replace("dispatchShellNonPollNs=2000","dispatchShellNonPollNs=2001"):
                                 mode=="driver-duplicate"?Driver+Driver:Driver)+
+                            (mode=="verification"?Verification.Replace("elapsedNs=3000","elapsedNs=20001"):
+                                mode=="verification-duplicate"?Verification+Verification:Verification)+
                              (mode=="selection"?SelectionStream.Replace("sequence=2", "sequence=02"):SelectionStream));
                     }
                 }
@@ -439,6 +447,7 @@ internal static partial class NativeAotDiskTimingPeerTests
                 {
                     if (mode == "late-fault") File.AppendAllText(serial, "TEST_FAIL disk.dispatch.bookkeeping late_end\r\n");
                     if (mode == "driver-late-change") File.AppendAllText(serial, Driver);
+                    if (mode == "verification-late-change") File.AppendAllText(serial, Verification);
                     if (mode == "selection-late-change") File.AppendAllText(serial, SelectionStream);
                     return new(-1,"synthetic-runner-cancelled","",false,false,true,TimeSpan.Zero){TerminationConfirmed=mode!="unconfirmed"};
                 }

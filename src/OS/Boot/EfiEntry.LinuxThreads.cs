@@ -308,7 +308,34 @@ public static unsafe partial class EfiEntry
             return NativeSwitch.AdmitPlan(*o) == NativeSwitch.Status.Ok;
         }
 
+#if M10_018_TIMING_PROBE
+        // Observe the complete original invocation, including failed checks.
+        // Measurement failure is sticky but never skips or replaces verification.
+        // The existing IRQ-off BSP owner retains all backing; nested calls or a
+        // changed phase invalidate the diagnostic instead of double-counting.
+        private static bool LinuxNativeVerify(LinuxNativeControl* c)
+        {
+            fixed (NativeDiskOwner* disk = &s_nativeDisk)
+            {
+                if (disk->TimingPhase != 1) return LinuxNativeVerifyCore(c);
+                if (disk->Boot != c->State)
+                {
+                    disk->TimingVerification.Invalidate();
+                    return LinuxNativeVerifyCore(c);
+                }
+                bool started = ReadNetworkTime(c->State, out ulong began) && disk->TimingVerification.Begin(began);
+                if (!started) disk->TimingVerification.Invalidate();
+                bool result = LinuxNativeVerifyCore(c);
+                if (started && (disk->Boot != c->State || disk->TimingPhase != 1 ||
+                    !ReadNetworkTime(c->State, out ulong ended) || !disk->TimingVerification.End(ended)))
+                    disk->TimingVerification.Invalidate();
+                return result;
+            }
+        }
+        private static bool LinuxNativeVerifyCore(LinuxNativeControl* c) =>
+#else
         private static bool LinuxNativeVerify(LinuxNativeControl* c) =>
+#endif
             NativeProgram.Verify((byte*)c->State->CooperativePool, NativeProgram.Bytes, c->Plan) &&
 #if M16_009_PROBE
             c->Plan.SeparateUserFaultCapture && c->State->LinuxSyscallPlan.UserFaultEntry == c->State->CooperativePool + NativeProgram.UserFaultCapture &&

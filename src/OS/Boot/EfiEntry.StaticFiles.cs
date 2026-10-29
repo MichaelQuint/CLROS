@@ -307,7 +307,8 @@ public static unsafe partial class EfiEntry
                     if (disk->TimingPhase != 0) return false;
                     if (!ReadNetworkTime(c->State, out ulong armed) ||
                         !disk->TimingDispatch.Arm(armed, disk->TimingNetworkTotal) ||
-                        !disk->TimingDriver.Arm(armed, disk->TimingNetworkTotal)) return false;
+                        !disk->TimingDriver.Arm(armed, disk->TimingNetworkTotal) ||
+                        !disk->TimingVerification.Arm(armed)) return false;
                     disk->TimingPhase = 1; return true;
                 }
                 if (disk->TimingPhase == 2) return true;
@@ -317,6 +318,8 @@ public static unsafe partial class EfiEntry
                 if (!ReadNetworkTime(c->State, out ulong frozen) ||
                     !disk->TimingDispatch.Freeze(frozen, disk->TimingNetworkTotal) ||
                     !disk->TimingDriver.Freeze(frozen, disk->TimingNetworkTotal) ||
+                    !disk->TimingVerification.Freeze(frozen) ||
+                    !disk->TimingVerification.Inspect(out ulong verificationCalls, out ulong verificationNanoseconds) ||
                     !disk->TimingDispatch.Inspect(out var dispatch) || !dispatch.PhysicalDispatchActiveAtFreeze ||
                     !disk->TimingDriver.Inspect(out var driver) || !driver.PhysicalDispatchActiveAtFreeze ||
                     !disk->TimingDispatch.InspectChild(in disk->TimingDriver, out ulong driverNonPoll, out ulong shellNonPoll)) return false;
@@ -393,6 +396,9 @@ public static unsafe partial class EfiEntry
                     LinuxText(c->State, " completed=") && LinuxNumber(c->State, driver.CompletedEnvelopes) &&
                     LinuxText(c->State, " clipped=") && LinuxNumber(c->State, driver.ClippedEnvelopes) &&
                     LinuxText(c->State, " physicalActive=") && LinuxNumber(c->State, driver.PhysicalDispatchActiveAtFreeze ? 1UL : 0UL) &&
+                    LinuxText(c->State, " phaseComplete=1\r\nM10_018_VERIFY calls=") && LinuxNumber(c->State, verificationCalls) &&
+                    LinuxText(c->State, " elapsedNs=") && LinuxNumber(c->State, verificationNanoseconds) &&
+                    LinuxText(c->State, " phaseNs=") && LinuxNumber(c->State, dispatch.PhaseNanoseconds) &&
                     LinuxText(c->State, " phaseComplete=1\r\n");
             }
         }
