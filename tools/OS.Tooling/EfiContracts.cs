@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "b07439f3ae6c2aafbe10510596ece3f2db7f2d9dee1c7485a27de990e25af899";
-    public const string CanonicalProjectSha256 = "ba165140143c3e91b97eca48d9099b7a58cf386f5cd5dc7b76d8dd39262d7c4d";
+    public const string ProjectSourceSha256 = "d15977e424460aafb3f46a1f68491dbb831bcd79b01bcebef0761c282bfbfcd2";
+    public const string CanonicalProjectSha256 = "2eb8e7f92c32214b11e01ab694a7df17346f7f3100a4ee184953b707887b07c7";
     // Review the selected M16-027 writable-owner sources and entry boundary.
     // Historical artifacts retain their original project and source identities.
     public const string EfiEntrySourceSha256 = "fba0ac895ab1d47b9b189b370e8c59083e3e0c4a200b77ea47f3246525dca5e4";
@@ -398,6 +398,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs|Storage\ReadOnlyWebRootFileSystem.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs|Compatibility\LinuxX64\LinuxThreadServices.Disk.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs|Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs",
         @"Boot\EfiEntry.StaticFiles.cs|",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs|Compatibility\LinuxX64\LinuxStaticFileObservation.cs",
         @"Boot\EfiEntry.LinuxWeb.cs|",

@@ -111,6 +111,29 @@ internal static class EfiCompileInventoryTests
         HostCheck.True(!EfiSourceAdmission.Inspect(source + "\n// changed timing source\n", include).Succeeded);
     }
 
+    [HostTest("EFI read timing includes its complete-verification model only in the timing profile")]
+    private static void ReadTimingSource()
+    {
+        const string include = @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs";
+        const string item = include + @"|Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs";
+        EfiProfile full = EfiOptions.Parse(["--EnableM10018FullProbe"], true).Profile();
+        EfiProfile timing = EfiOptions.Parse(["--EnableM10018TimingProbe"], true).Profile();
+        string[] additions = EfiProjectAdmission.ExpectedCompileItems(timing)
+            .Except(EfiProjectAdmission.ExpectedCompileItems(full), StringComparer.Ordinal).ToArray();
+        HostCheck.True(additions.SequenceEqual(new[] { item }, StringComparer.Ordinal));
+        foreach (EfiProfile profile in Profiles())
+            HostCheck.Equal(profile.IsEnabled("EnableM10018TimingProbe"), EfiProjectAdmission.ExpectedCompileItems(profile).Contains(item, StringComparer.Ordinal));
+        string root = HostToolProcess.FindRepositoryRoot();
+        XElement declared = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj")).Descendants("Compile")
+            .Single(element => (string?)element.Attribute("Include") == include);
+        HostCheck.Equal("'$(EnableM10018TimingProbe)' == 'true'", (string)declared.Attribute("Condition")!);
+        HostCheck.True(EfiContracts.ReviewedSourceIncludes.Contains(include, StringComparer.Ordinal));
+        HostCheck.True(EfiContracts.SourceAdmissionReasons.ContainsKey(include) && EfiContracts.SourceIdentities.ContainsKey(include));
+        string source = File.ReadAllText(Path.GetFullPath(include, Path.Combine(root, "src/OS")));
+        HostCheck.True(EfiSourceAdmission.Inspect(source, include).Succeeded);
+        HostCheck.True(!EfiSourceAdmission.Inspect(source + "\n// changed verification model\n", include).Succeeded);
+    }
+
     private static EfiProfile[] Profiles() =>
     [
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()),
@@ -133,7 +156,8 @@ internal static class EfiCompileInventoryTests
         EfiOptions.Parse(["--EnableM16027Probe"], true).Profile(),
         EfiOptions.Parse(["--EnableM16027TimingProbe"], true).Profile(),
         EfiOptions.Parse(["--EnableM10018Probe"], true).Profile(),
-        EfiOptions.Parse(["--EnableM10018FullProbe"], true).Profile()
+        EfiOptions.Parse(["--EnableM10018FullProbe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM10018TimingProbe"], true).Profile()
     ];
 
     // The project declarations are an independent oracle for the shared helper.
@@ -168,6 +192,7 @@ internal static class EfiCompileInventoryTests
             "'$(EnableM16025Probe)' == 'true'" => profile.IsEnabled("EnableM16025Probe"),
             "'$(EnableM16027Probe)' == 'true'" => profile.IsEnabled("EnableM16027Probe"),
             "'$(EnableM16027TimingProbe)' == 'true'" => profile.IsEnabled("EnableM16027TimingProbe"),
+            "'$(EnableM10018TimingProbe)' == 'true'" => profile.IsEnabled("EnableM10018TimingProbe"),
             "'$(EnableM07026Probe)' == 'true'" => profile.IsEnabled("EnableM07026Probe"),
             string condition => throw new InvalidOperationException("Unreviewed compile condition: " + condition)
         }).Select(Key).ToArray();

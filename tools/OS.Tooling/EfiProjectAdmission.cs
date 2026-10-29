@@ -181,6 +181,7 @@ public static class EfiProjectAdmission
             @"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs|Storage\ReadOnlyWebRootFileSystem.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs|Compatibility\LinuxX64\LinuxThreadServices.Disk.cs" => profile.IsEnabled("EnableM16025Probe"),
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs|Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs" => profile.IsEnabled("EnableM10018TimingProbe"),
             @"Boot\EfiEntry.StaticFiles.cs|" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs|Compatibility\LinuxX64\LinuxStaticFileObservation.cs" => profile.IsEnabled("EnableM10017Probe") || profile.IsEnabled("EnableM10018Probe"),
             @"Boot\EfiEntry.LinuxWeb.cs|" or

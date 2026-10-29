@@ -15,6 +15,7 @@ public static partial class EfiContracts
         @"Boot\EfiEntry.LinuxUserCarrier.cs",
         @"Boot\EfiEntry.WritableDisk.cs",
         @"Boot\EfiEntry.WritableDiskEvidence.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs",
         @"Boot\EfiEntry.StaticFiles.cs", @"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs",
         @"..\OS.Kernel\Manifest\LinuxAppConfiguration.cs",
         @"..\..\std\no-runtime\shared\Text\AsciiHexParser.Pointer.cs",
