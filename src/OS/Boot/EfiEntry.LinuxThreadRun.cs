@@ -622,7 +622,12 @@ public static unsafe partial class EfiEntry
         private static bool LinuxNativeSavedCode(LinuxNativeControl* c)
         {
             if (c->CodeCopy == null) return false;
-            for (uint i = 0; i < NativeProgram.Bytes; i++) if (((byte*)c->State->CooperativePool)[i] != c->CodeCopy[i]) return false;
+            // Supervisor-only: both aligned buffers remain live for the declared
+            // extent under the caller's ownership. Compare anew without writes.
+            byte* code = (byte*)c->State->CooperativePool;
+            uint i = 0, wordEnd = (uint)NativeProgram.Bytes & ~7u;
+            for (; i < wordEnd; i += 8) if (*(ulong*)(code + i) != *(ulong*)(c->CodeCopy + i)) return false;
+            for (; i < NativeProgram.Bytes; i++) if (code[i] != c->CodeCopy[i]) return false;
             return true;
         }
 
