@@ -40,7 +40,7 @@ mixed-case keys alongside its existing GC key. Generic uppercase syntax,
 does not validate numeric settings; the selected static disk envelope is checked
 against its canonical exact2/4 policy. The pinned runtime parses these values as
 hexadecimal. Four pool workers leave12 nominal slots within the existing16-thread
-capacity; this is headroom, not a proven auxiliary-thread bound. The c121 source passed its full host lane and native-retention checks, then failed its A1 at the 300-second browser deadline. Step1659 changes kernel file-chain reuse while retaining this launch policy and the original package bytes. Its new native, full-host, browser and service-cleanup qualification is pending.
+capacity; this is headroom, not a proven auxiliary-thread bound. Parent 7da passed its host/native/AFTER checks, then failed A1 at the unchanged browser deadline. Its 120 direct responses establish no Blazor readiness or natural cleanup. [Step1660](../done/step1660.md) changes the synchronous user-alias copy loop while preserving these launch entries and all package/ELF bytes. Its 94 focused checks do not replace pending native, full-host or guest qualification.
 
 ## Linux ELF package version 1
 

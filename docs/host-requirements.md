@@ -1,6 +1,8 @@
 # Host Requirements
 
-[Step1659](../done/step1659.md) adds optional immutable file-chain certificates after normal path resolution. Focused evidence totals 171 checks across eight selected fixture groups; native, unfiltered full-host and fresh guest/browser qualification for this candidate are pending. The prior c121 source retains its 7,434-check full-host pass and zero-delta native retention, while its A1 failed at the unchanged 300-second browser deadline. Preserve all failed originals and the 21 open read criteria. Finish verified read-phase merge and recovery, then pause before writes/SQLite.
+[Step1660](../done/step1660.md) changes the final synchronous Linux user-alias copy loop to resolve each touched page once. Its 94 focused checks across seven fixtures include six extracted-production behavioral tests. Current native, unfiltered full-host and guest qualification remain pending.
+
+Parent 7da retains its 7,441-check full-host pass and closed native/AFTER review. Its fresh A1 failed with `socket_orchestration_timeout`; the FIRST strict partial retains 120 wire responses without browser readiness, screenshot or natural service-cleanup acceptance. All 21 read criteria, seven original recipes and limits remain unchanged. Finish verified read merge/parity/recovery, stop helper work and pause before writes/SQLite.
 
 [Step1655](../done/step1655.md) The completed-only directory cache reshape removes in-flight reservations and helper call edges, restores the original submit/release paths and publishes only the successfully copied completion sector. It passes 99 focused checks across six fixtures with zero reuse. The preceding 90cdfc3b Full/Timing/M16 publication compiled, but its measured stack growth exceeded the inherited Timing margin; all failures and decoded facts remain preserved. Fresh native review of this reshape, including the unchanged Enable construction edge, remains required before one diagnostic Short. Assess benefit before another expensive full lane; the unfiltered full is mandatory for stable acceptance. Finish qualified read-phase merge/parity/recovery, then pause before writes/SQLite.
 
@@ -20,7 +22,7 @@ The intentional Visual Studio update installed RC3. Finish the current first-ten
 read phase with the repository's unchanged RC2 pins. A complete verified RC2 SDK is
 installed separately; leave the system RC3 installation intact:
 
-[Step1659](../done/step1659.md) retains the pinned RC2 toolchain below. The chain-reuse candidate has 171 focused checks across eight fixture groups; its new unfiltered full-host, native and original guest qualification remain pending. The prior c121 full pass and failed browser original retain their separate source and producer identities.
+The pinned .NET 11 RC2/C# 14 toolchain below is unchanged. Parent 7da passed 7,441 checks across 923 fixtures, including 110 Native-labelled fixtures, with zero reuse and closed native/AFTER retention. Its A1 failed. [Step1660](../done/step1660.md) has 94 focused checks across seven fixtures, including six Windows low-address behavioral tests. Current native, unfiltered full and guest qualification remain pending; source and producer identities stay separate.
 
 ```powershell
 $clrosDotnet = 'C:\Users\AI\.codex\toolchains\dotnet-11.0.100-rc.2.26504.105'

@@ -1933,12 +1933,22 @@ public static unsafe partial class EfiEntry
                 bool pool = physical >= state->LinuxMemoryPool && physical - state->LinuxMemoryPool < LinuxMemoryPoolPages(state) * Page;
                 if (!image && !pool) return 0;
             }
-            for (uint i = 0; i < bytes; i++)
+            // The admitted single-owner mapping stays stable for this synchronous
+            // copy. Resolve each page separately and preserve forward byte order.
+            uint copied = 0;
+            while (copied < bytes)
             {
+                ulong current = address + copied;
                 _ = X64UserAddressSpace.TryReadLeaf((ulong*)state->LinuxUserTables, state->LinuxUserTables,
-                    X64UserAddressSpace.MaximumTables, address + i, out ulong leaf);
-                byte* alias = (byte*)((leaf & 0x000ffffffffff000) + ((address + i) & 4095));
-                if (toUser) *alias = kernel[i]; else kernel[i] = *alias;
+                    X64UserAddressSpace.MaximumTables, current, out ulong leaf);
+                byte* alias = (byte*)((leaf & 0x000ffffffffff000) + (current & 4095));
+                uint chunk = (uint)(Page - (current & 4095));
+                if (chunk > bytes - copied) chunk = bytes - copied;
+                for (uint i = 0; i < chunk; i++)
+                {
+                    if (toUser) alias[i] = kernel[copied + i]; else kernel[copied + i] = alias[i];
+                }
+                copied += chunk;
             }
             return 1;
         }

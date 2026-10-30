@@ -1,6 +1,6 @@
 # CLROS Claude Agent Guide
 
-[Step1659](done/step1659.md) records optional immutable chain reuse and its focused evidence. Preserve the source-matched c121 host/native results and failed A1, all original limits and the unchanged 21 read criteria. New native/full/guest acceptance remains pending. Finish verified read merge/recovery, stop helper work and pause before writes/SQLite.
+[Step1660](done/step1660.md) records page-bounded user-alias copying and 94 focused checks. Preserve the parent 7da host/native/AFTER evidence, failed A1 and FIRST strict partial, all original limits and 21 open read criteria. Current native/full/guest acceptance remains pending. Finish accepted read closeout, verified merge/parity and recoverable cleanup, then stop helper work and pause before writes/SQLite.
 
 [Step1655](done/step1655.md) Keep completed-only cache publication after accepted Poll/Copy and cancellation handling; preserve lifetime keys, caller backing, invalidation and writable-port exclusion. Retain exact native stack facts: prior compilation success did not close the Timing stack frontier. The unchanged Enable construction edge requires explicit emitted review. The primary owns serialized builds and shared integration with one helper. Focus affected tests; close native safety before diagnostic Short, then run full for stable acceptance. Preserve failures and pause after qualified read-phase merge/recovery.
 
