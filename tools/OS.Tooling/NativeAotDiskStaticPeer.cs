@@ -213,7 +213,10 @@ public static class NativeAotDiskStaticPeer
                     // Both finite HTTP owners close before browser entry. The
                     // browser owns its own fresh cache, network and process.
                     asset.Dispose();json.Dispose();client.Dispose();
-                    await browser!(port,Path.Combine(directory,"browser"),matrix.Token);
+                    // The matrix deadline applies to HTTP qualification. Browser
+                    // startup has its own finite deadline and remains linked to
+                    // the outer owner, which cancels and joins both children.
+                    await browser!(port,Path.Combine(directory,"browser"),owned.Token);
                 }
                 complete=true;
             }

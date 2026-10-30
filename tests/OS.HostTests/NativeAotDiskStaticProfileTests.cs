@@ -119,7 +119,7 @@ internal static class NativeAotDiskStaticProfileTests
         await Reject([..parent,"--disk-read-timing","--disk-read-timing","--timeout","600"]);
         foreach(string timeout in new[]{"239","601"})await Reject([..parent,"--disk-read-timing","--timeout",timeout]);
         await Reject([..parent,"--timeout","600"]);
-        foreach(string timeout in new[]{"2200","3600"})
+        foreach(string timeout in new[]{"6600","7200"})
         {
             var run=await Run([..parent,"--timeout",timeout]);
             HostCheck.True(run.ExitCode==0 && run.StandardOutput.Contains("TEST_PASS qemu.runner.dryrun",StringComparison.Ordinal),run.StandardOutput+run.StandardError);

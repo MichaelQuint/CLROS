@@ -237,8 +237,8 @@ public static class NativeAotDiskStaticBrowser
             Need(exchanges.Any(e => Uri.UnescapeDataString(e.Target.Split('?')[0]).EndsWith(extension, StringComparison.Ordinal) && e.Bytes > 0), "required_asset " + extension);
     }
 
-    /// <summary>Run one Windows job-owned Chrome/Edge process for at most five
-    /// minutes. All artifacts must be fresh under root/artifacts. Cache and
+    /// <summary>Run one Windows job-owned Chrome/Edge process for at most one
+    /// hour. All artifacts must be fresh under root/artifacts. Cache and
     /// service-worker bypass precede navigation; bodies, raw events, DOM and PNG
     /// are retained before graceful browser close. Cancellation/failure joins
     /// the owned job and preserves partial logs/receipt before throwing.</summary>
@@ -256,9 +256,9 @@ public static class NativeAotDiskStaticBrowser
         string[] arguments = ["--headless=new", "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", "--user-data-dir=" + profile,
             "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--disable-default-apps",
             "--disable-sync", "--disable-extensions", "--disable-quic", "--disable-http2", "--disable-features=MediaRouter,OptimizationHints", "--window-size=1280,720", "about:blank"];
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation); deadline.CancelAfter(TimeSpan.FromMinutes(5));
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation); deadline.CancelAfter(TimeSpan.FromSeconds(DiskStaticCapturePolicy.BrowserTimeoutSeconds));
         using var processStop = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
-        Task<ProcessResult> process = ProcessRunner.RunAsync(new(browser, arguments, root) { Timeout = TimeSpan.FromMinutes(5), OutputCharacterLimit = 4 * 1024 * 1024 }, processStop.Token);
+        Task<ProcessResult> process = ProcessRunner.RunAsync(new(browser, arguments, root) { Timeout = TimeSpan.FromSeconds(DiskStaticCapturePolicy.BrowserTimeoutSeconds), OutputCharacterLimit = 4 * 1024 * 1024 }, processStop.Token);
         ProcessResult? joined = null; Cdp? cdp = null; Dom? dom = null; Exchange[] exchanges = []; string failure = ""; bool succeeded = false;
         using var capture = new Capture();
         try

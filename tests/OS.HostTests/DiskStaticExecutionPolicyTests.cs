@@ -44,10 +44,11 @@ internal static unsafe class DiskStaticExecutionPolicyTests
         string[] args=["-EnableM10018FullProbe","-BuildEfi","-LinuxElfPackage","artifacts/full.pkg",
             "-LinuxThreadingDisassembly","artifacts/full.dump","-WebRootFixture","DiskA","-WebRootAssets","artifacts/full-root"];
         var options=QemuSmokeOptions.Parse(args);var plan=QemuProfiles.Create(options);
-        HostCheck.True(NativeAotDiskSelection.FullStaticSelected(plan.Flags));HostCheck.Equal(3000,options.TimeoutSeconds);
+        HostCheck.True(NativeAotDiskSelection.FullStaticSelected(plan.Flags));HostCheck.Equal(7200,options.TimeoutSeconds);
+        HostCheck.Equal(3600,DiskStaticCapturePolicy.BrowserTimeoutSeconds);
         HostCheck.True(plan.IsEnabled("EnableM10018Probe") && plan.IsEnabled("EnableM16025Probe") && !plan.IsEnabled("EnableM16014Probe"));
         foreach(string[] suffix in new[]{new[]{"-EnableM10018Probe:false"},new[]{"-EnableM10017Probe"},new[]{"-EnableM16014Probe"},
-            new[]{"-TimeoutSeconds","2199"},new[]{"-TimeoutSeconds","3601"},new[]{"-LinuxDiskRaceVariant","Progress"}})
+            new[]{"-TimeoutSeconds","6599"},new[]{"-TimeoutSeconds","7201"},new[]{"-LinuxDiskRaceVariant","Progress"}})
         {
             bool denied=false;try{_=QemuProfiles.Create(QemuSmokeOptions.Parse([..args,..suffix]));}catch(ToolFailure){denied=true;}
             HostCheck.True(denied,string.Join(' ',suffix));
@@ -58,6 +59,27 @@ internal static unsafe class DiskStaticExecutionPolicyTests
         HostCheck.Equal("M10_018_FULL_PROBE",EfiContracts.ProbeSymbols["EnableM10018FullProbe"]);
         var admission=EfiProjectAdmission.InspectStatic(HostToolProcess.FindRepositoryRoot());
         HostCheck.True(admission.Succeeded,admission.Reason+" "+admission.Detail);
+    }
+
+    [HostTest("disk full timeout boundaries retain finite shutdown and parent cancellation")]
+    private static void TimeoutBoundaries()
+    {
+        foreach(int seconds in new[]{6600,7200})
+        {
+            var options=QemuSmokeOptions.Parse(["-EnableM10018FullProbe","-BuildEfi","-LinuxElfPackage","artifacts/full.pkg",
+                "-LinuxThreadingDisassembly","artifacts/full.dump","-WebRootFixture","DiskA","-WebRootAssets","artifacts/full-root",
+                "-TimeoutSeconds",seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+            _=QemuProfiles.Create(options);HostCheck.Equal(seconds,options.TimeoutSeconds);
+        }
+        HostCheck.Equal(6_000_000_000_000UL,DiskStaticExecutionPolicy.RequestDelayNanoseconds);
+        HostCheck.Equal(120_000_000_000UL,DiskStaticExecutionPolicy.GraceNanoseconds);
+        HostCheck.True(DiskStaticExecutionPolicy.RuntimeNanoseconds>DiskStaticExecutionPolicy.RequestDelayNanoseconds+DiskStaticExecutionPolicy.GraceNanoseconds);
+        string root=HostToolProcess.FindRepositoryRoot();
+        string source=File.ReadAllText(Path.Combine(root,"tools/OS.Tooling/NativeAotDiskStaticPeer.cs"));
+        string normalized=string.Concat(source.Where(c=>!char.IsWhiteSpace(c)));
+        HostCheck.True(normalized.Contains("awaitbrowser!(port,Path.Combine(directory,\"browser\"),owned.Token);",StringComparison.Ordinal));
+        HostCheck.True(normalized.Contains("matrix.CancelAfter(TimeSpan.FromSeconds(full?1700:DiskStaticHttpContract.MatrixTimeoutSeconds));",StringComparison.Ordinal));
+        HostCheck.True(normalized.Contains("owned.Cancel();if(peerisnotnull)try{awaitpeer;}catch{}",StringComparison.Ordinal));
     }
 
     [HostTest("disk full retains elapsed ceiling and disallows service quota renewal")]
