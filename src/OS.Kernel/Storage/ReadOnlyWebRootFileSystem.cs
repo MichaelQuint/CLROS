@@ -75,7 +75,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
     private struct ImmutableDirectoryRecord
     {
         internal ulong MountOwner, MountEpoch, DeviceEpoch, PoolEpoch, Lba;
-        internal ulong Phase; // Working never hits; ReadyPhase publishes last.
+        internal ulong Phase; // Free until completed copy; ReadyPhase publishes last.
     }
 
     /// <summary>Caller-owned handle slot and immutable checked cluster map.
@@ -609,9 +609,20 @@ public static unsafe class ReadOnlyWebRootFileSystem
             lba < m->Input.PartitionFirst || lba > m->Input.PartitionLast ||
             sectors - 1 > m->Input.PartitionLast - lba) return Fail(m, o, Status.CorruptFile);
         if (m->IoActive) return Status.Busy;
-        bool directoryCache = m->ImmutableDirectoryCacheBacking != null && action == DirectoryIo &&
-            m->Phase == Mounted && o->Kind != MountKind;
-        if (directoryCache && HitImmutableDirectoryCache(m, o, lba)) return Status.Pending;
+        if (m->ImmutableDirectoryCacheBacking != null && action == DirectoryIo &&
+            m->Phase == Mounted && o->Kind != MountKind)
+        {
+            for (uint i = 0; i < m->ImmutableDirectoryCacheSlots; i++)
+            {
+                var record = (ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking + i;
+                if (record->Phase != ReadyPhase || record->MountOwner != (ulong)m ||
+                    record->MountEpoch != m->Input.Epoch || record->DeviceEpoch != m->DeviceEpoch ||
+                    record->PoolEpoch != m->PoolEpoch || record->Lba != lba) continue;
+                byte* data = m->ImmutableDirectoryCacheBacking + m->ImmutableDirectoryCacheSlots * 48 + i * 512;
+                for (uint n = 0; n < 512; n++) o->Storage.Sector[n] = data[n];
+                o->Cursor.SectorReady = true; o->Cursor.EntryInSector = 0; return Status.Pending;
+            }
+        }
 #if !NOSTDLIB_EFI || M16_027_PROBE
         if (m->ReadPort != null)
         {
@@ -625,10 +636,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
         var status = Block.Submit(m->Input.Device, lba, sectors, &token);
         if (status == Block.Status.Busy) return Status.Busy;
         if (status != Block.Status.Success) return Fail(m, o, DeviceFault(m));
-        m->IoToken = token;
-        Status queued = Submitted(m, o, action, sectors);
-        if (directoryCache) ReserveImmutableDirectoryCache(m, lba);
-        return queued;
+        m->IoToken = token; return Submitted(m, o, action, sectors);
     }
 
     private static Status Submitted(Mount* m, Operation* o, byte action, uint sectors = 1)
@@ -644,6 +652,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
         byte action = (byte)(o->Waiting & 15);
         uint sectors = (uint)(o->Waiting >> 4) + 1, requestedBytes = sectors * 512;
         bool direct = sectors > 1;
+        ulong actualRequestSector = 0;
         if (sectors > 4 || direct && (action != DataIo || o->Filled > o->Wanted ||
             requestedBytes > o->Wanted - o->Filled || o->Wanted > o->Storage.RangeCapacity ||
             ((o->Offset + o->Filled) & 511) != 0)) return Fail(m, o, Status.InvalidState);
@@ -670,6 +679,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (Block.Copy(m->Input.Device, m->IoToken,
             new Span<byte>(direct ? o->Storage.Range + o->Filled : o->Storage.Sector, (int)requestedBytes)) != Block.Status.Success)
             return Fail(m, o, DeviceFault(m));
+        actualRequestSector = completion.Sector;
         }
         m->IoActive = false; o->Waiting = 0;
         if (o->Phase == Cancelling) { Release(m, o); return Status.Cancelled; }
@@ -683,7 +693,21 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (action == DirectoryIo)
         {
             if (m->ImmutableDirectoryCacheBacking != null && m->Phase == Mounted && o->Kind != MountKind)
-                PublishImmutableDirectoryCache(m, o);
+            {
+                // The sole physical request has completed and its accepted copy
+                // belongs to this operation. No cache record exists in flight.
+                for (uint i = 0; i < m->ImmutableDirectoryCacheSlots; i++)
+                {
+                    var record = (ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking + i;
+                    if (record->Phase != Free) continue;
+                    record->MountOwner = (ulong)m; record->MountEpoch = m->Input.Epoch;
+                    record->DeviceEpoch = m->DeviceEpoch; record->PoolEpoch = m->PoolEpoch;
+                    record->Lba = actualRequestSector;
+                    byte* data = m->ImmutableDirectoryCacheBacking + m->ImmutableDirectoryCacheSlots * 48 + i * 512;
+                    for (uint n = 0; n < 512; n++) data[n] = o->Storage.Sector[n];
+                    record->Phase = ReadyPhase; break;
+                }
+            }
             o->Cursor.SectorReady = true; o->Cursor.EntryInSector = 0; return Status.Pending;
         }
         if (action == Fat0Io)
@@ -1056,9 +1080,6 @@ public static unsafe class ReadOnlyWebRootFileSystem
     }
     private static void Release(Mount* m, Operation* o)
     {
-        if (m->ImmutableDirectoryCacheBacking != null && (!m->IoActive ||
-            m->IoIndex == o->Index && m->IoGeneration == o->Generation))
-            DiscardImmutableDirectoryCacheFill(m);
         for (uint i = 0; i < m->Input.CacheCount; i++)
         {
             CacheSlot* c = m->Input.Cache + i;
@@ -1083,61 +1104,6 @@ public static unsafe class ReadOnlyWebRootFileSystem
                 ((ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking)[i].Phase = Free;
     }
 
-    private static bool ImmutableDirectoryKey(Mount* m, ImmutableDirectoryRecord* record) =>
-        record->MountOwner == (ulong)m && record->MountEpoch == m->Input.Epoch &&
-        record->DeviceEpoch == m->DeviceEpoch && record->PoolEpoch == m->PoolEpoch;
-
-    private static byte* ImmutableDirectoryData(Mount* m, uint slot) =>
-        m->ImmutableDirectoryCacheBacking + m->ImmutableDirectoryCacheSlots * 48 + slot * 512;
-
-    private static bool HitImmutableDirectoryCache(Mount* m, Operation* o, ulong lba)
-    {
-        for (uint i = 0; i < m->ImmutableDirectoryCacheSlots; i++)
-        {
-            var record = (ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking + i;
-            if (record->Phase != ReadyPhase || !ImmutableDirectoryKey(m, record) || record->Lba != lba) continue;
-            byte* data = ImmutableDirectoryData(m, i);
-            for (uint n = 0; n < 512; n++) o->Storage.Sector[n] = data[n];
-            o->Cursor.SectorReady = true; o->Cursor.EntryInSector = 0; return true;
-        }
-        return false;
-    }
-
-    private static void ReserveImmutableDirectoryCache(Mount* m, ulong lba)
-    {
-        // Exactly one mount I/O is active. Its existing operation generation
-        // link owns the sole Working record until copy, cancellation or fault.
-        for (uint i = 0; i < m->ImmutableDirectoryCacheSlots; i++)
-        {
-            var record = (ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking + i;
-            if (record->Phase != Free) continue;
-            record->MountOwner = (ulong)m; record->MountEpoch = m->Input.Epoch;
-            record->DeviceEpoch = m->DeviceEpoch; record->PoolEpoch = m->PoolEpoch; record->Lba = lba;
-            record->Phase = Working; return;
-        }
-    }
-
-    private static void PublishImmutableDirectoryCache(Mount* m, Operation* o)
-    {
-        for (uint i = 0; i < m->ImmutableDirectoryCacheSlots; i++)
-        {
-            var record = (ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking + i;
-            if (record->Phase != Working) continue;
-            if (!ImmutableDirectoryKey(m, record)) { record->Phase = Free; return; }
-            byte* data = ImmutableDirectoryData(m, i);
-            for (uint n = 0; n < 512; n++) data[n] = o->Storage.Sector[n];
-            record->Phase = ReadyPhase; return;
-        }
-    }
-
-    private static void DiscardImmutableDirectoryCacheFill(Mount* m)
-    {
-        for (uint i = 0; i < m->ImmutableDirectoryCacheSlots; i++)
-        {
-            var record = (ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking + i;
-            if (record->Phase == Working) record->Phase = Free;
-        }
-    }
     private static Status Map(LiveFat32Status status) => status switch
     {
         LiveFat32Status.UnsupportedGeometry => Status.UnsupportedGeometry,
@@ -1274,6 +1240,8 @@ public static unsafe class ReadOnlyWebRootFileSystem
     {
         uint n = 0;
         all[n++] = new() { Start = (ulong)m, Bytes = (ulong)sizeof(Mount) };
+        if (m->ImmutableDirectoryCacheBacking != null)
+            all[n++] = new() { Start = (ulong)m->ImmutableDirectoryCacheBacking, Bytes = ImmutableDirectoryCacheBytes(m->ImmutableDirectoryCacheSlots) };
         all[n++] = new() { Start = (ulong)a.Operations, Bytes = a.OperationCount * (ulong)sizeof(Operation) };
         all[n++] = new() { Start = (ulong)a.Files, Bytes = a.FileCount * (ulong)sizeof(FileHandle) };
         all[n++] = new() { Start = (ulong)a.Cache, Bytes = a.CacheCount * (ulong)sizeof(CacheSlot) };
@@ -1286,8 +1254,6 @@ public static unsafe class ReadOnlyWebRootFileSystem
         }
         for (uint i = 0; i < a.FileCount; i++) all[n++] = new() { Start = (ulong)a.Files[i].Clusters, Bytes = a.Files[i].ClusterCapacity * 4UL };
         for (uint i = 0; i < a.CacheCount; i++) all[n++] = new() { Start = (ulong)a.Cache[i].Data, Bytes = 512 };
-        if (m->ImmutableDirectoryCacheBacking != null)
-            all[n++] = new() { Start = (ulong)m->ImmutableDirectoryCacheBacking, Bytes = ImmutableDirectoryCacheBytes(m->ImmutableDirectoryCacheSlots) };
         return n;
     }
     private static bool Admit(Mount* m, in Admission a)

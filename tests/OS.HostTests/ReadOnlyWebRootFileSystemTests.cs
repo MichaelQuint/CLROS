@@ -78,14 +78,15 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
             using var f = new Fixture(directoryCacheSlots: 5, observation: new() { Context = &sink, Observe = &ObserveSector });
             sink.Device = f.Device; new Span<byte>(f.DirectoryCacheBacking, 2800).Fill(0xa5); f.MountReady();
             var token = BeginLookup(f, "/app/wwwroot/index.html"); HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token));
-            HostCheck.Equal(1, DirectoryCachePhases(f, 1)); HostCheck.Equal(0, DirectoryCachePhases(f, 2));
+            HostCheck.Equal(0, DirectoryCachePhases(f, 1)); HostCheck.Equal(5, DirectoryCachePhases(f, 0)); HostCheck.Equal(0, DirectoryCachePhases(f, 2));
             sink.CacheBacking = f.DirectoryCacheBacking; sink.CacheSlots = 5; sink.CheckDirectoryCache = true; sink.Reject = rejected != 0;
             ulong before = f.Device->Copied; f.Tick(); Fs.Status status = Fs.Poll(f.Mount, token);
             HostCheck.True(sink.CheckedDirectoryCache && !sink.Bad);
             if (rejected == 0)
             {
                 HostCheck.Equal(Fs.Status.Pending, status); HostCheck.Equal(before + 1, f.Device->Copied);
-                HostCheck.Equal(1, DirectoryCachePhases(f, 2));
+                HostCheck.Equal(1, DirectoryCachePhases(f, 2)); HostCheck.Equal(0, DirectoryCachePhases(f, 1));
+                HostCheck.Equal(sink.Candidate.Sector, *(ulong*)(f.DirectoryCacheBacking + 32));
                 HostCheck.True(new ReadOnlySpan<byte>(f.DirectoryCacheBacking + 5 * 48, 512).SequenceEqual(f.Disk.Sector(f.Disk.Data(4))));
                 HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token));
             }
@@ -149,8 +150,8 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         {
             new Span<byte>(f.DirectoryCacheBacking, 2800).Fill(0xa5); f.MountReady();
             var token = BeginLookup(f, "/app/wwwroot/index.html"); var other = BeginLookup(f, "/app/wwwroot/empty.bin");
-            HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token)); HostCheck.Equal(1, DirectoryCachePhases(f, 1));
-            HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, other)); HostCheck.Equal(1, DirectoryCachePhases(f, 1));
+            HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token)); HostCheck.Equal(0, DirectoryCachePhases(f, 1)); HostCheck.Equal(5, DirectoryCachePhases(f, 0));
+            HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, other)); HostCheck.Equal(0, DirectoryCachePhases(f, 1)); HostCheck.Equal(5, DirectoryCachePhases(f, 0));
             HostCheck.Equal(Fs.Status.Pending, Fs.Cancel(f.Mount, token)); HostCheck.Equal(Fs.Status.Cancelled, f.Drive(token));
             HostCheck.Equal(1UL, f.Device->Cancelled);
             HostCheck.Equal(0, DirectoryCachePhases(f, 1)); HostCheck.Equal(0, DirectoryCachePhases(f, 2));
@@ -1171,7 +1172,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
             if (sink->CheckDirectoryCache)
             {
                 sink->CheckedDirectoryCache = true;
-                for (uint i = 0; i < sink->CacheSlots; i++) sink->Bad |= *(ulong*)(sink->CacheBacking + i * 48 + 40) == 2;
+                for (uint i = 0; i < sink->CacheSlots; i++) sink->Bad |= *(ulong*)(sink->CacheBacking + i * 48 + 40) != 0;
                 sink->Bad |= new ReadOnlySpan<byte>(sink->CacheBacking + sink->CacheSlots * 48,
                     (int)(sink->CacheSlots * 512)).IndexOfAnyExcept((byte)0xa5) >= 0;
             }
