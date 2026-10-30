@@ -72,6 +72,19 @@ public static unsafe class LinuxAppConfiguration
     public static bool IsGcHeapHardLimitKey(byte* key, uint length) =>
         AsciiPointerMatcher.Matches(key, length, 22, 0x475F54454E544F44, 0x7261487061654843, 0x74696D694C64);
 
+    /// <summary>Recognize only the pinned NativeAOT runtime's exact worker-pool
+    /// minimum and maximum environment keys. Borrow the complete readable key
+    /// synchronously; invalid pointers, lengths and other spellings return false.
+    /// Recognition admits a name, not its numeric value, effective runtime policy
+    /// or sufficient capacity for auxiliary threads.</summary>
+    public static bool IsThreadPoolWorkerLimitKey(byte* key, uint length)
+    {
+        if (length != 39 || key == null || (ulong)key > ulong.MaxValue - length) return false;
+        return AsciiPointerMatcher.Matches(key, 18, 18, 0x545F54454E544F44, 0x6F6F506461657268, 0x5F6C) &&
+            (AsciiPointerMatcher.Matches(key + 18, 21, 21, 0x6E694D6563726F46, 0x685472656B726F57, 0x7364616572) ||
+             AsciiPointerMatcher.Matches(key + 18, 21, 21, 0x78614D6563726F46, 0x685472656B726F57, 0x7364616572));
+    }
+
     /// <summary>Read the sole absolute hexadecimal GC setting and prove
     /// GC+native reserve fits the actual page pool and pool+static reservations
     /// fit the manifest entitlement. Require page-aligned reservations and a

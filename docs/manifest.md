@@ -25,6 +25,24 @@ qualified in [step1199](../done/step1199.md) for immutable data staging only.
 Existing OSAPPv0/native and hosted package formats below
 must not be silently reinterpreted as stock Linux NativeAOT executables.
 
+The disk static-file deployment candidate in [Step1658](../done/step1658.md)
+uses the pinned NativeAOT portable thread pool with these exact launch entries:
+
+```text
+env.DOTNET_ThreadPool_ForceMinWorkerThreads=2
+env.DOTNET_ThreadPool_ForceMaxWorkerThreads=4
+```
+
+Only the disk envelope adds these entries; the accepted staged envelope and
+application ELF remain unchanged. The Linux ELF parser admits these two exact
+mixed-case keys alongside its existing GC key. Generic uppercase syntax,
+64-byte keys,256-byte values and16-entry bounds remain unchanged. Key recognition
+does not validate numeric settings; the selected static disk envelope is checked
+against its canonical exact2/4 policy. The pinned runtime parses these values as
+hexadecimal. Four pool workers leave12 nominal slots within the existing16-thread
+capacity; this is headroom, not a proven auxiliary-thread bound. Complete guest
+thread, browser and cleanup evidence must qualify the candidate.
+
 ## Linux ELF package version 1
 
 `NativeManifestParser.ParseLinuxElf` is an explicit entry point; `Parse` remains
