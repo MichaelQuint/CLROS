@@ -637,14 +637,14 @@ public static unsafe class ReadOnlyWebRootFileSystem
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static ulong TryCopyImmutableDirectorySector(Mount* m, Operation* o, ulong lba)
     {
+        uint remaining = m->ImmutableDirectoryCacheSlots;
         var record = (ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking;
-        for (uint remaining = m->ImmutableDirectoryCacheSlots; remaining != 0; remaining--, record++)
+        byte* data = (byte*)(record + remaining);
+        for (; remaining != 0; remaining--, record++, data += 512)
         {
             if (record->Phase != ReadyPhase || record->MountOwner != (ulong)m ||
                 record->MountEpoch != m->Input.Epoch || record->DeviceEpoch != m->DeviceEpoch ||
                 record->PoolEpoch != m->PoolEpoch || record->Lba != lba) continue;
-            byte* data = m->ImmutableDirectoryCacheBacking + m->ImmutableDirectoryCacheSlots * 48 +
-                (m->ImmutableDirectoryCacheSlots - remaining) * 512;
             for (uint n = 0; n < 512; n++) o->Storage.Sector[n] = data[n];
             o->Cursor.SectorReady = true; o->Cursor.EntryInSector = 0; return 0;
         }
