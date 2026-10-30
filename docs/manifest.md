@@ -40,7 +40,9 @@ mixed-case keys alongside its existing GC key. Generic uppercase syntax,
 does not validate numeric settings; the selected static disk envelope is checked
 against its canonical exact2/4 policy. The pinned runtime parses these values as
 hexadecimal. Four pool workers leave12 nominal slots within the existing16-thread
-capacity; this is headroom, not a proven auxiliary-thread bound. Parent 7da passed its host/native/AFTER checks, then failed A1 at the unchanged browser deadline. Its 120 direct responses establish no Blazor readiness or natural cleanup. [Step1660](../done/step1660.md) changes the synchronous user-alias copy loop while preserving these launch entries and all package/ELF bytes. Its 94 focused checks do not replace pending native, full-host or guest qualification.
+capacity; this is headroom, not a proven auxiliary-thread bound. [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
+
+Source a7ed completed three native publications, conditional own-profile layout/ABI/stack review and all 58 inherited stack witnesses. Its fresh full failed in the M04 reviewed-source check before Native execution; preserve that complete failed run. This pin repair requires a new committed source, publication/input binding and fresh unfiltered full before guest activation. Parent 7da retains its separate full/native/AFTER pass and failed A1. All 21 read criteria, seven original recipes, package/ELF bytes and limits remain unchanged. Complete verified read merge/parity/recovery, stop helper work and pause before writes/SQLite.
 
 ## Linux ELF package version 1
 
