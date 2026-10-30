@@ -319,6 +319,51 @@ internal static unsafe class LinuxDiskDescriptorServicesTests
         HostCheck.True(Fds.Audit(o.Files.State));
     }
 
+    [HostTest("linux.disk retained extents protect immutable chain certificates and preserve metadata plus fresh reads")]
+    private static void ImmutableFileChainBacking()
+    {
+        var storage = new ReadOnlyWebRootFileSystemTests.Fixture(slots: 8, directoryCacheSlots: 5, chainCacheSlots: 2);
+        storage.MountReady();
+        using Owner o = new(attach: false, storage: storage);
+        uint bytes = Fs.ImmutableFileChainCacheBytes(storage.ChainCacheSlots);
+        HostCheck.Equal(112U, bytes); HostCheck.Equal(78U, Fds.DiskExtentCount);
+        byte[] before = new ReadOnlySpan<byte>(storage.ChainCacheBacking, (int)bytes).ToArray();
+        var invalid = o.Admission;
+        invalid.Bindings = (Fds.DiskBinding*)storage.ChainCacheBacking;
+        HostCheck.True(!Fds.AttachDisk(o.Files.State, o.Disk, invalid));
+        invalid = o.Admission;
+        invalid.Requests = (Fds.DiskRequest*)(storage.ChainCacheBacking + bytes - 8);
+        HostCheck.True(!Fds.AttachDisk(o.Files.State, o.Disk, invalid));
+        HostCheck.True(new ReadOnlySpan<byte>(storage.ChainCacheBacking, (int)bytes).SequenceEqual(before));
+        HostCheck.True(Fds.AttachDisk(o.Files.State, o.Disk, o.Admission));
+        uint matches = 0;
+        for (uint i = 0; i < Fds.DiskExtentCount; i++)
+        {
+            Fds.DiskExtentAt(o.Files.State, i, out ulong start, out ulong length);
+            if (start != (ulong)storage.ChainCacheBacking) continue;
+            HostCheck.Equal((ulong)bytes, length); matches++;
+        }
+        HostCheck.Equal(1U, matches);
+
+        o.PutPath("/app/wwwroot/index.html");
+        HostCheck.Equal(0L, o.Run(o.Call(4, Path, Output)));
+        ulong inode = o.Thread.Read64(Output + 8), modified = o.Thread.Read64(Output + 88);
+        HostCheck.Equal(0L, o.Run(o.Call(6, Path, Output)));
+        HostCheck.Equal(inode, o.Thread.Read64(Output + 8));
+        HostCheck.Equal(modified, o.Thread.Read64(Output + 88));
+        o.PutPath("/app/wwwroot/index.html/");
+        HostCheck.Equal(-20L, o.Run(o.Call(4, Path, Output)));
+        for (int repeat = 0; repeat < 2; repeat++)
+        {
+            uint fd = o.Open();
+            ulong reads = storage.Mount->SectorReads;
+            HostCheck.Equal(32L, o.Run(o.Call(0, fd, Output, 32)));
+            HostCheck.True(storage.Mount->SectorReads > reads, "chain certificate never supplies file data");
+            HostCheck.Equal(0L, o.Core(3, fd));
+        }
+        HostCheck.True(Fds.Audit(o.Files.State));
+    }
+
     [HostTest("linux.disk stat lstat fstat retain FAT inode mtime and checked block allocation")]
     private static void Metadata()
     {

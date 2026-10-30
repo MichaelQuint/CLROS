@@ -1,6 +1,6 @@
 # CLROS Claude Agent Guide
 
-[Step1658](done/step1658.md) Retain the source-matched full pass and failed FullA1 at their original boundaries. Preserve the exact disk-only NativeAOT worker min2/max4 candidate, total16 capacity, server ELF and accepted staged envelope. Focused21/4 passes; native and full guest qualification remain pending. Preserve the first partial-reader refusal and finish verified read merge/recovery before the human pause boundary.
+[Step1659](done/step1659.md) records optional immutable chain reuse and its focused evidence. Preserve the source-matched c121 host/native results and failed A1, all original limits and the unchanged 21 read criteria. New native/full/guest acceptance remains pending. Finish verified read merge/recovery, stop helper work and pause before writes/SQLite.
 
 [Step1655](done/step1655.md) Keep completed-only cache publication after accepted Poll/Copy and cancellation handling; preserve lifetime keys, caller backing, invalidation and writable-port exclusion. Retain exact native stack facts: prior compilation success did not close the Timing stack frontier. The unchanged Enable construction edge requires explicit emitted review. The primary owns serialized builds and shared integration with one helper. Focus affected tests; close native safety before diagnostic Short, then run full for stable acceptance. Preserve failures and pause after qualified read-phase merge/recovery.
 
@@ -144,18 +144,16 @@ revert user or other-agent changes.
 Repository:
 
 ```text
-http://localhost:3000/admin/CLROS
+http://192.168.4.35:3000/admin/CLROS
 ```
 
 API base:
 
 ```text
-http://localhost:3000/api/v1/repos/admin/CLROS
+http://192.168.4.35:3000/api/v1/repos/admin/CLROS
 ```
 
-These loopback addresses identify the source development machine's Gitea.
-Follow `docs/windows-handoff.md` on another machine; its localhost may host a
-different server. Existing local REST helpers enforce the source endpoint.
+These are the canonical LAN repository9 endpoints. Verify server/repository identity before reconciliation. This host's loopback service is different; use the current compiled backlog tool and [Windows handoff](docs/windows-handoff.md). Preserve historical source-host URLs only as historical references.
 
 Use Basic Auth only from the active task context or secure environment. Do not
 store credentials in this file or any issue body.

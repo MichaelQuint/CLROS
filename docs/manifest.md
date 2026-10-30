@@ -25,7 +25,7 @@ qualified in [step1199](../done/step1199.md) for immutable data staging only.
 Existing OSAPPv0/native and hosted package formats below
 must not be silently reinterpreted as stock Linux NativeAOT executables.
 
-The disk static-file deployment candidate in [Step1658](../done/step1658.md)
+The disk static-file deployment candidate in [Step1659](../done/step1659.md)
 uses the pinned NativeAOT portable thread pool with these exact launch entries:
 
 ```text
@@ -40,8 +40,7 @@ mixed-case keys alongside its existing GC key. Generic uppercase syntax,
 does not validate numeric settings; the selected static disk envelope is checked
 against its canonical exact2/4 policy. The pinned runtime parses these values as
 hexadecimal. Four pool workers leave12 nominal slots within the existing16-thread
-capacity; this is headroom, not a proven auxiliary-thread bound. Complete guest
-thread, browser and cleanup evidence must qualify the candidate.
+capacity; this is headroom, not a proven auxiliary-thread bound. The c121 source passed its full host lane and native-retention checks, then failed its A1 at the 300-second browser deadline. Step1659 changes kernel file-chain reuse while retaining this launch policy and the original package bytes. Its new native, full-host, browser and service-cleanup qualification is pending.
 
 ## Linux ELF package version 1
 

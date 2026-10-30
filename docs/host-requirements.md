@@ -1,6 +1,6 @@
 # Host Requirements
 
-[Step1658](../done/step1658.md) At frozen source `4ec5693d`, the required unfiltered host lane passes 7,429 checks across 922 fixtures (110 Native), with zero reuse. Its first cache-enabled FullA1 reaches the browser, then fails after thread creation returns EAGAIN at the existing 16-thread capacity. A disk-only worker minimum 2/maximum 4 deployment candidate passes 21 focused checks across four fixtures; the server ELF and accepted staged envelope are unchanged. New native and complete guest/browser/cleanup qualification remain pending. Preserve failed originals and historical regression scopes. Finish verified read-phase merge/parity/recovery, then pause before writes/SQLite.
+[Step1659](../done/step1659.md) adds optional immutable file-chain certificates after normal path resolution. Focused evidence totals 171 checks across eight selected fixture groups; native, unfiltered full-host and fresh guest/browser qualification for this candidate are pending. The prior c121 source retains its 7,434-check full-host pass and zero-delta native retention, while its A1 failed at the unchanged 300-second browser deadline. Preserve all failed originals and the 21 open read criteria. Finish verified read-phase merge and recovery, then pause before writes/SQLite.
 
 [Step1655](../done/step1655.md) The completed-only directory cache reshape removes in-flight reservations and helper call edges, restores the original submit/release paths and publishes only the successfully copied completion sector. It passes 99 focused checks across six fixtures with zero reuse. The preceding 90cdfc3b Full/Timing/M16 publication compiled, but its measured stack growth exceeded the inherited Timing margin; all failures and decoded facts remain preserved. Fresh native review of this reshape, including the unchanged Enable construction edge, remains required before one diagnostic Short. Assess benefit before another expensive full lane; the unfiltered full is mandatory for stable acceptance. Finish qualified read-phase merge/parity/recovery, then pause before writes/SQLite.
 
@@ -20,7 +20,7 @@ The intentional Visual Studio update installed RC3. Finish the current first-ten
 read phase with the repository's unchanged RC2 pins. A complete verified RC2 SDK is
 installed separately; leave the system RC3 installation intact:
 
-[Step1658](../done/step1658.md) records the4ec unfiltered7,429-check host result and zero-delta AFTER retention. The later disk worker-policy candidate has focused21/4 coverage; its current native/full guest result remains pending. These results preserve the RC2 selection below.
+[Step1659](../done/step1659.md) retains the pinned RC2 toolchain below. The chain-reuse candidate has 171 focused checks across eight fixture groups; its new unfiltered full-host, native and original guest qualification remain pending. The prior c121 full pass and failed browser original retain their separate source and producer identities.
 
 ```powershell
 $clrosDotnet = 'C:\Users\AI\.codex\toolchains\dotnet-11.0.100-rc.2.26504.105'

@@ -124,7 +124,7 @@ children, with its #68 prerequisite checked. Use the verified source Gitea at
 
 The canonical backlog taxonomy and desired issue state are version-controlled in
 `.gitea/backlog/clros-issues.json`. The local Gitea repository at
-`http://localhost:3000/admin/CLROS` is synchronized additively by
+`http://192.168.4.35:3000/admin/CLROS` is synchronized additively by
 `dotnet run --project tools/OS.Tooling -- backlog sync`.
 
 The 2026-07-25 reconstruction initially created 68 managed labels, 16

@@ -1,6 +1,6 @@
 # Repository Audit
 
-[Step1658](../done/step1658.md) At frozen source `4ec5693d`, the required unfiltered host lane passes 7,429 checks across 922 fixtures (110 Native), with zero reuse. Its first cache-enabled FullA1 reaches the browser, then fails after thread creation returns EAGAIN at the existing 16-thread capacity. A disk-only worker minimum 2/maximum 4 deployment candidate passes 21 focused checks across four fixtures; the server ELF and accepted staged envelope are unchanged. New native and complete guest/browser/cleanup qualification remain pending. Preserve failed originals and historical regression scopes. Finish verified read-phase merge/parity/recovery, then pause before writes/SQLite.
+[Step1659](../done/step1659.md) adds optional immutable file-chain certificates after normal path resolution. Focused evidence totals 171 checks across eight selected fixture groups; native, unfiltered full-host and fresh guest/browser qualification for this candidate are pending. The prior c121 source retains its 7,434-check full-host pass and zero-delta native retention, while its A1 failed at the unchanged 300-second browser deadline. Preserve all failed originals and the 21 open read criteria. Finish verified read-phase merge and recovery, then pause before writes/SQLite.
 
 [Step1655](../done/step1655.md) The completed-only directory cache reshape removes in-flight reservations and helper call edges, restores the original submit/release paths and publishes only the successfully copied completion sector. It passes 99 focused checks across six fixtures with zero reuse. The preceding 90cdfc3b Full/Timing/M16 publication compiled, but its measured stack growth exceeded the inherited Timing margin; all failures and decoded facts remain preserved. Fresh native review of this reshape, including the unchanged Enable construction edge, remains required before one diagnostic Short. Assess benefit before another expensive full lane; the unfiltered full is mandatory for stable acceptance. Finish qualified read-phase merge/parity/recovery, then pause before writes/SQLite.
 
@@ -586,7 +586,7 @@ and the reachable local Gitea tracker:
 
 - `.gitea/backlog/clros-issues.json` is the version-controlled intent ledger.
 - `OS.Tooling backlog sync` previews by default and requires `--apply`
-  before it can mutate `http://localhost:3000/admin/CLROS`.
+  before it can mutate `http://192.168.4.35:3000/admin/CLROS`.
 - The original applied tracker contained 16 open milestones, 68 managed
   labels, 16 milestone epics, and 303 child issues. M00-023 extended both the
   canonical manifest and live tracker to 315 children and 331 keyed issues by

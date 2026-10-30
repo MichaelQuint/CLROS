@@ -21,6 +21,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
     public const uint PathBytes = 256, MaximumRangeBytes = 65536, MaximumClusters = 4096;
     public const uint MaximumSlots = 8, MaximumCacheSlots = 8;
     public const uint MaximumImmutableDirectoryCacheSlots = 5;
+    public const uint MaximumImmutableFileChainCacheSlots = 2;
     /// <summary>Maximum cached cluster visits in one selected open-chain turn.
     /// Each visit may scan at most4096 prior clusters. Stop at the first real
     /// I/O transition; this never polls a newly submitted device request.</summary>
@@ -76,6 +77,16 @@ public static unsafe class ReadOnlyWebRootFileSystem
     {
         internal ulong MountOwner, MountEpoch, DeviceEpoch, PoolEpoch, Lba;
         internal ulong Phase; // Free until completed copy; ReadyPhase publishes last.
+    }
+
+    // Explicit positive authority over an admitted map, independent of the
+    // public handle slot. Any map overwrite revokes every certificate naming it.
+    private struct FileChainCertificate
+    {
+        internal ulong Epoch;
+        internal Metadata Info;
+        internal uint* Clusters;
+        internal uint Count, Phase;
     }
 
     /// <summary>Caller-owned handle slot and immutable checked cluster map.
@@ -172,6 +183,8 @@ public static unsafe class ReadOnlyWebRootFileSystem
         internal ulong Reads, Hits, Misses;
         internal byte* ImmutableDirectoryCacheBacking;
         internal uint ImmutableDirectoryCacheSlots;
+        internal byte* ImmutableFileChainCacheBacking;
+        internal uint ImmutableFileChainCacheSlots;
 #if !NOSTDLIB_EFI || M16_027_PROBE
         internal Port.State* ReadPort;
         internal Port.Inspection PortBinding;
@@ -281,6 +294,38 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (!External(m, (ulong)backing, bytes, 8)) return Status.InvalidStorage;
         for (uint i = 0; i < slots; i++) ((ImmutableDirectoryRecord*)backing)[i] = default;
         m->ImmutableDirectoryCacheBacking = backing; m->ImmutableDirectoryCacheSlots = slots;
+        return Status.Success;
+    }
+
+    /// <summary>Exact ordinary-RAM certificate backing for1..2 successful file
+    /// chains. Map data remains in the existing admitted handle arrays. Zero
+    /// means an unsupported count or record size; no memory is accessed.</summary>
+    public static uint ImmutableFileChainCacheBytes(uint slots) =>
+        slots is 0 or > MaximumImmutableFileChainCacheSlots || sizeof(FileChainCertificate) != 56 ? 0 : slots * 56;
+
+    /// <summary>Opt in to positive regular-file chain reuse on immutable media.
+    /// Call once after Start before any mount I/O. The aligned disjoint backing,
+    /// mount, volume, device/pool lifetime and every admitted map array remain
+    /// exclusive/stable until Stop. Closed maps are retained only by explicit
+    /// certificates and revoked before overwrite; closed bytes alone confer no
+    /// authority. Path resolution still runs and file data is always read fresh.
+    /// Borrowed writable ports are unsupported. Hits cannot observe hypothetical
+    /// suppressed-read faults or external mutations violating this contract.
+    /// Invalid configuration changes nothing and performs no I/O or allocation.</summary>
+    public static Status EnableImmutableFileChainCache(Mount* m, byte* backing, uint bytes, uint slots)
+    {
+        uint required = ImmutableFileChainCacheBytes(slots);
+        if (required == 0 || bytes != required || !Bound(m) || m->Phase != Mounting ||
+            m->Reads != 0 || m->IoActive || m->ImmutableFileChainCacheBacking != null ||
+            m->ImmutableFileChainCacheSlots != 0) return Status.InvalidAccess;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (m->ReadPort != null) return Status.InvalidAccess;
+#endif
+        if (!DeviceBound(m) || !m->Input.Device->Running || m->Input.Device->ReadPending ||
+            m->Input.Device->ReadReady) return Status.InvalidState;
+        if (!External(m, (ulong)backing, bytes, 8)) return Status.InvalidStorage;
+        for (uint i = 0; i < slots; i++) ((FileChainCertificate*)backing)[i] = default;
+        m->ImmutableFileChainCacheBacking = backing; m->ImmutableFileChainCacheSlots = slots;
         return Status.Success;
     }
 
@@ -419,6 +464,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (!Op(m, token, out Operation* o)) return Status.StaleToken;
         if (o->Kind != OpenKind || o->Phase != ReadyPhase) return o->Phase == Failed ? o->Failure : Status.Pending;
         FileHandle* f = m->Input.Files + o->FileIndex; f->Phase = ReadyPhase;
+        PublishFileChain(m, f);
         *result = new() { File = new((ulong)m, m->Input.Epoch, f->Generation, o->FileIndex), Info = f->Info };
         o->FileIndex = ~0U; Release(m, o); return Status.Success;
     }
@@ -828,6 +874,8 @@ public static unsafe class ReadOnlyWebRootFileSystem
             ulong clusterBytes = (ulong)m->Volume.SectorsPerCluster * 512;
             o->RequiredClusters = (uint)(((ulong)f->Info.Length + clusterBytes - 1) / clusterBytes);
             if (o->RequiredClusters > f->ClusterCapacity) return Fail(m, o, Status.TraversalBudgetExceeded);
+            if (TryCopyFileChain(m, f, o->RequiredClusters)) { o->Phase = ReadyPhase; return Status.Ready; }
+            InvalidateFileChain(m, f->Clusters);
             var visit = Chain.Visit(m->Volume, f->Info.FirstCluster, new Span<uint>(f->Clusters, (int)f->ClusterCapacity), ref f->ClusterCount);
             if (visit != LiveFat32Status.Success) return Fail(m, o, Map(visit));
             return Status.Pending;
@@ -848,6 +896,50 @@ public static unsafe class ReadOnlyWebRootFileSystem
         var result = Chain.Visit(m->Volume, next, new Span<uint>(f->Clusters, (int)f->ClusterCapacity), ref f->ClusterCount);
         if (result != LiveFat32Status.Success) return Fail(m, o, Map(result));
         return f->ClusterCount > o->RequiredClusters ? Fail(m, o, Status.CorruptFile) : Status.Pending;
+    }
+
+    private static bool TryCopyFileChain(Mount* m, FileHandle* f, uint required)
+    {
+        if (m->ImmutableFileChainCacheBacking == null) return false;
+        for (uint i = 0; i < m->ImmutableFileChainCacheSlots; i++)
+        {
+            var c = (FileChainCertificate*)m->ImmutableFileChainCacheBacking + i;
+            if (c->Phase != ReadyPhase || c->Epoch != m->Input.Epoch || c->Count != required ||
+                c->Info.Inode != f->Info.Inode || c->Info.ModifiedSeconds != f->Info.ModifiedSeconds ||
+                c->Info.FirstCluster != f->Info.FirstCluster || c->Info.Length != f->Info.Length ||
+                c->Info.NameBytes != f->Info.NameBytes || c->Info.Attributes != f->Info.Attributes) continue;
+            if (f->Clusters != c->Clusters)
+            {
+                InvalidateFileChain(m, f->Clusters);
+                for (uint j = 0; j < required; j++) f->Clusters[j] = c->Clusters[j];
+            }
+            f->ClusterCount = required; return true;
+        }
+        return false;
+    }
+
+    private static void PublishFileChain(Mount* m, FileHandle* f)
+    {
+        if (m->ImmutableFileChainCacheBacking == null || f->Info.IsDirectory || f->Info.Length == 0) return;
+        uint slot = 0;
+        for (uint i = 0; i < m->ImmutableFileChainCacheSlots; i++)
+        {
+            var existing = (FileChainCertificate*)m->ImmutableFileChainCacheBacking + i;
+            if (existing->Phase == Free || existing->Clusters == f->Clusters) { slot = i; break; }
+        }
+        var c = (FileChainCertificate*)m->ImmutableFileChainCacheBacking + slot;
+        c->Phase = Free; c->Epoch = m->Input.Epoch; c->Info = f->Info;
+        c->Clusters = f->Clusters; c->Count = f->ClusterCount; c->Phase = ReadyPhase;
+    }
+
+    private static void InvalidateFileChain(Mount* m, uint* clusters)
+    {
+        if (m->ImmutableFileChainCacheBacking != null)
+            for (uint i = 0; i < m->ImmutableFileChainCacheSlots; i++)
+            {
+                var c = (FileChainCertificate*)m->ImmutableFileChainCacheBacking + i;
+                if (c->Clusters == clusters) c->Phase = Free;
+            }
     }
 
     private static Status Fat(Mount* m, Operation* o, uint cluster, out uint next, out bool end)
@@ -1100,7 +1192,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (o->FileIndex < m->Input.FileCount)
         {
             FileHandle* f = m->Input.Files + o->FileIndex;
-            if (o->Kind == OpenKind && f->Phase == Working) { f->Phase = Free; f->ClusterCount = 0; }
+            if (o->Kind == OpenKind && f->Phase == Working) { InvalidateFileChain(m, f->Clusters); f->Phase = Free; f->ClusterCount = 0; }
             if (o->Kind is ReadKind or ScanKind && f->References != 0) f->References--;
         }
         o->Phase = Free; o->Waiting = 0; o->Cursor.HasPending = false;
@@ -1114,6 +1206,9 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (m->ImmutableDirectoryCacheBacking != null)
             for (uint i = 0; i < m->ImmutableDirectoryCacheSlots; i++)
                 ((ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking)[i].Phase = Free;
+        if (m->ImmutableFileChainCacheBacking != null)
+            for (uint i = 0; i < m->ImmutableFileChainCacheSlots; i++)
+                ((FileChainCertificate*)m->ImmutableFileChainCacheBacking)[i].Phase = Free;
     }
 
     private static Status Map(LiveFat32Status status) => status switch
@@ -1254,6 +1349,8 @@ public static unsafe class ReadOnlyWebRootFileSystem
         all[n++] = new() { Start = (ulong)m, Bytes = (ulong)sizeof(Mount) };
         if (m->ImmutableDirectoryCacheBacking != null)
             all[n++] = new() { Start = (ulong)m->ImmutableDirectoryCacheBacking, Bytes = ImmutableDirectoryCacheBytes(m->ImmutableDirectoryCacheSlots) };
+        if (m->ImmutableFileChainCacheBacking != null)
+            all[n++] = new() { Start = (ulong)m->ImmutableFileChainCacheBacking, Bytes = ImmutableFileChainCacheBytes(m->ImmutableFileChainCacheSlots) };
         all[n++] = new() { Start = (ulong)a.Operations, Bytes = a.OperationCount * (ulong)sizeof(Operation) };
         all[n++] = new() { Start = (ulong)a.Files, Bytes = a.FileCount * (ulong)sizeof(FileHandle) };
         all[n++] = new() { Start = (ulong)a.Cache, Bytes = a.CacheCount * (ulong)sizeof(CacheSlot) };

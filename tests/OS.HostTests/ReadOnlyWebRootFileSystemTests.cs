@@ -9,6 +9,198 @@ using OS.Storage;
 
 internal static unsafe class ReadOnlyWebRootFileSystemTests
 {
+    [HostTest("webroot.fs immutable-file-chain certificates require exact disjoint pre-IO admission")]
+    private static void FileChainCacheAdmission()
+    {
+        HostCheck.Equal(0U, Fs.ImmutableFileChainCacheBytes(0)); HostCheck.Equal(56U, Fs.ImmutableFileChainCacheBytes(1));
+        HostCheck.Equal(112U, Fs.ImmutableFileChainCacheBytes(2)); HostCheck.Equal(0U, Fs.ImmutableFileChainCacheBytes(3));
+        HostCheck.Equal(0U, Fs.ImmutableFileChainCacheBytes(uint.MaxValue));
+        Type record = typeof(Fs).GetNestedType("FileChainCertificate", System.Reflection.BindingFlags.NonPublic)!;
+        HostCheck.Equal(56, Marshal.SizeOf(record)); HostCheck.Equal(32, sizeof(Fs.Metadata));
+        foreach (var item in new[] { ("Epoch", 0L), ("Info", 8L), ("Clusters", 40L), ("Count", 48L), ("Phase", 52L) })
+            HostCheck.Equal(item.Item2, Marshal.OffsetOf(record, item.Item1).ToInt64());
+        using var f = new Fixture(directoryCacheSlots: 5, chainCacheSlots: 2);
+        byte[] untouched = new ReadOnlySpan<byte>(f.ChainCacheBacking, 112).ToArray();
+        HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableFileChainCache(f.Mount, f.ChainCacheBacking, 112, 2));
+        HostCheck.Equal(Fs.Status.Pending, Fs.Start(f.Mount, f.Input));
+        HostCheck.Equal(Fs.Status.Success, Fs.EnableImmutableDirectoryCache(f.Mount, f.DirectoryCacheBacking, 2800, 5));
+        foreach (ulong address in new ulong[] { (ulong)f.Mount, (ulong)f.Files[0].Clusters, (ulong)f.Operations[1].Storage.Range,
+            (ulong)f.Cache[0].Data, (ulong)f.Data, (ulong)f.DirectoryCacheBacking, (ulong)(f.ChainCacheBacking + 1) })
+            HostCheck.Equal(Fs.Status.InvalidStorage, Fs.EnableImmutableFileChainCache(f.Mount, (byte*)address, 112, 2));
+        HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableFileChainCache(f.Mount, f.ChainCacheBacking, 111, 2));
+        HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableFileChainCache(f.Mount, f.ChainCacheBacking, 112, 3));
+        HostCheck.True(new ReadOnlySpan<byte>(f.ChainCacheBacking, 112).SequenceEqual(untouched));
+        HostCheck.Equal(Fs.Status.Success, Fs.EnableImmutableFileChainCache(f.Mount, f.ChainCacheBacking, 112, 2));
+        HostCheck.Equal(0, ChainCertificates(f));
+        byte[] enabled = new ReadOnlySpan<byte>(f.ChainCacheBacking, 112).ToArray();
+        HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableFileChainCache(f.Mount, f.ChainCacheBacking, 112, 2));
+        HostCheck.True(new ReadOnlySpan<byte>(f.ChainCacheBacking, 112).SequenceEqual(enabled));
+        using var late = new Fixture(chainCacheSlots: 2); HostCheck.Equal(Fs.Status.Pending, Fs.Start(late.Mount, late.Input));
+        HostCheck.Equal(Fs.Status.Pending, Fs.PumpMount(late.Mount));
+        HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableFileChainCache(late.Mount, late.ChainCacheBacking, 112, 2));
+        ChainCacheCanaries(f);
+    }
+
+    [HostTest("webroot.fs successful immutable chains reuse independent certificates after normal lookup and fresh generations")]
+    private static void FileChainCacheReuse()
+    {
+        ulong coldWork = 0, warmWork = 0;
+        foreach (uint certificates in new uint[] { 0, 2 })
+        {
+            using var f = new Fixture(cacheSlots: 1, chainCacheSlots: certificates); LongIndex(f, 200); f.MountReady();
+            var a = f.Open("/app/wwwroot/index.html"); Fs.FileInspection facts = default;
+            HostCheck.Equal(Fs.Status.Success, Fs.Inspect(f.Mount, a.File, &facts)); HostCheck.True(facts.AllocationKnown && facts.AllocatedBlocks == 200);
+            uint[] map = new ReadOnlySpan<uint>(f.Files[0].Clusters, 200).ToArray();
+            HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, a.File));
+            ulong start = f.Disk.FatReads(); var b = f.Open("/app/wwwroot/index.html");
+            ulong work = f.Disk.FatReads() - start; if (certificates == 0) coldWork = work; else warmWork = work;
+            HostCheck.True(a.Info.Inode == b.Info.Inode && a.Info.Length == b.Info.Length && !a.File.Equals(b.File));
+            HostCheck.True(Field<Fs.FileToken, ulong>(b.File, "Generation") > Field<Fs.FileToken, ulong>(a.File, "Generation"));
+            HostCheck.True(new ReadOnlySpan<uint>(f.Files[0].Clusters, 200).SequenceEqual(map));
+            Fs.OperationToken stale = default; ulong submitted = f.Device->Submitted;
+            HostCheck.Equal(Fs.Status.StaleToken, Fs.BeginRead(f.Mount, a.File, 0, 1, &stale)); HostCheck.Equal(submitted, f.Device->Submitted);
+            // A simultaneous open gets a separate map, never shared mutable slot authority.
+            var independent = f.Open("/app/wwwroot/index.html");
+            HostCheck.True(f.Files[0].Clusters != f.Files[1].Clusters && new ReadOnlySpan<uint>(f.Files[1].Clusters, 200).SequenceEqual(map));
+            HostCheck.Equal(Fs.Status.Full, Fs.BeginOpen(f.Mount, "/app/wwwroot/empty.bin"u8, &stale));
+            HostCheck.Equal(Fs.Status.Pending, Fs.BeginRead(f.Mount, b.File, 0, 1, &stale));
+            HostCheck.Equal(Fs.Status.Busy, Fs.Close(f.Mount, b.File)); HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, stale));
+            HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, independent.File)); HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, b.File));
+            if (certificates != 0) { HostCheck.True(ChainCertificates(f) != 0); ChainCacheCanaries(f); }
+        }
+        HostCheck.True(coldWork > warmWork); // Work count only, no guest timing claim.
+        using var allocation = new Fixture(chainCacheSlots: 2); allocation.MountReady(); HostCheck.True(allocation.OneRead());
+        long before = GC.GetAllocatedBytesForCurrentThread(); bool good = true;
+        for (int i = 0; i < 32; i++) good &= allocation.OneRead();
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        HostCheck.True(good); HostCheck.Equal(0L, allocated);
+    }
+
+    [HostTest("webroot.fs chain certificates revoke before map overwrite and cannot derive authority from closed bytes")]
+    private static void FileChainCacheReplacement()
+    {
+        using var f = new Fixture(cacheSlots: 1, chainCacheSlots: 1); LongIndex(f, 200); f.MountReady();
+        var a = f.Open("/app/wwwroot/index.html"); HostCheck.Equal(1, ChainCertificates(f));
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, a.File));
+        var far = f.Open("/app/wwwroot/far.bin"); HostCheck.Equal(200U, f.Files[0].Clusters[0]);
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, far.File));
+        var token = ChainLookup(f); var o = OperationFor(f, token);
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token));
+        HostCheck.True(ClusterCount(f, o) is > 0 and < 200); HostCheck.Equal(10U, f.Files[0].Clusters[0]); HostCheck.Equal(0, ChainCertificates(f));
+        var cancellation = Fs.Cancel(f.Mount, token);
+        if (cancellation == Fs.Status.Pending) HostCheck.Equal(Fs.Status.Cancelled, f.Drive(token));
+        else HostCheck.Equal(Fs.Status.Cancelled, cancellation);
+        HostCheck.Equal(0, ChainCertificates(f));
+        HostCheck.Equal(Fs.Status.StaleToken, Fs.Poll(f.Mount, token));
+        a = f.Open("/app/wwwroot/index.html"); HostCheck.Equal(1, ChainCertificates(f));
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, a.File));
+        // A cancelled ready hit is not a new successful publication.
+        token = ChainLookup(f); HostCheck.Equal(Fs.Status.Ready, Fs.Poll(f.Mount, token));
+        HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token)); HostCheck.Equal(0, ChainCertificates(f));
+        ChainCacheCanaries(f);
+    }
+
+    [HostTest("webroot.fs incomplete failed and cancelled chain validations never publish certificates")]
+    private static void FileChainCacheColdFailures()
+    {
+        foreach (var item in new[] { (10U, Fs.Status.ChainLoop), (0x0fffffffU, Fs.Status.Truncated),
+            (0x0ffffff7U, Fs.Status.BadCluster), (0U, Fs.Status.FreeCluster), (1U, Fs.Status.ReservedCluster), (65530U, Fs.Status.InvalidCluster) })
+        {
+            using var f = new Fixture(chainCacheSlots: 2); f.Disk.SetFat(10, item.Item1); f.MountReady();
+            var token = BeginLookup(f, "/app/wwwroot/index.html"); HostCheck.Equal(item.Item2, f.Drive(token));
+            HostCheck.Equal(0, ChainCertificates(f)); HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token)); ChainCacheCanaries(f);
+        }
+        foreach (bool mirror in new[] { false, true })
+        {
+            using var f = new Fixture(chainCacheSlots: 2);
+            if (mirror) f.Disk.SetFat(10, 13, mirrorOnly: true); else f.Disk.SetFat(12, 14);
+            f.MountReady(); var token = BeginLookup(f, "/app/wwwroot/index.html");
+            HostCheck.Equal(mirror ? Fs.Status.MirrorMismatch : Fs.Status.Overlong, f.Drive(token)); HostCheck.Equal(0, ChainCertificates(f));
+            HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token));
+        }
+        using var cancelled = new Fixture(cacheSlots: 1, chainCacheSlots: 2); LongIndex(cancelled, 200); cancelled.MountReady();
+        var pending = ChainLookup(cancelled); HostCheck.Equal(Fs.Status.Pending, Fs.Poll(cancelled.Mount, pending));
+        for (int i = 0; i < 1000 && !cancelled.Device->ReadPending; i++) HostCheck.Equal(Fs.Status.Pending, Fs.Poll(cancelled.Mount, pending));
+        HostCheck.True(cancelled.Device->ReadPending); HostCheck.Equal(0, ChainCertificates(cancelled));
+        HostCheck.Equal(Fs.Status.Pending, Fs.Cancel(cancelled.Mount, pending)); HostCheck.Equal(Fs.Status.Cancelled, cancelled.Drive(pending));
+        HostCheck.Equal(0, ChainCertificates(cancelled)); HostCheck.Equal(Fs.Status.StaleToken, Fs.Poll(cancelled.Mount, pending));
+        using var unpublished = new Fixture(chainCacheSlots: 2); unpublished.MountReady();
+        pending = BeginLookup(unpublished, "/app/wwwroot/index.html"); HostCheck.Equal(Fs.Status.Ready, unpublished.Drive(pending));
+        HostCheck.Equal(0, ChainCertificates(unpublished)); HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(unpublished.Mount, pending));
+        HostCheck.Equal(0, ChainCertificates(unpublished));
+    }
+
+    [HostTest("webroot.fs file-chain hits retain capacity path corruption and lookup error precedence")]
+    private static void FileChainCacheOrdering()
+    {
+        using (var f = new Fixture(chainCacheSlots: 2))
+        {
+            f.Files[1].ClusterCapacity = 1; f.MountReady(); var a = f.Open("/app/wwwroot/index.html");
+            var token = BeginLookup(f, "/app/wwwroot/index.html"); HostCheck.Equal(Fs.Status.TraversalBudgetExceeded, f.Drive(token));
+            HostCheck.Equal(0U, Field<Fs.FileHandle, uint>(f.Files[1], "ClusterCount")); HostCheck.Equal(1, ChainCertificates(f));
+            HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token));
+            token = BeginLookup(f, "/app/wwwroot/index.html/child"); HostCheck.Equal(Fs.Status.NotDirectory, f.Drive(token));
+            HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token));
+            token = BeginLookup(f, "/app/wwwroot/missing.bin"); HostCheck.Equal(Fs.Status.NotFound, f.Drive(token));
+            HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token)); HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, a.File));
+        }
+        foreach (int mode in new[] { 0, 1, 2 })
+        {
+            using var f = new Fixture(chainCacheSlots: 2, collision: mode == 1, workBudget: mode == 2 ? 7U : 65536U);
+            if (mode == 0) f.Disk.Sector(f.Disk.Data(4))[13] ^= 1;
+            f.MountReady(); var token = BeginLookup(f, "/app/wwwroot/index.html");
+            HostCheck.Equal(mode == 0 ? Fs.Status.CorruptDirectory : mode == 1 ? Fs.Status.Ambiguous : Fs.Status.TraversalBudgetExceeded, f.Drive(token));
+            HostCheck.Equal(0, ChainCertificates(f)); HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token));
+        }
+    }
+
+    [HostTest("webroot.fs chain certificates preserve fresh data failure output exclusions and stop lifetime")]
+    private static void FileChainCacheLifetime()
+    {
+        using (var f = new Fixture(chainCacheSlots: 2))
+        {
+            f.MountReady(); var a = f.Open("/app/wwwroot/index.html"); HostCheck.Equal(1, ChainCertificates(f));
+            HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, a.File)); a = f.Open("/app/wwwroot/index.html");
+            Fs.OperationToken token = default;
+            foreach (uint offset in new uint[] { 0, 104 })
+                HostCheck.Equal(Fs.Status.InvalidStorage, Fs.BeginOpen(f.Mount, "/app/wwwroot/index.html"u8, (Fs.OperationToken*)(f.ChainCacheBacking + offset)));
+            HostCheck.Equal(Fs.Status.Pending, Fs.BeginRead(f.Mount, a.File, 0, 700, &token)); HostCheck.Equal(Fs.Status.Ready, f.Drive(token));
+            uint bytes = 77; HostCheck.Equal(Fs.Status.InvalidStorage, Fs.CopyRead(f.Mount, token, new Span<byte>(f.ChainCacheBacking, 700), &bytes));
+            byte[] output = new byte[700]; HostCheck.Equal(Fs.Status.Success, Fs.CopyRead(f.Mount, token, output, &bytes));
+            for (int i = 0; i < output.Length; i++) HostCheck.Equal(Payload(i), output[i]);
+            // Metadata reuse never suppresses a later real file-data failure.
+            f.Disk.FailLba = f.Disk.Data(12); output.AsSpan().Fill(0xa5); bytes = 77;
+            HostCheck.Equal(Fs.Status.Pending, Fs.BeginRead(f.Mount, a.File, 0, 700, &token)); HostCheck.Equal(Fs.Status.DeviceFailed, f.Drive(token));
+            HostCheck.Equal(0, ChainCertificates(f)); HostCheck.Equal(Fs.Status.InvalidState, Fs.CopyRead(f.Mount, token, output, &bytes));
+            HostCheck.True(bytes == 77 && output.All(v => v == 0xa5)); ChainCacheCanaries(f);
+        }
+        byte[] retiredCertificate;
+        using (var f = new Fixture(chainCacheSlots: 2))
+        {
+            f.MountReady(); var a = f.Open("/app/wwwroot/index.html"); HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, a.File));
+            HostCheck.Equal(1, ChainCertificates(f)); retiredCertificate = new ReadOnlySpan<byte>(f.ChainCacheBacking, 112).ToArray();
+            HostCheck.Equal(Fs.Status.Success, Fs.Stop(f.Mount)); HostCheck.Equal(0, ChainCertificates(f));
+            Fs.OperationToken token = default; HostCheck.Equal(Fs.Status.InvalidState, Fs.BeginOpen(f.Mount, "/app/wwwroot/index.html"u8, &token));
+            HostCheck.Equal(Fs.Status.InvalidAccess, Fs.Start(f.Mount, f.Input)); ChainCacheCanaries(f);
+        }
+        using var fresh = new Fixture(chainCacheSlots: 2); retiredCertificate.CopyTo(new Span<byte>(fresh.ChainCacheBacking, 112));
+        HostCheck.Equal(1, ChainCertificates(fresh)); fresh.Disk.SetFat(10, 0x0fffffff); fresh.MountReady();
+        HostCheck.Equal(0, ChainCertificates(fresh)); var cold = BeginLookup(fresh, "/app/wwwroot/index.html");
+        HostCheck.Equal(Fs.Status.Truncated, fresh.Drive(cold)); HostCheck.Equal(0, ChainCertificates(fresh));
+        HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(fresh.Mount, cold));
+    }
+
+    private static int ChainCertificates(Fixture f)
+    {
+        int count = 0; for (uint i = 0; i < f.ChainCacheSlots; i++) if (*(uint*)(f.ChainCacheBacking + i * 56 + 52) == 2) count++;
+        return count;
+    }
+    private static void ChainCacheCanaries(Fixture f)
+    {
+        HostCheck.True(new ReadOnlySpan<byte>(f.ChainCacheBacking - 16, 16).IndexOfAnyExcept((byte)0xc7) < 0);
+        HostCheck.True(new ReadOnlySpan<byte>(f.ChainCacheBacking + Fs.ImmutableFileChainCacheBytes(f.ChainCacheSlots), 16).IndexOfAnyExcept((byte)0xc7) < 0);
+    }
+
     [HostTest("webroot.fs immutable-directory-cache admission is explicit disjoint and before all mount IO")]
     private static void ImmutableCacheAdmission()
     {
@@ -208,6 +400,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
             new Span<byte>(backing, 2800).Fill(0xa5);
             byte[] mount = new ReadOnlySpan<byte>(f.Mount, sizeof(Fs.Mount)).ToArray();
             HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableDirectoryCache(f.Mount, backing, 2800, 5));
+            HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableFileChainCache(f.Mount, backing, 112, 2));
             HostCheck.True(new ReadOnlySpan<byte>(f.Mount, sizeof(Fs.Mount)).SequenceEqual(mount));
             HostCheck.True(new ReadOnlySpan<byte>(backing, 2800).IndexOfAnyExcept((byte)0xa5) < 0);
         }
@@ -1366,6 +1559,8 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         internal readonly Fs.CacheSlot* Cache;
         internal readonly byte* DirectoryCacheBacking;
         internal readonly uint DirectoryCacheSlots;
+        internal readonly byte* ChainCacheBacking;
+        internal readonly uint ChainCacheSlots;
         internal readonly Disk Disk;
         internal ulong DrivePolls; // Host Drive/Poll calls only; excludes Begin/Copy and PumpMount.
         private readonly Fs.Admission input;
@@ -1374,10 +1569,11 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         private readonly uint dataReadSectors;
         internal uint UsedArenaBytes => arenaAt;
         internal Fixture(uint cacheSlots = 2, uint workBudget = 65536, uint history = 4096, uint map = 4096, uint clusters = 65525, bool collision = false, uint slots = 2,
-            Block.ObservationAccess observation = default, uint dataReadSectors = 1, uint directoryCacheSlots = 0)
+            Block.ObservationAccess observation = default, uint dataReadSectors = 1, uint directoryCacheSlots = 0, uint chainCacheSlots = 0)
         {
             this.dataReadSectors = dataReadSectors;
             DirectoryCacheSlots = directoryCacheSlots;
+            ChainCacheSlots = chainCacheSlots;
             HostCheck.True(slots is >= 2 and <= 8);
             arenaCapacity = slots == 2 ? (uint)ArenaBytes : 1048576U;
             Arena = (byte*)NativeMemory.AlignedAlloc(arenaCapacity, 4096);
@@ -1417,6 +1613,12 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
                 byte* guarded = Take(bytes + 32); new Span<byte>(guarded, (int)bytes + 32).Fill(0xc7);
                 DirectoryCacheBacking = guarded + 16;
             }
+            if (chainCacheSlots != 0)
+            {
+                uint bytes = Fs.ImmutableFileChainCacheBytes(chainCacheSlots); HostCheck.True(bytes != 0);
+                byte* guarded = Take(bytes + 32); new Span<byte>(guarded, (int)bytes + 32).Fill(0xc7);
+                ChainCacheBacking = guarded + 16;
+            }
             input = new() { Device = Device, Epoch = lifetime, PartitionFirst = ReadOnlyWebRootFileSystemTests.Disk.Partition, PartitionLast = Disk.Last,
                 Operations = Operations, OperationCount = slots, Files = Files, FileCount = slots, Cache = Cache, CacheCount = cacheSlots, DirectoryEntryBudget = workBudget };
         }
@@ -1431,6 +1633,9 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
             if (status == Fs.Status.Pending && DirectoryCacheSlots != 0)
                 HostCheck.Equal(Fs.Status.Success, Fs.EnableImmutableDirectoryCache(Mount, DirectoryCacheBacking,
                     Fs.ImmutableDirectoryCacheBytes(DirectoryCacheSlots), DirectoryCacheSlots));
+            if (status == Fs.Status.Pending && ChainCacheSlots != 0)
+                HostCheck.Equal(Fs.Status.Success, Fs.EnableImmutableFileChainCache(Mount, ChainCacheBacking,
+                    Fs.ImmutableFileChainCacheBytes(ChainCacheSlots), ChainCacheSlots));
             for (int i = 0; i < 10000 && status == Fs.Status.Pending; i++) { Tick(); status = Fs.PumpMount(Mount); }
             return status;
         }

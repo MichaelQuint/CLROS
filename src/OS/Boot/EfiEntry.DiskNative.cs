@@ -23,6 +23,9 @@ public static unsafe partial class EfiEntry
 #if M10_018_PROBE
         private const uint NativeDiskDirectoryCaches = 5;
 #endif
+#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
+        private const uint NativeDiskFileChainCaches = 2;
+#endif
         private const ulong NativeDiskEpoch = 0x4d31365f30323301;
         private enum NativeDiskProgress : byte { Rejected, Pending, Ready }
 #if M10_018_TIMING_PROBE
@@ -54,6 +57,9 @@ public static unsafe partial class EfiEntry
             internal Fs.CacheSlot* Cache;
 #if M10_018_PROBE
             internal byte* DirectoryCache;
+#endif
+#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
+            internal byte* FileChainCache;
 #endif
             internal LinuxDescriptorServices.DiskBinding* Bindings;
             internal LinuxDescriptorServices.DiskRequest* Requests;
@@ -110,6 +116,12 @@ public static unsafe partial class EfiEntry
             // tail; the four paired FAT caches and operation buffers stay owned.
             var directoryCache = (byte*)NativeDiskTake(ref cursor, Fs.ImmutableDirectoryCacheBytes(NativeDiskDirectoryCaches));
             if (o != null) o->DirectoryCache = directoryCache;
+#endif
+#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
+            // Positive chain certificates lease admitted maps; no file data is
+            // cached. Two records must remain inside the existing arena pages.
+            var fileChainCache = (byte*)NativeDiskTake(ref cursor, Fs.ImmutableFileChainCacheBytes(NativeDiskFileChainCaches));
+            if (o != null) o->FileChainCache = fileChainCache;
 #endif
             return cursor - start;
         }
@@ -281,6 +293,13 @@ public static unsafe partial class EfiEntry
                     // I/O; only ordinary mounted lookups may publish sectors.
                     if (Fs.EnableImmutableDirectoryCache(&o->Mount, o->DirectoryCache,
                         Fs.ImmutableDirectoryCacheBytes(NativeDiskDirectoryCaches), NativeDiskDirectoryCaches) != Fs.Status.Success)
+                        return NativeDiskFail(o);
+#endif
+#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
+                    // This frozen read-only device owns immutable FAT metadata
+                    // for the complete mount lifetime. No borrowed/writer path.
+                    if (Fs.EnableImmutableFileChainCache(&o->Mount, o->FileChainCache,
+                        Fs.ImmutableFileChainCacheBytes(NativeDiskFileChainCaches), NativeDiskFileChainCaches) != Fs.Status.Success)
                         return NativeDiskFail(o);
 #endif
                     o->Phase = 6;
