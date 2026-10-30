@@ -612,16 +612,8 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (m->ImmutableDirectoryCacheBacking != null && action == DirectoryIo &&
             m->Phase == Mounted && o->Kind != MountKind)
         {
-            for (uint i = 0; i < m->ImmutableDirectoryCacheSlots; i++)
-            {
-                var record = (ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking + i;
-                if (record->Phase != ReadyPhase || record->MountOwner != (ulong)m ||
-                    record->MountEpoch != m->Input.Epoch || record->DeviceEpoch != m->DeviceEpoch ||
-                    record->PoolEpoch != m->PoolEpoch || record->Lba != lba) continue;
-                byte* data = m->ImmutableDirectoryCacheBacking + m->ImmutableDirectoryCacheSlots * 48 + i * 512;
-                for (uint n = 0; n < 512; n++) o->Storage.Sector[n] = data[n];
-                o->Cursor.SectorReady = true; o->Cursor.EntryInSector = 0; return Status.Pending;
-            }
+            lba = TryCopyImmutableDirectorySector(m, o, lba);
+            if (lba == 0) return Status.Pending;
         }
 #if !NOSTDLIB_EFI || M16_027_PROBE
         if (m->ReadPort != null)
@@ -637,6 +629,26 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (status == Block.Status.Busy) return Status.Busy;
         if (status != Block.Status.Success) return Fail(m, o, DeviceFault(m));
         m->IoToken = token; return Submitted(m, o, action, sectors);
+    }
+
+    // Only ReadSector calls this after its nonzero partition-bounded LBA,
+    // idle physical owner and immutable mounted-directory eligibility checks.
+    // Zero denotes a completed hit; a miss returns the original nonzero LBA.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static ulong TryCopyImmutableDirectorySector(Mount* m, Operation* o, ulong lba)
+    {
+        var record = (ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking;
+        for (uint remaining = m->ImmutableDirectoryCacheSlots; remaining != 0; remaining--, record++)
+        {
+            if (record->Phase != ReadyPhase || record->MountOwner != (ulong)m ||
+                record->MountEpoch != m->Input.Epoch || record->DeviceEpoch != m->DeviceEpoch ||
+                record->PoolEpoch != m->PoolEpoch || record->Lba != lba) continue;
+            byte* data = m->ImmutableDirectoryCacheBacking + m->ImmutableDirectoryCacheSlots * 48 +
+                (m->ImmutableDirectoryCacheSlots - remaining) * 512;
+            for (uint n = 0; n < 512; n++) o->Storage.Sector[n] = data[n];
+            o->Cursor.SectorReady = true; o->Cursor.EntryInSector = 0; return 0;
+        }
+        return lba;
     }
 
     private static Status Submitted(Mount* m, Operation* o, byte action, uint sectors = 1)
