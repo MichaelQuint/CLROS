@@ -60,7 +60,8 @@ public static partial class QemuTranscripts
         byte[] summaryBytes=summary.ReadBytes(summaryMaximum,"disk_static_summary");
         Need(summaryBytes.AsSpan().StartsWith(Encoding.UTF8.GetPreamble()),"disk_static_summary_bom");
         string[] child=DecodeUtf8(summaryBytes[3..]).Split("\r\n",StringSplitOptions.RemoveEmptyEntries).TakeLast(StaticFileProcessEvidence.SummaryCount).ToArray();
-        var process=InspectNativeAotStaticFileChildForTests(child,context,options.TimeoutSeconds);
+        var process=InspectNativeAotStaticFileChildForTests(child,context,options.TimeoutSeconds,
+            full && !NativeAotDiskSelection.TimingSelected(plan.Flags));
         Need(runner.Duration.TotalMilliseconds>=process.LifetimeMilliseconds && runner.Duration.TotalSeconds<=options.TimeoutSeconds+60,
             "disk_static_runner_lifetime");
         string[] stdout=runner.StandardOutput.Replace("\r\n","\n",StringComparison.Ordinal).Split('\n');if(stdout[^1]=="")stdout=stdout[..^1];
