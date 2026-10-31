@@ -79,9 +79,10 @@ public static class ToolCommand
                 ulong Counter(int group)=>ulong.Parse(counts.Groups[group].Value,System.Globalization.CultureInfo.InvariantCulture);
                 var sectors=QemuTranscripts.InspectNativeAotDiskStaticSectorValues(report,inventory,imageBytes,
                     new(report.Owner,report.Epoch,report.BootstrapCompleted,report.BootstrapCopied,Counter(1),Counter(2),Counter(3)));
+                if(full)QemuTranscripts.InspectNativeAotDiskStaticParentValues(raw,report,sectors);
                 files.VerifyUnchanged();
                 if(full)
-                    Console.WriteLine("DISK_STATIC_FULL_PROTOCOL_DIAGNOSTIC "+System.Text.Json.JsonSerializer.Serialize(new {OriginalAccepted=false,
+                    Console.WriteLine("DISK_STATIC_FULL_PROTOCOL_DIAGNOSTIC "+System.Text.Json.JsonSerializer.Serialize(new {OriginalAccepted=false,ParentEnvelopeAndEndCountersChecked=true,
                         report.Owner,report.Epoch,Calls=report.Static.Protocol.Calls,ReadWindows=report.Reads.Count,IoRows=report.DeviceRows.Count,
                         Connections=report.Static.Connections.Count,sectors.Device.Counters,MetadataCopies=sectors.Metadata.Count,
                         sectors.ReconstructsFileSystemCache,sectors.GrantsOriginalNativeProcessOrHttpAuthority}));

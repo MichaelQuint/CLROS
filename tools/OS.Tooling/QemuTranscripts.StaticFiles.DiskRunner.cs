@@ -70,15 +70,22 @@ public static partial class QemuTranscripts
         AssertStandardRunnerResult(root,options,plan,stdout,staticProgram:program,staticForwardPort:peer.Port,staticChildRows:child);
         int at=raw.AsSpan().IndexOf("TEST_START m16-011\r\n"u8);Need(at>FirmwarePrefixBytes,"disk_static_parent_start");
         var parent=InspectNativeAotWebParentForTests(packageBytes,raw.AsSpan(0,at),diskStatic:true);
-        string text=NormalizeStaticFileWrites(DecodeUtf8(raw[FirmwarePrefixBytes..]),full);
-        Need(text.EndsWith("\r\n",StringComparison.Ordinal),"disk_static_serial_terminal");
-        string[] rows=text[..^2].Split("\r\n",StringSplitOptions.None);
-        Need(rows.All(r=>r.Length>0 && !Controls.IsMatch(r)),"disk_static_serial_rows");
+        var (text,rows)=DiskStaticParentRows(raw,full);
         var replay=InspectNativeAotDiskStaticProtocolForTests(packageBytes.AsSpan((int)packageView.PayloadOffset,(int)packageView.PayloadBytes).ToArray(),
             SocketRawLeaf(raw),program.IsInstruction,program.IsSyscallReturn,parent.UserRoot,parent.KernelRoot,inventory,full,truncated);
         int connections=full?replay.Static.Connections.Count:1;
         Need(connections is >0 and <=32 && (full || replay.Static.Connections.Count==1),"disk_static_connections");
-        var envelope=SocketNetworkEnvelope(rows,true,staticFiles:true,diskFiles:true,diskStatic:true,diskStaticConnections:connections).Proof;
+        var disk=ReadDiskStaticBound(rows,replay);
+        Need(disk["capacity"]==(ulong)imageBytes.Length/512,"disk_static_image_device_geometry");
+        string endRow=rows.Single(r=>r.StartsWith("M16_025_END ",StringComparison.Ordinal));
+        var end=full?ReadDiskFileEndCommon(endRow):ReadDiskFileEnd(endRow);
+        Need(end["bootstrapCompleted"]==disk["bootstrapCompleted"] && end["bootstrapCopied"]==disk["bootstrapCopied"],"disk_static_bootstrap_join");
+        var final=new NativeDiskReadObservations.Boundary(replay.Owner,replay.Epoch,replay.BootstrapCompleted,replay.BootstrapCopied,
+            end["submitted"],end["completed"],end["copied"]);
+        var sectors=InspectNativeAotDiskStaticSectorValues(replay,inventory,imageBytes,final,truncated);
+        if(full)InspectNativeAotDiskStaticEndValues(endRow,final,sectors.Device);
+        var envelope=SocketNetworkEnvelope(rows,true,staticFiles:true,diskFiles:true,diskStatic:true,diskStaticConnections:connections,
+            diskStaticFullDevice:full?sectors.Device:null).Proof;
         Need(replay.Static.ReadyNanoseconds>=parent.PeerEnd && replay.Static.ExitedNanoseconds<=envelope.End["end"] &&
             replay.Static.FileObservations>0 && replay.Static.PathObservations>0 && replay.Static.Signal15Returns==1,"disk_static_parent_leaf");
         foreach(string row in rows.Where(r=>r.StartsWith("M16_008_TIMING ",StringComparison.Ordinal) || r.StartsWith("M16_008_SYSCALL_TIME ",StringComparison.Ordinal)))
@@ -86,15 +93,6 @@ public static partial class QemuTranscripts
         var bound=ReadRecord(rows.Single(r=>r.StartsWith("M16_008_BOUND ",StringComparison.Ordinal))
             [..^" timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack".Length],"M16_008_BOUND",
             "root:dec","pool:dec","workers:dec","code:dec","metadata:dec","userImage:dec");
-        var disk=ReadRecord(rows.Single(r=>r.StartsWith("M16_023_BOUND ",StringComparison.Ordinal))
-            [..^" pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained".Length],"M16_023_BOUND",
-            "owner:dec","epoch:dec","arena:dec","pages:dec","bar:dec","capacity:dec","bootstrapCompleted:dec","bootstrapCopied:dec","clock:dec");
-        Need(disk["owner"]==replay.Owner && disk["epoch"]==replay.Epoch && disk["capacity"]==(ulong)imageBytes.Length/512,
-            "disk_static_image_device_geometry");
-        var end=ReadDiskFileEnd(rows.Single(r=>r.StartsWith("M16_025_END ",StringComparison.Ordinal)));
-        Need(end["bootstrapCompleted"]==disk["bootstrapCompleted"] && end["bootstrapCopied"]==disk["bootstrapCopied"],"disk_static_bootstrap_join");
-        var sectors=InspectNativeAotDiskStaticSectorValues(replay,inventory,imageBytes,new(replay.Owner,replay.Epoch,
-            replay.BootstrapCompleted,replay.BootstrapCopied,end["submitted"],end["completed"],end["copied"]),truncated);
         InspectDiskStaticLiveBoundaryValues(parent,bound["pool"],PrefixRow(rows,"M07_ARP 2",4)[0],PrefixRow(rows,"M07_ARP 0",4)[3],
             disk["arena"],disk["pages"],disk["bar"],disk["owner"],disk["clock"],envelope.End["end"],sectors.Device.Rows);
         var budget=ReadRecord(rows.Single(r=>r.StartsWith("M16_008_BUDGET ",StringComparison.Ordinal)),"M16_008_BUDGET",
@@ -128,6 +126,47 @@ public static partial class QemuTranscripts
         ValidateUnselectedRecords(text,plan);
         captured.VerifyUnchanged();verifyOriginalInputs();truncated?.VerifyUnchanged();captured.VerifyUnchanged();
         return new(replay,sectors,wire);
+    }
+
+    private static (string Text,string[] Rows) DiskStaticParentRows(ReadOnlySpan<byte> raw,bool full)
+    {
+        Need(raw.Length>FirmwarePrefixBytes && raw.Length<=(full?DiskStaticCapturePolicy.SerialBytes:8*1024*1024),
+            "disk_static_serial_bounds");
+        string text=NormalizeStaticFileWrites(DecodeUtf8(raw[FirmwarePrefixBytes..].ToArray()),full);
+        Need(text.EndsWith("\r\n",StringComparison.Ordinal),"disk_static_serial_terminal");
+        string[] rows=text[..^2].Split("\r\n",StringSplitOptions.None);
+        Need(rows.All(r=>r.Length>0 && !Controls.IsMatch(r)),"disk_static_serial_rows");
+        return (text,rows);
+    }
+
+    private static Dictionary<string,ulong> ReadDiskStaticBound(string[] rows,DiskStaticReplayReport replay)
+    {
+        var disk=ReadRecord(rows.Single(r=>r.StartsWith("M16_023_BOUND ",StringComparison.Ordinal))
+            [..^" pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained".Length],"M16_023_BOUND",
+            "owner:dec","epoch:dec","arena:dec","pages:dec","bar:dec","capacity:dec","bootstrapCompleted:dec","bootstrapCopied:dec","clock:dec");
+        Need(disk["owner"]==replay.Owner && disk["epoch"]==replay.Epoch,"disk_static_image_device_geometry");
+        Need(!replay.FullProfile || disk["bootstrapCompleted"]==replay.BootstrapCompleted &&
+            disk["bootstrapCopied"]==replay.BootstrapCopied,"disk_static_bootstrap_join");
+        return disk;
+    }
+
+    /// <summary>Synchronously borrow a complete bounded Full serial capture and
+    /// its already inspected replay/physical-sector values. Run the production
+    /// parent envelope and END sector-counter joins with those exact identities
+    /// and bootstrap boundaries. This copies no process/source/native/packet or
+    /// whole-postprocessor authority and cannot accept a failed original.</summary>
+    public static void InspectNativeAotDiskStaticParentValues(ReadOnlySpan<byte> raw,DiskStaticReplayReport replay,
+        DiskStaticSectorValues sectors)
+    {
+        Need(replay is not null && replay.FullProfile && sectors is not null,"disk_static_full_parent_context");
+        var (_,rows)=DiskStaticParentRows(raw,true);
+        _=ReadDiskStaticBound(rows,replay!);
+        var b=sectors!.Device.Counters;
+        var expected=new NativeDiskReadObservations.Boundary(replay!.Owner,replay.Epoch,replay.BootstrapCompleted,
+            replay.BootstrapCopied,b.Submitted,b.Completed,b.Copied);
+        InspectNativeAotDiskStaticEndValues(rows.Single(r=>r.StartsWith("M16_025_END ",StringComparison.Ordinal)),expected,sectors.Device);
+        _=SocketNetworkEnvelope(rows,true,staticFiles:true,diskFiles:true,diskStatic:true,
+            diskStaticConnections:replay.Static.Connections.Count,diskStaticFullDevice:sectors.Device);
     }
 
     /// <summary>Synchronously borrow copied live addresses and IO clocks. Reject

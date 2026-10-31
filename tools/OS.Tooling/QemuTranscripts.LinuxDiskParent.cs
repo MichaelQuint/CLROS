@@ -99,6 +99,19 @@ public static partial class QemuTranscripts
       "CLROS_M16_025_READY", "TEST_PASS m16.025" ];
 
     private static Dictionary<string, ulong> ReadDiskFileEnd(string row, LinuxDiskExitPendingDeviceValues? pending = null,
+        NativeDiskReadObservations.Inspection? closeReuse = null, NativeDiskReadObservations.Inspection? fullDevice = null)
+    {
+        Need(fullDevice is null || pending is null && closeReuse is null,"disk_parent_selection");
+        var end=ReadDiskFileEndCommon(row,pending,closeReuse);
+        if(fullDevice is null)
+            Need(end["fsReads"]<=ulong.MaxValue-34 && end["fsReads"]+34==end["submitted"],"disk_parent_counters");
+        else ValidateFullDiskFileEnd(end,fullDevice);
+        return end;
+    }
+
+    // Parse the terminal and request/copy closure before a Full sector inspection
+    // exists. The caller must still perform the legacy or typed Full unit join.
+    private static Dictionary<string, ulong> ReadDiskFileEndCommon(string row, LinuxDiskExitPendingDeviceValues? pending = null,
         NativeDiskReadObservations.Inspection? closeReuse = null)
     {
         Need(closeReuse is null || pending is null,"disk_parent_selection");
@@ -109,8 +122,7 @@ public static partial class QemuTranscripts
         Need(end["bootstrapCompleted"] >= 35 && end["bootstrapCopied"] == end["bootstrapCompleted"] &&
             end["submitted"] > end["bootstrapCompleted"] &&
             (pending is null ? end["submitted"] == end["completed"] : end["completed"] < ulong.MaxValue && end["submitted"] == end["completed"] + 1) &&
-            DiskReadCopyAccounting(end,closeReuse) && end["fsReads"] <= ulong.MaxValue - 34 &&
-            end["fsReads"] + 34 == end["submitted"] && end["cacheHits"] <= long.MaxValue &&
+            DiskReadCopyAccounting(end,closeReuse) && end["cacheHits"] <= long.MaxValue &&
             end["cacheMisses"] <= end["fsReads"], "disk_parent_counters");
         if (pending is not null)
         {
@@ -122,6 +134,40 @@ public static partial class QemuTranscripts
                 last["copied"] == end["copied"] && last["cancelled"] == 0, "disk_parent_reset_terminal");
         }
         return end;
+    }
+
+    // Bootstrap performs34 single-sector MBR/GPT reads outside the mount. Mount
+    // bootstrap reads are single-sector too; later data requests contain1..4
+    // sectors. Mount.SectorReads counts submitted sectors, not request groups.
+    private static void ValidateFullDiskFileEnd(Dictionary<string,ulong> end,NativeDiskReadObservations.Inspection device)
+    {
+        var b=device.Counters;
+        Need(device.ResetRetirement is null && device.Cancelled==0 &&
+            end["bootstrapCompleted"]==b.BootstrapCompleted && end["bootstrapCopied"]==b.BootstrapCopied &&
+            end["submitted"]==b.Submitted && end["completed"]==b.Completed && end["copied"]==b.Copied,
+            "disk_static_end_boundary");
+        ulong sectors=b.BootstrapCompleted-34,requests=0;
+        foreach(var row in device.Rows)
+            if(row.Kind==NativeDiskReadObservations.Kind.Submitted)
+            {
+                ulong count=row.Bytes/512;
+                Need(row.Owner==b.Owner && row.Epoch==b.Epoch && row.Bytes is >=512 and <=2048 && row.Bytes%512==0 &&
+                    sectors<=ulong.MaxValue-count,"disk_static_end_sectors");
+                sectors+=count;requests++;
+            }
+        Need(requests==b.Submitted-b.BootstrapCompleted && end["fsReads"]==sectors,"disk_static_end_sectors");
+    }
+
+    /// <summary>Synchronously borrow a copied Full END row and a device
+    /// inspection already validated against its original rows/image. Require
+    /// the exact supplied owner/epoch/bootstrap/final boundary and submitted
+    /// sector accounting. No pending/reset/CloseReuse or original process,
+    /// native, packet or guest authority is supplied. Mismatches throw.</summary>
+    public static void InspectNativeAotDiskStaticEndValues(string row,NativeDiskReadObservations.Boundary expected,
+        NativeDiskReadObservations.Inspection device)
+    {
+        Need(device is not null && device.Counters==expected,"disk_static_end_boundary");
+        _=ReadDiskFileEnd(row,fullDevice:device);
     }
 
     /// <summary>Inspect only the copied mechanical network envelope and strict

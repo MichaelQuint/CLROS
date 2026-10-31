@@ -126,6 +126,103 @@ internal static class NativeDiskReadObservationTests
         }
     }
 
+    [HostTest("Full parent counters join inspected one through four sector groups without changing request counts")]
+    private static void FullParentSectorCounters()
+    {
+        var cases = new (uint[] Groups, ulong Requests, ulong FsReads)[]
+        {
+            ([1U], 38, 4), ([2U], 38, 5), ([3U], 38, 6), ([4U], 38, 7), ([1U, 4U], 39, 8)
+        };
+        foreach (var item in cases)
+        {
+            var f = FullParentCounterVector(37, item.Groups);
+            string[] before = f.Rows.ToArray(); byte[] image = f.Image.ToArray();
+            var device = Reads.Inspect(f.Rows, f.Image, f.Boundary, allowMultiSector: true);
+            HostCheck.Equal(item.Requests, device.Counters.Submitted);
+            HostCheck.Equal(item.Requests, device.Counters.Completed);
+            HostCheck.Equal(item.Requests, device.Counters.Copied);
+            HostCheck.Equal(item.Groups.Length, device.Rows.Count(r => r.Kind == Reads.Kind.Submitted));
+            HostCheck.Equal(item.Groups.Sum(n => (int)n),
+                device.Rows.Count(r => r.Kind is Reads.Kind.Copied or Reads.Kind.CopyChunk));
+            QemuTranscripts.InspectNativeAotDiskStaticEndValues(
+                FullParentCounterEnd(f.Boundary, item.FsReads), f.Boundary, device);
+            HostCheck.True(f.Rows.SequenceEqual(before) && f.Image.AsSpan().SequenceEqual(image));
+            if (item.Groups.Length == 1 && item.Groups[0] == 1)
+            {
+                var legacy = Vector(37, 37, false);
+                var legacyDevice = Reads.Inspect(legacy.Rows, legacy.Image, legacy.Boundary);
+                HostCheck.Equal(item.Requests, legacyDevice.Counters.Copied);
+                QemuTranscripts.InspectNativeAotDiskStaticEndValues(
+                    FullParentCounterEnd(legacy.Boundary, 4), legacy.Boundary, legacyDevice);
+            }
+            else
+                Reject(f); // Multi-sector observations still require explicit selection.
+        }
+    }
+
+    [HostTest("Full parent counters reject wrong filesystem sectors forged request totals and foreign boundaries")]
+    private static void FullParentSectorCountersRejected()
+    {
+        var f = FullParentCounterVector(37, 1, 4);
+        var device = Reads.Inspect(f.Rows, f.Image, f.Boundary, allowMultiSector: true);
+        string end = FullParentCounterEnd(f.Boundary, 8);
+        QemuTranscripts.InspectNativeAotDiskStaticEndValues(end, f.Boundary, device);
+        HostCheck.Equal(2, device.Rows.Count(r => r.Kind == Reads.Kind.Submitted));
+        HostCheck.Equal(5, device.Rows.Count(r => r.Kind is Reads.Kind.Copied or Reads.Kind.CopyChunk));
+        void Deny(string row, Reads.Boundary expected, Reads.Inspection actual)
+        {
+            bool rejected = false;
+            try { QemuTranscripts.InspectNativeAotDiskStaticEndValues(row, expected, actual); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        foreach (ulong reads in new[] { 7UL, 9UL, 20UL, 30UL, ulong.MaxValue })
+            Deny(FullParentCounterEnd(f.Boundary, reads), f.Boundary, device);
+        // 20/30 would result from counting copied chunks/all observation stages
+        // rather than only the actual Submitted request lengths.
+        var forged = f.Boundary with { Submitted = 40, Completed = 40, Copied = 40 };
+        Deny(FullParentCounterEnd(forged, 8), f.Boundary, device);
+        Deny(FullParentCounterEnd(forged, 8), forged, device);
+        Deny(end, f.Boundary with { Owner = f.Boundary.Owner + 1 }, device);
+        Deny(end, f.Boundary with { Epoch = f.Boundary.Epoch + 1 }, device);
+        var wrongBootstrap = f.Boundary with { BootstrapCompleted = 36, BootstrapCopied = 36 };
+        Deny(end, wrongBootstrap, device);
+        Deny(FullParentCounterEnd(wrongBootstrap, 8), f.Boundary, device);
+        Deny(end, f.Boundary with { BootstrapCopied = 36 }, device);
+        var one = FullParentCounterVector(37, 4);
+        var other = Reads.Inspect(one.Rows, one.Image, one.Boundary, allowMultiSector: true);
+        Deny(end, f.Boundary, other);
+        var invalidBootstrap = FullParentCounterVector(34, 1, 4);
+        var invalid = Reads.Inspect(invalidBootstrap.Rows, invalidBootstrap.Image,
+            invalidBootstrap.Boundary, allowMultiSector: true);
+        Deny(FullParentCounterEnd(invalidBootstrap.Boundary, 5), invalidBootstrap.Boundary, invalid);
+    }
+
+    private static Fixture FullParentCounterVector(ulong bootstrap, params uint[] groups)
+    {
+        var first = MultiVector(groups[0]); List<string> rows = [];
+        for (int group = 0; group < groups.Length; group++)
+        {
+            ulong generation = bootstrap + (ulong)group + 1;
+            foreach (string source in MultiVector(groups[group]).Rows)
+            {
+                bool submitted = source.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal);
+                string row = Set(Set(source, "generation", N(generation)), "sequence", N(generation));
+                if(groups[group]==1)
+                    row=row.Replace(" copied=committed chunk=0 data="," copied=committed data=",StringComparison.Ordinal);
+                row = Set(row, "available", N(unchecked((ushort)generation)));
+                row = Set(row, "consumed", N(unchecked((ushort)(submitted ? generation - 1 : generation))));
+                rows.Add(Set(row, "clock", N(100UL + (ulong)group)));
+            }
+        }
+        ulong final = bootstrap + (ulong)groups.Length;
+        return new(first.Image, rows, new(first.Boundary.Owner, first.Boundary.Epoch,
+            bootstrap, bootstrap, final, final, final));
+    }
+
+    private static string FullParentCounterEnd(Reads.Boundary b, ulong fsReads) =>
+        FormattableString.Invariant($"M16_025_END submitted={b.Submitted} completed={b.Completed} copied={b.Copied} bootstrapCompleted={b.BootstrapCompleted} bootstrapCopied={b.BootstrapCopied} fsReads={fsReads} cacheHits=20 cacheMisses=1 device=retired fs=retired dma=zero descriptors=closed reservation=retained");
+
     private static Fixture MultiVector(uint sectors, bool cancelled = false)
     {
         byte[] image = Enumerable.Range(0, 8 * 512).Select(i => unchecked((byte)(i * 31 ^ i >> 8))).ToArray();

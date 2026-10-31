@@ -215,7 +215,7 @@ public static partial class QemuTranscripts
         var result=SocketNetworkEnvelope(rows,true,staticFiles:true).Proof.Lifetimes;
         return new(result.Count,result.Count(v=>v.Retired!=0),result.Count(v=>v.Waits!=0),result.Max(v=>v.MaximumDeadline));
     }
-    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof,Dictionary<string,ulong>? DiskEnd) SocketNetworkEnvelope(string[] lines,bool asynchronous,bool containment=false,bool vectors=false,bool mechanical=false,bool staticFiles=false,bool diskFiles=false,bool diskStatic=false,int diskStaticConnections=1,LinuxDiskExitPendingDeviceValues? diskExitPending=null,bool writableDisk=false,NativeDiskReadObservations.Inspection? diskCloseReuse=null)
+    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof,Dictionary<string,ulong>? DiskEnd) SocketNetworkEnvelope(string[] lines,bool asynchronous,bool containment=false,bool vectors=false,bool mechanical=false,bool staticFiles=false,bool diskFiles=false,bool diskStatic=false,int diskStaticConnections=1,LinuxDiskExitPendingDeviceValues? diskExitPending=null,bool writableDisk=false,NativeDiskReadObservations.Inspection? diskCloseReuse=null,NativeDiskReadObservations.Inspection? diskStaticFullDevice=null)
     {
         int parentsEnd=QemuContracts.M03OwnedSubsystemMarkers.Count+7+M16LinuxStartupMarkers.Count+M16ServiceLoopMarkers.Count;
         int apicEnd=parentsEnd+QemuContracts.M05ApicSetupMarkers.Count-QemuContracts.M03OwnedSubsystemMarkers.Count;
@@ -226,7 +226,9 @@ public static partial class QemuTranscripts
             (!diskStatic || diskFiles && staticFiles && diskStaticConnections is >0 and <=512) &&
             (diskExitPending is null || asynchronous && mechanical && diskFiles && !staticFiles && !diskStatic && !containment && !vectors) &&
             (!writableDisk || diskFiles && mechanical && asynchronous && !staticFiles && !diskStatic && diskExitPending is null) &&
-            (diskCloseReuse is null || asynchronous && mechanical && diskFiles && !staticFiles && !diskStatic && !containment && !vectors && !writableDisk && diskExitPending is null),"socket_parent_extent");
+            (diskCloseReuse is null || asynchronous && mechanical && diskFiles && !staticFiles && !diskStatic && !containment && !vectors && !writableDisk && diskExitPending is null) &&
+            (diskStaticFullDevice is null || asynchronous && diskStatic && staticFiles && diskFiles && !mechanical &&
+                !containment && !vectors && !writableDisk && diskExitPending is null && diskCloseReuse is null),"socket_parent_extent");
         int cursor=networkStart;
         void Exact(string expected){Need(cursor<lines.Length&&lines[cursor++]==expected,"socket_parent_order_"+expected);}
         Exact("TEST_START m07-026");var dma=ReadRecord(lines[cursor++],"M07_026_ROW","stage:dec","a:dec","b:dec","c:dec","d:dec");
@@ -258,7 +260,7 @@ public static partial class QemuTranscripts
         }
         else if(diskFiles)
         {
-            Need(cursor<lines.Length,"disk_parent_end_missing"); diskEnd=ReadDiskFileEnd(lines[cursor++],diskExitPending,diskCloseReuse);
+            Need(cursor<lines.Length,"disk_parent_end_missing"); diskEnd=ReadDiskFileEnd(lines[cursor++],diskExitPending,diskCloseReuse,diskStaticFullDevice);
             foreach(string marker in DiskFileEndMarkers)Exact(marker);
         }
         if(staticFiles)
