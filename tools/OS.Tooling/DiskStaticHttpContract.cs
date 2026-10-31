@@ -56,8 +56,10 @@ public static class DiskStaticHttpContract
 
     /// <summary>One planned HTTP exchange. BodyOffset/BodyBytes describe exact
     /// entity bytes in Asset, independently hashed during planning. HEAD/304/416
-    /// and missing routes have no body; nullable ContentLength allows 304 to omit
-    /// that header. MinimumReadCompletions is only a lower bound from the current
+    /// and missing routes have no body; nullable ContentLength allows 304 and the
+    /// verified-corrupt target's HEAD404 to omit that header. A supplied length
+    /// for the empty HEAD404 must still be zero. MinimumReadCompletions is only
+    /// a lower bound from the current
     /// 8 KiB completion prefix, never a prediction of actual read sizes, cache
     /// state or timing. A consumer must join every actual read and body send.</summary>
     public sealed class Request
@@ -192,7 +194,7 @@ public static class DiskStaticHttpContract
         Need(selected.Length==2 && selected[0].Method=="GET" && selected[1].Method=="HEAD" &&
             selected.All(r=>r.Status==200 && r.Headers.Count==0),"truncated_plan");
         var requests=baseline.Requests.Select(r=>r.Target!=target.Target?r:
-            new Request(r.Ordinal,r.Method,r.Target,404,null,NoHeaders,0,0,EmptyHash,0,null)).ToArray();
+            new Request(r.Ordinal,r.Method,r.Target,404,null,NoHeaders,0,0,EmptyHash,r.Method=="HEAD"?null:0,null)).ToArray();
         return new(truncated.ActualImageSha256,baseline.PublishedInventorySha256,baseline.Assets.ToArray(),requests,true);
     }
 

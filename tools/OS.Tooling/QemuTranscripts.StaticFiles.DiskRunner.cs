@@ -156,6 +156,13 @@ public static partial class QemuTranscripts
     /// and bootstrap boundaries. This copies no process/source/native/packet or
     /// whole-postprocessor authority and cannot accept a failed original.</summary>
     public static void InspectNativeAotDiskStaticParentValues(ReadOnlySpan<byte> raw,DiskStaticReplayReport replay,
+        DiskStaticSectorValues sectors)=>_ = InspectNativeAotDiskStaticParentPortValues(raw,replay,sectors);
+
+    /// <summary>Run the same synchronous Full parent, END and envelope checks
+    /// and return an owned copy of their validated remote ports for packet-value
+    /// inspection. Borrowed captures are not retained. Failure throws; copied
+    /// ports grant no source, process, browser, native or original authority.</summary>
+    public static IReadOnlyList<uint> InspectNativeAotDiskStaticParentPortValues(ReadOnlySpan<byte> raw,DiskStaticReplayReport replay,
         DiskStaticSectorValues sectors)
     {
         Need(replay is not null && replay.FullProfile && sectors is not null,"disk_static_full_parent_context");
@@ -165,8 +172,9 @@ public static partial class QemuTranscripts
         var expected=new NativeDiskReadObservations.Boundary(replay!.Owner,replay.Epoch,replay.BootstrapCompleted,
             replay.BootstrapCopied,b.Submitted,b.Completed,b.Copied);
         InspectNativeAotDiskStaticEndValues(rows.Single(r=>r.StartsWith("M16_025_END ",StringComparison.Ordinal)),expected,sectors.Device);
-        _=SocketNetworkEnvelope(rows,true,staticFiles:true,diskFiles:true,diskStatic:true,
-            diskStaticConnections:replay.Static.Connections.Count,diskStaticFullDevice:sectors.Device);
+        var envelope=SocketNetworkEnvelope(rows,true,staticFiles:true,diskFiles:true,diskStatic:true,
+            diskStaticConnections:replay.Static.Connections.Count,diskStaticFullDevice:sectors.Device).Proof;
+        return envelope.Lifetimes.Select(l=>l.RemotePort).ToArray();
     }
 
     /// <summary>Synchronously borrow copied live addresses and IO clocks. Reject

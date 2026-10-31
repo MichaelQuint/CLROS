@@ -11,6 +11,46 @@ public static partial class QemuTranscripts
         IReadOnlyList<StaticFileHttpWireMessage> BrowserMessages,bool ConcurrentWireOverlap);
     private sealed record DiskFullMessage(StaticHttpMessage Message,int ResponseOffset);
 
+    private static bool DiskFullOptionalHeadLength(DiskStaticHttpContract.AssetPlan plan,string method,string target)=>
+        plan.Truncated && method=="HEAD" && plan.Requests.Any(r=>r.Method==method && r.Target==target && r.Status==404 && r.ContentLength is null);
+
+    private static void DiskFullHttpLength(DiskStaticHttpContract.Request? expected,IReadOnlyDictionary<string,string> headers,bool optionalHeadLength)
+    {
+        if(expected?.ContentLength is long length)
+            Need(headers.GetValueOrDefault("Content-Length")==length.ToString(CultureInfo.InvariantCulture),"disk_full_http_length");
+        else if(optionalHeadLength)
+            Need(!headers.TryGetValue("Content-Length",out string? value) || value=="0","disk_full_http_length");
+    }
+
+    private static void DiskFullHttpStreamEnd(int requestAt,int requestExtent,int responseAt,int responseExtent)=>
+        Need(requestAt==requestExtent && responseAt==responseExtent,"disk_full_http_complete_stream");
+
+    /// <summary>Synchronously inspect bounded, unambiguous planned response
+    /// values through the production parser, length and complete-stream checks.
+    /// Inputs are borrowed only during this call; returned scalar tuples are
+    /// owned copies. Invalid framing/scope throws. No packet, file, process,
+    /// browser, native or original-run authority is granted.</summary>
+    public static IReadOnlyList<(int Status,int HeaderBytes,int BodyBytes)> InspectNativeAotDiskStaticHttpResponsesForTests(
+        ReadOnlySpan<byte> responses,DiskStaticHttpContract.AssetPlan plan,
+        IReadOnlyList<(string Method,string Target)> requests,bool diskStaticFull=false)
+    {
+        Need(plan is not null && requests is {Count:>0 and <=512} && responses.Length is >0 and <=DiskStaticCapturePolicy.PacketBytes,
+            "disk_full_http_test_input");
+        List<(int Status,int HeaderBytes,int BodyBytes)> result=[];int at=0;
+        foreach(var request in requests)
+        {
+            var matches=plan!.Requests.Where(r=>r.Method==request.Method && r.Target==request.Target).ToArray();
+            Need(matches.Length==1,"disk_full_http_test_request");
+            bool optional=diskStaticFull && DiskFullOptionalHeadLength(plan,request.Method,request.Target);
+            var response=StaticResponse(responses[at..],request.Method,diskStaticFull,optional);
+            Need(response.Status==matches[0].Status,"disk_full_http_test_status");
+            DiskFullHttpLength(matches[0],response.Headers,optional);
+            result.Add((response.Status,response.HeaderEnd,response.Body.Length));at+=response.End;
+        }
+        DiskFullHttpStreamEnd(requests.Count,requests.Count,at,responses.Length);
+        return result.ToArray();
+    }
+
     /// <summary>Inspect the explicitly selected full finite peer, every TCP
     /// exchange and all positive disk reads. Remaining byte-exact exchanges are
     /// returned for the separately owned original browser consumer; this value
@@ -58,7 +98,8 @@ public static partial class QemuTranscripts
                 string[] first=request.First.Split(' ');Need(first.Length==3 && first[0] is "GET" or "HEAD" or "POST" && first[2]=="HTTP/1.1" &&
                     request.Headers.GetValueOrDefault("Host")=="127.0.0.1:"+port && !request.Headers.ContainsKey("Transfer-Encoding") &&
                     (!request.Headers.TryGetValue("Content-Length",out var length) || length=="0"),"disk_full_http_request");
-                var response=StaticResponse(flow.Response.AsSpan(responseAt,flow.ResponseExtent-responseAt),first[0],diskStaticFull:true);
+                var response=StaticResponse(flow.Response.AsSpan(responseAt,flow.ResponseExtent-responseAt),first[0],diskStaticFull:true,
+                    allowMissingHeadContentLength:DiskFullOptionalHeadLength(plan,first[0],first[1]));
                 var message=new StaticHttpMessage(flow,index++,first[0],first[1],request.Headers,response.Headers,response.Status,
                     flow.Request.AsSpan(requestAt,request.End).ToArray(),flow.Response.AsSpan(responseAt,response.HeaderEnd).ToArray(),response.Body,
                     flow.Response.AsSpan(responseAt,response.End).ToArray(),
@@ -68,7 +109,7 @@ public static partial class QemuTranscripts
                     StaticDate(response.Headers.GetValueOrDefault("Date","")),"disk_full_http_exchange");
                 all.Add(new(message,responseAt));requestAt+=request.End;responseAt+=response.End;
             }
-            Need(requestAt==flow.RequestExtent && responseAt==flow.ResponseExtent,"disk_full_http_complete_stream");
+            DiskFullHttpStreamEnd(requestAt,flow.RequestExtent,responseAt,flow.ResponseExtent);
         }
         var remaining=all.ToList();List<DiskFullMessage> peer=[];long previousFinished=0,firstStarted=0;
         string[] api=["/healthz","/config","/api/status","/api/items"];
@@ -95,7 +136,7 @@ public static partial class QemuTranscripts
             Need(matches.Length>0,"disk_full_http_peer_wire_match");var selected=matches.MinBy(m=>m.Message.RequestFirst)!;remaining.Remove(selected);peer.Add(selected);
             if(i<count-2)Need(selected.Message.Flow==capture.Flows[0] && selected.Message.Index==i &&
                 (i==0 || selected.Message.RequestFirst>peer[i-1].Message.ResponseLast),"disk_full_http_sequential_matrix");
-            if(expected?.ContentLength is long expectedLength)Need(selected.Message.ResponseHeaders.GetValueOrDefault("Content-Length")==expectedLength.ToString(CultureInfo.InvariantCulture),"disk_full_http_length");
+            DiskFullHttpLength(expected,selected.Message.ResponseHeaders,DiskFullOptionalHeadLength(plan,method,path));
             if(expected is not null)Need(selected.Message.ResponseHeaders.GetValueOrDefault("Content-Range")==expected.ContentRange,"disk_full_http_range");
         }
         var a=peer[^2].Message;var j=peer[^1].Message;
@@ -128,7 +169,8 @@ public static partial class QemuTranscripts
                 if(truncated is not null && file?.Path==WebRootDiskInventory.VerifiedTruncated.Target)
                 {
                     Need(peer.Contains(item) && m.Method is "GET" or "HEAD" && m.Status==404 && m.Body.Length==0 &&
-                        m.ResponseHeaders.GetValueOrDefault("Content-Length")=="0" &&
+                        (m.ResponseHeaders.GetValueOrDefault("Content-Length")=="0" ||
+                         m.Method=="HEAD" && !m.ResponseHeaders.ContainsKey("Content-Length")) &&
                         new[]{"Content-Type","ETag","Last-Modified","Content-Range","Accept-Ranges","Cache-Control"}.All(h=>!m.ResponseHeaders.ContainsKey(h)),
                         "disk_full_http_fault_response");
                     ulong start=(ulong)item.ResponseOffset,end=start+(uint)m.RawResponse.Length;

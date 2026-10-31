@@ -159,13 +159,67 @@ internal static class WebRootDiskInventoryTests
             {
                 changes++;
                 HostCheck.True(b.Method is "GET" or "HEAD" && b.Status == 404 && b.Asset is null && b.BodyBytes == 0 &&
-                    b.ContentLength == 0 && b.ContentRange is null && b.Headers.Count == 0 && b.BodySha256 == Hash([]));
+                    (b.Method == "HEAD" ? b.ContentLength is null : b.ContentLength == 0) && b.ContentRange is null && b.Headers.Count == 0 && b.BodySha256 == Hash([]));
             }
             else HostCheck.Equal(JsonSerializer.Serialize(a), JsonSerializer.Serialize(b));
         }
         HostCheck.Equal(2, changes);
         HostCheck.Equal(positive.ExpectedBodyBytes - WebRootImageFixture.FragmentedFixtureBytes, negative.ExpectedBodyBytes);
         verified.VerifyUnchanged();
+    });
+
+
+    [HostTest("verified truncated HEAD404 permits only absent or zero length with exact scope and complete following responses", HostLane.Native)]
+    private static void TruncatedHeadFraming() => WithInventory((root, directory, image, receipt, _, _) =>
+    {
+        string path = Path.Combine(directory, "head-framing-truncated.raw");
+        var fault = WebRootImageFixture.CreateFaultVariant(root, image, receipt, path, "Truncated");
+        var verified = I.VerifiedTruncated.Verify(root, image, receipt, path, fault);
+        var positive = DiskStaticHttpContract.CreateAssetPlan(verified.Baseline);
+        var negative = DiskStaticHttpContract.CreateTruncatedAssetPlan(verified);
+        var head = negative.Requests.Single(r => r.Method == "HEAD" && r.Target == "/fixture/fragmented.bin");
+        var get = negative.Requests.Single(r => r.Method == "GET" && r.Target == head.Target);
+        var next = negative.Requests.First(r => r.Method == "GET" && r.Status == 404 && r.Target != head.Target);
+        HostCheck.True(head.ContentLength is null && get.ContentLength == 0 && head.BodyBytes == 0 && get.BodyBytes == 0);
+        (string Method,string Target)[] pair = [(head.Method, head.Target), (next.Method, next.Target)];
+        byte[] following = Reply(404, "0");
+        foreach (string? length in new string?[] { null, "0" })
+        {
+            byte[] first = Reply(404, length);
+            var parsed = Read([.. first, .. following]);
+            HostCheck.True(parsed.Count == 2 && parsed.All(r => r.Status == 404 && r.BodyBytes == 0) && parsed[0].HeaderBytes == first.Length);
+        }
+        foreach (byte[] first in new[]
+        {
+            Reply(404, "1"), Reply(404, "bad"), Reply(404, "18446744073709551616"),
+            Reply(404, extra:"Transfer-Encoding: chunked\r\n"),
+            Reply(404, "0", "Transfer-Encoding: chunked\r\n"),
+            Reply(404, extra:"Trailer: X-Extra\r\n"),
+            Reply(404, extra:"Content-Encoding: gzip\r\n"),
+            Reply(404, body:"x"), Reply(404, body:"0\r\n\r\n")
+        }) Reject(() => Read([.. first, .. following]));
+        Reject(() => Read([.. Reply(404), .. following, .. following]));
+        Reject(() => Read([.. Reply(404), .. following], full:false));
+        Reject(() => Read(Reply(404), requests:[("HEAD", "/not-the-verified-target")]));
+        Reject(() => Read(Reply(200), requests:[(head.Method, head.Target)]));
+        Reject(() => Read(Reply(404), requests:[(get.Method, get.Target)]));
+        foreach (bool full in new[] { false, true })
+        {
+            var healthy = positive.Requests.Single(r => r.Method == "HEAD" && r.Target == (full ? head.Target : "/index.html"));
+            var healthyLength = healthy.ContentLength ?? throw new InvalidOperationException("healthy HEAD length missing");
+            var healthyRequests = new (string Method,string Target)[] { (healthy.Method, healthy.Target) };
+            Reject(() => Read(Reply(200), positive, healthyRequests, full));
+            HostCheck.True(Read(Reply(200, healthyLength.ToString(System.Globalization.CultureInfo.InvariantCulture)), positive, healthyRequests, full).Single().BodyBytes == 0);
+        }
+        verified.VerifyUnchanged();
+
+        IReadOnlyList<(int Status,int HeaderBytes,int BodyBytes)> Read(byte[] bytes, DiskStaticHttpContract.AssetPlan? plan = null,
+            IReadOnlyList<(string Method,string Target)>? requests = null, bool full = true) =>
+            QemuTranscripts.InspectNativeAotDiskStaticHttpResponsesForTests(bytes, plan ?? negative, requests ?? pair, full);
+        static byte[] Reply(int status, string? length = null, string extra = "", string body = "") =>
+            System.Text.Encoding.ASCII.GetBytes("HTTP/1.1 " + status + (status == 404 ? " Not Found" : " OK") +
+                "\r\nDate: Sat, 31 Oct 2026 00:00:00 GMT\r\nServer: Kestrel\r\n" +
+                (length is null ? "" : "Content-Length: " + length + "\r\n") + extra + "\r\n" + body);
     });
 
     [HostTest("disk inventory joins45 published paths plus generated edges with actual short-slot inode and timestamps", HostLane.Native)]
