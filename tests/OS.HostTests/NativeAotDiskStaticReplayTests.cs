@@ -24,7 +24,7 @@ internal static class NativeAotDiskStaticReplayTests
     // Independent synthetic scheduler vectors. They do not execute a native
     // app or construct original image, runner, packet or acceptance authority.
     private static List<string> Vector(WebRootDiskInventory.Inspection inventory,byte[] image,bool repark=false,bool shortPrefix=false,
-        bool full=false,WebRootDiskInventory.VerifiedTruncated? truncated=null)
+        bool full=false,WebRootDiskInventory.VerifiedTruncated? truncated=null,int combinedOutputBytes=0,bool idlePoll=false)
     {
         var file=inventory.Find(WebRootDiskInventory.Root+"/index.html")!;
         ulong requested=full?Ready+DiskStaticExecutionPolicy.RequestDelayNanoseconds:Requested,exited=full?requested+100:Exited;
@@ -82,6 +82,13 @@ internal static class NativeAotDiskStaticReplayTests
         v.Main.Frame=frame;v.Main.Depth=1;v.Main.Mask=1UL<<14;v.Main.Rsp=frame-64;
         v.Call(186,1);v.Call(1,1,[4,0x500400,1]);v.Main.Rsp=frame+8;v.Main.Frame=v.Main.Depth=v.Main.Mask=0;
         v.Call(15,-4,action:5,returnedRsp:saved);v.Main.Rsp=saved;v.Call(3,0,[6]);
+        if(combinedOutputBytes!=0)
+        {
+            int remaining=combinedOutputBytes-Encoding.UTF8.GetByteCount("CLROS_STATIC_FILES_APP_ENTRY v1\n"+
+                "info: independent disk static vector\n"+"CLROS_STATIC_FILES_APP_END v1\n");
+            HostCheck.True(remaining>=0);
+            while(remaining>0){int bytes=Math.Min(512,remaining);Write(1,new string('x',bytes));remaining-=bytes;}
+        }
         Write(1,"info: independent disk static vector\n");Write(2,"CLROS_STATIC_FILES_APP_END v1\n");
         v.Rows.Add($"M10_018_APP_EXIT main={v.Main.Id} nanos={exited} exit=0 cleanup=pending");
         v.Call(231,0,[0],2);v.Drain(requested);v.Exit(2,2,3);v.Select(first);v.Exit(4,1,2);v.Select(second);v.Exit(4,0,1);
@@ -99,7 +106,17 @@ internal static class NativeAotDiskStaticReplayTests
             if(truncated is not null && number==4)
                 foreach(ulong lba in new[]{truncated.Fault.Fat0WordOffset/512,truncated.Fault.Fat1WordOffset/512})Io(lba);
             if(copy)Io(file.Sectors[0].Lba);
-            Wake();
+            if(idlePoll && request==1 && number==2)
+            {
+                // The observed supervisor poll returned empty. The later wake
+                // belongs to the existing observe:false idle turn, not that batch.
+                v.Rows.Add($"M16_012_POLL identity=0 clock={v.Clock} ready=0 idle=0");
+                v.Rows.Add($"M16_012_POLL identity=0 clock={v.Clock} ready=0 idle=0");
+                v.Clock++;
+                Wake();
+                v.Rows.Add($"M16_012_POLL identity=0 clock={v.Clock} ready=1 idle=1");
+            }
+            else Wake();
         }
         void Io(ulong lba)
         {
@@ -165,6 +182,167 @@ internal static class NativeAotDiskStaticReplayTests
             HostCheck.True(complete.Metadata.Count==0 && !complete.GrantsOriginalNativeProcessOrHttpAuthority && !complete.ReconstructsFileSystemCache);
         }
         _=Inspect(Vector(inventory,image,shortPrefix:true),inventory);
+    });
+
+
+    // Actual receipt order is slot order; post-Advance mutation order is disk
+    // readiness then descriptor readiness. These remain synthetic vectors only.
+    private static List<string> NativePollBatchVector(WebRootDiskInventory.Inspection inventory,byte[] image,
+        bool deadline=false,bool existingPrefix=false,bool reversedDispatch=false)
+    {
+        var file=inventory.Find(WebRootDiskInventory.Root+"/index.html")!;
+        var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
+        for(int i=0;i<v.Rows.Count;i++)
+            v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=4096",StringComparison.Ordinal)
+                .Replace("descriptors=16","descriptors=32",StringComparison.Ordinal)
+                .Replace("packageBytes=1320176","packageBytes=8641616",StringComparison.Ordinal)
+                .Replace("workers=4","workers=16",StringComparison.Ordinal)
+                .Replace("epochs=8192 steps=16384","epochs=1000000 steps=4000000",StringComparison.Ordinal);
+        int at=v.Rows.FindIndex(x=>x.StartsWith("M16_008_BUDGET ",StringComparison.Ordinal));
+        v.Rows[at]=Regex.Replace(v.Rows[at],@"\bnanos=[0-9]+","nanos="+DiskStaticExecutionPolicy.RuntimeNanoseconds.ToString(CultureInfo.InvariantCulture));
+        v.Rows.Insert(3,"M16_011_BOUND connections=16 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
+        at=v.Rows.FindIndex(x=>x.StartsWith("M16_008_BOUND ",StringComparison.Ordinal));
+        v.Rows.InsertRange(at,["TEST_START m16.023","TEST_START m16.024","TEST_START m16.025",
+            "M16_023_BOUND owner=16384 epoch=3 arena=9437184 pages=90 bar=34359771136 capacity=131072 bootstrapCompleted=37 bootstrapCopied=37 clock=0 pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained"]);
+        at=v.Rows.FindIndex(x=>x.StartsWith("M16_008_BUDGET ",StringComparison.Ordinal));
+        v.Rows.InsertRange(at+1,["TEST_START m10.018",
+            "M10_018_POLICY profile=DiskStaticFullV1 version="+DiskStaticExecutionPolicy.Version+
+            " calls="+DiskStaticExecutionPolicy.MaximumCalls+" requestNanos="+DiskStaticExecutionPolicy.RequestDelayNanoseconds+
+            " graceNanos="+DiskStaticExecutionPolicy.GraceNanoseconds+" runtimeNanos="+DiskStaticExecutionPolicy.RuntimeNanoseconds+" renewal=none"]);
+        v.Call(13,0,[15,0x500400,0,8]);Write(2,"CLROS_STATIC_FILES_APP_ENTRY v1\n");
+        v.Call(291,5,[0x80000]);v.Call(41,6,[2,0x80001,6]);v.Call(49,0,[6,0x500200,16]);
+        v.Rows.Add($"M10_018_DISK_READY submitted=37 completed=37 copied=37 clock={Ready}");
+        v.Rows.Add($"M10_018_LISTENING main={v.Main.Id} writer={v.Main.Id} fd=6 nanos={Ready} http=external cleanup=pending");
+        v.Call(50,0,[6,512]);v.Call(233,0,[5,1,6,0x500300]);v.Clock=Ready;
+
+        // Open on main before the workers exist; fd7 is then genuinely shared.
+        v.Call(2,0,[0x500200,0x80100,0],3,4);v.Drain(1010);v.Supervisor(3,0,1);
+        v.Rows.Add($"M16_025_WAKE identity={v.Main.Id} sequence={v.Main.Sequence} request=1 completion=1 state=1 clock={v.Clock}");
+        v.Rows.Add($"M10_018_PATH identity={v.Main.Id} ordinal={v.Main.Ordinal} nr=2 pathHex={Convert.ToHexString(Encoding.ASCII.GetBytes(file.Path))} valueBits=7 kind=5 view=4294967295 inode={file.Inode} bytes={file.Bytes} mode=33060");
+        File(2,0,0);Complete(1,7,0);v.Resume(7);
+
+        var socket=v.Clone(2,2);var disk=v.Clone(3,3);
+        NativeAotThreadingTranscriptTests.Thread? prefix=existingPrefix?v.Clone(4,4):null;
+        int active=existingPrefix?4:3;
+        v.Irq(1020,active,active);
+        v.Select(socket);v.Call(281,0,[5,0x500600,16,deadline?1UL:uint.MaxValue,0,8],3,3,deadline?1060UL:0);
+        v.Drain(1030);v.Supervisor(3,active-1,active);
+        v.Select(disk);v.Call(17,0,[7,0x500800,8192,0],3,4);
+        v.Drain(1040);v.Supervisor(3,active-2,active);
+        if(prefix is not null){v.Select(prefix);v.Irq(1041,2,active);}
+        v.Select(v.Main);
+        int readyPrefix=existingPrefix?1:0;
+        v.Rows.Add($"M16_012_POLL identity={v.Main.Id} clock={v.Clock} ready={readyPrefix} idle=0");
+        v.Clock=1070;
+        v.Rows.Add($"M16_012_POLL identity={v.Main.Id} clock={v.Clock} ready={readyPrefix+(deadline?1:0)} idle=0");
+        Io(file.Sectors[0].Lba);
+        // The lower slot is serialized first, even when disk was readied first.
+        v.Rows.Add($"M16_012_WAKE identity={socket.Id} sequence={socket.Sequence} completion={(deadline?2:1)} state=1 clock={v.Clock}");
+        v.Rows.Add($"M16_025_WAKE identity={disk.Id} sequence={disk.Sequence} request=2 completion=1 state=1 clock={v.Clock}");
+        v.Call(186,1);
+        v.Irq(1071,active,active);
+        if(prefix is not null)
+        {
+            v.Select(prefix);v.Call(186,4);v.Wait(0x500210);
+            v.Drain(1072);v.Supervisor(3,3,active);
+        }
+        bool socketFirst=deadline!=reversedDispatch;
+        if(socketFirst){FinishSocket(2);FinishDisk(1);}
+        else {FinishDisk(2);FinishSocket(1);}
+        v.Select(v.Main);File(3,0,0);v.Call(3,0,[7]);
+        // Preserve the existing static socket/lifecycle requirements.
+        v.Call(288,7,[6,0x500700,0x500780,0x80000]);
+        v.Call(45,1,[7,0x500800,1,0,0,0]);v.Call(44,1,[7,0x500000,1,0,0,0]);v.Call(3,0,[7]);
+        v.Wait(0x500204);v.Drain(v.Clock+1);v.Supervisor(3,0,active);
+        ulong requested=Ready+DiskStaticExecutionPolicy.RequestDelayNanoseconds,exited=requested+100;
+        v.Rows.Add($"M10_018_TERMINATE main={v.Main.Id} signal=15 origin=128 nanos={requested} tableClock={requested} owner=supervisor completion=pending");
+        v.Clock=requested;v.Resume(-4);
+        ulong saved=v.Main.Rsp,fp=(saved-128-512)&~63UL,frame=((fp-440)&~15UL)-8;
+        v.Main.Frame=frame;v.Main.Depth=1;v.Main.Mask=1UL<<14;v.Main.Rsp=frame-64;
+        v.Call(186,1);v.Call(1,1,[4,0x500400,1]);v.Main.Rsp=frame+8;v.Main.Frame=v.Main.Depth=v.Main.Mask=0;
+        v.Call(15,-4,action:5,returnedRsp:saved);v.Main.Rsp=saved;v.Call(3,0,[6]);
+        Write(1,"info: independent disk static vector\n");Write(2,"CLROS_STATIC_FILES_APP_END v1\n");
+        v.Rows.Add($"M10_018_APP_EXIT main={v.Main.Id} nanos={exited} exit=0 cleanup=pending");
+        v.Call(231,0,[0],2);v.Drain(requested);v.Exit(2,prefix is null?0:1,active);
+        if(prefix is not null){v.Select(prefix);v.Exit(4,0,1);}
+        for(int fd=0;fd<=5;fd++)v.Rows.Add($"M16_011_CLOSE fd={fd} valueBits=0");
+        v.Clock=exited;v.End(existingPrefix?4:3);
+        at=v.Rows.FindIndex(x=>x.StartsWith("M16_008_OWNER_END ",StringComparison.Ordinal));
+        v.Rows.Insert(at+1,$"M10_018_OWNER_END main={v.Main.Id} ready={Ready} requested={requested} exited={exited} reaped={(existingPrefix?4:3)} app=exit0 process=drained timer=restored descriptors=closed mappings=restored pool=scrubbed nic=pending");
+        return v.Rows;
+
+        void Write(uint channel,string text)
+        {int bytes=Encoding.UTF8.GetByteCount(text);v.Rows.Add($"M16_005_WRITE fd={channel} bytes={bytes} data={text}");v.Call(1,bytes,[channel,0x500400,(uint)bytes]);}
+        void File(ulong number,ulong before,ulong after)
+        {var t=v.Current;v.Rows.Add($"M10_018_FILE identity={t.Id} ordinal={t.Ordinal+(number is 3 or 5?1UL:0)} nr={number} fd=7 generation=1 kind=5 view=4294967295 inode={file.Inode} bytes={file.Bytes} position={before} afterPosition={after}");}
+        void Complete(ulong request,long result,uint output)
+        {var t=v.Current;v.Rows.Add($"M16_025_COMPLETE identity={t.Id} sequence={t.Sequence} request={request} outputBytes={output} completion=1 valueBits={unchecked((ulong)result)} clock={v.Clock}");}
+        void Io(ulong lba)
+        {
+            string data=Convert.ToHexString(image.AsSpan(checked((int)lba*512),512)).ToLowerInvariant();
+            for(int kind=0;kind<3;kind++)v.Rows.Add($"M16_023_IO kind={kind} owner=16384 epoch=3 generation=38 sector={lba} sequence=38 bytes=512 available=38 consumed={(kind==0?37:38)} clock={v.Clock}"+(kind==2?" copied=committed data="+data:""));
+        }
+        void FinishDisk(int remainingReady)
+        {
+            v.Select(disk);File(17,0,0);Complete(2,checked((long)file.Bytes),8192);v.Resume(checked((long)file.Bytes));
+            v.Call(60,0,[0],4);v.Drain(v.Clock+1);v.Exit(4,remainingReady,active--);
+        }
+        void FinishSocket(int remainingReady)
+        {
+            v.Select(socket);v.Rows.Add($"M16_012_COMPLETE identity={socket.Id} sequence={socket.Sequence} completion={(deadline?2:1)} valueBits={(deadline?0:1)} clock={v.Clock}");
+            v.Resume(deadline?0:1);v.Call(60,0,[0],4);v.Drain(v.Clock+1);v.Exit(4,remainingReady,active--);
+        }
+    }
+
+    [HostTest("empty supervisor poll pair preserves a later unobserved-idle disk wake",HostLane.Native)]
+    private static void EmptySupervisorPollPair()=>WithInventory((inventory,image)=>
+    {
+        var rows=Vector(inventory,image,full:true,idlePoll:true);
+        int first=rows.FindIndex(x=>x.StartsWith("M16_012_POLL identity=0 ",StringComparison.Ordinal));
+        HostCheck.True(first>=0 && rows[first]==rows[first+1] &&
+            rows[first].EndsWith(" ready=0 idle=0",StringComparison.Ordinal) &&
+            rows[first+2].StartsWith("M16_025_WAKE ",StringComparison.Ordinal) &&
+            rows[first+3].StartsWith("M16_012_POLL identity=0 ",StringComparison.Ordinal) &&
+            rows[first+3].EndsWith(" ready=1 idle=1",StringComparison.Ordinal));
+        var report=Inspect(rows,inventory,true);
+        HostCheck.True(report.FullProfile && report.Static.Protocol.Reaped==3 &&
+            report.Reads.Count==1 && !report.GrantsOriginalExecutionAuthority);
+    });
+
+    [HostTest("disk poll mixed wake receipts preserve native phase ordering and prior ready winners",HostLane.Native)]
+    private static void NativePollBatchOrdering()=>WithInventory((inventory,image)=>
+    {
+        foreach(var mode in new[]{(Deadline:false,Prefix:false),(Deadline:true,Prefix:false),(Deadline:false,Prefix:true)})
+        {
+            var rows=NativePollBatchVector(inventory,image,mode.Deadline,mode.Prefix);
+            var report=Inspect(rows,inventory,true);
+            HostCheck.True(report.FullProfile && report.Static.Protocol.Reaped==(mode.Prefix?4:3) && !report.GrantsOriginalExecutionAuthority);
+        }
+        Reject(NativePollBatchVector(inventory,image,reversedDispatch:true),inventory,null,true);
+        Reject(NativePollBatchVector(inventory,image,deadline:true,reversedDispatch:true),inventory,null,true);
+        var valid=NativePollBatchVector(inventory,image);
+        Reject(Change(valid,"M16_012_WAKE ","identity",0x200000002),inventory,null,true);
+        Reject(Change(valid,"M16_025_WAKE identity=4294967299 ","clock",1071),inventory,null,true);
+        int first=valid.FindIndex(x=>x.StartsWith("M16_012_WAKE ",StringComparison.Ordinal));
+        var swapped=valid.ToArray();(swapped[first],swapped[first+1])=(swapped[first+1],swapped[first]);
+        Reject(swapped,inventory,null,true);
+        Reject(valid.Where(x=>!x.StartsWith("M16_012_POLL identity=4294967297 clock=1070 ",StringComparison.Ordinal)),inventory,null,true);
+        var split=valid.ToList();split.Insert(first+1,"M16_012_POLL identity=4294967297 clock=1070 ready=1 idle=0");
+        Reject(split,inventory,null,true);
+    });
+
+    [HostTest("disk replay shares explicit Full decoded-output allowance and preserves ordinary bound",HostLane.Native)]
+    private static void CombinedOutputBoundaries()=>WithInventory((inventory,image)=>
+    {
+        foreach(var policy in new[]{(Full:false,Bytes:65536),(Full:true,Bytes:131072)})
+        {
+            var rows=Vector(inventory,image,full:policy.Full,combinedOutputBytes:policy.Bytes);
+            var report=Inspect(rows,inventory,policy.Full);
+            HostCheck.Equal(policy.Full,report.FullProfile);
+            HostCheck.True(report.Static.Protocol.Reaped==3 && !report.GrantsOriginalExecutionAuthority);
+            Reject(Vector(inventory,image,full:policy.Full,combinedOutputBytes:policy.Bytes+1),inventory,"raw_size",policy.Full);
+        }
+        _=Inspect(Vector(inventory,image,full:true,combinedOutputBytes:65537),inventory,true);
     });
 
     [HostTest("disk static replay rejects forged wake completion and original writable prefix",HostLane.Native)]

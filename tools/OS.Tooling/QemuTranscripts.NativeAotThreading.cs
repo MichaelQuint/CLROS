@@ -221,7 +221,8 @@ public static partial class QemuTranscripts
                 webSettingsCall.Identity!=0 && webSettingsCall.Ordinal!=0,"web_replay_configuration");
             Need(broader || socket || app is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke","threading_application");
             Need(rows is not null && rows.Length >=25 && rows.Length <=(diskStaticFull?DiskStaticCapturePolicy.ProtocolRows:service?1_000_000:100000) && instruction is not null && syscall is not null &&
-                lengths is not null && lengths.Count is >0 and <=4096 && lengths.All(n=>n>0 && n<=(web?8192:4096)) && lengths.Sum()<=(web?65536:vectors?32768:4096),"threading_protocol_input");
+                lengths is not null && lengths.Count is >0 and <=4096 && lengths.All(n=>n>0 && n<=(web?8192:4096)) &&
+                lengths.Sum()<=(diskStaticFull?DiskStaticCapturePolicy.CombinedOutputBytes:web?65536:vectors?32768:4096),"threading_protocol_input");
             this.app=app; this.instruction=instruction!; this.syscall=syscall!; writeLengths=lengths!.ToArray();
             exitTails=FindExitTails(elf,this.instruction,this.syscall);
             var diskCalls=diskInventory is null?default:ReadLinuxDiskCallObservations(rows!,diskStaticFull);
@@ -292,12 +293,12 @@ public static partial class QemuTranscripts
             {
                 if(staticFiles)StaticSupervisor();
                 if(service && (!serviceQuotaFailure || !quotaAborted)) ServiceProgress();
-                SocketObservations(supervisor:true);
+                SocketObservations(supervisor:true,allowDiskPollBatch:true);
                 // Idle polling may stop at the next owned static request row.
                 // Consume that real supervisor boundary before judging an empty
                 // FIFO, then replay its actual post-request socket/clock polls.
                 if(staticFiles && Starts(StaticTag+"_TERMINATE "))
-                { StaticSupervisor(); SocketObservations(supervisor:true); }
+                { StaticSupervisor(); SocketObservations(supervisor:true,allowDiskPollBatch:true); }
                 if(web && !service && !staticFiles && position==rows.Length)throw new WebBoundary("dispatch_or_idle");
                 Need((uint)(transfers/2+ticks+socketIdlePolls)<budget.MaximumSteps,"threading_transfer_bound");
                 if(ready.Count==0)
@@ -332,7 +333,7 @@ public static partial class QemuTranscripts
                     bool exitTailContinued=false;
                     while(!prepareBlocked)
                     {
-                        SocketObservations();
+                        SocketObservations(allowDiskPollBatch:true);
                         SocketMessageInput(t);
                         if(staticFiles)StaticBeforeCall(t);
                         if(t.TailRip!=0 && Starts("M16_009_IRQ "))
@@ -377,7 +378,7 @@ public static partial class QemuTranscripts
                             if(r["nr"]==228 && r["a0"]==1 && r["valueBits"]==0)phases?.ClockRead(timing);
                         }
                         ExpectDelivery(t);
-                        SocketObservations();
+                        SocketObservations(allowDiskPollBatch:true);
                         calls++; ending=r["action"] is 2 or 3 or 4 or 6; exiting=r["action"] is 2 or 4; action=r["action"];
                         if(serviceQuotaFailure && Starts("M16_016_QUOTA_ABORT "))
                         { QuotaAbort(t,r,waits[index]); ending=exiting=true; action=4; }
@@ -512,8 +513,11 @@ public static partial class QemuTranscripts
             if(t.WaitSource==4){Need(t.Disk is not null,"disk_static_interrupt_owner");t.Disk!.Winner=5;}
             Complete(t,-4);
         }
-        private void Complete(RuntimeThread t,long result)
-        { if(t.Completion.HasValue) return; t.Completion=result; if(!t.Parking) Enqueue(t); }
+        private void Complete(RuntimeThread t,long result,List<RuntimeThread>? deferred=null)
+        {
+            if(t.Completion.HasValue)return;t.Completion=result;
+            if(!t.Parking){if(deferred is null)Enqueue(t);else deferred.Add(t);}
+        }
         private void Clock(ulong now)
         {
             if(now<clock || now>long.MaxValue)

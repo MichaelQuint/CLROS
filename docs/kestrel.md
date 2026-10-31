@@ -116,7 +116,7 @@ conditional/range/concurrent disk requests or the read milestone. Fresh original
 guests and all remaining batch gates precede closure.
 
 [Step1577](../done/step1577.md) adds complete value replay for the diagnostic
-disk/static leaf, including actual source4 FIFO wakes, retained file identity,
+disk/static leaf, including generation-bound source4 wake observations, retained file identity,
 original output ceilings and deferred completions. All original018r03 calls,
 reaps, file observations and copied sectors match. This does not rescue that
 failed original: a complete original parent/native/process/HTTP/packet owner,

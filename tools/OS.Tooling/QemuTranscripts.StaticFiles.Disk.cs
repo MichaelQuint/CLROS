@@ -262,6 +262,9 @@ public static partial class QemuTranscripts
         // Device clocks are serial observation times, while table clocks are
         // sampled by scheduler mutations. Do not compare those distinct streams.
         private bool DiskStaticObservations()
+        { uint slot=0;return DiskStaticObservations(null,0,ref slot); }
+
+        private bool DiskStaticObservations(List<RuntimeThread>? deferred,ulong pollClock,ref uint previousSlot)
         {
             if(diskInventory is null)return false;
             if(Starts("M16_023_IO "))
@@ -272,6 +275,7 @@ public static partial class QemuTranscripts
             if(!Starts("M16_025_WAKE "))return false;
             int index=position;
             var row=Row("M16_025_WAKE","identity:dec","sequence:dec","request:dec","completion:dec","state:dec","clock:dec");
+            if(deferred is not null)DiskStaticPollReceipt(row["identity"],row["clock"],pollClock,ref previousSlot);
             var thread=history.SingleOrDefault(t=>!t.Reaped && t.Identity==row["identity"]);
             Need(thread is {WaitSource:4,Exiting:false,Disk:not null} && thread.LastSequence==row["sequence"] &&
                 !thread.Disk.Observed && row["state"]==(thread.Parking?3UL:1UL) &&
@@ -282,7 +286,7 @@ public static partial class QemuTranscripts
             else Need(pending.Request==row["request"],"disk_static_request_change");
             Clock(row["clock"]);
             if(row["completion"]==1)
-            { Need(thread.Completion is null && pending.Winner==0,"disk_static_wake_winner");pending.Winner=1;Complete(thread,long.MinValue); }
+            { Need(thread.Completion is null && pending.Winner==0,"disk_static_wake_winner");pending.Winner=1;Complete(thread,long.MinValue,deferred); }
             else Need(pending.Winner==5 && thread.Completion==-4,"disk_static_interrupt_winner");
             pending.Observed=true;pending.WakeIndex=index;return true;
         }

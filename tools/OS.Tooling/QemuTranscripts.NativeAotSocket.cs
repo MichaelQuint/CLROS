@@ -89,13 +89,19 @@ public static partial class QemuTranscripts
             position+=1+message.Vectors.Count;
         }
 
-        private void SocketObservations(bool supervisor=false)
+        private void SocketObservations(bool supervisor=false,bool allowDiskPollBatch=false)
         {
             if(!socket)return;
+            bool beforeAdvancePoll=false;
+            // An empty supervisor may enter an unobserved idle poll before its
+            // next receipt. Establish scope before consuming any candidate pair.
+            bool diskPollBatch=allowDiskPollBatch && (!supervisor || ready.Count!=0);
             while(true)
             {
                 SocketTransportObservations();
-                if(DiskStaticObservations())continue;
+                bool diskIo=Starts("M16_023_IO ");
+                if(DiskStaticObservations())
+                { if(diskIo)beforeAdvancePoll=false;continue; }
                 if(!Starts("M16_012_POLL ") && !Starts("M16_012_WAKE "))break;
                 Need(socketObservations.TryGetValue(position,out var observed),"socket_observation_position");
                 if(observed.Kind==NativeAotSocketGuest.ObservationKind.Poll && observed.Identity!=(socketSelected?.Identity??0))break;
@@ -106,8 +112,21 @@ public static partial class QemuTranscripts
                     Clock(observed.Clock);
                     Need(observed.Ready==(uint)ready.Count,"socket_poll_ready");
                     if(supervisor && !observed.Idle)socketIdleAllowed=ready.Count==0;
+                    if(diskInventory is not null && diskPollBatch)
+                    {
+                        if(observed.Idle)beforeAdvancePoll=false;
+                        else if(beforeAdvancePoll)
+                        { beforeAdvancePoll=false;DiskStaticPollWakes(observed.Clock); }
+                        else beforeAdvancePoll=true;
+                    }
                     continue;
                 }
+                SocketWake(observed);
+            }
+        }
+
+        private void SocketWake(NativeAotSocketGuest.Readiness observed,List<RuntimeThread>? deferred=null)
+        {
                 var t=history.SingleOrDefault(t=>t.Identity==observed.Identity && !t.Reaped);
                 Need(t is not null && t.WaitSource==3 && t.LastSequence==observed.Sequence && t.Epoll is not null &&
                     !t.EpollObserved && observed.State==(t.Parking?3U:1U),"socket_wake_lifetime");
@@ -117,11 +136,44 @@ public static partial class QemuTranscripts
                 if(observed.Completion==1)
                 {
                     Need(t!.Completion is null && t.EpollEligible,"socket_wake_eligibility");
-                    t.EpollWinner=1;Complete(t,long.MinValue);
+                    t.EpollWinner=1;Complete(t,long.MinValue,deferred);
                 }
                 else Need(t!.EpollWinner==observed.Completion && t.Completion.HasValue,"socket_wake_winner");
                 t.EpollObserved=true;
+        }
+
+        // A native observed poll emits a pre-record POLL, flushes old wakes,
+        // advances deadlines, then emits its second POLL. Only this local
+        // post-Advance boundary owns the following disk pump and wake scan.
+        // The producer wakes disk workers before descriptor workers, but prints
+        // receipts afterward in slot order. Preserve that distinction without
+        // using later dispatch/file records to choose the runnable owner.
+        private void DiskStaticPollWakes(ulong pollClock)
+        {
+            while(Starts("M16_023_IO "))Need(DiskStaticObservations(),"disk_static_poll_io");
+            if(!Starts("M16_025_WAKE ") && !Starts("M16_012_WAKE "))return;
+            List<RuntimeThread> diskReady=[],socketReady=[];
+            uint previousSlot=0;
+            while(Starts("M16_025_WAKE ") || Starts("M16_012_WAKE "))
+            {
+                if(Starts("M16_025_WAKE "))
+                    Need(DiskStaticObservations(diskReady,pollClock,ref previousSlot),"disk_static_poll_wake");
+                else
+                {
+                    Need(socketObservations.TryGetValue(position,out var observed),"socket_observation_position");
+                    DiskStaticPollReceipt(observed.Identity,observed.Clock,pollClock,ref previousSlot);
+                    position++;SocketWake(observed,socketReady);
+                }
             }
+            foreach(var thread in diskReady)Enqueue(thread);
+            foreach(var thread in socketReady)Enqueue(thread);
+        }
+
+        private void DiskStaticPollReceipt(ulong identity,ulong observedClock,ulong pollClock,ref uint previousSlot)
+        {
+            uint slot=(uint)identity;
+            Need(observedClock==pollClock && slot>previousSlot && slot<=(uint)slots.Length,"disk_static_poll_receipt");
+            previousSlot=slot;
         }
 
         private void SocketTransportObservations()
@@ -193,8 +245,15 @@ public static partial class QemuTranscripts
         // a transfer never entered CPL3 or armed an APIC timer: no DRAIN exists.
         private bool SocketPrepare(RuntimeThread t)
         {
-            Need(socket && t.Epoll is not null && t.Completion.HasValue && t.EpollObserved &&
-                socketObservations.TryGetValue(position,out var observed) && observed.Identity==t.Identity,"socket_prepare_owner");
+            if(!(socket && t.Epoll is not null && t.Completion.HasValue && t.EpollObserved &&
+                socketObservations.TryGetValue(position,out var observed) && observed.Identity==t.Identity))
+            {
+                // Failure-only copied scheduler state. The selected owner was
+                // just dequeued; prefixing it reconstructs that FIFO boundary.
+                // Preserve every acceptance predicate and emit no user payload.
+                string State(RuntimeThread thread)=>$"{thread.Identity}:source{thread.WaitSource}:sequence{thread.LastSequence}:deadline{thread.Deadline}:completion{thread.Completion?.ToString(System.Globalization.CultureInfo.InvariantCulture)??"none"}:winner{thread.EpollWinner}:observed{thread.EpollObserved}:parking{thread.Parking}";
+                throw new ToolFailure("socket_prepare_owner",$"clock={clock} selected={State(t)} fifo={string.Join(',',new[]{t}.Concat(ready).Select(State))}");
+            }
             var value=socketObservations[position++];Clock(value.Clock);
             Need(value.PreviousSequence==t.LastSequence || value.Sequence==t.LastSequence,"socket_prepare_sequence");
             if(value.Kind==NativeAotSocketGuest.ObservationKind.Repark)
