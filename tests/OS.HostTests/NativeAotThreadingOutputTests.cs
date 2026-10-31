@@ -119,6 +119,62 @@ internal static class NativeAotThreadingOutputTests
         Reject("NativeAotSuspensionSmoke", Envelope(Encoding.UTF8.GetBytes(Suspension.Replace("progressAfter=16", "progressAfter=15", StringComparison.Ordinal))));
     }
 
+    [HostTest("nativeaot.threading-output size rejection retains exact reason and bounded scalar diagnostics")]
+    private static void SizeFailureDetails()
+    {
+        void Rejected(byte[] raw,bool full,string condition,int declared,int remaining,int stdout,int stderr,int writes,int limit)
+        {
+            try{_=NativeAotThreadingOutput.ReadWeb(raw,full);throw new InvalidOperationException("accepted size overflow");}
+            catch(ToolFailure error)
+            {
+                HostCheck.Equal("nativeaot_threading_raw_size",error.Message);
+                HostCheck.Equal(9,error.Data.Count);
+                HostCheck.Equal(condition,(string)error.Data["condition"]!);
+                HostCheck.Equal(full?"disk-static-full":"web",(string)error.Data["selectedMode"]!);
+                HostCheck.Equal(declared,(int)error.Data["declaredPayloadLength"]!);
+                HostCheck.Equal(remaining,(int)error.Data["bytesRemaining"]!);
+                HostCheck.Equal(stdout,(int)error.Data["stdoutBytes"]!);
+                HostCheck.Equal(stderr,(int)error.Data["stderrBytes"]!);
+                HostCheck.Equal(writes,(int)error.Data["writeCount"]!);
+                HostCheck.Equal(limit,(int)error.Data["applicableLimit"]!);
+                HostCheck.True(error.Data["inputOffset"] is int offset && offset>=0 && offset<=raw.Length);
+                HostCheck.True(error.Data.Values.Cast<object>().All(value=>value is int or string));
+            }
+        }
+        byte[] oversized=new byte[8*1024*1024+1];
+        Rejected(oversized,false,"raw extent",0,oversized.Length,0,0,0,8*1024*1024);
+        foreach(var policy in new[]{(Full:false,CombinedBytes:65536),(Full:true,CombinedBytes:131072)})
+        {
+            bool full=policy.Full;
+            Rejected(Envelope([(byte)'x'])[..^1],full,"payload exceeds remaining",1,0,0,0,0,0);
+            using MemoryStream output=new();
+            byte[] chunk=Enumerable.Repeat((byte)'x',8192).ToArray();
+            int chunks=policy.CombinedBytes/8192;
+            for(int i=0;i<chunks;i++)
+            {
+                string header=Header(chunk.Length);
+                if((i&1)!=0)header=header.Replace("fd=1","fd=2",StringComparison.Ordinal);
+                output.Write(Join(Encoding.UTF8.GetBytes(header),chunk,[13,10]));
+            }
+            var boundary=NativeAotThreadingOutput.ReadWeb(output.ToArray(),full);
+            HostCheck.Equal(policy.CombinedBytes/2,boundary.Stdout.Length);HostCheck.Equal(policy.CombinedBytes/2,boundary.Stderr.Length);
+            HostCheck.Equal(chunks,boundary.WriteLengths.Count);
+            output.Write(Envelope([(byte)'y']));
+            Rejected(output.ToArray(),full,"combined stdout+stderr",1,1,policy.CombinedBytes/2,policy.CombinedBytes/2,chunks,policy.CombinedBytes);
+            if(!full)
+            {
+                var expanded=NativeAotThreadingOutput.ReadWeb(output.ToArray(),true);
+                HostCheck.Equal(65537,expanded.Stdout.Length+expanded.Stderr.Length);
+            }
+            using MemoryStream writes=new();
+            byte[] one=Envelope([(byte)'x']);
+            for(int i=0;i<4096;i++)writes.Write(one);
+            HostCheck.Equal(4096,NativeAotThreadingOutput.ReadWeb(writes.ToArray(),full).WriteLengths.Count);
+            writes.Write(one);
+            Rejected(writes.ToArray(),full,"write count",1,1,4096,0,4096,4096);
+        }
+    }
+
     private static (string Name, string Text)[] Applications() => [("NativeAotSuspensionSmoke", Suspension), ("NativeAotThreadPoolSmoke", ThreadPool)];
     private static string Header(int bytes) => "M16_005_WRITE fd=1 bytes=" + bytes.ToString(CultureInfo.InvariantCulture) + " data=";
     private static byte[] Envelope(byte[] bytes) => Join(Encoding.UTF8.GetBytes(Header(bytes.Length)), bytes, new byte[] {13,10});

@@ -5,7 +5,8 @@ namespace OS.Tooling;
 /// <summary>Host-only decoding of stdout writes in a raw M16-009 serial tail.
 /// Exact byte framing and complete app output are checked without executing or
 /// qualifying any payload. Kernel scheduling/ownership records remain the parent
-/// protocol checker's responsibility.</summary>
+/// protocol checker's responsibility. Size failures retain their existing reason
+/// and expose only scalar rejection details through ToolFailure.Data.</summary>
 public static class NativeAotThreadingOutput
 {
     private static readonly UTF8Encoding Utf8 = new(false, true);
@@ -66,7 +67,8 @@ public static class NativeAotThreadingOutput
     }
 
     /// <summary>Decode borrowed raw web-leaf bytes with exact fd1/fd2 framing,
-    /// at most8192 bytes per write and65536 combined bytes. Reassemble UTF8 per
+    /// at most8192 bytes per write and65536 combined bytes, or the explicitly
+    /// selected Full host collection allowance. Reassemble UTF8 per
     /// channel across arbitrary write boundaries. Structural text retains the
     /// canonical envelope headers but none of their untrusted payload bytes.
     /// Other bytes, including a final incomplete kernel row, remain unchanged.
@@ -84,8 +86,11 @@ public static class NativeAotThreadingOutput
     private static Capture ReadFramed(ReadOnlySpan<byte> rawTail, bool web, bool vectors = false, bool service = false, bool diskStaticFull = false)
     {
         Need(!diskStaticFull || web && !service && !vectors, "full_mode");
-        Need(rawTail.Length >0 && rawTail.Length <=(diskStaticFull ? DiskStaticCapturePolicy.SerialBytes : (service ?128 :8) *1024 *1024), "size");
-        int limit = web ? 65536 : vectors ? 32768 : 4096, writeLimit = web ? 8192 : 4096;
+        string mode=diskStaticFull?"disk-static-full":service?"service":vectors?"vectors":web?"web":"threading";
+        int rawLimit=diskStaticFull ? DiskStaticCapturePolicy.SerialBytes : (service ?128 :8) *1024 *1024;
+        NeedSize(rawTail.Length >0 && rawTail.Length <=rawLimit,"raw extent",0,0,rawTail.Length,0,0,0,mode,rawLimit);
+        int limit = diskStaticFull ? DiskStaticCapturePolicy.CombinedOutputBytes : web ? 65536 : vectors ? 32768 : 4096,
+            writeLimit = web ? 8192 : 4096;
         byte[] stdout = new byte[limit], stderr = new byte[web ? limit : 0], normalized = new byte[rawTail.Length];
         List<int> lengths = []; List<uint> channels = [];
         int cursor = 0, total = 0, errors = 0, written = 0;
@@ -116,7 +121,10 @@ public static class NativeAotThreadingOutput
             }
             Need(rawTail[numberAt..].StartsWith(" data="u8), "envelope");
             int start = numberAt + 6;
-            Need(bytes <= rawTail.Length - start - 2 && bytes <= limit - total - errors && lengths.Count < 4096, "size");
+            int remaining=rawTail.Length-start-2;
+            NeedSize(bytes <=remaining,"payload exceeds remaining",start,bytes,remaining,total,errors,lengths.Count,mode,remaining);
+            NeedSize(bytes <=limit-total-errors,"combined stdout+stderr",start,bytes,remaining,total,errors,lengths.Count,mode,limit);
+            NeedSize(lengths.Count <4096,"write count",start,bytes,remaining,total,errors,lengths.Count,mode,4096);
             int end = start + bytes;
             Need(rawTail[end] == (byte)'\r' && rawTail[end + 1] == (byte)'\n', "framing");
             rawTail[start..end].CopyTo(channel == 1 ? stdout.AsSpan(total) : stderr.AsSpan(errors));
@@ -150,5 +158,19 @@ public static class NativeAotThreadingOutput
     private static void Need(bool condition, string reason)
     {
         if (!condition) throw new ToolFailure("nativeaot_threading_raw_" + reason);
+    }
+
+    // Failure-only host diagnostics. Keep the existing public reason and all
+    // bounds; retain scalar counters without copying any payload into the error.
+    private static void NeedSize(bool accepted,string condition,int offset,int declared,int remaining,
+        int stdout,int stderr,int writes,string mode,int limit)
+    {
+        if(accepted)return;
+        var error=new ToolFailure("nativeaot_threading_raw_size");
+        error.Data["condition"]=condition;error.Data["inputOffset"]=offset;
+        error.Data["declaredPayloadLength"]=declared;error.Data["bytesRemaining"]=remaining;
+        error.Data["stdoutBytes"]=stdout;error.Data["stderrBytes"]=stderr;error.Data["writeCount"]=writes;
+        error.Data["selectedMode"]=mode;error.Data["applicableLimit"]=limit;
+        throw error;
     }
 }
