@@ -153,7 +153,10 @@ public static class NativeAotDiskStaticBrowser
         Need(port is > 0 and < 65536 && decodedBody.Length <= MaximumBodyBytes, "exchange_bounds");
         string id = Text(request, "requestId");
         Need(id.Length is > 0 and <= 128 && new[] { requestExtra, response, responseExtra, finished }.All(e => Text(e, "requestId") == id), "request_identity");
-        Need(!request.TryGetProperty("redirectResponse", out _) && !request.TryGetProperty("redirectHasExtraInfo", out _), "redirect");
+        // CDP emits redirectHasExtraInfo:false on ordinary requests. Its
+        // presence alone is not a redirect; a redirect response always is.
+        Need(!request.TryGetProperty("redirectResponse", out _) &&
+            (!request.TryGetProperty("redirectHasExtraInfo", out var redirectInfo) || redirectInfo.ValueKind == JsonValueKind.False), "redirect");
         var req = request.GetProperty("request"); string method = Text(req, "method"), url = Text(req, "url");
         Need(method == "GET" && !req.TryGetProperty("postData", out _), "request_method");
         string origin = "http://127.0.0.1:" + port;
