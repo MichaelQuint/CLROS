@@ -2,7 +2,9 @@
 
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
-Source a7ed completed three native publications, conditional own-profile layout/ABI/stack review and all 58 inherited stack witnesses. Its fresh full failed in the M04 reviewed-source check before Native execution; preserve that complete failed run. This pin repair requires a new committed source, publication/input binding and fresh unfiltered full before guest activation. Parent 7da retains its separate full/native/AFTER pass and failed A1. All 21 read criteria, seven original recipes, package/ELF bytes and limits remain unchanged. Complete verified read merge/parity/recovery, stop helper work and pause before writes/SQLite.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+
+The exact repository .NET 11 RC2/C# 14 pins remain unchanged; source and private-producer identities stay attached to their actual build epochs.
 
 [Step1655](../done/step1655.md) The completed-only directory cache reshape removes in-flight reservations and helper call edges, restores the original submit/release paths and publishes only the successfully copied completion sector. It passes 99 focused checks across six fixtures with zero reuse. The preceding 90cdfc3b Full/Timing/M16 publication compiled, but its measured stack growth exceeded the inherited Timing margin; all failures and decoded facts remain preserved. Fresh native review of this reshape, including the unchanged Enable construction edge, remains required before one diagnostic Short. Assess benefit before another expensive full lane; the unfiltered full is mandatory for stable acceptance. Finish qualified read-phase merge/parity/recovery, then pause before writes/SQLite.
 
@@ -24,7 +26,7 @@ installed separately; leave the system RC3 installation intact:
 
 The pinned .NET 11 RC2/C# 14 toolchain below is unchanged. [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
-Source a7ed completed three native publications, conditional own-profile layout/ABI/stack review and all 58 inherited stack witnesses. Its fresh full failed in the M04 reviewed-source check before Native execution; preserve that complete failed run. This pin repair requires a new committed source, publication/input binding and fresh unfiltered full before guest activation. Parent 7da retains its separate full/native/AFTER pass and failed A1. All 21 read criteria, seven original recipes, package/ELF bytes and limits remain unchanged. Complete verified read merge/parity/recovery, stop helper work and pause before writes/SQLite.
+Keep the repository-pinned .NET 11 RC2/C# 14 toolchain. Focused precommit checks, committed private producers, retained native qualification and each unfiltered host result retain distinct source epochs. The current2c2 full-host result passes 7,464 checks across925 fixtures, including110 Native-labelled fixtures, with zero failures or reuse; this label grants no new native publication or guest scope. See [Step1672](../done/step1672.md) for exact producer/source pins.
 
 ```powershell
 $clrosDotnet = 'C:\Users\AI\.codex\toolchains\dotnet-11.0.100-rc.2.26504.105'
@@ -108,15 +110,7 @@ checks, reviewed entry-source pin and backlog contracts are repaired;121 focused
 checks pass unchanged. A fresh committed-source unfiltered full/native run is
 still required before guest qualification. First-batch issues remain open.
 
-[Step1581](../done/step1581.md) adds an original external browser capture for the
-full disk/static candidate. It requires installed Microsoft Edge or Google
-Chrome on Windows, started in an owned job with a fresh ignored profile and
-CDP endpoint. It records executable identity, process termination, protocol,
-network bodies, DOM and PNG screenshot under the original fresh evidence root.
-The5-minute browser deadline is inside the peer's1700-second deadline; full
-QEMU timeout defaults3000s and admits2200..3600s only with explicit full mode.
-No browser execution has passed yet. The Linux builder remains serialized;
-original retained recipes and persistent builder/seed owners must be preserved.
+The external Full018 browser capture introduced in [Step1581](../done/step1581.md) requires installed Microsoft Edge or Google Chrome on Windows, an owned job, a fresh ignored profile and CDP endpoint. Each original retains executable identity, process termination, protocol, network bodies, DOM and PNG evidence. Browser startup has a 3,600-second ceiling under the outer owner token, separate from the 1,700-second HTTP matrix and240-second header deadline. Explicit Full outer admission is6,600..7,200 seconds, default7,200. Guest termination is requested1,800 seconds after listen, with120-second grace,6,600-second runtime and7,200-second UTC ceilings; the entire browser allowance is not independently guaranteed. The historical five-minute browser and3,000-second outer defaults, and later failed originals including the d4 browser-stage pass, retain their original scopes. Current browser/original acceptance and the split a1ee/2c2 source epochs are recorded in [Step1672](../done/step1672.md). Preserve serialized Linux builds and original retained recipes/build owners.
 
 ## Full-lane build baseline
 

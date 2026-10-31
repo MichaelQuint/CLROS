@@ -42,7 +42,9 @@ against its canonical exact2/4 policy. The pinned runtime parses these values as
 hexadecimal. Four pool workers leave12 nominal slots within the existing16-thread
 capacity; this is headroom, not a proven auxiliary-thread bound. [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
-Source a7ed completed three native publications, conditional own-profile layout/ABI/stack review and all 58 inherited stack witnesses. Its fresh full failed in the M04 reviewed-source check before Native execution; preserve that complete failed run. This pin repair requires a new committed source, publication/input binding and fresh unfiltered full before guest activation. Parent 7da retains its separate full/native/AFTER pass and failed A1. All 21 read criteria, seven original recipes, package/ELF bytes and limits remain unchanged. Complete verified read merge/parity/recovery, stop helper work and pause before writes/SQLite.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+
+The disk envelope retains its canonical worker minimum 2/maximum 4 entries, the accepted staged envelope remains unchanged, and the same server ELF and external FAT32 assets must join each current original.
 
 ## Linux ELF package version 1
 
