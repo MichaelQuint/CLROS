@@ -38,35 +38,37 @@ internal static unsafe class X64TimerInterruptTests
             "4881EC20020000480FAE0424" +
             "B9000100C00F3248C1E2204809D04889842400020000" +
             "B9010100C00F3248C1E2204809D04889842408020000" +
-            "9C58488984241002000048C784241802000001000000FC" +
+            "9C58488984241002000048C784241802000001000000" +
+            "4883BC24A0020000080F850A0100004883BC24B8020000100F85FB000000" +
+            "668CD06685C00F840E0000006683F8100F85E500000031C08ED0FC" +
             "48B80000400000000000480FAE08" +
             "48B900003000000000004889E24883EC20" +
             "48B80000200000000000FFD0FA4883C4203C01");
-        HostCheck.True(bytes[..prefix.Length].SequenceEqual(prefix) && prefix.Length == 156);
+        HostCheck.True(bytes[..prefix.Length].SequenceEqual(prefix) && prefix.Length == 212);
         // Every failed callback/completion/selector/MSR readback reaches the same
         // IF-clear retaining loop. Displacements are checked by independent decode.
-        int[] branches = [156,171,186,201,244,287];
+        int[] branches = [114,129,151,212,227,242,257,300,343];
         foreach (int position in branches)
         {
             HostCheck.True(bytes.Slice(position, 2).SequenceEqual(new byte[] { 0x0f, 0x85 }));
-            HostCheck.Equal(330, position + 6 + BinaryPrimitives.ReadInt32LittleEndian(bytes.Slice(position + 2, 4)));
+            HostCheck.Equal(386, position + 6 + BinaryPrimitives.ReadInt32LittleEndian(bytes.Slice(position + 2, 4)));
         }
-        HostCheck.True(bytes.Slice(162, 9).SequenceEqual(Convert.FromHexString("4883BC241802000001")));
-        HostCheck.True(bytes.Slice(177, 9).SequenceEqual(Convert.FromHexString("4883BC24A002000008")));
-        HostCheck.True(bytes.Slice(192, 9).SequenceEqual(Convert.FromHexString("4883BC24B802000010")));
+        HostCheck.True(bytes.Slice(218, 9).SequenceEqual(Convert.FromHexString("4883BC241802000001")));
+        HostCheck.True(bytes.Slice(233, 9).SequenceEqual(Convert.FromHexString("4883BC24A002000008")));
+        HostCheck.True(bytes.Slice(248, 9).SequenceEqual(Convert.FromHexString("4883BC24B802000010")));
         byte[] restoreFs = Convert.FromHexString(
             "4C8B8424000200004C89C04889C248C1EA20B9000100C00F300F3248C1E2204809D04C39C0");
         byte[] restoreGs = Convert.FromHexString(
             "4C8B8424080200004C89C04889C248C1EA20B9010100C00F300F3248C1E2204809D04C39C0");
-        HostCheck.True(bytes.Slice(207, 37).SequenceEqual(restoreFs) && bytes.Slice(250, 37).SequenceEqual(restoreGs));
-        HostCheck.True(bytes.Slice(293, 42).SequenceEqual(Convert.FromHexString(
+        HostCheck.True(bytes.Slice(263, 37).SequenceEqual(restoreFs) && bytes.Slice(306, 37).SequenceEqual(restoreGs));
+        HostCheck.True(bytes.Slice(349, 42).SequenceEqual(Convert.FromHexString(
             "480FAE0C244881C420020000415F415E415D415C415B415A415941585F5E5D5B5A595848CFFAF390EBFC")));
-        HostCheck.True(bytes.Slice(335,65).IndexOfAnyExcept((byte)0) == -1 && code[0] == 0xa5 && code[513] == 0xa5);
+        HostCheck.True(bytes.Slice(391,9).IndexOfAnyExcept((byte)0) == -1 && code[0] == 0xa5 && code[513] == 0xa5);
         HostCheck.True(bytes.Slice(400,8).SequenceEqual(Convert.FromHexString("F30F1EFA0F0109C3")));
         HostCheck.True(bytes.Slice(416,9).SequenceEqual(Convert.FromHexString("F30F1EFAFA0F0119C3")));
         HostCheck.True(bytes.Slice(480,6).SequenceEqual(Convert.FromHexString("F30F1EFA48CF")));
         // Actual IRETQ, with no RET/JMP substitution or add40 to the saved old RSP.
-        HostCheck.True(bytes.Slice(328, 2).SequenceEqual(new byte[] { 0x48, 0xcf }));
+        HostCheck.True(bytes.Slice(384, 2).SequenceEqual(new byte[] { 0x48, 0xcf }));
     }
 
     [HostTest("m09.005 IRQ malformed and aliased plans reject before output mutation", HostLane.Fast, 2)]
@@ -155,5 +157,75 @@ internal static unsafe class X64TimerInterruptTests
         bad = p; bad.Phase = 1; HostCheck.True(!Irq.EmitWorker(code,512,bad));
         bad = p; bad.ControlBytes = 39; HostCheck.True(!Irq.EmitWorker(code,512,bad));
         HostCheck.True(snapshot.SequenceEqual(Snapshot(code,512)));
+    }
+
+    [HostTest("m09.005 actual entry bytes preserve null SS normalize owned SS16 and reject every other selector", HostLane.Fast, 6)]
+    private static void EntryStackSelector()
+    {
+        byte* output = stackalloc byte[512];
+        HostCheck.True(Irq.Emit(output, 512, Plan));
+        ReadOnlySpan<byte> code = new(output, 512);
+        byte[] frame = new byte[704];
+        BinaryPrimitives.WriteUInt64LittleEndian(frame.AsSpan(672), 8);
+        BinaryPrimitives.WriteUInt64LittleEndian(frame.AsSpan(696), 16);
+        // Decode the emitted instructions' scalar effects and branches, without
+        // executing privileged instructions in the host. All65536 SS selectors
+        // are exercised; the independent Vectors fixture pins their actual bytes.
+        for (int selector = 0; selector <= ushort.MaxValue; selector++)
+        {
+            var observed = Run(code, frame, (ushort)selector);
+            HostCheck.True(observed.Proceed == (selector is 0 or 16));
+            if (observed.Proceed)
+            {
+                HostCheck.Equal((ushort)0, observed.Selector);
+                HostCheck.Equal(selector == 16, observed.Loaded);
+            }
+            else HostCheck.True(!observed.Loaded && observed.Selector == selector);
+        }
+        foreach (var bad in new (ulong Cs, ulong Ss)[] { (0,16),(9,16),(0x100000008,16),(8,0),(8,17),(8,0x100000010) })
+        foreach (ushort selector in new ushort[] { 0,16 })
+        {
+            BinaryPrimitives.WriteUInt64LittleEndian(frame.AsSpan(672), bad.Cs);
+            BinaryPrimitives.WriteUInt64LittleEndian(frame.AsSpan(696), bad.Ss);
+            var observed = Run(code, frame, selector);
+            HostCheck.True(!observed.Proceed && !observed.Loaded && observed.Selector == selector);
+        }
+        HostCheck.Equal((byte)0xfc, code[161]); // MOV SS shadow ends with CLD, before any call.
+
+        static (bool Proceed, bool Loaded, ushort Selector) Run(ReadOnlySpan<byte> code, ReadOnlySpan<byte> frame, ushort selector)
+        {
+            int ip = 105;
+            ulong rax = 0xfeed12345678abcd;
+            bool zero = false, loaded = false;
+            for (int step = 0; step < 16; step++)
+            {
+                if (ip == 161) return (true, loaded, selector);
+                if (ip == 386) return (false, loaded, selector);
+                ReadOnlySpan<byte> instruction = code[ip..];
+                if (instruction.StartsWith(new byte[] { 0x48,0x83,0xbc,0x24 }))
+                {
+                    int offset = BinaryPrimitives.ReadInt32LittleEndian(instruction[4..]);
+                    zero = BinaryPrimitives.ReadUInt64LittleEndian(frame[offset..]) == (ulong)(long)(sbyte)instruction[8];
+                    ip += 9;
+                }
+                else if (instruction[0] == 0x0f && instruction[1] is 0x84 or 0x85)
+                {
+                    bool take = instruction[1] == 0x84 ? zero : !zero;
+                    ip += 6 + (take ? BinaryPrimitives.ReadInt32LittleEndian(instruction[2..]) : 0);
+                }
+                else if (instruction.StartsWith(new byte[] { 0x66,0x8c,0xd0 }))
+                { rax = (rax & ~0xffffUL) | selector; ip += 3; }
+                else if (instruction.StartsWith(new byte[] { 0x66,0x85,0xc0 }))
+                { zero = (ushort)rax == 0; ip += 3; }
+                else if (instruction.StartsWith(new byte[] { 0x66,0x83,0xf8 }))
+                { zero = (ushort)rax == (ushort)(short)(sbyte)instruction[3]; ip += 4; }
+                else if (instruction.StartsWith(new byte[] { 0x31,0xc0 }))
+                { rax = 0; zero = true; ip += 2; }
+                else if (instruction.StartsWith(new byte[] { 0x8e,0xd0 }))
+                { selector = (ushort)rax; loaded = true; ip += 2; }
+                else throw new InvalidDataException("unexpected_entry_instruction " + ip);
+            }
+            throw new InvalidDataException("entry_instruction_bound");
+        }
     }
 }

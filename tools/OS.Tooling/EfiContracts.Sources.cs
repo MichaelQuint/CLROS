@@ -106,7 +106,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Threading\DeadlineQueue.cs"] = "d96a50d47f05d6114702578acd91585e14852e6aa71b313f74d445686d891ef2",
                 [@"..\OS.Kernel\Threading\SchedulerTimer.cs"] = "5c1ac2b28b5d4a57291c00d0b9325404a96cf0672c5d30515ec11a36abaec004",
                 [@"..\OS.Kernel\Pal\OSHostHandle.cs"] = "d6fd1790d8c87d318a3ad998a29643e5b99c6d695928ca3428ec7732451e1088",
-                [@"..\OS.Kernel\Threading\X64TimerInterrupt.cs"] = "563d63d2cd071b20c306e4669d088d9fbbad52ccdadb98bcecc54afbd7353857",
+                [@"..\OS.Kernel\Threading\X64TimerInterrupt.cs"] = "75ddcac2284407c281556c241cef30b7dbfed9bf72e70f813694822b6f425d0d",
                 [@"..\..\std\no-runtime\shared\Ascii.cs"] = "c642f5b645ee332e1984ddba3d80e1dd42d09700c5d90aa185ca7c5e74567417",
                 [@"..\..\std\no-runtime\shared\Memory\BufferOperations.cs"] = "60bc8468c8b838dc79b14abdeede4904edf0165ae182addee3d802b93c83b49e",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.cs"] = "608b33a4bc6bebb700ffe7d3ac2dc0fefdeb969cada4d65cbf836bc73f16c032",

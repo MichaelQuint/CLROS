@@ -89,7 +89,7 @@ public static unsafe class X64TimerInterrupt
     /// <summary>Retained native callback and immutable neutral FXSAVE image.
     /// Callback signature is byte(void* context, Frame* frame), Win64, on the owned
     /// IST with IF clear/DF clear. Returning1 authorizes every field for IRETQ;
-    /// all other bytes fail closed. Data must remain mapped/pinned through cleanup.
+/// all other bytes fail closed. Data must remain mapped/pinned through cleanup.
     /// Addresses/ranges are planning inputs, not mapping/CPU/lifetime proof.</summary>
     public struct Plan
     {
@@ -150,6 +150,19 @@ public static unsafe class X64TimerInterrupt
         CaptureBase(ref w, 0xc0000101, 520);
         w.Data(0x589c, 2); StoreRax(ref w, 528); // Actual entry flags; hardware flags remain at680.
         w.Data(0x2484c748, 4); w.Data(536, 4); w.Data(1, 4); // Complete publication last.
+        // An owned same-CPL IST entry has captured CS8/SS16 and live NULL SS.
+        // WHPX can retain live SS16. Establish the original strict callback ABI
+        // only for that exact selector; unknown selectors retain the fail loop.
+        // No saved frame, register, stack extent or IRET/EOI authority changes.
+        // These fixed branch locations follow the independent capture vectors;
+        // retaining constants avoids extra encoder locals on the bounded IRQ.
+        if (w.Offset != 105) return false;
+        CompareWord(ref w, 672, 8); w.Jne(); // Displacement at116.
+        CompareWord(ref w, 696, 16); w.Jne(); // Displacement at131.
+        w.Data(0xd08c66, 3); w.Data(0xc08566, 3); // MOV AX,SS; TEST AX,AX.
+        w.Data(0x0000000e840f, 6); // JE past the14-byte non-NULL repair.
+        w.Data(0x10f88366, 4); w.Jne(); // CMP AX,16; reject displacement153.
+        w.Data(0xd08ec031, 4); // XOR EAX,EAX; MOV SS,AX (CPL0,64-bit only).
         w.Byte(0xfc); // CLD after complete capture.
         w.Data(0xb848, 2); w.Data(p.HelperFx, 8); w.Data(0x08ae0f48, 4); // Neutral FXRSTOR64 [RAX].
         w.Data(0xb948, 2); w.Data(p.CallbackContext, 8); // RCX=context.
@@ -171,6 +184,7 @@ public static unsafe class X64TimerInterrupt
         w.Data(0xcf48, 2); // IRETQ restores exact old RSP/SS, not an inferred entryRSP+40.
         uint reject = w.Offset;
         w.Data(0xfceb90f3fa, 5); // CLI; PAUSE; JMP back to PAUSE. Retain owned resources.
+        w.Patch(116, reject); w.Patch(131, reject); w.Patch(153, reject);
         w.Patch(callbackRejected, reject); w.Patch(incomplete, reject); w.Patch(wrongCs, reject);
         w.Patch(wrongSs, reject); w.Patch(wrongFs, reject); w.Patch(wrongGs, reject);
         while (w.Offset < SaveIdtrOffset) w.Byte(0);
