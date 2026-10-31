@@ -12,6 +12,7 @@ public static class QemuProfiles
     private static void Require(bool condition, string reason) { if (!condition) throw new ToolFailure(reason); }
     public static QemuSmokePlan Create(QemuSmokeOptions options, Action<string>? emit = null)
     {
+        Require(options.Accelerator is "whpx" or "tcg", "qemu_accelerator_invalid");
         SmokeContracts.ValidateWorkload(options.WorkloadProfile);
         Require(options.DiskFormat is "raw" or "qcow2", "qemu.smoke.invalid_args disk_format=" + options.DiskFormat);
         Require(options.MemoryMiB is null or > 0, "qemu_memory_mib_out_of_range");

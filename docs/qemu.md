@@ -1,5 +1,16 @@
 # QEMU
 
+## Explicit accelerator selection (development)
+
+M04-026/#813 adds `qemu smoke -Accelerator whpx|tcg` and runner
+`--accelerator whpx|tcg`. Windows defaults to WHPX; other hosts default to TCG.
+The command selects exactly one backend, with no silent fallback. A missing
+Windows Hypervisor Platform capability fails explicitly before guest startup.
+Dry-run and summary output record `QEMU_ACCELERATOR`; Nehalem and existing
+single-vCPU/resource contracts remain unchanged. Six focused checks qualify
+selection/propagation only. RC3 native and actual guest qualification remain
+pending under [the phase contract](../work/rc3-whpx-qualification.md).
+
 [Step1669](../done/step1669.md) preserves fresh f508 A1 as failed at host `disk_parent_counters`, despite120 completed HTTP responses,49 successful browser exchanges, ready Blazor/API values and guest cleanup markers. The first independent partial diagnostic joins12396 physical requests/35690 payload sectors/2014 windows/120 wire responses; OriginalAccepted=false. Filesystem `fsReads` counts submitted sectors, while device counters count requests. Full now requires exact `fsReads == bootstrapCompleted-34 + Sum(Submitted.Bytes/512)` using the same validated device/END/BOUND/replay identities;34 is the reviewed MBR/GPT prefix outside the filesystem. The sector inspection precedes both parent checks. Ordinary single-sector, ExitPending and CloseReuse checks remain required. All83 focused checks pass; one changed production diagnostic passes57386 calls/2014 windows/60482 IO rows/4237 metadata copies and the actual shared parent envelope/finalcounter join, with five input pins unchanged. The real ELF/index predicates remain mandatory; no synthetic callback, original acceptance, independent reader/PCAP replay or whole-postprocessor authority is added. Native8d and every guest/output/time/package bound remain unchanged. Fresh complete qualification is pending.
 
 [Step1668](../done/step1668.md) preserves source5057 A1 as failed at `threading_protocol_input`, despite120 HTTP responses,49 browser exchanges, ready Blazor/API values and guest cleanup markers. The protocol constructor now shares the existing Full128KiB aggregate policy; ordinary limits remain unchanged. The existing no-VM `qemu inspect-disk-static-values <package> <raw-image> <complete-instruction-index> <serial> --full` diagnostic uses real prepared ELF/index predicates, image inventory and captured roots, with scalar-only Full output. Its first failure exposes slot-ordered wake receipts being mistaken for native enqueue order. The repair reconstructs disk-before-descriptor readiness only within an explicitly enabled normal post-Advance poll batch, preserving original receipt validation and prior FIFO/deadline/signal/Parking winners. Prepare/repark and entry-time empty-supervisor observations retain their existing rules; an unobserved idle turn cannot borrow normal-poll authority. Before the final idle-boundary tightening,74 focused checks pass; afterward19 affected checks, including the changed-clock idle countercase, pass. The changed real-input diagnostic then passes57495 calls,2014 read windows,60200 I/O rows and4143 physical metadata copies with unchanged five-input pins. It grants no original acceptance, independent reader/PCAP replay or whole postprocessor authority. Fresh complete qualification remains required.
@@ -2988,7 +2999,8 @@ If `-OvmfCode` is omitted, the runner checks `OS_OVMF_CODE`, `OVMF_CODE`, `QEMU_
 
 ## Unsupported Behavior
 
-- WHPX/KVM acceleration selection is not implemented; QEMU uses TCG.
+- KVM selection is not implemented. Explicit WHPX/TCG selection is implemented;
+  actual accelerated CLROS execution requires its own recorded qualification.
 - ISO launch paths are not implemented in `tools/OS.QemuRunner`.
 - libvirt real boot is not implemented.
 - Ordinary `VerifiedExit` leaves firmware boot services and completes the accepted

@@ -5,6 +5,28 @@ namespace OS.Tooling;
 // Reviewed guest protocol records. Each literal is owned once; inventories reuse it.
 public static class QemuContracts
 {
+    /// <summary>Host backend default. Selection never authorizes a fallback or
+    /// changes the guest CPU and state-preservation contract.</summary>
+    public static string DefaultAccelerator => OperatingSystem.IsWindows() ? "whpx" : "tcg";
+
+    /// <summary>Validate explicit backend and copied host capability values.
+    /// A null result permits initialization, not guest execution or acceptance.</summary>
+    public static string? AcceleratorFailure(string accelerator, bool windows, bool hypervisorPresent) =>
+        accelerator is not ("whpx" or "tcg") ? "qemu_accelerator_invalid" :
+        accelerator == "whpx" && (!windows || !hypervisorPresent) ? "qemu_accelerator_unavailable accelerator=whpx" : null;
+
+    /// <summary>Read Windows Hypervisor Platform's current host capability.
+    /// Missing/unsupported platform APIs return false; this starts no VM.</summary>
+    public static bool IsWhpxAvailable()
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+        try { return GetHypervisorCapability(0, out int present, sizeof(int), out uint written) == 0 && written == sizeof(int) && present != 0; }
+        catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException) { return false; }
+    }
+
+    [System.Runtime.InteropServices.DllImport("WinHvPlatform.dll", EntryPoint = "WHvGetCapability", ExactSpelling = true)]
+    private static extern int GetHypervisorCapability(int code, out int value, uint bytes, out uint written);
+
     public const ulong M07ArpReceiveFeatures = 0x100008000;
 
     public const string M03TypedAdmissionRecord = "M03_TYPED_EBS_ADMISSION default=6 missingFunction=3 missingHandle=4 simulated=5 exited=5 readyDenied=5 readyPrepare=7 unchanged=1 calls=0";

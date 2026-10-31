@@ -281,7 +281,7 @@ internal static class QemuRunnerTests
             && output.Contains("TEST_START qemu.runner.dryrun", StringComparison.Ordinal)
             && output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal)
             && output.Contains("REQUIRED_MARKERS " + DefaultBootRequiredMarkers, StringComparison.Ordinal)
-            && output.Contains("qemu-test -machine q35,accel=tcg -m 512M -no-reboot -display none", StringComparison.Ordinal)
+            && output.Contains("qemu-test -machine q35,accel=" + OS.Tooling.QemuContracts.DefaultAccelerator + " -m 512M -no-reboot -display none", StringComparison.Ordinal)
             && output.Contains("ich9-ahci,id=ahci", StringComparison.Ordinal)
             && output.Contains("if=none,id=esp,format=raw,file=" + imagePath, StringComparison.Ordinal)
             && output.Contains("ide-hd,drive=esp,bus=ahci.0", StringComparison.Ordinal);

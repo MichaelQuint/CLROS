@@ -16,7 +16,7 @@ public static class BacklogContracts
     public static IReadOnlyDictionary<string, int> Children { get; } = new ReadOnlyDictionary<string, int>(new Dictionary<string, int>(StringComparer.Ordinal)
     {
         ["M00"] = 23, ["M01"] = 36, ["M02"] = 20, ["M03"] = 11,
-        ["M04"] = 25, ["M05"] = 21, ["M06"] = 21, ["M07"] = 34,
+        ["M04"] = 26, ["M05"] = 21, ["M06"] = 21, ["M07"] = 34,
         ["M08"] = 20, ["M09"] = 30, ["M10"] = 27, ["M11"] = 33,
         ["M12"] = 18, ["M13"] = 18, ["M14"] = 18, ["M15"] = 16,
         ["M16"] = 27

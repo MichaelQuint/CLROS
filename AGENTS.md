@@ -43,6 +43,12 @@ through Linux syscall frames or force internal calls across the hosted PAL ABI.
 
 ## Scope and ownership
 
+The October31 user-approved next phase is M04-026/#813: qualify .NET11 RC3,
+the current verified MSVC/linker and explicit WHPX. Its sole execution owner uses
+`codex/rc3-whpx-qualification`; [the phase contract](work/rc3-whpx-qualification.md)
+defines acceptance and closure. Preserve the paused broader goal, historical RC2
+receipts, other worktrees and the deferred #791/#775/write/SQLite boundaries.
+
 Inspect branch, dirty/untracked files, worktrees and live ownership before edits.
 Use the explicitly assigned producer checkout; `C:/Projects/CLROS` is not proof
 that its current branch is the active qualification source. Preserve unrelated

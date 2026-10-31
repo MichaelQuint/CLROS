@@ -371,7 +371,7 @@ public static class QemuSmoke
                 output.WriteLine("M01_RAW_OBSERVATION_TIMEOUTS guestSeconds=" + capture.GuestTimeoutSeconds + " captureSeconds=" + QemuCaptureSession.CaptureTimeoutSeconds + " runnerSeconds=" + capture.RunnerTimeoutSeconds);
                 output.WriteLine("M01_RAW_OBSERVATION_IDENTITIES " + string.Join(' ', capture.Identities.Select(p => p.Key + "=" + p.Value)));
             }
-            List<string> arguments = ["--image", options.Image, "--disk-format", options.DiskFormat, "--workload-profile", options.WorkloadProfile,
+            List<string> arguments = ["--image", options.Image, "--disk-format", options.DiskFormat, "--accelerator", options.Accelerator, "--workload-profile", options.WorkloadProfile,
                 "--serial-log", options.SerialLog, "--summary-log", options.SummaryLog, "--timeout", timeout.ToString(CultureInfo.InvariantCulture)];
             if(options.MemoryMiB is int memory)
                 arguments.AddRange(["--memory",memory.ToString(CultureInfo.InvariantCulture)+"M"]);

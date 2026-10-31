@@ -12,7 +12,7 @@ internal static class QemuCommandBuilder
         List<string> arguments =
         [
             "-machine",
-            "q35,accel=tcg",
+            "q35,accel=" + options.Accelerator,
             "-m",
             options.Memory,
             "-no-reboot",

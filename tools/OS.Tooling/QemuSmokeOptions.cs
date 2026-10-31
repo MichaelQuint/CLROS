@@ -12,6 +12,7 @@ public sealed class QemuSmokeOptions
     public string SummaryLog { get; set; } = "artifacts/logs/qemu-smoke.summary.log";
     public string M01RawObservationLog { get; set; } = "";
     public string Qemu { get; set; } = "";
+    public string Accelerator { get; set; } = QemuContracts.DefaultAccelerator;
     public string OvmfCode { get; set; } = "";
     public string FirmwareRngSource { get; set; } = "";
     public string WorkloadProfile { get; set; } = "SingleMinimalApi";
@@ -89,7 +90,7 @@ public sealed class QemuSmokeOptions
         {
             ["bootpolicy"] = "BootPolicy", ["image"] = "Image", ["efiartifact"] = "EfiArtifact", ["seriallog"] = "SerialLog",
             ["summarylog"] = "SummaryLog", ["m01rawobservationlog"] = "M01RawObservationLog", ["qemu"] = "Qemu",
-            ["ovmfcode"] = "OvmfCode", ["firmwarerngsource"] = "FirmwareRngSource", ["workloadprofile"] = "WorkloadProfile",
+            ["ovmfcode"] = "OvmfCode", ["accelerator"] = "Accelerator", ["firmwarerngsource"] = "FirmwareRngSource", ["workloadprofile"] = "WorkloadProfile",
             ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["memorymib"] = "MemoryMiB", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
             ["webrootfixture"] = "WebRootFixture", ["webrootassets"] = "WebRootAssets", ["webrootfault"] = "WebRootFault",
             ["startuptimeoutseconds"] = "StartupTimeoutSeconds", ["startuptimeout"] = "StartupTimeoutSeconds",
@@ -109,6 +110,7 @@ public sealed class QemuSmokeOptions
             string raw = separator < 0 ? input : input[..separator];
             if (!raw.StartsWith('-') || !names.TryGetValue(Key(raw), out string? name)) throw new ArgumentException("qemu_unknown_option " + raw);
             bool first = result.Explicit.Add(name);
+            if (!first && name == "Accelerator") throw new ArgumentException("qemu_duplicate_option Accelerator");
             if (!first && name is "WebEventOwnedSignalRace" or "LinuxDiskRaceVariant" or "WritableDiskFixture" or "WritableDiskDisassembly" or "WebRootFault") throw new ArgumentException("qemu_duplicate_option " + name);
             bool flag = name.StartsWith("Enable", StringComparison.Ordinal) || name is "DryRun" or "BuildEfi" or "SkipImageBuild" or "RequireNativeAppMarkers" or "ServiceLifecycle" or "ServiceQuotaFailure" or "SignalEpollRace" or "WebSignalRace" or "WebEventOwnedSignalRace";
             string value = separator >= 0 ? input[(separator + 1)..] : flag ? "true" : ++i < arguments.Length ? arguments[i] : throw new ArgumentException("qemu_missing_value " + name);
@@ -124,6 +126,9 @@ public sealed class QemuSmokeOptions
                 case "SummaryLog": result.SummaryLog = value; break;
                 case "M01RawObservationLog": result.M01RawObservationLog = value; break;
                 case "Qemu": result.Qemu = value; break;
+                case "Accelerator":
+                    if (value is not ("whpx" or "tcg")) throw new ArgumentException("qemu_accelerator_invalid");
+                    result.Accelerator = value; break;
                 case "OvmfCode": result.OvmfCode = value; break;
                 case "FirmwareRngSource": result.FirmwareRngSource = value; break;
                 case "WorkloadProfile": result.WorkloadProfile = value; break;
