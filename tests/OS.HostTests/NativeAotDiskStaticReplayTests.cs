@@ -24,7 +24,7 @@ internal static class NativeAotDiskStaticReplayTests
     // Independent synthetic scheduler vectors. They do not execute a native
     // app or construct original image, runner, packet or acceptance authority.
     private static List<string> Vector(WebRootDiskInventory.Inspection inventory,byte[] image,bool repark=false,bool shortPrefix=false,
-        bool full=false,WebRootDiskInventory.VerifiedTruncated? truncated=null,int combinedOutputBytes=0,bool idlePoll=false)
+        bool full=false,WebRootDiskInventory.VerifiedTruncated? truncated=null,int combinedOutputBytes=0,bool idlePoll=false,bool trailingStats=false,bool intactTrailingStat=false)
     {
         var file=inventory.Find(WebRootDiskInventory.Root+"/index.html")!;
         ulong requested=full?Ready+DiskStaticExecutionPolicy.RequestDelayNanoseconds:Requested,exited=full?requested+100:Exited;
@@ -55,8 +55,15 @@ internal static class NativeAotDiskStaticReplayTests
             foreach(ulong number in new[]{4UL,6UL})
             {
                 Begin(number,[0x500200,0x500800]);
-                v.Rows.Add($"M10_018_PATH identity={v.Main.Id} ordinal={v.Main.Ordinal} nr={number} pathHex={Convert.ToHexString(Encoding.ASCII.GetBytes(WebRootDiskInventory.VerifiedTruncated.Target))} valueBits={unchecked((ulong)-5L)} kind=0 view=4294967295 inode=0 bytes=0 mode=0");
+                v.Rows.Add($"M10_018_PATH identity={v.Main.Id} ordinal={v.Main.Ordinal} nr={number} pathHex={Convert.ToHexString(Encoding.ASCII.GetBytes(WebRootDiskInventory.VerifiedTruncated.Target+(trailingStats?"/":"")))} valueBits={unchecked((ulong)-5L)} kind=0 view=4294967295 inode=0 bytes=0 mode=0");
                 Complete(-5,144);
+            }
+        if(intactTrailingStat)
+            foreach(ulong number in new[]{4UL,6UL})
+            {
+                Begin(number,[0x500200,0x500800]);
+                v.Rows.Add($"M10_018_PATH identity={v.Main.Id} ordinal={v.Main.Ordinal} nr={number} pathHex={Convert.ToHexString(Encoding.ASCII.GetBytes(file.Path+"/"))} valueBits={unchecked((ulong)-20L)} kind=0 view=4294967295 inode=0 bytes=0 mode=0");
+                Complete(-20,144);
             }
         Begin(2,[0x500200,0x80100,0]);
         if(repark)
@@ -149,22 +156,37 @@ internal static class NativeAotDiskStaticReplayTests
     private static void TruncatedReadyCompletion()=>WithTruncated((truncated,image)=>
     {
         var inventory=truncated.Baseline;
-        var rows=Vector(inventory,image,full:true,truncated:truncated);
-        var report=Inspect(rows,inventory,true,truncated);
-        HostCheck.True(report.FullProfile && report.Truncated && report.Faults.Count==2 && report.Operations.Count==5 &&
-            report.Faults.Select(f=>f.Operation.Number).SequenceEqual(new[]{4UL,6UL}) &&
-            report.Faults.All(f=>f.Operation.Value==-5 && f.Operation.OutputPrefix==144) &&
-            report.Reads.Count==1 && report.Static.Protocol.Reaped==3 && report.Static.Signal15Returns==1 &&
-            !report.CheckedDeviceBytesOrHttp && !report.GrantsOriginalExecutionAuthority);
-        var sectors=QemuTranscripts.InspectNativeAotDiskStaticSectorValues(report,inventory,image,new(16384,3,37,37,40,40,40),truncated);
-        HostCheck.True(sectors.Metadata.Count==2 && sectors.Metadata[0].Kind==WebRootDiskInventory.MetadataKind.Fat0 &&
-            sectors.Metadata[1].Kind==WebRootDiskInventory.MetadataKind.Fat1 && !sectors.GrantsOriginalNativeProcessOrHttpAuthority);
-        Reject(Change(rows," nr=4 ","waitSource",1),inventory,null,true,truncated);
-        var interrupt=Change(Change(rows,"M16_025_WAKE ","completion",5),"M16_025_COMPLETE ","completion",5);
-        Reject(interrupt,inventory,"interrupt_winner",true,truncated);
-        Reject(rows,inventory,null,false,truncated);
-        Reject(rows,inventory,"path_result",true);
+        foreach(bool trailing in new[]{false,true})
+        {
+            var rows=Vector(inventory,image,full:true,truncated:truncated,trailingStats:trailing);
+            var report=Inspect(rows,inventory,true,truncated);
+            HostCheck.True(report.FullProfile && report.Truncated && report.Faults.Count==2 && report.Operations.Count==5 &&
+                report.Faults.Select(f=>f.Operation.Number).SequenceEqual(new[]{4UL,6UL}) &&
+                report.Faults.All(f=>f.Operation.Value==-5 && f.Operation.OutputPrefix==144) &&
+                report.Reads.Count==1 && report.Static.Protocol.Reaped==3 && report.Static.Signal15Returns==1 &&
+                !report.CheckedDeviceBytesOrHttp && !report.GrantsOriginalExecutionAuthority);
+            var sectors=QemuTranscripts.InspectNativeAotDiskStaticSectorValues(report,inventory,image,new(16384,3,37,37,40,40,40),truncated);
+            HostCheck.True(sectors.Metadata.Count==2 && sectors.Metadata[0].Kind==WebRootDiskInventory.MetadataKind.Fat0 &&
+                sectors.Metadata[1].Kind==WebRootDiskInventory.MetadataKind.Fat1 && !sectors.GrantsOriginalNativeProcessOrHttpAuthority);
+            Reject(Change(rows,"M16_025_COMPLETE ","outputBytes",143),inventory,null,true,truncated);
+            Reject(Change(rows," nr=4 ","a1",0),inventory,null,true,truncated);
+            Reject(Change(rows," nr=4 ","waitSource",1),inventory,null,true,truncated);
+            var interrupt=Change(Change(rows,"M16_025_WAKE ","completion",5),"M16_025_COMPLETE ","completion",5);
+            Reject(interrupt,inventory,"interrupt_winner",true,truncated);
+            Reject(rows,inventory,null,false,truncated);
+            Reject(rows,inventory,"path_result",true);
+        }
         truncated.VerifyUnchanged();
+    });
+
+    [HostTest("intact file trailing stat and lstat retain ENOTDIR rather than truncated-chain EIO",HostLane.Native)]
+    private static void IntactTrailingStat()=>WithInventory((inventory,image)=>
+    {
+        var rows=Vector(inventory,image,full:true,intactTrailingStat:true);
+        var report=Inspect(rows,inventory,true);
+        HostCheck.True(report.FullProfile && !report.Truncated && report.Faults.Count==0 && report.Operations.Count==5 &&
+            !report.CheckedDeviceBytesOrHttp && !report.GrantsOriginalExecutionAuthority);
+        Reject(Change(rows,"M10_018_PATH ","valueBits",unchecked((ulong)-5L)),inventory,null,true);
     });
 
     [HostTest("disk static full synthetic replay joins deferred opens reads EOF and actual signal cleanup",HostLane.Native)]

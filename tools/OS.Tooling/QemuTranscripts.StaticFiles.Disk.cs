@@ -345,7 +345,7 @@ public static partial class QemuTranscripts
             if(!valid)expected=-13;
             else if(truncated)
             {
-                Need(!trailing && call["nr"] is 4 or 6 && diskCompleting is {Winner:1} && diskCompleting.Witness.Source==4 && diskCompleting.OutputPrefix>=144 &&
+                Need(call["nr"] is 4 or 6 && diskCompleting is {Winner:1} && diskCompleting.Witness.Source==4 && diskCompleting.OutputPrefix>=144 &&
                     memory.Covered(call["a1"],144,3),"disk_static_truncated_stat");
                 expected=-5;
             }
