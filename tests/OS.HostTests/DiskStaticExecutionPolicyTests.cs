@@ -71,7 +71,7 @@ internal static unsafe class DiskStaticExecutionPolicyTests
                 "-TimeoutSeconds",seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
             _=QemuProfiles.Create(options);HostCheck.Equal(seconds,options.TimeoutSeconds);
         }
-        HostCheck.Equal(6_000_000_000_000UL,DiskStaticExecutionPolicy.RequestDelayNanoseconds);
+        HostCheck.Equal(1_800_000_000_000UL,DiskStaticExecutionPolicy.RequestDelayNanoseconds);
         HostCheck.Equal(120_000_000_000UL,DiskStaticExecutionPolicy.GraceNanoseconds);
         HostCheck.True(DiskStaticExecutionPolicy.RuntimeNanoseconds>DiskStaticExecutionPolicy.RequestDelayNanoseconds+DiskStaticExecutionPolicy.GraceNanoseconds);
         string root=HostToolProcess.FindRepositoryRoot();

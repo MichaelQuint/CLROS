@@ -11,9 +11,9 @@ public static class DiskStaticExecutionPolicy
     public const uint MaximumCalls = 32768;
     public const uint MaximumDeviceRecords = 196608;
     public const int MaximumSerialBytes = 128 * 1024 * 1024;
-    // Full-only qualification lifetime: allow the HTTP matrix and slow QEMU
-    // browser startup to finish before the existing one-shot shutdown path.
-    public const ulong RequestDelayNanoseconds = 6_000_000_000_000;
+    // Request shutdown at the original finite interval after listen.
+    // Larger host/browser allowances do not renew worker syscall quotas.
+    public const ulong RequestDelayNanoseconds = 1_800_000_000_000;
     public const ulong GraceNanoseconds = 120_000_000_000;
     public const ulong RuntimeNanoseconds = 6_600_000_000_000;
     // UTC is anchored before workload entry. Leave finite startup/teardown
