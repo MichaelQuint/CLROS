@@ -10,7 +10,7 @@ public static class NativeDiskReadObservations
 {
     public const int MaximumRows = 65536;
     public const int MaximumRowChars = 1536;
-    public enum Kind : byte { Submitted, CompletionValidated, Copied }
+    public enum Kind : byte { Submitted, CompletionValidated, Copied, CopyChunk }
 
     /// <summary>Separately authenticated owner/counter boundaries. Bootstrap is
     /// drained: its submitted and completed counts are BootstrapCompleted, with
@@ -29,12 +29,17 @@ public static class NativeDiskReadObservations
         OS.Storage.ContinuingReadOnlyBlockService.Status StopStatus, uint ResetReads,
         bool ResetComplete, bool BusMasterDisabled, bool DmaReleased, ulong PoolMask);
 
-    /// <summary>Copied immutable facts. DataHex contains exactly512 bytes only
-    /// for Copied, whose native candidate was committed before serialization.
+    /// <summary>Copied immutable facts. Copied and CopyChunk each carry512
+    /// committed bytes. Bytes is the physical request length, Sector its first
+    /// LBA, and ChunkIndex identifies the payload sector within that request.
     /// Empty DataHex on the other stages grants no data-copy authority.</summary>
     public readonly record struct Observation(Kind Kind, ulong Owner, ulong Epoch, ulong Generation,
         ulong Sector, ulong Sequence, uint Bytes, ushort AvailableIndex, ushort ConsumedIndex,
-        ulong Clock, string DataHex);
+        ulong Clock, string DataHex)
+    {
+        public uint ChunkIndex { get; init; }
+        public ulong DataSector => Sector + ChunkIndex;
+    }
 
     /// <summary>Read-only copied observations and the inspected cumulative
     /// boundaries. Cancelled counts only zero-byte completions after bootstrap.
@@ -58,10 +63,15 @@ public static class NativeDiskReadObservations
     /// cancelled completions need no copy; positive completions require a copy
     /// before another submit or terminal success. A ready-result cancellation
     /// without a distinct zero-byte completion is outside this finite contract.
+    /// Explicit allowMultiSector admits up to4 sectors: one Copied row followed
+    /// by ordered CopyChunk rows with the same request/copy sequence, clock and exact
+    /// chunk indices. The physical copied counter advances only for a complete
+    /// group. Every row keeps MaximumRowChars; legacy callers admit512 only.
     /// Return bounded immutable copies; malformed, incomplete, extra or divergent
     /// observations throw ToolFailure. No I/O or owner lifetime is introduced.</summary>
-    public static Inspection Inspect(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage, Boundary boundary, bool diskStaticFull = false)
-        => InspectCore(selectedRows, rawImage, boundary, diskStaticFull, null);
+    public static Inspection Inspect(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage, Boundary boundary,
+        bool diskStaticFull = false, bool allowMultiSector = false)
+        => InspectCore(selectedRows, rawImage, boundary, diskStaticFull, null, allowMultiSector);
 
     /// <summary>Inspect the separate pending-reset terminal shape. Preserve all
     /// preceding real submit/completion/copy/image joins from a fully copied
@@ -73,10 +83,10 @@ public static class NativeDiskReadObservations
     /// their drained-only contract. Invalid or divergent values throw ToolFailure;
     /// original native/runner/receipt authentication remains the caller's duty.</summary>
     public static Inspection InspectResetRetired(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage,
-        Boundary boundary, PendingResetRetirement retirement) => InspectCore(selectedRows, rawImage, boundary, false, retirement);
+        Boundary boundary, PendingResetRetirement retirement) => InspectCore(selectedRows, rawImage, boundary, false, retirement, false);
 
     private static Inspection InspectCore(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage,
-        Boundary boundary, bool diskStaticFull, PendingResetRetirement? reset)
+        Boundary boundary, bool diskStaticFull, PendingResetRetirement? reset, bool allowMultiSector)
     {
         int rowCount = selectedRows?.Count ?? 0;
         Need(rowCount>0 && rowCount<=(diskStaticFull?DiskStaticCapturePolicy.DeviceRows:MaximumRows) && rawImage.Length >= 512 &&
@@ -91,9 +101,10 @@ public static class NativeDiskReadObservations
         Need(reset is null || boundary.BootstrapCopied == boundary.BootstrapCompleted, "reset_bootstrap");
         List<Observation> result = new(rowCount);
         ulong submitted = boundary.BootstrapCompleted, completed = boundary.BootstrapCompleted,
-            copied = boundary.BootstrapCopied, cancelled = 0, generation = 0, sector = 0, clock = 0;
+            copied = boundary.BootstrapCopied, cancelled = 0, generation = 0, sector = 0, clock = 0, copyClock = 0;
         ushort available = unchecked((ushort)submitted), consumed = unchecked((ushort)completed);
-        byte stage = 0; //0 drained,1 submitted,2 positive validated completion awaiting its copy.
+        byte stage = 0; //0 drained,1 submitted,2 awaiting first copy,3 awaiting its remaining chunks.
+        uint requestBytes = 0, nextChunk = 0;
         Span<byte> bytes = stackalloc byte[512];
         for (int i = 0; i < rowCount; i++)
         {
@@ -106,7 +117,7 @@ public static class NativeDiskReadObservations
                 sequence = Number(ref remaining, " sequence="), length = Number(ref remaining, " bytes="),
                 currentAvailable = Number(ref remaining, " available="), currentConsumed = Number(ref remaining, " consumed="),
                 now = Number(ref remaining, " clock=");
-            Need(kind <= 2 && owner == boundary.Owner && epoch == boundary.Epoch && currentGeneration != 0 &&
+            Need(kind <= (allowMultiSector ? 3UL : 2UL) && owner == boundary.Owner && epoch == boundary.Epoch && currentGeneration != 0 &&
                 currentAvailable <= ushort.MaxValue && currentConsumed <= ushort.MaxValue && now >= clock, "association");
             clock = now;
             if (kind == 0)
@@ -114,7 +125,9 @@ public static class NativeDiskReadObservations
                 Need(stage == 0 && submitted != ulong.MaxValue, "submit_state");
                 submitted++;
                 Need(sequence == submitted && currentGeneration == submitted && submitted <= boundary.Submitted &&
-                    length == 512 && currentSector < (ulong)rawImage.Length / 512, "submit");
+                    (length == 512 || allowMultiSector && length is >= 1024 and <= 2048 && length % 512 == 0) &&
+                    currentSector < (ulong)rawImage.Length / 512 && length / 512 <= (ulong)rawImage.Length / 512 - currentSector, "submit");
+                requestBytes = (uint)length; nextChunk = 0;
                 available = unchecked((ushort)(available + 1)); generation = currentGeneration; sector = currentSector; stage = 1;
             }
             else
@@ -124,36 +137,44 @@ public static class NativeDiskReadObservations
                 {
                     Need(stage == 1 && completed != ulong.MaxValue, "completion_state");
                     completed++;
-                    Need(sequence == completed && completed <= boundary.Completed && length is 0 or 512, "completion");
+                    Need(sequence == completed && completed <= boundary.Completed && (length == 0 || length == requestBytes), "completion");
                     consumed = unchecked((ushort)(consumed + 1));
                     if (length == 0) { cancelled++; stage = 0; }
                     else stage = 2;
                 }
                 else
                 {
-                    Need(stage == 2 && copied != ulong.MaxValue, "copy_state");
-                    copied++;
-                    Need(sequence == copied && copied <= boundary.Copied && length == 512, "copy");
-                    stage = 0;
+                    Need((kind == 2 ? stage == 2 && nextChunk == 0 : stage == 3 && nextChunk > 0) &&
+                        copied != ulong.MaxValue, "copy_state");
+                    Need(sequence == copied + 1 && sequence <= boundary.Copied && length == requestBytes, "copy");
                 }
             }
             Need(currentAvailable == available && currentConsumed == consumed, "ring");
             string data = "";
-            if (kind == 2)
+            uint chunk = nextChunk;
+            if (kind is 2 or 3)
             {
-                const string prefix = " copied=committed data=";
+                if (stage == 2) copyClock = now;
+                else Need(now == copyClock, "copy_clock");
+                const string prefix = " copied=committed";
                 Need(remaining.StartsWith(prefix, StringComparison.Ordinal), "copy_shape");
-                remaining = remaining[prefix.Length..]; Need(remaining.Length == 1024, "copy_hex_length");
+                remaining = remaining[prefix.Length..];
+                if (requestBytes != 512) Need(Number(ref remaining, " chunk=") == chunk, "copy_chunk");
+                Need(remaining.StartsWith(" data=", StringComparison.Ordinal), "copy_shape");
+                remaining = remaining[6..]; Need(remaining.Length == 1024, "copy_hex_length");
                 for (int j = 0; j < 512; j++)
                     bytes[j] = (byte)((Hex(remaining[j * 2]) << 4) | Hex(remaining[j * 2 + 1]));
                 // The submitted LBA was bounded before multiplication. The image
                 // cap keeps this exact sector offset and length representable.
-                Need(bytes.SequenceEqual(rawImage.Slice(checked((int)(sector * 512)), 512)), "image_bytes");
+                Need(bytes.SequenceEqual(rawImage.Slice(checked((int)((sector + chunk) * 512)), 512)), "image_bytes");
                 data = new string(remaining); remaining = default;
+                nextChunk++;
+                if (nextChunk == requestBytes / 512) { copied++; stage = 0; }
+                else stage = 3;
             }
             Need(remaining.IsEmpty, "row_suffix");
             result.Add(new((Kind)kind, owner, epoch, currentGeneration, currentSector, sequence,
-                (uint)length, (ushort)currentAvailable, (ushort)currentConsumed, now, data));
+                (uint)length, (ushort)currentAvailable, (ushort)currentConsumed, now, data) { ChunkIndex = kind is 2 or 3 ? chunk : 0 });
         }
         Need(submitted == boundary.Submitted && completed == boundary.Completed && copied == boundary.Copied, "terminal");
         if (reset is { } retired)

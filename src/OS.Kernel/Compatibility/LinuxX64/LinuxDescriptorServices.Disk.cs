@@ -248,16 +248,36 @@ public static unsafe partial class LinuxDescriptorServices
         return DiskObservation(disk, r);
     }
 
-    /// <summary>One bounded round-robin step, including detached cancellation
-    /// records. The caller scans at most eight ready token observations to wake
-    /// exact wait generations. This never copies user bytes or commits cursors.</summary>
+    /// <summary>One bounded step, including detached cancellation records.
+    /// Outstanding readonly I/O selects its exact operation owner; otherwise
+    /// selection is round-robin. The caller scans at most eight ready token
+    /// observations to wake exact wait generations. This never copies user
+    /// bytes or commits cursors.</summary>
     public static DiskResult PumpDiskOne(State* state, ulong owner)
     {
         if (!Attached(state, owner) || !DiskBound(state)) return new(DiskProgress.Rejected);
         DiskState* d = state->Disk;
+        uint next = d->NextPump;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!BorrowedDiskMount(d->Mount))
+#endif
+        if (d->Mount->IoActive)
+        {
+            // Only the retained operation can consume this physical read.
+            // Preserve the ordinary single StepDisk and advance the cursor
+            // afterward so new work resumes fairly once the read is consumed.
+            for (uint i = 0; i < DiskSlots; i++)
+            {
+                DiskRequest* request = d->Requests + i;
+                Fs.OperationToken operation = request->Operation;
+                if (request->Phase != 0 && operation.Index == d->Mount->IoIndex &&
+                    operation.Generation == d->Mount->IoGeneration && DiskOperationLink(d, operation))
+                { next = i; break; }
+            }
+        }
         for (uint n = 0; n < DiskSlots; n++)
         {
-            uint i = (d->NextPump + n) % DiskSlots;
+            uint i = (next + n) % DiskSlots;
             if (d->Requests[i].Phase == 0) continue;
 #if !NOSTDLIB_EFI || M16_027_PROBE
             // Borrowed reads arbitrate through their original writable engine.
@@ -1076,7 +1096,25 @@ public static unsafe partial class LinuxDescriptorServices
         else if (index == 3) { start = (ulong)a.Cache; bytes = a.CacheCount * (ulong)sizeof(Fs.CacheSlot); }
         else if (index < 52)
         {
-            uint op = (index - 4) / 6, part = (index - 4) % 6; if (op >= a.OperationCount) return;
+            uint op = (index - 4) / 6, part = (index - 4) % 6;
+            // Two unused sixth scratch-range positions name the separate
+            // immutable directory and chain-certificate backing. No operation
+            // buffer is borrowed; the bounded inventory keeps its capacity.
+            if (part == 5)
+            {
+                if (op == 0)
+                {
+                    start = (ulong)m->ImmutableDirectoryCacheBacking;
+                    bytes = Fs.ImmutableDirectoryCacheBytes(m->ImmutableDirectoryCacheSlots);
+                }
+                else if (op == 1)
+                {
+                    start = (ulong)m->ImmutableFileChainCacheBacking;
+                    bytes = Fs.ImmutableFileChainCacheBytes(m->ImmutableFileChainCacheSlots);
+                }
+                return;
+            }
+            if (op >= a.OperationCount) return;
             var s = a.Operations[op].Storage;
             if (part == 0) { start = (ulong)s.Path; bytes = 256; }
             else if (part == 1) { start = (ulong)s.Sector; bytes = 512; }

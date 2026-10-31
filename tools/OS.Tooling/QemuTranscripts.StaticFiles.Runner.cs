@@ -16,15 +16,19 @@ public static partial class QemuTranscripts
     /// <summary>Check twelve bounded canonical child rows against the actual
     /// caller invocation interval. Reject missing death, spontaneous exit,
     /// cleanup failure, implausible lifetime or an endpoint left open. Caller
-    /// values alone supply no process, native, packet or guest authority.</summary>
+    /// values alone supply no process, native, packet or guest authority. The
+    /// trusted caller supplies diskStaticFull only for the selected Full profile;
+    /// staged and Timing callers retain the legacy timeout policy.</summary>
     public static StaticFileChildReport InspectNativeAotStaticFileChildForTests(IReadOnlyList<string> rows,
-        WebRunnerContext context,int timeoutSeconds)
+        WebRunnerContext context,int timeoutSeconds,bool diskStaticFull=false)
     {
         Need(rows is {Count:StaticFileProcessEvidence.SummaryCount} && rows.All(row=>row is {Length:>0 and <=256} &&
             row.All(value=>value is >= ' ' and <= '~')),"static_child_rows");
         Need(context.ForwardPort is >0 and <=65535 && context.StartedUtc.Offset==TimeSpan.Zero &&
             context.CompletedUtc.Offset==TimeSpan.Zero && context.StartedUtc>DateTimeOffset.UnixEpoch &&
-            context.CompletedUtc>=context.StartedUtc && timeoutSeconds is >=600 and <=825,"static_child_context");
+            context.CompletedUtc>=context.StartedUtc && (diskStaticFull?
+                timeoutSeconds is >=DiskStaticCapturePolicy.MinimumTimeoutSeconds and <=DiskStaticCapturePolicy.MaximumTimeoutSeconds:
+                timeoutSeconds is >=600 and <=825),"static_child_context");
         string Value(int index,string prefix)
         { Need(rows[index].StartsWith(prefix+" ",StringComparison.Ordinal),"static_child_field");return rows[index][(prefix.Length+1)..]; }
         ulong Number(int index,string prefix)

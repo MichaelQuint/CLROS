@@ -51,11 +51,11 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "b07439f3ae6c2aafbe10510596ece3f2db7f2d9dee1c7485a27de990e25af899";
-    public const string CanonicalProjectSha256 = "ba165140143c3e91b97eca48d9099b7a58cf386f5cd5dc7b76d8dd39262d7c4d";
+    public const string ProjectSourceSha256 = "d15977e424460aafb3f46a1f68491dbb831bcd79b01bcebef0761c282bfbfcd2";
+    public const string CanonicalProjectSha256 = "2eb8e7f92c32214b11e01ab694a7df17346f7f3100a4ee184953b707887b07c7";
     // Review the selected M16-027 writable-owner sources and entry boundary.
     // Historical artifacts retain their original project and source identities.
-    public const string EfiEntrySourceSha256 = "fba0ac895ab1d47b9b189b370e8c59083e3e0c4a200b77ea47f3246525dca5e4";
+    public const string EfiEntrySourceSha256 = "f6ec48e81ad1d86c2d666f70ad4ee7421d261a9754ea93e1e82fe4209f16da82";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -398,6 +398,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs|Storage\ReadOnlyWebRootFileSystem.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs|Compatibility\LinuxX64\LinuxThreadServices.Disk.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs|Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs",
         @"Boot\EfiEntry.StaticFiles.cs|",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs|Compatibility\LinuxX64\LinuxStaticFileObservation.cs",
         @"Boot\EfiEntry.LinuxWeb.cs|",

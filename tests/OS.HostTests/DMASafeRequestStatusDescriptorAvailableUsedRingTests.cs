@@ -5,6 +5,24 @@ using OS.Storage;
 
 internal static unsafe class DMASafeRequestStatusDescriptorAvailableUsedRingTests
 {
+    [HostTest("virtio.block.dma explicit four-sector data fits unchanged page and legacy wire offsets")]
+    private static void BoundedReadArea()
+    {
+        HostCheck.Equal(512U, VirtioBlkDmaLayout.DataBytes);
+        HostCheck.Equal(4U, VirtioBlkDmaLayout.MaximumReadSectors);
+        HostCheck.Equal(2048U, VirtioBlkDmaLayout.MaximumReadBytes);
+        HostCheck.Equal(4096U, VirtioBlkDmaLayout.PageBytes);
+        HostCheck.True(VirtioBlkDmaLayout.DataOffset + VirtioBlkDmaLayout.MaximumReadBytes <= VirtioBlkDmaLayout.PageBytes);
+        HostCheck.Equal(DmaAddressStatus.Success, DmaAddressWindow.TryCreate(0x100000, 0x200000, 0x300000, 4096, 32, out var window));
+        HostCheck.Equal(DmaAddressStatus.Success, window.TrySlice(0, 4096, out var range));
+        HostCheck.Equal(VirtioBlkDmaStatus.Success, DMASafeRequestStatusDescriptorAvailableUsedRing.TryLayout(range, out var layout));
+        HostCheck.Equal(216U, layout.Rings.EndOffset);
+        HostCheck.Equal(256U, VirtioBlkDmaLayout.RequestOffset);
+        HostCheck.Equal(272U, VirtioBlkDmaLayout.StatusOffset);
+        HostCheck.Equal(512U, VirtioBlkDmaLayout.DataOffset);
+        HostCheck.Equal(4096UL, layout.Range.ByteLength);
+    }
+
     [HostTest("virtio.block.dma preserves three address domains and independent size-eight wire layout")]
     private static void Layout()
     {

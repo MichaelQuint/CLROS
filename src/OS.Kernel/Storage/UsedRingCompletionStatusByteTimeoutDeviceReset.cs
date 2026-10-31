@@ -41,10 +41,19 @@ public static unsafe class UsedRingCompletionStatusByteTimeoutDeviceReset
     }
 
     public static VirtioBlkReadStatus Validate(ushort usedIndex, uint id, uint length, byte status)
+        => Validate(usedIndex, id, length, status, 1);
+
+    /// <summary>Validate one explicitly bounded read's used head, data-plus-status
+    /// length and status. Numeric observations supply no device or DMA authority.
+    /// Error statuses may report a short used length; success requires every
+    /// requested data byte and the status byte. Legacy callers still select1.</summary>
+    public static VirtioBlkReadStatus Validate(ushort usedIndex, uint id, uint length, byte status, uint sectors)
     {
-        if (usedIndex != 1 || id != 0 || length == 0 || length > 513) return VirtioBlkReadStatus.InvalidCompletion;
+        if (sectors is 0 or > VirtioBlkDmaLayout.MaximumReadSectors) return VirtioBlkReadStatus.InvalidCompletion;
+        uint expected = sectors * VirtioBlkDmaLayout.DataBytes + 1;
+        if (usedIndex != 1 || id != 0 || length == 0 || length > expected) return VirtioBlkReadStatus.InvalidCompletion;
         if (status == 1) return VirtioBlkReadStatus.DeviceIoError;
         if (status == 2) return VirtioBlkReadStatus.UnsupportedRequest;
-        return status == 0 && length == 513 ? VirtioBlkReadStatus.Success : VirtioBlkReadStatus.InvalidCompletion;
+        return status == 0 && length == expected ? VirtioBlkReadStatus.Success : VirtioBlkReadStatus.InvalidCompletion;
     }
 }

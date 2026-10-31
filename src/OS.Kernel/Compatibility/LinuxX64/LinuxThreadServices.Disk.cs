@@ -98,6 +98,30 @@ public unsafe partial struct LinuxThreadServices
             return IsComplete;
         }
 
+        /// <summary>Partition this frozen dispatch into a nested driver and
+        /// its remaining shell, excluding their own nested polls exactly once.
+        /// Both values must have successfully frozen the same original time
+        /// and cumulative-poll window; the caller separately proves actual
+        /// nesting, common clock/owner and serialized storage lifetimes. Late
+        /// physical returns leave valid frozen totals unchanged. This readonly
+        /// arithmetic grants no execution or measurement authority; rejection
+        /// returns zero outputs without invalidating either value.</summary>
+        public readonly bool InspectChild(in DiskDispatchMeasurements child, out ulong driverNonPoll, out ulong shellNonPoll)
+        {
+            driverNonPoll = 0; shellNonPoll = 0;
+            if (!IsComplete || !child.IsComplete || _phaseStart != child._phaseStart || _phasePoll != child._phasePoll ||
+                _elapsed != child._elapsed || _poll != child._poll || child._dispatch > _dispatch ||
+                child._nested > _nested || child._nested > child._dispatch) return false;
+            ulong shell = _dispatch - child._dispatch, shellPoll = _nested - child._nested;
+            if (shellPoll > shell) return false;
+            ulong driver = child._dispatch - child._nested, remainder = shell - shellPoll;
+            ulong parentNonPoll = _dispatch - _nested;
+            // Difference form checks conservation without adding two ulong totals.
+            if (driver > parentNonPoll || remainder != parentNonPoll - driver) return false;
+            driverNonPoll = driver; shellNonPoll = remainder;
+            return true;
+        }
+
         private bool AddSegment(ulong now, ulong poll, bool clipped)
         {
             if (now < _segmentStart || poll < _segmentPoll) return Reject();

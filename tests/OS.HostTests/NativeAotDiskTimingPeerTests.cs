@@ -5,7 +5,7 @@ using OS.Tooling;
 using OS.Kernel.Compatibility.LinuxX64;
 using System.Runtime.CompilerServices;
 
-internal static class NativeAotDiskTimingPeerTests
+internal static partial class NativeAotDiskTimingPeerTests
 {
     [HostTest("dispatch window partitions completed envelopes and supervisor polls without subtracting nested polls twice")]
     private static void DispatchPartition()
@@ -79,6 +79,106 @@ internal static class NativeAotDiskTimingPeerTests
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_completed")]
     private static extern ref ulong CompletedDispatchCount(ref LinuxThreadServices.DiskDispatchMeasurements value);
 
+    [HostTest("dispatch child partitions completed nested driver and shell nonpoll time without double subtraction")]
+    private static void DispatchChildPartition()
+    {
+        LinuxThreadServices.DiskDispatchMeasurements parent = default, child = default;
+        ulong outer = 0, inner = 0;
+        HostCheck.True(parent.BeginDispatch(80, 48, out outer) && child.BeginDispatch(90, 49, out inner));
+        HostCheck.True(parent.Arm(100, 50) && child.Arm(100, 50));
+        HostCheck.True(child.EndDispatch(inner, 130, 56) && parent.EndDispatch(outer, 150, 60));
+        HostCheck.True(parent.BeginDispatch(160, 65, out outer) && child.BeginDispatch(170, 66, out inner));
+        HostCheck.True(child.EndDispatch(inner, 180, 68) && parent.EndDispatch(outer, 190, 69));
+        HostCheck.True(child.Freeze(200, 75) && parent.Freeze(200, 75));
+        ChildPartition(parent, child, 32, 34); // D80/PD14, V40/PV8; parent nonpoll66.
+    }
+
+    [HostTest("dispatch child clips both window boundaries and preserves partition across valid late physical returns")]
+    private static void DispatchChildClips()
+    {
+        LinuxThreadServices.DiskDispatchMeasurements parent = default, child = default;
+        ulong outer = 0, inner = 0;
+        HostCheck.True(parent.BeginDispatch(90, 48, out outer) && child.BeginDispatch(95, 49, out inner));
+        HostCheck.True(parent.Arm(100, 50) && child.Arm(100, 50));
+        HostCheck.True(child.Freeze(160, 60) && parent.Freeze(160, 60));
+        ChildPartition(parent, child, 50, 0);
+        HostCheck.True(child.EndDispatch(inner, 170, 60) && parent.EndDispatch(outer, 180, 60));
+        ChildPartition(parent, child, 50, 0);
+        HostCheck.True(!child.EndDispatch(inner, 190, 60));
+        ChildRejected(parent, child); // A late bookkeeping fault still revokes completeness.
+        HostCheck.True(parent.Inspect(out var totals));
+        Partition(totals, 60, 10, 60, 10, 0, 1, true);
+    }
+
+    [HostTest("dispatch child requires exact original window and successful freeze with zero failure outputs")]
+    private static void DispatchChildWindowRejections()
+    {
+        var parent = FrozenDispatch(100, 50, 60, 10);
+        var child = FrozenDispatch(100, 50, 40, 6);
+        LinuxThreadServices.DiskDispatchMeasurements empty = default, armed = default;
+        HostCheck.True(armed.Arm(100, 50));
+        ChildRejected(parent, empty); ChildRejected(empty, child);
+        ChildRejected(parent, armed); ChildRejected(armed, child);
+        ChildRejected(parent, FrozenDispatch(101, 50, 40, 6)); // Equal duration, different start.
+        ChildRejected(parent, FrozenDispatch(100, 51, 40, 6)); // Equal poll delta, different base.
+        ChildRejected(parent, FrozenDispatch(100, 50, 40, 6, 99, 20));
+        ChildRejected(parent, FrozenDispatch(100, 50, 40, 6, 100, 19));
+        var failed = child;
+        HostCheck.True(!failed.BeginPoll()); ChildRejected(parent, failed);
+        failed = parent;
+        HostCheck.True(!failed.EndDispatch(1, 201, 70)); ChildRejected(failed, child);
+        ChildPartition(parent, child, 34, 16); // Rejections do not mutate the valid pair.
+    }
+
+    [HostTest("dispatch child rejects impossible subsets without clamping and conserves zero and maximum unsigned totals")]
+    private static void DispatchChildSubsetBoundaries()
+    {
+        var parent = FrozenDispatch(100, 50, 60, 10);
+        ChildRejected(parent, FrozenDispatch(100, 50, 61, 10)); // V>D.
+        ChildRejected(parent, FrozenDispatch(100, 50, 40, 11)); // PV>PD.
+        ChildRejected(FrozenDispatch(100, 50, 60, 15), FrozenDispatch(100, 50, 55, 5)); // Shell poll10 exceeds shell5.
+        LinuxThreadServices.DiskDispatchMeasurements invalid = default;
+        ulong sequence = 0;
+        HostCheck.True(invalid.Arm(100, 50) && invalid.BeginDispatch(100, 50, out sequence));
+        HostCheck.True(!invalid.EndDispatch(sequence, 110, 65)); // A child cannot freeze V<PV.
+        ChildRejected(parent, invalid);
+        var zero = FrozenDispatch(0, 0, 0, 0, 0, 0);
+        ChildPartition(zero, zero, 0, 0); // A frozen empty window is distinct from default.
+        parent = FrozenDispatch(0, 0, ulong.MaxValue, 0, ulong.MaxValue, 0);
+        var child = FrozenDispatch(0, 0, ulong.MaxValue - 1, 0, ulong.MaxValue, 0);
+        ChildPartition(parent, child, ulong.MaxValue - 1, 1);
+        parent = FrozenDispatch(0, 0, ulong.MaxValue, ulong.MaxValue, ulong.MaxValue, ulong.MaxValue);
+        child = FrozenDispatch(0, 0, 0, 0, ulong.MaxValue, ulong.MaxValue);
+        ChildPartition(parent, child, 0, 0);
+    }
+
+    private static LinuxThreadServices.DiskDispatchMeasurements FrozenDispatch(ulong start, ulong pollStart,
+        ulong dispatch, ulong nestedPoll, ulong phase = 100, ulong poll = 20)
+    {
+        LinuxThreadServices.DiskDispatchMeasurements value = default;
+        ulong sequence = 0;
+        HostCheck.True(value.Arm(start, pollStart) && value.BeginDispatch(start, pollStart, out sequence) &&
+            value.EndDispatch(sequence, start + dispatch, pollStart + nestedPoll) && value.Freeze(start + phase, pollStart + poll));
+        return value;
+    }
+
+    private static void ChildPartition(in LinuxThreadServices.DiskDispatchMeasurements parent,
+        in LinuxThreadServices.DiskDispatchMeasurements child, ulong expectedDriver, ulong expectedShell)
+    {
+        HostCheck.True(parent.InspectChild(in child, out ulong driver, out ulong shell));
+        HostCheck.Equal(expectedDriver, driver); HostCheck.Equal(expectedShell, shell);
+        HostCheck.True(parent.Inspect(out var totals));
+        HostCheck.Equal(totals.DispatchNonPollNanoseconds, driver + shell);
+    }
+
+    private static void ChildRejected(in LinuxThreadServices.DiskDispatchMeasurements parent,
+        in LinuxThreadServices.DiskDispatchMeasurements child)
+    {
+        ulong driver = ulong.MaxValue, shell = ulong.MaxValue;
+        HostCheck.True(!parent.InspectChild(in child, out driver, out shell));
+        HostCheck.Equal(0UL, driver); HostCheck.Equal(0UL, shell);
+    }
+
     private static void Partition(LinuxThreadServices.DiskDispatchTotals t, ulong phase, ulong poll, ulong dispatch, ulong nested, ulong completed, ulong clipped, bool active)
     {
         HostCheck.True(t.PhaseNanoseconds == phase && t.PollNanoseconds == poll && t.DispatchNanoseconds == dispatch &&
@@ -92,6 +192,52 @@ internal static class NativeAotDiskTimingPeerTests
         " supervisorCalls=0 supervisorNs=0 supervisorPreNs=0 supervisorDiskNs=0 supervisorPostNs=0"+
         " idleCalls=0 idleNs=0 idlePreNs=0 idleDiskNs=0 idlePostNs=0\r\n";
     private const string Dispatch = "M10_018_DISPATCH bytes=65536 phaseNs=20000 pollNs=11200 dispatchNs=16000 nestedPollNs=10000 dispatchNonPollNs=6000 supervisorNonPollNs=2800 completed=2 clipped=2 physicalActive=1 phaseComplete=1\r\n";
+    private const string Driver = "M10_018_DRIVER bytes=65536 phaseNs=20000 pollNs=11200 driverNs=12000 nestedPollNs=8000 driverNonPollNs=4000 dispatchShellNonPollNs=2000 completed=2 clipped=2 physicalActive=1 phaseComplete=1\r\n";
+    private const string Verification = "M10_018_VERIFY calls=3 elapsedNs=3000 phaseNs=20000 phaseComplete=1\r\n";
+
+    [HostTest("driver aggregate conserves complete dispatch and rejects missing malformed widened or negative child partitions")]
+    private static void DriverAggregate()
+    {
+        var polls = NativeAotDiskTimingPeer.InspectMetrics(Metrics);
+        var dispatch = NativeAotDiskTimingPeer.InspectDispatchMetrics(Dispatch, polls);
+        var driver = NativeAotDiskTimingPeer.InspectDriverMetrics(Driver, dispatch);
+        HostCheck.Equal(6000UL, driver["driverNonPollNs"] + driver["dispatchShellNonPollNs"]);
+        foreach (string bad in new[] { "", Driver + Driver, Driver.Replace("bytes=65536", "bytes=65535"),
+            Driver.Replace("phaseNs=20000", "phaseNs=20001"), Driver.Replace("pollNs=11200", "pollNs=11201"),
+            Driver.Replace("driverNs=12000", "driverNs=16001"), Driver.Replace("nestedPollNs=8000", "nestedPollNs=10001"),
+            Driver.Replace("driverNs=12000", "driverNs=6000"),
+            Driver.Replace("driverNs=12000", "driverNs=15000"), // Remaining poll2000 exceeds shell1000.
+            Driver.Replace("driverNonPollNs=4000", "driverNonPollNs=3999"),
+            Driver.Replace("dispatchShellNonPollNs=2000", "dispatchShellNonPollNs=2001"),
+            Driver.Replace("completed=2", "completed=02"), Driver.Replace("clipped=2", "clipped=3"),
+            Driver.Replace("physicalActive=1", "physicalActive=0"), Driver.Replace("phaseComplete=1", "phaseComplete=0"),
+            Driver.Replace("driverNs=12000", "driverNs=18446744073709551616"),
+            Driver.Replace(" nestedPollNs=8000", ""), Driver.Replace("clipped=2", "clipped=2 clipped=2") })
+        {
+            bool rejected = false; try { _ = NativeAotDiskTimingPeer.InspectDriverMetrics(bad, dispatch); } catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected, bad);
+        }
+        bool missingParent = false;
+        try { _ = NativeAotDiskTimingPeer.InspectDriverMetrics(Driver, new Dictionary<string, ulong>()); }
+        catch (ToolFailure) { missingParent = true; }
+        HostCheck.True(missingParent);
+    }
+
+    [HostTest("driver aggregate preserves zero child and maximum unsigned difference conservation without overflow")]
+    private static void DriverAggregateEdges()
+    {
+        var dispatch = NativeAotDiskTimingPeer.InspectDispatchMetrics(Dispatch, NativeAotDiskTimingPeer.InspectMetrics(Metrics));
+        string zero = Driver.Replace("driverNs=12000", "driverNs=0").Replace("nestedPollNs=8000", "nestedPollNs=0")
+            .Replace("driverNonPollNs=4000", "driverNonPollNs=0").Replace("dispatchShellNonPollNs=2000", "dispatchShellNonPollNs=6000");
+        HostCheck.Equal(6000UL, NativeAotDiskTimingPeer.InspectDriverMetrics(zero, dispatch)["dispatchShellNonPollNs"]);
+        var maximum = dispatch.ToDictionary(pair => pair.Key, pair => pair.Value);
+        maximum["phaseNs"] = maximum["dispatchNs"] = maximum["dispatchNonPollNs"] = ulong.MaxValue;
+        maximum["pollNs"] = maximum["nestedPollNs"] = maximum["supervisorNonPollNs"] = 0;
+        string row = Driver.Replace("phaseNs=20000", "phaseNs=18446744073709551615").Replace("pollNs=11200", "pollNs=0")
+            .Replace("driverNs=12000", "driverNs=18446744073709551614").Replace("nestedPollNs=8000", "nestedPollNs=0")
+            .Replace("driverNonPollNs=4000", "driverNonPollNs=18446744073709551614").Replace("dispatchShellNonPollNs=2000", "dispatchShellNonPollNs=1");
+        HostCheck.Equal(1UL, NativeAotDiskTimingPeer.InspectDriverMetrics(row, maximum)["dispatchShellNonPollNs"]);
+    }
 
     [HostTest("dispatch aggregate requires separate complete bounded conservation matching unchanged v5 polls and explicit active physical dispatch")]
     private static void DispatchAggregate()
@@ -228,7 +374,7 @@ internal static class NativeAotDiskTimingPeerTests
         string applied=Path.Combine(dir,"timing.raw");
         var receipt=WebRootImageFixture.Apply(root,image,source,WebRootImageFixture.SnapshotPublishedRoot(source),applied);
         var inventory=WebRootDiskInventory.Inspect(applied,File.ReadAllBytes(applied),receipt);
-        foreach(string mode in new[]{"good","body","etag","metrics","dispatch","late-fault","unconfirmed"})
+        foreach(string mode in new[]{"good","body","etag","metrics","dispatch","driver","driver-duplicate","driver-late-change","verification","verification-duplicate","verification-late-change","selection","selection-late-change","late-fault","unconfirmed"})
             Check(mode).GetAwaiter().GetResult();
 
         async Task Check(string mode)
@@ -251,9 +397,19 @@ internal static class NativeAotDiskTimingPeerTests
             HostCheck.Equal(mode=="good",actual.RootElement.GetProperty("Complete").GetBoolean());
             HostCheck.True(!actual.RootElement.GetProperty("FullAndCleanupQualified").GetBoolean() &&
                 actual.RootElement.GetProperty("RunnerJoined").GetBoolean());
-            HostCheck.Equal("clros-disk-read-timing-v6", actual.RootElement.GetProperty("Schema").GetString()!);
-            if (mode is "good" or "late-fault")
+            HostCheck.Equal("clros-disk-read-timing-v7", actual.RootElement.GetProperty("Schema").GetString()!);
+            HostCheck.Equal("clros-thread-dispatch-selection-v1", actual.RootElement.GetProperty("SelectionSchema").GetString()!);
+            if (mode == "good")
+            {
+                HostCheck.Equal(4, actual.RootElement.GetProperty("Selections").GetArrayLength());
+                HostCheck.Equal(NativeAotDiskTimingPeer.VerificationSchema, actual.RootElement.GetProperty("VerificationSchema").GetString()!);
+                HostCheck.Equal(3000UL, actual.RootElement.GetProperty("VerificationMetrics").GetProperty("elapsedNs").GetUInt64());
+            }
+            if (mode is "good" or "late-fault" or "driver-late-change")
+            {
                 HostCheck.Equal(1UL, actual.RootElement.GetProperty("DispatchMetrics").GetProperty("phaseComplete").GetUInt64());
+                HostCheck.Equal(4000UL, actual.RootElement.GetProperty("DriverMetrics").GetProperty("driverNonPollNs").GetUInt64());
+            }
 
             async Task<ProcessResult> Stub(int port,CancellationToken cancellation)
             {
@@ -279,12 +435,20 @@ internal static class NativeAotDiskTimingPeerTests
                         if(!head)await context.Response.OutputStream.WriteAsync(entity,cancellation);
                         context.Response.Close();
                         if(i==3)File.AppendAllText(serial,(mode=="metrics"?Metrics+Metrics:Metrics)+
-                            (mode=="dispatch"?Dispatch.Replace("nestedPollNs=10000","nestedPollNs=20000"):Dispatch));
+                            (mode=="dispatch"?Dispatch.Replace("nestedPollNs=10000","nestedPollNs=20000"):Dispatch)+
+                            (mode=="driver"?Driver.Replace("dispatchShellNonPollNs=2000","dispatchShellNonPollNs=2001"):
+                                mode=="driver-duplicate"?Driver+Driver:Driver)+
+                            (mode=="verification"?Verification.Replace("elapsedNs=3000","elapsedNs=20001"):
+                                mode=="verification-duplicate"?Verification+Verification:Verification)+
+                             (mode=="selection"?SelectionStream.Replace("sequence=2", "sequence=02"):SelectionStream));
                     }
                 }
                 catch(OperationCanceledException)when(cancellation.IsCancellationRequested)
                 {
                     if (mode == "late-fault") File.AppendAllText(serial, "TEST_FAIL disk.dispatch.bookkeeping late_end\r\n");
+                    if (mode == "driver-late-change") File.AppendAllText(serial, Driver);
+                    if (mode == "verification-late-change") File.AppendAllText(serial, Verification);
+                    if (mode == "selection-late-change") File.AppendAllText(serial, SelectionStream);
                     return new(-1,"synthetic-runner-cancelled","",false,false,true,TimeSpan.Zero){TerminationConfirmed=mode!="unconfirmed"};
                 }
                 finally{exited=true;listener.Stop();}

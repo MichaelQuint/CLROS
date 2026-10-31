@@ -36,7 +36,8 @@ public static class NativeAotStaticFilePackage
             "app.path=apps/" + NativeAotStaticFilePublisher.Application +
             "\nargs=--urls http://0.0.0.0:8080 --contentRoot /app\ndigest=" + digest +
             "\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=32\nlisten=0.0.0.0:8080\n" +
-            "env.CLROS_USER_IRQS=1\nenv.CLROS_STATIC_FILES_PROFILE=v1\nenv.DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false\n");
+            "env.CLROS_USER_IRQS=1\nenv.CLROS_STATIC_FILES_PROFILE=v1\nenv.DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false\n" +
+            (staged ? "" : "env.DOTNET_ThreadPool_ForceMinWorkerThreads=2\nenv.DOTNET_ThreadPool_ForceMaxWorkerThreads=4\n"));
         Asset[] assets = staged ? StagedAssets() : [];
         int dataBytes = assets.Sum(asset => checked((int)LinuxElfPackage.DataRecordHeaderBytes + Encoding.ASCII.GetByteCount(asset.Path) + asset.Bytes.Length));
         int total = checked((int)LinuxElfPackage.HeaderBytes + manifest.Length + elf.Length + dataBytes);

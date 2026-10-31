@@ -15,6 +15,7 @@ public static partial class EfiContracts
         [@"Boot\EfiEntry.LinuxUserCarrier.cs"] = "reviewed_m16_027_bounded_user_callback_carrier_source_identity",
         [@"Boot\EfiEntry.WritableDisk.cs"] = "reviewed_m16_027_native_writable_owner_source_identity",
         [@"Boot\EfiEntry.WritableDiskEvidence.cs"] = "reviewed_m16_027_native_writable_observation_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs"] = "reviewed_timing_only_complete_native_verification_measurements_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "reviewed_source4_wait_output_ceiling_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "reviewed_disk_descriptor_generation_close_drain_identity",
         [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "reviewed_confined_fat_files_cache_cursor_identity",

@@ -34,8 +34,11 @@ public static class ToolCommand
                 Console.WriteLine($"TEST_PASS linux.log-upload.http-reference artifacts={reference.Artifacts.Count} guest_lock_flush_and_persistence_authority=false");
                 return 0;
             }
-            if (args is ["qemu", "inspect-disk-static-values", var staticDiskPackage, var staticDiskImage, var staticDiskIndex, var staticDiskSerial])
+            if (args is ["qemu", "inspect-disk-static-values", var staticDiskPackage, var staticDiskImage, var staticDiskIndex, var staticDiskSerial, ..])
             {
+                bool full=args.Length==7 && args[6]=="--full";
+                if(args.Length!=6 && !full)throw new ToolFailure("disk_static_values_mode");
+                int serialMaximum=full?DiskStaticCapturePolicy.SerialBytes:8*1024*1024;
                 string root=Repository.FindRoot();
                 staticDiskPackage=Path.GetFullPath(staticDiskPackage);staticDiskImage=Path.GetFullPath(staticDiskImage);
                 staticDiskIndex=Path.GetFullPath(staticDiskIndex);staticDiskSerial=Path.GetFullPath(staticDiskSerial);
@@ -46,7 +49,7 @@ public static class ToolCommand
                 var image=Hold(staticDiskImage,WebRootImageFixture.MaximumImageBytes);
                 var receiptFile=Hold(staticDiskImage+".webroot.json",16*1024*1024);
                 var index=Hold(staticDiskIndex,NativeAotStaticFileProgram.MaximumDisassemblyBytes);
-                var serial=Hold(staticDiskSerial,8*1024*1024);
+                var serial=Hold(staticDiskSerial,serialMaximum);
                 AuthorityFiles.RequireDistinct(package,image,receiptFile,index,serial);
                 byte[] packageBytes=package.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"disk_static_values_package");
                 var program=NativeAotStaticFileProgram.Create(root,packageBytes,index.ReadUtf8(NativeAotStaticFileProgram.MaximumDisassemblyBytes,"disk_static_values_index"),false);
@@ -55,7 +58,7 @@ public static class ToolCommand
                     ?? throw new ToolFailure("disk_static_values_receipt_missing");
                 byte[] imageBytes=image.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_static_values_image");
                 var inventory=WebRootDiskInventory.Inspect(staticDiskImage,imageBytes,receipt);
-                byte[] raw=serial.ReadBytes(8*1024*1024,"disk_static_values_serial");
+                byte[] raw=serial.ReadBytes(serialMaximum,"disk_static_values_serial");
                 int parentEnd=raw.AsSpan().IndexOf("TEST_START m16-011\r\n"u8);
                 if(parentEnd<0)throw new ToolFailure("disk_static_values_parent_missing");
                 var parent=QemuTranscripts.InspectNativeAotWebParentForTests(packageBytes,raw.AsSpan(0,parentEnd),diskStatic:true);
@@ -69,18 +72,25 @@ public static class ToolCommand
                     return match.Success?ulong.Parse(match.Groups[1].Value,System.Globalization.CultureInfo.InvariantCulture):throw new ToolFailure("disk_static_values_root");
                 }
                 var report=QemuTranscripts.InspectNativeAotDiskStaticProtocolForTests(packageBytes.AsSpan((int)packageView.PayloadOffset,(int)packageView.PayloadBytes).ToArray(),
-                    leaf,program.IsInstruction,program.IsSyscallReturn,Root("M16_005_ARMED"),Root("M16_008_BOUND"),inventory);
+                    leaf,program.IsInstruction,program.IsSyscallReturn,Root("M16_005_ARMED"),Root("M16_008_BOUND"),inventory,diskStaticFull:full);
                 string whole=System.Text.Encoding.ASCII.GetString(raw);
                 var counts=System.Text.RegularExpressions.Regex.Match(whole,"(?m)^M16_025_END submitted=([0-9]+) completed=([0-9]+) copied=([0-9]+) ");
                 if(!counts.Success)throw new ToolFailure("disk_static_values_end_missing");
                 ulong Counter(int group)=>ulong.Parse(counts.Groups[group].Value,System.Globalization.CultureInfo.InvariantCulture);
                 var sectors=QemuTranscripts.InspectNativeAotDiskStaticSectorValues(report,inventory,imageBytes,
                     new(report.Owner,report.Epoch,report.BootstrapCompleted,report.BootstrapCopied,Counter(1),Counter(2),Counter(3)));
+                if(full)QemuTranscripts.InspectNativeAotDiskStaticParentValues(raw,report,sectors);
                 files.VerifyUnchanged();
-                Console.WriteLine("DISK_STATIC_REPLAY_VALUES "+System.Text.Json.JsonSerializer.Serialize(new {Parent=parent,report.Static,report.Reads,report.Operations,report.SocketWrites,
-                    report.Owner,report.Epoch,report.BootstrapCompleted,report.BootstrapCopied,report.ReadinessRecordIndex,
-                    sectors.Device.Counters,Assigned=sectors.Data.Assigned.Select(c=>new{c.Path,c.Sector,c.Copy.CopyRecordIndex,c.Window.RequestGeneration}),sectors.Metadata,
-                    sectors.ReconstructsFileSystemCache,sectors.GrantsOriginalNativeProcessOrHttpAuthority}));
+                if(full)
+                    Console.WriteLine("DISK_STATIC_FULL_PROTOCOL_DIAGNOSTIC "+System.Text.Json.JsonSerializer.Serialize(new {OriginalAccepted=false,ParentEnvelopeAndEndCountersChecked=true,
+                        report.Owner,report.Epoch,Calls=report.Static.Protocol.Calls,ReadWindows=report.Reads.Count,IoRows=report.DeviceRows.Count,
+                        Connections=report.Static.Connections.Count,sectors.Device.Counters,MetadataCopies=sectors.Metadata.Count,
+                        sectors.ReconstructsFileSystemCache,sectors.GrantsOriginalNativeProcessOrHttpAuthority}));
+                else
+                    Console.WriteLine("DISK_STATIC_REPLAY_VALUES "+System.Text.Json.JsonSerializer.Serialize(new {Parent=parent,report.Static,report.Reads,report.Operations,report.SocketWrites,
+                        report.Owner,report.Epoch,report.BootstrapCompleted,report.BootstrapCopied,report.ReadinessRecordIndex,
+                        sectors.Device.Counters,Assigned=sectors.Data.Assigned.Select(c=>new{c.Path,c.Sector,c.Copy.CopyRecordIndex,c.Window.RequestGeneration}),sectors.Metadata,
+                        sectors.ReconstructsFileSystemCache,sectors.GrantsOriginalNativeProcessOrHttpAuthority}));
                 Console.WriteLine($"TEST_PASS qemu.disk.static.values report_only=true calls={report.Static.Protocol.Calls} readWindows={report.Reads.Count} ioRows={report.DeviceRows.Count} metadataCopies={sectors.Metadata.Count} original_native_process_device_and_http_authority=false");
                 return 0;
             }
@@ -440,7 +450,7 @@ public static class ToolCommand
                 Console.WriteLine("nativeaot static-files prepare-client <published-webroot> <fresh-artifacts-webroot>\nnativeaot static-files image <base-image> <prepared-webroot> <fresh-image> DiskA|DiskB\nnativeaot static-files qualify --recipe-root <original-socket-root> --output <fresh-directory> --webroot <prepared-webroot>\nnativeaot static-files validate <evidence-directory>");
                 Console.WriteLine("qemu validate-network <serial-log> <pcap> <package> validates retained M07-026 capture inputs without launching a guest.");
                 Console.WriteLine("qemu inspect-webroot-inventory <original-raw-image> requires its .webroot.json receipt; reports copied physical metadata only, without native/process/device/HTTP authority.");
-                Console.WriteLine("qemu inspect-disk-static-values <package> <raw-image> <complete-instruction-index> <serial> reports scheduler/file values only; failed originals stay failed.");
+                Console.WriteLine("qemu inspect-disk-static-values <package> <raw-image> <complete-instruction-index> <serial> [--full] reports scheduler/file values only; Full emits scalar diagnostics, failed originals stay failed.");
                 Console.WriteLine("linux disk-race-package Progress|CloseReuse|InterruptWins|CompletionWins|ExitPending <fresh-artifacts-package>\nqemu smoke -EnableM16025Probe -LinuxDiskRaceVariant ExitPending [original disk options]; complete original ExitPending joins remain mandatory. Other variants are dry-run only. Absent variant retains the canonical59-call fixture.");
                 Console.WriteLine("linux socket-vectors-package <original-publication-directory> <fresh-artifacts-package>\nlinux socket-vectors-program <package> <complete-original-llvm-disassembly>");
                 Console.WriteLine("linux socket-index <original-elf> <llvm-disassembly> (report only)\nlinux socket-program sync|async <package> <reviewed-llvm-disassembly>\nlinux socket-package sync|async <extracted-socket-evidence> <fresh-artifacts-package>\nlinux runtime-package <app> <extracted-runtime-evidence> <fresh-artifacts-package>\nlinux runtime-program <app> <package> <reviewed-llvm-disassembly>");

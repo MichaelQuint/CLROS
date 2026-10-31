@@ -51,6 +51,30 @@ internal static class NativeAotDiskStaticBrowserTests
         HostCheck.Equal("/_framework/example.wasm?v=exact%2Fidentity", query.Target);
     }
 
+    [HostTest("browser accepts observed false redirect extra info but rejects real redirects and malformed flags")]
+    private static void RedirectExtraInfo()
+    {
+        byte[] body = [1, 2, 3];
+        foreach (bool includeFalse in new[] { false, true })
+        {
+            var e = Events("/", body, "text/html");
+            // The failed original's requestWillBeSent has no redirectResponse
+            // and explicitly carries redirectHasExtraInfo:false.
+            if (includeFalse) e.Request["redirectHasExtraInfo"] = false;
+            var actual = B.InspectExchangeValues(Element(e.Request), Element(e.RequestExtra), Element(e.Response), Element(e.ResponseExtra), Element(e.Finished), body, "000.body", Port);
+            HostCheck.Equal("/", actual.Target); HostCheck.Equal(200, actual.Status);
+        }
+        foreach (string flag in new[] { "true", "null", "0", "\"false\"", "{}", "[]" })
+        {
+            var e = Events("/", body, "text/html"); e.Request["redirectHasExtraInfo"] = JsonNode.Parse(flag);
+            Reject(() => B.InspectExchangeValues(Element(e.Request), Element(e.RequestExtra), Element(e.Response), Element(e.ResponseExtra), Element(e.Finished), body, "000.body", Port), "redirect");
+        }
+        var redirect = Events("/", body, "text/html");
+        redirect.Request["redirectHasExtraInfo"] = false;
+        redirect.Request["redirectResponse"] = new JsonObject { ["status"] = 302 };
+        Reject(() => B.InspectExchangeValues(Element(redirect.Request), Element(redirect.RequestExtra), Element(redirect.Response), Element(redirect.ResponseExtra), Element(redirect.Finished), body, "000.body", Port), "redirect");
+    }
+
     [HostTest("browser copied CDP parser rejects cache redirects incomplete identity cross origin and body ambiguity")]
     private static void ExchangeRejections()
     {

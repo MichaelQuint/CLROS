@@ -196,7 +196,8 @@ public static unsafe class LinuxElfPackage
             {
                 uint n = keyLength - 4; byte* name = key + 4;
                 if (n > 64 || valueLength > 256 || m.EnvironmentCount == 16 || name[0] < 'A' || name[0] > 'Z') return Bad(m, LinuxElfStatus.InvalidEnvironment, start);
-                if (!LinuxAppConfiguration.IsGcHeapHardLimitKey(name, n))
+                if (!LinuxAppConfiguration.IsGcHeapHardLimitKey(name, n) &&
+                    !LinuxAppConfiguration.IsThreadPoolWorkerLimitKey(name, n))
                     for (uint i = 1; i < n; i++) if (!((name[i] >= 'A' && name[i] <= 'Z') || (name[i] >= '0' && name[i] <= '9') || name[i] == '_')) return Bad(m, LinuxElfStatus.InvalidEnvironment, start + 4 + i);
                 for (uint i = 0; i < m.EnvironmentCount; i++) if (BytesEqual(bytes + m.EnvironmentRanges[i * 4], m.EnvironmentRanges[i * 4 + 1], name, n)) return Bad(m, LinuxElfStatus.DuplicateField, start);
                 uint index = m.EnvironmentCount++ * 4;

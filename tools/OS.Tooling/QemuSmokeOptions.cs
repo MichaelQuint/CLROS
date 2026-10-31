@@ -18,6 +18,9 @@ public sealed class QemuSmokeOptions
     public string GptImageVariant { get; set; } = "Intact";
     public string PackageImageVariant { get; set; } = "Intact";
     public string WebRootFixture { get; set; } = "";
+    /// <summary>Fixed corrupt-file original control. None preserves healthy
+    /// scope; Truncated requires the complete Full018 owner and browser.</summary>
+    public string WebRootFault { get; set; } = "None";
     public string WebRootAssets { get; set; } = "";
     public string LinuxElfPackage { get; set; } = "artifacts/packages/linux-elf.pkg";
     public string LinuxElfImageVariant { get; set; } = "Intact";
@@ -88,7 +91,7 @@ public sealed class QemuSmokeOptions
             ["summarylog"] = "SummaryLog", ["m01rawobservationlog"] = "M01RawObservationLog", ["qemu"] = "Qemu",
             ["ovmfcode"] = "OvmfCode", ["firmwarerngsource"] = "FirmwareRngSource", ["workloadprofile"] = "WorkloadProfile",
             ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["memorymib"] = "MemoryMiB", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
-            ["webrootfixture"] = "WebRootFixture", ["webrootassets"] = "WebRootAssets",
+            ["webrootfixture"] = "WebRootFixture", ["webrootassets"] = "WebRootAssets", ["webrootfault"] = "WebRootFault",
             ["startuptimeoutseconds"] = "StartupTimeoutSeconds", ["startuptimeout"] = "StartupTimeoutSeconds",
             ["dryrun"] = "DryRun", ["buildefi"] = "BuildEfi", ["skipimagebuild"] = "SkipImageBuild",
             ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["servicelifecycle"] = "ServiceLifecycle", ["servicequotafailure"] = "ServiceQuotaFailure", ["signalepollrace"] = "SignalEpollRace", ["websignalrace"] = "WebSignalRace", ["webeventownedsignalrace"] = "WebEventOwnedSignalRace", ["requiremarker"] = "RequireMarker",
@@ -106,7 +109,7 @@ public sealed class QemuSmokeOptions
             string raw = separator < 0 ? input : input[..separator];
             if (!raw.StartsWith('-') || !names.TryGetValue(Key(raw), out string? name)) throw new ArgumentException("qemu_unknown_option " + raw);
             bool first = result.Explicit.Add(name);
-            if (!first && name is "WebEventOwnedSignalRace" or "LinuxDiskRaceVariant" or "WritableDiskFixture" or "WritableDiskDisassembly") throw new ArgumentException("qemu_duplicate_option " + name);
+            if (!first && name is "WebEventOwnedSignalRace" or "LinuxDiskRaceVariant" or "WritableDiskFixture" or "WritableDiskDisassembly" or "WebRootFault") throw new ArgumentException("qemu_duplicate_option " + name);
             bool flag = name.StartsWith("Enable", StringComparison.Ordinal) || name is "DryRun" or "BuildEfi" or "SkipImageBuild" or "RequireNativeAppMarkers" or "ServiceLifecycle" or "ServiceQuotaFailure" or "SignalEpollRace" or "WebSignalRace" or "WebEventOwnedSignalRace";
             string value = separator >= 0 ? input[(separator + 1)..] : flag ? "true" : ++i < arguments.Length ? arguments[i] : throw new ArgumentException("qemu_missing_value " + name);
             bool bit = false;
@@ -127,6 +130,9 @@ public sealed class QemuSmokeOptions
                 case "GptImageVariant": result.GptImageVariant = value; break;
                 case "PackageImageVariant": result.PackageImageVariant = value; break;
                 case "WebRootFixture": result.WebRootFixture = value; break;
+                case "WebRootFault":
+                    if(value is not ("None" or "Truncated"))throw new ArgumentException("qemu_webroot_fault");
+                    result.WebRootFault=value;break;
                 case "WebRootAssets": result.WebRootAssets = value; break;
                 case "LinuxElfPackage": result.LinuxElfPackage = value; break;
                 case "LinuxElfImageVariant": result.LinuxElfImageVariant = value; break;

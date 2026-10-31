@@ -13,7 +13,7 @@ internal static unsafe class LinuxDiskDescriptorServicesTests
 {
     private const ulong Key = LinuxThreadServicesTests.Key, Base = LinuxThreadServicesTests.UserBase;
     private const ulong Path = Base + 0x1200, Output = Base + 0x2000;
-    private sealed class Owner : IDisposable
+    internal sealed class Owner : IDisposable
     {
         internal readonly LinuxThreadServicesTests.Model Thread = new(futex: true);
         internal readonly LinuxDescriptorServicesTests.Owner Files = new(descriptors: 32, descriptions: 32);
@@ -27,9 +27,12 @@ internal static unsafe class LinuxDiskDescriptorServicesTests
         internal ulong ThreadOwner => (ulong)Thread.Service;
         internal Fds.DiskAdmission Admission => new() { Mount = Storage.Mount, Bindings = Bindings, Requests = Requests,
             Epoch = Storage.Input.Epoch, FirmwareExited = true, SingleOwnerValidated = true };
-        internal Owner(bool attach = true, bool large = false)
+        // A supplied ready fixture is adopted and disposed by this owner. The
+        // default still constructs/mounts the same healthy eight-slot fixture.
+        internal Owner(bool attach = true, bool large = false, ReadOnlyWebRootFileSystemTests.Fixture? storage = null)
         {
-            Storage = new(slots: 8);
+            HostCheck.True(storage is null || !large && storage.Mount->Ready);
+            Storage = storage ?? new(slots: 8);
             if (large)
             {
                 const int bytes = 20000;
@@ -42,7 +45,7 @@ internal static unsafe class LinuxDiskDescriptorServicesTests
                     for (int n = 0; n < 512 && i * 512 + n < bytes; n++) sector[n] = Payload(i * 512 + n);
                 }
             }
-            Storage.MountReady();
+            if (storage is null) Storage.MountReady();
             Files.Admission.User = Thread.DescriptorAccess; Files.Admission.CopyToUser = Thread.UserCopyOut; Files.Begin();
             HostCheck.True(Thread.Service->EnablePipes(Key, 2, Files.State));
             if (attach) HostCheck.True(Fds.AttachDisk(Files.State, Disk, Admission));
@@ -281,6 +284,86 @@ internal static unsafe class LinuxDiskDescriptorServicesTests
         o.PutPath("/app/fixture.data"); HostCheck.Equal(Fds.DiskProgress.NotHandled, o.Begin(o.Call(2, Path)).Progress);
     }
 
+    [HostTest("linux.disk retained extents protect immutable directory backing from descriptor aliases")]
+    private static void ImmutableDirectoryBacking()
+    {
+        var storage = new ReadOnlyWebRootFileSystemTests.Fixture(slots: 8, directoryCacheSlots: 5);
+        storage.MountReady();
+        using Owner o = new(attach: false, storage: storage);
+        uint bytes = Fs.ImmutableDirectoryCacheBytes(storage.DirectoryCacheSlots);
+        byte[] before = new ReadOnlySpan<byte>(storage.DirectoryCacheBacking, (int)bytes).ToArray();
+        var invalid = o.Admission;
+        invalid.Bindings = (Fds.DiskBinding*)storage.DirectoryCacheBacking;
+        HostCheck.True(!Fds.AttachDisk(o.Files.State, o.Disk, invalid));
+        invalid = o.Admission;
+        invalid.Requests = (Fds.DiskRequest*)(storage.DirectoryCacheBacking + bytes - 8);
+        HostCheck.True(!Fds.AttachDisk(o.Files.State, o.Disk, invalid));
+        HostCheck.True(new ReadOnlySpan<byte>(storage.DirectoryCacheBacking, (int)bytes).SequenceEqual(before));
+        HostCheck.True(Fds.AttachDisk(o.Files.State, o.Disk, o.Admission));
+        uint matches = 0;
+        for (uint i = 0; i < Fds.DiskExtentCount; i++)
+        {
+            Fds.DiskExtentAt(o.Files.State, i, out ulong start, out ulong length);
+            if (start != (ulong)storage.DirectoryCacheBacking) continue;
+            HostCheck.Equal((ulong)bytes, length); matches++;
+        }
+        HostCheck.Equal(1U, matches);
+        uint fd = o.Open();
+        HostCheck.Equal(32L, o.Run(o.Call(0, fd, Output, 32)));
+        HostCheck.Equal(0L, o.Core(3, fd));
+        ulong reads = storage.Mount->SectorReads;
+        fd = o.Open();
+        HostCheck.Equal(reads, storage.Mount->SectorReads);
+        HostCheck.Equal(32L, o.Run(o.Call(0, fd, Output, 32)));
+        HostCheck.Equal(0L, o.Core(3, fd));
+        HostCheck.True(Fds.Audit(o.Files.State));
+    }
+
+    [HostTest("linux.disk retained extents protect immutable chain certificates and preserve metadata plus fresh reads")]
+    private static void ImmutableFileChainBacking()
+    {
+        var storage = new ReadOnlyWebRootFileSystemTests.Fixture(slots: 8, directoryCacheSlots: 5, chainCacheSlots: 2);
+        storage.MountReady();
+        using Owner o = new(attach: false, storage: storage);
+        uint bytes = Fs.ImmutableFileChainCacheBytes(storage.ChainCacheSlots);
+        HostCheck.Equal(112U, bytes); HostCheck.Equal(78U, Fds.DiskExtentCount);
+        byte[] before = new ReadOnlySpan<byte>(storage.ChainCacheBacking, (int)bytes).ToArray();
+        var invalid = o.Admission;
+        invalid.Bindings = (Fds.DiskBinding*)storage.ChainCacheBacking;
+        HostCheck.True(!Fds.AttachDisk(o.Files.State, o.Disk, invalid));
+        invalid = o.Admission;
+        invalid.Requests = (Fds.DiskRequest*)(storage.ChainCacheBacking + bytes - 8);
+        HostCheck.True(!Fds.AttachDisk(o.Files.State, o.Disk, invalid));
+        HostCheck.True(new ReadOnlySpan<byte>(storage.ChainCacheBacking, (int)bytes).SequenceEqual(before));
+        HostCheck.True(Fds.AttachDisk(o.Files.State, o.Disk, o.Admission));
+        uint matches = 0;
+        for (uint i = 0; i < Fds.DiskExtentCount; i++)
+        {
+            Fds.DiskExtentAt(o.Files.State, i, out ulong start, out ulong length);
+            if (start != (ulong)storage.ChainCacheBacking) continue;
+            HostCheck.Equal((ulong)bytes, length); matches++;
+        }
+        HostCheck.Equal(1U, matches);
+
+        o.PutPath("/app/wwwroot/index.html");
+        HostCheck.Equal(0L, o.Run(o.Call(4, Path, Output)));
+        ulong inode = o.Thread.Read64(Output + 8), modified = o.Thread.Read64(Output + 88);
+        HostCheck.Equal(0L, o.Run(o.Call(6, Path, Output)));
+        HostCheck.Equal(inode, o.Thread.Read64(Output + 8));
+        HostCheck.Equal(modified, o.Thread.Read64(Output + 88));
+        o.PutPath("/app/wwwroot/index.html/");
+        HostCheck.Equal(-20L, o.Run(o.Call(4, Path, Output)));
+        for (int repeat = 0; repeat < 2; repeat++)
+        {
+            uint fd = o.Open();
+            ulong reads = storage.Mount->SectorReads;
+            HostCheck.Equal(32L, o.Run(o.Call(0, fd, Output, 32)));
+            HostCheck.True(storage.Mount->SectorReads > reads, "chain certificate never supplies file data");
+            HostCheck.Equal(0L, o.Core(3, fd));
+        }
+        HostCheck.True(Fds.Audit(o.Files.State));
+    }
+
     [HostTest("linux.disk stat lstat fstat retain FAT inode mtime and checked block allocation")]
     private static void Metadata()
     {
@@ -298,6 +381,145 @@ internal static unsafe class LinuxDiskDescriptorServicesTests
         HostCheck.Equal(0L, o.Core(3, fd));
         o.PutPath("/app/wwwroot/"); HostCheck.Equal(0L, o.Run(o.Call(4, Path, Output)));
         HostCheck.Equal(0x416dU, o.Thread.Read32(Output + 24)); HostCheck.Equal(0UL, o.Thread.Read64(Output + 64));
+    }
+
+    private static uint DiskIndex(Fds.DiskToken token) => *(uint*)((byte*)&token + Offset<Fds.DiskToken>("Index"));
+
+    private static Fs.OperationToken DiskOperation(Owner o, Fds.DiskToken token)
+    {
+        uint index = DiskIndex(token); HostCheck.True(index < Fds.DiskSlots);
+        return *(Fs.OperationToken*)((byte*)(o.Requests + index) + Offset<Fds.DiskRequest>("Operation"));
+    }
+
+    private static void SameDeviceCounters(Owner o, ulong submitted, ulong completed, ulong copied)
+    {
+        HostCheck.Equal(submitted, o.Storage.Device->Submitted);
+        HostCheck.Equal(completed, o.Storage.Device->Completed); HostCheck.Equal(copied, o.Storage.Device->Copied);
+    }
+
+    private static Fds.DiskResult[] PendingMetadata(Owner o, out LinuxSyscallFrame[] calls)
+    {
+        o.PutPath("/app/wwwroot/index.html"); calls = new LinuxSyscallFrame[4];
+        var requests = new Fds.DiskResult[4];
+        new Span<byte>(o.Thread.At(Output), 4 * 256).Fill(0xa7);
+        for (int i = 0; i < requests.Length; i++)
+        {
+            calls[i] = o.Call(i % 2 == 0 ? 4UL : 6UL, Path, Output + (ulong)i * 256);
+            requests[i] = o.Begin(calls[i]); HostCheck.Equal(Fds.DiskProgress.Pending, requests[i].Progress);
+        }
+        return requests;
+    }
+
+    private static Fds.DiskResult PumpToPhysicalOwner(Owner o)
+    {
+        HostCheck.True(!o.Storage.Device->ReadPending);
+        ulong submitted = o.Storage.Device->Submitted, completed = o.Storage.Device->Completed, copied = o.Storage.Device->Copied;
+        for (int i = 0; i < 256; i++)
+        {
+            var selected = Fds.PumpDiskOne(o.Files.State, o.ThreadOwner);
+            if (!o.Storage.Device->ReadPending) continue;
+            HostCheck.True(selected.Token.IsActive);
+            SameDeviceCounters(o, submitted + 1, completed, copied);
+            return selected; // No Tick: this is a real submitted, uncompleted read.
+        }
+        HostCheck.True(false, "pending_owner_no_submit"); return default;
+    }
+
+    [HostTest("linux.disk pending owner consumes the next ordinary metadata completion then resumes round robin")]
+    private static void PendingOwnerCompletion()
+    {
+        using Owner o = new(); var requests = PendingMetadata(o, out var calls);
+        var owner = PumpToPhysicalOwner(o);
+        int ownerAt = Array.FindIndex(requests, request => request.Token.Equals(owner.Token)); HostCheck.True(ownerAt >= 0);
+        ulong submitted = o.Storage.Device->Submitted, completed = o.Storage.Device->Completed, copied = o.Storage.Device->Copied;
+        foreach (var request in requests)
+        {
+            if (request.Token.Equals(owner.Token)) continue;
+            // The actual FS operations are retained, but only the physical owner
+            // can consume this read. Other lookups may do local metadata work.
+            var status = Fs.Poll(o.Storage.Mount, DiskOperation(o, request.Token));
+            HostCheck.True(status is Fs.Status.Pending or Fs.Status.Busy or Fs.Status.Ready);
+            SameDeviceCounters(o, submitted, completed, copied);
+        }
+        o.Storage.Tick();
+        var completion = Fds.PumpDiskOne(o.Files.State, o.ThreadOwner);
+        HostCheck.True(completion.Token.Equals(owner.Token), "pending_owner_completion_turn");
+        SameDeviceCounters(o, submitted, completed + 1, copied + 1);
+        HostCheck.True(!o.Storage.Device->ReadPending);
+        HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output), 4 * 256).IndexOfAnyExcept((byte)0xa7) < 0);
+        var next = Fds.PumpDiskOne(o.Files.State, o.ThreadOwner);
+        HostCheck.True(next.Token.Equals(requests[(ownerAt + 1) % requests.Length].Token), "pending_owner_round_robin_resume");
+        for (int i = 0; i < requests.Length; i++)
+        {
+            HostCheck.Equal(Fds.DiskProgress.Ready, o.Ready(requests[i].Token).Progress);
+            HostCheck.Equal(0L, Fds.CompleteDisk(o.Files.State, o.ThreadOwner, o.Worker, requests[i].Token, calls[i]).Value);
+            HostCheck.Equal(700UL, o.Thread.Read64(calls[i].Argument1 + 48));
+        }
+        HostCheck.True(Fds.Audit(o.Files.State));
+    }
+
+    [HostTest("linux.disk pending owner cancellation drains before peers and stale reuse cannot copy")]
+    private static void PendingOwnerCancellation()
+    {
+        using Owner o = new(); var requests = PendingMetadata(o, out var calls);
+        var owner = PumpToPhysicalOwner(o);
+        int ownerAt = Array.FindIndex(requests, request => request.Token.Equals(owner.Token)); HostCheck.True(ownerAt >= 0);
+        var cancelled = Fds.CancelDisk(o.Files.State, o.ThreadOwner, owner.Token);
+        HostCheck.Equal(Fds.DiskProgress.Draining, cancelled.Progress); HostCheck.True(!cancelled.Worker.IsValid);
+        ulong submitted = o.Storage.Device->Submitted, completed = o.Storage.Device->Completed, copied = o.Storage.Device->Copied;
+        o.Storage.Tick(); var drain = Fds.PumpDiskOne(o.Files.State, o.ThreadOwner);
+        SameDeviceCounters(o, submitted, completed + 1, copied);
+        HostCheck.True(!o.Storage.Device->ReadPending && !drain.Worker.IsValid && !drain.Advanced);
+        HostCheck.Equal(Fds.DiskProgress.Rejected, Fds.PollDisk(o.Files.State, o.ThreadOwner, owner.Token).Progress);
+        HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(calls[ownerAt].Argument1), 144).IndexOfAnyExcept((byte)0xa7) < 0);
+        o.PutPath("/app/wwwroot/empty.bin"); var replacementCall = o.Call(4, Path, Output + 1024);
+        var replacement = o.Begin(replacementCall); HostCheck.Equal(Fds.DiskProgress.Pending, replacement.Progress);
+        HostCheck.Equal(DiskIndex(owner.Token), DiskIndex(replacement.Token)); HostCheck.True(!replacement.Token.Equals(owner.Token));
+        HostCheck.Equal(Fds.DiskProgress.Rejected, Fds.CancelDisk(o.Files.State, o.ThreadOwner, owner.Token).Progress);
+        HostCheck.Equal(Fds.DiskProgress.Rejected, Fds.CompleteDisk(o.Files.State, o.ThreadOwner, o.Worker, owner.Token, calls[ownerAt]).Progress);
+        SameDeviceCounters(o, submitted, completed + 1, copied);
+        for (int i = 0; i < requests.Length; i++)
+        {
+            if (i == ownerAt) continue;
+            HostCheck.Equal(Fds.DiskProgress.Ready, o.Ready(requests[i].Token).Progress);
+            HostCheck.Equal(0L, Fds.CompleteDisk(o.Files.State, o.ThreadOwner, o.Worker, requests[i].Token, calls[i]).Value);
+        }
+        HostCheck.Equal(Fds.DiskProgress.Ready, o.Ready(replacement.Token).Progress);
+        HostCheck.Equal(0L, Fds.CompleteDisk(o.Files.State, o.ThreadOwner, o.Worker, replacement.Token, replacementCall).Value);
+        HostCheck.Equal(0UL, o.Thread.Read64(Output + 1024 + 48)); HostCheck.True(Fds.Audit(o.Files.State));
+    }
+
+    [HostTest("linux.disk pending owner IO errors are selected without stale-token or nonowner progress")]
+    private static void PendingOwnerFailure()
+    {
+        using Owner o = new(); uint[] fds = [o.Open(), o.Open(), o.Open()];
+        var calls = new LinuxSyscallFrame[fds.Length]; var requests = new Fds.DiskResult[fds.Length];
+        new Span<byte>(o.Thread.At(Output), fds.Length * 64).Fill(0x73);
+        for (int i = 0; i < fds.Length; i++)
+        { calls[i] = o.Call(17, fds[i], Output + (ulong)i * 64, 5, 0); requests[i] = o.Begin(calls[i]); }
+        var owner = PumpToPhysicalOwner(o); var stale = owner.Token;
+        // Corrupt only an unpublished value copy, never the live operation or mount.
+        *(ulong*)((byte*)&stale + Offset<Fds.DiskToken>("Generation")) ^= 1; HostCheck.True(stale.IsActive);
+        ulong submitted = o.Storage.Device->Submitted, completed = o.Storage.Device->Completed, copied = o.Storage.Device->Copied;
+        HostCheck.Equal(Fds.DiskProgress.Rejected, Fds.PollDisk(o.Files.State, o.ThreadOwner, stale).Progress);
+        HostCheck.Equal(Fds.DiskProgress.Rejected, Fds.CancelDisk(o.Files.State, o.ThreadOwner, stale).Progress);
+        HostCheck.Equal(Fds.DiskProgress.Rejected, Fds.PumpDiskOne(o.Files.State, o.ThreadOwner + 8).Progress);
+        SameDeviceCounters(o, submitted, completed, copied);
+        o.Storage.Disk.FailLba = o.Storage.Disk.Data(10); o.Storage.Tick();
+        var failure = Fds.PumpDiskOne(o.Files.State, o.ThreadOwner);
+        HostCheck.True(failure.Token.Equals(owner.Token), "pending_owner_error_turn");
+        HostCheck.True(failure.Progress is Fds.DiskProgress.Draining or Fds.DiskProgress.Ready);
+        HostCheck.True(failure.Value == -5 && failure.Failure != Fs.Status.EndOfFile && !failure.Advanced);
+        HostCheck.Equal(submitted, o.Storage.Device->Submitted); HostCheck.Equal(copied, o.Storage.Device->Copied);
+        HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output), fds.Length * 64).IndexOfAnyExcept((byte)0x73) < 0);
+        HostCheck.Equal(Block.Status.Success, Block.Stop(o.Storage.Device)); HostCheck.Equal(Fs.Status.Success, Fs.Stop(o.Storage.Mount));
+        for (int i = 0; i < requests.Length; i++)
+        {
+            HostCheck.Equal(Fds.DiskProgress.Ready, o.Ready(requests[i].Token).Progress);
+            HostCheck.Equal(-5L, Fds.CompleteDisk(o.Files.State, o.ThreadOwner, o.Worker, requests[i].Token, calls[i]).Value);
+        }
+        HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output), fds.Length * 64).IndexOfAnyExcept((byte)0x73) < 0);
+        HostCheck.True(Fds.Audit(o.Files.State));
     }
 
     [HostTest("linux.disk first queued read submits once without completing or copying until a later turn")]

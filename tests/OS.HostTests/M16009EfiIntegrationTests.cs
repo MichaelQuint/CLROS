@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Boot;
 using OS.Kernel.Diagnostics;
 using OS.Tooling;
+using System.Runtime.Loader;
 
 internal static unsafe class M16009EfiIntegrationTests
 {
@@ -203,6 +204,313 @@ internal static unsafe class M16009EfiIntegrationTests
             using FileStream released = new(path,FileMode.Open,FileAccess.Write,FileShare.None);
         }
         finally { File.Delete(path); Directory.Delete(directory); }
+    }
+
+    [HostTest("m16-009 leaf reuse unchanged and every hardware A-D change")]
+    private static void LeafReuseUnchangedAndHardwareBits()
+    { using var fixture = CompileLeafReuse(); fixture.Run(0); }
+
+    [HostTest("m16-009 leaf reuse changed live raw values reject or recover like a fresh decode")]
+    private static void LeafReuseChangedRaw()
+    { using var fixture = CompileLeafReuse(); fixture.Run(1); }
+
+    [HostTest("m16-009 leaf reuse compares all precondition bytes including PAT and reserved state")]
+    private static void LeafReuseCompletePreconditions()
+    { using var fixture = CompileLeafReuse(); fixture.Run(2); }
+
+    [HostTest("m16-009 leaf reuse preserves the second read before guard evaluation")]
+    private static void LeafReuseGuardReadOrder()
+    { using var fixture = CompileLeafReuse(); fixture.Run(3); }
+
+    [HostTest("m16-009 leaf reuse preserves walk rejection and the uncaptured FindLeaf caller")]
+    private static void LeafReuseWalkRejectionsAndFindLeaf()
+    { using var fixture = CompileLeafReuse(); fixture.Run(4); }
+
+    [HostTest("m16-009 leaf reuse capture and fallback remain within the admitted current read")]
+    private static void LeafReuseSourceOrder()
+    {
+        SyntaxNode syntax = LeafReuseSyntax();
+        var methods = syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().ToArray();
+        var walk = methods.Single(m => m.Identifier.ValueText == "CooperativeWalkPoolLeaf");
+        var audit = methods.Single(m => m.Identifier.ValueText == "CooperativeAuditPool");
+        var find = methods.Single(m => m.Identifier.ValueText == "CooperativeFindLeaf");
+        HostCheck.True(PoolBoundary(syntax));
+        HostCheck.Equal(7, walk.ParameterList.Parameters.Count);
+        HostCheck.True(walk.ParameterList.Parameters.Skip(5).All(p => p.Default?.Value.IsKind(SyntaxKind.NullLiteralExpression) == true));
+        var findWalk = find.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "CooperativeWalkPoolLeaf");
+        HostCheck.Equal(5, findWalk.ArgumentList.Arguments.Count);
+        var firstRaw = walk.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Initializer?.Value.ToString() == "*slot");
+        var firstContext = walk.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Initializer?.Value.ToString() == "memory.Tables.Preconditions");
+        var firstDecode = walk.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "X64PageTableEntry.TryDecode");
+        HostCheck.True(firstRaw.SpanStart < firstContext.SpanStart && firstContext.SpanStart < firstDecode.SpanStart);
+        foreach (string target in new[] { "*leafDecoded", "*leafPreconditions" })
+        {
+            var store = walk.DescendantNodes().OfType<AssignmentExpressionSyntax>().Single(a => a.Left.ToString() == target);
+            HostCheck.True(store.Ancestors().OfType<IfStatementSyntax>().Any(i => i.Condition.ToString() == "level == 1"));
+        }
+        var call = audit.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "CooperativeWalkPoolLeaf");
+        var secondRaw = audit.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Initializer?.Value.ToString() == "*leaf");
+        var guard = audit.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "CooperativeGuardPage");
+        var secondContext = audit.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Initializer?.Value.ToString() == "memory.Tables.Preconditions");
+        var fallback = audit.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "X64PageTableEntry.TryDecode");
+        HostCheck.True(call.SpanStart < secondRaw.SpanStart && secondRaw.SpanStart < guard.SpanStart &&
+            guard.SpanStart < secondContext.SpanStart && secondContext.SpanStart < fallback.SpanStart);
+    }
+
+    private static SyntaxNode LeafReuseSyntax()
+    {
+        var profile = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16009Probe"] = true });
+        var options = new CSharpParseOptions(LanguageVersion.CSharp14,
+            preprocessorSymbols: profile.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key]));
+        return CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs")), options).GetRoot();
+    }
+
+    private static LeafReuseFixture CompileLeafReuse()
+    {
+        SyntaxNode syntax = LeafReuseSyntax();
+        MethodDeclarationSyntax Method(string name) => syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(m => m.Identifier.ValueText == name);
+        string Text(SyntaxNode node) => node.WithoutLeadingTrivia().WithoutTrailingTrivia().ToFullString();
+        var walk = Method("CooperativeWalkPoolLeaf");
+        var audit = Method("CooperativeAuditPool");
+        var guard = Method("CooperativeGuardPage");
+        HostCheck.Equal(7, walk.ParameterList.Parameters.Count);
+        // The oracle is the actual audit with only its reuse decision removed:
+        // execute its existing real-decoder assignment on every non-guard read.
+        var reuse = audit.DescendantNodes().OfType<IfStatementSyntax>().Single(i =>
+            i.Condition.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>().Any(c => c.Expression.ToString() == "CooperativeSameDecodePreconditions"));
+        var forced = audit.ReplaceNode(reuse, reuse.Statement).WithIdentifier(SyntaxFactory.Identifier("ForcedDecodeAuditPool"));
+        var constants = syntax.DescendantNodes().OfType<FieldDeclarationSyntax>().Where(f =>
+            f.Declaration.Variables.Any(v => v.Identifier.ValueText is "TablePages" or "CooperativePoolPages")).ToArray();
+        HostCheck.Equal(2, constants.Length);
+        string source = $$"""
+            using System;
+            using System.Runtime.InteropServices;
+            using OS.Boot;
+            using OS.Kernel.Memory;
+            using OS.Kernel.Diagnostics;
+            using OS.Kernel.Compatibility.LinuxX64;
+            using RealDecoder = OS.Kernel.Memory.X64PageTableEntry;
+            public static unsafe class LeafReuseProductionFixture
+            {
+                {{string.Join("\n", constants.Select(Text))}}
+                private const ulong Pool = 0x40000000, Present = 1, Writable = 2, Nx = 1UL << 63;
+                private struct Storage { public ulong CooperativePool; }
+                private static byte* allocation;
+                private static ulong* entries;
+                private static uint target;
+                private static ulong secondRaw, guardRaw, expectedTarget, walkingAddress;
+                private static bool mutateGuard, rejectAdmission, sawCaptures;
+                private static int targetDecodes, allDecodes;
+                private static X64PageTableEncodingPreconditions firstContext, currentContext;
+                private static X64PageTableEntryResult targetResult;
+                {{Text(walk.WithIdentifier(SyntaxFactory.Identifier("ActualWalkPoolLeaf")))}}
+                {{Text(Method("CooperativeFindLeaf"))}}
+                {{Text(Method("CooperativeSameDecodePreconditions"))}}
+                {{Text(audit)}}
+                {{Text(forced)}}
+                {{Text(guard.WithIdentifier(SyntaxFactory.Identifier("ActualGuardPage"))
+                    .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(guard.ExpressionBody!.Expression.WithoutTrivia()))
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))}}
+
+                // Only CPU admission and the walk-return test boundary are bound.
+                // Every decode below forwards to the real kernel implementation.
+                private static bool CooperativeAdmitPool(Storage* state, bool ownedIst, out FirstExitDiagnosticMemory memory, out ulong root)
+                {
+                    root = (ulong)entries;
+                    if (PhysicalAddress.TryCreateFromHardwareRegisterBoundary(root, out var physical) != AddressValueStatus.Success)
+                        throw new InvalidOperationException("fixture physical root");
+                    memory = new FirstExitDiagnosticMemory { Entries = entries, PageCapacity = TablePages, EntryCapacity = TablePages * 512,
+                        Tables = new SeparatePageFaultPageTableRequest(physical, TablePages, currentContext) };
+                    return !rejectAdmission;
+                }
+                private static bool CooperativeWalkPoolLeaf{{walk.ParameterList.ToFullString()}}
+                {
+                    walkingAddress = address;
+                    memory.Tables = new SeparatePageFaultPageTableRequest(memory.Tables.ArenaStart, memory.Tables.ArenaPageCount, firstContext);
+                    sawCaptures |= {{walk.ParameterList.Parameters[5].Identifier.ValueText}} != null && {{walk.ParameterList.Parameters[6].Identifier.ValueText}} != null;
+                    bool ok = ActualWalkPoolLeaf(memory, pool, root, address, out leaf,
+                        {{walk.ParameterList.Parameters[5].Identifier.ValueText}}, {{walk.ParameterList.Parameters[6].Identifier.ValueText}});
+                    if (ok && address == Pool + target * Page) { *leaf = secondRaw; expectedTarget = secondRaw; }
+                    return ok;
+                }
+                private static bool CooperativeGuardPage(uint page)
+                {
+                    if (page == target && mutateGuard) { entries[3 * 512 + page] = guardRaw; expectedTarget = guardRaw; }
+                    return ActualGuardPage(page);
+                }
+                private static class X64PageTableEntry
+                {
+                    public static X64PageTableEntryResult TryDecode(X64PageTableLevel level, ulong raw, X64PageTableEncodingPreconditions context)
+                    {
+                        allDecodes++;
+                        var result = RealDecoder.TryDecode(level, raw, context);
+                        if (level == X64PageTableLevel.Pte && walkingAddress == Pool + target * Page)
+                        { targetDecodes++; targetResult = result; }
+                        return result;
+                    }
+                }
+                private static void Require(bool condition, string name)
+                { if (!condition) throw new InvalidOperationException(name); }
+                private static X64PageTableEncodingPreconditions Context(bool oneGiB = true, ulong pat = 0x0006050100070406)
+                {
+                    Require(X64PatMappingToken.TryCreate(pat, 0, 3, 4, out var token) == X64PageTableEntryStatus.Success, "PAT fixture");
+                    return X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, oneGiB, token);
+                }
+                private static ulong Raw(uint page, bool published) => Pool + page * Page | Present |
+                    (!published || page >= CooperativeCodePages ? Writable | Nx : 0);
+                private static void Reset(bool published, ulong firstRaw, int damage)
+                {
+                    for (ulong i = 0; i < TablePages * 512; i++) entries[i] = 0;
+                    entries[(Pool >> 39) & 511] = (ulong)(entries + 512) | Present | Writable;
+                    entries[512 + ((Pool >> 30) & 511)] = (ulong)(entries + 1024) | Present | Writable;
+                    entries[1024 + ((Pool >> 21) & 511)] = (ulong)(entries + 1536) | Present | Writable;
+                    for (uint page = 0; page < CooperativePoolPages; page++)
+                        entries[1536 + page] = published && ActualGuardPage(page) ? 0 : Raw(page, published);
+                    entries[1536 + target] = firstRaw; expectedTarget = firstRaw;
+                    if (damage == 1) entries[(Pool >> 39) & 511] = 0;
+                    if (damage == 2) entries[(Pool >> 39) & 511] = (ulong)entries | Present | Writable;
+                    if (damage == 3) entries[(Pool >> 39) & 511] = (ulong)entries + TablePages * Page | Present | Writable;
+                    if (damage == 4) entries[(Pool >> 39) & 511] |= 0x18;
+                    if (damage == 5) entries[1024 + ((Pool >> 21) & 511)] = Pool | Present | Writable | 0x80;
+                }
+                private struct Observation
+                { public bool Accepted, Captures; public int TargetCalls, AllCalls; public X64PageTableEntryResult Result; }
+                private static Observation Execute(bool forced, bool published, ulong firstRaw, int damage, bool find, ulong query)
+                {
+                    Reset(published, firstRaw, damage);
+                    var saved = new ulong[TablePages * 512];
+                    for (ulong i = 0; i < TablePages * 512; i++) saved[i] = entries[i];
+                    targetDecodes = allDecodes = 0; targetResult = default; sawCaptures = false;
+                    Storage state = new Storage { CooperativePool = Pool };
+                    bool result = find ? CooperativeFindLeaf(&state, query, out _) :
+                        forced ? ForcedDecodeAuditPool(&state, published) : CooperativeAuditPool(&state, published);
+                    for (ulong i = 0; i < TablePages * 512; i++)
+                        Require(entries[i] == (i == 1536 + target ? expectedTarget : saved[i]), "no table writes outside fixture mutation");
+                    for (ulong i = 0; i < Page; i++)
+                        Require(allocation[i] == 0xA5 && allocation[(TablePages + 1) * Page + i] == 0xA5, "table canaries");
+                    return new Observation { Accepted = result, Captures = sawCaptures, TargetCalls = targetDecodes, AllCalls = allDecodes, Result = targetResult };
+                }
+                private static bool SameResult(X64PageTableEntryResult a, X64PageTableEntryResult b)
+                {
+                    var sa = a.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong pa);
+                    var sb = b.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong pb);
+                    return a.IsInitialized == b.IsInitialized && a.Status == b.Status && a.Entry.RawValue == b.Entry.RawValue &&
+                        a.Level == b.Level && a.Kind == b.Kind && a.Protection == b.Protection && a.CachePolicy == b.CachePolicy &&
+                        a.PageSizeBytes == b.PageSizeBytes && a.PatIndex == b.PatIndex && a.Accessed == b.Accessed && a.Dirty == b.Dirty && sa == sb && pa == pb;
+                }
+                private static void Check(string name, bool published, ulong firstRaw, ulong nextRaw, X64PageTableEncodingPreconditions first,
+                    X64PageTableEncodingPreconditions second, bool? expected, int currentCalls, int forcedCalls,
+                    int damage = 0, bool find = false, ulong query = Pool, bool changeAtGuard = false, ulong afterGuard = 0, bool deny = false)
+                {
+                    firstContext = first; currentContext = second; secondRaw = nextRaw; mutateGuard = changeAtGuard; guardRaw = afterGuard; rejectAdmission = deny;
+                    var candidate = Execute(false, published, firstRaw, damage, find, query);
+                    var oracle = Execute(true, published, firstRaw, damage, find, query);
+                    Require(candidate.Accepted == oracle.Accepted && (!expected.HasValue || candidate.Accepted == expected.Value), name + " acceptance");
+                    Require(candidate.TargetCalls == currentCalls && oracle.TargetCalls == forcedCalls, name + " real decoder calls");
+                    Require(SameResult(candidate.Result, oracle.Result), name + " complete decode result");
+                    if (find) Require(!candidate.Captures && !oracle.Captures, name + " original caller omits capture pointers");
+                    if (deny) Require(candidate.AllCalls == 0 && oracle.AllCalls == 0, name + " admission before walking");
+                }
+                public static void Run(int section)
+                {
+                    Require(CooperativePoolPages > 1 && CooperativePoolPages <= 512, "single-PT fixture extent");
+                    allocation = (byte*)NativeMemory.AlignedAlloc((nuint)((TablePages + 2) * Page), (nuint)Page);
+                    if (allocation == null) throw new OutOfMemoryException();
+                    entries = (ulong*)(allocation + Page);
+                    for (ulong i = 0; i < (TablePages + 2) * Page; i++) allocation[i] = 0xA5;
+                    try
+                    {
+                        var valid = Context(); target = 0;
+                        if (section == 0)
+                        {
+                            foreach (bool published in new[] { false, true })
+                                foreach (uint page in new[] { 0u, CooperativeCodePages, CooperativePoolPages - 1 })
+                                {
+                                    target = page; if (published && ActualGuardPage(page)) continue;
+                                    ulong raw = Raw(page, published);
+                                    Check("unchanged page " + page, published, raw, raw, valid, valid, true, 1, 2);
+                                    foreach (ulong bits in new[] { 0x20UL, 0x40UL, 0x60UL })
+                                        Check("A/D " + bits, published, raw, raw ^ bits, valid, valid, true, 2, 2);
+                                }
+                        }
+                        if (section == 1)
+                        {
+                            ulong raw = Raw(0, false);
+                            foreach (ulong next in new[] { raw ^ Nx, raw ^ Writable, raw + Page, raw | 0x18, raw | 0x80, raw | (1UL << 52), raw & ~Present, 0UL })
+                                Check("changed raw " + next, false, raw, next, valid, valid, false, 2, 2);
+                            Check("second protection recovers", false, Raw(0, true), raw, valid, valid, true, 2, 2);
+                        }
+                        if (section == 2)
+                        {
+                            Require(sizeof(X64PageTableEncodingPreconditions) == 24, "complete precondition layout");
+                            var first = valid;
+                            Require(CooperativeSameDecodePreconditions(&first, &valid), "same complete value");
+                            for (int i = 0; i < 24; i++)
+                            {
+                                var changed = valid; ((byte*)&changed)[i] ^= 0x80;
+                                Require(!CooperativeSameDecodePreconditions(&first, &changed), "precondition byte " + i);
+                                Check("precondition byte " + i, false, Raw(0, false), Raw(0, false), valid, changed, null, 2, 2);
+                            }
+                            Check("valid1GiB context change", false, Raw(0, false), Raw(0, false), valid, Context(false), true, 2, 2);
+                            Check("valid unselected PAT change", false, Raw(0, false), Raw(0, false), valid, Context(true, 0x0606050100070406), true, 2, 2);
+                            Check("default second context", false, Raw(0, false), Raw(0, false), valid, default, false, 2, 2);
+                            var noNxe = valid; ((byte*)&noNxe)[18] = 0;
+                            Check("NXE off", false, Raw(0, false), Raw(0, false), valid, noNxe, false, 2, 2);
+                            var noWp = valid; ((byte*)&noWp)[19] = 0;
+                            Check("WP off", false, Raw(0, false), Raw(0, false), valid, noWp, false, 2, 2);
+                            Require(CooperativeSameDecodePreconditions(&first, &valid), "comparison preserves inputs");
+                        }
+                        if (section == 3)
+                        {
+                            while (target < CooperativePoolPages && !ActualGuardPage(target)) target++;
+                            Require(target < CooperativePoolPages, "actual guard exists");
+                            Check("guard observes second zero", true, 0, 0, valid, valid, true, 1, 1, changeAtGuard: true, afterGuard: Raw(target, false));
+                            Check("guard rejects captured nonzero", true, 0, Raw(target, false), valid, valid, false, 1, 1, changeAtGuard: true, afterGuard: 0);
+                            target = 0;
+                            Check("unmapped non-guard", false, 0, 0, valid, valid, false, 1, 2);
+                        }
+                        if (section == 4)
+                        {
+                            ulong raw = Raw(0, false);
+                            for (int damage = 1; damage <= 5; damage++)
+                                Check("parent rejection " + damage, false, raw, raw, valid, valid, false, 0, 0, damage);
+                            foreach (ulong invalid in new[] { raw + Page, raw | 0x18, raw | (1UL << 52), raw & ~Present })
+                                Check("first leaf rejects " + invalid, false, invalid, raw, valid, valid, false, 1, 1);
+                            Check("FindLeaf unchanged", false, raw, raw, valid, valid, true, 1, 1, find: true);
+                            Check("FindLeaf unmapped", false, 0, 0, valid, valid, true, 1, 1, find: true);
+                            foreach (ulong address in new[] { Pool - Page, Pool + CooperativePoolPages * Page, Pool + 1 })
+                                Check("address rejection " + address, false, raw, raw, valid, valid, false, 0, 0, find: true, query: address);
+                            Check("audit admission rejection", false, raw, raw, valid, valid, false, 0, 0, deny: true);
+                            Check("FindLeaf admission rejection", false, raw, raw, valid, valid, false, 0, 0, find: true, deny: true);
+                        }
+                    }
+                    finally { NativeMemory.AlignedFree(allocation); allocation = null; entries = null; }
+                }
+            }
+            """;
+        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
+            .Concat([typeof(OS.Kernel.Memory.X64PageTableEntry).Assembly.Location, typeof(PhysicalAddress).Assembly.Location])
+            .Distinct(StringComparer.OrdinalIgnoreCase).Select(p => MetadataReference.CreateFromFile(p));
+        var compilation = CSharpCompilation.Create("LeafReuse" + Guid.NewGuid().ToString("N"),
+            [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp14))], references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release, allowUnsafe: true));
+        using var image = new MemoryStream();
+        var emitted = compilation.Emit(image);
+        HostCheck.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));
+        image.Position = 0;
+        var context = new AssemblyLoadContext("leaf-reuse-" + Guid.NewGuid().ToString("N"), isCollectible: true);
+        try
+        {
+            Type fixture = context.LoadFromStream(image).GetType("LeafReuseProductionFixture", throwOnError: true)!;
+            return new LeafReuseFixture(context, fixture.GetMethod("Run")!.CreateDelegate<Action<int>>());
+        }
+        catch { context.Unload(); throw; }
+    }
+
+    private sealed class LeafReuseFixture(AssemblyLoadContext context, Action<int> run) : IDisposable
+    {
+        internal void Run(int section) => run(section);
+        public void Dispose() => context.Unload();
     }
 
     private static void Reject(Action action)

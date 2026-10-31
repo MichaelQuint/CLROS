@@ -1017,6 +1017,7 @@
 		<Compile Include="..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs" Link="Storage\ReadOnlyWebRootFileSystem.cs" Condition="'$(EnableM16025Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs" Link="Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs" Condition="'$(EnableM16025Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Disk.cs" Condition="'$(EnableM16025Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs" Condition="'$(EnableM10018TimingProbe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.StaticFiles.cs" Condition="'$(EnableM10017Probe)' == 'true' or '$(EnableM10018Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs" Link="Compatibility\LinuxX64\LinuxStaticFileObservation.cs" Condition="'$(EnableM10017Probe)' == 'true' or '$(EnableM10018Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxWeb.cs" Condition="'$(EnableM10004Probe)' == 'true'" />

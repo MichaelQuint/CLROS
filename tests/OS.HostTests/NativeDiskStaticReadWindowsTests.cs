@@ -9,6 +9,32 @@ internal static class NativeDiskStaticReadWindowsTests
     private readonly record struct Plan(ulong Sector, int At, bool Cancelled = false);
     private sealed record Vector(Reads.Inspection Device, List<int> Indices, List<string> Rows);
 
+    [HostTest("disk static windows join four payload chunks to one physical transaction inside the original read", HostLane.Native)]
+    private static void MultiSector() => WithInventory((raw, inventory) =>
+    {
+        var file = inventory.Entries.First(e => !e.IsDirectory && e.Sectors.Count >= 4 &&
+            Enumerable.Range(1, 3).All(i => e.Sectors[i].Lba == e.Sectors[0].Lba + (ulong)i));
+        ulong lba = file.Sectors[0].Lba;
+        string Head(uint kind) => FormattableString.Invariant($"M16_023_IO kind={kind} owner=4194312 epoch=1193046 generation=1 sector={lba} sequence=1 bytes=2048 available=1 consumed={(kind == 0 ? 0 : 1)} clock=100");
+        List<string> rows = [Head(0), Head(1)];
+        for (uint chunk = 0; chunk < 4; chunk++)
+            rows.Add(Head(chunk == 0 ? 2U : 3U) + " copied=committed chunk=" + chunk + " data=" +
+                Convert.ToHexString(raw.AsSpan(checked((int)(lba + chunk) * 512), 512)).ToLowerInvariant());
+        var device = Reads.Inspect(rows, raw, new(4194312, 1193046, 0, 0, 1, 1, 1), allowMultiSector: true);
+        int[] indices = [5, 6, 7, 8, 9, 10];
+        var window = Window(file, 4, 11, bytes: 2048);
+        var value = ReadWindows.Inspect(inventory, device, indices, [window]);
+        HostCheck.True(value.Assigned.Count == 4 && value.Residual.Count == 0);
+        for (int i = 0; i < 4; i++)
+        {
+            var copy = value.Assigned[i].Copy;
+            HostCheck.True(copy.SubmitRecordIndex == 5 && copy.ValidationRecordIndex == 6 &&
+                copy.CopyRecordIndex == 7 + i && copy.Observation.Generation == 1 && copy.Observation.Sequence == 1 &&
+                copy.Observation.DataSector == lba + (ulong)i && copy.Observation.Bytes == 2048);
+        }
+        Reject(() => ReadWindows.Inspect(inventory, device, indices, [window with { CompleteRecordIndex = 10 }]), "missing");
+    });
+
     [HostTest("disk static windows join fragmented unaligned EOF data and preserve unclassified metadata cancellation", HostLane.Native)]
     private static void Positive() => WithInventory((raw, inventory) =>
     {

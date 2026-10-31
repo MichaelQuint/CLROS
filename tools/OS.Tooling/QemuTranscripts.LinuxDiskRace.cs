@@ -649,6 +649,15 @@ public static partial class QemuTranscripts
             }
             if (line.StartsWith("M16_023_IO ", StringComparison.Ordinal))
             { Need(fifo is null || exitStage == 0, "disk_race_post_shutdown_io"); RaceIoShape(Take()); Aux(index); continue; }
+            if (line.StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal))
+            {
+                var time = Row("M16_025_COMPLETE_TIME", "identity:dec", "sequence:dec", "request:dec", "clock:dec");
+                Need(variant == "CloseReuse" && time["clock"] is > 0 and <= long.MaxValue,
+                    "disk_race_completion_time");
+                // This is a physical wall-clock witness, outside the unchanged
+                // logical CALL/POLL/COMPLETE observation stream.
+                Aux(index); continue;
+            }
             if (line.StartsWith("M16_008_TICK ", StringComparison.Ordinal))
             {
                 // This explicit socket-backed leaf idles cooperatively through
@@ -1010,5 +1019,412 @@ public static partial class QemuTranscripts
         var match = Regex.Match(line, pattern, RegexOptions.CultureInvariant);
         Need(match.Success && (match.Groups[1].Value == "2") == match.Groups[11].Success, "disk_race_io_shape");
         for (int i = 2; i <= 10; i++) Need(ulong.TryParse(match.Groups[i].Value, NumberStyles.None, CultureInfo.InvariantCulture, out _), "disk_race_io_number");
+    }
+
+    private static ulong LinuxDiskCloseReuseCompletionTime(IReadOnlyList<string> rows,
+        LinuxDiskRaceLeafReport leaf, LinuxDiskRaceWindow window)
+    {
+        var times = leaf.Auxiliary.Where(a => a.Text.StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal)).ToArray();
+        Need(times.Length == leaf.Windows.Count(w => w.Source == 4), "disk_close_reuse_completion_time_witness");
+        var ends = rows.Where(r => r.StartsWith("M16_008_BUDGET_END ", StringComparison.Ordinal)).ToArray();
+        Need(ends.Length == 1, "disk_close_reuse_completion_time_witness");
+        ulong ended = ReadRecord(ends[0], "M16_008_BUDGET_END", "nanos:dec")["nanos"];
+        ulong last = 0;
+        foreach (var time in times)
+        {
+            var value = ReadRecord(time.Text, "M16_025_COMPLETE_TIME", "identity:dec", "sequence:dec", "request:dec", "clock:dec");
+            Need(value["clock"] >= last && value["clock"] <= ended && value["clock"] <= long.MaxValue, "disk_close_reuse_completion_time_witness");
+            last = value["clock"];
+        }
+        var matching = times.Where(t => t.RecordIndex == window.CompletionRecordIndex - 1).ToArray();
+        Need(matching.Length == 1, "disk_close_reuse_completion_time_witness");
+        var wall = ReadRecord(matching[0].Text, "M16_025_COMPLETE_TIME", "identity:dec", "sequence:dec", "request:dec", "clock:dec");
+        var logical = ReadRecord(rows[window.CompletionRecordIndex], "M16_025_COMPLETE", "identity:dec",
+            "sequence:dec", "request:dec", "outputBytes:dec", "completion:dec", "valueBits:dec", "clock:dec");
+        Need(wall["identity"] == logical["identity"] && wall["sequence"] == logical["sequence"] &&
+            wall["request"] == logical["request"] && wall["clock"] >= logical["clock"],
+            "disk_close_reuse_completion_time_witness");
+        return wall["clock"];
+    }
+
+    /// <summary>Borrow copied canonical leaf/image values synchronously. Check
+    /// the close dispatch inside one real pending physical token and one later
+    /// data transaction. Keep every auxiliary row at its original leaf index.
+    /// No aliases are retained or inputs mutated. Invalid values throw ToolFailure.
+    /// The caller must independently join dataSectors to the fragmented-file
+    /// inventory, all remaining transaction/request ownership, parent/native/
+    /// original input lifetimes, actual canonical RX/control flow and cleanup.
+    /// Returning the existing leaf report adds no sentinel, drain, user-memory,
+    /// original execution, firmware, device or scheduler authority.</summary>
+    private static LinuxDiskRaceLeafReport InspectLinuxDiskCloseReuseCandidateValues(
+        IReadOnlyList<string> rows, byte[] package, ulong userRoot, ulong kernelRoot,
+        byte[] rawImage, NativeDiskReadObservations.Boundary boundary,
+        IReadOnlyList<ulong> dataSectors, ulong periodFs)
+    {
+        var leaf = InspectLinuxDiskRaceLeaf(rows, package, userRoot, kernelRoot);
+        Need(leaf.Variant == "CloseReuse" && rawImage is not null &&
+            dataSectors is { Count: 16 } && dataSectors.Distinct().Count() == 16 &&
+            dataSectors.All(s => s < (ulong)rawImage.Length / 512) &&
+            periodFs is > 0 and <= 1_000_000_000, "disk_close_reuse_input");
+        LinuxDiskRaceCall Call(string role) => leaf.Calls.Single(c => c.Spec.Role == role);
+        LinuxDiskRaceWindow Window(LinuxDiskRaceCall call) =>
+            leaf.Windows.Single(w => w.CallRecordIndex == call.RecordIndex);
+        var main = Call("main.read"); var old = Window(main);
+        foreach (var window in leaf.Windows.Where(w => w.Source == 4))
+            _ = LinuxDiskCloseReuseCompletionTime(rows, leaf, window);
+        var close = Call("child.close"); var reopen = Call("child.reopen");
+        var opened = Window(reopen); var later = Call("main.duplicate"); var read = Window(later);
+        var replacementCursor = Call("main.replacement-cursor");
+        Need(old.Source == 4 && old.Value == -9 && old.OutputBytes == 8192 &&
+            close.Spec.Number == 3 && close.Spec.A0 == 3 && close.Spec.Result == 0 &&
+            reopen.Spec.Number == 2 && reopen.Spec.Result == 3 &&
+            old.CallRecordIndex < close.RecordIndex && close.RecordIndex < old.CompletionRecordIndex &&
+            close.RecordIndex < reopen.RecordIndex && opened.CompletionRecordIndex < later.RecordIndex &&
+            old.CompletionRecordIndex < later.RecordIndex && read.Source == 4 && read.Value == 8 &&
+            later.Spec.A0 == 7 && later.Spec.A1 == LinuxDiskRaceProofFixture.ChildOutput &&
+            replacementCursor.Spec.Number == 8 && replacementCursor.Spec.A0 == 3 &&
+            replacementCursor.Spec.A1 == 0 && replacementCursor.Spec.A2 == 1 &&
+            replacementCursor.Spec.Result == 0 && later.RecordIndex < replacementCursor.RecordIndex,
+            "disk_close_reuse_lifetime");
+        var timing = leaf.Auxiliary.Where(a => a.RecordIndex == close.RecordIndex + 1 &&
+            a.Text.StartsWith("M16_008_SYSCALL_TIME ", StringComparison.Ordinal)).ToArray();
+        Need(timing.Length == 1, "disk_close_reuse_close_time");
+        var t = LinuxSyscallTiming(timing[0].Text, close.Identity, close.Ordinal, close.Spec.Number);
+        Need(t["periodFs"] == periodFs, "disk_close_reuse_period");
+        decimal Nanos(ulong ticks) => decimal.Floor((decimal)ticks * periodFs / 1_000_000);
+        decimal admitted = Nanos(t["admitted"]), dispatched = Nanos(t["dispatched"]);
+
+        // Inspect EVERY original indexed IO row against unchanged raw image
+        // bytes. Successful copies and zero-byte cancellations are distinct.
+        var io = leaf.Auxiliary.Where(a => a.Text.StartsWith("M16_023_IO ", StringComparison.Ordinal)).ToArray();
+        string bound = leaf.Auxiliary.Single(a => a.Text.StartsWith("M16_023_BOUND ", StringComparison.Ordinal)).Text;
+        var b = ReadRecord(bound[..bound.IndexOf(" pci=", StringComparison.Ordinal)], "M16_023_BOUND",
+            "owner:dec", "epoch:dec", "arena:dec", "pages:dec", "bar:dec", "capacity:dec",
+            "bootstrapCompleted:dec", "bootstrapCopied:dec", "clock:dec");
+        Need(boundary.Owner == b["owner"] && boundary.Epoch == b["epoch"] &&
+            boundary.BootstrapCompleted == b["bootstrapCompleted"] &&
+            boundary.BootstrapCopied == b["bootstrapCopied"], "disk_close_reuse_device_boundary");
+        var device = NativeDiskReadObservations.Inspect(io.Select(a => a.Text).ToArray(), rawImage, boundary);
+        List<int> pending = [], subsequent = [];
+        for (int i = 0; i < device.Rows.Count; i++)
+        {
+            var s = device.Rows[i]; if (s.Kind != NativeDiskReadObservations.Kind.Submitted) continue;
+            var v = device.Rows[i + 1];
+            Need(s.Clock >= b["clock"], "disk_close_reuse_device_lifetime");
+            if (main.RecordIndex < io[i].RecordIndex && io[i].RecordIndex < close.RecordIndex &&
+                close.RecordIndex < io[i + 1].RecordIndex && dataSectors.Contains(s.Sector) &&
+                s.Clock < admitted && dispatched < v.Clock) pending.Add(i);
+            if (later.RecordIndex < io[i].RecordIndex && s.Sector == dataSectors[0] && v.Bytes == 512 &&
+                io[i + 2].RecordIndex < read.CompletionRecordIndex) subsequent.Add(i);
+        }
+        Need(pending.Count == 1, "disk_close_reuse_pending_interval");
+        Need(subsequent.Count == 1, "disk_close_reuse_later_data");
+        int first = pending[0], next = subsequent[0];
+        int terminal = device.Rows[first + 1].Bytes == 0 ? first + 1 : first + 2;
+        var oldToken = device.Rows[first]; var newToken = device.Rows[next];
+        ulong finished = LinuxDiskCloseReuseCompletionTime(rows, leaf, read);
+        Need(terminal < next && io[terminal].RecordIndex < io[next].RecordIndex &&
+            device.Rows[terminal].Clock <= newToken.Clock &&
+            oldToken.Owner == newToken.Owner && oldToken.Epoch == newToken.Epoch &&
+            oldToken.Generation < newToken.Generation &&
+            device.Rows[next + 2].Kind == NativeDiskReadObservations.Kind.Copied,
+            "disk_close_reuse_token_order");
+        Need(device.Rows[next + 2].Clock <= finished, "disk_close_reuse_completion_time");
+        // This is the old PHYSICAL token's terminal boundary. It is not a
+        // sampled fd/FS-operation generation or a user-output observation.
+        // The original owner still needs the pinned Cancel/Pump source join:
+        // -9 starts/releases Cancelling; it cannot schedule later old reads;
+        // the single active device is consumed before another submission.
+        // Other IO remains in leaf.Auxiliary for full ownership/census joining.
+        return leaf;
+    }
+
+    /// <summary>Synchronously borrow bounded copied rows, new canonical
+    /// CloseReuse bytes, stable original image/receipt and copied boundaries.
+    /// Independently inspect image sectors; assign EVERY whole physical IO
+    /// transaction to exactly one canonical wait/request/call, including the
+    /// selected old token's detached drain. Preserve original leaf indexes and
+    /// every auxiliary row. Missing, ambiguous or unsupported ownership throws
+    /// ToolFailure; no event, completion, generation or parent is fabricated.
+    /// Returned existing values/tuples grant no original/native/device/process,
+    /// whole-user-memory, sentinel execution or persistence authority. Caller
+    /// still owns original file holds, complete parent/native/RX/lifecycle joins,
+    /// cancellation-effect lifetime and canonical successful sentinel path.</summary>
+    private static (LinuxDiskRaceLeafReport Leaf, NativeDiskReadObservations.Inspection Device,
+        IReadOnlyList<(LinuxDiskRaceCall Call, LinuxDiskRaceWindow Window,
+            IReadOnlyList<ulong> DeviceGenerations)> Requests)
+        InspectLinuxDiskCloseReuseTransactionsCandidateValues(IReadOnlyList<string> supplied,
+            byte[] package, ulong userRoot, ulong kernelRoot, byte[] rawImage,
+            WebRootImageFixture.Receipt receipt, string originalImagePath,
+            NativeDiskReadObservations.Boundary boundary, ulong periodFs)
+    {
+        int count = supplied?.Count ?? 0;
+        Need(count is > 0 and <= 32768 && package is not null && rawImage is not null && receipt is not null,
+            "disk_close_reuse_capture_input");
+        string[] rows = new string[count];
+        for (int i = 0; i < count; i++)
+        {
+            string? row = supplied![i];
+            Need(row is { Length: > 0 and <= 1536 } && row.All(c => c is >= ' ' and <= '~'),
+                "disk_close_reuse_capture_row"); rows[i] = row!;
+        }
+        int first = Array.IndexOf(rows, "TEST_START m16-009"), last = Array.IndexOf(rows, "TEST_PASS m16-009");
+        Need(first >= 0 && last > first && Array.LastIndexOf(rows, "TEST_START m16-009") == first &&
+            Array.LastIndexOf(rows, "TEST_PASS m16-009") == last, "disk_close_reuse_leaf_extent");
+        var allIo = rows.Select((text, index) => (text, index))
+            .Where(r => r.text.StartsWith("M16_023_IO", StringComparison.Ordinal)).ToArray();
+        Need(allIo.All(r => r.index > first && r.index < last &&
+            r.text.StartsWith("M16_023_IO ", StringComparison.Ordinal)), "disk_close_reuse_io_census");
+
+        // Preflight BEFORE R01's Single/slice: duplicates, malformed family
+        // prefixes and missing/repeated pci delimiters always fail ToolFailure.
+        var bounds = rows.Select((text, index) => (text, index))
+            .Where(r => r.text.StartsWith("M16_023_BOUND", StringComparison.Ordinal)).ToArray();
+        Need(bounds.Length == 1 && bounds[0].index > first && bounds[0].index < last,
+            "disk_close_reuse_bound_count");
+        const string suffix = " pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained";
+        string bound = bounds[0].text;
+        Need(bound.StartsWith("M16_023_BOUND ", StringComparison.Ordinal) && bound.Length > suffix.Length &&
+            bound.EndsWith(suffix, StringComparison.Ordinal) &&
+            bound.IndexOf(" pci=", StringComparison.Ordinal) == bound.Length - suffix.Length &&
+            bound.LastIndexOf(" pci=", StringComparison.Ordinal) == bound.Length - suffix.Length,
+            "disk_close_reuse_bound_shape");
+        RaceDiskBound(bound);
+        var b = ReadRecord(bound[..^suffix.Length], "M16_023_BOUND", "owner:dec", "epoch:dec", "arena:dec",
+            "pages:dec", "bar:dec", "capacity:dec", "bootstrapCompleted:dec", "bootstrapCopied:dec", "clock:dec");
+        Need(b["capacity"] == (ulong)rawImage!.Length / 512, "disk_close_reuse_image_capacity");
+        var image = ValidateLinuxDiskCaptureImage(rawImage, receipt!, originalImagePath);
+        var inventory = WebRootDiskInventory.Inspect(originalImagePath, rawImage, receipt!);
+        var file = inventory.Find("/app/wwwroot/fixture/fragmented.bin");
+        var empty = inventory.Find("/app/wwwroot/fixture/empty.bin");
+        Need(file is not null && !file.IsDirectory && file.Bytes == WebRootImageFixture.FragmentedFixtureBytes &&
+            empty is not null && !empty.IsDirectory && empty.Bytes == 0, "disk_close_reuse_files");
+        ulong[] coverage = file!.Cover(0, 8192).Select(s => s.Lba).ToArray();
+        string[] local = rows[first..(last + 1)];
+        var leaf = InspectLinuxDiskCloseReuseCandidateValues(local, package!, userRoot, kernelRoot,
+            rawImage, boundary, coverage, periodFs);
+        var io = leaf.Auxiliary.Where(a => a.Text.StartsWith("M16_023_IO ", StringComparison.Ordinal)).ToArray();
+        Need(io.Select(a => first + a.RecordIndex).SequenceEqual(allIo.Select(r => r.index)),
+            "disk_close_reuse_io_census");
+        var device = NativeDiskReadObservations.Inspect(io.Select(a => a.Text).ToArray(), rawImage, boundary);
+        var calls = leaf.Calls.ToDictionary(c => c.RecordIndex);
+        var main = leaf.Calls.Single(c => c.Spec.Role == "main.read");
+        var close = leaf.Calls.Single(c => c.Spec.Role == "child.close");
+        var t = LinuxSyscallTiming(local[close.RecordIndex + 1], close.Identity, close.Ordinal, close.Spec.Number);
+        decimal Nanos(ulong ticks) => decimal.Floor((decimal)ticks * periodFs / 1_000_000);
+        var mainWindow = leaf.Windows.Single(w => w.CallRecordIndex == main.RecordIndex);
+        ulong failed = LinuxDiskCloseReuseCompletionTime(local, leaf, mainWindow);
+        Need(Nanos(t["dispatched"]) <= failed, "disk_close_reuse_close_before_error");
+
+        List<(int Start, int End)> transactions = [];
+        for (int i = 0; i < device.Rows.Count;)
+        {
+            Need(i + 1 < device.Rows.Count && device.Rows[i].Kind == NativeDiskReadObservations.Kind.Submitted &&
+                device.Rows[i + 1].Kind == NativeDiskReadObservations.Kind.CompletionValidated,
+                "disk_close_reuse_transaction");
+            int end = device.Rows[i + 1].Bytes == 0 ? i + 1 : i + 2;
+            Need(end < device.Rows.Count && (end == i + 1 || device.Rows[end].Kind == NativeDiskReadObservations.Kind.Copied),
+                "disk_close_reuse_transaction"); transactions.Add((i, end)); i = end + 1;
+        }
+        var selected = transactions.Where(p => main.RecordIndex < io[p.Start].RecordIndex &&
+            io[p.Start].RecordIndex < close.RecordIndex && close.RecordIndex < io[p.Start + 1].RecordIndex &&
+            device.Rows[p.Start].Clock < Nanos(t["admitted"]) && Nanos(t["dispatched"]) < device.Rows[p.Start + 1].Clock).ToArray();
+        Need(selected.Length == 1, "disk_close_reuse_pending_interval");
+        ulong oldLast = device.Rows[selected[0].Start].Generation;
+
+        List<ProgressRequest> requests = [];
+        foreach (var window in leaf.Windows.Where(w => w.Source == 4))
+        {
+            Need(calls.TryGetValue(window.CallRecordIndex, out var call), "disk_close_reuse_request_call");
+            bool metadata = call.Spec.Role is "prep.original" or "prep.independent" or "child.reopen";
+            bool old = call.Spec.Role == "main.read", later = call.Spec.Role == "main.duplicate";
+            Need(metadata || old || later || call.Spec.Role is "child.empty" or "main.replacement" or
+                "main.replacement-cursor" or "main.cursor" or "main.independent-cursor",
+                "disk_close_reuse_unsupported_request");
+            requests.Add(new(window, call, metadata, 0, old ? 8192U : later ? 8U : 0U,
+                old ? coverage : later ? coverage[..1] : []));
+        }
+        var table = requests.Select(r => (r.Call, r.Window)).ToArray();
+        // Classify all non-fragmented-data sectors in ONE independent pass.
+        // ReadStep uses the validated handle cluster array and DataIo only;
+        // arbitrary metadata inside a read does not receive guessed ownership.
+        var metadataTransactions = transactions.Where(p => !coverage.Contains(device.Rows[p.Start].Sector)).ToArray();
+        var classified = WebRootDiskInventory.ClassifyMetadata(inventory, rawImage,
+            metadataTransactions.Select(p => device.Rows[p.Start].Sector).ToArray());
+        var metadataByStart = metadataTransactions.Select((p, i) => (p.Start, Sector: classified[i]))
+            .ToDictionary(p => p.Start, p => p.Sector);
+        var requestMetadata = requests.Select(_ => new List<WebRootDiskInventory.MetadataSector>()).ToArray();
+        foreach (var p in transactions)
+        {
+            var submit = device.Rows[p.Start]; bool metadata = metadataByStart.TryGetValue(p.Start, out var sector);
+            int owner = CloseReuseUniqueTransactionOwner(table, metadata, submit.Sector, submit.Generation,
+                io[p.Start].RecordIndex, io[p.End].RecordIndex, oldLast, coverage);
+            var request = requests[owner];
+            var time = leaf.Auxiliary.Where(a => a.RecordIndex == request.Call.RecordIndex + 1 &&
+                a.Text.StartsWith("M16_008_SYSCALL_TIME ", StringComparison.Ordinal)).ToArray();
+            Need(time.Length == 1, "disk_close_reuse_request_time");
+            var started = LinuxSyscallTiming(time[0].Text, request.Call.Identity, request.Call.Ordinal, request.Call.Spec.Number);
+            Need(started["periodFs"] == periodFs && Nanos(started["dispatched"]) <= submit.Clock &&
+                submit.Clock >= b["clock"] && submit.Sector >= image.PartitionFirstLba && submit.Sector <= image.PartitionLastLba,
+                "disk_close_reuse_request_lifetime");
+            Need(request.Call.Spec.Role != "child.reopen" || Nanos(started["dispatched"]) >= Nanos(t["dispatched"]),
+                "disk_close_reuse_reopen_time");
+            ulong completed = LinuxDiskCloseReuseCompletionTime(local, leaf, request.Window);
+            // Cancellation is terminal for this read: only the selected last
+            // token may drain without data. Earlier prefix transactions must
+            // have completed their real kernel copy before a following token.
+            if (request.Call.Spec.Role == "main.read" && submit.Generation != oldLast)
+                Need(device.Rows[p.Start + 1].Bytes == 512 && p.End == p.Start + 2 &&
+                    device.Rows[p.End].Kind == NativeDiskReadObservations.Kind.Copied,
+                    "disk_close_reuse_early_cancel");
+            bool detached = request.Call.Spec.Role == "main.read" && submit.Generation == oldLast;
+            Need(detached || device.Rows[p.End].Clock <= completed, "disk_close_reuse_completion_time");
+            if (metadata)
+            {
+                Need(device.Rows[p.Start + 1].Bytes == 512 &&
+                    (sector.Kind != WebRootDiskInventory.MetadataKind.Directory ||
+                     sector.DirectoryPath is "/app/wwwroot" or "/app/wwwroot/fixture"),
+                    "disk_close_reuse_metadata_route"); requestMetadata[owner].Add(sector);
+            }
+            request.Observed.Add(submit.Sector); request.Generations.Add(submit.Generation);
+        }
+        for (int i = 0; i < requests.Count; i++)
+        {
+            var request = requests[i];
+            if (request.Metadata)
+                Need(requestMetadata[i].Any(s => s.Kind == WebRootDiskInventory.MetadataKind.Directory && s.DirectoryPath == "/app/wwwroot") &&
+                    requestMetadata[i].Any(s => s.Kind == WebRootDiskInventory.MetadataKind.Directory && s.DirectoryPath == "/app/wwwroot/fixture"),
+                    "disk_close_reuse_metadata_route");
+            else if (request.Call.Spec.Role == "main.read")
+                Need(request.Observed.Count is > 0 and <= 16 && request.Observed.SequenceEqual(coverage.Take(request.Observed.Count)) &&
+                    request.Generations[^1] == oldLast, "disk_close_reuse_old_data_prefix");
+            else Need(request.Observed.SequenceEqual(request.Sectors), "disk_close_reuse_data_window");
+        }
+        var result = requests.Select(r => (r.Call, r.Window,
+            DeviceGenerations: (IReadOnlyList<ulong>)Array.AsReadOnly(r.Generations.ToArray()))).ToArray();
+        return (leaf, device, Array.AsReadOnly(result));
+    }
+
+    // Pure copied-value cardinality seam for independent ambiguity controls.
+    // The real entry builds this table ONLY from the canonical sealed leaf.
+    // Forging a private test table cannot create public capture authority.
+    private static int CloseReuseUniqueTransactionOwner(
+        IReadOnlyList<(LinuxDiskRaceCall Call, LinuxDiskRaceWindow Window)> requests,
+        bool metadata, ulong sector, ulong generation, int submitted, int terminal,
+        ulong oldLastGeneration, IReadOnlyList<ulong> coverage)
+    {
+        Need(requests is { Count: > 0 and <= 32 } && coverage is { Count: 16 } &&
+            generation != 0 && oldLastGeneration != 0 && submitted >= 0 && terminal > submitted,
+            "disk_close_reuse_owner_input");
+        int owner = -1;
+        for (int i = 0; i < requests.Count; i++)
+        {
+            var (call, window) = requests[i];
+            Need(window.Source == 4 && window.CallRecordIndex == call.RecordIndex &&
+                window.Identity == call.Identity && window.Ordinal == call.Ordinal &&
+                window.Sequence != 0 && window.RequestGeneration != 0 &&
+                window.CompletionRecordIndex > call.RecordIndex, "disk_close_reuse_owner_table");
+            bool eligible = call.Spec.Role switch
+            {
+                "prep.original" or "prep.independent" or "child.reopen" => metadata,
+                "main.read" => !metadata && coverage.Contains(sector) && generation <= oldLastGeneration,
+                "main.duplicate" => !metadata && sector == coverage[0],
+                _ => false
+            };
+            bool detached = call.Spec.Role == "main.read" && generation == oldLastGeneration;
+            if (!eligible || call.RecordIndex >= submitted || !detached && terminal >= window.CompletionRecordIndex) continue;
+            Need(owner < 0, "disk_close_reuse_ambiguous_owner"); owner = i;
+        }
+        Need(owner >= 0, "disk_close_reuse_unowned_transaction"); return owner;
+    }
+
+    // Copied-value component, not an original-owner entrypoint. All returned
+    // leaf/user-memory/native authority cuts remain those of the existing types.
+    private static (WebParentReport Parent, LinuxDiskRaceLeafReport Leaf, NativeDiskReadObservations.Inspection Device,
+        IReadOnlyList<(LinuxDiskRaceCall Call, LinuxDiskRaceWindow Window, IReadOnlyList<ulong> DeviceGenerations)> Requests)
+        InspectLinuxDiskCloseReuseCaptureValues(IReadOnlyList<string> supplied, byte[] package, byte[] rawImage,
+            WebRootImageFixture.Receipt receipt, string originalImagePath)
+    {
+        int count = supplied?.Count ?? 0;
+        Need(count is > 0 and <= 32768 && package is not null && rawImage is not null && receipt is not null,
+            "disk_close_reuse_original_input");
+        string[] rows = new string[count];
+        for (int i = 0; i < count; i++)
+        {
+            string? row = supplied![i];
+            Need(row is { Length: > 0 and <= 1536 } && row.All(c => c is >= ' ' and <= '~'),
+                "disk_close_reuse_original_row"); rows[i] = row!;
+        }
+        Need(LinuxDiskRaceProofFixture.PackageVariant(package!) == "CloseReuse", "disk_close_reuse_package");
+        var prelude = ReadCloseReuseCapturePrelude(rows);
+        var values = InspectLinuxDiskCloseReuseTransactionsCandidateValues(rows, package!, prelude.UserRoot,
+            prelude.KernelRoot, rawImage!, receipt!, originalImagePath, prelude.Boundary, prelude.Period);
+        var old = values.Requests.Single(r => r.Call.Spec.Role == "main.read");
+        ulong oldLast = old.DeviceGenerations[^1];
+        var cancelled = values.Device.Rows.Where(r => r.Kind == NativeDiskReadObservations.Kind.CompletionValidated && r.Bytes == 0).ToArray();
+        Need(values.Device.ResetRetirement is null && cancelled.Length <= 1 &&
+            (ulong)cancelled.Length == values.Device.Cancelled && cancelled.All(r => r.Generation == oldLast),
+            "disk_close_reuse_cancel_scope");
+
+        var parents = ValidateLinuxDiskCaptureParents(rows, package!, closeReuse: values.Device);
+        var binding = ValidateLinuxDiskCaptureBinding(rows, parents, rawImage!.Length, closeReuse: values.Device);
+        Need(parents.Parent.UserRoot == prelude.UserRoot && parents.Parent.KernelRoot == prelude.KernelRoot &&
+            parents.Clock["period"] == prelude.Period, "disk_close_reuse_parent_roots_clock");
+        foreach (var row in values.Device.Rows)
+            Need(row.Clock >= binding.Disk["clock"] && row.Clock <= parents.Network.End["end"],
+                "disk_close_reuse_parent_io_lifetime");
+        var calls = values.Leaf.Calls.ToDictionary(c => c.RecordIndex);
+        HashSet<int> timed = [];
+        foreach (var row in values.Leaf.Auxiliary)
+        {
+            Need(!row.Text.StartsWith("M16_008_TIMING ", StringComparison.Ordinal), "disk_close_reuse_no_user_irq_timing");
+            if (!row.Text.StartsWith("M16_008_SYSCALL_TIME ", StringComparison.Ordinal)) continue;
+            Need(calls.TryGetValue(row.RecordIndex - 1, out var call), "disk_close_reuse_time_call");
+            var time = LinuxSyscallTiming(row.Text, call.Identity, call.Ordinal, call.Spec.Number);
+            decimal Nanos(ulong ticks) => decimal.Floor((decimal)ticks * prelude.Period / 1_000_000);
+            Need(time["periodFs"] == prelude.Period && Nanos(time["entered"]) >= binding.Budget["started"] &&
+                Nanos(time["prepared"]) <= parents.Network.End["end"] && timed.Add(call.RecordIndex),
+                "disk_close_reuse_parent_time_lifetime");
+        }
+        return (parents.Parent, values.Leaf, values.Device, values.Requests);
+    }
+
+    // Raw fixed-schema prelude copies ONLY. It is not parent acceptance. The
+    // full parent/binding below must independently accept these exact values.
+    private static (ulong UserRoot, ulong KernelRoot, ulong Period, NativeDiskReadObservations.Boundary Boundary)
+        ReadCloseReuseCapturePrelude(string[] rows)
+    {
+        string One(string prefix)
+        {
+            var found = rows.Where(r => r.StartsWith(prefix, StringComparison.Ordinal)).ToArray();
+            Need(found.Length == 1, "disk_close_reuse_prelude_unique"); return found[0];
+        }
+        const string diskSuffix = " pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained";
+        string disk = One("M16_023_BOUND");
+        Need(disk.StartsWith("M16_023_BOUND ", StringComparison.Ordinal) && disk.Length > diskSuffix.Length &&
+            disk.EndsWith(diskSuffix, StringComparison.Ordinal) &&
+            disk.IndexOf(" pci=", StringComparison.Ordinal) == disk.Length - diskSuffix.Length &&
+            disk.LastIndexOf(" pci=", StringComparison.Ordinal) == disk.Length - diskSuffix.Length,
+            "disk_close_reuse_bound_shape");
+        RaceDiskBound(disk);
+        var b = ReadRecord(disk[..^diskSuffix.Length], "M16_023_BOUND", "owner:dec", "epoch:dec", "arena:dec", "pages:dec",
+            "bar:dec", "capacity:dec", "bootstrapCompleted:dec", "bootstrapCopied:dec", "clock:dec");
+        const string endSuffix = " device=retired fs=retired dma=zero descriptors=closed reservation=retained";
+        string end = One("M16_025_END ");
+        Need(end.EndsWith(endSuffix, StringComparison.Ordinal), "disk_close_reuse_end_shape");
+        var e = ReadRecord(end[..^endSuffix.Length], "M16_025_END", "submitted:dec", "completed:dec", "copied:dec",
+            "bootstrapCompleted:dec", "bootstrapCopied:dec", "fsReads:dec", "cacheHits:dec", "cacheMisses:dec");
+        var table = ReadRecord(One("M16_004_TABLES "), "M16_004_TABLES", "root:dec", "used:dec", "leaves:dec", "ranges:dec");
+        const string restored = " restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false";
+        string kernel = One("M16_004_READBACK ");
+        Need(kernel.EndsWith(restored, StringComparison.Ordinal), "disk_close_reuse_kernel_shape");
+        var k = ReadRecord(kernel[..^restored.Length], "M16_004_READBACK", "old:dec");
+        const string clockSuffix = " source=owned-hpet";
+        string clock = One("M16_003_CLOCK ");
+        Need(clock.EndsWith(clockSuffix, StringComparison.Ordinal), "disk_close_reuse_clock_shape");
+        var c = ReadRecord(clock[..^clockSuffix.Length], "M16_003_CLOCK", "frequency:dec", "period:dec", "recoveries:dec");
+        Need(c["period"] is > 0 and <= 1_000_000_000, "disk_close_reuse_clock_period");
+        return (table["root"], k["old"], c["period"], new(b["owner"], b["epoch"], b["bootstrapCompleted"],
+            b["bootstrapCopied"], e["submitted"], e["completed"], e["copied"]));
     }
 }

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Kernel.Memory;
@@ -15,6 +16,25 @@ internal static unsafe class LinuxDescriptorServicesTests
         public byte* RequiredOutputSource;
         public fixed byte Sink[8192];
     }
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Description")]
+    private static extern ref uint SlotDescription(ref Services.Slot slot);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Flags")]
+    private static extern ref uint SlotFlags(ref Services.Slot slot);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Generation")]
+    private static extern ref uint SlotGeneration(ref Services.Slot slot);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "References")]
+    private static extern ref uint StoredReferences(ref Services.Description description);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Borrowers")]
+    private static extern ref uint StoredBorrowers(ref Services.Description description);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Type")]
+    private static extern ref uint StoredType(ref Services.Description description);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Flags")]
+    private static extern ref uint StoredFlags(ref Services.Description description);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Active")]
+    private static extern ref uint StoredActive(ref Services.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "ThreadOwner")]
+    private static extern ref ulong StoredThreadOwner(ref Services.State state);
 
     internal sealed class Owner : IDisposable
     {
@@ -147,6 +167,105 @@ internal static unsafe class LinuxDescriptorServicesTests
         HostCheck.Equal(0U, owner.State->ActiveDescriptors);
         owner.Begin(); HostCheck.True(Services.Audit(owner.State) && !Services.Begin(owner.State, owner.Admission));
         HostCheck.Equal(3U, owner.State->ActiveDescriptors);
+    }
+
+    [HostTest("linux.descriptor audit census counts all maximum slots sharing one description")]
+    private static void AuditSharedReferences()
+    {
+        uint maximum = Services.MaximumDescriptors;
+        using var owner = new Owner(maximum, maximum); owner.Begin();
+        uint shared = SlotDescription(ref owner.Admission.Slots[1]) - 1;
+        HostCheck.Equal(0L, owner.Call(3, 0)); HostCheck.Equal(0L, owner.Call(3, 2));
+        for (uint fd = 0; fd < maximum; fd++)
+            if (fd != 1) HostCheck.Equal((long)fd, owner.Call(72, 1, 0, fd));
+        HostCheck.Equal(maximum, owner.State->ActiveDescriptors);
+        HostCheck.Equal(maximum, StoredReferences(ref owner.Admission.Descriptions[shared]));
+        for (uint fd = 0; fd < maximum; fd++)
+            HostCheck.Equal(shared + 1, SlotDescription(ref owner.Admission.Slots[fd]));
+        HostCheck.True(Services.Audit(owner.State) && Services.Audit(owner.State));
+        foreach (uint wrong in new[] { maximum - 1, maximum + 1 })
+        {
+            StoredReferences(ref owner.Admission.Descriptions[shared]) = wrong;
+            HostCheck.True(!Services.Audit(owner.State));
+            StoredReferences(ref owner.Admission.Descriptions[shared]) = maximum;
+            HostCheck.True(Services.Audit(owner.State));
+        }
+        HostCheck.True(Services.End(owner.State));
+    }
+
+    [HostTest("linux.descriptor audit census validates sparse endpoints and rejects changed slot metadata")]
+    private static void AuditSparseAndInvalidSlots()
+    {
+        uint maximum = Services.MaximumDescriptors;
+        using var owner = new Owner(maximum, maximum); owner.Begin();
+        for (uint fd = 3; fd < maximum; fd++) HostCheck.Equal((long)fd, owner.Open());
+        for (uint fd = 1; fd + 1 < maximum; fd++) HostCheck.Equal(0L, owner.Call(3, fd));
+        uint last = maximum - 1;
+        HostCheck.Equal(1U, SlotDescription(ref owner.Admission.Slots[0]));
+        HostCheck.Equal(maximum, SlotDescription(ref owner.Admission.Slots[last]));
+        HostCheck.Equal(2U, owner.State->ActiveDescriptors);
+        HostCheck.True(Services.Audit(owner.State));
+        uint saved = SlotDescription(ref owner.Admission.Slots[0]);
+        SlotDescription(ref owner.Admission.Slots[0]) = maximum + 1;
+        HostCheck.True(!Services.Audit(owner.State));
+        SlotDescription(ref owner.Admission.Slots[0]) = saved;
+        saved = SlotGeneration(ref owner.Admission.Slots[last]);
+        SlotGeneration(ref owner.Admission.Slots[last]) = 0;
+        HostCheck.True(!Services.Audit(owner.State));
+        SlotGeneration(ref owner.Admission.Slots[last]) = saved;
+        SlotFlags(ref owner.Admission.Slots[last]) = 2;
+        HostCheck.True(!Services.Audit(owner.State)); SlotFlags(ref owner.Admission.Slots[last]) = 0;
+        SlotFlags(ref owner.Admission.Slots[1]) = 1; // A closed slot cannot retain flags.
+        HostCheck.True(!Services.Audit(owner.State)); SlotFlags(ref owner.Admission.Slots[1]) = 0;
+        StoredReferences(ref owner.Admission.Descriptions[0]) = 2;
+        HostCheck.True(!Services.Audit(owner.State)); StoredReferences(ref owner.Admission.Descriptions[0]) = 1;
+        StoredReferences(ref owner.Admission.Descriptions[last]) = 0;
+        HostCheck.True(!Services.Audit(owner.State)); StoredReferences(ref owner.Admission.Descriptions[last]) = 1;
+        StoredActive(ref *owner.State) = 3;
+        HostCheck.True(!Services.Audit(owner.State)); StoredActive(ref *owner.State) = 2;
+        saved = StoredFlags(ref owner.Admission.Descriptions[last]);
+        StoredFlags(ref owner.Admission.Descriptions[last]) = saved | 0x40000000;
+        HostCheck.True(!Services.Audit(owner.State)); StoredFlags(ref owner.Admission.Descriptions[last]) = saved;
+        HostCheck.True(Services.Audit(owner.State) && Services.Audit(owner.State));
+        HostCheck.True(Services.End(owner.State));
+    }
+
+    [HostTest("linux.descriptor audit census retains genuine zero-reference pipe borrowers and rechecks mutations")]
+    private static void AuditBorrowedReferenceLifecycle()
+    {
+        using var owner = new LinuxBlockingPipeTests.Owner(); var model = owner.Thread;
+        var parent = model.Start(); model.Kernel.Dispatch(); var child = model.Clone(); var pipe = owner.Pipe();
+        ulong data = LinuxThreadServicesTests.UserBase + 0x1000, output = LinuxThreadServicesTests.UserBase + 0x3400;
+        uint index = SlotDescription(ref owner.Files.Admission.Slots[pipe.Read]) - 1;
+        HostCheck.Equal(LinuxSyscallAction.Blocked, owner.Call(0, pipe.Read, output, 8).Action); owner.Park(parent);
+        HostCheck.Equal(child.Value, model.Kernel.Dispatch().Value);
+        HostCheck.Equal(0L, owner.Value(3, pipe.Read));
+        ref Services.Description retained = ref owner.Files.Admission.Descriptions[index];
+        HostCheck.Equal(0U, StoredReferences(ref retained)); HostCheck.Equal(1U, StoredBorrowers(ref retained));
+        HostCheck.True(Services.Audit(owner.Files.State) && Services.Audit(owner.Files.State));
+        Services.Description original = retained;
+        foreach (uint invalid in new[] { 0U, Services.MaximumDescriptors + 1 })
+        {
+            StoredBorrowers(ref retained) = invalid;
+            HostCheck.True(!Services.Audit(owner.Files.State)); retained = original;
+            HostCheck.True(Services.Audit(owner.Files.State));
+        }
+        StoredType(ref retained) = StoredType(ref owner.Files.Admission.Descriptions[0]);
+        HostCheck.True(!Services.Audit(owner.Files.State)); retained = original;
+        ulong threadOwner = StoredThreadOwner(ref *owner.Files.State);
+        StoredThreadOwner(ref *owner.Files.State) = 0;
+        HostCheck.True(!Services.Audit(owner.Files.State)); StoredThreadOwner(ref *owner.Files.State) = threadOwner;
+        StoredReferences(ref retained) = 1;
+        HostCheck.True(!Services.Audit(owner.Files.State)); retained = original;
+        HostCheck.True(Services.Audit(owner.Files.State));
+        model.Put64(data, 0x8877665544332211);
+        HostCheck.Equal(8L, owner.Value(1, pipe.Write, data, 8));
+        model.Yield(child); HostCheck.Equal(parent.Value, model.Kernel.Dispatch().Value);
+        var completed = owner.Complete();
+        HostCheck.Equal(LinuxSyscallAction.Return, completed.Action); HostCheck.Equal(8L, completed.Value);
+        HostCheck.Equal(0x8877665544332211UL, model.Read64(output));
+        HostCheck.Equal(0U, StoredBorrowers(ref retained)); HostCheck.Equal(0U, StoredType(ref retained));
+        HostCheck.True(Services.Audit(owner.Files.State)); owner.Drain();
     }
 
     [HostTest("linux.descriptor dispatch audits damaged mappings before user copy or pipe mutation")]

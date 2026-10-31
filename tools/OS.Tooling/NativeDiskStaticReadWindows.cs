@@ -83,19 +83,21 @@ public static class NativeDiskStaticReadWindows
         }
         List<SectorCopy> copies = [];
         Dictionary<ulong, List<int>> bySector = [];
+        int submitted = -1, validated = -1;
         for (int i = 0; i < rows; i++)
         {
             var observation = device.Rows[i];
-            if (observation.Kind != NativeDiskReadObservations.Kind.Copied) continue;
-            Need(i >= 2, "copy_stages");
-            var submit = device.Rows[i - 2]; var validation = device.Rows[i - 1];
+            if (observation.Kind == NativeDiskReadObservations.Kind.Submitted) { submitted = i; validated = -1; continue; }
+            if (observation.Kind == NativeDiskReadObservations.Kind.CompletionValidated) { validated = i; continue; }
+            Need(submitted >= 0 && validated == submitted + 1 && validated < i, "copy_stages");
+            var submit = device.Rows[submitted]; var validation = device.Rows[validated];
             Need(submit.Kind == NativeDiskReadObservations.Kind.Submitted &&
-                validation.Kind == NativeDiskReadObservations.Kind.CompletionValidated && validation.Bytes == 512 &&
+                validation.Kind == NativeDiskReadObservations.Kind.CompletionValidated && validation.Bytes == observation.Bytes &&
                 submit.Generation == observation.Generation && validation.Generation == observation.Generation &&
                 submit.Sector == observation.Sector && validation.Sector == observation.Sector, "copy_stages");
             int copy = copies.Count;
-            copies.Add(new(i, indices[i - 2], indices[i - 1], indices[i], observation));
-            if (!bySector.TryGetValue(observation.Sector, out var list)) bySector.Add(observation.Sector, list = []);
+            copies.Add(new(i, indices[submitted], indices[validated], indices[i], observation));
+            if (!bySector.TryGetValue(observation.DataSector, out var list)) bySector.Add(observation.DataSector, list = []);
             list.Add(copy);
         }
 

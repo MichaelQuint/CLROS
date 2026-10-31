@@ -98,8 +98,23 @@ public static partial class QemuTranscripts
     [ "CLROS_M16_023_READY", "TEST_PASS m16.023", "CLROS_M16_024_READY", "TEST_PASS m16.024",
       "CLROS_M16_025_READY", "TEST_PASS m16.025" ];
 
-    private static Dictionary<string, ulong> ReadDiskFileEnd(string row, LinuxDiskExitPendingDeviceValues? pending = null)
+    private static Dictionary<string, ulong> ReadDiskFileEnd(string row, LinuxDiskExitPendingDeviceValues? pending = null,
+        NativeDiskReadObservations.Inspection? closeReuse = null, NativeDiskReadObservations.Inspection? fullDevice = null)
     {
+        Need(fullDevice is null || pending is null && closeReuse is null,"disk_parent_selection");
+        var end=ReadDiskFileEndCommon(row,pending,closeReuse);
+        if(fullDevice is null)
+            Need(end["fsReads"]<=ulong.MaxValue-34 && end["fsReads"]+34==end["submitted"],"disk_parent_counters");
+        else ValidateFullDiskFileEnd(end,fullDevice);
+        return end;
+    }
+
+    // Parse the terminal and request/copy closure before a Full sector inspection
+    // exists. The caller must still perform the legacy or typed Full unit join.
+    private static Dictionary<string, ulong> ReadDiskFileEndCommon(string row, LinuxDiskExitPendingDeviceValues? pending = null,
+        NativeDiskReadObservations.Inspection? closeReuse = null)
+    {
+        Need(closeReuse is null || pending is null,"disk_parent_selection");
         const string suffix = " device=retired fs=retired dma=zero descriptors=closed reservation=retained";
         Need(row.EndsWith(suffix, StringComparison.Ordinal), "disk_parent_cleanup");
         var end = ReadRecord(row[..^suffix.Length], "M16_025_END", "submitted:dec", "completed:dec", "copied:dec",
@@ -107,8 +122,7 @@ public static partial class QemuTranscripts
         Need(end["bootstrapCompleted"] >= 35 && end["bootstrapCopied"] == end["bootstrapCompleted"] &&
             end["submitted"] > end["bootstrapCompleted"] &&
             (pending is null ? end["submitted"] == end["completed"] : end["completed"] < ulong.MaxValue && end["submitted"] == end["completed"] + 1) &&
-            end["copied"] == end["completed"] && end["fsReads"] <= ulong.MaxValue - 34 &&
-            end["fsReads"] + 34 == end["submitted"] && end["cacheHits"] <= long.MaxValue &&
+            DiskReadCopyAccounting(end,closeReuse) && end["cacheHits"] <= long.MaxValue &&
             end["cacheMisses"] <= end["fsReads"], "disk_parent_counters");
         if (pending is not null)
         {
@@ -120,6 +134,40 @@ public static partial class QemuTranscripts
                 last["copied"] == end["copied"] && last["cancelled"] == 0, "disk_parent_reset_terminal");
         }
         return end;
+    }
+
+    // Bootstrap performs34 single-sector MBR/GPT reads outside the mount. Mount
+    // bootstrap reads are single-sector too; later data requests contain1..4
+    // sectors. Mount.SectorReads counts submitted sectors, not request groups.
+    private static void ValidateFullDiskFileEnd(Dictionary<string,ulong> end,NativeDiskReadObservations.Inspection device)
+    {
+        var b=device.Counters;
+        Need(device.ResetRetirement is null && device.Cancelled==0 &&
+            end["bootstrapCompleted"]==b.BootstrapCompleted && end["bootstrapCopied"]==b.BootstrapCopied &&
+            end["submitted"]==b.Submitted && end["completed"]==b.Completed && end["copied"]==b.Copied,
+            "disk_static_end_boundary");
+        ulong sectors=b.BootstrapCompleted-34,requests=0;
+        foreach(var row in device.Rows)
+            if(row.Kind==NativeDiskReadObservations.Kind.Submitted)
+            {
+                ulong count=row.Bytes/512;
+                Need(row.Owner==b.Owner && row.Epoch==b.Epoch && row.Bytes is >=512 and <=2048 && row.Bytes%512==0 &&
+                    sectors<=ulong.MaxValue-count,"disk_static_end_sectors");
+                sectors+=count;requests++;
+            }
+        Need(requests==b.Submitted-b.BootstrapCompleted && end["fsReads"]==sectors,"disk_static_end_sectors");
+    }
+
+    /// <summary>Synchronously borrow a copied Full END row and a device
+    /// inspection already validated against its original rows/image. Require
+    /// the exact supplied owner/epoch/bootstrap/final boundary and submitted
+    /// sector accounting. No pending/reset/CloseReuse or original process,
+    /// native, packet or guest authority is supplied. Mismatches throw.</summary>
+    public static void InspectNativeAotDiskStaticEndValues(string row,NativeDiskReadObservations.Boundary expected,
+        NativeDiskReadObservations.Inspection device)
+    {
+        Need(device is not null && device.Counters==expected,"disk_static_end_boundary");
+        _=ReadDiskFileEnd(row,fullDevice:device);
     }
 
     /// <summary>Inspect only the copied mechanical network envelope and strict
@@ -146,5 +194,36 @@ public static partial class QemuTranscripts
         Need(rows is { Length: > 0 and <= 131072 } && rows.All(row => row is { Length: > 0 and <= 1536 } &&
             row.All(value => value is >= ' ' and <= '~')), "disk_parent_input");
         _ = SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true);
+    }
+
+    internal static (WebParentReport Parent, LinuxDiskRaceLeafReport Leaf, NativeDiskReadObservations.Inspection Device,
+        IReadOnlyList<(LinuxDiskRaceCall Call, LinuxDiskRaceWindow Window, IReadOnlyList<ulong> DeviceGenerations)> Requests)
+        InspectLinuxDiskCloseReuseRun(string root, QemuSmokeOptions options, QemuSmokePlan plan,
+            ProcessResult runner, AuthorityFile image, AuthorityFile efi, AuthorityFile package,
+            WebRootImageFixture.Receipt receipt, string qemu, string ovmf, Action verifyOwnedInputs)
+    {
+        Need(options.HasDiskRaceSelection && options.LinuxDiskRaceVariant == "CloseReuse", "disk_runner_close_reuse_selection");
+        return InspectOriginalLinuxDiskRun(root, options, plan, runner, image, efi, package, qemu, ovmf, verifyOwnedInputs, rows =>
+        {
+            var report = InspectLinuxDiskCloseReuseCaptureValues(rows, package.ReadBytes(65536, "disk_package"),
+                image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_image"), receipt, image.Path);
+            return (report, SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true,
+                diskCloseReuse: report.Device).Proof);
+        });
+    }
+
+
+    // Only the explicit CloseReuse path supplies its same-row canonical
+    // leaf/transaction/cancel-scope inspection. Every existing default caller
+    // retains exact copied==completed accounting.
+    private static bool DiskReadCopyAccounting(Dictionary<string, ulong> end,
+        NativeDiskReadObservations.Inspection? closeReuse)
+    {
+        if (closeReuse is null) return end["copied"] == end["completed"];
+        var b = closeReuse.Counters;
+        return closeReuse.ResetRetirement is null && closeReuse.Cancelled <= 1 &&
+            end["submitted"] == b.Submitted && end["completed"] == b.Completed && end["copied"] == b.Copied &&
+            end["bootstrapCompleted"] == b.BootstrapCompleted && end["bootstrapCopied"] == b.BootstrapCopied &&
+            end["copied"] <= end["completed"] && end["completed"] - end["copied"] == closeReuse.Cancelled;
     }
 }

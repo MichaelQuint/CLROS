@@ -44,16 +44,18 @@ internal static class LinuxDiskRaceProofFixtureTests
         string Read(string leaf) => File.ReadAllText(Path.Combine(root, "src/OS/Boot", leaf));
         static void Ordered(string text, params string[] steps)
         {
+            text = new string(text.Where(c => !char.IsWhiteSpace(c)).ToArray());
             int at = 0;
-            foreach (string step in steps)
+            foreach (string original in steps)
             {
+                string step = new(original.Where(c => !char.IsWhiteSpace(c)).ToArray());
                 int next = text.IndexOf(step, at, StringComparison.Ordinal);
                 HostCheck.True(next >= at, step); at = next + step.Length;
             }
         }
         string threads = Read("EfiEntry.LinuxThreads.cs");
         Ordered(threads, "LinuxSyscallFrame call = *frame;",
-            "if (call.Number != 231 && !PollLinuxSocketNetwork(c))",
+            "#else if (call.Number != 231 && !PollLinuxSocketNetwork(c",
             "ObserveNativeDiskExitCall(c, index, call)");
         Ordered(threads, "ObserveNativeDiskExitCall(c, index, call)", "LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame)");
         Ordered(threads, "ObserveNativeDiskExitCommit(c, index, false)", "c->Process.CommitExit(c->Key, 2, worker, out long clearTid)",
@@ -71,6 +73,71 @@ internal static class LinuxDiskRaceProofFixtureTests
         HostCheck.True(!evidence.Contains("CompletedCount++", StringComparison.Ordinal) && !evidence.Contains("Block.Poll(", StringComparison.Ordinal));
         HostCheck.True(evidence.Contains("M16_025_EXIT_REJECT reason=", StringComparison.Ordinal));
         HostCheck.True(evidence.Contains("now - started >= LinuxThreadExecutionBudget.RuntimeNanoseconds", StringComparison.Ordinal));
+    }
+
+    [HostTest("close reuse native boundary selects only the full canonical package and one callback-free disk step before real close")]
+    private static void CloseReuseNativeBoundary()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string sockets = File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.LinuxSockets.cs"));
+        string threads = File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.LinuxThreads.cs"));
+        static string Compact(string text) => new(text.Where(c => !char.IsWhiteSpace(c)).ToArray());
+        static string Between(string text, string begin, string end)
+        {
+            int first = text.IndexOf(begin, StringComparison.Ordinal);
+            HostCheck.True(first >= 0, begin);
+            int last = text.IndexOf(end, first + begin.Length, StringComparison.Ordinal);
+            HostCheck.True(last > first, end); return text[first..last];
+        }
+        string selector = Between(sockets, "private static bool SelectNativeCloseReusePoll", "private static bool RequireNativeCloseReuseParentRead");
+        var words = System.Text.RegularExpressions.Regex.Matches(selector, @"digest\[(\d)\] != 0x([0-9a-f]{16})");
+        HostCheck.Equal(4, words.Count); byte[] admitted = new byte[32];
+        foreach (System.Text.RegularExpressions.Match word in words)
+            BinaryPrimitives.WriteUInt64LittleEndian(admitted.AsSpan(int.Parse(word.Groups[1].Value) * 8), Convert.ToUInt64(word.Groups[2].Value, 16));
+        byte[] canonical = F.CreatePackage("CloseReuse");
+        HostCheck.True(admitted.AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(canonical)));
+        foreach (string variant in F.Variants.Where(v => v != "CloseReuse"))
+            HostCheck.True(!admitted.AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(F.CreatePackage(variant))));
+        canonical[^1] ^= 1;
+        HostCheck.True(!admitted.AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(canonical)));
+        string compactSelector = Compact(selector);
+        HostCheck.True(compactSelector.Contains("index!=1||call.Number!=3||call.Argument0!=3||c->State->LinuxBytes!=" + canonical.Length, StringComparison.Ordinal));
+        HostCheck.True(compactSelector.Contains("LinuxNativeCallOrdinal(c,index)==4", StringComparison.Ordinal));
+        string pump = Compact(Between(sockets, "private static bool PollNativeCloseReuseDiskReadiness", "private static bool PollLinuxSocketNetwork"));
+        const string oneStep = "c->Process.PollDiskReadiness(c->Key,2)";
+        HostCheck.Equal(1, pump.Split(oneStep, StringSplitOptions.None).Length - 1);
+        HostCheck.True(pump.Contains("if(!disk->Device.ReadPending&&!" + oneStep + ")returnfalse;", StringComparison.Ordinal));
+        HostCheck.True(!pump.Contains("new()", StringComparison.Ordinal) && !pump.Contains("NativeDiskQuantumFlush(", StringComparison.Ordinal));
+        int ready = pump.IndexOf("RequireNativeCloseReuseParentRead(c,disk,true)", StringComparison.Ordinal);
+        int flush = pump.IndexOf("FlushNativeDiskEvidence(c->State)", StringComparison.Ordinal);
+        HostCheck.True(ready > pump.IndexOf(oneStep, StringComparison.Ordinal) && flush > ready &&
+            pump.LastIndexOf("RequireNativeCloseReuseParentRead(c,disk,true)", StringComparison.Ordinal) > flush);
+        string compactThreads = Compact(threads), compactSockets = Compact(sockets);
+        const string scope = "#ifM16_025_PROBE&&!M16_027_PROBE&&!M10_018_PROBE";
+        HostCheck.True(compactSockets.Contains(scope, StringComparison.Ordinal) && compactThreads.Contains(scope, StringComparison.Ordinal));
+        HostCheck.True(compactThreads.Contains("#elseif(call.Number!=231&&!PollLinuxSocketNetwork(c" + scope +
+            ",preserveClosePending:preserveClosePending#endif))", StringComparison.Ordinal));
+        int select = compactThreads.IndexOf("SelectNativeCloseReusePoll(c,index,call,outboolpreserveClosePending)", StringComparison.Ordinal);
+        int poll = compactThreads.IndexOf("preserveClosePending:preserveClosePending", StringComparison.Ordinal);
+        int admittedAt = compactThreads.IndexOf("timingRead(state,&admitted)", poll, StringComparison.Ordinal);
+        int recheck = compactThreads.IndexOf("RequireNativeCloseReuseParentRead(c,disk,true)", admittedAt, StringComparison.Ordinal);
+        int dispatch = compactThreads.IndexOf("LinuxSyscallGateway.Dispatch(refc->Gates[index],ref*frame)", recheck, StringComparison.Ordinal);
+        HostCheck.True(select >= 0 && select < poll && poll < admittedAt && admittedAt < recheck && recheck < dispatch);
+        string observed = Compact(Between(sockets, "private static bool ObserveNativeCloseReuseCompletionTime",
+            "private static bool RequireNativeCloseReuseParentRead"));
+        HostCheck.True(observed.Contains("SelectNativeCloseReusePackage(c->State,outboolselected)", StringComparison.Ordinal) &&
+            observed.Contains("if(!selected)returntrue;", StringComparison.Ordinal));
+        int drained = observed.IndexOf("FlushNativeDiskEvidence(c->State)", StringComparison.Ordinal);
+        int sampled = observed.IndexOf("ReadNetworkTime(c->State,outulongnow)", StringComparison.Ordinal);
+        int written = observed.IndexOf("M16_025_COMPLETE_TIMEidentity=", StringComparison.Ordinal);
+        HostCheck.True(drained >= 0 && sampled > drained && written > sampled &&
+            observed.Contains("now<c->Threads.ObservedTicks||now>(ulong)long.MaxValue", StringComparison.Ordinal) &&
+            !observed.Contains("ObservedTicks=", StringComparison.Ordinal));
+        int completed = compactThreads.IndexOf("c->Process.CompleteDiskWait(c->Key,2)", StringComparison.Ordinal);
+        int witness = compactThreads.IndexOf("ObserveNativeCloseReuseCompletionTime(c,view.Wait.Sequence,diskOperation.Generation)", completed, StringComparison.Ordinal);
+        int completeRow = compactThreads.IndexOf("M16_025_COMPLETEidentity=", witness, StringComparison.Ordinal);
+        HostCheck.True(completed >= 0 && witness > completed && completeRow > witness &&
+            compactThreads.Contains("LinuxNumber(c->State,c->Threads.ObservedTicks)", StringComparison.Ordinal));
     }
 
     [HostTest("disk race packages are canonical deterministic two-worker cooperative children")]
@@ -174,6 +241,63 @@ internal static class LinuxDiskRaceProofFixtureTests
                 HostCheck.Equal(8200L, main.Single(c => c.Role == "main.cursor").Result);
             }
         }
+    }
+
+    [HostTest("close reuse later real read preserves the parent sentinel and checks replacement and shared cursors")]
+    private static void CloseReuseDrainWitness()
+    {
+        byte[] elf = F.CreateElf("CloseReuse"); var main = F.Calls("CloseReuse");
+        var duplicate = main.Single(c => c.Role == "main.duplicate");
+        var decoded = Calls("CloseReuse").Single(c => c.Rip == duplicate.ReturnRip);
+        HostCheck.True(decoded is { Number: 0, A0: 7, A1: F.ChildOutput, A2: 8, A3: 0, A4: 0, A5: 0 } &&
+            duplicate is { Result: 8, Wait: F.WaitPolicy.Disk, OutputBytes: 8 });
+        var replacement = main.Single(c => c.Role == "main.replacement-cursor");
+        HostCheck.True(replacement is { Number: 8, A0: 3, A1: 0, A2: 1, Result: 0, Wait: F.WaitPolicy.Disk });
+        HostCheck.True(main.Single(c => c.Role == "main.cursor") is { A0: 7, Result: 8 } &&
+            main.Single(c => c.Role == "main.independent-cursor") is { A0: 4, Result: 0 });
+        string[] order = ["main.join", "main.replacement", "main.duplicate", "main.replacement-cursor",
+            "main.replacement-stat", "main.cursor", "main.independent-cursor", "main.close3"];
+        HostCheck.True(order.Select(role => main.Single(c => c.Role == role).ReturnRip).SequenceEqual(
+            order.Select(role => main.Single(c => c.Role == role).ReturnRip).Order()));
+        int at = checked((int)(duplicate.ReturnRip - F.ImageBase)) + 12;
+        // Decode the two actual RIP-relative loads and comparisons independently.
+        foreach ((ulong address, byte value) in new[] { (F.ChildOutput, (byte)0x13), (F.ChildOutput + 7, (byte)0x12) })
+        {
+            HostCheck.True(elf.AsSpan(at, 3).SequenceEqual(new byte[] { 0x0f, 0xb6, 0x05 }));
+            HostCheck.Equal(address, checked((ulong)((long)F.ImageBase + at + 7 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(at + 3)))));
+            HostCheck.True(elf.AsSpan(at + 7, 2).SequenceEqual(new byte[] { 0x48, 0x3d }));
+            HostCheck.Equal((uint)value, BinaryPrimitives.ReadUInt32LittleEndian(elf.AsSpan(at + 9)));
+            HostCheck.Equal(F.FailureOffset, at + 19 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(at + 15)));
+            at += 19;
+        }
+        HostCheck.True(F.InstructionRips("CloseReuse").Contains(F.ImageBase + (uint)at));
+    }
+
+    [HostTest("close reuse compares all parent sentinel bytes after the later data read and both cursor checks")]
+    private static void CloseReuseFinalSentinel()
+    {
+        byte[] elf = F.CreateElf("CloseReuse"); var main = F.Calls("CloseReuse");
+        // MOV EAX,A5; MOV EDI,404000; MOV ECX,8192; CLD; REPE SCASB.
+        // This is a sampled comparison, not a refill or proof of no transient writes.
+        byte[] compare = [0xb8, 0xa5, 0, 0, 0, 0xbf, 0, 0x40, 0x40, 0,
+            0xb9, 0, 0x20, 0, 0, 0xfc, 0xf3, 0xae];
+        List<int> positions = [];
+        int end = checked((int)(F.MainEndRip("CloseReuse") - F.ImageBase));
+        for (int at = F.EntryOffset; at + 24 <= end; at++)
+            if (elf.AsSpan(at, compare.Length).SequenceEqual(compare))
+            {
+                HostCheck.True(elf.AsSpan(at + 18, 2).SequenceEqual(new byte[] { 0x0f, 0x85 }));
+                HostCheck.Equal(F.FailureOffset, at + 24 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(at + 20)));
+                positions.Add(at);
+            }
+        HostCheck.Equal(3, positions.Count);
+        int last = checked((int)(main.Single(c => c.Role == "main.independent-cursor").ReturnRip - F.ImageBase)) + 12;
+        HostCheck.Equal(last, positions[^1]);
+        HostCheck.True(F.ImageBase + (uint)positions[1] < main.Single(c => c.Role == "main.duplicate").ReturnRip);
+        HostCheck.True(elf.AsSpan(last + 24, 5).SequenceEqual(new byte[] { 0xb8, 3, 0, 0, 0 }));
+        HostCheck.True(main.Single(c => c.Role == "main.read") is { A1: F.ParentOutput, A2: 8192, Result: -9 });
+        HostCheck.True(main.Where(c => c.ReturnRip > main.Single(c => c.Role == "main.duplicate").ReturnRip)
+            .All(c => c.Number != 0 && c.Number != 17));
     }
 
     [HostTest("disk lifecycle fixtures encode exact signal handlers EOF winner and nonreturning pending exit without timing loops")]
@@ -294,7 +418,7 @@ internal static class LinuxDiskRaceProofFixtureTests
     [HostTest("unconnected disk race variants refuse original execution before any child launches")]
     private static async Task OriginalOwnerRequired()
     {
-        foreach(string variant in F.Variants.Where(v=>v!="Progress"&&v!="ExitPending"))
+        foreach(string variant in F.Variants.Where(v=>v!="Progress"&&v!="CloseReuse"&&v!="ExitPending"))
         {
             bool launched=false;using StringWriter output=new();
             var options=QemuSmokeOptions.Parse([..SelectionArguments,"-LinuxDiskRaceVariant",variant]);
@@ -315,15 +439,16 @@ internal static class LinuxDiskRaceProofFixtureTests
             bool denied=false;try{NativeAotDiskSelection.RequireMechanicalPackage(package,variant);}catch(ToolFailure){denied=true;}
             HostCheck.True(denied);
         }
-        foreach(string variant in new[]{"Progress","ExitPending"})
+        foreach(string variant in new[]{"Progress","CloseReuse","ExitPending"})
         {
             byte[] package=F.CreatePackage(variant),before=package.ToArray();
             NativeAotDiskSelection.RequireMechanicalPackage(package,variant);HostCheck.True(package.SequenceEqual(before));
-            Deny(ordinary,variant);Deny(package,"");Deny(package,variant=="Progress"?"ExitPending":"Progress");
+            Deny(ordinary,variant);Deny(package,"");
+            foreach(string other in new[]{"Progress","CloseReuse","ExitPending"}.Where(v=>v!=variant))Deny(package,other);
             byte[] altered=package.ToArray();altered[^1]^=1;Deny(altered,variant);
             Deny(package[..^1],variant);Deny(package,"Unknown");Deny(package,variant.ToLowerInvariant());
         }
-        foreach(string variant in F.Variants.Where(v=>v!="Progress"&&v!="ExitPending"))
+        foreach(string variant in F.Variants.Where(v=>v!="Progress"&&v!="CloseReuse"&&v!="ExitPending"))
         {
             byte[] package=F.CreatePackage(variant);
             Deny(package,variant);Deny(package,"Progress");Deny(package,"ExitPending");

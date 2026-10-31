@@ -162,9 +162,18 @@ internal static class KestrelRequestChurnTests
             using var finite = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             HostCheck.Equal(KestrelChurnExercise.SuccessBody, await exercise.RunAsync(finite.Token));
             using var failure = new CancellationTokenSource(); bool expired = false;
-            try { await exercise.RunUntilCanceledAsync(failure.Token, TimeSpan.FromMilliseconds(1)); }
+            var held = new HeldContext(); SynchronizationContext? previous = SynchronizationContext.Current; Task<string?> failing;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(held);
+                failing = exercise.RunUntilCanceledAsync(failure.Token, TimeSpan.FromMilliseconds(1));
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previous); }
+            await Task.Delay(40);
+            try { await held.JoinAsync(failing); }
             catch (TimeoutException error) { expired = error.Message == "CLROS_CHURN_FAIL deadline"; }
-            HostCheck.True(expired && exercise.Inspect() is { Started: 66, Completed: 1, Canceled: 64, Failed: 1 });
+            HostCheck.True(expired && !failure.IsCancellationRequested && failing.IsFaulted &&
+                exercise.Inspect() is { Started: 66, Completed: 1, Canceled: 64, Failed: 1 });
             Drained(exercise);
         }
         finally { stop.Cancel(); HostCheck.True(await reader && snapshots > 0); }

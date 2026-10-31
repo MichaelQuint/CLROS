@@ -137,8 +137,18 @@ public static unsafe class X64UserAddressSpace
                         }
                         // Admission bounded this whole physical span. Its aligned
                         // offset changes address bits only; flags stay identical.
-                        if ((leaf & ~0x60UL) != rangeEntry + (va - rangeStart)) return false;
-                        leaves++;
+                        ulong expected = rangeEntry + (va - rangeStart);
+                        if ((leaf & ~0x60UL) != expected) return false;
+                        // Only batch inside this admitted range and this PT.
+                        // Every lane is still checked, including an absent leaf;
+                        // no cached authority survives this synchronous audit.
+                        ulong remaining = (rangeBytes - (va - rangeStart)) / Page;
+                        uint lanes = remaining < 8 ? (uint)remaining : 8;
+                        if (lanes > 512 - ti) lanes = 512 - ti;
+                        for (uint lane = 1; lane < lanes; lane++)
+                            if ((tables[pt * 512 + ti + lane] & ~0x60UL) != expected + lane * Page) return false;
+                        ti += lanes - 1;
+                        leaves += lanes;
                     }
                 }
             }
@@ -185,11 +195,9 @@ public static unsafe class X64UserAddressSpace
             (ulong)tables > ~0UL - pages * Page || conditions.Validate() != X64PageTableEntryStatus.Success)
             return X64UserAddressSpaceStatus.InvalidInput;
         if (Overlap((ulong)ranges, count * (ulong)sizeof(X64UserMappingRange), (ulong)tables, pages * Page)) return X64UserAddressSpaceStatus.OverlappingRanges;
-        // One bit per 2MiB slot, bounded by the VA policy rather than backing
-        // size. Reservations are not passed here and create no table/leaf cost.
-        byte* slots = stackalloc byte[4096]; byte* directories = stackalloc byte[64];
-        for (uint i = 0; i < 4096; i++) slots[i] = 0;
-        for (uint i = 0; i < 64; i++) directories[i] = 0;
+        uint* virtualOrder = stackalloc uint[(int)MaximumRanges + 1];
+        uint* physicalOrder = stackalloc uint[(int)MaximumRanges + 1];
+        uint arenaAt = 0;
         required = 2;
         for (uint i = 0; i <= count; i++)
         {
@@ -201,20 +209,65 @@ public static unsafe class X64UserAddressSpace
                 (!range.User && !highDevice && range.VirtualStart > PhysicalEnd - range.Pages * Page) ||
                 range.PhysicalStart > physicalLimit - range.Pages * Page) return X64UserAddressSpaceStatus.InvalidRange;
             if (!Encode(range, 0, conditions, out _) || !Encode(range, range.Pages - 1, conditions, out _)) return X64UserAddressSpaceStatus.InvalidEncoding;
-            for (uint j = 0; j < i; j++)
-                if (Overlap(range.VirtualStart, range.Pages * Page, ranges[j].VirtualStart, ranges[j].Pages * Page) ||
-                    Overlap(range.PhysicalStart, range.Pages * Page, ranges[j].PhysicalStart, ranges[j].Pages * Page)) return X64UserAddressSpaceStatus.OverlappingRanges;
+            // The admitted prefix is disjoint in both orders. Only the two
+            // neighbors can overlap; indices retain the caller's input order
+            // and its validation precedence. The final implicit arena is only
+            // checked, so neither order ever refers to ranges[count].
+            if (!InsertionPosition(ranges, virtualOrder, i, range.VirtualStart, range.Pages * Page, false, out uint virtualAt) ||
+                !InsertionPosition(ranges, physicalOrder, i, range.PhysicalStart, range.Pages * Page, true, out uint physicalAt))
+                return X64UserAddressSpaceStatus.OverlappingRanges;
+            if (i < count)
+            {
+                for (uint j = i; j > virtualAt; j--) virtualOrder[j] = virtualOrder[j - 1];
+                for (uint j = i; j > physicalAt; j--) physicalOrder[j] = physicalOrder[j - 1];
+                virtualOrder[virtualAt] = i; physicalOrder[physicalAt] = i;
+            }
+            else arenaAt = virtualAt;
             leaves += range.Pages;
             if (leaves > 32768) return X64UserAddressSpaceStatus.InvalidRange;
-            uint first = (uint)(range.VirtualStart >> 21), last = (uint)((range.VirtualStart + range.Pages * Page - 1) >> 21);
-            for (uint slot = first; slot <= last; slot++)
-            {
-                byte mask = (byte)(1 << (int)(slot & 7));
-                if ((slots[slot >> 3] & mask) == 0) { slots[slot >> 3] |= mask; required++; }
-                if (directories[slot / 512] == 0) { directories[slot / 512] = 1; required++; }
-            }
+        }
+        // The virtual prefix is now disjoint and sorted. Insert the implicit
+        // arena by rank without reading ranges[count]. Count each covered 2MiB
+        // and 1GiB bucket once, including adjacent ranges sharing a bucket.
+        // No bitmap initialization or per-bucket walk is needed; every range,
+        // encoding and overlap check above and every PTE audit remain intact.
+        uint nextSlot = 0, nextDirectory = 0;
+        for (uint rank = 0; rank <= count; rank++)
+        {
+            var range = rank == arenaAt ? Arena(root, pages) : ranges[virtualOrder[rank < arenaAt ? rank : rank - 1]];
+            uint first = (uint)(range.VirtualStart >> 21);
+            uint end = (uint)((range.VirtualStart + range.Pages * Page - 1) >> 21) + 1;
+            uint firstDirectory = first >> 9, endDirectory = ((end - 1) >> 9) + 1;
+            required += end - (first > nextSlot ? first : nextSlot);
+            required += endDirectory - (firstDirectory > nextDirectory ? firstDirectory : nextDirectory);
+            nextSlot = end; nextDirectory = endDirectory;
         }
         return required <= pages ? X64UserAddressSpaceStatus.Ready : X64UserAddressSpaceStatus.InsufficientTables;
+    }
+
+    private static bool InsertionPosition(X64UserMappingRange* ranges, uint* order, uint count,
+        ulong start, ulong bytes, bool physical, out uint at)
+    {
+        uint low = 0, high = count;
+        while (low < high)
+        {
+            uint middle = low + (high - low) / 2;
+            var previous = ranges[order[middle]];
+            if ((physical ? previous.PhysicalStart : previous.VirtualStart) < start) low = middle + 1;
+            else high = middle;
+        }
+        at = low;
+        if (at > 0)
+        {
+            var previous = ranges[order[at - 1]];
+            if ((physical ? previous.PhysicalStart : previous.VirtualStart) + previous.Pages * Page > start) return false;
+        }
+        if (at < count)
+        {
+            var next = ranges[order[at]];
+            if ((physical ? next.PhysicalStart : next.VirtualStart) < start + bytes) return false;
+        }
+        return true;
     }
 
     private static X64UserMappingRange Arena(ulong root, uint pages) => new()

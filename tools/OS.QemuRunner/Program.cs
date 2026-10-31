@@ -2846,12 +2846,12 @@ sealed class RunnerOptions
             throw new ArgumentException("--writable-data-image requires the finite captured raw mechanical fixture, SingleMinimalApi, summary, replaced explicit markers and a120..295-second deadline without another fixture.");
         if(options.DiskReadTiming && (!options.FullDiskStaticFiles || !options.DiskStaticFiles || options.TimeoutSeconds is <240 or >600))
             throw new ArgumentException("--disk-read-timing requires the full finite readonly disk parent and explicit240..600-second deadline");
-        if(options.FullDiskStaticFiles && (!options.DiskStaticFiles || (!options.DiskReadTiming && options.TimeoutSeconds is <2200 or >3600)))
-            throw new ArgumentException("--full-disk-static-files requires the finite readonly disk parent and explicit2200..3600-second deadline");
+        if(options.FullDiskStaticFiles && (!options.DiskStaticFiles || (!options.DiskReadTiming && options.TimeoutSeconds is <6600 or >7200)))
+            throw new ArgumentException("--full-disk-static-files requires the finite readonly disk parent and explicit6600..7200-second deadline");
         if (options.ReadOnlyWebRootDisk && (!options.VirtioNegotiationDevice || !options.ArpReceiveFixture || options.DiskFormat != "raw" ||
             options.VirtioBlockQueueDevice || options.VirtioBlockBootImagePath is not null || options.PciBarTestDevice ||
             options.ContinuingNetworkPeer || options.SocketContainmentPeer || options.ContinuingWeb || options.ContinuingService ||
-            options.HttpProbe is not null || (options.DiskReadTiming ? options.TimeoutSeconds is <240 or >600 : options.FullDiskStaticFiles ? options.TimeoutSeconds is <2200 or >3600 : options.FiniteStaticFiles ? options.TimeoutSeconds is < 600 or > 825 : options.TimeoutSeconds is < 120 or > 295) ||
+            options.HttpProbe is not null || (options.DiskReadTiming ? options.TimeoutSeconds is <240 or >600 : options.FullDiskStaticFiles ? options.TimeoutSeconds is <6600 or >7200 : options.FiniteStaticFiles ? options.TimeoutSeconds is < 600 or > 825 : options.TimeoutSeconds is < 120 or > 295) ||
             !options.defaultRequiredMarkersReplaced || string.IsNullOrWhiteSpace(options.SummaryLogPath)))
             throw new ArgumentException("--readonly-webroot-disk requires the finite captured raw disk/network child without another fixture.");
         if ((options.PciBarTestDevice ? 1 : 0) + (options.VirtioNegotiationDevice ? 1 : 0) + (options.VirtioBlockQueueDevice ? 1 : 0) > 1)

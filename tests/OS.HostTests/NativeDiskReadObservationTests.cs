@@ -7,6 +7,234 @@ internal static class NativeDiskReadObservationTests
 {
     private sealed record Fixture(byte[] Image, List<string> Rows, Reads.Boundary Boundary);
 
+    [HostTest("disk multi-sector evidence preserves one physical counter and exact bounded payload chunks")]
+    private static void MultiSector()
+    {
+        foreach (uint count in new[] { 2U, 3U, 4U })
+        {
+            var f = MultiVector(count); var value = Reads.Inspect(f.Rows, f.Image, f.Boundary, allowMultiSector: true);
+            HostCheck.Equal(1UL, value.Counters.Copied); HostCheck.Equal((int)count + 2, value.Rows.Count);
+            HostCheck.Equal(1, value.Rows.Count(r => r.Kind == Reads.Kind.Copied));
+            HostCheck.Equal((int)count - 1, value.Rows.Count(r => r.Kind == Reads.Kind.CopyChunk));
+            for (uint chunk = 0; chunk < count; chunk++)
+            {
+                var row = value.Rows[(int)chunk + 2];
+                HostCheck.True(row.Sector == 1 && row.DataSector == 1 + chunk && row.ChunkIndex == chunk && row.Bytes == count * 512);
+                HostCheck.True(Convert.FromHexString(row.DataHex).AsSpan().SequenceEqual(f.Image.AsSpan((int)(1 + chunk) * 512, 512)));
+                HostCheck.True(f.Rows[(int)chunk + 2].Length <= Reads.MaximumRowChars);
+            }
+            Reject(f); // Existing consumers must explicitly select the new contract.
+        }
+        var cancelled = MultiVector(4, true);
+        var result = Reads.Inspect(cancelled.Rows, cancelled.Image, cancelled.Boundary, allowMultiSector: true);
+        HostCheck.True(result.Cancelled == 1 && result.Counters.Copied == 0 && result.Rows.Count == 2);
+    }
+
+    [HostTest("disk multi-sector evidence rejects incomplete reordered mismatched oversized and divergent chunks")]
+    private static void MultiSectorRejected()
+    {
+        var f = MultiVector(4);
+        void Deny(IReadOnlyList<string> rows, byte[]? image = null)
+        {
+            bool rejected = false;
+            try { _ = Reads.Inspect(rows, image ?? f.Image, f.Boundary, allowMultiSector: true); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        for (int i = 0; i < f.Rows.Count; i++) { var rows = f.Rows.ToList(); rows.RemoveAt(i); Deny(rows); }
+        foreach (string key in new[] { "generation", "sector", "sequence", "bytes", "available", "consumed", "chunk" })
+            Deny(Replace(f.Rows, 3, Set(f.Rows[3], key, "0")));
+        Deny(Replace(f.Rows, 3, Set(f.Rows[3], "kind", "2")));
+        Deny(Replace(f.Rows, 2, Set(f.Rows[2], "kind", "3")));
+        Deny([..f.Rows, f.Rows[^1]]);
+        var reordered = f.Rows.ToList(); (reordered[3], reordered[4]) = (reordered[4], reordered[3]); Deny(reordered);
+        Deny(Replace(f.Rows, 0, Set(f.Rows[0], "bytes", "2560")));
+        Deny(Replace(f.Rows, 0, Set(f.Rows[0], "sector", "6")));
+        Deny(Replace(f.Rows, 1, Set(f.Rows[1], "bytes", "512")));
+        for (int sector = 1; sector <= 4; sector++)
+        { var changed = f.Image.ToArray(); changed[sector * 512] ^= 1; Deny(f.Rows, changed); }
+    }
+
+    [HostTest("disk copy-clock preserves first-copy capture zero and maximum clocks for each bounded group")]
+    private static void CopyClockGroups()
+    {
+        foreach (uint count in new[] { 2U, 3U, 4U })
+        foreach (ulong copyClock in new[] { 0UL, 100UL, 101UL, ulong.MaxValue })
+        {
+            var f = MultiVector(count);
+            string[] rows = f.Rows.Select((row, i) => Set(row, "clock", N(i < 2 ? Math.Min(100UL, copyClock) : copyClock))).ToArray();
+            var actual = Reads.Inspect(rows, f.Image, f.Boundary, allowMultiSector: true);
+            HostCheck.Equal(1UL, actual.Counters.Copied);
+            HostCheck.True(actual.Rows.Skip(2).All(row => row.Clock == copyClock));
+        }
+    }
+
+    [HostTest("disk copy-clock rejects every later continuation even when the complete stream remains monotonic")]
+    private static void CopyClockContinuations()
+    {
+        foreach (uint count in new[] { 2U, 3U, 4U })
+        foreach (ulong copyClock in new[] { 0UL, 100UL })
+        {
+            var f = MultiVector(count);
+            for (int changed = 3; changed < f.Rows.Count; changed++)
+            {
+                string[] rows = f.Rows.Select((row, i) => Set(row, "clock", N(i < changed ? copyClock : copyClock + 1))).ToArray();
+                bool rejected = false;
+                try { _ = Reads.Inspect(rows, f.Image, f.Boundary, allowMultiSector: true); }
+                catch (ToolFailure failure)
+                { HostCheck.Equal("disk_observation_copy_clock", failure.Message); rejected = true; }
+                HostCheck.True(rejected);
+            }
+        }
+    }
+
+    [HostTest("disk copy-clock keeps group boundaries interleaving cancellation and legacy512 contracts")]
+    private static void CopyClockBoundaries()
+    {
+        var first = MultiVector(2); var second = MultiVector(3);
+        string Next(string row)
+        {
+            string changed = Set(Set(Set(row, "generation", "2"), "sequence", "2"), "available", "2");
+            changed = Set(changed, "consumed", row.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal) ? "1" : "2");
+            return Set(changed, "clock", "101");
+        }
+        List<string> joined = [..first.Rows, ..second.Rows.Select(Next)];
+        var final = first.Boundary with { Submitted = 2, Completed = 2, Copied = 2 };
+        var actual = Reads.Inspect(joined, first.Image, final, allowMultiSector: true);
+        HostCheck.Equal(2UL, actual.Counters.Copied); HostCheck.Equal(9, actual.Rows.Count);
+        HostCheck.True(actual.Rows.Take(4).All(row => row.Clock == 100) && actual.Rows.Skip(4).All(row => row.Clock == 101));
+        void Deny(IReadOnlyList<string> rows, Reads.Boundary boundary)
+        {
+            bool rejected = false;
+            try { _ = Reads.Inspect(rows, first.Image, boundary, allowMultiSector: true); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        var interleaved = joined.ToList(); interleaved.Insert(3, interleaved[4]); Deny(interleaved, final);
+        var cancelled = MultiVector(4, true);
+        List<string> withCancellation = [..first.Rows, ..cancelled.Rows.Select(Next)];
+        var cancelledFinal = final with { Copied = 1 };
+        actual = Reads.Inspect(withCancellation, first.Image, cancelledFinal, allowMultiSector: true);
+        HostCheck.True(actual.Counters.Copied == 1 && actual.Cancelled == 1);
+        Deny([..withCancellation, Next(MultiVector(4).Rows[3])], cancelledFinal);
+        var legacy = Vector();
+        foreach (bool multi in new[] { false, true })
+        {
+            actual = Reads.Inspect(legacy.Rows, legacy.Image, legacy.Boundary, allowMultiSector: multi);
+            HostCheck.Equal(2UL, actual.Counters.Copied);
+            HostCheck.True(actual.Rows[2].Clock == 102 && actual.Rows[5].Clock == 105);
+        }
+    }
+
+    [HostTest("Full parent counters join inspected one through four sector groups without changing request counts")]
+    private static void FullParentSectorCounters()
+    {
+        var cases = new (uint[] Groups, ulong Requests, ulong FsReads)[]
+        {
+            ([1U], 38, 4), ([2U], 38, 5), ([3U], 38, 6), ([4U], 38, 7), ([1U, 4U], 39, 8)
+        };
+        foreach (var item in cases)
+        {
+            var f = FullParentCounterVector(37, item.Groups);
+            string[] before = f.Rows.ToArray(); byte[] image = f.Image.ToArray();
+            var device = Reads.Inspect(f.Rows, f.Image, f.Boundary, allowMultiSector: true);
+            HostCheck.Equal(item.Requests, device.Counters.Submitted);
+            HostCheck.Equal(item.Requests, device.Counters.Completed);
+            HostCheck.Equal(item.Requests, device.Counters.Copied);
+            HostCheck.Equal(item.Groups.Length, device.Rows.Count(r => r.Kind == Reads.Kind.Submitted));
+            HostCheck.Equal(item.Groups.Sum(n => (int)n),
+                device.Rows.Count(r => r.Kind is Reads.Kind.Copied or Reads.Kind.CopyChunk));
+            QemuTranscripts.InspectNativeAotDiskStaticEndValues(
+                FullParentCounterEnd(f.Boundary, item.FsReads), f.Boundary, device);
+            HostCheck.True(f.Rows.SequenceEqual(before) && f.Image.AsSpan().SequenceEqual(image));
+            if (item.Groups.Length == 1 && item.Groups[0] == 1)
+            {
+                var legacy = Vector(37, 37, false);
+                var legacyDevice = Reads.Inspect(legacy.Rows, legacy.Image, legacy.Boundary);
+                HostCheck.Equal(item.Requests, legacyDevice.Counters.Copied);
+                QemuTranscripts.InspectNativeAotDiskStaticEndValues(
+                    FullParentCounterEnd(legacy.Boundary, 4), legacy.Boundary, legacyDevice);
+            }
+            else
+                Reject(f); // Multi-sector observations still require explicit selection.
+        }
+    }
+
+    [HostTest("Full parent counters reject wrong filesystem sectors forged request totals and foreign boundaries")]
+    private static void FullParentSectorCountersRejected()
+    {
+        var f = FullParentCounterVector(37, 1, 4);
+        var device = Reads.Inspect(f.Rows, f.Image, f.Boundary, allowMultiSector: true);
+        string end = FullParentCounterEnd(f.Boundary, 8);
+        QemuTranscripts.InspectNativeAotDiskStaticEndValues(end, f.Boundary, device);
+        HostCheck.Equal(2, device.Rows.Count(r => r.Kind == Reads.Kind.Submitted));
+        HostCheck.Equal(5, device.Rows.Count(r => r.Kind is Reads.Kind.Copied or Reads.Kind.CopyChunk));
+        void Deny(string row, Reads.Boundary expected, Reads.Inspection actual)
+        {
+            bool rejected = false;
+            try { QemuTranscripts.InspectNativeAotDiskStaticEndValues(row, expected, actual); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        foreach (ulong reads in new[] { 7UL, 9UL, 20UL, 30UL, ulong.MaxValue })
+            Deny(FullParentCounterEnd(f.Boundary, reads), f.Boundary, device);
+        // 20/30 would result from counting copied chunks/all observation stages
+        // rather than only the actual Submitted request lengths.
+        var forged = f.Boundary with { Submitted = 40, Completed = 40, Copied = 40 };
+        Deny(FullParentCounterEnd(forged, 8), f.Boundary, device);
+        Deny(FullParentCounterEnd(forged, 8), forged, device);
+        Deny(end, f.Boundary with { Owner = f.Boundary.Owner + 1 }, device);
+        Deny(end, f.Boundary with { Epoch = f.Boundary.Epoch + 1 }, device);
+        var wrongBootstrap = f.Boundary with { BootstrapCompleted = 36, BootstrapCopied = 36 };
+        Deny(end, wrongBootstrap, device);
+        Deny(FullParentCounterEnd(wrongBootstrap, 8), f.Boundary, device);
+        Deny(end, f.Boundary with { BootstrapCopied = 36 }, device);
+        var one = FullParentCounterVector(37, 4);
+        var other = Reads.Inspect(one.Rows, one.Image, one.Boundary, allowMultiSector: true);
+        Deny(end, f.Boundary, other);
+        var invalidBootstrap = FullParentCounterVector(34, 1, 4);
+        var invalid = Reads.Inspect(invalidBootstrap.Rows, invalidBootstrap.Image,
+            invalidBootstrap.Boundary, allowMultiSector: true);
+        Deny(FullParentCounterEnd(invalidBootstrap.Boundary, 5), invalidBootstrap.Boundary, invalid);
+    }
+
+    private static Fixture FullParentCounterVector(ulong bootstrap, params uint[] groups)
+    {
+        var first = MultiVector(groups[0]); List<string> rows = [];
+        for (int group = 0; group < groups.Length; group++)
+        {
+            ulong generation = bootstrap + (ulong)group + 1;
+            foreach (string source in MultiVector(groups[group]).Rows)
+            {
+                bool submitted = source.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal);
+                string row = Set(Set(source, "generation", N(generation)), "sequence", N(generation));
+                if(groups[group]==1)
+                    row=row.Replace(" copied=committed chunk=0 data="," copied=committed data=",StringComparison.Ordinal);
+                row = Set(row, "available", N(unchecked((ushort)generation)));
+                row = Set(row, "consumed", N(unchecked((ushort)(submitted ? generation - 1 : generation))));
+                rows.Add(Set(row, "clock", N(100UL + (ulong)group)));
+            }
+        }
+        ulong final = bootstrap + (ulong)groups.Length;
+        return new(first.Image, rows, new(first.Boundary.Owner, first.Boundary.Epoch,
+            bootstrap, bootstrap, final, final, final));
+    }
+
+    private static string FullParentCounterEnd(Reads.Boundary b, ulong fsReads) =>
+        FormattableString.Invariant($"M16_025_END submitted={b.Submitted} completed={b.Completed} copied={b.Copied} bootstrapCompleted={b.BootstrapCompleted} bootstrapCopied={b.BootstrapCopied} fsReads={fsReads} cacheHits=20 cacheMisses=1 device=retired fs=retired dma=zero descriptors=closed reservation=retained");
+
+    private static Fixture MultiVector(uint sectors, bool cancelled = false)
+    {
+        byte[] image = Enumerable.Range(0, 8 * 512).Select(i => unchecked((byte)(i * 31 ^ i >> 8))).ToArray();
+        string Head(uint kind, uint bytes) => FormattableString.Invariant($"M16_023_IO kind={kind} owner=4194312 epoch=1193046 generation=1 sector=1 sequence=1 bytes={bytes} available=1 consumed={(kind == 0 ? 0 : 1)} clock=100");
+        List<string> rows = [Head(0, sectors * 512), Head(1, cancelled ? 0 : sectors * 512)];
+        if (!cancelled)
+            for (uint chunk = 0; chunk < sectors; chunk++)
+                rows.Add(Head(chunk == 0 ? 2U : 3U, sectors * 512) + " copied=committed chunk=" + N(chunk) +
+                    " data=" + Convert.ToHexString(image.AsSpan((int)(chunk + 1) * 512, 512)).ToLowerInvariant());
+        return new(image, rows, new(4194312, 1193046, 0, 0, 1, 1, cancelled ? 0UL : 1UL));
+    }
+
     [HostTest("disk reset retirement keeps the exact last pending submit without inventing completion or copied bytes")]
     private static void PendingReset()
     {

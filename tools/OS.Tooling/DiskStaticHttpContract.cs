@@ -17,6 +17,8 @@ public static class DiskStaticHttpContract
 
     public const string AssetSchema="clros-disk-http-assets-v1";
     public const string AssetScope="published-asset-matrix";
+    public const string TruncatedAssetSchema="clros-disk-http-truncated-assets-v1";
+    public const string TruncatedAssetScope="truncated-asset-matrix";
     public const int MaximumPublishedAssets=128,MaximumAssetBytes=2*1024*1024;
     public const int MaximumPublishedBytes=8*1024*1024,MaximumExpectedBodyBytes=16*1024*1024;
     public const int MaximumAssetRequests=320,MaximumReadCompletionBytes=8192;
@@ -54,8 +56,10 @@ public static class DiskStaticHttpContract
 
     /// <summary>One planned HTTP exchange. BodyOffset/BodyBytes describe exact
     /// entity bytes in Asset, independently hashed during planning. HEAD/304/416
-    /// and missing routes have no body; nullable ContentLength allows 304 to omit
-    /// that header. MinimumReadCompletions is only a lower bound from the current
+    /// and missing routes have no body; nullable ContentLength allows 304 and the
+    /// verified-corrupt target's HEAD404 to omit that header. A supplied length
+    /// for the empty HEAD404 must still be zero. MinimumReadCompletions is only
+    /// a lower bound from the current
     /// 8 KiB completion prefix, never a prediction of actual read sizes, cache
     /// state or timing. A consumer must join every actual read and body send.</summary>
     public sealed class Request
@@ -85,8 +89,9 @@ public static class DiskStaticHttpContract
     /// relative-path/length/hash format, excluding its five synthetic files.</summary>
     public sealed class AssetPlan
     {
-        public string Schema=>AssetSchema;
-        public string Scope=>AssetScope;
+        public string Schema=>Truncated?TruncatedAssetSchema:AssetSchema;
+        public string Scope=>Truncated?TruncatedAssetScope:AssetScope;
+        public bool Truncated {get;}
         public string ImageSha256 {get;}
         public string PublishedInventorySha256 {get;}
         public int PublishedFiles {get;}
@@ -96,9 +101,10 @@ public static class DiskStaticHttpContract
         public IReadOnlyList<Asset> Assets {get;}
         public IReadOnlyList<Request> Requests {get;}
         public bool GrantsOriginalNativeProcessOrBrowserAuthority=>false;
-        internal AssetPlan(string imageHash,string publishedHash,Asset[] assets,Request[] requests)
+        internal AssetPlan(string imageHash,string publishedHash,Asset[] assets,Request[] requests,bool truncated=false)
         {
             ImageSha256=imageHash;PublishedInventorySha256=publishedHash;
+            Truncated=truncated;
             Assets=Array.AsReadOnly(assets);Requests=Array.AsReadOnly(requests);
             PublishedFiles=assets.Count(a=>a.Published);PublishedBytes=assets.Where(a=>a.Published).Sum(a=>(long)a.Bytes);
             ExpectedBodyBytes=requests.Sum(r=>(long)r.BodyBytes);MinimumReadCompletions=requests.Sum(r=>r.MinimumReadCompletions);
@@ -173,6 +179,28 @@ public static class DiskStaticHttpContract
             f.Bytes.ToString(CultureInfo.InvariantCulture)+"\t"+f.Sha256+"\n"));
         return new(inventory.ImageSha256,Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(publishedText))),assets,requests.ToArray());
     }
+
+    /// <summary>Derive the complete matrix from independently verified fixed
+    /// corruption. Only the target's GET/HEAD become empty404 responses; all
+    /// other requests, published assets and browser obligations remain. The
+    /// actual image hash and distinct scope prevent healthy acceptance credit.
+    /// No runtime failure or original execution authority is granted.</summary>
+    public static AssetPlan CreateTruncatedAssetPlan(WebRootDiskInventory.VerifiedTruncated truncated)
+    {
+        ArgumentNullException.ThrowIfNull(truncated);
+        var baseline=CreateAssetPlan(truncated.Baseline);
+        var target=baseline.Assets.Single(a=>a.Path==WebRootDiskInventory.VerifiedTruncated.Target);
+        var selected=baseline.Requests.Where(r=>r.Target==target.Target).ToArray();
+        Need(selected.Length==2 && selected[0].Method=="GET" && selected[1].Method=="HEAD" &&
+            selected.All(r=>r.Status==200 && r.Headers.Count==0),"truncated_plan");
+        var requests=baseline.Requests.Select(r=>r.Target!=target.Target?r:
+            new Request(r.Ordinal,r.Method,r.Target,404,null,NoHeaders,0,0,EmptyHash,r.Method=="HEAD"?null:0,null)).ToArray();
+        return new(truncated.ActualImageSha256,baseline.PublishedInventorySha256,baseline.Assets.ToArray(),requests,true);
+    }
+
+    internal static Asset ConcurrentAsset(AssetPlan plan)=>plan.Assets
+        .Where(a=>!plan.Truncated || a.Path!=WebRootDiskInventory.VerifiedTruncated.Target)
+        .OrderByDescending(a=>a.Bytes).First();
 
     private static string Media(string path)=>System.IO.Path.GetExtension(path).ToLowerInvariant() switch
     {

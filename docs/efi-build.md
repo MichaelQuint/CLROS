@@ -1,5 +1,35 @@
 # EFI Build
 
+[Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
+
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+
+Retained native publication and source/private-producer snapshots belong to8d754c49; cc44 and d982 remain explicit ancestors. Current full-host evidence belongs to2c2. Publication, host fixtures and original guests retain separate authority.
+
+[Step1655](../done/step1655.md) The completed-only directory cache reshape removes in-flight reservations and helper call edges, restores the original submit/release paths and publishes only the successfully copied completion sector. It passes 99 focused checks across six fixtures with zero reuse. The preceding 90cdfc3b Full/Timing/M16 publication compiled, but its measured stack growth exceeded the inherited Timing margin; all failures and decoded facts remain preserved. Fresh native review of this reshape, including the unchanged Enable construction edge, remains required before one diagnostic Short. Assess benefit before another expensive full lane; the unfiltered full is mandatory for stable acceptance. Finish qualified read-phase merge/parity/recovery, then pause before writes/SQLite.
+
+[Step1648](../done/step1648.md) Source3147392e passes the unfiltered host lane:7409 checks/922 fixtures/110Native, zero reuse, unchanged source/producers/HEAD; repo/contracts pass. Conditional Full/Timing/M16 native reviews retain complete own-profile parents; Timing adds456 stack bytes/all5 domains/all15 phases and4096 image bytes. Timing original1592/30145/55f200/0 returns0, but independent BASE1598/318876/1 remains FAILED: a historical3724B CRLF baseline was normalized to3607B LF while its raw pin stayed unchanged. No BASE receipt, late input recheck, suffix, replay or selection success is claimed. Production observations only:3723 verification calls/4.3945814s in30.1823409s, including measurement overhead; no causal dominance or repair benefit. Expert advice preserves this failure and prospectively copies baseline bytes verbatim. Assets199–201 retain the earlier closed native/focused checkpoint and require178–198; they exclude this later full/original/failure frontier. The four read issues, full Blazor/browser/cleanup, writes/SQLite/#775/#226/#227 and Gate14 remain open. Continue a source-guided read repair, then qualify/merge/recover the read phase and pause.
+
+[Step1647](../done/step1647.md) repairs the Timing-only explicit EFI compile/admission closure after publication1488/session62836/a80478/1 failed CS0426; Full had published, Timing failed and M16 was not invoked. The independent inventory now includes the actual Timing profile and its single diagnostic model. Fresh focused r02 passes47 checks across6 fixtures, unchanged inputs/zero reuse. Focused r01 also remains failed for its canonical XML pin; the corrected pin uses the production XmlReader. No runtime verification, budget or selection change was made. Fresh corrected native/full/guest qualification remains pending; the four read issues and broader storage/SQLite/Gate14 claims remain open.
+
+[Step1646](../done/step1646.md) records sourcef087's 7,404-check unfiltered host pass across 921 fixtures (110 Native), zero reuse and unchanged inputs, its conditional own-profile native reviews, and one strictly joined four-response/64 KiB short. Full1409 remains FAILED at the unchanged 1,700-second matrix bound: 120 matched wire responses/10,140,233 body bytes include the complete concurrent CoreLib asset, but the browser was cancelled with zero retained exchanges and no screenshot or normal cleanup. The single strict partial readback preserves one unfinished physical transaction, six incomplete source4 calls and all failures. The next expert-directed change is diagnostic only: the Timing profile counts and times complete LinuxNativeVerify calls inside listen-to-last-copy, preserves original verification/result/order and every check, and invalidates bad samples without skipping verification. Forty-one focused checks across five fixtures pass; new emitted/native and original probe qualification remain pending. Existing v7 records remain with a separate verification sub-schema; no method dominance, speed or Full/browser acceptance is inferred. Hold B/A2/Truncated/current M16 originals. Published191–194 retain the prior closed scopes and require178–190; published attachments195–198 retain the new f087 cohort and require178–194, with all four upload/download SHA/length readbacks verified. #770/#771/#773/#774, writes/SQLite/#775/#226/#227 and Gate14 remain open. Finish the read phase through verified merge/readback and recoverable cleanup, stop the helper, then pause.
+
+### Instruction-field comparison candidate
+
+The only runtime source addition is the compare-only count8 branch in `ThreadContextSwitch.StubWriter.Bytes`; its reviewed source pin changes accordingly. The full eight-byte range must already fit. Unaligned x64 loads remain inside exclusive ordinary code memory; writer bookkeeping and backing do not alias. No output write, new scratch, cached authority or SIMD state is introduced. Every caller and fallback stays unchanged. Fresh Full/Timing/M16 publications must measure actual inlining, frames, callers, data/RO/layout and positive-only own-parent charges; the previous images do not grant those facts to this candidate.
+
+### Saved-code comparison (Step1644)
+
+Source500f retained every saved-code check and compared its 53,248-byte extent through scalar words and a tail. Its three distinct emitted publications and conditional ABI/stack reviews are closed at their own input/profile scope. Its unfiltered host lane and selected short passed; its Full1284 still failed during browser startup. Those old emitted identities do not qualify the instruction-field candidate above.
+
+### Timing-only selected stamp
+
+Only `M10_018_TIMING_PROBE` adds the raw selected-clock sample, sequence argument and completed selection records. `LinuxNativeControl` layout, default-off probes, timer programming, FIFO selection, validation and polling are retained. At Step1643, Full/M16 PE, map, response and serializer leaves matched their e942 predecessors exactly; Timing retained its conditional1848-byte own-parent charge. All1033 native inputs still matched after that test-only change. Sourcea785 then passed its own unfiltered host lane and strict selected short. Those closed identities do not qualify the new instruction-field comparison candidate; its affected emitted profiles require fresh publication/review.
+
+[Step1635](../done/step1635.md) preserves the first fresh Full018 DiskA run at `f27d42e2` as FAILED at the unchanged1700-second HTTP matrix budget:119 complete responses/8130864B, with the concurrent CoreLib response incomplete at819200/2009369B. The owned runner joined after cancellation; browser and normal guest cleanup were not reached. The same-source7359-check full-host pass and conditional native review do not override that failure.
+
+Historical Step1635 diagnostic checkpoint: a generated-driver child span partitioned the existing dispatch window without changing work, polling, evidence or budgets. At that checkpoint, 28 focused Root host checks passed while its native and original v7 qualification were pending. Later source-matched results are recorded above; the diagnostic does not establish a speed gain or pure guest-CPU measurement.
+
 [Step1629](../done/step1629.md) retains the exact B5E54074/2df449b8 staged017
 selected native closure (610 nodes) and three complete original staged runs.
 Its explicit source/LEA-slot callback, context/lifetime, interrupt, stack-probe
@@ -253,6 +283,8 @@ Reviewed conditional source and project pins change; native/guest qualification
 for this integration remains separate from the mechanical step1571 results.
 
 ## Disk profile development publication
+
+[Step1658](../done/step1658.md) retains the4ec three-profile native publications, exact own-parent58-witness composition and first Short readers. The later manifest-key/worker-policy change is not covered by those original source identities; bind its actual source and native delta before another guest. No EFI stack reservation or image acceptance follows from focused host success.
 
 [Step1571](../done/step1571.md) retains three fresh complete owned mechanical
 captures at `c66befd5`. Each new publication verifies and emits identical EFI
@@ -4483,3 +4515,7 @@ Only this diagnostic adapter clears that bit with a 16-bit write and verifies
 readback before sizing; the general BAR probe still rejects enabled bus mastering.
 Row 0 records the firmware Command; row 3 proves both probes restore the owned
 Command with bit 2 cleared. The terminal diagnostic leaves that bit disabled.
+
+## Step1646 verification diagnostic boundary
+
+Only `M10_018_TIMING_PROBE` selects the complete-verification wrapper and its retained counters. Other native profiles keep the original method body; byte identity must still be established by fresh publication rather than inferred from preprocessing. The reviewed source inventory now includes `LinuxThreadServices.VerificationMeasurements.cs`. New wrapper/callee/clock/counter/flush paths and Timing field offsets require actual emitted ABI, stack and ownership review before a controlled original. Focused host success does not supply that review or an original measurement.

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
+using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
 
@@ -10,22 +11,67 @@ public static partial class QemuTranscripts
         IReadOnlyList<StaticFileHttpWireMessage> BrowserMessages,bool ConcurrentWireOverlap);
     private sealed record DiskFullMessage(StaticHttpMessage Message,int ResponseOffset);
 
+    private static bool DiskFullOptionalHeadLength(DiskStaticHttpContract.AssetPlan plan,string method,string target)=>
+        plan.Truncated && method=="HEAD" && plan.Requests.Any(r=>r.Method==method && r.Target==target && r.Status==404 && r.ContentLength is null);
+
+    private static void DiskFullHttpLength(DiskStaticHttpContract.Request? expected,IReadOnlyDictionary<string,string> headers,bool optionalHeadLength)
+    {
+        if(expected?.ContentLength is long length)
+            Need(headers.GetValueOrDefault("Content-Length")==length.ToString(CultureInfo.InvariantCulture),"disk_full_http_length");
+        else if(optionalHeadLength)
+            Need(!headers.TryGetValue("Content-Length",out string? value) || value=="0","disk_full_http_length");
+    }
+
+    private static void DiskFullHttpStreamEnd(int requestAt,int requestExtent,int responseAt,int responseExtent)=>
+        Need(requestAt==requestExtent && responseAt==responseExtent,"disk_full_http_complete_stream");
+
+    /// <summary>Synchronously inspect bounded, unambiguous planned response
+    /// values through the production parser, length and complete-stream checks.
+    /// Inputs are borrowed only during this call; returned scalar tuples are
+    /// owned copies. Invalid framing/scope throws. No packet, file, process,
+    /// browser, native or original-run authority is granted.</summary>
+    public static IReadOnlyList<(int Status,int HeaderBytes,int BodyBytes)> InspectNativeAotDiskStaticHttpResponsesForTests(
+        ReadOnlySpan<byte> responses,DiskStaticHttpContract.AssetPlan plan,
+        IReadOnlyList<(string Method,string Target)> requests,bool diskStaticFull=false)
+    {
+        Need(plan is not null && requests is {Count:>0 and <=512} && responses.Length is >0 and <=DiskStaticCapturePolicy.PacketBytes,
+            "disk_full_http_test_input");
+        List<(int Status,int HeaderBytes,int BodyBytes)> result=[];int at=0;
+        foreach(var request in requests)
+        {
+            var matches=plan!.Requests.Where(r=>r.Method==request.Method && r.Target==request.Target).ToArray();
+            Need(matches.Length==1,"disk_full_http_test_request");
+            bool optional=diskStaticFull && DiskFullOptionalHeadLength(plan,request.Method,request.Target);
+            var response=StaticResponse(responses[at..],request.Method,diskStaticFull,optional);
+            Need(response.Status==matches[0].Status,"disk_full_http_test_status");
+            DiskFullHttpLength(matches[0],response.Headers,optional);
+            result.Add((response.Status,response.HeaderEnd,response.Body.Length));at+=response.End;
+        }
+        DiskFullHttpStreamEnd(requests.Count,requests.Count,at,responses.Length);
+        return result.ToArray();
+    }
+
     /// <summary>Inspect the explicitly selected full finite peer, every TCP
     /// exchange and all positive disk reads. Remaining byte-exact exchanges are
     /// returned for the separately owned original browser consumer; this value
     /// inspection cannot authenticate a browser, process or native publication.</summary>
     public static DiskStaticFullHttpInspection InspectNativeAotDiskStaticFullHttpValues(byte[] packets,uint anchor,
         QemuArpReceiveReceipt arp,IReadOnlyList<uint> ports,ReadOnlySpan<byte> receiptJson,
-        IReadOnlyDictionary<string,byte[]> bodies,WebRootDiskInventory.Inspection inventory,DiskStaticReplayReport replay)
+        IReadOnlyDictionary<string,byte[]> bodies,WebRootDiskInventory.Inspection inventory,DiskStaticReplayReport replay,
+        WebRootDiskInventory.VerifiedTruncated? truncated=null)
     {
         Need(replay.FullProfile && packets is {Length:>24 and <=DiskStaticCapturePolicy.PacketBytes} &&
             ports is {Count:>0 and <=32} && receiptJson.Length is >0 and <=524288,"disk_full_http_input");
-        var plan=DiskStaticHttpContract.CreateAssetPlan(inventory);int count=4+plan.Requests.Count+2;
+        Need(replay.Truncated==(truncated is not null) && (truncated is null || ReferenceEquals(inventory,truncated.Baseline)),
+            "disk_full_http_fault_scope");
+        var plan=truncated is null?DiskStaticHttpContract.CreateAssetPlan(inventory):DiskStaticHttpContract.CreateTruncatedAssetPlan(truncated);
+        string scope=truncated is null?"disk-static-full-v1":"disk-static-truncated-v1";
+        int count=4+plan.Requests.Count+2;
         Need(bodies.Count==count && bodies.Sum(b=>(long)b.Value.Length)<=DiskStaticHttpContract.MaximumExpectedBodyBytes,"disk_full_http_bodies");
         using var document=JsonDocument.Parse(receiptJson.ToArray(),new(){MaxDepth=8});var root=document.RootElement;
         StaticObject(root,"Schema","Scope","Port","Complete","ClockFrequency","ImageSha256","PublishedInventorySha256","Responses");
         int port=root.GetProperty("Port").GetInt32();long frequency=root.GetProperty("ClockFrequency").GetInt64();var rows=root.GetProperty("Responses");
-        Need(root.GetProperty("Schema").GetString()=="clros-disk-http-full-v1" && root.GetProperty("Scope").GetString()=="disk-static-full-v1" &&
+        Need(root.GetProperty("Schema").GetString()==(truncated is null?"clros-disk-http-full-v1":"clros-disk-http-truncated-v1") && root.GetProperty("Scope").GetString()==scope &&
             root.GetProperty("Complete").GetBoolean() && root.GetProperty("ImageSha256").GetString()==plan.ImageSha256 &&
             root.GetProperty("PublishedInventorySha256").GetString()==plan.PublishedInventorySha256 && port is >0 and <=65535 &&
             frequency is >0 and <=1_000_000_000 && rows.ValueKind==JsonValueKind.Array && rows.GetArrayLength()==count,"disk_full_http_receipt");
@@ -52,7 +98,8 @@ public static partial class QemuTranscripts
                 string[] first=request.First.Split(' ');Need(first.Length==3 && first[0] is "GET" or "HEAD" or "POST" && first[2]=="HTTP/1.1" &&
                     request.Headers.GetValueOrDefault("Host")=="127.0.0.1:"+port && !request.Headers.ContainsKey("Transfer-Encoding") &&
                     (!request.Headers.TryGetValue("Content-Length",out var length) || length=="0"),"disk_full_http_request");
-                var response=StaticResponse(flow.Response.AsSpan(responseAt,flow.ResponseExtent-responseAt),first[0],diskStaticFull:true);
+                var response=StaticResponse(flow.Response.AsSpan(responseAt,flow.ResponseExtent-responseAt),first[0],diskStaticFull:true,
+                    allowMissingHeadContentLength:DiskFullOptionalHeadLength(plan,first[0],first[1]));
                 var message=new StaticHttpMessage(flow,index++,first[0],first[1],request.Headers,response.Headers,response.Status,
                     flow.Request.AsSpan(requestAt,request.End).ToArray(),flow.Response.AsSpan(responseAt,response.HeaderEnd).ToArray(),response.Body,
                     flow.Response.AsSpan(responseAt,response.End).ToArray(),
@@ -62,11 +109,11 @@ public static partial class QemuTranscripts
                     StaticDate(response.Headers.GetValueOrDefault("Date","")),"disk_full_http_exchange");
                 all.Add(new(message,responseAt));requestAt+=request.End;responseAt+=response.End;
             }
-            Need(requestAt==flow.RequestExtent && responseAt==flow.ResponseExtent,"disk_full_http_complete_stream");
+            DiskFullHttpStreamEnd(requestAt,flow.RequestExtent,responseAt,flow.ResponseExtent);
         }
         var remaining=all.ToList();List<DiskFullMessage> peer=[];long previousFinished=0,firstStarted=0;
         string[] api=["/healthz","/config","/api/status","/api/items"];
-        var largest=plan.Assets.OrderByDescending(a=>a.Bytes).First();
+        var largest=DiskStaticHttpContract.ConcurrentAsset(plan);
         for(int i=0;i<count;i++)
         {
             var row=rows[i];StaticObject(row,"Ordinal","Method","Path","Status","RequestHeaders","ResponseHeaders","Bytes","Sha256","BodyFile","Started","Finished");
@@ -89,7 +136,7 @@ public static partial class QemuTranscripts
             Need(matches.Length>0,"disk_full_http_peer_wire_match");var selected=matches.MinBy(m=>m.Message.RequestFirst)!;remaining.Remove(selected);peer.Add(selected);
             if(i<count-2)Need(selected.Message.Flow==capture.Flows[0] && selected.Message.Index==i &&
                 (i==0 || selected.Message.RequestFirst>peer[i-1].Message.ResponseLast),"disk_full_http_sequential_matrix");
-            if(expected?.ContentLength is long expectedLength)Need(selected.Message.ResponseHeaders.GetValueOrDefault("Content-Length")==expectedLength.ToString(CultureInfo.InvariantCulture),"disk_full_http_length");
+            DiskFullHttpLength(expected,selected.Message.ResponseHeaders,DiskFullOptionalHeadLength(plan,method,path));
             if(expected is not null)Need(selected.Message.ResponseHeaders.GetValueOrDefault("Content-Range")==expected.ContentRange,"disk_full_http_range");
         }
         var a=peer[^2].Message;var j=peer[^1].Message;
@@ -111,6 +158,7 @@ public static partial class QemuTranscripts
         int browserSerialBoundary=Math.Max(LastSend(peer[^2]),LastSend(peer[^1]));
         var browserMessages=remaining.ToHashSet();
         HashSet<NativeDiskStaticReadWindows.ReadWindow> used=[];List<DiskStaticHttpDataJoin> joins=[];
+        HashSet<DiskStaticFault> usedFaults=[];int faultResponses=0;
         foreach(var flow in capture.Flows)
         {
             int previousSend=-1,c=connections[flow.Port];var writes=replay.SocketWrites.Where(w=>w.Connection==c).ToArray();
@@ -118,7 +166,20 @@ public static partial class QemuTranscripts
             {
                 var m=item.Message;string target=m.Path.Split('?')[0];string decoded=Uri.UnescapeDataString(target);
                 var file=inventory.Find(WebRootDiskInventory.Root+(decoded=="/"?"/index.html":decoded));
-                if(m.Status is 200 or 206 or 304 && file is {IsDirectory:false})
+                if(truncated is not null && file?.Path==WebRootDiskInventory.VerifiedTruncated.Target)
+                {
+                    Need(peer.Contains(item) && m.Method is "GET" or "HEAD" && m.Status==404 && m.Body.Length==0 &&
+                        (m.ResponseHeaders.GetValueOrDefault("Content-Length")=="0" ||
+                         m.Method=="HEAD" && !m.ResponseHeaders.ContainsKey("Content-Length")) &&
+                        new[]{"Content-Type","ETag","Last-Modified","Content-Range","Accept-Ranges","Cache-Control"}.All(h=>!m.ResponseHeaders.ContainsKey(h)),
+                        "disk_full_http_fault_response");
+                    ulong start=(ulong)item.ResponseOffset,end=start+(uint)m.RawResponse.Length;
+                    int firstSend=writes.First(w=>w.Before<end && w.After>start).CallRecordIndex;
+                    var faults=InspectDiskStaticFaultResponseValues(replay.Faults,replay.ReadinessRecordIndex,previousSend,firstSend);
+                    foreach(var fault in faults)Need(usedFaults.Add(fault),"disk_full_http_fault_reuse");
+                    faultResponses++;
+                }
+                else if(m.Status is 200 or 206 or 304 && file is {IsDirectory:false})
                 {
                     var asset=plan.Assets.Single(f=>f.Path==file.Path);
                     if(m.Status is 200 or 206)Need(m.ResponseHeaders.GetValueOrDefault("Content-Type")==asset.MediaType &&
@@ -157,9 +218,35 @@ public static partial class QemuTranscripts
             }
         }
         Need(used.Count==replay.Reads.Count,"disk_full_http_read_inventory");
+        Need(truncated is null?replay.Faults.Count==0:faultResponses==2 && usedFaults.Count==replay.Faults.Count,
+            "disk_full_http_fault_inventory");
         var report=new DiskStaticHttpInspection(capture.Flows.Count,all.Count,capture.TcpRecords,capture.Flows.Sum(f=>f.RequestExtent),capture.Flows.Sum(f=>f.ResponseExtent),
-            Array.AsReadOnly(joins.ToArray()),Array.AsReadOnly(capture.Flows.Select(f=>new StaticFileHttpFlow(f.Port,f.RequestExtent,f.ResponseExtent,f.ResetRecord!=0)).ToArray())){Scope="disk-static-full-v1"};
+            Array.AsReadOnly(joins.ToArray()),Array.AsReadOnly(capture.Flows.Select(f=>new StaticFileHttpFlow(f.Port,f.RequestExtent,f.ResponseExtent,f.ResetRecord!=0)).ToArray())){Scope=scope};
         return new(report,Array.AsReadOnly(remaining.Select(m=>m.Message.Copy()).ToArray()),concurrent);
+    }
+
+    /// <summary>Join copied failed stat intervals to one response's actual
+    /// queued stream interval. Indices are all serial-domain positions; packet
+    /// indices and clocks cannot substitute. Every selected failure must be a
+    /// complete source4 EIO with an admitted stat output. Multiple lookups per
+    /// request are allowed; missing, late, duplicate or wrong-path values throw.
+    /// No HTTP, device, source or original execution authority is granted.</summary>
+    public static IReadOnlyList<DiskStaticFault> InspectDiskStaticFaultResponseValues(IReadOnlyList<DiskStaticFault> faults,
+        int readiness,int previousSend,int firstSend)
+    {
+        Need(faults is {Count:>0} && faults.Count<=DiskStaticExecutionPolicy.MaximumCalls && readiness>=0 && previousSend>=-1 &&
+            firstSend>Math.Max(readiness,previousSend),"disk_full_fault_join_input");
+        var selected=faults.Where(f=>f.Operation.BeginRecordIndex>previousSend && f.Operation.BeginRecordIndex<firstSend).ToArray();
+        Need(selected.Length>0 && selected.Select(f=>f.Operation.Request).Distinct().Count()==selected.Length,"disk_full_fault_join_missing");
+        foreach(var f in selected)
+        {
+            var op=f.Operation;
+            Need(f.Path==WebRootDiskInventory.VerifiedTruncated.Target && op.Identity!=0 && op.Ordinal!=0 && op.Request!=0 &&
+                op.Number is 4 or 6 && op.Value==-5 && op.OutputPrefix>=144 && op.BeginRecordIndex>readiness &&
+                op.WakeRecordIndex>op.BeginRecordIndex && op.CompleteRecordIndex>op.WakeRecordIndex &&
+                op.CompleteRecordIndex<firstSend,"disk_full_fault_join_operation");
+        }
+        return Array.AsReadOnly(selected);
     }
 
     /// <summary>Convert already reconstructed bounded browser wire exchanges

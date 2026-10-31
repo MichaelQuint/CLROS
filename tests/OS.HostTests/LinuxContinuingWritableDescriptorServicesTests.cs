@@ -817,10 +817,32 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         using var f = new Owner(); var a = f.Open(); var b = f.Open(); f.Record = false;
         HostCheck.Equal(0L, D.Flock(f.State, a, 6)); HostCheck.Equal(-11L, D.Flock(f.State, b, 5)); HostCheck.Equal(0L, D.Flock(f.State, a, 8));
         uint calls = f.Device->Calls, notifies = f.Device->Notifies; long allocated = GC.GetAllocatedBytesForCurrentThread(); bool good = true;
+        int badRound = -1; uint badOperation = 0; long badValue = 0;
         for (int i = 0; i < 64; i++)
-            good &= D.Flock(f.State, a, 6) == 0 && D.Flock(f.State, b, 5) == -11 && D.Flock(f.State, a, 8) == 0;
-        HostCheck.True(good && GC.GetAllocatedBytesForCurrentThread() == allocated && calls == f.Device->Calls && notifies == f.Device->Notifies);
-        HostCheck.True(f.Cursor(a) == 0 && f.Cursor(b) == 0);
+        {
+            long value = D.Flock(f.State, a, 6); bool roundGood = value == 0;
+            if (!roundGood && badRound < 0) { badRound = i; badOperation = 6; badValue = value; }
+            if (roundGood)
+            {
+                value = D.Flock(f.State, b, 5); roundGood = value == -11;
+                if (!roundGood && badRound < 0) { badRound = i; badOperation = 5; badValue = value; }
+            }
+            if (roundGood)
+            {
+                value = D.Flock(f.State, a, 8); roundGood = value == 0;
+                if (!roundGood && badRound < 0) { badRound = i; badOperation = 8; badValue = value; }
+            }
+            good &= roundGood;
+        }
+        long allocationEnd = GC.GetAllocatedBytesForCurrentThread();
+        uint callsEnd = f.Device->Calls, notifiesEnd = f.Device->Notifies;
+        // Cursor uses reflection-based offset lookup, outside the allocation window.
+        ulong cursorA = f.Cursor(a), cursorB = f.Cursor(b);
+        Console.WriteLine($"FLOCK_ALLOCATION_DIAG rounds=64 good={good} firstRound={badRound} operation={badOperation} value={badValue} allocationBytes={allocationEnd - allocated} callsBefore={calls} callsAfter={callsEnd} notifiesBefore={notifies} notifiesAfter={notifiesEnd} cursorA={cursorA} cursorB={cursorB}");
+        HostCheck.True(good);
+        HostCheck.Equal(0L, allocationEnd - allocated);
+        HostCheck.Equal(calls, callsEnd); HostCheck.Equal(notifies, notifiesEnd);
+        HostCheck.Equal(0UL, cursorA); HostCheck.Equal(0UL, cursorB);
     }
 
     [HostTest("continuing fresh stat walks actual FAT geometry for read only and write only handles without moving independent cursors")]

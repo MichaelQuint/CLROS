@@ -153,7 +153,10 @@ public static class NativeAotDiskStaticBrowser
         Need(port is > 0 and < 65536 && decodedBody.Length <= MaximumBodyBytes, "exchange_bounds");
         string id = Text(request, "requestId");
         Need(id.Length is > 0 and <= 128 && new[] { requestExtra, response, responseExtra, finished }.All(e => Text(e, "requestId") == id), "request_identity");
-        Need(!request.TryGetProperty("redirectResponse", out _) && !request.TryGetProperty("redirectHasExtraInfo", out _), "redirect");
+        // CDP emits redirectHasExtraInfo:false on ordinary requests. Its
+        // presence alone is not a redirect; a redirect response always is.
+        Need(!request.TryGetProperty("redirectResponse", out _) &&
+            (!request.TryGetProperty("redirectHasExtraInfo", out var redirectInfo) || redirectInfo.ValueKind == JsonValueKind.False), "redirect");
         var req = request.GetProperty("request"); string method = Text(req, "method"), url = Text(req, "url");
         Need(method == "GET" && !req.TryGetProperty("postData", out _), "request_method");
         string origin = "http://127.0.0.1:" + port;
@@ -237,8 +240,8 @@ public static class NativeAotDiskStaticBrowser
             Need(exchanges.Any(e => Uri.UnescapeDataString(e.Target.Split('?')[0]).EndsWith(extension, StringComparison.Ordinal) && e.Bytes > 0), "required_asset " + extension);
     }
 
-    /// <summary>Run one Windows job-owned Chrome/Edge process for at most five
-    /// minutes. All artifacts must be fresh under root/artifacts. Cache and
+    /// <summary>Run one Windows job-owned Chrome/Edge process for at most one
+    /// hour. All artifacts must be fresh under root/artifacts. Cache and
     /// service-worker bypass precede navigation; bodies, raw events, DOM and PNG
     /// are retained before graceful browser close. Cancellation/failure joins
     /// the owned job and preserves partial logs/receipt before throwing.</summary>
@@ -256,9 +259,9 @@ public static class NativeAotDiskStaticBrowser
         string[] arguments = ["--headless=new", "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", "--user-data-dir=" + profile,
             "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--disable-default-apps",
             "--disable-sync", "--disable-extensions", "--disable-quic", "--disable-http2", "--disable-features=MediaRouter,OptimizationHints", "--window-size=1280,720", "about:blank"];
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation); deadline.CancelAfter(TimeSpan.FromMinutes(5));
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation); deadline.CancelAfter(TimeSpan.FromSeconds(DiskStaticCapturePolicy.BrowserTimeoutSeconds));
         using var processStop = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
-        Task<ProcessResult> process = ProcessRunner.RunAsync(new(browser, arguments, root) { Timeout = TimeSpan.FromMinutes(5), OutputCharacterLimit = 4 * 1024 * 1024 }, processStop.Token);
+        Task<ProcessResult> process = ProcessRunner.RunAsync(new(browser, arguments, root) { Timeout = TimeSpan.FromSeconds(DiskStaticCapturePolicy.BrowserTimeoutSeconds), OutputCharacterLimit = 4 * 1024 * 1024 }, processStop.Token);
         ProcessResult? joined = null; Cdp? cdp = null; Dom? dom = null; Exchange[] exchanges = []; string failure = ""; bool succeeded = false;
         using var capture = new Capture();
         try
@@ -315,7 +318,7 @@ public static class NativeAotDiskStaticBrowser
             await File.WriteAllBytesAsync(Path.Combine(destination, "screenshot.png"), png, deadline.Token);
             await cdp.Call("Browser.close", new { }, deadline.Token);
             joined = await process; QemuTranscripts.RequireCompleteProcess(joined, "disk_browser_process_incomplete"); Need(joined.Succeeded, "browser_exit");
-            await cdp.Join(); capture.RequireComplete(rows.Length);
+            await cdp.Join(joined, deadline.Token); capture.RequireComplete(rows.Length);
             Need(NativeAotWebPayload.HashFile(browser) == browserHash && ToolingBuildInputs.Validate(root).Count == 0, "inputs_changed");
             succeeded = true;
         }
@@ -332,7 +335,7 @@ public static class NativeAotDiskStaticBrowser
             await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new
             {
                 Schema, Succeeded = succeeded, Failure = failure, Port = guestForwardPort, InventorySha256 = inventory.ImageSha256,
-                Browser = browser, BrowserSha256 = browserHash, Arguments = arguments, Process = joined, Document = dom, Exchanges = exchanges,
+                Browser = browser, BrowserSha256 = browserHash, Arguments = arguments, Process = joined, DebuggerShutdown = cdp?.Shutdown, Document = dom, Exchanges = exchanges,
                 ScreenshotSha256 = File.Exists(Path.Combine(destination, "screenshot.png")) ? NativeAotWebPayload.HashFile(Path.Combine(destination, "screenshot.png")) : "",
                 ProtocolSha256 = File.Exists(Path.Combine(destination, "protocol.jsonl")) ? NativeAotWebPayload.HashFile(Path.Combine(destination, "protocol.jsonl")) : "",
                 PacketJoinQualified = false, GuestQualified = false
@@ -417,11 +420,28 @@ public static class NativeAotDiskStaticBrowser
         public void Dispose() { }
     }
 
-    private sealed class Cdp : IAsyncDisposable
+    /// <summary>Own one debugger socket and receive pump. A missing WebSocket
+    /// close handshake is classified only after an acknowledged Browser.close,
+    /// a successful joined browser and an empty command/message boundary.
+    /// Disposal aborts and joins the pump; it supplies no successful shutdown.</summary>
+    internal sealed class Cdp : IAsyncDisposable
     {
         private readonly ClientWebSocket socket = new(); private readonly SemaphoreSlim sender = new(1); private readonly CancellationTokenSource stop = new();
         private readonly Dictionary<int, TaskCompletionSource<JsonElement>> pending = []; private readonly object gate = new();
         private readonly StreamWriter log; private readonly Action<string, JsonElement> receive; private Task? pump; private int sequence, total;
+        private int closeCommandId = -1, pendingAtTermination = -1;
+        private long messageBytes, partialBytesAtTermination = -1;
+        private bool closeAcknowledged, fragmentInProgress, fragmentAtTermination, stoppedAtTermination, acceptedExpectedEof;
+        private Exception? terminationFailure;
+        internal sealed record Termination(int CloseCommandId, bool CloseAcknowledged, int PendingCommandsAtTermination,
+            long PartialMessageBytesAtTermination, bool PartialMessageFragmentAtTermination, bool StopRequestedAtTermination,
+            string? ErrorType, string? WebSocketError, string? ErrorMessage, bool AcceptedExpectedEof);
+        public Termination Shutdown
+        {
+            get { lock (gate) return new(closeCommandId, closeAcknowledged, pendingAtTermination, partialBytesAtTermination,
+                fragmentAtTermination, stoppedAtTermination, terminationFailure?.GetType().FullName,
+                (terminationFailure as WebSocketException)?.WebSocketErrorCode.ToString(), terminationFailure?.Message, acceptedExpectedEof); }
+        }
         public Cdp(string path, Action<string, JsonElement> callback) { log = new(new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read), new UTF8Encoding(false)); receive = callback; }
         public async Task Connect(Uri uri, CancellationToken token) { await socket.ConnectAsync(uri, token); pump = Read(); }
         private void Log(string direction, string message)
@@ -437,7 +457,11 @@ public static class NativeAotDiskStaticBrowser
         public async Task<JsonElement> Call(string method, object arguments, CancellationToken token)
         {
             int id = Interlocked.Increment(ref sequence); TaskCompletionSource<JsonElement> result = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            lock (gate) pending.Add(id, result);
+            lock (gate)
+            {
+                if (method == "Browser.close") { Need(closeCommandId == -1, "duplicate_close"); closeCommandId = id; }
+                pending.Add(id, result);
+            }
             string message = JsonSerializer.Serialize(new { id, method, @params = arguments }); Log("send", message);
             await sender.WaitAsync(token);
             try { await socket.SendAsync(Encoding.UTF8.GetBytes(message).AsMemory(), WebSocketMessageType.Text, true, token); }
@@ -454,23 +478,68 @@ public static class NativeAotDiskStaticBrowser
                 while (!stop.IsCancellationRequested)
                 {
                     using MemoryStream message = new(); ValueWebSocketReceiveResult part;
+                    lock (gate) { messageBytes = 0; fragmentInProgress = false; }
                     do
                     {
-                        part = await socket.ReceiveAsync(buffer.AsMemory(), stop.Token); if (part.MessageType == WebSocketMessageType.Close) return;
+                        part = await socket.ReceiveAsync(buffer.AsMemory(), stop.Token);
+                        if (part.MessageType == WebSocketMessageType.Close)
+                        { Need(message.Length == 0 && !fragmentInProgress, "protocol_closed_mid_message"); return; }
                         Need(part.MessageType == WebSocketMessageType.Text && message.Length + part.Count <= 16 * 1024 * 1024, "protocol_message_capacity");
                         message.Write(buffer, 0, part.Count);
+                        lock (gate) { messageBytes = message.Length; fragmentInProgress = !part.EndOfMessage; }
                     } while (!part.EndOfMessage);
                     string text = new UTF8Encoding(false, true).GetString(message.ToArray()); Log("receive", text);
                     using var document = JsonDocument.Parse(text); var value = document.RootElement;
                     if (value.TryGetProperty("id", out var id))
-                    { TaskCompletionSource<JsonElement>? command; lock (gate) { pending.Remove(id.GetInt32(), out command); } Need(command is not null, "unknown_command"); command!.TrySetResult(value.Clone()); }
+                    {
+                        TaskCompletionSource<JsonElement>? command;
+                        lock (gate)
+                        {
+                            pending.Remove(id.GetInt32(), out command); Need(command is not null, "unknown_command");
+                            // Latch the exact successful response in the receive
+                            // path, before another receive can observe EOF.
+                            if (id.GetInt32() == closeCommandId && !value.TryGetProperty("error", out _) &&
+                                value.TryGetProperty("result", out var response) && response.ValueKind == JsonValueKind.Object)
+                                closeAcknowledged = true;
+                        }
+                        command!.TrySetResult(value.Clone());
+                    }
                     else if (value.TryGetProperty("method", out var method)) receive(method.GetString()!, value.GetProperty("params"));
+                    lock (gate) { messageBytes = 0; fragmentInProgress = false; }
                 }
             }
             catch (Exception error) { failure = error; throw; }
-            finally { lock (gate) { foreach (var command in pending.Values) command.TrySetException(failure ?? new IOException("disk_browser_debugger_closed")); pending.Clear(); } }
+            finally
+            {
+                lock (gate)
+                {
+                    // Capture the state before fault handling clears commands.
+                    pendingAtTermination = pending.Count; partialBytesAtTermination = messageBytes;
+                    fragmentAtTermination = fragmentInProgress; stoppedAtTermination = stop.IsCancellationRequested;
+                    terminationFailure = failure;
+                    foreach (var command in pending.Values) command.TrySetException(failure ?? new IOException("disk_browser_debugger_closed"));
+                    pending.Clear();
+                }
+            }
         }
-        public async Task Join() { if (pump is not null) await pump.WaitAsync(TimeSpan.FromSeconds(10)); }
+        public async Task Join(ProcessResult completedBrowser, CancellationToken cancellation = default)
+        {
+            QemuTranscripts.RequireCompleteProcess(completedBrowser, "disk_browser_process_incomplete");
+            Need(completedBrowser.Succeeded, "browser_exit"); cancellation.ThrowIfCancellationRequested();
+            Need(pump is not null, "protocol_not_connected");
+            bool ExpectedEof(WebSocketException error)
+            {
+                lock (gate) return error.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely &&
+                    ReferenceEquals(error, terminationFailure) && closeAcknowledged && pendingAtTermination == 0 &&
+                    partialBytesAtTermination == 0 && !fragmentAtTermination && !stoppedAtTermination && !cancellation.IsCancellationRequested;
+            }
+            try { await pump!.WaitAsync(TimeSpan.FromSeconds(10), cancellation); }
+            catch (WebSocketException error) when (ExpectedEof(error))
+            { lock (gate) acceptedExpectedEof = true; }
+            cancellation.ThrowIfCancellationRequested();
+            lock (gate) Need(closeAcknowledged && pendingAtTermination == 0 && partialBytesAtTermination == 0 &&
+                !fragmentAtTermination && !stoppedAtTermination, "protocol_shutdown_incomplete");
+        }
         public async ValueTask DisposeAsync()
         {
             stop.Cancel(); socket.Abort(); if (pump is not null) try { await pump; } catch { }

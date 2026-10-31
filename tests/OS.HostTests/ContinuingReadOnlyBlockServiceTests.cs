@@ -6,6 +6,244 @@ using Block = OS.Storage.ContinuingReadOnlyBlockService;
 
 internal static unsafe class ContinuingReadOnlyBlockServiceTests
 {
+    [HostTest("block.service copy widths preserve every supported length alignment and destination boundary")]
+    private static void CopyWidthsAndBounds()
+    {
+        for (uint sectors = 1; sectors <= Block.MaximumReadSectors; sectors++)
+            for (int offset = 0; offset < 8; offset++)
+            {
+                uint bytes = sectors * 512;
+                using var f = new Fixture(); f.Hardware->ExpectedBytes = bytes;
+                using var capture = new Capture(f, bytes); HostCheck.Equal(Block.Status.Success, f.Start());
+                byte* allocation = capture.Sink->Output;
+                HostCheck.True(((ulong)allocation & 7) == 0 && ((ulong)(f.Data + 512) & 7) == 0);
+                Span<byte> guarded = new(allocation, (int)bytes + 8); guarded.Fill(0xa5);
+                capture.Sink->Output = allocation + offset;
+                try
+                {
+                    HostCheck.Equal(Block.Status.Success, Submit(f.State, 61, sectors, out var token));
+                    f.Complete(length: bytes + 1); HostCheck.Equal(Block.Status.Ready, Poll(f.State, out _));
+                    new Span<byte>(f.Data + 512 + bytes, 8).Fill(0x77);
+                    byte[] source = new ReadOnlySpan<byte>(f.Data + 512, (int)bytes + 8).ToArray();
+                    // Exact and oversized spans alternate; payload length comes
+                    // from the retained request, never from span capacity.
+                    Span<byte> output = new(capture.Sink->Output, (int)bytes + (offset % 2 == 0 ? 0 : 7 - offset));
+                    HostCheck.Equal(Block.Status.Success, Block.Copy(f.State, token, output));
+                    HostCheck.True(output[..(int)bytes].SequenceEqual(source.AsSpan(0, (int)bytes)));
+                    HostCheck.True(guarded[..offset].IndexOfAnyExcept((byte)0xa5) < 0 &&
+                        guarded[(offset + (int)bytes)..].IndexOfAnyExcept((byte)0xa5) < 0);
+                    HostCheck.True(new ReadOnlySpan<byte>(f.Data + 512, (int)bytes + 8).SequenceEqual(source));
+                    HostCheck.True(!capture.Sink->Bad && capture.Sink->Count == 3 && f.State->Copied == 1);
+                    HostCheck.True(!f.State->ReadReady && f.State->Submitted == 1 && f.State->Completed == 1);
+                    HostCheck.Equal(Block.Status.StaleToken, Block.Copy(f.State, token, output));
+                    HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+                }
+                finally { capture.Sink->Output = allocation; }
+            }
+    }
+
+    [HostTest("block.service copy widths preserve observer rejection cancellation stale owner fence and short output without writes")]
+    private static void CopyWidthsRejectBeforeWrite()
+    {
+        foreach (int offset in new[] { 0, 1 })
+            for (int mode = 0; mode < 5; mode++)
+            {
+                const uint bytes = 2048;
+                using var f = new Fixture(); f.Hardware->ExpectedBytes = bytes;
+                using var capture = new Capture(f, bytes); HostCheck.Equal(Block.Status.Success, f.Start());
+                byte* allocation = capture.Sink->Output;
+                Span<byte> guarded = new(allocation, (int)bytes + 8); guarded.Fill(0xa5);
+                capture.Sink->Output = allocation + offset;
+                try
+                {
+                    Span<byte> output = new(capture.Sink->Output, (int)bytes);
+                    HostCheck.Equal(Block.Status.Success, Submit(f.State, 62, 4, out var token));
+                    if (mode != 3)
+                    {
+                        f.Complete(length: bytes + 1); HostCheck.Equal(Block.Status.Ready, Poll(f.State, out _));
+                        HostCheck.Equal(Block.Status.ShortBuffer, Block.Copy(f.State, token, output[..2047]));
+                        HostCheck.Equal(2U, capture.Sink->Count);
+                    }
+                    Block.Status expected;
+                    if (mode == 0)
+                    {
+                        capture.Sink->Reject = true; capture.Sink->RejectKind = Block.ObservationKind.CopyReady;
+                        expected = Block.Status.ObservationRejected;
+                    }
+                    else if (mode == 2) { token = CorruptToken(token, "Owner"); expected = Block.Status.StaleToken; }
+                    else if (mode == 4)
+                    {
+                        // Two device/config reads and the used-index read
+                        // succeed, then the existing pre-copy fence rejects.
+                        f.Hardware->FailCall = f.Hardware->Calls + 4; expected = Block.Status.OrderingFailed;
+                    }
+                    else
+                    {
+                        HostCheck.Equal(Block.Status.Success, Block.Cancel(f.State, token));
+                        expected = mode == 3 ? Block.Status.Cancelled : Block.Status.StaleToken;
+                    }
+                    HostCheck.Equal(expected, Block.Copy(f.State, token, output));
+                    if (mode == 3)
+                    {
+                        f.Complete(length: bytes + 1); HostCheck.Equal(Block.Status.Cancelled, Poll(f.State, out var completion));
+                        HostCheck.Equal(0U, completion.Bytes);
+                    }
+                    HostCheck.True(guarded.IndexOfAnyExcept((byte)0xa5) < 0 && f.State->Copied == 0 && !capture.Sink->Bad);
+                    if (mode == 4) HostCheck.True(f.Hardware->FailureFired);
+                    HostCheck.Equal(mode == 0 ? 3U : 2U, capture.Sink->Count);
+                    HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+                }
+                finally { capture.Sink->Output = allocation; }
+            }
+    }
+
+    [HostTest("block.service explicit one through four sectors retain exact descriptor observation and copy lengths")]
+    private static void BoundedReads()
+    {
+        HostCheck.Equal(4U, Block.MaximumReadSectors);
+        for (uint sectors = 1; sectors <= 4; sectors++)
+        {
+            uint bytes = sectors * 512;
+            using var f = new Fixture(); f.Hardware->ExpectedBytes = bytes;
+            using var capture = new Capture(f, bytes); HostCheck.Equal(Block.Status.Success, f.Start());
+            new Span<byte>(f.Data + 512 + bytes, (int)(4096 - 512 - bytes)).Fill(0x77);
+            Span<byte> output = new(capture.Sink->Output, (int)bytes + 8); output.Fill(0xa5);
+            HostCheck.Equal(Block.Status.Success, Submit(f.State, 20, sectors, out var token));
+            HostCheck.Equal(bytes, f.State->RequestBytes); HostCheck.Equal(bytes, *(uint*)(f.Data + 24));
+            HostCheck.True(new ReadOnlySpan<byte>(f.Data + 512 + bytes, (int)(4096 - 512 - bytes)).IndexOfAnyExcept((byte)0x77) < 0);
+            f.Complete(length: bytes + 1); HostCheck.Equal(Block.Status.Ready, Poll(f.State, out var completion));
+            HostCheck.Equal(bytes, completion.Bytes); HostCheck.Equal(Block.Status.Ready, Poll(f.State, out completion));
+            HostCheck.Equal(bytes, completion.Bytes);
+            HostCheck.Equal(Block.Status.ShortBuffer, Block.Copy(f.State, token, output[..((int)bytes - 1)]));
+            HostCheck.Equal(Block.Status.StaleToken, Block.Copy(f.State, CorruptToken(token, "Generation"), output));
+            HostCheck.True(output.IndexOfAnyExcept((byte)0xa5) < 0);
+            HostCheck.Equal(Block.Status.Success, Block.Copy(f.State, token, output));
+            for (int i = 0; i < bytes; i++) HostCheck.Equal(Payload(20, i), output[i]);
+            HostCheck.True(output[(int)bytes..].IndexOfAnyExcept((byte)0xa5) < 0);
+            HostCheck.True(!capture.Sink->Bad && capture.Sink->Count == 3 && f.State->Copied == 1);
+            HostCheck.Equal(Block.Status.StaleToken, Block.Copy(f.State, token, output));
+            HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+        }
+    }
+
+    [HostTest("block.service bounded count capacity and overflow refusals publish nothing")]
+    private static void BoundedRangeRejections()
+    {
+        using var f = new Fixture(); HostCheck.Equal(Block.Status.Success, f.Start());
+        byte[] data = new ReadOnlySpan<byte>(f.Data, 4096).ToArray(); uint calls = f.Hardware->Calls;
+        foreach (var request in new (ulong Sector, uint Sectors)[]
+            { (0, 0), (0, 5), (0, uint.MaxValue), (Capacity - 1, 2), (Capacity - 3, 4), (ulong.MaxValue, 4) })
+        {
+            HostCheck.Equal(Block.Status.SectorOutOfRange, Submit(f.State, request.Sector, request.Sectors, out var token));
+            HostCheck.True(!token.IsInitialized && f.State->Submitted == 0 && f.Hardware->Calls == calls);
+            HostCheck.True(data.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Data, 4096)));
+        }
+        f.Hardware->ExpectedBytes = 2048;
+        HostCheck.Equal(Block.Status.Success, Submit(f.State, Capacity - 4, 4, out var last));
+        f.Complete(length: 2049); HostCheck.Equal(Block.Status.Ready, Poll(f.State, out var done));
+        HostCheck.Equal(Capacity - 4, done.Sector); HostCheck.Equal(2048U, done.Bytes);
+        Span<byte> output = stackalloc byte[2048]; HostCheck.Equal(Block.Status.Success, Block.Copy(f.State, last, output));
+        f.Hardware->ExpectedBytes = 512;
+        HostCheck.Equal(Block.Status.Success, Submit(f.State, Capacity - 1, out var legacy));
+        f.Complete(); HostCheck.Equal(Block.Status.Ready, Poll(f.State, out done)); HostCheck.Equal(512U, done.Bytes);
+        HostCheck.Equal(Block.Status.Success, Block.Copy(f.State, legacy, output));
+        HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+    }
+
+    [HostTest("block.service bounded cancellation drains with zero bytes and revokes ready copies")]
+    private static void BoundedCancellation()
+    {
+        foreach (uint sectors in new uint[] { 2, 4 })
+            foreach (bool ready in new[] { false, true })
+            {
+                uint bytes = sectors * 512;
+                using var f = new Fixture(); f.Hardware->ExpectedBytes = bytes;
+                using var capture = new Capture(f, bytes); HostCheck.Equal(Block.Status.Success, f.Start());
+                Span<byte> output = new(capture.Sink->Output, (int)bytes); output.Fill(0xa5);
+                HostCheck.Equal(Block.Status.Success, Submit(f.State, 40, sectors, out var token));
+                if (ready) { f.Complete(length: bytes + 1); HostCheck.Equal(Block.Status.Ready, Poll(f.State, out _)); }
+                HostCheck.Equal(Block.Status.Success, Block.Cancel(f.State, token));
+                HostCheck.Equal(ready ? Block.Status.StaleToken : Block.Status.Cancelled, Block.Copy(f.State, token, output));
+                if (!ready)
+                {
+                    HostCheck.Equal(Block.Status.Busy, Submit(f.State, 41, sectors, out _));
+                    f.Complete(length: bytes + 1); HostCheck.Equal(Block.Status.Cancelled, Poll(f.State, out var done));
+                    HostCheck.Equal(0U, done.Bytes); HostCheck.Equal(0U, capture.Sink->Records[1].Bytes);
+                }
+                HostCheck.True(!capture.Sink->Bad && capture.Sink->Count == 2 && f.State->Copied == 0 && f.State->Cancelled == 1);
+                HostCheck.True(output.IndexOfAnyExcept((byte)0xa5) < 0);
+                HostCheck.Equal(Block.Status.StaleToken, Block.Copy(f.State, token, output));
+                HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+            }
+    }
+
+    [HostTest("block.service bounded reads preserve completion config deadline observation and reentry failure isolation")]
+    private static void BoundedFailures()
+    {
+        for (int mode = 0; mode < 5; mode++)
+        {
+            using var f = new Fixture(); f.Hardware->ExpectedBytes = 2048;
+            using var capture = new Capture(f, 2048); HostCheck.Equal(Block.Status.Success, f.Start());
+            Span<byte> output = new(capture.Sink->Output, 2048); output.Fill(0xa5);
+            HostCheck.Equal(Block.Status.Success, Submit(f.State, 50, 4, out var token));
+            if (mode == 2) f.Hardware->Now = 1000;
+            else f.Complete(length: mode == 0 ? 2048U : 2049U);
+            if (mode == 1) f.Hardware->Generation++;
+            if (mode < 3)
+                HostCheck.Equal(mode == 0 ? Block.Status.InvalidCompletion : mode == 1 ? Block.Status.ConfigurationChanged : Block.Status.Timeout,
+                    Poll(f.State, out _));
+            else
+            {
+                HostCheck.Equal(Block.Status.Ready, Poll(f.State, out _));
+                if (mode == 3) { capture.Sink->Reject = true; capture.Sink->RejectKind = Block.ObservationKind.CopyReady; }
+                else { capture.Sink->ReenterOperation = 6; capture.Sink->ReenterKind = Block.ObservationKind.CopyReady; }
+                HostCheck.Equal(Block.Status.ObservationRejected, Block.Copy(f.State, token, output));
+                if (mode == 4) HostCheck.True(capture.Sink->NestedStatus == Block.Status.ObservationRejected && capture.Sink->NestedUnchanged);
+            }
+            HostCheck.True(output.IndexOfAnyExcept((byte)0xa5) < 0 && f.State->Copied == 0 && f.Pool->AllocatedMask == 1);
+            HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+        }
+    }
+
+    // Exact pre-extension managed field sequence. No production layout helper
+    // or serialized ABI is introduced to test the former tail padding.
+#pragma warning disable CS0649
+    private struct LegacyState
+    {
+        internal ulong Self, PoolEpoch, LastClock, RequestGeneration, RequestSector, Deadline;
+        internal Block.Admission Input;
+        internal DmaBufferAllocation Allocation;
+        internal VirtioBlkQueueResult Queue;
+        internal ulong Capacity, NotifyAddress;
+        internal ushort AvailableIndex, UsedConsumed;
+        internal byte ConfigGeneration, Phase;
+        internal bool DeviceOwned, ReturnedToCpu, Scrubbed, Discard, Observing, ObservationReentered;
+        internal Block.Status Failure;
+        internal ulong SubmittedCount, CompletedCount, CopiedCount, CancelledCount, PollCount;
+    }
+#pragma warning restore CS0649
+
+    [HostTest("block.service bounded request byte occupies legacy tail padding without changing state size or counter offsets")]
+    private static void BoundedStateLayout()
+    {
+        HostCheck.Equal(sizeof(LegacyState), sizeof(Block.State));
+        LegacyState legacy = default; Block.State state = default;
+        int oldSubmitted = (int)((byte*)&legacy.SubmittedCount - (byte*)&legacy);
+        int oldFailure = (int)((byte*)&legacy.Failure - (byte*)&legacy);
+        int request = -1, submitted = -1;
+        // Observe actual managed offsets through existing copied-value accessors;
+        // Marshal's unmanaged BOOL representation need not match unsafe sizeof.
+        for (int i = 0; i < sizeof(Block.State); i++)
+        {
+            ((byte*)&state)[i] = 1;
+            if (state.RequestBytes == 512) { HostCheck.Equal(-1, request); request = i; }
+            if (state.Submitted == 1) { HostCheck.Equal(-1, submitted); submitted = i; }
+            ((byte*)&state)[i] = 0;
+        }
+        HostCheck.Equal(oldFailure + 1, request); HostCheck.Equal(oldSubmitted, submitted);
+        HostCheck.True(request < submitted && submitted - oldFailure == 4);
+    }
+
     [HostTest("block.service retained independent reads cross actual ushort ring wrap", HostLane.Fast, 0)]
     private static bool RetainedAndWrap()
     {
@@ -521,6 +759,7 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
         internal Block.Admission Input;
         internal ulong Candidate, LastGeneration;
         internal uint Count;
+        internal uint ExpectedBytes;
         internal int ReenterOperation;
         internal Block.ObservationKind RejectKind, ReenterKind;
         internal byte RejectValue;
@@ -531,11 +770,12 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
     {
         internal const uint RecordCount = 12;
         internal readonly ObservationSink* Sink = (ObservationSink*)NativeMemory.AllocZeroed((nuint)sizeof(ObservationSink));
-        internal Capture(Fixture f)
+        internal Capture(Fixture f, uint bytes = 512)
         {
             Sink->State = f.State; Sink->Hardware = f.Hardware; Sink->ReenterOperation = -1;
+            Sink->ExpectedBytes = bytes;
             Sink->Records = (Block.Observation*)NativeMemory.AllocZeroed(RecordCount, (nuint)sizeof(Block.Observation));
-            Sink->Payload = (byte*)NativeMemory.AllocZeroed(512); Sink->Output = (byte*)NativeMemory.AllocZeroed(512);
+            Sink->Payload = (byte*)NativeMemory.AllocZeroed(bytes); Sink->Output = (byte*)NativeMemory.AllocZeroed(bytes + 8);
             Sink->Metadata = (byte*)NativeMemory.AllocZeroed(64);
             f.Observation = new() { Context = Sink, Observe = &CaptureObservation }; Sink->Input = f.Input;
         }
@@ -550,15 +790,15 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
         sink->Bad |= value->Owner != (ulong)state || value->Epoch != sink->Input.Epoch || value->Generation == 0 ||
             value->AvailableIndex != state->PublishedIndex || value->ConsumedIndex != state->ConsumedIndex;
         if (value->Kind == Block.ObservationKind.Submitted)
-            sink->Bad |= payload != null || value->Bytes != 512 || value->Sequence != state->Submitted ||
+            sink->Bad |= payload != null || value->Bytes != sink->ExpectedBytes || value->Sequence != state->Submitted ||
                 !state->ReadPending || hardware->Notifies != state->Submitted;
         else if (value->Kind == Block.ObservationKind.CompletionValidated)
-            sink->Bad |= payload != null || value->Bytes is not (0 or 512) || value->Sequence != state->Completed || !state->ReadPending;
+            sink->Bad |= payload != null || (value->Bytes != 0 && value->Bytes != sink->ExpectedBytes) || value->Sequence != state->Completed || !state->ReadPending;
         else if (value->Kind == Block.ObservationKind.CopyReady)
         {
-            sink->Bad |= payload != hardware->Data + 512 || value->Bytes != 512 || value->Sequence != state->Copied + 1 || !state->ReadReady;
+            sink->Bad |= payload != hardware->Data + 512 || value->Bytes != sink->ExpectedBytes || value->Sequence != state->Copied + 1 || !state->ReadReady;
             sink->Candidate = value->Sequence;
-            if (payload != null) for (int i = 0; i < 512; i++)
+            if (payload != null) for (int i = 0; i < sink->ExpectedBytes; i++)
             { sink->Payload[i] = payload[i]; sink->Bad |= payload[i] != Payload(value->Sector, i) || sink->Output[i] != 0xa5; }
         }
         else sink->Bad = true;
@@ -573,6 +813,7 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
                 2 => Block.Poll(state, (Block.Completion*)sink->Metadata),
                 3 => Block.Copy(state, default, new Span<byte>(sink->Output, 512)),
                 4 => Block.Cancel(state, default),
+                6 => Block.Submit(state, 22, 4, (Block.ReadToken*)sink->Metadata),
                 _ => Block.Stop(state)
             };
             sink->NestedUnchanged = calls == hardware->Calls && submitted == state->Submitted && completed == state->Completed && copied == state->Copied &&
@@ -587,6 +828,10 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
     private static Block.Status Submit(Block.State* state, ulong sector, out Block.ReadToken token)
     {
         Block.ReadToken value = default; var status = Block.Submit(state, sector, &value); token = value; return status;
+    }
+    private static Block.Status Submit(Block.State* state, ulong sector, uint sectors, out Block.ReadToken token)
+    {
+        Block.ReadToken value = default; var status = Block.Submit(state, sector, sectors, &value); token = value; return status;
     }
     private static Block.Status Poll(Block.State* state, out Block.Completion completion)
     {
@@ -608,6 +853,7 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
         internal DmaBufferPool* Pool;
         internal ulong Capacity, Now, Descriptor, Available, Used, Sector;
         internal uint Calls, Fences, FailCall, Resets, DriverOkWrites, Notifies, GenerationReads, Produced;
+        internal uint ExpectedBytes;
         internal ushort Selected, Size, Enabled, ConfigVector, QueueVector, AvailableSeen, FencedIndex;
         internal byte Status, Generation;
         internal bool BusEnabled, BadOrder, Pending, IndexObserved, Acquired, ResetRequested, ResetObserved, HeldAtResetFence;
@@ -670,10 +916,10 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
             {
                 byte* p = h->Data + i * 16;
                 if (*(ulong*)p != DeviceBase + (i == 0 ? 256UL : i == 1 ? 512UL : 272UL) ||
-                    *(uint*)(p + 8) != (i == 0 ? 16U : i == 1 ? 512U : 1U) ||
+                    *(uint*)(p + 8) != (i == 0 ? 16U : i == 1 ? h->ExpectedBytes : 1U) ||
                     *(ushort*)(p + 12) != (i == 0 ? 1 : i == 1 ? 3 : 2) || *(ushort*)(p + 14) != (i == 0 ? 1 : i == 1 ? 2 : 0)) h->BadOrder = true;
             }
-            if (*(ulong*)(h->Data + 256) != 0 || h->Data[272] != 255 || new ReadOnlySpan<byte>(h->Data + 512, 512).IndexOfAnyExcept((byte)0) >= 0) h->BadOrder = true;
+            if (*(ulong*)(h->Data + 256) != 0 || h->Data[272] != 255 || new ReadOnlySpan<byte>(h->Data + 512, (int)h->ExpectedBytes).IndexOfAnyExcept((byte)0) >= 0) h->BadOrder = true;
             h->Sector = *(ulong*)(h->Data + 264); h->AvailableSeen = index; h->Notifies++; h->Pending = true;
             return Exit(h);
         }
@@ -747,7 +993,7 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
             HostCheck.Equal(DmaAddressStatus.Success, DmaAddressWindow.TryCreate((ulong)Data, Physical, DeviceBase, 4096, 64, out var window));
             lifetime = (ulong)Interlocked.Increment(ref epoch);
             HostCheck.Equal(DmaBufferStatus.Success, PageAlignedDmaBuffers.TryInitialize(Pool, window, Slot, 1, lifetime));
-            Hardware->Data = Data; Hardware->Pool = Pool; Hardware->Capacity = Capacity; Hardware->Status = 11; Hardware->Generation = 7;
+            Hardware->Data = Data; Hardware->Pool = Pool; Hardware->Capacity = Capacity; Hardware->Status = 11; Hardware->Generation = 7; Hardware->ExpectedBytes = 512;
             PciSizedBar* bars = stackalloc PciSizedBar[6]; new Span<PciSizedBar>(bars, 6).Clear();
             HostCheck.Equal(PciBarProbeStatus.Success, BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(0xc, 0xc0, 0xffffc00c, 0xffffffff, 4, out bars[4]));
             var caps = VirtioPciCapabilitySet.Create(new(VirtioPciCapabilityType.CommonConfiguration, 4, 0, 56, 0),
@@ -772,7 +1018,7 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
         internal void Complete(uint id = 0, uint length = 513, byte status = 0, ushort delta = 1)
         {
             if (!Hardware->Pending) Hardware->BadOrder = true;
-            for (int i = 0; i < 512; i++) Data[512 + i] = Payload(Hardware->Sector, i);
+            for (int i = 0; i < Hardware->ExpectedBytes; i++) Data[512 + i] = Payload(Hardware->Sector, i);
             Data[272] = status; byte* element = Data + 152 + (Hardware->Produced & 7) * 8;
             *(uint*)element = id; *(uint*)(element + 4) = length;
             Hardware->Produced += delta; *(ushort*)(Data + 150) = unchecked((ushort)Hardware->Produced); Hardware->Pending = false;

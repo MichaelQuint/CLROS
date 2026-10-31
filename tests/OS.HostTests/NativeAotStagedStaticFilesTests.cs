@@ -49,9 +49,9 @@ internal static class NativeAotStagedStaticFilesTests
         HostCheck.True(diskView.Succeeded && stagedView.Succeeded); HostCheck.Equal(0u, diskView.DataFileCount);
         HostCheck.Equal(0u, BinaryPrimitives.ReadUInt32LittleEndian(disk.AsSpan(32)));
         HostCheck.True(disk.AsSpan((int)diskView.PayloadOffset).SequenceEqual(elf));
-        HostCheck.True(disk.AsSpan((int)diskView.ManifestOffset, (int)diskView.ManifestBytes)
-            .SequenceEqual(staged.AsSpan((int)stagedView.ManifestOffset, (int)stagedView.ManifestBytes)));
         string manifest = Encoding.ASCII.GetString(disk, (int)diskView.ManifestOffset, (int)diskView.ManifestBytes);
+        string stagedManifest = Encoding.ASCII.GetString(staged, (int)stagedView.ManifestOffset, (int)stagedView.ManifestBytes);
+        HostCheck.Equal(stagedManifest + "env.DOTNET_ThreadPool_ForceMinWorkerThreads=2\nenv.DOTNET_ThreadPool_ForceMaxWorkerThreads=4\n", manifest);
         HostCheck.True(manifest.Contains("env.CLROS_STATIC_FILES_PROFILE=v1\n", StringComparison.Ordinal));
         HostCheck.True(manifest.Contains("descriptors=32\n", StringComparison.Ordinal));
     }

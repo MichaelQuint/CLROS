@@ -308,7 +308,34 @@ public static unsafe partial class EfiEntry
             return NativeSwitch.AdmitPlan(*o) == NativeSwitch.Status.Ok;
         }
 
+#if M10_018_TIMING_PROBE
+        // Observe the complete original invocation, including failed checks.
+        // Measurement failure is sticky but never skips or replaces verification.
+        // The existing IRQ-off BSP owner retains all backing; nested calls or a
+        // changed phase invalidate the diagnostic instead of double-counting.
+        private static bool LinuxNativeVerify(LinuxNativeControl* c)
+        {
+            fixed (NativeDiskOwner* disk = &s_nativeDisk)
+            {
+                if (disk->TimingPhase != 1) return LinuxNativeVerifyCore(c);
+                if (disk->Boot != c->State)
+                {
+                    disk->TimingVerification.Invalidate();
+                    return LinuxNativeVerifyCore(c);
+                }
+                bool started = ReadNetworkTime(c->State, out ulong began) && disk->TimingVerification.Begin(began);
+                if (!started) disk->TimingVerification.Invalidate();
+                bool result = LinuxNativeVerifyCore(c);
+                if (started && (disk->Boot != c->State || disk->TimingPhase != 1 ||
+                    !ReadNetworkTime(c->State, out ulong ended) || !disk->TimingVerification.End(ended)))
+                    disk->TimingVerification.Invalidate();
+                return result;
+            }
+        }
+        private static bool LinuxNativeVerifyCore(LinuxNativeControl* c) =>
+#else
         private static bool LinuxNativeVerify(LinuxNativeControl* c) =>
+#endif
             NativeProgram.Verify((byte*)c->State->CooperativePool, NativeProgram.Bytes, c->Plan) &&
 #if M16_009_PROBE
             c->Plan.SeparateUserFaultCapture && c->State->LinuxSyscallPlan.UserFaultEntry == c->State->CooperativePool + NativeProgram.UserFaultCapture &&
@@ -444,6 +471,9 @@ public static unsafe partial class EfiEntry
                     (!diskWait.Succeeded ||
                     diskWait.Wait.Sequence != view.Wait.Sequence || diskWait.Completion == KernelThreadTable.Completion.None ||
                     !diskOperation.IsActive ||
+#if !M16_027_PROBE && !M10_018_PROBE
+                    !ObserveNativeCloseReuseCompletionTime(c, view.Wait.Sequence, diskOperation.Generation) ||
+#endif
                     !LinuxText(c->State, "M16_025_COMPLETE identity=") || !LinuxNumber(c->State, c->Threads.Current.Value) ||
                     !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
                     !LinuxText(c->State, " request=") || !LinuxNumber(c->State, diskOperation.Generation) ||
@@ -587,6 +617,10 @@ public static unsafe partial class EfiEntry
             uint index = c->Selected - 1;
             if (c->Entered[index] != 1 || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity) return 0;
             LinuxSyscallFrame call = *frame;
+#if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
+            if (!SelectNativeCloseReusePoll(c, index, call, out bool preserveClosePending))
+                return LinuxNativeAbort(c, index);
+#endif
 #if CLROS_LINUX_SOCKETS
             // A validated process-wide exit revokes waits before opportunistic
             // device progress. Dispatch the genuine shutdown first; the normal
@@ -595,7 +629,11 @@ public static unsafe partial class EfiEntry
             if (call.Number != 231 && !PollLinuxSocketNetwork(c,
                 call.Number == 228 ? NativeDiskPollCause.SyscallClock : NativeDiskPollCause.SyscallOther))
 #else
-            if (call.Number != 231 && !PollLinuxSocketNetwork(c))
+            if (call.Number != 231 && !PollLinuxSocketNetwork(c
+#if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
+                , preserveClosePending: preserveClosePending
+#endif
+                ))
 #endif
                 return LinuxNativeAbort(c, index);
 #endif
@@ -608,6 +646,13 @@ public static unsafe partial class EfiEntry
 #endif
 #if M16_009_PROBE
             timing = timing && timingRead(state, &admitted) == 1;
+#endif
+#if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
+            if (preserveClosePending)
+            {
+                fixed (NativeDiskOwner* disk = &s_nativeDisk)
+                    if (!RequireNativeCloseReuseParentRead(c, disk, true)) return LinuxNativeAbort(c, index);
+            }
 #endif
 #if M16_025_PROBE && !M16_027_PROBE
             if (!ObserveNativeDiskExitCall(c, index, call)) return LinuxNativeAbort(c, index);

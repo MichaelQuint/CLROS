@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Kernel.Threading;
@@ -20,6 +21,7 @@ internal static unsafe class LinuxDiskThreadServicesTests
         internal readonly Fds.DiskState* Disk = (Fds.DiskState*)NativeMemory.AllocZeroed((nuint)sizeof(Fds.DiskState));
         private readonly Fds.DiskBinding* bindings = (Fds.DiskBinding*)NativeMemory.AllocZeroed(8, (nuint)sizeof(Fds.DiskBinding));
         private readonly Fds.DiskRequest* requests = (Fds.DiskRequest*)NativeMemory.AllocZeroed(8, (nuint)sizeof(Fds.DiskRequest));
+        internal Fds.DiskRequest* Requests => requests;
         internal readonly OSHostHandle Main;
         private const ulong SignalKey = 0x64736b7369676e6c;
         private Signals.State* signalState;
@@ -140,6 +142,154 @@ internal static unsafe class LinuxDiskThreadServicesTests
             d->Copied < c->Copied || d->Copied - c->Copied > 1 || d->Submitted - d->Completed > 1;
         c->Submitted = d->Submitted; c->Completed = d->Completed; c->Copied = d->Copied; c->Flushes++;
         return c->Flushes == c->FailFlushAt ? (byte)0 : (byte)1;
+    }
+
+    // Read existing scalar/token fields without copying a live retained owner.
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "DiskOperation")]
+    private static extern ref Fds.DiskToken SlotDiskOperation(ref LinuxThreadServices.Slot slot);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Index")]
+    private static extern ref uint DiskIndex(ref Fds.DiskToken token);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Generation")]
+    private static extern ref ulong DiskGeneration(ref Fds.DiskToken token);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Operation")]
+    private static extern ref Fs.OperationToken RequestOperation(ref Fds.DiskRequest request);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "OriginalFd")]
+    private static extern ref Fds.Token RequestFd(ref Fds.DiskRequest request);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "IoActive")]
+    private static extern ref bool MountIoActive(ref Fs.Mount mount);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "IoIndex")]
+    private static extern ref uint MountIoIndex(ref Fs.Mount mount);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "IoGeneration")]
+    private static extern ref ulong MountIoGeneration(ref Fs.Mount mount);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "IoToken")]
+    private static extern ref Block.ReadToken MountIoToken(ref Fs.Mount mount);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Owner")]
+    private static extern ref ulong FsOwner(ref Fs.OperationToken token);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Epoch")]
+    private static extern ref ulong FsEpoch(ref Fs.OperationToken token);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Generation")]
+    private static extern ref ulong FsGeneration(ref Fs.OperationToken token);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Index")]
+    private static extern ref uint FsIndex(ref Fs.OperationToken token);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Waiting")]
+    private static extern ref byte OperationWaiting(ref Fs.Operation operation);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "RequestSector")]
+    private static extern ref ulong RequestSector(ref Block.State device);
+
+    private static (Fds.DiskToken Disk, Fs.OperationToken FileSystem, Block.ReadToken Physical, Fds.Token Fd) PendingRead(Owner o)
+    {
+        var slot = o.Thread.View(o.Main); var parked = o.Thread.Kernel.Inspect(o.Main);
+        HostCheck.True(slot.WaitSource == 4 && slot.Wait.Sequence != 0 &&
+            parked.State == KernelThreadTable.State.Waiting && parked.Completion == KernelThreadTable.Completion.None);
+        var token = SlotDiskOperation(ref *o.Thread.Slots);
+        var observed = Fds.PollDisk(o.Files.State, (ulong)o.Thread.Service, token);
+        HostCheck.True(observed.Progress == Fds.DiskProgress.Pending && observed.Worker.Value == o.Main.Value);
+        uint index = DiskIndex(ref token); HostCheck.True(index < Fds.DiskSlots);
+        var request = o.Requests + index; var fs = RequestOperation(ref *request); var fd = RequestFd(ref *request);
+        HostCheck.True(Fds.IsCurrent(o.Files.State, fd) && fs.IsInitialized &&
+            FsOwner(ref fs) == (ulong)o.Storage.Mount && FsEpoch(ref fs) == o.Storage.Input.Epoch &&
+            MountIoActive(ref *o.Storage.Mount) && MountIoIndex(ref *o.Storage.Mount) == FsIndex(ref fs) &&
+            MountIoGeneration(ref *o.Storage.Mount) == FsGeneration(ref fs));
+        byte dataIo = (byte)typeof(Fs).GetField("DataIo", System.Reflection.BindingFlags.NonPublic |
+            System.Reflection.BindingFlags.Static)!.GetRawConstantValue()!;
+        HostCheck.Equal(dataIo, OperationWaiting(ref o.Storage.Input.Operations[FsIndex(ref fs)]));
+        var physical = MountIoToken(ref *o.Storage.Mount);
+        HostCheck.True(o.Storage.Device->ReadPending && o.Storage.Device->Submitted == o.Storage.Device->Completed + 1);
+        HostCheck.Equal((ulong)o.Storage.Disk.Data(10), RequestSector(ref *o.Storage.Device));
+        // Copy rejects or reports Pending before touching an empty destination.
+        // A valid Fs.Poll would advance I/O, so it is deliberately not used here.
+        HostCheck.Equal(Block.Status.Pending, Block.Copy(o.Storage.Device, physical, Span<byte>.Empty));
+        return (token, fs, physical, fd);
+    }
+
+    [HostTest("linux.disk-thread omitted access leaves one exact real pending data request while explicit quantum advances")]
+    private static void DefaultOneStepPending()
+    {
+        using Owner o = new(large: true); uint fd = o.Open(); o.Storage.CompleteOnPoll = true;
+        new Span<byte>(o.Thread.At(Output), 8192).Fill(0xa5); uint writes = o.Thread.Writes;
+        o.Begin(0, fd, Output, 8192); o.Park();
+        ulong submitted = o.Storage.Device->Submitted, polls = o.Storage.Device->Polls;
+        PumpContext incomplete = new() { Device = o.Storage.Device, FailClockAt = 1, FailFlushAt = 1 };
+        foreach (bool clockOnly in new[] { false, true })
+        {
+            var invalid = new LinuxThreadServices.DiskPumpAccess { Context = &incomplete,
+                Clock = clockOnly ? &PumpClock : null, Flush = clockOnly ? null : &PumpFlush };
+            HostCheck.True(!o.Thread.Service->PollDiskReadiness(Key, 2, invalid));
+            HostCheck.True(incomplete.ClockCalls == 0 && incomplete.Flushes == 0 &&
+                o.Storage.Device->Submitted == submitted && o.Storage.Device->Polls == polls);
+        }
+        HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2)); // Access entirely omitted.
+        var first = PendingRead(o);
+        HostCheck.True(o.Storage.Device->Submitted == submitted + 1 && o.Storage.Device->Completed == submitted &&
+            o.Storage.Device->Copied == submitted && o.Storage.Device->Polls == polls && o.Thread.Writes == writes &&
+            new ReadOnlySpan<byte>(o.Thread.At(Output), 8192).IndexOfAnyExcept((byte)0xa5) < 0);
+        PumpContext context = new() { Device = o.Storage.Device, Submitted = submitted + 1, Completed = submitted, Copied = submitted };
+        var access = new LinuxThreadServices.DiskPumpAccess { Context = &context, Clock = &PumpClock, Flush = &PumpFlush };
+        HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access));
+        HostCheck.True(context.Flushes == 4 && context.ClockCalls == 4 && !context.Bad &&
+            o.Storage.Device->Submitted == submitted + 3 && o.Storage.Device->Completed == submitted + 2 &&
+            o.Storage.Device->Copied == submitted + 2 && o.Thread.Writes == writes &&
+            new ReadOnlySpan<byte>(o.Thread.At(Output), 8192).IndexOfAnyExcept((byte)0xa5) < 0);
+        for (int i = 0; i < 32 && o.Thread.Kernel.Inspect(o.Main).Completion == KernelThreadTable.Completion.None; i++)
+            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access));
+        HostCheck.Equal(8192L, o.Consume());
+        o.Begin(17, fd, Output, 8); o.Park();
+        HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2));
+        var next = PendingRead(o);
+        HostCheck.True(DiskIndex(ref first.Disk) == DiskIndex(ref next.Disk) &&
+            DiskGeneration(ref first.Disk) < DiskGeneration(ref next.Disk) &&
+            FsIndex(ref first.FileSystem) == FsIndex(ref next.FileSystem) &&
+            FsGeneration(ref first.FileSystem) < FsGeneration(ref next.FileSystem));
+        ulong before = o.Storage.Device->Submitted, completed = o.Storage.Device->Completed, copied = o.Storage.Device->Copied;
+        HostCheck.Equal(Fds.DiskProgress.Rejected, Fds.PollDisk(o.Files.State, (ulong)o.Thread.Service, first.Disk).Progress);
+        HostCheck.Equal(Fs.Status.StaleToken, Fs.Poll(o.Storage.Mount, first.FileSystem));
+        HostCheck.Equal(Block.Status.StaleToken, Block.Copy(o.Storage.Device, first.Physical, Span<byte>.Empty));
+        HostCheck.True(o.Storage.Device->ReadPending && o.Storage.Device->Submitted == before &&
+            o.Storage.Device->Completed == completed && o.Storage.Device->Copied == copied);
+        for (int i = 0; i < 16 && o.Thread.Kernel.Inspect(o.Main).Completion == KernelThreadTable.Completion.None; i++)
+            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access));
+        HostCheck.Equal(8L, o.Consume());
+    }
+
+    [HostTest("linux.disk-thread a real pending block token does not hide a closed fd or interrupted wait winner")]
+    private static void DefaultOneStepRevocation()
+    {
+        foreach (bool close in new[] { false, true })
+        {
+            using Owner o = new(large: true); uint fd = o.Open(); HostCheck.Equal(7L, o.Run(72, fd, 0, 7));
+            var child = o.Thread.Clone(); uint writes = o.Thread.Writes;
+            new Span<byte>(o.Thread.At(Output), 8192).Fill(0x69);
+            o.Begin(0, fd, Output, 8192); o.Park(); HostCheck.Equal(child.Value, o.Thread.Kernel.Dispatch().Value);
+            ulong submitted = o.Storage.Device->Submitted;
+            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2));
+            var pending = PendingRead(o);
+            if (close)
+            {
+                HostCheck.Equal(0L, o.Thread.DescriptorCall(3, fd).Value);
+                HostCheck.True(!Fds.IsCurrent(o.Files.State, pending.Fd) && !o.May(Output, 8192));
+            }
+            else
+            {
+                HostCheck.True(o.Thread.Kernel.Table->Interrupt(KernelThreadTableTests.Key, 2, o.Thread.View(o.Main).Wait).Succeeded);
+                HostCheck.True(Fds.IsCurrent(o.Files.State, pending.Fd));
+                HostCheck.Equal(KernelThreadTable.Completion.Interrupted, o.Thread.Kernel.Inspect(o.Main).Completion);
+            }
+            HostCheck.True(o.Storage.Device->ReadPending && o.Storage.Device->Submitted == submitted + 1 &&
+                o.Storage.Device->Completed == submitted && o.Storage.Device->Copied == submitted);
+            if (close) o.Ready();
+            o.Thread.Yield(child); HostCheck.Equal(close ? -9L : -4L, o.Consume());
+            for (int i = 0; i < 64; i++) { o.Storage.Tick(); HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2)); }
+            HostCheck.True(o.Storage.Device->Submitted == submitted + 1 && o.Storage.Device->Copied == submitted &&
+                o.Thread.Writes == writes && new ReadOnlySpan<byte>(o.Thread.At(Output), 8192).IndexOfAnyExcept((byte)0x69) < 0);
+            HostCheck.Equal(Fds.DiskProgress.Rejected, Fds.PollDisk(o.Files.State, (ulong)o.Thread.Service, pending.Disk).Progress);
+            if (close)
+            {
+                o.PutPath("/app/wwwroot/index.html"); o.Begin(2, Path, 0x88100); o.Park(); o.Ready();
+                HostCheck.Equal(child.Value, o.Thread.Kernel.Dispatch().Value);
+                o.Thread.Yield(child); HostCheck.Equal((long)fd, o.Consume());
+                HostCheck.True(!Fds.IsCurrent(o.Files.State, pending.Fd)); // Same number, a new generation.
+            }
+        }
     }
 
     [HostTest("linux.disk-thread bounded quantum reduces outer passes with identical real sixteen-sector completion and no early user copy")]

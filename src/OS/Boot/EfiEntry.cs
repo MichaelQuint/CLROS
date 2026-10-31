@@ -926,7 +926,8 @@ public static unsafe partial class EfiEntry
         // Called only inside the operation that just admitted memory/root.
         // This read-only walk executes no callbacks and preserves every live
         // table/leaf check, including guards; the caller verifies permissions.
-        private static bool CooperativeWalkPoolLeaf(FirstExitDiagnosticMemory memory, ulong pool, ulong root, ulong address, out ulong* leaf)
+        private static bool CooperativeWalkPoolLeaf(FirstExitDiagnosticMemory memory, ulong pool, ulong root, ulong address, out ulong* leaf,
+            X64PageTableEntryResult* leafDecoded = null, X64PageTableEncodingPreconditions* leafPreconditions = null)
         {
             leaf = null;
             if (address < pool || address - pool >= CooperativePoolPages * Page || (address & (Page - 1)) != 0) return false;
@@ -937,7 +938,9 @@ public static unsafe partial class EfiEntry
                 if ((visited & bit) != 0) return false;
                 visited |= bit;
                 ulong* slot = memory.Entries + page * 512 + ((address >> (12 + 9 * (level - 1))) & 511);
-                var decoded = X64PageTableEntry.TryDecode((X64PageTableLevel)level, *slot, memory.Tables.Preconditions);
+                ulong raw = *slot;
+                var preconditions = memory.Tables.Preconditions;
+                var decoded = X64PageTableEntry.TryDecode((X64PageTableLevel)level, raw, preconditions);
                 if (!decoded.Succeeded) return false;
                 if (level == 1)
                 {
@@ -945,6 +948,10 @@ public static unsafe partial class EfiEntry
                         (decoded.Kind != X64PageTableEntryKind.Leaf || decoded.PageSizeBytes != Page || decoded.CachePolicy != PageCachePolicy.WriteBack ||
                         decoded.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong physical) != AddressValueStatus.Success || physical != address)) return false;
                     leaf = slot;
+                    // Optional captures are distinct caller stack locals, valid
+                    // only for this successful leaf walk and immediate audit.
+                    if (leafDecoded != null) *leafDecoded = decoded;
+                    if (leafPreconditions != null) *leafPreconditions = preconditions;
                     return true;
                 }
                 if (decoded.Kind != X64PageTableEntryKind.TablePointer || decoded.CachePolicy != PageCachePolicy.WriteBack ||
@@ -1011,6 +1018,18 @@ public static unsafe partial class EfiEntry
             return CooperativeAuditPool(state, publish);
         }
 
+        // Compare the complete unmanaged prerequisite value, including PAT
+        // and reserved state. Unexpected layout forces the original decode.
+        // Both pointers are distinct live audit stack locals. Captures are used
+        // only for the current second read; every successful walk overwrites
+        // them before the next iteration can reuse a result.
+        private static bool CooperativeSameDecodePreconditions(X64PageTableEncodingPreconditions* first, X64PageTableEncodingPreconditions* second)
+        {
+            if (sizeof(X64PageTableEncodingPreconditions) != 24) return false;
+            ulong* a = (ulong*)first; ulong* b = (ulong*)second;
+            return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+        }
+
         // Audit actual retained PTEs and live CR3, not range declarations. WB is
         // decoded against the retained PAT token; unchanged live PAT/MTRR policy
         // and complete-operation serialization remain the trusted owner's duty.
@@ -1020,14 +1039,18 @@ public static unsafe partial class EfiEntry
         private static bool CooperativeAuditPool(Storage* state, bool published, bool ownedIst = false)
         {
             if (!CooperativeAdmitPool(state, ownedIst, out var memory, out ulong root)) return false;
+            X64PageTableEntryResult decoded = default;
+            X64PageTableEncodingPreconditions observedPreconditions = default;
             for (uint page = 0; page < CooperativePoolPages; page++)
             {
                 ulong address = state->CooperativePool + page * Page;
-                if (!CooperativeWalkPoolLeaf(memory, state->CooperativePool, root, address, out ulong* leaf)) return false;
+                if (!CooperativeWalkPoolLeaf(memory, state->CooperativePool, root, address, out ulong* leaf, &decoded, &observedPreconditions)) return false;
                 ulong raw = *leaf;
                 bool guard = published && CooperativeGuardPage(page);
                 if (guard) { if (raw != 0) return false; continue; }
-                var decoded = X64PageTableEntry.TryDecode(X64PageTableLevel.Pte, raw, memory.Tables.Preconditions);
+                var currentPreconditions = memory.Tables.Preconditions;
+                if (raw != decoded.Entry.RawValue || !CooperativeSameDecodePreconditions(&observedPreconditions, &currentPreconditions))
+                    decoded = X64PageTableEntry.TryDecode(X64PageTableLevel.Pte, raw, currentPreconditions);
                 PageProtection expected = published && page < CooperativeCodePages ? PageProtection.Read | PageProtection.Execute : PageProtection.Read | PageProtection.Write;
                 if (!decoded.Succeeded || decoded.Kind != X64PageTableEntryKind.Leaf || decoded.Protection != expected ||
                     decoded.CachePolicy != PageCachePolicy.WriteBack || decoded.PageSizeBytes != Page ||
@@ -1910,12 +1933,22 @@ public static unsafe partial class EfiEntry
                 bool pool = physical >= state->LinuxMemoryPool && physical - state->LinuxMemoryPool < LinuxMemoryPoolPages(state) * Page;
                 if (!image && !pool) return 0;
             }
-            for (uint i = 0; i < bytes; i++)
+            // The admitted single-owner mapping stays stable for this synchronous
+            // copy. Resolve each page separately and preserve forward byte order.
+            uint copied = 0;
+            while (copied < bytes)
             {
+                ulong current = address + copied;
                 _ = X64UserAddressSpace.TryReadLeaf((ulong*)state->LinuxUserTables, state->LinuxUserTables,
-                    X64UserAddressSpace.MaximumTables, address + i, out ulong leaf);
-                byte* alias = (byte*)((leaf & 0x000ffffffffff000) + ((address + i) & 4095));
-                if (toUser) *alias = kernel[i]; else kernel[i] = *alias;
+                    X64UserAddressSpace.MaximumTables, current, out ulong leaf);
+                byte* alias = (byte*)((leaf & 0x000ffffffffff000) + (current & 4095));
+                uint chunk = (uint)(Page - (current & 4095));
+                if (chunk > bytes - copied) chunk = bytes - copied;
+                for (uint i = 0; i < chunk; i++)
+                {
+                    if (toUser) alias[i] = kernel[copied + i]; else kernel[copied + i] = alias[i];
+                }
+                copied += chunk;
             }
             return 1;
         }

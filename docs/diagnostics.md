@@ -1,5 +1,47 @@
 # Diagnostics
 
+[Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
+
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+
+BUDGET_END is clock telemetry, not an expiry marker. Retain the rejected call and duplicate ordinal as failed evidence; no replay or invented generation is authorized.
+
+[Step1655](../done/step1655.md) The completed-only directory cache reshape removes in-flight reservations and helper call edges, restores the original submit/release paths and publishes only the successfully copied completion sector. It passes 99 focused checks across six fixtures with zero reuse. The preceding 90cdfc3b Full/Timing/M16 publication compiled, but its measured stack growth exceeded the inherited Timing margin; all failures and decoded facts remain preserved. Fresh native review of this reshape, including the unchanged Enable construction edge, remains required before one diagnostic Short. Assess benefit before another expensive full lane; the unfiltered full is mandatory for stable acceptance. Finish qualified read-phase merge/parity/recovery, then pause before writes/SQLite.
+
+[Step1648](../done/step1648.md) Source3147392e passes the unfiltered host lane:7409 checks/922 fixtures/110Native, zero reuse, unchanged source/producers/HEAD; repo/contracts pass. Conditional Full/Timing/M16 native reviews retain complete own-profile parents; Timing adds456 stack bytes/all5 domains/all15 phases and4096 image bytes. Timing original1592/30145/55f200/0 returns0, but independent BASE1598/318876/1 remains FAILED: a historical3724B CRLF baseline was normalized to3607B LF while its raw pin stayed unchanged. No BASE receipt, late input recheck, suffix, replay or selection success is claimed. Production observations only:3723 verification calls/4.3945814s in30.1823409s, including measurement overhead; no causal dominance or repair benefit. Expert advice preserves this failure and prospectively copies baseline bytes verbatim. Assets199–201 retain the earlier closed native/focused checkpoint and require178–198; they exclude this later full/original/failure frontier. The four read issues, full Blazor/browser/cleanup, writes/SQLite/#775/#226/#227 and Gate14 remain open. Continue a source-guided read repair, then qualify/merge/recover the read phase and pause.
+
+[Step1647](../done/step1647.md) repairs the Timing-only explicit EFI compile/admission closure after publication1488/session62836/a80478/1 failed CS0426; Full had published, Timing failed and M16 was not invoked. The independent inventory now includes the actual Timing profile and its single diagnostic model. Fresh focused r02 passes47 checks across6 fixtures, unchanged inputs/zero reuse. Focused r01 also remains failed for its canonical XML pin; the corrected pin uses the production XmlReader. No runtime verification, budget or selection change was made. Fresh corrected native/full/guest qualification remains pending; the four read issues and broader storage/SQLite/Gate14 claims remain open.
+
+[Step1646](../done/step1646.md) records sourcef087's 7,404-check unfiltered host pass across 921 fixtures (110 Native), zero reuse and unchanged inputs, its conditional own-profile native reviews, and one strictly joined four-response/64 KiB short. Full1409 remains FAILED at the unchanged 1,700-second matrix bound: 120 matched wire responses/10,140,233 body bytes include the complete concurrent CoreLib asset, but the browser was cancelled with zero retained exchanges and no screenshot or normal cleanup. The single strict partial readback preserves one unfinished physical transaction, six incomplete source4 calls and all failures. The next expert-directed change is diagnostic only: the Timing profile counts and times complete LinuxNativeVerify calls inside listen-to-last-copy, preserves original verification/result/order and every check, and invalidates bad samples without skipping verification. Forty-one focused checks across five fixtures pass; new emitted/native and original probe qualification remain pending. Existing v7 records remain with a separate verification sub-schema; no method dominance, speed or Full/browser acceptance is inferred. Hold B/A2/Truncated/current M16 originals. Published191–194 retain the prior closed scopes and require178–190; published attachments195–198 retain the new f087 cohort and require178–194, with all four upload/download SHA/length readbacks verified. #770/#771/#773/#774, writes/SQLite/#775/#226/#227 and Gate14 remain open. Finish the read phase through verified merge/readback and recoverable cleanup, stop the helper, then pause.
+
+### Complete verification cost observation
+
+The existing Timing profile wraps the complete `LinuxNativeVerify` invocation. It keeps call count and summed elapsed nanoseconds only within the real listen-to-last-copy phase and emits one `M10_018_VERIFY` record after freezing. The separate `clros-linux-native-verify-timing-v1` receipt field retains the existing v7 phase, driver and selection records. Monotonic samples, checked count/time accumulation and nonnested phase containment are mandatory. A clock, owner, nesting or phase failure invalidates the observation while the original verifier still runs exactly once and returns its original result. Time includes boundary overhead and calls from all covered contexts; it cannot be subtracted wholesale from driver non-poll time or treated as pure CPU time. The new native profile and original measurement remain pending.
+
+### Eight-byte instruction comparisons
+
+`ThreadContextSwitch.StubWriter.Bytes` checks exactly eight admitted instruction bytes with one scalar read only in compare mode with a non-null buffer and eight bytes remaining. The x64 little-endian, ordinary-memory and nonalias ownership premises remain. A mismatch latches invalidity; the position still advances, including for an already invalid writer. Emission, dry runs, other counts and boundary-overrun continuation retain the original byte loop. Five focused cases compile the actual production method and five field declarations; they are host algorithm evidence, with no extra diagnostic field, native ABI/stack or performance grant.
+
+### Saved-code equality (Step1644)
+
+`LinuxNativeSavedCode` still checks the complete retained snapshot before and after dispatch and during reap. The new scalar implementation compares complete eight-byte words inside the declared extent, followed by every remaining byte. It retains the missing-snapshot rejection and never writes, hashes or caches authority. Code/snapshot buffers retain their aligned, mapped and exclusive caller-owned lifetimes. Every byte is still covered; this scan is outside selected-to-arm and cannot be attributed to that interval. No extra diagnostic field or scheduler change is introduced.
+
+### Selected-dispatch observation
+
+The timing-only profile samples the existing raw HPET clock immediately after successful dispatch and current-identity validation, before invoking the generated driver. `M10_018_SELECTED version=1` is published after that driver returns and supervisor confirmation; it binds the physical dispatch sequence, thread identity, selection epoch, return epoch, raw selected tick and HPET period. IRQs can advance the epoch, so the two epochs must remain separate. `M10_018_SELECTED_END` follows the final measured dispatch's successful physical `EndDispatch`. Later unmeasured turns add no samples. The host keeps its existing v7 aggregates and adds `clros-thread-dispatch-selection-v1`; it requires complete ordered samples, adjacent supervisor/IRQ identity and clock joins, an IRQ witness, and unchanged records after runner joining. Missing, malformed or late-changing records fail the diagnostic. Observation overhead remains measured; these intervals are not pure guest CPU or device latency. The APIC 2,000,000/divide-eight programming value is a raw count, not a calibrated two-millisecond duration.
+
+For current Full/Timing evidence, one physical read can produce 1..4 ordered 512-byte payload rows: kind2 begins the group and kind3 continues it. Chunk indices retain owner, epoch, generation, base LBA, sequence, total request bytes, ring values and observation clock; each payload joins image LBA `base + chunk`. Every continuation must equal the first copied row's observation clock exactly, includingzero; a merely nondecreasing later clock is rejected. The legacy512-byte group remains unchanged. Physical copy counters advance once per complete group. The existing eight-slot buffer and consumer bounds remain; missing, duplicate, reordered, interleaved or cancelled payloads fail the join. Legacy M16-025 evidence below retains its separate single-sector contract.
+
+[Step1635](../done/step1635.md) preserves the first fresh Full018 DiskA run at `f27d42e2` as FAILED at the unchanged1700-second HTTP matrix budget:119 complete responses/8130864B, with the concurrent CoreLib response incomplete at819200/2009369B. The owned runner joined after cancellation; browser and normal guest cleanup were not reached. The same-source7359-check full-host pass and conditional native review do not override that failure.
+
+Historical Step1635 diagnostic checkpoint: a generated-driver child span partitioned the existing dispatch window without changing work, polling, evidence or budgets. At that checkpoint, 28 focused Root host checks passed while its native and original v7 qualification were pending. Later source-matched results are recorded above; the diagnostic does not establish a speed gain or pure guest-CPU measurement.
+
+[Step1634](../done/step1634.md) connects the fixed `-WebRootFault Truncated` control to the complete Full018 HTTP/browser owner, preserving healthy A/B/A. Forty-three current focused checks pass, including the complete synthetic source4/ready-completion protocol, actual managed descriptor EIO/recovery and held image/receipt identity joins. Review found and corrected hash-casing and wait-source/completion-domain bugs; failed originals and earlier test cohorts remain separate. Current Full018 output/clock/block tuple components and disk-wait phase36624/65536 are conditional; whole native domains and fresh guest/browser originals remain pending. #770/#771/#773/#774, full guest-origin Blazor/browser, writes and SQLite remain open. The human phase boundary requires completing this batch, merge/readback and safe cleanup, then pausing before further development.
+
+[Step1632](../done/step1632.md) fixes the new CloseReuse evidence contract without changing existing logical clocks: an exact-package completion now has a separate adjacent, request-bound fresh wall-clock witness for physical IO comparisons. All112 coherent focused checks pass; a fresh native image and conditional data/instruction bindings are retained, while its strict original guest is pending. The failed controlled original remains failed. Full FAT32/Blazor/browser, #770/#771/#773/#774, writes and SQLite remain open.
+
+[Step1631](../done/step1631.md) retains fresh complete Mechanical59 and ExitPending originals, plus the failed CloseReuse original whose strict physical pending interval was absent. A digest-bound, probe-only zero-or-one-step close boundary is implemented and reviewed; its fresh guest run is still pending. All110 coherent focused checks pass. The additive fault-image verifier authenticates four existing corrupt variants against an intact image; it does not yet execute a corrupt guest HTTP request. #770/#771/#773/#774, full FAT32/Blazor/browser, writes and SQLite remain open.
+
 ## Shared QEMU fixture filesystem snapshots
 
 Test-only f3202d25 removes each rejection test's self-referencing directory
@@ -2480,13 +2522,41 @@ and collecting-GC ancestry remain required. The fixture runs before firmware exi
 
 The explicit disk-read timing profile retains its original42-field
 `M10_018_TIMING` record. A separate11-field `M10_018_DISPATCH` record partitions
-the same listen-to-final65536B-copy window. The peer's v6 receipt requires both
+the same listen-to-final65536B-copy window. Historical v6 receipts require both
 records and exact conservation:
 
 ```text
 phaseNs = pollNs + dispatchNonPollNs + supervisorNonPollNs
 dispatchNonPollNs = dispatchNs - nestedPollNs
 ```
+
+The current v7 peer additionally requires one11-field `M10_018_DRIVER` record.
+Its child brackets only the actual generated-driver invocation inside the
+unchanged dispatch. Both counters use the same observed Arm/Freeze timestamps
+and cumulative poll window; neither can freeze across an active poll. The
+original parent, all checks and their order remain intact. The copied parser
+requires the following nonnegative subset and conservation rules:
+
+```text
+driverNs <= dispatchNs
+driverNestedPollNs <= nestedPollNs
+driverNestedPollNs <= driverNs
+nestedPollNs - driverNestedPollNs <= dispatchNs - driverNs
+driverNonPollNs = driverNs - driverNestedPollNs
+dispatchShellNonPollNs = (dispatchNs - driverNs) - (nestedPollNs - driverNestedPollNs)
+dispatchNonPollNs = driverNonPollNs + dispatchShellNonPollNs
+```
+
+Here `driverNestedPollNs` is the child record's `nestedPollNs`. Raw physical
+durations are not subtracted and clamped to simulate clipping. The kernel model
+requires the exact original phase start and cumulative-poll start, successful
+freeze of both counters and matching elapsed/poll totals. The native caller
+separately establishes actual nesting and the common serialized owner. Driver
+time includes worker/guest/kernel execution, transitions, logging and boundary
+overhead; its residual is not pure guest CPU. Source/runtime native qualification
+and a new original v7 diagnostic remain pending in Step1635; host checks and
+copied records do not supply them. Existing v5/v6 lines remain unchanged, while
+the current receipt schema is `clros-disk-read-timing-v7` with `DriverMetrics`.
 
 The complete supervisor dispatch invocation includes guest execution, kernel
 checks, transitions and synchronous logging. It is not pure guest CPU time.
@@ -2497,11 +2567,14 @@ in-flight poll because its cumulative duration is published only on return.
 An invocation crossing either measurement boundary contributes only its
 intersection with the half-open window. One invocation crossing both counts
 once as clipped; an empty intersection contributes no envelope. The actual
-final-copy hook freezes before both aggregate dumps. `phaseComplete=1` means
+final-copy hook freezes before all aggregate dumps. `phaseComplete=1` means
 the measured partition is complete; `physicalActive=1` explicitly records that
 the containing dispatch has not yet returned. Its later return validates and
 clears the original sequence without changing frozen totals. A late fault still
 fails the owner, and the peer checks final serial status again after runner join.
+The driver child follows the same sequence and late-return rules. The current
+peer waits for its complete third line and verifies all three immutable records
+after joining the original runner.
 
 The arithmetic/parser/loopback tests establish host diagnostic contracts.
 Step1614 joins the first actual v6 native/guest run at cc2cad61, with all20

@@ -774,11 +774,133 @@ public static unsafe partial class EfiEntry
         private static uint PackLinuxSocketAddress(Ipv4Address address) => ((uint)address.Octet0 << 24) |
             ((uint)address.Octet1 << 16) | ((uint)address.Octet2 << 8) | address.Octet3;
 
+#if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
+        // Controlled completion-observation ordering for one complete immutable
+        // fixture. The already admitted IRQ-off BSP owner borrows all pointers
+        // synchronously; no owner, user pointer or callback escapes. Other
+        // packages/roles retain normal polling. A selected invalid tuple aborts.
+        private static bool SelectNativeCloseReusePoll(LinuxNativeControl* c, uint index,
+            LinuxSyscallFrame call, out bool selected)
+        {
+            selected = false;
+            if (index != 1 || call.Number != 3 || call.Argument0 != 3 || c->State->LinuxBytes != 29001)
+                return true;
+            if (!SelectNativeCloseReusePackage(c->State, out selected)) return false;
+            if (!selected) return true;
+            return call.Argument1 == 0 && call.Argument2 == 0 && call.Argument3 == 0 &&
+                call.Argument4 == 0 && call.Argument5 == 0 && LinuxNativeCallOrdinal(c, index) == 4;
+        }
+
+        private static bool SelectNativeCloseReusePackage(Storage* state, out bool selected)
+        {
+            selected = false;
+            if (state == null) return false;
+            if (state->LinuxBytes != 29001) return true;
+            ulong* digest = stackalloc ulong[4];
+            if (state->LinuxPackage == 0 ||
+                !OS.Std.Hash.Sha256.TryCompute((byte*)state->LinuxPackage, state->LinuxBytes, (byte*)digest, 32))
+                return false;
+            if (digest[0] != 0x786039823719dce0 || digest[1] != 0x8e029608a574caba ||
+                digest[2] != 0x87219389ec77dfc6 || digest[3] != 0xa6215a3aec154ca6) return true;
+            selected = true;
+            return true;
+        }
+
+        // The scheduler's COMPLETE clock remains its last logical observation.
+        // Only this immutable fixture also records a fresh owned wall-clock
+        // bound after completion work and queued IO evidence have finished.
+        // The IRQ-off caller retains the current thread/request synchronously;
+        // no pointer escapes and clock/flush failure aborts without a witness.
+        private static bool ObserveNativeCloseReuseCompletionTime(LinuxNativeControl* c,
+            ulong sequence, ulong request)
+        {
+            if (!SelectNativeCloseReusePackage(c->State, out bool selected)) return false;
+            if (!selected) return true;
+            if (!FlushNativeDiskEvidence(c->State) ||
+                !ReadNetworkTime(c->State, out ulong now) || now < c->Threads.ObservedTicks || now > (ulong)long.MaxValue)
+                return false;
+            return LinuxText(c->State, "M16_025_COMPLETE_TIME identity=") && LinuxNumber(c->State, c->Threads.Current.Value) &&
+                LinuxText(c->State, " sequence=") && LinuxNumber(c->State, sequence) &&
+                LinuxText(c->State, " request=") && LinuxNumber(c->State, request) &&
+                LinuxText(c->State, " clock=") && LinuxNumber(c->State, now) && LinuxText(c->State, "\r\n");
+        }
+
+        // Inspect only the original parked8192-byte read. The canonical code,
+        // retained mappings/backing and single-owner lifetime remain required.
+        // ReadPending means submitted but unconsumed; hardware may have already
+        // published its used entry. No inspection polls the device or user RAM.
+        private static bool RequireNativeCloseReuseParentRead(LinuxNativeControl* c, NativeDiskOwner* disk,
+            bool requirePending)
+        {
+            if (c == null || c->State == null || disk->Boot != c->State || disk->Phase != 7 ||
+                c->Capacity != 2 || c->Selected != 2 || c->User.UserInterrupts || c->Entered[1] != 1 ||
+                c->GuardAttached != 1 || c->ProcessAttached != 1 || c->Threads.Current.Value != 0x100000002 ||
+                !disk->Mount.Ready || !disk->Device.Running || disk->Mount.Input.Device != &disk->Device ||
+                disk->Requests == null || disk->Operations == null || disk->Bindings == null || disk->Files == null ||
+                disk->Mount.Input.Operations != disk->Operations || disk->Mount.Input.Files != disk->Files) return false;
+            var parent = c->Slots;
+            var parked = c->Threads.Inspect(c->Key, 2, parent->Kernel);
+            var token = parent->DiskOperation;
+            if (parent->Kernel.Value != 0x100000001 || parent->Exiting != 0 || parent->WaitSource != 4 ||
+                !parent->Wait.IsValid || !parked.Succeeded || parked.State != ThreadTable.State.Waiting ||
+                parked.Completion != ThreadTable.Completion.None || parked.Wait.Sequence != parent->Wait.Sequence ||
+                parent->WaitCall.Number != 0 || parent->WaitCall.Argument0 != 3 ||
+                parent->WaitCall.Argument1 != 0x404000 || parent->WaitCall.Argument2 != 8192 || parent->DiskOutputBytes != 8192 ||
+                !token.IsActive || token.Owner != (ulong)(&disk->Descriptors) || token.Epoch != disk->Descriptors.Epoch ||
+                token.Index >= LinuxDescriptorServices.DiskSlots) return false;
+            var request = disk->Requests + token.Index;
+            var fs = request->Operation;
+            if (request->Self != (ulong)request || request->Generation != token.Generation ||
+                request->Worker.Value != parent->Kernel.Value || !request->Borrowed || request->Positioned ||
+                request->Cancelling || request->Number != 0 || request->Requested != 8192 || request->Offset != 0 ||
+                request->OriginalFd.Owner != &c->State->LinuxDescriptors || request->OriginalFd.Number != 3 ||
+                !LinuxDescriptorServices.IsCurrent(&c->State->LinuxDescriptors, request->OriginalFd) ||
+                request->Binding >= LinuxDescriptorServices.DiskSlots ||
+                request->Description >= c->State->LinuxDescriptors.Owner.DescriptionCount ||
+                !fs.IsInitialized || fs.Owner != (ulong)(&disk->Mount) || fs.Epoch != disk->Mount.Input.Epoch ||
+                fs.Index >= disk->Mount.Input.OperationCount) return false;
+            var operation = disk->Operations + fs.Index;
+            var binding = disk->Bindings + request->Binding;
+            var description = c->State->LinuxDescriptors.Owner.Descriptions + request->Description;
+            if (operation->Self != (ulong)operation || operation->Index != fs.Index ||
+                operation->Generation != fs.Generation || operation->Epoch != fs.Epoch ||
+                operation->FileIndex != binding->File.Index || operation->Offset != 0 ||
+                operation->Wanted != 8192 || operation->Filled >= operation->Wanted ||
+                binding->Active != 1 || binding->Generation != request->BindingGeneration ||
+                binding->Description != request->Description || !binding->File.IsInitialized ||
+                binding->File.Owner != (ulong)(&disk->Mount) || binding->File.Epoch != fs.Epoch ||
+                binding->File.Index >= disk->Mount.Input.FileCount ||
+                disk->Files[binding->File.Index].Generation != binding->File.Generation ||
+                description->Position != 0 || description->Borrowers == 0) return false;
+            if (!requirePending) return true;
+            return disk->Device.ReadPending && disk->Mount.IoActive && disk->Mount.IoIndex == fs.Index &&
+                disk->Mount.IoGeneration == fs.Generation && operation->Waiting == OS.Storage.ReadOnlyWebRootFileSystem.DataIo &&
+                disk->Mount.IoToken.Owner == (ulong)(&disk->Device) && disk->Mount.IoToken.Epoch == disk->Device.PoolEpoch &&
+                disk->Mount.IoToken.Generation == disk->Device.RequestGeneration &&
+                disk->Device.Submitted > disk->Device.Completed && disk->Device.Submitted - disk->Device.Completed == 1;
+        }
+
+        private static bool PollNativeCloseReuseDiskReadiness(LinuxNativeControl* c, NativeDiskOwner* disk)
+        {
+            if (!RequireNativeCloseReuseParentRead(c, disk, false) || !ReadNetworkTime(c->State, out ulong started)) return false;
+            // Omit the entire optional access: Clock OR Flush selects a quantum.
+            // One genuine step must establish pending, otherwise retain failure.
+            if (!disk->Device.ReadPending && !c->Process.PollDiskReadiness(c->Key, 2)) return false;
+            if (!RequireNativeCloseReuseParentRead(c, disk, true)) return false;
+            return FlushNativeDiskEvidence(c->State) && ReadNetworkTime(c->State, out ulong finished) && finished >= started &&
+                RequireNativeCloseReuseParentRead(c, disk, true);
+        }
+#endif
+
         private static bool PollLinuxSocketNetwork(LinuxNativeControl* c,
 #if M10_018_TIMING_PROBE
             NativeDiskPollCause cause,
 #endif
-            bool observe = true)
+            bool observe = true
+#if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
+            , bool preserveClosePending = false
+#endif
+            )
         {
 #if M16_025_PROBE && !M16_027_PROBE
             fixed (NativeDiskOwner* disk = &s_nativeDisk)
@@ -788,7 +910,7 @@ public static unsafe partial class EfiEntry
             {
                 bool timing = disk->TimingPhase == 1;
                 bool pollTracked = disk->TimingPhase != 2;
-                if (pollTracked && !disk->TimingDispatch.BeginPoll()) return false;
+                if (pollTracked && (!disk->TimingDispatch.BeginPoll() || !disk->TimingDriver.BeginPoll())) return false;
                 uint bucket = (uint)cause;
                 if (bucket >= 4) return false;
                 ulong started = 0, afterPre = 0, afterDisk = 0, afterRefresh = 0, afterReadiness = 0, finished = 0;
@@ -842,7 +964,7 @@ public static unsafe partial class EfiEntry
                     disk->TimingCauseDisk[bucket] += afterDisk - afterPre;
                     disk->TimingCausePost[bucket] += finished - afterDisk;
                 }
-                return !pollTracked || disk->TimingDispatch.EndPoll();
+                return !pollTracked || disk->TimingDriver.EndPoll() && disk->TimingDispatch.EndPoll();
             }
 #elif M16_027_PROBE
 #if M16_027_TIMING_PROBE
@@ -878,8 +1000,16 @@ public static unsafe partial class EfiEntry
                     RecordLinuxSocketWaits(o, c) && PumpLinuxSocketFrames(o) && c->Process.AdvanceFutexClock(c->Key, 2) &&
                     (!observe || RecordLinuxSocketPoll(c)) &&
 #if M16_025_PROBE
-                    disk->Boot == c->State && c->Process.PollDiskReadiness(c->Key, 2,
-                        new() { Context = disk, Clock = &NativeDiskClock, Flush = &NativeDiskQuantumFlush }) &&
+                    disk->Boot == c->State &&
+#if !M10_018_PROBE
+                    (preserveClosePending ? PollNativeCloseReuseDiskReadiness(c, disk) :
+#endif
+                    c->Process.PollDiskReadiness(c->Key, 2,
+                        new() { Context = disk, Clock = &NativeDiskClock, Flush = &NativeDiskQuantumFlush })
+#if !M10_018_PROBE
+                    )
+#endif
+                    &&
 #endif
                     c->Process.PollDescriptorReadiness(c->Key, 2) && RecordLinuxSocketWaits(o, c);
 #endif

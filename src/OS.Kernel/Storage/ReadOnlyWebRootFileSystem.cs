@@ -20,6 +20,8 @@ public static unsafe class ReadOnlyWebRootFileSystem
 {
     public const uint PathBytes = 256, MaximumRangeBytes = 65536, MaximumClusters = 4096;
     public const uint MaximumSlots = 8, MaximumCacheSlots = 8;
+    public const uint MaximumImmutableDirectoryCacheSlots = 5;
+    public const uint MaximumImmutableFileChainCacheSlots = 2;
     /// <summary>Maximum cached cluster visits in one selected open-chain turn.
     /// Each visit may scan at most4096 prior clusters. Stop at the first real
     /// I/O transition; this never polls a newly submitted device request.</summary>
@@ -33,7 +35,10 @@ public static unsafe class ReadOnlyWebRootFileSystem
     private const byte Free = 0, Working = 1, ReadyPhase = 2, Failed = 3, Cancelling = 4;
     private const byte Mounting = 1, Mounted = 2, Stopping = 3, Retired = 4, Faulted = 5;
     private const byte MountKind = 1, OpenKind = 2, ReadKind = 3, ScanKind = 4;
-    private const byte BpbIo = 1, DirectoryIo = 2, Fat0Io = 3, Fat1Io = 4, DataIo = 5;
+    private const byte BpbIo = 1, DirectoryIo = 2, Fat0Io = 3, Fat1Io = 4;
+    // Native diagnostics inspect this discriminator only under the original
+    // mount/operation generation; it never grants progress or copy authority.
+    internal const byte DataIo = 5;
 
     public enum Status : byte
     {
@@ -66,6 +71,22 @@ public static unsafe class ReadOnlyWebRootFileSystem
         internal ulong Epoch, Lba0, Lba1, OperationGeneration;
         internal uint OperationIndex;
         internal byte Phase;
+    }
+
+    private struct ImmutableDirectoryRecord
+    {
+        internal ulong MountOwner, MountEpoch, DeviceEpoch, PoolEpoch, Lba;
+        internal ulong Phase; // Free until completed copy; ReadyPhase publishes last.
+    }
+
+    // Explicit positive authority over an admitted map, independent of the
+    // public handle slot. Any map overwrite revokes every certificate naming it.
+    private struct FileChainCertificate
+    {
+        internal ulong Epoch;
+        internal Metadata Info;
+        internal uint* Clusters;
+        internal uint Count, Phase;
     }
 
     /// <summary>Caller-owned handle slot and immutable checked cluster map.
@@ -156,10 +177,14 @@ public static unsafe class ReadOnlyWebRootFileSystem
         internal Block.ReadToken IoToken;
         internal ulong IoGeneration;
         internal uint IoIndex, NextVictim;
-        internal byte Phase;
+        internal byte Phase, DataReadSectors;
         internal bool IoActive;
         internal Status Failure;
         internal ulong Reads, Hits, Misses;
+        internal byte* ImmutableDirectoryCacheBacking;
+        internal uint ImmutableDirectoryCacheSlots;
+        internal byte* ImmutableFileChainCacheBacking;
+        internal uint ImmutableFileChainCacheSlots;
 #if !NOSTDLIB_EFI || M16_027_PROBE
         internal Port.State* ReadPort;
         internal Port.Inspection PortBinding;
@@ -228,12 +253,80 @@ public static unsafe class ReadOnlyWebRootFileSystem
     /// and /app/wwwroot resolution using operation0. Pending requires PumpMount.
     /// No supplied buffer is device DMA; block Copy borrows sector scratch only
     /// through a pump call. Invalid admission has no effects.</summary>
-    public static Status Start(Mount* m, in Admission input)
+    public static Status Start(Mount* m, in Admission input) => Start(m, input, 1);
+
+    /// <summary>Opt into at most four contiguous data sectors per owned request.
+    /// Metadata, partial sectors and borrowed backends retain single-sector I/O.
+    /// Uses existing caller range storage; invalid bounds leave admission untouched.</summary>
+    public static Status Start(Mount* m, in Admission input, uint maximumDataReadSectors)
     {
         Admission a = input;
-        if (!Admit(m, a)) return Status.InvalidAccess;
+        if (maximumDataReadSectors is 0 or > 4 || !Admit(m, a)) return Status.InvalidAccess;
         m->Self = (ulong)m; m->Input = a; m->DeviceEpoch = a.Device->Input.Epoch;
+        m->DataReadSectors = (byte)maximumDataReadSectors;
         m->PoolEpoch = a.Device->PoolEpoch; return Initialize(m, a);
+    }
+
+    /// <summary>Exact contiguous ordinary-RAM backing for1..5 protected directory
+    /// sectors. Zero means an unsupported slot count or record size; no memory is accessed.</summary>
+    public static uint ImmutableDirectoryCacheBytes(uint slots) =>
+        slots is 0 or > MaximumImmutableDirectoryCacheSlots || sizeof(ImmutableDirectoryRecord) != 48 ? 0 : slots * (48 + 512);
+
+    /// <summary>Opt in to completed-requested-sector reuse on immutable media.
+    /// Call once after Start and before any mount I/O. The caller exclusively
+    /// retains the aligned disjoint backing and guarantees unchanged media until
+    /// Stop retires this mount. Borrowed writable ports are unsupported. Only
+    /// ordinary mounted directory reads fill protected non-evicting slots; all
+    /// original parsing and work checks still run. Hits cannot observe a later
+    /// hypothetical read fault or unsampled external media mutation. Invalid
+    /// configuration changes no backing or mount state; no I/O or allocation runs.</summary>
+    public static Status EnableImmutableDirectoryCache(Mount* m, byte* backing, uint bytes, uint slots)
+    {
+        uint required = ImmutableDirectoryCacheBytes(slots);
+        if (required == 0 || bytes != required || !Bound(m) || m->Phase != Mounting ||
+            m->Reads != 0 || m->IoActive || m->ImmutableDirectoryCacheBacking != null ||
+            m->ImmutableDirectoryCacheSlots != 0) return Status.InvalidAccess;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (m->ReadPort != null) return Status.InvalidAccess;
+#endif
+        if (!DeviceBound(m) || !m->Input.Device->Running || m->Input.Device->ReadPending ||
+            m->Input.Device->ReadReady) return Status.InvalidState;
+        if (!External(m, (ulong)backing, bytes, 8)) return Status.InvalidStorage;
+        for (uint i = 0; i < slots; i++) ((ImmutableDirectoryRecord*)backing)[i] = default;
+        m->ImmutableDirectoryCacheBacking = backing; m->ImmutableDirectoryCacheSlots = slots;
+        return Status.Success;
+    }
+
+    /// <summary>Exact ordinary-RAM certificate backing for1..2 successful file
+    /// chains. Map data remains in the existing admitted handle arrays. Zero
+    /// means an unsupported count or record size; no memory is accessed.</summary>
+    public static uint ImmutableFileChainCacheBytes(uint slots) =>
+        slots is 0 or > MaximumImmutableFileChainCacheSlots || sizeof(FileChainCertificate) != 56 ? 0 : slots * 56;
+
+    /// <summary>Opt in to positive regular-file chain reuse on immutable media.
+    /// Call once after Start before any mount I/O. The aligned disjoint backing,
+    /// mount, volume, device/pool lifetime and every admitted map array remain
+    /// exclusive/stable until Stop. Closed maps are retained only by explicit
+    /// certificates and revoked before overwrite; closed bytes alone confer no
+    /// authority. Path resolution still runs and file data is always read fresh.
+    /// Borrowed writable ports are unsupported. Hits cannot observe hypothetical
+    /// suppressed-read faults or external mutations violating this contract.
+    /// Invalid configuration changes nothing and performs no I/O or allocation.</summary>
+    public static Status EnableImmutableFileChainCache(Mount* m, byte* backing, uint bytes, uint slots)
+    {
+        uint required = ImmutableFileChainCacheBytes(slots);
+        if (required == 0 || bytes != required || !Bound(m) || m->Phase != Mounting ||
+            m->Reads != 0 || m->IoActive || m->ImmutableFileChainCacheBacking != null ||
+            m->ImmutableFileChainCacheSlots != 0) return Status.InvalidAccess;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (m->ReadPort != null) return Status.InvalidAccess;
+#endif
+        if (!DeviceBound(m) || !m->Input.Device->Running || m->Input.Device->ReadPending ||
+            m->Input.Device->ReadReady) return Status.InvalidState;
+        if (!External(m, (ulong)backing, bytes, 8)) return Status.InvalidStorage;
+        for (uint i = 0; i < slots; i++) ((FileChainCertificate*)backing)[i] = default;
+        m->ImmutableFileChainCacheBacking = backing; m->ImmutableFileChainCacheSlots = slots;
+        return Status.Success;
     }
 
 #if !NOSTDLIB_EFI || M16_027_PROBE
@@ -371,6 +464,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (!Op(m, token, out Operation* o)) return Status.StaleToken;
         if (o->Kind != OpenKind || o->Phase != ReadyPhase) return o->Phase == Failed ? o->Failure : Status.Pending;
         FileHandle* f = m->Input.Files + o->FileIndex; f->Phase = ReadyPhase;
+        PublishFileChain(m, f);
         *result = new() { File = new((ulong)m, m->Input.Epoch, f->Generation, o->FileIndex), Info = f->Info };
         o->FileIndex = ~0U; Release(m, o); return Status.Success;
     }
@@ -555,10 +649,18 @@ public static unsafe class ReadOnlyWebRootFileSystem
         return entry;
     }
 
-    private static Status ReadSector(Mount* m, Operation* o, ulong lba, byte action)
+    private static Status ReadSector(Mount* m, Operation* o, ulong lba, byte action, uint sectors = 1)
     {
-        if (lba < m->Input.PartitionFirst || lba > m->Input.PartitionLast) return Fail(m, o, Status.CorruptFile);
+        if (sectors is 0 or > 4 || (sectors != 1 && action != DataIo) ||
+            lba < m->Input.PartitionFirst || lba > m->Input.PartitionLast ||
+            sectors - 1 > m->Input.PartitionLast - lba) return Fail(m, o, Status.CorruptFile);
         if (m->IoActive) return Status.Busy;
+        if (m->ImmutableDirectoryCacheBacking != null && action == DirectoryIo &&
+            m->Phase == Mounted && o->Kind != MountKind)
+        {
+            lba = TryCopyImmutableDirectorySector(m, o, lba);
+            if (lba == 0) return Status.Pending;
+        }
 #if !NOSTDLIB_EFI || M16_027_PROBE
         if (m->ReadPort != null)
         {
@@ -569,21 +671,49 @@ public static unsafe class ReadOnlyWebRootFileSystem
         }
 #endif
         Block.ReadToken token = default;
-        var status = Block.Submit(m->Input.Device, lba, &token);
+        var status = Block.Submit(m->Input.Device, lba, sectors, &token);
         if (status == Block.Status.Busy) return Status.Busy;
         if (status != Block.Status.Success) return Fail(m, o, DeviceFault(m));
-        m->IoToken = token; return Submitted(m, o, action);
+        m->IoToken = token; return Submitted(m, o, action, sectors);
     }
 
-    private static Status Submitted(Mount* m, Operation* o, byte action)
+    // Only ReadSector calls this after its nonzero partition-bounded LBA,
+    // idle physical owner and immutable mounted-directory eligibility checks.
+    // Zero denotes a completed hit; a miss returns the original nonzero LBA.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static ulong TryCopyImmutableDirectorySector(Mount* m, Operation* o, ulong lba)
+    {
+        uint remaining = m->ImmutableDirectoryCacheSlots;
+        var record = (ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking;
+        byte* data = (byte*)(record + remaining);
+        for (; remaining != 0; remaining--, record++, data += 512)
+        {
+            if (record->Phase != ReadyPhase || record->MountOwner != (ulong)m ||
+                record->MountEpoch != m->Input.Epoch || record->DeviceEpoch != m->DeviceEpoch ||
+                record->PoolEpoch != m->PoolEpoch || record->Lba != lba) continue;
+            for (uint n = 0; n < 512; n++) o->Storage.Sector[n] = data[n];
+            o->Cursor.SectorReady = true; o->Cursor.EntryInSector = 0; return 0;
+        }
+        return lba;
+    }
+
+    private static Status Submitted(Mount* m, Operation* o, byte action, uint sectors = 1)
     {
         m->IoIndex = o->Index; m->IoGeneration = o->Generation; m->IoActive = true;
-        o->Waiting = action; m->Reads++; return Status.Pending;
+        // Actions occupy the low nibble; the bounded length uses its spare bits.
+        o->Waiting = (byte)(action | ((sectors - 1) << 4)); m->Reads += sectors; return Status.Pending;
     }
 
     private static Status CompleteIo(Mount* m, Operation* o)
     {
         if (!m->IoActive || m->IoIndex != o->Index || m->IoGeneration != o->Generation) return Fail(m, o, Status.InvalidState);
+        byte action = (byte)(o->Waiting & 15);
+        uint sectors = (uint)(o->Waiting >> 4) + 1, requestedBytes = sectors * 512;
+        bool direct = sectors > 1;
+        ulong actualRequestSector = 0;
+        if (sectors > 4 || direct && (action != DataIo || o->Filled > o->Wanted ||
+            requestedBytes > o->Wanted - o->Filled || o->Wanted > o->Storage.RangeCapacity ||
+            ((o->Offset + o->Filled) & 511) != 0)) return Fail(m, o, Status.InvalidState);
 #if !NOSTDLIB_EFI || M16_027_PROBE
         if (m->ReadPort != null)
         {
@@ -603,11 +733,13 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (status == Block.Status.Pending) return Status.Pending;
         if (status == Block.Status.Cancelled && o->Phase == Cancelling)
         { m->IoActive = false; o->Waiting = 0; Release(m, o); return Status.Cancelled; }
-        if (status != Block.Status.Ready) return Fail(m, o, DeviceFault(m));
-        if (Block.Copy(m->Input.Device, m->IoToken, new Span<byte>(o->Storage.Sector, 512)) != Block.Status.Success)
+        if (status != Block.Status.Ready || completion.Bytes != requestedBytes) return Fail(m, o, DeviceFault(m));
+        if (Block.Copy(m->Input.Device, m->IoToken,
+            new Span<byte>(direct ? o->Storage.Range + o->Filled : o->Storage.Sector, (int)requestedBytes)) != Block.Status.Success)
             return Fail(m, o, DeviceFault(m));
+        actualRequestSector = completion.Sector;
         }
-        m->IoActive = false; byte action = o->Waiting; o->Waiting = 0;
+        m->IoActive = false; o->Waiting = 0;
         if (o->Phase == Cancelling) { Release(m, o); return Status.Cancelled; }
         if (action == BpbIo)
         {
@@ -616,7 +748,26 @@ public static unsafe class ReadOnlyWebRootFileSystem
             if (result != LiveFat32Status.Success) return Fail(m, o, Map(result));
             o->Component = 1; Component(o); InitCursor(o, m->Volume.RootCluster); return Status.Pending;
         }
-        if (action == DirectoryIo) { o->Cursor.SectorReady = true; o->Cursor.EntryInSector = 0; return Status.Pending; }
+        if (action == DirectoryIo)
+        {
+            if (m->ImmutableDirectoryCacheBacking != null && m->Phase == Mounted && o->Kind != MountKind)
+            {
+                // The sole physical request has completed and its accepted copy
+                // belongs to this operation. No cache record exists in flight.
+                for (uint i = 0; i < m->ImmutableDirectoryCacheSlots; i++)
+                {
+                    var record = (ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking + i;
+                    if (record->Phase != Free) continue;
+                    record->MountOwner = (ulong)m; record->MountEpoch = m->Input.Epoch;
+                    record->DeviceEpoch = m->DeviceEpoch; record->PoolEpoch = m->PoolEpoch;
+                    record->Lba = actualRequestSector;
+                    byte* data = m->ImmutableDirectoryCacheBacking + m->ImmutableDirectoryCacheSlots * 48 + i * 512;
+                    for (uint n = 0; n < 512; n++) data[n] = o->Storage.Sector[n];
+                    record->Phase = ReadyPhase; break;
+                }
+            }
+            o->Cursor.SectorReady = true; o->Cursor.EntryInSector = 0; return Status.Pending;
+        }
         if (action == Fat0Io)
         {
             CacheSlot* slot = m->Input.Cache + o->FatSlot;
@@ -632,6 +783,12 @@ public static unsafe class ReadOnlyWebRootFileSystem
             o->FatStage = 3; return Status.Pending;
         }
         if (action != DataIo) return Fail(m, o, Status.InvalidState);
+        if (direct)
+        {
+            o->Filled += requestedBytes;
+            if (o->Filled == o->Wanted) { o->Phase = ReadyPhase; return Status.Ready; }
+            return Status.Pending;
+        }
         uint skip = (uint)((o->Offset + o->Filled) & 511);
         uint count = 512 - skip; if (count > o->Wanted - o->Filled) count = o->Wanted - o->Filled;
         for (uint i = 0; i < count; i++) o->Storage.Range[o->Filled + i] = o->Storage.Sector[skip + i];
@@ -647,7 +804,31 @@ public static unsafe class ReadOnlyWebRootFileSystem
         uint map = (uint)(position / clusterBytes); if (map >= f->ClusterCount) return Fail(m, o, Status.CorruptFile);
         ulong lba = 0;
         if (Chain.ClusterFirstLba(m->Volume, f->Clusters[map], ref lba) != LiveFat32Status.Success) return Fail(m, o, Status.CorruptFile);
-        return ReadSector(m, o, lba + (position % clusterBytes) / 512, DataIo);
+        lba += (position % clusterBytes) / 512;
+        uint sectors = 1, maximum = m->DataReadSectors;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (m->ReadPort != null) maximum = 1;
+#endif
+        // The complete chain was validated on open. Cross a cluster boundary
+        // only when its retained mapping gives the next physical sector.
+        if ((position & 511) == 0 && maximum > 1)
+        {
+            uint whole = (o->Wanted - o->Filled) / 512;
+            if (maximum > whole) maximum = whole;
+            while (sectors < maximum)
+            {
+                ulong nextPosition = position + sectors * 512UL;
+                uint nextMap = (uint)(nextPosition / clusterBytes);
+                ulong nextLba = 0;
+                if (nextMap >= f->ClusterCount ||
+                    Chain.ClusterFirstLba(m->Volume, f->Clusters[nextMap], ref nextLba) != LiveFat32Status.Success)
+                    return Fail(m, o, Status.CorruptFile);
+                nextLba += (nextPosition % clusterBytes) / 512;
+                if (nextLba != lba + sectors) break;
+                sectors++;
+            }
+        }
+        return ReadSector(m, o, lba, DataIo, sectors);
     }
 
     private static Status FileChainStep(Mount* m, Operation* o)
@@ -693,6 +874,8 @@ public static unsafe class ReadOnlyWebRootFileSystem
             ulong clusterBytes = (ulong)m->Volume.SectorsPerCluster * 512;
             o->RequiredClusters = (uint)(((ulong)f->Info.Length + clusterBytes - 1) / clusterBytes);
             if (o->RequiredClusters > f->ClusterCapacity) return Fail(m, o, Status.TraversalBudgetExceeded);
+            if (TryCopyFileChain(m, f, o->RequiredClusters)) { o->Phase = ReadyPhase; return Status.Ready; }
+            InvalidateFileChain(m, f->Clusters);
             var visit = Chain.Visit(m->Volume, f->Info.FirstCluster, new Span<uint>(f->Clusters, (int)f->ClusterCapacity), ref f->ClusterCount);
             if (visit != LiveFat32Status.Success) return Fail(m, o, Map(visit));
             return Status.Pending;
@@ -713,6 +896,50 @@ public static unsafe class ReadOnlyWebRootFileSystem
         var result = Chain.Visit(m->Volume, next, new Span<uint>(f->Clusters, (int)f->ClusterCapacity), ref f->ClusterCount);
         if (result != LiveFat32Status.Success) return Fail(m, o, Map(result));
         return f->ClusterCount > o->RequiredClusters ? Fail(m, o, Status.CorruptFile) : Status.Pending;
+    }
+
+    private static bool TryCopyFileChain(Mount* m, FileHandle* f, uint required)
+    {
+        if (m->ImmutableFileChainCacheBacking == null) return false;
+        for (uint i = 0; i < m->ImmutableFileChainCacheSlots; i++)
+        {
+            var c = (FileChainCertificate*)m->ImmutableFileChainCacheBacking + i;
+            if (c->Phase != ReadyPhase || c->Epoch != m->Input.Epoch || c->Count != required ||
+                c->Info.Inode != f->Info.Inode || c->Info.ModifiedSeconds != f->Info.ModifiedSeconds ||
+                c->Info.FirstCluster != f->Info.FirstCluster || c->Info.Length != f->Info.Length ||
+                c->Info.NameBytes != f->Info.NameBytes || c->Info.Attributes != f->Info.Attributes) continue;
+            if (f->Clusters != c->Clusters)
+            {
+                InvalidateFileChain(m, f->Clusters);
+                for (uint j = 0; j < required; j++) f->Clusters[j] = c->Clusters[j];
+            }
+            f->ClusterCount = required; return true;
+        }
+        return false;
+    }
+
+    private static void PublishFileChain(Mount* m, FileHandle* f)
+    {
+        if (m->ImmutableFileChainCacheBacking == null || f->Info.IsDirectory || f->Info.Length == 0) return;
+        uint slot = 0;
+        for (uint i = 0; i < m->ImmutableFileChainCacheSlots; i++)
+        {
+            var existing = (FileChainCertificate*)m->ImmutableFileChainCacheBacking + i;
+            if (existing->Phase == Free || existing->Clusters == f->Clusters) { slot = i; break; }
+        }
+        var c = (FileChainCertificate*)m->ImmutableFileChainCacheBacking + slot;
+        c->Phase = Free; c->Epoch = m->Input.Epoch; c->Info = f->Info;
+        c->Clusters = f->Clusters; c->Count = f->ClusterCount; c->Phase = ReadyPhase;
+    }
+
+    private static void InvalidateFileChain(Mount* m, uint* clusters)
+    {
+        if (m->ImmutableFileChainCacheBacking != null)
+            for (uint i = 0; i < m->ImmutableFileChainCacheSlots; i++)
+            {
+                var c = (FileChainCertificate*)m->ImmutableFileChainCacheBacking + i;
+                if (c->Clusters == clusters) c->Phase = Free;
+            }
     }
 
     private static Status Fat(Mount* m, Operation* o, uint cluster, out uint next, out bool end)
@@ -965,7 +1192,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (o->FileIndex < m->Input.FileCount)
         {
             FileHandle* f = m->Input.Files + o->FileIndex;
-            if (o->Kind == OpenKind && f->Phase == Working) { f->Phase = Free; f->ClusterCount = 0; }
+            if (o->Kind == OpenKind && f->Phase == Working) { InvalidateFileChain(m, f->Clusters); f->Phase = Free; f->ClusterCount = 0; }
             if (o->Kind is ReadKind or ScanKind && f->References != 0) f->References--;
         }
         o->Phase = Free; o->Waiting = 0; o->Cursor.HasPending = false;
@@ -973,7 +1200,17 @@ public static unsafe class ReadOnlyWebRootFileSystem
     private static Status Fail(Mount* m, Operation* o, Status status)
     { o->Phase = Failed; o->Failure = status; if (o->Kind == MountKind) { m->Phase = Faulted; m->Failure = status; } return status; }
     private static Status DeviceFault(Mount* m) { InvalidateCache(m); m->Phase = Faulted; m->Failure = Status.DeviceFailed; return Status.DeviceFailed; }
-    private static void InvalidateCache(Mount* m) { for (uint i = 0; i < m->Input.CacheCount; i++) m->Input.Cache[i].Phase = Free; }
+    private static void InvalidateCache(Mount* m)
+    {
+        for (uint i = 0; i < m->Input.CacheCount; i++) m->Input.Cache[i].Phase = Free;
+        if (m->ImmutableDirectoryCacheBacking != null)
+            for (uint i = 0; i < m->ImmutableDirectoryCacheSlots; i++)
+                ((ImmutableDirectoryRecord*)m->ImmutableDirectoryCacheBacking)[i].Phase = Free;
+        if (m->ImmutableFileChainCacheBacking != null)
+            for (uint i = 0; i < m->ImmutableFileChainCacheSlots; i++)
+                ((FileChainCertificate*)m->ImmutableFileChainCacheBacking)[i].Phase = Free;
+    }
+
     private static Status Map(LiveFat32Status status) => status switch
     {
         LiveFat32Status.UnsupportedGeometry => Status.UnsupportedGeometry,
@@ -1110,6 +1347,10 @@ public static unsafe class ReadOnlyWebRootFileSystem
     {
         uint n = 0;
         all[n++] = new() { Start = (ulong)m, Bytes = (ulong)sizeof(Mount) };
+        if (m->ImmutableDirectoryCacheBacking != null)
+            all[n++] = new() { Start = (ulong)m->ImmutableDirectoryCacheBacking, Bytes = ImmutableDirectoryCacheBytes(m->ImmutableDirectoryCacheSlots) };
+        if (m->ImmutableFileChainCacheBacking != null)
+            all[n++] = new() { Start = (ulong)m->ImmutableFileChainCacheBacking, Bytes = ImmutableFileChainCacheBytes(m->ImmutableFileChainCacheSlots) };
         all[n++] = new() { Start = (ulong)a.Operations, Bytes = a.OperationCount * (ulong)sizeof(Operation) };
         all[n++] = new() { Start = (ulong)a.Files, Bytes = a.FileCount * (ulong)sizeof(FileHandle) };
         all[n++] = new() { Start = (ulong)a.Cache, Bytes = a.CacheCount * (ulong)sizeof(CacheSlot) };

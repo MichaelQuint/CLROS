@@ -3,6 +3,27 @@ using OS.Storage;
 
 internal static unsafe class UsedRingCompletionStatusByteTimeoutDeviceResetTests
 {
+    [HostTest("virtio.blk.read explicit sector count requires exact data plus status length and preserves legacy validation")]
+    private static void BoundedReadCompletion()
+    {
+        for (uint sectors = 1; sectors <= 4; sectors++)
+        {
+            uint bytes = sectors * 512;
+            HostCheck.Equal(VirtioBlkReadStatus.Success, UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, bytes + 1, 0, sectors));
+            foreach (uint length in new uint[] { 0, 1, bytes, bytes + 2, uint.MaxValue })
+                HostCheck.Equal(VirtioBlkReadStatus.InvalidCompletion, UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, length, 0, sectors));
+            HostCheck.Equal(VirtioBlkReadStatus.DeviceIoError, UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 1, 1, sectors));
+            HostCheck.Equal(VirtioBlkReadStatus.UnsupportedRequest, UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 1, 2, sectors));
+            HostCheck.Equal(VirtioBlkReadStatus.InvalidCompletion, UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(2, 0, bytes + 1, 0, sectors));
+            HostCheck.Equal(VirtioBlkReadStatus.InvalidCompletion, UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 1, bytes + 1, 0, sectors));
+            HostCheck.Equal(VirtioBlkReadStatus.InvalidCompletion, UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, bytes + 2, 1, sectors));
+        }
+        foreach (uint sectors in new uint[] { 0, 5, uint.MaxValue })
+            HostCheck.Equal(VirtioBlkReadStatus.InvalidCompletion, UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 513, 0, sectors));
+        HostCheck.Equal(VirtioBlkReadStatus.InvalidCompletion, UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 2049, 0));
+        HostCheck.Equal(VirtioBlkReadStatus.Success, UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 513, 0));
+    }
+
     [HostTest("virtio.blk.read validates exact used head length and status without accepting stale completions")]
     private static void Completion()
     {
