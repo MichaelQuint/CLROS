@@ -10,7 +10,7 @@ public sealed class NativeAotStaticFileProgram
 {
     public const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
     internal const int ElfBytes = 8_641_616;
-    private const string ElfSha256 = "9AA36AF947CD3E319D42B39A3367B9ADD276D30040EDF0A81F71D44D45BAA848";
+    private const string ElfSha256 = "E17E4E69062D702BBB9F72305156F464192A3EFACD46BB07A200A105FADB06D5";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
     public bool Staged { get; }
@@ -42,7 +42,7 @@ public sealed class NativeAotStaticFileProgram
         HoldSources(root, sources); sources.VerifyUnchanged(); return new(root, parsed, staged);
     }
 
-    // LLVM22.1.3 covers every4,445,627 byte in five executable sections,
+    // Fresh RC3 LLVM22.1.3 covers every4,445,627 byte in five executable sections,
     // entry0x408f77 and all198 syscall continuations. An independent ELF-section
     // walk confirms complete contiguous coverage and the same domain digest.
     // Load padding has no starts. This is not a control-flow proof.
@@ -75,11 +75,11 @@ public sealed class NativeAotStaticFileProgram
     }
 
     private static readonly (string Path, string Hash)[] ProducerSources = [
-        ("global.json", "FD3FDAAE1B349B01D6E6835EC111903F107A2643F3BCE313FAD4DC20180F5FB2"),
+        ("global.json", "BE8663081FD82196AC86E65E9021D58D7C03A13574CE8CD4DC803937FC3BA30E"),
         ("Directory.Build.props", "DF8A0D794DB73060124F5134EB930DCDBF6EE526C2410227F0C668AB6D10C5E5"),
         ("Directory.Build.targets", "85AFD90F9DD0F550B6A3C6AD71D28BF714A8C930158DB872F8DA5D316889931A"),
         ("tools/Directory.Build.props", "44B8268EA6934335DBC79FEF47C1CE1FDEE49393C929C92E322417B14AA321AE"),
-        ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
+        ("tools/OS.Tooling/NativeAotPayload.cs", "E3EC6BCE13C70C99F3D7306541D68104876FAF73593325107319719811694D2F"),
         ("tools/OS.Tooling/NativeAotWebPayload.cs", "129FD1AE91130FBFFC772D4A189A1FBB4EEEBF8236FF69B6B827A3A40B4C1FA3"),
         ("tools/OS.Tooling/NativeAotSocketFixturePublisher.cs", "A9029B6AFD17828D7182B7BFC2E971857BDF9469BA38D570AC6E6EBBCD197494"),
         ("tools/OS.Tooling/NativeAotStaticFilePublisher.cs", "8274BCDE33D30274F72C24BE0A2481AA8048CC0C97579C552271017EB1F89B87")];

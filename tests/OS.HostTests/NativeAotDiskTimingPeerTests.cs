@@ -7,6 +7,32 @@ using System.Runtime.CompilerServices;
 
 internal static partial class NativeAotDiskTimingPeerTests
 {
+    private const string StatusJson = "{\"profile\":\"v1\",\"ready\":true,\"message\":\"CLROS ready — café\"}";
+
+    [HostTest("short diagnostic JSON requires the exact status DTO unique fields and JSON media type")]
+    private static void DiagnosticJson()
+    {
+        NativeAotDiskTimingPeer.InspectStatusJson(Encoding.UTF8.GetBytes(StatusJson), "application/json");
+        NativeAotDiskTimingPeer.InspectStatusJson(Encoding.UTF8.GetBytes(StatusJson.Replace("—", "\\u2014").Replace("é", "\\u00E9")), "application/json");
+        foreach (string body in new[] { "", "{}", "[]", "null", "{", StatusJson + "x",
+            StatusJson.Replace("true", "false"), StatusJson.Replace("v1", "v2"), StatusJson.Replace("café", "cafe"),
+            StatusJson.Replace("\"profile\":\"v1\"", "\"profile\":\"v1\",\"profile\":\"v1\""),
+            StatusJson.Replace("\"ready\":true,", ""), StatusJson.Replace("{", "{\"extra\":0,") })
+        {
+            bool refused = false;
+            try { NativeAotDiskTimingPeer.InspectStatusJson(Encoding.UTF8.GetBytes(body), "application/json"); }
+            catch (ToolFailure failure) { refused = failure.Reason == "disk_timing_json_response"; }
+            HostCheck.True(refused, body);
+        }
+        foreach (string? mediaType in new string?[] { null, "text/plain", "application/octet-stream" })
+        {
+            bool refused = false;
+            try { NativeAotDiskTimingPeer.InspectStatusJson(Encoding.UTF8.GetBytes(StatusJson), mediaType); }
+            catch (ToolFailure failure) { refused = failure.Reason == "disk_timing_json_response"; }
+            HostCheck.True(refused);
+        }
+    }
+
     [HostTest("dispatch window partitions completed envelopes and supervisor polls without subtracting nested polls twice")]
     private static void DispatchPartition()
     {
@@ -374,7 +400,7 @@ internal static partial class NativeAotDiskTimingPeerTests
         string applied=Path.Combine(dir,"timing.raw");
         var receipt=WebRootImageFixture.Apply(root,image,source,WebRootImageFixture.SnapshotPublishedRoot(source),applied);
         var inventory=WebRootDiskInventory.Inspect(applied,File.ReadAllBytes(applied),receipt);
-        foreach(string mode in new[]{"good","body","etag","metrics","dispatch","driver","driver-duplicate","driver-late-change","verification","verification-duplicate","verification-late-change","selection","selection-late-change","late-fault","unconfirmed"})
+        foreach(string mode in new[]{"good","json","json-type","body","etag","metrics","dispatch","driver","driver-duplicate","driver-late-change","verification","verification-duplicate","verification-late-change","selection","selection-late-change","late-fault","unconfirmed"})
             Check(mode).GetAwaiter().GetResult();
 
         async Task Check(string mode)
@@ -397,10 +423,12 @@ internal static partial class NativeAotDiskTimingPeerTests
             HostCheck.Equal(mode=="good",actual.RootElement.GetProperty("Complete").GetBoolean());
             HostCheck.True(!actual.RootElement.GetProperty("FullAndCleanupQualified").GetBoolean() &&
                 actual.RootElement.GetProperty("RunnerJoined").GetBoolean());
-            HostCheck.Equal("clros-disk-read-timing-v7", actual.RootElement.GetProperty("Schema").GetString()!);
+            HostCheck.Equal("clros-disk-read-timing-v8", actual.RootElement.GetProperty("Schema").GetString()!);
+            HostCheck.Equal("json-health-head-range-health", actual.RootElement.GetProperty("RequestSequence").GetString()!);
             HostCheck.Equal("clros-thread-dispatch-selection-v1", actual.RootElement.GetProperty("SelectionSchema").GetString()!);
             if (mode == "good")
             {
+                HostCheck.Equal(5, actual.RootElement.GetProperty("Responses").GetArrayLength());
                 HostCheck.Equal(4, actual.RootElement.GetProperty("Selections").GetArrayLength());
                 HostCheck.Equal(NativeAotDiskTimingPeer.VerificationSchema, actual.RootElement.GetProperty("VerificationSchema").GetString()!);
                 HostCheck.Equal(3000UL, actual.RootElement.GetProperty("VerificationMetrics").GetProperty("elapsedNs").GetUInt64());
@@ -425,16 +453,17 @@ internal static partial class NativeAotDiskTimingPeerTests
                         var context=await listener.GetContextAsync().WaitAsync(cancellation);
                         bool head=context.Request.HttpMethod=="HEAD",range=context.Request.Headers["Range"] is not null;
                         bool asset=context.Request.RawUrl==NativeAotDiskTimingPeer.Target;
-                        HostCheck.True(i switch{0 or 3=>context.Request.RawUrl=="/healthz",1=>asset&&head,2=>asset&&range,_=>false});
-                        byte[] entity=asset?range?core[..65536]:[]:"OS_MINIMAL_API_OK"u8.ToArray();
+                        bool json=context.Request.RawUrl=="/api/status";
+                        HostCheck.True(i switch{0=>json,1 or 4=>context.Request.RawUrl=="/healthz",2=>asset&&head,3=>asset&&range,_=>false});
+                        byte[] entity=json?Encoding.UTF8.GetBytes(mode=="json"?StatusJson.Replace("true","false"):StatusJson):asset?range?core[..65536]:[]:"OS_MINIMAL_API_OK"u8.ToArray();
                         if(mode=="body" && range)entity[1]^=1;
                         context.Response.StatusCode=range?206:200;context.Response.ContentLength64=head?core.Length:entity.Length;
-                        context.Response.ContentType=asset?"application/wasm":"text/plain";
+                        context.Response.ContentType=json&&mode!="json-type"?"application/json":asset?"application/wasm":"text/plain";
                         if(asset)context.Response.Headers["ETag"]=mode=="etag"?"\"wrong\"":etag;
                         if(range)context.Response.Headers["Content-Range"]="bytes 0-65535/"+core.Length;
                         if(!head)await context.Response.OutputStream.WriteAsync(entity,cancellation);
                         context.Response.Close();
-                        if(i==3)File.AppendAllText(serial,(mode=="metrics"?Metrics+Metrics:Metrics)+
+                        if(i==4)File.AppendAllText(serial,(mode=="metrics"?Metrics+Metrics:Metrics)+
                             (mode=="dispatch"?Dispatch.Replace("nestedPollNs=10000","nestedPollNs=20000"):Dispatch)+
                             (mode=="driver"?Driver.Replace("dispatchShellNonPollNs=2000","dispatchShellNonPollNs=2001"):
                                 mode=="driver-duplicate"?Driver+Driver:Driver)+

@@ -7,9 +7,17 @@ M04-026/#813 adds `qemu smoke -Accelerator whpx|tcg` and runner
 The command selects exactly one backend, with no silent fallback. A missing
 Windows Hypervisor Platform capability fails explicitly before guest startup.
 Dry-run and summary output record `QEMU_ACCELERATOR`; Nehalem and existing
-single-vCPU/resource contracts remain unchanged. Six focused checks qualify
+single-vCPU/resource contracts remain unchanged. Eight focused checks qualify
 selection/propagation only. RC3 native and actual guest qualification remain
 pending under [the phase contract](../work/rc3-whpx-qualification.md).
+
+The current short disk diagnostic uses a separate v8 receipt and five responses:
+status JSON, health, actual CoreLib HEAD, an independently checked 64KiB range,
+and final health. It retains the existing Timing selection, metrics checks,
+runner/peer/body limits and owned cancellation/join/refusal. JSON has three
+unique DTO fields with the exact fixture values and `application/json` media
+type. Historical v7 four-response originals stay unchanged. Neither diagnostic
+supplies full-workload, browser or ordinary guest-cleanup acceptance.
 
 [Step1669](../done/step1669.md) preserves fresh f508 A1 as failed at host `disk_parent_counters`, despite120 completed HTTP responses,49 successful browser exchanges, ready Blazor/API values and guest cleanup markers. The first independent partial diagnostic joins12396 physical requests/35690 payload sectors/2014 windows/120 wire responses; OriginalAccepted=false. Filesystem `fsReads` counts submitted sectors, while device counters count requests. Full now requires exact `fsReads == bootstrapCompleted-34 + Sum(Submitted.Bytes/512)` using the same validated device/END/BOUND/replay identities;34 is the reviewed MBR/GPT prefix outside the filesystem. The sector inspection precedes both parent checks. Ordinary single-sector, ExitPending and CloseReuse checks remain required. All83 focused checks pass; one changed production diagnostic passes57386 calls/2014 windows/60482 IO rows/4237 metadata copies and the actual shared parent envelope/finalcounter join, with five input pins unchanged. The real ELF/index predicates remain mandatory; no synthetic callback, original acceptance, independent reader/PCAP replay or whole-postprocessor authority is added. Native8d and every guest/output/time/package bound remain unchanged. Fresh complete qualification is pending.
 

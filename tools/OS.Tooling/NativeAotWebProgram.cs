@@ -13,7 +13,7 @@ public sealed class NativeAotWebProgram
 {
     internal const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
     internal const int ElfBytes = 8_870_568;
-    private const string ElfSha256 = "17133A28D440014E3899D04981959FC74A89B5E8E5743AD7D3A873A6111E2C8E";
+    private const string ElfSha256 = "7327C153F4352B7D1F4151103DF3C36DBE22F10BDE1C8D778DDC7314CE686178";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
     /// <summary>Complete decoder identity; a report alone grants no lookup authority.</summary>
@@ -72,7 +72,7 @@ public sealed class NativeAotWebProgram
     /// rows. Partial or synthetic reports confer no prepared-program authority.</summary>
     public static Inspection Inspect(ReadOnlySpan<byte> elf, string dump) => Report(Parse(elf, dump));
 
-    /// <summary>Requires the original ELF, bounded V2 web package policy and
+    /// <summary>Requires the reviewed RC3 ELF, bounded V2 web package policy and
     /// independently reviewed complete index. Source files stay locked/unchanged
     /// through preparation; supplied package/text remain caller-owned synchronous
     /// borrows. Missing, stale, redirected or altered inputs throw before return.</summary>
@@ -132,11 +132,11 @@ public sealed class NativeAotWebProgram
     }
 
     private static readonly (string Path, string Hash)[] Sources = [
-        ("global.json", "FD3FDAAE1B349B01D6E6835EC111903F107A2643F3BCE313FAD4DC20180F5FB2"),
+        ("global.json", "BE8663081FD82196AC86E65E9021D58D7C03A13574CE8CD4DC803937FC3BA30E"),
         ("Directory.Build.props", "DF8A0D794DB73060124F5134EB930DCDBF6EE526C2410227F0C668AB6D10C5E5"),
         ("Directory.Build.targets", "85AFD90F9DD0F550B6A3C6AD71D28BF714A8C930158DB872F8DA5D316889931A"),
         ("tools/Directory.Build.props", "44B8268EA6934335DBC79FEF47C1CE1FDEE49393C929C92E322417B14AA321AE"),
-        ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
+        ("tools/OS.Tooling/NativeAotPayload.cs", "E3EC6BCE13C70C99F3D7306541D68104876FAF73593325107319719811694D2F"),
         ("apps/MinimalApiSmoke/Program.cs", "EA20A6457F22DBBA7EB0FC0423266E41B335B405802D3F4D980690FDBE539C5E"),
         ("apps/MinimalApiSmoke/KestrelChurnExercise.cs", "5EEF724987A8FEA8BF4ADF667DA5DC578B8DA1A6A62477A550295546D66CBDF1"),
         ("apps/MinimalApiSmoke/KestrelSignalProbe.cs", "9B44F56033CE3871CD95D5479D2BFA7C656AADEA898AD63C38B5B69B5C9982A2"),

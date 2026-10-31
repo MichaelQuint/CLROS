@@ -16,6 +16,14 @@ Canonical issue key: M04-026. The phase stops after verified merge and recovery;
 4. Complete one short JSON/exact independently hashed 64KiB range/final-health/
    owned-stop original on WHPX and identical-image TCG diagnostic. No new full
    host run is required before this diagnostic. Timing is diagnostic only.
+   The existing Timing owner supplies a new v8 five-response sequence:
+   GET /api/status (exact DTO values/JSON media type), GET /healthz,
+   HEAD CoreLib.wasm, GET CoreLib.wasm bytes0-65535, GET /healthz, followed by
+   deliberate runner cancellation, confirmed join and endpoint refusal. Keep
+   runner600s/peer480s, body180s and existing cleanup limits. Publish/review
+   the actual selected Timing EFI before activation; Full-only native approval
+   cannot substitute. Old v7 originals remain unchanged. This diagnostic grants
+   no normal guest shutdown, browser or full-workload acceptance.
 5. Freeze final source/producers, rebuild the complete HostTests graph, and run
    one unfiltered full lane with unchanged-input guards and zero reuse.
 6. Renew the final matrix below with source-bound RC3 originals and complete

@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace OS.Tooling;
 
-/// <summary>Own one short diagnostic: health, actual CoreLib HEAD, exact64KiB
+/// <summary>Own one short diagnostic: JSON, health, actual CoreLib HEAD, exact64KiB
 /// range and health, followed by intentional runner cancellation and joining.
 /// Original image extraction supplies expected bytes. This observation grants
 /// neither full HTTP/browser qualification nor guest shutdown/cleanup acceptance.</summary>
@@ -36,6 +36,27 @@ public static partial class NativeAotDiskTimingPeer
         public int Port { get; }
         public string Directory { get; }
         public ProcessResult Runner { get; }
+    }
+
+    /// <summary>Check one bounded copied status DTO and its actual media type.
+    /// Reject malformed, duplicate, extra or mismatched fields. This host-only
+    /// parser retains no input and grants no original-process or guest authority.</summary>
+    internal static void InspectStatusJson(ReadOnlySpan<byte> body, string? mediaType)
+    {
+        Need(body.Length is > 0 and <= 1024 && mediaType == "application/json", "json_response");
+        try
+        {
+            using var document = JsonDocument.Parse(body.ToArray());
+            var value = document.RootElement;
+            Need(value.ValueKind == JsonValueKind.Object, "json_response");
+            var fields = value.EnumerateObject().ToArray();
+            Need(fields.Length == 3 && fields.Select(field => field.Name).Distinct(StringComparer.Ordinal).Count() == 3 &&
+                value.TryGetProperty("profile", out var profile) && profile.ValueKind == JsonValueKind.String && profile.GetString() == "v1" &&
+                value.TryGetProperty("ready", out var ready) && ready.ValueKind == JsonValueKind.True &&
+                value.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String && message.GetString() == "CLROS ready — café", "json_response");
+        }
+        catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
+        { throw new ToolFailure("disk_timing_json_response"); }
     }
 
     /// <summary>Validate a copied, single bounded aggregate. Every successful
@@ -219,7 +240,8 @@ public static partial class NativeAotDiskTimingPeer
             try
             {
                 using FileStream receipt=new(Path.Combine(directory,"diagnostic.json"),FileMode.CreateNew,FileAccess.Write,FileShare.Read);
-                await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v7",Scope="diagnostic-only",Complete=complete,
+                await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v8",Scope="diagnostic-only",Complete=complete,
+                    RequestSequence="json-health-head-range-health",
                     FullAndCleanupQualified=false,Port=port,RunnerTimeoutSeconds=runnerTimeoutSeconds,PeerTimeoutSeconds=peerTimeoutSeconds,
                     ImageSha256=inventory.ImageSha256,Asset=asset,ClockFrequency=Stopwatch.Frequency,
                     Responses=rows,Metrics=metrics,DispatchMetrics=dispatchMetrics,DriverMetrics=driverMetrics,
@@ -236,6 +258,7 @@ public static partial class NativeAotDiskTimingPeer
             using HttpClient client=new(new SocketsHttpHandler{AllowAutoRedirect=false,AutomaticDecompression=DecompressionMethods.None,
                 UseProxy=false,MaxConnectionsPerServer=1}){BaseAddress=new Uri("http://127.0.0.1:"+port),Timeout=TimeSpan.FromSeconds(180),
                     DefaultRequestVersion=HttpVersion.Version11,DefaultVersionPolicy=HttpVersionPolicy.RequestVersionExact};
+            await Request("GET","/api/status",200,null);
             await Request("GET","/healthz",200,"OS_MINIMAL_API_OK"u8.ToArray());
             await Request("HEAD",Target,200,[]);
             await Request("GET",Target,206,range);
@@ -260,7 +283,7 @@ public static partial class NativeAotDiskTimingPeer
                 await Task.Delay(50,deadline.Token);
             }
 
-            async Task Request(string method,string path,int status,byte[] expected)
+            async Task Request(string method,string path,int status,byte[]? expected)
             {
                 long start=Stopwatch.GetTimestamp();using var request=new HttpRequestMessage(new HttpMethod(method),path);
                 bool ranged=status==206;if(ranged)request.Headers.Range=new(0,65535);
@@ -275,7 +298,8 @@ public static partial class NativeAotDiskTimingPeer
                 rows.Add(new{Ordinal=ordinal,Method=method,Path=path,Status=(int)response.StatusCode,Started=start,Finished=Stopwatch.GetTimestamp(),
                     Bytes=actual.Length,Sha256=Convert.ToHexString(SHA256.HashData(actual)),BodyFile=bodyFile,
                     RequestHeaders=request.Headers.ToString(),ResponseHeaders=response.Headers.ToString()+response.Content.Headers.ToString()});
-                Need((int)response.StatusCode==status && actual.AsSpan().SequenceEqual(expected),"response");
+                Need((int)response.StatusCode==status && (expected is null || actual.AsSpan().SequenceEqual(expected)),"response");
+                if(path=="/api/status")InspectStatusJson(actual,response.Content.Headers.ContentType?.MediaType);
                 if(path==Target)
                     Need(response.Headers.ETag?.ToString()==asset.ETag && response.Content.Headers.ContentType?.ToString()==asset.MediaType &&
                         response.Content.Headers.ContentLength==(ranged?65536:asset.Bytes) &&
