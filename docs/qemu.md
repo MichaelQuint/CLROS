@@ -2423,7 +2423,8 @@ double-fault recovery nor universal triple-fault prevention.
   execution evidence.
 - A non-dry-run owned-paging selection uses the already-built .NET 11
   `OS.QemuCapture` proxy with private per-run paths. The proxy preserves the real QEMU path, accepts
-  only the runner's audited 256 MiB q35/TCG/headless argument shape, rejects
+  only the runner's audited 256 MiB q35/headless argument shape with the
+  explicitly bound TCG or WHPX backend, rejects alternate accelerator arguments,
   caller-supplied monitor/QMP channels, and opens a private loopback QMP
   channel. The normal `OS.QemuRunner` remains the public marker/timeout
   authority.

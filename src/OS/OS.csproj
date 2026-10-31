@@ -28,8 +28,8 @@
 		<NativeDebugSymbols>false</NativeDebugSymbols>
 		<EnableSourceLink>false</EnableSourceLink>
 		<SuppressGenerateILCompilerExplicitPackageReferenceWarning>true</SuppressGenerateILCompilerExplicitPackageReferenceWarning>
-		<ClrosIlcHostPackagePath Condition="'$(ClrosIlcHostPackagePath)' == ''">$(UserProfile)\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\11.0.0-rc.2.26504.105</ClrosIlcHostPackagePath>
-		<ClrosRuntimePackagePath Condition="'$(ClrosRuntimePackagePath)' == ''">$(UserProfile)\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\11.0.0-rc.2.26504.105</ClrosRuntimePackagePath>
+		<ClrosIlcHostPackagePath Condition="'$(ClrosIlcHostPackagePath)' == ''">$(UserProfile)\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\11.0.0-rc.3.26522.148</ClrosIlcHostPackagePath>
+		<ClrosRuntimePackagePath Condition="'$(ClrosRuntimePackagePath)' == ''">$(UserProfile)\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\11.0.0-rc.3.26522.148</ClrosRuntimePackagePath>
 		<EntryPointSymbol>EfiMain</EntryPointSymbol>
 		<LinkerSubsystem>EFI_APPLICATION</LinkerSubsystem>
 		<DefineConstants>$(DefineConstants);NOSTDLIB_EFI</DefineConstants>
@@ -1031,8 +1031,8 @@
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs" Link="Compatibility\LinuxX64\LinuxSocketNetwork.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\TcpInitialSequence.cs" Link="Net\TcpInitialSequence.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
-		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.2.26504.105" PrivateAssets="all" />
-		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.2.26504.105" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.3.26522.148" PrivateAssets="all" />
+		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.3.26522.148" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
 			<PackageDirectory>$(ClrosIlcHostPackagePath)</PackageDirectory>
 		</ResolvedILCompilerPack>

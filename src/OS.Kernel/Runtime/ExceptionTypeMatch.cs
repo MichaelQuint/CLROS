@@ -72,7 +72,7 @@ public static unsafe class ExceptionTypeMatch
         RhpNewFastHeapAccess heap, RhpNewFastBumpState* allocator, ulong allocatorCapacity,
         RhpNewFastResult receipt, ulong objectReference, ulong targetType)
     {
-        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian)
             return new(ExceptionTypeMatchStatus.UnsupportedProfile);
         if (objectReference == 0) return new(ExceptionTypeMatchStatus.Success);
         if (objectReference != receipt.ObjectReference ||
@@ -137,7 +137,7 @@ public static unsafe class ExceptionTypeMatch
         byte* p = (byte*)address;
         NativeAotMethodTablePrefix candidate = new(U32(p), U32(p + 4), U64(p + 8),
             U16(p + 16), U16(p + 18), U32(p + 20));
-        NativeAotLayoutResult layout = Layout.Evaluate(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+        NativeAotLayoutResult layout = Layout.Evaluate(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
             candidate, 0, ulong.MaxValue);
         if (layout.Status == NativeAotLayoutStatus.UnsupportedShape ||
             layout.Status == NativeAotLayoutStatus.UnsupportedTypeFeatures)

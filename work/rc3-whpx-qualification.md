@@ -87,3 +87,9 @@ blocker with evidence and a bounded question; execution remains with this owner.
 Original isolated RC2 tooling graph: build succeeds, zero warnings/errors,
 25.64s. Atomic tooling reservation allocates step1673. No RC3 native/guest,
 full-host, browser, persistence or wider gate acceptance is claimed here.
+
+[Step1674](../done/step1674.md) records the active RC3 source/package admission,
+eight end-to-end accelerator controls,158 affected focused checks, four fresh
+structurally verified native publications and independent raw decoding. Full018
+and M16 emitted PEs match their accepted predecessors; fresh native safety,
+Linux candidates, original guests and final unfiltered full remain required.

@@ -282,7 +282,7 @@ public static unsafe class GuestTestRhpNewFast
         if (status != RhpNewFastStatus.Success) return Fail(status, heapStatus: heap.Status);
 
         // Existing objects can make ContentsAreZeroNow false without losing ownership.
-        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian)
             return Fail(RhpNewFastStatus.UnsupportedProfile);
         if (!ValidToken(access, state, stateCapacity, methodTableToken, staticBase ? 16UL : 24UL))
             return Fail(RhpNewFastStatus.InvalidMethodTableToken);

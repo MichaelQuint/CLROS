@@ -41,7 +41,7 @@ internal static class NativeAotSocketPayloadTests
             "-p:PublishAot=true", "-p:StaticExecutable=true", "-p:PositionIndependentExecutable=false",
             "-p:InvariantGlobalization=true", "-p:ServerGarbageCollection=false", "-p:EventSourceSupport=false",
             "-p:EnableDiagnostics=false", "-p:DebuggerSupport=false",
-            "-p:RuntimeFrameworkVersion=11.0.0-rc.2.26504.105", "-p:TargetLatestRuntimePatch=false",
+            "-p:RuntimeFrameworkVersion=11.0.0-rc.3.26522.148", "-p:TargetLatestRuntimePatch=false",
             "-p:UseSharedCompilation=false", "-nr:false"];
         static string Json(string[] values) => JsonSerializer.Serialize(new[] { new { executable = "dotnet", arguments = values } });
         string[] actual = NativeAotSocketPayload.PublishArguments(Json(args), destination);

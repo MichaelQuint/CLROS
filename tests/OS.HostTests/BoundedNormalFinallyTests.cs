@@ -9,7 +9,7 @@ using PlanFixture = BoundedExceptionDispatchPlanTests.Fixture;
 
 internal static unsafe class BoundedNormalFinallyTests
 {
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian;
     private static void Need(bool value, string reason) => HostCheck.True(value, reason);
     private static bool Same<T>(T left, T right) where T : unmanaged =>
         new ReadOnlySpan<byte>(&left, sizeof(T)).SequenceEqual(new ReadOnlySpan<byte>(&right, sizeof(T)));

@@ -180,11 +180,11 @@ internal static unsafe partial class RhpNewFastAllocationCore
         control->InProgress = 1;
         RhpNewFastResult result = text
             ? GuestTestStringAllocationCharacterStorage.TryAllocate(*access, bump, 80,
-                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, prefix, token, length)
+                NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, prefix, token, length)
             : array ? GuestTestArrayAllocationLengthOverflowChecks.TryAllocate(*access, bump, 80,
-                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, prefix, token, length)
+                NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, prefix, token, length)
             : GuestTestRhpNewFast.TryAllocate(*access, bump, 80,
-                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, prefix, token);
+                NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, prefix, token);
         if (!result.AllocationSucceeded)
         {
             control->InProgress = 0;

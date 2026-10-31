@@ -90,7 +90,7 @@ public static unsafe partial class NativeAotEhClauseMetadata
         byte* moduleOwner, ulong moduleCapacity, ulong moduleHandle,
         byte* unwindSnapshot, ulong unwindCapacity, NativeAotEhMethodBounds bounds, uint index)
     {
-        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian)
             return new(NativeAotEhClauseStatus.UnsupportedProfile);
         // Authenticate the supplied original owner before using any image payload.
         if (!TypeManagerModuleMetadataLiveNativeAOTImage.TryGetSection(capture, mapping,

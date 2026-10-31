@@ -20,8 +20,8 @@ public static class NativeAotPayload
 {
     public const int MaximumImageBytes = 128 * 1024 * 1024;
     public const ulong MaximumMappedBytes = 1024 * 1024 * 1024;
-    public const string SdkVersion = "11.0.100-rc.2.26504.105";
-    public const string RuntimeVersion = "11.0.0-rc.2.26504.105";
+    public const string SdkVersion = "11.0.100-rc.3.26522.148";
+    public const string RuntimeVersion = "11.0.0-rc.3.26522.148";
     public const string TargetFramework = "net11.0";
 
     public sealed record Segment(uint Type, uint Flags, ulong Offset, ulong Address,

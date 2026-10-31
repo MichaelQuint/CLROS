@@ -71,6 +71,7 @@ internal static class Program
             "CLROS_M01_CAPTURE_TIMEOUT_SECONDS");
         bool m02SafeStubEnabled = RequiredBoolean(
             "CLROS_M02_SAFE_STUB_PROBE");
+        string accelerator = Environment.GetEnvironmentVariable("CLROS_M01_ACCELERATOR") ?? "tcg";
 
         RequireCreateNewPath(privateSerial, "private_serial");
         RequireCreateNewPath(observationLog, "observation_log");
@@ -102,7 +103,8 @@ internal static class Program
             List<string> childArguments = new List<string>(args);
             string publicSerial = ReplaceAndValidateArguments(
                 childArguments,
-                privateSerial);
+                privateSerial,
+                accelerator);
             RequireDistinctPaths(
                 publicSerial,
                 privateSerial,
@@ -359,8 +361,11 @@ internal static class Program
 
     private static string ReplaceAndValidateArguments(
         List<string> arguments,
-        string privateSerial)
+        string privateSerial,
+        string accelerator)
     {
+        if (accelerator is not ("whpx" or "tcg"))
+            throw new InvalidOperationException("capture_accelerator_invalid");
         int serialIndex = -1;
         int memoryIndex = -1;
         int machineIndex = -1;
@@ -418,6 +423,10 @@ internal static class Program
             {
                 noRebootCount++;
             }
+            else if (argument is "-accel" or "-enable-kvm" or "--enable-kvm")
+            {
+                throw new InvalidOperationException("accelerator_must_match_machine_selection");
+            }
             else if (string.Equals(argument, "-qmp", StringComparison.Ordinal)
                 || string.Equals(
                     argument,
@@ -449,11 +458,11 @@ internal static class Program
         if (machineIndex < 0
             || !string.Equals(
                 arguments[machineIndex + 1],
-                "q35,accel=tcg",
+                "q35,accel=" + accelerator,
                 StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
-                "machine_must_be_q35_tcg");
+                "machine_must_be_q35_selected_accelerator");
         }
         if (displayIndex < 0
             || !string.Equals(

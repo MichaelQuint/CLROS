@@ -96,13 +96,13 @@ internal static class NativeAotLogUploadHttpContractTests
         string[] original = ["publish", "apps/NativeAotSocketSmoke/NativeAotSocketSmoke.csproj", "-c", "Release", "-f", "net11.0", "-r", "linux-musl-x64",
             "--self-contained", "true", "-o", "original-output", "--nologo", "-p:PublishAot=true", "-p:StaticExecutable=true", "-p:PositionIndependentExecutable=false",
             "-p:InvariantGlobalization=true", "-p:ServerGarbageCollection=false", "-p:EventSourceSupport=false", "-p:EnableDiagnostics=false", "-p:DebuggerSupport=false",
-            "-p:RuntimeFrameworkVersion=11.0.0-rc.2.26504.105", "-p:TargetLatestRuntimePatch=false", "-p:UseSharedCompilation=false", "-nr:false"];
+            "-p:RuntimeFrameworkVersion=11.0.0-rc.3.26522.148", "-p:TargetLatestRuntimePatch=false", "-p:UseSharedCompilation=false", "-nr:false"];
         string Recipe(params string[][] rows) => JsonSerializer.Serialize(rows.Select(arguments => new { executable = "dotnet", arguments }));
         string[] planned = F.PublishArguments(Recipe(original), destination), expected = (string[])original.Clone();
         expected[1] = "apps/MinimalApiLogUploadContract/MinimalApiLogUploadContract.csproj"; expected[11] = Path.GetFullPath(destination);
         HostCheck.True(planned.SequenceEqual(expected) && original[1].Contains("NativeAotSocketSmoke", StringComparison.Ordinal));
         planned[1] = "mutated"; HostCheck.True(F.PublishArguments(Recipe(original), destination).SequenceEqual(expected) && !Path.Exists(destination));
-        foreach (string flag in new[] { "-p:StaticExecutable=true", "-p:PositionIndependentExecutable=false", "-r", "-p:RuntimeFrameworkVersion=11.0.0-rc.2.26504.105" })
+        foreach (string flag in new[] { "-p:StaticExecutable=true", "-p:PositionIndependentExecutable=false", "-r", "-p:RuntimeFrameworkVersion=11.0.0-rc.3.26522.148" })
         {
             string[] changed = (string[])original.Clone(); int index = Array.IndexOf(changed, flag); changed[index] += "-changed";
             RejectAny(() => F.PublishArguments(Recipe(changed), destination));

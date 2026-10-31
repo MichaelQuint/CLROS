@@ -13,6 +13,14 @@ configured .NET 11 applications. It uses a restricted Linux x64 compatibility
 layer and statically published NativeAOT applications targeting **`linux-musl-x64`**.
 First-party kernel, shared-library and application source is C# 14.
 
+The active development toolchain pins SDK `11.0.100-rc.3.26522.148` and
+runtime/ILC/ILLink `11.0.0-rc.3.26522.148`, retaining C#14 and `net11.0`.
+Windows QEMU defaults to explicit WHPX; `-Accelerator tcg` selects the software
+backend. [The RC3/WHPX qualification contract](work/rc3-whpx-qualification.md)
+and [#813](http://192.168.4.35:3000/admin/CLROS/issues/813) track the unfinished
+native, guest and final host renewal. Earlier acceptance retains its original
+RC2 source, packages and backend.
+
 CLROS serves the pinned NativeAOT Minimal API and actual Standalone Blazor WebAssembly client from read-only FAT32. Three healthy A/B/A boots across two disk variants, the typed corrupt-file control and three M16 lifecycle originals pass their recorded checks. The current unfiltered full-host run passes 7,464 checks with zero reuse; see [Step1672](done/step1672.md) for exact source profiles, evidence and preserved failures. Writes, persistent logs/uploads, SQLite and [#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified and paused.
 
 The goal is a **small, fully functioning OS that continuously hosts supported

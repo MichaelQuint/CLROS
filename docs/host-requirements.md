@@ -4,7 +4,7 @@
 
 The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
 
-The exact repository .NET 11 RC2/C# 14 pins remain unchanged; source and private-producer identities stay attached to their actual build epochs.
+Current development uses the RC3 pins below. Accepted RC2 source and private-producer identities stay attached to their actual build epochs.
 
 [Step1655](../done/step1655.md) The completed-only directory cache reshape removes in-flight reservations and helper call edges, restores the original submit/release paths and publishes only the successfully copied completion sector. It passes 99 focused checks across six fixtures with zero reuse. The preceding 90cdfc3b Full/Timing/M16 publication compiled, but its measured stack growth exceeded the inherited Timing margin; all failures and decoded facts remain preserved. Fresh native review of this reshape, including the unchanged Enable construction edge, remains required before one diagnostic Short. Assess benefit before another expensive full lane; the unfiltered full is mandatory for stable acceptance. Finish qualified read-phase merge/parity/recovery, then pause before writes/SQLite.
 
@@ -18,39 +18,47 @@ The exact repository .NET 11 RC2/C# 14 pins remain unchanged; source and private
 
 Historical Step1635 diagnostic checkpoint: a generated-driver child span partitioned the existing dispatch window without changing work, polling, evidence or budgets. At that checkpoint, 28 focused Root host checks passed while its native and original v7 qualification were pending. Later source-matched results are recorded above; the diagnostic does not establish a speed gain or pure guest-CPU measurement.
 
-## Current-phase SDK selection after the October 25 restart
+## Current RC3 toolchain qualification
 
-The intentional Visual Studio update installed RC3. Finish the current first-ten
-read phase with the repository's unchanged RC2 pins. A complete verified RC2 SDK is
-installed separately; leave the system RC3 installation intact:
+The active pins are SDK `11.0.100-rc.3.26522.148` and runtime/ILC/ILLink
+`11.0.0-rc.3.26522.148`, with C#14, `net11.0`, prerelease admission and no
+roll-forward. [#813](http://192.168.4.35:3000/admin/CLROS/issues/813) and the
+[execution contract](../work/rc3-whpx-qualification.md) define the unfinished
+native/guest/full-host renewal. Historical RC2 read qualification in step1672
+retains its actual source, producer, package and backend identities.
 
-The pinned .NET 11 RC2/C# 14 toolchain below is unchanged. [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
-
-Keep the repository-pinned .NET 11 RC2/C# 14 toolchain. Focused precommit checks, committed private producers, retained native qualification and each unfiltered host result retain distinct source epochs. The current2c2 full-host result passes 7,464 checks across925 fixtures, including110 Native-labelled fixtures, with zero failures or reuse; this label grants no new native publication or guest scope. See [Step1672](../done/step1672.md) for exact producer/source pins.
+Select the installed RC3 host in a fresh terminal:
 
 ```powershell
-$clrosDotnet = 'C:\Users\AI\.codex\toolchains\dotnet-11.0.100-rc.2.26504.105'
+$clrosDotnet = 'C:\Program Files\dotnet'
 $env:DOTNET_ROOT = $clrosDotnet
 $env:DOTNET_ROOT_X64 = $clrosDotnet
 $env:DOTNET_HOST_PATH = Join-Path $clrosDotnet 'dotnet.exe'
 $env:PATH = "$clrosDotnet;$env:PATH"
-dotnet --version # 11.0.100-rc.2.26504.105
-dotnet --list-runtimes # NETCore.App and AspNetCore.App must both select RC2
+dotnet --version # 11.0.100-rc.3.26522.148
+dotnet --list-runtimes # NETCore.App and AspNetCore.App RC3
 ```
 
-Microsoft's release metadata and the downloaded win-x64 archive have matching
-SHA-512, independently checked before extraction. The restored host hash matches
-the retained original `07678CE60DD20ED36F1D25B88F6F51D8BF5A880442680A664690154EBE976AD9`.
-The SDK includes the exact RC2 NETCore, ASP.NET Core and Windows Desktop runtimes.
-Settings above apply only to the current terminal and its children. Step1624
-retains the download, runtime and producer evidence. The earlier Program Files
-selection below describes the October 13 installation; it now selects RC3.
+The frozen native candidate is Visual Studio2026 Insiders18.12.12328.396,
+MSVC compiler19.52.37025.0 and linker14.52.37025.0, discovered through `vswhere`.
+Record actual paths, versions and SHA256 for each qualification epoch. Do not
+follow updates within a run or install from the checksum-failed online catalog.
+Windows QEMU11.1.0 defaults to WHPX; explicit `-Accelerator tcg` remains available.
+Keep Nehalem, one vCPU and the existing x87/SSE context contract. Unavailable
+explicit WHPX fails; no fallback list is used.
 
-The historical interrupted full run remains failed. Step1635 separately records
-the later sourcef27 RC2 unfiltered7359-check pass, with zero reuse and unchanged
-inputs. Preserve each original scope. Upgrade SDK/runtime/ILC
-and affected qualification together in a separate follow-on after this phase
-is merged; do not relax `global.json` or roll forward during this qualification.
+The Linux musl RC3 SDK archive is verified against Microsoft's release SHA512
+before extraction. The minimal Alpine builder needs
+`DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` for its build-host CLI because ICU is
+absent; payload publication already selects `InvariantGlobalization=true`.
+Historical disks and the RC2 SDK remain unchanged; a fresh writable disk child
+and separate `/opt/dotnet11-rc3` own the current builder work.
+
+The private RC2 installation remains at
+`C:\Users\AI\.codex\toolchains\dotnet-11.0.100-rc.2.26504.105` for historical
+reproduction. Step1624 retains its official archive/checksum and host hash
+`07678CE60DD20ED36F1D25B88F6F51D8BF5A880442680A664690154EBE976AD9`.
+Never relabel an old receipt by selecting the new SDK.
 
 [Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
@@ -75,7 +83,7 @@ is merged; do not relax `global.json` or roll forward during this qualification.
 
 [Step1603](../done/step1603.md) Root passes235 distinct focused checks:24 disk-thread,103 continuing writable provider,40 global writable descriptor,2 timing peer,7 profile/CLI,5 source-admission,15 readonly descriptor,34 SQLite contract and5 authority-file controls, all unchanged inputs/zero reuse. This is not an unfiltered full lane. Linux ordinary SQLite ef97/r05 passes actual fresh publication/writer/distinct verifier with explicitly reused verified original archives. Recovery c79/r01 fails while retaining publication sources; the later read-only builder audit reports soft1024/hard4096 file descriptors. Preserve the failed original and qualify any explicit invocation prerequisite separately.
 
-[Step1602](../done/step1602.md) Seven profile/CLI controls include the actual compiled runner at 240/600 seconds, dry-run output noncreation, original-build admission, missing parents, duplicates, invalid timing and unchanged full 2200/3600 admission. Two peer and ten existing runner controls also pass, unchanged inputs/zero reuse. These focused host checks do not establish unfiltered full or guest qualification. Peer budget min(480, runnerDeadline−30) preserves cancellation/join time.
+[Step1602](../done/step1602.md) Seven profile/CLI controls include the actual compiled runner at 240/600 seconds, dry-run output noncreation, original-build admission, missing parents, duplicates, invalid timing and unchanged full 2200/3600 admission. Two peer and ten existing runner controls also pass, unchanged inputs/zero reuse. These focused host checks do not establish unfiltered full or guest qualification. Peer budget min(480, runnerDeadlineâˆ’30) preserves cancellation/join time.
 
 [Step1601](../done/step1601.md) The host PE verifier bounds catalog storage/scan at4096rows and48KiB pdata, using managed file-backed observations only. Distinct4096scan3ms satisfies unchanged1s parser criterion; existing120s fixture process guard stays unchanged. Kernel decoder2048 and selected M04isolation remain required.
 
@@ -208,12 +216,12 @@ is separately host-checked; its four source/admission changes are not part of
 that frozen Linux tooling build. See the step for exact hashes and boundaries.
 
 The M16-001 NativeAOT payload tooling requires an explicit Linux musl builder.
-Use SDK `11.0.100-rc.2.26504.105` and runtime/ILC `11.0.0-rc.2.26504.105`, clang/binutils, musl development
+Use SDK `11.0.100-rc.3.26522.148` and runtime/ILC `11.0.0-rc.3.26522.148`, clang/binutils, musl development
 libraries, static zlib/C++ dependencies and strace. Windows inspection and
 managed fixture runs are development checks. [Step1198](../done/step1198.md)
 qualifies the historical .NET 10 static Linux payloads on the task-local Alpine builder;
 [step1197](../done/step1197.md) preserves development and bootstrap failures.
-[Step1225](../done/step1225.md) qualifies the current .NET 11 Linux r04 recipe:
+[Step1225](../done/step1225.md) qualifies the historical RC2 Linux r04 recipe:
 three fresh static payloads, runtime exercise, HTTP/configuration/shutdown and
 zero publish warnings. Those receipts remain Linux-host evidence. Separate
 CLROS guest qualification now covers Hello/runtime (step1307) and finite
@@ -342,7 +350,7 @@ must not delay lifecycle or the first guest `/healthz`.
 Required for all current host builds:
 
 - Windows 10 or Windows 11 x64.
-- Exact .NET SDK `11.0.100-rc.2.26504.105`, selected by `global.json`.
+- Exact .NET SDK `11.0.100-rc.3.26522.148`, selected by `global.json`.
 - NuGet access to restore the pinned .NET 11 packages.
 
 The commands below use PowerShell syntax. Maintained build and test automation
@@ -491,23 +499,23 @@ The earlier shell-module failure remains historical evidence in
 [step1077](../done/step1077.md).
 ### Restore the pinned EFI runtime pack
 
-The EFI project selects NativeAOT runtime pack `11.0.0-rc.2.26504.105` through
+The EFI project selects NativeAOT runtime pack `11.0.0-rc.3.26522.148` through
 `ClrosRuntimePackagePath`. Its ILCompiler metapackage and win-x64 host compiler
-are also pinned to `11.0.0-rc.2.26504.105`; the current SDK is `11.0.100-rc.2.26504.105`.
-The EFI artifact verifier needs the actual selected `11.0.0-rc.2.26504.105` package tree;
+are also pinned to `11.0.0-rc.3.26522.148`; the current SDK is `11.0.100-rc.3.26522.148`.
+The EFI artifact verifier needs the actual selected `11.0.0-rc.3.26522.148` package tree;
 an ordinary managed build alone does not establish that prerequisite.
 
 If the expected directory below is missing, restore the exact package through
 NuGet (do not rename another version's directory):
 
 ```powershell
-Test-Path "$env:USERPROFILE\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\11.0.0-rc.2.26504.105"
+Test-Path "$env:USERPROFILE\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\11.0.0-rc.3.26522.148"
 New-Item -ItemType Directory -Force artifacts/pinned-efi-runtime | Out-Null
 @'
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><TargetFramework>net11.0</TargetFramework></PropertyGroup>
   <ItemGroup>
-    <PackageDownload Include="Microsoft.NETCore.App.Runtime.NativeAOT.win-x64" Version="[11.0.0-rc.2.26504.105]" />
+    <PackageDownload Include="Microsoft.NETCore.App.Runtime.NativeAOT.win-x64" Version="[11.0.0-rc.3.26522.148]" />
   </ItemGroup>
 </Project>
 '@ | Set-Content artifacts/pinned-efi-runtime/Restore.csproj
@@ -868,7 +876,7 @@ proof.
 Required agent capabilities:
 
 - Windows 10 or Windows 11 x64 with PowerShell 5.1 or newer.
-- Exact .NET SDK `11.0.100-rc.2.26504.105`, with prerelease admission and no roll-forward as governed by `global.json`.
+- Exact .NET SDK `11.0.100-rc.3.26522.148`, with prerelease admission and no roll-forward as governed by `global.json`.
 - Visual Studio or Build Tools with `Microsoft.VisualStudio.Workload.VCTools`
   and `Microsoft.VisualStudio.Component.VC.Tools.x86.x64`.
 - Windows 10/11 SDK UM x64 libraries, including `kernel32.lib`.
@@ -974,7 +982,7 @@ Historical baseline evidence from 2026-05-21:
 
 - `artifacts/efi/BOOTX64.EFI` plus `artifacts/images/os.raw` now prove only the EFI smoke path, ordered boot markers, and UEFI memory-map readiness marker, not a functional kernel.
 - QEMU and OVMF are required only for real smoke runs; dry-run and host unit tests still work without them.
-- Hyper-V is not required for build or publish. Later QEMU acceleration can use TCG, WHPX, KVM, or another accelerator depending on host support.
+- Hyper-V is not required for build or publish. Windows QEMU selects WHPX by default; use `-Accelerator tcg` explicitly for software emulation. Other hosts default to TCG. An unavailable WHPX selection fails clearly.
 - The current EFI shell uses placeholder no-stdlib runtime helpers that are not a complete runtime contract.
 
 ## Next Steps

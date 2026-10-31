@@ -279,7 +279,7 @@ private static void TestFirewall()
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"reviewed host/entry source "+file.Item1);
         string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(adapter.Contains("GuestTestStringAllocationCharacterStorage.TryAllocate(*access, bump, 80,",StringComparison.Ordinal) &&
-            adapter.Contains("NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, prefix, token, length)",StringComparison.Ordinal) &&
+            adapter.Contains("NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, prefix, token, length)",StringComparison.Ordinal) &&
             adapter.Contains("expectedElement == token",StringComparison.Ordinal) && adapter.Contains("token != expectedToken",StringComparison.Ordinal) &&
             adapter.Contains("RejectedAllocationUnchanged(bump, bumpBefore, access->Backing, records->BeforeAttempt)",StringComparison.Ordinal) &&
             !adapter.Contains("Serialize(",StringComparison.Ordinal),"actual shared allocator and metadata/rejection/data publication boundary");

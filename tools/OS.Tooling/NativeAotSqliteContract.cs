@@ -19,7 +19,7 @@ namespace OS.Tooling;
 /// Linux static linkage and original traced NativeAOT execution remain separate.</summary>
 public static class NativeAotSqliteContract
 {
-    public const string Application="NativeAotSqliteContract",ProviderVersion="11.0.0-rc.2.26504.105",RawVersion="3.0.5",EngineVersion="3.53.4";
+    public const string Application="NativeAotSqliteContract",ProviderVersion="11.0.0-rc.3.26522.148",RawVersion="3.0.5",EngineVersion="3.53.4";
     public const string NativePackageSha256="5641EB58E88429FD73D09FC294BDAA610A6E99099F4141DE912A5E4AA6D773CA";
     public const string ArchiveDependencyReceiptSha256="77B2A06C28E919CDE82383839AA37CDC3A9AB3FC131FD781CA26559B07C4D21B";
     public const string SourceArchiveUrl="https://www.sqlite.org/2026/sqlite-amalgamation-3530400.zip";

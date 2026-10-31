@@ -45,7 +45,7 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (GcCollectingStorage* owner = &s_gcCollecting)
         {
-            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 s_access, &owner->State, (ulong)sizeof(GcCollectingStorage),
                 s_ehReceipt, reference, targetType);

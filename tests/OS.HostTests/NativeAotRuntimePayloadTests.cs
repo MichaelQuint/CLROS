@@ -12,7 +12,7 @@ internal static class NativeAotRuntimePayloadTests
             var args=NativeAotRuntimePayload.PublishArguments(app,"output");
             foreach(string value in new[]{"publish","apps/"+app+"/"+app+".csproj","Release","net11.0","linux-musl-x64","-p:PublishAot=true",
                 "-p:StaticExecutable=true","-p:PositionIndependentExecutable=false","-p:ServerGarbageCollection=false","-p:EnableDiagnostics=false",
-                "-p:RuntimeFrameworkVersion=11.0.0-rc.2.26504.105","-p:TargetLatestRuntimePatch=false","-p:UseSharedCompilation=false","-nr:false"})HostCheck.True(args.Contains(value));
+                "-p:RuntimeFrameworkVersion=11.0.0-rc.3.26522.148","-p:TargetLatestRuntimePatch=false","-p:UseSharedCompilation=false","-nr:false"})HostCheck.True(args.Contains(value));
             HostCheck.True(!ReferenceEquals(args,NativeAotRuntimePayload.PublishArguments(app,"output")));
             bool immutable=false;try{((IList<string>)args)[0]="restore";}catch(NotSupportedException){immutable=true;}HostCheck.True(immutable);
         }

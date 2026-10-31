@@ -183,9 +183,9 @@ internal static class BuildEfiShellPreflightTests
 
     private static bool TestSdkVersionContract(string tempRoot)
     {
-        const string approved = "11.0.100-rc.2.26504.105";
+        const string approved = "11.0.100-rc.3.26522.148";
         if (EfiPreflight.SdkVersionFailure("ok", [approved]) != "ok") return false;
-        foreach (string version in new[] { "", "10.0.401", "11.0.100", "11.0.101", "11.0.100-rc.1.26504.105", "11.0.100-rc.2.26504.104", "11.0.100-rc.2.26504.106", "11.0.100-RC.2.26504.105", approved + "+extra", "invalid" })
+        foreach (string version in new[] { "", "10.0.401", "11.0.100", "11.0.101", "11.0.100-rc.1.26504.105", "11.0.100-rc.2.26504.105", "11.0.100-rc.3.26522.147", "11.0.100-rc.3.26522.149", "11.0.100-RC.3.26522.148", approved + "+extra", "invalid" })
             if (EfiPreflight.SdkVersionFailure("ok", [version]) != "dotnet_sdk_version_unsupported") return false;
         return EfiPreflight.SdkVersionFailure("ok", []) == "dotnet_sdk_version_output_invalid"
             && EfiPreflight.SdkVersionFailure("ok", [approved, approved]) == "dotnet_sdk_version_output_invalid"

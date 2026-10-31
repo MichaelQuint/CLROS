@@ -121,7 +121,7 @@ public static unsafe class BoundedNonMovingCollectorExplicitRootEnumeration
         CollectorStaticRootAccess staticRoot = default,
         uint workLimit = GuestTestRhpNewFast.MaximumTrackedAllocations)
     {
-        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian)
             return new(BoundedCollectionStatus.UnsupportedProfile);
         if (rootCount > rootCapacity || rootCapacity > GuestTestRhpNewFast.MaximumTrackedAllocations ||
             (rootCapacity == 0 ? roots != null : roots == null || ((ulong)roots & 7) != 0 ||
@@ -277,7 +277,7 @@ public static unsafe class BoundedNonMovingCollectorExplicitRootEnumeration
         byte* typeOwner, ulong typeCapacity, ulong moduleHandle,
         GCStaticReadableWindow metadata, ulong methodTable, bool abbreviatedStaticBase = false)
     {
-        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian)
             return new(CollectorTypeMapStatus.UnsupportedProfile);
         if (metadata.Start == 0 || metadata.Bytes == 0 || metadata.Start > ~0UL - metadata.Bytes)
             return new(CollectorTypeMapStatus.InvalidWindow);

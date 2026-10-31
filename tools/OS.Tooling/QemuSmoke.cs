@@ -364,7 +364,8 @@ public static class QemuSmoke
             if (!options.DryRun && rawCapture)
             {
                 output.WriteLine("TEST_START m01.026.raw-observations");
-                capture = QemuCaptureSession.Create(root, qemu, options.M01RawObservationLog, options.SerialLog, options.SummaryLog, options.TimeoutSeconds, plan.IsEnabled("EnableM02SafeStubProbe"));
+                capture = QemuCaptureSession.Create(root, qemu, options.M01RawObservationLog, options.SerialLog, options.SummaryLog, options.TimeoutSeconds, plan.IsEnabled("EnableM02SafeStubProbe"), options.Accelerator);
+                output.WriteLine("M01_RAW_OBSERVATION_ACCELERATOR " + capture.Accelerator);
                 qemu = capture.Executable; timeout = capture.RunnerTimeoutSeconds;
                 output.WriteLine("M01_RAW_OBSERVATION_PATH " + capture.ObservationPath);
                 output.WriteLine("M01_RAW_OBSERVATION_SUPPORT " + capture.SupportDirectory);

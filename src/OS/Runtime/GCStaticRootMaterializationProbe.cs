@@ -274,7 +274,7 @@ internal static unsafe partial class RhpNewFastAllocation
         {
             RhpNewFastBumpState* bump = &collecting->State;
             RhpNewFastResult result = GuestTestRhpNewFast.TryAllocate(s_access, bump,
-                GuestTestRhpNewFast.RequiredCollectingStateBytes, NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+                GuestTestRhpNewFast.RequiredCollectingStateBytes, NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 prefix, token);
             if (!result.AllocationSucceeded || result.AllocationCount != 2 || result.BytesConsumed != 24 ||
                 GcReadWord(result.MappedAllocationStart) != 0 ||
@@ -349,7 +349,7 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcTypeStorage* type = &s_gcType)
         {
             CollectorTypeMapResult map = BoundedNonMovingCollectorExplicitRootEnumeration.InspectType(
-                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, s_gcCapture, s_gcMapping,
+                NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, s_gcCapture, s_gcMapping,
                 (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, s_gcImage, CollectorNodeType());
             if (!map.Succeeded || map.Prefix.BaseSize != 32 || map.SeriesCount != 1 ||
                 !map.TryGetSeries(0, out CollectorReferenceSeries series) || series.Bytes != 8)
@@ -513,11 +513,11 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcNodeReceipts* records = &s_gcNodes)
         {
             CollectorTypeMapResult map = BoundedNonMovingCollectorExplicitRootEnumeration.InspectType(
-                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, s_gcCapture, s_gcMapping, (byte*)type,
+                NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, s_gcCapture, s_gcMapping, (byte*)type,
                 (ulong)sizeof(GcTypeStorage), s_gcHandle, s_gcImage, token);
             if (!map.Succeeded || map.Prefix.BaseSize != 32 || map.SeriesCount != 1) RejectGc(117);
             RhpNewFastResult result = GuestTestRhpNewFast.TryAllocate(s_access, &collecting->State,
-                (ulong)sizeof(GcCollectingStorage), NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+                (ulong)sizeof(GcCollectingStorage), NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 map.Prefix, token);
             if (!result.AllocationSucceeded || result.AllocationCount != expectedCount + 3 ||
                 result.BytesConsumed != 32 || GcReadWord(result.MappedAllocationStart) != 0 ||
@@ -576,7 +576,7 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcRootStorage* root = &s_gcRoot)
         fixed (GcCollectingStorage* collecting = &s_gcCollecting)
             return BoundedNonMovingCollectorExplicitRootEnumeration.Collect(
-                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+                NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 new CollectorModuleAccess { Capture = s_gcCapture, Mapping = s_gcMapping, Owner = (byte*)type,
                     Capacity = (ulong)sizeof(GcTypeStorage), Handle = s_gcHandle, Metadata = s_gcImage },
                 s_access, &collecting->State, (ulong)sizeof(GcCollectingStorage), roots, count, count,

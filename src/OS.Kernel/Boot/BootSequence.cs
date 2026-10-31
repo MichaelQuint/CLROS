@@ -459,7 +459,7 @@ public static class BootSequence
         byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
         IsSimpleThrowCatchEnabled()
             ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping,
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
 
@@ -472,7 +472,7 @@ public static class BootSequence
         byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
         IsSingleFinallyCatchEnabled()
             ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping,
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
 
@@ -486,7 +486,7 @@ public static class BootSequence
         byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
         IsNestedFinallyCatchEnabled()
             ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping,
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
 
@@ -498,7 +498,7 @@ public static class BootSequence
         byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
         IsUnhandledExceptionEnabled()
             ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping,
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
 
@@ -510,7 +510,7 @@ public static class BootSequence
         byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
         IsNormalFinallyEnabled()
             ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping,
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
 
@@ -525,7 +525,7 @@ public static class BootSequence
         byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
         IsFrameDispatchEnabled()
             ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping,
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
     public static bool IsConstructorFailureEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04ConstructorFailureProbe;
@@ -536,7 +536,7 @@ public static class BootSequence
         byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
         IsConstructorFailureEnabled()
             ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping,
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
     public static bool IsFilteredCatchEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04FilteredCatchProbe;
@@ -547,7 +547,7 @@ public static class BootSequence
         byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
         IsFilteredCatchEnabled()
             ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping,
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
 
@@ -665,7 +665,7 @@ public static class BootSequence
         byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
         IsRethrowEnabled()
             ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping,
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
 

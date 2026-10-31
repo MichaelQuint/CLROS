@@ -321,7 +321,7 @@ internal static unsafe class CompilerInterfaceDispatchTests
     {
         internal const uint ImageSize = 0x18000;
         internal const ulong Capacity = 32768;
-        internal const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
+        internal const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian;
         internal readonly byte* Image = (byte*)NativeMemory.AlignedAlloc(ImageSize, 4096);
         internal readonly byte* Owner = (byte*)NativeMemory.AllocZeroed(4096);
         private readonly byte* runnerAllocation = (byte*)NativeMemory.AllocZeroed((nuint)Capacity + 16);

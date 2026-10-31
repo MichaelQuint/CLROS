@@ -624,9 +624,11 @@ blocker and review a changed strategy before speculative compatibility work.
 Linux-host success is not CLROS guest evidence. Never implement successful
 no-op threads, mappings, protection or entropy.
 
-The active guest payload policy is .NET 11 RC2: SDK
-`11.0.100-rc.2.26504.105`, runtime/ILC/ILLink
-`11.0.0-rc.2.26504.105`, `net11.0`, and C#14. The qualification command
+The active guest payload policy is .NET 11 RC3: SDK
+`11.0.100-rc.3.26522.148`, runtime/ILC/ILLink
+`11.0.0-rc.3.26522.148`, `net11.0`, and C#14. Fresh qualification is tracked by
+[#813](http://192.168.4.35:3000/admin/CLROS/issues/813); historical RC2 packages
+and guests retain their separate identities. The qualification command
 `dotnet run --project tools/OS.Tooling -- nativeaot payload qualify --output <fresh-directory>`
 requires that exact SDK on Linux musl, publishes all three apps with explicit
 runtime and target-framework pins, and rejects missing or mismatched restored
@@ -635,7 +637,7 @@ ordinary assets libraries and downloaded runtime packs, including their static
 archives; NuGet's `downloadDependencies` cannot be omitted from that inventory.
 Microsoft publishes the matching Linux musl SDK
 and checksum in the [official .NET11 release metadata](https://builds.dotnet.microsoft.com/dotnet/release-metadata/11.0/releases.json).
-[Step1225](../done/step1225.md) records the fresh Linux r04 qualification:
+[Step1225](../done/step1225.md) records the historical RC2 Linux r04 qualification:
 all three .NET 11 static payloads publish without warnings and pass dependency
 inspection, runtime exercise and HTTP/configuration/shutdown checks. Produced
 managed/native inputs and package closure are retained by hash, with the six

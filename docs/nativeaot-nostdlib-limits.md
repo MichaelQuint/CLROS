@@ -858,14 +858,22 @@ reviewed integration merge.
 
 `ObjectArrayStringEETypeMethodTableLayoutContracts` evaluates scalar
 descriptions of fixed canonical objects, zero-based single-dimensional arrays
-and strings for x64 little-endian NativeAOT 11.0.0-rc.2.26504.105. It uses
-`dotnet/dotnet` source commit `820230c386db5b0106c5430b3e5aee92a7826bf5`,
+and strings for x64 little-endian NativeAOT 11.0.0-rc.3.26522.148. It uses
+`dotnet/dotnet` source commit `5254d8bcf59917edc1e1abc33bdf2442b77b1c70`,
 identified by both pinned compiler/runtime package metadata. The source
 authorities are `ObjectLayout.h`, `MethodTable.cs`, `MethodTable.Constants.cs`,
 `EETypeBuilderHelpers.cs`, `TargetDetails.cs`, `GCHelpers.cpp` and
 `String.NativeAot.cs`. Reviewed hashes of the downloaded primary sources are
 recorded as ignored evidence; they are not runtime dependencies or committed
 first-party source.
+
+The RC3 migration retains the numerical layout values after comparing the exact
+RC2/RC3 VMR source bytes for the layout, module, dispatch and selected EH inputs.
+All twenty reviewed pairs match; the complete runtime trees differ. The active
+profile has a distinct identifier and rejects the historical RC2 identifier.
+Source equality and the focused layout fixture grant no emitted-stack or guest
+acceptance. [The phase contract](../work/rc3-whpx-qualification.md) requires
+fresh native and guest qualification.
 
 Offsets explicitly name their origin. Total raw/aligned sizes start at the
 allocation, including the eight-byte header before the object reference.

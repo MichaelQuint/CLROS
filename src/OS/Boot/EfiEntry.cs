@@ -18189,7 +18189,7 @@ public static unsafe partial class EfiEntry
         EfiSimpleTextOutputProtocol* console,
         EfiSerialIoProtocol* serial)
     {
-        NativeAotLayoutProfile profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
+        NativeAotLayoutProfile profile = NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian;
         // Independent scalar expectations; large modeled sizes allocate no memory.
         if (
             !CheckM04LayoutResult(profile, 0x50000008, 24, 0, 24UL,

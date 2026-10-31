@@ -4,8 +4,8 @@ public sealed record EfiPackage(string Id, string Version, string ContentHashSha
 public sealed record EfiArchive(string Id, string Version, string FileName, string Sha256);
 public static partial class EfiContracts
 {
-    public const string SdkVersion = "11.0.100-rc.2.26504.105";
-    public const string NativePackageVersion = "11.0.0-rc.2.26504.105";
+    public const string SdkVersion = "11.0.100-rc.3.26522.148";
+    public const string NativePackageVersion = "11.0.0-rc.3.26522.148";
 
     /// <summary>Admits only the reviewed SDK identity; another preview or release requires a new qualification.</summary>
     public static bool IsPinnedSdkVersion(string? version) => string.Equals(version, SdkVersion, StringComparison.Ordinal);
@@ -74,26 +74,26 @@ public static partial class EfiContracts
         new("microsoft.dotnet.ilcompiler/" + NativePackageVersion + "/build/Microsoft.NETCore.Native.Publish.targets", "08cd275a39e34abcbdb72f910cea706186277d04088746551fdcde92de18827e"),
         new("microsoft.dotnet.ilcompiler/" + NativePackageVersion + "/build/Microsoft.NETCore.Native.Windows.targets", "262fa05c2f024b3207dae7da4a41e6afd778eda3794bb491e496ae3ded50a4c4"),
         new("microsoft.dotnet.ilcompiler/" + NativePackageVersion + "/build/Microsoft.NETCore.Native.targets", "d1b980014a34e9cc8b28810ca2faef0f1071b2f5675fb9716db5c506cbe29aa7"),
-        new("microsoft.dotnet.ilcompiler/" + NativePackageVersion + "/tools/netstandard/ILCompiler.Build.Tasks.dll", "2291cd80d43b11ba8b3f511b1b18c19c68c74c7380e22f017cdd4d4c19e6e888"),
-        new("microsoft.dotnet.ilcompiler/" + NativePackageVersion + "/tools/netstandard/ILCompiler.Build.Tasks.deps.json", "52b76ff0992618e15c1b6a4513fc4802b48dfbb778bce0b67ccdf3ae56c35c1d"),
+        new("microsoft.dotnet.ilcompiler/" + NativePackageVersion + "/tools/netstandard/ILCompiler.Build.Tasks.dll", "536f23ef14855974c0b5ce3f2e8d2c983c35708ba080eefe0dd0bae23fabb638"),
+        new("microsoft.dotnet.ilcompiler/" + NativePackageVersion + "/tools/netstandard/ILCompiler.Build.Tasks.deps.json", "873518ea93169b5c7534ddf23713aabbf2ce46bd20acc46f02a828bcff04e0f1"),
         new("microsoft.net.illink.tasks/" + NativePackageVersion + "/build/Microsoft.NET.ILLink.targets", "4a62e8a4fc04839aedba51146d21e9bee0edcb8079bd85b75d40160cd8e7c601"),
-        new("microsoft.net.illink.tasks/" + NativePackageVersion + "/tools/net/ILLink.Tasks.dll", "8a371d95d82959700a975f57f0ca6e3bbb73a8405f20b8fbf5ce2304da630d78"),
-        new("microsoft.net.illink.tasks/" + NativePackageVersion + "/tools/net/ILLink.Tasks.deps.json", "6df59b31b28227f58ff6c67cc3170046247d6c314e16c103c1faed80509653fd"),
+        new("microsoft.net.illink.tasks/" + NativePackageVersion + "/tools/net/ILLink.Tasks.dll", "2931a243e64aaef8cae430e6da436d97c1cb9a553d0856f67304443dbc62930c"),
+        new("microsoft.net.illink.tasks/" + NativePackageVersion + "/tools/net/ILLink.Tasks.deps.json", "d464b1439858477c2119630937f8b02558fe980f4353b95caaee01a829d51ff9"),
     ]);
     public static System.Collections.ObjectModel.ReadOnlyCollection<EfiPackage> ConsumedPackageTrees { get; } = Array.AsReadOnly<EfiPackage>(
     [
-        new("microsoft.dotnet.ilcompiler", NativePackageVersion, "6yeR3nENReUAbLaOEeX3krUEYCr3ufnbXRnYS3IvM2piBTwKcaA3pzhI2D8XZhj514zX+lU0P/8M04ZrFwTT7w==", 19, 461109L, "88142fc5816ad710abbd782077d0bccc7e05dd69d3c84455558be98ade0eefa3", "restore"),
-        new("microsoft.net.illink.tasks", NativePackageVersion, "Mkb6kHfPr4/txc4n/41yUiEBT44Haup2qnyecIO1ADo2QB4YxleZHsOvgYJT6roL1SNuFSpbeNpoe70BJ953Uw==", 43, 5426257L, "93c5b6777c33d943ecc65f55638c0b879a7c73175e197f71daacc78a6621a850", "restore"),
-        new("runtime.win-x64.microsoft.dotnet.ilcompiler", NativePackageVersion, "jKElczEvNBZbkzqCilaPufnKkdJKToj5MAO9zenCtSqEacJ1vLTpISuDQfvFeFcn21b1NRK1ekI7n3NYvkDAcA==", 14, 45138567L, "a28fe35ed5c040961950c5224eddd4b6bdf5d49bc754156ab08599488495a7d5", "restore"),
-        new("microsoft.netcore.app.runtime.nativeaot.win-x64", NativePackageVersion, "lxoYY14s26hxp+p97TY58i/7bvgenNzdGemjmSoXDXByih0cTgK28h9HzgZV0EBwRlKJffZJAWlamxCWnCRQVQ==", 426, 121081488L, "3e9b553c58600a52450a353d2645c1c3135b81d1841b9a37fd9626f6333e5d5b", "restore-only"),
-        new("microsoft.netcore.app.runtime.nativeaot.win-x64", NativePackageVersion, "lxoYY14s26hxp+p97TY58i/7bvgenNzdGemjmSoXDXByih0cTgK28h9HzgZV0EBwRlKJffZJAWlamxCWnCRQVQ==", 426, 121081488L, "3e9b553c58600a52450a353d2645c1c3135b81d1841b9a37fd9626f6333e5d5b", "runtime"),
+        new("microsoft.dotnet.ilcompiler", NativePackageVersion, "kOWENZaHawMp+lsWoG6KLfyOrEtB41EJ2W+A2FXYjsU7I1UUmajht+l7+gbm/2WSePJ+npzaIDBU+kFgiD4VhQ==", 19, 461111L, "17dc49a2d2fcd518a7ab49d4200e72ff36290250567c629184f5a898de9754e0", "restore"),
+        new("microsoft.net.illink.tasks", NativePackageVersion, "SWnTMx96mhBr9LCOySJg1ETlEFFHVsPGdVT02JnYhtqk1+Vke1J7RU3VkKwEiErBr4FJ42Uu4k7GdOtkRuvs/Q==", 43, 5426193L, "3a5cd86a62495d096c3f32bf8fd357a588dfd207650815370d97ad521a3483f6", "restore"),
+        new("runtime.win-x64.microsoft.dotnet.ilcompiler", NativePackageVersion, "MM76oeeNCqPw/G6Fn1FN8/OCp8u3c/5Xb/yu1Vm0ZuqLtMZjsBTXRpPEbq//Gb1QIXy9f0hWT0CiY2LWVwGvLQ==", 14, 45138819L, "4a3a8dedfe1f8547c9c0c00af1acfb324bf6c53119c68a50ecfaa8b9d5470497", "restore"),
+        new("microsoft.netcore.app.runtime.nativeaot.win-x64", NativePackageVersion, "LJTpwhEV1z+Ok2qNjuTUbTisAxilgETHGVUmy/tAwwllalNMzef2qUEDNI3prLzYESUfGLJNbcYJiSNkbHjwyA==", 426, 121072359L, "b040013e9fd272381901f38bd66c10f38a663112f7b4bdcff797049ab8003f11", "restore-only"),
+        new("microsoft.netcore.app.runtime.nativeaot.win-x64", NativePackageVersion, "LJTpwhEV1z+Ok2qNjuTUbTisAxilgETHGVUmy/tAwwllalNMzef2qUEDNI3prLzYESUfGLJNbcYJiSNkbHjwyA==", 426, 121072359L, "b040013e9fd272381901f38bd66c10f38a663112f7b4bdcff797049ab8003f11", "runtime"),
     ]);
     public static System.Collections.ObjectModel.ReadOnlyCollection<EfiArchive> RestoreArchives { get; } = Array.AsReadOnly<EfiArchive>(
     [
-        new("microsoft.dotnet.ilcompiler", NativePackageVersion, "microsoft.dotnet.ilcompiler." + NativePackageVersion + ".nupkg", "40b98ab957285b05930cf84cf76f9f3877c0701dceb4770e49e615efbc25c11b"),
-        new("microsoft.net.illink.tasks", NativePackageVersion, "microsoft.net.illink.tasks." + NativePackageVersion + ".nupkg", "1ba431d1a663f151af8269ffb2804970135924848b0e3d386d15c3fa9df6dffc"),
-        new("runtime.win-x64.microsoft.dotnet.ilcompiler", NativePackageVersion, "runtime.win-x64.microsoft.dotnet.ilcompiler." + NativePackageVersion + ".nupkg", "6aa4feb026989810cbe1f3c5285b8958817071875521c73f7cb10de586ca20eb"),
-        new("microsoft.netcore.app.runtime.nativeaot.win-x64", NativePackageVersion, "microsoft.netcore.app.runtime.nativeaot.win-x64." + NativePackageVersion + ".nupkg", "a527b10ebbecebcc61f96248fa14db76334e43e3936c1480d3081b96ef4e2d68"),
+        new("microsoft.dotnet.ilcompiler", NativePackageVersion, "microsoft.dotnet.ilcompiler." + NativePackageVersion + ".nupkg", "a49dad9f819bb1a864ac82d535fccbb8605544e18e686aa72d0ea54a4a352950"),
+        new("microsoft.net.illink.tasks", NativePackageVersion, "microsoft.net.illink.tasks." + NativePackageVersion + ".nupkg", "1a4e3132b12bcce55039f7359b38b0285ddaf5f9608eeb63ff16b5a8a7566e08"),
+        new("runtime.win-x64.microsoft.dotnet.ilcompiler", NativePackageVersion, "runtime.win-x64.microsoft.dotnet.ilcompiler." + NativePackageVersion + ".nupkg", "6d6e7712627a557f9e6c933637f055835dfe8bbbdf44db3b9b1b1c8da3e8f08a"),
+        new("microsoft.netcore.app.runtime.nativeaot.win-x64", NativePackageVersion, "microsoft.netcore.app.runtime.nativeaot.win-x64." + NativePackageVersion + ".nupkg", "cf1be4819f5fa01fa4e8baae5d8884785f6024d17b71f88c835691618cbe9638"),
     ]);
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> ActivePackageImportEdges { get; } = Array.AsReadOnly<string>(
     [

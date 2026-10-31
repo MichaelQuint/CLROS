@@ -7,7 +7,8 @@ public enum NativeAotLayoutProfile : byte
     Uninitialized = 0,
     // Historical identity retained only for explicit rejection by the current profile.
     Ilc10_0_12WinX64LittleEndian = 1,
-    Ilc11_0_0Rc2WinX64LittleEndian = 2
+    Ilc11_0_0Rc2WinX64LittleEndian = 2,
+    Ilc11_0_0Rc3WinX64LittleEndian = 3
 }
 
 public enum NativeAotLayoutShape : byte
@@ -89,8 +90,8 @@ public readonly struct NativeAotLayoutResult
 // No memory access, allocation, type discovery, dispatch or GC is performed.
 public static class ObjectArrayStringEETypeMethodTableLayoutContracts
 {
-    public const string ILCompilerVersion = "11.0.0-rc.2.26504.105";
-    public const string RuntimeSourceCommit = "820230c386db5b0106c5430b3e5aee92a7826bf5";
+    public const string ILCompilerVersion = "11.0.0-rc.3.26522.148";
+    public const string RuntimeSourceCommit = "5254d8bcf59917edc1e1abc33bdf2442b77b1c70";
     public const int PointerBytes = 8;
     public const int AllocationAlignmentBytes = 8;
 
@@ -147,7 +148,7 @@ public static class ObjectArrayStringEETypeMethodTableLayoutContracts
     public static NativeAotLayoutResult Evaluate(NativeAotLayoutProfile profile,
         NativeAotMethodTablePrefix prefix, int componentCount, ulong availableAllocationBytes)
     {
-        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian)
             return Fail(NativeAotLayoutStatus.UnsupportedProfile);
 
         uint flags = prefix.Flags;

@@ -71,7 +71,7 @@ public static unsafe class X64FrameUnwind
         byte* moduleOwner, ulong moduleCapacity, ulong moduleHandle,
         byte* metadataStorage, ulong metadataCapacity, byte* stack, ulong stackBytes, X64UnwindContext input)
     {
-        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian) return Fail(X64FrameUnwindStatus.UnsupportedProfile);
+        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian) return Fail(X64FrameUnwindStatus.UnsupportedProfile);
         var metadata = X64PERuntimeFunctionUnwindMetadataHostileInput.Lookup(metadataStorage, metadataCapacity, input.Rip);
         if (!metadata.Succeeded) return Fail(X64FrameUnwindStatus.MetadataRejected);
         if (metadata.ModuleOwner != (ulong)moduleOwner || metadata.ModuleHandle != moduleHandle ||

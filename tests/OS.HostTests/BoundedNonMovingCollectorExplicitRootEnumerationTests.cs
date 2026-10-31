@@ -262,7 +262,7 @@ internal static unsafe class BoundedNonMovingCollectorExplicitRootEnumerationTes
             "collection cannot reset owner"); heap.Guards();
     }
 
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian;
     private static void Link(RhpNewFastResult parent, RhpNewFastResult child) =>
         *(ulong*)(parent.ObjectReference + 8) = child.ObjectReference;
     private static BoundedCollectionResult Collect(Fixture image, HeapFixture heap, RhpNewFastResult* roots,
@@ -363,7 +363,7 @@ internal static unsafe class BoundedNonMovingCollectorExplicitRootEnumerationTes
         { byte* p = (byte*)Mt - 24 - index * 16; W64(p, unchecked((ulong)adjusted)); W64(p + 8, offset); }
         internal CollectorTypeMapResult Inspect(bool abbreviated = false,
             GCStaticReadableWindow window = default, ulong mt = 0, ulong handle = 0) =>
-            Core.InspectType(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+            Core.InspectType(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 Capture, Mapping, Owner, 4096, handle == 0 ? Handle : handle,
                 window.Bytes == 0 ? Window : window, mt == 0 ? Mt : mt, abbreviated);
         internal void Expect(Status expected)

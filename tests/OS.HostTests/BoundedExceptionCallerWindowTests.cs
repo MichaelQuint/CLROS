@@ -7,7 +7,7 @@ using Status = OS.Kernel.Runtime.BoundedExceptionCallerWindowStatus;
 
 internal static unsafe class BoundedExceptionCallerWindowTests
 {
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian;
     private static void Need(bool value, string reason) => HostCheck.True(value, reason);
 
     [HostTest("runtime.bounded-caller-window.physical-callers-protected-pc", HostLane.Fast, 0)]

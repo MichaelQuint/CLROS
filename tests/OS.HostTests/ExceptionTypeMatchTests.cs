@@ -9,7 +9,7 @@ using Status = OS.Kernel.Runtime.ExceptionTypeMatchStatus;
 
 internal static unsafe class ExceptionTypeMatchTests
 {
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian;
     private const uint ClassFlags = 0x50000000;
 
     [HostTest("m04.exception_type_match.identity", HostLane.Fast, 0)]

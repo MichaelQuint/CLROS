@@ -290,7 +290,7 @@ internal static class M04LayoutContractEfiIntegrationTests
             cases.Add((good + record + "\n", false));
             cases.Add((record + "\n" + good, false));
         }
-        foreach (string token in new[] { "checks=19", "profile=ilc11.0.0-rc.2.26504.105-win-x64-le", "shapes=3", "prefixBytes=24", "gate4=Fail" })
+        foreach (string token in new[] { "checks=19", "profile=ilc11.0.0-rc.3.26522.148-win-x64-le", "shapes=3", "prefixBytes=24", "gate4=Fail" })
             cases.Add((good.Replace(token, token + "x", StringComparison.Ordinal), false));
         cases.Add((good.Replace(chain[2] + "\n" + chain[3], chain[3] + "\n" + chain[2], StringComparison.Ordinal), false));
         cases.Add((good.Replace("OS_SMOKE_PASS\n", "OS_SMOKE_PASS", StringComparison.Ordinal), false));

@@ -195,7 +195,7 @@ internal static unsafe class BoundedExceptionFrameDispatchTests
             var decoded = new NativeAotEhClauseResult[rows.Length];
             for (uint i = 0; i < decoded.Length; i++)
             {
-                decoded[i] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+                decoded[i] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                     Owner.Capture, Owner.Mapping, Owner.Owner, 4096, Owner.Handle, snapshot, 0x4000,
                     new(0x6000U + (uint)frame * 0x500, 0x500, table, (uint)bytes.Length), i);
                 HostCheck.True(decoded[i].Succeeded, "real decoded physical row " + i);

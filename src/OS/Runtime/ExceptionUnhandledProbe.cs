@@ -149,10 +149,10 @@ internal static unsafe partial class RhpNewFastAllocation
                 return RejectUnhandled(14);
             EhLine(3, captured->Rip, captured->Rsp, first.Caller.Rip, first.Caller.Rsp);
             EhLine(4, first.Caller.Rip, first.Caller.Rsp, second.Caller.Rip, second.Caller.Rsp);
-            var noThrow = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+            var noThrow = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, new((uint)(thrower - s_gcImage.Start), EhThrowCodeBytes, 0, 0), 0);
-            var noMiddle = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+            var noMiddle = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, new((uint)(middle - s_gcImage.Start), UnhandledMiddleBytes, 0, 0), 0);
             ulong table = UnhandledClauseTable();
@@ -161,12 +161,12 @@ internal static unsafe partial class RhpNewFastAllocation
                 catcher < s_gcImage.Start || catcher - s_gcImage.Start > 0x7FFFFFFF) return RejectUnhandled(15);
             NativeAotEhClauseResult* rows = stackalloc NativeAotEhClauseResult[1];
             ExceptionTypeMatchResult* matches = stackalloc ExceptionTypeMatchResult[1];
-            rows[0] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+            rows[0] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, new((uint)(catcher - s_gcImage.Start), UnhandledCatchBytes,
                     (uint)(table - s_gcImage.Start), UnhandledTableBytes), 0);
             if (!rows[0].Succeeded || rows[0].TypeAddress != UnhandledSiblingType()) return RejectUnhandled(16);
-            matches[0] = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+            matches[0] = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 s_access, &owner->State, (ulong)sizeof(GcCollectingStorage), s_ehReceipt, exception, rows[0].TypeAddress);
             bool exported = RuntimeExceptionMatch((Internal.Runtime.MethodTable*)rows[0].TypeAddress, UnhandledObject(exception));

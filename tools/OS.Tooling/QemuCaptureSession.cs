@@ -16,6 +16,7 @@ public sealed class QemuCaptureSession : IDisposable
     public string SupportDirectory { get; private init; } = "";
     public string ScratchDirectory { get; private init; } = "";
     public int GuestTimeoutSeconds { get; private init; }
+    public string Accelerator { get; private init; } = "tcg";
     public const int CaptureTimeoutSeconds = 60;
     /// <summary>Extra runner lifetime reserved for raw capture and final cleanup,
     /// after the selected guest execution budget.</summary>
@@ -26,8 +27,9 @@ public sealed class QemuCaptureSession : IDisposable
     private static void Need(bool value, string reason) => QemuTranscripts.Need(value, reason);
     private static string Hash(string path) { using var file = File.OpenRead(path); return Convert.ToHexString(SHA256.HashData(file)); }
 
-    public static QemuCaptureSession Create(string root, string qemu, string observation, string serial, string summary, int timeout, bool safeStub)
+    public static QemuCaptureSession Create(string root, string qemu, string observation, string serial, string summary, int timeout, bool safeStub, string accelerator = "tcg")
     {
+        Need(accelerator is "whpx" or "tcg", "capture_accelerator_invalid");
         Need(timeout is >= 1 and <= 300, "guest_timeout_out_of_range");
         string publicPath = Path.GetFullPath(serial, root);
         string observationPath = string.IsNullOrWhiteSpace(observation) ? publicPath + ".m01-raw-" + Guid.NewGuid().ToString("N") + ".log" : Path.GetFullPath(observation, root);
@@ -53,13 +55,14 @@ public sealed class QemuCaptureSession : IDisposable
         return new()
         {
             Executable = executable, ObservationPath = observationPath, PublicSerialPath = publicPath, PrivateSerialPath = privatePath,
-            QmpTranscriptPath = qmp, SupportDirectory = support, ScratchDirectory = scratch, GuestTimeoutSeconds = timeout, Identities = identities,
+            QmpTranscriptPath = qmp, SupportDirectory = support, ScratchDirectory = scratch, GuestTimeoutSeconds = timeout, Accelerator = accelerator, Identities = identities,
             Environment = new Dictionary<string, string?>
             {
                 ["CLROS_M01_REAL_QEMU"] = Path.GetFullPath(qemu), ["CLROS_M01_PRIVATE_SERIAL"] = privatePath,
                 ["CLROS_M01_RAW_OBSERVATION_LOG"] = observationPath, ["CLROS_M01_QMP_TRANSCRIPT_LOG"] = qmp,
                 ["CLROS_M01_CAPTURE_SCRATCH"] = scratch, ["CLROS_M01_GUEST_TIMEOUT_SECONDS"] = timeout.ToString(CultureInfo.InvariantCulture),
                 ["CLROS_M01_CAPTURE_TIMEOUT_SECONDS"] = CaptureTimeoutSeconds.ToString(CultureInfo.InvariantCulture),
+                ["CLROS_M01_ACCELERATOR"] = accelerator,
                 ["CLROS_M02_SAFE_STUB_PROBE"] = safeStub ? "true" : "false"
             }
         };

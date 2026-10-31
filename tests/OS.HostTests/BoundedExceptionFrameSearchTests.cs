@@ -219,7 +219,7 @@ internal static unsafe class BoundedExceptionFrameSearchTests
             var result = new NativeAotEhClauseResult[rows.Length];
             for (uint i = 0; i < result.Length; i++)
             {
-                result[i] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
+                result[i] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                     Owner.Capture, Owner.Mapping, Owner.Owner, 4096, Owner.Handle, snapshot, 0x4000,
                     new(0x6000U + (uint)frame * 0x500, 0x500, table, (uint)blob.Length), i);
                 Need(result[i].Succeeded, "original decoded row " + i + ": " + result[i].Status);

@@ -2692,9 +2692,9 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestSdkExactVersion(string tempRoot)
     {
-        const string approved = "11.0.100-rc.2.26504.105";
+        const string approved = "11.0.100-rc.3.26522.148";
         HostCheck.True(OS.Tooling.EfiVerify.TestSdkExactVersion(approved, approved));
-        foreach (string version in new[] { "", "10.0.401", "11.0.100", "11.0.101", "11.0.100-rc.1.26504.105", "11.0.100-rc.2.26504.104", "11.0.100-rc.2.26504.106", "11.0.100-RC.2.26504.105", approved + "+extra", "invalid" })
+        foreach (string version in new[] { "", "10.0.401", "11.0.100", "11.0.101", "11.0.100-rc.1.26504.105", "11.0.100-rc.2.26504.105", "11.0.100-rc.3.26522.147", "11.0.100-rc.3.26522.149", "11.0.100-RC.3.26522.148", approved + "+extra", "invalid" })
         {
             HostCheck.True(!OS.Tooling.EfiVerify.TestSdkExactVersion(version, approved));
             HostCheck.True(!OS.Tooling.EfiVerify.TestSdkExactVersion(approved, version));

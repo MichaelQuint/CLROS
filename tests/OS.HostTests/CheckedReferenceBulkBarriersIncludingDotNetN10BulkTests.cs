@@ -295,7 +295,7 @@ internal static unsafe class CheckedReferenceBulkBarriersIncludingDotNetN10BulkT
     private static void CheckMixed()
     {
         using Fixture f = new();
-        const NativeAotLayoutProfile layout = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
+        const NativeAotLayoutProfile layout = NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian;
         Require(GuestTestRhpNewFast.InitializeOnce(f.Access, f.State, 96).Succeeded, "bind real sole cursor");
         for (int round = 0; round < 8; round++)
         {

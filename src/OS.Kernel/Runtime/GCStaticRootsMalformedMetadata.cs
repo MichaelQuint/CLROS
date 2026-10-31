@@ -290,7 +290,7 @@ public static unsafe class GCStaticRootsMalformedMetadata
         Copy(candidate.Snapshot + 44, (byte*)decoded.RelatedType, 24);
 
         RhpNewFastResult receipt = GuestTestRhpNewFast.TryAllocateStaticBase(heap, bump, bumpCapacity,
-            NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, decoded.Flags, decoded.BaseSize, decoded.MethodTable);
+            NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, decoded.Flags, decoded.BaseSize, decoded.MethodTable);
         if (!receipt.AllocationSucceeded) return new(GCStaticRootStatus.HeapRejected, heapStatus: receipt.Status);
         candidate.Receipt = receipt;
         *root = candidate; // First root write: the allocation is now consumed.
