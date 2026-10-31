@@ -13,7 +13,7 @@ configured .NET 11 applications. It uses a restricted Linux x64 compatibility
 layer and statically published NativeAOT applications targeting **`linux-musl-x64`**.
 First-party kernel, shared-library and application source is C# 14.
 
-The human accepts slower but correct Blazor startup under QEMU. The finite read-phase test allows one hour for browser startup and two hours for its enclosing run. The first longer run rendered Blazor and its API values, then failed a host validator that incorrectly treated a false CDP flag as a redirect. [Step1663](done/step1663.md) repairs that parser; fresh complete qualification remains pending. Prior failures are preserved. See [Step1662](done/step1662.md) and [QEMU limits](docs/qemu.md).
+The human accepts slower but correct Blazor startup under QEMU. The finite read-phase test allows one hour for browser startup and two hours for its enclosing run. The first longer run rendered Blazor and its API values, then failed a host validator that incorrectly treated a false CDP flag as a redirect. [Step1663](done/step1663.md) repairs that parser. The next run captured a screenshot but failed host debugger teardown; [Step1664](done/step1664.md) adds a narrowly guarded shutdown classification with ten focused passing checks. Fresh complete qualification remains pending. Prior failures are preserved. See [Step1662](done/step1662.md) and [QEMU limits](docs/qemu.md).
 
 The goal is a **small, fully functioning OS that continuously hosts supported
 applications**. The first integrated workload combines a NativeAOT Minimal API,
