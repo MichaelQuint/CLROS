@@ -22628,8 +22628,8 @@
         "**/*"
       ],
       "collisionLane": null,
-      "summary": "Local SingleMinimalApi NativeAOT Kestrel",
-      "currentEvidence": "Step1661: Exact EFI entry-source pin refreshed to F6EC after actual seven-profile active token/directive/parse-diagnostic equivalence E481. Rebuilt source-pin consumer and admission: 8 focused Fast checks across two fixtures, zero reuse. Kernel page-copy source remains unchanged. Source a7ed completed three native publications, conditional own-profile LOCAL and 58-witness composition, then fresh full9001660/session72112/613348/exit1 failed the M04 reviewed-source check before Native execution; failure F74 remains preserved. New committed-source native/input binding and fresh unfiltered full are required before any guest. Parent7da full/native/AFTER success and failed A1 remain separate. All21 read criteria, seven recipes, limits and server/package bytes unchanged; four read issues remain open. Finish verified read merge/parity/recovery, stop helper work and pause before writes/SQLite.",
+      "summary": "Local SingleMinimalApi NativeAOT Kestrel Read-closeout progress: M10-018 finite guest-disk Blazor reads are accepted in http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md; M10-013/M10-014/M10-019 remain required and not closed. This epic remains open; wider local Gate14/service acceptance is unchanged.",
+      "currentEvidence": "M10-018 finite guest-disk Blazor reads are accepted in http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md; M10-013/M10-014/M10-019 remain required and not closed. This epic remains open; wider local Gate14/service acceptance is unchanged. Review: http://192.168.4.35:3000/admin/CLROS/pulls/812. Accepted children and exact evidence: http://192.168.4.35:3000/admin/CLROS/issues/213#issuecomment-25145. Other children, taxonomy, acceptance text, dependencies and human addenda remain unchanged; no milestone/parent closure or write/SQLite phase is granted.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -32045,8 +32045,8 @@
         "references/** (read-only)"
       ],
       "collisionLane": null,
-      "summary": "Run pinned upstream NativeAOT applications through a restricted Linux x64 syscall ABI implemented in C#.",
-      "currentEvidence": "Step1661: Exact EFI entry-source pin refreshed to F6EC after actual seven-profile active token/directive/parse-diagnostic equivalence E481. Rebuilt source-pin consumer and admission: 8 focused Fast checks across two fixtures, zero reuse. Kernel page-copy source remains unchanged. Source a7ed completed three native publications, conditional own-profile LOCAL and 58-witness composition, then fresh full9001660/session72112/613348/exit1 failed the M04 reviewed-source check before Native execution; failure F74 remains preserved. New committed-source native/input binding and fresh unfiltered full are required before any guest. Parent7da full/native/AFTER success and failed A1 remain separate. All21 read criteria, seven recipes, limits and server/package bytes unchanged; four read issues remain open. Finish verified read merge/parity/recovery, stop helper work and pause before writes/SQLite.",
+      "summary": "Run pinned upstream NativeAOT applications through a restricted Linux x64 syscall ABI implemented in C#. Read-closeout progress: Read children M16-023/M16-024/M16-025 are accepted in http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md; M16-017/M16-018/M16-021 remain required and not closed. This epic remains open.",
+      "currentEvidence": "Read children M16-023/M16-024/M16-025 are accepted in http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md; M16-017/M16-018/M16-021 remain required and not closed. This epic remains open. Review: http://192.168.4.35:3000/admin/CLROS/pulls/812. Accepted children and exact evidence: http://192.168.4.35:3000/admin/CLROS/issues/678#issuecomment-25144. Other children, taxonomy, acceptance text, dependencies and human addenda remain unchanged; no milestone/parent closure or write/SQLite phase is granted.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "M16 foundation and M07 continuing TCP feed M10 single-app Kestrel; M14 local isolation follows before AWS/Azure. Start M16-001 now. The static publishing gate must fail visibly if the exact dependency closure is unavailable; do not silently substitute a custom runtime.",
@@ -35685,7 +35685,7 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
         "priority:p1",
         "type:implementation",
@@ -35693,7 +35693,7 @@
         "component:storage",
         "phase:m16-nativeaot",
         "lane:nativeaot-integration",
-        "agent:claimed"
+        "agent:done"
       ],
       "dependencyKeys": [
         "M10-015",
@@ -35701,7 +35701,7 @@
         "M06-007",
         "M06-019"
       ],
-      "currentEvidence": "Step1661: Exact EFI entry-source pin refreshed to F6EC after actual seven-profile active token/directive/parse-diagnostic equivalence E481. Rebuilt source-pin consumer and admission: 8 focused Fast checks across two fixtures, zero reuse. Kernel page-copy source remains unchanged. Source a7ed completed three native publications, conditional own-profile LOCAL and 58-witness composition, then fresh full9001660/session72112/613348/exit1 failed the M04 reviewed-source check before Native execution; failure F74 remains preserved. New committed-source native/input binding and fresh unfiltered full are required before any guest. Parent7da full/native/AFTER success and failed A1 remain separate. All21 read criteria, seven recipes, limits and server/package bytes unchanged; four read issues remain open. Finish verified read merge/parity/recovery, stop helper work and pause before writes/SQLite.",
+      "currentEvidence": "<!-- clros-evidence-reviewed:M16-023 --> Finite continuing read-only block I/O is accepted within the exact completion, owned-copy, bounded-error and teardown criteria linked in http://192.168.4.35:3000/admin/CLROS/issues/770#issuecomment-25140. Retained regression/coexistence witnesses keep their original source/profile conditions; this child alone makes no application-file or Kestrel claim. See http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md and review http://192.168.4.35:3000/admin/CLROS/pulls/812 for all21 unchanged clauses, exact seven source-matched original recipes, native8d all58 ancestry and preserved failures. Stable final unfiltered host result: Qualified2c2 Full4085/71640/e0dbc4:7464 checks/925 fixtures/110 Native-labelled/0 failures/0 reuse;2076 source,134 private producers,2330 build inputs unchanged. Retained native8d and sixa1ee originals keep separate scopes.. This accepts finite read-only scope, not writes/uploads/SQLite, sustained service, arbitrary workloads, isolation, cloud, production or wider Gate7/Gate14.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -35713,7 +35713,7 @@
         "Define read admission, busy/backpressure, deadline, cancellation, device-error and shutdown states. No stale/short/duplicate completion may copy into caller memory or release an active DMA buffer. Uncertain reset quarantines backing and reports failure; no automatic healthy-device claim.",
         "Wire a new default-off storage-service profile through BootSequence and Probes under the shared lane. Keep existing bounded storage profiles unchanged. Use real read completion observations plus a concurrently advancing network/timer/runtime witness.",
         "Record selected request/chunk/queue limits and measured latency/CPU cost. A retained owner is required; deleting _attempted or silently rebuilding device state inside every IRQ-off syscall is insufficient.",
-        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance.",
+        "The compiled interface is implemented and accepted within the exact guarded recipes in http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md. Preserve their source/native/package/model/limits and original result boundaries; the former planning-baseline warning is historical. Mechanical59/ExitPending/CloseReuse keep180-second/default256MiB/invoke:null recipes and their separate evidence; no profile or quota enlargement follows.",
         "Retain monotonic bounded device progress with IRQ/NIC/runtime witnesses and original DMA generations. A timeout is not proof DMA stopped; the reference queue submission pattern does not replace virtio reset/quarantine semantics.",
         "Compare teardown ordering: stop acquisition, consumers, interrupts, deferred work/threads, detach, then reverse-acquisition memory release. A worker missing its stop deadline keeps referenced memory quarantined. This allocating/exception-based reference is conceptual; no driver-framework rewrite or expanded claimed read-only scope.",
         "Current isolated development uses one combined M16-025 mechanical capture with M16-023/024 parents, separate PCI0:7 disk and PCI0:6 NIC, source4 thread waits and exact sector-byte observations. Standalone M16-023/024 selectors reject. Use the canonical mechanical package and prepared real webroot. Step1571 records three fresh source-matched complete original passes across DiskA/DiskB/DiskA after step1570 connected the consumer. All original r01-r08 failures remain failed. Actual negative/concurrent controls, full disk HTTP/Blazor and stable batch qualification remain required. Report-only reinspection cannot qualify or rescue a failed command; no issue closes from development checks."
@@ -35789,7 +35789,7 @@
         "docs/efi-build.md",
         "docs/workload-profiles.md"
       ],
-      "evidenceBoundary": "Implemented development/host and finite original guest preparation; complete issue-specific acceptance remains open. Preserve original source-matched read and Mechanical30 evidence without inferring full Kestrel/Blazor, BCL service, reboot persistence, durability, SQLite, Gate7/Gate14, isolation, cloud or production completion."
+      "evidenceBoundary": "Accepted only for this issue's unchanged finite read criteria and recorded source/profile/recipe conditions. Earlier failed originals/observers remain failed at their original scopes. Complete batch evidence is http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md; no writable filesystem, flush/reboot durability, SQLite, sustained service, general Linux/BCL, isolation, cloud/production or automatic Gate7/Gate14 promotion."
     },
     {
       "key": "M16-024",
@@ -35799,7 +35799,7 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
         "priority:p1",
         "type:implementation",
@@ -35807,7 +35807,7 @@
         "component:storage",
         "phase:m16-nativeaot",
         "lane:nativeaot-integration",
-        "agent:claimed"
+        "agent:done"
       ],
       "dependencyKeys": [
         "M16-023",
@@ -35816,7 +35816,7 @@
         "M06-013",
         "M06-014"
       ],
-      "currentEvidence": "Step1661: Exact EFI entry-source pin refreshed to F6EC after actual seven-profile active token/directive/parse-diagnostic equivalence E481. Rebuilt source-pin consumer and admission: 8 focused Fast checks across two fixtures, zero reuse. Kernel page-copy source remains unchanged. Source a7ed completed three native publications, conditional own-profile LOCAL and 58-witness composition, then fresh full9001660/session72112/613348/exit1 failed the M04 reviewed-source check before Native execution; failure F74 remains preserved. New committed-source native/input binding and fresh unfiltered full are required before any guest. Parent7da full/native/AFTER success and failed A1 remain separate. All21 read criteria, seven recipes, limits and server/package bytes unchanged; four read issues remain open. Finish verified read merge/parity/recovery, stop helper work and pause before writes/SQLite.",
+      "currentEvidence": "<!-- clros-evidence-reviewed:M16-024 --> Confined read-only FAT32 lookup, range/metadata, cache/enumeration and bounded-error criteria are accepted within the actual and retained source-profile conditions linked in http://192.168.4.35:3000/admin/CLROS/issues/771#issuecomment-25141. This child alone makes no Linux-fd or Kestrel claim. See http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md and review http://192.168.4.35:3000/admin/CLROS/pulls/812 for all21 unchanged clauses, exact seven source-matched original recipes, native8d all58 ancestry and preserved failures. Stable final unfiltered host result: Qualified2c2 Full4085/71640/e0dbc4:7464 checks/925 fixtures/110 Native-labelled/0 failures/0 reuse;2076 source,134 private producers,2330 build inputs unchanged. Retained native8d and sixa1ee originals keep separate scopes.. This accepts finite read-only scope, not writes/uploads/SQLite, sustained service, arbitrary workloads, isolation, cloud, production or wider Gate7/Gate14.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -35831,7 +35831,7 @@
         "Retain a caller-owned internal directory cursor per operation: mount generation, directory identity, cluster/sector/entry position, partial VFAT sequence and cumulative chain-history/work budget. Resume at the next unpublished entry across caller-buffer batches without restarting at entry zero or resetting loop/work limits. Output exhaustion preserves the pending entry and VFAT state for a retry; close, cancellation and stale generations revoke the cursor. Two interleaved cursors must never share position or partial-name state. This supports bounded internal namespace traversal, not public directory browsing.",
         "Distinguish directory completion/file EOF, output-buffer exhaustion, traversal-budget exhaustion, corrupt metadata, stale ownership and device failure in status results. A failed read must not become EOF, a cache hit or a published entry. Preserve already committed cursor progress without skipping or duplicating entries. Source guidance is algorithmic only; preserve CLROS ownership, status and no-allocation contracts. M11-025/#782 remains the earlier host scratch repair before #769; this reference does not expand its acceptance criteria.",
         "Mount/device identity must remain stable while handles exist. A corrupt file or failed device must produce a clear status without leaking partial unvalidated data or hanging unrelated requests. Symlinks, directory browsing, writable storage and general POSIX mounts remain outside scope.",
-        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance.",
+        "The compiled interface is implemented and accepted within the exact guarded recipes in http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md. Preserve their source/native/package/model/limits and original result boundaries; the former planning-baseline warning is historical. Mechanical59/ExitPending/CloseReuse keep180-second/default256MiB/invoke:null recipes and their separate evidence; no profile or quota enlargement follows.",
         "The existing cache/cursor criteria correctly avoid global state and EOF-on-error. Add explicit regression inputs from the inspected FatNext failure collapse; maintain read-count budgets across retries and interleaved cursors, with mount/reset invalidation.",
         "Current isolated development uses one combined M16-025 mechanical capture with M16-023/024 parents, separate PCI0:7 disk and PCI0:6 NIC, source4 thread waits and exact sector-byte observations. Standalone M16-023/024 selectors reject. Use the canonical mechanical package and prepared real webroot. Step1571 records three fresh source-matched complete original passes across DiskA/DiskB/DiskA after step1570 connected the consumer. All original r01-r08 failures remain failed. Actual negative/concurrent controls, full disk HTTP/Blazor and stable batch qualification remain required. Report-only reinspection cannot qualify or rescue a failed command; no issue closes from development checks.",
         "Explicit timestamp compatibility: only date==0 && time==0 maps to unspecified ModifiedSeconds=0; every other pair must pass existing Gregorian UTC admission. Preserve original boot entry metadata and payloads. This does not relax VFAT, chains, confinement, generation, aliases or nonzero corrupt-date handling. See done/step1568.md.",
@@ -35912,7 +35912,7 @@
         "docs/app-model.md",
         "docs/workload-profiles.md"
       ],
-      "evidenceBoundary": "Implemented development/host and finite original guest preparation; complete issue-specific acceptance remains open. Preserve original source-matched read and Mechanical30 evidence without inferring full Kestrel/Blazor, BCL service, reboot persistence, durability, SQLite, Gate7/Gate14, isolation, cloud or production completion."
+      "evidenceBoundary": "Accepted only for this issue's unchanged finite read criteria and recorded source/profile/recipe conditions. Earlier failed originals/observers remain failed at their original scopes. Complete batch evidence is http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md; no writable filesystem, flush/reboot durability, SQLite, sustained service, general Linux/BCL, isolation, cloud/production or automatic Gate7/Gate14 promotion."
     },
     {
       "key": "M10-017",
@@ -36085,7 +36085,7 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
         "priority:p1",
         "type:implementation",
@@ -36093,13 +36093,13 @@
         "component:app-model",
         "phase:m16-nativeaot",
         "lane:nativeaot-integration",
-        "agent:claimed"
+        "agent:done"
       ],
       "dependencyKeys": [
         "M16-024",
         "M10-017"
       ],
-      "currentEvidence": "Step1661: Exact EFI entry-source pin refreshed to F6EC after actual seven-profile active token/directive/parse-diagnostic equivalence E481. Rebuilt source-pin consumer and admission: 8 focused Fast checks across two fixtures, zero reuse. Kernel page-copy source remains unchanged. Source a7ed completed three native publications, conditional own-profile LOCAL and 58-witness composition, then fresh full9001660/session72112/613348/exit1 failed the M04 reviewed-source check before Native execution; failure F74 remains preserved. New committed-source native/input binding and fresh unfiltered full are required before any guest. Parent7da full/native/AFTER success and failed A1 remain separate. All21 read criteria, seven recipes, limits and server/package bytes unchanged; four read issues remain open. Finish verified read merge/parity/recovery, stop helper work and pause before writes/SQLite.",
+      "currentEvidence": "<!-- clros-evidence-reviewed:M16-025 --> The bounded Linux disk-descriptor scope is accepted: the Mechanical59, ExitPending and CloseReuse contexts remain separately qualified at a1ee/native8d, with exact offset/error/pending-ownership and cleanup evidence in http://192.168.4.35:3000/admin/CLROS/issues/773#issuecomment-25142. Kestrel/browser acceptance belongs to M10-018. See http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md and review http://192.168.4.35:3000/admin/CLROS/pulls/812 for all21 unchanged clauses, exact seven source-matched original recipes, native8d all58 ancestry and preserved failures. Stable final unfiltered host result: Qualified2c2 Full4085/71640/e0dbc4:7464 checks/925 fixtures/110 Native-labelled/0 failures/0 reuse;2076 source,134 private producers,2330 build inputs unchanged. Retained native8d and sixa1ee originals keep separate scopes.. This accepts finite read-only scope, not writes/uploads/SQLite, sustained service, arbitrary workloads, isolation, cloud, production or wider Gate7/Gate14.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36112,7 +36112,7 @@
         "Keep per-open-file offset semantics, dup sharing if supported, pread independence, CLOEXEC policy, access flags, exact EOF/short-read/error rules and length-overflow checks. Different opens must not share an accidental global offset. Reject writable/mutating opens before disk ownership is published.",
         "Bound descriptors, requests, file/metadata caches and outstanding byte buffers. Backpressure must preserve NIC/timer/GC/other-request progress. Close, process exit and storage reset release or quarantine the correct original handles; stale completions cannot target reused fds.",
         "Use a mechanical user-mode file exercise before Kestrel, then retain the same code/profile for the integrated batch. Source references include LinuxDescriptorServices*.cs, LinuxSyscallGateway.cs, existing wait/worker ownership in the currently accepted service implementation and M16-024's exact file contract.",
-        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance.",
+        "The compiled interface is implemented and accepted within the exact guarded recipes in http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md. Preserve their source/native/package/model/limits and original result boundaries; the former planning-baseline warning is historical. Mechanical59/ExitPending/CloseReuse keep180-second/default256MiB/invoke:null recipes and their separate evidence; no profile or quota enlargement follows.",
         "The contract table must state exact errno for absent paths (ENOENT), non-directory components (ENOTDIR), reading directories (EISDIR), write/mutation requests (EROFS or the measured access error), invalid seek/overflow, unsupported syscalls and device failures (EIO). Test both raw syscall and .NET exception/HTTP behavior.",
         "Approved 2026-10-23: the primary integrator owns thread-service pending disk-operation wiring and its lifecycle/signal checks under this shared lane. Reuse owned blocking continuations and include disk operations in revoke/reap and signal eligibility checks; do not poll storage inside IRQ-off descriptor callbacks.",
         "Read failure must map to EIO rather than successful EOF. Revalidate original fd/open-description/mapping generations after deferred I/O and drain/quarantine cancellation before reuse; preserve healthy-peer progress while storage is delayed.",
@@ -36252,7 +36252,7 @@
         "docs/security.md",
         "docs/workload-profiles.md"
       ],
-      "evidenceBoundary": "Preserve the named complete mechanical025 and five-response018 development witnesses, while full Blazor/browser qualification remains open. Implemented finite development/host preparation; complete issue acceptance remains open. Preserve original accepted profiles. Package-backed responses cannot qualify disk-backed files; successful requests cannot qualify shutdown. No automatic Gate7/Gate14, isolation, writable filesystem, cloud or production promotion."
+      "evidenceBoundary": "Accepted only for this issue's unchanged finite read criteria and recorded source/profile/recipe conditions. Earlier failed originals/observers remain failed at their original scopes. Complete batch evidence is http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md; no writable filesystem, flush/reboot durability, SQLite, sustained service, general Linux/BCL, isolation, cloud/production or automatic Gate7/Gate14 promotion."
     },
     {
       "key": "M10-018",
@@ -36262,7 +36262,7 @@
       "parentKey": "M10-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
         "priority:p1",
         "type:implementation",
@@ -36270,14 +36270,14 @@
         "component:app-model",
         "phase:m10-kestrel",
         "lane:nativeaot-integration",
-        "agent:blocked"
+        "agent:done"
       ],
       "dependencyKeys": [
         "M16-025",
         "M10-016",
         "M10-017"
       ],
-      "currentEvidence": "Step1661: Exact EFI entry-source pin refreshed to F6EC after actual seven-profile active token/directive/parse-diagnostic equivalence E481. Rebuilt source-pin consumer and admission: 8 focused Fast checks across two fixtures, zero reuse. Kernel page-copy source remains unchanged. Source a7ed completed three native publications, conditional own-profile LOCAL and 58-witness composition, then fresh full9001660/session72112/613348/exit1 failed the M04 reviewed-source check before Native execution; failure F74 remains preserved. New committed-source native/input binding and fresh unfiltered full are required before any guest. Parent7da full/native/AFTER success and failed A1 remain separate. All21 read criteria, seven recipes, limits and server/package bytes unchanged; four read issues remain open. Finish verified read merge/parity/recovery, stop helper work and pause before writes/SQLite.",
+      "currentEvidence": "<!-- clros-evidence-reviewed:M10-018 --> The finite Full018 disk-backed Minimal API/Standalone Blazor read scope is accepted in http://192.168.4.35:3000/admin/CLROS/issues/774#issuecomment-25143. Healthy A/B/A originals retain a1ee scope; the typed corrupt-file original4060 retains2c2 scope. Complete body/API/variant/browser/PNG/network and natural-cleanup joins are recorded separately from the native and unfiltered-host proofs. See http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md and review http://192.168.4.35:3000/admin/CLROS/pulls/812 for all21 unchanged clauses, exact seven source-matched original recipes, native8d all58 ancestry and preserved failures. Stable final unfiltered host result: Qualified2c2 Full4085/71640/e0dbc4:7464 checks/925 fixtures/110 Native-labelled/0 failures/0 reuse;2076 source,134 private producers,2330 build inputs unchanged. Retained native8d and sixa1ee originals keep separate scopes.. This accepts finite read-only scope, not writes/uploads/SQLite, sustained service, arbitrary workloads, isolation, cloud, production or wider Gate7/Gate14.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36290,7 +36290,7 @@
         "Record a real external browser network trace/screenshot and rendered DTO values, plus machine-readable independent HTTP and packet results. Clear caches/service workers between image variants; no data from the browser host's filesystem may satisfy requests.",
         "Exercise simultaneous asset and JSON requests, multi-cluster and large chunked reads, exact metadata/body behavior, 404, raw/encoded traversal, backslash/dot segments and alias cases. Test raw HTTP requests because browsers may normalize traversal before sending. Directory listing, executable/config disclosure and mutation remain forbidden.",
         "Add a distinct default-off disk-static runner profile with a complete runnable command and stable proposed TEST_PASS m10.018 marker. Preserve source/native/EFI/app/image/serial/PCAP/HTTP/browser joins, expected failures, supported limits and cleanup evidence in the acceptance receipt.",
-        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance.",
+        "The compiled interface is implemented and accepted within the exact guarded recipes in http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md. Preserve their source/native/package/model/limits and original result boundaries; the former planning-baseline warning is historical. The recorded healthy A1 command is & 'C:/Program Files/Python311/python.exe' -X utf8 -B 'artifacts/step1669-full-parent-full018-carriers-r01/run_original_r01.py' DiskA1 '2D5E656D4CFF6B28A47316440E604CED457F6387B5D34DD564D6B50EFC644145' 'D73B35302F0A4D0754AF777FDEBB777DA276D7B41249D4E883D2CAF53AB48EE9' at frozen sourcea1ee; its reviewed carrier sets -TimeoutSeconds7200 (browser3600, guest trigger1800, minimum outer6600). Source-bound wrappers correctly refuse a changed HEAD; restore the named reviewed source or use the final step's explicitly rebound recipe. Do not infer a new current-source healthy boot from the retained command.",
         "Require disk-only content variants, post-readiness cold I/O and actual browser-loaded Blazor assets. The accepted Linux-reference run and screenshots from a host-only demo do not establish CLROS disk service.",
         "Step1652 support ownership is limited to the existing full-host FlockAllocation test-only observability change. Preserve M16-027 ownership and all pre-existing writable-lane edits; no production writable implementation or acceptance is authorized by this read gate.",
         "Step1658 scopes the actual clone-EAGAIN repair to two pinned NativeAOT worker launch entries on the disk envelope only (minimum2/maximum4). Exact key admission and canonical package policy have focused controls; no generic numeric-policy guarantee, new auxiliary bound, raised thread/stack/budget, current guest acceptance or broader phase promotion follows. Preserve the accepted staged envelope and original server ELF. The new policy fixture belongs to the primary integration lane with its one helper."
@@ -36412,7 +36412,10 @@
         "tools/OS.Tooling/NativeAotStaticFilePackage.cs",
         "tests/OS.HostTests/NativeAotStaticFileThreadPoolLaunchTests.cs",
         "tests/OS.HostTests/NativeAotStagedStaticFilesTests.cs",
-        "tests/OS.HostTests/EfiLinuxAliasCopyTests.cs"
+        "tests/OS.HostTests/EfiLinuxAliasCopyTests.cs",
+        "tests/OS.HostTests/NativeAotDiskStaticCdpTests.cs",
+        "tests/OS.HostTests/NativeAotStaticFileRunnerTests.cs",
+        "tests/OS.HostTests/NativeAotThreadingOutputTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -36439,7 +36442,7 @@
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM10018Probe -EnableM10018FullProbe -EnableM10018TimingProbe=false -LinuxElfPackage <qualified-candidate-package-in-this-repo> -LinuxThreadingDisassembly <qualified-original-instruction-index-in-this-repo> -WebRootFixture DiskA -WebRootAssets <prepared-Blazor-webroot-in-this-repo> -EfiArtifact <fresh-efi-output> -Image <fresh-image> -SerialLog <fresh-serial-log> -SummaryLog <fresh-summary-log> -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 3000"
+        "& 'C:/Program Files/Python311/python.exe' -X utf8 -B 'artifacts/step1669-full-parent-full018-carriers-r01/run_original_r01.py' DiskA1 '2D5E656D4CFF6B28A47316440E604CED457F6387B5D34DD564D6B50EFC644145' 'D73B35302F0A4D0754AF777FDEBB777DA276D7B41249D4E883D2CAF53AB48EE9'"
       ],
       "documentationPaths": [
         "docs/kestrel.md",
@@ -36448,7 +36451,7 @@
         "docs/workload-profiles.md",
         "docs/completion-gates.md"
       ],
-      "evidenceBoundary": "Preserve the named complete mechanical025 and five-response018 development witnesses, while full Blazor/browser qualification remains open. Implemented finite development/host preparation; complete issue acceptance remains open. Preserve original accepted profiles. Package-backed responses cannot qualify disk-backed files; successful requests cannot qualify shutdown. No automatic Gate7/Gate14, isolation, writable filesystem, cloud or production promotion."
+      "evidenceBoundary": "Accepted only for this issue's unchanged finite read criteria and recorded source/profile/recipe conditions. Earlier failed originals/observers remain failed at their original scopes. Complete batch evidence is http://192.168.4.35:3000/admin/CLROS/src/commit/ce15c4abc6dd130fd31ed154528cb1b8f6a0fdbc/done/step1672.md; no writable filesystem, flush/reboot durability, SQLite, sustained service, general Linux/BCL, isolation, cloud/production or automatic Gate7/Gate14 promotion."
     },
     {
       "key": "M10-019",
