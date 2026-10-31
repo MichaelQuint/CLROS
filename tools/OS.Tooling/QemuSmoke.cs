@@ -467,7 +467,7 @@ public static class QemuSmoke
                             WebRootImageFixture.Verify(Path.GetFullPath(options.Image,root),diskImageReceipt);
                             if(capture is not null)capture.Validate();
                             cancellation.ThrowIfCancellationRequested();
-                            output.WriteLine("TEST_PASS qemu.smoke.disk-read-timing-diagnostic responses=4 bytes=65536 runner_joined=true full_and_cleanup_qualified=false");
+                            output.WriteLine("TEST_PASS qemu.smoke.disk-read-timing-diagnostic responses=5 bytes=65536 runner_joined=true full_and_cleanup_qualified=false");
                             return 0;
                         }
                         diskStaticPeer=await NativeAotDiskStaticPeer.RunAsync(root,options.SerialLog,RunSocketRunner,cancellation,inventory,
