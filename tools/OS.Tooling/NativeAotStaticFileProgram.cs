@@ -10,7 +10,7 @@ public sealed class NativeAotStaticFileProgram
 {
     public const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
     internal const int ElfBytes = 8_641_616;
-    private const string ElfSha256 = "E17E4E69062D702BBB9F72305156F464192A3EFACD46BB07A200A105FADB06D5";
+    private const string ElfSha256 = "43CD37EC60F8CDD192E0F3E28B799B778F038DEF85470542EEB3E1D8B61C6666";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
     public bool Staged { get; }
