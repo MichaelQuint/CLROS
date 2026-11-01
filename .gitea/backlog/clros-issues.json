@@ -38989,11 +38989,13 @@
         "tools/OS.Tooling/QemuSmoke.cs",
         "tools/OS.Tooling/QemuSmokeOptions.cs",
         "tools/OS.Tooling/QemuSmokePlan.cs",
-        "work/rc3-whpx-qualification.md",
+        "work/rc3-whpx-qualification.md",
         "tests/OS.HostTests/NativeAotOriginalRuntimeTests.cs",
         "tests/OS.HostTests/NativeAotThreadingPackageTests.cs",
         "tools/OS.Tooling/NativeAotLogUploadContract.cs",
-        "tools/OS.Tooling/NativeAotLogUploadHttpContract.cs"
+        "tools/OS.Tooling/NativeAotLogUploadHttpContract.cs",
+        "tools/OS.Tooling/EfiVerify.FilteredCatch.cs",
+        "tests/OS.HostTests/M04FilteredCatchEfiIntegrationTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

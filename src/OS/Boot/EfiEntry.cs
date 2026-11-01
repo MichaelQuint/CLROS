@@ -18261,8 +18261,8 @@ public static unsafe partial class EfiEntry
         WriteM04LayoutAscii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'p', (byte)'r', (byte)'o', (byte)'f');
         WriteM04LayoutAscii(console, serial, (byte)'i', (byte)'l', (byte)'e', (byte)'=', (byte)'i', (byte)'l', (byte)'c', (byte)'1');
         WriteM04LayoutAscii(console, serial, (byte)'1', (byte)'.', (byte)'0', (byte)'.', (byte)'0', (byte)'-', (byte)'r', (byte)'c');
-        WriteM04LayoutAscii(console, serial, (byte)'.', (byte)'2', (byte)'.', (byte)'2', (byte)'6', (byte)'5', (byte)'0', (byte)'4');
-        WriteM04LayoutAscii(console, serial, (byte)'.', (byte)'1', (byte)'0', (byte)'5', (byte)'-', (byte)'w', (byte)'i', (byte)'n');
+        WriteM04LayoutAscii(console, serial, (byte)'.', (byte)'3', (byte)'.', (byte)'2', (byte)'6', (byte)'5', (byte)'2', (byte)'2');
+        WriteM04LayoutAscii(console, serial, (byte)'.', (byte)'1', (byte)'4', (byte)'8', (byte)'-', (byte)'w', (byte)'i', (byte)'n');
         WriteM04LayoutAscii(console, serial, (byte)'-', (byte)'x', (byte)'6', (byte)'4', (byte)'-', (byte)'l', (byte)'e', (byte)' ');
         WriteM04LayoutAscii(console, serial, (byte)'c', (byte)'h', (byte)'e', (byte)'c', (byte)'k', (byte)'s', 0, 0);
         WriteM04LayoutAscii(console, serial, (byte)'=', (byte)'1', (byte)'9', (byte)' ', (byte)'s', (byte)'h', (byte)'a', (byte)'p');

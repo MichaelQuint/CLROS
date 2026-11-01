@@ -6371,7 +6371,8 @@ internal static class QemuRunnerTests
         {
             var capture = RunUnexpectedPanicCase("accepted", prefix + transcript);
             string[] output = capture.Result.Output.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            PanicCheck(capture.Result.ExitCode == 19 && output.Length == 18 &&
+            PanicCheck(capture.Result.ExitCode == 19 && output.Length == 19 &&
+                output.Count(x => x == "QEMU_ACCELERATOR " + OS.Tooling.QemuContracts.DefaultAccelerator) == 1 &&
                 output.Count(x => x == "QEMU_EXPECTED_PANIC outcome=expected-panic reason=expected_unexpected_vector_panic") == 1 &&
                 !output.Any(x => x.StartsWith("TEST_PASS qemu.smoke", StringComparison.Ordinal) || x.StartsWith("TEST_FAIL", StringComparison.Ordinal)),
                 "explicit panic is finite native 19, never smoke success", capture.Result.Output);

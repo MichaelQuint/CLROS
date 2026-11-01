@@ -114,14 +114,22 @@ internal static class M04FilteredCatchEfiIntegrationTests
             controls.Add((Offset("OS_OS_Runtime_RhpNewFastAllocation__"+method,1),"filters_method_bytes_mismatch"));
         controls.Add((Offset("RhTypeCast_IsInstanceOfClass",1),"filters_method_bytes_mismatch"));
         // Independent semantic controls for the reviewed .NET 11 callbacks:
-        // the predicate selects profile 2 and retains its result in saved EBX;
+        // the predicate selects RC3 profile3 and retains its result in saved EBX;
         // context equality visits all 30 qwords with an eight-byte stride.
         int predicate = Offset("OS_OS_Runtime_RhpNewFastAllocation__MatchFilteredExceptionType",529),
             context = Offset("OS_OS_Runtime_RhpNewFastAllocation__FilterContextMatches",144);
-        HostCheck.True(original.AsSpan(predicate+434,5).SequenceEqual(new byte[]{0xB9,2,0,0,0}) &&
+        HostCheck.True(original.AsSpan(predicate+434,5).SequenceEqual(new byte[]{0xB9,3,0,0,0}) &&
             original.AsSpan(predicate+454,6).SequenceEqual(new byte[]{0x0F,0xB6,0x5D,0xC1,0x85,0xDB}) &&
             original.AsSpan(predicate+471,2).SequenceEqual(new byte[]{0x8B,0xC3}),
-            "profile 2 and preserved predicate result across retained-object validation");
+            "RC3 profile3 and preserved predicate result across retained-object validation");
+        int selection = Offset("OS_OS_Runtime_RhpNewFastAllocation__SelectFilteredCatch",3553);
+        foreach(int profileAt in new[]{739,1023,1816})
+        {
+            HostCheck.True(original.AsSpan(selection+profileAt-1,5).SequenceEqual(new byte[]{0xBA,3,0,0,0}),
+                "RC3 clause/unwind profile3 remains an exact unmasked operand");
+            // XOR1 below changes the active3 back to legacy2; it must reject.
+            controls.Add((selection+profileAt,"filters_method_bytes_mismatch"));
+        }
         HostCheck.True(original.AsSpan(context+96,6).SequenceEqual(new byte[]{0x41,0xB8,30,0,0,0}) &&
             original.AsSpan(context+112,9).SequenceEqual(new byte[]{0x48,0x83,0xC2,8,0x41,0xFF,0xC8,0x75,0xED}),
             "complete 240-byte context comparison with bounded countdown");
