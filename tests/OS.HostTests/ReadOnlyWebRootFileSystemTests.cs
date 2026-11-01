@@ -70,9 +70,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         }
         HostCheck.True(coldWork > warmWork); // Work count only, no guest timing claim.
         using var allocation = new Fixture(chainCacheSlots: 2); allocation.MountReady(); HostCheck.True(allocation.OneRead());
-        long before = GC.GetAllocatedBytesForCurrentThread(); bool good = true;
-        for (int i = 0; i < 32; i++) good &= allocation.OneRead();
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        long allocated = MeasureReadAllocations(allocation, out bool good);
         HostCheck.True(good); HostCheck.Equal(0L, allocated);
     }
 
@@ -1105,9 +1103,23 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
     [HostTest("webroot.fs warmed complete operations allocate no managed memory", HostLane.Fast, 11)]
     private static bool NoAllocation()
     {
-        using var f = new Fixture(); f.MountReady(); HostCheck.True(f.OneRead()); long before = GC.GetAllocatedBytesForCurrentThread();
-        bool good = true; for (int i = 0; i < 32; i++) good &= f.OneRead();
-        long after = GC.GetAllocatedBytesForCurrentThread(); HostCheck.True(good); HostCheck.Equal(before, after); return true;
+        using var f = new Fixture(); f.MountReady(); HostCheck.True(f.OneRead());
+        long allocated = MeasureReadAllocations(f, out bool good);
+        HostCheck.True(good); HostCheck.Equal(0L, allocated); return true;
+    }
+
+    private static long MeasureReadAllocations(Fixture fixture, out bool good)
+    {
+        // Keep background-GC accounting outside this synchronous host measurement.
+        // Allocations still count; admission or premature region exit must fail.
+        HostCheck.True(GC.TryStartNoGCRegion(1024 * 1024, disallowFullBlockingGC: false));
+        try
+        {
+            long before = GC.GetAllocatedBytesForCurrentThread(); good = true;
+            for (int i = 0; i < 32; i++) good &= fixture.OneRead();
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+        finally { GC.EndNoGCRegion(); }
     }
 
     [HostTest("webroot.fs scratch admission is independent of advertised volume size", HostLane.Fast, 12)]
