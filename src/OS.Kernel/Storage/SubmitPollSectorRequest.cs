@@ -2,44 +2,6 @@ using OS.Drivers;
 
 namespace OS.Storage;
 
-public enum VirtioBlkReadStatus : byte
-{
-    Uninitialized, Success, InvalidAccess, InvalidDestination, ReadFailed, WriteFailed,
-    ConfigurationChanged, InvalidCapacity, SectorOutOfRange, QueueRejected, InvalidNotify,
-    StatusRejected, OrderingFailed, BusMasterFailed, InvalidCompletion, DeviceIoError,
-    UnsupportedRequest, Timeout, InterruptPrepareFailed, InterruptWaitFailed, InterruptShutdownFailed
-}
-
-/// <summary>Queue access plus an explicit bus-master enable/readback callback.
-/// Callbacks return exactly 1 on success and never throw. The adapter authenticates
-/// exclusive device ownership, mapped UC MMIO and coherent WB DMA backing.</summary>
-public unsafe struct VirtioBlkReadAccess
-{
-    public VirtioBlkQueueAccess Queue;
-    public delegate* unmanaged<void*, byte> BusMasterOn;
-    // All null preserves polling. Otherwise all three must be present. Prepare
-    // admits and masks MSI-X before queue vector zero is configured. Wait masks
-    // delivery and restores IF/IDTR before returning an authenticated route.
-    // Stop disables/readbacks MSI-X, including after a failed Prepare or Wait.
-    public delegate* unmanaged<void*, VirtioMappedRegion, byte> PrepareInterrupt;
-    public delegate* unmanaged<void*, uint, byte> WaitInterrupt;
-    public delegate* unmanaged<void*, byte> StopInterrupt;
-}
-
-public struct VirtioBlkReadResult
-{
-    public VirtioBlkReadStatus Status;
-    public VirtioBlkQueueResult Queue;
-    public ulong Sector, Capacity, NotifyAddress;
-    public uint CapacityReads, Polls, Fences, UsedId, UsedLength, BytesRead;
-    public ushort NotifyOffset, UsedIndex;
-    public byte Generation, DeviceStatus;
-    public bool Published, Notified;
-    public bool InterruptAttempted, InterruptPrepared, InterruptStopped;
-    public BlockCompletionRoute CompletionRoute;
-    public readonly bool Succeeded => Status == VirtioBlkReadStatus.Success && Queue.Succeeded && BytesRead == 512;
-}
-
 /// <summary>Exactly one 512-byte IN request on a fresh queue zero. Requires
 /// VERSION_1 (and RO when offered), FEATURES_OK=11, initially MSI-X disabled, no optional
 /// ring/block features, and firmware DMA already quiesced. Uses descriptors 0-2

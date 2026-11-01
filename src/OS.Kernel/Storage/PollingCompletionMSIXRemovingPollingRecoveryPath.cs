@@ -2,11 +2,6 @@ using OS.Drivers;
 
 namespace OS.Storage;
 
-public enum BlockCompletionRoute : byte
-{
-    Uninitialized, InvalidWait, Interrupt, PollingRecovery
-}
-
 /// <summary>Classifies an authenticated single-BSP wait receipt after delivery
 /// is masked. The caller still owns live IDT/code/mapping/queue validation and
 /// transport cleanup. Selecting a route establishes no I/O completion.</summary>

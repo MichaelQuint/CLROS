@@ -3,28 +3,6 @@ using OS.Std.Binary;
 
 namespace OS.Storage;
 
-public enum LiveDirectoryStatus : byte
-{
-    Uninitialized = 0, Entry = 1, Skipped, LongName, End,
-    InvalidLength, InvalidState, InvalidSequence, InvalidChecksum, InvalidName, InvalidEntry
-}
-
-public struct LiveVfatState
-{
-    public byte Slots, Remaining, Checksum;
-}
-
-public struct LiveDirectoryEntry
-{
-    public LiveDirectoryStatus Status;
-    public ulong ShortNameLow;
-    public uint ShortNameHigh, FirstCluster, ByteCount;
-    public ushort NameLength;
-    public byte Attributes;
-    public readonly bool Succeeded => Status == LiveDirectoryStatus.Entry;
-    public readonly bool HasLongName => NameLength != 0;
-}
-
 /// <summary>One physical directory entry at a time, including VFAT sequences
 /// spanning sectors/clusters. Caller supplies stable, separate entry and 260-word
 /// name scratch. Only Entry publishes metadata/name length. Failures clear the

@@ -3,17 +3,6 @@ using OS.Std.Binary;
 
 namespace OS.Storage;
 
-public enum LiveEfiPartitionStatus : byte { Uninitialized, Success, InvalidTable, Missing, Ambiguous }
-
-public struct LiveEfiPartitionResult
-{
-    public LiveEfiPartitionStatus Status;
-    public LiveGptStatus TableStatus;
-    public uint EntryIndex;
-    public ulong FirstLba, LastLba, BlockCount, ByteOffset, Attributes;
-    public readonly bool Succeeded => Status == LiveEfiPartitionStatus.Success && TableStatus == LiveGptStatus.Success;
-}
-
 /// <summary>Locate exactly one EFI System Partition in a validated bounded GPT.
 /// The caller retains exclusive ownership of the bytes throughout this call.
 /// Names and attributes are opaque; location does not establish FAT/BPB validity.</summary>

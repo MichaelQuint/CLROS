@@ -4,20 +4,6 @@ using OS.Std.Binary;
 
 namespace OS.Storage;
 
-public enum Lba0Status : byte
-{
-    Uninitialized, Success, InvalidLength, InvalidCapacity, BadSignature,
-    BadProtectiveEntry, HybridEntry, ReadFailed
-}
-
-public struct Lba0Result
-{
-    public Lba0Status Status;
-    public BlockReadResult Read;
-    public uint FirstLba, ProtectedSectors;
-    public readonly bool Succeeded => Status == Lba0Status.Success && Read.Succeeded && Read.BlocksRead == 1 && Read.BytesRead == 512;
-}
-
 /// <summary>Read LBA0 through a closed constrained block contract and accept a
 /// single protective MBR: signature55AA, first partition typeEE/start1, length
 /// min(capacity-1, uint.MaxValue), inactive boot flag, no other partition entry.

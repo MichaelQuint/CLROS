@@ -3,22 +3,6 @@ using OS.Std.Binary;
 
 namespace OS.Storage;
 
-public enum LiveFat32Status : byte
-{
-    Uninitialized = 0, Success = 1, ReadFailed, InvalidLength, InvalidPartition,
-    InvalidBpb, UnsupportedGeometry, InvalidFatBounds, InvalidCluster,
-    UnexpectedFatSector, FreeCluster, ReservedCluster, BadCluster, EndOfChain,
-    Loop, ScratchLimit, Truncated, Overlong, InvalidVolume, InvalidHistory
-}
-
-public struct LiveFat32Volume
-{
-    public LiveFat32Status Status;
-    public ulong Capacity, PartitionFirstLba, PartitionLastLba, TotalSectors, FirstFatLba, FirstDataLba;
-    public uint ReservedSectors, FatSectors, SectorsPerCluster, ClusterCount, RootCluster;
-    public readonly bool Succeeded => Status == LiveFat32Status.Success;
-}
-
 /// <summary>Numeric FAT32 geometry and chain checks over stable caller-owned
 /// bytes. No I/O, allocation, FSInfo interpretation or FAT-copy equality proof.
 /// Ref outputs and scratch remain unchanged on failure. The caller authenticates

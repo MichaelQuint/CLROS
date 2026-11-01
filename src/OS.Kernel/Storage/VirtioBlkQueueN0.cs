@@ -2,41 +2,6 @@ using OS.Drivers;
 
 namespace OS.Storage;
 
-public enum VirtioBlkQueueStatus : byte
-{
-    Uninitialized, Success, InvalidAccess, ReadFailed, WriteFailed, StatusRejected,
-    InvalidQueue, DmaRejected, Overlap, ReadbackMismatch, OrderingFailed, BusMasterFailed, ResetFailed
-}
-
-/// <summary>Exclusive nonthrowing MMIO access; 1 means success. BusMasterOff must
-/// disable and read back PCI bus mastering and INTx. Queue-only use requires
-/// MSI-X disabled; an admitted IRQ adapter may instead hold delivery masked
-/// during configuration and must disable it before cleanup/token release.
-/// Fence is the admitted real DMA/MMIO fence. Numeric callbacks are not proof of
-/// those properties; the platform adapter owns mappings and device authority.</summary>
-public unsafe struct VirtioBlkQueueAccess
-{
-    public void* Context;
-    public delegate* unmanaged<void*, ulong, byte*, byte> Read8;
-    public delegate* unmanaged<void*, ulong, byte, byte> Write8;
-    public delegate* unmanaged<void*, ulong, ushort*, byte> Read16;
-    public delegate* unmanaged<void*, ulong, uint, byte> Write16;
-    public delegate* unmanaged<void*, ulong, uint*, byte> Read32;
-    public delegate* unmanaged<void*, ulong, uint, byte> Write32;
-    public delegate* unmanaged<void*, byte> Fence, BusMasterOff;
-}
-
-public struct VirtioBlkQueueResult
-{
-    public VirtioBlkQueueStatus Status, CleanupStatus;
-    public VirtioBlkDmaLayout Layout;
-    public ushort MaximumSize, Size;
-    public uint Fences, ResetReads;
-    public bool Configured, ResetComplete, BusMasterDisabled, DmaReleased;
-    public readonly bool Succeeded => Status == VirtioBlkQueueStatus.Success &&
-        CleanupStatus == VirtioBlkQueueStatus.Success && Configured && ResetComplete && BusMasterDisabled && DmaReleased;
-}
-
 /// <summary>One modern block queue, size eight, no negotiated MQ/event-index/
 /// indirect/packed features. Requires completed FEATURES_OK (11), firmware DMA
 /// already quiesced and MSI-X initially disabled. Configures/readbacks queue zero while

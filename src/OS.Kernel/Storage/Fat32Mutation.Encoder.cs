@@ -13,20 +13,7 @@ public static unsafe partial class Fat32Mutation
     public const int SectorBytes = 512, MaximumChanges = 4096, MaximumClusters = 4096;
     public const int ScratchClusters = MaximumClusters * 3, MaximumWriteBytes = 65536;
     public const uint MaximumWork = 1000000;
-    public enum Status : byte
-    {
-        Uninitialized, Success, InvalidStorage, InvalidVolume, InvalidName, InvalidAlias,
-        CorruptDirectory, CorruptChain, MirrorMismatch, NotFound, AlreadyExists,
-        NotFile, ReadOnly, CapacityExceeded, TraversalBudgetExceeded, DiskFull,
-        StaleToken, Busy, Planned, Pending, Cancelled, RecoveryRequired,
-        BlockFailure, SnapshotChanged, GenerationExhausted, InvalidJournal
-    }
-    public enum Stage : byte { Data = 1, AllocateFat, PublishDirectory, RetireDirectory, ReleaseFat, FsInfo }
 
-    /// <summary>Copied write identity; Before/After sector bytes live at the same
-    /// index in the caller's two journal buffers. Repeated LBAs at different
-    /// stages are deliberate. Before always denotes the original snapshot.</summary>
-    public struct Change { public ulong Sector; public Stage Phase; }
 
     /// <summary>Encode the existing CLROS VFAT 13-word layout/checksum into a
     /// caller-owned run, descending long ordinals followed by the supplied short

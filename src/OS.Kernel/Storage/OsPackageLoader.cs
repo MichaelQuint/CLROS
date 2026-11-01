@@ -1,6 +1,6 @@
 namespace OS.Storage;
 
-public static class OsPackageLoader
+public static partial class OsPackageLoader
 {
     public const string PackagePath = "OS/APP.PKG";
 
@@ -152,11 +152,6 @@ public static class OsPackageLoader
         return backup.Succeeded ? backup : primary;
     }
 
-    private enum GptPartitionTableReadKind
-    {
-        Primary = 0,
-        Backup = 1
-    }
 
     private static GptEspLocationReadinessResult LocateGptEspWithCallerBuffers(
         IReadOnlyBlockDevice disk,

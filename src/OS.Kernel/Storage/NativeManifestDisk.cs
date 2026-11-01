@@ -3,20 +3,6 @@ using OS.Std.Text;
 
 namespace OS.Storage;
 
-public enum LiveManifestStatus : byte
-{
-    Uninitialized = 0, Success, InvalidLength, InvalidCharacter, MalformedLine,
-    UnsupportedField, DuplicateField, MissingField, InvalidValue, InvalidPath
-}
-
-public struct LiveManifestResult
-{
-    public LiveManifestStatus Status;
-    public uint ByteCount, AppPathOffset, AppPathLength, AppNameOffset, AppNameLength, ArgsOffset, ArgsLength, ErrorOffset;
-    public byte NetworkMode, LogMode;
-    public readonly bool Succeeded => Status == LiveManifestStatus.Success;
-}
-
 /// <summary>Allocation-free validation of a bounded disk-backed native v0
 /// manifest. Admits required fields and optional package/native-aot kind fields;
 /// environment/listen fields require a future guest parser extension. Source

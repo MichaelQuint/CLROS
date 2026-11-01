@@ -3,19 +3,6 @@ using OS.Std.Hash;
 
 namespace OS.Storage;
 
-public enum LiveFileStatus : byte
-{
-    Uninitialized = 0, Success = 1, Complete, InvalidEntry, InvalidState,
-    ReadFailed, InvalidLength, UnexpectedOffset, Truncated, ChecksumMismatch
-}
-
-public struct LiveFileChecksum
-{
-    public LiveFileStatus Status;
-    public uint ByteCount, BytesRead, CrcState, ExpectedCrc;
-    public readonly bool Succeeded => Status == LiveFileStatus.Complete;
-}
-
 /// <summary>Streaming repository CRC32 of file bytes, excluding final-sector
 /// padding. The caller owns validated cluster order and supplies exact read
 /// receipts. Metadata is numeric state, not device authority. Failure leaves

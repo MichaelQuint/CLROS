@@ -1,16 +1,5 @@
 namespace OS.Storage;
 
-public enum LiveGptSelectionStatus : byte { Uninitialized, Success, NoValidTable }
-
-public struct LiveGptSelection
-{
-    public LiveGptSelectionStatus Status;
-    public LiveGptStatus PrimaryStatus, BackupStatus;
-    public bool UsedBackup;
-    public LiveGptHeaderResult Header;
-    public readonly bool Succeeded => Status == LiveGptSelectionStatus.Success && Header.Succeeded;
-}
-
 /// <summary>Selection policy for completed, independently validated live reads.
 /// The caller must stop on uncertain transport cleanup before considering a
 /// backup transaction. This policy performs no I/O, repair or disk writes.</summary>

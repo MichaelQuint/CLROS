@@ -3,27 +3,6 @@ using OS.Std.Binary;
 
 namespace OS.Storage;
 
-public enum VirtioBlkBindingStatus : byte
-{
-    Uninitialized, Success, InvalidSnapshot, InvalidBdf, ReadFailed, AbsentDevice,
-    WrongIdentity, UnsupportedHeader, InvalidCapabilities, MissingCapabilities,
-    DeviceConfigurationTooShort
-}
-
-public readonly struct VirtioBlkPciBinding
-{
-    public readonly uint Identity;
-    public readonly ushort OriginalCommand;
-    public readonly byte Bus, Device, Function;
-    public readonly VirtioPciCapabilitySet Capabilities;
-    internal VirtioBlkPciBinding(uint identity, ushort command, byte bus, byte device,
-        byte function, VirtioPciCapabilitySet capabilities)
-    {
-        Identity = identity; OriginalCommand = command; Bus = bus; Device = device;
-        Function = function; Capabilities = capabilities;
-    }
-}
-
 /// <summary>
 /// Binds numeric metadata for one modern block device from an exact, stable
 /// caller-owned PCI snapshot. The adapter owns device/configuration lifetime;

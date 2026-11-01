@@ -4,7 +4,7 @@ using OS.Std.Memory;
 
 namespace OS.Storage;
 
-public static class GptPartitionTableParser
+public static partial class GptPartitionTableParser
 {
     public const uint PrimaryHeaderLba = 1;
     public const uint MinimumHeaderSize = GptParser.MinimumHeaderSize;
@@ -47,11 +47,6 @@ public static class GptPartitionTableParser
             GptPartitionTableKind.Backup);
     }
 
-    private enum GptPartitionTableKind
-    {
-        Primary = 0,
-        Backup = 1
-    }
 
     private static GptPartitionTableParseResult Parse(
         ReadOnlySpan<byte> headerSector,

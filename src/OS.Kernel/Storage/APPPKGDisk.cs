@@ -5,20 +5,6 @@ using OS.Std.Text;
 
 namespace OS.Storage;
 
-public enum LivePackageStatus : byte
-{
-    Uninitialized = 0, Success, InvalidLength, InvalidHeader, UnsupportedVersion,
-    InvalidTable, InvalidEntry, InvalidPath, DuplicatePath, Overlap, MissingFile, ChecksumMismatch
-}
-
-public struct LivePackageResult
-{
-    public LivePackageStatus Status;
-    public ushort FileCount;
-    public uint ContentOffset, ContentLength, PackageCrc32;
-    public readonly bool Succeeded => Status == LivePackageStatus.Success;
-}
-
 /// <summary>Bounded OSPKGv0 metadata and selected file validation over stable
 /// caller-owned disk bytes. CRC32 is supplied by the reviewed fixture/caller;
 /// the v0 package has no cryptographic authentication or embedded hash.</summary>
