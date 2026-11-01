@@ -1,5 +1,21 @@
 # Host Requirements
 
+## C# source organization checks
+
+The November1 combined refactor uses root `.editorconfig` for IDE formatting and
+naming warnings. Preserve concise expression bodies, separate executable
+statements and guard bodies, and allow single-statement guards without braces.
+Each type belongs in its own file; helpers use `Parent.Child.cs`, retaining
+nested identity through partial wrappers. Fields and initializers stay ordered.
+
+`dotnet run --project tools/OS.Tooling -- repo style check` reports deterministic
+`CLROSSTYLE` findings across conditional branches, including simultaneously
+enabled sibling declarations. `repo check` includes this gate. Roslyn is resolved
+from the pinned SDK only in host tooling; EFI analyzer/reference restrictions
+remain unchanged. Both tooling and HostTests capture `.editorconfig` as an input.
+Generated artifacts and upstream references are excluded. A source-style pass
+does not qualify compilation, NativeAOT output or guest behavior.
+
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
 The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.

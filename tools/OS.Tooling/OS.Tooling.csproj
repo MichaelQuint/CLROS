@@ -19,11 +19,23 @@
     <ProjectReference Include="..\OS.ImageBuilder\OS.ImageBuilder.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\OS.ManifestTool\OS.ManifestTool.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
+  <!-- Roslyn runs only in this host tool. No analyzer or framework reference
+       is added to the freestanding EFI compilation. -->
+  <Target Name="ResolveToolingRoslynReferences" BeforeTargets="ResolveAssemblyReferences">
+    <PropertyGroup>
+      <ToolingRoslynDirectory>$(RoslynTargetsPath)/bincore</ToolingRoslynDirectory>
+      <ToolingRoslynDirectory Condition="!Exists('$(ToolingRoslynDirectory)/Microsoft.CodeAnalysis.dll')">$(RoslynTargetsPath)/../bincore</ToolingRoslynDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+      <Reference Include="Microsoft.CodeAnalysis" HintPath="$(ToolingRoslynDirectory)/Microsoft.CodeAnalysis.dll" />
+      <Reference Include="Microsoft.CodeAnalysis.CSharp" HintPath="$(ToolingRoslynDirectory)/Microsoft.CodeAnalysis.CSharp.dll" />
+    </ItemGroup>
+  </Target>
   <!-- This inventory is embedded with the hashes. Runtime discovery consumes
        these same patterns, so adding a source never escapes a no-build check. -->
   <PropertyGroup>
     <_ToolingRepositoryRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)..\..'))</_ToolingRepositoryRoot>
-    <_ToolingInputPatterns>tools/**/*.cs;tools/**/*.csproj;tools/**/*.props;tools/**/*.targets;src/OS.Kernel/**/*.cs;src/OS.Kernel/**/*.csproj;src/OS.Kernel/**/*.props;src/OS.Kernel/**/*.targets;src/OS.Std.NoRuntime.Shared/**/*.cs;src/OS.Std.NoRuntime.Shared/**/*.csproj;src/OS.Std.NoRuntime.Shared/**/*.props;src/OS.Std.NoRuntime.Shared/**/*.targets;std/**/*.cs;std/**/*.csproj;std/**/*.props;std/**/*.targets;CLROS.slnx;global.json;Directory.Build.props;Directory.Build.targets</_ToolingInputPatterns>
+    <_ToolingInputPatterns>tools/**/*.cs;tools/**/*.csproj;tools/**/*.props;tools/**/*.targets;src/OS.Kernel/**/*.cs;src/OS.Kernel/**/*.csproj;src/OS.Kernel/**/*.props;src/OS.Kernel/**/*.targets;src/OS.Std.NoRuntime.Shared/**/*.cs;src/OS.Std.NoRuntime.Shared/**/*.csproj;src/OS.Std.NoRuntime.Shared/**/*.props;src/OS.Std.NoRuntime.Shared/**/*.targets;std/**/*.cs;std/**/*.csproj;std/**/*.props;std/**/*.targets;CLROS.slnx;global.json;Directory.Build.props;Directory.Build.targets;.editorconfig</_ToolingInputPatterns>
     <_ToolingAbsolutePatterns>$(_ToolingRepositoryRoot)$(_ToolingInputPatterns.Replace(';', ';$(_ToolingRepositoryRoot)'))</_ToolingAbsolutePatterns>
     <_ToolingManifestPatterns>GLOB|$(_ToolingInputPatterns.Replace(';', ';GLOB|'))</_ToolingManifestPatterns>
   </PropertyGroup>

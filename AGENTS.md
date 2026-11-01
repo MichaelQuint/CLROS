@@ -43,11 +43,14 @@ through Linux syscall frames or force internal calls across the hosted PAL ABI.
 
 ## Scope and ownership
 
-The October31 user-approved next phase is M04-026/#813: qualify .NET11 RC3,
-the current verified MSVC/linker and explicit WHPX. Its sole execution owner uses
-`codex/rc3-whpx-qualification`; [the phase contract](work/rc3-whpx-qualification.md)
-defines acceptance and closure. Preserve the paused broader goal, historical RC2
-receipts, other worktrees and the deferred #791/#775/write/SQLite boundaries.
+The November1 approved scope combines M04-026/#813 and PR814 with the C#
+code-quality refactor and measured file-serving performance repairs. The primary
+execution chat is `01a19907-2a86-7ef0-98f5-59142a70e49e`; development uses
+`codex/refactor-combined-r01` from d47f8558, preserving the original
+`codex/rc3-whpx-qualification` producer checkout and receipts. Exactly one storage
+subagent owns its isolated source/test lane. The [phase contract](work/rc3-whpx-qualification.md)
+defines final qualification. The broader write/SQLite/sustained-service and
+provider milestones remain deferred.
 
 Inspect branch, dirty/untracked files, worktrees and live ownership before edits.
 Use the explicitly assigned producer checkout; `C:/Projects/CLROS` is not proof
@@ -86,7 +89,11 @@ prerequisites; it does not authorize activation or dependency/issue closure.
 - Avoid exceptions, hidden allocations, reflection and dynamic invocation in
   kernel/boot/runtime paths unless the current issue implements and tests that support.
 - Document public/unsafe APIs: purpose, ownership/lifetime, execution context,
-  failure and unsupported behavior. Prefer one main public type per new file.
+  failure and unsupported behavior. Put each type in its own file. Associated
+  helpers use Parent.Child.cs; nested helpers retain their identity and visibility
+  inside partial containing wrappers. Keep fields/initializers in their original
+  order and storage-owning part. Follow root .editorconfig and the host source
+  style check; do not add style analyzers to the freestanding compiler.
 - Preserve accepted profiles, package bytes, ordinary boot, resource bounds and
   default-off behavior. Changes require their own scoped qualification.
 

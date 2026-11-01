@@ -2,22 +2,6 @@ using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
 
-public sealed record RepositoryCheckResult(IReadOnlyList<string> NamingFailures, IReadOnlyList<string> SourceFailures)
-{
-    public bool Succeeded => NamingFailures.Count == 0 && SourceFailures.Count == 0;
-    public void WriteTo(TextWriter output)
-    {
-        Write("naming.guard", NamingFailures);
-        Write("source.firewall", SourceFailures);
-        void Write(string group, IReadOnlyList<string> failures)
-        {
-            output.WriteLine("TEST_START " + group);
-            if (failures.Count == 0) output.WriteLine("TEST_PASS " + group);
-            else foreach (string failure in failures) output.WriteLine("TEST_FAIL " + group + " " + failure);
-        }
-    }
-}
-
 public static class RepositoryChecks
 {
     private static readonly HashSet<string> Excluded = new(StringComparer.OrdinalIgnoreCase)
@@ -72,7 +56,10 @@ public static class RepositoryChecks
         }
         if (!File.Exists(Path.Combine(root, Repository.SolutionName))) source.Add(Repository.SolutionName + ": required_solution_missing");
         if (File.Exists(Path.Combine(root, "OS.slnx"))) source.Add("OS.slnx: legacy_solution_sentinel_present");
-        return new(naming, source);
+        return new(naming, source)
+        {
+            StyleFailures = RepositoryCodeStyle.Check(root).Select(value => value.ToString()).ToArray()
+        };
     }
 
     public static IEnumerable<string> Enumerate(string root, Action<string>? directoryVisited = null)

@@ -54,7 +54,7 @@
       <_HostTestSourceRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\'))</_HostTestSourceRoot>
     </PropertyGroup>
     <ItemGroup>
-      <_HostTestInput Include="@(Compile);@(ReferencePath);$(MSBuildProjectFullPath);$(MSBuildThisFileDirectory)..\..\global.json;$(MSBuildThisFileDirectory)..\..\CLROS.slnx;$(MSBuildThisFileDirectory)..\..\Directory.Build.props;$(MSBuildThisFileDirectory)..\..\Directory.Build.targets;$(MSBuildThisFileDirectory)..\..\.gitea\backlog\clros-issues.json" />
+      <_HostTestInput Include="@(Compile);@(ReferencePath);$(MSBuildProjectFullPath);$(MSBuildThisFileDirectory)..\..\global.json;$(MSBuildThisFileDirectory)..\..\CLROS.slnx;$(MSBuildThisFileDirectory)..\..\Directory.Build.props;$(MSBuildThisFileDirectory)..\..\Directory.Build.targets;$(MSBuildThisFileDirectory)..\..\.editorconfig;$(MSBuildThisFileDirectory)..\..\.gitea\backlog\clros-issues.json" />
       <_HostTestInput Include="$(_HostTestSourceRoot)apps\**\*.cs;$(_HostTestSourceRoot)apps\**\*.csproj;$(_HostTestSourceRoot)apps\**\*.props;$(_HostTestSourceRoot)apps\**\*.targets;$(_HostTestSourceRoot)apps\**\*.json"
         Exclude="$(_HostTestSourceRoot)**\obj\**\*;$(_HostTestSourceRoot)**\bin\**\*;$(_HostTestSourceRoot)**\artifacts\**\*" />
       <_HostTestInput Include="$(_HostTestSourceRoot)src\**\*.cs;$(_HostTestSourceRoot)src\**\*.csproj;$(_HostTestSourceRoot)std\**\*.cs;$(_HostTestSourceRoot)std\**\*.csproj;$(_HostTestSourceRoot)tools\**\*.cs;$(_HostTestSourceRoot)tools\**\*.csproj;$(_HostTestSourceRoot)tests\**\*.cs;$(_HostTestSourceRoot)tests\**\*.csproj"

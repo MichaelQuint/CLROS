@@ -457,6 +457,17 @@ public static class ToolCommand
                 Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nlinux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>\nlinux hello-program <hello-package> <llvm-disassembly>\nlinux threading-package <app> <extracted-evidence-root> <fresh-artifacts-package>\nlinux threading-program <app> <package> <llvm-disassembly>\nlinux thread-fixture <fresh-package-path> [Threads|PipeReadClose|PipeWriteClose|PipeShutdown]\nlinux signal-fixture <fresh-package-path> [AlternateStack|UserStack|BadReturn|BadRestorer|FaultRead|FaultWrite|FaultExecute|FaultStack|FaultGp|FaultReturn|FaultFatal|Activation|SignalPipeEintr|SignalPipeRestart|SignalFutexEintr|SignalFutexRestart|SignalPipePartial|SignalPipeStolen|SignalEpollStolen|NestedAlternateStack|AlternateStackExhaustion]\nqemu inspect-disk-leaf <mechanical-package> <original-serial> (report only)\nqemu inspect-disk-values <mechanical-package> <raw-image> <original-serial> (report only)\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot threading validate-suspension|validate-threadpool <captured-stdout>\nnativeaot threading qualify --output <fresh-directory>\nnativeaot runtime qualify --output <fresh-directory>\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");
                 return 0;
             }
+            if (args is ["repo", "style", "check"] or ["repo", "style", "check", "--root", _])
+            {
+                string root = args.Length == 5 ? Path.GetFullPath(args[4]) : Repository.FindRoot();
+                var findings = RepositoryCodeStyle.Check(root);
+                Console.WriteLine("TEST_START source.style");
+                foreach (var finding in findings)
+                    Console.WriteLine("TEST_FAIL source.style " + finding);
+                if (findings.Count == 0)
+                    Console.WriteLine("TEST_PASS source.style");
+                return findings.Count == 0 ? 0 : 1;
+            }
             if (args.Length >= 2 && args[0] == "repo" && args[1] == "check")
             {
                 string root = args.Length switch

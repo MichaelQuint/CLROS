@@ -1,5 +1,33 @@
 # RC3 and WHPX qualification contract
 
+## November 1 combined-refactor authorization
+
+The user approved implementation of one combined RC3, code-quality and measured
+performance candidate. Chat `01a19907-2a86-7ef0-98f5-59142a70e49e` takes over PR814
+and M04-026 integration from d47f8558, with exactly one storage subagent. The
+original RC3 checkout remains a preserved producer/evidence baseline; development
+uses `codex/refactor-combined-r01` and the isolated `codex/refactor-storage-r01`
+lane. Only the primary runs shared builds and native/guest qualification.
+
+Mechanical commits preserve type/API identity, field/initializer order, ownership
+and conditional behavior. Update explicit source closures and independently
+review provenance after moves; do not bulk-accept changed source hashes. The
+root .editorconfig supplies IDE formatting/naming guidance; `repo style check`
+and `repo check` enforce type/file structure in host tooling only. Intermediate
+existing violations are reported, not suppressed to create a passing baseline.
+
+Performance work first preserves original inputs and distinguishes trace cost,
+validation, scheduling/readiness, storage and network delays. The reported
+12.40-second WHPX observation is a 64KiB range from a 2,009,369-byte asset, not a
+complete 2MB transfer. Controlled diagnostics and later source-matched acceptance
+remain distinct. Neither trace suppression nor relaxed deadlines grants success.
+
+Final acceptance remains the full matrix below on the combined stable source.
+Existing full r06/compiler29 originals retain their source-specific scope; the
+later WHPX FullA1 and same-image TCG browser failures remain failed. Preserve
+all unique worktrees and raw evidence. Writes, SQLite, sustained-service and
+provider qualification are outside this extension.
+
 Approved 2026-10-31. Owner: this execution chat, isolated branch
 `codex/rc3-whpx-qualification`, baseline master `a96d47f9` (PR812).
 Canonical issue key: M04-026. The phase stops after verified merge and recovery;
