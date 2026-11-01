@@ -1,5 +1,14 @@
 # Diagnostics
 
+[Step1688](../done/step1688.md) reproduces the RC3 timing-image slowdown across
+three fresh WHPX and three fresh TCG boots. Median JSON/64 KiB range times are
+5.156/12.417 seconds on WHPX and 6.821/10.445 seconds on TCG. These first-sequence
+measurements include host body-file flushing and use the unchanged retained
+image; they do not qualify refactored source, full transfers or browser startup.
+The current investigation preserves the original checks and distinguishes code
+verification from other mapping/descriptor checks inside mixed dispatch spans.
+The full warm/matched-Alpine/control matrix and attributed fixes remain pending.
+
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
 The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
