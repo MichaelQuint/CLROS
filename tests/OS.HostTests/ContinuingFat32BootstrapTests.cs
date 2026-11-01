@@ -8,7 +8,7 @@ using C = OS.Storage.ContinuingFat32Mutation;
 
 // Independent numeric GPT/BPB bytes reach the kernel ONLY through real fake
 // queue IN/completion/copy, not a parsed image or second owner of that queue.
-internal static unsafe class ContinuingFat32BootstrapTests
+internal static unsafe partial class ContinuingFat32BootstrapTests
 {
     private const int First = 2048, Reserved = 32, FatSectors = 512, Clusters = 65525;
     private const int Fat0 = First + Reserved, Data = Fat0 + 2 * FatSectors, Last = Data + Clusters - 1, Sectors = Last + 34;
@@ -342,52 +342,4 @@ internal static unsafe class ContinuingFat32BootstrapTests
         Console.WriteLine($"WRITABLE_BOOTSTRAP_LAYOUT state={sizeof(K.State)} admission={sizeof(K.Admission)} result={sizeof(K.Result)} scratch={K.SectorBytes + K.EntryBytes}"); f.Copy();
     }
 
-    private sealed class Fixture : IDisposable
-    {
-        internal readonly WritableBlockSessionTests.Fixture Device;
-        internal readonly K.State* State = (K.State*)NativeMemory.AllocZeroed((nuint)sizeof(K.State));
-        private readonly byte* scratch = (byte*)NativeMemory.AlignedAlloc(5 * 4096, 4096);
-        internal K.Admission Input;
-        internal bool ReplacedOriginal;
-        private bool started;
-        internal Fixture(Action<byte[]>? mutate = null, byte[]? provided = null)
-        {
-            byte[] image = provided ?? Image(); mutate?.Invoke(image); Device = new((ulong)image.Length / 512, observe: true); Device.UseMedium(image); HostCheck.Equal(B.Status.Success, Device.Start());
-            Input = new() { Device = Device.State, Epoch = 91, DeviceEpoch = Device.Input.Epoch, Sector = scratch, Entries = scratch + 512, SectorBudget = K.MaximumReads };
-        }
-        internal K.Status Start() { var status = K.Start(State, Input); started = status == K.Status.Pending; return status; }
-        internal K.Status Run()
-        {
-            for (int i = 0; i < 1000; i++) { var result = K.Pump(State); if (Device.Hardware->Pending) Device.Complete(); if (result != K.Status.Pending) return result; }
-            throw new InvalidOperationException("bootstrap did not terminate");
-        }
-        internal K.Result Copy() { K.Result result = default; HostCheck.Equal(K.Status.Success, K.CopyResult(State, Input.Epoch, &result)); return result; }
-        public void Dispose()
-        {
-            HostCheck.Equal(B.Status.Success, B.Stop(Device.State));
-            if (started && !ReplacedOriginal) HostCheck.Equal(K.Status.Success, K.Stop(State));
-            if (ReplacedOriginal) HostCheck.True(Device.State->Retired && !State->Retired);
-            Device.CheckGuards();
-            Device.Dispose(); NativeMemory.AlignedFree(scratch); NativeMemory.Free(State);
-        }
-    }
-    private sealed class EngineMemory : IDisposable
-    {
-        internal readonly C.State* State = (C.State*)NativeMemory.AllocZeroed((nuint)sizeof(C.State));
-        private readonly byte* bytes = (byte*)NativeMemory.AlignedAlloc(48 * 4096, 4096);
-        internal C.Admission Input;
-        internal EngineMemory(B.State* device, ulong first, ulong last)
-        {
-            ulong cursor = (ulong)bytes;
-            ulong Take(ulong count) { ulong at = (cursor + 15) & ~15UL; cursor = at + count; return at; }
-            Input = new() { Device = device, Owner = 17, Epoch = 18, PartitionFirst = first, PartitionLast = last, ChangeCapacity = C.JournalChanges,
-                ChainCapacity = C.MaximumClusters, InputCapacity = C.WriteBytes, WorkBudget = 10000,
-                Changes = (Fat32Mutation.Change*)Take(C.JournalChanges * (ulong)sizeof(Fat32Mutation.Change)), Before = (byte*)Take(C.JournalChanges * 512UL), After = (byte*)Take(C.JournalChanges * 512UL),
-                DirectoryMap = (uint*)Take(C.MaximumClusters * 4UL), FileMap = (uint*)Take(C.MaximumClusters * 4UL), WalkMap = (uint*)Take(C.MaximumClusters * 4UL),
-                Sector = (byte*)Take(512), Fat0 = (byte*)Take(512), Fat1 = (byte*)Take(512), Input = (byte*)Take(C.WriteBytes),
-                Name = (ushort*)Take(C.NameWords * 2UL), LongName = (ushort*)Take(C.VfatWords * 2UL), EncodedEntries = (byte*)Take(C.EncodedEntryBytes) };
-            HostCheck.True(cursor - (ulong)bytes <= 48 * 4096UL); new Span<byte>(bytes, 48 * 4096).Clear();
-        }
-        public void Dispose() { NativeMemory.AlignedFree(bytes); NativeMemory.Free(State); }
-    }
 }

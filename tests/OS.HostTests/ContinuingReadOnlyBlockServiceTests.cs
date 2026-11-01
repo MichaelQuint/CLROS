@@ -4,7 +4,7 @@ using OS.Kernel.Platform;
 using OS.Storage;
 using Block = OS.Storage.ContinuingReadOnlyBlockService;
 
-internal static unsafe class ContinuingReadOnlyBlockServiceTests
+internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
 {
     [HostTest("block.service copy widths preserve every supported length alignment and destination boundary")]
     private static void CopyWidthsAndBounds()
@@ -205,23 +205,6 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
         }
     }
 
-    // Exact pre-extension managed field sequence. No production layout helper
-    // or serialized ABI is introduced to test the former tail padding.
-#pragma warning disable CS0649
-    private struct LegacyState
-    {
-        internal ulong Self, PoolEpoch, LastClock, RequestGeneration, RequestSector, Deadline;
-        internal Block.Admission Input;
-        internal DmaBufferAllocation Allocation;
-        internal VirtioBlkQueueResult Queue;
-        internal ulong Capacity, NotifyAddress;
-        internal ushort AvailableIndex, UsedConsumed;
-        internal byte ConfigGeneration, Phase;
-        internal bool DeviceOwned, ReturnedToCpu, Scrubbed, Discard, Observing, ObservationReentered;
-        internal Block.Status Failure;
-        internal ulong SubmittedCount, CompletedCount, CopiedCount, CancelledCount, PollCount;
-    }
-#pragma warning restore CS0649
 
     [HostTest("block.service bounded request byte occupies legacy tail padding without changing state size or counter offsets")]
     private static void BoundedStateLayout()
@@ -748,40 +731,6 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
         HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards(); return true;
     }
 
-    private struct ObservationSink
-    {
-        internal Block.State* State;
-        internal Hardware* Hardware;
-        internal Block.Observation* Records;
-        internal byte* Payload;
-        internal byte* Output;
-        internal byte* Metadata;
-        internal Block.Admission Input;
-        internal ulong Candidate, LastGeneration;
-        internal uint Count;
-        internal uint ExpectedBytes;
-        internal int ReenterOperation;
-        internal Block.ObservationKind RejectKind, ReenterKind;
-        internal byte RejectValue;
-        internal Block.Status NestedStatus;
-        internal bool Bad, Reject, NestedUnchanged;
-    }
-    private sealed class Capture : IDisposable
-    {
-        internal const uint RecordCount = 12;
-        internal readonly ObservationSink* Sink = (ObservationSink*)NativeMemory.AllocZeroed((nuint)sizeof(ObservationSink));
-        internal Capture(Fixture f, uint bytes = 512)
-        {
-            Sink->State = f.State; Sink->Hardware = f.Hardware; Sink->ReenterOperation = -1;
-            Sink->ExpectedBytes = bytes;
-            Sink->Records = (Block.Observation*)NativeMemory.AllocZeroed(RecordCount, (nuint)sizeof(Block.Observation));
-            Sink->Payload = (byte*)NativeMemory.AllocZeroed(bytes); Sink->Output = (byte*)NativeMemory.AllocZeroed(bytes + 8);
-            Sink->Metadata = (byte*)NativeMemory.AllocZeroed(64);
-            f.Observation = new() { Context = Sink, Observe = &CaptureObservation }; Sink->Input = f.Input;
-        }
-        public void Dispose()
-        { NativeMemory.Free(Sink->Records); NativeMemory.Free(Sink->Payload); NativeMemory.Free(Sink->Output); NativeMemory.Free(Sink->Metadata); NativeMemory.Free(Sink); }
-    }
     [UnmanagedCallersOnly]
     private static byte CaptureObservation(void* context, Block.Observation* value, byte* payload)
     {
@@ -847,18 +796,6 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
     { *(ulong*)((byte*)&token + (int)Marshal.OffsetOf<Block.ReadToken>(field)) ^= 1; return token; }
     private static VirtioMappedRegion ChangedRegion(VirtioMappedRegion region, string field, ulong value)
     { *(ulong*)((byte*)&region + (int)Marshal.OffsetOf<VirtioMappedRegion>(field)) = value; return region; }
-    private struct Hardware
-    {
-        internal byte* Data;
-        internal DmaBufferPool* Pool;
-        internal ulong Capacity, Now, Descriptor, Available, Used, Sector;
-        internal uint Calls, Fences, FailCall, Resets, DriverOkWrites, Notifies, GenerationReads, Produced;
-        internal uint ExpectedBytes;
-        internal ushort Selected, Size, Enabled, ConfigVector, QueueVector, AvailableSeen, FencedIndex;
-        internal byte Status, Generation;
-        internal bool BusEnabled, BadOrder, Pending, IndexObserved, Acquired, ResetRequested, ResetObserved, HeldAtResetFence;
-        internal bool FailureFired, FailAfterWrite, ResetStuck, ResetWriteFailure, DisableFailure, ResetFenceFailure, ClockFailure, GenerationChurn;
-    }
 
     private static bool Enter(Hardware* h, bool write = false)
     { h->Calls++; if (h->Calls != h->FailCall) return true; h->FailureFired = true; return write && h->FailAfterWrite; }
@@ -973,59 +910,4 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
     [UnmanagedCallersOnly] private static byte Clock(void* c, ulong* value)
     { var h = (Hardware*)c; if (!Enter(h) || h->ClockFailure) return 0; *value = h->Now; return 1; }
 
-    private sealed class Fixture : IDisposable
-    {
-        private static long epoch;
-        private readonly byte* backing = (byte*)NativeMemory.AlignedAlloc(12288, 4096);
-        internal byte* Data => backing + 4096;
-        internal readonly Block.State* State = (Block.State*)NativeMemory.AllocZeroed((nuint)sizeof(Block.State));
-        internal readonly DmaBufferPool* Pool = (DmaBufferPool*)NativeMemory.AllocZeroed((nuint)sizeof(DmaBufferPool));
-        internal readonly DmaBufferSlot* Slot = (DmaBufferSlot*)NativeMemory.AllocZeroed((nuint)sizeof(DmaBufferSlot));
-        internal readonly Hardware* Hardware = (Hardware*)NativeMemory.AllocZeroed((nuint)sizeof(Hardware));
-        private static readonly int ownerOffset = (int)Marshal.OffsetOf<DmaBufferSlot>("Owner");
-        internal DmaBufferOwnership Owner => *(DmaBufferOwnership*)((byte*)Slot + ownerOffset);
-        private readonly ulong lifetime;
-        private readonly VirtioMappedRegion common, notify, device;
-        internal Block.ObservationAccess Observation;
-        internal Fixture()
-        {
-            new Span<byte>(backing, 12288).Fill(0xa5);
-            HostCheck.Equal(DmaAddressStatus.Success, DmaAddressWindow.TryCreate((ulong)Data, Physical, DeviceBase, 4096, 64, out var window));
-            lifetime = (ulong)Interlocked.Increment(ref epoch);
-            HostCheck.Equal(DmaBufferStatus.Success, PageAlignedDmaBuffers.TryInitialize(Pool, window, Slot, 1, lifetime));
-            Hardware->Data = Data; Hardware->Pool = Pool; Hardware->Capacity = Capacity; Hardware->Status = 11; Hardware->Generation = 7; Hardware->ExpectedBytes = 512;
-            PciSizedBar* bars = stackalloc PciSizedBar[6]; new Span<PciSizedBar>(bars, 6).Clear();
-            HostCheck.Equal(PciBarProbeStatus.Success, BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(0xc, 0xc0, 0xffffc00c, 0xffffffff, 4, out bars[4]));
-            var caps = VirtioPciCapabilitySet.Create(new(VirtioPciCapabilityType.CommonConfiguration, 4, 0, 56, 0),
-                new(VirtioPciCapabilityType.NotifyConfiguration, 4, 0x3000, 64, 4),
-                new(VirtioPciCapabilityType.IsrStatus, 4, 0x1000, 1, 0), new(VirtioPciCapabilityType.DeviceConfiguration, 4, 0x2000, 8, 0));
-            VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
-            HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.PlanBlock(caps, bars, 6, regions, 4));
-            HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.Bind(regions[0], Common, out common));
-            HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.BindNotificationPage(regions[1], 64, Notify, out notify));
-            HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.Bind(regions[3], Config, out device));
-        }
-        internal Block.Admission Input => new()
-        {
-            Common = common, Notify = notify, Device = device,
-            NotifyMultiplier = 4, ResetLimit = 3, Pool = Pool, Epoch = lifetime, NegotiatedFeatures = BoundedVirtioFeatures.Version1 | BoundedVirtioFeatures.BlockReadOnly,
-            ExpectedCapacity = Capacity, CompletionTimeoutNanos = 1000,
-            Access = new() { Queue = new() { Context = Hardware, Read8 = &Read8, Write8 = &Write8, Read16 = &Read16, Write16 = &Write16,
-                Read32 = &Read32, Write32 = &Write32, Fence = &Fence, BusMasterOff = &BusOff }, BusMasterOn = &BusOn },
-            Clock = new() { Context = Hardware, Read = &Clock }, Observation = Observation
-        };
-        internal Block.Status Start() => Block.Start(State, Input);
-        internal void Complete(uint id = 0, uint length = 513, byte status = 0, ushort delta = 1)
-        {
-            if (!Hardware->Pending) Hardware->BadOrder = true;
-            for (int i = 0; i < Hardware->ExpectedBytes; i++) Data[512 + i] = Payload(Hardware->Sector, i);
-            Data[272] = status; byte* element = Data + 152 + (Hardware->Produced & 7) * 8;
-            *(uint*)element = id; *(uint*)(element + 4) = length;
-            Hardware->Produced += delta; *(ushort*)(Data + 150) = unchecked((ushort)Hardware->Produced); Hardware->Pending = false;
-        }
-        internal void CheckGuards() => HostCheck.True(!Hardware->BadOrder &&
-            new ReadOnlySpan<byte>(backing, 4096).IndexOfAnyExcept((byte)0xa5) < 0 && new ReadOnlySpan<byte>(Data + 4096, 4096).IndexOfAnyExcept((byte)0xa5) < 0);
-        public void Dispose()
-        { NativeMemory.AlignedFree(backing); NativeMemory.Free(State); NativeMemory.Free(Pool); NativeMemory.Free(Slot); NativeMemory.Free(Hardware); }
-    }
 }

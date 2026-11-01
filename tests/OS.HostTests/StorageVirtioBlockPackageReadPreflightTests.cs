@@ -7,7 +7,7 @@ using OS.Std.Binary;
 using OS.Std.Hash;
 using OS.Storage;
 
-internal static class StorageVirtioBlockPackageReadPreflightTests
+internal static partial class StorageVirtioBlockPackageReadPreflightTests
 {
     private const ushort QueueSize = 8;
     private const ulong HeaderPhysicalAddress = 0x0010_0000UL;
@@ -1149,57 +1149,5 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
         EndianPrimitives.WriteUInt64LittleEndian(image.AsSpan(offset, 8), value);
     }
 
-    private sealed class MemoryBlockDevice : IReadOnlyBlockDevice
-    {
-        private MemoryBlockDevice(BlockDeviceInfo info, byte[] image)
-        {
-            Info = info;
-            Image = image;
-        }
 
-        public BlockDeviceInfo Info { get; }
-
-        private byte[] Image { get; }
-
-        public static MemoryBlockDevice FromImage(byte[] image, uint blockSize)
-        {
-            BlockDeviceInfoResult info = BlockDeviceInfo.Create(blockSize, (ulong)image.Length / blockSize);
-            if (!info.Succeeded)
-            {
-                throw new InvalidOperationException("Invalid test image geometry: " + info.Status);
-            }
-
-            return new MemoryBlockDevice(info.Info, image);
-        }
-
-        public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
-        {
-            BlockReadResult result = BlockDeviceRead.Validate(Info, firstBlock, blockCount, destination);
-            if (!result.Succeeded)
-            {
-                return result;
-            }
-
-            int offset = checked((int)(firstBlock * Info.BlockSize));
-            Image.AsSpan(offset, checked((int)result.BytesRead)).CopyTo(destination);
-            return result;
-        }
-    }
-
-    private sealed class SequenceTestSerialSink : ISerialSink
-    {
-        private readonly List<string> _lines = new List<string>();
-
-        public int Count => _lines.Count;
-
-        public void WriteLine(string line)
-        {
-            _lines.Add(line);
-        }
-
-        public string LineAt(int index)
-        {
-            return _lines[index];
-        }
-    }
 }

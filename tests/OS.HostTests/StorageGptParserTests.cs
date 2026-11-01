@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using OS.Std.Binary;
 using OS.Storage;
 
-internal static class StorageGptParserTests
+internal static partial class StorageGptParserTests
 {
     private const uint SectorSize = 512;
     private const ulong BlockCount = 128;
@@ -425,85 +425,6 @@ internal static class StorageGptParserTests
         EndianPrimitives.WriteUInt64LittleEndian(image.AsSpan(offset, 8), value);
     }
 
-    private sealed class MemoryBlockDevice : IReadOnlyBlockDevice
-    {
-        private MemoryBlockDevice(BlockDeviceInfo info, byte[] image)
-        {
-            Info = info;
-            Image = image;
-        }
 
-        public BlockDeviceInfo Info { get; }
 
-        private byte[] Image { get; }
-
-        public static MemoryBlockDevice FromImage(byte[] image, uint blockSize)
-        {
-            BlockDeviceInfoResult info = BlockDeviceInfo.Create(blockSize, (ulong)image.Length / blockSize);
-            if (!info.Succeeded)
-            {
-                throw new InvalidOperationException("Invalid GPT test image geometry: " + info.Status);
-            }
-
-            return new MemoryBlockDevice(info.Info, image);
-        }
-
-        public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
-        {
-            BlockReadResult result = BlockDeviceRead.Validate(Info, firstBlock, blockCount, destination);
-            if (!result.Succeeded)
-            {
-                return result;
-            }
-
-            int offset = checked((int)(firstBlock * Info.BlockSize));
-            Image.AsSpan(offset, checked((int)result.BytesRead)).CopyTo(destination);
-            return result;
-        }
-    }
-
-    private sealed class ShortReadBlockDevice : IReadOnlyBlockDevice
-    {
-        private readonly IReadOnlyBlockDevice _inner;
-        private readonly ulong _shortReadLba;
-
-        public ShortReadBlockDevice(IReadOnlyBlockDevice inner, ulong shortReadLba)
-        {
-            _inner = inner;
-            _shortReadLba = shortReadLba;
-        }
-
-        public BlockDeviceInfo Info => _inner.Info;
-
-        public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
-        {
-            if (firstBlock == _shortReadLba && blockCount == 1)
-            {
-                return BlockReadResult.Success(0, 0);
-            }
-
-            return _inner.ReadBlocks(firstBlock, blockCount, destination);
-        }
-    }
-
-    private sealed class GeometryOnlyBlockDevice : IReadOnlyBlockDevice
-    {
-        public GeometryOnlyBlockDevice(uint blockSize, ulong blockCount)
-        {
-            BlockDeviceInfoResult info = BlockDeviceInfo.Create(blockSize, blockCount);
-            if (!info.Succeeded)
-            {
-                throw new InvalidOperationException("Invalid geometry-only device: " + info.Status);
-            }
-
-            Info = info.Info;
-        }
-
-        public BlockDeviceInfo Info { get; }
-
-        public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
-        {
-            return BlockReadResult.Fail(BlockDeviceStatus.IoError);
-        }
-    }
 }
