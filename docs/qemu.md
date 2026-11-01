@@ -55,11 +55,13 @@ the observed live SS16 failed the existing strict NULL-SS callback contract.
 The entry now validates saved CS8/SS16, leaves live SS0 unchanged and normalizes
 only live SS16 before the callback. Unknown selectors fail closed; the saved
 frame, IRET, EOI, timers, stack sizes and downstream checks remain unchanged.
-Fresh native review retains the Timing bounds. [Step1677](../done/step1677.md)
-records successful v8 originals on WHPX and TCG: identical image bytes and
-five matching response hashes, including independently image-checked64KiB,
-final health and owned cancellation/join/refusal. Runner lifetimes38.9s/52.7s
-are diagnostic observations, without an end-to-end speedup claim. Full-host
+Fresh native review retains the Timing bounds. Historical originals remain in
+[step1677](../done/step1677.md). [Step1683](../done/step1683.md) renews the v8 pair
+with current producers: identical image bytes and five matching response hashes,
+independently checked64KiB, final health and owned cancellation/join/refusal.
+The WHPX original additionally verifies the same96-byte prelaunch raw prefix
+and original stdout anchors after its actual retained job joins. Runner lifetimes
+38.895s/48.082s are diagnostic observations, without an end-to-end speedup claim. Full-host
 and final migration/read/browser qualification remain required.
 
 [Step1669](../done/step1669.md) preserves fresh f508 A1 as failed at host `disk_parent_counters`, despite120 completed HTTP responses,49 successful browser exchanges, ready Blazor/API values and guest cleanup markers. The first independent partial diagnostic joins12396 physical requests/35690 payload sectors/2014 windows/120 wire responses; OriginalAccepted=false. Filesystem `fsReads` counts submitted sectors, while device counters count requests. Full now requires exact `fsReads == bootstrapCompleted-34 + Sum(Submitted.Bytes/512)` using the same validated device/END/BOUND/replay identities;34 is the reviewed MBR/GPT prefix outside the filesystem. The sector inspection precedes both parent checks. Ordinary single-sector, ExitPending and CloseReuse checks remain required. All83 focused checks pass; one changed production diagnostic passes57386 calls/2014 windows/60482 IO rows/4237 metadata copies and the actual shared parent envelope/finalcounter join, with five input pins unchanged. The real ELF/index predicates remain mandatory; no synthetic callback, original acceptance, independent reader/PCAP replay or whole-postprocessor authority is added. Native8d and every guest/output/time/package bound remain unchanged. Fresh complete qualification is pending.

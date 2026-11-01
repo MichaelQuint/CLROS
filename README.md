@@ -22,9 +22,11 @@ guest run. [Step1682](done/step1682.md) records the bounded startup-stderr polic
 and preserved failures. The previous RC3 full-host pass covers7,474 checks;
 final qualification of the changed runner remains pending. [The RC3/WHPX qualification contract](work/rc3-whpx-qualification.md)
 and [#813](http://192.168.4.35:3000/admin/CLROS/issues/813) track the unfinished
-final native, guest/browser and host renewal. The short RC3 diagnostic passes
-on WHPX and TCG with identical image bytes and response hashes in
-[step1677](done/step1677.md). Earlier acceptance retains its original RC2 source,
+final native, guest/browser and host renewal. The renewed short RC3 diagnostic passes
+on WHPX and TCG with identical image bytes and five response hashes in
+[step1683](done/step1683.md), including the original-owned prelaunch stderr
+proof. All29 compiler native preparations are reviewed; final guest acceptance
+remains pending. Earlier acceptance retains its original RC2 source,
 packages and backend.
 
 CLROS serves the pinned NativeAOT Minimal API and actual Standalone Blazor WebAssembly client from read-only FAT32. Three healthy A/B/A boots across two disk variants, the typed corrupt-file control and three M16 lifecycle originals pass their recorded checks. PR812's recorded unfiltered full-host run passes 7,464 checks with zero reuse; see [Step1672](done/step1672.md) for exact source profiles, evidence and preserved failures. Writes, persistent logs/uploads, SQLite and [#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified and paused.
