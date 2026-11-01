@@ -13,10 +13,10 @@ namespace OS.Tooling;
 /// grants neither Linux execution qualification nor CLROS guest acceptance.</summary>
 public static class NativeAotSocketVectorsPackage
 {
-    public const int ElfBytes = 1_849_200;
-    public const string ElfSha256 = "CEC0D9B05F242E31A7D40EDDB5CA2FFFBA7D9326044EF7E3DA5469F8D72E5C91";
+    public const int ElfBytes = 1849200;
+    public const string ElfSha256 = "DAED0B813C2AD12837E36F1BA9F6DE4A784F9AEA70D002C5A32B99B06208DBB3";
     private const string App = NativeAotSocketVectorsPublisher.Application;
-    private const string ReceiptSha256 = "5E18B3E100C4D2DAA5A984F6DC7EB8345E806ACB4103577BFD0C81588C555E6B";
+    private const string ReceiptSha256 = "4C7B235B2963B3AEA149116059977E8B1890097AAA830CB95938F372ED98AA39";
     private static readonly (string Name, string Sha256)[] AppSources = [
         ("Program.cs", "B6D30356A7A372FE6A3C355022FB33B219767A8B0F271EB57123044B39340752"),
         ("SocketVectorsFixture.cs", "B764A02894DBA5660F966AE30FAB5E42B3CB59EDA9180DDB3A8228913D8FAB3A"),
@@ -67,8 +67,8 @@ public static class NativeAotSocketVectorsPackage
         }
         Need(Inventory(publicationRoot).SequenceEqual(outputs.Select(output => output.Name)
             .Concat(["publication.json", "publication.lock"]).Order(StringComparer.Ordinal)), "output_inventory");
-        Need(Hash(retained["recipe/receipt.json"]) == "E2600BF12DACCC159AECFAE1A3209027905AB2757D228009F0C6ADDC6A084D0B" &&
-            Hash(retained["originals/OS.Tooling.dll"]) == "57FFAEB5750E66D3F9DF66C6B433C0BD846F60C5AB25E8217B0BD4104FAA8D3E", "producer_identity");
+        Need(Hash(retained["recipe/receipt.json"]) == "C0EB4EB89B48B1C84299A301D6CACFDAB8366FCC73EF689781F38C87A4AF78F9" &&
+            Hash(retained["originals/OS.Tooling.dll"]) == "43387891CAA1658ACC8A23CD3C7E54A697E48DA89611FD42608F51D7E54FC186", "producer_identity");
         byte[] elf = retained[App + "/" + App];
         Need(elf.Length == ElfBytes && Hash(elf) == ElfSha256, "elf_identity");
         _ = NativeAotPayload.Inspect(elf);

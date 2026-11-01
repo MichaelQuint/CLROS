@@ -21,7 +21,7 @@ public static class NativeAotLogUploadHttpContract
     public const string Ready = "LOG_UPLOAD_HTTP_READY startupLogBytes=330 uploadBytes=0\n";
     private static readonly byte[] Guard = [0x43, 0x4c, 0x52, 0x4f, 0x53, 0, 0xff, 0x31];
     private static readonly NativeAotSocketFixturePublisher Publisher = new(Application, "log-upload-http", [
-        ("MinimalApiLogUploadContract.csproj", "EBF6DC7159A93708EB21DB8577B4BE63344F3720B83E8E097FA38C854EAFBB36"),
+        ("MinimalApiLogUploadContract.csproj", "98B384443EFE8CAD957E71BAA63A53B9D06ABDDCE31A02CC6B2C04B7FF9A0DC5"),
         ("Program.cs", "1B10C6E6578E104845074BF716BD7D34F52F36FB1F3B47481C24FDB653ACE043")]);
     private static readonly string[] LinuxToolNames = ["dotnet", "clang", "ld", "gcc", "readelf", "nm", "strace", "setsid"];
     private static readonly string[] LinuxLibraryNames = ["libc.a", "libm.a", "libz.a", "libstdc++.a", "libgcc.a", "libgcc_eh.a", "crt1.o", "crti.o", "crtn.o"];

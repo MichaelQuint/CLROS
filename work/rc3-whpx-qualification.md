@@ -101,3 +101,9 @@ eight end-to-end accelerator controls,158 affected focused checks, four fresh
 structurally verified native publications and independent raw decoding. Full018
 and M16 emitted PEs match their accepted predecessors; fresh native safety,
 Linux candidates, original guests and final unfiltered full remain required.
+
+[Step1677](../done/step1677.md) completes the early same-image WHPX/TCG diagnostic
+after the bounded timer-entry repair in step1676. [Step1678](../done/step1678.md)
+records the remaining actual RC3 candidate/receipt/package/source/index bindings
+and retained failed originals. Freeze the final source and rebuilt producers
+before the required unfiltered full and final native/guest/browser matrix.

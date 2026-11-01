@@ -28,8 +28,8 @@ public static class NativeAotSqliteContract
     public const string SourceCsha256="B1DD5D74EC7F29055A6684FA06FB3C2F6821C87DD38F9A458DFD2E8A1DB28189";
     public const string SourceHeaderSha256="919E7F2E8ED1D8F56AC17B412B8971C76AA5D1A879752CC6058F75E7D5910E1D";
     public const string SourceId="2026-07-24 19:02:57 bf7c7f30031888f4e796e429ab3978879485813aaca6f641c7b33e4e09459bcc";
-    public const int ClrosElfBytes=9_049_216;
-    public const string ClrosElfSha256="876D11A956E098174EE78C6CEF105C29FEEF2B5594F09EC6C557BC1D2808AAB2";
+    public const int ClrosElfBytes=9_049_224;
+    public const string ClrosElfSha256="EC837A4DEE111980636C33173B7B48E387BD2922A887B390FCCC419EE6946C17";
     public const string ClrosApplicationPath="apps/NativeAotSqliteContract";
     // Deliberately selected candidate envelope, not measured minima, backing
     // reservation, native stack fit or permission to execute a guest.
@@ -139,8 +139,8 @@ public static class NativeAotSqliteContract
     // it must not be compared with SHA512 over the complete signed ZIP bytes.
     public static IReadOnlyDictionary<string,string> PackageArchiveSha256 {get;}=new ReadOnlyDictionary<string,string>(new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["Microsoft.Data.Sqlite"]="E735E6AB8D9C520DA4A5F2352C9217D99D7B47919BC13C58D7EDB13B22416118",
-        ["Microsoft.Data.Sqlite.Core"]="38522A58D3BF13A5901577D1D1A730322AC12192F28F825921FD7397F875AA34",
+        ["Microsoft.Data.Sqlite"]="F6826764AF2C265F8BC2E0466A733DB32CED8836280A2FF03AAC07D4C85BA874",
+        ["Microsoft.Data.Sqlite.Core"]="E9D81166DFF2BC2725425702B31C7999F121A69DB5C61F83D0B58805D9B5F8F2",
         ["SQLitePCLRaw.bundle_e_sqlite3"]="E325CE61A86BCA381FBD35487264481E1C6A39663546FEC82035FA661198C2A1",
         ["SQLitePCLRaw.config.e_sqlite3"]="1C3908111A4A14E898839836BEA9C4DA390EDC669B297C404DE92422ABEE3AB1",
         ["SQLitePCLRaw.provider.e_sqlite3"]="10C6D3DAAC432BB382DDA06C35E5F7FFCCE3618792141BD91656527F06EF5B25",

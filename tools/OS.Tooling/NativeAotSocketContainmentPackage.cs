@@ -13,10 +13,10 @@ namespace OS.Tooling;
 /// execution qualification. Unsupported policy, source or input changes throw.</summary>
 public static class NativeAotSocketContainmentPackage
 {
-    public const int ElfBytes = 1_585_456;
-    public const string ElfSha256 = "785F992A35A9F3250EC2D3BA76422FEF51F8CC11D710EA295E53741C82A7A737";
+    public const int ElfBytes = 1585456;
+    public const string ElfSha256 = "FFCAF913DD187FA2B4C9085536B85AC76A9D2A63EEE495EE0B82C12C72951765";
     private const string App = NativeAotSocketContainmentPublisher.Application;
-    private const string ReceiptSha256 = "E13FB7A1C76D7DF6D604259412F3FED859E1CAAD05C3EBB17B517DAF7DECD553";
+    private const string ReceiptSha256 = "272ECA3916EE462560A91683DF13EC8D9D4BD03AB7AFBD72AAB137F3AA2DEB92";
     private static readonly (string Name, string Sha256)[] AppSources = [
         ("Program.cs", "FDC66C995386EFDB0DEC18BF6DB4BB7463FEB5C4BDD3C59E59FBD6F0CFC56B0C"),
         (App + ".csproj", "D8AFB29D1F4465AD7D3EF3F4A292255DBC5E6975FFD4AD02948E912B1D88564B")];
@@ -70,8 +70,8 @@ public static class NativeAotSocketContainmentPackage
         }
         Need(Inventory(publicationRoot, publicationRoot, generated: false).SequenceEqual(
             outputs.Select(o => o.Name).Concat(["publication.json", "publication.lock"]).Order(StringComparer.Ordinal)), "output_inventory");
-        Need(Hash(retained["recipe/receipt.json"]) == "E2600BF12DACCC159AECFAE1A3209027905AB2757D228009F0C6ADDC6A084D0B" &&
-            Hash(retained["originals/OS.Tooling.dll"]) == "3075F4590F65C38A492260E106C7995F64F57F5DE7D1CA3D400B9DE837F8202C", "producer_identity");
+        Need(Hash(retained["recipe/receipt.json"]) == "C0EB4EB89B48B1C84299A301D6CACFDAB8366FCC73EF689781F38C87A4AF78F9" &&
+            Hash(retained["originals/OS.Tooling.dll"]) == "43387891CAA1658ACC8A23CD3C7E54A697E48DA89611FD42608F51D7E54FC186", "producer_identity");
         byte[] elf = retained[App + "/" + App];
         Need(elf.Length == ElfBytes && Hash(elf) == ElfSha256, "elf_identity");
         _ = NativeAotPayload.Inspect(elf);

@@ -52,7 +52,7 @@ public sealed class NativeAotSqliteProgram
     }
 
     // Independent LLVM22.1.3 section coverage binds all2633509 executable section
-    // bytes of 876D. The75 load-padding bytes have no starts; entry and every193
+    // bytes of the current EC83 RC3 candidate. The75 load-padding bytes have no starts; entry and every193
     // syscall continuation are starts. This is not a control-flow/stack proof.
     private static Inspection Reviewed => new(761_857, 193,
         "4E0AF370EC915FFFC23F88FABE140402A2AFF599835026DDE272C1180C3A44B0");
@@ -79,20 +79,20 @@ public sealed class NativeAotSqliteProgram
     }
 
     private static readonly (string Path, string Hash)[] ProducerSources = [
-        ("global.json", "FD3FDAAE1B349B01D6E6835EC111903F107A2643F3BCE313FAD4DC20180F5FB2"),
+        ("global.json", "BE8663081FD82196AC86E65E9021D58D7C03A13574CE8CD4DC803937FC3BA30E"),
         ("Directory.Build.props", "DF8A0D794DB73060124F5134EB930DCDBF6EE526C2410227F0C668AB6D10C5E5"),
         ("Directory.Build.targets", "85AFD90F9DD0F550B6A3C6AD71D28BF714A8C930158DB872F8DA5D316889931A"),
         ("tools/Directory.Build.props", "44B8268EA6934335DBC79FEF47C1CE1FDEE49393C929C92E322417B14AA321AE"),
-        ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
+        ("tools/OS.Tooling/NativeAotPayload.cs", "E3EC6BCE13C70C99F3D7306541D68104876FAF73593325107319719811694D2F"),
         ("tools/OS.Tooling/NativeAotWebPayload.cs", "129FD1AE91130FBFFC772D4A189A1FBB4EEEBF8236FF69B6B827A3A40B4C1FA3"),
         ("tools/OS.Tooling/NativeAotSocketFixturePublisher.cs", "A9029B6AFD17828D7182B7BFC2E971857BDF9469BA38D570AC6E6EBBCD197494"),
-        ("tools/OS.Tooling/NativeAotSqliteContract.cs", "11FAE44088365A3034EDB13C6E18DE5539BDC03E499E2D14AE7ECF83524192B5"),
-        ("apps/NativeAotSqliteContract/NativeAotSqliteContract.csproj", "D8579920349A3C03DBBF59377F690EB6AFA24ECDDC25264A4BCFE09475DB6D24"),
+        ("tools/OS.Tooling/NativeAotSqliteContract.cs", "50ADE64A1AF557B57C9FBE44B773CBA9A92D9A6A1FC9268C7E109041254B9844"),
+        ("apps/NativeAotSqliteContract/NativeAotSqliteContract.csproj", "FCCD459D604864E41480B5E2FA57AC477E821A19B6772BF6C3A564D30771509B"),
         ("apps/NativeAotSqliteContract/Program.cs", "29A852A3322D6919F909FFEDCD73279CDF5BDC084890DEF40EDDCC0367DCC45A")];
 
     private static readonly NativeAotSocketFixturePublisher AppSources = new(NativeAotSqliteContract.Application, "sqlite-program", [
         ("Program.cs", "29A852A3322D6919F909FFEDCD73279CDF5BDC084890DEF40EDDCC0367DCC45A"),
-        ("NativeAotSqliteContract.csproj", "D8579920349A3C03DBBF59377F690EB6AFA24ECDDC25264A4BCFE09475DB6D24")]);
+        ("NativeAotSqliteContract.csproj", "FCCD459D604864E41480B5E2FA57AC477E821A19B6772BF6C3A564D30771509B")]);
 
     internal static void HoldSources(string root, AuthorityFiles sources)
     {

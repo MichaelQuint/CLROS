@@ -48,7 +48,7 @@ internal static class NativeAotOriginalRuntimeTests
         byte[] manifest=Encoding.ASCII.GetBytes(text);var view=NativeManifestParser.ParseLinuxElf(manifest);
         HostCheck.True(view.Succeeded && view.Threads==16 && view.MemoryBytes==67108864 && view.StackBytes==1572864 && view.Descriptors==16);
         HostCheck.True(text.Contains("app.path=apps/NativeAotRuntimeSmoke\n",StringComparison.Ordinal) &&
-            text.Contains("digest=4d60bbc72bf797db5e8f449867816a64ac99fbf93a5736d1dd1d31287cda7553\n",StringComparison.Ordinal));
+            text.Contains("digest=9c72e386641925bb2f7ee04b78fe12f3a76fd1a1bf09d00fef71fba34a2b5d03\n",StringComparison.Ordinal));
         HostCheck.True(!NativeAotRuntimePayload.Applications.Contains(App,StringComparer.Ordinal));
         Reject(()=>NativeAotRuntimePayload.ValidateOutput(App,Stdout),"app"); // The later producer remains unchanged.
         Reject(()=>NativeAotThreadingPackage.Manifest(App),"threading_package_app");

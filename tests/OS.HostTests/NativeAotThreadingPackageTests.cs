@@ -53,8 +53,8 @@ internal static unsafe class NativeAotThreadingPackageTests
             HostCheck.True(parsed.Succeeded && parsed.MemoryBytes == 67108864 && parsed.StackBytes == 1572864 && parsed.Descriptors == 16 &&
                 parsed.Threads == (app == "NativeAotSuspensionSmoke" ? 4U : 8U) && parsed.EnvironmentCount == 1 && parsed.Args.Length == 0);
             HostCheck.Equal("apps/" + app, Encoding.ASCII.GetString(bytes, (int)parsed.Path.Offset, (int)parsed.Path.Length));
-            HostCheck.Equal(app == "NativeAotSuspensionSmoke" ? "f135eac7774d92c9091c0a6954b915e60e403b80c50253fd396e2dd26370b8a1" :
-                "e7a89ecabf8ff979ac018026dc6ac9a3174b973b9539feb221270f09532a9d24", Encoding.ASCII.GetString(bytes, (int)parsed.Digest.Offset, (int)parsed.Digest.Length));
+            HostCheck.Equal(app == "NativeAotSuspensionSmoke" ? "d20f5740baf1040a2f57c3f0865034ae114bce4004255a6d0c2fb253372f1409" :
+                "cb742912776b9bb792b0394fe09241625b31d240abdca692223089d4127f393a", Encoding.ASCII.GetString(bytes, (int)parsed.Digest.Offset, (int)parsed.Digest.Length));
             fixed (byte* source = bytes) HostCheck.True(LinuxUserInterruptPolicy.TryRead(source, (uint)bytes.Length, parsed, out bool enabled) && enabled);
             HostCheck.True(!Encoding.ASCII.GetString(bytes).Contains("DOTNET_", StringComparison.Ordinal));
         }

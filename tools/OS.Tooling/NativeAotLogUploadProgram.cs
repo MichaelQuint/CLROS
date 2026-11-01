@@ -51,7 +51,7 @@ public sealed class NativeAotLogUploadProgram
     }
 
     // Independent LLVM22.1.3 section coverage binds all893491 executable section
-    // bytes of B8E4. The93 load-padding bytes have no starts; entry and every170
+    // bytes of the current CE55 RC3 candidate. The93 load-padding bytes have no starts; entry and every170
     // syscall continuation are starts. This is not a control-flow/stack proof.
     private static Inspection Reviewed => new(265_797, 170,
         "EBE1F9D31153BE28AAED85DE7DFDDBA6E6BEBD2BDA472AE0901E5AB14727A04F");
@@ -78,14 +78,14 @@ public sealed class NativeAotLogUploadProgram
     }
 
     private static readonly (string Path, string Hash)[] ProducerSources = [
-        ("global.json", "FD3FDAAE1B349B01D6E6835EC111903F107A2643F3BCE313FAD4DC20180F5FB2"),
+        ("global.json", "BE8663081FD82196AC86E65E9021D58D7C03A13574CE8CD4DC803937FC3BA30E"),
         ("Directory.Build.props", "DF8A0D794DB73060124F5134EB930DCDBF6EE526C2410227F0C668AB6D10C5E5"),
         ("Directory.Build.targets", "85AFD90F9DD0F550B6A3C6AD71D28BF714A8C930158DB872F8DA5D316889931A"),
         ("tools/Directory.Build.props", "44B8268EA6934335DBC79FEF47C1CE1FDEE49393C929C92E322417B14AA321AE"),
-        ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
+        ("tools/OS.Tooling/NativeAotPayload.cs", "E3EC6BCE13C70C99F3D7306541D68104876FAF73593325107319719811694D2F"),
         ("tools/OS.Tooling/NativeAotWebPayload.cs", "129FD1AE91130FBFFC772D4A189A1FBB4EEEBF8236FF69B6B827A3A40B4C1FA3"),
         ("tools/OS.Tooling/NativeAotSocketFixturePublisher.cs", "A9029B6AFD17828D7182B7BFC2E971857BDF9469BA38D570AC6E6EBBCD197494"),
-        ("apps/NativeAotLogUploadContract/NativeAotLogUploadContract.csproj", "5CB57DC7E6323F04E7CAE3DADF64FB827BE3CCEE8EB81C97A450C6678CBD5F17"),
+        ("apps/NativeAotLogUploadContract/NativeAotLogUploadContract.csproj", "CFAFC841454C628232065A18FB17E6E294F63F8770488CC69DD7BCA80C5F29C3"),
         ("apps/NativeAotLogUploadContract/Program.cs", "701446082EC9C6DB152123BD9CC3B7F918827FFAED5DD915823DA5E82E3DBAA3")];
 
     internal static void HoldSources(string root, AuthorityFiles sources)

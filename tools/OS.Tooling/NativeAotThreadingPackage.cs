@@ -17,11 +17,11 @@ public static class NativeAotThreadingPackage
     private const string ProjectHash = "D8AFB29D1F4465AD7D3EF3F4A292255DBC5E6975FFD4AD02948E912B1D88564B";
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private static readonly (string Path, string Hash)[] SharedSources = [
-        ("global.json", "FD3FDAAE1B349B01D6E6835EC111903F107A2643F3BCE313FAD4DC20180F5FB2"),
+        ("global.json", "BE8663081FD82196AC86E65E9021D58D7C03A13574CE8CD4DC803937FC3BA30E"),
         ("Directory.Build.props", "DF8A0D794DB73060124F5134EB930DCDBF6EE526C2410227F0C668AB6D10C5E5"),
         ("Directory.Build.targets", "85AFD90F9DD0F550B6A3C6AD71D28BF714A8C930158DB872F8DA5D316889931A"),
         ("tools/Directory.Build.props", "44B8268EA6934335DBC79FEF47C1CE1FDEE49393C929C92E322417B14AA321AE"),
-        ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
+        ("tools/OS.Tooling/NativeAotPayload.cs", "E3EC6BCE13C70C99F3D7306541D68104876FAF73593325107319719811694D2F"),
         ("tools/OS.Tooling/NativeAotThreadingPayload.cs", "01F119E451ABB2747430AF2C8F9E3E96472A0C95D64C81AF36ABF3079FE10AF6"),
         ("tools/OS.Tooling/NativeAotThreadingGuest.cs", "65C4141492E9FC969B29F73FC1F4188CF8DD41EBE5E78A2B46B5B119E1B40FD1")];
 
@@ -29,16 +29,14 @@ public static class NativeAotThreadingPackage
         int DllBytes, string DllHash, int ObjectBytes, string ObjectHash, int StdoutBytes, string StdoutHash, int Traces);
     internal static Payload Specification(string app) => app switch
     {
-        "NativeAotSuspensionSmoke" => new(app, 1_320_176, "F135EAC7774D92C9091C0A6954B915E60E403B80C50253FD396E2DD26370B8A1", 4,
+        "NativeAotSuspensionSmoke" => new(app,1320176,"D20F5740BAF1040A2F57C3F0865034AE114BCE4004255A6D0C2FB253372F1409",4,
             "33D3FC94C6A82EF52F83A773A7CB7890A913896502882BD5984036326410DA68",
-            7680, "7E67BE8896613F2D38113027BE0563FE408D6017F8D9B381F93CF314030160CF",
-            4378164, "1978406603E5A8430352064D2EBC08C6F3366C201901CA2505658635CF376F8F",
-            384, "1AD842FF6098A7B43B76FEE1EC20A27A4EC2DB996C44A14F59AA4430CC3A0635", 4),
-        "NativeAotThreadPoolSmoke" => new(app, 1_577_712, "E7A89ECABF8FF979AC018026DC6AC9A3174B973B9539FEB221270F09532A9D24", 8,
+            7680,"13FC042F9639DE74C2FF4752186BA52CC07BED59A7737DDDBDBF8B7F34E69316",4378164,"EDB96F2D791D9966B7B8EA3AD2B86DD5F4AB4347093372110CE53E34906658C6",
+            380,"550955BF31DCAE6D93A5A37C00B8CF5C1DAE12FAF77E221490A9B384BE8DB868",4),
+        "NativeAotThreadPoolSmoke" => new(app,1577712,"CB742912776B9BB792B0394FE09241625B31D240ABDCA692223089D4127F393A",8,
             "9BB7F4F0483521A6C428CF6CC656F23372F1B55805473D38893E57403C9DB5D8",
-            22016, "AECF574A9990222C5FD0337BC0DC131C518FE59D4E17D303303806F14E40BBB5",
-            5880820, "E27BA8078E44BFADFCA5F2B3074AEA5BE978D98064A504B563AC320A730FA956",
-            629, "E2B9F2E1BDCDECD14214E9576180C2D845BF605A570FA0C64D9B5BA0D7B95049", 7),
+            22016,"88FDBFD6F62FAAF82D40EC8BD6D7FD0D67C82EA1435F7DF15EED8E2FB3937D41",5880820,"70B45197A306350E92D66DB08C7AEDE06DE6D7057D1A6B9752EF5452753E2337",
+            621,"0FAE1F3E9F7CABC33A856523E2DF3A3E599F6C4561F920A637062FA4D763C2B5",7),
         _ => throw new ArgumentException("threading_package_app", nameof(app))
     };
 
@@ -86,8 +84,7 @@ public static class NativeAotThreadingPackage
     public static unsafe byte[] Create(string root, string evidenceRoot, string app)
     {
         var p = Specification(app); RequireCurrentSources(root, app);
-        byte[] receipt = Pinned(evidenceRoot, Qualification + "receipt.json", 1_221_776,
-            "68FF27629E8BA6AE044D6D61C761EEED5631EA1A49E621A4E8FB9857EF22690B");
+        byte[] receipt = Pinned(evidenceRoot, Qualification + "receipt.json",1271544,"37B8619BBE14FF3754F08BAE4571CAA2598649B5A59274F5A94064D79569C9F0");
         using JsonDocument document = JsonDocument.Parse(receipt); var data = document.RootElement;
         Need(data.GetProperty("schema").GetInt32() == 1 && data.GetProperty("outcome").GetString() == "passed" &&
             data.GetProperty("sdk").GetString() == NativeAotPayload.SdkVersion &&
@@ -98,8 +95,8 @@ public static class NativeAotThreadingPackage
         string intermediate = $"apps/{app}/obj/Release/net11.0/linux-musl-x64/";
         _ = Pinned(evidenceRoot, intermediate + app + ".dll", p.DllBytes, p.DllHash);
         _ = Pinned(evidenceRoot, intermediate + "native/" + app + ".o", p.ObjectBytes, p.ObjectHash);
-        Need(data.GetProperty("nativeInputs").GetProperty("/clros-threading-r01/" + intermediate + app + ".dll").GetString() == p.DllHash &&
-            data.GetProperty("nativeInputs").GetProperty("/clros-threading-r01/" + intermediate + "native/" + app + ".o").GetString() == p.ObjectHash, "producer_outputs");
+        Need(data.GetProperty("nativeInputs").GetProperty("/root/clros-rc3-remaining-r05/" + intermediate + app + ".dll").GetString() == p.DllHash &&
+            data.GetProperty("nativeInputs").GetProperty("/root/clros-rc3-remaining-r05/" + intermediate + "native/" + app + ".o").GetString() == p.ObjectHash, "producer_outputs");
         string stdout = Utf8.GetString(Pinned(evidenceRoot, Qualification + app + "-run.stdout.log", p.StdoutBytes, p.StdoutHash));
         if (p.Threads == 4) NativeAotThreadingGuest.ValidateSuspensionOutput(stdout); else NativeAotThreadingGuest.ValidateThreadPoolOutput(stdout);
         string traces = Path.Combine(Path.GetFullPath(evidenceRoot), Qualification); AuthorityFiles.RequirePlainPath(Path.GetFullPath(evidenceRoot), traces, "threading_evidence_path");

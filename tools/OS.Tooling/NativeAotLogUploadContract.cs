@@ -16,11 +16,11 @@ public static class NativeAotLogUploadContract
     public const string Application = "NativeAotLogUploadContract", LogName = "LOG.TXT", UploadName = "UPLOAD.BIN";
     public const int MaximumTranscriptBytes = 8192, UploadBytes = 5126;
     public const int ClrosElfBytes = 1_356_944;
-    public const string ClrosElfSha256 = "B8E4D4B7521AD98755E98BE699A64D40A1C5C4744EE0F2864DBA55B209607444";
+    public const string ClrosElfSha256 = "CE553A4952F3AC5299D1E4DD4DB7010D4A607E7CD751129129219ECDA9C422E7";
     public const string ClrosApplicationPath = "apps/NativeAotLogUploadContract";
     public const uint ClrosMemoryBytes = 67_108_864, ClrosStackBytes = 1_572_864, ClrosThreads = 16, ClrosDescriptors = 32;
     private static readonly NativeAotSocketFixturePublisher Publisher = new(Application, "log-upload", [
-        ("NativeAotLogUploadContract.csproj", "5CB57DC7E6323F04E7CAE3DADF64FB827BE3CCEE8EB81C97A450C6678CBD5F17"),
+        ("NativeAotLogUploadContract.csproj", "CFAFC841454C628232065A18FB17E6E294F63F8770488CC69DD7BCA80C5F29C3"),
         ("Program.cs", "701446082EC9C6DB152123BD9CC3B7F918827FFAED5DD915823DA5E82E3DBAA3")]);
 
     public readonly record struct FileValues(int LogBytes, string LogSha256, int UploadBytes, string UploadSha256)

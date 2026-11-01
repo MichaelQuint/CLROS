@@ -27,6 +27,12 @@ roll-forward. [#813](http://192.168.4.35:3000/admin/CLROS/issues/813) and the
 native/guest/full-host renewal. Historical RC2 read qualification in step1672
 retains its actual source, producer, package and backend identities.
 
+[Step1678](../done/step1678.md) binds the freshly qualified RC3 Linux candidates,
+actual package archives and complete instruction indexes. The short WHPX/TCG
+pair passes in step1677. Remaining final host/native/guest/browser renewal is
+still required. Pending log/upload and SQLite packages gain no CLROS execution
+or durability acceptance from these host publications.
+
 Select the installed RC3 host in a fresh terminal:
 
 ```powershell
