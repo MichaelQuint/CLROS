@@ -7,41 +7,61 @@ namespace OS.Tooling;
 /// <summary>Enumerates symbol assignments covering satisfiable conditional-source
 /// branches for host syntax inspection. These are syntax configurations, not
 /// supported EFI workload selections or authority to execute a guest.</summary>
-public static class CSharpSourceProfiles
+public static partial class CSharpSourceProfiles
 {
     public static IReadOnlyList<CSharpParseOptions> ForSource(string source)
     {
         var options = new CSharpParseOptions(LanguageVersion.CSharp14);
         var result = new List<CSharpParseOptions> { options };
         var seen = new HashSet<string>(StringComparer.Ordinal) { string.Empty };
-        var branches = new List<List<ExpressionSyntax>>();
-        var conditions = new List<List<(ExpressionSyntax Expression, bool Expected)>>();
+        var groups = new List<ConditionalGroup>();
         var paths = new List<(ExpressionSyntax Expression, bool Expected)[]>();
         var pathKeys = new HashSet<string>(StringComparer.Ordinal);
+        var localSymbols = new Dictionary<string, ExpressionSyntax>(StringComparer.Ordinal);
+        var shapes = new Dictionary<string, HashSet<(int Start, int Kind, string Name, bool HasOwnMembers, bool Partial)>>(StringComparer.Ordinal);
         var tree = CSharpSyntaxTree.ParseText(source, options);
+        shapes.Add(string.Empty, Declarations(tree).ToHashSet());
 
         foreach (var trivia in tree.GetRoot().DescendantTrivia(descendIntoTrivia: true))
         {
             switch (trivia.GetStructure())
             {
                 case IfDirectiveTriviaSyntax directive:
-                    branches.Add([directive.Condition]);
-                    conditions.Add([(directive.Condition, true)]);
+                    var condition = Rewrite(directive.Condition);
+                    groups.Add(new ConditionalGroup(condition));
                     AddConfiguration();
                     break;
-                case ElifDirectiveTriviaSyntax directive when branches.Count != 0:
-                    conditions[^1] = branches[^1].Select(value => (value, false)).ToList();
-                    conditions[^1].Add((directive.Condition, true));
-                    branches[^1].Add(directive.Condition);
+                case ElifDirectiveTriviaSyntax directive when groups.Count != 0:
+                    groups[^1].Conditions = groups[^1].Alternatives.Select(value => (value, false)).ToList();
+                    condition = Rewrite(directive.Condition);
+                    groups[^1].Conditions.Add((condition, true));
+                    groups[^1].Alternatives.Add(condition);
                     AddConfiguration();
                     break;
-                case ElseDirectiveTriviaSyntax when branches.Count != 0:
-                    conditions[^1] = branches[^1].Select(value => (value, false)).ToList();
+                case ElseDirectiveTriviaSyntax when groups.Count != 0:
+                    groups[^1].HasElse = true;
+                    groups[^1].Conditions = groups[^1].Alternatives.Select(value => (value, false)).ToList();
                     AddConfiguration();
                     break;
-                case EndIfDirectiveTriviaSyntax when branches.Count != 0:
-                    branches.RemoveAt(branches.Count - 1);
-                    conditions.RemoveAt(conditions.Count - 1);
+                case EndIfDirectiveTriviaSyntax when groups.Count != 0:
+                    if (!groups[^1].HasElse)
+                    {
+                        groups[^1].Conditions = groups[^1].Alternatives.Select(value => (value, false)).ToList();
+                        AddConfiguration();
+                    }
+                    // Keep default-active alternatives too: a sibling may
+                    // need a different witness to coexist with another type.
+                    if (groups[^1].StructureChanged)
+                        foreach (var path in groups[^1].Paths)
+                            if (pathKeys.Add(string.Join(";", path.Select(value => value.Expected + ":" + value.Expression.ToFullString()))))
+                                paths.Add(path);
+                    groups.RemoveAt(groups.Count - 1);
+                    break;
+                case DefineDirectiveTriviaSyntax directive:
+                    SetLocalSymbol(directive.Name.ValueText, true);
+                    break;
+                case UndefDirectiveTriviaSyntax directive:
+                    SetLocalSymbol(directive.Name.ValueText, false);
                     break;
             }
         }
@@ -55,22 +75,77 @@ public static class CSharpSourceProfiles
 
         return result;
 
+        // Saved formulas already refer to the initial input symbols. Expanding
+        // their identifiers again would incorrectly apply later local mutations.
+        ExpressionSyntax Rewrite(ExpressionSyntax expression) => expression switch
+        {
+            IdentifierNameSyntax name => localSymbols.GetValueOrDefault(name.Identifier.ValueText, name),
+            ParenthesizedExpressionSyntax parenthesized => parenthesized.WithExpression(Rewrite(parenthesized.Expression)),
+            PrefixUnaryExpressionSyntax unary => unary.WithOperand(Rewrite(unary.Operand)),
+            BinaryExpressionSyntax binary => binary.WithLeft(Rewrite(binary.Left)).WithRight(Rewrite(binary.Right)),
+            _ => expression
+        };
+
+        void SetLocalSymbol(string name, bool defined)
+        {
+            ExpressionSyntax active = SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression);
+            foreach (var (expression, expected) in groups.SelectMany(value => value.Conditions))
+                active = SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, active,
+                    expected ? SyntaxFactory.ParenthesizedExpression(expression)
+                        : SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, SyntaxFactory.ParenthesizedExpression(expression)));
+
+            var previous = localSymbols.GetValueOrDefault(name, SyntaxFactory.IdentifierName(name));
+            localSymbols[name] = defined
+                ? SyntaxFactory.BinaryExpression(SyntaxKind.LogicalOrExpression,
+                    SyntaxFactory.ParenthesizedExpression(active), SyntaxFactory.ParenthesizedExpression(previous))
+                : SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression,
+                    SyntaxFactory.PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, SyntaxFactory.ParenthesizedExpression(active)),
+                    SyntaxFactory.ParenthesizedExpression(previous));
+        }
+
         void AddConfiguration((ExpressionSyntax Expression, bool Expected)[]? selected = null)
         {
-            var required = selected ?? conditions.SelectMany(value => value).ToArray();
-            if (selected is null && pathKeys.Add(string.Join(";", required.Select(value => value.Expected + ":" + value.Expression.ToString()))))
-                paths.Add(required);
+            var required = selected ?? groups.SelectMany(value => value.Conditions).ToArray();
+            var candidate = FindConfiguration(required);
+            if (candidate is null)
+                return;
+
+            string key = string.Join(";", candidate.PreprocessorSymbolNames);
+            if (seen.Add(key))
+                result.Add(candidate);
+
+            // Compare against an active parent, not an entirely disabled file.
+            // Otherwise every method-body switch below an outer type guard
+            // would generate redundant pairs for the same declarations.
+            if (selected is null)
+            {
+                groups[^1].Paths.Add(required);
+                var parent = FindConfiguration(groups.Take(groups.Count - 1).SelectMany(value => value.Conditions).ToArray());
+                if (parent is not null && !Shape(candidate).SetEquals(Shape(parent)))
+                    groups[^1].StructureChanged = true;
+            }
+        }
+
+        HashSet<(int Start, int Kind, string Name, bool HasOwnMembers, bool Partial)> Shape(CSharpParseOptions candidate)
+        {
+            string key = string.Join(";", candidate.PreprocessorSymbolNames);
+            if (!shapes.TryGetValue(key, out var declarations))
+                shapes.Add(key, declarations = Declarations(CSharpSyntaxTree.ParseText(source, candidate)).ToHashSet());
+            return declarations;
+        }
+
+        CSharpParseOptions? FindConfiguration((ExpressionSyntax Expression, bool Expected)[] required)
+        {
             string[] names = required.SelectMany(value => value.Expression.DescendantNodesAndSelf()
                 .OfType<IdentifierNameSyntax>().Select(name => name.Identifier.ValueText))
                 .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
             var values = new Dictionary<string, bool>(StringComparer.Ordinal);
             if (!Solve(0))
-                return;
+                return null;
 
             string[] enabled = values.Where(pair => pair.Value).Select(pair => pair.Key)
                 .Order(StringComparer.Ordinal).ToArray();
-            if (seen.Add(string.Join(";", enabled)))
-                result.Add(options.WithPreprocessorSymbols(enabled));
+            return options.WithPreprocessorSymbols(enabled);
 
             bool Solve(int index)
             {
@@ -91,6 +166,23 @@ public static class CSharpSourceProfiles
                 values.Remove(names[index]);
                 return false;
             }
+        }
+    }
+
+    private static IEnumerable<(int Start, int Kind, string Name, bool HasOwnMembers, bool Partial)> Declarations(SyntaxTree tree)
+    {
+        foreach (var node in tree.GetRoot().DescendantNodes())
+        {
+            if (node is BaseTypeDeclarationSyntax type)
+                yield return (type.SpanStart, type.RawKind, type.Identifier.ValueText,
+                    type is not TypeDeclarationSyntax container || container.Members.Any(member => member is not BaseTypeDeclarationSyntax and not DelegateDeclarationSyntax)
+                        || container.AttributeLists.Count != 0 || container.BaseList is not null || container.ParameterList is not null
+                        || (container.TypeParameterList is not null && container.TypeParameterList.Parameters.Any(value => value.AttributeLists.Count != 0)),
+                    type.Modifiers.Any(SyntaxKind.PartialKeyword));
+            else if (node is DelegateDeclarationSyntax callback)
+                yield return (callback.SpanStart, callback.RawKind, callback.Identifier.ValueText, true, false);
+            else if (node is GlobalStatementSyntax statement)
+                yield return (statement.SpanStart, statement.RawKind, string.Empty, true, false);
         }
     }
 

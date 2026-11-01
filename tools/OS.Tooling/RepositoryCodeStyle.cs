@@ -9,7 +9,7 @@ namespace OS.Tooling;
 /// malformed source fails inspection. Generated and reference trees are excluded.</summary>
 public static class RepositoryCodeStyle
 {
-    private static readonly HashSet<string> Roots = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> Roots = new(StringComparer.OrdinalIgnoreCase)
         { "src", "std", "apps", "tools", "tests" };
 
     public static IReadOnlyList<SourceStyleDiagnostic> Check(string root)
@@ -19,7 +19,7 @@ public static class RepositoryCodeStyle
         foreach (string path in RepositoryChecks.Enumerate(root))
         {
             string relative = Path.GetRelativePath(root, path).Replace('\\', '/');
-            if (Path.GetExtension(path) == ".cs" && Roots.Contains(relative.Split('/')[0]))
+            if (Path.GetExtension(path).Equals(".cs", StringComparison.OrdinalIgnoreCase) && Roots.Contains(relative.Split('/')[0]))
                 result.AddRange(CheckFile(relative, File.ReadAllText(path)));
         }
 
@@ -39,7 +39,9 @@ public static class RepositoryCodeStyle
         {
             var tree = CSharpSyntaxTree.ParseText(source, options, path);
             var root = tree.GetRoot();
-            foreach (var diagnostic in tree.GetDiagnostics().Where(value => value.Severity == DiagnosticSeverity.Error))
+            // #error deliberately rejects unsupported build selections; it is
+            // not malformed C# syntax or a type-placement violation.
+            foreach (var diagnostic in tree.GetDiagnostics().Where(value => value.Severity == DiagnosticSeverity.Error && value.Id != "CS1029"))
                 result.Add(new(path, diagnostic.Location.GetLineSpan().StartLinePosition.Line + 1,
                     "CLROSSTYLE000", diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)));
 
@@ -57,8 +59,10 @@ public static class RepositoryCodeStyle
                 string file = Path.GetFileNameWithoutExtension(path);
                 string[] parents = declaration.Ancestors().OfType<TypeDeclarationSyntax>()
                     .Reverse().Select(value => value.Identifier.ValueText).ToArray();
+                string qualifiedName = string.Join(".", parents.Append(name));
                 bool matches = parents.Length != 0
-                    ? file == string.Join(".", parents.Append(name))
+                    ? file == qualifiedName || (declaration.Modifiers.Any(SyntaxKind.PartialKeyword)
+                        && file.StartsWith(qualifiedName + ".", StringComparison.Ordinal))
                     : file == name || file.EndsWith("." + name, StringComparison.Ordinal)
                         || (declaration.Modifiers.Any(SyntaxKind.PartialKeyword) && file.StartsWith(name + ".", StringComparison.Ordinal));
                 if (!matches)
@@ -82,5 +86,7 @@ public static class RepositoryCodeStyle
     };
 
     private static bool IsContainingWrapper(MemberDeclarationSyntax node) => node is TypeDeclarationSyntax type
-        && type.Modifiers.Any(SyntaxKind.PartialKeyword) && type.Members.Count != 0 && type.Members.All(IsType);
+        && type.Modifiers.Any(SyntaxKind.PartialKeyword) && type.Members.Count != 0 && type.Members.All(IsType)
+        && type.AttributeLists.Count == 0 && type.BaseList is null && type.ParameterList is null
+        && (type.TypeParameterList is null || type.TypeParameterList.Parameters.All(value => value.AttributeLists.Count == 0));
 }

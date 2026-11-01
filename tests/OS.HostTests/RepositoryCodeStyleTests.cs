@@ -12,6 +12,8 @@ internal static class RepositoryCodeStyleTests
             ("Owner.Read.cs", "namespace N; public partial class Owner { void Read() {} }"),
             ("Owner.Inner.cs", "namespace N; public partial class Owner { private struct Inner { int value; } }"),
             ("Owner.Inner.Leaf.cs", "partial class Owner { partial class Inner { private enum Leaf { A } } }"),
+            ("Owner.Inner.Feature.cs", "partial class Owner { partial class Inner { void Read() {} } }"),
+            ("Owner.Inner.Leaf.cs", "partial class Owner { partial class Inner { } }"),
             ("Callback.cs", "public delegate void Callback();"),
             ("Value.cs", "public record Value(int Number);"),
             ("Program.cs", "System.Console.WriteLine(1);"),
@@ -31,6 +33,7 @@ internal static class RepositoryCodeStyleTests
             ("Wrong.cs", "public struct Value {}", "CLROSSTYLE002"),
             ("Inner.cs", "partial class Owner { private struct Inner {} }", "CLROSSTYLE002"),
             ("Program.cs", "System.Console.WriteLine(1); class Helper {}", "CLROSSTYLE001"),
+            ("Owner.Child.cs", "[System.Obsolete] partial class Owner { class Child {} }", "CLROSSTYLE001"),
             ("Broken.cs", "class Broken {", "CLROSSTYLE000")
         })
             HostCheck.True(RepositoryCodeStyle.CheckFile(path, source).Any(value => value.Rule == rule), path + " " + rule);
@@ -66,5 +69,31 @@ internal static class RepositoryCodeStyleTests
             .Any(value => value.Rule == "CLROSSTYLE001"));
         const string exclusive = "#if FIRST\nclass Owner {}\n#elif SECOND\nstruct Owner {}\n#endif";
         HostCheck.Equal(0, RepositoryCodeStyle.CheckFile("Owner.cs", exclusive).Count);
+        const string wrapper = "partial class Owner {\n#if FIELD\n int value;\n#endif\n#if CHILD\n class Child {}\n#endif\n}";
+        HostCheck.True(RepositoryCodeStyle.CheckFile("Owner.Child.cs", wrapper)
+            .Any(value => value.Rule == "CLROSSTYLE001"));
+        const string modifier = "public\n#if !NONPARTIAL\npartial\n#endif\nclass Modifier {\n#if CHILD\nclass Child {}\n#endif\n}";
+        HostCheck.True(RepositoryCodeStyle.CheckFile("Modifier.Child.cs", modifier)
+            .Any(value => value.Rule == "CLROSSTYLE001"));
+        const string globals = "#if GLOBAL\nSystem.Console.WriteLine(1);\n#endif\n#if TYPE\nclass Program {}\n#endif";
+        HostCheck.True(RepositoryCodeStyle.CheckFile("Program.cs", globals)
+            .Any(value => value.Rule == "CLROSSTYLE001"));
+        const string defaultActive = "#if !Z\nclass Child {}\n#endif\n#if B || Z\npartial class Container {}\n#endif";
+        HostCheck.True(RepositoryCodeStyle.CheckFile("Container.Child.cs", defaultActive)
+            .Any(value => value.Rule == "CLROSSTYLE001"));
+    }
+
+    [HostTest("source style follows conditional local symbol definitions")]
+    private static void LocalSymbols()
+    {
+        foreach (string source in new[]
+        {
+            "#if OUTER\n#undef OUTER\n#if !OUTER && INNER\nclass Hidden {}\nstruct Other {}\n#endif\n#endif",
+            "#if OUTER\n#define LOCAL\n#endif\n#if LOCAL && INNER\nclass Hidden {}\nstruct Other {}\n#endif"
+        })
+            HostCheck.True(RepositoryCodeStyle.CheckFile("Hidden.cs", source)
+                .Any(value => value.Rule == "CLROSSTYLE001"));
+        HostCheck.Equal(0, RepositoryCodeStyle.CheckFile("Owner.cs",
+            "#define LOCAL\n#if !LOCAL\nclass Hidden {}\nstruct Other {}\n#endif\nclass Owner {} ").Count);
     }
 }
