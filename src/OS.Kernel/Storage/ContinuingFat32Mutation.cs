@@ -15,177 +15,12 @@ namespace OS.Storage;
 /// regular root files and sends actual barriers. Nested directories, rename and
 /// persistent crash recovery remain unsupported. Any issued-write failure keeps
 /// dirty before/after buffers owned; device reset never authorizes their loss.</summary>
-public static unsafe class ContinuingFat32Mutation
+public static unsafe partial class ContinuingFat32Mutation
 {
     public const uint JournalChanges = 128, MaximumClusters = 4096, WriteBytes = 8192, NameWords = 256, VfatWords = 260;
     public const uint SectorBytes = 512, EncodedEntryBytes = 672;
     public const int MaximumGrowthClusters = 16;
-    public enum Status : byte
-    {
-        Uninitialized, Success, Pending, Ready, Idle, InvalidStorage, InvalidState,
-        InvalidVolume, InvalidName, NotFound, NotFile, ReadOnly, Unsupported,
-        CorruptDirectory, CorruptChain, MirrorMismatch, BudgetExceeded,
-        CapacityExceeded, StaleToken, Busy, Cancelled, GenerationExhausted,
-        BlockFailure, RecoveryRequired, AlreadyExists, InvalidAllocation,
-        SearchBudgetExceeded, EndOfScan
-    }
-    internal enum Life : byte { Mounting = 1, Idle, Working, Ready, Faulted, Retired }
-    internal enum Kind : byte { Mount, Open, Overwrite, Barrier, Create, Grow, Read, Truncate, Delete, FindFree, RootMetadata }
-    internal enum Step : byte { Bpb, RootChain, Scan, TargetChain, OtherChain, Plan, Issue, Flush, GrowCandidates, GrowData, GrowFat, GrowDirectory, GrowFsInfo, ReadData, ShrinkDirectory, DeleteDirectory, ReleaseFat, FindFree }
-    internal enum Purpose : byte { Bpb, Fat0, Fat1, Directory, Original, Write, Flush, GrowthEdit, FileData }
-    internal enum Transform : byte { Zero, Fat, Directory, FsInfo, ShrinkDirectory, Tombstone }
     private const byte LookupName = 1, LookupToken = 2, ValidateRoot = 3, CreateRoot = 4;
-
-    /// <summary>Exact initial bounded backing:128 changes, two64KiB journal
-    /// buffers, three4096-word maps, three sector buffers,8192 copied input
-    /// bytes,256 name words,260 VFAT words and672 encoding bytes. All extents
-    /// remain stable, exclusive and disjoint until Stop succeeds or dirty
-    /// ownership is explicitly recovered by a future owner. The outer owner
-    /// authenticates a separate writable volume, device and unique lifetime.
-    /// The existing block owner is borrowed, never reset or released here.</summary>
-    public struct Admission
-    {
-        public Block.State* Device;
-        public ulong Owner, Epoch, PartitionFirst, PartitionLast;
-        public uint ChangeCapacity, ChainCapacity, InputCapacity, WorkBudget;
-        public Fat32Mutation.Change* Changes;
-        public byte* Before, After, Sector, Fat0, Fat1, Input, EncodedEntries;
-        public uint* DirectoryMap, FileMap, WalkMap;
-        public ushort* Name, LongName;
-    }
-    public readonly struct RequestToken
-    {
-        public readonly ulong Owner, Epoch, Generation;
-        internal RequestToken(State* s) { Owner = (ulong)s; Epoch = s->Input.Epoch; Generation = s->RequestGeneration; }
-    }
-    /// <summary>Copied physical root-file identity. Every issued mutation
-    /// revokes the volume revision, so old tokens cannot recapture another file.
-    /// Four fingerprint words retain the complete original short entry.
-    /// Logical POSIX inode/description lifetimes belong to a later fd port.</summary>
-    public readonly struct FileToken
-    {
-        public readonly ulong Owner, Epoch, Revision, EntryOffset, Fingerprint0, Fingerprint1, Fingerprint2, Fingerprint3;
-        public readonly uint FirstCluster, Length;
-        internal FileToken(State* s, ulong offset, uint first, uint length, ReadOnlySpan<byte> raw)
-        {
-            Owner = (ulong)s; Epoch = s->Input.Epoch; Revision = s->Revision; EntryOffset = offset; FirstCluster = first; Length = length;
-            Fingerprint0 = U64(raw, 0); Fingerprint1 = U64(raw, 8); Fingerprint2 = U64(raw, 16); Fingerprint3 = U64(raw, 24);
-        }
-    }
-    /// <summary>Copied successful regular-file open facts. AllocatedClusters
-    /// is the actual validated full-chain count, including its final cluster;
-    /// Allocated512Blocks counts that chain's sectors, not rounded file bytes.
-    /// The engine rejects preallocated/overlong chains. These historical facts
-    /// grant no Linux stat policy, current fd/device authority or persistence.</summary>
-    public readonly struct OpenFacts
-    {
-        public readonly FileToken File;
-        public readonly uint ClusterBytes, AllocatedClusters;
-        public readonly ulong Allocated512Blocks;
-        internal OpenFacts(FileToken file, uint clusterBytes, uint clusters, ulong blocks)
-        { File = file; ClusterBytes = clusterBytes; AllocatedClusters = clusters; Allocated512Blocks = blocks; }
-    }
-    /// <summary>Copied mount-root allocation facts from an actual full
-    /// mirrored-FAT root-chain walk. The FAT root has no short entry, file
-    /// token, Unix owner/mode or timestamp. FirstSector is its first cluster's
-    /// physical sector; allocation includes every checked root cluster. These
-    /// historical values grant no fd, user-copy or future device authority.</summary>
-    public readonly struct RootFacts
-    {
-        public readonly ulong Owner, Epoch, Revision, FirstSector;
-        public readonly uint ClusterBytes, AllocatedClusters;
-        public readonly ulong Allocated512Blocks;
-        internal RootFacts(State* s, ulong sector, uint clusterBytes, uint clusters, ulong blocks)
-        { Owner = (ulong)s; Epoch = s->Input.Epoch; Revision = s->Revision; FirstSector = sector;
-            ClusterBytes = clusterBytes; AllocatedClusters = clusters; Allocated512Blocks = blocks; }
-    }
-    public readonly struct Result
-    {
-        public readonly Status Status;
-        public readonly uint Bytes;
-        internal Result(Status status, uint bytes) { Status = status; Bytes = bytes; }
-    }
-    /// <summary>Copied lineage for an admitted grow/shrink/delete request.
-    /// Only Success authenticates NewFile or Deleted, after every planned OUT
-    /// and the observed final real FLUSH. Equal-length truncate needs no I/O.
-    /// OriginalFile is the admitted physical identity, not a name-reopen guess.
-    /// This is not a persistent journal or power-loss recovery receipt.</summary>
-    public readonly struct MutationResult
-    {
-        public readonly Status Status;
-        public readonly uint Bytes;
-        public readonly RequestToken Request;
-        public readonly FileToken OriginalFile, NewFile;
-        public readonly bool Deleted;
-        internal MutationResult(Status status, uint bytes, RequestToken request, FileToken original, FileToken next, bool deleted)
-        { Status = status; Bytes = bytes; Request = request; OriginalFile = original; NewFile = next; Deleted = deleted; }
-    }
-    /// <summary>Copied forward-only scan position, invalidated by any new
-    /// request or issued mutation. It is not a free-space reservation. Only
-    /// CreateFreeCursor or a consumed FreeResult supplies a current cursor.</summary>
-    public readonly struct FreeCursor
-    {
-        public readonly ulong Owner, Epoch, Revision, Generation;
-        public readonly uint NextCluster;
-        internal FreeCursor(State* s, uint next)
-        { Owner = (ulong)s; Epoch = s->Input.Epoch; Revision = s->Revision; Generation = s->RequestGeneration; NextCluster = next; }
-    }
-    /// <summary>Copied candidate facts at one volume revision/request. Success
-    /// found the wanted count. SearchBudgetExceeded may contain a verified
-    /// partial prefix; EndOfScan reached the physical end of the remaining
-    /// cursor range, not a whole-volume ENOSPC claim. No cluster is reserved.</summary>
-    public readonly struct FreeResult
-    {
-        public readonly Status Status;
-        public readonly uint Count, Scanned, SectorReads;
-        public readonly RequestToken Request;
-        public readonly FreeCursor NextCursor;
-        internal FreeResult(Status status, uint count, uint scanned, uint reads, RequestToken request, FreeCursor next)
-        { Status = status; Count = count; Scanned = scanned; SectorReads = reads; Request = request; NextCursor = next; }
-    }
-    /// <summary>Zeroed retained unmanaged owner; it contains only POD values
-    /// and pointers into Admission. Copying/moving an active owner is forbidden.
-    /// Inspect copied properties after failure; never free dirty journals merely
-    /// because the outer block Stop/reset succeeded.</summary>
-    public struct State
-    {
-        internal ulong Self, DeviceEpoch, PoolEpoch, Revision, RequestGeneration;
-        internal Admission Input;
-        internal LiveFat32Volume Volume;
-        internal Life Phase;
-        internal Kind Kind;
-        internal Step Step;
-        internal Purpose Purpose;
-        internal byte ScanReason, FatPart;
-        internal bool Mounted, IoActive, Cancelled, DirtyValue, DeviceFault, CreateHasRun, CreateEnd;
-        internal ulong IoLba, FatLba, LoadedDirectoryLba, Offset;
-        internal byte* IoTarget;
-        internal Block.RequestToken Io;
-        internal FileToken File;
-        internal uint RootCount, TargetCount, WalkCount, WalkNext, OtherLength;
-        internal uint DirectorySector, DirectorySlot, NameLength, Wanted, PlannedBytes, Changes, Issued, Work;
-        internal uint CreateSlots, CreateStart, CreateFree;
-        internal fixed uint Growth[MaximumGrowthClusters];
-        internal uint GrowthCount, NewLength, GrowthCursor, FatCursor, FsCursor, FsInfoSector, BackupBootSector, FlushedThrough;
-        internal uint EditIndex, EditOffset, EditBytes, EditValue;
-        internal ulong ZeroPosition, ZeroEnd;
-        internal Fat32Mutation.Stage EditStage;
-        internal Transform EditKind;
-        internal uint ScanRunStart, RunStart, RunSlots, KeepCount, ReleaseCount;
-        internal LiveVfatState Vfat;
-        internal Status Failure;
-        internal Block.Status DriverFailure;
-        public readonly bool IsMounted => Mounted;
-        public readonly bool RequestActive => Phase is Life.Mounting or Life.Working or Life.Ready;
-        public readonly bool IsReady => Phase == Life.Ready;
-        public readonly bool Dirty => DirtyValue;
-        public readonly bool Retired => Phase == Life.Retired;
-        public readonly Status LastFailure => Failure;
-        public readonly Block.Status LastBlockFailure => DriverFailure;
-        public readonly uint ChangeCount => Changes;
-        public readonly uint IssuedChanges => Issued;
-        public readonly ulong VolumeRevision => Revision;
-    }
 
     /// <summary>Borrow validated zero-state storage without issuing I/O. Pump
     /// mounts from an actual BPB read. Exact128 slots are deliberate initial
@@ -1320,7 +1155,6 @@ public static unsafe class ContinuingFat32Mutation
         }
         return !high;
     }
-    private struct Extent { internal ulong Start, Bytes; }
     private static void Extents(State* s, Admission a, Extent* all)
     {
         all[0] = new() { Start = (ulong)s, Bytes = (ulong)sizeof(State) };

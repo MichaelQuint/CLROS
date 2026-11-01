@@ -16,7 +16,7 @@ namespace OS.Storage;
 /// cache and scratch storage is caller-owned, mapped ordinary RAM without hidden
 /// aliases, and remains exclusive/stable until Stop succeeds. This supplies no
 /// Linux descriptors, public directory browsing, writes or device mapping proof.</summary>
-public static unsafe class ReadOnlyWebRootFileSystem
+public static unsafe partial class ReadOnlyWebRootFileSystem
 {
     public const uint PathBytes = 256, MaximumRangeBytes = 65536, MaximumClusters = 4096;
     public const uint MaximumSlots = 8, MaximumCacheSlots = 8;
@@ -39,202 +39,6 @@ public static unsafe class ReadOnlyWebRootFileSystem
     // Native diagnostics inspect this discriminator only under the original
     // mount/operation generation; it never grants progress or copy authority.
     internal const byte DataIo = 5;
-
-    public enum Status : byte
-    {
-        Uninitialized, Success, Pending, Ready, Entry, EndOfDirectory, EndOfFile,
-        Busy, Full, InvalidAccess, InvalidState, InvalidStorage, InvalidPath,
-        OutsideRoot, UnsupportedEncoding, UnsupportedGeometry, StaleToken,
-        GenerationExhausted, NotFound, NotDirectory, IsDirectory, Ambiguous,
-        InvalidOffset, ShortBuffer, OutputFull, TraversalBudgetExceeded,
-        CorruptDirectory, CorruptFile, ChainLoop, Truncated, Overlong, BadCluster,
-        FreeCluster, ReservedCluster, InvalidCluster, InvalidBpb, MirrorMismatch, DeviceFailed, Cancelled
-    }
-
-    /// <summary>Fixed backing for one reusable operation. Path/sector/name need
-    /// 256/512/260*2 bytes. History has1..4096 uints; range has1..65536 bytes.
-    /// Buffers never alias each other, any slot, cache, or the block owner.</summary>
-    public struct Scratch
-    {
-        public byte* Path, Sector, Range;
-        public ushort* Name;
-        public uint* History;
-        public uint HistoryCapacity, RangeCapacity;
-    }
-
-    /// <summary>One paired FAT-sector cache entry. Data is512 bytes. A slot is
-    /// invalid while filling and becomes valid only after both FAT copies match.
-    /// The epoch and both absolute LBAs identify its complete validation scope.</summary>
-    public struct CacheSlot
-    {
-        public byte* Data;
-        internal ulong Epoch, Lba0, Lba1, OperationGeneration;
-        internal uint OperationIndex;
-        internal byte Phase;
-    }
-
-    private struct ImmutableDirectoryRecord
-    {
-        internal ulong MountOwner, MountEpoch, DeviceEpoch, PoolEpoch, Lba;
-        internal ulong Phase; // Free until completed copy; ReadyPhase publishes last.
-    }
-
-    // Explicit positive authority over an admitted map, independent of the
-    // public handle slot. Any map overwrite revokes every certificate naming it.
-    private struct FileChainCertificate
-    {
-        internal ulong Epoch;
-        internal Metadata Info;
-        internal uint* Clusters;
-        internal uint Count, Phase;
-    }
-
-    /// <summary>Caller-owned handle slot and immutable checked cluster map.
-    /// Supply1..4096 uints before Start; all other fields start zero. An active
-    /// handle's map is private until Close. Directory handles need no data map.</summary>
-    public struct FileHandle
-    {
-        public uint* Clusters;
-        public uint ClusterCapacity;
-        internal ulong Self, Epoch, Generation;
-        internal Metadata Info;
-        internal uint ClusterCount, References;
-        internal byte Phase;
-    }
-
-    /// <summary>Resumable physical directory position and VFAT sequence. Only
-    /// the enclosing operation owns its scratch/history. Pending metadata/name
-    /// stays unpublished across OutputFull; work and visits never reset on retry.</summary>
-    public struct DirectoryCursor
-    {
-        internal uint Cluster, SectorInCluster, EntryInSector, Visits;
-        internal LiveVfatState Vfat;
-        internal Metadata Pending;
-        internal ushort NameLength;
-        internal bool Visited, SectorReady, HasPending, Ended;
-    }
-
-    /// <summary>Reusable noncopyable operation slot. Supply Scratch before
-    /// Start, leave every other field zero, and never change it while mounted.
-    /// Failed operations remain owned until Cancel; successful copy consumes
-    /// open/read results. A directory operation ends or is explicitly cancelled.</summary>
-    public struct Operation
-    {
-        public Scratch Storage;
-        internal ulong Self, Epoch, Generation;
-        internal DirectoryCursor Cursor;
-        internal Metadata Candidate;
-        internal ulong Offset;
-        internal uint Index, FileIndex, Component, ComponentLength, PathLength, Work;
-        internal uint Wanted, Filled, FatCluster, FatSlot, RequiredClusters, MatchCount;
-        internal byte Phase, Kind, Waiting, FatStage;
-        internal bool CandidateExact, HaveCandidate, LookupDone;
-        internal Status Failure;
-    }
-
-    /// <summary>Borrowed immutable admission. The block owner is already idle
-    /// and running; GPT authority supplies the ESP bounds. Epoch is unique for
-    /// this mount. Supply2..8 operation and handle slots,1..8 cache slots, and a
-    /// positive cumulative physical-directory-entry budget per operation.
-    /// Scratch capacities remain independent of advertised volume size.</summary>
-    public struct Admission
-    {
-        public Block.State* Device;
-        public ulong Epoch, PartitionFirst, PartitionLast;
-        public Operation* Operations;
-        public FileHandle* Files;
-        public CacheSlot* Cache;
-        public uint OperationCount, FileCount, CacheCount, DirectoryEntryBudget;
-    }
-
-#if !NOSTDLIB_EFI || M16_027_PROBE
-    /// <summary>Borrow one exclusively retained read port on the original
-    /// writable device. Exact readonly bounds/capacity come from authenticated
-    /// port facts, never a caller-selected subset or fabricated readonly owner.
-    /// Common scratch/slot lifetime is identical to Admission. The outer owner
-    /// retains this port until FS Stop, then stops port before releasing C/B.
-    /// Busy is retryable without reservation, output or result consumption.</summary>
-    public struct BorrowedAdmission
-    {
-        public Port.State* ReadPort;
-        public ulong PortEpoch, Epoch;
-        public Operation* Operations;
-        public FileHandle* Files;
-        public CacheSlot* Cache;
-        public uint OperationCount, FileCount, CacheCount, DirectoryEntryBudget;
-    }
-#endif
-
-    /// <summary>Stable noncopyable owner. Failed block activity revokes cache
-    /// publication and all new work. Preserve admission/backing until Stop
-    /// succeeds; failed device cleanup remains the platform owner's duty.</summary>
-    public struct Mount
-    {
-        internal ulong Self, DeviceEpoch, PoolEpoch;
-        internal Admission Input;
-        internal LiveFat32Volume Volume;
-        internal Metadata Root;
-        internal Block.ReadToken IoToken;
-        internal ulong IoGeneration;
-        internal uint IoIndex, NextVictim;
-        internal byte Phase, DataReadSectors;
-        internal bool IoActive;
-        internal Status Failure;
-        internal ulong Reads, Hits, Misses;
-        internal byte* ImmutableDirectoryCacheBacking;
-        internal uint ImmutableDirectoryCacheSlots;
-        internal byte* ImmutableFileChainCacheBacking;
-        internal uint ImmutableFileChainCacheSlots;
-#if !NOSTDLIB_EFI || M16_027_PROBE
-        internal Port.State* ReadPort;
-        internal Port.Inspection PortBinding;
-        internal Port.Token PortIo;
-#endif
-        public readonly bool Ready => Phase == Mounted;
-        public readonly bool IsRetired => Phase == Retired;
-        public readonly bool RequiresCleanup => Self != 0 && Phase != Retired;
-        public readonly Status LastFailure => Failure;
-        public readonly ulong SectorReads => Reads;
-        public readonly ulong CacheHits => Hits;
-        public readonly ulong CacheMisses => Misses;
-    }
-
-    public readonly struct OperationToken
-    {
-        internal readonly ulong Owner, Epoch, Generation;
-        internal readonly uint Index;
-        internal OperationToken(ulong owner, ulong epoch, ulong generation, uint index)
-        { Owner = owner; Epoch = epoch; Generation = generation; Index = index; }
-        public bool IsInitialized => Owner != 0 && Epoch != 0 && Generation != 0;
-    }
-    public readonly struct FileToken
-    {
-        internal readonly ulong Owner, Epoch, Generation;
-        internal readonly uint Index;
-        internal FileToken(ulong owner, ulong epoch, ulong generation, uint index)
-        { Owner = owner; Epoch = epoch; Generation = generation; Index = index; }
-        public bool IsInitialized => Owner != 0 && Epoch != 0 && Generation != 0;
-    }
-
-    /// <summary>Stable physical short-entry identity and declared FAT UTC time.
-    /// The fixture's UTC policy is an admission assumption, not a timezone guess.
-    /// ModifiedSeconds is zero for an all-zero FAT date/time (unspecified);
-    /// nonzero FAT timestamps must be valid Gregorian UTC dates from 1980 onward.
-    /// Attributes distinguish regular files/directories; length is bytes.</summary>
-    public struct Metadata
-    {
-        public ulong Inode;
-        public long ModifiedSeconds;
-        public uint FirstCluster, Length;
-        public ushort NameBytes;
-        public byte Attributes;
-        public readonly bool IsDirectory => (Attributes & 0x10) != 0;
-    }
-    public struct OpenResult { public FileToken File; public Metadata Info; }
-    /// <summary>Live handle metadata. Regular allocation is the fully checked
-    /// cluster map multiplied by sectors per cluster. Directory allocation is
-    /// unknown because opening a directory does not preload its complete chain.</summary>
-    public struct FileInspection { public Metadata Info; public ulong AllocatedBlocks; public bool AllocationKnown; }
 
     /// <summary>Borrow a fresh metadata snapshot without I/O. Authenticate the
     /// exact live mount/device and file generation before writing the disjoint,
@@ -1342,7 +1146,6 @@ public static unsafe class ReadOnlyWebRootFileSystem
 
     // Admission and every external output use one complete retained extent
     // inventory. Numeric checks do not establish mapping or physical alias proof.
-    private struct Extent { internal ulong Start, Bytes; }
     private static uint Extents(Mount* m, in Admission a, Extent* all)
     {
         uint n = 0;

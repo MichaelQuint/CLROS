@@ -4,7 +4,7 @@ using OS.Std.Text;
 
 namespace OS.Storage;
 
-public static class Fat32Parser
+public static partial class Fat32Parser
 {
     public const uint MaximumSupportedSectorSize = 4096;
     public const byte DirectoryAttribute = 0x10;
@@ -1678,71 +1678,5 @@ public static class Fat32Parser
     private static ulong DivideRoundUp(ulong value, ulong divisor)
     {
         return value == 0 ? 0 : ((value - 1) / divisor) + 1;
-    }
-
-    private readonly struct DirectoryClusterRead
-    {
-        private DirectoryClusterRead(Fat32Status status, BlockDeviceStatus blockStatus, byte[] bytes)
-        {
-            Status = status;
-            BlockStatus = blockStatus;
-            Bytes = bytes;
-        }
-
-        public Fat32Status Status { get; }
-
-        public BlockDeviceStatus BlockStatus { get; }
-
-        public byte[] Bytes { get; }
-
-        public bool Succeeded => Status == Fat32Status.Success;
-
-        public static DirectoryClusterRead Success(byte[] bytes)
-        {
-            return new DirectoryClusterRead(Fat32Status.Success, BlockDeviceStatus.Success, bytes);
-        }
-
-        public static DirectoryClusterRead Fail(Fat32Status status)
-        {
-            return new DirectoryClusterRead(status, BlockDeviceStatus.Success, Array.Empty<byte>());
-        }
-
-        public static DirectoryClusterRead Fail(Fat32Status status, BlockDeviceStatus blockStatus)
-        {
-            return new DirectoryClusterRead(status, blockStatus, Array.Empty<byte>());
-        }
-    }
-
-    private readonly struct FatEntryRead
-    {
-        private FatEntryRead(Fat32Status status, BlockDeviceStatus blockStatus, uint nextCluster)
-        {
-            Status = status;
-            BlockStatus = blockStatus;
-            NextCluster = nextCluster;
-        }
-
-        public Fat32Status Status { get; }
-
-        public BlockDeviceStatus BlockStatus { get; }
-
-        public uint NextCluster { get; }
-
-        public bool Succeeded => Status == Fat32Status.Success;
-
-        public static FatEntryRead Success(uint nextCluster)
-        {
-            return new FatEntryRead(Fat32Status.Success, BlockDeviceStatus.Success, nextCluster);
-        }
-
-        public static FatEntryRead Fail(Fat32Status status)
-        {
-            return new FatEntryRead(status, BlockDeviceStatus.Success, 0);
-        }
-
-        public static FatEntryRead Fail(Fat32Status status, BlockDeviceStatus blockStatus)
-        {
-            return new FatEntryRead(status, blockStatus, 0);
-        }
     }
 }

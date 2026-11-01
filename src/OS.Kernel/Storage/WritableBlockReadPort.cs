@@ -9,86 +9,11 @@ namespace OS.Storage;
 /// readonly range must be an independently selected partition disjoint from
 /// the engine's original data partition; no GPT or mapping proof is supplied.
 /// This intermediate gate provides exclusion, not Linux waits or fair scheduling.</summary>
-public static unsafe class WritableBlockReadPort
+public static unsafe partial class WritableBlockReadPort
 {
     public const uint SectorBytes = 512;
     private const ulong Limit = 0x0000800000000000UL;
     private const byte IdlePhase = 1, PendingPhase = 2, ReadyPhase = 3, FaultPhase = 4, RetiredPhase = 5;
-
-    public enum Status : byte
-    { Uninitialized, Success, Pending, Ready, Busy, Idle, Cancelled, InvalidState, InvalidStorage,
-        InvalidRange, StaleToken, GenerationExhausted, DeviceFailed, Retired }
-
-    /// <summary>Stable original engine/device and independently authorized
-    /// inclusive readonly partition bounds. All epochs are nonzero and Epoch
-    /// is unique for this zero-State lifetime. The caller holds engine/block,
-    /// pool/DMA/MMIO/observer and port backing until port Stop succeeds, before
-    /// engine Stop. There is no retained destination or hidden allocation.</summary>
-    public struct Admission
-    {
-        public C.State* Engine;
-        public B.State* Device;
-        public ulong Epoch, EngineEpoch, DeviceEpoch, FirstLba, LastLba;
-    }
-
-    /// <summary>Copied port identity only. It authenticates one admitted IN;
-    /// successful Copy, held cancellation or drained cancellation revokes it.</summary>
-    public readonly struct Token
-    {
-        public readonly ulong Owner, Epoch, Generation;
-        internal Token(State* s) { Owner = (ulong)s; Epoch = s->Input.Epoch; Generation = s->Generation; }
-        public bool IsInitialized => Owner != 0 && Epoch != 0 && Generation != 0;
-    }
-
-    /// <summary>Client progress and the exact copied physical completion are
-    /// separate. AvailableBytes is512 only for a held successful IN, otherwise0.
-    /// Physical may report a successful512B cancelled IN without granting any
-    /// caller bytes. The outer owner must retain global B.Observation separately.</summary>
-    public readonly struct Completion
-    {
-        public readonly Token Request;
-        public readonly B.Completion Physical;
-        public readonly ulong Sector;
-        public readonly uint AvailableBytes;
-        public readonly Status Result;
-        public readonly B.Status BlockFailure;
-        internal Completion(State* s, Status result)
-        { Request = new(s); Physical = s->Physical; Sector = s->Sector; Result = result;
-            AvailableBytes = result == Status.Ready ? SectorBytes : 0; BlockFailure = s->Failure; }
-    }
-
-    /// <summary>Copied current port geometry and identity for a typed filesystem
-    /// admission. Success authenticates the original clean owner, including this
-    /// port's pending/held IN. It grants no mapping, partition provenance or user
-    /// copy authority. Busy/fault/retired inspection publishes no facts.</summary>
-    public readonly struct Inspection
-    {
-        public readonly ulong Owner, Epoch, EngineOwner, EngineEpoch, DeviceOwner, DeviceEpoch, SectorCount, FirstLba, LastLba;
-        public readonly bool RequestActive, ReadReady;
-        internal Inspection(State* s)
-        { Owner = (ulong)s; Epoch = s->Input.Epoch; EngineOwner = (ulong)s->Input.Engine; EngineEpoch = s->Input.EngineEpoch;
-            DeviceOwner = (ulong)s->Input.Device; DeviceEpoch = s->Input.DeviceEpoch; SectorCount = s->Input.Device->SectorCount;
-            FirstLba = s->Input.FirstLba; LastLba = s->Input.LastLba; RequestActive = s->HasIo; ReadReady = s->Phase == ReadyPhase; }
-    }
-
-    /// <summary>Zeroed noncopyable POD. Faults retain exact original ownership;
-    /// no replacement device at the same address is adopted. An uncertain issued
-    /// request retires only after the original owner is independently stopped.
-    /// Retired local metadata grants no further retained-storage authority.</summary>
-    public struct State
-    {
-        internal ulong Self, Generation, Sector;
-        internal Admission Input;
-        internal B.RequestToken Io;
-        internal B.Completion Physical;
-        internal B.Status Failure;
-        internal byte Phase;
-        internal bool HasIo, CancelRequested;
-        public readonly bool RequestActive => HasIo;
-        public readonly bool Ready => Phase == ReadyPhase;
-        public readonly bool Retired => Phase == RetiredPhase;
-        public readonly B.Status LastBlockFailure => Failure;
-    }
 
     /// <summary>Validate a fresh port without I/O. Invalid storage/identity has
     /// no writes. Busy engine or block activity is not adopted. Numeric alias

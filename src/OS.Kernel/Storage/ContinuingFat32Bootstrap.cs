@@ -14,70 +14,10 @@ namespace OS.Storage;
 /// FSInfo consistency, whole-FAT equality, reachability or recovery claim follows.
 /// No queue setup, OUT, FLUSH, reset or device release occurs. The caller pumps
 /// other services/deadlines, then mounts through ContinuingFat32Mutation.Start.</summary>
-public static unsafe class ContinuingFat32Bootstrap
+public static unsafe partial class ContinuingFat32Bootstrap
 {
     public const uint SectorBytes = 512, EntryBytes = Gpt.ArrayBytes, MaximumReads = 3 + Gpt.ArraySectors;
     public const ulong BasicDataLow = 0x4433b9e5ebd0a0a2UL, BasicDataHigh = 0xc79926b7b668c087UL;
-    public enum Status : byte
-    { Uninitialized, Success, Pending, Ready, InvalidState, InvalidStorage, InvalidDevice, InvalidBudget, StaleEpoch,
-        BudgetExceeded, InvalidMbr, InvalidGpt, MissingPartition, AmbiguousPartition, UnsupportedAttributes, InvalidVolume, BlockFailure, Cancelled, Busy }
-    internal enum Life : byte { Working = 1, Ready, Consumed, Faulted, Cancelled, Retired }
-    internal enum Step : byte { Mbr, Header, Entries, Select, Bpb }
-
-    /// <summary>Exact512B sector and16384B entry scratch, disjoint from each
-    /// other, State and all block/observer extents. DeviceEpoch identifies the
-    /// actual original running device; Epoch uniquely identifies this zero-State
-    /// bootstrap. SectorBudget1..MaximumReads counts actual submissions.</summary>
-    public struct Admission
-    {
-        public B.State* Device;
-        public ulong Epoch, DeviceEpoch;
-        public byte* Sector, Entries;
-        public uint SectorBudget;
-    }
-    /// <summary>Copied primary-only geometry and identity, not I/O authority or
-    /// an injected mount. Only attributes0 are admitted; this rejects read-only
-    /// and all other unimplemented BasicData attribute semantics.</summary>
-    public readonly struct Result
-    {
-        public readonly ulong Owner, Epoch, DeviceOwner, DeviceEpoch, DiskGuidLow, DiskGuidHigh, PartitionGuidLow, PartitionGuidHigh;
-        public readonly uint EntryIndex, Reads;
-        public readonly LiveFat32Volume Volume;
-        internal Result(State* s)
-        {
-            Owner = (ulong)s; Epoch = s->Input.Epoch; DeviceOwner = s->DeviceOwner; DeviceEpoch = s->Input.DeviceEpoch;
-            DiskGuidLow = s->Header.DiskGuidLow; DiskGuidHigh = s->Header.DiskGuidHigh; PartitionGuidLow = s->PartitionLow; PartitionGuidHigh = s->PartitionHigh;
-            EntryIndex = s->Selected; Reads = s->Reads; Volume = s->Volume;
-        }
-    }
-    /// <summary>Zero-initialized noncopyable POD. Faults retain all scratch and
-    /// the exact original device token until drained or externally retired.
-    /// Restart requires a fresh State and epoch; Stop retires only local scratch.</summary>
-    public struct State
-    {
-        internal ulong Self, DeviceOwner, PoolEpoch, IoSector, First, Last, PartitionLow, PartitionHigh;
-        internal Admission Input;
-        internal B.RequestToken Io;
-        internal LiveGptHeaderResult Header;
-        internal LiveFat32Volume Volume;
-        internal uint Reads, EntrySector, Selected;
-        internal Life Phase;
-        internal Step Next;
-        internal bool IoActive, CancelRequested;
-        internal Status Failure;
-        internal B.Status BlockError;
-        internal LiveGptStatus GptError;
-        internal LiveFat32Status FatError;
-        public readonly bool Ready => Phase == Life.Ready;
-        public readonly bool Retired => Phase == Life.Retired;
-        public readonly bool RequestPending => IoActive;
-        public readonly uint SubmittedReads => Reads;
-        public readonly Status LastFailure => Failure;
-        public readonly B.Status LastBlockFailure => BlockError;
-        public readonly LiveGptStatus LastGptFailure => GptError;
-        public readonly LiveFat32Status LastFatFailure => FatError;
-    }
-
     /// <summary>Admit a fresh bounded bootstrap without I/O. Invalid storage
     /// touches neither State nor scratch; another block request is Busy. No
     /// device ownership is transferred or second queue owner established.</summary>
