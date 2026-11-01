@@ -232,7 +232,7 @@ internal static class StoragePackageFileStagingPlanTests
             "src",
             "OS.Kernel",
             "Storage",
-            "OsPackageFileStagingPlan.cs"));
+            "OsPackageFileStagingPlanner.cs"));
 
         return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(source, destination)", StringComparison.Ordinal)
