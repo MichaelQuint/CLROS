@@ -1,344 +1,98 @@
 namespace OS.Kernel.Diagnostics;
-
-public enum OwnedX64GdtEncodingStatus : byte
-{
-    Success = 0,
-    InvalidDestination = 1,
-    DestinationTooSmall = 2,
-    NullTssBaseAddress = 3,
-    NonCanonicalTssBaseAddress = 4,
-    InvalidTssLimit = 5,
-    ReadBackMismatch = 6
-}
-
-public enum OwnedX64GdtVerificationStatus : byte
-{
-    Success = 0,
-    InvalidSource = 1,
-    SourceTooSmall = 2,
-    NullTssBaseAddress = 3,
-    NonCanonicalTssBaseAddress = 4,
-    InvalidTssLimit = 5,
-    ByteMismatch = 6
-}
-
-public readonly struct OwnedX64GdtVerificationResult
-{
-    private OwnedX64GdtVerificationResult(
-        bool isInitialized,
-        OwnedX64GdtVerificationStatus status,
-        int bytesCompared,
-        int firstMismatchOffset,
-        ulong observedFingerprint,
-        ulong expectedFingerprint)
-    {
-        IsInitialized = isInitialized;
-        Status = status;
-        BytesCompared = bytesCompared;
-        FirstMismatchOffset = firstMismatchOffset;
-        ObservedFingerprint = observedFingerprint;
-        ExpectedFingerprint = expectedFingerprint;
-    }
-
-    public bool IsInitialized { get; }
-
-    public OwnedX64GdtVerificationStatus Status { get; }
-
-    public int BytesCompared { get; }
-
-    public int FirstMismatchOffset { get; }
-
-    public ulong ObservedFingerprint { get; }
-
-    public ulong ExpectedFingerprint { get; }
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == OwnedX64GdtVerificationStatus.Success &&
-        BytesCompared == OwnedX64GdtContainingNullN64BitCode.RequiredByteCount &&
-        FirstMismatchOffset == -1 &&
-        ObservedFingerprint == ExpectedFingerprint;
-
-    internal static OwnedX64GdtVerificationResult Pass(
-        ulong observedFingerprint,
-        ulong expectedFingerprint)
-    {
-        return new OwnedX64GdtVerificationResult(
-            true,
-            OwnedX64GdtVerificationStatus.Success,
-            OwnedX64GdtContainingNullN64BitCode.RequiredByteCount,
-            -1,
-            observedFingerprint,
-            expectedFingerprint);
-    }
-
-    internal static OwnedX64GdtVerificationResult Fail(
-        OwnedX64GdtVerificationStatus status,
-        int bytesCompared,
-        int firstMismatchOffset,
-        ulong observedFingerprint,
-        ulong expectedFingerprint)
-    {
-        return new OwnedX64GdtVerificationResult(
-            true,
-            status,
-            bytesCompared,
-            firstMismatchOffset,
-            observedFingerprint,
-            expectedFingerprint);
-    }
-}
-
-public readonly struct OwnedX64GdtEncodingResult
-{
-    private OwnedX64GdtEncodingResult(
-        bool isInitialized,
-        OwnedX64GdtEncodingStatus status,
-        int bytesWritten,
-        int requiredBytes,
-        ushort tableLimit,
-        ulong fingerprint,
-        bool destinationMutated,
-        OwnedX64GdtVerificationResult verification)
-    {
-        IsInitialized = isInitialized;
-        Status = status;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-        TableLimit = tableLimit;
-        Fingerprint = fingerprint;
-        DestinationMutated = destinationMutated;
-        Verification = verification;
-    }
-
-    public bool IsInitialized { get; }
-
-    public OwnedX64GdtEncodingStatus Status { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public ushort TableLimit { get; }
-
-    public ulong Fingerprint { get; }
-
-    public bool DestinationMutated { get; }
-
-    public OwnedX64GdtVerificationResult Verification { get; }
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == OwnedX64GdtEncodingStatus.Success &&
-        BytesWritten == OwnedX64GdtContainingNullN64BitCode.RequiredByteCount &&
-        RequiredBytes == OwnedX64GdtContainingNullN64BitCode.RequiredByteCount &&
-        TableLimit == OwnedX64GdtContainingNullN64BitCode.TableLimit &&
-        DestinationMutated &&
-        Verification.Succeeded &&
-        Verification.ObservedFingerprint == Fingerprint;
-
-    internal static OwnedX64GdtEncodingResult Pass(
-        ulong fingerprint,
-        OwnedX64GdtVerificationResult verification)
-    {
-        return new OwnedX64GdtEncodingResult(
-            true,
-            OwnedX64GdtEncodingStatus.Success,
-            OwnedX64GdtContainingNullN64BitCode.RequiredByteCount,
-            OwnedX64GdtContainingNullN64BitCode.RequiredByteCount,
-            OwnedX64GdtContainingNullN64BitCode.TableLimit,
-            fingerprint,
-            true,
-            verification);
-    }
-
-    internal static OwnedX64GdtEncodingResult Fail(
-        OwnedX64GdtEncodingStatus status,
-        int bytesWritten,
-        bool destinationMutated,
-        OwnedX64GdtVerificationResult verification)
-    {
-        return new OwnedX64GdtEncodingResult(
-            true,
-            status,
-            bytesWritten,
-            OwnedX64GdtContainingNullN64BitCode.RequiredByteCount,
-            OwnedX64GdtContainingNullN64BitCode.TableLimit,
-            0,
-            destinationMutated,
-            verification);
-    }
-}
-
 public static unsafe class OwnedX64GdtContainingNullN64BitCode
 {
     public const int SegmentDescriptorByteCount = 8;
     public const int TssDescriptorByteCount = 16;
-
     public const int NullDescriptorOffset = 0;
     public const int KernelCodeDescriptorOffset = 8;
     public const int KernelDataDescriptorOffset = 16;
     public const int TssDescriptorOffset = 24;
     public const int RequiredByteCount = TssDescriptorOffset + TssDescriptorByteCount;
-
     public const int LogicalDescriptorCount = 4;
     public const int StorageSlotCount = 5;
     public const ushort TableLimit = RequiredByteCount - 1;
-
     public const ushort NullSelector = 0x0000;
     public const ushort KernelCodeSelector = 0x0008;
     public const ushort KernelDataSelector = 0x0010;
     public const ushort TssSelector = 0x0018;
-
     public const byte KernelCodeAccess = 0x9a;
     public const byte KernelDataAccess = 0x92;
     public const byte AvailableTssAccess = 0x89;
     public const byte KernelCodeFlagsAndLimitHigh = 0xaf;
     public const byte KernelDataFlagsAndLimitHigh = 0xcf;
-
     public const uint MinimumTssLimit = 103;
     public const uint MaximumTssLimit = 0x000f_ffff;
-
     public const ulong Fnv1A64OffsetBasis = 14_695_981_039_346_656_037UL;
     public const ulong Fnv1A64Prime = 1_099_511_628_211UL;
-
 #if !NOSTDLIB_EFI
-    public static OwnedX64GdtEncodingResult Encode(
-        Span<byte> destination,
-        ulong tssBaseAddress,
-        uint tssLimit)
+    public static OwnedX64GdtEncodingResult Encode(Span<byte> destination, ulong tssBaseAddress, uint tssLimit)
     {
         fixed (byte* destinationPointer = destination)
         {
-            return Encode(
-                destinationPointer,
-                destination.Length,
-                tssBaseAddress,
-                tssLimit);
+            return Encode(destinationPointer, destination.Length, tssBaseAddress, tssLimit);
         }
     }
 
-    public static OwnedX64GdtVerificationResult Verify(
-        ReadOnlySpan<byte> source,
-        ulong tssBaseAddress,
-        uint tssLimit)
+    public static OwnedX64GdtVerificationResult Verify(ReadOnlySpan<byte> source, ulong tssBaseAddress, uint tssLimit)
     {
         fixed (byte* sourcePointer = source)
         {
-            return Verify(
-                sourcePointer,
-                source.Length,
-                tssBaseAddress,
-                tssLimit);
+            return Verify(sourcePointer, source.Length, tssBaseAddress, tssLimit);
         }
     }
-#endif
 
-    public static OwnedX64GdtEncodingResult Encode(
-        byte* destination,
-        int destinationCapacity,
-        ulong tssBaseAddress,
-        uint tssLimit)
+#endif
+    public static OwnedX64GdtEncodingResult Encode(byte* destination, int destinationCapacity, ulong tssBaseAddress, uint tssLimit)
     {
-        OwnedX64GdtEncodingStatus inputStatus = ValidateEncodingInput(
-            destination,
-            destinationCapacity,
-            tssBaseAddress,
-            tssLimit);
+        OwnedX64GdtEncodingStatus inputStatus = ValidateEncodingInput(destination, destinationCapacity, tssBaseAddress, tssLimit);
         if (inputStatus != OwnedX64GdtEncodingStatus.Success)
         {
-            return OwnedX64GdtEncodingResult.Fail(
-                inputStatus,
-                0,
-                false,
-                default(OwnedX64GdtVerificationResult));
+            return OwnedX64GdtEncodingResult.Fail(inputStatus, 0, false, default(OwnedX64GdtVerificationResult));
         }
 
         for (int offset = 0; offset < RequiredByteCount; offset++)
         {
-            destination[offset] = ExpectedByteAt(
-                offset,
-                tssBaseAddress,
-                tssLimit);
+            destination[offset] = ExpectedByteAt(offset, tssBaseAddress, tssLimit);
         }
 
-        OwnedX64GdtVerificationResult verification = Verify(
-            destination,
-            RequiredByteCount,
-            tssBaseAddress,
-            tssLimit);
+        OwnedX64GdtVerificationResult verification = Verify(destination, RequiredByteCount, tssBaseAddress, tssLimit);
         if (!verification.Succeeded)
         {
-            return OwnedX64GdtEncodingResult.Fail(
-                OwnedX64GdtEncodingStatus.ReadBackMismatch,
-                RequiredByteCount,
-                true,
-                verification);
+            return OwnedX64GdtEncodingResult.Fail(OwnedX64GdtEncodingStatus.ReadBackMismatch, RequiredByteCount, true, verification);
         }
 
-        return OwnedX64GdtEncodingResult.Pass(
-            verification.ObservedFingerprint,
-            verification);
+        return OwnedX64GdtEncodingResult.Pass(verification.ObservedFingerprint, verification);
     }
 
-    public static OwnedX64GdtVerificationResult Verify(
-        byte* source,
-        int sourceLength,
-        ulong tssBaseAddress,
-        uint tssLimit)
+    public static OwnedX64GdtVerificationResult Verify(byte* source, int sourceLength, ulong tssBaseAddress, uint tssLimit)
     {
-        OwnedX64GdtVerificationStatus inputStatus = ValidateVerificationInput(
-            source,
-            sourceLength,
-            tssBaseAddress,
-            tssLimit);
+        OwnedX64GdtVerificationStatus inputStatus = ValidateVerificationInput(source, sourceLength, tssBaseAddress, tssLimit);
         if (inputStatus != OwnedX64GdtVerificationStatus.Success)
         {
-            return OwnedX64GdtVerificationResult.Fail(
-                inputStatus,
-                0,
-                -1,
-                0,
-                0);
+            return OwnedX64GdtVerificationResult.Fail(inputStatus, 0, -1, 0, 0);
         }
 
         ulong observedFingerprint = ComputeFingerprint(source, RequiredByteCount);
-        ulong expectedFingerprint = ComputeExpectedFingerprint(
-            tssBaseAddress,
-            tssLimit);
-
+        ulong expectedFingerprint = ComputeExpectedFingerprint(tssBaseAddress, tssLimit);
         for (int offset = 0; offset < RequiredByteCount; offset++)
         {
             if (source[offset] != ExpectedByteAt(offset, tssBaseAddress, tssLimit))
             {
-                return OwnedX64GdtVerificationResult.Fail(
-                    OwnedX64GdtVerificationStatus.ByteMismatch,
-                    offset + 1,
-                    offset,
-                    observedFingerprint,
-                    expectedFingerprint);
+                return OwnedX64GdtVerificationResult.Fail(OwnedX64GdtVerificationStatus.ByteMismatch, offset + 1, offset, observedFingerprint, expectedFingerprint);
             }
         }
 
-        return OwnedX64GdtVerificationResult.Pass(
-            observedFingerprint,
-            expectedFingerprint);
+        return OwnedX64GdtVerificationResult.Pass(observedFingerprint, expectedFingerprint);
     }
 
     public static bool IsCanonicalX64Address(ulong address)
     {
         ulong highBits = address >> 48;
         bool signBitSet = ((address >> 47) & 1UL) != 0;
-        return signBitSet
-            ? highBits == 0xffffUL
-            : highBits == 0;
+        return signBitSet ? highBits == 0xffffUL : highBits == 0;
     }
 
-    private static OwnedX64GdtEncodingStatus ValidateEncodingInput(
-        byte* destination,
-        int destinationCapacity,
-        ulong tssBaseAddress,
-        uint tssLimit)
+    private static OwnedX64GdtEncodingStatus ValidateEncodingInput(byte* destination, int destinationCapacity, ulong tssBaseAddress, uint tssLimit)
     {
         if (destinationCapacity < 0)
         {
@@ -373,11 +127,7 @@ public static unsafe class OwnedX64GdtContainingNullN64BitCode
         return OwnedX64GdtEncodingStatus.Success;
     }
 
-    private static OwnedX64GdtVerificationStatus ValidateVerificationInput(
-        byte* source,
-        int sourceLength,
-        ulong tssBaseAddress,
-        uint tssLimit)
+    private static OwnedX64GdtVerificationStatus ValidateVerificationInput(byte* source, int sourceLength, ulong tssBaseAddress, uint tssLimit)
     {
         if (sourceLength < 0)
         {
@@ -424,9 +174,7 @@ public static unsafe class OwnedX64GdtContainingNullN64BitCode
         return fingerprint;
     }
 
-    private static ulong ComputeExpectedFingerprint(
-        ulong tssBaseAddress,
-        uint tssLimit)
+    private static ulong ComputeExpectedFingerprint(ulong tssBaseAddress, uint tssLimit)
     {
         ulong fingerprint = Fnv1A64OffsetBasis;
         for (int offset = 0; offset < RequiredByteCount; offset++)
@@ -438,10 +186,7 @@ public static unsafe class OwnedX64GdtContainingNullN64BitCode
         return fingerprint;
     }
 
-    private static byte ExpectedByteAt(
-        int offset,
-        ulong tssBaseAddress,
-        uint tssLimit)
+    private static byte ExpectedByteAt(int offset, ulong tssBaseAddress, uint tssLimit)
     {
         if (offset < KernelCodeDescriptorOffset)
         {

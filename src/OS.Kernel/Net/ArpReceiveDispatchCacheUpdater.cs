@@ -1,115 +1,4 @@
 namespace OS.Net;
-
-public enum ArpReceiveDispatchCacheUpdateStatus
-{
-    Success = 0,
-    DispatchFailed = 1,
-    NonArpDispatch = 2,
-    PayloadRangeInvalid = 3,
-    ArpValidationFailed = 4,
-    CacheUpdateFailed = 5
-}
-
-public readonly struct ArpReceiveDispatchCacheUpdateResult
-{
-    private ArpReceiveDispatchCacheUpdateResult(
-        ArpReceiveDispatchCacheUpdateStatus status,
-        NetworkReceiveDispatchStatus dispatchStatus,
-        ArpNeighborResolutionStatus arpStatus,
-        ArpNeighborCacheStatus cacheStatus,
-        PacketParseStatus packetStatus,
-        ArpNeighborResolutionState arpState,
-        MacAddress resolvedMac,
-        int cacheCount,
-        int cacheCapacity,
-        bool updatedExisting)
-    {
-        IsInitialized = true;
-        Status = status;
-        DispatchStatus = dispatchStatus;
-        ArpStatus = arpStatus;
-        CacheStatus = cacheStatus;
-        PacketStatus = packetStatus;
-        ArpState = arpState;
-        ResolvedMac = resolvedMac;
-        CacheCount = cacheCount;
-        CacheCapacity = cacheCapacity;
-        UpdatedExisting = updatedExisting;
-    }
-
-    public ArpReceiveDispatchCacheUpdateStatus Status { get; }
-
-    public bool IsInitialized { get; }
-
-    public bool Succeeded => IsInitialized && Status == ArpReceiveDispatchCacheUpdateStatus.Success;
-
-    public NetworkReceiveDispatchStatus DispatchStatus { get; }
-
-    public ArpNeighborResolutionStatus ArpStatus { get; }
-
-    public ArpNeighborCacheStatus CacheStatus { get; }
-
-    public PacketParseStatus PacketStatus { get; }
-
-    public ArpNeighborResolutionState ArpState { get; }
-
-    public MacAddress ResolvedMac { get; }
-
-    public int CacheCount { get; }
-
-    public int CacheCapacity { get; }
-
-    public bool UpdatedExisting { get; }
-
-    public static ArpReceiveDispatchCacheUpdateResult Success(
-        NetworkReceiveDispatchStatus dispatchStatus,
-        ArpNeighborResolutionStatus arpStatus,
-        ArpNeighborCacheStatus cacheStatus,
-        PacketParseStatus packetStatus,
-        ArpNeighborResolutionState arpState,
-        MacAddress resolvedMac,
-        int cacheCount,
-        int cacheCapacity,
-        bool updatedExisting)
-    {
-        return new ArpReceiveDispatchCacheUpdateResult(
-            ArpReceiveDispatchCacheUpdateStatus.Success,
-            dispatchStatus,
-            arpStatus,
-            cacheStatus,
-            packetStatus,
-            arpState,
-            resolvedMac,
-            cacheCount,
-            cacheCapacity,
-            updatedExisting);
-    }
-
-    public static ArpReceiveDispatchCacheUpdateResult Fail(
-        ArpReceiveDispatchCacheUpdateStatus status,
-        NetworkReceiveDispatchStatus dispatchStatus,
-        ArpNeighborResolutionStatus arpStatus,
-        ArpNeighborCacheStatus cacheStatus,
-        PacketParseStatus packetStatus,
-        ArpNeighborResolutionState arpState,
-        MacAddress resolvedMac,
-        int cacheCount,
-        int cacheCapacity)
-    {
-        return new ArpReceiveDispatchCacheUpdateResult(
-            status,
-            dispatchStatus,
-            arpStatus,
-            cacheStatus,
-            packetStatus,
-            arpState,
-            resolvedMac,
-            cacheCount,
-            cacheCapacity,
-            updatedExisting: false);
-    }
-}
-
 public static class ArpReceiveDispatchCacheUpdater
 {
     public const bool RequiresCallerOwnedCacheStorage = true;
@@ -118,113 +7,41 @@ public static class ArpReceiveDispatchCacheUpdater
     public const bool AllocatesCacheStorage = false;
     public const bool DispatchesSockets = false;
     public const bool RoutesPackets = false;
-
-    public static ArpReceiveDispatchCacheUpdateStatus TryUpdateFromDispatch(
-        ref ArpNeighborCache cache,
-        MacAddress localMac,
-        Ipv4Address localAddress,
-        Ipv4Address targetAddress,
-        ReadOnlySpan<byte> receiveBuffer,
-        NetworkReceiveDispatchResult dispatch,
-        ulong currentTick,
-        out ArpReceiveDispatchCacheUpdateResult result)
+    public static ArpReceiveDispatchCacheUpdateStatus TryUpdateFromDispatch(ref ArpNeighborCache cache, MacAddress localMac, Ipv4Address localAddress, Ipv4Address targetAddress, ReadOnlySpan<byte> receiveBuffer, NetworkReceiveDispatchResult dispatch, ulong currentTick, out ArpReceiveDispatchCacheUpdateResult result)
     {
         if (!dispatch.Succeeded)
         {
-            result = ArpReceiveDispatchCacheUpdateResult.Fail(
-                ArpReceiveDispatchCacheUpdateStatus.DispatchFailed,
-                dispatch.Status,
-                ArpNeighborResolutionStatus.FrameParseFailed,
-                ArpNeighborCacheStatus.Success,
-                dispatch.PayloadPacketStatus,
-                ArpNeighborResolutionState.Initial,
-                default,
-                cache.Count,
-                cache.Capacity);
+            result = ArpReceiveDispatchCacheUpdateResult.Fail(ArpReceiveDispatchCacheUpdateStatus.DispatchFailed, dispatch.Status, ArpNeighborResolutionStatus.FrameParseFailed, ArpNeighborCacheStatus.Success, dispatch.PayloadPacketStatus, ArpNeighborResolutionState.Initial, default, cache.Count, cache.Capacity);
             return result.Status;
         }
 
         if (dispatch.PayloadKind != EthernetPayloadKind.Arp)
         {
-            result = ArpReceiveDispatchCacheUpdateResult.Fail(
-                ArpReceiveDispatchCacheUpdateStatus.NonArpDispatch,
-                dispatch.Status,
-                ArpNeighborResolutionStatus.UnsupportedEtherType,
-                ArpNeighborCacheStatus.Success,
-                PacketParseStatus.UnsupportedEtherType,
-                ArpNeighborResolutionState.Initial,
-                default,
-                cache.Count,
-                cache.Capacity);
+            result = ArpReceiveDispatchCacheUpdateResult.Fail(ArpReceiveDispatchCacheUpdateStatus.NonArpDispatch, dispatch.Status, ArpNeighborResolutionStatus.UnsupportedEtherType, ArpNeighborCacheStatus.Success, PacketParseStatus.UnsupportedEtherType, ArpNeighborResolutionState.Initial, default, cache.Count, cache.Capacity);
             return result.Status;
         }
 
         if (!IsPayloadRangeValid(receiveBuffer.Length, dispatch.PayloadOffset, dispatch.PayloadLength))
         {
-            result = ArpReceiveDispatchCacheUpdateResult.Fail(
-                ArpReceiveDispatchCacheUpdateStatus.PayloadRangeInvalid,
-                dispatch.Status,
-                ArpNeighborResolutionStatus.FrameParseFailed,
-                ArpNeighborCacheStatus.Success,
-                PacketParseStatus.BufferTooSmall,
-                ArpNeighborResolutionState.Initial,
-                default,
-                cache.Count,
-                cache.Capacity);
+            result = ArpReceiveDispatchCacheUpdateResult.Fail(ArpReceiveDispatchCacheUpdateStatus.PayloadRangeInvalid, dispatch.Status, ArpNeighborResolutionStatus.FrameParseFailed, ArpNeighborCacheStatus.Success, PacketParseStatus.BufferTooSmall, ArpNeighborResolutionState.Initial, default, cache.Count, cache.Capacity);
             return result.Status;
         }
 
-        ArpNeighborResolutionStatus arpStatus = ValidateReply(
-            dispatch,
-            localMac,
-            localAddress,
-            targetAddress,
-            out MacAddress resolvedMac);
+        ArpNeighborResolutionStatus arpStatus = ValidateReply(dispatch, localMac, localAddress, targetAddress, out MacAddress resolvedMac);
         if (arpStatus != ArpNeighborResolutionStatus.Success)
         {
-            result = ArpReceiveDispatchCacheUpdateResult.Fail(
-                ArpReceiveDispatchCacheUpdateStatus.ArpValidationFailed,
-                dispatch.Status,
-                arpStatus,
-                ArpNeighborCacheStatus.Success,
-                PacketParseStatus.Success,
-                ArpNeighborResolutionState.Failed,
-                default,
-                cache.Count,
-                cache.Capacity);
+            result = ArpReceiveDispatchCacheUpdateResult.Fail(ArpReceiveDispatchCacheUpdateStatus.ArpValidationFailed, dispatch.Status, arpStatus, ArpNeighborCacheStatus.Success, PacketParseStatus.Success, ArpNeighborResolutionState.Failed, default, cache.Count, cache.Capacity);
             return result.Status;
         }
 
-        ArpNeighborCacheStatus cacheStatus = cache.InsertOrUpdate(
-            targetAddress,
-            resolvedMac,
-            currentTick,
-            out ArpNeighborCacheMutationResult cacheResult);
+        ArpNeighborCacheStatus cacheStatus = cache.InsertOrUpdate(targetAddress, resolvedMac, currentTick, out ArpNeighborCacheMutationResult cacheResult);
         if (cacheStatus != ArpNeighborCacheStatus.Success)
         {
-            result = ArpReceiveDispatchCacheUpdateResult.Fail(
-                ArpReceiveDispatchCacheUpdateStatus.CacheUpdateFailed,
-                dispatch.Status,
-                arpStatus,
-                cacheStatus,
-                PacketParseStatus.Success,
-                ArpNeighborResolutionState.Resolved,
-                resolvedMac,
-                cacheResult.Count,
-                cacheResult.Capacity);
+            result = ArpReceiveDispatchCacheUpdateResult.Fail(ArpReceiveDispatchCacheUpdateStatus.CacheUpdateFailed, dispatch.Status, arpStatus, cacheStatus, PacketParseStatus.Success, ArpNeighborResolutionState.Resolved, resolvedMac, cacheResult.Count, cacheResult.Capacity);
             return result.Status;
         }
 
-        result = ArpReceiveDispatchCacheUpdateResult.Success(
-            dispatch.Status,
-            arpStatus,
-            cacheStatus,
-            PacketParseStatus.Success,
-            ArpNeighborResolutionState.Resolved,
-            resolvedMac,
-            cacheResult.Count,
-            cacheResult.Capacity,
-            cacheResult.UpdatedExisting);
+        result = ArpReceiveDispatchCacheUpdateResult.Success(dispatch.Status, arpStatus, cacheStatus, PacketParseStatus.Success, ArpNeighborResolutionState.Resolved, resolvedMac, cacheResult.Count, cacheResult.Capacity, cacheResult.UpdatedExisting);
         return result.Status;
     }
 
@@ -235,20 +52,13 @@ public static class ArpReceiveDispatchCacheUpdater
             return false;
         }
 
-        return payloadOffset <= receiveBufferLength
-            && payloadLength <= receiveBufferLength - payloadOffset;
+        return payloadOffset <= receiveBufferLength && payloadLength <= receiveBufferLength - payloadOffset;
     }
 
-    private static ArpNeighborResolutionStatus ValidateReply(
-        NetworkReceiveDispatchResult dispatch,
-        MacAddress localMac,
-        Ipv4Address localAddress,
-        Ipv4Address targetAddress,
-        out MacAddress resolvedMac)
+    private static ArpNeighborResolutionStatus ValidateReply(NetworkReceiveDispatchResult dispatch, MacAddress localMac, Ipv4Address localAddress, Ipv4Address targetAddress, out MacAddress resolvedMac)
     {
         ArpPacket reply = dispatch.ArpPacket;
         resolvedMac = default;
-
         if (reply.Operation != ArpPacket.OperationReply)
         {
             return ArpNeighborResolutionStatus.UnexpectedOperation;

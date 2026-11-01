@@ -1,89 +1,12 @@
 namespace OS.Net;
-
-public enum DnsResolverState
-{
-    Initial = 0,
-    QueryWritten = 1,
-    Resolved = 2,
-    Failed = 3
-}
-
-public enum DnsResolverStatus
-{
-    Success = 0,
-    InvalidState = 1,
-    BufferTooSmall = 2,
-    MessageWriteFailed = 3,
-    MessageParseFailed = 4,
-    TransactionIdMismatch = 5,
-    Timeout = 6,
-    QuestionMismatch = 7,
-    AnswerNameMismatch = 8
-}
-
-public readonly struct DnsResolverTransitionResult
-{
-    private DnsResolverTransitionResult(
-        DnsResolverStatus status,
-        DnsResolverState state,
-        DnsMessageStatus messageStatus,
-        int bytesWritten,
-        Ipv4Address address)
-    {
-        IsInitialized = true;
-        Status = status;
-        State = state;
-        MessageStatus = messageStatus;
-        BytesWritten = bytesWritten;
-        Address = address;
-    }
-
-    public DnsResolverStatus Status { get; }
-
-    public bool IsInitialized { get; }
-
-    public bool Succeeded => IsInitialized && Status == DnsResolverStatus.Success;
-
-    public DnsResolverState State { get; }
-
-    public DnsMessageStatus MessageStatus { get; }
-
-    public int BytesWritten { get; }
-
-    public Ipv4Address Address { get; }
-
-    public static DnsResolverTransitionResult Success(
-        DnsResolverState state,
-        int bytesWritten,
-        Ipv4Address address)
-    {
-        return new DnsResolverTransitionResult(
-            DnsResolverStatus.Success,
-            state,
-            DnsMessageStatus.Success,
-            bytesWritten,
-            address);
-    }
-
-    public static DnsResolverTransitionResult Fail(
-        DnsResolverStatus status,
-        DnsResolverState state,
-        DnsMessageStatus messageStatus)
-    {
-        return new DnsResolverTransitionResult(status, state, messageStatus, 0, default);
-    }
-}
-
 public struct DnsResolverTransaction
 {
     private const uint FingerprintOffset = 2166136261;
     private const uint FingerprintPrime = 16777619;
-
     private int _questionLength;
     private int _questionNameLength;
     private uint _questionFingerprint;
     private uint _questionNameFingerprint;
-
     private DnsResolverTransaction(ushort transactionId)
     {
         TransactionId = transactionId;
@@ -96,9 +19,7 @@ public struct DnsResolverTransaction
     }
 
     public DnsResolverState State { get; private set; }
-
     public ushort TransactionId { get; }
-
     public Ipv4Address ResolvedAddress { get; private set; }
 
     public static DnsResolverTransaction Create(ushort transactionId)
@@ -106,25 +27,15 @@ public struct DnsResolverTransaction
         return new DnsResolverTransaction(transactionId);
     }
 
-    public DnsResolverStatus TryWriteQuery(
-        Span<byte> message,
-        ReadOnlySpan<char> hostName,
-        out DnsResolverTransitionResult result)
+    public DnsResolverStatus TryWriteQuery(Span<byte> message, ReadOnlySpan<char> hostName, out DnsResolverTransitionResult result)
     {
         if (State != DnsResolverState.Initial)
         {
-            result = DnsResolverTransitionResult.Fail(
-                DnsResolverStatus.InvalidState,
-                State,
-                DnsMessageStatus.Success);
+            result = DnsResolverTransitionResult.Fail(DnsResolverStatus.InvalidState, State, DnsMessageStatus.Success);
             return result.Status;
         }
 
-        DnsMessageStatus writeStatus = DnsMessage.TryWriteQuery(
-            message,
-            TransactionId,
-            hostName,
-            out int bytesWritten);
+        DnsMessageStatus writeStatus = DnsMessage.TryWriteQuery(message, TransactionId, hostName, out int bytesWritten);
         if (writeStatus != DnsMessageStatus.Success)
         {
             DnsResolverStatus status = MapWriteStatus(writeStatus);
@@ -134,33 +45,22 @@ public struct DnsResolverTransaction
 
         _questionLength = bytesWritten - DnsMessage.HeaderLength;
         _questionNameLength = _questionLength - 4;
-        _questionFingerprint = ComputeFingerprint(
-            message.Slice(DnsMessage.HeaderLength, _questionLength));
-        _questionNameFingerprint = ComputeFingerprint(
-            message.Slice(DnsMessage.HeaderLength, _questionNameLength));
-
+        _questionFingerprint = ComputeFingerprint(message.Slice(DnsMessage.HeaderLength, _questionLength));
+        _questionNameFingerprint = ComputeFingerprint(message.Slice(DnsMessage.HeaderLength, _questionNameLength));
         State = DnsResolverState.QueryWritten;
         result = DnsResolverTransitionResult.Success(State, bytesWritten, default);
         return result.Status;
     }
 
-    public DnsResolverStatus ReceiveResponse(
-        ReadOnlySpan<byte> message,
-        out DnsResolverTransitionResult result)
+    public DnsResolverStatus ReceiveResponse(ReadOnlySpan<byte> message, out DnsResolverTransitionResult result)
     {
         if (State != DnsResolverState.QueryWritten)
         {
-            result = DnsResolverTransitionResult.Fail(
-                DnsResolverStatus.InvalidState,
-                State,
-                DnsMessageStatus.Success);
+            result = DnsResolverTransitionResult.Fail(DnsResolverStatus.InvalidState, State, DnsMessageStatus.Success);
             return result.Status;
         }
 
-        DnsMessageStatus parseStatus = DnsMessage.TryParseAResponse(
-            message,
-            TransactionId,
-            out Ipv4Address address);
+        DnsMessageStatus parseStatus = DnsMessage.TryParseAResponse(message, TransactionId, out Ipv4Address address);
         if (parseStatus != DnsMessageStatus.Success)
         {
             DnsResolverStatus status = MapParseStatus(parseStatus);
@@ -173,10 +73,7 @@ public struct DnsResolverTransaction
         if (consistencyStatus != DnsResolverStatus.Success)
         {
             State = DnsResolverState.Failed;
-            result = DnsResolverTransitionResult.Fail(
-                consistencyStatus,
-                State,
-                DnsMessageStatus.Success);
+            result = DnsResolverTransitionResult.Fail(consistencyStatus, State, DnsMessageStatus.Success);
             return consistencyStatus;
         }
 
@@ -190,43 +87,28 @@ public struct DnsResolverTransaction
     {
         if (State != DnsResolverState.QueryWritten)
         {
-            result = DnsResolverTransitionResult.Fail(
-                DnsResolverStatus.InvalidState,
-                State,
-                DnsMessageStatus.Success);
+            result = DnsResolverTransitionResult.Fail(DnsResolverStatus.InvalidState, State, DnsMessageStatus.Success);
             return result.Status;
         }
 
         State = DnsResolverState.Failed;
-        result = DnsResolverTransitionResult.Fail(
-            DnsResolverStatus.Timeout,
-            State,
-            DnsMessageStatus.Success);
+        result = DnsResolverTransitionResult.Fail(DnsResolverStatus.Timeout, State, DnsMessageStatus.Success);
         return result.Status;
     }
 
     private static DnsResolverStatus MapWriteStatus(DnsMessageStatus status)
     {
-        return status == DnsMessageStatus.BufferTooSmall
-            ? DnsResolverStatus.BufferTooSmall
-            : DnsResolverStatus.MessageWriteFailed;
+        return status == DnsMessageStatus.BufferTooSmall ? DnsResolverStatus.BufferTooSmall : DnsResolverStatus.MessageWriteFailed;
     }
 
     private static DnsResolverStatus MapParseStatus(DnsMessageStatus status)
     {
-        return status == DnsMessageStatus.TransactionIdMismatch
-            ? DnsResolverStatus.TransactionIdMismatch
-            : DnsResolverStatus.MessageParseFailed;
+        return status == DnsMessageStatus.TransactionIdMismatch ? DnsResolverStatus.TransactionIdMismatch : DnsResolverStatus.MessageParseFailed;
     }
 
     private DnsResolverStatus ValidateResponseConsistency(ReadOnlySpan<byte> message)
     {
-        if (!TryReadUncompressedQuestion(
-            message,
-            out int questionLength,
-            out int questionNameLength,
-            out uint questionFingerprint,
-            out uint questionNameFingerprint))
+        if (!TryReadUncompressedQuestion(message, out int questionLength, out int questionNameLength, out uint questionFingerprint, out uint questionNameFingerprint))
         {
             return DnsResolverStatus.MessageParseFailed;
         }
@@ -236,16 +118,13 @@ public struct DnsResolverTransaction
             return DnsResolverStatus.QuestionMismatch;
         }
 
-        if (questionNameLength != _questionNameLength
-            || questionNameFingerprint != _questionNameFingerprint)
+        if (questionNameLength != _questionNameLength || questionNameFingerprint != _questionNameFingerprint)
         {
             return DnsResolverStatus.QuestionMismatch;
         }
 
         int answerNameOffset = DnsMessage.HeaderLength + questionLength;
-        return AnswerNameMatchesQuery(message, answerNameOffset)
-            ? DnsResolverStatus.Success
-            : DnsResolverStatus.AnswerNameMismatch;
+        return AnswerNameMatchesQuery(message, answerNameOffset) ? DnsResolverStatus.Success : DnsResolverStatus.AnswerNameMismatch;
     }
 
     private bool AnswerNameMatchesQuery(ReadOnlySpan<byte> message, int offset)
@@ -278,26 +157,16 @@ public struct DnsResolverTransaction
             return false;
         }
 
-        return nameLength == _questionNameLength
-            && ComputeFingerprint(message.Slice(offset, nameLength)) == _questionNameFingerprint;
+        return nameLength == _questionNameLength && ComputeFingerprint(message.Slice(offset, nameLength)) == _questionNameFingerprint;
     }
 
-    private static bool TryReadUncompressedQuestion(
-        ReadOnlySpan<byte> message,
-        out int questionLength,
-        out int questionNameLength,
-        out uint questionFingerprint,
-        out uint questionNameFingerprint)
+    private static bool TryReadUncompressedQuestion(ReadOnlySpan<byte> message, out int questionLength, out int questionNameLength, out uint questionFingerprint, out uint questionNameFingerprint)
     {
         questionLength = 0;
         questionNameLength = 0;
         questionFingerprint = 0;
         questionNameFingerprint = 0;
-
-        if (!TryReadUncompressedNameLength(
-            message,
-            DnsMessage.HeaderLength,
-            out questionNameLength))
+        if (!TryReadUncompressedNameLength(message, DnsMessage.HeaderLength, out questionNameLength))
         {
             return false;
         }
@@ -314,10 +183,7 @@ public struct DnsResolverTransaction
         return true;
     }
 
-    private static bool TryReadUncompressedNameLength(
-        ReadOnlySpan<byte> message,
-        int offset,
-        out int nameLength)
+    private static bool TryReadUncompressedNameLength(ReadOnlySpan<byte> message, int offset, out int nameLength)
     {
         nameLength = 0;
         if ((uint)offset >= (uint)message.Length)

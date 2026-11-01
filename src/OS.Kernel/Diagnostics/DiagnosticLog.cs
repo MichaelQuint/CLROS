@@ -1,25 +1,12 @@
 namespace OS.Kernel.Diagnostics;
-
-public enum DiagnosticLogLevel
-{
-    Info,
-    Warn,
-    Panic
-}
-
-public sealed class DiagnosticLog
+public sealed partial class DiagnosticLog
 {
     public const string InfoPrefix = "[info]";
-
     public const string WarnPrefix = "[warn]";
-
     public const string PanicPrefix = "[PANIC]";
-
     private readonly ISerialSink _serial;
     private readonly BootEventRingBuffer? _events;
-
-    public DiagnosticLog(ISerialSink serial)
-        : this(serial, null)
+    public DiagnosticLog(ISerialSink serial) : this(serial, null)
     {
     }
 
@@ -47,7 +34,6 @@ public sealed class DiagnosticLog
     public void Write(DiagnosticLogLevel level, string? message)
     {
         string line = PrefixFor(level) + " " + (message ?? string.Empty);
-
         _events?.Record(line);
         _serial.WriteLine(line);
     }
@@ -64,13 +50,6 @@ public sealed class DiagnosticLog
                 return PanicPrefix;
             default:
                 return InfoPrefix;
-        }
-    }
-
-    private sealed class DiscardSerialSink : ISerialSink
-    {
-        public void WriteLine(string line)
-        {
         }
     }
 }

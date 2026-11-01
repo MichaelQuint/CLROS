@@ -1,247 +1,15 @@
 namespace OS.Drivers;
-
 using OS.Std.Binary;
-
-public enum VirtioNetTransmitLifecycleStatus
-{
-    Success = 0,
-    QueuePlanFailed = 1,
-    HeaderBufferTooSmall = 2,
-    EthernetFrameTooSmall = 3,
-    EthernetFrameTooLarge = 4,
-    InsufficientDescriptors = 5,
-    DescriptorIndexOutOfRange = 6,
-    DescriptorOffsetOverflow = 7,
-    DescriptorAlignmentInvalid = 8,
-    AvailableRingOffsetOverflow = 9,
-    PhysicalRangeOverflow = 10,
-    QueueMemoryTooSmall = 11,
-    ArithmeticOverflow = 12,
-    HeaderWriteFailed = 13
-}
-
-public enum VirtioNetTransmitDescriptorRole
-{
-    VirtioHeader = 0,
-    EthernetFrame = 1
-}
-
-public readonly struct VirtioNetTransmitDescriptorMemoryRange
-{
-    internal VirtioNetTransmitDescriptorMemoryRange(
-        VirtioNetTransmitDescriptorRole role,
-        ulong physicalAddress,
-        uint length,
-        ulong endExclusive)
-    {
-        Role = role;
-        PhysicalAddress = physicalAddress;
-        Length = length;
-        EndExclusive = endExclusive;
-    }
-
-    public VirtioNetTransmitDescriptorRole Role { get; }
-
-    public ulong PhysicalAddress { get; }
-
-    public uint Length { get; }
-
-    public ulong EndExclusive { get; }
-}
-
-public readonly struct VirtioNetTransmitPublishedDescriptor
-{
-    internal VirtioNetTransmitPublishedDescriptor(
-        VirtioNetTransmitDescriptorRole role,
-        ushort descriptorIndex,
-        ulong physicalAddress,
-        uint length,
-        bool hasNext,
-        ushort nextDescriptorIndex,
-        ushort flags,
-        uint descriptorTableOffset,
-        VirtioNetTransmitDescriptorMemoryRange memoryRange)
-    {
-        Role = role;
-        DescriptorIndex = descriptorIndex;
-        PhysicalAddress = physicalAddress;
-        Length = length;
-        HasNext = hasNext;
-        NextDescriptorIndex = nextDescriptorIndex;
-        Flags = flags;
-        DescriptorTableOffset = descriptorTableOffset;
-        MemoryRange = memoryRange;
-    }
-
-    public VirtioNetTransmitDescriptorRole Role { get; }
-
-    public ushort DescriptorIndex { get; }
-
-    public ulong PhysicalAddress { get; }
-
-    public uint Length { get; }
-
-    public bool HasNext { get; }
-
-    public ushort NextDescriptorIndex { get; }
-
-    public ushort Flags { get; }
-
-    public uint DescriptorTableOffset { get; }
-
-    public bool DeviceReadable => true;
-
-    public bool DeviceWritable => false;
-
-    public VirtioNetTransmitDescriptorMemoryRange MemoryRange { get; }
-}
-
-public readonly struct VirtioNetTransmitLifecyclePlan
-{
-    internal VirtioNetTransmitLifecyclePlan(
-        VirtioNetQueuePlan queuePlan,
-        ushort availableDescriptorCount,
-        ushort availableRingIndex,
-        ushort availableRingSlot,
-        uint availableRingEntryOffset,
-        uint virtioHeaderBytes,
-        uint ethernetFrameBytes,
-        VirtioNetTransmitPublishedDescriptor headerDescriptor,
-        VirtioNetTransmitPublishedDescriptor frameDescriptor)
-    {
-        QueuePlan = queuePlan;
-        AvailableDescriptorCount = availableDescriptorCount;
-        AvailableRingIndex = availableRingIndex;
-        AvailableRingSlot = availableRingSlot;
-        AvailableRingEntryOffset = availableRingEntryOffset;
-        VirtioHeaderBytes = virtioHeaderBytes;
-        EthernetFrameBytes = ethernetFrameBytes;
-        HeaderDescriptor = headerDescriptor;
-        FrameDescriptor = frameDescriptor;
-    }
-
-    public VirtioNetQueuePlan QueuePlan { get; }
-
-    public VirtqueueSplitRingPlan TxQueue => QueuePlan.TxQueue;
-
-    public ushort AvailableDescriptorCount { get; }
-
-    public ushort AvailableRingIndex { get; }
-
-    public ushort AvailableRingSlot { get; }
-
-    public uint AvailableRingEntryOffset { get; }
-
-    public uint VirtioHeaderBytes { get; }
-
-    public uint EthernetFrameBytes { get; }
-
-    public ushort HeadDescriptorIndex => HeaderDescriptor.DescriptorIndex;
-
-    public VirtioNetTransmitPublishedDescriptor HeaderDescriptor { get; }
-
-    public VirtioNetTransmitPublishedDescriptor FrameDescriptor { get; }
-}
-
-public readonly struct VirtioNetTransmitLifecycleResult
-{
-    private VirtioNetTransmitLifecycleResult(
-        VirtioNetTransmitLifecycleStatus status,
-        VirtioNetQueuePlanStatus queuePlanStatus,
-        VirtioNetHeaderStatus headerStatus,
-        ushort headDescriptorIndex,
-        ushort nextAvailableRingIndex,
-        ushort descriptorsWritten,
-        int headerBytesWritten,
-        int ethernetFrameBytes,
-        VirtioNetTransmitLifecyclePlan plan)
-    {
-        IsInitialized = true;
-        Status = status;
-        QueuePlanStatus = queuePlanStatus;
-        HeaderStatus = headerStatus;
-        HeadDescriptorIndex = headDescriptorIndex;
-        NextAvailableRingIndex = nextAvailableRingIndex;
-        DescriptorsWritten = descriptorsWritten;
-        HeaderBytesWritten = headerBytesWritten;
-        EthernetFrameBytes = ethernetFrameBytes;
-        Plan = plan;
-    }
-
-    public bool IsInitialized { get; }
-
-    public VirtioNetTransmitLifecycleStatus Status { get; }
-
-    public VirtioNetQueuePlanStatus QueuePlanStatus { get; }
-
-    public VirtioNetHeaderStatus HeaderStatus { get; }
-
-    public ushort HeadDescriptorIndex { get; }
-
-    public ushort NextAvailableRingIndex { get; }
-
-    public ushort DescriptorsWritten { get; }
-
-    public int HeaderBytesWritten { get; }
-
-    public int EthernetFrameBytes { get; }
-
-    public VirtioNetTransmitLifecyclePlan Plan { get; }
-
-    public bool Succeeded =>
-        IsInitialized && Status == VirtioNetTransmitLifecycleStatus.Success;
-
-    public static VirtioNetTransmitLifecycleResult Success(
-        VirtioNetTransmitLifecyclePlan plan,
-        int headerBytesWritten,
-        int ethernetFrameBytes)
-    {
-        return new VirtioNetTransmitLifecycleResult(
-            VirtioNetTransmitLifecycleStatus.Success,
-            VirtioNetQueuePlanStatus.Success,
-            VirtioNetHeaderStatus.Success,
-            plan.HeadDescriptorIndex,
-            GetNextAvailableRingIndex(plan.AvailableRingIndex),
-            VirtioNetTransmitLifecycle.RequiredDescriptorCount,
-            headerBytesWritten,
-            ethernetFrameBytes,
-            plan);
-    }
-
-    public static VirtioNetTransmitLifecycleResult Fail(
-        VirtioNetTransmitLifecycleStatus status,
-        VirtioNetQueuePlanStatus queuePlanStatus,
-        VirtioNetHeaderStatus headerStatus = VirtioNetHeaderStatus.Success)
-    {
-        return new VirtioNetTransmitLifecycleResult(
-            status,
-            queuePlanStatus,
-            headerStatus,
-            headDescriptorIndex: 0,
-            nextAvailableRingIndex: 0,
-            descriptorsWritten: 0,
-            headerBytesWritten: 0,
-            ethernetFrameBytes: 0,
-            default);
-    }
-
-    internal static ushort GetNextAvailableRingIndex(ushort availableRingIndex)
-    {
-        return unchecked((ushort)(availableRingIndex + 1));
-    }
-}
 
 public static class VirtioNetTransmitLifecycle
 {
     public const ushort RequiredDescriptorCount = VirtioNetQueuePlan.RequiredTxDescriptorCount;
     public const uint TxHeaderBytes = VirtioNetHeader.HeaderLengthWithoutMergeableBuffers;
-
     public const bool AllocatesDmaMemory = false;
     public const bool PerformsMmio = false;
     public const bool NotifiesDevice = false;
     public const bool WaitsForUsedRingCompletion = false;
     public const bool PerformsPacketTransmit = false;
-
     private const ushort DescriptorNextFlag = 1;
     private const uint DescriptorAddressOffset = 0;
     private const uint DescriptorLengthOffset = 8;
@@ -250,82 +18,30 @@ public static class VirtioNetTransmitLifecycle
     private const uint DescriptorEntryLength = VirtqueueSplitRingPlan.DescriptorLength;
     private const uint AvailableRingIndexOffset = 2;
     private const uint AvailableRingFieldLength = sizeof(ushort);
-
-    public static VirtioNetTransmitLifecycleResult Publish(
-        VirtioNetQueuePlanResult queuePlan,
-        ushort firstDescriptorIndex,
-        ushort availableDescriptorCount,
-        ushort availableRingIndex,
-        ulong txHeaderPhysicalAddress,
-        ulong ethernetFramePhysicalAddress,
-        ReadOnlySpan<byte> ethernetFrame,
-        Span<byte> txHeader,
-        Span<byte> queueMemory)
+    public static VirtioNetTransmitLifecycleResult Publish(VirtioNetQueuePlanResult queuePlan, ushort firstDescriptorIndex, ushort availableDescriptorCount, ushort availableRingIndex, ulong txHeaderPhysicalAddress, ulong ethernetFramePhysicalAddress, ReadOnlySpan<byte> ethernetFrame, Span<byte> txHeader, Span<byte> queueMemory)
     {
-        VirtioNetTransmitLifecycleStatus validationStatus = TryCreatePlan(
-            queuePlan,
-            firstDescriptorIndex,
-            availableDescriptorCount,
-            availableRingIndex,
-            txHeaderPhysicalAddress,
-            ethernetFramePhysicalAddress,
-            ethernetFrame.Length,
-            txHeader.Length,
-            queueMemory.Length,
-            out VirtioNetTransmitLifecyclePlan plan);
+        VirtioNetTransmitLifecycleStatus validationStatus = TryCreatePlan(queuePlan, firstDescriptorIndex, availableDescriptorCount, availableRingIndex, txHeaderPhysicalAddress, ethernetFramePhysicalAddress, ethernetFrame.Length, txHeader.Length, queueMemory.Length, out VirtioNetTransmitLifecyclePlan plan);
         if (validationStatus != VirtioNetTransmitLifecycleStatus.Success)
         {
-            return VirtioNetTransmitLifecycleResult.Fail(
-                validationStatus,
-                queuePlan.Status,
-                validationStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall
-                    ? VirtioNetHeaderStatus.BufferTooSmall
-                    : VirtioNetHeaderStatus.Success);
+            return VirtioNetTransmitLifecycleResult.Fail(validationStatus, queuePlan.Status, validationStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall ? VirtioNetHeaderStatus.BufferTooSmall : VirtioNetHeaderStatus.Success);
         }
 
-        VirtioNetHeaderStatus headerStatus =
-            VirtioNetHeader.TryWriteNoOffloadTxHeader(txHeader, out int headerBytesWritten);
+        VirtioNetHeaderStatus headerStatus = VirtioNetHeader.TryWriteNoOffloadTxHeader(txHeader, out int headerBytesWritten);
         if (headerStatus != VirtioNetHeaderStatus.Success)
         {
-            return VirtioNetTransmitLifecycleResult.Fail(
-                VirtioNetTransmitLifecycleStatus.HeaderWriteFailed,
-                queuePlan.Status,
-                headerStatus);
+            return VirtioNetTransmitLifecycleResult.Fail(VirtioNetTransmitLifecycleStatus.HeaderWriteFailed, queuePlan.Status, headerStatus);
         }
 
         WriteDescriptor(queueMemory, plan.HeaderDescriptor);
         WriteDescriptor(queueMemory, plan.FrameDescriptor);
-
-        WriteUInt16(
-            queueMemory,
-            plan.AvailableRingEntryOffset,
-            plan.HeadDescriptorIndex);
-        WriteUInt16(
-            queueMemory,
-            plan.TxQueue.AvailableRing.Offset + AvailableRingIndexOffset,
-            VirtioNetTransmitLifecycleResult.GetNextAvailableRingIndex(
-                plan.AvailableRingIndex));
-
-        return VirtioNetTransmitLifecycleResult.Success(
-            plan,
-            headerBytesWritten,
-            ethernetFrame.Length);
+        WriteUInt16(queueMemory, plan.AvailableRingEntryOffset, plan.HeadDescriptorIndex);
+        WriteUInt16(queueMemory, plan.TxQueue.AvailableRing.Offset + AvailableRingIndexOffset, VirtioNetTransmitLifecycleResult.GetNextAvailableRingIndex(plan.AvailableRingIndex));
+        return VirtioNetTransmitLifecycleResult.Success(plan, headerBytesWritten, ethernetFrame.Length);
     }
 
-    private static VirtioNetTransmitLifecycleStatus TryCreatePlan(
-        VirtioNetQueuePlanResult queuePlan,
-        ushort firstDescriptorIndex,
-        ushort availableDescriptorCount,
-        ushort availableRingIndex,
-        ulong txHeaderPhysicalAddress,
-        ulong ethernetFramePhysicalAddress,
-        int ethernetFrameBytes,
-        int txHeaderBytes,
-        int queueMemoryBytes,
-        out VirtioNetTransmitLifecyclePlan plan)
+    private static VirtioNetTransmitLifecycleStatus TryCreatePlan(VirtioNetQueuePlanResult queuePlan, ushort firstDescriptorIndex, ushort availableDescriptorCount, ushort availableRingIndex, ulong txHeaderPhysicalAddress, ulong ethernetFramePhysicalAddress, int ethernetFrameBytes, int txHeaderBytes, int queueMemoryBytes, out VirtioNetTransmitLifecyclePlan plan)
     {
         plan = default;
-
         if (!queuePlan.Succeeded)
         {
             return VirtioNetTransmitLifecycleStatus.QueuePlanFailed;
@@ -353,117 +69,61 @@ public static class VirtioNetTransmitLifecycle
             return VirtioNetTransmitLifecycleStatus.InsufficientDescriptors;
         }
 
-        if (!TryAddDescriptorIndex(firstDescriptorIndex, 1, out ushort frameDescriptorIndex) ||
-            frameDescriptorIndex >= txQueue.QueueSize)
+        if (!TryAddDescriptorIndex(firstDescriptorIndex, 1, out ushort frameDescriptorIndex) || frameDescriptorIndex >= txQueue.QueueSize)
         {
             return VirtioNetTransmitLifecycleStatus.DescriptorIndexOutOfRange;
         }
 
-        if (!txQueue.DescriptorTable.IsAligned ||
-            txQueue.DescriptorTable.Alignment != VirtqueueSplitRingPlan.DescriptorTableAlignment)
+        if (!txQueue.DescriptorTable.IsAligned || txQueue.DescriptorTable.Alignment != VirtqueueSplitRingPlan.DescriptorTableAlignment)
         {
             return VirtioNetTransmitLifecycleStatus.DescriptorAlignmentInvalid;
         }
 
-        if (!TryDescriptorOffset(txQueue, firstDescriptorIndex, out uint headerDescriptorOffset) ||
-            !TryDescriptorOffset(txQueue, frameDescriptorIndex, out uint frameDescriptorOffset))
+        if (!TryDescriptorOffset(txQueue, firstDescriptorIndex, out uint headerDescriptorOffset) || !TryDescriptorOffset(txQueue, frameDescriptorIndex, out uint frameDescriptorOffset))
         {
             return VirtioNetTransmitLifecycleStatus.DescriptorOffsetOverflow;
         }
 
-        if (!IsDescriptorOffsetAligned(headerDescriptorOffset) ||
-            !IsDescriptorOffsetAligned(frameDescriptorOffset))
+        if (!IsDescriptorOffsetAligned(headerDescriptorOffset) || !IsDescriptorOffsetAligned(frameDescriptorOffset))
         {
             return VirtioNetTransmitLifecycleStatus.DescriptorAlignmentInvalid;
         }
 
         ushort availableRingSlot = (ushort)(availableRingIndex & (txQueue.QueueSize - 1));
-        if (!TryAvailableRingEntryOffset(
-                txQueue,
-                availableRingSlot,
-                out uint availableRingEntryOffset))
+        if (!TryAvailableRingEntryOffset(txQueue, availableRingSlot, out uint availableRingEntryOffset))
         {
             return VirtioNetTransmitLifecycleStatus.AvailableRingOffsetOverflow;
         }
 
-        if (!TryMemoryRange(
-                VirtioNetTransmitDescriptorRole.VirtioHeader,
-                txHeaderPhysicalAddress,
-                TxHeaderBytes,
-                out VirtioNetTransmitDescriptorMemoryRange headerRange) ||
-            !TryMemoryRange(
-                VirtioNetTransmitDescriptorRole.EthernetFrame,
-                ethernetFramePhysicalAddress,
-                (uint)ethernetFrameBytes,
-                out VirtioNetTransmitDescriptorMemoryRange frameRange))
+        if (!TryMemoryRange(VirtioNetTransmitDescriptorRole.VirtioHeader, txHeaderPhysicalAddress, TxHeaderBytes, out VirtioNetTransmitDescriptorMemoryRange headerRange) || !TryMemoryRange(VirtioNetTransmitDescriptorRole.EthernetFrame, ethernetFramePhysicalAddress, (uint)ethernetFrameBytes, out VirtioNetTransmitDescriptorMemoryRange frameRange))
         {
             return VirtioNetTransmitLifecycleStatus.PhysicalRangeOverflow;
         }
 
-        VirtioNetTransmitLifecycleStatus memoryStatus =
-            ValidateQueueMemory(txQueue, queueMemoryBytes);
+        VirtioNetTransmitLifecycleStatus memoryStatus = ValidateQueueMemory(txQueue, queueMemoryBytes);
         if (memoryStatus != VirtioNetTransmitLifecycleStatus.Success)
         {
             return memoryStatus;
         }
 
-        VirtioNetTransmitPublishedDescriptor headerDescriptor =
-            new VirtioNetTransmitPublishedDescriptor(
-                VirtioNetTransmitDescriptorRole.VirtioHeader,
-                firstDescriptorIndex,
-                txHeaderPhysicalAddress,
-                TxHeaderBytes,
-                hasNext: true,
-                frameDescriptorIndex,
-                DescriptorNextFlag,
-                headerDescriptorOffset,
-                headerRange);
-        VirtioNetTransmitPublishedDescriptor frameDescriptor =
-            new VirtioNetTransmitPublishedDescriptor(
-                VirtioNetTransmitDescriptorRole.EthernetFrame,
-                frameDescriptorIndex,
-                ethernetFramePhysicalAddress,
-                (uint)ethernetFrameBytes,
-                hasNext: false,
-                nextDescriptorIndex: 0,
-                flags: 0,
-                frameDescriptorOffset,
-                frameRange);
-
-        plan = new VirtioNetTransmitLifecyclePlan(
-            netQueue,
-            availableDescriptorCount,
-            availableRingIndex,
-            availableRingSlot,
-            availableRingEntryOffset,
-            TxHeaderBytes,
-            (uint)ethernetFrameBytes,
-            headerDescriptor,
-            frameDescriptor);
+        VirtioNetTransmitPublishedDescriptor headerDescriptor = new VirtioNetTransmitPublishedDescriptor(VirtioNetTransmitDescriptorRole.VirtioHeader, firstDescriptorIndex, txHeaderPhysicalAddress, TxHeaderBytes, hasNext: true, frameDescriptorIndex, DescriptorNextFlag, headerDescriptorOffset, headerRange);
+        VirtioNetTransmitPublishedDescriptor frameDescriptor = new VirtioNetTransmitPublishedDescriptor(VirtioNetTransmitDescriptorRole.EthernetFrame, frameDescriptorIndex, ethernetFramePhysicalAddress, (uint)ethernetFrameBytes, hasNext: false, nextDescriptorIndex: 0, flags: 0, frameDescriptorOffset, frameRange);
+        plan = new VirtioNetTransmitLifecyclePlan(netQueue, availableDescriptorCount, availableRingIndex, availableRingSlot, availableRingEntryOffset, TxHeaderBytes, (uint)ethernetFrameBytes, headerDescriptor, frameDescriptor);
         return VirtioNetTransmitLifecycleStatus.Success;
     }
 
-    private static VirtioNetTransmitLifecycleStatus ValidateQueueMemory(
-        VirtqueueSplitRingPlan queue,
-        int queueMemoryBytes)
+    private static VirtioNetTransmitLifecycleStatus ValidateQueueMemory(VirtqueueSplitRingPlan queue, int queueMemoryBytes)
     {
-        VirtioNetTransmitLifecycleStatus status =
-            ValidateRange(queue.EndOffset, 0, queueMemoryBytes);
+        VirtioNetTransmitLifecycleStatus status = ValidateRange(queue.EndOffset, 0, queueMemoryBytes);
         if (status != VirtioNetTransmitLifecycleStatus.Success)
         {
             return status;
         }
 
-        return ValidateRange(
-            queue.AvailableRing.Offset + AvailableRingIndexOffset,
-            AvailableRingFieldLength,
-            queueMemoryBytes);
+        return ValidateRange(queue.AvailableRing.Offset + AvailableRingIndexOffset, AvailableRingFieldLength, queueMemoryBytes);
     }
 
-    private static VirtioNetTransmitLifecycleStatus ValidateRange(
-        uint offset,
-        uint length,
-        int destinationLength)
+    private static VirtioNetTransmitLifecycleStatus ValidateRange(uint offset, uint length, int destinationLength)
     {
         ulong end = (ulong)offset + length;
         if (end > int.MaxValue)
@@ -479,13 +139,9 @@ public static class VirtioNetTransmitLifecycle
         return VirtioNetTransmitLifecycleStatus.Success;
     }
 
-    private static bool TryDescriptorOffset(
-        VirtqueueSplitRingPlan queue,
-        ushort descriptorIndex,
-        out uint offset)
+    private static bool TryDescriptorOffset(VirtqueueSplitRingPlan queue, ushort descriptorIndex, out uint offset)
     {
-        ulong value = (ulong)queue.DescriptorTable.Offset +
-            ((ulong)descriptorIndex * DescriptorEntryLength);
+        ulong value = (ulong)queue.DescriptorTable.Offset + ((ulong)descriptorIndex * DescriptorEntryLength);
         if (value > uint.MaxValue)
         {
             offset = 0;
@@ -496,14 +152,9 @@ public static class VirtioNetTransmitLifecycle
         return true;
     }
 
-    private static bool TryAvailableRingEntryOffset(
-        VirtqueueSplitRingPlan queue,
-        ushort slot,
-        out uint offset)
+    private static bool TryAvailableRingEntryOffset(VirtqueueSplitRingPlan queue, ushort slot, out uint offset)
     {
-        ulong value = (ulong)queue.AvailableRing.Offset +
-            VirtqueueSplitRingPlan.AvailableRingHeaderLength +
-            ((ulong)slot * VirtqueueSplitRingPlan.AvailableRingEntryLength);
+        ulong value = (ulong)queue.AvailableRing.Offset + VirtqueueSplitRingPlan.AvailableRingHeaderLength + ((ulong)slot * VirtqueueSplitRingPlan.AvailableRingEntryLength);
         if (value > uint.MaxValue)
         {
             offset = 0;
@@ -514,10 +165,7 @@ public static class VirtioNetTransmitLifecycle
         return true;
     }
 
-    private static bool TryAddDescriptorIndex(
-        ushort value,
-        ushort increment,
-        out ushort result)
+    private static bool TryAddDescriptorIndex(ushort value, ushort increment, out ushort result)
     {
         int computed = value + increment;
         if (computed > ushort.MaxValue)
@@ -535,11 +183,7 @@ public static class VirtioNetTransmitLifecycle
         return (offset % VirtqueueSplitRingPlan.DescriptorTableAlignment) == 0;
     }
 
-    private static bool TryMemoryRange(
-        VirtioNetTransmitDescriptorRole role,
-        ulong physicalAddress,
-        uint length,
-        out VirtioNetTransmitDescriptorMemoryRange range)
+    private static bool TryMemoryRange(VirtioNetTransmitDescriptorRole role, ulong physicalAddress, uint length, out VirtioNetTransmitDescriptorMemoryRange range)
     {
         if ((ulong)length > ulong.MaxValue - physicalAddress)
         {
@@ -547,44 +191,22 @@ public static class VirtioNetTransmitLifecycle
             return false;
         }
 
-        range = new VirtioNetTransmitDescriptorMemoryRange(
-            role,
-            physicalAddress,
-            length,
-            physicalAddress + length);
+        range = new VirtioNetTransmitDescriptorMemoryRange(role, physicalAddress, length, physicalAddress + length);
         return true;
     }
 
-    private static void WriteDescriptor(
-        Span<byte> queueMemory,
-        VirtioNetTransmitPublishedDescriptor descriptor)
+    private static void WriteDescriptor(Span<byte> queueMemory, VirtioNetTransmitPublishedDescriptor descriptor)
     {
         int offset = (int)descriptor.DescriptorTableOffset;
-        Span<byte> descriptorBytes = queueMemory.Slice(
-            offset,
-            (int)DescriptorEntryLength);
-
-        EndianPrimitives.WriteUInt64LittleEndian(
-            descriptorBytes.Slice((int)DescriptorAddressOffset, sizeof(ulong)),
-            descriptor.PhysicalAddress);
-        EndianPrimitives.WriteUInt32LittleEndian(
-            descriptorBytes.Slice((int)DescriptorLengthOffset, sizeof(uint)),
-            descriptor.Length);
-        EndianPrimitives.WriteUInt16LittleEndian(
-            descriptorBytes.Slice((int)DescriptorFlagsOffset, sizeof(ushort)),
-            descriptor.Flags);
-        EndianPrimitives.WriteUInt16LittleEndian(
-            descriptorBytes.Slice((int)DescriptorNextOffset, sizeof(ushort)),
-            descriptor.NextDescriptorIndex);
+        Span<byte> descriptorBytes = queueMemory.Slice(offset, (int)DescriptorEntryLength);
+        EndianPrimitives.WriteUInt64LittleEndian(descriptorBytes.Slice((int)DescriptorAddressOffset, sizeof(ulong)), descriptor.PhysicalAddress);
+        EndianPrimitives.WriteUInt32LittleEndian(descriptorBytes.Slice((int)DescriptorLengthOffset, sizeof(uint)), descriptor.Length);
+        EndianPrimitives.WriteUInt16LittleEndian(descriptorBytes.Slice((int)DescriptorFlagsOffset, sizeof(ushort)), descriptor.Flags);
+        EndianPrimitives.WriteUInt16LittleEndian(descriptorBytes.Slice((int)DescriptorNextOffset, sizeof(ushort)), descriptor.NextDescriptorIndex);
     }
 
-    private static void WriteUInt16(
-        Span<byte> queueMemory,
-        uint offset,
-        ushort value)
+    private static void WriteUInt16(Span<byte> queueMemory, uint offset, ushort value)
     {
-        EndianPrimitives.WriteUInt16LittleEndian(
-            queueMemory.Slice((int)offset, sizeof(ushort)),
-            value);
+        EndianPrimitives.WriteUInt16LittleEndian(queueMemory.Slice((int)offset, sizeof(ushort)), value);
     }
 }

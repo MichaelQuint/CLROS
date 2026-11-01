@@ -1,70 +1,6 @@
 using OS.Std.Text;
 
 namespace OS.Net;
-
-public enum HttpStaticResponseTransactionDiagnosticFormatStatus
-{
-    Success = 0,
-    InvalidResult = 1,
-    DestinationTooSmall = 2
-}
-
-public readonly struct HttpStaticResponseTransactionDiagnosticFormatResult
-{
-    private const uint InitializedFlag = 1;
-
-    public HttpStaticResponseTransactionDiagnosticFormatResult(
-        HttpStaticResponseTransactionDiagnosticFormatStatus status,
-        HttpStaticResponseTransactionStatus transactionStatus,
-        int bytesWritten,
-        int requiredBytes,
-        int availableBytes,
-        uint flags = InitializedFlag)
-    {
-        Status = status;
-        TransactionStatus = transactionStatus;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-        AvailableBytes = availableBytes;
-        Flags = flags;
-    }
-
-    public HttpStaticResponseTransactionDiagnosticFormatStatus Status { get; }
-
-    public HttpStaticResponseTransactionStatus TransactionStatus { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public int AvailableBytes { get; }
-
-    public uint Flags { get; }
-
-    public bool IsInitialized => (Flags & InitializedFlag) != 0;
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == HttpStaticResponseTransactionDiagnosticFormatStatus.Success &&
-        RequiredBytes > 0 &&
-        BytesWritten == RequiredBytes &&
-        RequiredBytes <= AvailableBytes;
-
-    public static HttpStaticResponseTransactionDiagnosticFormatResult Fail(
-        HttpStaticResponseTransactionDiagnosticFormatStatus status,
-        HttpStaticResponseTransactionStatus transactionStatus,
-        int requiredBytes,
-        int availableBytes)
-    {
-        return new HttpStaticResponseTransactionDiagnosticFormatResult(
-            status,
-            transactionStatus,
-            bytesWritten: 0,
-            requiredBytes,
-            availableBytes);
-    }
-}
-
 public static class HttpStaticResponseTransactionDiagnosticFormatter
 {
     public const bool UsesSharedAsciiTextBuilder = true;
@@ -72,127 +8,50 @@ public static class HttpStaticResponseTransactionDiagnosticFormatter
     public const bool AllocatesManagedStorage = false;
     public const bool OpensLiveSocket = false;
     public const bool StartsKestrel = false;
-
-    public static HttpStaticResponseTransactionDiagnosticFormatResult FormatResult(
-        in HttpStaticResponseTransactionResult result,
-        Span<byte> destination)
+    public static HttpStaticResponseTransactionDiagnosticFormatResult FormatResult(in HttpStaticResponseTransactionResult result, Span<byte> destination)
     {
-        HttpStaticResponseTransactionDiagnosticFormatStatus validationStatus =
-            Validate(in result);
+        HttpStaticResponseTransactionDiagnosticFormatStatus validationStatus = Validate(in result);
         if (validationStatus != HttpStaticResponseTransactionDiagnosticFormatStatus.Success)
         {
-            return HttpStaticResponseTransactionDiagnosticFormatResult.Fail(
-                validationStatus,
-                result.Status,
-                requiredBytes: 0,
-                destination.Length);
+            return HttpStaticResponseTransactionDiagnosticFormatResult.Fail(validationStatus, result.Status, requiredBytes: 0, destination.Length);
         }
 
         int requiredBytes = GetRequiredBytes(in result);
         if (destination.Length < requiredBytes)
         {
-            return HttpStaticResponseTransactionDiagnosticFormatResult.Fail(
-                HttpStaticResponseTransactionDiagnosticFormatStatus.DestinationTooSmall,
-                result.Status,
-                requiredBytes,
-                destination.Length);
+            return HttpStaticResponseTransactionDiagnosticFormatResult.Fail(HttpStaticResponseTransactionDiagnosticFormatStatus.DestinationTooSmall, result.Status, requiredBytes, destination.Length);
         }
 
         int offset = 0;
-        if (!TryAppendBytes("HTTP_STATIC_RESPONSE status="u8, destination, ref offset) ||
-            !TryAppendBytes(GetTransactionStatusName(result.Status), destination, ref offset) ||
-            !TryAppendBytes(" request="u8, destination, ref offset) ||
-            !TryAppendBytes(GetRequestStatusName(result.RequestStatus), destination, ref offset) ||
-            !TryAppendBytes(" response="u8, destination, ref offset) ||
-            !TryAppendBytes(GetResponseStatusName(result.ResponseStatus), destination, ref offset) ||
-            !TryAppendBytes(" method="u8, destination, ref offset) ||
-            !TryAppendBytes(GetMethodName(result.Method), destination, ref offset) ||
-            !TryAppendBytes(" httpStatus="u8, destination, ref offset) ||
-            !TryAppendUInt64Decimal(result.StatusCode, destination, ref offset) ||
-            !TryAppendBytes(" targetMatched="u8, destination, ref offset) ||
-            !TryAppendBool(result.TargetMatched, destination, ref offset) ||
-            !TryAppendBytes(" methodAllowed="u8, destination, ref offset) ||
-            !TryAppendBool(result.MethodAllowed, destination, ref offset) ||
-            !TryAppendBytes(" connectionClose="u8, destination, ref offset) ||
-            !TryAppendBool(result.ConnectionClose, destination, ref offset) ||
-            !TryAppendBytes(" targetBytes="u8, destination, ref offset) ||
-            !TryAppendInt64Decimal(result.RequestTargetLength, destination, ref offset) ||
-            !TryAppendBytes(" bytesWritten="u8, destination, ref offset) ||
-            !TryAppendInt64Decimal(result.BytesWritten, destination, ref offset) ||
-            !TryAppendBytes(" bytesRequired="u8, destination, ref offset) ||
-            !TryAppendInt64Decimal(result.BytesRequired, destination, ref offset) ||
-            !TryAppendBytes(" bodyOffset="u8, destination, ref offset) ||
-            !TryAppendInt64Decimal(result.BodyOffset, destination, ref offset) ||
-            !TryAppendBytes(" bodyBytes="u8, destination, ref offset) ||
-            !TryAppendInt64Decimal(result.BodyLength, destination, ref offset) ||
-            !TryAppendBytes(" liveSocket="u8, destination, ref offset) ||
-            !TryAppendBool(OpensLiveSocket, destination, ref offset) ||
-            !TryAppendBytes(" startsKestrel="u8, destination, ref offset) ||
-            !TryAppendBool(StartsKestrel, destination, ref offset))
+        if (!TryAppendBytes("HTTP_STATIC_RESPONSE status="u8, destination, ref offset) || !TryAppendBytes(GetTransactionStatusName(result.Status), destination, ref offset) || !TryAppendBytes(" request="u8, destination, ref offset) || !TryAppendBytes(GetRequestStatusName(result.RequestStatus), destination, ref offset) || !TryAppendBytes(" response="u8, destination, ref offset) || !TryAppendBytes(GetResponseStatusName(result.ResponseStatus), destination, ref offset) || !TryAppendBytes(" method="u8, destination, ref offset) || !TryAppendBytes(GetMethodName(result.Method), destination, ref offset) || !TryAppendBytes(" httpStatus="u8, destination, ref offset) || !TryAppendUInt64Decimal(result.StatusCode, destination, ref offset) || !TryAppendBytes(" targetMatched="u8, destination, ref offset) || !TryAppendBool(result.TargetMatched, destination, ref offset) || !TryAppendBytes(" methodAllowed="u8, destination, ref offset) || !TryAppendBool(result.MethodAllowed, destination, ref offset) || !TryAppendBytes(" connectionClose="u8, destination, ref offset) || !TryAppendBool(result.ConnectionClose, destination, ref offset) || !TryAppendBytes(" targetBytes="u8, destination, ref offset) || !TryAppendInt64Decimal(result.RequestTargetLength, destination, ref offset) || !TryAppendBytes(" bytesWritten="u8, destination, ref offset) || !TryAppendInt64Decimal(result.BytesWritten, destination, ref offset) || !TryAppendBytes(" bytesRequired="u8, destination, ref offset) || !TryAppendInt64Decimal(result.BytesRequired, destination, ref offset) || !TryAppendBytes(" bodyOffset="u8, destination, ref offset) || !TryAppendInt64Decimal(result.BodyOffset, destination, ref offset) || !TryAppendBytes(" bodyBytes="u8, destination, ref offset) || !TryAppendInt64Decimal(result.BodyLength, destination, ref offset) || !TryAppendBytes(" liveSocket="u8, destination, ref offset) || !TryAppendBool(OpensLiveSocket, destination, ref offset) || !TryAppendBytes(" startsKestrel="u8, destination, ref offset) || !TryAppendBool(StartsKestrel, destination, ref offset))
         {
-            return HttpStaticResponseTransactionDiagnosticFormatResult.Fail(
-                HttpStaticResponseTransactionDiagnosticFormatStatus.DestinationTooSmall,
-                result.Status,
-                requiredBytes,
-                destination.Length);
+            return HttpStaticResponseTransactionDiagnosticFormatResult.Fail(HttpStaticResponseTransactionDiagnosticFormatStatus.DestinationTooSmall, result.Status, requiredBytes, destination.Length);
         }
 
-        return new HttpStaticResponseTransactionDiagnosticFormatResult(
-            HttpStaticResponseTransactionDiagnosticFormatStatus.Success,
-            result.Status,
-            bytesWritten: offset,
-            requiredBytes,
-            availableBytes: destination.Length);
+        return new HttpStaticResponseTransactionDiagnosticFormatResult(HttpStaticResponseTransactionDiagnosticFormatStatus.Success, result.Status, bytesWritten: offset, requiredBytes, availableBytes: destination.Length);
     }
 
-    public static HttpStaticResponseTransactionDiagnosticFormatResult QueryRequiredBytes(
-        in HttpStaticResponseTransactionResult result)
+    public static HttpStaticResponseTransactionDiagnosticFormatResult QueryRequiredBytes(in HttpStaticResponseTransactionResult result)
     {
-        HttpStaticResponseTransactionDiagnosticFormatStatus validationStatus =
-            Validate(in result);
+        HttpStaticResponseTransactionDiagnosticFormatStatus validationStatus = Validate(in result);
         if (validationStatus != HttpStaticResponseTransactionDiagnosticFormatStatus.Success)
         {
-            return HttpStaticResponseTransactionDiagnosticFormatResult.Fail(
-                validationStatus,
-                result.Status,
-                requiredBytes: 0,
-                availableBytes: 0);
+            return HttpStaticResponseTransactionDiagnosticFormatResult.Fail(validationStatus, result.Status, requiredBytes: 0, availableBytes: 0);
         }
 
-        return new HttpStaticResponseTransactionDiagnosticFormatResult(
-            HttpStaticResponseTransactionDiagnosticFormatStatus.Success,
-            result.Status,
-            bytesWritten: 0,
-            requiredBytes: GetRequiredBytes(in result),
-            availableBytes: 0);
+        return new HttpStaticResponseTransactionDiagnosticFormatResult(HttpStaticResponseTransactionDiagnosticFormatStatus.Success, result.Status, bytesWritten: 0, requiredBytes: GetRequiredBytes(in result), availableBytes: 0);
     }
 
-    private static HttpStaticResponseTransactionDiagnosticFormatStatus Validate(
-        in HttpStaticResponseTransactionResult result)
+    private static HttpStaticResponseTransactionDiagnosticFormatStatus Validate(in HttpStaticResponseTransactionResult result)
     {
-        if (!result.IsInitialized ||
-            !IsKnownTransactionStatus(result.Status) ||
-            !IsKnownRequestStatus(result.RequestStatus) ||
-            !IsKnownResponseStatus(result.ResponseStatus) ||
-            !IsKnownMethod(result.Method) ||
-            result.RequestTargetOffset < 0 ||
-            result.RequestTargetLength < 0 ||
-            result.BytesWritten < 0 ||
-            result.BytesRequired < 0 ||
-            result.BodyOffset < 0 ||
-            result.BodyLength < 0)
+        if (!result.IsInitialized || !IsKnownTransactionStatus(result.Status) || !IsKnownRequestStatus(result.RequestStatus) || !IsKnownResponseStatus(result.ResponseStatus) || !IsKnownMethod(result.Method) || result.RequestTargetOffset < 0 || result.RequestTargetLength < 0 || result.BytesWritten < 0 || result.BytesRequired < 0 || result.BodyOffset < 0 || result.BodyLength < 0)
         {
             return HttpStaticResponseTransactionDiagnosticFormatStatus.InvalidResult;
         }
 
         if (result.Status == HttpStaticResponseTransactionStatus.Success)
         {
-            if (!result.Succeeded ||
-                result.RequestStatus != HttpRequestParseStatus.Success ||
-                result.ResponseStatus != HttpResponseWriterStatus.Success ||
-                result.StatusCode == 0 ||
-                result.BytesWritten <= 0 ||
-                result.BytesRequired != result.BytesWritten)
+            if (!result.Succeeded || result.RequestStatus != HttpRequestParseStatus.Success || result.ResponseStatus != HttpResponseWriterStatus.Success || result.StatusCode == 0 || result.BytesWritten <= 0 || result.BytesRequired != result.BytesWritten)
             {
                 return HttpStaticResponseTransactionDiagnosticFormatStatus.InvalidResult;
             }
@@ -203,64 +62,30 @@ public static class HttpStaticResponseTransactionDiagnosticFormatter
 
     private static int GetRequiredBytes(in HttpStaticResponseTransactionResult result)
     {
-        return "HTTP_STATIC_RESPONSE status="u8.Length
-            + GetTransactionStatusName(result.Status).Length
-            + " request="u8.Length
-            + GetRequestStatusName(result.RequestStatus).Length
-            + " response="u8.Length
-            + GetResponseStatusName(result.ResponseStatus).Length
-            + " method="u8.Length
-            + GetMethodName(result.Method).Length
-            + " httpStatus="u8.Length
-            + AsciiDecimalFormatter.CountUInt32Digits(result.StatusCode)
-            + " targetMatched="u8.Length
-            + GetBoolName(result.TargetMatched).Length
-            + " methodAllowed="u8.Length
-            + GetBoolName(result.MethodAllowed).Length
-            + " connectionClose="u8.Length
-            + GetBoolName(result.ConnectionClose).Length
-            + " targetBytes="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.RequestTargetLength)
-            + " bytesWritten="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.BytesWritten)
-            + " bytesRequired="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.BytesRequired)
-            + " bodyOffset="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.BodyOffset)
-            + " bodyBytes="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.BodyLength)
-            + " liveSocket="u8.Length
-            + GetBoolName(OpensLiveSocket).Length
-            + " startsKestrel="u8.Length
-            + GetBoolName(StartsKestrel).Length;
+        return "HTTP_STATIC_RESPONSE status="u8.Length + GetTransactionStatusName(result.Status).Length + " request="u8.Length + GetRequestStatusName(result.RequestStatus).Length + " response="u8.Length + GetResponseStatusName(result.ResponseStatus).Length + " method="u8.Length + GetMethodName(result.Method).Length + " httpStatus="u8.Length + AsciiDecimalFormatter.CountUInt32Digits(result.StatusCode) + " targetMatched="u8.Length + GetBoolName(result.TargetMatched).Length + " methodAllowed="u8.Length + GetBoolName(result.MethodAllowed).Length + " connectionClose="u8.Length + GetBoolName(result.ConnectionClose).Length + " targetBytes="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.RequestTargetLength) + " bytesWritten="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.BytesWritten) + " bytesRequired="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.BytesRequired) + " bodyOffset="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.BodyOffset) + " bodyBytes="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.BodyLength) + " liveSocket="u8.Length + GetBoolName(OpensLiveSocket).Length + " startsKestrel="u8.Length + GetBoolName(StartsKestrel).Length;
     }
 
     private static bool IsKnownTransactionStatus(HttpStaticResponseTransactionStatus status)
     {
-        return status >= HttpStaticResponseTransactionStatus.Success &&
-            status <= HttpStaticResponseTransactionStatus.ResponseWriteFailed;
+        return status >= HttpStaticResponseTransactionStatus.Success && status <= HttpStaticResponseTransactionStatus.ResponseWriteFailed;
     }
 
     private static bool IsKnownRequestStatus(HttpRequestParseStatus status)
     {
-        return status >= HttpRequestParseStatus.Success &&
-            status <= HttpRequestParseStatus.DuplicateContentLength;
+        return status >= HttpRequestParseStatus.Success && status <= HttpRequestParseStatus.DuplicateContentLength;
     }
 
     private static bool IsKnownResponseStatus(HttpResponseWriterStatus status)
     {
-        return status >= HttpResponseWriterStatus.Success &&
-            status <= HttpResponseWriterStatus.InvalidContentType;
+        return status >= HttpResponseWriterStatus.Success && status <= HttpResponseWriterStatus.InvalidContentType;
     }
 
     private static bool IsKnownMethod(HttpRequestMethod method)
     {
-        return method >= HttpRequestMethod.Unknown &&
-            method <= HttpRequestMethod.Post;
+        return method >= HttpRequestMethod.Unknown && method <= HttpRequestMethod.Post;
     }
 
-    private static ReadOnlySpan<byte> GetTransactionStatusName(
-        HttpStaticResponseTransactionStatus status)
+    private static ReadOnlySpan<byte> GetTransactionStatusName(HttpStaticResponseTransactionStatus status)
     {
         return status switch
         {
@@ -324,10 +149,7 @@ public static class HttpStaticResponseTransactionDiagnosticFormatter
         return value ? "true"u8 : "false"u8;
     }
 
-    private static bool TryAppendBytes(
-        ReadOnlySpan<byte> value,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryAppendBytes(ReadOnlySpan<byte> value, Span<byte> destination, ref int offset)
     {
         AsciiTextBuilderResult result = AsciiTextBuilder.AppendBytes(destination, offset, value);
         if (!result.Succeeded)
@@ -339,13 +161,9 @@ public static class HttpStaticResponseTransactionDiagnosticFormatter
         return true;
     }
 
-    private static bool TryAppendInt64Decimal(
-        long value,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryAppendInt64Decimal(long value, Span<byte> destination, ref int offset)
     {
-        AsciiTextBuilderResult result =
-            AsciiTextBuilder.AppendInt64Decimal(destination, offset, value);
+        AsciiTextBuilderResult result = AsciiTextBuilder.AppendInt64Decimal(destination, offset, value);
         if (!result.Succeeded)
         {
             return false;
@@ -355,13 +173,9 @@ public static class HttpStaticResponseTransactionDiagnosticFormatter
         return true;
     }
 
-    private static bool TryAppendUInt64Decimal(
-        ulong value,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryAppendUInt64Decimal(ulong value, Span<byte> destination, ref int offset)
     {
-        AsciiTextBuilderResult result =
-            AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value);
+        AsciiTextBuilderResult result = AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value);
         if (!result.Succeeded)
         {
             return false;
@@ -371,10 +185,7 @@ public static class HttpStaticResponseTransactionDiagnosticFormatter
         return true;
     }
 
-    private static bool TryAppendBool(
-        bool value,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryAppendBool(bool value, Span<byte> destination, ref int offset)
     {
         return TryAppendBytes(GetBoolName(value), destination, ref offset);
     }

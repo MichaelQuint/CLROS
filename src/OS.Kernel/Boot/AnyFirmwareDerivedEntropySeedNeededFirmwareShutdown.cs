@@ -2,50 +2,6 @@ using System.Runtime.InteropServices;
 using OS.Kernel.Platform;
 
 namespace OS.Boot;
-
-public enum FirmwareEntropySeedStatus
-{
-    NotStarted = 0,
-    Success,
-    InvalidSource,
-    InvalidRequestLength,
-    ScratchTooSmall,
-    DestinationTooSmall,
-    AliasedBuffers,
-    AlreadyPublished,
-    InvalidPublication,
-    FirmwareServicesUnavailable,
-    SourceUnavailable,
-    SourceFailed,
-    WrongLength,
-    InvalidSourceResult,
-    ReadbackMismatch
-}
-
-// The bytes stay in caller-owned storage. This POD contains no seed or pointer.
-public readonly struct FirmwareEntropySeedPublication
-{
-    internal FirmwareEntropySeedPublication(int retainedBytes) => RetainedBytes = retainedBytes;
-    public int RetainedBytes { get; }
-    public bool IsPublished => RetainedBytes is 32 or 64;
-}
-
-public readonly struct FirmwareEntropySeedResult
-{
-    internal FirmwareEntropySeedResult(FirmwareEntropySeedStatus status, int requestedBytes,
-        PlatformRandomResult sourceResult = default)
-    {
-        Status = status;
-        RequestedBytes = requestedBytes;
-        SourceResult = sourceResult;
-    }
-
-    public FirmwareEntropySeedStatus Status { get; }
-    public int RequestedBytes { get; }
-    public PlatformRandomResult SourceResult { get; }
-    public bool Succeeded => Status == FirmwareEntropySeedStatus.Success;
-}
-
 /// <summary>
 /// Retains one 32- or 64-byte guarded firmware-source result before shutdown.
 /// Both complete buffer spans and the publication must be disjoint and stable
@@ -58,16 +14,14 @@ public readonly struct FirmwareEntropySeedResult
 /// scratch slice before publishing; this is not a physical secure-erasure claim.
 /// No entropy-quality test, fallback, retry, pool or post-firmware call is supplied.
 /// </summary>
+
 public static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdown
 {
     public const int PayloadCapacity = 64;
-
-    public static FirmwareEntropySeedResult Capture(IPlatformRandom? source, int requestedBytes,
-        Span<byte> scratch, Span<byte> destination, ref FirmwareEntropySeedPublication publication)
+    public static FirmwareEntropySeedResult Capture(IPlatformRandom? source, int requestedBytes, Span<byte> scratch, Span<byte> destination, ref FirmwareEntropySeedPublication publication)
     {
         if (publication.RetainedBytes != 0)
-            return Fail(publication.IsPublished ? FirmwareEntropySeedStatus.AlreadyPublished
-                : FirmwareEntropySeedStatus.InvalidPublication, requestedBytes);
+            return Fail(publication.IsPublished ? FirmwareEntropySeedStatus.AlreadyPublished : FirmwareEntropySeedStatus.InvalidPublication, requestedBytes);
         if (source is null)
             return Fail(FirmwareEntropySeedStatus.InvalidSource, requestedBytes);
         if (requestedBytes is not (32 or 64))
@@ -76,12 +30,9 @@ public static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdown
             return Fail(FirmwareEntropySeedStatus.ScratchTooSmall, requestedBytes);
         if (destination.Length < PayloadCapacity)
             return Fail(FirmwareEntropySeedStatus.DestinationTooSmall, requestedBytes);
-
         Span<byte> publicationBytes = MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref publication, 1));
-        if (scratch.Overlaps(destination) || scratch.Overlaps(publicationBytes)
-            || destination.Overlaps(publicationBytes))
+        if (scratch.Overlaps(destination) || scratch.Overlaps(publicationBytes) || destination.Overlaps(publicationBytes))
             return Fail(FirmwareEntropySeedStatus.AliasedBuffers, requestedBytes);
-
         Span<byte> requestedScratch = scratch.Slice(0, requestedBytes);
         PlatformRandomResult result = source.FillBytes(requestedScratch);
         if (!result.Succeeded)
@@ -96,22 +47,19 @@ public static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdown
             };
             return new(status, requestedBytes, result);
         }
-        if (result.Status != PlatformRandomStatus.Success
-            || result.Mode != FirmwareServicesMode.BootServicesAvailable)
+
+        if (result.Status != PlatformRandomStatus.Success || result.Mode != FirmwareServicesMode.BootServicesAvailable)
             return new(FirmwareEntropySeedStatus.InvalidSourceResult, requestedBytes, result);
         if (result.RequestedBytes != requestedBytes || result.BytesWritten != requestedBytes)
             return new(FirmwareEntropySeedStatus.WrongLength, requestedBytes, result);
-
         requestedScratch.CopyTo(destination);
         for (int i = 0; i < requestedBytes; i++)
             if (destination[i] != requestedScratch[i])
                 return new(FirmwareEntropySeedStatus.ReadbackMismatch, requestedBytes, result);
-
         requestedScratch.Clear();
         publication = new FirmwareEntropySeedPublication(requestedBytes);
         return new(FirmwareEntropySeedStatus.Success, requestedBytes, result);
     }
 
-    private static FirmwareEntropySeedResult Fail(FirmwareEntropySeedStatus status, int requestedBytes) =>
-        new(status, requestedBytes);
+    private static FirmwareEntropySeedResult Fail(FirmwareEntropySeedStatus status, int requestedBytes) => new(status, requestedBytes);
 }

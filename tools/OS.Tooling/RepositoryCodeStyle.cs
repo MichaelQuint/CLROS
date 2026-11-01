@@ -47,7 +47,10 @@ public static class RepositoryCodeStyle
 
             var declarations = root.DescendantNodes().OfType<MemberDeclarationSyntax>()
                 .Where(IsType).Where(value => !IsContainingWrapper(value)).ToArray();
-            if (declarations.Length > 1 || (declarations.Length != 0 && root.DescendantNodes().OfType<GlobalStatementSyntax>().Any()))
+            int logicalTypes = declarations.GroupBy(TypeIdentity, StringComparer.Ordinal).Sum(group =>
+                group.All(value => value is TypeDeclarationSyntax && value.Modifiers.Any(SyntaxKind.PartialKeyword))
+                    && group.Select(value => value.RawKind).Distinct().Count() == 1 ? 1 : group.Count());
+            if (logicalTypes > 1 || (logicalTypes != 0 && root.DescendantNodes().OfType<GlobalStatementSyntax>().Any()))
             {
                 foreach (var declaration in declarations)
                     Add(declaration, "CLROSSTYLE001", "Place each type in its own file; partial containing wrappers are allowed.");
@@ -62,7 +65,9 @@ public static class RepositoryCodeStyle
                 string qualifiedName = string.Join(".", parents.Append(name));
                 bool matches = parents.Length != 0
                     ? file == qualifiedName || (declaration.Modifiers.Any(SyntaxKind.PartialKeyword)
-                        && file.StartsWith(qualifiedName + ".", StringComparison.Ordinal))
+                        && (file.StartsWith(qualifiedName + ".", StringComparison.Ordinal)
+                            || Enumerable.Range(1, parents.Length).Any(length =>
+                                file.StartsWith(string.Join(".", parents.Take(length)) + ".", StringComparison.Ordinal))))
                     : file == name || file.EndsWith("." + name, StringComparison.Ordinal)
                         || (declaration.Modifiers.Any(SyntaxKind.PartialKeyword) && file.StartsWith(name + ".", StringComparison.Ordinal));
                 if (!matches)
@@ -77,6 +82,20 @@ public static class RepositoryCodeStyle
     }
 
     internal static bool IsType(MemberDeclarationSyntax node) => node is BaseTypeDeclarationSyntax or DelegateDeclarationSyntax;
+
+    internal static string TypeIdentity(MemberDeclarationSyntax node)
+    {
+        string space = string.Join(".", node.Ancestors().OfType<BaseNamespaceDeclarationSyntax>()
+            .Reverse().Select(value => value.Name.ToString()));
+        string chain = string.Join("+", node.AncestorsAndSelf().OfType<MemberDeclarationSyntax>().Where(IsType)
+            .Reverse().Select(value => TypeName(value) + "`" + (value switch
+            {
+                TypeDeclarationSyntax type => type.TypeParameterList?.Parameters.Count ?? 0,
+                DelegateDeclarationSyntax callback => callback.TypeParameterList?.Parameters.Count ?? 0,
+                _ => 0
+            })));
+        return space + ":" + chain;
+    }
 
     internal static string TypeName(MemberDeclarationSyntax node) => node switch
     {

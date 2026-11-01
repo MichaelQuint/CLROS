@@ -1,148 +1,14 @@
 namespace OS.Boot;
-
-public enum EfiConfigurationTableScanStatus
-{
-    Ok = 0,
-    NotFound = 1,
-    InvalidPointer = 2,
-    InvalidConfigurationTableCount = 3,
-    InvalidConfigurationTableAddress = 4
-}
-
-public enum EfiAcpiTableKind
-{
-    None = 0,
-    Acpi10 = 1,
-    Acpi20 = 2
-}
-
-public readonly struct EfiConfigurationTableGuid
-{
-    public EfiConfigurationTableGuid(
-        uint data1,
-        ushort data2,
-        ushort data3,
-        byte data4,
-        byte data5,
-        byte data6,
-        byte data7,
-        byte data8,
-        byte data9,
-        byte data10,
-        byte data11)
-    {
-        Data1 = data1;
-        Data2 = data2;
-        Data3 = data3;
-        Data4 = data4;
-        Data5 = data5;
-        Data6 = data6;
-        Data7 = data7;
-        Data8 = data8;
-        Data9 = data9;
-        Data10 = data10;
-        Data11 = data11;
-    }
-
-    public uint Data1 { get; }
-
-    public ushort Data2 { get; }
-
-    public ushort Data3 { get; }
-
-    public byte Data4 { get; }
-
-    public byte Data5 { get; }
-
-    public byte Data6 { get; }
-
-    public byte Data7 { get; }
-
-    public byte Data8 { get; }
-
-    public byte Data9 { get; }
-
-    public byte Data10 { get; }
-
-    public byte Data11 { get; }
-}
-
-public readonly struct EfiConfigurationTableEntry
-{
-    public EfiConfigurationTableEntry(EfiConfigurationTableGuid vendorGuid, ulong vendorTable)
-    {
-        VendorGuid = vendorGuid;
-        VendorTable = vendorTable;
-    }
-
-    public EfiConfigurationTableGuid VendorGuid { get; }
-
-    public ulong VendorTable { get; }
-}
-
-public readonly struct EfiConfigurationTableScanResult
-{
-    private EfiConfigurationTableScanResult(
-        bool succeeded,
-        EfiConfigurationTableScanStatus status,
-        EfiAcpiTableKind tableKind,
-        ulong rsdpAddress)
-    {
-        Succeeded = succeeded;
-        Status = status;
-        TableKind = tableKind;
-        RsdpAddress = rsdpAddress;
-    }
-
-    public bool Succeeded { get; }
-
-    public EfiConfigurationTableScanStatus Status { get; }
-
-    public EfiAcpiTableKind TableKind { get; }
-
-    public ulong RsdpAddress { get; }
-
-    public static EfiConfigurationTableScanResult Success(EfiAcpiTableKind tableKind, ulong rsdpAddress)
-    {
-        return new EfiConfigurationTableScanResult(
-            true,
-            EfiConfigurationTableScanStatus.Ok,
-            tableKind,
-            rsdpAddress);
-    }
-
-    public static EfiConfigurationTableScanResult Fail(EfiConfigurationTableScanStatus status)
-    {
-        return new EfiConfigurationTableScanResult(
-            false,
-            status,
-            EfiAcpiTableKind.None,
-            0);
-    }
-}
-
 public static unsafe class EfiConfigurationTableScanner
 {
     public const ulong EntrySize = 24;
     public const ulong MaximumTableCount = 4096;
     public const ulong MaximumUnsignedLong = 0xffffffffffffffff;
-
     public static EfiConfigurationTableGuid Acpi20TableGuid
     {
         get
         {
-            return new EfiConfigurationTableGuid(
-                0x8868e871,
-                0xe4f1,
-                0x11d3,
-                0xbc,
-                0x22,
-                0x00,
-                0x80,
-                0xc7,
-                0x3c,
-                0x88,
-                0x81);
+            return new EfiConfigurationTableGuid(0x8868e871, 0xe4f1, 0x11d3, 0xbc, 0x22, 0x00, 0x80, 0xc7, 0x3c, 0x88, 0x81);
         }
     }
 
@@ -150,18 +16,7 @@ public static unsafe class EfiConfigurationTableScanner
     {
         get
         {
-            return new EfiConfigurationTableGuid(
-                0xeb9d2d30,
-                0x2d88,
-                0x11d3,
-                0x9a,
-                0x16,
-                0x00,
-                0x90,
-                0x27,
-                0x3f,
-                0xc1,
-                0x4d);
+            return new EfiConfigurationTableGuid(0xeb9d2d30, 0x2d88, 0x11d3, 0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d);
         }
     }
 
@@ -169,11 +24,9 @@ public static unsafe class EfiConfigurationTableScanner
     public static EfiConfigurationTableScanResult Scan(ReadOnlySpan<EfiConfigurationTableEntry> tables)
     {
         ulong acpi10Rsdp = 0;
-
         for (int index = 0; index < tables.Length; index++)
         {
             EfiConfigurationTableEntry entry = tables[index];
-
             if (EqualsGuid(entry.VendorGuid, Acpi20TableGuid))
             {
                 if (entry.VendorTable == 0)
@@ -206,14 +59,13 @@ public static unsafe class EfiConfigurationTableScanner
 
         return EfiConfigurationTableScanResult.Fail(EfiConfigurationTableScanStatus.NotFound);
     }
-#endif
 
+#endif
     public static EfiConfigurationTableScanResult Scan(void* configurationTable, ulong tableCount)
     {
         if (tableCount > MaximumTableCount)
         {
-            return EfiConfigurationTableScanResult.Fail(
-                EfiConfigurationTableScanStatus.InvalidConfigurationTableCount);
+            return EfiConfigurationTableScanResult.Fail(EfiConfigurationTableScanStatus.InvalidConfigurationTableCount);
         }
 
         if (tableCount == 0)
@@ -223,26 +75,22 @@ public static unsafe class EfiConfigurationTableScanner
 
         if (configurationTable == null)
         {
-            return EfiConfigurationTableScanResult.Fail(
-                EfiConfigurationTableScanStatus.InvalidConfigurationTableAddress);
+            return EfiConfigurationTableScanResult.Fail(EfiConfigurationTableScanStatus.InvalidConfigurationTableAddress);
         }
 
         if (tableCount > MaximumUnsignedLong / EntrySize)
         {
-            return EfiConfigurationTableScanResult.Fail(
-                EfiConfigurationTableScanStatus.InvalidConfigurationTableCount);
+            return EfiConfigurationTableScanResult.Fail(EfiConfigurationTableScanStatus.InvalidConfigurationTableCount);
         }
 
         byte* tableBytes = (byte*)configurationTable;
         ulong acpi10Rsdp = 0;
         bool sawAcpi10ZeroPointer = false;
-
         for (ulong index = 0; index < tableCount; index++)
         {
             byte* entry = tableBytes + (index * EntrySize);
             EfiConfigurationTableGuid vendorGuid = ReadGuid(entry);
             ulong vendorTable = ReadUInt64LittleEndian(entry + 16);
-
             if (EqualsGuid(vendorGuid, Acpi20TableGuid))
             {
                 if (vendorTable == 0)
@@ -281,33 +129,12 @@ public static unsafe class EfiConfigurationTableScanner
 
     private static bool EqualsGuid(EfiConfigurationTableGuid left, EfiConfigurationTableGuid right)
     {
-        return left.Data1 == right.Data1
-            && left.Data2 == right.Data2
-            && left.Data3 == right.Data3
-            && left.Data4 == right.Data4
-            && left.Data5 == right.Data5
-            && left.Data6 == right.Data6
-            && left.Data7 == right.Data7
-            && left.Data8 == right.Data8
-            && left.Data9 == right.Data9
-            && left.Data10 == right.Data10
-            && left.Data11 == right.Data11;
+        return left.Data1 == right.Data1 && left.Data2 == right.Data2 && left.Data3 == right.Data3 && left.Data4 == right.Data4 && left.Data5 == right.Data5 && left.Data6 == right.Data6 && left.Data7 == right.Data7 && left.Data8 == right.Data8 && left.Data9 == right.Data9 && left.Data10 == right.Data10 && left.Data11 == right.Data11;
     }
 
     private static EfiConfigurationTableGuid ReadGuid(byte* source)
     {
-        return new EfiConfigurationTableGuid(
-            ReadUInt32LittleEndian(source),
-            ReadUInt16LittleEndian(source + 4),
-            ReadUInt16LittleEndian(source + 6),
-            source[8],
-            source[9],
-            source[10],
-            source[11],
-            source[12],
-            source[13],
-            source[14],
-            source[15]);
+        return new EfiConfigurationTableGuid(ReadUInt32LittleEndian(source), ReadUInt16LittleEndian(source + 4), ReadUInt16LittleEndian(source + 6), source[8], source[9], source[10], source[11], source[12], source[13], source[14], source[15]);
     }
 
     private static ushort ReadUInt16LittleEndian(byte* source)
@@ -317,21 +144,11 @@ public static unsafe class EfiConfigurationTableScanner
 
     private static uint ReadUInt32LittleEndian(byte* source)
     {
-        return source[0]
-            | ((uint)source[1] << 8)
-            | ((uint)source[2] << 16)
-            | ((uint)source[3] << 24);
+        return source[0] | ((uint)source[1] << 8) | ((uint)source[2] << 16) | ((uint)source[3] << 24);
     }
 
     private static ulong ReadUInt64LittleEndian(byte* source)
     {
-        return (ulong)source[0]
-            | ((ulong)source[1] << 8)
-            | ((ulong)source[2] << 16)
-            | ((ulong)source[3] << 24)
-            | ((ulong)source[4] << 32)
-            | ((ulong)source[5] << 40)
-            | ((ulong)source[6] << 48)
-            | ((ulong)source[7] << 56);
+        return (ulong)source[0] | ((ulong)source[1] << 8) | ((ulong)source[2] << 16) | ((ulong)source[3] << 24) | ((ulong)source[4] << 32) | ((ulong)source[5] << 40) | ((ulong)source[6] << 48) | ((ulong)source[7] << 56);
     }
 }

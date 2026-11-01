@@ -3,58 +3,13 @@ using OS.Std.Text;
 using OS.Storage;
 
 namespace OS.Kernel.Runtime;
-
-public enum NativeAppPackageStagingMarkerFormatStatus
-{
-    Success = 0,
-    DestinationTooSmall = 1,
-    InvalidStatus = 2,
-    MarkerTooLong = 3
-}
-
-public readonly struct NativeAppPackageStagingMarkerFormatResult
-{
-    private const uint InitializedFlag = 1;
-
-    public NativeAppPackageStagingMarkerFormatResult(
-        NativeAppPackageStagingMarkerFormatStatus status,
-        int bytesWritten,
-        int requiredBytes,
-        uint flags = InitializedFlag)
-    {
-        Status = status;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-        Flags = flags;
-    }
-
-    public NativeAppPackageStagingMarkerFormatStatus Status { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public uint Flags { get; }
-
-    public bool IsInitialized => (Flags & InitializedFlag) != 0;
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == NativeAppPackageStagingMarkerFormatStatus.Success &&
-        RequiredBytes != 0 &&
-        BytesWritten == RequiredBytes;
-}
-
 public static class NativeAppPackageStagingReadinessFormatter
 {
     public const int MaximumMarkerBytes = 1024;
-
     private static ReadOnlySpan<byte> NotReadyPrefix => "APP_PACKAGE_STAGING_NOT_READY "u8;
     private static ReadOnlySpan<byte> StagingReadinessFailedName => "StagingReadinessFailed"u8;
 
-    public static NativeAppPackageStagingMarkerFormatResult TryFormatNotReadyMarker(
-        NativeAppPackageStagingReadinessResult readiness,
-        Span<byte> destination)
+    public static NativeAppPackageStagingMarkerFormatResult TryFormatNotReadyMarker(NativeAppPackageStagingReadinessResult readiness, Span<byte> destination)
     {
         NativeAppPackageStagingMarkerFormatStatus validation = Validate(readiness);
         if (validation != NativeAppPackageStagingMarkerFormatStatus.Success)
@@ -65,77 +20,24 @@ public static class NativeAppPackageStagingReadinessFormatter
         int requiredBytes = CountNotReadyMarkerBytes(readiness);
         if (requiredBytes > MaximumMarkerBytes)
         {
-            return new NativeAppPackageStagingMarkerFormatResult(
-                NativeAppPackageStagingMarkerFormatStatus.MarkerTooLong,
-                0,
-                requiredBytes);
+            return new NativeAppPackageStagingMarkerFormatResult(NativeAppPackageStagingMarkerFormatStatus.MarkerTooLong, 0, requiredBytes);
         }
 
         if (destination.Length < requiredBytes)
         {
-            return new NativeAppPackageStagingMarkerFormatResult(
-                NativeAppPackageStagingMarkerFormatStatus.DestinationTooSmall,
-                0,
-                requiredBytes);
+            return new NativeAppPackageStagingMarkerFormatResult(NativeAppPackageStagingMarkerFormatStatus.DestinationTooSmall, 0, requiredBytes);
         }
 
         int offset = 0;
-        if (!TryWrite(NotReadyPrefix, destination, ref offset) ||
-            !TryWrite("status="u8, destination, ref offset) ||
-            !TryWrite(StagingReadinessFailedName, destination, ref offset) ||
-            !TryWrite(" initialized="u8, destination, ref offset) ||
-            !TryWriteBool(readiness.IsInitialized, destination, ref offset) ||
-            !TryWrite(" readiness="u8, destination, ref offset) ||
-            !TryWrite(GetName(readiness.Status), destination, ref offset) ||
-            !TryWrite(" manifest="u8, destination, ref offset) ||
-            !TryWrite(GetName(readiness.ManifestStatus), destination, ref offset) ||
-            !TryWrite(" package="u8, destination, ref offset) ||
-            !TryWrite(GetName(readiness.PackageStatus), destination, ref offset) ||
-            !TryWrite(" launch="u8, destination, ref offset) ||
-            !TryWrite(GetName(readiness.LaunchStatus), destination, ref offset) ||
-            !TryWrite(" descriptor="u8, destination, ref offset) ||
-            !TryWrite(GetName(readiness.DescriptorStatus), destination, ref offset) ||
-            !TryWrite(" packageFileStaging="u8, destination, ref offset) ||
-            !TryWrite(GetName(readiness.PackageFileStagingStatus), destination, ref offset) ||
-            !TryWrite(" mapping="u8, destination, ref offset) ||
-            !TryWrite(GetName(readiness.PayloadMappingStatus), destination, ref offset) ||
-            !TryWrite(" payloadStaging="u8, destination, ref offset) ||
-            !TryWrite(GetName(readiness.PayloadStagingStatus), destination, ref offset) ||
-            !TryWrite(" memory="u8, destination, ref offset) ||
-            !TryWrite(GetName(readiness.ExecutableMemoryStatus), destination, ref offset) ||
-            !TryWrite(" invocation="u8, destination, ref offset) ||
-            !TryWrite(GetName(readiness.InvocationStatus), destination, ref offset) ||
-            !TryWrite(" fileIndex="u8, destination, ref offset) ||
-            !TryWriteUnsigned(readiness.AppBinaryFileIndex, destination, ref offset) ||
-            !TryWrite(" packageBytes="u8, destination, ref offset) ||
-            !TryWriteUnsigned(readiness.PackageFileBytesStaged, destination, ref offset) ||
-            !TryWrite(" payloadOffset="u8, destination, ref offset) ||
-            !TryWriteUnsigned(readiness.PayloadOffsetInPackage, destination, ref offset) ||
-            !TryWrite(" executableOffset="u8, destination, ref offset) ||
-            !TryWriteUnsigned(readiness.ExecutableOffsetInPackage, destination, ref offset) ||
-            !TryWrite(" executableBytes="u8, destination, ref offset) ||
-            !TryWriteUnsigned(readiness.PayloadExecutableBytesStaged, destination, ref offset) ||
-            !TryWrite(" writableStagingBytes="u8, destination, ref offset) ||
-            !TryWriteUnsigned(readiness.RequiredWritableStagingBytes, destination, ref offset) ||
-            !TryWrite(" stackBytes="u8, destination, ref offset) ||
-            !TryWriteUnsigned(readiness.RequiredStackBytes, destination, ref offset) ||
-            !TryWrite(" entryOffset="u8, destination, ref offset) ||
-            !TryWriteUnsigned(readiness.EntryOffsetInPackage, destination, ref offset))
+        if (!TryWrite(NotReadyPrefix, destination, ref offset) || !TryWrite("status="u8, destination, ref offset) || !TryWrite(StagingReadinessFailedName, destination, ref offset) || !TryWrite(" initialized="u8, destination, ref offset) || !TryWriteBool(readiness.IsInitialized, destination, ref offset) || !TryWrite(" readiness="u8, destination, ref offset) || !TryWrite(GetName(readiness.Status), destination, ref offset) || !TryWrite(" manifest="u8, destination, ref offset) || !TryWrite(GetName(readiness.ManifestStatus), destination, ref offset) || !TryWrite(" package="u8, destination, ref offset) || !TryWrite(GetName(readiness.PackageStatus), destination, ref offset) || !TryWrite(" launch="u8, destination, ref offset) || !TryWrite(GetName(readiness.LaunchStatus), destination, ref offset) || !TryWrite(" descriptor="u8, destination, ref offset) || !TryWrite(GetName(readiness.DescriptorStatus), destination, ref offset) || !TryWrite(" packageFileStaging="u8, destination, ref offset) || !TryWrite(GetName(readiness.PackageFileStagingStatus), destination, ref offset) || !TryWrite(" mapping="u8, destination, ref offset) || !TryWrite(GetName(readiness.PayloadMappingStatus), destination, ref offset) || !TryWrite(" payloadStaging="u8, destination, ref offset) || !TryWrite(GetName(readiness.PayloadStagingStatus), destination, ref offset) || !TryWrite(" memory="u8, destination, ref offset) || !TryWrite(GetName(readiness.ExecutableMemoryStatus), destination, ref offset) || !TryWrite(" invocation="u8, destination, ref offset) || !TryWrite(GetName(readiness.InvocationStatus), destination, ref offset) || !TryWrite(" fileIndex="u8, destination, ref offset) || !TryWriteUnsigned(readiness.AppBinaryFileIndex, destination, ref offset) || !TryWrite(" packageBytes="u8, destination, ref offset) || !TryWriteUnsigned(readiness.PackageFileBytesStaged, destination, ref offset) || !TryWrite(" payloadOffset="u8, destination, ref offset) || !TryWriteUnsigned(readiness.PayloadOffsetInPackage, destination, ref offset) || !TryWrite(" executableOffset="u8, destination, ref offset) || !TryWriteUnsigned(readiness.ExecutableOffsetInPackage, destination, ref offset) || !TryWrite(" executableBytes="u8, destination, ref offset) || !TryWriteUnsigned(readiness.PayloadExecutableBytesStaged, destination, ref offset) || !TryWrite(" writableStagingBytes="u8, destination, ref offset) || !TryWriteUnsigned(readiness.RequiredWritableStagingBytes, destination, ref offset) || !TryWrite(" stackBytes="u8, destination, ref offset) || !TryWriteUnsigned(readiness.RequiredStackBytes, destination, ref offset) || !TryWrite(" entryOffset="u8, destination, ref offset) || !TryWriteUnsigned(readiness.EntryOffsetInPackage, destination, ref offset))
         {
-            return new NativeAppPackageStagingMarkerFormatResult(
-                NativeAppPackageStagingMarkerFormatStatus.DestinationTooSmall,
-                0,
-                requiredBytes);
+            return new NativeAppPackageStagingMarkerFormatResult(NativeAppPackageStagingMarkerFormatStatus.DestinationTooSmall, 0, requiredBytes);
         }
 
-        return new NativeAppPackageStagingMarkerFormatResult(
-            NativeAppPackageStagingMarkerFormatStatus.Success,
-            offset,
-            requiredBytes);
+        return new NativeAppPackageStagingMarkerFormatResult(NativeAppPackageStagingMarkerFormatStatus.Success, offset, requiredBytes);
     }
 
-    public static NativeAppPackageStagingMarkerFormatResult QueryNotReadyMarkerRequiredBytes(
-        NativeAppPackageStagingReadinessResult readiness)
+    public static NativeAppPackageStagingMarkerFormatResult QueryNotReadyMarkerRequiredBytes(NativeAppPackageStagingReadinessResult readiness)
     {
         NativeAppPackageStagingMarkerFormatStatus validation = Validate(readiness);
         if (validation != NativeAppPackageStagingMarkerFormatStatus.Success)
@@ -144,77 +46,17 @@ public static class NativeAppPackageStagingReadinessFormatter
         }
 
         int requiredBytes = CountNotReadyMarkerBytes(readiness);
-        return requiredBytes > MaximumMarkerBytes
-            ? new NativeAppPackageStagingMarkerFormatResult(
-                NativeAppPackageStagingMarkerFormatStatus.MarkerTooLong,
-                0,
-                requiredBytes)
-            : new NativeAppPackageStagingMarkerFormatResult(
-                NativeAppPackageStagingMarkerFormatStatus.Success,
-                0,
-                requiredBytes);
+        return requiredBytes > MaximumMarkerBytes ? new NativeAppPackageStagingMarkerFormatResult(NativeAppPackageStagingMarkerFormatStatus.MarkerTooLong, 0, requiredBytes) : new NativeAppPackageStagingMarkerFormatResult(NativeAppPackageStagingMarkerFormatStatus.Success, 0, requiredBytes);
     }
 
-    private static NativeAppPackageStagingMarkerFormatStatus Validate(
-        NativeAppPackageStagingReadinessResult readiness)
+    private static NativeAppPackageStagingMarkerFormatStatus Validate(NativeAppPackageStagingReadinessResult readiness)
     {
-        return GetName(readiness.Status).Length != 0 &&
-            GetName(readiness.ManifestStatus).Length != 0 &&
-            GetName(readiness.PackageStatus).Length != 0 &&
-            GetName(readiness.LaunchStatus).Length != 0 &&
-            GetName(readiness.DescriptorStatus).Length != 0 &&
-            GetName(readiness.PackageFileStagingStatus).Length != 0 &&
-            GetName(readiness.PayloadMappingStatus).Length != 0 &&
-            GetName(readiness.PayloadStagingStatus).Length != 0 &&
-            GetName(readiness.ExecutableMemoryStatus).Length != 0 &&
-            GetName(readiness.InvocationStatus).Length != 0
-                ? NativeAppPackageStagingMarkerFormatStatus.Success
-                : NativeAppPackageStagingMarkerFormatStatus.InvalidStatus;
+        return GetName(readiness.Status).Length != 0 && GetName(readiness.ManifestStatus).Length != 0 && GetName(readiness.PackageStatus).Length != 0 && GetName(readiness.LaunchStatus).Length != 0 && GetName(readiness.DescriptorStatus).Length != 0 && GetName(readiness.PackageFileStagingStatus).Length != 0 && GetName(readiness.PayloadMappingStatus).Length != 0 && GetName(readiness.PayloadStagingStatus).Length != 0 && GetName(readiness.ExecutableMemoryStatus).Length != 0 && GetName(readiness.InvocationStatus).Length != 0 ? NativeAppPackageStagingMarkerFormatStatus.Success : NativeAppPackageStagingMarkerFormatStatus.InvalidStatus;
     }
 
     private static int CountNotReadyMarkerBytes(NativeAppPackageStagingReadinessResult readiness)
     {
-        return NotReadyPrefix.Length
-            + "status="u8.Length
-            + StagingReadinessFailedName.Length
-            + " initialized="u8.Length
-            + (readiness.IsInitialized ? "true"u8.Length : "false"u8.Length)
-            + " readiness="u8.Length
-            + GetName(readiness.Status).Length
-            + " manifest="u8.Length
-            + GetName(readiness.ManifestStatus).Length
-            + " package="u8.Length
-            + GetName(readiness.PackageStatus).Length
-            + " launch="u8.Length
-            + GetName(readiness.LaunchStatus).Length
-            + " descriptor="u8.Length
-            + GetName(readiness.DescriptorStatus).Length
-            + " packageFileStaging="u8.Length
-            + GetName(readiness.PackageFileStagingStatus).Length
-            + " mapping="u8.Length
-            + GetName(readiness.PayloadMappingStatus).Length
-            + " payloadStaging="u8.Length
-            + GetName(readiness.PayloadStagingStatus).Length
-            + " memory="u8.Length
-            + GetName(readiness.ExecutableMemoryStatus).Length
-            + " invocation="u8.Length
-            + GetName(readiness.InvocationStatus).Length
-            + " fileIndex="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits(readiness.AppBinaryFileIndex)
-            + " packageBytes="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits(readiness.PackageFileBytesStaged)
-            + " payloadOffset="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits(readiness.PayloadOffsetInPackage)
-            + " executableOffset="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits(readiness.ExecutableOffsetInPackage)
-            + " executableBytes="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits(readiness.PayloadExecutableBytesStaged)
-            + " writableStagingBytes="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits(readiness.RequiredWritableStagingBytes)
-            + " stackBytes="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits(readiness.RequiredStackBytes)
-            + " entryOffset="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits(readiness.EntryOffsetInPackage);
+        return NotReadyPrefix.Length + "status="u8.Length + StagingReadinessFailedName.Length + " initialized="u8.Length + (readiness.IsInitialized ? "true"u8.Length : "false"u8.Length) + " readiness="u8.Length + GetName(readiness.Status).Length + " manifest="u8.Length + GetName(readiness.ManifestStatus).Length + " package="u8.Length + GetName(readiness.PackageStatus).Length + " launch="u8.Length + GetName(readiness.LaunchStatus).Length + " descriptor="u8.Length + GetName(readiness.DescriptorStatus).Length + " packageFileStaging="u8.Length + GetName(readiness.PackageFileStagingStatus).Length + " mapping="u8.Length + GetName(readiness.PayloadMappingStatus).Length + " payloadStaging="u8.Length + GetName(readiness.PayloadStagingStatus).Length + " memory="u8.Length + GetName(readiness.ExecutableMemoryStatus).Length + " invocation="u8.Length + GetName(readiness.InvocationStatus).Length + " fileIndex="u8.Length + AsciiDecimalFormatter.CountUInt64Digits(readiness.AppBinaryFileIndex) + " packageBytes="u8.Length + AsciiDecimalFormatter.CountUInt64Digits(readiness.PackageFileBytesStaged) + " payloadOffset="u8.Length + AsciiDecimalFormatter.CountUInt64Digits(readiness.PayloadOffsetInPackage) + " executableOffset="u8.Length + AsciiDecimalFormatter.CountUInt64Digits(readiness.ExecutableOffsetInPackage) + " executableBytes="u8.Length + AsciiDecimalFormatter.CountUInt64Digits(readiness.PayloadExecutableBytesStaged) + " writableStagingBytes="u8.Length + AsciiDecimalFormatter.CountUInt64Digits(readiness.RequiredWritableStagingBytes) + " stackBytes="u8.Length + AsciiDecimalFormatter.CountUInt64Digits(readiness.RequiredStackBytes) + " entryOffset="u8.Length + AsciiDecimalFormatter.CountUInt64Digits(readiness.EntryOffsetInPackage);
     }
 
     private static ReadOnlySpan<byte> GetName(NativeAppPackageStagingReadinessStatus status)
@@ -394,10 +236,7 @@ public static class NativeAppPackageStagingReadinessFormatter
         };
     }
 
-    private static bool TryWrite(
-        ReadOnlySpan<byte> source,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryWrite(ReadOnlySpan<byte> source, Span<byte> destination, ref int offset)
     {
         AsciiTextBuilderResult result = AsciiTextBuilder.AppendBytes(destination, offset, source);
         if (!result.Succeeded)
@@ -409,21 +248,14 @@ public static class NativeAppPackageStagingReadinessFormatter
         return true;
     }
 
-    private static bool TryWriteBool(
-        bool value,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryWriteBool(bool value, Span<byte> destination, ref int offset)
     {
         return TryWrite(value ? "true"u8 : "false"u8, destination, ref offset);
     }
 
-    private static bool TryWriteUnsigned(
-        ulong value,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryWriteUnsigned(ulong value, Span<byte> destination, ref int offset)
     {
-        AsciiTextBuilderResult result =
-            AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value);
+        AsciiTextBuilderResult result = AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value);
         if (!result.Succeeded)
         {
             return false;

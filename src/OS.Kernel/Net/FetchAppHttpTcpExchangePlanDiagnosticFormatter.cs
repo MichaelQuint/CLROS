@@ -1,94 +1,20 @@
 using OS.Std.Text;
 
 namespace OS.Net;
-
-public enum FetchAppHttpTcpExchangePlanDiagnosticFormatStatus
-{
-    Success = 0,
-    InvalidResult = 1,
-    DestinationTooSmall = 2
-}
-
-public readonly struct FetchAppHttpTcpExchangePlanDiagnosticFormatResult
-{
-    private const uint InitializedFlag = 1;
-
-    public FetchAppHttpTcpExchangePlanDiagnosticFormatResult(
-        FetchAppHttpTcpExchangePlanDiagnosticFormatStatus status,
-        FetchAppHttpTcpExchangePlanStatus exchangeStatus,
-        int bytesWritten,
-        int requiredBytes,
-        int availableBytes,
-        uint flags = InitializedFlag)
-    {
-        Status = status;
-        ExchangeStatus = exchangeStatus;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-        AvailableBytes = availableBytes;
-        Flags = flags;
-    }
-
-    public FetchAppHttpTcpExchangePlanDiagnosticFormatStatus Status { get; }
-
-    public FetchAppHttpTcpExchangePlanStatus ExchangeStatus { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public int AvailableBytes { get; }
-
-    public uint Flags { get; }
-
-    public bool IsInitialized => (Flags & InitializedFlag) != 0;
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.Success &&
-        RequiredBytes > 0 &&
-        BytesWritten == RequiredBytes &&
-        RequiredBytes <= AvailableBytes;
-
-    public static FetchAppHttpTcpExchangePlanDiagnosticFormatResult Fail(
-        FetchAppHttpTcpExchangePlanDiagnosticFormatStatus status,
-        FetchAppHttpTcpExchangePlanStatus exchangeStatus,
-        int requiredBytes,
-        int availableBytes)
-    {
-        return new FetchAppHttpTcpExchangePlanDiagnosticFormatResult(
-            status,
-            exchangeStatus,
-            bytesWritten: 0,
-            requiredBytes,
-            availableBytes);
-    }
-}
-
 public static class FetchAppHttpTcpExchangePlanDiagnosticFormatter
 {
-    public static FetchAppHttpTcpExchangePlanDiagnosticFormatResult FormatResult(
-        in FetchAppHttpTcpExchangePlanResult result,
-        Span<byte> destination)
+    public static FetchAppHttpTcpExchangePlanDiagnosticFormatResult FormatResult(in FetchAppHttpTcpExchangePlanResult result, Span<byte> destination)
     {
         FetchAppHttpTcpExchangePlanDiagnosticFormatStatus validationStatus = Validate(in result);
         if (validationStatus != FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.Success)
         {
-            return FetchAppHttpTcpExchangePlanDiagnosticFormatResult.Fail(
-                validationStatus,
-                result.Status,
-                requiredBytes: 0,
-                destination.Length);
+            return FetchAppHttpTcpExchangePlanDiagnosticFormatResult.Fail(validationStatus, result.Status, requiredBytes: 0, destination.Length);
         }
 
         int requiredBytes = GetRequiredBytes(in result);
         if (destination.Length < requiredBytes)
         {
-            return FetchAppHttpTcpExchangePlanDiagnosticFormatResult.Fail(
-                FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.DestinationTooSmall,
-                result.Status,
-                requiredBytes,
-                destination.Length);
+            return FetchAppHttpTcpExchangePlanDiagnosticFormatResult.Fail(FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.DestinationTooSmall, result.Status, requiredBytes, destination.Length);
         }
 
         int offset = 0;
@@ -132,63 +58,28 @@ public static class FetchAppHttpTcpExchangePlanDiagnosticFormatter
         AppendUInt64(GetLocalSequence(in result), destination, ref offset);
         Append(" remoteSeq="u8, destination, ref offset);
         AppendUInt64(GetRemoteSequence(in result), destination, ref offset);
-
-        return new FetchAppHttpTcpExchangePlanDiagnosticFormatResult(
-            FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.Success,
-            result.Status,
-            bytesWritten: offset,
-            requiredBytes,
-            availableBytes: destination.Length);
+        return new FetchAppHttpTcpExchangePlanDiagnosticFormatResult(FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.Success, result.Status, bytesWritten: offset, requiredBytes, availableBytes: destination.Length);
     }
 
-    public static FetchAppHttpTcpExchangePlanDiagnosticFormatResult QueryRequiredBytes(
-        in FetchAppHttpTcpExchangePlanResult result)
+    public static FetchAppHttpTcpExchangePlanDiagnosticFormatResult QueryRequiredBytes(in FetchAppHttpTcpExchangePlanResult result)
     {
         FetchAppHttpTcpExchangePlanDiagnosticFormatStatus validationStatus = Validate(in result);
         if (validationStatus != FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.Success)
         {
-            return FetchAppHttpTcpExchangePlanDiagnosticFormatResult.Fail(
-                validationStatus,
-                result.Status,
-                requiredBytes: 0,
-                availableBytes: 0);
+            return FetchAppHttpTcpExchangePlanDiagnosticFormatResult.Fail(validationStatus, result.Status, requiredBytes: 0, availableBytes: 0);
         }
 
-        return new FetchAppHttpTcpExchangePlanDiagnosticFormatResult(
-            FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.Success,
-            result.Status,
-            bytesWritten: 0,
-            requiredBytes: GetRequiredBytes(in result),
-            availableBytes: 0);
+        return new FetchAppHttpTcpExchangePlanDiagnosticFormatResult(FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.Success, result.Status, bytesWritten: 0, requiredBytes: GetRequiredBytes(in result), availableBytes: 0);
     }
 
-    private static FetchAppHttpTcpExchangePlanDiagnosticFormatStatus Validate(
-        in FetchAppHttpTcpExchangePlanResult result)
+    private static FetchAppHttpTcpExchangePlanDiagnosticFormatStatus Validate(in FetchAppHttpTcpExchangePlanResult result)
     {
-        if (!result.IsInitialized ||
-            !IsKnownExchangeStatus(result.Status) ||
-            !IsKnownContextStatus(result.Context.Status) ||
-            !IsKnownHttpPlanStatus(result.Syn.Status) ||
-            !IsKnownHttpPlanStatus(result.SynAck.Status) ||
-            !IsKnownHttpPlanStatus(result.FinalAck.Status) ||
-            !IsKnownHttpPlanStatus(result.Request.Status) ||
-            !IsKnownHttpPlanStatus(result.Response.Status) ||
-            !IsKnownCompletionStatus(result.Completion.Status) ||
-            !IsKnownCloseStatus(result.Close.Status) ||
-            result.HostBytes < 0 ||
-            result.PathBytes < 0 ||
-            result.ExpectedMarkerLength < 0 ||
-            result.SynFrameBytes < 0 ||
-            result.FinalAckFrameBytes < 0 ||
-            result.RequestFrameBytes < 0 ||
-            result.ResponseBytesRead < 0 ||
-            result.CloseFrameBytes < 0)
+        if (!result.IsInitialized || !IsKnownExchangeStatus(result.Status) || !IsKnownContextStatus(result.Context.Status) || !IsKnownHttpPlanStatus(result.Syn.Status) || !IsKnownHttpPlanStatus(result.SynAck.Status) || !IsKnownHttpPlanStatus(result.FinalAck.Status) || !IsKnownHttpPlanStatus(result.Request.Status) || !IsKnownHttpPlanStatus(result.Response.Status) || !IsKnownCompletionStatus(result.Completion.Status) || !IsKnownCloseStatus(result.Close.Status) || result.HostBytes < 0 || result.PathBytes < 0 || result.ExpectedMarkerLength < 0 || result.SynFrameBytes < 0 || result.FinalAckFrameBytes < 0 || result.RequestFrameBytes < 0 || result.ResponseBytesRead < 0 || result.CloseFrameBytes < 0)
         {
             return FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.InvalidResult;
         }
 
-        if (result.Status == FetchAppHttpTcpExchangePlanStatus.Success &&
-            !result.Succeeded)
+        if (result.Status == FetchAppHttpTcpExchangePlanStatus.Success && !result.Succeeded)
         {
             return FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.InvalidResult;
         }
@@ -198,46 +89,7 @@ public static class FetchAppHttpTcpExchangePlanDiagnosticFormatter
 
     private static int GetRequiredBytes(in FetchAppHttpTcpExchangePlanResult result)
     {
-        return "FETCH_HTTP_TCP_EXCHANGE status="u8.Length
-            + GetExchangeStatusName(result.Status).Length
-            + " context="u8.Length
-            + GetContextStatusName(result.Context.Status).Length
-            + " syn="u8.Length
-            + GetHttpPlanStatusName(result.Syn.Status).Length
-            + " synAck="u8.Length
-            + GetHttpPlanStatusName(result.SynAck.Status).Length
-            + " finalAck="u8.Length
-            + GetHttpPlanStatusName(result.FinalAck.Status).Length
-            + " request="u8.Length
-            + GetHttpPlanStatusName(result.Request.Status).Length
-            + " response="u8.Length
-            + GetHttpPlanStatusName(result.Response.Status).Length
-            + " completion="u8.Length
-            + GetCompletionStatusName(result.Completion.Status).Length
-            + " close="u8.Length
-            + GetCloseStatusName(result.Close.Status).Length
-            + " hostBytes="u8.Length
-            + GetInt64DecimalByteCount(result.HostBytes)
-            + " pathBytes="u8.Length
-            + GetInt64DecimalByteCount(result.PathBytes)
-            + " expectedHttpStatus="u8.Length
-            + GetUInt64DecimalByteCount(result.ExpectedHttpStatusCode)
-            + " expectedMarkerBytes="u8.Length
-            + GetInt64DecimalByteCount(result.ExpectedMarkerLength)
-            + " synBytes="u8.Length
-            + GetInt64DecimalByteCount(result.SynFrameBytes)
-            + " finalAckBytes="u8.Length
-            + GetInt64DecimalByteCount(result.FinalAckFrameBytes)
-            + " requestBytes="u8.Length
-            + GetInt64DecimalByteCount(result.RequestFrameBytes)
-            + " responseBytes="u8.Length
-            + GetInt64DecimalByteCount(result.ResponseBytesRead)
-            + " closeBytes="u8.Length
-            + GetInt64DecimalByteCount(result.CloseFrameBytes)
-            + " localSeq="u8.Length
-            + GetUInt64DecimalByteCount(GetLocalSequence(in result))
-            + " remoteSeq="u8.Length
-            + GetUInt64DecimalByteCount(GetRemoteSequence(in result));
+        return "FETCH_HTTP_TCP_EXCHANGE status="u8.Length + GetExchangeStatusName(result.Status).Length + " context="u8.Length + GetContextStatusName(result.Context.Status).Length + " syn="u8.Length + GetHttpPlanStatusName(result.Syn.Status).Length + " synAck="u8.Length + GetHttpPlanStatusName(result.SynAck.Status).Length + " finalAck="u8.Length + GetHttpPlanStatusName(result.FinalAck.Status).Length + " request="u8.Length + GetHttpPlanStatusName(result.Request.Status).Length + " response="u8.Length + GetHttpPlanStatusName(result.Response.Status).Length + " completion="u8.Length + GetCompletionStatusName(result.Completion.Status).Length + " close="u8.Length + GetCloseStatusName(result.Close.Status).Length + " hostBytes="u8.Length + GetInt64DecimalByteCount(result.HostBytes) + " pathBytes="u8.Length + GetInt64DecimalByteCount(result.PathBytes) + " expectedHttpStatus="u8.Length + GetUInt64DecimalByteCount(result.ExpectedHttpStatusCode) + " expectedMarkerBytes="u8.Length + GetInt64DecimalByteCount(result.ExpectedMarkerLength) + " synBytes="u8.Length + GetInt64DecimalByteCount(result.SynFrameBytes) + " finalAckBytes="u8.Length + GetInt64DecimalByteCount(result.FinalAckFrameBytes) + " requestBytes="u8.Length + GetInt64DecimalByteCount(result.RequestFrameBytes) + " responseBytes="u8.Length + GetInt64DecimalByteCount(result.ResponseBytesRead) + " closeBytes="u8.Length + GetInt64DecimalByteCount(result.CloseFrameBytes) + " localSeq="u8.Length + GetUInt64DecimalByteCount(GetLocalSequence(in result)) + " remoteSeq="u8.Length + GetUInt64DecimalByteCount(GetRemoteSequence(in result));
     }
 
     private static ulong GetLocalSequence(in FetchAppHttpTcpExchangePlanResult result)
@@ -302,32 +154,27 @@ public static class FetchAppHttpTcpExchangePlanDiagnosticFormatter
 
     private static bool IsKnownExchangeStatus(FetchAppHttpTcpExchangePlanStatus status)
     {
-        return status >= FetchAppHttpTcpExchangePlanStatus.Success &&
-            status <= FetchAppHttpTcpExchangePlanStatus.CloseFrameFailed;
+        return status >= FetchAppHttpTcpExchangePlanStatus.Success && status <= FetchAppHttpTcpExchangePlanStatus.CloseFrameFailed;
     }
 
     private static bool IsKnownContextStatus(FetchAppHttpTcpContextPlanStatus status)
     {
-        return status >= FetchAppHttpTcpContextPlanStatus.Success &&
-            status <= FetchAppHttpTcpContextPlanStatus.InvalidRemoteIdentity;
+        return status >= FetchAppHttpTcpContextPlanStatus.Success && status <= FetchAppHttpTcpContextPlanStatus.InvalidRemoteIdentity;
     }
 
     private static bool IsKnownHttpPlanStatus(HttpTcpClientGetPlanStatus status)
     {
-        return status >= HttpTcpClientGetPlanStatus.Success &&
-            status <= HttpTcpClientGetPlanStatus.HttpResponseFailed;
+        return status >= HttpTcpClientGetPlanStatus.Success && status <= HttpTcpClientGetPlanStatus.HttpResponseFailed;
     }
 
     private static bool IsKnownCompletionStatus(FetchAppHttpCompletionPlanStatus status)
     {
-        return status >= FetchAppHttpCompletionPlanStatus.Success &&
-            status <= FetchAppHttpCompletionPlanStatus.ResponseBufferTooSmall;
+        return status >= FetchAppHttpCompletionPlanStatus.Success && status <= FetchAppHttpCompletionPlanStatus.ResponseBufferTooSmall;
     }
 
     private static bool IsKnownCloseStatus(TcpConnectionCloseIpv4FramePlanStatus status)
     {
-        return status >= TcpConnectionCloseIpv4FramePlanStatus.Success &&
-            status <= TcpConnectionCloseIpv4FramePlanStatus.FrameWriteFailed;
+        return status >= TcpConnectionCloseIpv4FramePlanStatus.Success && status <= TcpConnectionCloseIpv4FramePlanStatus.FrameWriteFailed;
     }
 
     private static ReadOnlySpan<byte> GetExchangeStatusName(FetchAppHttpTcpExchangePlanStatus status)

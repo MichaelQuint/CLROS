@@ -1,372 +1,113 @@
 namespace OS.Kernel.Memory;
-
-/// <summary>
-/// Reports validation of a caller-owned canonical boot-reservation table.
-/// The zero-valued default is intentionally not success.
-/// </summary>
-public enum BootReservationTableStatus : byte
-{
-    Uninitialized = 0,
-    Success = 1,
-    InvalidReservationCount = 2,
-    TooManyReservations = 3,
-    ReservationCapacityTooSmall = 4,
-    MissingReservationTable = 5,
-    MisalignedReservationTable = 6,
-    InvalidReservation = 7,
-    AddressComparisonFailed = 8,
-    UnsortedRange = 9,
-    DuplicateRange = 10,
-    DuplicateLoadedImageCoverage = 11,
-    NestedRange = 12,
-    OverlappingRange = 13,
-    MultipleBootStackGuards = 14,
-    MultipleBootStacks = 15,
-    MissingBootStackGuard = 16,
-    MissingBootStack = 17,
-    BootStackOrderInvalid = 18,
-    BootStackArenaGap = 19,
-    BootStackArenaAccountingOverflow = 20,
-    BootStackArenaAccountingMismatch = 21,
-    TotalPageCountOverflow = 22,
-    TotalByteCountOverflow = 23,
-    ReservationTableAddressRangeOverflow = 24
-}
-
-/// <summary>
-/// Carries deterministic value-only evidence from reservation-table validation.
-/// </summary>
-public readonly struct BootReservationTableValidationResult
-{
-    public const ulong NoIndex = ~0UL;
-
-    private readonly BootReservationTableStatus _status;
-    private readonly BootReservedRangeStatus _rangeStatus;
-    private readonly ulong _reservationCount;
-    private readonly ulong _validatedReservationCount;
-    private readonly ulong _requiredReservationCapacity;
-    private readonly ulong _availableReservationCapacity;
-    private readonly ulong _invalidReservationIndex;
-    private readonly ulong _conflictingReservationIndex;
-    private readonly ulong _firstLoadedImageIndex;
-    private readonly ulong _bootStackGuardIndex;
-    private readonly ulong _bootStackIndex;
-    private readonly ulong _totalPages;
-    private readonly ulong _totalBytes;
-    private readonly ulong _bootStackArenaPages;
-    private readonly ulong _bootStackArenaBytes;
-
-    private BootReservationTableValidationResult(
-        BootReservationTableStatus status,
-        BootReservedRangeStatus rangeStatus,
-        ulong reservationCount,
-        ulong validatedReservationCount,
-        ulong availableReservationCapacity,
-        ulong invalidReservationIndex,
-        ulong conflictingReservationIndex,
-        ulong firstLoadedImageIndex,
-        ulong bootStackGuardIndex,
-        ulong bootStackIndex,
-        ulong totalPages,
-        ulong totalBytes,
-        ulong bootStackArenaPages,
-        ulong bootStackArenaBytes)
-    {
-        _status = status;
-        _rangeStatus = rangeStatus;
-        _reservationCount = reservationCount;
-        _validatedReservationCount = validatedReservationCount;
-        _requiredReservationCapacity = reservationCount;
-        _availableReservationCapacity = availableReservationCapacity;
-        _invalidReservationIndex = invalidReservationIndex;
-        _conflictingReservationIndex = conflictingReservationIndex;
-        _firstLoadedImageIndex = firstLoadedImageIndex;
-        _bootStackGuardIndex = bootStackGuardIndex;
-        _bootStackIndex = bootStackIndex;
-        _totalPages = totalPages;
-        _totalBytes = totalBytes;
-        _bootStackArenaPages = bootStackArenaPages;
-        _bootStackArenaBytes = bootStackArenaBytes;
-    }
-
-    public BootReservationTableStatus Status => _status;
-
-    public BootReservedRangeStatus RangeStatus => _rangeStatus;
-
-    public bool Succeeded => _status == BootReservationTableStatus.Success;
-
-    public ulong ReservationCount => _reservationCount;
-
-    public ulong ValidatedReservationCount => _validatedReservationCount;
-
-    public ulong RequiredReservationCapacity => _requiredReservationCapacity;
-
-    public ulong AvailableReservationCapacity => _availableReservationCapacity;
-
-    public ulong InvalidReservationIndex => _invalidReservationIndex;
-
-    public ulong ConflictingReservationIndex => _conflictingReservationIndex;
-
-    public ulong FirstLoadedImageIndex => _firstLoadedImageIndex;
-
-    public ulong BootStackGuardIndex => _bootStackGuardIndex;
-
-    public ulong BootStackIndex => _bootStackIndex;
-
-    public ulong TotalPages => _totalPages;
-
-    public ulong TotalBytes => _totalBytes;
-
-    public ulong BootStackArenaPages => _bootStackArenaPages;
-
-    public ulong BootStackArenaBytes => _bootStackArenaBytes;
-
-    internal static BootReservationTableValidationResult Create(
-        BootReservationTableStatus status,
-        BootReservedRangeStatus rangeStatus,
-        ulong reservationCount,
-        ulong validatedReservationCount,
-        ulong availableReservationCapacity,
-        ulong invalidReservationIndex,
-        ulong conflictingReservationIndex,
-        ulong firstLoadedImageIndex,
-        ulong bootStackGuardIndex,
-        ulong bootStackIndex,
-        ulong totalPages,
-        ulong totalBytes,
-        ulong bootStackArenaPages,
-        ulong bootStackArenaBytes)
-    {
-        return new BootReservationTableValidationResult(
-            status,
-            rangeStatus,
-            reservationCount,
-            validatedReservationCount,
-            availableReservationCapacity,
-            invalidReservationIndex,
-            conflictingReservationIndex,
-            firstLoadedImageIndex,
-            bootStackGuardIndex,
-            bootStackIndex,
-            totalPages,
-            totalBytes,
-            bootStackArenaPages,
-            bootStackArenaBytes);
-    }
-}
-
 /// <summary>
 /// Validates a bounded, already-sorted caller-owned reservation table without
 /// allocating, sorting, mutating, or dereferencing a pointer before metadata
 /// and capacity checks succeed.
 /// </summary>
-public static unsafe class BootReservationTableValidator
+
+public static unsafe partial class BootReservationTableValidator
 {
     public const ulong MaximumReservationCount = 256;
-
     private const ulong MaximumUnsignedLong = ~0UL;
     private const ulong RequiredTableAlignment = 8;
-
-    public static BootReservationTableValidationResult Validate(
-        BootReservedRange* reservations,
-        ulong reservationCount,
-        ulong reservationCapacity)
+    public static BootReservationTableValidationResult Validate(BootReservedRange* reservations, ulong reservationCount, ulong reservationCapacity)
     {
-        ValidationState state = new ValidationState(
-            reservationCount,
-            reservationCapacity);
-
+        ValidationState state = new ValidationState(reservationCount, reservationCapacity);
         if (reservationCount == 0)
         {
-            return Fail(
-                BootReservationTableStatus.InvalidReservationCount,
-                BootReservedRangeStatus.Uninitialized,
-                state,
-                BootReservationTableValidationResult.NoIndex,
-                BootReservationTableValidationResult.NoIndex);
+            return Fail(BootReservationTableStatus.InvalidReservationCount, BootReservedRangeStatus.Uninitialized, state, BootReservationTableValidationResult.NoIndex, BootReservationTableValidationResult.NoIndex);
         }
 
         if (reservationCount > MaximumReservationCount)
         {
-            return Fail(
-                BootReservationTableStatus.TooManyReservations,
-                BootReservedRangeStatus.Uninitialized,
-                state,
-                BootReservationTableValidationResult.NoIndex,
-                BootReservationTableValidationResult.NoIndex);
+            return Fail(BootReservationTableStatus.TooManyReservations, BootReservedRangeStatus.Uninitialized, state, BootReservationTableValidationResult.NoIndex, BootReservationTableValidationResult.NoIndex);
         }
 
         if (reservationCount > reservationCapacity)
         {
-            return Fail(
-                BootReservationTableStatus.ReservationCapacityTooSmall,
-                BootReservedRangeStatus.Uninitialized,
-                state,
-                BootReservationTableValidationResult.NoIndex,
-                BootReservationTableValidationResult.NoIndex);
+            return Fail(BootReservationTableStatus.ReservationCapacityTooSmall, BootReservedRangeStatus.Uninitialized, state, BootReservationTableValidationResult.NoIndex, BootReservationTableValidationResult.NoIndex);
         }
 
         if (reservations == null)
         {
-            return Fail(
-                BootReservationTableStatus.MissingReservationTable,
-                BootReservedRangeStatus.Uninitialized,
-                state,
-                BootReservationTableValidationResult.NoIndex,
-                BootReservationTableValidationResult.NoIndex);
+            return Fail(BootReservationTableStatus.MissingReservationTable, BootReservedRangeStatus.Uninitialized, state, BootReservationTableValidationResult.NoIndex, BootReservationTableValidationResult.NoIndex);
         }
 
         if ((((ulong)reservations) & (RequiredTableAlignment - 1)) != 0)
         {
-            return Fail(
-                BootReservationTableStatus.MisalignedReservationTable,
-                BootReservedRangeStatus.Uninitialized,
-                state,
-                BootReservationTableValidationResult.NoIndex,
-                BootReservationTableValidationResult.NoIndex);
+            return Fail(BootReservationTableStatus.MisalignedReservationTable, BootReservedRangeStatus.Uninitialized, state, BootReservationTableValidationResult.NoIndex, BootReservationTableValidationResult.NoIndex);
         }
 
-        ulong tableByteLength =
-            reservationCount * (ulong)sizeof(BootReservedRange);
+        ulong tableByteLength = reservationCount * (ulong)sizeof(BootReservedRange);
         ulong tableStart = (ulong)reservations;
         if (tableStart > MaximumUnsignedLong - tableByteLength)
         {
-            return Fail(
-                BootReservationTableStatus.ReservationTableAddressRangeOverflow,
-                BootReservedRangeStatus.Uninitialized,
-                state,
-                BootReservationTableValidationResult.NoIndex,
-                BootReservationTableValidationResult.NoIndex);
+            return Fail(BootReservationTableStatus.ReservationTableAddressRangeOverflow, BootReservedRangeStatus.Uninitialized, state, BootReservationTableValidationResult.NoIndex, BootReservationTableValidationResult.NoIndex);
         }
 
         BootReservedRange previous = default;
-
         for (ulong index = 0; index < reservationCount; index++)
         {
             BootReservedRange current = reservations[index];
             BootReservedRangeStatus rangeStatus = current.Validate();
             if (rangeStatus != BootReservedRangeStatus.Success)
             {
-                return Fail(
-                    BootReservationTableStatus.InvalidReservation,
-                    rangeStatus,
-                    state,
-                    index,
-                    BootReservationTableValidationResult.NoIndex);
+                return Fail(BootReservationTableStatus.InvalidReservation, rangeStatus, state, index, BootReservationTableValidationResult.NoIndex);
             }
 
             if (index != 0)
             {
-                OS.Boot.AddressValueStatus startOrderStatus =
-                    current.PhysicalStart.TryCompareTo(
-                        previous.PhysicalStart,
-                        out int startOrder);
+                OS.Boot.AddressValueStatus startOrderStatus = current.PhysicalStart.TryCompareTo(previous.PhysicalStart, out int startOrder);
                 if (startOrderStatus != OS.Boot.AddressValueStatus.Success)
                 {
-                    return Fail(
-                        BootReservationTableStatus.AddressComparisonFailed,
-                        BootReservedRangeStatus.Success,
-                        state,
-                        index,
-                        index - 1);
+                    return Fail(BootReservationTableStatus.AddressComparisonFailed, BootReservedRangeStatus.Success, state, index, index - 1);
                 }
 
                 if (startOrder < 0)
                 {
-                    return Fail(
-                        BootReservationTableStatus.UnsortedRange,
-                        BootReservedRangeStatus.Success,
-                        state,
-                        index,
-                        index - 1);
+                    return Fail(BootReservationTableStatus.UnsortedRange, BootReservedRangeStatus.Success, state, index, index - 1);
                 }
 
-                OS.Boot.AddressValueStatus overlapStatus =
-                    current.PhysicalStart.TryCompareTo(
-                        previous.PhysicalEndExclusive,
-                        out int startVersusPreviousEnd);
+                OS.Boot.AddressValueStatus overlapStatus = current.PhysicalStart.TryCompareTo(previous.PhysicalEndExclusive, out int startVersusPreviousEnd);
                 if (overlapStatus != OS.Boot.AddressValueStatus.Success)
                 {
-                    return Fail(
-                        BootReservationTableStatus.AddressComparisonFailed,
-                        BootReservedRangeStatus.Success,
-                        state,
-                        index,
-                        index - 1);
+                    return Fail(BootReservationTableStatus.AddressComparisonFailed, BootReservedRangeStatus.Success, state, index, index - 1);
                 }
 
                 if (startVersusPreviousEnd < 0)
                 {
-                    OS.Boot.AddressValueStatus endOrderStatus =
-                        current.PhysicalEndExclusive.TryCompareTo(
-                            previous.PhysicalEndExclusive,
-                            out int endOrder);
+                    OS.Boot.AddressValueStatus endOrderStatus = current.PhysicalEndExclusive.TryCompareTo(previous.PhysicalEndExclusive, out int endOrder);
                     if (endOrderStatus != OS.Boot.AddressValueStatus.Success)
                     {
-                        return Fail(
-                            BootReservationTableStatus.AddressComparisonFailed,
-                            BootReservedRangeStatus.Success,
-                            state,
-                            index,
-                            index - 1);
+                        return Fail(BootReservationTableStatus.AddressComparisonFailed, BootReservedRangeStatus.Success, state, index, index - 1);
                     }
 
                     bool currentContained = endOrder <= 0;
                     bool previousContained = startOrder == 0 && endOrder >= 0;
-                    if (IsDuplicateLoadedImageCoverage(
-                        previous,
-                        current,
-                        currentContained,
-                        previousContained))
+                    if (IsDuplicateLoadedImageCoverage(previous, current, currentContained, previousContained))
                     {
-                        return Fail(
-                            BootReservationTableStatus.DuplicateLoadedImageCoverage,
-                            BootReservedRangeStatus.Success,
-                            state,
-                            index,
-                            index - 1);
+                        return Fail(BootReservationTableStatus.DuplicateLoadedImageCoverage, BootReservedRangeStatus.Success, state, index, index - 1);
                     }
 
                     if (startOrder == 0 && endOrder == 0)
                     {
-                        return Fail(
-                            BootReservationTableStatus.DuplicateRange,
-                            BootReservedRangeStatus.Success,
-                            state,
-                            index,
-                            index - 1);
+                        return Fail(BootReservationTableStatus.DuplicateRange, BootReservedRangeStatus.Success, state, index, index - 1);
                     }
 
                     if (currentContained || previousContained)
                     {
-                        return Fail(
-                            BootReservationTableStatus.NestedRange,
-                            BootReservedRangeStatus.Success,
-                            state,
-                            index,
-                            index - 1);
+                        return Fail(BootReservationTableStatus.NestedRange, BootReservedRangeStatus.Success, state, index, index - 1);
                     }
 
-                    return Fail(
-                        BootReservationTableStatus.OverlappingRange,
-                        BootReservedRangeStatus.Success,
-                        state,
-                        index,
-                        index - 1);
+                    return Fail(BootReservationTableStatus.OverlappingRange, BootReservedRangeStatus.Success, state, index, index - 1);
                 }
             }
 
             if (current.Kind == BootReservationKind.BootStackGuard)
             {
-                if (state.BootStackGuardIndex
-                    != BootReservationTableValidationResult.NoIndex)
+                if (state.BootStackGuardIndex != BootReservationTableValidationResult.NoIndex)
                 {
-                    return Fail(
-                        BootReservationTableStatus.MultipleBootStackGuards,
-                        BootReservedRangeStatus.Success,
-                        state,
-                        index,
-                        state.BootStackGuardIndex);
+                    return Fail(BootReservationTableStatus.MultipleBootStackGuards, BootReservedRangeStatus.Success, state, index, state.BootStackGuardIndex);
                 }
 
                 state.BootStackGuardIndex = index;
@@ -374,15 +115,9 @@ public static unsafe class BootReservationTableValidator
             }
             else if (current.Kind == BootReservationKind.BootStack)
             {
-                if (state.BootStackIndex
-                    != BootReservationTableValidationResult.NoIndex)
+                if (state.BootStackIndex != BootReservationTableValidationResult.NoIndex)
                 {
-                    return Fail(
-                        BootReservationTableStatus.MultipleBootStacks,
-                        BootReservedRangeStatus.Success,
-                        state,
-                        index,
-                        state.BootStackIndex);
+                    return Fail(BootReservationTableStatus.MultipleBootStacks, BootReservedRangeStatus.Success, state, index, state.BootStackIndex);
                 }
 
                 state.BootStackIndex = index;
@@ -391,27 +126,15 @@ public static unsafe class BootReservationTableValidator
 
             if (!TryAdd(state.TotalPages, current.PageCount, out ulong totalPages))
             {
-                return Fail(
-                    BootReservationTableStatus.TotalPageCountOverflow,
-                    BootReservedRangeStatus.Success,
-                    state,
-                    index,
-                    BootReservationTableValidationResult.NoIndex);
+                return Fail(BootReservationTableStatus.TotalPageCountOverflow, BootReservedRangeStatus.Success, state, index, BootReservationTableValidationResult.NoIndex);
             }
 
             if (!TryAdd(state.TotalBytes, current.ByteLength, out ulong totalBytes))
             {
-                return Fail(
-                    BootReservationTableStatus.TotalByteCountOverflow,
-                    BootReservedRangeStatus.Success,
-                    state,
-                    index,
-                    BootReservationTableValidationResult.NoIndex);
+                return Fail(BootReservationTableStatus.TotalByteCountOverflow, BootReservedRangeStatus.Success, state, index, BootReservationTableValidationResult.NoIndex);
             }
 
-            if (current.Kind == BootReservationKind.LoadedImage
-                && state.FirstLoadedImageIndex
-                    == BootReservationTableValidationResult.NoIndex)
+            if (current.Kind == BootReservationKind.LoadedImage && state.FirstLoadedImageIndex == BootReservationTableValidationResult.NoIndex)
             {
                 state.FirstLoadedImageIndex = index;
             }
@@ -425,14 +148,10 @@ public static unsafe class BootReservationTableValidator
         return ValidateBootStackArena(state);
     }
 
-    private static BootReservationTableValidationResult ValidateBootStackArena(
-        ValidationState state)
+    private static BootReservationTableValidationResult ValidateBootStackArena(ValidationState state)
     {
-        bool hasGuard = state.BootStackGuardIndex
-            != BootReservationTableValidationResult.NoIndex;
-        bool hasStack = state.BootStackIndex
-            != BootReservationTableValidationResult.NoIndex;
-
+        bool hasGuard = state.BootStackGuardIndex != BootReservationTableValidationResult.NoIndex;
+        bool hasStack = state.BootStackIndex != BootReservationTableValidationResult.NoIndex;
         if (!hasGuard && !hasStack)
         {
             return Succeed(state);
@@ -440,116 +159,52 @@ public static unsafe class BootReservationTableValidator
 
         if (!hasGuard)
         {
-            return Fail(
-                BootReservationTableStatus.MissingBootStackGuard,
-                BootReservedRangeStatus.Success,
-                state,
-                state.BootStackIndex,
-                BootReservationTableValidationResult.NoIndex);
+            return Fail(BootReservationTableStatus.MissingBootStackGuard, BootReservedRangeStatus.Success, state, state.BootStackIndex, BootReservationTableValidationResult.NoIndex);
         }
 
         if (!hasStack)
         {
-            return Fail(
-                BootReservationTableStatus.MissingBootStack,
-                BootReservedRangeStatus.Success,
-                state,
-                state.BootStackGuardIndex,
-                BootReservationTableValidationResult.NoIndex);
+            return Fail(BootReservationTableStatus.MissingBootStack, BootReservedRangeStatus.Success, state, state.BootStackGuardIndex, BootReservationTableValidationResult.NoIndex);
         }
 
         BootReservedRange guard = state.BootStackGuard;
         BootReservedRange stack = state.BootStack;
-
-        OS.Boot.AddressValueStatus orderStatus = guard.PhysicalStart.TryCompareTo(
-            stack.PhysicalStart,
-            out int guardBeforeStack);
+        OS.Boot.AddressValueStatus orderStatus = guard.PhysicalStart.TryCompareTo(stack.PhysicalStart, out int guardBeforeStack);
         if (orderStatus != OS.Boot.AddressValueStatus.Success)
         {
-            return Fail(
-                BootReservationTableStatus.AddressComparisonFailed,
-                BootReservedRangeStatus.Success,
-                state,
-                state.BootStackIndex,
-                state.BootStackGuardIndex);
+            return Fail(BootReservationTableStatus.AddressComparisonFailed, BootReservedRangeStatus.Success, state, state.BootStackIndex, state.BootStackGuardIndex);
         }
 
-        if (guardBeforeStack >= 0
-            || state.BootStackIndex != state.BootStackGuardIndex + 1)
+        if (guardBeforeStack >= 0 || state.BootStackIndex != state.BootStackGuardIndex + 1)
         {
-            return Fail(
-                BootReservationTableStatus.BootStackOrderInvalid,
-                BootReservedRangeStatus.Success,
-                state,
-                state.BootStackIndex,
-                state.BootStackGuardIndex);
+            return Fail(BootReservationTableStatus.BootStackOrderInvalid, BootReservedRangeStatus.Success, state, state.BootStackIndex, state.BootStackGuardIndex);
         }
 
-        OS.Boot.AddressValueStatus adjacencyStatus =
-            guard.PhysicalEndExclusive.TryCompareTo(
-                stack.PhysicalStart,
-                out int guardEndVersusStackStart);
+        OS.Boot.AddressValueStatus adjacencyStatus = guard.PhysicalEndExclusive.TryCompareTo(stack.PhysicalStart, out int guardEndVersusStackStart);
         if (adjacencyStatus != OS.Boot.AddressValueStatus.Success)
         {
-            return Fail(
-                BootReservationTableStatus.AddressComparisonFailed,
-                BootReservedRangeStatus.Success,
-                state,
-                state.BootStackIndex,
-                state.BootStackGuardIndex);
+            return Fail(BootReservationTableStatus.AddressComparisonFailed, BootReservedRangeStatus.Success, state, state.BootStackIndex, state.BootStackGuardIndex);
         }
 
         if (guardEndVersusStackStart != 0)
         {
-            return Fail(
-                BootReservationTableStatus.BootStackArenaGap,
-                BootReservedRangeStatus.Success,
-                state,
-                state.BootStackIndex,
-                state.BootStackGuardIndex);
+            return Fail(BootReservationTableStatus.BootStackArenaGap, BootReservedRangeStatus.Success, state, state.BootStackIndex, state.BootStackGuardIndex);
         }
 
-        if (!TryAdd(
-                guard.PageCount,
-                stack.PageCount,
-                out ulong arenaPages)
-            || !TryAdd(
-                guard.ByteLength,
-                stack.ByteLength,
-                out ulong arenaBytes)
-            || arenaPages > MaximumUnsignedLong / BootReservedRange.PageSize)
+        if (!TryAdd(guard.PageCount, stack.PageCount, out ulong arenaPages) || !TryAdd(guard.ByteLength, stack.ByteLength, out ulong arenaBytes) || arenaPages > MaximumUnsignedLong / BootReservedRange.PageSize)
         {
-            return Fail(
-                BootReservationTableStatus.BootStackArenaAccountingOverflow,
-                BootReservedRangeStatus.Success,
-                state,
-                state.BootStackIndex,
-                state.BootStackGuardIndex);
+            return Fail(BootReservationTableStatus.BootStackArenaAccountingOverflow, BootReservedRangeStatus.Success, state, state.BootStackIndex, state.BootStackGuardIndex);
         }
 
         if (arenaPages * BootReservedRange.PageSize != arenaBytes)
         {
-            return Fail(
-                BootReservationTableStatus.BootStackArenaAccountingMismatch,
-                BootReservedRangeStatus.Success,
-                state,
-                state.BootStackIndex,
-                state.BootStackGuardIndex);
+            return Fail(BootReservationTableStatus.BootStackArenaAccountingMismatch, BootReservedRangeStatus.Success, state, state.BootStackIndex, state.BootStackGuardIndex);
         }
 
-        OS.Boot.AddressValueStatus arenaEndStatus =
-            guard.PhysicalStart.TryGetEndExclusive(
-                arenaBytes,
-                out OS.Boot.PhysicalAddress expectedArenaEnd);
-        if (arenaEndStatus != OS.Boot.AddressValueStatus.Success
-            || !expectedArenaEnd.Equals(stack.PhysicalEndExclusive))
+        OS.Boot.AddressValueStatus arenaEndStatus = guard.PhysicalStart.TryGetEndExclusive(arenaBytes, out OS.Boot.PhysicalAddress expectedArenaEnd);
+        if (arenaEndStatus != OS.Boot.AddressValueStatus.Success || !expectedArenaEnd.Equals(stack.PhysicalEndExclusive))
         {
-            return Fail(
-                BootReservationTableStatus.BootStackArenaAccountingMismatch,
-                BootReservedRangeStatus.Success,
-                state,
-                state.BootStackIndex,
-                state.BootStackGuardIndex);
+            return Fail(BootReservationTableStatus.BootStackArenaAccountingMismatch, BootReservedRangeStatus.Success, state, state.BootStackIndex, state.BootStackGuardIndex);
         }
 
         state.BootStackArenaPages = arenaPages;
@@ -557,28 +212,14 @@ public static unsafe class BootReservationTableValidator
         return Succeed(state);
     }
 
-    private static bool IsDuplicateLoadedImageCoverage(
-        BootReservedRange previous,
-        BootReservedRange current,
-        bool currentContained,
-        bool previousContained)
+    private static bool IsDuplicateLoadedImageCoverage(BootReservedRange previous, BootReservedRange current, bool currentContained, bool previousContained)
     {
-        return previous.Kind == BootReservationKind.LoadedImage
-                && IsImageCoveredMetadata(current.Kind)
-                && currentContained
-            || current.Kind == BootReservationKind.LoadedImage
-                && IsImageCoveredMetadata(previous.Kind)
-                && previousContained;
+        return previous.Kind == BootReservationKind.LoadedImage && IsImageCoveredMetadata(current.Kind) && currentContained || current.Kind == BootReservationKind.LoadedImage && IsImageCoveredMetadata(previous.Kind) && previousContained;
     }
 
     private static bool IsImageCoveredMetadata(BootReservationKind kind)
     {
-        return kind == BootReservationKind.OwnedMemoryMap
-            || kind == BootReservationKind.AcpiSnapshot
-            || kind == BootReservationKind.AcpiScratch
-            || kind == BootReservationKind.DiagnosticState
-            || kind == BootReservationKind.BootHandoff
-            || kind == BootReservationKind.FramebufferMetadata;
+        return kind == BootReservationKind.OwnedMemoryMap || kind == BootReservationKind.AcpiSnapshot || kind == BootReservationKind.AcpiScratch || kind == BootReservationKind.DiagnosticState || kind == BootReservationKind.BootHandoff || kind == BootReservationKind.FramebufferMetadata;
     }
 
     private static bool TryAdd(ulong left, ulong right, out ulong value)
@@ -593,81 +234,13 @@ public static unsafe class BootReservationTableValidator
         return true;
     }
 
-    private static BootReservationTableValidationResult Succeed(
-        ValidationState state)
+    private static BootReservationTableValidationResult Succeed(ValidationState state)
     {
-        return BootReservationTableValidationResult.Create(
-            BootReservationTableStatus.Success,
-            BootReservedRangeStatus.Success,
-            state.ReservationCount,
-            state.ValidatedReservationCount,
-            state.AvailableReservationCapacity,
-            BootReservationTableValidationResult.NoIndex,
-            BootReservationTableValidationResult.NoIndex,
-            state.FirstLoadedImageIndex,
-            state.BootStackGuardIndex,
-            state.BootStackIndex,
-            state.TotalPages,
-            state.TotalBytes,
-            state.BootStackArenaPages,
-            state.BootStackArenaBytes);
+        return BootReservationTableValidationResult.Create(BootReservationTableStatus.Success, BootReservedRangeStatus.Success, state.ReservationCount, state.ValidatedReservationCount, state.AvailableReservationCapacity, BootReservationTableValidationResult.NoIndex, BootReservationTableValidationResult.NoIndex, state.FirstLoadedImageIndex, state.BootStackGuardIndex, state.BootStackIndex, state.TotalPages, state.TotalBytes, state.BootStackArenaPages, state.BootStackArenaBytes);
     }
 
-    private static BootReservationTableValidationResult Fail(
-        BootReservationTableStatus status,
-        BootReservedRangeStatus rangeStatus,
-        ValidationState state,
-        ulong invalidReservationIndex,
-        ulong conflictingReservationIndex)
+    private static BootReservationTableValidationResult Fail(BootReservationTableStatus status, BootReservedRangeStatus rangeStatus, ValidationState state, ulong invalidReservationIndex, ulong conflictingReservationIndex)
     {
-        return BootReservationTableValidationResult.Create(
-            status,
-            rangeStatus,
-            state.ReservationCount,
-            state.ValidatedReservationCount,
-            state.AvailableReservationCapacity,
-            invalidReservationIndex,
-            conflictingReservationIndex,
-            state.FirstLoadedImageIndex,
-            state.BootStackGuardIndex,
-            state.BootStackIndex,
-            state.TotalPages,
-            state.TotalBytes,
-            state.BootStackArenaPages,
-            state.BootStackArenaBytes);
-    }
-
-    private struct ValidationState
-    {
-        public ValidationState(
-            ulong reservationCount,
-            ulong availableReservationCapacity)
-        {
-            ReservationCount = reservationCount;
-            AvailableReservationCapacity = availableReservationCapacity;
-            ValidatedReservationCount = 0;
-            FirstLoadedImageIndex = BootReservationTableValidationResult.NoIndex;
-            BootStackGuardIndex = BootReservationTableValidationResult.NoIndex;
-            BootStackIndex = BootReservationTableValidationResult.NoIndex;
-            BootStackGuard = default;
-            BootStack = default;
-            TotalPages = 0;
-            TotalBytes = 0;
-            BootStackArenaPages = 0;
-            BootStackArenaBytes = 0;
-        }
-
-        public ulong ReservationCount;
-        public ulong AvailableReservationCapacity;
-        public ulong ValidatedReservationCount;
-        public ulong FirstLoadedImageIndex;
-        public ulong BootStackGuardIndex;
-        public ulong BootStackIndex;
-        public BootReservedRange BootStackGuard;
-        public BootReservedRange BootStack;
-        public ulong TotalPages;
-        public ulong TotalBytes;
-        public ulong BootStackArenaPages;
-        public ulong BootStackArenaBytes;
+        return BootReservationTableValidationResult.Create(status, rangeStatus, state.ReservationCount, state.ValidatedReservationCount, state.AvailableReservationCapacity, invalidReservationIndex, conflictingReservationIndex, state.FirstLoadedImageIndex, state.BootStackGuardIndex, state.BootStackIndex, state.TotalPages, state.TotalBytes, state.BootStackArenaPages, state.BootStackArenaBytes);
     }
 }

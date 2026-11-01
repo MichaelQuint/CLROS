@@ -1,40 +1,12 @@
 namespace OS.Boot;
-
-public enum EfiBootHandoffStatus
-{
-    Success = 0,
-    InvalidBootMode = 1,
-    UnknownCapability = 2,
-    MissingRequiredCapability = 3,
-    InvalidFirmwareServicesMode = 4,
-    MissingMemoryMap = 5,
-    MemoryMapNotOwned = 6,
-    MissingSourceMemoryMap = 7,
-    SourceMatchesOwnedBuffer = 8,
-    InvalidMapSize = 9,
-    InvalidDescriptorSize = 10,
-    InvalidDescriptorVersion = 11,
-    InvalidDescriptorCount = 12,
-    DescriptorSizeOverflow = 13,
-    InvalidAcpiRsdp = 14
-}
-
 public static class EfiBootHandoffValidator
 {
     public const ulong DescriptorStride40 = 40;
     public const ulong DescriptorStride48 = 48;
     public const ulong MaximumDescriptorCount = 4096;
     public const ulong MaximumUnsignedLong = 0xffffffffffffffff;
-
-    private const uint RequiredCapabilities =
-        BootHandoffRecord.CapabilityTextOutput | BootHandoffRecord.CapabilityMemoryMap;
-
-    private const uint KnownCapabilities =
-        BootHandoffRecord.CapabilityTextOutput
-        | BootHandoffRecord.CapabilityShutdown
-        | BootHandoffRecord.CapabilityMemoryMap
-        | BootHandoffRecord.CapabilityAcpiRsdp;
-
+    private const uint RequiredCapabilities = BootHandoffRecord.CapabilityTextOutput | BootHandoffRecord.CapabilityMemoryMap;
+    private const uint KnownCapabilities = BootHandoffRecord.CapabilityTextOutput | BootHandoffRecord.CapabilityShutdown | BootHandoffRecord.CapabilityMemoryMap | BootHandoffRecord.CapabilityAcpiRsdp;
     public static EfiBootHandoffStatus Validate(BootHandoffRecord record)
     {
         if (record.BootMode != BootHandoffRecord.BootModeUefi)
@@ -70,9 +42,7 @@ public static class EfiBootHandoffValidator
             return EfiBootHandoffStatus.MemoryMapNotOwned;
         }
 
-        if (memoryMap.SourceBufferAddress == 0
-            || memoryMap.SourceBufferSize == 0
-            || memoryMap.SourceBufferSize < memoryMap.MapSize)
+        if (memoryMap.SourceBufferAddress == 0 || memoryMap.SourceBufferSize == 0 || memoryMap.SourceBufferSize < memoryMap.MapSize)
         {
             return EfiBootHandoffStatus.MissingSourceMemoryMap;
         }
@@ -82,14 +52,12 @@ public static class EfiBootHandoffValidator
             return EfiBootHandoffStatus.SourceMatchesOwnedBuffer;
         }
 
-        if (memoryMap.MapSize == 0
-            || memoryMap.BufferSize < memoryMap.MapSize)
+        if (memoryMap.MapSize == 0 || memoryMap.BufferSize < memoryMap.MapSize)
         {
             return EfiBootHandoffStatus.InvalidMapSize;
         }
 
-        if (memoryMap.DescriptorSize != DescriptorStride40
-            && memoryMap.DescriptorSize != DescriptorStride48)
+        if (memoryMap.DescriptorSize != DescriptorStride40 && memoryMap.DescriptorSize != DescriptorStride48)
         {
             return EfiBootHandoffStatus.InvalidDescriptorSize;
         }
@@ -99,8 +67,7 @@ public static class EfiBootHandoffValidator
             return EfiBootHandoffStatus.InvalidDescriptorVersion;
         }
 
-        if (memoryMap.DescriptorCount == 0
-            || memoryMap.DescriptorCount > MaximumDescriptorCount)
+        if (memoryMap.DescriptorCount == 0 || memoryMap.DescriptorCount > MaximumDescriptorCount)
         {
             return EfiBootHandoffStatus.InvalidDescriptorCount;
         }
@@ -126,9 +93,7 @@ public static class EfiBootHandoffValidator
 
     private static bool IsKnownFirmwareServicesMode(uint mode)
     {
-        return mode == BootHandoffRecord.FirmwareServicesAvailable
-            || mode == BootHandoffRecord.FirmwareServicesUefiGoneSimulated
-            || mode == BootHandoffRecord.FirmwareServicesExited;
+        return mode == BootHandoffRecord.FirmwareServicesAvailable || mode == BootHandoffRecord.FirmwareServicesUefiGoneSimulated || mode == BootHandoffRecord.FirmwareServicesExited;
     }
 
     private static bool ValidateAcpiRsdp(BootHandoffRecord record)
@@ -136,7 +101,6 @@ public static class EfiBootHandoffValidator
         bool capabilitySet = (record.Capabilities & BootHandoffRecord.CapabilityAcpiRsdp) != 0;
         FirmwareAcpiRsdpRecord acpiRsdp = record.AcpiRsdp;
         uint unknownFlags = acpiRsdp.Flags & ~FirmwareAcpiRsdpRecord.FlagPresent;
-
         if (unknownFlags != 0)
         {
             return false;
@@ -144,18 +108,14 @@ public static class EfiBootHandoffValidator
 
         if (!capabilitySet)
         {
-            return acpiRsdp.RsdpAddress == 0
-                && acpiRsdp.TableKind == 0
-                && acpiRsdp.Flags == 0;
+            return acpiRsdp.RsdpAddress == 0 && acpiRsdp.TableKind == 0 && acpiRsdp.Flags == 0;
         }
 
-        if (!acpiRsdp.HasRsdp()
-            || acpiRsdp.ScanStatus != FirmwareAcpiRsdpRecord.ScanStatusOk)
+        if (!acpiRsdp.HasRsdp() || acpiRsdp.ScanStatus != FirmwareAcpiRsdpRecord.ScanStatusOk)
         {
             return false;
         }
 
-        return acpiRsdp.TableKind == FirmwareAcpiRsdpRecord.TableKindAcpi10
-            || acpiRsdp.TableKind == FirmwareAcpiRsdpRecord.TableKindAcpi20;
+        return acpiRsdp.TableKind == FirmwareAcpiRsdpRecord.TableKindAcpi10 || acpiRsdp.TableKind == FirmwareAcpiRsdpRecord.TableKindAcpi20;
     }
 }

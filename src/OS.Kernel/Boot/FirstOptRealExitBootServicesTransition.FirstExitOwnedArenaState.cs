@@ -1,0 +1,499 @@
+using OS.Kernel.Platform;
+using OS.Kernel.Diagnostics;
+using OS.Kernel.Memory;
+using OS.Std.Hash;
+
+#if M16_004_PROBE || M16_005_PROBE
+using OS.Kernel.Compatibility.LinuxX64;
+#endif
+namespace OS.Boot;
+#if M16_025_PROBE
+
+#endif
+#if M07_026_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+
+#endif
+#if M16_002_PROBE
+
+#endif
+#if M16_004_PROBE
+
+#endif
+#if M16_005_PROBE
+
+
+
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
+
+
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+
+#endif
+#if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#endif
+#if M05_APIC_SETUP_PROBE
+
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
+
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE
+
+
+#endif
+#if M16_025_PROBE
+
+#endif
+#if M07_026_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+
+#endif
+#if M16_002_PROBE
+
+#endif
+#if M16_004_PROBE
+
+#endif
+#if M16_005_PROBE
+
+#endif
+#if M16_006_PROBE
+
+#endif
+#if M16_007_PROBE
+
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE
+
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
+
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+
+#endif
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#endif
+#if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#endif
+#if M05_APIC_SETUP_PROBE
+
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
+
+#endif
+#if M16_025_PROBE
+
+#endif
+#if M07_026_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+
+#endif
+#if M16_002_PROBE
+
+#endif
+#if M16_004_PROBE
+
+#endif
+#if M16_005_PROBE
+
+#endif
+#if M16_006_PROBE
+
+#endif
+#if M16_007_PROBE
+
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE
+
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
+
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+
+#endif
+#if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#endif
+#if M05_APIC_SETUP_PROBE
+
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
+
+#endif
+#if M10_017_PROBE || M10_018_PROBE || M16_027_PROBE
+
+#else
+#endif
+#if M16_002_PROBE
+
+
+
+
+#endif
+#if M16_004_PROBE
+
+
+
+
+
+
+
+
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE
+
+
+
+
+
+
+
+
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
+
+
+
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+
+
+
+
+#endif
+#if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+
+
+
+
+#if M16_025_PROBE
+
+
+
+
+
+
+#endif
+#endif
+#if M05_APIC_SETUP_PROBE
+
+
+
+
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
+
+
+#endif
+#if M16_005_PROBE
+
+
+
+
+
+
+
+
+#endif
+#if M16_006_PROBE
+
+
+
+
+
+
+
+#endif
+#if M16_007_PROBE
+
+
+
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+#if M16_008_PROBE
+
+#else
+
+#endif
+
+
+
+
+
+#endif
+#if M07_026_PROBE
+
+
+
+#endif
+#if M07_026_PROBE
+
+#if M16_025_PROBE
+
+
+
+#endif
+#endif
+#if M16_002_PROBE
+
+#endif
+#if M16_004_PROBE
+
+
+#endif
+#if M16_005_PROBE
+
+
+
+
+#endif
+#if M16_006_PROBE
+
+
+
+
+
+
+
+
+#endif
+#if M16_007_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+
+
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE
+
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
+
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+
+
+
+#if M16_025_PROBE
+
+
+
+#else
+
+#endif
+#else
+
+#endif
+#endif
+#if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+
+#endif
+#if M05_APIC_SETUP_PROBE
+
+
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
+
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
+#if M07_026_PROBE
+
+
+#else
+
+#endif
+#endif
+#if M16_004_PROBE
+
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+#if M16_008_PROBE
+
+
+#else
+
+#endif
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+#if M16_008_PROBE
+
+#else
+
+#endif
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#endif
+#endif
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE
+
+
+
+
+#endif
+#if M16_006_PROBE
+
+
+#elif M05_APIC_SETUP_PROBE
+
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+
+
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
+
+#endif
+#if M16_004_PROBE
+
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#endif
+#endif
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE
+
+
+
+
+#endif
+#if M05_APIC_SETUP_PROBE || M16_006_PROBE
+
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+
+
+
+
+
+
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+
+
+
+
+
+
+
+
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
+
+#endif
+#if M16_004_PROBE
+
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#endif
+#endif
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE
+
+
+
+
+
+
+#endif
+#if M05_APIC_SETUP_PROBE || M16_006_PROBE
+
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+
+
+
+
+
+
+
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
+
+#endif
+#if M16_004_PROBE
+
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#endif
+#endif
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE
+
+
+
+
+#endif
+#if M05_APIC_SETUP_PROBE || M16_006_PROBE
+
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+
+
+
+
+#endif
+public unsafe struct FirstExitOwnedArenaState
+{
+    internal byte* Data;
+    internal uint Phase;
+    internal uint Reserved;
+    public bool IsReady => Phase == 2;
+    public bool FailedAfterWrite => Phase == 3;
+    public byte* Storage => Data;
+    public FirstExitDescriptorContext* Descriptors => IsReady ? (FirstExitDescriptorContext*)Data : null;
+    public FirstExitOwnedStackContext* StackEntry => IsReady ? (FirstExitOwnedStackContext*)(Data + 128) : null;
+    public FirstExitPermanentCr3Context* Permanent => IsReady ? (FirstExitPermanentCr3Context*)(Data + 256) : null;
+    public FirstExitFirmwareBindingState* Binding => IsReady ? (FirstExitFirmwareBindingState*)(Data + 384) : null;
+    public FirstExitTransitionState* Transition => IsReady ? (FirstExitTransitionState*)(Data + 512) : null;
+    public FirstExitFaultContext* Fault => IsReady ? (FirstExitFaultContext*)(Data + 1024) : null;
+    public byte* Map => IsReady ? Data + 5 * 4096 : null;
+    public ulong StackBottom => IsReady ? (ulong)Data + 22 * 4096 + 8 : 0;
+    public ulong StackTop => IsReady ? (ulong)Data + 86 * 4096 - 16 : 0;
+}

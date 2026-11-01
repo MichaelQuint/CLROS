@@ -174,13 +174,13 @@ public static partial class CSharpSourceProfiles
         foreach (var node in tree.GetRoot().DescendantNodes())
         {
             if (node is BaseTypeDeclarationSyntax type)
-                yield return (type.SpanStart, type.RawKind, type.Identifier.ValueText,
+                yield return (type.SpanStart, type.RawKind, RepositoryCodeStyle.TypeIdentity(type),
                     type is not TypeDeclarationSyntax container || container.Members.Any(member => member is not BaseTypeDeclarationSyntax and not DelegateDeclarationSyntax)
                         || container.AttributeLists.Count != 0 || container.BaseList is not null || container.ParameterList is not null
                         || (container.TypeParameterList is not null && container.TypeParameterList.Parameters.Any(value => value.AttributeLists.Count != 0)),
                     type.Modifiers.Any(SyntaxKind.PartialKeyword));
             else if (node is DelegateDeclarationSyntax callback)
-                yield return (callback.SpanStart, callback.RawKind, callback.Identifier.ValueText, true, false);
+                yield return (callback.SpanStart, callback.RawKind, RepositoryCodeStyle.TypeIdentity(callback), true, false);
             else if (node is GlobalStatementSyntax statement)
                 yield return (statement.SpanStart, statement.RawKind, string.Empty, true, false);
         }

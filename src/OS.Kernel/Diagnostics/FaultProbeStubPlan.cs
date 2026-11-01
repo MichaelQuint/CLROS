@@ -1,71 +1,4 @@
 namespace OS.Kernel.Diagnostics;
-
-public enum FaultProbeStubKind
-{
-    Unknown = 0,
-    InvalidOpcode = 1,
-    NullWrite = 2
-}
-
-public enum FaultProbeStubPlanStatus
-{
-    Success = 0,
-    UnknownKind = 1,
-    OutputBufferTooSmall = 2
-}
-
-public readonly struct FaultProbeStubPlanResult
-{
-    private FaultProbeStubPlanResult(
-        bool isInitialized,
-        FaultProbeStubPlanStatus status,
-        FaultProbeStubKind kind,
-        int bytesWritten,
-        int requiredBytes)
-    {
-        IsInitialized = isInitialized;
-        Status = status;
-        Kind = kind;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-    }
-
-    public bool IsInitialized { get; }
-
-    public FaultProbeStubPlanStatus Status { get; }
-
-    public FaultProbeStubKind Kind { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == FaultProbeStubPlanStatus.Success &&
-        Kind != FaultProbeStubKind.Unknown &&
-        BytesWritten > 0 &&
-        BytesWritten == RequiredBytes;
-
-    public static FaultProbeStubPlanResult Success(FaultProbeStubKind kind, int bytesWritten)
-    {
-        return new FaultProbeStubPlanResult(
-            true,
-            FaultProbeStubPlanStatus.Success,
-            kind,
-            bytesWritten,
-            bytesWritten);
-    }
-
-    public static FaultProbeStubPlanResult Fail(
-        FaultProbeStubPlanStatus status,
-        FaultProbeStubKind kind,
-        int requiredBytes)
-    {
-        return new FaultProbeStubPlanResult(true, status, kind, 0, requiredBytes);
-    }
-}
-
 public readonly struct FaultProbeStubPlan
 {
     public const byte TwoByteOpcodePrefix = 0x0f;
@@ -75,20 +8,16 @@ public readonly struct FaultProbeStubPlan
     public const byte AbsoluteAddressSib = 0x25;
     public const byte RetOpcode = 0xc3;
     public const byte NullWriteValue = 0x00;
-
     public const int InvalidOpcodeRequiredByteLength = 3;
     public const int NullWriteRequiredByteLength = 9;
     public const int MaximumRequiredByteLength = NullWriteRequiredByteLength;
-
     public FaultProbeStubPlan(FaultProbeStubKind kind)
     {
         Kind = kind;
     }
 
     public FaultProbeStubKind Kind { get; }
-
     public static FaultProbeStubPlan InvalidOpcode => new FaultProbeStubPlan(FaultProbeStubKind.InvalidOpcode);
-
     public static FaultProbeStubPlan NullWrite => new FaultProbeStubPlan(FaultProbeStubKind.NullWrite);
 
     public ProbeDefinition ProbeDefinition
@@ -114,18 +43,12 @@ public readonly struct FaultProbeStubPlan
         int requiredBytes = GetRequiredByteLength(Kind);
         if (requiredBytes == 0)
         {
-            return FaultProbeStubPlanResult.Fail(
-                FaultProbeStubPlanStatus.UnknownKind,
-                Kind,
-                0);
+            return FaultProbeStubPlanResult.Fail(FaultProbeStubPlanStatus.UnknownKind, Kind, 0);
         }
 
         if (destination.Length < requiredBytes)
         {
-            return FaultProbeStubPlanResult.Fail(
-                FaultProbeStubPlanStatus.OutputBufferTooSmall,
-                Kind,
-                requiredBytes);
+            return FaultProbeStubPlanResult.Fail(FaultProbeStubPlanStatus.OutputBufferTooSmall, Kind, requiredBytes);
         }
 
         if (Kind == FaultProbeStubKind.InvalidOpcode)

@@ -1,82 +1,5 @@
 namespace OS.Net;
-
 using OS.Std.Memory;
-
-public enum HttpResponseWriterStatus
-{
-    Success = 0,
-    DestinationTooSmall = 1,
-    InvalidStatusCode = 2,
-    EmptyReasonPhrase = 3,
-    InvalidReasonPhrase = 4,
-    EmptyContentType = 5,
-    InvalidContentType = 6
-}
-
-public readonly struct HttpResponseWriterResult
-{
-    private HttpResponseWriterResult(
-        HttpResponseWriterStatus status,
-        ushort statusCode,
-        int bytesWritten,
-        int bytesRequired,
-        int headerLength,
-        int bodyOffset,
-        int bodyLength)
-    {
-        IsInitialized = true;
-        Status = status;
-        StatusCode = statusCode;
-        BytesWritten = bytesWritten;
-        BytesRequired = bytesRequired;
-        HeaderLength = headerLength;
-        BodyOffset = bodyOffset;
-        BodyLength = bodyLength;
-    }
-
-    public bool IsInitialized { get; }
-
-    public HttpResponseWriterStatus Status { get; }
-
-    public bool Succeeded => IsInitialized && Status == HttpResponseWriterStatus.Success;
-
-    public ushort StatusCode { get; }
-
-    public int BytesWritten { get; }
-
-    public int BytesRequired { get; }
-
-    public int HeaderLength { get; }
-
-    public int BodyOffset { get; }
-
-    public int BodyLength { get; }
-
-    public static HttpResponseWriterResult Success(
-        ushort statusCode,
-        int bytesWritten,
-        int headerLength,
-        int bodyOffset,
-        int bodyLength)
-    {
-        return new HttpResponseWriterResult(
-            HttpResponseWriterStatus.Success,
-            statusCode,
-            bytesWritten,
-            bytesWritten,
-            headerLength,
-            bodyOffset,
-            bodyLength);
-    }
-
-    public static HttpResponseWriterResult Fail(
-        HttpResponseWriterStatus status,
-        ushort statusCode,
-        int bytesRequired)
-    {
-        return new HttpResponseWriterResult(status, statusCode, 0, bytesRequired, 0, 0, 0);
-    }
-}
 
 public static class HttpResponseWriter
 {
@@ -88,85 +11,49 @@ public static class HttpResponseWriter
     private const string KeepAliveValue = "keep-alive";
     private const string Crlf = "\r\n";
     private const string HeaderTerminator = "\r\n";
-
     private const int StatusLineFixedBytes = 15;
     private const int ContentLengthFixedBytes = 18;
     private const int ContentTypeFixedBytes = 16;
     private const int ConnectionCloseFixedBytes = 19;
     private const int ConnectionKeepAliveFixedBytes = 24;
     private const int HeaderTerminatorBytes = 2;
-
-    public static HttpResponseWriterStatus TryWrite(
-        ushort statusCode,
-        ReadOnlySpan<byte> reasonPhrase,
-        ReadOnlySpan<byte> contentType,
-        ReadOnlySpan<byte> body,
-        bool connectionClose,
-        Span<byte> destination,
-        out HttpResponseWriterResult result)
+    public static HttpResponseWriterStatus TryWrite(ushort statusCode, ReadOnlySpan<byte> reasonPhrase, ReadOnlySpan<byte> contentType, ReadOnlySpan<byte> body, bool connectionClose, Span<byte> destination, out HttpResponseWriterResult result)
     {
         int contentLengthDigitCount = CountDecimalDigits(body.Length);
-        int bytesRequired = StatusLineFixedBytes
-            + reasonPhrase.Length
-            + ContentLengthFixedBytes
-            + contentLengthDigitCount
-            + ContentTypeFixedBytes
-            + contentType.Length
-            + (connectionClose ? ConnectionCloseFixedBytes : ConnectionKeepAliveFixedBytes)
-            + HeaderTerminatorBytes
-            + body.Length;
-
+        int bytesRequired = StatusLineFixedBytes + reasonPhrase.Length + ContentLengthFixedBytes + contentLengthDigitCount + ContentTypeFixedBytes + contentType.Length + (connectionClose ? ConnectionCloseFixedBytes : ConnectionKeepAliveFixedBytes) + HeaderTerminatorBytes + body.Length;
         if (statusCode < 100 || statusCode > 599)
         {
-            result = HttpResponseWriterResult.Fail(
-                HttpResponseWriterStatus.InvalidStatusCode,
-                statusCode,
-                bytesRequired);
+            result = HttpResponseWriterResult.Fail(HttpResponseWriterStatus.InvalidStatusCode, statusCode, bytesRequired);
             return result.Status;
         }
 
         if (reasonPhrase.Length == 0)
         {
-            result = HttpResponseWriterResult.Fail(
-                HttpResponseWriterStatus.EmptyReasonPhrase,
-                statusCode,
-                bytesRequired);
+            result = HttpResponseWriterResult.Fail(HttpResponseWriterStatus.EmptyReasonPhrase, statusCode, bytesRequired);
             return result.Status;
         }
 
         if (!IsSafeReasonPhrase(reasonPhrase))
         {
-            result = HttpResponseWriterResult.Fail(
-                HttpResponseWriterStatus.InvalidReasonPhrase,
-                statusCode,
-                bytesRequired);
+            result = HttpResponseWriterResult.Fail(HttpResponseWriterStatus.InvalidReasonPhrase, statusCode, bytesRequired);
             return result.Status;
         }
 
         if (contentType.Length == 0)
         {
-            result = HttpResponseWriterResult.Fail(
-                HttpResponseWriterStatus.EmptyContentType,
-                statusCode,
-                bytesRequired);
+            result = HttpResponseWriterResult.Fail(HttpResponseWriterStatus.EmptyContentType, statusCode, bytesRequired);
             return result.Status;
         }
 
         if (!IsSafeHeaderValue(contentType))
         {
-            result = HttpResponseWriterResult.Fail(
-                HttpResponseWriterStatus.InvalidContentType,
-                statusCode,
-                bytesRequired);
+            result = HttpResponseWriterResult.Fail(HttpResponseWriterStatus.InvalidContentType, statusCode, bytesRequired);
             return result.Status;
         }
 
         if (destination.Length < bytesRequired)
         {
-            result = HttpResponseWriterResult.Fail(
-                HttpResponseWriterStatus.DestinationTooSmall,
-                statusCode,
-                bytesRequired);
+            result = HttpResponseWriterResult.Fail(HttpResponseWriterStatus.DestinationTooSmall, statusCode, bytesRequired);
             return result.Status;
         }
 
@@ -175,64 +62,42 @@ public static class HttpResponseWriter
         WriteStatusCode(statusCode, destination, ref offset);
         destination[offset] = (byte)' ';
         offset++;
-        BufferOperationResult reasonCopy =
-            BufferOperations.MemoryCopy(reasonPhrase, destination.Slice(offset, reasonPhrase.Length));
+        BufferOperationResult reasonCopy = BufferOperations.MemoryCopy(reasonPhrase, destination.Slice(offset, reasonPhrase.Length));
         if (!reasonCopy.Succeeded)
         {
-            result = HttpResponseWriterResult.Fail(
-                HttpResponseWriterStatus.DestinationTooSmall,
-                statusCode,
-                bytesRequired);
+            result = HttpResponseWriterResult.Fail(HttpResponseWriterStatus.DestinationTooSmall, statusCode, bytesRequired);
             return result.Status;
         }
 
         offset += reasonPhrase.Length;
         WriteAscii(Crlf, destination, ref offset);
-
         WriteAscii(ContentLengthHeaderPrefix, destination, ref offset);
         WriteDecimal(body.Length, destination, ref offset);
         WriteAscii(Crlf, destination, ref offset);
-
         WriteAscii(ContentTypeHeaderPrefix, destination, ref offset);
-        BufferOperationResult contentTypeCopy =
-            BufferOperations.MemoryCopy(contentType, destination.Slice(offset, contentType.Length));
+        BufferOperationResult contentTypeCopy = BufferOperations.MemoryCopy(contentType, destination.Slice(offset, contentType.Length));
         if (!contentTypeCopy.Succeeded)
         {
-            result = HttpResponseWriterResult.Fail(
-                HttpResponseWriterStatus.DestinationTooSmall,
-                statusCode,
-                bytesRequired);
+            result = HttpResponseWriterResult.Fail(HttpResponseWriterStatus.DestinationTooSmall, statusCode, bytesRequired);
             return result.Status;
         }
 
         offset += contentType.Length;
         WriteAscii(Crlf, destination, ref offset);
-
         WriteAscii(ConnectionHeaderPrefix, destination, ref offset);
         WriteAscii(connectionClose ? CloseValue : KeepAliveValue, destination, ref offset);
         WriteAscii(Crlf, destination, ref offset);
         WriteAscii(HeaderTerminator, destination, ref offset);
-
         int bodyOffset = offset;
-        BufferOperationResult bodyCopy =
-            BufferOperations.MemoryCopy(body, destination.Slice(offset, body.Length));
+        BufferOperationResult bodyCopy = BufferOperations.MemoryCopy(body, destination.Slice(offset, body.Length));
         if (!bodyCopy.Succeeded)
         {
-            result = HttpResponseWriterResult.Fail(
-                HttpResponseWriterStatus.DestinationTooSmall,
-                statusCode,
-                bytesRequired);
+            result = HttpResponseWriterResult.Fail(HttpResponseWriterStatus.DestinationTooSmall, statusCode, bytesRequired);
             return result.Status;
         }
 
         offset += body.Length;
-
-        result = HttpResponseWriterResult.Success(
-            statusCode,
-            offset,
-            bodyOffset,
-            bodyOffset,
-            body.Length);
+        result = HttpResponseWriterResult.Success(statusCode, offset, bodyOffset, bodyOffset, body.Length);
         return result.Status;
     }
 
@@ -262,7 +127,6 @@ public static class HttpResponseWriter
         int digits = CountDecimalDigits(value);
         int writeOffset = offset + digits - 1;
         int remaining = value;
-
         for (int index = 0; index < digits; index++)
         {
             destination[writeOffset - index] = (byte)('0' + (remaining % 10));

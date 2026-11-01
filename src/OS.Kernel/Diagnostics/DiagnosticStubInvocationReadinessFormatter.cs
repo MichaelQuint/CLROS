@@ -2,86 +2,30 @@ using OS.Kernel.Runtime;
 using OS.Std.Text;
 
 namespace OS.Kernel.Diagnostics;
-
-public enum DiagnosticStubInvocationMarkerFormatStatus
-{
-    Success = 0,
-    DestinationTooSmall = 1,
-    InvalidStatus = 2,
-    MarkerTooLong = 3
-}
-
-public readonly struct DiagnosticStubInvocationMarkerFormatResult
-{
-    private const uint InitializedFlag = 1;
-
-    public DiagnosticStubInvocationMarkerFormatResult(
-        DiagnosticStubInvocationMarkerFormatStatus status,
-        int bytesWritten,
-        int requiredBytes,
-        uint flags = InitializedFlag)
-    {
-        Status = status;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-        Flags = flags;
-    }
-
-    public DiagnosticStubInvocationMarkerFormatStatus Status { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public uint Flags { get; }
-
-    public bool IsInitialized => (Flags & InitializedFlag) != 0;
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == DiagnosticStubInvocationMarkerFormatStatus.Success &&
-        RequiredBytes != 0 &&
-        BytesWritten == RequiredBytes;
-}
-
 public static class DiagnosticStubInvocationReadinessFormatter
 {
     public const int MaximumMarkerBytes = 512;
-
     private static ReadOnlySpan<byte> ReadyMarker => "DIAGNOSTIC_STUB_INVOCATION_READY"u8;
     private static ReadOnlySpan<byte> NotReadyPrefix => "DIAGNOSTIC_STUB_INVOCATION_NOT_READY "u8;
 
-    public static DiagnosticStubInvocationMarkerFormatResult TryFormatReadyMarker(
-        Span<byte> destination)
+    public static DiagnosticStubInvocationMarkerFormatResult TryFormatReadyMarker(Span<byte> destination)
     {
         int requiredBytes = ReadyMarker.Length;
         if (destination.Length < requiredBytes)
         {
-            return new DiagnosticStubInvocationMarkerFormatResult(
-                DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall,
-                0,
-                requiredBytes);
+            return new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall, 0, requiredBytes);
         }
 
-        AsciiTextBuilderResult writeResult =
-            AsciiTextBuilder.AppendBytes(destination, 0, ReadyMarker);
+        AsciiTextBuilderResult writeResult = AsciiTextBuilder.AppendBytes(destination, 0, ReadyMarker);
         if (!writeResult.Succeeded)
         {
-            return new DiagnosticStubInvocationMarkerFormatResult(
-                DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall,
-                0,
-                requiredBytes);
+            return new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall, 0, requiredBytes);
         }
 
-        return new DiagnosticStubInvocationMarkerFormatResult(
-            DiagnosticStubInvocationMarkerFormatStatus.Success,
-            requiredBytes,
-            requiredBytes);
+        return new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.Success, requiredBytes, requiredBytes);
     }
 
-    public static DiagnosticStubInvocationMarkerFormatResult TryFormatNotReadyMarker(
-        DiagnosticStubInvocationReadinessResult readiness,
-        Span<byte> destination)
+    public static DiagnosticStubInvocationMarkerFormatResult TryFormatNotReadyMarker(DiagnosticStubInvocationReadinessResult readiness, Span<byte> destination)
     {
         DiagnosticStubInvocationMarkerFormatStatus validation = Validate(readiness);
         if (validation != DiagnosticStubInvocationMarkerFormatStatus.Success)
@@ -92,18 +36,12 @@ public static class DiagnosticStubInvocationReadinessFormatter
         int requiredBytes = CountNotReadyMarkerBytes(readiness);
         if (requiredBytes > MaximumMarkerBytes)
         {
-            return new DiagnosticStubInvocationMarkerFormatResult(
-                DiagnosticStubInvocationMarkerFormatStatus.MarkerTooLong,
-                0,
-                requiredBytes);
+            return new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.MarkerTooLong, 0, requiredBytes);
         }
 
         if (destination.Length < requiredBytes)
         {
-            return new DiagnosticStubInvocationMarkerFormatResult(
-                DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall,
-                0,
-                requiredBytes);
+            return new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall, 0, requiredBytes);
         }
 
         int offset = 0;
@@ -119,56 +57,37 @@ public static class DiagnosticStubInvocationReadinessFormatter
         Write(" payloadBase="u8, destination, ref offset);
         if (!TryWriteUInt64Decimal((ulong)readiness.PayloadBaseAddress, destination, ref offset))
         {
-            return new DiagnosticStubInvocationMarkerFormatResult(
-                DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall,
-                0,
-                requiredBytes);
+            return new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall, 0, requiredBytes);
         }
 
         Write(" payloadEnd="u8, destination, ref offset);
         if (!TryWriteUInt64Decimal((ulong)readiness.PayloadEndAddress, destination, ref offset))
         {
-            return new DiagnosticStubInvocationMarkerFormatResult(
-                DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall,
-                0,
-                requiredBytes);
+            return new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall, 0, requiredBytes);
         }
 
         Write(" bytes="u8, destination, ref offset);
         if (!TryWriteUInt64Decimal((ulong)readiness.BytesMaterialized, destination, ref offset))
         {
-            return new DiagnosticStubInvocationMarkerFormatResult(
-                DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall,
-                0,
-                requiredBytes);
+            return new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall, 0, requiredBytes);
         }
 
         Write(" out8="u8, destination, ref offset);
         if (!TryWriteUInt64Decimal((ulong)readiness.Out8StubAddress, destination, ref offset))
         {
-            return new DiagnosticStubInvocationMarkerFormatResult(
-                DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall,
-                0,
-                requiredBytes);
+            return new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall, 0, requiredBytes);
         }
 
         Write(" in8="u8, destination, ref offset);
         if (!TryWriteUInt64Decimal((ulong)readiness.In8StubAddress, destination, ref offset))
         {
-            return new DiagnosticStubInvocationMarkerFormatResult(
-                DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall,
-                0,
-                requiredBytes);
+            return new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.DestinationTooSmall, 0, requiredBytes);
         }
 
-        return new DiagnosticStubInvocationMarkerFormatResult(
-            DiagnosticStubInvocationMarkerFormatStatus.Success,
-            offset,
-            requiredBytes);
+        return new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.Success, offset, requiredBytes);
     }
 
-    public static DiagnosticStubInvocationMarkerFormatResult QueryNotReadyMarkerRequiredBytes(
-        DiagnosticStubInvocationReadinessResult readiness)
+    public static DiagnosticStubInvocationMarkerFormatResult QueryNotReadyMarkerRequiredBytes(DiagnosticStubInvocationReadinessResult readiness)
     {
         DiagnosticStubInvocationMarkerFormatStatus validation = Validate(readiness);
         if (validation != DiagnosticStubInvocationMarkerFormatStatus.Success)
@@ -177,48 +96,17 @@ public static class DiagnosticStubInvocationReadinessFormatter
         }
 
         int requiredBytes = CountNotReadyMarkerBytes(readiness);
-        return requiredBytes > MaximumMarkerBytes
-            ? new DiagnosticStubInvocationMarkerFormatResult(
-                DiagnosticStubInvocationMarkerFormatStatus.MarkerTooLong,
-                0,
-                requiredBytes)
-            : new DiagnosticStubInvocationMarkerFormatResult(
-                DiagnosticStubInvocationMarkerFormatStatus.Success,
-                0,
-                requiredBytes);
+        return requiredBytes > MaximumMarkerBytes ? new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.MarkerTooLong, 0, requiredBytes) : new DiagnosticStubInvocationMarkerFormatResult(DiagnosticStubInvocationMarkerFormatStatus.Success, 0, requiredBytes);
     }
 
-    private static DiagnosticStubInvocationMarkerFormatStatus Validate(
-        DiagnosticStubInvocationReadinessResult readiness)
+    private static DiagnosticStubInvocationMarkerFormatStatus Validate(DiagnosticStubInvocationReadinessResult readiness)
     {
-        return GetName(readiness.Status).Length != 0 &&
-            GetName(readiness.PageTransitionStatus).Length != 0 &&
-            GetName(readiness.BackendContractStatus).Length != 0
-                ? DiagnosticStubInvocationMarkerFormatStatus.Success
-                : DiagnosticStubInvocationMarkerFormatStatus.InvalidStatus;
+        return GetName(readiness.Status).Length != 0 && GetName(readiness.PageTransitionStatus).Length != 0 && GetName(readiness.BackendContractStatus).Length != 0 ? DiagnosticStubInvocationMarkerFormatStatus.Success : DiagnosticStubInvocationMarkerFormatStatus.InvalidStatus;
     }
 
     private static int CountNotReadyMarkerBytes(DiagnosticStubInvocationReadinessResult readiness)
     {
-        return NotReadyPrefix.Length
-            + "status="u8.Length
-            + GetName(readiness.Status).Length
-            + " initialized="u8.Length
-            + (readiness.IsInitialized ? "true"u8.Length : "false"u8.Length)
-            + " pageTransition="u8.Length
-            + GetName(readiness.PageTransitionStatus).Length
-            + " backend="u8.Length
-            + GetName(readiness.BackendContractStatus).Length
-            + " payloadBase="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.PayloadBaseAddress)
-            + " payloadEnd="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.PayloadEndAddress)
-            + " bytes="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.BytesMaterialized)
-            + " out8="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.Out8StubAddress)
-            + " in8="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.In8StubAddress);
+        return NotReadyPrefix.Length + "status="u8.Length + GetName(readiness.Status).Length + " initialized="u8.Length + (readiness.IsInitialized ? "true"u8.Length : "false"u8.Length) + " pageTransition="u8.Length + GetName(readiness.PageTransitionStatus).Length + " backend="u8.Length + GetName(readiness.BackendContractStatus).Length + " payloadBase="u8.Length + AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.PayloadBaseAddress) + " payloadEnd="u8.Length + AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.PayloadEndAddress) + " bytes="u8.Length + AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.BytesMaterialized) + " out8="u8.Length + AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.Out8StubAddress) + " in8="u8.Length + AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.In8StubAddress);
     }
 
     private static ReadOnlySpan<byte> GetName(DiagnosticStubInvocationReadinessStatus status)
@@ -275,8 +163,7 @@ public static class DiagnosticStubInvocationReadinessFormatter
 
     private static bool TryWriteUInt64Decimal(ulong value, Span<byte> destination, ref int offset)
     {
-        AsciiTextBuilderResult result =
-            AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value);
+        AsciiTextBuilderResult result = AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value);
         if (!result.Succeeded)
         {
             return false;

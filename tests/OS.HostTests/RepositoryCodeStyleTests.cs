@@ -13,9 +13,11 @@ internal static class RepositoryCodeStyleTests
             ("Owner.Inner.cs", "namespace N; public partial class Owner { private struct Inner { int value; } }"),
             ("Owner.Inner.Leaf.cs", "partial class Owner { partial class Inner { private enum Leaf { A } } }"),
             ("Owner.Inner.Feature.cs", "partial class Owner { partial class Inner { void Read() {} } }"),
+            ("Owner.Feature.cs", "partial class Owner { partial class Inner { void Read() {} } }"),
             ("Owner.Inner.Leaf.cs", "partial class Owner { partial class Inner { } }"),
             ("Callback.cs", "public delegate void Callback();"),
             ("Value.cs", "public record Value(int Number);"),
+            ("Owner.cs", "partial class Owner { int first; } partial class Owner { int second; }"),
             ("Program.cs", "System.Console.WriteLine(1);"),
             ("Generated.g.cs", "class A {} class B {}")
         })
@@ -32,8 +34,13 @@ internal static class RepositoryCodeStyleTests
             ("Owner.Inner.cs", "partial class Owner { struct Inner {} enum Other { A } }", "CLROSSTYLE001"),
             ("Wrong.cs", "public struct Value {}", "CLROSSTYLE002"),
             ("Inner.cs", "partial class Owner { private struct Inner {} }", "CLROSSTYLE002"),
+            ("Owner.Feature.cs", "partial class Owner { private struct Inner { int value; } }", "CLROSSTYLE002"),
             ("Program.cs", "System.Console.WriteLine(1); class Helper {}", "CLROSSTYLE001"),
             ("Owner.Child.cs", "[System.Obsolete] partial class Owner { class Child {} }", "CLROSSTYLE001"),
+            ("Owner.cs", "class Owner {} class Owner {}", "CLROSSTYLE001"),
+            ("Owner.cs", "partial class Owner {} partial class Owner<T> {}", "CLROSSTYLE001"),
+            ("Owner.cs", "namespace A { partial class Owner {} } namespace B { partial class Owner {} }", "CLROSSTYLE001"),
+            ("Owner.cs", "partial class Owner {} partial struct Owner {}", "CLROSSTYLE001"),
             ("Broken.cs", "class Broken {", "CLROSSTYLE000")
         })
             HostCheck.True(RepositoryCodeStyle.CheckFile(path, source).Any(value => value.Rule == rule), path + " " + rule);
@@ -81,6 +88,10 @@ internal static class RepositoryCodeStyleTests
         const string defaultActive = "#if !Z\nclass Child {}\n#endif\n#if B || Z\npartial class Container {}\n#endif";
         HostCheck.True(RepositoryCodeStyle.CheckFile("Container.Child.cs", defaultActive)
             .Any(value => value.Rule == "CLROSSTYLE001"));
+        const string samePartial = "#if FIRST\npartial class Owner { int first; }\n#endif\n#if SECOND\npartial class Owner { int second; }\n#endif";
+        HostCheck.Equal(0, RepositoryCodeStyle.CheckFile("Owner.cs", samePartial).Count);
+        const string arity = "partial class Owner\n#if GENERIC\n<T>\n#endif\n{}\n#if SECOND\npartial class Owner {}\n#endif";
+        HostCheck.True(RepositoryCodeStyle.CheckFile("Owner.cs", arity).Any(value => value.Rule == "CLROSSTYLE001"));
     }
 
     [HostTest("source style follows conditional local symbol definitions")]

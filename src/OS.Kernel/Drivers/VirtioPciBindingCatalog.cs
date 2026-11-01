@@ -1,218 +1,28 @@
 namespace OS.Drivers;
-
-public enum VirtioPciBindingCatalogStatus
-{
-    Success = 0,
-    MissingConfigurationSource = 1,
-    MissingBarSizeSource = 2,
-    BindingFailed = 3,
-    DestinationTooSmall = 4
-}
-
-public readonly struct VirtioPciConfigurationSource
-{
-    public VirtioPciConfigurationSource(
-        int sourceIndex,
-        ReadOnlyMemory<byte> configurationSpace)
-    {
-        SourceIndex = sourceIndex;
-        ConfigurationSpace = configurationSpace;
-    }
-
-    public int SourceIndex { get; }
-
-    public ReadOnlyMemory<byte> ConfigurationSpace { get; }
-}
-
-public readonly struct VirtioPciBarSizeSource
-{
-    public VirtioPciBarSizeSource(
-        int sourceIndex,
-        ReadOnlyMemory<ulong> barSizes)
-    {
-        SourceIndex = sourceIndex;
-        BarSizes = barSizes;
-    }
-
-    public int SourceIndex { get; }
-
-    public ReadOnlyMemory<ulong> BarSizes { get; }
-}
-
-public readonly struct VirtioPciBindingCatalogEntry
-{
-    public VirtioPciBindingCatalogEntry(
-        int sourceIndex,
-        VirtioPciCandidate candidate,
-        VirtioPciBindingPlanResult plan)
-    {
-        SourceIndex = sourceIndex;
-        Candidate = candidate;
-        Plan = plan;
-    }
-
-    public int SourceIndex { get; }
-
-    public VirtioPciCandidate Candidate { get; }
-
-    public VirtioPciBindingPlanResult Plan { get; }
-
-    public VirtioPciBindingMetadata Binding => Plan.Binding;
-
-    public int SegmentIndex => Binding.SegmentIndex;
-
-    public ushort SegmentGroup => Binding.SegmentGroup;
-
-    public ulong EcamBasePhysicalAddress => Binding.EcamBasePhysicalAddress;
-
-    public byte SegmentStartBus => Binding.SegmentStartBus;
-
-    public byte SegmentEndBus => Binding.SegmentEndBus;
-
-    public byte Bus => Binding.Bus;
-
-    public byte Device => Binding.Device;
-
-    public byte Function => Binding.Function;
-}
-
-public readonly struct VirtioPciBindingCatalogResult
-{
-    private VirtioPciBindingCatalogResult(
-        VirtioPciBindingCatalogStatus status,
-        int inspectedCandidateCount,
-        int bindingCount,
-        int requiredBindingCapacity,
-        int failingCandidateIndex,
-        int failingSourceIndex,
-        VirtioPciBindingPlanResult failingPlan,
-        bool isInitialized)
-    {
-        Status = status;
-        InspectedCandidateCount = inspectedCandidateCount;
-        BindingCount = bindingCount;
-        RequiredBindingCapacity = requiredBindingCapacity;
-        FailingCandidateIndex = failingCandidateIndex;
-        FailingSourceIndex = failingSourceIndex;
-        FailingPlan = failingPlan;
-        IsInitialized = isInitialized;
-    }
-
-    public const int NoFailingCandidateIndex = -1;
-    public const int NoFailingSourceIndex = -1;
-
-    public VirtioPciBindingCatalogStatus Status { get; }
-
-    public int InspectedCandidateCount { get; }
-
-    public int BindingCount { get; }
-
-    public int RequiredBindingCapacity { get; }
-
-    public int FailingCandidateIndex { get; }
-
-    public int FailingSourceIndex { get; }
-
-    public VirtioPciBindingPlanResult FailingPlan { get; }
-
-    public bool IsInitialized { get; }
-
-    public bool Succeeded => IsInitialized && Status == VirtioPciBindingCatalogStatus.Success;
-
-    public static VirtioPciBindingCatalogResult Success(
-        int inspectedCandidateCount,
-        int bindingCount)
-    {
-        return new VirtioPciBindingCatalogResult(
-            VirtioPciBindingCatalogStatus.Success,
-            inspectedCandidateCount,
-            bindingCount,
-            bindingCount,
-            NoFailingCandidateIndex,
-            NoFailingSourceIndex,
-            default,
-            isInitialized: true);
-    }
-
-    public static VirtioPciBindingCatalogResult Fail(
-        VirtioPciBindingCatalogStatus status,
-        int inspectedCandidateCount,
-        int bindingCount,
-        int requiredBindingCapacity,
-        int failingCandidateIndex,
-        int failingSourceIndex,
-        VirtioPciBindingPlanResult failingPlan = default)
-    {
-        return new VirtioPciBindingCatalogResult(
-            status,
-            inspectedCandidateCount,
-            bindingCount,
-            requiredBindingCapacity,
-            failingCandidateIndex,
-            failingSourceIndex,
-            failingPlan,
-            isInitialized: true);
-    }
-}
-
 public static class VirtioPciBindingCatalog
 {
-    public static VirtioPciBindingCatalogResult Build(
-        ReadOnlySpan<VirtioPciCandidate> candidates,
-        ReadOnlySpan<VirtioPciConfigurationSource> configurationSources,
-        ReadOnlySpan<VirtioPciBarSizeSource> barSizeSources,
-        Span<VirtioPciBindingCatalogEntry> destination)
+    public static VirtioPciBindingCatalogResult Build(ReadOnlySpan<VirtioPciCandidate> candidates, ReadOnlySpan<VirtioPciConfigurationSource> configurationSources, ReadOnlySpan<VirtioPciBarSizeSource> barSizeSources, Span<VirtioPciBindingCatalogEntry> destination)
     {
         int bindingCount = 0;
         int requiredBindingCapacity = 0;
-
         for (int candidateIndex = 0; candidateIndex < candidates.Length; candidateIndex++)
         {
             VirtioPciCandidate candidate = candidates[candidateIndex];
             requiredBindingCapacity++;
-
-            if (!TryFindConfigurationSource(
-                    configurationSources,
-                    candidate.SourceIndex,
-                    out ReadOnlyMemory<byte> configurationSpace))
+            if (!TryFindConfigurationSource(configurationSources, candidate.SourceIndex, out ReadOnlyMemory<byte> configurationSpace))
             {
-                return VirtioPciBindingCatalogResult.Fail(
-                    VirtioPciBindingCatalogStatus.MissingConfigurationSource,
-                    inspectedCandidateCount: candidateIndex + 1,
-                    bindingCount,
-                    requiredBindingCapacity,
-                    candidateIndex,
-                    candidate.SourceIndex);
+                return VirtioPciBindingCatalogResult.Fail(VirtioPciBindingCatalogStatus.MissingConfigurationSource, inspectedCandidateCount: candidateIndex + 1, bindingCount, requiredBindingCapacity, candidateIndex, candidate.SourceIndex);
             }
 
-            if (!TryFindBarSizeSource(
-                    barSizeSources,
-                    candidate.SourceIndex,
-                    out ReadOnlyMemory<ulong> barSizes))
+            if (!TryFindBarSizeSource(barSizeSources, candidate.SourceIndex, out ReadOnlyMemory<ulong> barSizes))
             {
-                return VirtioPciBindingCatalogResult.Fail(
-                    VirtioPciBindingCatalogStatus.MissingBarSizeSource,
-                    inspectedCandidateCount: candidateIndex + 1,
-                    bindingCount,
-                    requiredBindingCapacity,
-                    candidateIndex,
-                    candidate.SourceIndex);
+                return VirtioPciBindingCatalogResult.Fail(VirtioPciBindingCatalogStatus.MissingBarSizeSource, inspectedCandidateCount: candidateIndex + 1, bindingCount, requiredBindingCapacity, candidateIndex, candidate.SourceIndex);
             }
 
-            VirtioPciBindingPlanResult plan = VirtioPciBindingPlan.Create(
-                CreateScannedDevice(candidate),
-                configurationSpace.Span,
-                barSizes.Span);
+            VirtioPciBindingPlanResult plan = VirtioPciBindingPlan.Create(CreateScannedDevice(candidate), configurationSpace.Span, barSizes.Span);
             if (!plan.Succeeded)
             {
-                return VirtioPciBindingCatalogResult.Fail(
-                    VirtioPciBindingCatalogStatus.BindingFailed,
-                    inspectedCandidateCount: candidateIndex + 1,
-                    bindingCount,
-                    requiredBindingCapacity,
-                    candidateIndex,
-                    candidate.SourceIndex,
-                    plan);
+                return VirtioPciBindingCatalogResult.Fail(VirtioPciBindingCatalogStatus.BindingFailed, inspectedCandidateCount: candidateIndex + 1, bindingCount, requiredBindingCapacity, candidateIndex, candidate.SourceIndex, plan);
             }
 
             if (bindingCount >= destination.Length)
@@ -220,35 +30,19 @@ public static class VirtioPciBindingCatalog
                 continue;
             }
 
-            destination[bindingCount] = new VirtioPciBindingCatalogEntry(
-                candidate.SourceIndex,
-                candidate,
-                plan);
+            destination[bindingCount] = new VirtioPciBindingCatalogEntry(candidate.SourceIndex, candidate, plan);
             bindingCount++;
         }
 
         if (requiredBindingCapacity > destination.Length)
         {
-            return VirtioPciBindingCatalogResult.Fail(
-                VirtioPciBindingCatalogStatus.DestinationTooSmall,
-                inspectedCandidateCount: candidates.Length,
-                bindingCount,
-                requiredBindingCapacity,
-                bindingCount,
-                bindingCount < candidates.Length
-                    ? candidates[bindingCount].SourceIndex
-                    : VirtioPciBindingCatalogResult.NoFailingSourceIndex);
+            return VirtioPciBindingCatalogResult.Fail(VirtioPciBindingCatalogStatus.DestinationTooSmall, inspectedCandidateCount: candidates.Length, bindingCount, requiredBindingCapacity, bindingCount, bindingCount < candidates.Length ? candidates[bindingCount].SourceIndex : VirtioPciBindingCatalogResult.NoFailingSourceIndex);
         }
 
-        return VirtioPciBindingCatalogResult.Success(
-            candidates.Length,
-            bindingCount);
+        return VirtioPciBindingCatalogResult.Success(candidates.Length, bindingCount);
     }
 
-    private static bool TryFindConfigurationSource(
-        ReadOnlySpan<VirtioPciConfigurationSource> sources,
-        int sourceIndex,
-        out ReadOnlyMemory<byte> configurationSpace)
+    private static bool TryFindConfigurationSource(ReadOnlySpan<VirtioPciConfigurationSource> sources, int sourceIndex, out ReadOnlyMemory<byte> configurationSpace)
     {
         for (int index = 0; index < sources.Length; index++)
         {
@@ -263,10 +57,7 @@ public static class VirtioPciBindingCatalog
         return false;
     }
 
-    private static bool TryFindBarSizeSource(
-        ReadOnlySpan<VirtioPciBarSizeSource> sources,
-        int sourceIndex,
-        out ReadOnlyMemory<ulong> barSizes)
+    private static bool TryFindBarSizeSource(ReadOnlySpan<VirtioPciBarSizeSource> sources, int sourceIndex, out ReadOnlyMemory<ulong> barSizes)
     {
         for (int index = 0; index < sources.Length; index++)
         {
@@ -283,26 +74,6 @@ public static class VirtioPciBindingCatalog
 
     private static PciEcamScannedDevice CreateScannedDevice(VirtioPciCandidate candidate)
     {
-        return new PciEcamScannedDevice(
-            candidate.SegmentIndex,
-            new PciEcamSegment(
-                candidate.EcamBasePhysicalAddress,
-                candidate.SegmentGroup,
-                candidate.SegmentStartBus,
-                candidate.SegmentEndBus),
-            new PciScannedDevice(
-                candidate.Bus,
-                candidate.Device,
-                candidate.Function,
-                candidate.VendorId,
-                candidate.DeviceId,
-                revisionId: 0,
-                classCode: 0,
-                subclass: 0,
-                programmingInterface: 0,
-                headerType: PciConfigurationHeader.Type0HeaderType,
-                isMultifunction: false,
-                hasCapabilitiesList: true,
-                candidate.CapabilityPointer));
+        return new PciEcamScannedDevice(candidate.SegmentIndex, new PciEcamSegment(candidate.EcamBasePhysicalAddress, candidate.SegmentGroup, candidate.SegmentStartBus, candidate.SegmentEndBus), new PciScannedDevice(candidate.Bus, candidate.Device, candidate.Function, candidate.VendorId, candidate.DeviceId, revisionId: 0, classCode: 0, subclass: 0, programmingInterface: 0, headerType: PciConfigurationHeader.Type0HeaderType, isMultifunction: false, hasCapabilitiesList: true, candidate.CapabilityPointer));
     }
 }

@@ -1,59 +1,16 @@
 namespace OS.Drivers;
-
-public enum VirtqueueSplitRingPlanStatus
-{
-    Success = 0,
-    InvalidQueueSize = 1,
-    QueueSizeNotPowerOfTwo = 2,
-    QueueSizeTooLarge = 3,
-    LayoutOverflow = 4
-}
-
-public readonly struct VirtqueueSplitRingRegion
-{
-    internal VirtqueueSplitRingRegion(
-        uint offset,
-        uint length,
-        uint alignment)
-    {
-        Offset = offset;
-        Length = length;
-        Alignment = alignment;
-        EndOffset = offset + length;
-    }
-
-    public uint Offset { get; }
-
-    public uint Length { get; }
-
-    public uint Alignment { get; }
-
-    public uint EndOffset { get; }
-
-    public bool IsAligned => Alignment != 0 && (Offset % Alignment) == 0;
-}
-
 public readonly struct VirtqueueSplitRingPlan
 {
     public const ushort MaximumQueueSize = 32768;
-
     public const uint DescriptorTableAlignment = 16;
     public const uint DescriptorLength = 16;
-
     public const uint AvailableRingAlignment = 2;
     public const uint AvailableRingHeaderLength = 4;
     public const uint AvailableRingEntryLength = 2;
-
     public const uint UsedRingAlignment = 4;
     public const uint UsedRingHeaderLength = 4;
     public const uint UsedRingElementLength = 8;
-
-    private VirtqueueSplitRingPlan(
-        ushort queueSize,
-        uint queueStartOffset,
-        VirtqueueSplitRingRegion descriptorTable,
-        VirtqueueSplitRingRegion availableRing,
-        VirtqueueSplitRingRegion usedRing)
+    private VirtqueueSplitRingPlan(ushort queueSize, uint queueStartOffset, VirtqueueSplitRingRegion descriptorTable, VirtqueueSplitRingRegion availableRing, VirtqueueSplitRingRegion usedRing)
     {
         QueueSize = queueSize;
         QueueStartOffset = queueStartOffset;
@@ -65,17 +22,11 @@ public readonly struct VirtqueueSplitRingPlan
     }
 
     public ushort QueueSize { get; }
-
     public uint QueueStartOffset { get; }
-
     public VirtqueueSplitRingRegion DescriptorTable { get; }
-
     public VirtqueueSplitRingRegion AvailableRing { get; }
-
     public VirtqueueSplitRingRegion UsedRing { get; }
-
     public uint EndOffset { get; }
-
     public uint RequiredByteLength { get; }
 
     public static VirtqueueSplitRingPlanResult Create(ushort queueSize)
@@ -83,9 +34,7 @@ public readonly struct VirtqueueSplitRingPlan
         return Create(queueStartOffset: 0, queueSize);
     }
 
-    public static VirtqueueSplitRingPlanResult Create(
-        uint queueStartOffset,
-        ushort queueSize)
+    public static VirtqueueSplitRingPlanResult Create(uint queueStartOffset, ushort queueSize)
     {
         VirtqueueSplitRingPlanStatus queueStatus = ValidateQueueSize(queueSize);
         if (queueStatus != VirtqueueSplitRingPlanStatus.Success)
@@ -93,81 +42,40 @@ public readonly struct VirtqueueSplitRingPlan
             return VirtqueueSplitRingPlanResult.Fail(queueStatus, queueSize);
         }
 
-        if (!TryAlignUp(
-                queueStartOffset,
-                DescriptorTableAlignment,
-                out uint descriptorOffset))
+        if (!TryAlignUp(queueStartOffset, DescriptorTableAlignment, out uint descriptorOffset))
         {
-            return VirtqueueSplitRingPlanResult.Fail(
-                VirtqueueSplitRingPlanStatus.LayoutOverflow,
-                queueSize);
+            return VirtqueueSplitRingPlanResult.Fail(VirtqueueSplitRingPlanStatus.LayoutOverflow, queueSize);
         }
 
-        if (!TryMultiply(queueSize, DescriptorLength, out uint descriptorLength) ||
-            !TryAdd(descriptorOffset, descriptorLength, out uint descriptorEnd))
+        if (!TryMultiply(queueSize, DescriptorLength, out uint descriptorLength) || !TryAdd(descriptorOffset, descriptorLength, out uint descriptorEnd))
         {
-            return VirtqueueSplitRingPlanResult.Fail(
-                VirtqueueSplitRingPlanStatus.LayoutOverflow,
-                queueSize);
+            return VirtqueueSplitRingPlanResult.Fail(VirtqueueSplitRingPlanStatus.LayoutOverflow, queueSize);
         }
 
-        if (!TryAlignUp(
-                descriptorEnd,
-                AvailableRingAlignment,
-                out uint availableOffset))
+        if (!TryAlignUp(descriptorEnd, AvailableRingAlignment, out uint availableOffset))
         {
-            return VirtqueueSplitRingPlanResult.Fail(
-                VirtqueueSplitRingPlanStatus.LayoutOverflow,
-                queueSize);
+            return VirtqueueSplitRingPlanResult.Fail(VirtqueueSplitRingPlanStatus.LayoutOverflow, queueSize);
         }
 
-        if (!TryMultiply(queueSize, AvailableRingEntryLength, out uint availableEntriesLength) ||
-            !TryAdd(AvailableRingHeaderLength, availableEntriesLength, out uint availableLength) ||
-            !TryAdd(availableOffset, availableLength, out uint availableEnd))
+        if (!TryMultiply(queueSize, AvailableRingEntryLength, out uint availableEntriesLength) || !TryAdd(AvailableRingHeaderLength, availableEntriesLength, out uint availableLength) || !TryAdd(availableOffset, availableLength, out uint availableEnd))
         {
-            return VirtqueueSplitRingPlanResult.Fail(
-                VirtqueueSplitRingPlanStatus.LayoutOverflow,
-                queueSize);
+            return VirtqueueSplitRingPlanResult.Fail(VirtqueueSplitRingPlanStatus.LayoutOverflow, queueSize);
         }
 
-        if (!TryAlignUp(
-                availableEnd,
-                UsedRingAlignment,
-                out uint usedOffset))
+        if (!TryAlignUp(availableEnd, UsedRingAlignment, out uint usedOffset))
         {
-            return VirtqueueSplitRingPlanResult.Fail(
-                VirtqueueSplitRingPlanStatus.LayoutOverflow,
-                queueSize);
+            return VirtqueueSplitRingPlanResult.Fail(VirtqueueSplitRingPlanStatus.LayoutOverflow, queueSize);
         }
 
-        if (!TryMultiply(queueSize, UsedRingElementLength, out uint usedEntriesLength) ||
-            !TryAdd(UsedRingHeaderLength, usedEntriesLength, out uint usedLength) ||
-            !TryAdd(usedOffset, usedLength, out uint usedEnd))
+        if (!TryMultiply(queueSize, UsedRingElementLength, out uint usedEntriesLength) || !TryAdd(UsedRingHeaderLength, usedEntriesLength, out uint usedLength) || !TryAdd(usedOffset, usedLength, out uint usedEnd))
         {
-            return VirtqueueSplitRingPlanResult.Fail(
-                VirtqueueSplitRingPlanStatus.LayoutOverflow,
-                queueSize);
+            return VirtqueueSplitRingPlanResult.Fail(VirtqueueSplitRingPlanStatus.LayoutOverflow, queueSize);
         }
 
-        VirtqueueSplitRingRegion descriptorTable = new VirtqueueSplitRingRegion(
-            descriptorOffset,
-            descriptorLength,
-            DescriptorTableAlignment);
-        VirtqueueSplitRingRegion availableRing = new VirtqueueSplitRingRegion(
-            availableOffset,
-            availableLength,
-            AvailableRingAlignment);
-        VirtqueueSplitRingRegion usedRing = new VirtqueueSplitRingRegion(
-            usedOffset,
-            usedLength,
-            UsedRingAlignment);
-
-        return VirtqueueSplitRingPlanResult.Success(new VirtqueueSplitRingPlan(
-            queueSize,
-            queueStartOffset,
-            descriptorTable,
-            availableRing,
-            usedRing));
+        VirtqueueSplitRingRegion descriptorTable = new VirtqueueSplitRingRegion(descriptorOffset, descriptorLength, DescriptorTableAlignment);
+        VirtqueueSplitRingRegion availableRing = new VirtqueueSplitRingRegion(availableOffset, availableLength, AvailableRingAlignment);
+        VirtqueueSplitRingRegion usedRing = new VirtqueueSplitRingRegion(usedOffset, usedLength, UsedRingAlignment);
+        return VirtqueueSplitRingPlanResult.Success(new VirtqueueSplitRingPlan(queueSize, queueStartOffset, descriptorTable, availableRing, usedRing));
     }
 
     public static VirtqueueSplitRingPlanStatus ValidateQueueSize(ushort queueSize)
@@ -190,10 +98,7 @@ public readonly struct VirtqueueSplitRingPlan
         return VirtqueueSplitRingPlanStatus.Success;
     }
 
-    private static bool TryAlignUp(
-        uint value,
-        uint alignment,
-        out uint aligned)
+    private static bool TryAlignUp(uint value, uint alignment, out uint aligned)
     {
         uint remainder = value % alignment;
         if (remainder == 0)
@@ -206,10 +111,7 @@ public readonly struct VirtqueueSplitRingPlan
         return TryAdd(value, padding, out aligned);
     }
 
-    private static bool TryAdd(
-        uint left,
-        uint right,
-        out uint result)
+    private static bool TryAdd(uint left, uint right, out uint result)
     {
         if (left > (~0u) - right)
         {
@@ -221,10 +123,7 @@ public readonly struct VirtqueueSplitRingPlan
         return true;
     }
 
-    private static bool TryMultiply(
-        ushort left,
-        uint right,
-        out uint result)
+    private static bool TryMultiply(ushort left, uint right, out uint result)
     {
         ulong value = (ulong)left * right;
         if (value > (~0u))
@@ -235,45 +134,5 @@ public readonly struct VirtqueueSplitRingPlan
 
         result = (uint)value;
         return true;
-    }
-}
-
-public readonly struct VirtqueueSplitRingPlanResult
-{
-    private VirtqueueSplitRingPlanResult(
-        VirtqueueSplitRingPlanStatus status,
-        ushort queueSize,
-        VirtqueueSplitRingPlan plan)
-    {
-        IsInitialized = true;
-        Status = status;
-        QueueSize = queueSize;
-        Plan = plan;
-    }
-
-    public bool IsInitialized { get; }
-
-    public VirtqueueSplitRingPlanStatus Status { get; }
-
-    public ushort QueueSize { get; }
-
-    public VirtqueueSplitRingPlan Plan { get; }
-
-    public bool Succeeded => IsInitialized &&
-        Status == VirtqueueSplitRingPlanStatus.Success;
-
-    public static VirtqueueSplitRingPlanResult Success(VirtqueueSplitRingPlan plan)
-    {
-        return new VirtqueueSplitRingPlanResult(
-            VirtqueueSplitRingPlanStatus.Success,
-            plan.QueueSize,
-            plan);
-    }
-
-    public static VirtqueueSplitRingPlanResult Fail(
-        VirtqueueSplitRingPlanStatus status,
-        ushort queueSize)
-    {
-        return new VirtqueueSplitRingPlanResult(status, queueSize, default);
     }
 }

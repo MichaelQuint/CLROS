@@ -1,112 +1,6 @@
 using OS.Pal;
 
 namespace OS.Manifest;
-
-public enum NativeAppSocketBindPolicyStatus
-{
-    Success = 0,
-    LaunchPlanFailed = 1,
-    MissingListenEndpoint = 2,
-    InvalidListenHost = 3,
-    InvalidBindEndpoint = 4,
-    PortMismatch = 5,
-    AddressMismatch = 6
-}
-
-public readonly struct NativeAppSocketBindPolicyResult
-{
-    private NativeAppSocketBindPolicyResult(
-        NativeAppSocketBindPolicyStatus status,
-        NativeAppLaunchStatus launchStatus,
-        ushort expectedPort,
-        ushort actualPort,
-        byte expectedAddress0,
-        byte expectedAddress1,
-        byte expectedAddress2,
-        byte expectedAddress3,
-        byte actualAddress0,
-        byte actualAddress1,
-        byte actualAddress2,
-        byte actualAddress3,
-        bool wildcard,
-        bool isInitialized)
-    {
-        Status = status;
-        LaunchStatus = launchStatus;
-        ExpectedPort = expectedPort;
-        ActualPort = actualPort;
-        ExpectedAddress0 = expectedAddress0;
-        ExpectedAddress1 = expectedAddress1;
-        ExpectedAddress2 = expectedAddress2;
-        ExpectedAddress3 = expectedAddress3;
-        ActualAddress0 = actualAddress0;
-        ActualAddress1 = actualAddress1;
-        ActualAddress2 = actualAddress2;
-        ActualAddress3 = actualAddress3;
-        Wildcard = wildcard;
-        IsInitialized = isInitialized;
-    }
-
-    public NativeAppSocketBindPolicyStatus Status { get; }
-
-    public bool IsInitialized { get; }
-
-    public bool Succeeded => IsInitialized && Status == NativeAppSocketBindPolicyStatus.Success;
-
-    public NativeAppLaunchStatus LaunchStatus { get; }
-
-    public ushort ExpectedPort { get; }
-
-    public ushort ActualPort { get; }
-
-    public byte ExpectedAddress0 { get; }
-
-    public byte ExpectedAddress1 { get; }
-
-    public byte ExpectedAddress2 { get; }
-
-    public byte ExpectedAddress3 { get; }
-
-    public byte ActualAddress0 { get; }
-
-    public byte ActualAddress1 { get; }
-
-    public byte ActualAddress2 { get; }
-
-    public byte ActualAddress3 { get; }
-
-    public bool Wildcard { get; }
-
-    public static NativeAppSocketBindPolicyResult Create(
-        NativeAppSocketBindPolicyStatus status,
-        NativeAppLaunchStatus launchStatus,
-        ushort expectedPort,
-        ushort actualPort,
-        byte expectedAddress0,
-        byte expectedAddress1,
-        byte expectedAddress2,
-        byte expectedAddress3,
-        OSHostIpv4Endpoint actualEndpoint,
-        bool wildcard)
-    {
-        return new NativeAppSocketBindPolicyResult(
-            status,
-            launchStatus,
-            expectedPort,
-            actualPort,
-            expectedAddress0,
-            expectedAddress1,
-            expectedAddress2,
-            expectedAddress3,
-            actualEndpoint.Address0,
-            actualEndpoint.Address1,
-            actualEndpoint.Address2,
-            actualEndpoint.Address3,
-            wildcard,
-            isInitialized: true);
-    }
-}
-
 public static class NativeAppSocketBindPolicy
 {
     public const bool RequiresManifestListenEndpoint = true;
@@ -114,141 +8,56 @@ public static class NativeAppSocketBindPolicy
     public const bool CallsPalSocketBind = false;
     public const bool ExportsPalFunctions = false;
     public const bool StartsKestrel = false;
-
-    public static NativeAppSocketBindPolicyStatus ValidateBindEndpoint(
-        ReadOnlySpan<byte> manifestSource,
-        NativeAppLaunchPlanResult launchPlan,
-        OSHostIpv4Endpoint endpoint,
-        out NativeAppSocketBindPolicyResult result)
+    public static NativeAppSocketBindPolicyStatus ValidateBindEndpoint(ReadOnlySpan<byte> manifestSource, NativeAppLaunchPlanResult launchPlan, OSHostIpv4Endpoint endpoint, out NativeAppSocketBindPolicyResult result)
     {
         if (!launchPlan.Succeeded)
         {
-            result = NativeAppSocketBindPolicyResult.Create(
-                NativeAppSocketBindPolicyStatus.LaunchPlanFailed,
-                launchPlan.Status,
-                expectedPort: 0,
-                actualPort: endpoint.PortHostOrder,
-                expectedAddress0: 0,
-                expectedAddress1: 0,
-                expectedAddress2: 0,
-                expectedAddress3: 0,
-                endpoint,
-                wildcard: false);
+            result = NativeAppSocketBindPolicyResult.Create(NativeAppSocketBindPolicyStatus.LaunchPlanFailed, launchPlan.Status, expectedPort: 0, actualPort: endpoint.PortHostOrder, expectedAddress0: 0, expectedAddress1: 0, expectedAddress2: 0, expectedAddress3: 0, endpoint, wildcard: false);
             return result.Status;
         }
 
         NativeAppLaunchPlan plan = launchPlan.Plan;
         if (!plan.HasListenEndpoint)
         {
-            result = NativeAppSocketBindPolicyResult.Create(
-                NativeAppSocketBindPolicyStatus.MissingListenEndpoint,
-                launchPlan.Status,
-                expectedPort: 0,
-                actualPort: endpoint.PortHostOrder,
-                expectedAddress0: 0,
-                expectedAddress1: 0,
-                expectedAddress2: 0,
-                expectedAddress3: 0,
-                endpoint,
-                wildcard: false);
+            result = NativeAppSocketBindPolicyResult.Create(NativeAppSocketBindPolicyStatus.MissingListenEndpoint, launchPlan.Status, expectedPort: 0, actualPort: endpoint.PortHostOrder, expectedAddress0: 0, expectedAddress1: 0, expectedAddress2: 0, expectedAddress3: 0, endpoint, wildcard: false);
             return result.Status;
         }
 
         if (OSHostIpv4Endpoint.Validate(endpoint) != OSHostStatus.Ok)
         {
-            result = NativeAppSocketBindPolicyResult.Create(
-                NativeAppSocketBindPolicyStatus.InvalidBindEndpoint,
-                launchPlan.Status,
-                plan.ListenPort,
-                endpoint.PortHostOrder,
-                expectedAddress0: 0,
-                expectedAddress1: 0,
-                expectedAddress2: 0,
-                expectedAddress3: 0,
-                endpoint,
-                wildcard: false);
+            result = NativeAppSocketBindPolicyResult.Create(NativeAppSocketBindPolicyStatus.InvalidBindEndpoint, launchPlan.Status, plan.ListenPort, endpoint.PortHostOrder, expectedAddress0: 0, expectedAddress1: 0, expectedAddress2: 0, expectedAddress3: 0, endpoint, wildcard: false);
             return result.Status;
         }
 
-        if (!plan.TryGetListenHost(manifestSource, out ReadOnlySpan<byte> host)
-            || !TryParseIpv4Host(host, out byte expected0, out byte expected1, out byte expected2, out byte expected3))
+        if (!plan.TryGetListenHost(manifestSource, out ReadOnlySpan<byte> host) || !TryParseIpv4Host(host, out byte expected0, out byte expected1, out byte expected2, out byte expected3))
         {
-            result = NativeAppSocketBindPolicyResult.Create(
-                NativeAppSocketBindPolicyStatus.InvalidListenHost,
-                launchPlan.Status,
-                plan.ListenPort,
-                endpoint.PortHostOrder,
-                expectedAddress0: 0,
-                expectedAddress1: 0,
-                expectedAddress2: 0,
-                expectedAddress3: 0,
-                endpoint,
-                wildcard: false);
+            result = NativeAppSocketBindPolicyResult.Create(NativeAppSocketBindPolicyStatus.InvalidListenHost, launchPlan.Status, plan.ListenPort, endpoint.PortHostOrder, expectedAddress0: 0, expectedAddress1: 0, expectedAddress2: 0, expectedAddress3: 0, endpoint, wildcard: false);
             return result.Status;
         }
 
         bool wildcard = expected0 == 0 && expected1 == 0 && expected2 == 0 && expected3 == 0;
         if (endpoint.PortHostOrder != plan.ListenPort)
         {
-            result = NativeAppSocketBindPolicyResult.Create(
-                NativeAppSocketBindPolicyStatus.PortMismatch,
-                launchPlan.Status,
-                plan.ListenPort,
-                endpoint.PortHostOrder,
-                expected0,
-                expected1,
-                expected2,
-                expected3,
-                endpoint,
-                wildcard);
+            result = NativeAppSocketBindPolicyResult.Create(NativeAppSocketBindPolicyStatus.PortMismatch, launchPlan.Status, plan.ListenPort, endpoint.PortHostOrder, expected0, expected1, expected2, expected3, endpoint, wildcard);
             return result.Status;
         }
 
-        if (endpoint.Address0 != expected0
-            || endpoint.Address1 != expected1
-            || endpoint.Address2 != expected2
-            || endpoint.Address3 != expected3)
+        if (endpoint.Address0 != expected0 || endpoint.Address1 != expected1 || endpoint.Address2 != expected2 || endpoint.Address3 != expected3)
         {
-            result = NativeAppSocketBindPolicyResult.Create(
-                NativeAppSocketBindPolicyStatus.AddressMismatch,
-                launchPlan.Status,
-                plan.ListenPort,
-                endpoint.PortHostOrder,
-                expected0,
-                expected1,
-                expected2,
-                expected3,
-                endpoint,
-                wildcard);
+            result = NativeAppSocketBindPolicyResult.Create(NativeAppSocketBindPolicyStatus.AddressMismatch, launchPlan.Status, plan.ListenPort, endpoint.PortHostOrder, expected0, expected1, expected2, expected3, endpoint, wildcard);
             return result.Status;
         }
 
-        result = NativeAppSocketBindPolicyResult.Create(
-            NativeAppSocketBindPolicyStatus.Success,
-            launchPlan.Status,
-            plan.ListenPort,
-            endpoint.PortHostOrder,
-            expected0,
-            expected1,
-            expected2,
-            expected3,
-            endpoint,
-            wildcard);
+        result = NativeAppSocketBindPolicyResult.Create(NativeAppSocketBindPolicyStatus.Success, launchPlan.Status, plan.ListenPort, endpoint.PortHostOrder, expected0, expected1, expected2, expected3, endpoint, wildcard);
         return result.Status;
     }
 
-    private static bool TryParseIpv4Host(
-        ReadOnlySpan<byte> host,
-        out byte address0,
-        out byte address1,
-        out byte address2,
-        out byte address3)
+    private static bool TryParseIpv4Host(ReadOnlySpan<byte> host, out byte address0, out byte address1, out byte address2, out byte address3)
     {
         Span<byte> parts = stackalloc byte[4];
         int partIndex = 0;
         int value = 0;
         int digits = 0;
-
         for (int index = 0; index < host.Length; index++)
         {
             byte c = host[index];
@@ -288,11 +97,7 @@ public static class NativeAppSocketBindPolicy
         return true;
     }
 
-    private static bool FailParse(
-        out byte address0,
-        out byte address1,
-        out byte address2,
-        out byte address3)
+    private static bool FailParse(out byte address0, out byte address1, out byte address2, out byte address3)
     {
         address0 = 0;
         address1 = 0;

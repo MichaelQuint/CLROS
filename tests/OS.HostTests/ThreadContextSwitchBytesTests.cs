@@ -158,7 +158,7 @@ internal static unsafe class ThreadContextSwitchBytesTests
     {
         HostCheck.True(BitConverter.IsLittleEndian && RuntimeInformation.ProcessArchitecture == Architecture.X64,
             "production word contract is little-endian x64 ordinary memory");
-        string path = Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS.Kernel/Threading/ThreadContextSwitch.cs");
+        string path = Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS.Kernel/Threading/ThreadContextSwitch.StubWriter.cs");
         var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(path), new CSharpParseOptions(LanguageVersion.CSharp14));
         var writer = tree.GetRoot().DescendantNodes().OfType<StructDeclarationSyntax>()
             .Single(s => s.Identifier.ValueText == "StubWriter");

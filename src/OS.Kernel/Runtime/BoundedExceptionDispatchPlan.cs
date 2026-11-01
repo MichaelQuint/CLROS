@@ -1,40 +1,6 @@
 using System;
 
 namespace OS.Kernel.Runtime;
-
-public enum BoundedExceptionDispatchStatus : byte
-{
-    Uninitialized = 0,
-    Success = 1,
-    Empty = 2,
-    CapacityExceeded = 3,
-    InvalidClause = 4,
-    UnsupportedClause = 5,
-    InvalidTypeMatch = 6,
-    InvalidNesting = 7,
-    NoMatchingCatch = 8,
-    InvalidStart = 9
-}
-
-public readonly struct BoundedExceptionDispatchResult
-{
-    internal BoundedExceptionDispatchResult(BoundedExceptionDispatchStatus status)
-    { this = default; Status = status; }
-    internal BoundedExceptionDispatchResult(uint index, ulong handler, uint cleanups, ulong first, ulong second)
-    {
-        Status = BoundedExceptionDispatchStatus.Success;
-        CatchIndex = index; CatchHandler = handler; CleanupCount = cleanups;
-        FirstCleanup = first; SecondCleanup = second;
-    }
-    public BoundedExceptionDispatchStatus Status { get; }
-    public bool Succeeded => Status == BoundedExceptionDispatchStatus.Success;
-    public uint CatchIndex { get; }
-    public ulong CatchHandler { get; }
-    public uint CleanupCount { get; }
-    public ulong FirstCleanup { get; }
-    public ulong SecondCleanup { get; }
-}
-
 /// <summary>First-pass typed search and second-pass exceptional cleanup policy for one bounded method.</summary>
 /// <remarks>
 /// Caller supplies every physical row from NativeAotEhClauseMetadata.ReadClause for the SAME
@@ -50,15 +16,12 @@ public readonly struct BoundedExceptionDispatchResult
 /// applies only to exceptional unwind.
 /// No successful partial plan is exposed, including after a matching catch in an invalid tail.
 /// </remarks>
+
 public static class BoundedExceptionDispatchPlan
 {
     public const int MaximumClauses = 4;
     public const uint MaximumCleanups = 2;
-
-    public static BoundedExceptionDispatchResult Select(ReadOnlySpan<NativeAotEhClauseResult> clauses,
-        ReadOnlySpan<ExceptionTypeMatchResult> matches, uint protectedOffset) =>
-        SelectCore(clauses, matches, protectedOffset, false, 0);
-
+    public static BoundedExceptionDispatchResult Select(ReadOnlySpan<NativeAotEhClauseResult> clauses, ReadOnlySpan<ExceptionTypeMatchResult> matches, uint protectedOffset) => SelectCore(clauses, matches, protectedOffset, false, 0);
     /// <summary>Searches after one exited normal finally without re-entering that clause or earlier clauses.</summary>
     /// <remarks>
     /// Caller pairs the complete rows/typed receipts to the SAME retained exception and method
@@ -67,18 +30,18 @@ public static class BoundedExceptionDispatchPlan
     /// invocation history. All rows, including skipped rows and the tail, retain full validation.
     /// Original indices are preserved. This is policy only, with no CPU transfer authority.
     /// </remarks>
-    public static BoundedExceptionDispatchResult SelectAfterExitedFinally(ReadOnlySpan<NativeAotEhClauseResult> clauses,
-        ReadOnlySpan<ExceptionTypeMatchResult> matches, uint protectedOffset, uint exitedClauseIndex) =>
-        SelectCore(clauses, matches, protectedOffset, true, exitedClauseIndex);
 
-    private static BoundedExceptionDispatchResult SelectCore(ReadOnlySpan<NativeAotEhClauseResult> clauses,
-        ReadOnlySpan<ExceptionTypeMatchResult> matches, uint protectedOffset, bool skipExited, uint exitedClauseIndex)
+    public static BoundedExceptionDispatchResult SelectAfterExitedFinally(ReadOnlySpan<NativeAotEhClauseResult> clauses, ReadOnlySpan<ExceptionTypeMatchResult> matches, uint protectedOffset, uint exitedClauseIndex) => SelectCore(clauses, matches, protectedOffset, true, exitedClauseIndex);
+    private static BoundedExceptionDispatchResult SelectCore(ReadOnlySpan<NativeAotEhClauseResult> clauses, ReadOnlySpan<ExceptionTypeMatchResult> matches, uint protectedOffset, bool skipExited, uint exitedClauseIndex)
     {
-        if (clauses.Length == 0) return new(BoundedExceptionDispatchStatus.Empty);
-        if (clauses.Length > MaximumClauses) return new(BoundedExceptionDispatchStatus.CapacityExceeded);
-        if (matches.Length != clauses.Length) return new(BoundedExceptionDispatchStatus.InvalidTypeMatch);
-        if (skipExited && exitedClauseIndex >= (uint)clauses.Length) return new(BoundedExceptionDispatchStatus.InvalidStart);
-
+        if (clauses.Length == 0)
+            return new(BoundedExceptionDispatchStatus.Empty);
+        if (clauses.Length > MaximumClauses)
+            return new(BoundedExceptionDispatchStatus.CapacityExceeded);
+        if (matches.Length != clauses.Length)
+            return new(BoundedExceptionDispatchStatus.InvalidTypeMatch);
+        if (skipExited && exitedClauseIndex >= (uint)clauses.Length)
+            return new(BoundedExceptionDispatchStatus.InvalidStart);
         int selected = -1;
         // Validate the complete input before publishing any handler or cleanup address.
         for (int i = 0; i < clauses.Length; i++)
@@ -86,8 +49,7 @@ public static class BoundedExceptionDispatchPlan
             var row = clauses[i];
             if (!row.Succeeded || row.Index != (uint)i || row.Count != (uint)clauses.Length)
                 return new(BoundedExceptionDispatchStatus.InvalidClause);
-            if (row.IsTryGroupBoundary || row.FilterAddress != 0 ||
-                (row.Kind != NativeAotEhClauseKind.Typed && row.Kind != NativeAotEhClauseKind.FaultOrFinally))
+            if (row.IsTryGroupBoundary || row.FilterAddress != 0 || (row.Kind != NativeAotEhClauseKind.Typed && row.Kind != NativeAotEhClauseKind.FaultOrFinally))
                 return new(BoundedExceptionDispatchStatus.UnsupportedClause);
             if (row.TryStartOffset >= row.TryEndOffset || row.HandlerAddress == 0)
                 return new(BoundedExceptionDispatchStatus.InvalidClause);
@@ -98,36 +60,45 @@ public static class BoundedExceptionDispatchPlan
             for (int j = 0; j < i; j++)
             {
                 var inner = clauses[j];
-                if (inner.TryEndOffset <= row.TryStartOffset || row.TryEndOffset <= inner.TryStartOffset) continue;
+                if (inner.TryEndOffset <= row.TryStartOffset || row.TryEndOffset <= inner.TryStartOffset)
+                    continue;
                 bool equal = inner.TryStartOffset == row.TryStartOffset && inner.TryEndOffset == row.TryEndOffset;
-                if (inner.TryStartOffset < row.TryStartOffset || inner.TryEndOffset > row.TryEndOffset ||
-                    (equal && (inner.Kind != NativeAotEhClauseKind.Typed || row.Kind != NativeAotEhClauseKind.Typed)))
+                if (inner.TryStartOffset < row.TryStartOffset || inner.TryEndOffset > row.TryEndOffset || (equal && (inner.Kind != NativeAotEhClauseKind.Typed || row.Kind != NativeAotEhClauseKind.Typed)))
                     return new(BoundedExceptionDispatchStatus.InvalidNesting);
             }
-            if (!row.ContainsOffset(protectedOffset) || (skipExited && (uint)i <= exitedClauseIndex)) continue;
-            if (selected < 0 && row.Kind == NativeAotEhClauseKind.Typed && matches[i].Matches) selected = i;
+
+            if (!row.ContainsOffset(protectedOffset) || (skipExited && (uint)i <= exitedClauseIndex))
+                continue;
+            if (selected < 0 && row.Kind == NativeAotEhClauseKind.Typed && matches[i].Matches)
+                selected = i;
         }
+
         if (skipExited && clauses[(int)exitedClauseIndex].Kind != NativeAotEhClauseKind.FaultOrFinally)
             return new(BoundedExceptionDispatchStatus.InvalidStart);
-        if (selected < 0) return new(BoundedExceptionDispatchStatus.NoMatchingCatch);
-
+        if (selected < 0)
+            return new(BoundedExceptionDispatchStatus.NoMatchingCatch);
         uint count = 0;
         ulong first = 0, second = 0;
         var caught = clauses[selected];
         for (int i = 0; i < selected; i++)
         {
-            if (skipExited && (uint)i <= exitedClauseIndex) continue;
+            if (skipExited && (uint)i <= exitedClauseIndex)
+                continue;
             var cleanup = clauses[i];
-            if (cleanup.Kind != NativeAotEhClauseKind.FaultOrFinally || !cleanup.ContainsOffset(protectedOffset)) continue;
-            if (cleanup.TryStartOffset < caught.TryStartOffset || cleanup.TryEndOffset > caught.TryEndOffset ||
-                (cleanup.TryStartOffset == caught.TryStartOffset && cleanup.TryEndOffset == caught.TryEndOffset))
+            if (cleanup.Kind != NativeAotEhClauseKind.FaultOrFinally || !cleanup.ContainsOffset(protectedOffset))
+                continue;
+            if (cleanup.TryStartOffset < caught.TryStartOffset || cleanup.TryEndOffset > caught.TryEndOffset || (cleanup.TryStartOffset == caught.TryStartOffset && cleanup.TryEndOffset == caught.TryEndOffset))
                 return new(BoundedExceptionDispatchStatus.InvalidNesting);
-            if (++count > MaximumCleanups) return new(BoundedExceptionDispatchStatus.CapacityExceeded);
+            if (++count > MaximumCleanups)
+                return new(BoundedExceptionDispatchStatus.CapacityExceeded);
             if (cleanup.HandlerAddress == caught.HandlerAddress || cleanup.HandlerAddress == first)
                 return new(BoundedExceptionDispatchStatus.InvalidClause);
-            if (count == 1) first = cleanup.HandlerAddress;
-            else second = cleanup.HandlerAddress;
+            if (count == 1)
+                first = cleanup.HandlerAddress;
+            else
+                second = cleanup.HandlerAddress;
         }
+
         return new((uint)selected, caught.HandlerAddress, count, first, second);
     }
 }
