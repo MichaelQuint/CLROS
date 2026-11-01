@@ -9,6 +9,18 @@ public static class QemuContracts
     /// changes the guest CPU and state-preservation contract.</summary>
     public static string DefaultAccelerator => OperatingSystem.IsWindows() ? "whpx" : "tcg";
 
+    /// <summary>Exact q35 backend contract for host command construction and
+    /// capture admission. WHPX retains accelerated vCPUs with the software
+    /// interrupt controller; the in-kernel controller drops a startup delivery
+    /// on the frozen Windows/QEMU candidate. Unsupported selectors throw.
+    /// This does not authorize guest execution or change its CPU/state contract.</summary>
+    public static string MachineArgument(string accelerator) => accelerator switch
+    {
+        "whpx" => "q35,accel=whpx,kernel-irqchip=off",
+        "tcg" => "q35,accel=tcg",
+        _ => throw new ArgumentException("qemu_accelerator_invalid", nameof(accelerator))
+    };
+
     /// <summary>Validate explicit backend and copied host capability values.
     /// A null result permits initialization, not guest execution or acceptance.</summary>
     public static string? AcceleratorFailure(string accelerator, bool windows, bool hypervisorPresent) =>

@@ -22,6 +22,7 @@ try
     }
 
     Console.WriteLine("QEMU_ACCELERATOR " + options.Accelerator);
+    Console.WriteLine("QEMU_MACHINE " + OS.Tooling.QemuContracts.MachineArgument(options.Accelerator));
     if (!options.DryRun && OS.Tooling.QemuContracts.AcceleratorFailure(options.Accelerator,
         OperatingSystem.IsWindows(), options.Accelerator == "whpx" && OS.Tooling.QemuContracts.IsWhpxAvailable()) is string acceleratorFailure)
     {
@@ -1757,6 +1758,7 @@ static bool WriteSummaryLogBestEffort(
         builder.Append("SERIAL_LOG ").AppendLine(options.SerialLogPath);
         builder.Append("WORKLOAD_PROFILE ").AppendLine(options.WorkloadProfile);
         builder.Append("QEMU_ACCELERATOR ").AppendLine(options.Accelerator);
+        builder.Append("QEMU_MACHINE ").AppendLine(OS.Tooling.QemuContracts.MachineArgument(options.Accelerator));
         if (options.WritableDataLease is not null)
             foreach (string row in options.WritableDataLease.Summary()) builder.AppendLine(row);
         if (options.FirmwareRngSource is not null) builder.Append("FIRMWARE_RNG_SOURCE ").AppendLine(options.FirmwareRngSource);

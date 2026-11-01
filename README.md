@@ -15,15 +15,17 @@ First-party kernel, shared-library and application source is C# 14.
 
 The active development toolchain pins SDK `11.0.100-rc.3.26522.148` and
 runtime/ILC/ILLink `11.0.0-rc.3.26522.148`, retaining C#14 and `net11.0`.
-Windows QEMU defaults to explicit WHPX; `-Accelerator tcg` selects the software
-backend. [The RC3/WHPX qualification contract](work/rc3-whpx-qualification.md)
+Windows QEMU defaults to explicit WHPX with its software interrupt controller;
+`-Accelerator tcg` selects the software CPU backend. [Step1681](done/step1681.md)
+records the controller repair,274 focused checks and the previous RC3 full-host
+pass of7,474 checks; final qualification of the changed runner remains pending. [The RC3/WHPX qualification contract](work/rc3-whpx-qualification.md)
 and [#813](http://192.168.4.35:3000/admin/CLROS/issues/813) track the unfinished
 final native, guest/browser and host renewal. The short RC3 diagnostic passes
 on WHPX and TCG with identical image bytes and response hashes in
 [step1677](done/step1677.md). Earlier acceptance retains its original RC2 source,
 packages and backend.
 
-CLROS serves the pinned NativeAOT Minimal API and actual Standalone Blazor WebAssembly client from read-only FAT32. Three healthy A/B/A boots across two disk variants, the typed corrupt-file control and three M16 lifecycle originals pass their recorded checks. The current unfiltered full-host run passes 7,464 checks with zero reuse; see [Step1672](done/step1672.md) for exact source profiles, evidence and preserved failures. Writes, persistent logs/uploads, SQLite and [#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified and paused.
+CLROS serves the pinned NativeAOT Minimal API and actual Standalone Blazor WebAssembly client from read-only FAT32. Three healthy A/B/A boots across two disk variants, the typed corrupt-file control and three M16 lifecycle originals pass their recorded checks. PR812's recorded unfiltered full-host run passes 7,464 checks with zero reuse; see [Step1672](done/step1672.md) for exact source profiles, evidence and preserved failures. Writes, persistent logs/uploads, SQLite and [#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified and paused.
 
 The goal is a **small, fully functioning OS that continuously hosts supported
 applications**. The first integrated workload combines a NativeAOT Minimal API,

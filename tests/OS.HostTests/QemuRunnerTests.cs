@@ -228,7 +228,7 @@ internal static class QemuRunnerTests
             Run("qemu summary write failure is visible", () => TestSummaryWriteFailureIsVisible(tempRoot), ref failures);
             Run("qemu real mode rejects missing image before launch", () => TestMissingImage(tempRoot), ref failures);
             Run("qemu expected panic rejects invalid options before launch", () => TestUnexpectedPanicOptions(tempRoot), ref failures);
-            Run("qemu expected panic accepts exact capture and native 19 summary", () => TestUnexpectedPanicAcceptedCapture(tempRoot), ref failures);
+            Run("qemu expected panic accepts exact capture and native 20 summary", () => TestUnexpectedPanicAcceptedCapture(tempRoot), ref failures);
             Run("qemu expected panic rejects malformed metadata prefix and EOF", () => TestUnexpectedPanicMalformedCaptures(tempRoot), ref failures);
             Run("qemu expected panic preserves prerequisite marker validation", () => TestUnexpectedPanicPrefixMarkerIsolation(tempRoot), ref failures);
             Run("qemu expected panic remains isolated from generic smoke", () => TestUnexpectedPanicDefaultIsolation(tempRoot), ref failures);
@@ -281,7 +281,7 @@ internal static class QemuRunnerTests
             && output.Contains("TEST_START qemu.runner.dryrun", StringComparison.Ordinal)
             && output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal)
             && output.Contains("REQUIRED_MARKERS " + DefaultBootRequiredMarkers, StringComparison.Ordinal)
-            && output.Contains("qemu-test -machine q35,accel=" + OS.Tooling.QemuContracts.DefaultAccelerator + " -m 512M -no-reboot -display none", StringComparison.Ordinal)
+            && output.Contains("qemu-test -machine " + OS.Tooling.QemuContracts.MachineArgument(OS.Tooling.QemuContracts.DefaultAccelerator) + " -m 512M -no-reboot -display none", StringComparison.Ordinal)
             && output.Contains("ich9-ahci,id=ahci", StringComparison.Ordinal)
             && output.Contains("if=none,id=esp,format=raw,file=" + imagePath, StringComparison.Ordinal)
             && output.Contains("ide-hd,drive=esp,bus=ahci.0", StringComparison.Ordinal);
@@ -6371,11 +6371,12 @@ internal static class QemuRunnerTests
         {
             var capture = RunUnexpectedPanicCase("accepted", prefix + transcript);
             string[] output = capture.Result.Output.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            PanicCheck(capture.Result.ExitCode == 19 && output.Length == 19 &&
+            PanicCheck(capture.Result.ExitCode == 19 && output.Length == 20 &&
                 output.Count(x => x == "QEMU_ACCELERATOR " + OS.Tooling.QemuContracts.DefaultAccelerator) == 1 &&
+                output.Count(x => x == "QEMU_MACHINE " + OS.Tooling.QemuContracts.MachineArgument(OS.Tooling.QemuContracts.DefaultAccelerator)) == 1 &&
                 output.Count(x => x == "QEMU_EXPECTED_PANIC outcome=expected-panic reason=expected_unexpected_vector_panic") == 1 &&
                 !output.Any(x => x.StartsWith("TEST_PASS qemu.smoke", StringComparison.Ordinal) || x.StartsWith("TEST_FAIL", StringComparison.Ordinal)),
-                "explicit panic is finite native 19, never smoke success", capture.Result.Output);
+                "explicit panic is finite exit19 with20 evidence records, never smoke success", capture.Result.Output);
             string native = output.Single(x => x.StartsWith("QEMU_PROCESS_RESULT ", StringComparison.Ordinal));
             string nativePrefix = "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=";
             PanicCheck(native.StartsWith(nativePrefix, StringComparison.Ordinal) &&

@@ -11,6 +11,10 @@ Canonical issue key: M04-026. The phase stops after verified merge and recovery;
    builder, source inventories, outputs and complete sequential stage budgets.
 2. Implement exact RC3/C#14 pins and explicit `-Accelerator whpx|tcg` /
    `--accelerator whpx|tcg`; Windows WHPX default, otherwise TCG, no fallback.
+   WHPX uses the explicit software interrupt controller (`kernel-irqchip=off`)
+   while retaining accelerated vCPUs. Exact machine/backend selection is emitted
+   and required by capture admission; the default/on controller's warning remains
+   a failed original. New source-bound originals must qualify this backend.
 3. Pass focused affected host checks and reviewed native ABI/instruction/stack/
    mapping/ownership admission before any RC3 guest.
 4. Complete one short JSON/exact independently hashed 64KiB range/final-health/

@@ -458,7 +458,7 @@ internal static class Program
         if (machineIndex < 0
             || !string.Equals(
                 arguments[machineIndex + 1],
-                "q35,accel=" + accelerator,
+                OS.Tooling.QemuContracts.MachineArgument(accelerator),
                 StringComparison.Ordinal))
         {
             throw new InvalidOperationException(

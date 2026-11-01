@@ -6,10 +6,20 @@ M04-026/#813 adds `qemu smoke -Accelerator whpx|tcg` and runner
 `--accelerator whpx|tcg`. Windows defaults to WHPX; other hosts default to TCG.
 The command selects exactly one backend, with no silent fallback. A missing
 Windows Hypervisor Platform capability fails explicitly before guest startup.
-Dry-run and summary output record `QEMU_ACCELERATOR`; Nehalem and existing
-single-vCPU/resource contracts remain unchanged. Eight focused checks qualify
-selection/propagation only. Final RC3 native and guest/browser qualification
-remain pending under [the phase contract](../work/rc3-whpx-qualification.md).
+Dry-run and summary output record `QEMU_ACCELERATOR` and `QEMU_MACHINE`;
+Nehalem and existing single-vCPU/resource contracts remain unchanged.
+WHPX selects exactly `q35,accel=whpx,kernel-irqchip=off`: vCPU execution remains
+hardware accelerated, while QEMU supplies the interrupt controller. TCG selects
+exactly `q35,accel=tcg`. Capture admission rejects the default/on WHPX controller,
+extra accelerator selectors and fallback lists. The in-kernel WHPX controller
+emitted an interrupt-vector-zero warning in the frozen Windows/QEMU candidate;
+strict ordinary smoke rejected its nonempty stderr. A separately owned short
+software-controller diagnostic reaches terminal with empty stderr and confirmed
+termination. This diagnostic is not a final original or timer/application proof.
+[Step1681](../done/step1681.md) records274 affected checks, the earlier7,474-check
+RC3 full and the failed original's raw-serial ownership incident. The changed
+runner requires a new final full and complete native/guest/browser renewal under
+[the phase contract](../work/rc3-whpx-qualification.md).
 
 The current short disk diagnostic uses a separate v8 receipt and five responses:
 status JSON, health, actual CoreLib HEAD, an independently checked 64KiB range,
