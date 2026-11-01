@@ -1,3 +1,4 @@
+using OS.Tools.QemuRunner;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -129,6 +130,8 @@ internal static class Program
             TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
             Process? child = null;
             bool childStarted = false;
+            WhpxPrelaunch? prelaunch = null;
+            Stopwatch setupClock = Stopwatch.StartNew();
             try
             {
                 listener.Start(1);
@@ -146,15 +149,6 @@ internal static class Program
                 Log("captureChunkBytes=" + CaptureChunkBytes);
                 Log("realQemuBase64=" + Convert.ToBase64String(
                     Encoding.UTF8.GetBytes(realQemu)));
-                for (int index = 0; index < childArguments.Count; index++)
-                {
-                    Log(
-                        "childArg"
-                        + index.ToString("D3", CultureInfo.InvariantCulture)
-                        + "Base64="
-                        + Convert.ToBase64String(
-                            Encoding.UTF8.GetBytes(childArguments[index])));
-                }
 
                 ProcessStartInfo startInfo = new ProcessStartInfo(realQemu)
                 {
@@ -168,18 +162,23 @@ internal static class Program
                 }
 
                 child = new Process { StartInfo = startInfo };
+                prelaunch = WhpxPrelaunch.Create(child, accelerator, publicSerial);
+                for (int index = 0; index < startInfo.ArgumentList.Count; index++)
+                    Log("childArg" + index.ToString("D3", CultureInfo.InvariantCulture) + "Base64=" +
+                        Convert.ToBase64String(Encoding.UTF8.GetBytes(startInfo.ArgumentList[index])));
                 if (!child.Start())
                 {
                     throw new InvalidOperationException(
                         "qemu_process_start_failed");
                 }
                 childStarted = true;
+                prelaunch?.ResumeAfterStart(TimeSpan.FromSeconds(Math.Min(guestTimeoutSeconds, 15)) - setupClock.Elapsed);
 
                 Task<TcpClient> acceptTask =
                     listener.AcceptTcpClientAsync();
                 if (!acceptTask.Wait(
                         TimeSpan.FromSeconds(
-                            Math.Min(guestTimeoutSeconds, 15))))
+                            Math.Max(0, Math.Min(guestTimeoutSeconds, 15) - setupClock.Elapsed.TotalSeconds))))
                 {
                     throw new TimeoutException("qmp_connect_timeout");
                 }
@@ -190,8 +189,15 @@ internal static class Program
                     qmpSocket,
                     captureTimeoutSeconds,
                     Log);
-                qmp.Initialize();
-                qmp.RequireMemoryShape();
+                TimeSpan setupRemaining = TimeSpan.FromSeconds(Math.Min(guestTimeoutSeconds, 15)) - setupClock.Elapsed;
+                if (setupRemaining <= TimeSpan.Zero) throw new TimeoutException("qmp_setup_timeout");
+                using (var setupDeadline = new CancellationTokenSource(setupRemaining))
+                using (setupDeadline.Token.Register(() => qmpSocket.Dispose()))
+                {
+                    qmp.Initialize();
+                    qmp.RequireMemoryShape();
+                    if (setupDeadline.IsCancellationRequested) throw new TimeoutException("qmp_setup_timeout");
+                }
 
                 using FileStream publicStream = new FileStream(
                     publicSerial,
@@ -297,6 +303,7 @@ internal static class Program
                 Log("M01_RAW_OBSERVATION_CAPTURED");
                 Log("publicSerialSha256=" + predictedPublicHash);
                 Log("privateSerialSha256=" + privateSerialHash);
+                if (prelaunch?.Failure is string stderrFailure) throw new IOException(stderrFailure);
                 Log("terminalReleaseAuthorized=true");
 
                 publicStream.Position = publicStream.Length;
@@ -353,8 +360,8 @@ internal static class Program
                 catch
                 {
                 }
-                child?.Dispose();
-                TryDeleteCaptureScratch(scratchDirectory);
+                try { prelaunch?.Dispose(); }
+                finally { child?.Dispose(); TryDeleteCaptureScratch(scratchDirectory); }
             }
         }
     }

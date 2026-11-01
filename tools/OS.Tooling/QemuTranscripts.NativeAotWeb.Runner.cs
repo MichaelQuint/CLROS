@@ -115,7 +115,7 @@ public static partial class QemuTranscripts
         int bodyBytes=Encoding.UTF8.GetByteCount(body),configBytes=Encoding.UTF8.GetByteCount(configuration);
         Need(bodyBytes is >0 and <=1024 && configBytes is >0 and <=4096,"web_runner_http_expectations");
         Need(runner.StandardOutput.EndsWith("\r\n",StringComparison.Ordinal),"web_runner_stdout_end");
-        string[] stdout=runner.StandardOutput[..^2].Split("\r\n",StringSplitOptions.None);
+        string[] stdout=RunnerBody(options, runner.StandardOutput[..^2].Split("\r\n",StringSplitOptions.None));
         Need(stdout.Length==(logQuota?29:31),"web_runner_stdout_count");
         var healthStart=ReadRecord(stdout[14],$"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={bodyBytes}","timeout_seconds:dec");
         var configStart=ReadRecord(stdout[16],$"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={configBytes}","timeout_seconds:dec");
@@ -147,7 +147,7 @@ public static partial class QemuTranscripts
         string[] selected=["IMAGE_ARTIFACT "+options.Image,"SERIAL_LOG "+options.SerialLog,"WORKLOAD_PROFILE SingleMinimalApi","FIRMWARE_RNG_SOURCE virtio",
             "SOCKET_FORWARD_PORT "+context.ForwardPort,"MARKER_PRESETS "+Format(plan.Presets),"REQUIRED_MARKERS "+Format(plan.Required),
             "ORDERED_MARKERS "+Format(plan.Ordered),"UNIQUE_MARKERS "+Format(plan.Unique),"FORBIDDEN_MARKERS "+Format(plan.Forbidden)];
-        List<string> expected=["QEMU_DISCOVERY result="+context.Qemu+" checked="+context.Qemu,"OVMF_DISCOVERY result="+context.Ovmf+" checked="+context.Ovmf,
+        List<string> expected=[..RunnerBackend(options),"QEMU_DISCOVERY result="+context.Qemu+" checked="+context.Qemu,"OVMF_DISCOVERY result="+context.Ovmf+" checked="+context.Ovmf,
             "TEST_START qemu.smoke",selected[0],selected[1],"OVMF_CODE "+context.Ovmf,..selected.Skip(2),
             $"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={bodyBytes} timeout_seconds={healthTimeout}",
             $"HTTP_PROBE_PASS endpoint={endpoint} status=200 body_bytes={bodyBytes} body_sha256={healthHash} elapsed_ms={health}",
@@ -176,6 +176,7 @@ public static partial class QemuTranscripts
             ..logQuota?Array.Empty<string>():new[]{"WEB_PROCESS_ALIVE_AFTER_VECTORS true"},"WEB_PROCESS_ALIVE_AFTER_FINAL_HEALTH true",
             "WEB_PROCESS_TERMINATION_REQUESTED true","WEB_PROCESS_DEATH_CONFIRMED true","WEB_PROCESS_SPONTANEOUS_EXIT false",
             "WEB_PROCESS_EXIT_CODE "+exit,"WEB_PROCESS_FAILURE none"];
+        expectedSummary.InsertRange(4, RunnerBackend(options));
         string[] rawLines=ReadThreadingSerialLines(serial);
         if(controls is not null)
         {

@@ -8,17 +8,37 @@ The command selects exactly one backend, with no silent fallback. A missing
 Windows Hypervisor Platform capability fails explicitly before guest startup.
 Dry-run and summary output record `QEMU_ACCELERATOR` and `QEMU_MACHINE`;
 Nehalem and existing single-vCPU/resource contracts remain unchanged.
-WHPX selects exactly `q35,accel=whpx,kernel-irqchip=off`: vCPU execution remains
-hardware accelerated, while QEMU supplies the interrupt controller. TCG selects
-exactly `q35,accel=tcg`. Capture admission rejects the default/on WHPX controller,
-extra accelerator selectors and fallback lists. The in-kernel WHPX controller
-emitted an interrupt-vector-zero warning in the frozen Windows/QEMU candidate;
-strict ordinary smoke rejected its nonempty stderr. A separately owned short
-software-controller diagnostic reaches terminal with empty stderr and confirmed
-termination. This diagnostic is not a final original or timer/application proof.
-[Step1681](../done/step1681.md) records274 affected checks, the earlier7,474-check
-RC3 full and the failed original's raw-serial ownership incident. The changed
-runner requires a new final full and complete native/guest/browser renewal under
+WHPX selects exactly `q35,accel=whpx,kernel-irqchip=on`; TCG selects
+exactly `q35,accel=tcg`. Capture admission rejects other controller settings,
+extra accelerator selectors and fallback lists. The software-controller candidate
+in [step1681](../done/step1681.md) failed the next workload's unchanged TPR
+readback (writeD0/read0); it is not qualified. Disabling the legacy PIC did not
+remove the initialization warning.
+
+For the inspected Windows QEMU binary SHA256
+`47D57A6072E0BB3BD98F87926EB129EB1736DFE818C67B3B81EF7CE4EDD0B3CD`
+only, the host launcher starts paused under `-S`, authenticates prelaunch/reset
+registers and one CPU over an owned outbound QMP connection, then seals zero or
+one exact `Ignoring request for interrupt vector 0` warning before a single
+acknowledged `cont`. The initializer's origin remains unknown. This empirical
+policy supplies no harmlessness or guest-execution inference.
+
+The surviving launch owner holds a synchronous stderr file handle through the
+retained Windows job join. Runner/Capture/QEMU inherit that same file; it contains
+shared launcher/QEMU written stderr. Independent read handles never seek the
+writer. Original bounded stdout anchors the actual child PID/start and the
+seal/resume/QMP digests before Runner can be cancelled. Finalization requires
+those exact anchors, original file identities and unchanged raw prefix. Every
+unknown, repeated or post-seal stderr byte fails, including an identical later
+warning. Missing proof fails. Raw bytes and original stdout/process facts are
+preserved even on rejection. Normal stderr pipes remain in use for other binaries
+and TCG; explicit unavailable WHPX never falls back. File admission bounds do not
+claim a physical disk-write quota or a hard-kill flush of QEMU userspace buffers.
+
+[Step1682](../done/step1682.md) records the host-policy repairs and failed originals;
+[step1681](../done/step1681.md) retains the raw-serial ownership incident and the
+previous7,474-check RC3 full. The changed runner requires a new final full and
+complete native/guest/browser renewal under
 [the phase contract](../work/rc3-whpx-qualification.md).
 
 The current short disk diagnostic uses a separate v8 receipt and five responses:

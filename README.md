@@ -15,10 +15,12 @@ First-party kernel, shared-library and application source is C# 14.
 
 The active development toolchain pins SDK `11.0.100-rc.3.26522.148` and
 runtime/ILC/ILLink `11.0.0-rc.3.26522.148`, retaining C#14 and `net11.0`.
-Windows QEMU defaults to explicit WHPX with its software interrupt controller;
-`-Accelerator tcg` selects the software CPU backend. [Step1681](done/step1681.md)
-records the controller repair,274 focused checks and the previous RC3 full-host
-pass of7,474 checks; final qualification of the changed runner remains pending. [The RC3/WHPX qualification contract](work/rc3-whpx-qualification.md)
+Windows QEMU defaults to explicit WHPX with its hardware interrupt controller;
+`-Accelerator tcg` selects the software CPU backend. The software-controller
+candidate in [step1681](done/step1681.md) failed APIC readback during its next
+guest run. [Step1682](done/step1682.md) records the bounded startup-stderr policy
+and preserved failures. The previous RC3 full-host pass covers7,474 checks;
+final qualification of the changed runner remains pending. [The RC3/WHPX qualification contract](work/rc3-whpx-qualification.md)
 and [#813](http://192.168.4.35:3000/admin/CLROS/issues/813) track the unfinished
 final native, guest/browser and host renewal. The short RC3 diagnostic passes
 on WHPX and TCG with identical image bytes and response hashes in

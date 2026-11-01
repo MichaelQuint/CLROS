@@ -64,8 +64,8 @@ public static partial class QemuTranscripts
         AuthorityFiles.RequireDistinct(image, efi, package, serial, summary, packets);
         string[] stdout = runner.StandardOutput.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         if (stdout[^1] == "") stdout = stdout[..^1];
-        Need(stdout.Length == 18 && stdout[0] == $"QEMU_DISCOVERY result={qemu} checked={qemu}" &&
-            stdout[1] == $"OVMF_DISCOVERY result={ovmf} checked={ovmf}", "disk_runner_discovery");
+        Need(stdout.Length == 20 && stdout[2] == $"QEMU_DISCOVERY result={qemu} checked={qemu}" &&
+            stdout[3] == $"OVMF_DISCOVERY result={ovmf} checked={ovmf}", "disk_runner_discovery");
         AssertStandardRunnerResult(root, options, plan, stdout);
         string[] rows = FirmwareProtocol(serial.Path, "TEST_PASS m16-012\r\n", true, false, "disk_capture", linuxThreads: true);
         var result=inspect(rows);

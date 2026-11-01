@@ -6,6 +6,17 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
+    private static string[] RunnerBackend(QemuSmokeOptions options) =>
+        ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
+
+    private static string[] RunnerBody(QemuSmokeOptions options, IReadOnlyList<string> rows)
+    {
+        Need(rows.Count >= 2 && rows.Take(2).SequenceEqual(RunnerBackend(options)) &&
+            rows.Count(row => row.StartsWith("QEMU_ACCELERATOR", StringComparison.Ordinal)) == 1 &&
+            rows.Count(row => row.StartsWith("QEMU_MACHINE", StringComparison.Ordinal)) == 1, "qemu_runner_accelerator_identity");
+        return rows.Skip(2).ToArray();
+    }
+
     public static void RequireCompleteProcess(ProcessResult result, string reason = "qemu_runner_incomplete") =>
         Need(result.TerminationConfirmed && result.FailureReason.Length == 0 && !result.TimedOut && !result.Cancelled && !result.OutputLimitExceeded, reason);
 
@@ -156,11 +167,6 @@ public static partial class QemuTranscripts
         bool diskStatic=NativeAotDiskSelection.StaticSelected(plan.Flags);
         bool writableDisk=NativeAotDiskSelection.WritableSelected(plan.Flags);
         Need(writableDisk==(writableData is not null),"writable_runner_original_values_required");
-        if(writableData is not null)
-        {
-            Need(entropy && lines.Count==22 && lines.Skip(7).Take(4).SequenceEqual(writableData.Rows(false)),"writable_runner_initial_identity");
-            lines.RemoveRange(7,4);
-        }
         Need(!diskStatic || staticFiles,"disk_static_runner_program_required");
         Need(!diskFiles || helloProgram is null && threadingProgram is null && runtimeProgram is null &&
             socketProgram is null && containmentProgram is null && vectorsProgram is null && (!staticFiles || diskStatic && !staticProgram!.Staged),"disk_runner_program_selection");
@@ -168,6 +174,16 @@ public static partial class QemuTranscripts
             helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null &&
             containmentProgram is null && vectorsProgram is null,"static_runner_program_selection");
         Need(vectorsProgram is null || socketProgram is null&&containmentProgram is null&&helloProgram is null&&threadingProgram is null&&runtimeProgram is null,"socket_vectors_runner_program_conflict");
+        string[] backend = ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
+        Need(lines.Count >= 2 && lines.Take(2).SequenceEqual(backend) &&
+            lines.Count(l => l.StartsWith("QEMU_ACCELERATOR", StringComparison.Ordinal)) == 1 &&
+            lines.Count(l => l.StartsWith("QEMU_MACHINE", StringComparison.Ordinal)) == 1, "qemu_runner_accelerator_identity");
+        lines.RemoveRange(0, 2);
+        if(writableData is not null)
+        {
+            Need(entropy && lines.Count==22 && lines.Skip(7).Take(4).SequenceEqual(writableData.Rows(false)),"writable_runner_initial_identity");
+            lines.RemoveRange(7,4);
+        }
         if(socketProgram is not null||vectorsProgram is not null||staticFiles)
         {
             if(vectorsProgram is not null)socketForwardPort=vectorsForwardPort;
@@ -224,7 +240,7 @@ public static partial class QemuTranscripts
         Need(lines[12] == stream, "qemu_runner_stream_accounting");
         List<string> summary = ["QEMU_SMOKE_STATUS pass"];
         foreach (int i in new[] { 1, 2, 4, 5, 6, 7, 8, 9 })
-        { summary.Add(expected[i]); if(writableData is not null && i==4)summary.AddRange(writableData.Rows(true)); if (entropy && i == 4) summary.Add("FIRMWARE_RNG_SOURCE virtio");if((socketProgram is not null||vectorsProgram is not null||staticFiles)&&i==4)summary.Add("SOCKET_FORWARD_PORT "+socketForwardPort!.Value.ToString(CultureInfo.InvariantCulture)); }
+        { summary.Add(expected[i]); if(i==4)summary.AddRange(backend); if(writableData is not null && i==4)summary.AddRange(writableData.Rows(true)); if (entropy && i == 4) summary.Add("FIRMWARE_RNG_SOURCE virtio");if((socketProgram is not null||vectorsProgram is not null||staticFiles)&&i==4)summary.Add("SOCKET_FORWARD_PORT "+socketForwardPort!.Value.ToString(CultureInfo.InvariantCulture)); }
         string[]? rawLines = threadingProgram is null && runtimeProgram is null && socketProgram is null && containmentProgram is null && vectorsProgram is null && !staticFiles && !diskFiles ? null : ReadThreadingSerialLines(serial);
         summary.AddRange((rawLines is null ? protocol : rawLines.Where(l => IsThreadingObservedLine(l, plan))).Select(l => "OBSERVED_MARKER " + l));
         summary.AddRange(["APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240"]);

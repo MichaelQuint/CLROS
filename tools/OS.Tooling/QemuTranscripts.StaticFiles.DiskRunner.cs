@@ -65,8 +65,8 @@ public static partial class QemuTranscripts
         Need(runner.Duration.TotalMilliseconds>=process.LifetimeMilliseconds && runner.Duration.TotalSeconds<=options.TimeoutSeconds+60,
             "disk_static_runner_lifetime");
         string[] stdout=runner.StandardOutput.Replace("\r\n","\n",StringComparison.Ordinal).Split('\n');if(stdout[^1]=="")stdout=stdout[..^1];
-        Need(stdout.Length==19 && stdout[0]==$"QEMU_DISCOVERY result={context.Qemu} checked={context.Qemu}" &&
-            stdout[1]==$"OVMF_DISCOVERY result={context.Ovmf} checked={context.Ovmf}","disk_static_runner_discovery");
+        Need(stdout.Length==21 && stdout[2]==$"QEMU_DISCOVERY result={context.Qemu} checked={context.Qemu}" &&
+            stdout[3]==$"OVMF_DISCOVERY result={context.Ovmf} checked={context.Ovmf}","disk_static_runner_discovery");
         AssertStandardRunnerResult(root,options,plan,stdout,staticProgram:program,staticForwardPort:peer.Port,staticChildRows:child);
         int at=raw.AsSpan().IndexOf("TEST_START m16-011\r\n"u8);Need(at>FirmwarePrefixBytes,"disk_static_parent_start");
         var parent=InspectNativeAotWebParentForTests(packageBytes,raw.AsSpan(0,at),diskStatic:true);

@@ -63,6 +63,8 @@ public sealed class QemuCaptureSession : IDisposable
                 ["CLROS_M01_CAPTURE_SCRATCH"] = scratch, ["CLROS_M01_GUEST_TIMEOUT_SECONDS"] = timeout.ToString(CultureInfo.InvariantCulture),
                 ["CLROS_M01_CAPTURE_TIMEOUT_SECONDS"] = CaptureTimeoutSeconds.ToString(CultureInfo.InvariantCulture),
                 ["CLROS_M01_ACCELERATOR"] = accelerator,
+                ["CLROS_M01_CAPTURE_EXECUTABLE"] = Path.GetFullPath(executable),
+                ["CLROS_M01_CAPTURE_SHA256"] = identities["shimSha256"],
                 ["CLROS_M02_SAFE_STUB_PROBE"] = safeStub ? "true" : "false"
             }
         };

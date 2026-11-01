@@ -117,7 +117,7 @@ public static partial class QemuTranscripts
             "-object", "filter-redirector,id=clroswebfilter,netdev=n0,queue=tx,indev=clroswebin,outdev=clroswebout"];
         Need(session.Arguments is not null && session.Arguments.SequenceEqual(arguments), "service_quota_runner_frame_arguments");
         var packets = QemuEthernetCapture.Inspect(pcap, frameAnchor); Need(packets.Records > 0, "service_quota_runner_pcap");
-        string[] expectedRows = ["QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu,
+        string[] expectedRows = [..RunnerBackend(options), "QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu,
             "OVMF_DISCOVERY result=" + context.Ovmf + " checked=" + context.Ovmf, "TEST_START qemu.smoke", selected[0], selected[1],
             "OVMF_CODE " + context.Ovmf, ..selected.Skip(2), metrics, "SERIAL_MARKER_DRAIN milliseconds=750", disposition, ..block,
             "SUMMARY_LOG " + options.SummaryLog, "QEMU_EXPECTED_SERVICE_QUOTA outcome=captured acceptance=pending"];
@@ -128,6 +128,7 @@ public static partial class QemuTranscripts
         summary.AddRange(["APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none",
             "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240"]);
         summary.AddRange(serial.TakeLast(8).Select(row => "SERIAL_TAIL_LINE " + (row.Length > 240 ? row[..237] + "..." : row))); summary.AddRange(block);
+        summary.InsertRange(4, RunnerBackend(options));
         byte[] expectedSummary = [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")];
         Need(summaryBytes.AsSpan().SequenceEqual(expectedSummary), "service_quota_runner_summary_bytes");
         return new(framesJson, processId, start, end, lifetime, raw.Length, (long)capture["quietMilliseconds"], session.ForwardedFrames, packets);

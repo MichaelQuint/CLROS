@@ -161,6 +161,9 @@ internal static class NativeAotServiceQuotaRunnerTests
         string[] summary = ["QEMU_SMOKE_STATUS expected-quota", ..selected, ..rawRows.Select(row => "OBSERVED_MARKER " + row), "APP_EXIT_RESULT none",
             "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none",
             "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240", ..rawRows.TakeLast(8).Select(row => "SERIAL_TAIL_LINE " + row), ..Block(raw.Length)];
+        string[] backend = ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
+        stdout = [..backend, ..stdout];
+        summary = [..summary.Take(4), ..backend, ..summary.Skip(4)];
         return new(options, plan, new(22, string.Join("\r\n", stdout) + "\r\n", "", false, false, false, TimeSpan.FromSeconds(260)), raw,
             [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")], context, Pcap(), 0xd24c49dd);
     }

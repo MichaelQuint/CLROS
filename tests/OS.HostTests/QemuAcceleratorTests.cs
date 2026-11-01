@@ -74,7 +74,7 @@ internal static class QemuAcceleratorTests
         {
             var result = await Runner("--dry-run", "--qemu", "qemu-test", "--accelerator", accelerator);
             HostCheck.True(result.Succeeded && result.StandardOutput.Contains("QEMU_ACCELERATOR " + accelerator, StringComparison.Ordinal));
-            string machine = accelerator == "whpx" ? "q35,accel=whpx,kernel-irqchip=off" : "q35,accel=tcg";
+            string machine = accelerator == "whpx" ? "q35,accel=whpx,kernel-irqchip=on" : "q35,accel=tcg";
             HostCheck.True(result.StandardOutput.Contains("-machine " + machine + " -m", StringComparison.Ordinal));
             HostCheck.True(result.StandardOutput.Contains("QEMU_MACHINE " + machine, StringComparison.Ordinal));
             HostCheck.True(!result.StandardOutput.Contains(" -accel ", StringComparison.Ordinal));
@@ -107,7 +107,7 @@ internal static class QemuAcceleratorTests
             ["-machine", machine, "-m", memory, "-display", "none", "-no-reboot", "-serial", "file:" + publicSerial];
         foreach (string backend in new[] { "whpx", "tcg" })
         {
-            string machine = backend == "whpx" ? "q35,accel=whpx,kernel-irqchip=off" : "q35,accel=tcg";
+            string machine = backend == "whpx" ? "q35,accel=whpx,kernel-irqchip=on" : "q35,accel=tcg";
             var arguments = Arguments(machine);
             HostCheck.Equal(publicSerial, validate(arguments, privateSerial, backend));
             HostCheck.Equal("file:" + privateSerial, arguments[^1]);
@@ -118,14 +118,14 @@ internal static class QemuAcceleratorTests
             (Selected: "tcg", Machine: "q35,accel=whpx"),
             (Selected: "whpx", Machine: "q35,accel=whpx:tcg"),
             (Selected: "whpx", Machine: "q35,accel=whpx"),
-            (Selected: "whpx", Machine: "q35,accel=whpx,kernel-irqchip=on"),
+            (Selected: "whpx", Machine: "q35,accel=whpx,kernel-irqchip=off"),
             (Selected: "tcg", Machine: "q35,accel=tcg,kernel-irqchip=off") })
             Reject(() => validate(Arguments(input.Machine), privateSerial, input.Selected), "machine_must_be_q35_selected_accelerator");
-        Reject(() => validate(Arguments("q35,accel=whpx,kernel-irqchip=off", "128M"), privateSerial, "whpx"), "guest_memory_must_be_256M");
+        Reject(() => validate(Arguments("q35,accel=whpx,kernel-irqchip=on", "128M"), privateSerial, "whpx"), "guest_memory_must_be_256M");
         Reject(() => validate(Arguments("q35,accel=tcg"), privateSerial, "auto"), "capture_accelerator_invalid");
         foreach (string alternative in new[] { "-accel", "-enable-kvm", "--enable-kvm" })
         {
-            var arguments = Arguments("q35,accel=whpx,kernel-irqchip=off"); arguments.AddRange([alternative, "tcg"]);
+            var arguments = Arguments("q35,accel=whpx,kernel-irqchip=on"); arguments.AddRange([alternative, "tcg"]);
             Reject(() => validate(arguments, privateSerial, "whpx"), "accelerator_must_match_machine_selection");
         }
     }

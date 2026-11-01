@@ -105,6 +105,9 @@ internal static class NativeAotWebRunnerTests
             "APP_EXIT_RESULT none","APP_EXIT_MALFORMED none","MISSING_MARKERS none","OUT_OF_ORDER_MARKERS none","DUPLICATE_UNIQUE_MARKERS none","FORBIDDEN_MARKER_HIT none","FAIL_REASON none",
             "SERIAL_TAIL_LIMIT lines=8 chars=240","SERIAL_TAIL_LINE TEST_START m10.004","SERIAL_TAIL_LINE M10_004_LIVE","SERIAL_TAIL_LINE TEST_PASS m10.004",
             ..controls?new[]{"SERIAL_TAIL_LINE "+drop,"SERIAL_TAIL_LINE "+timeout}:Array.Empty<string>(),"SERIAL_TAIL_LINE M16_008_CALL identity=4294967297 nr=202"];
+        string[] backend = ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
+        stdout = [..backend, ..stdout];
+        summary = [..summary.Take(4), ..backend, ..summary.Skip(4)];
         return new(options,plan,new(0,string.Join("\r\n",stdout)+"\r\n","",false,false,false,TimeSpan.FromMilliseconds(lifetime+1000)),Encoding.UTF8.GetBytes(raw),
             [..Encoding.UTF8.GetPreamble(),..Encoding.UTF8.GetBytes(string.Join("\r\n",summary)+"\r\n")],new(20080,qemu,ovmf,first.AddSeconds(-1),first.AddMilliseconds(lifetime+1000)));
     }
@@ -316,7 +319,7 @@ internal static class NativeAotWebRunnerTests
         Reject(()=>Inspect(Vector(loggingMilliseconds:60001,loggingTimeout:60)));
         Reject(()=>Inspect(Vector(loggingTimeout:61)));
         var f=Vector();string[] rows=f.Runner.StandardOutput.Split("\r\n");
-        rows[20]=rows[20].Replace("timeout_seconds=1","timeout_seconds=21",StringComparison.Ordinal);
+        rows[22]=rows[22].Replace("timeout_seconds=1","timeout_seconds=21",StringComparison.Ordinal);
         Reject(()=>Inspect(f with{Runner=f.Runner with{StandardOutput=string.Join("\r\n",rows)}}));
     }
     [HostTest("web runner quota binds empty 500 actual case repeat 409 and later health 200")]
@@ -398,6 +401,6 @@ internal static class NativeAotWebRunnerTests
         Reject(()=>Inspect(Summary(f,"WEB_HEALTH_AFTER_PROBE_STATUS 200","WEB_HEALTH_AFTER_PROBE_STATUS 500")));
         Reject(()=>Inspect(Summary(f,"WEB_LOG_PROBE_ELAPSED_MS 300","WEB_LOG_PROBE_ELAPSED_MS 3000")));
         string[] stdout=f.Runner.StandardOutput.Split("\r\n",StringSplitOptions.None);
-        Reject(()=>Inspect(f with{Runner=f.Runner with{StandardOutput=string.Join("\r\n",stdout.Where((_,i)=>i is not (18 or 19)))}}));
+        Reject(()=>Inspect(f with{Runner=f.Runner with{StandardOutput=string.Join("\r\n",stdout.Where((_,i)=>i is not (20 or 21)))}}));
     }
 }

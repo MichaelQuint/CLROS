@@ -1,3 +1,4 @@
+using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.Text;
 using System.Runtime.ExceptionServices;
@@ -18,6 +19,13 @@ public sealed record ProcessRequest(string Executable, IReadOnlyList<string> Arg
     /// Cancellation does not release those handles or authorize extraction.
     /// An incomplete original census cannot become proof from a later empty job.</summary>
     public bool RetainOwnershipUntilJoined { get; init; }
+    /// <summary>Opt-in Windows stderr file/handle owned by the caller across the
+    /// complete retained job await. The launcher inherits an owned duplicate;
+    /// it never disposes or changes inheritance of this original. No stderr pipe
+    /// is captured on this route: the caller must verify the original file,
+    /// content/size limits and actual join before acceptance. Stdout remains
+    /// captured. Requires RetainOwnershipUntilJoined; unsupported elsewhere.</summary>
+    public SafeFileHandle? StandardErrorHandle { get; init; }
     // Per-request host controls may only defer an actual join, never manufacture
     // a signaled process, empty job or complete census. No global test hook.
     internal Func<BoundedJobProcessRunner.OwnershipJoinObservation, bool>? JoinPendingForTest { get; init; }
@@ -28,6 +36,9 @@ public sealed record ProcessResult(int ExitCode, string StandardOutput, string S
     bool TimedOut, bool OutputLimitExceeded, bool Cancelled, TimeSpan Duration)
 {
     public bool TerminationConfirmed { get; init; } = true;
+    /// <summary>Stderr went to a caller-owned inherited handle rather than the
+    /// text collector. Empty StandardError therefore grants no stderr proof.</summary>
+    public bool StandardErrorExternallyOwned { get; init; }
     public string FailureReason { get; init; } = "";
     public bool Succeeded => ExitCode == 0 && !TimedOut && !OutputLimitExceeded && !Cancelled && TerminationConfirmed && FailureReason.Length == 0;
 }
@@ -40,6 +51,9 @@ public static class ProcessRunner
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Executable);
         if (request.Timeout <= TimeSpan.Zero || request.OutputCharacterLimit < 1)
             throw new ArgumentOutOfRangeException(nameof(request));
+        if (request.StandardErrorHandle is { } errorHandle &&
+            (!OperatingSystem.IsWindows() || !request.RetainOwnershipUntilJoined || errorHandle.IsClosed || errorHandle.IsInvalid))
+            throw new ArgumentException("process_external_stderr_requires_live_handle_and_retained_windows_job");
         cancellation.ThrowIfCancellationRequested();
         if (OperatingSystem.IsWindows()) return await RunWindowsAsync(request, cancellation);
         if (request.RetainOwnershipUntilJoined)
@@ -120,6 +134,7 @@ public static class ProcessRunner
         return new ProcessResult(result.ExitCode, result.StandardOutput, result.StandardError,
             result.Status == "TimedOut", result.Status == "OutputOverflow", result.Status == "Cancelled", time.Elapsed)
         {
+            StandardErrorExternallyOwned = request.StandardErrorHandle is not null,
             TerminationConfirmed = result.TerminationConfirmed,
             FailureReason = ordinary ? "" : result.Status + (result.Detail.Length == 0 ? "" : " " + result.Detail)
         };

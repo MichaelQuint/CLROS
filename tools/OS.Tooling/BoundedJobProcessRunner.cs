@@ -488,6 +488,12 @@ namespace OS.Tooling.Native
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DuplicateHandle(IntPtr sourceProcess, SafeFileHandle source,
+            IntPtr targetProcess, out SafeFileHandle duplicate, uint access,
+            [MarshalAs(UnmanagedType.Bool)] bool inherit, uint options);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool CreatePipe(
             out SafeFileHandle readPipe,
             out SafeFileHandle writePipe,
@@ -618,15 +624,17 @@ namespace OS.Tooling.Native
         {
             return RunCore(executablePath, request.Arguments.ToArray(), request.WorkingDirectory, request.Timeout, request.OutputCharacterLimit,
                 request.EnvironmentOverrides, true, cancellation, request.OutputReceived,
-                request.RetainOwnershipUntilJoined, request.JoinPendingForTest, request.AssignmentFailureForTest);
+                request.RetainOwnershipUntilJoined, request.JoinPendingForTest, request.AssignmentFailureForTest, request.StandardErrorHandle);
         }
 
         private static BoundedJobProcessResult RunCore(string executablePath, string[] arguments, string workingDirectory,
             TimeSpan timeout, int outputCharacterLimit, IReadOnlyDictionary<string, string> environmentOverrides,
             bool terminateDescendantsAfterRootExit, CancellationToken cancellation, Action<string, bool> outputReceived,
             bool retainOwnershipUntilJoined = false, Func<OwnershipJoinObservation, bool> pendingForTest = null,
-            bool assignmentFailureForTest = false)
+            bool assignmentFailureForTest = false, SafeFileHandle suppliedStandardError = null)
         {
+            if (suppliedStandardError != null && !retainOwnershipUntilJoined)
+                return BoundedJobProcessRunner.Result("StartFailed", -1, null, true, "external_stderr_requires_retained_job");
             if (cancellation.IsCancellationRequested) return BoundedJobProcessRunner.Result("Cancelled", -1, null, true, "cancellation_requested");
 
             SafeKernelHandle job = null;
@@ -738,32 +746,18 @@ namespace OS.Tooling.Native
                 inheritable.Length = Marshal.SizeOf(
                     typeof(SecurityAttributes));
                 inheritable.InheritHandle = true;
-                if (!CreatePipe(
-                        out standardOutputRead,
-                        out standardOutputWrite,
-                        ref inheritable,
-                        0) ||
-                    !SetHandleInformation(
-                        standardOutputRead,
-                        HandleFlagInherit,
-                        0) ||
-                    !CreatePipe(
-                        out standardErrorRead,
-                        out standardErrorWrite,
-                        ref inheritable,
-                        0) ||
-                    !SetHandleInformation(
-                        standardErrorRead,
-                        HandleFlagInherit,
-                        0))
+                if (!CreatePipe(out standardOutputRead, out standardOutputWrite, ref inheritable, 0) ||
+                    !SetHandleInformation(standardOutputRead, HandleFlagInherit, 0))
+                    return Result("StartFailed", -1, capture, true, "stdout_pipe_" + Win32Detail());
+                if (suppliedStandardError == null)
                 {
-                    return Result(
-                        "StartFailed",
-                        -1,
-                        capture,
-                        true,
-                        "pipe_" + Win32Detail());
+                    if (!CreatePipe(out standardErrorRead, out standardErrorWrite, ref inheritable, 0) ||
+                        !SetHandleInformation(standardErrorRead, HandleFlagInherit, 0))
+                        return Result("StartFailed", -1, capture, true, "stderr_pipe_" + Win32Detail());
                 }
+                else if (!DuplicateHandle(new IntPtr(-1), suppliedStandardError, new IntPtr(-1),
+                    out standardErrorWrite, 0, true, 2))
+                    return Result("StartFailed", -1, capture, true, "stderr_duplicate_" + Win32Detail());
 
                 standardInput = CreateFileW(
                     "NUL",
@@ -899,22 +893,13 @@ namespace OS.Tooling.Native
                         FileAccess.Read,
                         4096,
                         false);
-                    standardErrorStream = new FileStream(
-                        standardErrorRead,
-                        FileAccess.Read,
-                        4096,
-                        false);
-                    readerTasks = new Task[]
+                    if (standardErrorRead == null)
+                        readerTasks = new[] { StartReader(standardOutputStream, false, capture) };
+                    else
                     {
-                        StartReader(
-                            standardOutputStream,
-                            false,
-                            capture),
-                        StartReader(
-                            standardErrorStream,
-                            true,
-                            capture)
-                    };
+                        standardErrorStream = new FileStream(standardErrorRead, FileAccess.Read, 4096, false);
+                        readerTasks = new[] { StartReader(standardOutputStream, false, capture), StartReader(standardErrorStream, true, capture) };
+                    }
                 }
                 catch (Exception exception)
                 {

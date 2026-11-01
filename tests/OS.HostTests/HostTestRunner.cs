@@ -196,7 +196,12 @@ internal static class HostTestRunner
                 case "output": Console.Write(new string('x', 100_000)); return 0;
                 case "echo": Console.Write(JsonSerializer.Serialize(args[2..])); return 0;
                 case "environment": Console.Write(JsonSerializer.Serialize(args[2..].Select(Environment.GetEnvironmentVariable).ToArray())); return 0;
-                case "streams": Console.Write("stdout-ok"); Console.Error.Write("stderr-ok"); return 0;
+                case "streams":
+                case "streams-wait":
+                    Console.Write("stdout-ok"); Console.Error.Write("stderr-ok");
+                    Console.Out.Flush(); Console.Error.Flush();
+                    if (args[1] == "streams-wait") await Task.Delay(Timeout.Infinite);
+                    return 0;
                 case "partial-object": File.WriteAllBytes(args[2], [1, 2, 3, 4, 5, 6, 7, 8]); Console.WriteLine("partial-object-written"); return 0;
                 case "partial-before-timeout": Console.WriteLine("partial-before-timeout"); await Task.Delay(Timeout.Infinite); return 2;
                 case "uppercase-output": Console.Write(new string('X', 4096)); return 0;

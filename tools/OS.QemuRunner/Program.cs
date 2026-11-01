@@ -166,10 +166,19 @@ try
     Task<ServiceSocketControls.Report>? serviceControlTask = null;
     using Process process = new Process();
     process.StartInfo.FileName = qemu.Path;
+    string? declaredCapture = Environment.GetEnvironmentVariable("CLROS_M01_CAPTURE_EXECUTABLE");
+    bool captureRoute = declaredCapture is not null &&
+        string.Equals(Path.GetFullPath(qemu.Path), Path.GetFullPath(declaredCapture), StringComparison.OrdinalIgnoreCase);
+    using FileStream? captureExecutable = captureRoute ? new(qemu.Path, FileMode.Open, FileAccess.Read, FileShare.Read) : null;
+    if (captureRoute && (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CLROS_M01_REAL_QEMU")) ||
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(captureExecutable!)) !=
+            Environment.GetEnvironmentVariable("CLROS_M01_CAPTURE_SHA256")))
+        throw new IOException("qemu_capture_route_identity");
+    bool stdioStartupQmp = options.WatchStartup && !captureRoute;
     process.StartInfo.UseShellExecute = false;
     process.StartInfo.CreateNoWindow = true;
-    process.StartInfo.RedirectStandardInput = options.WatchStartup;
-    process.StartInfo.RedirectStandardOutput = options.WatchStartup;
+    process.StartInfo.RedirectStandardInput = stdioStartupQmp;
+    process.StartInfo.RedirectStandardOutput = stdioStartupQmp;
 
     foreach (string argument in QemuCommandBuilder.BuildArguments(options, ovmf.Path, containmentPeer?.NetdevArgument ?? networkPeer?.NetdevArgument,
         webFrames?.Arguments))
@@ -177,6 +186,8 @@ try
         process.StartInfo.ArgumentList.Add(argument);
     }
 
+    using WhpxPrelaunch? prelaunch = WhpxPrelaunch.Create(process, options.Accelerator, options.SerialLogPath);
+    Stopwatch stopwatch = Stopwatch.StartNew();
     bool processStarted = false;
     bool processTerminationRequested = false;
     bool processCleanupFailed = false;
@@ -216,6 +227,7 @@ try
     process.Start();
     processStarted = true;
     writable?.BindStartedChild(process);
+    prelaunch?.ResumeAfterStart(TimeSpan.FromSeconds(Math.Min(options.TimeoutSeconds, options.StartupTimeoutSeconds)) - stopwatch.Elapsed);
     if (options.StaticEvidence is not null)
     {
         options.StaticEvidence.ProcessId = process.Id;
@@ -251,10 +263,15 @@ try
     bool networkPeerInitiatedFailure = false;
     QemuStartupDeadline? startup = options.WatchStartup ? new(options.StartupTimeoutSeconds) : null;
     const long terminalDrainMilliseconds = 750;
-    Stopwatch stopwatch = Stopwatch.StartNew();
     long lastSerialActivityMilliseconds = stopwatch.ElapsedMilliseconds;
     while (true)
     {
+        if (prelaunch?.Failure is string startupStderrFailure)
+        {
+            serialReadFailure = startupStderrFailure;
+            TerminateProcessAndClassify(process, ref processTerminationRequested, ref processCleanupFailed, ref qemuExitedSpontaneously, ref qemuExitCode);
+            break;
+        }
         long previousSerialReadOffset = serialReadOffset;
         if (!TryFeedSerialLogDelta(
                 options.SerialLogPath,
@@ -307,7 +324,7 @@ try
             startup?.HasExpired(stopwatch.ElapsedMilliseconds, streamingMarkers) == true)
         {
             timedOut = startupTimedOut = true;
-            QemuStartupCapture.CaptureBestEffort(process, options.SerialLogPath);
+            if (stdioStartupQmp) QemuStartupCapture.CaptureBestEffort(process, options.SerialLogPath);
             TerminateProcessAndClassify(process, ref processTerminationRequested,
                 ref processCleanupFailed, ref qemuExitedSpontaneously, ref qemuExitCode);
             break;
@@ -542,6 +559,7 @@ try
         }
     }
 
+    prelaunch?.Complete();
     if (writable is not null)
     {
         if (!process.HasExited)
@@ -1125,13 +1143,23 @@ try
         }
         finally
         {
-            if (writable is not null && processStarted)
+            try
             {
-                AwaitWritableChildJoin(process);
-                if (!writable.FinalVerificationAttempted) writable.CompleteAfterChildJoin();
+                if (writable is not null && processStarted)
+                {
+                    AwaitWritableChildJoin(process);
+                    if (!writable.FinalVerificationAttempted) writable.CompleteAfterChildJoin();
+                }
             }
-            if (serviceCancellation is not null && !JoinServiceControls(serviceControlTask, serviceCancellation))
-                throw new TimeoutException("Service controls join incomplete; reserved ports remain owned.");
+            finally
+            {
+                try { prelaunch?.Complete(); }
+                finally
+                {
+                    if (serviceCancellation is not null && !JoinServiceControls(serviceControlTask, serviceCancellation))
+                        throw new TimeoutException("Service controls join incomplete; reserved ports remain owned.");
+                }
+            }
         }
     }
 }
@@ -1184,6 +1212,7 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
     process.StartInfo.UseShellExecute = false;
     process.StartInfo.CreateNoWindow = true;
     foreach (string argument in QemuCommandBuilder.BuildArguments(options, ovmf)) process.StartInfo.ArgumentList.Add(argument);
+    using WhpxPrelaunch? prelaunch = WhpxPrelaunch.Create(process, options.Accelerator, options.SerialLogPath);
     bool started = false, terminated = false, cleanupFailed = false, spontaneous = false;
     int? nativeExit = null;
     string serial = string.Empty, prior = string.Empty;
@@ -1195,8 +1224,10 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
     try
     {
         process.Start(); started = true;
+        prelaunch?.ResumeAfterStart(TimeSpan.FromSeconds(options.TimeoutSeconds) - clock.Elapsed);
         while (failure is null)
         {
+            if (prelaunch?.Failure is string startupStderrFailure) { failure = startupStderrFailure; break; }
             if (!TryReadSerialLogBounded(options.SerialLogPath, out serial, out failure)) break;
             if (!serial.StartsWith(prior, StringComparison.Ordinal)) { failure = "serial_log_reset"; break; }
             if (terminal is not null && !string.Equals(serial, terminal, StringComparison.Ordinal))
@@ -1223,6 +1254,7 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
             Thread.Sleep(25);
         }
         TerminateProcessAndClassify(process, ref terminated, ref cleanupFailed, ref spontaneous, ref nativeExit);
+        prelaunch?.Complete();
         if (cleanupFailed) failure = "qemu_cleanup_failed";
         else if (spontaneous || !terminated || nativeExit is null) failure = "qemu_reboot_or_shutdown";
         if (!TryReadSerialLogBounded(options.SerialLogPath, out string finalSerial, out string? readFailure))
@@ -1257,6 +1289,7 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
     {
         if (started && !process.HasExited && !TerminateProcessBounded(process).Succeeded)
             Console.Error.WriteLine("QEMU_PROCESS_CLEANUP_FAILED timeout_ms=2000");
+        prelaunch?.Complete();
     }
 }
 

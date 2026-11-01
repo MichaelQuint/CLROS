@@ -126,6 +126,9 @@ internal static class NativeAotServiceRunnerTests
         string[] summary = ["QEMU_SMOKE_STATUS pass", ..selected, ..rawRows.Select(row => "OBSERVED_MARKER " + row), "APP_EXIT_RESULT none",
             "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none",
             "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240", ..capturedRows.TakeLast(8).Select(row => "SERIAL_TAIL_LINE " + (row.Length > 240 ? row[..237] + "..." : row)), ..Block()];
+        string[] backend = ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
+        stdout = [..backend, ..stdout];
+        summary = [..summary.Take(4), ..backend, ..summary.Skip(4)];
         return new(options, plan, new(0, string.Join("\r\n", stdout) + "\r\n", "", false, false, false, TimeSpan.FromSeconds(800)), raw,
             [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")], context);
     }

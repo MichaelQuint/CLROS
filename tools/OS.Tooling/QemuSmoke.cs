@@ -5,9 +5,39 @@ namespace OS.Tooling;
 public static class QemuSmoke
 {
     public static async Task<int> RunAsync(string root, QemuSmokeOptions options, TextWriter output,
-        Func<string, IReadOnlyList<string>, Task<ProcessResult>>? invoke = null, CancellationToken cancellation = default)
+        Func<string, IReadOnlyList<string>, Task<ProcessResult>>? invoke = null, CancellationToken cancellation = default,
+        Func<ProcessRequest, CancellationToken, Task<ProcessResult>>? invokeRunner = null)
     {
         root = Path.GetFullPath(root);
+        bool customInvoke = invoke is not null;
+        QemuCaptureSession? capture = null;
+        string actualQemuForGate = "";
+        TimeSpan DefaultRunnerTimeout() => options.WritableDiskFixture.Length != 0
+            ? TimeSpan.FromSeconds(options.TimeoutSeconds + QemuCaptureSession.RunnerCaptureAllowanceSeconds + 30)
+            : NativeAotRuntimeSelection.Application(options.Flags).Length != 0 || NativeAotSocketSelection.Application(options.Flags).Length != 0 ||
+              NativeAotSocketContainmentSelection.Selected(options.Flags) || NativeAotSocketVectorsSelection.Selected(options.Flags) ||
+              NativeAotWebSelection.Application(options.Flags).Length != 0 || NativeAotStaticFileSelection.Application(options.Flags).Length != 0
+            ? TimeSpan.FromSeconds(options.TimeoutSeconds + 60) : TimeSpan.FromMinutes(10);
+        async Task<ProcessResult> RunOriginalRunner(IReadOnlyList<string> args, TimeSpan timeout,
+            IReadOnlyDictionary<string, string?> variables, CancellationToken token, bool legacyHook)
+        {
+            if (options.DryRun) return await invoke!("OS.QemuRunner", args);
+            using var startup = WhpxLaunchSession.Create(root, options.SerialLog, actualQemuForGate, options.Accelerator);
+            if (startup is not null && customInvoke && legacyHook && invokeRunner is null)
+                throw new ToolFailure("whpx_original_runner_transport_required",
+                    "Provide the typed ProcessRequest runner hook; preserve its handle/environment and retained join.");
+            var request = new ProcessRequest("dotnet", [HostTools.ManagedTool(root, "OS.QemuRunner"), .. args], root)
+            {
+                Timeout = timeout, OutputCharacterLimit = 16 * 1024 * 1024, EnvironmentOverrides = variables,
+                RetainOwnershipUntilJoined = options.WritableDiskFixture.Length != 0
+            };
+            if (startup is not null) request = startup.Prepare(request);
+            ProcessResult result = invokeRunner is not null ? await invokeRunner(request, token) :
+                legacyHook && customInvoke && startup is null ? await invoke!("OS.QemuRunner", args) :
+                await ProcessRunner.RunAsync(request, token);
+            if (startup is not null) result = startup.VerifyJoined(result, request.OutputCharacterLimit);
+            return result;
+        }
         invoke ??= (name, args) => ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, name), .. args], root)
         { RetainOwnershipUntilJoined = name == "OS.QemuRunner" && options.WritableDiskFixture.Length != 0,
             Timeout = name == "OS.QemuRunner" && options.WritableDiskFixture.Length != 0
@@ -17,7 +47,9 @@ public static class QemuSmoke
             OutputCharacterLimit = 16 * 1024 * 1024 }, cancellation);
         async Task<ProcessResult> Run(string name, IReadOnlyList<string> args)
         {
-            var result = await invoke(name, args);
+            var result = name == "OS.QemuRunner"
+                ? await RunOriginalRunner(args, DefaultRunnerTimeout(), new Dictionary<string, string?>(), cancellation, true)
+                : await invoke(name, args);
             output.Write(result.StandardOutput);
             if (result.StandardError.Length != 0) output.Write(result.StandardError);
             if(name=="OS.QemuRunner" && options.WritableDiskFixture.Length!=0)
@@ -25,7 +57,6 @@ public static class QemuSmoke
             else QemuTranscripts.RequireCompleteProcess(result, "qemu_child_incomplete tool=" + name);
             return result;
         }
-        QemuCaptureSession? capture = null;
         FileStream? linuxInput = null;
         FileStream? helloDisassemblyInput = null;
         FileStream? threadingDisassemblyInput = null;
@@ -208,6 +239,7 @@ public static class QemuSmoke
                     return qemu.Length == 0 ? 3 : 6;
                 }
                 output.WriteLine("TEST_PASS qemu.smoke.preflight");
+                actualQemuForGate = qemu;
                 if (plan.BuildEfi)
                 {
                     var build = await Run("OS.Tooling", ["efi", "build", "--boot-policy", plan.BootPolicy, "--efi-output-path", options.EfiArtifact,
@@ -443,9 +475,9 @@ public static class QemuSmoke
             {
                 if(service){serviceStarted=DateTimeOffset.UtcNow;serviceForwardPort=port;}
                 if(staticFiles){webStarted=DateTimeOffset.UtcNow;webForwardPort=port;}
-                var result=await ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(root,"OS.QemuRunner"),..arguments,"--socket-forward-port",port.ToString(CultureInfo.InvariantCulture)],root)
-                    {Timeout=TimeSpan.FromSeconds((capture is null?options.TimeoutSeconds+60:timeout+30)),OutputCharacterLimit=16*1024*1024,
-                        EnvironmentOverrides=capture?.Environment??new Dictionary<string,string?>()},token);
+                var result=await RunOriginalRunner([..arguments,"--socket-forward-port",port.ToString(CultureInfo.InvariantCulture)],
+                    TimeSpan.FromSeconds(capture is null?options.TimeoutSeconds+60:timeout+30),
+                    capture?.Environment??new Dictionary<string,string?>(),token,false);
                 if(service)serviceCompleted=DateTimeOffset.UtcNow;
                 if(staticFiles)webCompleted=DateTimeOffset.UtcNow;
                 output.Write(result.StandardOutput);output.Write(result.StandardError);return result;
@@ -517,9 +549,8 @@ public static class QemuSmoke
                     webStarted=DateTimeOffset.UtcNow;
                     try
                     {
-                        var result=await ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(root,"OS.QemuRunner"),..arguments,"--web-race-pipe",pipe],root)
-                            {Timeout=TimeSpan.FromSeconds(options.TimeoutSeconds+60),OutputCharacterLimit=16*1024*1024,
-                                EnvironmentOverrides=capture?.Environment??new Dictionary<string,string?>()},token);
+                        var result=await RunOriginalRunner([..arguments,"--web-race-pipe",pipe],
+                            TimeSpan.FromSeconds(options.TimeoutSeconds+60), new Dictionary<string,string?>(),token,false);
                         output.Write(result.StandardOutput);output.Write(result.StandardError);return result;
                     }
                     finally{webCompleted=DateTimeOffset.UtcNow;}
@@ -539,9 +570,8 @@ public static class QemuSmoke
             }
             else
             {
-                runner = await ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, "OS.QemuRunner"), .. arguments], root)
-                    { Timeout = TimeSpan.FromSeconds(timeout + 30), EnvironmentOverrides = capture.Environment,
-                        RetainOwnershipUntilJoined = writableDisk }, cancellation);
+                runner = await RunOriginalRunner(arguments, TimeSpan.FromSeconds(timeout + 30),
+                    capture.Environment, cancellation, false);
                 output.Write(runner.StandardOutput); output.Write(runner.StandardError);
                 if(writableDisk) { if(!runner.TerminationConfirmed)throw new ToolFailure("writable_original_runner_unjoined"); }
                 else QemuTranscripts.RequireCompleteProcess(runner, "qemu_capture_runner_incomplete");

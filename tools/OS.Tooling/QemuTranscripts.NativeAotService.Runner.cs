@@ -85,7 +85,7 @@ public static partial class QemuTranscripts
             lifetime <= runner.Duration.TotalMilliseconds + 100 && start >= context.StartedUtc && end <= context.CompletedUtc, "service_runner_process_lifetime");
         Need(Field(6) == "true" && Field(7) == "true" && Field(8) == "none", "service_runner_process_cleanup");
         string disposition = stdout.Single(row => row.StartsWith("QEMU_PROCESS_RESULT ", StringComparison.Ordinal));
-        string[] expectedRows = ["QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu,
+        string[] expectedRows = [..RunnerBackend(options), "QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu,
             "OVMF_DISCOVERY result=" + context.Ovmf + " checked=" + context.Ovmf, "TEST_START qemu.smoke", selected[0], selected[1],
             "OVMF_CODE " + context.Ovmf, ..selected.Skip(2), metrics, "SERIAL_MARKER_DRAIN milliseconds=750", disposition,
             ..block, "SUMMARY_LOG " + options.SummaryLog, "TEST_PASS qemu.smoke"];
@@ -98,6 +98,7 @@ public static partial class QemuTranscripts
             "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240"]);
         foreach (string row in serial.TakeLast(8)) summary.Add("SERIAL_TAIL_LINE " + (row.Length > 240 ? row[..237] + "..." : row));
         summary.AddRange(block);
+        summary.InsertRange(4, RunnerBackend(options));
         byte[] expectedSummary = [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")];
         Need(summaryBytes.AsSpan().SequenceEqual(expectedSummary), "service_runner_summary_bytes");
         return new(controls, frames, processId, start, end, lifetime);

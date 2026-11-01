@@ -23,6 +23,8 @@ internal sealed class StandardFirmwareRunnerControls
     }
     public byte[] Frame(bool shortened) => [.. FirmwareTranscriptControls.Prefix, .. FirmwareTranscriptControls.Bytes(protocol), .. shortened ? FirmwareTranscriptControls.ShortSuffix : FirmwareTranscriptControls.Suffix];
     public string[] Runner(bool shortened = false)
+        => ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator), .. RunnerBody(shortened)];
+    private string[] RunnerBody(bool shortened)
     {
         byte[] bytes = Frame(shortened);
         return ["QEMU_DISCOVERY result=qemu.exe checked=qemu.exe", "OVMF_DISCOVERY result=ovmf.fd checked=ovmf.fd", "TEST_START qemu.smoke", "IMAGE_ARTIFACT image.raw", "SERIAL_LOG " + SerialPath, "OVMF_CODE ovmf.fd", "WORKLOAD_PROFILE SingleMinimalApi",
@@ -32,9 +34,13 @@ internal sealed class StandardFirmwareRunnerControls
     }
     public string Summary(bool shortened = false)
     {
-        var runner = Runner(shortened);
+        var runner = RunnerBody(shortened);
         List<string> summary = ["QEMU_SMOKE_STATUS pass"];
-        foreach (int index in entropy ? new[] { 3, 4, 6, 7, 8, 9, 10, 11, 12 } : new[] { 3, 4, 6, 7, 8, 9, 10, 11 }) summary.Add(runner[index]);
+        foreach (int index in entropy ? new[] { 3, 4, 6, 7, 8, 9, 10, 11, 12 } : new[] { 3, 4, 6, 7, 8, 9, 10, 11 })
+        {
+            summary.Add(runner[index]);
+            if (index == 6) summary.AddRange(["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)]);
+        }
         summary.AddRange(protocol.Select(line => "OBSERVED_MARKER " + line));
         summary.AddRange(["APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240"]);
         foreach (string line in Encoding.UTF8.GetString(Frame(shortened)).Split("\r\n", StringSplitOptions.None).Where(line => line.Trim().Length > 0).TakeLast(8))
@@ -53,7 +59,11 @@ internal sealed class StandardFirmwareRunnerControls
     }
     public void CompleteMatrix(bool shortSuffix = true)
     {
-        Save(); string[] runner = Runner(); Check(runner, true); int stream = entropy ? 13 : 12, drain = stream + 1, process = stream + 2;
+        Save(); string[] runner = Runner(); Check(runner, true); int stream = entropy ? 15 : 14, drain = stream + 1, process = stream + 2;
+        Check(runner[2..], false); Check([runner[1], runner[0], ..runner[2..]], false);
+        Check([..runner, runner[0]], false); Check([..runner, runner[1]], false);
+        foreach (string bad in new[] { "QEMU_ACCELERATOR unknown", "QEMU_ACCELERATOR " + (options.Accelerator == "whpx" ? "tcg" : "whpx") })
+        { string[] copy = [..runner]; copy[0] = bad; Check(copy, false); }
         foreach (string exit in new[] { "0", "-2147483648", "2147483647" }) { string[] copy = [.. runner]; copy[process] = "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=" + exit; Check(copy, true); }
         foreach (string exit in new[] { "none", "-0", "01", "+1", "2147483648", "-2147483649" }) { string[] copy = [.. runner]; copy[process] = "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=" + exit; Check(copy, false); }
         for (int i = 0; i < runner.Length; i++) { string[] copy = [.. runner]; copy[i] += "\0"; Check(copy, false); }
