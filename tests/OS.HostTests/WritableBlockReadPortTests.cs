@@ -7,9 +7,7 @@ using P = OS.Storage.WritableBlockReadPort;
 
 internal static unsafe partial class WritableBlockReadPortTests
 {
-    private delegate bool Retain(P.State* state, ulong epoch, ulong address, ulong bytes);
     private static readonly Retain CanRetain = typeof(P).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Retain>();
-    private delegate bool RetainRanges(P.State* state, ulong epoch, ReadOnlySpan<ulong> pairs);
     private static readonly RetainRanges CanRetainRanges = typeof(P).GetMethod("CanRetainStorageRanges", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainRanges>();
 
     [HostTest("borrowed port range batch preserves complete scalar aliases boundaries and bounded zero skipping without effects")]

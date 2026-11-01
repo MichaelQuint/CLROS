@@ -321,7 +321,6 @@ internal static unsafe partial class ContinuingFat32BootstrapTests
         K.Result copied = default; HostCheck.Equal(K.Status.StaleEpoch, K.CopyResult(f.State, f.Input.Epoch + 1, &copied)); f.Copy();
     }
 
-    private delegate bool Borrow(B.State* state, ulong epoch, ulong address, ulong bytes);
     [HostTest("continuing bootstrap block structural borrowing survives original Stop but cannot grant live IO or alias any retained extent")]
     private static void StructuralBorrow()
     {

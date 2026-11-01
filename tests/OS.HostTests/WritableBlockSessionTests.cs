@@ -638,7 +638,6 @@ internal static unsafe partial class WritableBlockSessionTests
         }
     }
 
-    private delegate bool BorrowObservation(OS.Storage.ContinuingFat32Mutation.State* state, ulong epoch, ulong address, ulong bytes);
     [HostTest("writable observation POD sizes keep state receipt pool and slot within one supervisor metadata page")]
     private static void ObservationLayout()
     {

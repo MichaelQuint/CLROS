@@ -14,9 +14,7 @@ using Data = OS.Tooling.WritableDataImageFixture;
 // Actual queued fake media on one B owner. No native, Linux, browser or reboot proof.
 internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
 {
-    private delegate bool Retain(Fs.Mount* mount, ulong epoch, ulong address, ulong bytes);
     private static readonly Retain CanRetain = typeof(Fs).GetMethod("CanRetainStorage", BindingFlags.NonPublic | BindingFlags.Static)!.CreateDelegate<Retain>();
-    private delegate bool RetainRanges(Fs.Mount* mount, ulong epoch, ReadOnlySpan<ulong> pairs);
     private static readonly RetainRanges CanRetainRanges = typeof(Fs).GetMethod("CanRetainStorageRanges", BindingFlags.NonPublic | BindingFlags.Static)!.CreateDelegate<RetainRanges>();
 
     [HostTest("borrowed filesystem shares complete port audits across local admission and the original external span", HostLane.Native)]

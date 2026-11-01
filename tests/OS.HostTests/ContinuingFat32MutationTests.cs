@@ -43,7 +43,6 @@ internal static unsafe partial class ContinuingFat32MutationTests
     private static C.Result Result(Fixture f, C.RequestToken request, C.Status expected = C.Status.Success)
     { C.Result result = default; HostCheck.Equal(expected, C.CopyResult(f.State, request, &result)); HostCheck.Equal(expected, result.Status); return result; }
 
-    private delegate bool RetainedReadRange(C.State* state, ulong epoch, B.State* block, ulong blockEpoch, ulong first, ulong last);
     private static readonly RetainedReadRange ReadRangePredicate = typeof(C).GetMethod("CanRetainReadRange",
         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.CreateDelegate<RetainedReadRange>();
     private static bool Range(Fixture f, ulong first = 1, ulong last = First - 1) =>
@@ -1263,7 +1262,6 @@ internal static unsafe partial class ContinuingFat32MutationTests
         HostCheck.True(f.Device.Hardware->Notifies == calls && new ReadOnlySpan<byte>(f.Input.Before, 512).SequenceEqual(before) && new ReadOnlySpan<byte>(f.Input.After, 512).SequenceEqual(after));
     }
 
-    private delegate bool AdmissionCheck(C.State* state, ulong epoch);
     private static AdmissionCheck AdmissionPredicate() => typeof(C).GetMethod("CanAdmitStorage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<AdmissionCheck>();
 
     [HostTest("continuing FAT live provider admission allows clean pending and held reads without callbacks or allocations")]
@@ -1320,10 +1318,8 @@ internal static unsafe partial class ContinuingFat32MutationTests
         }
     }
 
-    private delegate bool BorrowCheck(C.State* state, ulong epoch, ulong address, ulong bytes);
     private static BorrowCheck RetainPredicate() => typeof(C).GetMethod("CanRetainStorage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<BorrowCheck>();
 
-    private delegate bool RetainedRangeBatch(C.State* state, ulong epoch, ReadOnlySpan<ulong> pairs);
     private static readonly RetainedRangeBatch RetainBatch = typeof(C).GetMethod("CanRetainStorageRanges",
         System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<RetainedRangeBatch>();
     private static void CompareRetainBatch(Fixture f, ReadOnlySpan<ulong> pairs, bool? expected = null)
