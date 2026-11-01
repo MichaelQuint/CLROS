@@ -201,6 +201,8 @@ internal static class NativeAotWritableDiskSelectionTests
         Failure(()=>QemuTranscripts.AssertStandardRunnerResult(".",options,plan,[]),"writable_runner_original_values_required");
         var copied=new QemuTranscripts.WritableRunnerValues("work.raw","boot-id",128*1024*1024,"AA","work-id",128*1024*1024,"BB");
         string[] rows=Enumerable.Repeat("unused",22).ToArray();
+        Failure(()=>QemuTranscripts.AssertStandardRunnerResult(".",options,plan,rows,writableData:copied),"qemu_runner_accelerator_identity");
+        rows=["QEMU_ACCELERATOR "+options.Accelerator,"QEMU_MACHINE "+QemuContracts.MachineArgument(options.Accelerator),..rows];
         Failure(()=>QemuTranscripts.AssertStandardRunnerResult(".",options,plan,rows,writableData:copied),"writable_runner_initial_identity");
         var ordinary=QemuProfiles.Create(QemuSmokeOptions.Parse([]));
         Failure(()=>QemuTranscripts.AssertStandardRunnerResult(".",new(),ordinary,[],writableData:copied),"writable_runner_original_values_required");
