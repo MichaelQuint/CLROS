@@ -6402,8 +6402,71 @@ internal static class QemuRunnerTests
                 summary.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;TEST_FAIL") &&
                 output.Any(x => x.StartsWith("SERIAL_MARKER_STREAM status=ExpectedPanic terminal=ExpectedPanic bytes=" + raw.Length + " lines=" + OS.Tooling.QemuContracts.M02UnexpectedCaptureRecordCount + " invalidBytes=0 invalidLines=0 ", StringComparison.Ordinal)),
                 "summary must bind raw bytes, inventories, lifecycle and finite outcome", string.Join('\n', summary));
+            AssertPanicToolingHandoff(capture.Result, output, capture.Serial, capture.Summary);
         }
         return true;
+    }
+
+    private static void AssertPanicToolingHandoff(ProcessResult captured, string[] output, string serial, string summary)
+    {
+        string image = output.Single(row => row.StartsWith("IMAGE_ARTIFACT ", StringComparison.Ordinal))["IMAGE_ARTIFACT ".Length..];
+        var plan = new OS.Tooling.QemuSmokePlan("Diagnostic", new Dictionary<string, bool>(), [], [], [], [], [], false, false);
+        string summaryText = File.ReadAllText(summary);
+        byte[] raw = File.ReadAllBytes(serial);
+        string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(raw));
+        string badHash = (hash[0] == '0' ? "1" : "0") + hash[1..];
+        string alteredSummary = summary + ".tooling-hash-control";
+        string alteredSerial = serial + ".tooling-byte-control";
+        PanicCheck(summaryText.Contains(hash, StringComparison.Ordinal), "independent original capture hash present", summaryText);
+        File.WriteAllText(alteredSummary, summaryText.Replace(hash, badHash, StringComparison.Ordinal));
+        File.WriteAllBytes(alteredSerial, [.. raw, (byte)'X']);
+        foreach (string backend in new[] { "tcg", "whpx" })
+        {
+            // These header variants are parser grammar controls over one controlled
+            // child's retained evidence; they do not prove execution on either backend.
+            string[] rows = [.. output];
+            rows[0] = "QEMU_ACCELERATOR " + backend;
+            rows[1] = "QEMU_MACHINE " + OS.Tooling.QemuContracts.MachineArgument(backend);
+            void Check(string name, string[] candidate, string? expected = null, int exit = 19,
+                bool owned = false, bool unhandled = false, string? serialPath = null, string? summaryPath = null)
+            {
+                var options = new OS.Tooling.QemuSmokeOptions { Accelerator = backend, Image = image,
+                    SerialLog = serialPath ?? serial, SummaryLog = summaryPath ?? summary };
+                var runner = new OS.Tooling.ProcessResult(exit, string.Join("\r\n", candidate) + "\r\n", "",
+                    false, false, false, TimeSpan.Zero);
+                string? rejection = null;
+                try { OS.Tooling.QemuTranscripts.AssertExpectedPanicRunner(HostToolProcess.FindRepositoryRoot(),
+                    options, plan, runner, candidate, owned, unhandled); }
+                catch (OS.Tooling.ToolFailure error) { rejection = error.Reason; }
+                PanicCheck(rejection == expected, "Tooling panic handoff " + backend + " " + name +
+                    " expected=" + (expected ?? "pass"), rejection ?? "pass");
+            }
+            PanicCheck(captured.ExitCode == 19, "original controlled capture retained exit19", captured.Output);
+            Check("valid", rows);
+            const string identity = "qemu_runner_accelerator_identity";
+            Check("missing-backend", rows[2..], identity);
+            Check("reordered-backend", [rows[1], rows[0], .. rows[2..]], identity);
+            Check("duplicate-accelerator", [.. rows, rows[0]], identity);
+            Check("duplicate-machine", [.. rows, rows[1]], identity);
+            Check("wrong-accelerator", ["QEMU_ACCELERATOR " + (backend == "tcg" ? "whpx" : "tcg"), .. rows[1..]], identity);
+            Check("wrong-machine", [rows[0], "QEMU_MACHINE q35,accel=unknown", .. rows[2..]], identity);
+            Check("extra-row", [.. rows, "QEMU_INJECTED extra"], "qemu_panic_runner_inventory");
+            Check("wrong-exit", rows, "qemu_panic_runner_inventory", exit: 0);
+            Check("owned-mode-isolation", rows, "qemu_panic_runner_schema", owned: true);
+            Check("unhandled-mode-isolation", rows, "qemu_panic_runner_schema", unhandled: true);
+            string[] quiet = rows.Select(row => row.StartsWith("SERIAL_MARKER_DRAIN ", StringComparison.Ordinal)
+                ? "SERIAL_MARKER_DRAIN milliseconds=750 observedMilliseconds=749" : row).ToArray();
+            Check("short-quiet", quiet, "qemu_panic_quiet");
+            string[] badSummary = rows.Select(row => row.StartsWith("SUMMARY_LOG ", StringComparison.Ordinal)
+                ? "SUMMARY_LOG " + alteredSummary : row).ToArray();
+            Check("summary-hash", badSummary, "qemu_panic_summary_exact", summaryPath: alteredSummary);
+            string[] badSerial = rows.Select(row => row.StartsWith("SERIAL_LOG ", StringComparison.Ordinal)
+                ? "SERIAL_LOG " + alteredSerial : row).ToArray();
+            Check("raw-bytes", badSerial, "qemu_panic_stream_accounting", serialPath: alteredSerial);
+            Check("valid-after-rejections", rows);
+        }
+        PanicCheck(File.ReadAllBytes(serial).SequenceEqual(raw) && File.ReadAllText(summary) == summaryText,
+            "original controlled capture bytes remain unchanged", serial);
     }
 
     private static bool TestUnexpectedPanicMalformedCaptures(string tempRoot)

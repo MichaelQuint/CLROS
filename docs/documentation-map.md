@@ -5,6 +5,10 @@ The active M04-026/#813 execution and acceptance contract is
 work record; build/host/QEMU/completion guidance remains in the existing
 canonical documents below. It grants no additional accepted capability.
 
+[Step1685](../done/step1685.md) is the latest migration checkpoint: e0252d3a's
+7,483-check full, sixteen strict compiler originals and the bounded host panic
+prefix repair. Remaining final host/native/guest/browser gates stay open.
+
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
 The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.

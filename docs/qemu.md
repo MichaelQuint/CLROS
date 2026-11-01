@@ -37,8 +37,14 @@ claim a physical disk-write quota or a hard-kill flush of QEMU userspace buffers
 
 [Step1682](../done/step1682.md) records the host-policy repairs and failed originals;
 [step1681](../done/step1681.md) retains the raw-serial ownership incident and the
-previous7,474-check RC3 full. The changed runner requires a new final full and
-complete native/guest/browser renewal under
+previous7,474-check RC3 full. [Step1685](../done/step1685.md) records a later
+7,483-check full at e0252d3a and sixteen strict compiler originals. Its expected-
+unhandled original reached the intended terminal but the Tooling panic consumer
+still expected the legacy eighteen-row body without the backend pair. The repair
+uses the same exact prefix validator as other consumers; panic body, summary,
+exit19, quiet drain, byte/hash and terminal criteria remain. Saved-capture
+re-analysis passes without changing its failed outer exit1. A fresh expected-
+unhandled original, final host renewal and the remaining matrix are required under
 [the phase contract](../work/rc3-whpx-qualification.md).
 
 The current short disk diagnostic uses a separate v8 receipt and five responses:

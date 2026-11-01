@@ -39017,7 +39017,8 @@
         "tests/OS.HostTests/NativeAotServiceQuotaRunnerTests.cs",
         "tests/OS.HostTests/NativeAotWebRunnerTests.cs",
         "tests/OS.HostTests/HostTestRunner.cs",
-        "tests/OS.HostTests/ContinuingNetworkRunnerTranscriptControls.cs"
+        "tests/OS.HostTests/ContinuingNetworkRunnerTranscriptControls.cs",
+        "tools/OS.Tooling/QemuTranscripts.PanicRunner.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

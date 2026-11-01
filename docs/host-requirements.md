@@ -6,6 +6,14 @@ The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and t
 
 Current development uses the RC3 pins below. Accepted RC2 source and private-producer identities stay attached to their actual build epochs.
 
+[Step1685](../done/step1685.md) records e0252d3a's unfiltered full:7,483 checks,
+927 groups (817 Fast/110 Native), unchanged source/producers and zero reuse.
+Sixteen compiler originals pass; expected-unhandled reached exit19/quiet drain
+but the host panic inventory omitted the two backend rows. The prefix-only
+consumer repair passes focused controls and saved-capture re-analysis. Its
+original outer exit1 remains failed; fresh final full and remaining native/
+guest/browser qualification are still required.
+
 [Step1655](../done/step1655.md) The completed-only directory cache reshape removes in-flight reservations and helper call edges, restores the original submit/release paths and publishes only the successfully copied completion sector. It passes 99 focused checks across six fixtures with zero reuse. The preceding 90cdfc3b Full/Timing/M16 publication compiled, but its measured stack growth exceeded the inherited Timing margin; all failures and decoded facts remain preserved. Fresh native review of this reshape, including the unchanged Enable construction edge, remains required before one diagnostic Short. Assess benefit before another expensive full lane; the unfiltered full is mandatory for stable acceptance. Finish qualified read-phase merge/parity/recovery, then pause before writes/SQLite.
 
 [Step1648](../done/step1648.md) Source3147392e passes the unfiltered host lane:7409 checks/922 fixtures/110Native, zero reuse, unchanged source/producers/HEAD; repo/contracts pass. Conditional Full/Timing/M16 native reviews retain complete own-profile parents; Timing adds456 stack bytes/all5 domains/all15 phases and4096 image bytes. Timing original1592/30145/55f200/0 returns0, but independent BASE1598/318876/1 remains FAILED: a historical3724B CRLF baseline was normalized to3607B LF while its raw pin stayed unchanged. No BASE receipt, late input recheck, suffix, replay or selection success is claimed. Production observations only:3723 verification calls/4.3945814s in30.1823409s, including measurement overhead; no causal dominance or repair benefit. Expert advice preserves this failure and prospectively copies baseline bytes verbatim. Assets199–201 retain the earlier closed native/focused checkpoint and require178–198; they exclude this later full/original/failure frontier. The four read issues, full Blazor/browser/cleanup, writes/SQLite/#775/#226/#227 and Gate14 remain open. Continue a source-guided read repair, then qualify/merge/recover the read phase and pause.

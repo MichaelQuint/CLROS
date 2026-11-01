@@ -19,8 +19,11 @@ Windows QEMU defaults to explicit WHPX with its hardware interrupt controller;
 `-Accelerator tcg` selects the software CPU backend. The software-controller
 candidate in [step1681](done/step1681.md) failed APIC readback during its next
 guest run. [Step1682](done/step1682.md) records the bounded startup-stderr policy
-and preserved failures. The previous RC3 full-host pass covers7,474 checks;
-final qualification of the changed runner remains pending. [The RC3/WHPX qualification contract](work/rc3-whpx-qualification.md)
+and preserved failures. [Step1685](done/step1685.md) records the 7,483-check
+full-host pass at e0252d3a and sixteen strict compiler guests. The expected-unhandled
+guest reached its intended terminal but failed the host reader's legacy inventory.
+The strict backend-prefix repair passes focused controls; a fresh final full and
+the remaining qualification are required. [The RC3/WHPX qualification contract](work/rc3-whpx-qualification.md)
 and [#813](http://192.168.4.35:3000/admin/CLROS/issues/813) track the unfinished
 final native, guest/browser and host renewal. The renewed short RC3 diagnostic passes
 on WHPX and TCG with identical image bytes and five response hashes in

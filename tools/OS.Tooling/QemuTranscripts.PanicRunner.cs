@@ -9,6 +9,7 @@ public static partial class QemuTranscripts
     public static void AssertExpectedPanicRunner(string root, QemuSmokeOptions options, QemuSmokePlan plan,
         ProcessResult runner, IReadOnlyList<string> original, bool ownedSubsystem, bool unhandled = false)
     {
+        original = RunnerBody(options, original);
         Need(runner.ExitCode == 19 && runner.StandardError.Length == 0 && original.Count == 18 && plan.Presets.Count == 0 && original.All(l => !Controls.IsMatch(l)), "qemu_panic_runner_inventory");
         Match q = Regex.Match(original[0], @"\AQEMU_DISCOVERY result=(.+) checked=(.+)\z"), o = Regex.Match(original[1], @"\AOVMF_DISCOVERY result=(.+) checked=(.+)\z");
         Need(q.Success && o.Success && q.Groups[1].Value != "not_found" && o.Groups[1].Value != "not_found", "qemu_panic_discovery");
