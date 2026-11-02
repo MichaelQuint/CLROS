@@ -73,14 +73,8 @@ internal static partial class StorageFat32ParserTests
     [HostTest("storage fat32 uses shared memory short-name helper", HostLane.Fast, 33)]
     private static bool TestUsesSharedMemoryShortNameHelper()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "Fat32Parser.cs"));
-
-        return HostCheck.Result(source.Contains(
-                "return OS.Std.MemoryExtensions.SequenceEqual(actual, expected);",
-                StringComparison.Ordinal)
-            && !source.Contains("if (actual[i] != expected[i])", StringComparison.Ordinal));
+        return HostCheck.Result(StorageEqualitySourceGuard.Parameters(
+            HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), typeof(Fat32Parser).FullName!, "ShortNamesEqual"));
     }
 
     [HostTest("storage fat32 uses shared ascii long-name case helper", HostLane.Fast, 34)]

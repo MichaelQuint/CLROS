@@ -23,7 +23,7 @@ internal static class StorageSourceGuard
 
     internal static IOperation Value(IOperation operation)
     {
-        while (operation is IConversionOperation conversion)
+        while (operation is IConversionOperation { Conversion.IsUserDefined: false } conversion)
             operation = conversion.Operand;
         return operation;
     }

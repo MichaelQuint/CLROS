@@ -309,31 +309,10 @@ internal static partial class StorageGptParserTests
     [HostTest("storage gpt parser uses shared memory helpers", HostLane.Fast, 14)]
     private static bool TestParserUsesSharedMemoryHelpers()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "GptParser.cs"));
-
-        return HostCheck.Result(source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(bytes[..8], \"EFI PART\"u8)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "ReadOnlySpan<byte> zeroGuid = stackalloc byte[16]",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(bytes, zeroGuid)",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "bytes[0] == (byte)'E'",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "bytes[7] == (byte)'T'",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "for (int i = 0; i < 16; i++)",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "bytes[i] != 0",
-                StringComparison.Ordinal));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        return HostCheck.Result(StorageEqualitySourceGuard.Literal(catalog, typeof(GptParser).FullName!,
+                "HasGptSignature", "EFI PART", 8)
+            && StorageEqualitySourceGuard.ZeroBuffer(catalog, typeof(GptParser).FullName!, "IsZeroGuid", 16));
     }
 
     private static byte[] CreateValidGptImage()
