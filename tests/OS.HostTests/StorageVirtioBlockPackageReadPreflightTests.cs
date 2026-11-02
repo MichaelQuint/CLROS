@@ -390,45 +390,15 @@ internal static partial class StorageVirtioBlockPackageReadPreflightTests
     [HostTest("storage virtio block package file staging formatter uses shared ascii text builder", HostLane.Fast, 9)]
     private static bool TestPackageFileStagingFormatterUsesSharedAsciiTextBuilder()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(
-                repositoryRoot,
-                "src",
-                "OS.Kernel",
-                "Storage",
-                "VirtioBlockPackageFileStagingPreflightDiagnosticFormatter.cs"));
-
-        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiTextBuilder.AppendBytes(destination, offset, value)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.ReadSessionByteCount)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.PackageBytesRead)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.PackageFileBytesStaged)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.StagingDestinationBytesAvailable)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.PackageStaging.FileLength)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.PackageStaging.RequiredBytes)",
-                StringComparison.Ordinal)
-            && !source.Contains("private static int GetUInt64DecimalByteCount", StringComparison.Ordinal)
-            && !source.Contains("private static void AppendUInt64(", StringComparison.Ordinal)
-            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal)
-            && !source.Contains("destination[offset + index] = (byte)('0' +", StringComparison.Ordinal)
-            && !source.Contains("value /= 10;", StringComparison.Ordinal));
+        return HostCheck.Result(StoragePreflightFormatterSourceGuard.Check(
+            HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"),
+            typeof(VirtioBlockPackageFileStagingPreflightDiagnosticFormatter).FullName!,
+            [nameof(VirtioBlockPackageFileStagingPreflightResult.ReadSessionByteCount),
+                nameof(VirtioBlockPackageFileStagingPreflightResult.PackageBytesRead),
+                nameof(VirtioBlockPackageFileStagingPreflightResult.PackageFileBytesStaged),
+                nameof(VirtioBlockPackageFileStagingPreflightResult.StagingDestinationBytesAvailable),
+                nameof(VirtioBlockPackageFileStagingPreflightResult.PackageStaging) + "." + nameof(OsPackageFileStagingResult.FileLength),
+                nameof(VirtioBlockPackageFileStagingPreflightResult.PackageStaging) + "." + nameof(OsPackageFileStagingResult.RequiredBytes)]));
     }
 
     [HostTest("boot.sequence package file staging preflight ready", HostLane.Fast, 10)]
