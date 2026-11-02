@@ -34,7 +34,8 @@ internal static class StoragePackageCopySourceGuard
             || content.Property.Name != nameof(OsPackageFileContentResult.Content)
             || content.Property.ContainingType.ToDisplayString() != typeof(OsPackageFileContentResult).FullName
             || StorageSourceGuard.LocalInitializer(model, content.Instance) is not IInvocationOperation lookup
-            || !StorageSourceGuard.IsMethod(lookup.TargetMethod, typeof(OsPackageParser), nameof(OsPackageParser.GetFileContent)))
+            || !StorageSourceGuard.IsMethod(lookup.TargetMethod, typeof(OsPackageParser), nameof(OsPackageParser.GetFileContent))
+            || !SymbolEqualityComparer.Default.Equals(content.Property.ContainingType, lookup.TargetMethod.ReturnType))
             return false;
         return StorageSourceGuard.IsParameter(StorageSourceGuard.Argument(lookup, 0), declaration.Parameters[0])
             && StorageSourceGuard.IsParameter(StorageSourceGuard.Argument(lookup, 1), declaration.Parameters[1]);

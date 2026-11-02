@@ -29,7 +29,8 @@ internal static class StoragePackageCopySourceGuardTests
             }
             """;
         var references = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj").Compilation.References
-            .Append(MetadataReference.CreateFromFile(typeof(OsPackageParser).Assembly.Location));
+            .Append(MetadataReference.CreateFromFile(typeof(OsPackageParser).Assembly.Location,
+                MetadataReferenceProperties.Assembly.WithAliases(["global", "real"])));
         bool Check(string candidate)
         {
             var syntax = CSharpSyntaxTree.ParseText(candidate, new CSharpParseOptions(LanguageVersion.CSharp14));
@@ -49,5 +50,21 @@ internal static class StoragePackageCopySourceGuardTests
             "reassigning a slice cannot retain its original source identity");
         HostCheck.True(!Check(source.Replace("ReadOnlySpan<byte> fragment =", "selected = default; ReadOnlySpan<byte> fragment =", StringComparison.Ordinal)),
             "reassigning the lookup result cannot retain its original content identity");
+        const string shadow = """
+            namespace OS.Storage
+            {
+                internal readonly ref struct OsPackageFileContentResult
+                {
+                    public ReadOnlySpan<byte> Content => default;
+                    public static implicit operator OsPackageFileContentResult(
+                        real::OS.Storage.OsPackageFileContentResult value) => default;
+                }
+            }
+            """;
+        HostCheck.True(!Check("extern alias real;\n" + source
+                .Replace("namespace CopyControl;", "namespace CopyControl {", StringComparison.Ordinal)
+                .Replace("var selected =", "OS.Storage.OsPackageFileContentResult selected =", StringComparison.Ordinal)
+                + "\n}\n" + shadow),
+            "a same-full-name foreign content property cannot impersonate the actual lookup result");
     }
 }
