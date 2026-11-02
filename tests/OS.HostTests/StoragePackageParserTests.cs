@@ -237,22 +237,11 @@ internal static class StoragePackageParserTests
     [HostTest("storage.package parser uses shared memory equality helper", HostLane.Fast, 6)]
     private static bool TestUsesSharedMemoryEqualityHelper()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "OsPackageParser.cs"));
-
-        return HostCheck.Result(source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(value, \"OSPKGv0\\0\"u8)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(entryPath, path)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(path, previousPath)",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "private static bool PathsEqual",
-                StringComparison.Ordinal));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        string owner = typeof(OsPackageParser).FullName!;
+        return HostCheck.Result(StorageEqualitySourceGuard.Literal(catalog, owner, "HasMagic", "OSPKGv0\0")
+            && StoragePackageEqualitySourceGuard.Check(catalog, owner, nameof(OsPackageParser.FindFile), duplicate: false)
+            && StoragePackageEqualitySourceGuard.Check(catalog, owner, "ValidateFileTable", duplicate: true));
     }
 
     [HostTest("storage.package parser path copy uses shared buffer operations", HostLane.Fast, 7)]
