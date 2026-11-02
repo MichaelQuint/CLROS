@@ -13,10 +13,10 @@ internal static class StorageAsciiSourceGuard
         var method = catalog.Method(owner, name);
         var model = catalog.Compilation.GetSemanticModel(method.SyntaxTree);
         var symbol = (IMethodSymbol)model.GetDeclaredSymbol(method)!;
-        var calls = StorageSourceGuard.Calls(catalog, method, typeof(OS.Std.Ascii), nameof(OS.Std.Ascii.ToUpperInvariant));
+        var calls = HostSourceOperations.Calls(catalog, method, typeof(OS.Std.Ascii), nameof(OS.Std.Ascii.ToUpperInvariant));
         if (calls.Length != 2 || symbol.Parameters.Length != 2 || catalog.Type(owner).GetMembers("ToUpperAscii").Length != 0
-            || StorageSourceGuard.Consumer(calls[0]) is not IBinaryOperation { OperatorKind: BinaryOperatorKind.NotEquals } comparison
-            || StorageSourceGuard.Consumer(calls[1]) is not IBinaryOperation other || other.Syntax.Span != comparison.Syntax.Span
+            || HostSourceOperations.Consumer(calls[0]) is not IBinaryOperation { OperatorKind: BinaryOperatorKind.NotEquals } comparison
+            || HostSourceOperations.Consumer(calls[1]) is not IBinaryOperation other || other.Syntax.Span != comparison.Syntax.Span
             || comparison.Syntax.Parent is not IfStatementSyntax branch || branch.Condition != comparison.Syntax
             || DirectReturn(branch.Statement) is not { Expression: { } expression }
             || model.GetConstantValue(expression) is not { HasValue: true, Value: false })
@@ -32,8 +32,8 @@ internal static class StorageAsciiSourceGuard
 
         ISymbol? IndexedArgument(IInvocationOperation call, IParameterSymbol parameter)
         {
-            if (StorageSourceGuard.Argument(call, 0).Syntax is not ElementAccessExpressionSyntax { ArgumentList.Arguments.Count: 1 } element
-                || model.GetOperation(element.Expression) is not { } instance || !StorageSourceGuard.IsParameter(instance, parameter))
+            if (HostSourceOperations.Argument(call, 0).Syntax is not ElementAccessExpressionSyntax { ArgumentList.Arguments.Count: 1 } element
+                || model.GetOperation(element.Expression) is not { } instance || !HostSourceOperations.IsParameter(instance, parameter))
                 return null;
             return model.GetSymbolInfo(element.ArgumentList.Arguments[0].Expression).Symbol;
         }
@@ -44,14 +44,14 @@ internal static class StorageAsciiSourceGuard
         var method = catalog.Method(owner, name);
         var model = catalog.Compilation.GetSemanticModel(method.SyntaxTree);
         var symbol = (IMethodSymbol)model.GetDeclaredSymbol(method)!;
-        var calls = StorageSourceGuard.Calls(catalog, method, typeof(OS.Std.Text.AsciiString), nameof(OS.Std.Text.AsciiString.TrimTrailingSpace));
+        var calls = HostSourceOperations.Calls(catalog, method, typeof(OS.Std.Text.AsciiString), nameof(OS.Std.Text.AsciiString.TrimTrailingSpace));
         return calls.Length == 2 && symbol.Parameters.Length == 1
             && catalog.Type(owner).GetMembers("TrimTrailingSpaces").Length == 0
             && Field(0, 8) && Field(8, 3);
 
         bool Field(int offset, int width)
         {
-            var matches = calls.Where(call => StorageSourceGuard.Slice(model, StorageSourceGuard.Argument(call, 0), symbol.Parameters[0], offset, width)).ToArray();
+            var matches = calls.Where(call => HostSourceOperations.Slice(model, HostSourceOperations.Argument(call, 0), symbol.Parameters[0], offset, width)).ToArray();
             if (matches.Length != 1 || matches[0].Parent is not IPropertyReferenceOperation { Property.Name: "Length" } length
                 || length.Syntax.Parent is not EqualsValueClauseSyntax { Parent: VariableDeclaratorSyntax variable }
                 || model.GetDeclaredSymbol(variable) is not ILocalSymbol local)
@@ -60,7 +60,7 @@ internal static class StorageAsciiSourceGuard
                 && condition.IsKind(SyntaxKind.LessThanExpression)
                 && model.GetOperation(condition.Right) is ILocalReferenceOperation bound
                 && SymbolEqualityComparer.Default.Equals(bound.Local, local)
-                && StorageSourceGuard.LocalInitializer(model, bound) is not null);
+                && HostSourceOperations.LocalInitializer(model, bound) is not null);
         }
     }
 

@@ -15,8 +15,8 @@ internal static class StorageEqualitySourceGuard
         var model = catalog.Compilation.GetSemanticModel(method.SyntaxTree);
         var symbol = (IMethodSymbol)model.GetDeclaredSymbol(method)!;
         return ReturnedCall(catalog, method) is { } call && symbol.Parameters.Length == 2
-            && StorageSourceGuard.IsParameter(StorageSourceGuard.Argument(call, 0), symbol.Parameters[0])
-            && StorageSourceGuard.IsParameter(StorageSourceGuard.Argument(call, 1), symbol.Parameters[1]);
+            && HostSourceOperations.IsParameter(HostSourceOperations.Argument(call, 0), symbol.Parameters[0])
+            && HostSourceOperations.IsParameter(HostSourceOperations.Argument(call, 1), symbol.Parameters[1]);
     }
 
     internal static bool Literal(CSharpSourceCatalog catalog, string owner, string name, string expected, int? prefixLength = null)
@@ -25,14 +25,14 @@ internal static class StorageEqualitySourceGuard
         var model = catalog.Compilation.GetSemanticModel(method.SyntaxTree);
         var symbol = (IMethodSymbol)model.GetDeclaredSymbol(method)!;
         if (ReturnedCall(catalog, method) is not { } call || symbol.Parameters.Length != 1
-            || StorageSourceGuard.Argument(call, 1).Syntax is not LiteralExpressionSyntax literal
+            || HostSourceOperations.Argument(call, 1).Syntax is not LiteralExpressionSyntax literal
             || !literal.IsKind(SyntaxKind.Utf8StringLiteralExpression)
             || literal.Token.ValueText != expected)
             return false;
-        var input = StorageSourceGuard.Argument(call, 0);
+        var input = HostSourceOperations.Argument(call, 0);
         return prefixLength is { } length
-            ? StorageSourceGuard.Slice(model, input, symbol.Parameters[0], 0, length)
-            : StorageSourceGuard.IsParameter(input, symbol.Parameters[0]);
+            ? HostSourceOperations.Slice(model, input, symbol.Parameters[0], 0, length)
+            : HostSourceOperations.IsParameter(input, symbol.Parameters[0]);
     }
 
     internal static bool ZeroBuffer(CSharpSourceCatalog catalog, string owner, string name, int width)
@@ -41,20 +41,20 @@ internal static class StorageEqualitySourceGuard
         var model = catalog.Compilation.GetSemanticModel(method.SyntaxTree);
         var symbol = (IMethodSymbol)model.GetDeclaredSymbol(method)!;
         if (ReturnedCall(catalog, method) is not { } call || symbol.Parameters.Length != 1
-            || !StorageSourceGuard.IsParameter(StorageSourceGuard.Argument(call, 0), symbol.Parameters[0])
-            || StorageSourceGuard.LocalInitializer(model, StorageSourceGuard.Argument(call, 1))?.Syntax
+            || !HostSourceOperations.IsParameter(HostSourceOperations.Argument(call, 0), symbol.Parameters[0])
+            || HostSourceOperations.LocalInitializer(model, HostSourceOperations.Argument(call, 1))?.Syntax
                 is not StackAllocArrayCreationExpressionSyntax { Type: ArrayTypeSyntax array, Initializer: { } initializer }
             || model.GetTypeInfo(array.ElementType).Type?.SpecialType != SpecialType.System_Byte
             || array.RankSpecifiers.Count != 1 || array.RankSpecifiers[0].Sizes.Count != 1
-            || !StorageSourceGuard.Constant(model, array.RankSpecifiers[0].Sizes[0], width)
+            || !HostSourceOperations.Constant(model, array.RankSpecifiers[0].Sizes[0], width)
             || initializer.Expressions.Count != width)
             return false;
-        return initializer.Expressions.All(value => StorageSourceGuard.Constant(model, value, 0));
+        return initializer.Expressions.All(value => HostSourceOperations.Constant(model, value, 0));
     }
 
     private static IInvocationOperation? ReturnedCall(CSharpSourceCatalog catalog, MethodDeclarationSyntax method)
     {
-        var calls = StorageSourceGuard.Calls(catalog, method, typeof(OS.Std.MemoryExtensions),
+        var calls = HostSourceOperations.Calls(catalog, method, typeof(OS.Std.MemoryExtensions),
             nameof(OS.Std.MemoryExtensions.SequenceEqual));
         if (calls.Length != 1 || method.DescendantNodes().Any(node => node is
                 ForStatementSyntax or ForEachStatementSyntax or ForEachVariableStatementSyntax or WhileStatementSyntax or DoStatementSyntax)

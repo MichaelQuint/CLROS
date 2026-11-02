@@ -28,8 +28,8 @@ internal static class StorageBufferCopySourceGuard
             return false;
 
         var copy = copies[0];
-        destinationMatches ??= StorageSourceGuard.IsParameter;
-        if (!destinationMatches(StorageSourceGuard.Argument(copy.Operation, 1), destination)
+        destinationMatches ??= HostSourceOperations.IsParameter;
+        if (!destinationMatches(HostSourceOperations.Argument(copy.Operation, 1), destination)
             || calls.Any(call => call.Symbol.Name == "CopyTo" && call.Operation.Arguments.Any(argument =>
                 argument.Value.DescendantsAndSelf().OfType<IParameterReferenceOperation>()
                     .Any(parameter => SymbolEqualityComparer.Default.Equals(parameter.Parameter, destination))))

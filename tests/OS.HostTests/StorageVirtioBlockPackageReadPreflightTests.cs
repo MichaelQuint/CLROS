@@ -390,7 +390,7 @@ internal static partial class StorageVirtioBlockPackageReadPreflightTests
     [HostTest("storage virtio block package file staging formatter uses shared ascii text builder", HostLane.Fast, 9)]
     private static bool TestPackageFileStagingFormatterUsesSharedAsciiTextBuilder()
     {
-        return HostCheck.Result(StoragePreflightFormatterSourceGuard.Check(
+        return HostCheck.Result(HostFormatterSourceGuard.Check(
             HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"),
             typeof(VirtioBlockPackageFileStagingPreflightDiagnosticFormatter).FullName!,
             [nameof(VirtioBlockPackageFileStagingPreflightResult.ReadSessionByteCount),

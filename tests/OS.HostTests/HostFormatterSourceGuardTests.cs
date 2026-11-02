@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using OS.Storage;
 using OS.Tooling;
 
-internal static class StoragePreflightFormatterSourceGuardTests
+internal static class HostFormatterSourceGuardTests
 {
     [HostTest("storage preflight formatter source guard binds fields and append results")]
     private static void FieldsAndAppendResults()
@@ -45,7 +45,7 @@ internal static class StoragePreflightFormatterSourceGuardTests
         {
             var syntax = CSharpSyntaxTree.ParseText(candidate, new CSharpParseOptions(LanguageVersion.CSharp14));
             var catalog = new CSharpSourceCatalog([new CSharpSourceDocument("moved-preflight-formatter.cs", "synthetic", syntax)], references);
-            return StoragePreflightFormatterSourceGuard.Check(catalog, "FormatterControl.Candidate", fields);
+            return HostFormatterSourceGuard.Check(catalog, "FormatterControl.Candidate", fields);
         }
         HostCheck.True(Check(source), "aliases and renamed parameters retain bound sizing and append dependencies");
         HostCheck.True(!Check(source.Replace("input.PackageBytesRead", "input.ReadSessionByteCount", StringComparison.Ordinal)),

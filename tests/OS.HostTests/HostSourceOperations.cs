@@ -4,9 +4,9 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Operations;
 using OS.Tooling;
 
-/// <summary>Resolves storage source dependencies without filenames, import spelling
+/// <summary>Resolves source dependencies without filenames, import spelling
 /// or local-variable names. Behavioral fixtures own the expected data and statuses.</summary>
-internal static class StorageSourceGuard
+internal static class HostSourceOperations
 {
     internal static IInvocationOperation[] Calls(CSharpSourceCatalog catalog, MethodDeclarationSyntax method,
         Type dependency, string name)

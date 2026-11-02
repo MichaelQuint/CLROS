@@ -13,13 +13,13 @@ internal static class StoragePackageEqualitySourceGuard
         var method = catalog.Method(owner, methodName);
         var model = catalog.Compilation.GetSemanticModel(method.SyntaxTree);
         var symbol = (IMethodSymbol)model.GetDeclaredSymbol(method)!;
-        var calls = StorageSourceGuard.Calls(catalog, method, typeof(OS.Std.MemoryExtensions), nameof(OS.Std.MemoryExtensions.SequenceEqual));
+        var calls = HostSourceOperations.Calls(catalog, method, typeof(OS.Std.MemoryExtensions), nameof(OS.Std.MemoryExtensions.SequenceEqual));
         if (calls.Length != 1 || catalog.Type(owner).GetMembers("PathsEqual").Length != 0
-            || PathEntry(StorageSourceGuard.Argument(calls[0], 0)) is not { } first)
+            || PathEntry(HostSourceOperations.Argument(calls[0], 0)) is not { } first)
             return false;
-        ILocalSymbol? second = duplicate ? PathEntry(StorageSourceGuard.Argument(calls[0], 1)) : null;
+        ILocalSymbol? second = duplicate ? PathEntry(HostSourceOperations.Argument(calls[0], 1)) : null;
         if (duplicate ? second is null || SymbolEqualityComparer.Default.Equals(first, second)
-            : !StorageSourceGuard.IsParameter(StorageSourceGuard.Argument(calls[0], 1), symbol.Parameters[1]))
+            : !HostSourceOperations.IsParameter(HostSourceOperations.Argument(calls[0], 1), symbol.Parameters[1]))
             return false;
         foreach (var branch in method.DescendantNodes().OfType<IfStatementSyntax>())
         {
@@ -38,22 +38,22 @@ internal static class StoragePackageEqualitySourceGuard
                 return value is IFieldReferenceOperation status && status.Field.Name == nameof(OsPackageStatus.DuplicatePath)
                     && SymbolEqualityComparer.Default.Equals(status.Field.ContainingType, symbol.ReturnType);
             return value is IInvocationOperation factory
-                && StorageSourceGuard.IsMethod(factory.TargetMethod, typeof(OsPackageFileLookupResult), nameof(OsPackageFileLookupResult.Success))
-                && StorageSourceGuard.Argument(factory, 1) is ILocalReferenceOperation entry
+                && HostSourceOperations.IsMethod(factory.TargetMethod, typeof(OsPackageFileLookupResult), nameof(OsPackageFileLookupResult.Success))
+                && HostSourceOperations.Argument(factory, 1) is ILocalReferenceOperation entry
                 && SymbolEqualityComparer.Default.Equals(first, entry.Local);
         }
         return false;
 
         ILocalSymbol? PathEntry(IOperation path)
         {
-            if (StorageSourceGuard.LocalInitializer(model, path) is not IInvocationOperation slice
+            if (HostSourceOperations.LocalInitializer(model, path) is not IInvocationOperation slice
                 || slice.TargetMethod.Name != "SliceRange" || !SymbolEqualityComparer.Default.Equals(slice.TargetMethod.ContainingType, symbol.ContainingType)
-                || !StorageSourceGuard.IsParameter(StorageSourceGuard.Argument(slice, 0), symbol.Parameters[0])
-                || StorageSourceGuard.Argument(slice, 1) is not IPropertyReferenceOperation { Property.Name: nameof(OsPackageFileEntry.PathOffset), Instance: ILocalReferenceOperation offset }
-                || StorageSourceGuard.Argument(slice, 2) is not IPropertyReferenceOperation { Property.Name: nameof(OsPackageFileEntry.PathLength), Instance: ILocalReferenceOperation length }
+                || !HostSourceOperations.IsParameter(HostSourceOperations.Argument(slice, 0), symbol.Parameters[0])
+                || HostSourceOperations.Argument(slice, 1) is not IPropertyReferenceOperation { Property.Name: nameof(OsPackageFileEntry.PathOffset), Instance: ILocalReferenceOperation offset }
+                || HostSourceOperations.Argument(slice, 2) is not IPropertyReferenceOperation { Property.Name: nameof(OsPackageFileEntry.PathLength), Instance: ILocalReferenceOperation length }
                 || !SymbolEqualityComparer.Default.Equals(offset.Local, length.Local)
                 || !SymbolEqualityComparer.Default.Equals(offset.Local.Type, catalog.Compilation.GetTypeByMetadataName(typeof(OsPackageFileEntry).FullName!))
-                || !StorageSourceGuard.IsUnmodifiedLocal(model, offset.Local, method))
+                || !HostSourceOperations.IsUnmodifiedLocal(model, offset.Local, method))
                 return null;
             return offset.Local;
         }
