@@ -94,19 +94,8 @@ internal static partial class StorageFat32ParserTests
     [HostTest("storage fat32 final block copy uses shared buffer operations", HostLane.Fast, 36)]
     private static bool TestFinalBlockCopyUsesSharedBufferOperations()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "Fat32Parser.cs"));
-
-        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
-            && source.Contains("BufferOperationResult copy = BufferOperations.MemoryCopy(", StringComparison.Ordinal)
-            && source.Contains("finalBlock[..bytesRemaining]", StringComparison.Ordinal)
-            && source.Contains("destination.Slice(destinationOffset, bytesRemaining)", StringComparison.Ordinal)
-            && source.Contains("Fat32Status.FileDestinationTooSmall", StringComparison.Ordinal)
-            && source.Contains("if (!copy.Succeeded)", StringComparison.Ordinal)
-            && !source.Contains(
-                "finalBlock[..bytesRemaining].CopyTo(destination.Slice(destinationOffset, bytesRemaining))",
-                StringComparison.Ordinal));
+        return HostCheck.Result(StorageFat32CopySourceGuard.Check(
+            HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), typeof(Fat32Parser).FullName!, "ReadClusterContent"));
     }
 
     [HostTest("storage fat32 parses valid BPB", HostLane.Fast, 0)]

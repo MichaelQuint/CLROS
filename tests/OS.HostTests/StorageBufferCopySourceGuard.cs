@@ -7,7 +7,8 @@ using OS.Tooling;
 /// storage method. Behavioral fixtures separately verify copied bytes and bounds.</summary>
 internal static class StorageBufferCopySourceGuard
 {
-    internal static bool Check(CSharpSourceCatalog catalog, string owner, string methodName, string failureStatus)
+    internal static bool Check(CSharpSourceCatalog catalog, string owner, string methodName, string failureStatus,
+        string failureMember = "DestinationTooSmall", Func<IOperation, IParameterSymbol, bool>? destinationMatches = null)
     {
         MethodDeclarationSyntax method = catalog.Method(owner, methodName);
         SemanticModel model = catalog.Compilation.GetSemanticModel(method.SyntaxTree);
@@ -27,12 +28,11 @@ internal static class StorageBufferCopySourceGuard
             return false;
 
         var copy = copies[0];
-        if (!copy.Operation.Arguments.Any(argument => argument.Parameter?.Ordinal == 1
-                && argument.Value is IParameterReferenceOperation parameter
-                && SymbolEqualityComparer.Default.Equals(parameter.Parameter, destination))
+        destinationMatches ??= StorageSourceGuard.IsParameter;
+        if (!destinationMatches(StorageSourceGuard.Argument(copy.Operation, 1), destination)
             || calls.Any(call => call.Symbol.Name == "CopyTo" && call.Operation.Arguments.Any(argument =>
-                argument.Value is IParameterReferenceOperation parameter
-                && SymbolEqualityComparer.Default.Equals(parameter.Parameter, destination)))
+                argument.Value.DescendantsAndSelf().OfType<IParameterReferenceOperation>()
+                    .Any(parameter => SymbolEqualityComparer.Default.Equals(parameter.Parameter, destination))))
             || copy.Syntax.Parent is not EqualsValueClauseSyntax initializer
             || initializer.Parent is not VariableDeclaratorSyntax variable
             || model.GetDeclaredSymbol(variable) is not ILocalSymbol result)
@@ -79,7 +79,7 @@ internal static class StorageBufferCopySourceGuard
                 && SymbolEqualityComparer.Default.Equals(argument.Parameter?.Type, status.Field.Type));
 
         bool IsFailureStatus(IFieldReferenceOperation status) =>
-            status.Field.Name == "DestinationTooSmall"
+            status.Field.Name == failureMember
             && status.Field.ContainingType.TypeKind == TypeKind.Enum
             && status.Field.ContainingType.ToDisplayString() == failureStatus;
     }
