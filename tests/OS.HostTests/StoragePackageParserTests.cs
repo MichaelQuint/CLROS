@@ -258,15 +258,9 @@ internal static class StoragePackageParserTests
     [HostTest("storage.package parser path copy uses shared buffer operations", HostLane.Fast, 7)]
     private static bool TestPathCopyUsesSharedBufferOperations()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "OsPackageParser.cs"));
-
-        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
-            && source.Contains("BufferOperations.MemoryCopy(path, destination)", StringComparison.Ordinal)
-            && source.Contains("if (!copy.Succeeded)", StringComparison.Ordinal)
-            && source.Contains("OsPackageStatus.DestinationTooSmall", StringComparison.Ordinal)
-            && !source.Contains("path.CopyTo(destination)", StringComparison.Ordinal));
+        return HostCheck.Result(StorageBufferCopySourceGuard.Check(
+            HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), typeof(OsPackageParser).FullName!,
+            nameof(OsPackageParser.CopyFilePathByIndex), typeof(OsPackageStatus).FullName!));
     }
 
     private static bool ParseStatusIs(byte[] package, OsPackageStatus status)

@@ -199,25 +199,11 @@ internal static class StoragePackageFileSystemTests
     [HostTest("storage.package filesystem copies use shared buffer operations", HostLane.Fast, 4)]
     private static bool TestCopiesUseSharedBufferOperations()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(Path.Combine(
-            repositoryRoot,
-            "src",
-            "OS.Kernel",
-            "Storage",
-            "OsPackageFileSystem.cs"));
-
-        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
-            && source.Contains(
-                "BufferOperations.MemoryCopy(content.Content, destination)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "ReadOnlySpan<byte> source = content.Content.Slice",
-                StringComparison.Ordinal)
-            && source.Contains("BufferOperations.MemoryCopy(source, destination)", StringComparison.Ordinal)
-            && source.Contains("OsPackageFileSystemStatus.DestinationTooSmall", StringComparison.Ordinal)
-            && !source.Contains("content.Content.CopyTo(destination)", StringComparison.Ordinal)
-            && !source.Contains(".CopyTo(destination)", StringComparison.Ordinal));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        return HostCheck.Result(StoragePackageCopySourceGuard.Check(catalog, typeof(OsPackageFileSystem).FullName!,
+                nameof(OsPackageFileSystem.ReadFile), range: false)
+            && StoragePackageCopySourceGuard.Check(catalog, typeof(OsPackageFileSystem).FullName!,
+                nameof(OsPackageFileSystem.ReadFileRange), range: true));
     }
 
     private static byte[] CreateValidPackage()
