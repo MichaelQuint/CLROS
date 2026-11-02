@@ -66,9 +66,14 @@ internal static class StorageSourceGuard
             || local.Local.DeclaringSyntaxReferences.Single().GetSyntax() is not VariableDeclaratorSyntax { Initializer: { } initializer } variable
             || variable.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault() is not { } method)
             return null;
+        return IsUnmodifiedLocal(model, local.Local, method) ? model.GetOperation(initializer.Value) : null;
+    }
+
+    internal static bool IsUnmodifiedLocal(SemanticModel model, ILocalSymbol local, MethodDeclarationSyntax method)
+    {
         foreach (var identifier in method.DescendantNodes().OfType<IdentifierNameSyntax>())
         {
-            if (!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(identifier).Symbol, local.Local))
+            if (!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(identifier).Symbol, local))
                 continue;
             if (identifier.Ancestors().TakeWhile(node => node != method).Any(node => node switch
             {
@@ -78,8 +83,8 @@ internal static class StorageSourceGuard
                 ArgumentSyntax argument => argument.RefKindKeyword.IsKind(SyntaxKind.RefKeyword) || argument.RefKindKeyword.IsKind(SyntaxKind.OutKeyword),
                 _ => false
             }))
-                return null;
+                return false;
         }
-        return model.GetOperation(initializer.Value);
+        return true;
     }
 }

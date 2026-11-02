@@ -303,17 +303,8 @@ internal static class OsPackageLoaderTests
     [HostTest("storage.package loader caller-buffer uses gpt partition selector", HostLane.Fast, 9)]
     private static bool TestCallerBufferUsesGptPartitionSelector()
     {
-        string source = File.ReadAllText(Path.Combine(
-            HostToolProcess.FindRepositoryRoot(),
-            "src",
-            "OS.Kernel",
-            "Storage",
-            "OsPackageLoader.cs"));
-
-        return HostCheck.Result(source.Contains("GptPartitionSelector.SelectByPartitionTypeGuid(", StringComparison.Ordinal)
-            && source.Contains("GptPartitionSelectorStatus.Success", StringComparison.Ordinal)
-            && source.Contains("GptPartitionSelectorStatus.NotFound", StringComparison.Ordinal)
-            && source.Contains("GptParser.EfiSystemPartitionTypeGuid", StringComparison.Ordinal));
+        return HostCheck.Result(StorageGptSelectorSourceGuard.Check(
+            HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), typeof(OsPackageLoader).FullName!, "LocateGptEspWithCallerBuffers"));
     }
 
     [HostTest("storage.package loader default result is not success", HostLane.Fast, 10)]
