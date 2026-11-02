@@ -38,10 +38,14 @@ internal static class StorageBufferCopySourceGuard
             || model.GetDeclaredSymbol(variable) is not ILocalSymbol result)
             return false;
 
-        BlockSyntax? body = variable.Ancestors().OfType<BlockSyntax>().FirstOrDefault();
-        return body is not null && body.Statements.OfType<IfStatementSyntax>().Any(statement =>
-            statement.SpanStart > copy.Syntax.Span.End
-            && model.GetOperation(statement.Condition) is IUnaryOperation
+        if (variable.Parent is not VariableDeclarationSyntax { Variables.Count: 1 } variables
+            || variables.Parent is not LocalDeclarationStatementSyntax localDeclaration
+            || localDeclaration.Parent is not BlockSyntax body)
+            return false;
+
+        int next = body.Statements.IndexOf(localDeclaration) + 1;
+        if (next >= body.Statements.Count || body.Statements[next] is not IfStatementSyntax statement
+            || model.GetOperation(statement.Condition) is not IUnaryOperation
             {
                 OperatorKind: UnaryOperatorKind.Not,
                 Operand: IPropertyReferenceOperation
@@ -50,11 +54,33 @@ internal static class StorageBufferCopySourceGuard
                     Instance: ILocalReferenceOperation local
                 }
             }
-            && SymbolEqualityComparer.Default.Equals(local.Local, result)
-            && statement.Statement.DescendantNodesAndSelf().OfType<ReturnStatementSyntax>().Any(returned =>
-                returned.Expression?.DescendantNodesAndSelf().OfType<ExpressionSyntax>().Any(expression =>
-                    model.GetSymbolInfo(expression).Symbol is IFieldSymbol field
-                    && field.Name == "DestinationTooSmall"
-                    && field.ContainingType.ToDisplayString() == failureStatus) == true));
+            || !SymbolEqualityComparer.Default.Equals(local.Local, result))
+            return false;
+
+        ReturnStatementSyntax? returned = statement.Statement switch
+        {
+            ReturnStatementSyntax direct => direct,
+            BlockSyntax { Statements.Count: 1 } block => block.Statements[0] as ReturnStatementSyntax,
+            _ => null
+        };
+        if (returned?.Expression is null)
+            return false;
+
+        IOperation? operation = model.GetOperation(returned.Expression);
+        if (operation is IFieldReferenceOperation directStatus)
+            return IsFailureStatus(directStatus)
+                && SymbolEqualityComparer.Default.Equals(directStatus.Field.Type, declaration.ReturnType);
+
+        return operation is IInvocationOperation factory
+            && factory.TargetMethod.IsStatic
+            && SymbolEqualityComparer.Default.Equals(factory.TargetMethod.ReturnType, declaration.ReturnType)
+            && factory.Arguments.Any(argument => argument.Value is IFieldReferenceOperation status
+                && IsFailureStatus(status)
+                && SymbolEqualityComparer.Default.Equals(argument.Parameter?.Type, status.Field.Type));
+
+        bool IsFailureStatus(IFieldReferenceOperation status) =>
+            status.Field.Name == "DestinationTooSmall"
+            && status.Field.ContainingType.TypeKind == TypeKind.Enum
+            && status.Field.ContainingType.ToDisplayString() == failureStatus;
     }
 }
