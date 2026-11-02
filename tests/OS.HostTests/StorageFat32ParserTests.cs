@@ -80,24 +80,15 @@ internal static partial class StorageFat32ParserTests
     [HostTest("storage fat32 uses shared ascii long-name case helper", HostLane.Fast, 34)]
     private static bool TestUsesSharedAsciiLongNameCaseHelper()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "Fat32Parser.cs"));
-
-        return HostCheck.Result(source.Contains("OS.Std.Ascii.ToUpperInvariant", StringComparison.Ordinal)
-            && !source.Contains("private static char ToUpperAscii", StringComparison.Ordinal));
+        return HostCheck.Result(StorageAsciiSourceGuard.LongNames(
+            HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), typeof(Fat32Parser).FullName!, "LongNamesEqual"));
     }
 
     [HostTest("storage fat32 uses shared ascii trailing-space helper", HostLane.Fast, 35)]
     private static bool TestUsesSharedAsciiTrailingSpaceHelper()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "Fat32Parser.cs"));
-
-        return HostCheck.Result(source.Contains("AsciiString.TrimTrailingSpace(bytes[..8])", StringComparison.Ordinal)
-            && source.Contains("AsciiString.TrimTrailingSpace(bytes.Slice(8, 3))", StringComparison.Ordinal)
-            && !source.Contains("private static int TrimTrailingSpaces", StringComparison.Ordinal));
+        return HostCheck.Result(StorageAsciiSourceGuard.ShortNameFields(
+            HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), typeof(Fat32Parser).FullName!, "ReadShortName"));
     }
 
     [HostTest("storage fat32 final block copy uses shared buffer operations", HostLane.Fast, 36)]

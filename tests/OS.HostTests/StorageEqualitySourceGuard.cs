@@ -31,7 +31,7 @@ internal static class StorageEqualitySourceGuard
             return false;
         var input = StorageSourceGuard.Argument(call, 0);
         return prefixLength is { } length
-            ? Prefix(model, input, symbol.Parameters[0], length)
+            ? StorageSourceGuard.Slice(model, input, symbol.Parameters[0], 0, length)
             : StorageSourceGuard.IsParameter(input, symbol.Parameters[0]);
     }
 
@@ -46,10 +46,10 @@ internal static class StorageEqualitySourceGuard
                 is not StackAllocArrayCreationExpressionSyntax { Type: ArrayTypeSyntax array, Initializer: { } initializer }
             || model.GetTypeInfo(array.ElementType).Type?.SpecialType != SpecialType.System_Byte
             || array.RankSpecifiers.Count != 1 || array.RankSpecifiers[0].Sizes.Count != 1
-            || !Constant(model, array.RankSpecifiers[0].Sizes[0], width)
+            || !StorageSourceGuard.Constant(model, array.RankSpecifiers[0].Sizes[0], width)
             || initializer.Expressions.Count != width)
             return false;
-        return initializer.Expressions.All(value => Constant(model, value, 0));
+        return initializer.Expressions.All(value => StorageSourceGuard.Constant(model, value, 0));
     }
 
     private static IInvocationOperation? ReturnedCall(CSharpSourceCatalog catalog, MethodDeclarationSyntax method)
@@ -70,21 +70,4 @@ internal static class StorageEqualitySourceGuard
         return returnedByMethod ? calls[0] : null;
     }
 
-    private static bool Prefix(SemanticModel model, IOperation input, IParameterSymbol parameter, int width)
-    {
-        if (input is IInvocationOperation slice && slice.TargetMethod.Name == nameof(ReadOnlySpan<byte>.Slice)
-            && slice.Instance is not null && StorageSourceGuard.IsParameter(slice.Instance, parameter)
-            && slice.Arguments.Length == 2)
-            return Constant(model, StorageSourceGuard.Argument(slice, 0).Syntax, 0)
-                && Constant(model, StorageSourceGuard.Argument(slice, 1).Syntax, width);
-        return input.Syntax is ElementAccessExpressionSyntax { ArgumentList.Arguments.Count: 1 } element
-            && model.GetOperation(element.Expression) is { } instance
-            && StorageSourceGuard.IsParameter(instance, parameter)
-            && element.ArgumentList.Arguments[0].Expression is RangeExpressionSyntax range
-            && (range.LeftOperand is null || Constant(model, range.LeftOperand, 0))
-            && range.RightOperand is not null && Constant(model, range.RightOperand, width);
-    }
-
-    private static bool Constant(SemanticModel model, SyntaxNode syntax, int value) =>
-        model.GetConstantValue(syntax) is { HasValue: true, Value: int actual } && actual == value;
 }

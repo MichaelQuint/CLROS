@@ -31,9 +31,34 @@ internal static class StorageSourceGuard
     internal static IOperation Argument(IInvocationOperation invocation, int ordinal) =>
         Value(invocation.Arguments.Single(argument => argument.Parameter?.Ordinal == ordinal).Value);
 
+    internal static IOperation? Consumer(IOperation operation)
+    {
+        while (operation.Parent is IConversionOperation { Conversion.IsUserDefined: false } conversion)
+            operation = conversion;
+        return operation.Parent;
+    }
+
     internal static bool IsParameter(IOperation operation, IParameterSymbol parameter) =>
         Value(operation) is IParameterReferenceOperation reference
         && SymbolEqualityComparer.Default.Equals(reference.Parameter, parameter);
+
+    internal static bool Slice(SemanticModel model, IOperation input, IParameterSymbol parameter, int offset, int count)
+    {
+        if (input is IInvocationOperation slice && slice.TargetMethod.Name == nameof(ReadOnlySpan<byte>.Slice)
+            && slice.Instance is not null && IsParameter(slice.Instance, parameter)
+            && SymbolEqualityComparer.Default.Equals(slice.TargetMethod.ContainingType, parameter.Type)
+            && slice.Arguments.Length == 2)
+            return Constant(model, Argument(slice, 0).Syntax, offset)
+                && Constant(model, Argument(slice, 1).Syntax, count);
+        return input.Syntax is ElementAccessExpressionSyntax { ArgumentList.Arguments.Count: 1 } element
+            && model.GetOperation(element.Expression) is { } instance && IsParameter(instance, parameter)
+            && element.ArgumentList.Arguments[0].Expression is RangeExpressionSyntax range
+            && (range.LeftOperand is null ? offset == 0 : Constant(model, range.LeftOperand, offset))
+            && range.RightOperand is not null && Constant(model, range.RightOperand, offset + count);
+    }
+
+    internal static bool Constant(SemanticModel model, SyntaxNode syntax, int value) =>
+        model.GetConstantValue(syntax) is { HasValue: true, Value: int actual } && actual == value;
 
     internal static IOperation? LocalInitializer(SemanticModel model, IOperation operation)
     {
