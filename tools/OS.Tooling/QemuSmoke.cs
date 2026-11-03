@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace OS.Tooling;
 
-public static class QemuSmoke
+public static partial class QemuSmoke
 {
     public static async Task<int> RunAsync(string root, QemuSmokeOptions options, TextWriter output,
         Func<string, IReadOnlyList<string>, Task<ProcessResult>>? invoke = null, CancellationToken cancellation = default,
@@ -607,18 +607,19 @@ public static class QemuSmoke
                             // stream consumer. Retain its final capture bounds
                             // explicitly; these are not total-file writer quotas.
                             using AuthorityFiles captures = new();
-                            var heldCaptures = new (string Path, int Maximum)[]
-                            {
-                                (options.SerialLog, DiskStaticCapturePolicy.SerialBytes),
-                                (options.SerialLog + ".pcap", DiskStaticCapturePolicy.PacketBytes),
-                                (options.SummaryLog, DiskStaticCapturePolicy.SummaryBytes)
-                            }.Select(input => captures.Open(root, Path.GetFullPath(input.Path, root),
-                                "HTTP diagnostic capture", "http_benchmark_capture", input.Maximum, singleLink: true)).ToArray();
+                            var heldCaptures = HoldHttpBenchmarkCaptures(root, options, captures);
                             using (FileStream receipt = new(Path.Combine(observed.Directory, "captures.json"),
                                 FileMode.CreateNew, FileAccess.Write, FileShare.Read))
                             {
                                 System.Text.Json.JsonSerializer.Serialize(receipt,
-                                    heldCaptures.Select(input => new { input.Path, input.Length, input.Sha256 }));
+                                    new
+                                    {
+                                        Schema = "clros-http-diagnostic-captures-v1",
+                                        RunnerCancelled = observed.Runner.Cancelled,
+                                        NaturalSummaryExpected = false,
+                                        observed.FullAndCleanupQualified,
+                                        Files = heldCaptures.Select(input => new { input.Path, input.Length, input.Sha256 })
+                                    });
                                 receipt.Flush(true);
                             }
                             captures.VerifyUnchanged();
