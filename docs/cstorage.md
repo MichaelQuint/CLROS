@@ -1,5 +1,11 @@
 # Storage
 
+[Step1743](../done/step1743.md) repairs two host storage-peer correctness gaps:
+request deadlines cover streamed bodies, and a receipt I/O failure preserves
+the original request exception. Captured60-second expiry and actual file-collision
+red/green originals keep bytes/flags/join/refusal assertions. No filesystem,
+block-driver, resource, Linux ABI or guest acceptance change follows.
+
 [Step1742](../done/step1742.md) completes all52 adjacent storage responsibility
 rows with per-method invariants, retaining cohesive state machines and independent
 oracles.37 storage-selected files have reviewed mechanical whitespace changes.

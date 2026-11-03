@@ -1,5 +1,11 @@
 # RC3 and WHPX qualification contract
 
+[Step1743](../done/step1743.md) verifies host body-deadline and receipt-failure
+semantics before further qualification. Retain the real timer, expected red and
+green originals and exact source boundaries. No native/guest/unfiltered full or
+browser acceptance transfers; remaining source quality and all final gates below
+stay mandatory.
+
 [Step1742](../done/step1742.md) closes statement-layout drift and refreshes
 current source pins, with full graph/62 fresh focused/repo/contracts/diff success.
 It grants no native/guest acceptance; every final emitted-artifact and29/24/7

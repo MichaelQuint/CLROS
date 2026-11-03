@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1743](../done/step1743.md) keeps existing60/240-second request durations
+active through headers and streamed body, with outer-token persistence unchanged.
+A real60-second expiry is expensive synthetic Native-lane host work. Receipt
+collision red/green proof and all surrounding controls pass with zero reuse;
+filtered Full remains focused managed evidence. Final full-host is still pending.
+
 [Step1742](../done/step1742.md) rebuilds the complete graph and passes62 fresh
 focused checks with unchanged inputs/zero reuse. The compiled repository checker
 closes all remaining layout findings. Filtered and synthetic Native-lane controls

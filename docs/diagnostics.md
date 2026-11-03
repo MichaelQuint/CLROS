@@ -1,5 +1,11 @@
 # Diagnostics
 
+[Step1743](../done/step1743.md) preserves request errors if the independent HTTP
+receipt fails: ordered original/receipt aggregation retains the first invariant.
+A real invalid-file collision demonstrates the original masking failure before
+the Peer-only fix; raw failed and passing controls remain. Real60-second body
+timeouts retain outer cancellation/join boundaries. No guest/native result.
+
 [Step1741](../done/step1741.md) completes three fresh boots per native variant
 and backend. All sixty responses and raw joins pass. JSON/HEAD medians improve;
 initial WHPX health worsens in all three pairs, and range distributions overlap.

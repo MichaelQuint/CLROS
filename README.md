@@ -4,6 +4,11 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1743](done/step1743.md) verifies unchanged-duration streamed-body deadlines
+and preserves original request errors when HTTP receipt writing also fails. Real
+loopback timer and retained red/green controls pass with source-bound checks.
+Lambda indentation review and final performance/native/browser gates remain open.
+
 [Step1742](done/step1742.md) closes executable statement-layout gaps with a
 host syntax rule and reviewed whitespace/pin refresh. The complete solution
 builds and62 fresh focused checks plus repo/contracts/diff pass. Remaining host

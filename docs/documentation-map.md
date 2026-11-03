@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1743](../done/step1743.md) owns the host HTTP deadline and receipt-error
+repairs, real timer and preserved red/green originals. Diagnostics/storage guides
+retain source/result boundaries. Remaining lambda indentation and qualification
+work stays distinct from these managed host controls.
+
 [Step1742](../done/step1742.md) owns the statement-layout rule, mechanical
 proof/pin refresh and62 focused checks. Repository audit owns enforcement scope;
 EFI guidance retains emitted-artifact requirements. The storage review completes

@@ -1,5 +1,11 @@
 # Repository Audit
 
+[Step1743](../done/step1743.md) separately commits body-deadline and receipt-error
+repairs with associated partial fixture files. Dynamic discovery splits the new
+expensive timer into Native while existing cases stay Fast. Red expected failure,
+selector error and green originals are preserved. Standard rule findings remain
+zero; lambda-body indentation edge cases and primary responsibility review remain.
+
 [Step1742](../done/step1742.md) adds host-only CLROSSTYLE004 for separate-line
 blocks/statements/control bodies, retaining concise expression helpers and
 unbraced guards.413 mechanical files and80 current pins are independently
