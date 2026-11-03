@@ -44,6 +44,11 @@ public static partial class RepositoryCodeStyle
             foreach (var token in StatementLineBreaks(root))
                 result.Add(new(path, token.GetLocation().GetLineSpan().StartLinePosition.Line + 1,
                     "CLROSSTYLE004", "Place block braces and executable statements on separate lines."));
+            foreach (var (block, minimum) in LambdaBlocksWithMinimumIndent(root))
+                foreach (var brace in new[] { block.OpenBraceToken, block.CloseBraceToken })
+                    if (!brace.IsMissing && LineIndentation(brace) < minimum)
+                        result.Add(new(path, brace.GetLocation().GetLineSpan().StartLinePosition.Line + 1,
+                            "CLROSSTYLE005", "Keep lambda block braces within their containing statement or member indentation."));
             var candidates = CSharpInertConditionals.Find(tree).ToHashSet();
             if (inert is null)
                 inert = candidates;
