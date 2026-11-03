@@ -11,8 +11,6 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public static unsafe partial class LinuxSocketNetwork
 {
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
     /// <summary>One-use owner borrowing an empty initialized connection table,
     /// zeroed slots and contiguous per-slot RX then TX backing. Buffers, metadata,
     /// table storage and descriptor ownership are mutually disjoint. Admission
@@ -63,21 +61,5 @@ public static unsafe partial class LinuxSocketNetwork
 
         public readonly bool RequiresShutdown => Initialized == 1 && Failed != 0;
     }
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }
 #endif

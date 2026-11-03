@@ -11,18 +11,6 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public static unsafe partial class LinuxSocketNetwork
 {
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
     /// <summary>Copied, serialized RX/TX borrower counts/bytes from this one-use
     /// owner. BackingBytes remains retained caller storage; current/peak bytes
     /// are successful window leases, not new physical pages or buffered data.
@@ -49,13 +37,5 @@ public static unsafe partial class LinuxSocketNetwork
         public readonly ulong Acquired, Returned, ReceiveBytes, SendBytes, PeakReceiveBytes, PeakSendBytes, BackingBytes;
         public readonly bool Ended;
     }
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }
 #endif

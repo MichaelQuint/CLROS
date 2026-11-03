@@ -23,5 +23,3 @@ public enum OwnedIdtGateTableStatus : byte
     TableOverlapsStubPage = 18,
     TableByteMismatch = 19
 }
-#if !NOSTDLIB_EFI
-#endif

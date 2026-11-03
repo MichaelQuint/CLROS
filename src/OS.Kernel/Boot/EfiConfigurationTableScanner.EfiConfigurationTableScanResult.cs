@@ -37,5 +37,3 @@ public readonly struct EfiConfigurationTableScanResult
         return new EfiConfigurationTableScanResult(false, status, EfiAcpiTableKind.None, 0);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

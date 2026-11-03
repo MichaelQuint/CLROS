@@ -35,10 +35,6 @@ public static unsafe partial class LinuxSocketServices
     private const long Fault = -14, Invalid = -22, Again = -11, Unsupported = -38;
     private const long NotSocket = -88, NotConnected = -107, Reset = -104, BrokenPipe = -32;
     private const uint Created = 1, Bound = 2, Listening = 3, Pending = 4, Connected = 5, Closing = 6;
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
     /// <summary>Attach before the descriptor owner is attached to threads.
     /// SIGPIPE must be explicitly ignored. Storage must be trusted, mapped,
     /// exclusive and retained. Check all extents

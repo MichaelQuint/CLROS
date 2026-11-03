@@ -31,16 +31,6 @@ public static unsafe partial class LinuxDescriptorServices
     private const long Invalid = -22, FileTableFull = -23, DescriptorTableFull = -24;
     private const long NotDirectory = -20, NotTerminal = -25, NotSeekable = -29, ReadOnly = -30;
     private const long NameTooLong = -36, Unsupported = -38, Overflow = -75, NoMemory = -12;
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
     /// <summary>Admit empty storage and install fd0 EOF input plus fd1/fd2
     /// owned output channels. Complete failure leaves storage unchanged. The
     /// caller proves mappings, provenance and exclusive callback identities.</summary>

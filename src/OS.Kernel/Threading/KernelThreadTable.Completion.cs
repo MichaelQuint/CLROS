@@ -13,6 +13,4 @@ public unsafe partial struct KernelThreadTable
         Cancelled,
         Interrupted
     }
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }

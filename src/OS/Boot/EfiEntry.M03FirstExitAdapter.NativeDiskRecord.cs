@@ -21,9 +21,6 @@ public static unsafe partial class EfiEntry
             internal fixed byte Bytes[512];
         }
 
-#if M10_018_PROBE
-
-#endif
 
     }
 }

@@ -10,5 +10,3 @@ public enum OwnedX64GdtVerificationStatus : byte
     InvalidTssLimit = 5,
     ByteMismatch = 6
 }
-#if !NOSTDLIB_EFI
-#endif

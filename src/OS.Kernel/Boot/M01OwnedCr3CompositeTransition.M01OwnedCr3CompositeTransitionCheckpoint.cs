@@ -21,5 +21,3 @@ public enum M01OwnedCr3CompositeTransitionCheckpoint : byte
     Returned = 16,
     ReturnPrepared = 17
 }
-#if !NOSTDLIB_EFI
-#endif

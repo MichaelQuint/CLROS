@@ -48,5 +48,3 @@ public readonly struct OwnedX64GdtVerificationResult
         return new OwnedX64GdtVerificationResult(true, status, bytesCompared, firstMismatchOffset, observedFingerprint, expectedFingerprint);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

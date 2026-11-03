@@ -17,6 +17,4 @@ public static unsafe partial class LinuxContinuingWritableDescriptorServices
             Pid = s->LockInput.Processes[index].Pid;
         }
     }
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
 }

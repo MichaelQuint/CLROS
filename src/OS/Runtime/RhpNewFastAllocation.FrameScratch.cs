@@ -8,9 +8,6 @@ namespace OS.Runtime;
 internal static unsafe partial class RhpNewFastAllocation
 {
 
-#if M04_EH_CATALOG_PROBE
-
-#endif
 
     // Fixed caller-owned scratch avoids placing eight 256-byte cleanup records
     // beneath an already large authenticated selector frame. Phase3 serializes
@@ -27,45 +24,13 @@ internal static unsafe partial class RhpNewFastAllocation
     }
 #endif
 
-#if M04_EH_CATALOG_PROBE
 
-#else
 
-#endif
 
-#if M04_EH_CATALOG_PROBE
 
-#else
 
-#endif
 
-#if M04_EH_CATALOG_PROBE
 
-#endif
-
-#if M04_EH_CATALOG_PROBE
-
-#else
-
-#endif
-
-#if !M04_EH_CATALOG_PROBE
-
-#endif
-
-#if M04_EH_CATALOG_PROBE
-
-#else
-
-#endif
-
-#if !M04_EH_CATALOG_PROBE
-
-#endif
-
-#if M04_EH_CATALOG_PROBE
-
-#endif
 
 }
 #endif

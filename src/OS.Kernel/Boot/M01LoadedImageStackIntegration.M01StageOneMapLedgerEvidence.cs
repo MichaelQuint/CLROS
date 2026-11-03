@@ -94,7 +94,3 @@ public readonly struct M01StageOneMapLedgerEvidence
         return firstStart < secondEnd && secondStart < firstEnd;
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

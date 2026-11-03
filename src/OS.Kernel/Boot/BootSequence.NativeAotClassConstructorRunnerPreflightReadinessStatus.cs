@@ -20,5 +20,3 @@ public enum NativeAotClassConstructorRunnerPreflightReadinessStatus
     PreflightFailed = 2
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

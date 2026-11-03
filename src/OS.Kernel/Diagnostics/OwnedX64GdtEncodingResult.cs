@@ -58,5 +58,3 @@ public readonly struct OwnedX64GdtEncodingResult
         return new OwnedX64GdtEncodingResult(true, status, bytesWritten, OwnedX64GdtContainingNullN64BitCode.RequiredByteCount, OwnedX64GdtContainingNullN64BitCode.TableLimit, 0, destinationMutated, verification);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

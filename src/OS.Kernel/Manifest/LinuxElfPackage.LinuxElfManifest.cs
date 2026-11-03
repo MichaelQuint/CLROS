@@ -12,5 +12,3 @@ public unsafe struct LinuxElfManifest
     public fixed uint EnvironmentRanges[64]; // key offset/length, value offset/length
     public readonly bool Succeeded => Status == LinuxElfStatus.Success;
 }
-#if !NOSTDLIB_EFI
-#endif

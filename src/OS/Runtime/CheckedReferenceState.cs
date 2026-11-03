@@ -1,9 +1,6 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Runtime;
-#if NOSTDLIB_EFI && M04_RHP_NEW_FAST_PROBE && M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE
-
-#endif
 #pragma warning disable CS0649 // Assigned by the enabled profile and mapped core tests.
 
 #pragma warning restore CS0649

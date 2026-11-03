@@ -43,5 +43,3 @@ public readonly struct BootMemoryRegionRecord
         get;
     }
 }
-#if !NOSTDLIB_EFI
-#endif

@@ -24,5 +24,3 @@ public enum AppEntryReadinessStatus
     StagingPreflightFailed = 6
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

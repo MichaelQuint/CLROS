@@ -21,6 +21,3 @@ internal static unsafe partial class X64ReversibleCr3TransitionStubPlanTests
 {
     private readonly record struct NoStdLibBuildResult(int ExitCode, bool TimedOut, string Output, byte[] AssemblyBytes);
 }
-#if M01_013_TRANSITION_FOCUSED
-
-#endif

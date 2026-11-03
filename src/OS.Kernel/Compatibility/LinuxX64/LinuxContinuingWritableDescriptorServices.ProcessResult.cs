@@ -14,6 +14,4 @@ public static unsafe partial class LinuxContinuingWritableDescriptorServices
             Process = process;
         }
     }
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
 }

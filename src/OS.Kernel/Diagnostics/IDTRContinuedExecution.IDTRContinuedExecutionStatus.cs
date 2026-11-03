@@ -44,5 +44,3 @@ public enum IDTRContinuedExecutionStatus : byte
     RestoredIdtrMismatch = 39,
     InterruptFlagMismatch = 40
 }
-#if !NOSTDLIB_EFI
-#endif

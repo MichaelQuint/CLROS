@@ -61,7 +61,3 @@ public readonly struct SpanMemoryVectorExecutionRecord
         return new SpanMemoryVectorExecutionRecord(vector.Key, vector.Operation, status, outputByteCount, resultElementCount, rawUnsignedValue, outputBytes, scratchAfter, rejectedInputPreserved);
     }
 }
-#if !NOSTDLIB_EFI
-#else
-
-#endif

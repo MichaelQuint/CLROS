@@ -17,5 +17,3 @@ public enum BootMemoryRegionMaterializationStatus
     TotalPageCountOverflow = 12,
     TotalByteCountOverflow = 13
 }
-#if !NOSTDLIB_EFI
-#endif

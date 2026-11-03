@@ -4,14 +4,6 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public static unsafe partial class LinuxMemoryServices
 {
-#if M16_014_PROBE
-
-#else
-#endif
-#if M10_004_PROBE
-
-#else
-#endif
     /// <summary>
     /// Borrowed low-4GiB physical pool and target table arena, their kernel
     /// aliases, distinct scratch tables and immutable non-pool static mappings.

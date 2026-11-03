@@ -10,5 +10,3 @@ public struct LinuxElfPackageView
     public LinuxElfManifest Manifest;
     public readonly bool Succeeded => Status == LinuxElfStatus.Success;
 }
-#if !NOSTDLIB_EFI
-#endif

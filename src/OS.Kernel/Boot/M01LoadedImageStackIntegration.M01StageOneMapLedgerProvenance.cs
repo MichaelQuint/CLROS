@@ -9,7 +9,3 @@ public enum M01StageOneMapLedgerProvenance : byte
     Uninitialized = 0,
     CallerAttestedPostAllocationOwnedMap = 1
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

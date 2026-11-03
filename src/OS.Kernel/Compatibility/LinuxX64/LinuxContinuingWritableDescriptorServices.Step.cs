@@ -21,6 +21,4 @@ public static unsafe partial class LinuxContinuingWritableDescriptorServices
         FindFree,
         RootStat
     }
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
 }

@@ -122,5 +122,3 @@ public readonly struct PanicSafeOwnedCom1FaultRecord
         get;
     }
 }
-#if !NOSTDLIB_EFI
-#endif

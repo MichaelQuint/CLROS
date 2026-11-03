@@ -1115,6 +1115,3 @@ internal static unsafe partial class X64ReversibleCr3TransitionStubPlanTests
         return reader.HasMetadata && reader.GetMetadataReader().AssemblyReferences.Count == 0;
     }
 }
-#if M01_013_TRANSITION_FOCUSED
-
-#endif

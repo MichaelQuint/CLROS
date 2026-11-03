@@ -90,7 +90,3 @@ public readonly struct M01LoadedImageStackIntegrationResult
         return left.BackingStart.Equals(right.BackingStart) && left.BackingEndExclusive.Equals(right.BackingEndExclusive) && left.BackingPageCount == right.BackingPageCount && left.BackingByteLength == right.BackingByteLength && left.GuardReservation.Equals(right.GuardReservation) && left.StackReservation.Equals(right.StackReservation) && left.PhysicalStackTop.Equals(right.PhysicalStackTop);
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

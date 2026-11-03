@@ -20,5 +20,3 @@ public enum FetchAppHttpCompletionReadinessStatus
     CompletionFailed = 2
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

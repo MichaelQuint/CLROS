@@ -68,5 +68,3 @@ public readonly struct BootMemoryRegionMaterializationResult
         return new BootMemoryRegionMaterializationResult(status, descriptorCount, regionCount: 0, requiredRegionCapacity, availableRegionCapacity, invalidDescriptorIndex, totalPages, totalBytes, conventionalMemoryPages, conventionalMemoryBytes);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

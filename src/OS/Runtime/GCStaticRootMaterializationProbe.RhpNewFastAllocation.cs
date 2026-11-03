@@ -5,9 +5,6 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-#if M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE
-
-#endif
 
 internal static unsafe partial class RhpNewFastAllocation
 {

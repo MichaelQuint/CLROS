@@ -38,5 +38,3 @@ public readonly struct PanicSafeOwnedCom1FormatResult
         return new PanicSafeOwnedCom1FormatResult(true, status, requiredBytes, 0);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

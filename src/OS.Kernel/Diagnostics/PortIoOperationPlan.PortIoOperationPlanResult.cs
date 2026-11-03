@@ -38,5 +38,3 @@ public readonly struct PortIoOperationPlanResult
         return new PortIoOperationPlanResult(status, 0, PortIoOperationPlan.RequiredByteLength);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

@@ -11,8 +11,6 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public static unsafe partial class LinuxDescriptorServices
 {
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
     /// <summary>Value token for one noncopyable pending record. It authenticates
     /// this attachment epoch and nonwrapping request generation, never an fd.</summary>
 
@@ -30,81 +28,5 @@ public static unsafe partial class LinuxDescriptorServices
 
         public bool IsActive => Owner != 0 && Epoch != 0 && Generation != 0;
     }
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#else
-
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }
 #endif

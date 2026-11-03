@@ -21,5 +21,3 @@ public enum VirtioNetRxTcpDispatchReadinessStatus
     DiagnosticFormattingFailure = 3
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

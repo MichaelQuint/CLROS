@@ -66,7 +66,3 @@ public readonly struct SpanMemoryExecutionResult
         return new SpanMemoryExecutionResult(status, catalogValidation, SpanOverlapMemoryCastUnsafeWidthConformanceVectors.RequiredScratchBytes, availableScratchBytes, SpanOverlapMemoryCastUnsafeWidthConformanceVectors.RequiredExecutionRecordCount, availableOutputCount, executedVectorCount, problemIndex, catalogValidation.ActualFingerprint);
     }
 }
-#if !NOSTDLIB_EFI
-#else
-
-#endif

@@ -22,6 +22,4 @@ public static unsafe partial class LinuxContinuingWritableDescriptorServices
         public readonly bool Retired => RetiredValue;
         public readonly bool Quarantined => Poisoned;
     }
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
 }

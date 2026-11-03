@@ -71,7 +71,3 @@ public readonly struct M01StageOneAllocationEvidence
         return IsWellFormed && _allocationTableAddress == (ulong)allocationRecords && _allocationRecordCount == allocationRecordCount && _allocationRecordCapacity == allocationRecordCapacity && allocationRecords != null;
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

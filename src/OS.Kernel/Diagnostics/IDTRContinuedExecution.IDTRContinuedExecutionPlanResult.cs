@@ -103,5 +103,3 @@ public readonly struct IDTRContinuedExecutionPlanResult
         return new IDTRContinuedExecutionPlanResult(operation, status, modeledContextAddress, modeledStubAddress, ownedIdtAddress, contextCapacity, stubCapacity, contextBytesWritten, contextBytesCompared, stubBytesWritten, stubBytesCompared, firstMismatchOffset, contextFingerprint, stubFingerprint, destinationMutated, readBackPerformed);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

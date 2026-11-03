@@ -72,7 +72,3 @@ public readonly struct SpanMemoryConformanceVector
     public bool ExpectedSuccess => (Flags & SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ExpectedSuccessFlag) != 0;
     public bool SignExtend => (Flags & SpanOverlapMemoryCastUnsafeWidthConformanceVectors.SignExtendFlag) != 0;
 }
-#if !NOSTDLIB_EFI
-#else
-
-#endif

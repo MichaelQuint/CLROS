@@ -34,7 +34,3 @@ public struct M01LoadedImageStackStaticState
     public OwnedBootStackLayout StackLayout => StackLayoutStorage;
     public bool IsInitialized => HeaderSize == RequiredStorageBytes && HeaderVersion == CurrentVersion && CoordinatorStatus == M01LoadedImageStackStatus.Success && CoordinatorCheckpoint >= M01LoadedImageStackCheckpoint.SwitchArmed && CoordinatorCheckpoint <= M01LoadedImageStackCheckpoint.ContinuationRspContained && Reserved0 == 0 && Reserved1 == 0 && Reserved2 == 0 && Reserved3 == 0 && Reserved4 == 0 && Reserved5 == 0 && HandoffStorage.IsValid && SwitchStateStorage.IsValid && StackLayoutStorage.IsValid && (StackLayoutStorage.Lifetime == OwnedBootStackLifetime.Ready || StackLayoutStorage.Lifetime == OwnedBootStackLifetime.Active);
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

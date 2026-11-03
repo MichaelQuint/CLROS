@@ -6,7 +6,3 @@ public enum SpanMemoryVectorExecutionStatus : byte
     Success = 1,
     ExpectedRejection = 2
 }
-#if !NOSTDLIB_EFI
-#else
-
-#endif

@@ -22,5 +22,3 @@ public enum BootPageAllocatorReadinessStatus
     NoFreePages = 4
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

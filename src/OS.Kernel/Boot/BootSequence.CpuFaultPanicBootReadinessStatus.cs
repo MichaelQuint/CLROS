@@ -19,5 +19,3 @@ public enum CpuFaultPanicBootReadinessStatus
     PanicReadinessFailed = 1
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

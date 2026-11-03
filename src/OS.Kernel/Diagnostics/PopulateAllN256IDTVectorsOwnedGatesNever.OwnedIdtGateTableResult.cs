@@ -92,5 +92,3 @@ public readonly struct OwnedIdtGateTableResult
         return new OwnedIdtGateTableResult(operation, status, modeledTableAddress, ownedStubPageAddress, tableCapacity, bytesWritten, bytesCompared, firstMismatchOffset, fingerprint, 0, 0, 0, 0, 0, destinationMutated, readBackPerformed);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

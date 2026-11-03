@@ -3,8 +3,6 @@ using OS.Kernel.Runtime;
 
 #endif
 namespace OS.Kernel.Diagnostics;
-#if !NOSTDLIB_EFI
-#endif
 public readonly struct CheckedPortIoFunctionPointerInvocationResult
 {
     private CheckedPortIoFunctionPointerInvocationResult(bool isInitialized, CheckedPortIoFunctionPointerInvocationStatus status, PortIoOperationKind operationKind, ushort port, byte value, bool wasInvoked)
@@ -53,7 +51,3 @@ public readonly struct CheckedPortIoFunctionPointerInvocationResult
         return new CheckedPortIoFunctionPointerInvocationResult(true, status, operationKind, port, value, false);
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

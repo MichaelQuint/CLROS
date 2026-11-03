@@ -52,5 +52,3 @@ public unsafe struct DisabledDefaultUd2VectorStateTransitionContext
     public ulong CapturedR15;
     public ulong CaptureCompletion;
 }
-#if !NOSTDLIB_EFI
-#endif

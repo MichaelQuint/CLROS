@@ -4,14 +4,6 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public static unsafe partial class LinuxMemoryServices
 {
-#if M16_014_PROBE
-
-#else
-#endif
-#if M10_004_PROBE
-
-#else
-#endif
     /// <summary>
     /// One-use caller-owned state. Retain it and all admitted storage until
     /// user termination; do not copy a live state or mutate it concurrently.

@@ -11,5 +11,3 @@ public enum DisabledDefaultUd2VectorStatePreTerminalStage : byte
     MarkerTransport = 6,
     Publication = 7
 }
-#if !NOSTDLIB_EFI
-#endif

@@ -1,6 +1,4 @@
 namespace OS.Boot;
-#if !NOSTDLIB_EFI
-#endif
 /// <summary>
 /// Caller-owned input/output POD used by the emitted Windows-x64 call gate.
 /// The fixed canary is outside the composite runtime-state mutation.

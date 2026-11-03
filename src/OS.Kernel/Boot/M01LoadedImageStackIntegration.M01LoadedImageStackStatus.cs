@@ -33,7 +33,3 @@ public enum M01LoadedImageStackStatus : byte
     StageOneAddressMappingRejected = 23,
     EvidenceScratchRejected = 24
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

@@ -13,6 +13,4 @@ public static unsafe partial class LinuxContinuingWritableDescriptorServices
     {
         public readonly uint FirstCluster = firstCluster, ClusterBudget = clusterBudget, SectorReadBudget = sectorReadBudget;
     }
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
 }

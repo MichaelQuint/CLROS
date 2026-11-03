@@ -5,12 +5,6 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public unsafe partial struct LinuxThreadServices
 {
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
     /// <summary>Actual native owner capabilities. All ranges are mapped,
     /// exclusive, supervisor-only and disjoint from code and other kernel
     /// resources; declared sizes grant no mapping authority. User copies must
@@ -36,24 +30,4 @@ public unsafe partial struct LinuxThreadServices
         public delegate* unmanaged<void*, ulong, byte*, uint, byte> CopyToUser;
         public bool FirmwareExited, SingleOwnerValidated;
     }
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }

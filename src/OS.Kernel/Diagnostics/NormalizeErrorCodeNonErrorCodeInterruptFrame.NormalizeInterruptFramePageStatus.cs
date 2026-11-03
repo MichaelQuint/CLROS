@@ -21,5 +21,3 @@ public enum NormalizeInterruptFramePageStatus : byte
     CommonTargetOutOfRel32Range = 16,
     PageByteMismatch = 17
 }
-#if !NOSTDLIB_EFI
-#endif

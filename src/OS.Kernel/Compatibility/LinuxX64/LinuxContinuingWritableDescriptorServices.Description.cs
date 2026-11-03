@@ -15,6 +15,4 @@ public static unsafe partial class LinuxContinuingWritableDescriptorServices
         internal byte FlockMode;
         internal fixed byte Name[(int)PathBytes];
     }
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
 }

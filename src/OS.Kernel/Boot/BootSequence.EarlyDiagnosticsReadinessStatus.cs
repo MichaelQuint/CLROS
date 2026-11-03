@@ -20,5 +20,3 @@ public enum EarlyDiagnosticsReadinessStatus
     DescriptorTablesNotReady = 2
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

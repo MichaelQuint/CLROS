@@ -7,5 +7,3 @@ public enum ExistingIn8Out8StubPagePhase : byte
     ReadBackVerified = 2,
     FinalizationAudited = 3
 }
-#if !NOSTDLIB_EFI
-#endif

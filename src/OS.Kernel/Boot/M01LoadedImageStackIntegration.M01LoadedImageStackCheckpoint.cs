@@ -17,7 +17,3 @@ public enum M01LoadedImageStackCheckpoint : byte
     TransferRecorded = 8,
     ContinuationRspContained = 9
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

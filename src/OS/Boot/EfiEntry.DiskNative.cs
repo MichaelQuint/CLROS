@@ -28,20 +28,8 @@ public static unsafe partial class EfiEntry
 #endif
         private const ulong NativeDiskEpoch = 0x4d31365f30323301;
 
-#if M10_018_TIMING_PROBE
 
-#endif
 
-#if M10_018_TIMING_PROBE
-
-#endif
-
-#if M10_018_PROBE
-
-#endif
-#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
-
-#endif
 
         private static NativeDiskOwner s_nativeDisk;
 

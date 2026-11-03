@@ -18,13 +18,5 @@ public static unsafe partial class LinuxDescriptorServices
         internal ulong Generation;
         internal uint Active, Closing;
     }
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
 }
 #endif

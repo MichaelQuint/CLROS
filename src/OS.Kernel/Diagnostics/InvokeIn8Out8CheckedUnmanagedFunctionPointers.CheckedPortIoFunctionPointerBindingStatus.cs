@@ -18,9 +18,3 @@ public enum CheckedPortIoFunctionPointerBindingStatus
     In8TargetOutsidePayload = 9,
     CallableRangesOverlap = 10
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

@@ -42,6 +42,4 @@ public unsafe partial struct KernelThreadTable
         NotEmpty,
         TimerFailure
     }
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }

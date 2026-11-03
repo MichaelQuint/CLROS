@@ -75,7 +75,3 @@ public readonly unsafe ref struct Span<T>
 #endif
     }
 }
-#if NOSTDLIB_EFI
-
-#else
-#endif

@@ -17,14 +17,6 @@ public unsafe partial struct LinuxThreadServices
     // Exact musl v1.2.6 pthread_create subset, including historical DETACHED.
     public const ulong PthreadCloneFlags = 0x7d0f00;
     private const long Invalid = -22, Fault = -14, Again = -11, Io = -5, Unsupported = -38;
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
     private Admission _owner;
     private ulong _self, _key;
     private uint _nextTid, _active, _initialized;

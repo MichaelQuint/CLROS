@@ -7,5 +7,3 @@ public enum Com1OwnedPortIoOperationStatus : byte
     PortOutsideConfiguredRange = 2,
     InvocationRejected = 3
 }
-#if !NOSTDLIB_EFI
-#endif

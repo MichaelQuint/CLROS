@@ -71,7 +71,3 @@ public readonly struct M01LoadedImageVirtualMappingEvidence
         return physicalBase == virtualBase && physicalEnd == virtualEnd;
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

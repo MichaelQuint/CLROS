@@ -37,5 +37,3 @@ public enum M01OwnedCr3CompositeTransitionRuntimeStatus : byte
     RspRestoreMismatch = 28,
     PostRestoreCanaryMismatch = 29
 }
-#if !NOSTDLIB_EFI
-#endif

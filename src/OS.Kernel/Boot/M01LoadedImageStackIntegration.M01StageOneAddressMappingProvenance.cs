@@ -10,7 +10,3 @@ public enum M01StageOneAddressMappingProvenance : byte
     Uninitialized = 0,
     CallerAttestedIdentityMappings = 1
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

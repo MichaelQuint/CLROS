@@ -9,9 +9,3 @@ public struct X64UserAddressSpaceResult
     public uint UsedTables;
     public readonly bool Succeeded => Status == X64UserAddressSpaceStatus.Ready;
 }
-#if M10_004_PROBE
-
-#elif M16_025_PROBE
-
-#else
-#endif

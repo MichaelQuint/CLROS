@@ -45,5 +45,3 @@ public enum DisabledDefaultUd2VectorStateTransitionStatus : byte
     UnexpectedStreamLayout = 40,
     UnexpectedStreamFingerprint = 41
 }
-#if !NOSTDLIB_EFI
-#endif

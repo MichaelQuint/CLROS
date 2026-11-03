@@ -1,9 +1,6 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Runtime;
-#if NOSTDLIB_EFI && M04_RHP_NEW_FAST_PROBE && M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE
-
-#endif
 // These offsets come from actual C# field-address roots in the enabled image.
 // The bounded numeric checks below do not authenticate a compiler layout by themselves.
 internal struct CheckedReferenceGeometry

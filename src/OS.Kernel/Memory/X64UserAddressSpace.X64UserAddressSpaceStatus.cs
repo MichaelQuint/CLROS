@@ -14,9 +14,3 @@ public enum X64UserAddressSpaceStatus : byte
     DirtyTables,
     AuditFailed
 }
-#if M10_004_PROBE
-
-#elif M16_025_PROBE
-
-#else
-#endif

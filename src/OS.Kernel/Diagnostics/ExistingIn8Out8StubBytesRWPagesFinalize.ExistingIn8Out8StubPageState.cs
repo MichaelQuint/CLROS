@@ -83,5 +83,3 @@ public readonly struct ExistingIn8Out8StubPageState
         return new ExistingIn8Out8StubPageState(phase, transitionVersion, publicationEpoch, modeledPageAddress, currentProtection, finalizationCount);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

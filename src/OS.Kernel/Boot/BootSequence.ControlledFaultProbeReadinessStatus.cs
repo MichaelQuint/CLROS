@@ -20,5 +20,3 @@ public enum ControlledFaultProbeReadinessStatus
     FaultProbePlanNotReady = 2
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

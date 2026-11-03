@@ -9,5 +9,3 @@ public enum PanicSafeOwnedCom1FormatStatus : byte
     DestinationTooSmall = 4,
     InvalidDestination = 5
 }
-#if !NOSTDLIB_EFI
-#endif

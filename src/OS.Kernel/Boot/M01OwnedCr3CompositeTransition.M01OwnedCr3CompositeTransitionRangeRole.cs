@@ -17,5 +17,3 @@ public enum M01OwnedCr3CompositeTransitionRangeRole : byte
     RuntimeStateAndCanaryPage = 12,
     OwnedRootPage = 13
 }
-#if !NOSTDLIB_EFI
-#endif

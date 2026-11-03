@@ -38,5 +38,3 @@ public readonly struct PortIoStubPlanResult
         return new PortIoStubPlanResult(status, 0, requiredBytes);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

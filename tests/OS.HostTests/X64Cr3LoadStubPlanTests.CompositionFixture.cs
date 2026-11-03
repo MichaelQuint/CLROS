@@ -12,8 +12,6 @@ using OS.Kernel.Memory;
 
 internal static unsafe partial class X64Cr3LoadStubPlanTests
 {
-#if !M01_013_LOAD_FOCUSED && !M01_013_PREFLIGHT_FOCUSED && !M01_013_TRANSITION_FOCUSED
-#endif
     private sealed unsafe class CompositionFixture : IDisposable
     {
         internal const ulong DataStart = 0x0020_0000;

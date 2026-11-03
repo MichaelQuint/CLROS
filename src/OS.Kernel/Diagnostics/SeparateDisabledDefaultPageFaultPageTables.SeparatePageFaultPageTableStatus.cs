@@ -27,11 +27,3 @@ public enum SeparatePageFaultPageTableStatus : byte
     UnusedTableNotZero = 19,
     PageZeroNotAbsent = 20
 }
-#if M16_025_PROBE
-
-#else
-#endif
-#if M10_004_PROBE
-
-#else
-#endif

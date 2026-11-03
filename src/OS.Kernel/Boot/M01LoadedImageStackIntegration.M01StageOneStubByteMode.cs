@@ -11,7 +11,3 @@ public enum M01StageOneStubByteMode : byte
     EmitAndVerify = 1,
     VerifyExisting = 2
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

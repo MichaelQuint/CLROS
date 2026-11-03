@@ -10,5 +10,3 @@ public enum M01OwnedCr3CompositeTransitionPageZeroLevel : byte
     Present = 5,
     Malformed = 6
 }
-#if !NOSTDLIB_EFI
-#endif

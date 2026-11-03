@@ -622,6 +622,3 @@ internal static unsafe partial class RhpNewFastAllocation
 using OS.Kernel.Runtime;
 namespace OS.Runtime;
 #endif
-#if (NOSTDLIB_EFI && (M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE)) || SINGLE_FINALLY_CORE_TEST
-
-#endif

@@ -8,5 +8,3 @@ public enum M01OwnedCr3CompositeTransitionResultPhase : byte
     ReadbackVerified = 3,
     ObservedAudit = 4
 }
-#if !NOSTDLIB_EFI
-#endif

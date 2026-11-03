@@ -21,9 +21,6 @@ public static unsafe partial class EfiEntry
             internal bool Enabled, Failed;
         }
 
-#if M10_018_PROBE
-
-#endif
 
     }
 }

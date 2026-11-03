@@ -18,5 +18,3 @@ public unsafe struct IDTRContinuedExecutionContext
     public ulong RflagsBefore;
     public ulong RflagsAfter;
 }
-#if !NOSTDLIB_EFI
-#endif

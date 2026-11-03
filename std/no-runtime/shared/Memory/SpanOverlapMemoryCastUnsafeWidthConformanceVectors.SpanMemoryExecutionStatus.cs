@@ -17,7 +17,3 @@ public enum SpanMemoryExecutionStatus : byte
     BufferAlias = 12,
     VectorExecutionMismatch = 13
 }
-#if !NOSTDLIB_EFI
-#else
-
-#endif

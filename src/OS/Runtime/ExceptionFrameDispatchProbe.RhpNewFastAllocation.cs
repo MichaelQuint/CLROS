@@ -29,11 +29,6 @@ internal static unsafe partial class RhpNewFastAllocation
     private const uint FrameMiddleStampOffset = 8, FrameOuterStampOffset = 24, FrameResultOffset = 16;
     private static RhpNewFastResult s_frameRoot;
 
-#if M04_EH_CATALOG_PROBE
-
-#else
-
-#endif
     private static FrameScratch s_frameScratch;
     private static X64UnwindContext s_frameMiddle;
     private static EhControl s_frameEntryControl;

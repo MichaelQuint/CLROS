@@ -6,8 +6,6 @@ using System.Text;
 using OS.Boot;
 using OS.Kernel.Memory;
 
-#if !M01_014_MAP_FOCUSED && !M01_014_INVLPG_FOCUSED && !M01_014_PROTECTION_FOCUSED
-#endif
 internal sealed unsafe class M01014PageTableFixture : IDisposable
 {
     internal X64PageTableImagePage[] Pages

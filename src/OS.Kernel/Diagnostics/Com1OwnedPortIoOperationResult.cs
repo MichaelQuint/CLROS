@@ -58,5 +58,3 @@ public readonly struct Com1OwnedPortIoOperationResult
         return new Com1OwnedPortIoOperationResult(true, status, bindingStatus, invocationStatus, operationKind, port, value, false);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

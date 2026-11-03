@@ -1,6 +1,4 @@
 namespace OS.Boot;
-#if !NOSTDLIB_EFI
-#endif
 /// <summary>
 /// Reports the first rejected composite call-gate boundary. The zero-valued
 /// default is never success and existing values are append-only.

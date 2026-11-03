@@ -28,13 +28,5 @@ public static unsafe partial class LinuxDescriptorServices
         internal WritableDiskRequest Request;
         public readonly bool RequestActive => Request.Phase != 0;
     }
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
 }
 #endif

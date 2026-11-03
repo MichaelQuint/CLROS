@@ -28,7 +28,3 @@ public readonly struct M01LoadedImageStackTransferTarget
         return plan.IsValid && _entry.IsValid && _entry.Equals(plan.StubVirtualEntry) && _newRspTop.IsValid && _newRspTop.Equals(plan.PreTransferStackPointer) && _handoffAddress.IsValid && _handoffAddress.Equals(plan.Handoff.StorageStart) && _continuationAddress.IsValid && _continuationAddress.Equals(plan.Handoff.Continuation);
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

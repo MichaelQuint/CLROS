@@ -19,9 +19,6 @@ internal static unsafe partial class NativeAotModuleRegistrationProbe
         internal ulong Failure;
     }
 
-#if M04_X64_UNWIND_METADATA_PROBE
-
-#endif
 
 }
 #endif

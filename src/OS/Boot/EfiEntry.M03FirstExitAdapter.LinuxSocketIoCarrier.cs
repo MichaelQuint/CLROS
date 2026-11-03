@@ -16,23 +16,9 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-#if M16_014_PROBE
 
-#endif
 
-#if M10_004_PROBE && !M16_014_PROBE
 
-#else
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
 
 #if M16_027_PROBE
         // The whole direct IO carrier is separate from transport metadata and
@@ -48,210 +34,38 @@ public static unsafe partial class EfiEntry
 
 #endif
 
-#if M16_027_PROBE
 
-#else
 
-#endif
 
-#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
 
-#else
 
-#if M16_012_PROBE
 
-#endif
-#if M16_013_PROBE
 
-#endif
-#if M07_027_PROBE && M07_028_PROBE
 
-#endif
 
-#if M10_018_PROBE
 
-#elif M10_017_PROBE
 
-#else
 
-#endif
 
-#if M10_018_PROBE
 
-#endif
 
-#if M16_014_PROBE
 
-#endif
 
-#endif
 
-#if !M16_027_PROBE
 
-#endif
 
-#if M16_014_PROBE
 
-#else
 
-#endif
 
-#if M16_027_PROBE
 
-#else
 
-#endif
 
-#if M16_014_PROBE
 
-#endif
-#if M16_027_PROBE
 
-#endif
 
-#if M16_014_PROBE
 
-#endif
 
-#if M10_004_PROBE && !M16_014_PROBE
 
-#else
-
-#endif
-
-#if M16_027_PROBE
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
-
-#if M16_014_PROBE
-
-#else
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
-
-#if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
-
-#endif
-
-#if M10_018_TIMING_PROBE
-
-#endif
-
-#if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
-
-#endif
-
-#if M16_025_PROBE && !M16_027_PROBE
-
-#endif
-
-#if M10_018_TIMING_PROBE
-
-#elif M16_027_PROBE
-#if M16_027_TIMING_PROBE
-
-#else
-
-#endif
-#else
-
-#if M16_025_PROBE
-
-#if !M10_018_PROBE
-
-#endif
-
-#if !M10_018_PROBE
-
-#endif
-
-#endif
-
-#endif
-
-#if M16_027_TIMING_PROBE
-
-#endif
-
-#if M16_027_PROBE
-
-#elif M10_018_PROBE
-
-#else
-
-#endif
-
-#if M16_027_PROBE
-
-#elif M10_018_PROBE
-
-#endif
-
-#if M16_027_PROBE
-
-#elif M10_018_PROBE
-
-#endif
-
-#if M10_018_TIMING_PROBE
-
-#endif
-
-#if M16_027_PROBE
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
-
-#if M16_014_PROBE
-
-#endif
-
-#if M16_027_PROBE
-
-#else
-
-#endif
-
-#if M16_027_PROBE
-
-#else
-
-#endif
 
     }
 }

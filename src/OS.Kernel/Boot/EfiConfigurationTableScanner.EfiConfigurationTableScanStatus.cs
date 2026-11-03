@@ -8,5 +8,3 @@ public enum EfiConfigurationTableScanStatus
     InvalidConfigurationTableCount = 3,
     InvalidConfigurationTableAddress = 4
 }
-#if !NOSTDLIB_EFI
-#endif

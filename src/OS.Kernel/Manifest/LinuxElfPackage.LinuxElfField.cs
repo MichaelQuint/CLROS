@@ -6,5 +6,3 @@ public struct LinuxElfField
 {
     public uint Offset, Length;
 }
-#if !NOSTDLIB_EFI
-#endif

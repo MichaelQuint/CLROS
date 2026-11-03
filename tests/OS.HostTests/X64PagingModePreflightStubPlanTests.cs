@@ -987,6 +987,3 @@ internal static unsafe partial class X64PagingModePreflightStubPlanTests
         return metadata.AssemblyReferences.Count == 0;
     }
 }
-#if M01_013_PREFLIGHT_FOCUSED
-
-#endif

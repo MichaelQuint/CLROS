@@ -55,7 +55,3 @@ public struct M01LoadedImageStackEvidence
     public VirtualAddress ObservedRsp => ObservedRspValue;
     public M01StageOneStubByteMode StubByteMode => StubByteModeValue;
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

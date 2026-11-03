@@ -2,8 +2,6 @@ namespace OS.Kernel.Diagnostics;
 
 public static unsafe partial class DisabledDefaultUd2VectorStateTransition
 {
-#if !NOSTDLIB_EFI
-#endif
     private unsafe struct StreamBuilder
     {
         private byte* _destination;

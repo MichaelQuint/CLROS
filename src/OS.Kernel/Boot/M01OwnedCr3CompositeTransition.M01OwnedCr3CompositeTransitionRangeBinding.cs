@@ -49,5 +49,3 @@ public readonly struct M01OwnedCr3CompositeTransitionRangeBinding
     public ulong IdentityMappingIndex => _identityMappingIndex;
     internal bool ReservedFieldsAreZero => _reserved0 == 0 && _reserved1 == 0 && _reserved2 == 0 && _reserved3 == 0;
 }
-#if !NOSTDLIB_EFI
-#endif

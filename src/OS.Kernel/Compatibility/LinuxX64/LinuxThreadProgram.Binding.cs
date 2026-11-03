@@ -5,12 +5,6 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public static unsafe partial class LinuxThreadProgram
 {
-#if M10_004_PROBE
-
-#elif M16_009_PROBE || M16_012_PROBE || M07_027_PROBE
-
-#else
-#endif
     /// <summary>Retained current generation and its original entry adapter.
     /// Argument is the retained scheduler slot pointer, independently checked
     /// by the native Start callback against that generation's table entry.

@@ -123,5 +123,3 @@ public enum M01OwnedCr3CompositeTransitionStatus : byte
     CanaryDestinationSpanOverflow = 103,
     RflagsRestoreIntentMismatch = 104
 }
-#if !NOSTDLIB_EFI
-#endif

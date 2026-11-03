@@ -69,5 +69,3 @@ public readonly struct PanicSafeOwnedCom1ReportResult
         return new PanicSafeOwnedCom1ReportResult(true, status, format, configuration, lastOperation, bytesWritten, lineStatusPolls, failedByteIndex, ownedBackendUsed, false);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

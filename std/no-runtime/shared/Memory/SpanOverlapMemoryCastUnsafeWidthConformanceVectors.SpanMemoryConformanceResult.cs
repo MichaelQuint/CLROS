@@ -52,7 +52,3 @@ public readonly struct SpanMemoryConformanceResult
         return new SpanMemoryConformanceResult(status, problemIndex, conflictIndex, vectorCount, expectedFingerprint, actualFingerprint);
     }
 }
-#if !NOSTDLIB_EFI
-#else
-
-#endif

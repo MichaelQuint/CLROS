@@ -103,5 +103,3 @@ public static class DisabledDefaultUd2VectorStatePreTerminalContract
         return new DisabledDefaultUd2VectorStatePreTerminalResult(stage, status, codeAddress, dataAddress, PlanCleanup(codeAllocated, codeAddress, dataAllocated, dataAddress));
     }
 }
-#if !NOSTDLIB_EFI
-#endif

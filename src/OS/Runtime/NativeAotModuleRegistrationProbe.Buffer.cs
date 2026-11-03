@@ -15,9 +15,6 @@ internal static unsafe partial class NativeAotModuleRegistrationProbe
         internal fixed ulong Words[512];
     }
 
-#if M04_X64_UNWIND_METADATA_PROBE
-
-#endif
 
 }
 #endif

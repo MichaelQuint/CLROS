@@ -17,8 +17,4 @@ public static unsafe partial class LinuxDescriptorServices
         public readonly bool IsActive => Active == 1;
         public readonly uint TransferredBytes => Done;
     }
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
 }

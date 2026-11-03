@@ -5,14 +5,6 @@ namespace System;
 #else
 namespace OS.Std.NoRuntime;
 #endif
-#if NOSTDLIB_EFI
-
-#else
-#endif
-#if NOSTDLIB_EFI
-
-#else
-#endif
 /// <summary>Pointer-backed unmanaged read-only view; the adapter owns mapping
 /// and lifetime. This subset supports length, indexing, slicing and pinning.</summary>
 

@@ -11,5 +11,3 @@ public enum M01OwnedCr3CompositeTransitionRecoveryClass : byte
     SuccessRestoreRegisters = 6,
     MutationAttemptedThenRestoreRegisters = 7
 }
-#if !NOSTDLIB_EFI
-#endif

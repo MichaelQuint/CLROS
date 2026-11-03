@@ -8,9 +8,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-#if M16_027_TIMING_PROBE
-
-#endif
 
         // Retained ordinary RAM, separate from B's exclusive observation slot.
         // Root samples before and immediately after EVERY possible B-touching
@@ -29,9 +26,6 @@ public static unsafe partial class EfiEntry
 #endif
         }
 
-#if M16_027_TIMING_PROBE
-
-#endif
 
     }
 }

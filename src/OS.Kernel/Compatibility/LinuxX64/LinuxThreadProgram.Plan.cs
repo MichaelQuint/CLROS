@@ -5,12 +5,6 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public static unsafe partial class LinuxThreadProgram
 {
-#if M10_004_PROBE
-
-#elif M16_009_PROBE || M16_012_PROBE || M07_027_PROBE
-
-#else
-#endif
     /// <summary>Bindings reside in a separate exclusive part of ContextArena.
     /// Prepare uses byte(control, uint index): 1 installs a checked saved image
     /// and enters Gateway; 2 stages an actual wait/exit without user reentry;

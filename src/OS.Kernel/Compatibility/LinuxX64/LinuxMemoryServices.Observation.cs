@@ -4,14 +4,6 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public static unsafe partial class LinuxMemoryServices
 {
-#if M16_014_PROBE
-
-#else
-#endif
-#if M10_004_PROBE
-
-#else
-#endif
     /// <summary>Copied physical-pool and metadata occupancy from one audited
     /// serialized owner. Free runs are disjoint physical extents, independent
     /// of virtual holes; retained PROT_NONE backing stays occupied. Table use

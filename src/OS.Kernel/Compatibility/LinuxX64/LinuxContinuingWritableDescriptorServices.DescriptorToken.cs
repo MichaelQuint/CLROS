@@ -16,6 +16,4 @@ public static unsafe partial class LinuxContinuingWritableDescriptorServices
             Generation = s->Input.Descriptors[number].Generation;
         }
     }
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
 }

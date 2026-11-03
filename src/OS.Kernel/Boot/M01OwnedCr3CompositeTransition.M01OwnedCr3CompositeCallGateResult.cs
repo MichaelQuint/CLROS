@@ -1,6 +1,4 @@
 namespace OS.Boot;
-#if !NOSTDLIB_EFI
-#endif
 /// <summary>
 /// Pointer-free result for call-gate preparation, combined-page
 /// materialization/readback, or modeled post-return observation audit.

@@ -19,5 +19,3 @@ public enum AppPackageStagingReadinessStatus
     StagingReadinessFailed = 1
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

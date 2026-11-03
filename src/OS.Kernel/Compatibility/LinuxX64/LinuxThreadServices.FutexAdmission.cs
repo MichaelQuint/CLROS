@@ -28,8 +28,4 @@ public unsafe partial struct LinuxThreadServices
         public delegate* unmanaged<void*, ulong, uint**, ulong*, byte> Resolve;
         public delegate* unmanaged<void*, ulong*, byte> ReadMonotonic;
     }
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }

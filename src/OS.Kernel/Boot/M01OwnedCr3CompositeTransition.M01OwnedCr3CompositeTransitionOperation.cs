@@ -20,5 +20,3 @@ public enum M01OwnedCr3CompositeTransitionOperation : byte
     RestoreRflags = 15,
     Return = 16
 }
-#if !NOSTDLIB_EFI
-#endif

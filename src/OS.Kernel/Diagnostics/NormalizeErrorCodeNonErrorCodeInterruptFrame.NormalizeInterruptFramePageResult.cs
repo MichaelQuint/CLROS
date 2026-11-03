@@ -85,5 +85,3 @@ public readonly struct NormalizeInterruptFramePageResult
         return new NormalizeInterruptFramePageResult(operation, status, modeledPageAddress, commonTargetAddress, pageCapacity, bytesWritten, bytesCompared, firstMismatchOffset, fingerprint, destinationMutated, readBackPerformed);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

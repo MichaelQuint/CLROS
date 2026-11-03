@@ -3,8 +3,6 @@ using OS.Kernel.Runtime;
 
 #endif
 namespace OS.Kernel.Diagnostics;
-#if !NOSTDLIB_EFI
-#endif
 public readonly unsafe struct CheckedPortIoFunctionPointerBindingResult
 {
     private readonly delegate* unmanaged<ushort, byte, void> _out8;
@@ -105,7 +103,3 @@ public readonly unsafe struct CheckedPortIoFunctionPointerBindingResult
         return port >= ConfiguredBasePort && port <= ConfiguredEndPort;
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

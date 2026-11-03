@@ -22,5 +22,3 @@ public enum LinuxElfStatus : byte
     UnsupportedElf,
     InvalidDestination
 }
-#if !NOSTDLIB_EFI
-#endif

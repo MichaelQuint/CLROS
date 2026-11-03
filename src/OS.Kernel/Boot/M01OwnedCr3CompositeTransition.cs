@@ -1,6 +1,4 @@
 namespace OS.Boot;
-#if !NOSTDLIB_EFI
-#endif
 /// <summary>
 /// Emits and validates a single relocation-free owned-CR3 interval. Public
 /// methods are host-only planners/auditors and never invoke emitted bytes.

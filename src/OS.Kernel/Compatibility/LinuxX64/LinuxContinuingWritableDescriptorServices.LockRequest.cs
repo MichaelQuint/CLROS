@@ -10,6 +10,4 @@ public static unsafe partial class LinuxContinuingWritableDescriptorServices
         public readonly long Start = start, Length = length;
         public readonly int Pid = pid;
     }
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
 }

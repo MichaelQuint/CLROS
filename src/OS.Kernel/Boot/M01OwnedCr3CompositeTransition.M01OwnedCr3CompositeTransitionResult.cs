@@ -1,6 +1,4 @@
 namespace OS.Boot;
-#if !NOSTDLIB_EFI
-#endif
 /// <summary>
 /// Complete value-only result for materialization, range binding, byte
 /// readback, or observed-state evaluation.

@@ -99,5 +99,3 @@ public readonly struct DisabledDefaultUd2VectorStateTransitionResult
         return new DisabledDefaultUd2VectorStateTransitionResult(operation, status, modeledContextAddress, modeledStreamAddress, ownedIdtAddress, contextCapacity, streamCapacity, 0, contextBytesCompared, streamBytesWritten, streamBytesCompared, firstMismatchOffset, contextFingerprint, streamFingerprint, destinationMutated, readBackPerformed);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

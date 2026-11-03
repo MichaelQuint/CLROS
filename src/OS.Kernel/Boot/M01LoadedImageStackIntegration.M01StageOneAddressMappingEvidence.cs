@@ -90,7 +90,3 @@ public readonly struct M01StageOneAddressMappingEvidence
         return true;
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

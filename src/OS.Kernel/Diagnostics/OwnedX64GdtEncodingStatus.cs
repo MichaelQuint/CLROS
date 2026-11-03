@@ -10,5 +10,3 @@ public enum OwnedX64GdtEncodingStatus : byte
     InvalidTssLimit = 5,
     ReadBackMismatch = 6
 }
-#if !NOSTDLIB_EFI
-#endif

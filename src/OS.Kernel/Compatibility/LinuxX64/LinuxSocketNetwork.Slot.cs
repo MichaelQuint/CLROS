@@ -11,8 +11,6 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public static unsafe partial class LinuxSocketNetwork
 {
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
     /// <summary>Initially zero, noncopyable connection metadata. The private
     /// one-entry handshake bridge is consumed only after its original table
     /// generation establishes. Socket transfer retains both stream windows until
@@ -29,23 +27,5 @@ public static unsafe partial class LinuxSocketNetwork
         internal uint ListenerFd, ListenerDescription, Phase;
         internal ulong LeaseGeneration;
     }
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }
 #endif

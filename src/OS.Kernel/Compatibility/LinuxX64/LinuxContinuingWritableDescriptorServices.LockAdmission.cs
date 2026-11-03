@@ -14,6 +14,4 @@ public static unsafe partial class LinuxContinuingWritableDescriptorServices
         public RangeLock* Locks, Scratch;
         public uint ProcessCount, LockCount, ScratchCount, PrimaryPid;
     }
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
 }

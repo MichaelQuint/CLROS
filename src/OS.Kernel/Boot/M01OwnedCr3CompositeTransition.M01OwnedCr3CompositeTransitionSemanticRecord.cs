@@ -33,5 +33,3 @@ public readonly struct M01OwnedCr3CompositeTransitionSemanticRecord
     public ulong StateOffsetOrConstant => _stateOffsetOrConstant;
     internal bool ReservedFieldIsZero => _reserved == 0;
 }
-#if !NOSTDLIB_EFI
-#endif

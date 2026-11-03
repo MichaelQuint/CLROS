@@ -7,11 +7,6 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
-#if M10_018_PROBE
-
-#else
-
-#endif
 
         // These synchronous stack borrows never survive Dispatch or a handoff.
         // Preserve the actual input path before a stat output can overwrite it.
@@ -23,40 +18,13 @@ public static unsafe partial class EfiEntry
             internal bool HasPath;
         }
 
-#if M10_018_PROBE
 
-#endif
 
-#if M10_018_PROBE
 
-#endif
 
-#if M10_018_PROBE
 
-#endif
 
-#if M10_018_TIMING_PROBE
 
-#endif
-
-#if M10_018_PROBE
-
-#endif
-
-#if M10_018_PROBE
-
-#endif
-
-#if M10_018_PROBE
-
-#endif
-#if M10_018_TIMING_PROBE
-
-#endif
-
-#if M10_018_TIMING_PROBE
-
-#endif
 
     }
 }

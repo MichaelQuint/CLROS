@@ -20,5 +20,3 @@ public enum FetchAppHttpRequestEndpointReadinessStatus
     EndpointFailed = 2
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 
 namespace OS.Tooling;
 
@@ -35,10 +36,16 @@ public static class RepositoryCodeStyle
             return [];
 
         var result = new HashSet<SourceStyleDiagnostic>();
+        HashSet<TextSpan>? inert = null;
         foreach (var options in CSharpSourceProfiles.ForSource(source, path))
         {
             var tree = CSharpSyntaxTree.ParseText(source, options, path);
             var root = tree.GetRoot();
+            var candidates = CSharpInertConditionals.Find(tree).ToHashSet();
+            if (inert is null)
+                inert = candidates;
+            else
+                inert.IntersectWith(candidates);
             // #error deliberately rejects unsupported build selections; it is
             // not malformed C# syntax or a type-placement violation.
             foreach (var diagnostic in tree.GetDiagnostics().Where(value => value.Severity == DiagnosticSeverity.Error && value.Id != "CS1029"))
@@ -79,6 +86,10 @@ public static class RepositoryCodeStyle
                     Add(declaration, "CLROSSTYLE002", $"Filename must identify {string.Join(".", parents.Append(name))}; use Parent.Child.cs for helpers.");
             }
         }
+
+        foreach (var span in inert ?? [])
+            result.Add(new(path, SourceText.From(source).Lines.GetLineFromPosition(span.Start).LineNumber + 1,
+                "CLROSSTYLE003", "Remove conditional groups containing only whitespace and conditional directives."));
 
         return result.OrderBy(value => value.Line).ThenBy(value => value.Rule, StringComparer.Ordinal).ToArray();
 

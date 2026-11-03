@@ -10,54 +10,14 @@ internal sealed class SimpleCatchSibling : SimpleCatchBase
     internal SimpleCatchSibling(ulong payload) : base(payload) { }
 }
 
-#if M04_EH_CATALOG_PROBE
 
-#endif
 
-#if M04_EH_CATALOG_PROBE
 
-#else
 
-#endif
 
-#if M04_EH_CATALOG_PROBE
 
-#else
 
-#endif
 
-#if M04_EH_CATALOG_PROBE
 
-#else
-
-#endif
-
-#if M04_EH_CATALOG_PROBE
-
-#endif
-
-#if M04_EH_CATALOG_PROBE
-
-#else
-
-#endif
-
-#if !M04_EH_CATALOG_PROBE
-
-#endif
-
-#if M04_EH_CATALOG_PROBE
-
-#else
-
-#endif
-
-#if !M04_EH_CATALOG_PROBE
-
-#endif
-
-#if M04_EH_CATALOG_PROBE
-
-#endif
 
 #endif

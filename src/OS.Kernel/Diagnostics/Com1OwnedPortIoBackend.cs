@@ -129,5 +129,3 @@ public readonly struct Com1OwnedPortIoBackend
         }
     }
 }
-#if !NOSTDLIB_EFI
-#endif

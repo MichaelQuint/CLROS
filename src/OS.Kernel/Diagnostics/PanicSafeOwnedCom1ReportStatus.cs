@@ -16,5 +16,3 @@ public enum PanicSafeOwnedCom1ReportStatus : byte
     InvalidDestination = 11,
     InvalidPayloadIndex = 12
 }
-#if !NOSTDLIB_EFI
-#endif

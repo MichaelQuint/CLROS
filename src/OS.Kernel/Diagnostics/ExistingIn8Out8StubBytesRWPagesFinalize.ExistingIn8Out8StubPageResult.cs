@@ -111,5 +111,3 @@ public readonly struct ExistingIn8Out8StubPageResult
         return new ExistingIn8Out8StubPageResult(status, ExistingIn8Out8StubPagePhase.Uninitialized, modeledPageAddress: 0, bytesWrittenOrVerified: 0, publicationEpoch: 0, transitionVersion: 0, finalizationCount: 0);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

@@ -20,5 +20,3 @@ public enum NativeAppArgumentVectorReadinessStatus
     ArgumentVectorFailed = 2
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

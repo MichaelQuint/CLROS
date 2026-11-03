@@ -23,5 +23,3 @@ public enum AppSelectionPreflightReadinessStatus
     SelectionLoadFailed = 5
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

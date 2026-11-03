@@ -93,7 +93,4 @@ internal static unsafe class RethrowAdmission
 
     private static bool MethodFits(ulong method, uint bytes) => method != 0 && method <= ulong.MaxValue - bytes;
 }
-#if NOSTDLIB_EFI && M04_RETHROW_PROBE
-
-#endif
 #endif

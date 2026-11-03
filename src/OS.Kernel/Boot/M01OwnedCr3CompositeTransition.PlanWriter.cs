@@ -1,6 +1,4 @@
 namespace OS.Boot;
-#if !NOSTDLIB_EFI
-#endif
 public static unsafe partial class M01OwnedCr3CompositeTransition
 {
     private struct PlanWriter

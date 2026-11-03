@@ -3,8 +3,6 @@ using OS.Kernel.Runtime;
 
 #endif
 namespace OS.Kernel.Diagnostics;
-#if !NOSTDLIB_EFI
-#endif
 public static unsafe class InvokeIn8Out8CheckedUnmanagedFunctionPointers
 {
     public const ushort RequiredCom1BasePort = 0x03f8;

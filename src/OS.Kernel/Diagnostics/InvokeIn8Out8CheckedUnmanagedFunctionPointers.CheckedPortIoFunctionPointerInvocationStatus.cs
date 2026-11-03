@@ -10,9 +10,3 @@ public enum CheckedPortIoFunctionPointerInvocationStatus
     BindingNotReady = 1,
     PortOutsideConfiguredRange = 2
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

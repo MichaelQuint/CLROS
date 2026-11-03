@@ -21,6 +21,3 @@ internal static unsafe partial class X64ReversibleCr3TransitionStubPlanTests
 {
     private readonly record struct DecodedInstruction(int Offset, int Length, InstructionKind Kind, int? BranchTarget, uint? StateOffset, bool TouchesNonvolatile, bool TouchesXmm, bool MutatesFlags);
 }
-#if M01_013_TRANSITION_FOCUSED
-
-#endif

@@ -815,5 +815,3 @@ public static partial class Probes
     }
 #endif
 }
-#if !NOSTDLIB_EFI
-#endif

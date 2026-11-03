@@ -22,5 +22,3 @@ public enum NativeManifestEnvironmentReadinessStatus
     DiagnosticFormattingFailure = 4
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

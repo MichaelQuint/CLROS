@@ -62,5 +62,3 @@ public readonly struct EfiConfigurationTableGuid
         get;
     }
 }
-#if !NOSTDLIB_EFI
-#endif

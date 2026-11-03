@@ -7,51 +7,19 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
-#if M10_018_PROBE
-
-#else
-
-#endif
         private struct LinuxStaticFileIdentity
         {
             internal uint Fd, Generation, Kind, View;
             internal ulong Inode, Bytes, Position;
         }
 
-#if M10_018_PROBE
 
-#endif
 
-#if M10_018_PROBE
 
-#endif
 
-#if M10_018_PROBE
 
-#endif
 
-#if M10_018_TIMING_PROBE
 
-#endif
-
-#if M10_018_PROBE
-
-#endif
-
-#if M10_018_PROBE
-
-#endif
-
-#if M10_018_PROBE
-
-#endif
-#if M10_018_TIMING_PROBE
-
-#endif
-
-#if M10_018_TIMING_PROBE
-
-#endif
 
     }
 }

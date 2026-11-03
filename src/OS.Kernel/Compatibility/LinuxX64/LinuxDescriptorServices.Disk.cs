@@ -17,8 +17,6 @@ public static unsafe partial class LinuxDescriptorServices
 #if !NOSTDLIB_EFI || M16_027_PROBE
     private const byte DiskPausedReady = 6, DiskFstat = 5;
 #endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
     /// <summary>Attach eight zeroed stable records of each kind. Invalid alias,
     /// extent, capacity or ownership admission has no effects. This borrows an
     /// already ready FS; it starts no device, scheduler or user operation.</summary>

@@ -30,6 +30,3 @@ internal static unsafe partial class X64PagingModePreflightStubPlanTests
 {
     private readonly record struct NoStdLibBuildResult(int ExitCode, bool TimedOut, string Output, byte[] AssemblyBytes);
 }
-#if M01_013_PREFLIGHT_FOCUSED
-
-#endif

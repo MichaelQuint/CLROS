@@ -41,7 +41,3 @@ public readonly struct M01LoadedImageStackStaticPreparationResult
         return new M01LoadedImageStackStaticPreparationResult(status, checkpoint);
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

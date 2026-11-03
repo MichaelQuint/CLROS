@@ -46,35 +46,10 @@ public static unsafe partial class EfiEntry
 #endif
         }
 
-#if M09_009_PROBE || M09_010_PROBE
 
-#else
 
-#endif
 
-#if M09_009_PROBE || M09_010_PROBE
 
-#else
-
-#endif
-
-#if M09_009_PROBE || M09_010_PROBE
-
-#else
-
-#endif
-
-#if M09_009_PROBE || M09_010_PROBE
-
-#else
-
-#endif
-
-#if M09_009_PROBE || M09_010_PROBE
-
-#else
-
-#endif
 
     }
 }

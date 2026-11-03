@@ -69,5 +69,3 @@ public readonly struct BootPageAllocatorMutationResult
     }
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

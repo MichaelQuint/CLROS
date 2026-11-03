@@ -93,7 +93,3 @@ public readonly struct CheckedPortIoFunctionPointerBindingRequest
     }
 #endif
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

@@ -16,13 +16,3 @@ public unsafe struct LinuxSyscallAdmission
     // Explicit finite M10-018 full owner; never compatible with quota renewal.
     public bool DiskStaticFull;
 }
-#if !NOSTDLIB_EFI || M16_025_PROBE || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif

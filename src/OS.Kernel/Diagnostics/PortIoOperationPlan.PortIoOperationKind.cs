@@ -6,5 +6,3 @@ public enum PortIoOperationKind : byte
     Out8 = 1,
     In8 = 2
 }
-#if !NOSTDLIB_EFI
-#endif

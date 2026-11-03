@@ -22,5 +22,3 @@ public enum AppSelectionReadinessStatus
     LaunchDescriptorFailed = 4
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

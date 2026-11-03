@@ -11,6 +11,4 @@ public static unsafe partial class LinuxElfPackage
     {
         public uint PathOffset, PathBytes, DataOffset, DataBytes;
     }
-#if !NOSTDLIB_EFI
-#endif
 }

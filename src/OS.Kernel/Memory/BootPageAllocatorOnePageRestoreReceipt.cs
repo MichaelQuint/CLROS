@@ -30,7 +30,3 @@ public readonly struct BootPageAllocatorOnePageRestoreReceipt
         return new BootPageAllocatorOnePageRestoreReceipt(sourceNodeBefore, previousNodeIndexBefore, previousNodeBefore);
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

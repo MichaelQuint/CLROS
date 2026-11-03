@@ -48,5 +48,3 @@ public readonly struct Com1OwnedPortIoConfigurationResult
         return new Com1OwnedPortIoConfigurationResult(true, status, writesCompleted, Com1OwnedPortIoBackend.RequiredConfigurationWriteCount, failedWriteIndex, lastOperation);
     }
 }
-#if !NOSTDLIB_EFI
-#endif

@@ -7,5 +7,3 @@ public enum PortIoStubPlanStatus
     OutputBufferTooSmall = 2,
     MissingDestination = 3
 }
-#if !NOSTDLIB_EFI
-#endif

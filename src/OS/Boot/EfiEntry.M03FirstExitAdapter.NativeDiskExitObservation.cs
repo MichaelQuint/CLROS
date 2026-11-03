@@ -30,9 +30,6 @@ public static unsafe partial class EfiEntry
             internal bool SlotActive;
         }
 
-#if M10_018_PROBE
-
-#endif
 
     }
 }

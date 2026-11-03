@@ -15,7 +15,3 @@ public enum SpanMemoryConformanceStatus : byte
     VectorOrderMismatch = 10,
     CatalogFingerprintMismatch = 11
 }
-#if !NOSTDLIB_EFI
-#else
-
-#endif

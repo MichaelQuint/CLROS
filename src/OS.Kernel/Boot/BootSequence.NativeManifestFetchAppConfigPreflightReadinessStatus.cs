@@ -20,5 +20,3 @@ public enum NativeManifestFetchAppConfigPreflightReadinessStatus
     PreflightFailed = 2
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

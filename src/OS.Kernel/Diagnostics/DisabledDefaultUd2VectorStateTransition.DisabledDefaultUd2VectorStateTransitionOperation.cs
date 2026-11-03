@@ -7,5 +7,3 @@ public enum DisabledDefaultUd2VectorStateTransitionOperation : byte
     EmitStream = 2,
     ValidateStreamReadBack = 3
 }
-#if !NOSTDLIB_EFI
-#endif

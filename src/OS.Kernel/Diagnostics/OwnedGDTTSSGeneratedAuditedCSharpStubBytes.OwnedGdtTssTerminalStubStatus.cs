@@ -31,5 +31,3 @@ public enum OwnedGdtTssTerminalStubStatus : byte
     StubByteMismatch = 26,
     UnexpectedGeneratedFingerprint = 27
 }
-#if !NOSTDLIB_EFI
-#endif

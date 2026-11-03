@@ -6,5 +6,3 @@ public enum OwnedIdtGateTableOperation : byte
     Materialize = 1,
     ValidateReadBack = 2
 }
-#if !NOSTDLIB_EFI
-#endif

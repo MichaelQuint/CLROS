@@ -6,8 +6,6 @@ using System.Text;
 using OS.Boot;
 using OS.Kernel.Memory;
 
-#if !M01_014_MAP_FOCUSED && !M01_014_INVLPG_FOCUSED && !M01_014_PROTECTION_FOCUSED
-#endif
 internal static class M01014TestData
 {
     internal const ulong PatFixture = 0x0006_0501_0007_0406;

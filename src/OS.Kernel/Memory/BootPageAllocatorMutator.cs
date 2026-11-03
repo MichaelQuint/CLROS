@@ -1,6 +1,4 @@
 namespace OS.Kernel.Memory;
-#if !NOSTDLIB_EFI
-#endif
 public static unsafe class BootPageAllocatorMutator
 {
     public const bool PerformsLiveAllocation = false;

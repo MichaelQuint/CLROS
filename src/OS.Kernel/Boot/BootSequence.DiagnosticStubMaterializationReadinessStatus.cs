@@ -20,5 +20,3 @@ public enum DiagnosticStubMaterializationReadinessStatus
     NoMaterializedPayloadEvidence = 2
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

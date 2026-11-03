@@ -8,7 +8,3 @@ public enum BootPageAllocatorOnePageCoalescingKind : byte
     Next = 3,
     PreviousAndNext = 4
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

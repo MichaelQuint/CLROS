@@ -8,5 +8,3 @@ public enum IDTRContinuedExecutionOperation : byte
     ValidateStubReadBack = 3,
     AuditExecution = 4
 }
-#if !NOSTDLIB_EFI
-#endif

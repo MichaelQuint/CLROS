@@ -23,13 +23,5 @@ public static unsafe partial class LinuxDescriptorServices
 
         public bool IsActive => Owner != 0 && Epoch != 0 && Generation != 0;
     }
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
 }
 #endif

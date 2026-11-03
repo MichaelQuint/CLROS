@@ -23,8 +23,6 @@ public static unsafe partial class LinuxSocketNetwork
 #if !NOSTDLIB_EFI || M16_027_PROBE
     internal const uint RetainedExtentCount = 8;
 #endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
     /// <summary>Attach sockets, then epoll, then this network owner, then threads.
     /// The actual configured NIC/peer MACs and IPv4 peer are required. All extents
     /// must be trusted mapped supervisor storage, inaccessible to the application.

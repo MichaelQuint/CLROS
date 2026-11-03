@@ -14,5 +14,3 @@ public unsafe struct OwnedGdtTssTerminalContext
     public fixed byte Gdt[40];
     public fixed byte Tss[104];
 }
-#if !NOSTDLIB_EFI
-#endif

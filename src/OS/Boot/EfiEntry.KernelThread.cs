@@ -24,9 +24,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-#if M09_009_PROBE || M09_010_PROBE
-
-#endif
 
         private static bool RunKernelThreads(void* context)
         {

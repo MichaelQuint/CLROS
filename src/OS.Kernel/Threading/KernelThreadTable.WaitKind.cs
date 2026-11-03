@@ -11,6 +11,4 @@ public unsafe partial struct KernelThreadTable
         Sleep,
         Join
     }
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }

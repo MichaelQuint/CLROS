@@ -13,15 +13,15 @@ internal static unsafe partial class M02IdtrContinuedExecutionEfiIntegrationTest
             ["OS.Kernel.Diagnostics.IDTRContinuedExecution"] =
                 ["d10312b39396de6a9d71ad0185cba1dd72f505c0281438339f8330ea33011182"],
             ["OS.Kernel.Diagnostics.IDTRContinuedExecutionOperation"] =
-                ["b211dfd2999018682ba4b6102b2254bb7fe0c81001676dadca04d0f8d027aa29"],
+                ["18238952b4e17fbdf4802250ed163aaa435f46f60739989e6767491edb823a43"],
             ["OS.Kernel.Diagnostics.IDTRContinuedExecutionStatus"] =
-                ["8656b93701cdf71a2d79c32f37d37a69fbe3bfcffed43de8b5cb55a5eca5af8f"],
+                ["51f613dd831a0bc893d71df0339a960396bbe0257ea8ceb2e12e850a93d838c7"],
             ["OS.Kernel.Diagnostics.IDTRContinuedExecutionContext"] =
-                ["491be18a2f0c48b2d1858e8ad7f4caab6ee4455374cd7787da7bd39f3c1d85bd"],
+                ["f43f72d842ffdd16495a879b122eeed965bc25dae54d9a57465ca153a1479005"],
             ["OS.Kernel.Diagnostics.IDTRContinuedExecutionPlanResult"] =
-                ["a96192a71c6a5e1a272824ddb9f8d6ca25b874b95bbc4853420e90666963450f"],
+                ["1ec8512a5d0bd937ebdac5d5f07eaa13611a2d28173a9477cc7c636d045e77e8"],
             ["OS.Kernel.Diagnostics.IDTRContinuedExecutionAuditResult"] =
-                ["4d8a4cfe54c78844c282bec3ec40b07b75b2394a31b653bc5e694c830850539a"]
+                ["cd9a2b616930b0711c156d2ce5d457b69c39e1337de2b006032811e56e1b8b07"]
         };
 
     [HostTest("m02.012 source discovery pins every extracted type independently of source paths")]

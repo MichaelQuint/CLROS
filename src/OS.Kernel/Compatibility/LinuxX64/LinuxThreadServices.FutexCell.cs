@@ -15,8 +15,4 @@ public unsafe partial struct LinuxThreadServices
         internal uint Mode, References;
         internal WaitAddress.Binding Binding;
     }
-#if !NOSTDLIB_EFI || M16_025_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }

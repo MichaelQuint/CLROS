@@ -21,5 +21,3 @@ public enum FetchAppHttpTcpExchangeReadinessStatus
     DiagnosticFormattingFailure = 3
 }
 #endif
-#if !NOSTDLIB_EFI
-#endif

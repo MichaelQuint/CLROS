@@ -16,6 +16,4 @@ public unsafe partial struct KernelThreadTable
         Exited,
         Retired
     }
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }

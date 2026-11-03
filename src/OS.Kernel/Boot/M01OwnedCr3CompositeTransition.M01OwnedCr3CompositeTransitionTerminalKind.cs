@@ -8,5 +8,3 @@ public enum M01OwnedCr3CompositeTransitionTerminalKind : byte
     Reset = 3,
     TripleFault = 4
 }
-#if !NOSTDLIB_EFI
-#endif

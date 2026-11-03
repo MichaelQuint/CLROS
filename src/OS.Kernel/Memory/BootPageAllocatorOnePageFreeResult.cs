@@ -120,7 +120,3 @@ public readonly struct BootPageAllocatorOnePageFreeResult
         return new BootPageAllocatorOnePageFreeResult(status, reservationStatus, addressStatus, state, state, allocation, BootPageAllocatorOnePageCoalescingKind.Uninitialized, nodeCount, nodeCapacity, reservationCount, reservationCapacity, restoredNodeIndex, previousNodeIndex, removedSuffixNodeIndex, visitedNodeCount, invalidReservationIndex, conflictingIndex);
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

@@ -30,13 +30,3 @@ public unsafe struct LinuxSyscallAccess
     // The frame is borrowed for this synchronous call; do not retain or mutate it.
     public delegate* unmanaged<void*, LinuxSyscallFrame*, byte> ReturnPolicy;
 }
-#if !NOSTDLIB_EFI || M16_025_PROBE || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
-#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-#endif

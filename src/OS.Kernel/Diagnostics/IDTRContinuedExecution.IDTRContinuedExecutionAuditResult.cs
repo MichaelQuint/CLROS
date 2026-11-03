@@ -105,5 +105,3 @@ public readonly struct IDTRContinuedExecutionAuditResult
         return firstLimit == secondLimit && firstBase == secondBase;
     }
 }
-#if !NOSTDLIB_EFI
-#endif

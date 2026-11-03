@@ -9,7 +9,3 @@ public enum M01StageOneAllocationProvenance : byte
     Uninitialized = 0,
     CallerAttestedSuccessfulFirmwarePageAllocation = 1
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

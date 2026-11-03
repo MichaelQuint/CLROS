@@ -56,7 +56,3 @@ public readonly struct M01LoadedImageStackStaticTransitionResult
         return _status == M01LoadedImageStackStatus.Success && _checkpoint == checkpoint && _reserved0 == 0 && _reserved1 == 0 && _reserved2 == 0 && _reserved3 == 0 && _reserved4 == 0 && _reserved5 == 0 && _stateResult.Succeeded && _stateResult.CurrentState == state && _layoutResult.Succeeded && _layoutResult.CurrentLifetime == lifetime && _target.IsValidFor(_stateResult.Plan);
     }
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

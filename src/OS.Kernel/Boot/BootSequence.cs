@@ -12,8 +12,6 @@ using OS.Storage;
 
 #endif
 namespace OS.Boot;
-#if !NOSTDLIB_EFI
-#endif
 public static class BootSequence
 {
     public static unsafe bool StageLinuxElfPackage(bool firmwareAvailable, void* context, delegate*<void*, bool> stage) => OS.Kernel.Diagnostics.Probes.EnableM16002Probe && firmwareAvailable && context != null && stage != null && stage(context);

@@ -20,51 +20,16 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-#if M10_018_PROBE
-
-#endif
-#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
-
-#endif
 
         private enum NativeDiskProgress : byte
         {
             Rejected, Pending, Ready
         }
-#if M10_018_TIMING_PROBE
 
-#endif
 
-#if M10_018_TIMING_PROBE
 
-#endif
 
-#if M10_018_PROBE
 
-#endif
-#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
-
-#endif
-
-#if M10_018_PROBE
-
-#endif
-#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
-
-#endif
-
-#if M10_018_PROBE
-
-#endif
-#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
-
-#endif
-
-#if M10_018_PROBE
-
-#else
-
-#endif
 
     }
 }

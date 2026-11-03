@@ -20,16 +20,7 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-#if M10_018_PROBE
 
-#endif
-#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
-
-#endif
-
-#if M10_018_TIMING_PROBE
-
-#endif
         private struct NativeDiskOwner
         {
             internal Storage* Boot;
@@ -75,25 +66,8 @@ public static unsafe partial class EfiEntry
             internal LiveEfiPartitionResult Partition;
         }
 
-#if M10_018_PROBE
 
-#endif
-#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
 
-#endif
-
-#if M10_018_PROBE
-
-#endif
-#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
-
-#endif
-
-#if M10_018_PROBE
-
-#else
-
-#endif
 
     }
 }

@@ -24,6 +24,4 @@ public static unsafe partial class LinuxContinuingWritableDescriptorServices
         internal fixed byte Name[(int)PathBytes];
         internal fixed uint Growth[C.MaximumGrowthClusters];
     }
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
 }

@@ -56,10 +56,10 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, IReadOnlyList<string>>(
             new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
             {
-                ["OS.Kernel.Diagnostics.OwnedX64GdtEncodingStatus"] = Array.AsReadOnly<string>(["0a1473f9e0cd009ad6515a0157a79fc16f06bd75f5b18afccc96a58a2bde2ffe"]),
-                ["OS.Kernel.Diagnostics.OwnedX64GdtVerificationStatus"] = Array.AsReadOnly<string>(["8e6a2352b9e0961ef0f0a1b753c2bb2a722452292d0a34ef9e9b3ee86dcce004"]),
-                ["OS.Kernel.Diagnostics.OwnedX64GdtVerificationResult"] = Array.AsReadOnly<string>(["638c8649d71e4b446307afb58174c186256faaab52980951f31cf8546819975c"]),
-                ["OS.Kernel.Diagnostics.OwnedX64GdtEncodingResult"] = Array.AsReadOnly<string>(["bcf88ddd01737df49f2afdc90b08f838a13ca19c9ad5c839f233bf9d3c5b5484"]),
+                ["OS.Kernel.Diagnostics.OwnedX64GdtEncodingStatus"] = Array.AsReadOnly<string>(["36df62df86c02b2d77b3f6643c72121b3dc65e2cd8650d3468dd1755b7067000"]),
+                ["OS.Kernel.Diagnostics.OwnedX64GdtVerificationStatus"] = Array.AsReadOnly<string>(["9f91d6ab13667e3b711af10fc628ec64c78281da9641ba51751831a9a9eca07e"]),
+                ["OS.Kernel.Diagnostics.OwnedX64GdtVerificationResult"] = Array.AsReadOnly<string>(["9813ff2b41baf2730da95d56a44aea82b75b211164e0686ecd18ca9c136d2315"]),
+                ["OS.Kernel.Diagnostics.OwnedX64GdtEncodingResult"] = Array.AsReadOnly<string>(["3f69def0a2d5a5bdccc0583f61dc7bc5a7c9d5daf630f23ce05431d0e47a6e79"]),
                 ["OS.Kernel.Diagnostics.OwnedX64GdtContainingNullN64BitCode"] = Array.AsReadOnly<string>(["28b5aa8077dc692e5807a1a3445a162eb6fb8a492fed0fe70f6323b5026f9ad3"])
             });
     // Complete descendants of the original guarded-IST host witness, reviewed
@@ -98,9 +98,9 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, IReadOnlyList<string>>(
             new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
             {
-                ["OS.Kernel.Diagnostics.NormalizeInterruptFramePageOperation"] = Array.AsReadOnly<string>(["f859ea5e594184686053903315161a60bb4769782ebb4a3f697acb7430187f7b"]),
-                ["OS.Kernel.Diagnostics.NormalizeInterruptFramePageStatus"] = Array.AsReadOnly<string>(["77082d6f6a47bce3409464aef992d0f844b8ebbc8b76e7a46bb7ac17c8c94983"]),
-                ["OS.Kernel.Diagnostics.NormalizeInterruptFramePageResult"] = Array.AsReadOnly<string>(["158a20f52c51b6b766d2e23e9af8bbb6cc36fb18c1caa2595d6b68072e405acc"]),
+                ["OS.Kernel.Diagnostics.NormalizeInterruptFramePageOperation"] = Array.AsReadOnly<string>(["f7365b224345cc92fc301b48dd2e928ebe169a3ceae5d7d17149291483d67900"]),
+                ["OS.Kernel.Diagnostics.NormalizeInterruptFramePageStatus"] = Array.AsReadOnly<string>(["3ed7310872b4cd5f417a744ea1a719ac0c81b9543349dd27b8fa8e819b7d2c39"]),
+                ["OS.Kernel.Diagnostics.NormalizeInterruptFramePageResult"] = Array.AsReadOnly<string>(["394f87b41e5ca93ea199b50a588c0b30701a85eb0317329b153a58291d8df969"]),
                 ["OS.Kernel.Diagnostics.NormalizeErrorCodeNonErrorCodeInterruptFrame"] = Array.AsReadOnly<string>(["b99f393d82e3ce9c5ce11c494254a9b5f4985014db74208bb494f28adee9e9b4"]),
             });
     internal const string OwnedIdtHostOracleSha256 =
@@ -113,9 +113,9 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, IReadOnlyList<string>>(
             new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
             {
-                ["OS.Kernel.Diagnostics.OwnedIdtGateTableOperation"] = Array.AsReadOnly<string>(["f7e4d94a2271dfa7c4ffe4041b3bc3e3b528796b5278abaf5deb200738911f8b"]),
-                ["OS.Kernel.Diagnostics.OwnedIdtGateTableStatus"] = Array.AsReadOnly<string>(["04a01fa0e7334af2297e7dfcc1d5b378772a5fa4325845bb3bd6b6798cb4ca58"]),
-                ["OS.Kernel.Diagnostics.OwnedIdtGateTableResult"] = Array.AsReadOnly<string>(["cca75708872514259d5afd0c1dd4ef18192eda4d5590acf92366cfd602f827ef"]),
+                ["OS.Kernel.Diagnostics.OwnedIdtGateTableOperation"] = Array.AsReadOnly<string>(["455ae315ac4dd35db051d69198e8650d9963dc9abf6b49a011c03792ddb65782"]),
+                ["OS.Kernel.Diagnostics.OwnedIdtGateTableStatus"] = Array.AsReadOnly<string>(["88cfb1aef7d8290ca4be62ba19d795ac387feae17ea3e345b641b26756d3694d"]),
+                ["OS.Kernel.Diagnostics.OwnedIdtGateTableResult"] = Array.AsReadOnly<string>(["8d2fa1d7619a5ed6de0f181189eccfdd0ea5e4c75e28674ef484ce6fe5068910"]),
                 ["OS.Kernel.Diagnostics.PopulateAllN256IDTVectorsOwnedGatesNever"] = Array.AsReadOnly<string>(["e6582e6ca7da225a22f3a979a5a57f87105f7ce19e5f6d1ce53cfb68c24aa4e2"]),
             });
 }

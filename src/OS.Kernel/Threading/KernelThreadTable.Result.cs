@@ -43,6 +43,4 @@ public unsafe partial struct KernelThreadTable
             _returned = true;
         }
     }
-#if !NOSTDLIB_EFI || M16_027_PROBE
-#endif
 }

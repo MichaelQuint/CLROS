@@ -8,7 +8,3 @@ public enum SpanMemoryConformanceOperation : byte
     MemoryCast = 3,
     UnalignedWidth = 4
 }
-#if !NOSTDLIB_EFI
-#else
-
-#endif

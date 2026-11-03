@@ -5,9 +5,6 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-#if M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE
-
-#endif
 
 internal static unsafe partial class RhpNewFastAllocation
 {
@@ -17,49 +14,9 @@ internal static unsafe partial class RhpNewFastAllocation
         internal fixed ulong Words[128];
     }
 
-#if M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE
 
-#endif
 
-#if M04_FILTERED_CATCH_PROBE
 
-#elif M04_CONSTRUCTOR_FAILURE_PROBE
-
-#elif M04_NORMAL_FINALLY_PROBE
-
-#elif M04_FRAME_DISPATCH_PROBE
-
-#elif M04_UNHANDLED_EXCEPTION_PROBE
-
-#elif M04_NESTED_FINALLY_CATCH_PROBE
-
-#elif M04_RETHROW_PROBE
-
-#elif M04_SINGLE_FINALLY_CATCH_PROBE
-
-#elif M04_SIMPLE_THROW_CATCH_PROBE
-
-#endif
-#if M04_INTERFACE_DISPATCH_PROBE
-
-#endif
-#if M04_SEEDED_COLLECTOR_CHURN_PROBE
-
-#endif
-
-#if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE || M04_FILTERED_CATCH_PROBE || M04_NORMAL_FINALLY_PROBE
-#if M04_CONSTRUCTOR_FAILURE_PROBE
-
-#endif
-
-#endif
-#if M04_INTERFACE_DISPATCH_PROBE
-
-#endif
-
-#if M04_CONSTRUCTOR_FAILURE_PROBE
-
-#endif
 
 #pragma warning disable CS0649 // Written through bounded sequential POD slots.
 

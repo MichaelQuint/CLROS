@@ -1,6 +1,6 @@
 using OS.Tooling;
 
-internal static class RepositoryCodeStyleTests
+internal static partial class RepositoryCodeStyleTests
 {
     [HostTest("source style keeps finally host and EFI entry modes separate")]
     private static void FinallyEntryModes()

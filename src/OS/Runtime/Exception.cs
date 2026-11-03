@@ -18,29 +18,8 @@ namespace System
 #pragma warning restore CS0649
 #pragma warning disable CS0649
 #pragma warning restore CS0649
-#if M04_STRING_ALLOCATION_PROBE
-
-#endif
-#if M04_STRING_ALLOCATION_PROBE
-
-#else
-#endif
-#if M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE
-
-#elif M04_CHECKED_REFERENCE_BARRIER_PROBE
-
-#else
-#endif
     namespace Runtime
     {
-#if NOSTDLIB_EFI && M04_FILTERED_CATCH_PROBE
-
-#else
-#endif
-#if NOSTDLIB_EFI && (M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE || M04_NORMAL_FINALLY_PROBE)
-
-#else
-#endif
     }
 
     namespace Runtime.CompilerServices
@@ -71,22 +50,6 @@ namespace System
 
 namespace System.Runtime
 {
-#if M04_RHP_NEW_FAST_PROBE
-
-#else
-#endif
-#if M04_SZ_ARRAY_ALLOCATION_PROBE
-
-#else
-#endif
-#if M04_SZ_ARRAY_ALLOCATION_PROBE
-
-#else
-#endif
-#if M04_STRING_ALLOCATION_PROBE
-
-#else
-#endif
 }
 
 // Compiler metadata only, not reflection or a general String API.

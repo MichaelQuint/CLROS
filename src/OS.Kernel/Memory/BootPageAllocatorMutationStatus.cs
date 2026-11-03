@@ -43,7 +43,3 @@ public enum BootPageAllocatorMutationStatus
     AllocatedByteCountOverflow = 38,
     AllocationAddressConstructionFailed = 39
 }
-#if !NOSTDLIB_EFI
-#endif
-#if !NOSTDLIB_EFI
-#endif

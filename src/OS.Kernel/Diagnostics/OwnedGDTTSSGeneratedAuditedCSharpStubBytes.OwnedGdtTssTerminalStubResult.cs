@@ -104,5 +104,3 @@ public readonly struct OwnedGdtTssTerminalStubResult
     internal static byte EmitOperation => EmitStubOperation;
     internal static byte ValidateOperation => ValidateReadBackOperation;
 }
-#if !NOSTDLIB_EFI
-#endif

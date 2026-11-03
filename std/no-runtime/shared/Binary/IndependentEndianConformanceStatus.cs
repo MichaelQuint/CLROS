@@ -22,10 +22,3 @@ public enum IndependentEndianConformanceStatus : byte
     ReadVectorPointerNull = 17,
     ReverseVectorPointerNull = 18
 }
-#if !NOSTDLIB_EFI
-#else
-
-#endif
-#if NOSTDLIB_EFI && M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE && !M01_OWNED_PAGING_PROBE
-
-#endif

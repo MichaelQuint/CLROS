@@ -6,5 +6,3 @@ public enum Com1OwnedPortIoConfigurationStatus : byte
     BackendNotReady = 1,
     ConfigurationWriteFailed = 2
 }
-#if !NOSTDLIB_EFI
-#endif

@@ -86,6 +86,3 @@ internal static unsafe partial class X64ReversibleCr3TransitionStubPlanTests
         }
     }
 }
-#if M01_013_TRANSITION_FOCUSED
-
-#endif

@@ -14,6 +14,4 @@ public static unsafe partial class LinuxContinuingWritableDescriptorServices
         public uint DescriptorCount, DescriptionCount, InputBytes;
         public bool ExclusiveOwnerValidated;
     }
-#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
-#endif
 }

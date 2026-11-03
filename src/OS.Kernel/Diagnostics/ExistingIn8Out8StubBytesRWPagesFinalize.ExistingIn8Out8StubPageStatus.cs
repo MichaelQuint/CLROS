@@ -47,5 +47,3 @@ public enum ExistingIn8Out8StubPageStatus : byte
     ContractLayoutMismatch = 42,
     StateStorageOverlap = 43
 }
-#if !NOSTDLIB_EFI
-#endif

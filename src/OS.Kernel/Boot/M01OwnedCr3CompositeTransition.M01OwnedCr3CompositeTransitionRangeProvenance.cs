@@ -10,5 +10,3 @@ public enum M01OwnedCr3CompositeTransitionRangeProvenance : byte
     ReservationAndIdentityMapping = 2,
     ContainedInAllocationReservationAndIdentityMapping = 3
 }
-#if !NOSTDLIB_EFI
-#endif

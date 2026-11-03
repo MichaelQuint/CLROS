@@ -41,5 +41,3 @@ public readonly struct DisabledDefaultUd2VectorStatePreTerminalResult
     public bool ReleaseCode => (CleanupPlan & 2) != 0;
     public bool Succeeded => IsInitialized && Status == DisabledDefaultUd2VectorStatePreTerminalStatus.Success;
 }
-#if !NOSTDLIB_EFI
-#endif
