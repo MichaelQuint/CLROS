@@ -1,5 +1,15 @@
 # Diagnostics
 
+[Step1745](../done/step1745.md) records source-matched own-Full diagnostics.
+WHPX fails the unchanged180-second complete-body deadline with1687552/2009369
+bytes; host cancellation/join passes and the captured disk/packet prefix is exact.
+TCG completes8 HTTP assertions and49 browser exchanges with the expected ready
+DOM, then the outer capture contract wrongly requires a natural summary from its
+deliberately cancelled runner. Preserve outer exit1. The host-only repair passes
+53 executions/52 distinct cases and explicitly reports naturalSummaryExpected=false;
+ordinary Full gates remain. TCG full163.131s/concurrent159.147s are single network
+samples, separate from host body writes/flushes, not a distribution or CPU cause.
+
 [Step1743](../done/step1743.md) preserves request errors if the independent HTTP
 receipt fails: ordered original/receipt aggregation retains the first invariant.
 A real invalid-file collision demonstrates the original masking failure before
@@ -31,8 +41,10 @@ clocks must not be treated as pure CPU/device latencies. Attribution continues.
 [Step1738](../done/step1738.md) wires the first/warm HTTP observer into an
 explicit owned Full018 diagnostic. Partial failures retain body prefixes and
 joined runner disposition. Request and secondary receipt errors are both kept.
-Serial/PCAP/summary are held and hashed under existing final reader bounds;
-these bounds do not claim a total-PCAP writer quota or full traffic acceptance.
+The original Serial/PCAP/summary requirement uses final reader bounds; step1745
+corrects the deliberately stopped benchmark to hold serial/PCAP and declare a
+natural summary not expected. Ordinary Full retains its summary requirement.
+Reader bounds do not claim a total-PCAP writer quota or full traffic acceptance.
 All 68 host checks pass. The inherited browser secondary-IO masking finding,
 actual guest quota fit and extended measurements remain pending.
 

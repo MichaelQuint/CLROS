@@ -1,5 +1,12 @@
 # RC3 and WHPX qualification contract
 
+[Step1745](../done/step1745.md) renews own-Full native proof and records two
+unchanged-bound diagnostics. WHPX remains incomplete; TCG HTTP/browser delivery
+is observed, with deliberate host stop followed by an erroneous summary capture
+requirement. The host repair passes focused red/green checks; both original outer
+failures stay failed. Final source-matched Full/29/24/7 and performance/browser
+qualification below remain required after the comment/docs/producer refresh.
+
 [Step1743](../done/step1743.md) verifies host body-deadline and receipt-failure
 semantics before further qualification. Retain the real timer, expected red and
 green originals and exact source boundaries. No native/guest/unfiltered full or

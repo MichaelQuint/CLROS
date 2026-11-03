@@ -1,5 +1,12 @@
 # Repository Audit
 
+[Step1745](../done/step1745.md) extracts the benchmark capture policy into an
+associated QemuSmoke partial and adds two discovered controls. Identical test
+bytes reproduce the absent-natural-summary failure, then pass with the bounded
+serial/PCAP contract.53 executions/52 distinct cases pass unchanged/zero reuse;
+ordinary Full consumer bytes stay exact. The later comment/docs overlay gets a
+fresh graph epoch. Native and guest originals retain separate source bindings.
+
 [Step1744](../done/step1744.md) adds host-only CLROSSTYLE005: lambda braces must
 remain within the containing statement/member's visual indentation, allowing
 deeper headers and both valid continuation styles.29 files/86 blocks/30 profiles

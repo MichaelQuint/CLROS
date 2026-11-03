@@ -1,5 +1,12 @@
 # Host Requirements
 
+[Step1745](../done/step1745.md) verifies the stopped HTTP diagnostic's capture
+contract independently of natural completion. After successful observations it
+deliberately cancels/joins the runner and checks endpoint refusal; bounded serial
+and PCAP remain mandatory, a natural summary is not expected. Explicit receipt
+flags deny ordinary Full cleanup.53 fresh passing host executions cover the fix;
+the earlier TCG outer exit1 remains failed. Refresh source/producers before guests.
+
 [Step1744](../done/step1744.md) validates the lambda-containment guard against
 the unapplied packet (172 intended failures), then rebuilds the complete solution
 and passes66 fresh focused checks with zero reuse/unchanged inputs. Dynamic

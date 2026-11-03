@@ -4,6 +4,11 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1745](done/step1745.md) renews own-Full native proof and records an intact
+TCG HTTP/browser observation. WHPX still exceeds the180-second full-body limit.
+A stopped-diagnostic capture mismatch is reproduced and repaired with53 passing
+host executions. Preserve both outer failures; final and performance gates remain.
+
 [Step1744](done/step1744.md) repairs lambda block indentation with independently
 verified whitespace equivalence and a host containment rule. The complete
 solution and66 fresh focused checks pass, with zero repository findings.

@@ -1,5 +1,13 @@
 # EFI Build
 
+[Step1745](../done/step1745.md) renews actual own-Full FF65CCA9 native evidence:
+2068 complete method/compiler-fragment joins,124 exact canonical data nodes and
+all20 own-Full witness calculations. Text adds zero positive stack charge; retain
+Hex48 on every Full path, including IRQ, with no Timing exclusion/shrink credit.
+The actual loaded image grows4096 bytes; live size/mapping/provider/CPU/IF/stack
+and all nested conditions remain. Both executed publications match reviewed bytes.
+Observed TCG rendering and host-only capture repairs do not renew final acceptance.
+
 [Step1744](../done/step1744.md) refreshes only two current app source-output
 hashes after reviewed lambda whitespace changes; kernel/std/EFI source links,
 historical anchors and native pins remain exact. Host source/admission success

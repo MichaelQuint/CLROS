@@ -1,5 +1,13 @@
 # Storage
 
+[Step1745](../done/step1745.md) binds fresh own-Full objects/metadata/witnesses
+before matched first WHPX/TCG observations. WHPX's incomplete1687552-byte body
+and TCG's complete HTTP/browser bodies exactly join PCAP and GPT/FAT32 sectors.
+No captured corruption follows. TCG's outer failure is an absent natural summary
+after deliberate host stop; the benchmark-only capture repair retains bounded
+serial/PCAP and ordinary Full summary/cleanup requirements. Single observations
+do not establish population throughput or a physical device/scheduler cause.
+
 [Step1744](../done/step1744.md) independently checks the exact lambda packet,
 two current app pins and66 passing host controls against all current/archived
 sources and producers. Storage implementation and resources stay unchanged.
@@ -39,9 +47,11 @@ qualifies browser, a storage speedup, writes or a larger workload/resource budge
 
 [Step1738](../done/step1738.md) reviews the explicit warm/full/concurrent HTTP
 owner against unchanged storage/device/call/serial/lifetime limits. No guest
-quota fit or FAT performance is inferred. The diagnostic uses existing final
-128 MiB serial, 64 MiB PCAP and 256 MiB summary bounds and skips the ordinary
-24 MiB stream acceptance consumer. Its flags deny full qualification. The
+quota fit or FAT performance is inferred. The original diagnostic required final
+128 MiB serial, 64 MiB PCAP and 256 MiB summary bounds and skipped the ordinary
+24 MiB stream acceptance consumer. Step1745 corrects only the stopped diagnostic
+to require serial/PCAP; ordinary Full retains its summary requirement/bound.
+Its flags deny full qualification. The
 source-only commit partition separates 22 formatter files from nine FIFO paths,
 with a reviewed shared-map resolution and exact r132 non-doc composition.
 

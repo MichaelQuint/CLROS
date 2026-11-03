@@ -1,5 +1,11 @@
 # Documentation Map
 
+[Step1745](../done/step1745.md) owns fresh own-Full emitted proof,613 concrete
+launch holds, failed WHPX and functionally complete TCG observations, and the
+stopped-summary host repair. Diagnostics/storage own exact raw joins and limits;
+EFI owns conditional margins/metadata; host/repo own red/green and source epochs.
+Neither original outer failure becomes a normal Full qualification result.
+
 [Step1744](../done/step1744.md) owns lambda containment, the reviewed29-file
 whitespace packet/two current pins, retained valid styles and66 focused checks.
 Repository audit owns the rule's limits; EFI guidance keeps renewed native proof
