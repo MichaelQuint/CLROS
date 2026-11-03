@@ -8,7 +8,7 @@ namespace OS.Tooling;
 /// <summary>Read-only, host-side C# type/file checks. Parses conditional branches
 /// without executing source or loading project analyzers. Findings are deterministic;
 /// malformed source fails inspection. Generated and reference trees are excluded.</summary>
-public static class RepositoryCodeStyle
+public static partial class RepositoryCodeStyle
 {
     private static readonly HashSet<string> Roots = new(StringComparer.OrdinalIgnoreCase)
         { "src", "std", "apps", "tools", "tests" };
@@ -41,6 +41,9 @@ public static class RepositoryCodeStyle
         {
             var tree = CSharpSyntaxTree.ParseText(source, options, path);
             var root = tree.GetRoot();
+            foreach (var token in StatementLineBreaks(root))
+                result.Add(new(path, token.GetLocation().GetLineSpan().StartLinePosition.Line + 1,
+                    "CLROSSTYLE004", "Place block braces and executable statements on separate lines."));
             var candidates = CSharpInertConditionals.Find(tree).ToHashSet();
             if (inert is null)
                 inert = candidates;
