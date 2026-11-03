@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct NitroNvmeNamespaceIdentity
 {
     internal NitroNvmeNamespaceIdentity(uint namespaceCount, uint namespaceId, ulong totalLogicalBlocks, ulong logicalBlockSizeBytes, ulong capacityBytes, byte lbaFormatIndex, byte lbaDataSizeShift, NvmeIdentityTextField serialNumber, NvmeIdentityTextField modelNumber)
@@ -16,13 +17,40 @@ public readonly struct NitroNvmeNamespaceIdentity
         ModelNumber = modelNumber;
     }
 
-    public uint NamespaceCount { get; }
-    public uint NamespaceId { get; }
-    public ulong TotalLogicalBlocks { get; }
-    public ulong LogicalBlockSizeBytes { get; }
-    public ulong CapacityBytes { get; }
-    public byte LbaFormatIndex { get; }
-    public byte LbaDataSizeShift { get; }
-    public NvmeIdentityTextField SerialNumber { get; }
-    public NvmeIdentityTextField ModelNumber { get; }
+    public uint NamespaceCount
+    {
+        get;
+    }
+    public uint NamespaceId
+    {
+        get;
+    }
+    public ulong TotalLogicalBlocks
+    {
+        get;
+    }
+    public ulong LogicalBlockSizeBytes
+    {
+        get;
+    }
+    public ulong CapacityBytes
+    {
+        get;
+    }
+    public byte LbaFormatIndex
+    {
+        get;
+    }
+    public byte LbaDataSizeShift
+    {
+        get;
+    }
+    public NvmeIdentityTextField SerialNumber
+    {
+        get;
+    }
+    public NvmeIdentityTextField ModelNumber
+    {
+        get;
+    }
 }

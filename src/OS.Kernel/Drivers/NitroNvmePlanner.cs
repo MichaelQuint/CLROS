@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public static class NitroNvmePlanner
 {
     public const byte MassStorageClassCode = 0x01;

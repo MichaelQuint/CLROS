@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static partial class NvmeRegisterMap
 {
     public const uint ControllerRegisterBaseOffset = 0x0000;

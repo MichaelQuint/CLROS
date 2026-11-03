@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct NvmeIdentityTextField
 {
     public NvmeIdentityTextField(int offset, int length, int maximumLength)
@@ -11,10 +12,22 @@ public readonly struct NvmeIdentityTextField
         IsPresent = length > 0;
     }
 
-    public int Offset { get; }
-    public int Length { get; }
-    public int MaximumLength { get; }
-    public bool IsPresent { get; }
+    public int Offset
+    {
+        get;
+    }
+    public int Length
+    {
+        get;
+    }
+    public int MaximumLength
+    {
+        get;
+    }
+    public bool IsPresent
+    {
+        get;
+    }
 
     public bool TryGetSlice(ReadOnlySpan<byte> source, out ReadOnlySpan<byte> value)
     {

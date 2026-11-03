@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct NitroNvmePlanResult
 {
     private NitroNvmePlanResult(bool isInitialized, NitroNvmePlanStatus status, byte failingBarIndex, NitroNvmePlan plan)
@@ -11,10 +12,22 @@ public readonly struct NitroNvmePlanResult
         Plan = plan;
     }
 
-    public NitroNvmePlanStatus Status { get; }
-    public byte FailingBarIndex { get; }
-    public NitroNvmePlan Plan { get; }
-    public bool IsInitialized { get; }
+    public NitroNvmePlanStatus Status
+    {
+        get;
+    }
+    public byte FailingBarIndex
+    {
+        get;
+    }
+    public NitroNvmePlan Plan
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NitroNvmePlanStatus.Success;
 
     internal static NitroNvmePlanResult Success(NitroNvmePlan plan)

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct NvmeRegisterApertureValidationResult
 {
     private NvmeRegisterApertureValidationResult(bool isInitialized, NvmeRegisterApertureValidationStatus status, ulong apertureLength, ulong requiredLength)
@@ -9,10 +10,22 @@ public readonly struct NvmeRegisterApertureValidationResult
         RequiredLength = requiredLength;
     }
 
-    public NvmeRegisterApertureValidationStatus Status { get; }
-    public ulong ApertureLength { get; }
-    public ulong RequiredLength { get; }
-    public bool IsInitialized { get; }
+    public NvmeRegisterApertureValidationStatus Status
+    {
+        get;
+    }
+    public ulong ApertureLength
+    {
+        get;
+    }
+    public ulong RequiredLength
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NvmeRegisterApertureValidationStatus.Success;
 
     public static NvmeRegisterApertureValidationResult Success(ulong apertureLength, ulong requiredLength)
