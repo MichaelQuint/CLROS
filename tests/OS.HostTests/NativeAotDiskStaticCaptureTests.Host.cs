@@ -64,7 +64,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
                     return;
                 }
 
-                if (mode == Mode.CancelBody && context.Request.Path == "/index.html")
+                if ((mode is Mode.CancelBody or Mode.BodyTimeout) && context.Request.Path == "/index.html")
                 {
                     context.Response.ContentType = "text/html";
                     context.Response.ContentLength = Index.Length;
@@ -113,6 +113,11 @@ internal static partial class NativeAotDiskStaticCaptureTests
 
                     await Task.Delay(20, token);
                 }
+
+                // This timeout control keeps the synthetic runner pending until
+                // the peer fault cancels its owner; no receipt-success race.
+                if (mode == Mode.BodyTimeout)
+                    await Task.Delay(Timeout.InfiniteTimeSpan, token);
 
                 // Let the completed peer dispose its keep-alive client before
                 // this synthetic runner terminates, as in the staged peer harness.

@@ -20,6 +20,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
         Healthy,
         WrongStatus,
         CancelBody,
-        ResetHeaders
+        ResetHeaders,
+        BodyTimeout
     }
 }

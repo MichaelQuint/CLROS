@@ -195,13 +195,17 @@ public static partial class NativeAotDiskStaticPeer
                             if (!request.Headers.TryAddWithoutValidation(header.Name, header.Value))
                                 throw new ToolFailure("disk_http_request_header");
                     string[] headers = request.Headers.Select(h => h.Key + ": " + string.Join(",", h.Value)).ToArray();
+                    // One deadline covers headers and the complete streamed body.
+                    // Saving evidence retains the outer matrix cancellation policy.
+                    using var requestDeadline = CancellationTokenSource.CreateLinkedTokenSource(matrix.Token);
+                    requestDeadline.CancelAfter(sender.Timeout);
                     stage = "headers";
-                    using var response = await sender.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, matrix.Token);
+                    using var response = await sender.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, requestDeadline.Token);
                     stage = "body";
-                    using var source = await response.Content.ReadAsStreamAsync(matrix.Token);
+                    using var source = await response.Content.ReadAsStreamAsync(requestDeadline.Token);
                     using MemoryStream body = new();
                     byte[] buffer = new byte[8192];
-                    for (int read; (read = await source.ReadAsync(buffer, matrix.Token)) != 0;)
+                    for (int read; (read = await source.ReadAsync(buffer, requestDeadline.Token)) != 0;)
                     {
                         if (body.Length + read > (full ? DiskStaticHttpContract.MaximumAssetBytes : DiskStaticHttpContract.MaximumBodyBytes))
                             throw new ToolFailure("disk_http_body_capacity");
