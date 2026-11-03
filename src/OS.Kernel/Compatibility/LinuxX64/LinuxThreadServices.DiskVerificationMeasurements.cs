@@ -1,5 +1,6 @@
 #if !NOSTDLIB_EFI || M10_018_TIMING_PROBE
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public unsafe partial struct LinuxThreadServices
 {
     /// <summary>Diagnostic values for serialized, nonnested verification calls

@@ -5,6 +5,7 @@ using W = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServ
 using C = OS.Storage.ContinuingFat32Mutation;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxDescriptorServices
 {
     /// <summary>Stable one-request POD independent of a thread Slot. It owns

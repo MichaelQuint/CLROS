@@ -2,6 +2,7 @@
 using OS.Kernel.Threading;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public unsafe partial struct LinuxThreadServices
 {
     /// <summary>Advance one of eight retained requests, including cancelled

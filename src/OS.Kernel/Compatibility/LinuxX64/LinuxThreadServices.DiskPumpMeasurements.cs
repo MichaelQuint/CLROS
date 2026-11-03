@@ -2,6 +2,7 @@
 using OS.Kernel.Threading;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public unsafe partial struct LinuxThreadServices
 {
     /// <summary>Optional supervisor-owned diagnostic totals. Zero before the

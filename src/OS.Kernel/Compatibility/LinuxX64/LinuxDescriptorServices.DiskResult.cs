@@ -8,6 +8,7 @@ using W = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServ
 
 #endif
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxDescriptorServices
 {
 #if !NOSTDLIB_EFI || M16_027_PROBE

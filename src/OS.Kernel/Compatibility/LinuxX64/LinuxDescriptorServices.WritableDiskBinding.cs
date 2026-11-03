@@ -5,6 +5,7 @@ using W = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServ
 using C = OS.Storage.ContinuingFat32Mutation;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxDescriptorServices
 {
     /// <summary>One original provider handle per global description; private

@@ -8,6 +8,7 @@ using W = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServ
 
 #endif
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxDescriptorServices
 {
     public const uint DiskSlots = 8, DiskCompletionBytes = 8192, DiskExtentCount = 78;
@@ -515,8 +516,8 @@ public static unsafe partial class LinuxDescriptorServices
                 return DrainDisk(state, r, DiskErrno(started), false, started);
             r->Operation = op;
             r->Phase = DiskWorking;
-        // BeginRead only reserves the range. Use this selected turn's one
-        // ordinary Poll to submit its first sector; never poll it twice.
+            // BeginRead only reserves the range. Use this selected turn's one
+            // ordinary Poll to submit its first sector; never poll it twice.
         }
 
         Fs.Status status = Fs.Poll(disk->Mount, r->Operation);
