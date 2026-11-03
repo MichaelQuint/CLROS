@@ -1,6 +1,6 @@
 using OS.Tooling;
 
-internal static class HostProjectOutputsTests
+internal static partial class HostProjectOutputsTests
 {
     [HostTest("host project outputs retain selected paths contexts and diamond references")]
     private static void SelectedContext()

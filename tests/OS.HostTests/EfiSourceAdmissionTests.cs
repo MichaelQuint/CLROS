@@ -1,3 +1,5 @@
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Tooling;
 
 internal static class EfiSourceAdmissionTests
@@ -61,15 +63,16 @@ internal static class EfiSourceAdmissionTests
     private static void TimerAllocatorOwnership()
     {
         string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.M03FirstExitAdapter.cs"));
-        int start = source.IndexOf("private static bool RunSchedulerTimer(", StringComparison.Ordinal);
-        HostCheck.True(start >= 0);
-        int end = source.IndexOf("private static bool TimerPrepare(", start, StringComparison.Ordinal);
-        HostCheck.True(end > start);
+        var owners = CSharpSourceProfiles.ForSource(source)
+            .SelectMany(options => CSharpSyntaxTree.ParseText(source, options).GetRoot().DescendantNodes()
+                .OfType<MethodDeclarationSyntax>())
+            .Where(method => method.Identifier.ValueText == "RunSchedulerTimer")
+            .Select(method => method.Span).Distinct().ToArray();
+        HostCheck.True(owners.Length == 1, "independent timer mutation owner");
         string ChangeTimer(string before, string after)
         {
-            string body = source[start..end];
-            HostCheck.True(body.Contains(before, StringComparison.Ordinal), "independent timer mutation target: " + before);
-            return source[..start] + body.Replace(before, after, StringComparison.Ordinal) + source[end..];
+            var target = HostSourceMutation.Find(source, before, owners[0], requireUnique: true);
+            return source[..target.Start] + after + source[target.End..];
         }
         foreach (string call in new[] { "BootPageAllocatorMutator.AllocateOnePage", "BootPageAllocatorMutator.FreeOnePage" })
         {
