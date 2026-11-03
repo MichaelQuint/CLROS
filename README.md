@@ -4,6 +4,10 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1747](done/step1747.md) extracts six complete inspection operations from
+the CLI router, with exact body/routing review and24 fresh focused checks. Seven
+guarded negative CLI controls pass. Timer-handoff and final qualification remain.
+
 [Step1746](done/step1746.md) removes stale filenames from the seventeen-case
 semantic fixture and passes31 fresh focused checks after restoration. A separate
 COM1 inlining trial completes twelve functional boots but fails its speed criteria;

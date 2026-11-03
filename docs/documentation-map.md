@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1747](../done/step1747.md) closes the six-operation ToolCommand extraction.
+Repo audit owns its body/router equivalence and guarded host checks; existing
+subsystem/native/guest/performance qualification boundaries remain unchanged.
+
 [Step1746](../done/step1746.md) owns the dynamic semantic-fixture repair and
 rejected twelve-boot inlining trial. Host/repo explain independent negative
 expectations; diagnostics/storage record distributions and raw joins; EFI keeps

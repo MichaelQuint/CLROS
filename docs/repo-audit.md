@@ -1,5 +1,12 @@
 # Repository Audit
 
+[Step1747](../done/step1747.md) moves six cohesive inspection bodies into
+ToolCommand associated partials. Exact whole-router reconstruction preserves
+argument priority, held-input lifetime and outer error handling. r173 graph,
+focused24/repo/contracts/diff and seven guarded negative CLI controls pass.
+The stale copied-baseline CLI refusal remains preserved; no guard bypass or
+old/current CLI execution parity is claimed. Remaining responsibility work stays.
+
 [Step1746](../done/step1746.md) makes semantic negative mutations follow the
 checker's unique declared input within an independently named owner family.
 All seventeen mutation vectors/order, rejection expectations and exact raw
