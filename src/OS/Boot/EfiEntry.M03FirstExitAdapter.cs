@@ -3015,12 +3015,21 @@ public static unsafe partial class EfiEntry
                 state->LinuxOwnedPhase = 2;
             return reported;
         }
+#if M10_018_PROBE
+        // Preserve the Storage-signature boundary: inlining the backend address
+        // into every caller grows constrained IRQ and diagnostic frames.
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+#endif
         private static bool LinuxText(Storage* state, string text)
         {
+#if M10_018_PROBE
+            return OwnedCom1TextWriter.Write(in state->Arena.Fault->Backend, text);
+#else
             for (int i = 0; i < text.Length; i++)
                 if (!LinuxByte(state, (byte)text[i]))
                     return false;
             return true;
+#endif
         }
         private static bool LinuxNumber(Storage* state, uint n)
         {

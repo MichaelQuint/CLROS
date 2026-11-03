@@ -11,6 +11,7 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["..\\OS.Kernel\\Diagnostics\\OwnedCom1HexWriter.cs"] = "6add723d61059aaba364f24dfc532692606e83bdcdb6d379a25c35bcf373690d",
+            ["..\\OS.Kernel\\Diagnostics\\OwnedCom1TextWriter.cs"] = "da184017f8c0f54e539e57066cd94822b9c7cc08c7cfa1c5ad9ff2b553cfa4b7",
             ["..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.cs"] = "c23bb7eeb9946d9af3b081679d00134bf251177897626d837dad5b21f6591d56",
             ["..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.Bucket.cs"] = "4c6883dab667e450e607352135970e4f919be35988384ea9ffe7259bebdda209",
             ["..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.State.cs"] = "a923386ea45d5ff74ec362ee84941087073e549f1391b96aaa282d61e1dbf94d",

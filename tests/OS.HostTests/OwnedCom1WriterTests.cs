@@ -3,7 +3,7 @@ using System.Text;
 using OS.Kernel.Diagnostics;
 
 // Host-only UART model. No hardware I/O or guest qualification is implied.
-internal static unsafe class OwnedCom1HexWriterTests
+internal static unsafe partial class OwnedCom1WriterTests
 {
     private static readonly byte[] Captured = new byte[4096];
     private static byte _identification;
@@ -19,6 +19,7 @@ internal static unsafe class OwnedCom1HexWriterTests
     private static int _identificationReads;
     private static int _reads;
     private static bool _invalidIo;
+    private static bool _drainOnPoll;
 
     [HostTest("serial.hex all byte values preserve exact lowercase hex and input")]
     private static bool AllByteValues()
@@ -171,6 +172,7 @@ internal static unsafe class OwnedCom1HexWriterTests
         _identificationReads = 0;
         _reads = 0;
         _invalidIo = false;
+        _drainOnPoll = false;
     }
 
     private static Com1OwnedPortIoBackend CreateBackend()
@@ -222,6 +224,8 @@ internal static unsafe class OwnedCom1HexWriterTests
         _polls++;
         if (_written >= _stallAfterBytes)
             return 0;
+        if (_drainOnPoll)
+            _queued = 0;
         if (_queued != 0 && --_ticks == 0)
         {
             _queued--;

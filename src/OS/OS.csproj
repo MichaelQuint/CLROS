@@ -895,6 +895,7 @@
 		<Compile Include="..\OS.Kernel\Diagnostics\Com1OwnedPortIoConfigurationResult.cs" Link="Diagnostics\Com1OwnedPortIoConfigurationResult.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\Com1OwnedPortIoBackend.cs" Link="Diagnostics\Com1OwnedPortIoBackend.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\OwnedCom1HexWriter.cs" Link="Diagnostics\OwnedCom1HexWriter.cs" />
+		<Compile Include="..\OS.Kernel\Diagnostics\OwnedCom1TextWriter.cs" Link="Diagnostics\OwnedCom1TextWriter.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\Com1OwnedPortIoByteBackend.cs" Link="Diagnostics\Com1OwnedPortIoByteBackend.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\OwnedCom1ReadyWriterStatus.cs" Link="Diagnostics\OwnedCom1ReadyWriterStatus.cs" />
 		<Compile Include="..\OS.Kernel\Diagnostics\OwnedCom1ReadyWriterResult.cs" Link="Diagnostics\OwnedCom1ReadyWriterResult.cs" />

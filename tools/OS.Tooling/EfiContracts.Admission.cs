@@ -7,6 +7,7 @@ public static partial class EfiContracts
         get;
     } = Array.AsReadOnly<string>([
         "..\\OS.Kernel\\Diagnostics\\OwnedCom1HexWriter.cs",
+        "..\\OS.Kernel\\Diagnostics\\OwnedCom1TextWriter.cs",
         "..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.cs",
         "..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.Bucket.cs",
         "..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.State.cs",
