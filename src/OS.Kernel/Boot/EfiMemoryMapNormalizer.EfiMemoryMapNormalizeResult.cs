@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct EfiMemoryMapNormalizeResult
 {
     private EfiMemoryMapNormalizeResult(bool succeeded, EfiMemoryMapNormalizeStatus status, EfiMemoryMapSummary summary, ulong invalidDescriptorIndex, ulong requiredSourceBytes)
@@ -10,11 +11,26 @@ public readonly struct EfiMemoryMapNormalizeResult
         RequiredSourceBytes = requiredSourceBytes;
     }
 
-    public bool Succeeded { get; }
-    public EfiMemoryMapNormalizeStatus Status { get; }
-    public EfiMemoryMapSummary Summary { get; }
-    public ulong InvalidDescriptorIndex { get; }
-    public ulong RequiredSourceBytes { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public EfiMemoryMapNormalizeStatus Status
+    {
+        get;
+    }
+    public EfiMemoryMapSummary Summary
+    {
+        get;
+    }
+    public ulong InvalidDescriptorIndex
+    {
+        get;
+    }
+    public ulong RequiredSourceBytes
+    {
+        get;
+    }
 
     public static EfiMemoryMapNormalizeResult Success(EfiMemoryMapSummary summary, ulong requiredSourceBytes)
     {

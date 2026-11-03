@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciCandidateSelectionResult
 {
     private VirtioPciCandidateSelectionResult(VirtioPciCandidateSelectionStatus status, int inspectedDeviceCount, int candidateCount, int requiredCandidateCapacity, int failingSourceIndex, bool isInitialized)
@@ -12,12 +13,30 @@ public readonly struct VirtioPciCandidateSelectionResult
     }
 
     public const int NoFailingSourceIndex = -1;
-    public VirtioPciCandidateSelectionStatus Status { get; }
-    public int InspectedDeviceCount { get; }
-    public int CandidateCount { get; }
-    public int RequiredCandidateCapacity { get; }
-    public int FailingSourceIndex { get; }
-    public bool IsInitialized { get; }
+    public VirtioPciCandidateSelectionStatus Status
+    {
+        get;
+    }
+    public int InspectedDeviceCount
+    {
+        get;
+    }
+    public int CandidateCount
+    {
+        get;
+    }
+    public int RequiredCandidateCapacity
+    {
+        get;
+    }
+    public int FailingSourceIndex
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioPciCandidateSelectionStatus.Success;
 
     public static VirtioPciCandidateSelectionResult Success(int inspectedDeviceCount, int candidateCount)

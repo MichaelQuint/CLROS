@@ -3,6 +3,7 @@ using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Borrow one complete bounded raw inner M16-009 static-app tail,

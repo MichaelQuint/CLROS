@@ -15,19 +15,29 @@ public static unsafe class HmacSha256
     {
         if (keyBytes > MaximumKeyBytes || bytes > MaximumMessageBytes || !Range(key, keyBytes) ||
             !Range(message, bytes) || capacity < 32 || !Range(digest, 32) ||
-            Overlap(key, keyBytes, digest, 32) || Overlap(message, bytes, digest, 32)) return false;
-        byte* inner = stackalloc byte[320]; byte* outer = stackalloc byte[96];
+            Overlap(key, keyBytes, digest, 32) || Overlap(message, bytes, digest, 32))
+            return false;
+        byte* inner = stackalloc byte[320];
+        byte* outer = stackalloc byte[96];
         byte* hash = stackalloc byte[32];
         for (uint i = 0; i < 64; i++)
-        { byte value = i < keyBytes ? key[i] : (byte)0; inner[i] = (byte)(value ^ 0x36); outer[i] = (byte)(value ^ 0x5c); }
-        for (uint i = 0; i < bytes; i++) inner[64 + i] = message[i];
+        {
+            byte value = i < keyBytes ? key[i] : (byte)0;
+            inner[i] = (byte)(value ^ 0x36);
+            outer[i] = (byte)(value ^ 0x5c);
+        }
+        for (uint i = 0; i < bytes; i++)
+            inner[64 + i] = message[i];
         bool success = Sha256.TryCompute(inner, 64 + bytes, hash, 32);
         if (success)
         {
-            for (uint i = 0; i < 32; i++) outer[64 + i] = hash[i];
+            for (uint i = 0; i < 32; i++)
+                outer[64 + i] = hash[i];
             success = Sha256.TryCompute(outer, 96, digest, capacity);
         }
-        SensitiveMemory.Clear(inner, 320); SensitiveMemory.Clear(outer, 96); SensitiveMemory.Clear(hash, 32);
+        SensitiveMemory.Clear(inner, 320);
+        SensitiveMemory.Clear(outer, 96);
+        SensitiveMemory.Clear(hash, 32);
         return success;
     }
 

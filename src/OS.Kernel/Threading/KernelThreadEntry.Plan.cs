@@ -1,4 +1,5 @@
 namespace OS.Kernel.Threading;
+
 public static unsafe partial class KernelThreadEntry
 {
     /// <summary>Bound entry state. Start uses Win64 byte(control, identity):

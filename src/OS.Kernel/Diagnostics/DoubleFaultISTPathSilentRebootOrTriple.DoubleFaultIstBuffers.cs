@@ -15,12 +15,36 @@ public readonly unsafe struct DoubleFaultIstBuffers
         IdtCapacity = idtCapacity;
     }
 
-    public byte* Context { get; }
-    public ulong ContextCapacity { get; }
-    public byte* Stream { get; }
-    public ulong StreamCapacity { get; }
-    public byte* Slots { get; }
-    public ulong SlotCapacity { get; }
-    public byte* Idt { get; }
-    public ulong IdtCapacity { get; }
+    public byte* Context
+    {
+        get;
+    }
+    public ulong ContextCapacity
+    {
+        get;
+    }
+    public byte* Stream
+    {
+        get;
+    }
+    public ulong StreamCapacity
+    {
+        get;
+    }
+    public byte* Slots
+    {
+        get;
+    }
+    public ulong SlotCapacity
+    {
+        get;
+    }
+    public byte* Idt
+    {
+        get;
+    }
+    public ulong IdtCapacity
+    {
+        get;
+    }
 }

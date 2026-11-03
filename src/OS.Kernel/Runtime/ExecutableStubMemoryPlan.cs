@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public static class ExecutableStubMemoryPlan
 {
     public const uint MinimumPageSize = 4096;

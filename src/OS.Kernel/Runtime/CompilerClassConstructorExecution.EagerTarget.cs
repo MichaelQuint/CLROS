@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Runtime;
+
 public static unsafe partial class CompilerClassConstructorExecution
 {
     // Eager identity is the table entry/order, not its callable address: ILC or

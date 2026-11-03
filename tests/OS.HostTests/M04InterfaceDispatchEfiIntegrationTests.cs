@@ -11,7 +11,10 @@ internal static class M04InterfaceDispatchEfiIntegrationTests
     private static string Root => HostToolProcess.FindRepositoryRoot();
 
     private static void Need(bool value, string reason)
-    { if (!value) throw new InvalidOperationException(reason); }
+    {
+        if (!value)
+            throw new InvalidOperationException(reason);
+    }
 
     [HostTest("m04.016.efi compiler callsites and explicit child profile", HostLane.Fast, 0)]
     private static void Source()
@@ -78,14 +81,14 @@ internal static class M04InterfaceDispatchEfiIntegrationTests
     }
 
     private static string InvokeQemu(params string[] arguments)
-{
-    var result = HostToolProcess.RunTool(["qemu", "smoke", ..arguments]);
-    Need(result.ExitCode == 0 && result.Error.Length == 0, result.Output + result.Error);
-    return result.Output;
-}
+    {
+        var result = HostToolProcess.RunTool(["qemu", "smoke", .. arguments]);
+        Need(result.ExitCode == 0 && result.Error.Length == 0, result.Output + result.Error);
+        return result.Output;
+    }
 
     [HostTest("m04.016.efi complete raw dispatch oracle rejects malformed evidence", HostLane.Fast, 1)]
-private static void Transcript() => EfiDispatchTranscriptControls.Run();
+    private static void Transcript() => EfiDispatchTranscriptControls.Run();
 
     [HostTest("m04.016.efi bounded envelope markers retain final boot EOF", HostLane.Fast, 2)]
     private static void Profile()
@@ -94,7 +97,7 @@ private static void Transcript() => EfiDispatchTranscriptControls.Run();
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe",
             "EnableM04ManagedHeapPageRangeProbe", "EnableM04RhpNewFastProbe", "EnableM04GcStaticRootMaterializationProbe",
             "EnableM04ClassConstructorExecutionProbe", Flag];
-        string output = InvokeQemu(["-DryRun", "-BuildEfi", ..chain.Select(x => "-" + x)]);
+        string output = InvokeQemu(["-DryRun", "-BuildEfi", .. chain.Select(x => "-" + x)]);
         string[] Read(string key) => output.Split('\n').Single(x => x.StartsWith(key, StringComparison.Ordinal))[key.Length..].TrimEnd('\r').Split(';', StringSplitOptions.RemoveEmptyEntries);
         string[] required = Read("REQUIRED_MARKERS "), ordered = Read("ORDERED_MARKERS "), unique = Read("UNIQUE_MARKERS "), forbidden = Read("FORBIDDEN_MARKERS ");
         Need(ordered.Length == OS.Tooling.QemuContracts.M04DispatchRequiredMarkers.Count && ordered[^1] == "OS_SMOKE_PASS" && unique.SequenceEqual(ordered, StringComparer.Ordinal), "71 parent plus 3 envelope markers; raw parser owns 73 numeric stages");
@@ -106,9 +109,9 @@ private static void Transcript() => EfiDispatchTranscriptControls.Run();
             return state.Feed(Encoding.ASCII.GetBytes(string.Join("\r\n", records) + "\r\n")).Succeeded && state.Complete().Passed;
         }
         Need(Accept(ordered), "controlled envelope only; raw proof tested separately");
-        for (int i = index; i < index + 3; i++) Need(!Accept(ordered.Where((_, n) => n != i).ToArray()), "missing dispatch envelope " + i);
+        for (int i = index; i < index + 3; i++)
+            Need(!Accept(ordered.Where((_, n) => n != i).ToArray()), "missing dispatch envelope " + i);
         Need(!Accept(ordered.Append("M04_DISPATCH 255 0 0 0 0").ToArray()), "failure after readiness");
     }
-
 
 }

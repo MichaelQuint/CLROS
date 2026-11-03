@@ -50,7 +50,7 @@ internal static partial class NativeAotServiceQuotaOverlapTests
                 text.ToCharArray()
             }
 
-            ).Select(c => new string (c)).ToArray();
+            ).Select(c => new string(c)).ToArray();
             int total = 0;
             for (int i = 0; i < parts.Length; i++)
             {
@@ -127,7 +127,8 @@ internal static partial class NativeAotServiceQuotaOverlapTests
             Row($"M16_014_LIVE argc=5 envc=4 configBytes={settings} bindFd=5 stdoutBytes={stdout} stderrBytes={stderr} active=1 clock={ordinal + 1} owner=retained externalHttp=required");
             Row("CLROS_M16_014_LISTENING");
             Row("TEST_PASS m16.014.startup");
-        } : null);
+        }
+        : null);
         Output("CLROS_M10_011_READY\nCLROS_SERVICE_RANDOM_CONTROLS zero=0 invalid=-22 fault=-14\n");
         void Warning()
         {
@@ -224,21 +225,45 @@ internal static partial class NativeAotServiceQuotaOverlapTests
     {
         var v = Fixture();
         string raw = Encoding.UTF8.GetString(v.Raw);
-        Reject(v with { Raw = Encoding.UTF8.GetBytes(raw.Replace("nr=1 a0=2 ", "nr=1 a0=1 ", StringComparison.Ordinal)) });
+        Reject(v with
+        {
+            Raw = Encoding.UTF8.GetBytes(raw.Replace("nr=1 a0=2 ", "nr=1 a0=1 ", StringComparison.Ordinal))
+        });
         var retained = v.Memory.RetainedCalls.ToArray();
         retained[0] = retained[0] with
         {
             Address = 0x200100000
         };
-        Reject(v with { Memory = v.Memory with { RetainedCalls = retained } });
-        Reject(v with { Memory = v.Memory with { RetainedCalls = [] } });
-        Reject(v with { Raw = Encoding.UTF8.GetBytes(raw.Replace("fdGeneration=1", "fdGeneration=2", StringComparison.Ordinal)) });
+        Reject(v with
+        {
+            Memory = v.Memory with
+            {
+                RetainedCalls = retained
+            }
+        });
+        Reject(v with
+        {
+            Memory = v.Memory with
+            {
+                RetainedCalls = []
+            }
+        });
+        Reject(v with
+        {
+            Raw = Encoding.UTF8.GetBytes(raw.Replace("fdGeneration=1", "fdGeneration=2", StringComparison.Ordinal))
+        });
         var samples = v.Host.Samples.ToArray();
         samples[11] = samples[11] with
         {
             MessageIndex = samples[10].MessageIndex
         };
-        Reject(v with { Host = v.Host with { Samples = samples } });
+        Reject(v with
+        {
+            Host = v.Host with
+            {
+                Samples = samples
+            }
+        });
     }
 
     [HostTest("quota overlap authenticates startup metadata stdout warnings and vector fragments without shifting stderr offsets")]
@@ -278,10 +303,19 @@ internal static partial class NativeAotServiceQuotaOverlapTests
         Reject(Fixture(gap: "TEST_START m16.014.startup"));
         var v = Fixture(warnings: true);
         string raw = Encoding.UTF8.GetString(v.Raw);
-        Reject(v with { Raw = Encoding.UTF8.GetBytes(raw.Replace("nr=1 a0=1 ", "nr=1 a0=2 ", StringComparison.Ordinal)) });
-        Reject(v with { Raw = Encoding.UTF8.GetBytes(raw.Replace("M16_005_WRITE fd=1", "M16_005_WRITE fd=2", StringComparison.Ordinal)) });
+        Reject(v with
+        {
+            Raw = Encoding.UTF8.GetBytes(raw.Replace("nr=1 a0=1 ", "nr=1 a0=2 ", StringComparison.Ordinal))
+        });
+        Reject(v with
+        {
+            Raw = Encoding.UTF8.GetBytes(raw.Replace("M16_005_WRITE fd=1", "M16_005_WRITE fd=2", StringComparison.Ordinal))
+        });
         var full = Fixture(startup: true);
-        Reject(full with { Raw = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(full.Raw).Replace("stages=4", "stages=3", StringComparison.Ordinal)) });
+        Reject(full with
+        {
+            Raw = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(full.Raw).Replace("stages=4", "stages=3", StringComparison.Ordinal))
+        });
     }
 
     private static void Reject(Vector v)
@@ -290,7 +324,7 @@ internal static partial class NativeAotServiceQuotaOverlapTests
         {
             _ = Read(v);
         }
-        catch (Exception error)when (error is ToolFailure or InvalidDataException)
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
         {
             return;
         }

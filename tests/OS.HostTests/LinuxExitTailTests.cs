@@ -144,7 +144,12 @@ internal static unsafe partial class LinuxExitTailTests
             if (mode == 0)
             {
                 HostCheck.True(model.Removed && gate.HasExitTail && result.Action == LinuxSyscallAction.Return && result.Value == 0);
-                HostCheck.True(!LinuxSyscallGateway.ValidateReturn(frame, new() { Context = &model, UserInterrupts = true, PageAccess = &Pages }));
+                HostCheck.True(!LinuxSyscallGateway.ValidateReturn(frame, new()
+                {
+                    Context = &model,
+                    UserInterrupts = true,
+                    PageAccess = &Pages
+                }));
                 var exit = Exit();
                 result = LinuxSyscallGateway.Dispatch(ref gate, ref exit);
                 HostCheck.True(result.Action == LinuxSyscallAction.ThreadExited && gate.Status == LinuxSyscallGateStatus.Exited && !gate.HasExitTail && model.ThreadCalls == 1);

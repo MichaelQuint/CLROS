@@ -4,6 +4,7 @@ using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Replayed complete prefix and retained in-flight owner state.
@@ -18,6 +19,9 @@ public static partial class QemuTranscripts
         /// <summary>Optional original-order projection after successful complete
         /// replay. Copied role selection supplies no native or code-role authority.</summary>
 
-        public WebSignalRaceReport? SignalRace { get; init; }
+        public WebSignalRaceReport? SignalRace
+        {
+            get; init;
+        }
     }
 }

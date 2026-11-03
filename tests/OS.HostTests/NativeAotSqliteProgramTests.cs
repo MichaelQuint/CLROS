@@ -100,7 +100,7 @@ internal static partial class NativeAotSqliteProgramTests
 
         )
             Reject(() => P.Inspect(elf, rows), "sqlite_instruction_");
-        Reject(() => P.Inspect(elf, new string ('x', P.MaximumDisassemblyBytes + 1)), "sqlite_instruction_text");
+        Reject(() => P.Inspect(elf, new string('x', P.MaximumDisassemblyBytes + 1)), "sqlite_instruction_text");
         Reject(() => P.Inspect(elf, null!), "sqlite_instruction_text");
         Reject(() => P.Inspect([], Rows), "sqlite_instruction_elf");
     }
@@ -229,7 +229,7 @@ internal static partial class NativeAotSqliteProgramTests
         {
             method.Invoke(null, [root, sources]);
         }
-        catch (TargetInvocationException error)when (error.InnerException is not null)
+        catch (TargetInvocationException error) when (error.InnerException is not null)
         {
             ExceptionDispatchInfo.Capture(error.InnerException).Throw();
             throw;
@@ -243,7 +243,7 @@ internal static partial class NativeAotSqliteProgramTests
         {
             action();
         }
-        catch (Exception error)when (error is InvalidDataException or ArgumentException or ToolFailure)
+        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure)
         {
             actual = error.Message;
         }

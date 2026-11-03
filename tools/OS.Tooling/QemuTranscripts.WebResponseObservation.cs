@@ -5,6 +5,7 @@ using System.Text;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Exact reconstructed response hash and a comparison hash replacing

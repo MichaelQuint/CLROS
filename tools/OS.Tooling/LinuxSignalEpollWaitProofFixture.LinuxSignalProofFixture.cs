@@ -3,6 +3,7 @@ using System.Text;
 using Writer = OS.Tooling.LinuxThreadProofFixture.Writer;
 
 namespace OS.Tooling;
+
 public static partial class LinuxSignalProofFixture
 {
     /// <summary>Canonical two-thread epoll readiness race. The child writes,

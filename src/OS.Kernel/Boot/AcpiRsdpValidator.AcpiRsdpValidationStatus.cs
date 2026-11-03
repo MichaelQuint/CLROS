@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public enum AcpiRsdpValidationStatus
 {
     Success = 0,

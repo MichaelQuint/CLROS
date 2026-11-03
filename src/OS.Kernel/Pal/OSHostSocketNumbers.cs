@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 public static class OSHostSocketNumbers
 {
     public static ushort HostToNetwork16(ushort value)

@@ -444,7 +444,12 @@ internal static unsafe partial class LinuxDiskThreadServicesTests
                 FailFlushAt = mode == 2 ? 1U : 0,
                 Regress = mode == 3
             };
-            HostCheck.True(!o.Thread.Service->PollDiskReadiness(Key, 2, new() { Context = &context, Clock = &PumpClock, Flush = &PumpFlush }));
+            HostCheck.True(!o.Thread.Service->PollDiskReadiness(Key, 2, new()
+            {
+                Context = &context,
+                Clock = &PumpClock,
+                Flush = &PumpFlush
+            }));
             HostCheck.Equal(mode == 0 ? submitted : submitted + 1, o.Storage.Device->Submitted);
             HostCheck.Equal(mode == 0 ? 0U : 1U, context.Flushes);
             HostCheck.Equal(submitted, o.Storage.Device->Completed);
@@ -615,7 +620,19 @@ internal static unsafe partial class LinuxDiskThreadServicesTests
         o.PutPath("/app/wwwroot/index.html");
         byte* scratch = stackalloc byte[64];
         LinuxSyscallGateState gate = default;
-        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new() { UserRoot = 0x200000, MaximumCalls = 64, MaximumWrite = 64, Scratch = scratch, ScratchBytes = 64, FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true }, o.Thread.GatewayAccess));
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new()
+        {
+            UserRoot = 0x200000,
+            MaximumCalls = 64,
+            MaximumWrite = 64,
+            Scratch = scratch,
+            ScratchBytes = 64,
+            FirmwareExited = true,
+            OwnedBoundaryValidated = true,
+            EnableStartup = true,
+            EnableDescriptors = true,
+            EnableThreads = true
+        }, o.Thread.GatewayAccess));
         HostCheck.Equal(0L, GatewayDiskRun(o, ref gate, 4, Path, Output));
         HostCheck.Equal(700UL, o.Thread.Read64(Output + 48));
         uint fd = (uint)GatewayDiskRun(o, ref gate, 2, Path);

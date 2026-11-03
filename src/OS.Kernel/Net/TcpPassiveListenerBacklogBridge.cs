@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class TcpPassiveListenerBacklogBridge
 {
     public const bool RequiresCallerOwnedBacklogStorage = true;

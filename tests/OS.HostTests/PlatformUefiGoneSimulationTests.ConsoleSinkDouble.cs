@@ -13,8 +13,14 @@ internal static partial class PlatformUefiGoneSimulationTests
             Available = available;
         }
 
-        public bool Available { get; }
-        public int LineCount { get; private set; }
+        public bool Available
+        {
+            get;
+        }
+        public int LineCount
+        {
+            get; private set;
+        }
 
         public void WriteLine(string line)
         {

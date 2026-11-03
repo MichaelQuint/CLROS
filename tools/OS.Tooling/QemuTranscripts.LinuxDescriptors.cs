@@ -8,7 +8,10 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
-    public static IReadOnlyList<string> M16LinuxDescriptorMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M16LinuxDescriptorMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
         ["TEST_START m16-007", "M16_006_POLICY", "M16_007_POLICY", "M16_005_ARMED", "M16_005_CALL", "M16_005_WRITE",
          "M16_005_RESTORE", "M16_005_EXIT", "M16_006_MEMORY", "M16_007_RELEASE", "CLROS_M16_007_READY", "TEST_PASS m16-007"]);
 
@@ -49,7 +52,11 @@ public static partial class QemuTranscripts
         {
             string line = tail[i];
             if (line.StartsWith("M16_005_WRITE ", StringComparison.Ordinal))
-            { Need(pending is null, "m16_007_extra_write"); pending = line; continue; }
+            {
+                Need(pending is null, "m16_007_extra_write");
+                pending = line;
+                continue;
+            }
             Need(calls < count, "m16_007_extra_call");
             var row = ReadRecord(line, "M16_005_CALL", "nr:dec", "a0:dec", "a1:dec", "a2:dec", "a3:dec", "a4:dec", "a5:dec",
                 "rip:dec", "rsp:dec", "flags:dec", "valueBits:dec", "action:dec", "status:dec");
@@ -69,8 +76,10 @@ public static partial class QemuTranscripts
                 "m16_007_captured_frame");
             // pread resets R10 before its comparison. Every other returning
             // call compares RAX with a sign-extended imm32 or positive read.
-            int compare = at + (fourth ? 6 : 0); long expected;
-            if (number == 231) expected = 0;
+            int compare = at + (fourth ? 6 : 0);
+            long expected;
+            if (number == 231)
+                expected = 0;
             else if (elf[compare] == 0x48 && elf[compare + 1] == 0x3d)
                 expected = BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(compare + 2));
             else
@@ -83,7 +92,8 @@ public static partial class QemuTranscripts
                     string free = (facts["available"] / 1024).ToString(CultureInfo.InvariantCulture);
                     expected = ("MemTotal: " + total + " kB\nMemFree: " + free + " kB\nMemAvailable: " + free + " kB\n").Length;
                 }
-                else expected = 128;
+                else
+                    expected = 128;
             }
             bool exited = number == 231;
             Need(row["valueBits"] == unchecked((ulong)expected) && row["action"] == (exited ? 2UL : 1UL) &&
@@ -96,10 +106,13 @@ public static partial class QemuTranscripts
             {
                 uint channel = writes == 1 && variant == "Descriptors" ? 2U : 1U;
                 Need(pending == "M16_005_WRITE fd=" + channel + " bytes=" + output.Length + " data=" + output, "m16_007_owned_output");
-                pending = null; writes++;
+                pending = null;
+                writes++;
             }
-            else Need(pending is null, "m16_007_write_order");
-            if ((number == 1 || number == 20) && expected > 0) writtenBytes += (ulong)expected;
+            else
+                Need(pending is null, "m16_007_write_order");
+            if ((number == 1 || number == 20) && expected > 0)
+                writtenBytes += (ulong)expected;
             calls++;
         }
         Need(calls == count && writes == expectedWrites && pending is null && positiveReads == (variant == "Descriptors" ? 2U : 0U) &&

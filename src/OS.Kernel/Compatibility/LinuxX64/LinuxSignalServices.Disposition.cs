@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxSignalServices
 {
     /// <summary>Exact 32-byte rt_sigaction kernel layout. Handler/restorer are

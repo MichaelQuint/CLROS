@@ -20,7 +20,8 @@ internal static unsafe partial class RhpNewFastAllocation
 #if M04_CHECKED_REFERENCE_BARRIER_PROBE
         RunReferences(original, image, imageBytes);
 #else
-        T(0); End();
+        T(0);
+        End();
 #if M04_STRING_ALLOCATION_PROBE
         RunStrings(original, image, imageBytes);
 #elif M04_SZ_ARRAY_ALLOCATION_PROBE
@@ -32,7 +33,8 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (RhpObservationStorage* r = &s_records)
         {
             RhpAdmissionStatus prepared = RhpNewFastAllocationCore.Prepare(original, a, b, c, r, image, imageBytes);
-            if (prepared != RhpAdmissionStatus.Success) RejectAdapter(prepared, 1);
+            if (prepared != RhpAdmissionStatus.Success)
+                RejectAdapter(prepared, 1);
             PreparationLine();
 #if M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE
             Attempt(false);
@@ -42,7 +44,8 @@ internal static unsafe partial class RhpNewFastAllocation
             RejectAdapter(RhpAdmissionStatus.ObservationRejected, 2);
 #else
             RhpNewFastResult bound = RhpNewFastAllocationCore.Bind(a, b, c, r);
-            if (!bound.Succeeded || bound.Operation != RhpNewFastOperation.Bind) RejectAdapter(RhpAdmissionStatus.AllocationRejected, 3);
+            if (!bound.Succeeded || bound.Operation != RhpNewFastOperation.Bind)
+                RejectAdapter(RhpAdmissionStatus.AllocationRejected, 3);
             BindLine(bound);
             RhpPlainFixture plain = NewPlain(0x1111111111111111);
             Complete(1, Bits(plain), ReadPlain(plain), 0x1111111111111111);
@@ -70,11 +73,20 @@ internal static unsafe partial class RhpNewFastAllocation
                     RejectAdapter(RhpAdmissionStatus.PriorObjectChanged, 4);
                 fillers++;
             }
-            T(1); Decimal(fillers); T(2); Decimal(initialUsed);
-            T(3); Decimal(b->UsedBytes); T(4); Decimal(size); T(5); End();
+            T(1);
+            Decimal(fillers);
+            T(2);
+            Decimal(initialUsed);
+            T(3);
+            Decimal(b->UsedBytes);
+            T(4);
+            Decimal(size);
+            T(5);
+            End();
             Attempt(true);
             RhpPlainFixture exhausted = NewPlain(0x5555555555555555);
-            if (Bits(exhausted) != 0) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 5);
+            if (Bits(exhausted) != 0)
+                RejectAdapter(RhpAdmissionStatus.ObservationRejected, 5);
             RejectAdapter(RhpAdmissionStatus.ObservationRejected, 6);
 #else
             ManagedHeapPageRangeResult retained = RhpNewFastAllocationCore.Retained(*a);
@@ -86,8 +98,10 @@ internal static unsafe partial class RhpNewFastAllocation
                 RhpNewFastAllocationCore.CheckCompleted(a, b, c, r) != RhpAdmissionStatus.Success)
                 RejectAdapter(RhpAdmissionStatus.RetainedRejected, 7);
             RetainLine(retained);
-            T(6); End();
-            T(7); End();
+            T(6);
+            End();
+            T(7);
+            End();
 #endif
 #endif
         }
@@ -106,13 +120,20 @@ internal static unsafe partial class RhpNewFastAllocation
         return AllocateStringRoute(token, TypePlain(), 1, 1, 0, 0);
 #elif M04_SZ_ARRAY_ALLOCATION_PROBE
         ulong id = token == TypePlain() ? 1UL : token == TypeReference() ? 4UL : 0;
-        if (id == 0) RejectAdapter(RhpAdmissionStatus.UnknownToken, 8);
+        if (id == 0)
+            RejectAdapter(RhpAdmissionStatus.UnknownToken, 8);
         return AllocateMixed(token, id == 1 ? TypePlain() : TypeReference(), id, 1, 0, 0);
 #else
         ulong id = 0;
         for (ulong candidate = 1; candidate <= 10; candidate++)
-            if (token == Token(candidate)) { if (id != 0) RejectAdapter(RhpAdmissionStatus.UnknownToken, 8); id = candidate; }
-        if (id == 0) RejectAdapter(RhpAdmissionStatus.UnknownToken, 9);
+            if (token == Token(candidate))
+            {
+                if (id != 0)
+                    RejectAdapter(RhpAdmissionStatus.UnknownToken, 8);
+                id = candidate;
+            }
+        if (id == 0)
+            RejectAdapter(RhpAdmissionStatus.UnknownToken, 9);
         fixed (RhpNewFastHeapAccess* a = &s_access)
         fixed (RhpNewFastBumpState* b = &s_bump)
         fixed (RhpAllocationControl* c = &s_control)
@@ -127,8 +148,10 @@ internal static unsafe partial class RhpNewFastAllocation
                     RejectLeaf(result.Leaf.Status, used, b->UsedBytes, count, b->AllocationCount, constructors);
                 RejectAdapter(result.Status, 10);
             }
-            if (result.Leaf.ObjectReference == 0) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 11);
-            if (c->Completed < 10) ObjectLine(result.Observation);
+            if (result.Leaf.ObjectReference == 0)
+                RejectAdapter(RhpAdmissionStatus.ObservationRejected, 11);
+            if (c->Completed < 10)
+                ObjectLine(result.Observation);
             return result.Leaf.ObjectReference;
         }
 #endif
@@ -143,21 +166,25 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (RhpObservationStorage* r = &s_records)
         {
             RhpAdmissionStatus prepared = RhpNewFastAllocationCore.Prepare(original, a, b, c, r, image, imageBytes);
-            if (prepared != RhpAdmissionStatus.Success) RejectAdapter(prepared, 1);
+            if (prepared != RhpAdmissionStatus.Success)
+                RejectAdapter(prepared, 1);
             PreparationLine();
 #if M04_STRING_ALLOCATION_BEFORE_BIND_PROBE
             StringAttempt(0, 0);
             string unbound = NewString('A', 0);
-            if (Bits(unbound) != 0) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 41);
+            if (Bits(unbound) != 0)
+                RejectAdapter(RhpAdmissionStatus.ObservationRejected, 41);
             RejectAdapter(RhpAdmissionStatus.ObservationRejected, 42);
 #else
             RhpNewFastResult bound = RhpNewFastAllocationCore.Bind(a, b, c, r);
-            if (!bound.Succeeded || bound.Operation != RhpNewFastOperation.Bind) RejectAdapter(RhpAdmissionStatus.AllocationRejected, 3);
+            if (!bound.Succeeded || bound.Operation != RhpNewFastOperation.Bind)
+                RejectAdapter(RhpAdmissionStatus.AllocationRejected, 3);
             BindLine(bound);
 #if M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE
             StringAttempt(2, 0x100000001UL);
             string invalid = RawString(unchecked((nint)0x100000001L));
-            if (Bits(invalid) != 0) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 43);
+            if (Bits(invalid) != 0)
+                RejectAdapter(RhpAdmissionStatus.ObservationRejected, 43);
             RejectAdapter(RhpAdmissionStatus.ObservationRejected, 44);
 #else
             RhpPlainFixture plain = NewPlain(0x1111111111111111);
@@ -193,11 +220,24 @@ internal static unsafe partial class RhpNewFastAllocation
                 b->UsedBytes != 4096 || b->AllocationCount != 169 || c->ConstructorCount != 168 ||
                 RhpNewFastAllocationCore.CheckCompleted(a, b, c, r) != RhpAdmissionStatus.Success)
                 RejectAdapter(RhpAdmissionStatus.PriorObjectChanged, 47);
-            S(0); Decimal(161); S(1); Decimal(1); T(2); Decimal(200); T(3); Decimal(b->UsedBytes);
-            T(20); Decimal(b->AllocationCount); S(2); Decimal(c->ConstructorCount); T(5); End();
+            S(0);
+            Decimal(161);
+            S(1);
+            Decimal(1);
+            T(2);
+            Decimal(200);
+            T(3);
+            Decimal(b->UsedBytes);
+            T(20);
+            Decimal(b->AllocationCount);
+            S(2);
+            Decimal(c->ConstructorCount);
+            T(5);
+            End();
             StringAttempt(1, 1);
             string exhausted = NewString('E', 1);
-            if (Bits(exhausted) != 0) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 48);
+            if (Bits(exhausted) != 0)
+                RejectAdapter(RhpAdmissionStatus.ObservationRejected, 48);
             RejectAdapter(RhpAdmissionStatus.ObservationRejected, 49);
 #else
             ManagedHeapPageRangeResult retained = RhpNewFastAllocationCore.Retained(*a);
@@ -207,7 +247,11 @@ internal static unsafe partial class RhpNewFastAllocation
                 retained.CurrentAllocatorState.FreeByteCount != 4096 || retained.CurrentAllocatorState.AllocatedByteCount != 4096 ||
                 RhpNewFastAllocationCore.CheckCompleted(a, b, c, r) != RhpAdmissionStatus.Success)
                 RejectAdapter(RhpAdmissionStatus.RetainedRejected, 7);
-            RetainLine(retained); T(6); End(); T(7); End();
+            RetainLine(retained);
+            T(6);
+            End();
+            T(7);
+            End();
 #endif
 #endif
 #endif
@@ -232,15 +276,18 @@ internal static unsafe partial class RhpNewFastAllocation
             RhpAllocationAttempt result = RhpNewFastAllocationCore.AllocateStrings(a, b, c, r, token, expected, id, route, length, related);
             if (!result.Succeeded)
             {
-                if (c->ConstructorCount != constructors) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 50);
+                if (c->ConstructorCount != constructors)
+                    RejectAdapter(RhpAdmissionStatus.ObservationRejected, 50);
                 if (result.Status == RhpAdmissionStatus.AllocationRejected &&
                     (result.Leaf.Status == RhpNewFastStatus.NotInitialized || result.Leaf.Status == RhpNewFastStatus.Exhausted ||
                      result.Leaf.Status == RhpNewFastStatus.InvalidLength))
                     RejectLeaf(result.Leaf.Status, used, b->UsedBytes, count, b->AllocationCount, constructors);
                 RejectAdapter(result.Status, 10);
             }
-            if (result.Leaf.ObjectReference == 0) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 11);
-            if (c->Completed < 7) ObjectLine(result.Observation);
+            if (result.Leaf.ObjectReference == 0)
+                RejectAdapter(RhpAdmissionStatus.ObservationRejected, 11);
+            if (c->Completed < 7)
+                ObjectLine(result.Observation);
             return result.Leaf.ObjectReference;
         }
     }
@@ -253,42 +300,81 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (RhpObservationStorage* r = &s_records)
         {
             RhpAdmissionStatus status = RhpNewFastAllocationCore.CompleteStrings(a, b, c, r, id, reference, length, scalar, expected);
-            if (status != RhpAdmissionStatus.Success) RejectAdapter(status, 12);
+            if (status != RhpAdmissionStatus.Success)
+                RejectAdapter(status, 12);
             RhpObjectObservation record = (&r->Object0)[id - 1];
-            T(8); Decimal(id); S(3); Decimal((ulong)length); T(9); Decimal(record.ScalarOffset);
-            S(4); Decimal(record.ScalarWidth); T(10); Hex(record.Scalar);
-            S(5); Hex(id >= 3 ? reference + 12 + 2 * (ulong)length : 0);
-            S(6); Hex(id >= 3 ? (ulong)(*((byte*)reference + 12 + 2 * length) | (*((byte*)reference + 13 + 2 * length) << 8)) : 0);
-            T(11); Decimal(record.UntouchedBytes); T(12); Hex(record.UntouchedOr);
-            S(2); Decimal(c->ConstructorCount); T(13); Decimal(c->Completed); T(14); End();
+            T(8);
+            Decimal(id);
+            S(3);
+            Decimal((ulong)length);
+            T(9);
+            Decimal(record.ScalarOffset);
+            S(4);
+            Decimal(record.ScalarWidth);
+            T(10);
+            Hex(record.Scalar);
+            S(5);
+            Hex(id >= 3 ? reference + 12 + 2 * (ulong)length : 0);
+            S(6);
+            Hex(id >= 3 ? (ulong)(*((byte*)reference + 12 + 2 * length) | (*((byte*)reference + 13 + 2 * length) << 8)) : 0);
+            T(11);
+            Decimal(record.UntouchedBytes);
+            T(12);
+            Hex(record.UntouchedOr);
+            S(2);
+            Decimal(c->ConstructorCount);
+            T(13);
+            Decimal(c->Completed);
+            T(14);
+            End();
         }
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static bool StringFillers(ulong emptyCount, bool last)
     {
-        if (emptyCount > 161 || (last && emptyCount != 161)) return false;
+        if (emptyCount > 161 || (last && emptyCount != 161))
+            return false;
         for (ulong i = 0; i < emptyCount; i++)
         {
             byte* p = s_access.Backing + 200 + i * 24;
             if (RhpNewFastAllocationCore.Read64(p) != 0 || RhpNewFastAllocationCore.Read64(p + 8) != TypeString() ||
-                RhpNewFastAllocationCore.Read64(p + 16) != 0) return false;
+                RhpNewFastAllocationCore.Read64(p + 16) != 0)
+                return false;
         }
         if (last)
         {
             byte* p = s_access.Backing + 4064;
             if (RhpNewFastAllocationCore.Read64(p) != 0 || RhpNewFastAllocationCore.Read64(p + 8) != TypeString() ||
                 RhpNewFastAllocationCore.Read64(p + 16) != 0x005A005A00000003 ||
-                RhpNewFastAllocationCore.Read64(p + 24) != 0x005A) return false;
+                RhpNewFastAllocationCore.Read64(p + 24) != 0x005A)
+                return false;
         }
         return true;
     }
 
     private static void StringAttempt(ulong mode, ulong length)
     {
-        T(15); if (mode == 0) T(17); else if (mode == 1) T(16); else S(7);
-        S(8); Decimal(3); T(51); Hex(TypeString()); S(3); Decimal(length); S(9); Hex(TypeObject());
-        T(19); Decimal(s_bump.UsedBytes); T(20); Decimal(s_bump.AllocationCount); End();
+        T(15);
+        if (mode == 0)
+            T(17);
+        else if (mode == 1)
+            T(16);
+        else
+            S(7);
+        S(8);
+        Decimal(3);
+        T(51);
+        Hex(TypeString());
+        S(3);
+        Decimal(length);
+        S(9);
+        Hex(TypeObject());
+        T(19);
+        Decimal(s_bump.UsedBytes);
+        T(20);
+        Decimal(s_bump.AllocationCount);
+        End();
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
@@ -307,9 +393,11 @@ internal static unsafe partial class RhpNewFastAllocation
     private static ulong StringUnits(string value)
     {
         int count = StringLength(value);
-        if (count < 0 || count > 3) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 51);
+        if (count < 0 || count > 3)
+            RejectAdapter(RhpAdmissionStatus.ObservationRejected, 51);
         ulong packed = 0;
-        for (int i = 0; i < count; i++) packed |= (ulong)StringCharacter(value, i) << (16 * i);
+        for (int i = 0; i < count; i++)
+            packed |= (ulong)StringCharacter(value, i) << (16 * i);
         return packed;
     }
 #endif
@@ -323,7 +411,8 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (RhpObservationStorage* r = &s_records)
         {
             RhpAdmissionStatus prepared = RhpNewFastAllocationCore.Prepare(original, a, b, c, r, image, imageBytes);
-            if (prepared != RhpAdmissionStatus.Success) RejectAdapter(prepared, 1);
+            if (prepared != RhpAdmissionStatus.Success)
+                RejectAdapter(prepared, 1);
             PreparationLine();
 #if M04_SZ_ARRAY_ALLOCATION_BEFORE_BIND_PROBE
             ArrayAttempt(false);
@@ -332,7 +421,8 @@ internal static unsafe partial class RhpNewFastAllocation
             RejectAdapter(RhpAdmissionStatus.ObservationRejected, 2);
 #else
             RhpNewFastResult bound = RhpNewFastAllocationCore.Bind(a, b, c, r);
-            if (!bound.Succeeded || bound.Operation != RhpNewFastOperation.Bind) RejectAdapter(RhpAdmissionStatus.AllocationRejected, 3);
+            if (!bound.Succeeded || bound.Operation != RhpNewFastOperation.Bind)
+                RejectAdapter(RhpAdmissionStatus.AllocationRejected, 3);
             BindLine(bound);
             RhpPlainFixture plain = NewPlain(0x1111111111111111);
             CompleteArray(1, Bits(plain), 0, ReadPlain(plain), 0x1111111111111111);
@@ -363,11 +453,22 @@ internal static unsafe partial class RhpNewFastAllocation
             }
             if (pairs != 82 || b->UsedBytes != 4096 || b->AllocationCount != 169 || c->ConstructorCount != 84)
                 RejectAdapter(RhpAdmissionStatus.ObservationRejected, 16);
-            A(0); Decimal(pairs); T(2); Decimal(160); T(3); Decimal(b->UsedBytes);
-            T(20); Decimal(b->AllocationCount); A(1); Decimal(c->ConstructorCount); T(5); End();
+            A(0);
+            Decimal(pairs);
+            T(2);
+            Decimal(160);
+            T(3);
+            Decimal(b->UsedBytes);
+            T(20);
+            Decimal(b->AllocationCount);
+            A(1);
+            Decimal(c->ConstructorCount);
+            T(5);
+            End();
             ArrayAttempt(true);
             long[] exhausted = NewLongs(1);
-            if (Bits(exhausted) != 0) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 17);
+            if (Bits(exhausted) != 0)
+                RejectAdapter(RhpAdmissionStatus.ObservationRejected, 17);
             RejectAdapter(RhpAdmissionStatus.ObservationRejected, 18);
 #else
             ManagedHeapPageRangeResult retained = RhpNewFastAllocationCore.Retained(*a);
@@ -377,7 +478,11 @@ internal static unsafe partial class RhpNewFastAllocation
                 retained.CurrentAllocatorState.FreeByteCount != 4096 || retained.CurrentAllocatorState.AllocatedByteCount != 4096 ||
                 RhpNewFastAllocationCore.CheckCompleted(a, b, c, r) != RhpAdmissionStatus.Success)
                 RejectAdapter(RhpAdmissionStatus.RetainedRejected, 7);
-            RetainLine(retained); T(6); End(); T(7); End();
+            RetainLine(retained);
+            T(6);
+            End();
+            T(7);
+            End();
 #endif
 #endif
         }
@@ -387,7 +492,8 @@ internal static unsafe partial class RhpNewFastAllocation
     internal static ulong AllocateArray(ulong token, long length, bool pointerSized)
     {
 #if M04_STRING_ALLOCATION_PROBE
-        if (pointerSized) RejectAdapter(RhpAdmissionStatus.InvalidFixture, 40);
+        if (pointerSized)
+            RejectAdapter(RhpAdmissionStatus.InvalidFixture, 40);
         return AllocateStringRoute(token, TypeBytes(), 2, 6, length, TypeByte());
 #else
         ulong id = pointerSized ? 3UL : s_control.Completed == 4 ? 5UL : 2UL;
@@ -413,8 +519,10 @@ internal static unsafe partial class RhpNewFastAllocation
                     RejectLeaf(result.Leaf.Status, used, b->UsedBytes, count, b->AllocationCount, constructors);
                 RejectAdapter(result.Status, 10);
             }
-            if (result.Leaf.ObjectReference == 0) RejectAdapter(RhpAdmissionStatus.ObservationRejected, 11);
-            if (c->Completed < 5) ObjectLine(result.Observation);
+            if (result.Leaf.ObjectReference == 0)
+                RejectAdapter(RhpAdmissionStatus.ObservationRejected, 11);
+            if (c->Completed < 5)
+                ObjectLine(result.Observation);
             return result.Leaf.ObjectReference;
         }
     }
@@ -427,35 +535,67 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (RhpObservationStorage* r = &s_records)
         {
             RhpAdmissionStatus status = RhpNewFastAllocationCore.CompleteMixed(a, b, c, r, id, reference, length, scalar, expected);
-            if (status != RhpAdmissionStatus.Success) RejectAdapter(status, 12);
+            if (status != RhpAdmissionStatus.Success)
+                RejectAdapter(status, 12);
             RhpObjectObservation record = (&r->Object0)[id - 1];
-            T(8); Decimal(id); A(2); Decimal((ulong)length); T(9); Decimal(record.ScalarOffset);
-            A(3); Decimal(record.ScalarWidth); T(10); Hex(record.Scalar); T(11); Decimal(record.UntouchedBytes);
-            T(12); Hex(record.UntouchedOr); T(13); Decimal(c->Completed); T(14); End();
+            T(8);
+            Decimal(id);
+            A(2);
+            Decimal((ulong)length);
+            T(9);
+            Decimal(record.ScalarOffset);
+            A(3);
+            Decimal(record.ScalarWidth);
+            T(10);
+            Hex(record.Scalar);
+            T(11);
+            Decimal(record.UntouchedBytes);
+            T(12);
+            Hex(record.UntouchedOr);
+            T(13);
+            Decimal(c->Completed);
+            T(14);
+            End();
         }
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static bool MixedFillers(ulong used)
     {
-        if (used < 160 || used > 4096 || (used - 160) % 48 != 0) return false;
+        if (used < 160 || used > 4096 || (used - 160) % 48 != 0)
+            return false;
         for (ulong cursor = 160; cursor < used; cursor += 48)
         {
             byte* p = s_access.Backing + cursor;
             if (RhpNewFastAllocationCore.Read64(p) != 0 || RhpNewFastAllocationCore.Read64(p + 8) != TypePlain() ||
                 RhpNewFastAllocationCore.Read64(p + 16) != 0x5555555555555555 ||
                 RhpNewFastAllocationCore.Read64(p + 24) != 0 || RhpNewFastAllocationCore.Read64(p + 32) != TypeBytes() ||
-                RhpNewFastAllocationCore.Read64(p + 40) != 0) return false;
+                RhpNewFastAllocationCore.Read64(p + 40) != 0)
+                return false;
         }
         return true;
     }
 
     private static void ArrayAttempt(bool exhaustion)
     {
-        T(15); if (exhaustion) T(16); else T(17);
-        A(4); Decimal(exhaustion ? 3UL : 2UL); T(51); Hex(exhaustion ? TypeLongs() : TypeBytes());
-        A(2); Decimal(exhaustion ? 1UL : 0UL); A(5); Hex(exhaustion ? TypeLong() : TypeByte());
-        T(19); Decimal(s_bump.UsedBytes); T(20); Decimal(s_bump.AllocationCount); End();
+        T(15);
+        if (exhaustion)
+            T(16);
+        else
+            T(17);
+        A(4);
+        Decimal(exhaustion ? 3UL : 2UL);
+        T(51);
+        Hex(exhaustion ? TypeLongs() : TypeBytes());
+        A(2);
+        Decimal(exhaustion ? 1UL : 0UL);
+        A(5);
+        Hex(exhaustion ? TypeLong() : TypeByte());
+        T(19);
+        Decimal(s_bump.UsedBytes);
+        T(20);
+        Decimal(s_bump.AllocationCount);
+        End();
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
@@ -493,140 +633,352 @@ internal static unsafe partial class RhpNewFastAllocation
         {
             RhpAdmissionStatus status = RhpNewFastAllocationCore.Complete(a, b, c, r, id, reference,
                 id <= 4 ? (id == 1 ? 8UL : 16UL) : 0, scalar, expected);
-            if (status != RhpAdmissionStatus.Success) RejectAdapter(status, 12);
+            if (status != RhpAdmissionStatus.Success)
+                RejectAdapter(status, 12);
             RhpObjectObservation record = (&r->Object0)[id - 1];
-            T(8); Decimal(id); T(9); Decimal(record.ScalarOffset);
-            T(10); Hex(record.Scalar); T(11); Decimal(record.UntouchedBytes);
-            T(12); Hex(record.UntouchedOr); T(13); Decimal(c->Completed);
-            T(14); End();
+            T(8);
+            Decimal(id);
+            T(9);
+            Decimal(record.ScalarOffset);
+            T(10);
+            Hex(record.Scalar);
+            T(11);
+            Decimal(record.UntouchedBytes);
+            T(12);
+            Hex(record.UntouchedOr);
+            T(13);
+            Decimal(c->Completed);
+            T(14);
+            End();
         }
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static bool Fillers(ulong first, ulong used, ulong size, ulong token)
     {
-        if (size < 24 || used > 4096 || first > used || (used - first) % size != 0) return false;
+        if (size < 24 || used > 4096 || first > used || (used - first) % size != 0)
+            return false;
         for (ulong cursor = first; cursor < used; cursor += size)
         {
             byte* bytes = s_access.Backing + cursor;
             if (RhpNewFastAllocationCore.Read64(bytes) != 0 || RhpNewFastAllocationCore.Read64(bytes + 8) != token ||
-                RhpNewFastAllocationCore.Read64(bytes + 16) != 0x5555555555555555) return false;
-            for (ulong i = 24; i < size; i++) if (bytes[i] != 0) return false;
+                RhpNewFastAllocationCore.Read64(bytes + 16) != 0x5555555555555555)
+                return false;
+            for (ulong i = 24; i < size; i++)
+                if (bytes[i] != 0)
+                    return false;
         }
         return true;
     }
 
-    internal static void ConstructorEntered() { s_control.ConstructorCount++; }
+    internal static void ConstructorEntered()
+    {
+        s_control.ConstructorCount++;
+    }
     private static void Attempt(bool exhaustion)
     {
-        T(15); if (exhaustion) T(16); else T(17);
-        T(18); Hex(TypePlain()); T(19); Decimal(s_bump.UsedBytes);
-        T(20); Decimal(s_bump.AllocationCount); End();
+        T(15);
+        if (exhaustion)
+            T(16);
+        else
+            T(17);
+        T(18);
+        Hex(TypePlain());
+        T(19);
+        Decimal(s_bump.UsedBytes);
+        T(20);
+        Decimal(s_bump.AllocationCount);
+        End();
     }
 
     private static void RejectLeaf(RhpNewFastStatus status, ulong usedBefore, ulong usedAfter,
         ulong countBefore, ulong countAfter, ulong constructors)
     {
-        T(21); Reason(status); T(22); Decimal((ulong)status);
-        T(2); Decimal(usedBefore); T(3); Decimal(usedAfter);
-        T(23); Decimal(countBefore); T(24); Decimal(countAfter);
-        T(25); Decimal(constructors); End();
-        T(26); Reason(status); End();
-        while (true) System.RuntimeFailFast.Halt();
+        T(21);
+        Reason(status);
+        T(22);
+        Decimal((ulong)status);
+        T(2);
+        Decimal(usedBefore);
+        T(3);
+        Decimal(usedAfter);
+        T(23);
+        Decimal(countBefore);
+        T(24);
+        Decimal(countAfter);
+        T(25);
+        Decimal(constructors);
+        End();
+        T(26);
+        Reason(status);
+        End();
+        while (true)
+            System.RuntimeFailFast.Halt();
     }
 
     private static void Reason(RhpNewFastStatus status)
     {
 #if M04_STRING_ALLOCATION_PROBE
-        if (status == RhpNewFastStatus.InvalidLength) { S(7); return; }
+        if (status == RhpNewFastStatus.InvalidLength)
+        {
+            S(7);
+            return;
+        }
 #endif
-        if (status == RhpNewFastStatus.NotInitialized) T(27); else T(28);
+        if (status == RhpNewFastStatus.NotInitialized)
+            T(27);
+        else
+            T(28);
     }
     internal static void RejectAdapter(RhpAdmissionStatus status, ulong stage)
     {
-        T(29); Decimal((ulong)status); T(30); Decimal(stage); End();
-        T(31); End();
-        while (true) System.RuntimeFailFast.Halt();
+        T(29);
+        Decimal((ulong)status);
+        T(30);
+        Decimal(stage);
+        End();
+        T(31);
+        End();
+        while (true)
+            System.RuntimeFailFast.Halt();
     }
 
     private static void PreparationLine()
     {
-        T(71); Hex(s_control.Image); T(33); Decimal(s_control.ImageBytes);
-        T(43); Hex(s_control.Access); T(44); Decimal((ulong)sizeof(RhpNewFastHeapAccess));
-        T(45); Hex(s_control.Bump); T(46); Decimal((ulong)sizeof(RhpNewFastBumpState));
-        T(72); Hex(s_control.Self); T(73); Decimal((ulong)sizeof(RhpAllocationControl));
-        T(74); Hex(s_control.Records); T(75); Decimal((ulong)sizeof(RhpObservationStorage)); End();
+        T(71);
+        Hex(s_control.Image);
+        T(33);
+        Decimal(s_control.ImageBytes);
+        T(43);
+        Hex(s_control.Access);
+        T(44);
+        Decimal((ulong)sizeof(RhpNewFastHeapAccess));
+        T(45);
+        Hex(s_control.Bump);
+        T(46);
+        Decimal((ulong)sizeof(RhpNewFastBumpState));
+        T(72);
+        Hex(s_control.Self);
+        T(73);
+        Decimal((ulong)sizeof(RhpAllocationControl));
+        T(74);
+        Hex(s_control.Records);
+        T(75);
+        Decimal((ulong)sizeof(RhpObservationStorage));
+        End();
     }
 
     private static void BindLine(RhpNewFastResult result)
     {
-        T(32); Hex(s_control.Image); T(33); Decimal(s_control.ImageBytes);
-        T(34); Hex((ulong)s_access.Allocator); T(35); Hex((ulong)s_access.Nodes);
-        T(36); Hex((ulong)s_access.Reservations); T(37); Decimal(s_access.ReservationCapacity * 40);
-        T(38); Decimal(s_access.ParentIndex); T(39); Hex((ulong)s_access.Backing);
-        T(40); Decimal(s_access.BackingCapacity); T(41); Hex((ulong)s_access.Heap);
-        T(42); Decimal(s_access.HeapCapacity); T(43); Hex(s_control.Access); T(44); Decimal((ulong)sizeof(RhpNewFastHeapAccess));
-        T(45); Hex(s_control.Bump); T(46); Decimal((ulong)sizeof(RhpNewFastBumpState));
-        T(22); Decimal((ulong)result.Status); T(19); Decimal(s_bump.UsedBytes); T(20); Decimal(s_bump.AllocationCount); End();
+        T(32);
+        Hex(s_control.Image);
+        T(33);
+        Decimal(s_control.ImageBytes);
+        T(34);
+        Hex((ulong)s_access.Allocator);
+        T(35);
+        Hex((ulong)s_access.Nodes);
+        T(36);
+        Hex((ulong)s_access.Reservations);
+        T(37);
+        Decimal(s_access.ReservationCapacity * 40);
+        T(38);
+        Decimal(s_access.ParentIndex);
+        T(39);
+        Hex((ulong)s_access.Backing);
+        T(40);
+        Decimal(s_access.BackingCapacity);
+        T(41);
+        Hex((ulong)s_access.Heap);
+        T(42);
+        Decimal(s_access.HeapCapacity);
+        T(43);
+        Hex(s_control.Access);
+        T(44);
+        Decimal((ulong)sizeof(RhpNewFastHeapAccess));
+        T(45);
+        Hex(s_control.Bump);
+        T(46);
+        Decimal((ulong)sizeof(RhpNewFastBumpState));
+        T(22);
+        Decimal((ulong)result.Status);
+        T(19);
+        Decimal(s_bump.UsedBytes);
+        T(20);
+        Decimal(s_bump.AllocationCount);
+        End();
     }
 
     private static void ObjectLine(RhpObjectObservation r)
     {
-        T(47); Decimal(r.Id); T(48);
+        T(47);
+        Decimal(r.Id);
+        T(48);
 #if M04_STRING_ALLOCATION_PROBE
-        if (r.Route == 1) S(10); else if (r.Route == 6) S(11); else S(12);
+        if (r.Route == 1)
+            S(10);
+        else if (r.Route == 6)
+            S(11);
+        else
+            S(12);
 #elif M04_SZ_ARRAY_ALLOCATION_PROBE
-        if (r.Route == 1) A(9); else if (r.Route == 3) A(10); else A(11);
+        if (r.Route == 1)
+            A(9);
+        else if (r.Route == 3)
+            A(10);
+        else
+            A(11);
 #else
-        if (r.Route == 1) T(49); else T(50);
+        if (r.Route == 1)
+            T(49);
+        else
+            T(50);
 #endif
-        T(51); Hex(r.MethodTable); T(52); Hex(r.Prefix0); T(53); Hex(r.Prefix1); T(54); Hex(r.Prefix2);
-        T(55); Hex(r.Flags); T(4); Decimal(r.BaseSize); T(56); Hex(r.Allocation);
-        T(57); Hex(r.Reference); T(58); Hex(r.End); T(2); Decimal(r.UsedBefore);
-        T(3); Decimal(r.UsedAfter); T(20); Decimal(r.Count); T(59); Hex(r.Sync);
-        T(60); Hex(r.ObservedMt); T(61); Decimal(r.ZeroBytes); T(62); Hex(r.ZeroOr);
+        T(51);
+        Hex(r.MethodTable);
+        T(52);
+        Hex(r.Prefix0);
+        T(53);
+        Hex(r.Prefix1);
+        T(54);
+        Hex(r.Prefix2);
+        T(55);
+        Hex(r.Flags);
+        T(4);
+        Decimal(r.BaseSize);
+        T(56);
+        Hex(r.Allocation);
+        T(57);
+        Hex(r.Reference);
+        T(58);
+        Hex(r.End);
+        T(2);
+        Decimal(r.UsedBefore);
+        T(3);
+        Decimal(r.UsedAfter);
+        T(20);
+        Decimal(r.Count);
+        T(59);
+        Hex(r.Sync);
+        T(60);
+        Hex(r.ObservedMt);
+        T(61);
+        Decimal(r.ZeroBytes);
+        T(62);
+        Hex(r.ZeroOr);
 #if M04_STRING_ALLOCATION_PROBE
-        S(3); Decimal(r.Length); S(13); Hex(r.ElementTable); S(14); Hex(r.ElementPrefix0);
-        S(15); Hex(r.ElementPrefix1); S(16); Hex(r.ElementPrefix2);
-        S(9); Hex(r.RelatedObjectTable); S(17); Hex(r.RelatedObjectPrefix0);
-        S(18); Hex(r.RelatedObjectPrefix1); S(19); Hex(r.RelatedObjectPrefix2);
+        S(3);
+        Decimal(r.Length);
+        S(13);
+        Hex(r.ElementTable);
+        S(14);
+        Hex(r.ElementPrefix0);
+        S(15);
+        Hex(r.ElementPrefix1);
+        S(16);
+        Hex(r.ElementPrefix2);
+        S(9);
+        Hex(r.RelatedObjectTable);
+        S(17);
+        Hex(r.RelatedObjectPrefix0);
+        S(18);
+        Hex(r.RelatedObjectPrefix1);
+        S(19);
+        Hex(r.RelatedObjectPrefix2);
 #elif M04_SZ_ARRAY_ALLOCATION_PROBE
-        A(2); Decimal(r.Length); A(5); Hex(r.ElementTable); A(6); Hex(r.ElementPrefix0);
-        A(7); Hex(r.ElementPrefix1); A(8); Hex(r.ElementPrefix2);
+        A(2);
+        Decimal(r.Length);
+        A(5);
+        Hex(r.ElementTable);
+        A(6);
+        Hex(r.ElementPrefix0);
+        A(7);
+        Hex(r.ElementPrefix1);
+        A(8);
+        Hex(r.ElementPrefix2);
 #endif
         End();
     }
 
     private static void RetainLine(ManagedHeapPageRangeResult result)
     {
-        T(63); Hex((ulong)s_access.Allocator); T(35); Hex((ulong)s_access.Nodes);
-        T(36); Hex((ulong)s_access.Reservations); T(38); Decimal(s_access.ParentIndex);
-        T(39); Hex((ulong)s_access.Backing); T(41); Hex((ulong)s_access.Heap); T(45); Hex(s_control.Bump);
-        T(64); Hex(result.PhysicalStart); T(65); Hex(result.PhysicalEndExclusive);
-        T(66); Decimal(result.InitialAllocatorState.FreePageCount);
-        T(67); Decimal(result.CurrentAllocatorState.FreePageCount); T(68); Decimal(result.CurrentAllocatorState.AllocatedPageCount);
-        T(69); Decimal(result.ReadBytes); T(70); Decimal(s_bump.UsedBytes);
-        T(20); Decimal(s_bump.AllocationCount); T(22); Decimal((ulong)result.Status); End();
+        T(63);
+        Hex((ulong)s_access.Allocator);
+        T(35);
+        Hex((ulong)s_access.Nodes);
+        T(36);
+        Hex((ulong)s_access.Reservations);
+        T(38);
+        Decimal(s_access.ParentIndex);
+        T(39);
+        Hex((ulong)s_access.Backing);
+        T(41);
+        Hex((ulong)s_access.Heap);
+        T(45);
+        Hex(s_control.Bump);
+        T(64);
+        Hex(result.PhysicalStart);
+        T(65);
+        Hex(result.PhysicalEndExclusive);
+        T(66);
+        Decimal(result.InitialAllocatorState.FreePageCount);
+        T(67);
+        Decimal(result.CurrentAllocatorState.FreePageCount);
+        T(68);
+        Decimal(result.CurrentAllocatorState.AllocatedPageCount);
+        T(69);
+        Decimal(result.ReadBytes);
+        T(70);
+        Decimal(s_bump.UsedBytes);
+        T(20);
+        Decimal(s_bump.AllocationCount);
+        T(22);
+        Decimal((ulong)result.Status);
+        End();
     }
 
     private static void Write(byte value) => OS.Boot.EfiEntry.WriteRhpByte(value);
-    private static void End() { Write(13); Write(10); }
+    private static void End()
+    {
+        Write(13);
+        Write(10);
+    }
     private static void Hex(ulong value)
     {
-        Write(48); Write(120);
-        for (int shift = 60; shift >= 0; shift -= 4) { ulong digit = (value >> shift) & 15; Write((byte)(digit < 10 ? 48 + digit : 55 + digit)); }
+        Write(48);
+        Write(120);
+        for (int shift = 60; shift >= 0; shift -= 4)
+        {
+            ulong digit = (value >> shift) & 15;
+            Write((byte)(digit < 10 ? 48 + digit : 55 + digit));
+        }
     }
     private static void Decimal(ulong value)
     {
-        byte* digits = stackalloc byte[20]; int length = 0;
-        do { digits[length++] = (byte)(48 + value % 10); value /= 10; } while (value != 0);
-        while (length != 0) Write(digits[--length]);
+        byte* digits = stackalloc byte[20];
+        int length = 0;
+        do
+        {
+            digits[length++] = (byte)(48 + value % 10);
+            value /= 10;
+        } while (value != 0);
+        while (length != 0)
+            Write(digits[--length]);
     }
 
     private static ulong Token(ulong id) => id switch
     {
-        1 => TypePlain(), 2 => TypeReference(), 3 => TypeGenericReference(), 4 => TypeGenericValue(),
-        5 => TypeInt32(), 6 => TypeEnum(), 7 => TypeValue(), 8 => TypeReferenceValue(), 9 => TypeGenericStruct(), 10 => TypeNullable(), _ => 0
+        1 => TypePlain(),
+        2 => TypeReference(),
+        3 => TypeGenericReference(),
+        4 => TypeGenericValue(),
+        5 => TypeInt32(),
+        6 => TypeEnum(),
+        7 => TypeValue(),
+        8 => TypeReferenceValue(),
+        9 => TypeGenericStruct(),
+        10 => TypeNullable(),
+        _ => 0
     };
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static ulong TypePlain() => (ulong)Internal.Runtime.MethodTable.Of<RhpPlainFixture>();
@@ -681,28 +1033,52 @@ internal static unsafe partial class RhpNewFastAllocation
     private static void T(int token)
     {
 #if M04_CHECKED_REFERENCE_BARRIER_PROBE
-        if (token == 71) { R(20); return; }
-        if (token == 32) { R(21); return; }
-        if (token == 63) { R(22); return; }
+        if (token == 71)
+        {
+            R(20);
+            return;
+        }
+        if (token == 32)
+        {
+            R(21);
+            return;
+        }
+        if (token == 63)
+        {
+            R(22);
+            return;
+        }
 #endif
         for (int index = 0; ; index++)
         {
             byte value;
 #if M04_STRING_ALLOCATION_PROBE
             value = StringOverride(token, index);
-            if (value == 255) value = Literal(token, index);
+            if (value == 255)
+                value = Literal(token, index);
 #elif M04_SZ_ARRAY_ALLOCATION_PROBE
             value = ArrayOverride(token, index);
-            if (value == 255) value = Literal(token, index);
+            if (value == 255)
+                value = Literal(token, index);
 #else
             value = Literal(token, index);
 #endif
-            if (value == 0) return; Write(value);
+            if (value == 0)
+                return;
+            Write(value);
         }
     }
 #if M04_SZ_ARRAY_ALLOCATION_PROBE
     private static void A(int token)
-    { for (int i = 0; ; i++) { byte value = ArrayLiteral(token, i); if (value == 0) return; Write(value); } }
+    {
+        for (int i = 0; ; i++)
+        {
+            byte value = ArrayLiteral(token, i);
+            if (value == 0)
+                return;
+            Write(value);
+        }
+    }
     private static byte ArrayOverride(int token, int index) => token switch
     {
         0 => index switch { 0 => 84, 1 => 69, 2 => 83, 3 => 84, 4 => 95, 5 => 83, 6 => 84, 7 => 65, 8 => 82, 9 => 84, 10 => 32, 11 => 109, 12 => 48, 13 => 52, 14 => 46, 15 => 48, 16 => 48, 17 => 56, 18 => 46, 19 => 115, 20 => 122, 21 => 95, 22 => 97, 23 => 114, 24 => 114, 25 => 97, 26 => 121, _ => 0 },
@@ -740,7 +1116,13 @@ internal static unsafe partial class RhpNewFastAllocation
 #if M04_STRING_ALLOCATION_PROBE
     private static void S(int token)
     {
-        for (int i = 0; ; i++) { byte value = StringLiteral(token, i); if (value == 0) return; Write(value); }
+        for (int i = 0; ; i++)
+        {
+            byte value = StringLiteral(token, i);
+            if (value == 0)
+                return;
+            Write(value);
+        }
     }
     private static byte StringOverride(int token, int index) => token switch
     {
@@ -868,29 +1250,6 @@ internal static unsafe partial class RhpNewFastAllocation
 }
 
 #pragma warning disable 649
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #pragma warning restore 649
 #endif

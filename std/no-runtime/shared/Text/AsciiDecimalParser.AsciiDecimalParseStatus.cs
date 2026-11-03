@@ -1,6 +1,7 @@
 using OS.Std;
 
 namespace OS.Std.Text;
+
 public enum AsciiDecimalParseStatus
 {
     Success = 0,

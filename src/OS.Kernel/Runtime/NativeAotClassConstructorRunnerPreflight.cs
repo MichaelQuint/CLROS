@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAotClassConstructorRunnerPreflight
 {
     public const bool ExecutesConstructors = false;

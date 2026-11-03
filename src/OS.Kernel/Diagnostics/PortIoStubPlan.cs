@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct PortIoStubPlan
 {
     public const byte OperandSizeOverridePrefix = 0x66;
@@ -15,7 +16,10 @@ public readonly struct PortIoStubPlan
         OperationKind = operationKind;
     }
 
-    public PortIoOperationKind OperationKind { get; }
+    public PortIoOperationKind OperationKind
+    {
+        get;
+    }
     public static PortIoStubPlan Out8 => new PortIoStubPlan(PortIoOperationKind.Out8);
     public static PortIoStubPlan In8 => new PortIoStubPlan(PortIoOperationKind.In8);
 

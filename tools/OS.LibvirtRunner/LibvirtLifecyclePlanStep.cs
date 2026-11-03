@@ -11,6 +11,12 @@ readonly struct LibvirtLifecyclePlanStep
         Name = name;
     }
 
-    public int Ordinal { get; }
-    public string Name { get; }
+    public int Ordinal
+    {
+        get;
+    }
+    public string Name
+    {
+        get;
+    }
 }

@@ -75,8 +75,8 @@ public static unsafe class InvokeIn8Out8CheckedUnmanagedFunctionPointers
             return CheckedPortIoFunctionPointerBindingResult.Fail(CheckedPortIoFunctionPointerBindingStatus.CallableRangesOverlap, request, checkedEndPort);
         }
 
-        delegate* unmanaged<ushort, byte, void> out8 = (delegate* unmanaged<ushort, byte, void> )request.Out8StubAddress;
-        delegate* unmanaged<ushort, byte> in8 = (delegate* unmanaged<ushort, byte> )request.In8StubAddress;
+        delegate* unmanaged<ushort, byte, void> out8 = (delegate* unmanaged<ushort, byte, void>)request.Out8StubAddress;
+        delegate* unmanaged<ushort, byte> in8 = (delegate* unmanaged<ushort, byte>)request.In8StubAddress;
         return CheckedPortIoFunctionPointerBindingResult.Ready(request, checkedEndPort, out8, in8);
     }
 

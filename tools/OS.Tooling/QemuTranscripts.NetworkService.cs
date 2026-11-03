@@ -32,9 +32,16 @@ public static partial class QemuTranscripts
         Dictionary<string, ulong> Row(int stage)
         {
             var row = ReadRecord(lines[start + stage + 2 + (stage >= 4 ? M07026TcpRecords : 0)], "M07_026_ROW", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec");
-            Need(row["stage"] == (uint)stage, "m07_026_row_order"); return row;
+            Need(row["stage"] == (uint)stage, "m07_026_row_order");
+            return row;
         }
-        var dma = Row(0); var full = Row(1); var arp = Row(2); var ip = Row(3); var stop = Row(4); var pool = Row(5); var restored = Row(6);
+        var dma = Row(0);
+        var full = Row(1);
+        var arp = Row(2);
+        var ip = Row(3);
+        var stop = Row(4);
+        var pool = Row(5);
+        var restored = Row(6);
         Need(dma["a"] != 0 && (dma["a"] & 4095) == 0 && dma["a"] <= 0x100000000UL - 32768 &&
             dma["b"] == 32768 && dma["c"] == QemuContracts.M07ArpReceiveFeatures && dma["d"] == 8, "m07_026_dma");
         Need(full["a"] == 8 && full["b"] == 8 && full["c"] == 1 && full["d"] == 0, "m07_026_full");
@@ -76,23 +83,28 @@ public static partial class QemuTranscripts
 
     private static Dictionary<string, ulong> ValidateNetworkTcpRows(string[] lines, int start, out ulong timeWaitInterval)
     {
-        foreach (string marker in M07026TcpStarts) Need(lines[start++] == marker, "m07_tcp_start_marker");
+        foreach (string marker in M07026TcpStarts)
+            Need(lines[start++] == marker, "m07_tcp_start_marker");
         Dictionary<string, ulong>[] rows = new Dictionary<string, ulong>[M07026TcpStages];
         for (int stage = 0; stage < rows.Length; stage++)
         {
             rows[stage] = ReadRecord(lines[start++], "M07_026_TCP", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec");
             Need(rows[stage]["stage"] == (uint)stage, "m07_tcp_row_order");
         }
-        foreach (string marker in M07026TcpEnds) Need(lines[start++] == marker, "m07_tcp_end_marker");
+        foreach (string marker in M07026TcpEnds)
+            Need(lines[start++] == marker, "m07_tcp_end_marker");
         bool Exact(int stage, ulong a, ulong b, ulong c, ulong d) => rows[stage]["a"] == a && rows[stage]["b"] == b && rows[stage]["c"] == c && rows[stage]["d"] == d;
-        Need(Exact(0,2,1,4,2) && Exact(1,2,1,1,6), "m07_tcp_handshake_pressure");
+        Need(Exact(0, 2, 1, 4, 2) && Exact(1, 2, 1, 1, 6), "m07_tcp_handshake_pressure");
         var wait = rows[2];
         Need(wait["d"] == 240000000000 && wait["b"] >= wait["a"] && wait["b"] >= wait["c"] &&
             wait["b"] - wait["c"] >= wait["d"] && wait["b"] - wait["c"] <= 248000000000, "m07_tcp_time_wait_start");
         ulong beforeFin = (ulong)ContinuingTcpScenario.Packets.TakeWhile(x => !(x.FromGuest && x.Port == 40000 && x.Sequence == 1021 && x.Flags == 0x11)).Count(x => x.FromGuest);
-        Need(Exact(3,11,4,10017,4) && rows[4]["a"] == 20 && rows[4]["b"] == 1021 && rows[4]["c"] == 1 &&
-            rows[4]["d"] == beforeFin && Exact(5,20,15,1,1) && Exact(6,2,3,4,8), "m07_tcp_stream_close_reset");
-        var timeout = rows[7]; var pending = rows[8]; var closed = rows[9]; var final = rows[10];
+        Need(Exact(3, 11, 4, 10017, 4) && rows[4]["a"] == 20 && rows[4]["b"] == 1021 && rows[4]["c"] == 1 &&
+            rows[4]["d"] == beforeFin && Exact(5, 20, 15, 1, 1) && Exact(6, 2, 3, 4, 8), "m07_tcp_stream_close_reset");
+        var timeout = rows[7];
+        var pending = rows[8];
+        var closed = rows[9];
+        var final = rows[10];
         Need(timeout["a"] == 2 && timeout["c"] >= timeout["b"] && timeout["c"] - timeout["b"] >= 7000000000 && timeout["d"] == 1 &&
             pending["a"] == 3 && pending["c"] >= pending["b"] && pending["d"] == 1, "m07_tcp_bounded_timeout");
         Need(closed["a"] == wait["b"] && closed["b"] >= closed["a"] && closed["b"] >= pending["c"] &&
@@ -119,7 +131,8 @@ public static partial class QemuTranscripts
         Need(peerRow >= 0, "m07_026_capture_peer");
         ulong peerMac = ReadRecord(lines[peerRow], "M07_026_ROW", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec")["d"];
         _ = QemuEthernetCapture.Inspect(bytes, checked((uint)anchor[0]));
-        uint requests = 0, replies = 0, requestMask = 0, replyMask = 0; bool anchored = false;
+        uint requests = 0, replies = 0, requestMask = 0, replyMask = 0;
+        bool anchored = false;
         int tcpIndex = 0, finalEchoes = 0, capturedFrames = 0, warmupFrames = 0;
         ulong lastTimestamp = 0, closedTimestamp = 0;
         Dictionary<string, ulong> times = new(StringComparer.Ordinal);
@@ -130,24 +143,39 @@ public static partial class QemuTranscripts
             ulong timestamp = (ulong)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset)) * 1000000 +
                 BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 4));
             Need(BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 4)) < 1000000 && timestamp >= lastTimestamp, "m07_tcp_capture_clock");
-            lastTimestamp = timestamp; capturedFrames++;
+            lastTimestamp = timestamp;
+            capturedFrames++;
             int size = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 8)));
-            offset += 16; ReadOnlySpan<byte> frame = bytes.AsSpan(offset, size); offset += size;
-            if (frame.Length < 14) continue;
+            offset += 16;
+            ReadOnlySpan<byte> frame = bytes.AsSpan(offset, size);
+            offset += size;
+            if (frame.Length < 14)
+                continue;
             ushort type = BinaryPrimitives.ReadUInt16BigEndian(frame[12..]);
-            if (!anchored && frame.Length == 60 && frame[..14].SequenceEqual(new byte[] { 2,0,0,0,0,2,2,0,0,0,0,1,0x88,0xb5 }) &&
+            if (!anchored && frame.Length == 60 && frame[..14].SequenceEqual(new byte[] { 2, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 1, 0x88, 0xb5 }) &&
                 frame[14..].IndexOfAnyExcept((byte)0) < 0)
-            { Need(warmupFrames++ == 0 && capturedFrames == 1, "m07_tcp_original_queue_warmup"); continue; }
+            {
+                Need(warmupFrames++ == 0 && capturedFrames == 1, "m07_tcp_original_queue_warmup");
+                continue;
+            }
             if (type == 0x88b5 && frame.Length == 60 && OS.Std.Hash.Crc32.Compute(frame) == anchor[0])
-            { Need(!anchored && warmupFrames == 1 && capturedFrames == 2, "m07_tcp_original_anchor_order"); anchored = true; continue; }
+            {
+                Need(!anchored && warmupFrames == 1 && capturedFrames == 2, "m07_tcp_original_anchor_order");
+                anchored = true;
+                continue;
+            }
             Need(anchored, "m07_tcp_unexpected_original_prefix");
             if (type == 0x0800 && frame.Length >= 34 && frame[23] == 6)
             {
                 Need(requestMask == 4095 && replyMask == 4095 && finalEchoes == 0 && tcpIndex < ContinuingTcpScenario.Packets.Count, "m07_tcp_capture_phase");
                 var expected = ContinuingTcpScenario.Packets[tcpIndex++];
-                try { ContinuingTcpScenario.Validate(frame, expected, peerMac); }
+                try
+                {
+                    ContinuingTcpScenario.Validate(frame, expected, peerMac);
+                }
                 catch (InvalidDataException) { Need(false, "m07_tcp_capture_wire"); }
-                if (expected.Tag.Length != 0) times.Add(expected.Tag, timestamp);
+                if (expected.Tag.Length != 0)
+                    times.Add(expected.Tag, timestamp);
                 continue;
             }
             if (type == 0x0806 && frame.Length >= 42 && frame[14..20].SequenceEqual(new byte[] { 0, 1, 8, 0, 6, 4 }))
@@ -155,18 +183,22 @@ public static partial class QemuTranscripts
                 ushort operation = BinaryPrimitives.ReadUInt16BigEndian(frame[20..]);
                 if (operation == 1 && MatchNetworkMac(frame, 0xffffffffffff) && MatchNetworkMac(frame[6..], 0x020000000001) &&
                     MatchNetworkMac(frame[22..], 0x020000000001) && frame[28..32].SequenceEqual(new byte[] { 10, 0, 2, 15 }) &&
-                    frame[38..42].SequenceEqual(new byte[] { 10, 0, 2, 2 })) requests++;
+                    frame[38..42].SequenceEqual(new byte[] { 10, 0, 2, 2 }))
+                    requests++;
                 if (operation == 2 && MatchNetworkMac(frame, 0x020000000001) && MatchNetworkMac(frame[6..], peerMac) &&
                     MatchNetworkMac(frame[22..], peerMac) && MatchNetworkMac(frame[32..], 0x020000000001) &&
                     frame[28..32].SequenceEqual(new byte[] { 10, 0, 2, 2 }) &&
-                    frame[38..42].SequenceEqual(new byte[] { 10, 0, 2, 15 })) replies++;
+                    frame[38..42].SequenceEqual(new byte[] { 10, 0, 2, 15 }))
+                    replies++;
                 Need(replies <= requests, "m07_026_capture_arp_order");
             }
-            if (type != 0x0800 || frame.Length < 42 || frame[14] != 0x45 || frame[23] != 1) continue;
+            if (type != 0x0800 || frame.Length < 42 || frame[14] != 0x45 || frame[23] != 1)
+                continue;
             int total = BinaryPrimitives.ReadUInt16BigEndian(frame[16..]);
             if (total < 28 || total > frame.Length - 14 || (BinaryPrimitives.ReadUInt16BigEndian(frame[20..]) & 0xbfff) != 0 ||
                 !NetworkChecksum(frame.Slice(14, 20)) ||
-                !NetworkChecksum(frame.Slice(34, total - 20))) continue;
+                !NetworkChecksum(frame.Slice(34, total - 20)))
+                continue;
             ReadOnlySpan<byte> icmp = frame.Slice(34, total - 20);
             if (icmp[1] == 0 && BinaryPrimitives.ReadUInt16BigEndian(icmp[4..]) == 227 && icmp[8..].SequenceEqual("CLROS TCP closed"u8))
             {
@@ -174,21 +206,31 @@ public static partial class QemuTranscripts
                 bool outgoing = finalEchoes == 0;
                 Need(icmp[0] == (outgoing ? 8 : 0) && MatchNetworkMac(frame, outgoing ? peerMac : 0x020000000001) &&
                     MatchNetworkMac(frame[6..], outgoing ? 0x020000000001 : peerMac) &&
-                    frame[26..30].SequenceEqual(outgoing ? new byte[] {10,0,2,15} : new byte[] {10,0,2,2}) &&
-                    frame[30..34].SequenceEqual(outgoing ? new byte[] {10,0,2,2} : new byte[] {10,0,2,15}), "m07_tcp_capture_final_echo");
-                if (outgoing) closedTimestamp = timestamp;
-                finalEchoes++; continue;
+                    frame[26..30].SequenceEqual(outgoing ? new byte[] { 10, 0, 2, 15 } : new byte[] { 10, 0, 2, 2 }) &&
+                    frame[30..34].SequenceEqual(outgoing ? new byte[] { 10, 0, 2, 2 } : new byte[] { 10, 0, 2, 15 }), "m07_tcp_capture_final_echo");
+                if (outgoing)
+                    closedTimestamp = timestamp;
+                finalEchoes++;
+                continue;
             }
             if (icmp[1] != 0 || BinaryPrimitives.ReadUInt16BigEndian(icmp[4..]) != 226 ||
-                !icmp[8..].SequenceEqual("CLROS continuing network"u8)) continue;
+                !icmp[8..].SequenceEqual("CLROS continuing network"u8))
+                continue;
             ushort sequence = BinaryPrimitives.ReadUInt16BigEndian(icmp[6..]);
-            Need(sequence < 12, "m07_026_capture_sequence"); uint bit = 1U << sequence;
+            Need(sequence < 12, "m07_026_capture_sequence");
+            uint bit = 1U << sequence;
             if (icmp[0] == 8 && MatchNetworkMac(frame, peerMac) && MatchNetworkMac(frame[6..], 0x020000000001) &&
                 frame[26..30].SequenceEqual(new byte[] { 10, 0, 2, 15 }) && frame[30..34].SequenceEqual(new byte[] { 10, 0, 2, 2 }))
-            { Need((requestMask & bit) == 0 && replyMask == requestMask, "m07_026_capture_request_order"); requestMask |= bit; }
+            {
+                Need((requestMask & bit) == 0 && replyMask == requestMask, "m07_026_capture_request_order");
+                requestMask |= bit;
+            }
             else if (icmp[0] == 0 && MatchNetworkMac(frame, 0x020000000001) && MatchNetworkMac(frame[6..], peerMac) &&
                 frame[26..30].SequenceEqual(new byte[] { 10, 0, 2, 2 }) && frame[30..34].SequenceEqual(new byte[] { 10, 0, 2, 15 }))
-            { Need((requestMask & bit) != 0 && (replyMask & bit) == 0, "m07_026_capture_reply_order"); replyMask |= bit; }
+            {
+                Need((requestMask & bit) != 0 && (replyMask & bit) == 0, "m07_026_capture_reply_order");
+                replyMask |= bit;
+            }
         }
         // One original ARP parent exchange plus20 continuing exchanges.
         Need(requests == 21 && replies == 21 && requestMask == 4095 && replyMask == 4095, "m07_026_capture_exchange_counts");
@@ -198,9 +240,12 @@ public static partial class QemuTranscripts
             Need(times.TryGetValue(first, out ulong a) && times.TryGetValue(second, out ulong b) && b >= a && b - a + 2000 >= minimum,
                 "m07_tcp_capture_retry_interval"); // Two milliseconds bounds independent wire/callback observation skew.
         }
-        Interval("syn.first", "syn.retry", 1000000); Interval("data.first", "data.retry", 3000000);
-        Interval("loss.first", "loss.retry1", 1000000); Interval("loss.retry1", "loss.retry2", 2000000);
-        Interval("pending.first", "pending.retry1", 1000000); Interval("pending.retry1", "pending.retry2", 1000000);
+        Interval("syn.first", "syn.retry", 1000000);
+        Interval("data.first", "data.retry", 3000000);
+        Interval("loss.first", "loss.retry1", 1000000);
+        Interval("loss.retry1", "loss.retry2", 2000000);
+        Interval("pending.first", "pending.retry1", 1000000);
+        Interval("pending.retry1", "pending.retry2", 1000000);
         Need(times.TryGetValue("wait.fin", out ulong waitFin) && closedTimestamp >= waitFin && closedTimestamp - waitFin >= 240000000 &&
             times.TryGetValue("syn.first", out ulong began) && closedTimestamp >= began && closedTimestamp - began <= 295000000,
             "m07_tcp_capture_real_time_wait");
@@ -209,14 +254,19 @@ public static partial class QemuTranscripts
     private static bool NetworkChecksum(ReadOnlySpan<byte> bytes)
     {
         uint sum = 0;
-        for (int i = 0; i < bytes.Length; i += 2) sum += (uint)(bytes[i] << 8) | (i + 1 < bytes.Length ? bytes[i + 1] : 0U);
-        while ((sum >> 16) != 0) sum = (sum & 65535) + (sum >> 16);
+        for (int i = 0; i < bytes.Length; i += 2)
+            sum += (uint)(bytes[i] << 8) | (i + 1 < bytes.Length ? bytes[i + 1] : 0U);
+        while ((sum >> 16) != 0)
+            sum = (sum & 65535) + (sum >> 16);
         return sum == 65535;
     }
     private static bool MatchNetworkMac(ReadOnlySpan<byte> bytes, ulong mac)
     {
-        if (bytes.Length < 6) return false;
-        for (int i = 0; i < 6; i++) if (bytes[i] != (byte)(mac >> (40 - i * 8))) return false;
+        if (bytes.Length < 6)
+            return false;
+        for (int i = 0; i < 6; i++)
+            if (bytes[i] != (byte)(mac >> (40 - i * 8)))
+                return false;
         return true;
     }
 }

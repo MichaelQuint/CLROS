@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 public sealed partial class OSHostMemoryTable
 {
     private struct MemorySlot

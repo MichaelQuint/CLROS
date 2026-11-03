@@ -14,6 +14,12 @@ readonly struct DiscoveryResult
         CheckedPaths = checkedPaths;
     }
 
-    public string? Path { get; }
-    public IReadOnlyList<string> CheckedPaths { get; }
+    public string? Path
+    {
+        get;
+    }
+    public IReadOnlyList<string> CheckedPaths
+    {
+        get;
+    }
 }

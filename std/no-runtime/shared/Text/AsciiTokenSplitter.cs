@@ -1,6 +1,7 @@
 using OS.Std;
 
 namespace OS.Std.Text;
+
 public static class AsciiTokenSplitter
 {
     public const CompatibilityStatus Status = CompatibilityStatus.Partial;

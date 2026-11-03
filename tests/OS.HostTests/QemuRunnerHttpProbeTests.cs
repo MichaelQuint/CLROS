@@ -32,7 +32,7 @@ internal static partial class QemuRunnerHttpProbeTests
             }
             catch
             {
-            // Cleanup failure should not hide probe validation.
+                // Cleanup failure should not hide probe validation.
             }
         }
 
@@ -118,7 +118,7 @@ internal static partial class QemuRunnerHttpProbeTests
     {
         List<string> valid = ContinuingWebArguments(tempRoot, 20080);
         valid.AddRange(["--require-marker", "OS_SMOKE_PASS"]);
-        ProcessResult accepted = RunQemuRunner([..valid, "--dry-run"]);
+        ProcessResult accepted = RunQemuRunner([.. valid, "--dry-run"]);
         if (accepted.ExitCode != 0 || !accepted.Output.Contains("CLROS_M10_004_READY", StringComparison.Ordinal) || !accepted.Output.Contains("TEST_PASS m10.004", StringComparison.Ordinal) || !accepted.Output.Contains("OS_SMOKE_PASS", StringComparison.Ordinal) || !accepted.Output.Contains("hostfwd=tcp:127.0.0.1:20080-:8080", StringComparison.Ordinal) || !accepted.Output.Contains("if=none,id=esp,format=raw,snapshot=on,file=", StringComparison.Ordinal) || accepted.Output.Contains("selected", StringComparison.Ordinal))
             return false;
         int redirect = accepted.Output.IndexOf("filter-redirector,id=clroswebfilter,netdev=n0,queue=tx,indev=clroswebin,outdev=clroswebout", StringComparison.Ordinal);
@@ -127,7 +127,7 @@ internal static partial class QemuRunnerHttpProbeTests
             return false;
         bool Reject(string key, string? value = null, bool remove = false)
         {
-            List<string> changed = [..valid];
+            List<string> changed = [.. valid];
             int index = changed.IndexOf(key);
             if (remove)
             {
@@ -144,7 +144,7 @@ internal static partial class QemuRunnerHttpProbeTests
                     changed.Add(value);
             }
 
-            ProcessResult result = RunQemuRunner([..changed, "--dry-run"]);
+            ProcessResult result = RunQemuRunner([.. changed, "--dry-run"]);
             return result.ExitCode == 1 && result.Output.Contains("qemu.runner.invalid_args", StringComparison.Ordinal);
         }
 
@@ -160,7 +160,7 @@ internal static partial class QemuRunnerHttpProbeTests
         string summaryPath = arguments[arguments.IndexOf("--summary-log") + 1];
         FakeQemuHttpEndpoint fake = CreateFakeQemuHttpEndpoint(tempRoot, 200, "unused", false);
         arguments.AddRange(["--qemu", fake.QemuPath, "--image", CreateEmptyFile(tempRoot, "occupied-web.raw"), "--ovmf-code", CreateEmptyFile(tempRoot, "occupied-web-OVMF_CODE.fd"), "--serial-log", Path.Combine(tempRoot, "occupied-web.serial")]);
-        ProcessResult result = RunQemuRunner([..arguments]);
+        ProcessResult result = RunQemuRunner([.. arguments]);
         string summary = File.Exists(summaryPath) ? File.ReadAllText(summaryPath) : string.Empty;
         return result.ExitCode == 20 && summary.Contains("FAIL_REASON web_endpoint_occupied_before_launch", StringComparison.Ordinal) && summary.Contains("WEB_ENDPOINT_PRELAUNCH_AVAILABLE false", StringComparison.Ordinal) && summary.Contains("WEB_PROCESS_ID none", StringComparison.Ordinal) && summary.Contains("WEB_CONFIG_PROBE_RESULT not_run", StringComparison.Ordinal);
     }
@@ -188,7 +188,7 @@ internal static partial class QemuRunnerHttpProbeTests
 
         )
             arguments.AddRange(["--require-ordered-marker", marker]);
-        ProcessResult result = RunQemuRunner([..arguments]);
+        ProcessResult result = RunQemuRunner([.. arguments]);
         string summary = File.Exists(summaryPath) ? File.ReadAllText(summaryPath) : "";
         string[] expectedRequests = ["GET /healthz HTTP/1.0", "GET /config HTTP/1.0", "POST /__clros/logexercise HTTP/1.0", "POST /__clros/logexercise HTTP/1.0", "GET /__clros/vectors HTTP/1.0", "GET /healthz HTTP/1.0"];
         bool requestOrder = File.Exists(serialPath + ".requests") && File.ReadAllLines(serialPath + ".requests").SequenceEqual(expectedRequests.Take(wrongVector ? 5 : 6));

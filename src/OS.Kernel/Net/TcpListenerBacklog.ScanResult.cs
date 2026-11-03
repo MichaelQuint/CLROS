@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static partial class TcpListenerBacklog
 {
     private readonly struct ScanResult
@@ -13,11 +14,29 @@ public static partial class TcpListenerBacklog
             MaximumEnqueueOrder = maximumEnqueueOrder;
         }
 
-        public TcpListenerBacklogStatus Status { get; }
-        public int Count { get; }
-        public int FirstFreeEntryIndex { get; }
-        public int MatchingEntryIndex { get; }
-        public int OldestEntryIndex { get; }
-        public ulong MaximumEnqueueOrder { get; }
+        public TcpListenerBacklogStatus Status
+        {
+            get;
+        }
+        public int Count
+        {
+            get;
+        }
+        public int FirstFreeEntryIndex
+        {
+            get;
+        }
+        public int MatchingEntryIndex
+        {
+            get;
+        }
+        public int OldestEntryIndex
+        {
+            get;
+        }
+        public ulong MaximumEnqueueOrder
+        {
+            get;
+        }
     }
 }

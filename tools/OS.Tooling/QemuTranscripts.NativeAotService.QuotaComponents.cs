@@ -2,6 +2,7 @@ using OS.Kernel.Compatibility.LinuxX64;
 using OS.Kernel.Threading;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect borrowed normalized values and independently validate
@@ -15,7 +16,7 @@ public static partial class QemuTranscripts
         return ReadServiceQuotaComponents(rows, ReadServiceQuotaTransport(rows, out _), out _);
     }
 
-    private static void QuotaComponentInput(string[] rows) => Need(rows is not null && rows.Length is> 0 and <= 1_000_000 && rows.All(r => r is not null && r.Length is> 0 and <= 4096 && r.All(c => c is >= ' ' and <= '~')) && rows.Sum(r => (long)r.Length + 2) <= 128L * 1024 * 1024, "quota_components_input");
+    private static void QuotaComponentInput(string[] rows) => Need(rows is not null && rows.Length is > 0 and <= 1_000_000 && rows.All(r => r is not null && r.Length is > 0 and <= 4096 && r.All(c => c is >= ' ' and <= '~')) && rows.Sum(r => (long)r.Length + 2) <= 128L * 1024 * 1024, "quota_components_input");
     private static ServiceQuotaComponentInspection ReadServiceQuotaComponents(string[] rows, ServiceQuotaTransportInspection transport, out HashSet<int> metadata)
     {
         QuotaComponentInput(rows);

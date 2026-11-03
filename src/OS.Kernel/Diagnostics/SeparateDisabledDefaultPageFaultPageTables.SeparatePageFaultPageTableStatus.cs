@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Kernel.Memory;
 
 namespace OS.Kernel.Diagnostics;
+
 public enum SeparatePageFaultPageTableStatus : byte
 {
     Uninitialized = 0,
@@ -28,14 +29,9 @@ public enum SeparatePageFaultPageTableStatus : byte
 }
 #if M16_025_PROBE
 
-
-
 #else
 #endif
 #if M10_004_PROBE
-
-
-
 
 #else
 #endif

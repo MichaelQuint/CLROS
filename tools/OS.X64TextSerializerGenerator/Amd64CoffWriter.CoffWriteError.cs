@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 
 namespace OS.X64TextSerializerGenerator;
+
 public enum CoffWriteError
 {
     None = 0,

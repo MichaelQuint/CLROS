@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static unsafe class CommonNotifyISRDeviceConfigurationRegions
 {
     public const uint RegionCount = 4;

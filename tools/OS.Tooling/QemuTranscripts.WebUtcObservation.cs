@@ -5,6 +5,7 @@ using System.Text;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Borrowed host UTC interval around one complete HTTP probe.

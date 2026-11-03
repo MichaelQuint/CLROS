@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 public enum OSHostStatus : int
 {
     Ok = 0,

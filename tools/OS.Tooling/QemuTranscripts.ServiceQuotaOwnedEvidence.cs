@@ -1,6 +1,7 @@
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Internal QemuSmoke-only original-output leases and copied bytes.
@@ -120,7 +121,7 @@ public static partial class QemuTranscripts
                     sources[i].VerifyUnchanged();
                 }
 
-                AuthorityFiles.RequireDistinct([..outputs, ..sources]);
+                AuthorityFiles.RequireDistinct([.. outputs, .. sources]);
                 _ = NativeAotServiceProgram.RequirePackage(sources[0].ReadBytes(sourceLimits[0], "service_quota_owned_package"), NativeAotServiceContract.QuotaFailure);
                 completion.Verify(held);
                 byte[][] snapshots = new byte[outputs.Count][];

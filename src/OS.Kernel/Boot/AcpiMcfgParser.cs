@@ -2,6 +2,7 @@ using OS.Drivers;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public static class AcpiMcfgParser
 {
     public const int SystemDescriptionTableHeaderLength = 36;

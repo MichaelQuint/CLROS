@@ -4,6 +4,7 @@ using System.Text.Json;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public sealed partial class NativeAotWebProgram
 {
     /// <summary>Complete decoder identity; a report alone grants no lookup authority.</summary>

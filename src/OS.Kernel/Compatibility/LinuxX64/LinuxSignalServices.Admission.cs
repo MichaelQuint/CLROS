@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxSignalServices
 {
     /// <summary>Exact user-copy capabilities shared with the thread owner.

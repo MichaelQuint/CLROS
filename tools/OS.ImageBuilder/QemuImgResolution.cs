@@ -19,10 +19,22 @@ internal sealed class QemuImgResolution
         CommandPath = commandPath;
     }
 
-    public string Source { get; }
-    public string RequestedPath { get; }
-    public string? ResolvedPath { get; }
-    public string CommandPath { get; }
+    public string Source
+    {
+        get;
+    }
+    public string RequestedPath
+    {
+        get;
+    }
+    public string? ResolvedPath
+    {
+        get;
+    }
+    public string CommandPath
+    {
+        get;
+    }
     public bool IsAvailable => ResolvedPath is not null;
 
     public static QemuImgResolution Resolve(string? explicitPath)
@@ -44,7 +56,7 @@ internal sealed class QemuImgResolution
             string fullPath = Path.GetFullPath(explicitPath);
             return File.Exists(fullPath) ? fullPath : null;
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             return null;
         }
@@ -77,7 +89,7 @@ internal sealed class QemuImgResolution
                 {
                     candidate = Path.GetFullPath(Path.Combine(directory, name));
                 }
-                catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+                catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
                 {
                     continue;
                 }

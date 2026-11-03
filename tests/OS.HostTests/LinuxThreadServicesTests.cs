@@ -488,7 +488,19 @@ internal static unsafe partial class LinuxThreadServicesTests
         HostCheck.Equal(parent.Value, m.Kernel.Dispatch().Value);
         byte* scratch = stackalloc byte[64];
         LinuxSyscallGateState gate = default;
-        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new() { UserRoot = 0x200000, MaximumCalls = 16, MaximumWrite = 64, Scratch = scratch, ScratchBytes = 64, FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true }, m.GatewayAccess));
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new()
+        {
+            UserRoot = 0x200000,
+            MaximumCalls = 16,
+            MaximumWrite = 64,
+            Scratch = scratch,
+            ScratchBytes = 64,
+            FirmwareExited = true,
+            OwnedBoundaryValidated = true,
+            EnableStartup = true,
+            EnableDescriptors = true,
+            EnableThreads = true
+        }, m.GatewayAccess));
         var frame = m.CurrentImage()->Frame;
         ulong fs = frame.FsBase;
         frame.Number = 158;

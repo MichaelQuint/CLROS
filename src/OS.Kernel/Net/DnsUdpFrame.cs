@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class DnsUdpFrame
 {
     public const ushort DnsServerPort = 53;

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct EnaAdminQueueLayoutPlan
 {
     internal EnaAdminQueueLayoutPlan(EnaAdminQueueRegionPlan adminQueue, EnaAdminQueueRegionPlan adminCompletionQueue, uint totalRequiredBytes, uint memoryBudgetBytes, uint baseAlignment, bool requiresContiguousMemory)
@@ -19,12 +20,30 @@ public readonly struct EnaAdminQueueLayoutPlan
     public const ushort InitialAdminQueueProducerIndex = 0;
     public const ushort InitialAdminCompletionQueueConsumerIndex = 0;
     public const byte InitialAdminCompletionPhase = 1;
-    public EnaAdminQueueRegionPlan AdminQueue { get; }
-    public EnaAdminQueueRegionPlan AdminCompletionQueue { get; }
-    public uint TotalRequiredBytes { get; }
-    public uint MemoryBudgetBytes { get; }
-    public uint BaseAlignment { get; }
-    public bool RequiresContiguousMemory { get; }
+    public EnaAdminQueueRegionPlan AdminQueue
+    {
+        get;
+    }
+    public EnaAdminQueueRegionPlan AdminCompletionQueue
+    {
+        get;
+    }
+    public uint TotalRequiredBytes
+    {
+        get;
+    }
+    public uint MemoryBudgetBytes
+    {
+        get;
+    }
+    public uint BaseAlignment
+    {
+        get;
+    }
+    public bool RequiresContiguousMemory
+    {
+        get;
+    }
     public bool FitsBudget => TotalRequiredBytes != 0 && TotalRequiredBytes <= MemoryBudgetBytes;
 
     public static EnaAdminQueueLayoutPlanResult Create(uint adminQueueDepth, uint adminQueueEntrySize, uint adminCompletionQueueDepth, uint adminCompletionQueueEntrySize, uint baseAlignment, uint memoryBudgetBytes, bool requiresContiguousMemory)

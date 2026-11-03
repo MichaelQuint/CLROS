@@ -23,24 +23,35 @@ internal static class EfiConstructorTranscriptControls
         void Check(string[] lines, bool accept)
         {
             bool accepted = true;
-            try { QemuTranscripts.AssertM04ClassConstructorRecords(lines, gc, heap); }
+            try
+            {
+                QemuTranscripts.AssertM04ClassConstructorRecords(lines, gc, heap);
+            }
             catch (ToolFailure) when (!accept) { accepted = false; }
-            HostCheck.Equal(accept, accepted); count++;
+            HostCheck.Equal(accept, accepted);
+            count++;
         }
         Check(good, true);
-        ulong[][] shifted = values.Select(x => x.ToArray()).ToArray(); shifted[0][3]++;
-        foreach ((int row, int field) in new[] { (1, 2), (1, 3), (2, 0), (2, 1), (3, 0), (3, 1), (3, 2), (4, 0), (4, 1), (4, 2), (5, 0), (5, 1), (5, 2) }) shifted[row][field]++;
+        ulong[][] shifted = values.Select(x => x.ToArray()).ToArray();
+        shifted[0][3]++;
+        foreach ((int row, int field) in new[] { (1, 2), (1, 3), (2, 0), (2, 1), (3, 0), (3, 1), (3, 2), (4, 0), (4, 1), (4, 2), (5, 0), (5, 1), (5, 2) })
+            shifted[row][field]++;
         Check(Records(shifted), false);
         for (int i = 0; i < good.Length; i++)
         {
             Check(good.Where((_, index) => index != i).ToArray(), false);
-            string[] bad = [.. good]; bad[i] += " "; Check(bad, false);
+            string[] bad = [.. good];
+            bad[i] += " ";
+            Check(bad, false);
         }
         foreach ((int row, int field, ulong value) in new (int, int, ulong)[]
         { (1, 0, 2), (3, 0, 130), (4, 0, 140), (6, 3, 6160), (7, 1, 6), (8, 0, 0), (8, 1, 0), (8, 2, 1), (8, 3, 131088) })
         {
-            ulong[] mutated = [.. values[row]]; mutated[field] = value;
-            string[] bad = [.. good]; bad[row + 1] = EfiTranscriptControls.Row("M04_CCTOR", row, mutated); Check(bad, false);
+            ulong[] mutated = [.. values[row]];
+            mutated[field] = value;
+            string[] bad = [.. good];
+            bad[row + 1] = EfiTranscriptControls.Row("M04_CCTOR", row, mutated);
+            Check(bad, false);
         }
         Console.WriteLine("TRANSCRIPT_CONTROLS cctor cases=" + count);
     }

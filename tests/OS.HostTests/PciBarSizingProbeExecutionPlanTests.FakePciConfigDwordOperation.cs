@@ -14,9 +14,21 @@ internal static partial class PciBarSizingProbeExecutionPlanTests
             Value = value;
         }
 
-        public PciBarSizingProbeCommandKind Kind { get; }
-        public ushort RegisterOffset { get; }
-        public ulong PhysicalAddress { get; }
-        public uint Value { get; }
+        public PciBarSizingProbeCommandKind Kind
+        {
+            get;
+        }
+        public ushort RegisterOffset
+        {
+            get;
+        }
+        public ulong PhysicalAddress
+        {
+            get;
+        }
+        public uint Value
+        {
+            get;
+        }
     }
 }

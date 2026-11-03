@@ -26,12 +26,30 @@ public readonly struct SeparatePageFaultPageTableResult
     }
 
     public bool IsInitialized => _initialized == 1;
-    public SeparatePageFaultPageTableStatus Status { get; }
-    public SeparatePageFaultPageTableRequest Request { get; }
-    public ulong RangeCount { get; }
-    public ulong UsedTablePages { get; }
-    public ulong MappedPages { get; }
-    public PageZeroMappingPolicyResult PageZero { get; }
+    public SeparatePageFaultPageTableStatus Status
+    {
+        get;
+    }
+    public SeparatePageFaultPageTableRequest Request
+    {
+        get;
+    }
+    public ulong RangeCount
+    {
+        get;
+    }
+    public ulong UsedTablePages
+    {
+        get;
+    }
+    public ulong MappedPages
+    {
+        get;
+    }
+    public PageZeroMappingPolicyResult PageZero
+    {
+        get;
+    }
     public bool UsesRetainedImageLimits => _profile == 1;
     public ulong ConservativeTablePageBound => _profile == 0 ? SeparateDisabledDefaultPageFaultPageTables.RequiredTablePageBound(RangeCount) : _profile == 1 ? _requiredTables : 0;
     public bool Succeeded => IsInitialized && Status == SeparatePageFaultPageTableStatus.Success && SeparateDisabledDefaultPageFaultPageTables.ValidateRequest(Request) == SeparatePageFaultPageTableStatus.Success && ConservativeTablePageBound >= 4 && ConservativeTablePageBound <= SeparateDisabledDefaultPageFaultPageTables.MaximumTablePages && Request.ArenaPageCount >= ConservativeTablePageBound && UsedTablePages >= 4 && UsedTablePages <= ConservativeTablePageBound && MappedPages >= Request.ArenaPageCount + RangeCount && (_profile == 0 ? MappedPages <= Request.ArenaPageCount + RangeCount * SeparateDisabledDefaultPageFaultPageTables.MaximumRangePages : _profile == 1 && RangeCount >= 1 && RangeCount <= SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedRanges && UsedTablePages == _requiredTables && MappedPages <= Request.ArenaPageCount + SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedMappedPages && MappedPages <= Request.ArenaPageCount + RangeCount * SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedRangePages) && PageZero.ProvesPageZeroAbsentInSuppliedImage && PageZero.PageImageCount == Request.ArenaPageCount && PageZero.EntryCount == Request.ArenaPageCount * SeparateDisabledDefaultPageFaultPageTables.EntriesPerPage && PageZero.RootPageIndex == 0 && PageZero.RootTable.Equals(Request.ArenaStart);
@@ -44,14 +62,9 @@ public readonly struct SeparatePageFaultPageTableResult
 }
 #if M16_025_PROBE
 
-
-
 #else
 #endif
 #if M10_004_PROBE
-
-
-
 
 #else
 #endif

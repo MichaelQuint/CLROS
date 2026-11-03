@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public static class VirtioNetQueueMmioSetupRegisterWindowPlanner
 {
     public const bool RequiresRegisterWindowBinding = true;

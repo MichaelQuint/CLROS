@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Borrow an already strict race stream join and copied producer
@@ -29,7 +30,7 @@ public static partial class QemuTranscripts
         long start = producerWindow.StartedUtc.UtcTicks, end = producerWindow.CompletedUtc.UtcTicks;
         Need(producerWindow.StartedUtc.Offset == TimeSpan.Zero && producerWindow.CompletedUtc.Offset == TimeSpan.Zero && start > DateTimeOffset.UnixEpoch.UtcTicks + tolerance && end <= DateTimeOffset.MaxValue.UtcTicks - tolerance && end > start && end - start <= maximumSeconds * TimeSpan.TicksPerSecond, "web_race_date_window");
         Need(ordinaryLastDateUtc.Offset == TimeSpan.Zero && ordinaryLastDateUtc > DateTimeOffset.UnixEpoch && ordinaryLastDateUtc.UtcTicks % TimeSpan.TicksPerSecond == 0 && ordinaryLastDateUtc.UtcTicks <= start + tolerance, "web_race_date_ordinary");
-        var(guest, hosts, indexes) = CopyWebRaceBoundPackets(joined);
+        var (guest, hosts, indexes) = CopyWebRaceBoundPackets(joined);
         List<WebSignalRaceDateObservation> responses = [];
         int pending = 0;
         foreach (var stream in guest.Streams)
@@ -83,7 +84,7 @@ public static partial class QemuTranscripts
             if (!streams.TryGetValue(binding.RemotePort, out var stream))
                 throw new ToolFailure("web_race_join_binding");
             var compared = binding.Compared;
-            Need(binding.ConnectionId is> 0 and <= 8192 && ids.Add(binding.ConnectionId) && hosts.TryAdd(binding.RemotePort, binding.ConnectionId) && compared.Compatible && compared.HasComparedBytes && compared.RequestBytesCompared == stream.Requests.KnownBytes && compared.ResponseBytesCompared >= 0 && compared.ResponseBytesCompared <= stream.Responses.ContiguousBytes && compared.MinimumAttemptedWritePrefixBytes >= 0 && compared.MinimumAttemptedWritePrefixBytes <= stream.Requests.Extent && stream.Requests.KnownBytes + stream.Responses.KnownBytes > 0, "web_race_join_binding");
+            Need(binding.ConnectionId is > 0 and <= 8192 && ids.Add(binding.ConnectionId) && hosts.TryAdd(binding.RemotePort, binding.ConnectionId) && compared.Compatible && compared.HasComparedBytes && compared.RequestBytesCompared == stream.Requests.KnownBytes && compared.ResponseBytesCompared >= 0 && compared.ResponseBytesCompared <= stream.Responses.ContiguousBytes && compared.MinimumAttemptedWritePrefixBytes >= 0 && compared.MinimumAttemptedWritePrefixBytes <= stream.Requests.Extent && stream.Requests.KnownBytes + stream.Responses.KnownBytes > 0, "web_race_join_binding");
         }
 
         Need(guest.Streams.All(s => s.Requests.KnownBytes + s.Responses.KnownBytes == 0 || hosts.ContainsKey(s.RemotePort)), "web_race_join_binding");

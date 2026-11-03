@@ -74,7 +74,7 @@ internal static class PackagePayloadValidator
         {
             file = new FileInfo(manifestPath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(8, "manifest_not_found", "Manifest path is invalid: " + manifestPath);
         }
@@ -109,7 +109,7 @@ internal static class PackagePayloadValidator
         {
             file = new FileInfo(packagePath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(11, "package_not_found", "Package path is invalid: " + packagePath);
         }

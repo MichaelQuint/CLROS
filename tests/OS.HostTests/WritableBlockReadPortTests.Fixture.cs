@@ -22,24 +22,61 @@ internal static unsafe partial class WritableBlockReadPortTests
         internal bool AllowInvalidStop;
         internal Fixture(bool start = true)
         {
-            new Span<byte>(backing, 12288).Fill(0xa9); new Span<byte>(State, sizeof(P.State)).Clear(); Output.Fill(0x63);
-            for (int i = 512; i < 4096; i++) Media.Volatile[i] = unchecked((byte)(i * 37 + 9));
-            Media.Mount(); Input = new() { Engine = Engine, Device = Block, Epoch = (ulong)Interlocked.Increment(ref epoch), EngineEpoch = Media.Input.Epoch,
-                DeviceEpoch = Device.Input.Epoch, FirstLba = 1, LastLba = 7 };
-            if (start) HostCheck.Equal(P.Status.Success, P.Start(State, Input));
+            new Span<byte>(backing, 12288).Fill(0xa9);
+            new Span<byte>(State, sizeof(P.State)).Clear();
+            Output.Fill(0x63);
+            for (int i = 512; i < 4096; i++)
+                Media.Volatile[i] = unchecked((byte)(i * 37 + 9));
+            Media.Mount();
+            Input = new()
+            {
+                Engine = Engine,
+                Device = Block,
+                Epoch = (ulong)Interlocked.Increment(ref epoch),
+                EngineEpoch = Media.Input.Epoch,
+                DeviceEpoch = Device.Input.Epoch,
+                FirstLba = 1,
+                LastLba = 7
+            };
+            if (start)
+                HostCheck.Equal(P.Status.Success, P.Start(State, Input));
         }
         internal B.Observation Sample() => *Device.Observation;
-        internal P.Token Read(ulong lba) { P.Token token = default; HostCheck.Equal(P.Status.Success, P.Submit(State, lba, &token)); Sample(); return token; }
+        internal P.Token Read(ulong lba)
+        {
+            P.Token token = default;
+            HostCheck.Equal(P.Status.Success, P.Submit(State, lba, &token));
+            Sample();
+            return token;
+        }
         internal void FinishRead(P.Token token)
-        { Device.Complete(); P.Completion result = default; HostCheck.Equal(P.Status.Ready, P.Poll(State, token, &result)); Sample(); HostCheck.Equal(P.Status.Success, P.Copy(State, token, Output)); Sample(); }
+        {
+            Device.Complete();
+            P.Completion result = default;
+            HostCheck.Equal(P.Status.Ready, P.Poll(State, token, &result));
+            Sample();
+            HostCheck.Equal(P.Status.Success, P.Copy(State, token, Output));
+            Sample();
+        }
         internal C.FileToken Open(out C.RequestToken consumed)
         {
-            C.RequestToken request = default; HostCheck.Equal(C.Status.Pending, C.BeginOpenRoot(Engine, "DATA.BIN", &request));
-            HostCheck.Equal(C.Status.Ready, RunEngine()); C.FileToken file = default; HostCheck.Equal(C.Status.Success, C.CopyOpen(Engine, request, &file)); consumed = request; return file;
+            C.RequestToken request = default;
+            HostCheck.Equal(C.Status.Pending, C.BeginOpenRoot(Engine, "DATA.BIN", &request));
+            HostCheck.Equal(C.Status.Ready, RunEngine());
+            C.FileToken file = default;
+            HostCheck.Equal(C.Status.Success, C.CopyOpen(Engine, request, &file));
+            consumed = request;
+            return file;
         }
         internal C.Status RunEngine()
         {
-            for (int i = 0; i < 100000; i++) { var status = Media.Turn(); Sample(); if (status != C.Status.Pending) return status; }
+            for (int i = 0; i < 100000; i++)
+            {
+                var status = Media.Turn();
+                Sample();
+                if (status != C.Status.Pending)
+                    return status;
+            }
             throw new InvalidOperationException("borrowed port engine did not terminate");
         }
         internal ulong[] Owned() => new[] { (ulong)State, (ulong)State + (ulong)sizeof(P.State) - 8, (ulong)Engine,
@@ -65,10 +102,14 @@ internal static unsafe partial class WritableBlockReadPortTests
         public void Dispose()
         {
             HostCheck.Equal(B.Status.Success, B.Stop(Block)); // External fixture owner, never the port.
-            var stopped = P.Stop(State); if (!AllowInvalidStop) HostCheck.Equal(P.Status.Success, stopped);
+            var stopped = P.Stop(State);
+            if (!AllowInvalidStop)
+                HostCheck.Equal(P.Status.Success, stopped);
             HostCheck.True(new ReadOnlySpan<byte>(backing, 4096).IndexOfAnyExcept((byte)0xa9) < 0 &&
                 new ReadOnlySpan<byte>(backing + 4096 + sizeof(P.State), 8192 - sizeof(P.State)).IndexOfAnyExcept((byte)0xa9) < 0);
-            Media.Dispose(); NativeMemory.AlignedFree(backing); NativeMemory.AlignedFree(Bytes);
+            Media.Dispose();
+            NativeMemory.AlignedFree(backing);
+            NativeMemory.AlignedFree(Bytes);
         }
     }
 }

@@ -8,6 +8,7 @@ using OS.Std.Time;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class WritableDataImageFixture
 {
     public sealed record SectorChange(ulong Lba, SectorKind Kind, string OldSha256, string NewSha256);

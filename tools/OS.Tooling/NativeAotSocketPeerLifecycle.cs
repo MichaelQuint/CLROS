@@ -53,8 +53,12 @@ internal static partial class NativeAotSocketPeerLifecycle
             string command = service ? "service" : vectors ? "socket-vectors" : "socket";
             string[] arguments = gate.Length == 0 ? [tool, "nativeaot", command, "peer", "--port", port.ToString(System.Globalization.CultureInfo.InvariantCulture)] : [tool, "nativeaot", command, "guest-peer", "--port", port.ToString(System.Globalization.CultureInfo.InvariantCulture), "--serial", gate];
             if (serviceLifecycle)
-                arguments = [..arguments, "--lifecycle"];
-            peer = ProcessRunner.RunAsync(new("dotnet", arguments, root) { Timeout = TimeSpan.FromSeconds(service ? 810 : 130), OutputCharacterLimit = 65536 }, owned.Token);
+                arguments = [.. arguments, "--lifecycle"];
+            peer = ProcessRunner.RunAsync(new("dotnet", arguments, root)
+            {
+                Timeout = TimeSpan.FromSeconds(service ? 810 : 130),
+                OutputCharacterLimit = 65536
+            }, owned.Token);
             Task<ProcessResult> first = await Task.WhenAny(peer, runner);
             if (!(await first).Succeeded)
                 owned.Cancel();

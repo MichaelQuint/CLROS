@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow an already strict StreamJoinInspection and
@@ -43,7 +44,7 @@ public static partial class QemuTranscripts
         Dictionary<int, uint> ports = [];
         HashSet<uint> assigned = [];
         foreach (var binding in bindings)
-            Need(binding.ConnectionId is> 0 and <= 8192 && packets.ContainsKey(binding.RemotePort) && binding.Compared.Compatible && binding.Compared.HasComparedBytes && ports.TryAdd(binding.ConnectionId, binding.RemotePort) && assigned.Add(binding.RemotePort), "quota_temporal_binding");
+            Need(binding.ConnectionId is > 0 and <= 8192 && packets.ContainsKey(binding.RemotePort) && binding.Compared.Compatible && binding.Compared.HasComparedBytes && ports.TryAdd(binding.ConnectionId, binding.RemotePort) && assigned.Add(binding.RemotePort), "quota_temporal_binding");
         Dictionary<uint, QuotaTemporalConnection> native = [];
         int previous = -1;
         ulong consumed = 0, accepted = 0;
@@ -95,7 +96,7 @@ public static partial class QemuTranscripts
             bool known = native.TryGetValue(port, out var owner);
             if (!bound || !known || owner is null)
                 throw new ToolFailure("quota_temporal_interval");
-            Need(interval.ExchangeId is> 0 and <= 8192 && bound && port == interval.RemotePort && interval.Kind is "complete-request" or "complete-response" or "cancel-header" or "echo-prefix" or "pressure-request" && interval.Response == (interval.Kind is "complete-response" or "cancel-header") && interval.Start >= 0 && interval.End > interval.Start && interval.End <= (interval.Response ? packets[port].Responses.ContiguousBytes : packets[port].Requests.ContiguousBytes), "quota_temporal_interval");
+            Need(interval.ExchangeId is > 0 and <= 8192 && bound && port == interval.RemotePort && interval.Kind is "complete-request" or "complete-response" or "cancel-header" or "echo-prefix" or "pressure-request" && interval.Response == (interval.Kind is "complete-response" or "cancel-header") && interval.Start >= 0 && interval.End > interval.Start && interval.End <= (interval.Response ? packets[port].Responses.ContiguousBytes : packets[port].Requests.ContiguousBytes), "quota_temporal_interval");
             var source = interval.Response ? owner.Writes : owner.Reads;
             int first = 0, last = source.Count;
             while (first < last)

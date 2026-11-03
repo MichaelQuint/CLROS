@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotWebRacePeer
 {
     /// <summary>Original producer reports and joined runner result. Only the
@@ -31,24 +32,63 @@ public static partial class NativeAotWebRacePeer
             Http = http;
         }
 
-        internal string Root { get; }
-        internal string Health { get; }
-        public int Port { get; }
+        internal string Root
+        {
+            get;
+        }
+        internal string Health
+        {
+            get;
+        }
+        public int Port
+        {
+            get;
+        }
         /// <summary>Immutable profile selected by the owning factory, checked
         /// against the pipe, original reports and runner summary.</summary>
 
-        public bool EventOwned { get; }
-        public string Path { get; }
-        public string SummaryPath { get; }
+        public bool EventOwned
+        {
+            get;
+        }
+        public string Path
+        {
+            get;
+        }
+        public string SummaryPath
+        {
+            get;
+        }
         public string RunnerOutputPath => Path + ".runner.log";
         public string RunnerErrorPath => Path + ".runner.stderr.log";
-        public WebRaceRendezvous.Report Gate { get; }
-        public string SummarySha256 { get; }
-        public ProcessResult Runner { get; }
-        public DateTimeOffset ProducerStartedUtc { get; }
-        public DateTimeOffset ProducerCompletedUtc { get; }
-        public QemuTranscripts.WebSignalRaceSelection Selection { get; }
-        public QemuTranscripts.WebSignalRaceHostHttpInspection Http { get; }
+        public WebRaceRendezvous.Report Gate
+        {
+            get;
+        }
+        public string SummarySha256
+        {
+            get;
+        }
+        public ProcessResult Runner
+        {
+            get;
+        }
+        public DateTimeOffset ProducerStartedUtc
+        {
+            get;
+        }
+        public DateTimeOffset ProducerCompletedUtc
+        {
+            get;
+        }
+        public QemuTranscripts.WebSignalRaceSelection Selection
+        {
+            get;
+        }
+        public QemuTranscripts.WebSignalRaceHostHttpInspection Http
+        {
+            get;
+        }
 
         internal void Verify(AuthorityFiles files)
         {

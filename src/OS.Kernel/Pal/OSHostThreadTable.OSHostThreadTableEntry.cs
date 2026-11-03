@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public readonly struct OSHostThreadTableEntry
 {
     public readonly OSHostHandle Thread;

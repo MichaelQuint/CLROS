@@ -105,7 +105,7 @@ internal static partial class NativeAotLogUploadProgramTests
 
         )
             Reject(() => P.Inspect(elf, rows), "log_upload_instruction_");
-        Reject(() => P.Inspect(elf, new string ('x', P.MaximumDisassemblyBytes + 1)), "log_upload_instruction_text");
+        Reject(() => P.Inspect(elf, new string('x', P.MaximumDisassemblyBytes + 1)), "log_upload_instruction_text");
         Reject(() => P.Inspect(elf, null!), "log_upload_instruction_text");
         Reject(() => P.Inspect([], Rows), "log_upload_instruction_elf");
     }
@@ -239,7 +239,7 @@ internal static partial class NativeAotLogUploadProgramTests
         {
             method.Invoke(null, [root, sources]);
         }
-        catch (TargetInvocationException error)when (error.InnerException is not null)
+        catch (TargetInvocationException error) when (error.InnerException is not null)
         {
             ExceptionDispatchInfo.Capture(error.InnerException).Throw();
             throw;
@@ -253,7 +253,7 @@ internal static partial class NativeAotLogUploadProgramTests
         {
             action();
         }
-        catch (Exception error)when (error is InvalidDataException or ArgumentException or ToolFailure)
+        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure)
         {
             actual = error.Message;
         }

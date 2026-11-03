@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public readonly struct NativeAppSelectionLoadResult
 {
     private readonly bool _isInitialized;
@@ -16,14 +17,32 @@ public readonly struct NativeAppSelectionLoadResult
         Descriptor = descriptor;
     }
 
-    public NativeAppSelectionLoadStatus Status { get; }
-    public NativeManifestLoadResult ManifestLoad { get; }
-    public OsPackageLoadResult PackageLoad { get; }
+    public NativeAppSelectionLoadStatus Status
+    {
+        get;
+    }
+    public NativeManifestLoadResult ManifestLoad
+    {
+        get;
+    }
+    public OsPackageLoadResult PackageLoad
+    {
+        get;
+    }
     public GptPartitionTableSource ManifestGptTableSource => ManifestLoad.GptTableSource;
     public GptPartitionTableSource PackageGptTableSource => PackageLoad.GptTableSource;
-    public OsPackageParseResult PackageParse { get; }
-    public NativeAppLaunchPlanResult LaunchPlan { get; }
-    public NativeAppLaunchDescriptorResult Descriptor { get; }
+    public OsPackageParseResult PackageParse
+    {
+        get;
+    }
+    public NativeAppLaunchPlanResult LaunchPlan
+    {
+        get;
+    }
+    public NativeAppLaunchDescriptorResult Descriptor
+    {
+        get;
+    }
     public bool Succeeded => _isInitialized && Status == NativeAppSelectionLoadStatus.Success && ManifestLoad.Succeeded && PackageLoad.Succeeded && PackageParse.Succeeded && LaunchPlan.Succeeded && Descriptor.Succeeded;
 
     public static NativeAppSelectionLoadResult Success(NativeManifestLoadResult manifestLoad, OsPackageLoadResult packageLoad, OsPackageParseResult packageParse, NativeAppLaunchPlanResult launchPlan, NativeAppLaunchDescriptorResult descriptor)

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly struct EnaAdminAcqCommonDescriptor
@@ -12,12 +13,27 @@ public readonly struct EnaAdminAcqCommonDescriptor
         SubmissionQueueHeadIndex = submissionQueueHeadIndex;
     }
 
-    public ushort RawCommand { get; }
+    public ushort RawCommand
+    {
+        get;
+    }
     public ushort CommandId => (ushort)(RawCommand & EnaAdminDescriptors.CommandIdMask);
-    public byte Status { get; }
+    public byte Status
+    {
+        get;
+    }
     public EnaAdminCompletionStatus CompletionStatus => (EnaAdminCompletionStatus)Status;
-    public byte Flags { get; }
+    public byte Flags
+    {
+        get;
+    }
     public bool Phase => (Flags & EnaAdminDescriptors.PhaseFlag) != 0;
-    public ushort ExtendedStatus { get; }
-    public ushort SubmissionQueueHeadIndex { get; }
+    public ushort ExtendedStatus
+    {
+        get;
+    }
+    public ushort SubmissionQueueHeadIndex
+    {
+        get;
+    }
 }

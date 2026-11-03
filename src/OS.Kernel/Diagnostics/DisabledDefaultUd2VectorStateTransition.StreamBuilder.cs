@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static unsafe partial class DisabledDefaultUd2VectorStateTransition
 {
 #if !NOSTDLIB_EFI

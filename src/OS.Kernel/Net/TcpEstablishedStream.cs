@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public ref struct TcpEstablishedStream
 {
     public const byte FlagFin = 0x01;
@@ -26,10 +27,22 @@ public ref struct TcpEstablishedStream
         _minimumAcknowledgement = localNextSequenceNumber;
     }
 
-    public ushort LocalPort { get; }
-    public ushort RemotePort { get; }
-    public uint LocalNextSequenceNumber { get; private set; }
-    public uint RemoteNextSequenceNumber { get; private set; }
+    public ushort LocalPort
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get; private set;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get; private set;
+    }
     public uint AcknowledgementNumber => RemoteNextSequenceNumber;
     public int UnreadBytes => _unreadBytes;
     public int ReceiveCapacity => _receiveBuffer.Length;

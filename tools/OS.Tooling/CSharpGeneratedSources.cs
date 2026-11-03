@@ -33,7 +33,11 @@ internal static class CSharpGeneratedSources
         var artifacts = new CSharpCompilerArtifacts(assemblyPath, Hash(assemblyBytes), symbolsPath, Hash(symbolsBytes));
         receipt?.VerifyArtifacts(artifacts);
         if (receipt is not null)
-            artifacts = artifacts with { ReceiptPath = receipt.Path, ReceiptSha256 = receipt.Sha256 };
+            artifacts = artifacts with
+            {
+                ReceiptPath = receipt.Path,
+                ReceiptSha256 = receipt.Sha256
+            };
         using var pe = new PEReader(new MemoryStream(assemblyBytes, writable: false));
         using var provider = MetadataReaderProvider.FromPortablePdbStream(new MemoryStream(symbolsBytes, writable: false));
         var reader = provider.GetMetadataReader();
@@ -81,7 +85,10 @@ internal static class CSharpGeneratedSources
             byte[] bytes = Decode(reader.GetBlobBytes(embedded[0].Value));
             if (Hash(bytes) != expected)
                 throw new InvalidOperationException("source_catalog_generated_source_checksum " + path);
-            generated.Add(CSharpSourceDocument.FromBytes(path, bytes, options) with { IsGenerated = true });
+            generated.Add(CSharpSourceDocument.FromBytes(path, bytes, options) with
+            {
+                IsGenerated = true
+            });
         }
         return (generated.ToArray(), artifacts);
     }

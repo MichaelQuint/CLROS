@@ -17,7 +17,10 @@ internal static partial class KestrelConnectionLifecycleTests
         private readonly Task accept;
         private readonly string fault;
         private readonly ServiceLifecycleExercise exercise = new();
-        internal int Port { get; }
+        internal int Port
+        {
+            get;
+        }
 
         internal PeerServer(string fault = "")
         {
@@ -39,7 +42,7 @@ internal static partial class KestrelConnectionLifecycleTests
                     workers.Add(Serve(client));
                 }
             }
-            catch (OperationCanceledException)when (lifetime.IsCancellationRequested)
+            catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
             {
             }
         }
@@ -126,7 +129,7 @@ internal static partial class KestrelConnectionLifecycleTests
                     else
                         throw new InvalidDataException("unexpected host fixture route");
                 }
-                catch (OperationCanceledException)when (lifetime.IsCancellationRequested)
+                catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
                 {
                 }
             }

@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSqliteContract
 {
     public sealed record JournalOrder(int LifetimeId, int DatabaseWrites, int? FirstJournalSync, int? ParentSync, int? HeaderWrite, int? LastJournalSync, int? DatabaseSync, int? Unlink, bool ClosedBeforeUnlink, bool CompleteSyncOrder);

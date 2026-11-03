@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct EfiMemoryMapSummary
 {
     public EfiMemoryMapSummary(ulong descriptorCount, ulong totalPages, ulong totalBytes, ulong conventionalPages, ulong lowestPhysicalAddress, ulong highestPhysicalEndExclusive)
@@ -11,10 +12,28 @@ public readonly struct EfiMemoryMapSummary
         HighestPhysicalEndExclusive = highestPhysicalEndExclusive;
     }
 
-    public ulong DescriptorCount { get; }
-    public ulong TotalPages { get; }
-    public ulong TotalBytes { get; }
-    public ulong ConventionalPages { get; }
-    public ulong LowestPhysicalAddress { get; }
-    public ulong HighestPhysicalEndExclusive { get; }
+    public ulong DescriptorCount
+    {
+        get;
+    }
+    public ulong TotalPages
+    {
+        get;
+    }
+    public ulong TotalBytes
+    {
+        get;
+    }
+    public ulong ConventionalPages
+    {
+        get;
+    }
+    public ulong LowestPhysicalAddress
+    {
+        get;
+    }
+    public ulong HighestPhysicalEndExclusive
+    {
+        get;
+    }
 }

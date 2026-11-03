@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformRandomSourceResult
 {
     private PlatformRandomSourceResult(bool succeeded, PlatformRandomSourceStatus status, int bytesWritten, ulong firmwareStatus)
@@ -9,10 +10,22 @@ public readonly struct PlatformRandomSourceResult
         FirmwareStatus = firmwareStatus;
     }
 
-    public bool Succeeded { get; }
-    public PlatformRandomSourceStatus Status { get; }
-    public int BytesWritten { get; }
-    public ulong FirmwareStatus { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformRandomSourceStatus Status
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public ulong FirmwareStatus
+    {
+        get;
+    }
 
     public static PlatformRandomSourceResult Filled(int bytesWritten)
     {

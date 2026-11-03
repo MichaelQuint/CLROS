@@ -1,6 +1,7 @@
 using OS.Kernel.Memory;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAotHeapBootstrapPlanner
 {
     public const ulong MinimumObjectAlignment = 8;

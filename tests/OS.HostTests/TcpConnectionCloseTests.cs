@@ -310,11 +310,14 @@ internal static class TcpConnectionCloseTests
         HostCheck.Equal(RemoteNextSequence + 1, close.RemoteNextSequenceNumber);
         HostCheck.Equal(20, result.BytesWritten);
         HostCheck.Equal(PacketParseStatus.Success, TcpHeader.TryParse(output, out var ack, out _, out var payload));
-        HostCheck.Equal((byte)0x10, ack.Flags); HostCheck.Equal((ushort)24, ack.WindowSize);
-        HostCheck.Equal((ushort)0x1234, ack.Checksum); HostCheck.Equal(RemoteNextSequence + 1, ack.AcknowledgementNumber);
+        HostCheck.Equal((byte)0x10, ack.Flags);
+        HostCheck.Equal((ushort)24, ack.WindowSize);
+        HostCheck.Equal((ushort)0x1234, ack.Checksum);
+        HostCheck.Equal(RemoteNextSequence + 1, ack.AcknowledgementNumber);
         HostCheck.Equal(0, payload.Length);
         HostCheck.Equal(TcpConnectionCloseStatus.Success, close.CompleteTimeWait(out result));
-        HostCheck.Equal(TcpConnectionCloseState.Closed, result.State); HostCheck.Equal(0, result.BytesWritten);
+        HostCheck.Equal(TcpConnectionCloseState.Closed, result.State);
+        HostCheck.Equal(0, result.BytesWritten);
         HostCheck.Equal(TcpConnectionCloseStatus.InvalidState, close.CompleteTimeWait(out _));
     }
 
@@ -379,7 +382,8 @@ internal static class TcpConnectionCloseTests
         close.TryWriteActiveFinAck(output, 32, 0, out _);
         WriteRemoteSegment(incoming, RemoteNextSequence, LocalNextSequence + 1, 0x11);
         HostCheck.Equal(TcpConnectionCloseStatus.BufferTooSmall, close.ReceiveActiveFinAckAndWriteAck(incoming.Slice(0, 20), output.Slice(0, 19), 32, 0, out _));
-        HostCheck.Equal(TcpConnectionCloseState.FinWait1, close.State); HostCheck.Equal(RemoteNextSequence, close.RemoteNextSequenceNumber);
+        HostCheck.Equal(TcpConnectionCloseState.FinWait1, close.State);
+        HostCheck.Equal(RemoteNextSequence, close.RemoteNextSequenceNumber);
         WriteRemoteSegment(incoming, RemoteNextSequence, LocalNextSequence + 2, 0x11);
         HostCheck.Equal(TcpConnectionCloseStatus.WrongAcknowledgementNumber, close.ReceiveActiveFinAckAndWriteAck(incoming.Slice(0, 20), output, 32, 0, out _));
         WriteRemoteSegment(incoming, RemoteNextSequence + 1, LocalNextSequence + 1, 0x11);
@@ -405,12 +409,14 @@ internal static class TcpConnectionCloseTests
         WriteRemoteSegment(incoming, uint.MaxValue, uint.MaxValue, 0x11);
         HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceiveActiveFinAckAndWriteAck(incoming, output, 32, 0, out _));
         HostCheck.Equal(TcpConnectionCloseState.Closing, close.State);
-        HostCheck.Equal(0U, close.LocalNextSequenceNumber); HostCheck.Equal(0U, close.RemoteNextSequenceNumber);
+        HostCheck.Equal(0U, close.LocalNextSequenceNumber);
+        HostCheck.Equal(0U, close.RemoteNextSequenceNumber);
         WriteRemoteSegment(incoming, uint.MaxValue, 0, 0x11);
         HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceiveRepeatedFinAndWriteAck(incoming, output, 32, 0, out _));
         HostCheck.Equal(TcpConnectionCloseState.TimeWait, close.State);
         HostCheck.Equal(PacketParseStatus.Success, TcpHeader.TryParse(output, out var ack, out _, out _));
-        HostCheck.Equal(0U, ack.SequenceNumber); HostCheck.Equal(0U, ack.AcknowledgementNumber);
+        HostCheck.Equal(0U, ack.SequenceNumber);
+        HostCheck.Equal(0U, ack.AcknowledgementNumber);
     }
 
     [HostTest("net.tcp close rejects reset and stale controls after TimeWait completion", HostLane.Fast, 10)]

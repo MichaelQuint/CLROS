@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct Com1OwnedPortIoOperationResult
 {
     private Com1OwnedPortIoOperationResult(bool isInitialized, Com1OwnedPortIoOperationStatus status, CheckedPortIoFunctionPointerBindingStatus bindingStatus, CheckedPortIoFunctionPointerInvocationStatus invocationStatus, PortIoOperationKind operationKind, ushort port, byte value, bool wasInvoked)
@@ -13,14 +14,38 @@ public readonly struct Com1OwnedPortIoOperationResult
         WasInvoked = wasInvoked;
     }
 
-    public bool IsInitialized { get; }
-    public Com1OwnedPortIoOperationStatus Status { get; }
-    public CheckedPortIoFunctionPointerBindingStatus BindingStatus { get; }
-    public CheckedPortIoFunctionPointerInvocationStatus InvocationStatus { get; }
-    public PortIoOperationKind OperationKind { get; }
-    public ushort Port { get; }
-    public byte Value { get; }
-    public bool WasInvoked { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public Com1OwnedPortIoOperationStatus Status
+    {
+        get;
+    }
+    public CheckedPortIoFunctionPointerBindingStatus BindingStatus
+    {
+        get;
+    }
+    public CheckedPortIoFunctionPointerInvocationStatus InvocationStatus
+    {
+        get;
+    }
+    public PortIoOperationKind OperationKind
+    {
+        get;
+    }
+    public ushort Port
+    {
+        get;
+    }
+    public byte Value
+    {
+        get;
+    }
+    public bool WasInvoked
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == Com1OwnedPortIoOperationStatus.Success && BindingStatus == CheckedPortIoFunctionPointerBindingStatus.Ready && InvocationStatus == CheckedPortIoFunctionPointerInvocationStatus.Success && (OperationKind == PortIoOperationKind.Out8 || OperationKind == PortIoOperationKind.In8) && WasInvoked;
 
     internal static Com1OwnedPortIoOperationResult Pass(CheckedPortIoFunctionPointerInvocationResult invocation)

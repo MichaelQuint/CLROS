@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public struct DnsResolverTransaction
 {
     private const uint FingerprintOffset = 2166136261;
@@ -18,9 +19,18 @@ public struct DnsResolverTransaction
         _questionNameFingerprint = 0;
     }
 
-    public DnsResolverState State { get; private set; }
-    public ushort TransactionId { get; }
-    public Ipv4Address ResolvedAddress { get; private set; }
+    public DnsResolverState State
+    {
+        get; private set;
+    }
+    public ushort TransactionId
+    {
+        get;
+    }
+    public Ipv4Address ResolvedAddress
+    {
+        get; private set;
+    }
 
     public static DnsResolverTransaction Create(ushort transactionId)
     {

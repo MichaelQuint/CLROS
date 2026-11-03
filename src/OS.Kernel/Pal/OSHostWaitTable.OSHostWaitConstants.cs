@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public static class OSHostWaitConstants
 {
     public const uint TimeoutKindImmediate = OSHostSocketConstants.TimeoutKindImmediate;

@@ -6,7 +6,10 @@ internal static class EfiSerializerInputs
     // match this ordered inventory; discovery cannot approve extra inputs.
     // The extraction preserves declarations, member bodies and layout. Fresh
     // emitted/native qualification remains required for the combined candidate.
-    internal static IReadOnlyList<string> CompileItems { get; } = Array.AsReadOnly<string>(
+    internal static IReadOnlyList<string> CompileItems
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         "Amd64CoffWriter.Amd64CoffObjectDefinition.cs",
         "Amd64CoffWriter.CoffRelocationDefinition.cs",
@@ -31,6 +34,9 @@ internal static class EfiSerializerInputs
         "Program.OutputWriteResult.cs",
     ]);
 
-    internal static IReadOnlyList<string> BuildInputs { get; } = Array.AsReadOnly<string>(
+    internal static IReadOnlyList<string> BuildInputs
+    {
+        get;
+    } = Array.AsReadOnly<string>(
         ["OS.X64TextSerializerGenerator.csproj", .. CompileItems, "OS.X64TextSerializerGenerator.targets"]);
 }

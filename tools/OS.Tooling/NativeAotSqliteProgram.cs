@@ -9,8 +9,14 @@ public sealed partial class NativeAotSqliteProgram
 {
     public const int MaximumDisassemblyBytes = 56 * 1024 * 1024;
     private readonly NativeAotInstructionIndex index;
-    internal string SourceRoot { get; }
-    public string Mode { get; }
+    internal string SourceRoot
+    {
+        get;
+    }
+    public string Mode
+    {
+        get;
+    }
     public Inspection Metadata => Report(index);
     public bool ExecutionAuthority => false;
 

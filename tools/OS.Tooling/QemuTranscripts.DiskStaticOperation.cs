@@ -1,6 +1,7 @@
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Actual captured call interval through its consumed completion.

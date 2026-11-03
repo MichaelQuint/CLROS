@@ -152,7 +152,6 @@ public static partial class OsPackageLoader
         return backup.Succeeded ? backup : primary;
     }
 
-
     private static GptEspLocationReadinessResult LocateGptEspWithCallerBuffers(
         IReadOnlyBlockDevice disk,
         Span<byte> headerSector,

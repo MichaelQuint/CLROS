@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Memory;
+
 public readonly struct MemoryMapInfoRegionWriteResult
 {
     private readonly string? _message;
@@ -22,20 +23,59 @@ public readonly struct MemoryMapInfoRegionWriteResult
         _message = message;
     }
 
-    public MemoryMapInfoRegionWriteStatus Status { get; }
+    public MemoryMapInfoRegionWriteStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == MemoryMapInfoRegionWriteStatus.Success;
-    public ulong MapKey { get; }
-    public ulong DescriptorSize { get; }
-    public uint DescriptorVersion { get; }
-    public int DescriptorCount { get; }
-    public int RegionCount { get; }
-    public int RequiredRegionCapacity { get; }
-    public int AvailableRegionCapacity { get; }
-    public int InvalidDescriptorIndex { get; }
-    public ulong TotalPages { get; }
-    public ulong TotalBytes { get; }
-    public ulong ConventionalMemoryPages { get; }
-    public ulong ConventionalMemoryBytes { get; }
+    public ulong MapKey
+    {
+        get;
+    }
+    public ulong DescriptorSize
+    {
+        get;
+    }
+    public uint DescriptorVersion
+    {
+        get;
+    }
+    public int DescriptorCount
+    {
+        get;
+    }
+    public int RegionCount
+    {
+        get;
+    }
+    public int RequiredRegionCapacity
+    {
+        get;
+    }
+    public int AvailableRegionCapacity
+    {
+        get;
+    }
+    public int InvalidDescriptorIndex
+    {
+        get;
+    }
+    public ulong TotalPages
+    {
+        get;
+    }
+    public ulong TotalBytes
+    {
+        get;
+    }
+    public ulong ConventionalMemoryPages
+    {
+        get;
+    }
+    public ulong ConventionalMemoryBytes
+    {
+        get;
+    }
     public string Message => _message ?? string.Empty;
 
     internal static MemoryMapInfoRegionWriteResult Success(ulong mapKey, ulong descriptorSize, uint descriptorVersion, int descriptorCount, int regionCount, int requiredRegionCapacity, int availableRegionCapacity, ulong totalPages, ulong totalBytes, ulong conventionalMemoryPages, ulong conventionalMemoryBytes)

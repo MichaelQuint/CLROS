@@ -1,6 +1,7 @@
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed partial class HelloMemory
@@ -125,7 +126,11 @@ public static partial class QemuTranscripts
                     {
                         var prior = extents.Where(r => Overlap(a, old, r.Start, r.End - r.Start)).ToArray();
                         Need(prior.Length > 0 && prior.All(r => r.Origin == prior[0].Origin && r.Protection == prior[0].Protection && r.Backed == prior[0].Backed) && extents.All(r => !Overlap(a + old, size - old, r.Start, r.End - r.Start)), "pthread_remap_growth");
-                        extents.Add(prior[0] with { Start = a + old, End = a + size });
+                        extents.Add(prior[0] with
+                        {
+                            Start = a + old,
+                            End = a + size
+                        });
                     }
                 }
 
@@ -164,12 +169,22 @@ public static partial class QemuTranscripts
                     }
 
                     if (r.Start < start)
-                        next.Add(r with { End = start });
-                    var middle = change(r with { Start = Math.Max(start, r.Start), End = Math.Min(end, r.End) });
+                        next.Add(r with
+                        {
+                            End = start
+                        });
+                    var middle = change(r with
+                    {
+                        Start = Math.Max(start, r.Start),
+                        End = Math.Min(end, r.End)
+                    });
                     if (middle.HasValue)
                         next.Add(middle.Value);
                     if (r.End > end)
-                        next.Add(r with { Start = end });
+                        next.Add(r with
+                        {
+                            Start = end
+                        });
                 }
 
                 extents = next;

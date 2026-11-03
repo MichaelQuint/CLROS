@@ -18,7 +18,10 @@ internal static partial class AcpiMcfgPhysicalDiscoveryTests
             _failureStatus = failureStatus;
         }
 
-        public int ReadCount { get; private set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
         public ulong[] RequestedAddresses { get; } = new ulong[8];
 
         public static PhysicalMemoryDouble Success(params PhysicalMemoryEntry[] entries)

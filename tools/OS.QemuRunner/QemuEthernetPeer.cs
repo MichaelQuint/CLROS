@@ -49,7 +49,10 @@ public sealed class QemuEthernetPeer : IDisposable
         lifetime.CancelAfter(maximumLifetime);
     }
 
-    public int Port { get; }
+    public int Port
+    {
+        get;
+    }
     public string NetdevArgument => "socket,id=n0,connect=127.0.0.1:" + Port.ToString(CultureInfo.InvariantCulture);
     public long FramesRead => Interlocked.Read(ref framesRead);
     public long FramesWritten => Interlocked.Read(ref framesWritten);
@@ -63,7 +66,8 @@ public sealed class QemuEthernetPeer : IDisposable
         lock (gate)
         {
             ThrowIfClosed();
-            if (accepting) throw new InvalidOperationException("The sole accept has already started.");
+            if (accepting)
+                throw new InvalidOperationException("The sole accept has already started.");
             accepting = true;
         }
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetimeToken);
@@ -99,8 +103,10 @@ public sealed class QemuEthernetPeer : IDisposable
     /// </summary>
     public async ValueTask<int> ReadFrameAsync(Memory<byte> destination, CancellationToken cancellationToken = default)
     {
-        if (destination.Length < maximumFrameBytes) throw new ArgumentException("A full Ethernet frame buffer is required.", nameof(destination));
-        if (Interlocked.CompareExchange(ref reading, 1, 0) != 0) throw new InvalidOperationException("A frame read is already pending.");
+        if (destination.Length < maximumFrameBytes)
+            throw new ArgumentException("A full Ethernet frame buffer is required.", nameof(destination));
+        if (Interlocked.CompareExchange(ref reading, 1, 0) != 0)
+            throw new InvalidOperationException("A frame read is already pending.");
         try
         {
             NetworkStream connection = ConnectedStream();
@@ -109,9 +115,11 @@ public sealed class QemuEthernetPeer : IDisposable
             {
                 await connection.ReadExactlyAsync(readHeader, linked.Token).ConfigureAwait(false);
                 uint count = BinaryPrimitives.ReadUInt32BigEndian(readHeader);
-                if (count < MinimumFrameBytes || count > maximumFrameBytes) throw new InvalidDataException("Invalid Ethernet frame length.");
+                if (count < MinimumFrameBytes || count > maximumFrameBytes)
+                    throw new InvalidDataException("Invalid Ethernet frame length.");
                 await connection.ReadExactlyAsync(destination[..(int)count], linked.Token).ConfigureAwait(false);
-                if (!ValidExtendedFrame(destination.Span[..(int)count])) throw new InvalidDataException("Invalid diagnostic VLAN frame.");
+                if (!ValidExtendedFrame(destination.Span[..(int)count]))
+                    throw new InvalidDataException("Invalid diagnostic VLAN frame.");
                 Interlocked.Increment(ref framesRead);
                 return (int)count;
             }
@@ -132,8 +140,10 @@ public sealed class QemuEthernetPeer : IDisposable
     /// </summary>
     public async ValueTask WriteFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken cancellationToken = default)
     {
-        if (frame.Length < MinimumFrameBytes || frame.Length > maximumFrameBytes || !ValidExtendedFrame(frame.Span)) throw new ArgumentOutOfRangeException(nameof(frame));
-        if (Interlocked.CompareExchange(ref writing, 1, 0) != 0) throw new InvalidOperationException("A frame write is already pending.");
+        if (frame.Length < MinimumFrameBytes || frame.Length > maximumFrameBytes || !ValidExtendedFrame(frame.Span))
+            throw new ArgumentOutOfRangeException(nameof(frame));
+        if (Interlocked.CompareExchange(ref writing, 1, 0) != 0)
+            throw new InvalidOperationException("A frame write is already pending.");
         try
         {
             NetworkStream connection = ConnectedStream();
@@ -160,7 +170,8 @@ public sealed class QemuEthernetPeer : IDisposable
     {
         lock (gate)
         {
-            if (disposed) return;
+            if (disposed)
+                return;
             disposed = true;
             listener.Stop();
             client?.Dispose();
@@ -184,14 +195,16 @@ public sealed class QemuEthernetPeer : IDisposable
     private void ThrowIfClosed()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        if (faulted) throw new IOException("The Ethernet peer session has ended.");
+        if (faulted)
+            throw new IOException("The Ethernet peer session has ended.");
     }
 
     private void Fail()
     {
         lock (gate)
         {
-            if (disposed || faulted) return;
+            if (disposed || faulted)
+                return;
             faulted = true;
             listener.Stop();
             client?.Dispose();

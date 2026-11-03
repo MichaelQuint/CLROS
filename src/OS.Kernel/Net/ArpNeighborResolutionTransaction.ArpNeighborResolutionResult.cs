@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct ArpNeighborResolutionResult
 {
     private ArpNeighborResolutionResult(ArpNeighborResolutionStatus status, ArpNeighborResolutionState state, PacketParseStatus packetStatus, int bytesWritten, MacAddress resolvedMac)
@@ -11,13 +12,31 @@ public readonly struct ArpNeighborResolutionResult
         ResolvedMac = resolvedMac;
     }
 
-    public ArpNeighborResolutionStatus Status { get; }
-    public bool IsInitialized { get; }
+    public ArpNeighborResolutionStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == ArpNeighborResolutionStatus.Success;
-    public ArpNeighborResolutionState State { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public int BytesWritten { get; }
-    public MacAddress ResolvedMac { get; }
+    public ArpNeighborResolutionState State
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public MacAddress ResolvedMac
+    {
+        get;
+    }
 
     public static ArpNeighborResolutionResult Success(ArpNeighborResolutionState state, int bytesWritten, MacAddress resolvedMac)
     {

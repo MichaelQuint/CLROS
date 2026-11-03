@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public static class HttpResponseParser
 {
     public const int MinimumStatusLineLength = 12;

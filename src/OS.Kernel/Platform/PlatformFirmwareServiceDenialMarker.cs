@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Kernel.Platform;
+
 public static class PlatformFirmwareServiceDenialMarker
 {
     private static ReadOnlySpan<byte> Prefix => "UEFI_SERVICE_DENIED operation="u8;

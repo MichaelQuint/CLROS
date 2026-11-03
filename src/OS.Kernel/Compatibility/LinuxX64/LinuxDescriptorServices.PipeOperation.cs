@@ -1,4 +1,5 @@
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxDescriptorServices
 {
     /// <summary>One stable, noncopied kernel operation retaining its original

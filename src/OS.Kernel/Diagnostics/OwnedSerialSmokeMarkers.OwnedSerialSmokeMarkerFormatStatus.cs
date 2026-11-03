@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 using OS.Std.Text;
 
 public enum OwnedSerialSmokeMarkerFormatStatus

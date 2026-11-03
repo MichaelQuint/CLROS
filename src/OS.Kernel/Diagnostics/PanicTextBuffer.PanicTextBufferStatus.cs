@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Kernel.Diagnostics;
+
 public enum PanicTextBufferStatus
 {
     Ok = 0,

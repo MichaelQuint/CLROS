@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Text;
 
 public readonly struct Ipv4NeighborRoutePlanDiagnosticFormatResult
@@ -14,12 +15,30 @@ public readonly struct Ipv4NeighborRoutePlanDiagnosticFormatResult
         Flags = flags;
     }
 
-    public Ipv4NeighborRoutePlanDiagnosticFormatStatus Status { get; }
-    public Ipv4NeighborRoutePlanStatus RouteStatus { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
-    public uint Flags { get; }
+    public Ipv4NeighborRoutePlanDiagnosticFormatStatus Status
+    {
+        get;
+    }
+    public Ipv4NeighborRoutePlanStatus RouteStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success && RequiredBytes > 0 && BytesWritten == RequiredBytes && RequiredBytes <= AvailableBytes;
 

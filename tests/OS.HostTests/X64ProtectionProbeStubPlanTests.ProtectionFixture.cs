@@ -12,18 +12,54 @@ internal static unsafe partial class X64ProtectionProbeStubPlanTests
         private byte* _probePage;
         private byte* _invlpgPage;
         internal byte* ProbePage => _probePage;
-        internal M01014PageTableFixture PageTables { get; }
-        internal BootMemoryRegionRecord ProbeAllocation { get; }
-        internal BootReservedRange ProbeReservation { get; }
-        internal BootMemoryRegionRecord TransitionCodeAllocation { get; }
-        internal BootMemoryRegionRecord TableStateAllocation { get; }
-        internal X64ProtectionProbeStubPlanResult ProbeStub { get; }
-        internal X64PageMapResult ProtectionMutation { get; }
-        internal ulong LeafReadbackRaw { get; }
-        internal X64InvlpgStubPlanResult InvlpgStub { get; }
-        internal X64InvlpgInvocationPlanResult InvlpgInvocation { get; }
-        internal X64ProtectionProbeObservation Observation { get; }
-        internal X64ProtectionProbeEvent[] Events { get; }
+        internal M01014PageTableFixture PageTables
+        {
+            get;
+        }
+        internal BootMemoryRegionRecord ProbeAllocation
+        {
+            get;
+        }
+        internal BootReservedRange ProbeReservation
+        {
+            get;
+        }
+        internal BootMemoryRegionRecord TransitionCodeAllocation
+        {
+            get;
+        }
+        internal BootMemoryRegionRecord TableStateAllocation
+        {
+            get;
+        }
+        internal X64ProtectionProbeStubPlanResult ProbeStub
+        {
+            get;
+        }
+        internal X64PageMapResult ProtectionMutation
+        {
+            get;
+        }
+        internal ulong LeafReadbackRaw
+        {
+            get;
+        }
+        internal X64InvlpgStubPlanResult InvlpgStub
+        {
+            get;
+        }
+        internal X64InvlpgInvocationPlanResult InvlpgInvocation
+        {
+            get;
+        }
+        internal X64ProtectionProbeObservation Observation
+        {
+            get;
+        }
+        internal X64ProtectionProbeEvent[] Events
+        {
+            get;
+        }
 
         internal ProtectionFixture()
         {

@@ -30,7 +30,19 @@ internal static unsafe partial class LinuxOwnerTerminationTests
         uint ready = m.Kernel.Table->ReadyCount;
         byte* scratch = stackalloc byte[64];
         LinuxSyscallGateState gate = default;
-        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new() { UserRoot = m.Kernel.Owner.Root, MaximumCalls = 64, MaximumWrite = 64, Scratch = scratch, ScratchBytes = 64, FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true }, m.GatewayAccess));
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new()
+        {
+            UserRoot = m.Kernel.Owner.Root,
+            MaximumCalls = 64,
+            MaximumWrite = 64,
+            Scratch = scratch,
+            ScratchBytes = 64,
+            FirmwareExited = true,
+            OwnedBoundaryValidated = true,
+            EnableStartup = true,
+            EnableDescriptors = true,
+            EnableThreads = true
+        }, m.GatewayAccess));
         HostCheck.True(o.Request() && !o.Request());
         HostCheck.True(gate.Calls == 0 && gate.Status == LinuxSyscallGateStatus.Active && m.Reads == reads && m.Writes == writes);
         HostCheck.Equal(ready, m.Kernel.Table->ReadyCount);

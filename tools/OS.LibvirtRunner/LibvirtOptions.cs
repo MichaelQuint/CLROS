@@ -38,14 +38,38 @@ sealed class LibvirtOptions
     }
 
     public IReadOnlyList<string> ForbiddenMarkers => forbiddenMarkers;
-    public bool GenerateXml { get; private set; }
-    public bool PlanLifecycle { get; private set; }
-    public bool ValidateXml { get; private set; }
-    public bool CheckSerial { get; private set; }
-    public bool AllowRealLifecycle { get; private set; }
-    public bool EmitDiagnostics { get; private set; }
-    public bool RequireExistingPaths { get; private set; }
-    public bool ShowHelp { get; private set; }
+    public bool GenerateXml
+    {
+        get; private set;
+    }
+    public bool PlanLifecycle
+    {
+        get; private set;
+    }
+    public bool ValidateXml
+    {
+        get; private set;
+    }
+    public bool CheckSerial
+    {
+        get; private set;
+    }
+    public bool AllowRealLifecycle
+    {
+        get; private set;
+    }
+    public bool EmitDiagnostics
+    {
+        get; private set;
+    }
+    public bool RequireExistingPaths
+    {
+        get; private set;
+    }
+    public bool ShowHelp
+    {
+        get; private set;
+    }
     public string SummaryLogPath { get; private set; } = string.Empty;
     public string DomainXmlPath { get; private set; } = string.Empty;
 
@@ -263,7 +287,7 @@ sealed class LibvirtOptions
         {
             return new FileInfo(imagePath).Length;
         }
-        catch (Exception ex)when (ex is IOException || ex is UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
         {
             throw new ArgumentException("could_not_read_image_length error=" + ex.GetType().Name);
         }
@@ -283,7 +307,7 @@ sealed class LibvirtOptions
 
             return "raw-compatible";
         }
-        catch (Exception ex)when (ex is IOException || ex is UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
         {
             throw new ArgumentException("could_not_read_image_header error=" + ex.GetType().Name);
         }

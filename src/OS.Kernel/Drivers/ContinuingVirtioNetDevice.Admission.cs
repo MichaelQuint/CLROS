@@ -1,6 +1,7 @@
 using RingEngine = global::OS.Drivers.ContinuingVirtioNet;
 
 namespace OS.Drivers;
+
 public static unsafe partial class ContinuingVirtioNetDevice
 {
     /// <summary>Borrowed admission, not mapping or device proof. Supply16 empty

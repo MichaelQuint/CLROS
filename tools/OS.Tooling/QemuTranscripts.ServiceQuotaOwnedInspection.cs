@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Internal joined observations from one held original capture.

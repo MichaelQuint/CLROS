@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class ProbeCatalogDiagnosticFormatter
 {
     public const bool UsesSharedAsciiTextBuilder = true;

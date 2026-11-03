@@ -1,4 +1,5 @@
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public readonly struct LinuxSyscallResult
 {
     public readonly LinuxSyscallAction Action;

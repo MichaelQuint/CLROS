@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly struct EnaDataQueueTransmitCompletion
@@ -13,11 +14,29 @@ public readonly struct EnaDataQueueTransmitCompletion
         SubmissionQueueHeadIndex = submissionQueueHeadIndex;
     }
 
-    public bool IsInitialized { get; }
-    public ushort RequestId { get; }
-    public byte Status { get; }
-    public byte Flags { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public ushort RequestId
+    {
+        get;
+    }
+    public byte Status
+    {
+        get;
+    }
+    public byte Flags
+    {
+        get;
+    }
     public bool Phase => (Flags & EnaDataQueueDescriptors.CompletionPhaseFlag) != 0;
-    public ushort SubmissionQueueId { get; }
-    public ushort SubmissionQueueHeadIndex { get; }
+    public ushort SubmissionQueueId
+    {
+        get;
+    }
+    public ushort SubmissionQueueHeadIndex
+    {
+        get;
+    }
 }

@@ -71,7 +71,7 @@ public static partial class BacklogSelfTest
         ["milestone"] = key.Split('-')[0],
         ["desiredState"] = state,
         ["parentKey"] = parent,
-        ["dependencyKeys"] = new JsonArray((dependencies ?? []).Select(x => (JsonNode? )JsonValue.Create(x)).ToArray()),
+        ["dependencyKeys"] = new JsonArray((dependencies ?? []).Select(x => (JsonNode?)JsonValue.Create(x)).ToArray()),
         ["labels"] = new JsonArray(epic ? "type:epic" : "type:implementation"),
         ["collisionLane"] = "",
         ["ownedPaths"] = new JsonArray("tests/selftest/" + key + ".cs")
@@ -243,7 +243,7 @@ public static partial class BacklogSelfTest
         bool expectedVerified = test.Action != "failed" && test.Name is not ("missing-closed" or "due-date") && (apply || test.Action == "unchanged");
         Require(verified == expectedVerified, "milestone convergence mismatch " + test.Name);
         if (test.Name == "open-child")
-            Require(BacklogPolicy.ClosureFailure("M00-EPIC", manifest, remote, true)is null, "pending closure test invalid");
+            Require(BacklogPolicy.ClosureFailure("M00-EPIC", manifest, remote, true) is null, "pending closure test invalid");
     }
 
     private static void TestStatePolicy()
@@ -326,7 +326,7 @@ public static partial class BacklogSelfTest
         };
         BacklogRemoteState remote = new();
         int number = 0;
-        foreach (var(key, item)in map)
+        foreach (var (key, item) in map)
         {
             var live = Remote(++number, state: Text(item, "desiredState"));
             live["body"] = "<!-- clros-issue-key:" + key + " -->";
@@ -343,19 +343,19 @@ public static partial class BacklogSelfTest
         {
             ["id"] = 7
         };
-        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote)is null, "optional child blocked epic");
-        Require(BacklogPolicy.MilestoneClosureFailure(milestone, container, map, remote)is null, "optional child blocked milestone");
+        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote) is null, "optional child blocked epic");
+        Require(BacklogPolicy.MilestoneClosureFailure(milestone, container, map, remote) is null, "optional child blocked milestone");
         optional["requiredForParent"] = true;
-        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote)is not null, "required child bypassed");
+        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote) is not null, "required child bypassed");
         optional["requiredForParent"] = false;
         epic["dependencyKeys"] = new JsonArray("M08-020");
-        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote)is not null, "explicit optional dependency bypassed");
+        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote) is not null, "explicit optional dependency bypassed");
         epic["dependencyKeys"] = new JsonArray();
         remote.ReviewedClosures.Remove("M08-001");
-        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote)is not null, "unreviewed required child bypassed");
+        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote) is not null, "unreviewed required child bypassed");
         remote.ReviewedClosures.Add("M08-001");
         remote.AllIssues.Add(Remote(4, state: "open"));
-        Require(BacklogPolicy.MilestoneClosureFailure(milestone, container, map, remote)is not null, "unknown supplemental member bypassed");
+        Require(BacklogPolicy.MilestoneClosureFailure(milestone, container, map, remote) is not null, "unknown supplemental member bypassed");
     }
 
     private static void Require(bool value, string reason)

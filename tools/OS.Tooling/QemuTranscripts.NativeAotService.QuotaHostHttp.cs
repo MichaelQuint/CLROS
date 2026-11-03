@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Borrow bounded strict quota wire JSON; inspect it once, frame

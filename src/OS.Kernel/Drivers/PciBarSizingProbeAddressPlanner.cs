@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class PciBarSizingProbeAddressPlanner
 {
     public const ushort NoCommandIndex = ushort.MaxValue;

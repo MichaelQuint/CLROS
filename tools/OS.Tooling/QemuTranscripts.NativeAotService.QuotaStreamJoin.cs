@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect strict wire JSON once and original bounded PCAP streams;
@@ -125,7 +126,7 @@ public static partial class QemuTranscripts
                 if (exchange.Role == "pressure")
                 {
                     var requests = ReadServiceQuotaHttpPrefixes(guests[byHost[h]].RequestPrefix, false).Messages;
-                    Need(requests.Count == 1 && requests[0].State == "complete" && requests[0].First == "POST /__clros/service/quota HTTP/1.1" && requests[0].Framing == "length" && requests[0].DeclaredLength == 0 && requests[0].Headers.GetValueOrDefault("Host") == "127.0.0.1:" + trace.Port.ToString(CultureInfo.InvariantCulture) && requests[0].Headers.GetValueOrDefault("Connection")is null && requests[0].End == stream.Requests.Extent && stream.Responses.Extent == 0, "quota_stream_join_pressure");
+                    Need(requests.Count == 1 && requests[0].State == "complete" && requests[0].First == "POST /__clros/service/quota HTTP/1.1" && requests[0].Framing == "length" && requests[0].DeclaredLength == 0 && requests[0].Headers.GetValueOrDefault("Host") == "127.0.0.1:" + trace.Port.ToString(CultureInfo.InvariantCulture) && requests[0].Headers.GetValueOrDefault("Connection") is null && requests[0].End == stream.Requests.Extent && stream.Responses.Extent == 0, "quota_stream_join_pressure");
                     Interval(exchange.Id, h, false, "pressure-request", 0, requests[0].End);
                 }
                 else

@@ -144,14 +144,14 @@ internal static partial class LinuxDiskCaptureTests
 
         )
             RejectProgress(c, Change(rows, timing, field, Field(rows[timing], field) + 1));
-        RejectProgress(c, [..rows[..timing], rows[timing], ..rows[timing..]], "disk_race_timing_order");
+        RejectProgress(c, [.. rows[..timing], rows[timing], .. rows[timing..]], "disk_race_timing_order");
         RejectProgress(c, Change(rows, timing, "prepared", Field(rows[timing], "entered") - 1), "linux_syscall_timing_observation");
         RejectProgress(c, Change(rows, timing, "entered", 0), "disk_progress_syscall_timing");
         string[] late = rows.ToArray();
         late[timing] = Set(late[timing], "prepared", ulong.MaxValue);
         RejectProgress(c, late, "disk_progress_syscall_timing");
         int later = Array.FindIndex(rows, timing + 1, r => r.StartsWith("M16_008_CALL ", StringComparison.Ordinal));
-        RejectProgress(c, [..rows[..(later + 1)], rows[timing], ..rows[(later + 1)..]], "linux_syscall_timing_observation");
+        RejectProgress(c, [.. rows[..(later + 1)], rows[timing], .. rows[(later + 1)..]], "linux_syscall_timing_observation");
     });
     private static string TimingAt(string row, ulong ticks)
     {
@@ -232,8 +232,8 @@ internal static partial class LinuxDiskCaptureTests
         RejectProgress(c, Change(rows, Index(rows, "M16_004_TABLES "), "ranges", 64), "m16_004_table_geometry");
         RejectProgress(c, rows.Select(r => r.Replace("timer=idle-only", "timer=user-irq-and-idle", StringComparison.Ordinal)).ToArray());
         int first = Array.IndexOf(rows, "TEST_START m16-009"), io = Index(rows, "M16_023_IO ");
-        RejectProgress(c, [..rows[..first], rows[io], ..rows[first..]]);
-        RejectProgress(c, [..rows, "unowned metadata"]);
+        RejectProgress(c, [.. rows[..first], rows[io], .. rows[first..]]);
+        RejectProgress(c, [.. rows, "unowned metadata"]);
     });
     private static void RejectProgress(Capture c, string[] rows, string? reason = null, byte[]? package = null)
     {
@@ -430,10 +430,10 @@ internal static partial class LinuxDiskCaptureTests
         int bound = Index(rows, "M16_023_BOUND ");
         Deny(Change(rows, bound, "pages", 89), "disk_capture_measured_layout");
         int supervisor = Index(rows, "M16_008_SUPERVISOR ");
-        Deny([..rows[..(supervisor + 1)], "M16_008_TIMING identity=4294967297 epoch=1 start=1 arm=2 capture=3 ready=4 periodFs=1000000000", ..rows[(supervisor + 1)..]], "unexpected_irq_timing");
+        Deny([.. rows[..(supervisor + 1)], "M16_008_TIMING identity=4294967297 epoch=1 start=1 arm=2 capture=3 ready=4 periodFs=1000000000", .. rows[(supervisor + 1)..]], "unexpected_irq_timing");
         int io = Index(rows, "M16_023_IO ");
-        Deny([..rows[..io], ..rows[(io + 1)..]], "request_identity");
-        Deny([..rows, rows[io]], "io_order");
+        Deny([.. rows[..io], .. rows[(io + 1)..]], "request_identity");
+        Deny([.. rows, rows[io]], "io_order");
     });
     private static string IoSector(string row, ulong sector, byte[] image)
     {
@@ -595,7 +595,7 @@ internal static partial class LinuxDiskCaptureTests
         int submitted = accepted.IoRecordIndices.First();
         string[] detached = c.Rows.ToList().Where((_, i) => i != submitted).ToArray();
         c.Reject(detached, "request_identity");
-        c.Reject([..c.Rows, c.Rows[submitted]], "socket_parent_extra_record");
+        c.Reject([.. c.Rows, c.Rows[submitted]], "socket_parent_extra_record");
     });
     [HostTest("disk capture joins exact instruction intervals and measured HPET timing with independent table clocks", HostLane.Native)]
     private static void IrqAndTiming() => WithCapture(c =>
@@ -653,7 +653,7 @@ internal static partial class LinuxDiskCaptureTests
         c.Reject(Change(c.Rows, end, "cacheMisses", ulong.MaxValue), "disk_parent_counters");
         int tables = Index(c.Rows, "M16_004_TABLES ");
         c.Reject(Change(c.Rows, tables, "ranges", 64), "m16_004_table_geometry");
-        c.Reject([..c.Rows, "unowned"], "socket_parent_extra_record");
+        c.Reject([.. c.Rows, "unowned"], "socket_parent_extra_record");
     });
     [HostTest("disk capture independently rejects divergent held image receipt inventory and caller bounds", HostLane.Native)]
     private static void ImageIdentity() => WithCapture(c =>
@@ -662,7 +662,10 @@ internal static partial class LinuxDiskCaptureTests
         byte[] changed = c.Image.ToArray();
         changed[0] ^= 1;
         c.Reject(c.Rows, "disk_capture_image_identity", image: changed);
-        c.Reject(c.Rows, "disk_capture_image_identity", receipt: c.Receipt with { FinalSha256 = new string ('0', 64) });
+        c.Reject(c.Rows, "disk_capture_image_identity", receipt: c.Receipt with
+        {
+            FinalSha256 = new string('0', 64)
+        });
         var files = c.Receipt.WebRootFiles.ToArray();
         int at = Array.FindIndex(files, f => f.Path.EndsWith("/fragmented.bin", StringComparison.Ordinal));
         var extents = files[at].Extents.ToArray();
@@ -674,10 +677,13 @@ internal static partial class LinuxDiskCaptureTests
         {
             Extents = extents
         };
-        c.Reject(c.Rows, "disk_capture_image_file", receipt: c.Receipt with { WebRootFiles = files });
+        c.Reject(c.Rows, "disk_capture_image_file", receipt: c.Receipt with
+        {
+            WebRootFiles = files
+        });
         c.Reject([], "disk_capture_input");
         c.Reject(["bad\0record"], "disk_capture_row");
-        c.Reject([new string ('x', 1537)], "disk_capture_row");
+        c.Reject([new string('x', 1537)], "disk_capture_row");
         c.Reject(new string[131073], "disk_capture_input");
     });
     private static void WithCapture(Action<Capture> action) => WebRootImageFixtureTests.WithImage((root, directory, original, source) =>
@@ -711,7 +717,7 @@ internal static partial class LinuxDiskCaptureTests
         }
 
         string[] startupRows = ["TEST_START m16-004", "M16_004_IMAGE base=4194304 bytes=28672 loads=2 entry=4194816 phdr=4194368 tlsFile=0 tlsMemory=0", $"M16_004_STACK start={startup.StackStart} bytes={startup.StackBytes} sp={startup.StackPointer} argc={startup.ArgumentCount} envc={startup.EnvironmentCount} random={startup.RandomAddress} entropyBytes=32 seedCleared=32", "M16_004_TABLES root=2097152 used=17 leaves=1737 ranges=65", "M16_004_READBACK old=1048576 restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false", "CLROS_M16_004_READY", "TEST_PASS m16-004"];
-        string[] service = ["TEST_START m16-003", "M16_003_CLOCK frequency=1000000 period=1000000000 recoveries=0 source=owned-hpet", ..Enumerable.Range(1, 4).Select(i => $"M16_003_ITERATION index={i} ticks={i * 1000 + 1}"), ..Enumerable.Range(0, 8).Select(i => $"M16_003_FIRMWARE_DENIED index={i} status=ServicesUnavailable providers=1 outputs=unchanged"), "M16_003_STOP iterations=4 reads=5 first=1 last=4001 interval=1000 firmware=revoked providers=1 shutdown=owned-controller", "CLROS_M16_003_READY", "TEST_PASS m16-003"];
+        string[] service = ["TEST_START m16-003", "M16_003_CLOCK frequency=1000000 period=1000000000 recoveries=0 source=owned-hpet", .. Enumerable.Range(1, 4).Select(i => $"M16_003_ITERATION index={i} ticks={i * 1000 + 1}"), .. Enumerable.Range(0, 8).Select(i => $"M16_003_FIRMWARE_DENIED index={i} status=ServicesUnavailable providers=1 outputs=unchanged"), "M16_003_STOP iterations=4 reads=5 first=1 last=4001 interval=1000 firmware=revoked providers=1 shutdown=owned-controller", "CLROS_M16_003_READY", "TEST_PASS m16-003"];
         var shell = NativeAotSocketIntegrationTests.Envelope(true).ToList();
         int owned = QemuContracts.M03OwnedSubsystemMarkers.Count;
         shell.RemoveRange(owned, 31);
@@ -999,7 +1005,7 @@ internal static partial class LinuxDiskCaptureTests
         {
             return method.Invoke(null, args)!;
         }
-        catch (System.Reflection.TargetInvocationException error)when (error.InnerException is not null)
+        catch (System.Reflection.TargetInvocationException error) when (error.InnerException is not null)
         {
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error.InnerException).Throw();
             throw;
@@ -1052,7 +1058,7 @@ internal static partial class LinuxDiskCaptureTests
         string[] Emit(ulong sector, ulong clock)
         {
             ulong gen = ++generation;
-            return[Io(0, gen, sector, gen, 512, gen, gen - 1, clock), Io(1, gen, sector, gen, 512, gen, gen, clock + 10), Io(2, gen, sector, ++copied, 512, gen, gen, clock + 20) + " copied=committed data=" + Convert.ToHexString(c.Image.AsSpan(checked((int)sector * 512), 512)).ToLowerInvariant()];
+            return [Io(0, gen, sector, gen, 512, gen, gen - 1, clock), Io(1, gen, sector, gen, 512, gen, gen, clock + 10), Io(2, gen, sector, ++copied, 512, gen, gen, clock + 20) + " copied=committed data=" + Convert.ToHexString(c.Image.AsSpan(checked((int)sector * 512), 512)).ToLowerInvariant()];
         }
 
         foreach (var call in calls.Values.Where(call => call.Spec.Wait == LinuxDiskRaceProofFixture.WaitPolicy.Disk || call.Spec.Role == "child.close"))
@@ -1261,7 +1267,7 @@ internal static partial class LinuxDiskCaptureTests
         string[] epoch = rows.Select(row => row.StartsWith("M16_023_BOUND ", StringComparison.Ordinal) || row.StartsWith("M16_023_IO ", StringComparison.Ordinal) ? Set(row, "epoch", 1) : row).ToArray();
         Deny(epoch, "disk_capture_binding_counters");
         Deny(rows.Where(row => !row.StartsWith("M16_025_END ", StringComparison.Ordinal)).ToArray());
-        Deny([..rows, rows[bound]]);
+        Deny([.. rows, rows[bound]]);
         Deny(rows.Select(row => row.StartsWith("M16_008_BOUND ", StringComparison.Ordinal) ? row.Replace("timer=idle-only", "timer=user-irq-and-idle", StringComparison.Ordinal) : row).ToArray());
         Deny(rows, package: LinuxDiskRaceProofFixture.CreatePackage("Progress"));
         Deny([null!]);

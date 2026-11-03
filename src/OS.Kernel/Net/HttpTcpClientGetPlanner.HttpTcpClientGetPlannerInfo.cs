@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 
 public readonly struct HttpTcpClientGetPlannerInfo
@@ -10,6 +11,12 @@ public readonly struct HttpTcpClientGetPlannerInfo
         MaximumRequestPayloadBytes = maximumRequestPayloadBytes <= 0 ? DefaultMaximumRequestPayloadBytes : maximumRequestPayloadBytes;
     }
 
-    public TcpIpv4FramePlannerInfo TcpInfo { get; }
-    public int MaximumRequestPayloadBytes { get; }
+    public TcpIpv4FramePlannerInfo TcpInfo
+    {
+        get;
+    }
+    public int MaximumRequestPayloadBytes
+    {
+        get;
+    }
 }

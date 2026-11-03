@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct FaultEntryStubPlanResult
 {
     private FaultEntryStubPlanResult(bool succeeded, FaultEntryStubPlanStatus status, byte vector, bool pushesErrorCode, bool pushesSyntheticErrorCode, int bytesWritten, int requiredBytes)
@@ -12,13 +13,34 @@ public readonly struct FaultEntryStubPlanResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool Succeeded { get; }
-    public FaultEntryStubPlanStatus Status { get; }
-    public byte Vector { get; }
-    public bool PushesErrorCode { get; }
-    public bool PushesSyntheticErrorCode { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public FaultEntryStubPlanStatus Status
+    {
+        get;
+    }
+    public byte Vector
+    {
+        get;
+    }
+    public bool PushesErrorCode
+    {
+        get;
+    }
+    public bool PushesSyntheticErrorCode
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
 
     public static FaultEntryStubPlanResult Success(byte vector, bool pushesErrorCode, bool pushesSyntheticErrorCode, int bytesWritten)
     {

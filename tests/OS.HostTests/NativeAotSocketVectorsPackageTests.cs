@@ -15,21 +15,27 @@ internal static unsafe class NativeAotSocketVectorsPackageTests
         {
             foreach (string relative in Sources)
             {
-                string path = Path.Combine(temporary, relative); Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                string path = Path.Combine(temporary, relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 File.Copy(Path.Combine(root, relative), path);
             }
             NativeAotSocketVectorsPackage.RequireCurrentSources(temporary);
             foreach (var source in NativeAotSocketVectorsPublisher.CurrentSources())
             {
                 string path = Path.Combine(temporary, source.Path);
-                byte[] original = File.ReadAllBytes(path); File.AppendAllText(path, "\n");
+                byte[] original = File.ReadAllBytes(path);
+                File.AppendAllText(path, "\n");
                 Reject(() => NativeAotSocketVectorsPackage.RequireCurrentSources(temporary), "app_source_identity");
                 File.WriteAllBytes(path, original);
             }
-            string extra = Path.Combine(temporary, "apps/NativeAotSocketVectors/Extra.cs"); File.WriteAllText(extra, "class Extra {}");
-            Reject(() => NativeAotSocketVectorsPackage.RequireCurrentSources(temporary), "app_inventory"); File.Delete(extra);
-            string policy = Path.Combine(temporary, "apps/Directory.Packages.props"); File.WriteAllText(policy, "<Project />");
-            Reject(() => NativeAotSocketVectorsPackage.RequireCurrentSources(temporary), "source_override"); File.Delete(policy);
+            string extra = Path.Combine(temporary, "apps/NativeAotSocketVectors/Extra.cs");
+            File.WriteAllText(extra, "class Extra {}");
+            Reject(() => NativeAotSocketVectorsPackage.RequireCurrentSources(temporary), "app_inventory");
+            File.Delete(extra);
+            string policy = Path.Combine(temporary, "apps/Directory.Packages.props");
+            File.WriteAllText(policy, "<Project />");
+            Reject(() => NativeAotSocketVectorsPackage.RequireCurrentSources(temporary), "source_override");
+            File.Delete(policy);
             NativeAotSocketVectorsPackage.RequireCurrentSources(temporary);
         }
         finally { Directory.Delete(temporary, recursive: true); }
@@ -46,7 +52,8 @@ internal static unsafe class NativeAotSocketVectorsPackageTests
             Encoding.ASCII.GetString(text).Contains("listen=0.0.0.0:8080\n", StringComparison.Ordinal) &&
             Encoding.ASCII.GetString(text).Contains("args=--policy\n", StringComparison.Ordinal));
         HostCheck.Equal(NativeAotSocketVectorsPackage.ElfSha256.ToLowerInvariant(), Encoding.ASCII.GetString(text, (int)parsed.Digest.Offset, (int)parsed.Digest.Length));
-        fixed (byte* pointer = text) HostCheck.True(LinuxUserInterruptPolicy.TryRead(pointer, (uint)text.Length, parsed, out bool enabled) && enabled);
+        fixed (byte* pointer = text)
+            HostCheck.True(LinuxUserInterruptPolicy.TryRead(pointer, (uint)text.Length, parsed, out bool enabled) && enabled);
         Reject(() => NativeAotSocketVectorsPackage.RequirePackage([]), "identity");
     }
 
@@ -67,7 +74,11 @@ internal static unsafe class NativeAotSocketVectorsPackageTests
     private static void Reject(Action action, string reason)
     {
         string? observed = null;
-        try { action(); } catch (Exception error) when (error is InvalidDataException or ToolFailure) { observed = error.Message; }
+        try
+        {
+            action();
+        }
+        catch (Exception error) when (error is InvalidDataException or ToolFailure) { observed = error.Message; }
         HostCheck.True(observed?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + observed);
     }
 }

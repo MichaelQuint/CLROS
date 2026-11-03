@@ -8,7 +8,10 @@ internal static partial class NativeAotWebStartupTests
     {
         public override Encoding Encoding => Encoding.UTF8;
         internal StringBuilder Output { get; } = new();
-        internal int Failures { get; private set; }
+        internal int Failures
+        {
+            get; private set;
+        }
 
         public override void WriteLine(string? value)
         {

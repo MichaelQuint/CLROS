@@ -24,11 +24,8 @@ namespace OS.Boot;
 #endif
 #if M16_005_PROBE
 
-
-
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
-
 
 #endif
 #if M05_PCI_ENUMERATION_PROBE
@@ -44,7 +41,6 @@ namespace OS.Boot;
 
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
-
 
 #endif
 #if M16_025_PROBE
@@ -140,89 +136,38 @@ namespace OS.Boot;
 #endif
 #if M16_002_PROBE
 
-
-
-
 #endif
 #if M16_004_PROBE
-
-
-
-
-
-
-
 
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
 
-
-
-
-
-
-
-
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
-
-
 
 #endif
 #if M05_PCI_ENUMERATION_PROBE
 
-
-
-
 #endif
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
 
-
-
-
-
 #if M16_025_PROBE
-
-
-
-
-
 
 #endif
 #endif
 #if M05_APIC_SETUP_PROBE
 
-
-
-
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
-
 
 #endif
 #if M16_005_PROBE
 
-
-
-
-
-
-
-
 #endif
 #if M16_006_PROBE
 
-
-
-
-
-
-
 #endif
 #if M16_007_PROBE
-
-
-
 
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
@@ -232,21 +177,13 @@ namespace OS.Boot;
 
 #endif
 
-
-
-
-
 #endif
 #if M07_026_PROBE
-
-
 
 #endif
 #if M07_026_PROBE
 
 #if M16_025_PROBE
-
-
 
 #endif
 #endif
@@ -255,29 +192,17 @@ namespace OS.Boot;
 #endif
 #if M16_004_PROBE
 
-
 #endif
 #if M16_005_PROBE
 
-
-
-
 #endif
 #if M16_006_PROBE
-
-
-
-
-
-
-
 
 #endif
 #if M16_007_PROBE
 
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
-
 
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
@@ -289,12 +214,7 @@ namespace OS.Boot;
 #if M05_PCI_ENUMERATION_PROBE
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
 
-
-
-
 #if M16_025_PROBE
-
-
 
 #else
 
@@ -305,10 +225,8 @@ namespace OS.Boot;
 #endif
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
 
-
 #endif
 #if M05_APIC_SETUP_PROBE
-
 
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
@@ -489,17 +407,22 @@ public static unsafe class FirstExitCodeBundle
         if (!FirstExitTerminalFaultStub.Emit(scratch, 1024, context, callback, out uint faultBytes) || !Equal(scratch, code + FaultOffset, faultBytes) || !PortIoStubPlan.Out8.Emit(scratch, PortIoStubPlan.Out8RequiredByteLength).Succeeded || !Equal(scratch, code + Out8Offset, PortIoStubPlan.Out8RequiredByteLength) || !PortIoStubPlan.In8.Emit(scratch, PortIoStubPlan.In8RequiredByteLength).Succeeded || !Equal(scratch, code + In8Offset, PortIoStubPlan.In8RequiredByteLength) || !FirstExitOwnedStackStub.Emit(scratch, 1024, out uint entryBytes) || !Equal(scratch, code + StackEntryOffset, entryBytes) || !FirstExitPermanentCr3Stub.Emit(scratch, 1024, out uint permanentBytes) || !Equal(scratch, code + PermanentOffset, permanentBytes))
             return false;
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
-        if (!X64OwnedClockAccess.Validate(code + ClockAccessOffset, X64OwnedClockAccess.Bytes)) return false;
+        if (!X64OwnedClockAccess.Validate(code + ClockAccessOffset, X64OwnedClockAccess.Bytes))
+            return false;
 #endif
 #if M16_004_PROBE
-        if (!X64LinuxElfReadBackBridge.Validate(code + LinuxReadBackOffset, X64LinuxElfReadBackBridge.Bytes)) return false;
+        if (!X64LinuxElfReadBackBridge.Validate(code + LinuxReadBackOffset, X64LinuxElfReadBackBridge.Bytes))
+            return false;
 #endif
 #if M05_PCI_ENUMERATION_PROBE
-        if (!OS.Drivers.X64PciConfigurationRead.Validate(code + PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes)) return false;
+        if (!OS.Drivers.X64PciConfigurationRead.Validate(code + PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes))
+            return false;
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
-        if (!OS.Drivers.X64PciBarAccess.Validate(code + PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes)) return false;
+        if (!OS.Drivers.X64PciBarAccess.Validate(code + PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes))
+            return false;
 #if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
-        if (!OS.Drivers.X64VirtqueueMemoryFence.Validate(code + QueueFenceOffset, OS.Drivers.X64VirtqueueMemoryFence.Bytes)) return false;
+        if (!OS.Drivers.X64VirtqueueMemoryFence.Validate(code + QueueFenceOffset, OS.Drivers.X64VirtqueueMemoryFence.Bytes))
+            return false;
 #endif
 #endif
 #endif
@@ -509,13 +432,16 @@ public static unsafe class FirstExitCodeBundle
             !Equal(scratch, code + MappingReadMsrOffset, X64PhysicalMappingPublication.ReadMsrBytes) ||
             !X64PhysicalMappingPublication.ValidateWritePatReadBack(code + MappingWritePatOffset, X64PhysicalMappingPublication.WritePatBytes) ||
             !X64PhysicalMappingPublication.EmitReadCapabilities(scratch, 1024) ||
-            !Equal(scratch, code + MappingReadCapabilitiesOffset, X64PhysicalMappingPublication.ReadCapabilitiesBytes)) return false;
+            !Equal(scratch, code + MappingReadCapabilitiesOffset, X64PhysicalMappingPublication.ReadCapabilitiesBytes))
+            return false;
 #endif
 #if M05_APIC_SETUP_PROBE || M16_006_PROBE
-        if (!OS.Drivers.X64ApicObservation.Validate(code + ApicObservationOffset, OS.Drivers.X64ApicObservation.Bytes)) return false;
+        if (!OS.Drivers.X64ApicObservation.Validate(code + ApicObservationOffset, OS.Drivers.X64ApicObservation.Bytes))
+            return false;
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
-        if (!OS.Drivers.X64MsixInterrupt.Validate(code + MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes)) return false;
+        if (!OS.Drivers.X64MsixInterrupt.Validate(code + MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes))
+            return false;
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
         if (!OS.Kernel.Threading.ThreadContextSwitch.EmitObserver(scratch, OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) ||
@@ -524,7 +450,8 @@ public static unsafe class FirstExitCodeBundle
             !Equal(scratch, code + CooperativeFxOffset, OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes) ||
             !OS.Kernel.Threading.ThreadContextSwitch.EmitOwnedSegments(scratch, OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes) ||
             !Equal(scratch, code + CooperativeSegmentsOffset, OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes) ||
-            !X64PhysicalMappingPublication.ValidateGuardPublication(code + CooperativePublishOffset, X64PhysicalMappingPublication.GuardRequiredBytes)) return false;
+            !X64PhysicalMappingPublication.ValidateGuardPublication(code + CooperativePublishOffset, X64PhysicalMappingPublication.GuardRequiredBytes))
+            return false;
 #endif
         // Most retained bytes are zero padding. Only nonzero bytes need the
         // export-membership checks; each exported body was checked above.

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public unsafe struct LinuxSyscallAdmission
 {
     public ulong UserRoot;

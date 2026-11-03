@@ -1,5 +1,11 @@
 # Repository Audit
 
+[Step1736](../done/step1736.md) records21 reviewed NVMe formatting files and the
+explicit host C# HTTP benchmark API. Its associated types use separate files and
+partial containing wrappers; source-style controls pass. The r134 graph and49
+fresh focused checks pass, unchanged inputs/zero reuse, with independent5862-
+source/31-producer readback. No EFI link/pin changes or guest/browser acceptance.
+
 [Step1735](../done/step1735.md) records the three-path FIFO stack repair, r132
 graph/27 focused checks and complete conditional native attribution. Candidate A
 exceeds conservative diagnostic policy and never activates; B retains all own

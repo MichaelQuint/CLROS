@@ -4,6 +4,7 @@ using System.Text;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class WebRootImageFixture
 {
     private sealed class Reader
@@ -39,7 +40,7 @@ public static partial class WebRootImageFixture
             for (uint cluster = 2; cluster < volume.ClusterCount + 2; cluster++)
                 if (RawNext(cluster) == 0)
                     free++;
-            Need(U32(disk, info + 488)is uint.MaxValue || U32(disk, info + 488) == free, "free_count");
+            Need(U32(disk, info + 488) is uint.MaxValue || U32(disk, info + 488) == free, "free_count");
             uint hint = U32(disk, info + 492);
             Need(hint == uint.MaxValue || hint >= 2 && hint < volume.ClusterCount + 2 && RawNext(hint) == 0, "free_hint");
             RootEntries = ReadDirectory(volume.RootCluster);
@@ -113,11 +114,11 @@ public static partial class WebRootImageFixture
                     string extension = Encoding.ASCII.GetString(Disk, position + 8, 3).TrimEnd(' ');
                     if (extension.Length != 0)
                         alias += "." + extension;
-                    string actual = parsed.NameLength == 0 ? alias : new string (name.Take(parsed.NameLength).Select(x => (char)x).ToArray());
+                    string actual = parsed.NameLength == 0 ? alias : new string(name.Take(parsed.NameLength).Select(x => (char)x).ToArray());
                     Need(names.Add(actual), "directory_case_collision");
                     if (!alias.Equals(actual, StringComparison.OrdinalIgnoreCase))
                         Need(names.Add(alias), "directory_alias_collision");
-                    entries.Add(new(actual, alias, parsed.FirstCluster, parsed.ByteCount, parsed.Attributes, U16(Disk, position + 24), U16(Disk, position + 22), [..longNameSlots, position]));
+                    entries.Add(new(actual, alias, parsed.FirstCluster, parsed.ByteCount, parsed.Attributes, U16(Disk, position + 24), U16(Disk, position + 22), [.. longNameSlots, position]));
                     longNameSlots.Clear();
                 }
 

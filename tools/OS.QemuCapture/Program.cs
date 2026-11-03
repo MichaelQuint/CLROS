@@ -23,7 +23,7 @@ internal static partial class Program
     private static readonly string[] M02GuestMarkers = OS.Tooling.QemuContracts.M02SafeStubRequiredMarkers.ToArray();
     private static readonly string[] ForbiddenMarkers = OS.Tooling.QemuContracts.M01StageThreeForbiddenMarkers.ToArray();
     private static readonly string[] M02ForbiddenMarkers = OS.Tooling.QemuContracts.M02SafeStubForbiddenMarkers.ToArray();
-    private static readonly object LogLock = new object ();
+    private static readonly object LogLock = new object();
     private static StreamWriter? s_log;
     public static int Main(string[] args)
     {

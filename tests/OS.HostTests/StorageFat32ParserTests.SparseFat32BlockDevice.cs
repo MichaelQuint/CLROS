@@ -26,12 +26,24 @@ internal static partial class StorageFat32ParserTests
             BootSector[511] = 0xAA;
         }
 
-        public BlockDeviceInfo Info { get; }
-        public byte[] BootSector { get; }
+        public BlockDeviceInfo Info
+        {
+            get;
+        }
+        public byte[] BootSector
+        {
+            get;
+        }
         public ulong FirstFatLba => PartitionStartLba + ReservedSectorCount;
         public ulong FirstDataLba => FirstFatLba + FatCount * fatSectors;
-        public int ReadCount { get; private set; }
-        public ulong? FailedLba { get; set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
+        public ulong? FailedLba
+        {
+            get; set;
+        }
 
         public byte[] GetSector(ulong lba)
         {
@@ -54,14 +66,17 @@ internal static partial class StorageFat32ParserTests
         {
             ReadCount++;
             BlockReadResult result = BlockDeviceRead.Validate(Info, firstBlock, blockCount, destination);
-            if (!result.Succeeded) return result;
+            if (!result.Succeeded)
+                return result;
             if (FailedLba is ulong failed && failed >= firstBlock && failed - firstBlock < blockCount)
                 return BlockReadResult.Fail(BlockDeviceStatus.IoError);
             for (uint index = 0; index < blockCount; index++)
             {
                 Span<byte> block = destination.Slice((int)(index * SectorSize), (int)SectorSize);
-                if (sectors.TryGetValue(firstBlock + index, out byte[]? sector)) sector.AsSpan().CopyTo(block);
-                else block.Clear();
+                if (sectors.TryGetValue(firstBlock + index, out byte[]? sector))
+                    sector.AsSpan().CopyTo(block);
+                else
+                    block.Clear();
             }
 
             return result;

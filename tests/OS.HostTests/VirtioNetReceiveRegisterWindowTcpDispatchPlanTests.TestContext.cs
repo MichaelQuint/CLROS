@@ -20,10 +20,25 @@ internal static partial class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             QueuePlan = queuePlan;
         }
 
-        public VirtioPciBarApertureSet Apertures { get; }
-        public VirtioPciBarRegisterWindowBindingResult RegisterWindows { get; }
-        public VirtioNetQueueMmioSetupPlanResult QueueSetup { get; }
-        public VirtioNetQueueMmioSetupCommand[] QueueSetupCommands { get; }
-        public VirtioNetQueuePlanResult QueuePlan { get; }
+        public VirtioPciBarApertureSet Apertures
+        {
+            get;
+        }
+        public VirtioPciBarRegisterWindowBindingResult RegisterWindows
+        {
+            get;
+        }
+        public VirtioNetQueueMmioSetupPlanResult QueueSetup
+        {
+            get;
+        }
+        public VirtioNetQueueMmioSetupCommand[] QueueSetupCommands
+        {
+            get;
+        }
+        public VirtioNetQueuePlanResult QueuePlan
+        {
+            get;
+        }
     }
 }

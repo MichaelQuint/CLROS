@@ -1,6 +1,7 @@
 using RingEngine = global::OS.Drivers.ContinuingVirtioNet;
 
 namespace OS.Drivers;
+
 public static unsafe partial class ContinuingVirtioNetDevice
 {
     /// <summary>Trusted live monotonic nanoseconds. Return1 only for a real

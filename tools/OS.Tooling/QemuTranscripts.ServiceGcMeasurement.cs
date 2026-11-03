@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied GC values from one fd2 measurement. These describe

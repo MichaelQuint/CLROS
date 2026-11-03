@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public static unsafe partial class BootReservationTableValidator
 {
     private struct ValidationState

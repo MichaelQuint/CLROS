@@ -17,7 +17,13 @@ internal static partial class KestrelSmokePackageContractTests
             this.Output = output;
         }
 
-        public int ExitCode { get; }
-        public string Output { get; }
+        public int ExitCode
+        {
+            get;
+        }
+        public string Output
+        {
+            get;
+        }
     }
 }

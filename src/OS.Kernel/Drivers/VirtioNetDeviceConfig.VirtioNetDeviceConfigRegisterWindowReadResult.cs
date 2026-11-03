@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 using OS.Std.Binary;
 
@@ -26,24 +27,78 @@ public readonly struct VirtioNetDeviceConfigRegisterWindowReadResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioNetDeviceConfigRegisterWindowReadStatus Status { get; }
-    public VirtioNetDeviceConfigStatus ConfigStatus { get; }
-    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus { get; }
-    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus { get; }
-    public VirtioNetDeviceConfig Config { get; }
-    public int ScratchLength { get; }
-    public int BytesRead { get; }
-    public int BytesConsumed { get; }
-    public bool StatusFieldAttempted { get; }
-    public bool StatusFieldRead { get; }
-    public VirtioPciCapabilityType CapabilityType { get; }
-    public byte BarIndex { get; }
-    public uint LastRelativeOffset { get; }
-    public VirtioPciRegisterAccessWidth LastAccessWidth { get; }
-    public uint LastAccessWidthBytes { get; }
-    public ulong LastBarRelativeOffset { get; }
-    public ulong LastValue { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetDeviceConfigRegisterWindowReadStatus Status
+    {
+        get;
+    }
+    public VirtioNetDeviceConfigStatus ConfigStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus
+    {
+        get;
+    }
+    public VirtioNetDeviceConfig Config
+    {
+        get;
+    }
+    public int ScratchLength
+    {
+        get;
+    }
+    public int BytesRead
+    {
+        get;
+    }
+    public int BytesConsumed
+    {
+        get;
+    }
+    public bool StatusFieldAttempted
+    {
+        get;
+    }
+    public bool StatusFieldRead
+    {
+        get;
+    }
+    public VirtioPciCapabilityType CapabilityType
+    {
+        get;
+    }
+    public byte BarIndex
+    {
+        get;
+    }
+    public uint LastRelativeOffset
+    {
+        get;
+    }
+    public VirtioPciRegisterAccessWidth LastAccessWidth
+    {
+        get;
+    }
+    public uint LastAccessWidthBytes
+    {
+        get;
+    }
+    public ulong LastBarRelativeOffset
+    {
+        get;
+    }
+    public ulong LastValue
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetDeviceConfigRegisterWindowReadStatus.Success;
 
     internal static VirtioNetDeviceConfigRegisterWindowReadResult FromAccess(VirtioNetDeviceConfigRegisterWindowReadStatus status, VirtioNetDeviceConfigStatus configStatus, VirtioPciBarRegisterWindowPlanStatus registerWindowPlanStatus, VirtioPciBarRegisterWindowAccessExecutionStatus accessExecutionStatus, VirtioNetDeviceConfig config, int scratchLength, int bytesRead, int bytesConsumed, bool statusFieldAttempted, bool statusFieldRead, VirtioPciBarRegisterWindowAccessExecutionResult access)

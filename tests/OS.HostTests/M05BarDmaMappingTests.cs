@@ -39,7 +39,7 @@ internal static unsafe partial class M05BarDmaMappingTests
         image.Entries[image.Leaf(Root)] |= 0x60; // Writable WB table backing permits Accessed/Dirty.
         image.Entries[0] |= 0x20; // A table pointer permits Accessed, but not Dirty.
         HostCheck.True(image.Audit().Succeeded);
-        foreach ((ulong address, ulong xor)in new[]
+        foreach ((ulong address, ulong xor) in new[]
         {
             (0xe002f000UL, 2UL),
             (0xe0031000UL, 2UL),

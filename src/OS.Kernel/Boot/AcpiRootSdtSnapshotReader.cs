@@ -2,6 +2,7 @@ using OS.Kernel.Platform;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public static class AcpiRootSdtSnapshotReader
 {
     public static AcpiRootSdtSnapshotResult ReadAndValidate(AcpiRsdpSnapshotResult rsdpSnapshot, IPlatformPhysicalMemory physicalMemory, Span<byte> headerScratch, Span<byte> tableDestination)

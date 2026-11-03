@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 using OS.Std.Memory;
 
@@ -20,19 +21,55 @@ public readonly struct TcpPassiveIpv4FramePlannerInfo
         MaximumSegmentSize = maximumSegmentSize;
     }
 
-    public MacAddress LocalMac { get; }
-    public MacAddress RemoteMac { get; }
-    public Ipv4Address LocalAddress { get; }
-    public Ipv4Address RemoteAddress { get; }
-    public ushort LocalPort { get; }
-    public ushort RemotePort { get; }
-    public uint InitialSequenceNumber { get; }
-    public ushort WindowSize { get; }
-    public byte TimeToLive { get; }
-    public ushort Identification { get; }
-    public ushort TcpChecksum { get; }
+    public MacAddress LocalMac
+    {
+        get;
+    }
+    public MacAddress RemoteMac
+    {
+        get;
+    }
+    public Ipv4Address LocalAddress
+    {
+        get;
+    }
+    public Ipv4Address RemoteAddress
+    {
+        get;
+    }
+    public ushort LocalPort
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
+    public uint InitialSequenceNumber
+    {
+        get;
+    }
+    public ushort WindowSize
+    {
+        get;
+    }
+    public byte TimeToLive
+    {
+        get;
+    }
+    public ushort Identification
+    {
+        get;
+    }
+    public ushort TcpChecksum
+    {
+        get;
+    }
     /// <summary>Local receive MSS advertised in SYN-ACK; zero keeps the legacy
     /// no-option reply. This does not describe the peer's negotiated send limit.</summary>
 
-    public ushort MaximumSegmentSize { get; }
+    public ushort MaximumSegmentSize
+    {
+        get;
+    }
 }

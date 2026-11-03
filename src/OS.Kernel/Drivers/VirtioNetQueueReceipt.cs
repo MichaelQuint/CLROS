@@ -1,6 +1,7 @@
 using OS.Std.Memory;
 
 namespace OS.Drivers;
+
 public struct VirtioNetQueueReceipt
 {
     public ushort Index, MaximumSize, Size, NotifyOffset, AvailableIndex;

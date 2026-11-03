@@ -57,36 +57,43 @@ internal sealed class EfiLeafReuseSources(CSharpSourceCatalog catalog)
                 // Count all bound references beneath every owner declaration.
                 foreach (var name in declaration.DescendantNodes().OfType<SimpleNameSyntax>())
                 {
-                    if (!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(name).Symbol, walkSymbol)) continue;
+                    if (!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(name).Symbol, walkSymbol))
+                        continue;
                     var invocation = name.Ancestors().OfType<InvocationExpressionSyntax>()
                         .FirstOrDefault(call => call.Expression.Span.Contains(name.Span));
-                    if (invocation is null || !SymbolEqualityComparer.Default.Equals(catalog.Invocation(invocation), walkSymbol)) return false;
+                    if (invocation is null || !SymbolEqualityComparer.Default.Equals(catalog.Invocation(invocation), walkSymbol))
+                        return false;
                     references++;
                 }
             }
-            if (references != 2) return false;
+            if (references != 2)
+                return false;
 
             foreach (string name in new[] { "CooperativeFindLeaf", "CooperativeAuditPool" })
             {
                 var method = Method(name);
                 var admission = Calls(method, "CooperativeAdmitPool");
                 var walks = Calls(method, "CooperativeWalkPoolLeaf");
-                if (admission.Length != 1 || walks.Length != 1) return false;
+                if (admission.Length != 1 || walks.Length != 1)
+                    return false;
                 var admitted = Syntax(admission[0]);
                 var walked = Syntax(walks[0]);
                 if (admitted.Parent is not PrefixUnaryExpressionSyntax unary || !unary.IsKind(SyntaxKind.LogicalNotExpression)
                     || unary.Parent is not IfStatementSyntax gate || gate.Condition != unary || gate.Parent != method.Body
-                    || !FalseReturn(gate.Statement) || gate.Span.End > walked.SpanStart) return false;
+                    || !FalseReturn(gate.Statement) || gate.Span.End > walked.SpanStart)
+                    return false;
                 if (name == "CooperativeFindLeaf")
                 {
-                    if (walked.Parent is not ReturnStatementSyntax) return false;
+                    if (walked.Parent is not ReturnStatementSyntax)
+                        return false;
                 }
                 else
                 {
                     var loops = method.DescendantNodes().OfType<ForStatementSyntax>().ToArray();
                     if (loops.Length != 1 || loops[0].Parent != method.Body || !walked.Ancestors().Contains(loops[0])
                         || !Calls(method, "CooperativeGuardPage").Any(call => call.Syntax.Ancestors().Contains(loops[0]))
-                        || !Calls(method, Decoder, "TryDecode").Any(call => call.Syntax.Ancestors().Contains(loops[0]))) return false;
+                        || !Calls(method, Decoder, "TryDecode").Any(call => call.Syntax.Ancestors().Contains(loops[0])))
+                        return false;
                 }
             }
             return catalog.MethodInvocations(walk).All(call =>
@@ -106,7 +113,8 @@ internal sealed class EfiLeafReuseSources(CSharpSourceCatalog catalog)
             var parameters = Symbol(walk).Parameters;
             if (!PoolBoundary() || parameters.Length != 7
                 || !walk.ParameterList.Parameters.Skip(5).All(parameter => parameter.Default?.Value.IsKind(SyntaxKind.NullLiteralExpression) == true)
-                || Syntax(Calls(find, "CooperativeWalkPoolLeaf").Single()).ArgumentList.Arguments.Count != 5) return false;
+                || Syntax(Calls(find, "CooperativeWalkPoolLeaf").Single()).ArgumentList.Arguments.Count != 5)
+                return false;
 
             var firstDecode = Calls(walk, Decoder, "TryDecode").Single();
             var firstRaw = Local(firstDecode, 1);
@@ -115,15 +123,19 @@ internal sealed class EfiLeafReuseSources(CSharpSourceCatalog catalog)
             if (firstRaw.Initializer?.Value is not PrefixUnaryExpressionSyntax firstRead
                 || !firstRead.IsKind(SyntaxKind.PointerIndirectionExpression)
                 || !Context(walkModel, firstContext.Initializer!.Value, parameters[0])
-                || !(firstRaw.SpanStart < firstContext.SpanStart && firstContext.SpanStart < firstDecode.Syntax.SpanStart)) return false;
+                || !(firstRaw.SpanStart < firstContext.SpanStart && firstContext.SpanStart < firstDecode.Syntax.SpanStart))
+                return false;
             var slot = walkModel.GetSymbolInfo(firstRead.Operand).Symbol;
             if (slot is not ILocalSymbol || walk.DescendantNodes().OfType<AssignmentExpressionSyntax>().Count(assignment =>
                 SymbolEqualityComparer.Default.Equals(walkModel.GetSymbolInfo(assignment.Left).Symbol, parameters[4])
-                && SymbolEqualityComparer.Default.Equals(walkModel.GetSymbolInfo(assignment.Right).Symbol, slot)) != 1) return false;
+                && SymbolEqualityComparer.Default.Equals(walkModel.GetSymbolInfo(assignment.Right).Symbol, slot)) != 1)
+                return false;
             var levelExpression = Syntax(firstDecode).ArgumentList.Arguments[0].Expression;
-            if (levelExpression is not CastExpressionSyntax cast) return false;
+            if (levelExpression is not CastExpressionSyntax cast)
+                return false;
             var level = walkModel.GetSymbolInfo(cast.Expression).Symbol;
-            if (level is not ILocalSymbol) return false;
+            if (level is not ILocalSymbol)
+                return false;
             foreach (var parameter in parameters.Skip(5))
             {
                 var stores = walk.DescendantNodes().OfType<AssignmentExpressionSyntax>().Where(assignment =>
@@ -132,7 +144,8 @@ internal sealed class EfiLeafReuseSources(CSharpSourceCatalog catalog)
                 if (stores.Length != 1 || !stores[0].Ancestors().OfType<IfStatementSyntax>().Any(gate =>
                     gate.Condition is BinaryExpressionSyntax equal && equal.IsKind(SyntaxKind.EqualsExpression)
                     && SymbolEqualityComparer.Default.Equals(walkModel.GetSymbolInfo(equal.Left).Symbol, level)
-                    && walkModel.GetConstantValue(equal.Right) is { HasValue: true, Value: int value } && value == 1)) return false;
+                    && walkModel.GetConstantValue(equal.Right) is { HasValue: true, Value: int value } && value == 1))
+                    return false;
             }
 
             var call = Calls(audit, "CooperativeWalkPoolLeaf").Single();
@@ -143,12 +156,14 @@ internal sealed class EfiLeafReuseSources(CSharpSourceCatalog catalog)
             var secondReads = audit.DescendantNodes().OfType<VariableDeclaratorSyntax>().Where(variable =>
                 variable.Initializer?.Value is PrefixUnaryExpressionSyntax pointer && pointer.IsKind(SyntaxKind.PointerIndirectionExpression)
                 && SymbolEqualityComparer.Default.Equals(auditModel.GetSymbolInfo(pointer.Operand).Symbol, leaf)).ToArray();
-            if (leaf is null || secondReads.Length != 1) return false;
+            if (leaf is null || secondReads.Length != 1)
+                return false;
             var guard = Calls(audit, "CooperativeGuardPage").Single();
             var fallback = Calls(audit, Decoder, "TryDecode").Single();
             var secondContext = Local(fallback, 2);
             if (!SymbolEqualityComparer.Default.Equals(auditModel.GetDeclaredSymbol(secondReads[0]),
-                auditModel.GetDeclaredSymbol(Local(fallback, 1)))) return false;
+                auditModel.GetDeclaredSymbol(Local(fallback, 1))))
+                return false;
             var admission = Syntax(Calls(audit, "CooperativeAdmitPool").Single());
             var memoryExpression = admission.ArgumentList.Arguments[2].Expression;
             ISymbol? memory = memoryExpression is DeclarationExpressionSyntax memoryDeclaration
@@ -169,7 +184,8 @@ internal sealed class EfiLeafReuseSources(CSharpSourceCatalog catalog)
     private VariableDeclaratorSyntax Local(IInvocationOperation invocation, int ordinal)
     {
         IOperation value = invocation.Arguments.Single(argument => argument.Parameter!.Ordinal == ordinal).Value;
-        while (value is IConversionOperation { Conversion.IsIdentity: true } conversion) value = conversion.Operand;
+        while (value is IConversionOperation { Conversion.IsIdentity: true } conversion)
+            value = conversion.Operand;
         if (value is not ILocalReferenceOperation local || local.Local.DeclaringSyntaxReferences.Single().GetSyntax() is not VariableDeclaratorSyntax { Initializer: not null } variable)
             throw new InvalidOperationException("leaf_source_local");
         return variable;

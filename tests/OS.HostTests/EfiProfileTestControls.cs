@@ -29,7 +29,8 @@ internal static partial class EfiProfileTestControls
         // of the DMA profiles below. Admit its exact owner/receipt arguments and
         // ordered post-exit edge; leave every other raw occurrence visible.
         {
-            if (!TryGetCooperativeSource(source, out var root, out var owner, out reason)) return false;
+            if (!TryGetCooperativeSource(source, out var root, out var owner, out reason))
+                return false;
             var invocations = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>().ToArray();
             var calls = invocations.Where(i => i.Expression.ToString() == call).ToArray();
             string expected = call.EndsWith(".AllocateOnePage", StringComparison.Ordinal)
@@ -38,37 +39,43 @@ internal static partial class EfiProfileTestControls
             static string Tokens(Microsoft.CodeAnalysis.SyntaxNode node) => string.Concat(node.DescendantTokens().Select(token => token.Text));
             reason = "M09_004_PROBE:allocator-owner-receipt";
             if (calls.Length != 1 || Tokens(calls[0].ArgumentList) != expected ||
-                !SameOwner(calls[0], owner)) return false;
+                !SameOwner(calls[0], owner))
+                return false;
             if (call.EndsWith(".AllocateOnePage", StringComparison.Ordinal))
             {
                 var receipts = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>()
                     .Where(d => d.Declaration.Variables.Any(v => v.Identifier.Text == "receipts")).ToArray();
                 reason = "M09_004_PROBE:receipt-storage";
                 if (receipts.Length != 1 || Tokens(receipts[0]) !=
-                    "BootPageAllocatorOnePageResult*receipts=stackallocBootPageAllocatorOnePageResult[20];") return false;
+                    "BootPageAllocatorOnePageResult*receipts=stackallocBootPageAllocatorOnePageResult[20];")
+                    return false;
                 admitted.Add((receipts[0].SyntaxTree.FilePath, receipts[0].SpanStart, receipts[0].Span.Length));
             }
             admitted.Add((calls[0].Expression.SyntaxTree.FilePath, calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
         }
         {
-            if (!TryGetSchedulerTimerSource(source, out var root, out var owner, out reason)) return false;
+            if (!TryGetSchedulerTimerSource(source, out var root, out var owner, out reason))
+                return false;
             var calls = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
                 .Where(i => i.Expression.ToString() == call).ToArray();
             reason = "M09_005_PROBE:allocator-owner-receipt";
             if (calls.Length != 2 || calls.Count(i => i.Ancestors().OfType<MethodDeclarationSyntax>()
-                .FirstOrDefault()?.Identifier.Text == "RunCooperativeSwitch") != 1) return false;
+                .FirstOrDefault()?.Identifier.Text == "RunCooperativeSwitch") != 1)
+                return false;
             calls = calls.Where(i => SameOwner(i, owner)).ToArray();
             string expected = call.EndsWith(".AllocateOnePage", StringComparison.Ordinal)
                 ? "(allocator,&node,1,1,null,0,0,1,Page)"
                 : "(allocator,&node,1,1,null,0,0,receipts[i-1])";
-            if (calls.Length != 1 || Tokens(calls[0].ArgumentList) != expected) return false;
+            if (calls.Length != 1 || Tokens(calls[0].ArgumentList) != expected)
+                return false;
             var loop = calls[0].Ancestors().OfType<ForStatementSyntax>().FirstOrDefault();
             bool allocate = call.EndsWith(".AllocateOnePage", StringComparison.Ordinal);
             reason = "M09_005_PROBE:receipt-loop";
             if (loop is null || loop.Condition is null || Tokens(loop.Condition) != (allocate ? "borrowed<22" : "i>0") ||
                 loop.Incrementors.Count != 1 || Tokens(loop.Incrementors[0]) != (allocate ? "borrowed++" : "i--") ||
                 (allocate ? loop.Declaration is not null || loop.Initializers.Count != 0 :
-                    loop.Declaration is null || Tokens(loop.Declaration) != "uinti=borrowed" || loop.Initializers.Count != 0)) return false;
+                    loop.Declaration is null || Tokens(loop.Declaration) != "uinti=borrowed" || loop.Initializers.Count != 0))
+                return false;
             if (call.EndsWith(".AllocateOnePage", StringComparison.Ordinal))
             {
                 var receipts = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>()
@@ -97,29 +104,35 @@ internal static partial class EfiProfileTestControls
             var tree = SourceForest.Parse(source,
                 new CSharpParseOptions(LanguageVersion.CSharp14, preprocessorSymbols: symbols));
             reason = symbol + ":syntax " + string.Join(" | ", tree.GetDiagnostics().Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
-            if (tree.GetDiagnostics().Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)) return false;
+            if (tree.GetDiagnostics().Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error))
+                return false;
             var root = tree;
             var methods = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>();
             reason = symbol + ":entry-body";
             if (methods.Count(m => m.Identifier.Text == entry) != 1 || methods.Count(m => m.Identifier.Text == body) != 1
-                || methods.Where(m => m.Identifier.Text == entry || m.Identifier.Text == body).Any(m => !IsAllocatorOwner(m))) return false;
+                || methods.Where(m => m.Identifier.Text == entry || m.Identifier.Text == body).Any(m => !IsAllocatorOwner(m)))
+                return false;
             var invocations = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>().ToArray();
             var calls = invocations.Where(i => i.Expression.ToString() == call).ToArray();
-            if (calls.Any(i => !IsAllocatorOwner(i.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()))) return false;
+            if (calls.Any(i => !IsAllocatorOwner(i.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault())))
+                return false;
             var payloadCalls = calls.Where(i => i.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
                 .FirstOrDefault()?.Identifier.Text == "StagePackagePayload").ToArray();
             if (symbol == "M06_PACKAGE_READ_PROBE")
             {
-                if (payloadCalls.Length != 1 || calls.Length != 2) return false;
+                if (payloadCalls.Length != 1 || calls.Length != 2)
+                    return false;
                 var payloadEdges = invocations.Where(i => i.Expression.ToString() == "StagePackagePayload").ToArray();
                 if (payloadEdges.Length != 1 || !IsAllocatorOwner(payloadEdges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault())
                     || !ArgumentsEqual(payloadEdges[0], "(state, packageBytes, selectedPath)") ||
                     payloadEdges[0].Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
-                        .FirstOrDefault()?.Identifier.Text != "RunPackageReadCore") return false;
+                        .FirstOrDefault()?.Identifier.Text != "RunPackageReadCore")
+                    return false;
                 string expectedPayload = call.EndsWith(".AllocateOnePage", StringComparison.Ordinal)
                     ? "(before, &owner->FreeNodeValue, 1, 1, null, 0, 0, 1, 4096)"
                     : "(owner->AllocatorStateValue, &owner->FreeNodeValue, 1, 1, null, 0, 0, allocation)";
-                if (!ArgumentsEqual(payloadCalls[0], expectedPayload)) return false;
+                if (!ArgumentsEqual(payloadCalls[0], expectedPayload))
+                    return false;
                 admitted.Add((payloadCalls[0].Expression.SyntaxTree.FilePath, payloadCalls[0].Expression.SpanStart, payloadCalls[0].Expression.Span.Length));
                 calls = calls.Except(payloadCalls).ToArray();
             }
@@ -128,7 +141,8 @@ internal static partial class EfiProfileTestControls
             {
                 if (calls.Length != 3 || new[] { "RunQueueCore", "RunNetCore" }.Any(parent =>
                     calls.Count(i => i.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
-                        .FirstOrDefault()?.Identifier.Text == parent) != 1)) return false;
+                        .FirstOrDefault()?.Identifier.Text == parent) != 1))
+                    return false;
                 calls = calls.Where(i => i.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
                     .FirstOrDefault()?.Identifier.Text == body).ToArray();
             }
@@ -137,36 +151,44 @@ internal static partial class EfiProfileTestControls
                 // Its required polling parent has its own separately admitted
                 // transaction. Admit only this child here, preserving that audit.
                 if (calls.Length != 2 || calls.Count(i => i.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
-                    .FirstOrDefault()?.Identifier.Text == "RunQueueCore") != 1) return false;
+                    .FirstOrDefault()?.Identifier.Text == "RunQueueCore") != 1)
+                    return false;
                 calls = calls.Where(i => i.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
                     .FirstOrDefault()?.Identifier.Text == body).ToArray();
             }
             if (calls.Length != 1 || calls[0].Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
-                .FirstOrDefault()?.Identifier.Text != body) return false;
+                .FirstOrDefault()?.Identifier.Text != body)
+                return false;
             if (body != entry)
             {
                 var edges = invocations.Where(i => i.Expression.ToString() == body).ToArray();
-                if (edges.Any(edge => !IsAllocatorOwner(edge.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()))) return false;
+                if (edges.Any(edge => !IsAllocatorOwner(edge.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault())))
+                    return false;
                 reason = symbol + ":shared-body-caller " + edges.Length;
                 string[] expectedCallers = symbol == "M06_PACKAGE_READ_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", "ReadGptSector", "ReadFatSector", entry] : symbol == "M06_FAT_READ_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", "ReadGptSector", entry] : symbol == "M06_GPT_PARTITION_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", entry] : symbol == "M06_LIVE_BLOCK_CONTRACT_PROBE" ? ["RunOwnedVirtioBlockRead", entry] : [entry];
                 if (!edges.Select(e => e.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
-                    .FirstOrDefault()?.Identifier.Text).Order().SequenceEqual(expectedCallers.Order())) return false;
+                    .FirstOrDefault()?.Identifier.Text).Order().SequenceEqual(expectedCallers.Order()))
+                    return false;
                 InvocationExpressionSyntax Edge(string caller) => edges.Single(edge => edge.Ancestors().OfType<MethodDeclarationSyntax>()
                     .FirstOrDefault()?.Identifier.ValueText == caller);
                 if (symbol == "M06_FAT_READ_PROBE" &&
                     (!ArgumentsEqual(Edge("RunOwnedVirtioBlockRead"), "(state)") || !ArgumentsEqual(Edge("RunOwnedLiveBlockContract"), "(state, true)") ||
                      !ArgumentsEqual(Edge("ReadGptSector"), "(state, false, destination, sector, reads + 4UL)") ||
-                     !ArgumentsEqual(Edge("ReadFatSector"), "(state, false, destination, sector, reads + 70UL, true)"))) return false;
+                     !ArgumentsEqual(Edge("ReadFatSector"), "(state, false, destination, sector, reads + 70UL, true)")))
+                    return false;
                 if (symbol == "M06_PACKAGE_READ_PROBE" &&
                     (!ArgumentsEqual(Edge("RunOwnedVirtioBlockRead"), "(state)") || !ArgumentsEqual(Edge("RunOwnedLiveBlockContract"), "(state, true)") ||
                      !ArgumentsEqual(Edge("ReadGptSector"), "(state, false, destination, sector, reads + 4UL)") ||
                      !ArgumentsEqual(Edge("ReadFatSector"), "(state, false, destination, sector, reads + 70UL, true)") ||
-                     !ArgumentsEqual(Edge("ReadPackageSector"), "(state, false, destination, sector, reads + 134UL, false, true)"))) return false;
+                     !ArgumentsEqual(Edge("ReadPackageSector"), "(state, false, destination, sector, reads + 134UL, false, true)")))
+                    return false;
                 if (symbol == "M06_GPT_PARTITION_PROBE" &&
                     (!ArgumentsEqual(Edge("RunOwnedVirtioBlockRead"), "(state)") || !ArgumentsEqual(Edge("RunOwnedLiveBlockContract"), "(state, true)") ||
-                     !ArgumentsEqual(Edge("ReadGptSector"), "(state, false, destination, sector, reads + 4UL)"))) return false;
+                     !ArgumentsEqual(Edge("ReadGptSector"), "(state, false, destination, sector, reads + 4UL)")))
+                    return false;
                 if (symbol == "M06_LIVE_BLOCK_CONTRACT_PROBE" &&
-                    (!ArgumentsEqual(Edge("RunOwnedVirtioBlockRead"), "(state)") || !ArgumentsEqual(Edge("RunOwnedLiveBlockContract"), "(state, true)"))) return false;
+                    (!ArgumentsEqual(Edge("RunOwnedVirtioBlockRead"), "(state)") || !ArgumentsEqual(Edge("RunOwnedLiveBlockContract"), "(state, true)")))
+                    return false;
             }
             admitted.Add((calls[0].Expression.SyntaxTree.FilePath, calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
         }
@@ -197,9 +219,11 @@ internal static partial class EfiProfileTestControls
         var admitted = new SortedSet<(string Path, int Start, int Length)>();
         foreach (bool timer in new[] { false, true })
         {
-            SourceForest root; MethodDeclarationSyntax owner;
+            SourceForest root;
+            MethodDeclarationSyntax owner;
             if (timer ? !TryGetSchedulerTimerSource(source, out root, out owner, out reason) :
-                !TryGetCooperativeSource(source, out root, out owner, out reason)) return false;
+                !TryGetCooperativeSource(source, out root, out owner, out reason))
+                return false;
             string symbol = timer ? "M09_005_PROBE" : "M09_004_PROBE";
             var calls = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
                 .Where(i => i.Expression.ToString() == "BootPageAllocatorStateMaterializer.Materialize").ToArray();
@@ -207,13 +231,15 @@ internal static partial class EfiProfileTestControls
             {
                 reason = symbol + ":materializer-call-count";
                 if (calls.Length != 2 || calls.Count(i => i.Ancestors().OfType<MethodDeclarationSyntax>()
-                    .FirstOrDefault()?.Identifier.Text == "RunCooperativeSwitch") != 1) return false;
+                    .FirstOrDefault()?.Identifier.Text == "RunCooperativeSwitch") != 1)
+                    return false;
                 calls = calls.Where(i => SameOwner(i, owner)).ToArray();
             }
             reason = symbol + ":materializer-owner-arguments";
             if (calls.Length != 1 || Tokens(calls[0].ArgumentList) !=
                 "(&node,1,1,1,0,Page,32,32*Page,&allocator,1)" ||
-                !SameOwner(calls[0], owner)) return false;
+                !SameOwner(calls[0], owner))
+                return false;
             var declarations = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>().ToArray();
             string[] expected = ["ulongpool=state->CooperativePool;",
                 "BootPageFreeListNodenode=new(0,0,pool,pool+32*Page,32,32*Page,-1);",
@@ -223,14 +249,16 @@ internal static partial class EfiProfileTestControls
             foreach (string declaration in expected)
             {
                 var matches = declarations.Where(d => Tokens(d) == declaration).ToArray();
-                if (matches.Length != 1 || matches[0].SpanStart <= previous || matches[0].SpanStart >= calls[0].SpanStart) return false;
+                if (matches.Length != 1 || matches[0].SpanStart <= previous || matches[0].SpanStart >= calls[0].SpanStart)
+                    return false;
                 previous = matches[0].SpanStart;
             }
             reason = symbol + ":materializer-failure-arm";
             if (calls[0].Parent is not MemberAccessExpressionSyntax succeeded || succeeded.Name.Identifier.Text != "Succeeded" ||
                 succeeded.Parent is not PrefixUnaryExpressionSyntax condition || !condition.IsKind(SyntaxKind.LogicalNotExpression) ||
                 condition.Parent is not IfStatementSyntax branch || branch.Condition != condition || branch.Else is not null ||
-                Tokens(branch.Statement) != (timer ? "returnfalse;" : "{_=CooperativeMarker(state,3);returnfalse;}")) return false;
+                Tokens(branch.Statement) != (timer ? "returnfalse;" : "{_=CooperativeMarker(state,3);returnfalse;}"))
+                return false;
             admitted.Add((calls[0].Expression.SyntaxTree.FilePath, calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
         }
         var stripped = new Dictionary<string, string>(source, StringComparer.Ordinal);
@@ -279,22 +307,27 @@ internal static partial class EfiProfileTestControls
         string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
             "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE", "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE", "M09_004_PROBE"];
         var tree = SourceForest.Parse(source, new CSharpParseOptions(LanguageVersion.CSharp14, preprocessorSymbols: symbols));
-        root = tree; owner = null!;
+        root = tree;
+        owner = null!;
         reason = "M09_004_PROBE:syntax";
-        if (tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error)) return false;
+        if (tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error))
+            return false;
         var owners = root.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(m => m.Identifier.Text == "RunCooperativeSwitch").ToArray();
         reason = "M09_004_PROBE:conditional-owner";
-        if (owners.Length != 1 || !IsAllocatorOwner(owners[0])) return false;
+        if (owners.Length != 1 || !IsAllocatorOwner(owners[0]))
+            return false;
         var disabled = SourceForest.Parse(source, new CSharpParseOptions(LanguageVersion.CSharp14, preprocessorSymbols: symbols[..^1]));
         if (disabled.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error) || disabled.DescendantNodes()
-            .OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.Text == "RunCooperativeSwitch")) return false;
+            .OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.Text == "RunCooperativeSwitch"))
+            return false;
         owner = owners[0];
         var edges = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
             .Where(i => i.Expression.ToString() == "BootSequence.RunOwnedCooperativeSwitch").ToArray();
         reason = "M09_004_PROBE:ordered-owned-edge";
         if (edges.Length != 1 || !IsAllocatorOwner(edges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault())
             || edges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Identifier.Text != "Diagnose" ||
-            Tokens(edges[0].ArgumentList) != "(state->OwnedPhase==2,transition->Mode==FirmwareServicesMode.BootServicesExited&&transition->RetainedFirmwareCallbacksCleared&&state->Arena.Binding->RetainedPointersCleared,state,&RunCooperativeSwitch)") return false;
+            Tokens(edges[0].ArgumentList) != "(state->OwnedPhase==2,transition->Mode==FirmwareServicesMode.BootServicesExited&&transition->RetainedFirmwareCallbacksCleared&&state->Arena.Binding->RetainedPointersCleared,state,&RunCooperativeSwitch)")
+            return false;
         reason = string.Empty;
         return true;
     }
@@ -305,24 +338,29 @@ internal static partial class EfiProfileTestControls
             "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE", "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE",
             "M05_PCI_ENUMERATION_PROBE", "M05_APIC_SETUP_PROBE", "M09_005_PROBE"];
         var tree = SourceForest.Parse(source, new CSharpParseOptions(LanguageVersion.CSharp14, preprocessorSymbols: symbols));
-        root = tree; owner = null!;
+        root = tree;
+        owner = null!;
         reason = "M09_005_PROBE:syntax";
-        if (tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error)) return false;
+        if (tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error))
+            return false;
         var owners = root.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(m => m.Identifier.Text == "RunSchedulerTimer").ToArray();
         reason = "M09_005_PROBE:conditional-owner";
-        if (owners.Length != 1 || !IsAllocatorOwner(owners[0])) return false;
+        if (owners.Length != 1 || !IsAllocatorOwner(owners[0]))
+            return false;
         foreach (string[] disabledSymbols in new string[][] { symbols[..^1], [.. symbols[..^1], "M09_004_PROBE"] })
         {
             var disabled = SourceForest.Parse(source, new CSharpParseOptions(LanguageVersion.CSharp14, preprocessorSymbols: disabledSymbols));
             if (disabled.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error) || disabled.DescendantNodes()
-                .OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.Text == "RunSchedulerTimer")) return false;
+                .OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.Text == "RunSchedulerTimer"))
+                return false;
         }
         owner = owners[0];
         var receipts = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>()
             .Where(d => d.Declaration.Variables.Any(v => v.Identifier.Text == "receipts")).ToArray();
         reason = "M09_005_PROBE:receipt-storage";
         if (receipts.Length != 1 || Tokens(receipts[0]) !=
-            "BootPageAllocatorOnePageResult*receipts=stackallocBootPageAllocatorOnePageResult[22];") return false;
+            "BootPageAllocatorOnePageResult*receipts=stackallocBootPageAllocatorOnePageResult[22];")
+            return false;
         var edges = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
             .Where(i => i.Expression.ToString() == "BootSequence.RunOwnedSchedulerTimer").ToArray();
         reason = "M09_005_PROBE:ordered-owned-apic-edge";
@@ -331,13 +369,15 @@ internal static partial class EfiProfileTestControls
             Tokens(edges[0].ArgumentList) != "(state->OwnedPhase==2,state->ApicPhase==2,transition->Mode==FirmwareServicesMode.BootServicesExited&&transition->RetainedFirmwareCallbacksCleared&&state->Arena.Binding->RetainedPointersCleared,state,&RunSchedulerTimer)" ||
             edges[0].Parent is not PrefixUnaryExpressionSyntax condition || !condition.IsKind(SyntaxKind.LogicalNotExpression) ||
             condition.Parent is not IfStatementSyntax branch || branch.Condition != condition || branch.Else is not null ||
-            Tokens(branch.Statement) != "return;" || branch.Parent is not BlockSyntax block) return false;
+            Tokens(branch.Statement) != "return;" || branch.Parent is not BlockSyntax block)
+            return false;
         int at = block.Statements.IndexOf(branch);
         if (at <= 0 || Tokens(block.Statements[at - 1]) !=
             "if(!BootSequence.RunOwnedApicSetup(state->PciPhase==8,state,&RunOwnedApicSetup))return;" ||
             block.Parent is not IfStatementSyntax pci || pci.Condition is not InvocationExpressionSyntax enumeration ||
             enumeration.Expression.ToString() != "BootSequence.RunOwnedPciEnumeration" ||
-            Tokens(enumeration.ArgumentList) != "(state->OwnedPhase==2,state,&RunOwnedPciEnumeration)") return false;
+            Tokens(enumeration.ArgumentList) != "(state->OwnedPhase==2,state,&RunOwnedPciEnumeration)")
+            return false;
         reason = string.Empty;
         return true;
     }
@@ -345,37 +385,49 @@ internal static partial class EfiProfileTestControls
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected, bool ordinarySmoke = false)
     {
-        if(selected.Contains("EnableM16027TimingProbe"))selected=[..selected,"EnableM16027Probe"];
-        if(selected.Contains("EnableM16027Probe"))
+        if (selected.Contains("EnableM16027TimingProbe"))
+            selected = [.. selected, "EnableM16027Probe"];
+        if (selected.Contains("EnableM16027Probe"))
         {
-            if(new[]{"EnableM10004Probe","EnableM10017Probe","EnableM10018Probe","EnableM10018FullProbe","EnableM10018TimingProbe"}.Any(selected.Contains))
+            if (new[] { "EnableM10004Probe", "EnableM10017Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe" }.Any(selected.Contains))
                 return "writable_disk_mechanical_profile_conflict";
-            selected=[..selected,"EnableM16025Probe"];
+            selected = [.. selected, "EnableM16025Probe"];
         }
-        if(selected.Contains("EnableM10018TimingProbe"))selected=[..selected,"EnableM10018FullProbe"];
-        if(selected.Contains("EnableM10018FullProbe"))selected=[..selected,"EnableM10018Probe"];
-        if(selected.Contains("EnableM10018Probe"))selected=[..selected,"EnableM16025Probe","EnableM10004Probe"];
-        bool disk=selected.Contains("EnableM16025Probe");
-        if(disk)
+        if (selected.Contains("EnableM10018TimingProbe"))
+            selected = [.. selected, "EnableM10018FullProbe"];
+        if (selected.Contains("EnableM10018FullProbe"))
+            selected = [.. selected, "EnableM10018Probe"];
+        if (selected.Contains("EnableM10018Probe"))
+            selected = [.. selected, "EnableM16025Probe", "EnableM10004Probe"];
+        bool disk = selected.Contains("EnableM16025Probe");
+        if (disk)
         {
-            string[] conflicts=["EnableM10017Probe","EnableM16014Probe","EnableM16013Probe","EnableM07027Probe","EnableM07028Probe",
+            string[] conflicts = ["EnableM10017Probe","EnableM16014Probe","EnableM16013Probe","EnableM07027Probe","EnableM07028Probe",
                 "EnableM09011Probe","EnableM09012Probe","EnableM16010Probe","EnableM16019UnavailableProbe","EnableM16019InvalidProbe"];
-            if(conflicts.Any(selected.Contains))return "disk_read_profile_conflict";
-            selected=[..selected,"EnableM16023Probe","EnableM16024Probe","EnableM16012Probe"];
+            if (conflicts.Any(selected.Contains))
+                return "disk_read_profile_conflict";
+            selected = [.. selected, "EnableM16023Probe", "EnableM16024Probe", "EnableM16012Probe"];
         }
-        else if(selected.Contains("EnableM16023Probe") || selected.Contains("EnableM16024Probe"))return "disk_read_requires_combined_profile";
+        else if (selected.Contains("EnableM16023Probe") || selected.Contains("EnableM16024Probe"))
+            return "disk_read_requires_combined_profile";
         bool unavailable = selected.Contains("EnableM16019UnavailableProbe");
         bool invalidUtc = selected.Contains("EnableM16019InvalidProbe");
         bool service = selected.Contains("EnableM16014Probe");
         bool staticFiles = selected.Contains("EnableM10017Probe");
-        if(staticFiles && (service || unavailable || invalidUtc)) return "static_files_profile_conflict";
-        if (service && (unavailable || invalidUtc)) return "continuing_service_profile_conflict";
-        if ((unavailable || invalidUtc) && ordinarySmoke) return "realtime_rejection_requires_separate_capture";
-        if (unavailable && invalidUtc) return "realtime_rejection_controls_conflict";
+        if (staticFiles && (service || unavailable || invalidUtc))
+            return "static_files_profile_conflict";
+        if (service && (unavailable || invalidUtc))
+            return "continuing_service_profile_conflict";
+        if ((unavailable || invalidUtc) && ordinarySmoke)
+            return "realtime_rejection_requires_separate_capture";
+        if (unavailable && invalidUtc)
+            return "realtime_rejection_controls_conflict";
         // Either fault leaf selects the web parent before ordinary profile guards.
-        if (service || unavailable || invalidUtc || staticFiles) selected = [.. selected, "EnableM10004Probe"];
-        if(selected.Contains("EnableM16013Probe") && new[]{"EnableM07027Probe","EnableM07028Probe","EnableM10004Probe",
-            "EnableM09011Probe","EnableM09012Probe","EnableM16010Probe"}.Any(selected.Contains))return "socket_vectors_profile_conflict";
+        if (service || unavailable || invalidUtc || staticFiles)
+            selected = [.. selected, "EnableM10004Probe"];
+        if (selected.Contains("EnableM16013Probe") && new[]{"EnableM07027Probe","EnableM07028Probe","EnableM10004Probe",
+            "EnableM09011Probe","EnableM09012Probe","EnableM16010Probe"}.Any(selected.Contains))
+            return "socket_vectors_profile_conflict";
         bool containment = selected.Contains("EnableM07027Probe") || selected.Contains("EnableM07028Probe");
         if (containment && (selected.Contains("EnableM16012Probe") || selected.Contains("EnableM10004Probe")))
             return "socket_containment_profile_conflict";
@@ -388,48 +440,60 @@ internal static partial class EfiProfileTestControls
                 "EnableM07ArpReceiveProbe", "EnableM16002Probe", "EnableM16003Probe"];
             string[] descendants = ["EnableM05ApicSetupProbe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe",
                 "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
-            if (selected.Any(name => name != "EnableM07026Probe" && !parents.Contains(name) && !(sockets && descendants.Contains(name)))) return "m07_026_profile_conflict";
+            if (selected.Any(name => name != "EnableM07026Probe" && !parents.Contains(name) && !(sockets && descendants.Contains(name))))
+                return "m07_026_profile_conflict";
             // The socket leaf supplies the entire declared network/runtime chain.
-            if (sockets) return null;
+            if (sockets)
+                return null;
         }
         if (selected.Contains("EnableM09010Probe"))
         {
             string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
                 "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe",
                 "EnableM05PciEnumerationProbe", "EnableM05ApicSetupProbe"];
-            if (selected.Any(name => name != "EnableM09010Probe" && !parents.Contains(name))) return "m09_010_profile_conflict";
-            if (parents.Any(name => !selected.Contains(name))) return "m09_010_requires_owned_first_exit";
+            if (selected.Any(name => name != "EnableM09010Probe" && !parents.Contains(name)))
+                return "m09_010_profile_conflict";
+            if (parents.Any(name => !selected.Contains(name)))
+                return "m09_010_requires_owned_first_exit";
         }
         if (selected.Contains("EnableM09009Probe"))
         {
             string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
                 "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe",
                 "EnableM05PciEnumerationProbe", "EnableM05ApicSetupProbe"];
-            if (selected.Any(name => name != "EnableM09009Probe" && !parents.Contains(name))) return "m09_009_profile_conflict";
-            if (parents.Any(name => !selected.Contains(name))) return "m09_009_requires_owned_first_exit";
+            if (selected.Any(name => name != "EnableM09009Probe" && !parents.Contains(name)))
+                return "m09_009_profile_conflict";
+            if (parents.Any(name => !selected.Contains(name)))
+                return "m09_009_requires_owned_first_exit";
         }
         if (selected.Contains("EnableM09006Probe"))
         {
             string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
                 "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe",
                 "EnableM05PciEnumerationProbe", "EnableM05ApicSetupProbe"];
-            if (selected.Any(name => name != "EnableM09006Probe" && !parents.Contains(name))) return "m09_006_profile_conflict";
-            if (parents.Any(name => !selected.Contains(name))) return "m09_006_requires_owned_first_exit";
+            if (selected.Any(name => name != "EnableM09006Probe" && !parents.Contains(name)))
+                return "m09_006_profile_conflict";
+            if (parents.Any(name => !selected.Contains(name)))
+                return "m09_006_requires_owned_first_exit";
         }
         if (selected.Contains("EnableM09005Probe"))
         {
             string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
                 "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe",
                 "EnableM05PciEnumerationProbe", "EnableM05ApicSetupProbe"];
-            if (selected.Any(name => name != "EnableM09005Probe" && !parents.Contains(name))) return "m09_005_profile_conflict";
-            if (parents.Any(name => !selected.Contains(name))) return "m09_005_requires_owned_first_exit";
+            if (selected.Any(name => name != "EnableM09005Probe" && !parents.Contains(name)))
+                return "m09_005_profile_conflict";
+            if (parents.Any(name => !selected.Contains(name)))
+                return "m09_005_requires_owned_first_exit";
         }
         if (selected.Contains("EnableM09004Probe"))
         {
             string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
                 "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
-            if (selected.Any(name => name != "EnableM09004Probe" && !parents.Contains(name))) return "m09_004_profile_conflict";
-            if (parents.Any(name => !selected.Contains(name))) return "m09_004_requires_owned_first_exit";
+            if (selected.Any(name => name != "EnableM09004Probe" && !parents.Contains(name)))
+                return "m09_004_profile_conflict";
+            if (parents.Any(name => !selected.Contains(name)))
+                return "m09_004_requires_owned_first_exit";
         }
         bool linuxThreads = selected.Contains("EnableM16008Probe") || selected.Contains("EnableM16009Probe") ||
             selected.Contains("EnableM09011Probe") || selected.Contains("EnableM09012Probe") || selected.Contains("EnableM16010Probe");
@@ -439,7 +503,8 @@ internal static partial class EfiProfileTestControls
                 "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
             if (selected.Any(name => !allowed.Contains(name) && !(linuxThreads &&
                 name is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or
-                    "EnableM16010Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe"))) return "m16_002_profile_conflict";
+                    "EnableM16010Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe")))
+                return "m16_002_profile_conflict";
         }
         bool Has(string name) => selected.Contains("Enable" + name + "Probe", StringComparer.Ordinal);
         foreach (var (child, parent, reason) in new (string, string, string)[]
@@ -486,7 +551,9 @@ internal static partial class EfiProfileTestControls
             ("M04FilteredCatch", "M04GcStaticRootMaterialization", "m04_filter_requires_gc_profile"),
             ("M04NormalFinally", "M04GcStaticRootMaterialization", "m04_normal_finally_requires_gc_profile"),
             ("M04SeededCollectorChurn", "M04GcStaticRootMaterialization", "m04_churn_requires_gc_profile")
-        }) if (Has(child) && !Has(parent)) return reason;
+        })
+            if (Has(child) && !Has(parent))
+                return reason;
         return null;
     }
 
@@ -519,7 +586,11 @@ internal static partial class EfiProfileTestControls
     {
         string? Reason(Action action)
         {
-            try { action(); return null; }
+            try
+            {
+                action();
+                return null;
+            }
             catch (ToolFailure failure) { return failure.Reason; }
         }
         var cases = new List<(string[] Flags, string? Expected)>();
@@ -587,12 +658,17 @@ internal static partial class EfiProfileTestControls
                     "startup explicit false: " + parent);
             foreach (string conflict in EfiContracts.DiagnosticProbes.Except(allowed))
                 HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + conflict],
-                    conflict switch { "EnableM07026Probe" => "m07_026_profile_conflict",
+                    conflict switch
+                    {
+                        "EnableM07026Probe" => "m07_026_profile_conflict",
                         "EnableM16023Probe" or "EnableM16024Probe" => "disk_read_requires_combined_profile",
                         "EnableM09010Probe" => "m09_010_profile_conflict",
-                        "EnableM09009Probe" => "m09_009_profile_conflict", "EnableM09006Probe" => "m09_006_profile_conflict",
+                        "EnableM09009Probe" => "m09_009_profile_conflict",
+                        "EnableM09006Probe" => "m09_006_profile_conflict",
                         "EnableM09004Probe" => "m09_004_profile_conflict",
-                        "EnableM09005Probe" => "m09_005_profile_conflict", _ => "m16_002_profile_conflict" }),
+                        "EnableM09005Probe" => "m09_005_profile_conflict",
+                        _ => "m16_002_profile_conflict"
+                    }),
                     "startup profile conflict: " + conflict);
         }
     }
@@ -642,7 +718,10 @@ internal static partial class EfiProfileTestControls
 
     private static bool ServiceProfileRejected(bool build, string[] args, string reason)
     {
-        try { _ = EfiOptions.Parse(args, build).Profile(); }
+        try
+        {
+            _ = EfiOptions.Parse(args, build).Profile();
+        }
         catch (ToolFailure error) { return error.Message.Contains(reason, StringComparison.Ordinal); }
         return false;
     }
@@ -688,7 +767,10 @@ internal static partial class EfiProfileTestControls
         foreach (string[] rejected in new string[][] { ["--dry-run", .. arguments], ["--dry-run", "--build-efi", "--skip-image-build", .. arguments] })
         {
             bool accepted = true;
-            try { QemuProfiles.Create(QemuSmokeOptions.Parse(rejected)); }
+            try
+            {
+                QemuProfiles.Create(QemuSmokeOptions.Parse(rejected));
+            }
             catch (ToolFailure) { accepted = false; }
             HostCheck.True(!accepted, "profile needs fresh built image");
         }

@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotDiskStaticBrowser
 {
     /// <summary>Copied packet-consumer values, without packet authority. Headers
@@ -16,11 +17,26 @@ public static partial class NativeAotDiskStaticBrowser
 
     public sealed class WireExchange
     {
-        public string Method { get; }
-        public string Target { get; }
-        public int Status { get; }
-        public IReadOnlyList<Header> RequestHeaders { get; }
-        public IReadOnlyList<Header> ResponseHeaders { get; }
+        public string Method
+        {
+            get;
+        }
+        public string Target
+        {
+            get;
+        }
+        public int Status
+        {
+            get;
+        }
+        public IReadOnlyList<Header> RequestHeaders
+        {
+            get;
+        }
+        public IReadOnlyList<Header> ResponseHeaders
+        {
+            get;
+        }
 
         private readonly byte[] requestBody, responseBody;
         private readonly string sha256;

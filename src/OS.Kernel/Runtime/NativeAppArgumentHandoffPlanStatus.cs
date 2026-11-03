@@ -1,6 +1,7 @@
 using OS.Manifest;
 
 namespace OS.Kernel.Runtime;
+
 public enum NativeAppArgumentHandoffPlanStatus
 {
     Success = 0,

@@ -4,6 +4,7 @@ using System.Text;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class LinuxSyscallProofFixture
 {
     private sealed class Writer(byte[] bytes, int position)

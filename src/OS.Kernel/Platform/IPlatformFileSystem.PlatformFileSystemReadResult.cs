@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformFileSystemReadResult
 {
     public const int MaximumPathLength = 128;
@@ -14,15 +15,39 @@ public readonly struct PlatformFileSystemReadResult
         FirmwareStatus = firmwareStatus;
     }
 
-    public bool Succeeded { get; }
-    public PlatformFileSystemStatus Status { get; }
-    public FirmwareServicesMode Mode { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformFileSystemStatus Status
+    {
+        get;
+    }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
     public string Operation => PlatformFileSystemOperations.ReadFile;
-    public int PathLength { get; }
-    public int BytesRead { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
-    public ulong FirmwareStatus { get; }
+    public int PathLength
+    {
+        get;
+    }
+    public int BytesRead
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
+    public ulong FirmwareStatus
+    {
+        get;
+    }
 
     public static PlatformFileSystemReadResult Read(FirmwareCallResult guardResult, ReadOnlySpan<byte> relativePath, PlatformFileSystemSourceReadResult sourceResult, int availableBytes)
     {

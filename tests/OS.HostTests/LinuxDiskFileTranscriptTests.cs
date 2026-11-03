@@ -125,7 +125,7 @@ internal static partial class LinuxDiskFileTranscriptTests
             )
                 Reject(Change(rows, at, name, Field(rows[at], name) + 1));
             Reject(rows.Where((_, i) => i != at).ToArray());
-            Reject([..rows[..at], rows[at], ..rows[at..]]);
+            Reject([.. rows[..at], rows[at], .. rows[at..]]);
         }
 
         int call = Indexes(rows, "M16_008_CALL ")[0];
@@ -173,7 +173,7 @@ internal static partial class LinuxDiskFileTranscriptTests
         {
             int at = Indexes(rows, prefix)[0];
             Reject(rows.Where((_, i) => i != at).ToArray());
-            Reject([..rows[..at], rows[at], ..rows[at..]]);
+            Reject([.. rows[..at], rows[at], .. rows[at..]]);
         }
 
         int owner = Indexes(rows, "M16_008_OWNER_END ")[0];
@@ -208,7 +208,7 @@ internal static partial class LinuxDiskFileTranscriptTests
         int write = Indexes(rows, "M16_005_WRITE ")[0];
         Reject(Replace(rows, write, rows[write] + "!"));
         Reject(rows.Where((_, i) => i != write).ToArray());
-        Reject([..rows, rows[^1]]);
+        Reject([.. rows, rows[^1]]);
     }
 
     [HostTest("disk file leaf retains bounded auxiliary sector timing tick and irq records for mandatory independent joins")]
@@ -250,7 +250,7 @@ internal static partial class LinuxDiskFileTranscriptTests
         Reject(Change(rows, irq, "rip", F.ImageBase + F.FailureOffset));
         int tick = Indexes(rows, "M16_008_TICK ")[0];
         Reject(Change(rows, tick, "epoch", 9));
-        Reject([..rows[..io], "M16_023_UNKNOWN kind=0", ..rows[io..]]);
+        Reject([.. rows[..io], "M16_023_UNKNOWN kind=0", .. rows[io..]]);
     }
 
     [HostTest("disk file leaf rejects stale package root budget and bounded framing inputs")]
@@ -293,9 +293,9 @@ internal static partial class LinuxDiskFileTranscriptTests
             Reject(Change(rows, budget, name, Field(rows[budget], name) + 1));
         Reject(Change(rows, Indexes(rows, "M16_008_BUDGET_END ")[0], "nanos", ulong.MaxValue));
         Reject([]);
-        Reject([..rows[..3], "unknown", ..rows[3..]]);
+        Reject([.. rows[..3], "unknown", .. rows[3..]]);
         Reject(Replace(rows, 0, rows[0] + "\r\n"));
-        Reject(Replace(rows, 0, new string ('a', 1537)));
+        Reject(Replace(rows, 0, new string('a', 1537)));
         Reject(Replace(rows, 0, null!));
         bool bound = false;
         try
@@ -321,7 +321,7 @@ internal static partial class LinuxDiskFileTranscriptTests
         {
             HostCheck.True(report.Auxiliary.Any(v => v.RecordIndex == at && v.Text == rows[at]));
             Reject(rows.Where((_, i) => i != at).ToArray());
-            Reject([..rows[..at], rows[at], ..rows[at..]]);
+            Reject([.. rows[..at], rows[at], .. rows[at..]]);
         }
 
         string[] moved = (string[])rows.Clone();

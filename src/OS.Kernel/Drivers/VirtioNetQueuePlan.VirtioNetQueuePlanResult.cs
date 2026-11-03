@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioNetQueuePlanResult
 {
     private VirtioNetQueuePlanResult(VirtioNetQueuePlanStatus status, ushort availableQueueCount, ushort rxQueueSize, ushort txQueueSize, ushort rxBufferCount, uint frameBufferBytes, VirtqueueSplitRingPlanStatus rxQueueStatus, VirtqueueSplitRingPlanStatus txQueueStatus, VirtioNetQueuePlan plan)
@@ -15,16 +16,46 @@ public readonly struct VirtioNetQueuePlanResult
         Plan = plan;
     }
 
-    public bool IsInitialized { get; }
-    public VirtioNetQueuePlanStatus Status { get; }
-    public ushort AvailableQueueCount { get; }
-    public ushort RxQueueSize { get; }
-    public ushort TxQueueSize { get; }
-    public ushort RxBufferCount { get; }
-    public uint FrameBufferBytes { get; }
-    public VirtqueueSplitRingPlanStatus RxQueueStatus { get; }
-    public VirtqueueSplitRingPlanStatus TxQueueStatus { get; }
-    public VirtioNetQueuePlan Plan { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtioNetQueuePlanStatus Status
+    {
+        get;
+    }
+    public ushort AvailableQueueCount
+    {
+        get;
+    }
+    public ushort RxQueueSize
+    {
+        get;
+    }
+    public ushort TxQueueSize
+    {
+        get;
+    }
+    public ushort RxBufferCount
+    {
+        get;
+    }
+    public uint FrameBufferBytes
+    {
+        get;
+    }
+    public VirtqueueSplitRingPlanStatus RxQueueStatus
+    {
+        get;
+    }
+    public VirtqueueSplitRingPlanStatus TxQueueStatus
+    {
+        get;
+    }
+    public VirtioNetQueuePlan Plan
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetQueuePlanStatus.Success;
 
     public static VirtioNetQueuePlanResult Success(ushort availableQueueCount, ushort rxQueueSize, ushort txQueueSize, ushort rxBufferCount, uint frameBufferBytes, VirtqueueSplitRingPlanStatus rxQueueStatus, VirtqueueSplitRingPlanStatus txQueueStatus, VirtioNetQueuePlan plan)

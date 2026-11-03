@@ -112,7 +112,7 @@ internal static unsafe partial class LinuxSocketServicesTests
         MessageTrace trace = default;
         byte[] state = new ReadOnlySpan<byte>(m.State, sizeof(Sockets.State)).ToArray();
         var a = m.Files.Admission;
-        foreach ((ulong start, uint bytes)in new[]
+        foreach ((ulong start, uint bytes) in new[]
         {
             (0UL, 8U),
             (1UL, 8U),
@@ -169,8 +169,8 @@ internal static unsafe partial class LinuxSocketServicesTests
         byte[] state = new ReadOnlySpan<byte>(m.State, sizeof(Sockets.State)).ToArray();
         byte[] transport = new ReadOnlySpan<byte>(f.Owner, sizeof(Tx.Owner)).ToArray();
         uint sends = f.Hardware->Calls;
-        foreach ((ulong start, uint bytes)in extents)
-            foreach ((ulong address, uint count)in new[]
+        foreach ((ulong start, uint bytes) in extents)
+            foreach ((ulong address, uint count) in new[]
             {
                 (start, bytes),
                 (start - 8, bytes + 16),
@@ -315,7 +315,7 @@ internal static unsafe partial class LinuxSocketServicesTests
         MessageFrameCarrier carrier = default;
         MessageTrace* trace = &carrier.Trace;
         byte[] state = new ReadOnlySpan<byte>(m.State, sizeof(Sockets.State)).ToArray();
-        foreach ((ulong start, ulong bytes)in network.Extents().Concat(new[] { ((ulong)&epoll, (ulong)sizeof(LinuxEpollServices.State)), ((ulong)ports, 2UL * (ulong)sizeof(LinuxEpollServices.Port)), ((ulong)registrations, 16UL * (ulong)sizeof(LinuxEpollServices.Registration)) }))
+        foreach ((ulong start, ulong bytes) in network.Extents().Concat(new[] { ((ulong)&epoll, (ulong)sizeof(LinuxEpollServices.State)), ((ulong)ports, 2UL * (ulong)sizeof(LinuxEpollServices.Port)), ((ulong)registrations, 16UL * (ulong)sizeof(LinuxEpollServices.Registration)) }))
         {
             HostCheck.True(!Sockets.AttachMessageObserver(m.State, (void*)start, (uint)bytes, &ObserveMessage));
             HostCheck.True(state.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.State, sizeof(Sockets.State))));

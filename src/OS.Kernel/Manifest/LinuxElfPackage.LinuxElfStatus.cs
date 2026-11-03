@@ -1,6 +1,7 @@
 using OS.Std.Hash;
 
 namespace OS.Manifest;
+
 public enum LinuxElfStatus : byte
 {
     Uninitialized,

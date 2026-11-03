@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Derived random accounting and exact fixture-control counts

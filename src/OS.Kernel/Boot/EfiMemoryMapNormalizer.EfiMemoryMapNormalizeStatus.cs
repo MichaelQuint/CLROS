@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public enum EfiMemoryMapNormalizeStatus
 {
     Success = 0,

@@ -19,6 +19,12 @@ internal readonly struct RawPackagePlan
         SizeBytes = sizeBytes;
     }
 
-    public string? SourcePath { get; }
-    public long SizeBytes { get; }
+    public string? SourcePath
+    {
+        get;
+    }
+    public long SizeBytes
+    {
+        get;
+    }
 }

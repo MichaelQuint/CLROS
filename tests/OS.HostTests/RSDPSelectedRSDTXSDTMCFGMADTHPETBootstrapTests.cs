@@ -74,7 +74,7 @@ internal static partial class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
         // payloads are not newly subjected to device/envelope validation here.
         Fixture later = new();
         later.Root = RootTable(true, 0x3000, 0x4000, 0x5000, 0x6000);
-        later.Sources = [..later.Sources, new(0x6000, new byte[36])];
+        later.Sources = [.. later.Sources, new(0x6000, new byte[36])];
         Check(later.Copy().Succeeded, "later unselected envelope policy");
     }
 
@@ -223,7 +223,7 @@ internal static partial class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
         RsdpChecksum(zeroRoot.Rsdp);
         Reject(zeroRoot, AcpiBootstrapCopyStatus.RootAddressMismatch);
         Fixture duplicateSource = new();
-        duplicateSource.Sources = [..duplicateSource.Sources, new(0x3000, duplicateSource.Mcfg)];
+        duplicateSource.Sources = [.. duplicateSource.Sources, new(0x3000, duplicateSource.Mcfg)];
         Reject(duplicateSource, AcpiBootstrapCopyStatus.OverlappingSourceRanges);
         foreach (ulong address in new[]
         {

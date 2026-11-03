@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioNetQueueNotificationPlanner
 {
     public const bool PerformsMmio = false;

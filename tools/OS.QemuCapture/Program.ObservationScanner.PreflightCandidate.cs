@@ -33,16 +33,43 @@ internal static partial class Program
                 Rflags = rflags;
             }
 
-            public long PhysicalAddress { get; }
-            public byte[] Bytes { get; }
-            public ulong Cr0 { get; }
-            public ulong RawCr3 { get; }
-            public ulong RawCr4 { get; }
-            public ulong Ia32Efer { get; }
-            public uint CpuidMaximumExtendedLeaf { get; }
-            public uint CpuidAddressSizesEax { get; }
+            public long PhysicalAddress
+            {
+                get;
+            }
+            public byte[] Bytes
+            {
+                get;
+            }
+            public ulong Cr0
+            {
+                get;
+            }
+            public ulong RawCr3
+            {
+                get;
+            }
+            public ulong RawCr4
+            {
+                get;
+            }
+            public ulong Ia32Efer
+            {
+                get;
+            }
+            public uint CpuidMaximumExtendedLeaf
+            {
+                get;
+            }
+            public uint CpuidAddressSizesEax
+            {
+                get;
+            }
             public byte PhysicalAddressWidth => (byte)CpuidAddressSizesEax;
-            public ulong Rflags { get; }
+            public ulong Rflags
+            {
+                get;
+            }
 
             public static PreflightCandidate Read(byte[] bytes, int offset, long physicalAddress)
             {

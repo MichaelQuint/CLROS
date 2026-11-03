@@ -8,7 +8,10 @@ internal static partial class PlatformUefiGoneSimulationTests
 {
     private sealed class PhysicalMemorySourceDouble : IPlatformPhysicalMemorySource
     {
-        public int ReadCount { get; private set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
 
         public PlatformPhysicalMemorySourceResult ReadBytes(ulong physicalAddress, int byteCount, Span<byte> destination)
         {

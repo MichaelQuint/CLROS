@@ -33,7 +33,7 @@ internal static unsafe partial class LiveVirtioBlkPCIDeviceTests
         Write(snapshot, 0xa8, 0xfffffff8);
         var wider = Success(snapshot);
         HostCheck.True(wider.Capabilities.DeviceConfiguration.Length == 64 && wider.Capabilities.DeviceConfiguration.Offset == 0xfffffff8);
-    // Numeric binding preserves declarations; actual 64-bit BAR bounds belong to the adapter.
+        // Numeric binding preserves declarations; actual 64-bit BAR bounds belong to the adapter.
     }
 
     [HostTest("virtio.blk.binding rejects identity header and incomplete or malformed capabilities atomically")]
@@ -58,7 +58,7 @@ internal static unsafe partial class LiveVirtioBlkPCIDeviceTests
         byte[] absent = Fixture();
         Write(absent, 0, 0x1042ffff);
         Reject(absent, VirtioBlkBindingStatus.AbsentDevice);
-        foreach ((int offset, byte value, VirtioBlkBindingStatus status)in new[]
+        foreach ((int offset, byte value, VirtioBlkBindingStatus status) in new[]
         {
             (0x0e, (byte)1, VirtioBlkBindingStatus.UnsupportedHeader),
             (0x0e, (byte)2, VirtioBlkBindingStatus.UnsupportedHeader),
@@ -112,7 +112,7 @@ internal static unsafe partial class LiveVirtioBlkPCIDeviceTests
                 Empty(binding);
             }
 
-            foreach ((byte device, byte function)in new (byte, byte)[]
+            foreach ((byte device, byte function) in new (byte, byte)[]
             {
                 (32, 0),
                 (0, 8),

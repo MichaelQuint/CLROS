@@ -15,10 +15,22 @@ internal static partial class VirtioNetQueueNotificationPlanTests
 
         public VirtioPciRegisterWriteStatus FailureStatus { get; init; } = VirtioPciRegisterWriteStatus.Success;
         public VirtioPciRegisterWriteStatus LastStatus { get; private set; } = VirtioPciRegisterWriteStatus.NotReady;
-        public int Write16Count { get; private set; }
-        public VirtioPciBarAperture LastAperture { get; private set; }
-        public uint LastRelativeOffset { get; private set; }
-        public ushort LastValue { get; private set; }
+        public int Write16Count
+        {
+            get; private set;
+        }
+        public VirtioPciBarAperture LastAperture
+        {
+            get; private set;
+        }
+        public uint LastRelativeOffset
+        {
+            get; private set;
+        }
+        public ushort LastValue
+        {
+            get; private set;
+        }
 
         public VirtioPciRegisterRead16Result Read16(VirtioPciBarAperture aperture, uint relativeOffset)
         {

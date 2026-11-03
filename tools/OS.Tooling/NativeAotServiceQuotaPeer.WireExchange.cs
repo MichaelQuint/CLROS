@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServiceQuotaPeer
 {
     /// <summary>One logical HTTP attempt, including unselected polls. ConnectionIds

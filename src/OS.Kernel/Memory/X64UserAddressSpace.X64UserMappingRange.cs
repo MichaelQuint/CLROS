@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Memory;
+
 public struct X64UserMappingRange
 {
     public ulong VirtualStart, PhysicalStart, Pages;
@@ -10,11 +11,7 @@ public struct X64UserMappingRange
 }
 #if M10_004_PROBE
 
-
-
 #elif M16_025_PROBE
-
-
 
 #else
 #endif

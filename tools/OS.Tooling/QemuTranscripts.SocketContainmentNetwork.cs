@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     internal static IReadOnlyList<string> SocketContainmentMarkers()
@@ -32,7 +33,7 @@ public static partial class QemuTranscripts
         string[] parent = ValidateServiceLoopTail(lines[..envelope.ParentsEnd], true);
         parent = ValidateLinuxStartupTail(parent, package);
         parent = ValidateLinuxElfTail(parent, package);
-        return ([..parent, ..envelope.Apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count)], envelope.Proof);
+        return ([.. parent, .. envelope.Apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count)], envelope.Proof);
     }
 
     /// <summary>Value-only containment wrapper control. Checks parent APIC/NIC,

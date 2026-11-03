@@ -36,7 +36,7 @@ internal static partial class M04LayoutContractEfiIntegrationTests
         Require(defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(" + Flag + ")' == ''", "one false default");
         XElement symbol = project.Descendants("PropertyGroup").Single(group => group.Attribute("Condition")?.Value == "'$(" + Flag + ")' == 'true'");
         Require(symbol.Elements().Single().Value == "$(DefineConstants);" + Symbol, "exact symbol");
-        foreach ((string dependency, string relation)in new[]
+        foreach ((string dependency, string relation) in new[]
         {
             (ArithmeticFlag, "!="),
             (SpanFlag, "!="),
@@ -76,7 +76,7 @@ internal static partial class M04LayoutContractEfiIntegrationTests
     [HostTest("m04.005.efi source identity accepts line endings and rejects content changes", HostLane.Fast, 1)]
     private static void TestSourceIdentity()
     {
-        foreach ((string relative, string expected)in new[]
+        foreach ((string relative, string expected) in new[]
         {
             (Leaf, LeafSourceHash)
         }
@@ -218,7 +218,7 @@ internal static partial class M04LayoutContractEfiIntegrationTests
         string[] forbidden = Markers(profile.Output, "FORBIDDEN_MARKERS ");
         Require(required.Length == 18 && ordered.Length == 6 && unique.Length == 4 && forbidden.Length == 6, "18/6/4/6 profile " + profile.Output);
         Require(ordered[0] == "EFI_CONSOLE_READY" && ordered[1].StartsWith("CLROS_M04_002_READY ", StringComparison.Ordinal) && ordered[2].StartsWith("CLROS_M04_003_READY ", StringComparison.Ordinal) && ordered[3].StartsWith("CLROS_M04_004_READY ", StringComparison.Ordinal) && ordered[4] == Ready && ordered[5] == "UEFI_MEMORY_MAP_READY" && unique.SequenceEqual(ordered[1..5]) && forbidden.Contains(Failed) && forbidden.Contains("TEST_FAIL") && forbidden.Contains("OS_SMOKE_FAIL"), "exact profile lists");
-        foreach ((string[] arguments, int count)in new[]
+        foreach ((string[] arguments, int count) in new[]
         {
             (Array.Empty<string>(), 12),
             (new[] { "-BuildEfi", "-" + EndianFlag }, 15),
@@ -232,7 +232,7 @@ internal static partial class M04LayoutContractEfiIntegrationTests
             Require(baseline.ExitCode == 0 && Markers(baseline.Output, "REQUIRED_MARKERS ").Length == count && !Markers(baseline.Output, "REQUIRED_MARKERS ").Contains(Ready), "unchanged sibling profile " + count);
         }
 
-        ScriptResult returning = Qemu(root, [..EnabledArguments(), "-EnableM02NormalizedInterruptFramePageProbe"]);
+        ScriptResult returning = Qemu(root, [.. EnabledArguments(), "-EnableM02NormalizedInterruptFramePageProbe"]);
         Require(returning.ExitCode == 0 && Markers(returning.Output, "REQUIRED_MARKERS ").Contains(Ready) && Markers(returning.Output, "REQUIRED_MARKERS ").Any(m => m.StartsWith("CLROS_M02_010_READY ", StringComparison.Ordinal)), "returning M02 combination " + returning.Output);
         foreach (string missing in new[]
         {
@@ -265,7 +265,7 @@ internal static partial class M04LayoutContractEfiIntegrationTests
         }
 
         )
-            Require(Qemu(root, [..EnabledArguments(), extra]).ExitCode != 0, "reject conflicting " + extra);
+            Require(Qemu(root, [.. EnabledArguments(), extra]).ExitCode != 0, "reject conflicting " + extra);
         foreach (string argument in new[]
         {
             "-RequireMarker",
@@ -319,7 +319,7 @@ internal static partial class M04LayoutContractEfiIntegrationTests
 
             )
             {
-                var result = HostToolProcess.ValidateEfiProfile(build, [..switches, terminal]);
+                var result = HostToolProcess.ValidateEfiProfile(build, [.. switches, terminal]);
                 Require(result.ExitCode != 0 && result.Output.Contains("m04_layout_contract_forbids_", StringComparison.Ordinal), result.Output);
             }
         }
@@ -433,7 +433,7 @@ internal static partial class M04LayoutContractEfiIntegrationTests
     private static string Compile(string root, string relative) => "<Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, relative)) + "\"/>";
     private static ScriptResult Qemu(string root, params string[] arguments)
     {
-        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..arguments]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. arguments]);
         return new(result.ExitCode, result.Output + result.Error);
     }
 

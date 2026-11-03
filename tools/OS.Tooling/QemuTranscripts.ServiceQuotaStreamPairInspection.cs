@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>One-pair byte compatibility only, never a connection identity.

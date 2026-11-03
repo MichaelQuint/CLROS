@@ -1,4 +1,5 @@
 namespace OS.Cloud;
+
 public enum AwsImdsRequestPlanStatus
 {
     Success = 0,

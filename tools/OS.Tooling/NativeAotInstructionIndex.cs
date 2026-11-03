@@ -12,7 +12,10 @@ namespace OS.Tooling;
 internal sealed partial class NativeAotInstructionIndex
 {
     private readonly ulong[] instructions, returns;
-    internal Inspection Report { get; }
+    internal Inspection Report
+    {
+        get;
+    }
 
     private NativeAotInstructionIndex(ulong[] instructions, ulong[] returns, Inspection report)
     {
@@ -38,7 +41,7 @@ internal sealed partial class NativeAotInstructionIndex
         Span<byte> instruction = stackalloc byte[15], row = stackalloc byte[25];
         ulong previousEnd = 0;
         using StringReader reader = new(disassembly);
-        while (reader.ReadLine()is string line)
+        while (reader.ReadLine() is string line)
         {
             Require(line.Length <= 1024, prefix + "line");
             ReadOnlySpan<char> text = line.AsSpan().TrimStart();

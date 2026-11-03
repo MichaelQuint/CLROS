@@ -506,8 +506,8 @@ internal static unsafe partial class UnexpectedVectorPanicEvidenceDeterministicQ
 
     private static Com1OwnedPortIoBackend Backend()
     {
-        nuint input = (nuint)(delegate* unmanaged<ushort, byte> )&In;
-        nuint output = (nuint)(delegate* unmanaged<ushort, byte, void> )&Out;
+        nuint input = (nuint)(delegate* unmanaged<ushort, byte>)&In;
+        nuint output = (nuint)(delegate* unmanaged<ushort, byte, void>)&Out;
         nuint start = (input < output ? input : output) - 16;
         nuint end = (input > output ? input : output) + 16;
         var request = CheckedPortIoFunctionPointerBindingRequest.Create(true, 0x3f8, start, end, end - start, output - start, input - start, output, input, 7, 5, 7, 5);
@@ -1006,7 +1006,16 @@ internal static unsafe partial class UnexpectedVectorPanicEvidenceDeterministicQ
         File.WriteAllText(Path.Combine(directory, "build.stdout.log"), stdout.Result);
         File.WriteAllText(Path.Combine(directory, "build.stderr.log"), stderr.Result);
         File.WriteAllText(Path.Combine(directory, "build.exitcode.txt"), process.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        File.WriteAllText(Path.Combine(directory, "command.json"), System.Text.Json.JsonSerializer.Serialize(new { Executable = start.FileName, Arguments = start.ArgumentList.ToArray(), NativeExit = process.ExitCode, TimedOut = !exited, SourceCount = sources.Length, StdoutSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(stdout.Result))), StderrSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(stderr.Result))) }));
+        File.WriteAllText(Path.Combine(directory, "command.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Executable = start.FileName,
+            Arguments = start.ArgumentList.ToArray(),
+            NativeExit = process.ExitCode,
+            TimedOut = !exited,
+            SourceCount = sources.Length,
+            StdoutSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(stdout.Result))),
+            StderrSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(stderr.Result)))
+        }));
         Require(exited && process.ExitCode == 0, "actual-source no-stdlib compile: " + directory + " " + stdout.Result + stderr.Result);
         using var stream = File.OpenRead(Path.Combine(directory, "bin", "Release", "net11.0", "CLROS.M02.UnexpectedVector.NoStdLib.dll"));
         using PEReader image = new(stream);

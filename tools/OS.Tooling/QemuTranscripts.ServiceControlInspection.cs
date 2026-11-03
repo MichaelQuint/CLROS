@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Independent complete-capture controls and ordinary packet view.

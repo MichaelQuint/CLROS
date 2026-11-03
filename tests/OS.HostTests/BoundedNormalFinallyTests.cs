@@ -77,7 +77,7 @@ internal static unsafe partial class BoundedNormalFinallyTests
             Failed(f.Recover(context), Status.FuncletRejected);
         }
 
-        foreach ((uint pc, Status status)in new[]
+        foreach ((uint pc, Status status) in new[]
         {
             (0x6150U, Status.ParentRejected),
             (0x6250U, Status.ParentRejected),

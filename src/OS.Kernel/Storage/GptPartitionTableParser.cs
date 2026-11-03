@@ -47,7 +47,6 @@ public static partial class GptPartitionTableParser
             GptPartitionTableKind.Backup);
     }
 
-
     private static GptPartitionTableParseResult Parse(
         ReadOnlySpan<byte> headerSector,
         ReadOnlySpan<byte> partitionEntrySectors,

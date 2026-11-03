@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public readonly struct AcpiRsdpValidationResult
 {
     private AcpiRsdpValidationResult(bool succeeded, AcpiRsdpValidationStatus status, AcpiRsdpRevisionKind revisionKind, byte revision, uint length, uint requiredLength)
@@ -13,12 +14,30 @@ public readonly struct AcpiRsdpValidationResult
         RequiredLength = requiredLength;
     }
 
-    public bool Succeeded { get; }
-    public AcpiRsdpValidationStatus Status { get; }
-    public AcpiRsdpRevisionKind RevisionKind { get; }
-    public byte Revision { get; }
-    public uint Length { get; }
-    public uint RequiredLength { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public AcpiRsdpValidationStatus Status
+    {
+        get;
+    }
+    public AcpiRsdpRevisionKind RevisionKind
+    {
+        get;
+    }
+    public byte Revision
+    {
+        get;
+    }
+    public uint Length
+    {
+        get;
+    }
+    public uint RequiredLength
+    {
+        get;
+    }
 
     public static AcpiRsdpValidationResult Success(AcpiRsdpRevisionKind revisionKind, byte revision, uint length)
     {

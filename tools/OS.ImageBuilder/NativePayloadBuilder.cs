@@ -56,7 +56,7 @@ internal static class NativePayloadBuilder
         {
             file = new FileInfo(inputPath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(21, "native_payload_input_not_found", "Native payload input path is invalid: " + inputPath);
         }
@@ -85,7 +85,7 @@ internal static class NativePayloadBuilder
         {
             return Path.GetFullPath(outputPath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(7, "invalid_output_path", "Output path is invalid: " + outputPath);
         }

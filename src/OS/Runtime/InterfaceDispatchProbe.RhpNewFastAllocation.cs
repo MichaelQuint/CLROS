@@ -5,55 +5,6 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 internal static unsafe partial class RhpNewFastAllocation
 {
     // The pinned .NET 11 ABI contributes five zero {MethodTable,Code} cells;
@@ -62,8 +13,6 @@ internal static unsafe partial class RhpNewFastAllocation
     // A and B own ordinary virtual slots and have no sealed-table field.
     private const ulong DispatchCellContributionBytes = 80;
     private const ulong DispatchBaseSealedBytes = 4;
-
-
 
     private static DispatchStorage s_dispatchStorage;
     private static DispatchCells s_dispatchCells;
@@ -95,7 +44,8 @@ internal static unsafe partial class RhpNewFastAllocation
         s_dispatchOriginalNode = NodeReceipt(5).ObjectReference;
         s_dispatchOriginalTag = ReadStaticCollectorTag(false);
         DispatchText(0);
-        if (!CheckDispatchStack()) RejectDispatch(3, CompilerInterfaceDispatchStatus.StateChanged);
+        if (!CheckDispatchStack())
+            RejectDispatch(3, CompilerInterfaceDispatchStatus.StateChanged);
         ulong cellSection = DispatchCellSection(), initialStub = DispatchInitialStub();
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (GcCollectingStorage* collecting = &s_gcCollecting)
@@ -113,7 +63,8 @@ internal static unsafe partial class RhpNewFastAllocation
                 (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, s_access, &collecting->State,
                 (ulong)sizeof(GcCollectingStorage), (byte*)storage, (ulong)sizeof(DispatchStorage),
                 initialStub, cellSection, DispatchCellContributionBytes, 64, 64, owners, 1);
-            if (bound != CompilerInterfaceDispatchStatus.Success) RejectDispatch(5, bound);
+            if (bound != CompilerInterfaceDispatchStatus.Success)
+                RejectDispatch(5, bound);
             DispatchReceiverA a = NewDispatchA(s_dispatchSeed + 11);
             DispatchReceiverB b = NewDispatchB(s_dispatchSeed + 22);
             if (s_dispatchAllocations != 2 || s_dispatchConstructors != 2 ||
@@ -149,7 +100,8 @@ internal static unsafe partial class RhpNewFastAllocation
             DispatchLine(71, s_control.ConstructorCount, s_collectorStores, ReadGcRoot().ObjectReference, ReadStaticCollectorTag(false));
             DispatchLine(72, s_dispatchStackChecks, GcReadWord(s_gcStack.Start), GcReadWord(s_gcStack.Start + 8), s_dispatchMinimumWitness);
             s_dispatchPhase = 3;
-            DispatchText(1); DispatchText(2);
+            DispatchText(1);
+            DispatchText(2);
         }
     }
 
@@ -167,7 +119,8 @@ internal static unsafe partial class RhpNewFastAllocation
         {
             CompilerInterfaceDispatchStatus status = BootSequence.RunInterfaceDispatch((byte*)storage,
                 (ulong)sizeof(DispatchStorage), receiver, cell, out CompilerInterfaceDispatchResolution resolved);
-            if (status != CompilerInterfaceDispatchStatus.Success) return DispatchFailure(21, status);
+            if (status != CompilerInterfaceDispatchStatus.Success)
+                return DispatchFailure(21, status);
             ulong index = s_dispatchExpected, operation = index / 3;
             bool second = index % 3 == 1;
             RhpNewFastResult receipt = second ? s_dispatchReceipts.B : s_dispatchReceipts.A;
@@ -193,8 +146,10 @@ internal static unsafe partial class RhpNewFastAllocation
                 return DispatchFailure(25, CompilerInterfaceDispatchStatus.SlotRejected);
             fixed (DispatchCells* cells = &s_dispatchCells)
             {
-                if (index % 3 == 0) cells->Values[operation] = cell;
-                else if (cells->Values[operation] != cell) return DispatchFailure(26, CompilerInterfaceDispatchStatus.CellChanged);
+                if (index % 3 == 0)
+                    cells->Values[operation] = cell;
+                else if (cells->Values[operation] != cell)
+                    return DispatchFailure(26, CompilerInterfaceDispatchStatus.CellChanged);
             }
             s_dispatchCalls++;
             DispatchLine(10 + index * 4, receiver, cell, resolved.Target, resolved.AllocationSequence);
@@ -213,14 +168,20 @@ internal static unsafe partial class RhpNewFastAllocation
             ulong operation = index / 3, a = s_dispatchSeed + index + 1, b = a + 1, c = a + 2, d = a + 3;
             bool useSecond = index % 3 == 1;
             ulong actual;
-            if (operation == 0) actual = useSecond ? DispatchPlain(second, a, b, c, d) : DispatchPlain(first, a, b, c, d);
-            else if (operation == 1) actual = useSecond ? DispatchVirtual(second, a, b, c, d) : DispatchVirtual(first, a, b, c, d);
-            else if (operation == 2) actual = useSecond ? DispatchProducer(second, a, b, c, d) : DispatchProducer(first, a, b, c, d);
-            else if (operation == 3) actual = useSecond ? DispatchConsumer(second, a, b, c, d) : DispatchConsumer(first, a, b, c, d);
-            else actual = useSecond ? DispatchNoise(second, a, b, c, d) : DispatchNoise(first, a, b, c, d);
+            if (operation == 0)
+                actual = useSecond ? DispatchPlain(second, a, b, c, d) : DispatchPlain(first, a, b, c, d);
+            else if (operation == 1)
+                actual = useSecond ? DispatchVirtual(second, a, b, c, d) : DispatchVirtual(first, a, b, c, d);
+            else if (operation == 2)
+                actual = useSecond ? DispatchProducer(second, a, b, c, d) : DispatchProducer(first, a, b, c, d);
+            else if (operation == 3)
+                actual = useSecond ? DispatchConsumer(second, a, b, c, d) : DispatchConsumer(first, a, b, c, d);
+            else
+                actual = useSecond ? DispatchNoise(second, a, b, c, d) : DispatchNoise(first, a, b, c, d);
             ulong offset = operation == 0 ? 100UL : operation * 200 + (useSecond ? 100UL : 0UL);
             ulong expected = s_dispatchSeed + (useSecond ? 22UL : 11UL) + offset + a + 3 * b + 5 * c + 7 * d;
-            if (s_dispatchCalls != index + 1 || actual != expected) RejectDispatch(30, CompilerInterfaceDispatchStatus.StateChanged);
+            if (s_dispatchCalls != index + 1 || actual != expected)
+                RejectDispatch(30, CompilerInterfaceDispatchStatus.StateChanged);
             DispatchLine(13 + index * 4, actual, expected, operation, d);
         }
         s_dispatchExpected = 15;
@@ -285,8 +246,10 @@ internal static unsafe partial class RhpNewFastAllocation
                 GcReadWord(result.MappedAllocationStart) != 0 || GcReadWord(result.ObjectReference) != token ||
                 GcReadWord(result.ObjectReference + 8) != 0)
                 RejectDispatch(34, CompilerInterfaceDispatchStatus.ReceiverRejected);
-            if (s_dispatchAllocations == 0) s_dispatchReceipts.A = result;
-            else s_dispatchReceipts.B = result;
+            if (s_dispatchAllocations == 0)
+                s_dispatchReceipts.A = result;
+            else
+                s_dispatchReceipts.B = result;
             s_dispatchAllocations++;
             return result.ObjectReference;
         }
@@ -306,13 +269,23 @@ internal static unsafe partial class RhpNewFastAllocation
         ulong offset = 36 + (slots + (ulong)interfaces) * 8;
         if (!DispatchMetadata(owner, offset + (baseOwner ? 4UL : 0UL)))
             RejectDispatch(37, CompilerInterfaceDispatchStatus.MetadataRejected);
-        if (!baseOwner) return new() { DeclaringType = owner };
+        if (!baseOwner)
+            return new()
+            {
+                DeclaringType = owner
+            };
         ulong entry = owner + offset;
         long displacement = *(int*)entry;
         ulong table = displacement >= 0 ? entry <= ulong.MaxValue - (ulong)displacement ? entry + (ulong)displacement : 0
             : entry >= (ulong)-displacement ? entry - (ulong)-displacement : 0;
-        if (table == 0 || !DispatchMetadata(table, DispatchBaseSealedBytes)) RejectDispatch(38, CompilerInterfaceDispatchStatus.SlotRejected);
-        return new() { DeclaringType = owner, Table = table, Bytes = DispatchBaseSealedBytes };
+        if (table == 0 || !DispatchMetadata(table, DispatchBaseSealedBytes))
+            RejectDispatch(38, CompilerInterfaceDispatchStatus.SlotRejected);
+        return new()
+        {
+            DeclaringType = owner,
+            Table = table,
+            Bytes = DispatchBaseSealedBytes
+        };
     }
 
     private static bool DispatchMetadata(ulong address, ulong bytes)
@@ -337,27 +310,68 @@ internal static unsafe partial class RhpNewFastAllocation
             !GcStackContext(address, out authority, out start, out end, out initialRsp) ||
             authority != s_gcStack.Authority || start != s_gcStack.Start || end != s_gcStack.End ||
             initialRsp != s_gcStack.InitialRsp || address > s_gcStack.Witness ||
-            GcReadWord(start) != GcStackWord0 || GcReadWord(start + 8) != GcStackWord1) return false;
-        if (s_dispatchMinimumWitness == 0 || address < s_dispatchMinimumWitness) s_dispatchMinimumWitness = address;
+            GcReadWord(start) != GcStackWord0 || GcReadWord(start + 8) != GcStackWord1)
+            return false;
+        if (s_dispatchMinimumWitness == 0 || address < s_dispatchMinimumWitness)
+            s_dispatchMinimumWitness = address;
         s_dispatchStackChecks++;
         return true;
     }
 
     private static void DispatchLine(ulong stage, ulong a, ulong b, ulong c, ulong d)
     {
-        Write((byte)'M'); Write((byte)'0'); Write((byte)'4'); Write((byte)'_');
-        Write((byte)'D'); Write((byte)'I'); Write((byte)'S'); Write((byte)'P');
-        Write((byte)'A'); Write((byte)'T'); Write((byte)'C'); Write((byte)'H'); Write(32);
-        Decimal(stage); Write(32); Hex(a); Write(32); Hex(b); Write(32); Hex(c); Write(32); Hex(d); End();
+        Write((byte)'M');
+        Write((byte)'0');
+        Write((byte)'4');
+        Write((byte)'_');
+        Write((byte)'D');
+        Write((byte)'I');
+        Write((byte)'S');
+        Write((byte)'P');
+        Write((byte)'A');
+        Write((byte)'T');
+        Write((byte)'C');
+        Write((byte)'H');
+        Write(32);
+        Decimal(stage);
+        Write(32);
+        Hex(a);
+        Write(32);
+        Hex(b);
+        Write(32);
+        Hex(c);
+        Write(32);
+        Hex(d);
+        End();
     }
 
     private static void DispatchText(uint kind)
     {
-        ulong a, b, c; uint bytes;
-        if (kind == 0) { a = 0x4154535F54534554; b = 0x302E34306D205452; c = 0x000000000A0D3631; bytes = 20; }
-        else if (kind == 1) { a = 0x304D5F534F524C43; b = 0x45525F3631305F34; c = 0x0000000A0D594441; bytes = 21; }
-        else { a = 0x5341505F54534554; b = 0x31302E34306D2053; c = 0x00000000000A0D36; bytes = 19; }
-        for (uint i = 0; i < bytes; i++) Write((byte)((i < 8 ? a : i < 16 ? b : c) >> ((int)(i & 7) * 8)));
+        ulong a, b, c;
+        uint bytes;
+        if (kind == 0)
+        {
+            a = 0x4154535F54534554;
+            b = 0x302E34306D205452;
+            c = 0x000000000A0D3631;
+            bytes = 20;
+        }
+        else if (kind == 1)
+        {
+            a = 0x304D5F534F524C43;
+            b = 0x45525F3631305F34;
+            c = 0x0000000A0D594441;
+            bytes = 21;
+        }
+        else
+        {
+            a = 0x5341505F54534554;
+            b = 0x31302E34306D2053;
+            c = 0x00000000000A0D36;
+            bytes = 19;
+        }
+        for (uint i = 0; i < bytes; i++)
+            Write((byte)((i < 8 ? a : i < 16 ? b : c) >> ((int)(i & 7) * 8)));
     }
 
     private static ulong DispatchFailure(ulong reason, CompilerInterfaceDispatchStatus status)
@@ -369,7 +383,8 @@ internal static unsafe partial class RhpNewFastAllocation
     private static void RejectDispatch(ulong reason, CompilerInterfaceDispatchStatus status)
     {
         DispatchFailure(reason, status);
-        while (true) System.RuntimeFailFast.Halt();
+        while (true)
+            System.RuntimeFailFast.Halt();
     }
 }
 #endif

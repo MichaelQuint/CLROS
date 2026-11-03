@@ -16,7 +16,7 @@ namespace OS.Tooling.Native
     {
         private sealed class BoundedCapture
         {
-            private readonly object sync = new object ();
+            private readonly object sync = new object();
             private readonly StringBuilder standardOutput = new StringBuilder();
             private readonly StringBuilder standardError = new StringBuilder();
             private readonly int limit;
@@ -49,7 +49,7 @@ namespace OS.Tooling.Native
                         target.Append(buffer, 0, accepted);
                         characters += accepted;
                         if (outputReceived != null)
-                            notification = new string (buffer, 0, accepted);
+                            notification = new string(buffer, 0, accepted);
                     }
 
                     if (accepted != count)

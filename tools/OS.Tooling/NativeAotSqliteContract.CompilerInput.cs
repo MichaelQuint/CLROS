@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSqliteContract
 {
     /// <summary>Copied compiler-role path/hash facts; no file or execution authority.</summary>

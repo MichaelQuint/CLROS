@@ -14,14 +14,38 @@ namespace OS.Tooling.Native
 {
     public sealed class BoundedJobProcessResult
     {
-        public string Status { get; private set; }
-        public int ExitCode { get; private set; }
-        public string Output { get; private set; }
-        public string StandardOutput { get; private set; }
-        public string StandardError { get; private set; }
-        public int OutputCharacters { get; private set; }
-        public bool TerminationConfirmed { get; private set; }
-        public string Detail { get; private set; }
+        public string Status
+        {
+            get; private set;
+        }
+        public int ExitCode
+        {
+            get; private set;
+        }
+        public string Output
+        {
+            get; private set;
+        }
+        public string StandardOutput
+        {
+            get; private set;
+        }
+        public string StandardError
+        {
+            get; private set;
+        }
+        public int OutputCharacters
+        {
+            get; private set;
+        }
+        public bool TerminationConfirmed
+        {
+            get; private set;
+        }
+        public string Detail
+        {
+            get; private set;
+        }
 
         public BoundedJobProcessResult(string status, int exitCode, string output, int outputCharacters, bool terminationConfirmed, string detail, string standardOutput = null, string standardError = null)
         {

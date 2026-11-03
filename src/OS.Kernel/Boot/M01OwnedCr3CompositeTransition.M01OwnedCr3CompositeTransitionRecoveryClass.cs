@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public enum M01OwnedCr3CompositeTransitionRecoveryClass : byte
 {
     Uninitialized = 0,

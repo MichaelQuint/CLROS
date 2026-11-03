@@ -80,7 +80,7 @@ internal static unsafe partial class SplitVirtqueuePollingNotificationCompletion
             NoDma(f);
         }
 
-        foreach ((ushort offset, uint multiplier, uint bytes)in new[]
+        foreach ((ushort offset, uint multiplier, uint bytes) in new[]
         {
             ((ushort)1, 4U, 2U),
             ((ushort)1024, 4U, 4096U),
@@ -99,7 +99,7 @@ internal static unsafe partial class SplitVirtqueuePollingNotificationCompletion
     [HostTest("virtqueue.polling rejects wrong stale completion identities indices lengths and missing completion", HostLane.Fast, 2)]
     private static void Completions()
     {
-        foreach ((ushort index, uint id, uint length)in new[]
+        foreach ((ushort index, uint id, uint length) in new[]
         {
             ((ushort)1, 1U, 0U),
             ((ushort)1, 8U, 0U),

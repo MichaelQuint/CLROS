@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciBusScanRange
 {
     public PciBusScanRange(byte startBus, byte endBus, byte startDevice = 0, byte endDevice = PciEcamConfigurationSpace.MaximumDevice, byte maximumFunction = PciEcamConfigurationSpace.MaximumFunction)
@@ -10,9 +11,24 @@ public readonly struct PciBusScanRange
         MaximumFunction = maximumFunction;
     }
 
-    public byte StartBus { get; }
-    public byte EndBus { get; }
-    public byte StartDevice { get; }
-    public byte EndDevice { get; }
-    public byte MaximumFunction { get; }
+    public byte StartBus
+    {
+        get;
+    }
+    public byte EndBus
+    {
+        get;
+    }
+    public byte StartDevice
+    {
+        get;
+    }
+    public byte EndDevice
+    {
+        get;
+    }
+    public byte MaximumFunction
+    {
+        get;
+    }
 }

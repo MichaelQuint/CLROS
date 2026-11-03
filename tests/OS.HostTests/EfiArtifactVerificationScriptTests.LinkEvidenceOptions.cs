@@ -16,14 +16,23 @@ internal static partial class EfiArtifactVerificationScriptTests
         public uint MappedEntryRva { get; init; } = EntryPointRva;
         public uint SerializerRva { get; init; } = EfiArtifactVerificationScriptTests.SerializerRva;
         public int SerializerSymbolCopies { get; init; } = 1;
-        public string? MapOwner { get; init; }
+        public string? MapOwner
+        {
+            get; init;
+        }
         public int ForceIncludeCopies { get; init; } = 1;
         public int BreproCopies { get; init; } = 1;
         public string BreproToken { get; init; } = "/BREPRO";
         public int ObjectTokenCopies { get; init; } = 1;
         public int MapOptionCopies { get; init; } = 1;
         public int MapInfoCopies { get; init; } = 1;
-        public string? MapPathOverride { get; init; }
-        public string? AdditionalResponse { get; init; }
+        public string? MapPathOverride
+        {
+            get; init;
+        }
+        public string? AdditionalResponse
+        {
+            get; init;
+        }
     }
 }

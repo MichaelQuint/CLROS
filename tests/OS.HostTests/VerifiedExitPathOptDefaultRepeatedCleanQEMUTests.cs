@@ -94,7 +94,7 @@ internal static unsafe partial class VerifiedExitPathOptDefaultRepeatedCleanQEMU
 
     private static JsonDocument Evaluate(string root, string[] properties)
     {
-        var result = MsBuild(root, ["-getProperty:ClrosBootPolicy,DefineConstants", ..properties]);
+        var result = MsBuild(root, ["-getProperty:ClrosBootPolicy,DefineConstants", .. properties]);
         Need(result.Exit == 0, "project evaluation: " + result.Output);
         return JsonDocument.Parse(result.Output);
     }
@@ -145,7 +145,7 @@ internal static unsafe partial class VerifiedExitPathOptDefaultRepeatedCleanQEMU
 
     private static (int Exit, string Output) InvokeTool(string root, string[] command, string[] arguments)
     {
-        var result = HostToolProcess.RunTool([..command, ..arguments]);
+        var result = HostToolProcess.RunTool([.. command, .. arguments]);
         return (result.ExitCode, result.Output + result.Error);
     }
 

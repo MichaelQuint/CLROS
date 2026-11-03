@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioNetQueueNotificationRegisterWindowPlanResult
 {
     private VirtioNetQueueNotificationRegisterWindowPlanResult(VirtioNetQueueNotificationRegisterWindowPlanStatus status, VirtioNetQueueNotificationPlanStatus notificationPlanStatus, VirtioPciQueueNotificationPlanStatus pciNotificationStatus, VirtioPciBarRegisterWindowPlanStatus registerWindowPlanStatus, VirtioNetQueueNotificationKind kind, ushort queueIndex, ushort queueNotifyOffset, uint notifyRelativeOffset, ushort writeValue, uint writeWidthBytes, ushort publishedDescriptorCount, ushort previousAvailableRingIndex, ushort nextAvailableRingIndex, VirtioPciBarRegisterWindowAccessPlan accessPlan, bool isInitialized)
@@ -20,21 +21,66 @@ public readonly struct VirtioNetQueueNotificationRegisterWindowPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioNetQueueNotificationRegisterWindowPlanStatus Status { get; }
-    public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus { get; }
-    public VirtioPciQueueNotificationPlanStatus PciNotificationStatus { get; }
-    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus { get; }
-    public VirtioNetQueueNotificationKind Kind { get; }
-    public ushort QueueIndex { get; }
-    public ushort QueueNotifyOffset { get; }
-    public uint NotifyRelativeOffset { get; }
-    public ushort WriteValue { get; }
-    public uint WriteWidthBytes { get; }
-    public ushort PublishedDescriptorCount { get; }
-    public ushort PreviousAvailableRingIndex { get; }
-    public ushort NextAvailableRingIndex { get; }
-    public VirtioPciBarRegisterWindowAccessPlan AccessPlan { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetQueueNotificationRegisterWindowPlanStatus Status
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus
+    {
+        get;
+    }
+    public VirtioPciQueueNotificationPlanStatus PciNotificationStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationKind Kind
+    {
+        get;
+    }
+    public ushort QueueIndex
+    {
+        get;
+    }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
+    public uint NotifyRelativeOffset
+    {
+        get;
+    }
+    public ushort WriteValue
+    {
+        get;
+    }
+    public uint WriteWidthBytes
+    {
+        get;
+    }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowAccessPlan AccessPlan
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetQueueNotificationRegisterWindowPlanStatus.Success;
 
     internal static VirtioNetQueueNotificationRegisterWindowPlanResult FailedNotification(VirtioNetQueueNotificationPlanResult notificationPlan)

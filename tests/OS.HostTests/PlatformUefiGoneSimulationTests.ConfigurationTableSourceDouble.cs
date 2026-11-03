@@ -16,7 +16,10 @@ internal static partial class PlatformUefiGoneSimulationTests
             _tableCount = tableCount;
         }
 
-        public int ScanCount { get; private set; }
+        public int ScanCount
+        {
+            get; private set;
+        }
 
         public PlatformConfigurationTableMetadata GetMetadata()
         {

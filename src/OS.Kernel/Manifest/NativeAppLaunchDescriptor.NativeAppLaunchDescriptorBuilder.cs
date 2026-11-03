@@ -1,6 +1,7 @@
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public static class NativeAppLaunchDescriptorBuilder
 {
     public static NativeAppLaunchDescriptorResult Create(ReadOnlySpan<byte> manifestSource, ReadOnlySpan<byte> package, NativeAppLaunchPlanResult launchPlan)

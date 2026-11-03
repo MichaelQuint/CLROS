@@ -84,7 +84,8 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
             .ToArray();
 
         foreach (bool build in new[] { true, false })
-            if (!OS.Tooling.EfiOptions.Parse(["--EnableM04IndependentEndianConformanceProbe"], build).Profile().IsEnabled("EnableM04IndependentEndianConformanceProbe")) return false;
+            if (!OS.Tooling.EfiOptions.Parse(["--EnableM04IndependentEndianConformanceProbe"], build).Profile().IsEnabled("EnableM04IndependentEndianConformanceProbe"))
+                return false;
         HostCheck.Equal(0, OS.Tooling.ContractAudit.Inspect(root).Count);
 
         return defaults.Length == 1
@@ -104,8 +105,10 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
         var type = source.Type(owner);
         foreach (string name in new[] { "ReferenceFilesRequired", "RequiresHostConformance" })
             HostCheck.True(type.GetMembers(name).OfType<IFieldSymbol>().Single() is
-                { DeclaredAccessibility: Accessibility.Public, IsConst: true,
-                    Type.SpecialType: SpecialType.System_Boolean, ConstantValue: false });
+            {
+                DeclaredAccessibility: Accessibility.Public, IsConst: true,
+                Type.SpecialType: SpecialType.System_Boolean, ConstantValue: false
+            });
         var copy = source.Method(owner, "CopyBuiltInCatalog");
         var model = source.Compilation.GetSemanticModel(copy.SyntaxTree);
         var signature = model.GetDeclaredSymbol(copy)!;
@@ -220,17 +223,19 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
     }
 
     private static bool TestQemuProfile()
-{
-    const string flag = "--EnableM04IndependentEndianConformanceProbe";
-    var plan = OS.Tooling.QemuProfiles.Create(OS.Tooling.QemuSmokeOptions.Parse("--boot-policy", "Diagnostic", "--dry-run", "--build-efi", flag));
-    if (!plan.Required.Contains(ReadyMarker) || !plan.Forbidden.Contains(FailureMarker) || !plan.IsEnabled("EnableM04IndependentEndianConformanceProbe")) return false;
-    foreach (string[] arguments in new string[][] { [flag], ["--build-efi", "--skip-image-build", flag] })
     {
-        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..arguments]);
-        if (result.ExitCode == 0 || result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal)) return false;
+        const string flag = "--EnableM04IndependentEndianConformanceProbe";
+        var plan = OS.Tooling.QemuProfiles.Create(OS.Tooling.QemuSmokeOptions.Parse("--boot-policy", "Diagnostic", "--dry-run", "--build-efi", flag));
+        if (!plan.Required.Contains(ReadyMarker) || !plan.Forbidden.Contains(FailureMarker) || !plan.IsEnabled("EnableM04IndependentEndianConformanceProbe"))
+            return false;
+        foreach (string[] arguments in new string[][] { [flag], ["--build-efi", "--skip-image-build", flag] })
+        {
+            var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. arguments]);
+            if (result.ExitCode == 0 || result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal))
+                return false;
+        }
+        return true;
     }
-    return true;
-}
 
     private static string ExtractAsciiMarker(OS.Tooling.CSharpSourceCatalog source, string methodName) =>
         HostSourceText.ByteCharacters(source, "OS.Boot.EfiEntry", methodName);

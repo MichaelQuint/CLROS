@@ -249,7 +249,8 @@ public static unsafe partial class ContinuingVirtioNetDevice
         RingEngine.Status.ShortBuffer => Status.ShortBuffer,
         RingEngine.Status.InvalidFrame => Status.InvalidFrame,
         RingEngine.Status.InvalidStorage => Status.InvalidStorage,
-        _ => Fault(s, Status.RingFailed)};
+        _ => Fault(s, Status.RingFailed)
+    };
     private static Status Fault(State* s, Status reason)
     {
         s->Phase = 3;

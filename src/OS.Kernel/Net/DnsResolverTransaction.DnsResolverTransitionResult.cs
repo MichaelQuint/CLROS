@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct DnsResolverTransitionResult
 {
     private DnsResolverTransitionResult(DnsResolverStatus status, DnsResolverState state, DnsMessageStatus messageStatus, int bytesWritten, Ipv4Address address)
@@ -11,13 +12,31 @@ public readonly struct DnsResolverTransitionResult
         Address = address;
     }
 
-    public DnsResolverStatus Status { get; }
-    public bool IsInitialized { get; }
+    public DnsResolverStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == DnsResolverStatus.Success;
-    public DnsResolverState State { get; }
-    public DnsMessageStatus MessageStatus { get; }
-    public int BytesWritten { get; }
-    public Ipv4Address Address { get; }
+    public DnsResolverState State
+    {
+        get;
+    }
+    public DnsMessageStatus MessageStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public Ipv4Address Address
+    {
+        get;
+    }
 
     public static DnsResolverTransitionResult Success(DnsResolverState state, int bytesWritten, Ipv4Address address)
     {

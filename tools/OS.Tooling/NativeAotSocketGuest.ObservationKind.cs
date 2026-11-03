@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSocketGuest
 {
     /// <summary>Which serialized observation was captured from the real owner.</summary>

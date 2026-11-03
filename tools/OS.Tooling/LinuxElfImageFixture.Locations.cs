@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class LinuxElfImageFixture
 {
     /// <summary>Byte offsets of the exact boot EFI, package and package directory

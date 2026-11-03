@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied pinned-musl default allocation and original clone/reap
@@ -10,6 +11,9 @@ public static partial class QemuTranscripts
 
     public readonly record struct ServiceQuotaPthread(int RecordIndex, int CallRecordIndex, ulong Identity, ulong Ordinal, ulong ChildIdentity, int Tid, ulong Tls, ulong StackStart, ulong StackBytes, ulong GuardBytes, ulong MappingStart, ulong MappingBytes, int AllocationRecordIndex, int ReapRecordIndex)
     {
-        public ulong InitialStackPointer { get; init; }
+        public ulong InitialStackPointer
+        {
+            get; init;
+        }
     }
 }

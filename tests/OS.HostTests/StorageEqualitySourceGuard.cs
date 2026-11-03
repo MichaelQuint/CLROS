@@ -45,7 +45,7 @@ internal static class StorageEqualitySourceGuard
             && HostSourceOperations.IsParameter(instance, symbol.Parameters[0])
             && HostSourceOperations.Constant(model, HostSourceOperations.Argument(slice, 0).Syntax, 0)
             && HostSourceOperations.Argument(slice, 1) is IPropertyReferenceOperation
-                { Property.Name: nameof(ReadOnlySpan<byte>.Length), Instance: ILocalReferenceOperation sized } size
+            { Property.Name: nameof(ReadOnlySpan<byte>.Length), Instance: ILocalReferenceOperation sized } size
             && SymbolEqualityComparer.Default.Equals(size.Property.ContainingType, signature.Local.Type)
             && SymbolEqualityComparer.Default.Equals(sized.Local, signature.Local);
     }

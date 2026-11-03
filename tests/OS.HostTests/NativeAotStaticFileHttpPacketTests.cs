@@ -120,7 +120,7 @@ internal static partial class NativeAotStaticFileHttpPacketTests
                     rows[16]!["Status"] = 200;
                     break;
                 case "hash":
-                    rows[10]!["Sha256"] = new string ('0', 64);
+                    rows[10]!["Sha256"] = new string('0', 64);
                     break;
                 case "body-file":
                     rows[0]!["BodyFile"] = "../000.body";
@@ -310,7 +310,7 @@ internal static partial class NativeAotStaticFileHttpPacketTests
         {
             action();
         }
-        catch (Exception error)when (error is ToolFailure or InvalidDataException or System.Text.Json.JsonException or FormatException)
+        catch (Exception error) when (error is ToolFailure or InvalidDataException or System.Text.Json.JsonException or FormatException)
         {
             return;
         }
@@ -327,7 +327,7 @@ internal static partial class NativeAotStaticFileHttpPacketTests
         var assets = NativeAotStaticFilePackage.StagedAssets();
         string date = new DateTimeOffset(2026, 10, 23, 0, 0, 0, TimeSpan.Zero).ToString("r", CultureInfo.InvariantCulture), modified = "Tue, 01 Jan 1980 00:00:00 GMT", etag = "\"abc123\"";
         byte[] large = assets[5].Bytes;
-        string[] paths = ["/healthz", "/config", "/api/status", "/api/items", "/api/items?empty=true", ..assets.Select(asset => "/" + asset.Path[8..]), "/", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/missing.txt", "/appsettings.json", "/index.html.exe", "/one.bin", "/boundary.bin", "/boundary.bin", "/healthz", "/boundary.bin"];
+        string[] paths = ["/healthz", "/config", "/api/status", "/api/items", "/api/items?empty=true", .. assets.Select(asset => "/" + asset.Path[8..]), "/", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/missing.txt", "/appsettings.json", "/index.html.exe", "/one.bin", "/boundary.bin", "/boundary.bin", "/healthz", "/boundary.bin"];
         List<byte[]> requests = [], responses = [];
         for (int i = 0; i < 26; i++)
         {
@@ -375,7 +375,7 @@ internal static partial class NativeAotStaticFileHttpPacketTests
             if (i is not (15 or 18 or 19 or 20 or 21))
                 responseHeaders.Add("Content-Type: " + type);
             long start = i < 22 ? 100 + 100 * i : i == 22 ? 2300 : i == 23 ? 2310 : i == 24 ? 2900 : 3000, end = i == 22 ? 2550 : i == 23 ? 2650 : start + 50;
-            rows.Add(new JsonObject { ["Ordinal"] = i, ["Method"] = method, ["Path"] = paths[i], ["Status"] = status, ["RequestHeaders"] = new JsonArray(requestHeaders.Select(value => (JsonNode? )JsonValue.Create(value)).ToArray()), ["ResponseHeaders"] = new JsonArray(responseHeaders.Select(value => (JsonNode? )JsonValue.Create(value)).ToArray()), ["Bytes"] = body.Length, ["Sha256"] = Convert.ToHexString(SHA256.HashData(body)), ["BodyFile"] = name, ["Started"] = start, ["Finished"] = end });
+            rows.Add(new JsonObject { ["Ordinal"] = i, ["Method"] = method, ["Path"] = paths[i], ["Status"] = status, ["RequestHeaders"] = new JsonArray(requestHeaders.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()), ["ResponseHeaders"] = new JsonArray(responseHeaders.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()), ["Bytes"] = body.Length, ["Sha256"] = Convert.ToHexString(SHA256.HashData(body)), ["BodyFile"] = name, ["Started"] = start, ["Finished"] = end });
             string wireMethod = i == 13 && mode == "request-method" ? "GET" : method, wirePath = i == 18 && mode == "request-target" ? "/other.txt" : paths[i], host = i == 0 && mode == "request-host" ? "elsewhere:5555" : "127.0.0.1:5555";
             var wireRequestHeaders = requestHeaders.ToList();
             if (i == 14 && mode == "request-range")
@@ -402,7 +402,7 @@ internal static partial class NativeAotStaticFileHttpPacketTests
             if (i == 0 && mode == "dual-framing")
                 wireHeaders.Add("Transfer-Encoding: chunked");
             if (chunked)
-                entity = [..Encoding.ASCII.GetBytes((i == 1 && mode == "chunk-size" ? "g" : body.Length.ToString("x", CultureInfo.InvariantCulture)) + "\r\n"), ..body, .."\r\n0\r\n\r\n"u8.ToArray()];
+                entity = [.. Encoding.ASCII.GetBytes((i == 1 && mode == "chunk-size" ? "g" : body.Length.ToString("x", CultureInfo.InvariantCulture)) + "\r\n"), .. body, .. "\r\n0\r\n\r\n"u8.ToArray()];
             int wireStatus = i == 0 && mode == "response-status" ? 404 : status;
             string reason = wireStatus switch
             {
@@ -412,7 +412,7 @@ internal static partial class NativeAotStaticFileHttpPacketTests
                 404 => "Not Found",
                 _ => "Range Not Satisfiable"
             };
-            responses.Add([..Encoding.ASCII.GetBytes($"HTTP/1.1 {wireStatus} {reason}\r\n" + string.Concat(wireHeaders.Select(value => value + "\r\n")) + "\r\n"), ..entity]);
+            responses.Add([.. Encoding.ASCII.GetBytes($"HTTP/1.1 {wireStatus} {reason}\r\n" + string.Concat(wireHeaders.Select(value => value + "\r\n")) + "\r\n"), .. entity]);
         }
 
         uint client = mode == "wrap" ? uint.MaxValue - 1000 : 1000, server = mode == "wrap" ? uint.MaxValue - 500 : 2000;
@@ -537,6 +537,21 @@ internal static partial class NativeAotStaticFileHttpPacketTests
             frames.Add(NativeAotSocketIntegrationTests.Tcp(false, 43003, 1, 0, 2, []));
         Close(firstFlow);
         Close(second);
-        return new(frames, original.Anchor, original.Arp, [43000, 43001, 43002], new() { ["Schema"] = "clros-staged-http-v1", ["Port"] = 5555, ["Complete"] = true, ["ClockFrequency"] = 1000, ["Responses"] = rows }, bodies, new() { ["LocalPort"] = 61234, ["Request"] = Convert.ToBase64String(abortRequest), ["Prefix"] = Convert.ToBase64String(abortResponse.AsSpan(0, 128)), ["Started"] = 2700, ["Closed"] = 2800, ["Close"] = "reset" });
+        return new(frames, original.Anchor, original.Arp, [43000, 43001, 43002], new()
+        {
+            ["Schema"] = "clros-staged-http-v1",
+            ["Port"] = 5555,
+            ["Complete"] = true,
+            ["ClockFrequency"] = 1000,
+            ["Responses"] = rows
+        }, bodies, new()
+        {
+            ["LocalPort"] = 61234,
+            ["Request"] = Convert.ToBase64String(abortRequest),
+            ["Prefix"] = Convert.ToBase64String(abortResponse.AsSpan(0, 128)),
+            ["Started"] = 2700,
+            ["Closed"] = 2800,
+            ["Close"] = "reset"
+        });
     }
 }

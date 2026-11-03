@@ -6,6 +6,7 @@ using OS.Manifest;
 using Race = OS.Tooling.LinuxDiskRaceProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied request identity and independently extracted sector

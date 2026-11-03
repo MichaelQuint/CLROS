@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 using OS.Std.Binary;
 
@@ -15,11 +16,32 @@ public readonly struct VirtioNetReceivedFrameMetadata
         EthernetPayloadLength = ethernetPayloadLength;
     }
 
-    public VirtioNetHeader VirtioHeader { get; }
-    public EthernetHeader EthernetHeader { get; }
-    public int VirtioHeaderLength { get; }
-    public int EthernetFrameOffset { get; }
-    public int EthernetFrameLength { get; }
-    public int EthernetPayloadOffset { get; }
-    public int EthernetPayloadLength { get; }
+    public VirtioNetHeader VirtioHeader
+    {
+        get;
+    }
+    public EthernetHeader EthernetHeader
+    {
+        get;
+    }
+    public int VirtioHeaderLength
+    {
+        get;
+    }
+    public int EthernetFrameOffset
+    {
+        get;
+    }
+    public int EthernetFrameLength
+    {
+        get;
+    }
+    public int EthernetPayloadOffset
+    {
+        get;
+    }
+    public int EthernetPayloadLength
+    {
+        get;
+    }
 }

@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct Com1PortIoBackendPlan
 {
     public const int RequiredExecutableStubBytes = PortIoStubPlan.Out8RequiredByteLength + PortIoStubPlan.In8RequiredByteLength;
@@ -14,12 +15,30 @@ public readonly struct Com1PortIoBackendPlan
         ExecutableStubMemoryPlan = executableStubMemoryPlan;
     }
 
-    public SerialPortConfiguration SerialConfiguration { get; }
-    public PortIoOperationPlan Out8OperationPlan { get; }
-    public PortIoOperationPlan In8OperationPlan { get; }
-    public PortIoStubPlan Out8StubPlan { get; }
-    public PortIoStubPlan In8StubPlan { get; }
-    public ExecutableStubMemoryPlanResult ExecutableStubMemoryPlan { get; }
+    public SerialPortConfiguration SerialConfiguration
+    {
+        get;
+    }
+    public PortIoOperationPlan Out8OperationPlan
+    {
+        get;
+    }
+    public PortIoOperationPlan In8OperationPlan
+    {
+        get;
+    }
+    public PortIoStubPlan Out8StubPlan
+    {
+        get;
+    }
+    public PortIoStubPlan In8StubPlan
+    {
+        get;
+    }
+    public ExecutableStubMemoryPlanResult ExecutableStubMemoryPlan
+    {
+        get;
+    }
 
     public static Com1PortIoBackendPlan CreateReady()
     {

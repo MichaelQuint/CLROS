@@ -17,21 +17,28 @@ public readonly struct SeparatePageFaultMappingRange
     }
 
     public bool IsInitialized => _initialized == 1;
-    public ulong Start { get; }
-    public ulong PageCount { get; }
-    public PageProtection Protection { get; }
-    public PageCachePolicy CachePolicy { get; }
+    public ulong Start
+    {
+        get;
+    }
+    public ulong PageCount
+    {
+        get;
+    }
+    public PageProtection Protection
+    {
+        get;
+    }
+    public PageCachePolicy CachePolicy
+    {
+        get;
+    }
 }
 #if M16_025_PROBE
-
-
 
 #else
 #endif
 #if M10_004_PROBE
-
-
-
 
 #else
 #endif

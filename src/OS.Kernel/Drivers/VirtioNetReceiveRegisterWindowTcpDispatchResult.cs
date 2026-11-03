@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 
 public readonly struct VirtioNetReceiveRegisterWindowTcpDispatchResult
@@ -25,24 +26,78 @@ public readonly struct VirtioNetReceiveRegisterWindowTcpDispatchResult
         TcpDispatch = tcpDispatch;
     }
 
-    public bool IsInitialized { get; }
-    public VirtioNetReceiveRegisterWindowTcpDispatchStatus Status { get; }
-    public VirtioNetReceiveRegisterWindowDispatchStatus ReceiveDispatchStatus { get; }
-    public VirtioNetReceiveRegisterWindowSlabCompletionStatus SlabCompletionStatus { get; }
-    public NetworkReceiveDispatchStatus NetworkDispatchStatus { get; }
-    public TcpReceiveDispatchStatus TcpDispatchStatus { get; }
-    public TcpReceiveDispatchAction TcpAction { get; }
-    public ushort DescriptorHead { get; }
-    public ushort BufferIndex { get; }
-    public uint SelectedBufferOffset { get; }
-    public uint SelectedBufferLength { get; }
-    public uint UsedByteCount { get; }
-    public int PayloadBytes { get; }
-    public int PassiveAckBytes { get; }
-    public VirtioNetReceiveRegisterWindowDispatchResult ReceiveDispatch { get; }
-    public VirtioNetReceiveRegisterWindowSlabCompletionResult SlabCompletion { get; }
-    public NetworkReceiveDispatchResult NetworkDispatch { get; }
-    public TcpReceiveDispatchResult TcpDispatch { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtioNetReceiveRegisterWindowTcpDispatchStatus Status
+    {
+        get;
+    }
+    public VirtioNetReceiveRegisterWindowDispatchStatus ReceiveDispatchStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveRegisterWindowSlabCompletionStatus SlabCompletionStatus
+    {
+        get;
+    }
+    public NetworkReceiveDispatchStatus NetworkDispatchStatus
+    {
+        get;
+    }
+    public TcpReceiveDispatchStatus TcpDispatchStatus
+    {
+        get;
+    }
+    public TcpReceiveDispatchAction TcpAction
+    {
+        get;
+    }
+    public ushort DescriptorHead
+    {
+        get;
+    }
+    public ushort BufferIndex
+    {
+        get;
+    }
+    public uint SelectedBufferOffset
+    {
+        get;
+    }
+    public uint SelectedBufferLength
+    {
+        get;
+    }
+    public uint UsedByteCount
+    {
+        get;
+    }
+    public int PayloadBytes
+    {
+        get;
+    }
+    public int PassiveAckBytes
+    {
+        get;
+    }
+    public VirtioNetReceiveRegisterWindowDispatchResult ReceiveDispatch
+    {
+        get;
+    }
+    public VirtioNetReceiveRegisterWindowSlabCompletionResult SlabCompletion
+    {
+        get;
+    }
+    public NetworkReceiveDispatchResult NetworkDispatch
+    {
+        get;
+    }
+    public TcpReceiveDispatchResult TcpDispatch
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetReceiveRegisterWindowTcpDispatchStatus.Success;
 
     internal static VirtioNetReceiveRegisterWindowTcpDispatchResult FromReceiveDispatch(VirtioNetReceiveRegisterWindowDispatchResult receiveDispatch)

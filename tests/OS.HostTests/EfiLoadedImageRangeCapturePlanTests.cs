@@ -56,7 +56,7 @@ internal static partial class EfiLoadedImageRangeCapturePlanTests
             return false;
         }
 
-        foreach ((string name, byte value)in statuses)
+        foreach ((string name, byte value) in statuses)
         {
             EfiLoadedImageRangeCaptureStatus status = (EfiLoadedImageRangeCaptureStatus)value;
             if (Enum.GetName(status) != name)
@@ -91,7 +91,7 @@ internal static partial class EfiLoadedImageRangeCapturePlanTests
             return false;
         }
 
-        foreach ((string name, int offset)in expected)
+        foreach ((string name, int offset) in expected)
         {
             FieldInfo? field = fields.SingleOrDefault(candidate => candidate.Name == name);
             if (field is null || Marshal.OffsetOf<T>(name).ToInt64() != offset)
@@ -712,7 +712,7 @@ internal static partial class EfiLoadedImageRangeCapturePlanTests
             }
             catch
             {
-            // Preserve the workspace-creation failure as primary evidence.
+                // Preserve the workspace-creation failure as primary evidence.
             }
 
             throw;
@@ -766,7 +766,7 @@ internal static partial class EfiLoadedImageRangeCapturePlanTests
                 }
                 catch
                 {
-                // Timeout remains the primary failure.
+                    // Timeout remains the primary failure.
                 }
             }
         }
@@ -840,7 +840,7 @@ internal static partial class EfiLoadedImageRangeCapturePlanTests
         StringBuilder result = new StringBuilder(source.Length);
         using StringReader reader = new StringReader(source);
         string? line;
-        while ((line = reader.ReadLine())is not null)
+        while ((line = reader.ReadLine()) is not null)
         {
             int commentStart = line.IndexOf("//", StringComparison.Ordinal);
             result.AppendLine(commentStart >= 0 ? line[..commentStart] : line);

@@ -19,10 +19,25 @@ public static partial class NativeDiskReadObservations
             PayloadIncluded = payloadIncluded;
         }
 
-        public Boundary Counters { get; }
-        public ulong Cancelled { get; }
-        public int Rows { get; }
-        public int CopiedSectors { get; }
-        public bool PayloadIncluded { get; }
+        public Boundary Counters
+        {
+            get;
+        }
+        public ulong Cancelled
+        {
+            get;
+        }
+        public int Rows
+        {
+            get;
+        }
+        public int CopiedSectors
+        {
+            get;
+        }
+        public bool PayloadIncluded
+        {
+            get;
+        }
     }
 }

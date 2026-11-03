@@ -15,88 +15,6 @@ using OS.Boot;
 using Core = OS.Boot.EfiEntry.TypedExitBootServicesCallProbe;
 using MapCore = OS.Boot.EfiEntry.FinalMapRetryProbe;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 using Microsoft.CodeAnalysis;
 using OS.Tooling;
@@ -132,7 +50,13 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
         foreach (string arg in args)
             start.ArgumentList.Add(arg);
         DateTime begin = DateTime.UtcNow;
-        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new { File = file, Arguments = args, WorkingDirectory = Root(), StartedUtc = begin }));
+        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new
+        {
+            File = file,
+            Arguments = args,
+            WorkingDirectory = Root(),
+            StartedUtc = begin
+        }));
         using var process = System.Diagnostics.Process.Start(start)!;
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
@@ -146,7 +70,13 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
         string output = stdout.GetAwaiter().GetResult(), error = stderr.GetAwaiter().GetResult();
         File.WriteAllText(Path.Combine(directory, "stdout.log"), output);
         File.WriteAllText(Path.Combine(directory, "stderr.log"), error);
-        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new { NativeExit = process.ExitCode, TimedOut = timeout, StartedUtc = begin, EndedUtc = DateTime.UtcNow }));
+        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new
+        {
+            NativeExit = process.ExitCode,
+            TimedOut = timeout,
+            StartedUtc = begin,
+            EndedUtc = DateTime.UtcNow
+        }));
         return new(process.ExitCode, timeout, output, error);
     }
 
@@ -163,9 +93,9 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
         string root = Root();
         var project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
         var defaults = project.Descendants(Flag).ToArray();
-        Need(defaults.Length == 1 && defaults[0].Value == "false" && (string? )defaults[0].Attribute("Condition") == "'$(" + Flag + ")' == ''", "one false default");
+        Need(defaults.Length == 1 && defaults[0].Value == "false" && (string?)defaults[0].Attribute("Condition") == "'$(" + Flag + ")' == ''", "one false default");
         var define = project.Descendants("DefineConstants").Single(x => x.Value.Contains("M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE", StringComparison.Ordinal));
-        Need((string? )define.Parent?.Attribute("Condition") == "'$(" + Flag + ")' == 'true'" && define.Value == "$(DefineConstants);M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE", "exact conditional symbol");
+        Need((string?)define.Parent?.Attribute("Condition") == "'$(" + Flag + ")' == 'true'" && define.Value == "$(DefineConstants);M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE", "exact conditional symbol");
         var compile = project.Descendants("Compile").Select(x => (string)x.Attribute("Include")!).ToArray();
         Need(compile.Length == OS.Tooling.EfiContracts.CompileItems.Count && compile.Distinct(StringComparer.Ordinal).Count() == OS.Tooling.EfiContracts.CompileItems.Count, "actual ordered full closure");
         Need(compile.SequenceEqual(OS.Tooling.EfiContracts.CompileItems.Select(item => item.Split('|')[0]), StringComparer.Ordinal), "exact reviewed compile source order including typed, first-exit and owned sources");
@@ -176,8 +106,11 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
         HostCheck.Registered(typeof(TypedNoStdlibExitBootServicesCallAdapterTests));
         var authority = source.Type("OS.Kernel.Diagnostics.Probes")
             .GetMembers("EnableTypedExitBootServicesCallProbe").OfType<IFieldSymbol>().Single();
-        Need(authority is { IsStatic: true, IsConst: true, ConstantValue: false,
-            DeclaredAccessibility: Accessibility.Public }
+        Need(authority is
+        {
+            IsStatic: true, IsConst: true, ConstantValue: false,
+            DeclaredAccessibility: Accessibility.Public
+        }
             && authority.Type.SpecialType == SpecialType.System_Boolean, "default false authority");
         const string owner = "OS.Boot.EfiEntry+TypedExitBootServicesCallProbe";
         string core = HostSourceText.Declarations(source, owner);
@@ -256,7 +189,6 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
         {
             Need((other == "EnableM03FirstRealExitBootServicesProbe" || conditions.Count(x => x == "'$(" + Flag + ")' == 'true' and '$(" + other + ")' == 'true'") == 1) && conditions.Count(x => x == "'$(" + other + ")' == 'true' and '$(" + Flag + ")' == 'true'") == 1, "exact reciprocal exclusive row " + other);
         }
-
 
     }
 
@@ -342,7 +274,7 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
         string items = string.Join('\n', sources.Select(x => "<Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, x)) + "\"/>"));
         string project = Path.Combine(directory, "Capture.csproj");
         File.WriteAllText(project, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><OutputType>Exe</OutputType><StartupObject>TypedEbsCaptureHost</StartupObject><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><EnableDefaultCompileItems>false</EnableDefaultCompileItems><DefineConstants>TYPED_EBS_CAPTURE_HOST;M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE</DefineConstants></PropertyGroup><ItemGroup>" + items + "<Compile Include=\"Attribute.cs\"/><ProjectReference Include=\"" + SecurityElement.Escape(Path.Combine(root, "src/OS.Kernel/OS.Kernel.csproj")) + "\"/></ItemGroup></Project>");
-        string[] inputs = [..sources.Select(x => Path.Combine(root, x)), Path.Combine(directory, "Attribute.cs"), project];
+        string[] inputs = [.. sources.Select(x => Path.Combine(root, x)), Path.Combine(directory, "Attribute.cs"), project];
         var identities = inputs.Select(path => new { Path = path, Bytes = new FileInfo(path).Length, Sha256 = Hash(path) }).ToArray();
         File.WriteAllText(Path.Combine(directory, "inputs.json"), JsonSerializer.Serialize(identities));
         Passed(Process(Path.Combine(directory, "build"), "dotnet", "build", project, "-c", "Release", "--nologo", "-m:1", "--disable-build-servers", "-p:UseSharedCompilation=false"));
@@ -376,12 +308,12 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
 
             )
             {
-                string[] copy = [..ProtocolLines];
+                string[] copy = [.. ProtocolLines];
                 copy[i] = replacement;
                 control.Check(FirmwareTranscriptControls.Bytes(copy), false);
             }
 
-            string[] lower = [..ProtocolLines];
+            string[] lower = [.. ProtocolLines];
             lower[i] = lower[i].ToLowerInvariant();
             if (lower[i] != ProtocolLines[i])
                 control.Check(FirmwareTranscriptControls.Bytes(lower), false);
@@ -431,18 +363,18 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
             control.Check(Encoding.ASCII.GetBytes(changed), false);
         }
 
-        string[] swap = [..ProtocolLines];
+        string[] swap = [.. ProtocolLines];
         (swap[16], swap[17]) = (swap[17], swap[16]);
         control.Check(FirmwareTranscriptControls.Bytes(swap), false);
         control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace("\r\n", "\n")), false);
         control.Check(good[..^1], false);
-        control.Check([..good, 0], false);
-        control.Check([..good, 255], false);
+        control.Check([.. good, 0], false);
+        control.Check([.. good, 255], false);
         control.Check(good, false, [255]);
         control.Check(good, false, Encoding.ASCII.GetBytes("arbitrary"));
-        control.Check(good, false, post: [..FirmwareTranscriptControls.Suffix, 65]);
+        control.Check(good, false, post: [.. FirmwareTranscriptControls.Suffix, 65]);
         control.Check(good, true, post: FirmwareTranscriptControls.ShortSuffix);
-        control.Check(good, false, post: [..FirmwareTranscriptControls.ShortSuffix, 65]);
+        control.Check(good, false, post: [.. FirmwareTranscriptControls.ShortSuffix, 65]);
         control.Check(good, false, post: []);
         control.Check(good, true);
         string[] ordered = ["TEST_START efi.main", "EFI_CONSOLE_READY", "UEFI_MEMORY_MAP_READY", "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT", "BOOT_PAGE_ALLOCATOR_READY", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", "TEST_START m03.004", "M03_TYPED_EBS_IMAGE", "M03_TYPED_EBS_ADMISSION", "M03_TYPED_EBS_CASE id=0", "M03_TYPED_EBS_CASE id=1", "M03_TYPED_EBS_CASE id=2", "M03_TYPED_EBS_CASE id=3", "CLROS_M03_004_READY", "TEST_PASS m03.004", "TEST_START m03.005", "M03_FINAL_MAP_IMAGE", "M03_FINAL_MAP_CALL case=0 index=0", "M03_FINAL_MAP_RESULT case=0", "CLROS_M03_005_READY", "TEST_PASS m03.005", "TEST_START m03.006", "M03_FINAL_MAP_CALL case=1 index=0", "M03_FINAL_MAP_CALL case=1 index=1", "M03_FINAL_MAP_RESULT case=1", "M03_FINAL_MAP_CALL case=2 index=0", "M03_FINAL_MAP_CALL case=2 index=1", "M03_FINAL_MAP_RESULT case=2", "CLROS_M03_006_READY", "TEST_PASS m03.006", "TEST_START boot.sequence", "BOOT_PHASE PhaseA.Audit START", "BOOT_PHASE PhaseA.Audit PASS", "BOOT_PHASE PhaseA.Diagnostics START", "BOOT_PHASE PhaseA.Diagnostics PASS", "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS"];
@@ -456,7 +388,7 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
     private static void TestProfile()
     {
         string root = Root(), directory = Scratch("profile"), script = Path.Combine(root, "tools/OS.Tooling/QemuProfiles.cs"), before = Hash(script);
-        Result Dry(params string[] args) => Tool(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", ..args]);
+        Result Dry(params string[] args) => Tool(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", .. args]);
         string[] positive = ["-BuildEfi", "-" + Flag];
         Result result = Dry(positive);
         Passed(result);
@@ -507,7 +439,7 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
             Need(!missing.Passed && missing.MissingRequiredMarkers!.Count > 0, "missing controlled row");
             var duplicate = Stream(ProtocolLines.Take(index + 1).Concat(ProtocolLines.Skip(index)).ToArray());
             Need(!duplicate.Passed && duplicate.DuplicateUniqueOccurrenceCount == 1, "duplicate controlled row");
-            string[] swapped = [..ProtocolLines];
+            string[] swapped = [.. ProtocolLines];
             (swapped[index], swapped[index + 1]) = (swapped[index + 1], swapped[index]);
             Need(Stream(swapped).OutOfOrderOccurrenceCount > 0, "reordered controlled row");
         }
@@ -522,11 +454,11 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
         string[] flags = Regex.Matches(project, @"\$\((Enable\w+Probe)\)").Select(x => x.Groups[1].Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         Need(flags.Length == OS.Tooling.EfiContracts.DiagnosticProbes.Count, "complete profile flags");
         foreach (string other in flags.Where(x => x != Flag))
-            Reject([..positive, "-" + other], EfiProfileTestControls.MissingParentReason([Flag, other], ordinarySmoke: true) ?? (other == "EnableM03FirstRealExitBootServicesProbe" ? "m03_first_exit_requires property=EnableM01LoadedImageStackProbe" : other == "EnableM04GcStaticRootMaterializationProbe" ? "m04_gc_static_profile_invalid property=EnableM01LoadedImageStackProbe" : "m03_typed_ebs_profile_conflict property=" + other));
+            Reject([.. positive, "-" + other], EfiProfileTestControls.MissingParentReason([Flag, other], ordinarySmoke: true) ?? (other == "EnableM03FirstRealExitBootServicesProbe" ? "m03_first_exit_requires property=EnableM01LoadedImageStackProbe" : other == "EnableM04GcStaticRootMaterializationProbe" ? "m04_gc_static_profile_invalid property=EnableM01LoadedImageStackProbe" : "m03_typed_ebs_profile_conflict property=" + other));
         Reject(["-" + Flag], "m03_typed_ebs_requires_build_and_original_capture");
-        Reject([..positive, "-SkipImageBuild"], "m03_typed_ebs_requires_build_and_original_capture");
-        Reject([..positive, "-M01RawObservationLog", ""], "m03_typed_ebs_requires_build_and_original_capture");
-        Reject([..positive, "-RequireNativeAppMarkers"], "m03_typed_ebs_requires_build_and_original_capture");
+        Reject([.. positive, "-SkipImageBuild"], "m03_typed_ebs_requires_build_and_original_capture");
+        Reject([.. positive, "-M01RawObservationLog", ""], "m03_typed_ebs_requires_build_and_original_capture");
+        Reject([.. positive, "-RequireNativeAppMarkers"], "m03_typed_ebs_requires_build_and_original_capture");
         foreach (string option in new[]
         {
             "RequireMarker",
@@ -537,7 +469,7 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
         }
 
         )
-            Reject([..positive, "-" + option, "CLROS_M03_004_READY"], "m03_typed_ebs_forbids_override");
+            Reject([.. positive, "-" + option, "CLROS_M03_004_READY"], "m03_typed_ebs_forbids_override");
         Reject(["-RequireMarker", "CLROS_M03_004_READY"], "m03_typed_ebs_requires_explicit_profile");
         foreach (bool build in new[]
         {
@@ -569,7 +501,7 @@ internal static partial class M03TypedExitBootServicesCallEfiIntegrationTests
         )
         {
             string directory = Scratch(enabled ? "enabled" : "default"), artifact = Path.Combine(root, "artifacts/efi/issue546-" + Guid.NewGuid().ToString("N") + ".EFI");
-            Result result = Tool(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), ..(enabled ? new[] { "-EnableM03TypedExitBootServicesCallProbe" } : Array.Empty<string>())]);
+            Result result = Tool(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), .. (enabled ? new[] { "-EnableM03TypedExitBootServicesCallProbe" } : Array.Empty<string>())]);
             Passed(result);
             Need(result.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && result.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), "actual producer/verifier");
             foreach (string suffix in new[]

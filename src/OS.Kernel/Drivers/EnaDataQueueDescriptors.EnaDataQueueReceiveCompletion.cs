@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly struct EnaDataQueueReceiveCompletion
@@ -13,12 +14,30 @@ public readonly struct EnaDataQueueReceiveCompletion
         Offset = offset;
     }
 
-    public uint Status { get; }
-    public ushort Length { get; }
-    public ushort RequestId { get; }
-    public uint Hash { get; }
-    public ushort SubmissionQueueId { get; }
-    public byte Offset { get; }
+    public uint Status
+    {
+        get;
+    }
+    public ushort Length
+    {
+        get;
+    }
+    public ushort RequestId
+    {
+        get;
+    }
+    public uint Hash
+    {
+        get;
+    }
+    public ushort SubmissionQueueId
+    {
+        get;
+    }
+    public byte Offset
+    {
+        get;
+    }
     public byte L3ProtocolIndex => (byte)(Status & EnaDataQueueDescriptors.RxCompletionL3ProtocolMask);
     public byte SourceVlanCount => (byte)((Status & EnaDataQueueDescriptors.RxCompletionSourceVlanCountMask) >> EnaDataQueueDescriptors.RxCompletionSourceVlanCountShift);
     public byte L4ProtocolIndex => (byte)((Status & EnaDataQueueDescriptors.RxCompletionL4ProtocolMask) >> EnaDataQueueDescriptors.RxCompletionL4ProtocolShift);

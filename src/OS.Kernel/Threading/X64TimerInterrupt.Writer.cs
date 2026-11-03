@@ -1,4 +1,5 @@
 namespace OS.Kernel.Threading;
+
 public static unsafe partial class X64TimerInterrupt
 {
     private struct Writer(byte* output, bool compare)

@@ -2,6 +2,7 @@ using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     // Object identity follows the original open description, never a reused fd.

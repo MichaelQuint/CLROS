@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied FIFO message coordinates and original first-byte records.

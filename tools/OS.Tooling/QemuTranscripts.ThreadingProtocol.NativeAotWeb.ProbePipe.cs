@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed partial class ThreadingProtocol
@@ -53,7 +54,7 @@ public static partial class QemuTranscripts
                 return true;
             }
 
-            Need(c is> 0 and <= 4096, "web_probe_pipe_count");
+            Need(c is > 0 and <= 4096, "web_probe_pipe_count");
             if ((nr == 0) != readEnd)
             {
                 Need(v == Bits(-9), "web_probe_pipe_direction");

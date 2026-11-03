@@ -106,7 +106,8 @@ internal static unsafe class LinuxPipeTests
         byte* retained = stackalloc byte[8192];
         byte* input = stackalloc byte[12288];
         byte* output = stackalloc byte[8192];
-        for (uint i = 0; i < 12288; i++) input[i] = (byte)(i * 29 + (i >> 8) * 13 + 7);
+        for (uint i = 0; i < 12288; i++)
+            input[i] = (byte)(i * 29 + (i >> 8) * 13 + 7);
         LinuxPipe pipe = default;
         HostCheck.True(pipe.Initialize(retained, 8192));
         HostCheck.Equal(5000L, pipe.Write(input, 5000, true, true));
@@ -145,21 +146,25 @@ internal static unsafe class LinuxPipeTests
         for (uint round = 0; round < 24; round++)
         {
             uint request = round % 3 == 0 ? 5000U : 1U + round * 83;
-            for (uint i = 0; i < request; i++) input[i] = StreamByte(written + i);
+            for (uint i = 0; i < request; i++)
+                input[i] = StreamByte(written + i);
             long result = pipe.Write(input, request, true, true);
             if (result > 0)
             {
-                for (uint i = 0; i < result; i++) expected.Enqueue(StreamByte(written + i));
+                for (uint i = 0; i < result; i++)
+                    expected.Enqueue(StreamByte(written + i));
                 written += (uint)result;
             }
-            else HostCheck.Equal(-11L, result);
+            else
+                HostCheck.Equal(-11L, result);
             HostCheck.Equal((uint)expected.Count, pipe.BufferedBytes);
             HostCheck.Equal((long)expected.Count, pipe.Peek(output, 6000, true));
             HostCheck.True(new ReadOnlySpan<byte>(output, expected.Count).SequenceEqual(expected.ToArray()));
             uint take = (uint)Math.Min(expected.Count, 700 + (int)round * 19);
             for (uint i = 0; i < take; i++)
                 HostCheck.Equal(StreamByte(read + i), expected.Dequeue());
-            HostCheck.True(pipe.Consume(take)); read += take;
+            HostCheck.True(pipe.Consume(take));
+            read += take;
         }
         HostCheck.True(written > 5 * 4096 && read > 4 * 4096);
         HostCheck.Equal((long)expected.Count, pipe.Peek(output, 6000, true));
@@ -240,13 +245,15 @@ internal static unsafe class LinuxPipeTests
         byte value = 0x3d;
         LinuxPipe pipe = default;
         HostCheck.True(pipe.Initialize(retained, 4096));
-        Readers(ref pipe) = uint.MaxValue; Writers(ref pipe) = uint.MaxValue;
+        Readers(ref pipe) = uint.MaxValue;
+        Writers(ref pipe) = uint.MaxValue;
         byte[] original = Snapshot(&pipe);
         HostCheck.True(!pipe.DuplicateReader() && !pipe.DuplicateWriter());
         HostCheck.True(original.AsSpan().SequenceEqual(Snapshot(&pipe)));
         HostCheck.True(pipe.CloseReader() && pipe.CloseWriter());
         HostCheck.True(pipe.ReaderCount == uint.MaxValue - 1 && pipe.WriterCount == uint.MaxValue - 1);
-        Readers(ref pipe) = 1; Writers(ref pipe) = 1;
+        Readers(ref pipe) = 1;
+        Writers(ref pipe) = 1;
         HostCheck.Equal(1L, pipe.Write(&value, 1, true, true));
         ReadIndex(ref pipe) = 4096;
         original = Snapshot(&pipe);
@@ -257,7 +264,8 @@ internal static unsafe class LinuxPipeTests
             !pipe.CloseReader() && !pipe.CloseWriter() && !pipe.Release());
         HostCheck.True(original.AsSpan().SequenceEqual(Snapshot(&pipe)) &&
             bytes.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(retained, 4096)));
-        ReadIndex(ref pipe) = 0; Buffered(ref pipe) = 0; // Write index is still one: inconsistent ring.
+        ReadIndex(ref pipe) = 0;
+        Buffered(ref pipe) = 0; // Write index is still one: inconsistent ring.
         original = Snapshot(&pipe);
         HostCheck.Equal(-9L, pipe.Write(&value, 1, true, true));
         HostCheck.True(!pipe.Consume(0) && original.AsSpan().SequenceEqual(Snapshot(&pipe)));

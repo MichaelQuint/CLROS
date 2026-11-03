@@ -215,7 +215,8 @@ internal static unsafe partial class LinuxAppLoggingTests
                 0 => LogText(ref logs, 1, 100, "CLROS_LOG fd=1 worker=0 record=0\n"),
                 1 => LogText(ref logs, 1, 100, "CLROS_LOG fd=1 worker=1 record=0\n"),
                 2 => LogText(ref logs, 2, 101, "CLROS_LOG fd=2 worker=0 record=0\n"),
-                _ => LogCall(ref logs, 10, 20, 1234, -9)};
+                _ => LogCall(ref logs, 10, 20, 1234, -9)
+            };
             HostCheck.True(!accepted && logs.Failed && !logs.Complete);
         }
 
@@ -283,7 +284,7 @@ internal static unsafe partial class LinuxAppLoggingTests
 
         LinuxAppLogObservation extra = default;
         HostCheck.True(LogText(ref extra, 1, 100, output) && LogCall(ref extra, 100, 1, 1, 33));
-        HostCheck.True(LogText(ref extra, 2, 100, error + new string ('x', 32)));
+        HostCheck.True(LogText(ref extra, 2, 100, error + new string('x', 32)));
         HostCheck.True(!LogCall(ref extra, 100, 20, 2, 33) && extra.Failed);
         foreach (int mode in Enumerable.Range(0, 3))
         {
@@ -294,7 +295,8 @@ internal static unsafe partial class LinuxAppLoggingTests
             {
                 0 => error,
                 1 => output.Replace("record=0", "record=1"),
-                _ => error.Replace("record=0", "record=1")};
+                _ => error.Replace("record=0", "record=1")
+            };
             HostCheck.True(!LogText(ref logs, mode == 1 ? 1U : 2U, 100, reordered) && logs.Failed);
         }
     }
@@ -656,7 +658,12 @@ internal static unsafe partial class LinuxAppLoggingTests
         HostCheck.True(model.Quota.Complete && !model.ObservationFailed);
         var unjoined = model.Quota;
         HostCheck.True(unjoined.Deny(1, 100, 33, 64, 755) && !unjoined.Complete);
-        HostCheck.True(unjoined.RecordCall(100, new() { Number = 1, Argument0 = 1, Argument2 = 33 }, new(LinuxSyscallAction.Return, -5)) && unjoined.Complete);
+        HostCheck.True(unjoined.RecordCall(100, new()
+        {
+            Number = 1,
+            Argument0 = 1,
+            Argument2 = 33
+        }, new(LinuxSyscallAction.Return, -5)) && unjoined.Complete);
         HostCheck.True(new ReadOnlySpan<byte>(owner.Admission.Scratch, 8192).IndexOfAnyExcept((byte)0) == -1);
     }
 
@@ -669,7 +676,12 @@ internal static unsafe partial class LinuxAppLoggingTests
             for (int i = 0; i < 64; i++)
             {
                 HostCheck.True(early.Observe(1, 100, text, 10));
-                HostCheck.True(early.RecordCall(100, new() { Number = 1, Argument0 = 1, Argument2 = 10 }, new(LinuxSyscallAction.Return, 10)));
+                HostCheck.True(early.RecordCall(100, new()
+                {
+                    Number = 1,
+                    Argument0 = 1,
+                    Argument2 = 10
+                }, new(LinuxSyscallAction.Return, 10)));
             }
 
         HostCheck.True(!early.Deny(1, 100, 10, 64, 640) && early.Failed && !early.Complete);
@@ -678,7 +690,12 @@ internal static unsafe partial class LinuxAppLoggingTests
             for (int i = 0; i < 62; i++)
             {
                 HostCheck.True(partial.Observe(1, 100, text, 10));
-                HostCheck.True(partial.RecordCall(100, new() { Number = 1, Argument0 = 1, Argument2 = 10 }, new(LinuxSyscallAction.Return, 10)));
+                HostCheck.True(partial.RecordCall(100, new()
+                {
+                    Number = 1,
+                    Argument0 = 1,
+                    Argument2 = 10
+                }, new(LinuxSyscallAction.Return, 10)));
             }
 
         byte[] first = "CLROS_LOG fd=1 worker=0 record=0\n"u8.ToArray();
@@ -686,7 +703,12 @@ internal static unsafe partial class LinuxAppLoggingTests
         fixed (byte* row = first)
         {
             HostCheck.True(partial.Observe(1, 100, row, 33));
-            HostCheck.True(partial.RecordCall(100, new() { Number = 1, Argument0 = 1, Argument2 = 33 }, new(LinuxSyscallAction.Return, 33)));
+            HostCheck.True(partial.RecordCall(100, new()
+            {
+                Number = 1,
+                Argument0 = 1,
+                Argument2 = 33
+            }, new(LinuxSyscallAction.Return, 33)));
         }
 
         fixed (byte* row = second)
@@ -720,9 +742,19 @@ internal static unsafe partial class LinuxAppLoggingTests
                 if (mutation == 2)
                     accepted = quota.Deny(1, 100, 33, 64, 663);
                 else if (mutation == 3)
-                    accepted = quota.RecordCall(101, new() { Number = 1, Argument0 = 1, Argument2 = 33 }, new(LinuxSyscallAction.Return, -5));
+                    accepted = quota.RecordCall(101, new()
+                    {
+                        Number = 1,
+                        Argument0 = 1,
+                        Argument2 = 33
+                    }, new(LinuxSyscallAction.Return, -5));
                 else if (mutation == 4)
-                    accepted = quota.RecordCall(100, new() { Number = 1, Argument0 = 1, Argument2 = 33 }, new(LinuxSyscallAction.Return, 33));
+                    accepted = quota.RecordCall(100, new()
+                    {
+                        Number = 1,
+                        Argument0 = 1,
+                        Argument2 = 33
+                    }, new(LinuxSyscallAction.Return, 33));
                 else
                     fixed (byte* text = noise)
                         accepted = quota.Observe(1, 100, text, 10);
@@ -736,7 +768,12 @@ internal static unsafe partial class LinuxAppLoggingTests
     {
         owner.Text(Data, row);
         long value = owner.Call(1, 1, Data, (ulong)row.Length);
-        model.ObservationFailed |= !model.Quota.RecordCall(model.Writer, new() { Number = 1, Argument0 = 1, Argument2 = (ulong)row.Length }, new(LinuxSyscallAction.Return, value));
+        model.ObservationFailed |= !model.Quota.RecordCall(model.Writer, new()
+        {
+            Number = 1,
+            Argument0 = 1,
+            Argument2 = (ulong)row.Length
+        }, new(LinuxSyscallAction.Return, value));
         return value;
     }
 
@@ -749,7 +786,12 @@ internal static unsafe partial class LinuxAppLoggingTests
         vectors[2] = Data + (ulong)row.Length - 1;
         vectors[3] = 1;
         long value = owner.Call(20, 2, Vectors, 2);
-        model.ObservationFailed |= !model.Quota.RecordCall(model.Writer, new() { Number = 20, Argument0 = 2, Argument2 = 2 }, new(LinuxSyscallAction.Return, value));
+        model.ObservationFailed |= !model.Quota.RecordCall(model.Writer, new()
+        {
+            Number = 20,
+            Argument0 = 2,
+            Argument2 = 2
+        }, new(LinuxSyscallAction.Return, value));
         return value;
     }
 

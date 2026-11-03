@@ -20,8 +20,17 @@ internal static partial class OwnedBootStackSwitchPlanTests
             Output = output;
         }
 
-        public int ExitCode { get; }
-        public bool TimedOut { get; }
-        public string Output { get; }
+        public int ExitCode
+        {
+            get;
+        }
+        public bool TimedOut
+        {
+            get;
+        }
+        public string Output
+        {
+            get;
+        }
     }
 }

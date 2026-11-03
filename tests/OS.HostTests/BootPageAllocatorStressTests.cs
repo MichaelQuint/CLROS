@@ -122,7 +122,7 @@ internal static partial class BootPageAllocatorStressTests
             return false;
         }
 
-        BootPageFreeListNode[] highNodes = [Node(0, 0, 0xFFFF_FFFF_FFFF_E000, 1, -1), default ];
+        BootPageFreeListNode[] highNodes = [Node(0, 0, 0xFFFF_FFFF_FFFF_E000, 1, -1), default];
         return HighBoundaryRoundTrip() && AllocationFailurePreserves(State(0, 1, 1, 0), highNodes, nodeCount: 1, nodeCapacity: 2, [], 0, 0, 1, 4 * PageSize, BootPageAllocatorMutationStatus.AllocationAddressOverflow, AddressValueStatus.AddressOverflow);
     }
 
@@ -162,14 +162,14 @@ internal static partial class BootPageAllocatorStressTests
             return false;
         }
 
-        BootPageFreeListNode[] valid = [Node(0, 0, 0x0020_0000, 4, -1), default ];
+        BootPageFreeListNode[] valid = [Node(0, 0, 0x0020_0000, 4, -1), default];
         BootPageAllocatorState mismatchedTotals = new(isInitialized: true, PageSize, headNodeIndex: 0, freeNodeCount: 1, freePageCount: 5, freeByteCount: 5 * PageSize, allocatedPageCount: 0, allocatedByteCount: 0);
         if (!AllocationFailurePreserves(mismatchedTotals, valid, 2, 2, [], 0, 0, 1, PageSize, BootPageAllocatorMutationStatus.TotalPageCountMismatch))
         {
             return false;
         }
 
-        BootPageFreeListNode[] malformed = [new BootPageFreeListNode(0, 0, 0x0030_0000, 0x0030_4000, pageCount: 3, byteLength: 4 * PageSize, nextNodeIndex: -1), default ];
+        BootPageFreeListNode[] malformed = [new BootPageFreeListNode(0, 0, 0x0030_0000, 0x0030_4000, pageCount: 3, byteLength: 4 * PageSize, nextNodeIndex: -1), default];
         return AllocationFailurePreserves(State(0, 1, 4, 0), malformed, 2, 2, [], 0, 0, 1, PageSize, BootPageAllocatorMutationStatus.InvalidNodeShape);
     }
 
@@ -371,7 +371,7 @@ internal static partial class BootPageAllocatorStressTests
 
     private static unsafe bool HighBoundaryRoundTrip()
     {
-        BootPageFreeListNode[] nodes = [Node(0, 0, 0xFFFF_FFFF_FFFF_E000, 1, -1), default ];
+        BootPageFreeListNode[] nodes = [Node(0, 0, 0xFFFF_FFFF_FFFF_E000, 1, -1), default];
         byte[] original = StructArrayBytes(nodes);
         BootPageAllocatorState state = State(0, 1, 1, 0);
         fixed (BootPageFreeListNode* nodePointer = nodes)

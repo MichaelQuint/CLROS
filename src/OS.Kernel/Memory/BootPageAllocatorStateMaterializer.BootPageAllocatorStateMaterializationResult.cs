@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public readonly struct BootPageAllocatorStateMaterializationResult
 {
     private readonly byte _reserved0;
@@ -36,24 +37,75 @@ public readonly struct BootPageAllocatorStateMaterializationResult
         State = state;
     }
 
-    public BootPageAllocatorStateMaterializationStatus Status { get; }
+    public BootPageAllocatorStateMaterializationStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == BootPageAllocatorStateMaterializationStatus.Success && ReservedFieldsAreZero() && SourceNodeCount != 0 && SourceNodeCount <= SourceNodeCapacity && SourceNodeCount <= BootPageAllocatorStateMaterializer.MaximumSourceNodeCount && SourceRangeCount != 0 && SourceRangeCount <= BootPageAllocatorStateMaterializer.MaximumSourceRangeCount && RequiredDestinationStateCapacity == BootPageAllocatorStateMaterializer.RequiredDestinationStateCapacity && AvailableDestinationStateCapacity >= RequiredDestinationStateCapacity && MaterializedStateCount == 1 && HeadNodeIndex >= 0 && (ulong)HeadNodeIndex < SourceNodeCount && InvalidNodeIndex == BootPageAllocatorStateMaterializer.NoNodeIndex && ConflictingNodeIndex == BootPageAllocatorStateMaterializer.NoNodeIndex && VisitedNodeCount == SourceNodeCount && PageSize == BootPageAllocatorStateMaterializer.RequiredPageSize && ExpectedFreePages != 0 && ExpectedFreeBytes != 0 && ObservedFreePages == ExpectedFreePages && ObservedFreeBytes == ExpectedFreeBytes && BootPageAllocatorStateMaterializer.IsRepresentableSuccessSummary(SourceNodeCount, SourceNodeCapacity, AvailableDestinationStateCapacity, PageSize, ExpectedFreePages, ExpectedFreeBytes) && State.IsInitialized && State.PageSize == PageSize && State.HeadNodeIndex == HeadNodeIndex && State.FreeNodeCount == (int)SourceNodeCount && State.FreePageCount == ExpectedFreePages && State.FreeByteCount == ExpectedFreeBytes && State.AllocatedPageCount == 0 && State.AllocatedByteCount == 0;
-    public ulong SourceNodeCount { get; }
-    public ulong SourceNodeCapacity { get; }
-    public ulong SourceRangeCount { get; }
-    public ulong RequiredDestinationStateCapacity { get; }
-    public ulong AvailableDestinationStateCapacity { get; }
-    public ulong MaterializedStateCount { get; }
-    public int HeadNodeIndex { get; }
-    public int InvalidNodeIndex { get; }
-    public int ConflictingNodeIndex { get; }
-    public ulong VisitedNodeCount { get; }
-    public ulong PageSize { get; }
-    public ulong ExpectedFreePages { get; }
-    public ulong ExpectedFreeBytes { get; }
-    public ulong ObservedFreePages { get; }
-    public ulong ObservedFreeBytes { get; }
-    public BootPageAllocatorState State { get; }
+    public ulong SourceNodeCount
+    {
+        get;
+    }
+    public ulong SourceNodeCapacity
+    {
+        get;
+    }
+    public ulong SourceRangeCount
+    {
+        get;
+    }
+    public ulong RequiredDestinationStateCapacity
+    {
+        get;
+    }
+    public ulong AvailableDestinationStateCapacity
+    {
+        get;
+    }
+    public ulong MaterializedStateCount
+    {
+        get;
+    }
+    public int HeadNodeIndex
+    {
+        get;
+    }
+    public int InvalidNodeIndex
+    {
+        get;
+    }
+    public int ConflictingNodeIndex
+    {
+        get;
+    }
+    public ulong VisitedNodeCount
+    {
+        get;
+    }
+    public ulong PageSize
+    {
+        get;
+    }
+    public ulong ExpectedFreePages
+    {
+        get;
+    }
+    public ulong ExpectedFreeBytes
+    {
+        get;
+    }
+    public ulong ObservedFreePages
+    {
+        get;
+    }
+    public ulong ObservedFreeBytes
+    {
+        get;
+    }
+    public BootPageAllocatorState State
+    {
+        get;
+    }
 
     internal static BootPageAllocatorStateMaterializationResult Success(ulong sourceNodeCount, ulong sourceNodeCapacity, ulong sourceRangeCount, ulong availableDestinationStateCapacity, int headNodeIndex, ulong pageSize, ulong freePages, ulong freeBytes, BootPageAllocatorState state)
     {

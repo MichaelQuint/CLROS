@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public enum BootPageAllocatorPlanStatus
 {
     Success = 0,

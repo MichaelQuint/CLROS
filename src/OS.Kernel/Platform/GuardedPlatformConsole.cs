@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public sealed class GuardedPlatformConsole : IPlatformConsole
 {
     private readonly IPlatformFirmware _firmware;

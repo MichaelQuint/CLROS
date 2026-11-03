@@ -12,7 +12,10 @@ internal static partial class PlatformFileSystemGuardTests
             _expectedPath = expectedPath.ToArray();
         }
 
-        public int ReadCount { get; private set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
 
         public PlatformFileSystemSourceReadResult ReadFile(ReadOnlySpan<byte> relativePath, Span<byte> destination)
         {

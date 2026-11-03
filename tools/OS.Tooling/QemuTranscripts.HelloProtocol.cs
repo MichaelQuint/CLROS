@@ -1,6 +1,7 @@
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed class HelloProtocol
@@ -10,7 +11,7 @@ public static partial class QemuTranscripts
         private readonly ulong userRoot, kernelRoot;
         private readonly HelloMemory memory;
         private LinuxThreadExecutionBudget budget;
-        private readonly HelloThread? [] threads = new HelloThread? [4];
+        private readonly HelloThread?[] threads = new HelloThread?[4];
         private readonly Queue<int> ready = new();
         private readonly HashSet<int> files = [];
         private readonly HashSet<ulong> signalQueries = [], signalInstalls = [];
@@ -411,7 +412,7 @@ public static partial class QemuTranscripts
                     Need(a is 0 or 1 && b == 9 && c == 0 && memory.Covered(d, 16, 3) && value == 0, "hello_limit");
                     break;
                 case 318:
-                    Need(t.Tid == 1 && b is> 0 and <= 32 && c <= 1 && memory.Covered(a, b, 3) && value == b && !entropy, "hello_entropy");
+                    Need(t.Tid == 1 && b is > 0 and <= 32 && c <= 1 && memory.Covered(a, b, 3) && value == b && !entropy, "hello_entropy");
                     entropy = true;
                     break;
                 case 324:
@@ -426,7 +427,7 @@ public static partial class QemuTranscripts
                     Need(memory.Covered(a, 1, 1) && memory.Covered(b, 120, 3) && value == Err(-38), "hello_statfs_unsupported");
                     break;
                 case 217:
-                    Need(a <= int.MaxValue && files.Contains((int)a) && c is> 0 and <= 8192 && memory.Covered(b, c, 3) && value == Err(-38), "hello_getdents_unsupported");
+                    Need(a <= int.MaxValue && files.Contains((int)a) && c is > 0 and <= 8192 && memory.Covered(b, c, 3) && value == Err(-38), "hello_getdents_unsupported");
                     break;
                 case 239:
                     Need(a == 0 && b == 0 && c == 0 && d == 0 && e == 0 && value == Err(-38), "hello_numa_unsupported");

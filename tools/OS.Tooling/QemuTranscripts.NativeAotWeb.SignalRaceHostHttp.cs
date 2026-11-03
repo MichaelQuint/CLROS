@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Borrow strict web-race wire/attempt/selected reports and frame
@@ -48,7 +49,7 @@ public static partial class QemuTranscripts
                     Need(previous.Response is { State: "complete" } && previous.ResponseOperations.Count > 0 && previous.ResponseOperations.Max(id => trace.Operations[id - 1].EndedTicks) <= writes.Min(id => trace.Operations[id - 1].StartedTicks), "web_race_http_fifo");
                 if (request.HeaderEnd >= 0)
                 {
-                    Need(request.First == exchange.Method + " " + exchange.Path + " HTTP/1.1" && request.Headers.GetValueOrDefault("Host") == "127.0.0.1:" + trace.Port.ToString(CultureInfo.InvariantCulture) && request.Headers.GetValueOrDefault("Connection")is null, "web_race_http_request");
+                    Need(request.First == exchange.Method + " " + exchange.Path + " HTTP/1.1" && request.Headers.GetValueOrDefault("Host") == "127.0.0.1:" + trace.Port.ToString(CultureInfo.InvariantCulture) && request.Headers.GetValueOrDefault("Connection") is null, "web_race_http_request");
                     Need(exchange.Method == "POST" ? request.Framing == "length" && request.DeclaredLength == 0 : request.Framing == "none", "web_race_http_request_body");
                     if (eventOwned)
                     {

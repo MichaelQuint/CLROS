@@ -6,15 +6,27 @@ internal static partial class BacklogSyncTests
 {
     private sealed class Fixture
     {
-        public BacklogManifest Manifest { get; }
+        public BacklogManifest Manifest
+        {
+            get;
+        }
         public List<JsonObject> Issues { get; } = [];
         public List<(string Method, string Path, JsonObject? Body)> Calls { get; } = [];
         public bool Reviewed { get; init; } = true;
         public int RepositoryId { get; init; } = 9;
         public string RepositoryName { get; init; } = "admin/CLROS";
-        public bool DropLabelMutation { get; init; }
-        public bool DropContentMutation { get; init; }
-        public Action<string, string, JsonObject?>? BeforeRequest { get; set; }
+        public bool DropLabelMutation
+        {
+            get; init;
+        }
+        public bool DropContentMutation
+        {
+            get; init;
+        }
+        public Action<string, string, JsonObject?>? BeforeRequest
+        {
+            get; set;
+        }
 
         private readonly List<JsonObject> labels = [];
         private readonly JsonObject milestone = new()
@@ -29,7 +41,13 @@ internal static partial class BacklogSyncTests
         {
             string[] names = ["agent:done", "agent:review", "agent:claimed", "type:epic", "type:implementation", "human:owned"];
             for (int i = 0; i < names.Length; i++)
-                labels.Add(new() { ["id"] = i + 1, ["name"] = names[i], ["color"] = "aabbcc", ["description"] = "Fixture" });
+                labels.Add(new()
+                {
+                    ["id"] = i + 1,
+                    ["name"] = names[i],
+                    ["color"] = "aabbcc",
+                    ["description"] = "Fixture"
+                });
             JsonObject Issue(string key, string parent, bool epic, params string[] dependencies) => new()
             {
                 ["key"] = key,
@@ -38,7 +56,7 @@ internal static partial class BacklogSyncTests
                 ["parentKey"] = parent,
                 ["desiredState"] = "closed",
                 ["summary"] = "Summary " + key,
-                ["dependencyKeys"] = new JsonArray(dependencies.Select(x => (JsonNode? )JsonValue.Create(x)).ToArray()),
+                ["dependencyKeys"] = new JsonArray(dependencies.Select(x => (JsonNode?)JsonValue.Create(x)).ToArray()),
                 ["labels"] = new JsonArray("agent:done", epic ? "type:epic" : "type:implementation"),
                 ["priority"] = "p1",
                 ["collisionLane"] = "",
@@ -76,12 +94,21 @@ internal static partial class BacklogSyncTests
                 Dependencies = new()
             };
             for (int i = 0; i < issues.Length; i++)
-                Issues.Add(new() { ["number"] = i + 1, ["title"] = Text(issues[i], "title"), ["body"] = "Human note $keep\n<!-- clros-issue-key:" + Text(issues[i], "key") + " -->", ["state"] = "open", ["content_version"] = 1L, ["milestone"] = new JsonObject { ["id"] = 7 }, ["labels"] = new JsonArray(labels.Single(x => Text(x, "name") == "agent:review").DeepClone(), labels.Single(x => Text(x, "name") == "human:owned").DeepClone()) });
+                Issues.Add(new()
+                {
+                    ["number"] = i + 1,
+                    ["title"] = Text(issues[i], "title"),
+                    ["body"] = "Human note $keep\n<!-- clros-issue-key:" + Text(issues[i], "key") + " -->",
+                    ["state"] = "open",
+                    ["content_version"] = 1L,
+                    ["milestone"] = new JsonObject { ["id"] = 7 },
+                    ["labels"] = new JsonArray(labels.Single(x => Text(x, "name") == "agent:review").DeepClone(), labels.Single(x => Text(x, "name") == "human:owned").DeepClone())
+                });
         }
 
         public Task<JsonNode?> Api(string method, string path, JsonObject? body, CancellationToken cancellation)
         {
-            Calls.Add((method, path, (JsonObject? )body?.DeepClone()));
+            Calls.Add((method, path, (JsonObject?)body?.DeepClone()));
             BeforeRequest?.Invoke(method, path, body);
             JsonNode? result;
             string clean = path.Split('?')[0];

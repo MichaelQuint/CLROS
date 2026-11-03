@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public enum PciCapabilityWalkStatus : byte
 {
     Uninitialized = 0,

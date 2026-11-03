@@ -9,7 +9,11 @@ internal static unsafe class NativeAotSocketContainmentPackageTests
     private static void Reject(Action action, string reason)
     {
         string? observed = null;
-        try { action(); } catch (Exception error) when (error is InvalidDataException or ToolFailure) { observed = error.Message; }
+        try
+        {
+            action();
+        }
+        catch (Exception error) when (error is InvalidDataException or ToolFailure) { observed = error.Message; }
         HostCheck.True(observed?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + observed);
     }
 
@@ -21,7 +25,8 @@ internal static unsafe class NativeAotSocketContainmentPackageTests
         {
             foreach (string relative in Sources)
             {
-                string path = Path.Combine(temporary, relative); Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                string path = Path.Combine(temporary, relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 File.Copy(Path.Combine(root, relative), path);
             }
             NativeAotSocketContainmentPackage.RequireCurrentSources(temporary);
@@ -33,9 +38,11 @@ internal static unsafe class NativeAotSocketContainmentPackageTests
                 Reject(() => NativeAotSocketContainmentPackage.RequireCurrentSources(temporary), "source_identity");
                 File.WriteAllBytes(path, original);
             }
-            string extra = Path.Combine(temporary, "apps/NativeAotSocketContainment/Extra.cs"); File.WriteAllText(extra, "class Extra {}");
+            string extra = Path.Combine(temporary, "apps/NativeAotSocketContainment/Extra.cs");
+            File.WriteAllText(extra, "class Extra {}");
             Reject(() => NativeAotSocketContainmentPackage.RequireCurrentSources(temporary), "source_inventory");
-            File.Delete(extra); NativeAotSocketContainmentPackage.RequireCurrentSources(temporary);
+            File.Delete(extra);
+            NativeAotSocketContainmentPackage.RequireCurrentSources(temporary);
         }
         finally { Directory.Delete(temporary, recursive: true); }
     }
@@ -50,7 +57,8 @@ internal static unsafe class NativeAotSocketContainmentPackageTests
         HostCheck.True(Encoding.ASCII.GetString(text).Contains("app.path=apps/NativeAotSocketContainment\n", StringComparison.Ordinal) &&
             Encoding.ASCII.GetString(text).Contains("listen=0.0.0.0:8080\n", StringComparison.Ordinal));
         HostCheck.Equal(NativeAotSocketContainmentPackage.ElfSha256.ToLowerInvariant(), Encoding.ASCII.GetString(text, (int)parsed.Digest.Offset, (int)parsed.Digest.Length));
-        fixed (byte* pointer = text) HostCheck.True(LinuxUserInterruptPolicy.TryRead(pointer, (uint)text.Length, parsed, out bool enabled) && enabled);
+        fixed (byte* pointer = text)
+            HostCheck.True(LinuxUserInterruptPolicy.TryRead(pointer, (uint)text.Length, parsed, out bool enabled) && enabled);
         Reject(() => NativeAotSocketContainmentPackage.RequirePackage([]), "identity");
     }
 

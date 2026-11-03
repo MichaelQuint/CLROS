@@ -3,6 +3,7 @@ using System;
 using OS.Net;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxSocketServices
 {
 #if !NOSTDLIB_EFI || M16_027_PROBE

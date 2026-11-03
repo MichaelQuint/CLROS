@@ -27,8 +27,11 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
     // These are the original fixture's ABI selectors, independent of filenames.
     private static MethodDeclarationSyntax PanicMethod(CSharpSourceCatalog source, string signature)
     {
-        Require(source.Type(PanicOwner) is { TypeKind: TypeKind.Class, IsStatic: true, Arity: 0,
-            DeclaredAccessibility: Accessibility.Private, ContainingType: not null }, "original private static adapter owner");
+        Require(source.Type(PanicOwner) is
+        {
+            TypeKind: TypeKind.Class, IsStatic: true, Arity: 0,
+            DeclaredAccessibility: Accessibility.Private, ContainingType: not null
+        }, "original private static adapter owner");
         string[] parts = signature.Split(' ');
         if (parts.Length != 4 || parts[1] != "static" || !parts[3].EndsWith('('))
             throw new InvalidOperationException("panic_method_selector " + signature);

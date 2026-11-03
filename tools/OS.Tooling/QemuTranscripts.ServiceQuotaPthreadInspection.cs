@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Immutable default-pthread observations and backing history.

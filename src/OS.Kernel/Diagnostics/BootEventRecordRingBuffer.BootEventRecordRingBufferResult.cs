@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct BootEventRecordRingBufferResult
 {
     private BootEventRecordRingBufferResult(bool isInitialized, BootEventRecordRingBufferStatus status, int written, int required, int count, ulong nextSequence)
@@ -11,12 +12,30 @@ public readonly struct BootEventRecordRingBufferResult
         NextSequence = nextSequence;
     }
 
-    public bool IsInitialized { get; }
-    public BootEventRecordRingBufferStatus Status { get; }
-    public int Written { get; }
-    public int Required { get; }
-    public int Count { get; }
-    public ulong NextSequence { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public BootEventRecordRingBufferStatus Status
+    {
+        get;
+    }
+    public int Written
+    {
+        get;
+    }
+    public int Required
+    {
+        get;
+    }
+    public int Count
+    {
+        get;
+    }
+    public ulong NextSequence
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == BootEventRecordRingBufferStatus.Success;
 
     public static BootEventRecordRingBufferResult Success(int written, int required, int count, ulong nextSequence)

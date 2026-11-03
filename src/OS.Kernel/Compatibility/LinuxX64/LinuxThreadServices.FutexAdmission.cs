@@ -1,6 +1,7 @@
 using OS.Kernel.Threading;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public unsafe partial struct LinuxThreadServices
 {
     /// <summary>Mapped, disjoint caller-owned storage and genuine user-memory /

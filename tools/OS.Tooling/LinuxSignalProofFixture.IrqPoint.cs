@@ -3,6 +3,7 @@ using System.Text;
 using Writer = OS.Tooling.LinuxThreadProofFixture.Writer;
 
 namespace OS.Tooling;
+
 public static partial class LinuxSignalProofFixture
 {
     /// <summary>One emitted instruction boundary, with the completed syscall

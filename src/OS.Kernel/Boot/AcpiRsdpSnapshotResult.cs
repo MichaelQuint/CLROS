@@ -2,6 +2,7 @@ using OS.Kernel.Platform;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public readonly struct AcpiRsdpSnapshotResult
 {
     private AcpiRsdpSnapshotResult(AcpiRsdpSnapshotStatus status, ulong physicalAddress, int bytesRead, int requiredBytes, bool extendedReadAttempted, PlatformPhysicalMemoryStatus physicalReadStatus, AcpiRsdpValidationStatus validationStatus, AcpiRsdpRevisionKind revisionKind, byte revision, uint declaredLength, ulong rsdtAddress, ulong xsdtAddress)
@@ -20,19 +21,55 @@ public readonly struct AcpiRsdpSnapshotResult
         XsdtAddress = xsdtAddress;
     }
 
-    public AcpiRsdpSnapshotStatus Status { get; }
+    public AcpiRsdpSnapshotStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == AcpiRsdpSnapshotStatus.Success;
-    public ulong PhysicalAddress { get; }
-    public int BytesRead { get; }
-    public int RequiredBytes { get; }
-    public bool ExtendedReadAttempted { get; }
-    public PlatformPhysicalMemoryStatus PhysicalReadStatus { get; }
-    public AcpiRsdpValidationStatus ValidationStatus { get; }
-    public AcpiRsdpRevisionKind RevisionKind { get; }
-    public byte Revision { get; }
-    public uint DeclaredLength { get; }
-    public ulong RsdtAddress { get; }
-    public ulong XsdtAddress { get; }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
+    public int BytesRead
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public bool ExtendedReadAttempted
+    {
+        get;
+    }
+    public PlatformPhysicalMemoryStatus PhysicalReadStatus
+    {
+        get;
+    }
+    public AcpiRsdpValidationStatus ValidationStatus
+    {
+        get;
+    }
+    public AcpiRsdpRevisionKind RevisionKind
+    {
+        get;
+    }
+    public byte Revision
+    {
+        get;
+    }
+    public uint DeclaredLength
+    {
+        get;
+    }
+    public ulong RsdtAddress
+    {
+        get;
+    }
+    public ulong XsdtAddress
+    {
+        get;
+    }
 
     public static AcpiRsdpSnapshotResult Success(ulong physicalAddress, int bytesRead, bool extendedReadAttempted, AcpiRsdpValidationResult validation, ulong rsdtAddress, ulong xsdtAddress)
     {

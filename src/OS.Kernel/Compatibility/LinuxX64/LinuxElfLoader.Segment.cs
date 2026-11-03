@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxElfLoader
 {
     private struct Segment

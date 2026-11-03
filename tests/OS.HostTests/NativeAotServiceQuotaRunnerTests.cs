@@ -177,7 +177,7 @@ internal static partial class NativeAotServiceQuotaRunnerTests
         )
             Reject(() => Inspect(Rewrite(f, edit.Item1, edit.Item2)));
         Reject(() => Inspect(f with { Summary = f.Summary[3..] }));
-        Reject(() => Inspect(f with { Summary = [..f.Summary, (byte)'x'] }));
+        Reject(() => Inspect(f with { Summary = [.. f.Summary, (byte)'x'] }));
         Reject(() => Inspect(f with { Runner = f.Runner with { StandardOutput = f.Runner.StandardOutput + "TEST_PASS qemu.smoke.service\r\n" } }));
         Reject(() => Inspect(f with { Runner = f.Runner with { StandardOutput = f.Runner.StandardOutput.Replace("\r\n", "\n", StringComparison.Ordinal) } }));
     }
@@ -294,19 +294,19 @@ internal static partial class NativeAotServiceQuotaRunnerTests
             LinuxThreadingApplication = "MinimalApiService"
         };
         var flags = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16014Probe"] = true }).Flags;
-        string[] required = Rows(), forbidden = ["OS_SMOKE_FAIL", "TEST_FAIL", ..ServiceQuotaCapture.ForbiddenSuccessMarkers.Where(marker => marker != "OS_SMOKE_PASS")];
+        string[] required = Rows(), forbidden = ["OS_SMOKE_FAIL", "TEST_FAIL", .. ServiceQuotaCapture.ForbiddenSuccessMarkers.Where(marker => marker != "OS_SMOKE_PASS")];
         var plan = new QemuSmokePlan("Diagnostic", flags, required, required, required, forbidden, [], false, true);
         var started = new DateTimeOffset(2026, 10, 20, 12, 0, 0, TimeSpan.Zero);
         var context = new QemuTranscripts.ServiceRunnerContext(20808, Path.GetFullPath("value-qemu.exe"), Path.GetFullPath("value-ovmf.fd"), started, started.AddSeconds(260));
         rawRows ??= Rows();
         byte[] raw = Encoding.ASCII.GetBytes(string.Join("\r\n", rawRows) + "\r\n");
         string[] selected = ["IMAGE_ARTIFACT " + options.Image, "SERIAL_LOG " + options.SerialLog, "WORKLOAD_PROFILE SingleMinimalApi", "FIRMWARE_RNG_SOURCE virtio", "SOCKET_FORWARD_PORT 20808", "CONTINUING_SERVICE true", "SERVICE_QUOTA_FAILURE true", "MARKER_PRESETS none", "REQUIRED_MARKERS " + string.Join(';', required), "ORDERED_MARKERS " + string.Join(';', required), "UNIQUE_MARKERS " + string.Join(';', required), "FORBIDDEN_MARKERS " + string.Join(';', forbidden)];
-        string[] stdout = ["QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu, "OVMF_DISCOVERY result=" + context.Ovmf + " checked=" + context.Ovmf, "TEST_START qemu.smoke", selected[0], selected[1], "OVMF_CODE " + context.Ovmf, ..selected.Skip(2), $"SERIAL_MARKER_STREAM status=Passed terminal=Success bytes={raw.Length} lines={rawRows.Length} invalidBytes=0 invalidLines=0 orderedSeen=6 outOfOrder=0 uniqueSeen=6 duplicateUnique=0", "SERIAL_MARKER_DRAIN milliseconds=750", "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1", ..Block(raw.Length), "SUMMARY_LOG " + options.SummaryLog, "QEMU_EXPECTED_SERVICE_QUOTA outcome=captured acceptance=pending"];
-        string[] summary = ["QEMU_SMOKE_STATUS expected-quota", ..selected, ..rawRows.Select(row => "OBSERVED_MARKER " + row), "APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240", ..rawRows.TakeLast(8).Select(row => "SERIAL_TAIL_LINE " + row), ..Block(raw.Length)];
+        string[] stdout = ["QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu, "OVMF_DISCOVERY result=" + context.Ovmf + " checked=" + context.Ovmf, "TEST_START qemu.smoke", selected[0], selected[1], "OVMF_CODE " + context.Ovmf, .. selected.Skip(2), $"SERIAL_MARKER_STREAM status=Passed terminal=Success bytes={raw.Length} lines={rawRows.Length} invalidBytes=0 invalidLines=0 orderedSeen=6 outOfOrder=0 uniqueSeen=6 duplicateUnique=0", "SERIAL_MARKER_DRAIN milliseconds=750", "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1", .. Block(raw.Length), "SUMMARY_LOG " + options.SummaryLog, "QEMU_EXPECTED_SERVICE_QUOTA outcome=captured acceptance=pending"];
+        string[] summary = ["QEMU_SMOKE_STATUS expected-quota", .. selected, .. rawRows.Select(row => "OBSERVED_MARKER " + row), "APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240", .. rawRows.TakeLast(8).Select(row => "SERIAL_TAIL_LINE " + row), .. Block(raw.Length)];
         string[] backend = ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
-        stdout = [..backend, ..stdout];
-        summary = [..summary.Take(4), ..backend, ..summary.Skip(4)];
-        return new(options, plan, new(22, string.Join("\r\n", stdout) + "\r\n", "", false, false, false, TimeSpan.FromSeconds(260)), raw, [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")], context, Pcap(), 0xd24c49dd);
+        stdout = [.. backend, .. stdout];
+        summary = [.. summary.Take(4), .. backend, .. summary.Skip(4)];
+        return new(options, plan, new(22, string.Join("\r\n", stdout) + "\r\n", "", false, false, false, TimeSpan.FromSeconds(260)), raw, [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")], context, Pcap(), 0xd24c49dd);
     }
 
     private static string[] Block(int bytes) => ["SERVICE_SOCKET_CONTROLS none", "SERVICE_FRAME_CONTROL " + Frames, "SERVICE_PROCESS_ID 1234", "SERVICE_PROCESS_START_UTC 2026-10-20T12:00:01.0000000Z", "SERVICE_PROCESS_END_UTC 2026-10-20T12:04:19.0000000Z", "SERVICE_PROCESS_LIFETIME_MS 258000", "SERVICE_ENDPOINT_PRELAUNCH_AVAILABLE true", "SERVICE_ENDPOINT_STOPPED_REFUSED true", "SERVICE_PROCESS_FAILURE none", "SERVICE_QUOTA_CAPTURE terminal=CLROS_M16_016_QUOTA_CLEANUP terminalBytes=" + bytes + " quietMilliseconds=800 controls=disabled acceptance=pending", "SERVICE_QUOTA_PROCESS terminationRequested=true deathConfirmed=true spontaneous=false cleanupFailed=false exitCode=-1"];
@@ -360,7 +360,7 @@ internal static partial class NativeAotServiceQuotaRunnerTests
         {
             action();
         }
-        catch (Exception error)when (error is ToolFailure or InvalidDataException or ArgumentException)
+        catch (Exception error) when (error is ToolFailure or InvalidDataException or ArgumentException)
         {
             rejected = true;
         }

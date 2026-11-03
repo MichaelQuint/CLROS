@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct EnaPciCandidateSelectionResult
 {
     private EnaPciCandidateSelectionResult(bool isInitialized, EnaPciCandidateSelectionStatus status, int inspectedDeviceCount, int candidateCount, int requiredCandidateCapacity, int failingSourceIndex)
@@ -12,12 +13,30 @@ public readonly struct EnaPciCandidateSelectionResult
     }
 
     public const int NoFailingSourceIndex = -1;
-    public EnaPciCandidateSelectionStatus Status { get; }
-    public int InspectedDeviceCount { get; }
-    public int CandidateCount { get; }
-    public int RequiredCandidateCapacity { get; }
-    public int FailingSourceIndex { get; }
-    public bool IsInitialized { get; }
+    public EnaPciCandidateSelectionStatus Status
+    {
+        get;
+    }
+    public int InspectedDeviceCount
+    {
+        get;
+    }
+    public int CandidateCount
+    {
+        get;
+    }
+    public int RequiredCandidateCapacity
+    {
+        get;
+    }
+    public int FailingSourceIndex
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == EnaPciCandidateSelectionStatus.Success;
 
     public static EnaPciCandidateSelectionResult Success(int inspectedDeviceCount, int candidateCount)

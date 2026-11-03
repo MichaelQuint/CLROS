@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public sealed class OSHostRandomTable
 {
     private readonly byte[] seed;

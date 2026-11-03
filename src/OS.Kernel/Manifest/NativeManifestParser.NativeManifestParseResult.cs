@@ -2,6 +2,7 @@ using OS.Std;
 using OS.Std.Text;
 
 namespace OS.Manifest;
+
 public readonly struct NativeManifestParseResult
 {
     private NativeManifestParseResult(NativeManifestParseStatus status, bool isInitialized, NativeManifest manifest, int errorOffset)
@@ -12,10 +13,22 @@ public readonly struct NativeManifestParseResult
         ErrorOffset = errorOffset;
     }
 
-    public NativeManifestParseStatus Status { get; }
-    public bool IsInitialized { get; }
-    public NativeManifest Manifest { get; }
-    public int ErrorOffset { get; }
+    public NativeManifestParseStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public NativeManifest Manifest
+    {
+        get;
+    }
+    public int ErrorOffset
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeManifestParseStatus.Success;
 
     public static NativeManifestParseResult Success(NativeManifest manifest)

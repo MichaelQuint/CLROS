@@ -2,6 +2,7 @@ using OS.Drivers;
 using OS.Kernel.Memory;
 
 namespace OS.Kernel.Platform;
+
 public readonly struct PhysicalMmioOwnershipPlanResult
 {
     private PhysicalMmioOwnershipPlanResult(bool isInitialized, PhysicalMmioOwnershipPlanStatus status, int sourceSegmentCount, int rangeCount, int requiredRangeCapacity, int availableRangeCapacity, int failingSegmentIndex, int conflictingRangeIndex, int failingUsableRangeIndex, ulong totalBytes, PciEcamSegment failingSegment, ulong failingPhysicalStart, ulong failingPhysicalEndExclusive)
@@ -22,20 +23,59 @@ public readonly struct PhysicalMmioOwnershipPlanResult
     }
 
     public const int NoIndex = -1;
-    public bool IsInitialized { get; }
-    public PhysicalMmioOwnershipPlanStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public PhysicalMmioOwnershipPlanStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PhysicalMmioOwnershipPlanStatus.Success;
-    public int SourceSegmentCount { get; }
-    public int RangeCount { get; }
-    public int RequiredRangeCapacity { get; }
-    public int AvailableRangeCapacity { get; }
-    public int FailingSegmentIndex { get; }
-    public int ConflictingRangeIndex { get; }
-    public int FailingUsableRangeIndex { get; }
-    public ulong TotalBytes { get; }
-    public PciEcamSegment FailingSegment { get; }
-    public ulong FailingPhysicalStart { get; }
-    public ulong FailingPhysicalEndExclusive { get; }
+    public int SourceSegmentCount
+    {
+        get;
+    }
+    public int RangeCount
+    {
+        get;
+    }
+    public int RequiredRangeCapacity
+    {
+        get;
+    }
+    public int AvailableRangeCapacity
+    {
+        get;
+    }
+    public int FailingSegmentIndex
+    {
+        get;
+    }
+    public int ConflictingRangeIndex
+    {
+        get;
+    }
+    public int FailingUsableRangeIndex
+    {
+        get;
+    }
+    public ulong TotalBytes
+    {
+        get;
+    }
+    public PciEcamSegment FailingSegment
+    {
+        get;
+    }
+    public ulong FailingPhysicalStart
+    {
+        get;
+    }
+    public ulong FailingPhysicalEndExclusive
+    {
+        get;
+    }
 
     public static PhysicalMmioOwnershipPlanResult Success(int sourceSegmentCount, int rangeCount, int availableRangeCapacity, ulong totalBytes)
     {

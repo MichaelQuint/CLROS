@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Immutable numeric observation at its original input position.
@@ -16,9 +17,18 @@ public static partial class QemuTranscripts
             Values = new ReadOnlyDictionary<string, ulong>(values);
         }
 
-        public int RecordIndex { get; }
-        public string Text { get; }
-        public IReadOnlyDictionary<string, ulong> Values { get; }
+        public int RecordIndex
+        {
+            get;
+        }
+        public string Text
+        {
+            get;
+        }
+        public IReadOnlyDictionary<string, ulong> Values
+        {
+            get;
+        }
 
         public ulong this[string field] => Values[field];
     }

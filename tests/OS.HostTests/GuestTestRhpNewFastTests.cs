@@ -544,7 +544,7 @@ internal static unsafe partial class GuestTestRhpNewFastTests
             Expect(f, expected, heapStatus: expected == Status.HeapBindingMismatch ? ManagedHeapPageRangeStatus.Success : default);
         }
 
-        foreach ((ulong used, ulong count)in new (ulong, ulong)[]
+        foreach ((ulong used, ulong count) in new (ulong, ulong)[]
         {
             (4097, 1),
             (8, 1),
@@ -868,7 +868,7 @@ internal static unsafe partial class GuestTestRhpNewFastTests
 
         // Exact earlier count/used association: malformed boundaries must reject
         // before any candidate-pointer read, even when other addresses are genuine.
-        foreach ((int offset, ulong value)in new (int, ulong)[]
+        foreach ((int offset, ulong value) in new (int, ulong)[]
         {
             (56, 16),
             (56, 25),

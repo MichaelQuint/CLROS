@@ -10,7 +10,10 @@ internal sealed class EfiAllocatorOwnershipSources
 {
     private const string Owner = "OS.Boot.EfiEntry+M03FirstExitAdapter";
     private readonly CSharpSourceCatalog catalog;
-    internal IReadOnlyDictionary<string, string> Sources { get; }
+    internal IReadOnlyDictionary<string, string> Sources
+    {
+        get;
+    }
 
     internal EfiAllocatorOwnershipSources(EfiProfile profile)
     {

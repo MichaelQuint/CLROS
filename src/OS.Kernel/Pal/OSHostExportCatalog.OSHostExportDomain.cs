@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 using OS.Std.Text;
 
 public enum OSHostExportDomain : int

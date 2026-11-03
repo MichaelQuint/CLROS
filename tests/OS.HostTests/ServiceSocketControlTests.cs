@@ -10,7 +10,7 @@ internal static partial class ServiceSocketControlTests
     [HostTest("service controls drive pending resets fd-less unread reset lost reopen and healthy isolation over owned mock IO")]
     private static async Task Complete()
     {
-        var(control, transport, _) = await Exercise("none");
+        var (control, transport, _) = await Exercise("none");
         HostCheck.True(control.Schema == "clros.nativeaot.service.controls.v2" && control.FirstSynAckOrdinal < control.SecondSynAckOrdinal && control.FirstProbeOrdinal < control.SecondProbeOrdinal && control.Persist.Port != control.Healthy.Port && control.Observations.Count > 20);
         HostCheck.True(transport.Session.Healthy && transport.Session.Stopped && transport.ControlledPorts.Count == 3 && transport.Session.DroppedFrames.Count == 5);
         HostCheck.True(transport.Injections.Count(row => !row.Forwarded) == 1 && transport.Injections.Single(row => !row.Forwarded).Tag == "persist.reopen.lost" && transport.Injections.Any(row => row.Tag == "persist.reopen.fresh"));
@@ -19,7 +19,7 @@ internal static partial class ServiceSocketControlTests
         byte[] late = Convert.FromHexString(transport.Injections.Single(row => row.Tag == "unread.late").Hex);
         HostCheck.True(late.AsSpan(54).SequenceEqual("CLROS_UNREAD_LATE"u8));
         HostCheck.True(Convert.FromHexString(control.Persist.ResponseHex).AsSpan().EndsWith("CLROS_SERVICE_HEALTH_OK"u8));
-    // This is an owned host transport simulation, not a native or guest capture.
+        // This is an owned host transport simulation, not a native or guest capture.
     }
 
     [HostTest("service controls reject wrong pending ACK reset sequence reset ACK duplicate close multi-byte probes and wrong response")]
@@ -165,7 +165,7 @@ internal static partial class ServiceSocketControlTests
                 {
                     await simulator.WaitAsync(TimeSpan.FromSeconds(2));
                 }
-                catch (Exception error)when (error is OperationCanceledException or EndOfStreamException or IOException)
+                catch (Exception error) when (error is OperationCanceledException or EndOfStreamException or IOException)
                 {
                 }
             }
@@ -176,7 +176,7 @@ internal static partial class ServiceSocketControlTests
                 bool healthyClosed = false;
                 Dictionary<int, Flow> flows = [];
                 void Reply(int port, Flow flow, uint sequence, byte flags, string payload = "", uint? ack = null) => Record(ContinuingTcpScenario.Write(new(true, (ushort)port, sequence, ack ?? flow.Next, flags, 8192, payload), 0x52550a000202));
-                for (;;)
+                for (; ; )
                 {
                     byte[] header = new byte[4];
                     await guest.GetStream().ReadExactlyAsync(header, limit.Token);

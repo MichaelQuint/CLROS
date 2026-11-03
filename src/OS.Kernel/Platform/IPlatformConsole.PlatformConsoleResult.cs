@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformConsoleResult
 {
     public const int MaximumLineLength = 256;
@@ -14,11 +15,23 @@ public readonly struct PlatformConsoleResult
         _message = NormalizeMessage(message);
     }
 
-    public bool Succeeded { get; }
-    public PlatformConsoleStatus Status { get; }
-    public FirmwareServicesMode Mode { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformConsoleStatus Status
+    {
+        get;
+    }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
     public string Operation => _operation ?? PlatformConsoleOperations.OutputString;
-    public int CharacterCount { get; }
+    public int CharacterCount
+    {
+        get;
+    }
     public string Message => _message ?? string.Empty;
 
     public static PlatformConsoleResult Written(FirmwareCallResult guardResult, string? line)

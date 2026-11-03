@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioNetQueueNotificationRegisterWindowBarrierExecutor
 {
     public const bool RequiresBarrierReadiness = true;

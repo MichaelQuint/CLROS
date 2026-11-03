@@ -3,6 +3,7 @@ using System.Text;
 using Writer = OS.Tooling.LinuxThreadProofFixture.Writer;
 
 namespace OS.Tooling;
+
 public static partial class LinuxSignalProofFixture
 {
     public const int FaultHandlerOffset = 0x800;

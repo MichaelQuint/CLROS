@@ -9,7 +9,7 @@ internal static partial class NativeAotWebRacePacketTests
     private static Vector Start(params uint[] ports)
     {
         var original = NativeAotWebPacketTests.RaceControls();
-        return new(original, original.Frames.Select(frame => frame.ToArray()).ToList(), [..original.Ports, ..ports], original.Frames.Count);
+        return new(original, original.Frames.Select(frame => frame.ToArray()).ToList(), [.. original.Ports, .. ports], original.Frames.Count);
     }
 
     private static void Add(Vector v, bool outgoing, ushort port, uint sequence, uint ack, byte flags, ReadOnlySpan<byte> payload = default) => v.Frames.Add(NativeAotSocketIntegrationTests.Tcp(outgoing, port, sequence, ack, flags, payload));
@@ -136,9 +136,9 @@ internal static partial class NativeAotWebRacePacketTests
         Add(retry, false, First, Client, Server, 0x18, "abX"u8);
         Reject(() => Read(retry));
         var ports = Concurrent();
-        Reject(() => Read(ports with { Ports = [..ports.Ports, First] }));
+        Reject(() => Read(ports with { Ports = [.. ports.Ports, First] }));
         var absent = Concurrent();
-        Reject(() => Read(absent with { Ports = [..absent.Ports, 44001] }));
+        Reject(() => Read(absent with { Ports = [.. absent.Ports, 44001] }));
     }
 
     [HostTest("web race first ranges retain islands retries partial streams empty FIN and bounded client reset facts")]

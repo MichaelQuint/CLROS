@@ -15,8 +15,14 @@ internal static partial class NativeManifestLoaderTests
             Image = image;
         }
 
-        public BlockDeviceInfo Info { get; }
-        private byte[] Image { get; }
+        public BlockDeviceInfo Info
+        {
+            get;
+        }
+        private byte[] Image
+        {
+            get;
+        }
 
         public static MemoryBlockDevice FromImage(byte[] image, uint blockSize)
         {

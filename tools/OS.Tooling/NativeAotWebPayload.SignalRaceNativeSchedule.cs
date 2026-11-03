@@ -59,7 +59,7 @@ public static partial class NativeAotWebPayload
         // mutation occurs until all identities, original waits and policies pass.
         internal async Task PrepareAsync(ulong[] status, CancellationToken cancellation)
         {
-            Require(!prepared && tracer is null && status.Length == 6 && status[0] == 2 && status[1] is> 0 and <= int.MaxValue && status[2] is> 0 and <= int.MaxValue && status[3] is> 0 and <= int.MaxValue && status[2] != status[3] && status[4] == 0 && status[5] == 0, "signalrace_schedule_phase");
+            Require(!prepared && tracer is null && status.Length == 6 && status[0] == 2 && status[1] is > 0 and <= int.MaxValue && status[2] is > 0 and <= int.MaxValue && status[3] is > 0 and <= int.MaxValue && status[2] != status[3] && status[4] == 0 && status[5] == 0, "signalrace_schedule_phase");
             // Actual ReadRaceStatus layout: phase,pid,waiter,actor,callback,recoveryRequested.
             // There is no public overload that treats supplied PIDs as ownership.
             cancellation.ThrowIfCancellationRequested();
@@ -67,7 +67,7 @@ public static partial class NativeAotWebPayload
             tracer = OpenTask(process.Id, process.Id);
             Require(tracer.Initial.Group == process.Id && tracer.Initial.Session == process.Id, "signalrace_schedule_session");
             string children = ReadBounded($"/proc/{process.Id}/task/{process.Id}/children");
-            string[] childIds = children.Split((char[]? )null, StringSplitOptions.RemoveEmptyEntries);
+            string[] childIds = children.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             Require(childIds.Length == 1 && childIds[0] == status[1].ToString(CultureInfo.InvariantCulture), "signalrace_schedule_child");
             app = OpenTask((int)status[1], (int)status[1]);
             Require(app.Initial.Parent == process.Id && File.ResolveLinkTarget($"/proc/{app.Tid}/exe", true)?.FullName == executable, "signalrace_schedule_executable");
@@ -94,7 +94,17 @@ public static partial class NativeAotWebPayload
                 byte[] affinity = Affinity(task.Tid);
                 Require(affinity[cpu / 8] == (byte)(1 << (cpu % 8)) && affinity.Where((_, index) => index != cpu / 8).All(value => value == 0), "signalrace_schedule_affinity");
                 task.Cpu = cpu;
-                Log("preflight", new { task.Pid, task.Tid, task.Initial, taskStatus, online, affinity = Convert.ToHexString(affinity), policy, priority });
+                Log("preflight", new
+                {
+                    task.Pid,
+                    task.Tid,
+                    task.Initial,
+                    taskStatus,
+                    online,
+                    affinity = Convert.ToHexString(affinity),
+                    policy,
+                    priority
+                });
             }
 
             var waitBudget = Stopwatch.StartNew();
@@ -105,7 +115,11 @@ public static partial class NativeAotWebPayload
             }
 
             pipe = ReadPipe();
-            Log("initial-wait", new { waiter = waiter.Tid, pipe });
+            Log("initial-wait", new
+            {
+                waiter = waiter.Tid,
+                pipe
+            });
             cancellation.ThrowIfCancellationRequested();
             var tracerPolicy = Set(tracer, 1, 2);
             tracerChanged = true;
@@ -150,14 +164,22 @@ public static partial class NativeAotWebPayload
             Require(IsSleepingEpoll(), "signalrace_schedule_wait_drift");
             PipeView observedPipe = ReadPipe();
             Require(observedPipe == pipe, "signalrace_schedule_wait_drift");
-            Log("release-preflight", new { pipe = observedPipe, policies });
+            Log("release-preflight", new
+            {
+                pipe = observedPipe,
+                policies
+            });
         }
 
         internal void MarkStartIssued()
         {
             Require(prepared && !releaseIssued, "signalrace_schedule_duplicate_start");
             releaseIssued = true;
-            Log("start-post-intent", new { actor = actor!.Tid, actor.Initial.Start });
+            Log("start-post-intent", new
+            {
+                actor = actor!.Tid,
+                actor.Initial.Start
+            });
         }
 
         // Called at observed phase4, and again in RunHttpAsync.finally. Restore
@@ -170,7 +192,10 @@ public static partial class NativeAotWebPayload
             if (tracer!.Exited())
             {
                 tracerChanged = false;
-                Log("tracer-retired", new { tracer.Tid });
+                Log("tracer-retired", new
+                {
+                    tracer.Tid
+                });
                 return;
             }
 
@@ -187,7 +212,13 @@ public static partial class NativeAotWebPayload
             if (actorChanged && actor!.Exited())
             {
                 actorChanged = false;
-                Log("actor-retired", new { actor.Tid, actor.Initial.Start, nativeExit = true, reapClaim = false });
+                Log("actor-retired", new
+                {
+                    actor.Tid,
+                    actor.Initial.Start,
+                    nativeExit = true,
+                    reapClaim = false
+                });
             }
         }
 
@@ -211,7 +242,13 @@ public static partial class NativeAotWebPayload
                     Require(task.Exited(), "signalrace_schedule_original_task_live");
             stopped = true;
             tracerChanged = actorChanged = false;
-            Log("owned-session-stopped", new { process.Id, nativeExit = true, reapClaim = false, tasks = new[] { tracer, app, waiter, actor }.OfType<NativeTask>().Select(t => new { t.Pid, t.Tid, t.Initial.Start, nativeExit = true }).ToArray() });
+            Log("owned-session-stopped", new
+            {
+                process.Id,
+                nativeExit = true,
+                reapClaim = false,
+                tasks = new[] { tracer, app, waiter, actor }.OfType<NativeTask>().Select(t => new { t.Pid, t.Tid, t.Initial.Start, nativeExit = true }).ToArray()
+            });
         }
 
         public void Dispose()
@@ -270,7 +307,7 @@ public static partial class NativeAotWebPayload
             string prefix = $"/proc/{app!.Tid}";
             string syscall = ReadBounded($"{prefix}/task/{waiter!.Tid}/syscall").Trim();
             string channel = ReadBounded($"{prefix}/task/{waiter.Tid}/wchan").Trim();
-            string[] args = syscall.Split((char[]? )null, StringSplitOptions.RemoveEmptyEntries);
+            string[] args = syscall.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             Stat waiterState = waiter.Read();
             // Preserve the pinned wrapper's raw register witness. All-ones is
             // a new profile expectation pending original native qualification,
@@ -371,7 +408,7 @@ public static partial class NativeAotWebPayload
         {
             int first = text.IndexOf('('), last = text.LastIndexOf(')');
             Require(first > 1 && last > first, "signalrace_schedule_proc_stat");
-            string[] fields = text[(last + 1)..].Split((char[]? )null, StringSplitOptions.RemoveEmptyEntries);
+            string[] fields = text[(last + 1)..].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             Require(fields.Length >= 20, "signalrace_schedule_proc_stat");
             int Number(int index) => int.Parse(fields[index], CultureInfo.InvariantCulture);
             return new(int.Parse(text[..first].Trim(), CultureInfo.InvariantCulture), Number(1), Number(2), Number(3), ulong.Parse(fields[19], CultureInfo.InvariantCulture), fields[0]);
@@ -391,7 +428,15 @@ public static partial class NativeAotWebPayload
         private void Log(string operation, object observation)
         {
             Require(++records <= 64, "signalrace_schedule_journal_bound");
-            byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(new { schema = eventOwned ? "clros.web.signalrace.schedule.v2" : "clros.web.signalrace.schedule.v1", operation, observation, utc = DateTimeOffset.UtcNow, monotonic = Stopwatch.GetTimestamp(), frequency = Stopwatch.Frequency });
+            byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                schema = eventOwned ? "clros.web.signalrace.schedule.v2" : "clros.web.signalrace.schedule.v1",
+                operation,
+                observation,
+                utc = DateTimeOffset.UtcNow,
+                monotonic = Stopwatch.GetTimestamp(),
+                frequency = Stopwatch.Frequency
+            });
             Require(bytes.Length <= 65536 && journal.Length + bytes.Length < 1048576, "signalrace_schedule_journal_size");
             journal.Write(bytes);
             journal.WriteByte((byte)'\n');

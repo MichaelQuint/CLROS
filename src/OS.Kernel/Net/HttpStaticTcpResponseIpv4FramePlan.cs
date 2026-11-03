@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class HttpStaticTcpResponseIpv4FramePlan
 {
     public const bool ConsumesStaticTcpResponsePlan = true;

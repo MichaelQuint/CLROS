@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Manifest;
+
 public readonly struct NativeAppLaunchPlanResult
 {
     private NativeAppLaunchPlanResult(NativeAppLaunchStatus status, bool isInitialized, NativeAppLaunchPlan plan, BootCapabilities requiredBootCapabilities, BootCapabilities missingBootCapabilities, BootCapabilities unknownBootCapabilities, NativeAppLaunchRuntimeCapabilities requiredRuntimeCapabilities, NativeAppLaunchRuntimeCapabilities missingRuntimeCapabilities)
@@ -15,14 +16,38 @@ public readonly struct NativeAppLaunchPlanResult
         MissingRuntimeCapabilities = missingRuntimeCapabilities;
     }
 
-    public NativeAppLaunchStatus Status { get; }
-    public bool IsInitialized { get; }
-    public NativeAppLaunchPlan Plan { get; }
-    public BootCapabilities RequiredBootCapabilities { get; }
-    public BootCapabilities MissingBootCapabilities { get; }
-    public BootCapabilities UnknownBootCapabilities { get; }
-    public NativeAppLaunchRuntimeCapabilities RequiredRuntimeCapabilities { get; }
-    public NativeAppLaunchRuntimeCapabilities MissingRuntimeCapabilities { get; }
+    public NativeAppLaunchStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public NativeAppLaunchPlan Plan
+    {
+        get;
+    }
+    public BootCapabilities RequiredBootCapabilities
+    {
+        get;
+    }
+    public BootCapabilities MissingBootCapabilities
+    {
+        get;
+    }
+    public BootCapabilities UnknownBootCapabilities
+    {
+        get;
+    }
+    public NativeAppLaunchRuntimeCapabilities RequiredRuntimeCapabilities
+    {
+        get;
+    }
+    public NativeAppLaunchRuntimeCapabilities MissingRuntimeCapabilities
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeAppLaunchStatus.Success;
 
     public static NativeAppLaunchPlanResult Success(NativeAppLaunchPlan plan, BootCapabilities requiredBootCapabilities, NativeAppLaunchRuntimeCapabilities requiredRuntimeCapabilities)

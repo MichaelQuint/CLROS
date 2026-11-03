@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow at most4MiB of quota HTTP values. Parse
@@ -166,7 +167,7 @@ public static partial class QemuTranscripts
         using MemoryStream body = new();
         int cursor = 0, inputLength = bytes.Length;
         (int, string, string) Result(string state) => (inputLength, state, Convert.ToBase64String(body.ToArray()));
-        for (;;)
+        for (; ; )
         {
             int line = bytes[cursor..].IndexOf("\r\n"u8);
             if (line < 0)
@@ -182,7 +183,7 @@ public static partial class QemuTranscripts
                 return Result("chunk-size");
             }
 
-            Need(line is> 0 and <= 8, "quota_http_chunk_size");
+            Need(line is > 0 and <= 8, "quota_http_chunk_size");
             string digits = Encoding.ASCII.GetString(bytes.Slice(cursor, line));
             uint size = 0;
             Need(digits.All(char.IsAsciiHexDigit) && uint.TryParse(digits, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out size) && size <= maximum - body.Length, "quota_http_chunk_size");

@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSqliteContract
 {
     public sealed record TraceRow(string Source, int Line, string Raw, TraceRowKind Kind);

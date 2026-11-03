@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public struct WorkloadServiceLoopState
 {
     internal WorkloadServiceStatus StatusValue;

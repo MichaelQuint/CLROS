@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformSerialTransportResult
 {
     private PlatformSerialTransportResult(PlatformSerialTransportStatus status, int bytesWritten, ulong backendStatus)
@@ -8,9 +9,18 @@ public readonly struct PlatformSerialTransportResult
         BackendStatus = backendStatus;
     }
 
-    public PlatformSerialTransportStatus Status { get; }
-    public int BytesWritten { get; }
-    public ulong BackendStatus { get; }
+    public PlatformSerialTransportStatus Status
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public ulong BackendStatus
+    {
+        get;
+    }
     public bool Succeeded => Status == PlatformSerialTransportStatus.Success;
 
     public static PlatformSerialTransportResult Written(int bytesWritten)

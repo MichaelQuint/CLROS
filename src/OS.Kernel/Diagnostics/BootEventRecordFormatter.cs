@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class BootEventRecordFormatter
 {
     public const int NoInvalidRecord = -1;

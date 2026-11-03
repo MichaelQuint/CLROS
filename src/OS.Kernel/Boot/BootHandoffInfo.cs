@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Boot;
+
 public readonly struct BootHandoffInfo
 {
     public BootHandoffInfo(FirmwareBootContext firmwareContext)
@@ -8,7 +9,10 @@ public readonly struct BootHandoffInfo
         FirmwareContext = firmwareContext;
     }
 
-    public FirmwareBootContext FirmwareContext { get; }
+    public FirmwareBootContext FirmwareContext
+    {
+        get;
+    }
     public BootMode BootMode => FirmwareContext.BootMode;
     public BootCapabilities Capabilities => FirmwareContext.Capabilities;
     public FirmwareServicesMode FirmwareServicesMode => FirmwareContext.FirmwareServicesMode;

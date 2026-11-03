@@ -31,7 +31,7 @@ public static class ProcessRunner
         };
         foreach (string argument in request.Arguments)
             start.ArgumentList.Add(argument);
-        foreach (var(key, value)in request.EnvironmentOverrides)
+        foreach (var (key, value) in request.EnvironmentOverrides)
             start.Environment[key] = value;
         using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         deadline.CancelAfter(request.Timeout);
@@ -58,7 +58,7 @@ public static class ProcessRunner
                     int keep = Math.Clamp(request.OutputCharacterLimit - (total - read), 0, read);
                     text.Append(buffer, 0, keep);
                     if (keep != 0)
-                        request.OutputReceived?.Invoke(new string (buffer, 0, keep), isError);
+                        request.OutputReceived?.Invoke(new string(buffer, 0, keep), isError);
                     if (keep < read)
                     {
                         Interlocked.Exchange(ref overflow, 1);
@@ -67,7 +67,7 @@ public static class ProcessRunner
                     }
                 }
             }
-            catch (OperationCanceledException)when (deadline.IsCancellationRequested)
+            catch (OperationCanceledException) when (deadline.IsCancellationRequested)
             {
             }
 
@@ -79,13 +79,13 @@ public static class ProcessRunner
         {
             await process.WaitForExitAsync(deadline.Token);
         }
-        catch (OperationCanceledException)when (deadline.IsCancellationRequested)
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested)
         {
             try
             {
                 process.Kill(entireProcessTree: true);
             }
-            catch (InvalidOperationException)when (process.HasExited)
+            catch (InvalidOperationException) when (process.HasExited)
             {
             }
 

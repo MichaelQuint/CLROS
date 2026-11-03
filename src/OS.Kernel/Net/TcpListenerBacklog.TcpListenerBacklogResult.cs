@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct TcpListenerBacklogResult
 {
     private TcpListenerBacklogResult(TcpListenerBacklogStatus status, int count, int capacity, int requiredCapacity, int entryIndex, TcpListenerBacklogConnection connection)
@@ -12,14 +13,35 @@ public readonly struct TcpListenerBacklogResult
         Connection = connection;
     }
 
-    public TcpListenerBacklogStatus Status { get; }
-    public bool IsInitialized { get; }
+    public TcpListenerBacklogStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == TcpListenerBacklogStatus.Success;
-    public int Count { get; }
-    public int Capacity { get; }
-    public int RequiredCapacity { get; }
-    public int EntryIndex { get; }
-    public TcpListenerBacklogConnection Connection { get; }
+    public int Count
+    {
+        get;
+    }
+    public int Capacity
+    {
+        get;
+    }
+    public int RequiredCapacity
+    {
+        get;
+    }
+    public int EntryIndex
+    {
+        get;
+    }
+    public TcpListenerBacklogConnection Connection
+    {
+        get;
+    }
 
     public static TcpListenerBacklogResult Create(TcpListenerBacklogStatus status, int count, int capacity, int requiredCapacity, int entryIndex, TcpListenerBacklogConnection connection)
     {

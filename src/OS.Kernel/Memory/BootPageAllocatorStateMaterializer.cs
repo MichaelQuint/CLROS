@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public static unsafe class BootPageAllocatorStateMaterializer
 {
     public const int NoNodeIndex = -1;

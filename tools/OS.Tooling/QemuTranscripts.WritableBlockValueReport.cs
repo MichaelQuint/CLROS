@@ -6,6 +6,7 @@ using B = OS.Storage.WritableBlockSession;
 using Fixture = OS.Tooling.LinuxWritableDiskProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     public sealed class WritableBlockValueReport
@@ -19,13 +20,28 @@ public static partial class QemuTranscripts
             HasStateFailure = failed;
         }
 
-        public Fixture.BlockBoundary Before { get; }
-        public Fixture.BlockBoundary After { get; }
-        public IReadOnlyList<WritableDiskIo> Io { get; }
-        public IReadOnlyList<WritableDiskRow> States { get; }
+        public Fixture.BlockBoundary Before
+        {
+            get;
+        }
+        public Fixture.BlockBoundary After
+        {
+            get;
+        }
+        public IReadOnlyList<WritableDiskIo> Io
+        {
+            get;
+        }
+        public IReadOnlyList<WritableDiskRow> States
+        {
+            get;
+        }
         public bool HasCancelled => Io.Any(x => x.Cancelled);
         public bool HasDeviceError => Io.Any(x => x.IsComplete && x.Status != B.Status.Success);
-        public bool HasStateFailure { get; }
+        public bool HasStateFailure
+        {
+            get;
+        }
         public bool HasUncompletedPublication => Io.Count != 0 && !Io[^1].IsComplete;
         public bool HasHeldRead => Io.Count != 0 && Io[^1] is { Kind: B.Operation.Read, Status: B.Status.Success, IsComplete: true, IsCopied: false, Cancelled: false };
         public bool Dirty => After.SubmittedBytes != After.FlushAcknowledgedBytes;

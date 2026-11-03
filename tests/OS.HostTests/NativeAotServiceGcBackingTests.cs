@@ -85,7 +85,7 @@ internal static partial class NativeAotServiceGcBackingTests
         var result = Read(trace);
         HostCheck.True(result.ArenaIdentified);
         HostCheck.Equal(4096UL, result.LastBackedBytes);
-        foreach (var(nr, address, bytes, protection, value, rip, flags)in new (ulong, ulong, ulong, ulong, ulong, ulong, ulong)[]
+        foreach (var (nr, address, bytes, protection, value, rip, flags) in new (ulong, ulong, ulong, ulong, ulong, ulong, ulong)[]
         {
             (9, Reservation, 4096, 3, Reservation, Mmap, 0x32),
             (10, Start, 4096, 3, 0, Mprotect, 0),

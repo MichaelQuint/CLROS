@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class OwnedCom1ReadyExclusivelyOwnedWriter
 {
     public const int MarkerByteCount = 16;

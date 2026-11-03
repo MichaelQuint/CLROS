@@ -1,4 +1,5 @@
 namespace OS.Manifest;
+
 public readonly struct NativeManifestEnvironmentEntry
 {
     public NativeManifestEnvironmentEntry(NativeManifestField key, NativeManifestField value)
@@ -8,9 +9,18 @@ public readonly struct NativeManifestEnvironmentEntry
         IsPresent = true;
     }
 
-    public NativeManifestField Key { get; }
-    public NativeManifestField Value { get; }
-    public bool IsPresent { get; }
+    public NativeManifestField Key
+    {
+        get;
+    }
+    public NativeManifestField Value
+    {
+        get;
+    }
+    public bool IsPresent
+    {
+        get;
+    }
 
     public bool TryGetKey(ReadOnlySpan<byte> source, out ReadOnlySpan<byte> value)
     {

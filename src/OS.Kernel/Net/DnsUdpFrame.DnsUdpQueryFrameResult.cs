@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct DnsUdpQueryFrameResult
 {
     private DnsUdpQueryFrameResult(DnsUdpFrameStatus status, DnsResolverStatus resolverStatus, DnsMessageStatus messageStatus, PacketParseStatus packetStatus, DnsResolverTransitionResult resolverResult, int bytesWritten, int dnsPayloadOffset, int dnsPayloadLength)
@@ -14,16 +15,43 @@ public readonly struct DnsUdpQueryFrameResult
         DnsPayloadLength = dnsPayloadLength;
     }
 
-    public DnsUdpFrameStatus Status { get; }
-    public bool IsInitialized { get; }
+    public DnsUdpFrameStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == DnsUdpFrameStatus.Success;
-    public DnsResolverStatus ResolverStatus { get; }
-    public DnsMessageStatus MessageStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public DnsResolverTransitionResult ResolverResult { get; }
-    public int BytesWritten { get; }
-    public int DnsPayloadOffset { get; }
-    public int DnsPayloadLength { get; }
+    public DnsResolverStatus ResolverStatus
+    {
+        get;
+    }
+    public DnsMessageStatus MessageStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public DnsResolverTransitionResult ResolverResult
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int DnsPayloadOffset
+    {
+        get;
+    }
+    public int DnsPayloadLength
+    {
+        get;
+    }
 
     public static DnsUdpQueryFrameResult Success(DnsResolverTransitionResult resolverResult, int bytesWritten, int dnsPayloadOffset, int dnsPayloadLength)
     {

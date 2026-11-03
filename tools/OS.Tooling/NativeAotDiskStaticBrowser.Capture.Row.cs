@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotDiskStaticBrowser
 {
     private sealed partial class Capture

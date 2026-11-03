@@ -75,16 +75,32 @@ internal static partial class NativeAotServiceQuotaTemporalTests
         QemuTranscripts.ServiceQuotaSocketIo[] peekOnly = [Call(2, Port, 43, 0, 0, 0, 0), Call(4, Port, 45, 0, 2, 0, 2), Call(6, Port, 45, 2, 4, 0, 2, true), Call(8, Port, 44, 0, 8, 8, 2)];
         Reject(new(joined, peekOnly), "quota_temporal_coverage");
         var over = v.Calls.Append(Call(32, Port, 45, 10, 3, 10, 10, true)).ToArray();
-        Reject(v with { Calls = over }, "quota_temporal_request_front");
+        Reject(v with
+        {
+            Calls = over
+        }, "quota_temporal_request_front");
         var streams = v.Joined.Guest.Streams.ToArray();
         streams[0] = Stream(Port, 12, 11);
-        Reject(v with { Joined = v.Joined with { Guest = v.Joined.Guest with { AggregateExtent = 42, Streams = streams } } }, "quota_temporal_response_front");
+        Reject(v with
+        {
+            Joined = v.Joined with
+            {
+                Guest = v.Joined.Guest with
+                {
+                    AggregateExtent = 42,
+                    Streams = streams
+                }
+            }
+        }, "quota_temporal_response_front");
         var gap = v.Calls.ToArray();
         gap[3] = gap[3] with
         {
             Offset = 3
         };
-        Reject(v with { Calls = gap }, "quota_temporal_socket_offset");
+        Reject(v with
+        {
+            Calls = gap
+        }, "quota_temporal_socket_offset");
         var wrong = v.Calls.ToArray();
         wrong[1] = wrong[1] with
         {
@@ -93,7 +109,10 @@ internal static partial class NativeAotServiceQuotaTemporalTests
                 RemotePort = 45000
             }
         };
-        Reject(v with { Calls = wrong }, "quota_temporal_socket_shape");
+        Reject(v with
+        {
+            Calls = wrong
+        }, "quota_temporal_socket_shape");
     }
 
     [HostTest("quota HTTP syscall order rejects response before consumption FIFO crossing and orphan or duplicate intervals")]
@@ -113,7 +132,10 @@ internal static partial class NativeAotServiceQuotaTemporalTests
         {
             Received = 2
         };
-        Reject(v with { Calls = calls.OrderBy(c => c.RecordIndex).ToArray() }, "quota_temporal_request_before_response");
+        Reject(v with
+        {
+            Calls = calls.OrderBy(c => c.RecordIndex).ToArray()
+        }, "quota_temporal_request_before_response");
         // Request2 consumption occurs before response1's final accepted send.
         calls = v.Calls.ToArray();
         calls[6] = calls[6] with
@@ -126,15 +148,36 @@ internal static partial class NativeAotServiceQuotaTemporalTests
         {
             Received = 10
         };
-        Reject(v with { Calls = calls.OrderBy(c => c.RecordIndex).ToArray() }, "quota_temporal_fifo");
-        Reject(v with { Joined = v.Joined with { Intervals = v.Joined.Intervals.Skip(1).ToArray() } }, "quota_temporal_message");
-        Reject(v with { Joined = v.Joined with { Intervals = v.Joined.Intervals.Append(v.Joined.Intervals[0]).ToArray() } }, "quota_temporal_message");
+        Reject(v with
+        {
+            Calls = calls.OrderBy(c => c.RecordIndex).ToArray()
+        }, "quota_temporal_fifo");
+        Reject(v with
+        {
+            Joined = v.Joined with
+            {
+                Intervals = v.Joined.Intervals.Skip(1).ToArray()
+            }
+        }, "quota_temporal_message");
+        Reject(v with
+        {
+            Joined = v.Joined with
+            {
+                Intervals = v.Joined.Intervals.Append(v.Joined.Intervals[0]).ToArray()
+            }
+        }, "quota_temporal_message");
         var bindings = v.Joined.Bindings.ToArray();
         bindings[1] = bindings[1] with
         {
             ConnectionId = 1
         };
-        Reject(v with { Joined = v.Joined with { Bindings = bindings } }, "quota_temporal_binding");
+        Reject(v with
+        {
+            Joined = v.Joined with
+            {
+                Bindings = bindings
+            }
+        }, "quota_temporal_binding");
     }
 
     private static void Reject(Vector v, string reason)
@@ -143,7 +186,7 @@ internal static partial class NativeAotServiceQuotaTemporalTests
         {
             _ = Inspect(v);
         }
-        catch (ToolFailure error)when (error.Reason == reason)
+        catch (ToolFailure error) when (error.Reason == reason)
         {
             return;
         }

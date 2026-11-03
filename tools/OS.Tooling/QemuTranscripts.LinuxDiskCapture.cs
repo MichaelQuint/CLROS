@@ -4,6 +4,7 @@ using OS.Kernel.Compatibility.LinuxX64;
 using Block = OS.Storage.ContinuingReadOnlyBlockService;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow complete already-framed rows, canonical
@@ -23,7 +24,7 @@ public static partial class QemuTranscripts
         int count = supplied?.Count ?? 0;
         if (receipt is null)
             throw new ToolFailure("disk_capture_input");
-        Need(count is> 0 and <= 131072 && package is not null, "disk_capture_input");
+        Need(count is > 0 and <= 131072 && package is not null, "disk_capture_input");
         string[] rows = new string[count];
         for (int i = 0; i < count; i++)
         {
@@ -90,7 +91,7 @@ public static partial class QemuTranscripts
             Need(address >= LinuxDiskFileProofFixture.ImageBase && address - LinuxDiskFileProofFixture.ImageBase < LinuxDiskFileProofFixture.ElfBytes, "disk_capture_path_address");
             int at = checked((int)(packageView.PayloadOffset + address - LinuxDiskFileProofFixture.ImageBase));
             int length = Array.IndexOf(package!, (byte)0, at, Math.Min(256, package!.Length - at)) - at;
-            Need(length is> 0 and <= 255, "disk_capture_path_terminator");
+            Need(length is > 0 and <= 255, "disk_capture_path_terminator");
             return System.Text.Encoding.ASCII.GetString(package!, at, length);
         }
 
@@ -168,7 +169,7 @@ public static partial class QemuTranscripts
         var image = WebRootImageFixture.ReadBack(originalImagePath); // Caller already holds this exact plain file.
         Need(image.Sha256 == imageHash && imageHash == receipt.FinalSha256 && image.PartitionFirstLba == receipt.PartitionFirstLba && image.PartitionLastLba == receipt.PartitionLastLba && receipt.Variant is "DiskA" or "DiskB", "disk_capture_image_identity");
         var expectedFiles = receipt.PreservedFiles.Concat(receipt.WebRootFiles).Append(receipt.Sentinel).ToArray();
-        Need(expectedFiles.Length == image.Files.Length && expectedFiles.Length is> 0 and <= 4096 && expectedFiles.Select(f => f.Path).Distinct(StringComparer.Ordinal).Count() == expectedFiles.Length, "disk_capture_image_inventory");
+        Need(expectedFiles.Length == image.Files.Length && expectedFiles.Length is > 0 and <= 4096 && expectedFiles.Select(f => f.Path).Distinct(StringComparer.Ordinal).Count() == expectedFiles.Length, "disk_capture_image_inventory");
         foreach (var f in expectedFiles)
         {
             var actual = image.Files.SingleOrDefault(x => x.Path == f.Path);
@@ -229,14 +230,14 @@ public static partial class QemuTranscripts
         string[] original = ValidateServiceLoopTail(rows[..parentsEnd], true);
         original = ValidateLinuxStartupTail(original, package, diskFiles: true, diskExitPending: pending is not null, writableDisk: writableDisk, logUpload: logUpload, logUploadProgram: logUploadProgram, diskProgress: diskProgress, diskCloseReuse: closeReuse is not null);
         original = ValidateLinuxElfTail(original, package!);
-        string[] apic = [..original, ..rows[parentsEnd..apicEnd]];
-        int[] varying = [3, 9, 10, 19, 20, 21, 22, 23, 24, ..Enumerable.Range(66, 10), 77, 78, 82, 83, 87, 88, 89, 93, 94, ..QemuContracts.M05ApicSetupMarkers.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_APIC ", StringComparison.Ordinal)).Select(x => x.i)];
+        string[] apic = [.. original, .. rows[parentsEnd..apicEnd]];
+        int[] varying = [3, 9, 10, 19, 20, 21, 22, 23, 24, .. Enumerable.Range(66, 10), 77, 78, 82, 83, 87, 88, 89, 93, 94, .. QemuContracts.M05ApicSetupMarkers.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_APIC ", StringComparison.Ordinal)).Select(x => x.i)];
         ExactInventory(apic, QemuContracts.M05ApicSetupMarkers, varying);
         ValidateAllocator(apic);
         AssertM03OwnedSubsystemRecords(original, AssertCopiedAcpiRecords(original));
         AssertM05PciEnumerationRecords(apic[..QemuContracts.M05PciEnumerationMarkers.Count]);
         AssertM05ApicSetupRecords(apic);
-        string[] nic = [..apic[..QemuContracts.M05PciEnumerationMarkers.Count], ..rows[apicEnd..networkStart]];
+        string[] nic = [.. apic[..QemuContracts.M05PciEnumerationMarkers.Count], .. rows[apicEnd..networkStart]];
         var arp = AssertM07ArpReceiveRecords(nic);
         var tables = ReadRecord(rows[owned + 10], "M16_004_TABLES", "root:dec", "used:dec", "leaves:dec", "ranges:dec");
         const string restored = " restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false";

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct CpuFaultPanicReadinessResult
 {
     private CpuFaultPanicReadinessResult(bool isInitialized, CpuFaultPanicReadinessStatus status, CpuFaultEntryFrameLayoutStatus frameStatus, PanicSerialReporterStatus reporterStatus, int vector, int requiredFrameBytes, int bytesFormatted, int bytesFlushed)
@@ -13,14 +14,38 @@ public readonly struct CpuFaultPanicReadinessResult
         BytesFlushed = bytesFlushed;
     }
 
-    public bool IsInitialized { get; }
-    public CpuFaultPanicReadinessStatus Status { get; }
-    public CpuFaultEntryFrameLayoutStatus FrameStatus { get; }
-    public PanicSerialReporterStatus ReporterStatus { get; }
-    public int Vector { get; }
-    public int RequiredFrameBytes { get; }
-    public int BytesFormatted { get; }
-    public int BytesFlushed { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public CpuFaultPanicReadinessStatus Status
+    {
+        get;
+    }
+    public CpuFaultEntryFrameLayoutStatus FrameStatus
+    {
+        get;
+    }
+    public PanicSerialReporterStatus ReporterStatus
+    {
+        get;
+    }
+    public int Vector
+    {
+        get;
+    }
+    public int RequiredFrameBytes
+    {
+        get;
+    }
+    public int BytesFormatted
+    {
+        get;
+    }
+    public int BytesFlushed
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == CpuFaultPanicReadinessStatus.Ready && FrameStatus == CpuFaultEntryFrameLayoutStatus.Ok && ReporterStatus == PanicSerialReporterStatus.Ok && BytesFormatted > 0 && BytesFlushed == BytesFormatted;
 
     public static CpuFaultPanicReadinessResult Success(CpuFaultEntryFrameLayoutResult frame, PanicSerialReporterResult reporter)

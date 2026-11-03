@@ -833,7 +833,7 @@ internal static partial class OwnedBootStackSwitchPlanTests
 
     private static BootMemoryRegionRecord[] CreateValidRecords()
     {
-        return[new BootMemoryRegionRecord((uint)UefiMemoryType.LoaderCode, CodePhysicalStart, CodeVirtualStart, 1, 0, BootMemoryRegionRecord.PageSize, CodePhysicalStart + BootMemoryRegionRecord.PageSize), new BootMemoryRegionRecord((uint)UefiMemoryType.LoaderData, DataPhysicalStart, DataVirtualStart, ArenaPages, 0, ArenaPages * BootMemoryRegionRecord.PageSize, DataPhysicalStart + ArenaPages * BootMemoryRegionRecord.PageSize)];
+        return [new BootMemoryRegionRecord((uint)UefiMemoryType.LoaderCode, CodePhysicalStart, CodeVirtualStart, 1, 0, BootMemoryRegionRecord.PageSize, CodePhysicalStart + BootMemoryRegionRecord.PageSize), new BootMemoryRegionRecord((uint)UefiMemoryType.LoaderData, DataPhysicalStart, DataVirtualStart, ArenaPages, 0, ArenaPages * BootMemoryRegionRecord.PageSize, DataPhysicalStart + ArenaPages * BootMemoryRegionRecord.PageSize)];
     }
 
     private static OwnedBootStackSwitchPlanResult CreateValidPlan()
@@ -934,7 +934,7 @@ internal static partial class OwnedBootStackSwitchPlanTests
             return false;
         }
 
-        foreach ((string name, byte value)in expected)
+        foreach ((string name, byte value) in expected)
         {
             byte raw = value;
             TEnum item = Unsafe.As<byte, TEnum>(ref raw);
@@ -978,7 +978,7 @@ internal static partial class OwnedBootStackSwitchPlanTests
             return false;
         }
 
-        foreach ((string name, int offset)in expected)
+        foreach ((string name, int offset) in expected)
         {
             FieldInfo? field = type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
             if (field is null || Marshal.OffsetOf<T>(name).ToInt32() != offset)

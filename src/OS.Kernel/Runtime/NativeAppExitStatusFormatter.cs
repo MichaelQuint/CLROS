@@ -2,6 +2,7 @@ using OS.Pal;
 using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAppExitStatusFormatter
 {
     public const int MinimumExitCode = 0;

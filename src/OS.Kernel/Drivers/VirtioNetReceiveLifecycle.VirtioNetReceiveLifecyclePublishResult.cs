@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 using OS.Std.Binary;
 
@@ -24,22 +25,70 @@ public readonly struct VirtioNetReceiveLifecyclePublishResult
         ReceiveBufferStrideBytes = receiveBufferStrideBytes;
     }
 
-    public VirtioNetReceiveLifecyclePublishStatus Status { get; }
-    public bool IsInitialized { get; }
-    public VirtqueueSplitRingPlanStatus QueuePlanStatus { get; }
-    public VirtqueueSplitRingPlan QueuePlan { get; }
-    public ushort QueueSize { get; }
-    public ushort FirstDescriptorIndex { get; }
-    public ushort PublishedDescriptorCount { get; }
-    public ushort PreviousAvailableRingIndex { get; }
-    public ushort NextAvailableRingIndex { get; }
-    public ushort PreviousUsedIndex { get; }
-    public ushort ExpectedNextUsedIndex { get; }
-    public ushort FirstAvailableRingSlot { get; }
-    public ushort LastAvailableRingSlot { get; }
-    public uint FirstAvailableRingEntryOffset { get; }
-    public uint FrameBufferBytes { get; }
-    public uint ReceiveBufferStrideBytes { get; }
+    public VirtioNetReceiveLifecyclePublishStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtqueueSplitRingPlanStatus QueuePlanStatus
+    {
+        get;
+    }
+    public VirtqueueSplitRingPlan QueuePlan
+    {
+        get;
+    }
+    public ushort QueueSize
+    {
+        get;
+    }
+    public ushort FirstDescriptorIndex
+    {
+        get;
+    }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
+    public ushort PreviousUsedIndex
+    {
+        get;
+    }
+    public ushort ExpectedNextUsedIndex
+    {
+        get;
+    }
+    public ushort FirstAvailableRingSlot
+    {
+        get;
+    }
+    public ushort LastAvailableRingSlot
+    {
+        get;
+    }
+    public uint FirstAvailableRingEntryOffset
+    {
+        get;
+    }
+    public uint FrameBufferBytes
+    {
+        get;
+    }
+    public uint ReceiveBufferStrideBytes
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetReceiveLifecyclePublishStatus.Success;
 
     internal static VirtioNetReceiveLifecyclePublishResult Success(VirtqueueSplitRingPlan queuePlan, ushort firstDescriptorIndex, ushort publishedDescriptorCount, ushort previousAvailableRingIndex, ushort previousUsedIndex, ushort firstAvailableRingSlot, ushort lastAvailableRingSlot, uint firstAvailableRingEntryOffset, uint frameBufferBytes, uint receiveBufferStrideBytes)

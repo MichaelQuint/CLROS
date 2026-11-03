@@ -2,6 +2,7 @@ using OS.Boot;
 using Layout = OS.Kernel.Runtime.ObjectArrayStringEETypeMethodTableLayoutContracts;
 
 namespace OS.Kernel.Runtime;
+
 public enum ExceptionTypeMatchStatus : byte
 {
     Uninitialized = 0,

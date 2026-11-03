@@ -45,7 +45,7 @@ internal static partial class NoStdLibShimBoundaryTests
         var text = ordinary.Type("System.String");
         var header = text.GetMembers().OfType<IFieldSymbol>().Where(field => !field.IsStatic).ToArray();
         HostCheck.True(header is [{ Name: "_stringLength", IsReadOnly: true, Type.SpecialType: SpecialType.System_Int32 },
-            { Name: "_firstChar", Type.SpecialType: SpecialType.System_Char }]);
+        { Name: "_firstChar", Type.SpecialType: SpecialType.System_Char }]);
         HostCheck.True(ReadField(ordinary, text, "Length", header[0]));
         HostCheck.True(Reinterprets(ordinary));
         var methodTable = ordinary.Type("Internal.Runtime.MethodTable");

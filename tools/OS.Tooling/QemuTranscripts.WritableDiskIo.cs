@@ -6,6 +6,7 @@ using B = OS.Storage.WritableBlockSession;
 using Fixture = OS.Tooling.LinuxWritableDiskProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied serial values, never a live block token or permission to

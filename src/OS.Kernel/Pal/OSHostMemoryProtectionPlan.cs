@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public static class OSHostMemoryProtectionPlan
 {
     public const ulong MinimumPageSize = 4096;

@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Pal;
+
 public static class OSHostStatusNameFormatter
 {
     public static OSHostStatusNameFormatResult Format(OSHostStatus status, Span<byte> destination)

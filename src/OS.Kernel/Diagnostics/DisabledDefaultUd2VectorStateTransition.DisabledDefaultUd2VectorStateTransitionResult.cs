@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct DisabledDefaultUd2VectorStateTransitionResult
 {
     private readonly byte _isInitialized;
@@ -27,20 +28,59 @@ public readonly struct DisabledDefaultUd2VectorStateTransitionResult
     }
 
     public bool IsInitialized => _isInitialized == 1;
-    public DisabledDefaultUd2VectorStateTransitionOperation Operation { get; }
-    public DisabledDefaultUd2VectorStateTransitionStatus Status { get; }
-    public ulong ModeledContextAddress { get; }
-    public ulong ModeledStreamAddress { get; }
-    public ulong OwnedIdtAddress { get; }
-    public ulong ContextCapacity { get; }
-    public ulong StreamCapacity { get; }
-    public int ContextBytesWritten { get; }
-    public int ContextBytesCompared { get; }
-    public int StreamBytesWritten { get; }
-    public int StreamBytesCompared { get; }
+    public DisabledDefaultUd2VectorStateTransitionOperation Operation
+    {
+        get;
+    }
+    public DisabledDefaultUd2VectorStateTransitionStatus Status
+    {
+        get;
+    }
+    public ulong ModeledContextAddress
+    {
+        get;
+    }
+    public ulong ModeledStreamAddress
+    {
+        get;
+    }
+    public ulong OwnedIdtAddress
+    {
+        get;
+    }
+    public ulong ContextCapacity
+    {
+        get;
+    }
+    public ulong StreamCapacity
+    {
+        get;
+    }
+    public int ContextBytesWritten
+    {
+        get;
+    }
+    public int ContextBytesCompared
+    {
+        get;
+    }
+    public int StreamBytesWritten
+    {
+        get;
+    }
+    public int StreamBytesCompared
+    {
+        get;
+    }
     public int FirstMismatchOffset => IsInitialized ? _firstMismatchOffset : -1;
-    public ulong ContextFingerprint { get; }
-    public ulong StreamFingerprint { get; }
+    public ulong ContextFingerprint
+    {
+        get;
+    }
+    public ulong StreamFingerprint
+    {
+        get;
+    }
     public ulong ExpectedStreamFingerprint => ModeledContextAddress == DisabledDefaultUd2VectorStateTransition.CanonicalModeledContextAddress ? DisabledDefaultUd2VectorStateTransition.StreamFnv1A64 : StreamFingerprint;
     public bool DestinationMutated => _destinationMutated == 1;
     public bool ReadBackPerformed => _readBackPerformed == 1;

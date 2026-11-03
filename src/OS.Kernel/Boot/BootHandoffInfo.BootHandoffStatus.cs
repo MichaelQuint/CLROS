@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Boot;
+
 public enum BootHandoffStatus
 {
     Unknown = 0,

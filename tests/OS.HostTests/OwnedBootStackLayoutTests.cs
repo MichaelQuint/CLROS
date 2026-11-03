@@ -92,7 +92,7 @@ internal static partial class OwnedBootStackLayoutTests
         OwnedBootStackLayoutResult minimum = CreateLayout(0x0010_0000, guardPages: 1, stackPages: 1, capacity: 2);
         OwnedBootStackLayoutResult representative = CreateLayout(0x0020_0000, guardPages: 1, stackPages: 8, capacity: 9);
         OwnedBootStackLayoutResult multiGuard = CreateLayout(0x0030_0000, guardPages: 2, stackPages: 3, capacity: 2);
-        BootReservedRange[] withPoisonedTail = [Reservation(BootReservationKind.BootStackGuard, 0x0040_0000, 1), Reservation(BootReservationKind.BootStack, 0x0040_1000, 2), default ];
+        BootReservedRange[] withPoisonedTail = [Reservation(BootReservationKind.BootStackGuard, 0x0040_0000, 1), Reservation(BootReservationKind.BootStack, 0x0040_1000, 2), default];
         byte[] before = StructBytes(withPoisonedTail);
         OwnedBootStackLayoutResult ignoresTail;
         unsafe
@@ -154,7 +154,7 @@ internal static partial class OwnedBootStackLayoutTests
         BootReservedRange[] reservedGuard = [RawRange(BootReservationKind.BootStackGuard, Address(0x0010_0000), Address(0x0010_1000), 1, 4096, reservedByteIndex: 0), Reservation(BootReservationKind.BootStack, 0x0010_1000, 1)];
         BootReservedRange[] zeroGuard = [RawRange(BootReservationKind.BootStackGuard, Address(0x0010_0000), Address(0x0010_0000), 0, 0), Reservation(BootReservationKind.BootStack, 0x0010_1000, 1)];
         BootReservedRange[] malformedGuard = [RawRange(BootReservationKind.BootStackGuard, Address(0x0010_0000), Address(0x0010_1000), 1, 8192), Reservation(BootReservationKind.BootStack, 0x0010_1000, 1)];
-        BootReservedRange[] defaultStack = [Reservation(BootReservationKind.BootStackGuard, 0x0010_0000, 1), default ];
+        BootReservedRange[] defaultStack = [Reservation(BootReservationKind.BootStackGuard, 0x0010_0000, 1), default];
         BootReservedRange[] malformedStack = [Reservation(BootReservationKind.BootStackGuard, 0x0010_0000, 1), RawRange(BootReservationKind.BootStack, Address(0x0010_1000), Address(0x0010_3000), 1, 4096)];
         BootReservedRange[] zeroStack = [Reservation(BootReservationKind.BootStackGuard, 0x0010_0000, 1), RawRange(BootReservationKind.BootStack, Address(0x0010_1000), Address(0x0010_1000), 0, 0)];
         BootReservedRange[] noGuard = [Reservation(BootReservationKind.LoadedImage, 0x0010_0000, 1), Reservation(BootReservationKind.BootStack, 0x0010_1000, 1)];
@@ -355,7 +355,7 @@ internal static partial class OwnedBootStackLayoutTests
 
     private static unsafe bool TestValidationPrecedence()
     {
-        BootReservedRange[] malformed = [default, default ];
+        BootReservedRange[] malformed = [default, default];
         PhysicalAddress validBacking = Address(0x0010_0000);
         PhysicalAddress validTop = Address(0x0010_2000);
         OwnedBootStackLayoutResult countDominates = OwnedBootStackLayout.Create(null, 0, 0, default, 0, default);
@@ -594,7 +594,7 @@ internal static partial class OwnedBootStackLayoutTests
             return false;
         }
 
-        foreach ((string name, byte value)in expected)
+        foreach ((string name, byte value) in expected)
         {
             byte rawValue = value;
             TEnum item = Unsafe.As<byte, TEnum>(ref rawValue);
@@ -629,7 +629,7 @@ internal static partial class OwnedBootStackLayoutTests
             return false;
         }
 
-        foreach ((string fieldName, int offset)in expected)
+        foreach ((string fieldName, int offset) in expected)
         {
             FieldInfo? field = fields.SingleOrDefault(candidate => candidate.Name == fieldName);
             if (field is null || Marshal.OffsetOf<T>(fieldName).ToInt32() != offset)
@@ -742,7 +742,7 @@ internal static partial class OwnedBootStackLayoutTests
 
     private static BootReservedRange[] ValidTable(ulong backingStart, ulong guardPages, ulong stackPages)
     {
-        return[Reservation(BootReservationKind.BootStackGuard, backingStart, guardPages), Reservation(BootReservationKind.BootStack, backingStart + guardPages * BootReservedRange.PageSize, stackPages)];
+        return [Reservation(BootReservationKind.BootStackGuard, backingStart, guardPages), Reservation(BootReservationKind.BootStack, backingStart + guardPages * BootReservedRange.PageSize, stackPages)];
     }
 
     private static BootReservedRange Reservation(BootReservationKind kind, ulong physicalStart, ulong pageCount)
@@ -855,7 +855,7 @@ internal static partial class OwnedBootStackLayoutTests
         StringBuilder result = new StringBuilder(source.Length);
         using StringReader reader = new StringReader(source);
         string? line;
-        while ((line = reader.ReadLine())is not null)
+        while ((line = reader.ReadLine()) is not null)
         {
             int commentStart = line.IndexOf("//", StringComparison.Ordinal);
             result.AppendLine(commentStart >= 0 ? line[..commentStart] : line);
@@ -974,7 +974,7 @@ internal static partial class OwnedBootStackLayoutTests
             }
             catch
             {
-            // Preserve the workspace-creation failure as primary.
+                // Preserve the workspace-creation failure as primary.
             }
 
             throw;
@@ -1026,7 +1026,7 @@ internal static partial class OwnedBootStackLayoutTests
             }
             catch
             {
-            // Timeout remains the primary evidence.
+                // Timeout remains the primary evidence.
             }
 
             process.WaitForExit(5_000);

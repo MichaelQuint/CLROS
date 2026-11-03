@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class NativeAotWebPayload
 {
     /// <summary>Capture the explicit v2 one-shot initial-start stimulus. Start

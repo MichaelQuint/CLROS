@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public enum PciBarKind
 {
     Absent = 0,

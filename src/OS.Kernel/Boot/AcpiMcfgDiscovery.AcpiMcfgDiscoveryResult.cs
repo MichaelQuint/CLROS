@@ -3,6 +3,7 @@ using OS.Kernel.Platform;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public readonly struct AcpiMcfgDiscoveryResult
 {
     private AcpiMcfgDiscoveryResult(AcpiMcfgDiscoveryStatus status, AcpiTableDirectoryResult directoryResult, AcpiMcfgParseResult mcfgParseResult, bool mcfgParseAttempted)
@@ -13,10 +14,22 @@ public readonly struct AcpiMcfgDiscoveryResult
         McfgParseAttempted = mcfgParseAttempted;
     }
 
-    public AcpiMcfgDiscoveryStatus Status { get; }
-    public AcpiTableDirectoryResult DirectoryResult { get; }
-    public AcpiMcfgParseResult McfgParseResult { get; }
-    public bool McfgParseAttempted { get; }
+    public AcpiMcfgDiscoveryStatus Status
+    {
+        get;
+    }
+    public AcpiTableDirectoryResult DirectoryResult
+    {
+        get;
+    }
+    public AcpiMcfgParseResult McfgParseResult
+    {
+        get;
+    }
+    public bool McfgParseAttempted
+    {
+        get;
+    }
     public bool Succeeded => Status == AcpiMcfgDiscoveryStatus.Success;
     public AcpiTableDirectoryStatus DirectoryStatus => DirectoryResult.Status;
     public AcpiMcfgParseStatus McfgParseStatus => McfgParseResult.Status;

@@ -1148,6 +1148,4 @@ internal static partial class VirtioBlockNativeAppSelectionPreflightTests
         EndianPrimitives.WriteUInt32LittleEndian(destination.Slice(offset, sizeof(uint)), value);
     }
 
-
-
 }

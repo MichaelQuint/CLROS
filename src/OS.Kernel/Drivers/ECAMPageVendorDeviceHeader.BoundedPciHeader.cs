@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct BoundedPciHeader
 {
     public readonly uint Identity, ClassRevision, CommandStatus, BusNumbers;

@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct IdtGateDescriptor
 {
     public const int EncodedLength = 16;
@@ -23,15 +24,42 @@ public readonly struct IdtGateDescriptor
         OffsetHigh = offsetHigh;
     }
 
-    public int Vector { get; }
-    public ushort OffsetLow { get; }
-    public ushort CodeSelector { get; }
-    public byte IstIndex { get; }
-    public IdtGateType GateType { get; }
-    public byte DescriptorPrivilegeLevel { get; }
-    public bool Present { get; }
-    public ushort OffsetMiddle { get; }
-    public uint OffsetHigh { get; }
+    public int Vector
+    {
+        get;
+    }
+    public ushort OffsetLow
+    {
+        get;
+    }
+    public ushort CodeSelector
+    {
+        get;
+    }
+    public byte IstIndex
+    {
+        get;
+    }
+    public IdtGateType GateType
+    {
+        get;
+    }
+    public byte DescriptorPrivilegeLevel
+    {
+        get;
+    }
+    public bool Present
+    {
+        get;
+    }
+    public ushort OffsetMiddle
+    {
+        get;
+    }
+    public uint OffsetHigh
+    {
+        get;
+    }
 
     public uint Reserved
     {

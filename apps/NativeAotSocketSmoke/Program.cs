@@ -96,7 +96,7 @@ internal static partial class Program
             {
                 return listener.Accept();
             }
-            catch (SocketException error)when (error.SocketErrorCode == SocketError.WouldBlock)
+            catch (SocketException error) when (error.SocketErrorCode == SocketError.WouldBlock)
             {
                 counts.AcceptBlocked++;
                 Thread.Sleep(1);
@@ -121,7 +121,7 @@ internal static partial class Program
                         throw new InvalidOperationException("request.mismatch");
                 offset += received;
             }
-            catch (SocketException error)when (error.SocketErrorCode == SocketError.WouldBlock)
+            catch (SocketException error) when (error.SocketErrorCode == SocketError.WouldBlock)
             {
                 counts.ReceiveBlocked++;
                 Thread.Sleep(1);
@@ -145,12 +145,12 @@ internal static partial class Program
                 counts.Eof++;
                 return;
             }
-            catch (SocketException error)when (requireReset && error.SocketErrorCode == SocketError.ConnectionReset)
+            catch (SocketException error) when (requireReset && error.SocketErrorCode == SocketError.ConnectionReset)
             {
                 counts.Reset++;
                 return;
             }
-            catch (SocketException error)when (error.SocketErrorCode == SocketError.WouldBlock)
+            catch (SocketException error) when (error.SocketErrorCode == SocketError.WouldBlock)
             {
                 counts.ReceiveBlocked++;
                 Thread.Sleep(1);
@@ -175,7 +175,7 @@ internal static partial class Program
                 offset += sent;
                 counts.Sent += sent;
             }
-            catch (SocketException error)when (error.SocketErrorCode == SocketError.WouldBlock)
+            catch (SocketException error) when (error.SocketErrorCode == SocketError.WouldBlock)
             {
                 counts.SendBlocked++;
                 Thread.Sleep(1);
@@ -237,7 +237,7 @@ internal static partial class Program
                             throw new InvalidOperationException("reset.orderly-eof");
                         current.Eof++;
                     }
-                    catch (SocketException error)when (index == 1 && error.SocketErrorCode == SocketError.ConnectionReset)
+                    catch (SocketException error) when (index == 1 && error.SocketErrorCode == SocketError.ConnectionReset)
                     {
                         current.Reset++;
                     }
@@ -281,7 +281,7 @@ internal static partial class Program
                     using Socket unexpected = await pending.AsTask().WaitAsync(TimeSpan.FromMilliseconds(DeadlineMilliseconds));
                     throw new InvalidOperationException("cancel.accept.completed");
                 }
-                catch (OperationCanceledException)when (cancellation.IsCancellationRequested)
+                catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
                 {
                 }
             }
@@ -295,7 +295,7 @@ internal static partial class Program
                 using Socket unexpected = await closed.AsTask().WaitAsync(TimeSpan.FromMilliseconds(DeadlineMilliseconds));
                 throw new InvalidOperationException("close.accept.completed");
             }
-            catch (SocketException error)when (error.SocketErrorCode == SocketError.OperationAborted)
+            catch (SocketException error) when (error.SocketErrorCode == SocketError.OperationAborted)
             {
             }
             catch (ObjectDisposedException)

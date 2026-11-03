@@ -13,350 +13,6 @@ using OS.Kernel.Memory;
 using OS.Kernel.Runtime;
 using OS.Runtime;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 using Microsoft.CodeAnalysis;
 using OS.Tooling;
@@ -473,7 +129,11 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
             start.ArgumentList.Add(arg);
         start.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
         start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
-        File.WriteAllText(Path.Combine(path, "command.json"), System.Text.Json.JsonSerializer.Serialize(new { File = "dotnet", Arguments = start.ArgumentList.ToArray() }));
+        File.WriteAllText(Path.Combine(path, "command.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            File = "dotnet",
+            Arguments = start.ArgumentList.ToArray()
+        }));
         using Process process = Process.Start(start)!;
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
@@ -488,7 +148,11 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
         File.WriteAllText(Path.Combine(path, "stdout.log"), stdout.Result);
         File.WriteAllText(Path.Combine(path, "stderr.log"), stderr.Result);
         File.WriteAllText(Path.Combine(path, "exit.txt"), process.ExitCode.ToString());
-        File.WriteAllText(Path.Combine(path, "result.json"), System.Text.Json.JsonSerializer.Serialize(new { TimedOut = timedOut, ExitCode = process.ExitCode }));
+        File.WriteAllText(Path.Combine(path, "result.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            TimedOut = timedOut,
+            ExitCode = process.ExitCode
+        }));
         if (timedOut)
             throw new TimeoutException("complete reference core; evidence=" + path);
         Need(process.ExitCode == 0 && stderr.Result.Length == 0 && stdout.Result.Split('\n').Count(x => x.TrimEnd('\r') == "TEST_PASS reference.core.tests") == 1, stdout.Result + stderr.Result);
@@ -520,7 +184,13 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
         start.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
         start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
         var begun = DateTime.UtcNow;
-        File.WriteAllText(Path.Combine(directory, "command.json"), System.Text.Json.JsonSerializer.Serialize(new { Executable = executable, Arguments = arguments, WorkingDirectory = root, StartedUtc = begun }));
+        File.WriteAllText(Path.Combine(directory, "command.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Executable = executable,
+            Arguments = arguments,
+            WorkingDirectory = root,
+            StartedUtc = begun
+        }));
         using Process p = Process.Start(start)!;
         var stdout = p.StandardOutput.ReadToEndAsync();
         var stderr = p.StandardError.ReadToEndAsync();
@@ -534,12 +204,18 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
         Task.WaitAll(stdout, stderr);
         File.WriteAllText(Path.Combine(directory, "stdout.log"), stdout.Result);
         File.WriteAllText(Path.Combine(directory, "stderr.log"), stderr.Result);
-        File.WriteAllText(Path.Combine(directory, "result.json"), System.Text.Json.JsonSerializer.Serialize(new { ExitCode = p.ExitCode, TimedOut = timedOut, StartedUtc = begun, EndedUtc = DateTime.UtcNow }));
+        File.WriteAllText(Path.Combine(directory, "result.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            ExitCode = p.ExitCode,
+            TimedOut = timedOut,
+            StartedUtc = begun,
+            EndedUtc = DateTime.UtcNow
+        }));
         return new(p.ExitCode, stdout.Result, stderr.Result, timedOut);
     }
 
     private static void Passed(Result r) => Need(!r.TimedOut && r.Code == 0 && r.Error.Length == 0, r.Output + r.Error);
-    private static string[] ToolArguments(string command, params string[] args) => [..command.Split(' '), ..args];
+    private static string[] ToolArguments(string command, params string[] args) => [.. command.Split(' '), .. args];
     private static Result Command(string[] args, string directory)
     {
         Directory.CreateDirectory(directory);
@@ -601,7 +277,7 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
         string directory = Scratch("profiles");
         string[] conflicts = ProfileConflicts();
         int id = 0;
-        string[] enabled = [..Chain, Flag];
+        string[] enabled = [.. Chain, Flag];
         foreach (string[] invalid in Chain.Select(m => enabled.Where(x => x != m).ToArray()).Concat(conflicts.Select(c => enabled.Append(c).ToArray())))
             foreach (string script in new[]
             {
@@ -613,8 +289,8 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
             )
             {
                 string[] mode = script.EndsWith("qemu smoke", StringComparison.Ordinal) ? ["-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi"] : script.EndsWith("efi build", StringComparison.Ordinal) ? ["-PreflightOnly"] : ["-EfiArtifact", "missing.EFI"];
-                Result r = Command(ToolArguments(script, [..mode, ..invalid.Select(x => "-" + x)]), Path.Combine(directory, (id++).ToString()));
-                Need(!r.TimedOut && r.Code != 0 && (EfiProfileTestControls.MissingParentReason(invalid, ordinarySmoke: script.EndsWith("qemu smoke", StringComparison.Ordinal))is string parentReason ? r.Output.Contains(parentReason, StringComparison.Ordinal) : invalid.Contains("EnableM04GcStaticRootMaterializationProbe", StringComparer.Ordinal) ? r.Output.Contains("m04_gc_static_profile_conflict property=EnableM04CheckedReferenceBarrierProbe", StringComparison.Ordinal) : invalid.Contains("EnableM03FirstRealExitBootServicesProbe", StringComparer.Ordinal) ? r.Output.Contains("m03_first_exit_requires property=EnableAcpiPhysicalDiscoveryProbe", StringComparison.Ordinal) : invalid.Contains("EnableM03TypedExitBootServicesCallProbe", StringComparer.Ordinal) ? r.Output.Contains("m03_typed_ebs_profile_conflict property=EnableM01LoadedImageStackProbe", StringComparison.Ordinal) : invalid.Contains("EnableM04TypeManagerModuleRegistrationProbe", StringComparer.Ordinal) ? r.Output.Contains("m04_type_manager_profile_conflict property=EnableM01LiveAllocatorProbe", StringComparison.Ordinal) : invalid.Contains("EnableM03FirmwareEntropySeedProbe", StringComparer.Ordinal) ? r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LoadedImageStackProbe", StringComparison.Ordinal) : r.Output.Contains("m04_checked_reference_profile_", StringComparison.Ordinal)), "first checked reference guard " + r.Output + r.Error);
+                Result r = Command(ToolArguments(script, [.. mode, .. invalid.Select(x => "-" + x)]), Path.Combine(directory, (id++).ToString()));
+                Need(!r.TimedOut && r.Code != 0 && (EfiProfileTestControls.MissingParentReason(invalid, ordinarySmoke: script.EndsWith("qemu smoke", StringComparison.Ordinal)) is string parentReason ? r.Output.Contains(parentReason, StringComparison.Ordinal) : invalid.Contains("EnableM04GcStaticRootMaterializationProbe", StringComparer.Ordinal) ? r.Output.Contains("m04_gc_static_profile_conflict property=EnableM04CheckedReferenceBarrierProbe", StringComparison.Ordinal) : invalid.Contains("EnableM03FirstRealExitBootServicesProbe", StringComparer.Ordinal) ? r.Output.Contains("m03_first_exit_requires property=EnableAcpiPhysicalDiscoveryProbe", StringComparison.Ordinal) : invalid.Contains("EnableM03TypedExitBootServicesCallProbe", StringComparer.Ordinal) ? r.Output.Contains("m03_typed_ebs_profile_conflict property=EnableM01LoadedImageStackProbe", StringComparison.Ordinal) : invalid.Contains("EnableM04TypeManagerModuleRegistrationProbe", StringComparer.Ordinal) ? r.Output.Contains("m04_type_manager_profile_conflict property=EnableM01LiveAllocatorProbe", StringComparison.Ordinal) : invalid.Contains("EnableM03FirmwareEntropySeedProbe", StringComparer.Ordinal) ? r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LoadedImageStackProbe", StringComparison.Ordinal) : r.Output.Contains("m04_checked_reference_profile_", StringComparison.Ordinal)), "first checked reference guard " + r.Output + r.Error);
             }
 
         foreach (string[] wrong in new[]
@@ -646,7 +322,7 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
 
         )
         {
-            Result r = Command(ToolArguments("qemu smoke", [..wrong, ..enabled.Select(x => "-" + x)]), Path.Combine(directory, (id++).ToString()));
+            Result r = Command(ToolArguments("qemu smoke", [.. wrong, .. enabled.Select(x => "-" + x)]), Path.Combine(directory, (id++).ToString()));
             Need(!r.TimedOut && r.Code != 0 && r.Output.Contains("m04_checked_reference_requires_build_and_original_capture", StringComparison.Ordinal), r.Output);
         }
 
@@ -658,7 +334,7 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
 
         )
         {
-            Result r = Command(ToolArguments("qemu smoke", ["-BootPolicy", "Diagnostic", "-DryRun", ..(selected.Length == 0 ? Array.Empty<string>() : new[] { "-BuildEfi" }), ..selected.Select(x => "-" + x)]), Path.Combine(directory, (id++).ToString()));
+            Result r = Command(ToolArguments("qemu smoke", ["-BootPolicy", "Diagnostic", "-DryRun", .. (selected.Length == 0 ? Array.Empty<string>() : new[] { "-BuildEfi" }), .. selected.Select(x => "-" + x)]), Path.Combine(directory, (id++).ToString()));
             Passed(r);
             Need(r.Output.Contains("CLROS_M04_010_NATIVE_READY", StringComparison.Ordinal) == (selected.Length != 0), "default profile remains absent");
         }
@@ -668,11 +344,11 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
     private static void TestTranscript()
     {
         string root = HostToolProcess.FindRepositoryRoot(), directory = Scratch("transcript");
-        Result dry = Command(ToolArguments("qemu smoke", ["-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..Chain.Append(Flag).Select(x => "-" + x)]), Path.Combine(directory, "dryrun"));
+        Result dry = Command(ToolArguments("qemu smoke", ["-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", .. Chain.Append(Flag).Select(x => "-" + x)]), Path.Combine(directory, "dryrun"));
         Passed(dry);
         string[] Vector(string name) => dry.Output.Replace("\r", "").Split('\n').Single(x => x.StartsWith(name + " ", StringComparison.Ordinal))[(name.Length + 1)..].Split(';');
         string[] required = Vector("REQUIRED_MARKERS"), ordered = Vector("ORDERED_MARKERS"), unique = Vector("UNIQUE_MARKERS"), forbidden = Vector("FORBIDDEN_MARKERS");
-        List<string> lines = ["TEST_START efi.main", ..ordered.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", ..ordered.Skip(6)];
+        List<string> lines = ["TEST_START efi.main", .. ordered.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", .. ordered.Skip(6)];
         const string identity = "allocatorState=0x0000000000100000 nodes=0x0000000000100040 heapState=0x0000000000101000 ledger=0x0000000000102000 parentIndex=4 parentStart=0x0000000000900000 parentEnd=0x0000000000902000 backing=0x0000000000900000 retainedStart=0x0000000000900000 retainedEnd=0x0000000000901000";
         lines[lines.IndexOf("M04_HEAP_PAGE_BOUND")] += " " + identity;
         lines[lines.IndexOf("M04_HEAP_PAGE_RETAINED")] += " checkpoint=beforeBootPlan " + identity;
@@ -793,7 +469,7 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
         cases.Add((good.Replace("\r\n", "\n", StringComparison.Ordinal), false));
         cases.Add((good[..^1], false));
         cases.Add(("arbitrary firmware\r\n" + good, false));
-        foreach ((string a, string b)in new[]
+        foreach ((string a, string b) in new[]
         {
             ("recordsBytes=6672", "recordsBytes=6352"),
             ("stateBytes=432", "stateBytes=424"),
@@ -816,7 +492,7 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
             cases.Add((good.Replace(a, b, StringComparison.Ordinal), false));
         }
 
-        foreach ((string a, string b)in new[]
+        foreach ((string a, string b) in new[]
         {
             ("start=0x0000000002000000", "start=0x0000000002000001"),
             ("end=0x0000000002021000", "end=0x0000000002020000"),
@@ -843,7 +519,7 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
         for (int i = 0; i < cases.Count; i++)
             File.WriteAllText(manifest[i].Path, cases[i].Text, new UTF8Encoding(false));
         string malformed = Path.Combine(directory, "malformed.log");
-        File.WriteAllBytes(malformed, [0xC0, 0xAF, ..Encoding.ASCII.GetBytes(good)]);
+        File.WriteAllBytes(malformed, [0xC0, 0xAF, .. Encoding.ASCII.GetBytes(good)]);
         manifest = [..manifest, new
         {
             Path = malformed,
@@ -884,8 +560,8 @@ internal static partial class M04CheckedReferenceBarrierEfiIntegrationTests
         )
         {
             string directory = Scratch(enabled ? "artifact-enabled" : "artifact-default"), artifact = Path.Combine(root, "artifacts/efi/issue537-" + Guid.NewGuid().ToString("N") + ".EFI");
-            string[] flags = enabled ? [..Chain, Flag] : [];
-            Result r = Command(ToolArguments("efi build", ["-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), ..flags.Select(x => "-" + x)]), Path.Combine(directory, "publish"));
+            string[] flags = enabled ? [.. Chain, Flag] : [];
+            Result r = Command(ToolArguments("efi build", ["-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), .. flags.Select(x => "-" + x)]), Path.Combine(directory, "publish"));
             Passed(r);
             Need(r.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), "complete actual publication and verifier");
             foreach (string suffix in new[]

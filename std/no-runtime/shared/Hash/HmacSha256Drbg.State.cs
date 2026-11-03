@@ -1,6 +1,7 @@
 using OS.Std.Memory;
 
 namespace OS.Std.Hash;
+
 public static unsafe partial class HmacSha256Drbg
 {
     /// <summary>Initially zero, exclusive and supervisor-owned through Erase.

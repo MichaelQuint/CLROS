@@ -6,6 +6,7 @@ using OS.Tools.QemuRunner;
 using Block = OS.Storage.ContinuingReadOnlyBlockService;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     // This entry is reachable only from the original QemuSmoke runner owner.
@@ -36,7 +37,7 @@ public static partial class QemuTranscripts
         truncated?.RequireValues(inventory, imageBytes);
         int bodies = full ? 4 + DiskStaticHttpContract.CreateAssetPlan(inventory).Requests.Count + 2 : 5;
         var bodyFiles = Enumerable.Range(0, bodies).Select(i => Hold(Path.Combine(peer.Directory, i.ToString("D3", CultureInfo.InvariantCulture) + ".body"), bodyMaximum, true)).ToArray();
-        AuthorityFiles.RequireDistinct([image, efi, package, imageReceipt, serial, summary, pcap, http, stopped, ..bodyFiles]);
+        AuthorityFiles.RequireDistinct([image, efi, package, imageReceipt, serial, summary, pcap, http, stopped, .. bodyFiles]);
         byte[] summaryBytes = summary.ReadBytes(summaryMaximum, "disk_static_summary");
         Need(summaryBytes.AsSpan().StartsWith(Encoding.UTF8.GetPreamble()), "disk_static_summary_bom");
         string[] child = DecodeUtf8(summaryBytes[3..]).Split("\r\n", StringSplitOptions.RemoveEmptyEntries).TakeLast(StaticFileProcessEvidence.SummaryCount).ToArray();
@@ -50,10 +51,10 @@ public static partial class QemuTranscripts
         int at = raw.AsSpan().IndexOf("TEST_START m16-011\r\n"u8);
         Need(at > FirmwarePrefixBytes, "disk_static_parent_start");
         var parent = InspectNativeAotWebParentForTests(packageBytes, raw.AsSpan(0, at), diskStatic: true);
-        var(text, rows) = DiskStaticParentRows(raw, full);
+        var (text, rows) = DiskStaticParentRows(raw, full);
         var replay = InspectNativeAotDiskStaticProtocolForTests(packageBytes.AsSpan((int)packageView.PayloadOffset, (int)packageView.PayloadBytes).ToArray(), SocketRawLeaf(raw), program.IsInstruction, program.IsSyscallReturn, parent.UserRoot, parent.KernelRoot, inventory, full, truncated);
         int connections = full ? replay.Static.Connections.Count : 1;
-        Need(connections is> 0 and <= 32 && (full || replay.Static.Connections.Count == 1), "disk_static_connections");
+        Need(connections is > 0 and <= 32 && (full || replay.Static.Connections.Count == 1), "disk_static_connections");
         var disk = ReadDiskStaticBound(rows, replay);
         Need(disk["capacity"] == (ulong)imageBytes.Length / 512, "disk_static_image_device_geometry");
         string endRow = rows.Single(r => r.StartsWith("M16_025_END ", StringComparison.Ordinal));
@@ -79,8 +80,8 @@ public static partial class QemuTranscripts
         {
             var inspected = InspectNativeAotDiskStaticFullHttpValues(packetBytes, parent.FrameAnchor, parent.Arp, envelope.Lifetimes.Select(l => l.RemotePort).ToArray(), http.ReadBytes(httpMaximum, "disk_static_http"), bodyBytes, inventory, replay, truncated);
             var browserFiles = inspectOriginalBrowser!(inspected.BrowserMessages, captured);
-            Need(browserFiles.Count is> 0 and <= 272, "disk_static_browser_artifact_bound");
-            AuthorityFiles.RequireDistinct([image, efi, package, imageReceipt, serial, summary, pcap, http, stopped, ..bodyFiles, ..browserFiles]);
+            Need(browserFiles.Count is > 0 and <= 272, "disk_static_browser_artifact_bound");
+            AuthorityFiles.RequireDistinct([image, efi, package, imageReceipt, serial, summary, pcap, http, stopped, .. bodyFiles, .. browserFiles]);
             wire = inspected.Http;
         }
         else
@@ -137,7 +138,7 @@ public static partial class QemuTranscripts
     public static IReadOnlyList<uint> InspectNativeAotDiskStaticParentPortValues(ReadOnlySpan<byte> raw, DiskStaticReplayReport replay, DiskStaticSectorValues sectors)
     {
         Need(replay is not null && replay.FullProfile && sectors is not null, "disk_static_full_parent_context");
-        var(_, rows) = DiskStaticParentRows(raw, true);
+        var (_, rows) = DiskStaticParentRows(raw, true);
         _ = ReadDiskStaticBound(rows, replay!);
         var b = sectors!.Device.Counters;
         var expected = new NativeDiskReadObservations.Boundary(replay!.Owner, replay.Epoch, replay.BootstrapCompleted, replay.BootstrapCopied, b.Submitted, b.Completed, b.Copied);

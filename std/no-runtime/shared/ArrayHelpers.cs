@@ -1,4 +1,5 @@
 namespace OS.Std;
+
 public static class ArrayHelpers
 {
     public const CompatibilityStatus Status = CompatibilityStatus.Partial;

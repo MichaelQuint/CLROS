@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public enum PciMsixCapabilityParseStatus
 {
     Success = 0,

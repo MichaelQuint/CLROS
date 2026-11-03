@@ -22,8 +22,14 @@ internal static unsafe partial class TypeManagerModuleMetadataLiveNativeAOTImage
         internal readonly byte* Image;
         private readonly byte* allocation;
         internal byte* Storage => allocation + 8;
-        internal EfiLoadedImageRangeCapturePlan Capture { get; }
-        internal M01LoadedImageVirtualMappingEvidence Mapping { get; }
+        internal EfiLoadedImageRangeCapturePlan Capture
+        {
+            get;
+        }
+        internal M01LoadedImageVirtualMappingEvidence Mapping
+        {
+            get;
+        }
 
         internal Fixture()
         {

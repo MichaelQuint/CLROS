@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly partial struct VirtioNetTransmitCompletionPlanResult
@@ -36,33 +37,114 @@ public readonly partial struct VirtioNetTransmitCompletionPlanResult
             WrittenValue = writtenValue;
         }
 
-        public bool UsesRegisterWindowNotification { get; }
-        public bool Succeeded { get; }
-        public VirtioNetQueueNotificationExecutionStatus ExecutionStatus { get; }
-        public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus { get; }
-        public VirtioPciQueueNotificationPlanStatus NotificationStatus { get; }
-        public VirtioPciNotifyWriteStatus SinkStatus { get; }
-        public VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus WindowExecutionStatus { get; }
-        public VirtioPciBarRegisterWindowPlanStatus RegisterWindowStatus { get; }
-        public VirtioPciBarRegisterWindowAccessExecutionStatus WindowAccessExecutionStatus { get; }
-        public bool WindowExecutionAttempted { get; }
-        public bool BarrierSucceeded { get; }
-        public uint BarrierSequence { get; }
-        public VirtioNetQueueNotificationKind Kind { get; }
-        public ushort QueueIndex { get; }
-        public ushort QueueNotifyOffset { get; }
-        public uint NotifyRelativeOffset { get; }
-        public ushort WriteValue { get; }
-        public uint WriteWidthBytes { get; }
-        public ushort PublishedDescriptorCount { get; }
-        public ushort PreviousAvailableRingIndex { get; }
-        public ushort NextAvailableRingIndex { get; }
-        public VirtioPciCapabilityType CapabilityType { get; }
-        public byte BarIndex { get; }
-        public VirtioPciRegisterAccessWidth AccessWidth { get; }
-        public uint AccessWidthBytes { get; }
-        public ulong BarRelativeOffset { get; }
-        public ulong WrittenValue { get; }
+        public bool UsesRegisterWindowNotification
+        {
+            get;
+        }
+        public bool Succeeded
+        {
+            get;
+        }
+        public VirtioNetQueueNotificationExecutionStatus ExecutionStatus
+        {
+            get;
+        }
+        public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus
+        {
+            get;
+        }
+        public VirtioPciQueueNotificationPlanStatus NotificationStatus
+        {
+            get;
+        }
+        public VirtioPciNotifyWriteStatus SinkStatus
+        {
+            get;
+        }
+        public VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus WindowExecutionStatus
+        {
+            get;
+        }
+        public VirtioPciBarRegisterWindowPlanStatus RegisterWindowStatus
+        {
+            get;
+        }
+        public VirtioPciBarRegisterWindowAccessExecutionStatus WindowAccessExecutionStatus
+        {
+            get;
+        }
+        public bool WindowExecutionAttempted
+        {
+            get;
+        }
+        public bool BarrierSucceeded
+        {
+            get;
+        }
+        public uint BarrierSequence
+        {
+            get;
+        }
+        public VirtioNetQueueNotificationKind Kind
+        {
+            get;
+        }
+        public ushort QueueIndex
+        {
+            get;
+        }
+        public ushort QueueNotifyOffset
+        {
+            get;
+        }
+        public uint NotifyRelativeOffset
+        {
+            get;
+        }
+        public ushort WriteValue
+        {
+            get;
+        }
+        public uint WriteWidthBytes
+        {
+            get;
+        }
+        public ushort PublishedDescriptorCount
+        {
+            get;
+        }
+        public ushort PreviousAvailableRingIndex
+        {
+            get;
+        }
+        public ushort NextAvailableRingIndex
+        {
+            get;
+        }
+        public VirtioPciCapabilityType CapabilityType
+        {
+            get;
+        }
+        public byte BarIndex
+        {
+            get;
+        }
+        public VirtioPciRegisterAccessWidth AccessWidth
+        {
+            get;
+        }
+        public uint AccessWidthBytes
+        {
+            get;
+        }
+        public ulong BarRelativeOffset
+        {
+            get;
+        }
+        public ulong WrittenValue
+        {
+            get;
+        }
 
         public static NotificationProvenance FromFakeSink(VirtioNetQueueNotificationExecutionResult notification)
         {

@@ -52,7 +52,7 @@ internal static unsafe partial class M01LivePagingIntegrationTests
                 }
             }
 
-            Reservations = [..reservations];
+            Reservations = [.. reservations];
             RequirementWorkspace = GC.AllocateArray<X64BootIdentityMappingRequirement>(checked((int)M01LivePagingIntegration.RequiredArenaRequirementWorkspaceCount), pinned: true);
             RangeWorkspace = GC.AllocateArray<X64BootIdentityMappingRange>(checked((int)X64BootIdentityMappingPlan.MaximumDestinationCount), pinned: true);
             StateSnapshot = GC.AllocateArray<byte>(checked((int)M01LivePagingIntegration.RequiredArenaStateSnapshotByteCount), pinned: true);
@@ -62,13 +62,28 @@ internal static unsafe partial class M01LivePagingIntegrationTests
         internal byte PhysicalAddressWidth => _canonical.Preconditions.PhysicalAddressWidth;
         internal X64PageTableEncodingPreconditions Preconditions => _canonical.Preconditions;
         internal byte* ArenaBacking => _arenaBacking;
-        internal X64BootIdentityMappingRequirement[] FixedRequirements { get; }
-        internal BootReservedRange[] Reservations { get; }
-        internal X64BootIdentityMappingRequirement[] RequirementWorkspace { get; }
-        internal X64BootIdentityMappingRange[] RangeWorkspace { get; }
+        internal X64BootIdentityMappingRequirement[] FixedRequirements
+        {
+            get;
+        }
+        internal BootReservedRange[] Reservations
+        {
+            get;
+        }
+        internal X64BootIdentityMappingRequirement[] RequirementWorkspace
+        {
+            get;
+        }
+        internal X64BootIdentityMappingRange[] RangeWorkspace
+        {
+            get;
+        }
         internal X64PageTableImagePage[] PageImages => _canonical.PageImages;
         internal ulong[] Entries => _canonical.Entries;
-        internal byte[] StateSnapshot { get; }
+        internal byte[] StateSnapshot
+        {
+            get;
+        }
 
         internal void UseRelocatedFixedRequirements(ulong candidate)
         {

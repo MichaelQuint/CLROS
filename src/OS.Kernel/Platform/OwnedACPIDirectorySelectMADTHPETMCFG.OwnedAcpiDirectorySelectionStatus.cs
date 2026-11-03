@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public enum OwnedAcpiDirectorySelectionStatus : byte
 {
     Uninitialized = 0,

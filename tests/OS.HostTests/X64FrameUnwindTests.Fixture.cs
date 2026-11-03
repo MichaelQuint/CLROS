@@ -111,7 +111,11 @@ internal static unsafe partial class X64FrameUnwindTests
             foreach (byte register in Registers)
                 context.SetInteger(register, 0x10000000UL + register);
             for (byte register = 6; register <= 15; register++)
-                context.SetVector(register, new() { Low = 0x20000000UL + register, High = 0x30000000UL + register });
+                context.SetVector(register, new()
+                {
+                    Low = 0x20000000UL + register,
+                    High = 0x30000000UL + register
+                });
             return context;
         }
 

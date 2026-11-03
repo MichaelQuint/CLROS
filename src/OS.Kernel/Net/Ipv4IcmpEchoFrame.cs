@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class Ipv4IcmpEchoFrame
 {
     public const int HeaderLength = EthernetHeader.HeaderLength + Ipv4Header.MinHeaderLength + IcmpEchoPacket.HeaderLength;

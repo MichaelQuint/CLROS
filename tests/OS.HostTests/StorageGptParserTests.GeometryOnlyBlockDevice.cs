@@ -17,7 +17,10 @@ internal static partial class StorageGptParserTests
             Info = info.Info;
         }
 
-        public BlockDeviceInfo Info { get; }
+        public BlockDeviceInfo Info
+        {
+            get;
+        }
 
         public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
         {

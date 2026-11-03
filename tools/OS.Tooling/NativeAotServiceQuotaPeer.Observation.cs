@@ -7,6 +7,7 @@ using System.Text;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServiceQuotaPeer
 {
     /// <summary>Supplied loopback values only. The four-connection limit follows

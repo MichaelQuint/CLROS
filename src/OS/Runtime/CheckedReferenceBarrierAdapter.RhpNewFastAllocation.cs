@@ -43,7 +43,8 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (byte* d = &destination)
         fixed (byte* s = &source)
             if (ApplyReferences(4, (ulong)d, (ulong)s, (ulong)bytes) != 1)
-                while (true) System.RuntimeFailFast.Halt();
+                while (true)
+                    System.RuntimeFailFast.Halt();
     }
 
     private static ulong AllocateReferenceRole(ulong token)
@@ -70,7 +71,8 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (RhpObservationStorage* r = &s_records)
         {
             if (RhpNewFastAllocationCore.CompleteReferenceAllocation(a, b, c, r, id, Bits(value), scalarAddress, scalar)
-                != RhpAdmissionStatus.Success) RejectReferences(2);
+                != RhpAdmissionStatus.Success)
+                RejectReferences(2);
             ReferenceObjectLine((&r->Object0)[id - 1]);
         }
     }
@@ -80,7 +82,8 @@ internal static unsafe partial class RhpNewFastAllocation
         // This address witnesses a real local, not a sampled RSP. The native gate
         // must bind its frame offset and the complete 16 KiB clearance ceiling.
         ulong stackWitness = 0;
-        R(0); End();
+        R(0);
+        End();
         fixed (RhpNewFastHeapAccess* a = &s_access)
         fixed (RhpNewFastBumpState* b = &s_bump)
         fixed (RhpAllocationControl* c = &s_control)
@@ -92,7 +95,8 @@ internal static unsafe partial class RhpNewFastAllocation
                 RejectReferences(3);
             PreparationLine();
             RhpNewFastResult bound = RhpNewFastAllocationCore.Bind(a, b, c, r);
-            if (!bound.Succeeded) RejectReferences(4);
+            if (!bound.Succeeded)
+                RejectReferences(4);
             BindLine(bound);
             RhpPlainFixture valueA = NewPlain(RhpNewFastAllocationCore.ReferenceRoleTag(1));
             CompleteReferenceRole(1, valueA, Address(ref valueA.Value), ReadPlain(valueA));
@@ -134,17 +138,22 @@ internal static unsafe partial class RhpNewFastAllocation
                     Address(ref target) - Address(ref AddressReferenceBlock(destinationBlock)) != i * 24 ||
                     Address(ref part.First) - Address(ref part) != geometry.PairFirst ||
                     Address(ref part.Last) - Address(ref part) != geometry.PairLast ||
-                    Address(ref part.Tag) - Address(ref part) != geometry.PairTag) RejectReferences(6);
+                    Address(ref part.Tag) - Address(ref part) != geometry.PairTag)
+                    RejectReferences(6);
             }
-            if (!RhpNewFastAllocationCore.PrepareReferences(a, b, c, r, state, geometry)) RejectReferences(7);
+            if (!RhpNewFastAllocationCore.PrepareReferences(a, b, c, r, state, geometry))
+                RejectReferences(7);
             ReferenceGeometryLine(state);
             pair.Tag = RhpNewFastAllocationCore.ReferencePairTag;
-            for (ulong i = 0; i < 8; i++) AddressReferenceBlockPair(ref block, i).Tag = RhpNewFastAllocationCore.ReferenceBlockTag(i);
-            if (!RhpNewFastAllocationCore.CompleteReferenceScalars(a, b, c, r, state)) RejectReferences(8);
+            for (ulong i = 0; i < 8; i++)
+                AddressReferenceBlockPair(ref block, i).Tag = RhpNewFastAllocationCore.ReferenceBlockTag(i);
+            if (!RhpNewFastAllocationCore.CompleteReferenceScalars(a, b, c, r, state))
+                RejectReferences(8);
             if (!OS.Boot.EfiEntry.TryGetOriginalReferenceStack(out ulong authority,
                 out ulong stackStart, out ulong stackEnd, out ulong initialRsp) ||
                 !RhpNewFastAllocationCore.ArmReferenceStack(a, b, c, r, state, stack,
-                    authority, stackStart, stackEnd, initialRsp, (ulong)&stackWitness)) RejectReferences(16);
+                    authority, stackStart, stackEnd, initialRsp, (ulong)&stackWitness))
+                RejectReferences(16);
 
             // Each compiler-selected checked store must return with its original
             // cookie before another operation can consume that result.
@@ -154,28 +163,33 @@ internal static unsafe partial class RhpNewFastAllocation
                 ref ReferencePair part = ref (i < 2 ? ref pair : ref AddressReferenceBlockPair(ref block, (i - 2) / 2));
                 ref object slot = ref ((i & 1) == 0 ? ref part.First : ref part.Last);
                 if (StoreReferenceUnknown(ref slot, value, RhpNewFastAllocationCore.ReferenceCookie) != RhpNewFastAllocationCore.ReferenceCookie ||
-                    state->Calls != i + 1 || Bits(ReadReferenceSlot(ref slot)) != Bits(value)) RejectReferences(9);
+                    state->Calls != i + 1 || Bits(ReadReferenceSlot(ref slot)) != Bits(value))
+                    RejectReferences(9);
             }
             CheckReferenceStack(a, b, c, r, state, stack, (ulong)&stackWitness);
             ReferenceOperationLine(2, state->Calls, RhpNewFastAllocationCore.ReferenceCookie);
             ulong fieldCookie = StoreReferenceField(destination, valueA, RhpNewFastAllocationCore.ReferenceCookie);
             if (fieldCookie != (RhpNewFastAllocationCore.ReferenceCookie ^ RhpNewFastAllocationCore.ReferenceRoleTag(4)) ||
-                Bits(ReadReferenceField(destination)) != Bits(valueA) || state->Calls != 19) RejectReferences(10);
+                Bits(ReadReferenceField(destination)) != Bits(valueA) || state->Calls != 19)
+                RejectReferences(10);
             CheckReferenceStack(a, b, c, r, state, stack, (ulong)&stackWitness);
             ReferenceOperationLine(1, state->Calls, fieldCookie);
             ulong checkedCookie = StoreReferenceUnknown(ref source.Reference, valueB, RhpNewFastAllocationCore.ReferenceCookie);
             if (checkedCookie != RhpNewFastAllocationCore.ReferenceCookie ||
-                Bits(ReadReferenceField(source)) != Bits(valueB) || state->Calls != 20) RejectReferences(11);
+                Bits(ReadReferenceField(source)) != Bits(valueB) || state->Calls != 20)
+                RejectReferences(11);
             CheckReferenceStack(a, b, c, r, state, stack, (ulong)&stackWitness);
             ReferenceOperationLine(2, state->Calls, checkedCookie);
             ulong pairCookie = CopyReferencePair(ref AddressReferencePair(destination), ref pair, RhpNewFastAllocationCore.ReferenceCookie);
             if (!RhpNewFastAllocationCore.CompleteReferencePair(a, b, c, r, state, pairCookie) ||
                 Bits(ReadReferenceFirst(ref AddressReferencePair(destination))) != Bits(valueA) ||
-                Bits(ReadReferenceLast(ref AddressReferencePair(destination))) != Bits(valueB)) RejectReferences(12);
+                Bits(ReadReferenceLast(ref AddressReferencePair(destination))) != Bits(valueB))
+                RejectReferences(12);
             CheckReferenceStack(a, b, c, r, state, stack, (ulong)&stackWitness);
             ReferenceOperationLine(3, state->Calls, pairCookie);
             ulong blockCookie = CopyReferenceBlock(ref AddressReferenceBlock(destinationBlock), ref block, RhpNewFastAllocationCore.ReferenceCookie);
-            if (!RhpNewFastAllocationCore.CompleteReferences(a, b, c, r, state, blockCookie)) RejectReferences(13);
+            if (!RhpNewFastAllocationCore.CompleteReferences(a, b, c, r, state, blockCookie))
+                RejectReferences(13);
             for (ulong i = 0; i < 8; i++)
             {
                 ref ReferencePair part = ref AddressReferenceBlockPair(ref AddressReferenceBlock(destinationBlock), i);
@@ -183,7 +197,8 @@ internal static unsafe partial class RhpNewFastAllocation
                 ulong first = firstIndex % 3 == 2 ? 0 : firstIndex % 3 == 0 ? Bits(valueA) : Bits(valueB);
                 ulong last = lastIndex % 3 == 2 ? 0 : lastIndex % 3 == 0 ? Bits(valueA) : Bits(valueB);
                 if (Bits(ReadReferenceFirst(ref part)) != first || Bits(ReadReferenceLast(ref part)) != last ||
-                    ReadReferenceTag(ref part) != RhpNewFastAllocationCore.ReferenceBlockTag(i)) RejectReferences(14);
+                    ReadReferenceTag(ref part) != RhpNewFastAllocationCore.ReferenceBlockTag(i))
+                    RejectReferences(14);
             }
             ReferenceOperationLine(4, state->Calls, blockCookie);
             ManagedHeapPageRangeResult retained = RhpNewFastAllocationCore.Retained(*a);
@@ -193,7 +208,12 @@ internal static unsafe partial class RhpNewFastAllocation
             RetainLine(retained);
             CheckReferenceStack(a, b, c, r, state, stack, (ulong)&stackWitness);
             ReferenceStackLine(stack);
-            R(1); Decimal(b->UsedBytes); R(2); End(); R(3); End();
+            R(1);
+            Decimal(b->UsedBytes);
+            R(2);
+            End();
+            R(3);
+            End();
         }
     }
 
@@ -206,12 +226,16 @@ internal static unsafe partial class RhpNewFastAllocation
         if (!OS.Boot.EfiEntry.TryGetOriginalReferenceStack(out ulong authority,
             out ulong start, out ulong end, out ulong initialRsp) ||
             !RhpNewFastAllocationCore.CheckReferenceStack(a, b, c, r, state, stack,
-                authority, start, end, initialRsp, witness)) RejectReferences(17);
+                authority, start, end, initialRsp, witness))
+            RejectReferences(17);
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static ulong Address<T>(ref T value)
-    { fixed (byte* p = &System.Runtime.CompilerServices.Unsafe.As<T, byte>(ref value)) return (ulong)p; }
+    {
+        fixed (byte* p = &System.Runtime.CompilerServices.Unsafe.As<T, byte>(ref value))
+            return (ulong)p;
+    }
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static ulong TypeReferenceCell() => (ulong)Internal.Runtime.MethodTable.Of<ReferenceCell>();
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
@@ -231,25 +255,51 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         switch (index)
         {
-            case 0: return ref value.P0; case 1: return ref value.P1;
-            case 2: return ref value.P2; case 3: return ref value.P3;
-            case 4: return ref value.P4; case 5: return ref value.P5;
-            case 6: return ref value.P6; case 7: return ref value.P7;
-            default: while (true) System.RuntimeFailFast.Halt();
+            case 0:
+                return ref value.P0;
+            case 1:
+                return ref value.P1;
+            case 2:
+                return ref value.P2;
+            case 3:
+                return ref value.P3;
+            case 4:
+                return ref value.P4;
+            case 5:
+                return ref value.P5;
+            case 6:
+                return ref value.P6;
+            case 7:
+                return ref value.P7;
+            default:
+                while (true)
+                    System.RuntimeFailFast.Halt();
         }
     }
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static ulong StoreReferenceField(ReferenceCell destination, object value, ulong cookie)
-    { destination.Reference = value; return cookie ^ destination.Tag; }
+    {
+        destination.Reference = value;
+        return cookie ^ destination.Tag;
+    }
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static ulong StoreReferenceUnknown(ref object destination, object value, ulong cookie)
-    { destination = value; return cookie; }
+    {
+        destination = value;
+        return cookie;
+    }
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static ulong CopyReferencePair(ref ReferencePair destination, ref ReferencePair source, ulong cookie)
-    { destination = source; return cookie ^ destination.Tag; }
+    {
+        destination = source;
+        return cookie ^ destination.Tag;
+    }
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static ulong CopyReferenceBlock(ref ReferenceBlock destination, ref ReferenceBlock source, ulong cookie)
-    { destination = source; return cookie ^ destination.P7.Tag; }
+    {
+        destination = source;
+        return cookie ^ destination.P7.Tag;
+    }
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static object ReadReferenceSlot(ref object value) => value;
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
@@ -262,14 +312,21 @@ internal static unsafe partial class RhpNewFastAllocation
     private static ulong ReadReferenceTag(ref ReferencePair value) => value.Tag;
 
     private static void RejectReferences(ulong checkpoint)
-    { R(4); Decimal(checkpoint); End(); while (true) System.RuntimeFailFast.Halt(); }
+    {
+        R(4);
+        Decimal(checkpoint);
+        End();
+        while (true)
+            System.RuntimeFailFast.Halt();
+    }
 
     private static void R(int token)
     {
         for (int index = 0; ; index++)
         {
             byte value = ReferenceAscii(token, index);
-            if (value == 0) return;
+            if (value == 0)
+                return;
             Write(value);
         }
     }
@@ -318,51 +375,112 @@ internal static unsafe partial class RhpNewFastAllocation
     // Numeric observations are serialized only outside the returning callback graph.
     private static void ReferenceObjectLine(RhpObjectObservation r)
     {
-        R(5); Decimal(r.Id); T(51); Hex(r.MethodTable); T(52); Hex(r.Prefix0); T(53); Hex(r.Prefix1); T(54); Hex(r.Prefix2);
-        T(55); Hex(r.Flags); T(4); Decimal(r.BaseSize); T(56); Hex(r.Allocation); T(57); Hex(r.Reference); T(58); Hex(r.End);
-        T(2); Decimal(r.UsedBefore); T(3); Decimal(r.UsedAfter); T(20); Decimal(r.Count);
-        T(59); Hex(r.Sync); T(60); Hex(r.ObservedMt); T(61); Decimal(r.ZeroBytes); T(62); Hex(r.ZeroOr);
-        R(6); Decimal(r.ScalarOffset); R(7); Hex(r.Scalar); End();
+        R(5);
+        Decimal(r.Id);
+        T(51);
+        Hex(r.MethodTable);
+        T(52);
+        Hex(r.Prefix0);
+        T(53);
+        Hex(r.Prefix1);
+        T(54);
+        Hex(r.Prefix2);
+        T(55);
+        Hex(r.Flags);
+        T(4);
+        Decimal(r.BaseSize);
+        T(56);
+        Hex(r.Allocation);
+        T(57);
+        Hex(r.Reference);
+        T(58);
+        Hex(r.End);
+        T(2);
+        Decimal(r.UsedBefore);
+        T(3);
+        Decimal(r.UsedAfter);
+        T(20);
+        Decimal(r.Count);
+        T(59);
+        Hex(r.Sync);
+        T(60);
+        Hex(r.ObservedMt);
+        T(61);
+        Decimal(r.ZeroBytes);
+        T(62);
+        Hex(r.ZeroOr);
+        R(6);
+        Decimal(r.ScalarOffset);
+        R(7);
+        Hex(r.Scalar);
+        End();
     }
     private static void ReferenceGeometryLine(CheckedReferenceState* state)
     {
-        R(8); Hex((ulong)state); R(9); Decimal((ulong)sizeof(CheckedReferenceState));
-        R(10); Decimal(state->Geometry.CellReference); R(11); Decimal(state->Geometry.CellTag);
-        R(12); Decimal(state->Geometry.CellPayload); R(13); Decimal(state->Geometry.PairFirst);
-        R(14); Decimal(state->Geometry.PairLast); R(15); Decimal(state->Geometry.PairTag);
-        R(16); Decimal(state->Geometry.BlockPayload); End();
+        R(8);
+        Hex((ulong)state);
+        R(9);
+        Decimal((ulong)sizeof(CheckedReferenceState));
+        R(10);
+        Decimal(state->Geometry.CellReference);
+        R(11);
+        Decimal(state->Geometry.CellTag);
+        R(12);
+        Decimal(state->Geometry.CellPayload);
+        R(13);
+        Decimal(state->Geometry.PairFirst);
+        R(14);
+        Decimal(state->Geometry.PairLast);
+        R(15);
+        Decimal(state->Geometry.PairTag);
+        R(16);
+        Decimal(state->Geometry.BlockPayload);
+        End();
     }
     private static void ReferenceStackLine(CheckedReferenceStackState* stack)
     {
-        R(23); Hex(stack->Start); R(24); Hex(stack->End); R(25); Hex(stack->InitialRsp);
-        R(26); Hex(stack->Witness); R(27); Hex(stack->Start); R(28); Hex(stack->Start + 8);
-        R(29); Hex(RhpNewFastAllocationCore.ReferenceStackWord0); R(30); Hex(RhpNewFastAllocationCore.ReferenceStackWord1);
-        R(31); Hex(stack->Armed0); R(32); Hex(stack->Armed1); R(33); Hex(stack->Final0); R(34); Hex(stack->Final1);
-        R(35); Decimal(stack->Checks); R(36); End();
+        R(23);
+        Hex(stack->Start);
+        R(24);
+        Hex(stack->End);
+        R(25);
+        Hex(stack->InitialRsp);
+        R(26);
+        Hex(stack->Witness);
+        R(27);
+        Hex(stack->Start);
+        R(28);
+        Hex(stack->Start + 8);
+        R(29);
+        Hex(RhpNewFastAllocationCore.ReferenceStackWord0);
+        R(30);
+        Hex(RhpNewFastAllocationCore.ReferenceStackWord1);
+        R(31);
+        Hex(stack->Armed0);
+        R(32);
+        Hex(stack->Armed1);
+        R(33);
+        Hex(stack->Final0);
+        R(34);
+        Hex(stack->Final1);
+        R(35);
+        Decimal(stack->Checks);
+        R(36);
+        End();
     }
     private static void ReferenceOperationLine(ulong operation, ulong calls, ulong cookie)
-    { R(17); Decimal(operation); R(18); Decimal(calls); R(19); Hex(cookie); End(); }
+    {
+        R(17);
+        Decimal(operation);
+        R(18);
+        Decimal(calls);
+        R(19);
+        Hex(cookie);
+        End();
+    }
 }
 
 #pragma warning disable CS0649
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #pragma warning restore CS0649
 #endif

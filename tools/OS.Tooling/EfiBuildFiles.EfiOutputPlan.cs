@@ -3,6 +3,7 @@ using OS.Tooling.Native;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 public sealed record EfiOutputPlan(string Directory, string EfiPath, string MapPath, string ResponsePath, string EvidencePath, string SerializerObjectPath, IReadOnlyList<string> Paths)
 {
     public static EfiOutputPlan Create(string root, string efiOutputPath, string logPath, EfiProfile? profile)

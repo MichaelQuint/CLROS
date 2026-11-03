@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotDiskStaticPeer
 {
     public sealed class Completion
@@ -21,11 +22,29 @@ public static partial class NativeAotDiskStaticPeer
             Truncated = truncated;
         }
 
-        public int Port { get; }
-        public string Directory { get; }
-        public string ReceiptSha256 { get; }
-        public ProcessResult Runner { get; }
-        public bool FullProfile { get; }
-        public bool Truncated { get; }
+        public int Port
+        {
+            get;
+        }
+        public string Directory
+        {
+            get;
+        }
+        public string ReceiptSha256
+        {
+            get;
+        }
+        public ProcessResult Runner
+        {
+            get;
+        }
+        public bool FullProfile
+        {
+            get;
+        }
+        public bool Truncated
+        {
+            get;
+        }
     }
 }

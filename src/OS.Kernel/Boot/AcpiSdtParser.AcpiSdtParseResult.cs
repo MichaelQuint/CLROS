@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public readonly struct AcpiSdtParseResult
 {
     private AcpiSdtParseResult(AcpiSdtParseStatus status, AcpiSdtHeader header, int pointerCount, uint declaredLength, uint requiredLength, int requiredPointerCapacity, int entryIndex)
@@ -14,14 +15,35 @@ public readonly struct AcpiSdtParseResult
         EntryIndex = entryIndex;
     }
 
-    public AcpiSdtParseStatus Status { get; }
-    public AcpiSdtHeader Header { get; }
+    public AcpiSdtParseStatus Status
+    {
+        get;
+    }
+    public AcpiSdtHeader Header
+    {
+        get;
+    }
     public AcpiSdtTableKind TableKind => Header.TableKind;
-    public int PointerCount { get; }
-    public uint DeclaredLength { get; }
-    public uint RequiredLength { get; }
-    public int RequiredPointerCapacity { get; }
-    public int EntryIndex { get; }
+    public int PointerCount
+    {
+        get;
+    }
+    public uint DeclaredLength
+    {
+        get;
+    }
+    public uint RequiredLength
+    {
+        get;
+    }
+    public int RequiredPointerCapacity
+    {
+        get;
+    }
+    public int EntryIndex
+    {
+        get;
+    }
     public bool Succeeded => Status == AcpiSdtParseStatus.Success;
 
     public static AcpiSdtParseResult Success(AcpiSdtHeader header, int pointerCount)

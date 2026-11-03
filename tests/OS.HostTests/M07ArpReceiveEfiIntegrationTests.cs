@@ -24,7 +24,11 @@ internal static unsafe class M07ArpReceiveEfiIntegrationTests
         Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse("--RequireMarker", "CLROS_M07_006_READY")));
         Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse("--RequireMarker", "M07_ARP 8")));
     }
-    private static bool Execute(void* context) { (*(int*)context)++; return true; }
+    private static bool Execute(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
 
     [HostTest("m07.ARP EFI runner selects generated MAC and complete strict protocol", HostLane.Fast, 1)]
     private static void Runner()
@@ -47,11 +51,11 @@ internal static unsafe class M07ArpReceiveEfiIntegrationTests
         string[] padded = (string[])lines.Clone();
         int usedRow = Array.FindIndex(padded, l => l.StartsWith("M07_ARP 5 ", StringComparison.Ordinal));
         int crcRow = Array.FindIndex(padded, l => l.StartsWith("M07_ARP 8 ", StringComparison.Ordinal));
-        padded[usedRow] = Row("M07_ARP 5", [1,0,76,1]);
-        padded[crcRow] = Row("M07_ARP 8", [receipt.ReceiveCrc32,64,receipt.RequestCrc32,60]);
+        padded[usedRow] = Row("M07_ARP 5", [1, 0, 76, 1]);
+        padded[crcRow] = Row("M07_ARP 8", [receipt.ReceiveCrc32, 64, receipt.RequestCrc32, 60]);
         HostCheck.True(QemuTranscripts.AssertM07ArpReceiveRecords(padded).ReceiveBytes == 64);
-        padded[usedRow] = Row("M07_ARP 5", [1,0,77,1]);
-        padded[crcRow] = Row("M07_ARP 8", [receipt.ReceiveCrc32,65,receipt.RequestCrc32,60]);
+        padded[usedRow] = Row("M07_ARP 5", [1, 0, 77, 1]);
+        padded[crcRow] = Row("M07_ARP 8", [receipt.ReceiveCrc32, 65, receipt.RequestCrc32, 60]);
         Reject(() => QemuTranscripts.AssertM07ArpReceiveRecords(padded));
         string directory = Path.Combine(Path.GetTempPath(), "clros-m07-arp-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -59,8 +63,8 @@ internal static unsafe class M07ArpReceiveEfiIntegrationTests
         {
             string path = Path.Combine(directory, "serial.log");
             File.WriteAllText(path, M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(lines));
-            QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit:true, ownedSurvival:true,
-                pciEnumeration:true, virtioNegotiation:true, virtqueuePolling:true, virtioNet:true, arpReceive:true);
+            QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true,
+                pciEnumeration: true, virtioNegotiation: true, virtqueuePolling: true, virtioNet: true, arpReceive: true);
             for (int stage = 0; stage < 14; stage++)
             {
                 // CRC fields are independently associated by PCAP admission;
@@ -70,7 +74,7 @@ internal static unsafe class M07ArpReceiveEfiIntegrationTests
                 string prefix = "M07_ARP " + stage.ToString("X");
                 string[] changed = (string[])lines.Clone();
                 int index = Array.FindIndex(changed, l => l.StartsWith(prefix + " ", StringComparison.Ordinal));
-                ulong[] values = changed[index].Split(' ')[2..].Select(v => Convert.ToUInt64(v[2..],16)).ToArray();
+                ulong[] values = changed[index].Split(' ')[2..].Select(v => Convert.ToUInt64(v[2..], 16)).ToArray();
                 values[field] ^= 1;
                 changed[index] = Row(prefix, values);
                 Reject(() => QemuTranscripts.AssertM07ArpReceiveRecords(changed));
@@ -86,10 +90,11 @@ internal static unsafe class M07ArpReceiveEfiIntegrationTests
     {
         string[] polling = M05VirtqueuePollingEfiIntegrationTests.Capture();
         ulong[] Parent(string prefix) => polling.Single(l => l.StartsWith(prefix + " ", StringComparison.Ordinal))
-            .Split(' ')[2..].Select(v => Convert.ToUInt64(v[2..],16)).ToArray();
+            .Split(' ')[2..].Select(v => Convert.ToUInt64(v[2..], 16)).ToArray();
         // Offer the receive feature while the original parent still selects
         // VERSION_1 only. Keep both negotiated receipts independent.
-        ulong[] offered = Parent("M05_VIRTIO 7"); offered[0] |= 1UL << 15;
+        ulong[] offered = Parent("M05_VIRTIO 7");
+        offered[0] |= 1UL << 15;
         polling[Array.FindIndex(polling, l => l.StartsWith("M05_VIRTIO 7 ", StringComparison.Ordinal))] = Row("M05_VIRTIO 7", offered);
         ulong page = Parent("M05_QUEUE 2")[0], command = Parent("M05_VIRTIO 9")[1];
         ulong bar = Parent("M05_VIRTIO 0")[2], notify = Parent("M05_VIRTIO 1")[1];
@@ -105,18 +110,24 @@ internal static unsafe class M07ArpReceiveEfiIntegrationTests
             [0x12345678,42,0x87654321,60],[0x7f,2,42,1],netRows[12],[1,8,1,3],netRows[11],
             [15,QemuContracts.M07ArpReceiveFeatures,0x0a000202,0x0a00020f]];
         string[] lines = [.. polling, .. QemuContracts.M07ArpReceiveMarkers.Skip(polling.Length)];
-        foreach ((string prefix, ulong[][] rows) in new[] { ("M07_NET ",netRows), ("M07_ARP ",arpRows) })
+        foreach ((string prefix, ulong[][] rows) in new[] { ("M07_NET ", netRows), ("M07_ARP ", arpRows) })
             for (int stage = 0; stage < rows.Length; stage++)
             {
-                string key = prefix + stage.ToString("X"); int index = Array.FindIndex(lines,l => l == key);
-                lines[index] = Row(key,rows[stage]);
+                string key = prefix + stage.ToString("X");
+                int index = Array.FindIndex(lines, l => l == key);
+                lines[index] = Row(key, rows[stage]);
             }
         return lines;
     }
     private static string Row(string prefix, ulong[] values) => prefix + string.Concat(values.Select(v => " 0x" + v.ToString("X16")));
     private static void Reject(Action action)
     {
-        bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected);
     }
 }

@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotDiskStaticBrowser
 {
     /// <summary>Own one debugger socket and receive pump. A missing WebSocket
@@ -52,7 +53,11 @@ public static partial class NativeAotDiskStaticBrowser
 
         private void Log(string direction, string message)
         {
-            string line = JsonSerializer.Serialize(new { Direction = direction, Message = message });
+            string line = JsonSerializer.Serialize(new
+            {
+                Direction = direction,
+                Message = message
+            });
             lock (gate)
             {
                 int bytes = checked(Encoding.UTF8.GetByteCount(line) + Encoding.UTF8.GetByteCount(log.NewLine));
@@ -78,7 +83,12 @@ public static partial class NativeAotDiskStaticBrowser
                 pending.Add(id, result);
             }
 
-            string message = JsonSerializer.Serialize(new { id, method, @params = arguments });
+            string message = JsonSerializer.Serialize(new
+            {
+                id,
+                method,
+                @params = arguments
+            });
             Log("send", message);
             await sender.WaitAsync(token);
             try
@@ -195,7 +205,7 @@ public static partial class NativeAotDiskStaticBrowser
             {
                 await pump!.WaitAsync(TimeSpan.FromSeconds(10), cancellation);
             }
-            catch (WebSocketException error)when (ExpectedEof(error))
+            catch (WebSocketException error) when (ExpectedEof(error))
             {
                 lock (gate)
                     acceptedExpectedEof = true;

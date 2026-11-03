@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct OwnedIdtGateTableResult
 {
     private readonly byte _isInitialized;
@@ -31,23 +32,50 @@ public readonly struct OwnedIdtGateTableResult
     }
 
     public bool IsInitialized => _isInitialized == 1;
-    public OwnedIdtGateTableOperation Operation { get; }
-    public OwnedIdtGateTableStatus Status { get; }
-    public ulong ModeledTableAddress { get; }
-    public ulong OwnedStubPageAddress { get; }
-    public ulong TableCapacity { get; }
+    public OwnedIdtGateTableOperation Operation
+    {
+        get;
+    }
+    public OwnedIdtGateTableStatus Status
+    {
+        get;
+    }
+    public ulong ModeledTableAddress
+    {
+        get;
+    }
+    public ulong OwnedStubPageAddress
+    {
+        get;
+    }
+    public ulong TableCapacity
+    {
+        get;
+    }
     public int RequiredBytes => PopulateAllN256IDTVectorsOwnedGatesNever.TableByteCount;
     public int DescriptorCount => _descriptorCount;
     public int PresentDescriptorCount => _presentDescriptorCount;
     public int IstRoutedDescriptorCount => _istRoutedDescriptorCount;
     public int DefaultIstDescriptorCount => _defaultIstDescriptorCount;
     public int FirmwareGateCopyCount => 0;
-    public int BytesWritten { get; }
-    public int BytesCompared { get; }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int BytesCompared
+    {
+        get;
+    }
     public int FirstMismatchOffset => IsInitialized ? _firstMismatchOffset : -1;
     public int FirstMismatchVector => FirstMismatchOffset < 0 ? -1 : FirstMismatchOffset / PopulateAllN256IDTVectorsOwnedGatesNever.DescriptorByteCount;
-    public ulong Fingerprint { get; }
-    public ulong NormalizedPolicyFingerprint { get; }
+    public ulong Fingerprint
+    {
+        get;
+    }
+    public ulong NormalizedPolicyFingerprint
+    {
+        get;
+    }
     public bool DestinationMutated => _destinationMutated == 1;
     public bool ReadBackPerformed => _readBackPerformed == 1;
     public bool Materialized => IsInitialized && Operation == OwnedIdtGateTableOperation.Materialize && Status == OwnedIdtGateTableStatus.Success && BytesWritten == RequiredBytes && BytesCompared == RequiredBytes && FirstMismatchOffset == -1 && DescriptorCount == 256 && PresentDescriptorCount == 256 && IstRoutedDescriptorCount == 3 && DefaultIstDescriptorCount == 253 && FirmwareGateCopyCount == 0 && NormalizedPolicyFingerprint == PopulateAllN256IDTVectorsOwnedGatesNever.NormalizedPolicyFnv1A64 && DestinationMutated && ReadBackPerformed;

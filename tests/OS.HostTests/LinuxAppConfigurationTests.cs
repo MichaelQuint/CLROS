@@ -358,7 +358,7 @@ internal static unsafe partial class LinuxAppConfigurationTests
                 HostCheck.Equal(-20L, owner.Call(number, path, output, 256));
         }
 
-        owner.Text(path, new string ('a', 256));
+        owner.Text(path, new string('a', 256));
         HostCheck.Equal(-36L, owner.Call(6, path, output));
         owner.Text(path, "");
         HostCheck.Equal(-2L, owner.Call(4, path, output));
@@ -402,7 +402,19 @@ internal static unsafe partial class LinuxAppConfigurationTests
         thread.Kernel.Dispatch();
         byte* scratch = stackalloc byte[64];
         LinuxSyscallGateState gate = default;
-        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new() { UserRoot = thread.Kernel.Owner.Root, MaximumCalls = 16, MaximumWrite = 64, Scratch = scratch, ScratchBytes = 64, FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true }, thread.GatewayAccess));
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new()
+        {
+            UserRoot = thread.Kernel.Owner.Root,
+            MaximumCalls = 16,
+            MaximumWrite = 64,
+            Scratch = scratch,
+            ScratchBytes = 64,
+            FirmwareExited = true,
+            OwnedBoundaryValidated = true,
+            EnableStartup = true,
+            EnableDescriptors = true,
+            EnableThreads = true
+        }, thread.GatewayAccess));
         foreach (ulong number in new ulong[]
         {
             4,
@@ -446,7 +458,7 @@ internal static unsafe partial class LinuxAppConfigurationTests
     private static void Capacity()
     {
         var entries = Enumerable.Range(0, 7).Select(i => ("apps/" + i + ".txt", "value-" + i)).ToArray();
-        entries[6] = ("apps/" + new string ('x', 123), "long-path-value");
+        entries[6] = ("apps/" + new string('x', 123), "long-path-value");
         byte[] package = Package(entries);
         LinuxDescriptorServices.View* views = stackalloc LinuxDescriptorServices.View[8];
         byte* paths = stackalloc byte[2048];
@@ -461,7 +473,7 @@ internal static unsafe partial class LinuxAppConfigurationTests
         }
 
         Reject(package, 7);
-        entries[6] = ("apps/" + new string ('x', 124), "too-long");
+        entries[6] = ("apps/" + new string('x', 124), "too-long");
         Reject(Package(entries));
     }
 

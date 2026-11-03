@@ -48,7 +48,7 @@ internal static partial class NativeAotSocketVectorsTests
                 {
                     HostCheck.Equal(0, peer.Receive(new byte[1]));
                 }
-                catch (SocketException error)when (error.SocketErrorCode == SocketError.ConnectionReset)
+                catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionReset)
                 {
                 }
 

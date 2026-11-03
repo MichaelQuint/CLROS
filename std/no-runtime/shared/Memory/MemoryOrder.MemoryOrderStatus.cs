@@ -1,4 +1,5 @@
 namespace OS.Std.Memory;
+
 public enum MemoryOrderStatus : byte
 {
     Uninitialized = 0,

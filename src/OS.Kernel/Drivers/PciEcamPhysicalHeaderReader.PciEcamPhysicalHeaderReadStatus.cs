@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Drivers;
+
 public enum PciEcamPhysicalHeaderReadStatus
 {
     Success = 0,

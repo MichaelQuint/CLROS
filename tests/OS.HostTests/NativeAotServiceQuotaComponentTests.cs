@@ -18,13 +18,15 @@ internal static class NativeAotServiceQuotaComponentTests
         string Loan(int slot, int generation, int eventId, int end) => $"M16_016_SOCKET_LEASE event={eventId} {Identity(slot, generation)} rxBytes=8192 txBytes=32768 end={end}";
         void SocketSnapshot(int a, int r, int live, int peak, int end) => rows.Add($"M16_016_SOCKET_LEASES backingBytes=327680 acquired={a} returned={r} live={live} rxBytes={live * 8192} txBytes={live * 32768} peakLive={peak} peakRxBytes={peak * 8192} peakTxBytes={peak * 32768} end={end} backing=retained");
         void StackSnapshot(int a, int r, int live, int end) => rows.Add($"M16_016_STACK_LEASES acquired={a} returned={r} live={live} stackBytes={live * 65536} contextBytes={live * 688} peakLive={(a == 1 ? 1 : 2)} peakStackBytes={(a == 1 ? 65536 : 131072)} peakContextBytes={(a == 1 ? 688 : 1376)} end={end}");
-        Call(39, 1); rows.Add(Backing);
+        Call(39, 1);
+        rows.Add(Backing);
         rows.Add($"M16_016_STACK_LEASE identity={Main} index=0 stack=2342912 stackBytes=65536 context=2154496 contextBytes=688");
         StackSnapshot(1, 0, 1, 0);
         for (int i = 0; i < 4; i++)
         {
             rows.Add(Slot(i, 1, 0, Quiet + (ulong)i));
-            if (i < 3) rows.Add(Loan(i, 1, 0, 0)); // Fourth is a pending SYN without window loans.
+            if (i < 3)
+                rows.Add(Loan(i, 1, 0, 0)); // Fourth is a pending SYN without window loans.
             rows.Add($"M07_030_HIGHWATER bulk={i + 1} compact=0 clock={Quiet + (ulong)i}");
         }
         SocketSnapshot(3, 0, 3, 3, 0);
@@ -38,8 +40,12 @@ internal static class NativeAotServiceQuotaComponentTests
         StackSnapshot(2, 0, 2, 0);
         if (reuse)
         {
-            rows.Add(Loan(0, 1, 1, 0)); rows.Add(Slot(0, 1, 1, Quiet + 4)); SocketSnapshot(3, 1, 2, 3, 0);
-            rows.Add(Slot(0, 2, 0, Quiet + 5)); rows.Add(Loan(0, 2, 0, 0)); SocketSnapshot(4, 1, 3, 3, 0);
+            rows.Add(Loan(0, 1, 1, 0));
+            rows.Add(Slot(0, 1, 1, Quiet + 4));
+            SocketSnapshot(3, 1, 2, 3, 0);
+            rows.Add(Slot(0, 2, 0, Quiet + 5));
+            rows.Add(Loan(0, 2, 0, 0));
+            SocketSnapshot(4, 1, 3, 3, 0);
         }
         Call(9, -12);
         rows.Add($"M16_016_QUOTA_ABORT identity={Main} ordinal={ordinal} nr=9 backed=9216 pool=9216 exit=99 policy=terminate cause=physical-backing");
@@ -49,8 +55,11 @@ internal static class NativeAotServiceQuotaComponentTests
             rows.Add($"M16_008_REAP old={id} next={id + (1UL << 32)} context=zero stack=zero slot=zero");
         }
         StackSnapshot(2, 2, 0, 1);
-        for (int fd = 0; fd < 3; fd++) rows.Add($"M16_011_CLOSE fd={fd} valueBits=0");
-        rows.Add(Loan(0, reuse ? 2 : 1, 1, 1)); rows.Add(Loan(1, 1, 1, 1)); rows.Add(Loan(2, 1, 1, 1));
+        for (int fd = 0; fd < 3; fd++)
+            rows.Add($"M16_011_CLOSE fd={fd} valueBits=0");
+        rows.Add(Loan(0, reuse ? 2 : 1, 1, 1));
+        rows.Add(Loan(1, 1, 1, 1));
+        rows.Add(Loan(2, 1, 1, 1));
         SocketSnapshot(reuse ? 4 : 3, reuse ? 4 : 3, 0, 3, 1);
         rows.Add($"M16_016_QUOTA_SOCKETS bulkAborted=4 compactDiscarded=0 clock={Quiet + 6} retained=0 transport=aborted timewait=discarded buffers=scrubbed descriptors=closed table=retired");
         rows.Add($"M07_033_END issued={(reuse ? 5 : 4)} secret=zero seed=zero lease=released firmwareCallbacks=none");
@@ -61,7 +70,8 @@ internal static class NativeAotServiceQuotaComponentTests
     [HostTest("quota components preserve retained backing separately from actual stack and socket lease peaks and end zero")]
     private static void CopiedMeasurements()
     {
-        string[] rows = Rows(); string[] before = rows.ToArray();
+        string[] rows = Rows();
+        string[] before = rows.ToArray();
         var result = QemuTranscripts.InspectNativeAotServiceQuotaComponentsForTests(rows);
         HostCheck.True(rows.SequenceEqual(before) && result.Backing.CooperativePages == 354 && result.Backing.WorkerMappedBytes == 1048576);
         HostCheck.True(result.StackLeases.Count == 2 && result.StackSnapshots[^1].End && result.StackSnapshots[^1].Live == 0 &&
@@ -72,10 +82,15 @@ internal static class NativeAotServiceQuotaComponentTests
             HostCheck.True(rows[lease.RecordIndex].StartsWith("M16_016_STACK_LEASE ", StringComparison.Ordinal) &&
                 rows[lease.CreateCallRecordIndex].StartsWith("M16_008_CALL ", StringComparison.Ordinal) &&
                 rows[lease.ReapRecordIndex].Contains("old=" + lease.Identity, StringComparison.Ordinal));
-        var retained = result.StackLeases[0]; rows[retained.RecordIndex] = "changed after inspection";
+        var retained = result.StackLeases[0];
+        rows[retained.RecordIndex] = "changed after inspection";
         HostCheck.True(result.StackLeases[0] == retained);
         bool immutable = false;
-        try { ((IList<QemuTranscripts.ServiceQuotaStackLease>)result.StackLeases)[0] = default; } catch (NotSupportedException) { immutable = true; }
+        try
+        {
+            ((IList<QemuTranscripts.ServiceQuotaStackLease>)result.StackLeases)[0] = default;
+        }
+        catch (NotSupportedException) { immutable = true; }
         HostCheck.True(immutable);
     }
 
@@ -101,7 +116,9 @@ internal static class NativeAotServiceQuotaComponentTests
         {
             int at = Array.FindIndex(valid, r => r.StartsWith(prefix, StringComparison.Ordinal));
             Reject(valid.Where((_, i) => i != at).ToArray());
-            var duplicate = valid.ToList(); duplicate.Insert(at, valid[at]); Reject(duplicate.ToArray());
+            var duplicate = valid.ToList();
+            duplicate.Insert(at, valid[at]);
+            Reject(duplicate.ToArray());
         }
         foreach (var change in new[] {
             ("M16_016_STACK_BACKING ", "workerMappedBytes=1048576", "workerMappedBytes=65536"),
@@ -115,10 +132,16 @@ internal static class NativeAotServiceQuotaComponentTests
             ("M16_016_SOCKET_LEASES backingBytes=327680 acquired=3 returned=0", "peakLive=3", "peakLive=4"),
             ("M16_008_REAP old=4294967298", "next=8589934594", "next=4294967298") })
             Mutate(valid, change.Item1, change.Item2, change.Item3);
-        Reject([..valid, "M16_016_STACK_UNKNOWN end=1"]);
-        var wrongOrder = valid.ToList(); int final = wrongOrder.FindIndex(r => r.StartsWith("M16_016_STACK_LEASES acquired=2 returned=2", StringComparison.Ordinal));
-        string row = wrongOrder[final]; wrongOrder.RemoveAt(final); wrongOrder.Insert(wrongOrder.FindIndex(r => r.StartsWith("M16_008_REAP ", StringComparison.Ordinal)), row); Reject(wrongOrder.ToArray());
-        Reject([]); Reject(null!); Reject([..valid, ""]);
+        Reject([.. valid, "M16_016_STACK_UNKNOWN end=1"]);
+        var wrongOrder = valid.ToList();
+        int final = wrongOrder.FindIndex(r => r.StartsWith("M16_016_STACK_LEASES acquired=2 returned=2", StringComparison.Ordinal));
+        string row = wrongOrder[final];
+        wrongOrder.RemoveAt(final);
+        wrongOrder.Insert(wrongOrder.FindIndex(r => r.StartsWith("M16_008_REAP ", StringComparison.Ordinal)), row);
+        Reject(wrongOrder.ToArray());
+        Reject([]);
+        Reject(null!);
+        Reject([.. valid, ""]);
     }
 
     [HostTest("quota socket CALL reader retains original indices beside dedicated lease metadata and rejects aliases")]
@@ -134,20 +157,31 @@ internal static class NativeAotServiceQuotaComponentTests
             string[] bad = rows.Select(r => r.Replace(pair.Item1, pair.Item2, StringComparison.Ordinal)).ToArray();
             Reject(bad);
             bool refused = false;
-            try { QemuTranscripts.InspectNativeAotServiceQuotaSocketIoForTests(bad, census.FreshLifetimes); } catch (ToolFailure) { refused = true; }
+            try
+            {
+                QemuTranscripts.InspectNativeAotServiceQuotaSocketIoForTests(bad, census.FreshLifetimes);
+            }
+            catch (ToolFailure) { refused = true; }
             HostCheck.True(refused);
         }
     }
 
     private static void Mutate(string[] input, string prefix, string oldValue, string newValue)
     {
-        var changed = input.ToArray(); int at = Array.FindIndex(changed, r => r.StartsWith(prefix, StringComparison.Ordinal));
+        var changed = input.ToArray();
+        int at = Array.FindIndex(changed, r => r.StartsWith(prefix, StringComparison.Ordinal));
         HostCheck.True(at >= 0 && changed[at].Contains(oldValue, StringComparison.Ordinal));
-        changed[at] = changed[at].Replace(oldValue, newValue, StringComparison.Ordinal); Reject(changed);
+        changed[at] = changed[at].Replace(oldValue, newValue, StringComparison.Ordinal);
+        Reject(changed);
     }
     private static void Reject(string[] rows)
     {
-        bool refused = false; try { QemuTranscripts.InspectNativeAotServiceQuotaComponentsForTests(rows); } catch (ToolFailure) { refused = true; }
+        bool refused = false;
+        try
+        {
+            QemuTranscripts.InspectNativeAotServiceQuotaComponentsForTests(rows);
+        }
+        catch (ToolFailure) { refused = true; }
         HostCheck.True(refused);
     }
 }

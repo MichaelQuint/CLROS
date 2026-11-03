@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public sealed class SerialDiagnosticsGuard
 {
     public const string MarkOwnedSerialReadyOperation = "serial.owned.ready";

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct EnaPciCandidateValidationResult
 {
     private EnaPciCandidateValidationResult(bool isInitialized, EnaPciCandidateValidationStatus status, EnaPciDeviceKind deviceKind, PciEcamScannedDevice device)
@@ -9,10 +10,22 @@ public readonly struct EnaPciCandidateValidationResult
         Device = device;
     }
 
-    public EnaPciCandidateValidationStatus Status { get; }
-    public EnaPciDeviceKind DeviceKind { get; }
-    public PciEcamScannedDevice Device { get; }
-    public bool IsInitialized { get; }
+    public EnaPciCandidateValidationStatus Status
+    {
+        get;
+    }
+    public EnaPciDeviceKind DeviceKind
+    {
+        get;
+    }
+    public PciEcamScannedDevice Device
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == EnaPciCandidateValidationStatus.Success;
 
     public static EnaPciCandidateValidationResult Success(EnaPciDeviceKind deviceKind, PciEcamScannedDevice device)

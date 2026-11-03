@@ -13,12 +13,17 @@ internal static class EfiDispatchTranscriptControls
         int cctorAt = gc + 3;
         string[] parent = [.. baseline[..cctorAt], .. cctor, .. baseline[cctorAt..]];
         ulong[][] rows = new ulong[73][];
-        rows[0] = [handle, image + 0x70000, 32768, seed]; rows[1] = [image + 0x10000, 80, image + 0x18000, 5];
-        rows[2] = [heap + 64, heap + 88, image + 0x5100, image + 0x5200]; rows[3] = [9, 10, 24, 24];
+        rows[0] = [handle, image + 0x70000, 32768, seed];
+        rows[1] = [image + 0x10000, 80, image + 0x18000, 5];
+        rows[2] = [heap + 64, heap + 88, image + 0x5100, image + 0x5200];
+        rows[3] = [9, 10, 24, 24];
         const ulong tag = 0xC011EC7000000006;
-        rows[4] = [gcRoot[1], heap + 32, tag, handle - 272]; rows[5] = [stack[0], stack[1], stack[2], stack[3] - 512];
-        rows[6] = [image + 0x5000, image + 0x6000, 4, 1]; rows[7] = [rows[2][2], 0, 0, 4];
-        rows[8] = [rows[2][3], 0, 0, 4]; rows[9] = [7, 2, 10, 176];
+        rows[4] = [gcRoot[1], heap + 32, tag, handle - 272];
+        rows[5] = [stack[0], stack[1], stack[2], stack[3] - 512];
+        rows[6] = [image + 0x5000, image + 0x6000, 4, 1];
+        rows[7] = [rows[2][2], 0, 0, 4];
+        rows[8] = [rows[2][3], 0, 0, 4];
+        rows[9] = [7, 2, 10, 176];
         for (int i = 0; i < 15; i++)
         {
             int op = i / 3, second = i % 3 == 1 ? 1 : 0, row = 10 + 4 * i;
@@ -36,7 +41,8 @@ internal static class EfiDispatchTranscriptControls
         }
         rows[70] = [15, 10, 5, 128];
         ulong[] canary = EfiTranscriptControls.Fields(baseline[Array.FindIndex(baseline, x => x.StartsWith("M04_COLLECT 8 ", StringComparison.Ordinal))]);
-        rows[71] = [7, 7, gcRoot[1], tag]; rows[72] = [17, canary[1], canary[2], stack[3] - 768];
+        rows[71] = [7, 7, gcRoot[1], tag];
+        rows[72] = [17, canary[1], canary[2], stack[3] - 768];
         string[] block = ["TEST_START m04.016", .. rows.Select((v, i) => EfiTranscriptControls.Row("M04_DISPATCH", i, v)), "CLROS_M04_016_READY", "TEST_PASS m04.016"];
         int insert = Array.IndexOf(parent, "TEST_START boot.sequence");
         string[] good = [.. parent[..insert], .. block, .. parent[insert..]];
@@ -54,7 +60,8 @@ internal static class EfiDispatchTranscriptControls
         controls.Check(reorderedCells, true, "compiler cell order is independent of callsite identity");
         ulong shallower = canary[3] + 8;
         HostCheck.True(shallower <= stack[3], "distinct phase minima control");
-        string[] differentFrames = [.. good]; ulong[] first = [.. rows[5]], last = [.. rows[72]];
+        string[] differentFrames = [.. good];
+        ulong[] first = [.. rows[5]], last = [.. rows[72]];
         first[3] = last[3] = shallower;
         differentFrames[insert + 6] = EfiTranscriptControls.Row("M04_DISPATCH", 5, first);
         differentFrames[insert + 73] = EfiTranscriptControls.Row("M04_DISPATCH", 72, last);
@@ -63,16 +70,23 @@ internal static class EfiDispatchTranscriptControls
         {
             controls.Check(good.Where((_, index) => index != i).ToArray(), false, "missing row " + i);
             controls.Check(good.Take(i + 1).Concat(good.Skip(i)).ToArray(), false, "duplicate row " + i);
-            string[] swapped = [.. good]; (swapped[i], swapped[i + 1]) = (swapped[i + 1], swapped[i]);
+            string[] swapped = [.. good];
+            (swapped[i], swapped[i + 1]) = (swapped[i + 1], swapped[i]);
             controls.Check(swapped, false, "swapped row " + i);
             controls.Check(good[..(i + 1)], false, "truncated row " + i);
         }
         foreach (int i in Enumerable.Range(insert + 1, rows.Length))
-        { string[] bad = [.. good]; bad[i] += " "; controls.Check(bad, false, "record shape " + i); }
+        {
+            string[] bad = [.. good];
+            bad[i] += " ";
+            controls.Check(bad, false, "record shape " + i);
+        }
         void Mutate(int stage, params (int Field, ulong Value)[] fields)
         {
-            string[] bad = [.. good]; ulong[] values = [.. rows[stage]];
-            foreach (var field in fields) values[field.Field] = field.Value;
+            string[] bad = [.. good];
+            ulong[] values = [.. rows[stage]];
+            foreach (var field in fields)
+                values[field.Field] = field.Value;
             bad[insert + 1 + stage] = EfiTranscriptControls.Row("M04_DISPATCH", stage, values);
             controls.Check(bad, false, "numeric stage " + stage);
         }
@@ -85,7 +99,8 @@ internal static class EfiDispatchTranscriptControls
             (71,1,6),(72,0,16),(72,1,0),(72,3,stack[2]),
             (1,1,96),(1,1,112),(1,3,6),(7,1,image+0x6100),(8,2,4),(34,1,rows[1][0]+80),(36,0,0),(48,0,0),
             (60,1,4),(14,2,rows[10][2]+16)
-        }) Mutate(row, (field, value));
+        })
+            Mutate(row, (field, value));
         Mutate(4, (3, rows[4][3] + 8));
         Mutate(13, (0, rows[13][0] + 1), (1, rows[13][1] + 1));
         controls.Check(string.Join("\r\n", good), false, "missing EOF delimiter");
@@ -97,7 +112,10 @@ internal static class EfiDispatchTranscriptControls
         foreach (string claim in new[] { "M04_DISPATCH 0", "CLROS_M04_016_READY", "TEST_START m04.016", "TEST_PASS m04.016", "M04_DIS\0PATCH 0", "test_pass M04.016" })
         {
             bool accepted = true;
-            try { QemuTranscripts.AssertM04InterfaceDispatchSelection(claim, false); }
+            try
+            {
+                QemuTranscripts.AssertM04InterfaceDispatchSelection(claim, false);
+            }
             catch (ToolFailure) { accepted = false; }
             HostCheck.True(!accepted, "unselected dispatch claim");
             QemuTranscripts.AssertM04InterfaceDispatchSelection(claim, true);

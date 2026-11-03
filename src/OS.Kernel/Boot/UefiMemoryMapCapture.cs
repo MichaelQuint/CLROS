@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static unsafe class UefiMemoryMapCapture
 {
     public const uint EfiLoaderData = 2;

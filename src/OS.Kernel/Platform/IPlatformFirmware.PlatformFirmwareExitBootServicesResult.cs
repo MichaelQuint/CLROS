@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformFirmwareExitBootServicesResult
 {
     public const ulong EfiSuccess = 0;
@@ -10,10 +11,19 @@ public readonly struct PlatformFirmwareExitBootServicesResult
         FirmwareStatus = firmwareStatus;
     }
 
-    public PlatformFirmwareExitBootServicesStatus Status { get; }
-    public FirmwareServicesMode Mode { get; }
+    public PlatformFirmwareExitBootServicesStatus Status
+    {
+        get;
+    }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
     public string Operation => PlatformFirmwareOperations.ExitBootServices;
-    public ulong FirmwareStatus { get; }
+    public ulong FirmwareStatus
+    {
+        get;
+    }
     public bool Succeeded => Status == PlatformFirmwareExitBootServicesStatus.Success;
 
     public static PlatformFirmwareExitBootServicesResult FromFirmwareStatus(FirmwareCallResult guardResult, bool exitBootServicesFunctionAvailable, ulong firmwareStatus)

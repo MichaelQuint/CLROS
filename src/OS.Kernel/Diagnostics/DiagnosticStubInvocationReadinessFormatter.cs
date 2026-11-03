@@ -2,6 +2,7 @@ using OS.Kernel.Runtime;
 using OS.Std.Text;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class DiagnosticStubInvocationReadinessFormatter
 {
     public const int MaximumMarkerBytes = 512;

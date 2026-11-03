@@ -49,15 +49,24 @@ public static class NativeAotSocketPackage
             Need(!Path.Exists(Path.Combine(root, relative)), "source_override " + relative);
         string directory = Path.Combine(root, "apps", App);
         AuthorityFiles.RequirePlainPath(root, directory, "socket_source_path");
-        Stack<string> pending = new(); pending.Push(directory); List<string> files = []; int entries = 0;
-        while (pending.TryPop(out string? next)) foreach (string path in Directory.EnumerateFileSystemEntries(next))
-        {
-            Need(++entries <= 128, "source_inventory");
-            FileAttributes attributes = File.GetAttributes(path); Need((attributes & FileAttributes.ReparsePoint) == 0, "source_link");
-            if ((attributes & FileAttributes.Directory) != 0)
-            { if (Path.GetFileName(path) is not ("bin" or "obj" or "artifacts")) pending.Push(path); }
-            else files.Add(Path.GetRelativePath(directory, path).Replace('\\', '/'));
-        }
+        Stack<string> pending = new();
+        pending.Push(directory);
+        List<string> files = [];
+        int entries = 0;
+        while (pending.TryPop(out string? next))
+            foreach (string path in Directory.EnumerateFileSystemEntries(next))
+            {
+                Need(++entries <= 128, "source_inventory");
+                FileAttributes attributes = File.GetAttributes(path);
+                Need((attributes & FileAttributes.ReparsePoint) == 0, "source_link");
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    if (Path.GetFileName(path) is not ("bin" or "obj" or "artifacts"))
+                        pending.Push(path);
+                }
+                else
+                    files.Add(Path.GetRelativePath(directory, path).Replace('\\', '/'));
+            }
         var current = CurrentSources();
         string prefix = "apps/" + App + "/";
         var expected = current.Where(source => source.Path.StartsWith(prefix, StringComparison.Ordinal))
@@ -79,25 +88,37 @@ public static class NativeAotSocketPackage
     /// Linux inputs remain receipt identities, not rehashed Windows inputs.</summary>
     public static unsafe byte[] Create(string root, string evidenceRoot, bool asynchronous)
     {
-        RequireCurrentSources(root); evidenceRoot = Path.GetFullPath(evidenceRoot);
+        RequireCurrentSources(root);
+        evidenceRoot = Path.GetFullPath(evidenceRoot);
         byte[] receipt = Read(evidenceRoot, Qualification + "receipt.json", 348_314);
         Need(receipt.Length == 348_314 && Hash(receipt) == "C0EB4EB89B48B1C84299A301D6CACFDAB8366FCC73EF689781F38C87A4AF78F9", "receipt_identity");
-        using JsonDocument document = JsonDocument.Parse(receipt); var data = document.RootElement;
+        using JsonDocument document = JsonDocument.Parse(receipt);
+        var data = document.RootElement;
         Need(data.GetProperty("schema").GetString() == "clros.nativeaot.socket.v2" &&
             data.GetProperty("sdk").GetString() == NativeAotPayload.SdkVersion &&
             data.GetProperty("runtime").GetString() == NativeAotPayload.RuntimeVersion, "producer_policy");
-        foreach (var source in ProducerSources) Need(data.GetProperty("sources").GetProperty(source.Path).GetString() == source.Hash, "producer_source");
-        var outputs = data.GetProperty("outputs").EnumerateObject().ToArray(); Need(outputs.Length == 33, "output_inventory");
-        foreach (var item in outputs) Need(Hash(Read(evidenceRoot, Qualification + item.Name, 16 * 1024 * 1024)) == item.Value.GetString(), "output_identity " + item.Name);
+        foreach (var source in ProducerSources)
+            Need(data.GetProperty("sources").GetProperty(source.Path).GetString() == source.Hash, "producer_source");
+        var outputs = data.GetProperty("outputs").EnumerateObject().ToArray();
+        Need(outputs.Length == 33, "output_inventory");
+        foreach (var item in outputs)
+            Need(Hash(Read(evidenceRoot, Qualification + item.Name, 16 * 1024 * 1024)) == item.Value.GetString(), "output_identity " + item.Name);
         string directory = Path.Combine(evidenceRoot, Qualification);
-        Stack<string> pending = new(); pending.Push(directory); List<string> inventory = []; int entries = 0;
-        while (pending.TryPop(out string? next)) foreach (string path in Directory.EnumerateFileSystemEntries(next))
-        {
-            Need(++entries <= 128, "output_inventory");
-            FileAttributes attributes = File.GetAttributes(path); Need((attributes & FileAttributes.ReparsePoint) == 0, "output_link");
-            if ((attributes & FileAttributes.Directory) != 0) pending.Push(path);
-            else inventory.Add(Path.GetRelativePath(directory, path).Replace('\\', '/'));
-        }
+        Stack<string> pending = new();
+        pending.Push(directory);
+        List<string> inventory = [];
+        int entries = 0;
+        while (pending.TryPop(out string? next))
+            foreach (string path in Directory.EnumerateFileSystemEntries(next))
+            {
+                Need(++entries <= 128, "output_inventory");
+                FileAttributes attributes = File.GetAttributes(path);
+                Need((attributes & FileAttributes.ReparsePoint) == 0, "output_link");
+                if ((attributes & FileAttributes.Directory) != 0)
+                    pending.Push(path);
+                else
+                    inventory.Add(Path.GetRelativePath(directory, path).Replace('\\', '/'));
+            }
         Need(inventory.Order(StringComparer.Ordinal).SequenceEqual(outputs.Select(item => item.Name).Concat(["receipt.json", "qualification.lock"]).Order(StringComparer.Ordinal)), "output_inventory");
         foreach (string path in new[] { "apps/NativeAotSocketSmoke/obj/Release/net11.0/linux-musl-x64/NativeAotSocketSmoke.dll",
             "apps/NativeAotSocketSmoke/obj/Release/net11.0/linux-musl-x64/native/NativeAotSocketSmoke.o",
@@ -107,11 +128,17 @@ public static class NativeAotSocketPackage
         var observed = NativeAotSocketPayload.ValidateAsyncOutput(Encoding.UTF8.GetString(Read(evidenceRoot, Qualification + "async.stdout.log", 4096)));
         Need(observed.PendingAccepts > 0 && observed.PendingReceives > 0 && observed.PendingSends > 0, "async_observation");
         byte[] elf = Read(evidenceRoot, Qualification + App + "/" + App, ElfBytes);
-        Need(elf.Length == ElfBytes && Hash(elf) == ElfSha256, "elf_identity"); _ = NativeAotPayload.Inspect(elf);
-        fixed (byte* image = elf) Need(LinuxElfLoader.Validate(image, (uint)elf.Length, 67108864, 1572864, out _) == LinuxElfLoadStatus.Ready, "loader");
+        Need(elf.Length == ElfBytes && Hash(elf) == ElfSha256, "elf_identity");
+        _ = NativeAotPayload.Inspect(elf);
+        fixed (byte* image = elf)
+            Need(LinuxElfLoader.Validate(image, (uint)elf.Length, 67108864, 1572864, out _) == LinuxElfLoadStatus.Ready, "loader");
         byte[] manifest = Encoding.ASCII.GetBytes(Manifest(asynchronous)), package = new byte[64 + manifest.Length + elf.Length];
-        Header(manifest.Length).CopyTo(package, 0); manifest.CopyTo(package, 64); elf.CopyTo(package, 64 + manifest.Length);
-        RequirePackage(package, asynchronous); RequireCurrentSources(root); return package;
+        Header(manifest.Length).CopyTo(package, 0);
+        manifest.CopyTo(package, 64);
+        elf.CopyTo(package, 64 + manifest.Length);
+        RequirePackage(package, asynchronous);
+        RequireCurrentSources(root);
+        return package;
     }
 
     /// <summary>Admits only canonical package bytes for the selected mode and
@@ -129,7 +156,8 @@ public static class NativeAotSocketPackage
     /// its own temporary is removed on failure; all evidence remains read-only.</summary>
     public static string Write(string root, string evidenceRoot, bool asynchronous, string destination)
     {
-        root = Path.GetFullPath(root); destination = Path.GetFullPath(destination);
+        root = Path.GetFullPath(root);
+        destination = Path.GetFullPath(destination);
         void Output()
         {
             Need(destination.StartsWith(Path.Combine(root, "artifacts") + Path.DirectorySeparatorChar,
@@ -137,13 +165,23 @@ public static class NativeAotSocketPackage
             AuthorityFiles.RequirePlainPath(root, Path.GetDirectoryName(destination)!, "socket_output_path");
         }
         using var lease = NativeAotPayload.OpenQualificationLease(root);
-        Output(); Need(!Path.Exists(destination), "output_exists"); byte[] bytes = Create(root, evidenceRoot, asynchronous);
-        string temporary = destination + "." + Guid.NewGuid().ToString("N") + ".tmp"; bool owns = false;
+        Output();
+        Need(!Path.Exists(destination), "output_exists");
+        byte[] bytes = Create(root, evidenceRoot, asynchronous);
+        string temporary = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        bool owns = false;
         try
         {
-            Output(); using (FileStream file = new(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            { owns = true; file.Write(bytes); file.Flush(flushToDisk: true); }
-            RequireCurrentSources(root); Output(); File.Move(temporary, destination, overwrite: false);
+            Output();
+            using (FileStream file = new(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                owns = true;
+                file.Write(bytes);
+                file.Flush(flushToDisk: true);
+            }
+            RequireCurrentSources(root);
+            Output();
+            File.Move(temporary, destination, overwrite: false);
         }
         finally { if (owns) File.Delete(temporary); }
         return Hash(bytes);
@@ -151,20 +189,32 @@ public static class NativeAotSocketPackage
 
     private static byte[] Header(int manifest)
     {
-        byte[] header = new byte[64]; BinaryPrimitives.WriteUInt64LittleEndian(header, LinuxElfPackage.Magic);
-        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(8), 1); BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(12), 1);
-        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(16), 64); BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(20), (uint)manifest);
-        BinaryPrimitives.WriteUInt64LittleEndian(header.AsSpan(24), ElfBytes); return header;
+        byte[] header = new byte[64];
+        BinaryPrimitives.WriteUInt64LittleEndian(header, LinuxElfPackage.Magic);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(8), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(12), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(16), 64);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(20), (uint)manifest);
+        BinaryPrimitives.WriteUInt64LittleEndian(header.AsSpan(24), ElfBytes);
+        return header;
     }
     private static byte[] Read(string root, string relative, int maximum)
     {
-        root = Path.GetFullPath(root); string path = Path.GetFullPath(Path.Combine(root, relative));
+        root = Path.GetFullPath(root);
+        string path = Path.GetFullPath(Path.Combine(root, relative));
         Need(path.StartsWith(root + Path.DirectorySeparatorChar, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal), "input_path");
         AuthorityFiles.RequirePlainPath(root, path, "socket_evidence_path");
         using FileStream file = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         Need(file.Length >= 0 && file.Length <= maximum, "input_size " + relative);
-        byte[] bytes = new byte[(int)file.Length]; file.ReadExactly(bytes); Need(file.ReadByte() == -1, "input_changed"); return bytes;
+        byte[] bytes = new byte[(int)file.Length];
+        file.ReadExactly(bytes);
+        Need(file.ReadByte() == -1, "input_changed");
+        return bytes;
     }
     private static string Hash(ReadOnlySpan<byte> value) => Convert.ToHexString(SHA256.HashData(value));
-    private static void Need(bool condition, string reason) { if (!condition) throw new InvalidDataException("socket_package_" + reason); }
+    private static void Need(bool condition, string reason)
+    {
+        if (!condition)
+            throw new InvalidDataException("socket_package_" + reason);
+    }
 }

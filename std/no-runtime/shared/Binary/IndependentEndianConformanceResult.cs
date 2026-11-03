@@ -1,4 +1,5 @@
 namespace OS.Std.Binary;
+
 public readonly struct IndependentEndianConformanceResult
 {
     private readonly bool _isInitialized;
@@ -14,13 +15,34 @@ public readonly struct IndependentEndianConformanceResult
         ActualFingerprint = actualFingerprint;
     }
 
-    public IndependentEndianConformanceStatus Status { get; }
-    public int ProblemIndex { get; }
-    public int ConflictIndex { get; }
-    public int ReadVectorCount { get; }
-    public int ReverseVectorCount { get; }
-    public ulong ExpectedFingerprint { get; }
-    public ulong ActualFingerprint { get; }
+    public IndependentEndianConformanceStatus Status
+    {
+        get;
+    }
+    public int ProblemIndex
+    {
+        get;
+    }
+    public int ConflictIndex
+    {
+        get;
+    }
+    public int ReadVectorCount
+    {
+        get;
+    }
+    public int ReverseVectorCount
+    {
+        get;
+    }
+    public ulong ExpectedFingerprint
+    {
+        get;
+    }
+    public ulong ActualFingerprint
+    {
+        get;
+    }
     public bool IsInitialized => _isInitialized;
     public bool Succeeded => _isInitialized && Status == IndependentEndianConformanceStatus.Success && ReadVectorCount == IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa.ReadVectorCount && ReverseVectorCount == IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa.ReverseVectorCount && ExpectedFingerprint == ActualFingerprint && ActualFingerprint == IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa.ExpectedCatalogFingerprint;
     public bool SatisfiesRuntimeCompletionGate4 => false;
@@ -38,347 +60,7 @@ public readonly struct IndependentEndianConformanceResult
 #if !NOSTDLIB_EFI
 #else
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif
 #if NOSTDLIB_EFI && M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE && !M01_OWNED_PAGING_PROBE
-
-
-
-
-
-
-
-
 
 #endif

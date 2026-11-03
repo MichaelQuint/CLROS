@@ -9,6 +9,7 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 public static partial class EfiBuild
 {
     private sealed record NativeObject(string Prefix, string Suffix, string FileName, long Bytes, string Sha256);

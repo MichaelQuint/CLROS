@@ -32,7 +32,7 @@ internal static partial class LinuxThreadTranscriptTests
         HostCheck.Equal(103, QemuTranscripts.ReadLinuxCallReturns(leaf).Count);
         byte[] package = LinuxThreadProofFixture.CreatePackage("Threads");
         QemuTranscripts.ValidateLinuxThreadTail(leaf, package, 0x200000, 0x100000);
-        string valid = M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(["TEST_START efi.main", ..leaf]);
+        string valid = M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(["TEST_START efi.main", .. leaf]);
         HostCheck.True(System.Text.Encoding.UTF8.GetByteCount(valid) > 32768, "complete independent long leaf");
         // Exercise only the existing internal raw framer; these synthetic parent
         // rows and reflection never construct prepared-program/guest authority.
@@ -42,9 +42,9 @@ internal static partial class LinuxThreadTranscriptTests
             File.WriteAllText(path, text, new System.Text.UTF8Encoding(false));
             try
             {
-                return (string[])frame.Invoke(null, [path, "TEST_PASS m16-008\r\n", true, false, "test_thread", false, null, null, null, threads, null, null, null ])!;
+                return (string[])frame.Invoke(null, [path, "TEST_PASS m16-008\r\n", true, false, "test_thread", false, null, null, null, threads, null, null, null])!;
             }
-            catch (System.Reflection.TargetInvocationException error)when (error.InnerException is ToolFailure)
+            catch (System.Reflection.TargetInvocationException error) when (error.InnerException is ToolFailure)
             {
                 throw error.InnerException;
             }
@@ -69,7 +69,7 @@ internal static partial class LinuxThreadTranscriptTests
         HostCheck.True(parsed[1..].SequenceEqual(leaf));
         QemuTranscripts.ValidateLinuxThreadTail(parsed[1..], package, 0x200000, 0x100000);
         Bad(valid, "raw_extent", false);
-        Bad(new string ('x', 8 * 1024 * 1024 + 1), "raw_extent");
+        Bad(new string('x', 8 * 1024 * 1024 + 1), "raw_extent");
         Bad(valid + "trailing\r\n", "firmware_eof");
         Bad(valid[..^1], "protocol_extent");
         Bad(valid.Replace("M16_008_OWNER_END", "\nM16_008_OWNER_END", StringComparison.Ordinal), "framing");
@@ -131,7 +131,7 @@ internal static partial class LinuxThreadTranscriptTests
 
         var p = Decode(false);
         var c = Decode(true);
-        ulong[] parentPath = [..p.Take(9).Select(x => x.Rip), ..Enumerable.Range(0, 4).SelectMany(_ => p.Skip(9).Take(10).Select(x => x.Rip)), ..p.Skip(19).Select(x => x.Rip)];
+        ulong[] parentPath = [.. p.Take(9).Select(x => x.Rip), .. Enumerable.Range(0, 4).SelectMany(_ => p.Skip(9).Take(10).Select(x => x.Rip)), .. p.Skip(19).Select(x => x.Rip)];
         HostCheck.True(parentPath.SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads")) && Enumerable.Range(0, 4).SelectMany(_ => c.Select(x => x.Rip)).SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads", child: true)));
         HostCheck.True(p[9].Rip == 0x400439 && p[^1].Rip == 0x400861 && c[^1].Rip == 0x400c63);
         HostCheck.True(p.Select(x => x.Nr).SequenceEqual(new ulong[] { 39, 186, 158, 14, 293, 56, 202, 14, 158, 56, 0, 56, 39, 158, 14, 202, 0, 202, 0, 202, 202, 3, 3, 1, 231 }) && c.Select(x => x.Nr).SequenceEqual(new ulong[] { 39, 186, 158, 14, 14, 14, 158, 158, 1, 202, 1, 60 }));
@@ -266,8 +266,8 @@ internal static partial class LinuxThreadTranscriptTests
         )
         {
             int at = Indices(rows, prefix)[0];
-            Reject([..rows[..at], ..rows[(at + 1)..]], package);
-            Reject([..rows[..at], rows[at], ..rows[at..]], package);
+            Reject([.. rows[..at], .. rows[(at + 1)..]], package);
+            Reject([.. rows[..at], rows[at], .. rows[at..]], package);
         }
 
         int reap = Indices(rows, "M16_008_REAP ")[0];
@@ -298,7 +298,7 @@ internal static partial class LinuxThreadTranscriptTests
         dirty[^3] = dirty[^3].Replace("fp=true", "fp=false", StringComparison.Ordinal);
         Reject(dirty, package);
         Reject(rows[..^1], package);
-        Reject([..rows, "TEST_PASS m16-008"], package);
+        Reject([.. rows, "TEST_PASS m16-008"], package);
     }
 
     [HostTest("m16-008 thread tail requires admitted HPET timeout elapsed bound tick ownership and exact errno", HostLane.Fast, 3)]
@@ -408,8 +408,8 @@ internal static partial class LinuxThreadTranscriptTests
             Reject(Change(rows, completion, "valueBits", Field(rows[completion], "valueBits") ^ 1), package);
             for (int row = 0; row < rows.Length; row++)
             {
-                Reject([..rows[..row], ..rows[(row + 1)..]], package);
-                Reject([..rows[..row], rows[row], ..rows[row..]], package);
+                Reject([.. rows[..row], .. rows[(row + 1)..]], package);
+                Reject([.. rows[..row], rows[row], .. rows[row..]], package);
             }
 
             foreach (int at in Indices(rows, "M16_008_EXIT "))
@@ -429,7 +429,7 @@ internal static partial class LinuxThreadTranscriptTests
             if (variant == "PipeShutdown")
             {
                 int exit = Indices(rows, "M16_008_EXIT ")[1];
-                Reject([..rows[..exit], "M16_008_RESUME identity=4294967298 valueBits=0 status=1", ..rows[exit..]], package);
+                Reject([.. rows[..exit], "M16_008_RESUME identity=4294967298 valueBits=0 status=1", .. rows[exit..]], package);
                 int[] ticks = Indices(rows, "M16_008_TICK ");
                 Reject(Change(rows, ticks[0], "ready", 1), package);
                 Reject(Change(rows, ticks[^1], "nanos", Field(rows[ticks[0]], "nanos")), package);
@@ -653,8 +653,10 @@ internal static partial class LinuxThreadTranscriptTests
                         0x3d => 6,
                         0x8b => 7,
                         0x85 or 0x89 => 3,
-                        _ => throw new InvalidOperationException("unexpected REX fixture opcode")},
-                    _ => throw new InvalidOperationException("unexpected fixture opcode")};
+                        _ => throw new InvalidOperationException("unexpected REX fixture opcode")
+                    },
+                    _ => throw new InvalidOperationException("unexpected fixture opcode")
+                };
             HostCheck.True(at + size <= end);
             if (op == 0x8b && elf[at + 1] == 0x3d)
                 fd = at + 6 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(at + 2));

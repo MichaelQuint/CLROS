@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public enum AcpiRsdpRevisionKind
 {
     None = 0,

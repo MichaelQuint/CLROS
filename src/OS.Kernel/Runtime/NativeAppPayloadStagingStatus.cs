@@ -2,6 +2,7 @@ using OS.Manifest;
 using OS.Std.Memory;
 
 namespace OS.Kernel.Runtime;
+
 public enum NativeAppPayloadStagingStatus
 {
     Success = 0,

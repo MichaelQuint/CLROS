@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public enum VirtioPciRegisterWriteStatus
 {
     Success = 0,

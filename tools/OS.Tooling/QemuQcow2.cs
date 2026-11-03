@@ -1,10 +1,11 @@
 namespace OS.Tooling;
+
 public static class QemuQcow2
 {
     public static async Task<int> RunAsync(string root, QemuQcow2Options options, TextWriter output, Func<string, IReadOnlyList<string>, Task<ProcessResult>>? invoke = null, CancellationToken cancellation = default)
     {
         root = Path.GetFullPath(root);
-        invoke ??= (name, args) => ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, name), ..args], root) { Timeout = TimeSpan.FromMinutes(name == "OS.Tooling" ? 30 : 10) }, cancellation);
+        invoke ??= (name, args) => ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, name), .. args], root) { Timeout = TimeSpan.FromMinutes(name == "OS.Tooling" ? 30 : 10) }, cancellation);
         async Task<int> Step(string step, string tool, IReadOnlyList<string> args)
         {
             ProcessResult result = await invoke(tool, args);

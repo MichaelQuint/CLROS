@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static class BootPhaseCatalog
 {
     public const string PhaseMarkerPrefix = "BOOT_PHASE";

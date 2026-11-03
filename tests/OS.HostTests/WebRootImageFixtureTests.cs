@@ -34,7 +34,11 @@ internal static class WebRootImageFixtureTests
         byte[] diskA = File.ReadAllBytes(a), diskB = File.ReadAllBytes(b);
         int differences = 0, differenceOffset = -1;
         for (int index = 0; index < diskA.Length; index++)
-            if (diskA[index] != diskB[index]) { differences++; differenceOffset = index; }
+            if (diskA[index] != diskB[index])
+            {
+                differences++;
+                differenceOffset = index;
+            }
         var nonce = first.WebRootFiles.Single(x => x.Path.EndsWith("/fixture-nonce.txt", StringComparison.Ordinal));
         HostCheck.True(differences == 1 && differenceOffset == checked((int)nonce.Extents[0].FirstLba * 512 + 11));
         foreach (var file in first.WebRootFiles.Concat(first.PreservedFiles).Append(first.Sentinel))
@@ -62,7 +66,8 @@ internal static class WebRootImageFixtureTests
         {
             byte[] actual = Extract(disk, file);
             bool exact = true;
-            for (int i = 0; i < actual.Length; i++) exact &= actual[i] == unchecked((byte)((i * 73 + 19) ^ (i / 512) ^ (i / 131072)));
+            for (int i = 0; i < actual.Length; i++)
+                exact &= actual[i] == unchecked((byte)((i * 73 + 19) ^ (i / 512) ^ (i / 131072)));
             HostCheck.True(exact);
         }
         HostCheck.True(receipt.WebRootFiles.Any(x => x.Path.EndsWith("/fixture/nested/info.txt", StringComparison.Ordinal)));
@@ -88,7 +93,8 @@ internal static class WebRootImageFixtureTests
                 HostCheck.True(!actual.Files.Any(x => x.Path == fault.TargetPath) && actual.Files.Length ==
                     receipt.WebRootFiles.Length + receipt.PreservedFiles.Length);
             }
-            else Reject(() => WebRootImageFixture.ReadBack(output), fault.ExpectedReadback);
+            else
+                Reject(() => WebRootImageFixture.ReadBack(output), fault.ExpectedReadback);
         }
         WebRootImageFixture.Verify(positive, receipt);
     });
@@ -120,7 +126,9 @@ internal static class WebRootImageFixtureTests
         int fatBytes = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(original.AsSpan(boot + 36)) * 512);
         foreach (int offset in new[] { boot + 40, boot + 42, fat + fatBytes + 8 })
         {
-            byte[] changed = (byte[])original.Clone(); changed[offset] ^= 1; File.WriteAllBytes(image, changed);
+            byte[] changed = (byte[])original.Clone();
+            changed[offset] ^= 1;
+            File.WriteAllBytes(image, changed);
             string output = Path.Combine(directory, "bad-" + offset + ".raw");
             Reject(() => WebRootImageFixture.Apply(root, image, source, snapshot, output));
             HostCheck.True(!File.Exists(output) && FileHash(image) == Hash(changed));
@@ -150,7 +158,11 @@ internal static class WebRootImageFixtureTests
     private static void SourceRejections() => WithImage((root, directory, image, source) =>
     {
         string deep = source;
-        for (int i = 0; i < 9; i++) { deep = Path.Combine(deep, "d"); Directory.CreateDirectory(deep); }
+        for (int i = 0; i < 9; i++)
+        {
+            deep = Path.Combine(deep, "d");
+            Directory.CreateDirectory(deep);
+        }
         File.WriteAllText(Path.Combine(deep, "file.txt"), "deep");
         Reject(() => WebRootImageFixture.SnapshotPublishedRoot(source), "webroot_image_path_bounds");
         Directory.Delete(Path.Combine(source, "d"), true);
@@ -159,7 +171,8 @@ internal static class WebRootImageFixtureTests
         Reject(() => WebRootImageFixture.SnapshotPublishedRoot(source), "webroot_image_path_bounds");
         File.Delete(longPath);
         string oversized = Path.Combine(source, "oversized.bin");
-        using (var file = File.Create(oversized)) file.SetLength((long)WebRootImageFixture.MaximumImageBytes + 1);
+        using (var file = File.Create(oversized))
+            file.SetLength((long)WebRootImageFixture.MaximumImageBytes + 1);
         Reject(() => WebRootImageFixture.SnapshotPublishedRoot(source), "webroot_asset_size_out_of_range");
         File.Delete(oversized);
         File.WriteAllText(Path.Combine(source, "fixture-nonce.txt"), "reserved");
@@ -171,11 +184,13 @@ internal static class WebRootImageFixtureTests
 
     private static byte[] Extract(byte[] image, WebRootImageFixture.DiskFile file)
     {
-        byte[] bytes = new byte[file.Bytes]; int position = 0;
+        byte[] bytes = new byte[file.Bytes];
+        int position = 0;
         foreach (var extent in file.Extents)
         {
             int count = Math.Min(checked((int)extent.Clusters * 512), bytes.Length - position);
-            image.AsSpan(checked((int)extent.FirstLba * 512), count).CopyTo(bytes.AsSpan(position)); position += count;
+            image.AsSpan(checked((int)extent.FirstLba * 512), count).CopyTo(bytes.AsSpan(position));
+            position += count;
         }
         HostCheck.Equal(bytes.Length, position);
         return bytes;
@@ -183,7 +198,10 @@ internal static class WebRootImageFixtureTests
     private static void Reject(Action action, string? expected = null)
     {
         bool rejected = false;
-        try { action(); }
+        try
+        {
+            action();
+        }
         catch (ToolFailure failure) { rejected = expected is null || failure.Reason == expected; }
         HostCheck.True(rejected, expected ?? "expected explicit image rejection");
     }
@@ -197,19 +215,27 @@ internal static class WebRootImageFixtureTests
             string image = Path.Combine(directory, "base.raw"), efi = Path.Combine(directory, "BOOTX64.EFI"), package = Path.Combine(directory, "APP.PKG");
             File.WriteAllBytes(efi, Enumerable.Range(0, 1537).Select(i => (byte)(i % 251)).ToArray());
             File.WriteAllBytes(package, Enumerable.Range(0, 2305).Select(i => (byte)((i * 17) ^ (i >> 8))).ToArray());
-            string source = Path.Combine(directory, "published"); Directory.CreateDirectory(source);
+            string source = Path.Combine(directory, "published");
+            Directory.CreateDirectory(source);
             Write("index.html", "<html>Published webroot</html>"u8.ToArray());
             Write("site.css", "body{color:#123}"u8.ToArray());
             Write("_framework/blazor.webassembly.js", "/* immutable bootstrap */"u8.ToArray());
             Write("_framework/Example.Project.wasm", Enumerable.Range(0, 4097).Select(i => (byte)((i * 7) ^ (i >> 9))).ToArray());
             Write("_content/Example.Library/styles/site.css", "/* nested asset */"u8.ToArray());
-            for (int i = 0; i < 24; i++) Write($"many/long-component-name-crossing-vfat-slots-{i:D2}.txt", [(byte)i]);
+            for (int i = 0; i < 24; i++)
+                Write($"many/long-component-name-crossing-vfat-slots-{i:D2}.txt", [(byte)i]);
             var start = HostToolProcess.CreateDotnetToolStartInfo(root, "OS.ImageBuilder");
-            foreach (string arg in new[] { "create-raw", "--efi", efi, "--package", package, "--output", image, "--image-size-mib", "64" }) start.ArgumentList.Add(arg);
+            foreach (string arg in new[] { "create-raw", "--efi", efi, "--package", package, "--output", image, "--image-size-mib", "64" })
+                start.ArgumentList.Add(arg);
             using var process = Process.Start(start)!;
-            var stdout = process.StandardOutput.ReadToEndAsync(); var stderr = process.StandardError.ReadToEndAsync();
+            var stdout = process.StandardOutput.ReadToEndAsync();
+            var stderr = process.StandardError.ReadToEndAsync();
             if (!process.WaitForExit(30000))
-            { process.Kill(true); process.WaitForExit(5000); throw new InvalidOperationException("image builder timed out"); }
+            {
+                process.Kill(true);
+                process.WaitForExit(5000);
+                throw new InvalidOperationException("image builder timed out");
+            }
             string text = stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult();
             HostCheck.True(process.ExitCode == 0 && text.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal), text);
             action(root, directory, image, source);
@@ -217,11 +243,16 @@ internal static class WebRootImageFixtureTests
             void Write(string relative, byte[] bytes)
             {
                 string path = Path.Combine(source, relative.Replace('/', Path.DirectorySeparatorChar));
-                Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllBytes(path, bytes);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllBytes(path, bytes);
             }
         }
         finally { Directory.Delete(directory, true); }
     }
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
-    private static string FileHash(string path) { using var stream = File.OpenRead(path); return Convert.ToHexString(SHA256.HashData(stream)); }
+    private static string FileHash(string path)
+    {
+        using var stream = File.OpenRead(path);
+        return Convert.ToHexString(SHA256.HashData(stream));
+    }
 }

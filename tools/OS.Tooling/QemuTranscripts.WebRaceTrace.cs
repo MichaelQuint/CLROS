@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed class WebRaceTrace(WebSignalRaceSelection selection, int[] originalRows, bool eventOwned)

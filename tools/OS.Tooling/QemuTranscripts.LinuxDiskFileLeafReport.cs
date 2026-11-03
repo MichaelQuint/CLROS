@@ -5,6 +5,7 @@ using OS.Kernel.Threading;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Immutable value inspection of the exact mechanical fixture.
@@ -19,11 +20,26 @@ public static partial class QemuTranscripts
         public bool CheckedWaitCompletions => true;
         public bool CheckedLifecycleRecords => true;
         public bool CheckedAuxiliaryJoins => false;
-        public int Calls { get; }
-        public int Transfers { get; }
-        public ulong Epochs { get; }
-        public IReadOnlyList<LinuxDiskCompletion> Completions { get; }
-        public IReadOnlyList<LinuxDiskAuxiliary> Auxiliary { get; }
+        public int Calls
+        {
+            get;
+        }
+        public int Transfers
+        {
+            get;
+        }
+        public ulong Epochs
+        {
+            get;
+        }
+        public IReadOnlyList<LinuxDiskCompletion> Completions
+        {
+            get;
+        }
+        public IReadOnlyList<LinuxDiskAuxiliary> Auxiliary
+        {
+            get;
+        }
 
         internal LinuxDiskFileLeafReport(int calls, int transfers, ulong epochs, List<LinuxDiskCompletion> completions, List<LinuxDiskAuxiliary> auxiliary)
         {

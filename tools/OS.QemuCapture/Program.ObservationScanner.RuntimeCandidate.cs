@@ -44,24 +44,75 @@ internal static partial class Program
                 PostReturnCr4 = ReadUInt64(gateBytes, 120);
             }
 
-            public long PhysicalAddress { get; }
+            public long PhysicalAddress
+            {
+                get;
+            }
             public long GatePhysicalAddress => PhysicalAddress + GateOffset;
-            public byte[] StateBytes { get; }
-            public byte[] GateBytes { get; }
-            public ulong OriginalRflags { get; }
-            public ulong OriginalCr0 { get; }
-            public ulong OriginalCr3 { get; }
-            public ulong OriginalCr4 { get; }
-            public ulong OriginalEfer { get; }
-            public ulong PhysicalAddressMask { get; }
-            public ulong OwnedCr3 { get; }
-            public ulong TransitionCanaryValue { get; }
-            public ulong FirmwareCr3Readback { get; }
-            public ulong RestoredCr4Readback { get; }
-            public ulong RestoredRflagsIntent { get; }
-            public ulong PostReturnRflags { get; }
-            public ulong PostReturnCr3 { get; }
-            public ulong PostReturnCr4 { get; }
+            public byte[] StateBytes
+            {
+                get;
+            }
+            public byte[] GateBytes
+            {
+                get;
+            }
+            public ulong OriginalRflags
+            {
+                get;
+            }
+            public ulong OriginalCr0
+            {
+                get;
+            }
+            public ulong OriginalCr3
+            {
+                get;
+            }
+            public ulong OriginalCr4
+            {
+                get;
+            }
+            public ulong OriginalEfer
+            {
+                get;
+            }
+            public ulong PhysicalAddressMask
+            {
+                get;
+            }
+            public ulong OwnedCr3
+            {
+                get;
+            }
+            public ulong TransitionCanaryValue
+            {
+                get;
+            }
+            public ulong FirmwareCr3Readback
+            {
+                get;
+            }
+            public ulong RestoredCr4Readback
+            {
+                get;
+            }
+            public ulong RestoredRflagsIntent
+            {
+                get;
+            }
+            public ulong PostReturnRflags
+            {
+                get;
+            }
+            public ulong PostReturnCr3
+            {
+                get;
+            }
+            public ulong PostReturnCr4
+            {
+                get;
+            }
 
             public static RuntimeCandidate? TryRead(byte[] bytes, int offset, long physicalAddress)
             {

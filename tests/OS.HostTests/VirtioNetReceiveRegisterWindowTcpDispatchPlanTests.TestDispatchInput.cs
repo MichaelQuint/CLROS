@@ -19,9 +19,21 @@ internal static partial class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             ReceiveBufferLength = receiveBufferLength;
         }
 
-        public VirtioNetReceiveReadinessResult Readiness { get; }
-        public byte[] QueueMemory { get; }
-        public byte[] ReceiveBufferSlab { get; }
-        public int ReceiveBufferLength { get; }
+        public VirtioNetReceiveReadinessResult Readiness
+        {
+            get;
+        }
+        public byte[] QueueMemory
+        {
+            get;
+        }
+        public byte[] ReceiveBufferSlab
+        {
+            get;
+        }
+        public int ReceiveBufferLength
+        {
+            get;
+        }
     }
 }

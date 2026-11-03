@@ -6,4 +6,5 @@ using System.Text.RegularExpressions;
 using OS.Tooling.Native;
 
 namespace OS.Tooling;
+
 public sealed record EfiVersionEvidence(string Status, string? Version);

@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotWebPayload
 {
     /// <summary>Validate borrowed native receipt payloads without I/O. Historical
@@ -184,9 +185,12 @@ public static partial class NativeAotWebPayload
         int epoll = ChurnInt(row.GetProperty("Epoll")), read = ChurnInt(row.GetProperty("Read")), write = ChurnInt(row.GetProperty("Write"));
         ScheduleNeed(epoll >= 0 && read >= 0 && write >= 0 && epoll != read && epoll != write && read != write, "descriptors");
         ScheduleStat state = ReadScheduleStat(row.GetProperty("WaiterState"));
-        ScheduleNeed(state == (waiter.Initial with { State = "S" }), "blocked_state");
+        ScheduleNeed(state == (waiter.Initial with
+        {
+            State = "S"
+        }), "blocked_state");
         string syscall = ChurnString(row.GetProperty("Syscall"), 1024), channel = ChurnString(row.GetProperty("WaitChannel"), 64);
-        string[] args = syscall.Split((char[]? )null, StringSplitOptions.RemoveEmptyEntries);
+        string[] args = syscall.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         ScheduleNeed(args.Length == 9 && args[0] == "232" && ScheduleHex(args[1]) == (ulong)epoll && ScheduleHex(args[2]) > 0 && ScheduleHex(args[3]) == 1 && ScheduleHex(args[4]) == (eventOwned ? ulong.MaxValue : 2500UL) && ScheduleHex(args[7]) > 0 && ScheduleHex(args[8]) > 0 && channel is "ep_poll" or "do_epoll_wait", "epoll_wait");
         _ = ScheduleHex(args[5]);
         _ = ScheduleHex(args[6]);
@@ -203,7 +207,7 @@ public static partial class NativeAotWebPayload
     private static ulong ProcUnsigned(string text, string key, int radix)
     {
         MatchCollection values = Regex.Matches(text, @"(?m)^" + Regex.Escape(key) + @":\s*([0-9]+)[ \t]*$", RegexOptions.CultureInvariant);
-        ScheduleNeed(values.Count == 1 && values[0].Groups[1].Length is> 0 and <= 20 && values[0].Groups[1].Value.All(c => c >= '0' && c < '0' + radix), "proc_field");
+        ScheduleNeed(values.Count == 1 && values[0].Groups[1].Length is > 0 and <= 20 && values[0].Groups[1].Value.All(c => c >= '0' && c < '0' + radix), "proc_field");
         string value = values[0].Groups[1].Value;
         if (radix == 10)
         {
@@ -218,7 +222,7 @@ public static partial class NativeAotWebPayload
     {
         if (value.StartsWith("0x", StringComparison.Ordinal))
             value = value[2..];
-        ScheduleNeed(value.Length is> 0 and <= 16 && value.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F'), "hex");
+        ScheduleNeed(value.Length is > 0 and <= 16 && value.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F'), "hex");
         return Convert.ToUInt64(value, 16);
     }
 

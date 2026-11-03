@@ -1,6 +1,7 @@
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Observed bad-peer transport identity and actual timeout/retire

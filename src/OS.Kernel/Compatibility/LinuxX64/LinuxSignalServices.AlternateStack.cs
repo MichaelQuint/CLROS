@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxSignalServices
 {
     /// <summary>Exact 24-byte Linux x64 stack_t. Padding is ignored on input and

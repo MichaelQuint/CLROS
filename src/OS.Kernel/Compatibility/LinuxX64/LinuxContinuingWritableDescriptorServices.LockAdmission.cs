@@ -1,6 +1,7 @@
 using C = OS.Storage.ContinuingFat32Mutation;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxContinuingWritableDescriptorServices
 {
     /// <summary>Optional zeroed disjoint POD tables, borrowed until Detach.

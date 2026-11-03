@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtqueueSplitRingPlan
 {
     public const ushort MaximumQueueSize = 32768;
@@ -21,13 +22,34 @@ public readonly struct VirtqueueSplitRingPlan
         RequiredByteLength = EndOffset - queueStartOffset;
     }
 
-    public ushort QueueSize { get; }
-    public uint QueueStartOffset { get; }
-    public VirtqueueSplitRingRegion DescriptorTable { get; }
-    public VirtqueueSplitRingRegion AvailableRing { get; }
-    public VirtqueueSplitRingRegion UsedRing { get; }
-    public uint EndOffset { get; }
-    public uint RequiredByteLength { get; }
+    public ushort QueueSize
+    {
+        get;
+    }
+    public uint QueueStartOffset
+    {
+        get;
+    }
+    public VirtqueueSplitRingRegion DescriptorTable
+    {
+        get;
+    }
+    public VirtqueueSplitRingRegion AvailableRing
+    {
+        get;
+    }
+    public VirtqueueSplitRingRegion UsedRing
+    {
+        get;
+    }
+    public uint EndOffset
+    {
+        get;
+    }
+    public uint RequiredByteLength
+    {
+        get;
+    }
 
     public static VirtqueueSplitRingPlanResult Create(ushort queueSize)
     {

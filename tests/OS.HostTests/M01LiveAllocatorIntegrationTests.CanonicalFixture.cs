@@ -84,10 +84,22 @@ internal static unsafe partial class M01LiveAllocatorIntegrationTests
             }
         }
 
-        public BootMemoryRegionRecord* Records { get; private set; }
-        public BootReservedRange* Ledger { get; private set; }
-        public M01LoadedImageStackStaticState* StageOneState { get; private set; }
-        public M01LiveAllocatorStaticState* StaticState { get; private set; }
+        public BootMemoryRegionRecord* Records
+        {
+            get; private set;
+        }
+        public BootReservedRange* Ledger
+        {
+            get; private set;
+        }
+        public M01LoadedImageStackStaticState* StageOneState
+        {
+            get; private set;
+        }
+        public M01LiveAllocatorStaticState* StaticState
+        {
+            get; private set;
+        }
         public ulong ArenaPages => 4;
         public ulong ArenaBytes => ArenaPages * BootReservedRange.PageSize;
         public ulong ArenaStart => (ulong)(_backing + LiveArenaOffset);
@@ -112,7 +124,10 @@ internal static unsafe partial class M01LiveAllocatorIntegrationTests
         }
 
         public bool HasFinalStageOne => StageOneState->IsInitialized && StageOneState->Status == M01LoadedImageStackStatus.Success && StageOneState->Checkpoint == M01LoadedImageStackCheckpoint.ContinuationRspContained && StageOneState->SwitchState.State == OwnedBootStackSwitchState.ContinuationObserved && StageOneState->StackLayout.Lifetime == OwnedBootStackLifetime.Active;
-        public FirmwareMemoryMapRecord StageTwoMap { get; private set; }
+        public FirmwareMemoryMapRecord StageTwoMap
+        {
+            get; private set;
+        }
 
         public void ResetCanonical(StageOneCompletion completion = StageOneCompletion.Final)
         {
@@ -293,7 +308,7 @@ internal static unsafe partial class M01LiveAllocatorIntegrationTests
 
         public BootMemoryRegionRecord[] CopyAllocationRecords()
         {
-            return[Records[0]];
+            return [Records[0]];
         }
 
         public BootReservedRange[] CopyLedger()

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static unsafe class ExistingIn8Out8StubBytesRWPagesFinalize
 {
     public const ulong PageSize = 4096;

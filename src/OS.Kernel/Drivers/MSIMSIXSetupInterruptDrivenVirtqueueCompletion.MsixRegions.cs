@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct MsixRegions
 {
     public readonly MsixRegion Table, Pba;

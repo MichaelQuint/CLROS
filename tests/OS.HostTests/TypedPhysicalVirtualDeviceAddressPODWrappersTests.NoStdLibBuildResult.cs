@@ -19,8 +19,17 @@ internal static partial class TypedPhysicalVirtualDeviceAddressPODWrappersTests
             Output = output;
         }
 
-        public int ExitCode { get; }
-        public bool TimedOut { get; }
-        public string Output { get; }
+        public int ExitCode
+        {
+            get;
+        }
+        public bool TimedOut
+        {
+            get;
+        }
+        public string Output
+        {
+            get;
+        }
     }
 }

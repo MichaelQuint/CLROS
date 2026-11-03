@@ -180,7 +180,7 @@ internal static unsafe partial class LinuxWritableDiskProofFixtureTests
             else
                 F.RequirePackage(package);
         }
-        catch (ToolFailure failure)when (failure.Reason == (logUpload ? "writable_log_upload_package_identity" : "writable_disk_package_identity"))
+        catch (ToolFailure failure) when (failure.Reason == (logUpload ? "writable_log_upload_package_identity" : "writable_disk_package_identity"))
         {
             rejected = true;
         }
@@ -222,7 +222,7 @@ internal static unsafe partial class LinuxWritableDiskProofFixtureTests
             {
                 F.RequirePackage(bytes);
             }
-            catch (ToolFailure failure)when (failure.Reason == "writable_disk_package_identity")
+            catch (ToolFailure failure) when (failure.Reason == "writable_disk_package_identity")
             {
                 rejected = true;
             }
@@ -610,9 +610,18 @@ internal static unsafe partial class LinuxWritableDiskProofFixtureTests
         Reject(recorded.Rows.Where(row => row.Kind != Block.Operation.Write || row.Flags != Block.ObservationFlags.Published).ToArray(), recorded.Before, recorded.After);
         Reject(recorded.Rows.Where((_, i) => i != writeComplete).ToArray(), recorded.Before, recorded.After);
         Reject(recorded.Rows.Where((_, i) => i != readCopy).ToArray(), recorded.Before, recorded.After); // A later request cannot replace held IN.
-        Reject(recorded.Rows, recorded.Before with { Epoch = recorded.Before.Epoch + 1 }, recorded.After);
-        Reject(recorded.Rows, recorded.Before, recorded.After with { Submitted = recorded.After.Submitted + 1 });
-        Reject(recorded.Rows, recorded.Before, recorded.After with { FlushAcknowledgedBytes = 0 });
+        Reject(recorded.Rows, recorded.Before with
+        {
+            Epoch = recorded.Before.Epoch + 1
+        }, recorded.After);
+        Reject(recorded.Rows, recorded.Before, recorded.After with
+        {
+            Submitted = recorded.After.Submitted + 1
+        });
+        Reject(recorded.Rows, recorded.Before, recorded.After with
+        {
+            FlushAcknowledgedBytes = 0
+        });
         void Mutate(int index, ChangeObservation change, [System.Runtime.CompilerServices.CallerArgumentExpression(nameof(change))] string vector = "")
         {
             var rows = (Block.Observation[])recorded.Rows.Clone();
@@ -681,7 +690,11 @@ internal static unsafe partial class LinuxWritableDiskProofFixtureTests
         Array.Fill(full, original.Rows[^1], original.Rows.Length, full.Length - original.Rows.Length);
         HostCheck.Equal(F.MaximumBlockObservationSamples, F.InspectBlockObservationValues(full, original.Before, original.After).SampleCount);
         Reject(new Block.Observation[F.MaximumBlockObservationSamples + 1], original.Before, original.After);
-        Reject(original.Rows, original.Before with { Submitted = ulong.MaxValue, Completed = ulong.MaxValue }, original.After);
+        Reject(original.Rows, original.Before with
+        {
+            Submitted = ulong.MaxValue,
+            Completed = ulong.MaxValue
+        }, original.After);
         ulong bytes = ulong.MaxValue & ~511UL, count = bytes / 512;
         var near = original.Before with
         {
@@ -693,7 +706,10 @@ internal static unsafe partial class LinuxWritableDiskProofFixtureTests
         Block.Observation overflow = original.Rows[0];
         overflow.Request = TokenField(overflow.Request, 2, count + 1);
         overflow.SubmittedCount = count + 1;
-        Reject([overflow], near, near with { Submitted = count + 1 });
+        Reject([overflow], near, near with
+        {
+            Submitted = count + 1
+        });
     }
 
     [HostTest("writable observation values copy payload and scalar ownership without retaining mutable caller aliases")]
@@ -756,7 +772,7 @@ internal static unsafe partial class LinuxWritableDiskProofFixtureTests
         {
             F.InspectBlockObservationValues(values, before, after);
         }
-        catch (ToolFailure failure)when (failure.Reason.StartsWith("writable_observation_", StringComparison.Ordinal))
+        catch (ToolFailure failure) when (failure.Reason.StartsWith("writable_observation_", StringComparison.Ordinal))
         {
             rejected = true;
         }
@@ -938,7 +954,8 @@ internal static unsafe partial class LinuxWritableDiskProofFixtureTests
                     0 => checked((long)call.A1),
                     1 => checked(description.Offset + (long)call.A1),
                     2 => checked(bytes.Length + (long)call.A1),
-                    _ => throw new InvalidOperationException("log upload seek whence")};
+                    _ => throw new InvalidOperationException("log upload seek whence")
+                };
                 return description.Offset;
             }
 
@@ -948,7 +965,7 @@ internal static unsafe partial class LinuxWritableDiskProofFixtureTests
                     return -95;
                 HostCheck.True(description.Writable && call.A2 == 1 && call.A3 <= 8192);
                 int vector = Address(call.A1, 16), count = checked((int)U64(memory, vector + 8)), offset = (int)call.A3;
-                HostCheck.True(count is> 0 and <= 8192 && offset + count <= 8192);
+                HostCheck.True(count is > 0 and <= 8192 && offset + count <= 8192);
                 if (failure == "short")
                     count--;
                 if (offset + count > bytes.Length)
@@ -960,7 +977,7 @@ internal static unsafe partial class LinuxWritableDiskProofFixtureTests
 
             if (call.Number == 17)
             {
-                HostCheck.True(!description.Writable && call.A2 is> 0 and <= 8192 && call.A3 <= 8192);
+                HostCheck.True(!description.Writable && call.A2 is > 0 and <= 8192 && call.A3 <= 8192);
                 int offset = (int)call.A3, count = Math.Min((int)call.A2, Math.Max(0, bytes.Length - offset)), target = Address(call.A1, (int)call.A2);
                 if (count != 0)
                     bytes.AsSpan(offset, count).CopyTo(memory.AsSpan(target));
@@ -1067,7 +1084,8 @@ internal static unsafe partial class LinuxWritableDiskProofFixtureTests
                 {
                     0 => checked((long)c.A1),
                     1 => checked(d.Offset + (long)c.A1),
-                    _ => throw new InvalidOperationException("fixture seek whence")};
+                    _ => throw new InvalidOperationException("fixture seek whence")
+                };
                 return d.Offset;
             }
 
@@ -1078,7 +1096,7 @@ internal static unsafe partial class LinuxWritableDiskProofFixtureTests
                 HostCheck.True(d.Writable && !d.Directory && c.A2 == 1 && c.A3 <= uint.MaxValue && c.A4 <= uint.MaxValue);
                 int vector = Address(c.A1, 16);
                 ulong pointer = U64(memory, vector), count = U64(memory, vector + 8);
-                HostCheck.True(count is> 0 and <= 8192);
+                HostCheck.True(count is > 0 and <= 8192);
                 int offset = checked((int)(c.A3 | c.A4 << 32)), size = checked((int)count);
                 HostCheck.True(offset + size <= 8192);
                 Array.Resize(ref file, offset + size);

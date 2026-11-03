@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct FetchAppHttpCompletionPlanResult
 {
     public const int NoMatchOffset = -1;
@@ -17,16 +18,46 @@ public readonly struct FetchAppHttpCompletionPlanResult
         Flags = flags;
     }
 
-    public FetchAppHttpCompletionPlanStatus Status { get; }
-    public HttpTcpClientGetPlanStatus HttpPlanStatus { get; }
-    public ushort HttpStatusCode { get; }
-    public ushort ExpectedHttpStatusCode { get; }
-    public int ResponseBytesRead { get; }
-    public int BodyOffset { get; }
-    public int BodyLength { get; }
-    public int ExpectedMarkerLength { get; }
-    public int MatchOffset { get; }
-    public uint Flags { get; }
+    public FetchAppHttpCompletionPlanStatus Status
+    {
+        get;
+    }
+    public HttpTcpClientGetPlanStatus HttpPlanStatus
+    {
+        get;
+    }
+    public ushort HttpStatusCode
+    {
+        get;
+    }
+    public ushort ExpectedHttpStatusCode
+    {
+        get;
+    }
+    public int ResponseBytesRead
+    {
+        get;
+    }
+    public int BodyOffset
+    {
+        get;
+    }
+    public int BodyLength
+    {
+        get;
+    }
+    public int ExpectedMarkerLength
+    {
+        get;
+    }
+    public int MatchOffset
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == FetchAppHttpCompletionPlanStatus.Success && HttpPlanStatus == HttpTcpClientGetPlanStatus.Success && ExpectedMarkerLength > 0 && MatchOffset >= 0;
 

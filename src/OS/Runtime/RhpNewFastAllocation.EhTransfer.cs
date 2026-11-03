@@ -5,44 +5,13 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-
-
-
-
-
-
-
-
-
-
-
 internal static unsafe partial class RhpNewFastAllocation
 {
 #if M04_SINGLE_FINALLY_CATCH_PROBE
 
-
-
-
-
-
-
-
-
-
-
 #else
 
-
-
-
-
-
-
-
-
-
 #endif
-
 
     // These POD fields are written by the generated native bridge.
 #pragma warning disable CS0649
@@ -52,31 +21,33 @@ internal static unsafe partial class RhpNewFastAllocation
         internal X64UnwindContext Caller;
     }
 
-
-
-
-
-
-
 #pragma warning restore CS0649
-
-
-
-
-
 
 #if M04_RETHROW_PROBE
 
+#endif
+
+#if !M04_RETHROW_PROBE && !M04_NESTED_FINALLY_CATCH_PROBE && !M04_UNHANDLED_EXCEPTION_PROBE && !M04_FRAME_DISPATCH_PROBE && !M04_CONSTRUCTOR_FAILURE_PROBE && !M04_FILTERED_CATCH_PROBE && !M04_NORMAL_FINALLY_PROBE
+
+#if M04_SINGLE_FINALLY_CATCH_PROBE
+
+#else
+
+#endif
+
+#if M04_SINGLE_FINALLY_CATCH_PROBE
+
+#endif
 
 #endif
 
 #if !M04_RETHROW_PROBE && !M04_NESTED_FINALLY_CATCH_PROBE && !M04_UNHANDLED_EXCEPTION_PROBE && !M04_FRAME_DISPATCH_PROBE && !M04_CONSTRUCTOR_FAILURE_PROBE && !M04_FILTERED_CATCH_PROBE && !M04_NORMAL_FINALLY_PROBE
 
+#if M04_SINGLE_FINALLY_CATCH_PROBE
 
+#else
 
-
-
-
+#endif
 
 #if M04_SINGLE_FINALLY_CATCH_PROBE
 
@@ -84,474 +55,42 @@ internal static unsafe partial class RhpNewFastAllocation
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M04_SINGLE_FINALLY_CATCH_PROBE
-
-#endif
-
-
-
-
-
-
-#endif
-
-
-
-#if !M04_RETHROW_PROBE && !M04_NESTED_FINALLY_CATCH_PROBE && !M04_UNHANDLED_EXCEPTION_PROBE && !M04_FRAME_DISPATCH_PROBE && !M04_CONSTRUCTOR_FAILURE_PROBE && !M04_FILTERED_CATCH_PROBE && !M04_NORMAL_FINALLY_PROBE
-
-
-
-
-
-
-#if M04_SINGLE_FINALLY_CATCH_PROBE
-
-
-
-
-
-
-
-
-
-
-
-#else
-
-
-
-
-
-
-#endif
-
-
-
-
-#if M04_SINGLE_FINALLY_CATCH_PROBE
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#else
-
-
-
-
-
-
-
-
-#endif
-
-
-
-#if M04_SINGLE_FINALLY_CATCH_PROBE
-
 
 #else
 
 #endif
 
-
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if !M04_RETHROW_PROBE && !M04_NESTED_FINALLY_CATCH_PROBE && !M04_UNHANDLED_EXCEPTION_PROBE && !M04_FRAME_DISPATCH_PROBE && !M04_CONSTRUCTOR_FAILURE_PROBE && !M04_FILTERED_CATCH_PROBE && !M04_NORMAL_FINALLY_PROBE
 #if M04_SINGLE_FINALLY_CATCH_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M04_NORMAL_FINALLY_PROBE
 
-
-
-
 #elif M04_FILTERED_CATCH_PROBE
-
-
-
 
 #elif M04_CONSTRUCTOR_FAILURE_PROBE
 
-
-
-
 #elif M04_FRAME_DISPATCH_PROBE
-
-
-
 
 #elif M04_UNHANDLED_EXCEPTION_PROBE
 
-
-
-
 #elif M04_NESTED_FINALLY_CATCH_PROBE
-
-
-
 
 #elif M04_RETHROW_PROBE
 
-
-
-
 #elif M04_SINGLE_FINALLY_CATCH_PROBE
-
-
-
 
 #else
 
-
-
-
 #endif
-
 
 }
 #endif
@@ -560,50 +99,5 @@ using OS.Kernel.Runtime;
 namespace OS.Runtime;
 #endif
 #if (NOSTDLIB_EFI && (M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE)) || SINGLE_FINALLY_CORE_TEST
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif

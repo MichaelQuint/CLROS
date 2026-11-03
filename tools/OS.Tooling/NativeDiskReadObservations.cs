@@ -124,7 +124,7 @@ public static partial class NativeDiskReadObservations
                     // The submitted LBA was bounded before multiplication. The image
                     // cap keeps this exact sector offset and length representable.
                     Need(bytes.SequenceEqual(rawImage.Slice(checked((int)((sector + chunk) * 512)), 512)), "image_bytes");
-                    data = new string (remaining);
+                    data = new string(remaining);
                     remaining = default;
                 }
                 nextChunk++;
@@ -138,13 +138,16 @@ public static partial class NativeDiskReadObservations
             }
 
             Need(remaining.IsEmpty, "row_suffix");
-            result.Add(new((Kind)kind, owner, epoch, currentGeneration, currentSector, sequence, (uint)length, (ushort)currentAvailable, (ushort)currentConsumed, now, data) { ChunkIndex = kind is 2 or 3 ? chunk : 0 });
+            result.Add(new((Kind)kind, owner, epoch, currentGeneration, currentSector, sequence, (uint)length, (ushort)currentAvailable, (ushort)currentConsumed, now, data)
+            {
+                ChunkIndex = kind is 2 or 3 ? chunk : 0
+            });
         }
 
         Need(submitted == boundary.Submitted && completed == boundary.Completed && copied == boundary.Copied, "terminal");
         if (reset is { } retired)
         {
-            Need(stage == 1 && retired.Owner == boundary.Owner && retired.Epoch == boundary.Epoch && retired.Generation == generation && generation == submitted && retired.Sector == sector && retired.SubmittedBeforeStop == submitted && retired.CompletedBeforeStop == completed && retired.CopiedBeforeStop == copied && retired.CancelledBeforeStop == cancelled && retired.StopStatus == OS.Storage.ContinuingReadOnlyBlockService.Status.Success && retired.ResetReads is> 0 and <= 2048 && retired.ResetComplete && retired.BusMasterDisabled && retired.DmaReleased && retired.PoolMask == 0, "reset_retirement");
+            Need(stage == 1 && retired.Owner == boundary.Owner && retired.Epoch == boundary.Epoch && retired.Generation == generation && generation == submitted && retired.Sector == sector && retired.SubmittedBeforeStop == submitted && retired.CompletedBeforeStop == completed && retired.CopiedBeforeStop == copied && retired.CancelledBeforeStop == cancelled && retired.StopStatus == OS.Storage.ContinuingReadOnlyBlockService.Status.Success && retired.ResetReads is > 0 and <= 2048 && retired.ResetComplete && retired.BusMasterDisabled && retired.DmaReleased && retired.PoolMask == 0, "reset_retirement");
         }
         else
             Need(stage == 0, "terminal");

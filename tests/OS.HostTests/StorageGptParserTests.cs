@@ -404,6 +404,4 @@ internal static partial class StorageGptParserTests
         EndianPrimitives.WriteUInt64LittleEndian(image.AsSpan(offset, 8), value);
     }
 
-
-
 }

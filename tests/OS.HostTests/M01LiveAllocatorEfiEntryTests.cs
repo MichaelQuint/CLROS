@@ -333,7 +333,7 @@ internal static partial class M01LiveAllocatorEfiEntryTests
         RequireBound(wrongFallback);
         if (ValidateContract(selected, wrongFallback, out _))
             return Failure("mutation-accepted=disabled-fallback");
-        foreach ((string name, string oldText, string newText)in mutations)
+        foreach ((string name, string oldText, string newText) in mutations)
         {
             bool rejected;
             try
@@ -342,7 +342,7 @@ internal static partial class M01LiveAllocatorEfiEntryTests
                 var changedDisabled = Mutate(disabled, oldText, newText);
                 rejected = !ValidateContract(changed, changedDisabled, out _);
             }
-            catch (InvalidOperationException exception)when (exception.Message.StartsWith("source_catalog_", StringComparison.Ordinal))
+            catch (InvalidOperationException exception) when (exception.Message.StartsWith("source_catalog_", StringComparison.Ordinal))
             {
                 // The original malformed-call mutations remain compiler
                 // rejection controls; valid mutations exercise the guard.

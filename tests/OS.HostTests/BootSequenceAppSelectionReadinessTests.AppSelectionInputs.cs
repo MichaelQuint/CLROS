@@ -18,9 +18,21 @@ internal static partial class BootSequenceAppSelectionReadinessTests
             Descriptor = descriptor;
         }
 
-        public NativeManifestLoadResult ManifestLoad { get; }
-        public OsPackageParseResult PackageParse { get; }
-        public NativeAppLaunchPlanResult LaunchPlan { get; }
-        public NativeAppLaunchDescriptorResult Descriptor { get; }
+        public NativeManifestLoadResult ManifestLoad
+        {
+            get;
+        }
+        public OsPackageParseResult PackageParse
+        {
+            get;
+        }
+        public NativeAppLaunchPlanResult LaunchPlan
+        {
+            get;
+        }
+        public NativeAppLaunchDescriptorResult Descriptor
+        {
+            get;
+        }
     }
 }

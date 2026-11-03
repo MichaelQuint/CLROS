@@ -56,11 +56,11 @@ internal static partial class KestrelRequestChurnTests
 
         await held.JoinAsync(request!);
         HostCheck.True(request!.IsCanceled && pending is { Active: 1, Waiting: 1, Completed: 0 });
-        HostCheck.True(exercise.Inspect()is { Canceled: 1, Failed: 0, Completed: 0 });
+        HostCheck.True(exercise.Inspect() is { Canceled: 1, Failed: 0, Completed: 0 });
         Drained(exercise);
         using var recovery = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         HostCheck.Equal(KestrelChurnExercise.SuccessBody, await exercise.RunAsync(recovery.Token));
-        HostCheck.True(exercise.Inspect()is { Started: 2, Completed: 1, Canceled: 1, Failed: 0 });
+        HostCheck.True(exercise.Inspect() is { Started: 2, Completed: 1, Canceled: 1, Failed: 0 });
         Drained(exercise);
     }
 
@@ -93,7 +93,7 @@ internal static partial class KestrelRequestChurnTests
         await held.JoinAsync(requests.ToArray());
         HostCheck.True(requests.Take(2).All(r => r.IsCanceled) && busyRefused);
         HostCheck.True(pending is { Active: 2, Waiting: 2, PeakActive: 2, Started: 2, Rejected: 1, HeldBytes: 131072, PeakHeldBytes: 131072, Completed: 0 });
-        HostCheck.True(exercise.Inspect()is { Canceled: 2, Failed: 0, Completed: 0, PeakActive: 2 });
+        HostCheck.True(exercise.Inspect() is { Canceled: 2, Failed: 0, Completed: 0, PeakActive: 2 });
         Drained(exercise);
     }
 
@@ -124,7 +124,7 @@ internal static partial class KestrelRequestChurnTests
             rejected = true;
         }
 
-        HostCheck.True(rejected && exercise.Inspect()is { Started: 0, Canceled: 0, Failed: 0, Rejected: 0 });
+        HostCheck.True(rejected && exercise.Inspect() is { Started: 0, Canceled: 0, Failed: 0, Rejected: 0 });
         Drained(exercise);
         byte[] independent = new byte[65536];
         for (int i = 0; i < independent.Length; i++)
@@ -155,26 +155,26 @@ internal static partial class KestrelRequestChurnTests
         Task<string?> running = exercise.RunUntilCanceledAsync(request.Token);
         try
         {
-            while (exercise.Inspect()is not { Workers: >= 9, Waiting: 1 })
+            while (exercise.Inspect() is not { Workers: >= 9, Waiting: 1 })
             {
                 request.Token.ThrowIfCancellationRequested();
                 HostCheck.True(!running.IsCompleted);
                 await Task.Delay(1, request.Token);
             }
 
-            HostCheck.True(!running.IsCompleted && exercise.Inspect()is { Active: 1, HeldBytes: 65536, Completed: 0 });
+            HostCheck.True(!running.IsCompleted && exercise.Inspect() is { Active: 1, HeldBytes: 65536, Completed: 0 });
             request.Cancel();
             bool canceled = false;
             try
             {
                 await running;
             }
-            catch (OperationCanceledException)when (request.IsCancellationRequested)
+            catch (OperationCanceledException) when (request.IsCancellationRequested)
             {
                 canceled = true;
             }
 
-            HostCheck.True(canceled && exercise.Inspect()is { Canceled: 1, Failed: 0, Completed: 0 });
+            HostCheck.True(canceled && exercise.Inspect() is { Canceled: 1, Failed: 0, Completed: 0 });
             Drained(exercise);
             var before = exercise.Inspect();
             using var finite = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -190,7 +190,7 @@ internal static partial class KestrelRequestChurnTests
             {
                 await running;
             }
-            catch (OperationCanceledException)when (request.IsCancellationRequested)
+            catch (OperationCanceledException) when (request.IsCancellationRequested)
             {
             }
         }
@@ -225,7 +225,7 @@ internal static partial class KestrelRequestChurnTests
             failed = error.Message == "CLROS_CHURN_FAIL deadline";
         }
 
-        HostCheck.True(failed && !request.IsCancellationRequested && running.IsFaulted && exercise.Inspect()is { Failed: 1, Canceled: 0, Completed: 0 });
+        HostCheck.True(failed && !request.IsCancellationRequested && running.IsFaulted && exercise.Inspect() is { Failed: 1, Canceled: 0, Completed: 0 });
         Drained(exercise);
         foreach (TimeSpan budget in new[]
         {
@@ -284,7 +284,7 @@ internal static partial class KestrelRequestChurnTests
                 {
                     await running;
                 }
-                catch (OperationCanceledException)when (request.IsCancellationRequested)
+                catch (OperationCanceledException) when (request.IsCancellationRequested)
                 {
                 }
 
@@ -318,7 +318,7 @@ internal static partial class KestrelRequestChurnTests
                 expired = error.Message == "CLROS_CHURN_FAIL deadline";
             }
 
-            HostCheck.True(expired && !failure.IsCancellationRequested && failing.IsFaulted && exercise.Inspect()is { Started: 66, Completed: 1, Canceled: 64, Failed: 1 });
+            HostCheck.True(expired && !failure.IsCancellationRequested && failing.IsFaulted && exercise.Inspect() is { Started: 66, Completed: 1, Canceled: 64, Failed: 1 });
             Drained(exercise);
         }
         finally
@@ -328,5 +328,5 @@ internal static partial class KestrelRequestChurnTests
         }
     }
 
-    private static void Drained(KestrelChurnExercise exercise) => HostCheck.True(exercise.Inspect()is { Active: 0, Waiting: 0, HeldBytes: 0 });
+    private static void Drained(KestrelChurnExercise exercise) => HostCheck.True(exercise.Inspect() is { Active: 0, Waiting: 0, HeldBytes: 0 });
 }

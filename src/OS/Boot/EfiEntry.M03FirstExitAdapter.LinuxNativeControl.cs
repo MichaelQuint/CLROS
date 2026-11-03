@@ -14,21 +14,13 @@ namespace OS.Boot;
 
 #pragma warning disable 649 // Caller-owned buffers are initialized through admitted native pointers.
 
-
 public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
 #if M16_014_PROBE
 
-
-
-
-
-
-
 #endif
-
 
         // Metadata lives only in the program's retained RW/NX arena. No user leaf
         // exposes this storage. One IRQ-off BSP owns the complete lifetime.
@@ -97,90 +89,27 @@ public static unsafe partial class EfiEntry
             internal fixed byte OriginalTss[104];
         }
 
-
-
-#if M16_027_PROBE
-
-
-#else
-
-#endif
-
-
-
-
-#if M16_027_PROBE
-
-
-#endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M16_027_PROBE
 
 #else
 
 #endif
 
+#if M16_027_PROBE
 
+#endif
 
+#if M16_027_PROBE
 
+#else
 
+#endif
 
 #if M16_014_PROBE
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M10_018_PROBE
-
 
 #endif
 
@@ -194,231 +123,43 @@ public static unsafe partial class EfiEntry
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M16_009_PROBE
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M16_009_PROBE
 
-
-
 #endif
-
-
-
-
 
 #if M16_027_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M10_018_TIMING_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 
 #endif
 
 #if M16_009_PROBE
 
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M10_018_PROBE
 
-
-
-
 #endif
 
-
-
-
-
-
-
-
 #if M16_027_PROBE
-
-
-
-
-
-
 
 #endif
 #if M16_025_PROBE
 
-
-
 #if M10_018_PROBE
-
-
-
-
-
 
 #endif
 #endif
 #if CLROS_LINUX_SOCKETS
 
-
-
 #endif
 
 #if M16_027_PROBE
@@ -429,205 +170,51 @@ public static unsafe partial class EfiEntry
 #endif
 
 #if M16_027_PROBE
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif
 
 #if M10_018_PROBE
 
-
 #endif
 #if M16_025_PROBE
-
-
-
 
 #if !M16_027_PROBE && !M10_018_PROBE
 
 #endif
 
-
-
-
-
-
-
-
 #endif
 #if CLROS_LINUX_SOCKETS
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M10_018_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M16_014_PROBE
 
-
-
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
 
 #if M16_009_PROBE
 
 #endif
 
-
-
-
-
-
 #if M16_027_PROBE
-
 
 #else
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M16_009_PROBE
-
-
-
-
 
 #endif
 
-
-
-
-
-
 #if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
-
 
 #endif
 #if CLROS_LINUX_SOCKETS
 
-
-
 #if M10_018_TIMING_PROBE
-
 
 #else
 
@@ -640,19 +227,11 @@ public static unsafe partial class EfiEntry
 #endif
 #if M10_017_PROBE || M10_018_PROBE
 
-
-
-
-
 #endif
 #if M16_009_PROBE
 
 #endif
 #if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
-
-
-
-
 
 #endif
 #if M16_025_PROBE && !M16_027_PROBE
@@ -663,7 +242,6 @@ public static unsafe partial class EfiEntry
 
 #endif
 #if M10_017_PROBE || M10_018_PROBE
-
 
 #elif M10_004_PROBE
 
@@ -675,77 +253,21 @@ public static unsafe partial class EfiEntry
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-#if M16_014_PROBE
-
-
-#else
-
-#endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M16_014_PROBE
 
 #else
 
 #endif
 
+#if M16_014_PROBE
 
+#else
 
-
-
+#endif
 
 #if M16_009_PROBE
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M16_027_PROBE
 
@@ -755,50 +277,20 @@ public static unsafe partial class EfiEntry
 #endif
 #if M16_014_PROBE
 
-
 #endif
 #if CLROS_LINUX_SOCKETS
-
-
-
-
-
-
 
 #endif
 #if M16_009_PROBE
 
-
 #endif
-
 
 #if CLROS_LINUX_SOCKETS
 
 #endif
 #if M16_014_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
 
 #if M16_014_PROBE
 
@@ -806,98 +298,22 @@ public static unsafe partial class EfiEntry
 
 #endif
 
-
 #if M16_009_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
 #endif
-
-
-
-
-
 
 #if M16_009_PROBE
 
 #endif
 #if M16_027_PROBE
 
-
-
 #else
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M16_009_PROBE
 
-
-
-
 #endif
-
-
-
-
-
-
-
 
 #if M16_009_PROBE
 
@@ -907,18 +323,9 @@ public static unsafe partial class EfiEntry
 
 #endif
 
-
 #if M16_009_PROBE
 
-
-
-
-
-
 #endif
-
-
-
 
 #if M16_027_PROBE
 
@@ -930,20 +337,14 @@ public static unsafe partial class EfiEntry
 
 #endif
 
-
 #if M16_027_PROBE
 
 #endif
-
-
-
 
 #if M16_025_PROBE && !M16_027_PROBE
 
 #endif
 #if M16_027_PROBE
-
-
 
 #else
 
@@ -951,28 +352,6 @@ public static unsafe partial class EfiEntry
 #if M16_025_PROBE && !M16_027_PROBE
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M16_009_PROBE
 
@@ -980,263 +359,27 @@ public static unsafe partial class EfiEntry
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M16_027_PROBE
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M16_014_PROBE
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif
 
 #if M16_014_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif
-
-
-
-
-
-
-
 
 #if M16_014_PROBE
 
 #endif
-
-
-
-
-
-
 
 #if M16_027_PROBE
-
-
 
 #else
 
 #endif
-
-
-
-
-
-
 
     }
 }

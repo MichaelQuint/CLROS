@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Kernel.Memory;
 
 namespace OS.Kernel.Runtime;
+
 public enum BoundedCollectionStatus : byte
 {
     Uninitialized,

@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public readonly struct OSHostSocketCreateResult
 {
     public readonly OSHostStatus Status;

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class X64LinuxUserTransition
 {
     // Small fixed-layout encoder. Every memory operand uses supervisor R14+disp32.

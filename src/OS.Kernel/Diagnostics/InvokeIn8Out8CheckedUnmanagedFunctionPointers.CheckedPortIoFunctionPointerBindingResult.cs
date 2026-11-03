@@ -23,14 +23,38 @@ public readonly unsafe struct CheckedPortIoFunctionPointerBindingResult
         _in8 = in8;
     }
 
-    public bool IsInitialized { get; }
-    public CheckedPortIoFunctionPointerBindingStatus Status { get; }
-    public ushort ConfiguredBasePort { get; }
-    public ushort ConfiguredEndPort { get; }
-    public nuint PayloadBaseAddress { get; }
-    public nuint PayloadEndAddress { get; }
-    public nuint Out8StubAddress { get; }
-    public nuint In8StubAddress { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public CheckedPortIoFunctionPointerBindingStatus Status
+    {
+        get;
+    }
+    public ushort ConfiguredBasePort
+    {
+        get;
+    }
+    public ushort ConfiguredEndPort
+    {
+        get;
+    }
+    public nuint PayloadBaseAddress
+    {
+        get;
+    }
+    public nuint PayloadEndAddress
+    {
+        get;
+    }
+    public nuint Out8StubAddress
+    {
+        get;
+    }
+    public nuint In8StubAddress
+    {
+        get;
+    }
     public bool CreatesManagedDelegate => false;
     public bool Succeeded => IsInitialized && Status == CheckedPortIoFunctionPointerBindingStatus.Ready && ConfiguredBasePort == InvokeIn8Out8CheckedUnmanagedFunctionPointers.RequiredCom1BasePort && ConfiguredEndPort >= ConfiguredBasePort && PayloadBaseAddress != 0 && PayloadEndAddress > PayloadBaseAddress && Out8StubAddress != 0 && In8StubAddress != 0 && _out8 != null && _in8 != null && !CreatesManagedDelegate;
 

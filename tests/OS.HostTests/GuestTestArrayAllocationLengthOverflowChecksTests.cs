@@ -132,7 +132,8 @@ internal static unsafe partial class GuestTestArrayAllocationLengthOverflowCheck
                     0 => Fixed.TryAllocate(f.Access, f.State, f.StateCapacity, Profile, Prefix(0x50000000, 24), token),
                     1 => Allocate(f, 1, 1, token: token),
                     2 => Fixed.TryAllocate(f.Access, f.State, f.StateCapacity, Profile, Prefix(0x50000000, 32), token),
-                    _ => Allocate(f, 4, 3, token: token)};
+                    _ => Allocate(f, 4, 3, token: token)
+                };
                 CheckResult(f, r, used, sizes[i], (ulong)i + 1, token);
                 if (operation == 1 || operation == 3)
                     CheckArrayBytes(f.Page + used, sizes[i], token, operation == 1 ? 1 : 3);
@@ -304,7 +305,7 @@ internal static unsafe partial class GuestTestArrayAllocationLengthOverflowCheck
         }
 
         Expect(f, Status.Exhausted, flags: 0xE0020008, length: 0x40000000);
-        foreach ((uint width, int length)in new (uint, int)[]
+        foreach ((uint width, int length) in new (uint, int)[]
         {
             (1, 4072),
             (8, 509)
@@ -526,7 +527,7 @@ internal static unsafe partial class GuestTestArrayAllocationLengthOverflowCheck
             Expect(f, expected, heapStatus: expected == Status.HeapBindingMismatch ? ManagedHeapPageRangeStatus.Success : default);
         }
 
-        foreach ((ulong used, ulong count)in new (ulong, ulong)[]
+        foreach ((ulong used, ulong count) in new (ulong, ulong)[]
         {
             (4097, 1),
             (8, 1),
@@ -743,7 +744,13 @@ internal static unsafe partial class GuestTestArrayAllocationLengthOverflowCheck
         string[] arguments = ["build", "Compile.csproj", "--nologo", "-m:1", "-c", "Release", "-nodeReuse:false"];
         foreach (string arg in arguments)
             start.ArgumentList.Add(arg);
-        File.WriteAllText(Path.Combine(directory, "command.json"), System.Text.Json.JsonSerializer.Serialize(new { Executable = start.FileName, Arguments = arguments, WorkingDirectory = directory, StartedUtc = DateTime.UtcNow }));
+        File.WriteAllText(Path.Combine(directory, "command.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Executable = start.FileName,
+            Arguments = arguments,
+            WorkingDirectory = directory,
+            StartedUtc = DateTime.UtcNow
+        }));
         using Process process = Process.Start(start) ?? throw new InvalidOperationException("no-stdlib start");
         Task<string> stdout = process.StandardOutput.ReadToEndAsync(), stderr = process.StandardError.ReadToEndAsync();
         bool exited = process.WaitForExit(90000);
@@ -756,13 +763,18 @@ internal static unsafe partial class GuestTestArrayAllocationLengthOverflowCheck
         Task.WaitAll(stdout, stderr);
         File.WriteAllText(Path.Combine(directory, "build.stdout.log"), stdout.Result);
         File.WriteAllText(Path.Combine(directory, "build.stderr.log"), stderr.Result);
-        File.WriteAllText(Path.Combine(directory, "result.json"), System.Text.Json.JsonSerializer.Serialize(new { Exited = exited, NativeExit = process.ExitCode, EndedUtc = DateTime.UtcNow }));
+        File.WriteAllText(Path.Combine(directory, "result.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Exited = exited,
+            NativeExit = process.ExitCode,
+            EndedUtc = DateTime.UtcNow
+        }));
         Require(exited && process.ExitCode == 0, "actual eleven-source no-stdlib compile: " + directory + " " + stdout.Result + stderr.Result);
         using FileStream stream = File.OpenRead(Path.Combine(directory, "bin", "Release", "net11.0", "CLROS.M04.Array.NoStdLib.dll"));
         using PEReader pe = new(stream);
         MetadataReader metadata = pe.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count == 0, "zero AssemblyRefs");
-        foreach ((string type, string method)in new[]
+        foreach ((string type, string method) in new[]
         {
             ("GuestTestArrayAllocationLengthOverflowChecks", "TryAllocate"),
             ("GuestTestRhpNewFast", "TryAllocate"),

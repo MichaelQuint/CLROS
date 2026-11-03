@@ -133,7 +133,7 @@ public static unsafe partial class HmacSha256Drbg
     }
 
     private static bool Storage(State* state) => state != null && ((ulong)state & 7) == 0 && HmacSha256.Range(state, (uint)sizeof(State));
-    private static bool Live(State* state) => Storage(state) && state->Self == (ulong)state && state->Counter is> 0 and <= ReseedInterval + 1;
+    private static bool Live(State* state) => Storage(state) && state->Self == (ulong)state && state->Counter is > 0 and <= ReseedInterval + 1;
     private static bool Input(State* state, byte* bytes, uint count) => HmacSha256.Range(bytes, count) && !HmacSha256.Overlap(state, (uint)sizeof(State), bytes, count);
     private static bool Zero(byte* value, uint bytes)
     {

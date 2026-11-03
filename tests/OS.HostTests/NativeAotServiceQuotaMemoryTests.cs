@@ -12,7 +12,7 @@ internal static partial class NativeAotServiceQuotaMemoryTests
         ulong ordinal = 0, reserved = 2 * 1048576UL;
         void Output(string value)
         {
-            foreach (string part in segmented ? value.Chunk(17).Select(c => new string (c)) : new[]
+            foreach (string part in segmented ? value.Chunk(17).Select(c => new string(c)) : new[]
             {
                 value
             }
@@ -169,7 +169,7 @@ internal static partial class NativeAotServiceQuotaMemoryTests
     {
         string raw = Raw();
         Reject(Raw(understateRetention: true));
-        foreach (var(from, to)in new[]
+        foreach (var (from, to) in new[]
         {
             ("nativeReserve=20971520", "nativeReserve=16777216"),
             ("endPages=0", "endPages=1"),
@@ -227,7 +227,7 @@ internal static partial class NativeAotServiceQuotaMemoryTests
         var reordered = rows.ToArray();
         (reordered[service - 1], reordered[service]) = (reordered[service], reordered[service - 1]);
         Reject(string.Join("\r\n", reordered), "service_quota_memory_end");
-        foreach (var(from, to, reason)in new[]
+        foreach (var (from, to, reason) in new[]
         {
             ("random=zero reservation=retained", "random=retained reservation=retained", "service_quota_memory_service_end"),
             ("reaped=3 process=drained", "reaped=2 process=drained", "service_quota_memory_end"),
@@ -251,7 +251,7 @@ internal static partial class NativeAotServiceQuotaMemoryTests
         string raw = Raw();
         foreach (var mutation in Enum.GetValues<HeldMutation>().Where(value => value != HeldMutation.None))
             Reject(Raw(mutation: mutation));
-        foreach (var(from, to)in new[]
+        foreach (var (from, to) in new[]
         {
             ($"rip={Mmap}", "rip=4198402"),
             ($"nr=11 a0={Reservation} a1=4096", $"nr=11 a0={Reservation} a1=8192"),

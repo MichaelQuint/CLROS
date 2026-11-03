@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct WaitAddress
 {
     public enum Status : byte

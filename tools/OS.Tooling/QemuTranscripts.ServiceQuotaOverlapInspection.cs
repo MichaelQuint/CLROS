@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied same-retention-window values only. ForcedGcMarkers are

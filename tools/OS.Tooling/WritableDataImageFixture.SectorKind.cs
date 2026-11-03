@@ -8,6 +8,7 @@ using OS.Std.Time;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class WritableDataImageFixture
 {
     /// <summary>Physical ownership decoded independently in the before/after

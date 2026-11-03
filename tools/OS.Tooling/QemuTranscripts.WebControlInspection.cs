@@ -4,6 +4,7 @@ using System.Text.Json;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Structurally checked external controls from one runner summary.

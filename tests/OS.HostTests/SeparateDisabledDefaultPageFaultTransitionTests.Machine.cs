@@ -143,7 +143,8 @@ internal static unsafe partial class SeparateDisabledDefaultPageFaultTransitionT
             0x84 => (Flags & 0x40) != 0,
             0x85 => (Flags & 0x40) == 0,
             0x87 => (Flags & 0x41) == 0,
-            _ => throw new InvalidOperationException("condition")};
+            _ => throw new InvalidOperationException("condition")
+        };
         private void Push(ulong value)
         {
             Registers[4] -= 8;
@@ -288,7 +289,8 @@ internal static unsafe partial class SeparateDisabledDefaultPageFaultTransitionT
                         5 => "subi",
                         7 => "cmpi",
                         _ => "unknown"
-                    }};
+                    }
+                };
                 return Make(op, m.Rm, imm: imm, cc: opcode == 0xd3 ? (byte)1 : (byte)0, bits: bits);
             }
 
@@ -322,7 +324,8 @@ internal static unsafe partial class SeparateDisabledDefaultPageFaultTransitionT
                         _ => "unknown"
                     }, m.Rm),
                     0x00 => Make(m.Extension == 3 ? "ltr" : m.Extension == 1 ? "str" : "unknown", m.Rm, bits: 16),
-                    _ => throw new InvalidOperationException("unknown 0F opcode " + second.ToString("X"))};
+                    _ => throw new InvalidOperationException("unknown 0F opcode " + second.ToString("X"))
+                };
             }
 
             return opcode switch
@@ -338,7 +341,8 @@ internal static unsafe partial class SeparateDisabledDefaultPageFaultTransitionT
                 0xac => Make("lodsb"),
                 0xa4 when repeat => Make("copy", bits: 8),
                 0xa5 when repeat => Make("copy", bits: width),
-                _ => throw new InvalidOperationException("unknown opcode " + opcode.ToString("X") + " at " + at.ToString("X"))};
+                _ => throw new InvalidOperationException("unknown opcode " + opcode.ToString("X") + " at " + at.ToString("X"))
+            };
         }
 
         public void Run()
@@ -518,7 +522,8 @@ internal static unsafe partial class SeparateDisabledDefaultPageFaultTransitionT
                             1 => Cs,
                             2 => Ss,
                             3 => Ds,
-                            _ => throw new InvalidOperationException("segment")}, i.Next);
+                            _ => throw new InvalidOperationException("segment")
+                        }, i.Next);
                         break;
                     case "segwrite":
                         value = Get(i.Destination, 16, i.Next);
@@ -547,7 +552,8 @@ internal static unsafe partial class SeparateDisabledDefaultPageFaultTransitionT
                             2 => Cr2,
                             3 => Cr3,
                             4 => Cr4,
-                            _ => throw new InvalidOperationException("CR read")}, i.Next);
+                            _ => throw new InvalidOperationException("CR read")
+                        }, i.Next);
                         if (i.Immediate == 2 && ReplaceCr2AfterEarlyRead.HasValue)
                             Cr2 = ReplaceCr2AfterEarlyRead.Value;
                         break;

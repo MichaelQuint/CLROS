@@ -4,11 +4,12 @@ using System.Text.Json;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private static WebControlInspection ReadWebControls(string socketsJson, string framesJson, int forward)
     {
-        Need(socketsJson.Length is> 0 and <= 65536 && framesJson.Length is> 0 and <= 400000, "web_controls_extent");
+        Need(socketsJson.Length is > 0 and <= 65536 && framesJson.Length is > 0 and <= 400000, "web_controls_extent");
         try
         {
             using var sockets = JsonDocument.Parse(socketsJson, new JsonDocumentOptions { MaxDepth = 8 });
@@ -34,7 +35,7 @@ public static partial class QemuTranscripts
             long forwarded = WebControlNumber(frame, "ForwardedFrames", 1, 100000);
             Need(WebControlNumber(frame, "VlanFrames", 1, 1) == 1 && new[] { "GuestExitExpected", "Stopped", "Healthy" }.All(key => frame.GetProperty(key).ValueKind == JsonValueKind.True), "web_controls_lifecycle");
             var withheld = frame.GetProperty("DroppedFrames");
-            Need(withheld.ValueKind == JsonValueKind.Array && withheld.GetArrayLength()is> 0 and <= 128 && forwarded + withheld.GetArrayLength() <= 100000, "web_controls_withheld_count");
+            Need(withheld.ValueKind == JsonValueKind.Array && withheld.GetArrayLength() is > 0 and <= 128 && forwarded + withheld.GetArrayLength() <= 100000, "web_controls_withheld_count");
             List<WebFrameControl.DroppedFrame> drops = [];
             long ordinal = 0;
             foreach (var entry in withheld.EnumerateArray())
@@ -49,7 +50,7 @@ public static partial class QemuTranscripts
 
             return new(new(bad, before, after, observed!.Value), new(outPort, inPort, Array.AsReadOnly(arguments), forwarded, 1, drops.AsReadOnly(), true, true, true));
         }
-        catch (Exception error)when (error is JsonException or InvalidDataException or FormatException or OverflowException)
+        catch (Exception error) when (error is JsonException or InvalidDataException or FormatException or OverflowException)
         {
             throw new ToolFailure("Invalid web controls: " + error.GetType().Name);
         }
@@ -84,7 +85,7 @@ public static partial class QemuTranscripts
         var field = value.GetProperty(key);
         Need(field.ValueKind == JsonValueKind.String, "web_controls_string");
         string text = field.GetString()!;
-        Need(text.Length is> 0 && text.Length <= maximum, "web_controls_string_extent");
+        Need(text.Length is > 0 && text.Length <= maximum, "web_controls_string_extent");
         return text;
     }
 

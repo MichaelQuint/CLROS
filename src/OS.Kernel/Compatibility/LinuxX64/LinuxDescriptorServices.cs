@@ -351,7 +351,8 @@ public static unsafe partial class LinuxDescriptorServices
             if ((Kind)d.Type == Kind.Epoll && state->Epoll == null)
                 return false;
 #else
-            if ((Kind)d.Type is Kind.Socket or Kind.Epoll) return false;
+            if ((Kind)d.Type is Kind.Socket or Kind.Epoll)
+                return false;
 #endif
 #if !NOSTDLIB_EFI || M16_025_PROBE
             if ((Kind)d.Type == Kind.Disk && state->Disk == null)

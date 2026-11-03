@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Borrow owned original classic-PCAP bytes, ordered guest ports,
@@ -22,13 +23,16 @@ public static partial class QemuTranscripts
 
     public static StaticFileHttpPacketInspection InspectNativeAotStaticFileHttpPackets(byte[] packets, uint anchor, QemuArpReceiveReceipt arp, IReadOnlyList<uint> orderedGuestPorts, ReadOnlySpan<byte> receiptJson, IReadOnlyDictionary<string, byte[]> bodyFiles, ReadOnlySpan<byte> abortJson)
     {
-        Need(packets is { Length: > 24 and <= 4 * 1024 * 1024 } && orderedGuestPorts is { Count: 3 } && receiptJson.Length is> 0 and <= 256 * 1024 && abortJson.Length is> 0 and <= 4096 && bodyFiles is { Count: 26 }, "static_http_input");
-        using var receipt = JsonDocument.Parse(receiptJson.ToArray(), new() { MaxDepth = 8 });
+        Need(packets is { Length: > 24 and <= 4 * 1024 * 1024 } && orderedGuestPorts is { Count: 3 } && receiptJson.Length is > 0 and <= 256 * 1024 && abortJson.Length is > 0 and <= 4096 && bodyFiles is { Count: 26 }, "static_http_input");
+        using var receipt = JsonDocument.Parse(receiptJson.ToArray(), new()
+        {
+            MaxDepth = 8
+        });
         var root = receipt.RootElement;
         StaticObject(root, "Schema", "Port", "Complete", "ClockFrequency", "Responses");
         int port = root.GetProperty("Port").GetInt32();
         long frequency = root.GetProperty("ClockFrequency").GetInt64();
-        Need(root.GetProperty("Schema").GetString() == "clros-staged-http-v1" && root.GetProperty("Complete").GetBoolean() && port is> 0 and <= 65535 && frequency is> 0 and <= 1_000_000_000 && root.GetProperty("Responses").ValueKind == JsonValueKind.Array && root.GetProperty("Responses").GetArrayLength() == 26, "static_http_receipt");
+        Need(root.GetProperty("Schema").GetString() == "clros-staged-http-v1" && root.GetProperty("Complete").GetBoolean() && port is > 0 and <= 65535 && frequency is > 0 and <= 1_000_000_000 && root.GetProperty("Responses").ValueKind == JsonValueKind.Array && root.GetProperty("Responses").GetArrayLength() == 26, "static_http_receipt");
         List<StaticPeerRow> rows = [];
         long total = 0;
         foreach (var row in root.GetProperty("Responses").EnumerateArray())
@@ -48,10 +52,13 @@ public static partial class QemuTranscripts
 
         Need((Int128)rows[^1].Finished - rows[0].Started <= (Int128)NativeAotStagedStaticPeer.MatrixTimeoutSeconds * frequency && Math.Max(rows[22].Started, rows[23].Started) < Math.Min(rows[22].Finished, rows[23].Finished), "static_http_host_overlap");
         StaticMatrix(rows);
-        using var abortDocument = JsonDocument.Parse(abortJson.ToArray(), new() { MaxDepth = 4 });
+        using var abortDocument = JsonDocument.Parse(abortJson.ToArray(), new()
+        {
+            MaxDepth = 4
+        });
         var abort = abortDocument.RootElement;
         StaticObject(abort, "LocalPort", "Request", "Prefix", "Started", "Closed", "Close");
-        Need(abort.GetProperty("LocalPort").GetInt32()is> 0 and <= 65535 && abort.GetProperty("Close").GetString() == "reset", "static_http_abort_receipt");
+        Need(abort.GetProperty("LocalPort").GetInt32() is > 0 and <= 65535 && abort.GetProperty("Close").GetString() == "reset", "static_http_abort_receipt");
         byte[] abortRequest = StaticBase64(abort.GetProperty("Request").GetString()!, 1024), abortPrefix = StaticBase64(abort.GetProperty("Prefix").GetString()!, 512);
         long abortStarted = abort.GetProperty("Started").GetInt64(), abortClosed = abort.GetProperty("Closed").GetInt64();
         Need(abortStarted >= Math.Max(rows[22].Finished, rows[23].Finished) && abortClosed >= abortStarted && rows[24].Started >= abortClosed && rows[25].Started >= rows[24].Finished && abortPrefix.Length >= 12 && abortPrefix.AsSpan().StartsWith("HTTP/1.1 200"u8) && abortRequest.AsSpan().SequenceEqual(Encoding.ASCII.GetBytes("GET /boundary.bin HTTP/1.1\r\nHost: 127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture) + "\r\nConnection: keep-alive\r\n\r\n")), "static_http_abort_receipt");
@@ -75,7 +82,7 @@ public static partial class QemuTranscripts
                 Need(messages.Count < 26, "static_http_extra_request");
                 var request = ServiceHttpHead(flow.Request.AsSpan(requestAt, flow.RequestExtent - requestAt));
                 string[] first = request.First.Split(' ');
-                Need(first.Length == 3 && first[0] is "GET" or "HEAD" or "POST" && first[2] == "HTTP/1.1" && first[1].Length is> 0 and <= 256 && first[1][0] == '/' && !request.Headers.ContainsKey("Transfer-Encoding") && !request.Headers.ContainsKey("Content-Encoding") && (!request.Headers.TryGetValue("Content-Length", out string? length) || first[0] == "POST" && length == "0"), "static_http_request");
+                Need(first.Length == 3 && first[0] is "GET" or "HEAD" or "POST" && first[2] == "HTTP/1.1" && first[1].Length is > 0 and <= 256 && first[1][0] == '/' && !request.Headers.ContainsKey("Transfer-Encoding") && !request.Headers.ContainsKey("Content-Encoding") && (!request.Headers.TryGetValue("Content-Length", out string? length) || first[0] == "POST" && length == "0"), "static_http_request");
                 int requestEnd = requestAt + request.End;
                 var response = StaticResponse(flow.Response.AsSpan(responseAt, flow.ResponseExtent - responseAt), first[0]);
                 int responseEnd = responseAt + response.End;
@@ -199,10 +206,10 @@ public static partial class QemuTranscripts
     private static void StaticMatrix(List<StaticPeerRow> rows)
     {
         var assets = NativeAotStaticFilePackage.StagedAssets();
-        string[] paths = ["/healthz", "/config", "/api/status", "/api/items", "/api/items?empty=true", ..assets.Select(asset => "/" + asset.Path[8..]), "/", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/missing.txt", "/appsettings.json", "/index.html.exe", "/one.bin", "/boundary.bin", "/boundary.bin", "/healthz", "/boundary.bin"];
+        string[] paths = ["/healthz", "/config", "/api/status", "/api/items", "/api/items?empty=true", .. assets.Select(asset => "/" + asset.Path[8..]), "/", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/boundary.bin", "/missing.txt", "/appsettings.json", "/index.html.exe", "/one.bin", "/boundary.bin", "/boundary.bin", "/healthz", "/boundary.bin"];
         Need(paths.Length == rows.Count, "static_http_matrix_inventory");
         string etag = rows[10].Response.GetValueOrDefault("ETag", ""), modified = rows[10].Response.GetValueOrDefault("Last-Modified", "");
-        Need(etag.Length is> 2 and <= 128 && etag[0] == '"' && etag[^1] == '"' && StaticDate(modified), "static_http_validators");
+        Need(etag.Length is > 2 and <= 128 && etag[0] == '"' && etag[^1] == '"' && StaticDate(modified), "static_http_validators");
         for (int i = 0; i < rows.Count; i++)
         {
             var row = rows[i];
@@ -224,7 +231,7 @@ public static partial class QemuTranscripts
             if (i is >= 0 and <= 4 or 24)
             {
                 string media = i is 0 or 24 ? "text/plain" : "application/json";
-                Need(row.Response.GetValueOrDefault("Content-Type")is { } type && (type == media || type.StartsWith(media + ";", StringComparison.Ordinal)), "static_http_media");
+                Need(row.Response.GetValueOrDefault("Content-Type") is { } type && (type == media || type.StartsWith(media + ";", StringComparison.Ordinal)), "static_http_media");
             }
 
             bool staticAsset = i is >= 5 and <= 17 or 22 or 23 or 25;
@@ -257,7 +264,7 @@ public static partial class QemuTranscripts
                         ".bin" => "application/octet-stream",
                         _ => ""
                     };
-                    Need(row.Response.GetValueOrDefault("Content-Type")is { } media && (media == type || media.StartsWith(type + ";", StringComparison.Ordinal)), "static_http_media");
+                    Need(row.Response.GetValueOrDefault("Content-Type") is { } media && (media == type || media.StartsWith(type + ";", StringComparison.Ordinal)), "static_http_media");
                 }
             }
         }
@@ -266,7 +273,10 @@ public static partial class QemuTranscripts
     private static void StaticJsonBody(byte[] bytes, int ordinal)
     {
         Need(bytes.Length <= 4096, "static_http_json_bound");
-        using var doc = JsonDocument.Parse(bytes, new() { MaxDepth = 6 });
+        using var doc = JsonDocument.Parse(bytes, new()
+        {
+            MaxDepth = 6
+        });
         var value = doc.RootElement;
         if (ordinal == 1)
         {

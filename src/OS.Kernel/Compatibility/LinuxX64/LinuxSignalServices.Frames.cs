@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxSignalServices
 {
     public const uint FrameBytes = 440, FpBytes = 512, MaximumNesting = 4;

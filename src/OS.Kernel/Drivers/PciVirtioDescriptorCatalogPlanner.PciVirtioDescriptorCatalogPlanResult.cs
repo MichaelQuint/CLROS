@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciVirtioDescriptorCatalogPlanResult
 {
     private PciVirtioDescriptorCatalogPlanResult(PciVirtioDescriptorCatalogPlanStatus status, PciEcamSegmentScanResult ecamScan, VirtioPciCandidateSelectionResult candidateSelection, VirtioPciBindingDerivedBarSizeCatalogResult bindingCatalog, VirtioDeviceDescriptorCatalogResult descriptorCatalog, int descriptorSourceCount, int requiredDescriptorSourceCapacity, int availableDescriptorSourceCapacity, int failingSourceIndex, int failingInputIndex, bool isInitialized)
@@ -18,18 +19,51 @@ public readonly struct PciVirtioDescriptorCatalogPlanResult
 
     public const int NoFailingSourceIndex = -1;
     public const int NoFailingInputIndex = -1;
-    public PciVirtioDescriptorCatalogPlanStatus Status { get; }
-    public bool IsInitialized { get; }
+    public PciVirtioDescriptorCatalogPlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PciVirtioDescriptorCatalogPlanStatus.Success;
-    public PciEcamSegmentScanResult EcamScan { get; }
-    public VirtioPciCandidateSelectionResult CandidateSelection { get; }
-    public VirtioPciBindingDerivedBarSizeCatalogResult BindingCatalog { get; }
-    public VirtioDeviceDescriptorCatalogResult DescriptorCatalog { get; }
-    public int DescriptorSourceCount { get; }
-    public int RequiredDescriptorSourceCapacity { get; }
-    public int AvailableDescriptorSourceCapacity { get; }
-    public int FailingSourceIndex { get; }
-    public int FailingInputIndex { get; }
+    public PciEcamSegmentScanResult EcamScan
+    {
+        get;
+    }
+    public VirtioPciCandidateSelectionResult CandidateSelection
+    {
+        get;
+    }
+    public VirtioPciBindingDerivedBarSizeCatalogResult BindingCatalog
+    {
+        get;
+    }
+    public VirtioDeviceDescriptorCatalogResult DescriptorCatalog
+    {
+        get;
+    }
+    public int DescriptorSourceCount
+    {
+        get;
+    }
+    public int RequiredDescriptorSourceCapacity
+    {
+        get;
+    }
+    public int AvailableDescriptorSourceCapacity
+    {
+        get;
+    }
+    public int FailingSourceIndex
+    {
+        get;
+    }
+    public int FailingInputIndex
+    {
+        get;
+    }
 
     public static PciVirtioDescriptorCatalogPlanResult Success(PciEcamSegmentScanResult ecamScan, VirtioPciCandidateSelectionResult candidateSelection, VirtioPciBindingDerivedBarSizeCatalogResult bindingCatalog, VirtioDeviceDescriptorCatalogResult descriptorCatalog, int descriptorSourceCount, int availableDescriptorSourceCapacity)
     {

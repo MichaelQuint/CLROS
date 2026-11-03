@@ -110,7 +110,8 @@ internal static class EfiSourceAdmissionTests
     {
         const string active = "public static class C { public const ulong Value = ulong.MaxValue; }";
         foreach (string text in new[] { active, "#if !NOSTDLIB_EFI\nusing System; string secret;\n#endif\n" + active,
-            "// using System;\n/* string managed; */\n" + active }) HostCheck.True(EfiSourceAdmission.Inspect(text, "ordinary.cs").Succeeded);
+            "// using System;\n/* string managed; */\n" + active })
+            HostCheck.True(EfiSourceAdmission.Inspect(text, "ordinary.cs").Succeeded);
         foreach (string text in new[] { "#if OTHER\n#endif", "#if NOSTDLIB_EFI\n#endif", "#if !nostdlib_efi\n#endif", "#if\n#endif",
             "#if !NOSTDLIB_EFI\n#if !NOSTDLIB_EFI\n#endif\n#endif", "#if !NOSTDLIB_EFI\n#else\n#endif", "#endif", "#if !NOSTDLIB_EFI", "#nullable enable" })
             HostCheck.True(!EfiSourceAdmission.Inspect(text, "ordinary.cs").Succeeded, "unsupported condition rejected: " + text);

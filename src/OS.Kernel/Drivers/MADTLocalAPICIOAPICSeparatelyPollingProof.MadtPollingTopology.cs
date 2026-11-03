@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct MadtPollingTopology
 {
     public readonly ulong LocalApicAddress, IoApicAddress;

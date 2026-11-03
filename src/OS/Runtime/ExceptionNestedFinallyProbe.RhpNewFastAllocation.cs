@@ -5,11 +5,6 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-
-
-
-
-
 internal static unsafe partial class RhpNewFastAllocation
 {
     // Measured at nested-eh-native-layout-r01/r03 and checked by strict PE
@@ -25,10 +20,6 @@ internal static unsafe partial class RhpNewFastAllocation
     private const uint NestedRootAllocation = 56, NestedRootStack = 72, NestedRootProlog = 6, NestedBpFromSp = 64;
     private const uint NestedStampOffset = 24, NestedResultOffset = 16;
 #pragma warning disable CS0649
-
-
-
-
 
 #pragma warning restore CS0649
     private static EhControl s_nestedEntryControl;
@@ -49,41 +40,53 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         if (!BootSequence.IsNestedFinallyCatchEnabled() || s_ehPhase != 0 || s_nestedCleanups != 0 ||
             s_gcPhase != 5 || s_collectorPhase != 7 || s_gcStack.Checks != 10 ||
-            s_control.ConstructorCount != 7 || !ReadGcRoot().Succeeded || !CollectorReceiptValid(5)) RejectEh(1);
-        EhText(0); s_ehPhase = 1;
+            s_control.ConstructorCount != 7 || !ReadGcRoot().Succeeded || !CollectorReceiptValid(5))
+            RejectEh(1);
+        EhText(0);
+        s_ehPhase = 1;
         s_ehSeed = (s_gcHandle ^ (ulong)s_access.Backing) & 0xFFFF;
-        if (!CheckEhStack()) RejectEh(2);
+        if (!CheckEhStack())
+            RejectEh(2);
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (EhStorage* storage = &s_ehStorage)
         {
             var bound = X64PERuntimeFunctionUnwindMetadataHostileInput.Bind(s_gcCapture, s_gcMapping,
                 (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, (byte*)storage, EhStorageBytes);
             if (!bound.Succeeded || bound.RequiredStorage >= EhStorageBytes || sizeof(X64UnwindContext) != 240 ||
-                sizeof(NestedTransfer) != 272 || sizeof(EhControl) != 32) RejectEh(3);
+                sizeof(NestedTransfer) != 272 || sizeof(EhControl) != 32)
+                RejectEh(3);
             EhLine(0, s_gcHandle, (ulong)storage, bound.RequiredStorage, bound.FunctionCount);
         }
         SimpleCatchDerived exception = NewCatchException(s_ehSeed);
-        if (s_ehPhase != 2 || Bits(exception) != s_ehReceipt.ObjectReference || !EhObjectIntact()) RejectEh(4);
+        if (s_ehPhase != 2 || Bits(exception) != s_ehReceipt.ObjectReference || !EhObjectIntact())
+            RejectEh(4);
         RhpNewFastResult root = s_ehReceipt;
         var collected = CollectGcGraph(&root, 1);
         if (!collected.Succeeded || collected.LiveObjects != 3 || collected.ReclaimedObjects != 0 ||
-            !EhObjectIntact() || !ReadGcRoot().Succeeded || !CollectorReceiptValid(5)) RejectEh(5);
+            !EhObjectIntact() || !ReadGcRoot().Succeeded || !CollectorReceiptValid(5))
+            RejectEh(5);
         EhLine(1, s_ehReceipt.ObjectReference, s_ehReceipt.MethodTableToken, s_ehReceipt.AllocationCount, collected.LiveObjects);
         s_ehPhase = 3;
         ulong result = NestedCatcher(exception);
         if (s_ehPhase != 10 || s_nestedCleanups != 2 || s_ehCatchEntries != 1 || s_ehContinuations != 1 ||
-            result != s_ehSeed + 1 || !EhObjectIntact() || !CheckEhStack()) RejectEh(6);
+            result != s_ehSeed + 1 || !EhObjectIntact() || !CheckEhStack())
+            RejectEh(6);
         // NestedContinued checks the parent locals while its frame is live.
         // After return, use the completed phase/receipt rather than expired slots.
         EhLine(13, s_ehChecks, s_ehMinimum, GcReadWord(s_gcStack.Start), GcReadWord(s_gcStack.Start + 8));
         EhLine(15, s_ehReceipt.ObjectReference, s_ehReceipt.MethodTableToken, s_gcHandle, s_ehReceipt.AllocationCount);
         // Explicit root lifetime ends after the real compiled continuation.
-        s_ehPhase = 11; s_ehReceipt = default;
-        EhText(1); EhText(2);
+        s_ehPhase = 11;
+        s_ehReceipt = default;
+        EhText(1);
+        EhText(2);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void NestedThrower(System.Exception value) { throw value; }
+    private static void NestedThrower(System.Exception value)
+    {
+        throw value;
+    }
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static ulong NestedCatcher(SimpleCatchBase value)
     {
@@ -92,7 +95,10 @@ internal static unsafe partial class RhpNewFastAllocation
         {
             try
             {
-                try { NestedThrower(value); }
+                try
+                {
+                    NestedThrower(value);
+                }
                 finally { NestedCleanupEntered(value, ref stamp, 1); }
             }
             finally { NestedCleanupEntered(value, ref stamp, 2); }
@@ -107,7 +113,10 @@ internal static unsafe partial class RhpNewFastAllocation
         return result;
     }
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void NestedUnexpectedCatch(SimpleCatchSibling value) { RejectEh(40); }
+    private static void NestedUnexpectedCatch(SimpleCatchSibling value)
+    {
+        RejectEh(40);
+    }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void NestedCleanupEntered(SimpleCatchBase value, ref ulong stamp, uint ordinal)
@@ -118,9 +127,12 @@ internal static unsafe partial class RhpNewFastAllocation
                 s_nestedCleanups != ordinal - 1 || s_ehCatchEntries != 0 || s_ehContinuations != 0 ||
                 !StackSpan((ulong)local, 8) || (ulong)local != s_ehCaller.Rbp - NestedStampOffset ||
                 stamp != (ordinal == 1 ? 0UL : s_ehSeed + 2) || Bits(value) != s_ehReceipt.ObjectReference ||
-                value.Payload != s_ehSeed || !EhObjectIntact() || !CheckEhStack()) RejectEh(23);
-            s_nestedLocal = (ulong)local; stamp = s_ehSeed + 1 + ordinal;
-            s_nestedCleanups = ordinal; s_ehPhase = ordinal == 1 ? 5UL : 7UL;
+                value.Payload != s_ehSeed || !EhObjectIntact() || !CheckEhStack())
+                RejectEh(23);
+            s_nestedLocal = (ulong)local;
+            stamp = s_ehSeed + 1 + ordinal;
+            s_nestedCleanups = ordinal;
+            s_ehPhase = ordinal == 1 ? 5UL : 7UL;
             EhLine(ordinal == 1 ? 6U : 8U, Bits(value), (ulong)local, stamp, ordinal);
         }
     }
@@ -129,8 +141,10 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         if (s_ehPhase != 8 || s_nestedCleanups != 2 || s_ehCatchEntries != 0 || s_ehContinuations != 0 ||
             stamp != s_ehSeed + 3 || !NestedStampIntact(2) || Bits(value) != s_ehReceipt.ObjectReference ||
-            value.Payload != s_ehSeed || !EhObjectIntact() || !CheckEhStack()) RejectEh(24);
-        s_ehCatchEntries = 1; s_ehPhase = 9;
+            value.Payload != s_ehSeed || !EhObjectIntact() || !CheckEhStack())
+            RejectEh(24);
+        s_ehCatchEntries = 1;
+        s_ehPhase = 9;
         EhLine(10, Bits(value), value.Payload, stamp, s_ehCatchEntries);
     }
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -138,7 +152,8 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         if (s_ehPhase != 10 || s_nestedCleanups != 2 || s_ehCatchEntries != 1 || s_ehContinuations != 0 ||
             result != s_ehSeed + 1 || stamp != s_ehSeed + 3 || Bits(value) != s_ehReceipt.ObjectReference ||
-            !NestedStampIntact(2) || !EhObjectIntact() || !CheckEhStack()) RejectEh(25);
+            !NestedStampIntact(2) || !EhObjectIntact() || !CheckEhStack())
+            RejectEh(25);
         s_ehContinuations = 1;
         EhLine(12, Bits(value), value.Payload, result, s_ehContinuations);
     }
@@ -147,18 +162,22 @@ internal static unsafe partial class RhpNewFastAllocation
     private static uint NestedSelect(ulong exception, X64UnwindContext* captured, NestedTransfer* transfer, EhControl* control)
     {
         if (s_ehPhase != 3 || !CheckEhStack() || !EhObjectIntact() || exception != s_ehReceipt.ObjectReference ||
-            !NestedBridgeLayout(captured, transfer, control) || !ControlAdmitted(control)) return RejectEh(12);
-        if (!NestedGeometryReady()) return RejectEh(13);
+            !NestedBridgeLayout(captured, transfer, control) || !ControlAdmitted(control))
+            return RejectEh(12);
+        if (!NestedGeometryReady())
+            return RejectEh(13);
         ulong method = (ulong)(delegate* managed<SimpleCatchBase, ulong>)&NestedCatcher;
         ulong thrower = (ulong)(delegate* managed<System.Exception, void>)&NestedThrower;
         ulong originalRip = captured->Rip, originalRsp = captured->Rsp;
         if (!NestedCaptureAdmitted((ulong)captured, originalRip, originalRsp, thrower) ||
             s_ehSelected != 0 || s_ehTransferAddress != 0 || s_ehCaller.Rip != 0 || s_ehCaller.Rsp != 0 ||
             s_nestedFirst != 0 || s_nestedSecond != 0 || s_nestedLocal != 0 || s_nestedCleanups != 0 ||
-            s_ehCatchEntries != 0 || s_ehContinuations != 0) return RejectEh(14);
+            s_ehCatchEntries != 0 || s_ehContinuations != 0)
+            return RejectEh(14);
         ulong invalidRip = originalRip ^ 1UL;
         if (NestedCaptureAdmitted((ulong)captured, invalidRip, originalRsp, thrower) ||
-            captured->Rip != originalRip || captured->Rsp != originalRsp) return RejectEh(21);
+            captured->Rip != originalRip || captured->Rsp != originalRsp)
+            return RejectEh(21);
         EhLine(2, originalRip, invalidRip, originalRsp, 0);
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (GcCollectingStorage* owner = &s_gcCollecting)
@@ -167,7 +186,8 @@ internal static unsafe partial class RhpNewFastAllocation
             var noEh = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, new((uint)(thrower - s_gcImage.Start), 10, 0, 0), 0);
-            if (noEh.Status != NativeAotEhClauseStatus.NoEhInfo) return RejectEh(15);
+            if (noEh.Status != NativeAotEhClauseStatus.NoEhInfo)
+                return RejectEh(15);
             var unwind = BootSequence.RunNestedFinallyCatchUnwind(s_gcCapture, s_gcMapping, (byte*)type,
                 (ulong)sizeof(GcTypeStorage), s_gcHandle, (byte*)storage, EhStorageBytes,
                 (byte*)(s_gcStack.Start + 16), s_gcStack.End - s_gcStack.Start - 16, *captured);
@@ -177,12 +197,14 @@ internal static unsafe partial class RhpNewFastAllocation
                 !NestedFunction((byte*)storage, method, 0, NestedFirstCleanup, NestedRootAllocation, NestedRootStack, NestedRootProlog) ||
                 GcReadWord(unwind.Caller.Rbp + 16) != exception ||
                 GcReadWord(unwind.Caller.Rbp - NestedStampOffset) != 0 ||
-                GcReadWord(unwind.Caller.Rbp - NestedResultOffset) != 0) return RejectEh(16);
+                GcReadWord(unwind.Caller.Rbp - NestedResultOffset) != 0)
+                return RejectEh(16);
             ulong table = NestedClauses();
             uint codeBytes = NestedCodeExtent(), tableBytes = NestedTableExtent();
             if (method < s_gcImage.Start || method - s_gcImage.Start > 0x7FFFFFFF ||
                 table < s_gcImage.Start || table - s_gcImage.Start > 0x7FFFFFFF ||
-                codeBytes == 0 || tableBytes == 0) return RejectEh(18);
+                codeBytes == 0 || tableBytes == 0)
+                return RejectEh(18);
             NativeAotEhMethodBounds bounds = new((uint)(method - s_gcImage.Start), codeBytes,
                 (uint)(table - s_gcImage.Start), tableBytes);
             NativeAotEhClauseResult* rows = stackalloc NativeAotEhClauseResult[4];
@@ -204,27 +226,40 @@ internal static unsafe partial class RhpNewFastAllocation
                 plan.FirstCleanup != method + NestedFirstCleanup || plan.SecondCleanup != method + NestedSecondCleanup ||
                 plan.CatchHandler != method + NestedCatch || !NestedRowsMatch(rows, method) ||
                 !matches[2].Succeeded || matches[2].Matches || !matches[3].Succeeded || !matches[3].Matches ||
-                !EhObjectIntact()) return RejectEh(19);
+                !EhObjectIntact())
+                return RejectEh(19);
             // Only a local decoded row is changed. Original metadata/capture/context stay intact.
-            var saved = rows[3]; rows[3] = default;
+            var saved = rows[3];
+            rows[3] = default;
             var rejected = BoundedExceptionDispatchPlan.Select(new(rows, 4), new(matches, 4), pc);
             rows[3] = saved;
             if (rejected.Status != BoundedExceptionDispatchStatus.InvalidClause || rejected.Succeeded ||
-                rejected.CatchHandler != 0 || rejected.FirstCleanup != 0 || rejected.SecondCleanup != 0) return RejectEh(22);
+                rejected.CatchHandler != 0 || rejected.FirstCleanup != 0 || rejected.SecondCleanup != 0)
+                return RejectEh(22);
             EhLine(14, (ulong)rejected.Status, rejected.CatchHandler, rejected.FirstCleanup, rejected.SecondCleanup);
             if (!NestedFunction((byte*)storage, method, NestedFirstCleanup, NestedSecondCleanup, 40, 40, 4) ||
                 !NestedFunction((byte*)storage, method, NestedSecondCleanup, NestedWrongCatch, 40, 40, 4) ||
                 !NestedFunction((byte*)storage, method, NestedWrongCatch, NestedCatch, 40, 40, 4) ||
-                !NestedFunction((byte*)storage, method, NestedCatch, NestedCodeBytes, 40, 40, 4)) return RejectEh(26);
-            s_ehCaller = unwind.Caller; s_ehSelected = plan.CatchHandler; s_ehTransferAddress = (ulong)transfer;
-            s_nestedFirst = plan.FirstCleanup; s_nestedSecond = plan.SecondCleanup;
+                !NestedFunction((byte*)storage, method, NestedCatch, NestedCodeBytes, 40, 40, 4))
+                return RejectEh(26);
+            s_ehCaller = unwind.Caller;
+            s_ehSelected = plan.CatchHandler;
+            s_ehTransferAddress = (ulong)transfer;
+            s_nestedFirst = plan.FirstCleanup;
+            s_nestedSecond = plan.SecondCleanup;
             s_nestedEntryControl = new EhControl { Flags = control->Flags, Cr4 = control->Cr4, Mxcsr = control->Mxcsr, X87 = control->X87 };
-            *transfer = new NestedTransfer { Funclet = plan.CatchHandler, FirstCleanup = plan.FirstCleanup,
-                SecondCleanup = plan.SecondCleanup, Caller = unwind.Caller };
+            *transfer = new NestedTransfer
+            {
+                Funclet = plan.CatchHandler,
+                FirstCleanup = plan.FirstCleanup,
+                SecondCleanup = plan.SecondCleanup,
+                Caller = unwind.Caller
+            };
             EhLine(3, captured->Rip, captured->Rsp, unwind.Caller.Rip, unwind.Caller.Rsp);
             EhLine(4, (ulong)matches[2].Status, matches[2].Matches ? 1UL : 0UL, (ulong)matches[3].Status, matches[3].Matches ? 1UL : 0UL);
             EhLine(5, plan.FirstCleanup, plan.SecondCleanup, plan.CatchHandler, unwind.Caller.Rbp - NestedStampOffset);
-            s_ehPhase = 4; return 1;
+            s_ehPhase = 4;
+            return 1;
         }
     }
 
@@ -234,9 +269,11 @@ internal static unsafe partial class RhpNewFastAllocation
         if (s_nestedCleanups < 1 || s_nestedCleanups > 2 || s_ehPhase != (s_nestedCleanups == 1 ? 5UL : 7UL) ||
             s_ehCatchEntries != 0 || s_ehContinuations != 0 || !NestedBridgeIntact(transfer, entry, post) ||
             !NestedTransferIntact(transfer) || !NestedControlsIntact(entry, post) || !NestedStampIntact(s_nestedCleanups) ||
-            !EhObjectIntact() || !ReadGcRoot().Succeeded || !CollectorReceiptValid(5) || !CheckEhStack()) return RejectEh(27);
+            !EhObjectIntact() || !ReadGcRoot().Succeeded || !CollectorReceiptValid(5) || !CheckEhStack())
+            return RejectEh(27);
         EhLine(s_nestedCleanups == 1 ? 7U : 9U, s_nestedFirst, s_nestedSecond, s_nestedLocal, GcReadWord(s_nestedLocal));
-        s_ehPhase = s_nestedCleanups == 1 ? 6UL : 8UL; return 1;
+        s_ehPhase = s_nestedCleanups == 1 ? 6UL : 8UL;
+        return 1;
     }
     [System.Runtime.RuntimeExport("CLROS_Nested_ValidateContinuation")]
     private static uint NestedValidateContinuation(ulong rip, X64UnwindContext* post, NestedTransfer* transfer, EhControl* entry)
@@ -248,8 +285,11 @@ internal static unsafe partial class RhpNewFastAllocation
             !EhObjectIntact() || !ReadGcRoot().Succeeded || !CollectorReceiptValid(5) || !CheckEhStack() ||
             rip != method + NestedContinuation || post->Rip != rip || post->Rbx != s_ehReceipt.ObjectReference ||
             !NestedContextIntact(post, true) || post->Rsp <= (ulong)transfer + 592 || post->Rsp > s_gcStack.InitialRsp ||
-            GcReadWord(s_ehCaller.Rbp - NestedResultOffset) != s_ehSeed + 1) return RejectEh(28);
-        EhLine(11, rip, post->Rsp, post->Rbp, s_ehCatchEntries); s_ehPhase = 10; return 1;
+            GcReadWord(s_ehCaller.Rbp - NestedResultOffset) != s_ehSeed + 1)
+            return RejectEh(28);
+        EhLine(11, rip, post->Rsp, post->Rbp, s_ehCatchEntries);
+        s_ehPhase = 10;
+        return 1;
     }
 
     private static bool NestedRowsMatch(NativeAotEhClauseResult* rows, ulong method) =>
@@ -283,7 +323,8 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         fixed (X64UnwindContext* saved = &s_ehCaller)
             for (int word = afterCatch ? 1 : 0; word < 30; word++)
-                if (!(afterCatch && word == 2) && ((ulong*)actual)[word] != ((ulong*)saved)[word]) return false;
+                if (!(afterCatch && word == 2) && ((ulong*)actual)[word] != ((ulong*)saved)[word])
+                    return false;
         return true;
     }
     private static bool NestedControlsIntact(EhControl* entry, EhControl* post) =>

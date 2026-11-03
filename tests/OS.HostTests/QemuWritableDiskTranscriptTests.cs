@@ -140,7 +140,7 @@ internal static unsafe partial class QemuWritableDiskTranscriptTests
         HostCheck.True(report.Io.Any(r => r.Available == 0) && report.After.Submitted == 65537);
         Reject(() => Q.InspectWritableBlockValues(new Oversize(), w.Before, w.After));
         Reject(() => Q.InspectWritableBlockValues([new(-1, "row")], w.Before, w.After));
-        Reject(() => Q.InspectWritableBlockValues([new(0, new string ('x', 2049))], w.Before, w.After));
+        Reject(() => Q.InspectWritableBlockValues([new(0, new string('x', 2049))], w.Before, w.After));
         Reject(() => Q.InspectWritableBlockValues([new(0, "M16_027_IO\n")], w.Before, w.After));
         Reject(() => Q.InspectWritableBlockValues(w.Selected, w.Before with { Submitted = ulong.MaxValue, Completed = ulong.MaxValue }, w.After));
         Reject(() => Q.InspectWritableBlockValues(w.Selected, w.Before with { SectorCount = ulong.MaxValue }, w.After));
@@ -271,7 +271,7 @@ internal static unsafe partial class QemuWritableDiskTranscriptTests
             {
                 int root = CallAt(e, ordinal), next = CallAt(e, ordinal + 1), begin = next + 1;
                 string blocked = e.All[root];
-                foreach ((string key, ulong value)in new (string, ulong)[]
+                foreach ((string key, ulong value) in new (string, ulong)[]
                 {
                     ("action", 3),
                     ("status", 9),
@@ -315,7 +315,7 @@ internal static unsafe partial class QemuWritableDiskTranscriptTests
 
             int regular = CallAt(e, 1);
             string immediate = e.All[regular];
-            foreach ((string key, ulong value)in new (string, ulong)[]
+            foreach ((string key, ulong value) in new (string, ulong)[]
             {
                 ("action", 1),
                 ("status", 1),

@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Net;
+
 public readonly struct TcpEstablishedStreamSocketBridgeResult
 {
     private TcpEstablishedStreamSocketBridgeResult(TcpEstablishedStreamSocketBridgeStatus status, TcpEstablishedStreamStatus receiveStatus, OSHostStatus socketStatus, OSHostSocketHandle socket, int payloadBytesAccepted, int payloadBytesQueued, int unreadBytes, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
@@ -17,17 +18,47 @@ public readonly struct TcpEstablishedStreamSocketBridgeResult
         RemoteNextSequenceNumber = remoteNextSequenceNumber;
     }
 
-    public TcpEstablishedStreamSocketBridgeStatus Status { get; }
-    public bool IsInitialized { get; }
+    public TcpEstablishedStreamSocketBridgeStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == TcpEstablishedStreamSocketBridgeStatus.Success;
-    public TcpEstablishedStreamStatus ReceiveStatus { get; }
-    public OSHostStatus SocketStatus { get; }
-    public OSHostSocketHandle Socket { get; }
-    public int PayloadBytesAccepted { get; }
-    public int PayloadBytesQueued { get; }
-    public int UnreadBytes { get; }
-    public uint LocalNextSequenceNumber { get; }
-    public uint RemoteNextSequenceNumber { get; }
+    public TcpEstablishedStreamStatus ReceiveStatus
+    {
+        get;
+    }
+    public OSHostStatus SocketStatus
+    {
+        get;
+    }
+    public OSHostSocketHandle Socket
+    {
+        get;
+    }
+    public int PayloadBytesAccepted
+    {
+        get;
+    }
+    public int PayloadBytesQueued
+    {
+        get;
+    }
+    public int UnreadBytes
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get;
+    }
 
     public static TcpEstablishedStreamSocketBridgeResult Create(TcpEstablishedStreamSocketBridgeStatus status, TcpEstablishedStreamStatus receiveStatus, OSHostStatus socketStatus, OSHostSocketHandle socket, int payloadBytesAccepted, int payloadBytesQueued, int unreadBytes, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
     {

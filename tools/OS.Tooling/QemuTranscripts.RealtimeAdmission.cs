@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect a borrowed canonical rejection tail beginning at
@@ -19,7 +20,7 @@ public static partial class QemuTranscripts
         const string prefix = "TEST_FAIL m03.007 preparation=96/";
         Need(rows[8].StartsWith(prefix, StringComparison.Ordinal), "realtime_rejection_checkpoint");
         string memory = rows[8][prefix.Length..];
-        Need(memory.Length is> 0 and <= 2 && memory.All(c => c is >= '0' and <= '9') && uint.TryParse(memory, out uint kind) && kind <= 15 && memory == kind.ToString(System.Globalization.CultureInfo.InvariantCulture), "realtime_rejection_memory_type");
+        Need(memory.Length is > 0 and <= 2 && memory.All(c => c is >= '0' and <= '9') && uint.TryParse(memory, out uint kind) && kind <= 15 && memory == kind.ToString(System.Globalization.CultureInfo.InvariantCulture), "realtime_rejection_memory_type");
         return new((int)r["case"], r["sourceStatus"], (uint)r["month"], uint.Parse(memory, System.Globalization.CultureInfo.InvariantCulture));
     }
 

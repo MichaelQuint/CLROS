@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class ManagedX64StubStrategyADRUseExistingAudited
 {
     public const int CurrentDemonstratedFamilyCount = 1;

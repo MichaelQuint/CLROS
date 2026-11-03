@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciBindingCatalogEntry
 {
     public VirtioPciBindingCatalogEntry(int sourceIndex, VirtioPciCandidate candidate, VirtioPciBindingPlanResult plan)
@@ -8,9 +9,18 @@ public readonly struct VirtioPciBindingCatalogEntry
         Plan = plan;
     }
 
-    public int SourceIndex { get; }
-    public VirtioPciCandidate Candidate { get; }
-    public VirtioPciBindingPlanResult Plan { get; }
+    public int SourceIndex
+    {
+        get;
+    }
+    public VirtioPciCandidate Candidate
+    {
+        get;
+    }
+    public VirtioPciBindingPlanResult Plan
+    {
+        get;
+    }
     public VirtioPciBindingMetadata Binding => Plan.Binding;
     public int SegmentIndex => Binding.SegmentIndex;
     public ushort SegmentGroup => Binding.SegmentGroup;

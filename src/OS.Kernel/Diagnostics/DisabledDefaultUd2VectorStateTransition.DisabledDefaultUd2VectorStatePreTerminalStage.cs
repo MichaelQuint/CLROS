@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum DisabledDefaultUd2VectorStatePreTerminalStage : byte
 {
     None = 0,

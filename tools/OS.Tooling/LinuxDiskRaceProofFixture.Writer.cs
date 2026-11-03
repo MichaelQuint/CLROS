@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class LinuxDiskRaceProofFixture
 {
     private sealed class Writer(byte[] bytes, int position)

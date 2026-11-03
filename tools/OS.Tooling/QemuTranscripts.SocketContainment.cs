@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Value-only control seam for the exact three-peer timeout/VLAN
@@ -10,7 +11,7 @@ public static partial class QemuTranscripts
     public static SocketContainmentTransport InspectSocketContainmentTransportForTests(string[] rows) => ReadSocketContainmentTransport(rows);
     internal static SocketContainmentTransport ReadSocketContainmentTransport(string[] rows)
     {
-        Need(rows is not null && rows.Length is> 0 and <= 65536, "socket_containment_transport_extent");
+        Need(rows is not null && rows.Length is > 0 and <= 65536, "socket_containment_transport_extent");
         List<ContainmentLifetime> all = [];
         Dictionary<ulong, ContainmentLifetime> active = [];
         ulong owner = 0, epoch = 0, clock = 0, timeout = 0, drop = 0, availableBefore = 0, availableAfter = 0, delivered = 0;
@@ -22,7 +23,7 @@ public static partial class QemuTranscripts
             Need(!row.StartsWith("M16_011_TIMEWAIT", StringComparison.Ordinal), "socket_containment_unexpected_timewait");
             if (!slot && !expired && !rejected)
                 continue;
-            var r = slot ? ReadRecord(row, "M16_011_SLOT", ["event:dec", ..SocketLifetimeFields]) : expired ? ReadRecord(row, "M07_027_TIMEOUT", [..SocketLifetimeFields[..10], "sharedFailed:dec"]) : ReadRecord(row, "M07_028_DROP", "before:dec", "after:dec", "availableBefore:dec", "availableAfter:dec", "delivered:dec", "clock:dec", "running:dec");
+            var r = slot ? ReadRecord(row, "M16_011_SLOT", ["event:dec", .. SocketLifetimeFields]) : expired ? ReadRecord(row, "M07_027_TIMEOUT", [.. SocketLifetimeFields[..10], "sharedFailed:dec"]) : ReadRecord(row, "M07_028_DROP", "before:dec", "after:dec", "availableBefore:dec", "availableAfter:dec", "delivered:dec", "clock:dec", "running:dec");
             Need(r["clock"] >= clock && r["clock"] <= long.MaxValue, "socket_containment_transport_clock");
             clock = r["clock"];
             if (rejected)

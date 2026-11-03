@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSocketGuest
 {
     /// <summary>Owned immutable derived text and observations. PendingWaits may
@@ -17,9 +18,21 @@ public static partial class NativeAotSocketGuest
             PendingWaits = pending;
         }
 
-        public NativeAotThreadingOutput.Capture Output { get; }
-        public IReadOnlyList<Readiness> Readiness { get; }
-        public IReadOnlyList<QemuTranscripts.LinuxCallWaitObservation> Waits { get; }
-        public int PendingWaits { get; }
+        public NativeAotThreadingOutput.Capture Output
+        {
+            get;
+        }
+        public IReadOnlyList<Readiness> Readiness
+        {
+            get;
+        }
+        public IReadOnlyList<QemuTranscripts.LinuxCallWaitObservation> Waits
+        {
+            get;
+        }
+        public int PendingWaits
+        {
+            get;
+        }
     }
 }

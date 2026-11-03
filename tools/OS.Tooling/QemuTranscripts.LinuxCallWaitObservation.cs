@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Immutable observations keyed to the original record position and

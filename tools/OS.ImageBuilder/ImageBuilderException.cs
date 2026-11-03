@@ -17,6 +17,12 @@ internal sealed class ImageBuilderException : Exception
         Reason = reason;
     }
 
-    public int ExitCode { get; }
-    public string Reason { get; }
+    public int ExitCode
+    {
+        get;
+    }
+    public string Reason
+    {
+        get;
+    }
 }

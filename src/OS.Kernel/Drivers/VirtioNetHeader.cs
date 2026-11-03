@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 using OS.Std.Binary;
 
@@ -26,12 +27,30 @@ public readonly struct VirtioNetHeader
         ChecksumOffset = checksumOffset;
     }
 
-    public byte Flags { get; }
-    public byte GsoType { get; }
-    public ushort HeaderLength { get; }
-    public ushort GsoSize { get; }
-    public ushort ChecksumStart { get; }
-    public ushort ChecksumOffset { get; }
+    public byte Flags
+    {
+        get;
+    }
+    public byte GsoType
+    {
+        get;
+    }
+    public ushort HeaderLength
+    {
+        get;
+    }
+    public ushort GsoSize
+    {
+        get;
+    }
+    public ushort ChecksumStart
+    {
+        get;
+    }
+    public ushort ChecksumOffset
+    {
+        get;
+    }
 
     public VirtioNetHeaderStatus ValidateNoOffload()
     {

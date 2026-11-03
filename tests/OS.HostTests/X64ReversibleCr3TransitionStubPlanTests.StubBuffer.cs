@@ -30,8 +30,14 @@ internal static unsafe partial class X64ReversibleCr3TransitionStubPlanTests
             Fill(0);
         }
 
-        internal byte* Pointer { get; private set; }
-        internal ulong Capacity { get; }
+        internal byte* Pointer
+        {
+            get; private set;
+        }
+        internal ulong Capacity
+        {
+            get;
+        }
 
         internal void Fill(byte value)
         {
@@ -81,14 +87,5 @@ internal static unsafe partial class X64ReversibleCr3TransitionStubPlanTests
     }
 }
 #if M01_013_TRANSITION_FOCUSED
-
-
-
-
-
-
-
-
-
 
 #endif

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioNetTransmitReadinessResult
 {
     private VirtioNetTransmitReadinessResult(bool isInitialized, VirtioNetTransmitReadinessStatus status, VirtioNetQueueMmioSetupPlanStatus queueSetupPlanStatus, VirtioNetQueueMmioSetupExecutionStatus queueSetupExecutionStatus, VirtioNetTransmitDescriptorPublishPlanStatus transmitPublishPlanStatus, VirtioNetTransmitLifecycleStatus transmitPublishStatus, VirtioNetQueueNotificationPlanStatus notificationPlanStatus, VirtioPciQueueNotificationPlanStatus pciNotificationStatus, VirtioNetQueueNotificationExecutionStatus notificationExecutionStatus, VirtioPciNotifyWriteStatus notificationSinkStatus, bool transmitPublishAttempted, bool notificationPlanAttempted, bool notificationExecutionAttempted, bool barrierSucceeded, uint barrierSequence, ushort headerDescriptorIndex, ushort frameDescriptorIndex, ushort descriptorsWritten, ushort descriptorsMarkedInFlight, ushort queueIndex, ushort publishedDescriptorCount, ushort previousAvailableRingIndex, ushort nextAvailableRingIndex, uint notifyRelativeOffset, ushort writeValue, VirtioNetTransmitDescriptorPublishPlanResult transmitPublish, VirtioNetQueueNotificationPlanResult notificationPlan, VirtioNetQueueNotificationExecutionResult notificationExecution)
@@ -33,34 +34,118 @@ public readonly struct VirtioNetTransmitReadinessResult
         NotificationExecution = notificationExecution;
     }
 
-    public VirtioNetTransmitReadinessStatus Status { get; }
-    public VirtioNetQueueMmioSetupPlanStatus QueueSetupPlanStatus { get; }
-    public VirtioNetQueueMmioSetupExecutionStatus QueueSetupExecutionStatus { get; }
-    public VirtioNetTransmitDescriptorPublishPlanStatus TransmitPublishPlanStatus { get; }
-    public VirtioNetTransmitLifecycleStatus TransmitPublishStatus { get; }
-    public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus { get; }
-    public VirtioPciQueueNotificationPlanStatus PciNotificationStatus { get; }
-    public VirtioNetQueueNotificationExecutionStatus NotificationExecutionStatus { get; }
-    public VirtioPciNotifyWriteStatus NotificationSinkStatus { get; }
-    public bool TransmitPublishAttempted { get; }
-    public bool NotificationPlanAttempted { get; }
-    public bool NotificationExecutionAttempted { get; }
-    public bool BarrierSucceeded { get; }
-    public uint BarrierSequence { get; }
-    public ushort HeaderDescriptorIndex { get; }
-    public ushort FrameDescriptorIndex { get; }
-    public ushort DescriptorsWritten { get; }
-    public ushort DescriptorsMarkedInFlight { get; }
-    public ushort QueueIndex { get; }
-    public ushort PublishedDescriptorCount { get; }
-    public ushort PreviousAvailableRingIndex { get; }
-    public ushort NextAvailableRingIndex { get; }
-    public uint NotifyRelativeOffset { get; }
-    public ushort WriteValue { get; }
-    public VirtioNetTransmitDescriptorPublishPlanResult TransmitPublish { get; }
-    public VirtioNetQueueNotificationPlanResult NotificationPlan { get; }
-    public VirtioNetQueueNotificationExecutionResult NotificationExecution { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetTransmitReadinessStatus Status
+    {
+        get;
+    }
+    public VirtioNetQueueMmioSetupPlanStatus QueueSetupPlanStatus
+    {
+        get;
+    }
+    public VirtioNetQueueMmioSetupExecutionStatus QueueSetupExecutionStatus
+    {
+        get;
+    }
+    public VirtioNetTransmitDescriptorPublishPlanStatus TransmitPublishPlanStatus
+    {
+        get;
+    }
+    public VirtioNetTransmitLifecycleStatus TransmitPublishStatus
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus
+    {
+        get;
+    }
+    public VirtioPciQueueNotificationPlanStatus PciNotificationStatus
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationExecutionStatus NotificationExecutionStatus
+    {
+        get;
+    }
+    public VirtioPciNotifyWriteStatus NotificationSinkStatus
+    {
+        get;
+    }
+    public bool TransmitPublishAttempted
+    {
+        get;
+    }
+    public bool NotificationPlanAttempted
+    {
+        get;
+    }
+    public bool NotificationExecutionAttempted
+    {
+        get;
+    }
+    public bool BarrierSucceeded
+    {
+        get;
+    }
+    public uint BarrierSequence
+    {
+        get;
+    }
+    public ushort HeaderDescriptorIndex
+    {
+        get;
+    }
+    public ushort FrameDescriptorIndex
+    {
+        get;
+    }
+    public ushort DescriptorsWritten
+    {
+        get;
+    }
+    public ushort DescriptorsMarkedInFlight
+    {
+        get;
+    }
+    public ushort QueueIndex
+    {
+        get;
+    }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
+    public uint NotifyRelativeOffset
+    {
+        get;
+    }
+    public ushort WriteValue
+    {
+        get;
+    }
+    public VirtioNetTransmitDescriptorPublishPlanResult TransmitPublish
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationPlanResult NotificationPlan
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationExecutionResult NotificationExecution
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetTransmitReadinessStatus.Success;
 
     internal static VirtioNetTransmitReadinessResult Create(VirtioNetTransmitReadinessStatus status, VirtioNetQueueMmioSetupPlanResult queueSetup, VirtioNetQueueMmioSetupExecutionResult queueSetupExecution, VirtioNetTransmitDescriptorPublishPlanResult transmitPublish, VirtioNetQueueNotificationPlanResult notificationPlan, VirtioNetQueueNotificationExecutionResult notificationExecution, VirtioNetQueueNotificationBarrierReadiness barrier, bool transmitPublishAttempted, bool notificationPlanAttempted, bool notificationExecutionAttempted)

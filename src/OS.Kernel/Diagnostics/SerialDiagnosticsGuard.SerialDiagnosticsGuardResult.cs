@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct SerialDiagnosticsGuardResult
 {
     private SerialDiagnosticsGuardResult(bool succeeded, SerialDiagnosticsGuardStatus status, string operation, string reason)
@@ -9,10 +10,22 @@ public readonly struct SerialDiagnosticsGuardResult
         Reason = reason;
     }
 
-    public bool Succeeded { get; }
-    public SerialDiagnosticsGuardStatus Status { get; }
-    public string Operation { get; }
-    public string Reason { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public SerialDiagnosticsGuardStatus Status
+    {
+        get;
+    }
+    public string Operation
+    {
+        get;
+    }
+    public string Reason
+    {
+        get;
+    }
     public bool PostFirmwareDiagnosticsAvailable => Succeeded && Status == SerialDiagnosticsGuardStatus.OwnedSerialReady;
 
     public static SerialDiagnosticsGuardResult Allowed(string operation, SerialDiagnosticsGuardStatus status)

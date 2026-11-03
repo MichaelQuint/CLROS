@@ -1,6 +1,7 @@
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Value-only complete scheduler/syscall replay for the explicit

@@ -73,7 +73,8 @@ internal static unsafe partial class UnexpectedVectorPanicEvidenceDeterministicQ
                             0xd0 => _ss,
                             0xd8 => _ds,
                             0xc0 => _es,
-                            _ => throw new InvalidOperationException("selector")});
+                            _ => throw new InvalidOperationException("selector")
+                        });
                         break;
                     case "load-selector":
                         Require(_r[0] == 16 && DescriptorsLoaded, "owned data selector");
@@ -119,7 +120,8 @@ internal static unsafe partial class UnexpectedVectorPanicEvidenceDeterministicQ
                             0xe0 => _cr4,
                             0xd8 => _cr3,
                             0xd0 => 0xfedcba9876543210,
-                            _ => throw new InvalidOperationException("control")};
+                            _ => throw new InvalidOperationException("control")
+                        };
                         break;
                     case "store64":
                         Q(Memory(_r[2] + i.Value, 8), 0, _r[i.Register]);

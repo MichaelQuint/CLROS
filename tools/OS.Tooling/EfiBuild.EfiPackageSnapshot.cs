@@ -9,6 +9,7 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 public static partial class EfiBuild
 {
     public sealed record EfiPackageSnapshot(JsonArray Packages, string AggregateSha256, EfiSnapshot Runtime);

@@ -10,7 +10,9 @@ namespace System
     // CS0234 from the real throw/catch profile requires this compiler identity.
     // Only the scalar fixture hierarchy is supported: no messages, stack trace,
     // nested exception, constructor failure or general exception services.
-    public class Exception { }
+    public class Exception
+    {
+    }
 #endif
 #pragma warning disable CS0649
 #pragma warning restore CS0649
@@ -71,21 +73,17 @@ namespace System.Runtime
 {
 #if M04_RHP_NEW_FAST_PROBE
 
-
 #else
 #endif
 #if M04_SZ_ARRAY_ALLOCATION_PROBE
 
-
 #else
 #endif
 #if M04_SZ_ARRAY_ALLOCATION_PROBE
-
 
 #else
 #endif
 #if M04_STRING_ALLOCATION_PROBE
-
 
 #else
 #endif
@@ -102,11 +100,6 @@ namespace System.Runtime.CompilerServices
 #if M04_STRING_ALLOCATION_PROBE
 namespace System.Runtime
 {
-
-
-
-
-
 
 }
 #endif

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct Com1OwnedPortIoBackend
 {
     public const ushort BasePort = InvokeIn8Out8CheckedUnmanagedFunctionPointers.RequiredCom1BasePort;

@@ -2,6 +2,7 @@ using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously inspect bounded borrowed framed service bytes and
@@ -22,7 +23,7 @@ public static partial class QemuTranscripts
         Need(gc.HasValue == lifecycle && !framed.Stdout.Contains(marker, StringComparison.Ordinal) && !framed.Stderr.Contains(marker, StringComparison.Ordinal), "service_memory_channel");
         Need(framed.NormalizedTail.EndsWith("\r\n", StringComparison.Ordinal), "service_memory_records");
         string[] rows = framed.NormalizedTail[..^2].Split("\r\n", StringSplitOptions.None);
-        Need(rows.Length is> 0 and <= 1_000_000 && rows.All(r => r.Length is> 0 and <= 4096 && r.All(c => c is >= ' ' and <= '~')), "service_memory_records");
+        Need(rows.Length is > 0 and <= 1_000_000 && rows.All(r => r.Length is > 0 and <= 4096 && r.All(c => c is >= ' ' and <= '~')), "service_memory_records");
         var calls = ValidateLinuxServiceCallOrdinals(rows);
         var returned = ReadLinuxServiceCallReturns(rows).Select(r => r.RecordIndex).ToHashSet();
         var found = new HashSet<int>();

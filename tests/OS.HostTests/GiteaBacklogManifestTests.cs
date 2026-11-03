@@ -53,7 +53,7 @@ internal static partial class GiteaBacklogManifestTests
             }
             catch
             {
-            // Cleanup failure must not hide contract results.
+                // Cleanup failure must not hide contract results.
             }
         }
 
@@ -142,7 +142,7 @@ internal static partial class GiteaBacklogManifestTests
             }
         }
 
-        foreach ((string milestone, int childCount)in ExpectedChildren)
+        foreach ((string milestone, int childCount) in ExpectedChildren)
         {
             if (!keys.Contains(milestone + "-EPIC"))
             {
@@ -916,7 +916,7 @@ internal static partial class GiteaBacklogManifestTests
 
     private static bool ValidateQemuMarkerContract(JsonElement issue, string[] guestSuccessMarkers, string guestFailureMarker)
     {
-        string[] expectedRequiredMarkers = ["TEST_START qemu.smoke", ..guestSuccessMarkers, "TEST_PASS qemu.smoke", guestFailureMarker, "TEST_FAIL qemu.smoke <reason>"];
+        string[] expectedRequiredMarkers = ["TEST_START qemu.smoke", .. guestSuccessMarkers, "TEST_PASS qemu.smoke", guestFailureMarker, "TEST_FAIL qemu.smoke <reason>"];
         if (!JsonStringArrayEquals(issue.GetProperty("requiredMarkers"), expectedRequiredMarkers))
         {
             return HostCheck.Result(false);
@@ -976,7 +976,7 @@ internal static partial class GiteaBacklogManifestTests
             return HostCheck.Result(false);
         }
 
-        string? [] invalidStates = [null, "null", "0", "true", "[]", "[\"open\"]", "[\"closed\",\"reopen\"]", "{}", "\"\"", "\"Closed\"", "\"OPEN\"", "\" closed\"", "\"closed \"", "\"done\"", "\"cl\\u0000osed\"", "\"o\\u00ADpen\"", "\"re\\u200Bopen\""];
+        string?[] invalidStates = [null, "null", "0", "true", "[]", "[\"open\"]", "[\"closed\",\"reopen\"]", "{}", "\"\"", "\"Closed\"", "\"OPEN\"", "\" closed\"", "\"closed \"", "\"done\"", "\"cl\\u0000osed\"", "\"o\\u00ADpen\"", "\"re\\u200Bopen\""];
         for (int index = 0; index < invalidStates.Length; index++)
         {
             string? value = invalidStates[index];

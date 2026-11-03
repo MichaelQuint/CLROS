@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct EfiConfigurationTableEntry
 {
     public EfiConfigurationTableEntry(EfiConfigurationTableGuid vendorGuid, ulong vendorTable)
@@ -7,8 +8,14 @@ public readonly struct EfiConfigurationTableEntry
         VendorTable = vendorTable;
     }
 
-    public EfiConfigurationTableGuid VendorGuid { get; }
-    public ulong VendorTable { get; }
+    public EfiConfigurationTableGuid VendorGuid
+    {
+        get;
+    }
+    public ulong VendorTable
+    {
+        get;
+    }
 }
 #if !NOSTDLIB_EFI
 #endif

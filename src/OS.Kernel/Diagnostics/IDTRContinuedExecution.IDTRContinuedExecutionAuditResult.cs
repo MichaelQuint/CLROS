@@ -30,22 +30,64 @@ public readonly struct IDTRContinuedExecutionAuditResult
 
     public bool IsInitialized => _isInitialized == 1;
     public IDTRContinuedExecutionOperation Operation => IsInitialized ? IDTRContinuedExecutionOperation.AuditExecution : IDTRContinuedExecutionOperation.None;
-    public IDTRContinuedExecutionStatus Status { get; }
-    public ulong ModeledContextAddress { get; }
-    public ulong OwnedIdtAddress { get; }
-    public ulong ContextCapacity { get; }
+    public IDTRContinuedExecutionStatus Status
+    {
+        get;
+    }
+    public ulong ModeledContextAddress
+    {
+        get;
+    }
+    public ulong OwnedIdtAddress
+    {
+        get;
+    }
+    public ulong ContextCapacity
+    {
+        get;
+    }
     public ulong ExpectedCookie => IDTRContinuedExecution.ExecutionCookie;
-    public ulong ObservedCookie { get; }
-    public int ContextBytesCompared { get; }
+    public ulong ObservedCookie
+    {
+        get;
+    }
+    public int ContextBytesCompared
+    {
+        get;
+    }
     public int FirstMismatchOffset => IsInitialized ? _firstMismatchOffset : -1;
-    public ushort PreviousLimit { get; }
-    public ulong PreviousBase { get; }
-    public ushort LoadedLimit { get; }
-    public ulong LoadedBase { get; }
-    public ushort RestoredLimit { get; }
-    public ulong RestoredBase { get; }
-    public ulong RflagsBefore { get; }
-    public ulong RflagsAfter { get; }
+    public ushort PreviousLimit
+    {
+        get;
+    }
+    public ulong PreviousBase
+    {
+        get;
+    }
+    public ushort LoadedLimit
+    {
+        get;
+    }
+    public ulong LoadedBase
+    {
+        get;
+    }
+    public ushort RestoredLimit
+    {
+        get;
+    }
+    public ulong RestoredBase
+    {
+        get;
+    }
+    public ulong RflagsBefore
+    {
+        get;
+    }
+    public ulong RflagsAfter
+    {
+        get;
+    }
     public bool TransitionObserved => IsInitialized && !SameIdtr(PreviousLimit, PreviousBase, IDTRContinuedExecution.IdtrLimit, OwnedIdtAddress);
     public bool OwnedIdtrLoaded => IsInitialized && LoadedLimit == IDTRContinuedExecution.IdtrLimit && LoadedBase == OwnedIdtAddress;
     public bool FirmwareIdtrRestored => IsInitialized && RestoredLimit == PreviousLimit && RestoredBase == PreviousBase;

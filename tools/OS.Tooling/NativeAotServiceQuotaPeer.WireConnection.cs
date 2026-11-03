@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServiceQuotaPeer
 {
     /// <summary>Actual connected host endpoints, observed after connect. IDs are

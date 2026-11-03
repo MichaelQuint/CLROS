@@ -9,8 +9,14 @@ public sealed partial class NativeAotLogUploadProgram
 {
     public const int MaximumDisassemblyBytes = 20 * 1024 * 1024;
     private readonly NativeAotInstructionIndex index;
-    internal string SourceRoot { get; }
-    public string Phase { get; }
+    internal string SourceRoot
+    {
+        get;
+    }
+    public string Phase
+    {
+        get;
+    }
     public Inspection Metadata => Report(index);
 
     private NativeAotLogUploadProgram(string root, string phase, NativeAotInstructionIndex index)

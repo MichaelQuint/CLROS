@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Logical extent includes holes; ContiguousBytes/KnownPrefixBase64

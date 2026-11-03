@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Replay supplied lifetime/generation/tuple/deadline/high-water

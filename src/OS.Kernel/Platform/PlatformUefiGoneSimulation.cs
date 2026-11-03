@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public static class PlatformUefiGoneSimulation
 {
     public const string StartMarker = "UEFI_GONE_SIM_START";

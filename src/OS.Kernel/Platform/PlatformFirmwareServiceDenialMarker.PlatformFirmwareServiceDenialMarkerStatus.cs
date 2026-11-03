@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Kernel.Platform;
+
 public enum PlatformFirmwareServiceDenialMarkerStatus
 {
     Success = 0,

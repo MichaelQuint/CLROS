@@ -2,6 +2,7 @@ using OS.Kernel.Runtime;
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public static class NativeAppEntryStagingPreflight
 {
     public const bool RequiresPackageStagingReadiness = true;

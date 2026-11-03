@@ -3,6 +3,7 @@ using Layout = OS.Kernel.Runtime.ObjectArrayStringEETypeMethodTableLayoutContrac
 using Unwind = OS.Kernel.Runtime.X64PERuntimeFunctionUnwindMetadataHostileInput;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAotEhClauseResult
 {
     internal NativeAotEhClauseResult(NativeAotEhClauseStatus status)
@@ -25,17 +26,47 @@ public readonly struct NativeAotEhClauseResult
         IsTryGroupBoundary = boundary;
     }
 
-    public NativeAotEhClauseStatus Status { get; }
+    public NativeAotEhClauseStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == NativeAotEhClauseStatus.Success;
-    public uint Index { get; }
-    public uint Count { get; }
-    public uint TryStartOffset { get; }
-    public uint TryEndOffset { get; }
-    public NativeAotEhClauseKind Kind { get; }
-    public ulong HandlerAddress { get; }
-    public ulong FilterAddress { get; }
-    public ulong TypeAddress { get; }
-    public bool IsTryGroupBoundary { get; }
+    public uint Index
+    {
+        get;
+    }
+    public uint Count
+    {
+        get;
+    }
+    public uint TryStartOffset
+    {
+        get;
+    }
+    public uint TryEndOffset
+    {
+        get;
+    }
+    public NativeAotEhClauseKind Kind
+    {
+        get;
+    }
+    public ulong HandlerAddress
+    {
+        get;
+    }
+    public ulong FilterAddress
+    {
+        get;
+    }
+    public ulong TypeAddress
+    {
+        get;
+    }
+    public bool IsTryGroupBoundary
+    {
+        get;
+    }
 
     public bool ContainsOffset(uint offset) => Succeeded && offset >= TryStartOffset && offset < TryEndOffset;
 }

@@ -1,6 +1,7 @@
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private static void ValidateLinuxSignalWaitBody(string[] rows, string variant)
@@ -31,7 +32,12 @@ public static partial class QemuTranscripts
         if (stolen)
             post.Add(new(1, 1, 4, 0x407000, 1));
         if (restart)
-            post.Add(blocked with { Value = futex ? -11 : 1, Action = 1, Status = 1 });
+            post.Add(blocked with
+            {
+                Value = futex ? -11 : 1,
+                Action = 1,
+                Status = 1
+            });
         else if (!futex && !partial)
             post.Add(new(0, 1, 3, 0x409000, 1));
         if (partial)

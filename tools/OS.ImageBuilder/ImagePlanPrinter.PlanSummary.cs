@@ -26,14 +26,41 @@ internal static partial class ImagePlanPrinter
             WritesSuppressed = writesSuppressed;
         }
 
-        public string Mode { get; }
-        public string Format { get; }
-        public string WorkloadProfile { get; }
-        public string OutputPath { get; }
-        public int ImageSizeMiB { get; }
-        public long ImageBytes { get; }
-        public int SectorSize { get; }
-        public long TotalSectors { get; }
-        public bool WritesSuppressed { get; }
+        public string Mode
+        {
+            get;
+        }
+        public string Format
+        {
+            get;
+        }
+        public string WorkloadProfile
+        {
+            get;
+        }
+        public string OutputPath
+        {
+            get;
+        }
+        public int ImageSizeMiB
+        {
+            get;
+        }
+        public long ImageBytes
+        {
+            get;
+        }
+        public int SectorSize
+        {
+            get;
+        }
+        public long TotalSectors
+        {
+            get;
+        }
+        public bool WritesSuppressed
+        {
+            get;
+        }
     }
 }

@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpTimeWaitTable
 {
     /// <summary>Noncopyable owner of1..64 disjoint zeroed entries. Issued handle

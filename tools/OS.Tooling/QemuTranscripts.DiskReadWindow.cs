@@ -4,6 +4,7 @@ using OS.Kernel.Compatibility.LinuxX64;
 using Block = OS.Storage.ContinuingReadOnlyBlockService;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied association between one positive file read and its exact

@@ -158,8 +158,8 @@ internal static unsafe partial class OwnedAllocatorDescriptorTablesACPISnapshotP
             SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
             Need(FirstExitRetainedMappings.WriteRanges(ref Arena, code, Memory.Capture, Memory.Mapping, references, Memory.Allocator, Memory.Tables, ranges, FirstExitRetainedMappings.MaximumRanges, out ulong count), "retained declarations");
             Need(SeparateDisabledDefaultPageFaultPageTables.BuildRetainedImage(Memory.Tables, ranges, count, FirstExitRetainedMappings.MaximumRanges, Memory.Pages, 55, entries, 55 * 512).Succeeded, "actual retained table backing");
-            Need(FirstExitOwnedStackStub.Prepare(ref *Arena.StackEntry, 0x100000, 0x668, Arena.StackBottom, Arena.StackTop, FirstExitOwnedArena.LowerCanary, FirstExitOwnedArena.UpperCanary, 196608, (delegate* unmanaged<FirstExitOwnedStackContext*, void> )references.EntryCallback, (void*)references.AdapterState, references.AdapterStateBytes), "entry context");
-            Need(FirstExitPermanentCr3Stub.Prepare(ref *Arena.Permanent, 0x100000, (ulong)entries, 0x668, Arena.StackBottom, Arena.StackTop, 4096, FirstExitOwnedArena.LowerCanary, FirstExitOwnedArena.UpperCanary, (delegate* unmanaged<FirstExitTransitionState*, FirstExitPermanentCr3Context*, void> )references.DiagnosticCallback, (void*)references.AdapterState, Arena.Descriptors), "continuation context");
+            Need(FirstExitOwnedStackStub.Prepare(ref *Arena.StackEntry, 0x100000, 0x668, Arena.StackBottom, Arena.StackTop, FirstExitOwnedArena.LowerCanary, FirstExitOwnedArena.UpperCanary, 196608, (delegate* unmanaged<FirstExitOwnedStackContext*, void>)references.EntryCallback, (void*)references.AdapterState, references.AdapterStateBytes), "entry context");
+            Need(FirstExitPermanentCr3Stub.Prepare(ref *Arena.Permanent, 0x100000, (ulong)entries, 0x668, Arena.StackBottom, Arena.StackTop, 4096, FirstExitOwnedArena.LowerCanary, FirstExitOwnedArena.UpperCanary, (delegate* unmanaged<FirstExitTransitionState*, FirstExitPermanentCr3Context*, void>)references.DiagnosticCallback, (void*)references.AdapterState, Arena.Descriptors), "continuation context");
             BoundedExitRetryState retry = default;
             var attempt = BoundedRetryStaleKeyStatus.Execute(ref retry, FirmwareServicesMode.BootServicesAvailable, &GetMap, &Exit, (void*)123, Arena.Map, FirstExitOwnedArena.MapBytes);
             Need(attempt.Succeeded, "controlled exit result");
@@ -188,8 +188,8 @@ internal static unsafe partial class OwnedAllocatorDescriptorTablesACPISnapshotP
             descriptor->ObservedCs = 8;
             descriptor->ObservedDs = descriptor->ObservedEs = descriptor->ObservedSs = 16;
             descriptor->Prepared = 2;
-            nuint output = (nuint)(delegate* unmanaged<ushort, byte, void> )&Out8;
-            nuint input = (nuint)(delegate* unmanaged<ushort, byte> )&In8;
+            nuint output = (nuint)(delegate* unmanaged<ushort, byte, void>)&Out8;
+            nuint input = (nuint)(delegate* unmanaged<ushort, byte>)&In8;
             nuint first = Math.Min(output, input), end = Math.Max(output + 7, input + 5);
             Arena.Fault->Backend = new Com1OwnedPortIoBackend(InvokeIn8Out8CheckedUnmanagedFunctionPointers.Bind(CheckedPortIoFunctionPointerBindingRequest.Create(true, 0x3f8, first, end, 12, output - first, input - first, output, input, 7, 5, 7, 5)));
         }

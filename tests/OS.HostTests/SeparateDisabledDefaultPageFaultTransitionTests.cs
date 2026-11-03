@@ -115,7 +115,7 @@ internal static unsafe partial class SeparateDisabledDefaultPageFaultTransitionT
         Require(noPge.Output.ToString() == noPgeExpected && !noPge.Events.Contains("cr4"), "PGE-clear path writes no CR4");
         f.Request = originalRequest;
         f.Prepare();
-        foreach ((ulong code, ulong data, ulong tables, byte width)in new[]
+        foreach ((ulong code, ulong data, ulong tables, byte width) in new[]
         {
             (0x100000UL, 0x200000UL, 0x300000UL, (byte)36),
             (0x00007fffffffc000UL, 0x00007ffffff00000UL, 0x00007fffffe00000UL, (byte)48)
@@ -354,7 +354,7 @@ internal static unsafe partial class SeparateDisabledDefaultPageFaultTransitionT
         };
         partialSerial.Run();
         Require(partialSerial.Output.Length == 10 && partialSerial.Polls == 10 + 65536, "each later byte also has a finite failure bound");
-        foreach ((int offset, ulong value)in new[]
+        foreach ((int offset, ulong value) in new[]
         {
             (0, 1UL),
             (0, 1UL << 63),

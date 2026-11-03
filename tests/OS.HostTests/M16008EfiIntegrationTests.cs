@@ -67,7 +67,8 @@ internal static unsafe partial class M16008EfiIntegrationTests
                 profile.Flags.Where(p => p.Value).All(p => vectors.IsEnabled(p.Key)));
             Reject(() => EfiOptions.Parse(["--" + flag, "--EnableM16013Probe", "--EnableM16012Probe:false"], build).Profile(),
                 "m16_013_explicit_false_prerequisite");
-            foreach (string parent in parents) Reject(() => EfiOptions.Parse(["--" + flag, "--" + parent + ":false"], build).Profile());
+            foreach (string parent in parents)
+                Reject(() => EfiOptions.Parse(["--" + flag, "--" + parent + ":false"], build).Profile());
             foreach (string conflict in EfiContracts.DiagnosticProbes.Where(n => n != flag &&
                 n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
                 Reject(() => EfiOptions.Parse(["--" + flag, "--" + conflict], build).Profile());
@@ -245,7 +246,7 @@ internal static unsafe partial class M16008EfiIntegrationTests
         }
 
         bool ControlSize(IOperation? value) => value is IConversionOperation
-            { Type.SpecialType: SpecialType.System_UInt32, Operand: ISizeOfOperation size }
+        { Type.SpecialType: SpecialType.System_UInt32, Operand: ISizeOfOperation size }
             && SymbolEqualityComparer.Default.Equals(size.TypeOperand, source.Type(owner + "+LinuxNativeControl"));
         IFieldSymbol Field(string type, string name) => source.Type(type).GetMembers(name).OfType<IFieldSymbol>().Single();
         ulong Number(string type, string name)
@@ -305,25 +306,26 @@ internal static unsafe partial class M16008EfiIntegrationTests
     {
         var methods = OwnerMethods(Select("EnableM16008Probe"));
         var bind = methods.Single(m => m.Identifier.Text == "LinuxNativeBind");
-        CallsBefore(bind,"c->Process.Initialize","LinuxNativeBindSignals");
+        CallsBefore(bind, "c->Process.Initialize", "LinuxNativeBindSignals");
         var release = methods.Single(m => m.Identifier.Text == "LinuxNativeRelease");
-        CallsBefore(release,"c->Process.Release","LinuxNativeReleaseSignals");
-        CallsBefore(methods.Single(m => m.Identifier.Text == "LinuxNativeReleaseSignals"),"LinuxSignalServices.End",null);
+        CallsBefore(release, "c->Process.Release", "LinuxNativeReleaseSignals");
+        CallsBefore(methods.Single(m => m.Identifier.Text == "LinuxNativeReleaseSignals"), "LinuxSignalServices.End", null);
         foreach (var pair in new[] { ("DispatchLinuxNativeCore","X64LinuxUserTransition.RestoreActiveUserImage"),
             ("LinuxNativeWorkerPrepare","X64LinuxUserTransition.InstallUserImage") })
-            CallsBefore(methods.Single(m => m.Identifier.Text == pair.Item1),"LinuxNativeUserReturn",pair.Item2);
+            CallsBefore(methods.Single(m => m.Identifier.Text == pair.Item1), "LinuxNativeUserReturn", pair.Item2);
         var core = methods.Single(m => m.Identifier.Text == "DispatchLinuxNativeCore");
         var captured = core.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Identifier.Text == "call");
         HostCheck.True(captured.SpanStart < core.DescendantNodes().OfType<InvocationExpressionSyntax>()
             .Single(c => c.Expression.ToString() == "LinuxSyscallGateway.Dispatch").SpanStart);
         var overwritten = core.DescendantNodes().OfType<AssignmentExpressionSyntax>().Single(a => a.Left.ToString() == "call");
-        HostCheck.Equal("call.Number != 15",overwritten.Ancestors().OfType<IfStatementSyntax>().First().Condition.ToString());
+        HostCheck.Equal("call.Number != 15", overwritten.Ancestors().OfType<IfStatementSyntax>().First().Condition.ToString());
 
-        static void CallsBefore(MethodDeclarationSyntax method,string first,string? second)
+        static void CallsBefore(MethodDeclarationSyntax method, string first, string? second)
         {
             var calls = method.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
             var a = calls.Single(c => c.Expression.ToString() == first);
-            if (second != null) HostCheck.True(a.SpanStart < calls.Single(c => c.Expression.ToString() == second).SpanStart);
+            if (second != null)
+                HostCheck.True(a.SpanStart < calls.Single(c => c.Expression.ToString() == second).SpanStart);
         }
     }
 
@@ -332,24 +334,24 @@ internal static unsafe partial class M16008EfiIntegrationTests
     {
         const string owner = "OS.Boot.EfiEntry+M03FirstExitAdapter";
         var core = Select("EnableM16008Probe").Method(owner, "DispatchLinuxNativeCore");
-        var calls=core.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
-        var observation=calls.Single(c=>c.Expression.ToString()=="c->Process.Inspect" &&
-            c.ArgumentList.Arguments.Last().ToString()=="out var waitView");
-        HostCheck.Equal("c->Key, 2, c->Threads.Current, out var waitView",observation.ArgumentList.Arguments.ToString());
-        HostCheck.True(calls.Single(c=>c.Expression.ToString()=="LinuxSyscallGateway.Dispatch").SpanStart<observation.SpanStart &&
-            calls.Single(c=>c.Expression.ToString()=="LinuxNativeUserReturn").SpanStart<observation.SpanStart);
-        var dispatched=calls.Single(c=>c.Expression.ToString()=="c->Process.Inspect" &&
-            c.ArgumentList.Arguments.Last().ToString()=="out var dispatchedView");
-        HostCheck.True(dispatched.SpanStart<calls.Single(c=>c.Expression.ToString()=="LinuxNativeUserReturn").SpanStart);
-        var returned=core.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v=>v.Identifier.Text=="returned");
-        HostCheck.Equal("*frame",returned.Initializer!.Value.ToString());
-        HostCheck.True(returned.SpanStart>calls.Single(c=>c.Expression.ToString()=="LinuxSyscallGateway.Dispatch").SpanStart && returned.SpanStart<dispatched.SpanStart);
+        var calls = core.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
+        var observation = calls.Single(c => c.Expression.ToString() == "c->Process.Inspect" &&
+            c.ArgumentList.Arguments.Last().ToString() == "out var waitView");
+        HostCheck.Equal("c->Key, 2, c->Threads.Current, out var waitView", observation.ArgumentList.Arguments.ToString());
+        HostCheck.True(calls.Single(c => c.Expression.ToString() == "LinuxSyscallGateway.Dispatch").SpanStart < observation.SpanStart &&
+            calls.Single(c => c.Expression.ToString() == "LinuxNativeUserReturn").SpanStart < observation.SpanStart);
+        var dispatched = calls.Single(c => c.Expression.ToString() == "c->Process.Inspect" &&
+            c.ArgumentList.Arguments.Last().ToString() == "out var dispatchedView");
+        HostCheck.True(dispatched.SpanStart < calls.Single(c => c.Expression.ToString() == "LinuxNativeUserReturn").SpanStart);
+        var returned = core.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Identifier.Text == "returned");
+        HostCheck.Equal("*frame", returned.Initializer!.Value.ToString());
+        HostCheck.True(returned.SpanStart > calls.Single(c => c.Expression.ToString() == "LinuxSyscallGateway.Dispatch").SpanStart && returned.SpanStart < dispatched.SpanStart);
         HostCheck.True(observation.Parent is PrefixUnaryExpressionSyntax unary && unary.Parent is IfStatementSyntax guard &&
-            guard.Statement.DescendantNodes().OfType<InvocationExpressionSyntax>().Any(c=>c.Expression.ToString()=="LinuxNativeAbort") &&
+            guard.Statement.DescendantNodes().OfType<InvocationExpressionSyntax>().Any(c => c.Expression.ToString() == "LinuxNativeAbort") &&
             guard.Statement.DescendantNodes().OfType<ReturnStatementSyntax>().Any());
-        var logged=core.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v=>v.Identifier.Text=="logged");
-        string[] observed=logged.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c=>c.Expression.ToString()=="LinuxNumber")
-            .Select(c=>c.ArgumentList.Arguments[1].ToString()).TakeLast(13).ToArray();
+        var logged = core.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Identifier.Text == "logged");
+        string[] observed = logged.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c => c.Expression.ToString() == "LinuxNumber")
+            .Select(c => c.ArgumentList.Arguments[1].ToString()).TakeLast(13).ToArray();
         HostCheck.True(observed.SequenceEqual(new[]{"LinuxNativeCallOrdinal(c, index)","waitView.WaitSource","waitView.WaitDeadline",
             "waitView.Wait.IsValid ? waitView.Wait.Sequence : 0","dispatchedView.SignalDepth","dispatchedView.SignalFrame","dispatchedView.BlockedSignals",
             "returned.Rip","returned.Rsp","returned.Rflags","returned.FsBase","returned.GsBase","unchecked((ulong)result.Value)"}));
@@ -357,15 +359,15 @@ internal static unsafe partial class M16008EfiIntegrationTests
         {
             var source = Select(service ? "EnableM16014Probe" : "EnableM16011Probe");
             var ordinal = source.Method(owner, "LinuxNativeCallOrdinal");
-            HostCheck.Equal(1,ordinal.Body!.Statements.Count);
-            HostCheck.Equal(service?"c->Gates[index].TotalCalls":"c->Gates[index].Calls",
+            HostCheck.Equal(1, ordinal.Body!.Statements.Count);
+            HostCheck.Equal(service ? "c->Gates[index].TotalCalls" : "c->Gates[index].Calls",
                 ((ReturnStatementSyntax)ordinal.Body.Statements.Single()).Expression!.ToString());
             var message = source.Method(owner, "ObserveLinuxSocketMessage");
-            var messageOrdinal=message.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v=>v.Identifier.Text=="ordinal");
-            HostCheck.Equal("LinuxNativeCallOrdinal(c, c->Selected - 1)",messageOrdinal.Initializer!.Value.ToString());
+            var messageOrdinal = message.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Identifier.Text == "ordinal");
+            HostCheck.Equal("LinuxNativeCallOrdinal(c, c->Selected - 1)", messageOrdinal.Initializer!.Value.ToString());
         }
-        var names=logged.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c=>c.Expression.ToString()=="LinuxText")
-            .Select(c=>(c.ArgumentList.Arguments[1].Expression as LiteralExpressionSyntax)?.Token.ValueText).TakeLast(14).ToArray();
+        var names = logged.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c => c.Expression.ToString() == "LinuxText")
+            .Select(c => (c.ArgumentList.Arguments[1].Expression as LiteralExpressionSyntax)?.Token.ValueText).TakeLast(14).ToArray();
         HostCheck.True(names.SequenceEqual(new[]{" ordinal="," waitSource="," waitDeadline="," waitSequence="," signalDepth="," signalFrame="," blockedSignals=",
             " returnRip="," returnRsp="," returnFlags="," returnFs="," returnGs="," returnValueBits=","\r\n"}));
     }
@@ -379,16 +381,16 @@ internal static unsafe partial class M16008EfiIntegrationTests
         var assignment = source.Method(owner, "LinuxNativePrepare").DescendantNodes()
             .OfType<AssignmentExpressionSyntax>().Single(a => a.Left.ToString() == "ReturnPolicy");
         HostCheck.True(assignment.Right is PrefixUnaryExpressionSyntax address && address.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.AddressOfExpression) &&
-            address.Operand.ToString()==method.Identifier.Text);
-        var calls=method.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
-        foreach(string name in new[]{"LinuxSyscallAuthority","CooperativeAuthority","LinuxNativeOwner","c->Process.Inspect"})
-            HostCheck.True(calls.Any(c=>c.Expression.ToString()==name),"native proof includes "+name);
-        var policy=calls.Single(c=>c.Expression.ToString()=="LinuxSyscallGateway.ExitTailPolicy");
+            address.Operand.ToString() == method.Identifier.Text);
+        var calls = method.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
+        foreach (string name in new[] { "LinuxSyscallAuthority", "CooperativeAuthority", "LinuxNativeOwner", "c->Process.Inspect" })
+            HostCheck.True(calls.Any(c => c.Expression.ToString() == name), "native proof includes " + name);
+        var policy = calls.Single(c => c.Expression.ToString() == "LinuxSyscallGateway.ExitTailPolicy");
         HostCheck.True(policy.ArgumentList.Arguments[0].RefKindKeyword.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.RefKeyword) &&
-            policy.ArgumentList.Arguments[0].Expression.ToString()=="c->Gates[index]" && policy.ArgumentList.Arguments[1].Expression.ToString()=="*frame");
-        var guards=method.DescendantNodes().OfType<BinaryExpressionSyntax>().Where(b=>b.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.NotEqualsExpression)).ToArray();
-        foreach(var pair in new[]{("c->Threads.Current.Value","c->Plan.Bindings[index].Context.Identity"),("view.SignalDepth","0"),("view.BlockedSignals","~LinuxSignalMask.Unblockable")})
-            HostCheck.True(guards.Any(g=>g.Left.ToString()==pair.Item1 && g.Right.ToString()==pair.Item2),"native return guard "+pair.Item1);
+            policy.ArgumentList.Arguments[0].Expression.ToString() == "c->Gates[index]" && policy.ArgumentList.Arguments[1].Expression.ToString() == "*frame");
+        var guards = method.DescendantNodes().OfType<BinaryExpressionSyntax>().Where(b => b.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.NotEqualsExpression)).ToArray();
+        foreach (var pair in new[] { ("c->Threads.Current.Value", "c->Plan.Bindings[index].Context.Identity"), ("view.SignalDepth", "0"), ("view.BlockedSignals", "~LinuxSignalMask.Unblockable") })
+            HostCheck.True(guards.Any(g => g.Left.ToString() == pair.Item1 && g.Right.ToString() == pair.Item2), "native return guard " + pair.Item1);
     }
 
     private static MethodDeclarationSyntax[] OwnerMethods(CSharpSourceCatalog source) =>
@@ -399,7 +401,11 @@ internal static unsafe partial class M16008EfiIntegrationTests
     private static void Reject(Action action, string? expected = null)
     {
         string? reason = null;
-        try { action(); } catch (ToolFailure failure) { reason = failure.Reason; }
+        try
+        {
+            action();
+        }
+        catch (ToolFailure failure) { reason = failure.Reason; }
         HostCheck.True(reason is not null && (expected is null || reason == expected));
     }
 }

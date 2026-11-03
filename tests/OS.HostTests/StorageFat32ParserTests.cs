@@ -161,7 +161,8 @@ internal static partial class StorageFat32ParserTests
             var device = new SparseFat32BlockDevice(65525);
             WriteUInt16(device.BootSector, 40, value);
             Fat32BpbParseResult result = Fat32Parser.ReadBpb(device, PartitionStartLba);
-            if (result.Succeeded || result.Status != Fat32Status.UnsupportedGeometry || device.ReadCount != 1) return HostCheck.Result(false);
+            if (result.Succeeded || result.Status != Fat32Status.UnsupportedGeometry || device.ReadCount != 1)
+                return HostCheck.Result(false);
         }
 
         foreach (ushort value in new ushort[] { 1, 0x100, 0xFFFF })
@@ -169,7 +170,8 @@ internal static partial class StorageFat32ParserTests
             var device = new SparseFat32BlockDevice(65525);
             WriteUInt16(device.BootSector, 42, value);
             Fat32BpbParseResult result = Fat32Parser.ReadBpb(device, PartitionStartLba);
-            if (result.Succeeded || result.Status != Fat32Status.UnsupportedGeometry || device.ReadCount != 1) return HostCheck.Result(false);
+            if (result.Succeeded || result.Status != Fat32Status.UnsupportedGeometry || device.ReadCount != 1)
+                return HostCheck.Result(false);
         }
 
         return HostCheck.Result(true);
@@ -1324,8 +1326,5 @@ internal static partial class StorageFat32ParserTests
         device.GetSector(device.FirstDataLba + 23).AsSpan().Fill(0xE5);
         return device;
     }
-
-
-
 
 }

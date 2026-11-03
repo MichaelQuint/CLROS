@@ -3,6 +3,7 @@ using OS.Std.Memory;
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public readonly struct FetchAppHttpRequestEndpointResult
 {
     private const uint InitializedFlag = 1;
@@ -23,15 +24,42 @@ public readonly struct FetchAppHttpRequestEndpointResult
         Flags = flags;
     }
 
-    public FetchAppHttpRequestEndpointStatus Status { get; }
-    public ushort Port { get; }
-    public int HostBytesWritten { get; }
-    public int PathBytesWritten { get; }
-    public int RequiredHostBytes { get; }
-    public int RequiredPathBytes { get; }
-    public int AvailableHostBytes { get; }
-    public int AvailablePathBytes { get; }
-    public uint Flags { get; }
+    public FetchAppHttpRequestEndpointStatus Status
+    {
+        get;
+    }
+    public ushort Port
+    {
+        get;
+    }
+    public int HostBytesWritten
+    {
+        get;
+    }
+    public int PathBytesWritten
+    {
+        get;
+    }
+    public int RequiredHostBytes
+    {
+        get;
+    }
+    public int RequiredPathBytes
+    {
+        get;
+    }
+    public int AvailableHostBytes
+    {
+        get;
+    }
+    public int AvailablePathBytes
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool HasConfiguredUrl => (Flags & UrlConfiguredFlag) != 0;
     public bool HasConfiguredHost => (Flags & HostConfiguredFlag) != 0;

@@ -1,4 +1,5 @@
 namespace OS.Std.NoRuntime;
+
 public enum DotNetN10HelperSupportState : byte
 {
     Unknown = 0,

@@ -1,6 +1,7 @@
 using OS.Std.Memory;
 
 namespace OS.Pal;
+
 public static class OSHostAppLogConstants
 {
     public const uint StreamStdout = 1;

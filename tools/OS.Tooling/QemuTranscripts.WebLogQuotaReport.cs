@@ -4,6 +4,7 @@ using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied callbacks and actual denied/EIO results at the

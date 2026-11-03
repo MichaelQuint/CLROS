@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public static class BootPageAllocatorPlanner
 {
     public static BootPageAllocatorPlanResult Plan(ulong pageSize, ReadOnlySpan<BootMemoryUsableRange> usableRanges, ReadOnlySpan<BootMemoryReservedRange> reservedRanges, Span<BootPageFreeSegment> freeSegmentDestination)

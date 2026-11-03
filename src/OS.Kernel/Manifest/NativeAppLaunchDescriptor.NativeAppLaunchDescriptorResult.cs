@@ -1,6 +1,7 @@
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public readonly struct NativeAppLaunchDescriptorResult
 {
     private NativeAppLaunchDescriptorResult(NativeAppLaunchDescriptorStatus status, NativeAppLaunchStatus launchStatus, OsPackageFileSystemStatus packageFileStatus, OsPackageStatus packageStatus, NativeAppPayloadHeaderStatus payloadHeaderStatus, NativeAppLaunchDescriptor descriptor, bool isInitialized)
@@ -14,13 +15,34 @@ public readonly struct NativeAppLaunchDescriptorResult
         IsInitialized = isInitialized;
     }
 
-    public NativeAppLaunchDescriptorStatus Status { get; }
-    public bool IsInitialized { get; }
-    public NativeAppLaunchStatus LaunchStatus { get; }
-    public OsPackageFileSystemStatus PackageFileStatus { get; }
-    public OsPackageStatus PackageStatus { get; }
-    public NativeAppPayloadHeaderStatus PayloadHeaderStatus { get; }
-    public NativeAppLaunchDescriptor Descriptor { get; }
+    public NativeAppLaunchDescriptorStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public NativeAppLaunchStatus LaunchStatus
+    {
+        get;
+    }
+    public OsPackageFileSystemStatus PackageFileStatus
+    {
+        get;
+    }
+    public OsPackageStatus PackageStatus
+    {
+        get;
+    }
+    public NativeAppPayloadHeaderStatus PayloadHeaderStatus
+    {
+        get;
+    }
+    public NativeAppLaunchDescriptor Descriptor
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeAppLaunchDescriptorStatus.Success;
 
     public static NativeAppLaunchDescriptorResult Success(NativeAppLaunchDescriptor descriptor)

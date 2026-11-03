@@ -126,7 +126,7 @@ internal static partial class NativeAotWebRunnerTests
             FirmwareRngSource = "virtio"
         };
         var plan = new QemuSmokePlan("Diagnostic", new Dictionary<string, bool> { { "EnableM10004Probe", true } }, markers, markers, markers, ["TEST_FAIL", "OS_SMOKE_FAIL"], [], false, true);
-        string[] stdout = ["QEMU_DISCOVERY result=" + qemu + " checked=" + qemu, "OVMF_DISCOVERY result=" + ovmf + " checked=" + ovmf, "TEST_START qemu.smoke", "IMAGE_ARTIFACT image.raw", "SERIAL_LOG serial.log", "OVMF_CODE " + ovmf, "WORKLOAD_PROFILE SingleMinimalApi", "FIRMWARE_RNG_SOURCE virtio", "SOCKET_FORWARD_PORT 20080", "MARKER_PRESETS none", "REQUIRED_MARKERS " + markerList, "ORDERED_MARKERS " + markerList, "UNIQUE_MARKERS " + markerList, "FORBIDDEN_MARKERS TEST_FAIL;OS_SMOKE_FAIL", "HTTP_PROBE_START endpoint=http://127.0.0.1:20080 expected_status=200 expected_body_bytes=2 timeout_seconds=2", "HTTP_PROBE_PASS endpoint=http://127.0.0.1:20080 status=200 body_bytes=2 body_sha256=" + healthHash + " elapsed_ms=100", "HTTP_PROBE_START endpoint=http://127.0.0.1:20080 expected_status=200 expected_body_bytes=2 timeout_seconds=1", "HTTP_PROBE_PASS endpoint=http://127.0.0.1:20080 status=200 body_bytes=2 body_sha256=" + configHash + " elapsed_ms=200", ..extraOut, $"SERIAL_MARKER_STREAM status=Passed terminal=Success bytes={raw.Length} lines={(controls ? 6 : 4)} invalidBytes=0 invalidLines=0 orderedSeen=3 outOfOrder=0 uniqueSeen=3 duplicateUnique=0", "SERIAL_MARKER_DRAIN milliseconds=750", "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1", "SUMMARY_LOG summary.log", "TEST_PASS qemu.smoke"];
+        string[] stdout = ["QEMU_DISCOVERY result=" + qemu + " checked=" + qemu, "OVMF_DISCOVERY result=" + ovmf + " checked=" + ovmf, "TEST_START qemu.smoke", "IMAGE_ARTIFACT image.raw", "SERIAL_LOG serial.log", "OVMF_CODE " + ovmf, "WORKLOAD_PROFILE SingleMinimalApi", "FIRMWARE_RNG_SOURCE virtio", "SOCKET_FORWARD_PORT 20080", "MARKER_PRESETS none", "REQUIRED_MARKERS " + markerList, "ORDERED_MARKERS " + markerList, "UNIQUE_MARKERS " + markerList, "FORBIDDEN_MARKERS TEST_FAIL;OS_SMOKE_FAIL", "HTTP_PROBE_START endpoint=http://127.0.0.1:20080 expected_status=200 expected_body_bytes=2 timeout_seconds=2", "HTTP_PROBE_PASS endpoint=http://127.0.0.1:20080 status=200 body_bytes=2 body_sha256=" + healthHash + " elapsed_ms=100", "HTTP_PROBE_START endpoint=http://127.0.0.1:20080 expected_status=200 expected_body_bytes=2 timeout_seconds=1", "HTTP_PROBE_PASS endpoint=http://127.0.0.1:20080 status=200 body_bytes=2 body_sha256=" + configHash + " elapsed_ms=200", .. extraOut, $"SERIAL_MARKER_STREAM status=Passed terminal=Success bytes={raw.Length} lines={(controls ? 6 : 4)} invalidBytes=0 invalidLines=0 orderedSeen=3 outOfOrder=0 uniqueSeen=3 duplicateUnique=0", "SERIAL_MARKER_DRAIN milliseconds=750", "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1", "SUMMARY_LOG summary.log", "TEST_PASS qemu.smoke"];
         string[] summary = ["QEMU_SMOKE_STATUS pass", "IMAGE_ARTIFACT image.raw", "SERIAL_LOG serial.log", "WORKLOAD_PROFILE SingleMinimalApi", "FIRMWARE_RNG_SOURCE virtio", "SOCKET_FORWARD_PORT 20080", "MARKER_PRESETS none", "REQUIRED_MARKERS " + markerList, "ORDERED_MARKERS " + markerList, "UNIQUE_MARKERS " + markerList, "FORBIDDEN_MARKERS TEST_FAIL;OS_SMOKE_FAIL", "HTTP_PROBE_ENDPOINT http://127.0.0.1:20080", "HTTP_PROBE_EXPECTED_STATUS 200", "HTTP_PROBE_EXPECTED_BODY_BYTES 2", "HTTP_PROBE_TIMEOUT_SECONDS 20", "HTTP_PROBE_RESULT pass", "HTTP_PROBE_REASON none", "HTTP_PROBE_STATUS 200", "HTTP_PROBE_BODY_BYTES 2", "HTTP_PROBE_BODY_SHA256 " + healthHash, "HTTP_PROBE_ELAPSED_MS 100", "CONTINUING_WEB true", "WEB_LOG_CASE " + (quota ? "records64" : "normal"), "WEB_CONFIG_PROBE_URL http://127.0.0.1:20080/config", "WEB_CONFIG_PROBE_EXPECTED_STATUS 200", "WEB_CONFIG_PROBE_EXPECTED_BODY_BYTES 2", "WEB_CONFIG_PROBE_EXPECTED_BODY_SHA256 " + configHash, "WEB_CONFIG_PROBE_RESULT pass", "WEB_CONFIG_PROBE_REASON none", "WEB_CONFIG_PROBE_STATUS 200", "WEB_CONFIG_PROBE_BODY_BYTES 2", "WEB_CONFIG_PROBE_BODY_SHA256 " + configHash, "WEB_CONFIG_PROBE_ELAPSED_MS 200", ..extraSummary, ..controlRows, "WEB_ENDPOINT_PRELAUNCH_AVAILABLE true", "WEB_ENDPOINT_STOPPED_REFUSED true", "WEB_PROCESS_ID 123", "WEB_PROCESS_START_UTC 2000-01-01T00:00:00.0000000Z", "WEB_PROCESS_END_UTC " + first.AddMilliseconds(lifetime).UtcDateTime.ToString("O"), "WEB_PROCESS_LIFETIME_MS " + lifetime, ..utcRows, "WEB_PROCESS_ALIVE_BEFORE_HEALTH true", "WEB_PROCESS_ALIVE_AFTER_HEALTH true", "WEB_PROCESS_ALIVE_AFTER_CONFIG true", "WEB_PROCESS_ALIVE_AFTER_LOG true", "WEB_PROCESS_ALIVE_AFTER_LOG_REPEAT true", ..quota ? Array.Empty<string>() : new[]
         {
             "WEB_PROCESS_ALIVE_AFTER_VECTORS true"
@@ -138,9 +138,9 @@ internal static partial class NativeAotWebRunnerTests
 
         : Array.Empty<string>(), "SERIAL_TAIL_LINE M16_008_CALL identity=4294967297 nr=202"];
         string[] backend = ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
-        stdout = [..backend, ..stdout];
-        summary = [..summary.Take(4), ..backend, ..summary.Skip(4)];
-        return new(options, plan, new(0, string.Join("\r\n", stdout) + "\r\n", "", false, false, false, TimeSpan.FromMilliseconds(lifetime + 1000)), Encoding.UTF8.GetBytes(raw), [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")], new(20080, qemu, ovmf, first.AddSeconds(-1), first.AddMilliseconds(lifetime + 1000)));
+        stdout = [.. backend, .. stdout];
+        summary = [.. summary.Take(4), .. backend, .. summary.Skip(4)];
+        return new(options, plan, new(0, string.Join("\r\n", stdout) + "\r\n", "", false, false, false, TimeSpan.FromMilliseconds(lifetime + 1000)), Encoding.UTF8.GetBytes(raw), [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")], new(20080, qemu, ovmf, first.AddSeconds(-1), first.AddMilliseconds(lifetime + 1000)));
     }
 
     private static QemuTranscripts.WebRunnerReport Inspect(Fixture f, bool quota = false) => QemuTranscripts.InspectNativeAotWebRunnerForTests(f.Options, f.Plan, f.Runner, f.Raw, f.Summary, f.Context, Body, Config, quota, requireControls: false);
@@ -209,12 +209,12 @@ internal static partial class NativeAotWebRunnerTests
     [HostTest("web event-owned runner requires explicit matching gate mode and admits exactly165 second copied window")]
     private static void EventRaceWindow()
     {
-        var gate = RaceGate()with
+        var gate = RaceGate() with
         {
             EventOwned = true
         };
         var f = EventRaceFrame(gate);
-        var window = RaceWindow()with
+        var window = RaceWindow() with
         {
             CompletedUtc = RaceWindow().StartedUtc.AddSeconds(165)
         };
@@ -230,7 +230,7 @@ internal static partial class NativeAotWebRunnerTests
     [HostTest("web event-owned runner requires canonical true profile in exact summary while false legacy shape stays unchanged")]
     private static void EventRaceSummary()
     {
-        var gate = RaceGate()with
+        var gate = RaceGate() with
         {
             EventOwned = true
         };
@@ -325,7 +325,7 @@ internal static partial class NativeAotWebRunnerTests
     {
         var f = RaceFrame();
         string row = "WEB_RACE_GATE " + JsonSerializer.Serialize(RaceGate());
-        foreach (var(before, after)in new[]
+        foreach (var (before, after) in new[]
         {
             (row + "\r\n", ""),
             (row, row + "\r\n" + row),
@@ -392,7 +392,10 @@ internal static partial class NativeAotWebRunnerTests
                 CompletedUtc = new(2000, 1, 1, 0, 1, 41, TimeSpan.Zero)
             }
         };
-        _ = InspectRace(longer, window: window with { CompletedUtc = window.StartedUtc.AddSeconds(45) });
+        _ = InspectRace(longer, window: window with
+        {
+            CompletedUtc = window.StartedUtc.AddSeconds(45)
+        });
         Reject(() => InspectRace(longer, window: window with { CompletedUtc = window.StartedUtc.AddSeconds(45).AddTicks(1) }));
     }
 
@@ -730,7 +733,7 @@ internal static partial class NativeAotWebRunnerTests
             Reject(() => Inspect(Summary(f, prefix + "_REASON none", prefix + "_REASON failure")));
             string text = Encoding.UTF8.GetString(f.Summary);
             string line = text.Split("\r\n").Single(x => x.StartsWith(prefix + "_BODY_SHA256 ", StringComparison.Ordinal));
-            Reject(() => Inspect(Summary(f, line, line[..(prefix.Length + 13)] + new string ('0', 64))));
+            Reject(() => Inspect(Summary(f, line, line[..(prefix.Length + 13)] + new string('0', 64))));
             Reject(() => Inspect(Summary(f, line + "\r\n", line + "\r\n" + line + "\r\n")));
         }
 

@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Tools.QemuRunner;
+
 public enum SerialMarkerCompletionStatus
 {
     Uninitialized = 0,

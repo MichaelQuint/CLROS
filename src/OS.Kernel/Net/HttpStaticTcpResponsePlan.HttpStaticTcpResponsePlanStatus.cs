@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public enum HttpStaticTcpResponsePlanStatus
 {
     Success = 0,

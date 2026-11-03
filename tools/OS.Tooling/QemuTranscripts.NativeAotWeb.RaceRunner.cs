@@ -1,6 +1,7 @@
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect borrowed explicit race runner bytes against a supplied
@@ -21,7 +22,12 @@ public static partial class QemuTranscripts
     {
         Need(gate is not null, "web_race_runner_gate");
         var report = ReadWebRunner(options, plan, runner, raw, summaryBytes, context, body, configuration, false, true, gate, producerWindow, eventOwned);
-        return new(report, gate!with { Digests = gate.Digests with { } }, producerWindow);
+        return new(report, gate! with
+        {
+            Digests = gate.Digests with
+            {
+            }
+        }, producerWindow);
     }
 
     private static void ValidateWebRaceRunnerWindow(WebRaceRendezvous.Report gate, WebUtcObservation producer, WebRunnerContext context, ulong pid, DateTime started, DateTime ended, IReadOnlyList<WebUtcObservation> ordinary, bool eventOwned)

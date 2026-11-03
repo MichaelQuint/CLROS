@@ -14,19 +14,23 @@ internal static unsafe class NativeAotServiceStartupTests
     {
         var service = LinuxAppStartupObservation.ForService();
         HostCheck.True(service.IsService && !service.StartupComplete && !service.SuccessfulBind && !service.Failed);
-        HostCheck.Equal(0U, service.ObservedStages); HostCheck.Equal(0UL, service.WriterIdentity);
+        HostCheck.Equal(0U, service.ObservedStages);
+        HostCheck.Equal(0UL, service.WriterIdentity);
         HostCheck.Equal(0UL, service.BindIdentity);
         byte[] bytes = Encoding.ASCII.GetBytes(Service);
         fixed (byte* source = bytes)
             for (int i = 0; i < bytes.Length;)
             {
                 int count = Math.Min(1 + i % 7, bytes.Length - i);
-                HostCheck.True(service.Observe(Writer, source + i, (uint)count)); i += count;
+                HostCheck.True(service.Observe(Writer, source + i, (uint)count));
+                i += count;
                 HostCheck.True(service.IsService);
             }
         HostCheck.True(service.StartupComplete && service.RecordBind(Binder, true) && service.SuccessfulBind);
-        HostCheck.True(service.IsService); HostCheck.Equal(4U, service.ObservedStages);
-        HostCheck.Equal(Writer, service.WriterIdentity); HostCheck.Equal(Binder, service.BindIdentity);
+        HostCheck.True(service.IsService);
+        HostCheck.Equal(4U, service.ObservedStages);
+        HostCheck.Equal(Writer, service.WriterIdentity);
+        HostCheck.Equal(Binder, service.BindIdentity);
         var smoke = default(LinuxAppStartupObservation);
         HostCheck.True(!smoke.IsService && !Feed(ref smoke, Service) && smoke.Failed);
         HostCheck.True(!smoke.IsService && !Feed(ref smoke, Smoke));
@@ -48,7 +52,8 @@ internal static unsafe class NativeAotServiceStartupTests
             Service.Replace("minimal.api.service", "another.api.service", StringComparison.Ordinal)
         })
         {
-            var value = LinuxAppStartupObservation.ForService(); _ = Feed(ref value, text);
+            var value = LinuxAppStartupObservation.ForService();
+            _ = Feed(ref value, text);
             HostCheck.True(!value.StartupComplete && !value.RecordBind(Binder, true));
             HostCheck.True(value.Failed && value.IsService && !value.SuccessfulBind);
             HostCheck.True(!Feed(ref value, Service) && value.IsService);
@@ -56,22 +61,41 @@ internal static unsafe class NativeAotServiceStartupTests
         byte one = (byte)'C';
         for (int mutation = 0; mutation < 9; mutation++)
         {
-            var value = LinuxAppStartupObservation.ForService(); bool accepted;
+            var value = LinuxAppStartupObservation.ForService();
+            bool accepted;
             switch (mutation)
             {
-                case 0: accepted = value.Observe(0, &one, 1); break;
-                case 1: accepted = value.Observe(Writer, null, 1); break;
-                case 2: accepted = value.Observe(Writer, &one, 0); break;
-                case 3: accepted = value.Observe(Writer, &one, 8193); break;
+                case 0:
+                    accepted = value.Observe(0, &one, 1);
+                    break;
+                case 1:
+                    accepted = value.Observe(Writer, null, 1);
+                    break;
+                case 2:
+                    accepted = value.Observe(Writer, &one, 0);
+                    break;
+                case 3:
+                    accepted = value.Observe(Writer, &one, 8193);
+                    break;
                 case 4:
                     HostCheck.True(value.Observe(Writer, &one, 1));
-                    accepted = value.Observe(Binder, &one, 1); break;
-                case 5: accepted = value.RecordBind(Binder, true); break;
-                case 6: HostCheck.True(Feed(ref value, Service)); accepted = value.RecordBind(Binder, false); break;
-                case 7: HostCheck.True(Feed(ref value, Service)); accepted = value.RecordBind(0, true); break;
+                    accepted = value.Observe(Binder, &one, 1);
+                    break;
+                case 5:
+                    accepted = value.RecordBind(Binder, true);
+                    break;
+                case 6:
+                    HostCheck.True(Feed(ref value, Service));
+                    accepted = value.RecordBind(Binder, false);
+                    break;
+                case 7:
+                    HostCheck.True(Feed(ref value, Service));
+                    accepted = value.RecordBind(0, true);
+                    break;
                 default:
                     HostCheck.True(Feed(ref value, Service) && value.RecordBind(Binder, true));
-                    accepted = value.RecordBind(Binder, true); break;
+                    accepted = value.RecordBind(Binder, true);
+                    break;
             }
             HostCheck.True(!accepted && value.Failed && value.IsService && !value.SuccessfulBind);
             HostCheck.True(!Feed(ref value, Service) && !value.StartupComplete && value.IsService);
@@ -89,14 +113,19 @@ internal static unsafe class NativeAotServiceStartupTests
             fixed (byte* source = bytes)
                 for (int i = 0; i < bytes.Length; i++)
                     HostCheck.True(value.Observe(Writer, source + i, 1));
-            HostCheck.Equal(mode, value.IsService); HostCheck.Equal(4U, value.ObservedStages);
-            HostCheck.Equal(Writer, value.WriterIdentity); HostCheck.True(!value.SuccessfulBind);
+            HostCheck.Equal(mode, value.IsService);
+            HostCheck.Equal(4U, value.ObservedStages);
+            HostCheck.Equal(Writer, value.WriterIdentity);
+            HostCheck.True(!value.SuccessfulBind);
             HostCheck.True(Feed(ref value, mode ? Smoke : Service, Binder + 1)); // Later stderr is outside the prefix contract.
             HostCheck.True(value.RecordBind(Binder, true) && value.SuccessfulBind);
-            HostCheck.Equal(mode, value.IsService); HostCheck.Equal(Binder, value.BindIdentity);
+            HostCheck.Equal(mode, value.IsService);
+            HostCheck.Equal(Binder, value.BindIdentity);
             HostCheck.True(!value.RecordBind(Binder, true) && value.Failed && !value.SuccessfulBind);
-            HostCheck.Equal(mode, value.IsService); HostCheck.Equal(4U, value.ObservedStages);
-            HostCheck.Equal(Writer, value.WriterIdentity); HostCheck.Equal(Binder, value.BindIdentity);
+            HostCheck.Equal(mode, value.IsService);
+            HostCheck.Equal(4U, value.ObservedStages);
+            HostCheck.Equal(Writer, value.WriterIdentity);
+            HostCheck.Equal(Binder, value.BindIdentity);
 
             var bounded = mode ? LinuxAppStartupObservation.ForService() : default;
             byte[] maximum = Encoding.ASCII.GetBytes(prefix + new string('x', 8192 - prefix.Length));
@@ -113,11 +142,15 @@ internal static unsafe class NativeAotServiceStartupTests
     [HostTest("nativeaot.service.startup service factory and both observer modes allocate no managed memory", HostLane.Fast, 3)]
     private static void Allocation()
     {
-        var warm = LinuxAppStartupObservation.ForService(); HostCheck.True(Feed(ref warm, Service));
-        warm = default; HostCheck.True(Feed(ref warm, Smoke));
+        var warm = LinuxAppStartupObservation.ForService();
+        HostCheck.True(Feed(ref warm, Service));
+        warm = default;
+        HostCheck.True(Feed(ref warm, Smoke));
         byte[] serviceBytes = Encoding.ASCII.GetBytes(Service), smokeBytes = Encoding.ASCII.GetBytes(Smoke);
-        bool accepted = true; long before = GC.GetAllocatedBytesForCurrentThread();
-        fixed (byte* service = serviceBytes) fixed (byte* smoke = smokeBytes)
+        bool accepted = true;
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        fixed (byte* service = serviceBytes)
+        fixed (byte* smoke = smokeBytes)
             for (int i = 0; i < 1000; i++)
             {
                 var value = LinuxAppStartupObservation.ForService();
@@ -128,12 +161,14 @@ internal static unsafe class NativeAotServiceStartupTests
                     value.RecordBind(Binder, true) && value.SuccessfulBind;
             }
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        HostCheck.True(accepted); HostCheck.Equal(0L, allocated);
+        HostCheck.True(accepted);
+        HostCheck.Equal(0L, allocated);
     }
 
     private static bool Feed(ref LinuxAppStartupObservation value, string text, ulong writer = Writer)
     {
         byte[] bytes = Encoding.ASCII.GetBytes(text);
-        fixed (byte* source = bytes) return value.Observe(writer, source, (uint)bytes.Length);
+        fixed (byte* source = bytes)
+            return value.Observe(writer, source, (uint)bytes.Length);
     }
 }

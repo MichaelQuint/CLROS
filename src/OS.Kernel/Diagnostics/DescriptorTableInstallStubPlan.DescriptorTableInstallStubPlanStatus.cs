@@ -2,6 +2,7 @@ using OS.Std.Binary;
 using OS.Std.Memory;
 
 namespace OS.Kernel.Diagnostics;
+
 public enum DescriptorTableInstallStubPlanStatus
 {
     Ok = 0,

@@ -5,9 +5,11 @@ internal static class HostWorkerScheduler
     {
         await RunAsync(items.Where(item => !native(item)).ToArray(), _ => false,
             jobs, (_, item) => run(item), cancellation);
-        if (cancellation.IsCancellationRequested) return false;
+        if (cancellation.IsCancellationRequested)
+            return false;
         T[] remaining = items.Where(native).ToArray();
-        if (remaining.Length != 0 && !fastPassed()) return false;
+        if (remaining.Length != 0 && !fastPassed())
+            return false;
         await RunAsync(remaining, _ => true, jobs, (_, item) => run(item), cancellation);
         return !cancellation.IsCancellationRequested;
     }
@@ -17,19 +19,22 @@ internal static class HostWorkerScheduler
     public static async Task RunAsync<T>(IReadOnlyList<T> items, Func<T, bool> exclusive,
         int jobs, Func<int, T, Task> run, CancellationToken cancellation = default)
     {
-        if (jobs is < 1 or > 64) throw new ArgumentOutOfRangeException(nameof(jobs));
+        if (jobs is < 1 or > 64)
+            throw new ArgumentOutOfRangeException(nameof(jobs));
         List<Task> active = [];
         try
         {
             for (int i = 0; i < items.Count; i++)
             {
-                if (cancellation.IsCancellationRequested) break;
+                if (cancellation.IsCancellationRequested)
+                    break;
                 T item = items[i];
                 if (exclusive(item))
                 {
                     await Task.WhenAll(active);
                     active.Clear();
-                    if (!cancellation.IsCancellationRequested) await run(i, item);
+                    if (!cancellation.IsCancellationRequested)
+                        await run(i, item);
                     continue;
                 }
                 if (active.Count == jobs)
@@ -38,7 +43,8 @@ internal static class HostWorkerScheduler
                     await finished;
                     active.Remove(finished);
                 }
-                if (!cancellation.IsCancellationRequested) active.Add(run(i, item));
+                if (!cancellation.IsCancellationRequested)
+                    active.Add(run(i, item));
             }
         }
         finally

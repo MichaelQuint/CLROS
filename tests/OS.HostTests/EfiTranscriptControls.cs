@@ -21,9 +21,13 @@ internal sealed class EfiTranscriptControls
     {
         File.WriteAllText(path, text, new UTF8Encoding(false));
         bool accepted = true;
-        try { validate(path); }
+        try
+        {
+            validate(path);
+        }
         catch (OS.Tooling.ToolFailure) when (!accept) { accepted = false; }
-        if (accepted != accept) throw new InvalidOperationException("transcript control " + reason + " expected=" + accept);
+        if (accepted != accept)
+            throw new InvalidOperationException("transcript control " + reason + " expected=" + accept);
         count++;
     }
     public void Check(string[] lines, bool accept, string reason) => Check(Text(lines), accept, reason);
@@ -33,7 +37,9 @@ internal sealed class EfiTranscriptControls
         {
             Check(lines.Where((_, n) => n != i).ToArray(), false, "missing row " + i);
             Check(lines.Take(i + 1).Concat(lines.Skip(i)).ToArray(), false, "duplicate row " + i);
-            string[] bad = [.. lines]; bad[i] += " "; Check(bad, false, "trailing space row " + i);
+            string[] bad = [.. lines];
+            bad[i] += " ";
+            Check(bad, false, "trailing space row " + i);
         }
     }
     public void Complete(string name) => Console.WriteLine("TRANSCRIPT_CONTROLS " + name + " cases=" + count);
@@ -46,7 +52,10 @@ internal sealed class EfiTranscriptControls
         foreach (string exit in new[] { "none", "2147483648", "-2147483649", "-0", "01", "+1" })
         {
             bool accepted = true;
-            try { OS.Tooling.QemuTranscripts.AssertM04ManagedHeapRunnerResult(Records(exit)); }
+            try
+            {
+                OS.Tooling.QemuTranscripts.AssertM04ManagedHeapRunnerResult(Records(exit));
+            }
             catch (OS.Tooling.ToolFailure) { accepted = false; }
             HostCheck.True(!accepted, "invalid runner exit: " + exit);
         }

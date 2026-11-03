@@ -15,210 +15,6 @@ using OS.Boot;
 using Core = OS.Boot.EfiEntry.FirmwareEntropyCapture;
 using Reservoir = OS.Boot.EfiEntry.FirmwareEntropyReservoir;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
 {
@@ -251,7 +47,13 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
         foreach (string arg in args)
             start.ArgumentList.Add(arg);
         DateTime begin = DateTime.UtcNow;
-        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new { File = file, Arguments = args, WorkingDirectory = Root(), StartedUtc = begin }));
+        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new
+        {
+            File = file,
+            Arguments = args,
+            WorkingDirectory = Root(),
+            StartedUtc = begin
+        }));
         using var process = System.Diagnostics.Process.Start(start)!;
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
@@ -265,7 +67,13 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
         string output = stdout.GetAwaiter().GetResult(), error = stderr.GetAwaiter().GetResult();
         File.WriteAllText(Path.Combine(directory, "stdout.log"), output);
         File.WriteAllText(Path.Combine(directory, "stderr.log"), error);
-        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new { NativeExit = process.ExitCode, TimedOut = timeout, StartedUtc = begin, EndedUtc = DateTime.UtcNow }));
+        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new
+        {
+            NativeExit = process.ExitCode,
+            TimedOut = timeout,
+            StartedUtc = begin,
+            EndedUtc = DateTime.UtcNow
+        }));
         return new(process.ExitCode, timeout, output, error);
     }
 
@@ -282,19 +90,19 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
         string root = Root();
         var project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
         var defaults = project.Descendants(Flag).ToArray();
-        Need(defaults.Length == 1 && defaults[0].Value == "false" && (string? )defaults[0].Attribute("Condition") == "'$(" + Flag + ")' == ''", "one false default");
+        Need(defaults.Length == 1 && defaults[0].Value == "false" && (string?)defaults[0].Attribute("Condition") == "'$(" + Flag + ")' == ''", "one false default");
         var define = project.Descendants("DefineConstants").Single(x => x.Value.Contains("M03_FIRMWARE_ENTROPY_SEED_PROBE", StringComparison.Ordinal));
-        Need((string? )define.Parent?.Attribute("Condition") == "'$(" + Flag + ")' == 'true'" && define.Value == "$(DefineConstants);M03_FIRMWARE_ENTROPY_SEED_PROBE", "exact enabled symbol");
+        Need((string?)define.Parent?.Attribute("Condition") == "'$(" + Flag + ")' == 'true'" && define.Value == "$(DefineConstants);M03_FIRMWARE_ENTROPY_SEED_PROBE", "exact enabled symbol");
         var source = EntropySources();
         var admission = OS.Tooling.EfiProjectAdmission.InspectStatic(root);
         Need(admission.Succeeded, admission.Reason + " " + admission.Detail);
         Need(source.Type("OS.Kernel.Diagnostics.Probes").GetMembers("EnableFirmwareEntropySeedProbe").Single()
             is Microsoft.CodeAnalysis.IFieldSymbol
-            {
-                IsStatic: true, IsConst: true, ConstantValue: false,
-                Type.SpecialType: Microsoft.CodeAnalysis.SpecialType.System_Boolean,
-                DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public
-            }, "disabled compile-time authority");
+        {
+            IsStatic: true, IsConst: true, ConstantValue: false,
+            Type.SpecialType: Microsoft.CodeAnalysis.SpecialType.System_Boolean,
+            DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public
+        }, "disabled compile-time authority");
         string[] owners = ["OS.Boot.EfiEntry+FirmwareEntropyCapture", "OS.Boot.EfiEntry+FirmwareEntropyReservoir"];
         string core = HostSourceText.Documents(source, owners);
         string code = HostSourceText.Declarations(source, owners);
@@ -411,7 +219,7 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
         string items = string.Join('\n', sources.Select(x => "<Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, x)) + "\"/>"));
         string project = Path.Combine(directory, "Capture.csproj");
         File.WriteAllText(project, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><OutputType>Exe</OutputType><StartupObject>FirmwareEntropyHost</StartupObject><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><EnableDefaultCompileItems>false</EnableDefaultCompileItems><DefineConstants>ENTROPY_CAPTURE_HOST;M03_FIRMWARE_ENTROPY_SEED_PROBE</DefineConstants></PropertyGroup><ItemGroup>" + items + "<Compile Include=\"Attribute.cs\"/><ProjectReference Include=\"" + SecurityElement.Escape(Path.Combine(root, "src/OS.Kernel/OS.Kernel.csproj")) + "\"/></ItemGroup></Project>");
-        string[] inputs = [..sources.Select(x => Path.Combine(root, x)), Path.Combine(directory, "Attribute.cs"), project];
+        string[] inputs = [.. sources.Select(x => Path.Combine(root, x)), Path.Combine(directory, "Attribute.cs"), project];
         var identities = inputs.Select(path => new { Path = path, Bytes = new FileInfo(path).Length, Sha256 = Hash(path) }).ToArray();
         File.WriteAllText(Path.Combine(directory, "inputs.json"), JsonSerializer.Serialize(identities));
         Passed(Process(Path.Combine(directory, "build"), "dotnet", "build", project, "-c", "Release", "--nologo", "-m:1", "--disable-build-servers", "-p:UseSharedCompilation=false"));
@@ -442,12 +250,12 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
 
             )
             {
-                string[] copy = [..ProtocolLines];
+                string[] copy = [.. ProtocolLines];
                 copy[i] = replacement;
                 control.Check(FirmwareTranscriptControls.Bytes(copy), false);
             }
 
-            string[] lower = [..ProtocolLines];
+            string[] lower = [.. ProtocolLines];
             lower[i] = lower[i].ToLowerInvariant();
             if (lower[i] != ProtocolLines[i])
                 control.Check(FirmwareTranscriptControls.Bytes(lower), false);
@@ -474,18 +282,18 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
             control.Check(Encoding.ASCII.GetBytes(changed), false);
         }
 
-        string[] swap = [..ProtocolLines];
+        string[] swap = [.. ProtocolLines];
         swap[15] = ProtocolLines[14];
         control.Check(FirmwareTranscriptControls.Bytes(swap), false);
         control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace("\r\n", "\n")), false);
         control.Check(good[..^1], false);
-        control.Check([..good, 0], false);
-        control.Check([..good, 255], false);
+        control.Check([.. good, 0], false);
+        control.Check([.. good, 255], false);
         control.Check(good, false, [255]);
         control.Check(good, false, Encoding.ASCII.GetBytes("arbitrary"));
-        control.Check(good, false, post: [..FirmwareTranscriptControls.Suffix, 65]);
+        control.Check(good, false, post: [.. FirmwareTranscriptControls.Suffix, 65]);
         control.Check(good, true, post: FirmwareTranscriptControls.ShortSuffix);
-        control.Check(good, false, post: [..FirmwareTranscriptControls.ShortSuffix, 65]);
+        control.Check(good, false, post: [.. FirmwareTranscriptControls.ShortSuffix, 65]);
         control.Check(good, false, post: []);
         foreach (byte[] suffix in new[]
         {
@@ -503,13 +311,13 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
 
             )
             {
-                byte[] changed = [..suffix];
+                byte[] changed = [.. suffix];
                 changed[index] ^= 1;
                 control.Check(good, false, post: changed);
             }
 
-            control.Check(good, false, post: [..suffix, 65]);
-            control.Check(good, false, post: [..suffix, 13, 10]);
+            control.Check(good, false, post: [.. suffix, 65]);
+            control.Check(good, false, post: [.. suffix, 13, 10]);
             control.Check(good, false, post: suffix[..^1]);
         }
 
@@ -526,16 +334,16 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
 
         )
             control.Check(good, false, post: FirmwareTranscriptControls.Suffix[..length]);
-        string[] missing = [..ProtocolLines[..14], "M03_ENTROPY_DISCOVERY status=9223372036854775822 calls=1 found=0", "M03_ENTROPY_ACQUIRE status=0 calls=0 requested=32", "M03_ENTROPY_RETAIN bytes=0 scratchCleared=0 guards=64 tails=64 published=0", "M03_ENTROPY_UNAVAILABLE retainedUnchanged=1 published=0 rngCalls=0", "TEST_FAIL m03.003.efi source_unavailable"];
+        string[] missing = [.. ProtocolLines[..14], "M03_ENTROPY_DISCOVERY status=9223372036854775822 calls=1 found=0", "M03_ENTROPY_ACQUIRE status=0 calls=0 requested=32", "M03_ENTROPY_RETAIN bytes=0 scratchCleared=0 guards=64 tails=64 published=0", "M03_ENTROPY_UNAVAILABLE retainedUnchanged=1 published=0 rngCalls=0", "TEST_FAIL m03.003.efi source_unavailable"];
         var absent = new FirmwareTranscriptControls(directory, path => OS.Tooling.QemuTranscripts.AssertM03FirmwareEntropyTranscript(path, true));
         void Missing(byte[] bytes, bool expected) => absent.Check(bytes, expected, post: []);
         Missing(FirmwareTranscriptControls.Bytes(missing), true);
         for (int i = 0; i < missing.Length; i++)
         {
-            string[] changed = [..missing];
+            string[] changed = [.. missing];
             changed[i] += " extra=1";
             Missing(FirmwareTranscriptControls.Bytes(changed), false);
-            changed = [..missing];
+            changed = [.. missing];
             changed[i] = "";
             Missing(FirmwareTranscriptControls.Bytes(changed), false);
         }
@@ -551,8 +359,8 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
 
         )
             Missing(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(FirmwareTranscriptControls.Bytes(missing)).Replace(pair.Item1, pair.Item2)), false);
-        Missing([..FirmwareTranscriptControls.Bytes(missing), 65], false);
-        Missing([..FirmwareTranscriptControls.Bytes(missing), ..FirmwareTranscriptControls.Suffix], false);
+        Missing([.. FirmwareTranscriptControls.Bytes(missing), 65], false);
+        Missing([.. FirmwareTranscriptControls.Bytes(missing), .. FirmwareTranscriptControls.Suffix], false);
         control.Check(good, true);
         string[] ordered = ProtocolLines.Select(line => line.StartsWith("UEFI_MEMORY_MAP_DESCRIPTOR_COUNT ", StringComparison.Ordinal) || line.StartsWith("BOOT_MEMORY_REGION_COUNT ", StringComparison.Ordinal) || line.StartsWith("BOOT_PAGE_ALLOCATOR_READY ", StringComparison.Ordinal) || line.StartsWith("M03_ENTROPY_", StringComparison.Ordinal) ? line.Split(' ')[0] : line).ToArray();
         var runner = new StandardFirmwareRunnerControls(directory, ProtocolLines, ordered, ["OS_SMOKE_FAIL", "TEST_FAIL"], Flag, true);
@@ -584,7 +392,7 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
     private static void TestProfile()
     {
         string root = Root(), directory = Scratch("profile"), script = Path.Combine(root, "tools/OS.Tooling/QemuProfiles.cs"), before = Hash(script);
-        Result Dry(params string[] args) => Tool(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", ..args]);
+        Result Dry(params string[] args) => Tool(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", .. args]);
         string[] positive = ["-BuildEfi", "-" + Flag, "-FirmwareRngSource", "virtio"];
         Result result = Dry(positive);
         Passed(result);
@@ -627,7 +435,7 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
             Need(!missing.Passed && missing.MissingRequiredMarkers!.Count > 0, "missing entropy row");
             var duplicate = Stream(ProtocolLines.Take(index + 1).Concat(ProtocolLines.Skip(index)).ToArray());
             Need(!duplicate.Passed && duplicate.DuplicateUniqueOccurrenceCount == 1, "duplicate entropy row");
-            string[] swapped = [..ProtocolLines];
+            string[] swapped = [.. ProtocolLines];
             (swapped[index], swapped[index + 1]) = (swapped[index + 1], swapped[index]);
             Need(Stream(swapped).OutOfOrderOccurrenceCount > 0, "reordered entropy row");
         }
@@ -642,7 +450,7 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
         string[] flags = Regex.Matches(project, @"\$\((Enable\w+Probe)\)").Select(x => x.Groups[1].Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         Need(flags.Length == OS.Tooling.EfiContracts.DiagnosticProbes.Count, "complete profile flags");
         foreach (string other in flags.Where(x => x != Flag))
-            Reject([..positive, "-" + other], EfiProfileTestControls.MissingParentReason([Flag, other], ordinarySmoke: true) ?? (other == "EnableM03FirstRealExitBootServicesProbe" ? "m03_first_exit_requires property=EnableM01LoadedImageStackProbe" : other == "EnableM04GcStaticRootMaterializationProbe" ? "m04_gc_static_profile_invalid property=EnableM01LoadedImageStackProbe" : other == "EnableM03TypedExitBootServicesCallProbe" ? "m03_typed_ebs_profile_conflict property=EnableM03FirmwareEntropySeedProbe" : other == "EnableM04TypeManagerModuleRegistrationProbe" ? "m04_type_manager_requires_original_loaded_image" : "m03_firmware_entropy_profile_conflict property=" + other));
+            Reject([.. positive, "-" + other], EfiProfileTestControls.MissingParentReason([Flag, other], ordinarySmoke: true) ?? (other == "EnableM03FirstRealExitBootServicesProbe" ? "m03_first_exit_requires property=EnableM01LoadedImageStackProbe" : other == "EnableM04GcStaticRootMaterializationProbe" ? "m04_gc_static_profile_invalid property=EnableM01LoadedImageStackProbe" : other == "EnableM03TypedExitBootServicesCallProbe" ? "m03_typed_ebs_profile_conflict property=EnableM03FirmwareEntropySeedProbe" : other == "EnableM04TypeManagerModuleRegistrationProbe" ? "m04_type_manager_requires_original_loaded_image" : "m03_firmware_entropy_profile_conflict property=" + other));
         foreach (string value in new[]
         {
             "VIRTIO",
@@ -656,8 +464,8 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
         Reject(["-FirmwareRngSource", ""], "firmware_rng_source_requires_entropy_profile");
         Reject(["-BuildEfi", "-" + Flag], "m03_firmware_entropy_requires_exact_source");
         Reject(["-" + Flag, "-FirmwareRngSource", "virtio"], "m03_firmware_entropy_requires_build_and_original_capture");
-        Reject([..positive, "-SkipImageBuild"], "m03_firmware_entropy_requires_build_and_original_capture");
-        Reject([..positive, "-MarkerPreset", "acpi"], "m03_firmware_entropy_forbids_override");
+        Reject([.. positive, "-SkipImageBuild"], "m03_firmware_entropy_requires_build_and_original_capture");
+        Reject([.. positive, "-MarkerPreset", "acpi"], "m03_firmware_entropy_forbids_override");
         Passed(Dry("-BuildEfi", "-" + Flag, "-FirmwareRngSource", "missing"));
         Need(Hash(script) == before, "unchanged profile input");
     }
@@ -675,7 +483,7 @@ internal static partial class M03FirmwareEntropySeedEfiIntegrationTests
         )
         {
             string directory = Scratch(enabled ? "enabled" : "default"), artifact = Path.Combine(root, "artifacts/efi/issue541-" + Guid.NewGuid().ToString("N") + ".EFI");
-            Result result = Tool(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), ..(enabled ? new[] { "-EnableM03FirmwareEntropySeedProbe" } : Array.Empty<string>())]);
+            Result result = Tool(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), .. (enabled ? new[] { "-EnableM03FirmwareEntropySeedProbe" } : Array.Empty<string>())]);
             Passed(result);
             Need(result.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && result.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), "actual producer/verifier");
             foreach (string suffix in new[]

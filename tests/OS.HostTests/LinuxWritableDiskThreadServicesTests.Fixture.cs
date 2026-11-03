@@ -48,8 +48,28 @@ internal static unsafe partial class LinuxWritableDiskThreadServicesTests
             if (sqliteFootprints)
                 LinuxWritableDiskDescriptorServicesTests.SeedSqliteFootprints(Storage);
             Storage.Mount();
-            HostCheck.True(W.Start(Provider, new() { Engine = Storage.State, Epoch = Storage.Input.Epoch, Descriptors = descriptors, Descriptions = descriptions, DescriptorCount = 32, DescriptionCount = 32, Input = input, InputBytes = W.IoBytes, ExclusiveOwnerValidated = true }));
-            HostCheck.True(W.EnableLocks(Provider, new() { Processes = processes, ProcessCount = 4, Locks = locks, LockCount = 32, Scratch = scratch, ScratchCount = 65, PrimaryPid = primaryPid }));
+            HostCheck.True(W.Start(Provider, new()
+            {
+                Engine = Storage.State,
+                Epoch = Storage.Input.Epoch,
+                Descriptors = descriptors,
+                Descriptions = descriptions,
+                DescriptorCount = 32,
+                DescriptionCount = 32,
+                Input = input,
+                InputBytes = W.IoBytes,
+                ExclusiveOwnerValidated = true
+            }));
+            HostCheck.True(W.EnableLocks(Provider, new()
+            {
+                Processes = processes,
+                ProcessCount = 4,
+                Locks = locks,
+                LockCount = 32,
+                Scratch = scratch,
+                ScratchCount = 65,
+                PrimaryPid = primaryPid
+            }));
             Files.Admission.User = Thread.DescriptorAccess;
             Files.Admission.CopyToUser = Thread.UserCopyOut;
             Files.Admission.PackageProcessId = packagePid;

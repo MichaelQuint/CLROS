@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotThreadingOutput
 {
     /// <summary>Immutable derived text and original write byte lengths. No raw
@@ -17,10 +18,25 @@ public static partial class NativeAotThreadingOutput
             Stderr = stderr;
         }
 
-        public string Stdout { get; }
-        public string NormalizedTail { get; }
-        public IReadOnlyList<int> WriteLengths { get; }
-        public IReadOnlyList<uint> WriteChannels { get; }
-        public string Stderr { get; }
+        public string Stdout
+        {
+            get;
+        }
+        public string NormalizedTail
+        {
+            get;
+        }
+        public IReadOnlyList<int> WriteLengths
+        {
+            get;
+        }
+        public IReadOnlyList<uint> WriteChannels
+        {
+            get;
+        }
+        public string Stderr
+        {
+            get;
+        }
     }
 }

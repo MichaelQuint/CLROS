@@ -6,15 +6,19 @@ using System.Text.Json.Serialization;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private static T ServiceControlJson<T>(string text)
         where T : class
     {
-        Need(text is not null && text.Length is> 1 and <= 2 * 1024 * 1024, "service_control_json_extent");
+        Need(text is not null && text.Length is > 1 and <= 2 * 1024 * 1024, "service_control_json_extent");
         try
         {
-            using var parsed = JsonDocument.Parse(text!, new() { MaxDepth = 12 });
+            using var parsed = JsonDocument.Parse(text!, new()
+            {
+                MaxDepth = 12
+            });
             void Unique(JsonElement value)
             {
                 if (value.ValueKind == JsonValueKind.Object)
@@ -52,7 +56,7 @@ public static partial class QemuTranscripts
     {
         var control = ServiceControlJson<ServiceSocketControls.Report>(controlsJson);
         var frames = ServiceControlJson<WebFrameControl.ServiceReport>(framesJson);
-        Need(control.Schema == "clros.nativeaot.service.controls.v2" && control.Persist is not null && control.Healthy is not null && control.Unread is not null && control.Unread.Http is not null && control.Observations is not null && control.Observations.Count is> 20 and <= 512 && frames.Session is not null && frames.ControlledPorts is not null && frames.Injections is not null, "service_control_inputs");
+        Need(control.Schema == "clros.nativeaot.service.controls.v2" && control.Persist is not null && control.Healthy is not null && control.Unread is not null && control.Unread.Http is not null && control.Observations is not null && control.Observations.Count is > 20 and <= 512 && frames.Session is not null && frames.ControlledPorts is not null && frames.Injections is not null, "service_control_inputs");
         int[] ports = [control.PendingPort, control.Persist!.Port, control.Healthy!.Port];
         Need(ports.All(port => port is >= 1024 and <= 65535) && ports.Distinct().Count() == 3 && frames.ControlledPorts!.SequenceEqual(ports) && started < ended && control.FirstClientSequence == 0xfffffff0 && control.SecondClientSequence == 0xfffff800, "service_control_selection");
         var session = frames.Session!;
@@ -102,12 +106,12 @@ public static partial class QemuTranscripts
         }
 
         var injections = frames.Injections!;
-        Need(injections.Count is> 10 and <= 64 && injections.Select(row => row.Tag).Distinct(StringComparer.Ordinal).Count() == injections.Count && injections.Count(row => !row.Forwarded) == 1 && injections.Single(row => !row.Forwarded).Tag == "persist.reopen.lost", "service_control_injection_set");
+        Need(injections.Count is > 10 and <= 64 && injections.Select(row => row.Tag).Distinct(StringComparer.Ordinal).Count() == injections.Count && injections.Count(row => !row.Forwarded) == 1 && injections.Single(row => !row.Forwarded).Tag == "persist.reopen.lost", "service_control_injection_set");
         previous = 0;
         List<ServiceControlPacket> sent = [];
         foreach (var injection in injections)
         {
-            Need(injection.AfterBackendOrdinal >= previous && injection.AfterBackendOrdinal <= backend && injection.Tag is not null && injection.Tag.Length is> 0 and <= 48 && injection.Tag.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_'), "service_control_injection_order");
+            Need(injection.AfterBackendOrdinal >= previous && injection.AfterBackendOrdinal <= backend && injection.Tag is not null && injection.Tag.Length is > 0 and <= 48 && injection.Tag.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_'), "service_control_injection_order");
             previous = injection.AfterBackendOrdinal;
             var packet = ServiceSelectedPacket(ServiceHex(injection.Hex), arp.PeerMac, ports, 0, 0);
             Need(packet is not null && !packet.Outgoing, "service_control_injection_frame");
@@ -165,7 +169,14 @@ public static partial class QemuTranscripts
             Need(dates.Length == 1 && DateTimeOffset.TryParseExact(dates[0][6..], "r", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out _), "service_control_http_date");
             var date = DateTimeOffset.ParseExact(dates[0][6..], "r", CultureInfo.InvariantCulture);
             Need(date >= exchange.StartedUtc.AddSeconds(-5) && date <= exchange.CompletedUtc.AddSeconds(5), "service_control_http_utc");
-            expected.Add(JsonSerializer.SerializeToElement(new { method = "GET", path = "/healthz", status = 200, dateUtc = date.ToString("O", CultureInfo.InvariantCulture), bodyBase64 = Convert.ToBase64String("CLROS_SERVICE_HEALTH_OK"u8) }));
+            expected.Add(JsonSerializer.SerializeToElement(new
+            {
+                method = "GET",
+                path = "/healthz",
+                status = 200,
+                dateUtc = date.ToString("O", CultureInfo.InvariantCulture),
+                bodyBase64 = Convert.ToBase64String("CLROS_SERVICE_HEALTH_OK"u8)
+            }));
         }
 
         Need(control.Persist.StartedUtc <= control.Healthy.StartedUtc && control.Healthy.CompletedUtc <= control.Persist.CompletedUtc, "service_control_http_order");

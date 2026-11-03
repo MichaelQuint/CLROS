@@ -30,7 +30,7 @@ internal static class HostManagedHeapSourceGuard
             return false;
         var gate = checkpoint.Syntax.Ancestors().OfType<IfStatementSyntax>().First();
         if (model.GetOperation(gate.Condition) is not IUnaryOperation
-                { OperatorKind: UnaryOperatorKind.Not, Operand: IInvocationOperation condition }
+            { OperatorKind: UnaryOperatorKind.Not, Operand: IInvocationOperation condition }
             || !SameSyntax(condition.Syntax, checkpoint.Syntax) || !FalseReturn(gate.Statement))
             return false;
 
@@ -46,7 +46,7 @@ internal static class HostManagedHeapSourceGuard
         var retainedGate = validation.Syntax.Ancestors().OfType<IfStatementSyntax>().FirstOrDefault();
         var retainedModel = catalog.Compilation.GetSemanticModel(continuation.SyntaxTree);
         if (retainedGate is null || retainedModel.GetOperation(retainedGate.Condition) is not IUnaryOperation
-                { OperatorKind: UnaryOperatorKind.Not, Operand: IInvocationOperation checkedResult }
+            { OperatorKind: UnaryOperatorKind.Not, Operand: IInvocationOperation checkedResult }
             || !SameSyntax(checkedResult.Syntax, validation.Syntax))
             return false;
         var stop = retainedGate.Statement is BlockSyntax { Statements.Count: 1 } block ? block.Statements[0] : retainedGate.Statement;
@@ -186,7 +186,7 @@ internal static class HostManagedHeapSourceGuard
         _ => false
     };
     private static bool Boolean(IOperation operation, bool expected) => operation.ConstantValue is
-        { HasValue: true, Value: bool value } && value == expected;
+    { HasValue: true, Value: bool value } && value == expected;
     private static bool Is(IInvocationOperation call, string owner, string method) => call.TargetMethod.Name == method
         && Same(call.TargetMethod.ContainingType, call.TargetMethod.ContainingAssembly.GetTypeByMetadataName(owner)!);
     private static bool Same(ISymbol first, ISymbol second) => SymbolEqualityComparer.Default.Equals(first, second);

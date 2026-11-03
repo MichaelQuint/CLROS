@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Memory;
+
 public readonly partial struct MemoryMapInfoResult
 {
     public const ulong MinimumUefiDescriptorSize = 40;
@@ -14,10 +15,22 @@ public readonly partial struct MemoryMapInfoResult
         _message = message;
     }
 
-    public bool Succeeded { get; }
-    public MemoryMapInfoStatus Status { get; }
-    public MemoryMapInfo Info { get; }
-    public int InvalidDescriptorIndex { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public MemoryMapInfoStatus Status
+    {
+        get;
+    }
+    public MemoryMapInfo Info
+    {
+        get;
+    }
+    public int InvalidDescriptorIndex
+    {
+        get;
+    }
     public string Message => _message ?? string.Empty;
 
     public static MemoryMapInfoResult FromUefiSnapshot(UefiMemoryMapSnapshot snapshot)

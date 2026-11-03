@@ -27,18 +27,57 @@ public readonly struct GCStaticMetadataResult
         SeriesBytes = seriesBytes;
     }
 
-    public GCStaticMetadataStatus Status { get; }
-    public TypeManagerModuleStatus ModuleStatus { get; }
-    public ulong Entry { get; }
-    public ulong Cell { get; }
-    public ulong EncodedCell { get; }
-    public ulong MethodTable { get; }
-    public ulong RelatedType { get; }
-    public ulong Descriptor { get; }
-    public uint Flags { get; }
-    public uint BaseSize { get; }
-    public long AdjustedSize { get; }
-    public ulong SeriesOffset { get; }
-    public ulong SeriesBytes { get; }
+    public GCStaticMetadataStatus Status
+    {
+        get;
+    }
+    public TypeManagerModuleStatus ModuleStatus
+    {
+        get;
+    }
+    public ulong Entry
+    {
+        get;
+    }
+    public ulong Cell
+    {
+        get;
+    }
+    public ulong EncodedCell
+    {
+        get;
+    }
+    public ulong MethodTable
+    {
+        get;
+    }
+    public ulong RelatedType
+    {
+        get;
+    }
+    public ulong Descriptor
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
+    public uint BaseSize
+    {
+        get;
+    }
+    public long AdjustedSize
+    {
+        get;
+    }
+    public ulong SeriesOffset
+    {
+        get;
+    }
+    public ulong SeriesBytes
+    {
+        get;
+    }
     public bool Succeeded => Status == GCStaticMetadataStatus.Success;
 }

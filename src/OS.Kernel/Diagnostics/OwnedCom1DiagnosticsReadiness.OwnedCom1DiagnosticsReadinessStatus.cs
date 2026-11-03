@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public enum OwnedCom1DiagnosticsReadinessStatus
 {
     Success = 0,

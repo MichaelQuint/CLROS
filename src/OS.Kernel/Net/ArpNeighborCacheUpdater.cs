@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class ArpNeighborCacheUpdater
 {
     public static ArpNeighborCacheUpdateStatus TryUpdateFromReply(ref ArpNeighborCache cache, MacAddress localMac, Ipv4Address localAddress, Ipv4Address targetAddress, ReadOnlySpan<byte> replyFrame, ulong currentTick, out ArpNeighborCacheUpdateResult result)

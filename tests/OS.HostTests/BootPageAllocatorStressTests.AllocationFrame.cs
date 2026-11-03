@@ -21,10 +21,25 @@ internal static partial class BootPageAllocatorStressTests
             ReservationBytesBefore = reservationBytesBefore;
         }
 
-        public BootPageAllocatorOnePageResult Allocation { get; }
-        public int PageIndex { get; }
-        public ulong ContentTag { get; }
-        public byte[] NodeBytesBefore { get; }
-        public byte[] ReservationBytesBefore { get; }
+        public BootPageAllocatorOnePageResult Allocation
+        {
+            get;
+        }
+        public int PageIndex
+        {
+            get;
+        }
+        public ulong ContentTag
+        {
+            get;
+        }
+        public byte[] NodeBytesBefore
+        {
+            get;
+        }
+        public byte[] ReservationBytesBefore
+        {
+            get;
+        }
     }
 }

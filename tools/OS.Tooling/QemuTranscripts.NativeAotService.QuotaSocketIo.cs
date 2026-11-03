@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect bounded borrowed original normalized rows beside a
@@ -16,7 +17,7 @@ public static partial class QemuTranscripts
     private static ServiceQuotaSocketIo QuotaSocketRow(string row, int index)
     {
         var r = ReadRecord(row, "M16_016_SOCKET", QuotaSocketFields);
-        Need(r["identity"] > 0 && r["ordinal"] > 0 && r["fd"] < 16 && r["fdGeneration"] is> 0 and <= uint.MaxValue && r["description"] < 16 && r["inode"] > 0 && r["slot"] < 8 && r["index"] < 8 && r["owner"] > 0 && r["epoch"] > 0 && r["generation"] > 0 && r["local"] == 0x0a00020f && r["localPort"] == 8080 && r["remote"] == 0x0a000202 && r["remotePort"] is> 0 and <= 65535 && r["bytes"] <= 8192 && r["peek"] <= 1 && r["offset"] <= ulong.MaxValue - r["bytes"], "service_quota_socket_shape");
+        Need(r["identity"] > 0 && r["ordinal"] > 0 && r["fd"] < 16 && r["fdGeneration"] is > 0 and <= uint.MaxValue && r["description"] < 16 && r["inode"] > 0 && r["slot"] < 8 && r["index"] < 8 && r["owner"] > 0 && r["epoch"] > 0 && r["generation"] > 0 && r["local"] == 0x0a00020f && r["localPort"] == 8080 && r["remote"] == 0x0a000202 && r["remotePort"] is > 0 and <= 65535 && r["bytes"] <= 8192 && r["peek"] <= 1 && r["offset"] <= ulong.MaxValue - r["bytes"], "service_quota_socket_shape");
         return new(index, index - 1, r["identity"], r["ordinal"], r["nr"], (int)r["fd"], (uint)r["fdGeneration"], (uint)r["description"], r["inode"], new(r["owner"], r["epoch"], r["generation"], (uint)r["index"], (uint)r["slot"], r["local"], (uint)r["localPort"], r["remote"], (uint)r["remotePort"]), r["offset"], (uint)r["bytes"], r["peek"] != 0, r["sent"], r["received"]);
     }
 
@@ -30,7 +31,7 @@ public static partial class QemuTranscripts
 
     private static IReadOnlyList<ServiceQuotaSocketIo> ReadServiceQuotaSocketIo(string[] rows, IReadOnlyList<ServiceQuotaTransportLifetime> lifetimes)
     {
-        Need(rows is not null && rows.Length is> 0 and <= 1_000_000 && rows.All(r => r is not null && r.Length is> 0 and <= 4096 && r.All(c => c is >= ' ' and <= '~')) && rows.Sum(r => (long)r.Length + 2) <= 128L * 1024 * 1024 && lifetimes is not null && lifetimes.Count is >= 0 and <= 512, "service_quota_socket_input");
+        Need(rows is not null && rows.Length is > 0 and <= 1_000_000 && rows.All(r => r is not null && r.Length is > 0 and <= 4096 && r.All(c => c is >= ' ' and <= '~')) && rows.Sum(r => (long)r.Length + 2) <= 128L * 1024 * 1024 && lifetimes is not null && lifetimes.Count is >= 0 and <= 512, "service_quota_socket_input");
         var census = lifetimes!.ToArray();
         Need(census.All(l => l.RowIndex >= 0 && l.RowIndex < rows!.Length && l.Slot < 8 && l.Index < 8 && l.LocalPort <= 65535 && l.RemotePort <= 65535), "service_quota_socket_census");
         var identities = census.Select(QuotaSocketIdentity).ToArray();

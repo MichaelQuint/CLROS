@@ -39,7 +39,7 @@ internal static partial class Program
                 Thread.Sleep(250);
             }
         });
-        ContainmentPeer? [] accepted = new ContainmentPeer? [PeerCount], roles = new ContainmentPeer? [PeerCount];
+        ContainmentPeer?[] accepted = new ContainmentPeer?[PeerCount], roles = new ContainmentPeer?[PeerCount];
         int acceptedCount = 0, queued = 0, timeoutWorker = 0, blockedWorker = 0;
         long timeoutAt = -1;
         bool started = false, saturated = false, eof = false, shutdown = false, success = false;
@@ -68,7 +68,7 @@ internal static partial class Program
                         socket.Blocking = false;
                         socket.NoDelay = true;
                     }
-                    catch (SocketException error)when (error.SocketErrorCode == SocketError.WouldBlock)
+                    catch (SocketException error) when (error.SocketErrorCode == SocketError.WouldBlock)
                     {
                     }
                 }
@@ -89,7 +89,7 @@ internal static partial class Program
                         peer.Started = clock.ElapsedMilliseconds;
                         roles[role] = peer;
                     }
-                    catch (SocketException error)when (error.SocketErrorCode == SocketError.WouldBlock)
+                    catch (SocketException error) when (error.SocketErrorCode == SocketError.WouldBlock)
                     {
                     }
                 }
@@ -107,7 +107,7 @@ internal static partial class Program
                                 throw new InvalidOperationException("timeout.send.zero");
                             queued += sent;
                         }
-                        catch (SocketException error)when (error.SocketErrorCode == SocketError.WouldBlock)
+                        catch (SocketException error) when (error.SocketErrorCode == SocketError.WouldBlock)
                         {
                             if (queued < 32_768)
                                 throw new InvalidOperationException("timeout.send.too-short");
@@ -122,10 +122,10 @@ internal static partial class Program
                             _ = a.Socket.Receive(one, SocketFlags.None);
                             throw new InvalidOperationException("timeout.receive.completed");
                         }
-                        catch (SocketException error)when (error.SocketErrorCode == SocketError.WouldBlock)
+                        catch (SocketException error) when (error.SocketErrorCode == SocketError.WouldBlock)
                         {
                         }
-                        catch (SocketException error)when (error.SocketErrorCode == SocketError.TimedOut)
+                        catch (SocketException error) when (error.SocketErrorCode == SocketError.TimedOut)
                         {
                             long elapsed = clock.ElapsedMilliseconds - a.Started;
                             timeoutWorker = Volatile.Read(ref progress.Value);
@@ -149,7 +149,7 @@ internal static partial class Program
                             _ = a.Socket.Send(one, SocketFlags.None);
                             throw new InvalidOperationException("timeout.send.not-shutdown");
                         }
-                        catch (SocketException error)when (error.SocketErrorCode == SocketError.Shutdown)
+                        catch (SocketException error) when (error.SocketErrorCode == SocketError.Shutdown)
                         {
                             shutdown = true;
                         }
@@ -168,7 +168,7 @@ internal static partial class Program
                                 throw new InvalidOperationException("healthy.round");
                             peer.ReplyPending = true;
                         }
-                        catch (SocketException error)when (error.SocketErrorCode == SocketError.WouldBlock)
+                        catch (SocketException error) when (error.SocketErrorCode == SocketError.WouldBlock)
                         {
                             continue;
                         }
@@ -191,7 +191,7 @@ internal static partial class Program
                             Console.WriteLine($"SOCKET_CONTAINMENT_HEALTHY role={role} rounds=15 elapsed_ms={elapsed} worker={peer.Worker}");
                         }
                     }
-                    catch (SocketException error)when (error.SocketErrorCode == SocketError.WouldBlock)
+                    catch (SocketException error) when (error.SocketErrorCode == SocketError.WouldBlock)
                     {
                     }
                 }

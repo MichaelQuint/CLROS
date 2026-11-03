@@ -364,7 +364,7 @@ internal static unsafe partial class M02NormalizedInterruptFramePageEfiIntegrati
 
     private static ScriptResult RunQemuDryRun(string root, params string[] arguments)
     {
-        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..arguments]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. arguments]);
         return new(result.ExitCode, result.Output + result.Error);
     }
 

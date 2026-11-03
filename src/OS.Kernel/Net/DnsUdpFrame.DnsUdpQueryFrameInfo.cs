@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct DnsUdpQueryFrameInfo
 {
     public DnsUdpQueryFrameInfo(MacAddress localMac, MacAddress destinationMac, Ipv4Address localAddress, Ipv4Address dnsServerAddress, ushort sourcePort, ushort identification = 0)
@@ -11,10 +12,28 @@ public readonly struct DnsUdpQueryFrameInfo
         Identification = identification;
     }
 
-    public MacAddress LocalMac { get; }
-    public MacAddress DestinationMac { get; }
-    public Ipv4Address LocalAddress { get; }
-    public Ipv4Address DnsServerAddress { get; }
-    public ushort SourcePort { get; }
-    public ushort Identification { get; }
+    public MacAddress LocalMac
+    {
+        get;
+    }
+    public MacAddress DestinationMac
+    {
+        get;
+    }
+    public Ipv4Address LocalAddress
+    {
+        get;
+    }
+    public Ipv4Address DnsServerAddress
+    {
+        get;
+    }
+    public ushort SourcePort
+    {
+        get;
+    }
+    public ushort Identification
+    {
+        get;
+    }
 }

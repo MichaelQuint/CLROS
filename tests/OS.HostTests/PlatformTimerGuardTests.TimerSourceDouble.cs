@@ -11,7 +11,10 @@ internal static partial class PlatformTimerGuardTests
             _metadata = metadata;
         }
 
-        public int ReadCount { get; private set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
 
         public PlatformTimerMetadata ReadMonotonic()
         {

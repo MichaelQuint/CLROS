@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct EfiConfigurationTableScanResult
 {
     private EfiConfigurationTableScanResult(bool succeeded, EfiConfigurationTableScanStatus status, EfiAcpiTableKind tableKind, ulong rsdpAddress)
@@ -9,10 +10,22 @@ public readonly struct EfiConfigurationTableScanResult
         RsdpAddress = rsdpAddress;
     }
 
-    public bool Succeeded { get; }
-    public EfiConfigurationTableScanStatus Status { get; }
-    public EfiAcpiTableKind TableKind { get; }
-    public ulong RsdpAddress { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public EfiConfigurationTableScanStatus Status
+    {
+        get;
+    }
+    public EfiAcpiTableKind TableKind
+    {
+        get;
+    }
+    public ulong RsdpAddress
+    {
+        get;
+    }
 
     public static EfiConfigurationTableScanResult Success(EfiAcpiTableKind tableKind, ulong rsdpAddress)
     {

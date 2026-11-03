@@ -10,11 +10,26 @@ using OS.Kernel.Memory;
 #endif
 internal sealed unsafe class M01014PageTableFixture : IDisposable
 {
-    internal X64PageTableImagePage[] Pages { get; }
-    internal ulong[] Entries { get; }
-    internal X64PageTableEncodingPreconditions Context { get; }
-    internal PhysicalAddress Root { get; }
-    internal VirtualAddress Target { get; }
+    internal X64PageTableImagePage[] Pages
+    {
+        get;
+    }
+    internal ulong[] Entries
+    {
+        get;
+    }
+    internal X64PageTableEncodingPreconditions Context
+    {
+        get;
+    }
+    internal PhysicalAddress Root
+    {
+        get;
+    }
+    internal VirtualAddress Target
+    {
+        get;
+    }
 
     internal M01014PageTableFixture(ulong target = 0x0040_0000, ulong tablePhysicalStart = 0x0010_0000)
     {

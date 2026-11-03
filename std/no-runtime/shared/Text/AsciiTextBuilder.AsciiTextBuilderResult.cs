@@ -2,6 +2,7 @@ using OS.Std;
 using OS.Std.Memory;
 
 namespace OS.Std.Text;
+
 public readonly struct AsciiTextBuilderResult
 {
     private AsciiTextBuilderResult(bool isInitialized, AsciiTextBuilderStatus status, int initialOffset, int destinationLength, int bytesWritten, int requiredBytes, int nextOffset, int invalidInputIndex)
@@ -16,14 +17,38 @@ public readonly struct AsciiTextBuilderResult
         InvalidInputIndex = invalidInputIndex;
     }
 
-    public bool IsInitialized { get; }
-    public AsciiTextBuilderStatus Status { get; }
-    public int InitialOffset { get; }
-    public int DestinationLength { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int NextOffset { get; }
-    public int InvalidInputIndex { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public AsciiTextBuilderStatus Status
+    {
+        get;
+    }
+    public int InitialOffset
+    {
+        get;
+    }
+    public int DestinationLength
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int NextOffset
+    {
+        get;
+    }
+    public int InvalidInputIndex
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == AsciiTextBuilderStatus.Success && BytesWritten >= 0 && InitialOffset >= 0 && NextOffset == InitialOffset + BytesWritten && RequiredBytes == NextOffset && RequiredBytes <= DestinationLength;
 
     public static AsciiTextBuilderResult Success(int initialOffset, int destinationLength, int bytesWritten)

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public enum VirtioDeviceInitializationProfileStatus
 {
     Success = 0,

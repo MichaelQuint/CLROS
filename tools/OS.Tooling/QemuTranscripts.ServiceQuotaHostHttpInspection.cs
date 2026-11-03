@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied host prefixes, every parsed request (including unselected

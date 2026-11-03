@@ -3,6 +3,7 @@ using OS.Kernel.Compatibility.LinuxX64;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed partial class ThreadingProtocol

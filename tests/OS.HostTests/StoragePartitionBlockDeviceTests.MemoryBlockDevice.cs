@@ -11,9 +11,15 @@ internal static partial class StoragePartitionBlockDeviceTests
             Bytes = bytes;
         }
 
-        public BlockDeviceInfo Info { get; }
+        public BlockDeviceInfo Info
+        {
+            get;
+        }
 
-        public byte[] Bytes { get; }
+        public byte[] Bytes
+        {
+            get;
+        }
 
         public static MemoryBlockDevice Create(uint blockSize, ulong blockCount)
         {

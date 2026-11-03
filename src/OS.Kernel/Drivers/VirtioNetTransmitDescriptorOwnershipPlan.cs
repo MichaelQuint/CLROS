@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioNetTransmitDescriptorOwnershipPlan
 {
     public const bool PerformsMmio = false;

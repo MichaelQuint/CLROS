@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public static class AcpiRsdpValidator
 {
     public const int SignatureLength = 8;

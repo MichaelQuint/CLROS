@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>One strict original-row order relationship. Both indices come

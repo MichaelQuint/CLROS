@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public enum BootPageAllocatorStateMaterializationStatus : byte
 {
     Uninitialized = 0,

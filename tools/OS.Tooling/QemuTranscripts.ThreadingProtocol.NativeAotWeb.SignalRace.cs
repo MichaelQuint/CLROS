@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed partial class ThreadingProtocol
@@ -11,7 +12,9 @@ public static partial class QemuTranscripts
             Need(originalRows is not null && originalRows.Count == rows.Length && originalCount >= rows.Length && originalCount <= 100000, "web_race_original_rows");
             int[] map = originalRows!.ToArray();
             Need(map.All(i => i >= 0 && i < originalCount) && map.Zip(map.Skip(1)).All(p => p.First < p.Second), "web_race_original_rows");
-            webRaceTrace = new(selection!with { }, map, eventOwned);
+            webRaceTrace = new(selection! with
+            {
+            }, map, eventOwned);
         }
 
         private void ObserveWebSignalRaceCall(RuntimeThread t, Dictionary<string, ulong> r, LinuxCallWaitObservation call)
@@ -131,8 +134,8 @@ public static partial class QemuTranscripts
 
             WebSignalRaceReport.Thread Thread(RuntimeThread t, int get)
             {
-                int? clone = t.Tid == 1 ? null : One(calls.Where(c => c.R["nr"] == 56 && c.R["valueBits"] == (ulong)t.Tid).Select(c => (int? )c.Wait.RecordIndex), "web_race_clone");
-                int? Locate(string prefix) => Enumerable.Range(0, rows.Length).Where(i => rows[i].StartsWith(prefix, StringComparison.Ordinal)).Select(i => (int? )Original(i)).FirstOrDefault();
+                int? clone = t.Tid == 1 ? null : One(calls.Where(c => c.R["nr"] == 56 && c.R["valueBits"] == (ulong)t.Tid).Select(c => (int?)c.Wait.RecordIndex), "web_race_clone");
+                int? Locate(string prefix) => Enumerable.Range(0, rows.Length).Where(i => rows[i].StartsWith(prefix, StringComparison.Ordinal)).Select(i => (int?)Original(i)).FirstOrDefault();
                 return new(t.Identity, t.Tid, ReadRecord(rows[get], "M16_008_CALL", Fields)["fs"], Original(get), clone is int cloneIndex ? Original(cloneIndex) : null, Locate("M16_008_EXIT identity=" + t.Identity + " "), Locate("M16_008_REAP old=" + t.Identity + " "));
             }
 

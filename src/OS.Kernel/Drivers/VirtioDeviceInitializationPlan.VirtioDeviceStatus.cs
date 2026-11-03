@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 [Flags]
 public enum VirtioDeviceStatus : byte
 {

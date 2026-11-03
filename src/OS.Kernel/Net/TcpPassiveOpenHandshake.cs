@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public struct TcpPassiveOpenHandshake
 {
     public const byte FlagFin = 0x01;
@@ -20,13 +21,34 @@ public struct TcpPassiveOpenHandshake
         State = TcpPassiveOpenHandshakeState.Listen;
     }
 
-    public TcpPassiveOpenHandshakeState State { get; private set; }
-    public ushort LocalPort { get; }
-    public ushort RemotePort { get; }
-    public uint InitialSequenceNumber { get; }
-    public uint LocalNextSequenceNumber { get; private set; }
-    public uint RemoteInitialSequenceNumber { get; private set; }
-    public uint RemoteNextSequenceNumber { get; private set; }
+    public TcpPassiveOpenHandshakeState State
+    {
+        get; private set;
+    }
+    public ushort LocalPort
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
+    public uint InitialSequenceNumber
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get; private set;
+    }
+    public uint RemoteInitialSequenceNumber
+    {
+        get; private set;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get; private set;
+    }
 
     public static TcpPassiveOpenHandshake Create(ushort localPort, ushort remotePort, uint initialSequenceNumber)
     {

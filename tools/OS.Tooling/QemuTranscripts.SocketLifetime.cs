@@ -3,6 +3,7 @@ using System.Text;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed class SocketLifetime(Dictionary<string, ulong> first)

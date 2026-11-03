@@ -17,7 +17,13 @@ internal static partial class KestrelSmokePackageContractTests
             this.Valid = valid;
         }
 
-        public string PublishDirectory { get; }
-        public bool Valid { get; }
+        public string PublishDirectory
+        {
+            get;
+        }
+        public bool Valid
+        {
+            get;
+        }
     }
 }

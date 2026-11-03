@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioDeviceInitializationProfile
 {
     public const ulong NoRequiredFeatureMask = 0;

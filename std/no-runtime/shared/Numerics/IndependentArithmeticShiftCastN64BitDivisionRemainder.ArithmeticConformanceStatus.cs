@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 
 namespace OS.Std.Numerics;
+
 public enum ArithmeticConformanceStatus : byte
 {
     Uninitialized = 0,

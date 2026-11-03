@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct DiagnosticStubInvocationReadinessResult
 {
     private DiagnosticStubInvocationReadinessResult(bool isInitialized, DiagnosticStubInvocationReadinessStatus status, ExecutableStubPageTransitionPlanStatus pageTransitionStatus, Com1PortIoBackendContractStatus backendContractStatus, nuint payloadBaseAddress, nuint payloadEndAddress, nuint bytesMaterialized, nuint out8StubAddress, nuint in8StubAddress)
@@ -16,15 +17,42 @@ public readonly struct DiagnosticStubInvocationReadinessResult
         In8StubAddress = in8StubAddress;
     }
 
-    public bool IsInitialized { get; }
-    public DiagnosticStubInvocationReadinessStatus Status { get; }
-    public ExecutableStubPageTransitionPlanStatus PageTransitionStatus { get; }
-    public Com1PortIoBackendContractStatus BackendContractStatus { get; }
-    public nuint PayloadBaseAddress { get; }
-    public nuint PayloadEndAddress { get; }
-    public nuint BytesMaterialized { get; }
-    public nuint Out8StubAddress { get; }
-    public nuint In8StubAddress { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public DiagnosticStubInvocationReadinessStatus Status
+    {
+        get;
+    }
+    public ExecutableStubPageTransitionPlanStatus PageTransitionStatus
+    {
+        get;
+    }
+    public Com1PortIoBackendContractStatus BackendContractStatus
+    {
+        get;
+    }
+    public nuint PayloadBaseAddress
+    {
+        get;
+    }
+    public nuint PayloadEndAddress
+    {
+        get;
+    }
+    public nuint BytesMaterialized
+    {
+        get;
+    }
+    public nuint Out8StubAddress
+    {
+        get;
+    }
+    public nuint In8StubAddress
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == DiagnosticStubInvocationReadinessStatus.Ready && PayloadBaseAddress != 0 && PayloadEndAddress > PayloadBaseAddress && BytesMaterialized != 0 && IsInsidePayload(Out8StubAddress, PayloadBaseAddress, PayloadEndAddress) && IsInsidePayload(In8StubAddress, PayloadBaseAddress, PayloadEndAddress);
 
     public static DiagnosticStubInvocationReadinessResult Pass(ExecutableStubPageTransitionPlanResult pageTransition, Com1PortIoBackendContractResult backendContract)

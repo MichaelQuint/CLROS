@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied application values only. These authenticate neither the

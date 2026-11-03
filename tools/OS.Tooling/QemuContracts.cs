@@ -33,8 +33,12 @@ public static class QemuContracts
     /// Missing/unsupported platform APIs return false; this starts no VM.</summary>
     public static bool IsWhpxAvailable()
     {
-        if (!OperatingSystem.IsWindows()) return false;
-        try { return GetHypervisorCapability(0, out int present, sizeof(int), out uint written) == 0 && written == sizeof(int) && present != 0; }
+        if (!OperatingSystem.IsWindows())
+            return false;
+        try
+        {
+            return GetHypervisorCapability(0, out int present, sizeof(int), out uint written) == 0 && written == sizeof(int) && present != 0;
+        }
         catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException) { return false; }
     }
 
@@ -684,7 +688,10 @@ public static class QemuContracts
     public static IReadOnlyList<string> M02HistoricalManifestSuccessMarkers { get; } = Array.AsReadOnly<string>([Record061, Record608, Record609, Record078, Record610, Record080]);
     public static IReadOnlyList<string> M02IssueSuccessMarkers { get; } = Array.AsReadOnly<string>([Record061, Record062, Record063, Record078, Record079, Record080]);
     public static IReadOnlyList<string> M02IssueForbiddenMarkers { get; } = Array.AsReadOnly<string>([Record025, Record026, Record027, Record028, Record029, Record030, Record031, Record032, Record033]);
-    public static IReadOnlyList<string> M04RethrowRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M04RethrowRequiredMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
         "TEST_START m04.021.rethrow",
@@ -692,21 +699,30 @@ public static class QemuContracts
         "TEST_PASS m04.021.rethrow", "CLROS_M04_RETHROW_READY",
         .. M04GcStaticRootRequiredMarkers.TakeLast(8)
     ]);
-    public static IReadOnlyList<string> M04NormalFinallyRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M04NormalFinallyRequiredMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
         "TEST_START m04.021.normal-finally", .. Enumerable.Range(0,15).Select(stage=>"M04_NORMAL_FINALLY "+stage),
         "TEST_PASS m04.021.normal-finally", "CLROS_M04_021_NORMAL_FINALLY_READY",
         .. M04GcStaticRootRequiredMarkers.TakeLast(8)
     ]);
-    public static IReadOnlyList<string> M04FrameDispatchRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M04FrameDispatchRequiredMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
         "TEST_START m04.021.frames", .. Enumerable.Range(0,15).Select(stage=>"M04_FRAMES "+stage),
         "TEST_PASS m04.021.frames", "CLROS_M04_021_FRAMES_READY",
         .. M04GcStaticRootRequiredMarkers.TakeLast(8)
     ]);
-    public static IReadOnlyList<string> M04EhCatalogRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M04EhCatalogRequiredMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
         "TEST_START m04.021.frames", .. Enumerable.Range(0,5).Select(stage=>"M04_FRAMES "+stage),
@@ -716,26 +732,38 @@ public static class QemuContracts
         "TEST_PASS m04.021.frames", "CLROS_M04_021_FRAMES_READY", "CLROS_M04_EH_CATALOG_READY",
         .. M04GcStaticRootRequiredMarkers.TakeLast(8)
     ]);
-    public static IReadOnlyList<string> M04ConstructorFailureRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M04ConstructorFailureRequiredMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
         "TEST_START m04.021.ctor-failure", .. Enumerable.Range(0,19).Select(stage=>"M04_CTOR_FAILURE "+stage),
         "TEST_PASS m04.021.ctor-failure", "CLROS_M04_021_CTOR_FAILURE_READY",
         .. M04GcStaticRootRequiredMarkers.TakeLast(8)
     ]);
-    public static IReadOnlyList<string> M04FilteredCatchRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M04FilteredCatchRequiredMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
         "TEST_START m04.021.filters", .. Enumerable.Range(0,15).Select(stage=>"M04_FILTERS "+stage),
         "TEST_PASS m04.021.filters", "CLROS_M04_021_FILTERS_READY",
         .. M04GcStaticRootRequiredMarkers.TakeLast(8)
     ]);
-    public static IReadOnlyList<string> M04UnhandledRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M04UnhandledRequiredMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
         "TEST_START m04.021.unhandled", .. Enumerable.Range(0,8).Select(stage=>"M04_UNHANDLED "+stage)
     ]);
-    public static IReadOnlyList<string> M04NestedFinallyRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M04NestedFinallyRequiredMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
         "TEST_START m04.021.nested-finally",
@@ -743,17 +771,26 @@ public static class QemuContracts
         "TEST_PASS m04.021.nested-finally", "CLROS_M04_NESTED_FINALLY_READY",
         .. M04GcStaticRootRequiredMarkers.TakeLast(8)
     ]);
-    public static IReadOnlyList<string> M05PhysicalMappingMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M05PhysicalMappingMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M03OwnedSubsystemMarkers, "TEST_START m05.001", .. Enumerable.Range(0, 7).Select(stage => "M05_MAP " + stage),
         "CLROS_M05_001_READY", "TEST_PASS m05.001"
     ]);
-    public static IReadOnlyList<string> M05OwnedAcpiSelectionMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M05OwnedAcpiSelectionMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M03OwnedSubsystemMarkers, "TEST_START m05.002", .. Enumerable.Range(0, 4).Select(stage => "M05_ACPI " + stage),
         "CLROS_M05_002_READY", "TEST_PASS m05.002"
     ]);
-    public static IReadOnlyList<string> M05PciEnumerationMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M05PciEnumerationMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M03OwnedSubsystemMarkers,
         "TEST_START m05.004", "M05_PCI 0", "M05_PCI 1", "CLROS_M05_004_READY", "TEST_PASS m05.004",
@@ -762,7 +799,10 @@ public static class QemuContracts
         "TEST_START m05.007", "M05_PCI 7", "M05_PCI 8", "CLROS_M05_007_READY", "TEST_PASS m05.007"
     ]);
 
-    public static IReadOnlyList<string> M06VirtioBlockQueueSetupMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M06VirtioBlockQueueSetupMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M05PciEnumerationMarkers,
         "TEST_START m06.001", "M06_BLK 0", "M06_BLK 1", "M06_BLK 2", "CLROS_M06_001_READY", "TEST_PASS m06.001",
@@ -771,7 +811,10 @@ public static class QemuContracts
         "TEST_START m06.004", "M06_BLK 8", "M06_BLK 9", "M06_BLK A", "M06_BLK B", "M06_BLK C", "CLROS_M06_004_READY", "TEST_PASS m06.004"
     ]);
 
-    public static IReadOnlyList<string> M06VirtioBlockReadMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M06VirtioBlockReadMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M06VirtioBlockQueueSetupMarkers,
         "TEST_START m06.005", .. Enumerable.Range(0, 6).Select(i => "M06_READ " + i), "CLROS_M06_005_READY", "TEST_PASS m06.005",
@@ -817,19 +860,26 @@ public static class QemuContracts
                     "M06_PKG 05", "M06_PKG 06", "M06_PKG 07", "CLROS_M06_017_READY", "TEST_PASS m06.017"]);
         }
         markers.Add("TEST_START m06.018");
-        if (variant != "Intact") markers.Add("M06_PKG 08");
+        if (variant != "Intact")
+            markers.Add("M06_PKG 08");
         markers.AddRange(["M06_PKG 09", "CLROS_M06_018_READY", "TEST_PASS m06.018"]);
         return markers.AsReadOnly();
     }
 
-    public static IReadOnlyList<string> M06LiveBlockContractMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M06LiveBlockContractMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M06VirtioBlockReadMarkers,
         "TEST_START m06.007", .. Enumerable.Range(0, 6).Select(i => "M06_BDEV " + i), "CLROS_M06_007_READY", "TEST_PASS m06.007",
         "TEST_START m06.008", .. Enumerable.Range(6, 8).Select(i => "M06_BDEV " + i.ToString("X")), "CLROS_M06_008_READY", "TEST_PASS m06.008"
     ]);
 
-    public static IReadOnlyList<string> M05VirtioNegotiationMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M05VirtioNegotiationMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M05PciEnumerationMarkers,
         "TEST_START m05.012", "M05_VIRTIO 0", "M05_VIRTIO 1", "CLROS_M05_012_READY", "TEST_PASS m05.012",
@@ -838,7 +888,10 @@ public static class QemuContracts
         "TEST_START m05.015", "M05_VIRTIO 8", "M05_VIRTIO 9", "CLROS_M05_015_READY", "TEST_PASS m05.015"
     ]);
 
-    public static IReadOnlyList<string> M05VirtqueuePollingMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M05VirtqueuePollingMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M05VirtioNegotiationMarkers,
         "TEST_START m05.016", "M05_QUEUE 0", "CLROS_M05_016_READY", "TEST_PASS m05.016",
@@ -846,12 +899,18 @@ public static class QemuContracts
         "TEST_START m05.018", .. Enumerable.Range(2, 4).Select(i => "M05_QUEUE " + i), "CLROS_M05_018_READY", "TEST_PASS m05.018",
         "TEST_START m05.019", "M05_QUEUE 6", "M05_QUEUE 7", "CLROS_M05_019_READY", "TEST_PASS m05.019"
     ]);
-    public static IReadOnlyList<string> M05ApicSetupMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M05ApicSetupMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M05PciEnumerationMarkers, "TEST_START m05.020", .. Enumerable.Range(0, 4).Select(i => "M05_APIC " + i),
         "CLROS_M05_020_READY", "TEST_PASS m05.020"
     ]);
-    public static IReadOnlyList<string> M07VirtioNetMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M07VirtioNetMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M05VirtqueuePollingMarkers,
         "TEST_START m07.001", "M07_NET 0", "CLROS_M07_001_READY", "TEST_PASS m07.001",
@@ -861,27 +920,39 @@ public static class QemuContracts
         "CLROS_M07_003_READY", "TEST_PASS m07.003", "CLROS_M07_004_READY", "TEST_PASS m07.004",
         "CLROS_M07_005_READY", "TEST_PASS m07.005"
     ]);
-    public static IReadOnlyList<string> M07ArpReceiveMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M07ArpReceiveMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M07VirtioNetMarkers,
         .. Enumerable.Range(6, 4).Select(i => "TEST_START m07.00" + i),
         .. Enumerable.Range(0, 14).Select(i => "M07_ARP " + i.ToString("X", System.Globalization.CultureInfo.InvariantCulture)),
         .. Enumerable.Range(6, 4).SelectMany(i => new[] { "CLROS_M07_00" + i + "_READY", "TEST_PASS m07.00" + i })
     ]);
-    public static IReadOnlyList<string> M06BlockMsixMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M06BlockMsixMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M05ApicSetupMarkers, .. M06PackageReadMarkers().Skip(M05PciEnumerationMarkers.Count),
         "TEST_START m06.019", .. Enumerable.Range(0, 9).Select(i => "M06_IRQ " + i),
         "CLROS_M06_019_READY", "TEST_PASS m06.019"
     ]);
-    public static IReadOnlyList<string> M05VirtqueueInterruptMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M05VirtqueueInterruptMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M05ApicSetupMarkers, .. M05VirtioNegotiationMarkers.Skip(M05PciEnumerationMarkers.Count),
         "TEST_START m05.021", .. M05VirtqueuePollingMarkers.Skip(M05VirtioNegotiationMarkers.Count),
         .. Enumerable.Range(0, 8).Select(i => "M05_IRQ " + i), "CLROS_M05_021_READY", "TEST_PASS m05.021"
     ]);
 
-    public static IReadOnlyList<string> M05BarDmaMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M05BarDmaMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M05PciEnumerationMarkers,
         "TEST_START m05.008", .. Enumerable.Range(0, 4).Select(i => "M05_BAR_DMA " + i), "CLROS_M05_008_READY", "TEST_PASS m05.008",
@@ -890,7 +961,10 @@ public static class QemuContracts
         "TEST_START m05.011", .. Enumerable.Range(9, 4).Select(i => "M05_BAR_DMA " + i), "CLROS_M05_011_READY", "TEST_PASS m05.011"
     ]);
 
-    public static IReadOnlyList<string> M05MonotonicClockMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M05MonotonicClockMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         .. M03OwnedSubsystemMarkers, "TEST_START m05.003", .. Enumerable.Range(0, 4).Select(stage => "M05_CLOCK " + stage),
         "CLROS_M05_003_READY", "TEST_PASS m05.003"

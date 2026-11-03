@@ -4,6 +4,7 @@ using Data = OS.Tooling.WritableDataImageFixture;
 using F = OS.Tooling.LinuxWritableDiskProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed class MediaMask

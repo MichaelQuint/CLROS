@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Storage;
 
 public static class VirtioDeviceDescriptorCatalog

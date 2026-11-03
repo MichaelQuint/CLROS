@@ -11,8 +11,14 @@ public sealed partial class NativeAotThreadingProgram
 {
     private const int MaximumDisassemblyBytes = 20 * 1024 * 1024;
     private readonly NativeAotInstructionIndex index;
-    internal string SourceRoot { get; }
-    public string Application { get; }
+    internal string SourceRoot
+    {
+        get;
+    }
+    public string Application
+    {
+        get;
+    }
     /// <summary>Value-only identity of the admitted complete instruction index.</summary>
 
     public Inspection Metadata => Report(index);
@@ -56,7 +62,8 @@ public sealed partial class NativeAotThreadingProgram
     {
         "NativeAotSuspensionSmoke" => new(257_901, 166, "AA8A569696226AF82D110954FC819D1E79F15BA5A8014FE342FCEDA768B92E67"),
         "NativeAotThreadPoolSmoke" => new(299_149, 167, "D3CA7538C6E655C05CDEC05DB9FBBC942120DD862282F800CB98CB82F0A03D69"),
-        _ => throw new ArgumentException("threading_package_app", nameof(app))};
+        _ => throw new ArgumentException("threading_package_app", nameof(app))
+    };
     /// <summary>Reads both bounded file snapshots under concurrent read-only
     /// locks, then calls Create. Files remain caller-owned and nothing executes.
     /// Aliased paths, invalid UTF8, incomplete or changed reads throw.</summary>

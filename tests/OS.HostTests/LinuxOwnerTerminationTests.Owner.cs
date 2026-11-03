@@ -17,7 +17,14 @@ internal static unsafe partial class LinuxOwnerTerminationTests
         {
             HostCheck.True(State != null && sizeof(Signals.State) <= 4096);
             new Span<byte>(State, 4096).Clear();
-            HostCheck.True(Signals.Initialize(State, 4096, SignalKey, 2, new() { User = M.Access, CopyToUser = M.UserCopyOut, Capacity = 3, FirmwareExited = true, SingleOwnerValidated = true }));
+            HostCheck.True(Signals.Initialize(State, 4096, SignalKey, 2, new()
+            {
+                User = M.Access,
+                CopyToUser = M.UserCopyOut,
+                Capacity = 3,
+                FirmwareExited = true,
+                SingleOwnerValidated = true
+            }));
             if (attached)
                 HostCheck.True(M.Service->EnableSignals(Key, 2, State));
             Parent = M.Start();

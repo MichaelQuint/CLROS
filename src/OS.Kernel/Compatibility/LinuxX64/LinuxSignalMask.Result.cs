@@ -1,4 +1,5 @@
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public readonly partial struct LinuxSignalMask
 {
     /// <summary>Default result is not success. Failure preserves Before/After;

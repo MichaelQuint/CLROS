@@ -24,21 +24,48 @@ public readonly struct EthernetIpv4UdpPacketInfo
         FlagsAndFragmentOffset = flagsAndFragmentOffset;
     }
 
-    public MacAddress DestinationMac { get; }
+    public MacAddress DestinationMac
+    {
+        get;
+    }
 
-    public MacAddress SourceMac { get; }
+    public MacAddress SourceMac
+    {
+        get;
+    }
 
-    public Ipv4Address SourceAddress { get; }
+    public Ipv4Address SourceAddress
+    {
+        get;
+    }
 
-    public Ipv4Address DestinationAddress { get; }
+    public Ipv4Address DestinationAddress
+    {
+        get;
+    }
 
-    public ushort SourcePort { get; }
+    public ushort SourcePort
+    {
+        get;
+    }
 
-    public ushort DestinationPort { get; }
+    public ushort DestinationPort
+    {
+        get;
+    }
 
-    public byte TimeToLive { get; }
+    public byte TimeToLive
+    {
+        get;
+    }
 
-    public ushort Identification { get; }
+    public ushort Identification
+    {
+        get;
+    }
 
-    public ushort FlagsAndFragmentOffset { get; }
+    public ushort FlagsAndFragmentOffset
+    {
+        get;
+    }
 }

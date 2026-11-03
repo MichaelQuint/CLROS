@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciBarSizeSource
 {
     public VirtioPciBarSizeSource(int sourceIndex, ReadOnlyMemory<ulong> barSizes)
@@ -7,6 +8,12 @@ public readonly struct VirtioPciBarSizeSource
         BarSizes = barSizes;
     }
 
-    public int SourceIndex { get; }
-    public ReadOnlyMemory<ulong> BarSizes { get; }
+    public int SourceIndex
+    {
+        get;
+    }
+    public ReadOnlyMemory<ulong> BarSizes
+    {
+        get;
+    }
 }

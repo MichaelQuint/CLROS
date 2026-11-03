@@ -5,8 +5,14 @@ public static partial class HttpWorkloadBenchmark
     /// <summary>Explicit observation controls; these do not change any guest profile or deadline.</summary>
     public sealed class Options
     {
-        public required string System { get; init; }
-        public required string Backend { get; init; }
+        public required string System
+        {
+            get; init;
+        }
+        public required string Backend
+        {
+            get; init;
+        }
         public int WarmSequences { get; init; } = 10;
         public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(180);
 

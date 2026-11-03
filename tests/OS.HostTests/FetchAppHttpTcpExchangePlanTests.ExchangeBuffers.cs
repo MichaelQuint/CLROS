@@ -23,16 +23,49 @@ internal static partial class FetchAppHttpTcpExchangePlanTests
             CloseFrame = closeFrame;
         }
 
-        public byte[] Host { get; }
-        public byte[] Path { get; }
-        public byte[] SynAckFrame { get; }
-        public byte[] ResponseFrame { get; }
-        public byte[] StreamReceiveBuffer { get; }
-        public byte[] SynFrame { get; }
-        public byte[] FinalAckFrame { get; }
-        public byte[] RequestScratch { get; }
-        public byte[] RequestFrame { get; }
-        public byte[] ResponseDestination { get; }
-        public byte[] CloseFrame { get; }
+        public byte[] Host
+        {
+            get;
+        }
+        public byte[] Path
+        {
+            get;
+        }
+        public byte[] SynAckFrame
+        {
+            get;
+        }
+        public byte[] ResponseFrame
+        {
+            get;
+        }
+        public byte[] StreamReceiveBuffer
+        {
+            get;
+        }
+        public byte[] SynFrame
+        {
+            get;
+        }
+        public byte[] FinalAckFrame
+        {
+            get;
+        }
+        public byte[] RequestScratch
+        {
+            get;
+        }
+        public byte[] RequestFrame
+        {
+            get;
+        }
+        public byte[] ResponseDestination
+        {
+            get;
+        }
+        public byte[] CloseFrame
+        {
+            get;
+        }
     }
 }

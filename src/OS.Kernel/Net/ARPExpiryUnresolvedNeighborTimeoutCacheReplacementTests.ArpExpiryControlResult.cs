@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct ArpExpiryControlResult
 {
     public readonly ArpExpiryControlStatus Status;

@@ -1,6 +1,7 @@
 using OS.Std;
 
 namespace OS.Kernel.Runtime;
+
 public enum SeededChurnStatus : byte
 {
     Uninitialized,

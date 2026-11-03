@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotLogUploadHttpContract
 {
     public sealed record LinuxToolValue(string Name, string Path, string Sha256)

@@ -23,21 +23,28 @@ internal static class Program
             byte[] logBytes = LogBytes(), uploadBytes = UploadPayload();
             Console.WriteLine("LOG_UPLOAD_EXPECTED logBytes=" + logBytes.Length.ToString(CultureInfo.InvariantCulture) +
                 " uploadBytes=" + uploadBytes.Length.ToString(CultureInfo.InvariantCulture));
-            if (phase == "write") Write(log, upload);
-            Verify(log, logBytes); Verify(upload, uploadBytes);
+            if (phase == "write")
+                Write(log, upload);
+            Verify(log, logBytes);
+            Verify(upload, uploadBytes);
             Console.WriteLine("LOG_UPLOAD_POLICY append=managed-reopen io=synchronous buffering=0 flushRequested=" + (phase == "write" ? "true" : "false"));
             Console.WriteLine("LOG_UPLOAD_VERIFIED logBytes=" + logBytes.Length.ToString(CultureInfo.InvariantCulture) +
                 " uploadBytes=" + uploadBytes.Length.ToString(CultureInfo.InvariantCulture));
-            Console.WriteLine("TEST_PASS m10.027"); return 0;
+            Console.WriteLine("TEST_PASS m10.027");
+            return 0;
         }
         catch (Exception error)
-        { Console.WriteLine("TEST_FAIL m10.027 " + error.GetType().Name); return 1; }
+        {
+            Console.WriteLine("TEST_FAIL m10.027 " + error.GetType().Name);
+            return 1;
+        }
     }
 
     private static FileStream Open(string path, FileMode mode, FileAccess access)
     {
         var options = new FileStreamOptions { Mode = mode, Access = access, Share = FileShare.ReadWrite, BufferSize = 0, Options = FileOptions.None };
-        if (OperatingSystem.IsLinux() && mode == FileMode.Append) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        if (OperatingSystem.IsLinux() && mode == FileMode.Append)
+            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
         return new FileStream(path, options);
     }
 
@@ -51,24 +58,30 @@ internal static class Program
         for (int group = 0; group < 2; group++)
         {
             using var output = Open(log, FileMode.Append, FileAccess.Write);
-            for (int row = group * 6 + 1; row <= group * 6 + 6; row++) output.Write(LogRecord(row));
+            for (int row = group * 6 + 1; row <= group * 6 + 6; row++)
+                output.Write(LogRecord(row));
             output.Flush(flushToDisk: true);
         }
         using (var output = Open(upload, FileMode.Open, FileAccess.Write))
         {
-            byte[] bytes = UploadPayload(); output.Write(bytes.AsSpan(0, FirstChunk)); output.Write(bytes.AsSpan(FirstChunk));
+            byte[] bytes = UploadPayload();
+            output.Write(bytes.AsSpan(0, FirstChunk));
+            output.Write(bytes.AsSpan(FirstChunk));
             output.Flush(flushToDisk: true);
         }
     }
 
     private static void Verify(string path, byte[] expected)
     {
-        using var input = Open(path, FileMode.Open, FileAccess.Read); Require(input.Length == expected.Length, "file_length");
-        byte[] buffer = new byte[521]; int offset = 0;
+        using var input = Open(path, FileMode.Open, FileAccess.Read);
+        Require(input.Length == expected.Length, "file_length");
+        byte[] buffer = new byte[521];
+        int offset = 0;
         while (offset < expected.Length)
         {
             int read = input.Read(buffer.AsSpan(0, Math.Min(buffer.Length, expected.Length - offset)));
-            Require(read > 0 && buffer.AsSpan(0, read).SequenceEqual(expected.AsSpan(offset, read)), "file_bytes"); offset += read;
+            Require(read > 0 && buffer.AsSpan(0, read).SequenceEqual(expected.AsSpan(offset, read)), "file_bytes");
+            offset += read;
         }
         Require(input.ReadByte() == -1, "file_eof");
     }
@@ -76,11 +89,21 @@ internal static class Program
     private static byte[] LogRecord(int row) => Utf8.GetBytes("CLROS_LOG v1 sequence=" + row.ToString("D2", CultureInfo.InvariantCulture) + " message=CLROS ready — café\n");
     private static byte[] LogBytes()
     {
-        using var bytes = new MemoryStream(); for (int row = 1; row <= 12; row++) bytes.Write(LogRecord(row)); return bytes.ToArray();
+        using var bytes = new MemoryStream();
+        for (int row = 1; row <= 12; row++)
+            bytes.Write(LogRecord(row));
+        return bytes.ToArray();
     }
     private static byte[] UploadPayload()
     {
-        byte[] bytes = new byte[UploadBytes]; for (int i = 0; i < bytes.Length; i++) bytes[i] = unchecked((byte)((i * 73 + 19) ^ (i >> 3) ^ (i >> 9))); return bytes;
+        byte[] bytes = new byte[UploadBytes];
+        for (int i = 0; i < bytes.Length; i++)
+            bytes[i] = unchecked((byte)((i * 73 + 19) ^ (i >> 3) ^ (i >> 9)));
+        return bytes;
     }
-    private static void Require(bool condition, string reason) { if (!condition) throw new InvalidOperationException(reason); }
+    private static void Require(bool condition, string reason)
+    {
+        if (!condition)
+            throw new InvalidOperationException(reason);
+    }
 }

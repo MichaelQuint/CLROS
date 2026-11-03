@@ -1,6 +1,7 @@
 using OS.Std.Memory;
 
 namespace OS.Drivers;
+
 public enum VirtqueuePollingStatus : byte
 {
     Uninitialized,

@@ -76,7 +76,7 @@ public static partial class NativeAotDiskStaticPeer
                 {
                     await stopped.ConnectAsync(IPAddress.Loopback, port, refusal.Token);
                 }
-                catch (SocketException error)when (error.SocketErrorCode == SocketError.ConnectionRefused)
+                catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionRefused)
                 {
                     refused = true;
                 }
@@ -84,7 +84,12 @@ public static partial class NativeAotDiskStaticPeer
                 if (!refused)
                     throw new ToolFailure("disk_http_stopped_endpoint_live");
                 using FileStream output = new(Path.Combine(directory, "stopped.json"), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-                await JsonSerializer.SerializeAsync(output, new { Port = port, EndpointRefused = true, RunnerExit = result.ExitCode }, cancellationToken: cancellation);
+                await JsonSerializer.SerializeAsync(output, new
+                {
+                    Port = port,
+                    EndpointRefused = true,
+                    RunnerExit = result.ExitCode
+                }, cancellationToken: cancellation);
                 output.Flush(true);
             }
 
@@ -106,11 +111,33 @@ public static partial class NativeAotDiskStaticPeer
             {
                 var joined = await runner;
                 string Tail(string text) => text.Length <= 16384 ? text : text[^16384..];
-                await Diagnostic("runner.json", new { Schema = "clros-disk-http-runner-v1", Joined = true, joined.ExitCode, joined.TimedOut, joined.OutputLimitExceeded, joined.Cancelled, joined.TerminationConfirmed, joined.FailureReason, DurationTicks = joined.Duration.Ticks, StdoutCharacters = joined.StandardOutput.Length, StderrCharacters = joined.StandardError.Length, StdoutTail = Tail(joined.StandardOutput), StderrTail = Tail(joined.StandardError) });
+                await Diagnostic("runner.json", new
+                {
+                    Schema = "clros-disk-http-runner-v1",
+                    Joined = true,
+                    joined.ExitCode,
+                    joined.TimedOut,
+                    joined.OutputLimitExceeded,
+                    joined.Cancelled,
+                    joined.TerminationConfirmed,
+                    joined.FailureReason,
+                    DurationTicks = joined.Duration.Ticks,
+                    StdoutCharacters = joined.StandardOutput.Length,
+                    StderrCharacters = joined.StandardError.Length,
+                    StdoutTail = Tail(joined.StandardOutput),
+                    StderrTail = Tail(joined.StandardError)
+                });
             }
             catch (Exception error)
             {
-                await Diagnostic("runner.json", new { Schema = "clros-disk-http-runner-v1", Joined = true, Faulted = true, Type = error.GetType().FullName, error.HResult });
+                await Diagnostic("runner.json", new
+                {
+                    Schema = "clros-disk-http-runner-v1",
+                    Joined = true,
+                    Faulted = true,
+                    Type = error.GetType().FullName,
+                    error.HResult
+                });
             }
         }
 
@@ -219,8 +246,30 @@ public static partial class NativeAotDiskStaticPeer
                 {
                     List<object> chain = [];
                     for (Exception? current = error; current is not null && chain.Count < 8; current = current.InnerException)
-                        chain.Add(new { Type = current.GetType().FullName, current.HResult, HttpRequestError = current is HttpRequestException http ? http.HttpRequestError.ToString() : null, SocketError = current is SocketException socket ? socket.SocketErrorCode.ToString() : null, NativeError = current is SocketException native ? (int? )native.NativeErrorCode : null });
-                    await Diagnostic("failure-" + ordinal.ToString("D3", CultureInfo.InvariantCulture) + ".json", new { Schema = "clros-disk-http-failure-v1", Ordinal = ordinal, Method = method, Path = path, Stage = stage, Started = started, Failed = Stopwatch.GetTimestamp(), ClockFrequency = Stopwatch.Frequency, MatrixCancelled = matrix.IsCancellationRequested, OwnerCancelled = owned.IsCancellationRequested, CallerCancelled = cancellation.IsCancellationRequested, RunnerState = runner.Status.ToString(), Exceptions = chain });
+                        chain.Add(new
+                        {
+                            Type = current.GetType().FullName,
+                            current.HResult,
+                            HttpRequestError = current is HttpRequestException http ? http.HttpRequestError.ToString() : null,
+                            SocketError = current is SocketException socket ? socket.SocketErrorCode.ToString() : null,
+                            NativeError = current is SocketException native ? (int?)native.NativeErrorCode : null
+                        });
+                    await Diagnostic("failure-" + ordinal.ToString("D3", CultureInfo.InvariantCulture) + ".json", new
+                    {
+                        Schema = "clros-disk-http-failure-v1",
+                        Ordinal = ordinal,
+                        Method = method,
+                        Path = path,
+                        Stage = stage,
+                        Started = started,
+                        Failed = Stopwatch.GetTimestamp(),
+                        ClockFrequency = Stopwatch.Frequency,
+                        MatrixCancelled = matrix.IsCancellationRequested,
+                        OwnerCancelled = owned.IsCancellationRequested,
+                        CallerCancelled = cancellation.IsCancellationRequested,
+                        RunnerState = runner.Status.ToString(),
+                        Exceptions = chain
+                    });
                     throw;
                 }
             }
@@ -287,9 +336,27 @@ public static partial class NativeAotDiskStaticPeer
             {
                 using FileStream receipt = new(Path.Combine(directory, "http.json"), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
                 if (full)
-                    await JsonSerializer.SerializeAsync(receipt, new { Schema = truncated is null ? "clros-disk-http-full-v1" : "clros-disk-http-truncated-v1", Scope = truncated is null ? "disk-static-full-v1" : "disk-static-truncated-v1", Port = port, Complete = complete, ClockFrequency = Stopwatch.Frequency, ImageSha256 = assetPlan!.ImageSha256, PublishedInventorySha256 = assetPlan.PublishedInventorySha256, Responses = rows.OrderBy(r => r.Ordinal).ToArray() }, cancellationToken: CancellationToken.None);
+                    await JsonSerializer.SerializeAsync(receipt, new
+                    {
+                        Schema = truncated is null ? "clros-disk-http-full-v1" : "clros-disk-http-truncated-v1",
+                        Scope = truncated is null ? "disk-static-full-v1" : "disk-static-truncated-v1",
+                        Port = port,
+                        Complete = complete,
+                        ClockFrequency = Stopwatch.Frequency,
+                        ImageSha256 = assetPlan!.ImageSha256,
+                        PublishedInventorySha256 = assetPlan.PublishedInventorySha256,
+                        Responses = rows.OrderBy(r => r.Ordinal).ToArray()
+                    }, cancellationToken: CancellationToken.None);
                 else
-                    await JsonSerializer.SerializeAsync(receipt, new { Schema = DiskStaticHttpContract.Schema, Scope = DiskStaticHttpContract.Scope, Port = port, Complete = complete, ClockFrequency = Stopwatch.Frequency, Responses = rows.OrderBy(r => r.Ordinal).ToArray() }, cancellationToken: CancellationToken.None);
+                    await JsonSerializer.SerializeAsync(receipt, new
+                    {
+                        Schema = DiskStaticHttpContract.Schema,
+                        Scope = DiskStaticHttpContract.Scope,
+                        Port = port,
+                        Complete = complete,
+                        ClockFrequency = Stopwatch.Frequency,
+                        Responses = rows.OrderBy(r => r.Ordinal).ToArray()
+                    }, cancellationToken: CancellationToken.None);
                 receipt.Flush(true);
             }
         }

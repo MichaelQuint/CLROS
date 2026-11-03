@@ -10,7 +10,10 @@ internal static class M03FirmwareAdapterRevocationEfiIntegrationTests
     private static string Root => HostToolProcess.FindRepositoryRoot();
 
     private static void Need(bool value, string reason)
-    { if (!value) throw new InvalidOperationException(reason); }
+    {
+        if (!value)
+            throw new InvalidOperationException(reason);
+    }
 
     [HostTest("m03.008.efi retained original authority and default-off child profile", HostLane.Fast, 0)]
     private static void Source()
@@ -95,16 +98,17 @@ internal static class M03FirmwareAdapterRevocationEfiIntegrationTests
     }
 
     private static string Invoke(params string[] arguments)
-{
-    var plan = OS.Tooling.QemuProfiles.Create(OS.Tooling.QemuSmokeOptions.Parse(["-DryRun", "-BuildEfi", ..arguments]));
-    return "REQUIRED_MARKERS " + string.Join(';', plan.Required) + "\nORDERED_MARKERS " + string.Join(';', plan.Ordered) +
-        "\nUNIQUE_MARKERS " + string.Join(';', plan.Unique) + "\nFORBIDDEN_MARKERS " + string.Join(';', plan.Forbidden) + "\n";
-}
+    {
+        var plan = OS.Tooling.QemuProfiles.Create(OS.Tooling.QemuSmokeOptions.Parse(["-DryRun", "-BuildEfi", .. arguments]));
+        return "REQUIRED_MARKERS " + string.Join(';', plan.Required) + "\nORDERED_MARKERS " + string.Join(';', plan.Ordered) +
+            "\nUNIQUE_MARKERS " + string.Join(';', plan.Unique) + "\nFORBIDDEN_MARKERS " + string.Join(';', plan.Forbidden) + "\n";
+    }
 
     [HostTest("m03.008.efi complete marker admission and missing copied-capability refusals", HostLane.Native, 1)]
     private static void Profile()
     {
-        foreach (bool revocation in new[] { false, true }) CheckProfile(revocation);
+        foreach (bool revocation in new[] { false, true })
+            CheckProfile(revocation);
     }
 
     private static void CheckProfile(bool revocation)
@@ -139,15 +143,18 @@ internal static class M03FirmwareAdapterRevocationEfiIntegrationTests
             (reordered[index], reordered[index + 1]) = (reordered[index + 1], reordered[index]);
             Need(!Accept(reordered), "reordered owned diagnostic records " + index);
         }
-        if (!revocation) return;
+        if (!revocation)
+            return;
         Need(ordered[56] == "M03_ADAPTER_ADMITTED 1 0" && ordered[67] == "TEST_START m03.008", "admission and owned diagnostic order");
-        for (int i = 0; i < 8; i++) Need(ordered[68+i] == $"M03_ADAPTER_DENIED {i} 4 0 1", "exact denial status/count/preservation");
+        for (int i = 0; i < 8; i++)
+            Need(ordered[68 + i] == $"M03_ADAPTER_DENIED {i} 4 0 1", "exact denial status/count/preservation");
         foreach (int index in new[] { 56 }.Concat(Enumerable.Range(67, 11)))
         {
             Need(!Accept(ordered.Where((_, i) => i != index).ToArray()), "missing copied-capability record " + index);
             Need(!Accept(ordered.Take(index).Concat([ordered[index]]).Concat(ordered.Skip(index)).ToArray()), "duplicate copied-capability record " + index);
         }
-        string[] wrong = (string[])ordered.Clone(); wrong[68] = "M03_ADAPTER_DENIED 0 1 0 1";
+        string[] wrong = (string[])ordered.Clone();
+        wrong[68] = "M03_ADAPTER_DENIED 0 1 0 1";
         Need(!Accept(wrong), "successful post-exit call cannot be accepted");
     }
 }

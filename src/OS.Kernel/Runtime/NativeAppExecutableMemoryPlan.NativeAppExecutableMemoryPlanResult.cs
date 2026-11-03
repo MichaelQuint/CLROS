@@ -1,6 +1,7 @@
 using OS.Manifest;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAppExecutableMemoryPlanResult
 {
     private NativeAppExecutableMemoryPlanResult(NativeAppExecutableMemoryPlanStatus status, NativeAppPayloadMappingPlanStatus payloadMappingStatus, NativeAppLaunchDescriptorStatus descriptorStatus, NativeAppPayloadHeaderStatus payloadHeaderStatus, bool isInitialized, uint pageSize, uint executableAlignment, ulong requiredWritableStagingBytes, ulong executableBytes, ulong executableMapOffsetInPackage, ulong executableMapByteLength, ulong executableMapEndOffsetInPackage, ulong executableContentOffsetInMapping, ulong entryOffsetInExecutableContent, ulong entryOffsetInExecutableMapping, NativeAppExecutableMemoryProtection writableStagingProtection, NativeAppExecutableMemoryProtection executableProtection, NativeAppExecutableMemoryProtection finalProtection)
@@ -25,25 +26,79 @@ public readonly struct NativeAppExecutableMemoryPlanResult
         FinalProtection = finalProtection;
     }
 
-    public NativeAppExecutableMemoryPlanStatus Status { get; }
-    public NativeAppPayloadMappingPlanStatus PayloadMappingStatus { get; }
-    public NativeAppLaunchDescriptorStatus DescriptorStatus { get; }
-    public NativeAppPayloadHeaderStatus PayloadHeaderStatus { get; }
-    public bool IsInitialized { get; }
+    public NativeAppExecutableMemoryPlanStatus Status
+    {
+        get;
+    }
+    public NativeAppPayloadMappingPlanStatus PayloadMappingStatus
+    {
+        get;
+    }
+    public NativeAppLaunchDescriptorStatus DescriptorStatus
+    {
+        get;
+    }
+    public NativeAppPayloadHeaderStatus PayloadHeaderStatus
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeAppExecutableMemoryPlanStatus.Success;
-    public uint PageSize { get; }
-    public uint ExecutableAlignment { get; }
-    public ulong RequiredWritableStagingBytes { get; }
-    public ulong ExecutableBytes { get; }
-    public ulong ExecutableMapOffsetInPackage { get; }
-    public ulong ExecutableMapByteLength { get; }
-    public ulong ExecutableMapEndOffsetInPackage { get; }
-    public ulong ExecutableContentOffsetInMapping { get; }
-    public ulong EntryOffsetInExecutableContent { get; }
-    public ulong EntryOffsetInExecutableMapping { get; }
-    public NativeAppExecutableMemoryProtection WritableStagingProtection { get; }
-    public NativeAppExecutableMemoryProtection ExecutableProtection { get; }
-    public NativeAppExecutableMemoryProtection FinalProtection { get; }
+    public uint PageSize
+    {
+        get;
+    }
+    public uint ExecutableAlignment
+    {
+        get;
+    }
+    public ulong RequiredWritableStagingBytes
+    {
+        get;
+    }
+    public ulong ExecutableBytes
+    {
+        get;
+    }
+    public ulong ExecutableMapOffsetInPackage
+    {
+        get;
+    }
+    public ulong ExecutableMapByteLength
+    {
+        get;
+    }
+    public ulong ExecutableMapEndOffsetInPackage
+    {
+        get;
+    }
+    public ulong ExecutableContentOffsetInMapping
+    {
+        get;
+    }
+    public ulong EntryOffsetInExecutableContent
+    {
+        get;
+    }
+    public ulong EntryOffsetInExecutableMapping
+    {
+        get;
+    }
+    public NativeAppExecutableMemoryProtection WritableStagingProtection
+    {
+        get;
+    }
+    public NativeAppExecutableMemoryProtection ExecutableProtection
+    {
+        get;
+    }
+    public NativeAppExecutableMemoryProtection FinalProtection
+    {
+        get;
+    }
 
     public static NativeAppExecutableMemoryPlanResult Success(NativeAppPayloadMappingPlanStatus payloadMappingStatus, NativeAppLaunchDescriptorStatus descriptorStatus, NativeAppPayloadHeaderStatus payloadHeaderStatus, uint pageSize, uint executableAlignment, ulong requiredWritableStagingBytes, ulong executableBytes, ulong executableMapOffsetInPackage, ulong executableMapByteLength, ulong executableMapEndOffsetInPackage, ulong executableContentOffsetInMapping, ulong entryOffsetInExecutableContent, ulong entryOffsetInExecutableMapping, NativeAppExecutableMemoryProtection writableStagingProtection, NativeAppExecutableMemoryProtection executableProtection, NativeAppExecutableMemoryProtection finalProtection)
     {

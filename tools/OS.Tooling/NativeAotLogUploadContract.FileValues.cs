@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotLogUploadContract
 {
     public readonly record struct FileValues(int LogBytes, string LogSha256, int UploadBytes, string UploadSha256)

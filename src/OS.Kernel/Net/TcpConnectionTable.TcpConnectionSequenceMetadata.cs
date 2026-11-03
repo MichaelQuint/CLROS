@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct TcpConnectionSequenceMetadata
 {
     private readonly bool initialized;
@@ -18,9 +19,18 @@ public readonly struct TcpConnectionSequenceMetadata
         LocalAcknowledgedSequenceNumber = localAcknowledgedSequenceNumber;
     }
 
-    public uint LocalNextSequenceNumber { get; }
-    public uint RemoteNextSequenceNumber { get; }
-    public uint LocalAcknowledgedSequenceNumber { get; }
+    public uint LocalNextSequenceNumber
+    {
+        get;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get;
+    }
+    public uint LocalAcknowledgedSequenceNumber
+    {
+        get;
+    }
     // Every uint is a TCP sequence number, including zero after wrap. Only an
     // uninitialized value lacks sequence metadata.
     public bool HasValidMetadata => initialized && unchecked(LocalNextSequenceNumber - LocalAcknowledgedSequenceNumber) < 0x80000000U;

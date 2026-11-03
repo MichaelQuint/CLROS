@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotLogUploadContract
 {
     /// <summary>Original joined Linux reference result. Owns retained input and
@@ -29,14 +30,38 @@ public static partial class NativeAotLogUploadContract
             ArtifactPaths = Array.AsReadOnly(Artifacts.Select(file => file.Path).ToArray());
         }
 
-        public string Directory { get; }
-        public NativeAotPayload.Inspection Image { get; }
-        public Transcript Write { get; }
-        public Transcript Verify { get; }
-        public TraceValues WriteTrace { get; }
-        public TraceValues VerifyTrace { get; }
-        public ReadOnlyCollection<ArtifactIdentity> Artifacts { get; }
-        public ReadOnlyCollection<string> ArtifactPaths { get; }
+        public string Directory
+        {
+            get;
+        }
+        public NativeAotPayload.Inspection Image
+        {
+            get;
+        }
+        public Transcript Write
+        {
+            get;
+        }
+        public Transcript Verify
+        {
+            get;
+        }
+        public TraceValues WriteTrace
+        {
+            get;
+        }
+        public TraceValues VerifyTrace
+        {
+            get;
+        }
+        public ReadOnlyCollection<ArtifactIdentity> Artifacts
+        {
+            get;
+        }
+        public ReadOnlyCollection<string> ArtifactPaths
+        {
+            get;
+        }
         public bool CompleteTraceProjection => WriteTrace.CompleteTraceProjection && VerifyTrace.CompleteTraceProjection;
         public bool GrantsGuestHttpLockFlushOrPersistenceAuthority => false;
 

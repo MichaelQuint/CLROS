@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Cloud;
+
 public enum AzureWireServerGoalStateStatus
 {
     Success = 0,

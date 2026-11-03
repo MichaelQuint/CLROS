@@ -31,8 +31,15 @@ internal sealed partial class HostTestFingerprint
         this.shared = HostRunCheckpoint.HashText(shared + "\n" + JsonSerializer.Serialize(catalog.Documents.Select(document =>
         {
             var options = (CSharpParseOptions)document.Syntax.Options;
-            return new { document.Path, options.LanguageVersion, options.Kind, options.DocumentationMode,
-                Symbols = options.PreprocessorSymbolNames, options.Features };
+            return new
+            {
+                document.Path,
+                options.LanguageVersion,
+                options.Kind,
+                options.DocumentationMode,
+                Symbols = options.PreprocessorSymbolNames,
+                options.Features
+            };
         })));
         safety = new(catalog);
     }
@@ -126,7 +133,11 @@ internal sealed partial class HostTestFingerprint
     internal string For(HostTestRunner.Fixture[] fixtures, string? caseFilter)
     {
         string type = HostTestRunner.Owner(fixtures[0].Method);
-        string selection = JsonSerializer.Serialize(new { Cases = fixtures.Select(f => new { f.Id, f.Name, f.Lane, f.Order }), CaseFilter = caseFilter });
+        string selection = JsonSerializer.Serialize(new
+        {
+            Cases = fixtures.Select(f => new { f.Id, f.Name, f.Lane, f.Order }),
+            CaseFilter = caseFilter
+        });
         bool isNative = fixtures.Any(f => f.Lane == HostLane.Native);
         bool owned = HostNativeResumePolicy.OwnsOutputs(fixtures);
         return For(type, selection, isNative, owned, isNative && owned ? native.Value : null);

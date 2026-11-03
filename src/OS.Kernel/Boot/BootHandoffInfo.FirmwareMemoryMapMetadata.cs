@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Boot;
+
 public readonly struct FirmwareMemoryMapMetadata
 {
     public FirmwareMemoryMapMetadata(ulong bufferAddress, ulong bufferSize, ulong mapSize, ulong mapKey, ulong descriptorSize, uint descriptorVersion, ulong descriptorCount)
@@ -14,12 +15,33 @@ public readonly struct FirmwareMemoryMapMetadata
         DescriptorCount = descriptorCount;
     }
 
-    public ulong BufferAddress { get; }
-    public ulong BufferSize { get; }
-    public ulong MapSize { get; }
-    public ulong MapKey { get; }
-    public ulong DescriptorSize { get; }
-    public uint DescriptorVersion { get; }
-    public ulong DescriptorCount { get; }
+    public ulong BufferAddress
+    {
+        get;
+    }
+    public ulong BufferSize
+    {
+        get;
+    }
+    public ulong MapSize
+    {
+        get;
+    }
+    public ulong MapKey
+    {
+        get;
+    }
+    public ulong DescriptorSize
+    {
+        get;
+    }
+    public uint DescriptorVersion
+    {
+        get;
+    }
+    public ulong DescriptorCount
+    {
+        get;
+    }
     public bool HasMap => BufferAddress != 0 && BufferSize != 0 && MapSize != 0;
 }

@@ -19,7 +19,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
 
         )
         {
-            var(header, entries) = GptTestData.Create(backup);
+            var (header, entries) = GptTestData.Create(backup);
             byte[] originalHeader = header.ToArray(), originalEntries = entries.ToArray();
             var result = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete, backup);
             HostCheck.True(result.Succeeded && result.Capacity == GptTestData.Capacity && result.HeaderSize == 92);
@@ -38,7 +38,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
     [HostTest("block.gpt.primary rejects incomplete receipts exact length failures and invalid capacity")]
     private static void Admission()
     {
-        var(header, _) = GptTestData.Create();
+        var (header, _) = GptTestData.Create();
         HostCheck.True(!default(LiveGptHeaderResult).Succeeded && default(LiveGptStatus) != LiveGptStatus.Success);
         foreach (var read in new[]
         {
@@ -76,7 +76,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
     [HostTest("block.gpt.primary rejects malformed header fields with independently refreshed CRC")]
     private static void HeaderFields()
     {
-        foreach ((Action<byte[]> change, LiveGptStatus expected)in new (Action<byte[]>, LiveGptStatus)[]
+        foreach ((Action<byte[]> change, LiveGptStatus expected) in new (Action<byte[]>, LiveGptStatus)[]
         {
             (h => h[0] ^= 1, LiveGptStatus.BadSignature),
             (h => U32(h, 8, 0x10001), LiveGptStatus.UnsupportedRevision),
@@ -102,7 +102,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
 
         )
         {
-            var(header, _) = GptTestData.Create();
+            var (header, _) = GptTestData.Create();
             change(header);
             GptTestData.RehashHeader(header);
             byte[] before = header.ToArray();
@@ -120,7 +120,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
 
         )
         {
-            var(header, _) = GptTestData.Create();
+            var (header, _) = GptTestData.Create();
             U32(header, 12, size);
             HostCheck.Equal(LiveGptStatus.InvalidHeaderSize, PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete).Status);
         }
@@ -137,7 +137,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
 
         )
         {
-            var(header, _) = GptTestData.Create(backup);
+            var (header, _) = GptTestData.Create(backup);
             HostCheck.Equal(LiveGptStatus.InvalidHeaderPosition, PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete, !backup).Status);
             U64(header, 40, 35);
             U64(header, 48, GptTestData.Capacity - 36);
@@ -157,7 +157,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
 
         )
         {
-            var(header, _) = GptTestData.Create();
+            var (header, _) = GptTestData.Create();
             U64(header, 32, capacity - 1);
             U64(header, 48, capacity - 34);
             GptTestData.RehashHeader(header);
@@ -173,7 +173,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
 
         )
         {
-            var(header, _) = GptTestData.Create();
+            var (header, _) = GptTestData.Create();
             U32(header, 12, size);
             if (size > 92)
                 header[size - 1] = 0xa5;
@@ -193,7 +193,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
 
         )
         {
-            var(header, _) = GptTestData.Create();
+            var (header, _) = GptTestData.Create();
             header[offset] ^= 1;
             byte[] before = header.ToArray();
             var result = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete);
@@ -201,7 +201,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
             HostCheck.True(result.ExpectedHeaderCrc != result.ComputedHeaderCrc && header.AsSpan().SequenceEqual(before));
         }
 
-        var(good, entries) = GptTestData.Create();
+        var (good, entries) = GptTestData.Create();
         var h = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(good, GptTestData.Capacity, Complete);
         entries[^1] = 1;
         byte[] original = entries.ToArray();
@@ -212,7 +212,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
     [HostTest("block.gpt.primary validates every fixed entry GUID extent and unused byte")]
     private static void Entries()
     {
-        foreach ((Action<byte[]> change, LiveGptStatus expected)in new (Action<byte[]>, LiveGptStatus)[]
+        foreach ((Action<byte[]> change, LiveGptStatus expected) in new (Action<byte[]>, LiveGptStatus)[]
         {
             (a => a[255] = 1, LiveGptStatus.InvalidUnusedEntry),
             (a => a.AsSpan(16, 16).Clear(), LiveGptStatus.InvalidPartitionGuid),
@@ -234,7 +234,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
 
         )
         {
-            var(header, entries) = GptTestData.Create();
+            var (header, entries) = GptTestData.Create();
             change(entries);
             GptTestData.RehashArray(header, entries);
             byte[] before = entries.ToArray();
@@ -243,7 +243,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
             HostCheck.True(crc == h.ArrayCrc && entries.AsSpan().SequenceEqual(before));
         }
 
-        var(fullHeader, full) = GptTestData.Create();
+        var (fullHeader, full) = GptTestData.Create();
         for (int i = 0; i < 128; i++)
         {
             if (i != 0)
@@ -268,7 +268,7 @@ internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
     [HostTest("block.gpt.primary rechecks mutable header bounds before validating the exact array")]
     private static void ArrayAdmission()
     {
-        var(header, entries) = GptTestData.Create();
+        var (header, entries) = GptTestData.Create();
         var h = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete);
         foreach (int length in new[]
         {

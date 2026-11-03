@@ -14,10 +14,22 @@ internal static partial class VirtioNetQueueNotificationPlanTests
         }
 
         public VirtioPciNotifyWriteStatus FailureStatus { get; init; } = VirtioPciNotifyWriteStatus.Success;
-        public int WriteCount { get; private set; }
-        public VirtioPciBarAperture LastAperture { get; private set; }
-        public uint LastRelativeOffset { get; private set; }
-        public ushort LastValue { get; private set; }
+        public int WriteCount
+        {
+            get; private set;
+        }
+        public VirtioPciBarAperture LastAperture
+        {
+            get; private set;
+        }
+        public uint LastRelativeOffset
+        {
+            get; private set;
+        }
+        public ushort LastValue
+        {
+            get; private set;
+        }
 
         public VirtioPciNotifyWriteStatus Write16(VirtioPciBarAperture aperture, uint relativeOffset, ushort value)
         {

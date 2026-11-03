@@ -172,12 +172,12 @@ internal static partial class Program
         long start = Stopwatch.GetTimestamp();
         while (!ready())
         {
-            Require(states.All(s => Volatile.Read(ref s.Failure)is null), "worker_failure");
+            Require(states.All(s => Volatile.Read(ref s.Failure) is null), "worker_failure");
             Require(Stopwatch.GetElapsedTime(start) < TimeSpan.FromSeconds(TimeoutSeconds), reason + "_timeout");
             Thread.Yield();
         }
 
-        Require(states.All(s => Volatile.Read(ref s.Failure)is null), "worker_failure");
+        Require(states.All(s => Volatile.Read(ref s.Failure) is null), "worker_failure");
     }
 
     private static bool Waiting(Thread[] threads)

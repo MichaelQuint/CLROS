@@ -3,6 +3,7 @@ using OS.Kernel.Compatibility.LinuxX64;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Quota-only values with no invented positive drain/recovery or

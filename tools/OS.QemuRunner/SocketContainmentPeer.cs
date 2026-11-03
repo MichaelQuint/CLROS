@@ -35,7 +35,10 @@ public sealed partial class SocketContainmentPeer : IDisposable
 
     public string NetdevArgument => transport.NetdevArgument;
     public int Port => transport.Port;
-    public Task Completion { get; }
+    public Task Completion
+    {
+        get;
+    }
     public int HeadTransmissions => Volatile.Read(ref headTransmissions);
     public int HealthyReplies => Volatile.Read(ref healthyReplies);
     public int VlanFrames => Volatile.Read(ref vlanFrames);

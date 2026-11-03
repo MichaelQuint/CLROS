@@ -8,7 +8,10 @@ internal static partial class PciBarSizingProbeDerivedSizePlanTests
     {
         private readonly uint[] _readbacks = new uint[PciBarSizingProbeExecutor.RequiredReadbackCount];
         public FakePciConfigDwordOperation[] Operations { get; } = new FakePciConfigDwordOperation[PciBarSizingProbePlanner.MaximumCommandCount];
-        public int OperationCount { get; private set; }
+        public int OperationCount
+        {
+            get; private set;
+        }
         public int FailReadAtOperation { get; set; } = -1;
 
         public void SetReadback(ushort registerOffset, uint value)

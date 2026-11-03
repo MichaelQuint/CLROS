@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum GuardedIstStackReleaseStatus : byte
 {
     Success = 0,

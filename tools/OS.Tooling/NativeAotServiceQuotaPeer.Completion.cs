@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServiceQuotaPeer
 {
     /// <summary>Original owned peer/runner results and copied report identity.
@@ -30,24 +31,63 @@ public static partial class NativeAotServiceQuotaPeer
             Wire = wire;
         }
 
-        internal string Root { get; }
-        public int Port { get; }
-        public string Path { get; }
-        public string SerialPath { get; }
+        internal string Root
+        {
+            get;
+        }
+        public int Port
+        {
+            get;
+        }
+        public string Path
+        {
+            get;
+        }
+        public string SerialPath
+        {
+            get;
+        }
         public string RunnerOutputPath => Path + ".runner.log";
         public string RunnerErrorPath => Path + ".runner.stderr.log";
-        public string Sha256 { get; }
-        public ProcessResult Runner { get; }
-        public ProcessResult Peer { get; }
-        public DateTimeOffset PeerStartedUtc { get; }
-        public DateTimeOffset PeerCompletedUtc { get; }
-        public Observation Report { get; }
+        public string Sha256
+        {
+            get;
+        }
+        public ProcessResult Runner
+        {
+            get;
+        }
+        public ProcessResult Peer
+        {
+            get;
+        }
+        public DateTimeOffset PeerStartedUtc
+        {
+            get;
+        }
+        public DateTimeOffset PeerCompletedUtc
+        {
+            get;
+        }
+        public Observation Report
+        {
+            get;
+        }
         /// <summary>Optional separately owned raw-I/O companion. Its local
         /// endpoints/ticks and partial I/O confer no guest/packet authority.</summary>
 
-        public string? WirePath { get; }
-        public string? WireSha256 { get; }
-        public WireTrace? Wire { get; }
+        public string? WirePath
+        {
+            get;
+        }
+        public string? WireSha256
+        {
+            get;
+        }
+        public WireTrace? Wire
+        {
+            get;
+        }
 
         internal void Verify(AuthorityFiles files)
         {
@@ -131,7 +171,11 @@ public static partial class NativeAotServiceQuotaPeer
                     }
 
                     ];
-                    peer = ProcessRunner.RunAsync(new("dotnet", arguments, root) { Timeout = TimeSpan.FromSeconds(MaximumPeerSeconds), OutputCharacterLimit = ReportMaximumBytes + 2 + (observeWire ? 256 : 0) }, owned.Token);
+                    peer = ProcessRunner.RunAsync(new("dotnet", arguments, root)
+                    {
+                        Timeout = TimeSpan.FromSeconds(MaximumPeerSeconds),
+                        OutputCharacterLimit = ReportMaximumBytes + 2 + (observeWire ? 256 : 0)
+                    }, owned.Token);
                     var first = await Task.WhenAny(runner, peer);
                     if (first == runner)
                     {

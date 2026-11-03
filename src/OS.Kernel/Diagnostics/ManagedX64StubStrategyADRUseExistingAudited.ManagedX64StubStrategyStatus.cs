@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum ManagedX64StubStrategyStatus : byte
 {
     Success = 0,

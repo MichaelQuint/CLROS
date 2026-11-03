@@ -15,13 +15,25 @@ public readonly struct UdpHeader
         Checksum = checksum;
     }
 
-    public ushort SourcePort { get; }
+    public ushort SourcePort
+    {
+        get;
+    }
 
-    public ushort DestinationPort { get; }
+    public ushort DestinationPort
+    {
+        get;
+    }
 
-    public ushort Length { get; }
+    public ushort Length
+    {
+        get;
+    }
 
-    public ushort Checksum { get; }
+    public ushort Checksum
+    {
+        get;
+    }
 
     public static PacketParseStatus TryParse(
         ReadOnlySpan<byte> datagram,

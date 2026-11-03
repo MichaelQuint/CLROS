@@ -102,7 +102,7 @@ public static partial class NativeAotRuntimePayload
         Need(Applications.Contains(app, StringComparer.Ordinal), "app");
         string prefix = app + "-trace.";
         string[] files = Directory.GetFiles(directory, prefix + "*").Order(StringComparer.Ordinal).ToArray();
-        Need(files.Length is> 0 and <= 64, "trace_inventory");
+        Need(files.Length is > 0 and <= 64, "trace_inventory");
         Dictionary<string, string> hashes = new(StringComparer.Ordinal);
         SortedSet<string> calls = new(StringComparer.Ordinal);
         long total = 0;
@@ -113,7 +113,7 @@ public static partial class NativeAotRuntimePayload
             AuthorityFiles.RequirePlainPath(directory, file, "runtime_trace_path");
             long bytes = new FileInfo(file).Length;
             total = checked(total + bytes);
-            Need(bytes is> 0 and <= 4 * 1024 * 1024 && total <= 16 * 1024 * 1024, "trace_size");
+            Need(bytes is > 0 and <= 4 * 1024 * 1024 && total <= 16 * 1024 * 1024, "trace_size");
             byte[] data = File.ReadAllBytes(file);
             Need(data.LongLength == bytes, "trace_changed");
             string text = Utf8.GetString(data);
@@ -330,7 +330,10 @@ public static partial class NativeAotRuntimePayload
         finally
         {
             using FileStream file = new(Path.Combine(destination, "receipt.json"), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-            using Utf8JsonWriter writer = new(file, new() { Indented = true });
+            using Utf8JsonWriter writer = new(file, new()
+            {
+                Indented = true
+            });
             writer.WriteStartObject();
             writer.WriteNumber("schema", 1);
             writer.WriteString("outcome", outcome);
@@ -473,7 +476,7 @@ public static partial class NativeAotRuntimePayload
                     if (!process.HasExited)
                         process.Kill(entireProcessTree: true);
                 }
-                catch (InvalidOperationException)when (process.HasExited)
+                catch (InvalidOperationException) when (process.HasExited)
                 {
                 }
 

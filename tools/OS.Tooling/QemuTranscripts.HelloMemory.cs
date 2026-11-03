@@ -1,6 +1,7 @@
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed partial class HelloMemory
@@ -162,11 +163,17 @@ public static partial class QemuTranscripts
 
                 Need(r.Dynamic, "hello_static_mutation");
                 if (r.Start < start)
-                    next.Add(r with { End = start });
+                    next.Add(r with
+                    {
+                        End = start
+                    });
                 if (protection.HasValue)
                     next.Add(new(Math.Max(start, r.Start), Math.Min(end, r.End), protection.Value, true));
                 if (r.End > end)
-                    next.Add(r with { Start = end });
+                    next.Add(r with
+                    {
+                        Start = end
+                    });
             }
 
             ranges = next;

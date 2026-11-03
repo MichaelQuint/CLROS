@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Manifest;
+
 public static class NativeManifestEnvironmentDiagnosticFormatter
 {
     public static NativeManifestEnvironmentDiagnosticFormatResult FormatResult(in NativeManifestParseResult result, ReadOnlySpan<byte> source, Span<byte> destination)

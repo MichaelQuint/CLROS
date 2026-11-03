@@ -14,12 +14,30 @@ internal sealed class KestrelSmokePackageOptions
         this.ErrorMessage = errorMessage;
     }
 
-    public bool Succeeded { get; }
-    public string ManifestPath { get; }
-    public string PackageRootPath { get; }
-    public string ProfileName { get; }
-    public string ContractId { get; }
-    public string ErrorMessage { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public string ManifestPath
+    {
+        get;
+    }
+    public string PackageRootPath
+    {
+        get;
+    }
+    public string ProfileName
+    {
+        get;
+    }
+    public string ContractId
+    {
+        get;
+    }
+    public string ErrorMessage
+    {
+        get;
+    }
 
     public static KestrelSmokePackageOptions Parse(string[] args)
     {

@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class NativeAotWebPayload
 {
     // Copied, validated six-field phase2 status is only scheduling input. Each

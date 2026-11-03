@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public enum VirtioPciNotifyWriteStatus
 {
     Success = 0,

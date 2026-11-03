@@ -95,7 +95,7 @@ public static partial class NativeAotServiceLifecyclePeer
                 {
                     _ = await waiting.GetStream().ReadAsync(new byte[1], timeout.Token);
                 }
-                catch (OperationCanceledException)when (!token.IsCancellationRequested)
+                catch (OperationCanceledException) when (!token.IsCancellationRequested)
                 {
                     expired = true;
                 }
@@ -209,7 +209,7 @@ public static partial class NativeAotServiceLifecyclePeer
     {
         byte[] bytes = new byte[length + 1];
         int count = 0;
-        for (;;)
+        for (; ; )
         {
             int got = await client.GetStream().ReadAsync(bytes.AsMemory(count, Math.Min(257, bytes.Length - count)), token);
             if (got == 0)

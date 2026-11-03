@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>A selected HTTP role retains original request/response CALL

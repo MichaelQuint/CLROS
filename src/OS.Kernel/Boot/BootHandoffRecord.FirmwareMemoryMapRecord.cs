@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public struct FirmwareMemoryMapRecord
 {
     public const uint FlagOwnedCopy = 1;

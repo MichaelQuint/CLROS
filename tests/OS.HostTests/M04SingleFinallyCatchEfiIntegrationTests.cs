@@ -3,99 +3,6 @@ using System.Reflection;
 using OS.Kernel.Runtime;
 using OS.Runtime;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -137,8 +44,8 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
     {
         string[] chain = Ancestry.Select(x => "-p:" + x + "=true").ToArray();
         Check("default", [], 0, null);
-        Check("enabled", [..chain, "-p:" + Flag + "=true"], 0, null);
-        Check("invalid", [..chain, "-p:" + Flag + "=invalid"], 1, "m04_single_finally_switch_invalid");
+        Check("enabled", [.. chain, "-p:" + Flag + "=true"], 0, null);
+        Check("invalid", [.. chain, "-p:" + Flag + "=invalid"], 1, "m04_single_finally_switch_invalid");
         Check("missing-gc", ["-p:" + Flag + "=true"], 1, "m04_single_finally_requires_gc_profile");
         foreach (string collision in new[]
         {
@@ -155,14 +62,14 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
             // The unwind profile requires the separate module-registration
             // profile, which the collecting GC ancestor already excludes.
             string reason = collision == "EnableM04X64UnwindMetadataProbe" ? "m04_gc_static_profile_conflict EnableM04TypeManagerModuleRegistrationProbe" : "m04_single_finally_profile_conflict";
-            Check(collision, [..chain, ..dependencies, "-p:" + Flag + "=true", "-p:" + collision + "=true"], 1, reason);
+            Check(collision, [.. chain, .. dependencies, "-p:" + Flag + "=true", "-p:" + collision + "=true"], 1, reason);
         }
     }
 
     [HostTest("m04.021.finally.efi explicit profile dry run", HostLane.Fast, 2)]
     private static void Profile()
     {
-        var result = HostToolProcess.RunTool(["qemu", "smoke", "--build-efi", "--dry-run", "--" + Flag, ..Ancestry.Select(x => "--" + x)]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--build-efi", "--dry-run", "--" + Flag, .. Ancestry.Select(x => "--" + x)]);
         Need(result.ExitCode == 0 && result.Error.Length == 0, result.Output + result.Error);
         string output = result.Output;
         string[] Read(string key) => output.Split('\n').Single(x => x.StartsWith(key, StringComparison.Ordinal))[key.Length..].TrimEnd('\r').Split(';', StringSplitOptions.RemoveEmptyEntries);
@@ -178,7 +85,7 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
         Need(Read("FORBIDDEN_MARKERS ").Contains("TEST_FAIL", StringComparer.Ordinal), "failure markers forbidden");
     }
 
-    private static void Check(string name, string[] properties, int expectedExit, string? expectedReason) => RunCommand(name, "dotnet", ["msbuild", "src/OS/OS.csproj", "-nologo", "-t:ValidateM01ProbeSwitches", ..properties], expectedExit, expectedReason);
+    private static void Check(string name, string[] properties, int expectedExit, string? expectedReason) => RunCommand(name, "dotnet", ["msbuild", "src/OS/OS.csproj", "-nologo", "-t:ValidateM01ProbeSwitches", .. properties], expectedExit, expectedReason);
     [HostTest("m04.021.finally.efi actual admission guard core", HostLane.Native, 3)]
     private static void GuardCore()
     {
@@ -197,13 +104,13 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
     private static void NativeMetadata()
     {
         const ulong type = 0x12340, tableRva = 0x45670;
-        byte[] table = [0x04, 0x36, 0x32, 0x8e, 0x36, 0xa0, 0xbc, ..BitConverter.GetBytes((uint)type)];
-        byte[] rootData = [0x01, 0x06, 0x03, 0x00, 0x06, 0x62, 0x02, 0x30, 0x01, 0x50, 0x04, ..BitConverter.GetBytes((uint)tableRva)];
+        byte[] table = [0x04, 0x36, 0x32, 0x8e, 0x36, 0xa0, 0xbc, .. BitConverter.GetBytes((uint)type)];
+        byte[] rootData = [0x01, 0x06, 0x03, 0x00, 0x06, 0x62, 0x02, 0x30, 0x01, 0x50, 0x04, .. BitConverter.GetBytes((uint)tableRva)];
         byte[] funclet = [0x01, 0x04, 0x01, 0x00, 0x04, 0x42, 0x01];
         Need(OS.Tooling.EfiVerify.TestSingleFinallyEhTable(table, type) && OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes(rootData, true, tableRva) && OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes(funclet, false, tableRva), "exact measured positive bytes");
         for (int i = 0; i < table.Length; i++)
         {
-            byte[] bad = [..table];
+            byte[] bad = [.. table];
             bad[i] ^= 1;
             Need(!OS.Tooling.EfiVerify.TestSingleFinallyEhTable(bad, type), "table byte mutation " + i);
         }
@@ -219,14 +126,14 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
             byte[] original = root ? rootData : funclet;
             for (int i = 0; i < original.Length; i++)
             {
-                byte[] bad = [..original];
+                byte[] bad = [.. original];
                 bad[i] ^= 1;
                 Need(!OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes(bad, root, tableRva), "unwind byte mutation " + i);
             }
 
             for (int length = 0; length < original.Length; length++)
                 Need(!OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes(original[..length], root, tableRva), "truncated unwind " + length);
-            Need(!OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes([..original, 0], root, tableRva), "extended unwind");
+            Need(!OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes([.. original, 0], root, tableRva), "extended unwind");
         }
 
         for (int length = 0; length < table.Length; length++)
@@ -240,7 +147,7 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
 
         )
             Need(!OS.Tooling.EfiVerify.TestSingleFinallyEhTable(table, badType), "wrong type RVA");
-        Need(!OS.Tooling.EfiVerify.TestSingleFinallyEhTable([..table, 0], type) && !OS.Tooling.EfiVerify.TestSingleFinallyEhTable(null, type) && !OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes(rootData, true, tableRva + 1) && !OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes(rootData, true, 0) && !OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes(null, false, tableRva), "length null and table association");
+        Need(!OS.Tooling.EfiVerify.TestSingleFinallyEhTable([.. table, 0], type) && !OS.Tooling.EfiVerify.TestSingleFinallyEhTable(null, type) && !OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes(rootData, true, tableRva + 1) && !OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes(rootData, true, 0) && !OS.Tooling.EfiVerify.TestSingleFinallyUnwindBytes(null, false, tableRva), "length null and table association");
     }
 
     private static string RunCommand(string name, string executable, string[] arguments, int expectedExit, string? expectedReason)

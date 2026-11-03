@@ -8,6 +8,7 @@ using Chain = OS.Storage.FATClusterChainsLoopBadClusterTruncationDetection;
 using Vfat = OS.Storage.MultiClusterDirectoryVFATLongNameSupportSeparate;
 
 namespace OS.Tooling;
+
 public static partial class WebRootDiskInventory
 {
     /// <summary>Immutable, ordinal/case-sensitive canonical names only. VFAT
@@ -21,16 +22,31 @@ public static partial class WebRootDiskInventory
         private readonly HashSet<ulong> assetSectors;
         private readonly ulong firstFatLba;
         private readonly uint fatSectors;
-        public string ImageSha256 { get; }
-        public ulong PartitionFirstLba { get; }
-        public ulong PartitionLastLba { get; }
-        public IReadOnlyList<Entry> Entries { get; }
+        public string ImageSha256
+        {
+            get;
+        }
+        public ulong PartitionFirstLba
+        {
+            get;
+        }
+        public ulong PartitionLastLba
+        {
+            get;
+        }
+        public IReadOnlyList<Entry> Entries
+        {
+            get;
+        }
         /// <summary>Exact checked directory-chain sectors, including navigation
         /// metadata for '/' and '/app' outside the served namespace. These paths
         /// do not become Entries/Find routes. No sector is recognized by its byte
         /// pattern; allocation and global chain ownership establish its role.</summary>
 
-        public IReadOnlyList<DirectorySector> DirectorySectors { get; }
+        public IReadOnlyList<DirectorySector> DirectorySectors
+        {
+            get;
+        }
         public bool GrantsNativeDeviceOrProcessAuthority => false;
 
         internal Inspection(string hash, LiveFat32Volume volume, List<Entry> entries, List<DirectorySector> navigation)

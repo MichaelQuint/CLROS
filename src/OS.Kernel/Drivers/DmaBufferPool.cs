@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Drivers;
+
 public unsafe struct DmaBufferPool
 {
     internal ulong Self, Epoch, Used;

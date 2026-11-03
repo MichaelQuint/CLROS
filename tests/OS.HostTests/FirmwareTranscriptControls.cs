@@ -12,18 +12,30 @@ internal sealed class FirmwareTranscriptControls(string directory, Action<string
     public static byte[] ShortSuffix => SuffixBytes[..251];
     public static byte[] Bytes(IEnumerable<string> lines) => Encoding.ASCII.GetBytes(string.Join("\r\n", lines) + "\r\n");
     public string Path { get; } = System.IO.Path.Combine(directory, "serial.log");
-    public int Cases { get; private set; }
+    public int Cases
+    {
+        get; private set;
+    }
     public void Check(byte[] protocol, bool expected, byte[]? pre = null, byte[]? post = null)
     {
         File.WriteAllBytes(Path, [.. pre ?? PrefixBytes, .. protocol, .. post ?? SuffixBytes]);
         bool accepted = true;
-        try { validate(Path); } catch (ToolFailure) when (!expected) { accepted = false; }
-        if (accepted != expected) throw new InvalidOperationException("transcript case " + Cases + " expected=" + expected);
+        try
+        {
+            validate(Path);
+        }
+        catch (ToolFailure) when (!expected) { accepted = false; }
+        if (accepted != expected)
+            throw new InvalidOperationException("transcript case " + Cases + " expected=" + expected);
         Cases++;
     }
     public static void Reject(Action action, string reason)
     {
-        try { action(); } catch (ToolFailure) { return; }
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { return; }
         throw new InvalidOperationException("expected rejection " + reason);
     }
 }

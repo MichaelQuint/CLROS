@@ -50,7 +50,8 @@ public static class BlazorStaticFileAssets
             }
             foreach (string path in Directory.GetFiles(source).Order(StringComparer.Ordinal))
             {
-                if (Path.GetExtension(path) is ".br" or ".gz" or ".map" or ".pdb") continue;
+                if (Path.GetExtension(path) is ".br" or ".gz" or ".map" or ".pdb")
+                    continue;
                 var file = files.Open(root, path, "Blazor publish asset", "blazor_asset", NativeAotPayload.MaximumImageBytes, singleLink: true);
                 byte[] bytes = file.ReadBytes(NativeAotPayload.MaximumImageBytes, "blazor_asset");
                 File.WriteAllBytes(Path.Combine(target, Path.GetFileName(path)), bytes);
@@ -62,8 +63,12 @@ public static class BlazorStaticFileAssets
         inventory.Add("index.html", Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(stage, "index.html")))).ToLowerInvariant());
         inventory.Add("site.css", Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(stage, "site.css")))).ToLowerInvariant());
         files.VerifyUnchanged();
-        File.WriteAllText(stage + ".json", JsonSerializer.Serialize(new { sdk = NativeAotPayload.SdkVersion,
-            runtime = NativeAotPayload.RuntimeVersion, files = inventory }), new UTF8Encoding(false));
+        File.WriteAllText(stage + ".json", JsonSerializer.Serialize(new
+        {
+            sdk = NativeAotPayload.SdkVersion,
+            runtime = NativeAotPayload.RuntimeVersion,
+            files = inventory
+        }), new UTF8Encoding(false));
         Directory.Move(stage, destination);
         File.Move(stage + ".json", destination + ".json");
     }
@@ -77,7 +82,8 @@ public static class BlazorStaticFileAssets
         AuthorityFiles.RequirePlainPath(root, destination, "blazor_webroot");
         string framework = Path.Combine(destination, "_framework", "blazor.webassembly.js");
         AuthorityFiles.RequirePlainPath(root, framework, "blazor_framework");
-        if (!File.Exists(framework)) throw new InvalidDataException("blazor_framework_missing");
+        if (!File.Exists(framework))
+            throw new InvalidDataException("blazor_framework_missing");
         string index = Path.Combine(destination, "index.html");
         using var stream = new FileStream(index, FileMode.CreateNew, FileAccess.Write, FileShare.None);
         stream.Write(new UTF8Encoding(false).GetBytes(HostPage));

@@ -6,6 +6,7 @@ using OS.Manifest;
 using Race = OS.Tooling.LinuxDiskRaceProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Complete copied Progress parent/image/device/request joins.
@@ -17,12 +18,30 @@ public static partial class QemuTranscripts
 
     public sealed class LinuxDiskProgressCaptureInspection
     {
-        public WebParentReport Parent { get; }
-        public LinuxDiskRaceLeafReport Leaf { get; }
-        public NativeDiskReadObservations.Inspection Device { get; }
-        public string ImageSha256 { get; }
-        public IReadOnlyList<LinuxDiskProgressRequest> Requests { get; }
-        public IReadOnlyList<LinuxDiskRaceCall> DevicePendingProgress { get; }
+        public WebParentReport Parent
+        {
+            get;
+        }
+        public LinuxDiskRaceLeafReport Leaf
+        {
+            get;
+        }
+        public NativeDiskReadObservations.Inspection Device
+        {
+            get;
+        }
+        public string ImageSha256
+        {
+            get;
+        }
+        public IReadOnlyList<LinuxDiskProgressRequest> Requests
+        {
+            get;
+        }
+        public IReadOnlyList<LinuxDiskRaceCall> DevicePendingProgress
+        {
+            get;
+        }
         public bool CheckedOriginalExecution => false;
         public bool CheckedSchedulerReplay => false;
         public bool ReplayedArbitraryUserMemory => false;

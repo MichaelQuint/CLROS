@@ -60,7 +60,7 @@ internal static unsafe partial class CompilerClassConstructorExecutionTests
                 Expect(f.Bind(), Status.AlreadyBound);
                 f.Guards();
             }
-    // Empty-table bookkeeping is not evidence that a real cctor executed.
+        // Empty-table bookkeeping is not evidence that a real cctor executed.
     }
 
     [HostTest("m04.024 signed eager entries snapshot both displacement directions", HostLane.Fast, 2)]

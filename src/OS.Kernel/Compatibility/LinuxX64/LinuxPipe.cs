@@ -32,11 +32,18 @@ public unsafe struct LinuxPipe
     {
         if (_buffer != null || _capacity != 0 || _readIndex != 0 || _writeIndex != 0 ||
             _buffered != 0 || _readers != 0 || _writers != 0 || _initialized != 0 ||
-            !CapacityAllowed(capacity) || !Extent(buffer, capacity)) return false;
+            !CapacityAllowed(capacity) || !Extent(buffer, capacity))
+            return false;
         fixed (LinuxPipe* self = &this)
-            if (Overlap((ulong)buffer, capacity, (ulong)self, (uint)sizeof(LinuxPipe))) return false;
-        for (uint i = 0; i < capacity; i++) buffer[i] = 0;
-        _buffer = buffer; _capacity = capacity; _readers = 1; _writers = 1; _initialized = 1;
+            if (Overlap((ulong)buffer, capacity, (ulong)self, (uint)sizeof(LinuxPipe)))
+                return false;
+        for (uint i = 0; i < capacity; i++)
+            buffer[i] = 0;
+        _buffer = buffer;
+        _capacity = capacity;
+        _readers = 1;
+        _writers = 1;
+        _initialized = 1;
         return true;
     }
 
@@ -50,11 +57,16 @@ public unsafe struct LinuxPipe
     /// </summary>
     public long Peek(byte* trustedDestination, uint requested, bool nonBlocking)
     {
-        if (!Valid() || _readers == 0) return BadDescriptor;
-        if (requested == 0) return 0;
-        if (!nonBlocking) return Unsupported;
-        if (!TrustedRange(trustedDestination, requested)) return Fault;
-        if (_buffered == 0) return _writers == 0 ? 0 : Again;
+        if (!Valid() || _readers == 0)
+            return BadDescriptor;
+        if (requested == 0)
+            return 0;
+        if (!nonBlocking)
+            return Unsupported;
+        if (!TrustedRange(trustedDestination, requested))
+            return Fault;
+        if (_buffered == 0)
+            return _writers == 0 ? 0 : Again;
         uint bytes = requested < _buffered ? requested : _buffered;
         for (uint i = 0; i < bytes; i++)
             trustedDestination[i] = _buffer[(_readIndex + i) & (_capacity - 1)];
@@ -69,9 +81,12 @@ public unsafe struct LinuxPipe
     /// </summary>
     public bool Consume(uint bytes)
     {
-        if (!Valid() || _readers == 0 || bytes > _buffered) return false;
-        for (uint i = 0; i < bytes; i++) _buffer[(_readIndex + i) & (_capacity - 1)] = 0;
-        _readIndex = (_readIndex + bytes) & (_capacity - 1); _buffered -= bytes;
+        if (!Valid() || _readers == 0 || bytes > _buffered)
+            return false;
+        for (uint i = 0; i < bytes; i++)
+            _buffer[(_readIndex + i) & (_capacity - 1)] = 0;
+        _readIndex = (_readIndex + bytes) & (_capacity - 1);
+        _buffered -= bytes;
         return true;
     }
 
@@ -94,46 +109,61 @@ public unsafe struct LinuxPipe
 
     private long Append(byte* trustedSource, uint bytes, bool nonBlocking, bool sigpipeIgnored, bool atomic)
     {
-        if (!Valid() || _writers == 0) return BadDescriptor;
-        if (bytes == 0) return 0;
-        if (!nonBlocking) return Unsupported;
-        if (_readers == 0) return sigpipeIgnored ? BrokenPipe : Unsupported;
-        if (!TrustedRange(trustedSource, bytes)) return Fault;
+        if (!Valid() || _writers == 0)
+            return BadDescriptor;
+        if (bytes == 0)
+            return 0;
+        if (!nonBlocking)
+            return Unsupported;
+        if (_readers == 0)
+            return sigpipeIgnored ? BrokenPipe : Unsupported;
+        if (!TrustedRange(trustedSource, bytes))
+            return Fault;
         uint available = _capacity - _buffered;
-        if (available == 0 || (atomic && bytes <= PipeBuf && bytes > available)) return Again;
+        if (available == 0 || (atomic && bytes <= PipeBuf && bytes > available))
+            return Again;
         uint written = bytes < available ? bytes : available;
         for (uint i = 0; i < written; i++)
             _buffer[(_writeIndex + i) & (_capacity - 1)] = trustedSource[i];
-        _writeIndex = (_writeIndex + written) & (_capacity - 1); _buffered += written;
+        _writeIndex = (_writeIndex + written) & (_capacity - 1);
+        _buffered += written;
         return written;
     }
 
     /// <summary>Add one owned live-reader reference. Zero and exhausted counts cannot grow.</summary>
     public bool DuplicateReader()
     {
-        if (!Valid() || _readers == 0 || _readers == uint.MaxValue) return false;
-        _readers++; return true;
+        if (!Valid() || _readers == 0 || _readers == uint.MaxValue)
+            return false;
+        _readers++;
+        return true;
     }
 
     /// <summary>Add one owned live-writer reference. Zero and exhausted counts cannot grow.</summary>
     public bool DuplicateWriter()
     {
-        if (!Valid() || _writers == 0 || _writers == uint.MaxValue) return false;
-        _writers++; return true;
+        if (!Valid() || _writers == 0 || _writers == uint.MaxValue)
+            return false;
+        _writers++;
+        return true;
     }
 
     /// <summary>Drop one owned reader reference. A second close after zero fails unchanged.</summary>
     public bool CloseReader()
     {
-        if (!Valid() || _readers == 0) return false;
-        _readers--; return true;
+        if (!Valid() || _readers == 0)
+            return false;
+        _readers--;
+        return true;
     }
 
     /// <summary>Drop one owned writer reference. Remaining bytes survive the final close for draining.</summary>
     public bool CloseWriter()
     {
-        if (!Valid() || _writers == 0) return false;
-        _writers--; return true;
+        if (!Valid() || _writers == 0)
+            return false;
+        _writers--;
+        return true;
     }
 
     /// <summary>
@@ -144,23 +174,28 @@ public unsafe struct LinuxPipe
     /// </summary>
     public bool Release()
     {
-        if (!Valid() || _readers != 0 || _writers != 0) return false;
-        for (uint i = 0; i < _capacity; i++) _buffer[i] = 0;
-        this = default; return true;
+        if (!Valid() || _readers != 0 || _writers != 0)
+            return false;
+        for (uint i = 0; i < _capacity; i++)
+            _buffer[i] = 0;
+        this = default;
+        return true;
     }
 
     private bool Valid()
     {
         if (_initialized != 1 || !CapacityAllowed(_capacity) || !Extent(_buffer, _capacity) ||
             _readIndex >= _capacity || _writeIndex >= _capacity || _buffered > _capacity ||
-            _writeIndex != ((_readIndex + _buffered) & (_capacity - 1))) return false;
+            _writeIndex != ((_readIndex + _buffered) & (_capacity - 1)))
+            return false;
         fixed (LinuxPipe* self = &this)
             return !Overlap((ulong)_buffer, _capacity, (ulong)self, (uint)sizeof(LinuxPipe));
     }
 
     private bool TrustedRange(byte* buffer, uint bytes)
     {
-        if (!Extent(buffer, bytes) || Overlap((ulong)buffer, bytes, (ulong)_buffer, _capacity)) return false;
+        if (!Extent(buffer, bytes) || Overlap((ulong)buffer, bytes, (ulong)_buffer, _capacity))
+            return false;
         fixed (LinuxPipe* self = &this)
             return !Overlap((ulong)buffer, bytes, (ulong)self, (uint)sizeof(LinuxPipe));
     }

@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct ReadyQueue
 {
     /// <summary>Read/removal result by value; failure has no identity. A default

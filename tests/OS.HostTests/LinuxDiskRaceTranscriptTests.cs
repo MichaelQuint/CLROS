@@ -54,7 +54,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
         var report = QemuTranscripts.InspectLinuxDiskExitPendingLeaf(rows, package, 0x200000, 0x100000);
         HostCheck.True(report.CheckedSchedulerReplay && report.MainReadCompletionIndex == -1 && report.Calls.Count(c => c.Identity == F.ChildIdentity) == 1);
         int call = Index(rows, "M16_008_CALL identity=" + F.ChildIdentity + " nr=231 ");
-        foreach (var(field, value)in new (string, ulong)[]
+        foreach (var (field, value) in new (string, ulong)[]
         {
             ("identity", F.MainIdentity),
             ("nr", 1),
@@ -99,23 +99,23 @@ internal static partial class LinuxDiskRaceTranscriptTests
 
         int childSupervisor = Array.FindIndex(rows, r => r.StartsWith("M16_008_SUPERVISOR identity=" + F.ChildIdentity, StringComparison.Ordinal));
         Deny(Change(rows, childSupervisor, "ready", 0));
-        Deny([..rows[..(childSupervisor + 1)], "M16_008_TIMING identity=" + F.ChildIdentity + " epoch=1 start=1 arm=2 capture=3 ready=4 periodFs=10000000", ..rows[(childSupervisor + 1)..]]);
+        Deny([.. rows[..(childSupervisor + 1)], "M16_008_TIMING identity=" + F.ChildIdentity + " epoch=1 start=1 arm=2 capture=3 ready=4 periodFs=10000000", .. rows[(childSupervisor + 1)..]]);
         var io = ExitPendingDeviceFixture().Rows[7];
-        Deny([..rows[..childSupervisor], io, ..rows[childSupervisor..]]);
+        Deny([.. rows[..childSupervisor], io, .. rows[childSupervisor..]]);
         string[] old = SyntheticLifecycle("ExitPending");
         int oldSupervisor = Array.FindIndex(old, r => r.StartsWith("M16_008_SUPERVISOR identity=" + F.ChildIdentity, StringComparison.Ordinal));
         Inspect(Change(old, oldSupervisor, "ready", 0), F.CreatePackage("ExitPending")); // Explicit old upper-bound hole.
         int first = Index(rows, "M16_025_EXIT_PENDING stage=1 "), second = Index(rows, "M16_025_EXIT_PENDING stage=2 ");
-        Deny([..rows[..first], $"M16_005_WRITE fd=1 bytes={F.Witness("ExitPending").Length} data={F.Witness("ExitPending")}", ..rows[first..]]);
+        Deny([.. rows[..first], $"M16_005_WRITE fd=1 bytes={F.Witness("ExitPending").Length} data={F.Witness("ExitPending")}", .. rows[first..]]);
         int childCall = Array.FindIndex(rows, r => r.StartsWith("M16_008_CALL identity=" + F.ChildIdentity + " nr=231 ", StringComparison.Ordinal));
         HostCheck.True(childCall >= 0);
         Deny(Change(rows, childCall, "ordinal", 2));
         int sixth = Index(rows, "M16_025_EXIT_PENDING stage=6 "), lastClose = Index(rows, "M16_011_CLOSE fd=7 ");
-        Deny([..rows[..first], rows[first + 1], rows[first], ..rows[(first + 2)..]]);
-        Deny([..rows[..second], "M16_008_RESUME identity=" + F.MainIdentity + " valueBits=0 status=1", ..rows[second..]]);
-        Deny([..rows[..(second + 1)], "M16_012_POLL identity=4294967297 clock=100 ready=0 idle=0", ..rows[(second + 1)..]]);
+        Deny([.. rows[..first], rows[first + 1], rows[first], .. rows[(first + 2)..]]);
+        Deny([.. rows[..second], "M16_008_RESUME identity=" + F.MainIdentity + " valueBits=0 status=1", .. rows[second..]]);
+        Deny([.. rows[..(second + 1)], "M16_012_POLL identity=4294967297 clock=100 ready=0 idle=0", .. rows[(second + 1)..]]);
         string[] moved = rows.Where((_, i) => i != sixth).ToArray();
-        Deny([..moved[..lastClose], rows[sixth], ..moved[lastClose..]]);
+        Deny([.. moved[..lastClose], rows[sixth], .. moved[lastClose..]]);
         foreach (string key in new[]
         {
             "sequence",
@@ -132,17 +132,17 @@ internal static partial class LinuxDiskRaceTranscriptTests
         }
 
         int mainReadPoll = Array.FindIndex(rows, r => r.StartsWith("M16_012_POLL ", StringComparison.Ordinal) && Field(r, "ready") == 1);
-        Deny([..rows[..mainReadPoll], "M16_008_TICK epoch=1 nanos=100 ready=2", ..rows[mainReadPoll..]]);
+        Deny([.. rows[..mainReadPoll], "M16_008_TICK epoch=1 nanos=100 ready=2", .. rows[mainReadPoll..]]);
         Deny(Change(rows, mainReadPoll, "ready", 0));
         Deny(SyntheticLifecycle("ExitPending"));
         int terminal = Index(rows, "M16_025_EXIT_CLEANUP_END ");
         Deny(rows.Where((_, i) => i != terminal).ToArray());
-        Deny([..rows[..terminal], rows[terminal], ..rows[terminal..]]);
+        Deny([.. rows[..terminal], rows[terminal], .. rows[terminal..]]);
         Deny(Change(rows, terminal, "owner", Field(rows[terminal], "owner") + 8));
         Deny(Change(rows, terminal, "epoch", Field(rows[terminal], "epoch") + 1));
         Deny(Change(rows, terminal, "clock", Field(rows[Index(rows, "M16_025_EXIT_PENDING stage=8 ")], "clock") - 1));
         Deny(Change(rows, terminal, "clock", Field(rows[Index(rows, "M16_008_BUDGET ")], "started") + LinuxThreadExecutionBudget.RuntimeNanoseconds));
-        Deny([..rows[..(terminal - 1)], rows[terminal], rows[terminal - 1], ..rows[(terminal + 1)..]]);
+        Deny([.. rows[..(terminal - 1)], rows[terminal], rows[terminal - 1], .. rows[(terminal + 1)..]]);
     }
 
     internal static string[] ExitPendingStagedLeaf()
@@ -183,7 +183,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
     [HostTest("exit pending device joins every real sector and the last submit to reset retirement")]
     private static void ExitPendingDevice()
     {
-        var(rows, image) = ExitPendingDeviceFixture();
+        var (rows, image) = ExitPendingDeviceFixture();
         string[] before = rows.ToArray();
         byte[] package = F.CreatePackage("ExitPending");
         var result = QemuTranscripts.InspectLinuxDiskExitPendingDeviceValues(rows, package, image);
@@ -210,7 +210,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
     [HostTest("exit pending device rejects unjoined bindings missing bytes post-death pumps and invented completions")]
     private static void ExitPendingDeviceRejections()
     {
-        var(rows, image) = ExitPendingDeviceFixture();
+        var (rows, image) = ExitPendingDeviceFixture();
         void Deny(string[] changed, byte[]? bytes = null)
         {
             bool rejected = false;
@@ -242,13 +242,13 @@ internal static partial class LinuxDiskRaceTranscriptTests
         Deny(Change(rows, 7, "clock", 101));
         for (int i = 0; i <= 7; i++)
             Deny(rows.Where((_, n) => n != i).ToArray());
-        Deny([rows[1], rows[0], ..rows[2..]]);
-        Deny([rows[0], rows[0], ..rows[1..]]);
-        Deny([..rows, rows[7]]); // Even a copied-valid last submit may not appear after stage1.
-        Deny([..rows[..7], ..rows[8..], rows[7]]);
+        Deny([rows[1], rows[0], .. rows[2..]]);
+        Deny([rows[0], rows[0], .. rows[1..]]);
+        Deny([.. rows, rows[7]]); // Even a copied-valid last submit may not appear after stage1.
+        Deny([.. rows[..7], .. rows[8..], rows[7]]);
         Deny(Change(rows, 7, "generation", 39));
         Deny(Change(rows, 7, "sector", 999));
-        Deny([..rows[..7], rows[7], rows[7].Replace("kind=0", "kind=1", StringComparison.Ordinal), ..rows[8..]]);
+        Deny([.. rows[..7], rows[7], rows[7].Replace("kind=0", "kind=1", StringComparison.Ordinal), .. rows[8..]]);
         Deny(rows, image[..^512]);
         byte[] wrong = image.ToArray();
         wrong[3 * 512] ^= 1;
@@ -383,7 +383,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
             Deny(Change(rows, index, "completed", Field(rows[index], "completed") + 1));
             Deny(Change(rows, index, "cancelled", Field(rows[index], "cancelled") + 1));
             Deny(rows.Where((_, i) => i != index).ToArray());
-            Deny([..rows[..index], rows[index], ..rows[index..]]);
+            Deny([.. rows[..index], rows[index], .. rows[index..]]);
         }
 
         foreach (string key in new[]
@@ -401,7 +401,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
         Deny(Change(rows, 7, "userReserved", 4096));
         Deny(Change(rows, 7, "userBacked", 1));
         Deny(Change(rows, 3, "clock", 0));
-        Deny([..rows, rows[7]]);
+        Deny([.. rows, rows[7]]);
         Deny(ExitPendingStages(true));
         foreach (string key in new[]
         {
@@ -425,8 +425,8 @@ internal static partial class LinuxDiskRaceTranscriptTests
         byte[] corrupted = F.CreatePackage("ExitPending");
         corrupted[^1] ^= 1;
         Deny(rows, corrupted);
-        Deny([..rows[..7], rows[7] + " extra=0"]);
-        Deny([..rows[..7], rows[7].Replace("clock=107", "clock=0107", StringComparison.Ordinal)]);
+        Deny([.. rows[..7], rows[7] + " extra=0"]);
+        Deny([.. rows[..7], rows[7].Replace("clock=107", "clock=0107", StringComparison.Ordinal)]);
     }
 
     private static string[] ExitPendingStages(bool drained)
@@ -618,7 +618,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
                 )
                     Reject(Change(rows, window.CompletionRecordIndex, key, Field(rows[window.CompletionRecordIndex], key) + 1), variant);
                 Reject(rows.Where((_, i) => i != window.CompletionRecordIndex).ToArray(), variant);
-                Reject([..rows[..window.CompletionRecordIndex], rows[window.CompletionRecordIndex], ..rows[window.CompletionRecordIndex..]], variant);
+                Reject([.. rows[..window.CompletionRecordIndex], rows[window.CompletionRecordIndex], .. rows[window.CompletionRecordIndex..]], variant);
                 foreach (string key in new[]
                 {
                     "identity",
@@ -683,7 +683,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
             {
                 int at = Index(rows, prefix);
                 Reject(rows.Where((_, i) => i != at).ToArray(), variant);
-                Reject([..rows[..at], rows[at], ..rows[at..]], variant);
+                Reject([.. rows[..at], rows[at], .. rows[at..]], variant);
             }
 
             int owner = Index(rows, "M16_008_OWNER_END ");
@@ -714,8 +714,8 @@ internal static partial class LinuxDiskRaceTranscriptTests
             )
                 Reject(Change(rows, supervisor, key, Field(rows[supervisor], key) + 1), variant);
             Reject(Change(rows, supervisor, "ready", 3), variant);
-            Reject([..rows, "TEST_PASS unexpected"], variant);
-            Reject([..rows[..^1]], variant);
+            Reject([.. rows, "TEST_PASS unexpected"], variant);
+            Reject([.. rows[..^1]], variant);
         }
     }
 
@@ -732,7 +732,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
         Reject(Replace(rows, io, "UNKNOWN_DISK_RECORD"), "Progress");
         int bound = Index(rows, "M16_008_BOUND ");
         Reject(Replace(rows, bound, rows[bound].Replace("timer=idle-only", "timer=user-irq-and-idle", StringComparison.Ordinal)), "Progress");
-        Reject(Replace(rows, 0, new string ('x', 1537)), "Progress");
+        Reject(Replace(rows, 0, new string('x', 1537)), "Progress");
         Reject(Replace(rows, 0, "TEST_START m16-009\n"), "Progress");
         bool refused = false;
         try
@@ -859,7 +859,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
         )
             Reject(Change(rows, pending.GroupExitRecordIndex, field, Field(rows[pending.GroupExitRecordIndex], field) + 1), variant);
         string completion = $"M16_025_COMPLETE identity={F.MainIdentity} sequence={pending.Sequence} request={pending.RequestGeneration} outputBytes=8192 completion=1 valueBits=8192 clock=999";
-        Reject([..rows[..pending.GroupExitRecordIndex], completion, $"M16_008_RESUME identity={F.MainIdentity} valueBits=8192 status=1", ..rows[pending.GroupExitRecordIndex..]], variant);
+        Reject([.. rows[..pending.GroupExitRecordIndex], completion, $"M16_008_RESUME identity={F.MainIdentity} valueBits=8192 status=1", .. rows[pending.GroupExitRecordIndex..]], variant);
         int reap = Array.FindIndex(rows, r => r.StartsWith("M16_008_REAP old=" + F.MainIdentity, StringComparison.Ordinal));
         Reject(rows.Where((_, i) => i != reap).ToArray(), variant);
         int close = Array.FindIndex(rows, r => r == "M16_011_CLOSE fd=7 valueBits=0");
@@ -906,7 +906,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
         var handler = F.HandlerCalls(variant);
         int[] ordinal = [0, 0], next = [0, 0];
         ulong[] sequences = [0, 0];
-        Pending? [] pending = new Pending? [2];
+        Pending?[] pending = new Pending?[2];
         int active = 1, transfers = 0;
         ulong clock = 100, request = 0, epochs = 0;
         ulong fp = (stack - 128 - LinuxSignalServices.FpBytes) & ~63UL, frame = ((fp - LinuxSignalServices.FrameBytes) & ~15UL) - 8;
@@ -1054,7 +1054,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
         };
         int[] ordinal = new int[2];
         ulong[] sequences = new ulong[2];
-        Pending? [] pending = new Pending? [2];
+        Pending?[] pending = new Pending?[2];
         int active = 1, transfers = 0;
         ulong clock = 100;
         ulong request = 0;
@@ -1385,7 +1385,7 @@ internal static partial class LinuxDiskRaceTranscriptTests
         {
             return (QemuTranscripts.LinuxDiskRaceLeafReport)method.Invoke(null, [rows, F.CreatePackage("CloseReuse"), 0x200000UL, 0x100000UL, image, new NativeDiskReadObservations.Boundary(8388608, 1, 37, 37, 39, 39, 38), Enumerable.Range(0, 16).Select(i => (ulong)i).ToArray(), 1_000_000UL])!;
         }
-        catch (System.Reflection.TargetInvocationException error)when (error.InnerException is not null)
+        catch (System.Reflection.TargetInvocationException error) when (error.InnerException is not null)
         {
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error.InnerException).Throw();
             throw;

@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotDiskTimingPeer
 {
     /// <summary>Copied timing-only dispatch observation. Selected is a raw

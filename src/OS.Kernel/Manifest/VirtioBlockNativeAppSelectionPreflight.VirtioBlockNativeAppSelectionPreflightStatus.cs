@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public enum VirtioBlockNativeAppSelectionPreflightStatus
 {
     Success = 0,

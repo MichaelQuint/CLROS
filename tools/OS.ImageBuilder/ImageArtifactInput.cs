@@ -32,7 +32,7 @@ internal static class ImageArtifactInput
         {
             return Path.GetFullPath(outputPath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(7, "invalid_output_path", "Output path is invalid: " + outputPath);
         }
@@ -55,7 +55,7 @@ internal static class ImageArtifactInput
         {
             file = new FileInfo(inputPath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(11, "input_not_found", label + " path is invalid: " + inputPath);
         }

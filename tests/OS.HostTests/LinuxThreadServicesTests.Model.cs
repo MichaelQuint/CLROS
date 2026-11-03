@@ -59,8 +59,14 @@ internal static unsafe partial class LinuxThreadServicesTests
         internal void FailWrite(ulong address) => User->FailWriteAddress = address;
         internal void FailRead(ulong address) => User->FailReadAddress = address;
         internal byte* At(ulong address) => User->Bytes + address - UserBase;
-        internal ulong Now { get => User->Now; set => User->Now = value; }
-        internal ulong ClockStep { get => User->ClockStep; set => User->ClockStep = value; }
+        internal ulong Now
+        {
+            get => User->Now; set => User->Now = value;
+        }
+        internal ulong ClockStep
+        {
+            get => User->ClockStep; set => User->ClockStep = value;
+        }
 
         internal void ChangeMappingLifetime(ulong value) => User->Lifetime = value;
         internal void UseMemory(LinuxMemoryServices.Admission memory) => User->Memory = memory;
@@ -69,7 +75,7 @@ internal static unsafe partial class LinuxThreadServicesTests
 
         internal Model(bool futex = false, uint futexCapacity = 4, bool userInterrupts = false, uint capacity = 3)
         {
-            HostCheck.True(capacity is> 0 and <= 16);
+            HostCheck.True(capacity is > 0 and <= 16);
             Capacity = capacity;
             Kernel = new(capacity, capacity, capacity, generation: 5);
             _userInterrupts = userInterrupts;
@@ -93,7 +99,23 @@ internal static unsafe partial class LinuxThreadServicesTests
                     Initial = WorkerContext(i, default),
                     Entry = Kernel.Code + 0x400 + (uint)i * 0x40
                 };
-            HostCheck.True(Service->Initialize(Key, 2, new() { Threads = Kernel.Table, ThreadKey = KernelThreadTableTests.Key, Slots = Slots, Workers = Workers, Capacity = capacity, SlotBytes = (uint)sizeof(Services.Slot) * capacity, WorkerBytes = (uint)sizeof(Services.Worker) * capacity, ProcessId = 101, ObservedMxcsrMask = 0xffbf, User = Access, CopyToUser = &CopyToUser, UserContextBytes = (ulong)sizeof(UserMemory), FirmwareExited = true, SingleOwnerValidated = true }));
+            HostCheck.True(Service->Initialize(Key, 2, new()
+            {
+                Threads = Kernel.Table,
+                ThreadKey = KernelThreadTableTests.Key,
+                Slots = Slots,
+                Workers = Workers,
+                Capacity = capacity,
+                SlotBytes = (uint)sizeof(Services.Slot) * capacity,
+                WorkerBytes = (uint)sizeof(Services.Worker) * capacity,
+                ProcessId = 101,
+                ObservedMxcsrMask = 0xffbf,
+                User = Access,
+                CopyToUser = &CopyToUser,
+                UserContextBytes = (ulong)sizeof(UserMemory),
+                FirmwareExited = true,
+                SingleOwnerValidated = true
+            }));
             LinuxSyscallFrame frame = new()
             {
                 Rip = UserBase + 0x100,

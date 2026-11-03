@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct GdtDescriptorPlanResult
 {
     private GdtDescriptorPlanResult(bool succeeded, GdtDescriptorPlanStatus status, int bytesWritten, int requiredBytes)
@@ -11,10 +12,22 @@ public readonly struct GdtDescriptorPlanResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool Succeeded { get; }
-    public GdtDescriptorPlanStatus Status { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public GdtDescriptorPlanStatus Status
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
 
     public static GdtDescriptorPlanResult Success(int bytesWritten)
     {

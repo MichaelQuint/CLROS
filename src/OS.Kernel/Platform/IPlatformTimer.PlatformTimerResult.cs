@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformTimerResult
 {
     private PlatformTimerResult(bool succeeded, PlatformTimerStatus status, FirmwareServicesMode mode, PlatformTimerMetadata metadata)
@@ -9,11 +10,23 @@ public readonly struct PlatformTimerResult
         Metadata = metadata;
     }
 
-    public bool Succeeded { get; }
-    public PlatformTimerStatus Status { get; }
-    public FirmwareServicesMode Mode { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformTimerStatus Status
+    {
+        get;
+    }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
     public string Operation => PlatformTimerOperations.ReadMonotonic;
-    public PlatformTimerMetadata Metadata { get; }
+    public PlatformTimerMetadata Metadata
+    {
+        get;
+    }
     public ulong MonotonicTicks => Metadata.MonotonicTicks;
     public ulong FrequencyHertz => Metadata.FrequencyHertz;
 

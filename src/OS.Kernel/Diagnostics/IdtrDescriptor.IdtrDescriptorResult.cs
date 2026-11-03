@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct IdtrDescriptorResult
 {
     private IdtrDescriptorResult(bool succeeded, IdtrDescriptorStatus status, IdtrDescriptor descriptor, int actualBytes, int requiredBytes)
@@ -12,11 +13,26 @@ public readonly struct IdtrDescriptorResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool Succeeded { get; }
-    public IdtrDescriptorStatus Status { get; }
-    public IdtrDescriptor Descriptor { get; }
-    public int ActualBytes { get; }
-    public int RequiredBytes { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public IdtrDescriptorStatus Status
+    {
+        get;
+    }
+    public IdtrDescriptor Descriptor
+    {
+        get;
+    }
+    public int ActualBytes
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
 
     public static IdtrDescriptorResult Success(IdtrDescriptor descriptor, int actualBytes, int requiredBytes = IdtrDescriptor.RequiredTableByteLength)
     {

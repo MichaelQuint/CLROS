@@ -10,7 +10,10 @@ internal static partial class SourceFirewallTests
             Root = root;
         }
 
-        public string Root { get; }
+        public string Root
+        {
+            get;
+        }
 
         public static TemporaryRepository Create(bool includeSolution = true)
         {

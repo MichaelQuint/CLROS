@@ -11,12 +11,14 @@ public static partial class NativeAotDiskSelection
         "LogUpload40" => WritableProgramKind.LogUpload40,
         "BclWrite" => WritableProgramKind.BclWrite,
         "BclVerify" => WritableProgramKind.BclVerify,
-        _ => throw new ToolFailure("writable_disk_fixture_required")};
+        _ => throw new ToolFailure("writable_disk_fixture_required")
+    };
     public static bool IsBcl(WritableProgramKind kind) => kind switch
     {
         WritableProgramKind.Mechanical30 or WritableProgramKind.LogUpload40 => false,
         WritableProgramKind.BclWrite or WritableProgramKind.BclVerify => true,
-        _ => throw new ToolFailure("writable_disk_fixture_required")};
+        _ => throw new ToolFailure("writable_disk_fixture_required")
+    };
     /// <summary>Pre-read bound only. The complete canonical package must still
     /// match the selected phase; this does not raise any global image limit.</summary>
 
@@ -192,7 +194,7 @@ public static partial class NativeAotDiskSelection
         )
             if (other.Length != 0 && string.Equals(path, Path.GetFullPath(other), comparison))
                 throw new ToolFailure("writable_disk_disassembly_alias");
-    // Logical path checks only; the future original owner must independently
-    // hold and compare resolved file identities, sources and prepared index.
+        // Logical path checks only; the future original owner must independently
+        // hold and compare resolved file identities, sources and prepared index.
     }
 }

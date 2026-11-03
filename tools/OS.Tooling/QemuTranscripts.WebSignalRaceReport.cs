@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Immutable original-order projection after complete web replay.
@@ -10,25 +11,58 @@ public static partial class QemuTranscripts
 
     public sealed partial class WebSignalRaceReport
     {
-        public WebSignalRaceSelection Selection { get; }
+        public WebSignalRaceSelection Selection
+        {
+            get;
+        }
         /// <summary>True only when complete replay checked the explicit
         /// event-owned named waits and repark. This is copied profile identity,
         /// not original native, source, process or guest authority.</summary>
 
-        public bool EventOwned { get; }
-        public Thread Waiter { get; }
-        public Thread Actor { get; }
-        public Thread Callback { get; }
-        public Thread RecoveryWriter { get; }
-        public DescriptorObservation ReadDescriptor { get; }
-        public DescriptorObservation WriteDescriptor { get; }
-        public DescriptorObservation EpollDescriptor { get; }
-        public IReadOnlyList<Step> Steps { get; }
+        public bool EventOwned
+        {
+            get;
+        }
+        public Thread Waiter
+        {
+            get;
+        }
+        public Thread Actor
+        {
+            get;
+        }
+        public Thread Callback
+        {
+            get;
+        }
+        public Thread RecoveryWriter
+        {
+            get;
+        }
+        public DescriptorObservation ReadDescriptor
+        {
+            get;
+        }
+        public DescriptorObservation WriteDescriptor
+        {
+            get;
+        }
+        public DescriptorObservation EpollDescriptor
+        {
+            get;
+        }
+        public IReadOnlyList<Step> Steps
+        {
+            get;
+        }
         /// <summary>Copied added-lifetime socket projections, emitted only after
         /// the entire existing replay succeeds. Ordinary sockets and probe-pipe
         /// calls are excluded; no quota-only M16_016_SOCKET row is fabricated.</summary>
 
-        public IReadOnlyList<WebSignalRaceSocketCall> SocketCalls { get; }
+        public IReadOnlyList<WebSignalRaceSocketCall> SocketCalls
+        {
+            get;
+        }
 
         internal WebSignalRaceReport(WebSignalRaceSelection selection, Thread waiter, Thread actor, Thread callback, Thread writer, DescriptorObservation read, DescriptorObservation write, DescriptorObservation epoll, IEnumerable<Step> steps, IEnumerable<WebSignalRaceSocketCall> socketCalls, bool eventOwned = false)
         {

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public static class BootPageFreeListBuilder
 {
     public static BootPageFreeListPlanResult Build(BootPageAllocatorPlanResult allocatorPlan, ReadOnlySpan<BootPageFreeSegment> freeSegments, Span<BootPageFreeListNode> destination)

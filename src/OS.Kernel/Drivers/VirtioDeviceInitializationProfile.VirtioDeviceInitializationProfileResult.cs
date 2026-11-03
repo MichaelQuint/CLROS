@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioDeviceInitializationProfileResult
 {
     private VirtioDeviceInitializationProfileResult(VirtioDeviceInitializationProfileStatus status, VirtioPciDeviceKind deviceKind, ulong deviceFeatures, ulong requiredFeatures, ulong optionalFeatures, ushort availableQueueCount, ushort requiredQueueCount, bool hasInitializationPlan, VirtioDeviceInitializationPlanResult initializationPlan, bool isInitialized)
@@ -15,16 +16,46 @@ public readonly struct VirtioDeviceInitializationProfileResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioDeviceInitializationProfileStatus Status { get; }
-    public VirtioPciDeviceKind DeviceKind { get; }
-    public ulong DeviceFeatures { get; }
-    public ulong RequiredFeatures { get; }
-    public ulong OptionalFeatures { get; }
-    public ushort AvailableQueueCount { get; }
-    public ushort RequiredQueueCount { get; }
-    public bool HasInitializationPlan { get; }
-    public VirtioDeviceInitializationPlanResult InitializationPlan { get; }
-    public bool IsInitialized { get; }
+    public VirtioDeviceInitializationProfileStatus Status
+    {
+        get;
+    }
+    public VirtioPciDeviceKind DeviceKind
+    {
+        get;
+    }
+    public ulong DeviceFeatures
+    {
+        get;
+    }
+    public ulong RequiredFeatures
+    {
+        get;
+    }
+    public ulong OptionalFeatures
+    {
+        get;
+    }
+    public ushort AvailableQueueCount
+    {
+        get;
+    }
+    public ushort RequiredQueueCount
+    {
+        get;
+    }
+    public bool HasInitializationPlan
+    {
+        get;
+    }
+    public VirtioDeviceInitializationPlanResult InitializationPlan
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioDeviceInitializationProfileStatus.Success;
 
     internal static VirtioDeviceInitializationProfileResult Create(VirtioDeviceInitializationProfileStatus status, VirtioPciDeviceKind deviceKind, ulong deviceFeatures, ulong requiredFeatures, ulong optionalFeatures, ushort availableQueueCount, ushort requiredQueueCount, bool hasInitializationPlan, VirtioDeviceInitializationPlanResult initializationPlan)

@@ -19,7 +19,8 @@ public readonly unsafe ref struct Span<T>
         if (length < 0)
         {
 #if NOSTDLIB_EFI
-            while (true) System.RuntimeFailFast.Halt();
+            while (true)
+                System.RuntimeFailFast.Halt();
 #else
             throw new System.ArgumentOutOfRangeException(nameof(length));
 #endif
@@ -67,7 +68,8 @@ public readonly unsafe ref struct Span<T>
     private static void Bounds()
     {
 #if NOSTDLIB_EFI
-        while (true) System.RuntimeFailFast.Halt();
+        while (true)
+            System.RuntimeFailFast.Halt();
 #else
         throw new System.ArgumentOutOfRangeException();
 #endif

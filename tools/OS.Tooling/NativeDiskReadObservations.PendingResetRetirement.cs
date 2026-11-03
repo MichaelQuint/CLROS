@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class NativeDiskReadObservations
 {
     /// <summary>Copied values from a separately authenticated actual Stop

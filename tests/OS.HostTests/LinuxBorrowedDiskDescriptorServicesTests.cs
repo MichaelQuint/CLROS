@@ -184,7 +184,7 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
             p.PrepareConnectedTransport();
         }, signals: true);
         var before = o.SocketAuditSnapshot();
-        foreach ((ulong start, ulong bytes)in o.ProcessExtents())
+        foreach ((ulong start, ulong bytes) in o.ProcessExtents())
             HostCheck.True(!CanPublish(o.Files.State, start, bytes) && !CanPublish(o.Files.State, start - 8, bytes + 16) && !CanPublish(o.Files.State, start + bytes - 1, 2));
         HostCheck.True(!CanPublish(o.Files.State, ulong.MaxValue - 7, 16) && ProcessCurrent(o.Files.State));
         CheckSocketAuditSnapshot(before);
@@ -301,7 +301,7 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
         uint clocks = network.Clocks, sends = network.Sends, writes = o.Thread.Writes;
         Span<byte> output = stackalloc byte[1514];
         output.Fill(0xd6);
-        foreach ((ulong start, ulong bytes)in o.ProcessExtents())
+        foreach ((ulong start, ulong bytes) in o.ProcessExtents())
         {
             HostCheck.True(!ProcessOutside(o.Files.State, start, bytes) && !ProcessOutside(o.Files.State, start - 1, bytes + 2) && !ProcessOutside(o.Files.State, start + bytes - 1, 2));
             // All these original process extents lie in the model's actual
@@ -408,8 +408,8 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
             o.ReadAttached = false;
             HostCheck.True(o.Thread.Service->Shutdown(Key, 2, 7));
             HostCheck.True(callbacks == o.Storage.Device.Hardware->Calls && o.Thread.Writes == copies && o.Unchanged(16, 0xc7));
-        // Owner.Dispose must still commit the actual current worker exit,
-        // confirm/reap/release and retire its independently held engine.
+            // Owner.Dispose must still commit the actual current worker exit,
+            // confirm/reap/release and retire its independently held engine.
         }
         catch (Exception failure)
         {
@@ -617,7 +617,7 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
         }
 
         HostCheck.True(o.AttachReadOnly());
-        foreach ((ulong address, ulong bytes)in new[]
+        foreach ((ulong address, ulong bytes) in new[]
         {
             ((ulong)o.Disk, (ulong)sizeof(F.DiskState)),
             ((ulong)o.Requests, 8UL * (ulong)sizeof(F.DiskRequest)),
@@ -850,7 +850,7 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
         o.PrepareWritable();
         HostCheck.True(o.AttachWritable());
         uint calls = o.Storage.Device.Hardware->Calls;
-        foreach ((ulong address, ulong bytes)in new[]
+        foreach ((ulong address, ulong bytes) in new[]
         {
             ((ulong)o.Disk, (ulong)sizeof(F.DiskState)),
             ((ulong)o.Requests, 8UL * (ulong)sizeof(F.DiskRequest)),
@@ -1091,7 +1091,7 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
     {
         var connection = o.Connection!;
         uint callbacks = o.Storage.Device.Hardware->Calls, networkCalls = connection.Hardware->Calls;
-        foreach ((ulong start, ulong bytes)in o.TransportExtents())
+        foreach ((ulong start, ulong bytes) in o.TransportExtents())
             HostCheck.True(!SocketCanRetain(o.Files.State, start, bytes) && !SocketCanRetain(o.Files.State, start - 8, bytes + 16) && !SocketCanRetain(o.Files.State, start + bytes - 1, 2));
         HostCheck.True(SocketCanRetain(o.Files.State, (ulong)o.Thread.At(SocketOutput), 12) && !SocketCanRetain(o.Files.State, ulong.MaxValue - 7, 64));
         ref byte* buffer = ref SendBuffer(ref *connection.Owner);
@@ -1270,7 +1270,7 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
         }
 
         int initial = TransportEntries(o.Files.State).Length;
-        HostCheck.True(initial is> 0 and <= 16 && TransportSlots == 142);
+        HostCheck.True(initial is > 0 and <= 16 && TransportSlots == 142);
         QueriesOnly(() => Equivalent(true));
         o.EnqueueShared();
         int twoChunks = TransportEntries(o.Files.State).Length;
@@ -1789,7 +1789,7 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
                 foreach (ulong alias in aliases)
                     for (int position = 0; position < 3; position++)
                     {
-                        ulong[] ranges = [..valid];
+                        ulong[] ranges = [.. valid];
                         ranges[position * 2] = alias;
                         ranges[position * 2 + 1] = 1;
                         Equivalent(ranges, false);
@@ -1930,7 +1930,7 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
             var engine = o.Storage.EngineInput;
             var device = o.Storage.Device.Input;
             List<(ulong Start, ulong Bytes)> shared = [((ulong)o.Storage.Engine, (ulong)sizeof(C.State)), ((ulong)engine.Changes, o.Storage.EngineBackingBytes), ((ulong)o.Storage.Block, (ulong)sizeof(B.State)), ((ulong)device.Pool, (ulong)sizeof(OS.Drivers.DmaBufferPool)), ((ulong)o.Storage.Device.Slot, (ulong)sizeof(OS.Drivers.DmaBufferSlot)), ((ulong)o.Storage.Device.Data, 4096), ((ulong)device.Observation, (ulong)sizeof(B.Observation)), (device.Common.VirtualStart, device.Common.Bytes), (device.Notify.VirtualStart, device.Notify.Bytes), (device.Device.VirtualStart, device.Device.Bytes)];
-            foreach ((ulong start, ulong bytes)in local.Concat(shared))
+            foreach ((ulong start, ulong bytes) in local.Concat(shared))
                 HostCheck.True(!TransportOutside(o.Files.State, (void*)start, bytes) && !TransportOutside(o.Files.State, (void*)(start - 8), bytes + 16) && !TransportOutside(o.Files.State, (void*)(start + bytes - 1), 2));
             ref var input = ref MountAdmission(ref *o.Storage.Mount);
             var originalInput = input;
@@ -2190,7 +2190,7 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
 
             owner.PreparePacketNetwork();
         });
-        foreach ((ulong address, ulong bytes)in o.PacketNetwork!.Extents())
+        foreach ((ulong address, ulong bytes) in o.PacketNetwork!.Extents())
             HostCheck.True(!SocketCanRetain(o.Files.State, address, bytes) && !SocketCanRetain(o.Files.State, address - 8, bytes + 16) && !SocketCanRetain(o.Files.State, address + bytes - 1, 2));
         o.Fill(16, 0xdc);
         var before = o.SocketAuditSnapshot();

@@ -20,8 +20,17 @@ internal static partial class OsPackageBuilder
             Content = content;
         }
 
-        public string Path { get; }
-        public byte[] PathBytes { get; }
-        public byte[] Content { get; }
+        public string Path
+        {
+            get;
+        }
+        public byte[] PathBytes
+        {
+            get;
+        }
+        public byte[] Content
+        {
+            get;
+        }
     }
 }

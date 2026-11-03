@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct DiagnosticStubCallableBindingPlanResult
 {
     private DiagnosticStubCallableBindingPlanResult(bool isInitialized, DiagnosticStubCallableBindingPlanStatus status, DiagnosticStubInvocationReadinessStatus invocationStatus, ExecutableStubPageTransitionPlanStatus pageTransitionStatus, Com1PortIoBackendContractStatus backendContractStatus, ExecutableStubBundleMaterializerStatus materializerStatus, ushort configuredBasePort, nuint payloadBaseAddress, nuint payloadEndAddress, nuint bytesMaterialized, nuint out8StubOffset, nuint in8StubOffset, nuint out8StubAddress, nuint in8StubAddress, int out8StubByteLength, int in8StubByteLength, int out8BytesCopied, int in8BytesCopied)
@@ -25,25 +26,79 @@ public readonly struct DiagnosticStubCallableBindingPlanResult
         In8BytesCopied = in8BytesCopied;
     }
 
-    public bool IsInitialized { get; }
-    public DiagnosticStubCallableBindingPlanStatus Status { get; }
-    public DiagnosticStubInvocationReadinessStatus InvocationStatus { get; }
-    public ExecutableStubPageTransitionPlanStatus PageTransitionStatus { get; }
-    public Com1PortIoBackendContractStatus BackendContractStatus { get; }
-    public ExecutableStubBundleMaterializerStatus MaterializerStatus { get; }
-    public ushort ConfiguredBasePort { get; }
-    public nuint PayloadBaseAddress { get; }
-    public nuint PayloadEndAddress { get; }
-    public nuint BytesMaterialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public DiagnosticStubCallableBindingPlanStatus Status
+    {
+        get;
+    }
+    public DiagnosticStubInvocationReadinessStatus InvocationStatus
+    {
+        get;
+    }
+    public ExecutableStubPageTransitionPlanStatus PageTransitionStatus
+    {
+        get;
+    }
+    public Com1PortIoBackendContractStatus BackendContractStatus
+    {
+        get;
+    }
+    public ExecutableStubBundleMaterializerStatus MaterializerStatus
+    {
+        get;
+    }
+    public ushort ConfiguredBasePort
+    {
+        get;
+    }
+    public nuint PayloadBaseAddress
+    {
+        get;
+    }
+    public nuint PayloadEndAddress
+    {
+        get;
+    }
+    public nuint BytesMaterialized
+    {
+        get;
+    }
     public nuint PayloadByteLength => PayloadEndAddress >= PayloadBaseAddress ? PayloadEndAddress - PayloadBaseAddress : 0;
-    public nuint Out8StubOffset { get; }
-    public nuint In8StubOffset { get; }
-    public nuint Out8StubAddress { get; }
-    public nuint In8StubAddress { get; }
-    public int Out8StubByteLength { get; }
-    public int In8StubByteLength { get; }
-    public int Out8BytesCopied { get; }
-    public int In8BytesCopied { get; }
+    public nuint Out8StubOffset
+    {
+        get;
+    }
+    public nuint In8StubOffset
+    {
+        get;
+    }
+    public nuint Out8StubAddress
+    {
+        get;
+    }
+    public nuint In8StubAddress
+    {
+        get;
+    }
+    public int Out8StubByteLength
+    {
+        get;
+    }
+    public int In8StubByteLength
+    {
+        get;
+    }
+    public int Out8BytesCopied
+    {
+        get;
+    }
+    public int In8BytesCopied
+    {
+        get;
+    }
     public bool CreatesManagedDelegate => false;
     public bool InvokesCallable => false;
     public bool PerformsPortIo => false;

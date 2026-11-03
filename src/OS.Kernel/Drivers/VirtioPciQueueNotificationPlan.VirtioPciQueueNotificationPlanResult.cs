@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciQueueNotificationPlanResult
 {
     private VirtioPciQueueNotificationPlanResult(VirtioPciQueueNotificationPlanStatus status, VirtioPciBarAperture aperture, uint queueIndex, ushort availableQueueCount, ushort queueNotifyOffset, ulong negotiatedFeatures, VirtioPciQueueNotificationPlan plan, bool isInitialized)
@@ -13,14 +14,38 @@ public readonly struct VirtioPciQueueNotificationPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioPciQueueNotificationPlanStatus Status { get; }
-    public bool IsInitialized { get; }
-    public VirtioPciBarAperture Aperture { get; }
-    public uint QueueIndex { get; }
-    public ushort AvailableQueueCount { get; }
-    public ushort QueueNotifyOffset { get; }
-    public ulong NegotiatedFeatures { get; }
-    public VirtioPciQueueNotificationPlan Plan { get; }
+    public VirtioPciQueueNotificationPlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtioPciBarAperture Aperture
+    {
+        get;
+    }
+    public uint QueueIndex
+    {
+        get;
+    }
+    public ushort AvailableQueueCount
+    {
+        get;
+    }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
+    public ulong NegotiatedFeatures
+    {
+        get;
+    }
+    public VirtioPciQueueNotificationPlan Plan
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioPciQueueNotificationPlanStatus.Success;
 
     internal static VirtioPciQueueNotificationPlanResult Success(VirtioPciQueueNotificationPlan plan, ushort availableQueueCount, ulong negotiatedFeatures)

@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct BootPhaseInfo(BootPhaseId id, string name, string precondition, string postcondition, string markerPrefix)
 {
     public BootPhaseId Id { get; } = id;

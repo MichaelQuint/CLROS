@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct TcpConnectionCloseTransitionResult
 {
     private TcpConnectionCloseTransitionResult(TcpConnectionCloseStatus status, TcpConnectionCloseState state, PacketParseStatus packetStatus, int bytesWritten, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
@@ -12,14 +13,35 @@ public readonly struct TcpConnectionCloseTransitionResult
         RemoteNextSequenceNumber = remoteNextSequenceNumber;
     }
 
-    public TcpConnectionCloseStatus Status { get; }
-    public bool IsInitialized { get; }
+    public TcpConnectionCloseStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == TcpConnectionCloseStatus.Success;
-    public TcpConnectionCloseState State { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public int BytesWritten { get; }
-    public uint LocalNextSequenceNumber { get; }
-    public uint RemoteNextSequenceNumber { get; }
+    public TcpConnectionCloseState State
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get;
+    }
 
     public static TcpConnectionCloseTransitionResult Success(TcpConnectionCloseState state, PacketParseStatus packetStatus, int bytesWritten, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
     {

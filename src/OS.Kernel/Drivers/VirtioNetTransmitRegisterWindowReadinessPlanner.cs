@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioNetTransmitRegisterWindowReadinessPlanner
 {
     public const bool RequiresQueueSetupRegisterWindowExecution = true;

@@ -1,13 +1,20 @@
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public sealed record MinimalApiPackageOptions
 {
     public string OutputRoot { get; init; } = "artifacts/kestrel-smoke";
     public string Configuration { get; init; } = "Release";
     public string WorkloadProfile { get; init; } = "SingleMinimalApi";
-    public bool SkipValidation { get; init; }
-    public bool SkipNegativeValidation { get; init; }
+    public bool SkipValidation
+    {
+        get; init;
+    }
+    public bool SkipNegativeValidation
+    {
+        get; init;
+    }
 
     public static MinimalApiPackageOptions Parse(string[] arguments)
     {
@@ -37,7 +44,8 @@ public sealed record MinimalApiPackageOptions
                 {
                     SkipNegativeValidation = true
                 },
-                _ => throw new ArgumentException("unknown_option " + arguments[i])};
+                _ => throw new ArgumentException("unknown_option " + arguments[i])
+            };
         }
 
         return options;

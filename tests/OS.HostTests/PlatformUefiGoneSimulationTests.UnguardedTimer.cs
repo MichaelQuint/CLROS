@@ -8,7 +8,10 @@ internal static partial class PlatformUefiGoneSimulationTests
 {
     private sealed class UnguardedTimer : IPlatformTimer
     {
-        public int ReadCount { get; private set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
 
         public PlatformTimerResult ReadMonotonic()
         {

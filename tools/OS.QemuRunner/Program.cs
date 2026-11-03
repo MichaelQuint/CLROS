@@ -22,7 +22,7 @@ try
 
     Console.WriteLine("QEMU_ACCELERATOR " + options.Accelerator);
     Console.WriteLine("QEMU_MACHINE " + OS.Tooling.QemuContracts.MachineArgument(options.Accelerator));
-    if (!options.DryRun && OS.Tooling.QemuContracts.AcceleratorFailure(options.Accelerator, OperatingSystem.IsWindows(), options.Accelerator == "whpx" && OS.Tooling.QemuContracts.IsWhpxAvailable())is string acceleratorFailure)
+    if (!options.DryRun && OS.Tooling.QemuContracts.AcceleratorFailure(options.Accelerator, OperatingSystem.IsWindows(), options.Accelerator == "whpx" && OS.Tooling.QemuContracts.IsWhpxAvailable()) is string acceleratorFailure)
     {
         Console.Error.WriteLine("TEST_FAIL qemu.smoke " + acceleratorFailure);
         WriteSummaryLogBestEffort(options, "fail", Array.Empty<string>(), options.RequiredMarkers, Array.Empty<string>(), acceleratorFailure);
@@ -505,7 +505,7 @@ try
                                         if (!web.AliveAfterControls)
                                             web.Failure = "premature_exit";
                                     }
-                                    catch (Exception failure)when (failure is IOException or InvalidDataException or OperationCanceledException or TimeoutException or SocketException or InvalidOperationException)
+                                    catch (Exception failure) when (failure is IOException or InvalidDataException or OperationCanceledException or TimeoutException or SocketException or InvalidOperationException)
                                     {
                                         web.Failure = "socket_controls_" + failure.GetType().Name;
                                     }
@@ -523,7 +523,7 @@ try
                                             if (!web.AliveAfterRaceGate)
                                                 web.Failure = "race_gate_guest_unhealthy";
                                         }
-                                        catch (Exception failure)when (failure is IOException or InvalidDataException or OperationCanceledException or TimeoutException or SocketException or InvalidOperationException or UnauthorizedAccessException)
+                                        catch (Exception failure) when (failure is IOException or InvalidDataException or OperationCanceledException or TimeoutException or SocketException or InvalidOperationException or UnauthorizedAccessException)
                                         {
                                             web.Failure = options.WebEventOwnedSignalRace && failure is InvalidDataException { Message: "web_race_insufficient_absolute_budget" } ? "race_gate_insufficient_absolute_budget" : "race_gate_" + failure.GetType().Name;
                                         }
@@ -557,7 +557,7 @@ try
             {
                 writable.CompleteAfterChildJoin();
             }
-            catch (Exception error)when (error is ArgumentException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
             {
                 WriteSummaryLogBestEffort(options, "fail", [], options.RequiredMarkers, [], "writable_data_identity_changed");
                 Console.Error.WriteLine("TEST_FAIL qemu.smoke writable_data_identity_changed type=" + error.GetType().Name);
@@ -1196,7 +1196,7 @@ static void ValidateResolvedPathSeparation(RunnerOptions options, string? qemuPa
 
     StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     Dictionary<string, string> nameByPath = new Dictionary<string, string>(comparer);
-    foreach ((string name, string path)in paths)
+    foreach ((string name, string path) in paths)
     {
         string fullPath = Path.GetFullPath(path);
         if (options.WritableDataImagePath is not null && fullPath.IndexOfAny([',', '\r', '\n', '\0']) >= 0)
@@ -1228,7 +1228,7 @@ static (bool Succeeded, bool KillIssued, bool ExitedBeforeKill, int? ExitCode) T
             process.Kill(entireProcessTree: true);
             killIssued = true;
         }
-        catch (InvalidOperationException)when (process.HasExited)
+        catch (InvalidOperationException) when (process.HasExited)
         {
             return (true, false, true, process.ExitCode);
         }
@@ -1340,7 +1340,7 @@ static IReadOnlyList<string> FindObservedRunnerMarkerLines(string serial, Runner
 {
     List<string> observed = new List<string>();
     using StringReader reader = new StringReader(serial);
-    while (reader.ReadLine()is { } line)
+    while (reader.ReadLine() is { } line)
     {
         string trimmed = line.Trim();
         if (trimmed.Length == 0)
@@ -1406,7 +1406,7 @@ static int RunPreflight(RunnerOptions options)
     {
         imageBytes = new FileInfo(options.ImagePath).Length;
     }
-    catch (Exception ex)when (ex is IOException || ex is UnauthorizedAccessException)
+    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
     {
         Console.WriteLine("QEMU_PREFLIGHT_IMAGE path=" + options.ImagePath + " exists=true bytes=unknown");
         return FailPreflight("image_read_failed error=" + ex.GetType().Name, 11);
@@ -1427,7 +1427,7 @@ static int RunPreflight(RunnerOptions options)
     {
         detectedDiskFormat = DetectImageFormat(options.ImagePath);
     }
-    catch (Exception ex)when (ex is IOException || ex is UnauthorizedAccessException)
+    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
     {
         return FailPreflight("image_read_failed error=" + ex.GetType().Name, 11);
     }
@@ -1589,7 +1589,7 @@ static string[] GetSerialTailLines(string serial, int maxLines, int maxChars)
 {
     Queue<string> tail = new Queue<string>(maxLines);
     using StringReader reader = new StringReader(serial);
-    while (reader.ReadLine()is { } line)
+    while (reader.ReadLine() is { } line)
     {
         string normalized = NormalizeSerialTailLine(line, maxChars);
         if (normalized.Length == 0)
@@ -1918,7 +1918,7 @@ static HttpProbeResult ExecuteHttpProbe(HttpProbeOptions probe, bool http10 = fa
         WriteHttpProbeResult(result, probe);
         return result;
     }
-    catch (Exception ex)when (ex is IOException || ex is InvalidOperationException)
+    catch (Exception ex) when (ex is IOException || ex is InvalidOperationException)
     {
         stopwatch.Stop();
         HttpProbeResult result = HttpProbeResult.Failed("request_failed", stopwatch.ElapsedMilliseconds, ex.GetType().Name);
@@ -1934,7 +1934,7 @@ static RawHttpProbeResponse SendRawHttpRequest(Uri uri, int timeoutSeconds, bool
     {
         return SendRawHttpRequestAsync(uri, cancellation.Token, http10, post).GetAwaiter().GetResult();
     }
-    catch (OperationCanceledException ex)when (cancellation.IsCancellationRequested)
+    catch (OperationCanceledException ex) when (cancellation.IsCancellationRequested)
     {
         throw new TimeoutException("HTTP probe timed out.", ex);
     }

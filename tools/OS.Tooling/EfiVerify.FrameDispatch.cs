@@ -4,13 +4,14 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 public static partial class EfiVerify
 {
     public static bool TestFrameDispatchEhTable(byte[]? bytes, int part, ulong sibling, ulong baseType)
     {
         if (part == 0)
             return bytes is not null && bytes.AsSpan().SequenceEqual(new byte[] { 2, 40, 50, 98 });
-        return part == 1 && bytes is { Length: 15 } && sibling is> 0 and <= uint.MaxValue && baseType is> 0 and <= uint.MaxValue && sibling != baseType && bytes.AsSpan(0, 4).SequenceEqual(new byte[] { 4, 74, 80, 150 }) && bytes.AsSpan(8, 3).SequenceEqual(new byte[] { 74, 80, 192 }) && BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(4)) == sibling && BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(11)) == baseType;
+        return part == 1 && bytes is { Length: 15 } && sibling is > 0 and <= uint.MaxValue && baseType is > 0 and <= uint.MaxValue && sibling != baseType && bytes.AsSpan(0, 4).SequenceEqual(new byte[] { 4, 74, 80, 150 }) && bytes.AsSpan(8, 3).SequenceEqual(new byte[] { 74, 80, 192 }) && BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(4)) == sibling && BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(11)) == baseType;
     }
 
     public static bool TestFrameDispatchUnwindBytes(byte[]? bytes, int part, ulong table)
@@ -24,7 +25,7 @@ public static partial class EfiVerify
             _ => []
         };
         bool root = part is 1 or 3;
-        return prefix.Length != 0 && bytes is not null && bytes.Length == prefix.Length + (root ? 4 : 0) && bytes.AsSpan(0, prefix.Length).SequenceEqual(prefix) && (!root || table is> 0 and <= uint.MaxValue && BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(prefix.Length)) == table);
+        return prefix.Length != 0 && bytes is not null && bytes.Length == prefix.Length + (root ? 4 : 0) && bytes.AsSpan(0, prefix.Length).SequenceEqual(prefix) && (!root || table is > 0 and <= uint.MaxValue && BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(prefix.Length)) == table);
     }
 
     public static bool TestFrameDispatchCode(byte[]? bytes, int part)
@@ -38,7 +39,7 @@ public static partial class EfiVerify
         };
         if (shape.Length == 0 || bytes is null || bytes.Length != shape.Length / 2)
             return false;
-        byte[] normalized = [..bytes];
+        byte[] normalized = [.. bytes];
         foreach (int field in part switch
         {
             0 => new[]

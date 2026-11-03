@@ -577,7 +577,7 @@ internal static unsafe partial class M01LiveAllocatorIntegrationTests
             return SourceFailure("public-api-shape");
         }
 
-        foreach ((string name, int parameterCount)in expectedMethods)
+        foreach ((string name, int parameterCount) in expectedMethods)
         {
             MethodInfo? method = Array.Find(publicMethods, candidate => string.Equals(candidate.Name, name, StringComparison.Ordinal));
             if (method is null || method.GetParameters().Length != parameterCount || !IsPodOrPointer(method.ReturnType))
@@ -1033,7 +1033,7 @@ internal static unsafe partial class M01LiveAllocatorIntegrationTests
                 ("src/OS.Kernel/Boot/M01LiveAllocatorIntegration.M01LiveAllocatorIntegrationResult.cs", "Boot/M01LiveAllocatorIntegration.M01LiveAllocatorIntegrationResult.cs"),
                 ("src/OS.Kernel/Boot/M01LiveAllocatorIntegration.cs", "Boot/M01LiveAllocatorIntegration.cs")];
             StringBuilder compileItems = new StringBuilder();
-            foreach ((string relative, string link)in sources)
+            foreach ((string relative, string link) in sources)
             {
                 compileItems.Append("    <Compile Include=\"");
                 compileItems.Append(EscapeXml(Path.Combine(repositoryRoot, relative.Replace('/', Path.DirectorySeparatorChar))));

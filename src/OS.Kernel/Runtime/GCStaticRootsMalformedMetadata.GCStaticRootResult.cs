@@ -19,14 +19,41 @@ public readonly struct GCStaticRootResult
         AllocationBytes = allocationBytes;
     }
 
-    public GCStaticRootStatus Status { get; }
-    public GCStaticMetadataStatus MetadataStatus { get; }
-    public TypeManagerModuleStatus ModuleStatus { get; }
-    public RhpNewFastStatus HeapStatus { get; }
-    public ulong ObjectReference { get; }
-    public ulong Cell { get; }
-    public ulong SeriesStart { get; }
-    public ulong SeriesBytes { get; }
-    public ulong AllocationBytes { get; }
+    public GCStaticRootStatus Status
+    {
+        get;
+    }
+    public GCStaticMetadataStatus MetadataStatus
+    {
+        get;
+    }
+    public TypeManagerModuleStatus ModuleStatus
+    {
+        get;
+    }
+    public RhpNewFastStatus HeapStatus
+    {
+        get;
+    }
+    public ulong ObjectReference
+    {
+        get;
+    }
+    public ulong Cell
+    {
+        get;
+    }
+    public ulong SeriesStart
+    {
+        get;
+    }
+    public ulong SeriesBytes
+    {
+        get;
+    }
+    public ulong AllocationBytes
+    {
+        get;
+    }
     public bool Succeeded => Status == GCStaticRootStatus.Success;
 }

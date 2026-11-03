@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct PanicContext
 {
     public PanicContext(string? subsystem, string? reason, int? vector)
@@ -8,7 +9,16 @@ public readonly struct PanicContext
         Vector = vector;
     }
 
-    public string? Subsystem { get; }
-    public string? Reason { get; }
-    public int? Vector { get; }
+    public string? Subsystem
+    {
+        get;
+    }
+    public string? Reason
+    {
+        get;
+    }
+    public int? Vector
+    {
+        get;
+    }
 }

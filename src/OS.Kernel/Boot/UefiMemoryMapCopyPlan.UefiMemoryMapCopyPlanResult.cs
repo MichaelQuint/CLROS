@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct UefiMemoryMapCopyPlanResult
 {
     private UefiMemoryMapCopyPlanResult(bool succeeded, UefiMemoryMapCopyPlanStatus status, UefiMemoryMapCopyPlan plan)
@@ -8,9 +9,18 @@ public readonly struct UefiMemoryMapCopyPlanResult
         Plan = plan;
     }
 
-    public bool Succeeded { get; }
-    public UefiMemoryMapCopyPlanStatus Status { get; }
-    public UefiMemoryMapCopyPlan Plan { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public UefiMemoryMapCopyPlanStatus Status
+    {
+        get;
+    }
+    public UefiMemoryMapCopyPlan Plan
+    {
+        get;
+    }
 
     public static UefiMemoryMapCopyPlanResult Create(FirmwareMemoryMapRecord metadata, ulong destinationCapacity)
     {

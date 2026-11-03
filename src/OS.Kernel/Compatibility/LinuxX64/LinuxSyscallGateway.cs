@@ -259,7 +259,7 @@ public static unsafe partial class LinuxSyscallGateway
         if (access.Context == null || access.PageAccess == null || required == LinuxUserPageAccess.None || ((byte)required & ~7) != 0 || address < 4096 || address >= UserEnd || bytes == 0 || bytes > UserEnd - address)
             return false;
         ulong last = (address + bytes - 1) & ~4095UL;
-        for (ulong page = address & ~4095UL;; page += 4096)
+        for (ulong page = address & ~4095UL; ; page += 4096)
         {
             byte value = access.PageAccess(access.Context, page);
             if ((value & 1) == 0 || (value & ~7) != 0 || (value & 6) == 6 || (value & (byte)required) != (byte)required)

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciDeviceDiscoveryResult
 {
     private VirtioPciDeviceDiscoveryResult(VirtioPciDeviceDiscoveryStatus status, PciDeviceIdentity identity, VirtioPciDeviceKind deviceKind, byte virtioDeviceId, VirtioPciCapabilitySet capabilities, bool isInitialized)
@@ -11,12 +12,30 @@ public readonly struct VirtioPciDeviceDiscoveryResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioPciDeviceDiscoveryStatus Status { get; }
-    public PciDeviceIdentity Identity { get; }
-    public VirtioPciDeviceKind DeviceKind { get; }
-    public byte VirtioDeviceId { get; }
-    public VirtioPciCapabilitySet Capabilities { get; }
-    public bool IsInitialized { get; }
+    public VirtioPciDeviceDiscoveryStatus Status
+    {
+        get;
+    }
+    public PciDeviceIdentity Identity
+    {
+        get;
+    }
+    public VirtioPciDeviceKind DeviceKind
+    {
+        get;
+    }
+    public byte VirtioDeviceId
+    {
+        get;
+    }
+    public VirtioPciCapabilitySet Capabilities
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioPciDeviceDiscoveryStatus.Success;
 
     public static VirtioPciDeviceDiscoveryResult Success(PciDeviceIdentity identity, VirtioPciDeviceKind deviceKind, byte virtioDeviceId, VirtioPciCapabilitySet capabilities)

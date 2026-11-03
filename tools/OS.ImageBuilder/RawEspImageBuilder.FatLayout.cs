@@ -22,11 +22,26 @@ internal static partial class RawEspImageBuilder
             PackageFileClusterCount = packageFileClusterCount;
         }
 
-        public uint FatSectors { get; }
-        public uint ClusterCount { get; }
-        public int FileClusterCount { get; }
-        public int ManifestFileClusterCount { get; }
-        public int PackageFileClusterCount { get; }
+        public uint FatSectors
+        {
+            get;
+        }
+        public uint ClusterCount
+        {
+            get;
+        }
+        public int FileClusterCount
+        {
+            get;
+        }
+        public int ManifestFileClusterCount
+        {
+            get;
+        }
+        public int PackageFileClusterCount
+        {
+            get;
+        }
         public bool HasManifest => ManifestFileClusterCount != 0;
         public bool HasPackage => PackageFileClusterCount != 0;
         public bool HasOsDirectory => HasManifest || HasPackage;

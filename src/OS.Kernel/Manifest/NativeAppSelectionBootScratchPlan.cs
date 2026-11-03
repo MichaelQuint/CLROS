@@ -1,6 +1,7 @@
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public static class NativeAppSelectionBootScratchPlan
 {
     public const uint DefaultSectorSizeBytes = 512;

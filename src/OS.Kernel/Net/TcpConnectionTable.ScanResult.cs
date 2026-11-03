@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpConnectionTable
 {
     private readonly struct ScanResult
@@ -11,9 +12,21 @@ public static unsafe partial class TcpConnectionTable
             MatchingEntryIndex = matchingEntryIndex;
         }
 
-        public TcpConnectionTableStatus Status { get; }
-        public int Count { get; }
-        public int FirstReusableEntryIndex { get; }
-        public int MatchingEntryIndex { get; }
+        public TcpConnectionTableStatus Status
+        {
+            get;
+        }
+        public int Count
+        {
+            get;
+        }
+        public int FirstReusableEntryIndex
+        {
+            get;
+        }
+        public int MatchingEntryIndex
+        {
+            get;
+        }
     }
 }

@@ -31,7 +31,7 @@ internal static partial class NativeAotWebSignalRacePayloadTests
         {
             action();
         }
-        catch (Exception error)when (error is InvalidDataException or JsonException)
+        catch (Exception error) when (error is InvalidDataException or JsonException)
         {
             failed = true;
         }
@@ -46,7 +46,7 @@ internal static partial class NativeAotWebSignalRacePayloadTests
         {
             await action();
         }
-        catch (Exception error)when (error is InvalidDataException or OperationCanceledException)
+        catch (Exception error) when (error is InvalidDataException or OperationCanceledException)
         {
             failed = true;
         }

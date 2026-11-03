@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct HttpClientGetTransactionResult
 {
     private HttpClientGetTransactionResult(HttpClientGetTransactionStatus status, HttpClientGetTransactionState state, HttpRequestBuilderStatus requestStatus, HttpResponseParseStatus responseStatus, int bytesWritten, int bytesRequired, byte protocolMajor, byte protocolMinor, ushort statusCode, int headerLength, bool hasContentLength, int contentLength, bool connectionClose, int bodyOffset, int bodyLength)
@@ -21,23 +22,71 @@ public readonly struct HttpClientGetTransactionResult
         BodyLength = bodyLength;
     }
 
-    public HttpClientGetTransactionStatus Status { get; }
-    public bool IsInitialized { get; }
+    public HttpClientGetTransactionStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == HttpClientGetTransactionStatus.Success;
-    public HttpClientGetTransactionState State { get; }
-    public HttpRequestBuilderStatus RequestStatus { get; }
-    public HttpResponseParseStatus ResponseStatus { get; }
-    public int BytesWritten { get; }
-    public int BytesRequired { get; }
-    public byte ProtocolMajor { get; }
-    public byte ProtocolMinor { get; }
-    public ushort StatusCode { get; }
-    public int HeaderLength { get; }
-    public bool HasContentLength { get; }
-    public int ContentLength { get; }
-    public bool ConnectionClose { get; }
-    public int BodyOffset { get; }
-    public int BodyLength { get; }
+    public HttpClientGetTransactionState State
+    {
+        get;
+    }
+    public HttpRequestBuilderStatus RequestStatus
+    {
+        get;
+    }
+    public HttpResponseParseStatus ResponseStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int BytesRequired
+    {
+        get;
+    }
+    public byte ProtocolMajor
+    {
+        get;
+    }
+    public byte ProtocolMinor
+    {
+        get;
+    }
+    public ushort StatusCode
+    {
+        get;
+    }
+    public int HeaderLength
+    {
+        get;
+    }
+    public bool HasContentLength
+    {
+        get;
+    }
+    public int ContentLength
+    {
+        get;
+    }
+    public bool ConnectionClose
+    {
+        get;
+    }
+    public int BodyOffset
+    {
+        get;
+    }
+    public int BodyLength
+    {
+        get;
+    }
 
     public static HttpClientGetTransactionResult RequestSuccess(HttpClientGetTransactionState state, HttpRequestBuilderStatus requestStatus, int bytesWritten, int bytesRequired)
     {

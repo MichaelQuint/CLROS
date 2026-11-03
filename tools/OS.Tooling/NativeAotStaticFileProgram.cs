@@ -12,8 +12,14 @@ public sealed partial class NativeAotStaticFileProgram
     internal const int ElfBytes = 8_641_616;
     private const string ElfSha256 = "43CD37EC60F8CDD192E0F3E28B799B778F038DEF85470542EEB3E1D8B61C6666";
     private readonly NativeAotInstructionIndex index;
-    internal string SourceRoot { get; }
-    public bool Staged { get; }
+    internal string SourceRoot
+    {
+        get;
+    }
+    public bool Staged
+    {
+        get;
+    }
 
     private NativeAotStaticFileProgram(string root, NativeAotInstructionIndex value, bool staged)
     {

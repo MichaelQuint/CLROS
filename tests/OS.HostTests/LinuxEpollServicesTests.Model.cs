@@ -46,7 +46,14 @@ internal static unsafe partial class LinuxEpollServicesTests
             {
                 SignalState = (Signals.State*)NativeMemory.AlignedAlloc(4096, 4096);
                 new Span<byte>(SignalState, 4096).Clear();
-                HostCheck.True(Signals.Initialize(SignalState, 4096, SignalKey, 2, new() { User = Thread.Access, CopyToUser = Thread.UserCopyOut, Capacity = 3, FirmwareExited = true, SingleOwnerValidated = true }));
+                HostCheck.True(Signals.Initialize(SignalState, 4096, SignalKey, 2, new()
+                {
+                    User = Thread.Access,
+                    CopyToUser = Thread.UserCopyOut,
+                    Capacity = 3,
+                    FirmwareExited = true,
+                    SingleOwnerValidated = true
+                }));
                 HostCheck.True(Thread.Service->EnableSignals(Key, 2, SignalState));
             }
 

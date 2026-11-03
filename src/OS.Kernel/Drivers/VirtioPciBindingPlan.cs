@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioPciBindingPlan
 {
     public static VirtioPciBindingPlanResult Create(PciEcamScannedDevice device, ReadOnlySpan<byte> pciConfigurationSpace, ReadOnlySpan<ulong> barSizes)

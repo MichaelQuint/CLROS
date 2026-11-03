@@ -1,6 +1,7 @@
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public enum NativeAppLaunchDescriptorStatus
 {
     Success = 0,

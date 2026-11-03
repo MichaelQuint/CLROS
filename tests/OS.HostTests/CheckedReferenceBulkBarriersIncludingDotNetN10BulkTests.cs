@@ -444,8 +444,8 @@ internal static unsafe partial class CheckedReferenceBulkBarriersIncludingDotNet
 
             RejectBoth(f, a, ManagedHeapPageRangeStatus.IdentityMismatch);
         }
-    // The thirteenth field (AllocatorCapacity) accepts exactly one; its
-    // changed values are rejected by storage preflight above.
+        // The thirteenth field (AllocatorCapacity) accepts exactly one; its
+        // changed values are rejected by storage preflight above.
     }
 
     private static void CheckLiveAuthority()
@@ -694,7 +694,12 @@ internal static unsafe partial class CheckedReferenceBulkBarriersIncludingDotNet
         string[] args = ["build", "Compile.csproj", "--nologo", "-m:1", "-c", "Release", "-nodeReuse:false"];
         foreach (string arg in args)
             start.ArgumentList.Add(arg);
-        File.WriteAllText(Path.Combine(directory, "command.json"), System.Text.Json.JsonSerializer.Serialize(new { FileName = "dotnet", Arguments = args, WorkingDirectory = directory }), new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(directory, "command.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            FileName = "dotnet",
+            Arguments = args,
+            WorkingDirectory = directory
+        }), new UTF8Encoding(false));
         using Process process = Process.Start(start) ?? throw new InvalidOperationException("no-stdlib compile start");
         Task<string> stdout = process.StandardOutput.ReadToEndAsync(), stderr = process.StandardError.ReadToEndAsync();
         bool exited = process.WaitForExit(90000);

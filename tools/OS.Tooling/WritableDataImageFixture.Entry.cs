@@ -8,6 +8,7 @@ using OS.Std.Time;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class WritableDataImageFixture
 {
     /// <summary>Copied extraction of one regular root file. Lists are readonly;
@@ -31,20 +32,50 @@ public static partial class WritableDataImageFixture
             Extents = Array.AsReadOnly(extents);
         }
 
-        public string Name { get; }
-        public string ShortAlias { get; }
-        public ulong ShortEntryOffset { get; }
+        public string Name
+        {
+            get;
+        }
+        public string ShortAlias
+        {
+            get;
+        }
+        public ulong ShortEntryOffset
+        {
+            get;
+        }
         public ulong Inode => ShortEntryOffset / 32 + 256;
-        public byte Attributes { get; }
-        public ushort FatDate { get; }
-        public ushort FatTime { get; }
+        public byte Attributes
+        {
+            get;
+        }
+        public ushort FatDate
+        {
+            get;
+        }
+        public ushort FatTime
+        {
+            get;
+        }
         /// <summary>Declared FAT UTC seconds; zero denotes an unspecified all-zero timestamp.</summary>
 
-        public long ModifiedSeconds { get; }
+        public long ModifiedSeconds
+        {
+            get;
+        }
         public int Bytes => content.Length;
-        public string Sha256 { get; }
-        public ReadOnlyCollection<uint> Clusters { get; }
-        public ReadOnlyCollection<Extent> Extents { get; }
+        public string Sha256
+        {
+            get;
+        }
+        public ReadOnlyCollection<uint> Clusters
+        {
+            get;
+        }
+        public ReadOnlyCollection<Extent> Extents
+        {
+            get;
+        }
 
         public byte[] CopyBytes() => (byte[])content.Clone();
     }

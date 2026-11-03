@@ -11,12 +11,18 @@ internal static class QemuAcceleratorTests
         foreach (string value in new[] { "", "auto", "kvm", "whpx:tcg", "tcg,thread=multi", "WHPX" })
         {
             bool refused = false;
-            try { _ = QemuSmokeOptions.Parse("-Accelerator=" + value); }
+            try
+            {
+                _ = QemuSmokeOptions.Parse("-Accelerator=" + value);
+            }
             catch (ArgumentException error) { refused = error.Message == "qemu_accelerator_invalid"; }
             HostCheck.True(refused, "invalid accelerator " + value);
         }
         bool duplicate = false;
-        try { _ = QemuSmokeOptions.Parse("-Accelerator=whpx", "-Accelerator=tcg"); }
+        try
+        {
+            _ = QemuSmokeOptions.Parse("-Accelerator=whpx", "-Accelerator=tcg");
+        }
         catch (ArgumentException error) { duplicate = error.Message == "qemu_duplicate_option Accelerator"; }
         HostCheck.True(duplicate);
     }
@@ -29,7 +35,8 @@ internal static class QemuAcceleratorTests
         HostCheck.True(QemuContracts.AcceleratorFailure("whpx", true, true) is null);
         HostCheck.True(QemuContracts.AcceleratorFailure("tcg", false, false) is null);
         HostCheck.Equal("qemu_accelerator_invalid", QemuContracts.AcceleratorFailure("whpx:tcg", true, true));
-        if (!OperatingSystem.IsWindows()) HostCheck.True(!QemuContracts.IsWhpxAvailable());
+        if (!OperatingSystem.IsWindows())
+            HostCheck.True(!QemuContracts.IsWhpxAvailable());
     }
 
     [HostTest("qemu tooling propagates one explicit backend without creating artifacts or a VM")]
@@ -125,7 +132,8 @@ internal static class QemuAcceleratorTests
         Reject(() => validate(Arguments("q35,accel=tcg"), privateSerial, "auto"), "capture_accelerator_invalid");
         foreach (string alternative in new[] { "-accel", "-enable-kvm", "--enable-kvm" })
         {
-            var arguments = Arguments("q35,accel=whpx,kernel-irqchip=on"); arguments.AddRange([alternative, "tcg"]);
+            var arguments = Arguments("q35,accel=whpx,kernel-irqchip=on");
+            arguments.AddRange([alternative, "tcg"]);
             Reject(() => validate(arguments, privateSerial, "whpx"), "accelerator_must_match_machine_selection");
         }
     }
@@ -157,7 +165,10 @@ internal static class QemuAcceleratorTests
     private static void Reject(Action action, string reason)
     {
         string? actual = null;
-        try { action(); }
+        try
+        {
+            action();
+        }
         catch (InvalidOperationException error) { actual = error.Message; }
         catch (ToolFailure error) { actual = error.Reason; }
         HostCheck.Equal(reason, actual);
@@ -167,6 +178,9 @@ internal static class QemuAcceleratorTests
     {
         string root = HostToolProcess.FindRepositoryRoot();
         return ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, "OS.QemuRunner"), .. arguments], root)
-        { Timeout = TimeSpan.FromSeconds(20), OutputCharacterLimit = 1024 * 1024 });
+        {
+            Timeout = TimeSpan.FromSeconds(20),
+            OutputCharacterLimit = 1024 * 1024
+        });
     }
 }

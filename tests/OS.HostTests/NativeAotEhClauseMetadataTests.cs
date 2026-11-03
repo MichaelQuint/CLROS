@@ -87,7 +87,7 @@ internal static unsafe partial class NativeAotEhClauseMetadataTests
 
         )
             CatalogFailure(Lookup(f, f.Address(0x6000), rva), Status.MetadataRejected, "readonly extent " + rva);
-        foreach ((uint offset, uint value, Status status)in new[]
+        foreach ((uint offset, uint value, Status status) in new[]
         {
             (0U, 0U, Status.MetadataRejected),
             (4U, 2U, Status.MetadataRejected),

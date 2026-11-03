@@ -41,7 +41,7 @@ internal static partial class PlatformFileSystemGuardTests
     [HostTest("platform.filesystem rejects unsafe paths", HostLane.Fast, 3)]
     private static bool TestRejectsUnsafePaths()
     {
-        byte[][] unsafePaths = [[], "/EFI/BOOT/BOOTX64.EFI"u8.ToArray(), "\\EFI\\BOOT\\BOOTX64.EFI"u8.ToArray(), "C:EFI/BOOT/BOOTX64.EFI"u8.ToArray(), "EFI//BOOT/BOOTX64.EFI"u8.ToArray(), "EFI/../BOOTX64.EFI"u8.ToArray(), "EFI/./BOOTX64.EFI"u8.ToArray(), "EFI/BOOT/BOOTX64.EFI "u8.ToArray(), "EFI/BOOT/"u8.ToArray(), "EFI/BOOT/BOOTX64.EFI\n"u8.ToArray(), ];
+        byte[][] unsafePaths = [[], "/EFI/BOOT/BOOTX64.EFI"u8.ToArray(), "\\EFI\\BOOT\\BOOTX64.EFI"u8.ToArray(), "C:EFI/BOOT/BOOTX64.EFI"u8.ToArray(), "EFI//BOOT/BOOTX64.EFI"u8.ToArray(), "EFI/../BOOTX64.EFI"u8.ToArray(), "EFI/./BOOTX64.EFI"u8.ToArray(), "EFI/BOOT/BOOTX64.EFI "u8.ToArray(), "EFI/BOOT/"u8.ToArray(), "EFI/BOOT/BOOTX64.EFI\n"u8.ToArray(),];
         for (int index = 0; index < unsafePaths.Length; index++)
         {
             FirmwareServicesGuard firmware = new FirmwareServicesGuard();

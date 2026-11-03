@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Text;
 
 public static class TcpReceiveDispatchDiagnosticFormatter

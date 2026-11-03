@@ -20,10 +20,22 @@ public readonly struct DisabledDefaultUd2VectorStatePreTerminalResult
     }
 
     public bool IsInitialized => _isInitialized == 1;
-    public DisabledDefaultUd2VectorStatePreTerminalStage Stage { get; }
-    public DisabledDefaultUd2VectorStatePreTerminalStatus Status { get; }
-    public ulong CodeAddress { get; }
-    public ulong DataAddress { get; }
+    public DisabledDefaultUd2VectorStatePreTerminalStage Stage
+    {
+        get;
+    }
+    public DisabledDefaultUd2VectorStatePreTerminalStatus Status
+    {
+        get;
+    }
+    public ulong CodeAddress
+    {
+        get;
+    }
+    public ulong DataAddress
+    {
+        get;
+    }
     public byte CleanupPlan => IsInitialized ? _cleanupPlan : (byte)0;
     public bool ReleaseData => (CleanupPlan & 1) != 0;
     public bool ReleaseCode => (CleanupPlan & 2) != 0;

@@ -16,7 +16,8 @@ internal static unsafe class M06BlockMsixEfiIntegrationTests
         foreach (bool build in new[] { false, true })
         {
             HostCheck.True(EfiOptions.Parse(Flags, build).Profile().IsEnabled("M06BlockMsix"));
-            foreach (string parent in Flags[..^1]) Reject(() => EfiOptions.Parse(Flags.Where(f => f != parent).ToArray(), build).Profile());
+            foreach (string parent in Flags[..^1])
+                Reject(() => EfiOptions.Parse(Flags.Where(f => f != parent).ToArray(), build).Profile());
             Reject(() => EfiOptions.Parse([.. Flags, "--BootPolicy", "VerifiedExit"], build).Profile());
             foreach (string conflict in new[] { "M05BarDma", "M05VirtioNegotiation", "M05VirtqueuePolling", "M05VirtqueueInterrupt" })
                 Reject(() => EfiOptions.Parse([.. Flags, "--Enable" + conflict + "Probe"], build).Profile());
@@ -37,7 +38,11 @@ internal static unsafe class M06BlockMsixEfiIntegrationTests
         }
     }
 
-    private static bool Execute(void* context) { (*(int*)context)++; return true; }
+    private static bool Execute(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
     [HostTest("m06.block-msix.efi hands intact IRQ and recovery marker contracts to the runner")]
     private static void Runner()
     {
@@ -99,7 +104,7 @@ internal static unsafe class M06BlockMsixEfiIntegrationTests
                 QemuTranscripts.AssertM06BlockMsixImage(serial, image, recovery);
                 Reject(() => QemuTranscripts.AssertM06BlockMsixRecords(lines, !recovery));
                 Reject(() => QemuTranscripts.AssertM06BlockMsixRecords(lines[..^1], recovery));
-                int[] field = [0,3,1,0,2,3,1,3,0];
+                int[] field = [0, 3, 1, 0, 2, 3, 1, 3, 0];
                 for (int stage = 0; stage < 9; stage++)
                 {
                     string[] changed = (string[])lines.Clone();
@@ -117,7 +122,11 @@ internal static unsafe class M06BlockMsixEfiIntegrationTests
     private static void Reject(Action action)
     {
         bool rejected = false;
-        try { action(); } catch (ToolFailure) { rejected = true; }
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected);
     }
 }

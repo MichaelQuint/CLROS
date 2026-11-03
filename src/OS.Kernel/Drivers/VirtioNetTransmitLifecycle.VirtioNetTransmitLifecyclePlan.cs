@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly struct VirtioNetTransmitLifecyclePlan
@@ -16,15 +17,42 @@ public readonly struct VirtioNetTransmitLifecyclePlan
         FrameDescriptor = frameDescriptor;
     }
 
-    public VirtioNetQueuePlan QueuePlan { get; }
+    public VirtioNetQueuePlan QueuePlan
+    {
+        get;
+    }
     public VirtqueueSplitRingPlan TxQueue => QueuePlan.TxQueue;
-    public ushort AvailableDescriptorCount { get; }
-    public ushort AvailableRingIndex { get; }
-    public ushort AvailableRingSlot { get; }
-    public uint AvailableRingEntryOffset { get; }
-    public uint VirtioHeaderBytes { get; }
-    public uint EthernetFrameBytes { get; }
+    public ushort AvailableDescriptorCount
+    {
+        get;
+    }
+    public ushort AvailableRingIndex
+    {
+        get;
+    }
+    public ushort AvailableRingSlot
+    {
+        get;
+    }
+    public uint AvailableRingEntryOffset
+    {
+        get;
+    }
+    public uint VirtioHeaderBytes
+    {
+        get;
+    }
+    public uint EthernetFrameBytes
+    {
+        get;
+    }
     public ushort HeadDescriptorIndex => HeaderDescriptor.DescriptorIndex;
-    public VirtioNetTransmitPublishedDescriptor HeaderDescriptor { get; }
-    public VirtioNetTransmitPublishedDescriptor FrameDescriptor { get; }
+    public VirtioNetTransmitPublishedDescriptor HeaderDescriptor
+    {
+        get;
+    }
+    public VirtioNetTransmitPublishedDescriptor FrameDescriptor
+    {
+        get;
+    }
 }

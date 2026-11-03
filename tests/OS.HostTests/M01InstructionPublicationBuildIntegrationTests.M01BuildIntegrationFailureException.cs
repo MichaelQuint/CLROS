@@ -18,6 +18,9 @@ internal static partial class M01InstructionPublicationBuildIntegrationTests
             Code = code;
         }
 
-        internal string Code { get; }
+        internal string Code
+        {
+            get;
+        }
     }
 }

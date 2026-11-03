@@ -96,7 +96,8 @@ internal sealed class LinuxDiskRaceSourceGuard(CSharpSourceCatalog catalog)
         string[] cleanup = ["RetireNativeDiskAttachment", "ObserveNativeDiskExitSentinel", "LinuxNativeRelease",
             "ObserveNativeDiskExitReleased", "LinuxNativeClearUserMemory", "ObserveNativeDiskExitMemoryRestored",
             "ClearLinuxRandom", "ObserveNativeDiskExitCleanupEnd"];
-        foreach (string callee in cleanup) Calls("RunLinuxNativeOwner", callee);
+        foreach (string callee in cleanup)
+            Calls("RunLinuxNativeOwner", callee);
         Calls("RunLinuxNativeOwner", "LinuxNativeRsp");
         Calls("RunLinuxNativeOwner", "LinuxText");
         Ordered("RunLinuxNativeOwner", "RetireNativeDiskAttachment(VAR_state, VAR_c)",
@@ -191,7 +192,8 @@ internal sealed class LinuxDiskRaceSourceGuard(CSharpSourceCatalog catalog)
         foreach (var method in catalog.Type(Owner).GetMembers("PollLinuxSocketNetwork").OfType<IMethodSymbol>())
             HostCheck.Equal(1, method.Parameters.Count(parameter => parameter.Type.SpecialType == SpecialType.System_Boolean));
         foreach (string method in new[] { "DispatchLinuxNativeCore", "LinuxNativeWorkerPrepare" })
-            if (HasMethod(method)) NoCalls(method, "SelectNativeCloseReusePoll", "ObserveNativeCloseReuseCompletionTime", "RequireNativeCloseReuseParentRead");
+            if (HasMethod(method))
+                NoCalls(method, "SelectNativeCloseReusePoll", "ObserveNativeCloseReuseCompletionTime", "RequireNativeCloseReuseParentRead");
     }
 
     internal void NoCalls(string method, params string[] names)
@@ -259,7 +261,8 @@ internal sealed class LinuxDiskRaceSourceGuard(CSharpSourceCatalog catalog)
         int skipUntil = -1;
         foreach (var token in method.Body!.DescendantTokens())
         {
-            if (token.SpanStart < skipUntil || OptionalBrace(token)) continue;
+            if (token.SpanStart < skipUntil || OptionalBrace(token))
+                continue;
             if (calls.TryGetValue(token.SpanStart, out var invocation))
             {
                 source.Add((SyntaxFactory.Identifier(invocation.TargetMethod.Name), null));
@@ -280,7 +283,8 @@ internal sealed class LinuxDiskRaceSourceGuard(CSharpSourceCatalog catalog)
             bool found = false;
             for (int start = next; start + expected.Length <= source.Count; start++)
             {
-                if (exact && (start != 0 || expected.Length != source.Count)) break;
+                if (exact && (start != 0 || expected.Length != source.Count))
+                    break;
                 var candidate = new Dictionary<string, ISymbol>(captured, StringComparer.Ordinal);
                 bool match = true;
                 for (int index = 0; index < expected.Length && match; index++)
@@ -292,20 +296,24 @@ internal sealed class LinuxDiskRaceSourceGuard(CSharpSourceCatalog catalog)
                         match = actual.Variable is not null;
                         if (match && candidate.TryGetValue(wanted.ValueText, out var prior))
                             match = SymbolEqualityComparer.Default.Equals(prior, actual.Variable);
-                        else if (match) candidate.Add(wanted.ValueText, actual.Variable!);
+                        else if (match)
+                            candidate.Add(wanted.ValueText, actual.Variable!);
                     }
-                    else match = (wanted.RawKind == actual.Token.RawKind
+                    else
+                        match = (wanted.RawKind == actual.Token.RawKind
                         || wanted.IsKind(SyntaxKind.IdentifierToken)
                             && SyntaxFacts.GetContextualKeywordKind(wanted.ValueText) == actual.Token.Kind())
                         && SameValue(wanted, actual.Token);
                 }
-                if (!match) continue;
+                if (!match)
+                    continue;
                 captured = candidate;
                 next = start + expected.Length;
                 found = true;
                 break;
             }
-            if (!found) return false;
+            if (!found)
+                return false;
         }
         return true;
     }

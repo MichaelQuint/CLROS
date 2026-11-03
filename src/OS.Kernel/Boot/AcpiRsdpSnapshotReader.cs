@@ -2,6 +2,7 @@ using OS.Kernel.Platform;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public static class AcpiRsdpSnapshotReader
 {
     public static AcpiRsdpSnapshotResult ReadAndValidate(IPlatformPhysicalMemory physicalMemory, ulong physicalAddress, Span<byte> scratch)

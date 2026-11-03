@@ -18,8 +18,17 @@ internal static partial class KestrelSmokePackageContractTests
             this.Body = body;
         }
 
-        public HttpStatusCode StatusCode { get; }
-        public string ContentType { get; }
-        public string Body { get; }
+        public HttpStatusCode StatusCode
+        {
+            get;
+        }
+        public string ContentType
+        {
+            get;
+        }
+        public string Body
+        {
+            get;
+        }
     }
 }

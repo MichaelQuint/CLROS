@@ -131,7 +131,10 @@ internal static class NativeAotCurrentSourcesTests
                         else
                         {
                             bool detected = false;
-                            try { held.VerifyUnchanged(); }
+                            try
+                            {
+                                held.VerifyUnchanged();
+                            }
                             catch (ToolFailure error) when (error.Reason == "authority_input_changed") { detected = true; }
                             HostCheck.True(detected, scenario.Name + " held " + relative);
                             File.WriteAllBytes(path, bytes);
@@ -239,7 +242,8 @@ internal static class NativeAotCurrentSourcesTests
                     NativeAotHelloGuest.RequireCurrentSources(root);
                 else
                     NativeAotRuntimePackage.RequireCurrentSources(root, app);
-            }));
+            }
+            ));
         }
         foreach (string app in NativeAotThreadingPayload.Applications)
             scenarios.Add((app, NativeAotThreadingPackage.CurrentSources(app), root => NativeAotThreadingPackage.RequireCurrentSources(root, app)));

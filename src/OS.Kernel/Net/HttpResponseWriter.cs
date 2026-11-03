@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Memory;
 
 public static class HttpResponseWriter

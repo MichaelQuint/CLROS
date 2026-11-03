@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>One clipped stderr marker span in a genuine original fd2 write

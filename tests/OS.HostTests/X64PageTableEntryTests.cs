@@ -132,7 +132,7 @@ internal static partial class X64PageTableEntryTests
         PageProtection readWrite = Combine(PageProtection.Read, PageProtection.Write);
         PageProtection readExecute = Combine(PageProtection.Read, PageProtection.Execute);
         (PageProtection Protection, ulong Expected)[] cases = [(PageProtection.Read, addressValue | Present | Nx), (readWrite, addressValue | Present | Writable | Nx), (readExecute, addressValue | Present)];
-        foreach ((PageProtection protection, ulong expected)in cases)
+        foreach ((PageProtection protection, ulong expected) in cases)
         {
             X64PageTableEntryResult encoded = X64PageTableEntry.TryEncode(Leaf(X64PageTableLevel.Pte, address, protection, PageCachePolicy.WriteBack), context);
             if (!encoded.Succeeded || encoded.Entry.RawValue != expected || encoded.Level != X64PageTableLevel.Pte || encoded.Kind != X64PageTableEntryKind.Leaf || encoded.Protection != protection || encoded.CachePolicy != PageCachePolicy.WriteBack || encoded.PageSizeBytes != X64PageTableEntry.PageSize4KiB || encoded.PatIndex != 0 || encoded.Accessed || encoded.Dirty || !RawEquals(encoded.PhysicalAddress, addressValue))
@@ -868,7 +868,7 @@ internal static partial class X64PageTableEntryTests
                 }
                 catch
                 {
-                // Timeout remains the primary result.
+                    // Timeout remains the primary result.
                 }
             }
         }

@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Compare supplied values from already-inspected host/packet
@@ -21,7 +22,7 @@ public static partial class QemuTranscripts
     {
         if (host is null)
             throw new ToolFailure("quota_pair_null");
-        Need(host.ConnectionId is> 0 and <= NativeAotServiceQuotaPeer.WireMaximumConnections, "quota_pair_shape");
+        Need(host.ConnectionId is > 0 and <= NativeAotServiceQuotaPeer.WireMaximumConnections, "quota_pair_shape");
         if (host.Reads is null || host.Writes is null || host.Reads.Operations is null || host.Writes.Operations is null)
             throw new ToolFailure("quota_pair_null");
         int attempted = host.Writes.UnknownWrite?.Requested ?? 0;
@@ -38,7 +39,7 @@ public static partial class QemuTranscripts
     {
         if (guest is null)
             throw new ToolFailure("quota_pair_null");
-        Need(guest.RemotePort is> 0 and <= 65535, "quota_pair_shape");
+        Need(guest.RemotePort is > 0 and <= 65535, "quota_pair_shape");
         if (guest.Requests is null || guest.Responses is null || guest.Requests.FirstRanges is null || guest.Responses.FirstRanges is null)
             throw new ToolFailure("quota_pair_null");
         Need((long)guest.Requests.FirstRanges.Count + guest.Responses.FirstRanges.Count <= MaximumServiceWireRanges, "quota_pair_array_bound");

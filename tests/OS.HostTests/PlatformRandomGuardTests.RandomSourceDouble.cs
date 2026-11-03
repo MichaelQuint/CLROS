@@ -15,7 +15,10 @@ internal static partial class PlatformRandomGuardTests
             _result = result;
         }
 
-        public int FillCount { get; private set; }
+        public int FillCount
+        {
+            get; private set;
+        }
 
         public static RandomSourceDouble Success(byte firstByte, int bytesToWrite)
         {

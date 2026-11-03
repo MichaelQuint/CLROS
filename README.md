@@ -4,6 +4,10 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1736](done/step1736.md) adds explicit C# first/warm/full-asset/concurrent
+HTTP observation and integrates 21 NVMe formatting files. The graph and 49 focused
+checks pass; extended guest and browser measurements remain pending.
+
 [Step1735](done/step1735.md) completes the stack-safe full-byte COM1 FIFO
 candidate's native review and controlled measurements. Twelve quiet interleaved
 boots pass all 60 responses. WHPX's 64 KiB median falls 12.751→11.372 seconds

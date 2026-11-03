@@ -10,7 +10,10 @@ internal static class M04CompilerClassConstructorExecutionEfiIntegrationTests
     private static string Root => HostToolProcess.FindRepositoryRoot();
 
     private static void Need(bool value, string reason)
-    { if (!value) throw new InvalidOperationException(reason); }
+    {
+        if (!value)
+            throw new InvalidOperationException(reason);
+    }
 
     [HostTest("m04.024.efi compiler helper ABI and retained bootstrap order", HostLane.Fast, 0)]
     private static void Source()
@@ -25,7 +28,10 @@ internal static class M04CompilerClassConstructorExecutionEfiIntegrationTests
         foreach (bool build in new[] { false, true })
         {
             string? reason = null;
-            try { _ = OS.Tooling.EfiOptions.Parse(selected.Select(name => "--Enable" + name + "Probe").ToArray(), build).Profile(); }
+            try
+            {
+                _ = OS.Tooling.EfiOptions.Parse(selected.Select(name => "--Enable" + name + "Probe").ToArray(), build).Profile();
+            }
             catch (OS.Tooling.ToolFailure failure) { reason = failure.Reason; }
             Need(reason == "m04_filter_profile_conflict", "filtered catch excludes the original constructor leaf");
         }
@@ -70,14 +76,14 @@ internal static class M04CompilerClassConstructorExecutionEfiIntegrationTests
     }
 
     private static string InvokeQemu(params string[] arguments)
-{
-    var result = HostToolProcess.RunTool(["qemu", "smoke", ..arguments]);
-    Need(result.ExitCode == 0 && result.Error.Length == 0, result.Output + result.Error);
-    return result.Output;
-}
+    {
+        var result = HostToolProcess.RunTool(["qemu", "smoke", .. arguments]);
+        Need(result.ExitCode == 0 && result.Error.Length == 0, result.Output + result.Error);
+        return result.Output;
+    }
 
     [HostTest("m04.024.efi strict constructor records reject false once and reentry proof", HostLane.Fast, 1)]
-private static void Transcript() => EfiConstructorTranscriptControls.Run();
+    private static void Transcript() => EfiConstructorTranscriptControls.Run();
 
     [HostTest("m04.024.efi explicit constructor profile marker isolation", HostLane.Fast, 2)]
     private static void Profile()
@@ -85,21 +91,21 @@ private static void Transcript() => EfiConstructorTranscriptControls.Run();
         string[] chain = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableM04IndependentEndianConformanceProbe",
             "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe",
             "EnableM04ManagedHeapPageRangeProbe", "EnableM04RhpNewFastProbe", "EnableM04GcStaticRootMaterializationProbe", Flag];
-        string output = InvokeQemu(["-DryRun", "-BuildEfi", ..chain.Select(x => "-" + x)]);
+        string output = InvokeQemu(["-DryRun", "-BuildEfi", .. chain.Select(x => "-" + x)]);
         string[] Read(string key) => output.Split('\n').Single(x => x.StartsWith(key, StringComparison.Ordinal))[key.Length..].TrimEnd('\r').Split(';', StringSplitOptions.RemoveEmptyEntries);
-        string[] required=Read("REQUIRED_MARKERS "), ordered=Read("ORDERED_MARKERS "), unique=Read("UNIQUE_MARKERS "), forbidden=Read("FORBIDDEN_MARKERS ");
+        string[] required = Read("REQUIRED_MARKERS "), ordered = Read("ORDERED_MARKERS "), unique = Read("UNIQUE_MARKERS "), forbidden = Read("FORBIDDEN_MARKERS ");
         Need(ordered.Length == OS.Tooling.QemuContracts.M04CctorRequiredMarkers.Count && unique.SequenceEqual(ordered, StringComparer.Ordinal), "complete parent plus 12 constructor markers");
         int start = Array.IndexOf(ordered, "TEST_START m04.024");
-        Need(start > 0 && ordered[start-1] == "M04_GC_ROOT 7" && ordered[start+12] == "M04_GC_ROOT 3", "constructor bootstrap insertion");
+        Need(start > 0 && ordered[start - 1] == "M04_GC_ROOT 7" && ordered[start + 12] == "M04_GC_ROOT 3", "constructor bootstrap insertion");
         bool Accept(string[] records)
         {
             var state = new SerialMarkerStateMachine(required, forbidden, orderedMarkers: ordered, uniqueMarkers: unique);
             return state.Feed(Encoding.ASCII.GetBytes(string.Join("\r\n", records) + "\r\n")).Succeeded && state.Complete().Passed;
         }
         Need(Accept(ordered), "controlled complete profile stream");
-        for (int i=start; i < start+12; i++) Need(!Accept(ordered.Where((_, index) => index != i).ToArray()), "missing constructor record " + i);
+        for (int i = start; i < start + 12; i++)
+            Need(!Accept(ordered.Where((_, index) => index != i).ToArray()), "missing constructor record " + i);
         Need(!Accept(ordered.Append("M04_CCTOR 255 0 0 0 0").ToArray()), "failure after readiness is rejected");
     }
-
 
 }

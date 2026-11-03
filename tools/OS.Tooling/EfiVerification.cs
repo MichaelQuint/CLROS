@@ -8,6 +8,7 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 internal sealed partial class EfiVerification(EfiOptions options, Action<string> emit) : IDisposable
 {
     private readonly AuthorityFiles locks = new();
@@ -54,7 +55,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         mapPath = Absolute(options.Get("LinkerMapPath", artifactPath + ".link.map"), "linker_map_path_invalid");
         responsePath = Absolute(options.Get("LinkResponsePath", artifactPath + ".link.rsp"), "link_response_path_invalid");
         evidencePath = Absolute(options.Get("LinkEvidencePath", artifactPath + ".link.json"), "link_evidence_path_invalid");
-        foreach ((string path, string reason)in new[]
+        foreach ((string path, string reason) in new[]
         {
             (artifactPath, "missing_artifact"),
             (project, "missing_build_contract"),
@@ -92,7 +93,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         responseTokens = LinkResponseTokens(response);
         VerifyResponseSafety();
         responseTimer.Stop();
-        List<string> names = [..EfiContracts.EvidenceProperties];
+        List<string> names = [.. EfiContracts.EvidenceProperties];
         foreach (string prefix in NativeObjectPrefixes())
             foreach (string suffix in new[]
             {
@@ -134,7 +135,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         }
 
         )
-            foreach ((string suffix, bool expected)in new[]
+            foreach ((string suffix, bool expected) in new[]
             {
                 ("ImportProjectExtensionProps", false),
                 ("ImportProjectExtensionTargets", false),
@@ -258,7 +259,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         Require(!SamePath(preserved, linkedSerializer), "serializer_linked_and_preserved_object_paths_alias");
         serializerLinked = Open(linkedSerializer, "serializer_linked_object", EfiContracts.SerializerObjectBytes, output: true);
         Require(serializerLinked.Length == EfiContracts.SerializerObjectBytes && serializerLinked.Sha256 == EfiContracts.SerializerObjectSha256, "serializer_linked_object_identity_mismatch");
-        foreach ((string property, string path)in EfiContracts.SerializerSourceBindings)
+        foreach ((string property, string path) in EfiContracts.SerializerSourceBindings)
             Require(Open(Path.Combine(Root, path), "serializer_source", MaximumTextBytes, root: Root).Sha256 == Text(property), "serializer_source_hash_mismatch", "property=" + property);
         string managed = EvidencePath("managedAssemblyPath", "managed_assembly_path_invalid"), expected = Path.Combine(Root, EfiContracts.ManagedAssemblyRelativePath(configuration));
         Require(SamePath(managed, expected), "managed_assembly_path_not_canonical");
@@ -282,7 +283,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
             return BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan((int)offset));
         }
 
-        Require(bytes.LongLength is> 0 and <= MaximumFileBytes, "managed_assembly_size_out_of_range");
+        Require(bytes.LongLength is > 0 and <= MaximumFileBytes, "managed_assembly_size_out_of_range");
         Bounds(0, 64, "managed_pe_dos_header_truncated");
         Require(bytes[0] == 0x4d && bytes[1] == 0x5a, "managed_pe_dos_signature_invalid");
         long pe = Word(0x3c, "managed_pe_dos_header_truncated");
@@ -291,7 +292,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         Require(Word(pe, "managed_pe_header_truncated") == 0x4550, "managed_pe_signature_invalid");
         long coff = pe + 4, optional = coff + 20;
         int count = Short(coff + 2, "managed_pe_coff_header_truncated"), optionalSize = Short(coff + 16, "managed_pe_coff_header_truncated");
-        Require(count is> 0 and <= 96, "managed_pe_section_count_out_of_range");
+        Require(count is > 0 and <= 96, "managed_pe_section_count_out_of_range");
         Bounds(optional, optionalSize, "managed_pe_optional_header_truncated");
         ushort magic = Short(optional, "managed_pe_optional_header_truncated");
         Require(magic is 0x10b or 0x20b, "managed_pe_optional_magic_invalid");

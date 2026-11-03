@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public readonly struct HttpResponseParseResult
 {
     private HttpResponseParseResult(HttpResponseParseStatus status, byte protocolMajor, byte protocolMinor, ushort statusCode, int reasonOffset, int reasonLength, int headerLength, bool hasContentLength, int contentLength, bool connectionClose, int bodyOffset, int bodyLength)
@@ -20,20 +21,59 @@ public readonly struct HttpResponseParseResult
         BodyLength = bodyLength;
     }
 
-    public HttpResponseParseStatus Status { get; }
-    public bool IsInitialized { get; }
+    public HttpResponseParseStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == HttpResponseParseStatus.Success;
-    public byte ProtocolMajor { get; }
-    public byte ProtocolMinor { get; }
-    public ushort StatusCode { get; }
-    public int ReasonOffset { get; }
-    public int ReasonLength { get; }
-    public int HeaderLength { get; }
-    public bool HasContentLength { get; }
-    public int ContentLength { get; }
-    public bool ConnectionClose { get; }
-    public int BodyOffset { get; }
-    public int BodyLength { get; }
+    public byte ProtocolMajor
+    {
+        get;
+    }
+    public byte ProtocolMinor
+    {
+        get;
+    }
+    public ushort StatusCode
+    {
+        get;
+    }
+    public int ReasonOffset
+    {
+        get;
+    }
+    public int ReasonLength
+    {
+        get;
+    }
+    public int HeaderLength
+    {
+        get;
+    }
+    public bool HasContentLength
+    {
+        get;
+    }
+    public int ContentLength
+    {
+        get;
+    }
+    public bool ConnectionClose
+    {
+        get;
+    }
+    public int BodyOffset
+    {
+        get;
+    }
+    public int BodyLength
+    {
+        get;
+    }
 
     public static HttpResponseParseResult Success(byte protocolMajor, byte protocolMinor, ushort statusCode, int reasonOffset, int reasonLength, int headerLength, bool hasContentLength, int contentLength, bool connectionClose, int bodyOffset, int bodyLength)
     {

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct BootEventRecordFormatterResult
 {
     private BootEventRecordFormatterResult(bool isInitialized, BootEventRecordFormatterStatus status, PanicTextBufferStatus textStatus, int recordsRequested, int recordsWritten, int bytesWritten, int requiredBytes, int invalidRecordIndex)
@@ -13,14 +14,38 @@ public readonly struct BootEventRecordFormatterResult
         InvalidRecordIndex = invalidRecordIndex;
     }
 
-    public bool IsInitialized { get; }
-    public BootEventRecordFormatterStatus Status { get; }
-    public PanicTextBufferStatus TextStatus { get; }
-    public int RecordsRequested { get; }
-    public int RecordsWritten { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int InvalidRecordIndex { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public BootEventRecordFormatterStatus Status
+    {
+        get;
+    }
+    public PanicTextBufferStatus TextStatus
+    {
+        get;
+    }
+    public int RecordsRequested
+    {
+        get;
+    }
+    public int RecordsWritten
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int InvalidRecordIndex
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == BootEventRecordFormatterStatus.Success && TextStatus == PanicTextBufferStatus.Ok && RecordsRequested > 0 && RecordsWritten == RecordsRequested && BytesWritten > 0 && RequiredBytes == BytesWritten;
 
     public static BootEventRecordFormatterResult Success(int recordsRequested, int recordsWritten, int bytesWritten, int requiredBytes)

@@ -24,11 +24,8 @@ namespace OS.Boot;
 #endif
 #if M16_005_PROBE
 
-
-
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
-
 
 #endif
 #if M05_PCI_ENUMERATION_PROBE
@@ -44,7 +41,6 @@ namespace OS.Boot;
 
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
-
 
 #endif
 public enum FirstExitDiagnosticStatus : uint
@@ -148,89 +144,38 @@ public enum FirstExitDiagnosticStatus : uint
 #endif
 #if M16_002_PROBE
 
-
-
-
 #endif
 #if M16_004_PROBE
-
-
-
-
-
-
-
 
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
 
-
-
-
-
-
-
-
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
-
-
 
 #endif
 #if M05_PCI_ENUMERATION_PROBE
 
-
-
-
 #endif
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
 
-
-
-
-
 #if M16_025_PROBE
-
-
-
-
-
 
 #endif
 #endif
 #if M05_APIC_SETUP_PROBE
 
-
-
-
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
-
 
 #endif
 #if M16_005_PROBE
 
-
-
-
-
-
-
-
 #endif
 #if M16_006_PROBE
 
-
-
-
-
-
-
 #endif
 #if M16_007_PROBE
-
-
-
 
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
@@ -240,21 +185,13 @@ public enum FirstExitDiagnosticStatus : uint
 
 #endif
 
-
-
-
-
 #endif
 #if M07_026_PROBE
-
-
 
 #endif
 #if M07_026_PROBE
 
 #if M16_025_PROBE
-
-
 
 #endif
 #endif
@@ -263,29 +200,17 @@ public enum FirstExitDiagnosticStatus : uint
 #endif
 #if M16_004_PROBE
 
-
 #endif
 #if M16_005_PROBE
 
-
-
-
 #endif
 #if M16_006_PROBE
-
-
-
-
-
-
-
 
 #endif
 #if M16_007_PROBE
 
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
-
 
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
@@ -297,12 +222,7 @@ public enum FirstExitDiagnosticStatus : uint
 #if M05_PCI_ENUMERATION_PROBE
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
 
-
-
-
 #if M16_025_PROBE
-
-
 
 #else
 
@@ -313,10 +233,8 @@ public enum FirstExitDiagnosticStatus : uint
 #endif
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
 
-
 #endif
 #if M05_APIC_SETUP_PROBE
-
 
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
@@ -324,7 +242,6 @@ public enum FirstExitDiagnosticStatus : uint
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
 #if M07_026_PROBE
-
 
 #else
 
@@ -335,7 +252,6 @@ public enum FirstExitDiagnosticStatus : uint
 #endif
 #if M05_PCI_ENUMERATION_PROBE
 #if M16_008_PROBE
-
 
 #else
 
@@ -353,12 +269,8 @@ public enum FirstExitDiagnosticStatus : uint
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
 
-
-
-
 #endif
 #if M16_006_PROBE
-
 
 #elif M05_APIC_SETUP_PROBE
 
@@ -368,6 +280,35 @@ public enum FirstExitDiagnosticStatus : uint
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
 
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
+
+#endif
+#if M16_004_PROBE
+
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#endif
+#endif
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE
+
+#endif
+#if M05_APIC_SETUP_PROBE || M16_006_PROBE
+
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
 
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
@@ -387,9 +328,6 @@ public enum FirstExitDiagnosticStatus : uint
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
 
-
-
-
 #endif
 #if M05_APIC_SETUP_PROBE || M16_006_PROBE
 
@@ -398,22 +336,6 @@ public enum FirstExitDiagnosticStatus : uint
 
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
-
-
-
-
-
-
-
-#endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
-
-
-
-
-
-
-
 
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
@@ -433,11 +355,6 @@ public enum FirstExitDiagnosticStatus : uint
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
 
-
-
-
-
-
 #endif
 #if M05_APIC_SETUP_PROBE || M16_006_PROBE
 
@@ -446,44 +363,5 @@ public enum FirstExitDiagnosticStatus : uint
 
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
-
-
-
-
-
-
-
-#endif
-#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
-
-#endif
-#if M16_004_PROBE
-
-#endif
-#if M05_PCI_ENUMERATION_PROBE
-
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
-
-#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
-
-#endif
-#endif
-#endif
-#if M05_PHYSICAL_MAPPING_PROBE
-
-
-
-
-#endif
-#if M05_APIC_SETUP_PROBE || M16_006_PROBE
-
-#endif
-#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
-
-#endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
-
-
-
 
 #endif

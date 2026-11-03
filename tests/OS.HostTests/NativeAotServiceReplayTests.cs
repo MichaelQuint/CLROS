@@ -12,17 +12,25 @@ internal static class NativeAotServiceReplayTests
     private static void Cumulative()
     {
         var rows = Enumerable.Range(1, 4097).Select(n => Call(Worker, (ulong)n)).ToList();
-        rows.Insert(1, Call(Worker + 1, 1)); rows.Add(Call(Worker + (1UL << 32), 1));
+        rows.Insert(1, Call(Worker + 1, 1));
+        rows.Add(Call(Worker + (1UL << 32), 1));
         string[] original = rows.ToArray(), before = rows.ToArray();
         var normalized = QemuTranscripts.ValidateLinuxServiceCallOrdinals(original);
-        var waits = QemuTranscripts.ReadLinuxServiceCallWaits(original); var returns = QemuTranscripts.ReadLinuxServiceCallReturns(original);
-        HostCheck.Equal(4099, waits.Count); HostCheck.Equal(4099, returns.Count);
-        HostCheck.Equal(4097UL, waits[^2].Ordinal); HostCheck.Equal(Worker + (1UL << 32), waits[^1].Identity); HostCheck.Equal(1UL, waits[^1].Ordinal);
-        HostCheck.Equal("M16_008_CALL identity=4294967297 nr=39", normalized[0]); HostCheck.True(original.SequenceEqual(before));
+        var waits = QemuTranscripts.ReadLinuxServiceCallWaits(original);
+        var returns = QemuTranscripts.ReadLinuxServiceCallReturns(original);
+        HostCheck.Equal(4099, waits.Count);
+        HostCheck.Equal(4099, returns.Count);
+        HostCheck.Equal(4097UL, waits[^2].Ordinal);
+        HostCheck.Equal(Worker + (1UL << 32), waits[^1].Identity);
+        HostCheck.Equal(1UL, waits[^1].Ordinal);
+        HostCheck.Equal("M16_008_CALL identity=4294967297 nr=39", normalized[0]);
+        HostCheck.True(original.SequenceEqual(before));
         Reject(() => QemuTranscripts.ValidateLinuxCallOrdinals(original, allowEpoll: true));
         Reject(() => QemuTranscripts.ReadLinuxCallWaits(original, allowEpoll: true));
         Reject(() => QemuTranscripts.ReadLinuxCallReturns(original, allowEpoll: true));
-        Array.Fill(original, "changed"); HostCheck.Equal(Worker, waits[0].Identity); HostCheck.Equal(4198402UL, returns[0].Rip);
+        Array.Fill(original, "changed");
+        HostCheck.Equal(Worker, waits[0].Identity);
+        HostCheck.Equal(4198402UL, returns[0].Rip);
         HostCheck.True(waits is not QemuTranscripts.LinuxCallWaitObservation[] && returns is not QemuTranscripts.LinuxCallReturnObservation[]);
     }
 
@@ -49,7 +57,9 @@ internal static class NativeAotServiceReplayTests
         Reject(() => QemuTranscripts.ReadLinuxServiceCallWaits([$"M16_008_CALL identity={Worker} nr=39 ordinal=1"]));
         Reject(() => QemuTranscripts.ReadLinuxServiceCallReturns([$"M16_008_CALL identity={Worker} nr=39 ordinal=1 waitSource=0 waitDeadline=0 waitSequence=0"]));
         string epoll = call.Replace("waitSource=0 waitDeadline=0 waitSequence=0", "waitSource=3 waitDeadline=500 waitSequence=7", StringComparison.Ordinal);
-        var observation = QemuTranscripts.ReadLinuxServiceCallWaits([epoll]).Single(); HostCheck.Equal(3U, observation.Source); HostCheck.Equal(500UL, observation.Deadline);
+        var observation = QemuTranscripts.ReadLinuxServiceCallWaits([epoll]).Single();
+        HostCheck.Equal(3U, observation.Source);
+        HostCheck.Equal(500UL, observation.Deadline);
     }
 
     [HostTest("service random replay binds partial results error controls counters and erased-owner end to original calls")]
@@ -57,10 +67,15 @@ internal static class NativeAotServiceReplayTests
     {
         string[] rows = RandomRows(), before = rows.ToArray();
         var report = QemuTranscripts.InspectNativeAotServiceRandomForTests(rows);
-        HostCheck.Equal(33UL, report.Requests); HostCheck.Equal(17376UL, report.GeneratedBytes);
-        HostCheck.Equal(2, report.PartialRequests); HostCheck.Equal(1, report.ZeroRequests);
-        HostCheck.Equal(1, report.InvalidFlagRequests); HostCheck.Equal(1, report.FaultRequests);
-        HostCheck.True(rows.SequenceEqual(before)); Array.Fill(rows, "changed"); HostCheck.Equal(17376UL, report.GeneratedBytes);
+        HostCheck.Equal(33UL, report.Requests);
+        HostCheck.Equal(17376UL, report.GeneratedBytes);
+        HostCheck.Equal(2, report.PartialRequests);
+        HostCheck.Equal(1, report.ZeroRequests);
+        HostCheck.Equal(1, report.InvalidFlagRequests);
+        HostCheck.Equal(1, report.FaultRequests);
+        HostCheck.True(rows.SequenceEqual(before));
+        Array.Fill(rows, "changed");
+        HostCheck.Equal(17376UL, report.GeneratedBytes);
     }
 
     [HostTest("service random replay rejects detached reordered duplicated incomplete and substituted metadata")]
@@ -70,8 +85,9 @@ internal static class NativeAotServiceReplayTests
         foreach (string token in new[] { "M11_012_SEED ", "M07_033_SEED ", "M11_012_RANDOM ", "M11_012_END " })
         {
             int at = Array.FindIndex(rows, row => row.StartsWith(token, StringComparison.Ordinal));
-            Reject(() => QemuTranscripts.InspectNativeAotServiceRandomForTests(rows.Where((_, i) => i !=at).ToArray()));
-            var doubled = rows.ToList(); doubled.Insert(at, rows[at]);
+            Reject(() => QemuTranscripts.InspectNativeAotServiceRandomForTests(rows.Where((_, i) => i != at).ToArray()));
+            var doubled = rows.ToList();
+            doubled.Insert(at, rows[at]);
             Reject(() => QemuTranscripts.InspectNativeAotServiceRandomForTests(doubled.ToArray()));
         }
         int first = Array.FindIndex(rows, row => row.StartsWith("M16_008_CALL ", StringComparison.Ordinal));
@@ -79,12 +95,16 @@ internal static class NativeAotServiceReplayTests
             ("valueBits=0 action=1", "valueBits=1 action=1"), ("returnValueBits=0", "returnValueBits=1"),
             ("ordinal=1 ", "ordinal=2 "), ("action=1 status=1", "action=2 status=1"), ("action=1 status=1", "action=1 status=2") })
         {
-            var changed = rows.ToArray(); changed[first] = changed[first].Replace(substitution.Item1, substitution.Item2, StringComparison.Ordinal);
-            HostCheck.True(changed[first] !=rows[first]); Reject(() => QemuTranscripts.InspectNativeAotServiceRandomForTests(changed));
+            var changed = rows.ToArray();
+            changed[first] = changed[first].Replace(substitution.Item1, substitution.Item2, StringComparison.Ordinal);
+            HostCheck.True(changed[first] != rows[first]);
+            Reject(() => QemuTranscripts.InspectNativeAotServiceRandomForTests(changed));
         }
-        var reordered = rows.ToArray(); (reordered[0], reordered[1]) = (reordered[1], reordered[0]);
+        var reordered = rows.ToArray();
+        (reordered[0], reordered[1]) = (reordered[1], reordered[0]);
         Reject(() => QemuTranscripts.InspectNativeAotServiceRandomForTests(reordered));
-        var afterEnd = rows.Append(rows[first]).ToArray(); Reject(() => QemuTranscripts.InspectNativeAotServiceRandomForTests(afterEnd));
+        var afterEnd = rows.Append(rows[first]).ToArray();
+        Reject(() => QemuTranscripts.InspectNativeAotServiceRandomForTests(afterEnd));
         Reject(() => QemuTranscripts.InspectNativeAotServiceRandomForTests(rows.Append("M11_012_UNKNOWN value=0").ToArray()));
     }
 
@@ -101,7 +121,8 @@ internal static class NativeAotServiceReplayTests
             ("generator=zero", "generator=retained"), ("acquisitions=2", "acquisitions=1") })
         {
             var changed = rows.Select(row => row.Replace(change.Item1, change.Item2, StringComparison.Ordinal)).ToArray();
-            HostCheck.True(!changed.SequenceEqual(rows)); Reject(() => QemuTranscripts.InspectNativeAotServiceRandomForTests(changed));
+            HostCheck.True(!changed.SequenceEqual(rows));
+            Reject(() => QemuTranscripts.InspectNativeAotServiceRandomForTests(changed));
         }
         // Consistently rewriting metadata and calls cannot turn Linux's full
         // return into the adapter's required8192-byte partial controls.
@@ -126,15 +147,19 @@ internal static class NativeAotServiceReplayTests
     [HostTest("service framing increases only serial extent and preserves channel payload boundaries and finite limits")]
     private static void ServiceFraming()
     {
-        byte[] large = new byte[8 *1024 *1024 +1]; Array.Fill(large, (byte)'x');
+        byte[] large = new byte[8 * 1024 * 1024 + 1];
+        Array.Fill(large, (byte)'x');
         var extended = NativeAotThreadingOutput.ReadService(large);
-        HostCheck.Equal(large.Length, extended.NormalizedTail.Length); HostCheck.Equal("", extended.Stdout);
+        HostCheck.Equal(large.Length, extended.NormalizedTail.Length);
+        HostCheck.Equal("", extended.Stdout);
         Reject(() => NativeAotThreadingOutput.ReadWeb(large));
         string fake = "M11_012_SEED forged=1\nM16_008_CALL forged=1\n";
         byte[] raw = Encoding.UTF8.GetBytes($"M16_005_WRITE fd=2 bytes={Encoding.UTF8.GetByteCount(fake)} data={fake}\r\n" +
             "M16_005_WRITE fd=1 bytes=3 data=ok\n\r\n");
-        byte[] before = raw.ToArray(); var framed = NativeAotThreadingOutput.ReadService(raw);
-        HostCheck.Equal(fake, framed.Stderr); HostCheck.Equal("ok\n", framed.Stdout);
+        byte[] before = raw.ToArray();
+        var framed = NativeAotThreadingOutput.ReadService(raw);
+        HostCheck.Equal(fake, framed.Stderr);
+        HostCheck.Equal("ok\n", framed.Stdout);
         HostCheck.True(!framed.NormalizedTail.Contains("forged", StringComparison.Ordinal) && raw.SequenceEqual(before));
         HostCheck.True(framed.WriteChannels.SequenceEqual(new uint[] { 2, 1 }));
         foreach (string bad in new[] { "M16_005_WRITE fd=1 bytes=8193 data=", "M16_005_WRITE fd=3 bytes=1 data=x\r\n",
@@ -151,10 +176,13 @@ internal static class NativeAotServiceReplayTests
         rows.Add($"M16_012_WAKE identity={Worker} sequence=7 completion=2 state=1 clock=500");
         rows.Add($"M16_012_COMPLETE identity={Worker} sequence=7 completion=2 valueBits=0 clock=500");
         rows.Add($"M16_008_RESUME identity={Worker} valueBits=0 status=1");
-        byte[] raw = Encoding.ASCII.GetBytes(string.Join("\r\n", rows) +"\r\n"), before = raw.ToArray();
+        byte[] raw = Encoding.ASCII.GetBytes(string.Join("\r\n", rows) + "\r\n"), before = raw.ToArray();
         var capture = NativeAotSocketGuest.ReadService(raw);
-        HostCheck.Equal(4098, capture.Waits.Count); HostCheck.Equal(4098UL, capture.Waits[^1].Ordinal);
-        HostCheck.Equal(0, capture.PendingWaits); HostCheck.Equal(2, capture.Readiness.Count); HostCheck.True(raw.SequenceEqual(before));
+        HostCheck.Equal(4098, capture.Waits.Count);
+        HostCheck.Equal(4098UL, capture.Waits[^1].Ordinal);
+        HostCheck.Equal(0, capture.PendingWaits);
+        HostCheck.Equal(2, capture.Readiness.Count);
+        HostCheck.True(raw.SequenceEqual(before));
         foreach (var change in new[] { ("clock=500", "clock=499"), ("sequence=7 completion=2", "sequence=8 completion=2"),
             ($"M16_008_RESUME identity={Worker}", $"M16_008_RESUME identity={Worker + (1UL <<32)}"),
             ("valueBits=0 status=1", "valueBits=1 status=1") })
@@ -162,7 +190,7 @@ internal static class NativeAotServiceReplayTests
             byte[] changed = Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(raw).Replace(change.Item1, change.Item2, StringComparison.Ordinal));
             Reject(() => NativeAotSocketGuest.ReadService(changed));
         }
-        string noWinner = string.Join("\r\n", rows.Where(row => !row.StartsWith("M16_012_WAKE ", StringComparison.Ordinal))) +"\r\n";
+        string noWinner = string.Join("\r\n", rows.Where(row => !row.StartsWith("M16_012_WAKE ", StringComparison.Ordinal))) + "\r\n";
         Reject(() => NativeAotSocketGuest.ReadService(Encoding.ASCII.GetBytes(noWinner)));
     }
 
@@ -174,23 +202,37 @@ internal static class NativeAotServiceReplayTests
         ulong ordinal = 0, requests = 0, bytes = 0;
         void Add(ulong address, ulong requested, ulong flags, long value)
         {
-            ordinal++; if (value >0) { requests++; bytes +=(ulong)value; }
+            ordinal++;
+            if (value > 0)
+            {
+                requests++;
+                bytes += (ulong)value;
+            }
             ulong bits = unchecked((ulong)value);
             rows.Add($"M11_012_RANDOM requested={requested} flags={flags} valueBits={bits} requests={requests} generatedBytes={bytes}");
             rows.Add($"M16_008_CALL identity={Worker} nr=318 a0={address} a1={requested} a2={flags} a3=0 a4=0 a5=0" +
                 $" rip=4198402 rsp=1879048184 flags=514 fs=0 gs=0 clock={ordinal} valueBits={bits} action=1 status=1 ordinal={ordinal}" +
-                Suffix.Replace("returnValueBits=1", "returnValueBits=" +bits, StringComparison.Ordinal));
+                Suffix.Replace("returnValueBits=1", "returnValueBits=" + bits, StringComparison.Ordinal));
         }
-        Add(4096, 0, 1, 0); Add(4096, 1, 8, -22); Add(0, 32, 1, -14);
-        Add(4096, 16384, 1, 8192); Add(4096, 16384, 1, 8192);
-        for (int i = 0; i <31; i++) Add(4096, 32, 1, 32);
+        Add(4096, 0, 1, 0);
+        Add(4096, 1, 8, -22);
+        Add(0, 32, 1, -14);
+        Add(4096, 16384, 1, 8192);
+        Add(4096, 16384, 1, 8192);
+        for (int i = 0; i < 31; i++)
+            Add(4096, 32, 1, 32);
         rows.Add($"M11_012_END requests={requests} generatedBytes={bytes} generator=zero seed=zero firmwareCallbacks=none");
         return rows.ToArray();
     }
 
     private static void Reject(Action action)
     {
-        bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected);
     }
 }

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioNetQueuePlan
 {
     public const ushort MinimumQueueCount = 2;
@@ -25,12 +26,30 @@ public readonly struct VirtioNetQueuePlan
         TotalRequiredBufferBytes = totalRequiredBufferBytes;
     }
 
-    public ushort AvailableQueueCount { get; }
-    public VirtqueueSplitRingPlan RxQueue { get; }
-    public VirtqueueSplitRingPlan TxQueue { get; }
-    public VirtioNetRxBufferPlan RxBuffers { get; }
-    public VirtioNetTxFramePlan TxFrame { get; }
-    public uint TotalRequiredBufferBytes { get; }
+    public ushort AvailableQueueCount
+    {
+        get;
+    }
+    public VirtqueueSplitRingPlan RxQueue
+    {
+        get;
+    }
+    public VirtqueueSplitRingPlan TxQueue
+    {
+        get;
+    }
+    public VirtioNetRxBufferPlan RxBuffers
+    {
+        get;
+    }
+    public VirtioNetTxFramePlan TxFrame
+    {
+        get;
+    }
+    public uint TotalRequiredBufferBytes
+    {
+        get;
+    }
 
     public static VirtioNetQueuePlanResult Create(ushort availableQueueCount, ushort rxQueueSize, ushort txQueueSize, ushort rxBufferCount, uint frameBufferBytes)
     {

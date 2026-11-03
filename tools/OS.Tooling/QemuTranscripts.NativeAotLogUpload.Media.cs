@@ -4,6 +4,7 @@ using Data = OS.Tooling.WritableDataImageFixture;
 using F = OS.Tooling.LinuxWritableDiskProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Check only copied write/verify media values for the exact pinned
@@ -79,7 +80,7 @@ public static partial class QemuTranscripts
 
     private static void MediaCanonical(Data.Inspection image)
     {
-        MediaNeed(image.Find("LOG.TXT")is { Name: "LOG.TXT" } log && log.CopyBytes().AsSpan().SequenceEqual(NativeAotLogUploadContract.ExpectedLog()) && image.Find("UPLOAD.BIN")is { Name: "UPLOAD.BIN" } upload && upload.CopyBytes().AsSpan().SequenceEqual(NativeAotLogUploadContract.ExpectedUpload()), "canonical_files");
+        MediaNeed(image.Find("LOG.TXT") is { Name: "LOG.TXT" } log && log.CopyBytes().AsSpan().SequenceEqual(NativeAotLogUploadContract.ExpectedLog()) && image.Find("UPLOAD.BIN") is { Name: "UPLOAD.BIN" } upload && upload.CopyBytes().AsSpan().SequenceEqual(NativeAotLogUploadContract.ExpectedUpload()), "canonical_files");
     }
 
     private static void MediaOutMasks(WritableBlockValueReport block, ReadOnlySpan<byte> initialBytes, ReadOnlySpan<byte> finalBytes, Combined.Inspection initial, Combined.Inspection final)

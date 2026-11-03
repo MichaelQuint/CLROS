@@ -2,10 +2,11 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotWebPayload
 {
     private static readonly (string Kind, string Method, string Path)[] RaceSampleRoutes = [("baseline-churn", "GET", "/__clros/churn/status"), ("baseline-race", "GET", "/__clros/signalrace/status"), ("health-before", "GET", "/healthz"), ("churn-pending", "GET", "/__clros/churn/status"), ("recovery-armed", "GET", "/__clros/signalrace/status"), ("churn-overlap", "GET", "/__clros/churn/status"), ("overlap-health", "GET", "/healthz"), ("churn-cancel", "POST", "/__clros/churn"), ("churn-drained", "GET", "/__clros/churn/status"), ("recovery-request", "POST", "/__clros/signalrace/recover"), ("recovery-repeat", "POST", "/__clros/signalrace/recover"), ("race-complete", "POST", "/__clros/signalrace"), ("race-final", "GET", "/__clros/signalrace/status"), ("health-after", "GET", "/healthz"), ("churn-complete", "POST", "/__clros/churn"), ("final-churn", "GET", "/__clros/churn/status"), ("health-final", "GET", "/healthz"), ("repeat-race", "POST", "/__clros/signalrace"), ("repeat-probe", "POST", "/__clros/signalprobe")];
-    private static readonly (string Kind, string Method, string Path)[] RaceStartSampleRoutes = [..RaceSampleRoutes[..3], ("initial-armed", "GET", "/__clros/signalrace/status"), RaceSampleRoutes[3], ("start-request", "POST", "/__clros/signalrace/start"), ..RaceSampleRoutes[4..]];
+    private static readonly (string Kind, string Method, string Path)[] RaceStartSampleRoutes = [.. RaceSampleRoutes[..3], ("initial-armed", "GET", "/__clros/signalrace/status"), RaceSampleRoutes[3], ("start-request", "POST", "/__clros/signalrace/start"), .. RaceSampleRoutes[4..]];
     /// <summary>Inspect borrowed copied attempt/selection JSON, including failed
     /// captures, without I/O. Requires bounded terminal attempts, raw body bytes,
     /// unique logical IDs/completion ordinals and exact selected-response links.
@@ -35,7 +36,7 @@ public static partial class NativeAotWebPayload
         var attempts = root.GetProperty("attempts");
         var samples = selected.GetProperty("samples");
         var links = root.GetProperty("selections");
-        RaceNeed(attempts.ValueKind == JsonValueKind.Array && attempts.GetArrayLength()is> 0 and <= MaximumRaceAttempts, "attempt_count");
+        RaceNeed(attempts.ValueKind == JsonValueKind.Array && attempts.GetArrayLength() is > 0 and <= MaximumRaceAttempts, "attempt_count");
         RaceNeed(samples.ValueKind == JsonValueKind.Array && samples.GetArrayLength() <= routes.Length && links.ValueKind == JsonValueKind.Array && links.GetArrayLength() == samples.GetArrayLength(), "attempt_selections");
         int responses = 0, cancelled = 0, faulted = 0, serialCompletion = 0, firstChurn = 0, firstRace = 0;
         HashSet<int> completions = [];
@@ -43,7 +44,7 @@ public static partial class NativeAotWebPayload
         foreach (var row in attempts.EnumerateArray())
         {
             string[] keys = ["id", "method", "path", "completion", "headers", "status", "mediaType", "mediaTypeComplete", "bodyBase64", "bodyComplete", "outcome", "error"];
-            ChurnKeys(row, eventOwned ? [..keys, "signalVersion", "churnVersion"] : keys);
+            ChurnKeys(row, eventOwned ? [.. keys, "signalVersion", "churnVersion"] : keys);
             int id = ChurnInt(row.GetProperty("id")), completion = ChurnInt(row.GetProperty("completion")), status = ChurnInt(row.GetProperty("status"));
             RaceNeed(id == bodies.Count + 1 && completion >= 1 && completion <= attempts.GetArrayLength() && completions.Add(completion), "attempt_identity");
             string method = ChurnString(row.GetProperty("method"), 4), path = ChurnString(row.GetProperty("path"), 64);

@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public readonly struct OSHostWaitCapabilityResult
 {
     public readonly OSHostStatus Status;

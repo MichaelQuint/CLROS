@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAppExitLogObserverResult
 {
     public const uint NoRecordIndex = uint.MaxValue;
@@ -23,21 +24,66 @@ public readonly struct NativeAppExitLogObserverResult
         LauncherFailure = launcherFailure;
     }
 
-    public NativeAppExitLogObserverStatus Status { get; }
-    public bool IsInitialized { get; }
-    public int RecordsScanned { get; }
-    public uint RecordIndex { get; }
-    public uint StreamId { get; }
-    public uint Flags { get; }
-    public uint Sequence { get; }
-    public uint BytesRead { get; }
-    public uint RequiredBytes { get; }
-    public OSHostStatus LogStatus { get; }
-    public bool ParseAttempted { get; }
-    public NativeAppExitParseStatus ParseStatus { get; }
-    public int ExitCode { get; }
-    public OSHostStatus ExitStatus { get; }
-    public bool LauncherFailure { get; }
+    public NativeAppExitLogObserverStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public int RecordsScanned
+    {
+        get;
+    }
+    public uint RecordIndex
+    {
+        get;
+    }
+    public uint StreamId
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
+    public uint Sequence
+    {
+        get;
+    }
+    public uint BytesRead
+    {
+        get;
+    }
+    public uint RequiredBytes
+    {
+        get;
+    }
+    public OSHostStatus LogStatus
+    {
+        get;
+    }
+    public bool ParseAttempted
+    {
+        get;
+    }
+    public NativeAppExitParseStatus ParseStatus
+    {
+        get;
+    }
+    public int ExitCode
+    {
+        get;
+    }
+    public OSHostStatus ExitStatus
+    {
+        get;
+    }
+    public bool LauncherFailure
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeAppExitLogObserverStatus.Success;
 
     public static NativeAppExitLogObserverResult Success(int recordsScanned, uint recordIndex, OSHostAppLogReadResult read, NativeAppExitParseResult parse)

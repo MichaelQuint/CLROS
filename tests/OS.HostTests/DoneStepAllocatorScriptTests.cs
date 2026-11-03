@@ -26,7 +26,7 @@ internal static partial class DoneStepAllocatorScriptTests
             }
             catch
             {
-            // Cleanup failure should not hide allocator contract results.
+                // Cleanup failure should not hide allocator contract results.
             }
         }
 

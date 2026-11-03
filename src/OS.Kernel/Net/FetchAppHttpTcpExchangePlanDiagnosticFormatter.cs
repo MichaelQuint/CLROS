@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public static class FetchAppHttpTcpExchangePlanDiagnosticFormatter
 {
     public static FetchAppHttpTcpExchangePlanDiagnosticFormatResult FormatResult(in FetchAppHttpTcpExchangePlanResult result, Span<byte> destination)

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public readonly struct BootReservationSourceRange
 {
     public const ulong StructureSize = 40;

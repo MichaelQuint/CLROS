@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class IdtTablePlan
 {
     public const int EntryCount = 256;

@@ -13,8 +13,17 @@ internal static partial class PciEcamSegmentScannerTests
             Function = function;
         }
 
-        public byte Bus { get; }
-        public byte Device { get; }
-        public byte Function { get; }
+        public byte Bus
+        {
+            get;
+        }
+        public byte Device
+        {
+            get;
+        }
+        public byte Function
+        {
+            get;
+        }
     }
 }

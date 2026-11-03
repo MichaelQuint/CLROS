@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly struct VirtioNetTransmitLifecycleResult
@@ -17,16 +18,46 @@ public readonly struct VirtioNetTransmitLifecycleResult
         Plan = plan;
     }
 
-    public bool IsInitialized { get; }
-    public VirtioNetTransmitLifecycleStatus Status { get; }
-    public VirtioNetQueuePlanStatus QueuePlanStatus { get; }
-    public VirtioNetHeaderStatus HeaderStatus { get; }
-    public ushort HeadDescriptorIndex { get; }
-    public ushort NextAvailableRingIndex { get; }
-    public ushort DescriptorsWritten { get; }
-    public int HeaderBytesWritten { get; }
-    public int EthernetFrameBytes { get; }
-    public VirtioNetTransmitLifecyclePlan Plan { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtioNetTransmitLifecycleStatus Status
+    {
+        get;
+    }
+    public VirtioNetQueuePlanStatus QueuePlanStatus
+    {
+        get;
+    }
+    public VirtioNetHeaderStatus HeaderStatus
+    {
+        get;
+    }
+    public ushort HeadDescriptorIndex
+    {
+        get;
+    }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
+    public ushort DescriptorsWritten
+    {
+        get;
+    }
+    public int HeaderBytesWritten
+    {
+        get;
+    }
+    public int EthernetFrameBytes
+    {
+        get;
+    }
+    public VirtioNetTransmitLifecyclePlan Plan
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetTransmitLifecycleStatus.Success;
 
     public static VirtioNetTransmitLifecycleResult Success(VirtioNetTransmitLifecyclePlan plan, int headerBytesWritten, int ethernetFrameBytes)

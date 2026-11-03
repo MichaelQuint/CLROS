@@ -39,10 +39,18 @@ internal static unsafe class M07026EfiIntegrationTests
         HostCheck.True(plan.Ordered.SequenceEqual(QemuTranscripts.M07026Markers.Select(x => x.Trim())));
         Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse("--BuildEfi", "--EnableM07026Probe", "--RequireMarker", "CLROS_M16_003_READY")));
     }
-    private static bool Execute(void* context) { (*(int*)context)++; return true; }
+    private static bool Execute(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
     private static void Reject(Action action)
     {
-        try { action(); } catch (ToolFailure) { return; }
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { return; }
         throw new InvalidOperationException("m07_026_invalid_profile_accepted");
     }
 
@@ -86,10 +94,10 @@ internal static unsafe class M07026EfiIntegrationTests
                 HostCheck.Equal("ref", worker[0].ArgumentList.Arguments[4].RefKindKeyword.Text);
                 HostCheck.Equal("count", worker[0].ArgumentList.Arguments[4].Expression.ToString());
                 var append = source.Method(owner, "LinuxReservation");
-                var guard=append.Body!.Statements.OfType<IfStatementSyntax>().Single();
-                HostCheck.True(guard.Condition.ToString().StartsWith("count >= LinuxLedgerCapacity ||",StringComparison.Ordinal));
-                var write=append.DescendantNodes().OfType<AssignmentExpressionSyntax>().Single();
-                HostCheck.True(guard.SpanStart<write.SpanStart&&write.Left.ToString()=="ledger[count++]");
+                var guard = append.Body!.Statements.OfType<IfStatementSyntax>().Single();
+                HostCheck.True(guard.Condition.ToString().StartsWith("count >= LinuxLedgerCapacity ||", StringComparison.Ordinal));
+                var write = append.DescendantNodes().OfType<AssignmentExpressionSyntax>().Single();
+                HostCheck.True(guard.SpanStart < write.SpanStart && write.Left.ToString() == "ledger[count++]");
             }
             var overlap = source.Method(owner, "LinuxPoolDisjoint");
             var checks = overlap.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(x => x.Expression.ToString() == "Disjoint").ToArray();
@@ -102,7 +110,8 @@ internal static unsafe class M07026EfiIntegrationTests
                 HostCheck.Equal("CooperativePoolPages * Page", checks[0].ArgumentList.Arguments[3].Expression.ToString());
                 HostCheck.True(overlap.ExpressionBody!.Expression.ToString().StartsWith("state->CooperativePool >= Page &&", StringComparison.Ordinal));
             }
-            else HostCheck.Equal(SyntaxKind.TrueLiteralExpression, overlap.ExpressionBody!.Expression.Kind());
+            else
+                HostCheck.Equal(SyntaxKind.TrueLiteralExpression, overlap.ExpressionBody!.Expression.Kind());
         }
     }
 
@@ -125,11 +134,14 @@ internal static unsafe class M07026EfiIntegrationTests
             ("fx-snapshot",Offset("CooperativeFxOffset"),ThreadContextSwitch.FxSnapshotBytes),
             ("owned-segments",Offset("CooperativeSegmentsOffset"),ThreadContextSwitch.OwnedSegmentsBytes),
             ("guard-publication",Offset("CooperativePublishOffset"),X64PhysicalMappingPublication.GuardRequiredBytes)];
-        foreach (var helper in helpers) HostCheck.True(helper.Start >= 4608 && helper.Start + helper.Bytes <= Offset("StackEntryOffset"));
+        foreach (var helper in helpers)
+            HostCheck.True(helper.Start >= 4608 && helper.Start + helper.Bytes <= Offset("StackEntryOffset"));
         for (int i = 0; i < helpers.Length; i++)
-            for (int j = 0; j < i; j++) HostCheck.True(helpers[i].Start >= helpers[j].Start + helpers[j].Bytes ||
+            for (int j = 0; j < i; j++)
+                HostCheck.True(helpers[i].Start >= helpers[j].Start + helpers[j].Bytes ||
                 helpers[j].Start >= helpers[i].Start + helpers[i].Bytes, helpers[i].Name + " overlaps " + helpers[j].Name);
-        byte* code = stackalloc byte[8192]; new Span<byte>(code, 8192).Clear();
+        byte* code = stackalloc byte[8192];
+        new Span<byte>(code, 8192).Clear();
         HostCheck.True(X64OwnedClockAccess.Emit(code + helpers[0].Start, 8192 - helpers[0].Start) &&
             X64PciConfigurationRead.Emit(code + helpers[1].Start, 8192 - helpers[1].Start) &&
             X64PciBarAccess.Emit(code + helpers[2].Start, 8192 - helpers[2].Start) &&

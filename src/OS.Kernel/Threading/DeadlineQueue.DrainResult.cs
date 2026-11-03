@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct DeadlineQueue
 {
     /// <summary>Completed drain result; default is not success evidence. Count0

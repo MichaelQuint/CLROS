@@ -6,7 +6,11 @@ public static partial class QemuTranscripts
     // only; they prove no interrupt delivery, state preservation or release.
     public static string[] ValidateSchedulerTimerTail(string[] lines)
     {
-        void Need(bool value, string reason) { if (!value) throw new ToolFailure("m09_005_transcript_" + reason); }
+        void Need(bool value, string reason)
+        {
+            if (!value)
+                throw new ToolFailure("m09_005_transcript_" + reason);
+        }
         int start = Array.IndexOf(lines, "TEST_START m09.005");
         Need(start >= 0 && Array.LastIndexOf(lines, "TEST_START m09.005") == start, "start");
         Need(!lines.Take(start).Any(line => line.StartsWith("M09_005_", StringComparison.Ordinal) ||
@@ -24,7 +28,8 @@ public static partial class QemuTranscripts
                         System.Globalization.CultureInfo.InvariantCulture, out values[i]), "hex");
             return values;
         }
-        ulong[] prepared = Row(start + 1, "M09_005_PREPARED"); ulong pool = prepared[0];
+        ulong[] prepared = Row(start + 1, "M09_005_PREPARED");
+        ulong pool = prepared[0];
         Need(pool >= 4096 && (pool & 4095) == 0 && pool <= 0x100000000UL - 32 * 4096 &&
             prepared[1] == 22 && prepared[2] == pool + 13 * 4096 && prepared[3] == pool + 0xc00, "preparation");
         ulong[] armed = Row(start + 2, "M09_005_ARMED");
@@ -38,7 +43,9 @@ public static partial class QemuTranscripts
             Need(i == ticks - 1 ? phase == 0 && previousPhase == 3 && tick[2] == 0 :
                 phase != 0 && (i == 0 ? phase == 1 : phase == previousPhase || phase == previousPhase + 1) &&
                 tick[2] == (ulong)i + 1, "critical_phase");
-            mask |= 1UL << (int)phase; previousPhase = phase; progress = tick[3];
+            mask |= 1UL << (int)phase;
+            previousPhase = phase;
+            progress = tick[3];
         }
         Need(mask == 15, "publication_boundaries");
         ulong[] wake = Row(start + 3 + ticks, "M09_005_WAKE");

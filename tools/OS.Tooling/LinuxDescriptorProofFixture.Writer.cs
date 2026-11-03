@@ -4,6 +4,7 @@ using System.Text;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class LinuxDescriptorProofFixture
 {
     // Same explicit byte-writer pattern as M16-005/006. Zero-extended imm32

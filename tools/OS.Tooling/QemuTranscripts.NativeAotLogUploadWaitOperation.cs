@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>One original source5 CALL/BEGIN and all its copied attempts.
@@ -15,8 +16,17 @@ public static partial class QemuTranscripts
             Attempts = Array.AsReadOnly(attempts.ToArray());
         }
 
-        public NativeAotLogUploadWaitRow Call { get; }
-        public NativeAotLogUploadWaitRow Begin { get; }
-        public IReadOnlyList<NativeAotLogUploadWaitAttempt> Attempts { get; }
+        public NativeAotLogUploadWaitRow Call
+        {
+            get;
+        }
+        public NativeAotLogUploadWaitRow Begin
+        {
+            get;
+        }
+        public IReadOnlyList<NativeAotLogUploadWaitAttempt> Attempts
+        {
+            get;
+        }
     }
 }

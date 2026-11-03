@@ -27,8 +27,14 @@ public readonly struct SeparatePageFaultRequest
     public bool OwnedGdtTssReady => (_readinessFlags & 2) != 0;
     public bool OwnedIdtReady => (_readinessFlags & 4) != 0;
     public bool PageFaultHandlerReady => (_readinessFlags & 8) != 0;
-    public NullPageFaultProbePlanResult NullReadPlan { get; }
-    public ulong FaultInstructionAddress { get; }
+    public NullPageFaultProbePlanResult NullReadPlan
+    {
+        get;
+    }
+    public ulong FaultInstructionAddress
+    {
+        get;
+    }
 
     public static SeparatePageFaultRequest CreateDisabled(NullPageFaultProbePlanResult nullReadPlan, ulong faultInstructionAddress, bool callerAttestsOwnedSerialReady, bool callerAttestsOwnedGdtTssReady, bool callerAttestsOwnedIdtReady, bool callerAttestsPageFaultHandlerReady)
     {

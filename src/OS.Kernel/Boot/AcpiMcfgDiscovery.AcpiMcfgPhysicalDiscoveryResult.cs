@@ -3,6 +3,7 @@ using OS.Kernel.Platform;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public readonly struct AcpiMcfgPhysicalDiscoveryResult
 {
     private AcpiMcfgPhysicalDiscoveryResult(AcpiMcfgPhysicalDiscoveryStatus status, AcpiRootSdtSnapshotStatus rootSdtStatus, AcpiSdtParseResult pointerListResult, AcpiMcfgParseResult mcfgParseResult, PlatformPhysicalMemoryStatus physicalReadStatus, int pointerIndex, ulong physicalAddress, uint tableSignature, uint declaredLength, int requiredBytes, int bytesRead)
@@ -20,21 +21,54 @@ public readonly struct AcpiMcfgPhysicalDiscoveryResult
         BytesRead = bytesRead;
     }
 
-    public AcpiMcfgPhysicalDiscoveryStatus Status { get; }
+    public AcpiMcfgPhysicalDiscoveryStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == AcpiMcfgPhysicalDiscoveryStatus.Success;
-    public AcpiRootSdtSnapshotStatus RootSdtStatus { get; }
-    public AcpiSdtParseResult PointerListResult { get; }
+    public AcpiRootSdtSnapshotStatus RootSdtStatus
+    {
+        get;
+    }
+    public AcpiSdtParseResult PointerListResult
+    {
+        get;
+    }
     public AcpiSdtParseStatus PointerListStatus => PointerListResult.Status;
-    public AcpiMcfgParseResult McfgParseResult { get; }
+    public AcpiMcfgParseResult McfgParseResult
+    {
+        get;
+    }
     public AcpiMcfgParseStatus McfgParseStatus => McfgParseResult.Status;
-    public PlatformPhysicalMemoryStatus PhysicalReadStatus { get; }
-    public int PointerIndex { get; }
+    public PlatformPhysicalMemoryStatus PhysicalReadStatus
+    {
+        get;
+    }
+    public int PointerIndex
+    {
+        get;
+    }
     public int PointerCount => PointerListResult.PointerCount;
-    public ulong PhysicalAddress { get; }
-    public uint TableSignature { get; }
-    public uint DeclaredLength { get; }
-    public int RequiredBytes { get; }
-    public int BytesRead { get; }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
+    public uint TableSignature
+    {
+        get;
+    }
+    public uint DeclaredLength
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int BytesRead
+    {
+        get;
+    }
     public int SegmentCount => McfgParseResult.SegmentCount;
     public int RequiredSegmentCapacity => McfgParseResult.RequiredSegmentCapacity;
 

@@ -14,12 +14,30 @@ internal sealed class CliParseResult
         this.ErrorMessage = errorMessage;
     }
 
-    public bool ShouldValidate { get; }
-    public bool ShowHelp { get; }
-    public bool Succeeded { get; }
-    public string ManifestPath { get; }
-    public string ProfileName { get; }
-    public string ErrorMessage { get; }
+    public bool ShouldValidate
+    {
+        get;
+    }
+    public bool ShowHelp
+    {
+        get;
+    }
+    public bool Succeeded
+    {
+        get;
+    }
+    public string ManifestPath
+    {
+        get;
+    }
+    public string ProfileName
+    {
+        get;
+    }
+    public string ErrorMessage
+    {
+        get;
+    }
 
     public static CliParseResult Help()
     {

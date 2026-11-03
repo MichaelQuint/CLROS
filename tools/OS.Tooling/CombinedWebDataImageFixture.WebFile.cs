@@ -9,6 +9,7 @@ using DataImage = OS.Tooling.WritableDataImageFixture;
 using Gpt = OS.Storage.PrimaryGPTIndependentlyBoundsCRC;
 
 namespace OS.Tooling;
+
 public static partial class CombinedWebDataImageFixture
 {
     /// <summary>Immutable copied extraction of a preserved EFI/package/web file.
@@ -39,13 +40,34 @@ public static partial class CombinedWebDataImageFixture
             Need(position == content.Length && Hash(content) == Sha256, "web_extract");
         }
 
-        public string Path { get; }
-        public uint Bytes { get; }
-        public string Sha256 { get; }
-        public byte Attributes { get; }
-        public ushort FatDate { get; }
-        public ushort FatTime { get; }
-        public ReadOnlyCollection<WebRootImageFixture.Extent> Extents { get; }
+        public string Path
+        {
+            get;
+        }
+        public uint Bytes
+        {
+            get;
+        }
+        public string Sha256
+        {
+            get;
+        }
+        public byte Attributes
+        {
+            get;
+        }
+        public ushort FatDate
+        {
+            get;
+        }
+        public ushort FatTime
+        {
+            get;
+        }
+        public ReadOnlyCollection<WebRootImageFixture.Extent> Extents
+        {
+            get;
+        }
 
         public byte[] CopyBytes() => (byte[])content.Clone();
     }

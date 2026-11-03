@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotLogUploadHttpContract
 {
     /// <summary>Original Linux reference handles, transferred only after both
@@ -35,14 +36,38 @@ public static partial class NativeAotLogUploadHttpContract
             Artifacts = Array.AsReadOnly(artifacts.ToArray());
         }
 
-        public string Directory { get; }
-        public NativeAotPayload.Inspection HttpImage { get; }
-        public NativeAotPayload.Inspection VerifierImage { get; }
-        public NativeAotLogUploadContract.FileValues Files { get; }
-        public ReadOnlyCollection<ResponseFact> Responses { get; }
-        public NativeAotLogUploadContract.TraceValues WriteTrace { get; }
-        public NativeAotLogUploadContract.TraceValues VerifyTrace { get; }
-        public ReadOnlyCollection<NativeAotLogUploadContract.ArtifactIdentity> Artifacts { get; }
+        public string Directory
+        {
+            get;
+        }
+        public NativeAotPayload.Inspection HttpImage
+        {
+            get;
+        }
+        public NativeAotPayload.Inspection VerifierImage
+        {
+            get;
+        }
+        public NativeAotLogUploadContract.FileValues Files
+        {
+            get;
+        }
+        public ReadOnlyCollection<ResponseFact> Responses
+        {
+            get;
+        }
+        public NativeAotLogUploadContract.TraceValues WriteTrace
+        {
+            get;
+        }
+        public NativeAotLogUploadContract.TraceValues VerifyTrace
+        {
+            get;
+        }
+        public ReadOnlyCollection<NativeAotLogUploadContract.ArtifactIdentity> Artifacts
+        {
+            get;
+        }
         public bool CompleteTraceProjection => WriteTrace.CompleteTraceProjection && VerifyTrace.CompleteTraceProjection;
         public bool GrantsGuestDeviceFlushOrPhysicalPersistenceAuthority => false;
 

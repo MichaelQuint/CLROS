@@ -3,6 +3,7 @@ using System.Text;
 using Block = OS.Storage.WritableBlockSession;
 
 namespace OS.Tooling;
+
 public static partial class LinuxWritableDiskProofFixture
 {
     /// <summary>Copied six-register Linux x64 syscall contract. Positional

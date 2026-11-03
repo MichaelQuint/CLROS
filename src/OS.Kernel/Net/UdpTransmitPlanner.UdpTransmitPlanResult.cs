@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct UdpTransmitPlanResult
 {
     private UdpTransmitPlanResult(UdpTransmitPlanStatus status, PacketParseStatus packetStatus, int bytesWritten, MacAddress localMac, Ipv4Address localAddress, MacAddress destinationMac, Ipv4Address destinationAddress, ushort sourcePort, ushort destinationPort, byte timeToLive, ushort identification, int payloadLength)
@@ -18,20 +19,59 @@ public readonly struct UdpTransmitPlanResult
         IsInitialized = true;
     }
 
-    public UdpTransmitPlanStatus Status { get; }
-    public bool IsInitialized { get; }
+    public UdpTransmitPlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == UdpTransmitPlanStatus.Success;
-    public PacketParseStatus PacketStatus { get; }
-    public int BytesWritten { get; }
-    public MacAddress LocalMac { get; }
-    public Ipv4Address LocalAddress { get; }
-    public MacAddress DestinationMac { get; }
-    public Ipv4Address DestinationAddress { get; }
-    public ushort SourcePort { get; }
-    public ushort DestinationPort { get; }
-    public byte TimeToLive { get; }
-    public ushort Identification { get; }
-    public int PayloadLength { get; }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public MacAddress LocalMac
+    {
+        get;
+    }
+    public Ipv4Address LocalAddress
+    {
+        get;
+    }
+    public MacAddress DestinationMac
+    {
+        get;
+    }
+    public Ipv4Address DestinationAddress
+    {
+        get;
+    }
+    public ushort SourcePort
+    {
+        get;
+    }
+    public ushort DestinationPort
+    {
+        get;
+    }
+    public byte TimeToLive
+    {
+        get;
+    }
+    public ushort Identification
+    {
+        get;
+    }
+    public int PayloadLength
+    {
+        get;
+    }
 
     public static UdpTransmitPlanResult Success(PacketParseStatus packetStatus, int bytesWritten, MacAddress localMac, Ipv4Address localAddress, MacAddress destinationMac, Ipv4Address destinationAddress, ushort sourcePort, ushort destinationPort, byte timeToLive, ushort identification, int payloadLength)
     {

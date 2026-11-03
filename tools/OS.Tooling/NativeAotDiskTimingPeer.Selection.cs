@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotDiskTimingPeer
 {
     public const string SelectionMarker = "M10_018_SELECTED ";
@@ -23,7 +24,7 @@ public static partial class NativeAotDiskTimingPeer
         Need(ends.Length == 1 && ends[0] < lines.Length - 1, "selection_end");
         int end = ends[0];
         ulong[] endValues = SelectionFields(lines[end], SelectionEndMarker, ["version", "lastSequence"]);
-        Need(endValues[0] == 1 && endValues[1] is> 0 and <= 10_000_000, "selection_end_bounds");
+        Need(endValues[0] == 1 && endValues[1] is > 0 and <= 10_000_000, "selection_end_bounds");
         List<SelectionObservation> samples = [];
         ulong period = 0, previousTick = 0, previousEpoch = 0;
         bool irqJoined = false;
@@ -37,7 +38,7 @@ public static partial class NativeAotDiskTimingPeer
             Need(i < end && line.StartsWith(SelectionMarker, StringComparison.Ordinal), "selection_order");
             ulong[] values = SelectionFields(line, SelectionMarker, ["version", "sequence", "identity", "selectionEpoch", "returnEpoch", "selected", "periodFs"]);
             ulong identity = values[2], selectedEpoch = values[3], returnedEpoch = values[4], tick = values[5];
-            Need(values[0] == 1 && values[1] == (ulong)samples.Count + 1 && (uint)identity is> 0 and <= OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.MaximumWorkers && identity >> 32 != 0 && selectedEpoch <= returnedEpoch && values[6] > 0, "selection_bounds");
+            Need(values[0] == 1 && values[1] == (ulong)samples.Count + 1 && (uint)identity is > 0 and <= OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.MaximumWorkers && identity >> 32 != 0 && selectedEpoch <= returnedEpoch && values[6] > 0, "selection_bounds");
             Need(samples.Count == 0 || selectedEpoch >= previousEpoch && tick >= previousTick && values[6] == period, "selection_monotonic");
             int supervisor = i - 1;
             if (supervisor >= 0 && lines[supervisor].StartsWith(InterruptTimingMarker, StringComparison.Ordinal))
@@ -72,7 +73,7 @@ public static partial class NativeAotDiskTimingPeer
             string prefix = names[i] + "=";
             Need(fields[i].StartsWith(prefix, StringComparison.Ordinal), "selection_field");
             string number = fields[i][prefix.Length..];
-            Need(number.Length is> 0 and <= 20 && (number.Length == 1 || number[0] != '0') && number.All(c => c is >= '0' and <= '9') && ulong.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out values[i]), "selection_number");
+            Need(number.Length is > 0 and <= 20 && (number.Length == 1 || number[0] != '0') && number.All(c => c is >= '0' and <= '9') && ulong.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out values[i]), "selection_number");
         }
 
         return values;

@@ -28,17 +28,50 @@ internal static partial class ImagePlanPrinter
             Reason = reason;
         }
 
-        public int Order { get; }
-        public string Kind { get; }
-        public string Name { get; }
-        public string Status { get; }
-        public long? Lba { get; }
-        public long? OffsetBytes { get; }
-        public long? Sectors { get; }
-        public long? Bytes { get; }
-        public string? GuestPath { get; }
-        public string? SourcePath { get; }
-        public string? Reason { get; }
+        public int Order
+        {
+            get;
+        }
+        public string Kind
+        {
+            get;
+        }
+        public string Name
+        {
+            get;
+        }
+        public string Status
+        {
+            get;
+        }
+        public long? Lba
+        {
+            get;
+        }
+        public long? OffsetBytes
+        {
+            get;
+        }
+        public long? Sectors
+        {
+            get;
+        }
+        public long? Bytes
+        {
+            get;
+        }
+        public string? GuestPath
+        {
+            get;
+        }
+        public string? SourcePath
+        {
+            get;
+        }
+        public string? Reason
+        {
+            get;
+        }
 
         public static PlanEntry Planned(int order, string kind, string name, long lba, long sectors, long? bytes = null, string? guestPath = null, string? sourcePath = null)
         {

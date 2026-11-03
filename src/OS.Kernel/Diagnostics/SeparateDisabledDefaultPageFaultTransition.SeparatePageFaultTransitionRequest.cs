@@ -14,11 +14,32 @@ public readonly struct SeparatePageFaultTransitionRequest
         Image = image;
     }
 
-    public bool IsInitialized { get; }
-    public ulong Code { get; }
-    public ulong Data { get; }
-    public ulong Tables { get; }
-    public OS.Kernel.Memory.X64PagingModePreflightObservation Observation { get; }
-    public ulong Pat { get; }
-    public SeparatePageFaultPageTableResult Image { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public ulong Code
+    {
+        get;
+    }
+    public ulong Data
+    {
+        get;
+    }
+    public ulong Tables
+    {
+        get;
+    }
+    public OS.Kernel.Memory.X64PagingModePreflightObservation Observation
+    {
+        get;
+    }
+    public ulong Pat
+    {
+        get;
+    }
+    public SeparatePageFaultPageTableResult Image
+    {
+        get;
+    }
 }

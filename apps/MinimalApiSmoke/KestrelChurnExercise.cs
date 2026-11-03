@@ -133,11 +133,11 @@ internal sealed partial class KestrelChurnExercise
             succeeded = true;
             return SuccessBody;
         }
-        catch (OperationCanceledException error)when (Expired())
+        catch (OperationCanceledException error) when (Expired())
         {
             throw new TimeoutException("CLROS_CHURN_FAIL deadline", error);
         }
-        catch (OperationCanceledException)when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
             requestCanceled = true;
             throw;

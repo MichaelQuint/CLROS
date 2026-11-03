@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Std.Text;
 
 namespace OS.Manifest;
+
 public enum NativeAppLaunchPlanDiagnosticFormatStatus
 {
     Success = 0,

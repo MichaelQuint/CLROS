@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>One copied wake/completion and optional immediate repark. A

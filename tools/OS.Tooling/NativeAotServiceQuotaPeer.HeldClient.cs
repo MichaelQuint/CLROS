@@ -7,6 +7,7 @@ using System.Text;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServiceQuotaPeer
 {
     private sealed class HeldClient(TcpClient client, Stream stream) : IDisposable

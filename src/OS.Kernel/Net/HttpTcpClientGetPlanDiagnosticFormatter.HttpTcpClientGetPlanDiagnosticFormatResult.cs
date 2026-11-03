@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public readonly struct HttpTcpClientGetPlanDiagnosticFormatResult
 {
     private const uint InitializedFlag = 1;
@@ -14,12 +15,30 @@ public readonly struct HttpTcpClientGetPlanDiagnosticFormatResult
         Flags = flags;
     }
 
-    public HttpTcpClientGetPlanDiagnosticFormatStatus Status { get; }
-    public HttpTcpClientGetPlanStatus PlanStatus { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
-    public uint Flags { get; }
+    public HttpTcpClientGetPlanDiagnosticFormatStatus Status
+    {
+        get;
+    }
+    public HttpTcpClientGetPlanStatus PlanStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == HttpTcpClientGetPlanDiagnosticFormatStatus.Success && RequiredBytes > 0 && BytesWritten == RequiredBytes && RequiredBytes <= AvailableBytes;
 

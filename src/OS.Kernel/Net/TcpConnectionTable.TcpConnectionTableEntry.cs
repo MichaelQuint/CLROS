@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public struct TcpConnectionTableEntry
 {
     // A persistent receiver binds this exact generation. It must detach and
@@ -12,9 +13,18 @@ public struct TcpConnectionTableEntry
         Sequence = sequence;
     }
 
-    public TcpConnectionLifecycleState State { get; }
-    public TcpConnectionKey Key { get; }
-    public TcpConnectionSequenceMetadata Sequence { get; }
+    public TcpConnectionLifecycleState State
+    {
+        get;
+    }
+    public TcpConnectionKey Key
+    {
+        get;
+    }
+    public TcpConnectionSequenceMetadata Sequence
+    {
+        get;
+    }
 
     internal readonly TcpConnectionTableEntry WithMetadata(TcpConnectionLifecycleState state, TcpConnectionSequenceMetadata sequence)
     {

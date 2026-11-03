@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Tools.QemuRunner;
+
 public sealed class SerialMarkerStateMachine
 {
     public const int DefaultLineCapacity = 4096;
@@ -502,7 +503,7 @@ public sealed class SerialMarkerStateMachine
         int count = _requiredMarkers.Length - _requiredSeenCount;
         if (count == 0)
         {
-            return[];
+            return [];
         }
 
         string[] missing = new string[count];
@@ -531,7 +532,7 @@ public sealed class SerialMarkerStateMachine
 
         if (count == 0)
         {
-            return[];
+            return [];
         }
 
         string[] hits = new string[count];
@@ -560,7 +561,7 @@ public sealed class SerialMarkerStateMachine
 
         if (count == 0)
         {
-            return[];
+            return [];
         }
 
         string[] hits = new string[count];
@@ -593,7 +594,7 @@ public sealed class SerialMarkerStateMachine
 
         if (markers.Count == 0)
         {
-            return[];
+            return [];
         }
 
         string[] result = new string[markers.Count];

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public sealed class QemuSmokeOptions
 {
     public string BootPolicy { get; set; } = "";
@@ -46,37 +47,67 @@ public sealed class QemuSmokeOptions
     /// <summary>Optional QEMU guest RAM in MiB. Null preserves the runner's
     /// default; this does not alter workload entitlement or allocator budgets.</summary>
 
-    public int? MemoryMiB { get; set; }
+    public int? MemoryMiB
+    {
+        get; set;
+    }
     public int TimeoutSeconds { get; set; } = 30;
     public int StartupTimeoutSeconds { get; set; } = 30;
-    public bool DryRun { get; set; }
-    public bool BuildEfi { get; set; }
-    public bool SkipImageBuild { get; set; }
-    public bool RequireNativeAppMarkers { get; set; }
+    public bool DryRun
+    {
+        get; set;
+    }
+    public bool BuildEfi
+    {
+        get; set;
+    }
+    public bool SkipImageBuild
+    {
+        get; set;
+    }
+    public bool RequireNativeAppMarkers
+    {
+        get; set;
+    }
     /// <summary>Explicit v2 continuing-service stimulus/report selection.
     /// Default false preserves v1. This flag grants no native or guest authority.</summary>
 
-    public bool ServiceLifecycle { get; set; }
+    public bool ServiceLifecycle
+    {
+        get; set;
+    }
     /// <summary>Explicit quota-negative continuing-service selection. Default
     /// false preserves positive v1/v2. Package and runner admission stay separate.</summary>
 
-    public bool ServiceQuotaFailure { get; set; }
+    public bool ServiceQuotaFailure
+    {
+        get; set;
+    }
     /// <summary>Explicit canonical mechanical epoll/signal race under M16-012.
     /// Default false preserves the original prepared NativeAOT socket profile.</summary>
 
-    public bool SignalEpollRace { get; set; }
+    public bool SignalEpollRace
+    {
+        get; set;
+    }
     /// <summary>Explicit owned web signal/readiness race after ordinary controls.
     /// Default false preserves ordinary web. Source/native/image admission and
     /// a successful original race remain mandatory for this execution path.</summary>
 
-    public bool WebSignalRace { get; set; }
+    public bool WebSignalRace
+    {
+        get; set;
+    }
     /// <summary>Explicit event-owned v3 web race. Default false retains the
     /// historical selection; simultaneous true race profiles refuse. Complete
     /// original native/source/image and owned capture admission remain required.</summary>
 
-    public bool WebEventOwnedSignalRace { get; set; }
+    public bool WebEventOwnedSignalRace
+    {
+        get; set;
+    }
     internal bool HasWebSignalRace => WebSignalRace || WebEventOwnedSignalRace;
-    public List<string> RequireMarker { get; } = [..DefaultRequiredMarkers];
+    public List<string> RequireMarker { get; } = [.. DefaultRequiredMarkers];
     public List<string> RequireOrderedMarker { get; } = [];
     public List<string> RequireUniqueMarker { get; } = [];
     public List<string> ForbidMarker { get; } = ["OS_SMOKE_FAIL"];

@@ -83,21 +83,66 @@ internal static unsafe partial class X64Cr3LoadStubPlanTests
             TransitionEvidence = X64ReversibleCr3TransitionStubPlan.Evaluate(&transitionState, Raw(Storage.StateAddress), X64ReversibleCr3TransitionTerminalKind.Returned);
         }
 
-        internal ulong CodeStart { get; }
-        internal BootMemoryRegionRecord[] Allocations { get; }
-        internal X64BootIdentityMappingRequirement[] Requirements { get; }
-        internal X64BootIdentityMappingRange[] MappingRanges { get; }
-        internal X64BootIdentityMappingPlanResult Mapping { get; }
-        internal OwnedBootStackSwitchPlanResult StackSwitch { get; }
-        internal VirtualAddress ProbeRsp { get; }
-        internal X64Cr3ProbeStorageLayout Storage { get; }
-        internal X64Cr3ProbePolicy Policy { get; }
-        internal X64PagingModePreflightResult Preflight { get; }
-        internal X64PagingModePreflightStubResult PreflightMaterialization { get; }
-        internal X64PagingModePreflightStubResult PreflightReadback { get; }
-        internal X64ReversibleCr3TransitionStubPlanResult TransitionMaterialization { get; }
-        internal X64ReversibleCr3TransitionStubPlanResult TransitionReadback { get; }
-        internal X64ReversibleCr3TransitionEvidenceResult TransitionEvidence { get; }
+        internal ulong CodeStart
+        {
+            get;
+        }
+        internal BootMemoryRegionRecord[] Allocations
+        {
+            get;
+        }
+        internal X64BootIdentityMappingRequirement[] Requirements
+        {
+            get;
+        }
+        internal X64BootIdentityMappingRange[] MappingRanges
+        {
+            get;
+        }
+        internal X64BootIdentityMappingPlanResult Mapping
+        {
+            get;
+        }
+        internal OwnedBootStackSwitchPlanResult StackSwitch
+        {
+            get;
+        }
+        internal VirtualAddress ProbeRsp
+        {
+            get;
+        }
+        internal X64Cr3ProbeStorageLayout Storage
+        {
+            get;
+        }
+        internal X64Cr3ProbePolicy Policy
+        {
+            get;
+        }
+        internal X64PagingModePreflightResult Preflight
+        {
+            get;
+        }
+        internal X64PagingModePreflightStubResult PreflightMaterialization
+        {
+            get;
+        }
+        internal X64PagingModePreflightStubResult PreflightReadback
+        {
+            get;
+        }
+        internal X64ReversibleCr3TransitionStubPlanResult TransitionMaterialization
+        {
+            get;
+        }
+        internal X64ReversibleCr3TransitionStubPlanResult TransitionReadback
+        {
+            get;
+        }
+        internal X64ReversibleCr3TransitionEvidenceResult TransitionEvidence
+        {
+            get;
+        }
 
         internal X64Cr3LoadStubPlanResult Compose(X64Cr3ProbePolicy? policy = null, BootMemoryRegionRecord[]? allocations = null, OwnedBootStackSwitchPlanResult? stackSwitch = null, X64Cr3ProbeStorageLayout? storage = null, X64PagingModePreflightResult? preflight = null, X64PagingModePreflightStubResult? preflightMaterialization = null, X64PagingModePreflightStubResult? preflightReadback = null, X64ReversibleCr3TransitionStubPlanResult? transitionMaterialization = null, X64ReversibleCr3TransitionStubPlanResult? transitionReadback = null, X64ReversibleCr3TransitionEvidenceResult? transitionEvidence = null, ulong preflightOffset = PreflightOffset, ulong transitionOffset = TransitionOffset)
         {
@@ -116,7 +161,7 @@ internal static unsafe partial class X64Cr3LoadStubPlanTests
 
         internal X64Cr3ProbeEvent[] CreateSuccessfulTranscript()
         {
-            return[Event(X64Cr3ProbeEventKind.PreMarkerEmitted, ownedRoot: false, updatedCanary: false, elapsed: 1), Event(X64Cr3ProbeEventKind.TransitionEntered, ownedRoot: false, updatedCanary: false, elapsed: 2), Event(X64Cr3ProbeEventKind.OwnedRootLoaded, ownedRoot: true, updatedCanary: false, elapsed: 3), Event(X64Cr3ProbeEventKind.OwnedRootReadBack, ownedRoot: true, updatedCanary: false, elapsed: 4), Event(X64Cr3ProbeEventKind.CanaryUpdated, ownedRoot: true, updatedCanary: true, elapsed: 5), Event(X64Cr3ProbeEventKind.FirmwareRootRestored, ownedRoot: false, updatedCanary: true, elapsed: 6), Event(X64Cr3ProbeEventKind.FirmwareRootReadBack, ownedRoot: false, updatedCanary: true, elapsed: 7), Event(X64Cr3ProbeEventKind.CanaryValidated, ownedRoot: false, updatedCanary: true, elapsed: 8), Event(X64Cr3ProbeEventKind.PostMarkerEmitted, ownedRoot: false, updatedCanary: true, elapsed: 9)];
+            return [Event(X64Cr3ProbeEventKind.PreMarkerEmitted, ownedRoot: false, updatedCanary: false, elapsed: 1), Event(X64Cr3ProbeEventKind.TransitionEntered, ownedRoot: false, updatedCanary: false, elapsed: 2), Event(X64Cr3ProbeEventKind.OwnedRootLoaded, ownedRoot: true, updatedCanary: false, elapsed: 3), Event(X64Cr3ProbeEventKind.OwnedRootReadBack, ownedRoot: true, updatedCanary: false, elapsed: 4), Event(X64Cr3ProbeEventKind.CanaryUpdated, ownedRoot: true, updatedCanary: true, elapsed: 5), Event(X64Cr3ProbeEventKind.FirmwareRootRestored, ownedRoot: false, updatedCanary: true, elapsed: 6), Event(X64Cr3ProbeEventKind.FirmwareRootReadBack, ownedRoot: false, updatedCanary: true, elapsed: 7), Event(X64Cr3ProbeEventKind.CanaryValidated, ownedRoot: false, updatedCanary: true, elapsed: 8), Event(X64Cr3ProbeEventKind.PostMarkerEmitted, ownedRoot: false, updatedCanary: true, elapsed: 9)];
         }
 
         internal X64Cr3ProbeEvent Event(X64Cr3ProbeEventKind kind, bool ownedRoot, bool updatedCanary, ulong elapsed, ulong? rawCr3Override = null)
@@ -169,7 +214,7 @@ internal static unsafe partial class X64Cr3LoadStubPlanTests
         private static X64BootIdentityMappingRequirement[] RequirementsFor(ulong codeStart, ulong dataPages)
         {
             ulong page = BootMemoryRegionRecord.PageSize;
-            return[Requirement(X64BootIdentityMappingPurpose.BootStackGuard, 0x1000, 0x2000, PageProtection.None, PageCachePolicy.Uninitialized), Requirement(X64BootIdentityMappingPurpose.ExecutingImage, 0x4000, 0x5000, Protection(PageProtection.Read, PageProtection.Execute)), Requirement(X64BootIdentityMappingPurpose.OwnedStack, StackArenaStart + page, StackArenaStart + StackArenaPages * page, Protection(PageProtection.Read, PageProtection.Write)), Requirement(X64BootIdentityMappingPurpose.BootHandoff, 0x0070_0000, 0x0070_1000, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.SerialStub, 0x0080_0000, 0x0080_1000, Protection(PageProtection.Read, PageProtection.Execute)), Requirement(X64BootIdentityMappingPurpose.AcpiScratch, 0x0090_0000, 0x0090_1000, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.FramebufferMetadata, 0x00a0_0000, 0x00a0_1000, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.AdditionalRequired, codeStart, codeStart + page, Protection(PageProtection.Read, PageProtection.Execute)), Requirement(X64BootIdentityMappingPurpose.AdditionalRequired, DataStart, DataStart + dataPages * page, Protection(PageProtection.Read, PageProtection.Write))];
+            return [Requirement(X64BootIdentityMappingPurpose.BootStackGuard, 0x1000, 0x2000, PageProtection.None, PageCachePolicy.Uninitialized), Requirement(X64BootIdentityMappingPurpose.ExecutingImage, 0x4000, 0x5000, Protection(PageProtection.Read, PageProtection.Execute)), Requirement(X64BootIdentityMappingPurpose.OwnedStack, StackArenaStart + page, StackArenaStart + StackArenaPages * page, Protection(PageProtection.Read, PageProtection.Write)), Requirement(X64BootIdentityMappingPurpose.BootHandoff, 0x0070_0000, 0x0070_1000, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.SerialStub, 0x0080_0000, 0x0080_1000, Protection(PageProtection.Read, PageProtection.Execute)), Requirement(X64BootIdentityMappingPurpose.AcpiScratch, 0x0090_0000, 0x0090_1000, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.FramebufferMetadata, 0x00a0_0000, 0x00a0_1000, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.AdditionalRequired, codeStart, codeStart + page, Protection(PageProtection.Read, PageProtection.Execute)), Requirement(X64BootIdentityMappingPurpose.AdditionalRequired, DataStart, DataStart + dataPages * page, Protection(PageProtection.Read, PageProtection.Write))];
         }
 
         private static X64BootIdentityMappingRequirement Requirement(X64BootIdentityMappingPurpose purpose, ulong start, ulong end, PageProtection protection)

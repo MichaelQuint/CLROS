@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformPhysicalMemorySourceResult
 {
     private PlatformPhysicalMemorySourceResult(bool succeeded, PlatformPhysicalMemorySourceStatus status, int bytesRead, ulong firmwareStatus)
@@ -9,10 +10,22 @@ public readonly struct PlatformPhysicalMemorySourceResult
         FirmwareStatus = firmwareStatus;
     }
 
-    public bool Succeeded { get; }
-    public PlatformPhysicalMemorySourceStatus Status { get; }
-    public int BytesRead { get; }
-    public ulong FirmwareStatus { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformPhysicalMemorySourceStatus Status
+    {
+        get;
+    }
+    public int BytesRead
+    {
+        get;
+    }
+    public ulong FirmwareStatus
+    {
+        get;
+    }
 
     public static PlatformPhysicalMemorySourceResult Read(int bytesRead)
     {

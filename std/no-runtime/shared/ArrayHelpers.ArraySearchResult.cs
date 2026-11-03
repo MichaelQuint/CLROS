@@ -1,4 +1,5 @@
 namespace OS.Std;
+
 public readonly struct ArraySearchResult
 {
     private ArraySearchResult(bool isInitialized, ArraySearchStatus status, int index, int insertionIndex, int start, int length, int sourceLength)
@@ -12,13 +13,34 @@ public readonly struct ArraySearchResult
         SourceLength = sourceLength;
     }
 
-    public bool IsInitialized { get; }
-    public ArraySearchStatus Status { get; }
-    public int Index { get; }
-    public int InsertionIndex { get; }
-    public int Start { get; }
-    public int Length { get; }
-    public int SourceLength { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public ArraySearchStatus Status
+    {
+        get;
+    }
+    public int Index
+    {
+        get;
+    }
+    public int InsertionIndex
+    {
+        get;
+    }
+    public int Start
+    {
+        get;
+    }
+    public int Length
+    {
+        get;
+    }
+    public int SourceLength
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == ArraySearchStatus.Success && Index >= Start && Index < Start + Length;
 
     public static ArraySearchResult Success(int index, int start, int length, int sourceLength)

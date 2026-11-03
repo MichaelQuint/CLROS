@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct ThreadLocalStorage
 {
     /// <summary>Caller-admitted mapped span and an eight-byte-aligned base within

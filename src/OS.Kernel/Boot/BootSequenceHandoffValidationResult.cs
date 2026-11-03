@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct BootSequenceHandoffValidationResult
 {
     private BootSequenceHandoffValidationResult(bool succeeded, BootSequenceHandoffStatus status, BootCapabilities missingCapabilities, BootCapabilities unknownCapabilities, ulong requiredMapBytes)
@@ -10,11 +11,26 @@ public readonly struct BootSequenceHandoffValidationResult
         RequiredMapBytes = requiredMapBytes;
     }
 
-    public bool Succeeded { get; }
-    public BootSequenceHandoffStatus Status { get; }
-    public BootCapabilities MissingCapabilities { get; }
-    public BootCapabilities UnknownCapabilities { get; }
-    public ulong RequiredMapBytes { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public BootSequenceHandoffStatus Status
+    {
+        get;
+    }
+    public BootCapabilities MissingCapabilities
+    {
+        get;
+    }
+    public BootCapabilities UnknownCapabilities
+    {
+        get;
+    }
+    public ulong RequiredMapBytes
+    {
+        get;
+    }
 
     public static BootSequenceHandoffValidationResult Success(ulong requiredMapBytes)
     {

@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Manifest;
 
 namespace OS.Kernel.Runtime;
+
 public enum NativeAppInvocationPlanStatus
 {
     Success = 0,

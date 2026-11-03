@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciEcamSegment
 {
     public PciEcamSegment(ulong basePhysicalAddress, ushort segmentGroup, byte startBus, byte endBus)
@@ -9,8 +10,20 @@ public readonly struct PciEcamSegment
         EndBus = endBus;
     }
 
-    public ulong BasePhysicalAddress { get; }
-    public ushort SegmentGroup { get; }
-    public byte StartBus { get; }
-    public byte EndBus { get; }
+    public ulong BasePhysicalAddress
+    {
+        get;
+    }
+    public ushort SegmentGroup
+    {
+        get;
+    }
+    public byte StartBus
+    {
+        get;
+    }
+    public byte EndBus
+    {
+        get;
+    }
 }

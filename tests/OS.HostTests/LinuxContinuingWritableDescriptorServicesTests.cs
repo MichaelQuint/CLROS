@@ -1585,7 +1585,7 @@ internal static unsafe partial class LinuxContinuingWritableDescriptorServicesTe
         HostCheck.Equal(-14L, D.Open(f.State, new ReadOnlySpan<byte>(f.InputBytes, 16), 0).Value);
         HostCheck.Equal(before, f.Device->Notifies);
         var root = f.Open("/data/");
-        HostCheck.True(D.InspectCopied(f.State, root)is { Valid: true, Directory: true });
+        HostCheck.True(D.InspectCopied(f.State, root) is { Valid: true, Directory: true });
         HostCheck.Equal(-29L, D.Seek(f.State, root, 0, 0).Value);
         HostCheck.Equal(-21L, D.BeginRead(f.State, root, 1).Value);
         HostCheck.Equal(-22L, D.BeginSync(f.State, root, true).Value);
@@ -1628,7 +1628,7 @@ internal static unsafe partial class LinuxContinuingWritableDescriptorServicesTe
         uint flags = *(uint*)((byte*)(f.Descriptions + description - 1) + WritableBlockSessionTests.ManagedOffset(f.Descriptions + description - 1, "Flags"));
         HostCheck.True((flags & D.NoControllingTerminal) == 0 && (flags & 3) == 1);
         var created = f.Open("/data/no-terminal-created.bin", 0x881c1);
-        HostCheck.True(D.InspectCopied(f.State, created)is { Valid: true, Length: 0 });
+        HostCheck.True(D.InspectCopied(f.State, created) is { Valid: true, Length: 0 });
         before = f.Device->Notifies;
         foreach (uint unsupported in new uint[]
         {
@@ -2471,7 +2471,7 @@ internal static unsafe partial class LinuxContinuingWritableDescriptorServicesTe
         candidates.AsSpan().Fill(4);
         HostCheck.Equal(1032L, f.Run(write).Value);
         HostCheck.Equal(0L, D.Seek(f.State, file, 0, 1).Value);
-        HostCheck.True(D.InspectCopied(f.State, file)is { Valid: true, Length: 5126 });
+        HostCheck.True(D.InspectCopied(f.State, file) is { Valid: true, Length: 5126 });
         HostCheck.True(f.Read(file, 5126, 0, true).SequenceEqual(expected));
         f.Independent("m16-write.bin", expected);
         HostCheck.True(f.Trace.Skip(start).Any(row => row.Type == 1) && f.Trace.Skip(start).Count(row => row.Type == 4) >= 3);

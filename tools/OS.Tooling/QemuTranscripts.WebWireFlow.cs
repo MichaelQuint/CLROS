@@ -5,6 +5,7 @@ using System.Text;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed class WebWireFlow(uint port, uint client, byte[] request, int responseCapacity)

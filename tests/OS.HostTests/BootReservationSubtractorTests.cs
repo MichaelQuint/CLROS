@@ -214,7 +214,7 @@ internal static partial class BootReservationSubtractorTests
     private static bool TestInvalidSources()
     {
         BootReservationSourceRange malformed = MutateByte(Source(0, 0x10000, 1), byteOffset: 4, replacement: 1);
-        BootReservationSourceRange[] defaultSource = [default ];
+        BootReservationSourceRange[] defaultSource = [default];
         BootReservationSourceRange[] malformedSource = [malformed];
         BootReservationSourceRange[] duplicateProvenance = [Source(0, 0x10000, 1), Source(0, 0x12000, 1)];
         BootReservationSourceRange[] skippedProvenance = [Source(0, 0x10000, 1), Source(2, 0x12000, 1)];
@@ -228,7 +228,7 @@ internal static partial class BootReservationSubtractorTests
     {
         BootReservationSourceRange[] source = [Source(0, 0x10000, 16)];
         BootReservedRange malformed = MutateByte(Reservation(BootReservationKind.LoadedImage, 0x11000, 1), byteOffset: 1, replacement: 1);
-        BootReservedRange[] defaultReservation = [default ];
+        BootReservedRange[] defaultReservation = [default];
         BootReservedRange[] malformedReservation = [malformed];
         BootReservedRange[] unsorted = [Reservation(BootReservationKind.LoadedImage, 0x14000, 1), Reservation(BootReservationKind.BootStack, 0x12000, 1)];
         BootReservedRange[] duplicate = [Reservation(BootReservationKind.LoadedImage, 0x12000, 1), Reservation(BootReservationKind.BootStack, 0x12000, 1)];

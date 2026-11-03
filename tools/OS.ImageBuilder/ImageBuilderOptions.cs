@@ -17,23 +17,50 @@ internal sealed class ImageBuilderOptions
     public ImageBuilderCommand Command { get; private set; } = ImageBuilderCommand.CreateRaw;
     public string EfiPath { get; private set; } = Path.Combine("artifacts", "efi", "BOOTX64.EFI");
     public string OutputPath { get; private set; } = Path.Combine("artifacts", "images", "os.raw");
-    public string? ManifestPath { get; private set; }
-    public string? PackagePath { get; private set; }
-    public string? KestrelPackageRootPath { get; private set; }
+    public string? ManifestPath
+    {
+        get; private set;
+    }
+    public string? PackagePath
+    {
+        get; private set;
+    }
+    public string? KestrelPackageRootPath
+    {
+        get; private set;
+    }
     public string InputPath { get; private set; } = Path.Combine("artifacts", "images", "os.raw");
-    public string? QemuImgPath { get; private set; }
+    public string? QemuImgPath
+    {
+        get; private set;
+    }
     public string ImageFormat { get; private set; } = "raw";
     public string Architecture { get; private set; } = "x86_64";
     public string VirtualizationType { get; private set; } = "hvm";
     public string RootDeviceType { get; private set; } = "ebs";
     public string BootMode { get; private set; } = "uefi";
-    public string? Region { get; private set; }
-    public string? BucketName { get; private set; }
-    public string? VmImportRole { get; private set; }
+    public string? Region
+    {
+        get; private set;
+    }
+    public string? BucketName
+    {
+        get; private set;
+    }
+    public string? VmImportRole
+    {
+        get; private set;
+    }
     public bool EnaSupport { get; private set; } = true;
     public int ImageSizeMiB { get; private set; } = DefaultImageSizeMiB;
-    public bool DryRun { get; private set; }
-    public bool ShowHelp { get; private set; }
+    public bool DryRun
+    {
+        get; private set;
+    }
+    public bool ShowHelp
+    {
+        get; private set;
+    }
     public string WorkloadProfile { get; private set; } = OS.Kernel.Build.WorkloadProfile.SelectedName;
 
     public static ImageBuilderOptions Parse(string[] args)

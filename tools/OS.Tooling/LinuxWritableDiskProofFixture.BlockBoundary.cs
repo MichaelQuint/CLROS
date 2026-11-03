@@ -3,6 +3,7 @@ using System.Text;
 using Block = OS.Storage.WritableBlockSession;
 
 namespace OS.Tooling;
+
 public static partial class LinuxWritableDiskProofFixture
 {
     /// <summary>Copied counter boundary supplied by the caller. Owner and epoch

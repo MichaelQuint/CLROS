@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class PciBarSizingProbeDerivedSizePlanner
 {
     public const bool RequiresDecodedBarDescriptors = true;

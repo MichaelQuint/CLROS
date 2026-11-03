@@ -8,7 +8,10 @@ internal static partial class PlatformUefiGoneSimulationTests
 {
     private sealed class TimerSourceDouble : IPlatformTimerSource
     {
-        public int ReadCount { get; private set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
 
         public PlatformTimerMetadata ReadMonotonic()
         {

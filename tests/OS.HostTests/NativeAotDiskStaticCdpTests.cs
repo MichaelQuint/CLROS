@@ -86,7 +86,7 @@ internal static partial class NativeAotDiskStaticCdpTests
             await operation;
             return null;
         }
-        catch (Exception error)when (error is not OperationCanceledException and not TimeoutException)
+        catch (Exception error) when (error is not OperationCanceledException and not TimeoutException)
         {
             return error;
         }
@@ -110,11 +110,16 @@ internal static partial class NativeAotDiskStaticCdpTests
             await cdp.Connect(new Uri("ws://127.0.0.1:" + port + "/devtools/page/test"), deadline.Token);
             if (ending == End.Pending)
             {
-                pending = cdp.Call("Runtime.evaluate", new { expression = "1" }, deadline.Token);
+                pending = cdp.Call("Runtime.evaluate", new
+                {
+                    expression = "1"
+                }, deadline.Token);
                 await pendingReceived.Task.WaitAsync(deadline.Token);
             }
 
-            close = cdp.Call(ending == End.OtherAck ? "Runtime.evaluate" : "Browser.close", new { }, deadline.Token);
+            close = cdp.Call(ending == End.OtherAck ? "Runtime.evaluate" : "Browser.close", new
+            {
+            }, deadline.Token);
             // The peer has sent every byte and exited before Join is checked.
             // No sleep or guessed delay substitutes for this barrier.
             await server.WaitAsync(deadline.Token);
@@ -129,7 +134,7 @@ internal static partial class NativeAotDiskStaticCdpTests
             else
                 HostCheck.True(commandError is null, "successful_response_precedes_transport_end");
             if (pending is not null)
-                HostCheck.True(await Failure(pending.WaitAsync(deadline.Token))is not null, "pending_call_failed_and_joined");
+                HostCheck.True(await Failure(pending.WaitAsync(deadline.Token)) is not null, "pending_call_failed_and_joined");
             if (ending == End.BadJson)
                 HostCheck.True(joinError is JsonException, "malformed_json_preserved");
             if (ending == End.InvalidFrame)
@@ -146,11 +151,11 @@ internal static partial class NativeAotDiskStaticCdpTests
             {
                 await server.WaitAsync(TimeSpan.FromSeconds(5));
             }
-            catch (Exception error)when (error is OperationCanceledException or IOException or WebSocketException or ObjectDisposedException)
+            catch (Exception error) when (error is OperationCanceledException or IOException or WebSocketException or ObjectDisposedException)
             {
             }
 
-            foreach (Task? command in new Task? []
+            foreach (Task? command in new Task?[]
             {
                 pending,
                 close
@@ -162,7 +167,7 @@ internal static partial class NativeAotDiskStaticCdpTests
                     {
                         await command;
                     }
-                    catch (Exception error)when (error is OperationCanceledException or IOException or WebSocketException or ToolFailure)
+                    catch (Exception error) when (error is OperationCanceledException or IOException or WebSocketException or ToolFailure)
                     {
                     }
 
@@ -185,7 +190,21 @@ internal static partial class NativeAotDiskStaticCdpTests
             int id = await Command(socket, ending == End.OtherAck ? "Runtime.evaluate" : "Browser.close", deadline.Token);
             if (ending == End.BeforeAck)
                 return;
-            string response = ending == End.ErrorAck ? JsonSerializer.Serialize(new { id, error = new { code = -1, message = "rejected close" } }) : JsonSerializer.Serialize(new { id, result = new { } });
+            string response = ending == End.ErrorAck ? JsonSerializer.Serialize(new
+            {
+                id,
+                error = new
+                {
+                    code = -1,
+                    message = "rejected close"
+                }
+            }) : JsonSerializer.Serialize(new
+            {
+                id,
+                result = new
+                {
+                }
+            });
             await socket.SendAsync(Encoding.UTF8.GetBytes(response).AsMemory(), WebSocketMessageType.Text, true, deadline.Token);
             switch (ending)
             {
@@ -209,7 +228,7 @@ internal static partial class NativeAotDiskStaticCdpTests
                     await stream.WriteAsync(new byte[] { 0x83, 0x00 }, deadline.Token);
                     break;
             }
-        // Dispose the TCP transport WITHOUT a WebSocket close handshake.
+            // Dispose the TCP transport WITHOUT a WebSocket close handshake.
         }
     }
 

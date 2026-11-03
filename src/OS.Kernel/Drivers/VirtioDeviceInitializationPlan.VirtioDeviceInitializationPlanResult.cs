@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioDeviceInitializationPlanResult
 {
     private VirtioDeviceInitializationPlanResult(VirtioDeviceInitializationPlanStatus status, ulong deviceFeatures, ulong requiredFeatures, ulong optionalFeatures, ulong selectedFeatures, ulong missingRequiredFeatures, ushort availableQueueCount, ushort requiredQueueCount, VirtioDeviceStatusWriteSequence statusWrites, bool isInitialized)
@@ -15,16 +16,46 @@ public readonly struct VirtioDeviceInitializationPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioDeviceInitializationPlanStatus Status { get; }
-    public ulong DeviceFeatures { get; }
-    public ulong RequiredFeatures { get; }
-    public ulong OptionalFeatures { get; }
-    public ulong SelectedFeatures { get; }
-    public ulong MissingRequiredFeatures { get; }
-    public ushort AvailableQueueCount { get; }
-    public ushort RequiredQueueCount { get; }
-    public VirtioDeviceStatusWriteSequence StatusWrites { get; }
-    public bool IsInitialized { get; }
+    public VirtioDeviceInitializationPlanStatus Status
+    {
+        get;
+    }
+    public ulong DeviceFeatures
+    {
+        get;
+    }
+    public ulong RequiredFeatures
+    {
+        get;
+    }
+    public ulong OptionalFeatures
+    {
+        get;
+    }
+    public ulong SelectedFeatures
+    {
+        get;
+    }
+    public ulong MissingRequiredFeatures
+    {
+        get;
+    }
+    public ushort AvailableQueueCount
+    {
+        get;
+    }
+    public ushort RequiredQueueCount
+    {
+        get;
+    }
+    public VirtioDeviceStatusWriteSequence StatusWrites
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioDeviceInitializationPlanStatus.Success;
 
     public static VirtioDeviceInitializationPlanResult Create(VirtioDeviceInitializationPlanStatus status, ulong deviceFeatures, ulong requiredFeatures, ulong optionalFeatures, ulong selectedFeatures, ulong missingRequiredFeatures, ushort availableQueueCount, ushort requiredQueueCount, VirtioDeviceStatusWriteSequence statusWrites)

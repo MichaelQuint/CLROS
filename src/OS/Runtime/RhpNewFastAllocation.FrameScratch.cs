@@ -5,54 +5,27 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-
-
-
-
-
 internal static unsafe partial class RhpNewFastAllocation
 {
 
-
-
-
-
 #if M04_EH_CATALOG_PROBE
 
-
-
-
-
-
-
 #endif
-
-
-
-
-
-
 
     // Fixed caller-owned scratch avoids placing eight 256-byte cleanup records
     // beneath an already large authenticated selector frame. Phase3 serializes
     // this one-shot diagnostic; no callback may re-enter selection.
 #if M04_EH_CATALOG_PROBE
-    private struct FrameScratch { internal fixed ulong Words[512]; }
+    private struct FrameScratch
+    {
+        internal fixed ulong Words[512];
+    }
 #else
-    private struct FrameScratch { internal fixed ulong Words[256]; }
+    private struct FrameScratch
+    {
+        internal fixed ulong Words[256];
+    }
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M04_EH_CATALOG_PROBE
 
@@ -60,431 +33,39 @@ internal static unsafe partial class RhpNewFastAllocation
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M04_EH_CATALOG_PROBE
 
 #else
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M04_EH_CATALOG_PROBE
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M04_EH_CATALOG_PROBE
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #else
 
-
-
-
-
-
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if !M04_EH_CATALOG_PROBE
 
-
-
-
-
-
 #endif
 
 #if M04_EH_CATALOG_PROBE
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #else
 
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if !M04_EH_CATALOG_PROBE
 
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M04_EH_CATALOG_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 }
 #endif

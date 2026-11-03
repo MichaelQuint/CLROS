@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 public static class OSHostSocketWaitModes
 {
     public static bool IsDefined(uint mode)

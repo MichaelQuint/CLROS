@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpTimeWaitTable
 {
     /// <summary>Opaque address/epoch/generation identity, valid only while the
@@ -15,7 +16,10 @@ public static unsafe partial class TcpTimeWaitTable
             Index = index;
         }
 
-        public ushort Index { get; }
+        public ushort Index
+        {
+            get;
+        }
         public bool IsInitialized => Address != 0 && Epoch != 0 && Generation != 0;
     }
 }

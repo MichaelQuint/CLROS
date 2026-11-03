@@ -13,7 +13,13 @@ internal static partial class AcpiRootSdtSnapshotTests
             Bytes = bytes;
         }
 
-        public ulong PhysicalAddress { get; }
-        public byte[] Bytes { get; }
+        public ulong PhysicalAddress
+        {
+            get;
+        }
+        public byte[] Bytes
+        {
+            get;
+        }
     }
 }

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public static class BootPageAllocatorStateInitializer
 {
     public static BootPageAllocatorStateInitResult Initialize(BootPageFreeListPlanResult freeListPlan, ReadOnlySpan<BootPageFreeListNode> nodes)

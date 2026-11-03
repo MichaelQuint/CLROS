@@ -1,6 +1,7 @@
 using OS.Kernel.Diagnostics;
 
 namespace OS.Boot;
+
 public enum UefiExitBootServicesLiveWiringStatus
 {
     ReadyToCallFirmware = 0,

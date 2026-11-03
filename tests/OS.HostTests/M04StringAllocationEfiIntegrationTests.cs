@@ -17,213 +17,6 @@ using OS.Kernel.Memory;
 using OS.Kernel.Runtime;
 using OS.Runtime;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 internal static partial class M04StringAllocationEfiIntegrationTests
 {
@@ -327,7 +120,7 @@ internal static partial class M04StringAllocationEfiIntegrationTests
         string root = HostToolProcess.FindRepositoryRoot(), directory = Scratch(root, "profiles");
         string[] negatives = ["EnableM04StringAllocationBeforeBindProbe", "EnableM04StringAllocationExhaustionProbe", "EnableM04StringAllocationInvalidLengthProbe"];
         string[] all = Chain.Append(Flag).ToArray();
-        string[] conflicts = ["EnableM01OwnedPagingProbe", ..XDocument.Load(Path.Combine(root, "src/OS/OS.csproj")).Descendants().Where(x => x.Name.LocalName.StartsWith("EnableM02", StringComparison.Ordinal)).Select(x => x.Name.LocalName).Distinct(StringComparer.Ordinal), "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM04RhpNewFastBeforeBindFailureProbe", "EnableM04RhpNewFastExhaustionFailureProbe", "EnableM04SzArrayAllocationBeforeBindProbe", "EnableM04SzArrayAllocationExhaustionProbe", "EnableM03MemoryMapCaptureProbe", "EnableM04CheckedReferenceBarrierProbe", "EnableM03FirmwareEntropySeedProbe", "EnableM04TypeManagerModuleRegistrationProbe"];
+        string[] conflicts = ["EnableM01OwnedPagingProbe", .. XDocument.Load(Path.Combine(root, "src/OS/OS.csproj")).Descendants().Where(x => x.Name.LocalName.StartsWith("EnableM02", StringComparison.Ordinal)).Select(x => x.Name.LocalName).Distinct(StringComparer.Ordinal), "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM04RhpNewFastBeforeBindFailureProbe", "EnableM04RhpNewFastExhaustionFailureProbe", "EnableM04SzArrayAllocationBeforeBindProbe", "EnableM04SzArrayAllocationExhaustionProbe", "EnableM03MemoryMapCaptureProbe", "EnableM04CheckedReferenceBarrierProbe", "EnableM03FirmwareEntropySeedProbe", "EnableM04TypeManagerModuleRegistrationProbe"];
         Need(OS.Tooling.ContractAudit.Inspect(root).Count == 0, "complete independent compiler/link/profile identity");
         Need(Chain.Length != 0 && Chain.Distinct(StringComparer.Ordinal).Count() == Chain.Length
             && conflicts.Length != 0 && conflicts.Distinct(StringComparer.Ordinal).Count() == conflicts.Length,
@@ -339,10 +132,10 @@ internal static partial class M04StringAllocationEfiIntegrationTests
                 Need(conditions.Contains("'$(" + flag + ")' == 'true' and '$(" + conflict + ")' == 'true'") && conditions.Contains("'$(" + conflict + ")' == 'true' and '$(" + flag + ")' == 'true'"), "both reciprocal conflicts " + flag + "/" + conflict);
             }
 
-        List<string[]> invalid = [..Chain.Select(missing => all.Where(x => x != missing).ToArray()), ..conflicts.Select(x => all.Append(x).ToArray()), ..negatives.Select(x => new[] { x })];
+        List<string[]> invalid = [.. Chain.Select(missing => all.Where(x => x != missing).ToArray()), .. conflicts.Select(x => all.Append(x).ToArray()), .. negatives.Select(x => new[] { x })];
         for (int i = 0; i < negatives.Length; i++)
             for (int j = i + 1; j < negatives.Length; j++)
-                invalid.Add([..all, negatives[i], negatives[j]]);
+                invalid.Add([.. all, negatives[i], negatives[j]]);
         int id = 0;
         foreach (string[] flags in invalid)
             foreach (bool runner in new[]
@@ -353,14 +146,14 @@ internal static partial class M04StringAllocationEfiIntegrationTests
 
             )
             {
-                Result r = Command([..(runner ? new[] { "qemu", "smoke" } : new[] { "efi", "build" }), ..(runner ? new[] { "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi" } : new[] { "-PreflightOnly", "-LogPath", Path.Combine(directory, "preflight-" + id + ".log") }), ..flags.Select(x => "-" + x)]);
+                Result r = Command([.. (runner ? new[] { "qemu", "smoke" } : new[] { "efi", "build" }), .. (runner ? new[] { "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi" } : new[] { "-PreflightOnly", "-LogPath", Path.Combine(directory, "preflight-" + id + ".log") }), .. flags.Select(x => "-" + x)]);
                 Save(Path.Combine(directory, (id++).ToString()), r);
                 Need(r.Code != 0 && (r.Output.Contains("m04_", StringComparison.Ordinal) || (flags.Contains("EnableM03FirmwareEntropySeedProbe", StringComparer.Ordinal) && r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LoadedImageStackProbe", StringComparison.Ordinal)) || (flags.Contains("EnableM03MemoryMapCaptureProbe", StringComparer.Ordinal) && r.Output.Contains("m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe", StringComparison.Ordinal))), "explicit profile rejection " + string.Join(',', flags) + " " + r.Output);
             }
 
         foreach (string[] flags in negatives.Select(x => all.Append(x).ToArray()).Prepend(all))
         {
-            Result r = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..flags.Select(x => "-" + x)]);
+            Result r = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", .. flags.Select(x => "-" + x)]);
             Save(Path.Combine(directory, (id++).ToString()), r);
             Need(r.Code == 0, r.Output);
             Need(r.Output.Contains("TEST_FAIL m04.009", StringComparison.Ordinal), "negative profile keeps generic failure classification");
@@ -384,7 +177,7 @@ internal static partial class M04StringAllocationEfiIntegrationTests
         )
         {
             string directory = Scratch(root, "artifact-" + lane.Item1), artifact = Path.Combine(root, "artifacts/efi/issue528-tests-" + Guid.NewGuid().ToString("N") + ".EFI");
-            Result r = Command(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), ..lane.Item2.Select(x => "-" + x)]);
+            Result r = Command(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), .. lane.Item2.Select(x => "-" + x)]);
             Save(directory, r);
             Need(r.Code == 0 && r.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), r.Output);
             foreach (string suffix in new[]
@@ -508,7 +301,15 @@ internal static partial class M04StringAllocationEfiIntegrationTests
             Need(payloads == 1, "sole RhNewString attribute payload per import/export");
             byte[] il = method.RelativeVirtualAddress == 0 ? [] : pe.GetMethodBody(method.RelativeVirtualAddress).GetILBytes()!;
             Need(import || il.Length > 0, "initialized export IL");
-            evidence.Add(new { Name = "RhNewString", Owner = owner, Rva = method.RelativeVirtualAddress, Signature = Convert.ToHexString(md.GetBlobBytes(method.Signature)), IL = Convert.ToHexString(il), Payloads = payloads });
+            evidence.Add(new
+            {
+                Name = "RhNewString",
+                Owner = owner,
+                Rva = method.RelativeVirtualAddress,
+                Signature = Convert.ToHexString(md.GetBlobBytes(method.Signature)),
+                IL = Convert.ToHexString(il),
+                Payloads = payloads
+            });
         }
 
         Need(md.TypeDefinitions.Any(h => FullType(h) == "System.Runtime.RuntimeImports") == enabled, "no unsupported import dependency in disabled closures");
@@ -535,7 +336,15 @@ internal static partial class M04StringAllocationEfiIntegrationTests
                 Need(il.Length > 0, "actual String method body " + name);
             if (name == "Ctor")
                 Need(md.GetBlobBytes(m.Signature).AsSpan().SequenceEqual(new byte[] { 0, 2, 0x0E, 3, 8 }) && (m.ImplAttributes & System.Reflection.MethodImplAttributes.NoInlining) != 0, "matching static String Ctor remapping contract");
-            evidence.Add(new { Name = name, Owner = "System.String", Rva = m.RelativeVirtualAddress, Signature = Convert.ToHexString(md.GetBlobBytes(m.Signature)), IL = Convert.ToHexString(il), Instructions = DecodeIl(il) });
+            evidence.Add(new
+            {
+                Name = name,
+                Owner = "System.String",
+                Rva = m.RelativeVirtualAddress,
+                Signature = Convert.ToHexString(md.GetBlobBytes(m.Signature)),
+                IL = Convert.ToHexString(il),
+                Instructions = DecodeIl(il)
+            });
         }
 
         Need(md.TypeDefinitions.Any(h => FullType(h) == "OS.Runtime.RhpNewFastAllocation") == enabled, "actual enabled adapter presence/default absence");
@@ -566,11 +375,26 @@ internal static partial class M04StringAllocationEfiIntegrationTests
                     Need(target.Kind == HandleKind.MethodDefinition && FullType(md.GetMethodDefinition((MethodDefinitionHandle)target).GetDeclaringType()) == "System.String" && md.GetString(md.GetMethodDefinition((MethodDefinitionHandle)target).Name) == ".ctor", "genuine compiler-created String constructor");
                 }
 
-                evidence.Add(new { Name = name, Owner = "OS.Runtime.RhpNewFastAllocation", Rva = m.RelativeVirtualAddress, IL = Convert.ToHexString(il), Instructions = instructions });
+                evidence.Add(new
+                {
+                    Name = name,
+                    Owner = "OS.Runtime.RhpNewFastAllocation",
+                    Rva = m.RelativeVirtualAddress,
+                    IL = Convert.ToHexString(il),
+                    Instructions = instructions
+                });
             }
         }
 
-        File.WriteAllText(Path.Combine(directory, "managed-string-metadata.json"), System.Text.Json.JsonSerializer.Serialize(new { Assembly = "OS", AssemblyReferences = 0, Enabled = enabled, Mvid = md.GetGuid(md.GetModuleDefinition().Mvid), Methods = evidence, GuestAccepted = false }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(directory, "managed-string-metadata.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Assembly = "OS",
+            AssemblyReferences = 0,
+            Enabled = enabled,
+            Mvid = md.GetGuid(md.GetModuleDefinition().Mvid),
+            Methods = evidence,
+            GuestAccepted = false
+        }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
     }
 
     private static IlInstruction[] DecodeIl(byte[] bytes)
@@ -610,7 +434,7 @@ internal static partial class M04StringAllocationEfiIntegrationTests
         byte[] image = File.ReadAllBytes(Path.Combine(directory, "image.EFI"));
         using var reader = new PEReader(new MemoryStream(image));
         var header = reader.PEHeaders.PEHeader!;
-        Need(header.Magic == PEMagic.PE32Plus && reader.PEHeaders.SectionHeaders.Length is> 0 and <= 8, "bounded x64 image sections");
+        Need(header.Magic == PEMagic.PE32Plus && reader.PEHeaders.SectionHeaders.Length is > 0 and <= 8, "bounded x64 image sections");
         byte[] At(ulong rva, int bytes)
         {
             var sections = reader.PEHeaders.SectionHeaders.Where(s => s.VirtualAddress >= 0 && s.VirtualSize >= 0 && s.SizeOfRawData >= 0 && rva >= (ulong)s.VirtualAddress && rva + (ulong)bytes <= (ulong)s.VirtualAddress + (ulong)s.VirtualSize && rva + (ulong)bytes <= (ulong)s.VirtualAddress + (ulong)s.SizeOfRawData).ToArray();
@@ -624,7 +448,11 @@ internal static partial class M04StringAllocationEfiIntegrationTests
         Result dis = Process(root, llvm, ["--disassemble", "--reloc", "--x86-asm-syntax=intel", Path.Combine(directory, "OS.obj")]);
         Save(Path.Combine(directory, "disassembly"), dis);
         Need(dis.Code == 0, dis.Output);
-        File.WriteAllText(Path.Combine(directory, "disassembler.json"), System.Text.Json.JsonSerializer.Serialize(new { Path = llvm, Sha256 = Hash(File.ReadAllBytes(llvm)) }));
+        File.WriteAllText(Path.Combine(directory, "disassembler.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Path = llvm,
+            Sha256 = Hash(File.ReadAllBytes(llvm))
+        }));
         string Body(string name)
         {
             var m = Regex.Match(dis.Output, @"^[0-9a-f]+ <" + Regex.Escape(name) + @">:\r?\n(.*?)(?=^[0-9a-f]+ <|\z)", RegexOptions.Multiline | RegexOptions.Singleline);
@@ -762,7 +590,12 @@ internal static partial class M04StringAllocationEfiIntegrationTests
         {
             string symbol = prefix + name;
             Need(symbols.ContainsKey(symbol), "actual native String method " + name);
-            code.Add(new { Name = name, Rva = symbols[symbol], Body = Body(symbol) });
+            code.Add(new
+            {
+                Name = name,
+                Rva = symbols[symbol],
+                Body = Body(symbol)
+            });
         }
 
         if (lane == "invalid-length")
@@ -773,7 +606,12 @@ internal static partial class M04StringAllocationEfiIntegrationTests
             Need(operand.Count == 1 && operand[0].Groups[1].Value == mtName, "direct helper genuine String token");
             string run = Body(prefix + runName);
             Need(Regex.IsMatch(run, @"\bmovabs\s+rcx, (?:0x100000001|4294967297)\b") && run.Contains(prefix + "RawString", StringComparison.Ordinal), "actual 64-bit invalid-length constant at call site");
-            code.Add(new { Name = "RawString", Rva = symbols[prefix + "RawString"], Body = body });
+            code.Add(new
+            {
+                Name = "RawString",
+                Rva = symbols[prefix + "RawString"],
+                Body = body
+            });
         }
         else
         {
@@ -794,24 +632,48 @@ internal static partial class M04StringAllocationEfiIntegrationTests
             {
                 string b = Body(prefix + name);
                 Need(Regex.IsMatch(b, name == "StringLength" ? @"\bmov\s+eax, dword ptr \[rcx \+ 0x8\]" : @"\bmovzx\s+eax, word ptr \[.*0xc\]"), "actual compiled String field offset " + name);
-                code.Add(new { Name = name, Rva = symbols[prefix + name], Body = b });
+                code.Add(new
+                {
+                    Name = name,
+                    Rva = symbols[prefix + name],
+                    Body = b
+                });
             }
 
-            code.Add(new { Name = "Ctor", Rva = symbols[ctor], Body = cb });
+            code.Add(new
+            {
+                Name = "Ctor",
+                Rva = symbols[ctor],
+                Body = cb
+            });
         }
 
-        File.WriteAllText(Path.Combine(directory, "linked-string-routes.json"), System.Text.Json.JsonSerializer.Serialize(new { PreferredBase = header.ImageBase, Lane = lane, StringSymbol = mtName, StringRva = mt, RelatedObjectSymbol = objectName, RelatedObjectRva = related, StringPrefix = Convert.ToHexString(raw), ObjectPrefix = Convert.ToHexString(objectPrefix), Dir64Rva = mt + 8, ExportRva = symbols["RhNewString"], Code = code, GuestAccepted = false }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(directory, "linked-string-routes.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            PreferredBase = header.ImageBase,
+            Lane = lane,
+            StringSymbol = mtName,
+            StringRva = mt,
+            RelatedObjectSymbol = objectName,
+            RelatedObjectRva = related,
+            StringPrefix = Convert.ToHexString(raw),
+            ObjectPrefix = Convert.ToHexString(objectPrefix),
+            Dir64Rva = mt + 8,
+            ExportRva = symbols["RhNewString"],
+            Code = code,
+            GuestAccepted = false
+        }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
     }
 
     [HostTest("m04.009.efi strongest full transcript and negatives", HostLane.Fast, 3)]
     private static void TestTranscript()
     {
         string root = HostToolProcess.FindRepositoryRoot(), directory = Scratch(root, "transcript");
-        Result dry = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..Chain.Append(Flag).Select(x => "-" + x)]);
+        Result dry = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", .. Chain.Append(Flag).Select(x => "-" + x)]);
         Save(Path.Combine(directory, "dryrun"), dry);
         Need(dry.Code == 0, dry.Output);
         string[] chain = dry.Output.Replace("\r", "").Split('\n').Single(x => x.StartsWith("ORDERED_MARKERS ", StringComparison.Ordinal))[16..].Split(';');
-        List<string> lines = ["TEST_START efi.main", ..chain.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", ..chain.Skip(6)];
+        List<string> lines = ["TEST_START efi.main", .. chain.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", .. chain.Skip(6)];
         const string identity = "allocatorState=0x0000000000100000 nodes=0x0000000000100040 heapState=0x0000000000101000 ledger=0x0000000000102000 parentIndex=4 parentStart=0x0000000000900000 parentEnd=0x0000000000902000 backing=0x0000000000900000 retainedStart=0x0000000000900000 retainedEnd=0x0000000000901000";
         lines[lines.IndexOf("M04_HEAP_PAGE_BOUND")] += " " + identity;
         lines[lines.IndexOf("M04_HEAP_PAGE_RETAINED")] += " checkpoint=beforeBootPlan " + identity;
@@ -880,7 +742,7 @@ internal static partial class M04StringAllocationEfiIntegrationTests
             cases.Add((good + tail, false));
         cases.Add((good.Replace("\r\n", "\n", StringComparison.Ordinal), false));
         cases.Add((good[..^1], false));
-        foreach ((string from, string to)in new[]
+        foreach ((string from, string to) in new[]
         {
             ("scalarWidth=1", "scalarWidth=8"),
             ("length=3", "length=2"),
@@ -917,7 +779,7 @@ internal static partial class M04StringAllocationEfiIntegrationTests
         for (int i = 0; i < cases.Count; i++)
             File.WriteAllText(manifest[i].Path, cases[i].Text, new UTF8Encoding(false));
         string malformed = Path.Combine(directory, "malformed-utf8.log");
-        File.WriteAllBytes(malformed, [0xC0, 0xAF, ..Encoding.ASCII.GetBytes(good)]);
+        File.WriteAllBytes(malformed, [0xC0, 0xAF, .. Encoding.ASCII.GetBytes(good)]);
         manifest = [..manifest, new
         {
             Path = malformed,
@@ -977,7 +839,13 @@ internal static partial class M04StringAllocationEfiIntegrationTests
             start.ArgumentList.Add(a);
         string evidence = Scratch(root, "child-command");
         DateTime begun = DateTime.UtcNow;
-        File.WriteAllText(Path.Combine(evidence, "command.json"), System.Text.Json.JsonSerializer.Serialize(new { Executable = executable, Arguments = arguments, WorkingDirectory = root, StartedUtc = begun }));
+        File.WriteAllText(Path.Combine(evidence, "command.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Executable = executable,
+            Arguments = arguments,
+            WorkingDirectory = root,
+            StartedUtc = begun
+        }));
         using System.Diagnostics.Process p = System.Diagnostics.Process.Start(start)!;
         Task<string> stdout = p.StandardOutput.ReadToEndAsync(), stderr = p.StandardError.ReadToEndAsync();
         bool timeout = !p.WaitForExit(900000);
@@ -990,7 +858,13 @@ internal static partial class M04StringAllocationEfiIntegrationTests
         Task.WaitAll(stdout, stderr);
         File.WriteAllText(Path.Combine(evidence, "stdout.log"), stdout.Result, new UTF8Encoding(false));
         File.WriteAllText(Path.Combine(evidence, "stderr.log"), stderr.Result, new UTF8Encoding(false));
-        File.WriteAllText(Path.Combine(evidence, "result.json"), System.Text.Json.JsonSerializer.Serialize(new { NativeExit = p.ExitCode, TimedOut = timeout, StartedUtc = begun, EndedUtc = DateTime.UtcNow }));
+        File.WriteAllText(Path.Combine(evidence, "result.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            NativeExit = p.ExitCode,
+            TimedOut = timeout,
+            StartedUtc = begun,
+            EndedUtc = DateTime.UtcNow
+        }));
         if (timeout)
             throw new TimeoutException(executable + " evidence=" + evidence);
         return new(p.ExitCode, stdout.Result + stderr.Result);

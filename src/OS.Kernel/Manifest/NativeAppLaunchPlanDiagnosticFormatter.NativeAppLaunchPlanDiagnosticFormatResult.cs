@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Std.Text;
 
 namespace OS.Manifest;
+
 public readonly struct NativeAppLaunchPlanDiagnosticFormatResult
 {
     private const uint InitializedFlag = 1;
@@ -15,12 +16,30 @@ public readonly struct NativeAppLaunchPlanDiagnosticFormatResult
         Flags = flags;
     }
 
-    public NativeAppLaunchPlanDiagnosticFormatStatus Status { get; }
-    public NativeAppLaunchStatus LaunchStatus { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
-    public uint Flags { get; }
+    public NativeAppLaunchPlanDiagnosticFormatStatus Status
+    {
+        get;
+    }
+    public NativeAppLaunchStatus LaunchStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == NativeAppLaunchPlanDiagnosticFormatStatus.Success && RequiredBytes > 0 && BytesWritten == RequiredBytes && RequiredBytes <= AvailableBytes;
 

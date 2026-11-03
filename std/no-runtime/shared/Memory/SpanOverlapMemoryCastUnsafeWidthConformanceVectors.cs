@@ -1,4 +1,5 @@
 namespace OS.Std.Memory;
+
 public static class SpanOverlapMemoryCastUnsafeWidthConformanceVectors
 {
     public const int SliceVectorCount = 4;

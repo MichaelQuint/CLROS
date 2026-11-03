@@ -1,6 +1,7 @@
 using OS.Std.Hash;
 
 namespace OS.Manifest;
+
 public static unsafe partial class LinuxElfPackage
 {
     /// <summary>Borrowed offsets into one validated, retained immutable package.

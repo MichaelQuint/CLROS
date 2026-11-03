@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioNetTransmitReadinessPlanner
 {
     public const bool RequiresQueueSetupExecution = true;

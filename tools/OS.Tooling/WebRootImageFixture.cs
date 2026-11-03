@@ -163,7 +163,7 @@ public static partial class WebRootImageFixture
     {
         ImageInventory actual = ReadBack(imagePath);
         Need(actual.Sha256 == expected.FinalSha256 && actual.PartitionFirstLba == expected.PartitionFirstLba && actual.PartitionLastLba == expected.PartitionLastLba, "image_identity");
-        DiskFile[] files = [..expected.PreservedFiles, ..expected.WebRootFiles, expected.Sentinel];
+        DiskFile[] files = [.. expected.PreservedFiles, .. expected.WebRootFiles, expected.Sentinel];
         Need(actual.Files.Length == files.Length && files.All(file => actual.Files.Any(x => SameFile(x, file))), "image_inventory");
     }
 
@@ -207,7 +207,7 @@ public static partial class WebRootImageFixture
             {
                 _ = new Reader(disk);
             }
-            catch (ToolFailure failure)when (failure.Reason == expected)
+            catch (ToolFailure failure) when (failure.Reason == expected)
             {
                 rejected = true;
             }
@@ -298,7 +298,7 @@ public static partial class WebRootImageFixture
         }
 
         int changed = 0, at = 0;
-        foreach (var(offset, value)in edits.OrderBy(e => e.Key))
+        foreach (var (offset, value) in edits.OrderBy(e => e.Key))
         {
             Need(actual.AsSpan(at, offset - at).SequenceEqual(original.AsSpan(at, offset - at)) && actual[offset] == value, "fault_mutation_scope");
             if (actual[offset] != original[offset])
@@ -320,7 +320,7 @@ public static partial class WebRootImageFixture
             {
                 _ = new Reader(actual);
             }
-            catch (ToolFailure rejected)when (rejected.Reason == failure)
+            catch (ToolFailure rejected) when (rejected.Reason == failure)
             {
                 observed = true;
             }
@@ -353,7 +353,11 @@ public static partial class WebRootImageFixture
         foreach (string part in parts[..^1])
             directory = directory.AddDirectory(part);
         Need(!directory.Children.Any(x => x.Name.Equals(parts[^1], StringComparison.OrdinalIgnoreCase)), "path_collision");
-        directory.Children.Add(new(parts[^1], false) { Parent = directory, Bytes = bytes });
+        directory.Children.Add(new(parts[^1], false)
+        {
+            Parent = directory,
+            Bytes = bytes
+        });
     }
 
     private static void ValidatePath(string relative, bool directory)

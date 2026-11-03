@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class Ipv4NeighborRoutePlanner
 {
     public static Ipv4NeighborRoutePlanStatus TryPlan(ref ArpNeighborCache cache, MacAddress localMac, Ipv4Address localAddress, Ipv4Address targetAddress, Span<byte> arpRequestFrame, out Ipv4NeighborRoutePlanResult result)

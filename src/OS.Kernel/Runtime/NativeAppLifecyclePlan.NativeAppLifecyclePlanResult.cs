@@ -3,6 +3,7 @@ using OS.Manifest;
 using OS.Pal;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAppLifecyclePlanResult
 {
     private NativeAppLifecyclePlanResult(NativeAppLifecyclePlanStatus status, NativeAppInvocationPlanStatus invocationStatus, OSHostStatus logStatus, bool isInitialized, NativeAppLifecyclePlan plan)
@@ -14,11 +15,26 @@ public readonly struct NativeAppLifecyclePlanResult
         Plan = plan;
     }
 
-    public NativeAppLifecyclePlanStatus Status { get; }
-    public NativeAppInvocationPlanStatus InvocationStatus { get; }
-    public OSHostStatus LogStatus { get; }
-    public bool IsInitialized { get; }
-    public NativeAppLifecyclePlan Plan { get; }
+    public NativeAppLifecyclePlanStatus Status
+    {
+        get;
+    }
+    public NativeAppInvocationPlanStatus InvocationStatus
+    {
+        get;
+    }
+    public OSHostStatus LogStatus
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public NativeAppLifecyclePlan Plan
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeAppLifecyclePlanStatus.Success;
 
     public static NativeAppLifecyclePlanResult Success(NativeAppInvocationPlanStatus invocationStatus, OSHostStatus logStatus, NativeAppLifecyclePlan plan)

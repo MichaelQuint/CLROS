@@ -93,7 +93,8 @@ public static class NativeAotHelloGuest
         BinaryPrimitives.WriteUInt32LittleEndian(package.AsSpan(16), 64);
         BinaryPrimitives.WriteUInt32LittleEndian(package.AsSpan(20), (uint)manifest.Length);
         BinaryPrimitives.WriteUInt64LittleEndian(package.AsSpan(24), (ulong)elf.Length);
-        manifest.CopyTo(package, 64); elf.CopyTo(package, 64 + manifest.Length);
+        manifest.CopyTo(package, 64);
+        elf.CopyTo(package, 64 + manifest.Length);
         RequirePackage(package);
         RequireCurrentSources(root);
         return package;
@@ -127,7 +128,8 @@ public static class NativeAotHelloGuest
         Require(path.StartsWith(artifacts, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal),
             "hello_output_outside_artifacts");
         RequireOutputParent(path, artifacts.TrimEnd(Path.DirectorySeparatorChar));
-        if (File.Exists(path) || Directory.Exists(path)) throw new IOException("hello_output_exists");
+        if (File.Exists(path) || Directory.Exists(path))
+            throw new IOException("hello_output_exists");
         byte[] package = CreatePackage(root, evidenceRoot);
         string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         bool ownsTemporary = false;
@@ -137,7 +139,8 @@ public static class NativeAotHelloGuest
             using (FileStream stream = new(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 ownsTemporary = true;
-                stream.Write(package); stream.Flush(flushToDisk: true);
+                stream.Write(package);
+                stream.Flush(flushToDisk: true);
             }
             RequireCurrentSources(root);
             RequireOutputParent(path, artifacts.TrimEnd(Path.DirectorySeparatorChar));
@@ -152,9 +155,11 @@ public static class NativeAotHelloGuest
         StringComparison comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         for (DirectoryInfo? directory = new(Path.GetDirectoryName(path)!); directory is not null; directory = directory.Parent)
         {
-            if (!directory.Exists) throw new DirectoryNotFoundException("hello_output_parent_missing");
+            if (!directory.Exists)
+                throw new DirectoryNotFoundException("hello_output_parent_missing");
             Require((directory.Attributes & FileAttributes.ReparsePoint) == 0, "hello_output_reparse");
-            if (string.Equals(directory.FullName, artifacts, comparison)) return;
+            if (string.Equals(directory.FullName, artifacts, comparison))
+                return;
         }
         throw new InvalidDataException("hello_output_outside_artifacts");
     }
@@ -179,6 +184,7 @@ public static class NativeAotHelloGuest
     private static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static void Require(bool condition, string reason)
     {
-        if (!condition) throw new InvalidDataException(reason);
+        if (!condition)
+            throw new InvalidDataException(reason);
     }
 }

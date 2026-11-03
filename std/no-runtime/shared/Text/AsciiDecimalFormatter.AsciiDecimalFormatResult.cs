@@ -1,6 +1,7 @@
 using OS.Std;
 
 namespace OS.Std.Text;
+
 public readonly struct AsciiDecimalFormatResult
 {
     private AsciiDecimalFormatResult(bool isInitialized, AsciiDecimalFormatStatus status, int destinationLength, int bytesWritten, int requiredBytes)
@@ -12,11 +13,26 @@ public readonly struct AsciiDecimalFormatResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool IsInitialized { get; }
-    public AsciiDecimalFormatStatus Status { get; }
-    public int DestinationLength { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public AsciiDecimalFormatStatus Status
+    {
+        get;
+    }
+    public int DestinationLength
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == AsciiDecimalFormatStatus.Success && RequiredBytes > 0 && BytesWritten == RequiredBytes && RequiredBytes <= DestinationLength;
 
     public static AsciiDecimalFormatResult Success(int destinationLength, int bytesWritten)

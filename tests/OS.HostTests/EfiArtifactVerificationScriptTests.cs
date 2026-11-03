@@ -111,7 +111,7 @@ internal static partial class EfiArtifactVerificationScriptTests
             }
             catch
             {
-            // Cleanup failure must not conceal verifier contract results.
+                // Cleanup failure must not conceal verifier contract results.
             }
 
             DeleteSchemaThreeFixture();
@@ -505,7 +505,7 @@ internal static partial class EfiArtifactVerificationScriptTests
         ProcessResult missingPropertyResult = RunVerifier(missingPropertyArtifact);
         string sourceHashArtifact = WriteFixture(tempRoot, "serializer-source-hash", CreateValidPe());
         LinkEvidencePaths sourceHashPaths = WriteLinkEvidence(sourceHashArtifact);
-        MutateEvidence(sourceHashPaths.EvidencePath, evidence => evidence["serializerGeneratorProgramSha256"] = new string ('0', 64));
+        MutateEvidence(sourceHashPaths.EvidencePath, evidence => evidence["serializerGeneratorProgramSha256"] = new string('0', 64));
         ProcessResult sourceHashResult = RunVerifier(sourceHashArtifact);
         string closureInputArtifact = WriteFixture(tempRoot, "source-closure-input-mutated", CreateValidPe());
         LinkEvidencePaths closureInputPaths = WriteLinkEvidence(closureInputArtifact);
@@ -525,7 +525,7 @@ internal static partial class EfiArtifactVerificationScriptTests
         ProcessResult missingVerifierSourceResult = RunVerifier(missingVerifierSourceArtifact);
         string solutionHashArtifact = WriteFixture(tempRoot, "solution-hash-wrong", CreateValidPe());
         LinkEvidencePaths solutionHashPaths = WriteLinkEvidence(solutionHashArtifact);
-        MutateEvidence(solutionHashPaths.EvidencePath, evidence => evidence["solutionSha256"] = new string ('0', 64));
+        MutateEvidence(solutionHashPaths.EvidencePath, evidence => evidence["solutionSha256"] = new string('0', 64));
         ProcessResult solutionHashResult = RunVerifier(solutionHashArtifact);
         string malformedNumberArtifact = WriteFixture(tempRoot, "serializer-object-size-malformed", CreateValidPe());
         LinkEvidencePaths malformedNumberPaths = WriteLinkEvidence(malformedNumberArtifact);
@@ -568,11 +568,11 @@ internal static partial class EfiArtifactVerificationScriptTests
         ProcessResult missingDotnetPropertyResult = RunVerifier(missingDotnetPropertyArtifact);
         string dotnetHashArtifact = WriteFixture(tempRoot, "dotnet-host-hash-wrong", CreateValidPe());
         LinkEvidencePaths dotnetHashPaths = WriteLinkEvidence(dotnetHashArtifact);
-        MutateEvidence(dotnetHashPaths.EvidencePath, evidence => evidence["dotnetHostSha256"] = new string ('0', 64));
+        MutateEvidence(dotnetHashPaths.EvidencePath, evidence => evidence["dotnetHostSha256"] = new string('0', 64));
         ProcessResult dotnetHashResult = RunVerifier(dotnetHashArtifact);
         string windowsSdkHashArtifact = WriteFixture(tempRoot, "windows-sdk-hash-wrong", CreateValidPe());
         LinkEvidencePaths windowsSdkHashPaths = WriteLinkEvidence(windowsSdkHashArtifact);
-        MutateEvidence(windowsSdkHashPaths.EvidencePath, evidence => evidence["windowsSdkLibrarySha256"] = new string ('0', 64));
+        MutateEvidence(windowsSdkHashPaths.EvidencePath, evidence => evidence["windowsSdkLibrarySha256"] = new string('0', 64));
         ProcessResult windowsSdkHashResult = RunVerifier(windowsSdkHashArtifact);
         string ilCompilerVersionArtifact = WriteFixture(tempRoot, "ilcompiler-version-wrong", CreateValidPe());
         LinkEvidencePaths ilCompilerVersionPaths = WriteLinkEvidence(ilCompilerVersionArtifact);
@@ -580,7 +580,7 @@ internal static partial class EfiArtifactVerificationScriptTests
         ProcessResult ilCompilerVersionResult = RunVerifier(ilCompilerVersionArtifact);
         string runtimeListHashArtifact = WriteFixture(tempRoot, "runtime-list-hash-wrong", CreateValidPe());
         LinkEvidencePaths runtimeListHashPaths = WriteLinkEvidence(runtimeListHashArtifact);
-        MutateEvidence(runtimeListHashPaths.EvidencePath, evidence => evidence["runtimeListSha256"] = new string ('0', 64));
+        MutateEvidence(runtimeListHashPaths.EvidencePath, evidence => evidence["runtimeListSha256"] = new string('0', 64));
         ProcessResult runtimeListHashResult = RunVerifier(runtimeListHashArtifact);
         string generatedUtcArtifact = WriteFixture(tempRoot, "generated-utc-malformed", CreateValidPe());
         LinkEvidencePaths generatedUtcPaths = WriteLinkEvidence(generatedUtcArtifact);
@@ -704,7 +704,7 @@ internal static partial class EfiArtifactVerificationScriptTests
         passed &= EvidenceMutationFails(tempRoot, "restore-archive-hash", evidence =>
         {
             JsonObject first = GetEvidenceArray(evidence, "restoreArchiveInputs")[0]!.AsObject();
-            first["sha256"] = new string ('0', 64);
+            first["sha256"] = new string('0', 64);
         }, "restore_archive_input_hash_mismatch");
         passed &= EvidenceMutationFails(tempRoot, "pinned-restore-source-count", evidence => GetEvidenceArray(evidence, "pinnedRestoreSourceInputs").RemoveAt(0), "pinned_restore_source_input_count_mismatch");
         passed &= EvidenceMutationFails(tempRoot, "pinned-restore-source-order", evidence => SwapArrayEntries(GetEvidenceArray(evidence, "pinnedRestoreSourceInputs"), 0, 1), "pinned_restore_source_input_set_mismatch");
@@ -716,7 +716,7 @@ internal static partial class EfiArtifactVerificationScriptTests
         passed &= EvidenceMutationFails(tempRoot, "pinned-restore-source-hash", evidence =>
         {
             JsonObject first = GetEvidenceArray(evidence, "pinnedRestoreSourceInputs")[0]!.AsObject();
-            first["sha256"] = new string ('0', 64);
+            first["sha256"] = new string('0', 64);
         }, "pinned_restore_source_input_hash_mismatch");
         passed &= EvidenceMutationFails(tempRoot, "generated-restore-order", evidence => SwapArrayEntries(GetEvidenceArray(evidence, "restoreClosureInputs"), 0, 1), "restore_closure_input_set_mismatch");
         passed &= EvidenceMutationFails(tempRoot, "restore-closure-path-traversal", evidence =>
@@ -751,12 +751,12 @@ internal static partial class EfiArtifactVerificationScriptTests
         passed &= EvidenceMutationFails(tempRoot, "package-tree-hash", evidence =>
         {
             JsonObject first = GetEvidenceArray(evidence, "packages")[0]!.AsObject();
-            first["aggregateSha256"] = new string ('0', 64);
+            first["aggregateSha256"] = new string('0', 64);
         }, "package_tree_contract_mismatch");
         passed &= EvidenceMutationFails(tempRoot, "package-metadata-hash", evidence =>
         {
             JsonObject first = GetEvidenceArray(evidence, "packages")[0]!.AsObject();
-            first["metadataSha256"] = new string ('0', 64);
+            first["metadataSha256"] = new string('0', 64);
         }, "package_metadata_hash_mismatch");
         passed &= TestPackageMetadataMutation(tempRoot);
         passed &= TestPackageFileMutation(tempRoot);
@@ -764,7 +764,7 @@ internal static partial class EfiArtifactVerificationScriptTests
         passed &= EvidenceMutationFails(tempRoot, "package-build-input", evidence =>
         {
             JsonObject first = GetEvidenceArray(evidence, "packageBuildClosureInputs")[0]!.AsObject();
-            first["sha256"] = new string ('0', 64);
+            first["sha256"] = new string('0', 64);
         }, "package_build_closure_input_hash_mismatch");
         passed &= EvidenceMutationFails(tempRoot, "active-package-import-graph", evidence =>
         {
@@ -1147,7 +1147,7 @@ internal static partial class EfiArtifactVerificationScriptTests
                 File.CreateSymbolicLink(authorityPath, backingPath);
                 linkCreated = true;
             }
-            catch (Exception ex)when (ex is UnauthorizedAccessException || ex is PlatformNotSupportedException || ex is IOException)
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is PlatformNotSupportedException || ex is IOException)
             {
                 Console.WriteLine("EFI_ARTIFACT_REPARSE_TEST skipped=" + ex.GetType().Name + " surface=" + surface);
                 return true;
@@ -1185,7 +1185,7 @@ internal static partial class EfiArtifactVerificationScriptTests
                 File.CreateSymbolicLink(sourcePath, backingPath);
                 linkCreated = true;
             }
-            catch (Exception ex)when (ex is UnauthorizedAccessException || ex is PlatformNotSupportedException || ex is IOException)
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is PlatformNotSupportedException || ex is IOException)
             {
                 Console.WriteLine("EFI_ARTIFACT_REPARSE_TEST skipped=" + ex.GetType().Name);
                 return true;
@@ -1267,7 +1267,7 @@ internal static partial class EfiArtifactVerificationScriptTests
             {
                 Directory.CreateSymbolicLink(linkPath, targetPath);
             }
-            catch (Exception ex)when (ex is UnauthorizedAccessException || ex is PlatformNotSupportedException || ex is IOException)
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is PlatformNotSupportedException || ex is IOException)
             {
                 Console.WriteLine("EFI_ARTIFACT_REPARSE_TEST skipped=" + ex.GetType().Name);
                 return true;
@@ -2180,7 +2180,7 @@ internal static partial class EfiArtifactVerificationScriptTests
         }
         catch
         {
-        // Generated fixture cleanup must not conceal verifier results.
+            // Generated fixture cleanup must not conceal verifier results.
         }
     }
 
@@ -2243,7 +2243,7 @@ internal static partial class EfiArtifactVerificationScriptTests
             }
             catch
             {
-            // The timeout remains authoritative.
+                // The timeout remains authoritative.
             }
 
             process.WaitForExit();
@@ -2325,7 +2325,7 @@ internal static partial class EfiArtifactVerificationScriptTests
         }
 
         JsonObject first = inputs[0]?.AsObject() ?? throw new InvalidOperationException("Fixture source-closure entry did not parse.");
-        first["sha256"] = new string ('0', 64);
+        first["sha256"] = new string('0', 64);
         UpdateSourceClosureAggregate(evidence, inputs);
     }
 
@@ -2338,7 +2338,7 @@ internal static partial class EfiArtifactVerificationScriptTests
         }
 
         JsonObject first = inputs[0]?.AsObject() ?? throw new InvalidOperationException("Fixture restore-closure entry did not parse.");
-        first["sha256"] = new string ('0', 64);
+        first["sha256"] = new string('0', 64);
     }
 
     private static void RemoveSourceClosureInput(JsonObject evidence, string relativePath)
@@ -2444,7 +2444,7 @@ internal static partial class EfiArtifactVerificationScriptTests
             }
             catch
             {
-            // A concurrent exit is harmless; TimedOut remains authoritative.
+                // A concurrent exit is harmless; TimedOut remains authoritative.
             }
 
             process.WaitForExit();

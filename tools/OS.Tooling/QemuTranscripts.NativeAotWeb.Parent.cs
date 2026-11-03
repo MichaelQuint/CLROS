@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private static uint WebThreadPoolPages => LinuxThreadProgram.CodePages + LinuxThreadProgram.MetadataPages + LinuxThreadProgram.SwitchPages + LinuxThreadProgram.MaximumWorkers * 18 + LinuxThreadProgram.IrqPages + 1;
@@ -19,7 +20,7 @@ public static partial class QemuTranscripts
 
     public static (WebParentReport Parent, WebReplayReport Leaf) ValidateNativeAotWebCapturePrefix(string root, byte[] package, NativeAotWebProgram program, ReadOnlySpan<byte> raw, WebControlInspection? controls = null, WebSignalRaceSelection? signalRace = null, bool eventOwned = false)
     {
-        Need(raw.Length is> FirmwarePrefixBytes and <= 8 * 1024 * 1024, "web_capture_extent");
+        Need(raw.Length is > FirmwarePrefixBytes and <= 8 * 1024 * 1024, "web_capture_extent");
         ReadOnlySpan<byte> start = "TEST_START m10.004\r\n"u8;
         int at = raw.IndexOf(start);
         Need(at >= FirmwarePrefixBytes && raw[at - 2] == 13 && raw[at - 1] == 10 && raw[(at + start.Length)..].IndexOf(start) < 0, "web_raw_start");
@@ -46,7 +47,7 @@ public static partial class QemuTranscripts
 
     public static WebParentReport InspectNativeAotWebParentForTests(byte[] package, ReadOnlySpan<byte> raw, bool diskStatic = false)
     {
-        Need(raw.Length is> FirmwarePrefixBytes and <= 1024 * 1024 && Convert.ToHexString(SHA256.HashData(raw[..FirmwarePrefixBytes])) == FirmwarePrefixSha256, "web_parent_firmware_prefix");
+        Need(raw.Length is > FirmwarePrefixBytes and <= 1024 * 1024 && Convert.ToHexString(SHA256.HashData(raw[..FirmwarePrefixBytes])) == FirmwarePrefixSha256, "web_parent_firmware_prefix");
         string text = DecodeUtf8(raw[FirmwarePrefixBytes..].ToArray());
         Need(text.EndsWith("\r\n", StringComparison.Ordinal), "web_parent_record_end");
         string[] lines = text[..^2].Split("\r\n", StringSplitOptions.None);
@@ -59,14 +60,14 @@ public static partial class QemuTranscripts
         string[] original = ValidateServiceLoopTail(lines[..parentsEnd], true);
         original = ValidateLinuxStartupTail(original, package, diskStatic: diskStatic);
         original = ValidateLinuxElfTail(original, package);
-        string[] apic = [..original, ..lines[parentsEnd..apicEnd]];
-        int[] varying = [3, 9, 10, 19, 20, 21, 22, 23, 24, ..Enumerable.Range(66, 10), 77, 78, 82, 83, 87, 88, 89, 93, 94, ..QemuContracts.M05ApicSetupMarkers.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_APIC ", StringComparison.Ordinal)).Select(x => x.i)];
+        string[] apic = [.. original, .. lines[parentsEnd..apicEnd]];
+        int[] varying = [3, 9, 10, 19, 20, 21, 22, 23, 24, .. Enumerable.Range(66, 10), 77, 78, 82, 83, 87, 88, 89, 93, 94, .. QemuContracts.M05ApicSetupMarkers.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_APIC ", StringComparison.Ordinal)).Select(x => x.i)];
         ExactInventory(apic, QemuContracts.M05ApicSetupMarkers, varying);
         ValidateAllocator(apic);
         AssertM03OwnedSubsystemRecords(original, AssertCopiedAcpiRecords(original));
         AssertM05PciEnumerationRecords(apic[..QemuContracts.M05PciEnumerationMarkers.Count]);
         AssertM05ApicSetupRecords(apic);
-        string[] nic = [..apic[..QemuContracts.M05PciEnumerationMarkers.Count], ..lines[apicEnd..networkEnd]];
+        string[] nic = [.. apic[..QemuContracts.M05PciEnumerationMarkers.Count], .. lines[apicEnd..networkEnd]];
         var arp = AssertM07ArpReceiveRecords(nic);
         var dma = ReadRecord(lines[networkEnd + 1], "M07_026_ROW", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec");
         var peer = ReadRecord(lines[networkEnd + 2], "M16_011_PEER", "mac:dec", "sent:dec", "received:dec", "start:dec", "end:dec");

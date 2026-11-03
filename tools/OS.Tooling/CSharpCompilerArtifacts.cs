@@ -5,6 +5,12 @@ namespace OS.Tooling;
 public sealed record CSharpCompilerArtifacts(string AssemblyPath, string AssemblySha256,
     string SymbolsPath, string SymbolsSha256)
 {
-    public string? ReceiptPath { get; init; }
-    public string? ReceiptSha256 { get; init; }
+    public string? ReceiptPath
+    {
+        get; init;
+    }
+    public string? ReceiptSha256
+    {
+        get; init;
+    }
 }

@@ -1,6 +1,7 @@
 using OS.Drivers;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct SchedulerTimer
 {
     /// <summary>Observed publication state of the interrupted context. The native

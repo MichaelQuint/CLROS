@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public static class TcpConnectionCloseIpv4FramePlanDiagnosticFormatter
 {
     public static TcpConnectionCloseIpv4FramePlanDiagnosticFormatResult FormatResult(in TcpConnectionCloseIpv4FramePlanResult result, Span<byte> destination)

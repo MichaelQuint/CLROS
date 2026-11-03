@@ -2,6 +2,7 @@ using OS.Std;
 using OS.Std.Text;
 
 namespace OS.Manifest;
+
 public enum NativeManifestParseStatus
 {
     Success = 0,

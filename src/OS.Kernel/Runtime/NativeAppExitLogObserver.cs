@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAppExitLogObserver
 {
     public static NativeAppExitLogObserverResult Observe(OSHostAppLogTable? logTable, Span<byte> recordBuffer)

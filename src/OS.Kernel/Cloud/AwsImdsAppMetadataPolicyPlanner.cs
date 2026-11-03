@@ -1,4 +1,5 @@
 namespace OS.Cloud;
+
 public static class AwsImdsAppMetadataPolicyPlanner
 {
     public static AwsImdsAccessDecision Evaluate(AwsImdsAppRequestKind requestKind, bool supervisorMediated, AwsImdsAppMetadataPolicy policy)
@@ -16,6 +17,7 @@ public static class AwsImdsAppMetadataPolicyPlanner
             AwsImdsAppRequestKind.UserData => AwsImdsAccessDecision.Deny(AwsImdsAccessDecisionStatus.UserDataDisabled, requestKind, supervisorMediated),
             AwsImdsAppRequestKind.IamRoleCredentials when policy.AllowMetadata && policy.AllowIamRoleCredentials => AwsImdsAccessDecision.Allow(requestKind, supervisorMediated),
             AwsImdsAppRequestKind.IamRoleCredentials => AwsImdsAccessDecision.Deny(AwsImdsAccessDecisionStatus.IamCredentialsDisabled, requestKind, supervisorMediated),
-            _ => AwsImdsAccessDecision.Deny(AwsImdsAccessDecisionStatus.UnsupportedRequestKind, requestKind, supervisorMediated)};
+            _ => AwsImdsAccessDecision.Deny(AwsImdsAccessDecisionStatus.UnsupportedRequestKind, requestKind, supervisorMediated)
+        };
     }
 }

@@ -2,6 +2,7 @@
 using Fds = OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxEpollServices
 {
     /// <summary>Stable thread-owned wait borrow of the original epoll description.

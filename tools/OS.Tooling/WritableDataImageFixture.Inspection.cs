@@ -8,6 +8,7 @@ using OS.Std.Time;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class WritableDataImageFixture
 {
     /// <summary>Immutable copied values from actual raw bytes, not the writer's
@@ -31,24 +32,60 @@ public static partial class WritableDataImageFixture
             CheckedGpt = checkedGpt;
         }
 
-        public string RawSha256 { get; }
-        public uint FirstLba { get; }
-        public uint LastLba { get; }
-        public uint FirstFatSector { get; }
-        public uint FirstDataSector { get; }
+        public string RawSha256
+        {
+            get;
+        }
+        public uint FirstLba
+        {
+            get;
+        }
+        public uint LastLba
+        {
+            get;
+        }
+        public uint FirstFatSector
+        {
+            get;
+        }
+        public uint FirstDataSector
+        {
+            get;
+        }
         /// <summary>True only for the original strict64MiB whole-disk inspection.
         /// InspectPartition validates the actual FAT body, not its caller's GPT selection.</summary>
 
-        public bool CheckedGpt { get; }
+        public bool CheckedGpt
+        {
+            get;
+        }
         /// <summary>Hashes ordered: primary GPT header, backup header, entries,
         /// BPB, FSInfo, FAT0, FAT1. GPT hashes alone are not GPT validation.</summary>
 
-        public ReadOnlyCollection<string> StructureHashes { get; }
-        public uint FreeClusters { get; }
-        public uint FsInfoHint { get; }
-        public ReadOnlyCollection<uint> RootClusters { get; }
-        public ReadOnlyCollection<uint> FreeCandidates { get; }
-        public ReadOnlyCollection<Entry> Files { get; }
+        public ReadOnlyCollection<string> StructureHashes
+        {
+            get;
+        }
+        public uint FreeClusters
+        {
+            get;
+        }
+        public uint FsInfoHint
+        {
+            get;
+        }
+        public ReadOnlyCollection<uint> RootClusters
+        {
+            get;
+        }
+        public ReadOnlyCollection<uint> FreeCandidates
+        {
+            get;
+        }
+        public ReadOnlyCollection<Entry> Files
+        {
+            get;
+        }
 
         public Entry? Find(string name) => Files.SingleOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase) || x.ShortAlias.Equals(name, StringComparison.OrdinalIgnoreCase));
     }

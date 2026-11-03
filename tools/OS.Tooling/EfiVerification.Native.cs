@@ -4,6 +4,7 @@ using static OS.Tooling.EfiPeImage;
 using static OS.Tooling.EfiEvidence;
 
 namespace OS.Tooling;
+
 internal sealed partial class EfiVerification
 {
     private ulong Address(string symbol, string owner, string prefix)

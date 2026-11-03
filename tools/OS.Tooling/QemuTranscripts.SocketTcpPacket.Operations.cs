@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     // Borrow one already bounded Ethernet frame. Both socket cases retain their

@@ -1,5 +1,16 @@
 # Diagnostics
 
+[Step1736](../done/step1736.md) adds explicit C# HTTP observation for JSON/health,
+HEAD,64KiB range, complete inventory asset and concurrent asset/JSON. It preserves
+exact body/metadata assertions and separates headers, complete body receipt,
+host-file writing and durable flush. First and ten-warm groups retain raw samples
+and descriptive distributions. Failed bodies retain bounded original prefixes:
+Bytes counts actual network reads, CapturedBytes counts saved bytes, BodyComplete
+requires EOF, and Complete also requires validation. Cancellation joins both
+concurrent requests before sealing.49 focused host checks pass; actual extended
+guest and browser observations remain pending. Existing qualification peers and
+their receipt formats remain unchanged.
+
 [Step1735](../done/step1735.md) repairs the FIFO candidate's conservative stack
 failure and completes its conditional native review. The helper retains full
 lowercase sector hex, ordering, checked I/O, bounded polls, fallback and explicit

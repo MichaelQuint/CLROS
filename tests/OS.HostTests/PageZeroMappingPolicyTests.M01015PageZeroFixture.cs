@@ -15,10 +15,22 @@ using OS.Kernel.Memory;
 
 internal sealed unsafe class M01015PageZeroFixture : IDisposable
 {
-    internal X64PageTableImagePage[] Pages { get; }
-    internal ulong[] Entries { get; }
-    internal X64PageTableEncodingPreconditions Context { get; }
-    internal PhysicalAddress Root { get; }
+    internal X64PageTableImagePage[] Pages
+    {
+        get;
+    }
+    internal ulong[] Entries
+    {
+        get;
+    }
+    internal X64PageTableEncodingPreconditions Context
+    {
+        get;
+    }
+    internal PhysicalAddress Root
+    {
+        get;
+    }
 
     internal M01015PageZeroFixture()
     {

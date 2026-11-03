@@ -2,6 +2,7 @@ using OS.Boot;
 using Unwind = OS.Kernel.Runtime.X64PERuntimeFunctionUnwindMetadataHostileInput;
 
 namespace OS.Kernel.Runtime;
+
 public static unsafe partial class NativeAotEhClauseMetadata
 {
     public const uint CatalogMagic = 0x43454843;

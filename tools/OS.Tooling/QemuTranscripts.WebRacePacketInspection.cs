@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied whole-PCAP inventory. Ordinary retains its exact HTTP,

@@ -31,7 +31,8 @@ internal static unsafe class M06PackageReadEfiIntegrationTests
         foreach (bool build in new[] { false, true })
         {
             HostCheck.True(EfiOptions.Parse(Flags, build).Profile().IsEnabled("M06PackageRead"));
-            foreach (string parent in Flags[..^1]) Reject(() => EfiOptions.Parse(Flags.Where(f => f != parent).ToArray(), build).Profile());
+            foreach (string parent in Flags[..^1])
+                Reject(() => EfiOptions.Parse(Flags.Where(f => f != parent).ToArray(), build).Profile());
             Reject(() => EfiOptions.Parse([.. Flags, "--BootPolicy", "VerifiedExit"], build).Profile());
         }
         string[] args = ["--DryRun", "--BuildEfi", .. Flags];
@@ -45,7 +46,11 @@ internal static unsafe class M06PackageReadEfiIntegrationTests
         foreach (string marker in new[] { "M06_PKG 80", "CLROS_M06_018_READY", "TEST_PASS m06.017" })
             Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", .. M06FatReadEfiIntegrationTests.Flags, "--RequireMarker", marker])));
     }
-    private static bool Execute(void* context) { (*(int*)context)++; return true; }
+    private static bool Execute(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
 
     [HostTest("m06.package.efi restricts both allocator owners and exact transport purpose epochs")]
     private static void Ownership()
@@ -85,13 +90,19 @@ internal static unsafe class M06PackageReadEfiIntegrationTests
                 foreach (string other in Variants.Where(v => v != variant))
                     Reject(() => QemuTranscripts.AssertM06PackageReadRecords(lines, other));
                 int last = Array.FindIndex(lines, s => s.StartsWith("M06_PKG 09 ", StringComparison.Ordinal));
-                string[] changed = [.. lines]; changed[last] = changed[last].Replace("0x0000000000000001", "0x0000000000000000", StringComparison.Ordinal);
+                string[] changed = [.. lines];
+                changed[last] = changed[last].Replace("0x0000000000000001", "0x0000000000000000", StringComparison.Ordinal);
                 Reject(() => QemuTranscripts.AssertM06PackageReadRecords(changed, variant));
                 int read = Array.FindIndex(lines, s => s.StartsWith("M06_PKG 8A ", StringComparison.Ordinal));
                 string[] words = lines[read].Split(' ');
                 ulong lba = Convert.ToUInt64(words[2][2..], 16);
                 using (var file = File.Open(image, FileMode.Open, FileAccess.ReadWrite))
-                { file.Position = checked((long)lba * 512); int value = file.ReadByte(); file.Position--; file.WriteByte((byte)(value ^ 1)); }
+                {
+                    file.Position = checked((long)lba * 512);
+                    int value = file.ReadByte();
+                    file.Position--;
+                    file.WriteByte((byte)(value ^ 1));
+                }
                 Reject(() => QemuTranscripts.AssertM06PackageReadImage(serial, image, variant));
             }
         }
@@ -111,42 +122,64 @@ internal static unsafe class M06PackageReadEfiIntegrationTests
                 U32((fat + copy) * 512 + (int)c * 4, c == package && variant == "PackageLoop" ? package : 0x0fffffff);
         void Entry(int offset, ReadOnlySpan<byte> alias, uint first, uint bytes)
         {
-            disk.AsSpan(offset, 32).Clear(); alias.CopyTo(disk.AsSpan(offset)); disk[offset + 11] = 0x20;
-            BinaryPrimitives.WriteUInt16LittleEndian(disk.AsSpan(offset + 26), (ushort)first); U32(offset + 28, bytes);
+            disk.AsSpan(offset, 32).Clear();
+            alias.CopyTo(disk.AsSpan(offset));
+            disk[offset + 11] = 0x20;
+            BinaryPrimitives.WriteUInt16LittleEndian(disk.AsSpan(offset + 26), (ushort)first);
+            U32(offset + 28, bytes);
         }
         disk.AsSpan(Cluster(os), 512).Clear();
         Entry(Cluster(os), "NATIVE  MAN"u8, manifest, 104);
         Entry(Cluster(os) + 32, "APP     PKG"u8, package, variant == "PackageTruncated" ? 700u : 132u);
         byte[] manifestBytes = Encoding.ASCII.GetBytes(NativeManifestDiskTests.Valid), packageBytes = APPPKGDiskTests.Package();
-        if (variant == "ManifestVersion") manifestBytes[34] = (byte)'1';
-        if (variant == "PackageHeader") packageBytes[0] = (byte)'X';
-        if (variant == "PackageChecksum") packageBytes[^1] ^= 1;
-        manifestBytes.CopyTo(disk, Cluster(manifest)); packageBytes.CopyTo(disk, Cluster(package));
+        if (variant == "ManifestVersion")
+            manifestBytes[34] = (byte)'1';
+        if (variant == "PackageHeader")
+            packageBytes[0] = (byte)'X';
+        if (variant == "PackageChecksum")
+            packageBytes[^1] ^= 1;
+        manifestBytes.CopyTo(disk, Cluster(manifest));
+        packageBytes.CopyTo(disk, Cluster(package));
         // FAT-sector contents changed; refresh the ancestor's existing receipt
         // CRCs while preserving its reviewed LBA, purpose and epoch sequence.
         foreach (string row in prefix.Where(s => s.StartsWith("M06_FAT 8", StringComparison.Ordinal)))
         {
-            string[] fields = row.Split(' '); ulong lba = Convert.ToUInt64(fields[2][2..], 16);
+            string[] fields = row.Split(' ');
+            ulong lba = Convert.ToUInt64(fields[2][2..], 16);
             fields[3] = "0x" + ((ulong)Crc32.Compute(disk.AsSpan((int)lba * 512, 512))).ToString("X16");
             prefix[Array.IndexOf(prefix, row)] = string.Join(' ', fields);
         }
-        string[] lines = QemuContracts.M06PackageReadMarkers(variant).ToArray(); prefix.CopyTo(lines, 0);
+        string[] lines = QemuContracts.M06PackageReadMarkers(variant).ToArray();
+        prefix.CopyTo(lines, 0);
         void Set(int stage, params ulong[] values)
         {
             string key = "M06_PKG " + stage.ToString("X2");
             int index = Array.IndexOf(lines, key);
-            if (index >= 0) lines[index] = key + string.Concat(values.Select(v => " 0x" + v.ToString("X16")));
+            if (index >= 0)
+                lines[index] = key + string.Concat(values.Select(v => " 0x" + v.ToString("X16")));
         }
-        Set(0, 2048, 131038, fat, data); Set(1, 2, 2, 10, os); Set(2, os, manifest, package, 10);
-        Set(3, 104, 60, 13, 0x67a2f958); Set(4, 132, 96, 36, 0x8680772e);
+        Set(0, 2048, 131038, fat, data);
+        Set(1, 2, 2, 10, os);
+        Set(2, os, manifest, package, 10);
+        Set(3, 104, 60, 13, 0x67a2f958);
+        Set(4, 132, 96, 36, 0x8680772e);
         ulong[] Row(string key) => prefix.Single(s => s.StartsWith(key + " ", StringComparison.Ordinal)).Split(' ').Skip(2)
             .Select(v => Convert.ToUInt64(v[2..], 16)).ToArray();
-        Set(5, Row("M06_BLK 5")[0], 36, 32, 0x8ad44af4); Set(6, Row("M06_BLK B")); Set(7, 16, 149, 17, 1);
+        Set(5, Row("M06_BLK 5")[0], 36, 32, 0x8ad44af4);
+        Set(6, Row("M06_BLK B"));
+        Set(7, 16, 149, 17, 1);
         if (variant != "Intact")
         {
             ulong kind = variant == "ManifestVersion" ? 1UL : variant is "PackageTruncated" or "PackageLoop" ? 4UL : 2UL;
-            ulong status = variant switch { "ManifestVersion" => 8, "PackageHeader" => 3, "PackageChecksum" => 11,
-                "PackageTruncated" => 16, "PackageLoop" => 14, _ => 0 };
+            ulong status = variant switch
+            {
+                "ManifestVersion" => 8,
+                "PackageHeader" => 3,
+                "PackageChecksum" => 11,
+                "PackageTruncated" => 16,
+                "PackageLoop" => 14,
+                _ => 0
+            };
             Set(8, kind, status, variant == "ManifestVersion" ? 15UL : 16UL, variant == "ManifestVersion" ? 13UL : 16UL);
         }
         Set(9, 1, 0, 1, 1);
@@ -158,7 +191,12 @@ internal static unsafe class M06PackageReadEfiIntegrationTests
     }
     private static void Reject(Action action)
     {
-        bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected, "invalid package profile or evidence must be rejected");
     }
 }

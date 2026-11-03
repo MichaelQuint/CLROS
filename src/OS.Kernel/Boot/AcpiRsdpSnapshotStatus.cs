@@ -2,6 +2,7 @@ using OS.Kernel.Platform;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public enum AcpiRsdpSnapshotStatus
 {
     Success = 0,

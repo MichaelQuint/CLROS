@@ -1,6 +1,7 @@
 using OS.Std.Memory;
 
 namespace OS.Pal;
+
 public sealed partial class OSHostAppLogTable
 {
     private sealed class AppLogSlot
@@ -11,10 +12,22 @@ public sealed partial class OSHostAppLogTable
             payload = new byte[maxRecordBytes];
         }
 
-        public uint StreamId { get; private set; }
-        public uint Flags { get; private set; }
-        public uint Sequence { get; private set; }
-        public uint ByteLength { get; private set; }
+        public uint StreamId
+        {
+            get; private set;
+        }
+        public uint Flags
+        {
+            get; private set;
+        }
+        public uint Sequence
+        {
+            get; private set;
+        }
+        public uint ByteLength
+        {
+            get; private set;
+        }
 
         public bool Write(uint streamId, uint flags, uint sequence, ReadOnlySpan<byte> bytes)
         {

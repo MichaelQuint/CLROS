@@ -3,6 +3,7 @@ using System.Text;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied capture observations only. Quiet/lifetime use milliseconds;

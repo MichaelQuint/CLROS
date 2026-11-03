@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct OSHostSocketShutdownRequest
 {

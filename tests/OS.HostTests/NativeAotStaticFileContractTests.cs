@@ -11,7 +11,11 @@ internal static class NativeAotStaticFileContractTests
         foreach (string invalid in new[] { "V1", "v2", " v1", "../wwwroot" })
         {
             bool rejected = false;
-            try { StaticFileApplication.SelectProfile(invalid); } catch (ArgumentException) { rejected = true; }
+            try
+            {
+                StaticFileApplication.SelectProfile(invalid);
+            }
+            catch (ArgumentException) { rejected = true; }
             HostCheck.True(rejected);
         }
     }

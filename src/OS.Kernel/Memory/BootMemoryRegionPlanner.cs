@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Memory;
+
 public static class BootMemoryRegionPlanner
 {
     private const uint UefiConventionalMemoryType = (uint)UefiMemoryType.ConventionalMemory;

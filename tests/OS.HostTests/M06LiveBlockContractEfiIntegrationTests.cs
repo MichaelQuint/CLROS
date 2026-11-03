@@ -15,7 +15,8 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
         foreach (bool build in new[] { false, true })
         {
             HostCheck.True(EfiOptions.Parse(Flags, build).Profile().IsEnabled("M06LiveBlockContract"));
-            foreach (string required in Flags[..^1]) Reject(() => EfiOptions.Parse(Flags.Where(f => f != required).ToArray(), build).Profile());
+            foreach (string required in Flags[..^1])
+                Reject(() => EfiOptions.Parse(Flags.Where(f => f != required).ToArray(), build).Profile());
             Reject(() => EfiOptions.Parse([.. Flags, "--BootPolicy", "VerifiedExit"], build).Profile());
             foreach (string other in new[] { "M05VirtioNegotiation", "M05ApicSetup", "M05VirtqueuePolling", "M05VirtqueueInterrupt", "M05BarDma" })
                 Reject(() => EfiOptions.Parse([.. Flags, "--Enable" + other + "Probe"], build).Profile());
@@ -26,7 +27,11 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
         foreach (string marker in new[] { "M06_BDEV 0", "CLROS_M06_007_READY", "TEST_PASS m06.008" })
             Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", .. M06VirtioBlockReadEfiIntegrationTests.Flags, "--RequireMarker", marker])));
     }
-    private static bool Execute(void* context) { (*(int*)context)++; return true; }
+    private static bool Execute(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
 
     [HostTest("m06.bdev.efi static admission rejects changed shared Span compiler and block sources")]
     private static void SourceAdmission()
@@ -70,8 +75,10 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
         {
             foreach (string file in new[] { "src/OS/OS.csproj", "Directory.Build.props", "Directory.Build.targets",
                 "tools/Directory.Build.props", "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
-                "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets" }) Copy(file);
-            foreach (string item in EfiContracts.CompileItems) Copy(Path.Combine("src/OS", item.Split('|')[0]));
+                "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets" })
+                Copy(file);
+            foreach (string item in EfiContracts.CompileItems)
+                Copy(Path.Combine("src/OS", item.Split('|')[0]));
             var accepted = EfiProjectAdmission.InspectStatic(copy);
             HostCheck.True(accepted.Succeeded, accepted.Reason + " " + accepted.Detail);
             foreach (string originalPath in selected.Order(StringComparer.Ordinal))
@@ -125,15 +132,27 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
                 (13,0,1),(13,1,1),(13,2,1),(13,3,1)
             })
             {
-                string[] changed = [.. lines]; string[] parts = changed[indices[row]].Split(' ');
-                parts[col + 2] = "0x" + wrong.ToString("X16"); changed[indices[row]] = string.Join(' ', parts);
+                string[] changed = [.. lines];
+                string[] parts = changed[indices[row]].Split(' ');
+                parts[col + 2] = "0x" + wrong.ToString("X16");
+                changed[indices[row]] = string.Join(' ', parts);
                 Reject(() => Check(changed));
             }
             foreach (string malformed in new[] { "M06_BDEV 0 0x1", lines[indices[0]] + " 0x0000000000000000", lines[indices[0]].Replace("0x0000000000010000", "0x10000") })
-            { string[] changed = [.. lines]; changed[indices[0]] = malformed; Reject(() => Check(changed)); }
-            string[] swapped = [.. lines]; (swapped[indices[0]], swapped[indices[1]]) = (swapped[indices[1]], swapped[indices[0]]); Reject(() => Check(swapped));
-            string[] duplicate = [.. lines]; duplicate[indices[1]] = duplicate[indices[0]]; Reject(() => Check(duplicate));
-            Reject(() => Check([.. lines, "extra"])); Reject(() => Check(lines[..^1])); Check(lines);
+            {
+                string[] changed = [.. lines];
+                changed[indices[0]] = malformed;
+                Reject(() => Check(changed));
+            }
+            string[] swapped = [.. lines];
+            (swapped[indices[0]], swapped[indices[1]]) = (swapped[indices[1]], swapped[indices[0]]);
+            Reject(() => Check(swapped));
+            string[] duplicate = [.. lines];
+            duplicate[indices[1]] = duplicate[indices[0]];
+            Reject(() => Check(duplicate));
+            Reject(() => Check([.. lines, "extra"]));
+            Reject(() => Check(lines[..^1]));
+            Check(lines);
         }
         finally { File.Delete(path); }
     }
@@ -141,37 +160,64 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
     [HostTest("m06.bdev.efi associates LBA0 with actual disk geometry bytes and independent protective MBR parsing")]
     private static void DiskAssociation()
     {
-        string directory = Path.Combine(Path.GetTempPath(), "clros-bdev-disk-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(directory);
+        string directory = Path.Combine(Path.GetTempPath(), "clros-bdev-disk-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
         string serial = Path.Combine(directory, "serial.log"), image = Path.Combine(directory, "disk.raw");
-        byte[] disk = new byte[4096]; disk[0] = 0x31; disk[440] = 0x42;
-        disk[450] = 0xee; BinaryPrimitives.WriteUInt32LittleEndian(disk.AsSpan(454), 1);
-        BinaryPrimitives.WriteUInt32LittleEndian(disk.AsSpan(458), 7); disk[510] = 0x55; disk[511] = 0xaa;
+        byte[] disk = new byte[4096];
+        disk[0] = 0x31;
+        disk[440] = 0x42;
+        disk[450] = 0xee;
+        BinaryPrimitives.WriteUInt32LittleEndian(disk.AsSpan(454), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(disk.AsSpan(458), 7);
+        disk[510] = 0x55;
+        disk[511] = 0xaa;
         string[] lines = Capture();
         lines[Array.FindIndex(lines, s => s.StartsWith("M06_READ 0 ", StringComparison.Ordinal))] =
             "M06_READ 0 0x0000000000000008 0x0000000000000001 0x0000000000000200 0x0000000000000000";
-        Set(lines, 0, 8, 0, 512, 0); Set(lines, 10, 512, 8, 4096, 1); Set(lines, 11, 1, 1, 7, 512);
+        Set(lines, 0, 8, 0, 512, 0);
+        Set(lines, 10, 512, 8, 4096, 1);
+        Set(lines, 11, 1, 1, 7, 512);
         void Receipt()
         {
             Set(lines, 5, OS.Std.Hash.Crc32.Compute(disk.AsSpan(0, 512)), BinaryPrimitives.ReadUInt64LittleEndian(disk),
                 BinaryPrimitives.ReadUInt64LittleEndian(disk.AsSpan(504)), 512);
-            File.WriteAllLines(serial, lines); File.WriteAllBytes(image, disk);
+            File.WriteAllLines(serial, lines);
+            File.WriteAllBytes(image, disk);
         }
         void Check() => QemuTranscripts.AssertM06LiveBlockContractImage(serial, image);
         try
         {
-            Receipt(); Check();
-            disk[100] ^= 1; File.WriteAllBytes(image, disk); Reject(Check); disk[100] ^= 1;
+            Receipt();
+            Check();
+            disk[100] ^= 1;
+            File.WriteAllBytes(image, disk);
+            Reject(Check);
+            disk[100] ^= 1;
             foreach (int offset in new[] { 446, 450, 454, 458, 462, 509, 510, 511 })
-            { disk[offset] ^= 1; Receipt(); Reject(Check); disk[offset] ^= 1; }
-            Receipt(); File.WriteAllBytes(image, disk[..^512]); Reject(Check);
-            File.WriteAllBytes(image, disk[..^1]); Reject(Check);
-            foreach ((int row, int column) in new[] { (0,0),(0,1),(0,2),(5,1),(5,2),(5,3),(10,0),(10,1),(10,2),(10,3),(11,0),(11,1),(11,2),(11,3) })
             {
-                Receipt(); string[] changed = [.. lines]; int index = Array.FindIndex(changed, s => s.StartsWith("M06_BDEV " + row.ToString("X") + " ", StringComparison.Ordinal));
-                string[] parts = changed[index].Split(' '); parts[column + 2] = "0xFFFFFFFFFFFFFFFF"; changed[index] = string.Join(' ', parts);
-                File.WriteAllLines(serial, changed); Reject(Check);
+                disk[offset] ^= 1;
+                Receipt();
+                Reject(Check);
+                disk[offset] ^= 1;
             }
-            Receipt(); Check();
+            Receipt();
+            File.WriteAllBytes(image, disk[..^512]);
+            Reject(Check);
+            File.WriteAllBytes(image, disk[..^1]);
+            Reject(Check);
+            foreach ((int row, int column) in new[] { (0, 0), (0, 1), (0, 2), (5, 1), (5, 2), (5, 3), (10, 0), (10, 1), (10, 2), (10, 3), (11, 0), (11, 1), (11, 2), (11, 3) })
+            {
+                Receipt();
+                string[] changed = [.. lines];
+                int index = Array.FindIndex(changed, s => s.StartsWith("M06_BDEV " + row.ToString("X") + " ", StringComparison.Ordinal));
+                string[] parts = changed[index].Split(' ');
+                parts[column + 2] = "0xFFFFFFFFFFFFFFFF";
+                changed[index] = string.Join(' ', parts);
+                File.WriteAllLines(serial, changed);
+                Reject(Check);
+            }
+            Receipt();
+            Check();
         }
         finally { Directory.Delete(directory, true); }
     }
@@ -179,11 +225,13 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
     internal static string[] Capture()
     {
         string[] prefix = M06VirtioBlockReadEfiIntegrationTests.Capture();
-        string[] lines = QemuContracts.M06LiveBlockContractMarkers.ToArray(); prefix.CopyTo(lines, 0);
+        string[] lines = QemuContracts.M06LiveBlockContractMarkers.ToArray();
+        prefix.CopyTo(lines, 0);
         ulong[] Prior(int stage) => prefix.Single(s => s.StartsWith("M06_READ " + stage + " ", StringComparison.Ordinal)).Split(' ').Skip(2).Select(s => Convert.ToUInt64(s[2..], 16)).ToArray();
         ulong[][] values = [[65536,0,512,0],Prior(1),Prior(2),[1,0,513,0],[1,1,4,2],[123,0,0xaa55000000000000,512],
             [1,1,1,1],Prior(7),Prior(8),[14,14,15,14],[512,65536,33554432,1],[1,1,65535,512],[512,0,0,1],[4,5,6,7]];
-        for (int stage = 0; stage < values.Length; stage++) Set(lines, stage, values[stage]);
+        for (int stage = 0; stage < values.Length; stage++)
+            Set(lines, stage, values[stage]);
         return lines;
     }
     private static void Set(string[] lines, int stage, params ulong[] values)
@@ -194,7 +242,12 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
     }
     private static void Reject(Action action)
     {
-        bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected, "invalid live block profile or evidence must be rejected");
     }
 }

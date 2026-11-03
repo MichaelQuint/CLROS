@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpPassiveConnection
 {
     /// <summary>Borrow a real monotonic nanosecond clock and frame-copying TX

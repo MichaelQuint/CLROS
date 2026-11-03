@@ -21,19 +21,56 @@ namespace OS.CompilerReceipts
     /// </summary>
     public sealed class HostCompilationReceiptTask : Task
     {
-        [Required] public string Mode { get; set; }
-        [Required] public string Root { get; set; }
-        [Required] public string Project { get; set; }
-        [Required] public string ReceiptPath { get; set; }
-        [Required] public string CompilerDirectory { get; set; }
+        [Required]
+        public string Mode
+        {
+            get; set;
+        }
+        [Required]
+        public string Root
+        {
+            get; set;
+        }
+        [Required]
+        public string Project
+        {
+            get; set;
+        }
+        [Required]
+        public string ReceiptPath
+        {
+            get; set;
+        }
+        [Required]
+        public string CompilerDirectory
+        {
+            get; set;
+        }
         public ITaskItem[] Inputs { get; set; } = new ITaskItem[0];
         public ITaskItem[] Outputs { get; set; } = new ITaskItem[0];
         public ITaskItem[] Arguments { get; set; } = new ITaskItem[0];
-        public string DesignTimeBuild { get; set; }
-        public string SkipCompilerExecution { get; set; }
-        public string DisableImplicitFrameworkReferences { get; set; }
-        [Output] public string Token { get; set; }
-        [Output] public string SnapshotXml { get; set; }
+        public string DesignTimeBuild
+        {
+            get; set;
+        }
+        public string SkipCompilerExecution
+        {
+            get; set;
+        }
+        public string DisableImplicitFrameworkReferences
+        {
+            get; set;
+        }
+        [Output]
+        public string Token
+        {
+            get; set;
+        }
+        [Output]
+        public string SnapshotXml
+        {
+            get; set;
+        }
         private static StringComparer PathComparer => Path.DirectorySeparatorChar == '\\' ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         private static StringComparison PathComparison => Path.DirectorySeparatorChar == '\\' ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 

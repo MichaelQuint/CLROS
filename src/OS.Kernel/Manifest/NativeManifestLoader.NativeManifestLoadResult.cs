@@ -1,6 +1,7 @@
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public readonly struct NativeManifestLoadResult
 {
     private NativeManifestLoadResult(NativeManifestLoadStatus status, bool isInitialized, GptStatus gptStatus, GptPartitionTableStatus gptTableStatus, GptPartitionTableCrcStatus gptCrcStatus, BlockDeviceStatus blockStatus, Fat32Status fat32Status, NativeManifestParseStatus manifestStatus, uint gptPartitionEntryIndex, ulong gptPartitionEntryBytesRequired, ulong gptPartitionEntrySectorBytesRequired, uint expectedGptHeaderCrc32, uint computedGptHeaderCrc32, uint expectedGptPartitionEntryArrayCrc32, uint computedGptPartitionEntryArrayCrc32, NativeManifest manifest, uint bytesRead, uint manifestBytesRequired, uint manifestBufferBytesAvailable, ulong gptHeaderBytesRequired = 0, ulong gptHeaderBufferBytesAvailable = 0, ulong gptPartitionEntryBufferBytesAvailable = 0, GptPartitionTableSource gptTableSource = GptPartitionTableSource.Unknown)
@@ -30,29 +31,98 @@ public readonly struct NativeManifestLoadResult
         ManifestBufferBytesAvailable = manifestBufferBytesAvailable;
     }
 
-    public NativeManifestLoadStatus Status { get; }
-    public bool IsInitialized { get; }
-    public GptStatus GptStatus { get; }
-    public GptPartitionTableStatus GptTableStatus { get; }
-    public GptPartitionTableCrcStatus GptCrcStatus { get; }
-    public GptPartitionTableSource GptTableSource { get; }
-    public BlockDeviceStatus BlockStatus { get; }
-    public Fat32Status Fat32Status { get; }
-    public NativeManifestParseStatus ManifestStatus { get; }
-    public uint GptPartitionEntryIndex { get; }
-    public ulong GptPartitionEntryBytesRequired { get; }
-    public ulong GptPartitionEntrySectorBytesRequired { get; }
-    public ulong GptHeaderBytesRequired { get; }
-    public ulong GptHeaderBufferBytesAvailable { get; }
-    public ulong GptPartitionEntryBufferBytesAvailable { get; }
-    public uint ExpectedGptHeaderCrc32 { get; }
-    public uint ComputedGptHeaderCrc32 { get; }
-    public uint ExpectedGptPartitionEntryArrayCrc32 { get; }
-    public uint ComputedGptPartitionEntryArrayCrc32 { get; }
-    public NativeManifest Manifest { get; }
-    public uint BytesRead { get; }
-    public uint ManifestBytesRequired { get; }
-    public uint ManifestBufferBytesAvailable { get; }
+    public NativeManifestLoadStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public GptStatus GptStatus
+    {
+        get;
+    }
+    public GptPartitionTableStatus GptTableStatus
+    {
+        get;
+    }
+    public GptPartitionTableCrcStatus GptCrcStatus
+    {
+        get;
+    }
+    public GptPartitionTableSource GptTableSource
+    {
+        get;
+    }
+    public BlockDeviceStatus BlockStatus
+    {
+        get;
+    }
+    public Fat32Status Fat32Status
+    {
+        get;
+    }
+    public NativeManifestParseStatus ManifestStatus
+    {
+        get;
+    }
+    public uint GptPartitionEntryIndex
+    {
+        get;
+    }
+    public ulong GptPartitionEntryBytesRequired
+    {
+        get;
+    }
+    public ulong GptPartitionEntrySectorBytesRequired
+    {
+        get;
+    }
+    public ulong GptHeaderBytesRequired
+    {
+        get;
+    }
+    public ulong GptHeaderBufferBytesAvailable
+    {
+        get;
+    }
+    public ulong GptPartitionEntryBufferBytesAvailable
+    {
+        get;
+    }
+    public uint ExpectedGptHeaderCrc32
+    {
+        get;
+    }
+    public uint ComputedGptHeaderCrc32
+    {
+        get;
+    }
+    public uint ExpectedGptPartitionEntryArrayCrc32
+    {
+        get;
+    }
+    public uint ComputedGptPartitionEntryArrayCrc32
+    {
+        get;
+    }
+    public NativeManifest Manifest
+    {
+        get;
+    }
+    public uint BytesRead
+    {
+        get;
+    }
+    public uint ManifestBytesRequired
+    {
+        get;
+    }
+    public uint ManifestBufferBytesAvailable
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeManifestLoadStatus.Success;
 
     public static NativeManifestLoadResult Success(NativeManifest manifest, uint bytesRead)

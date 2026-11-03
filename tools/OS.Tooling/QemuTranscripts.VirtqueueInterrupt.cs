@@ -19,8 +19,10 @@ public static partial class QemuTranscripts
         for (int i = apic + negotiation + 1 + queue; i < lines.Count; i++)
         {
             string expected = QemuContracts.M05VirtqueueInterruptMarkers[i];
-            if (expected.StartsWith("M05_IRQ ", StringComparison.Ordinal)) rows.Add(ReadHexRecord(lines[i], expected, 4));
-            else Need(lines[i] == expected, "m05_irq_marker_order");
+            if (expected.StartsWith("M05_IRQ ", StringComparison.Ordinal))
+                rows.Add(ReadHexRecord(lines[i], expected, 4));
+            else
+                Need(lines[i] == expected, "m05_irq_marker_order");
         }
         ulong table = rows[0][0], pba = rows[0][1], entries = rows[0][2], offset = rows[0][3];
         Need(entries is >= 1 and <= 2048 && offset is >= 0x40 and <= 0xf4 && offset % 4 == 0 &&

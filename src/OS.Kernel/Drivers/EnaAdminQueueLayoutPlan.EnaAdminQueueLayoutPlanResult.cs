@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct EnaAdminQueueLayoutPlanResult
 {
     private EnaAdminQueueLayoutPlanResult(bool isInitialized, EnaAdminQueueLayoutPlanStatus status, uint adminQueueDepth, uint adminCompletionQueueDepth, uint adminQueueEntrySize, uint adminCompletionQueueEntrySize, uint baseAlignment, uint memoryBudgetBytes, bool requiresContiguousMemory, uint totalRequiredBytes, EnaAdminQueueLayoutPlan plan)
@@ -16,17 +17,50 @@ public readonly struct EnaAdminQueueLayoutPlanResult
         Plan = plan;
     }
 
-    public EnaAdminQueueLayoutPlanStatus Status { get; }
-    public uint AdminQueueDepth { get; }
-    public uint AdminCompletionQueueDepth { get; }
-    public uint AdminQueueEntrySize { get; }
-    public uint AdminCompletionQueueEntrySize { get; }
-    public uint BaseAlignment { get; }
-    public uint MemoryBudgetBytes { get; }
-    public bool RequiresContiguousMemory { get; }
-    public uint TotalRequiredBytes { get; }
-    public EnaAdminQueueLayoutPlan Plan { get; }
-    public bool IsInitialized { get; }
+    public EnaAdminQueueLayoutPlanStatus Status
+    {
+        get;
+    }
+    public uint AdminQueueDepth
+    {
+        get;
+    }
+    public uint AdminCompletionQueueDepth
+    {
+        get;
+    }
+    public uint AdminQueueEntrySize
+    {
+        get;
+    }
+    public uint AdminCompletionQueueEntrySize
+    {
+        get;
+    }
+    public uint BaseAlignment
+    {
+        get;
+    }
+    public uint MemoryBudgetBytes
+    {
+        get;
+    }
+    public bool RequiresContiguousMemory
+    {
+        get;
+    }
+    public uint TotalRequiredBytes
+    {
+        get;
+    }
+    public EnaAdminQueueLayoutPlan Plan
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == EnaAdminQueueLayoutPlanStatus.Success;
 
     internal static EnaAdminQueueLayoutPlanResult Success(EnaAdminQueueLayoutPlan plan)

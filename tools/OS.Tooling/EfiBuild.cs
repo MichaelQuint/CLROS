@@ -72,7 +72,7 @@ public static partial class EfiBuild
                 sourcePaths = SourceClosurePaths(root);
                 source = Snapshot(locks, root, sourcePaths, "source_closure", MaximumTextBytes, singleLink: true);
             }
-            catch (ToolFailure failure)when (failure.Reason == "source_closure_project_malformed")
+            catch (ToolFailure failure) when (failure.Reason == "source_closure_project_malformed")
             {
                 Emit("EFI_PREFLIGHT_M01_SOURCE_CLOSURE reason=project_malformed invalid");
                 throw new ToolFailure("m01_source_closure_project_malformed", failure.Message);
@@ -127,7 +127,7 @@ public static partial class EfiBuild
         string intermediateRelative = $"src/OS/obj/{configuration}/net11.0/win-x64", binaryRelative = $"src/OS/bin/{configuration}/net11.0/win-x64";
         string intermediate = Path.GetFullPath(Path.Combine(root, intermediateRelative)), binaries = Path.GetFullPath(Path.Combine(root, binaryRelative));
         string extensions = Path.Combine(intermediate, "nuget"), packages = Path.Combine(intermediate, "packages"), pinned = Path.Combine(intermediate, "restore-source");
-        string global = Path.GetFullPath(Environment.GetEnvironmentVariable("NUGET_PACKAGES")is string custom && !string.IsNullOrWhiteSpace(custom) ? custom : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget/packages"));
+        string global = Path.GetFullPath(Environment.GetEnvironmentVariable("NUGET_PACKAGES") is string custom && !string.IsNullOrWhiteSpace(custom) ? custom : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget/packages"));
         string sdk = preflight.DotnetSdkDirectory, runtimePack = preflight.NativeAotRuntimePackPath;
         Dictionary<string, string> canonical = EfiMsbuild.CanonicalPaths(packages, runtimePack, sdk);
         EfiBuildCommands commands = EfiBuildCommands.Create(options, preflight);
@@ -285,7 +285,7 @@ public static partial class EfiBuild
             ["runtimeListSha256"] = Hash(Path.Combine(runtimePack, "data/RuntimeList.xml")),
             ["generatedUtc"] = DateTimeOffset.UtcNow.ToString("O")
         };
-        foreach ((string property, string path)in EfiContracts.SerializerSourceBindings)
+        foreach ((string property, string path) in EfiContracts.SerializerSourceBindings)
             evidence[property] = Hash(Path.Combine(root, path));
         foreach (var pair in canonical)
         {
@@ -306,7 +306,7 @@ public static partial class EfiBuild
         AddNativeObjects(preflight.Profile, native, output, locks, evidence);
         if ((preflight.Profile.IsEnabled("M04EhCatalog") || preflight.Profile.IsEnabled("M04NormalFinally")))
         {
-            foreach (var(prefix, name, suffix)in new[]
+            foreach (var (prefix, name, suffix) in new[]
             {
                 ("ehCatalog", "CLROS.X64.EhCatalog.obj", ".eh-catalog.obj"),
                 ("ehCatalogIlc", "OS.obj", ".ilc.obj"),
@@ -385,7 +385,7 @@ public static partial class EfiBuild
         return result.Output;
     }
 
-    private static JsonArray Strings(IEnumerable<string> values) => new(values.Select(value => (JsonNode? )JsonValue.Create(value)).ToArray());
+    private static JsonArray Strings(IEnumerable<string> values) => new(values.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray());
     private static void RequireSourceInventory(string root, IEnumerable<string> expected) => Require(SourceClosurePaths(root).SequenceEqual(expected, StringComparer.Ordinal), "source_closure_inventory_changed");
     private static void RequireExactEntries(string directory, IEnumerable<string> names)
     {

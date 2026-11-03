@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static unsafe partial class PanicSafeFormattingSerialReportingOwnedCom1
 {
 #if !NOSTDLIB_EFI

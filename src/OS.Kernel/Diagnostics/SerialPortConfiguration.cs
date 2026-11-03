@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct SerialPortConfiguration
 {
     public const int Com1BasePort = 0x3f8;
@@ -26,9 +27,18 @@ public readonly struct SerialPortConfiguration
         BaudRate = baudRate;
     }
 
-    public ushort BasePort { get; }
-    public uint InputClockHz { get; }
-    public uint BaudRate { get; }
+    public ushort BasePort
+    {
+        get;
+    }
+    public uint InputClockHz
+    {
+        get;
+    }
+    public uint BaudRate
+    {
+        get;
+    }
     public byte DataBits => DefaultDataBits;
     public SerialParity Parity => SerialParity.None;
     public byte StopBits => DefaultStopBits;

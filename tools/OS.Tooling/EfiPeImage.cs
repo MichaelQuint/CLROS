@@ -8,18 +8,48 @@ namespace OS.Tooling;
 
 public sealed partial class EfiPeImage
 {
-    public byte[] Bytes { get; }
-    public uint Timestamp { get; }
-    public uint EntryPointRva { get; }
-    public ulong ImageBase { get; }
-    public uint SizeOfImage { get; }
-    public string EntrySection { get; }
-    public uint ExceptionRva { get; }
-    public uint ExceptionSize { get; }
+    public byte[] Bytes
+    {
+        get;
+    }
+    public uint Timestamp
+    {
+        get;
+    }
+    public uint EntryPointRva
+    {
+        get;
+    }
+    public ulong ImageBase
+    {
+        get;
+    }
+    public uint SizeOfImage
+    {
+        get;
+    }
+    public string EntrySection
+    {
+        get;
+    }
+    public uint ExceptionRva
+    {
+        get;
+    }
+    public uint ExceptionSize
+    {
+        get;
+    }
     public List<Section> Sections { get; } = [];
     public List<RuntimeFunction> RuntimeFunctions { get; } = [];
-    public uint SerializerRva { get; private set; }
-    public uint SerializerUnwindRva { get; private set; }
+    public uint SerializerRva
+    {
+        get; private set;
+    }
+    public uint SerializerUnwindRva
+    {
+        get; private set;
+    }
 
     public static void Require(bool valid, string reason, string detail = "")
     {
@@ -93,7 +123,7 @@ public sealed partial class EfiPeImage
         int count = U16(coff + 2);
         Timestamp = U32(coff + 4);
         int optionalSize = U16(coff + 16);
-        Require(count is> 0 and <= 96, "section_count_out_of_range");
+        Require(count is > 0 and <= 96, "section_count_out_of_range");
         Require(optionalSize >= 112, "optional_header_too_small");
         long optional = coff + 20;
         Range(optional, optionalSize, bytes.Length, "truncated_optional_header");
@@ -120,7 +150,7 @@ public sealed partial class EfiPeImage
         Require(ExceptionSize % 12 == 0, "exception_directory_size_not_record_aligned");
         Require(ExceptionSize / 12 <= EfiContracts.MaximumRuntimeFunctionRecords, "exception_directory_record_count_out_of_range");
         Require(RangeEnd(ExceptionRva, ExceptionSize, "exception_directory_range_invalid") <= SizeOfImage, "exception_directory_out_of_image");
-        foreach ((int index, string name)in new[]
+        foreach ((int index, string name) in new[]
         {
             (1, "import"),
             (11, "bound-import"),

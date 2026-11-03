@@ -5,11 +5,6 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-
-
-
-
-
 internal static unsafe partial class RhpNewFastAllocation
 {
     // Geometry from step1190 and scoped native/identity controls in #674–#676.
@@ -50,45 +45,56 @@ internal static unsafe partial class RhpNewFastAllocation
             s_normalFinallyEntries != 0 || s_normalCatchEntries != 0 || s_normalContinuations != 0 ||
             s_normalLocal != 0 || s_normalSelections != 0 || s_gcPhase != 5 || s_collectorPhase != 7 ||
             s_gcStack.Checks != 10 || s_control.ConstructorCount != 7 ||
-            !ReadGcRoot().Succeeded || !CollectorReceiptValid(5)) RejectEh(1);
-        EhText(0); s_ehPhase = 1;
+            !ReadGcRoot().Succeeded || !CollectorReceiptValid(5))
+            RejectEh(1);
+        EhText(0);
+        s_ehPhase = 1;
         s_ehSeed = (s_gcHandle ^ (ulong)s_access.Backing) & 0xFFFF;
-        if (!CheckEhStack()) RejectEh(2);
+        if (!CheckEhStack())
+            RejectEh(2);
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (EhStorage* storage = &s_ehStorage)
         {
             var bound = X64PERuntimeFunctionUnwindMetadataHostileInput.Bind(s_gcCapture, s_gcMapping,
                 (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, (byte*)storage, EhStorageBytes);
             if (!bound.Succeeded || bound.RequiredStorage >= EhStorageBytes || sizeof(X64UnwindContext) != 240 ||
-                sizeof(EhTransfer) != 256 || sizeof(EhControl) != 32) RejectEh(3);
+                sizeof(EhTransfer) != 256 || sizeof(EhControl) != 32)
+                RejectEh(3);
             EhLine(0, s_gcHandle, (ulong)storage, bound.RequiredStorage, bound.FunctionCount);
         }
         SimpleCatchDerived exception = NewCatchException(s_ehSeed);
-        if (s_ehPhase != 2 || Bits(exception) != s_ehReceipt.ObjectReference || !EhObjectIntact()) RejectEh(4);
+        if (s_ehPhase != 2 || Bits(exception) != s_ehReceipt.ObjectReference || !EhObjectIntact())
+            RejectEh(4);
         s_normalRoot = s_ehReceipt;
         fixed (RhpNewFastResult* root = &s_normalRoot)
         {
             var collected = CollectGcGraph(root, 1);
             if (!collected.Succeeded || collected.LiveObjects != 3 || collected.ReclaimedObjects != 0 ||
-                !NormalRootRetained(Bits(exception)) || !ReadGcRoot().Succeeded || !CollectorReceiptValid(5)) RejectEh(5);
+                !NormalRootRetained(Bits(exception)) || !ReadGcRoot().Succeeded || !CollectorReceiptValid(5))
+                RejectEh(5);
             EhLine(1, s_ehReceipt.ObjectReference, s_ehReceipt.MethodTableToken, s_ehReceipt.AllocationCount, collected.LiveObjects);
         }
         bool same = NormalRuntimeMatch((Internal.Runtime.MethodTable*)EhDerivedType(), exception);
         bool ancestor = NormalRuntimeMatch((Internal.Runtime.MethodTable*)EhBaseType(), exception);
         bool sibling = NormalRuntimeMatch(Internal.Runtime.MethodTable.Of<NormalCatchSibling>(), exception);
         bool nil = NormalRuntimeMatch(null, null);
-        if (!same || !ancestor || sibling || nil || !NormalRootRetained(Bits(exception))) RejectEh(6);
+        if (!same || !ancestor || sibling || nil || !NormalRootRetained(Bits(exception)))
+            RejectEh(6);
         EhLine(2, same ? 1UL : 0UL, ancestor ? 1UL : 0UL, sibling ? 1UL : 0UL, nil ? 1UL : 0UL);
         s_ehPhase = 3;
         ulong result = NormalCatcher(exception);
         if (s_ehPhase != 8 || s_normalFinallyEntries != 1 || s_normalSelections != 1 ||
             s_normalCatchEntries != 1 || s_normalContinuations != 1 || result != s_ehSeed + 1 ||
-            !NormalRootRetained(Bits(exception)) || !CheckEhStack()) RejectEh(7);
+            !NormalRootRetained(Bits(exception)) || !CheckEhStack())
+            RejectEh(7);
         // The root method has returned: do not read its expired parent-local slots.
         EhLine(13, s_ehChecks, s_ehMinimum, GcReadWord(s_gcStack.Start), GcReadWord(s_gcStack.Start + 8));
         EhLine(14, s_ehReceipt.ObjectReference, s_ehReceipt.MethodTableToken, s_gcHandle, s_ehReceipt.AllocationCount);
-        s_ehPhase = 9; s_normalRoot = default; s_ehReceipt = default;
-        EhText(1); EhText(2);
+        s_ehPhase = 9;
+        s_normalRoot = default;
+        s_ehReceipt = default;
+        EhText(1);
+        EhText(2);
     }
 
     // CLR MethodImpl NoOptimization=0x40; the minimal enum has no named member.
@@ -100,7 +106,10 @@ internal static unsafe partial class RhpNewFastAllocation
         ulong stamp = 0, result = 0;
         try
         {
-            try { stamp = NormalBody(value); }
+            try
+            {
+                stamp = NormalBody(value);
+            }
             finally
             {
                 NormalFinallyEntered(value, ref stamp);
@@ -120,7 +129,10 @@ internal static unsafe partial class RhpNewFastAllocation
     private static ulong NormalBody(SimpleCatchBase value) => value.Payload + 1;
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void NormalThrower(System.Exception value) { throw value; }
+    private static void NormalThrower(System.Exception value)
+    {
+        throw value;
+    }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void NormalFinallyEntered(SimpleCatchBase value, ref ulong stamp)
@@ -129,10 +141,14 @@ internal static unsafe partial class RhpNewFastAllocation
         {
             if (s_ehPhase != 3 || s_normalFinallyEntries != 0 || s_normalCatchEntries != 0 ||
                 s_normalContinuations != 0 || stamp != s_ehSeed + 1 || value.Payload != s_ehSeed ||
-                !StackSpan((ulong)local, 8) || !NormalRootRetained(Bits(value)) || !CheckEhStack()) RejectEh(61);
+                !StackSpan((ulong)local, 8) || !NormalRootRetained(Bits(value)) || !CheckEhStack())
+                RejectEh(61);
             stamp = value.Payload + 2;
-            s_normalFinallyEntries = 1; s_normalWitness = stamp; s_normalLocal = (ulong)local;
-            s_ehPhase = 4; EhLine(3, Bits(value), (ulong)local, stamp, s_normalFinallyEntries);
+            s_normalFinallyEntries = 1;
+            s_normalWitness = stamp;
+            s_normalLocal = (ulong)local;
+            s_ehPhase = 4;
+            EhLine(3, Bits(value), (ulong)local, stamp, s_normalFinallyEntries);
         }
     }
 
@@ -141,8 +157,10 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         if (s_ehPhase != 5 || s_normalFinallyEntries != 1 || s_normalCatchEntries != 0 ||
             s_normalContinuations != 0 || stamp != s_ehSeed + 2 || !NormalLocalsIntact(false) ||
-            !NormalRootRetained(Bits(value)) || value.Payload != s_ehSeed || !CheckEhStack()) RejectEh(62);
-        s_normalCatchEntries = 1; s_ehPhase = 6;
+            !NormalRootRetained(Bits(value)) || value.Payload != s_ehSeed || !CheckEhStack())
+            RejectEh(62);
+        s_normalCatchEntries = 1;
+        s_ehPhase = 6;
         EhLine(9, Bits(value), value.Payload, stamp, s_normalCatchEntries);
     }
 
@@ -151,8 +169,10 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         if (s_ehPhase != 7 || s_normalFinallyEntries != 1 || s_normalCatchEntries != 1 ||
             s_normalContinuations != 0 || result != s_ehSeed + 1 || stamp != s_ehSeed + 2 ||
-            !NormalLocalsIntact(true) || !NormalRootRetained(Bits(value)) || !CheckEhStack()) RejectEh(63);
-        s_normalContinuations = 1; s_ehPhase = 8;
+            !NormalLocalsIntact(true) || !NormalRootRetained(Bits(value)) || !CheckEhStack())
+            RejectEh(63);
+        s_normalContinuations = 1;
+        s_ehPhase = 8;
         EhLine(11, Bits(value), value.Payload, result, s_normalContinuations);
         EhLine(12, s_normalLocal, stamp, s_normalFinallyEntries, s_normalSelections);
     }
@@ -162,16 +182,20 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         if (s_ehPhase != 4 || s_normalFinallyEntries != 1 || s_normalSelections != 0 ||
             s_normalCatchEntries != 0 || s_normalContinuations != 0 || !BridgeLayout(captured, transfer, control) ||
-            !ControlAdmitted(control) || !NormalRootRetained(exception) || !CheckEhStack()) return RejectEh(12);
-        if (!NormalGeometryReady()) return RejectEh(13);
+            !ControlAdmitted(control) || !NormalRootRetained(exception) || !CheckEhStack())
+            return RejectEh(12);
+        if (!NormalGeometryReady())
+            return RejectEh(13);
         ulong method = (ulong)(delegate* managed<SimpleCatchBase, ulong>)&NormalCatcher;
         ulong thrower = (ulong)(delegate* managed<System.Exception, void>)&NormalThrower;
         ulong originalRip = captured->Rip, originalRsp = captured->Rsp;
         if (!NormalCaptureAdmitted((ulong)captured, originalRip, originalRsp, thrower) ||
-            s_ehSelected != 0 || s_ehTransferAddress != 0 || s_ehCaller.Rip != 0 || s_ehCaller.Rsp != 0) return RejectEh(14);
+            s_ehSelected != 0 || s_ehTransferAddress != 0 || s_ehCaller.Rip != 0 || s_ehCaller.Rsp != 0)
+            return RejectEh(14);
         ulong invalidRip = originalRip ^ 1UL;
         if (NormalCaptureAdmitted((ulong)captured, invalidRip, originalRsp, thrower) ||
-            captured->Rip != originalRip || captured->Rsp != originalRsp) return RejectEh(15);
+            captured->Rip != originalRip || captured->Rsp != originalRsp)
+            return RejectEh(15);
         EhLine(4, originalRip, invalidRip, originalRsp, 0);
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (GcCollectingStorage* owner = &s_gcCollecting)
@@ -180,15 +204,18 @@ internal static unsafe partial class RhpNewFastAllocation
             var noEh = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, new((uint)(thrower - s_gcImage.Start), 10, 0, 0), 0);
-            if (noEh.Status != NativeAotEhClauseStatus.NoEhInfo) return RejectEh(16);
+            if (noEh.Status != NativeAotEhClauseStatus.NoEhInfo)
+                return RejectEh(16);
             var own = BootSequence.RunNormalFinallyUnwind(s_gcCapture, s_gcMapping, (byte*)type,
                 (ulong)sizeof(GcTypeStorage), s_gcHandle, (byte*)storage, EhStorageBytes,
                 (byte*)(s_gcStack.Start + 16), s_gcStack.End - s_gcStack.Start - 16, *captured);
             if (!own.Succeeded || own.InEpilog || own.Caller.Rip != method + NormalFinallyReturn ||
-                own.Caller.Rsp != captured->Rsp + 48) return RejectEh(17);
+                own.Caller.Rsp != captured->Rsp + 48)
+                return RejectEh(17);
             ulong catalog = NormalCatalogStart(), catalogEnd = NormalCatalogEnd();
             if (catalog < s_gcImage.Start || catalog - s_gcImage.Start > 0x7FFFFFFF ||
-                catalogEnd < catalog || catalogEnd - catalog != 32) return RejectEh(18);
+                catalogEnd < catalog || catalogEnd - catalog != 32)
+                return RejectEh(18);
             var recovered = NativeAotEhClauseMetadata.RecoverNormalFinallyParent(
                 NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, s_gcCapture, s_gcMapping,
                 (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, (byte*)storage, EhStorageBytes,
@@ -205,7 +232,8 @@ internal static unsafe partial class RhpNewFastAllocation
                 GcReadWord(recovered.Parent.Rbp - 16) != 0 || GcReadWord(recovered.Parent.Rbp - 24) != 0 ||
                 !NormalFrame((byte*)storage, method, 0, NormalFinallyOffset, 64, 72, 5) ||
                 !NormalFrame((byte*)storage, method, NormalFinallyOffset, NormalCatchOffset, 40, 40, 4) ||
-                !NormalFrame((byte*)storage, method, NormalCatchOffset, NormalCodeBytes, 40, 40, 4)) return RejectEh(19);
+                !NormalFrame((byte*)storage, method, NormalCatchOffset, NormalCodeBytes, 40, 40, 4))
+                return RejectEh(19);
             NativeAotEhClauseResult* rows = stackalloc NativeAotEhClauseResult[2];
             ExceptionTypeMatchResult* matches = stackalloc ExceptionTypeMatchResult[2];
             for (uint i = 0; i < 2; i++)
@@ -224,12 +252,17 @@ internal static unsafe partial class RhpNewFastAllocation
             if (!plan.Succeeded || plan.CatchIndex != 1 || plan.CleanupCount != 0 ||
                 plan.FirstCleanup != 0 || plan.SecondCleanup != 0 || plan.CatchHandler != method + NormalCatchOffset ||
                 !NormalRows(rows, method) || !matches[1].Succeeded || !matches[1].Matches ||
-                !NormalRootRetained(exception)) return RejectEh(20);
-            var saved = rows[1]; rows[1] = default;
+                !NormalRootRetained(exception))
+                return RejectEh(20);
+            var saved = rows[1];
+            rows[1] = default;
             var rejected = BoundedExceptionDispatchPlan.SelectAfterExitedFinally(new(rows, 2), new(matches, 2), 60, 0);
             rows[1] = saved;
-            if (rejected.Succeeded || rejected.CatchHandler != 0 || rejected.CleanupCount != 0) return RejectEh(21);
-            s_ehCaller = recovered.Parent; s_ehSelected = plan.CatchHandler; s_ehTransferAddress = (ulong)transfer;
+            if (rejected.Succeeded || rejected.CatchHandler != 0 || rejected.CleanupCount != 0)
+                return RejectEh(21);
+            s_ehCaller = recovered.Parent;
+            s_ehSelected = plan.CatchHandler;
+            s_ehTransferAddress = (ulong)transfer;
             s_normalEntryControl = new EhControl { Flags = control->Flags, Cr4 = control->Cr4, Mxcsr = control->Mxcsr, X87 = control->X87 };
             *transfer = new EhTransfer { Funclet = plan.CatchHandler, Reserved = 0, Caller = recovered.Parent };
             s_normalSelections = 1;
@@ -237,7 +270,8 @@ internal static unsafe partial class RhpNewFastAllocation
             EhLine(6, own.Caller.Rip, own.Caller.Rsp, recovered.Parent.Rip, recovered.Parent.Rsp);
             EhLine(7, method, NormalCodeBytes, NormalClauses(), NormalTableBytes);
             EhLine(8, rows[1].TypeAddress, plan.CatchHandler, recovered.Parent.Rbp, recovered.ExitedClauseIndex);
-            s_ehPhase = 5; return 1;
+            s_ehPhase = 5;
+            return 1;
         }
     }
 
@@ -250,8 +284,11 @@ internal static unsafe partial class RhpNewFastAllocation
             !NormalTransferIntact(transfer) || !NormalContextIntact(post, method + NormalContinuation) ||
             !NormalControlsIntact(controls, controls + 1) || rip != method + NormalContinuation ||
             !NormalLocalsIntact(true) || !NormalRootRetained(s_ehReceipt.ObjectReference) ||
-            !ReadGcRoot().Succeeded || !CollectorReceiptValid(5) || !CheckEhStack()) return RejectEh(22);
-        EhLine(10, rip, post->Rsp, post->Rbp, s_normalCatchEntries); s_ehPhase = 7; return 1;
+            !ReadGcRoot().Succeeded || !CollectorReceiptValid(5) || !CheckEhStack())
+            return RejectEh(22);
+        EhLine(10, rip, post->Rsp, post->Rbp, s_normalCatchEntries);
+        s_ehPhase = 7;
+        return 1;
     }
 
     private static bool NormalCaptureAdmitted(ulong address, ulong rip, ulong rsp, ulong thrower) =>
@@ -280,14 +317,18 @@ internal static unsafe partial class RhpNewFastAllocation
     private static bool NormalContextIntact(X64UnwindContext* actual, ulong rip)
     {
         if (actual->Rip != rip || actual->Rsp != s_ehCaller.Rsp || actual->Rsp <= s_ehTransferAddress + 576 ||
-            actual->Rsp > s_gcStack.InitialRsp) return false;
+            actual->Rsp > s_gcStack.InitialRsp)
+            return false;
         for (byte reg = 3; reg <= 15; reg++)
             if ((reg == 3 || reg == 5 || reg == 6 || reg == 7 || reg >= 12) &&
-                actual->GetInteger(reg) != s_ehCaller.GetInteger(reg)) return false;
+                actual->GetInteger(reg) != s_ehCaller.GetInteger(reg))
+                return false;
         for (byte reg = 6; reg <= 15; reg++)
         {
-            var a = actual->GetVector(reg); var b = s_ehCaller.GetVector(reg);
-            if (a.Low != b.Low || a.High != b.High) return false;
+            var a = actual->GetVector(reg);
+            var b = s_ehCaller.GetVector(reg);
+            if (a.Low != b.Low || a.High != b.High)
+                return false;
         }
         return true;
     }
@@ -310,15 +351,25 @@ internal static unsafe partial class RhpNewFastAllocation
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool MatchNormalExceptionType(ulong targetType, object value)
     {
-        ulong reference = Bits(value); if (reference == 0) return false;
-        if ((s_ehPhase != 2 && s_ehPhase != 4) || !NormalRootRetained(reference)) { RejectEh(100); return false; }
+        ulong reference = Bits(value);
+        if (reference == 0)
+            return false;
+        if ((s_ehPhase != 2 && s_ehPhase != 4) || !NormalRootRetained(reference))
+        {
+            RejectEh(100);
+            return false;
+        }
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (GcCollectingStorage* owner = &s_gcCollecting)
         {
             var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 s_access, &owner->State, (ulong)sizeof(GcCollectingStorage), s_ehReceipt, reference, targetType);
-            if (!match.Succeeded || !NormalRootRetained(reference)) { RejectEh(101 + (ulong)match.Status); return false; }
+            if (!match.Succeeded || !NormalRootRetained(reference))
+            {
+                RejectEh(101 + (ulong)match.Status);
+                return false;
+            }
             return match.Matches;
         }
     }

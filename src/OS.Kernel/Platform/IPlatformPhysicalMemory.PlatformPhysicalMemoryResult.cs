@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformPhysicalMemoryResult
 {
     private PlatformPhysicalMemoryResult(bool succeeded, PlatformPhysicalMemoryStatus status, FirmwareServicesMode mode, ulong physicalAddress, int requestedBytes, int bytesRead, int requiredBytes, ulong firmwareStatus)
@@ -13,15 +14,39 @@ public readonly struct PlatformPhysicalMemoryResult
         FirmwareStatus = firmwareStatus;
     }
 
-    public bool Succeeded { get; }
-    public PlatformPhysicalMemoryStatus Status { get; }
-    public FirmwareServicesMode Mode { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformPhysicalMemoryStatus Status
+    {
+        get;
+    }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
     public string Operation => PlatformPhysicalMemoryOperations.ReadBytes;
-    public ulong PhysicalAddress { get; }
-    public int RequestedBytes { get; }
-    public int BytesRead { get; }
-    public int RequiredBytes { get; }
-    public ulong FirmwareStatus { get; }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
+    public int RequestedBytes
+    {
+        get;
+    }
+    public int BytesRead
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public ulong FirmwareStatus
+    {
+        get;
+    }
 
     public static PlatformPhysicalMemoryResult Read(FirmwareCallResult guardResult, PlatformPhysicalMemorySourceResult sourceResult, ulong physicalAddress, int requestedBytes)
     {

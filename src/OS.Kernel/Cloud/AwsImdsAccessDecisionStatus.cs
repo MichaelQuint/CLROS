@@ -1,4 +1,5 @@
 namespace OS.Cloud;
+
 public enum AwsImdsAccessDecisionStatus
 {
     Allowed = 0,

@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Runtime;
+
 public enum NativeAppExitLogObserverStatus
 {
     Success = 0,

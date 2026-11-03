@@ -36,30 +36,93 @@ internal sealed class RawImageLayout
         PackageFileFirstCluster = packageFileFirstCluster;
     }
 
-    public string EfiPath { get; }
-    public string OutputPath { get; }
-    public string? ManifestPath { get; }
-    public string? PackagePath { get; }
-    public long EfiSizeBytes { get; }
-    public long ManifestSizeBytes { get; }
-    public long PackageSizeBytes { get; }
+    public string EfiPath
+    {
+        get;
+    }
+    public string OutputPath
+    {
+        get;
+    }
+    public string? ManifestPath
+    {
+        get;
+    }
+    public string? PackagePath
+    {
+        get;
+    }
+    public long EfiSizeBytes
+    {
+        get;
+    }
+    public long ManifestSizeBytes
+    {
+        get;
+    }
+    public long PackageSizeBytes
+    {
+        get;
+    }
     public bool HasManifest => ManifestSizeBytes != 0;
     public bool HasPackage => PackageSizeBytes != 0;
     public bool HasOsDirectory => HasManifest || HasPackage;
-    public int ImageSizeMiB { get; }
-    public long ImageBytes { get; }
-    public long TotalSectors { get; }
-    public long PartitionStartLba { get; }
-    public long PartitionLastLba { get; }
-    public uint PartitionSectorCount { get; }
-    public uint FatSectors { get; }
-    public uint ClusterCount { get; }
-    public int FileClusterCount { get; }
-    public int ManifestFileClusterCount { get; }
-    public int PackageFileClusterCount { get; }
-    public int OsDirectoryCluster { get; }
-    public int ManifestFileFirstCluster { get; }
-    public int PackageFileFirstCluster { get; }
+    public int ImageSizeMiB
+    {
+        get;
+    }
+    public long ImageBytes
+    {
+        get;
+    }
+    public long TotalSectors
+    {
+        get;
+    }
+    public long PartitionStartLba
+    {
+        get;
+    }
+    public long PartitionLastLba
+    {
+        get;
+    }
+    public uint PartitionSectorCount
+    {
+        get;
+    }
+    public uint FatSectors
+    {
+        get;
+    }
+    public uint ClusterCount
+    {
+        get;
+    }
+    public int FileClusterCount
+    {
+        get;
+    }
+    public int ManifestFileClusterCount
+    {
+        get;
+    }
+    public int PackageFileClusterCount
+    {
+        get;
+    }
+    public int OsDirectoryCluster
+    {
+        get;
+    }
+    public int ManifestFileFirstCluster
+    {
+        get;
+    }
+    public int PackageFileFirstCluster
+    {
+        get;
+    }
     public long PrimaryGptEntriesLba => 2;
     public long BackupGptEntriesLba => TotalSectors - 33;
     public long BackupGptHeaderLba => TotalSectors - 1;

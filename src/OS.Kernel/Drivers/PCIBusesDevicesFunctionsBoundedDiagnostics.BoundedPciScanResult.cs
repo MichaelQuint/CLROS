@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public struct BoundedPciScanResult
 {
     public BoundedPciStatus Status;

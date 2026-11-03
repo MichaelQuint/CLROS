@@ -1,6 +1,7 @@
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>
@@ -35,13 +36,13 @@ public static partial class QemuTranscripts
     private static void LinuxTiming(string line, ulong identity, ulong epoch)
     {
         var r = ReadRecord(line, "M16_008_TIMING", "identity:dec", "epoch:dec", "start:dec", "arm:dec", "capture:dec", "ready:dec", "periodFs:dec");
-        Need(r["identity"] == identity && r["epoch"] == epoch && r["periodFs"] is> 0 and <= 1_000_000_000 && r["start"] <= r["arm"] && r["arm"] <= r["capture"] && r["capture"] <= r["ready"], "linux_timing_observation");
+        Need(r["identity"] == identity && r["epoch"] == epoch && r["periodFs"] is > 0 and <= 1_000_000_000 && r["start"] <= r["arm"] && r["arm"] <= r["capture"] && r["capture"] <= r["ready"], "linux_timing_observation");
     }
 
     private static Dictionary<string, ulong> LinuxSyscallTiming(string line, ulong identity, ulong ordinal, ulong number)
     {
         var r = ReadRecord(line, "M16_008_SYSCALL_TIME", "identity:dec", "ordinal:dec", "nr:dec", "entered:dec", "admitted:dec", "dispatched:dec", "prepared:dec", "periodFs:dec");
-        Need(r["identity"] == identity && r["ordinal"] == ordinal && r["nr"] == number && r["periodFs"] is> 0 and <= 1_000_000_000 && r["entered"] <= r["admitted"] && r["admitted"] <= r["dispatched"] && r["dispatched"] <= r["prepared"], "linux_syscall_timing_observation");
+        Need(r["identity"] == identity && r["ordinal"] == ordinal && r["nr"] == number && r["periodFs"] is > 0 and <= 1_000_000_000 && r["entered"] <= r["admitted"] && r["admitted"] <= r["dispatched"] && r["dispatched"] <= r["prepared"], "linux_syscall_timing_observation");
         return r;
     }
 

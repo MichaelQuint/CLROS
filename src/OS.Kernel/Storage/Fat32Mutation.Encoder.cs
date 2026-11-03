@@ -14,7 +14,6 @@ public static unsafe partial class Fat32Mutation
     public const int ScratchClusters = MaximumClusters * 3, MaximumWriteBytes = 65536;
     public const uint MaximumWork = 1000000;
 
-
     /// <summary>Encode the existing CLROS VFAT 13-word layout/checksum into a
     /// caller-owned run, descending long ordinals followed by the supplied short
     /// entry. Supports1..255 UTF16 characters (at most21 entries), with exact

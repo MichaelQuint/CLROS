@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Net;
+
 public readonly struct TcpListenerBacklogSocketBridgeResult
 {
     private TcpListenerBacklogSocketBridgeResult(TcpListenerBacklogSocketBridgeStatus status, TcpListenerBacklogStatus backlogStatus, OSHostStatus socketStatus, int backlogCount, int backlogCapacity, int backlogEntryIndex, TcpListenerBacklogConnection connection, OSHostIpv4Endpoint localEndpoint, OSHostIpv4Endpoint remoteEndpoint)
@@ -17,17 +18,47 @@ public readonly struct TcpListenerBacklogSocketBridgeResult
         IsInitialized = true;
     }
 
-    public TcpListenerBacklogSocketBridgeStatus Status { get; }
-    public bool IsInitialized { get; }
+    public TcpListenerBacklogSocketBridgeStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == TcpListenerBacklogSocketBridgeStatus.Success;
-    public TcpListenerBacklogStatus BacklogStatus { get; }
-    public OSHostStatus SocketStatus { get; }
-    public int BacklogCount { get; }
-    public int BacklogCapacity { get; }
-    public int BacklogEntryIndex { get; }
-    public TcpListenerBacklogConnection Connection { get; }
-    public OSHostIpv4Endpoint LocalEndpoint { get; }
-    public OSHostIpv4Endpoint RemoteEndpoint { get; }
+    public TcpListenerBacklogStatus BacklogStatus
+    {
+        get;
+    }
+    public OSHostStatus SocketStatus
+    {
+        get;
+    }
+    public int BacklogCount
+    {
+        get;
+    }
+    public int BacklogCapacity
+    {
+        get;
+    }
+    public int BacklogEntryIndex
+    {
+        get;
+    }
+    public TcpListenerBacklogConnection Connection
+    {
+        get;
+    }
+    public OSHostIpv4Endpoint LocalEndpoint
+    {
+        get;
+    }
+    public OSHostIpv4Endpoint RemoteEndpoint
+    {
+        get;
+    }
 
     public static TcpListenerBacklogSocketBridgeResult Create(TcpListenerBacklogSocketBridgeStatus status, TcpListenerBacklogStatus backlogStatus, OSHostStatus socketStatus, int backlogCount, int backlogCapacity, int backlogEntryIndex, TcpListenerBacklogConnection connection, OSHostIpv4Endpoint localEndpoint, OSHostIpv4Endpoint remoteEndpoint)
     {

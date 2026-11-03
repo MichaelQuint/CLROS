@@ -1,4 +1,5 @@
 namespace OS.Manifest;
+
 public readonly struct NativeManifestField
 {
     public NativeManifestField(int offset, int length)
@@ -8,9 +9,18 @@ public readonly struct NativeManifestField
         IsPresent = true;
     }
 
-    public int Offset { get; }
-    public int Length { get; }
-    public bool IsPresent { get; }
+    public int Offset
+    {
+        get;
+    }
+    public int Length
+    {
+        get;
+    }
+    public bool IsPresent
+    {
+        get;
+    }
 
     public bool TryGetSlice(ReadOnlySpan<byte> source, out ReadOnlySpan<byte> value)
     {

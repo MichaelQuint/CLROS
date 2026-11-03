@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Net;
+
 public static class TcpListenerBacklogSocketBridge
 {
     public const bool UsesCallerOwnedBacklog = true;

@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public static class VirtioNetQueueMmioSetupPlanner
 {
     public const int CommandsPerQueue = 8;

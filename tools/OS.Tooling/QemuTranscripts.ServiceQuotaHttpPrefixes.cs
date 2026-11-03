@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied sequential framed messages and at most one unfinished

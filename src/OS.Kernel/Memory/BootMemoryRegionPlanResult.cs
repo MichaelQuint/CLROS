@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Memory;
+
 public readonly struct BootMemoryRegionPlanResult
 {
     private BootMemoryRegionPlanResult(BootMemoryRegionPlanStatus status, int sourceRegionCount, int usableRangeCount, int reservedRangeCount, int requiredUsableRangeCapacity, int availableUsableRangeCapacity, int requiredReservedRangeCapacity, int availableReservedRangeCapacity, int invalidRegionIndex, ulong totalPages, ulong totalBytes, ulong usablePages, ulong usableBytes, ulong reservedPages, ulong reservedBytes)
@@ -22,22 +23,67 @@ public readonly struct BootMemoryRegionPlanResult
         ReservedBytes = reservedBytes;
     }
 
-    public BootMemoryRegionPlanStatus Status { get; }
+    public BootMemoryRegionPlanStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == BootMemoryRegionPlanStatus.Success;
-    public int SourceRegionCount { get; }
-    public int UsableRangeCount { get; }
-    public int ReservedRangeCount { get; }
-    public int RequiredUsableRangeCapacity { get; }
-    public int AvailableUsableRangeCapacity { get; }
-    public int RequiredReservedRangeCapacity { get; }
-    public int AvailableReservedRangeCapacity { get; }
-    public int InvalidRegionIndex { get; }
-    public ulong TotalPages { get; }
-    public ulong TotalBytes { get; }
-    public ulong UsablePages { get; }
-    public ulong UsableBytes { get; }
-    public ulong ReservedPages { get; }
-    public ulong ReservedBytes { get; }
+    public int SourceRegionCount
+    {
+        get;
+    }
+    public int UsableRangeCount
+    {
+        get;
+    }
+    public int ReservedRangeCount
+    {
+        get;
+    }
+    public int RequiredUsableRangeCapacity
+    {
+        get;
+    }
+    public int AvailableUsableRangeCapacity
+    {
+        get;
+    }
+    public int RequiredReservedRangeCapacity
+    {
+        get;
+    }
+    public int AvailableReservedRangeCapacity
+    {
+        get;
+    }
+    public int InvalidRegionIndex
+    {
+        get;
+    }
+    public ulong TotalPages
+    {
+        get;
+    }
+    public ulong TotalBytes
+    {
+        get;
+    }
+    public ulong UsablePages
+    {
+        get;
+    }
+    public ulong UsableBytes
+    {
+        get;
+    }
+    public ulong ReservedPages
+    {
+        get;
+    }
+    public ulong ReservedBytes
+    {
+        get;
+    }
 
     internal static BootMemoryRegionPlanResult Success(int sourceRegionCount, int usableRangeCount, int reservedRangeCount, int availableUsableRangeCapacity, int availableReservedRangeCapacity, ulong totalPages, ulong totalBytes, ulong usablePages, ulong usableBytes, ulong reservedPages, ulong reservedBytes)
     {

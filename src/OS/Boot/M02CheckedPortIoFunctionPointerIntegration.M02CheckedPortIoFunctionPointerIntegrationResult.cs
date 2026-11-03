@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct M02CheckedPortIoFunctionPointerIntegrationResult
 {
     private readonly byte _isInitialized;
@@ -21,11 +22,26 @@ public readonly struct M02CheckedPortIoFunctionPointerIntegrationResult
     }
 
     public bool IsInitialized => _isInitialized == 1 && _reserved0 == 0;
-    public M02CheckedPortIoFunctionPointerIntegrationStatus Status { get; }
-    public OS.Kernel.Diagnostics.CheckedPortIoFunctionPointerBindingStatus BindingStatus { get; }
-    public ulong PageAddress { get; }
-    public ulong Out8Address { get; }
-    public ulong In8Address { get; }
+    public M02CheckedPortIoFunctionPointerIntegrationStatus Status
+    {
+        get;
+    }
+    public OS.Kernel.Diagnostics.CheckedPortIoFunctionPointerBindingStatus BindingStatus
+    {
+        get;
+    }
+    public ulong PageAddress
+    {
+        get;
+    }
+    public ulong Out8Address
+    {
+        get;
+    }
+    public ulong In8Address
+    {
+        get;
+    }
     public bool GuestInvocation => _guestInvocation != 0;
     public bool PortIoExecuted => _portIoExecuted != 0;
     public OS.Kernel.Diagnostics.CheckedPortIoFunctionPointerBindingResult Binding => _binding;

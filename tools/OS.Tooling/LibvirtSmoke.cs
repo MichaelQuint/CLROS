@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static class LibvirtSmoke
 {
     public static async Task<int> RunAsync(string root, LibvirtSmokeOptions options, TextWriter output, Func<IReadOnlyList<string>, Task<ProcessResult>>? invoke = null)
@@ -18,7 +19,7 @@ public static class LibvirtSmoke
             output.WriteLine("TEST_START libvirt.smoke");
             output.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
             output.WriteLine("TEST_PASS workload.profile.tooling " + (options.WorkloadProfile == "SingleMinimalApi" ? "default single" : "propagates multi"));
-            foreach (var(key, value)in new (string, object)[]
+            foreach (var (key, value) in new (string, object)[]
             {
                 ("IMAGE_ARTIFACT", options.Image),
                 ("DISK_FORMAT", options.DiskFormat),
@@ -46,7 +47,7 @@ public static class LibvirtSmoke
 
             List<string> Common(string command)
             {
-                List<string> arguments = [command, "--image", Absolute(options.Image), "--disk-format", options.DiskFormat, "--serial-log", Absolute(options.SerialLog), "--network", options.Network, ..Markers()];
+                List<string> arguments = [command, "--image", Absolute(options.Image), "--disk-format", options.DiskFormat, "--serial-log", Absolute(options.SerialLog), "--network", options.Network, .. Markers()];
                 if (options.OvmfLoader.Length != 0)
                     arguments.AddRange(["--ovmf-loader", Absolute(options.OvmfLoader)]);
                 if (options.ValidatePaths)
@@ -74,7 +75,7 @@ public static class LibvirtSmoke
             {
                 output.WriteLine("LIBVIRT_CHECK_SERIAL_ONLY");
                 EnsureParent(options.SummaryLog);
-                var result = await invoke(["check-serial", "--serial-log", Absolute(options.SerialLog), "--summary-log", Absolute(options.SummaryLog), ..Markers()]);
+                var result = await invoke(["check-serial", "--serial-log", Absolute(options.SerialLog), "--summary-log", Absolute(options.SummaryLog), .. Markers()]);
                 output.WriteLine(result.StandardOutput.TrimEnd());
                 if (!result.Succeeded)
                     return Failed("libvirt.smoke.check_serial", result);
@@ -136,7 +137,7 @@ public static class LibvirtSmoke
             output.WriteLine("TEST_FAIL libvirt.smoke.real_run_not_implemented");
             return 2;
         }
-        catch (Exception error)when (error is ArgumentException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
             output.WriteLine("TEST_FAIL libvirt.smoke " + error.Message.ReplaceLineEndings(" "));
             return 1;

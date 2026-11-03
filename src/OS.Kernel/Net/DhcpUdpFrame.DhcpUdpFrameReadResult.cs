@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct DhcpUdpFrameReadResult
 {
     private DhcpUdpFrameReadResult(DhcpUdpFrameStatus status, DhcpMessageStatus dhcpStatus, PacketParseStatus packetStatus, UdpReceiveDispatchStatus udpStatus, EthernetIpv4UdpPacketInfo packetInfo, UdpReceiveDispatchResult udpResult, DhcpMessage message, int payloadOffset, int payloadLength)
@@ -15,17 +16,47 @@ public readonly struct DhcpUdpFrameReadResult
         PayloadLength = payloadLength;
     }
 
-    public DhcpUdpFrameStatus Status { get; }
-    public bool IsInitialized { get; }
+    public DhcpUdpFrameStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == DhcpUdpFrameStatus.Success;
-    public DhcpMessageStatus DhcpStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public UdpReceiveDispatchStatus UdpStatus { get; }
-    public EthernetIpv4UdpPacketInfo PacketInfo { get; }
-    public UdpReceiveDispatchResult UdpResult { get; }
-    public DhcpMessage Message { get; }
-    public int PayloadOffset { get; }
-    public int PayloadLength { get; }
+    public DhcpMessageStatus DhcpStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public UdpReceiveDispatchStatus UdpStatus
+    {
+        get;
+    }
+    public EthernetIpv4UdpPacketInfo PacketInfo
+    {
+        get;
+    }
+    public UdpReceiveDispatchResult UdpResult
+    {
+        get;
+    }
+    public DhcpMessage Message
+    {
+        get;
+    }
+    public int PayloadOffset
+    {
+        get;
+    }
+    public int PayloadLength
+    {
+        get;
+    }
 
     public static DhcpUdpFrameReadResult Success(DhcpMessage message, EthernetIpv4UdpPacketInfo packetInfo, UdpReceiveDispatchResult udpResult, int payloadOffset, int payloadLength)
     {

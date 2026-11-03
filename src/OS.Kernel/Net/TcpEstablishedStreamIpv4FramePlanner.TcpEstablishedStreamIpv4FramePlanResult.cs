@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 using OS.Std.Memory;
 
@@ -29,28 +30,91 @@ public readonly struct TcpEstablishedStreamIpv4FramePlanResult
         IsInitialized = true;
     }
 
-    public TcpEstablishedStreamIpv4FramePlanStatus Status { get; }
-    public bool IsInitialized { get; }
+    public TcpEstablishedStreamIpv4FramePlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == TcpEstablishedStreamIpv4FramePlanStatus.Success;
-    public TcpEstablishedStreamStatus StreamStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public EthernetHeader EthernetHeader { get; }
-    public Ipv4Header Ipv4Header { get; }
-    public TcpHeader TcpHeader { get; }
-    public int BytesWritten { get; }
-    public int TcpSegmentOffset { get; }
-    public int TcpSegmentLength { get; }
-    public int PayloadBytes { get; }
-    public MacAddress LocalMac { get; }
-    public MacAddress RemoteMac { get; }
-    public Ipv4Address LocalAddress { get; }
-    public Ipv4Address RemoteAddress { get; }
-    public ushort LocalPort { get; }
-    public ushort RemotePort { get; }
-    public byte TimeToLive { get; }
-    public ushort Identification { get; }
-    public uint LocalNextSequenceNumber { get; }
-    public uint RemoteNextSequenceNumber { get; }
+    public TcpEstablishedStreamStatus StreamStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public EthernetHeader EthernetHeader
+    {
+        get;
+    }
+    public Ipv4Header Ipv4Header
+    {
+        get;
+    }
+    public TcpHeader TcpHeader
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int TcpSegmentOffset
+    {
+        get;
+    }
+    public int TcpSegmentLength
+    {
+        get;
+    }
+    public int PayloadBytes
+    {
+        get;
+    }
+    public MacAddress LocalMac
+    {
+        get;
+    }
+    public MacAddress RemoteMac
+    {
+        get;
+    }
+    public Ipv4Address LocalAddress
+    {
+        get;
+    }
+    public Ipv4Address RemoteAddress
+    {
+        get;
+    }
+    public ushort LocalPort
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
+    public byte TimeToLive
+    {
+        get;
+    }
+    public ushort Identification
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get;
+    }
 
     public static TcpEstablishedStreamIpv4FramePlanResult Success(TcpEstablishedStreamStatus streamStatus, PacketParseStatus packetStatus, EthernetHeader ethernetHeader, Ipv4Header ipv4Header, TcpHeader tcpHeader, int bytesWritten, int tcpSegmentOffset, int tcpSegmentLength, int payloadBytes, in TcpEstablishedStreamIpv4FramePlannerInfo info, ushort localPort, ushort remotePort, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
     {

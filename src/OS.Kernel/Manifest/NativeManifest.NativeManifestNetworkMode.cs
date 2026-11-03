@@ -1,4 +1,5 @@
 namespace OS.Manifest;
+
 public enum NativeManifestNetworkMode
 {
     None = 0,

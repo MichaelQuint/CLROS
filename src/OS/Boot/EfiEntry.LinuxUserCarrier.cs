@@ -6,15 +6,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
-
-
-
-
-
-
-
-
         private static LinuxUserCarrier s_linuxUserCarrier;
 
         // Prepare once before startup admission can invoke its phase-three
@@ -26,7 +17,8 @@ public static unsafe partial class EfiEntry
             fixed (Storage* original = &s_storage)
             fixed (LinuxUserCarrier* carrier = &s_linuxUserCarrier)
             {
-                if (state != original || !LinuxUserCarrierPool(state)) return false;
+                if (state != original || !LinuxUserCarrierPool(state))
+                    return false;
                 if (carrier->Self != 0 || carrier->Boot != null || carrier->OriginalCooperativePool != 0)
                     return LinuxUserCarrierMatches(carrier, state);
                 carrier->Boot = state;
@@ -68,7 +60,8 @@ public static unsafe partial class EfiEntry
             fixed (Storage* original = &s_storage)
             fixed (LinuxUserCarrier* carrier = &s_linuxUserCarrier)
             {
-                if (context == original) return original;
+                if (context == original)
+                    return original;
                 return context == carrier && LinuxUserCarrierMatches(carrier, original) ? original : null;
             }
         }

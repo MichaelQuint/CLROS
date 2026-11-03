@@ -3,6 +3,7 @@ using Layout = OS.Kernel.Runtime.ObjectArrayStringEETypeMethodTableLayoutContrac
 using Unwind = OS.Kernel.Runtime.X64PERuntimeFunctionUnwindMetadataHostileInput;
 
 namespace OS.Kernel.Runtime;
+
 public static unsafe partial class NativeAotEhClauseMetadata
 {
     private struct Image

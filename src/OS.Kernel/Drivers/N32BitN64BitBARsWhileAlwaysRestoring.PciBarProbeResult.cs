@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciBarProbeResult
 {
     public readonly PciBarProbeStatus Status, OperationStatus;

@@ -153,22 +153,22 @@ internal static partial class LinuxDiskRaceProofFixtureTests
             var child = F.Calls(variant, true);
             var clone = main.Single(c => c.Number == 56);
             HostCheck.True(clone.A0 == 0x7d0f00 && clone.A1 == F.ChildStackTop && clone.A2 == F.ParentTid && clone.A3 == F.ClearTid && clone.A4 == F.ChildTls && clone.Result == 2);
-            HostCheck.True(main.Single(c => c.Role == "main.read")is { Number: 0, A0: 3, A2: 8192, OutputBytes: 8192 });
-            HostCheck.True(child.Single(c => c.Role == "child.pin")is { Number: 10, A0: F.ParentOutput, A1: 4096, A2: 1, Result: -12 });
-            HostCheck.True(child.Single(c => c.Role == "child.disjoint-writable")is { Number: 10, A0: F.ChildOutput, A2: 3, Result: 0 });
+            HostCheck.True(main.Single(c => c.Role == "main.read") is { Number: 0, A0: 3, A2: 8192, OutputBytes: 8192 });
+            HostCheck.True(child.Single(c => c.Role == "child.pin") is { Number: 10, A0: F.ParentOutput, A1: 4096, A2: 1, Result: -12 });
+            HostCheck.True(child.Single(c => c.Role == "child.disjoint-writable") is { Number: 10, A0: F.ChildOutput, A2: 3, Result: 0 });
             HostCheck.True(child[^1] is { Number: 60, A0: 0 } && main[^1] is { Number: 231, A0: 42 });
-            HostCheck.True(main.Single(c => c.Role == "main.join")is { Number: 202, A0: F.ClearTid, A2: 2, Wait: F.WaitPolicy.Join });
+            HostCheck.True(main.Single(c => c.Role == "main.join") is { Number: 202, A0: F.ClearTid, A2: 2, Wait: F.WaitPolicy.Join });
             if (variant == "CloseReuse")
             {
                 HostCheck.Equal(-9L, main.Single(c => c.Role == "main.read").Result);
-                HostCheck.True(child.Single(c => c.Role == "child.reopen")is { Number: 2, A0: F.EmptyPath, Result: 3 });
+                HostCheck.True(child.Single(c => c.Role == "child.reopen") is { Number: 2, A0: F.EmptyPath, Result: 3 });
                 HostCheck.Equal(0L, main.Single(c => c.Role == "main.replacement").Result);
             }
             else
             {
                 HostCheck.Equal(8192L, main.Single(c => c.Role == "main.read").Result);
-                HostCheck.True(child.Single(c => c.Role == "child.duplicate")is { Number: 0, A0: 7, A2: 8, Result: 8 });
-                HostCheck.True(child.Single(c => c.Role == "child.pread")is { Number: 17, A3: 65535, Result: 512 });
+                HostCheck.True(child.Single(c => c.Role == "child.duplicate") is { Number: 0, A0: 7, A2: 8, Result: 8 });
+                HostCheck.True(child.Single(c => c.Role == "child.pread") is { Number: 17, A3: 65535, Result: 512 });
                 HostCheck.Equal(8200L, main.Single(c => c.Role == "main.cursor").Result);
             }
         }
@@ -184,12 +184,12 @@ internal static partial class LinuxDiskRaceProofFixtureTests
         HostCheck.True(decoded is { Number: 0, A0: 7, A1: F.ChildOutput, A2: 8, A3: 0, A4: 0, A5: 0 } && duplicate is { Result: 8, Wait: F.WaitPolicy.Disk, OutputBytes: 8 });
         var replacement = main.Single(c => c.Role == "main.replacement-cursor");
         HostCheck.True(replacement is { Number: 8, A0: 3, A1: 0, A2: 1, Result: 0, Wait: F.WaitPolicy.Disk });
-        HostCheck.True(main.Single(c => c.Role == "main.cursor")is { A0: 7, Result: 8 } && main.Single(c => c.Role == "main.independent-cursor")is { A0: 4, Result: 0 });
+        HostCheck.True(main.Single(c => c.Role == "main.cursor") is { A0: 7, Result: 8 } && main.Single(c => c.Role == "main.independent-cursor") is { A0: 4, Result: 0 });
         string[] order = ["main.join", "main.replacement", "main.duplicate", "main.replacement-cursor", "main.replacement-stat", "main.cursor", "main.independent-cursor", "main.close3"];
         HostCheck.True(order.Select(role => main.Single(c => c.Role == role).ReturnRip).SequenceEqual(order.Select(role => main.Single(c => c.Role == role).ReturnRip).Order()));
         int at = checked((int)(duplicate.ReturnRip - F.ImageBase)) + 12;
         // Decode the two actual RIP-relative loads and comparisons independently.
-        foreach ((ulong address, byte value)in new[]
+        foreach ((ulong address, byte value) in new[]
         {
             (F.ChildOutput, (byte)0x13),
             (F.ChildOutput + 7, (byte)0x12)
@@ -231,7 +231,7 @@ internal static partial class LinuxDiskRaceProofFixtureTests
         HostCheck.Equal(last, positions[^1]);
         HostCheck.True(F.ImageBase + (uint)positions[1] < main.Single(c => c.Role == "main.duplicate").ReturnRip);
         HostCheck.True(elf.AsSpan(last + 24, 5).SequenceEqual(new byte[] { 0xb8, 3, 0, 0, 0 }));
-        HostCheck.True(main.Single(c => c.Role == "main.read")is { A1: F.ParentOutput, A2: 8192, Result: -9 });
+        HostCheck.True(main.Single(c => c.Role == "main.read") is { A1: F.ParentOutput, A2: 8192, Result: -9 });
         HostCheck.True(main.Where(c => c.ReturnRip > main.Single(c => c.Role == "main.duplicate").ReturnRip).All(c => c.Number != 0 && c.Number != 17));
     }
 
@@ -254,11 +254,11 @@ internal static partial class LinuxDiskRaceProofFixtureTests
             }
 
             HostCheck.True(child[0] is { Role: "child.signal", Number: 234, A0: 1, A1: 1, A2: 10 } && child.Count == 2 && child[^1].Number == 60);
-            HostCheck.True(main.Single(c => c.Role == "prep.signal")is { Number: 13, A0: 10, A1: F.SignalAction, A3: 8 });
+            HostCheck.True(main.Single(c => c.Role == "prep.signal") is { Number: 13, A0: 10, A1: F.SignalAction, A3: 8 });
             HostCheck.Equal(0x04000004UL, BinaryPrimitives.ReadUInt64LittleEndian(elf.AsSpan((int)(F.SignalAction - F.ImageBase + 8))));
             HostCheck.Equal(F.ImageBase + F.HandlerOffset, BinaryPrimitives.ReadUInt64LittleEndian(elf.AsSpan((int)(F.SignalAction - F.ImageBase))));
             HostCheck.Equal(F.ImageBase + F.RestorerOffset, BinaryPrimitives.ReadUInt64LittleEndian(elf.AsSpan((int)(F.SignalAction - F.ImageBase + 16))));
-            HostCheck.True(main.Single(c => c.Role == "main.drain-probe")is { Number: 17, A0: 3, A1: F.ChildOutput, A2: 1, A3: 0, Result: 1 });
+            HostCheck.True(main.Single(c => c.Role == "main.drain-probe") is { Number: 17, A0: 3, A1: F.ChildOutput, A2: 1, A3: 0, Result: 1 });
             HostCheck.True(read.Result == (variant == "InterruptWins" ? -4 : 0) && read.A0 == (variant == "InterruptWins" ? 3UL : 4UL));
             HostCheck.Equal(variant == "CompletionWins" ? F.EmptyPath : F.Path, main.Single(c => c.Role == "prep.independent").A0);
             var h = Decode(elf, F.HandlerOffset, (int)(F.HandlerEndRip(variant) - F.ImageBase));
@@ -334,7 +334,7 @@ internal static partial class LinuxDiskRaceProofFixtureTests
         HostCheck.Equal(59U, LinuxDiskFileProofFixture.ExpectedCalls);
         foreach (string variant in F.Variants)
         {
-            var options = QemuSmokeOptions.Parse([..SelectionArguments, "-LinuxDiskRaceVariant", variant]);
+            var options = QemuSmokeOptions.Parse([.. SelectionArguments, "-LinuxDiskRaceVariant", variant]);
             var plan = QemuProfiles.Create(options);
             HostCheck.Equal(variant, options.LinuxDiskRaceVariant);
             HostCheck.True(NativeAotDiskSelection.Selected(plan.Flags) && !NativeAotDiskSelection.StaticSelected(plan.Flags) && !plan.IsEnabled("EnableM10017Probe") && options.TimeoutSeconds == 180 && plan.Flags.OrderBy(p => p.Key, StringComparer.Ordinal).SequenceEqual(originalPlan.Flags.OrderBy(p => p.Key, StringComparer.Ordinal)) && plan.Required.Where(m => m != "M16_025_EXIT_CLEANUP_END").SequenceEqual(originalPlan.Required));
@@ -346,7 +346,7 @@ internal static partial class LinuxDiskRaceProofFixtureTests
         var diskStatic = QemuSmokeOptions.Parse(staticArguments);
         var staticPlan = QemuProfiles.Create(diskStatic);
         HostCheck.True(diskStatic.LinuxDiskRaceVariant == "" && NativeAotDiskSelection.StaticSelected(staticPlan.Flags) && diskStatic.TimeoutSeconds == 825);
-        Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([..staticArguments, "-LinuxDiskRaceVariant", "Progress"])));
+        Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([.. staticArguments, "-LinuxDiskRaceVariant", "Progress"])));
         Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["-BuildEfi", "-LinuxDiskRaceVariant", "Progress"])));
         foreach (string[] collision in new[]
         {
@@ -443,7 +443,7 @@ internal static partial class LinuxDiskRaceProofFixtureTests
         }
 
         )
-            Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([..SelectionArguments, "-LinuxDiskRaceVariant", "Progress", ..collision])));
+            Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([.. SelectionArguments, "-LinuxDiskRaceVariant", "Progress", .. collision])));
         var changed = QemuSmokeOptions.Parse(SelectionArguments);
         changed.LinuxDiskRaceVariant = "unknown";
         Reject(() => QemuProfiles.Create(changed));
@@ -498,7 +498,7 @@ internal static partial class LinuxDiskRaceProofFixtureTests
         {
             bool launched = false;
             using StringWriter output = new();
-            var options = QemuSmokeOptions.Parse([..SelectionArguments, "-LinuxDiskRaceVariant", variant]);
+            var options = QemuSmokeOptions.Parse([.. SelectionArguments, "-LinuxDiskRaceVariant", variant]);
             int exit = await QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output, (_, _) =>
             {
                 launched = true;

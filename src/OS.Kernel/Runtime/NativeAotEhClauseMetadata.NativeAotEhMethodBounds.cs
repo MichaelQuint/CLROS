@@ -19,8 +19,20 @@ public readonly struct NativeAotEhMethodBounds
         EhBytes = ehBytes;
     }
 
-    public uint RootMethodRva { get; }
-    public uint CodeBytes { get; }
-    public uint EhRva { get; }
-    public uint EhBytes { get; }
+    public uint RootMethodRva
+    {
+        get;
+    }
+    public uint CodeBytes
+    {
+        get;
+    }
+    public uint EhRva
+    {
+        get;
+    }
+    public uint EhBytes
+    {
+        get;
+    }
 }

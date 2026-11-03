@@ -4,6 +4,7 @@ using System.Text;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class LinuxMemoryProofFixture
 {
     // Same narrow C# byte writer as the earlier syscall fixture; six arguments

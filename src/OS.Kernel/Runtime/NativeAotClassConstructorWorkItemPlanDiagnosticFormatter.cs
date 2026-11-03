@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAotClassConstructorWorkItemPlanDiagnosticFormatter
 {
     public static NativeAotClassConstructorWorkItemPlanDiagnosticFormatResult FormatResult(in NativeAotClassConstructorWorkItemPlanResult result, Span<byte> destination)

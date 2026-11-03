@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpConnectionTable
 {
     /// <summary>Opaque borrowed identity, not a reference or ownership transfer.

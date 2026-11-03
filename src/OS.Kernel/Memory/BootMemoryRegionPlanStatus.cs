@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Memory;
+
 public enum BootMemoryRegionPlanStatus
 {
     Success = 0,

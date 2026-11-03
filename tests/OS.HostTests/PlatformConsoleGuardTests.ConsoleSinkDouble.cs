@@ -20,8 +20,14 @@ internal static partial class PlatformConsoleGuardTests
             }
         }
 
-        public int AvailabilityReadCount { get; private set; }
-        public int LineCount { get; private set; }
+        public int AvailabilityReadCount
+        {
+            get; private set;
+        }
+        public int LineCount
+        {
+            get; private set;
+        }
         public string LastLine { get; private set; } = string.Empty;
 
         public void WriteLine(string line)

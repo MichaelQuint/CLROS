@@ -2,6 +2,7 @@ using OS.Kernel.Threading;
 using OS.Pal;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public unsafe partial struct LinuxThreadServices
 {
     /// <summary>Prepared kernel entry for the same slot/generation returned by

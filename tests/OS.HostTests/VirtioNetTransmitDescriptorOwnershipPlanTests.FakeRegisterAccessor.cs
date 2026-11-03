@@ -16,9 +16,18 @@ internal static partial class VirtioNetTransmitDescriptorOwnershipPlanTests
 
         public VirtioPciRegisterWriteStatus NotifyFailureStatus { get; init; } = VirtioPciRegisterWriteStatus.Success;
         public VirtioPciRegisterWriteStatus LastStatus { get; private set; } = VirtioPciRegisterWriteStatus.NotReady;
-        public int NotifyWrite16Count { get; private set; }
-        public uint LastNotifyRelativeOffset { get; private set; }
-        public ushort LastNotifyValue { get; private set; }
+        public int NotifyWrite16Count
+        {
+            get; private set;
+        }
+        public uint LastNotifyRelativeOffset
+        {
+            get; private set;
+        }
+        public ushort LastNotifyValue
+        {
+            get; private set;
+        }
 
         public VirtioPciRegisterRead16Result Read16(VirtioPciBarAperture aperture, uint relativeOffset)
         {

@@ -3,6 +3,7 @@ using OS.Kernel.Platform;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public enum AcpiMcfgPhysicalDiscoveryStatus
 {
     Success = 0,

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 
 public static class VirtioNetReceiveRegisterWindowDispatchPlanner

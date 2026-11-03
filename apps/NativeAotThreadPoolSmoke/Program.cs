@@ -123,7 +123,8 @@ internal static partial class Program
         {
             0 => Interlocked.Increment(ref state.Before),
             1 => Interlocked.Increment(ref state.Race),
-            _ => Interlocked.Increment(ref state.After)};
+            _ => Interlocked.Increment(ref state.After)
+        };
         Require(count == 1, "continuation_duplicate");
         Interlocked.Increment(ref state.Count);
     }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
@@ -195,7 +196,7 @@ internal static partial class Program
             long observation = Stopwatch.GetTimestamp();
             await Task.Delay(TimeSpan.FromMilliseconds(50)).WaitAsync(Remaining(stage)).ConfigureAwait(false);
             RequireElapsed(observation, Stopwatch.GetTimestamp(), "timer_drain_observation");
-            Require(observation >= fired && Volatile.Read(ref state.Failure)is null && Volatile.Read(ref state.Callbacks) == 1 && Volatile.Read(ref state.Stale) == 0, "timer_drained");
+            Require(observation >= fired && Volatile.Read(ref state.Failure) is null && Volatile.Read(ref state.Callbacks) == 1 && Volatile.Read(ref state.Stale) == 0, "timer_drained");
             Console.WriteLine(FormattableString.Invariant($"NATIVEAOT_THREADPOOL_TIMER dueMs=50 before={state.Before} fired={fired} frequency={Stopwatch.Frequency} callbacks={state.Callbacks} stale={state.Stale} disposed=true"));
             return (state.Callbacks, state.Stale);
         }

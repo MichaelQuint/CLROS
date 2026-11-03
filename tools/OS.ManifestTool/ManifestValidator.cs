@@ -28,7 +28,7 @@ public static class ManifestValidator
         {
             manifestFile = new FileInfo(manifestPath);
         }
-        catch (Exception ex)when (ex is ArgumentException || ex is NotSupportedException || ex is PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException || ex is NotSupportedException || ex is PathTooLongException)
         {
             return ValidationResult.Fail("invalid_manifest_path", "Manifest path is invalid.");
         }
@@ -53,7 +53,7 @@ public static class ManifestValidator
         {
             return ValidationResult.Fail("malformed_json", "Manifest is not valid JSON.");
         }
-        catch (Exception ex)when (ex is IOException || ex is UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
         {
             return ValidationResult.Fail("manifest_read_failed", "Manifest could not be read.");
         }

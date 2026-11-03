@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Runtime;
+
 public struct X64FrameUnwindResult
 {
     public X64FrameUnwindStatus Status;

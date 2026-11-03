@@ -18,7 +18,16 @@ internal readonly struct PackagePayloadValidation
         EntryOffset = entryOffset;
     }
 
-    public string AppPath { get; }
-    public ulong AppBytes { get; }
-    public ulong EntryOffset { get; }
+    public string AppPath
+    {
+        get;
+    }
+    public ulong AppBytes
+    {
+        get;
+    }
+    public ulong EntryOffset
+    {
+        get;
+    }
 }

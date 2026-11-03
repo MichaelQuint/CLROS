@@ -28,7 +28,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
             {
                 action();
             }
-            catch (Exception e)when (e is ToolFailure or InvalidDataException)
+            catch (Exception e) when (e is ToolFailure or InvalidDataException)
             {
                 rejected = true;
             }
@@ -80,7 +80,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
         var value = failure.RootElement;
         HostCheck.Equal("headers", value.GetProperty("Stage").GetString());
         HostCheck.True(!value.GetProperty("OwnerCancelled").GetBoolean() && !value.GetProperty("CallerCancelled").GetBoolean());
-        HostCheck.True(value.GetProperty("Exceptions")[0].GetProperty("HttpRequestError").GetString()is { Length: > 0 });
+        HostCheck.True(value.GetProperty("Exceptions")[0].GetProperty("HttpRequestError").GetString() is { Length: > 0 });
         using var joined = JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(host.Destination, "runner.json")));
         HostCheck.True(joined.RootElement.GetProperty("Joined").GetBoolean());
         using var receipt = JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(host.Destination, "http.json")));
@@ -102,7 +102,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
         {
             await NativeAotDiskStaticPeer.RunAsync(host.Root, host.Serial, host.RunAsync, deadline.Token);
         }
-        catch (ToolFailure error)when (error.Reason == "disk_http_fresh_artifacts_required")
+        catch (ToolFailure error) when (error.Reason == "disk_http_fresh_artifacts_required")
         {
             rejected = true;
         }
@@ -139,11 +139,11 @@ internal static partial class NativeAotDiskStaticCaptureTests
             {
                 completion = await operation;
             }
-            catch (ToolFailure error)when (mode == Mode.WrongStatus && error.Reason == "disk_http_status /healthz")
+            catch (ToolFailure error) when (mode == Mode.WrongStatus && error.Reason == "disk_http_status /healthz")
             {
                 wrongStatus = true;
             }
-            catch (OperationCanceledException)when (mode == Mode.CancelBody && cancellation.IsCancellationRequested)
+            catch (OperationCanceledException) when (mode == Mode.CancelBody && cancellation.IsCancellationRequested)
             {
                 cancelled = true;
             }
@@ -240,7 +240,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
                 {
                     QemuTranscripts.InspectDiskStaticReceiptIdentityValues(actual.Sha256, hash, image, "{}");
                 }
-                catch (ToolFailure failure)when (failure.Reason == reason)
+                catch (ToolFailure failure) when (failure.Reason == reason)
                 {
                     rejected = true;
                 }
@@ -250,7 +250,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
 
             string changed = (completion.ReceiptSha256[0] == '0' ? "1" : "0") + completion.ReceiptSha256[1..];
             RejectReceipt(changed, "{}", "disk_static_http_receipt_identity");
-            RejectReceipt(new string ('G', 64), "{}", "disk_static_http_receipt_identity");
+            RejectReceipt(new string('G', 64), "{}", "disk_static_http_receipt_identity");
             RejectReceipt(completion.ReceiptSha256, "{}\n", "disk_static_image_receipt_identity");
             held.VerifyUnchanged();
             using var stopped = JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(host.Destination, "stopped.json")));
@@ -274,7 +274,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
         {
             await socket.ConnectAsync(IPAddress.Loopback, port, deadline.Token);
         }
-        catch (SocketException error)when (error.SocketErrorCode == SocketError.ConnectionRefused)
+        catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionRefused)
         {
             refused = true;
         }

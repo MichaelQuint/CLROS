@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Boot;
+
 public unsafe struct BoundedExitRetryState
 {
     internal uint Phase;

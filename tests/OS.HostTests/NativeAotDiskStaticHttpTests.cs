@@ -44,7 +44,7 @@ internal static partial class NativeAotDiskStaticHttpTests
             }
 
             bodies.Add(name, entity.ToArray());
-            rows.Add(new JsonObject { ["Ordinal"] = ordinal, ["Method"] = "GET", ["Path"] = path, ["Status"] = 200, ["RequestHeaders"] = new JsonArray(), ["ResponseHeaders"] = new JsonArray(headers.Select(h => (JsonNode? )JsonValue.Create(h)).ToArray()), ["Bytes"] = entity.Length, ["Sha256"] = Convert.ToHexString(SHA256.HashData(entity)), ["BodyFile"] = name, ["Started"] = 100 + ordinal * 100, ["Finished"] = 150 + ordinal * 100 });
+            rows.Add(new JsonObject { ["Ordinal"] = ordinal, ["Method"] = "GET", ["Path"] = path, ["Status"] = 200, ["RequestHeaders"] = new JsonArray(), ["ResponseHeaders"] = new JsonArray(headers.Select(h => (JsonNode?)JsonValue.Create(h)).ToArray()), ["Bytes"] = entity.Length, ["Sha256"] = Convert.ToHexString(SHA256.HashData(entity)), ["BodyFile"] = name, ["Started"] = 100 + ordinal * 100, ["Finished"] = 150 + ordinal * 100 });
             byte[] request = Encoding.ASCII.GetBytes("GET " + (ordinal == 3 && mode == "wrong-target" ? "/other.html" : path) + " HTTP/1.1\r\nHost: " + (mode == "wrong-host" ? "elsewhere:5555" : "127.0.0.1:5555") + "\r\n\r\n");
             Add(false, client, server, 0x18, request);
             client += (uint)request.Length;
@@ -53,8 +53,8 @@ internal static partial class NativeAotDiskStaticHttpTests
             if (mode == "changed-body" && ordinal == 3)
                 actual[0] ^= 1;
             if (chunked)
-                actual = [..Encoding.ASCII.GetBytes(actual.Length.ToString("x", CultureInfo.InvariantCulture) + "\r\n"), ..actual, .."\r\n0\r\n\r\n"u8.ToArray()];
-            byte[] response = [..Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\n" + string.Concat(headers.Select(h => h + "\r\n")) + "\r\n"), ..actual];
+                actual = [.. Encoding.ASCII.GetBytes(actual.Length.ToString("x", CultureInfo.InvariantCulture) + "\r\n"), .. actual, .. "\r\n0\r\n\r\n"u8.ToArray()];
+            byte[] response = [.. Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\n" + string.Concat(headers.Select(h => h + "\r\n")) + "\r\n"), .. actual];
             writes.Add(new(0, 100 + ordinal * 10, stream, stream + (uint)response.Length));
             stream += (uint)response.Length;
             Add(true, server, client, 0x18, response);
@@ -94,7 +94,7 @@ internal static partial class NativeAotDiskStaticHttpTests
         {
             Read(f);
         }
-        catch (Exception e)when (e is ToolFailure or InvalidDataException or System.Text.Json.JsonException or FormatException)
+        catch (Exception e) when (e is ToolFailure or InvalidDataException or System.Text.Json.JsonException or FormatException)
         {
             actual = e is ToolFailure t ? t.Reason : e.Message;
         }
@@ -165,7 +165,7 @@ internal static partial class NativeAotDiskStaticHttpTests
                     rows[3]!["Ordinal"] = 2;
                     break;
                 case "hash":
-                    rows[3]!["Sha256"] = new string ('0', 64);
+                    rows[3]!["Sha256"] = new string('0', 64);
                     break;
                 case "file":
                     rows[3]!["BodyFile"] = "../003.body";
@@ -231,13 +231,20 @@ internal static partial class NativeAotDiskStaticHttpTests
                     Inode = 17
                 };
             if (mode == "extra")
-                reads = [..reads, reads[0]];
+                reads = [.. reads, reads[0]];
             if (mode == "gap")
                 writes[2] = writes[2] with
                 {
                     Before = writes[2].Before + 1
                 };
-            Reject(f with { Replay = f.Replay with { Reads = reads, SocketWrites = writes } });
+            Reject(f with
+            {
+                Replay = f.Replay with
+                {
+                    Reads = reads,
+                    SocketWrites = writes
+                }
+            });
         }
     });
     private static void WithAssetInventory(Action<WebRootDiskInventory.Inspection, WebRootImageFixture.Receipt, WebRootImageFixture.Snapshot> action, Action<string>? prepare = null) => WebRootImageFixtureTests.WithImage((root, dir, image, source) =>

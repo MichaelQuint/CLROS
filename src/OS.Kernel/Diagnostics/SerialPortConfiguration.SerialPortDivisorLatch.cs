@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct SerialPortDivisorLatch(ushort divisor)
 {
     public ushort Divisor { get; } = divisor;

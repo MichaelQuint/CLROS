@@ -128,7 +128,7 @@ internal static unsafe partial class LinuxThreadProofFixtureTests
         HostCheck.True(parent.Calls.Select(c => c.Number).SequenceEqual(parentNumbers) && child.Calls.Select(c => c.Number).SequenceEqual(childNumbers));
         HostCheck.Equal(55U, LinuxThreadProofFixture.ExpectedCalls("Threads"));
         HostCheck.Equal(48U, LinuxThreadProofFixture.ExpectedCalls("Threads", child: true));
-        ulong[] parentPath = [..parent.Calls.Take(9).Select(c => c.Rip), ..Enumerable.Range(0, 4).SelectMany(_ => parent.Calls.Skip(9).Take(10).Select(c => c.Rip)), ..parent.Calls.Skip(19).Select(c => c.Rip)];
+        ulong[] parentPath = [.. parent.Calls.Take(9).Select(c => c.Rip), .. Enumerable.Range(0, 4).SelectMany(_ => parent.Calls.Skip(9).Take(10).Select(c => c.Rip)), .. parent.Calls.Skip(19).Select(c => c.Rip)];
         ulong[] childPath = Enumerable.Range(0, 4).SelectMany(_ => child.Calls.Select(c => c.Rip)).ToArray();
         HostCheck.True(parentPath.SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads")) && childPath.SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads", child: true)));
         HostCheck.Equal(parent.Calls[9].Rip, LinuxThreadProofFixture.CloneReturnRip("Threads"));

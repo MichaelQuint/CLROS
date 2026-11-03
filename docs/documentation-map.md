@@ -1,5 +1,11 @@
 # Documentation Map
 
+[Step1736](../done/step1736.md) records the explicit C# HTTP observation API and
+21-file NVMe formatting batch. Host requirements owns invocation/ownership limits;
+diagnostics owns request/body-file timing and partial-failure interpretation;
+storage owns source-equivalence and no-live-NVMe boundaries.49 focused checks
+pass. Extended actual guest/browser and final qualification remain open.
+
 The active M04-026/#813 execution and acceptance contract is
 [RC3 and WHPX qualification](../work/rc3-whpx-qualification.md). It is a bounded
 work record; build/host/QEMU/completion guidance remains in the existing

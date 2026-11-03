@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpSendWindow
 {
     /// <summary>Initially zero, noncopyable metadata. Retained bytes include

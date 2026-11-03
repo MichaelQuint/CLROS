@@ -19,14 +19,35 @@ readonly struct HttpProbeResult
         ErrorType = errorType;
     }
 
-    public bool Passed { get; }
-    public string Reason { get; }
-    public int? StatusCode { get; }
+    public bool Passed
+    {
+        get;
+    }
+    public string Reason
+    {
+        get;
+    }
+    public int? StatusCode
+    {
+        get;
+    }
     public string StatusCodeText => StatusCode.HasValue ? StatusCode.Value.ToString() : "none";
-    public int BodyByteCount { get; }
-    public string BodySha256 { get; }
-    public long ElapsedMilliseconds { get; }
-    public string ErrorType { get; }
+    public int BodyByteCount
+    {
+        get;
+    }
+    public string BodySha256
+    {
+        get;
+    }
+    public long ElapsedMilliseconds
+    {
+        get;
+    }
+    public string ErrorType
+    {
+        get;
+    }
 
     public static HttpProbeResult Failed(string reason, long elapsedMilliseconds, string errorType)
     {

@@ -99,7 +99,7 @@ internal static unsafe partial class X64PERuntimeFunctionUnwindMetadataHostileIn
             f.Image[0x1FFC] = 1;
             f.Image[0x1FFE] = 255;
         }, Status.UnwindRejected), (f => f.Row(0, 0x6000, 0x6080, 0x6000), Status.UnwindRejected)];
-        foreach (var(change, expected)in cases)
+        foreach (var (change, expected) in cases)
         {
             using Fixture f = new();
             change(f);
@@ -114,7 +114,7 @@ internal static unsafe partial class X64PERuntimeFunctionUnwindMetadataHostileIn
     {
         // Each complete form includes only its meaningful dependencies; no native execution is implied.
         (byte Frame, byte[] Codes, uint Allocation, uint Stack)[] cases = [(0, [1, 0x30], 0, 8), (0, [5, 0x01, 17, 0], 136, 136), (0, [5, 0x11, 0, 0, 8, 0], 524288, 524288), (0, [5, 0xF2], 128, 128), (0x25, [16, 0x64, 4, 0, 12, 0x03, 8, 0x72, 1, 0x50], 64, 72), (0, [8, 0x35, 0, 0, 8, 0, 4, 0x72], 64, 64), (0, [8, 0x68, 2, 0, 4, 0x72], 64, 64), (0, [8, 0x79, 0, 0, 16, 0, 4, 0x72], 64, 64), (0, [0, 0x0A], 0, 40), (0, [0, 0x1A], 0, 48)];
-        foreach (var(frame, codes, allocation, stack)in cases)
+        foreach (var (frame, codes, allocation, stack) in cases)
         {
             using Fixture f = new();
             f.Unwind(0x1200, 1, 16, frame, codes);
@@ -127,7 +127,7 @@ internal static unsafe partial class X64PERuntimeFunctionUnwindMetadataHostileIn
     private static void HostileCodes()
     {
         (byte Header, byte Frame, byte[] Codes, Status Expected)[] cases = [(2, 0, [], Status.UnsupportedFormat), (0x41, 0, [], Status.UnwindRejected), (0x29, 0, [], Status.UnwindRejected), (1, 0x10, [], Status.UnwindRejected), (1, 4, [], Status.UnwindRejected), (1, 5, [], Status.UnwindRejected), (1, 0, [5, 1], Status.UnwindRejected), (1, 0, [5, 0x11, 0, 0], Status.UnwindRejected), (1, 0, [5, 0x21, 0, 0, 8, 0], Status.UnwindRejected), (1, 0, [5, 1, 1, 0], Status.UnwindRejected), (1, 0, [5, 0x11, 1, 0, 8, 0], Status.UnwindRejected), (1, 0, [5, 6], Status.UnsupportedFormat), (1, 0, [5, 7], Status.UnsupportedFormat), (1, 0, [5, 0], Status.UnwindRejected), (1, 0, [5, 0x40], Status.UnwindRejected), (1, 0, [5, 0x58, 0, 0], Status.UnwindRejected), (1, 0, [5, 0x35, 1, 0, 8, 0], Status.UnwindRejected), (1, 0, [5, 0x69, 8, 0, 16, 0], Status.UnwindRejected), (1, 0, [4, 0x32, 5, 0x50], Status.UnwindRejected), (1, 0, [17, 0x32], Status.UnwindRejected), (1, 0, [5, 0x50, 4, 0x32], Status.UnwindRejected), (1, 0, [5, 0x2A], Status.UnwindRejected), (1, 5, [12, 3, 8, 0x64, 4, 0, 4, 0x72], Status.UnwindRejected), (1, 0xF5, [12, 3, 4, 0x72], Status.UnwindRejected), (1, 5, [12, 0x13, 4, 0x72], Status.UnwindRejected)];
-        foreach (var(header, frame, codes, expected)in cases)
+        foreach (var (header, frame, codes, expected) in cases)
         {
             using Fixture f = new();
             f.Unwind(0x1200, header, 16, frame, codes);
@@ -196,7 +196,7 @@ internal static unsafe partial class X64PERuntimeFunctionUnwindMetadataHostileIn
             f.Chain(0x1240, 0x6000, 0x6080, 0x1200);
             f.Image[0x1243] = 5;
         }, Status.UnwindRejected), (f => f.Unwind(0x1240, 33, 4, 0, [4, 0x32]), Status.UnsupportedFormat)];
-        foreach (var(change, expected)in bad)
+        foreach (var (change, expected) in bad)
         {
             using Fixture f = new();
             change(f);

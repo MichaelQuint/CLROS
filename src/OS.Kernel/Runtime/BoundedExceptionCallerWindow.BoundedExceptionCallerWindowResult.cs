@@ -2,6 +2,7 @@ using System;
 using OS.Boot;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct BoundedExceptionCallerWindowResult
 {
     internal BoundedExceptionCallerWindowResult(BoundedExceptionCallerWindowStatus status)
@@ -17,8 +18,17 @@ public readonly struct BoundedExceptionCallerWindowResult
         RowCount = rows;
     }
 
-    public BoundedExceptionCallerWindowStatus Status { get; }
+    public BoundedExceptionCallerWindowStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == BoundedExceptionCallerWindowStatus.Success;
-    public uint FrameCount { get; }
-    public uint RowCount { get; }
+    public uint FrameCount
+    {
+        get;
+    }
+    public uint RowCount
+    {
+        get;
+    }
 }

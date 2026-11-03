@@ -1,6 +1,7 @@
 using OS.Net;
 
 namespace OS.Manifest;
+
 public readonly struct NativeManifestFetchAppConfigPreflightResult
 {
     private const uint InitializedFlag = 1;
@@ -21,16 +22,46 @@ public readonly struct NativeManifestFetchAppConfigPreflightResult
         Flags = flags;
     }
 
-    public NativeManifestFetchAppConfigPreflightStatus Status { get; }
-    public NativeManifestLoadStatus ManifestLoadStatus { get; }
-    public NativeManifestParseStatus ManifestParseStatus { get; }
-    public FetchAppHttpCompletionExpectationStatus ExpectationStatus { get; }
-    public ushort ExpectedHttpStatusCode { get; }
-    public int ExpectedMarkerLength { get; }
-    public int MarkerBytesWritten { get; }
-    public int MarkerRequiredBytes { get; }
-    public uint ManifestBytesRead { get; }
-    public uint Flags { get; }
+    public NativeManifestFetchAppConfigPreflightStatus Status
+    {
+        get;
+    }
+    public NativeManifestLoadStatus ManifestLoadStatus
+    {
+        get;
+    }
+    public NativeManifestParseStatus ManifestParseStatus
+    {
+        get;
+    }
+    public FetchAppHttpCompletionExpectationStatus ExpectationStatus
+    {
+        get;
+    }
+    public ushort ExpectedHttpStatusCode
+    {
+        get;
+    }
+    public int ExpectedMarkerLength
+    {
+        get;
+    }
+    public int MarkerBytesWritten
+    {
+        get;
+    }
+    public int MarkerRequiredBytes
+    {
+        get;
+    }
+    public uint ManifestBytesRead
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool UsesDefaultMarker => (Flags & UsesDefaultMarkerFlag) != 0;
     public bool HasConfiguredStatus => (Flags & StatusConfiguredFlag) != 0;

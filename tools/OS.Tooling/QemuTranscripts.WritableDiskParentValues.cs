@@ -4,6 +4,7 @@ using OS.Kernel.Compatibility.LinuxX64;
 using Block = OS.Storage.ContinuingReadOnlyBlockService;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied complete parent observations. Phase is empty for the

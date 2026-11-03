@@ -112,7 +112,15 @@ internal static unsafe partial class CompilerInterfaceDispatchTests
         first = collected.Allocate(0x2300);
         Expect(collected.Bind(), Status.Success);
         collected.Resolve(first, 0);
-        var sweep = BoundedNonMovingCollectorExplicitRootEnumeration.Collect(Fixture.Profile, new() { Capture = collected.Capture, Mapping = collected.Mapping, Owner = collected.Owner, Capacity = 4096, Handle = collected.Handle, Metadata = new(collected.Address(0x1400), 0x3C00) }, collected.Heap, collected.Allocator, Alloc.RequiredCollectingStateBytes, null, 0, 0);
+        var sweep = BoundedNonMovingCollectorExplicitRootEnumeration.Collect(Fixture.Profile, new()
+        {
+            Capture = collected.Capture,
+            Mapping = collected.Mapping,
+            Owner = collected.Owner,
+            Capacity = 4096,
+            Handle = collected.Handle,
+            Metadata = new(collected.Address(0x1400), 0x3C00)
+        }, collected.Heap, collected.Allocator, Alloc.RequiredCollectingStateBytes, null, 0, 0);
         Check(sweep.Succeeded && sweep.ReclaimedObjects == 1, "actual collector reclaimed receiver " + sweep.Status);
         collected.Reject(first.ObjectReference, 0, Status.ReceiverRejected);
         var next = collected.Allocate(0x2400);

@@ -1,4 +1,5 @@
 namespace OS.Manifest;
+
 public enum NativeAppArgumentVectorStatus
 {
     Success = 0,

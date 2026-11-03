@@ -1,6 +1,7 @@
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Immutable copied scheduling relationships. Relative FIFO covers
@@ -27,19 +28,58 @@ public static partial class QemuTranscripts
             CheckedPhaseOutputValues = output;
         }
 
-        public string Phase { get; }
-        public string? PackageSha256 { get; }
-        public int OriginalRowCount { get; }
-        public int FirstRecordIndex { get; }
-        public int LastRecordIndex { get; }
-        public NativeAotLogUploadWaitReport Waits { get; }
-        public IReadOnlyList<WritableDiskRow> ProtocolRows { get; }
-        public IReadOnlyList<WritableDiskRow> ResidualRows { get; }
-        public IReadOnlyList<NativeAotLogUploadProtocolTurn> WritableTurns { get; }
-        public int Transfers { get; }
-        public int Drains { get; }
-        public int Reaped { get; }
-        public bool CheckedPhaseOutputValues { get; }
+        public string Phase
+        {
+            get;
+        }
+        public string? PackageSha256
+        {
+            get;
+        }
+        public int OriginalRowCount
+        {
+            get;
+        }
+        public int FirstRecordIndex
+        {
+            get;
+        }
+        public int LastRecordIndex
+        {
+            get;
+        }
+        public NativeAotLogUploadWaitReport Waits
+        {
+            get;
+        }
+        public IReadOnlyList<WritableDiskRow> ProtocolRows
+        {
+            get;
+        }
+        public IReadOnlyList<WritableDiskRow> ResidualRows
+        {
+            get;
+        }
+        public IReadOnlyList<NativeAotLogUploadProtocolTurn> WritableTurns
+        {
+            get;
+        }
+        public int Transfers
+        {
+            get;
+        }
+        public int Drains
+        {
+            get;
+        }
+        public int Reaped
+        {
+            get;
+        }
+        public bool CheckedPhaseOutputValues
+        {
+            get;
+        }
         public bool CheckedSource5RelativeFifoValues => true;
         public bool CheckedFullSchedulerValues => false;
         public bool GrantsOriginalInstructionAuthority => false;

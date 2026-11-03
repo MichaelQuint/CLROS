@@ -5,6 +5,7 @@ using System.Text.Json;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Check twelve bounded canonical child rows against the actual
@@ -17,7 +18,7 @@ public static partial class QemuTranscripts
     public static StaticFileChildReport InspectNativeAotStaticFileChildForTests(IReadOnlyList<string> rows, WebRunnerContext context, int timeoutSeconds, bool diskStaticFull = false)
     {
         Need(rows is { Count: StaticFileProcessEvidence.SummaryCount } && rows.All(row => row is { Length: > 0 and <= 256 } && row.All(value => value is >= ' ' and <= '~')), "static_child_rows");
-        Need(context.ForwardPort is> 0 and <= 65535 && context.StartedUtc.Offset == TimeSpan.Zero && context.CompletedUtc.Offset == TimeSpan.Zero && context.StartedUtc > DateTimeOffset.UnixEpoch && context.CompletedUtc >= context.StartedUtc && (diskStaticFull ? timeoutSeconds is >= DiskStaticCapturePolicy.MinimumTimeoutSeconds and <= DiskStaticCapturePolicy.MaximumTimeoutSeconds : timeoutSeconds is >= 600 and <= 825), "static_child_context");
+        Need(context.ForwardPort is > 0 and <= 65535 && context.StartedUtc.Offset == TimeSpan.Zero && context.CompletedUtc.Offset == TimeSpan.Zero && context.StartedUtc > DateTimeOffset.UnixEpoch && context.CompletedUtc >= context.StartedUtc && (diskStaticFull ? timeoutSeconds is >= DiskStaticCapturePolicy.MinimumTimeoutSeconds and <= DiskStaticCapturePolicy.MaximumTimeoutSeconds : timeoutSeconds is >= 600 and <= 825), "static_child_context");
         string Value(int index, string prefix)
         {
             Need(rows[index].StartsWith(prefix + " ", StringComparison.Ordinal), "static_child_field");
@@ -41,7 +42,7 @@ public static partial class QemuTranscripts
         ulong id = Number(0, "STATIC_CHILD_ID"), lifetime = Number(3, "STATIC_CHILD_LIFETIME_MS");
         var started = Utc(1, "STATIC_CHILD_START_UTC");
         var ended = Utc(2, "STATIC_CHILD_END_UTC");
-        Need(id is> 0 and <= int.MaxValue && ended >= started && started >= context.StartedUtc && ended <= context.CompletedUtc && lifetime == (ulong)(long)(ended - started).TotalMilliseconds && lifetime > 0 && lifetime <= (ulong)(timeoutSeconds + 30) * 1000, "static_child_lifetime");
+        Need(id is > 0 and <= int.MaxValue && ended >= started && started >= context.StartedUtc && ended <= context.CompletedUtc && lifetime == (ulong)(long)(ended - started).TotalMilliseconds && lifetime > 0 && lifetime <= (ulong)(timeoutSeconds + 30) * 1000, "static_child_lifetime");
         string[] expected = ["STATIC_ENDPOINT_PRELAUNCH_AVAILABLE true", "STATIC_ENDPOINT_STOPPED_REFUSED true", "STATIC_CHILD_TERMINATION_REQUESTED true", "STATIC_CHILD_DEATH_CONFIRMED true", "STATIC_CHILD_SPONTANEOUS false", "STATIC_CHILD_CLEANUP_FAILED false"];
         Need(rows.Skip(4).Take(6).SequenceEqual(expected) && Value(11, "STATIC_CHILD_FAILURE") == "none", "static_child_completion");
         string exit = Value(10, "STATIC_CHILD_EXIT_CODE");
@@ -97,7 +98,7 @@ public static partial class QemuTranscripts
         {
             var call = calls[i];
             var flow = flows[i];
-            Need(call.Connection == i && flow.RemotePort is> 0 and <= 65535 && flow.RequestBytes > 0 && flow.ResponseBytes > 0 && call.Received == (ulong)flow.RequestBytes && call.Reset is >= 0 and <= 1 && (flow.Reset ? call.Sent >= (ulong)flow.ResponseBytes && call.Sent - (ulong)flow.ResponseBytes <= 32768 : call.Sent == (ulong)flow.ResponseBytes && call.Reset == 0), "static_io_stream_join");
+            Need(call.Connection == i && flow.RemotePort is > 0 and <= 65535 && flow.RequestBytes > 0 && flow.ResponseBytes > 0 && call.Received == (ulong)flow.RequestBytes && call.Reset is >= 0 and <= 1 && (flow.Reset ? call.Sent >= (ulong)flow.ResponseBytes && call.Sent - (ulong)flow.ResponseBytes <= 32768 : call.Sent == (ulong)flow.ResponseBytes && call.Reset == 0), "static_io_stream_join");
         }
     }
 
@@ -109,7 +110,7 @@ public static partial class QemuTranscripts
         byte[] package = File.ReadAllBytes(Path.GetFullPath(options.LinuxElfPackage, root));
         var packageView = NativeAotStaticFileProgram.RequirePackage(package, true);
         byte[] summary = File.ReadAllBytes(Path.GetFullPath(options.SummaryLog, root));
-        Need(raw.Length is> FirmwarePrefixBytes and <= 8 * 1024 * 1024 && summary.Length is> 3 and <= 16 * 1024 * 1024 && summary.AsSpan().StartsWith(Encoding.UTF8.GetPreamble()), "static_runner_extent");
+        Need(raw.Length is > FirmwarePrefixBytes and <= 8 * 1024 * 1024 && summary.Length is > 3 and <= 16 * 1024 * 1024 && summary.AsSpan().StartsWith(Encoding.UTF8.GetPreamble()), "static_runner_extent");
         string[] child = DecodeUtf8(summary[3..]).Split("\r\n", StringSplitOptions.RemoveEmptyEntries).TakeLast(StaticFileProcessEvidence.SummaryCount).ToArray();
         var process = InspectNativeAotStaticFileChildForTests(child, context, options.TimeoutSeconds);
         Need(runner.Duration.TotalMilliseconds >= process.LifetimeMilliseconds && runner.Duration.TotalSeconds <= options.TimeoutSeconds + 60, "static_runner_lifetime");

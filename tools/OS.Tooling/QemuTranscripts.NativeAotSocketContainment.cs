@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Validate the separate containment leaf against its canonical

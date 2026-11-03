@@ -1,4 +1,5 @@
 namespace OS.Std;
+
 public readonly struct NativeUIntOperationResult
 {
     public NativeUIntOperationResult(NativeUIntOperationStatus status, nuint value)
@@ -8,8 +9,17 @@ public readonly struct NativeUIntOperationResult
         IsInitialized = true;
     }
 
-    public NativeUIntOperationStatus Status { get; }
-    public nuint Value { get; }
-    public bool IsInitialized { get; }
+    public NativeUIntOperationStatus Status
+    {
+        get;
+    }
+    public nuint Value
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeUIntOperationStatus.Success;
 }

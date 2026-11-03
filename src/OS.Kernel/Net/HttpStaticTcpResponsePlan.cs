@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class HttpStaticTcpResponsePlan
 {
     public const bool ConsumesTcpReceiveDispatchMetadata = true;

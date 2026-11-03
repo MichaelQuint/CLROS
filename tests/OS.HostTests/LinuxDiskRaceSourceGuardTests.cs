@@ -135,7 +135,10 @@ internal static class LinuxDiskRaceSourceGuardTests
     private static void Reject(Action action, string? reason = null)
     {
         bool rejected = false;
-        try { action(); }
+        try
+        {
+            action();
+        }
         catch (InvalidOperationException error) when (reason is null || error.Message.Contains(reason, StringComparison.Ordinal)) { rejected = true; }
         HostCheck.True(rejected, "mutated disk-race source must reject");
     }

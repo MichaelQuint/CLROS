@@ -179,7 +179,7 @@ internal static class HostTypeManagerSourceGuard
     }
 
     private static IEnumerable<IOperation> Disjuncts(IOperation operation) => Value(operation) is IBinaryOperation
-        { OperatorKind: BinaryOperatorKind.ConditionalOr } binary ? Disjuncts(binary.LeftOperand).Concat(Disjuncts(binary.RightOperand)) : [Value(operation)];
+    { OperatorKind: BinaryOperatorKind.ConditionalOr } binary ? Disjuncts(binary.LeftOperand).Concat(Disjuncts(binary.RightOperand)) : [Value(operation)];
     private static bool Active(SyntaxNode node, MethodDeclarationSyntax method) =>
         !node.Ancestors().TakeWhile(parent => parent != method).Any(parent => parent is AnonymousFunctionExpressionSyntax or LocalFunctionStatementSyntax);
     private static ILocalSymbol? InitializerLocal(SemanticModel model, IInvocationOperation call) =>

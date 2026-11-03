@@ -52,7 +52,7 @@ internal static unsafe partial class BoundedNonMovingCollectorExplicitRootEnumer
                 f.Expect(Status.UnsupportedSeriesCount);
             }
 
-            foreach ((long adjusted, ulong offset)in new (long, ulong)[]
+            foreach ((long adjusted, ulong offset) in new (long, ulong)[]
             {
                 (long.MinValue, 8),
                 (long.MaxValue, 8),
@@ -329,7 +329,7 @@ internal static unsafe partial class BoundedNonMovingCollectorExplicitRootEnumer
         var result = Collect(image, heap, roots, 170);
         Require(result.Succeeded && result.LiveObjects == 170 && result.ReclaimedObjects == 0, "all three mark words");
         byte* records = (byte*)heap.State + 80;
-        foreach ((int offset, ulong value)in new (int, ulong)[]
+        foreach ((int offset, ulong value) in new (int, ulong)[]
         {
             (0, 1),
             (8, 17),

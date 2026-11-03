@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static unsafe class OwnedX64GdtContainingNullN64BitCode
 {
     public const int SegmentDescriptorByteCount = 8;

@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Tools.QemuRunner;
+
 public enum SerialMarkerFeedStatus
 {
     Uninitialized = 0,

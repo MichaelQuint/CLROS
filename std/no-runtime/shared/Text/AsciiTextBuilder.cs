@@ -2,6 +2,7 @@ using OS.Std;
 using OS.Std.Memory;
 
 namespace OS.Std.Text;
+
 public static class AsciiTextBuilder
 {
     public const CompatibilityStatus Status = CompatibilityStatus.Partial;

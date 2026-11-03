@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct FaultProbeStubPlanResult
 {
     private FaultProbeStubPlanResult(bool isInitialized, FaultProbeStubPlanStatus status, FaultProbeStubKind kind, int bytesWritten, int requiredBytes)
@@ -10,11 +11,26 @@ public readonly struct FaultProbeStubPlanResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool IsInitialized { get; }
-    public FaultProbeStubPlanStatus Status { get; }
-    public FaultProbeStubKind Kind { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public FaultProbeStubPlanStatus Status
+    {
+        get;
+    }
+    public FaultProbeStubKind Kind
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == FaultProbeStubPlanStatus.Success && Kind != FaultProbeStubKind.Unknown && BytesWritten > 0 && BytesWritten == RequiredBytes;
 
     public static FaultProbeStubPlanResult Success(FaultProbeStubKind kind, int bytesWritten)

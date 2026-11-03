@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Borrow original bounded framed bytes beside already strict
@@ -32,7 +33,7 @@ public static partial class QemuTranscripts
         Need(retained.Length > 0 && (ulong)retained.Length == output.CompletedChunks && memory.RetainedMappings == output.CompletedChunks && memory.RetainedBytes == output.RetainedBytes && selections.Length == 18 && samples.Length == 18, "quota_overlap_projection");
         Need(framed.NormalizedTail.EndsWith("\r\n", StringComparison.Ordinal), "quota_overlap_rows");
         string[] rows = framed.NormalizedTail[..^2].Split("\r\n", StringSplitOptions.None);
-        Need(rows.Length is> 0 and <= 1_000_000, "quota_overlap_rows");
+        Need(rows.Length is > 0 and <= 1_000_000, "quota_overlap_rows");
         var normalized = ValidateLinuxServiceCallOrdinals(rows);
         var returns = ReadLinuxServiceCallReturns(rows).ToDictionary(r => r.RecordIndex);
         var calls = returns.Keys.ToDictionary(at => at, at => ReadRecord(normalized[at], "M16_008_CALL", WebCallFields));
@@ -85,7 +86,7 @@ public static partial class QemuTranscripts
                 var call = calls[next];
                 var returned = returns[next];
                 Need(call["nr"] is 1 or 20 && call["a0"] == channel && call["valueBits"] == (ulong)bytes && call["action"] == 1 && call["status"] == 1 && returned.ValueBits == (ulong)bytes && returned.Identity == call["identity"], "quota_overlap_write_call");
-                Need(call["nr"] == 1 ? call["a2"] is> 0 and <= 65536 && (ulong)bytes <= call["a2"] : call["a2"] is> 0 and <= OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices.MaximumVectors, "quota_overlap_write_call");
+                Need(call["nr"] == 1 ? call["a2"] is > 0 and <= 65536 && (ulong)bytes <= call["a2"] : call["a2"] is > 0 and <= OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices.MaximumVectors, "quota_overlap_write_call");
                 foreach (var part in parts)
                     writes.Add((part.At, next, part.Start, part.End, returned.Identity, returned.Ordinal));
                 at = next;

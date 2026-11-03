@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformConfigurationTableMetadata
 {
     public PlatformConfigurationTableMetadata(ulong tableAddress, ulong tableCount)
@@ -9,6 +10,12 @@ public readonly struct PlatformConfigurationTableMetadata
         TableCount = tableCount;
     }
 
-    public ulong TableAddress { get; }
-    public ulong TableCount { get; }
+    public ulong TableAddress
+    {
+        get;
+    }
+    public ulong TableCount
+    {
+        get;
+    }
 }

@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public static class AcpiSdtParser
 {
     public const int HeaderLength = 36;

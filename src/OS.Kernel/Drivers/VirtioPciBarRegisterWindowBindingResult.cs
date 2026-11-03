@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct VirtioPciBarRegisterWindowBindingResult
 {
     private VirtioPciBarRegisterWindowBindingResult(VirtioPciBarRegisterWindowPlanStatus status, VirtioPciBindingPlanStatus bindingPlanStatus, VirtioPciBarApertureValidationStatus apertureValidationStatus, VirtioPciCapabilityType failingCapabilityType, byte failingBarIndex, VirtioPciBarRegisterWindowBindingSet bindings, bool isInitialized)
@@ -14,13 +15,34 @@ public readonly struct VirtioPciBarRegisterWindowBindingResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioPciBarRegisterWindowPlanStatus Status { get; }
-    public bool IsInitialized { get; }
-    public VirtioPciBindingPlanStatus BindingPlanStatus { get; }
-    public VirtioPciBarApertureValidationStatus ApertureValidationStatus { get; }
-    public VirtioPciCapabilityType FailingCapabilityType { get; }
-    public byte FailingBarIndex { get; }
-    public VirtioPciBarRegisterWindowBindingSet Bindings { get; }
+    public VirtioPciBarRegisterWindowPlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtioPciBindingPlanStatus BindingPlanStatus
+    {
+        get;
+    }
+    public VirtioPciBarApertureValidationStatus ApertureValidationStatus
+    {
+        get;
+    }
+    public VirtioPciCapabilityType FailingCapabilityType
+    {
+        get;
+    }
+    public byte FailingBarIndex
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowBindingSet Bindings
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioPciBarRegisterWindowPlanStatus.Success;
 
     internal static VirtioPciBarRegisterWindowBindingResult Success(VirtioPciBindingPlanStatus bindingPlanStatus, VirtioPciBarApertureValidationStatus apertureValidationStatus, VirtioPciBarRegisterWindowBindingSet bindings)

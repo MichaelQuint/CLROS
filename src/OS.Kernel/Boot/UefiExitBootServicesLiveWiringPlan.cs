@@ -1,6 +1,7 @@
 using OS.Kernel.Diagnostics;
 
 namespace OS.Boot;
+
 public static class UefiExitBootServicesLiveWiringPlan
 {
     public const int StepCount = 7;

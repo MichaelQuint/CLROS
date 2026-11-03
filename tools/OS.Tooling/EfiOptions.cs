@@ -13,7 +13,8 @@ public sealed class EfiOptions
     public bool Flag(string name) => Get(name, "false").Equals("true", StringComparison.OrdinalIgnoreCase);
     public int Number(string name, int fallback, int minimum, int maximum)
     {
-        if (!int.TryParse(Get(name, fallback.ToString(System.Globalization.CultureInfo.InvariantCulture)), out int number) || number < minimum || number > maximum) throw new ToolFailure("argument_out_of_range", $"property={name} minimum={minimum} maximum={maximum}");
+        if (!int.TryParse(Get(name, fallback.ToString(System.Globalization.CultureInfo.InvariantCulture)), out int number) || number < minimum || number > maximum)
+            throw new ToolFailure("argument_out_of_range", $"property={name} minimum={minimum} maximum={maximum}");
         return number;
     }
     public static EfiOptions Parse(string[] args, bool build)
@@ -26,27 +27,34 @@ public sealed class EfiOptions
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
-            if (!arg.StartsWith('-')) throw new ToolFailure("argument_invalid", arg);
+            if (!arg.StartsWith('-'))
+                throw new ToolFailure("argument_invalid", arg);
             int separator = arg.IndexOfAny([':', '=']);
             string name = Key(separator < 0 ? arg : arg[..separator]);
             string? value = separator < 0 ? null : arg[(separator + 1)..];
             bool probe = probeKeys.TryGetValue(name, out string? canonical);
-            if (!probe && !allowed.Contains(name)) throw new ToolFailure("argument_unknown", arg);
+            if (!probe && !allowed.Contains(name))
+                throw new ToolFailure("argument_unknown", arg);
             bool boolean = probe || name.Equals("PreflightOnly", StringComparison.OrdinalIgnoreCase);
             if (value is null && (!boolean || i + 1 < args.Length && bool.TryParse(args[i + 1], out _)))
             {
-                if (++i >= args.Length) throw new ToolFailure("argument_value_missing", arg);
+                if (++i >= args.Length)
+                    throw new ToolFailure("argument_value_missing", arg);
                 value = args[i];
             }
             value ??= "true";
             if (boolean)
             {
-                if (!bool.TryParse(value.TrimStart('$'), out bool flag)) throw new ToolFailure("argument_boolean_invalid", arg);
+                if (!bool.TryParse(value.TrimStart('$'), out bool flag))
+                    throw new ToolFailure("argument_boolean_invalid", arg);
                 value = flag ? "true" : "false";
-                if (probe && !result.Probes.TryAdd(canonical!, flag)) throw new ToolFailure("argument_duplicate", arg);
+                if (probe && !result.Probes.TryAdd(canonical!, flag))
+                    throw new ToolFailure("argument_duplicate", arg);
             }
-            if (!result.values.TryGetValue(name, out var entries)) result.values[name] = entries = [];
-            else if (!name.EndsWith("SearchRoot", StringComparison.OrdinalIgnoreCase)) throw new ToolFailure("argument_duplicate", arg);
+            if (!result.values.TryGetValue(name, out var entries))
+                result.values[name] = entries = [];
+            else if (!name.EndsWith("SearchRoot", StringComparison.OrdinalIgnoreCase))
+                throw new ToolFailure("argument_duplicate", arg);
             entries.Add(value);
         }
         result.Root = Path.GetFullPath(result.Get("Root", result.Root));

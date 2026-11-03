@@ -3,6 +3,7 @@ using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed partial class ThreadingProtocol
@@ -197,7 +198,7 @@ public static partial class QemuTranscripts
 
             var record = staticFileWitness ?? throw new ToolFailure("static_replay_file_binding");
             staticFileWitness = null;
-            Need(record["identity"] == witness.Identity && record["ordinal"] == witness.Ordinal && record["nr"] == nr && record["fd"] == (open ? result : fd) && record["generation"] is> 0 and <= uint.MaxValue && (record["kind"] is 1 or 2 || diskInventory is not null && record["kind"] == 5), "static_replay_file_binding");
+            Need(record["identity"] == witness.Identity && record["ordinal"] == witness.Ordinal && record["nr"] == nr && record["fd"] == (open ? result : fd) && record["generation"] is > 0 and <= uint.MaxValue && (record["kind"] is 1 or 2 || diskInventory is not null && record["kind"] == 5), "static_replay_file_binding");
             fd = record["fd"];
             Need(fd >= 3 && fd < (ulong)descriptorCapacity, "static_replay_file_fd");
             if (open)
@@ -228,7 +229,10 @@ public static partial class QemuTranscripts
                 if (file.Kind == 5 && expected > 0)
                 {
                     var pending = diskCompleting ?? throw new ToolFailure("disk_static_unparked_positive_read");
-                    diskReadWindows.Add(new(witness.Identity, witness.Ordinal, nr, file.Generation, pending.Request, pending.BeginIndex, position - 1, file.Inode, offset, wanted, pending.OutputPrefix, (uint)expected) { Descriptor = (uint)call["a0"] });
+                    diskReadWindows.Add(new(witness.Identity, witness.Ordinal, nr, file.Generation, pending.Request, pending.BeginIndex, position - 1, file.Inode, offset, wanted, pending.OutputPrefix, (uint)expected)
+                    {
+                        Descriptor = (uint)call["a0"]
+                    });
                 }
             }
             else if (nr == 5)
@@ -266,7 +270,7 @@ public static partial class QemuTranscripts
         private static (string[] Paths, ulong[] Sizes) StaticViews()
         {
             var assets = NativeAotStaticFilePackage.StagedAssets();
-            return (["/app/apps/" + NativeAotStaticFilePublisher.Application, ..assets.Select(asset => "/app/" + asset.Path)], [(ulong)NativeAotStaticFileProgram.ElfBytes, ..assets.Select(asset => (ulong)asset.Bytes.Length)]);
+            return (["/app/apps/" + NativeAotStaticFilePublisher.Application, .. assets.Select(asset => "/app/" + asset.Path)], [(ulong)NativeAotStaticFileProgram.ElfBytes, .. assets.Select(asset => (ulong)asset.Bytes.Length)]);
         }
 
         private void StaticView(ulong kind, ulong view, ulong inode, ulong bytes)
@@ -278,7 +282,7 @@ public static partial class QemuTranscripts
             }
 
             var admitted = staticViews;
-            Need(kind == 1 ? view < (ulong)admitted.Paths.Length && inode == 256 + view && bytes == admitted.Sizes[(int)view] : kind == 2 && view == uint.MaxValue && inode is 17 or 18 && bytes is> 0 and <= 8192, "static_replay_package_view");
+            Need(kind == 1 ? view < (ulong)admitted.Paths.Length && inode == 256 + view && bytes == admitted.Sizes[(int)view] : kind == 2 && view == uint.MaxValue && inode is 17 or 18 && bytes is > 0 and <= 8192, "static_replay_package_view");
         }
 
         private Dictionary<string, ulong> StaticPath(Dictionary<string, ulong> call, LinuxCallWaitObservation witness)
@@ -424,7 +428,7 @@ public static partial class QemuTranscripts
                         expected = -22;
                     else if (expected == 0)
                         expected = (long)Math.Min(size, call["a2"]);
-                    Need(call["a2"] is> 0 and <= 4096, "static_replay_readlink_capacity");
+                    Need(call["a2"] is > 0 and <= 4096, "static_replay_readlink_capacity");
                     if (expected > 0 && !memory.Covered(call["a1"], (ulong)expected, 3))
                         expected = -14;
                     if (expected >= 0)

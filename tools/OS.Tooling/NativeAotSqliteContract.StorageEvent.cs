@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSqliteContract
 {
     // Flags retains syscall-specific values; flock never becomes a fcntl
@@ -22,6 +23,9 @@ public static partial class NativeAotSqliteContract
         /// <summary>Returned F_GETLK fields only; Lock remains the separately
         /// observed F_SETLK input. Neither value grants actual lock authority.</summary>
 
-        public StorageReturnedLock? ReturnedLock { get; init; }
+        public StorageReturnedLock? ReturnedLock
+        {
+            get; init;
+        }
     }
 }

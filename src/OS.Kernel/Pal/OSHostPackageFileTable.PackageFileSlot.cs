@@ -2,6 +2,7 @@ using OS.Std.Memory;
 using OS.Storage;
 
 namespace OS.Pal;
+
 public sealed partial class OSHostPackageFileTable
 {
     private struct PackageFileSlot

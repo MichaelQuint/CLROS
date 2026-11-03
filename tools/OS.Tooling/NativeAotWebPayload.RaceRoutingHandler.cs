@@ -7,6 +7,7 @@ using System.Text;
 using OS.Tooling.Native;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotWebPayload
 {
     private sealed class RaceRoutingHandler : HttpMessageHandler

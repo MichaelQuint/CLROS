@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioNetQueueNotificationExecutionResult
 {
     private VirtioNetQueueNotificationExecutionResult(VirtioNetQueueNotificationExecutionStatus status, VirtioNetQueueNotificationPlanStatus notificationPlanStatus, VirtioPciQueueNotificationPlanStatus pciNotificationStatus, VirtioPciNotifyWriteStatus sinkStatus, VirtioNetQueueNotificationKind kind, ushort queueIndex, ushort queueNotifyOffset, uint notifyRelativeOffset, ushort writeValue, uint writeWidthBytes, ushort publishedDescriptorCount, ushort previousAvailableRingIndex, ushort nextAvailableRingIndex, bool descriptorWritesVisible, bool availableRingWritesVisible, bool orderedBeforeNotify, uint barrierSequence, bool isInitialized)
@@ -23,25 +24,79 @@ public readonly struct VirtioNetQueueNotificationExecutionResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioNetQueueNotificationExecutionStatus Status { get; }
-    public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus { get; }
-    public VirtioPciQueueNotificationPlanStatus PciNotificationStatus { get; }
-    public VirtioPciNotifyWriteStatus SinkStatus { get; }
-    public VirtioNetQueueNotificationKind Kind { get; }
-    public ushort QueueIndex { get; }
-    public ushort QueueNotifyOffset { get; }
-    public uint NotifyRelativeOffset { get; }
-    public ushort WriteValue { get; }
-    public uint WriteWidthBytes { get; }
-    public ushort PublishedDescriptorCount { get; }
-    public ushort PreviousAvailableRingIndex { get; }
-    public ushort NextAvailableRingIndex { get; }
-    public bool DescriptorWritesVisible { get; }
-    public bool AvailableRingWritesVisible { get; }
-    public bool OrderedBeforeNotify { get; }
-    public uint BarrierSequence { get; }
+    public VirtioNetQueueNotificationExecutionStatus Status
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus
+    {
+        get;
+    }
+    public VirtioPciQueueNotificationPlanStatus PciNotificationStatus
+    {
+        get;
+    }
+    public VirtioPciNotifyWriteStatus SinkStatus
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationKind Kind
+    {
+        get;
+    }
+    public ushort QueueIndex
+    {
+        get;
+    }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
+    public uint NotifyRelativeOffset
+    {
+        get;
+    }
+    public ushort WriteValue
+    {
+        get;
+    }
+    public uint WriteWidthBytes
+    {
+        get;
+    }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
+    public bool DescriptorWritesVisible
+    {
+        get;
+    }
+    public bool AvailableRingWritesVisible
+    {
+        get;
+    }
+    public bool OrderedBeforeNotify
+    {
+        get;
+    }
+    public uint BarrierSequence
+    {
+        get;
+    }
     public bool BarrierSucceeded => DescriptorWritesVisible && AvailableRingWritesVisible && OrderedBeforeNotify;
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetQueueNotificationExecutionStatus.Success;
 
     internal static VirtioNetQueueNotificationExecutionResult FromPlan(VirtioNetQueueNotificationExecutionStatus status, VirtioNetQueueNotificationPlanResult notificationPlan, VirtioNetQueueNotificationBarrierReadiness barrier, VirtioPciNotifyWriteStatus sinkStatus)

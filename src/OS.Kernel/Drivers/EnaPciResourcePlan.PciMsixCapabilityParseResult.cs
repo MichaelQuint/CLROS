@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct PciMsixCapabilityParseResult
 {
     private PciMsixCapabilityParseResult(bool isInitialized, PciMsixCapabilityParseStatus status, byte capabilityOffset, PciMsixCapabilitySnapshot capability)
@@ -11,10 +12,22 @@ public readonly struct PciMsixCapabilityParseResult
         Capability = capability;
     }
 
-    public PciMsixCapabilityParseStatus Status { get; }
-    public byte CapabilityOffset { get; }
-    public PciMsixCapabilitySnapshot Capability { get; }
-    public bool IsInitialized { get; }
+    public PciMsixCapabilityParseStatus Status
+    {
+        get;
+    }
+    public byte CapabilityOffset
+    {
+        get;
+    }
+    public PciMsixCapabilitySnapshot Capability
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PciMsixCapabilityParseStatus.Success;
 
     public static PciMsixCapabilityParseResult Success(byte capabilityOffset, PciMsixCapabilitySnapshot capability)

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct EnaDmaRegionValidationResult
 {
     private EnaDmaRegionValidationResult(bool isInitialized, EnaDmaAddressPlanStatus status, uint physicalAddressWidth, ulong maximumAddress, ulong endExclusive, EnaDmaPhysicalRegion region)
@@ -11,12 +12,30 @@ public readonly struct EnaDmaRegionValidationResult
         Region = region;
     }
 
-    public EnaDmaAddressPlanStatus Status { get; }
-    public uint PhysicalAddressWidth { get; }
-    public ulong MaximumAddress { get; }
-    public ulong EndExclusive { get; }
-    public EnaDmaPhysicalRegion Region { get; }
-    public bool IsInitialized { get; }
+    public EnaDmaAddressPlanStatus Status
+    {
+        get;
+    }
+    public uint PhysicalAddressWidth
+    {
+        get;
+    }
+    public ulong MaximumAddress
+    {
+        get;
+    }
+    public ulong EndExclusive
+    {
+        get;
+    }
+    public EnaDmaPhysicalRegion Region
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == EnaDmaAddressPlanStatus.Success;
 
     internal static EnaDmaRegionValidationResult Create(EnaDmaAddressPlanStatus status, uint physicalAddressWidth, ulong maximumAddress, ulong endExclusive, EnaDmaPhysicalRegion region)

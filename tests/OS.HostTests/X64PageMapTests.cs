@@ -196,7 +196,7 @@ internal static unsafe partial class X64PageMapTests
         X64PageTableImagePage.TryCreate(M01014TestData.Physical(0x000f_f000), 512, out outOfOrderPages[1]);
         X64EssentialMappingRange.TryCreate(fixture.Target, 1, out X64EssentialMappingRange essential);
         X64EssentialMappingRange[] essentialRanges = [essential];
-        X64EssentialMappingRange[] invalidEssential = [default ];
+        X64EssentialMappingRange[] invalidEssential = [default];
         X64EssentialMappingRange.TryCreate(M01014TestData.Virtual(M01014TestData.Raw(fixture.Target) + 0x1000), 1, out X64EssentialMappingRange laterEssential);
         X64EssentialMappingRange[] outOfOrderEssential = [laterEssential, essential];
         fixed (X64PageTableImagePage* pages = fixture.Pages)

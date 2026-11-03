@@ -1,4 +1,5 @@
 namespace OS.Kernel.Boot;
+
 public static unsafe partial class X64BootIdentityMappingPlan
 {
     private struct PlannerState

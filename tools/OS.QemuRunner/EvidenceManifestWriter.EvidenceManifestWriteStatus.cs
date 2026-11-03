@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tools.QemuRunner;
+
 public enum EvidenceManifestWriteStatus
 {
     Success = 0,

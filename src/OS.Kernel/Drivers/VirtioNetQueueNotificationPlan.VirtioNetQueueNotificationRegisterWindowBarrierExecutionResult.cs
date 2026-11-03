@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioNetQueueNotificationRegisterWindowBarrierExecutionResult
 {
     private VirtioNetQueueNotificationRegisterWindowBarrierExecutionResult(VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus status, VirtioNetQueueNotificationPlanStatus notificationPlanStatus, VirtioPciQueueNotificationPlanStatus pciNotificationStatus, VirtioPciBarRegisterWindowPlanStatus registerWindowPlanStatus, VirtioPciBarRegisterWindowAccessExecutionStatus accessExecutionStatus, VirtioNetQueueNotificationKind kind, ushort queueIndex, ushort queueNotifyOffset, uint notifyRelativeOffset, ushort writeValue, uint writeWidthBytes, ushort publishedDescriptorCount, ushort previousAvailableRingIndex, ushort nextAvailableRingIndex, bool descriptorWritesVisible, bool availableRingWritesVisible, bool orderedBeforeNotify, uint barrierSequence, bool registerWindowExecutionAttempted, VirtioPciCapabilityType capabilityType, byte barIndex, VirtioPciRegisterAccessWidth accessWidth, uint accessWidthBytes, ulong barRelativeOffset, ulong writtenValue, bool isInitialized)
@@ -31,33 +32,111 @@ public readonly struct VirtioNetQueueNotificationRegisterWindowBarrierExecutionR
         IsInitialized = isInitialized;
     }
 
-    public VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus Status { get; }
-    public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus { get; }
-    public VirtioPciQueueNotificationPlanStatus PciNotificationStatus { get; }
-    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus { get; }
-    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus { get; }
-    public VirtioNetQueueNotificationKind Kind { get; }
-    public ushort QueueIndex { get; }
-    public ushort QueueNotifyOffset { get; }
-    public uint NotifyRelativeOffset { get; }
-    public ushort WriteValue { get; }
-    public uint WriteWidthBytes { get; }
-    public ushort PublishedDescriptorCount { get; }
-    public ushort PreviousAvailableRingIndex { get; }
-    public ushort NextAvailableRingIndex { get; }
-    public bool DescriptorWritesVisible { get; }
-    public bool AvailableRingWritesVisible { get; }
-    public bool OrderedBeforeNotify { get; }
-    public uint BarrierSequence { get; }
+    public VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus Status
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus
+    {
+        get;
+    }
+    public VirtioPciQueueNotificationPlanStatus PciNotificationStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationKind Kind
+    {
+        get;
+    }
+    public ushort QueueIndex
+    {
+        get;
+    }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
+    public uint NotifyRelativeOffset
+    {
+        get;
+    }
+    public ushort WriteValue
+    {
+        get;
+    }
+    public uint WriteWidthBytes
+    {
+        get;
+    }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
+    public bool DescriptorWritesVisible
+    {
+        get;
+    }
+    public bool AvailableRingWritesVisible
+    {
+        get;
+    }
+    public bool OrderedBeforeNotify
+    {
+        get;
+    }
+    public uint BarrierSequence
+    {
+        get;
+    }
     public bool BarrierSucceeded => DescriptorWritesVisible && AvailableRingWritesVisible && OrderedBeforeNotify;
-    public bool RegisterWindowExecutionAttempted { get; }
-    public VirtioPciCapabilityType CapabilityType { get; }
-    public byte BarIndex { get; }
-    public VirtioPciRegisterAccessWidth AccessWidth { get; }
-    public uint AccessWidthBytes { get; }
-    public ulong BarRelativeOffset { get; }
-    public ulong WrittenValue { get; }
-    public bool IsInitialized { get; }
+    public bool RegisterWindowExecutionAttempted
+    {
+        get;
+    }
+    public VirtioPciCapabilityType CapabilityType
+    {
+        get;
+    }
+    public byte BarIndex
+    {
+        get;
+    }
+    public VirtioPciRegisterAccessWidth AccessWidth
+    {
+        get;
+    }
+    public uint AccessWidthBytes
+    {
+        get;
+    }
+    public ulong BarRelativeOffset
+    {
+        get;
+    }
+    public ulong WrittenValue
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus.Success;
 
     internal static VirtioNetQueueNotificationRegisterWindowBarrierExecutionResult FromPlan(VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus status, VirtioNetQueueNotificationRegisterWindowPlanResult plan, VirtioPciBarRegisterWindowAccessExecutionStatus accessExecutionStatus, VirtioNetQueueNotificationBarrierReadiness barrier, bool registerWindowExecutionAttempted)

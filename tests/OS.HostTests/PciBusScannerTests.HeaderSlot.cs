@@ -14,9 +14,21 @@ internal static partial class PciBusScannerTests
             Bytes = bytes;
         }
 
-        public byte Bus { get; }
-        public byte Device { get; }
-        public byte Function { get; }
-        public byte[] Bytes { get; }
+        public byte Bus
+        {
+            get;
+        }
+        public byte Device
+        {
+            get;
+        }
+        public byte Function
+        {
+            get;
+        }
+        public byte[] Bytes
+        {
+            get;
+        }
     }
 }

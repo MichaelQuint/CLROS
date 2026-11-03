@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpConnectionTable
 {
     /// <summary>Bind zeroed, disjoint, aligned caller storage with1..64 entries
@@ -222,7 +223,7 @@ public static unsafe partial class TcpConnectionTable
     }
 
     private static Span<TcpConnectionTableEntry> OwnedEntries(Owner* owner) => new(owner->Entries, owner->CapacityValue);
-    private static bool OwnedEndpoint(TcpConnectionKey key) => key.HasValidEndpoint && key.LocalAddress.Octet0 is> 0 and < 224 && key.RemoteAddress.Octet0 is> 0 and < 224;
+    private static bool OwnedEndpoint(TcpConnectionKey key) => key.HasValidEndpoint && key.LocalAddress.Octet0 is > 0 and < 224 && key.RemoteAddress.Octet0 is > 0 and < 224;
     private static bool OwnedStorage(void* address, ulong bytes) => address != null && ((ulong)address & 7) == 0 && bytes != 0 && bytes <= ~0UL - (ulong)address;
     private static bool OwnedOverlap(ulong a, ulong bytes, ulong b, ulong other) => a < b + other && b < a + bytes;
     private static bool OwnedZero(void* address, ulong bytes)

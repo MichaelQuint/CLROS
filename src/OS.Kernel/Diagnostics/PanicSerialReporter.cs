@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class PanicSerialReporter
 {
     public static PanicSerialReporterResult ReportFaultSummary(IPanicSerialByteSink? sink, Span<byte> scratch, ReadOnlySpan<char> subsystem, ReadOnlySpan<char> reason, in CpuFaultFrame frame)

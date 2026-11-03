@@ -23,12 +23,18 @@ public sealed class BootEventRingBuffer
 
     public int Count
     {
-        get { return _count; }
+        get
+        {
+            return _count;
+        }
     }
 
     public int Capacity
     {
-        get { return _events.Length; }
+        get
+        {
+            return _events.Length;
+        }
     }
 
     public void Record(string message)

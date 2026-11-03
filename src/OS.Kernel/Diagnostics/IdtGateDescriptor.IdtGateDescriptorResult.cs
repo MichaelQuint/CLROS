@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct IdtGateDescriptorResult
 {
     private IdtGateDescriptorResult(bool succeeded, IdtGateDescriptorStatus status, IdtGateDescriptor descriptor)
@@ -10,9 +11,18 @@ public readonly struct IdtGateDescriptorResult
         Descriptor = descriptor;
     }
 
-    public bool Succeeded { get; }
-    public IdtGateDescriptorStatus Status { get; }
-    public IdtGateDescriptor Descriptor { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public IdtGateDescriptorStatus Status
+    {
+        get;
+    }
+    public IdtGateDescriptor Descriptor
+    {
+        get;
+    }
 
     public static IdtGateDescriptorResult Success(IdtGateDescriptor descriptor)
     {

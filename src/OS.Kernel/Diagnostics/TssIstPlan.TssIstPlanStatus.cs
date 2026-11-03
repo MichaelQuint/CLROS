@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public enum TssIstPlanStatus
 {
     Ok = 0,

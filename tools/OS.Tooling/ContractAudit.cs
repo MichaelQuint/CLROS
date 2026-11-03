@@ -5,6 +5,7 @@ using System.Xml;
 using System.Xml.Linq;
 
 namespace OS.Tooling;
+
 public static class ContractAudit
 {
     public static XDocument ReadProject(string path)
@@ -16,11 +17,11 @@ public static class ContractAudit
     public static IReadOnlyList<ContractMismatch> InspectProject(XDocument project)
     {
         List<ContractMismatch> failures = [];
-        string[] compile = project.Descendants("Compile").Select(node => (string? )node.Attribute("Include") + "|" + (string? )node.Attribute("Link")).ToArray();
+        string[] compile = project.Descendants("Compile").Select(node => (string?)node.Attribute("Include") + "|" + (string?)node.Attribute("Link")).ToArray();
         CompareOrdered("efi.compile", EfiContracts.CompileItems, compile, failures);
-        string[] probes = project.Descendants("DefineConstants").Select(node => (string? )node.Parent?.Attribute("Condition") ?? "").SelectMany(condition => Regex.Matches(condition, @"\$\((Enable\w+Probe)\)").Select(match => match.Groups[1].Value)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        string[] probes = project.Descendants("DefineConstants").Select(node => (string?)node.Parent?.Attribute("Condition") ?? "").SelectMany(condition => Regex.Matches(condition, @"\$\((Enable\w+Probe)\)").Select(match => match.Groups[1].Value)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         CompareOrdered("efi.probes", EfiContracts.DiagnosticProbes, probes, failures);
-        foreach ((string name, string expected)in RequiredProperties)
+        foreach ((string name, string expected) in RequiredProperties)
         {
             string[] actual = project.Descendants(name).Select(node => node.Value).ToArray();
             if (actual.Length != 1 || actual[0] != expected)
@@ -33,7 +34,7 @@ public static class ContractAudit
     public static IReadOnlyList<ContractMismatch> Inspect(string root)
     {
         string path = Path.Combine(root, "src", "OS", "OS.csproj");
-        List<ContractMismatch> failures = [..InspectProject(ReadProject(path))];
+        List<ContractMismatch> failures = [.. InspectProject(ReadProject(path))];
         string source = HashSource(File.ReadAllText(path));
         if (source != EfiContracts.ProjectSourceSha256)
             failures.Add(new("efi.project.sourceSha256", EfiContracts.ProjectSourceSha256, source));

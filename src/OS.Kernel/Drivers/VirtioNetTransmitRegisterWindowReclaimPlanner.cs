@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioNetTransmitRegisterWindowReclaimPlanner
 {
     public const bool RequiresSuccessfulRegisterWindowReadiness = true;

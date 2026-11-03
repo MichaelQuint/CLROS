@@ -2,6 +2,7 @@ using OS.Std.Hash;
 using OS.Std.Memory;
 
 namespace OS.Net;
+
 public static unsafe partial class TcpInitialSequence
 {
     /// <summary>Zero before Initialize, inaccessible to applications and retained

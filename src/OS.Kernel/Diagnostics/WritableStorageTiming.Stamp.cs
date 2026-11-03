@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using OS.Kernel.Platform;
 
 namespace OS.Kernel.Diagnostics;
+
 public static unsafe partial class WritableStorageTiming
 {
     /// <summary>Stack-local synchronous hook receipt. It cannot authorize later

@@ -355,7 +355,7 @@ internal static partial class M02PageFaultCr2ErrorCodeEfiIntegrationTests
                 string opposing = index < 0 ? string.Empty : " " + string.Join(' ', m04.Take(index).Select(x => "-" + x));
                 if (index == 4)
                     opposing += " -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe";
-                Result r = Profile(endpoint, ["-" + Flag, "-" + option, ..opposing.Split(' ', StringSplitOptions.RemoveEmptyEntries)]);
+                Result r = Profile(endpoint, ["-" + Flag, "-" + option, .. opposing.Split(' ', StringSplitOptions.RemoveEmptyEntries)]);
                 Save("conflict-" + option, r);
                 Require(r.Code != 0 && r.Output.Contains("m02_page_fault_cr2_error_code_profile_conflict", StringComparison.Ordinal), r.Output);
             }
@@ -439,7 +439,7 @@ internal static partial class M02PageFaultCr2ErrorCodeEfiIntegrationTests
         {
             string id = "issue517-tests-" + Guid.NewGuid().ToString("N"), dir = Scratch(enabled ? "artifact-enabled" : "artifact-default");
             string artifact = "artifacts/efi/" + id + ".EFI";
-            Result r = Tool(["efi", "build", "--boot-policy", "Diagnostic", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(dir, "publish.log"), ..(enabled ? new[] { "-" + Flag } : Array.Empty<string>())]);
+            Result r = Tool(["efi", "build", "--boot-policy", "Diagnostic", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(dir, "publish.log"), .. (enabled ? new[] { "-" + Flag } : Array.Empty<string>())]);
             File.WriteAllText(Path.Combine(dir, "run.log"), r.Output);
             Require(r.Code == 0 && r.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), r.Output);
             string link = Path.ChangeExtension(Path.Combine(root, artifact), "link.json");
@@ -514,7 +514,7 @@ internal static partial class M02PageFaultCr2ErrorCodeEfiIntegrationTests
             throw new InvalidOperationException(reason);
     }
 
-    private static Result Qemu(params string[] args) => Tool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..args]);
+    private static Result Qemu(params string[] args) => Tool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. args]);
     private static Result Tool(params string[] args)
     {
         var r = HostToolProcess.RunTool(args);
@@ -523,7 +523,7 @@ internal static partial class M02PageFaultCr2ErrorCodeEfiIntegrationTests
 
     private static Result Profile(string endpoint, string[] args)
     {
-        var r = endpoint == "qemu" ? HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", "--build-efi", ..args]) : HostToolProcess.ValidateEfiProfile(endpoint == "build", ["--boot-policy", "Diagnostic", ..args]);
+        var r = endpoint == "qemu" ? HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", "--build-efi", .. args]) : HostToolProcess.ValidateEfiProfile(endpoint == "build", ["--boot-policy", "Diagnostic", .. args]);
         return new(r.ExitCode, r.Output + r.Error);
     }
 }

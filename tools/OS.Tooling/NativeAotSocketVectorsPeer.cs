@@ -100,7 +100,7 @@ public static partial class NativeAotSocketVectorsPeer
                     if (await peer.ReceiveAsync(buffer.AsMemory(0, 1), SocketFlags.None, token) != 0)
                         throw new ToolFailure("socket_vectors_peer_dispose_payload");
                 }
-                catch (SocketException error)when (error.SocketErrorCode == SocketError.ConnectionReset)
+                catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionReset)
                 {
                     close = "reset";
                 }

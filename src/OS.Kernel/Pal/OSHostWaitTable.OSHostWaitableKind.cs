@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public enum OSHostWaitableKind : uint
 {
     None = 0,

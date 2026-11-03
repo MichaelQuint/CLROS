@@ -12,9 +12,18 @@ readonly struct LibvirtDomainXmlValidationResult
         Summary = summary;
     }
 
-    public bool Succeeded { get; }
-    public string Status { get; }
-    public LibvirtDomainXmlSummary Summary { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public string Status
+    {
+        get;
+    }
+    public LibvirtDomainXmlSummary Summary
+    {
+        get;
+    }
 
     public static LibvirtDomainXmlValidationResult Pass(LibvirtDomainXmlSummary summary)
     {

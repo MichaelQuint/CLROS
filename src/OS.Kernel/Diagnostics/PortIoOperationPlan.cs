@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct PortIoOperationPlan
 {
     public const byte Out8Opcode = 0xee;
@@ -9,7 +10,10 @@ public readonly struct PortIoOperationPlan
         OperationKind = operationKind;
     }
 
-    public PortIoOperationKind OperationKind { get; }
+    public PortIoOperationKind OperationKind
+    {
+        get;
+    }
     public static PortIoOperationPlan Out8 => new PortIoOperationPlan(PortIoOperationKind.Out8);
     public static PortIoOperationPlan In8 => new PortIoOperationPlan(PortIoOperationKind.In8);
 

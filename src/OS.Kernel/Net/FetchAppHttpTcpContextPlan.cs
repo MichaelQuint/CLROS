@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class FetchAppHttpTcpContextPlan
 {
     private const uint FingerprintOffset = 2166136261;

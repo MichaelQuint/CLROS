@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotDiskStaticBrowser
 {
     /// <summary>Only this owner creates a completion, after the browser and its
@@ -30,13 +31,34 @@ public static partial class NativeAotDiskStaticBrowser
             Exchanges = Array.AsReadOnly(exchanges);
         }
 
-        public string Directory { get; }
-        public int Port { get; }
-        public string ReceiptSha256 { get; }
-        public string InventorySha256 { get; }
-        public ProcessResult Process { get; }
-        public Dom Document { get; }
-        public IReadOnlyList<Exchange> Exchanges { get; }
+        public string Directory
+        {
+            get;
+        }
+        public int Port
+        {
+            get;
+        }
+        public string ReceiptSha256
+        {
+            get;
+        }
+        public string InventorySha256
+        {
+            get;
+        }
+        public ProcessResult Process
+        {
+            get;
+        }
+        public Dom Document
+        {
+            get;
+        }
+        public IReadOnlyList<Exchange> Exchanges
+        {
+            get;
+        }
         public IReadOnlyList<string> ArtifactPaths => Array.AsReadOnly(files.Keys.Order(StringComparer.Ordinal).ToArray());
         public string Screenshot => Path.Combine(Directory, "screenshot.png");
 

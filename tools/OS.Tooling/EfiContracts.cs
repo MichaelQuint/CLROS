@@ -12,18 +12,30 @@ public static partial class EfiContracts
         marker.EndsWith("_REJECT", StringComparison.Ordinal) || marker.EndsWith("_WAIT", StringComparison.Ordinal) || marker.EndsWith("_OBSERVE", StringComparison.Ordinal) ||
         marker.EndsWith("_WAKE", StringComparison.Ordinal) || marker.EndsWith("_TLS", StringComparison.Ordinal) || marker.EndsWith("_TICK", StringComparison.Ordinal) ||
         marker.EndsWith("_CANCEL", StringComparison.Ordinal) || marker.EndsWith("_REAP", StringComparison.Ordinal);
-    public static IReadOnlyList<string> M09006Markers { get; } = Array.AsReadOnly(new[] {
+    public static IReadOnlyList<string> M09006Markers
+    {
+        get;
+    } = Array.AsReadOnly(new[] {
         "TEST_START m09.006", "M09_006_PREPARED", "M09_006_ROLLBACK", "M09_006_TRANSFER", "M09_006_WAIT", "M09_006_TICK",
         "M09_006_JOIN", "M09_006_REAP", "M09_006_REUSE", "M09_006_CANCEL", "M09_006_COMPLETE",
         "M09_006_RESTORED", "TEST_PASS m09.006", "CLROS_M09_006_READY" });
-    public static IReadOnlyList<string> M09006RepeatedMarkers { get; } = Array.AsReadOnly(new[] {
+    public static IReadOnlyList<string> M09006RepeatedMarkers
+    {
+        get;
+    } = Array.AsReadOnly(new[] {
         "M09_006_ROLLBACK", "M09_006_TRANSFER", "M09_006_WAIT", "M09_006_TICK", "M09_006_JOIN", "M09_006_REAP", "M09_006_REUSE", "M09_006_CANCEL" });
-    public static IReadOnlyList<string> M09005Markers { get; } = Array.AsReadOnly(new[] {
+    public static IReadOnlyList<string> M09005Markers
+    {
+        get;
+    } = Array.AsReadOnly(new[] {
         "TEST_START m09.005", "M09_005_PREPARED", "M09_005_ARMED", "M09_005_TICK",
         "M09_005_WAKE", "M09_005_RESTORED", "TEST_PASS m09.005", "CLROS_M09_005_READY" });
     // These profiles inherit first-exit conflicts through their required parent.
     // Source guards use the same inventory rather than copying each new leaf.
-    public static IReadOnlyList<string> FirstExitDependentProbes { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> FirstExitDependentProbes
+    {
+        get;
+    } = Array.AsReadOnly<string>(
         ["EnableM03FirmwareAdapterRevocationProbe", "EnableM03OwnedSubsystemSurvivalProbe", "EnableM03OwnedSubsystemPanicProbe",
          "EnableM05PhysicalMappingProbe", "EnableM05OwnedAcpiSelectionProbe", "EnableM05MonotonicClockProbe",
          "EnableM05PciEnumerationProbe", "EnableM05BarDmaProbe", "EnableM05VirtioNegotiationProbe",
@@ -35,7 +47,10 @@ public static partial class EfiContracts
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
-    public static IReadOnlyList<(string Symbol, string Entry, string Body)> OwnedDmaAllocatorProfiles { get; } =
+    public static IReadOnlyList<(string Symbol, string Entry, string Body)> OwnedDmaAllocatorProfiles
+    {
+        get;
+    } =
         Array.AsReadOnly<(string, string, string)>([("M05_BAR_DMA_PROBE", "RunOwnedBarDma", "RunDmaCore"),
             ("M05_VIRTQUEUE_POLLING_PROBE", "RunOwnedVirtqueuePolling", "RunQueueCore"),
             ("M05_VIRTQUEUE_INTERRUPT_PROBE", "RunOwnedVirtqueueInterrupt", "RunQueueCore"),
@@ -48,14 +63,17 @@ public static partial class EfiContracts
             ("M07_VIRTIO_NET_PROBE", "RunOwnedVirtioNet", "RunNetCore"),
             ("M07_ARP_RECEIVE_PROBE", "RunOwnedArpReceive", "RunArpCore")]);
 
-    public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
+    public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes
+    {
+        get;
+    } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
     public const string ProjectSourceSha256 = "3b761b042ba89c37fbb53d92394df3c480489c0bcf7f38f2ec120fca6a3cce55";
     public const string CanonicalProjectSha256 = "e5eb21a4bc648ab7a731a8ce8be76fa29d5cce90d9d060d72e73cfe5120b3ab9";
     // Review the selected M16-027 writable-owner sources and entry boundary.
     // Historical artifacts retain their original project and source identities.
-    public const string EfiEntrySourceSha256 = "815ea15bd1db7e4bf4ebfdc99ec7cc2c4aedbc5ccf9da3dd9677ac4663556c7d";
+    public const string EfiEntrySourceSha256 = "843e38df6c158c2a22b25c341d6d411b3dcf851f842cdc0e7752d34f3062518a";
     public const string Ud2TransitionSourceSha256 = "00d5a00b54e7177de59408fbbd7f87ae899f74859da8276aa286b56178db7817";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "1a8f2c942c54cc029fad17968d267208f23fc9b5002d4339335f96155b8a5e65";
@@ -69,7 +87,10 @@ public static partial class EfiContracts
     public static IReadOnlyList<string> ProjectDefaultProbes => DiagnosticProbes
         .Except(InheritedDiagnosticProbes, StringComparer.Ordinal).ToArray();
 
-    public static System.Collections.ObjectModel.ReadOnlyCollection<string> CompileItems { get; } = Array.AsReadOnly<string>([
+    public static System.Collections.ObjectModel.ReadOnlyCollection<string> CompileItems
+    {
+        get;
+    } = Array.AsReadOnly<string>([
         "..\\OS.Kernel\\Boot\\BootHandoffRecord.FirmwareMemoryMapRecord.cs|Boot\\BootHandoffRecord.FirmwareMemoryMapRecord.cs",
         "..\\OS.Kernel\\Boot\\BootHandoffRecord.FirmwareAcpiRsdpRecord.cs|Boot\\BootHandoffRecord.FirmwareAcpiRsdpRecord.cs",
         "..\\OS.Kernel\\Boot\\BootHandoffRecord.cs|Boot\\BootHandoffRecord.cs",
@@ -1602,7 +1623,10 @@ public static partial class EfiContracts
         "..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxThreadServices.Epoll.cs|Compatibility\\LinuxX64\\LinuxThreadServices.Epoll.cs"
     ]);
 
-    public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes { get; } = Array.AsReadOnly<string>(
+    public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         "EnableAcpiPhysicalDiscoveryProbe",
         "EnableExitBootServicesFreshMapProbe",

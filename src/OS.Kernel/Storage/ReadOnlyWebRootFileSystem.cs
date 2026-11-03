@@ -1107,8 +1107,8 @@ public static unsafe partial class ReadOnlyWebRootFileSystem
         }
         else
 #endif
-            if (!OutsideDevice(m->Input.Device, start, bytes))
-                return false;
+        if (!OutsideDevice(m->Input.Device, start, bytes))
+            return false;
         Extent* all = stackalloc Extent[68];
         uint count = Extents(m, m->Input, all);
         for (uint i = 0; i < count; i++)

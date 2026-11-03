@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public readonly struct BootReservationSubtractionResult
 {
     private readonly byte _reserved0;
@@ -35,27 +36,87 @@ public readonly struct BootReservationSubtractionResult
         RemainingBytes = remainingBytes;
     }
 
-    public BootReservationSubtractionStatus Status { get; }
-    public BootReservationSourceRangeStatus SourceRangeStatus { get; }
-    public BootReservedRangeStatus ReservationRangeStatus { get; }
+    public BootReservationSubtractionStatus Status
+    {
+        get;
+    }
+    public BootReservationSourceRangeStatus SourceRangeStatus
+    {
+        get;
+    }
+    public BootReservedRangeStatus ReservationRangeStatus
+    {
+        get;
+    }
     public bool Succeeded => Status == BootReservationSubtractionStatus.Success && SourceRangeStatus == BootReservationSourceRangeStatus.Success && ReservationRangeStatus == BootReservedRangeStatus.Success && ReservedFieldsAreZero() && SourceRangeCount != 0 && SourceRangeCount <= BootReservationSubtractor.MaximumSourceRangeCount && SourceRangeCapacity >= SourceRangeCount && ReservationCount <= BootReservationSubtractor.MaximumReservationCount && ReservationCapacity >= ReservationCount && RequiredOutputRangeCount <= BootReservationSubtractor.MaximumOutputRangeCount && WrittenOutputRangeCount == RequiredOutputRangeCount && AvailableDestinationCapacity >= RequiredOutputRangeCount && InvalidSourceRangeIndex == BootReservationSubtractor.NoIndex && InvalidReservationIndex == BootReservationSubtractor.NoIndex && ConflictingRangeIndex == BootReservationSubtractor.NoIndex && PageSize == BootReservationSubtractor.RequiredPageSize && TotalSourcePages != 0 && BootReservationSubtractor.IsRepresentableSuccessSummary(SourceRangeCount, SourceRangeCapacity, ReservationCount, ReservationCapacity, RequiredOutputRangeCount, AvailableDestinationCapacity, PageSize, TotalSourcePages, TotalSourceBytes, RemovedPages, RemovedBytes, RemainingPages, RemainingBytes) && (ReservationCount != 0 || (RemovedPages == 0 && RemovedBytes == 0)) && (ReservationCount == 0 || (RemovedPages != 0 && RemovedBytes != 0)) && (RemainingPages != 0 || (RemainingBytes == 0 && RequiredOutputRangeCount == 0)) && (RemainingPages == 0 || (RemainingBytes != 0 && RequiredOutputRangeCount != 0));
-    public ulong SourceRangeCount { get; }
-    public ulong SourceRangeCapacity { get; }
-    public ulong ReservationCount { get; }
-    public ulong ReservationCapacity { get; }
-    public ulong RequiredOutputRangeCount { get; }
-    public ulong WrittenOutputRangeCount { get; }
-    public ulong AvailableDestinationCapacity { get; }
-    public ulong InvalidSourceRangeIndex { get; }
-    public ulong InvalidReservationIndex { get; }
-    public ulong ConflictingRangeIndex { get; }
-    public ulong PageSize { get; }
-    public ulong TotalSourcePages { get; }
-    public ulong TotalSourceBytes { get; }
-    public ulong RemovedPages { get; }
-    public ulong RemovedBytes { get; }
-    public ulong RemainingPages { get; }
-    public ulong RemainingBytes { get; }
+    public ulong SourceRangeCount
+    {
+        get;
+    }
+    public ulong SourceRangeCapacity
+    {
+        get;
+    }
+    public ulong ReservationCount
+    {
+        get;
+    }
+    public ulong ReservationCapacity
+    {
+        get;
+    }
+    public ulong RequiredOutputRangeCount
+    {
+        get;
+    }
+    public ulong WrittenOutputRangeCount
+    {
+        get;
+    }
+    public ulong AvailableDestinationCapacity
+    {
+        get;
+    }
+    public ulong InvalidSourceRangeIndex
+    {
+        get;
+    }
+    public ulong InvalidReservationIndex
+    {
+        get;
+    }
+    public ulong ConflictingRangeIndex
+    {
+        get;
+    }
+    public ulong PageSize
+    {
+        get;
+    }
+    public ulong TotalSourcePages
+    {
+        get;
+    }
+    public ulong TotalSourceBytes
+    {
+        get;
+    }
+    public ulong RemovedPages
+    {
+        get;
+    }
+    public ulong RemovedBytes
+    {
+        get;
+    }
+    public ulong RemainingPages
+    {
+        get;
+    }
+    public ulong RemainingBytes
+    {
+        get;
+    }
 
     internal static BootReservationSubtractionResult Success(ulong sourceRangeCount, ulong sourceRangeCapacity, ulong reservationCount, ulong reservationCapacity, ulong requiredOutputRangeCount, ulong writtenOutputRangeCount, ulong availableDestinationCapacity, ulong pageSize, ulong totalSourcePages, ulong totalSourceBytes, ulong removedPages, ulong removedBytes, ulong remainingPages, ulong remainingBytes)
     {

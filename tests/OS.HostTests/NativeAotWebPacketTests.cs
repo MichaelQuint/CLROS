@@ -99,7 +99,7 @@ internal static partial class NativeAotWebPacketTests
                 declared--;
             string type = binary && mutation != "vector-type" ? "application/octet-stream" : i == 1 ? "application/json; charset=utf-8" : "text/plain";
             byte[] header = Encoding.ASCII.GetBytes((i == 3 && mutation != "repeat-status" ? "HTTP/1.1 409 Conflict\r\n" : quotaFailure ? "HTTP/1.1 500 Internal Server Error\r\n" : "HTTP/1.1 200 OK\r\n") + (i != 1 ? $"Content-Length: {declared}\r\n" : "") + "Connection: close\r\n" + (i == 3 || quotaFailure ? "" : $"Content-Type: {type}\r\n") + "Date: " + (dates?.Invoke(i) ?? "Thu, 01 Jan 1970 00:00:00 GMT") + "\r\nServer: Kestrel\r\n\r\n");
-            byte[] response = [..header, ..entity];
+            byte[] response = [.. header, .. entity];
             Add(true, server, client, 0x18, response.AsSpan(0, 5));
             server += 5;
             for (int offset = 5; offset < response.Length;)
@@ -518,7 +518,7 @@ internal static partial class NativeAotWebPacketTests
         byte[] original = v.Frames[at];
         uint sequence = BinaryPrimitives.ReadUInt32BigEndian(original.AsSpan(38));
         uint ack = BinaryPrimitives.ReadUInt32BigEndian(original.AsSpan(42));
-        foreach ((string from, string to)in new[]
+        foreach ((string from, string to) in new[]
         {
             ("200 OK", "500 OK"),
             ("Server: Kestrel", "Server: Invalid"),
@@ -566,7 +566,7 @@ internal static partial class NativeAotWebPacketTests
 
         // Keep SYN order and every valid per-flow stream, but complete repeat
         // and final health before the logging response even begins.
-        bool Later(byte[] f) => f.Length >= 54 && (BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(34))is 41003 or 41004 or 41005 || BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(36))is 41003 or 41004 or 41005);
+        bool Later(byte[] f) => f.Length >= 54 && (BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(34)) is 41003 or 41004 or 41005 || BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(36)) is 41003 or 41004 or 41005);
         var later = valid.Frames.Where(Later).ToArray();
         var overlap = valid.Frames.Where(f => !Later(f)).ToList();
         int beforeLogResponse = overlap.FindIndex(f => f.Length > 54 && BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(34)) == 8080 && BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(36)) == 41002 && f[54] == 'H');

@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public unsafe struct WorkloadServiceLoopCallbacks
 {
     // Exactly 1 means success. Byte results preserve the native/host unmanaged ABI.

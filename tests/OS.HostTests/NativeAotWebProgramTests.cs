@@ -156,7 +156,7 @@ internal static partial class NativeAotWebProgramTests
             writer.WriteByte(0);
             writer.Flush(true);
         }
-        catch (IOException)when (OperatingSystem.IsWindows())
+        catch (IOException) when (OperatingSystem.IsWindows())
         {
             refused = true;
         }
@@ -186,7 +186,7 @@ internal static partial class NativeAotWebProgramTests
         {
             method.Invoke(null, [root, files]);
         }
-        catch (TargetInvocationException error)when (error.InnerException is not null)
+        catch (TargetInvocationException error) when (error.InnerException is not null)
         {
             ExceptionDispatchInfo.Capture(error.InnerException).Throw();
             throw;

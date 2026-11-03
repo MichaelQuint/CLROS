@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     public const int MaximumNativeAotLogUploadWaitRows = 65536;

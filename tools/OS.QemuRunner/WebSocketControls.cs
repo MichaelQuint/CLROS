@@ -60,7 +60,7 @@ public static partial class WebSocketControls
             throw new InvalidDataException("Timeout preceded healthy control.");
         await frames.InjectRejectedFrameAsync().WaitAsync(token).ConfigureAwait(false);
         Events observed;
-        for (;;)
+        for (; ; )
         {
             if (frames.Completion.IsCompleted)
                 throw new InvalidDataException("Frame owner ended during HTTP controls.");

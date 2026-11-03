@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct IdtTablePlanResult
 {
     private IdtTablePlanResult(bool succeeded, IdtTablePlanStatus status, byte vector, IdtGateDescriptorStatus descriptorStatus, int descriptorCount, int requiredBytes)
@@ -11,12 +12,30 @@ public readonly struct IdtTablePlanResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool Succeeded { get; }
-    public IdtTablePlanStatus Status { get; }
-    public byte Vector { get; }
-    public IdtGateDescriptorStatus DescriptorStatus { get; }
-    public int DescriptorCount { get; }
-    public int RequiredBytes { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public IdtTablePlanStatus Status
+    {
+        get;
+    }
+    public byte Vector
+    {
+        get;
+    }
+    public IdtGateDescriptorStatus DescriptorStatus
+    {
+        get;
+    }
+    public int DescriptorCount
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
 
     public static IdtTablePlanResult Success()
     {

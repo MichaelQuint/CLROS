@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private static string[] RunnerBackend(QemuSmokeOptions options) => ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
@@ -177,7 +178,7 @@ public static partial class QemuTranscripts
             if (staticFiles)
                 socketForwardPort = staticForwardPort;
             int at = entropy ? 8 : 7;
-            Need(socketForwardPort is> 0 and <= 65535 && lines.Count == (entropy ? 19 : 18) && lines[at] == "SOCKET_FORWARD_PORT " + socketForwardPort.Value.ToString(CultureInfo.InvariantCulture), "socket_runner_forward_identity");
+            Need(socketForwardPort is > 0 and <= 65535 && lines.Count == (entropy ? 19 : 18) && lines[at] == "SOCKET_FORWARD_PORT " + socketForwardPort.Value.ToString(CultureInfo.InvariantCulture), "socket_runner_forward_identity");
             lines.RemoveAt(at);
         }
 
@@ -277,7 +278,7 @@ public static partial class QemuTranscripts
 
         if (staticFiles)
             summary.AddRange(staticChildRows!);
-        byte[] expectedBytes = [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")];
+        byte[] expectedBytes = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")];
         Need(File.ReadAllBytes(Path.GetFullPath(options.SummaryLog, root)).AsSpan().SequenceEqual(expectedBytes), "qemu_runner_summary_bytes");
     }
 
@@ -287,8 +288,8 @@ public static partial class QemuTranscripts
     {
         List<string> lines = [];
         using StringReader reader = new(serial);
-        while (reader.ReadLine()is string line)
-            if (line.Trim()is { Length: > 0 } trimmed)
+        while (reader.ReadLine() is string line)
+            if (line.Trim() is { Length: > 0 } trimmed)
                 lines.Add(trimmed);
         return lines.ToArray();
     }
@@ -312,7 +313,7 @@ public static partial class QemuTranscripts
         Need(Enabled("M03FirmwareAdapterRevocation") || !Regex.IsMatch(candidate, @"(?i)M03_ADAPTER_|CLROS_M03_008_READY|m03\.008"), "m03_revocation_unselected_record");
         Need(Enabled("M04ClassConstructorExecution") || !Regex.IsMatch(candidate, @"(?i)M04_CCTOR|CLROS_M04_024_READY|m04\.024"), "m04_cctor_unselected_record");
         Need(Enabled("M05VirtqueuePolling") || Enabled("M05VirtqueueInterrupt") || !Regex.IsMatch(candidate, @"(?i)M05_QUEUE|CLROS_M05_01[6-9]_READY|m05\.01[6-9]"), "m05_queue_unselected_record");
-        foreach (var(flag, pattern)in new (string Flag, string Pattern)[]
+        foreach (var (flag, pattern) in new (string Flag, string Pattern)[]
         {
             ("M16013", @"CLROS_M16_013_READY|TEST_(?:START|PASS)m16-013"),
             ("M04SimpleThrowCatch", "M04_CATCH|CLROS_M04_SIMPLE_CATCH|m04\\.021\\.simple-catch"),

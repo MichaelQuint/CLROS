@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Memory;
 
 public readonly struct HttpRequestBuilderResult
@@ -11,11 +12,23 @@ public readonly struct HttpRequestBuilderResult
         BytesRequired = bytesRequired;
     }
 
-    public bool IsInitialized { get; }
-    public HttpRequestBuilderStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public HttpRequestBuilderStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == HttpRequestBuilderStatus.Success;
-    public int BytesWritten { get; }
-    public int BytesRequired { get; }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int BytesRequired
+    {
+        get;
+    }
 
     public static HttpRequestBuilderResult Success(int bytesWritten)
     {

@@ -2,6 +2,7 @@ using OS.Kernel.Platform;
 using OS.Std.Text;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class OwnedSerialDiagnostics
 {
     public const int MaximumMarkerBytes = 256;

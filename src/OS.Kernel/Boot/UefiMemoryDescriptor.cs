@@ -16,13 +16,28 @@ public readonly struct UefiMemoryDescriptor
         Attribute = attribute;
     }
 
-    public UefiMemoryType Type { get; }
+    public UefiMemoryType Type
+    {
+        get;
+    }
 
-    public ulong PhysicalStart { get; }
+    public ulong PhysicalStart
+    {
+        get;
+    }
 
-    public ulong VirtualStart { get; }
+    public ulong VirtualStart
+    {
+        get;
+    }
 
-    public ulong NumberOfPages { get; }
+    public ulong NumberOfPages
+    {
+        get;
+    }
 
-    public ulong Attribute { get; }
+    public ulong Attribute
+    {
+        get;
+    }
 }

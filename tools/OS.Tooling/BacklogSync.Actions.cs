@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using static OS.Tooling.BacklogManifest;
 
 namespace OS.Tooling;
+
 public static partial class BacklogSync
 {
     private sealed class Actions(TextWriter output)

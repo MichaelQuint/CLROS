@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct PortIoOperationPlanResult
 {
     private PortIoOperationPlanResult(PortIoOperationPlanStatus status, int bytesWritten, int requiredBytes)
@@ -9,10 +10,22 @@ public readonly struct PortIoOperationPlanResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool IsInitialized { get; }
-    public PortIoOperationPlanStatus Status { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public PortIoOperationPlanStatus Status
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PortIoOperationPlanStatus.Success && RequiredBytes > 0 && BytesWritten == RequiredBytes;
 
     public static PortIoOperationPlanResult Success(int bytesWritten)

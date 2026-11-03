@@ -69,8 +69,8 @@ internal static partial class LinuxDiskParentTests
         }
 
         int leaf = Array.IndexOf(rows, "TEST_START m16-009");
-        DenyStartup(() => QemuTranscripts.InspectWritableDiskParentValues([..rows[..(leaf + 1)], "M16_011_SLOT event=0", ..rows[(leaf + 1)..]], package, true), "signal_epoll_no_tcp_lifetimes");
-        DenyStartup(() => QemuTranscripts.InspectWritableDiskParentValues([..rows, "unexpected tail"], package, true), "socket_parent_extra_record");
+        DenyStartup(() => QemuTranscripts.InspectWritableDiskParentValues([.. rows[..(leaf + 1)], "M16_011_SLOT event=0", .. rows[(leaf + 1)..]], package, true), "signal_epoll_no_tcp_lifetimes");
+        DenyStartup(() => QemuTranscripts.InspectWritableDiskParentValues([.. rows, "unexpected tail"], package, true), "socket_parent_extra_record");
         DenyStartup(() => QemuTranscripts.InspectWritableDiskParentValues(rows, package, logUpload: false));
     }
 
@@ -85,7 +85,7 @@ internal static partial class LinuxDiskParentTests
 
         )
         {
-            var(package, _) = CopiedBclPackage(phase);
+            var (package, _) = CopiedBclPackage(phase);
             string[] rows = WritableParentRows(package);
             foreach (bool logUpload in new[]
             {
@@ -124,11 +124,11 @@ internal static partial class LinuxDiskParentTests
         string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
         string[] staged = ["TEST_START m16-002", FormattableString.Invariant($"M16_002_STAGED bytes={package.Length} payload={view.PayloadBytes} pages={(package.Length + 4095) / 4096} handlesClosed=2 reads={(package.Length + 65535) / 65536}"), "M16_002_DIGEST " + Hash(package.AsSpan((int)view.PayloadOffset, (int)view.PayloadBytes)), "M16_002_PACKAGE_DIGEST " + Hash(package), "M16_002_OWNED firmware=exited package=read-only-nx ledger=valid fileBytes=64 entry=false", "CLROS_M16_002_READY", "TEST_PASS m16-002"];
         string[] startup = MappedStartupRows(package, view.PayloadBytes == NativeAotLogUploadContract.ClrosElfBytes ? 67UL : 65UL)[^7..];
-        string[] service = ["TEST_START m16-003", "M16_003_CLOCK frequency=1000000 period=1000000000 recoveries=0 source=owned-hpet", ..Enumerable.Range(1, 4).Select(i => FormattableString.Invariant($"M16_003_ITERATION index={i} ticks={i * 1000 + 1}")), ..Enumerable.Range(0, 8).Select(i => "M16_003_FIRMWARE_DENIED index=" + i + " status=ServicesUnavailable providers=1 outputs=unchanged"), "M16_003_STOP iterations=4 reads=5 first=1 last=4001 interval=1000 firmware=revoked providers=1 shutdown=owned-controller", "CLROS_M16_003_READY", "TEST_PASS m16-003"];
+        string[] service = ["TEST_START m16-003", "M16_003_CLOCK frequency=1000000 period=1000000000 recoveries=0 source=owned-hpet", .. Enumerable.Range(1, 4).Select(i => FormattableString.Invariant($"M16_003_ITERATION index={i} ticks={i * 1000 + 1}")), .. Enumerable.Range(0, 8).Select(i => "M16_003_FIRMWARE_DENIED index=" + i + " status=ServicesUnavailable providers=1 outputs=unchanged"), "M16_003_STOP iterations=4 reads=5 first=1 last=4001 interval=1000 firmware=revoked providers=1 shutdown=owned-controller", "CLROS_M16_003_READY", "TEST_PASS m16-003"];
         var rows = NativeAotSocketIntegrationTests.Envelope(true).ToList();
         int owned = QemuContracts.M03OwnedSubsystemMarkers.Count;
         rows.RemoveRange(owned, 31);
-        rows.InsertRange(owned, [..staged, ..startup, ..service]);
+        rows.InsertRange(owned, [.. staged, .. startup, .. service]);
         int first = rows.IndexOf("TEST_START m16-009"), last = rows.IndexOf("TEST_PASS m16-009");
         rows.RemoveRange(first + 1, last - first - 1);
         rows.Insert(first + 1, "parent-only leaf deliberately unchecked");
@@ -153,7 +153,7 @@ internal static partial class LinuxDiskParentTests
 
         )
         {
-            var(package, values) = CopiedBclPackage(phase);
+            var (package, values) = CopiedBclPackage(phase);
             string[] rows = MappedStartupRows(package, 67), before = rows.ToArray();
             byte[] original = package.ToArray();
             string[] parent = InspectStartupValues(rows, package, true, false, false, true, true, values);
@@ -166,8 +166,8 @@ internal static partial class LinuxDiskParentTests
     [HostTest("disk startup BCL copied admission rejects wrong selections phase package and mutated bytes before consuming rows")]
     private static void BclStartupAdmission()
     {
-        var(package, values) = CopiedBclPackage("write");
-        var(verify, verification) = CopiedBclPackage("verify");
+        var (package, values) = CopiedBclPackage("write");
+        var (verify, verification) = CopiedBclPackage("verify");
         string[] rows = MappedStartupRows(package, 67);
         foreach (var flags in new (bool Disk, bool Static, bool Exit, bool Writable, bool Log)[]
         {
@@ -192,7 +192,7 @@ internal static partial class LinuxDiskParentTests
     [HostTest("disk startup BCL binds actual TLS image and stack records and rejects neighbouring retained range counts")]
     private static void BclStartupRecordRejection()
     {
-        var(package, values) = CopiedBclPackage("write");
+        var (package, values) = CopiedBclPackage("write");
         string[] rows = MappedStartupRows(package, 67);
         foreach (int count in new[]
         {
@@ -328,7 +328,7 @@ internal static partial class LinuxDiskParentTests
                 loadPages += (((image.Loads[n] + image.Loads[n + 3] + 4095) & ~4095UL) - (image.Loads[n] & ~4095UL)) / 4096;
             }
 
-            return[..Enumerable.Repeat("parents checked separately", QemuContracts.M03OwnedSubsystemMarkers.Count + 7), "TEST_START m16-004", FormattableString.Invariant($"M16_004_IMAGE base={image.ImageStart} bytes={image.ImageBytes} loads={image.LoadCount} entry={image.Entry} phdr={image.ProgramHeaders} tlsFile={image.TlsFileBytes} tlsMemory={image.TlsMemoryBytes}"), FormattableString.Invariant($"M16_004_STACK start={startup.StackStart} bytes={startup.StackBytes} sp={startup.StackPointer} argc={startup.ArgumentCount} envc={startup.EnvironmentCount} random={startup.RandomAddress} entropyBytes=32 seedCleared=32"), FormattableString.Invariant($"M16_004_TABLES root=16777216 used=17 leaves={loadPages + view.Manifest.StackBytes / 4096 + 128} ranges={ranges}"), "M16_004_READBACK old=33554432 restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false", "CLROS_M16_004_READY", "TEST_PASS m16-004"];
+            return [.. Enumerable.Repeat("parents checked separately", QemuContracts.M03OwnedSubsystemMarkers.Count + 7), "TEST_START m16-004", FormattableString.Invariant($"M16_004_IMAGE base={image.ImageStart} bytes={image.ImageBytes} loads={image.LoadCount} entry={image.Entry} phdr={image.ProgramHeaders} tlsFile={image.TlsFileBytes} tlsMemory={image.TlsMemoryBytes}"), FormattableString.Invariant($"M16_004_STACK start={startup.StackStart} bytes={startup.StackBytes} sp={startup.StackPointer} argc={startup.ArgumentCount} envc={startup.EnvironmentCount} random={startup.RandomAddress} entropyBytes=32 seedCleared=32"), FormattableString.Invariant($"M16_004_TABLES root=16777216 used=17 leaves={loadPages + view.Manifest.StackBytes / 4096 + 128} ranges={ranges}"), "M16_004_READBACK old=33554432 restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false", "CLROS_M16_004_READY", "TEST_PASS m16-004"];
         }
         finally
         {
@@ -343,7 +343,7 @@ internal static partial class LinuxDiskParentTests
         {
             action();
         }
-        catch (Exception error)when (error is ToolFailure or InvalidDataException or ArgumentException)
+        catch (Exception error) when (error is ToolFailure or InvalidDataException or ArgumentException)
         {
             failure = error.Message;
         }
@@ -354,7 +354,7 @@ internal static partial class LinuxDiskParentTests
     [HostTest("disk parent admits only the exact typed pending-reset terminal and preserves ordinary drained rejection")]
     private static void PendingReset()
     {
-        var(device, image) = LinuxDiskRaceTranscriptTests.ExitPendingDeviceFixture();
+        var (device, image) = LinuxDiskRaceTranscriptTests.ExitPendingDeviceFixture();
         var rows = Envelope().ToList();
         rows.InsertRange(rows.IndexOf("TEST_START m16-009") + 1, device);
         int end = rows.IndexOf(End);
@@ -446,11 +446,11 @@ internal static partial class LinuxDiskParentTests
         for (int i = at; i < at + 7; i++)
         {
             Reject(rows.Where((_, index) => index != i).ToArray(), i == at ? "disk_parent_cleanup" : "socket_parent_order_");
-            Reject([..rows[..i], rows[i], ..rows[i..]], i == at ? "socket_parent_order_" : "socket_parent_order_");
+            Reject([.. rows[..i], rows[i], .. rows[i..]], i == at ? "socket_parent_order_" : "socket_parent_order_");
         }
 
         Reject(rows.Select(row => row.Replace("device=retired fs=retired", "device=retained fs=retired", StringComparison.Ordinal)).ToArray(), "disk_parent_cleanup");
-        Reject([..rows, End], "socket_parent_extra_record");
+        Reject([.. rows, End], "socket_parent_extra_record");
     }
 
     [HostTest("disk parent envelope rejects mismatched bootstrap final copy and filesystem counters")]
@@ -478,9 +478,9 @@ internal static partial class LinuxDiskParentTests
     {
         Reject([], "disk_parent_input");
         Reject(["bad\0row"], "disk_parent_input");
-        Reject([new string ('x', 1537)], "disk_parent_input");
+        Reject([new string('x', 1537)], "disk_parent_input");
         Reject(new string[131073], "disk_parent_input");
-        Reject([..Envelope(), "unknown"], "socket_parent_extra_record");
+        Reject([.. Envelope(), "unknown"], "socket_parent_extra_record");
     }
 
     [HostTest("disk startup admits exact Progress65 only through its explicit copied-value selection")]
@@ -650,7 +650,7 @@ internal static partial class LinuxDiskParentTests
             fixed (byte* bytes = package)
                 HostCheck.Equal(LinuxElfStartupStatus.Ready, LinuxElfStartup.Build(bytes + view.ManifestOffset, view.ManifestBytes, bytes + view.PayloadOffset, view.PayloadBytes, seed, 32, stack, view.Manifest.StackBytes, 0x70000000UL - view.Manifest.StackBytes, 0, out startup));
             string stackRow = string.Create(CultureInfo.InvariantCulture, $"M16_004_STACK start={startup.StackStart} bytes={startup.StackBytes} sp={startup.StackPointer} argc={startup.ArgumentCount} envc={startup.EnvironmentCount} random={startup.RandomAddress} entropyBytes=32 seedCleared=32");
-            return[..Enumerable.Repeat("parents checked separately", QemuContracts.M03OwnedSubsystemMarkers.Count + 7), "TEST_START m16-004", "M16_004_IMAGE base=4194304 bytes=28672 loads=2 entry=4194816 phdr=4194368 tlsFile=0 tlsMemory=0", stackRow, "M16_004_TABLES root=16777216 used=17 leaves=1737 ranges=65", "M16_004_READBACK old=33554432 restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false", "CLROS_M16_004_READY", "TEST_PASS m16-004"];
+            return [.. Enumerable.Repeat("parents checked separately", QemuContracts.M03OwnedSubsystemMarkers.Count + 7), "TEST_START m16-004", "M16_004_IMAGE base=4194304 bytes=28672 loads=2 entry=4194816 phdr=4194368 tlsFile=0 tlsMemory=0", stackRow, "M16_004_TABLES root=16777216 used=17 leaves=1737 ranges=65", "M16_004_READBACK old=33554432 restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false", "CLROS_M16_004_READY", "TEST_PASS m16-004"];
         }
         finally
         {
@@ -714,7 +714,7 @@ internal static partial class LinuxDiskParentTests
 
         )
         {
-            var(bclPackage, values) = CopiedBclPackage(phase);
+            var (bclPackage, values) = CopiedBclPackage(phase);
             string[] bclRows = MappedStartupRows(bclPackage, 67);
             HostCheck.True(InspectStartupValues(bclRows, bclPackage, true, false, false, true, true, values).SequenceEqual(bclRows[..^7]));
             DenyStartup(() => selected(bclRows, bclPackage, true, false, false, true, true, values, false, true), "m16_004_disk_selection");

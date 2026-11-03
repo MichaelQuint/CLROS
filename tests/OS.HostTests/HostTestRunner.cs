@@ -12,7 +12,7 @@ internal static partial class HostTestRunner
     internal static bool Invoke(MethodInfo method)
     {
         Type type = method.ReturnType;
-        if (type == typeof(void) && method.GetCustomAttribute<AsyncStateMachineAttribute>()is not null || type != typeof(void) && type != typeof(bool) && type != typeof(Task) && type != typeof(Task<bool>) && type != typeof(ValueTask) && type != typeof(ValueTask<bool>))
+        if (type == typeof(void) && method.GetCustomAttribute<AsyncStateMachineAttribute>() is not null || type != typeof(void) && type != typeof(bool) && type != typeof(Task) && type != typeof(Task<bool>) && type != typeof(ValueTask) && type != typeof(ValueTask<bool>))
             throw new InvalidOperationException("unsupported_fixture_return " + type.FullName);
         object? value;
         try
@@ -71,7 +71,7 @@ internal static partial class HostTestRunner
     internal static Fixture[] Discover() => typeof(HostTestRunner).Assembly.GetTypes().SelectMany(type => type.GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic).SelectMany(method =>
     {
         List<Fixture> cases = [];
-        if (method.GetCustomAttribute<HostFixtureAttribute>()is { } fixture)
+        if (method.GetCustomAttribute<HostFixtureAttribute>() is { } fixture)
             cases.Add(new(Owner(method) + "." + method.Name, fixture.Lane, method));
         foreach (var test in method.GetCustomAttributes<HostTestAttribute>())
             cases.Add(new(Owner(method) + "." + method.Name + "/" + test.Order, test.Lane, method, test.Name, test.Order));
@@ -103,7 +103,7 @@ internal static partial class HostTestRunner
                     return failures == 2 ? 1 : 2;
                 case "async-failures":
                     int asyncFailures = 0;
-                    foreach ((string name, string method)in new[]
+                    foreach ((string name, string method) in new[]
                     {
                         ("false", nameof(AsyncFalseControl)),
                         ("throw", nameof(AsyncThrowControl)),
@@ -123,7 +123,7 @@ internal static partial class HostTestRunner
                 case "crash":
                     return 23;
                 case "output":
-                    Console.Write(new string ('x', 100_000));
+                    Console.Write(new string('x', 100_000));
                     return 0;
                 case "echo":
                     Console.Write(JsonSerializer.Serialize(args[2..]));
@@ -149,7 +149,7 @@ internal static partial class HostTestRunner
                     await Task.Delay(Timeout.Infinite);
                     return 2;
                 case "uppercase-output":
-                    Console.Write(new string ('X', 4096));
+                    Console.Write(new string('X', 4096));
                     return 0;
                 case "invalid-utf8":
                     var bytes = Console.OpenStandardOutput();
@@ -207,7 +207,7 @@ internal static partial class HostTestRunner
                         }
 
                         if (args.Length > 3 && args[3] == "overflow")
-                            Console.Write(new string ('x', 100_000));
+                            Console.Write(new string('x', 100_000));
                         await Task.Delay(Timeout.Infinite);
                     }
 
@@ -364,7 +364,24 @@ internal static partial class HostTestRunner
             object receiptLock = new();
             Stopwatch elapsed = Stopwatch.StartNew();
             Console.WriteLine($"HOST_TEST_SELECTION lane={lane} fixtures={groups.Length} cases={selected.Length} inventory={all.Length} jobs={jobs} report={directory}");
-            void SaveProgress() => SaveReceipt(directory, new { Lane = lane, Filter = filter, CaseFilter = caseFilter, Inventory = all.Length, Jobs = jobs, Run = checkpoint.Run, ProducerSha256 = producer, Executed = results.Count(r => !r.Reused), Reused = results.Count(r => r.Reused), WallSeconds = elapsed.Elapsed.TotalSeconds, WorkerSeconds = results.Where(r => !r.Reused).Sum(r => r.Seconds), Selected = selected.Select(f => new { f.Id, f.Name, Lane = f.Lane.ToString() }), Complete = false, Succeeded = false, Results = results.OrderBy(r => r.Id, StringComparer.Ordinal) });
+            void SaveProgress() => SaveReceipt(directory, new
+            {
+                Lane = lane,
+                Filter = filter,
+                CaseFilter = caseFilter,
+                Inventory = all.Length,
+                Jobs = jobs,
+                Run = checkpoint.Run,
+                ProducerSha256 = producer,
+                Executed = results.Count(r => !r.Reused),
+                Reused = results.Count(r => r.Reused),
+                WallSeconds = elapsed.Elapsed.TotalSeconds,
+                WorkerSeconds = results.Where(r => !r.Reused).Sum(r => r.Seconds),
+                Selected = selected.Select(f => new { f.Id, f.Name, Lane = f.Lane.ToString() }),
+                Complete = false,
+                Succeeded = false,
+                Results = results.OrderBy(r => r.Id, StringComparer.Ordinal)
+            });
             SaveProgress();
             using CancellationTokenSource cancellation = new();
             var inputs = new HostRunInputGuard(() => fingerprints.BoundaryInputsUnchanged(root), cancellation, failure =>
@@ -398,7 +415,7 @@ internal static partial class HostTestRunner
 
                         string log = checkpoint.Start(group.Id);
                         Console.WriteLine($"HOST_FIXTURE_START {group.Id}");
-                        return (await RunFixture(fixtures, root, log, caseFilter, cancellation))with
+                        return (await RunFixture(fixtures, root, log, caseFilter, cancellation)) with
                         {
                             Id = group.Id,
                             Origin = checkpoint.Run
@@ -441,7 +458,7 @@ internal static partial class HostTestRunner
                     if (fingerprints.For(group.Fixtures, caseFilter) != finalFingerprints.For(group.Fixtures, caseFilter))
                         changed.Add("checkpoint_inputs_changed " + group.Id);
             }
-            catch (Exception error)when (error is IOException or UnauthorizedAccessException or InvalidOperationException)
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
                 // A removed or temporarily malformed input must still produce a
                 // final failed receipt after the scheduler has drained workers.
@@ -457,7 +474,28 @@ internal static partial class HostTestRunner
             if (cancellation.IsCancellationRequested || results.Count != groups.Length)
                 failures++;
             string scope = filter is not null || caseFilter is not null ? "host.tests.focused" : lane == "full" ? "host.tests" : "host.tests." + lane;
-            SaveReceipt(directory, new { Scope = scope, Lane = lane, Filter = filter, CaseFilter = caseFilter, Inventory = all.Length, Jobs = jobs, Run = checkpoint.Run, ProducerSha256 = producer, Executed = results.Count(r => !r.Reused), Reused = results.Count(r => r.Reused), WallSeconds = elapsed.Elapsed.TotalSeconds, WorkerSeconds = results.Where(r => !r.Reused).Sum(r => r.Seconds), Selected = selected.Select(f => new { f.Id, f.Name, Lane = f.Lane.ToString() }), Complete = results.Count == groups.Length && !cancellation.IsCancellationRequested, Succeeded = failures == 0, Cancelled = cancellation.IsCancellationRequested, InputsUnchanged = changed.Count == 0, InputFailures = changed, Results = results.OrderBy(r => r.Id, StringComparer.Ordinal) });
+            SaveReceipt(directory, new
+            {
+                Scope = scope,
+                Lane = lane,
+                Filter = filter,
+                CaseFilter = caseFilter,
+                Inventory = all.Length,
+                Jobs = jobs,
+                Run = checkpoint.Run,
+                ProducerSha256 = producer,
+                Executed = results.Count(r => !r.Reused),
+                Reused = results.Count(r => r.Reused),
+                WallSeconds = elapsed.Elapsed.TotalSeconds,
+                WorkerSeconds = results.Where(r => !r.Reused).Sum(r => r.Seconds),
+                Selected = selected.Select(f => new { f.Id, f.Name, Lane = f.Lane.ToString() }),
+                Complete = results.Count == groups.Length && !cancellation.IsCancellationRequested,
+                Succeeded = failures == 0,
+                Cancelled = cancellation.IsCancellationRequested,
+                InputsUnchanged = changed.Count == 0,
+                InputFailures = changed,
+                Results = results.OrderBy(r => r.Id, StringComparer.Ordinal)
+            });
             Console.WriteLine($"HOST_TEST_TIMING wallSeconds={elapsed.Elapsed.TotalSeconds:F3} workerSeconds={results.Where(r => !r.Reused).Sum(r => r.Seconds):F3} checks={results.Where(r => !r.Reused).Sum(r => r.Started)} reusedChecks={results.Where(r => r.Reused).Sum(r => r.Started)}");
             foreach (var result in results.Where(r => !r.Reused).OrderByDescending(r => r.Seconds).Take(5))
                 Console.WriteLine($"HOST_TEST_SLOWEST {result.Id} seconds={result.Seconds:F3} checks={result.Started}");
@@ -490,7 +528,7 @@ internal static partial class HostTestRunner
             unchanged = inputs.Check("after_fixture " + id, result is null || exact is null ? null : () => exact(result));
         }
 
-        return unchanged ? result : result!with
+        return unchanged ? result : result! with
         {
             ExitCode = 1,
             Error = "inputs_changed_during_fixture"
@@ -529,7 +567,11 @@ internal static partial class HostTestRunner
             };
             object outputLock = new();
             System.Text.StringBuilder[] partialLines = [new(), new()];
-            var process = await OS.Tooling.ProcessRunner.RunAsync(new("dotnet", arguments, root) { Timeout = TimeSpan.FromMinutes(lane == HostLane.Fast ? 5 : 45), OutputCharacterLimit = 16 * 1024 * 1024, OutputReceived = (text, error) =>
+            var process = await OS.Tooling.ProcessRunner.RunAsync(new("dotnet", arguments, root)
+            {
+                Timeout = TimeSpan.FromMinutes(lane == HostLane.Fast ? 5 : 45),
+                OutputCharacterLimit = 16 * 1024 * 1024,
+                OutputReceived = (text, error) =>
             {
                 lock (outputLock)
                 {
@@ -544,7 +586,8 @@ internal static partial class HostTestRunner
                         partial.Remove(0, end + 1);
                     }
                 }
-            } }, scheduling.Token);
+            }
+            }, scheduling.Token);
             string? processFailure = WorkerProcessFailure(process, scheduling);
             for (int i = 0; i < partialLines.Length; i++)
                 if (partialLines[i].Length != 0)

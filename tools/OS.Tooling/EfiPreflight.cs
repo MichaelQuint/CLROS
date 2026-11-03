@@ -43,7 +43,7 @@ public static class EfiPreflight
                 if (!string.IsNullOrWhiteSpace(value))
                     return value.Trim();
         }
-        catch (Exception error)when (error is IOException or ArgumentException)
+        catch (Exception error) when (error is IOException or ArgumentException)
         {
         }
 
@@ -65,7 +65,7 @@ public static class EfiPreflight
             file.Position = pe;
             return reader.ReadUInt32() == 0x4550 && reader.ReadUInt16() == 0x8664;
         }
-        catch (Exception error)when (error is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException)
         {
             return false;
         }
@@ -79,7 +79,7 @@ public static class EfiPreflight
             Span<byte> signature = stackalloc byte[8];
             return file.Length >= 68 && file.Read(signature) == 8 && signature.SequenceEqual("!<arch>\n"u8);
         }
-        catch (Exception error)when (error is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException)
         {
             return false;
         }
@@ -92,7 +92,7 @@ public static class EfiPreflight
             string list = System.IO.Path.Combine(path, "data/RuntimeList.xml");
             return new FileInfo(list).Length > 0 && ContractAudit.ReadProject(list).Root?.Name.LocalName == "FileList";
         }
-        catch (Exception error)when (error is IOException or UnauthorizedAccessException or System.Xml.XmlException or ArgumentException)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Xml.XmlException or ArgumentException)
         {
             return false;
         }
@@ -113,7 +113,7 @@ public static class EfiPreflight
             file.Position = 0;
             return new("ok", full, file.Length, Convert.ToHexString(SHA256.HashData(file)));
         }
-        catch (Exception error)when (error is IOException or UnauthorizedAccessException)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
             return new("evidence_unavailable", full, 0, "");
         }
@@ -132,7 +132,7 @@ public static class EfiPreflight
             {
                 paths = Directory.GetFileSystemEntries(directory);
             }
-            catch (Exception error)when (error is IOException or UnauthorizedAccessException)
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
             {
                 continue;
             }
@@ -144,7 +144,7 @@ public static class EfiPreflight
                 {
                     attributes = File.GetAttributes(path);
                 }
-                catch (Exception error)when (error is IOException or UnauthorizedAccessException)
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
                 {
                     continue;
                 }
@@ -201,7 +201,11 @@ public static class EfiPreflight
                 arguments = ["/d", "/c", path, "--version"];
             }
 
-            ProcessResult result = ProcessRunner.RunAsync(new(executable, arguments, Environment.CurrentDirectory) { Timeout = TimeSpan.FromMilliseconds(timeoutMilliseconds), OutputCharacterLimit = 65536 }).GetAwaiter().GetResult();
+            ProcessResult result = ProcessRunner.RunAsync(new(executable, arguments, Environment.CurrentDirectory)
+            {
+                Timeout = TimeSpan.FromMilliseconds(timeoutMilliseconds),
+                OutputCharacterLimit = 65536
+            }).GetAwaiter().GetResult();
             if (result.TimedOut)
                 return new("timeout", null);
             if (!result.Succeeded)
@@ -209,7 +213,7 @@ public static class EfiPreflight
             string? line = (result.StandardOutput + "\n" + result.StandardError).Split('\n').FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
             return line is null ? new("failed", null) : new("ok", line.Trim());
         }
-        catch (Exception error)when (error is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        catch (Exception error) when (error is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
             return new("failed", null);
         }
@@ -231,12 +235,12 @@ public static class EfiPreflight
                 if (result.Succeeded)
                     roots.AddRange(result.StandardOutput.Split('\n').Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => System.IO.Path.Combine(p.Trim(), "VC/Tools/MSVC")));
             }
-            catch (Exception error)when (error is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+            catch (Exception error) when (error is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
             {
             }
         }
 
-        if (Environment.GetEnvironmentVariable("ProgramFiles(x86)")is string basePath)
+        if (Environment.GetEnvironmentVariable("ProgramFiles(x86)") is string basePath)
             roots.AddRange(new[] { "BuildTools", "Community", "Professional", "Enterprise" }.Select(e => System.IO.Path.Combine(basePath, "Microsoft Visual Studio/2022", e, "VC/Tools/MSVC")));
         return roots;
     }
@@ -292,7 +296,8 @@ public static class EfiPreflight
             "TimedOut" => "timeout",
             "NonZeroExit" => "nonzero_exit",
             "OutputOverflow" => "output_overflow",
-            _ => version.Status.ToLowerInvariant()};
+            _ => version.Status.ToLowerInvariant()
+        };
         string failure = SdkVersionFailure(processFailure, lines);
         if (failure != "ok")
             Fail("EFI_PREFLIGHT_DOTNET", failure, "version_unavailable");
@@ -328,11 +333,11 @@ public static class EfiPreflight
             Fail("EFI_PREFLIGHT_WINDOWS_SDK", "windows_sdk_version_unavailable", "version_unavailable");
         emit("EFI_PREFLIGHT_WINDOWS_SDK path=" + Quote(library) + " version=" + Quote(windowsVersion));
         var project = ContractAudit.ReadProject(System.IO.Path.Combine(root, "src/OS/OS.csproj"));
-        string PackageVersion(string id) => project.Descendants("PackageReference").Where(n => string.Equals((string? )n.Attribute("Include"), id, StringComparison.OrdinalIgnoreCase)).Select(n => (string? )n.Attribute("Version") ?? "").FirstOrDefault() ?? "";
+        string PackageVersion(string id) => project.Descendants("PackageReference").Where(n => string.Equals((string?)n.Attribute("Include"), id, StringComparison.OrdinalIgnoreCase)).Select(n => (string?)n.Attribute("Version") ?? "").FirstOrDefault() ?? "";
         string ilcVersion = PackageVersion("runtime.win-x64.Microsoft.DotNet.ILCompiler"), runtimeVersion = PackageVersion("Microsoft.NETCore.App.Runtime.NativeAOT.win-x64");
         if (runtimeVersion.Length == 0)
             runtimeVersion = PackageVersion("Microsoft.DotNet.ILCompiler");
-        string global = Environment.GetEnvironmentVariable("NUGET_PACKAGES")is string custom && !string.IsNullOrWhiteSpace(custom) ? custom : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget/packages");
+        string global = Environment.GetEnvironmentVariable("NUGET_PACKAGES") is string custom && !string.IsNullOrWhiteSpace(custom) ? custom : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget/packages");
         string? ilc = ResolveExecutable(options.Get("IlCompilerPath"), options.All("IlCompilerSearchRoot"), "ilc.exe", [System.IO.Path.Combine(global, "runtime.win-x64.microsoft.dotnet.ilcompiler", ilcVersion, "tools/ilc.exe")], [], IsPeX64);
         if (ilc is null)
             Fail("EFI_PREFLIGHT_ILCOMPILER", "ilcompiler_missing");
@@ -346,7 +351,7 @@ public static class EfiPreflight
         if (runtimeVersion.Length == 0)
             Fail("EFI_PREFLIGHT_NATIVEAOT_RUNTIME_PACK", "nativeaot_runtime_pack_version_unavailable", "version_unavailable");
         emit("EFI_PREFLIGHT_NATIVEAOT_RUNTIME_PACK path=" + Quote(pack) + " packageVersion=" + Quote(runtimeVersion) + " manifest=" + Quote(System.IO.Path.Combine(pack!, "data/RuntimeList.xml")));
-        foreach ((string option, string environment, string filename, string marker, string reason, string pattern)in new[]
+        foreach ((string option, string environment, string filename, string marker, string reason, string pattern) in new[]
         {
             ("Qemu", "QEMU", "qemu-system-x86_64.exe", "EFI_PREFLIGHT_QEMU", "qemu", @"\bQEMU\b.*\bversion\b"),
             ("QemuImg", "QEMU_IMG", "qemu-img.exe", "EFI_PREFLIGHT_QEMU_IMG", "qemu_img", @"\bqemu-img\b.*\bversion\b")

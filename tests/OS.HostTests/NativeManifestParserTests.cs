@@ -222,12 +222,12 @@ internal static partial class NativeManifestParserTests
     [HostTest("manifest kernel accepts maximum string field lengths", HostLane.Fast, 20)]
     private static bool TestAcceptsMaximumStringFieldLengths()
     {
-        string appName = new string ('a', NativeManifestParser.MaximumAppNameLength);
-        string appPath = "apps/" + new string ('b', NativeManifestParser.MaximumAppPathLength - 5);
-        string args = new string ('c', NativeManifestParser.MaximumArgsLength);
-        string environmentKey = new string ('D', NativeManifestParser.MaximumEnvironmentKeyLength);
-        string environmentValue = new string ('e', NativeManifestParser.MaximumEnvironmentValueLength);
-        string listenHost = new string ('f', NativeManifestParser.MaximumListenHostLength);
+        string appName = new string('a', NativeManifestParser.MaximumAppNameLength);
+        string appPath = "apps/" + new string('b', NativeManifestParser.MaximumAppPathLength - 5);
+        string args = new string('c', NativeManifestParser.MaximumArgsLength);
+        string environmentKey = new string('D', NativeManifestParser.MaximumEnvironmentKeyLength);
+        string environmentValue = new string('e', NativeManifestParser.MaximumEnvironmentValueLength);
+        string listenHost = new string('f', NativeManifestParser.MaximumListenHostLength);
         byte[] source = Bytes("format=os-native-manifest\n" + "version=0\n" + "app.name=" + appName + "\n" + "app.path=" + appPath + "\n" + "args=" + args + "\n" + "app.kind=package\n" + "runtime.kind=native-aot\n" + "network=dhcp\n" + "listen=" + listenHost + ":65535\n" + "log=serial\n" + "env." + environmentKey + "=" + environmentValue + "\n");
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
         return HostCheck.Result(result.Succeeded && FieldEquals(source, result.Manifest.AppName, appName) && FieldEquals(source, result.Manifest.AppPath, appPath) && FieldEquals(source, result.Manifest.Args, args) && result.Manifest.HasListenEndpoint && result.Manifest.ListenEndpoint.Port == 65535 && FieldEquals(source, result.Manifest.ListenEndpoint.Host, listenHost) && result.Manifest.EnvironmentCount == 1 && EnvironmentEntryEquals(source, result.Manifest.GetEnvironmentEntry(0), environmentKey, environmentValue));
@@ -236,7 +236,7 @@ internal static partial class NativeManifestParserTests
     [HostTest("manifest kernel rejects oversized string fields", HostLane.Fast, 21)]
     private static bool TestRejectsOversizedStringFields()
     {
-        return HostCheck.Result(RejectsNativeManifest("app.name=" + new string ('a', NativeManifestParser.MaximumAppNameLength + 1), NativeManifestParseStatus.AppNameTooLong) && RejectsNativeManifest("app.path=apps/" + new string ('b', NativeManifestParser.MaximumAppPathLength - 4), NativeManifestParseStatus.AppPathTooLong) && RejectsNativeManifest("args=" + new string ('c', NativeManifestParser.MaximumArgsLength + 1), NativeManifestParseStatus.ArgsTooLong) && RejectsNativeManifest("env." + new string ('D', NativeManifestParser.MaximumEnvironmentKeyLength + 1) + "=value", NativeManifestParseStatus.EnvironmentKeyTooLong) && RejectsNativeManifest("env.KEY=" + new string ('e', NativeManifestParser.MaximumEnvironmentValueLength + 1), NativeManifestParseStatus.EnvironmentValueTooLong) && RejectsNativeManifest("listen=" + new string ('f', NativeManifestParser.MaximumListenHostLength + 1) + ":8080", NativeManifestParseStatus.InvalidListenEndpoint));
+        return HostCheck.Result(RejectsNativeManifest("app.name=" + new string('a', NativeManifestParser.MaximumAppNameLength + 1), NativeManifestParseStatus.AppNameTooLong) && RejectsNativeManifest("app.path=apps/" + new string('b', NativeManifestParser.MaximumAppPathLength - 4), NativeManifestParseStatus.AppPathTooLong) && RejectsNativeManifest("args=" + new string('c', NativeManifestParser.MaximumArgsLength + 1), NativeManifestParseStatus.ArgsTooLong) && RejectsNativeManifest("env." + new string('D', NativeManifestParser.MaximumEnvironmentKeyLength + 1) + "=value", NativeManifestParseStatus.EnvironmentKeyTooLong) && RejectsNativeManifest("env.KEY=" + new string('e', NativeManifestParser.MaximumEnvironmentValueLength + 1), NativeManifestParseStatus.EnvironmentValueTooLong) && RejectsNativeManifest("listen=" + new string('f', NativeManifestParser.MaximumListenHostLength + 1) + ":8080", NativeManifestParseStatus.InvalidListenEndpoint));
     }
 
     [HostTest("manifest kernel rejects unsupported runtime kind", HostLane.Fast, 22)]
@@ -436,7 +436,7 @@ internal static partial class NativeManifestParserTests
     [HostTest("manifest fetchapp config preflight oversized marker", HostLane.Fast, 43)]
     private static bool TestFetchAppConfigPreflightOversizedMarker()
     {
-        string marker = new string ('A', OS.Net.FetchAppHttpCompletionExpectation.MaximumExpectedMarkerLength + 1);
+        string marker = new string('A', OS.Net.FetchAppHttpCompletionExpectation.MaximumExpectedMarkerLength + 1);
         byte[] source = ManifestWithEnvironment("env.FETCH_HTTP_EXPECTED_BODY=" + marker + "\n");
         NativeManifestLoadResult load = CreateManifestLoad(source);
         Span<byte> scratch = stackalloc byte[64];

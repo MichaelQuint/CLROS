@@ -8,6 +8,7 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 public static partial class EfiVerify
 {
     public static int Run(string[] args)
@@ -51,10 +52,10 @@ public static partial class EfiVerify
     /// Invalid bindings throw; this grants no native behavior or guest proof.</summary>
 
     public static void TestWebServiceBindings(EfiProfile profile, string map, byte[] image) => EfiVerification.VerifyWebServiceBindings(profile, map, new EfiPeImage(image));
-    public static bool TestSingleFinallyEhTable(byte[]? table, ulong typeRva) => table is { Length: 11 } && typeRva is> 0 and <= uint.MaxValue && table.AsSpan(0, 7).SequenceEqual(new byte[] { 0x04, 0x36, 0x32, 0x8e, 0x36, 0xa0, 0xbc }) && BinaryPrimitives.ReadUInt32LittleEndian(table.AsSpan(7)) == typeRva;
+    public static bool TestSingleFinallyEhTable(byte[]? table, ulong typeRva) => table is { Length: 11 } && typeRva is > 0 and <= uint.MaxValue && table.AsSpan(0, 7).SequenceEqual(new byte[] { 0x04, 0x36, 0x32, 0x8e, 0x36, 0xa0, 0xbc }) && BinaryPrimitives.ReadUInt32LittleEndian(table.AsSpan(7)) == typeRva;
     public static bool TestSingleFinallyUnwindBytes(byte[]? data, bool root, ulong tableRva)
     {
         ReadOnlySpan<byte> prefix = root ? [0x01, 0x06, 0x03, 0x00, 0x06, 0x62, 0x02, 0x30, 0x01, 0x50, 0x04] : [0x01, 0x04, 0x01, 0x00, 0x04, 0x42, 0x01];
-        return data is not null && data.Length == (root ? 15 : 7) && data.AsSpan(0, prefix.Length).SequenceEqual(prefix) && (!root || tableRva is> 0 and <= uint.MaxValue && BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(11)) == tableRva);
+        return data is not null && data.Length == (root ? 15 : 7) && data.AsSpan(0, prefix.Length).SequenceEqual(prefix) && (!root || tableRva is > 0 and <= uint.MaxValue && BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(11)) == tableRva);
     }
 }

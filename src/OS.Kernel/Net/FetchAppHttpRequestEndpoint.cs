@@ -3,6 +3,7 @@ using OS.Std.Memory;
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public static class FetchAppHttpRequestEndpoint
 {
     public const ushort DefaultPort = 80;

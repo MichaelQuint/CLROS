@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Check borrowed reassembled fd1/fd2 text from the explicit v3
@@ -13,12 +14,12 @@ public static partial class QemuTranscripts
 
     public static ServiceQuotaOutputInspection InspectNativeAotServiceQuotaOutputForTests(string stdout, string stderr)
     {
-        Need(stdout is not null && stderr is not null && stderr.Length is> 0 and <= 65536 && stdout.Length <= 65536 - stderr.Length && stderr.EndsWith('\n'), "service_quota_output_extent");
+        Need(stdout is not null && stderr is not null && stderr.Length is > 0 and <= 65536 && stdout.Length <= 65536 - stderr.Length && stderr.EndsWith('\n'), "service_quota_output_extent");
         RequireQuotaHeartbeatWarnings(stdout!);
         string text = stderr!.Replace("\r\n", "\n", StringComparison.Ordinal);
         Need(text.All(c => c == '\n' || c is >= ' ' and <= '~'), "service_quota_output_ascii");
         string[] rows = text[..^1].Split('\n');
-        Need(rows.Length is >= 12 and <= 140 && rows.All(r => r.Length is> 0 and <= 4096), "service_quota_output_rows");
+        Need(rows.Length is >= 12 and <= 140 && rows.All(r => r.Length is > 0 and <= 4096), "service_quota_output_rows");
         int position = 0;
         string Take()
         {
@@ -63,7 +64,7 @@ public static partial class QemuTranscripts
             completed++;
         }
 
-        Need(finalAttempt && completed is> 0 and < 64 && attempts == completed + 1 && collections > 0, "service_quota_output_incomplete_pressure");
+        Need(finalAttempt && completed is > 0 and < 64 && attempts == completed + 1 && collections > 0, "service_quota_output_incomplete_pressure");
         return new(gc, completed, attempts, completed * chunk, collections, committed);
     }
 

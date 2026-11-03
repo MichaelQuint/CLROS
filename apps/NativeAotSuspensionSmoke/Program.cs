@@ -56,7 +56,7 @@ internal static partial class Program
                     joined = worker.Join(TimeSpan.FromSeconds(TimeoutSeconds));
             }
 
-            Require(joined && Volatile.Read(ref state.Failure)is null, "worker_join");
+            Require(joined && Volatile.Read(ref state.Failure) is null, "worker_join");
             Require(state.Roots == 1 && state.Interior == 1 && state.Tls == 1 && s_threadValue == 17, "joined_witness");
             Console.WriteLine("NATIVEAOT_SUSPENSION_JOINED workers=1 collections=2 roots=true interior=true tls=true");
             Console.WriteLine("TEST_PASS nativeaot.suspension");
@@ -110,12 +110,12 @@ internal static partial class Program
         long start = Stopwatch.GetTimestamp();
         while (ready ? Volatile.Read(ref state.Ready) == 0 : Volatile.Read(ref state.Progress) <= progress)
         {
-            if (Volatile.Read(ref state.Failure)is not null || Stopwatch.GetElapsedTime(start).TotalSeconds >= TimeoutSeconds)
+            if (Volatile.Read(ref state.Failure) is not null || Stopwatch.GetElapsedTime(start).TotalSeconds >= TimeoutSeconds)
                 return false;
             Thread.Yield();
         }
 
-        return Volatile.Read(ref state.Failure)is null;
+        return Volatile.Read(ref state.Failure) is null;
     }
 
     private static void Require(bool condition, string reason)

@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class FetchAppHttpCompletionPlan
 {
     public static FetchAppHttpCompletionPlanResult Evaluate(in HttpTcpClientGetPlanResult httpPlan, ReadOnlySpan<byte> responseBuffer, ushort expectedHttpStatusCode, ReadOnlySpan<byte> expectedBodyMarker)

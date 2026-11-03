@@ -22,7 +22,10 @@ internal static class NativeAotLogUploadOutputTests
     private static void Reject(Action action, string? reason = null)
     {
         string? failure = null;
-        try { action(); }
+        try
+        {
+            action();
+        }
         catch (ToolFailure error) { failure = error.Message; }
         HostCheck.True(failure is not null && (reason is null || failure.Contains(reason, StringComparison.Ordinal)),
             "expected rejection=" + reason + " actual=" + failure);
@@ -33,18 +36,26 @@ internal static class NativeAotLogUploadOutputTests
     {
         foreach (string phase in new[] { "write", "verify" })
         {
-            string text = Transcript(phase); byte[] raw = Raw(text), original = raw.ToArray();
+            string text = Transcript(phase);
+            byte[] raw = Raw(text), original = raw.ToArray();
             var capture = NativeAotLogUploadOutput.Read(raw, phase);
-            HostCheck.Equal(text, capture.Stdout); HostCheck.Equal(phase, capture.Phase);
+            HostCheck.Equal(text, capture.Stdout);
+            HostCheck.Equal(phase, capture.Phase);
             HostCheck.Equal(Prefix + Header(Bytes(text).Length) + "\r\n" + Suffix, capture.NormalizedTail);
             HostCheck.True(capture.WriteLengths.SequenceEqual(new[] { Bytes(text).Length }) && capture.WriteChannels.SequenceEqual(new uint[] { 1 }));
-            HostCheck.Equal(660, capture.ExpectedFiles.LogBytes); HostCheck.Equal(5126, capture.ExpectedFiles.UploadBytes);
+            HostCheck.Equal(660, capture.ExpectedFiles.LogBytes);
+            HostCheck.Equal(5126, capture.ExpectedFiles.UploadBytes);
             HostCheck.True(!capture.GrantsSourceSchedulerGuestOrPersistenceAuthority && !capture.ExpectedFiles.GrantsPersistenceOrGuestAuthority);
-            HostCheck.True(raw.AsSpan().SequenceEqual(original)); raw.AsSpan().Fill(0);
+            HostCheck.True(raw.AsSpan().SequenceEqual(original));
+            raw.AsSpan().Fill(0);
             HostCheck.Equal(text, capture.Stdout);
             HostCheck.True(capture.WriteLengths is not int[] && capture.WriteChannels is not uint[]);
             bool immutable = false;
-            try { ((IList<int>)capture.WriteLengths)[0] = 1; } catch (NotSupportedException) { immutable = true; }
+            try
+            {
+                ((IList<int>)capture.WriteLengths)[0] = 1;
+            }
+            catch (NotSupportedException) { immutable = true; }
             HostCheck.True(immutable);
         }
     }
@@ -57,13 +68,19 @@ internal static class NativeAotLogUploadOutputTests
             byte[] payload = Bytes(Transcript(phase, crlf: true));
             foreach (bool oneByte in new[] { false, true })
             {
-                using MemoryStream raw = new(); raw.Write(Bytes(Prefix));
-                StringBuilder expected = new(Prefix); List<int> lengths = []; int at = 0;
+                using MemoryStream raw = new();
+                raw.Write(Bytes(Prefix));
+                StringBuilder expected = new(Prefix);
+                List<int> lengths = [];
+                int at = 0;
                 while (at < payload.Length)
                 {
                     int count = Math.Min(oneByte ? 1 : 1 + at % 17, payload.Length - at);
-                    raw.Write(Envelope(payload.AsSpan(at, count))); raw.Write(Bytes(Suffix));
-                    expected.Append(Header(count)).Append("\r\n").Append(Suffix); lengths.Add(count); at += count;
+                    raw.Write(Envelope(payload.AsSpan(at, count)));
+                    raw.Write(Bytes(Suffix));
+                    expected.Append(Header(count)).Append("\r\n").Append(Suffix);
+                    lengths.Add(count);
+                    at += count;
                 }
                 var capture = NativeAotLogUploadOutput.Read(raw.ToArray(), phase);
                 HostCheck.Equal(Encoding.UTF8.GetString(payload), capture.Stdout);
@@ -76,7 +93,8 @@ internal static class NativeAotLogUploadOutputTests
     [HostTest("BCL log upload output keeps payload markers out of structural rows and leaves parent rows unqualified")]
     private static void PayloadAndParentBoundaries()
     {
-        string text = Transcript("write"); byte[] payload = Bytes(text);
+        string text = Transcript("write");
+        byte[] payload = Bytes(text);
         string parent = Prefix + "M16_009_NOTE label=µ\r\n", partial = "incomplete parent record";
         var capture = NativeAotLogUploadOutput.Read([.. Bytes(parent), .. Envelope(payload), .. Bytes(partial)], "write");
         HostCheck.Equal(parent + Header(payload.Length) + "\r\n" + partial, capture.NormalizedTail);
@@ -96,7 +114,8 @@ internal static class NativeAotLogUploadOutputTests
     {
         string text = Transcript("verify") + "é—🧪";
         using MemoryStream raw = new();
-        foreach (byte value in Bytes(text)) raw.Write(Envelope([value]));
+        foreach (byte value in Bytes(text))
+            raw.Write(Envelope([value]));
         var framed = NativeAotThreadingOutput.ReadWeb(raw.ToArray());
         HostCheck.Equal(text, framed.Stdout); // Individual writes are incomplete UTF8; their concatenation is valid.
         Reject(() => NativeAotLogUploadOutput.Read(raw.ToArray(), "verify"), "log_upload_transcript");
@@ -104,7 +123,11 @@ internal static class NativeAotLogUploadOutputTests
         {
             byte[] broken = [.. Envelope(Bytes(Transcript("verify"))), .. Envelope(invalid)];
             bool rejected = false;
-            try { _ = NativeAotLogUploadOutput.Read(broken, "verify"); } catch (DecoderFallbackException) { rejected = true; }
+            try
+            {
+                _ = NativeAotLogUploadOutput.Read(broken, "verify");
+            }
+            catch (DecoderFallbackException) { rejected = true; }
             HostCheck.True(rejected);
         }
     }
@@ -138,7 +161,8 @@ internal static class NativeAotLogUploadOutputTests
             Header(payload.Length - 1), Header(payload.Length + 1), Header(payload.Length).Replace(" data=", " data =", StringComparison.Ordinal) })
         {
             byte[] raw = [.. Bytes(header), .. payload, 13, 10], before = raw.ToArray();
-            Reject(() => NativeAotLogUploadOutput.Read(raw, "write")); HostCheck.True(raw.AsSpan().SequenceEqual(before));
+            Reject(() => NativeAotLogUploadOutput.Read(raw, "write"));
+            HostCheck.True(raw.AsSpan().SequenceEqual(before));
         }
         byte[] valid = Envelope(payload);
         foreach (int length in new[] { 0, 1, valid.Length - 2, valid.Length - 1 })

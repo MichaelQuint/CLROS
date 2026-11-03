@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Checked parent observations and retained live network extent.

@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Platform;
+
 public sealed class GuardedPlatformConfigurationTables : IPlatformConfigurationTables
 {
     private readonly IPlatformFirmware _firmware;

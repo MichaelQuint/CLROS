@@ -23,49 +23,9 @@ public static unsafe partial class EfiEntry
             internal fixed ulong Metadata[256];
         }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if CLROS_LINUX_SOCKETS
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if CLROS_LINUX_SOCKETS
 
@@ -77,15 +37,6 @@ public static unsafe partial class EfiEntry
 
 #else
 #if M16_014_PROBE
-
-
-
-
-
-
-
-
-
 
 #endif
 
@@ -113,68 +64,6 @@ public static unsafe partial class EfiEntry
 
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
 
 #else
@@ -182,174 +71,19 @@ public static unsafe partial class EfiEntry
 
 #elif M16_025_PROBE
 
-
-
-
 #endif
-
-
-
-
 
 #if M16_014_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif
 
-
-
-
-
-
 #endif
-
-
-
-
 
 #if CLROS_LINUX_SOCKETS
 
 #else
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 }

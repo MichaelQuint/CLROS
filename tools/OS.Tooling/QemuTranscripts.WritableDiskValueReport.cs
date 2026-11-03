@@ -6,6 +6,7 @@ using B = OS.Storage.WritableBlockSession;
 using Fixture = OS.Tooling.LinuxWritableDiskProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Finite copied-value joins only. All known auxiliary leaf rows
@@ -26,15 +27,36 @@ public static partial class QemuTranscripts
             CheckedImageValues = images;
         }
 
-        public WritableBlockValueReport Block { get; }
-        public IReadOnlyList<WritableDiskWait> Waits { get; }
-        public IReadOnlyList<WritableDiskRow> Auxiliary { get; }
-        public int Calls { get; }
-        public int Transfers { get; }
-        public ulong Epochs { get; }
+        public WritableBlockValueReport Block
+        {
+            get;
+        }
+        public IReadOnlyList<WritableDiskWait> Waits
+        {
+            get;
+        }
+        public IReadOnlyList<WritableDiskRow> Auxiliary
+        {
+            get;
+        }
+        public int Calls
+        {
+            get;
+        }
+        public int Transfers
+        {
+            get;
+        }
+        public ulong Epochs
+        {
+            get;
+        }
         public bool CheckedCallAndWaitValues => true;
         public bool CheckedAuxiliaryJoins => false;
-        public bool CheckedImageValues { get; }
+        public bool CheckedImageValues
+        {
+            get;
+        }
         public bool NativeQualified => false;
         public bool FirmwareQualified => false;
         public bool ProcessQualified => false;

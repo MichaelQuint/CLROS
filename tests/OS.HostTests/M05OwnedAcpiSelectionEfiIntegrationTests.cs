@@ -16,7 +16,11 @@ internal static unsafe class M05OwnedAcpiSelectionEfiIntegrationTests
             !BootSequence.RunOwnedAcpiSelection(true, &invocations, null) && invocations == 0);
     }
 
-    private static bool Execute(void* context) { (*(int*)context)++; return true; }
+    private static bool Execute(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
 
     [HostTest("m05.002.efi unaligned pointer endian vectors")]
     private static void PointerEndian()
@@ -68,16 +72,19 @@ internal static unsafe class M05OwnedAcpiSelectionEfiIntegrationTests
             lines[start + 1 + i] = Row("M05_ACPI " + i, physical, offset, 60, (ulong)i);
         }
         lines[start + 4] = Row("M05_ACPI 3", 3, 299, 300, 1);
-        lines[^2] = "CLROS_M05_002_READY"; lines[^1] = "TEST_PASS m05.002";
+        lines[^2] = "CLROS_M05_002_READY";
+        lines[^1] = "TEST_PASS m05.002";
         QemuTranscripts.AssertM05OwnedAcpiSelectionRecords(lines);
         for (int i = 0; i < 3; i++)
         {
-            string[] changed = [.. lines]; changed[start + 1 + i] = Row("M05_ACPI " + i, 0xdead, 120, 60, (ulong)i);
+            string[] changed = [.. lines];
+            changed[start + 1 + i] = Row("M05_ACPI " + i, 0xdead, 120, 60, (ulong)i);
             Reject(() => QemuTranscripts.AssertM05OwnedAcpiSelectionRecords(changed));
         }
         foreach (ulong[] invalid in new ulong[][] { [1, 299, 300, 1], [2, 299, 300, 1], [3, 298, 300, 1], [3, 299, 300, 0] })
         {
-            string[] changed = [.. lines]; changed[start + 4] = Row("M05_ACPI 3", invalid);
+            string[] changed = [.. lines];
+            changed[start + 4] = Row("M05_ACPI 3", invalid);
             Reject(() => QemuTranscripts.AssertM05OwnedAcpiSelectionRecords(changed));
         }
         Reject(() => QemuTranscripts.AssertM05OwnedAcpiSelectionRecords([.. lines, "extra"]));
@@ -85,7 +92,12 @@ internal static unsafe class M05OwnedAcpiSelectionEfiIntegrationTests
 
     private static void Reject(Action action)
     {
-        bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected, "invalid profile or evidence must be rejected");
     }
 }

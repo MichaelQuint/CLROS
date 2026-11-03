@@ -1,6 +1,7 @@
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed partial class ThreadingProtocol
@@ -59,7 +60,7 @@ public static partial class QemuTranscripts
             string line = Take();
             Need(line.EndsWith(suffix, StringComparison.Ordinal), "disk_static_device_policy");
             var bound = ReadRecord(line[..^suffix.Length], "M16_023_BOUND", "owner:dec", "epoch:dec", "arena:dec", "pages:dec", "bar:dec", "capacity:dec", "bootstrapCompleted:dec", "bootstrapCopied:dec", "clock:dec");
-            Need(bound["owner"] is >= 4096 and < 0x0000800000000000 && bound["owner"] % 8 == 0 && bound["epoch"] != 0 && bound["pages"] is> 0 and <= 256 && bound["arena"] >= 4096 && bound["arena"] % 4096 == 0 && bound["arena"] <= 0x100000000UL - bound["pages"] * 4096 && bound["bar"] >= 0x100000 && bound["bar"] % 16384 == 0 && bound["capacity"] > diskInventory!.PartitionLastLba && bound["bootstrapCompleted"] > 0 && bound["bootstrapCopied"] == bound["bootstrapCompleted"] && bound["clock"] <= long.MaxValue, "disk_static_device_geometry");
+            Need(bound["owner"] is >= 4096 and < 0x0000800000000000 && bound["owner"] % 8 == 0 && bound["epoch"] != 0 && bound["pages"] is > 0 and <= 256 && bound["arena"] >= 4096 && bound["arena"] % 4096 == 0 && bound["arena"] <= 0x100000000UL - bound["pages"] * 4096 && bound["bar"] >= 0x100000 && bound["bar"] % 16384 == 0 && bound["capacity"] > diskInventory!.PartitionLastLba && bound["bootstrapCompleted"] > 0 && bound["bootstrapCopied"] == bound["bootstrapCompleted"] && bound["clock"] <= long.MaxValue, "disk_static_device_geometry");
             diskOwner = bound["owner"];
             diskEpoch = bound["epoch"];
             diskBootstrapCompleted = bound["bootstrapCompleted"];
@@ -257,7 +258,7 @@ public static partial class QemuTranscripts
                 while (parent.Length > WebRootDiskInventory.Root.Length)
                 {
                     parent = parent[..parent.LastIndexOf('/')];
-                    if (diskInventory.Find(parent)is { IsDirectory: false })
+                    if (diskInventory.Find(parent) is { IsDirectory: false })
                     {
                         expected = -20;
                         break;

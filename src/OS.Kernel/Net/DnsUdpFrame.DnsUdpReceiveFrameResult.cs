@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct DnsUdpReceiveFrameResult
 {
     private DnsUdpReceiveFrameResult(DnsUdpFrameStatus status, UdpReceiveDispatchResult udpResult, PacketParseStatus packetStatus, DnsResolverStatus resolverStatus, DnsMessageStatus messageStatus, DnsResolverTransitionResult resolverResult, bool resolverInvoked)
@@ -13,17 +14,41 @@ public readonly struct DnsUdpReceiveFrameResult
         ResolverInvoked = resolverInvoked;
     }
 
-    public DnsUdpFrameStatus Status { get; }
-    public bool IsInitialized { get; }
+    public DnsUdpFrameStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == DnsUdpFrameStatus.Success;
-    public UdpReceiveDispatchResult UdpResult { get; }
+    public UdpReceiveDispatchResult UdpResult
+    {
+        get;
+    }
     public UdpReceiveDispatchStatus UdpStatus => UdpResult.Status;
-    public PacketParseStatus PacketStatus { get; }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
     public PacketParseStatus UdpPacketStatus => UdpResult.UdpPacketStatus;
-    public DnsResolverStatus ResolverStatus { get; }
-    public DnsMessageStatus MessageStatus { get; }
-    public DnsResolverTransitionResult ResolverResult { get; }
-    public bool ResolverInvoked { get; }
+    public DnsResolverStatus ResolverStatus
+    {
+        get;
+    }
+    public DnsMessageStatus MessageStatus
+    {
+        get;
+    }
+    public DnsResolverTransitionResult ResolverResult
+    {
+        get;
+    }
+    public bool ResolverInvoked
+    {
+        get;
+    }
     public ushort SourcePort => UdpResult.SourcePort;
     public ushort DestinationPort => UdpResult.DestinationPort;
     public int DnsPayloadOffset => UdpResult.UdpPayloadOffset;

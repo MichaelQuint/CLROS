@@ -1,4 +1,5 @@
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxSyscallGateway
 {
     private static bool EmptyExitTail(ExitTailContext t) => (t.Rip | t.Rsp | t.Fs | t.Flags | t.Start | t.Bytes) == 0;

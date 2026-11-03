@@ -2,6 +2,7 @@ using OS.Kernel.Runtime;
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public enum NativeAppEntryStagingPreflightStatus
 {
     Success = 0,

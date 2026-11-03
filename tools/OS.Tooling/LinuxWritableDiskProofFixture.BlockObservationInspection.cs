@@ -3,6 +3,7 @@ using System.Text;
 using Block = OS.Storage.WritableBlockSession;
 
 namespace OS.Tooling;
+
 public static partial class LinuxWritableDiskProofFixture
 {
     /// <summary>Copied protocol inspection only. Boundaries and sample contents
@@ -19,10 +20,22 @@ public static partial class LinuxWritableDiskProofFixture
             Requests = Array.AsReadOnly(requests);
         }
 
-        public BlockBoundary Before { get; }
-        public BlockBoundary After { get; }
-        public int SampleCount { get; }
-        public IReadOnlyList<BlockRequestFacts> Requests { get; }
+        public BlockBoundary Before
+        {
+            get;
+        }
+        public BlockBoundary After
+        {
+            get;
+        }
+        public int SampleCount
+        {
+            get;
+        }
+        public IReadOnlyList<BlockRequestFacts> Requests
+        {
+            get;
+        }
         public bool HasUncompletedPublication => Requests.Count != 0 && !Requests[^1].CompletionValidated;
         public bool HasHeldRead => Requests.Count != 0 && Requests[^1].HasHeldRead;
         public bool HasDeviceError => Requests.Any(r => r.CompletionValidated && r.DeviceResult != Block.Status.Success);

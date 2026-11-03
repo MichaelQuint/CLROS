@@ -21,13 +21,37 @@ internal static partial class BootSequenceAppEntryReadinessTests
             InvocationPlan = invocationPlan;
         }
 
-        public NativeManifestLoadResult ManifestLoad { get; }
-        public OsPackageParseResult PackageParse { get; }
-        public NativeAppLaunchPlanResult LaunchPlan { get; }
-        public NativeAppLaunchDescriptorResult Descriptor { get; }
-        public NativeAppEntryStagingPreflightResult StagingPreflight { get; }
-        public NativeAppPayloadMappingPlanResult MappingPlan { get; }
-        public NativeAppExecutableMemoryPlanResult MemoryPlan { get; }
-        public NativeAppInvocationPlanResult InvocationPlan { get; }
+        public NativeManifestLoadResult ManifestLoad
+        {
+            get;
+        }
+        public OsPackageParseResult PackageParse
+        {
+            get;
+        }
+        public NativeAppLaunchPlanResult LaunchPlan
+        {
+            get;
+        }
+        public NativeAppLaunchDescriptorResult Descriptor
+        {
+            get;
+        }
+        public NativeAppEntryStagingPreflightResult StagingPreflight
+        {
+            get;
+        }
+        public NativeAppPayloadMappingPlanResult MappingPlan
+        {
+            get;
+        }
+        public NativeAppExecutableMemoryPlanResult MemoryPlan
+        {
+            get;
+        }
+        public NativeAppInvocationPlanResult InvocationPlan
+        {
+            get;
+        }
     }
 }

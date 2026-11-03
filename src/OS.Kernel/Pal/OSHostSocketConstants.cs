@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 public static class OSHostSocketConstants
 {
     public const ushort AddressFamilyIpv4 = 2;

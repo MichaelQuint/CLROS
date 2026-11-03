@@ -1,6 +1,7 @@
 using System;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct BoundedExceptionFilterSearchResult
 {
     internal BoundedExceptionFilterSearchResult(BoundedExceptionFilterSearchStatus status)
@@ -20,10 +21,22 @@ public readonly struct BoundedExceptionFilterSearchResult
             HandlerAddress = target;
     }
 
-    public BoundedExceptionFilterSearchStatus Status { get; }
+    public BoundedExceptionFilterSearchStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == BoundedExceptionFilterSearchStatus.Success;
     public bool RequiresFilter => Status == BoundedExceptionFilterSearchStatus.FilterRequired;
-    public uint ClauseIndex { get; }
-    public ulong FilterAddress { get; }
-    public ulong HandlerAddress { get; }
+    public uint ClauseIndex
+    {
+        get;
+    }
+    public ulong FilterAddress
+    {
+        get;
+    }
+    public ulong HandlerAddress
+    {
+        get;
+    }
 }

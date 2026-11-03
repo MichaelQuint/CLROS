@@ -2,6 +2,7 @@ using OS.Kernel.Diagnostics;
 using OS.Std.Memory;
 
 namespace OS.Kernel.Runtime;
+
 public static class ExecutableStubBundleMaterializer
 {
     public static ExecutableStubBundleMaterializerResult MaterializeToMemoryRegion(ExecutableStubMemoryPlanResult memoryPlan, ExecutableStubBundlePlanResult bundlePlan, ExecutableStubBundleMaterializerSources sources, Span<byte> destination)

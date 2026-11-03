@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public interface IVirtioPciRegisterAccessor
 {
     VirtioPciRegisterRead16Result Read16(VirtioPciBarAperture aperture, uint relativeOffset);

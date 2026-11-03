@@ -14,8 +14,20 @@ public readonly struct BoundedExceptionFilterReceipt
         ReturnValue = returnValue;
     }
 
-    public bool HasValue { get; }
-    public uint ClauseIndex { get; }
-    public ulong FilterAddress { get; }
-    public int ReturnValue { get; }
+    public bool HasValue
+    {
+        get;
+    }
+    public uint ClauseIndex
+    {
+        get;
+    }
+    public ulong FilterAddress
+    {
+        get;
+    }
+    public int ReturnValue
+    {
+        get;
+    }
 }

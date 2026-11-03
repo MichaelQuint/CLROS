@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Manifest;
+
 public enum NativeAppSocketListenBridgeStatus
 {
     Success = 0,

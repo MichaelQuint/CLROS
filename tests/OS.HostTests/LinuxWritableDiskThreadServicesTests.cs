@@ -214,7 +214,7 @@ internal static unsafe partial class LinuxWritableDiskThreadServicesTests
             writing = f.Open("/data/" + ordinary.Name);
             byte[] expected = LinuxWritableDiskDescriptorServicesTests.FootprintBytes(ordinary.Bytes, ordinary.Salt);
             if (work == 1000000)
-                expected = [..expected, ..payload];
+                expected = [.. expected, .. payload];
             byte[] extracted = new byte[expected.Length];
             var read = Fat32Parser.ReadRootFile(new PersistentDevice(f.Storage.Device.Hardware), f.Storage.Input.PartitionFirst, ordinary.Name, extracted);
             HostCheck.True(read.Succeeded && read.BytesRead == (ulong)expected.Length && extracted.AsSpan().SequenceEqual(expected));
@@ -441,7 +441,7 @@ internal static unsafe partial class LinuxWritableDiskThreadServicesTests
                 HostCheck.True(wire[2] == OS.Tooling.LinuxWritableDiskProofFixture.LogUploadIovecs + (uint)writes * 16 && wire[3] == 1 && wire[5] == 0 && wire[6] == W.RwfNoAppend);
                 ReadOnlySpan<byte> vector = ElfRange(elf, wire[2], 16);
                 ulong source = BinaryPrimitives.ReadUInt64LittleEndian(vector), count = BinaryPrimitives.ReadUInt64LittleEndian(vector[8..]);
-                HostCheck.True(count == (ulong)spec.Result && count is> 0 and <= 4094);
+                HostCheck.True(count == (ulong)spec.Result && count is > 0 and <= 4094);
                 ReadOnlySpan<byte> bytes = ElfRange(elf, source, count), expected = writes < 12 ? log.AsSpan(writes * 55, 55) : writes == 12 ? upload.AsSpan(0, 4094) : upload.AsSpan(4094);
                 HostCheck.True(bytes.SequenceEqual(expected) && wire[4] == (writes < 12 ? (ulong)writes * 55 : writes == 12 ? 0UL : 4094UL));
                 bytes.CopyTo(UserRange(f, Payload, (uint)count));
@@ -1129,7 +1129,19 @@ internal static unsafe partial class LinuxWritableDiskThreadServicesTests
                 bytes.Fill(0xa5);
                 uint copies = f.Thread.Writes;
                 LinuxSyscallGateState gate = default;
-                HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new() { UserRoot = 0x200000, MaximumCalls = 16, MaximumWrite = 64, Scratch = scratch, ScratchBytes = 64, FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true }, f.Thread.GatewayAccess));
+                HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new()
+                {
+                    UserRoot = 0x200000,
+                    MaximumCalls = 16,
+                    MaximumWrite = 64,
+                    Scratch = scratch,
+                    ScratchBytes = 64,
+                    FirmwareExited = true,
+                    OwnedBoundaryValidated = true,
+                    EnableStartup = true,
+                    EnableDescriptors = true,
+                    EnableThreads = true
+                }, f.Thread.GatewayAccess));
                 var image = f.Thread.CurrentImage();
                 var frame = image->Frame;
                 frame.Number = number;
@@ -1375,7 +1387,19 @@ internal static unsafe partial class LinuxWritableDiskThreadServicesTests
         uint first = f.Open(), second = f.Open();
         byte* scratch = stackalloc byte[64];
         LinuxSyscallGateState gate = default;
-        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new() { UserRoot = 0x200000, MaximumCalls = 16, MaximumWrite = 64, Scratch = scratch, ScratchBytes = 64, FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true }, f.Thread.GatewayAccess));
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new()
+        {
+            UserRoot = 0x200000,
+            MaximumCalls = 16,
+            MaximumWrite = 64,
+            Scratch = scratch,
+            ScratchBytes = 64,
+            FirmwareExited = true,
+            OwnedBoundaryValidated = true,
+            EnableStartup = true,
+            EnableDescriptors = true,
+            EnableThreads = true
+        }, f.Thread.GatewayAccess));
         uint parked = f.Parked;
         foreach (var item in new (uint Fd, uint Mode, long Value)[]
         {
@@ -1416,7 +1440,19 @@ internal static unsafe partial class LinuxWritableDiskThreadServicesTests
         f.PutWrite([31, 32, 33]);
         byte* scratch = stackalloc byte[64];
         LinuxSyscallGateState gate = default;
-        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new() { UserRoot = 0x200000, MaximumCalls = 16, MaximumWrite = 64, Scratch = scratch, ScratchBytes = 64, FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true }, f.Thread.GatewayAccess));
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new()
+        {
+            UserRoot = 0x200000,
+            MaximumCalls = 16,
+            MaximumWrite = 64,
+            Scratch = scratch,
+            ScratchBytes = 64,
+            FirmwareExited = true,
+            OwnedBoundaryValidated = true,
+            EnableStartup = true,
+            EnableDescriptors = true,
+            EnableThreads = true
+        }, f.Thread.GatewayAccess));
         foreach (ulong number in new ulong[]
         {
             328,

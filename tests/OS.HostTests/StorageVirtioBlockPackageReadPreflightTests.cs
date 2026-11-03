@@ -1119,5 +1119,4 @@ internal static partial class StorageVirtioBlockPackageReadPreflightTests
         EndianPrimitives.WriteUInt64LittleEndian(image.AsSpan(offset, 8), value);
     }
 
-
 }

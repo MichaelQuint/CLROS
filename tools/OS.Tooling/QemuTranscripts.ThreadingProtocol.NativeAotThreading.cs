@@ -3,6 +3,7 @@ using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed partial class ThreadingProtocol
@@ -27,7 +28,7 @@ public static partial class QemuTranscripts
         private readonly uint entropyLimit, memoryPoolPages;
         private readonly RuntimePhases? phases;
         private LinuxThreadExecutionBudget budget;
-        private readonly RuntimeThread? [] slots;
+        private readonly RuntimeThread?[] slots;
         private readonly ulong[] generations;
         private readonly Queue<RuntimeThread> ready = [];
         private readonly List<RuntimeThread> history = [];
@@ -69,9 +70,9 @@ public static partial class QemuTranscripts
             this.webSettingsBytes = webSettingsBytes;
             this.webSettingsFd = webSettingsFd;
             this.webSettingsCall = webSettingsCall;
-            Need(!web || staticFiles || webSettingsBytes is> 0 and <= 65536 && webSettingsFd is >= 3 and < 16 && webSettingsCall.Identity != 0 && webSettingsCall.Ordinal != 0, "web_replay_configuration");
+            Need(!web || staticFiles || webSettingsBytes is > 0 and <= 65536 && webSettingsFd is >= 3 and < 16 && webSettingsCall.Identity != 0 && webSettingsCall.Ordinal != 0, "web_replay_configuration");
             Need(broader || socket || app is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke", "threading_application");
-            Need(rows is not null && rows.Length >= 25 && rows.Length <= (diskStaticFull ? DiskStaticCapturePolicy.ProtocolRows : service ? 1_000_000 : 100000) && instruction is not null && syscall is not null && lengths is not null && lengths.Count is> 0 and <= 4096 && lengths.All(n => n > 0 && n <= (web ? 8192 : 4096)) && lengths.Sum() <= (diskStaticFull ? DiskStaticCapturePolicy.CombinedOutputBytes : web ? 65536 : vectors ? 32768 : 4096), "threading_protocol_input");
+            Need(rows is not null && rows.Length >= 25 && rows.Length <= (diskStaticFull ? DiskStaticCapturePolicy.ProtocolRows : service ? 1_000_000 : 100000) && instruction is not null && syscall is not null && lengths is not null && lengths.Count is > 0 and <= 4096 && lengths.All(n => n > 0 && n <= (web ? 8192 : 4096)) && lengths.Sum() <= (diskStaticFull ? DiskStaticCapturePolicy.CombinedOutputBytes : web ? 65536 : vectors ? 32768 : 4096), "threading_protocol_input");
             this.app = app;
             this.instruction = instruction!;
             this.syscall = syscall!;
@@ -112,7 +113,7 @@ public static partial class QemuTranscripts
             }
             else
                 Need(stdout is null, "threading_unexpected_stdout");
-            slots = new RuntimeThread? [capacity];
+            slots = new RuntimeThread?[capacity];
             generations = Enumerable.Repeat(1UL, capacity).ToArray();
             var main = new RuntimeThread(0x100000001, 1, 0x70000000 - 1572864, 0x70000000, 0, Entry(elf));
             slots[0] = main;

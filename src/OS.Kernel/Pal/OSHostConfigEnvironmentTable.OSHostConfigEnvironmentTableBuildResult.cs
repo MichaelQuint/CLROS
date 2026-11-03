@@ -4,6 +4,7 @@ using OS.Std.Memory;
 using OS.Std.Text;
 
 namespace OS.Pal;
+
 public readonly struct OSHostConfigEnvironmentTableBuildResult
 {
     public OSHostConfigEnvironmentTableBuildResult(OSHostStatus status, OSHostConfigEnvironmentTable? table)
@@ -12,8 +13,14 @@ public readonly struct OSHostConfigEnvironmentTableBuildResult
         Table = table;
     }
 
-    public OSHostStatus Status { get; }
-    public OSHostConfigEnvironmentTable? Table { get; }
+    public OSHostStatus Status
+    {
+        get;
+    }
+    public OSHostConfigEnvironmentTable? Table
+    {
+        get;
+    }
     public bool Succeeded => Status == OSHostStatus.Ok && Table is not null;
 
     public static OSHostConfigEnvironmentTableBuildResult FromStatus(OSHostStatus status)

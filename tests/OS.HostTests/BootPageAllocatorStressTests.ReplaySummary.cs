@@ -30,20 +30,62 @@ internal static partial class BootPageAllocatorStressTests
             TranscriptHash = transcriptHash;
         }
 
-        public ulong Seed { get; }
-        public int ChurnSteps { get; }
-        public int OperationCount { get; }
-        public int SuccessfulAllocations { get; }
-        public int SuccessfulFrees { get; }
-        public int ExpectedAllocationFailures { get; }
-        public int ExactRestorationCount { get; }
-        public int MaximumDepth { get; }
-        public bool FirstBoundaryPageSeen { get; }
-        public bool LastBoundaryPageSeen { get; }
-        public bool CapacityTailPreserved { get; }
-        public bool ReservationsPreserved { get; }
-        public bool ReturnedToBaseline { get; }
-        public string TranscriptHash { get; }
+        public ulong Seed
+        {
+            get;
+        }
+        public int ChurnSteps
+        {
+            get;
+        }
+        public int OperationCount
+        {
+            get;
+        }
+        public int SuccessfulAllocations
+        {
+            get;
+        }
+        public int SuccessfulFrees
+        {
+            get;
+        }
+        public int ExpectedAllocationFailures
+        {
+            get;
+        }
+        public int ExactRestorationCount
+        {
+            get;
+        }
+        public int MaximumDepth
+        {
+            get;
+        }
+        public bool FirstBoundaryPageSeen
+        {
+            get;
+        }
+        public bool LastBoundaryPageSeen
+        {
+            get;
+        }
+        public bool CapacityTailPreserved
+        {
+            get;
+        }
+        public bool ReservationsPreserved
+        {
+            get;
+        }
+        public bool ReturnedToBaseline
+        {
+            get;
+        }
+        public string TranscriptHash
+        {
+            get;
+        }
 
         public bool Equals(ReplaySummary other)
         {

@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public readonly struct AcpiTableDirectoryResult
 {
     private AcpiTableDirectoryResult(AcpiTableDirectoryStatus status, int selectedCount, int snapshotCount, int pointerCount, int pointerIndex, int sourceIndex, ulong physicalAddress, uint requestedSignature, uint tableSignature, uint declaredLength, uint requiredLength, int requiredDestinationCapacity, int requiredSnapshotCapacity, AcpiSdtParseStatus pointerListStatus)
@@ -21,20 +22,62 @@ public readonly struct AcpiTableDirectoryResult
         PointerListStatus = pointerListStatus;
     }
 
-    public AcpiTableDirectoryStatus Status { get; }
-    public int SelectedCount { get; }
-    public int SnapshotCount { get; }
-    public int PointerCount { get; }
-    public int PointerIndex { get; }
-    public int SourceIndex { get; }
-    public ulong PhysicalAddress { get; }
-    public uint RequestedSignature { get; }
-    public uint TableSignature { get; }
-    public uint DeclaredLength { get; }
-    public uint RequiredLength { get; }
-    public int RequiredDestinationCapacity { get; }
-    public int RequiredSnapshotCapacity { get; }
-    public AcpiSdtParseStatus PointerListStatus { get; }
+    public AcpiTableDirectoryStatus Status
+    {
+        get;
+    }
+    public int SelectedCount
+    {
+        get;
+    }
+    public int SnapshotCount
+    {
+        get;
+    }
+    public int PointerCount
+    {
+        get;
+    }
+    public int PointerIndex
+    {
+        get;
+    }
+    public int SourceIndex
+    {
+        get;
+    }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
+    public uint RequestedSignature
+    {
+        get;
+    }
+    public uint TableSignature
+    {
+        get;
+    }
+    public uint DeclaredLength
+    {
+        get;
+    }
+    public uint RequiredLength
+    {
+        get;
+    }
+    public int RequiredDestinationCapacity
+    {
+        get;
+    }
+    public int RequiredSnapshotCapacity
+    {
+        get;
+    }
+    public AcpiSdtParseStatus PointerListStatus
+    {
+        get;
+    }
     public bool Succeeded => Status == AcpiTableDirectoryStatus.Success;
 
     public static AcpiTableDirectoryResult SuccessSelected(int pointerCount, int pointerIndex, int sourceIndex, ulong physicalAddress, uint requestedSignature, uint tableSignature, uint declaredLength)

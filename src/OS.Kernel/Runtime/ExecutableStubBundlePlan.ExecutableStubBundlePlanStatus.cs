@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public enum ExecutableStubBundlePlanStatus
 {
     Success = 0,

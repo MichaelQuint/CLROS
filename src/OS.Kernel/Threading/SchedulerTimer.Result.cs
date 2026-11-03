@@ -1,6 +1,7 @@
 using OS.Drivers;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct SchedulerTimer
 {
     /// <summary>Acknowledged tick and earliest due identity by value. WakeReady

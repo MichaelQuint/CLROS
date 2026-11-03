@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Every known request, including polls/retries/incomplete suffixes,

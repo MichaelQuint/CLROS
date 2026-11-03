@@ -15,8 +15,14 @@ internal static partial class PciEcamPhysicalHeaderReaderTests
             _failureStatus = failureStatus;
         }
 
-        public int ReadCount { get; private set; }
-        public ulong RequestedAddress { get; private set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
+        public ulong RequestedAddress
+        {
+            get; private set;
+        }
 
         public static PhysicalMemoryDouble Success(params PhysicalMemoryEntry[] entries)
         {

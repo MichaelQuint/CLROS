@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Boot;
+
 public unsafe struct FirmwareMemoryMapCapability
 {
     private readonly FirmwareAdapterAuthority* _authority;

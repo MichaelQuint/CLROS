@@ -10,13 +10,25 @@ public readonly struct FirmwareCallResult
         Reason = reason;
     }
 
-    public bool Succeeded { get; }
+    public bool Succeeded
+    {
+        get;
+    }
 
-    public FirmwareServicesMode Mode { get; }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
 
-    public string Operation { get; }
+    public string Operation
+    {
+        get;
+    }
 
-    public string Reason { get; }
+    public string Reason
+    {
+        get;
+    }
 
     public static FirmwareCallResult Allowed(string operation, FirmwareServicesMode mode)
     {

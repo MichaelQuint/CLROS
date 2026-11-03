@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static partial class TcpListenerBacklog
 {
     public const int NoEntryIndex = -1;

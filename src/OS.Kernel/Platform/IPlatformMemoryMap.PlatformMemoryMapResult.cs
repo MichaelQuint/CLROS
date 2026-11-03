@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformMemoryMapResult
 {
     private readonly string? _operation;
@@ -15,10 +16,22 @@ public readonly struct PlatformMemoryMapResult
         _message = NormalizeMessage(message);
     }
 
-    public bool Succeeded { get; }
-    public PlatformMemoryMapStatus Status { get; }
-    public UefiMemoryMapSnapshot Snapshot { get; }
-    public FirmwareServicesMode Mode { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformMemoryMapStatus Status
+    {
+        get;
+    }
+    public UefiMemoryMapSnapshot Snapshot
+    {
+        get;
+    }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
     public string Operation => _operation ?? PlatformMemoryMapOperations.GetMemoryMap;
     public string Message => _message ?? string.Empty;
 

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public struct X64LinuxUserTransitionPlan
 {
     public ulong CodeAddress, ContextAddress, UserRoot, UserRip, UserRsp, UserFs, UserGs;

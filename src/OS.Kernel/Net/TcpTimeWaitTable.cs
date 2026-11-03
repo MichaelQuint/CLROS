@@ -197,7 +197,7 @@ public static unsafe partial class TcpTimeWaitTable
         return held == owner->Held ? Status.Success : Status.InvalidState;
     }
 
-    private static bool KeyValid(TcpConnectionKey key) => key.HasValidEndpoint && key.LocalAddress.Octet0 is> 0 and < 224 && key.RemoteAddress.Octet0 is> 0 and < 224;
+    private static bool KeyValid(TcpConnectionKey key) => key.HasValidEndpoint && key.LocalAddress.Octet0 is > 0 and < 224 && key.RemoteAddress.Octet0 is > 0 and < 224;
     private static bool Storage(void* address, ulong bytes) => address != null && ((ulong)address & 7) == 0 && bytes <= ~0UL - (ulong)address;
     private static bool Overlap(void* a, ulong size, void* b, ulong other) => (ulong)a < (ulong)b + other && (ulong)b < (ulong)a + size;
     private static bool Zero(void* address, ulong bytes)

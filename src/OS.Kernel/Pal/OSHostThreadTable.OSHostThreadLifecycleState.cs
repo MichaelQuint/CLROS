@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public enum OSHostThreadLifecycleState : uint
 {
     None = 0,

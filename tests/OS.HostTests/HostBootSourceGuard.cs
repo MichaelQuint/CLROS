@@ -151,8 +151,11 @@ internal static class HostBootSourceGuard
                 // Only the actual x64 function-pointer address -> ulong storage
                 // conversion is admitted. An intervening uint/floating/integer
                 // conversion can truncate or transform the callback address.
-                if (operation is not IConversionOperation { Conversion.IsUserDefined: false,
-                    Type.SpecialType: SpecialType.System_UInt64, Operand.Type: IFunctionPointerTypeSymbol } conversion)
+                if (operation is not IConversionOperation
+                    {
+                        Conversion.IsUserDefined: false,
+                        Type.SpecialType: SpecialType.System_UInt64, Operand.Type: IFunctionPointerTypeSymbol
+                    } conversion)
                     return false;
                 operation = Identity(conversion.Operand);
             }

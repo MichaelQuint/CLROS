@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Pal;
+
 public enum OSHostStatusCategory : int
 {
     Success = 0,

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct NormalizeInterruptFramePageResult
 {
     private readonly byte _isInitialized;
@@ -23,18 +24,51 @@ public readonly struct NormalizeInterruptFramePageResult
     }
 
     public bool IsInitialized => _isInitialized == 1;
-    public NormalizeInterruptFramePageOperation Operation { get; }
-    public NormalizeInterruptFramePageStatus Status { get; }
-    public ulong ModeledPageAddress { get; }
-    public ulong CommonTargetAddress { get; }
-    public ulong PageCapacity { get; }
+    public NormalizeInterruptFramePageOperation Operation
+    {
+        get;
+    }
+    public NormalizeInterruptFramePageStatus Status
+    {
+        get;
+    }
+    public ulong ModeledPageAddress
+    {
+        get;
+    }
+    public ulong CommonTargetAddress
+    {
+        get;
+    }
+    public ulong PageCapacity
+    {
+        get;
+    }
     public int RequiredBytes => NormalizeErrorCodeNonErrorCodeInterruptFrame.PageByteCount;
-    public int BytesWritten { get; }
-    public int BytesCompared { get; }
-    public int FirstMismatchOffset { get; }
-    public int HardwareErrorCodeVectorCount { get; }
-    public int SyntheticErrorCodeVectorCount { get; }
-    public ulong Fingerprint { get; }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int BytesCompared
+    {
+        get;
+    }
+    public int FirstMismatchOffset
+    {
+        get;
+    }
+    public int HardwareErrorCodeVectorCount
+    {
+        get;
+    }
+    public int SyntheticErrorCodeVectorCount
+    {
+        get;
+    }
+    public ulong Fingerprint
+    {
+        get;
+    }
     public bool DestinationMutated => _destinationMutated == 1;
     public bool ReadBackPerformed => _readBackPerformed == 1;
     public bool Materialized => IsInitialized && Operation == NormalizeInterruptFramePageOperation.Materialize && Status == NormalizeInterruptFramePageStatus.Success && BytesWritten == RequiredBytes && BytesCompared == RequiredBytes && FirstMismatchOffset == -1 && HardwareErrorCodeVectorCount == NormalizeErrorCodeNonErrorCodeInterruptFrame.HardwareErrorCodeVectorCount && SyntheticErrorCodeVectorCount == NormalizeErrorCodeNonErrorCodeInterruptFrame.SyntheticErrorCodeVectorCount && DestinationMutated && ReadBackPerformed;

@@ -133,7 +133,11 @@ internal static unsafe partial class BoundedExceptionCallerWindowTests
             )
                 initial.SetInteger(register, 0x1234567800000000UL + register);
             for (byte register = 6; register <= 15; register++)
-                initial.SetVector(register, new() { Low = 0x1122334400000000UL + register, High = 0xaabbccdd00000000UL + register });
+                initial.SetVector(register, new()
+                {
+                    Low = 0x1122334400000000UL + register,
+                    High = 0xaabbccdd00000000UL + register
+                });
             Initial = initial;
             W64(Stack + 0x120, Address(0x6120));
             W64(Stack + 0x148, Address(0x6220));

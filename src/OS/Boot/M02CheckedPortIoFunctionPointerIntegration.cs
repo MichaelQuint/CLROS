@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static class M02CheckedPortIoFunctionPointerIntegration
 {
     public const bool GuestInvocation = false;

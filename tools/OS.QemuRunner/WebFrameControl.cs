@@ -59,8 +59,14 @@ public sealed partial class WebFrameControl : IDisposable
 
     public int QemuOutPort => backend.Port;
     public int QemuInPort => guest.Port;
-    public IReadOnlyList<string> Arguments { get; }
-    public Task Completion { get; }
+    public IReadOnlyList<string> Arguments
+    {
+        get;
+    }
+    public Task Completion
+    {
+        get;
+    }
     public int DeadlinePort => Volatile.Read(ref deadlinePort);
     public long ForwardedFrames => Interlocked.Read(ref forwarded);
     public int VlanFrames => Volatile.Read(ref vlanFrames);
@@ -179,7 +185,7 @@ public sealed partial class WebFrameControl : IDisposable
             pendingAccept = null;
             byte[] bytes = new byte[1518];
             long ordinal = 0;
-            for (;;)
+            for (; ; )
             {
                 pendingRead ??= backend.ReadFrameAsync(bytes, stop.Token).AsTask();
                 if (continuingService)
@@ -245,7 +251,7 @@ public sealed partial class WebFrameControl : IDisposable
                 }
             }
         }
-        catch (Exception failure)when (ExpectedClosure(failure))
+        catch (Exception failure) when (ExpectedClosure(failure))
         {
             injected.TrySetCanceled(stop.Token);
         }
@@ -287,7 +293,7 @@ public sealed partial class WebFrameControl : IDisposable
 
     private void PreserveCompletedFailure(bool allowExpectedIo = false)
     {
-        foreach (Task? operation in new Task? []
+        foreach (Task? operation in new Task?[]
         {
             pendingRead,
             pendingWrite,

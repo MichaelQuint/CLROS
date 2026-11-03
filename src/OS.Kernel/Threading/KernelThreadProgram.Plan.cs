@@ -1,4 +1,5 @@
 namespace OS.Kernel.Threading;
+
 public static unsafe partial class KernelThreadProgram
 {
     /// <summary>Pinned current descriptor resources and callback extents.

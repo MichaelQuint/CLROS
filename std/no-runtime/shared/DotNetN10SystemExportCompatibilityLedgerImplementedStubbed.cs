@@ -1,4 +1,5 @@
 namespace OS.Std.NoRuntime;
+
 public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
 {
     public const int SystemDeclarationCount = (int)DotNetN10SystemDeclaration.InAttribute;
@@ -77,7 +78,8 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             // Compiler modreq identity only; no marshalling constants or API.
             49 => SystemDeclaration(DotNetN10SystemDeclaration.UnmanagedType, DotNetN10SystemDeclarationCategory.InteropContract, DotNetN10HelperSupportState.Stubbed),
             50 => StubbedAttribute(DotNetN10SystemDeclaration.InAttribute),
-            _ => InvalidSystemDeclarationEntry()};
+            _ => InvalidSystemDeclarationEntry()
+        };
     }
 
     public static bool TryGetRuntimeExport(int index, out DotNetN10RuntimeExportCompatibilityEntry entry)
@@ -117,7 +119,8 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             18 => RuntimeExport(DotNetN10RuntimeExport.RhpNewArrayFast, DotNetN10RuntimeExportCategory.SzArrayAllocation, DotNetN10RuntimeExportBehavior.ProfileBoundSzArrayAllocation, DotNetN10HelperSupportState.NarrowlyImplemented),
             19 => RuntimeExport(DotNetN10RuntimeExport.RhpNewPtrArrayFast, DotNetN10RuntimeExportCategory.SzArrayAllocation, DotNetN10RuntimeExportBehavior.ProfileBoundSzArrayAllocation, DotNetN10HelperSupportState.NarrowlyImplemented),
             20 => RuntimeExport(DotNetN10RuntimeExport.RhNewString, DotNetN10RuntimeExportCategory.StringAllocation, DotNetN10RuntimeExportBehavior.ProfileBoundStringAllocation, DotNetN10HelperSupportState.NarrowlyImplemented),
-            _ => InvalidRuntimeExportEntry()};
+            _ => InvalidRuntimeExportEntry()
+        };
     }
 
     private static DotNetN10SystemDeclarationCompatibilityEntry StubbedCore(DotNetN10SystemDeclaration declaration)

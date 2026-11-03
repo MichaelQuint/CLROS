@@ -72,11 +72,26 @@ internal static partial class NativeAotWebSignalRaceTemporalTests
             return copy;
         }
 
-        Reject(vector with { Calls = Mutate(3, c => c with { Connection = Connection with { Generation = 10 } }) });
-        Reject(vector with { Calls = Mutate(3, c => c with { OpenDescription = 10 }) });
-        Reject(vector with { Calls = Mutate(3, c => c with { Received = c.Received + 1 }) });
-        Reject(vector with { Calls = Mutate(3, c => c with { CallRecordIndex = 22 }) });
-        Reject(vector with { Calls = Mutate(3, c => c with { DescriptorGeneration = 0 }) });
+        Reject(vector with
+        {
+            Calls = Mutate(3, c => c with { Connection = Connection with { Generation = 10 } })
+        });
+        Reject(vector with
+        {
+            Calls = Mutate(3, c => c with { OpenDescription = 10 })
+        });
+        Reject(vector with
+        {
+            Calls = Mutate(3, c => c with { Received = c.Received + 1 })
+        });
+        Reject(vector with
+        {
+            Calls = Mutate(3, c => c with { CallRecordIndex = 22 })
+        });
+        Reject(vector with
+        {
+            Calls = Mutate(3, c => c with { DescriptorGeneration = 0 })
+        });
         uint request = (uint)NativeAotWebSignalRaceDateTests.Request.Length, response = (uint)NativeAotWebSignalRaceDateTests.Response().Length;
         var onlyFirst = vector.Joined with
         {
@@ -85,8 +100,14 @@ internal static partial class NativeAotWebSignalRaceTemporalTests
         Q.WebSignalRaceSocketCall[] peeks = [Call(10, 43, 0, 0, 0, 0), Call(20, 45, 0, request - 2, 0, request - 2), Call(22, 47, request - 2, 2, 0, request - 2, true), Call(30, 44, 0, response * 2, response * 2, request - 2)];
         Reject(new(onlyFirst, peeks), "web_race_temporal_coverage");
         var over = vector.Calls.Append(Call(60, 47, request * 2, 1, response * 2 + 2, request * 2, true)).ToArray();
-        Reject(vector with { Calls = over }, "web_race_temporal_request_front");
-        Reject(vector with { Calls = Mutate(7, c => c with { Bytes = c.Bytes - 3, Sent = c.Sent - 3 }) }, "web_race_temporal_response_front");
+        Reject(vector with
+        {
+            Calls = over
+        }, "web_race_temporal_request_front");
+        Reject(vector with
+        {
+            Calls = Mutate(7, c => c with { Bytes = c.Bytes - 3, Sent = c.Sent - 3 })
+        }, "web_race_temporal_response_front");
         var order = vector.Calls.ToArray();
         order[3] = order[3] with
         {
@@ -102,7 +123,10 @@ internal static partial class NativeAotWebSignalRaceTemporalTests
         {
             Received = request - 2
         };
-        Reject(vector with { Calls = order.OrderBy(c => c.CallRecordIndex).ToArray() }, "web_race_temporal_request_before_response");
+        Reject(vector with
+        {
+            Calls = order.OrderBy(c => c.CallRecordIndex).ToArray()
+        }, "web_race_temporal_request_before_response");
         var fifo = vector.Calls.ToArray();
         fifo[6] = fifo[6] with
         {
@@ -114,13 +138,22 @@ internal static partial class NativeAotWebSignalRaceTemporalTests
         {
             Received = request * 2
         };
-        Reject(vector with { Calls = fifo.OrderBy(c => c.CallRecordIndex).ToArray() }, "web_race_temporal_fifo");
+        Reject(vector with
+        {
+            Calls = fifo.OrderBy(c => c.CallRecordIndex).ToArray()
+        }, "web_race_temporal_fifo");
         var ranges = vector.Joined.Intervals[0].Ranges.ToArray();
         ranges[0] = ranges[0] with
         {
             ByteCount = ranges[0].ByteCount - 1
         };
-        Reject(vector with { Joined = vector.Joined with { Intervals = [vector.Joined.Intervals[0] with { Ranges = ranges }, ..vector.Joined.Intervals.Skip(1)] } }, "web_race_temporal_packet_ranges");
+        Reject(vector with
+        {
+            Joined = vector.Joined with
+            {
+                Intervals = [vector.Joined.Intervals[0] with { Ranges = ranges }, .. vector.Joined.Intervals.Skip(1)]
+            }
+        }, "web_race_temporal_packet_ranges");
     }
 
     [HostTest("web temporal copied identities permit slot fifteen and reject either sixteen boundary")]

@@ -126,8 +126,13 @@ internal static partial class HttpWorkloadBenchmarkTests
     private static readonly Uri Endpoint = new("http://127.0.0.1:1/");
 
     private static HttpWorkloadBenchmark.Options Options(int warm = 10, TimeSpan? timeout = null) =>
-        new() { System = "CLROS", Backend = "whpx", WarmSequences = warm,
-            RequestTimeout = timeout ?? TimeSpan.FromSeconds(180) };
+        new()
+        {
+            System = "CLROS",
+            Backend = "whpx",
+            WarmSequences = warm,
+            RequestTimeout = timeout ?? TimeSpan.FromSeconds(180)
+        };
 
     private static string Fresh(string root) => Path.Combine(root, "artifacts", "tests",
         "http-benchmark-" + Guid.NewGuid().ToString("N"));

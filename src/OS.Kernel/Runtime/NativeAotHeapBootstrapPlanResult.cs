@@ -1,6 +1,7 @@
 using OS.Kernel.Memory;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAotHeapBootstrapPlanResult
 {
     private NativeAotHeapBootstrapPlanResult(bool isInitialized, NativeAotHeapBootstrapPlanStatus status, ulong pageSize, ulong allocatorFreePages, ulong allocatorFreeBytes, ulong expectedAllocatorFreeBytes, ulong requestedHeapPages, ulong requestedHeapBytes, ulong remainingFreePages, ulong remainingFreeBytes, ulong objectAlignment)
@@ -18,18 +19,51 @@ public readonly struct NativeAotHeapBootstrapPlanResult
         ObjectAlignment = objectAlignment;
     }
 
-    public bool IsInitialized { get; }
-    public NativeAotHeapBootstrapPlanStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public NativeAotHeapBootstrapPlanStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeAotHeapBootstrapPlanStatus.Success;
-    public ulong PageSize { get; }
-    public ulong AllocatorFreePages { get; }
-    public ulong AllocatorFreeBytes { get; }
-    public ulong ExpectedAllocatorFreeBytes { get; }
-    public ulong RequestedHeapPages { get; }
-    public ulong RequestedHeapBytes { get; }
-    public ulong RemainingFreePages { get; }
-    public ulong RemainingFreeBytes { get; }
-    public ulong ObjectAlignment { get; }
+    public ulong PageSize
+    {
+        get;
+    }
+    public ulong AllocatorFreePages
+    {
+        get;
+    }
+    public ulong AllocatorFreeBytes
+    {
+        get;
+    }
+    public ulong ExpectedAllocatorFreeBytes
+    {
+        get;
+    }
+    public ulong RequestedHeapPages
+    {
+        get;
+    }
+    public ulong RequestedHeapBytes
+    {
+        get;
+    }
+    public ulong RemainingFreePages
+    {
+        get;
+    }
+    public ulong RemainingFreeBytes
+    {
+        get;
+    }
+    public ulong ObjectAlignment
+    {
+        get;
+    }
     public bool RequiresPageAllocatorMutation => Succeeded;
     public bool RequiresGcRootScanning => Succeeded;
     public bool RequiresWriteBarriers => Succeeded;

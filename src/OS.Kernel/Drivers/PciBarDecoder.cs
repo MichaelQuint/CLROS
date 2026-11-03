@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class PciBarDecoder
 {
     public const byte BarCount = 6;

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct OwnedAcpiDirectorySelectionResult
 {
     public readonly OwnedAcpiDirectorySelectionStatus Status;

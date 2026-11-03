@@ -43,7 +43,7 @@ public static partial class NativeAotServiceQuotaPeer
         static string Token(string? value, int maximum) => value is { Length: > 0 } && value.Length <= maximum && value.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.') ? value : "-";
         while (pending.Count > 0 && node < 8)
         {
-            var(current, parent) = pending.Dequeue();
+            var (current, parent) = pending.Dequeue();
             string http = current is HttpRequestException request ? request.HttpRequestError.ToString() : current is HttpIOException input ? input.HttpRequestError.ToString() : "-";
             string socket = current is SocketException socketError ? socketError.SocketErrorCode.ToString() : "-";
             string native = current is SocketException nativeError ? nativeError.NativeErrorCode.ToString(CultureInfo.InvariantCulture) : "-";
@@ -83,7 +83,10 @@ public static partial class NativeAotServiceQuotaPeer
         void Keep(string name, Sample sample)
         {
             wire?.BindSample(name, sample);
-            samples.Add(sample with { Name = name });
+            samples.Add(sample with
+            {
+                Name = name
+            });
         }
 
         void Pending() => Need(pressure is { IsCompleted: false }, "pressure_ended_before_overlap");
@@ -95,7 +98,7 @@ public static partial class NativeAotServiceQuotaPeer
         async Task<Sample> Get(string path) => await Text(control, "GET", path, clock, token, wire: wire);
         async Task<(Sample Sample, ServiceStatus Worker)> Worker(ServiceStatus? prior, bool advance)
         {
-            for (;;)
+            for (; ; )
             {
                 if (pressure is not null)
                     Pending();
@@ -117,7 +120,7 @@ public static partial class NativeAotServiceQuotaPeer
 
         async Task<Sample> WaitHeld(bool both)
         {
-            for (;;)
+            for (; ; )
             {
                 var sample = await Get(Lifecycle + "status");
                 var value = ReadLifecycle(sample.Body);
@@ -133,7 +136,7 @@ public static partial class NativeAotServiceQuotaPeer
             using (var startup = CancellationTokenSource.CreateLinkedTokenSource(token))
             {
                 startup.CancelAfter(TimeSpan.FromSeconds(StartupSeconds));
-                for (;;)
+                for (; ; )
                 {
                     try
                     {
@@ -144,7 +147,7 @@ public static partial class NativeAotServiceQuotaPeer
                         Keep("health.startup", health);
                         break;
                     }
-                    catch (Exception error)when (StartupIoAbort(error) && !startup.IsCancellationRequested)
+                    catch (Exception error) when (StartupIoAbort(error) && !startup.IsCancellationRequested)
                     {
                         await Task.Delay(100, startup.Token);
                     }
@@ -190,7 +193,7 @@ public static partial class NativeAotServiceQuotaPeer
             long pressureStarted = clock.Elapsed.Ticks;
             pressure = Pressure(pressureClient, clock, token, wire);
             Sample retained;
-            for (;;)
+            for (; ; )
             {
                 Pending();
                 Held();
@@ -245,7 +248,7 @@ public static partial class NativeAotServiceQuotaPeer
                     quota = next;
                     lastQuota = sample;
                 }
-                catch (Exception error)when (TerminalIoAbort(error) && !token.IsCancellationRequested)
+                catch (Exception error) when (TerminalIoAbort(error) && !token.IsCancellationRequested)
                 {
                     break;
                 }
@@ -370,7 +373,7 @@ public static partial class NativeAotServiceQuotaPeer
             ended = true;
             throw new ToolFailure("quota_peer_pressure_http_response", ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture));
         }
-        catch (Exception error)when (TerminalIoAbort(error) && !token.IsCancellationRequested)
+        catch (Exception error) when (TerminalIoAbort(error) && !token.IsCancellationRequested)
         {
             string kind = PressureErrorKind(error);
             long at = clock.Elapsed.Ticks;

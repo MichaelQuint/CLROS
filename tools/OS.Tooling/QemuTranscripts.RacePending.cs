@@ -6,6 +6,7 @@ using OS.Manifest;
 using Race = OS.Tooling.LinuxDiskRaceProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed record RacePending(Race.CallSpec Spec, int Index, ulong Ordinal, ulong Sequence, ulong Request, uint Source);

@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public sealed partial class NativeAotLogUploadProgram
 {
     /// <summary>Copied index identity. A report alone publishes no instruction lookup.</summary>

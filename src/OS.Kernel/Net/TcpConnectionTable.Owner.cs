@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpConnectionTable
 {
     /// <summary>Exclusive, noncopyable connection owner. One serialized kernel

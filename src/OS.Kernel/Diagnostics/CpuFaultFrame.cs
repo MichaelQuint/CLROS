@@ -52,49 +52,118 @@ public readonly struct CpuFaultFrame
         R15 = r15;
     }
 
-    public int Vector { get; }
+    public int Vector
+    {
+        get;
+    }
 
-    public bool HasErrorCode { get; }
+    public bool HasErrorCode
+    {
+        get;
+    }
 
-    public ulong ErrorCode { get; }
+    public ulong ErrorCode
+    {
+        get;
+    }
 
-    public ulong Rip { get; }
+    public ulong Rip
+    {
+        get;
+    }
 
-    public ulong Rsp { get; }
+    public ulong Rsp
+    {
+        get;
+    }
 
-    public ulong Rbp { get; }
+    public ulong Rbp
+    {
+        get;
+    }
 
-    public ulong Rflags { get; }
+    public ulong Rflags
+    {
+        get;
+    }
 
-    public ulong Cr2 { get; }
+    public ulong Cr2
+    {
+        get;
+    }
 
-    public ulong Cr3 { get; }
+    public ulong Cr3
+    {
+        get;
+    }
 
-    public ulong Rax { get; }
+    public ulong Rax
+    {
+        get;
+    }
 
-    public ulong Rbx { get; }
+    public ulong Rbx
+    {
+        get;
+    }
 
-    public ulong Rcx { get; }
+    public ulong Rcx
+    {
+        get;
+    }
 
-    public ulong Rdx { get; }
+    public ulong Rdx
+    {
+        get;
+    }
 
-    public ulong Rsi { get; }
+    public ulong Rsi
+    {
+        get;
+    }
 
-    public ulong Rdi { get; }
+    public ulong Rdi
+    {
+        get;
+    }
 
-    public ulong R8 { get; }
+    public ulong R8
+    {
+        get;
+    }
 
-    public ulong R9 { get; }
+    public ulong R9
+    {
+        get;
+    }
 
-    public ulong R10 { get; }
+    public ulong R10
+    {
+        get;
+    }
 
-    public ulong R11 { get; }
+    public ulong R11
+    {
+        get;
+    }
 
-    public ulong R12 { get; }
+    public ulong R12
+    {
+        get;
+    }
 
-    public ulong R13 { get; }
+    public ulong R13
+    {
+        get;
+    }
 
-    public ulong R14 { get; }
+    public ulong R14
+    {
+        get;
+    }
 
-    public ulong R15 { get; }
+    public ulong R15
+    {
+        get;
+    }
 }

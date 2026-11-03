@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct OwnedGdtTssTerminalStubResult
 {
     private const byte PrepareContextOperation = 1;
@@ -25,18 +26,54 @@ public readonly struct OwnedGdtTssTerminalStubResult
     }
 
     public bool IsInitialized => _isInitialized == 1;
-    public OwnedGdtTssTerminalStubStatus Status { get; }
-    public ulong ModeledContextAddress { get; }
-    public ulong ModeledStubAddress { get; }
-    public ulong ContextCapacity { get; }
-    public ulong StubCapacity { get; }
-    public int ContextBytesWritten { get; }
-    public int ContextBytesCompared { get; }
-    public int StubBytesWritten { get; }
-    public int StubBytesCompared { get; }
-    public int FirstMismatchOffset { get; }
-    public ulong ContextFingerprint { get; }
-    public ulong StubFingerprint { get; }
+    public OwnedGdtTssTerminalStubStatus Status
+    {
+        get;
+    }
+    public ulong ModeledContextAddress
+    {
+        get;
+    }
+    public ulong ModeledStubAddress
+    {
+        get;
+    }
+    public ulong ContextCapacity
+    {
+        get;
+    }
+    public ulong StubCapacity
+    {
+        get;
+    }
+    public int ContextBytesWritten
+    {
+        get;
+    }
+    public int ContextBytesCompared
+    {
+        get;
+    }
+    public int StubBytesWritten
+    {
+        get;
+    }
+    public int StubBytesCompared
+    {
+        get;
+    }
+    public int FirstMismatchOffset
+    {
+        get;
+    }
+    public ulong ContextFingerprint
+    {
+        get;
+    }
+    public ulong StubFingerprint
+    {
+        get;
+    }
     public ulong ExpectedStubFingerprint => OwnedGDTTSSGeneratedAuditedCSharpStubBytes.StubFnv1A64;
     public bool ContextPrepared => IsInitialized && _operation == PrepareContextOperation && Status == OwnedGdtTssTerminalStubStatus.Success && ContextBytesWritten == OwnedGDTTSSGeneratedAuditedCSharpStubBytes.ContextByteCount && ContextBytesCompared == OwnedGDTTSSGeneratedAuditedCSharpStubBytes.ContextByteCount && StubBytesWritten == 0 && StubBytesCompared == 0 && FirstMismatchOffset == -1 && ContextFingerprint != 0;
     public bool StubEmitted => IsInitialized && _operation == EmitStubOperation && Status == OwnedGdtTssTerminalStubStatus.Success && ContextBytesWritten == 0 && ContextBytesCompared == OwnedGDTTSSGeneratedAuditedCSharpStubBytes.ContextByteCount && StubBytesWritten == OwnedGDTTSSGeneratedAuditedCSharpStubBytes.StubByteCount && StubBytesCompared == 0 && FirstMismatchOffset == -1 && ContextFingerprint != 0 && StubFingerprint == ExpectedStubFingerprint;

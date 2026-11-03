@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Storage;
 
 public readonly struct VirtioDeviceDescriptor
@@ -13,13 +14,31 @@ public readonly struct VirtioDeviceDescriptor
         InitializationProfile = initializationProfile;
     }
 
-    public int SourceIndex { get; }
-    public VirtioPciDeviceKind DeviceKind { get; }
-    public VirtioPciBindingPlanResult BindingPlan { get; }
+    public int SourceIndex
+    {
+        get;
+    }
+    public VirtioPciDeviceKind DeviceKind
+    {
+        get;
+    }
+    public VirtioPciBindingPlanResult BindingPlan
+    {
+        get;
+    }
     public VirtioPciBindingMetadata Binding => BindingPlan.Binding;
-    public VirtioBlockDeviceConfigResult BlockConfiguration { get; }
-    public VirtioNetDeviceConfigParseResult NetworkConfiguration { get; }
-    public VirtioDeviceInitializationProfileResult InitializationProfile { get; }
+    public VirtioBlockDeviceConfigResult BlockConfiguration
+    {
+        get;
+    }
+    public VirtioNetDeviceConfigParseResult NetworkConfiguration
+    {
+        get;
+    }
+    public VirtioDeviceInitializationProfileResult InitializationProfile
+    {
+        get;
+    }
     public bool HasBlockDeviceInfo => DeviceKind == VirtioPciDeviceKind.Block && BlockConfiguration.Succeeded;
     public BlockDeviceInfo BlockDeviceInfo => BlockConfiguration.BlockDeviceInfo;
     public bool HasNetworkConfiguration => DeviceKind == VirtioPciDeviceKind.Network && NetworkConfiguration.Succeeded;

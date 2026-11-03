@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public enum UefiExitBootServicesAttemptOutcome
 {
     ExitSucceeded = 0,

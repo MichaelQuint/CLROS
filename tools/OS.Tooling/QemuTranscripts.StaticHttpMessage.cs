@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed record StaticHttpMessage(ServiceWireFlow Flow, int Index, string Method, string Path, Dictionary<string, string> RequestHeaders, Dictionary<string, string> ResponseHeaders, int Status, byte[] Request, byte[] Header, byte[] Body, byte[] RawResponse, int RequestFirst, int RequestLast, int ResponseFirst, int ResponseLast)

@@ -113,7 +113,7 @@ internal static unsafe partial class OwnedMonotonicClockTests
             HostCheck.Equal(Id, description.HardwareId);
             HostCheck.True(!OwnedMonotonicClock.TryReadDescription(p, 55, out _));
             HostCheck.True(!OwnedMonotonicClock.TryReadDescription(null, 56, out _));
-            foreach ((int offset, byte value)in new (int, byte)[]
+            foreach ((int offset, byte value) in new (int, byte)[]
             {
                 (0, 0),
                 (4, 57),

@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpTimeWaitTable
 {
     /// <summary>Immutable tuple/sequences and exact original/current deadlines.
@@ -17,11 +18,29 @@ public static unsafe partial class TcpTimeWaitTable
             DurationNanoseconds = duration;
         }
 
-        public TcpConnectionKey Key { get; }
-        public uint LocalNextSequenceNumber { get; }
-        public uint RemoteNextSequenceNumber { get; }
-        public ulong OriginalDeadlineNanoseconds { get; }
-        public ulong DeadlineNanoseconds { get; }
-        public ulong DurationNanoseconds { get; }
+        public TcpConnectionKey Key
+        {
+            get;
+        }
+        public uint LocalNextSequenceNumber
+        {
+            get;
+        }
+        public uint RemoteNextSequenceNumber
+        {
+            get;
+        }
+        public ulong OriginalDeadlineNanoseconds
+        {
+            get;
+        }
+        public ulong DeadlineNanoseconds
+        {
+            get;
+        }
+        public ulong DurationNanoseconds
+        {
+            get;
+        }
     }
 }

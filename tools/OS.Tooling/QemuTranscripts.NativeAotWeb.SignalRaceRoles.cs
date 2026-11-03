@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow complete raw wire/attempt/selected reports,
@@ -153,7 +154,9 @@ public static partial class QemuTranscripts
 
         Serial("health-final", "repeat-race");
         Serial("repeat-race", "repeat-probe");
-        return new(joined, temporal, selection with { }, Array.AsReadOnly(samples.ToArray()), Array.AsReadOnly(order.ToArray()));
+        return new(joined, temporal, selection with
+        {
+        }, Array.AsReadOnly(samples.ToArray()), Array.AsReadOnly(order.ToArray()));
     }
 
     private static WebSignalRaceHttpSyscallInterval WebRaceCancelledRequest(WebSignalRaceStreamJoinInspection joined, NativeAotServiceQuotaPeer.WireTrace trace, IReadOnlyList<WebSignalRaceSocketCall> calls, int exchangeId, bool eventOwned)
@@ -161,7 +164,7 @@ public static partial class QemuTranscripts
         Need(exchangeId > 0 && exchangeId <= trace.Exchanges.Count, "web_race_roles_cancellation");
         var exchange = trace.Exchanges[exchangeId - 1];
         Need(exchange.Role == "churn" && exchange.Method == "POST" && exchange.Path == "/__clros/churn" && exchange.Outcome == "cancelled", "web_race_roles_cancellation");
-        var(guest, _, indexes) = CopyWebRaceBoundPackets(joined);
+        var (guest, _, indexes) = CopyWebRaceBoundPackets(joined);
         var streams = guest.Streams.ToDictionary(s => s.RemotePort);
         var ports = joined.Bindings.ToDictionary(b => b.ConnectionId, b => b.RemotePort);
         var reads = calls.Where(c => !c.Accept && !c.Response && !c.Peek).GroupBy(c => c.Connection.RemotePort).ToDictionary(g => g.Key, g => g.ToArray());

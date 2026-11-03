@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     // Complete stdout is already checked by the pinned app validator. This
@@ -25,7 +26,10 @@ public static partial class QemuTranscripts
         private int position, normalReaps, totalReaps, matrixReapsDue, gc, joins, timers, written;
         private bool started, passed;
         internal ulong EarliestClock { get; private set; } = ulong.MaxValue;
-        internal ulong LatestClock { get; private set; }
+        internal ulong LatestClock
+        {
+            get; private set;
+        }
 
         internal RuntimePhases(string app, string stdout, IReadOnlyList<int> lengths, ulong hpetFrequencyHz)
         {
@@ -37,7 +41,7 @@ public static partial class QemuTranscripts
             this.hpetFrequencyHz = hpetFrequencyHz;
             Need(app != "NativeAotRuntimeMatrix" || hpetFrequencyHz is >= 1_000_000 and <= 10_000_000_000, "runtime_clock_domain");
             bytes = Encoding.UTF8.GetByteCount(stdout);
-            Need(lengths.Sum() == bytes && bytes is> 0 and <= 4096, "runtime_stdout_lengths");
+            Need(lengths.Sum() == bytes && bytes is > 0 and <= 4096, "runtime_stdout_lengths");
             int end = 0;
             List<(int, string)> list = [];
             foreach (string raw in stdout.Split('\n')[..^1])

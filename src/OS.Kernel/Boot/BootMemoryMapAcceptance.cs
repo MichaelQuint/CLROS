@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static class BootMemoryMapAcceptance
 {
     public static BootMemoryMapAcceptanceResult Validate(EfiMemoryMapSummary summary)

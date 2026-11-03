@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciBarSizeDescriptor
 {
     public PciBarSizeDescriptor(byte index, PciBarKind kind, PciBarSizeDescriptorStatus status, uint rawReadback, uint rawUpperReadback, ulong baseAddressBits, ulong sizeBytes, bool isPrefetchable, bool consumesNextSlot, byte pairBarIndex) : this(index, kind, status, rawReadback, rawUpperReadback, baseAddressBits, sizeBytes, isPrefetchable, consumesNextSlot, pairBarIndex, isInitialized: true)
@@ -20,16 +21,49 @@ public readonly struct PciBarSizeDescriptor
         IsInitialized = isInitialized;
     }
 
-    public byte Index { get; }
-    public PciBarKind Kind { get; }
-    public PciBarSizeDescriptorStatus Status { get; }
-    public uint RawReadback { get; }
-    public uint RawUpperReadback { get; }
-    public ulong BaseAddressBits { get; }
-    public ulong SizeBytes { get; }
-    public bool IsPrefetchable { get; }
-    public bool ConsumesNextSlot { get; }
-    public byte PairBarIndex { get; }
-    public bool IsInitialized { get; }
+    public byte Index
+    {
+        get;
+    }
+    public PciBarKind Kind
+    {
+        get;
+    }
+    public PciBarSizeDescriptorStatus Status
+    {
+        get;
+    }
+    public uint RawReadback
+    {
+        get;
+    }
+    public uint RawUpperReadback
+    {
+        get;
+    }
+    public ulong BaseAddressBits
+    {
+        get;
+    }
+    public ulong SizeBytes
+    {
+        get;
+    }
+    public bool IsPrefetchable
+    {
+        get;
+    }
+    public bool ConsumesNextSlot
+    {
+        get;
+    }
+    public byte PairBarIndex
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PciBarSizeDescriptorStatus.Success;
 }

@@ -108,7 +108,10 @@ internal static partial class CSharpCompilationReceiptTests
 
     private static void Reject(Action action, string reason)
     {
-        try { action(); }
+        try
+        {
+            action();
+        }
         catch (InvalidOperationException error) when (error.Message.StartsWith(reason, StringComparison.Ordinal)) { return; }
         throw new InvalidOperationException("expected rejection " + reason);
     }

@@ -36,7 +36,7 @@ internal static unsafe partial class MADTLocalAPICIOAPICSeparatelyPollingProofTe
     [HostTest("madt.polling rejects malformed headers checksums storage and record bounds atomically", HostLane.Fast, 1)]
     private static void Malformed()
     {
-        foreach ((Action<byte[]> change, MadtPollingStatus expected)in new (Action<byte[]>, MadtPollingStatus)[]
+        foreach ((Action<byte[]> change, MadtPollingStatus expected) in new (Action<byte[]>, MadtPollingStatus)[]
         {
             (b => b[0] = 0, MadtPollingStatus.InvalidHeader),
             (b => Write32(b, 4, 44), MadtPollingStatus.InvalidHeader),
@@ -168,7 +168,7 @@ internal static unsafe partial class MADTLocalAPICIOAPICSeparatelyPollingProofTe
         }
 
         )
-            Reject(Table([Cpu(), Io(), ..extra]), MadtPollingStatus.DuplicateRecord);
+            Reject(Table([Cpu(), Io(), .. extra]), MadtPollingStatus.DuplicateRecord);
         foreach (ushort flags in new ushort[]
         {
             2,
@@ -381,7 +381,7 @@ internal static unsafe partial class MADTLocalAPICIOAPICSeparatelyPollingProofTe
     private static void SetupAdmission()
     {
         var topology = Success(Table(Cpu(), Io()));
-        foreach ((uint features, uint id, ulong msr, ulong flags)in new (uint, uint, ulong, ulong)[]
+        foreach ((uint features, uint id, ulong msr, ulong flags) in new (uint, uint, ulong, ulong)[]
         {
             (0, 3, 0xfee00900, 2),
             (0x200, 3, 0xfee00900, 2),
@@ -428,7 +428,7 @@ internal static unsafe partial class MADTLocalAPICIOAPICSeparatelyPollingProofTe
     private static void SetupHardware()
     {
         var topology = Success(Table(Cpu(), Io()));
-        foreach ((int space, int index, uint value)in new (int, int, uint)[]
+        foreach ((int space, int index, uint value) in new (int, int, uint)[]
         {
             (0, 2, 0x04000000),
             (0, 3, 0x5000f),

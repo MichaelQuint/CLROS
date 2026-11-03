@@ -1,6 +1,7 @@
 using OS.Kernel.Memory;
 
 namespace OS.Kernel.Runtime;
+
 public enum NativeAotHeapBootstrapPlanStatus
 {
     Success = 0,

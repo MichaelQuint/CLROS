@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 
 public readonly struct DhcpMessage
@@ -63,20 +64,62 @@ public readonly struct DhcpMessage
         DnsServer = dnsServer;
     }
 
-    public byte MessageType { get; }
-    public uint TransactionId { get; }
-    public MacAddress ClientMac { get; }
-    public Ipv4Address YourAddress { get; }
-    public bool HasServerIdentifier { get; }
-    public Ipv4Address ServerIdentifier { get; }
-    public bool HasLeaseTime { get; }
-    public uint LeaseTimeSeconds { get; }
-    public bool HasSubnetMask { get; }
-    public Ipv4Address SubnetMask { get; }
-    public bool HasRouter { get; }
-    public Ipv4Address Router { get; }
-    public bool HasDnsServer { get; }
-    public Ipv4Address DnsServer { get; }
+    public byte MessageType
+    {
+        get;
+    }
+    public uint TransactionId
+    {
+        get;
+    }
+    public MacAddress ClientMac
+    {
+        get;
+    }
+    public Ipv4Address YourAddress
+    {
+        get;
+    }
+    public bool HasServerIdentifier
+    {
+        get;
+    }
+    public Ipv4Address ServerIdentifier
+    {
+        get;
+    }
+    public bool HasLeaseTime
+    {
+        get;
+    }
+    public uint LeaseTimeSeconds
+    {
+        get;
+    }
+    public bool HasSubnetMask
+    {
+        get;
+    }
+    public Ipv4Address SubnetMask
+    {
+        get;
+    }
+    public bool HasRouter
+    {
+        get;
+    }
+    public Ipv4Address Router
+    {
+        get;
+    }
+    public bool HasDnsServer
+    {
+        get;
+    }
+    public Ipv4Address DnsServer
+    {
+        get;
+    }
 
     public static DhcpMessageStatus TryWriteDiscover(Span<byte> message, uint transactionId, MacAddress clientMac, out int bytesWritten)
     {

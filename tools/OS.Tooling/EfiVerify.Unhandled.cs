@@ -3,9 +3,10 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 public static partial class EfiVerify
 {
-    public static bool TestUnhandledEhTable(byte[]? table, ulong sibling) => table is { Length: 8 } && sibling is> 0 and <= uint.MaxValue && table.AsSpan(0, 4).SequenceEqual(new byte[] { 2, 20, 72, 58 }) && BinaryPrimitives.ReadUInt32LittleEndian(table.AsSpan(4)) == sibling;
+    public static bool TestUnhandledEhTable(byte[]? table, ulong sibling) => table is { Length: 8 } && sibling is > 0 and <= uint.MaxValue && table.AsSpan(0, 4).SequenceEqual(new byte[] { 2, 20, 72, 58 }) && BinaryPrimitives.ReadUInt32LittleEndian(table.AsSpan(4)) == sibling;
     // Include the NativeAOT GC/EH marker following the Windows unwind codes.
     public static bool TestUnhandledUnwindBytes(byte[]? bytes, int part, ulong table)
     {
@@ -17,7 +18,7 @@ public static partial class EfiVerify
             3 => [1, 4, 1, 0, 4, 66, 1], // catch funclet: 40, root association
             _ => []
         };
-        return prefix.Length != 0 && bytes is not null && bytes.Length == prefix.Length + (part == 2 ? 4 : 0) && bytes.AsSpan(0, prefix.Length).SequenceEqual(prefix) && (part != 2 || table is> 0 and <= uint.MaxValue && BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(prefix.Length)) == table);
+        return prefix.Length != 0 && bytes is not null && bytes.Length == prefix.Length + (part == 2 ? 4 : 0) && bytes.AsSpan(0, prefix.Length).SequenceEqual(prefix) && (part != 2 || table is > 0 and <= uint.MaxValue && BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(prefix.Length)) == table);
     }
 
     public static bool TestUnhandledCode(byte[]? bytes, int part)
@@ -31,7 +32,7 @@ public static partial class EfiVerify
         };
         if (shape.Length == 0 || bytes is null || bytes.Length != shape.Length / 2)
             return false;
-        byte[] normalized = [..bytes];
+        byte[] normalized = [.. bytes];
         foreach (int field in part switch
         {
             0 => new[]

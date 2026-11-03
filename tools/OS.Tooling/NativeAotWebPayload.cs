@@ -103,10 +103,10 @@ public static partial class NativeAotWebPayload
         AuthorityFiles.RequirePlainPath(destination, destination, "native_evidence_path");
         string receiptPath = Path.Combine(destination, "web-receipt.json");
         AuthorityFiles.RequirePlainPath(destination, receiptPath, "native_evidence_path");
-        Require(new FileInfo(receiptPath).Length is> 0 and <= 4 * 1024 * 1024, "native_receipt_size");
+        Require(new FileInfo(receiptPath).Length is > 0 and <= 4 * 1024 * 1024, "native_receipt_size");
         QualificationReceipt receipt = JsonSerializer.Deserialize<QualificationReceipt>(File.ReadAllText(receiptPath)) ?? throw new InvalidDataException("native_receipt_missing");
         Require(receipt.Schema is "clros.nativeaot.web.v4" or "clros.nativeaot.web.v5" or "clros.nativeaot.web.v6" or "clros.nativeaot.web.v7" or "clros.nativeaot.web.v8" && receipt.Sdk == SdkVersion && receipt.Runtime == RuntimeVersion, "native_receipt_pin");
-        Require(receipt.Sources is not null && receipt.Outputs is not null && receipt.Sources.Count is> 0 and <= 10000 && receipt.Outputs.Count is> 0 and <= 10000, "native_receipt_inventory");
+        Require(receipt.Sources is not null && receipt.Outputs is not null && receipt.Sources.Count is > 0 and <= 10000 && receipt.Outputs.Count is > 0 and <= 10000, "native_receipt_inventory");
         string[] inputs = SourcePaths(root);
         Require(inputs.SequenceEqual(receipt.Sources.Keys.Order()), "source_inputs_changed");
         foreach (string path in inputs)
@@ -169,7 +169,7 @@ public static partial class NativeAotWebPayload
 
     public static void ValidateLoggingEvidence(string stdout, string stderr, IReadOnlyDictionary<string, string> traces)
     {
-        Require(stdout.Length <= 4 * 1024 * 1024 && stderr.Length <= 1024 * 1024 && traces.Count is> 0 and <= 128 && traces.All(t => t.Value.Length <= 16 * 1024 * 1024), "logging_size");
+        Require(stdout.Length <= 4 * 1024 * 1024 && stderr.Length <= 1024 * 1024 && traces.Count is > 0 and <= 128 && traces.All(t => t.Value.Length <= 16 * 1024 * 1024), "logging_size");
         string[] startup = ["CLROS_APP_ENTRY minimal.api.smoke", "CLROS_APP_CCTOR minimal.api.smoke", "CLROS_APP_CTOR minimal.api.smoke", "CLROS_APP_BUILT minimal.api.smoke"];
         Require(!stderr.Contains('\r') && stderr.EndsWith('\n'), "logging_stderr_framing");
         string[] errors = stderr[..^1].Split('\n');
@@ -222,7 +222,7 @@ public static partial class NativeAotWebPayload
 
     public static void ValidateVectorEvidence(string json, ReadOnlySpan<byte> body)
     {
-        Require(json.Length is> 0 and <= 4096, "vector_http_receipt_size");
+        Require(json.Length is > 0 and <= 4096, "vector_http_receipt_size");
         using var document = JsonDocument.Parse(json);
         var row = document.RootElement;
         Require(row.EnumerateObject().Count() == 5 && row.GetProperty("status").GetInt32() == 200 && row.GetProperty("contentType").GetString() == "application/octet-stream" && row.GetProperty("contentLength").GetInt32() == WebVectorResponse.Length && row.GetProperty("bodyBytes").GetInt32() == WebVectorResponse.Length && row.GetProperty("sha256").GetString() == WebVectorResponse.Sha256 && WebVectorResponse.Matches(body), "vector_http_response");
@@ -248,7 +248,8 @@ public static partial class NativeAotWebPayload
         {
             "NativeAotHello" => "nativeaot.hello",
             "NativeAotRuntimeSmoke" => "nativeaot.runtime",
-            _ => throw new InvalidDataException("native_payload_app")};
+            _ => throw new InvalidDataException("native_payload_app")
+        };
         string[] lines = text.Replace("\r", "").Split('\n');
         Require(!lines.Any(line => line.StartsWith("TEST_FAIL", StringComparison.Ordinal)) && lines.Count(line => line == "TEST_START " + marker) == 1 && lines.Count(line => line == "TEST_PASS " + marker) == 1 && Array.IndexOf(lines, "TEST_START " + marker) < Array.IndexOf(lines, "TEST_PASS " + marker), "payload_run_marker");
     }
@@ -259,10 +260,10 @@ public static partial class NativeAotWebPayload
 
     public static void ValidateHttpEvidence(string json, string expectedBody)
     {
-        Require(expectedBody.Length is> 0 and <= 256 && json.Length <= 16384, "http_evidence_size");
+        Require(expectedBody.Length is > 0 and <= 256 && json.Length <= 16384, "http_evidence_size");
         using JsonDocument document = JsonDocument.Parse(json);
         JsonElement row = document.RootElement;
-        Require(Uri.TryCreate(row.GetProperty("endpoint").GetString(), UriKind.Absolute, out Uri? endpoint) && endpoint.Scheme == "http" && endpoint.Host == "127.0.0.1" && endpoint.Port is> 0 and <= 65535 && endpoint.AbsolutePath == "/" && endpoint.Query.Length == 0 && endpoint.Fragment.Length == 0 && endpoint.UserInfo.Length == 0, "http_endpoint");
+        Require(Uri.TryCreate(row.GetProperty("endpoint").GetString(), UriKind.Absolute, out Uri? endpoint) && endpoint.Scheme == "http" && endpoint.Host == "127.0.0.1" && endpoint.Port is > 0 and <= 65535 && endpoint.AbsolutePath == "/" && endpoint.Query.Length == 0 && endpoint.Fragment.Length == 0 && endpoint.UserInfo.Length == 0, "http_endpoint");
         Require(row.GetProperty("paths").EnumerateArray().Select(value => value.GetString()).SequenceEqual(new[] { "/", "/healthz", "/config" }) && row.GetProperty("status").GetInt32() == 200 && row.GetProperty("body").GetString() == expectedBody && row.GetProperty("appId").GetString() == "minimal.api.smoke" && row.GetProperty("configBody").GetString() == expectedBody && row.GetProperty("bodyBytes").GetInt32() == Encoding.UTF8.GetByteCount(expectedBody), "http_status_or_body");
     }
 
@@ -334,7 +335,13 @@ public static partial class NativeAotWebPayload
 
         )
             Require(HashFile(Path.Combine(workingDirectory, name)) == HashFile(Path.Combine(root, "apps", "MinimalApiSmoke", name)), "http_published_config_changed");
-        commands.Add(new { executable = "strace", arguments, workingDirectory, log });
+        commands.Add(new
+        {
+            executable = "strace",
+            arguments,
+            workingDirectory,
+            log
+        });
         Task stdout = Task.CompletedTask, stderr = Task.CompletedTask;
         SignalRaceNativeSchedule? nativeSchedule = null;
         Exception? runFailure = null;
@@ -383,7 +390,16 @@ public static partial class NativeAotWebPayload
 
             using var config = JsonDocument.Parse(await client.GetStringAsync(endpoint + "/config", operation));
             Require(config.RootElement.GetProperty("appId").GetString() == "minimal.api.smoke" && config.RootElement.GetProperty("expectedBody").GetString() == expectedBody, "http_config_contract");
-            string evidence = JsonSerializer.Serialize(new { endpoint, paths = new[] { "/", "/healthz", "/config" }, status = 200, body = expectedBody, appId = "minimal.api.smoke", configBody = config.RootElement.GetProperty("expectedBody").GetString(), bodyBytes = config.RootElement.GetProperty("expectedBodyBytes").GetInt32() });
+            string evidence = JsonSerializer.Serialize(new
+            {
+                endpoint,
+                paths = new[] { "/", "/healthz", "/config" },
+                status = 200,
+                body = expectedBody,
+                appId = "minimal.api.smoke",
+                configBody = config.RootElement.GetProperty("expectedBody").GetString(),
+                bodyBytes = config.RootElement.GetProperty("expectedBodyBytes").GetInt32()
+            });
             ValidateHttpEvidence(evidence, expectedBody);
             await File.WriteAllTextAsync(Path.Combine(destination, "web-http" + suffix + ".json"), evidence, evidenceToken);
             using var logging = await client.PostAsync(endpoint + "/__clros/logexercise", null, operation);
@@ -395,7 +411,14 @@ public static partial class NativeAotWebPayload
             {
                 Require(vector.StatusCode == HttpStatusCode.OK && vector.Content.Headers.ContentLength == WebVectorResponse.Length && vector.Content.Headers.ContentType?.MediaType == "application/octet-stream", "vector_http_headers");
                 byte[] bytes = await vector.Content.ReadAsByteArrayAsync(operation);
-                string vectorEvidence = JsonSerializer.Serialize(new { status = (int)vector.StatusCode, contentType = vector.Content.Headers.ContentType?.MediaType, contentLength = vector.Content.Headers.ContentLength, bodyBytes = bytes.Length, sha256 = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant() });
+                string vectorEvidence = JsonSerializer.Serialize(new
+                {
+                    status = (int)vector.StatusCode,
+                    contentType = vector.Content.Headers.ContentType?.MediaType,
+                    contentLength = vector.Content.Headers.ContentLength,
+                    bodyBytes = bytes.Length,
+                    sha256 = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()
+                });
                 ValidateVectorEvidence(vectorEvidence, bytes);
                 await File.WriteAllBytesAsync(Path.Combine(destination, "web-vectors" + suffix + ".bin"), bytes, evidenceToken);
                 await File.WriteAllTextAsync(Path.Combine(destination, "web-vectors" + suffix + ".json"), vectorEvidence, evidenceToken);
@@ -426,7 +449,13 @@ public static partial class NativeAotWebPayload
                 await RunChurnAsync(client, endpoint, expectedBody, Path.Combine(destination, "web-churn" + suffix + ".json"), operation);
             using var healthAfter = await client.GetAsync(endpoint + "/healthz", operation);
             Require(healthAfter.StatusCode == HttpStatusCode.OK && await healthAfter.Content.ReadAsStringAsync(operation) == expectedBody, "logging_health_after");
-            await File.WriteAllTextAsync(Path.Combine(destination, "web-logging" + suffix + ".json"), JsonSerializer.Serialize(new { status = 200, body = loggingBody, repeatStatus = 409, healthAfter = 200 }), evidenceToken);
+            await File.WriteAllTextAsync(Path.Combine(destination, "web-logging" + suffix + ".json"), JsonSerializer.Serialize(new
+            {
+                status = 200,
+                body = loggingBody,
+                repeatStatus = 409,
+                healthAfter = 200
+            }), evidenceToken);
             string[] children = (await File.ReadAllTextAsync($"/proc/{process.Id}/task/{process.Id}/children", operation)).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             Require(children.Length == 1 && int.TryParse(children[0], out _), "http_tracee_identity");
             if (signalRace)
@@ -584,7 +613,7 @@ public static partial class NativeAotWebPayload
                 if (!process.HasExited)
                     process.Kill(entireProcessTree: true);
             }
-            catch (InvalidOperationException)when (process.HasExited)
+            catch (InvalidOperationException) when (process.HasExited)
             {
             }
 

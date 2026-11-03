@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Boot;
+
 public readonly struct BootHandoffValidationResult
 {
     private readonly string? _message;
@@ -11,8 +12,14 @@ public readonly struct BootHandoffValidationResult
         _message = message;
     }
 
-    public bool Succeeded { get; }
-    public BootHandoffStatus Status { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public BootHandoffStatus Status
+    {
+        get;
+    }
     public string Message => _message ?? string.Empty;
 
     public static BootHandoffValidationResult Success()

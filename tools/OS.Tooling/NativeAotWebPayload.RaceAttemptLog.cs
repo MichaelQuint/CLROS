@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotWebPayload
 {
     // IDs and completion ordinals describe this owned API invocation only.
@@ -48,7 +49,7 @@ public static partial class NativeAotWebPayload
                 RaceNeed(attempt.mediaTypeComplete && media == "text/plain", "content_type");
                 using var stream = await response.Content.ReadAsStreamAsync(token);
                 byte[] chunk = new byte[1024];
-                for (;;)
+                for (; ; )
                 {
                     int count = await stream.ReadAsync(chunk, token);
                     if (count == 0)
@@ -94,7 +95,15 @@ public static partial class NativeAotWebPayload
         internal string Json(bool semanticComplete, string failure)
         {
             object rows = eventOwned ? attempts.Select(a => new { a.id, a.method, a.path, a.completion, a.headers, a.status, a.mediaType, a.mediaTypeComplete, a.bodyBase64, a.bodyComplete, a.outcome, a.error, signalVersion = a.SignalVersion, churnVersion = a.ChurnVersion }).ToArray() : attempts;
-            return JsonSerializer.Serialize(new { schema = eventOwned ? "clros.web.signalrace.attempts.v3" : startGate ? "clros.web.signalrace.attempts.v2" : "clros.web.signalrace.attempts.v1", endpoint, semanticComplete, failure, attempts = rows, selections });
+            return JsonSerializer.Serialize(new
+            {
+                schema = eventOwned ? "clros.web.signalrace.attempts.v3" : startGate ? "clros.web.signalrace.attempts.v2" : "clros.web.signalrace.attempts.v1",
+                endpoint,
+                semanticComplete,
+                failure,
+                attempts = rows,
+                selections
+            });
         }
     }
 }

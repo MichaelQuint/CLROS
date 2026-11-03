@@ -3,6 +3,7 @@ using OS.Std.Text;
 using OS.Storage;
 
 namespace OS.Kernel.Runtime;
+
 public enum NativeAppPackageStagingMarkerFormatStatus
 {
     Success = 0,

@@ -9,7 +9,10 @@ internal static partial class VirtioPciBindingDerivedBarSizeCatalogTests
         private readonly uint[] _defaultReadbacks = new uint[PciBarSizingProbeExecutor.RequiredReadbackCount];
         private readonly uint[] _deviceReadbacks = new uint[(PciEcamConfigurationSpace.MaximumDevice + 1) * PciBarSizingProbeExecutor.RequiredReadbackCount];
         private readonly bool[] _hasDeviceReadback = new bool[(PciEcamConfigurationSpace.MaximumDevice + 1) * PciBarSizingProbeExecutor.RequiredReadbackCount];
-        public int OperationCount { get; private set; }
+        public int OperationCount
+        {
+            get; private set;
+        }
 
         public void SetReadback(ushort registerOffset, uint value)
         {

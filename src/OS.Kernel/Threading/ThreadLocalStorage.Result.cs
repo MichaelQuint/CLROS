@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct ThreadLocalStorage
 {
     /// <summary>Default is not success. Descriptor is a borrowed current snapshot

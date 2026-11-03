@@ -72,7 +72,8 @@ internal static unsafe class M09004EfiIntegrationTests
                 var rejected = corrupted;
                 // Receipt corruption affects only release; the ordered edge
                 // controls must reject independently for allocation as well.
-                if (call.EndsWith(".AllocateOnePage", StringComparison.Ordinal) && Contains(corrupted, "receipts[0]", StringComparison.Ordinal)) continue;
+                if (call.EndsWith(".AllocateOnePage", StringComparison.Ordinal) && Contains(corrupted, "receipts[0]", StringComparison.Ordinal))
+                    continue;
                 HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(rejected, call, out rejected, out _));
             }
         }
@@ -129,12 +130,12 @@ internal static unsafe class M09004EfiIntegrationTests
         string realtimeParent = project.Descendants("Error").Single(element =>
             element.Attribute("Text")?.Value == "realtime_rejection_requires_web_profile").Attribute("Condition")!.Value;
         HostCheck.Equal("('$(EnableM16019UnavailableProbe)' == 'true' or '$(EnableM16019InvalidProbe)' == 'true') and '$(EnableM10004Probe)' != 'true'", realtimeParent);
-        foreach(var expected in new (string Name,string Condition)[]{
+        foreach (var expected in new (string Name, string Condition)[]{
             ("disk_static_full_parent_required","'$(EnableM10018FullProbe)' == 'true' and '$(EnableM10018Probe)' != 'true'"),
             ("disk_static_prerequisite_missing","'$(EnableM10018Probe)' == 'true' and ('$(EnableM16025Probe)' != 'true' or '$(EnableM10004Probe)' != 'true')"),
             ("disk_read_prerequisite_missing","'$(EnableM16025Probe)' == 'true' and ('$(EnableM16023Probe)' != 'true' or '$(EnableM16024Probe)' != 'true' or '$(EnableM16012Probe)' != 'true')"),
             ("disk_read_requires_combined_profile","('$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true') and '$(EnableM16025Probe)' != 'true'")})
-            HostCheck.Equal(expected.Condition,project.Descendants("Error").Single(e=>e.Attribute("Text")?.Value==expected.Name).Attribute("Condition")!.Value);
+            HostCheck.Equal(expected.Condition, project.Descendants("Error").Single(e => e.Attribute("Text")?.Value == expected.Name).Attribute("Condition")!.Value);
         string ExclusionName(string name) => name switch
         {
             "EnableM16013Probe" or "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" => "EnableM16012Probe",
@@ -169,11 +170,13 @@ internal static unsafe class M09004EfiIntegrationTests
         for (int row = 3; row < 20; row++)
             for (int field = 1; field <= 4; field++)
             {
-                string[] changed = (string[])rows.Clone(); string[] values = changed[row].Split(' ');
+                string[] changed = (string[])rows.Clone();
+                string[] values = changed[row].Split(' ');
                 ulong value = Convert.ToUInt64(values[field][2..], 16);
                 // The original captured stack is unconstrained apart from ABI alignment;
                 // changing only it still disagrees with the later restoration witness.
-                values[field] = "0x" + (value + 1).ToString("x16"); changed[row] = string.Join(' ', values);
+                values[field] = "0x" + (value + 1).ToString("x16");
+                changed[row] = string.Join(' ', values);
                 Reject(() => QemuTranscripts.ValidateCooperativeTail(changed));
             }
     }
@@ -185,9 +188,12 @@ internal static unsafe class M09004EfiIntegrationTests
         foreach (int row in new[] { 2, 20, 21 })
             for (int field = 1; field <= 4; field++)
             {
-                string[] changed = (string[])rows.Clone(); string[] values = changed[row].Split(' ');
-                values[field] = "0x0000000000000000"; changed[row] = string.Join(' ', values);
-                if (changed[row] != rows[row]) Reject(() => QemuTranscripts.ValidateCooperativeTail(changed));
+                string[] changed = (string[])rows.Clone();
+                string[] values = changed[row].Split(' ');
+                values[field] = "0x0000000000000000";
+                changed[row] = string.Join(' ', values);
+                if (changed[row] != rows[row])
+                    Reject(() => QemuTranscripts.ValidateCooperativeTail(changed));
             }
         for (int row = 1; row < rows.Length; row++)
         {
@@ -196,7 +202,8 @@ internal static unsafe class M09004EfiIntegrationTests
             string[] duplicated = rows.Take(row).Concat(new[] { rows[row] }).Concat(rows.Skip(row)).ToArray();
             Reject(() => QemuTranscripts.ValidateCooperativeTail(duplicated));
         }
-        string[] reordered = (string[])rows.Clone(); (reordered[21], reordered[22]) = (reordered[22], reordered[21]);
+        string[] reordered = (string[])rows.Clone();
+        (reordered[21], reordered[22]) = (reordered[22], reordered[21]);
         Reject(() => QemuTranscripts.ValidateCooperativeTail(reordered));
         Reject(() => QemuTranscripts.ValidateCooperativeTail(new[] { "CLROS_M09_004_READY" }.Concat(rows).ToArray()));
     }
@@ -216,7 +223,9 @@ internal static unsafe class M09004EfiIntegrationTests
         }
         rows.Add(Row("RESTORE", 0xffff, 2, originalRsp, pool + 26));
         rows.Add(Row("CLEANUP", 32, 0, 1, 81920));
-        rows.Add("CLROS_M09_004_READY"); rows.Add("TEST_PASS m09.004"); return rows.ToArray();
+        rows.Add("CLROS_M09_004_READY");
+        rows.Add("TEST_PASS m09.004");
+        return rows.ToArray();
     }
 
     private static string Row(string marker, params ulong[] values) => "M09_004_" + marker + " " +
@@ -225,7 +234,11 @@ internal static unsafe class M09004EfiIntegrationTests
     private static void Reject(Action action)
     {
         bool rejected = false;
-        try { action(); } catch (ToolFailure) { rejected = true; }
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected);
     }
 }

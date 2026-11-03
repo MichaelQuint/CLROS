@@ -5,31 +5,42 @@ using OS.Runtime;
 
 internal static unsafe class FinallyAdmissionCoreProgram
 {
-    private static void Need(bool ok, string reason) { if (!ok) throw new InvalidOperationException(reason); }
+    private static void Need(bool ok, string reason)
+    {
+        if (!ok)
+            throw new InvalidOperationException(reason);
+    }
     private static int Main()
     {
         Run("complete saved contexts", Contexts);
         Run("measured throwing and parent frames", Frames);
         Run("control fields and allowed status flags", Controls);
         Run("measured nested clause pair", Clauses);
-        Console.WriteLine("FINALLY_ADMISSION_CORE_PASS"); return 0;
+        Console.WriteLine("FINALLY_ADMISSION_CORE_PASS");
+        return 0;
     }
     private static void Run(string name, Action test)
     {
         Console.WriteLine("TEST_START finally.admission " + name);
-        try { test(); Console.WriteLine("TEST_PASS finally.admission " + name); }
+        try
+        {
+            test();
+            Console.WriteLine("TEST_PASS finally.admission " + name);
+        }
         catch (Exception ex) { Console.WriteLine("TEST_FAIL finally.admission " + name + " " + ex); throw; }
     }
     private static void Contexts()
     {
         Need(sizeof(X64UnwindContext) == 240, "actual complete context ABI");
         X64UnwindContext saved = default;
-        for (int i = 0; i < 30; i++) ((ulong*)&saved)[i] = 0x1000UL + (ulong)(17 * i);
+        for (int i = 0; i < 30; i++)
+            ((ulong*)&saved)[i] = 0x1000UL + (ulong)(17 * i);
         X64UnwindContext actual = saved;
         Need(SingleFinallyAdmission.ContextsMatch(&actual, &saved, false), "exact transfer context");
         for (int i = 0; i < 30; i++)
         {
-            actual = saved; ((ulong*)&actual)[i] ^= 1;
+            actual = saved;
+            ((ulong*)&actual)[i] ^= 1;
             Need(!SingleFinallyAdmission.ContextsMatch(&actual, &saved, false), "changed transfer word " + i);
             Need(SingleFinallyAdmission.ContextsMatch(&actual, &saved, true) == (i is 0 or 2), "post-catch word " + i);
         }
@@ -59,7 +70,8 @@ internal static unsafe class FinallyAdmissionCoreProgram
             Need(!SingleFinallyAdmission.ControlsMatch(entry, bad, entry), "invalid or changed post controls");
         foreach (var changed in new[] { Control(flags: 0x203), Control(cr4: 0x621), Control(mxcsr: 0x1F81), Control(x87: 0x27F) })
             Need(!SingleFinallyAdmission.ControlsMatch(changed, changed, entry), "entry snapshot mutation");
-        var df = Control(flags: 0x602); var cet = Control(cr4: 0x800620);
+        var df = Control(flags: 0x602);
+        var cet = Control(cr4: 0x800620);
         Need(!SingleFinallyAdmission.ControlsMatch(df, df, df) && !SingleFinallyAdmission.ControlsMatch(cet, cet, cet),
             "forbidden entry state even when snapshots agree");
     }
@@ -77,7 +89,8 @@ internal static unsafe class FinallyAdmissionCoreProgram
     {
         // Model actual parser results from the measured 11-byte table. This
         // exercises admission policy, not module authentication or the parser.
-        var cleanup = Clause(true); var caught = Clause(false);
+        var cleanup = Clause(true);
+        var caught = Clause(false);
         bool Catch(NativeAotEhClauseResult c, ulong root = 0x100000, ulong type = 0x200000, uint pc = 31) =>
             SingleFinallyAdmission.AcceptCatch(c, root, type, pc);
         bool Pair(NativeAotEhClauseResult c, NativeAotEhClauseResult handler) =>
@@ -91,7 +104,8 @@ internal static unsafe class FinallyAdmissionCoreProgram
             Clause(true, end: 47), Clause(true, kind: NativeAotEhClauseKind.Typed), Clause(true, handler: 0x100048),
             Clause(true, filter: 1), Clause(true, type: 0x200000), Clause(true, boundary: true) })
             Need(!Pair(bad, caught), "invalid cleanup/order/extent/target");
-        foreach (uint pc in new uint[] { 0, 27, 30, 32, 33, 47, uint.MaxValue }) Need(!Catch(caught, pc: pc), "wrong protected PC");
+        foreach (uint pc in new uint[] { 0, 27, 30, 32, 33, 47, uint.MaxValue })
+            Need(!Catch(caught, pc: pc), "wrong protected PC");
         Need(!Catch(caught, root: 0) && !Catch(caught, root: ulong.MaxValue - 50) && !Catch(caught, type: 0),
             "null authority or wrapped contribution rejected");
     }

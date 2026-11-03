@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotLogUploadContract
 {
     /// <summary>Expected bytes/digests computed by this host inspector, not

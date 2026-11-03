@@ -126,7 +126,7 @@ internal static partial class M01InstructionPublicationEfiEntryTests
         string query = FindMethodBody(adapter, "Query") ?? string.Empty;
         // First exit retains the two stage-one publications and adds one each
         // for the architectural query and final retained code bundle.
-        if (CountDirectSerializerCalls(disabled) != 2 || CountIdentifierOccurrences(disabled, "M03FirstExitAdapter") != 0 || CountDirectSerializerCalls(enabled) != 4 || CountDirectExpectedCookieReferences(enabled) != 4 || CountDirectSerializerCalls(adapter) != 2 || CountDirectSerializerCalls(prepare) != 1 || CountDirectExpectedCookieReferences(prepare) != 1 || CountDirectSerializerCalls(query) != 1 || CountDirectExpectedCookieReferences(query) != 1 || FindTypeBody(enabled, "M01StageThreeAdapter")is not null)
+        if (CountDirectSerializerCalls(disabled) != 2 || CountIdentifierOccurrences(disabled, "M03FirstExitAdapter") != 0 || CountDirectSerializerCalls(enabled) != 4 || CountDirectExpectedCookieReferences(enabled) != 4 || CountDirectSerializerCalls(adapter) != 2 || CountDirectSerializerCalls(prepare) != 1 || CountDirectExpectedCookieReferences(prepare) != 1 || CountDirectSerializerCalls(query) != 1 || CountDirectExpectedCookieReferences(query) != 1 || FindTypeBody(enabled, "M01StageThreeAdapter") is not null)
             return Failure("first-exit-publication-isolation");
         string synthetic = "#if " + FirstExitSymbol + "\n" + SerializerCall + ";\n#else\nFirstExitOff();\n#endif\n" + "#if UNRELATED_PROBE\nUnknown();\n#else\nUnknownElse();\n#endif\n" + "#if M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE\nOwnedOnly();\n" + "#elif M03_FIRMWARE_ADAPTER_REVOCATION_PROBE\nRevocationOnly();\n" + "#else\nOwnedOff();\n#endif\n" + "#if M03_OWNED_SUBSYSTEM_PANIC_PROBE\nOwnedPanicOnly();\n#endif\n";
         string selected = SelectProfile(synthetic, true, true, false, false, firstExitEnabled: true);
@@ -1213,7 +1213,10 @@ internal static partial class M01InstructionPublicationEfiEntryTests
                 if (frame.SeenElse || frame.SeenOwnedRevocation)
                     throw new InvalidOperationException("Invalid owned revocation branch.");
                 // Both children are disabled in this existing first-exit profile.
-                stack.Push(frame with { SeenOwnedRevocation = true });
+                stack.Push(frame with
+                {
+                    SeenOwnedRevocation = true
+                });
                 emit = false;
                 continue;
             }
@@ -1458,7 +1461,7 @@ internal static partial class M01InstructionPublicationEfiEntryTests
             }
         }
 
-        return new string (result);
+        return new string(result);
     }
 
     private static string Compact(string source)
@@ -1632,7 +1635,7 @@ internal static partial class M01InstructionPublicationEfiEntryTests
             }
         }
 
-        return new string (result);
+        return new string(result);
     }
 
     private static string ReadStageThreeLine(int lineIndex)

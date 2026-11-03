@@ -18,6 +18,9 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             Code = code;
         }
 
-        public string Code { get; }
+        public string Code
+        {
+            get;
+        }
     }
 }

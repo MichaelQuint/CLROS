@@ -17,216 +17,6 @@ using OS.Kernel.Memory;
 using OS.Kernel.Runtime;
 using OS.Runtime;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 internal static partial class M04ArrayAllocationEfiIntegrationTests
 {
@@ -325,11 +115,11 @@ internal static partial class M04ArrayAllocationEfiIntegrationTests
     private static void TestTranscript()
     {
         string root = HostToolProcess.FindRepositoryRoot(), directory = Scratch(root, "transcript");
-        Result dry = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..Chain.Append(Flag).Select(x => "-" + x)]);
+        Result dry = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", .. Chain.Append(Flag).Select(x => "-" + x)]);
         Save(Path.Combine(directory, "dryrun"), dry);
         Need(dry.Code == 0, dry.Output);
         string[] chain = dry.Output.Replace("\r", "").Split('\n').Single(x => x.StartsWith("ORDERED_MARKERS ", StringComparison.Ordinal))[16..].Split(';');
-        List<string> lines = ["TEST_START efi.main", ..chain.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", ..chain.Skip(6)];
+        List<string> lines = ["TEST_START efi.main", .. chain.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", .. chain.Skip(6)];
         const string identity = "allocatorState=0x0000000000100000 nodes=0x0000000000100040 heapState=0x0000000000101000 ledger=0x0000000000102000 parentIndex=4 parentStart=0x0000000000900000 parentEnd=0x0000000000902000 backing=0x0000000000900000 retainedStart=0x0000000000900000 retainedEnd=0x0000000000901000";
         lines[lines.IndexOf("M04_HEAP_PAGE_BOUND")] += " " + identity;
         lines[lines.IndexOf("M04_HEAP_PAGE_RETAINED")] += " checkpoint=beforeBootPlan " + identity;
@@ -397,7 +187,7 @@ internal static partial class M04ArrayAllocationEfiIntegrationTests
             cases.Add((good + tail, false));
         cases.Add((good.Replace("\r\n", "\n", StringComparison.Ordinal), false));
         cases.Add((good[..^1], false));
-        foreach ((string from, string to)in new[]
+        foreach ((string from, string to) in new[]
         {
             ("scalarWidth=1", "scalarWidth=8"),
             ("length=3", "length=2"),
@@ -452,12 +242,12 @@ internal static partial class M04ArrayAllocationEfiIntegrationTests
         string root = HostToolProcess.FindRepositoryRoot(), directory = Scratch(root, "profiles");
         string before = "EnableM04SzArrayAllocationBeforeBindProbe", exhaust = "EnableM04SzArrayAllocationExhaustionProbe";
         string[] all = Chain.Append(Flag).ToArray();
-        string[] conflicts = ["EnableM01OwnedPagingProbe", ..XDocument.Load(Path.Combine(root, "src/OS/OS.csproj")).Descendants().Where(x => x.Name.LocalName.StartsWith("EnableM02", StringComparison.Ordinal)).Select(x => x.Name.LocalName).Distinct(StringComparer.Ordinal), "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM04RhpNewFastBeforeBindFailureProbe", "EnableM04RhpNewFastExhaustionFailureProbe", "EnableM03MemoryMapCaptureProbe", "EnableM04CheckedReferenceBarrierProbe", "EnableM03FirmwareEntropySeedProbe", "EnableM04TypeManagerModuleRegistrationProbe"];
+        string[] conflicts = ["EnableM01OwnedPagingProbe", .. XDocument.Load(Path.Combine(root, "src/OS/OS.csproj")).Descendants().Where(x => x.Name.LocalName.StartsWith("EnableM02", StringComparison.Ordinal)).Select(x => x.Name.LocalName).Distinct(StringComparer.Ordinal), "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM04RhpNewFastBeforeBindFailureProbe", "EnableM04RhpNewFastExhaustionFailureProbe", "EnableM03MemoryMapCaptureProbe", "EnableM04CheckedReferenceBarrierProbe", "EnableM03FirmwareEntropySeedProbe", "EnableM04TypeManagerModuleRegistrationProbe"];
         Need(OS.Tooling.ContractAudit.Inspect(root).Count == 0, "complete independent compiler/link/profile identity");
         Need(Chain.Length != 0 && Chain.Distinct(StringComparer.Ordinal).Count() == Chain.Length
             && conflicts.Length != 0 && conflicts.Distinct(StringComparer.Ordinal).Count() == conflicts.Length,
             "nonempty unique prerequisite and conflict vectors");
-        List<string[]> invalid = [..Chain.Select(missing => all.Where(x => x != missing).ToArray()), ..conflicts.Select(x => all.Append(x).ToArray()), [before], [exhaust], [..all, before, exhaust]];
+        List<string[]> invalid = [.. Chain.Select(missing => all.Where(x => x != missing).ToArray()), .. conflicts.Select(x => all.Append(x).ToArray()), [before], [exhaust], [.. all, before, exhaust]];
         int id = 0;
         foreach (string[] flags in invalid)
             foreach (bool runner in new[]
@@ -468,7 +258,7 @@ internal static partial class M04ArrayAllocationEfiIntegrationTests
 
             )
             {
-                Result r = Command([..(runner ? new[] { "qemu", "smoke" } : new[] { "efi", "build" }), ..(runner ? new[] { "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi" } : new[] { "-PreflightOnly", "-LogPath", Path.Combine(directory, "preflight-" + id + ".log") }), ..flags.Select(x => "-" + x)]);
+                Result r = Command([.. (runner ? new[] { "qemu", "smoke" } : new[] { "efi", "build" }), .. (runner ? new[] { "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi" } : new[] { "-PreflightOnly", "-LogPath", Path.Combine(directory, "preflight-" + id + ".log") }), .. flags.Select(x => "-" + x)]);
                 Save(Path.Combine(directory, (id++).ToString()), r);
                 Need(r.Code != 0 && (r.Output.Contains("m04_", StringComparison.Ordinal) || (flags.Contains("EnableM03FirmwareEntropySeedProbe", StringComparer.Ordinal) && r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LoadedImageStackProbe", StringComparison.Ordinal)) || (flags.Contains("EnableM03MemoryMapCaptureProbe", StringComparer.Ordinal) && r.Output.Contains("m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe", StringComparison.Ordinal))), "explicit profile rejection " + string.Join(',', flags) + " " + r.Output);
             }
@@ -482,7 +272,7 @@ internal static partial class M04ArrayAllocationEfiIntegrationTests
 
         )
         {
-            Result r = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..flags.Select(x => "-" + x)]);
+            Result r = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", .. flags.Select(x => "-" + x)]);
             Save(Path.Combine(directory, (id++).ToString()), r);
             Need(r.Code == 0, r.Output);
             Need(r.Output.Contains("TEST_FAIL m04.008.sz_array", StringComparison.Ordinal), "negative profile does not weaken generic failure inventory");
@@ -505,7 +295,7 @@ internal static partial class M04ArrayAllocationEfiIntegrationTests
         )
         {
             string directory = Scratch(root, "artifact-" + lane.Item1), artifact = Path.Combine(root, "artifacts/efi/issue523-tests-" + Guid.NewGuid().ToString("N") + ".EFI");
-            Result r = Command(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), ..lane.Item2.Select(x => "-" + x)]);
+            Result r = Command(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), .. lane.Item2.Select(x => "-" + x)]);
             Save(directory, r);
             Need(r.Code == 0 && r.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), r.Output);
             foreach (string suffix in new[]
@@ -615,7 +405,14 @@ internal static partial class M04ArrayAllocationEfiIntegrationTests
             Need(exports == 1, "sole RuntimeExport payload " + name);
             byte[] il = pe.GetMethodBody(method.RelativeVirtualAddress).GetILBytes()!;
             Need(il.Length > 0, "initialized IL body");
-            evidence.Add(new { Name = name, Rva = method.RelativeVirtualAddress, Signature = Convert.ToHexString(md.GetBlobBytes(method.Signature)), IL = Convert.ToHexString(il), ExportPayloads = exports });
+            evidence.Add(new
+            {
+                Name = name,
+                Rva = method.RelativeVirtualAddress,
+                Signature = Convert.ToHexString(md.GetBlobBytes(method.Signature)),
+                IL = Convert.ToHexString(il),
+                ExportPayloads = exports
+            });
         }
 
         var array = md.GetTypeDefinition(md.TypeDefinitions.Single(h => FullType(h) == "System.Array"));
@@ -649,11 +446,25 @@ internal static partial class M04ArrayAllocationEfiIntegrationTests
                 string expected = name.StartsWith("New", StringComparison.Ordinal) ? "newarr" : name.EndsWith("Length", StringComparison.Ordinal) ? "ldlen" : name == "StoreByte" ? "stelem.i1" : name == "StoreLong" ? "stelem.i8" : name == "ReadByte" ? "ldelem.u1" : name == "ReadLong" ? "ldelem.i8" : "";
                 if (expected.Length != 0)
                     Need(instructions.Any(x => x.Name == expected), "genuine compiler IL " + name);
-                evidence.Add(new { Name = name, Rva = m.RelativeVirtualAddress, IL = Convert.ToHexString(il), Instructions = instructions });
+                evidence.Add(new
+                {
+                    Name = name,
+                    Rva = m.RelativeVirtualAddress,
+                    IL = Convert.ToHexString(il),
+                    Instructions = instructions
+                });
             }
         }
 
-        File.WriteAllText(Path.Combine(directory, "managed-array-metadata.json"), System.Text.Json.JsonSerializer.Serialize(new { Assembly = "OS", AssemblyReferences = 0, Enabled = enabled, Mvid = md.GetGuid(md.GetModuleDefinition().Mvid), Methods = evidence, GuestAccepted = false }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(directory, "managed-array-metadata.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Assembly = "OS",
+            AssemblyReferences = 0,
+            Enabled = enabled,
+            Mvid = md.GetGuid(md.GetModuleDefinition().Mvid),
+            Methods = evidence,
+            GuestAccepted = false
+        }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
     }
 
     private static IlInstruction[] DecodeIl(byte[] bytes)
@@ -693,7 +504,7 @@ internal static partial class M04ArrayAllocationEfiIntegrationTests
         byte[] image = File.ReadAllBytes(Path.Combine(directory, "image.EFI"));
         using var reader = new PEReader(new MemoryStream(image));
         var header = reader.PEHeaders.PEHeader!;
-        Need(header.Magic == PEMagic.PE32Plus && reader.PEHeaders.SectionHeaders.Length is> 0 and <= 8, "bounded x64 image sections");
+        Need(header.Magic == PEMagic.PE32Plus && reader.PEHeaders.SectionHeaders.Length is > 0 and <= 8, "bounded x64 image sections");
         byte[] At(ulong rva, int bytes)
         {
             var sections = reader.PEHeaders.SectionHeaders.Where(s => s.VirtualAddress >= 0 && s.VirtualSize >= 0 && s.SizeOfRawData >= 0 && rva >= (ulong)s.VirtualAddress && rva + (ulong)bytes <= (ulong)s.VirtualAddress + (ulong)s.VirtualSize && rva + (ulong)bytes <= (ulong)s.VirtualAddress + (ulong)s.SizeOfRawData).ToArray();
@@ -707,7 +518,11 @@ internal static partial class M04ArrayAllocationEfiIntegrationTests
         Result dis = Process(root, llvm, ["--disassemble", "--reloc", "--x86-asm-syntax=intel", Path.Combine(directory, "OS.obj")]);
         Save(Path.Combine(directory, "disassembly"), dis);
         Need(dis.Code == 0, dis.Output);
-        File.WriteAllText(Path.Combine(directory, "disassembler.json"), System.Text.Json.JsonSerializer.Serialize(new { Path = llvm, Sha256 = Hash(File.ReadAllBytes(llvm)) }));
+        File.WriteAllText(Path.Combine(directory, "disassembler.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Path = llvm,
+            Sha256 = Hash(File.ReadAllBytes(llvm))
+        }));
         string Body(string name)
         {
             var m = Regex.Match(dis.Output, @"^[0-9a-f]+ <" + Regex.Escape(name) + @">:\r?\n(.*?)(?=^[0-9a-f]+ <|\z)", RegexOptions.Multiline | RegexOptions.Singleline);
@@ -839,10 +654,30 @@ internal static partial class M04ArrayAllocationEfiIntegrationTests
                 Need(beforeBind && route.Item1 == "Longs", "only unreachable beforebind long caller may be removed");
             string exportBody = Body(route.Item4);
             Need(exportBody.Contains(prefix + "AllocateArray", StringComparison.Ordinal), "real leaf-bound export native route");
-            rows.Add(new { Kind = route.Item1, Caller = caller, CallerPresent = symbols.ContainsKey(caller), Export = route.Item4, ExportRva = symbols[route.Item4], MethodTable = mtName, MethodTableRva = mt, Element = elementName, ElementRva = element, Prefix = Convert.ToHexString(raw), ElementPrefix = Convert.ToHexString(ep), Dir64Rva = mt + 8 });
+            rows.Add(new
+            {
+                Kind = route.Item1,
+                Caller = caller,
+                CallerPresent = symbols.ContainsKey(caller),
+                Export = route.Item4,
+                ExportRva = symbols[route.Item4],
+                MethodTable = mtName,
+                MethodTableRva = mt,
+                Element = elementName,
+                ElementRva = element,
+                Prefix = Convert.ToHexString(raw),
+                ElementPrefix = Convert.ToHexString(ep),
+                Dir64Rva = mt + 8
+            });
         }
 
-        File.WriteAllText(Path.Combine(directory, "linked-array-routes.json"), System.Text.Json.JsonSerializer.Serialize(new { PreferredBase = header.ImageBase, Rows = rows, BeforeBind = beforeBind, GuestAccepted = false }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(directory, "linked-array-routes.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            PreferredBase = header.ImageBase,
+            Rows = rows,
+            BeforeBind = beforeBind,
+            GuestAccepted = false
+        }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
     }
 
     private static string Between(string text, string start, string end)

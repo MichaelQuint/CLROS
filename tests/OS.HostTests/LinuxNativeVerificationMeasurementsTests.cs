@@ -24,29 +24,60 @@ internal static class LinuxNativeVerificationMeasurementsTests
     private static void Lifetime()
     {
         Measurements m = default;
-        HostCheck.True(!m.Begin(0) && !m.Arm(0)); Rejected(m);
-        m = default; HostCheck.True(!m.End(0)); Rejected(m);
-        m = default; HostCheck.True(m.Arm(0) && !m.Arm(0)); Rejected(m);
-        m = default; HostCheck.True(m.Arm(0) && !m.End(0)); Rejected(m);
-        m = default; HostCheck.True(m.Arm(0) && m.Begin(1) && !m.Begin(2)); Rejected(m);
-        m = default; HostCheck.True(m.Arm(0) && m.Begin(1) && !m.Freeze(2)); Rejected(m);
-        m = default; HostCheck.True(m.Arm(0) && m.Freeze(0) && !m.Begin(1)); Rejected(m);
-        m = default; HostCheck.True(m.Arm(0)); m.Invalidate(); HostCheck.True(!m.Freeze(1)); Rejected(m);
+        HostCheck.True(!m.Begin(0) && !m.Arm(0));
+        Rejected(m);
+        m = default;
+        HostCheck.True(!m.End(0));
+        Rejected(m);
+        m = default;
+        HostCheck.True(m.Arm(0) && !m.Arm(0));
+        Rejected(m);
+        m = default;
+        HostCheck.True(m.Arm(0) && !m.End(0));
+        Rejected(m);
+        m = default;
+        HostCheck.True(m.Arm(0) && m.Begin(1) && !m.Begin(2));
+        Rejected(m);
+        m = default;
+        HostCheck.True(m.Arm(0) && m.Begin(1) && !m.Freeze(2));
+        Rejected(m);
+        m = default;
+        HostCheck.True(m.Arm(0) && m.Freeze(0) && !m.Begin(1));
+        Rejected(m);
+        m = default;
+        HostCheck.True(m.Arm(0));
+        m.Invalidate();
+        HostCheck.True(!m.Freeze(1));
+        Rejected(m);
     }
 
     [HostTest("verification timing rejects regressing clocks and checked count time and phase overflow")]
     private static void Bounds()
     {
         Measurements m = default;
-        HostCheck.True(m.Arm(100) && !m.Begin(99)); Rejected(m);
-        m = default; HostCheck.True(m.Arm(100) && m.Begin(110) && !m.End(109)); Rejected(m);
-        m = default; HostCheck.True(m.Arm(100) && !m.Freeze(99)); Rejected(m);
-        m = default; HostCheck.True(m.Arm(0) && m.Begin(0));
-        Calls(ref m) = ulong.MaxValue; HostCheck.True(!m.End(0)); Rejected(m);
-        m = default; HostCheck.True(m.Arm(0) && m.Begin(0));
-        Elapsed(ref m) = ulong.MaxValue; HostCheck.True(!m.End(1)); Rejected(m);
-        m = default; HostCheck.True(m.Arm(100) && m.Begin(100));
-        Elapsed(ref m) = 9; HostCheck.True(!m.End(101)); Rejected(m);
+        HostCheck.True(m.Arm(100) && !m.Begin(99));
+        Rejected(m);
+        m = default;
+        HostCheck.True(m.Arm(100) && m.Begin(110) && !m.End(109));
+        Rejected(m);
+        m = default;
+        HostCheck.True(m.Arm(100) && !m.Freeze(99));
+        Rejected(m);
+        m = default;
+        HostCheck.True(m.Arm(0) && m.Begin(0));
+        Calls(ref m) = ulong.MaxValue;
+        HostCheck.True(!m.End(0));
+        Rejected(m);
+        m = default;
+        HostCheck.True(m.Arm(0) && m.Begin(0));
+        Elapsed(ref m) = ulong.MaxValue;
+        HostCheck.True(!m.End(1));
+        Rejected(m);
+        m = default;
+        HostCheck.True(m.Arm(100) && m.Begin(100));
+        Elapsed(ref m) = 9;
+        HostCheck.True(!m.End(101));
+        Rejected(m);
     }
 
     [HostTest("verification aggregate parser binds exact phase and rejects missing duplicate malformed or excessive totals")]
@@ -63,7 +94,10 @@ internal static class LinuxNativeVerificationMeasurementsTests
             row.Replace("calls=3", "calls=18446744073709551616"), row.Replace("calls=3", "calls=3 calls=3") })
         {
             bool rejected = false;
-            try { _ = NativeAotDiskTimingPeer.InspectVerificationMetrics(invalid, phase); }
+            try
+            {
+                _ = NativeAotDiskTimingPeer.InspectVerificationMetrics(invalid, phase);
+            }
             catch (ToolFailure) { rejected = true; }
             HostCheck.True(rejected, invalid);
         }

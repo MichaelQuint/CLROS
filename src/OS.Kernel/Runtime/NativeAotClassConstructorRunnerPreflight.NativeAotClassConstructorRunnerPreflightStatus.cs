@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
+
 public enum NativeAotClassConstructorRunnerPreflightStatus
 {
     Ready = 0,

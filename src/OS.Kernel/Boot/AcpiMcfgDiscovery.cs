@@ -3,6 +3,7 @@ using OS.Kernel.Platform;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public static class AcpiMcfgDiscovery
 {
     public static AcpiMcfgPhysicalDiscoveryResult TryDiscoverFromRootSdtSnapshot(AcpiRootSdtSnapshotResult rootSdtSnapshot, ReadOnlySpan<byte> rootSdtTable, IPlatformPhysicalMemory physicalMemory, Span<ulong> pointerScratch, Span<byte> childHeaderScratch, Span<byte> childTableDestination, Span<PciEcamSegment> destination)

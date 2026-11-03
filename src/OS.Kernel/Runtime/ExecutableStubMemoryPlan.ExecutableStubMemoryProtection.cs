@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 [Flags]
 public enum ExecutableStubMemoryProtection : byte
 {

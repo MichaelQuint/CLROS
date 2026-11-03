@@ -284,7 +284,7 @@ public static partial class LinuxThreadProofFixture
         if (c.Position > FailureOffset)
             throw new ToolFailure("m16_008_fixture_child_capacity");
         WriteFailure(elf);
-        ulong[] parent = [..p.Rips.Take(9), ..Enumerable.Range(0, ReuseCycles).SelectMany(_ => p.Rips.Skip(9).Take(10)), ..p.Rips.Skip(19)];
+        ulong[] parent = [.. p.Rips.Take(9), .. Enumerable.Range(0, ReuseCycles).SelectMany(_ => p.Rips.Skip(9).Take(10)), .. p.Rips.Skip(19)];
         ulong[] children = Enumerable.Range(0, ReuseCycles).SelectMany(_ => c.Rips).ToArray();
         return (elf, parent, children, clone);
     }

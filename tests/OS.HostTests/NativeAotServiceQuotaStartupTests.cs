@@ -37,10 +37,12 @@ internal static class NativeAotServiceQuotaStartupTests
             HostCheck.True(!text.Contains(secret, StringComparison.Ordinal));
         }
         Exception chain = new IOException(secret);
-        for (int i = 1; i < 8; i++) chain = new IOException(secret, chain);
+        for (int i = 1; i < 8; i++)
+            chain = new IOException(secret, chain);
         string exact = NativeAotServiceQuotaPeer.DescribeFailure(chain);
         string[] exactRows = exact.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-        HostCheck.Equal(8, exactRows.Length); HostCheck.True(!exact.Contains("truncated", StringComparison.Ordinal));
+        HostCheck.Equal(8, exactRows.Length);
+        HostCheck.True(!exact.Contains("truncated", StringComparison.Ordinal));
         Exception? item = chain;
         for (int i = 0; i < 8; i++, item = item!.InnerException)
             HostCheck.Equal(Line(i, i - 1, item!)[..^2], exactRows[i]);
@@ -53,7 +55,8 @@ internal static class NativeAotServiceQuotaStartupTests
         string[] wideRows = wideText.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         HostCheck.Equal(9, wideRows.Length);
         HostCheck.Equal(Line(0, -1, wide)[..^2], wideRows[0]);
-        for (int i = 1; i < 8; i++) HostCheck.Equal(Line(i, 0, wide.InnerExceptions[i - 1])[..^2], wideRows[i]);
+        for (int i = 1; i < 8; i++)
+            HostCheck.Equal(Line(i, 0, wide.InnerExceptions[i - 1])[..^2], wideRows[i]);
         HostCheck.Equal("QUOTA_PEER_ERROR truncated=true", wideRows[^1]);
     }
 
@@ -65,13 +68,16 @@ internal static class NativeAotServiceQuotaStartupTests
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
-        using var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
         int port = ((IPEndPoint)listener.LocalEndpoint).Port;
         byte[] truncated = "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nx"u8.ToArray();
         byte[] healthy = Response("CLROS_SERVICE_HEALTH_OK");
         byte[] invalid = Response("CLROS_LIFECYCLE_STATUS active=1 waiting=0 waits=0 canceled=0 echoes=0 streams=0 rejected=0 read=0 written=0");
-        var requests = new List<byte[]>(); int served = 0, callbacks = 0;
-        NativeAotServiceQuotaPeer.WireTrace? snapshot = null; string? refusal = null;
+        var requests = new List<byte[]>();
+        int served = 0, callbacks = 0;
+        NativeAotServiceQuotaPeer.WireTrace? snapshot = null;
+        string? refusal = null;
         var serving = Serve();
         async Task Serve()
         {
@@ -79,7 +85,8 @@ internal static class NativeAotServiceQuotaStartupTests
             {
                 NetworkStream firstStream = first.GetStream();
                 requests.Add(await Headers(firstStream, stop.Token));
-                await firstStream.WriteAsync(truncated, stop.Token); served++;
+                await firstStream.WriteAsync(truncated, stop.Token);
+                served++;
                 // Actual incomplete body EOF cannot become a complete health response.
                 // A fresh logical retry must open another observed connection.
                 first.Client.Shutdown(SocketShutdown.Send);
@@ -90,7 +97,8 @@ internal static class NativeAotServiceQuotaStartupTests
             foreach (byte[] response in new[] { healthy, invalid })
             {
                 requests.Add(await Headers(secondStream, stop.Token));
-                await secondStream.WriteAsync(response, stop.Token); served++;
+                await secondStream.WriteAsync(response, stop.Token);
+                served++;
             }
             HostCheck.Equal(0, await secondStream.ReadAsync(new byte[1], stop.Token));
         }
@@ -110,8 +118,12 @@ internal static class NativeAotServiceQuotaStartupTests
         }
         finally
         {
-            stop.Cancel(); listener.Stop();
-            try { await serving.WaitAsync(TimeSpan.FromSeconds(5)); }
+            stop.Cancel();
+            listener.Stop();
+            try
+            {
+                await serving.WaitAsync(TimeSpan.FromSeconds(5));
+            }
             catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
             catch (SocketException) when (stop.IsCancellationRequested) { }
             catch (ObjectDisposedException) when (stop.IsCancellationRequested) { }
@@ -149,11 +161,14 @@ internal static class NativeAotServiceQuotaStartupTests
 
     private static async Task<byte[]> Headers(NetworkStream stream, CancellationToken token)
     {
-        using var bytes = new MemoryStream(); byte[] one = new byte[1];
+        using var bytes = new MemoryStream();
+        byte[] one = new byte[1];
         while (bytes.Length < 4096)
         {
-            HostCheck.Equal(1, await stream.ReadAsync(one, token)); bytes.WriteByte(one[0]);
-            if (bytes.Length >= 4 && bytes.GetBuffer().AsSpan((int)bytes.Length - 4, 4).SequenceEqual("\r\n\r\n"u8)) return bytes.ToArray();
+            HostCheck.Equal(1, await stream.ReadAsync(one, token));
+            bytes.WriteByte(one[0]);
+            if (bytes.Length >= 4 && bytes.GetBuffer().AsSpan((int)bytes.Length - 4, 4).SequenceEqual("\r\n\r\n"u8))
+                return bytes.ToArray();
         }
         throw new InvalidDataException("startup fixture request header bound");
     }
@@ -207,7 +222,10 @@ internal static class NativeAotServiceQuotaStartupTests
             else
             {
                 bool refused = false;
-                try { _ = NativeAotServiceQuotaPeer.PressureErrorKindForTests(item.Error); }
+                try
+                {
+                    _ = NativeAotServiceQuotaPeer.PressureErrorKindForTests(item.Error);
+                }
                 catch (ToolFailure error) when (error.Reason == "quota_peer_pressure_error_kind") { refused = true; }
                 HostCheck.True(refused);
             }

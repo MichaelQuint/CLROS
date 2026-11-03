@@ -77,7 +77,18 @@ public static partial class NativeAotStaticFileContract
         string endpoint = "http://127.0.0.1:" + port;
         string executable = Path.Combine(destination, NativeAotStaticFilePublisher.Application, NativeAotStaticFilePublisher.Application);
         string[] arguments = ["-ff", "-yy", "-ttt", "-s", "256", "-o", Path.Combine(destination, "static-trace"), executable, "--urls", endpoint];
-        await File.WriteAllTextAsync(Path.Combine(destination, "static-command.json"), JsonSerializer.Serialize(new { executable = "setsid", arguments = new[] { "strace" }.Concat(arguments).ToArray(), workingDirectory = root, environment = new { CLROS_STATIC_FILES_PROFILE = "v1" }, endpoint, referenceRoot }));
+        await File.WriteAllTextAsync(Path.Combine(destination, "static-command.json"), JsonSerializer.Serialize(new
+        {
+            executable = "setsid",
+            arguments = new[] { "strace" }.Concat(arguments).ToArray(),
+            workingDirectory = root,
+            environment = new
+            {
+                CLROS_STATIC_FILES_PROFILE = "v1"
+            },
+            endpoint,
+            referenceRoot
+        }));
         List<Observation> observations = [];
         int requestId = -1;
         using var process = Start(arguments, root);
@@ -203,10 +214,10 @@ public static partial class NativeAotStaticFileContract
     {
         AuthorityFiles.RequirePlainPath(destination, destination, "static_files_evidence_path");
         string path = Path.Combine(destination, "static-receipt.json");
-        Need(new FileInfo(path).Length is> 0 and <= 4 * 1024 * 1024, "static_files_receipt_size");
+        Need(new FileInfo(path).Length is > 0 and <= 4 * 1024 * 1024, "static_files_receipt_size");
         var receipt = JsonSerializer.Deserialize<Receipt>(File.ReadAllText(path)) ?? throw new InvalidDataException("static_files_receipt_missing");
         Need(receipt.Schema == "clros.nativeaot.static-files.v1" && receipt.Sdk == NativeAotPayload.SdkVersion && receipt.Runtime == NativeAotPayload.RuntimeVersion, "static_files_receipt_pin");
-        Need(receipt.Sources.Count is> 0 and <= 10000 && receipt.Outputs.Count is> 0 and <= 10000, "static_files_receipt_inventory");
+        Need(receipt.Sources.Count is > 0 and <= 10000 && receipt.Outputs.Count is > 0 and <= 10000, "static_files_receipt_inventory");
         Need(NativeAotStaticFilePublisher.SourcePaths(root).SequenceEqual(receipt.Sources.Keys.Order(StringComparer.Ordinal)), "static_files_source_inventory");
         foreach (var source in receipt.Sources)
         {
@@ -236,7 +247,7 @@ public static partial class NativeAotStaticFileContract
 
     public static void ValidateNativeInputs(IReadOnlyDictionary<string, string> inputs)
     {
-        Need(inputs is not null && inputs.Count is> 0 and <= 10000, "static_files_native_inventory");
+        Need(inputs is not null && inputs.Count is > 0 and <= 10000, "static_files_native_inventory");
         foreach (var input in inputs!)
         {
             Need(Path.IsPathFullyQualified(input.Key), "static_files_native_path");
@@ -258,7 +269,7 @@ public static partial class NativeAotStaticFileContract
     private static string[] TraceSyscalls(string destination)
     {
         string[] files = Directory.GetFiles(destination, "static-trace.*");
-        Need(files.Length is> 0 and <= 256, "static_files_trace_inventory");
+        Need(files.Length is > 0 and <= 256, "static_files_trace_inventory");
         return files.SelectMany(File.ReadLines).Select(line => Regex.Match(line, @"(?:^|\s)([a-zA-Z_][a-zA-Z0-9_]*)\(")).Where(match => match.Success).Select(match => match.Groups[1].Value).Distinct().Order(StringComparer.Ordinal).ToArray();
     }
 

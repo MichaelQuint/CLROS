@@ -45,11 +45,17 @@ public unsafe struct LinuxAppLogQuotaObservation
     /// </summary>
     public bool Observe(uint stream, ulong identity, byte* source, uint count)
     {
-        if (failed) return false;
+        if (failed)
+            return false;
         if (stopped || records == LinuxAppLogBudget.QuotaRecordLimit || stream is not (1 or 2) || identity == 0 ||
             source == null || count is 0 or > LinuxAppLogBudget.MaximumRecordBytes ||
-            count > LinuxAppLogBudget.DefaultByteLimit - bytes || callBytes != 0) return Fail();
-        records++; bytes += count; callBytes = count; callStream = stream; callWriter = identity;
+            count > LinuxAppLogBudget.DefaultByteLimit - bytes || callBytes != 0)
+            return Fail();
+        records++;
+        bytes += count;
+        callBytes = count;
+        callStream = stream;
+        callWriter = identity;
         return catalog.Observe(stream, identity, source, count) || Fail();
     }
 
@@ -63,11 +69,17 @@ public unsafe struct LinuxAppLogQuotaObservation
     /// </summary>
     public bool Deny(uint stream, ulong identity, uint count, uint chargedRecords, uint chargedBytes)
     {
-        if (failed) return false;
+        if (failed)
+            return false;
         if (pendingDenial || callBytes != 0 || stream is not (1 or 2) || identity == 0 || count is 0 or > 8192 ||
             records != LinuxAppLogBudget.QuotaRecordLimit || chargedRecords != records || chargedBytes != bytes ||
-            catalog.StdoutRecords + catalog.StderrRecords == 0) return Fail();
-        pendingDenial = true; stopped = true; deniedStream = stream; deniedWriter = identity; deniedBytes = count;
+            catalog.StdoutRecords + catalog.StderrRecords == 0)
+            return Fail();
+        pendingDenial = true;
+        stopped = true;
+        deniedStream = stream;
+        deniedWriter = identity;
+        deniedBytes = count;
         return true;
     }
 
@@ -81,37 +93,55 @@ public unsafe struct LinuxAppLogQuotaObservation
     /// </summary>
     public bool RecordCall(ulong identity, LinuxSyscallFrame call, LinuxSyscallResult result)
     {
-        if (failed) return false;
-        if (identity == 0) return Fail();
+        if (failed)
+            return false;
+        if (identity == 0)
+            return Fail();
         bool output = call.Number is 1 or 20 && call.Argument0 is 1 or 2;
         if (callBytes != 0 && (!output || identity != callWriter || call.Argument0 != callStream ||
             result.Action != LinuxSyscallAction.Return || result.Value != callBytes ||
             call.Number == 1 && (call.Argument2 == 0 || call.Argument2 > LinuxDescriptorServices.MaximumIo ||
                 (call.Argument2 < LinuxAppLogBudget.MaximumRecordBytes ? call.Argument2 : LinuxAppLogBudget.MaximumRecordBytes) != callBytes) ||
-            call.Number == 20 && (call.Argument2 == 0 || call.Argument2 > LinuxDescriptorServices.MaximumVectors))) return Fail();
-        if (output && result.Action == LinuxSyscallAction.Return && result.Value > 0 && callBytes == 0) return Fail();
+            call.Number == 20 && (call.Argument2 == 0 || call.Argument2 > LinuxDescriptorServices.MaximumVectors)))
+            return Fail();
+        if (output && result.Action == LinuxSyscallAction.Return && result.Value > 0 && callBytes == 0)
+            return Fail();
         if (pendingDenial)
         {
             if (!output || identity != deniedWriter || call.Argument0 != deniedStream || result.Action != LinuxSyscallAction.Return ||
                 result.Value != -5 ||
                 call.Number == 1 && (call.Argument2 == 0 || call.Argument2 > LinuxDescriptorServices.MaximumIo ||
                     (call.Argument2 < LinuxAppLogBudget.MaximumRecordBytes ? call.Argument2 : LinuxAppLogBudget.MaximumRecordBytes) != deniedBytes) ||
-                call.Number == 20 && (call.Argument2 == 0 || call.Argument2 > LinuxDescriptorServices.MaximumVectors)) return Fail();
-            if (deniedCalls == uint.MaxValue || eioCalls == uint.MaxValue) return Fail();
-            deniedCalls++; eioCalls++;
-            pendingDenial = false; deniedWriter = 0; deniedStream = 0; deniedBytes = 0;
+                call.Number == 20 && (call.Argument2 == 0 || call.Argument2 > LinuxDescriptorServices.MaximumVectors))
+                return Fail();
+            if (deniedCalls == uint.MaxValue || eioCalls == uint.MaxValue)
+                return Fail();
+            deniedCalls++;
+            eioCalls++;
+            pendingDenial = false;
+            deniedWriter = 0;
+            deniedStream = 0;
+            deniedBytes = 0;
         }
         else if (!stopped)
         {
             uint previous = catalog.WritevRecords;
             if (!catalog.RecordCall(identity, call, result) ||
-                catalog.WritevRecords != previous && call.Argument2 != 2) return Fail();
+                catalog.WritevRecords != previous && call.Argument2 != 2)
+                return Fail();
         }
         else if (output && result.Action == LinuxSyscallAction.Return && result.Value == -5 ||
-            call.Number == 20 && call.Argument0 == 1234) return Fail();
-        callBytes = 0; callStream = 0; callWriter = 0;
+            call.Number == 20 && call.Argument0 == 1234)
+            return Fail();
+        callBytes = 0;
+        callStream = 0;
+        callWriter = 0;
         return true;
     }
 
-    private bool Fail() { failed = true; return false; }
+    private bool Fail()
+    {
+        failed = true;
+        return false;
+    }
 }

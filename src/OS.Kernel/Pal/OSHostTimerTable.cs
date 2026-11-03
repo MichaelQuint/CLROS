@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public sealed partial class OSHostTimerTable
 {
     public const uint TimerOptionsVersion = 1;
@@ -11,7 +12,10 @@ public sealed partial class OSHostTimerTable
         slots = capacity > 0 ? new TimerSlot[capacity] : [];
     }
 
-    public ulong TickFrequency { get; }
+    public ulong TickFrequency
+    {
+        get;
+    }
     public ulong CurrentTicks => currentTicks;
     public int Capacity => slots.Length;
 
@@ -50,7 +54,8 @@ public sealed partial class OSHostTimerTable
             OSHostSocketConstants.TimeoutKindImmediate => new OSHostTimeoutEvaluationResult(OSHostStatus.Ok, OSHostTimeoutState.Expired, deadlineTicks: currentTicks, remainingTicks: 0),
             OSHostSocketConstants.TimeoutKindRelativeTicks => EvaluateRelativeTimeout(timeout),
             OSHostSocketConstants.TimeoutKindAbsoluteTicks => EvaluateAbsoluteTimeout(timeout),
-            _ => OSHostTimeoutEvaluationResult.FromStatus(OSHostStatus.InvalidArgument)};
+            _ => OSHostTimeoutEvaluationResult.FromStatus(OSHostStatus.InvalidArgument)
+        };
     }
 
     public OSHostStatus AdvanceTo(ulong ticks)

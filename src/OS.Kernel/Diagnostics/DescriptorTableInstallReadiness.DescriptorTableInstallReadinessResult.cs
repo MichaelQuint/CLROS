@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct DescriptorTableInstallReadinessResult
 {
     private DescriptorTableInstallReadinessResult(bool succeeded, DescriptorTableInstallReadinessStatus status, IdtTablePlanStatus idtTableStatus, IdtrDescriptorStatus idtrStatus, GdtDescriptorPlanStatus gdtStatus, TssIstPlanStatus tssIstStatus, DescriptorTableInstallStubPlanStatus stubPlanStatus, DescriptorTableInstructionKind operationKind, int requiredBytes)
@@ -15,16 +16,46 @@ public readonly struct DescriptorTableInstallReadinessResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool Succeeded { get; }
-    public DescriptorTableInstallReadinessStatus Status { get; }
-    public string Operation { get; }
-    public IdtTablePlanStatus IdtTableStatus { get; }
-    public IdtrDescriptorStatus IdtrStatus { get; }
-    public GdtDescriptorPlanStatus GdtStatus { get; }
-    public TssIstPlanStatus TssIstStatus { get; }
-    public DescriptorTableInstallStubPlanStatus StubPlanStatus { get; }
-    public DescriptorTableInstructionKind OperationKind { get; }
-    public int RequiredBytes { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public DescriptorTableInstallReadinessStatus Status
+    {
+        get;
+    }
+    public string Operation
+    {
+        get;
+    }
+    public IdtTablePlanStatus IdtTableStatus
+    {
+        get;
+    }
+    public IdtrDescriptorStatus IdtrStatus
+    {
+        get;
+    }
+    public GdtDescriptorPlanStatus GdtStatus
+    {
+        get;
+    }
+    public TssIstPlanStatus TssIstStatus
+    {
+        get;
+    }
+    public DescriptorTableInstallStubPlanStatus StubPlanStatus
+    {
+        get;
+    }
+    public DescriptorTableInstructionKind OperationKind
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
 
     public static DescriptorTableInstallReadinessResult Pass(IdtTablePlanStatus idtTableStatus, IdtrDescriptorStatus idtrStatus, GdtDescriptorPlanStatus gdtStatus, TssIstPlanStatus tssIstStatus)
     {

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciIsrReadPlan
 {
     internal VirtioPciIsrReadPlan(VirtioPciBarAperture aperture)
@@ -6,7 +7,10 @@ public readonly struct VirtioPciIsrReadPlan
         Aperture = aperture;
     }
 
-    public VirtioPciBarAperture Aperture { get; }
+    public VirtioPciBarAperture Aperture
+    {
+        get;
+    }
     public uint RelativeOffset => VirtioPciIsrStatusParser.ReadOffset;
     public byte WidthBytes => VirtioPciIsrStatusParser.ReadWidthBytes;
     public bool ReadClearsStatus => VirtioPciIsrStatusParser.IntxReadClearsStatus;

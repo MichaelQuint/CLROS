@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Kernel.Memory;
 
 namespace OS.Kernel.Platform;
+
 public enum PhysicalMappingPreparationStatus : byte
 {
     Uninitialized = 0,

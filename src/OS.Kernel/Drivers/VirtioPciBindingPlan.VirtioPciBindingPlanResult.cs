@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciBindingPlanResult
 {
     private VirtioPciBindingPlanResult(VirtioPciBindingPlanStatus status, PciConfigurationHeaderStatus headerStatus, VirtioPciCapabilityListParseResult capabilityParse, VirtioPciDeviceDiscoveryResult discovery, PciBarDecodeResult barDecode, VirtioPciBarApertureValidationResult apertureValidation, VirtioPciBindingMetadata binding, bool isInitialized)
@@ -13,14 +14,38 @@ public readonly struct VirtioPciBindingPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioPciBindingPlanStatus Status { get; }
-    public bool IsInitialized { get; }
-    public PciConfigurationHeaderStatus HeaderStatus { get; }
-    public VirtioPciCapabilityListParseResult CapabilityParse { get; }
-    public VirtioPciDeviceDiscoveryResult Discovery { get; }
-    public PciBarDecodeResult BarDecode { get; }
-    public VirtioPciBarApertureValidationResult ApertureValidation { get; }
-    public VirtioPciBindingMetadata Binding { get; }
+    public VirtioPciBindingPlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public PciConfigurationHeaderStatus HeaderStatus
+    {
+        get;
+    }
+    public VirtioPciCapabilityListParseResult CapabilityParse
+    {
+        get;
+    }
+    public VirtioPciDeviceDiscoveryResult Discovery
+    {
+        get;
+    }
+    public PciBarDecodeResult BarDecode
+    {
+        get;
+    }
+    public VirtioPciBarApertureValidationResult ApertureValidation
+    {
+        get;
+    }
+    public VirtioPciBindingMetadata Binding
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioPciBindingPlanStatus.Success;
 
     public static VirtioPciBindingPlanResult Success(VirtioPciCapabilityListParseResult capabilityParse, VirtioPciDeviceDiscoveryResult discovery, PciBarDecodeResult barDecode, VirtioPciBarApertureValidationResult apertureValidation, VirtioPciBindingMetadata binding)

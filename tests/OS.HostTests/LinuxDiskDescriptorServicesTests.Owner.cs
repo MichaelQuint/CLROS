@@ -43,7 +43,7 @@ internal static unsafe partial class LinuxDiskDescriptorServicesTests
             {
                 const int bytes = 20000;
                 BinaryPrimitives.WriteUInt32LittleEndian(Storage.Disk.Sector(Storage.Disk.Data(4)).AsSpan(32 + 28), bytes);
-                uint[] clusters = [10, 12, ..Enumerable.Range(1000, 38).Select(i => (uint)i)];
+                uint[] clusters = [10, 12, .. Enumerable.Range(1000, 38).Select(i => (uint)i)];
                 for (int i = 0; i < clusters.Length; i++)
                 {
                     Storage.Disk.SetFat(clusters[i], i + 1 == clusters.Length ? 0x0fffffff : clusters[i + 1]);

@@ -602,7 +602,8 @@ internal static unsafe partial class LinuxMemoryServicesTests
                 0 => LinuxMemoryServices.Protect(owner.State, Start + 4096, 4096, 1),
                 1 => LinuxMemoryServices.Unmap(owner.State, Start + 4096, 4096),
                 2 => LinuxMemoryServices.Advise(owner.State, Start + 4096, 4096, 4),
-                _ => Map(owner, Start + 4096, 4096, 3, 0x32)};
+                _ => Map(owner, Start + 4096, 4096, 3, 0x32)
+            };
             HostCheck.Equal(-12L, result);
             HostCheck.True(tables.AsSpan().SequenceEqual(owner.Tables()) && pool.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.Pool, pool.Length)) && state.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.State, state.Length)) && LinuxMemoryServices.Audit(owner.State));
         }

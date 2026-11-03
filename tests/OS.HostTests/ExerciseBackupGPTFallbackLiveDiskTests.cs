@@ -3,7 +3,7 @@ using OS.Storage;
 internal static class ExerciseBackupGPTFallbackLiveDiskTests
 {
     private static LiveGptHeaderResult Header(byte[] bytes, bool backup = false) =>
-        PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(bytes, GptTestData.Capacity, BlockReadResult.Success(1,512), backup);
+        PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(bytes, GptTestData.Capacity, BlockReadResult.Success(1, 512), backup);
 
     [HostTest("gpt.fallback retains valid primary without consuming a backup result")]
     private static void PrimaryWins()
@@ -38,7 +38,7 @@ internal static class ExerciseBackupGPTFallbackLiveDiskTests
         HostCheck.True(!result.Succeeded && !result.UsedBackup && !result.Header.Succeeded);
         HostCheck.Equal(LiveGptStatus.ArrayCrcMismatch, result.BackupStatus);
         backupBytes[16] ^= 1;
-        result = ExerciseBackupGPTFallbackLiveDisk.Select(primary, LiveGptStatus.Uninitialized, Header(backupBytes,true), LiveGptStatus.Success);
+        result = ExerciseBackupGPTFallbackLiveDisk.Select(primary, LiveGptStatus.Uninitialized, Header(backupBytes, true), LiveGptStatus.Success);
         HostCheck.True(!result.Succeeded && !result.Header.Succeeded);
     }
 
@@ -49,7 +49,8 @@ internal static class ExerciseBackupGPTFallbackLiveDiskTests
         HostCheck.True(!ExerciseBackupGPTFallbackLiveDisk.Select(default, LiveGptStatus.Success, default, LiveGptStatus.Success).Succeeded);
         var (primaryBytes, _) = GptTestData.Create();
         var (backupBytes, backupEntries) = GptTestData.Create(true);
-        var primary = Header(primaryBytes); var backup = Header(backupBytes,true);
+        var primary = Header(primaryBytes);
+        var backup = Header(backupBytes, true);
         var array = PrimaryGPTIndependentlyBoundsCRC.ValidateArray(backup, backupEntries, out _);
         HostCheck.True(ExerciseBackupGPTFallbackLiveDisk.NeedsBackup(primary, LiveGptStatus.ArrayCrcMismatch));
         var result = ExerciseBackupGPTFallbackLiveDisk.Select(primary, LiveGptStatus.ArrayCrcMismatch, backup, array);

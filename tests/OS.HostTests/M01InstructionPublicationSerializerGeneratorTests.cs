@@ -673,7 +673,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             return;
         }
 
-        foreach ((string key, string? value)in environment)
+        foreach ((string key, string? value) in environment)
         {
             start.Environment[key] = value;
         }
@@ -1641,7 +1641,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                 WorkingDirectory = Path.GetDirectoryName(helperPath)!
             };
             helperStart.Environment.Clear();
-            foreach ((string key, string? value)in start.Environment)
+            foreach ((string key, string? value) in start.Environment)
             {
                 if (value is not null)
                 {

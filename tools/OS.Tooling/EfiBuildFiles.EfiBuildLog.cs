@@ -3,10 +3,17 @@ using OS.Tooling.Native;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 public sealed class EfiBuildLog : IDisposable
 {
-    public string Path { get; }
-    public string IdentityKey { get; }
+    public string Path
+    {
+        get;
+    }
+    public string IdentityKey
+    {
+        get;
+    }
 
     private readonly FileStream stream;
     private EfiBuildLog(string path, FileStream stream)

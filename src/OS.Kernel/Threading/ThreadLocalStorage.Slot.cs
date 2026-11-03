@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct ThreadLocalStorage
 {
     /// <summary>Exclusive caller-owned metadata; never copy or modify a live slot.

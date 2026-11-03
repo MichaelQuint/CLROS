@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformUefiGoneSimulationResult
 {
     private PlatformUefiGoneSimulationResult(PlatformUefiGoneSimulationStatus status, FirmwareCallResult transition, PlatformConsoleResult console, PlatformMemoryMapResult memoryMap, PlatformConfigurationTableScanResult configurationTables, PlatformTimerResult timer, PlatformRandomResult random, PlatformPhysicalMemoryResult physicalMemory, PlatformFramebufferResult framebuffer, PlatformFileSystemReadResult fileSystem)
@@ -15,16 +16,46 @@ public readonly struct PlatformUefiGoneSimulationResult
         FileSystem = fileSystem;
     }
 
-    public PlatformUefiGoneSimulationStatus Status { get; }
-    public FirmwareCallResult Transition { get; }
-    public PlatformConsoleResult Console { get; }
-    public PlatformMemoryMapResult MemoryMap { get; }
-    public PlatformConfigurationTableScanResult ConfigurationTables { get; }
-    public PlatformTimerResult Timer { get; }
-    public PlatformRandomResult Random { get; }
-    public PlatformPhysicalMemoryResult PhysicalMemory { get; }
-    public PlatformFramebufferResult Framebuffer { get; }
-    public PlatformFileSystemReadResult FileSystem { get; }
+    public PlatformUefiGoneSimulationStatus Status
+    {
+        get;
+    }
+    public FirmwareCallResult Transition
+    {
+        get;
+    }
+    public PlatformConsoleResult Console
+    {
+        get;
+    }
+    public PlatformMemoryMapResult MemoryMap
+    {
+        get;
+    }
+    public PlatformConfigurationTableScanResult ConfigurationTables
+    {
+        get;
+    }
+    public PlatformTimerResult Timer
+    {
+        get;
+    }
+    public PlatformRandomResult Random
+    {
+        get;
+    }
+    public PlatformPhysicalMemoryResult PhysicalMemory
+    {
+        get;
+    }
+    public PlatformFramebufferResult Framebuffer
+    {
+        get;
+    }
+    public PlatformFileSystemReadResult FileSystem
+    {
+        get;
+    }
     public bool Succeeded => Status == PlatformUefiGoneSimulationStatus.Success;
     public string Marker => Succeeded ? PlatformUefiGoneSimulation.PlatformDeniedMarker : PlatformUefiGoneSimulation.FailMarkerPrefix + Status;
 

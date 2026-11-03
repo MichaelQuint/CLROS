@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public ref struct BootEventRecordRingBuffer
 {
     private Span<BootEventRecord> _storage;

@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Std.Text;
 
 namespace OS.Manifest;
+
 public static class NativeAppLaunchPlanDiagnosticFormatter
 {
     public static NativeAppLaunchPlanDiagnosticFormatResult FormatResult(in NativeAppLaunchPlanResult result, ReadOnlySpan<byte> manifestSource, Span<byte> destination)

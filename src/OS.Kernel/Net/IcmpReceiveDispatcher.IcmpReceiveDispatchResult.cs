@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Drivers;
 
 public readonly struct IcmpReceiveDispatchResult
@@ -14,23 +15,44 @@ public readonly struct IcmpReceiveDispatchResult
         EchoPayloadLength = echoPayloadLength;
     }
 
-    public IcmpReceiveDispatchStatus Status { get; }
-    public bool IsInitialized { get; }
+    public IcmpReceiveDispatchStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == IcmpReceiveDispatchStatus.Success;
-    public NetworkReceiveDispatchResult NetworkResult { get; }
+    public NetworkReceiveDispatchResult NetworkResult
+    {
+        get;
+    }
     public NetworkReceiveDispatchStatus NetworkStatus => NetworkResult.Status;
     public VirtioNetReceiveFrameClassifierStatus ClassifierStatus => NetworkResult.ClassifierStatus;
     public PacketParseStatus ClassifierPacketStatus => NetworkResult.ClassifierPacketStatus;
     public PacketParseStatus NetworkPacketStatus => NetworkResult.PayloadPacketStatus;
-    public PacketParseStatus IcmpPacketStatus { get; }
+    public PacketParseStatus IcmpPacketStatus
+    {
+        get;
+    }
     public EthernetPayloadKind PayloadKind => NetworkResult.PayloadKind;
     public EthernetHeader EthernetHeader => NetworkResult.EthernetHeader;
     public Ipv4Header Ipv4Header => NetworkResult.Ipv4Header;
     public Ipv4Address SourceAddress => NetworkResult.Ipv4Header.Source;
     public Ipv4Address DestinationAddress => NetworkResult.Ipv4Header.Destination;
-    public IcmpEchoPacket EchoPacket { get; }
-    public int EchoPayloadOffset { get; }
-    public int EchoPayloadLength { get; }
+    public IcmpEchoPacket EchoPacket
+    {
+        get;
+    }
+    public int EchoPayloadOffset
+    {
+        get;
+    }
+    public int EchoPayloadLength
+    {
+        get;
+    }
 
     public static IcmpReceiveDispatchResult Success(NetworkReceiveDispatchResult networkResult, IcmpEchoPacket echoPacket, int echoPayloadOffset, int echoPayloadLength)
     {

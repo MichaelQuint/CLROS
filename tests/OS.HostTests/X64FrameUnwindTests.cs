@@ -537,7 +537,11 @@ internal static unsafe partial class X64FrameUnwindTests
         f.Bind();
         var input = f.Context();
         f.Word(input.Rsp + 8, 0x1234);
-        f.Vector(input.Rsp + 32, new() { Low = 0xAAAA, High = 0xBBBB });
+        f.Vector(input.Rsp + 32, new()
+        {
+            Low = 0xAAAA,
+            High = 0xBBBB
+        });
         f.Word(input.Rsp + 64, 0);
         Failure(f, () => f.Invoke(input), Status.ReturnPcRejected, "late failure after scalar and vector restoration");
         f.Word(input.Rsp + 64, f.ReturnPc);

@@ -21,7 +21,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
         // bytes are NOT a valid SQLite database/journal or a recovery protocol.
         byte[] database = FootprintBytes(303104, 0x39), journal = FootprintBytes(310816, 0xa7);
         const string dbPath = "/data/footprint.db", journalPath = "/data/footprint.db-journal";
-        HostCheck.True(seed.Image.Find("footprint.db")is null && seed.Image.Find("footprint.db-journal")is null);
+        HostCheck.True(seed.Image.Find("footprint.db") is null && seed.Image.Find("footprint.db-journal") is null);
         byte[] after;
         ulong originalDeviceEpoch;
         uint writes = 0, flushes;
@@ -146,7 +146,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
         HostCheck.Equal("777844321C8836EA0E0BAFA8BA37708D22345F4ECAC539B5B0A3699CC459265A", receipt.Image.RawSha256);
         HostCheck.Equal("1C638F748E0A94C8291032B7AA3BAD9E8F6BA7B5CC05A7A799A64FE639902C11", Hash(receipt.CopyJson()));
         HostCheck.True(receipt.Image.CheckedGpt && receipt.Image.FirstLba == 2048 && receipt.Image.LastLba == 131038 && receipt.Image.FirstFatSector == 2080 && receipt.Image.FirstDataSector == 4066);
-        HostCheck.True(disk.Length == 67108864 && receipt.Image.Files.Count == 6 && receipt.Image.Find(Image.ExclusiveCreateName)is null && receipt.Image.RootClusters.SequenceEqual(new uint[] { 2, 19, 37 }));
+        HostCheck.True(disk.Length == 67108864 && receipt.Image.Files.Count == 6 && receipt.Image.Find(Image.ExclusiveCreateName) is null && receipt.Image.RootClusters.SequenceEqual(new uint[] { 2, 19, 37 }));
         using var json = JsonDocument.Parse(receipt.CopyJson());
         HostCheck.True(json.RootElement.GetProperty("schema").GetString() == "CLROS_WRITABLE_DATA_IMAGE_V1" && json.RootElement.GetProperty("mount").GetString() == "/data" && !Encoding.UTF8.GetString(receipt.CopyJson()).Contains(folder, StringComparison.Ordinal));
         foreach (string empty in new[]
@@ -158,7 +158,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
         }
 
         )
-            HostCheck.True(receipt.Image.Find(empty)is { Bytes: 0 } item && item.Clusters.Count == 0 && item.Sha256 == Hash([]));
+            HostCheck.True(receipt.Image.Find(empty) is { Bytes: 0 } item && item.Clusters.Count == 0 && item.Sha256 == Hash([]));
         HostCheck.True(receipt.Image.Find("GUARD.TXT")!.Attributes == 0x21 && receipt.Image.Find("FRAG.BIN")!.Attributes == 0x20);
         foreach (var file in receipt.Image.Files)
         {
@@ -323,7 +323,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
         Fat(disk, 100, 0x0fffffff);
         Info(disk, 488, receipt.Image.FreeClusters - 1);
         var changed = Image.Inspect(disk);
-        HostCheck.True(changed.Files.Count == 7 && changed.Find("new.bin")is { Bytes: 10 } file && file.Clusters.SequenceEqual(new uint[] { 100 }) && file.CopyBytes().AsSpan().SequenceEqual("independen"u8) && !changed.FreeCandidates.Contains(100) && changed.FreeCandidates.Contains(132));
+        HostCheck.True(changed.Files.Count == 7 && changed.Find("new.bin") is { Bytes: 10 } file && file.Clusters.SequenceEqual(new uint[] { 100 }) && file.CopyBytes().AsSpan().SequenceEqual("independen"u8) && !changed.FreeCandidates.Contains(100) && changed.FreeCandidates.Contains(132));
         string altered = Path.Combine(folder, "altered.raw");
         File.WriteAllBytes(altered, disk);
         Reject(() => Image.Verify(altered, receipt), "receipt_identity");
@@ -416,8 +416,8 @@ internal static unsafe partial class WritableDataImageFixtureTests
         var receipt = Image.InspectTransition(before, grown);
         byte[] expected = new byte[5126];
         payload.CopyTo(expected, 4094);
-        HostCheck.True(receipt.Before.Find(Image.ExclusiveCreateName)is null && receipt.After.Find(Image.ExclusiveCreateName)is { } created && created.CopyBytes().AsSpan().SequenceEqual(expected) && created.Clusters.SequenceEqual(candidates));
-        HostCheck.True(receipt.Changes.Count is> 0 and <= 128 && receipt.Changes.Select(x => x.Kind).Distinct().Order().SequenceEqual(new[] { Image.SectorKind.Fat0, Image.SectorKind.Fat1, Image.SectorKind.FsInfo, Image.SectorKind.RootDirectory, Image.SectorKind.FileData }.Order()));
+        HostCheck.True(receipt.Before.Find(Image.ExclusiveCreateName) is null && receipt.After.Find(Image.ExclusiveCreateName) is { } created && created.CopyBytes().AsSpan().SequenceEqual(expected) && created.Clusters.SequenceEqual(candidates));
+        HostCheck.True(receipt.Changes.Count is > 0 and <= 128 && receipt.Changes.Select(x => x.Kind).Distinct().Order().SequenceEqual(new[] { Image.SectorKind.Fat0, Image.SectorKind.Fat1, Image.SectorKind.FsInfo, Image.SectorKind.RootDirectory, Image.SectorKind.FileData }.Order()));
         CheckChanges(before, grown, receipt);
         HostCheck.True(receipt.After.Find("GUARD.TXT")!.Sha256 == seed.Image.Find("GUARD.TXT")!.Sha256 && receipt.After.Find("FRAG.BIN")!.Sha256 == seed.Image.Find("FRAG.BIN")!.Sha256 && media.Outs > 0 && media.Flushes >= 6);
         file = media.Open(Image.ExclusiveCreateName);
@@ -434,7 +434,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
         HostCheck.Equal(C.Status.Success, C.CopyMutationResult(media.State, request, &mutation));
         byte[] deleted = media.Snapshot();
         var deletion = Image.InspectTransition(shrunk, deleted);
-        HostCheck.True(mutation.Deleted && deletion.After.Find(Image.ExclusiveCreateName)is null && deletion.After.FreeClusters == seed.Image.FreeClusters);
+        HostCheck.True(mutation.Deleted && deletion.After.Find(Image.ExclusiveCreateName) is null && deletion.After.FreeClusters == seed.Image.FreeClusters);
         CheckChanges(shrunk, deleted, deletion);
         Console.WriteLine($"WRITABLE_TRANSITION actualCreateGrowWrite={receipt.Changes.Count} shrink={shrink.Changes.Count} delete={deletion.Changes.Count} outs={media.Outs} flushes={media.Flushes}");
     });
@@ -443,7 +443,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
     {
         using var media = new MutationMedia(before);
         using var files = new DescriptorMedia(media);
-        HostCheck.True(seed.Image.Find("LOG.TXT")is { Bytes: 0 } && seed.Image.Find("UPLOAD.BIN")is { Bytes: 0 });
+        HostCheck.True(seed.Image.Find("LOG.TXT") is { Bytes: 0 } && seed.Image.Find("UPLOAD.BIN") is { Bytes: 0 });
         var logWriter = files.Open("/data/LOG.TXT", 2);
         var logReader = files.Open("/data/LOG.TXT");
         var uploadWriter = files.Open("/data/UPLOAD.BIN", 2);
@@ -486,10 +486,10 @@ internal static unsafe partial class WritableDataImageFixtureTests
         files.Sync(directory);
         byte[] after = media.Snapshot();
         var transition = Image.InspectTransition(before, after);
-        HostCheck.True(transition.Before.Find("LOG.TXT")!.Bytes == 0 && transition.Before.Find("UPLOAD.BIN")!.Bytes == 0 && transition.After.Find("LOG.TXT")!.CopyBytes().AsSpan().SequenceEqual(logBytes) && transition.After.Find("UPLOAD.BIN")!.CopyBytes().AsSpan().SequenceEqual(expectedUpload) && transition.After.FreeClusters == seed.Image.FreeClusters - 13 && transition.After.Files.Count == seed.Image.Files.Count && transition.After.Find(Image.ExclusiveCreateName)is null);
+        HostCheck.True(transition.Before.Find("LOG.TXT")!.Bytes == 0 && transition.Before.Find("UPLOAD.BIN")!.Bytes == 0 && transition.After.Find("LOG.TXT")!.CopyBytes().AsSpan().SequenceEqual(logBytes) && transition.After.Find("UPLOAD.BIN")!.CopyBytes().AsSpan().SequenceEqual(expectedUpload) && transition.After.FreeClusters == seed.Image.FreeClusters - 13 && transition.After.Files.Count == seed.Image.Files.Count && transition.After.Find(Image.ExclusiveCreateName) is null);
         foreach (var entry in seed.Image.Files.Where(x => x.Name is not ("LOG.TXT" or "UPLOAD.BIN")))
         {
-            HostCheck.True(transition.After.Find(entry.Name)is { } unchanged && unchanged.Sha256 == entry.Sha256 && unchanged.ShortEntryOffset == entry.ShortEntryOffset && unchanged.Clusters.SequenceEqual(entry.Clusters) && unchanged.CopyBytes().AsSpan().SequenceEqual(entry.CopyBytes()) && before.AsSpan((int)entry.ShortEntryOffset, 32).SequenceEqual(after.AsSpan((int)entry.ShortEntryOffset, 32)));
+            HostCheck.True(transition.After.Find(entry.Name) is { } unchanged && unchanged.Sha256 == entry.Sha256 && unchanged.ShortEntryOffset == entry.ShortEntryOffset && unchanged.Clusters.SequenceEqual(entry.Clusters) && unchanged.CopyBytes().AsSpan().SequenceEqual(entry.CopyBytes()) && before.AsSpan((int)entry.ShortEntryOffset, 32).SequenceEqual(after.AsSpan((int)entry.ShortEntryOffset, 32)));
             foreach (uint cluster in entry.Clusters)
                 HostCheck.True(before.AsSpan(ClusterOffset(cluster), 512).SequenceEqual(after.AsSpan(ClusterOffset(cluster), 512))); // Include guard/slack bytes.
         }
@@ -536,7 +536,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
         using var files = new DescriptorMedia(media);
         var initialLog = files.Open("/data/LOG.TXT");
         var initialUpload = files.Open("/data/UPLOAD.BIN");
-        HostCheck.True(seed.Image.Find("LOG.TXT")is { Bytes: 0 } && seed.Image.Find("UPLOAD.BIN")is { Bytes: 0 } && files.Read(initialLog, 1, expectedBytes: 0).Length == 0 && files.Read(initialUpload, 1, expectedBytes: 0).Length == 0 && media.Device.State->SubmittedBytes == 0);
+        HostCheck.True(seed.Image.Find("LOG.TXT") is { Bytes: 0 } && seed.Image.Find("UPLOAD.BIN") is { Bytes: 0 } && files.Read(initialLog, 1, expectedBytes: 0).Length == 0 && files.Read(initialUpload, 1, expectedBytes: 0).Length == 0 && media.Device.State->SubmittedBytes == 0);
         HostCheck.Equal(0L, W.Close(files.State, initialLog));
         HostCheck.Equal(0L, W.Close(files.State, initialUpload));
         var search = new W.FreeSearch(2, 128, 16);
@@ -599,7 +599,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
         var logEntry = transition.After.Find("LOG.TXT")!;
         var uploadEntry = transition.After.Find("UPLOAD.BIN")!;
         HostCheck.Equal(expectedValues, NativeAotLogUploadContract.InspectFileValues(logEntry.CopyBytes(), uploadEntry.CopyBytes()));
-        HostCheck.True(logEntry.Clusters.Count == 2 && uploadEntry.Clusters.Count == 11 && transition.After.FreeClusters == seed.Image.FreeClusters - 13 && transition.After.Files.Count == seed.Image.Files.Count && transition.After.Find(Image.ExclusiveCreateName)is null && firstCheckpoint.Length == Image.ImageBytes);
+        HostCheck.True(logEntry.Clusters.Count == 2 && uploadEntry.Clusters.Count == 11 && transition.After.FreeClusters == seed.Image.FreeClusters - 13 && transition.After.Files.Count == seed.Image.Files.Count && transition.After.Find(Image.ExclusiveCreateName) is null && firstCheckpoint.Length == Image.ImageBytes);
         foreach (var file in new[]
         {
             logEntry,
@@ -640,7 +640,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
             HostCheck.True(inspection.Find("LOG.TXT")!.ShortEntryOffset == logAt && inspection.Find("UPLOAD.BIN")!.ShortEntryOffset == uploadAt);
             foreach (var file in seed.Image.Files.Where(file => file.Name is not ("LOG.TXT" or "UPLOAD.BIN")))
             {
-                HostCheck.True(inspection.Find(file.Name)is { } untouched && untouched.Sha256 == file.Sha256 && untouched.Clusters.SequenceEqual(file.Clusters) && before.AsSpan((int)file.ShortEntryOffset, 32).SequenceEqual(changed.AsSpan((int)file.ShortEntryOffset, 32)));
+                HostCheck.True(inspection.Find(file.Name) is { } untouched && untouched.Sha256 == file.Sha256 && untouched.Clusters.SequenceEqual(file.Clusters) && before.AsSpan((int)file.ShortEntryOffset, 32).SequenceEqual(changed.AsSpan((int)file.ShortEntryOffset, 32)));
                 foreach (uint cluster in file.Clusters)
                     HostCheck.True(before.AsSpan(ClusterOffset(cluster), 512).SequenceEqual(changed.AsSpan(ClusterOffset(cluster), 512)));
             }
@@ -668,7 +668,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
         const string journalName = "SQLITE.DB-journal", journalPath = "/data/SQLITE.DB-journal";
         const uint openFlags = 2 | W.Create | W.LargeFile | W.NoFollow | W.CloseOnExec;
         const uint directoryFlags = W.LargeFile | W.CloseOnExec;
-        HostCheck.True(openFlags == 0xa8042 && directoryFlags == 0x88000 && W.RwfNoAppend == 0x20 && seed.Image.Find(journalName)is null);
+        HostCheck.True(openFlags == 0xa8042 && directoryFlags == 0x88000 && W.RwfNoAppend == 0x20 && seed.Image.Find(journalName) is null);
         using var media = new MutationMedia(before);
         using var files = new DescriptorMedia(media);
         var db = files.Open("/data/SQLITE.DB", openFlags);
@@ -720,7 +720,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
         Boundary("journal12-fsync");
         byte[] headerCheckpoint = media.Snapshot();
         var headerChange = Image.InspectTransition(journalCheckpoint, headerCheckpoint);
-        HostCheck.True(headerChange.After.Find(journalName)is { } headerEntry && headerEntry.Inode == entry.Inode && headerEntry.ShortEntryOffset == entry.ShortEntryOffset && headerEntry.Clusters.SequenceEqual(entry.Clusters) && headerEntry.CopyBytes().AsSpan().SequenceEqual(journalBytes) && headerChange.After.Find("SQLITE.DB")!.Bytes == 0);
+        HostCheck.True(headerChange.After.Find(journalName) is { } headerEntry && headerEntry.Inode == entry.Inode && headerEntry.ShortEntryOffset == entry.ShortEntryOffset && headerEntry.Clusters.SequenceEqual(entry.Clusters) && headerEntry.CopyBytes().AsSpan().SequenceEqual(journalBytes) && headerChange.After.Find("SQLITE.DB")!.Bytes == 0);
         CheckChanges(journalCheckpoint, headerCheckpoint, headerChange);
         Positioned(db, firstPage, 0);
         Positioned(db, secondPage, 4096);
@@ -729,7 +729,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
         HostCheck.True(files.Read(reader, 31).AsSpan().SequenceEqual(dbBytes.AsSpan(0, 31)) && files.Read(reader, 4096, 4096, true).AsSpan().SequenceEqual(secondPage) && W.Seek(files.State, reader, 0, 1).Value == 31 && W.Seek(files.State, db, 0, 1).Value == 0);
         byte[] databaseCheckpoint = media.Snapshot();
         var databaseChange = Image.InspectTransition(headerCheckpoint, databaseCheckpoint);
-        HostCheck.True(databaseChange.After.Find("SQLITE.DB")is { } dbEntry && dbEntry.CopyBytes().AsSpan().SequenceEqual(dbBytes) && dbEntry.ShortEntryOffset == seed.Image.Find("SQLITE.DB")!.ShortEntryOffset && databaseChange.After.Find(journalName)is { } retained && retained.Inode == entry.Inode && retained.CopyBytes().AsSpan().SequenceEqual(journalBytes));
+        HostCheck.True(databaseChange.After.Find("SQLITE.DB") is { } dbEntry && dbEntry.CopyBytes().AsSpan().SequenceEqual(dbBytes) && dbEntry.ShortEntryOffset == seed.Image.Find("SQLITE.DB")!.ShortEntryOffset && databaseChange.After.Find(journalName) is { } retained && retained.Inode == entry.Inode && retained.CopyBytes().AsSpan().SequenceEqual(journalBytes));
         CheckChanges(headerCheckpoint, databaseCheckpoint, databaseChange);
         uint outs = media.Outs, flushes = media.Flushes;
         HostCheck.Equal(0L, W.Close(files.State, journal));
@@ -744,7 +744,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
         HostCheck.Equal(0L, W.Close(files.State, directory));
         byte[] deleted = media.Snapshot();
         var deletion = Image.InspectTransition(databaseCheckpoint, deleted);
-        HostCheck.True(deletion.After.Find(journalName)is null && deletion.After.Find(entry.ShortAlias)is null && deletion.After.Files.Count == seed.Image.Files.Count && deletion.After.Find("SQLITE.DB")!.CopyBytes().AsSpan().SequenceEqual(dbBytes) && deletion.After.FreeClusters == seed.Image.FreeClusters - 16);
+        HostCheck.True(deletion.After.Find(journalName) is null && deletion.After.Find(entry.ShortAlias) is null && deletion.After.Files.Count == seed.Image.Files.Count && deletion.After.Find("SQLITE.DB")!.CopyBytes().AsSpan().SequenceEqual(dbBytes) && deletion.After.FreeClusters == seed.Image.FreeClusters - 16);
         for (int slot = 0; slot < 3; slot++)
         {
             HostCheck.Equal((byte)0xe5, deleted[at + slot * 32]);
@@ -771,7 +771,7 @@ internal static unsafe partial class WritableDataImageFixtureTests
             var inspected = Image.Inspect(checkpoint);
             foreach (var untouched in seed.Image.Files.Where(x => x.Name != "SQLITE.DB"))
             {
-                HostCheck.True(inspected.Find(untouched.Name)is { } same && same.Sha256 == untouched.Sha256 && same.Clusters.SequenceEqual(untouched.Clusters) && before.AsSpan((int)untouched.ShortEntryOffset, 32).SequenceEqual(checkpoint.AsSpan((int)untouched.ShortEntryOffset, 32)));
+                HostCheck.True(inspected.Find(untouched.Name) is { } same && same.Sha256 == untouched.Sha256 && same.Clusters.SequenceEqual(untouched.Clusters) && before.AsSpan((int)untouched.ShortEntryOffset, 32).SequenceEqual(checkpoint.AsSpan((int)untouched.ShortEntryOffset, 32)));
                 foreach (uint cluster in untouched.Clusters)
                     HostCheck.True(before.AsSpan(ClusterOffset(cluster), 512).SequenceEqual(checkpoint.AsSpan(ClusterOffset(cluster), 512)));
             }

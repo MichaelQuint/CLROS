@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static unsafe partial class UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification
 {
     private struct MetadataWriter(byte* destination)

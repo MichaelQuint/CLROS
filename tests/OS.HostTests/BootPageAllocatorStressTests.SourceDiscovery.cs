@@ -18,14 +18,14 @@ internal static partial class BootPageAllocatorStressTests
             return false;
         string project = Path.Combine(root, "tests", "OS.HostTests", "OS.HostTests.csproj");
         string kernelProject = Path.GetFullPath(Path.Combine(root, "src", "OS.Kernel", "OS.Kernel.csproj"));
-        return XDocument.Load(project).Descendants("ProjectReference").Any(item => item.Attribute("Include")is { } include && Path.GetFullPath(include.Value, Path.GetDirectoryName(project)!).Equals(kernelProject, StringComparison.OrdinalIgnoreCase));
+        return XDocument.Load(project).Descendants("ProjectReference").Any(item => item.Attribute("Include") is { } include && Path.GetFullPath(include.Value, Path.GetDirectoryName(project)!).Equals(kernelProject, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool StressExcluded(string root, CSharpSourceCatalog source, IEnumerable<string> hostPaths)
     {
         string hostDirectory = Path.GetFullPath(Path.Combine(root, "tests", "OS.HostTests")) + Path.DirectorySeparatorChar;
         var paths = hostPaths.Select(Path.GetFullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return source.Compilation.GetTypeByMetadataName(StressSourceOwner)is null && source.Documents.All(document => !paths.Contains(Path.GetFullPath(document.Path)) && !Path.GetFullPath(document.Path).StartsWith(hostDirectory, StringComparison.OrdinalIgnoreCase));
+        return source.Compilation.GetTypeByMetadataName(StressSourceOwner) is null && source.Documents.All(document => !paths.Contains(Path.GetFullPath(document.Path)) && !Path.GetFullPath(document.Path).StartsWith(hostDirectory, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool StressEfiBoundary(string root, CSharpEfiProjectEvaluation evaluation, IEnumerable<string> hostPaths, string workload)

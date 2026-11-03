@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public enum VirtioNetTransmitCompletionPlanStatus

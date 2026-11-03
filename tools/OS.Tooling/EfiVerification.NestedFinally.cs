@@ -4,6 +4,7 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 internal sealed partial class EfiVerification
 {
     // Exact retained bridge and compiler method/table/funclet contributions.
@@ -64,7 +65,7 @@ internal sealed partial class EfiVerification
             Rel32(compiled, calls[i], m[0] + image.ImageBase, m[callees[i]] + image.ImageBase, "nested_finally_method_call_mismatch");
         var throwing = image.Resolve(m[1], 10, "nested_finally_thrower_not_backed", "nested_finally_thrower_ambiguous");
         throwing.Section.RequireCode("nested_finally_thrower_permissions");
-        byte[] throwBytes = image.Copy(throwing.Offset, 10, "nested_finally_thrower_truncated"), throwShape = [..throwBytes];
+        byte[] throwBytes = image.Copy(throwing.Offset, 10, "nested_finally_thrower_truncated"), throwShape = [.. throwBytes];
         throwShape.AsSpan(5, 4).Clear();
         Require(throwShape.AsSpan().SequenceEqual(new byte[] { 0x48, 0x83, 0xec, 0x28, 0xe8, 0, 0, 0, 0, 0xcc }), "nested_finally_thrower_bytes_mismatch");
         Rel32(throwBytes, 5, m[1] + image.ImageBase, a[0], "nested_finally_thrower_call_mismatch");

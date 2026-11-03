@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct HyperVPlatformIdentificationResult
 {
     private HyperVPlatformIdentificationResult(bool isInitialized, HyperVPlatformIdentificationStatus status, bool hypervisorPresent, HyperVVendorSignature vendorSignature, uint maxHypervisorLeaf, bool hasFeatureIdentificationLeaf, CpuidRegisterSnapshot featureIdentificationLeaf)
@@ -12,13 +13,34 @@ public readonly struct HyperVPlatformIdentificationResult
         FeatureIdentificationLeaf = featureIdentificationLeaf;
     }
 
-    public HyperVPlatformIdentificationStatus Status { get; }
-    public bool HypervisorPresent { get; }
-    public HyperVVendorSignature VendorSignature { get; }
-    public uint MaxHypervisorLeaf { get; }
-    public bool HasFeatureIdentificationLeaf { get; }
-    public CpuidRegisterSnapshot FeatureIdentificationLeaf { get; }
-    public bool IsInitialized { get; }
+    public HyperVPlatformIdentificationStatus Status
+    {
+        get;
+    }
+    public bool HypervisorPresent
+    {
+        get;
+    }
+    public HyperVVendorSignature VendorSignature
+    {
+        get;
+    }
+    public uint MaxHypervisorLeaf
+    {
+        get;
+    }
+    public bool HasFeatureIdentificationLeaf
+    {
+        get;
+    }
+    public CpuidRegisterSnapshot FeatureIdentificationLeaf
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == HyperVPlatformIdentificationStatus.Success;
     public bool IsHyperVCompatible => Succeeded;
 

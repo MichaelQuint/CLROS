@@ -22,19 +22,58 @@ public readonly struct RhpNewFastResult
         AllocationCount = allocationCount;
     }
 
-    public RhpNewFastStatus Status { get; }
-    public RhpNewFastOperation Operation { get; }
-    public ManagedHeapPageRangeStatus HeapStatus { get; }
-    public ulong MappedAllocationStart { get; }
-    public ulong MappedAllocationEndExclusive { get; }
-    public ulong PhysicalAllocationStart { get; }
-    public ulong PhysicalAllocationEndExclusive { get; }
-    public ulong ObjectReference { get; }
-    public ulong MethodTableToken { get; }
-    public ulong BytesConsumed { get; }
-    public ulong UsedBefore { get; }
-    public ulong UsedAfter { get; }
-    public ulong AllocationCount { get; }
+    public RhpNewFastStatus Status
+    {
+        get;
+    }
+    public RhpNewFastOperation Operation
+    {
+        get;
+    }
+    public ManagedHeapPageRangeStatus HeapStatus
+    {
+        get;
+    }
+    public ulong MappedAllocationStart
+    {
+        get;
+    }
+    public ulong MappedAllocationEndExclusive
+    {
+        get;
+    }
+    public ulong PhysicalAllocationStart
+    {
+        get;
+    }
+    public ulong PhysicalAllocationEndExclusive
+    {
+        get;
+    }
+    public ulong ObjectReference
+    {
+        get;
+    }
+    public ulong MethodTableToken
+    {
+        get;
+    }
+    public ulong BytesConsumed
+    {
+        get;
+    }
+    public ulong UsedBefore
+    {
+        get;
+    }
+    public ulong UsedAfter
+    {
+        get;
+    }
+    public ulong AllocationCount
+    {
+        get;
+    }
     public bool Succeeded => Status == RhpNewFastStatus.Success;
     public bool AllocationSucceeded => Succeeded && Operation == RhpNewFastOperation.Allocation && BytesConsumed != 0;
 }

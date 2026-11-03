@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly partial struct VirtioNetTransmitCompletionPlanResult
@@ -46,45 +47,162 @@ public readonly partial struct VirtioNetTransmitCompletionPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioNetTransmitCompletionPlanStatus Status { get; }
-    public VirtioNetTransmitLifecycleStatus TransmitPublishStatus { get; }
-    public VirtioNetQueueNotificationExecutionStatus NotificationExecutionStatus { get; }
-    public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus { get; }
-    public VirtioPciQueueNotificationPlanStatus NotificationStatus { get; }
-    public VirtioPciNotifyWriteStatus NotificationSinkStatus { get; }
-    public VirtioNetQueueNotificationKind NotificationKind { get; }
-    public ushort NotificationQueueIndex { get; }
-    public ushort NotificationQueueNotifyOffset { get; }
-    public uint NotificationNotifyRelativeOffset { get; }
-    public ushort NotificationWriteValue { get; }
-    public uint NotificationWriteWidthBytes { get; }
-    public ushort NotificationPublishedDescriptorCount { get; }
-    public ushort NotificationPreviousAvailableRingIndex { get; }
-    public ushort NotificationNextAvailableRingIndex { get; }
-    public bool UsesRegisterWindowNotification { get; }
-    public VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus NotificationWindowExecutionStatus { get; }
-    public VirtioPciBarRegisterWindowPlanStatus NotificationRegisterWindowStatus { get; }
-    public VirtioPciBarRegisterWindowAccessExecutionStatus NotificationWindowAccessExecutionStatus { get; }
-    public bool NotificationWindowExecutionAttempted { get; }
-    public bool NotificationBarrierSucceeded { get; }
-    public uint NotificationBarrierSequence { get; }
-    public VirtioPciCapabilityType NotificationCapabilityType { get; }
-    public byte NotificationBarIndex { get; }
-    public VirtioPciRegisterAccessWidth NotificationAccessWidth { get; }
-    public uint NotificationAccessWidthBytes { get; }
-    public ulong NotificationBarRelativeOffset { get; }
-    public ulong NotificationWrittenValue { get; }
-    public ushort PreviousUsedIndex { get; }
-    public ushort CurrentUsedIndex { get; }
-    public ushort NextUsedIndex { get; }
-    public ushort UsedRingSlot { get; }
-    public uint UsedRingElementOffset { get; }
-    public uint DescriptorHead { get; }
-    public uint UsedByteCount { get; }
-    public ushort ReclaimedDescriptorCount { get; }
-    public ushort HeaderDescriptorIndex { get; }
-    public ushort FrameDescriptorIndex { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetTransmitCompletionPlanStatus Status
+    {
+        get;
+    }
+    public VirtioNetTransmitLifecycleStatus TransmitPublishStatus
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationExecutionStatus NotificationExecutionStatus
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationPlanStatus NotificationPlanStatus
+    {
+        get;
+    }
+    public VirtioPciQueueNotificationPlanStatus NotificationStatus
+    {
+        get;
+    }
+    public VirtioPciNotifyWriteStatus NotificationSinkStatus
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationKind NotificationKind
+    {
+        get;
+    }
+    public ushort NotificationQueueIndex
+    {
+        get;
+    }
+    public ushort NotificationQueueNotifyOffset
+    {
+        get;
+    }
+    public uint NotificationNotifyRelativeOffset
+    {
+        get;
+    }
+    public ushort NotificationWriteValue
+    {
+        get;
+    }
+    public uint NotificationWriteWidthBytes
+    {
+        get;
+    }
+    public ushort NotificationPublishedDescriptorCount
+    {
+        get;
+    }
+    public ushort NotificationPreviousAvailableRingIndex
+    {
+        get;
+    }
+    public ushort NotificationNextAvailableRingIndex
+    {
+        get;
+    }
+    public bool UsesRegisterWindowNotification
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus NotificationWindowExecutionStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowPlanStatus NotificationRegisterWindowStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowAccessExecutionStatus NotificationWindowAccessExecutionStatus
+    {
+        get;
+    }
+    public bool NotificationWindowExecutionAttempted
+    {
+        get;
+    }
+    public bool NotificationBarrierSucceeded
+    {
+        get;
+    }
+    public uint NotificationBarrierSequence
+    {
+        get;
+    }
+    public VirtioPciCapabilityType NotificationCapabilityType
+    {
+        get;
+    }
+    public byte NotificationBarIndex
+    {
+        get;
+    }
+    public VirtioPciRegisterAccessWidth NotificationAccessWidth
+    {
+        get;
+    }
+    public uint NotificationAccessWidthBytes
+    {
+        get;
+    }
+    public ulong NotificationBarRelativeOffset
+    {
+        get;
+    }
+    public ulong NotificationWrittenValue
+    {
+        get;
+    }
+    public ushort PreviousUsedIndex
+    {
+        get;
+    }
+    public ushort CurrentUsedIndex
+    {
+        get;
+    }
+    public ushort NextUsedIndex
+    {
+        get;
+    }
+    public ushort UsedRingSlot
+    {
+        get;
+    }
+    public uint UsedRingElementOffset
+    {
+        get;
+    }
+    public uint DescriptorHead
+    {
+        get;
+    }
+    public uint UsedByteCount
+    {
+        get;
+    }
+    public ushort ReclaimedDescriptorCount
+    {
+        get;
+    }
+    public ushort HeaderDescriptorIndex
+    {
+        get;
+    }
+    public ushort FrameDescriptorIndex
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetTransmitCompletionPlanStatus.Success;
 
     internal static VirtioNetTransmitCompletionPlanResult Success(VirtioNetTransmitLifecycleResult transmitPublish, NotificationProvenance notification, ushort previousUsedIndex, ushort currentUsedIndex, ushort usedRingSlot, uint usedRingElementOffset, uint descriptorHead, uint usedByteCount)

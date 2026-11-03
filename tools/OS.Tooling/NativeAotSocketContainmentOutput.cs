@@ -20,7 +20,7 @@ public static partial class NativeAotSocketContainmentOutput
         var listen = Values(rows[1], "SOCKET_CONTAINMENT_LISTEN", "port", "peers", "rounds", "interval_ms", "deadline_ms");
         Need(listen.SequenceEqual(new ulong[] { (ulong)port, 3, 15, 5000, 100000 }), "listen");
         var timeout = Values(rows[2], "SOCKET_CONTAINMENT_TIMEOUT", "elapsed_ms", "queued", "worker");
-        Need(timeout[0] is >= 60000 and < 100000 && timeout[1] is >= 32768 and < 65536 && timeout[2] is> 0 and <= int.MaxValue, "timeout");
+        Need(timeout[0] is >= 60000 and < 100000 && timeout[1] is >= 32768 and < 65536 && timeout[2] is > 0 and <= int.MaxValue, "timeout");
         Healthy[] peers = new Healthy[2];
         for (int i = 0; i < peers.Length; i++)
         {

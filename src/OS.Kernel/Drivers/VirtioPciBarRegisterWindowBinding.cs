@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct VirtioPciBarRegisterWindowBinding
 {
     internal VirtioPciBarRegisterWindowBinding(VirtioPciBarAperture aperture, VirtioPciMappedBarWindow window, ulong aperturePhysicalBaseAddress, ulong apertureVirtualBaseAddress)
@@ -12,9 +13,18 @@ public readonly struct VirtioPciBarRegisterWindowBinding
         IsBound = true;
     }
 
-    public VirtioPciBarAperture Aperture { get; }
-    public VirtioPciMappedBarWindow Window { get; }
-    public bool IsBound { get; }
+    public VirtioPciBarAperture Aperture
+    {
+        get;
+    }
+    public VirtioPciMappedBarWindow Window
+    {
+        get;
+    }
+    public bool IsBound
+    {
+        get;
+    }
     public VirtioPciCapabilityType CapabilityType => Aperture.CapabilityType;
     public byte BarIndex => Aperture.BarIndex;
     public PciBarKind BarKind => Aperture.BarKind;
@@ -23,8 +33,14 @@ public readonly struct VirtioPciBarRegisterWindowBinding
     public uint ApertureOffset => Aperture.Offset;
     public uint ApertureLength => Aperture.Length;
     public ulong ApertureEndOffset => Aperture.EndOffset;
-    public ulong AperturePhysicalBaseAddress { get; }
-    public ulong ApertureVirtualBaseAddress { get; }
+    public ulong AperturePhysicalBaseAddress
+    {
+        get;
+    }
+    public ulong ApertureVirtualBaseAddress
+    {
+        get;
+    }
     public ulong WindowLength => Window.Length;
     public bool IsMapped => Window.IsMapped;
     public bool IsMmio => Window.IsMmio;

@@ -173,7 +173,7 @@ internal static partial class NativeDiskStaticReadWindowsTests
         var file = inventory.Find(Inventory.Root + "/fixture/fragmented.bin")!;
         var vector = Device(raw, [new(file.Sectors[0].Lba, 10)]);
         var good = Window(file, 9, 13);
-        var ceiling = Window(file, 9, 173, 511, 8192)with
+        var ceiling = Window(file, 9, 173, 511, 8192) with
         {
             Requested = 65536
         };

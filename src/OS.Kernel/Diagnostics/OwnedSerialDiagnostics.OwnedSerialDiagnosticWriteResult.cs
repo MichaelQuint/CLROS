@@ -2,6 +2,7 @@ using OS.Kernel.Platform;
 using OS.Std.Text;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct OwnedSerialDiagnosticWriteResult
 {
     private OwnedSerialDiagnosticWriteResult(bool isInitialized, OwnedSerialDiagnosticWriteStatus status, OwnedSerialMarkerFormatStatus formatStatus, PlatformSerialWriteStatus serialStatus, FirmwareServicesMode mode, PlatformSerialTransportKind transportKind, int markerBytes, int bytesWritten, int requiredBytes)
@@ -17,15 +18,42 @@ public readonly struct OwnedSerialDiagnosticWriteResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool IsInitialized { get; }
-    public OwnedSerialDiagnosticWriteStatus Status { get; }
-    public OwnedSerialMarkerFormatStatus FormatStatus { get; }
-    public PlatformSerialWriteStatus SerialStatus { get; }
-    public FirmwareServicesMode Mode { get; }
-    public PlatformSerialTransportKind TransportKind { get; }
-    public int MarkerBytes { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public OwnedSerialDiagnosticWriteStatus Status
+    {
+        get;
+    }
+    public OwnedSerialMarkerFormatStatus FormatStatus
+    {
+        get;
+    }
+    public PlatformSerialWriteStatus SerialStatus
+    {
+        get;
+    }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
+    public PlatformSerialTransportKind TransportKind
+    {
+        get;
+    }
+    public int MarkerBytes
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == OwnedSerialDiagnosticWriteStatus.Success && FormatStatus == OwnedSerialMarkerFormatStatus.Success && SerialStatus == PlatformSerialWriteStatus.Success && MarkerBytes > 0 && RequiredBytes == MarkerBytes + OwnedSerialDiagnostics.LineEndingBytes && BytesWritten == RequiredBytes;
 
     public static OwnedSerialDiagnosticWriteResult Success(OwnedSerialMarkerFormatResult format, PlatformSerialWriteResult serial)

@@ -4,6 +4,7 @@ using System.Text;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class WebRootImageFixture
 {
     /// <summary>Copied evidence for one fixed fixture mutation and its actual

@@ -23,7 +23,7 @@ internal static class HostRuntimeAllocationBoundary
         if (!imported.IsExtern || !imported.IsStatic || imported.Arity != 0 || imported.RefKind != RefKind.None
             || imported.ReturnType.SpecialType != SpecialType.System_String
             || imported.Parameters is not [{ RefKind: RefKind.None, Type: IPointerTypeSymbol pointer },
-                { RefKind: RefKind.None, Type.SpecialType: SpecialType.System_IntPtr }]
+            { RefKind: RefKind.None, Type.SpecialType: SpecialType.System_IntPtr }]
             || !SymbolEqualityComparer.Default.Equals(pointer.PointedAtType, catalog.Type("Internal.Runtime.MethodTable"))
             || !imported.GetAttributes().Any(attribute =>
                 SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, catalog.Type("System.Runtime.RuntimeImportAttribute"))
@@ -79,7 +79,7 @@ internal static class HostRuntimeAllocationBoundary
             && reference.Operation.Arguments[0].Value is ILocalReferenceOperation returnedLocal
             && SymbolEqualityComparer.Default.Equals(returnedLocal.Local, model.GetDeclaredSymbol(local))
             && model.GetOperation(initializer.Value) is IConversionOperation
-                { Type.SpecialType: SpecialType.System_UIntPtr, Conversion.IsUserDefined: false, Operand: IInvocationOperation produced }
+            { Type.SpecialType: SpecialType.System_UIntPtr, Conversion.IsUserDefined: false, Operand: IInvocationOperation produced }
             && produced.Type?.SpecialType == SpecialType.System_UInt64
             && produced.Syntax == allocation.Syntax
             && reference.Operation.Parent is IReturnOperation;

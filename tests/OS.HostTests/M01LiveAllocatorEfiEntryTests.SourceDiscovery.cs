@@ -111,7 +111,7 @@ internal static partial class M01LiveAllocatorEfiEntryTests
     private static CSharpSourceCatalog MutateFallback(CSharpSourceCatalog source)
     {
         var method = source.Method(StageTwoOwner, "RunAfterStageOne");
-        if (method.Body?.Statements.Single()is not ReturnStatementSyntax { Expression: LiteralExpressionSyntax expression } || !expression.IsKind(SyntaxKind.FalseLiteralExpression))
+        if (method.Body?.Statements.Single() is not ReturnStatementSyntax { Expression: LiteralExpressionSyntax expression } || !expression.IsKind(SyntaxKind.FalseLiteralExpression))
             throw new InvalidOperationException("disabled_fallback_shape");
         var document = source.Document(method);
         string changed = document.Text[..expression.SpanStart] + "true" + document.Text[expression.Span.End..];

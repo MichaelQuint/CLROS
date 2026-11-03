@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public enum AcpiBootstrapCopyStatus
 {
     NotStarted = 0,

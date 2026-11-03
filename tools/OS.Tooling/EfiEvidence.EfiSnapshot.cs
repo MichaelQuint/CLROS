@@ -7,6 +7,7 @@ using System.Xml;
 using System.Xml.Linq;
 
 namespace OS.Tooling;
+
 public sealed record EfiSnapshot(IReadOnlyList<EfiInput> Inputs, string AggregateSha256, long TotalBytes)
 {
     public int FileCount => Inputs.Count;

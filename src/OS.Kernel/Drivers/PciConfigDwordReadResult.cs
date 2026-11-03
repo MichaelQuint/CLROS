@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciConfigDwordReadResult
 {
     public PciConfigDwordReadResult(PciConfigDwordAccessStatus status, uint value) : this(status, value, isInitialized: true)
@@ -12,8 +13,17 @@ public readonly struct PciConfigDwordReadResult
         IsInitialized = isInitialized;
     }
 
-    public PciConfigDwordAccessStatus Status { get; }
-    public uint Value { get; }
-    public bool IsInitialized { get; }
+    public PciConfigDwordAccessStatus Status
+    {
+        get;
+    }
+    public uint Value
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PciConfigDwordAccessStatus.Success;
 }

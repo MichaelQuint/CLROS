@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum OwnedCom1ReadyWriterStatus : byte
 {
     Success = 0,

@@ -16,9 +16,21 @@ internal static partial class VirtioNetTransmitCompletionPlanTests
             QueuePlan = queuePlan;
         }
 
-        public VirtioPciBarApertureSet Apertures { get; }
-        public VirtioPciBarRegisterWindowBindingResult RegisterWindows { get; }
-        public VirtioNetQueueMmioSetupPlanResult QueueSetup { get; }
-        public VirtioNetQueuePlanResult QueuePlan { get; }
+        public VirtioPciBarApertureSet Apertures
+        {
+            get;
+        }
+        public VirtioPciBarRegisterWindowBindingResult RegisterWindows
+        {
+            get;
+        }
+        public VirtioNetQueueMmioSetupPlanResult QueueSetup
+        {
+            get;
+        }
+        public VirtioNetQueuePlanResult QueuePlan
+        {
+            get;
+        }
     }
 }

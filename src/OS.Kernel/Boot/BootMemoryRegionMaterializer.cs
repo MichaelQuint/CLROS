@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static unsafe class BootMemoryRegionMaterializer
 {
     public const ulong DescriptorStride40 = 40;

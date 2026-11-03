@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class GdtDescriptorPlan
 {
     public const int SegmentDescriptorLength = 8;

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 using OS.Std.Text;
 
@@ -15,12 +16,30 @@ public readonly struct VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormat
         Flags = flags;
     }
 
-    public VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatStatus Status { get; }
-    public VirtioNetReceiveRegisterWindowTcpDispatchStatus DispatchStatus { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
-    public uint Flags { get; }
+    public VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatStatus Status
+    {
+        get;
+    }
+    public VirtioNetReceiveRegisterWindowTcpDispatchStatus DispatchStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatStatus.Success && RequiredBytes > 0 && BytesWritten == RequiredBytes && RequiredBytes <= AvailableBytes;
 

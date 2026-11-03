@@ -12,7 +12,13 @@ internal static partial class QemuRunnerTests
             Output = output;
         }
 
-        public int ExitCode { get; }
-        public string Output { get; }
+        public int ExitCode
+        {
+            get;
+        }
+        public string Output
+        {
+            get;
+        }
     }
 }

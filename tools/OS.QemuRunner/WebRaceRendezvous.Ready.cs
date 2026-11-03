@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 
 namespace OS.Tools.QemuRunner;
+
 public static partial class WebRaceRendezvous
 {
     /// <summary>Copied runner-supplied forward and PID; neither is authenticated by IPC.</summary>

@@ -1,6 +1,7 @@
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect borrowed transport rows against explicit control
@@ -13,7 +14,7 @@ public static partial class QemuTranscripts
 
     public static WebSocketControlInspection InspectNativeAotWebTransportForTests(string[] rows, WebControlInspection controls, bool logQuota = false, bool signalRace = false)
     {
-        Need(rows is not null && rows.Length is> 0 and <= 100000 && controls is not null, "web_transport_inputs");
+        Need(rows is not null && rows.Length is > 0 and <= 100000 && controls is not null, "web_transport_inputs");
         var all = SocketLifetimes(rows!, true, logQuota ? 7 : 8, controls!.Sockets, signalRace);
         return WebTransportDetails(all, controls.Sockets);
     }
@@ -26,7 +27,7 @@ public static partial class QemuTranscripts
     }
 
     private static bool IsWebControlEvent(string row) => row.StartsWith("M07_027_TIMEOUT", StringComparison.Ordinal) || row.StartsWith("M07_028_DROP", StringComparison.Ordinal);
-    private static Dictionary<string, ulong> WebControlEvent(string row) => row.StartsWith("M07_027_TIMEOUT", StringComparison.Ordinal) ? ReadRecord(row, "M07_027_TIMEOUT", [..SocketLifetimeFields[..10], "sharedFailed:dec"]) : ReadRecord(row, "M07_028_DROP", "before:dec", "after:dec", "availableBefore:dec", "availableAfter:dec", "delivered:dec", "clock:dec", "running:dec");
+    private static Dictionary<string, ulong> WebControlEvent(string row) => row.StartsWith("M07_027_TIMEOUT", StringComparison.Ordinal) ? ReadRecord(row, "M07_027_TIMEOUT", [.. SocketLifetimeFields[..10], "sharedFailed:dec"]) : ReadRecord(row, "M07_028_DROP", "before:dec", "after:dec", "availableBefore:dec", "availableAfter:dec", "delivered:dec", "clock:dec", "running:dec");
     private static void RequireWebControlEvents(WebSocketControls.Report controls)
     {
         try

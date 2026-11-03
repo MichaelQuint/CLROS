@@ -1,6 +1,7 @@
 using OS.Std;
 
 namespace OS.Std.Text;
+
 public static class AsciiDecimalFormatter
 {
     private const byte Zero = (byte)'0';

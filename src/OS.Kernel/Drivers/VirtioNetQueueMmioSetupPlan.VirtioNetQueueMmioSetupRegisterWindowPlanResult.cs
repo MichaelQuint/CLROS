@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct VirtioNetQueueMmioSetupRegisterWindowPlanResult
 {
     private VirtioNetQueueMmioSetupRegisterWindowPlanResult(bool isInitialized, VirtioNetQueueMmioSetupRegisterWindowPlanStatus status, VirtioNetQueueMmioSetupPlanStatus setupPlanStatus, VirtioPciBarRegisterWindowPlanStatus registerWindowStatus, VirtioNetQueueMmioSetupCommandKind commandKind, int commandIndex, int accessPlansWritten, int requiredAccessPlanCount, int availableAccessPlanCount, ushort queueIndex, uint relativeOffset, uint widthBytes)
@@ -19,18 +20,54 @@ public readonly struct VirtioNetQueueMmioSetupRegisterWindowPlanResult
         WidthBytes = widthBytes;
     }
 
-    public VirtioNetQueueMmioSetupRegisterWindowPlanStatus Status { get; }
-    public VirtioNetQueueMmioSetupPlanStatus SetupPlanStatus { get; }
-    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowStatus { get; }
-    public VirtioNetQueueMmioSetupCommandKind CommandKind { get; }
-    public int CommandIndex { get; }
-    public int AccessPlansWritten { get; }
-    public int RequiredAccessPlanCount { get; }
-    public int AvailableAccessPlanCount { get; }
-    public ushort QueueIndex { get; }
-    public uint RelativeOffset { get; }
-    public uint WidthBytes { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetQueueMmioSetupRegisterWindowPlanStatus Status
+    {
+        get;
+    }
+    public VirtioNetQueueMmioSetupPlanStatus SetupPlanStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowStatus
+    {
+        get;
+    }
+    public VirtioNetQueueMmioSetupCommandKind CommandKind
+    {
+        get;
+    }
+    public int CommandIndex
+    {
+        get;
+    }
+    public int AccessPlansWritten
+    {
+        get;
+    }
+    public int RequiredAccessPlanCount
+    {
+        get;
+    }
+    public int AvailableAccessPlanCount
+    {
+        get;
+    }
+    public ushort QueueIndex
+    {
+        get;
+    }
+    public uint RelativeOffset
+    {
+        get;
+    }
+    public uint WidthBytes
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetQueueMmioSetupRegisterWindowPlanStatus.Success;
 
     internal static VirtioNetQueueMmioSetupRegisterWindowPlanResult Success(VirtioNetQueueMmioSetupPlanResult setupPlan, int accessPlansWritten, int availableAccessPlanCount)

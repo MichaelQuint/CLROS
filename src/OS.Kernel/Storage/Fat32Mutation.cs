@@ -19,8 +19,6 @@ namespace OS.Storage;
 public static unsafe partial class Fat32Mutation
 {
 
-
-
     private static bool Alias(ReadOnlySpan<byte> alias)
     {
         Span<byte> entry = stackalloc byte[32];

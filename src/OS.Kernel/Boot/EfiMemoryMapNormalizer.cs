@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static unsafe class EfiMemoryMapNormalizer
 {
     public const ulong PageSize = 4096;

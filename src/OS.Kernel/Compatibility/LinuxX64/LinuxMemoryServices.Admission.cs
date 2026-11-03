@@ -1,6 +1,7 @@
 using OS.Kernel.Memory;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxMemoryServices
 {
 #if M16_014_PROBE
@@ -8,10 +9,6 @@ public static unsafe partial class LinuxMemoryServices
 #else
 #endif
 #if M10_004_PROBE
-
-
-
-
 
 #else
 #endif

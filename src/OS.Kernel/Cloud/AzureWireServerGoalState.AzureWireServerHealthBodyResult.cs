@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Cloud;
+
 public readonly struct AzureWireServerHealthBodyResult
 {
     private AzureWireServerHealthBodyResult(AzureWireServerHealthBodyStatus status, string body)
@@ -9,8 +10,14 @@ public readonly struct AzureWireServerHealthBodyResult
         Body = body;
     }
 
-    public AzureWireServerHealthBodyStatus Status { get; }
-    public string Body { get; }
+    public AzureWireServerHealthBodyStatus Status
+    {
+        get;
+    }
+    public string Body
+    {
+        get;
+    }
     public bool Succeeded => Status == AzureWireServerHealthBodyStatus.Success;
 
     public static AzureWireServerHealthBodyResult Success(string body)

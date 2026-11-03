@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect bounded original PCAP bytes with borrowed parent ARP,
@@ -18,7 +19,7 @@ public static partial class QemuTranscripts
     public static ServiceHttpPacketInspection InspectNativeAotServiceHttpPacketsForTests(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp, IReadOnlyList<uint> ports, string peerReport)
     {
         var peer = NativeAotServicePeer.InspectOutput(peerReport);
-        Need(ports.Count == peer.Exchanges && ports.Distinct().Count() == ports.Count && ports.All(port => port is> 0 and <= 65535), "service_wire_expectations");
+        Need(ports.Count == peer.Exchanges && ports.Distinct().Count() == ports.Count && ports.All(port => port is > 0 and <= 65535), "service_wire_expectations");
         using var document = JsonDocument.Parse(peerReport);
         var exchanges = document.RootElement.GetProperty("exchanges").EnumerateArray().ToArray();
         return ServiceHttpPackets(bytes, anchor, arp, ports, exchanges, false);
@@ -47,7 +48,7 @@ public static partial class QemuTranscripts
         int streamMaximum = diskStaticFull ? DiskStaticCapturePolicy.StreamBytes : QuotaPacketMaximumExtent;
         if (ports is null)
             throw new ToolFailure("service_wire_ports");
-        Need(ports.Count is> 0 and <= 512 && ports.Distinct().Count() == ports.Count && ports.All(port => port is> 0 and <= 65535), "service_wire_ports");
+        Need(ports.Count is > 0 and <= 512 && ports.Distinct().Count() == ports.Count && ports.All(port => port is > 0 and <= 65535), "service_wire_ports");
         Need(delegatedWebRecords is null || quotaStreams && concurrent && lifecycle && delegatedWebRecords.Count > 0, "web_race_wire_delegation");
         _ = QemuEthernetCapture.Inspect(bytes, anchor, diskStaticFull);
         int offset = 24, stage = 0, prefixEnd = 0, resolution = 0, tcpRecords = 0, quietSyns = 0, record = 0;
@@ -289,12 +290,12 @@ public static partial class QemuTranscripts
     private static (string First, Dictionary<string, string> Headers, int End) ServiceHttpHead(ReadOnlySpan<byte> data)
     {
         int at = data.IndexOf("\r\n\r\n"u8);
-        Need(at is> 0 and <= 4096, "service_http_header_extent");
+        Need(at is > 0 and <= 4096, "service_http_header_extent");
         var bytes = data[..at];
         foreach (byte value in bytes)
             Need(value is 10 or 13 or >= 32 and <= 126, "service_http_header_byte");
         string[] lines = Encoding.ASCII.GetString(bytes).Split("\r\n", StringSplitOptions.None);
-        Need(lines.Length is >= 2 and <= 32 && lines.All(line => line.Length is> 0 and <= 1024 && line.All(c => c is >= ' ' and <= '~')), "service_http_headers");
+        Need(lines.Length is >= 2 and <= 32 && lines.All(line => line.Length is > 0 and <= 1024 && line.All(c => c is >= ' ' and <= '~')), "service_http_headers");
         Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
         foreach (string line in lines.Skip(1))
         {
@@ -323,7 +324,7 @@ public static partial class QemuTranscripts
             while (true)
             {
                 int end = entity[consumed..].IndexOf("\r\n"u8);
-                Need(end is> 0 and <= 8, "service_http_chunk_size");
+                Need(end is > 0 and <= 8, "service_http_chunk_size");
                 string hex = Encoding.ASCII.GetString(entity.Slice(consumed, end));
                 Need(hex.All(char.IsAsciiHexDigit) && int.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int length) && length >= 0, "service_http_chunk_number");
                 int size = int.Parse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture);

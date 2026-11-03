@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct Com1PortIoBackendContractResult
 {
     private Com1PortIoBackendContractResult(bool isInitialized, Com1PortIoBackendContractStatus status, Com1PortIoBackendPlanStatus backendPlanStatus, ExecutableStubBundlePlanStatus stubBundlePlanStatus, ushort configuredBasePort, nuint out8StubOffset, nuint in8StubOffset, nuint out8StubAddress, nuint in8StubAddress)
@@ -16,15 +17,42 @@ public readonly struct Com1PortIoBackendContractResult
         In8StubAddress = in8StubAddress;
     }
 
-    public bool IsInitialized { get; }
-    public Com1PortIoBackendContractStatus Status { get; }
-    public Com1PortIoBackendPlanStatus BackendPlanStatus { get; }
-    public ExecutableStubBundlePlanStatus StubBundlePlanStatus { get; }
-    public ushort ConfiguredBasePort { get; }
-    public nuint Out8StubOffset { get; }
-    public nuint In8StubOffset { get; }
-    public nuint Out8StubAddress { get; }
-    public nuint In8StubAddress { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public Com1PortIoBackendContractStatus Status
+    {
+        get;
+    }
+    public Com1PortIoBackendPlanStatus BackendPlanStatus
+    {
+        get;
+    }
+    public ExecutableStubBundlePlanStatus StubBundlePlanStatus
+    {
+        get;
+    }
+    public ushort ConfiguredBasePort
+    {
+        get;
+    }
+    public nuint Out8StubOffset
+    {
+        get;
+    }
+    public nuint In8StubOffset
+    {
+        get;
+    }
+    public nuint Out8StubAddress
+    {
+        get;
+    }
+    public nuint In8StubAddress
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == Com1PortIoBackendContractStatus.Success;
 
     public static Com1PortIoBackendContractResult Success(ushort configuredBasePort, nuint out8StubOffset, nuint in8StubOffset, nuint out8StubAddress, nuint in8StubAddress)

@@ -17,7 +17,10 @@ public sealed partial class NativeAotHelloProgram
     public const string IndexSha256 = "13A2F6FF65B4A2EE0137EDE2C59CFD174D32C91656B54E7E3F09794D49C6F0FB";
     private const int MaximumDisassemblyBytes = 20 * 1024 * 1024;
     private readonly NativeAotInstructionIndex index;
-    internal string SourceRoot { get; }
+    internal string SourceRoot
+    {
+        get;
+    }
 
     private NativeAotHelloProgram(NativeAotInstructionIndex parsed, string root)
     {

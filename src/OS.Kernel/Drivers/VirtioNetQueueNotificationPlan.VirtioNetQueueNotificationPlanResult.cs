@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioNetQueueNotificationPlanResult
 {
     private VirtioNetQueueNotificationPlanResult(VirtioNetQueueNotificationPlanStatus status, VirtioNetQueueNotificationKind kind, VirtioNetQueueMmioSetupPlanStatus queueSetupStatus, VirtioNetReceiveLifecyclePublishStatus receivePublishStatus, VirtioNetTransmitLifecycleStatus transmitPublishStatus, VirtioPciQueueNotificationPlanStatus notificationStatus, VirtioNetQueueNotificationPlan plan, bool isInitialized)
@@ -13,14 +14,38 @@ public readonly struct VirtioNetQueueNotificationPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioNetQueueNotificationPlanStatus Status { get; }
-    public VirtioNetQueueNotificationKind Kind { get; }
-    public VirtioNetQueueMmioSetupPlanStatus QueueSetupStatus { get; }
-    public VirtioNetReceiveLifecyclePublishStatus ReceivePublishStatus { get; }
-    public VirtioNetTransmitLifecycleStatus TransmitPublishStatus { get; }
-    public VirtioPciQueueNotificationPlanStatus NotificationStatus { get; }
-    public VirtioNetQueueNotificationPlan Plan { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetQueueNotificationPlanStatus Status
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationKind Kind
+    {
+        get;
+    }
+    public VirtioNetQueueMmioSetupPlanStatus QueueSetupStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveLifecyclePublishStatus ReceivePublishStatus
+    {
+        get;
+    }
+    public VirtioNetTransmitLifecycleStatus TransmitPublishStatus
+    {
+        get;
+    }
+    public VirtioPciQueueNotificationPlanStatus NotificationStatus
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationPlan Plan
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetQueueNotificationPlanStatus.Success;
 
     internal static VirtioNetQueueNotificationPlanResult Success(VirtioNetQueueNotificationKind kind, VirtioNetQueueMmioSetupPlanStatus queueSetupStatus, VirtioNetReceiveLifecyclePublishStatus receivePublishStatus, VirtioNetTransmitLifecycleStatus transmitPublishStatus, VirtioPciQueueNotificationPlanStatus notificationStatus, VirtioNetQueueNotificationPlan plan)

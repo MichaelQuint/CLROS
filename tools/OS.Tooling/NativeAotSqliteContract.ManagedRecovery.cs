@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSqliteContract
 {
     public sealed class ManagedRecovery
@@ -25,10 +26,22 @@ public static partial class NativeAotSqliteContract
             RecoveredDatabaseSha256 = recoveredHash;
         }
 
-        public string Directory { get; }
-        public RecoveryJournal Journal { get; }
-        public ProcessResult Writer { get; }
-        public string RecoveredDatabaseSha256 { get; }
+        public string Directory
+        {
+            get;
+        }
+        public RecoveryJournal Journal
+        {
+            get;
+        }
+        public ProcessResult Writer
+        {
+            get;
+        }
+        public string RecoveredDatabaseSha256
+        {
+            get;
+        }
         public bool GrantsLinuxNativeAotGuestOrPowerLossDurabilityAuthority => false;
     }
 }

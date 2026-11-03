@@ -9,6 +9,7 @@ using DataImage = OS.Tooling.WritableDataImageFixture;
 using Gpt = OS.Storage.PrimaryGPTIndependentlyBoundsCRC;
 
 namespace OS.Tooling;
+
 public static partial class CombinedWebDataImageFixture
 {
     /// <summary>Copied facts from exact actual GPT/partition bytes. Both GPT
@@ -34,18 +35,54 @@ public static partial class CombinedWebDataImageFixture
             Data = dataFiles;
         }
 
-        public string RawSha256 { get; }
-        public Guid DiskGuid { get; }
-        public Guid WebPartitionGuid { get; }
-        public Guid DataPartitionGuid { get; }
+        public string RawSha256
+        {
+            get;
+        }
+        public Guid DiskGuid
+        {
+            get;
+        }
+        public Guid WebPartitionGuid
+        {
+            get;
+        }
+        public Guid DataPartitionGuid
+        {
+            get;
+        }
         public ulong CapacitySectors => Sectors;
-        public ulong WebFirst { get; }
-        public ulong WebLast { get; }
-        public ulong DataFirst { get; }
-        public ulong DataLast { get; }
-        public string WebPartitionSha256 { get; }
-        public string DataPartitionSha256 { get; }
-        public ReadOnlyCollection<WebFile> WebFiles { get; }
-        public DataImage.Inspection Data { get; }
+        public ulong WebFirst
+        {
+            get;
+        }
+        public ulong WebLast
+        {
+            get;
+        }
+        public ulong DataFirst
+        {
+            get;
+        }
+        public ulong DataLast
+        {
+            get;
+        }
+        public string WebPartitionSha256
+        {
+            get;
+        }
+        public string DataPartitionSha256
+        {
+            get;
+        }
+        public ReadOnlyCollection<WebFile> WebFiles
+        {
+            get;
+        }
+        public DataImage.Inspection Data
+        {
+            get;
+        }
     }
 }

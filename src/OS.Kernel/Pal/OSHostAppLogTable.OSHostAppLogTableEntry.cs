@@ -1,6 +1,7 @@
 using OS.Std.Memory;
 
 namespace OS.Pal;
+
 public readonly struct OSHostAppLogTableEntry
 {
     public readonly uint StreamId;

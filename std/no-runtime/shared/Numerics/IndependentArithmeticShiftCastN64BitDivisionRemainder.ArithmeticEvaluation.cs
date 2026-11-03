@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 
 namespace OS.Std.Numerics;
+
 public readonly struct ArithmeticEvaluation
 {
     internal ArithmeticEvaluation(ArithmeticEvaluationStatus status, ulong value)
@@ -9,7 +10,13 @@ public readonly struct ArithmeticEvaluation
         Value = value;
     }
 
-    public ArithmeticEvaluationStatus Status { get; }
-    public ulong Value { get; }
+    public ArithmeticEvaluationStatus Status
+    {
+        get;
+    }
+    public ulong Value
+    {
+        get;
+    }
     public bool Succeeded => Status == ArithmeticEvaluationStatus.Success;
 }

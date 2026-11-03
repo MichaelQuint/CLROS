@@ -43,17 +43,28 @@ internal static class NativeAotServiceControlTests
             byte[] replacement = ContinuingTcpScenario.Write(new(true, (ushort)control.Persist.Port, change.Sequence, change.Ack,
                 change.Flags, change.Window, change.Data), 0x52550a000202);
             HostCheck.Equal(original.Length, replacement.Length);
-            byte[] changed = bytes.ToArray(); int offset = 24;
+            byte[] changed = bytes.ToArray();
+            int offset = 24;
             for (long ordinal = 1; ordinal <= repeated.Ordinal; ordinal++)
             {
                 int length = checked((int)System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(changed.AsSpan(offset + 8)));
-                if (ordinal == repeated.Ordinal) replacement.CopyTo(changed, offset + 16);
+                if (ordinal == repeated.Ordinal)
+                    replacement.CopyTo(changed, offset + 16);
                 offset += 16 + length;
             }
-            var copied = control with { Observations = control.Observations.Select(row => row.Ordinal == repeated.Ordinal
-                ? row with { Hex = Convert.ToHexString(replacement) } : row).ToArray() };
+            var copied = control with
+            {
+                Observations = control.Observations.Select(row => row.Ordinal == repeated.Ordinal
+                ? row with
+                {
+                    Hex = Convert.ToHexString(replacement)
+                } : row).ToArray()
+            };
             string? reason = null;
-            try { _ = Inspect(changed, JsonSerializer.Serialize(copied), JsonSerializer.Serialize(frames)); }
+            try
+            {
+                _ = Inspect(changed, JsonSerializer.Serialize(copied), JsonSerializer.Serialize(frames));
+            }
             catch (ToolFailure error) { reason = error.Reason; }
             HostCheck.Equal("service_control_isolation", reason ?? "accepted");
         }
@@ -70,11 +81,11 @@ internal static class NativeAotServiceControlTests
             control with { Persist = control.Persist with { ResponseHex = control.Healthy.ResponseHex + "00" } },
             control with { Healthy = control.Healthy with { StartedUtc = control.Healthy.StartedUtc.AddHours(-2) } } })
             Reject(() => Inspect(bytes, JsonSerializer.Serialize(changed), writer));
-        foreach(var unread in new[] {control.Unread with {ResetOrdinal=control.Unread.ResetOrdinal+1},
+        foreach (var unread in new[] {control.Unread with {ResetOrdinal=control.Unread.ResetOrdinal+1},
             control.Unread with {LateOrdinal=control.Unread.ResetOrdinal},
             control.Unread with {CloseRow=control.Unread.CloseRow.Replace("unread=0","unread=1",StringComparison.Ordinal)},
             control.Unread with {Http=control.Unread.Http with {ResponseHex=control.Unread.Http.ResponseHex+"00"}}})
-            Reject(()=>Inspect(bytes,JsonSerializer.Serialize(control with {Unread=unread}),writer));
+            Reject(() => Inspect(bytes, JsonSerializer.Serialize(control with { Unread = unread }), writer));
         foreach (var changed in new[] { frames with { ControlledPorts = frames.ControlledPorts.Reverse().ToArray() },
             frames with { Session = frames.Session with { GuestExitExpected = false } },
             frames with { Injections = frames.Injections.Where(row => row.Forwarded).ToArray() },
@@ -87,24 +98,35 @@ internal static class NativeAotServiceControlTests
         // Change the original wire reset and its copied observation together.
         // This reaches the independent sequence/ACK check rather than merely
         // detecting an inconsistent driver ledger.
-        var reset=control.Observations.Single(row=>row.Ordinal==control.Unread.ResetOrdinal);
-        byte[] resetBytes=Convert.FromHexString(reset.Hex);
-        uint sequence=System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(resetBytes.AsSpan(38));
-        uint ack=System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(resetBytes.AsSpan(42));
-        foreach(var wrong in new[]{(Sequence:unchecked(sequence+1),Ack:ack),(Sequence:sequence,Ack:unchecked(ack+1))})
+        var reset = control.Observations.Single(row => row.Ordinal == control.Unread.ResetOrdinal);
+        byte[] resetBytes = Convert.FromHexString(reset.Hex);
+        uint sequence = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(resetBytes.AsSpan(38));
+        uint ack = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(resetBytes.AsSpan(42));
+        foreach (var wrong in new[] { (Sequence: unchecked(sequence + 1), Ack: ack), (Sequence: sequence, Ack: unchecked(ack + 1)) })
         {
-            byte[] replacement=NativeAotSocketIntegrationTests.Tcp(true,(ushort)control.PendingPort,wrong.Sequence,wrong.Ack,0x14,[]);
-            Array.Resize(ref replacement,resetBytes.Length);
-            byte[] changed=bytes.ToArray();int offset=24;
-            for(long ordinal=1;ordinal<=reset.Ordinal;ordinal++)
+            byte[] replacement = NativeAotSocketIntegrationTests.Tcp(true, (ushort)control.PendingPort, wrong.Sequence, wrong.Ack, 0x14, []);
+            Array.Resize(ref replacement, resetBytes.Length);
+            byte[] changed = bytes.ToArray();
+            int offset = 24;
+            for (long ordinal = 1; ordinal <= reset.Ordinal; ordinal++)
             {
-                int length=checked((int)System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(changed.AsSpan(offset+8)));
-                if(ordinal==reset.Ordinal){HostCheck.Equal(length,replacement.Length);replacement.CopyTo(changed,offset+16);}
-                offset+=16+length;
+                int length = checked((int)System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(changed.AsSpan(offset + 8)));
+                if (ordinal == reset.Ordinal)
+                {
+                    HostCheck.Equal(length, replacement.Length);
+                    replacement.CopyTo(changed, offset + 16);
+                }
+                offset += 16 + length;
             }
-            var copied=control with {Observations=control.Observations.Select(row=>row.Ordinal==reset.Ordinal?
-                row with {Hex=Convert.ToHexString(replacement)}:row).ToArray()};
-            Reject(()=>Inspect(changed,JsonSerializer.Serialize(copied),writer));
+            var copied = control with
+            {
+                Observations = control.Observations.Select(row => row.Ordinal == reset.Ordinal ?
+                row with
+                {
+                    Hex = Convert.ToHexString(replacement)
+                } : row).ToArray()
+            };
+            Reject(() => Inspect(changed, JsonSerializer.Serialize(copied), writer));
         }
         Reject(() => Inspect(bytes, "{\"Schema\":\"other\"," + good[1..], writer));
         Reject(() => Inspect(bytes, good[..^1] + ",\"Unknown\":1}", writer));
@@ -114,7 +136,7 @@ internal static class NativeAotServiceControlTests
         byte[] retry = NativeAotSocketIntegrationTests.Tcp(true, (ushort)control.PendingPort, 123, control.SecondClientSequence + 1, 0x12, []);
         byte[] record = NativeAotSocketIntegrationTests.Capture([retry])[24..];
         System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(record.AsSpan(4), 999999);
-        Reject(() => Inspect([..bytes, ..record], good, writer));
+        Reject(() => Inspect([.. bytes, .. record], good, writer));
     }
 
     private static QemuTranscripts.ServiceControlInspection Inspect(byte[] bytes, string control, string frames)
@@ -125,7 +147,12 @@ internal static class NativeAotServiceControlTests
     }
     private static void Reject(Action action)
     {
-        bool refused = false; try { action(); } catch (Exception error) when (error is ToolFailure or InvalidDataException) { refused = true; }
+        bool refused = false;
+        try
+        {
+            action();
+        }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException) { refused = true; }
         HostCheck.True(refused);
     }
 }

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct EnaAdminCommandCompletionValidationResult
 {
     private EnaAdminCommandCompletionValidationResult(bool isInitialized, EnaAdminCommandPlanStatus status, EnaDeviceAttributesStatus deviceAttributesStatus, EnaAdminCompletionStatus completionStatus, int inputLength, ushort commandId, ushort expectedCommandId, bool phase, bool expectedPhase, EnaDeviceAttributes deviceAttributes)
@@ -15,16 +16,46 @@ public readonly struct EnaAdminCommandCompletionValidationResult
         DeviceAttributes = deviceAttributes;
     }
 
-    public EnaAdminCommandPlanStatus Status { get; }
-    public EnaDeviceAttributesStatus DeviceAttributesStatus { get; }
-    public EnaAdminCompletionStatus CompletionStatus { get; }
-    public int InputLength { get; }
-    public ushort CommandId { get; }
-    public ushort ExpectedCommandId { get; }
-    public bool Phase { get; }
-    public bool ExpectedPhase { get; }
-    public EnaDeviceAttributes DeviceAttributes { get; }
-    public bool IsInitialized { get; }
+    public EnaAdminCommandPlanStatus Status
+    {
+        get;
+    }
+    public EnaDeviceAttributesStatus DeviceAttributesStatus
+    {
+        get;
+    }
+    public EnaAdminCompletionStatus CompletionStatus
+    {
+        get;
+    }
+    public int InputLength
+    {
+        get;
+    }
+    public ushort CommandId
+    {
+        get;
+    }
+    public ushort ExpectedCommandId
+    {
+        get;
+    }
+    public bool Phase
+    {
+        get;
+    }
+    public bool ExpectedPhase
+    {
+        get;
+    }
+    public EnaDeviceAttributes DeviceAttributes
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == EnaAdminCommandPlanStatus.Success;
 
     internal static EnaAdminCommandCompletionValidationResult FromDeviceAttributes(EnaAdminCommandPlanStatus status, EnaDeviceAttributesParseResult parseResult)

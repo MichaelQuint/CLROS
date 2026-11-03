@@ -15,7 +15,11 @@ internal static unsafe class M05PhysicalMappingEfiIntegrationTests
             !BootSequence.RunPostFirmwarePhysicalMapping(true, &invocations, null) && invocations == 0);
     }
 
-    private static bool Execute(void* context) { (*(int*)context)++; return true; }
+    private static bool Execute(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
 
     [HostTest("m05.001.efi transcript associations")]
     private static void TranscriptControls()
@@ -35,7 +39,8 @@ internal static unsafe class M05PhysicalMappingEfiIntegrationTests
         lines[81] = Row(4, pt + 8, uc, wc, newPat);
         lines[82] = Row(5, pt + 8, wc, wb, 0x5743000000000001);
         lines[83] = Row(6, table, scratch, oldPat, wb);
-        lines[84] = "CLROS_M05_001_READY"; lines[85] = "TEST_PASS m05.001";
+        lines[84] = "CLROS_M05_001_READY";
+        lines[85] = "TEST_PASS m05.001";
         QemuTranscripts.AssertM05PhysicalMappingRecords(lines);
         foreach (var (at, before, after) in new (int, string, string)[]
         {
@@ -50,7 +55,8 @@ internal static unsafe class M05PhysicalMappingEfiIntegrationTests
             (83, "0x0007040600070406", "0x0007040100070406")
         })
         {
-            string[] changed = [.. lines]; changed[at] = changed[at].Replace(before, after, StringComparison.Ordinal);
+            string[] changed = [.. lines];
+            changed[at] = changed[at].Replace(before, after, StringComparison.Ordinal);
             HostCheck.True(changed[at] != lines[at], "mutation must change the vector");
             Reject(() => QemuTranscripts.AssertM05PhysicalMappingRecords(changed));
         }
@@ -59,7 +65,12 @@ internal static unsafe class M05PhysicalMappingEfiIntegrationTests
 
     private static void Reject(Action action)
     {
-        bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected, "invalid mapping evidence must be rejected");
     }
 }

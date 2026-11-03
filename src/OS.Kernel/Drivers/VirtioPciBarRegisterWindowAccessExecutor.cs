@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public static class VirtioPciBarRegisterWindowAccessExecutor
 {
     public const bool RequiresAccessPlan = true;

@@ -21,9 +21,12 @@ internal static class StdEndianPrimitivesTests
     private static unsafe void TestPointerUInt16()
     {
         byte* bytes = stackalloc byte[33];
-        bytes[0] = 0xa5; bytes[1] = 0x34; bytes[2] = 0x12;
+        bytes[0] = 0xa5;
+        bytes[1] = 0x34;
+        bytes[2] = 0x12;
         HostCheck.Equal((ushort)0x1234, EndianPrimitives.ReadUInt16LittleEndian(bytes + 1));
-        bytes[31] = 0xcd; bytes[32] = 0xab;
+        bytes[31] = 0xcd;
+        bytes[32] = 0xab;
         HostCheck.Equal((ushort)0xabcd, EndianPrimitives.ReadUInt16LittleEndian(bytes + 31));
         bytes[31] = bytes[32] = 0;
         HostCheck.Equal((ushort)0, EndianPrimitives.ReadUInt16LittleEndian(bytes + 31));

@@ -16,7 +16,8 @@ public static class EfiRestore
         Require(root is not null && root.Name == ns + "Project" && root.Attributes().Count() == 2 && (string?)root.Attribute("ToolsVersion") == "14.0" && (string?)root.Attribute("xmlns") == ns.NamespaceName, "restore_generated_props_root_invalid");
         Require(props.Descendants().All(e => e.Name.Namespace == ns), "restore_generated_props_namespace_invalid");
         XElement[] children = root!.Elements().ToArray();
-        string[] childNames = ["PropertyGroup", "ItemGroup", "ImportGroup", "PropertyGroup"]; int[] childCounts = [7, 1, 2, 3];
+        string[] childNames = ["PropertyGroup", "ItemGroup", "ImportGroup", "PropertyGroup"];
+        int[] childCounts = [7, 1, 2, 3];
         const string condition = " '$(ExcludeRestorePackageImports)' != 'true' ";
         Require(children.Length == childNames.Length, "restore_generated_props_child_count_invalid");
         for (int i = 0; i < children.Length; i++)
@@ -26,7 +27,8 @@ public static class EfiRestore
         }
         Require(!props.Descendants().Any(e => e.Name.LocalName is "Target" or "UsingTask" or "Choose" or "When" or "Otherwise" or "ItemDefinitionGroup" || e.Parent?.Name.LocalName == "PropertyGroup" && new[] { "Custom", "Before", "After" }.Any(e.Name.LocalName.Contains)), "restore_generated_props_executable_surface_invalid");
         string[] expectedImports = [@"$(NuGetPackageRoot)\microsoft.net.illink.tasks\" + EfiContracts.NativePackageVersion + @"\build\Microsoft.NET.ILLink.Tasks.props", @"$(NuGetPackageRoot)\microsoft.dotnet.ilcompiler\" + EfiContracts.NativePackageVersion + @"\build\Microsoft.DotNet.ILCompiler.props"];
-        XElement[] imports = props.Descendants(ns + "Import").ToArray(); HashSet<string> seen = new(StringComparer.Ordinal);
+        XElement[] imports = props.Descendants(ns + "Import").ToArray();
+        HashSet<string> seen = new(StringComparer.Ordinal);
         Require(imports.Length == expectedImports.Length, "restore_generated_props_import_count_invalid");
         foreach (var import in imports)
         {
@@ -38,12 +40,19 @@ public static class EfiRestore
         string generatedPackageRoot = packages.StartsWith(userPrefix, StringComparison.OrdinalIgnoreCase) ? @"$(UserProfile)\" + packages[userPrefix.Length..] : packages;
         Dictionary<string, string> expected = new(StringComparer.Ordinal)
         {
-            ["RestoreSuccess"] = "True", ["RestoreTool"] = "NuGet", ["ProjectAssetsFile"] = "$(MSBuildThisFileDirectory)project.assets.json", ["NuGetPackageRoot"] = generatedPackageRoot,
-            ["NuGetProjectStyle"] = "PackageReference", ["NuGetToolVersion"] = "7.0.0", ["NuGetPackageFolders"] = packages,
+            ["RestoreSuccess"] = "True",
+            ["RestoreTool"] = "NuGet",
+            ["ProjectAssetsFile"] = "$(MSBuildThisFileDirectory)project.assets.json",
+            ["NuGetPackageRoot"] = generatedPackageRoot,
+            ["NuGetProjectStyle"] = "PackageReference",
+            ["NuGetToolVersion"] = "7.0.0",
+            ["NuGetPackageFolders"] = packages,
             ["Pkgruntime_win-x64_Microsoft_DotNet_ILCompiler"] = Path.Combine(packages, "runtime.win-x64.microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion),
-            ["PkgMicrosoft_NET_ILLink_Tasks"] = Path.Combine(packages, "microsoft.net.illink.tasks", EfiContracts.NativePackageVersion), ["PkgMicrosoft_DotNet_ILCompiler"] = Path.Combine(packages, "microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion)
+            ["PkgMicrosoft_NET_ILLink_Tasks"] = Path.Combine(packages, "microsoft.net.illink.tasks", EfiContracts.NativePackageVersion),
+            ["PkgMicrosoft_DotNet_ILCompiler"] = Path.Combine(packages, "microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion)
         };
-        XElement[] properties = props.Descendants(ns + "PropertyGroup").Elements().ToArray(); seen.Clear();
+        XElement[] properties = props.Descendants(ns + "PropertyGroup").Elements().ToArray();
+        seen.Clear();
         Require(properties.Length == expected.Count, "restore_generated_props_property_count_invalid");
         foreach (var property in properties)
         {
@@ -64,7 +73,8 @@ public static class EfiRestore
         Require(libraries.Count == names.Length, "restore_project_assets_library_count_invalid");
         foreach (var pair in libraries)
         {
-            int index = System.Array.IndexOf(names, pair.Key); Require(index >= 0, "restore_project_assets_library_unexpected", pair.Key);
+            int index = System.Array.IndexOf(names, pair.Key);
+            Require(index >= 0, "restore_project_assets_library_unexpected", pair.Key);
             EfiPackage contract = EfiContracts.ConsumedPackageTrees[index];
             Shape(pair.Value, ["sha512", "type", "path", "hasTools", "files"], "restore_project_assets_library_shape_invalid");
             var files = Array(pair.Value!["files"], "restore_project_assets_library_contract_invalid");
@@ -84,7 +94,8 @@ public static class EfiRestore
             Require(target.Count == names.Length, "restore_project_assets_target_library_count_invalid");
             foreach (var pair in target)
             {
-                int index = System.Array.IndexOf(names, pair.Key); Require(index >= 0, "restore_project_assets_target_library_unexpected");
+                int index = System.Array.IndexOf(names, pair.Key);
+                Require(index >= 0, "restore_project_assets_target_library_unexpected");
                 bool compiler = index == 0, linker = index == 1, rid = targetName.EndsWith("/win-x64", StringComparison.Ordinal);
                 Shape(pair.Value, compiler && rid ? ["type", "dependencies", "build"] : compiler || linker ? ["type", "build"] : ["type"], "restore_project_assets_target_library_shape_invalid");
                 Require(String(pair.Value!["type"], "restore_project_assets_target_library_type_invalid") == "package", "restore_project_assets_target_library_type_invalid");

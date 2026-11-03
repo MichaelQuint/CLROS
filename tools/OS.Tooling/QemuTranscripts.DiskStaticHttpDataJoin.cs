@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied unique sequential file/HTTP association for the small

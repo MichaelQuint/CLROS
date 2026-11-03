@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public static class OSHostTimerWaitBridge
 {
     public const bool UsesMockTimerTable = true;

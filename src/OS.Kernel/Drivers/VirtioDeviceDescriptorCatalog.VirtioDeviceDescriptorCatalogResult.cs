@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Storage;
 
 public readonly struct VirtioDeviceDescriptorCatalogResult
@@ -22,19 +23,58 @@ public readonly struct VirtioDeviceDescriptorCatalogResult
 
     public const int NoFailingSourceIndex = -1;
     public const int NoFailingInputIndex = -1;
-    public VirtioDeviceDescriptorCatalogStatus Status { get; }
-    public int InspectedSourceCount { get; }
-    public int DescriptorCount { get; }
-    public int RequiredDescriptorCapacity { get; }
-    public int FailingSourceIndex { get; }
-    public int FailingInputIndex { get; }
-    public VirtioPciDeviceKind FailingDeviceKind { get; }
-    public VirtioPciBindingPlanResult FailingBindingPlan { get; }
-    public VirtioPciBindingDerivedBarSizePlanResult FailingDerivedBindingPlan { get; }
-    public VirtioBlockDeviceConfigResult FailingBlockConfiguration { get; }
-    public VirtioNetDeviceConfigParseResult FailingNetworkConfiguration { get; }
-    public VirtioDeviceInitializationProfileResult FailingInitializationProfile { get; }
-    public bool IsInitialized { get; }
+    public VirtioDeviceDescriptorCatalogStatus Status
+    {
+        get;
+    }
+    public int InspectedSourceCount
+    {
+        get;
+    }
+    public int DescriptorCount
+    {
+        get;
+    }
+    public int RequiredDescriptorCapacity
+    {
+        get;
+    }
+    public int FailingSourceIndex
+    {
+        get;
+    }
+    public int FailingInputIndex
+    {
+        get;
+    }
+    public VirtioPciDeviceKind FailingDeviceKind
+    {
+        get;
+    }
+    public VirtioPciBindingPlanResult FailingBindingPlan
+    {
+        get;
+    }
+    public VirtioPciBindingDerivedBarSizePlanResult FailingDerivedBindingPlan
+    {
+        get;
+    }
+    public VirtioBlockDeviceConfigResult FailingBlockConfiguration
+    {
+        get;
+    }
+    public VirtioNetDeviceConfigParseResult FailingNetworkConfiguration
+    {
+        get;
+    }
+    public VirtioDeviceInitializationProfileResult FailingInitializationProfile
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioDeviceDescriptorCatalogStatus.Success;
 
     public static VirtioDeviceDescriptorCatalogResult Success(int inspectedSourceCount, int descriptorCount)

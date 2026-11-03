@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public static class PciMsixCapabilityParser
 {
     public const byte CapabilityId = 0x11;

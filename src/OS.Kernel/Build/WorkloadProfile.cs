@@ -1,4 +1,5 @@
 namespace OS.Kernel.Build;
+
 public static class WorkloadProfile
 {
     public const string SingleMinimalApiName = "SingleMinimalApi";

@@ -5,4 +5,5 @@ using System.Xml;
 using System.Xml.Linq;
 
 namespace OS.Tooling;
+
 public sealed record ContractMismatch(string Contract, string Expected, string Actual);

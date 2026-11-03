@@ -29,7 +29,7 @@ internal static unsafe partial class LinuxDiskThreadServicesTests
             if (large)
             {
                 System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(Storage.Disk.Sector(Storage.Disk.Data(4)).AsSpan(60), 8192);
-                uint[] clusters = [10, 12, ..Enumerable.Range(1000, 14).Select(i => (uint)i)];
+                uint[] clusters = [10, 12, .. Enumerable.Range(1000, 14).Select(i => (uint)i)];
                 for (int i = 0; i < clusters.Length; i++)
                 {
                     Storage.Disk.SetFat(clusters[i], i + 1 == clusters.Length ? 0x0fffffff : clusters[i + 1]);
@@ -43,13 +43,28 @@ internal static unsafe partial class LinuxDiskThreadServicesTests
             Files.Admission.User = Thread.DescriptorAccess;
             Files.Admission.CopyToUser = Thread.UserCopyOut;
             Files.Begin();
-            HostCheck.True(Fds.AttachDisk(Files.State, Disk, new() { Mount = Storage.Mount, Bindings = bindings, Requests = requests, Epoch = Storage.Input.Epoch, FirmwareExited = true, SingleOwnerValidated = true }));
+            HostCheck.True(Fds.AttachDisk(Files.State, Disk, new()
+            {
+                Mount = Storage.Mount,
+                Bindings = bindings,
+                Requests = requests,
+                Epoch = Storage.Input.Epoch,
+                FirmwareExited = true,
+                SingleOwnerValidated = true
+            }));
             HostCheck.True(Thread.Service->EnablePipes(Key, 2, Files.State));
             if (signals)
             {
                 signalState = (Signals.State*)NativeMemory.AlignedAlloc(4096, 4096);
                 new Span<byte>(signalState, 4096).Clear();
-                HostCheck.True(Signals.Initialize(signalState, 4096, SignalKey, 2, new() { User = Thread.Access, CopyToUser = Thread.UserCopyOut, Capacity = 3, FirmwareExited = true, SingleOwnerValidated = true }));
+                HostCheck.True(Signals.Initialize(signalState, 4096, SignalKey, 2, new()
+                {
+                    User = Thread.Access,
+                    CopyToUser = Thread.UserCopyOut,
+                    Capacity = 3,
+                    FirmwareExited = true,
+                    SingleOwnerValidated = true
+                }));
                 HostCheck.True(Thread.Service->EnableSignals(Key, 2, signalState));
             }
 

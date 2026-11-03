@@ -18,7 +18,8 @@ public static class VerifiedExitPathOptDefaultRepeatedCleanQEMU
     /// </summary>
     public static unsafe bool WriteCompletion(void* context, delegate*<void*, byte*, uint, bool> write)
     {
-        if (context == null || write == null) return false;
+        if (context == null || write == null)
+            return false;
         byte* line = stackalloc byte[32];
         for (int index = 0; index < CompletionLineCount; index++)
         {
@@ -29,7 +30,8 @@ public static class VerifiedExitPathOptDefaultRepeatedCleanQEMU
                     : BootSequencePlan.GetLineByte(index + BootSequencePlan.NonSmokeLineCount - 3, offset);
             line[length] = 13;
             line[length + 1] = 10;
-            if (!write(context, line, (uint)(length + 2))) return false;
+            if (!write(context, line, (uint)(length + 2)))
+                return false;
         }
         return true;
     }

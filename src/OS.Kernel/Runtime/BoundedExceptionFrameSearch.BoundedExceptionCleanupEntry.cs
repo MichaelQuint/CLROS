@@ -1,6 +1,7 @@
 using System;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct BoundedExceptionCleanupEntry
 {
     internal BoundedExceptionCleanupEntry(uint frameIndex, ulong handler, X64UnwindContext context)
@@ -10,7 +11,16 @@ public readonly struct BoundedExceptionCleanupEntry
         Context = context;
     }
 
-    public uint FrameIndex { get; }
-    public ulong Handler { get; }
-    public X64UnwindContext Context { get; }
+    public uint FrameIndex
+    {
+        get;
+    }
+    public ulong Handler
+    {
+        get;
+    }
+    public X64UnwindContext Context
+    {
+        get;
+    }
 }

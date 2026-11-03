@@ -14,6 +14,12 @@ readonly struct RawHttpProbeResponse
         Body = body;
     }
 
-    public int StatusCode { get; }
-    public byte[] Body { get; }
+    public int StatusCode
+    {
+        get;
+    }
+    public byte[] Body
+    {
+        get;
+    }
 }

@@ -1,4 +1,5 @@
 namespace OS.Std.Net;
+
 public struct InternetChecksumAccumulator
 {
     private uint _sum;

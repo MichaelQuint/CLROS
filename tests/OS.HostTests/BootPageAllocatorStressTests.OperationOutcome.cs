@@ -20,9 +20,21 @@ internal static partial class BootPageAllocatorStressTests
             CoalescingKind = coalescingKind;
         }
 
-        public bool Succeeded { get; }
-        public BootPageAllocatorMutationStatus Status { get; }
-        public ulong PhysicalStart { get; }
-        public BootPageAllocatorOnePageCoalescingKind CoalescingKind { get; }
+        public bool Succeeded
+        {
+            get;
+        }
+        public BootPageAllocatorMutationStatus Status
+        {
+            get;
+        }
+        public ulong PhysicalStart
+        {
+            get;
+        }
+        public BootPageAllocatorOnePageCoalescingKind CoalescingKind
+        {
+            get;
+        }
     }
 }

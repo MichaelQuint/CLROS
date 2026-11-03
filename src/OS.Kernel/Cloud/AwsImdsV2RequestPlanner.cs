@@ -1,4 +1,5 @@
 namespace OS.Cloud;
+
 public static class AwsImdsV2RequestPlanner
 {
     public const string PlatformHost = "169.254.169.254";

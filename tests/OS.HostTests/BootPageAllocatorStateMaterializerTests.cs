@@ -285,8 +285,6 @@ internal static partial class BootPageAllocatorStateMaterializerTests
         return failureAtomic && first.Succeeded && second.Succeeded && allocationProbe.Succeeded && StructBytes(first).AsSpan().SequenceEqual(StructBytes(second)) && StatesEqual(firstState, destination) && sourceBefore.AsSpan().SequenceEqual(PointerBytes(nodes, 2)) && afterAllocation == beforeAllocation;
     }
 
-
-
     private static bool TestMarkerUniqueness()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -441,7 +439,7 @@ internal static partial class BootPageAllocatorStateMaterializerTests
         }
 
         Type type = typeof(T);
-        foreach ((string name, int offset)in expected)
+        foreach ((string name, int offset) in expected)
         {
             FieldInfo? field = type.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (field is null || Marshal.OffsetOf<T>(name).ToInt32() != offset)
@@ -478,7 +476,7 @@ internal static partial class BootPageAllocatorStateMaterializerTests
     private static bool AllMalformedSuccessEvidenceFails(BootPageAllocatorStateMaterializationResult valid)
     {
         (int Offset, byte Replacement)[] corruptions = [(0, 1), (7, 0), (8, 0), (16, 0), (24, 0), (32, 0), (40, 0), (48, 0), (56, 1), (60, 0), (64, 0), (72, 0), (80, 1), (88, 0), (96, 1), (104, 1), (112, 1), (120, 0)];
-        foreach ((int offset, byte replacement)in corruptions)
+        foreach ((int offset, byte replacement) in corruptions)
         {
             if (MutateByte(valid, offset, replacement).Succeeded)
             {
@@ -488,8 +486,6 @@ internal static partial class BootPageAllocatorStateMaterializerTests
 
         return true;
     }
-
-
 
     private static string RemoveComments(string source)
     {
@@ -697,10 +693,6 @@ internal static partial class BootPageAllocatorStateMaterializerTests
     {
         return value.Replace("&", "&amp;", StringComparison.Ordinal).Replace("\"", "&quot;", StringComparison.Ordinal).Replace("<", "&lt;", StringComparison.Ordinal).Replace(">", "&gt;", StringComparison.Ordinal);
     }
-
-
-
-
 
     private static bool IsGeneratedOrReferencePath(string path)
     {

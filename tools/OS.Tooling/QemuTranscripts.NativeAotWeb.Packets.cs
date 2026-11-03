@@ -5,6 +5,7 @@ using System.Text;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     internal static AuthorityFiles HoldWebEvidence(string root, QemuSmokeOptions options)
@@ -67,7 +68,7 @@ public static partial class QemuTranscripts
     private static WebPacketInspection ReadWebPackets(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp, IReadOnlyList<uint> ports, int forward, string body, string configuration, bool logQuota, IReadOnlyList<WebUtcObservation>? utcWindows, WebControlInspection? controls, WebRacePacketPartition? race = null)
     {
         int ordinary = logQuota ? 5 : 6, connections = ordinary + (controls is null ? 0 : 2);
-        Need(ports.Count == connections && ports.Distinct().Count() == connections && ports.All(p => p is> 0 and <= 65535) && forward is> 0 and <= 65535 && body.Length > 0 && Encoding.UTF8.GetByteCount(body) <= 1024 && configuration.Length > 0 && Encoding.UTF8.GetByteCount(configuration) <= 4096, "web_wire_expectations");
+        Need(ports.Count == connections && ports.Distinct().Count() == connections && ports.All(p => p is > 0 and <= 65535) && forward is > 0 and <= 65535 && body.Length > 0 && Encoding.UTF8.GetByteCount(body) <= 1024 && configuration.Length > 0 && Encoding.UTF8.GetByteCount(configuration) <= 4096, "web_wire_expectations");
         Need(controls is null || utcWindows is not null && ports[ordinary] == controls.Sockets.Deadline.SourcePort && ports[ordinary + 1] == controls.Sockets.Before.SourcePort && controls.Sockets.After.SourcePort == controls.Sockets.Before.SourcePort, "web_wire_control_ports");
         _ = QemuEthernetCapture.Inspect(bytes, anchor);
         int offset = 24, prefixStage = 0, prefixEnd = 0, resolutionSent = 0, tcpRecords = 0, record = 0;
@@ -174,7 +175,7 @@ public static partial class QemuTranscripts
                     bool post = flows.Count is 2 or 3;
                     byte[] request = Encoding.ASCII.GetBytes($"{(post ? "POST" : "GET")} {path} HTTP/1.0\r\nHost: 127.0.0.1:{forward}\r\nConnection: close\r\nAccept: */*\r\n" + (post ? "Content-Length: 0\r\n" : "") + "\r\n");
                     if (controls is not null && flows.Count == ordinary + 1)
-                        request = [..Encoding.ASCII.GetBytes($"GET /healthz HTTP/1.1\r\nHost: 127.0.0.1:{forward}\r\nConnection: keep-alive\r\nAccept: */*\r\n\r\n"), ..request];
+                        request = [.. Encoding.ASCII.GetBytes($"GET /healthz HTTP/1.1\r\nHost: 127.0.0.1:{forward}\r\nConnection: keep-alive\r\nAccept: */*\r\n\r\n"), .. request];
                     flow = new(remote, sequence, request, flows.Count == 4 && !logQuota ? WebVectorResponse.Length + 2048 : 8192);
                     flows.Add(flow);
                 }
@@ -268,7 +269,7 @@ public static partial class QemuTranscripts
                 }
                 else
                 {
-                    Need(vlan == 1 && flow.Request.AsSpan().SequenceEqual([..beforeRequest, ..Convert.FromHexString(controls.Sockets.After.RequestHex)]) && flow.Response.AsSpan(0, flow.ResponseExtent).SequenceEqual([..beforeResponse, ..Convert.FromHexString(controls.Sockets.After.ResponseHex)]), "web_wire_control_healthy_join");
+                    Need(vlan == 1 && flow.Request.AsSpan().SequenceEqual([.. beforeRequest, .. Convert.FromHexString(controls.Sockets.After.RequestHex)]) && flow.Response.AsSpan(0, flow.ResponseExtent).SequenceEqual([.. beforeResponse, .. Convert.FromHexString(controls.Sockets.After.ResponseHex)]), "web_wire_control_healthy_join");
                     responses.Add(WebHttpResponse(beforeResponse, "OS_MINIMAL_API_OK", -1, false, keepAlive: true));
                     responses.Add(WebHttpResponse(flow.Response.AsSpan(beforeResponse.Length, flow.ResponseExtent - beforeResponse.Length), "OS_MINIMAL_API_OK", -1, false));
                     Need(responses[^1].DateUtc > responses[^2].DateUtc, "web_wire_control_date_advance");
@@ -301,7 +302,7 @@ public static partial class QemuTranscripts
 
     private static void ValidateWebWithheld(WebControlInspection controls, WebWireFlow bad, ulong peer)
     {
-        Need(controls.Frames.VlanFrames == 1 && controls.Frames.DroppedFrames.Count is> 0 and <= 128, "web_wire_withheld_extent");
+        Need(controls.Frames.VlanFrames == 1 && controls.Frames.DroppedFrames.Count is > 0 and <= 128, "web_wire_withheld_extent");
         bool completeAck = false;
         long ordinal = 0;
         foreach (var dropped in controls.Frames.DroppedFrames)
@@ -340,7 +341,7 @@ public static partial class QemuTranscripts
     private static WebResponseObservation WebHttpResponse(ReadOnlySpan<byte> bytes, string expected, int phase, bool logQuota, bool keepAlive = false)
     {
         int end = bytes.IndexOf("\r\n\r\n"u8);
-        Need(end is> 0 and <= 2048, "web_wire_http_header");
+        Need(end is > 0 and <= 2048, "web_wire_http_header");
         string[] lines = DecodeUtf8(bytes[..end].ToArray()).Split("\r\n", StringSplitOptions.None);
         bool quotaFailure = logQuota && phase == 2, vector = !logQuota && phase == 4;
         Need(lines[0] == (phase == 3 ? "HTTP/1.1 409 Conflict" : quotaFailure ? "HTTP/1.1 500 Internal Server Error" : "HTTP/1.1 200 OK"), "web_wire_http_status");

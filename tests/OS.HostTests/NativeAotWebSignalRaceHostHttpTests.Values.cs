@@ -47,14 +47,34 @@ internal static partial class NativeAotWebSignalRaceHostHttpTests
         internal void Select(string kind, int exchange)
         {
             var value = Exchanges[exchange - 1];
-            Samples.Add(new() { ["kind"] = kind, ["status"] = value.Status, ["body"] = Encoding.ASCII.GetString(Convert.FromBase64String(value.BodyBase64)) });
-            Links.Add(new() { ["sample"] = Links.Count, ["attempt"] = exchange, ["related"] = 0 });
+            Samples.Add(new()
+            {
+                ["kind"] = kind,
+                ["status"] = value.Status,
+                ["body"] = Encoding.ASCII.GetString(Convert.FromBase64String(value.BodyBase64))
+            });
+            Links.Add(new()
+            {
+                ["sample"] = Links.Count,
+                ["attempt"] = exchange,
+                ["related"] = 0
+            });
         }
 
         internal void Cancel(int exchange)
         {
-            Samples.Add(new() { ["kind"] = "churn-cancel", ["status"] = 0, ["body"] = "" });
-            Links.Add(new() { ["sample"] = Links.Count, ["attempt"] = 0, ["related"] = exchange });
+            Samples.Add(new()
+            {
+                ["kind"] = "churn-cancel",
+                ["status"] = 0,
+                ["body"] = ""
+            });
+            Links.Add(new()
+            {
+                ["sample"] = Links.Count,
+                ["attempt"] = 0,
+                ["related"] = exchange
+            });
         }
 
         internal byte[] Wire() => Encoding.UTF8.GetBytes(NativeAotWebPayload.SerializeSignalRaceWire(new(port, "signalrace-partial", 10001, Operations.Sum(op => (long)Convert.FromBase64String(op.DataBase64).Length), Connections, Exchanges, Operations, [])));
@@ -62,11 +82,11 @@ internal static partial class NativeAotWebSignalRaceHostHttpTests
         {
             ["schema"] = "clros.web.signalrace.v1",
             ["endpoint"] = "http://127.0.0.1:" + port,
-            ["samples"] = new JsonArray(Samples.Select(value => (JsonNode? )value.DeepClone()).ToArray())
+            ["samples"] = new JsonArray(Samples.Select(value => (JsonNode?)value.DeepClone()).ToArray())
         }.ToJsonString();
         internal string Attempts()
         {
-            var rows = Exchanges.Select(e => (JsonNode? )new JsonObject { ["id"] = e.Id, ["method"] = e.Method, ["path"] = e.Path, ["completion"] = Completions.GetValueOrDefault(e.Id, e.Id), ["headers"] = e.Status > 0, ["status"] = e.Status, ["mediaType"] = e.Status > 0 ? "text/plain" : "", ["mediaTypeComplete"] = true, ["bodyBase64"] = e.BodyBase64, ["bodyComplete"] = e.Outcome == "response", ["outcome"] = e.Outcome, ["error"] = e.Outcome == "response" ? "" : e.Outcome == "cancelled" ? "cancelled" : "IOException" }).ToArray();
+            var rows = Exchanges.Select(e => (JsonNode?)new JsonObject { ["id"] = e.Id, ["method"] = e.Method, ["path"] = e.Path, ["completion"] = Completions.GetValueOrDefault(e.Id, e.Id), ["headers"] = e.Status > 0, ["status"] = e.Status, ["mediaType"] = e.Status > 0 ? "text/plain" : "", ["mediaTypeComplete"] = true, ["bodyBase64"] = e.BodyBase64, ["bodyComplete"] = e.Outcome == "response", ["outcome"] = e.Outcome, ["error"] = e.Outcome == "response" ? "" : e.Outcome == "cancelled" ? "cancelled" : "IOException" }).ToArray();
             return new JsonObject
             {
                 ["schema"] = "clros.web.signalrace.attempts.v1",
@@ -74,7 +94,7 @@ internal static partial class NativeAotWebSignalRaceHostHttpTests
                 ["semanticComplete"] = false,
                 ["failure"] = "copied_failure",
                 ["attempts"] = new JsonArray(rows),
-                ["selections"] = new JsonArray(Links.Select(value => (JsonNode? )value.DeepClone()).ToArray())
+                ["selections"] = new JsonArray(Links.Select(value => (JsonNode?)value.DeepClone()).ToArray())
             }.ToJsonString();
         }
     }

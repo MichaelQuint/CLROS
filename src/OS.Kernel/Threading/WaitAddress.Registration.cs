@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct WaitAddress
 {
     /// <summary>Exclusive caller storage for one live registration. Completed

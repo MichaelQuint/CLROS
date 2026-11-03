@@ -7,6 +7,7 @@ using System.Text;
 using OS.Tooling.Native;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotWebPayload
 {
     // Keep actual creation identities alive across writer closure and the first

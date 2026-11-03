@@ -15,11 +15,26 @@ internal static partial class NativeAppSelectionBootScratchPlanTests
             PackageBuffer = new byte[packageBufferBytes];
         }
 
-        public byte[] PrimaryHeaderSector { get; }
-        public byte[] PartitionEntrySectors { get; }
-        public GptPartitionDescriptor[] Partitions { get; }
-        public byte[] ManifestBuffer { get; }
-        public byte[] PackageBuffer { get; }
+        public byte[] PrimaryHeaderSector
+        {
+            get;
+        }
+        public byte[] PartitionEntrySectors
+        {
+            get;
+        }
+        public GptPartitionDescriptor[] Partitions
+        {
+            get;
+        }
+        public byte[] ManifestBuffer
+        {
+            get;
+        }
+        public byte[] PackageBuffer
+        {
+            get;
+        }
 
         public static ScratchBuffers CreateDefault()
         {

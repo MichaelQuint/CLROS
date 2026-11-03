@@ -3,6 +3,7 @@ using System.Text;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously inspect borrowed original serial, summary and PCAP
@@ -20,12 +21,12 @@ public static partial class QemuTranscripts
     public static ServiceQuotaRunnerInspection InspectNativeAotServiceQuotaRunnerForTests(QemuSmokeOptions options, QemuSmokePlan plan, ProcessResult runner, byte[] raw, byte[] summaryBytes, ServiceRunnerContext context, byte[] pcap, uint frameAnchor)
     {
         RequireCompleteProcess(runner, "service_quota_runner_incomplete");
-        Need(runner.ExitCode == 22 && runner.StandardError.Length == 0 && runner.Duration > TimeSpan.Zero && runner.Duration <= TimeSpan.FromSeconds(options.TimeoutSeconds + 60) && runner.StandardOutput.Length <= 8 * 1024 * 1024 && raw.Length is> 0 && raw.Length <= SerialMarkerStateMachine.ContinuingServiceByteCapacity && summaryBytes.Length is> 3 && summaryBytes.Length <= SerialMarkerStateMachine.ContinuingServiceByteCapacity, "service_quota_runner_inputs");
+        Need(runner.ExitCode == 22 && runner.StandardError.Length == 0 && runner.Duration > TimeSpan.Zero && runner.Duration <= TimeSpan.FromSeconds(options.TimeoutSeconds + 60) && runner.StandardOutput.Length <= 8 * 1024 * 1024 && raw.Length is > 0 && raw.Length <= SerialMarkerStateMachine.ContinuingServiceByteCapacity && summaryBytes.Length is > 3 && summaryBytes.Length <= SerialMarkerStateMachine.ContinuingServiceByteCapacity, "service_quota_runner_inputs");
         Need(options.ServiceQuotaFailure && !options.ServiceLifecycle && !options.SignalEpollRace && !options.DryRun && NativeAotServiceSelection.Application(plan.Flags, options.LinuxThreadingApplication) == NativeAotServicePackage.Application && plan.BootPolicy == "Diagnostic" && (options.BootPolicy.Length == 0 || options.BootPolicy.Equals("Diagnostic", StringComparison.OrdinalIgnoreCase)) && plan.ReplaceDefaultRequiredMarkers && plan.Presets.Count == 0 && options.WorkloadProfile == "SingleMinimalApi" && options.DiskFormat == "raw" && options.LinuxElfImageVariant == "Intact" && options.FirmwareRngSource == "virtio" && options.TimeoutSeconds is >= 780 and <= 900 && context.ForwardPort is >= 1 and <= 65535 && Path.IsPathFullyQualified(context.Qemu) && Path.IsPathFullyQualified(context.Ovmf) && !Controls.IsMatch(context.Qemu) && !Controls.IsMatch(context.Ovmf) && new[] { options.Image, options.SerialLog, options.SummaryLog }.All(path => path.Length > 0 && !Controls.IsMatch(path)) && context.StartedUtc != default && context.StartedUtc.Offset == TimeSpan.Zero && context.CompletedUtc.Offset == TimeSpan.Zero && context.CompletedUtc > context.StartedUtc && context.CompletedUtc - context.StartedUtc >= runner.Duration - TimeSpan.FromMilliseconds(100), "service_quota_runner_selection");
         string[] gates = [ServiceQuotaCapture.EarlyBootSmokePass, "TEST_START m16-011", ServiceQuotaCapture.ProcessFailure, ServiceQuotaCapture.Terminal];
         Need(gates.All(marker => plan.Required.Contains(marker) && plan.Ordered.Contains(marker) && plan.Unique.Contains(marker)) && plan.Required.Contains("OS_BOOT_OK") && plan.Ordered.LastOrDefault() == ServiceQuotaCapture.Terminal && plan.Forbidden.Contains("OS_SMOKE_FAIL") && plan.Forbidden.Contains("TEST_FAIL") && ServiceQuotaCapture.ForbiddenSuccessMarkers.Where(marker => marker != ServiceQuotaCapture.EarlyBootSmokePass).All(plan.Forbidden.Contains), "service_quota_runner_markers");
         string serialText = DecodeUtf8(raw);
-        Need(ServiceQuotaCapture.Failure(serialText)is null, "service_quota_runner_terminal");
+        Need(ServiceQuotaCapture.Failure(serialText) is null, "service_quota_runner_terminal");
         var stream = new SerialMarkerStateMachine(plan.Required, plan.Forbidden, successTerminalMarker: ServiceQuotaCapture.Terminal, byteCapacity: SerialMarkerStateMachine.ContinuingServiceByteCapacity, orderedMarkers: plan.Ordered, uniqueMarkers: plan.Unique);
         Need(stream.Feed(raw).Succeeded, "service_quota_runner_serial_feed");
         var done = stream.Complete();
@@ -63,21 +64,21 @@ public static partial class QemuTranscripts
         var frames = ServiceControlJson<WebFrameControl.ServiceReport>(framesJson);
         Need(frames.Session is not null && frames.ControlledPorts is not null && frames.ControlledPorts.Count == 0 && frames.Injections is not null && frames.Injections.Count == 0, "service_quota_runner_frame_shape");
         var session = frames.Session!;
-        Need(session.Stopped && session.Healthy && session.GuestExitExpected && session.ForwardedFrames is> 0 and <= 100_000 && session.VlanFrames == 0 && session.DroppedFrames is not null && session.DroppedFrames.Count == 0 && session.QemuOutPort is >= 1024 and <= 65535 && session.QemuInPort is >= 1024 and <= 65535 && new[] { session.QemuOutPort, session.QemuInPort, context.ForwardPort }.Distinct().Count() == 3, "service_quota_runner_frame_owner");
+        Need(session.Stopped && session.Healthy && session.GuestExitExpected && session.ForwardedFrames is > 0 and <= 100_000 && session.VlanFrames == 0 && session.DroppedFrames is not null && session.DroppedFrames.Count == 0 && session.QemuOutPort is >= 1024 and <= 65535 && session.QemuInPort is >= 1024 and <= 65535 && new[] { session.QemuOutPort, session.QemuInPort, context.ForwardPort }.Distinct().Count() == 3, "service_quota_runner_frame_owner");
         string[] arguments = ["-chardev", "socket,id=clroswebout,host=127.0.0.1,port=" + session.QemuOutPort.ToString(CultureInfo.InvariantCulture), "-chardev", "socket,id=clroswebin,host=127.0.0.1,port=" + session.QemuInPort.ToString(CultureInfo.InvariantCulture), "-object", "filter-redirector,id=clroswebfilter,netdev=n0,queue=tx,indev=clroswebin,outdev=clroswebout"];
         Need(session.Arguments is not null && session.Arguments.SequenceEqual(arguments), "service_quota_runner_frame_arguments");
         var packets = QemuEthernetCapture.Inspect(pcap, frameAnchor);
         Need(packets.Records > 0, "service_quota_runner_pcap");
-        string[] expectedRows = [..RunnerBackend(options), "QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu, "OVMF_DISCOVERY result=" + context.Ovmf + " checked=" + context.Ovmf, "TEST_START qemu.smoke", selected[0], selected[1], "OVMF_CODE " + context.Ovmf, ..selected.Skip(2), metrics, "SERIAL_MARKER_DRAIN milliseconds=750", disposition, ..block, "SUMMARY_LOG " + options.SummaryLog, "QEMU_EXPECTED_SERVICE_QUOTA outcome=captured acceptance=pending"];
+        string[] expectedRows = [.. RunnerBackend(options), "QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu, "OVMF_DISCOVERY result=" + context.Ovmf + " checked=" + context.Ovmf, "TEST_START qemu.smoke", selected[0], selected[1], "OVMF_CODE " + context.Ovmf, .. selected.Skip(2), metrics, "SERIAL_MARKER_DRAIN milliseconds=750", disposition, .. block, "SUMMARY_LOG " + options.SummaryLog, "QEMU_EXPECTED_SERVICE_QUOTA outcome=captured acceptance=pending"];
         Need(runner.StandardOutput == string.Join("\r\n", expectedRows) + "\r\n", "service_quota_runner_stdout");
         string[] serial = ReadThreadingSerialLines(serialText);
-        List<string> summary = ["QEMU_SMOKE_STATUS expected-quota", ..selected];
+        List<string> summary = ["QEMU_SMOKE_STATUS expected-quota", .. selected];
         summary.AddRange(serial.Where(row => IsThreadingObservedLine(row, plan)).Select(row => "OBSERVED_MARKER " + row));
         summary.AddRange(["APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240"]);
         summary.AddRange(serial.TakeLast(8).Select(row => "SERIAL_TAIL_LINE " + (row.Length > 240 ? row[..237] + "..." : row)));
         summary.AddRange(block);
         summary.InsertRange(4, RunnerBackend(options));
-        byte[] expectedSummary = [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")];
+        byte[] expectedSummary = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")];
         Need(summaryBytes.AsSpan().SequenceEqual(expectedSummary), "service_quota_runner_summary_bytes");
         return new(framesJson, processId, start, end, lifetime, raw.Length, (long)capture["quietMilliseconds"], session.ForwardedFrames, packets);
     }

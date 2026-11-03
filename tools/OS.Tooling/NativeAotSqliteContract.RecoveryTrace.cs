@@ -13,13 +13,23 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSqliteContract
 {
     public sealed record RecoveryTrace(StorageTrace Storage, int DatabaseWrites, int WritesAfterJournalAndParentSync, int JournalSyncs, int ParentSyncs)
     {
-        public int ObserverLifetimeId { get; init; }
-        public int SpillLine { get; init; }
-        public long JournalBytes { get; init; }
+        public int ObserverLifetimeId
+        {
+            get; init;
+        }
+        public int SpillLine
+        {
+            get; init;
+        }
+        public long JournalBytes
+        {
+            get; init;
+        }
         public string SpillHeaderBase64 { get; init; } = "";
         public bool GrantsOriginalTraceOrDurabilityAuthority => false;
     }

@@ -2,6 +2,7 @@ using OS.Kernel.Diagnostics;
 using OS.Std.Memory;
 
 namespace OS.Kernel.Runtime;
+
 public enum ExecutableStubBundleMaterializerStatus
 {
     Success = 0,

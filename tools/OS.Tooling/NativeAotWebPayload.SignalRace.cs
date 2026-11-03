@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotWebPayload
 {
     /// <summary>Borrow an owned app endpoint/client and capture one bounded,
@@ -103,7 +104,12 @@ public static partial class NativeAotWebPayload
             RaceNeed(samples[^1].status == status && samples[^1].body == expected, "request_result");
         }
 
-        string Json() => JsonSerializer.Serialize(new { schema = eventOwned ? "clros.web.signalrace.v3" : startGate ? "clros.web.signalrace.v2" : "clros.web.signalrace.v1", endpoint, samples });
+        string Json() => JsonSerializer.Serialize(new
+        {
+            schema = eventOwned ? "clros.web.signalrace.v3" : startGate ? "clros.web.signalrace.v2" : "clros.web.signalrace.v1",
+            endpoint,
+            samples
+        });
         try
         {
             await Churn("baseline-churn", false);
@@ -187,7 +193,7 @@ public static partial class NativeAotWebPayload
             {
                 _ = await churn;
             }
-            catch (OperationCanceledException)when (cancelChurn.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancelChurn.IsCancellationRequested)
             {
                 canceled = true;
             }
@@ -237,7 +243,7 @@ public static partial class NativeAotWebPayload
                     {
                         _ = await pending;
                     }
-                    catch (OperationCanceledException)when (cancelChurn.IsCancellationRequested || cancelRace.IsCancellationRequested)
+                    catch (OperationCanceledException) when (cancelChurn.IsCancellationRequested || cancelRace.IsCancellationRequested)
                     {
                     }
                     catch (Exception error)
@@ -295,20 +301,20 @@ public static partial class NativeAotWebPayload
     private static void ValidateRecordedSignalRace(string destination, string nativeSchema)
     {
         string path = Path.Combine(destination, "web-signalrace.json");
-        Require(new FileInfo(path).Length is> 0 and <= 65536, "signalrace_recorded_size");
+        Require(new FileInfo(path).Length is > 0 and <= 65536, "signalrace_recorded_size");
         using var http = JsonDocument.Parse(File.ReadAllText(Path.Combine(destination, "web-http-signalrace.json")));
         string? attempts = null, journal = null;
         if (nativeSchema is "clros.nativeaot.web.v6" or "clros.nativeaot.web.v7" or "clros.nativeaot.web.v8")
         {
             string companion = path + ".attempts.json";
-            Require(new FileInfo(companion).Length is> 0 and <= 8 * 1024 * 1024, "signalrace_attempt_size");
+            Require(new FileInfo(companion).Length is > 0 and <= 8 * 1024 * 1024, "signalrace_attempt_size");
             attempts = File.ReadAllText(companion);
         }
 
         if (nativeSchema is "clros.nativeaot.web.v7" or "clros.nativeaot.web.v8")
         {
             string schedule = Path.Combine(destination, "web-signalrace-schedule.jsonl");
-            Require(new FileInfo(schedule).Length is> 0 and <= 1048576, "signalrace_schedule_size");
+            Require(new FileInfo(schedule).Length is > 0 and <= 1048576, "signalrace_schedule_size");
             journal = File.ReadAllText(schedule, new UTF8Encoding(false, true));
         }
 

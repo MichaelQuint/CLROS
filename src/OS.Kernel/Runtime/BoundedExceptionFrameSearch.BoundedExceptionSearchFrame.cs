@@ -14,9 +14,24 @@ public readonly struct BoundedExceptionSearchFrame
         RowCount = rowCount;
     }
 
-    public X64UnwindContext Context { get; }
-    public uint ProtectedOffset { get; }
-    public uint CodeBytes { get; }
-    public uint RowOffset { get; }
-    public uint RowCount { get; }
+    public X64UnwindContext Context
+    {
+        get;
+    }
+    public uint ProtectedOffset
+    {
+        get;
+    }
+    public uint CodeBytes
+    {
+        get;
+    }
+    public uint RowOffset
+    {
+        get;
+    }
+    public uint RowCount
+    {
+        get;
+    }
 }

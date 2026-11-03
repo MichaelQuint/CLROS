@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public struct TcpClientHandshake
 {
     public const byte FlagFin = 0x01;
@@ -22,13 +23,34 @@ public struct TcpClientHandshake
         _synAckAccepted = false;
     }
 
-    public TcpClientHandshakeState State { get; private set; }
-    public ushort LocalPort { get; }
-    public ushort RemotePort { get; }
-    public uint InitialSequenceNumber { get; }
-    public uint LocalNextSequenceNumber { get; private set; }
-    public uint RemoteInitialSequenceNumber { get; private set; }
-    public uint RemoteNextSequenceNumber { get; private set; }
+    public TcpClientHandshakeState State
+    {
+        get; private set;
+    }
+    public ushort LocalPort
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
+    public uint InitialSequenceNumber
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get; private set;
+    }
+    public uint RemoteInitialSequenceNumber
+    {
+        get; private set;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get; private set;
+    }
 
     public static TcpClientHandshake Create(ushort localPort, ushort remotePort, uint initialSequenceNumber)
     {

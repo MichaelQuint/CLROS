@@ -1,4 +1,5 @@
 namespace OS.Manifest;
+
 public readonly struct NativeAppArgumentVectorPlanResult
 {
     private NativeAppArgumentVectorPlanResult(NativeAppArgumentVectorStatus status, NativeAppLaunchStatus launchStatus, bool isInitialized, NativeAppArgumentVector arguments, int errorOffset)
@@ -10,12 +11,27 @@ public readonly struct NativeAppArgumentVectorPlanResult
         ErrorOffset = errorOffset;
     }
 
-    public NativeAppArgumentVectorStatus Status { get; }
-    public NativeAppLaunchStatus LaunchStatus { get; }
-    public bool IsInitialized { get; }
-    public NativeAppArgumentVector Arguments { get; }
+    public NativeAppArgumentVectorStatus Status
+    {
+        get;
+    }
+    public NativeAppLaunchStatus LaunchStatus
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public NativeAppArgumentVector Arguments
+    {
+        get;
+    }
     public int ArgumentCount => Arguments.Count;
-    public int ErrorOffset { get; }
+    public int ErrorOffset
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeAppArgumentVectorStatus.Success;
 
     public static NativeAppArgumentVectorPlanResult Success(NativeAppArgumentVector arguments)

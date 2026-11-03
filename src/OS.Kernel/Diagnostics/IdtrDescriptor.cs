@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct IdtrDescriptor
 {
     public const int EncodedLength = 10;
@@ -12,8 +13,14 @@ public readonly struct IdtrDescriptor
         BaseAddress = baseAddress;
     }
 
-    public ushort Limit { get; }
-    public ulong BaseAddress { get; }
+    public ushort Limit
+    {
+        get;
+    }
+    public ulong BaseAddress
+    {
+        get;
+    }
 
     public static IdtrDescriptorResult Create(ulong baseAddress, int tableByteLength)
     {

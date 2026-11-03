@@ -3,6 +3,7 @@ using OS.Kernel.Runtime;
 
 #endif
 namespace OS.Kernel.Diagnostics;
+
 public enum CheckedPortIoFunctionPointerBindingStatus
 {
     Ready = 0,

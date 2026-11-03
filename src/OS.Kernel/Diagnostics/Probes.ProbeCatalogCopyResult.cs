@@ -302,10 +302,22 @@ public readonly struct ProbeCatalogCopyResult
         WrittenCount = writtenCount;
     }
 
-    public ProbeCatalogStatus Status { get; }
-    public int RequiredCount { get; }
-    public int AvailableCount { get; }
-    public int WrittenCount { get; }
+    public ProbeCatalogStatus Status
+    {
+        get;
+    }
+    public int RequiredCount
+    {
+        get;
+    }
+    public int AvailableCount
+    {
+        get;
+    }
+    public int WrittenCount
+    {
+        get;
+    }
     public bool Succeeded => _isInitialized && Status == ProbeCatalogStatus.Success && RequiredCount == Probes.ProbeCatalogCount && WrittenCount == RequiredCount;
 
     public static ProbeCatalogCopyResult Success(int requiredCount, int availableCount, int writtenCount)

@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class Com1PortIoBackendContract
 {
     public const ushort RequiredCom1BasePort = SerialPortConfiguration.Com1BasePort;

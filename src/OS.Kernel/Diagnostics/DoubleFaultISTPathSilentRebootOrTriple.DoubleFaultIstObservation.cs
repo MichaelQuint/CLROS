@@ -31,30 +31,102 @@ public readonly struct DoubleFaultIstObservation
         ClaimedGuestCapture = claimedGuestCapture;
     }
 
-    public bool IsInitialized { get; }
-    public bool ClaimedGuestCapture { get; }
-    public CpuFaultFrame Frame { get; }
-    public ulong SavedCs { get; }
-    public ulong SavedSs { get; }
-    public ulong CurrentRsp { get; }
-    public ulong CurrentCs { get; }
-    public ulong CurrentSs { get; }
-    public ulong GdtrBase { get; }
-    public ulong GdtrLimit { get; }
-    public ulong Tr { get; }
-    public ulong IdtrBase { get; }
-    public ulong IdtrLimit { get; }
-    public ulong TssAccess { get; }
-    public ulong Ist1 { get; }
-    public ulong DfGateLow { get; }
-    public ulong DfGateHigh { get; }
-    public ulong PfGateLow { get; }
-    public ulong PfGateHigh { get; }
-    public DoubleFaultIstWalk Zero { get; }
-    public DoubleFaultIstWalk Df { get; }
-    public DoubleFaultIstWalk Pf { get; }
-    public DoubleFaultIstWalk Nmi { get; }
-    public DoubleFaultIstWalk Transition { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public bool ClaimedGuestCapture
+    {
+        get;
+    }
+    public CpuFaultFrame Frame
+    {
+        get;
+    }
+    public ulong SavedCs
+    {
+        get;
+    }
+    public ulong SavedSs
+    {
+        get;
+    }
+    public ulong CurrentRsp
+    {
+        get;
+    }
+    public ulong CurrentCs
+    {
+        get;
+    }
+    public ulong CurrentSs
+    {
+        get;
+    }
+    public ulong GdtrBase
+    {
+        get;
+    }
+    public ulong GdtrLimit
+    {
+        get;
+    }
+    public ulong Tr
+    {
+        get;
+    }
+    public ulong IdtrBase
+    {
+        get;
+    }
+    public ulong IdtrLimit
+    {
+        get;
+    }
+    public ulong TssAccess
+    {
+        get;
+    }
+    public ulong Ist1
+    {
+        get;
+    }
+    public ulong DfGateLow
+    {
+        get;
+    }
+    public ulong DfGateHigh
+    {
+        get;
+    }
+    public ulong PfGateLow
+    {
+        get;
+    }
+    public ulong PfGateHigh
+    {
+        get;
+    }
+    public DoubleFaultIstWalk Zero
+    {
+        get;
+    }
+    public DoubleFaultIstWalk Df
+    {
+        get;
+    }
+    public DoubleFaultIstWalk Pf
+    {
+        get;
+    }
+    public DoubleFaultIstWalk Nmi
+    {
+        get;
+    }
+    public DoubleFaultIstWalk Transition
+    {
+        get;
+    }
 
     internal DoubleFaultIstWalk Walk(int role) => role == 0 ? Zero : role == 1 ? Df : role == 2 ? Pf : role == 3 ? Nmi : Transition;
 }

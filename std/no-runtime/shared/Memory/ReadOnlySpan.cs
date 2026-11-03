@@ -57,7 +57,8 @@ public readonly unsafe ref struct ReadOnlySpan<T>
     private static void Bounds()
     {
 #if NOSTDLIB_EFI
-        while (true) System.RuntimeFailFast.Halt();
+        while (true)
+            System.RuntimeFailFast.Halt();
 #else
         throw new System.ArgumentOutOfRangeException();
 #endif

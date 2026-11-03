@@ -26,7 +26,8 @@ internal static unsafe partial class RhpNewFastAllocation
     internal static bool MatchRetainedExceptionType(ulong targetType, object value)
     {
         ulong reference = Bits(value);
-        if (reference == 0) return false;
+        if (reference == 0)
+            return false;
         if ((s_ehPhase != 2 && s_ehPhase != 3) ||
 #if M04_FRAME_DISPATCH_PROBE
             !FrameRootRetained(reference) || !EhObjectIntact())

@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class HttpStaticResponseTransaction
 {
     public static HttpStaticResponseTransactionStatus TryHandle(ReadOnlySpan<byte> request, ReadOnlySpan<byte> routeTarget, ReadOnlySpan<byte> successBody, ReadOnlySpan<byte> notFoundBody, ReadOnlySpan<byte> methodNotAllowedBody, ReadOnlySpan<byte> contentType, Span<byte> responseDestination, out HttpStaticResponseTransactionResult result)

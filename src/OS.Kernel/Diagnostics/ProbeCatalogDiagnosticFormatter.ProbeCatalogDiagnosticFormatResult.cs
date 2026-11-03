@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct ProbeCatalogDiagnosticFormatResult
 {
     private const uint InitializedFlag = 1;
@@ -14,12 +15,30 @@ public readonly struct ProbeCatalogDiagnosticFormatResult
         Flags = flags;
     }
 
-    public ProbeCatalogDiagnosticFormatStatus Status { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
-    public int DefinitionsFormatted { get; }
-    public uint Flags { get; }
+    public ProbeCatalogDiagnosticFormatStatus Status
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
+    public int DefinitionsFormatted
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == ProbeCatalogDiagnosticFormatStatus.Success && BytesWritten == RequiredBytes && RequiredBytes <= AvailableBytes;
 

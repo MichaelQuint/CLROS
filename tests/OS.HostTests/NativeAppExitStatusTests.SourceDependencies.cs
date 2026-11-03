@@ -109,9 +109,12 @@ internal static partial class NativeAppExitStatusTests
             return false;
         var destination = ((IMethodSymbol)model.GetDeclaredSymbol(method)!).Parameters[1];
         return method.Body!.Statements.OfType<IfStatementSyntax>().Any(branch =>
-            model.GetOperation(branch.Condition) is IBinaryOperation { OperatorKind: BinaryOperatorKind.LessThan,
+            model.GetOperation(branch.Condition) is IBinaryOperation
+            {
+                OperatorKind: BinaryOperatorKind.LessThan,
                 LeftOperand: IPropertyReferenceOperation { Property.Name: "Length", Instance: IParameterReferenceOperation input },
-                RightOperand: ILocalReferenceOperation required }
+                RightOperand: ILocalReferenceOperation required
+            }
             && SymbolEqualityComparer.Default.Equals(input.Parameter, destination)
             && SymbolEqualityComparer.Default.Equals(required.Local, variable.Symbol)
             && ReturnsShortBuffer(branch.Statement));
@@ -191,8 +194,11 @@ internal static partial class NativeAppExitStatusTests
         HostCheck.True(!FormatterDependencies(Rebuild(formatDocument, decoyRoot.ToFullString())));
         var bufferBranch = format.Body!.Statements.OfType<IfStatementSyntax>().Single(branch =>
             catalog.Compilation.GetSemanticModel(format.SyntaxTree).GetOperation(branch.Condition)
-                is IBinaryOperation { OperatorKind: BinaryOperatorKind.LessThan,
-                    LeftOperand: IPropertyReferenceOperation { Property.Name: "Length" } });
+                is IBinaryOperation
+            {
+                OperatorKind: BinaryOperatorKind.LessThan,
+                LeftOperand: IPropertyReferenceOperation { Property.Name: "Length" }
+            });
         foreach (string body in new[]
         {
             "{ if (false) { return new NativeAppExitMarkerResult(NativeAppExitMarkerStatus.DestinationTooSmall, 0, requiredBytes, OSHostStatus.BufferTooSmall); } return default; }",
@@ -217,7 +223,10 @@ internal static partial class NativeAppExitStatusTests
         string partialText = "using System; using OS.Std.Text; namespace OS.Kernel.Runtime; public static partial class NativeAppExitStatusFormatter { " + adapter.ToFullString() + " }";
         int suffix = 0;
         string partialPath;
-        do { partialPath = adapterDocument.Path + ".helper" + suffix++ + ".cs"; }
+        do
+        {
+            partialPath = adapterDocument.Path + ".helper" + suffix++ + ".cs";
+        }
         while (catalog.Documents.Any(document => document.Path.Equals(partialPath, OperatingSystem.IsWindows()
             ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)));
         var partialDocument = CSharpSourceDocument.FromBytes(partialPath, System.Text.Encoding.UTF8.GetBytes(partialText),

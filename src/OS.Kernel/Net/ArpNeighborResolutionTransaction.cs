@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public struct ArpNeighborResolutionTransaction
 {
     public const int RequestFrameLength = EthernetHeader.HeaderLength + ArpPacket.PacketLength;
@@ -14,11 +15,26 @@ public struct ArpNeighborResolutionTransaction
         ResolvedMac = default;
     }
 
-    public ArpNeighborResolutionState State { get; private set; }
-    public MacAddress LocalMac { get; }
-    public Ipv4Address LocalAddress { get; }
-    public Ipv4Address TargetAddress { get; }
-    public MacAddress ResolvedMac { get; private set; }
+    public ArpNeighborResolutionState State
+    {
+        get; private set;
+    }
+    public MacAddress LocalMac
+    {
+        get;
+    }
+    public Ipv4Address LocalAddress
+    {
+        get;
+    }
+    public Ipv4Address TargetAddress
+    {
+        get;
+    }
+    public MacAddress ResolvedMac
+    {
+        get; private set;
+    }
 
     public static ArpNeighborResolutionTransaction Create(MacAddress localMac, Ipv4Address localAddress, Ipv4Address targetAddress)
     {

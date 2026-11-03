@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpTimeWaitTable
 {
     /// <summary>Caller-owned compact backing, initially all zero. Only this table

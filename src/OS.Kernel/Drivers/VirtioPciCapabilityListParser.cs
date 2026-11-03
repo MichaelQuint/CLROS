@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public static class VirtioPciCapabilityListParser
 {
     public const byte VendorSpecificCapabilityId = 0x09;

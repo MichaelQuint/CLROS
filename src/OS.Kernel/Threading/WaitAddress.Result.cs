@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct WaitAddress
 {
     /// <summary>Default is not success. ThreadFailure preserves the exact

@@ -34,25 +34,55 @@ public readonly struct Ipv4Header
         HeaderLength = headerLength;
     }
 
-    public Ipv4Address Source { get; }
+    public Ipv4Address Source
+    {
+        get;
+    }
 
-    public Ipv4Address Destination { get; }
+    public Ipv4Address Destination
+    {
+        get;
+    }
 
-    public byte Protocol { get; }
+    public byte Protocol
+    {
+        get;
+    }
 
-    public ushort TotalLength { get; }
+    public ushort TotalLength
+    {
+        get;
+    }
 
-    public byte TimeToLive { get; }
+    public byte TimeToLive
+    {
+        get;
+    }
 
-    public ushort Identification { get; }
+    public ushort Identification
+    {
+        get;
+    }
 
-    public ushort FlagsAndFragmentOffset { get; }
+    public ushort FlagsAndFragmentOffset
+    {
+        get;
+    }
 
-    public byte TypeOfService { get; }
+    public byte TypeOfService
+    {
+        get;
+    }
 
-    public ushort HeaderChecksum { get; }
+    public ushort HeaderChecksum
+    {
+        get;
+    }
 
-    public byte HeaderLength { get; }
+    public byte HeaderLength
+    {
+        get;
+    }
 
     internal static Ipv4Header Create(
         Ipv4Address source,

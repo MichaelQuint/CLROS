@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public enum MonotonicClockMathStatus : byte
 {
     Uninitialized = 0,

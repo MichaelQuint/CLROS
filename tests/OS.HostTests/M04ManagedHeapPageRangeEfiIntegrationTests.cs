@@ -39,7 +39,7 @@ internal static partial class M04ManagedHeapPageRangeEfiIntegrationTests
     private static void TestBuild()
     {
         string root = Root();
-        Result r = Process(root, "dotnet", ["build", "src/OS/OS.csproj", "-c", "Release", "--nologo", ..Prerequisites.Append(Flag).Select(x => "-p:" + x + "=true")]);
+        Result r = Process(root, "dotnet", ["build", "src/OS/OS.csproj", "-c", "Release", "--nologo", .. Prerequisites.Append(Flag).Select(x => "-p:" + x + "=true")]);
         Save("enabled-build", r);
         Require(r.Code == 0, r.Output);
         using FileStream input = File.OpenRead(Path.Combine(root, "src/OS/bin/Release/net11.0/win-x64/OS.dll"));
@@ -219,7 +219,7 @@ internal static partial class M04ManagedHeapPageRangeEfiIntegrationTests
     {
         string root = Root();
         string[] enabled = Prerequisites.Append(Flag).Select(x => "-" + x).ToArray();
-        Result good = Qemu(["-BuildEfi", ..enabled]);
+        Result good = Qemu(["-BuildEfi", .. enabled]);
         Save("dryrun", good);
         Require(good.Code == 0, good.Output);
         string[] ordered = Markers(good.Output, "ORDERED_MARKERS ");
@@ -242,7 +242,7 @@ internal static partial class M04ManagedHeapPageRangeEfiIntegrationTests
                 )
                 {
                     string[] arguments = Prerequisites.Append(Flag).Where(x => explicitFalse || x != missing).Select(x => "--" + x + (x == missing ? ":false" : "")).ToArray();
-                    HostToolProcess.ToolResult result = command == "qemu" ? HostToolProcess.RunTool(["qemu", "smoke", "--dry-run", "--build-efi", ..arguments]) : HostToolProcess.ValidateEfiProfile(command == "build", arguments);
+                    HostToolProcess.ToolResult result = command == "qemu" ? HostToolProcess.RunTool(["qemu", "smoke", "--dry-run", "--build-efi", .. arguments]) : HostToolProcess.ValidateEfiProfile(command == "build", arguments);
                     Require(result.ExitCode != 0 && (result.Output + result.Error).Contains("m04_managed_heap_page_range_requires_explicit_chain", StringComparison.Ordinal), result.Output + result.Error);
                 }
 
@@ -250,7 +250,7 @@ internal static partial class M04ManagedHeapPageRangeEfiIntegrationTests
         Require(collisions.Length == 21, "bounded collision list");
         foreach (string collision in collisions)
         {
-            Result r = Qemu(["-BuildEfi", ..enabled, "-" + collision]);
+            Result r = Qemu(["-BuildEfi", .. enabled, "-" + collision]);
             string expectedDiagnostic = string.Equals(collision, "EnableM03TypedExitBootServicesCallProbe", StringComparison.Ordinal) ? "m03_typed_ebs_profile_conflict property=EnableM01LoadedImageStackProbe" : string.Equals(collision, "EnableM04TypeManagerModuleRegistrationProbe", StringComparison.Ordinal) ? "m04_type_manager_profile_conflict property=EnableM01LiveAllocatorProbe" : string.Equals(collision, "EnableM02UnexpectedVectorPanicProbe", StringComparison.Ordinal) ? "m02_unexpected_vector_panic_profile_conflict property=EnableM04IndependentEndianConformanceProbe" : string.Equals(collision, "EnableM03FirmwareEntropySeedProbe", StringComparison.Ordinal) ? "m03_firmware_entropy_profile_conflict property=EnableM01LoadedImageStackProbe" : string.Equals(collision, "EnableM03MemoryMapCaptureProbe", StringComparison.Ordinal) ? "m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe" : "m04_managed_heap_page_range_forbids_";
             Require(r.Code != 0 && r.Output.Contains(expectedDiagnostic, StringComparison.Ordinal), r.Output);
         }
@@ -270,14 +270,14 @@ internal static partial class M04ManagedHeapPageRangeEfiIntegrationTests
 
         )
         {
-            Result r = Qemu(["-BuildEfi", ..enabled, ..extra]);
+            Result r = Qemu(["-BuildEfi", .. enabled, .. extra]);
             Require(r.Code != 0, r.Output);
         }
 
         Require(Qemu(enabled).Code != 0, "requires BuildEfi");
-        Result pageFault = Qemu(["-BuildEfi", ..enabled, "-EnableM02PageFaultCr2ErrorCodeProbe"]);
+        Result pageFault = Qemu(["-BuildEfi", .. enabled, "-EnableM02PageFaultCr2ErrorCodeProbe"]);
         Require(pageFault.Code != 0 && pageFault.Output.Contains("m02_page_fault_cr2_error_code_profile_conflict", StringComparison.Ordinal), "page-fault/heap reciprocal collision " + pageFault.Output);
-        Result sibling = Qemu(["-BuildEfi", ..enabled.Where(x => x != "-" + Flag)]);
+        Result sibling = Qemu(["-BuildEfi", .. enabled.Where(x => x != "-" + Flag)]);
         Require(sibling.Code == 0 && Markers(sibling.Output, "ORDERED_MARKERS ").Length == 6, "standalone layout preserved");
         Require(Qemu(["-RequireMarker", Ready]).Code != 0, "marker-only spoof rejected");
     }
@@ -286,8 +286,8 @@ internal static partial class M04ManagedHeapPageRangeEfiIntegrationTests
     private static void TestTranscript()
     {
         string root = Root(), directory = Scratch("serial");
-        string[] chain = Markers(Qemu(["-BuildEfi", ..Prerequisites.Append(Flag).Select(x => "-" + x)]).Output, "ORDERED_MARKERS ");
-        List<string> lines = ["TEST_START efi.main", ..chain.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", ..chain.Skip(6)];
+        string[] chain = Markers(Qemu(["-BuildEfi", .. Prerequisites.Append(Flag).Select(x => "-" + x)]).Output, "ORDERED_MARKERS ");
+        List<string> lines = ["TEST_START efi.main", .. chain.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", .. chain.Skip(6)];
         const string identity = "allocatorState=0x0000000000100000 nodes=0x0000000000100040 heapState=0x0000000000101000 ledger=0x0000000000102000 parentIndex=4 parentStart=0x0000000000900000 parentEnd=0x0000000000902000 backing=0x0000000000900000 retainedStart=0x0000000000900000 retainedEnd=0x0000000000901000";
         lines[lines.IndexOf("M04_HEAP_PAGE_BOUND")] += " " + identity;
         lines[lines.IndexOf("M04_HEAP_PAGE_RETAINED")] += " checkpoint=beforeBootPlan " + identity;
@@ -341,7 +341,7 @@ internal static partial class M04ManagedHeapPageRangeEfiIntegrationTests
             cases.Add((bad + good, false));
         cases.Add((good.Replace("\r\n", "\n", StringComparison.Ordinal), false));
         cases.Add((good[..^1], false));
-        foreach ((string old, string changed)in new[]
+        foreach ((string old, string changed) in new[]
         {
             ("parentIndex=4", "parentIndex=5"),
             ("pages=1 ", "pages=01 "),
@@ -451,7 +451,7 @@ internal static partial class M04ManagedHeapPageRangeEfiIntegrationTests
         string evidencePath = artifact + ".link.json";
         JsonObject evidence = JsonNode.Parse(File.ReadAllText(evidencePath))!.AsObject();
         JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
-        string[] enabled = [..Prerequisites, Flag];
+        string[] enabled = [.. Prerequisites, Flag];
         foreach (string flag in enabled)
             properties[flag] = "true";
         string[] vector = properties.Select(x => x.Key).Where(x => x.StartsWith("Enable", StringComparison.Ordinal)).ToArray();
@@ -548,7 +548,7 @@ internal static partial class M04ManagedHeapPageRangeEfiIntegrationTests
     private static string Hash(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
     private static Result Qemu(params string[] args)
     {
-        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..args]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. args]);
         return new(result.ExitCode, result.Output + result.Error);
     }
 

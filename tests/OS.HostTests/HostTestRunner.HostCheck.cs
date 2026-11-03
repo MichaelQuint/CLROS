@@ -6,9 +6,18 @@ using System.Text.Json;
 
 internal static class HostCheck
 {
-    public static int Failures { get; private set; }
-    public static int Executed { get; private set; }
-    public static string? Filter { get; set; }
+    public static int Failures
+    {
+        get; private set;
+    }
+    public static int Executed
+    {
+        get; private set;
+    }
+    public static string? Filter
+    {
+        get; set;
+    }
 
     public static void Registered(Type fixture)
     {

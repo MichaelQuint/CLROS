@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Cloud;
+
 public readonly struct AzureWireServerGoalStateParseResult
 {
     private AzureWireServerGoalStateParseResult(AzureWireServerGoalStateStatus status, AzureWireServerGoalState goalState)
@@ -9,8 +10,14 @@ public readonly struct AzureWireServerGoalStateParseResult
         GoalState = goalState;
     }
 
-    public AzureWireServerGoalStateStatus Status { get; }
-    public AzureWireServerGoalState GoalState { get; }
+    public AzureWireServerGoalStateStatus Status
+    {
+        get;
+    }
+    public AzureWireServerGoalState GoalState
+    {
+        get;
+    }
     public bool Succeeded => Status == AzureWireServerGoalStateStatus.Success;
 
     public static AzureWireServerGoalStateParseResult Success(AzureWireServerGoalState goalState)

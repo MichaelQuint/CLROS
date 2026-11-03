@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciSizedBar
 {
     public readonly PciSizedBarKind Kind;

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct EnaAdminReadinessResult
 {
     private EnaAdminReadinessResult(bool isInitialized, EnaAdminReadinessStatus status, EnaRegisterApertureValidationResult apertureValidation, uint capabilities, uint deviceStatus)
@@ -10,11 +11,26 @@ public readonly struct EnaAdminReadinessResult
         DeviceStatus = deviceStatus;
     }
 
-    public EnaAdminReadinessStatus Status { get; }
-    public EnaRegisterApertureValidationResult ApertureValidation { get; }
-    public uint Capabilities { get; }
-    public uint DeviceStatus { get; }
-    public bool IsInitialized { get; }
+    public EnaAdminReadinessStatus Status
+    {
+        get;
+    }
+    public EnaRegisterApertureValidationResult ApertureValidation
+    {
+        get;
+    }
+    public uint Capabilities
+    {
+        get;
+    }
+    public uint DeviceStatus
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == EnaAdminReadinessStatus.Success;
     public bool RequiresContiguousQueueMemory => EnaRegisterMap.Capabilities.RequiresContiguousQueueMemory(Capabilities);
     public uint ResetTimeoutEncoded => EnaRegisterMap.Capabilities.GetResetTimeoutEncoded(Capabilities);

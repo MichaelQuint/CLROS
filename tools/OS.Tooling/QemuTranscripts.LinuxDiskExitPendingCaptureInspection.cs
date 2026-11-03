@@ -6,6 +6,7 @@ using OS.Manifest;
 using Race = OS.Tooling.LinuxDiskRaceProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied joins for the exact ExitPending package. Parent, image,
@@ -15,12 +16,30 @@ public static partial class QemuTranscripts
 
     public sealed class LinuxDiskExitPendingCaptureInspection
     {
-        public WebParentReport Parent { get; }
-        public LinuxDiskRaceLeafReport Leaf { get; }
-        public LinuxDiskExitPendingDeviceValues Pending { get; }
-        public string ImageSha256 { get; }
-        public int LeafStartIndex { get; }
-        public IReadOnlyList<ulong> CopiedDataSectors { get; }
+        public WebParentReport Parent
+        {
+            get;
+        }
+        public LinuxDiskRaceLeafReport Leaf
+        {
+            get;
+        }
+        public LinuxDiskExitPendingDeviceValues Pending
+        {
+            get;
+        }
+        public string ImageSha256
+        {
+            get;
+        }
+        public int LeafStartIndex
+        {
+            get;
+        }
+        public IReadOnlyList<ulong> CopiedDataSectors
+        {
+            get;
+        }
         public bool CheckedOriginalExecution => false;
 
         internal LinuxDiskExitPendingCaptureInspection(WebParentReport parent, LinuxDiskRaceLeafReport leaf, LinuxDiskExitPendingDeviceValues pending, string hash, int first, ulong[] sectors)

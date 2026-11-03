@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciBarSizingProbeAddressCommand
 {
     public PciBarSizingProbeAddressCommand(PciBarSizingProbeCommand probeCommand, PciEcamConfigurationAddressResult addressResult)
@@ -7,8 +8,14 @@ public readonly struct PciBarSizingProbeAddressCommand
         AddressResult = addressResult;
     }
 
-    public PciBarSizingProbeCommand ProbeCommand { get; }
-    public PciEcamConfigurationAddressResult AddressResult { get; }
+    public PciBarSizingProbeCommand ProbeCommand
+    {
+        get;
+    }
+    public PciEcamConfigurationAddressResult AddressResult
+    {
+        get;
+    }
     public PciBarSizingProbeCommandKind Kind => ProbeCommand.Kind;
     public ushort SequenceIndex => ProbeCommand.SequenceIndex;
     public byte BarIndex => ProbeCommand.BarIndex;

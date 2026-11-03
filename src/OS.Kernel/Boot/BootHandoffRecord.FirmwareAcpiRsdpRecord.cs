@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public struct FirmwareAcpiRsdpRecord
 {
     public const uint FlagPresent = 1;

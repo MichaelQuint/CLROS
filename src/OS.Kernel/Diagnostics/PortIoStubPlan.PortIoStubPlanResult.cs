@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct PortIoStubPlanResult
 {
     private PortIoStubPlanResult(PortIoStubPlanStatus status, int bytesWritten, int requiredBytes)
@@ -9,10 +10,22 @@ public readonly struct PortIoStubPlanResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool IsInitialized { get; }
-    public PortIoStubPlanStatus Status { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public PortIoStubPlanStatus Status
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PortIoStubPlanStatus.Success && RequiredBytes > 0 && BytesWritten == RequiredBytes;
 
     public static PortIoStubPlanResult Success(int bytesWritten, int requiredBytes)

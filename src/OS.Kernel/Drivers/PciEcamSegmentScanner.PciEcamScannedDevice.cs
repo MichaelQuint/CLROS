@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciEcamScannedDevice
 {
     public PciEcamScannedDevice(int segmentIndex, PciEcamSegment segment, PciScannedDevice device)
@@ -8,9 +9,18 @@ public readonly struct PciEcamScannedDevice
         Device = device;
     }
 
-    public int SegmentIndex { get; }
-    public PciEcamSegment Segment { get; }
-    public PciScannedDevice Device { get; }
+    public int SegmentIndex
+    {
+        get;
+    }
+    public PciEcamSegment Segment
+    {
+        get;
+    }
+    public PciScannedDevice Device
+    {
+        get;
+    }
     public ulong EcamBasePhysicalAddress => Segment.BasePhysicalAddress;
     public ushort SegmentGroup => Segment.SegmentGroup;
     public byte SegmentStartBus => Segment.StartBus;

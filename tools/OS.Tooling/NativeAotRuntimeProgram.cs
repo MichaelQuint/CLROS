@@ -11,8 +11,14 @@ public sealed partial class NativeAotRuntimeProgram
 {
     private const int MaximumDisassemblyBytes = 20 * 1024 * 1024;
     private readonly NativeAotInstructionIndex index;
-    internal string SourceRoot { get; }
-    public string Application { get; }
+    internal string SourceRoot
+    {
+        get;
+    }
+    public string Application
+    {
+        get;
+    }
     /// <summary>Value-only complete index identity, without lookup authority.</summary>
 
     public Inspection Metadata => Report(index);
@@ -58,7 +64,8 @@ public sealed partial class NativeAotRuntimeProgram
         "NativeAotSuspensionStress" => new(301509, 166, "C2021C3C8A003FEEE150A4974371640D101D374D34B014927502A5080C7601E4"),
         "NativeAotThreadPoolStress" => new(307640, 167, "4FBE5A570D727726C71123FBDBC222F4F7440B6E9A82B85E82A0E8C83212CEAB"),
         "NativeAotRuntimeMatrix" => new(298538, 167, "6496879D9908E67BF44C17988B1D899EDFEEB8024A0CE778594F11CF01EB8614"),
-        _ => throw new ArgumentException("runtime_package_app", nameof(app))};
+        _ => throw new ArgumentException("runtime_package_app", nameof(app))
+    };
     /// <summary>Reads both bounded plain single-link snapshots under concurrent
     /// read-only file locks, then calls Create. Files remain caller-owned; this
     /// method executes nothing. Aliases, invalid UTF8 and changed reads throw.</summary>

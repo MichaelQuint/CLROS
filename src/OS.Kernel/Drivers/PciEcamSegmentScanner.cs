@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class PciEcamSegmentScanner
 {
     public static PciEcamSegmentScanResult Scan(ReadOnlySpan<PciEcamSegment> segments, PciConfigurationSpaceHeaderReader? reader, Span<PciEcamScannedDevice> destination, Span<PciScannedDevice> scratch)

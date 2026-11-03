@@ -1,4 +1,5 @@
 namespace OS.Cloud;
+
 public enum AwsImdsAppRequestKind
 {
     Metadata = 0,

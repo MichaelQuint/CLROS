@@ -68,13 +68,17 @@ internal static class EfiLinuxCopyBindingTests
     private static void Verify(string selected, string map)
     {
         Dictionary<string, bool> flags = [];
-        if (selected.Length != 0) flags.Add("Enable" + selected + "Probe", true);
+        if (selected.Length != 0)
+            flags.Add("Enable" + selected + "Probe", true);
         EfiVerify.TestLinuxCopyBindings(EfiProfile.Create("Diagnostic", flags), map,
             EfiArtifactVerificationScriptTests.CreateValidPe());
     }
     private static void Reject(string profile, string map, string reason)
     {
-        try { Verify(profile, map); }
+        try
+        {
+            Verify(profile, map);
+        }
         catch (ToolFailure failure)
         {
             HostCheck.True(failure.Message.StartsWith(reason + " ", StringComparison.Ordinal), failure.Message);

@@ -1,6 +1,7 @@
 using OS.Manifest;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAppExecutableMemoryPlan
 {
     public const uint MinimumPageSize = 4096;

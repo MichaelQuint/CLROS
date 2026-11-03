@@ -95,7 +95,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
                 // Poll only for the peer's closed receipt, never for a response
                 // winner. Preserve partial output and keep the host cancellable.
                 string receipt = Path.Combine(Destination, "http.json");
-                for (;;)
+                for (; ; )
                 {
                     token.ThrowIfCancellationRequested();
                     try

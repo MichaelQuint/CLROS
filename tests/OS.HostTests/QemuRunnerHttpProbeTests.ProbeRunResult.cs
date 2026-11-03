@@ -15,7 +15,13 @@ internal static partial class QemuRunnerHttpProbeTests
             SummaryLogPath = summaryLogPath;
         }
 
-        public ProcessResult Process { get; }
-        public string SummaryLogPath { get; }
+        public ProcessResult Process
+        {
+            get;
+        }
+        public string SummaryLogPath
+        {
+            get;
+        }
     }
 }

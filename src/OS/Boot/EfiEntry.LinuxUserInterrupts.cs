@@ -19,19 +19,24 @@ public static unsafe partial class EfiEntry
                 c->UserPreempted != 0 || c->Timer.IsPrepared || c->Epoch >= c->Budget.MaximumEpochs ||
                 !c->TimerDeadlines.IsEmpty || c->TimerDeadlines.ObservedTicks != c->Epoch ||
                 !LinuxNativeTimerInstalled(c) || !LinuxNativeObserve(c) || !LinuxNativeVerify(c) ||
-                !LinuxNativeUserGates(c, false) || !CooperativeAuditPool(c->State, true)) return false;
+                !LinuxNativeUserGates(c, false) || !CooperativeAuditPool(c->State, true))
+                return false;
             var worker = c->Plan.Bindings[index].Context;
             if (c->TimerDeadlines.Schedule(c->Key, new(worker.Identity), new(worker.CurrentIdentity), c->Epoch, 1) != DeadlineQueue.Status.Ok)
                 return false;
             c->UserTimer = index + 1; // Retain partial preparation until verified restoration.
             if (c->Timer.Prepare(c->Key, c->State->ApicTopology.LocalApicAddress, 2000000, 8,
-                ApicAccess(c->State), 2, c->Epoch) != SchedulerTimer.Status.Ok) return false;
+                ApicAccess(c->State), 2, c->Epoch) != SchedulerTimer.Status.Ok)
+                return false;
             *(ulong*)(c->State->Arena.Descriptors->Tss + 60) = c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page;
-            if (!LinuxNativeTimerInstalled(c)) return false;
+            if (!LinuxNativeTimerInstalled(c))
+                return false;
             if (c->TimingValid == 1)
             {
-                if (LinuxNativeTimingRead(c, &c->TimingArm)) c->TimingValid = 3;
-                else c->TimingValid = 0;
+                if (LinuxNativeTimingRead(c, &c->TimingArm))
+                    c->TimingValid = 3;
+                else
+                    c->TimingValid = 0;
             }
             return c->Timer.Arm(c->Key, 2, true) == SchedulerTimer.Status.Ok;
         }
@@ -57,16 +62,21 @@ public static unsafe partial class EfiEntry
                 !LinuxNativeTimerGateMatches(idt + 0xe1 * 16, plan.UserFaultEntry + X64LinuxUserTransition.UserInterruptOffset) ||
                 !LinuxNativeTimerGateMatches(idt + 0xff * 16, plan.UserSpuriousEntry) ||
                 !LinuxNativeUserGate(idt + 13 * 16, plan.CodeAddress + X64LinuxUserTransition.GpOffset) ||
-                !LinuxNativeUserGate(idt + 14 * 16, plan.CodeAddress + X64LinuxUserTransition.PfOffset)) return false;
+                !LinuxNativeUserGate(idt + 14 * 16, plan.CodeAddress + X64LinuxUserTransition.PfOffset))
+                return false;
             for (uint i = 0; i < 4096; i++)
                 if (!(i >= 13 * 16 && i < 15 * 16) && !(i >= 0xe1 * 16 && i < 0xe2 * 16) &&
-                    i < 0xff * 16 && idt[i] != state->Arena.Descriptors->FinalIdt[i]) return false;
-            if (!active) return true;
+                    i < 0xff * 16 && idt[i] != state->Arena.Descriptors->FinalIdt[i])
+                    return false;
+            if (!active)
+                return true;
             if (*(ulong*)(state->Arena.Descriptors->Tss + 4) != state->LinuxSyscallData + X64LinuxUserTransition.DataBytes ||
-                *(ulong*)(state->Arena.Descriptors->Tss + 60) != state->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page) return false;
+                *(ulong*)(state->Arena.Descriptors->Tss + 60) != state->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page)
+                return false;
             for (uint i = 0; i < 4096; i++)
                 if (!(i >= 4 && i < 12) && !(i >= 60 && i < 68) &&
-                    state->Arena.Descriptors->Tss[i] != (i < 104 ? c->OriginalTss[i] : 0)) return false;
+                    state->Arena.Descriptors->Tss[i] != (i < 104 ? c->OriginalTss[i] : 0))
+                    return false;
             ulong* observed = stackalloc ulong[(int)X64LinuxUserTransition.ObservationWords];
             ((delegate* unmanaged<ulong*, void>)(state->LinuxSyscallCode + X64LinuxUserTransition.ObserveOffset))(observed);
             return X64LinuxUserTransition.ValidateActiveUserGateObservation(data, X64LinuxUserTransition.DataBytes,
@@ -83,7 +93,8 @@ public static unsafe partial class EfiEntry
         private static byte LinuxNativeUserInterrupt(Storage* state, byte* data)
         {
             LinuxNativeControl* c = LinuxNativeOwner(state);
-            if (c == null || data != (byte*)state->LinuxSyscallData || c->Selected == 0) return 0;
+            if (c == null || data != (byte*)state->LinuxSyscallData || c->Selected == 0)
+                return 0;
             uint index = c->Selected - 1;
             if (!LinuxNativeUserWorker(c, index) || c->Entered[index] != 1 || c->UserTimer != index + 1 ||
                 c->UserAcknowledged != 0 || c->UserDrain != 0 || c->UserPreempted != 0)
@@ -93,13 +104,19 @@ public static unsafe partial class EfiEntry
                 return LinuxNativeUserInterruptRejected(state, 2);
             if (c->TimingValid == 3)
             {
-                if (LinuxNativeTimingRead(c, &c->TimingCapture)) c->TimingValid = 7;
-                else c->TimingValid = 0;
+                if (LinuxNativeTimingRead(c, &c->TimingCapture))
+                    c->TimingValid = 7;
+                else
+                    c->TimingValid = 0;
             }
-            if (!LinuxNativeUserGates(c, true)) return LinuxNativeUserInterruptRejected(state, 3);
-            if (!LinuxNativeVerify(c)) return LinuxNativeUserInterruptRejected(state, 4);
-            if (!CooperativeAuditPool(state, true)) return LinuxNativeUserInterruptRejected(state, 8);
-            if (!c->Process.CurrentImage(c->Key, 2, out var image)) return LinuxNativeUserInterruptRejected(state, 5);
+            if (!LinuxNativeUserGates(c, true))
+                return LinuxNativeUserInterruptRejected(state, 3);
+            if (!LinuxNativeVerify(c))
+                return LinuxNativeUserInterruptRejected(state, 4);
+            if (!CooperativeAuditPool(state, true))
+                return LinuxNativeUserInterruptRejected(state, 8);
+            if (!c->Process.CurrentImage(c->Key, 2, out var image))
+                return LinuxNativeUserInterruptRejected(state, 5);
             if (!X64LinuxUserTransition.CaptureInterruptUserImage(data, X64LinuxUserTransition.DataBytes, image,
                 X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User))
                 return LinuxNativeUserInterruptRejected(state, 6);
@@ -122,7 +139,8 @@ public static unsafe partial class EfiEntry
                 c->Actions[index] = (uint)LinuxSyscallAction.Return;
                 return 1;
             }
-            c->UserPreempted = index + 1; c->Actions[index] = (uint)LinuxSyscallAction.Return;
+            c->UserPreempted = index + 1;
+            c->Actions[index] = (uint)LinuxSyscallAction.Return;
             return 2; // Original gateway restoration, then actual kernel CALL capture and Yield.
         }
 
@@ -157,29 +175,36 @@ public static unsafe partial class EfiEntry
         {
             if (!LinuxNativeUserWorker(c, index) || c->UserTimer != index + 1 || c->UserAcknowledged != 0 ||
                 c->Epoch >= c->Budget.MaximumEpochs || c->Timer.Ticks != c->Epoch ||
-                c->TimerDeadlines.ObservedTicks != c->Epoch || c->TimerDeadlines.Count != 1) return false;
+                c->TimerDeadlines.ObservedTicks != c->Epoch || c->TimerDeadlines.Count != 1)
+                return false;
             var tick = c->Timer.HandleInterrupt(c->Key, entryFlags, interruptedFlags,
                 ref c->TimerDeadlines, c->Key, SchedulerTimer.Phase.Safe);
             if (!tick.Succeeded || tick.Next != SchedulerTimer.Action.WakeReady || tick.Tick != c->Epoch + 1 ||
-                tick.Tick > c->Budget.MaximumEpochs || tick.Due.Identity.Value != c->Threads.Current.Value || tick.Due.Deadline != tick.Tick) return false;
+                tick.Tick > c->Budget.MaximumEpochs || tick.Due.Identity.Value != c->Threads.Current.Value || tick.Due.Deadline != tick.Tick)
+                return false;
             DeadlineQueue.Entry due = default;
             var drained = c->TimerDeadlines.Drain(c->Key, tick.Tick, &due, (uint)sizeof(DeadlineQueue.Entry), 1);
-            if (!drained.Succeeded || drained.Count != 1 || due.Identity.Value != tick.Due.Identity.Value || due.Deadline != tick.Tick) return false;
-            c->Epoch = tick.Tick; c->UserAcknowledged = 1;
+            if (!drained.Succeeded || drained.Count != 1 || due.Identity.Value != tick.Due.Identity.Value || due.Deadline != tick.Tick)
+                return false;
+            c->Epoch = tick.Tick;
+            c->UserAcknowledged = 1;
 #if CLROS_LINUX_SOCKETS
-            if (!ObserveLinuxSocketWaits(c)) return false;
+            if (!ObserveLinuxSocketWaits(c))
+                return false;
 #endif
             if (!(c->Stopping != 0 || c->Process.AdvanceFutexClock(c->Key, 2)) || !(
                 LinuxText(c->State, drain ? "M16_009_DRAIN identity=" : "M16_009_IRQ identity=") && LinuxNumber(c->State, due.Identity.Value) &&
                 LinuxText(c->State, " epoch=") && LinuxNumber(c->State, tick.Tick) &&
-                LinuxText(c->State, " nanos=") && LinuxNumber(c->State, c->Threads.ObservedTicks))) return false;
+                LinuxText(c->State, " nanos=") && LinuxNumber(c->State, c->Threads.ObservedTicks)))
+                return false;
             if (!drain && (!c->Process.CurrentImage(c->Key, 2, out var image) ||
                 !(LinuxText(c->State, " rip=") && LinuxNumber(c->State, image->Frame.Rip) &&
                 LinuxText(c->State, " rsp=") && LinuxNumber(c->State, image->Frame.Rsp) &&
                 LinuxText(c->State, " flags=") && LinuxNumber(c->State, image->Frame.Rflags) &&
                 LinuxText(c->State, " fs=") && LinuxNumber(c->State, image->Frame.FsBase) &&
                 LinuxText(c->State, " gs=") && LinuxNumber(c->State, image->Frame.GsBase) &&
-                LinuxText(c->State, " valueBits=") && LinuxNumber(c->State, unchecked((ulong)image->Value))))) return false;
+                LinuxText(c->State, " valueBits=") && LinuxNumber(c->State, unchecked((ulong)image->Value)))))
+                return false;
             return LinuxText(c->State, "\r\n");
         }
 
@@ -188,35 +213,43 @@ public static unsafe partial class EfiEntry
         // it at this exact STI/HLT/CLI checkpoint; Restore never discards IRR.
         private static bool LinuxNativeStopUserTimer(LinuxNativeControl* c, uint index)
         {
-            if (!LinuxNativeUserWorker(c, index) || c->UserDrain != 0 || !LinuxNativeTimerInstalled(c)) return false;
+            if (!LinuxNativeUserWorker(c, index) || c->UserDrain != 0 || !LinuxNativeTimerInstalled(c))
+                return false;
             if (c->UserTimer == 0)
                 return c->UserAcknowledged == 0 && c->UserPreempted == 0 && !c->Timer.IsPrepared && c->TimerDeadlines.IsEmpty;
-            if (c->UserTimer != index + 1 || c->UserAcknowledged > 1) return false;
+            if (c->UserTimer != index + 1 || c->UserAcknowledged > 1)
+                return false;
             if (c->Timer.IsArmed)
             {
-                if (c->UserAcknowledged != 0) return false;
+                if (c->UserAcknowledged != 0)
+                    return false;
                 c->UserDrain = 1;
                 bool returned = ((delegate* unmanaged<uint>)(c->Plan.Owner.CodeStart + NativeProgram.Idle))() == 1;
                 c->UserDrain = 0;
-                if (!returned || c->UserAcknowledged != 1 || c->Timer.IsArmed) return false;
+                if (!returned || c->UserAcknowledged != 1 || c->Timer.IsArmed)
+                    return false;
             }
-            if (c->Timer.IsPrepared && c->Timer.Restore(c->Key, 2) != SchedulerTimer.Status.Ok) return false;
+            if (c->Timer.IsPrepared && c->Timer.Restore(c->Key, 2) != SchedulerTimer.Status.Ok)
+                return false;
             *(ulong*)(c->State->Arena.Descriptors->Tss + 60) = c->OriginalIst;
             if (c->TimerDeadlines.HasPending)
             {
                 var next = c->TimerDeadlines.Peek(c->Key);
                 if (c->UserAcknowledged != 0 || c->TimerDeadlines.Count != 1 || !next.Succeeded ||
                     next.Value.Identity.Value != c->Threads.Current.Value || next.Value.Deadline != c->Epoch + 1 ||
-                    c->TimerDeadlines.Cancel(c->Key, next.Value.Identity) != DeadlineQueue.Status.Ok) return false;
+                    c->TimerDeadlines.Cancel(c->Key, next.Value.Identity) != DeadlineQueue.Status.Ok)
+                    return false;
             }
-            if (!c->TimerDeadlines.IsEmpty || c->TimerDeadlines.ObservedTicks != c->Epoch || !LinuxNativeTimerInstalled(c)) return false;
+            if (!c->TimerDeadlines.IsEmpty || c->TimerDeadlines.ObservedTicks != c->Epoch || !LinuxNativeTimerInstalled(c))
+                return false;
             c->UserTimer = c->UserAcknowledged = 0;
             return true;
         }
 
         private static byte LinuxNativeDrainUserInterrupt(LinuxNativeControl* c, X64TimerInterrupt.Frame* frame)
         {
-            if (c->Selected == 0) return 0;
+            if (c->Selected == 0)
+                return 0;
             uint index = c->Selected - 1;
             var owner = c->Plan.Owner;
             if (!LinuxNativeUserWorker(c, index) || c->UserDrain != 1 || c->UserTimer != index + 1 || frame == null ||
@@ -230,7 +263,8 @@ public static unsafe partial class EfiEntry
             ulong* cpu = stackalloc ulong[(int)NativeSwitch.ObservationWords];
             ((delegate* unmanaged<ulong*, void>)(c->State->Memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(cpu);
             if (cpu[1] != owner.Root || cpu[4] != 8 || cpu[5] != 0 || cpu[6] != 24 || (cpu[3] & 0x602) != 2 ||
-                cpu[14] != owner.KernelGs || cpu[15] != 0 || cpu[16] != 0 || !LinuxNativeVerify(c) || !CooperativeAuditPool(c->State, true, ownedIst: true)) return 0;
+                cpu[14] != owner.KernelGs || cpu[15] != 0 || cpu[16] != 0 || !LinuxNativeVerify(c) || !CooperativeAuditPool(c->State, true, ownedIst: true))
+                return 0;
             return LinuxNativeAcknowledgeUserTimer(c, index, frame->EntryFlags, frame->Rflags, true) ? (byte)1 : (byte)0;
         }
     }

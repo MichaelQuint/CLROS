@@ -14,154 +14,6 @@ using System.Xml.Linq;
 #if MEMORY_MAP_CAPTURE_HOST
 using OS.Boot;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -199,7 +51,13 @@ internal static partial class M03MemoryMapCaptureEfiIntegrationTests
         foreach (string arg in args)
             start.ArgumentList.Add(arg);
         DateTime begin = DateTime.UtcNow;
-        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new { Program = program, Arguments = args, WorkingDirectory = Root(), StartedUtc = begin }));
+        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new
+        {
+            Program = program,
+            Arguments = args,
+            WorkingDirectory = Root(),
+            StartedUtc = begin
+        }));
         using var p = System.Diagnostics.Process.Start(start)!;
         var output = p.StandardOutput.ReadToEndAsync();
         var error = p.StandardError.ReadToEndAsync();
@@ -213,7 +71,13 @@ internal static partial class M03MemoryMapCaptureEfiIntegrationTests
         string stdout = output.GetAwaiter().GetResult(), stderr = error.GetAwaiter().GetResult();
         File.WriteAllText(Path.Combine(directory, "stdout.log"), stdout);
         File.WriteAllText(Path.Combine(directory, "stderr.log"), stderr);
-        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new { NativeExit = p.ExitCode, TimedOut = timeout, StartedUtc = begin, EndedUtc = DateTime.UtcNow }));
+        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new
+        {
+            NativeExit = p.ExitCode,
+            TimedOut = timeout,
+            StartedUtc = begin,
+            EndedUtc = DateTime.UtcNow
+        }));
         return new(p.ExitCode, stdout, stderr, timeout);
     }
 
@@ -240,8 +104,11 @@ internal static partial class M03MemoryMapCaptureEfiIntegrationTests
         Need(admission.Succeeded, admission.Reason + ":" + admission.Detail);
         var source = CaptureSources();
         var authority = CaptureAuthority(source);
-        Need(authority is { IsStatic: true, IsConst: true, ConstantValue: false,
-            DeclaredAccessibility: Accessibility.Public }
+        Need(authority is
+        {
+            IsStatic: true, IsConst: true, ConstantValue: false,
+            DeclaredAccessibility: Accessibility.Public
+        }
             && authority.Type.SpecialType == SpecialType.System_Boolean, "actual default-off capture authority");
         var flag = project.Descendants(Flag).Single();
         Need(flag.Value == "false" && flag.Attribute("Condition")!.Value == "'$(" + Flag + ")' == ''", "explicit false default");
@@ -510,7 +377,7 @@ internal static partial class M03MemoryMapCaptureEfiIntegrationTests
                 // The new reference profile validates first; admit its prerequisites to test the actual reciprocal conflict.
                 string[] companion = other == "EnableM04CheckedReferenceBarrierProbe" ? ["-EnableM01LoadedImageStackProbe", "-EnableM01LiveAllocatorProbe", "-EnableM04IndependentEndianConformanceProbe", "-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "-EnableM04ArithmeticConformanceProbe", "-EnableM04LayoutContractProbe", "-EnableM04ManagedHeapPageRangeProbe", "-EnableM04RhpNewFastProbe"] : [];
                 string expected = other == "EnableM04GcStaticRootMaterializationProbe" ? "m04_gc_static_profile_invalid property=EnableM01LoadedImageStackProbe" : other == "EnableM03TypedExitBootServicesCallProbe" ? "m03_typed_ebs_profile_conflict property=EnableM03MemoryMapCaptureProbe" : other == "EnableM04TypeManagerModuleRegistrationProbe" ? "m04_type_manager_requires_original_loaded_image" : other == "EnableM03FirmwareEntropySeedProbe" ? "m03_firmware_entropy_profile_conflict property=EnableM03MemoryMapCaptureProbe" : other == "EnableM04CheckedReferenceBarrierProbe" ? "m04_checked_reference_profile_conflict property=EnableM03MemoryMapCaptureProbe" : "m03_memory_map_capture_profile_conflict";
-                Result r = file == "qemu" ? Tool(["qemu", "smoke", ..extra, "-" + Flag, "-" + other, ..companion]) : Profile(file == "build", [..extra, "-" + Flag, "-" + other, ..companion]);
+                Result r = file == "qemu" ? Tool(["qemu", "smoke", .. extra, "-" + Flag, "-" + other, .. companion]) : Profile(file == "build", [.. extra, "-" + Flag, "-" + other, .. companion]);
                 index++;
                 Need(r.Code != 0 && !r.TimedOut && (r.Output + r.Error).Contains(expected, StringComparison.Ordinal), "exact early conflict " + other + " " + r.Output + r.Error);
             }
@@ -523,7 +390,7 @@ internal static partial class M03MemoryMapCaptureEfiIntegrationTests
 
         )
         {
-            Result r = Tool(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..(enabled ? new[] { "-" + Flag } : Array.Empty<string>())]);
+            Result r = Tool(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", .. (enabled ? new[] { "-" + Flag } : Array.Empty<string>())]);
             Passed(r);
             string ordered = r.Output.Replace("\r", "").Split('\n').Single(x => x.StartsWith("ORDERED_MARKERS ", StringComparison.Ordinal));
             Need(enabled ? ordered.Split(';').Length == OS.Tooling.QemuContracts.M03MemoryMapCaptureRequiredMarkers.Count : !ordered.Contains("m03.001.capture", StringComparison.Ordinal), "default/enabled exact ordered marker selection");
@@ -553,7 +420,7 @@ internal static partial class M03MemoryMapCaptureEfiIntegrationTests
         )
         {
             string directory = Scratch(enabled ? "enabled" : "default"), artifact = Path.Combine(Root(), "artifacts/efi/issue532-" + Guid.NewGuid().ToString("N") + ".EFI");
-            Result r = Tool(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), ..(enabled ? new[] { "-" + Flag } : Array.Empty<string>())]);
+            Result r = Tool(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), .. (enabled ? new[] { "-" + Flag } : Array.Empty<string>())]);
             Passed(r);
             Need(r.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), "complete artifact producer/verifier");
             foreach (string suffix in new[]
@@ -639,7 +506,11 @@ internal static partial class M03MemoryMapCaptureEfiIntegrationTests
             Need(reader.GetString(declaring.Name) == "UnmanagedCallersOnlyAttribute" && reader.GetString(declaring.Namespace) == "System.Runtime.InteropServices", "actual unmanaged callback boundary");
         }
 
-        File.WriteAllText(Path.ChangeExtension(path, "metadata.json"), JsonSerializer.Serialize(new { AssemblyReferences = reader.AssemblyReferences.Count, GuestExecuted = false, Methods = type.GetMethods().Select(h =>
+        File.WriteAllText(Path.ChangeExtension(path, "metadata.json"), JsonSerializer.Serialize(new
+        {
+            AssemblyReferences = reader.AssemblyReferences.Count,
+            GuestExecuted = false,
+            Methods = type.GetMethods().Select(h =>
         {
             var m = reader.GetMethodDefinition(h);
             return new
@@ -648,7 +519,8 @@ internal static partial class M03MemoryMapCaptureEfiIntegrationTests
                 Rva = m.RelativeVirtualAddress,
                 Signature = Convert.ToHexString(reader.GetBlobBytes(m.Signature))
             };
-        }).ToArray() }));
+        }).ToArray()
+        }));
     }
 
     private static void TranscriptControls()
@@ -676,10 +548,10 @@ internal static partial class M03MemoryMapCaptureEfiIntegrationTests
             control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace("stride=48 version=1", "stride=48 version=" + version)), false);
         for (int i = 0; i < lines.Length; i++)
         {
-            string[] copy = [..lines];
+            string[] copy = [.. lines];
             copy[i] += " extra=1";
             control.Check(FirmwareTranscriptControls.Bytes(copy), false);
-            copy = [..lines];
+            copy = [.. lines];
             copy[i] = "";
             control.Check(FirmwareTranscriptControls.Bytes(copy), false);
         }
@@ -708,9 +580,9 @@ internal static partial class M03MemoryMapCaptureEfiIntegrationTests
         )
             control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace(pair.Old, pair.New)), false);
         control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace("\r\n", "\n")), false);
-        control.Check([..good, 0], false);
+        control.Check([.. good, 0], false);
         control.Check(good, false, [255]);
-        control.Check(good, false, post: [..FirmwareTranscriptControls.Suffix, 65]);
+        control.Check(good, false, post: [.. FirmwareTranscriptControls.Suffix, 65]);
         control.Check(good, false, Encoding.ASCII.GetBytes("arbitrary"));
         foreach (string exit in new[]
         {

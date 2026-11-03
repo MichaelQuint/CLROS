@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct BootMemoryMapAcceptanceResult
 {
     private BootMemoryMapAcceptanceResult(bool succeeded, BootMemoryMapAcceptanceStatus status)
@@ -7,8 +8,14 @@ public readonly struct BootMemoryMapAcceptanceResult
         Status = status;
     }
 
-    public bool Succeeded { get; }
-    public BootMemoryMapAcceptanceStatus Status { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public BootMemoryMapAcceptanceStatus Status
+    {
+        get;
+    }
 
     public static BootMemoryMapAcceptanceResult Success()
     {

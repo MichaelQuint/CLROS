@@ -141,7 +141,8 @@ internal static unsafe partial class M16009EfiIntegrationTests
             foreach (var parent in member.Ancestors().OfType<TypeDeclarationSyntax>())
             {
                 var modifiers = parent.Modifiers;
-                if (!modifiers.Any(SyntaxKind.PartialKeyword)) modifiers = modifiers.Add(SyntaxFactory.Token(SyntaxKind.PartialKeyword));
+                if (!modifiers.Any(SyntaxKind.PartialKeyword))
+                    modifiers = modifiers.Add(SyntaxFactory.Token(SyntaxKind.PartialKeyword));
                 wrapper = LeafActiveSyntax(parent.WithMembers(default)).WithAttributeLists(default).WithBaseList(null).WithParameterList(null).WithModifiers(modifiers)
                     .WithMembers(SyntaxFactory.SingletonList(wrapper)).WithoutLeadingTrivia().WithoutTrailingTrivia();
             }
@@ -170,7 +171,3 @@ internal static unsafe partial class M16009EfiIntegrationTests
             sources.Catalog.Compilation.References, sources.Catalog.Compilation.AssemblyName!, sources.Catalog.Compilation.Options));
     }
 }
-
-
-
-

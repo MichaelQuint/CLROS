@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 
 public readonly struct DnsResolverTransactionPlanResult
@@ -24,24 +25,75 @@ public readonly struct DnsResolverTransactionPlanResult
         SourceServer = sourceServer;
     }
 
-    public DnsResolverTransactionPlanStatus Status { get; }
-    public bool IsInitialized { get; }
+    public DnsResolverTransactionPlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == DnsResolverTransactionPlanStatus.Success;
-    public DnsUdpQueryFrameResult QueryFrameResult { get; }
-    public UdpReceiveDispatchResult UdpResult { get; }
-    public DnsUdpReceiveFrameResult ReceiveFrameResult { get; }
-    public DnsResolverStatus ResolverStatus { get; }
-    public DnsMessageStatus MessageStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public UdpReceiveDispatchStatus UdpStatus { get; }
-    public ushort TransactionId { get; }
-    public int QueryNameLength { get; }
-    public uint QueryNameFingerprint { get; }
-    public Ipv4Address AnswerAddress { get; }
-    public uint AnswerTtlSeconds { get; }
-    public int BytesWritten { get; }
-    public int ResponseSize { get; }
-    public Ipv4Address SourceServer { get; }
+    public DnsUdpQueryFrameResult QueryFrameResult
+    {
+        get;
+    }
+    public UdpReceiveDispatchResult UdpResult
+    {
+        get;
+    }
+    public DnsUdpReceiveFrameResult ReceiveFrameResult
+    {
+        get;
+    }
+    public DnsResolverStatus ResolverStatus
+    {
+        get;
+    }
+    public DnsMessageStatus MessageStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public UdpReceiveDispatchStatus UdpStatus
+    {
+        get;
+    }
+    public ushort TransactionId
+    {
+        get;
+    }
+    public int QueryNameLength
+    {
+        get;
+    }
+    public uint QueryNameFingerprint
+    {
+        get;
+    }
+    public Ipv4Address AnswerAddress
+    {
+        get;
+    }
+    public uint AnswerTtlSeconds
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int ResponseSize
+    {
+        get;
+    }
+    public Ipv4Address SourceServer
+    {
+        get;
+    }
 
     public static DnsResolverTransactionPlanResult QuerySuccess(DnsUdpQueryFrameResult queryFrameResult, ushort transactionId, int queryNameLength, uint queryNameFingerprint)
     {

@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct VirtioNetQueueMmioSetupPlanResult
 {
     private VirtioNetQueueMmioSetupPlanResult(bool isInitialized, VirtioNetQueueMmioSetupPlanStatus status, VirtioNetDriverQueueBringUpPlanStatus bringUpStatus, ushort failingQueueIndex, VirtioNetQueueMmioSetupAddressKind failingAddressKind, ulong failingPhysicalAddress, ushort plannedQueueSize, ushort deviceMaximumQueueSize, ulong unsupportedFeatureMask, int requiredCommandCount, int availableCommandCount, int commandCount, VirtioNetQueueMmioSetupPlan plan)
@@ -20,19 +21,58 @@ public readonly struct VirtioNetQueueMmioSetupPlanResult
         Plan = plan;
     }
 
-    public VirtioNetQueueMmioSetupPlanStatus Status { get; }
-    public VirtioNetDriverQueueBringUpPlanStatus BringUpStatus { get; }
-    public ushort FailingQueueIndex { get; }
-    public VirtioNetQueueMmioSetupAddressKind FailingAddressKind { get; }
-    public ulong FailingPhysicalAddress { get; }
-    public ushort PlannedQueueSize { get; }
-    public ushort DeviceMaximumQueueSize { get; }
-    public ulong UnsupportedFeatureMask { get; }
-    public int RequiredCommandCount { get; }
-    public int AvailableCommandCount { get; }
-    public int CommandCount { get; }
-    public VirtioNetQueueMmioSetupPlan Plan { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetQueueMmioSetupPlanStatus Status
+    {
+        get;
+    }
+    public VirtioNetDriverQueueBringUpPlanStatus BringUpStatus
+    {
+        get;
+    }
+    public ushort FailingQueueIndex
+    {
+        get;
+    }
+    public VirtioNetQueueMmioSetupAddressKind FailingAddressKind
+    {
+        get;
+    }
+    public ulong FailingPhysicalAddress
+    {
+        get;
+    }
+    public ushort PlannedQueueSize
+    {
+        get;
+    }
+    public ushort DeviceMaximumQueueSize
+    {
+        get;
+    }
+    public ulong UnsupportedFeatureMask
+    {
+        get;
+    }
+    public int RequiredCommandCount
+    {
+        get;
+    }
+    public int AvailableCommandCount
+    {
+        get;
+    }
+    public int CommandCount
+    {
+        get;
+    }
+    public VirtioNetQueueMmioSetupPlan Plan
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetQueueMmioSetupPlanStatus.Success;
 
     internal static VirtioNetQueueMmioSetupPlanResult Success(VirtioNetQueueMmioSetupPlan plan, VirtioNetDriverQueueBringUpPlanStatus bringUpStatus, int availableCommandCount)

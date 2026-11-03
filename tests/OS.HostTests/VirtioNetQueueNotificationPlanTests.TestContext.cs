@@ -14,8 +14,17 @@ internal static partial class VirtioNetQueueNotificationPlanTests
             QueuePlan = queuePlan;
         }
 
-        public VirtioPciBarApertureSet Apertures { get; }
-        public VirtioNetQueueMmioSetupPlanResult QueueSetup { get; }
-        public VirtioNetQueuePlanResult QueuePlan { get; }
+        public VirtioPciBarApertureSet Apertures
+        {
+            get;
+        }
+        public VirtioNetQueueMmioSetupPlanResult QueueSetup
+        {
+            get;
+        }
+        public VirtioNetQueuePlanResult QueuePlan
+        {
+            get;
+        }
     }
 }

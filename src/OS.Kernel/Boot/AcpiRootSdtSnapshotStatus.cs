@@ -2,6 +2,7 @@ using OS.Kernel.Platform;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public enum AcpiRootSdtSnapshotStatus
 {
     Success = 0,

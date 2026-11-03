@@ -2,6 +2,7 @@ using OS.Boot;
 using System.Runtime.CompilerServices;
 
 namespace OS.Kernel.Runtime;
+
 public enum GCStaticMetadataStatus : byte
 {
     Uninitialized = 0,

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciBarApertureValidationResult
 {
     private VirtioPciBarApertureValidationResult(VirtioPciBarApertureValidationStatus status, VirtioPciDeviceDiscoveryStatus discoveryStatus, VirtioPciCapabilityType failingCapabilityType, byte failingBarIndex, PciBarKind failingBarKind, ulong failingBarSize, ulong failingRegionEndOffset, VirtioPciBarApertureSet apertures, bool isInitialized)
@@ -14,15 +15,42 @@ public readonly struct VirtioPciBarApertureValidationResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioPciBarApertureValidationStatus Status { get; }
-    public VirtioPciDeviceDiscoveryStatus DiscoveryStatus { get; }
-    public VirtioPciCapabilityType FailingCapabilityType { get; }
-    public byte FailingBarIndex { get; }
-    public PciBarKind FailingBarKind { get; }
-    public ulong FailingBarSize { get; }
-    public ulong FailingRegionEndOffset { get; }
-    public VirtioPciBarApertureSet Apertures { get; }
-    public bool IsInitialized { get; }
+    public VirtioPciBarApertureValidationStatus Status
+    {
+        get;
+    }
+    public VirtioPciDeviceDiscoveryStatus DiscoveryStatus
+    {
+        get;
+    }
+    public VirtioPciCapabilityType FailingCapabilityType
+    {
+        get;
+    }
+    public byte FailingBarIndex
+    {
+        get;
+    }
+    public PciBarKind FailingBarKind
+    {
+        get;
+    }
+    public ulong FailingBarSize
+    {
+        get;
+    }
+    public ulong FailingRegionEndOffset
+    {
+        get;
+    }
+    public VirtioPciBarApertureSet Apertures
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioPciBarApertureValidationStatus.Success;
 
     public static VirtioPciBarApertureValidationResult Success(VirtioPciBarApertureSet apertures)

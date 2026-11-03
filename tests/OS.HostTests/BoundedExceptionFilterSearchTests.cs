@@ -97,7 +97,7 @@ internal static unsafe partial class BoundedExceptionFilterSearchTests
         }
 
         )
-            Failed(BoundedExceptionFilterSearch.Select(rows, [wrong, default ], 25), Status.InvalidReceipt);
+            Failed(BoundedExceptionFilterSearch.Select(rows, [wrong, default], 25), Status.InvalidReceipt);
         foreach (int first in new[]
         {
             1,
@@ -125,7 +125,7 @@ internal static unsafe partial class BoundedExceptionFilterSearchTests
             Failed(BoundedExceptionFilterSearch.Select(rows, [default, Receipt(rows[1], late)], 25), Status.InvalidReceipt);
         Failed(BoundedExceptionFilterSearch.Select(rows, [Receipt(rows[0], 0), Receipt(rows[0], 0)], 25), Status.InvalidReceipt);
         var absentWithPayload = Changed(Receipt(rows[0], 1), nameof(BoundedExceptionFilterReceipt.HasValue), false);
-        Failed(BoundedExceptionFilterSearch.Select(rows, [absentWithPayload, default ], 25), Status.InvalidReceipt);
+        Failed(BoundedExceptionFilterSearch.Select(rows, [absentWithPayload, default], 25), Status.InvalidReceipt);
     }
 
     [HostTest("runtime.bounded-filter-search.complete-tail-validation", HostLane.Fast, 3)]
@@ -133,7 +133,7 @@ internal static unsafe partial class BoundedExceptionFilterSearchTests
     {
         using Fixture fixture = new();
         var rows = fixture.Rows(new(20, 16, 2, 0x100, 0x200), new(20, 16, 2, 0x300, 0x400));
-        BoundedExceptionFilterReceipt[] receipts = [Receipt(rows[0], 1), default ];
+        BoundedExceptionFilterReceipt[] receipts = [Receipt(rows[0], 1), default];
         var validTail = rows[1];
         foreach (var invalid in new[]
         {
@@ -175,7 +175,7 @@ internal static unsafe partial class BoundedExceptionFilterSearchTests
         )
             Failed(BoundedExceptionFilterSearch.Select(rows, new BoundedExceptionFilterReceipt[rows.Length], 25), Status.UnsupportedClause);
         var marker = fixture.Rows(new Row(0, 0, 1, 0));
-        Failed(BoundedExceptionFilterSearch.Select(marker, [default ], 25), Status.UnsupportedClause);
+        Failed(BoundedExceptionFilterSearch.Select(marker, [default], 25), Status.UnsupportedClause);
         foreach (var second in new[]
         {
             new Row(20, 8, 2, 0x300, 0x400),
@@ -187,7 +187,7 @@ internal static unsafe partial class BoundedExceptionFilterSearchTests
         )
         {
             var rows = fixture.Rows(new Row(20, 16, 2, 0x100, 0x200), second);
-            Failed(BoundedExceptionFilterSearch.Select(rows, [Receipt(rows[0], 1), default ], 25), Status.InvalidTopology);
+            Failed(BoundedExceptionFilterSearch.Select(rows, [Receipt(rows[0], 1), default], 25), Status.InvalidTopology);
         }
     }
 
@@ -200,7 +200,7 @@ internal static unsafe partial class BoundedExceptionFilterSearchTests
         Failed(BoundedExceptionFilterSearch.Select(new NativeAotEhClauseResult[1], new BoundedExceptionFilterReceipt[1], 0), Status.InvalidClause);
         using Fixture fixture = new();
         var two = fixture.Rows(new(20, 16, 2, 0x100, 0x200), new(20, 16, 2, 0x300, 0x400));
-        Failed(BoundedExceptionFilterSearch.Select(two.AsSpan(0, 1), [default ], 25), Status.InvalidClause);
+        Failed(BoundedExceptionFilterSearch.Select(two.AsSpan(0, 1), [default], 25), Status.InvalidClause);
     }
 
     [HostTest("runtime.bounded-filter-search.no-allocation-or-input-mutation", HostLane.Fast, 6)]

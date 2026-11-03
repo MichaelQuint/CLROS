@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Borrow the original small-development HTTP receipt and five
@@ -15,16 +16,19 @@ public static partial class QemuTranscripts
 
     public static DiskStaticHttpInspection InspectNativeAotDiskStaticHttpValues(byte[] packets, uint anchor, QemuArpReceiveReceipt arp, IReadOnlyList<uint> ports, ReadOnlySpan<byte> receiptJson, IReadOnlyDictionary<string, byte[]> bodies, WebRootDiskInventory.Inspection inventory, DiskStaticReplayReport replay)
     {
-        Need(packets is { Length: > 24 and <= 4 * 1024 * 1024 } && ports is { Count: 1 } && receiptJson.Length is> 0 and <= 65536 && bodies is { Count: 5 } && inventory is not null && replay is not null && replay.Static.Connections.Count == 1, "disk_http_input");
+        Need(packets is { Length: > 24 and <= 4 * 1024 * 1024 } && ports is { Count: 1 } && receiptJson.Length is > 0 and <= 65536 && bodies is { Count: 5 } && inventory is not null && replay is not null && replay.Static.Connections.Count == 1, "disk_http_input");
         ArgumentNullException.ThrowIfNull(inventory);
         ArgumentNullException.ThrowIfNull(replay);
-        using var document = JsonDocument.Parse(receiptJson.ToArray(), new() { MaxDepth = 8 });
+        using var document = JsonDocument.Parse(receiptJson.ToArray(), new()
+        {
+            MaxDepth = 8
+        });
         var root = document.RootElement;
         StaticObject(root, "Schema", "Scope", "Port", "Complete", "ClockFrequency", "Responses");
         int port = root.GetProperty("Port").GetInt32();
         long frequency = root.GetProperty("ClockFrequency").GetInt64();
         var rows = root.GetProperty("Responses");
-        Need(root.GetProperty("Schema").GetString() == DiskStaticHttpContract.Schema && root.GetProperty("Scope").GetString() == DiskStaticHttpContract.Scope && root.GetProperty("Complete").GetBoolean() && port is> 0 and <= 65535 && frequency is> 0 and <= 1_000_000_000 && rows.ValueKind == JsonValueKind.Array && rows.GetArrayLength() == 5, "disk_http_receipt");
+        Need(root.GetProperty("Schema").GetString() == DiskStaticHttpContract.Schema && root.GetProperty("Scope").GetString() == DiskStaticHttpContract.Scope && root.GetProperty("Complete").GetBoolean() && port is > 0 and <= 65535 && frequency is > 0 and <= 1_000_000_000 && rows.ValueKind == JsonValueKind.Array && rows.GetArrayLength() == 5, "disk_http_receipt");
         List<ServiceWireByteRange> ranges = [];
         var capture = ServiceWirePackets(packets, anchor, arp, ports, concurrent: true, lifecycle: true, observe: r =>
         {

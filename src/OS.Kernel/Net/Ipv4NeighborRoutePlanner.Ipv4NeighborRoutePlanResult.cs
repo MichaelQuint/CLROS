@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct Ipv4NeighborRoutePlanResult
 {
     private Ipv4NeighborRoutePlanResult(Ipv4NeighborRoutePlanStatus status, Ipv4NeighborRoutePlanAction action, MacAddress targetMac, int bytesWritten, ArpNeighborCacheStatus cacheStatus, ArpNeighborResolutionStatus arpStatus, PacketParseStatus packetStatus, int cacheCount, int cacheCapacity)
@@ -15,17 +16,47 @@ public readonly struct Ipv4NeighborRoutePlanResult
         IsInitialized = true;
     }
 
-    public Ipv4NeighborRoutePlanStatus Status { get; }
-    public bool IsInitialized { get; }
+    public Ipv4NeighborRoutePlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == Ipv4NeighborRoutePlanStatus.Success;
-    public Ipv4NeighborRoutePlanAction Action { get; }
-    public MacAddress TargetMac { get; }
-    public int BytesWritten { get; }
-    public ArpNeighborCacheStatus CacheStatus { get; }
-    public ArpNeighborResolutionStatus ArpStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public int CacheCount { get; }
-    public int CacheCapacity { get; }
+    public Ipv4NeighborRoutePlanAction Action
+    {
+        get;
+    }
+    public MacAddress TargetMac
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public ArpNeighborCacheStatus CacheStatus
+    {
+        get;
+    }
+    public ArpNeighborResolutionStatus ArpStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public int CacheCount
+    {
+        get;
+    }
+    public int CacheCapacity
+    {
+        get;
+    }
 
     public static Ipv4NeighborRoutePlanResult Cached(MacAddress targetMac, ArpNeighborCacheStatus cacheStatus, int cacheCount, int cacheCapacity)
     {

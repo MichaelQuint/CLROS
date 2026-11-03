@@ -16,9 +16,21 @@ internal static partial class AcpiMcfgPhysicalDiscoveryTests
             EndBus = endBus;
         }
 
-        public ulong BasePhysicalAddress { get; }
-        public ushort SegmentGroup { get; }
-        public byte StartBus { get; }
-        public byte EndBus { get; }
+        public ulong BasePhysicalAddress
+        {
+            get;
+        }
+        public ushort SegmentGroup
+        {
+            get;
+        }
+        public byte StartBus
+        {
+            get;
+        }
+        public byte EndBus
+        {
+            get;
+        }
     }
 }

@@ -148,7 +148,7 @@ public static class FatImageFixture
         bool Alias(int entry, string name) => disk.AsSpan(entry, 11).SequenceEqual(Encoding.ASCII.GetBytes(name));
         byte[] ReadChain(uint cluster, uint length)
         {
-            Need(length is> 0 and <= 8 * 1024 * 1024, "file_size");
+            Need(length is > 0 and <= 8 * 1024 * 1024, "file_size");
             byte[] bytes = new byte[length];
             HashSet<uint> seen = [];
             uint offset = 0;

@@ -2,6 +2,7 @@ using OS.Kernel.Threading;
 using OS.Pal;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public unsafe partial struct LinuxThreadServices
 {
 #if !NOSTDLIB_EFI || M16_025_PROBE

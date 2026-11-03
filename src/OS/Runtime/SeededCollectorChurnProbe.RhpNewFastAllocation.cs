@@ -27,11 +27,22 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcRootStorage* root = &s_gcRoot)
         fixed (GcCollectingStorage* collecting = &s_gcCollecting)
         {
-            CollectorModuleAccess module = new() { Capture = s_gcCapture, Mapping = s_gcMapping,
-                Owner = (byte*)type, Capacity = (ulong)sizeof(GcTypeStorage), Handle = s_gcHandle,
-                Metadata = s_gcImage };
-            CollectorStaticRootAccess retained = new() { Owner = (byte*)root,
-                Capacity = (ulong)sizeof(GcRootStorage), Cells = s_gcImage, SystemObjectMethodTable = GcObjectType() };
+            CollectorModuleAccess module = new()
+            {
+                Capture = s_gcCapture,
+                Mapping = s_gcMapping,
+                Owner = (byte*)type,
+                Capacity = (ulong)sizeof(GcTypeStorage),
+                Handle = s_gcHandle,
+                Metadata = s_gcImage
+            };
+            CollectorStaticRootAccess retained = new()
+            {
+                Owner = (byte*)root,
+                Capacity = (ulong)sizeof(GcRootStorage),
+                Cells = s_gcImage,
+                SystemObjectMethodTable = GcObjectType()
+            };
             for (uint index = 0; index < 3; index++)
             {
                 uint seed = index == 0 ? 0U : index == 1 ? 1U : 0xDEADBEEF;
@@ -61,13 +72,30 @@ internal static unsafe partial class RhpNewFastAllocation
                     ReadStaticCollectorTag(false), s_seededMinimumWitness);
             }
         }
-        if (s_seededChecks != 4) RejectSeededChurn(8);
+        if (s_seededChecks != 4)
+            RejectSeededChurn(8);
         ChurnLine(10, s_seededChecks, GcReadWord(s_gcStack.Start), GcReadWord(s_gcStack.Start + 8), s_seededMinimumWitness);
         s_seededPhase = 5;
-        Write((byte)'C'); Write((byte)'L'); Write((byte)'R'); Write((byte)'O'); Write((byte)'S'); Write((byte)'_');
-        Write((byte)'M'); Write((byte)'0'); Write((byte)'4'); Write((byte)'_');
-        Write((byte)'0'); Write((byte)'1'); Write((byte)'4'); Write((byte)'_');
-        Write((byte)'R'); Write((byte)'E'); Write((byte)'A'); Write((byte)'D'); Write((byte)'Y'); End();
+        Write((byte)'C');
+        Write((byte)'L');
+        Write((byte)'R');
+        Write((byte)'O');
+        Write((byte)'S');
+        Write((byte)'_');
+        Write((byte)'M');
+        Write((byte)'0');
+        Write((byte)'4');
+        Write((byte)'_');
+        Write((byte)'0');
+        Write((byte)'1');
+        Write((byte)'4');
+        Write((byte)'_');
+        Write((byte)'R');
+        Write((byte)'E');
+        Write((byte)'A');
+        Write((byte)'D');
+        Write((byte)'Y');
+        End();
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -82,21 +110,40 @@ internal static unsafe partial class RhpNewFastAllocation
             initialRsp != s_gcStack.InitialRsp || address > s_gcStack.Witness ||
             GcReadWord(start) != GcStackWord0 || GcReadWord(start + 8) != GcStackWord1)
             RejectSeededChurn(9);
-        if (s_seededMinimumWitness == 0 || address < s_seededMinimumWitness) s_seededMinimumWitness = address;
+        if (s_seededMinimumWitness == 0 || address < s_seededMinimumWitness)
+            s_seededMinimumWitness = address;
         s_seededChecks++;
     }
 
     private static void RejectSeededChurn(ulong reason)
     {
         ChurnLine(255, reason, s_seededPhase, s_seededChecks, 0);
-        while (true) System.RuntimeFailFast.Halt();
+        while (true)
+            System.RuntimeFailFast.Halt();
     }
 
     private static void ChurnLine(ulong stage, ulong a, ulong b, ulong c, ulong d)
     {
-        Write((byte)'M'); Write((byte)'0'); Write((byte)'4'); Write((byte)'_');
-        Write((byte)'C'); Write((byte)'H'); Write((byte)'U'); Write((byte)'R'); Write((byte)'N'); Write(32);
-        Decimal(stage); Write(32); Hex(a); Write(32); Hex(b); Write(32); Hex(c); Write(32); Hex(d); End();
+        Write((byte)'M');
+        Write((byte)'0');
+        Write((byte)'4');
+        Write((byte)'_');
+        Write((byte)'C');
+        Write((byte)'H');
+        Write((byte)'U');
+        Write((byte)'R');
+        Write((byte)'N');
+        Write(32);
+        Decimal(stage);
+        Write(32);
+        Hex(a);
+        Write(32);
+        Hex(b);
+        Write(32);
+        Hex(c);
+        Write(32);
+        Hex(d);
+        End();
     }
 }
 #endif

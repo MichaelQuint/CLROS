@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>One copied bounded HTTP/1.1 prefix. Offsets are zero-based in

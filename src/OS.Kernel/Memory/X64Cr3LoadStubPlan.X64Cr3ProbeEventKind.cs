@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public enum X64Cr3ProbeEventKind : byte
 {
     Uninitialized = 0,

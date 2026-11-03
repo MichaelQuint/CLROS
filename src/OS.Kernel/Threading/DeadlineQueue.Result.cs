@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct DeadlineQueue
 {
     /// <summary>Earliest entry by value. Default/failure is not a valid entry.</summary>

@@ -27,7 +27,8 @@ public static partial class QemuTranscripts
         Need((originalPat & 255) == 6 && ((originalPat >> 24) & 255) == 0 && ((originalPat >> 32) & 255) == 6 &&
             ((changedPat >> 32) & 255) == 1 && (originalPat & patMask) == (changedPat & patMask) && rows[1][2] == root &&
             (features & 69632) == 69632 && ((features >> 32) & 8192) == 0, "m05_mapping_pat");
-        for (int i = 0; i < 8; i++) Need(new ulong[] { 0, 1, 4, 5, 6, 7 }.Contains((originalPat >> (8 * i)) & 255), "m05_mapping_pat_reserved");
+        for (int i = 0; i < 8; i++)
+            Need(new ulong[] { 0, 1, 4, 5, 6, 7 }.Contains((originalPat >> (8 * i)) & 255), "m05_mapping_pat_reserved");
         ulong entry = rows[2][0], originalParent = rows[2][1], large = rows[2][2], child = rows[2][3];
         Need(entry >= root && (decimal)entry < (decimal)root + 225280 && entry % 8 == 0 && (entry % 4096) / 8 == ((start >> 21) & 511) &&
             child is >= 1 and < 55 && (originalParent & 64) == 0 && (rows[3][2] & 64) == 0 &&

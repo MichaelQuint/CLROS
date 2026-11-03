@@ -25,16 +25,16 @@ internal static class ReadOnlyDiskProfileTests
     private static void Rejections()
     {
         foreach (string parent in new[] { "M16023", "M16024", "M16012", "M16011", "M16008" })
-            Reject([..Arguments, "-Enable" + parent + "Probe:false"]);
+            Reject([.. Arguments, "-Enable" + parent + "Probe:false"]);
         foreach (string conflict in new[] { "M10017", "M16014", "M16013", "M07027", "M09011" })
-            Reject([..Arguments, "-Enable" + conflict + "Probe"]);
+            Reject([.. Arguments, "-Enable" + conflict + "Probe"]);
         Reject(["-EnableM16023Probe"]);
         Reject(["-EnableM16024Probe"]);
         Reject(["-EnableM16025Probe"]);
-        Reject([..Arguments, "-TimeoutSeconds", "119"]);
-        Reject([..Arguments, "-TimeoutSeconds", "286"]);
-        Reject([..Arguments, "-LinuxThreadingApplication", "NativeAotSocketSmoke"]);
-        Reject([..Arguments, "-LinuxThreadingDisassembly", "untrusted.txt"]);
+        Reject([.. Arguments, "-TimeoutSeconds", "119"]);
+        Reject([.. Arguments, "-TimeoutSeconds", "286"]);
+        Reject([.. Arguments, "-LinuxThreadingApplication", "NativeAotSocketSmoke"]);
+        Reject([.. Arguments, "-LinuxThreadingDisassembly", "untrusted.txt"]);
         Reject(["-WebRootFixture", "DiskA", "-WebRootAssets", "artifacts/source"]);
     }
 
@@ -59,7 +59,7 @@ internal static class ReadOnlyDiskProfileTests
     [HostTest("disk runner keeps NIC slot6 and a distinct read-only slot7 image", HostLane.Fast, 3)]
     private static void RunnerDeviceArguments()
     {
-        var run = HostToolProcess.RunTool(["qemu", "smoke", "-DryRun", "-Qemu", "qemu-test", "-OvmfCode", "ovmf-test", ..Arguments]);
+        var run = HostToolProcess.RunTool(["qemu", "smoke", "-DryRun", "-Qemu", "qemu-test", "-OvmfCode", "ovmf-test", .. Arguments]);
         HostCheck.True(run.ExitCode == 0, run.Output);
         HostCheck.True(run.Output.Contains("virtio-net-pci,netdev=n0,addr=06.0,disable-legacy=on,romfile=", StringComparison.Ordinal));
         HostCheck.True(run.Output.Contains("virtio-blk-pci,drive=webroot,addr=07.0,disable-legacy=on,romfile=", StringComparison.Ordinal));
@@ -72,7 +72,10 @@ internal static class ReadOnlyDiskProfileTests
     private static void Reject(string[] arguments)
     {
         bool rejected = false;
-        try { _ = QemuProfiles.Create(QemuSmokeOptions.Parse(arguments)); }
+        try
+        {
+            _ = QemuProfiles.Create(QemuSmokeOptions.Parse(arguments));
+        }
         catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected);
     }

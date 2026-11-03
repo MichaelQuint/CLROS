@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.ExceptionServices;
 
 namespace OS.Tools.QemuRunner;
+
 public sealed partial class WebFrameControl
 {
     /// <summary>Exact withheld frame, ordered within the original backend input.

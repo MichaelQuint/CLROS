@@ -1,6 +1,7 @@
 using OS.Manifest;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAppPayloadMappingPlanResult
 {
     private NativeAppPayloadMappingPlanResult(NativeAppPayloadMappingPlanStatus status, NativeAppLaunchDescriptorStatus descriptorStatus, NativeAppPayloadHeaderStatus payloadHeaderStatus, bool isInitialized, NativeAppPayloadMappingPlan plan)
@@ -12,11 +13,26 @@ public readonly struct NativeAppPayloadMappingPlanResult
         Plan = plan;
     }
 
-    public NativeAppPayloadMappingPlanStatus Status { get; }
-    public NativeAppLaunchDescriptorStatus DescriptorStatus { get; }
-    public NativeAppPayloadHeaderStatus PayloadHeaderStatus { get; }
-    public bool IsInitialized { get; }
-    public NativeAppPayloadMappingPlan Plan { get; }
+    public NativeAppPayloadMappingPlanStatus Status
+    {
+        get;
+    }
+    public NativeAppLaunchDescriptorStatus DescriptorStatus
+    {
+        get;
+    }
+    public NativeAppPayloadHeaderStatus PayloadHeaderStatus
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public NativeAppPayloadMappingPlan Plan
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeAppPayloadMappingPlanStatus.Success;
 
     public static NativeAppPayloadMappingPlanResult Success(NativeAppPayloadMappingPlan plan)

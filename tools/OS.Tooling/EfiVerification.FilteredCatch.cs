@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 internal sealed partial class EfiVerification
 {
     private void VerifyFilteredCatchBridge()

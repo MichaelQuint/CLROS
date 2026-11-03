@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum FaultProbeStubKind
 {
     Unknown = 0,

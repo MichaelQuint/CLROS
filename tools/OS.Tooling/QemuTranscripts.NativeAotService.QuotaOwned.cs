@@ -1,6 +1,7 @@
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     // Only the explicit QemuSmoke quota route supplies the actual original

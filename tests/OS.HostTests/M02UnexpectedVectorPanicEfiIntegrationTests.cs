@@ -167,7 +167,9 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
             SourceDocuments = catalog.TypeSources(PanicOwner).Select(document => new { document.Path, document.Sha256 }),
             SdkSources = PanicCleanupSources(catalog).Select(document => new { document.Path, document.Sha256 }),
             GeneratedSourceSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(directory, "Adapter.cs")))),
-            CompleteMembers = selected, WholeAdapterExecution = false, GuestExecution = false
+            CompleteMembers = selected,
+            WholeAdapterExecution = false,
+            GuestExecution = false
         }, new JsonSerializerOptions { WriteIndented = true }));
         ProcessStartInfo info = new("dotnet")
         {
@@ -201,7 +203,14 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
         Task.WaitAll(output, error);
         File.WriteAllText(Path.Combine(directory, "stdout.log"), output.Result);
         File.WriteAllText(Path.Combine(directory, "stderr.log"), error.Result);
-        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new { StartedUtc = started, EndedUtc = DateTime.UtcNow, ExitCode = process.ExitCode, TimedOut = timedOut, Arguments = info.ArgumentList.ToArray() }));
+        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new
+        {
+            StartedUtc = started,
+            EndedUtc = DateTime.UtcNow,
+            ExitCode = process.ExitCode,
+            TimedOut = timedOut,
+            Arguments = info.ArgumentList.ToArray()
+        }));
         if (timedOut)
             throw new TimeoutException("cleanup controlled harness; output/result preserved in " + directory);
         Require(process.ExitCode == 0 && error.Result.Length == 0, output.Result + error.Result);
@@ -257,7 +266,7 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
         string[] conflicts = Conflicts(project);
         Require(conflicts.Length != 0 && conflicts.Distinct(StringComparer.Ordinal).Count() == conflicts.Length, "nonempty unique reciprocal conflict vector");
         foreach (string conflict in conflicts)
-            foreach ((string a, string b)in new[]
+            foreach ((string a, string b) in new[]
             {
                 (Flag, conflict),
                 (conflict, Flag)
@@ -362,7 +371,8 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
         {
             SourceDocuments = catalog.TypeSources(PanicOwner).Select(document => new { document.Path, document.Sha256 }),
             GeneratedSourceSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(dir, "Adapter.cs")))),
-            Members = names, RunOrQueryExecuted = false
+            Members = names,
+            RunOrQueryExecuted = false
         }));
         Result result = Process(root, "dotnet", "run", "--project", Path.Combine(dir, "Adapter.csproj"), "-c", "Release");
         Require(result.Code == 0 && result.Error.Length == 0, result.Output + result.Error);
@@ -489,7 +499,7 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
         for (int i = 0; i < cases.Count; i++)
             File.WriteAllText(records[i].Path, cases[i].Text, new UTF8Encoding(false));
         string malformed = Path.Combine(dir, "malformed-utf8.log");
-        File.WriteAllBytes(malformed, [0xc0, 0xaf, ..Encoding.ASCII.GetBytes(valid)]);
+        File.WriteAllBytes(malformed, [0xc0, 0xaf, .. Encoding.ASCII.GetBytes(valid)]);
         records = [..records, new
         {
             Path = malformed,
@@ -600,7 +610,7 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
                     index = 5;
                 // Supply both profiles' prerequisites so missing-chain validation cannot mask the collision.
                 string companion = string.Concat(Prerequisites.Concat(chain.Take(index + 1)).Where(x => x != conflict).Distinct(StringComparer.Ordinal).Select(x => " -" + x));
-                Result r = Profile(endpoint, ["-" + Flag, "-" + conflict, ..companion.Split(' ', StringSplitOptions.RemoveEmptyEntries)]);
+                Result r = Profile(endpoint, ["-" + Flag, "-" + conflict, .. companion.Split(' ', StringSplitOptions.RemoveEmptyEntries)]);
                 Require(r.Code != 0 && (r.Output + r.Error).Contains("profile", StringComparison.Ordinal), "conflict " + conflict + " " + r.Output + r.Error);
             }
         }
@@ -656,7 +666,7 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
         )
         {
             string dir = Scratch(enabled ? "artifact-enabled" : "artifact-default"), artifact = "artifacts/efi/issue526-tests-" + Guid.NewGuid().ToString("N") + ".EFI";
-            Result r = Tool(["efi", "build", "--boot-policy", "Diagnostic", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(dir, "publish.log"), ..(enabled ? new[] { "-" + Flag } : Array.Empty<string>())]);
+            Result r = Tool(["efi", "build", "--boot-policy", "Diagnostic", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(dir, "publish.log"), .. (enabled ? new[] { "-" + Flag } : Array.Empty<string>())]);
             File.WriteAllText(Path.Combine(dir, "run.log"), r.Output + r.Error);
             Require(r.Code == 0 && r.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), r.Output + r.Error);
             foreach (string suffix in new[]
@@ -723,7 +733,16 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
                 var cb = md.GetMethodDefinition(methods["Callback"]);
                 Require((cb.ImplAttributes & System.Reflection.MethodImplAttributes.NoInlining) != 0, "callback NoInlining");
                 Require(Convert.ToHexString(md.GetBlobBytes(cb.Signature)) == "0002090B0B", "static uint callback(ulong,ulong) exact metadata signature");
-                File.WriteAllText(Path.Combine(dir, "managed-adapter.json"), JsonSerializer.Serialize(new { GuestExecution = false, NativeStackAccepted = false, RunCalls = run, PrepareCalls = prepare, CallbackCalls = callback, QueryCalls = query, Methods = methods.Select(x => new { Name = x.Key, Rva = md.GetMethodDefinition(x.Value).RelativeVirtualAddress }) }, new JsonSerializerOptions { WriteIndented = true }));
+                File.WriteAllText(Path.Combine(dir, "managed-adapter.json"), JsonSerializer.Serialize(new
+                {
+                    GuestExecution = false,
+                    NativeStackAccepted = false,
+                    RunCalls = run,
+                    PrepareCalls = prepare,
+                    CallbackCalls = callback,
+                    QueryCalls = query,
+                    Methods = methods.Select(x => new { Name = x.Key, Rva = md.GetMethodDefinition(x.Value).RelativeVirtualAddress })
+                }, new JsonSerializerOptions { WriteIndented = true }));
             }
 
             File.WriteAllText(Path.Combine(dir, "identities.json"), JsonSerializer.Serialize(Directory.GetFiles(dir).Select(path => new { Path = Path.GetFileName(path), Sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))) }), new JsonSerializerOptions { WriteIndented = true }));
@@ -787,7 +806,7 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
         return p;
     }
 
-    private static Result Qemu(params string[] args) => Tool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..args]);
+    private static Result Qemu(params string[] args) => Tool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. args]);
     private static Result Tool(params string[] args)
     {
         var r = HostToolProcess.RunTool(args);
@@ -796,7 +815,7 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
 
     private static Result Profile(string endpoint, string[] args)
     {
-        var r = endpoint == "qemu" ? HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", "--build-efi", ..args]) : HostToolProcess.ValidateEfiProfile(endpoint == "build", ["--boot-policy", "Diagnostic", ..args]);
+        var r = endpoint == "qemu" ? HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", "--build-efi", .. args]) : HostToolProcess.ValidateEfiProfile(endpoint == "build", ["--boot-policy", "Diagnostic", .. args]);
         return new(r.ExitCode, r.Output, r.Error);
     }
 
@@ -827,7 +846,15 @@ internal static partial class M02UnexpectedVectorPanicEfiIntegrationTests
         Task.WaitAll(output, error);
         File.WriteAllText(Path.Combine(dir, "stdout.log"), output.Result);
         File.WriteAllText(Path.Combine(dir, "stderr.log"), error.Result);
-        File.WriteAllText(Path.Combine(dir, "result.json"), JsonSerializer.Serialize(new { Executable = executable, Arguments = args, StartedUtc = began, EndedUtc = DateTime.UtcNow, ExitCode = process.ExitCode, TimedOut = timedOut }));
+        File.WriteAllText(Path.Combine(dir, "result.json"), JsonSerializer.Serialize(new
+        {
+            Executable = executable,
+            Arguments = args,
+            StartedUtc = began,
+            EndedUtc = DateTime.UtcNow,
+            ExitCode = process.ExitCode,
+            TimedOut = timedOut
+        }));
         if (timedOut)
             throw new TimeoutException("captured in " + dir);
         return new(process.ExitCode, output.Result, error.Result);

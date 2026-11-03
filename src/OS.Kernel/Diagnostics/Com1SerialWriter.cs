@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public sealed class Com1SerialWriter
 {
     public const int LineStatusRegisterOffset = 5;

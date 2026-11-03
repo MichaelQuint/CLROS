@@ -1,4 +1,5 @@
 namespace OS.Std.Binary;
+
 public static class IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa
 {
     public const int ByteSeriesCount = 5;

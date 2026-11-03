@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public sealed partial class DiagnosticLog
 {
     public const string InfoPrefix = "[info]";

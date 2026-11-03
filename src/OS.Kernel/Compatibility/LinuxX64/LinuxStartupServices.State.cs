@@ -2,6 +2,7 @@ using OS.Std.Hash;
 using OS.Std.Memory;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxStartupServices
 {
     /// <summary>Caller-owned single-use state; do not copy a live instance.

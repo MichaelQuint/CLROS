@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Joined quota leaf values from original framed rows. Memory
@@ -16,11 +17,17 @@ public static partial class QemuTranscripts
         /// scheduler generation/Tid/peak joins. Retained backing and borrower
         /// peaks remain separate; guest pthread bounds are not supplied.</summary>
 
-        public ServiceQuotaComponentInspection? Components { get; init; }
+        public ServiceQuotaComponentInspection? Components
+        {
+            get; init;
+        }
         /// <summary>Default pthread logical extents and committed allocation
         /// history, joined to original topology and full clone/reap replay.
         /// TLS/tail sizing and failed-before-clone allocations stay separate.</summary>
 
-        public ServiceQuotaPthreadInspection? Pthreads { get; init; }
+        public ServiceQuotaPthreadInspection? Pthreads
+        {
+            get; init;
+        }
     }
 }

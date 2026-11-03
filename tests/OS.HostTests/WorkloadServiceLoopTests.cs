@@ -269,7 +269,7 @@ internal static unsafe partial class WorkloadServiceLoopTests
             bool rejected = false;
             try
             {
-                _ = QemuProfiles.Create(QemuSmokeOptions.Parse(["-BuildEfi", "-DryRun", ..args]));
+                _ = QemuProfiles.Create(QemuSmokeOptions.Parse(["-BuildEfi", "-DryRun", .. args]));
             }
             catch (ToolFailure)
             {
@@ -286,8 +286,8 @@ internal static unsafe partial class WorkloadServiceLoopTests
     [HostTest("m16-003 independent transcript requires elapsed ticks copied-handle denials and owned shutdown", HostLane.Fast, 6)]
     private static void Transcript()
     {
-        string[] tail = ["TEST_START m16-003", "M16_003_CLOCK frequency=10000000 period=100000000 recoveries=0 source=owned-hpet", ..Enumerable.Range(1, 4).Select(i => $"M16_003_ITERATION index={i} ticks={i * 10000 + 50}"), ..Enumerable.Range(0, 8).Select(i => $"M16_003_FIRMWARE_DENIED index={i} status=ServicesUnavailable providers=1 outputs=unchanged"), "M16_003_STOP iterations=4 reads=65 first=50 last=40050 interval=10000 firmware=revoked providers=1 shutdown=owned-controller", "CLROS_M16_003_READY", "TEST_PASS m16-003"];
-        string[] rows = [..Enumerable.Repeat("parent checked separately", QemuContracts.M03OwnedSubsystemMarkers.Count + 7), ..tail];
+        string[] tail = ["TEST_START m16-003", "M16_003_CLOCK frequency=10000000 period=100000000 recoveries=0 source=owned-hpet", .. Enumerable.Range(1, 4).Select(i => $"M16_003_ITERATION index={i} ticks={i * 10000 + 50}"), .. Enumerable.Range(0, 8).Select(i => $"M16_003_FIRMWARE_DENIED index={i} status=ServicesUnavailable providers=1 outputs=unchanged"), "M16_003_STOP iterations=4 reads=65 first=50 last=40050 interval=10000 firmware=revoked providers=1 shutdown=owned-controller", "CLROS_M16_003_READY", "TEST_PASS m16-003"];
+        string[] rows = [.. Enumerable.Repeat("parent checked separately", QemuContracts.M03OwnedSubsystemMarkers.Count + 7), .. tail];
         HostCheck.Equal(rows.Length - 17, QemuTranscripts.ValidateServiceLoopTail(rows).Length);
         string[] recovered = rows.ToArray();
         recovered[recovered.Length - 16] = tail[1].Replace("recoveries=0", "recoveries=1", StringComparison.Ordinal);

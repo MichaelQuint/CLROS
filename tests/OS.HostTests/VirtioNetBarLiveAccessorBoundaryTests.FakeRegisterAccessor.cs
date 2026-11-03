@@ -14,8 +14,14 @@ internal static partial class VirtioNetBarLiveAccessorBoundaryTests
         public ulong[] Values { get; } = new ulong[4];
         public VirtioPciCapabilityType[] CapabilityTypes { get; } = new VirtioPciCapabilityType[4];
         public byte[] BarIndices { get; } = new byte[4];
-        public int OperationCount { get; private set; }
-        public ushort Read16Value { get; init; }
+        public int OperationCount
+        {
+            get; private set;
+        }
+        public ushort Read16Value
+        {
+            get; init;
+        }
         public VirtioPciRegisterReadStatus ReadFailureStatus { get; init; } = VirtioPciRegisterReadStatus.Success;
         public VirtioPciRegisterWriteStatus WriteFailureStatus { get; init; } = VirtioPciRegisterWriteStatus.Success;
 

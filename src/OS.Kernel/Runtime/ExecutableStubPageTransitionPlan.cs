@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public static class ExecutableStubPageTransitionPlan
 {
     public static ExecutableStubPageTransitionPlanResult Create(ExecutableStubMemoryPlanResult memoryPlan, ExecutableStubBundleMaterializerResult materializerResult, nuint regionBaseAddress, nuint regionByteLength)

@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct UefiMemoryMapCopyPlan
 {
     public const ulong MinimumDescriptorSize = 40;
@@ -17,15 +18,42 @@ public readonly struct UefiMemoryMapCopyPlan
         DescriptorCount = descriptorCount;
     }
 
-    public ulong SourceAddress { get; }
-    public ulong SourceBufferSize { get; }
-    public ulong SourceMapSize { get; }
-    public ulong DestinationCapacity { get; }
-    public ulong RequiredDestinationBytes { get; }
-    public ulong MapKey { get; }
-    public ulong DescriptorSize { get; }
-    public uint DescriptorVersion { get; }
-    public ulong DescriptorCount { get; }
+    public ulong SourceAddress
+    {
+        get;
+    }
+    public ulong SourceBufferSize
+    {
+        get;
+    }
+    public ulong SourceMapSize
+    {
+        get;
+    }
+    public ulong DestinationCapacity
+    {
+        get;
+    }
+    public ulong RequiredDestinationBytes
+    {
+        get;
+    }
+    public ulong MapKey
+    {
+        get;
+    }
+    public ulong DescriptorSize
+    {
+        get;
+    }
+    public uint DescriptorVersion
+    {
+        get;
+    }
+    public ulong DescriptorCount
+    {
+        get;
+    }
 
     public static UefiMemoryMapCopyPlan CreateUnchecked(ulong sourceAddress, ulong sourceBufferSize, ulong sourceMapSize, ulong destinationCapacity, ulong mapKey, ulong descriptorSize, uint descriptorVersion, ulong descriptorCount)
     {

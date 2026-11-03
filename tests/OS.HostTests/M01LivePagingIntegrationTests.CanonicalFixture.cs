@@ -122,31 +122,76 @@ internal static unsafe partial class M01LivePagingIntegrationTests
             }
         }
 
-        internal M01LoadedImageStackStaticState* StageOneState { get; private set; }
+        internal M01LoadedImageStackStaticState* StageOneState
+        {
+            get; private set;
+        }
         internal ulong BackingAddress => (ulong)_backing;
         internal ulong BackingByteLength => BackingBytes;
         internal ulong LegacyTablePageCount => _legacyMapping.TotalTablePageCount;
         internal ulong LiveIntervalTablePageCount => _liveIntervalMapping.TotalTablePageCount;
-        internal M01LiveAllocatorStaticState* StageTwoState { get; private set; }
-        internal BootMemoryRegionRecord* Records { get; private set; }
-        internal BootReservedRange* Ledger { get; private set; }
-        internal M01LivePagingStaticState* StaticState { get; private set; }
+        internal M01LiveAllocatorStaticState* StageTwoState
+        {
+            get; private set;
+        }
+        internal BootMemoryRegionRecord* Records
+        {
+            get; private set;
+        }
+        internal BootReservedRange* Ledger
+        {
+            get; private set;
+        }
+        internal M01LivePagingStaticState* StaticState
+        {
+            get; private set;
+        }
         internal M01LivePagingPreparationState* PreparationState => (M01LivePagingPreparationState*)StaticState;
-        internal byte* CodePage { get; private set; }
-        internal byte* ProbePage { get; private set; }
+        internal byte* CodePage
+        {
+            get; private set;
+        }
+        internal byte* ProbePage
+        {
+            get; private set;
+        }
         internal ulong ProbeStart => (ulong)ProbePage;
         internal ulong TableStateStart => Records[M01LivePagingIntegration.TableStateAllocationRecordIndex].PhysicalStart;
-        internal ulong RawFirmwareCr3 { get; private set; }
-        internal ulong LedgerCount { get; private set; }
+        internal ulong RawFirmwareCr3
+        {
+            get; private set;
+        }
+        internal ulong LedgerCount
+        {
+            get; private set;
+        }
         internal ulong LedgerCapacity => StageThreeLedgerCapacity;
-        internal FirmwareMemoryMapRecord StageThreeMap { get; private set; }
-        internal OwnedBootStackSwitchPlanResult StackSwitchPlan { get; private set; }
-        internal M01LivePagingAllocationEvidence AllocationEvidence { get; private set; }
-        internal M01LivePagingMapLedgerEvidence MapEvidence { get; private set; }
-        internal X64PageTableEncodingPreconditions Preconditions { get; }
+        internal FirmwareMemoryMapRecord StageThreeMap
+        {
+            get; private set;
+        }
+        internal OwnedBootStackSwitchPlanResult StackSwitchPlan
+        {
+            get; private set;
+        }
+        internal M01LivePagingAllocationEvidence AllocationEvidence
+        {
+            get; private set;
+        }
+        internal M01LivePagingMapLedgerEvidence MapEvidence
+        {
+            get; private set;
+        }
+        internal X64PageTableEncodingPreconditions Preconditions
+        {
+            get;
+        }
         internal X64BootIdentityMappingRequirement[] MappingRequirements { get; private set; } = [];
         internal X64BootIdentityMappingRange[] MappingRanges { get; private set; } = [];
-        internal X64BootIdentityMappingPlanResult Mapping { get; private set; }
+        internal X64BootIdentityMappingPlanResult Mapping
+        {
+            get; private set;
+        }
         internal X64PageTableImagePage[] PageImages { get; private set; } = [];
         internal ulong[] Entries { get; private set; } = [];
         internal ulong MappingRequirementCount => (ulong)MappingRequirements.Length;
@@ -167,7 +212,10 @@ internal static unsafe partial class M01LivePagingIntegrationTests
 
         internal X64ProtectionProbeObservation ProtectionObservation;
         internal X64ProtectionProbeEvent[] ProtectionEvents { get; private set; } = [];
-        internal X64Cr3ProbePolicy Cr3Policy { get; private set; }
+        internal X64Cr3ProbePolicy Cr3Policy
+        {
+            get; private set;
+        }
 
         internal M01LivePagingIntegrationResult ExecuteCurrent(M01LivePagingByteMode byteMode = M01LivePagingByteMode.EmitAndVerify)
         {
@@ -367,7 +415,7 @@ internal static unsafe partial class M01LivePagingIntegrationTests
 
             if (!removed)
                 throw new InvalidOperationException("reservation missing");
-            WriteStageThreeLedger([..ranges]);
+            WriteStageThreeLedger([.. ranges]);
         }
 
         internal void ReplaceReservation(BootReservationKind kind, BootReservedRange replacement)
@@ -509,8 +557,14 @@ internal static unsafe partial class M01LivePagingIntegrationTests
             ProbePage = null;
         }
 
-        private OwnedBootStackSwitchPlanResult MismatchedStackPlan { get; set; }
-        private VirtualAddress ProbeRsp { get; set; }
+        private OwnedBootStackSwitchPlanResult MismatchedStackPlan
+        {
+            get; set;
+        }
+        private VirtualAddress ProbeRsp
+        {
+            get; set;
+        }
 
         private byte* AtPage(ulong page)
         {
@@ -733,7 +787,7 @@ internal static unsafe partial class M01LivePagingIntegrationTests
             ulong handoffStorageEnd = Raw(StackSwitchPlan.Plan.Handoff.StorageEndExclusive);
             ulong handoffPageStart = handoffStorageStart & ~(page - 1);
             ulong handoffPageEnd = checked((handoffStorageEnd + page - 1) & ~(page - 1));
-            return[Requirement(X64BootIdentityMappingPurpose.BootStackGuard, guard, guard + page, PageProtection.None, PageCachePolicy.Uninitialized), Requirement(X64BootIdentityMappingPurpose.ExecutingImage, loadedImage, loadedImage + page, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.ExecutingImage, loadedImage + page, loadedImage + 2 * page, M01014TestData.ReadExecute), Requirement(X64BootIdentityMappingPurpose.ExecutingImage, loadedImage + 2 * page, loadedImage + LoadedImageBytes, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.OwnedStack, stack, stack + StackPages * page, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.BootHandoff, handoffPageStart, handoffPageEnd, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.SerialStub, (ulong)AtPage(StageOneCodePage), (ulong)AtPage(StageOneCodePage + 1), M01014TestData.ReadExecute), Requirement(X64BootIdentityMappingPurpose.AcpiScratch, (ulong)AtPage(AcpiRequirementPage), (ulong)AtPage(AcpiRequirementPage + 1), PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.FramebufferMetadata, (ulong)AtPage(FramebufferRequirementPage), (ulong)AtPage(FramebufferRequirementPage + 1), PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.AdditionalRequired, (ulong)CodePage, (ulong)CodePage + page, M01014TestData.ReadExecute), Requirement(X64BootIdentityMappingPurpose.AdditionalRequired, (ulong)ProbePage, (ulong)ProbePage + page, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.AdditionalRequired, table, table + tableStatePages * page, M01014TestData.ReadWrite), RequirementForReservation(X64BootIdentityMappingPurpose.AdditionalRequired, allocatorArena, M01014TestData.ReadWrite)];
+            return [Requirement(X64BootIdentityMappingPurpose.BootStackGuard, guard, guard + page, PageProtection.None, PageCachePolicy.Uninitialized), Requirement(X64BootIdentityMappingPurpose.ExecutingImage, loadedImage, loadedImage + page, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.ExecutingImage, loadedImage + page, loadedImage + 2 * page, M01014TestData.ReadExecute), Requirement(X64BootIdentityMappingPurpose.ExecutingImage, loadedImage + 2 * page, loadedImage + LoadedImageBytes, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.OwnedStack, stack, stack + StackPages * page, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.BootHandoff, handoffPageStart, handoffPageEnd, PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.SerialStub, (ulong)AtPage(StageOneCodePage), (ulong)AtPage(StageOneCodePage + 1), M01014TestData.ReadExecute), Requirement(X64BootIdentityMappingPurpose.AcpiScratch, (ulong)AtPage(AcpiRequirementPage), (ulong)AtPage(AcpiRequirementPage + 1), PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.FramebufferMetadata, (ulong)AtPage(FramebufferRequirementPage), (ulong)AtPage(FramebufferRequirementPage + 1), PageProtection.Read), Requirement(X64BootIdentityMappingPurpose.AdditionalRequired, (ulong)CodePage, (ulong)CodePage + page, M01014TestData.ReadExecute), Requirement(X64BootIdentityMappingPurpose.AdditionalRequired, (ulong)ProbePage, (ulong)ProbePage + page, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.AdditionalRequired, table, table + tableStatePages * page, M01014TestData.ReadWrite), RequirementForReservation(X64BootIdentityMappingPurpose.AdditionalRequired, allocatorArena, M01014TestData.ReadWrite)];
         }
 
         private X64BootIdentityMappingRequirement[] RequirementsForLiveInterval(ulong tableStatePages)
@@ -743,7 +797,7 @@ internal static unsafe partial class M01LivePagingIntegrationTests
             ulong stack = guard + page;
             ulong table = (ulong)AtPage(StageThreeTablePage);
             ulong tableEnd = checked(table + tableStatePages * page);
-            return[Requirement(X64BootIdentityMappingPurpose.BootStackGuard, guard, guard + page, PageProtection.None, PageCachePolicy.Uninitialized), Requirement(X64BootIdentityMappingPurpose.CompositeCodeAndCallGate, (ulong)CodePage, (ulong)CodePage + page, M01014TestData.ReadExecute), Requirement(X64BootIdentityMappingPurpose.CompositeOwnedStack, stack, stack + StackPages * page, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.ProtectionProbePage, (ulong)ProbePage, (ulong)ProbePage + page, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.CompleteTableAndStateArena, table, tableEnd, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.RuntimeStateAndCanaryPage, tableEnd - page, tableEnd, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.OwnedRootPage, table, table + page, M01014TestData.ReadWrite)];
+            return [Requirement(X64BootIdentityMappingPurpose.BootStackGuard, guard, guard + page, PageProtection.None, PageCachePolicy.Uninitialized), Requirement(X64BootIdentityMappingPurpose.CompositeCodeAndCallGate, (ulong)CodePage, (ulong)CodePage + page, M01014TestData.ReadExecute), Requirement(X64BootIdentityMappingPurpose.CompositeOwnedStack, stack, stack + StackPages * page, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.ProtectionProbePage, (ulong)ProbePage, (ulong)ProbePage + page, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.CompleteTableAndStateArena, table, tableEnd, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.RuntimeStateAndCanaryPage, tableEnd - page, tableEnd, M01014TestData.ReadWrite), Requirement(X64BootIdentityMappingPurpose.OwnedRootPage, table, table + page, M01014TestData.ReadWrite)];
         }
 
         private M01LivePagingIntegrationResult ExecuteCore(M01LiveAllocatorStaticState* stageTwo, ulong stageTwoCapacity, OwnedBootStackSwitchPlanResult stackPlan, BootMemoryRegionRecord* records, ulong recordCount, ulong recordCapacity, M01LivePagingAllocationEvidence allocations, M01LivePagingMapLedgerEvidence map, BootReservedRange* ledger, ulong ledgerCount, ulong ledgerCapacity, X64BootIdentityMappingRequirement[]? requirements, ulong requirementCount, ulong requirementCapacity, X64BootIdentityMappingRange[]? ranges, ulong rangeCapacity, X64PageTableImagePage[]? pages, ulong pageCapacity, ulong[]? entries, ulong entryCapacity, byte* codePage, ulong codeCapacity, byte* probePage, ulong probeCapacity, M01LivePagingByteMode byteMode, M01LivePagingStaticState* state, ulong stateCapacity)
@@ -785,7 +839,7 @@ internal static unsafe partial class M01LivePagingIntegrationTests
 
         private X64Cr3ProbeEvent[] CreateCr3Events()
         {
-            return[CreateCr3Event(X64Cr3ProbeEventKind.PreMarkerEmitted, ownedRoot: false, updatedCanary: false, elapsed: 1), CreateCr3Event(X64Cr3ProbeEventKind.TransitionEntered, ownedRoot: false, updatedCanary: false, elapsed: 2), CreateCr3Event(X64Cr3ProbeEventKind.OwnedRootLoaded, ownedRoot: true, updatedCanary: false, elapsed: 3), CreateCr3Event(X64Cr3ProbeEventKind.OwnedRootReadBack, ownedRoot: true, updatedCanary: false, elapsed: 4), CreateCr3Event(X64Cr3ProbeEventKind.CanaryUpdated, ownedRoot: true, updatedCanary: true, elapsed: 5), CreateCr3Event(X64Cr3ProbeEventKind.FirmwareRootRestored, ownedRoot: false, updatedCanary: true, elapsed: 6), CreateCr3Event(X64Cr3ProbeEventKind.FirmwareRootReadBack, ownedRoot: false, updatedCanary: true, elapsed: 7), CreateCr3Event(X64Cr3ProbeEventKind.CanaryValidated, ownedRoot: false, updatedCanary: true, elapsed: 8), CreateCr3Event(X64Cr3ProbeEventKind.PostMarkerEmitted, ownedRoot: false, updatedCanary: true, elapsed: 9)];
+            return [CreateCr3Event(X64Cr3ProbeEventKind.PreMarkerEmitted, ownedRoot: false, updatedCanary: false, elapsed: 1), CreateCr3Event(X64Cr3ProbeEventKind.TransitionEntered, ownedRoot: false, updatedCanary: false, elapsed: 2), CreateCr3Event(X64Cr3ProbeEventKind.OwnedRootLoaded, ownedRoot: true, updatedCanary: false, elapsed: 3), CreateCr3Event(X64Cr3ProbeEventKind.OwnedRootReadBack, ownedRoot: true, updatedCanary: false, elapsed: 4), CreateCr3Event(X64Cr3ProbeEventKind.CanaryUpdated, ownedRoot: true, updatedCanary: true, elapsed: 5), CreateCr3Event(X64Cr3ProbeEventKind.FirmwareRootRestored, ownedRoot: false, updatedCanary: true, elapsed: 6), CreateCr3Event(X64Cr3ProbeEventKind.FirmwareRootReadBack, ownedRoot: false, updatedCanary: true, elapsed: 7), CreateCr3Event(X64Cr3ProbeEventKind.CanaryValidated, ownedRoot: false, updatedCanary: true, elapsed: 8), CreateCr3Event(X64Cr3ProbeEventKind.PostMarkerEmitted, ownedRoot: false, updatedCanary: true, elapsed: 9)];
         }
 
         private void WriteStageThreeLedger(BootReservedRange[] reservations)

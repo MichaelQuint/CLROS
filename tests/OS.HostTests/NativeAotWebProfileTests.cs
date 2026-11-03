@@ -23,7 +23,15 @@ internal static class NativeAotWebProfileTests
     private static void Rejection()
     {
         void Reject(Action action)
-        { bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
+        {
+            bool rejected = false;
+            try
+            {
+                action();
+            }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
         foreach (string parent in new[] { "M16012", "M16011", "M16009", "M16007", "M16004", "M07026", "M05ApicSetup" })
             Reject(() => EfiProfile.Create(null, new Dictionary<string, bool> { ["EnableM10004Probe"] = true, ["Enable" + parent + "Probe"] = false }));
         foreach (string runtime in new[] { "M09011", "M09012", "M16010" })
@@ -37,8 +45,14 @@ internal static class NativeAotWebProfileTests
     [HostTest("nativeaot.web runner plan requires continuing startup without finite completion markers")]
     private static void Plan()
     {
-        QemuSmokeOptions Options() { var o = new QemuSmokeOptions { BuildEfi = true, LinuxElfPackage = "web.pkg", LinuxThreadingDisassembly = "web.dump" }; o.Flags["EnableM10004Probe"] = true; return o; }
-        var options = Options(); var plan = QemuProfiles.Create(options);
+        QemuSmokeOptions Options()
+        {
+            var o = new QemuSmokeOptions { BuildEfi = true, LinuxElfPackage = "web.pkg", LinuxThreadingDisassembly = "web.dump" };
+            o.Flags["EnableM10004Probe"] = true;
+            return o;
+        }
+        var options = Options();
+        var plan = QemuProfiles.Create(options);
         HostCheck.Equal(240, options.TimeoutSeconds);
         HostCheck.Equal("MinimalApiSmoke", options.LinuxThreadingApplication);
         foreach (string marker in new[] { "M10_004_ENTER", "M10_004_CONFIG", "M10_004_LISTEN", "M10_004_LIVE", "CLROS_M10_004_READY", "TEST_PASS m10.004",
@@ -50,11 +64,25 @@ internal static class NativeAotWebProfileTests
             HostCheck.True(!plan.Required.Contains(marker));
         foreach (int timeout in new[] { 29, 286 })
         {
-            var invalid = Options(); invalid.TimeoutSeconds = timeout; invalid.Explicit.Add("TimeoutSeconds");
-            bool rejected = false; try { QemuProfiles.Create(invalid); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected);
+            var invalid = Options();
+            invalid.TimeoutSeconds = timeout;
+            invalid.Explicit.Add("TimeoutSeconds");
+            bool rejected = false;
+            try
+            {
+                QemuProfiles.Create(invalid);
+            }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
         }
-        var converted=Options();converted.DiskFormat="qcow2";
-        bool rawRequired=false;try{QemuProfiles.Create(converted);}catch(ToolFailure e){rawRequired=e.Reason=="web_raw_image_required";}
+        var converted = Options();
+        converted.DiskFormat = "qcow2";
+        bool rawRequired = false;
+        try
+        {
+            QemuProfiles.Create(converted);
+        }
+        catch (ToolFailure e) { rawRequired = e.Reason == "web_raw_image_required"; }
         HostCheck.True(rawRequired);
     }
 }

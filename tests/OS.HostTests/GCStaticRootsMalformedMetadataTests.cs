@@ -1048,7 +1048,13 @@ internal static unsafe partial class GCStaticRootsMalformedMetadataTests
         )
             start.ArgumentList.Add(arg);
         DateTime began = DateTime.UtcNow;
-        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new { start.FileName, Arguments = start.ArgumentList.ToArray(), start.WorkingDirectory, StartedUtc = began }));
+        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new
+        {
+            start.FileName,
+            Arguments = start.ArgumentList.ToArray(),
+            start.WorkingDirectory,
+            StartedUtc = began
+        }));
         using Process process = Process.Start(start)!;
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
@@ -1063,7 +1069,14 @@ internal static unsafe partial class GCStaticRootsMalformedMetadataTests
         File.WriteAllText(Path.Combine(directory, "stdout.log"), output);
         File.WriteAllText(Path.Combine(directory, "stderr.log"), error);
         bool unchanged = identities.All(r => new FileInfo(r.Path).Length == r.Bytes && Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(r.Path))) == r.Sha256);
-        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new { NativeExit = process.ExitCode, Timeout = timeout, StartedUtc = began, EndedUtc = DateTime.UtcNow, InputsUnchanged = unchanged }));
+        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new
+        {
+            NativeExit = process.ExitCode,
+            Timeout = timeout,
+            StartedUtc = began,
+            EndedUtc = DateTime.UtcNow,
+            InputsUnchanged = unchanged
+        }));
         Check(!timeout && process.ExitCode == 0 && error.Length == 0 && unchanged, "actual no-stdlib child " + directory);
         string dll = Path.Combine(directory, "bin", "Release", "net11.0", "M04_012_Closure.dll");
         using var stream = File.OpenRead(dll);
@@ -1084,7 +1097,15 @@ internal static unsafe partial class GCStaticRootsMalformedMetadataTests
                 Rva = body.RelativeVirtualAddress
             };
         }).ToArray();
-        File.WriteAllText(Path.Combine(directory, "metadata.json"), JsonSerializer.Serialize(new { AssemblyRefs = md.AssemblyReferences.Count, ValidateOneRva = method.RelativeVirtualAddress, Materialization = materialization, Path = dll, Bytes = new FileInfo(dll).Length, Sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dll))) }));
+        File.WriteAllText(Path.Combine(directory, "metadata.json"), JsonSerializer.Serialize(new
+        {
+            AssemblyRefs = md.AssemblyReferences.Count,
+            ValidateOneRva = method.RelativeVirtualAddress,
+            Materialization = materialization,
+            Path = dll,
+            Bytes = new FileInfo(dll).Length,
+            Sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dll)))
+        }));
         Console.WriteLine("M04_012_NOSTDLIB sources=" + sources.Length + " assemblyRefs=0 artifacts=" + directory);
     }
 }

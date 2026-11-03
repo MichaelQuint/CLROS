@@ -24,7 +24,7 @@ public static partial class NativeAotDiskStaticBrowser
 
     public static IReadOnlyList<Match> MatchExchangeValues(IReadOnlyList<Exchange> browser, IReadOnlyList<WireExchange> wire)
     {
-        Need(browser.Count is> 0 and <= MaximumRequests && browser.Count == wire.Count && browser.Select(e => e.RequestId).Distinct(StringComparer.Ordinal).Count() == browser.Count && browser.Sum(e => (long)e.Bytes) <= MaximumTotalBodyBytes && wire.Sum(e => (long)e.Bytes) <= MaximumTotalBodyBytes, "wire_multiset_count");
+        Need(browser.Count is > 0 and <= MaximumRequests && browser.Count == wire.Count && browser.Select(e => e.RequestId).Distinct(StringComparer.Ordinal).Count() == browser.Count && browser.Sum(e => (long)e.Bytes) <= MaximumTotalBodyBytes && wire.Sum(e => (long)e.Bytes) <= MaximumTotalBodyBytes, "wire_multiset_count");
         bool[] consumed = new bool[wire.Count];
         List<Match> matches = [];
         foreach (var exchange in browser)
@@ -60,9 +60,9 @@ public static partial class NativeAotDiskStaticBrowser
 
     public static Exchange InspectExchangeValues(JsonElement request, JsonElement requestExtra, JsonElement response, JsonElement responseExtra, JsonElement finished, byte[] decodedBody, string bodyFile, int port)
     {
-        Need(port is> 0 and < 65536 && decodedBody.Length <= MaximumBodyBytes, "exchange_bounds");
+        Need(port is > 0 and < 65536 && decodedBody.Length <= MaximumBodyBytes, "exchange_bounds");
         string id = Text(request, "requestId");
-        Need(id.Length is> 0 and <= 128 && new[] { requestExtra, response, responseExtra, finished }.All(e => Text(e, "requestId") == id), "request_identity");
+        Need(id.Length is > 0 and <= 128 && new[] { requestExtra, response, responseExtra, finished }.All(e => Text(e, "requestId") == id), "request_identity");
         // CDP emits redirectHasExtraInfo:false on ordinary requests. Its
         // presence alone is not a redirect; a redirect response always is.
         Need(!request.TryGetProperty("redirectResponse", out _) && (!request.TryGetProperty("redirectHasExtraInfo", out var redirectInfo) || redirectInfo.ValueKind == JsonValueKind.False), "redirect");
@@ -86,7 +86,7 @@ public static partial class NativeAotDiskStaticBrowser
         int status = res.GetProperty("status").GetInt32();
         Need(status == responseExtra.GetProperty("statusCode").GetInt32() && status is 200 or 404, "response_status");
         long encoded = finished.GetProperty("encodedDataLength").GetInt64();
-        Need(encoded is >= 0 and <= MaximumBodyBytes + 65536 && bodyFile.Length is> 0 and <= 32 && bodyFile.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-') && bodyFile.EndsWith(".body", StringComparison.Ordinal), "body_identity");
+        Need(encoded is >= 0 and <= MaximumBodyBytes + 65536 && bodyFile.Length is > 0 and <= 32 && bodyFile.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-') && bodyFile.EndsWith(".body", StringComparison.Ordinal), "body_identity");
         var requestHeaders = Headers(requestExtra.GetProperty("headers"));
         var responseHeaders = Headers(responseExtra.GetProperty("headers"));
         Need(requestHeaders.Count(h => h.Name.Equals("Host", StringComparison.OrdinalIgnoreCase) && h.Value == "127.0.0.1:" + port) == 1, "host_header");
@@ -105,11 +105,11 @@ public static partial class NativeAotDiskStaticBrowser
 
     public static void ValidateValues(WebRootDiskInventory.Inspection inventory, int port, Dom dom, IReadOnlyList<Exchange> exchanges)
     {
-        Need(port is> 0 and < 65536 && exchanges.Count is> 0 and <= MaximumRequests && exchanges.Select(e => e.RequestId).Distinct(StringComparer.Ordinal).Count() == exchanges.Count && exchanges.Sum(e => (long)e.Bytes) <= MaximumTotalBodyBytes, "network_bounds");
+        Need(port is > 0 and < 65536 && exchanges.Count is > 0 and <= MaximumRequests && exchanges.Select(e => e.RequestId).Distinct(StringComparer.Ordinal).Count() == exchanges.Count && exchanges.Sum(e => (long)e.Bytes) <= MaximumTotalBodyBytes, "network_bounds");
         var nonce = inventory.Find(WebRootDiskInventory.Root + "/fixture-nonce.txt");
         Need(nonce is { IsDirectory: false, Bytes: > 0 and <= 130 }, "nonce_inventory");
         string expectedNonce = new UTF8Encoding(false, true).GetString(nonce!.CopyBytes()).TrimEnd('\r', '\n');
-        Need(expectedNonce.Length is> 0 and <= 128 && dom == new Dom("ready", "CLROS disk-hosted Blazor", "CLROS ready — café", "API items: 2", expectedNonce, "http://127.0.0.1:" + port), "rendered_values");
+        Need(expectedNonce.Length is > 0 and <= 128 && dom == new Dom("ready", "CLROS disk-hosted Blazor", "CLROS ready — café", "API items: 2", expectedNonce, "http://127.0.0.1:" + port), "rendered_values");
         foreach (var exchange in exchanges)
         {
             string physical = Uri.UnescapeDataString(exchange.Target.Split('?')[0]);
@@ -151,7 +151,8 @@ public static partial class NativeAotDiskStaticBrowser
                     ".txt" => "text/plain",
                     ".wasm" => "application/wasm",
                     ".dat" or ".bin" => "application/octet-stream",
-                    _ => throw new ToolFailure("disk_browser_asset_media")};
+                    _ => throw new ToolFailure("disk_browser_asset_media")
+                };
             }
 
             var contentType = exchange.ResponseHeaders.Where(h => h.Name.Equals("Content-Type", StringComparison.OrdinalIgnoreCase)).ToArray();
@@ -191,7 +192,7 @@ public static partial class NativeAotDiskStaticBrowser
         Need(OperatingSystem.IsWindows(), "windows_process_owner_required");
         root = Path.GetFullPath(root);
         string destination = Path.GetFullPath(freshEvidenceDir, root);
-        Need(guestForwardPort is> 0 and < 65536 && destination.StartsWith(Path.Combine(root, "artifacts") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) && !Path.Exists(destination), "fresh_output");
+        Need(guestForwardPort is > 0 and < 65536 && destination.StartsWith(Path.Combine(root, "artifacts") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) && !Path.Exists(destination), "fresh_output");
         AuthorityFiles.RequirePlainPath(root, Path.GetDirectoryName(destination)!, "disk_browser_output");
         Need(ToolingBuildInputs.Validate(root).Count == 0, "tooling_inputs_changed");
         string browser = FindBrowser();
@@ -204,7 +205,11 @@ public static partial class NativeAotDiskStaticBrowser
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         deadline.CancelAfter(TimeSpan.FromSeconds(DiskStaticCapturePolicy.BrowserTimeoutSeconds));
         using var processStop = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
-        Task<ProcessResult> process = ProcessRunner.RunAsync(new(browser, arguments, root) { Timeout = TimeSpan.FromSeconds(DiskStaticCapturePolicy.BrowserTimeoutSeconds), OutputCharacterLimit = 4 * 1024 * 1024 }, processStop.Token);
+        Task<ProcessResult> process = ProcessRunner.RunAsync(new(browser, arguments, root)
+        {
+            Timeout = TimeSpan.FromSeconds(DiskStaticCapturePolicy.BrowserTimeoutSeconds),
+            OutputCharacterLimit = 4 * 1024 * 1024
+        }, processStop.Token);
         ProcessResult? joined = null;
         Cdp? cdp = null;
         Dom? dom = null;
@@ -223,7 +228,7 @@ public static partial class NativeAotDiskStaticBrowser
 
             string[] endpoint = await File.ReadAllLinesAsync(active, deadline.Token);
             int debugPort = 0;
-            Need(endpoint.Length == 2 && int.TryParse(endpoint[0], out debugPort) && debugPort is> 0 and < 65536 && endpoint[1].StartsWith("/devtools/browser/", StringComparison.Ordinal), "debugger_endpoint");
+            Need(endpoint.Length == 2 && int.TryParse(endpoint[0], out debugPort) && debugPort is > 0 and < 65536 && endpoint[1].StartsWith("/devtools/browser/", StringComparison.Ordinal), "debugger_endpoint");
             using HttpClient http = new(new SocketsHttpHandler { UseProxy = false, AllowAutoRedirect = false })
             {
                 Timeout = TimeSpan.FromSeconds(10)
@@ -236,16 +241,39 @@ public static partial class NativeAotDiskStaticBrowser
             Need(Uri.TryCreate(websocket, UriKind.Absolute, out var ws) && ws.Scheme == "ws" && ws.Host == "127.0.0.1" && ws.Port == debugPort && ws.AbsolutePath.StartsWith("/devtools/page/", StringComparison.Ordinal), "debugger_websocket");
             cdp = new Cdp(Path.Combine(destination, "protocol.jsonl"), capture.Event);
             await cdp.Connect(ws!, deadline.Token);
-            await cdp.Call("Network.enable", new { maxTotalBufferSize = MaximumTotalBodyBytes, maxResourceBufferSize = MaximumBodyBytes }, deadline.Token);
-            await cdp.Call("Network.setCacheDisabled", new { cacheDisabled = true }, deadline.Token);
-            await cdp.Call("Network.setBypassServiceWorker", new { bypass = true }, deadline.Token);
-            await cdp.Call("Page.enable", new { }, deadline.Token);
-            await cdp.Call("Runtime.enable", new { }, deadline.Token);
-            await cdp.Call("Log.enable", new { }, deadline.Token);
-            await cdp.Call("Page.navigate", new { url = "http://127.0.0.1:" + guestForwardPort + "/" }, deadline.Token);
+            await cdp.Call("Network.enable", new
+            {
+                maxTotalBufferSize = MaximumTotalBodyBytes,
+                maxResourceBufferSize = MaximumBodyBytes
+            }, deadline.Token);
+            await cdp.Call("Network.setCacheDisabled", new
+            {
+                cacheDisabled = true
+            }, deadline.Token);
+            await cdp.Call("Network.setBypassServiceWorker", new
+            {
+                bypass = true
+            }, deadline.Token);
+            await cdp.Call("Page.enable", new
+            {
+            }, deadline.Token);
+            await cdp.Call("Runtime.enable", new
+            {
+            }, deadline.Token);
+            await cdp.Call("Log.enable", new
+            {
+            }, deadline.Token);
+            await cdp.Call("Page.navigate", new
+            {
+                url = "http://127.0.0.1:" + guestForwardPort + "/"
+            }, deadline.Token);
             while (true)
             {
-                var value = await cdp.Call("Runtime.evaluate", new { expression = DocumentExpression, returnByValue = true }, deadline.Token);
+                var value = await cdp.Call("Runtime.evaluate", new
+                {
+                    expression = DocumentExpression,
+                    returnByValue = true
+                }, deadline.Token);
                 Need(!value.TryGetProperty("exceptionDetails", out _), "document_evaluation");
                 if (value.GetProperty("result").TryGetProperty("value", out var document))
                 {
@@ -259,13 +287,18 @@ public static partial class NativeAotDiskStaticBrowser
                 await Task.Delay(250, deadline.Token);
             }
 
-            await cdp.Call("Page.stopLoading", new { }, deadline.Token);
+            await cdp.Call("Page.stopLoading", new
+            {
+            }, deadline.Token);
             var rows = capture.Snapshot();
             List<Exchange> completed = [];
             int total = 0;
             foreach (var row in rows)
             {
-                var body = await cdp.Call("Network.getResponseBody", new { requestId = row.Id }, deadline.Token);
+                var body = await cdp.Call("Network.getResponseBody", new
+                {
+                    requestId = row.Id
+                }, deadline.Token);
                 string encoded = Text(body, "body");
                 Need(encoded.Length <= MaximumBodyBytes * 2, "body_capacity");
                 byte[] bytes = body.GetProperty("base64Encoded").GetBoolean() ? Convert.FromBase64String(encoded) : Encoding.UTF8.GetBytes(encoded);
@@ -280,15 +313,25 @@ public static partial class NativeAotDiskStaticBrowser
             exchanges = completed.ToArray();
             ValidateValues(inventory, guestForwardPort, dom!, exchanges);
             await File.WriteAllTextAsync(Path.Combine(destination, "document.json"), JsonSerializer.Serialize(dom), deadline.Token);
-            var rendered = await cdp.Call("Runtime.evaluate", new { expression = "document.documentElement.outerHTML", returnByValue = true }, deadline.Token);
+            var rendered = await cdp.Call("Runtime.evaluate", new
+            {
+                expression = "document.documentElement.outerHTML",
+                returnByValue = true
+            }, deadline.Token);
             string html = Text(rendered.GetProperty("result"), "value");
             Need(html.Length <= 1024 * 1024, "document_capacity");
             await File.WriteAllTextAsync(Path.Combine(destination, "document.html"), html, deadline.Token);
-            var screenshot = await cdp.Call("Page.captureScreenshot", new { format = "png", captureBeyondViewport = false }, deadline.Token);
+            var screenshot = await cdp.Call("Page.captureScreenshot", new
+            {
+                format = "png",
+                captureBeyondViewport = false
+            }, deadline.Token);
             byte[] png = Convert.FromBase64String(Text(screenshot, "data"));
-            Need(png.Length is> 24 and <= 8 * 1024 * 1024 && png.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }), "screenshot_png");
+            Need(png.Length is > 24 and <= 8 * 1024 * 1024 && png.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }), "screenshot_png");
             await File.WriteAllBytesAsync(Path.Combine(destination, "screenshot.png"), png, deadline.Token);
-            await cdp.Call("Browser.close", new { }, deadline.Token);
+            await cdp.Call("Browser.close", new
+            {
+            }, deadline.Token);
             joined = await process;
             QemuTranscripts.RequireCompleteProcess(joined, "disk_browser_process_incomplete");
             Need(joined.Succeeded, "browser_exit");
@@ -324,7 +367,25 @@ public static partial class NativeAotDiskStaticBrowser
             await File.WriteAllTextAsync(Path.Combine(destination, "browser.stdout.log"), joined?.StandardOutput ?? "", CancellationToken.None);
             await File.WriteAllTextAsync(Path.Combine(destination, "browser.stderr.log"), joined?.StandardError ?? "", CancellationToken.None);
             await File.WriteAllTextAsync(Path.Combine(destination, "errors.json"), JsonSerializer.Serialize(capture.Errors()), CancellationToken.None);
-            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new { Schema, Succeeded = succeeded, Failure = failure, Port = guestForwardPort, InventorySha256 = inventory.ImageSha256, Browser = browser, BrowserSha256 = browserHash, Arguments = arguments, Process = joined, DebuggerShutdown = cdp?.Shutdown, Document = dom, Exchanges = exchanges, ScreenshotSha256 = File.Exists(Path.Combine(destination, "screenshot.png")) ? NativeAotWebPayload.HashFile(Path.Combine(destination, "screenshot.png")) : "", ProtocolSha256 = File.Exists(Path.Combine(destination, "protocol.jsonl")) ? NativeAotWebPayload.HashFile(Path.Combine(destination, "protocol.jsonl")) : "", PacketJoinQualified = false, GuestQualified = false }), CancellationToken.None);
+            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new
+            {
+                Schema,
+                Succeeded = succeeded,
+                Failure = failure,
+                Port = guestForwardPort,
+                InventorySha256 = inventory.ImageSha256,
+                Browser = browser,
+                BrowserSha256 = browserHash,
+                Arguments = arguments,
+                Process = joined,
+                DebuggerShutdown = cdp?.Shutdown,
+                Document = dom,
+                Exchanges = exchanges,
+                ScreenshotSha256 = File.Exists(Path.Combine(destination, "screenshot.png")) ? NativeAotWebPayload.HashFile(Path.Combine(destination, "screenshot.png")) : "",
+                ProtocolSha256 = File.Exists(Path.Combine(destination, "protocol.jsonl")) ? NativeAotWebPayload.HashFile(Path.Combine(destination, "protocol.jsonl")) : "",
+                PacketJoinQualified = false,
+                GuestQualified = false
+            }), CancellationToken.None);
         }
 
         var retained = System.IO.Directory.GetFiles(destination, "*", SearchOption.TopDirectoryOnly).Where(p => Path.GetFileName(p) != "ownership.lock").ToDictionary(p => p, NativeAotWebPayload.HashFile, StringComparer.Ordinal);
@@ -362,7 +423,7 @@ public static partial class NativeAotDiskStaticBrowser
         foreach (var property in value.EnumerateObject())
         {
             string text = property.Value.GetString()!;
-            Need(headers.Count < 64 && property.Name.Length is> 0 and <= 128 && property.Name.All(c => char.IsAsciiLetterOrDigit(c) || "!#$%&'*+-.^_`|~".Contains(c)) && text.Length <= 8192 && text.All(c => c is >= ' ' and <= '~') && (total += property.Name.Length + text.Length) <= 32768 && !headers.Any(h => h.Name.Equals(property.Name, StringComparison.OrdinalIgnoreCase)), "header_bounds");
+            Need(headers.Count < 64 && property.Name.Length is > 0 and <= 128 && property.Name.All(c => char.IsAsciiLetterOrDigit(c) || "!#$%&'*+-.^_`|~".Contains(c)) && text.Length <= 8192 && text.All(c => c is >= ' ' and <= '~') && (total += property.Name.Length + text.Length) <= 32768 && !headers.Any(h => h.Name.Equals(property.Name, StringComparison.OrdinalIgnoreCase)), "header_bounds");
             headers.Add(new(property.Name, text));
         }
 

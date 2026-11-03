@@ -17,7 +17,7 @@ public static partial class NativeAotSocketVectorsOutput
 
     public static Observation Read(string text, int port = 8080, bool requirePolicy = false)
     {
-        Need(port is >= 1 and <= 65535 && text.Length is> 0 and <= 32768 && text.EndsWith('\n'), "extent");
+        Need(port is >= 1 and <= 65535 && text.Length is > 0 and <= 32768 && text.EndsWith('\n'), "extent");
         string[] rows = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         int at = 0;
         string Next()

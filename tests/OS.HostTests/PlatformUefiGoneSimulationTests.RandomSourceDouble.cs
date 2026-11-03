@@ -8,7 +8,10 @@ internal static partial class PlatformUefiGoneSimulationTests
 {
     private sealed class RandomSourceDouble : IPlatformRandomSource
     {
-        public int FillCount { get; private set; }
+        public int FillCount
+        {
+            get; private set;
+        }
 
         public PlatformRandomSourceResult FillBytes(Span<byte> destination)
         {

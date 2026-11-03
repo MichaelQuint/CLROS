@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Boot;
+
 public readonly struct BoundedExitRetryResult
 {
     internal BoundedExitRetryResult(BoundedExitRetryStatus status, uint windowsStarted = 0, uint exitCalls = 0, FinalMapExitWindowResult last = default)
@@ -11,9 +12,21 @@ public readonly struct BoundedExitRetryResult
         Last = last;
     }
 
-    public BoundedExitRetryStatus Status { get; }
-    public uint WindowsStarted { get; }
-    public uint ExitCalls { get; }
-    public FinalMapExitWindowResult Last { get; }
+    public BoundedExitRetryStatus Status
+    {
+        get;
+    }
+    public uint WindowsStarted
+    {
+        get;
+    }
+    public uint ExitCalls
+    {
+        get;
+    }
+    public FinalMapExitWindowResult Last
+    {
+        get;
+    }
     public bool Succeeded => Status == BoundedExitRetryStatus.Completed && Last.Succeeded;
 }

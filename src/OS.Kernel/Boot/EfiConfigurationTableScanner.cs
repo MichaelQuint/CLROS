@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static unsafe class EfiConfigurationTableScanner
 {
     public const ulong EntrySize = 24;

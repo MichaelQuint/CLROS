@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServiceQuotaPeer
 {
     private const int OwnerRunnerMaximumBytes = 64 * 1024 * 1024;
@@ -46,7 +47,7 @@ public static partial class NativeAotServiceQuotaPeer
             {
                 Need(!written, "wire_callback_duplicate");
                 byte[] bytes = Encoding.UTF8.GetBytes(SerializeWireReport(trace));
-                Need(bytes.Length is> 0 and <= WireMaximumReportBytes, "wire_report_bounds");
+                Need(bytes.Length is > 0 and <= WireMaximumReportBytes, "wire_report_bounds");
                 output.Write(bytes);
                 output.Flush(flushToDisk: true);
                 var created = OS.Tooling.Native.NativeFile.GetIdentity(output.SafeFileHandle);
@@ -119,11 +120,11 @@ public static partial class NativeAotServiceQuotaPeer
 
     private static WireReceipt ReadWireReceipt(string text)
     {
-        Need(text.Length is> 0 and <= 256 && text.EndsWith("\r\n", StringComparison.Ordinal), "owner_wire_process_receipt");
+        Need(text.Length is > 0 and <= 256 && text.EndsWith("\r\n", StringComparison.Ordinal), "owner_wire_process_receipt");
         string[] fields = text[..^2].Split(' ', StringSplitOptions.None);
         Need(fields.Length == 4 && fields[0] == "QUOTA_WIRE_REPORT" && fields[1] == "kind=quota-run" && fields[2].StartsWith("sha256=", StringComparison.Ordinal) && fields[3].StartsWith("bytes=", StringComparison.Ordinal), "owner_wire_process_receipt");
         string hash = fields[2][7..], count = fields[3][6..];
-        Need(hash.Length == 64 && hash.All(char.IsAsciiHexDigit) && hash == hash.ToUpperInvariant() && int.TryParse(count, NumberStyles.None, CultureInfo.InvariantCulture, out int bytes) && bytes is> 0 and <= WireMaximumReportBytes && count == bytes.ToString(CultureInfo.InvariantCulture), "owner_wire_process_receipt");
+        Need(hash.Length == 64 && hash.All(char.IsAsciiHexDigit) && hash == hash.ToUpperInvariant() && int.TryParse(count, NumberStyles.None, CultureInfo.InvariantCulture, out int bytes) && bytes is > 0 and <= WireMaximumReportBytes && count == bytes.ToString(CultureInfo.InvariantCulture), "owner_wire_process_receipt");
         return new(hash, int.Parse(count, NumberStyles.None, CultureInfo.InvariantCulture));
     }
 
@@ -144,7 +145,7 @@ public static partial class NativeAotServiceQuotaPeer
 
     private static Observation ReadOwnedReport(ReadOnlySpan<byte> bytes)
     {
-        Need(bytes.Length is> 2 and <= ReportMaximumBytes + 2 && bytes[^2] == 13 && bytes[^1] == 10, "owner_report_frame");
+        Need(bytes.Length is > 2 and <= ReportMaximumBytes + 2 && bytes[^2] == 13 && bytes[^1] == 10, "owner_report_frame");
         return InspectReport(bytes[..^2]);
     }
 

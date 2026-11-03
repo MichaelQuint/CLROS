@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public enum PlatformFileSystemSourceStatus
 {
     Unknown = 0,

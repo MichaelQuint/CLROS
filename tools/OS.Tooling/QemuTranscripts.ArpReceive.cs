@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     public static string[] NormalizeM07ArpReceiveRecords(IReadOnlyList<string> lines)

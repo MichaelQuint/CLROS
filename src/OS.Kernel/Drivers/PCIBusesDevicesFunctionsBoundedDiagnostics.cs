@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static unsafe class PCIBusesDevicesFunctionsBoundedDiagnostics
 {
     public static BoundedPciScanResult Scan(ref BoundedPciAccess access, BoundedPciFunction* output, uint capacity, uint readBudget)

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly struct VirtioNetTransmitPublishedDescriptor
@@ -16,15 +17,42 @@ public readonly struct VirtioNetTransmitPublishedDescriptor
         MemoryRange = memoryRange;
     }
 
-    public VirtioNetTransmitDescriptorRole Role { get; }
-    public ushort DescriptorIndex { get; }
-    public ulong PhysicalAddress { get; }
-    public uint Length { get; }
-    public bool HasNext { get; }
-    public ushort NextDescriptorIndex { get; }
-    public ushort Flags { get; }
-    public uint DescriptorTableOffset { get; }
+    public VirtioNetTransmitDescriptorRole Role
+    {
+        get;
+    }
+    public ushort DescriptorIndex
+    {
+        get;
+    }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
+    public uint Length
+    {
+        get;
+    }
+    public bool HasNext
+    {
+        get;
+    }
+    public ushort NextDescriptorIndex
+    {
+        get;
+    }
+    public ushort Flags
+    {
+        get;
+    }
+    public uint DescriptorTableOffset
+    {
+        get;
+    }
     public bool DeviceReadable => true;
     public bool DeviceWritable => false;
-    public VirtioNetTransmitDescriptorMemoryRange MemoryRange { get; }
+    public VirtioNetTransmitDescriptorMemoryRange MemoryRange
+    {
+        get;
+    }
 }

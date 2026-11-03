@@ -1,4 +1,5 @@
 namespace OS.Manifest;
+
 public struct NativeAppArgumentVector
 {
     private NativeAppArgument _argument0;
@@ -17,7 +18,10 @@ public struct NativeAppArgumentVector
     private NativeAppArgument _argument13;
     private NativeAppArgument _argument14;
     private NativeAppArgument _argument15;
-    public int Count { get; private set; }
+    public int Count
+    {
+        get; private set;
+    }
 
     public bool TryAdd(NativeAppArgument argument)
     {

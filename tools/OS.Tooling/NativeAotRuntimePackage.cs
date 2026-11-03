@@ -23,7 +23,8 @@ public static partial class NativeAotRuntimePackage
         "NativeAotSuspensionStress" => new(app, 1576912, "E794C943782498E50BD5D6C388815573C4F43E67383C7CF8AF63CA6E31D7A8EE", "E7878D6036F00EFE3E11318033F17A8862A38330335C1C64CFD569D56DA5CB3D", "52ACFBDE5BB104DFF29A8BD0F57F4849B2A1100D5303A44599DC202B117E9402", 11776, "F2B3BE398D3ED0E6365336BE03A120B24DC763EDEE3E9B6C233899B8F8D82CAD", 6036485, "BCD1B694569EF436AEFC57089BDBD117396B4011E168C33776540416C53ACE4F", 1720, "F07823C6B31AD67409A83C6F0EB65CD022822124E041C5C3DE519A1BCAA2EBD4", 18),
         "NativeAotThreadPoolStress" => new(app, 1627408, "201D4A524EF30679ABDA6D42B533E52324663FFBA89215CF3E56B353CF9A6ECD", "4C6D6CF9D3EB8388168FD5B9CDD54B9A5DDA8E2A4ABBDCD958AA3F9F57B19838", "7B01732B05219BCD18DC6FBD74B70A16A189CD37C7EA80668207F8804013C686", 25088, "EC15BD2BC989A3F28EFBC86FB8A64E4AE337A6B22110E611AFE2916360F59BF7", 6132802, "D1FA83BF074F78146AF42B8C803E63D54B431267FF585FC8DA9BCC60EB09CD6D", 1601, "7C4739C24BE091121DFC82949D7300F6F4A355B83A1468FB1853AA6EE4A04BD0", 8),
         "NativeAotRuntimeMatrix" => new(app, 1577616, "7D33742EDC130FDDBFA96918A5B78C2B0CC1199FA85F11C7ED70BC4F96F64F7E", "360673D96E5706DFC15949F597BED32C9C0C7D642F6F20B03BC2EC1A99FC5BE6", "15264115F5D1826A172258D8A18A16DB3FDA9300652F85760C444AC9E0D3451E", 22528, "B28BD2E03CC0E7F91D6026663BDE2D51BB1D46A34184C67CADAF066F29EA1822", 5888268, "7A056197424C8F9F06F4A8D060116EA57C9C21540080A56D7E807FCCD9D53042", 2446, "AE4CF62199312713B6A43A2B6E9BABBCD1B53EF4A1DEBE66346B64B46E16489D", 14),
-        _ => throw new ArgumentException("runtime_package_app", nameof(app))};
+        _ => throw new ArgumentException("runtime_package_app", nameof(app))
+    };
     /// <summary>Canonical no-argument/no-runtime-override manifest with explicit
     /// user IRQs and the thread service's existing sixteen-slot limit. The
     /// matrix needs at least nine live threads. The native owner now admits
@@ -72,7 +73,7 @@ public static partial class NativeAotRuntimePackage
             foreach (string path in Directory.EnumerateFileSystemEntries(next))
             {
                 Need(++entries <= 128, "source_inventory");
-                if (Path.GetFileName(path)is "bin" or "obj" or "artifacts" && Directory.Exists(path))
+                if (Path.GetFileName(path) is "bin" or "obj" or "artifacts" && Directory.Exists(path))
                     continue;
                 FileAttributes attributes = File.GetAttributes(path);
                 Need((attributes & FileAttributes.ReparsePoint) == 0, "source_link");
@@ -253,7 +254,7 @@ public static partial class NativeAotRuntimePackage
         string path = Path.Combine(root, relative);
         AuthorityFiles.RequirePlainPath(root, path, "runtime_evidence_path");
         using FileStream file = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        Need(file.Length is> 0 && file.Length <= maximum, "input_size " + relative);
+        Need(file.Length is > 0 && file.Length <= maximum, "input_size " + relative);
         byte[] value = new byte[(int)file.Length];
         file.ReadExactly(value);
         Need(file.ReadByte() == -1, "input_changed");

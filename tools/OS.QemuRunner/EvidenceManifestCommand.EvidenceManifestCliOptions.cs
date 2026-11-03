@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tools.QemuRunner;
+
 public static partial class EvidenceManifestCommand
 {
     private sealed class EvidenceManifestCliOptions
@@ -13,12 +14,27 @@ public static partial class EvidenceManifestCommand
         public string OutputPath { get; private set; } = string.Empty;
         public string RepositoryPath { get; private set; } = string.Empty;
         public string ExpectedSourceCommit { get; private set; } = string.Empty;
-        public bool? ExpectedSourceDirty { get; private set; }
-        public DateTimeOffset StartedUtc { get; private set; }
-        public DateTimeOffset CompletedUtc { get; private set; }
+        public bool? ExpectedSourceDirty
+        {
+            get; private set;
+        }
+        public DateTimeOffset StartedUtc
+        {
+            get; private set;
+        }
+        public DateTimeOffset CompletedUtc
+        {
+            get; private set;
+        }
         public string CommandFile { get; private set; } = string.Empty;
-        public int ExitCode { get; private set; }
-        public EvidenceRunClassification Classification { get; private set; }
+        public int ExitCode
+        {
+            get; private set;
+        }
+        public EvidenceRunClassification Classification
+        {
+            get; private set;
+        }
 
         public static EvidenceManifestCliOptions Parse(string[] args)
         {
@@ -207,7 +223,8 @@ public static partial class EvidenceManifestCommand
                 "pass" => EvidenceRunClassification.Passed,
                 "fail" => EvidenceRunClassification.Failed,
                 "timeout" => EvidenceRunClassification.TimedOut,
-                _ => throw new ArgumentException("Value for --classification must be pass, fail, or timeout.")};
+                _ => throw new ArgumentException("Value for --classification must be pass, fail, or timeout.")
+            };
         }
 
         private static void AddDistinct(List<string> destination, string value, string argument)

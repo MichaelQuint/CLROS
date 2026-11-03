@@ -1,4 +1,5 @@
 namespace OS.Std.Net;
+
 public static class InternetChecksum
 {
     public const ushort ValidChecksumResult = 0;

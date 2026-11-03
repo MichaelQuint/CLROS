@@ -2,9 +2,10 @@ using System.Buffers.Binary;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 public static partial class EfiVerify
 {
-    public static bool TestNormalFinallyEhTable(byte[]? table, ulong type) => table is { Length: 11 } && type is> 0 and <= uint.MaxValue && table.AsSpan(0, 7).SequenceEqual(new byte[] { 4, 86, 106, 178, 86, 152, 242 }) && BinaryPrimitives.ReadUInt32LittleEndian(table.AsSpan(7, 4)) == type;
+    public static bool TestNormalFinallyEhTable(byte[]? table, ulong type) => table is { Length: 11 } && type is > 0 and <= uint.MaxValue && table.AsSpan(0, 7).SequenceEqual(new byte[] { 4, 86, 106, 178, 86, 152, 242 }) && BinaryPrimitives.ReadUInt32LittleEndian(table.AsSpan(7, 4)) == type;
     public static bool TestNormalFinallyUnwind(byte[]? bytes, int part, ulong table)
     {
         byte[] prefix = part switch
@@ -14,7 +15,7 @@ public static partial class EfiVerify
             2 => [1, 4, 1, 0, 4, 66, 0],
             _ => []
         };
-        return prefix.Length != 0 && bytes is not null && bytes.Length == prefix.Length + (part == 0 ? 4 : 0) && bytes.AsSpan(0, prefix.Length).SequenceEqual(prefix) && (part != 0 || table is> 0 and <= uint.MaxValue && BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(prefix.Length, 4)) == table);
+        return prefix.Length != 0 && bytes is not null && bytes.Length == prefix.Length + (part == 0 ? 4 : 0) && bytes.AsSpan(0, prefix.Length).SequenceEqual(prefix) && (part != 0 || table is > 0 and <= uint.MaxValue && BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(prefix.Length, 4)) == table);
     }
 
     public static bool TestNormalFinallyCode(byte[]? bytes, bool root)
@@ -23,7 +24,7 @@ public static partial class EfiVerify
         string shape = root ? rootShape : "4883EC28E800000000CC";
         if (bytes is null || bytes.Length != shape.Length / 2)
             return false;
-        byte[] normalized = [..bytes];
+        byte[] normalized = [.. bytes];
         foreach (int field in root ? new[]
         {
             48,

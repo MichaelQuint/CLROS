@@ -2,6 +2,7 @@ using OS.Manifest;
 using OS.Std.Memory;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAppPayloadStagingPlanner
 {
     public const bool ReadsLiveStorage = false;

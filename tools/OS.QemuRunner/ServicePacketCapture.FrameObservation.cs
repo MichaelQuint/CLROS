@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 
 namespace OS.Tools.QemuRunner;
+
 public sealed partial class ServicePacketCapture
 {
     /// <summary>One complete original Ethernet record. Ordinals start at one;

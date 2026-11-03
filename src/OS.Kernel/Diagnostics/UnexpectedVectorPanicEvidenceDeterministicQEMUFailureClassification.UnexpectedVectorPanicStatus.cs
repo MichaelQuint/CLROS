@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum UnexpectedVectorPanicStatus : byte
 {
     Uninitialized,

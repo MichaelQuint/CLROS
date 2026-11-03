@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct TcpConnectionKey
 {
     public TcpConnectionKey(Ipv4Address localAddress, ushort localPort, Ipv4Address remoteAddress, ushort remotePort)
@@ -9,10 +10,22 @@ public readonly struct TcpConnectionKey
         RemotePort = remotePort;
     }
 
-    public Ipv4Address LocalAddress { get; }
-    public ushort LocalPort { get; }
-    public Ipv4Address RemoteAddress { get; }
-    public ushort RemotePort { get; }
+    public Ipv4Address LocalAddress
+    {
+        get;
+    }
+    public ushort LocalPort
+    {
+        get;
+    }
+    public Ipv4Address RemoteAddress
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
     public bool HasValidEndpoint => LocalAddress != default && RemoteAddress != default && LocalPort != 0 && RemotePort != 0;
 
     public bool HasSameEndpoint(in TcpConnectionKey other)

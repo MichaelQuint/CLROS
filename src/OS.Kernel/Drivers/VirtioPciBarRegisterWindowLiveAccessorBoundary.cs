@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public static class VirtioPciBarRegisterWindowLiveAccessorBoundary
 {
     public const bool RequiresAccessPlan = true;

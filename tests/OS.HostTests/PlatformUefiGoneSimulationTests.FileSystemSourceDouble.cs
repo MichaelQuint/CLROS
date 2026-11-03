@@ -8,7 +8,10 @@ internal static partial class PlatformUefiGoneSimulationTests
 {
     private sealed class FileSystemSourceDouble : IPlatformFileSystemSource
     {
-        public int ReadCount { get; private set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
 
         public PlatformFileSystemSourceReadResult ReadFile(ReadOnlySpan<byte> relativePath, Span<byte> destination)
         {

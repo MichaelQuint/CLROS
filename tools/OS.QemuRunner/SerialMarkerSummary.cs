@@ -1,4 +1,5 @@
 namespace OS.Tools.QemuRunner;
+
 public sealed class SerialMarkerSummary
 {
     private static readonly string[] EmptyMarkers = [];
@@ -16,15 +17,42 @@ public sealed class SerialMarkerSummary
         MalformedAppExitMarkers = malformedAppExitMarkers;
     }
 
-    public IReadOnlyList<string> RequiredMarkers { get; }
-    public IReadOnlyList<string> ForbiddenMarkers { get; }
-    public IReadOnlyList<string> OrderedMarkers { get; }
-    public IReadOnlyList<string> ObservedMarkerLines { get; }
-    public IReadOnlyList<string> MissingMarkers { get; }
-    public IReadOnlyList<string> OutOfOrderMarkers { get; }
-    public IReadOnlyList<string> ForbiddenMarkerHits { get; }
-    public IReadOnlyList<AppExitMarkerResult> AppExitResults { get; }
-    public IReadOnlyList<string> MalformedAppExitMarkers { get; }
+    public IReadOnlyList<string> RequiredMarkers
+    {
+        get;
+    }
+    public IReadOnlyList<string> ForbiddenMarkers
+    {
+        get;
+    }
+    public IReadOnlyList<string> OrderedMarkers
+    {
+        get;
+    }
+    public IReadOnlyList<string> ObservedMarkerLines
+    {
+        get;
+    }
+    public IReadOnlyList<string> MissingMarkers
+    {
+        get;
+    }
+    public IReadOnlyList<string> OutOfOrderMarkers
+    {
+        get;
+    }
+    public IReadOnlyList<string> ForbiddenMarkerHits
+    {
+        get;
+    }
+    public IReadOnlyList<AppExitMarkerResult> AppExitResults
+    {
+        get;
+    }
+    public IReadOnlyList<string> MalformedAppExitMarkers
+    {
+        get;
+    }
 
     public bool HasAllRequiredMarkers
     {
@@ -165,7 +193,7 @@ public sealed class SerialMarkerSummary
     private static bool ContainsMarkerLine(string serial, string marker)
     {
         using StringReader reader = new StringReader(serial);
-        while (reader.ReadLine()is { } line)
+        while (reader.ReadLine() is { } line)
         {
             if (LineMatchesMarker(line.Trim(), marker))
             {
@@ -185,7 +213,7 @@ public sealed class SerialMarkerSummary
     {
         List<string> lines = new List<string>();
         using StringReader reader = new StringReader(serial);
-        while (reader.ReadLine()is { } line)
+        while (reader.ReadLine() is { } line)
         {
             string trimmed = line.Trim();
             if (trimmed.Length != 0)
@@ -201,7 +229,7 @@ public sealed class SerialMarkerSummary
     {
         List<string> observedMarkers = new List<string>();
         using StringReader reader = new StringReader(serial);
-        while (reader.ReadLine()is { } line)
+        while (reader.ReadLine() is { } line)
         {
             string trimmed = line.Trim();
             if (trimmed.Length == 0)
@@ -232,7 +260,7 @@ public sealed class SerialMarkerSummary
         List<AppExitMarkerResult> results = new List<AppExitMarkerResult>();
         List<string> malformed = new List<string>();
         using StringReader reader = new StringReader(serial);
-        while (reader.ReadLine()is { } line)
+        while (reader.ReadLine() is { } line)
         {
             string trimmed = line.Trim();
             if (!IsAppExitLine(trimmed))

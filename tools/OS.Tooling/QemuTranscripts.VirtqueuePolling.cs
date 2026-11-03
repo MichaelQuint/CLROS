@@ -9,8 +9,10 @@ public static partial class QemuTranscripts
         for (int i = QemuContracts.M05VirtioNegotiationMarkers.Count; i < lines.Count; i++)
         {
             string expected = QemuContracts.M05VirtqueuePollingMarkers[i];
-            if (expected.StartsWith("M05_QUEUE ", StringComparison.Ordinal)) rows.Add(ReadHexRecord(lines[i], expected, 4));
-            else Need(lines[i] == expected, "m05_queue_marker_order");
+            if (expected.StartsWith("M05_QUEUE ", StringComparison.Ordinal))
+                rows.Add(ReadHexRecord(lines[i], expected, 4));
+            else
+                Need(lines[i] == expected, "m05_queue_marker_order");
         }
         Need(rows[0][0] == 1 && rows[0][1] >= 8 && rows[0][1] <= 32768 &&
             (rows[0][1] & (rows[0][1] - 1)) == 0 && rows[0][2] == 8 && rows[0][3] == 2, "m05_queue_size");

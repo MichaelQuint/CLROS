@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Runtime;
+
 public enum X64UnwindMetadataStatus : byte
 {
     Uninitialized,

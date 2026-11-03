@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct TcpEstablishedStreamReceiveResult
 {
     private TcpEstablishedStreamReceiveResult(TcpEstablishedStreamStatus status, PacketParseStatus packetStatus, int payloadBytesAccepted, int unreadBytes, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
@@ -12,14 +13,35 @@ public readonly struct TcpEstablishedStreamReceiveResult
         RemoteNextSequenceNumber = remoteNextSequenceNumber;
     }
 
-    public bool IsInitialized { get; }
-    public TcpEstablishedStreamStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public TcpEstablishedStreamStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == TcpEstablishedStreamStatus.Success;
-    public PacketParseStatus PacketStatus { get; }
-    public int PayloadBytesAccepted { get; }
-    public int UnreadBytes { get; }
-    public uint LocalNextSequenceNumber { get; }
-    public uint RemoteNextSequenceNumber { get; }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public int PayloadBytesAccepted
+    {
+        get;
+    }
+    public int UnreadBytes
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get;
+    }
 
     public static TcpEstablishedStreamReceiveResult Success(int payloadBytesAccepted, int unreadBytes, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
     {

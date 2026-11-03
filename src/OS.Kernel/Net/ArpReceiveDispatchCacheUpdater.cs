@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class ArpReceiveDispatchCacheUpdater
 {
     public const bool RequiresCallerOwnedCacheStorage = true;

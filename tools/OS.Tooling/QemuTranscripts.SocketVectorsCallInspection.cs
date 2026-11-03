@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Value-only finite vector call accounting. Parent syscall,

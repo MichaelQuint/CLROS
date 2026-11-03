@@ -1,6 +1,7 @@
 using OS.Manifest;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAppArgumentHandoffPlanResult
 {
     private NativeAppArgumentHandoffPlanResult(NativeAppArgumentHandoffPlanStatus status, NativeAppInvocationPlanStatus invocationStatus, NativeAppArgumentVectorStatus argumentVectorStatus, bool isInitialized, int argumentCount, int parsedArgumentBytes, int rawLaunchArgumentByteLength)
@@ -14,13 +15,34 @@ public readonly struct NativeAppArgumentHandoffPlanResult
         RawLaunchArgumentByteLength = rawLaunchArgumentByteLength;
     }
 
-    public NativeAppArgumentHandoffPlanStatus Status { get; }
-    public NativeAppInvocationPlanStatus InvocationStatus { get; }
-    public NativeAppArgumentVectorStatus ArgumentVectorStatus { get; }
-    public bool IsInitialized { get; }
-    public int ArgumentCount { get; }
-    public int ParsedArgumentBytes { get; }
-    public int RawLaunchArgumentByteLength { get; }
+    public NativeAppArgumentHandoffPlanStatus Status
+    {
+        get;
+    }
+    public NativeAppInvocationPlanStatus InvocationStatus
+    {
+        get;
+    }
+    public NativeAppArgumentVectorStatus ArgumentVectorStatus
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public int ArgumentCount
+    {
+        get;
+    }
+    public int ParsedArgumentBytes
+    {
+        get;
+    }
+    public int RawLaunchArgumentByteLength
+    {
+        get;
+    }
     public bool ExecutesApp => false;
     public bool DefinesFinalAbi => false;
     public bool Succeeded => IsInitialized && Status == NativeAppArgumentHandoffPlanStatus.Success;

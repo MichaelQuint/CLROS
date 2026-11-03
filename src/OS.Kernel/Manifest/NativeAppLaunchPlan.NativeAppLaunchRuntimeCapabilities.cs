@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Manifest;
+
 [Flags]
 public enum NativeAppLaunchRuntimeCapabilities
 {

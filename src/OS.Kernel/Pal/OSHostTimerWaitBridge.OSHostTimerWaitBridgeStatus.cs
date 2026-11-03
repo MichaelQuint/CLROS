@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public enum OSHostTimerWaitBridgeStatus
 {
     Success = 0,

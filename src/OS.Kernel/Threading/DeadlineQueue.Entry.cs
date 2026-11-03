@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct DeadlineQueue
 {
     /// <summary>Opaque generation-tagged identity and absolute tick deadline.

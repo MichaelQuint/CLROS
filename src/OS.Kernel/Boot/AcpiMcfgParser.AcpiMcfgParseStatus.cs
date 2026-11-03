@@ -2,6 +2,7 @@ using OS.Drivers;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public enum AcpiMcfgParseStatus
 {
     Success = 0,

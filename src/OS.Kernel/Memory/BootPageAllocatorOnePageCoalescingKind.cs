@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public enum BootPageAllocatorOnePageCoalescingKind : byte
 {
     Uninitialized = 0,

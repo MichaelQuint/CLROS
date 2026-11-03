@@ -23,7 +23,7 @@ public static partial class WritableDataImageFixture
     public static readonly Guid PartitionType = new("EBD0A0A2-B9E5-4433-87C0-68B6B72699C7");
     public static readonly Guid DiskGuid = new("0B315D75-842F-4C81-BEB0-000000000021");
     public static readonly Guid PartitionGuid = new("0B315D75-842F-4C81-BEB0-000000000022");
-    public static string LongFileName => new string ('l', 251) + ".txt";
+    public static string LongFileName => new string('l', 251) + ".txt";
 
     private const uint End = 0x0fffffff, Sectors = ImageBytes / SectorBytes;
     private static readonly BlockReadResult Complete = BlockReadResult.Success(1, 512);
@@ -38,7 +38,7 @@ public static partial class WritableDataImageFixture
         ValidateOutput(root, output);
         byte[] image = Build();
         Inspection checkedImage = Inspect(image);
-        Need(checkedImage.Find(ExclusiveCreateName)is null, "exclusive_seed_collision");
+        Need(checkedImage.Find(ExclusiveCreateName) is null, "exclusive_seed_collision");
         Receipt receipt = new(checkedImage);
         string parent = Path.GetDirectoryName(output)!;
         Directory.CreateDirectory(parent);

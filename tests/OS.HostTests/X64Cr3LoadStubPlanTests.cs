@@ -565,7 +565,7 @@ internal static unsafe partial class X64Cr3LoadStubPlanTests
             }
             catch
             {
-            // Cleanup is not product evidence.
+                // Cleanup is not product evidence.
             }
         }
     }

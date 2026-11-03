@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public static class VmbusOfferPlan
 {
     public const uint OfferChannelMessageType = 1;

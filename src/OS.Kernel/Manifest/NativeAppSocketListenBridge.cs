@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Manifest;
+
 public static class NativeAppSocketListenBridge
 {
     public const bool UsesMockSocketTable = true;

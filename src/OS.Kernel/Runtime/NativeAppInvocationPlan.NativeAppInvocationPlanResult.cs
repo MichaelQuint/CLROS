@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Manifest;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAppInvocationPlanResult
 {
     private NativeAppInvocationPlanResult(NativeAppInvocationPlanStatus status, NativeAppExecutableMemoryPlanStatus executableMemoryStatus, NativeAppPayloadMappingPlanStatus payloadMappingStatus, NativeAppLaunchDescriptorStatus descriptorStatus, NativeAppPayloadHeaderStatus payloadHeaderStatus, NativeAppLaunchStatus launchStatus, bool isInitialized, NativeAppInvocationPlan plan)
@@ -16,14 +17,38 @@ public readonly struct NativeAppInvocationPlanResult
         Plan = plan;
     }
 
-    public NativeAppInvocationPlanStatus Status { get; }
-    public NativeAppExecutableMemoryPlanStatus ExecutableMemoryStatus { get; }
-    public NativeAppPayloadMappingPlanStatus PayloadMappingStatus { get; }
-    public NativeAppLaunchDescriptorStatus DescriptorStatus { get; }
-    public NativeAppPayloadHeaderStatus PayloadHeaderStatus { get; }
-    public NativeAppLaunchStatus LaunchStatus { get; }
-    public bool IsInitialized { get; }
-    public NativeAppInvocationPlan Plan { get; }
+    public NativeAppInvocationPlanStatus Status
+    {
+        get;
+    }
+    public NativeAppExecutableMemoryPlanStatus ExecutableMemoryStatus
+    {
+        get;
+    }
+    public NativeAppPayloadMappingPlanStatus PayloadMappingStatus
+    {
+        get;
+    }
+    public NativeAppLaunchDescriptorStatus DescriptorStatus
+    {
+        get;
+    }
+    public NativeAppPayloadHeaderStatus PayloadHeaderStatus
+    {
+        get;
+    }
+    public NativeAppLaunchStatus LaunchStatus
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public NativeAppInvocationPlan Plan
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeAppInvocationPlanStatus.Success;
 
     public static NativeAppInvocationPlanResult Success(NativeAppExecutableMemoryPlanStatus executableMemoryStatus, NativeAppPayloadMappingPlanStatus payloadMappingStatus, NativeAppLaunchDescriptorStatus descriptorStatus, NativeAppPayloadHeaderStatus payloadHeaderStatus, NativeAppLaunchStatus launchStatus, NativeAppInvocationPlan plan)

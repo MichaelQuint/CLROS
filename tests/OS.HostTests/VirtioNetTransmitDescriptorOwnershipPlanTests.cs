@@ -504,7 +504,7 @@ internal static partial class VirtioNetTransmitDescriptorOwnershipPlanTests
 
     private static ulong[] CreateBarSizes()
     {
-        return[0x1000, 0x1000, 0x1000, 0x1000, 0, 0];
+        return [0x1000, 0x1000, 0x1000, 0x1000, 0, 0];
     }
 
     private static byte[] CreateNetworkConfiguration(MacAddress mac, ushort status)

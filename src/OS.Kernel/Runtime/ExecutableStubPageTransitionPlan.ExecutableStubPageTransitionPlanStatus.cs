@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public enum ExecutableStubPageTransitionPlanStatus
 {
     Success = 0,

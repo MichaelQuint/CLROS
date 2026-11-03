@@ -40,7 +40,7 @@ public static partial class ToolingBuildInputs
                 error.WriteLine("TEST_FAIL tooling.inputs additional_failures=" + (failures.Count - 10) + " rebuild_required");
             return failures.Count == 0;
         }
-        catch (Exception failure)when (failure is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
         {
             error.WriteLine("TEST_FAIL tooling.inputs " + failure.Message.Replace('\r', ' ').Replace('\n', ' ') + " rebuild_required");
             return false;
@@ -58,7 +58,7 @@ public static partial class ToolingBuildInputs
         StringComparison comparison = originalRoot[0] == '/' ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         List<string> patterns = [];
         Dictionary<string, string> files = new(StringComparer.OrdinalIgnoreCase);
-        while (reader.ReadLine()is { } line)
+        while (reader.ReadLine() is { } line)
         {
             if (line.Length == 0)
                 continue;
@@ -141,7 +141,7 @@ public static partial class ToolingBuildInputs
                 foreach (string path in Directory.EnumerateFileSystemEntries(current))
                 {
                     FileAttributes attributes = File.GetAttributes(path);
-                    if ((attributes & FileAttributes.Directory) != 0 && Path.GetFileName(path).ToLowerInvariant()is "bin" or "obj" or "artifacts")
+                    if ((attributes & FileAttributes.Directory) != 0 && Path.GetFileName(path).ToLowerInvariant() is "bin" or "obj" or "artifacts")
                         continue;
                     if ((attributes & FileAttributes.ReparsePoint) != 0)
                         throw new InvalidOperationException(ReparsePointDiagnosticPrefix + path);

@@ -6,6 +6,9 @@ namespace OS.Boot;
 public readonly struct FirmwareEntropySeedPublication
 {
     internal FirmwareEntropySeedPublication(int retainedBytes) => RetainedBytes = retainedBytes;
-    public int RetainedBytes { get; }
+    public int RetainedBytes
+    {
+        get;
+    }
     public bool IsPublished => RetainedBytes is 32 or 64;
 }

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformFramebufferResult
 {
     public const uint BytesPerPixel = 4;
@@ -13,21 +14,42 @@ public readonly struct PlatformFramebufferResult
         FirmwareStatus = firmwareStatus;
     }
 
-    public bool Succeeded { get; }
-    public PlatformFramebufferStatus Status { get; }
-    public FirmwareServicesMode Mode { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformFramebufferStatus Status
+    {
+        get;
+    }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
     public FirmwareServicesMode FirmwareMode => Mode;
     public string Operation => PlatformFramebufferOperations.CaptureSnapshot;
-    public PlatformFramebufferSourceStatus SourceStatus { get; }
-    public PlatformFramebufferMetadata Metadata { get; }
+    public PlatformFramebufferSourceStatus SourceStatus
+    {
+        get;
+    }
+    public PlatformFramebufferMetadata Metadata
+    {
+        get;
+    }
     public ulong BaseAddress => Metadata.BaseAddress;
     public ulong ByteLength => Metadata.ByteLength;
     public uint Width => Metadata.Width;
     public uint Height => Metadata.Height;
     public uint StridePixels => Metadata.StridePixels;
     public PlatformFramebufferPixelFormat PixelFormat => Metadata.PixelFormat;
-    public ulong RequiredByteLength { get; }
-    public ulong FirmwareStatus { get; }
+    public ulong RequiredByteLength
+    {
+        get;
+    }
+    public ulong FirmwareStatus
+    {
+        get;
+    }
 
     public static PlatformFramebufferResult Capture(FirmwareCallResult guardResult, PlatformFramebufferSourceResult sourceResult)
     {

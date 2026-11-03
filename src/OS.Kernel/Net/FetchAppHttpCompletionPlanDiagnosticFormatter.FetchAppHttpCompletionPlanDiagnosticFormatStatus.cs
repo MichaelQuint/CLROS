@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public enum FetchAppHttpCompletionPlanDiagnosticFormatStatus
 {
     Success = 0,

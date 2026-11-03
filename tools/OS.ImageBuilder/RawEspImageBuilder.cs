@@ -145,7 +145,7 @@ internal static partial class RawEspImageBuilder
         {
             file = new FileInfo(efiPath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(3, "efi_not_found", "EFI artifact path is invalid: " + efiPath);
         }
@@ -175,7 +175,7 @@ internal static partial class RawEspImageBuilder
         {
             file = new FileInfo(manifestPath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(8, "manifest_not_found", "Manifest path is invalid: " + manifestPath);
         }
@@ -215,7 +215,7 @@ internal static partial class RawEspImageBuilder
         {
             file = new FileInfo(packagePath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(11, "package_not_found", "Package path is invalid: " + packagePath);
         }
@@ -249,7 +249,7 @@ internal static partial class RawEspImageBuilder
         {
             _ = Path.GetFullPath(outputPath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(7, "invalid_output_path", "Output path is invalid: " + outputPath);
         }

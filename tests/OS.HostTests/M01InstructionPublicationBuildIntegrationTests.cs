@@ -155,7 +155,7 @@ internal static partial class M01InstructionPublicationBuildIntegrationTests
             ["ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets"] = "false",
             ["ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets"] = "false"
         };
-        foreach ((string propertyName, string expectedValue)in canonicalChildRestoreProperties)
+        foreach ((string propertyName, string expectedValue) in canonicalChildRestoreProperties)
         {
             Require(childPropertyMap.TryGetValue(propertyName, out string? actualValue) && actualValue == expectedValue, "targets-child-canonical-" + StableCode(propertyName));
             Require(!removedPropertyNames.Contains(propertyName, StringComparer.Ordinal), "targets-child-canonical-removed-" + StableCode(propertyName));
@@ -229,7 +229,7 @@ internal static partial class M01InstructionPublicationBuildIntegrationTests
     private static void ValidatePinnedNativeAotProjectRoots(XmlDocument project)
     {
         (string Name, string Condition, string Value)[] pinnedProperties = [("ClrosIlcHostPackagePath", "'$(ClrosIlcHostPackagePath)' == ''", @"$(UserProfile)\.nuget\packages\" + @"runtime.win-x64.microsoft.dotnet.ilcompiler\" + OS.Tooling.EfiContracts.NativePackageVersion), ("ClrosRuntimePackagePath", "'$(ClrosRuntimePackagePath)' == ''", @"$(UserProfile)\.nuget\packages\" + @"microsoft.netcore.app.runtime.nativeaot.win-x64\" + OS.Tooling.EfiContracts.NativePackageVersion)];
-        foreach ((string name, string condition, string value)in pinnedProperties)
+        foreach ((string name, string condition, string value) in pinnedProperties)
         {
             XmlNodeList nodes = project.SelectNodes("/Project/PropertyGroup/" + name) ?? throw new M01BuildIntegrationFailureException("pinned-property-query-" + StableCode(name));
             Require(nodes.Count == 1, "pinned-property-count-" + StableCode(name));
@@ -238,7 +238,7 @@ internal static partial class M01InstructionPublicationBuildIntegrationTests
         }
 
         (string ItemName, string Include, string PropertyName)[] resolvedPacks = [("ResolvedILCompilerPack", "runtime.win-x64.Microsoft.DotNet.ILCompiler", "ClrosIlcHostPackagePath"), ("ResolvedTargetILCompilerPack", "Microsoft.NETCore.App.Runtime.NativeAOT.win-x64", "ClrosRuntimePackagePath")];
-        foreach ((string itemName, string include, string propertyName)in resolvedPacks)
+        foreach ((string itemName, string include, string propertyName) in resolvedPacks)
         {
             XmlNodeList nodes = project.SelectNodes("/Project/ItemGroup/" + itemName) ?? throw new M01BuildIntegrationFailureException("resolved-pack-query-" + StableCode(itemName));
             Require(nodes.Count == 1, "resolved-pack-count-" + StableCode(itemName));
@@ -465,22 +465,72 @@ internal static partial class M01InstructionPublicationBuildIntegrationTests
 
     private static void ValidateManagedBindingHostileContracts(ManagedBindingContract valid)
     {
-        RequireManagedBindingContractRejected(valid with { RuntimeImportAttributeCount = 0, RuntimeImportAttributeName = null, RuntimeImportConstructorSignature = null }, "runtime-import-missing", "managed-contract-runtime-import-missing");
-        RequireManagedBindingContractRejected(valid with { RuntimeImportAttributeName = "System.Runtime.WrongRuntimeImportAttribute" }, "runtime-import-wrong-name", "managed-contract-runtime-import-name");
-        RequireManagedBindingContractRejected(valid with { RuntimeImportConstructorSignature = null }, "runtime-import-constructor-missing", "managed-contract-runtime-import-constructor-missing");
-        RequireManagedBindingContractRejected(valid with { RuntimeImportConstructorSignature = new byte[] { 0x20, 0x01, 0x01, 0x0E } }, "runtime-import-constructor-wrong-shape", "managed-contract-runtime-import-constructor-shape");
-        RequireManagedBindingContractRejected(valid with { MethodImplAttributePresent = false }, "method-impl-attribute-missing", "managed-contract-method-impl-attribute-missing");
-        RequireManagedBindingContractRejected(valid with { MethodImplConstructorPresent = false }, "method-impl-constructor-missing", "managed-contract-method-impl-constructor-missing");
-        RequireManagedBindingContractRejected(valid with { MethodImplConstructorShapeValid = false }, "method-impl-constructor-wrong-shape", "managed-contract-method-impl-constructor-shape");
-        RequireManagedBindingContractRejected(valid with { MethodImplInternalCallValue = null }, "method-impl-internal-call-missing", "managed-contract-method-impl-internal-call-missing");
-        RequireManagedBindingContractRejected(valid with { MethodImplInternalCallValue = 0x1001 }, "method-impl-internal-call-wrong-value", "managed-contract-method-impl-internal-call-value");
-        RequireManagedBindingContractRejected(valid with { SerializeHasPInvokeImplementation = true }, "serialize-pinvoke", "managed-contract-serialize-pinvoke");
-        RequireManagedBindingContractRejected(valid with { SerializeHasDllImportAttribute = true }, "serialize-dllimport", "managed-contract-serialize-dllimport");
-        RequireManagedBindingContractRejected(valid with { SerializeHasManagedBody = true }, "serialize-managed-body", "managed-contract-serialize-managed-body");
-        RequireManagedBindingContractRejected(valid with { SerializeIsStatic = false }, "serialize-non-static", "managed-contract-serialize-not-static");
-        RequireManagedBindingContractRejected(valid with { SerializeIsExtern = false }, "serialize-non-extern", "managed-contract-serialize-not-extern");
-        RequireManagedBindingContractRejected(valid with { SerializeSignature = new byte[] { 0x00, 0x00, 0x08 } }, "serialize-wrong-return-signature", "managed-contract-serialize-return-signature");
-        RequireManagedBindingContractRejected(valid with { SerializeSignature = new byte[] { 0x00, 0x01, 0x09, 0x09 } }, "serialize-wrong-parameter-signature", "managed-contract-serialize-parameter-signature");
+        RequireManagedBindingContractRejected(valid with
+        {
+            RuntimeImportAttributeCount = 0,
+            RuntimeImportAttributeName = null,
+            RuntimeImportConstructorSignature = null
+        }, "runtime-import-missing", "managed-contract-runtime-import-missing");
+        RequireManagedBindingContractRejected(valid with
+        {
+            RuntimeImportAttributeName = "System.Runtime.WrongRuntimeImportAttribute"
+        }, "runtime-import-wrong-name", "managed-contract-runtime-import-name");
+        RequireManagedBindingContractRejected(valid with
+        {
+            RuntimeImportConstructorSignature = null
+        }, "runtime-import-constructor-missing", "managed-contract-runtime-import-constructor-missing");
+        RequireManagedBindingContractRejected(valid with
+        {
+            RuntimeImportConstructorSignature = new byte[] { 0x20, 0x01, 0x01, 0x0E }
+        }, "runtime-import-constructor-wrong-shape", "managed-contract-runtime-import-constructor-shape");
+        RequireManagedBindingContractRejected(valid with
+        {
+            MethodImplAttributePresent = false
+        }, "method-impl-attribute-missing", "managed-contract-method-impl-attribute-missing");
+        RequireManagedBindingContractRejected(valid with
+        {
+            MethodImplConstructorPresent = false
+        }, "method-impl-constructor-missing", "managed-contract-method-impl-constructor-missing");
+        RequireManagedBindingContractRejected(valid with
+        {
+            MethodImplConstructorShapeValid = false
+        }, "method-impl-constructor-wrong-shape", "managed-contract-method-impl-constructor-shape");
+        RequireManagedBindingContractRejected(valid with
+        {
+            MethodImplInternalCallValue = null
+        }, "method-impl-internal-call-missing", "managed-contract-method-impl-internal-call-missing");
+        RequireManagedBindingContractRejected(valid with
+        {
+            MethodImplInternalCallValue = 0x1001
+        }, "method-impl-internal-call-wrong-value", "managed-contract-method-impl-internal-call-value");
+        RequireManagedBindingContractRejected(valid with
+        {
+            SerializeHasPInvokeImplementation = true
+        }, "serialize-pinvoke", "managed-contract-serialize-pinvoke");
+        RequireManagedBindingContractRejected(valid with
+        {
+            SerializeHasDllImportAttribute = true
+        }, "serialize-dllimport", "managed-contract-serialize-dllimport");
+        RequireManagedBindingContractRejected(valid with
+        {
+            SerializeHasManagedBody = true
+        }, "serialize-managed-body", "managed-contract-serialize-managed-body");
+        RequireManagedBindingContractRejected(valid with
+        {
+            SerializeIsStatic = false
+        }, "serialize-non-static", "managed-contract-serialize-not-static");
+        RequireManagedBindingContractRejected(valid with
+        {
+            SerializeIsExtern = false
+        }, "serialize-non-extern", "managed-contract-serialize-not-extern");
+        RequireManagedBindingContractRejected(valid with
+        {
+            SerializeSignature = new byte[] { 0x00, 0x00, 0x08 }
+        }, "serialize-wrong-return-signature", "managed-contract-serialize-return-signature");
+        RequireManagedBindingContractRejected(valid with
+        {
+            SerializeSignature = new byte[] { 0x00, 0x01, 0x09, 0x09 }
+        }, "serialize-wrong-parameter-signature", "managed-contract-serialize-parameter-signature");
         Console.WriteLine("CLROS_M01_034_MANAGED_ABI_NEGATIVE_PASS cases=16");
     }
 
@@ -801,7 +851,7 @@ internal static partial class M01InstructionPublicationBuildIntegrationTests
             }
             catch
             {
-            // The bounded timeout result remains a failure even if cleanup races exit.
+                // The bounded timeout result remains a failure even if cleanup races exit.
             }
 
             _ = process.WaitForExit(10_000);
@@ -833,7 +883,7 @@ internal static partial class M01InstructionPublicationBuildIntegrationTests
         }
         catch
         {
-        // The bounded timeout remains a failure if termination races exit.
+            // The bounded timeout remains a failure if termination races exit.
         }
     }
 
@@ -981,7 +1031,7 @@ internal static partial class M01InstructionPublicationBuildIntegrationTests
         }
         catch
         {
-        // Test evidence has already been collected; best-effort temp cleanup.
+            // Test evidence has already been collected; best-effort temp cleanup.
         }
     }
 

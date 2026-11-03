@@ -299,7 +299,7 @@ internal static partial class NativeAotOriginalRuntimeTests
         {
             action();
         }
-        catch (Exception error)when (error is InvalidDataException or ArgumentException or IOException or ToolFailure)
+        catch (Exception error) when (error is InvalidDataException or ArgumentException or IOException or ToolFailure)
         {
             failure = error.Message;
         }

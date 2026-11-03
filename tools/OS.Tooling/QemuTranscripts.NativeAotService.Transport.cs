@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect bounded synthetic service transport records without
@@ -9,7 +10,7 @@ public static partial class QemuTranscripts
     public static ServiceTransportInspection InspectNativeAotServiceTransportForTests(string[] rows) => ReadServiceTransport(rows, out _);
     private static ServiceTransportInspection ReadServiceTransport(string[] rows, out HashSet<int> metadata, bool quotaFailure = false)
     {
-        Need(rows is not null && rows.Length is> 0 and <= 1_000_000 && rows.All(row => row is not null && row.Length <= 4096) && rows.Sum(row => (long)row.Length + 2) <= 128L * 1024 * 1024, "service_transport_input");
+        Need(rows is not null && rows.Length is > 0 and <= 1_000_000 && rows.All(row => row is not null && row.Length <= 4096) && rows.Sum(row => (long)row.Length + 2) <= 128L * 1024 * 1024, "service_transport_input");
         metadata = [];
         Dictionary<ulong, ServiceBulk> bulk = [];
         Dictionary<ulong, ulong> generations = [];
@@ -53,9 +54,9 @@ public static partial class QemuTranscripts
             {
                 Need(bound && !ended, "service_transport_owner");
                 bool transfer = line.StartsWith("M07_030_TRANSFER ", StringComparison.Ordinal);
-                var row = transfer ? ReadRecord(line, "M07_030_TRANSFER", [..SocketLifetimeFields[..10], "compactIndex:dec", "compactGeneration:dec", "originalDeadline:dec", "deadline:dec", "duration:dec"]) : SocketTransport(line);
+                var row = transfer ? ReadRecord(line, "M07_030_TRANSFER", [.. SocketLifetimeFields[..10], "compactIndex:dec", "compactGeneration:dec", "originalDeadline:dec", "deadline:dec", "duration:dec"]) : SocketTransport(line);
                 Time(row["clock"]);
-                Need(row["slot"] < 8 && row["index"] < 8 && row["owner"] >= 4096 && row["owner"] % 8 == 0 && row["epoch"] != 0 && row["generation"] != 0 && row["local"] == 0x0a00020f && row["localPort"] == 8080 && row["remote"] == 0x0a000202 && row["remotePort"] is> 0 and <= 65535, "service_transport_identity");
+                Need(row["slot"] < 8 && row["index"] < 8 && row["owner"] >= 4096 && row["owner"] % 8 == 0 && row["epoch"] != 0 && row["generation"] != 0 && row["local"] == 0x0a00020f && row["localPort"] == 8080 && row["remote"] == 0x0a000202 && row["remotePort"] is > 0 and <= 65535, "service_transport_identity");
                 if (owner == 0)
                 {
                     owner = row["owner"];
@@ -107,7 +108,7 @@ public static partial class QemuTranscripts
             else if (line.StartsWith("M07_034_CLOSE ", StringComparison.Ordinal))
             {
                 Need(bound && !ended, "service_unread_close_owner");
-                var row = ReadRecord(line, "M07_034_CLOSE", [..SocketLifetimeFields[..10], "localNext:dec", "remoteNext:dec", "unread:dec"]);
+                var row = ReadRecord(line, "M07_034_CLOSE", [.. SocketLifetimeFields[..10], "localNext:dec", "remoteNext:dec", "unread:dec"]);
                 Time(row["clock"]);
                 var value = Current(row);
                 Need(!value.LastClosed && !value.Transferred && !value.Retired && row["localNext"] <= uint.MaxValue && row["remoteNext"] <= uint.MaxValue && row["unread"] <= 8192, "service_unread_close_state");
@@ -139,7 +140,7 @@ public static partial class QemuTranscripts
                 {
                     bool found = compact.TryGetValue(index, out var value);
                     Need(found && row["event"] == 2 && generation == value!.Generation && row["originalDeadline"] == value.Original && row["duration"] == value.Duration && row["deadline"] > value.Deadline && row["deadline"] >= value.Duration && row["deadline"] - value.Duration <= clock && row["deadline"] - value.Duration < value.Deadline, "service_compact_extension");
-                    compact[index] = value!with
+                    compact[index] = value! with
                     {
                         Deadline = row["deadline"]
                     };
@@ -165,7 +166,7 @@ public static partial class QemuTranscripts
                 Need(bound && !ended && line.EndsWith(suffix, StringComparison.Ordinal), "service_transport_end");
                 var row = ReadRecord(line[..^suffix.Length], "M07_030_END", "transfers:dec", "retired:dec", "bulkHighWater:dec", "compactHighWater:dec", "bytesPerRecord:dec", "clock:dec", "deadline:dec");
                 Time(row["clock"]);
-                Need(fresh > 8 && transfers > 8 && transfers == retired && pending.Count == 0 && bulk.Count == 0 && compact.Count == 0 && bulkHigh == observedBulkHigh && compactHigh == observedCompactHigh && row["transfers"] == (ulong)transfers && row["retired"] == (ulong)retired && row["bulkHighWater"] == (ulong)bulkHigh && bulkHigh is> 0 and <= 8 && row["compactHighWater"] == (ulong)compactHigh && compactHigh is> 8 and <= 64 && row["bytesPerRecord"] == (ulong)System.Runtime.CompilerServices.Unsafe.SizeOf<OS.Net.TcpTimeWaitTable.Entry>() && row["bytesPerRecord"] is> 0 and <= 64 && row["deadline"] == maximum && clock >= maximum, "service_transport_complete");
+                Need(fresh > 8 && transfers > 8 && transfers == retired && pending.Count == 0 && bulk.Count == 0 && compact.Count == 0 && bulkHigh == observedBulkHigh && compactHigh == observedCompactHigh && row["transfers"] == (ulong)transfers && row["retired"] == (ulong)retired && row["bulkHighWater"] == (ulong)bulkHigh && bulkHigh is > 0 and <= 8 && row["compactHighWater"] == (ulong)compactHigh && compactHigh is > 8 and <= 64 && row["bytesPerRecord"] == (ulong)System.Runtime.CompilerServices.Unsafe.SizeOf<OS.Net.TcpTimeWaitTable.Entry>() && row["bytesPerRecord"] is > 0 and <= 64 && row["deadline"] == maximum && clock >= maximum, "service_transport_complete");
                 ended = true;
             }
             else if (quotaFailure && line.StartsWith("M16_016_QUOTA_SOCKETS", StringComparison.Ordinal))

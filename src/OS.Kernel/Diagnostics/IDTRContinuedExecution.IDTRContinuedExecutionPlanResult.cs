@@ -32,20 +32,59 @@ public readonly struct IDTRContinuedExecutionPlanResult
     }
 
     public bool IsInitialized => _isInitialized == 1;
-    public IDTRContinuedExecutionOperation Operation { get; }
-    public IDTRContinuedExecutionStatus Status { get; }
-    public ulong ModeledContextAddress { get; }
-    public ulong ModeledStubAddress { get; }
-    public ulong OwnedIdtAddress { get; }
-    public ulong ContextCapacity { get; }
-    public ulong StubCapacity { get; }
-    public int ContextBytesWritten { get; }
-    public int ContextBytesCompared { get; }
-    public int StubBytesWritten { get; }
-    public int StubBytesCompared { get; }
+    public IDTRContinuedExecutionOperation Operation
+    {
+        get;
+    }
+    public IDTRContinuedExecutionStatus Status
+    {
+        get;
+    }
+    public ulong ModeledContextAddress
+    {
+        get;
+    }
+    public ulong ModeledStubAddress
+    {
+        get;
+    }
+    public ulong OwnedIdtAddress
+    {
+        get;
+    }
+    public ulong ContextCapacity
+    {
+        get;
+    }
+    public ulong StubCapacity
+    {
+        get;
+    }
+    public int ContextBytesWritten
+    {
+        get;
+    }
+    public int ContextBytesCompared
+    {
+        get;
+    }
+    public int StubBytesWritten
+    {
+        get;
+    }
+    public int StubBytesCompared
+    {
+        get;
+    }
     public int FirstMismatchOffset => IsInitialized ? _firstMismatchOffset : -1;
-    public ulong ContextFingerprint { get; }
-    public ulong StubFingerprint { get; }
+    public ulong ContextFingerprint
+    {
+        get;
+    }
+    public ulong StubFingerprint
+    {
+        get;
+    }
     public ulong ExpectedStubFingerprint => IDTRContinuedExecution.StubFnv1A64;
     public bool DestinationMutated => _destinationMutated == 1;
     public bool ReadBackPerformed => _readBackPerformed == 1;

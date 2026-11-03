@@ -13,12 +13,30 @@ public readonly struct DoubleFaultIstWalk
         Pte = pte;
     }
 
-    public ulong Linear { get; }
-    public ulong LevelsRead { get; }
-    public ulong Pml4e { get; }
-    public ulong Pdpte { get; }
-    public ulong Pde { get; }
-    public ulong Pte { get; }
+    public ulong Linear
+    {
+        get;
+    }
+    public ulong LevelsRead
+    {
+        get;
+    }
+    public ulong Pml4e
+    {
+        get;
+    }
+    public ulong Pdpte
+    {
+        get;
+    }
+    public ulong Pde
+    {
+        get;
+    }
+    public ulong Pte
+    {
+        get;
+    }
 
     internal ulong Entry(int level) => level == 0 ? Pml4e : level == 1 ? Pdpte : level == 2 ? Pde : Pte;
 }

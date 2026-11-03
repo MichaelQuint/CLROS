@@ -6,15 +6,7 @@ internal static partial class ManifestToolTests
 {
 #if OS_PROFILE_SINGLE_MINIMAL_API
 
-
 #elif OS_PROFILE_MULTI_MINIMAL_API
-
-
-
-
-
-
-
 
 #else
 #error ManifestToolTests require one OS workload profile symbol.
@@ -27,7 +19,13 @@ internal static partial class ManifestToolTests
             this.Output = output;
         }
 
-        public int ExitCode { get; }
-        public string Output { get; }
+        public int ExitCode
+        {
+            get;
+        }
+        public string Output
+        {
+            get;
+        }
     }
 }

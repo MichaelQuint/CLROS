@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public static class UefiMemoryDescriptorReader
 {
     public const ulong DescriptorLayoutSize = 40;

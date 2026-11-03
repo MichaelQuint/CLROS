@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioPciIsrStatusParser
 {
     public const uint ReadOffset = 0;

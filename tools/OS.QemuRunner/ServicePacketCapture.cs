@@ -39,7 +39,7 @@ public sealed partial class ServicePacketCapture : IDisposable
             if (!headerSeen)
             {
                 if (available < 24)
-                    return[];
+                    return [];
                 Require(BinaryPrimitives.ReadUInt32LittleEndian(header) == 0xa1b2c3d4 && BinaryPrimitives.ReadUInt16LittleEndian(header.AsSpan(4)) == 2 && BinaryPrimitives.ReadUInt16LittleEndian(header.AsSpan(6)) == 4 && BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(8)) == 0 && BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(12)) == 0 && BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(16)) == 65536 && BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(20)) == 1, "service_capture_header");
                 headerSeen = true;
                 cursor = 24;

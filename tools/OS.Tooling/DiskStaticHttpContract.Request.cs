@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class DiskStaticHttpContract
 {
     /// <summary>One planned HTTP exchange. BodyOffset/BodyBytes describe exact
@@ -16,17 +17,50 @@ public static partial class DiskStaticHttpContract
 
     public sealed class Request
     {
-        public int Ordinal { get; }
-        public string Method { get; }
-        public string Target { get; }
-        public int Status { get; }
-        public Asset? Asset { get; }
-        public IReadOnlyList<Header> Headers { get; }
-        public uint BodyOffset { get; }
-        public uint BodyBytes { get; }
-        public string BodySha256 { get; }
-        public long? ContentLength { get; }
-        public string? ContentRange { get; }
+        public int Ordinal
+        {
+            get;
+        }
+        public string Method
+        {
+            get;
+        }
+        public string Target
+        {
+            get;
+        }
+        public int Status
+        {
+            get;
+        }
+        public Asset? Asset
+        {
+            get;
+        }
+        public IReadOnlyList<Header> Headers
+        {
+            get;
+        }
+        public uint BodyOffset
+        {
+            get;
+        }
+        public uint BodyBytes
+        {
+            get;
+        }
+        public string BodySha256
+        {
+            get;
+        }
+        public long? ContentLength
+        {
+            get;
+        }
+        public string? ContentRange
+        {
+            get;
+        }
         public int MinimumReadCompletions => checked((int)((BodyBytes + (ulong)MaximumReadCompletionBytes - 1) / MaximumReadCompletionBytes));
 
         internal Request(int ordinal, string method, string target, int status, Asset? asset, IReadOnlyList<Header> headers, uint offset, uint bytes, string hash, long? contentLength, string? contentRange)

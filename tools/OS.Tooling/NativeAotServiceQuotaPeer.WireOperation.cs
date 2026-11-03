@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServiceQuotaPeer
 {
     /// <summary>One actual Stream call. Offset counts only earlier successful

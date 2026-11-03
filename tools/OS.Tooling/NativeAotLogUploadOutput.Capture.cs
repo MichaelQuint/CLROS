@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class NativeAotLogUploadOutput
 {
     /// <summary>Immutable copied text, original write segmentation and expected
@@ -15,8 +16,14 @@ public static partial class NativeAotLogUploadOutput
             ExpectedFiles = transcript.ExpectedFiles;
         }
 
-        public string Phase { get; }
-        public NativeAotLogUploadContract.FileValues ExpectedFiles { get; }
+        public string Phase
+        {
+            get;
+        }
+        public NativeAotLogUploadContract.FileValues ExpectedFiles
+        {
+            get;
+        }
         public string Stdout => framing.Stdout;
         public string NormalizedTail => framing.NormalizedTail;
         public IReadOnlyList<int> WriteLengths => framing.WriteLengths;

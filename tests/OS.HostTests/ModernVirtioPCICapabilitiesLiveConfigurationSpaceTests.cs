@@ -91,7 +91,7 @@ internal static unsafe partial class ModernVirtioPCICapabilitiesLiveConfiguratio
     [HostTest("virtio.capabilities rejects malformed extents complete-chain cycles and missing records atomically")]
     private static void InvalidRecords()
     {
-        foreach ((int offset, byte value, VirtioCapabilityStatus status)in new[]
+        foreach ((int offset, byte value, VirtioCapabilityStatus status) in new[]
         {
             (0x42, (byte)15, VirtioCapabilityStatus.InvalidCapability),
             (0x62, (byte)19, VirtioCapabilityStatus.InvalidCapability),
@@ -146,7 +146,7 @@ internal static unsafe partial class ModernVirtioPCICapabilitiesLiveConfiguratio
     [HostTest("virtio.capabilities enforces bounded region sizes alignment and notify multiplier")]
     private static void InvalidRegions()
     {
-        foreach ((int offset, uint value)in new[]
+        foreach ((int offset, uint value) in new[]
         {
             (0x4c, 55U),
             (0x6c, 1U),

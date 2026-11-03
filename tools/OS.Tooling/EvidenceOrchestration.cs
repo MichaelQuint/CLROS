@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static class EvidenceOrchestration
 {
     // One inventory drives both CI plans and their tests. Native execution remains a separate gate.
@@ -23,11 +24,18 @@ public static class EvidenceOrchestration
         string host = Path.Combine(root, "tests", "OS.HostTests", "bin", configuration, "net11.0", "OS.HostTests.dll");
         string Log(string file) => Path.Combine(logRoot, file);
         List<EvidenceStep> steps = [];
-        EvidenceStep Tool(string name, string log, params string[] args) => new(prefix + "." + name, "dotnet", [tool, ..args], Log(log));
+        EvidenceStep Tool(string name, string log, params string[] args) => new(prefix + "." + name, "dotnet", [tool, .. args], Log(log));
         if (baseline)
             steps.Add(Tool("naming.guard", "naming-guard.log", "repo", "check"));
-        steps.Add(new(prefix + ".build", options.DotNet, ["build", "CLROS.slnx", "--nologo", "-m:1", "--configuration", configuration, "/p:OSWorkloadProfile=" + options.WorkloadProfile], Log("dotnet-build.log")) { Timeout = TimeSpan.FromMinutes(20) });
-        steps.Add(new(prefix + ".host.tests", options.DotNet, [host, "--lane", "full"], Log("host-tests.log")) { Timeout = FullHostTimeout, IsHostGate = true });
+        steps.Add(new(prefix + ".build", options.DotNet, ["build", "CLROS.slnx", "--nologo", "-m:1", "--configuration", configuration, "/p:OSWorkloadProfile=" + options.WorkloadProfile], Log("dotnet-build.log"))
+        {
+            Timeout = TimeSpan.FromMinutes(20)
+        });
+        steps.Add(new(prefix + ".host.tests", options.DotNet, [host, "--lane", "full"], Log("host-tests.log"))
+        {
+            Timeout = FullHostTimeout,
+            IsHostGate = true
+        });
         void Qemu(string name, string stem, string? preset = null, bool nativeApp = false)
         {
             string serial = Log(stem + "-serial.log"), summary = Log(stem + ".summary.log");
@@ -38,7 +46,12 @@ public static class EvidenceOrchestration
                 args.AddRange(["--marker-preset", preset]);
             if (nativeApp)
                 args.Add("--require-native-app-markers");
-            steps.Add(Tool(name, stem + "-dry-run.log", [..args])with { SerialLog = serial, SummaryLog = summary, MarkerPresets = preset is null ? [] : [preset] });
+            steps.Add(Tool(name, stem + "-dry-run.log", [.. args]) with
+            {
+                SerialLog = serial,
+                SummaryLog = summary,
+                MarkerPresets = preset is null ? [] : [preset]
+            });
         }
 
         Qemu("qemu.dryrun", "qemu-smoke");
@@ -56,7 +69,7 @@ public static class EvidenceOrchestration
         List<string> qcowArgs = ["qemu", "qcow2", "--raw-image", raw, "--qcow2-image", qcow, "--workload-profile", options.WorkloadProfile, "--serial-log", Log("qemu-qcow2-serial.log"), "--summary-log", Log("qemu-qcow2.summary.log")];
         if (!options.RunQcow2RealSmoke)
             qcowArgs.Add("--dry-run");
-        foreach (var(key, value)in new[]
+        foreach (var (key, value) in new[]
         {
             ("--qemu", options.Qemu),
             ("--qemu-img", options.QemuImg),
@@ -66,7 +79,13 @@ public static class EvidenceOrchestration
         )
             if (value.Length != 0)
                 qcowArgs.AddRange([key, value]);
-        steps.Add(Tool("qemu.qcow2." + (options.RunQcow2RealSmoke ? "real" : "dryrun"), "qemu-qcow2-smoke.log", [..qcowArgs])with { Image = qcow, DiskFormat = "qcow2", SerialLog = Log("qemu-qcow2-serial.log"), SummaryLog = Log("qemu-qcow2.summary.log") });
+        steps.Add(Tool("qemu.qcow2." + (options.RunQcow2RealSmoke ? "real" : "dryrun"), "qemu-qcow2-smoke.log", [.. qcowArgs]) with
+        {
+            Image = qcow,
+            DiskFormat = "qcow2",
+            SerialLog = Log("qemu-qcow2-serial.log"),
+            SummaryLog = Log("qemu-qcow2.summary.log")
+        });
         foreach (bool missing in new[]
         {
             false,
@@ -81,7 +100,14 @@ public static class EvidenceOrchestration
                 args.AddRange(["--virsh", Log("missing-virsh")]);
             else
                 args.Add("--dry-run");
-            steps.Add(Tool("libvirt." + (missing ? "missingtool" : "dryrun"), stem + ".log", [..args])with { Image = qcow, DiskFormat = "qcow2", SerialLog = Log(stem + "-serial.log"), SummaryLog = Log(stem + ".summary.log"), DomainXml = Log(stem + ".xml") });
+            steps.Add(Tool("libvirt." + (missing ? "missingtool" : "dryrun"), stem + ".log", [.. args]) with
+            {
+                Image = qcow,
+                DiskFormat = "qcow2",
+                SerialLog = Log(stem + "-serial.log"),
+                SummaryLog = Log(stem + ".summary.log"),
+                DomainXml = Log(stem + ".xml")
+            });
         }
 
         steps.Add(new(prefix + ".git.diffcheck", "git", ["diff", "--check"], Log("git-diff-check.log")));
@@ -104,9 +130,9 @@ public static class EvidenceOrchestration
         try
         {
             var json = JsonNode.Parse(File.ReadAllText(path))!;
-            return (string? )json["schema"] == schema && (string? )json["status"] == status && (string? )json["mode"] == mode && json["steps"]!.AsArray().Count == steps;
+            return (string?)json["schema"] == schema && (string?)json["status"] == status && (string?)json["mode"] == mode && json["steps"]!.AsArray().Count == steps;
         }
-        catch (Exception e)when (e is IOException or JsonException or InvalidOperationException)
+        catch (Exception e) when (e is IOException or JsonException or InvalidOperationException)
         {
             return false;
         }
@@ -155,10 +181,10 @@ public static class EvidenceOrchestration
                     ["workloadProfile"] = options.WorkloadProfile,
                     ["command"] = CommandText(step.Executable, step.Arguments),
                     ["executable"] = step.Executable,
-                    ["arguments"] = new JsonArray(step.Arguments.Select(x => (JsonNode? )JsonValue.Create(x)).ToArray()),
+                    ["arguments"] = new JsonArray(step.Arguments.Select(x => (JsonNode?)JsonValue.Create(x)).ToArray()),
                     ["log"] = Rel(step.LogPath)
                 };
-                foreach (var(name, path)in new[]
+                foreach (var (name, path) in new[]
                 {
                     ("image", step.Image),
                     ("serialLog", step.SerialLog),
@@ -172,7 +198,7 @@ public static class EvidenceOrchestration
                 if (step.DiskFormat.Length != 0)
                     node["diskFormat"] = step.DiskFormat;
                 if (step.MarkerPresets.Count != 0)
-                    node["markerPresets"] = new JsonArray(step.MarkerPresets.Select(x => (JsonNode? )JsonValue.Create(x)).ToArray());
+                    node["markerPresets"] = new JsonArray(step.MarkerPresets.Select(x => (JsonNode?)JsonValue.Create(x)).ToArray());
                 if (step.Name.Contains(".qcow2.", StringComparison.Ordinal))
                 {
                     node["qemuImgDiscovery"] = discovery.DeepClone();
@@ -197,7 +223,7 @@ public static class EvidenceOrchestration
                 ["qcow2ConversionIntent"] = intent.DeepClone(),
                 ["steps"] = results
             };
-            var planned = new JsonArray(steps.Select(x => (JsonNode? )Artifact(x)).ToArray());
+            var planned = new JsonArray(steps.Select(x => (JsonNode?)Artifact(x)).ToArray());
             if (!baseline)
             {
                 var plan = Summary("planned", (JsonArray)planned.DeepClone());
@@ -250,7 +276,12 @@ public static class EvidenceOrchestration
                 string failure = "";
                 try
                 {
-                    var result = await execute(new(step.Executable, step.Arguments, root) { Timeout = step.Timeout, OutputCharacterLimit = 32 * 1024 * 1024, OutputReceived = (text, _) => Write(text) }, cancellation);
+                    var result = await execute(new(step.Executable, step.Arguments, root)
+                    {
+                        Timeout = step.Timeout,
+                        OutputCharacterLimit = 32 * 1024 * 1024,
+                        OutputReceived = (text, _) => Write(text)
+                    }, cancellation);
                     exit = result.Succeeded ? 0 : result.ExitCode == 0 ? 1 : result.ExitCode;
                     if (step.IsHostGate)
                     {
@@ -285,7 +316,7 @@ public static class EvidenceOrchestration
                 WriteJson(summaryPath, Summary("incomplete", (JsonArray)results.DeepClone()));
             }
 
-            int failed = results.Count(x => (int? )x?["exitCode"] != 0);
+            int failed = results.Count(x => (int?)x?["exitCode"] != 0);
             string status = failed == 0 ? "passed" : "failed";
             var summary = Summary(status, results);
             WriteJson(summaryPath, summary);
@@ -381,7 +412,7 @@ public static class EvidenceOrchestration
     private static void WriteJson(string path, JsonNode value) => AtomicReceipt.WriteJson(path, value);
     private static int SelfTest(string logRoot, TextWriter output)
     {
-        foreach (var(name, text, expected)in new (string, string? , bool)[]
+        foreach (var (name, text, expected) in new (string, string?, bool)[]
         {
             ("missing_host_log", null, false),
             ("single_host_pass", "TEST_PASS host.tests\r\n", true),

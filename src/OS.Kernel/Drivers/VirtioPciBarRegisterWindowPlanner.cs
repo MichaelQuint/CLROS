@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public static class VirtioPciBarRegisterWindowPlanner
 {
     public const byte RequiredMappedBarWindowCount = PciBarDecoder.BarCount;

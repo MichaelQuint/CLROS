@@ -50,10 +50,16 @@ public unsafe struct LinuxThreadExecutionBudget
     {
         if (_workers != 0 || workers == 0 || workers > LinuxThreadProgram.MaximumWorkers || now > long.MaxValue ||
             continuingWeb && !application || continuingService && (!application || !continuingWeb) ||
-            diskStaticFull && (!application || !continuingWeb || continuingService)) return false;
-        _diskStaticFull = diskStaticFull; _workers = workers; _application = application || workers > 8; _web = continuingWeb;
-        _service = continuingService; _runnable = continuingService;
-        _started = _last = _lastProgress = now; return true;
+            diskStaticFull && (!application || !continuingWeb || continuingService))
+            return false;
+        _diskStaticFull = diskStaticFull;
+        _workers = workers;
+        _application = application || workers > 8;
+        _web = continuingWeb;
+        _service = continuingService;
+        _runnable = continuingService;
+        _started = _last = _lastProgress = now;
+        return true;
     }
 
     /// <summary>Admit the next supervisor step, before arming another timer or
@@ -64,7 +70,8 @@ public unsafe struct LinuxThreadExecutionBudget
     /// this check must never be used to reject that acknowledgement or drain.</summary>
     public bool Continue(ulong now, ulong epochs, uint step)
     {
-        if (_workers == 0 || epochs >= MaximumEpochs || step >= MaximumSteps) return false;
+        if (_workers == 0 || epochs >= MaximumEpochs || step >= MaximumSteps)
+            return false;
         return Observe(now);
     }
 
@@ -75,8 +82,10 @@ public unsafe struct LinuxThreadExecutionBudget
     {
         if (_workers == 0 || _cancelled || now > long.MaxValue || now < _last ||
             HasElapsedLimit && now - _started >= ElapsedLimitNanoseconds ||
-            _service && _runnable && now - _lastProgress >= ServiceProgressNanoseconds) return false;
-        _last = now; return true;
+            _service && _runnable && now - _lastProgress >= ServiceProgressNanoseconds)
+            return false;
+        _last = now;
+        return true;
     }
 
     /// <summary>Report actual completed syscall/wait/exit progress before each
@@ -89,9 +98,14 @@ public unsafe struct LinuxThreadExecutionBudget
     public bool ObserveProgress(ulong now, ulong completed, bool runnable)
     {
         if (!_service || _workers == 0 || _cancelled || now > long.MaxValue || now < _last || completed < _progress ||
-            _runnable && now - _lastProgress >= ServiceProgressNanoseconds) return false;
-        if (completed > _progress || !_runnable || !runnable) _lastProgress = now;
-        _progress = completed; _runnable = runnable; _last = now; return true;
+            _runnable && now - _lastProgress >= ServiceProgressNanoseconds)
+            return false;
+        if (completed > _progress || !_runnable || !runnable)
+            _lastProgress = now;
+        _progress = completed;
+        _runnable = runnable;
+        _last = now;
+        return true;
     }
 
     /// <summary>Latch one explicit service cancellation. Further operational
@@ -100,8 +114,10 @@ public unsafe struct LinuxThreadExecutionBudget
     /// a timeout/cancellation into application exit or cleanup evidence.</summary>
     public bool RequestCancellation()
     {
-        if (!_service || _workers == 0 || _cancelled) return false;
-        _cancelled = true; return true;
+        if (!_service || _workers == 0 || _cancelled)
+            return false;
+        _cancelled = true;
+        return true;
     }
 
     /// <summary>Observe one actual worker generation before supervisor dispatch.
@@ -112,18 +128,22 @@ public unsafe struct LinuxThreadExecutionBudget
     /// unchanged. Reusing a reaped slot requires ForgetWorker first.</summary>
     public bool ObserveWorker(ulong now, uint worker, ulong calls, bool runnable)
     {
-        if (!_service || _workers == 0 || _cancelled || worker >= _workers || now > long.MaxValue || now < _last) return false;
+        if (!_service || _workers == 0 || _cancelled || worker >= _workers || now > long.MaxValue || now < _last)
+            return false;
         fixed (ulong* observed = _workerCalls)
         fixed (ulong* progress = _workerProgress)
         {
             uint bit = 1U << (int)worker;
             bool armed = (_runnableWorkers & bit) != 0;
-            if (calls < observed[worker] || armed && now - progress[worker] >= ServiceProgressNanoseconds) return false;
-            if (!armed || calls > observed[worker] || !runnable) progress[worker] = now;
+            if (calls < observed[worker] || armed && now - progress[worker] >= ServiceProgressNanoseconds)
+                return false;
+            if (!armed || calls > observed[worker] || !runnable)
+                progress[worker] = now;
             observed[worker] = calls;
             _runnableWorkers = runnable ? _runnableWorkers | bit : _runnableWorkers & ~bit;
         }
-        _last = now; return true;
+        _last = now;
+        return true;
     }
 
     /// <summary>Forget only a generation already reaped off-stack by the trusted
@@ -131,10 +151,15 @@ public unsafe struct LinuxThreadExecutionBudget
     /// it supplies no reap authority and cannot renew another live generation.</summary>
     public bool ForgetWorker(uint worker)
     {
-        if (!_service || _workers == 0 || worker >= _workers) return false;
+        if (!_service || _workers == 0 || worker >= _workers)
+            return false;
         fixed (ulong* observed = _workerCalls)
         fixed (ulong* progress = _workerProgress)
-        { observed[worker] = 0; progress[worker] = 0; }
-        _runnableWorkers &= ~(1U << (int)worker); return true;
+        {
+            observed[worker] = 0;
+            progress[worker] = 0;
+        }
+        _runnableWorkers &= ~(1U << (int)worker);
+        return true;
     }
 }

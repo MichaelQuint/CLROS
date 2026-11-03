@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 
 public readonly struct VirtioNetReceiveRegisterWindowCompletionResult
@@ -47,46 +48,166 @@ public readonly struct VirtioNetReceiveRegisterWindowCompletionResult
         PayloadLength = payloadLength;
     }
 
-    public VirtioNetReceiveRegisterWindowCompletionStatus Status { get; }
-    public bool IsInitialized { get; }
-    public VirtioNetReceiveReadinessStatus ReadinessStatus { get; }
-    public VirtioNetReceiveLifecycleCompletionStatus CompletionStatus { get; }
-    public VirtioNetReceiveLifecyclePublishStatus PublishStatus { get; }
-    public VirtioNetReceiveFrameClassifierStatus ClassifierStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public bool CompletionAttempted { get; }
-    public bool UsesRegisterWindowNotification { get; }
-    public VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus NotificationWindowExecutionStatus { get; }
-    public VirtioPciBarRegisterWindowPlanStatus NotificationRegisterWindowStatus { get; }
-    public VirtioPciBarRegisterWindowAccessExecutionStatus NotificationWindowAccessExecutionStatus { get; }
-    public bool NotificationBarrierSucceeded { get; }
-    public uint NotificationBarrierSequence { get; }
-    public ushort QueueIndex { get; }
-    public ushort QueueNotifyOffset { get; }
-    public ushort PublishedDescriptorCount { get; }
-    public ushort PreviousAvailableRingIndex { get; }
-    public ushort NextAvailableRingIndex { get; }
-    public uint NotifyRelativeOffset { get; }
-    public ushort WriteValue { get; }
-    public uint WriteWidthBytes { get; }
-    public VirtioPciCapabilityType CapabilityType { get; }
-    public byte BarIndex { get; }
-    public VirtioPciRegisterAccessWidth AccessWidth { get; }
-    public uint AccessWidthBytes { get; }
-    public ulong BarRelativeOffset { get; }
-    public ulong WrittenValue { get; }
-    public ushort DescriptorHead { get; }
-    public ushort BufferIndex { get; }
-    public ushort PreviousUsedIndex { get; }
-    public ushort CurrentUsedIndex { get; }
-    public ushort NextUsedIndex { get; }
-    public ushort UsedRingSlot { get; }
-    public uint UsedRingElementOffset { get; }
-    public uint UsedByteCount { get; }
-    public uint FrameBufferBytes { get; }
-    public EthernetPayloadKind PayloadKind { get; }
-    public int PayloadOffset { get; }
-    public int PayloadLength { get; }
+    public VirtioNetReceiveRegisterWindowCompletionStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtioNetReceiveReadinessStatus ReadinessStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveLifecycleCompletionStatus CompletionStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveLifecyclePublishStatus PublishStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveFrameClassifierStatus ClassifierStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public bool CompletionAttempted
+    {
+        get;
+    }
+    public bool UsesRegisterWindowNotification
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus NotificationWindowExecutionStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowPlanStatus NotificationRegisterWindowStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowAccessExecutionStatus NotificationWindowAccessExecutionStatus
+    {
+        get;
+    }
+    public bool NotificationBarrierSucceeded
+    {
+        get;
+    }
+    public uint NotificationBarrierSequence
+    {
+        get;
+    }
+    public ushort QueueIndex
+    {
+        get;
+    }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
+    public uint NotifyRelativeOffset
+    {
+        get;
+    }
+    public ushort WriteValue
+    {
+        get;
+    }
+    public uint WriteWidthBytes
+    {
+        get;
+    }
+    public VirtioPciCapabilityType CapabilityType
+    {
+        get;
+    }
+    public byte BarIndex
+    {
+        get;
+    }
+    public VirtioPciRegisterAccessWidth AccessWidth
+    {
+        get;
+    }
+    public uint AccessWidthBytes
+    {
+        get;
+    }
+    public ulong BarRelativeOffset
+    {
+        get;
+    }
+    public ulong WrittenValue
+    {
+        get;
+    }
+    public ushort DescriptorHead
+    {
+        get;
+    }
+    public ushort BufferIndex
+    {
+        get;
+    }
+    public ushort PreviousUsedIndex
+    {
+        get;
+    }
+    public ushort CurrentUsedIndex
+    {
+        get;
+    }
+    public ushort NextUsedIndex
+    {
+        get;
+    }
+    public ushort UsedRingSlot
+    {
+        get;
+    }
+    public uint UsedRingElementOffset
+    {
+        get;
+    }
+    public uint UsedByteCount
+    {
+        get;
+    }
+    public uint FrameBufferBytes
+    {
+        get;
+    }
+    public EthernetPayloadKind PayloadKind
+    {
+        get;
+    }
+    public int PayloadOffset
+    {
+        get;
+    }
+    public int PayloadLength
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetReceiveRegisterWindowCompletionStatus.Success;
 
     internal static VirtioNetReceiveRegisterWindowCompletionResult Create(VirtioNetReceiveRegisterWindowCompletionStatus status, VirtioNetReceiveReadinessResult readiness, VirtioNetReceiveLifecycleCompletionResult completion, bool completionAttempted)

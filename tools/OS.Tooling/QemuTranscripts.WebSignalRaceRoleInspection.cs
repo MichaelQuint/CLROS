@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied complete HTTP/actor role consistency, preserving all

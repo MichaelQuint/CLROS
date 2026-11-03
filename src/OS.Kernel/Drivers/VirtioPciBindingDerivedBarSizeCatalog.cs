@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioPciBindingDerivedBarSizeCatalog
 {
     public const bool RequiresCallerProvidedCandidates = true;

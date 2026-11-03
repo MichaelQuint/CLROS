@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow <=4MiB original PCAP and bounded raw serial,
@@ -19,7 +20,7 @@ public static partial class QemuTranscripts
     {
         if (pcap is null || raw is null)
             throw new ToolFailure("service_quota_nic_input");
-        Need(raw.Length is> 0 and <= 128 * 1024 * 1024, "service_quota_nic_input");
+        Need(raw.Length is > 0 and <= 128 * 1024 * 1024, "service_quota_nic_input");
         _ = QemuEthernetCapture.Inspect(pcap, parent.FrameAnchor);
         // Shared accounting is downstream of strict flow validation in actual
         // consumers. Guard its direct Ethernet-header reads in this value seam.

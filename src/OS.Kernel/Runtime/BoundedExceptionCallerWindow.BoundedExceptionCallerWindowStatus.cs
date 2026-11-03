@@ -2,6 +2,7 @@ using System;
 using OS.Boot;
 
 namespace OS.Kernel.Runtime;
+
 public enum BoundedExceptionCallerWindowStatus : byte
 {
     Uninitialized,

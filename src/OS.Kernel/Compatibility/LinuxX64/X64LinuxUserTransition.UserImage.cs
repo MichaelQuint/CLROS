@@ -1,4 +1,5 @@
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class X64LinuxUserTransition
 {
     /// <summary>User-only saved image. This is copied storage, not an FXRSTOR

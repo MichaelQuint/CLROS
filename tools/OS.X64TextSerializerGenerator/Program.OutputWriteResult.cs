@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 
 namespace OS.X64TextSerializerGenerator;
+
 internal static partial class Program
 {
     private readonly record struct OutputWriteResult(bool Success, string? State, string? ErrorCode)

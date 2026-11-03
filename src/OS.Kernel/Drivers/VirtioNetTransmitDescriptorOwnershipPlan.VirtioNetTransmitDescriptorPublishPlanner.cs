@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioNetTransmitDescriptorPublishPlanner
 {
     public const bool PerformsMmio = false;

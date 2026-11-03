@@ -1,4 +1,5 @@
 namespace OS.Kernel.Threading;
+
 public static unsafe partial class X64TimerInterrupt
 {
     /// <summary>Disjoint fields in the live R12 control extent. R13 independently

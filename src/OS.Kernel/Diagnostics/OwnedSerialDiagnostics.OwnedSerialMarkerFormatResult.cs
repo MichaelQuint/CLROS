@@ -2,6 +2,7 @@ using OS.Kernel.Platform;
 using OS.Std.Text;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct OwnedSerialMarkerFormatResult
 {
     private OwnedSerialMarkerFormatResult(bool isInitialized, OwnedSerialMarkerFormatStatus status, int markerBytes, int bytesWritten, int requiredBytes)
@@ -13,11 +14,26 @@ public readonly struct OwnedSerialMarkerFormatResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool IsInitialized { get; }
-    public OwnedSerialMarkerFormatStatus Status { get; }
-    public int MarkerBytes { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public OwnedSerialMarkerFormatStatus Status
+    {
+        get;
+    }
+    public int MarkerBytes
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == OwnedSerialMarkerFormatStatus.Success && MarkerBytes > 0 && RequiredBytes == MarkerBytes + OwnedSerialDiagnostics.LineEndingBytes && BytesWritten == RequiredBytes;
 
     public static OwnedSerialMarkerFormatResult Formatted(int markerBytes)

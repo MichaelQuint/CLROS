@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct DhcpClientTransactionPlannerResult
 {
     private DhcpClientTransactionPlannerResult(DhcpClientTransactionPlannerStatus status, DhcpClientState state, DhcpUdpFrameStatus frameStatus, DhcpClientStatus clientStatus, DhcpMessageStatus messageStatus, PacketParseStatus packetStatus, UdpReceiveDispatchStatus udpStatus, DhcpLeaseConfigurationStatus leaseStatus, uint transactionId, MacAddress clientMac, Ipv4Address offeredAddress, Ipv4Address serverIdentifier, DhcpLeaseConfiguration leaseConfiguration, int bytesWritten, int payloadOffset, int payloadLength)
@@ -22,24 +23,75 @@ public readonly struct DhcpClientTransactionPlannerResult
         PayloadLength = payloadLength;
     }
 
-    public DhcpClientTransactionPlannerStatus Status { get; }
-    public bool IsInitialized { get; }
+    public DhcpClientTransactionPlannerStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == DhcpClientTransactionPlannerStatus.Success;
-    public DhcpClientState State { get; }
-    public DhcpUdpFrameStatus FrameStatus { get; }
-    public DhcpClientStatus ClientStatus { get; }
-    public DhcpMessageStatus MessageStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public UdpReceiveDispatchStatus UdpStatus { get; }
-    public DhcpLeaseConfigurationStatus LeaseStatus { get; }
-    public uint TransactionId { get; }
-    public MacAddress ClientMac { get; }
-    public Ipv4Address OfferedAddress { get; }
-    public Ipv4Address ServerIdentifier { get; }
-    public DhcpLeaseConfiguration LeaseConfiguration { get; }
-    public int BytesWritten { get; }
-    public int PayloadOffset { get; }
-    public int PayloadLength { get; }
+    public DhcpClientState State
+    {
+        get;
+    }
+    public DhcpUdpFrameStatus FrameStatus
+    {
+        get;
+    }
+    public DhcpClientStatus ClientStatus
+    {
+        get;
+    }
+    public DhcpMessageStatus MessageStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public UdpReceiveDispatchStatus UdpStatus
+    {
+        get;
+    }
+    public DhcpLeaseConfigurationStatus LeaseStatus
+    {
+        get;
+    }
+    public uint TransactionId
+    {
+        get;
+    }
+    public MacAddress ClientMac
+    {
+        get;
+    }
+    public Ipv4Address OfferedAddress
+    {
+        get;
+    }
+    public Ipv4Address ServerIdentifier
+    {
+        get;
+    }
+    public DhcpLeaseConfiguration LeaseConfiguration
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int PayloadOffset
+    {
+        get;
+    }
+    public int PayloadLength
+    {
+        get;
+    }
 
     public static DhcpClientTransactionPlannerResult Success(DhcpClientState state, uint transactionId, MacAddress clientMac, Ipv4Address offeredAddress, Ipv4Address serverIdentifier, DhcpLeaseConfiguration leaseConfiguration, int bytesWritten, int payloadOffset, int payloadLength)
     {

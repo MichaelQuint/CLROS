@@ -1,6 +1,7 @@
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     public static IReadOnlyList<string> M16LinuxThreadMarkers { get; } = Array.AsReadOnly<string>(["TEST_START m16-008", "M16_006_POLICY", "M16_007_POLICY", "M16_005_ARMED", "M16_008_BOUND", "M16_008_CALL", "M16_008_SUPERVISOR", "M16_008_RESUME", "M16_008_EXIT", "M16_008_REAP", "M16_005_WRITE", "M16_008_OWNER_END", "M16_008_RESTORE", "CLROS_M16_008_READY", "TEST_PASS m16-008"]);
@@ -63,7 +64,7 @@ public static partial class QemuTranscripts
             {
                 parentIdentity = row["identity"];
                 pid = row["valueBits"];
-                Need(parentIdentity >> 32 == 1 && (uint)parentIdentity == 1 && pid is> 0 and < int.MaxValue, "m16_008_parent_identity");
+                Need(parentIdentity >> 32 == 1 && (uint)parentIdentity == 1 && pid is > 0 and < int.MaxValue, "m16_008_parent_identity");
             }
 
             if (!isChild && ordinal == 9)
@@ -254,7 +255,7 @@ public static partial class QemuTranscripts
             if (!isChild && index == 0)
             {
                 pid = row["valueBits"];
-                Need(pid is> 0 and < int.MaxValue, "m16_008_pipe_pid");
+                Need(pid is > 0 and < int.MaxValue, "m16_008_pipe_pid");
             }
 
             if (isChild && index == 0 || !isChild && (index == 5 || write && index == 6 || !write && !shutdown && index == block))

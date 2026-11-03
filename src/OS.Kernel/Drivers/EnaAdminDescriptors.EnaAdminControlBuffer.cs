@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly struct EnaAdminControlBuffer
@@ -10,9 +11,18 @@ public readonly struct EnaAdminControlBuffer
         Reserved = reserved;
     }
 
-    public uint Length { get; }
-    public ulong PhysicalAddress { get; }
-    public ushort Reserved { get; }
+    public uint Length
+    {
+        get;
+    }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
+    public ushort Reserved
+    {
+        get;
+    }
     public uint AddressLow => (uint)PhysicalAddress;
     public ushort AddressHigh => (ushort)(PhysicalAddress >> 32);
 }

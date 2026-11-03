@@ -10,10 +10,16 @@ public sealed partial class NativeAotSocketProgram
 {
     internal const int MaximumDisassemblyBytes = 32 * 1024 * 1024;
     private readonly NativeAotInstructionIndex index;
-    internal string SourceRoot { get; }
+    internal string SourceRoot
+    {
+        get;
+    }
     /// <summary>The canonical package selects the unchanged app's --async mode.</summary>
 
-    public bool Asynchronous { get; }
+    public bool Asynchronous
+    {
+        get;
+    }
     /// <summary>Reviewed complete index identity of this prepared lookup.</summary>
 
     public Inspection Metadata => Report(index);

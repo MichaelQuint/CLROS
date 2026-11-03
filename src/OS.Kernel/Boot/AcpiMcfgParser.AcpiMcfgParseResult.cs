@@ -2,6 +2,7 @@ using OS.Drivers;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public readonly struct AcpiMcfgParseResult
 {
     private AcpiMcfgParseResult(AcpiMcfgParseStatus status, int segmentCount, uint declaredLength, uint requiredLength, int requiredSegmentCapacity, int entryIndex)
@@ -14,12 +15,30 @@ public readonly struct AcpiMcfgParseResult
         EntryIndex = entryIndex;
     }
 
-    public AcpiMcfgParseStatus Status { get; }
-    public int SegmentCount { get; }
-    public uint DeclaredLength { get; }
-    public uint RequiredLength { get; }
-    public int RequiredSegmentCapacity { get; }
-    public int EntryIndex { get; }
+    public AcpiMcfgParseStatus Status
+    {
+        get;
+    }
+    public int SegmentCount
+    {
+        get;
+    }
+    public uint DeclaredLength
+    {
+        get;
+    }
+    public uint RequiredLength
+    {
+        get;
+    }
+    public int RequiredSegmentCapacity
+    {
+        get;
+    }
+    public int EntryIndex
+    {
+        get;
+    }
     public bool Succeeded => Status == AcpiMcfgParseStatus.Success;
 
     public static AcpiMcfgParseResult Success(int segmentCount, uint declaredLength)

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciBusScanResult
 {
     private PciBusScanResult(PciBusScanStatus status, PciBusScanRange range, int deviceCount, int functionReadCount, int requiredDeviceCapacity, byte failingBus, byte failingDevice, byte failingFunction, PciConfigurationSpaceReadStatus readerStatus, PciConfigurationHeaderStatus headerStatus, bool isInitialized)
@@ -16,17 +17,50 @@ public readonly struct PciBusScanResult
         IsInitialized = isInitialized;
     }
 
-    public PciBusScanStatus Status { get; }
-    public PciBusScanRange Range { get; }
-    public int DeviceCount { get; }
-    public int FunctionReadCount { get; }
-    public int RequiredDeviceCapacity { get; }
-    public byte FailingBus { get; }
-    public byte FailingDevice { get; }
-    public byte FailingFunction { get; }
-    public PciConfigurationSpaceReadStatus ReaderStatus { get; }
-    public PciConfigurationHeaderStatus HeaderStatus { get; }
-    public bool IsInitialized { get; }
+    public PciBusScanStatus Status
+    {
+        get;
+    }
+    public PciBusScanRange Range
+    {
+        get;
+    }
+    public int DeviceCount
+    {
+        get;
+    }
+    public int FunctionReadCount
+    {
+        get;
+    }
+    public int RequiredDeviceCapacity
+    {
+        get;
+    }
+    public byte FailingBus
+    {
+        get;
+    }
+    public byte FailingDevice
+    {
+        get;
+    }
+    public byte FailingFunction
+    {
+        get;
+    }
+    public PciConfigurationSpaceReadStatus ReaderStatus
+    {
+        get;
+    }
+    public PciConfigurationHeaderStatus HeaderStatus
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PciBusScanStatus.Success;
 
     public static PciBusScanResult Success(PciBusScanRange range, int deviceCount, int functionReadCount)

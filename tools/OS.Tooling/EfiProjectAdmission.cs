@@ -36,7 +36,7 @@ public static class EfiProjectAdmission
             {
                 xml = ReadXml(project);
             }
-            catch (Exception error)when (error is IOException or XmlException)
+            catch (Exception error) when (error is IOException or XmlException)
             {
                 throw new ToolFailure("project_malformed", project);
             }
@@ -99,7 +99,7 @@ public static class EfiProjectAdmission
         {
             return new(false, failure.Reason, failure.Detail, EfiContracts.CompileItems.Count, 0, 0);
         }
-        catch (Exception error)when (error is IOException or XmlException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception error) when (error is IOException or XmlException or UnauthorizedAccessException or ArgumentException)
         {
             return new(false, "source_admission_failed", error.GetType().Name, 0, 0, 0);
         }
@@ -135,7 +135,7 @@ public static class EfiProjectAdmission
         {
             targets = ReadXml(path);
         }
-        catch (Exception error)when (error is IOException or XmlException)
+        catch (Exception error) when (error is IOException or XmlException)
         {
             throw new ToolFailure("serializer_targets_malformed", path);
         }
@@ -147,10 +147,10 @@ public static class EfiProjectAdmission
         XmlElement? owner = cleanup.Length == 1 ? cleanup[0].ParentNode as XmlElement : null;
         Require(cleanup.Length == 1 && owner is not null && owner.LocalName == "Target" && owner.Attributes.Count == 4 && owner.GetAttribute("Name") == "RemoveClrosX64InstructionPublicationSerializerToolOutput" && owner.GetAttribute("AfterTargets") == "CoreClean" && owner.GetAttribute("DependsOnTargets") == "TrackClrosX64InstructionPublicationSerializerOutput" && owner.GetAttribute("Condition") == "'$(NativeIntermediateOutputPath)' != ''" && cleanup[0].Attributes.Count == 2 && cleanup[0].GetAttribute("Directories") == "$(_ClrosX64SerializerTrackedToolRoot)" && cleanup[0].GetAttribute("Condition") == "Exists('$(_ClrosX64SerializerTrackedToolRoot)')" && Elements(cleanup[0], "*").Length == 0, "serializer_targets_cleanup_invalid");
         string[] outputNames = ["_ClrosX64SerializerGeneratorProjectSha256", "_ClrosX64SerializerToolsPropsSha256", "_ClrosX64SerializerRootPropsSha256", "_ClrosX64SerializerRootTargetsSha256", "_ClrosX64SerializerActualSha256", "_ClrosCheckedReferenceActualSha256", "_ClrosInterfaceDispatchActualSha256", "_ClrosSimpleCatchActualSha256", "_ClrosSingleFinallyActualSha256", "_ClrosRethrowInnerActualSha256", "_ClrosRethrowOuterActualSha256"];
-        outputNames = [..outputNames, "_ClrosNestedFinallyActualSha256"];
-        outputNames = [..outputNames, "_ClrosFrameDispatchActualSha256"];
-        outputNames = [..outputNames, "_ClrosConstructorFailureActualSha256"];
-        outputNames = [..outputNames, "_ClrosFilteredCatchActualSha256", "_ClrosFilterInvokeActualSha256"];
+        outputNames = [.. outputNames, "_ClrosNestedFinallyActualSha256"];
+        outputNames = [.. outputNames, "_ClrosFrameDispatchActualSha256"];
+        outputNames = [.. outputNames, "_ClrosConstructorFailureActualSha256"];
+        outputNames = [.. outputNames, "_ClrosFilteredCatchActualSha256", "_ClrosFilterInvokeActualSha256"];
         var outputs = Elements(targets, "//Output");
         Require(outputs.Length == outputNames.Length, "serializer_targets_output_injection");
         foreach (string name in outputNames)
@@ -161,7 +161,7 @@ public static class EfiProjectAdmission
             generator = ReadXml(Path.Combine(Path.GetDirectoryName(path)!, "OS.X64TextSerializerGenerator.csproj"));
             tools = ReadXml(Path.Combine(root, "tools/Directory.Build.props"));
         }
-        catch (Exception error)when (error is IOException or XmlException)
+        catch (Exception error) when (error is IOException or XmlException)
         {
             throw new ToolFailure("serializer_build_input_malformed", error.GetType().Name);
         }
@@ -188,7 +188,7 @@ public static class EfiProjectAdmission
         }
 
         Require(cursor is not null, "repository_root_unreachable");
-        foreach ((string name, string hash)in new[]
+        foreach ((string name, string hash) in new[]
         {
             ("Directory.Build.props", EfiContracts.RootPropsCanonicalXmlSha256),
             ("Directory.Build.targets", EfiContracts.RootTargetsCanonicalXmlSha256)
@@ -203,7 +203,7 @@ public static class EfiProjectAdmission
             {
                 xml = ReadXml(path);
             }
-            catch (Exception error)when (error is IOException or XmlException)
+            catch (Exception error) when (error is IOException or XmlException)
             {
                 throw new ToolFailure("build_customization_malformed", path);
             }
@@ -614,7 +614,7 @@ public static class EfiProjectAdmission
             properties["ClrosBootPolicy"] = profile.BootPolicy;
             foreach (var pair in profile.Flags)
                 properties[pair.Key] = pair.Value ? "true" : "false";
-            string[] requested = ["Configuration", "ClrosBootPolicy", "DefineConstants", "EnableDefaultCompileItems", "NoStdLib", "DisableImplicitFrameworkReferences", ..profile.Flags.Keys, ..IsolationKeys];
+            string[] requested = ["Configuration", "ClrosBootPolicy", "DefineConstants", "EnableDefaultCompileItems", "NoStdLib", "DisableImplicitFrameworkReferences", .. profile.Flags.Keys, .. IsolationKeys];
             var evaluation = Query(root, dotnet, project, properties, requested, "Compile,ProjectReference,Reference,Analyzer,_ClrosX64SerializerGeneratorInput", "evaluated_project", timeoutSeconds, outputCharacters);
             var values = Object(evaluation["Properties"], "evaluated_project_malformed");
             var items = Object(evaluation["Items"], "evaluated_project_malformed");
@@ -652,7 +652,7 @@ public static class EfiProjectAdmission
         generatorProperties["DefaultExcludesInProjectFolder"] = "bin/**";
         generatorProperties["CustomBeforeMicrosoftCommonTargets"] = targets;
         generatorProperties["DirectoryBuildPropsPath"] = Path.Combine(root, "tools/Directory.Build.props");
-        var generator = Query(root, dotnet, Path.Combine(serializerDirectory, "OS.X64TextSerializerGenerator.csproj"), generatorProperties, ["EnableDefaultCompileItems", ..IsolationKeys], "Compile,ProjectReference,Reference,PackageReference,Analyzer", "serializer_generator_evaluation", timeoutSeconds, outputCharacters);
+        var generator = Query(root, dotnet, Path.Combine(serializerDirectory, "OS.X64TextSerializerGenerator.csproj"), generatorProperties, ["EnableDefaultCompileItems", .. IsolationKeys], "Compile,ProjectReference,Reference,PackageReference,Analyzer", "serializer_generator_evaluation", timeoutSeconds, outputCharacters);
         var generatorValues = Object(generator["Properties"], "serializer_generator_evaluation_malformed");
         var generatorItems = Object(generator["Items"], "serializer_generator_evaluation_malformed");
         foreach (string key in IsolationKeys)

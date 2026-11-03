@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow strict wire/attempt/selected JSON and an
@@ -108,7 +109,7 @@ public static partial class QemuTranscripts
             var stream = streams[i];
             if (stream is null || stream.Requests is null || stream.Responses is null || stream.Requests.FirstRanges is null || stream.Responses.FirstRanges is null)
                 throw new ToolFailure("web_race_stream_join_input");
-            Need(stream.RemotePort is> 0 and <= 65535 && ports.Add(stream.RemotePort), "web_race_stream_join_ports");
+            Need(stream.RemotePort is > 0 and <= 65535 && ports.Add(stream.RemotePort), "web_race_stream_join_ports");
             Need(stream.Requests.Extent >= 0 && stream.Responses.Extent >= 0 && (long)stream.Requests.Extent + stream.Responses.Extent <= QuotaPacketMaximumExtent - extent && stream.Requests.FirstRanges.Count >= 0 && stream.Responses.FirstRanges.Count >= 0 && (long)stream.Requests.FirstRanges.Count + stream.Responses.FirstRanges.Count <= MaximumServiceWireRanges - ranges, "web_race_stream_join_packet_bound");
             extent += stream.Requests.Extent + stream.Responses.Extent;
             ranges += stream.Requests.FirstRanges.Count + stream.Responses.FirstRanges.Count;

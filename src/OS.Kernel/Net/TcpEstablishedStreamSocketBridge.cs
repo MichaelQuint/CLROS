@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Net;
+
 public static class TcpEstablishedStreamSocketBridge
 {
     public const bool UsesTcpReceiveResult = true;

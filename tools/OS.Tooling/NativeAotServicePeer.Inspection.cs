@@ -8,6 +8,7 @@ using System.Text.Json;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServicePeer
 {
     /// <summary>Value-only observations of supplied peer output, never execution authority.</summary>
@@ -16,6 +17,9 @@ public static partial class NativeAotServicePeer
     {
         /// <summary>Supplied v2 lifecycle values only; null for v1. This grants no execution authority.</summary>
 
-        public NativeAotServiceLifecyclePeer.Observation? Lifecycle { get; init; }
+        public NativeAotServiceLifecyclePeer.Observation? Lifecycle
+        {
+            get; init;
+        }
     }
 }

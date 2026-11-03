@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioNetTransmitRegisterWindowReclaimResult
 {
     private VirtioNetTransmitRegisterWindowReclaimResult(bool isInitialized, VirtioNetTransmitRegisterWindowReclaimStatus status, VirtioNetTransmitRegisterWindowReadinessStatus readinessStatus, VirtioNetTransmitCompletionPlanStatus completionPlanStatus, VirtioNetTransmitDescriptorOwnershipStatus ownershipStatus, bool completionPlanAttempted, bool ownershipReclaimAttempted, bool usesRegisterWindowNotification, VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus notificationWindowExecutionStatus, VirtioPciBarRegisterWindowPlanStatus notificationRegisterWindowStatus, VirtioPciBarRegisterWindowAccessExecutionStatus notificationWindowAccessExecutionStatus, bool notificationBarrierSucceeded, uint notificationBarrierSequence, ushort queueIndex, ushort queueNotifyOffset, ushort publishedDescriptorCount, ushort previousAvailableRingIndex, ushort nextAvailableRingIndex, uint notifyRelativeOffset, ushort writeValue, uint writeWidthBytes, VirtioPciCapabilityType capabilityType, byte barIndex, VirtioPciRegisterAccessWidth accessWidth, uint accessWidthBytes, ulong barRelativeOffset, ulong writtenValue, ushort previousUsedIndex, ushort currentUsedIndex, ushort nextUsedIndex, ushort usedRingSlot, uint usedRingElementOffset, uint descriptorHead, uint usedByteCount, ushort reclaimedDescriptorCount, ushort headerDescriptorIndex, ushort frameDescriptorIndex, int stateTableLength, int requiredStateTableLength, ushort descriptorsFreed)
@@ -45,46 +46,166 @@ public readonly struct VirtioNetTransmitRegisterWindowReclaimResult
         DescriptorsFreed = descriptorsFreed;
     }
 
-    public VirtioNetTransmitRegisterWindowReclaimStatus Status { get; }
-    public VirtioNetTransmitRegisterWindowReadinessStatus ReadinessStatus { get; }
-    public VirtioNetTransmitCompletionPlanStatus CompletionPlanStatus { get; }
-    public VirtioNetTransmitDescriptorOwnershipStatus OwnershipStatus { get; }
-    public bool CompletionPlanAttempted { get; }
-    public bool OwnershipReclaimAttempted { get; }
-    public bool UsesRegisterWindowNotification { get; }
-    public VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus NotificationWindowExecutionStatus { get; }
-    public VirtioPciBarRegisterWindowPlanStatus NotificationRegisterWindowStatus { get; }
-    public VirtioPciBarRegisterWindowAccessExecutionStatus NotificationWindowAccessExecutionStatus { get; }
-    public bool NotificationBarrierSucceeded { get; }
-    public uint NotificationBarrierSequence { get; }
-    public ushort QueueIndex { get; }
-    public ushort QueueNotifyOffset { get; }
-    public ushort PublishedDescriptorCount { get; }
-    public ushort PreviousAvailableRingIndex { get; }
-    public ushort NextAvailableRingIndex { get; }
-    public uint NotifyRelativeOffset { get; }
-    public ushort WriteValue { get; }
-    public uint WriteWidthBytes { get; }
-    public VirtioPciCapabilityType CapabilityType { get; }
-    public byte BarIndex { get; }
-    public VirtioPciRegisterAccessWidth AccessWidth { get; }
-    public uint AccessWidthBytes { get; }
-    public ulong BarRelativeOffset { get; }
-    public ulong WrittenValue { get; }
-    public ushort PreviousUsedIndex { get; }
-    public ushort CurrentUsedIndex { get; }
-    public ushort NextUsedIndex { get; }
-    public ushort UsedRingSlot { get; }
-    public uint UsedRingElementOffset { get; }
-    public uint DescriptorHead { get; }
-    public uint UsedByteCount { get; }
-    public ushort ReclaimedDescriptorCount { get; }
-    public ushort HeaderDescriptorIndex { get; }
-    public ushort FrameDescriptorIndex { get; }
-    public int StateTableLength { get; }
-    public int RequiredStateTableLength { get; }
-    public ushort DescriptorsFreed { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetTransmitRegisterWindowReclaimStatus Status
+    {
+        get;
+    }
+    public VirtioNetTransmitRegisterWindowReadinessStatus ReadinessStatus
+    {
+        get;
+    }
+    public VirtioNetTransmitCompletionPlanStatus CompletionPlanStatus
+    {
+        get;
+    }
+    public VirtioNetTransmitDescriptorOwnershipStatus OwnershipStatus
+    {
+        get;
+    }
+    public bool CompletionPlanAttempted
+    {
+        get;
+    }
+    public bool OwnershipReclaimAttempted
+    {
+        get;
+    }
+    public bool UsesRegisterWindowNotification
+    {
+        get;
+    }
+    public VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus NotificationWindowExecutionStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowPlanStatus NotificationRegisterWindowStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowAccessExecutionStatus NotificationWindowAccessExecutionStatus
+    {
+        get;
+    }
+    public bool NotificationBarrierSucceeded
+    {
+        get;
+    }
+    public uint NotificationBarrierSequence
+    {
+        get;
+    }
+    public ushort QueueIndex
+    {
+        get;
+    }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
+    public uint NotifyRelativeOffset
+    {
+        get;
+    }
+    public ushort WriteValue
+    {
+        get;
+    }
+    public uint WriteWidthBytes
+    {
+        get;
+    }
+    public VirtioPciCapabilityType CapabilityType
+    {
+        get;
+    }
+    public byte BarIndex
+    {
+        get;
+    }
+    public VirtioPciRegisterAccessWidth AccessWidth
+    {
+        get;
+    }
+    public uint AccessWidthBytes
+    {
+        get;
+    }
+    public ulong BarRelativeOffset
+    {
+        get;
+    }
+    public ulong WrittenValue
+    {
+        get;
+    }
+    public ushort PreviousUsedIndex
+    {
+        get;
+    }
+    public ushort CurrentUsedIndex
+    {
+        get;
+    }
+    public ushort NextUsedIndex
+    {
+        get;
+    }
+    public ushort UsedRingSlot
+    {
+        get;
+    }
+    public uint UsedRingElementOffset
+    {
+        get;
+    }
+    public uint DescriptorHead
+    {
+        get;
+    }
+    public uint UsedByteCount
+    {
+        get;
+    }
+    public ushort ReclaimedDescriptorCount
+    {
+        get;
+    }
+    public ushort HeaderDescriptorIndex
+    {
+        get;
+    }
+    public ushort FrameDescriptorIndex
+    {
+        get;
+    }
+    public int StateTableLength
+    {
+        get;
+    }
+    public int RequiredStateTableLength
+    {
+        get;
+    }
+    public ushort DescriptorsFreed
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetTransmitRegisterWindowReclaimStatus.Success;
 
     internal static VirtioNetTransmitRegisterWindowReclaimResult Create(VirtioNetTransmitRegisterWindowReclaimStatus status, VirtioNetTransmitRegisterWindowReadinessResult readiness, VirtioNetTransmitCompletionPlanResult completion, VirtioNetTransmitDescriptorOwnershipPlanResult ownershipReclaim, bool completionPlanAttempted, bool ownershipReclaimAttempted, ushort previousUsedIndex)

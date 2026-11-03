@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Manifest;
+
 public readonly struct NativeAppPayloadHeader
 {
     public const ushort SupportedVersion = 0;
@@ -18,10 +19,22 @@ public readonly struct NativeAppPayloadHeader
         EntryOffset = entryOffset;
     }
 
-    public ushort Version { get; }
-    public ushort HeaderSizeValue { get; }
-    public uint Flags { get; }
-    public ulong EntryOffset { get; }
+    public ushort Version
+    {
+        get;
+    }
+    public ushort HeaderSizeValue
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
+    public ulong EntryOffset
+    {
+        get;
+    }
 
     public static NativeAppPayloadHeaderResult Parse(ReadOnlySpan<byte> payload)
     {

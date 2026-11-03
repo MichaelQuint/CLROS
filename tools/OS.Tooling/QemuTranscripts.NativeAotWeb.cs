@@ -4,9 +4,10 @@ using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
-    internal static IReadOnlyList<string> WebMarkers() => [..SocketMarkers(true).TakeWhile(x => x != "TEST_START m16-011"), "TEST_START m10.004", ..M16LinuxSignalMarkers.Take(3), "M16_011_BOUND ", "M16_005_ARMED", "M16_008_BOUND", "M16_008_BUDGET", "TEST_START m10.006", "M10_004_ENTER", "M10_004_CONFIG", "M10_006_STARTUP", "M10_006_BIND", "M10_004_LISTEN", "M10_004_LIVE", "CLROS_M10_004_READY", "TEST_PASS m10.004", "CLROS_M10_006_READY", "TEST_PASS m10.006", "TEST_START m10.005", "M10_005_LOGS", "CLROS_M10_005_READY", "TEST_PASS m10.005"];
+    internal static IReadOnlyList<string> WebMarkers() => [.. SocketMarkers(true).TakeWhile(x => x != "TEST_START m16-011"), "TEST_START m10.004", .. M16LinuxSignalMarkers.Take(3), "M16_011_BOUND ", "M16_005_ARMED", "M16_008_BOUND", "M16_008_BUDGET", "TEST_START m10.006", "M10_004_ENTER", "M10_004_CONFIG", "M10_006_STARTUP", "M10_006_BIND", "M10_004_LISTEN", "M10_004_LIVE", "CLROS_M10_004_READY", "TEST_PASS m10.004", "CLROS_M10_006_READY", "TEST_PASS m10.006", "TEST_START m10.005", "M10_005_LOGS", "CLROS_M10_005_READY", "TEST_PASS m10.005"];
     // This consumer checks borrowed observations only. QemuSmoke owns current
     // native/source/image admission, the actual runner and the final success.
     internal static int InspectWebRun(string root, QemuSmokeOptions options, QemuSmokePlan plan, ProcessResult runner, TextWriter output, NativeAotWebProgram program, WebRunnerContext context)
@@ -264,7 +265,7 @@ public static partial class QemuTranscripts
                     bool output = call["nr"] is 1 or 20 && call["a0"] is 1 or 2 && unchecked((long)call["valueBits"]) > 0;
                     Need(pending == 0 ? !output : output && call["a0"] == channel && call["valueBits"] == (ulong)pending && call["action"] == 1 && call["status"] == 1, "web_startup_write_call");
                     if (requireLogging && output)
-                        Need(call["nr"] == 1 ? call["a2"] is> 0 and <= LinuxDescriptorServices.MaximumIo && call["valueBits"] <= call["a2"] : call["a2"] is> 0 and <= LinuxDescriptorServices.MaximumVectors, "web_logging_write_request");
+                        Need(call["nr"] == 1 ? call["a2"] is > 0 and <= LinuxDescriptorServices.MaximumIo && call["valueBits"] <= call["a2"] : call["a2"] is > 0 and <= LinuxDescriptorServices.MaximumVectors, "web_logging_write_request");
                     foreach (var part in pendingParts)
                     {
                         byte* bytes = (part.Fd == 1 ? outputSource : source) + part.Offset;
@@ -372,7 +373,7 @@ public static partial class QemuTranscripts
 
     private static WebObservationReport ReadWebObservations(ReadOnlySpan<byte> raw, uint arguments, uint environment, uint settingsBytes, Func<ulong, bool>? syscall, Func<ulong, bool>? instruction)
     {
-        Need(arguments == 5 && environment is >= 2 and <= 4 && settingsBytes is> 0 and <= 65536, "web_observation_policy");
+        Need(arguments == 5 && environment is >= 2 and <= 4 && settingsBytes is > 0 and <= 65536, "web_observation_policy");
         var framed = NativeAotThreadingOutput.ReadWeb(raw);
         int last = framed.NormalizedTail.LastIndexOf("\r\n", StringComparison.Ordinal);
         Need(last >= 0, "web_observation_records");
@@ -428,7 +429,7 @@ public static partial class QemuTranscripts
         const string liveSuffix = " owner=retained externalHttp=required";
         Need(rows[positions[3]].EndsWith(liveSuffix, StringComparison.Ordinal) && positions[4] == positions[3] + 1 && positions[5] == positions[4] + 1, "web_observation_live");
         var live = ReadRecord(rows[positions[3]][..^liveSuffix.Length], "M10_004_LIVE", "argc:dec", "envc:dec", "configBytes:dec", "bindFd:dec", "stdoutBytes:dec", "stderrBytes:dec", "active:dec", "clock:dec");
-        Need(live["argc"] == arguments && live["envc"] == environment && live["configBytes"] == settingsBytes && live["bindFd"] == listen["fd"] && live["active"] is> 0 and <= 16 && live["clock"] > 0, "web_observation_live");
+        Need(live["argc"] == arguments && live["envc"] == environment && live["configBytes"] == settingsBytes && live["bindFd"] == listen["fd"] && live["active"] is > 0 and <= 16 && live["clock"] > 0, "web_observation_live");
         int writes = 0, stdout = 0, stderr = 0, pending = 0;
         uint channel = 0;
         for (int i = 0; i < rows.Length; i++)
@@ -454,7 +455,7 @@ public static partial class QemuTranscripts
                 bool output = call["nr"] is 1 or 20 && call["a0"] is 1 or 2 && unchecked((long)call["valueBits"]) > 0;
                 Need(pending == 0 ? !output : output && call["a0"] == channel && call["valueBits"] == (ulong)pending, "web_observation_write_call");
                 if (output)
-                    Need(call["nr"] == 1 ? call["a2"] is> 0 and <= OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices.MaximumIo && call["valueBits"] <= call["a2"] : call["a2"] is> 0 and <= OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices.MaximumVectors, "web_observation_write_request");
+                    Need(call["nr"] == 1 ? call["a2"] is > 0 and <= OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices.MaximumIo && call["valueBits"] <= call["a2"] : call["a2"] is > 0 and <= OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices.MaximumVectors, "web_observation_write_request");
                 pending = 0;
             }
         }
@@ -472,7 +473,7 @@ public static partial class QemuTranscripts
         string[] tokens = fragment.Split(' ');
         string[] fields = tokens[0] switch
         {
-            "M16_008_CALL" => [..WebCallFields.Select(f => f[..^4]), ..WebCallSuffix],
+            "M16_008_CALL" => [.. WebCallFields.Select(f => f[..^4]), .. WebCallSuffix],
             "M16_008_SYSCALL_TIME" => "identity ordinal nr entered admitted dispatched prepared periodFs".Split(' '),
             "M16_012_POLL" => "identity clock ready idle".Split(' '),
             "M16_012_WAKE" => "identity sequence completion state clock".Split(' '),
@@ -484,7 +485,8 @@ public static partial class QemuTranscripts
             "M16_009_DRAIN" => "identity epoch nanos".Split(' '),
             "M16_009_IRQ" => "identity epoch nanos rip rsp flags fs gs valueBits".Split(' '),
             "M16_008_TIMING" => "identity epoch start arm capture ready periodFs".Split(' '),
-            _ => throw new ToolFailure("web_fragment_record")};
+            _ => throw new ToolFailure("web_fragment_record")
+        };
         Need(tokens.Length <= fields.Length + 1, "web_fragment_fields");
         for (int i = 1; i < tokens.Length; i++)
         {

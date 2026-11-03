@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class LinuxDiskRaceProofFixture
 {
     /// <summary>Copied scalar syscall inventory. Child has no synthetic clone

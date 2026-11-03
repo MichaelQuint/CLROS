@@ -50,7 +50,8 @@ internal static class MinimalApiContractTests
         }
         foreach (string key in Evidence(Body).Select(row => row.Key))
         {
-            JsonObject row = Evidence(Body); row.Remove(key);
+            JsonObject row = Evidence(Body);
+            row.Remove(key);
             Reject(() => NativeAotWebPayload.ValidateHttpEvidence(row.ToJsonString(), Body));
         }
     }
@@ -72,17 +73,26 @@ internal static class MinimalApiContractTests
 
     private static JsonObject Evidence(string body) => new()
     {
-        ["endpoint"] = "http://127.0.0.1:8080", ["paths"] = new JsonArray("/", "/healthz", "/config"),
-        ["status"] = 200, ["body"] = body, ["appId"] = "minimal.api.smoke", ["configBody"] = body,
+        ["endpoint"] = "http://127.0.0.1:8080",
+        ["paths"] = new JsonArray("/", "/healthz", "/config"),
+        ["status"] = 200,
+        ["body"] = body,
+        ["appId"] = "minimal.api.smoke",
+        ["configBody"] = body,
         ["bodyBytes"] = System.Text.Encoding.UTF8.GetByteCount(body)
     };
 
     private static void Reject(Action action)
     {
         bool rejected = false;
-        try { action(); }
+        try
+        {
+            action();
+        }
         catch (Exception error) when (error is InvalidDataException or JsonException or KeyNotFoundException or InvalidOperationException)
-        { rejected = true; }
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

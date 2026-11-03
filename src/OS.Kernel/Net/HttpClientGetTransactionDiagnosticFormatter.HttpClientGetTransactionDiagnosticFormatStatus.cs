@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public enum HttpClientGetTransactionDiagnosticFormatStatus
 {
     Success = 0,

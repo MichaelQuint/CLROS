@@ -3,6 +3,7 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 internal sealed partial class EfiVerification
 {
     private void VerifyUnhandledBridge()

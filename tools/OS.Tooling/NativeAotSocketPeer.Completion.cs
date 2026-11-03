@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSocketPeer
 {
     /// <summary>Immutable identity of this owned peer execution and runner
@@ -22,12 +23,30 @@ public static partial class NativeAotSocketPeer
             ReceiveGateSerial = receiveGateSerial;
         }
 
-        internal string Root { get; }
-        public int Port { get; }
-        public string Path { get; }
-        public string Sha256 { get; }
-        internal string ReceiveGateSerial { get; }
-        public ProcessResult Runner { get; }
+        internal string Root
+        {
+            get;
+        }
+        public int Port
+        {
+            get;
+        }
+        public string Path
+        {
+            get;
+        }
+        public string Sha256
+        {
+            get;
+        }
+        internal string ReceiveGateSerial
+        {
+            get;
+        }
+        public ProcessResult Runner
+        {
+            get;
+        }
 
         internal void Verify(AuthorityFiles files)
         {

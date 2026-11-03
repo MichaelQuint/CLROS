@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     // Original ELF165683B2 and runtime VMR820230c386db5b0106c5430b3e5aee92a7826bf5:

@@ -16,7 +16,9 @@ internal static class HostEfiInspectionProfiles
             throw new InvalidOperationException("inspection_profile_project_identity");
         using var reader = XmlReader.Create(new StringReader(text), new XmlReaderSettings
         {
-            DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 4 * 1024 * 1024
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null,
+            MaxCharactersInDocument = 4 * 1024 * 1024
         });
         var project = XDocument.Load(reader);
         if (ContractAudit.InspectProject(project).Count != 0)

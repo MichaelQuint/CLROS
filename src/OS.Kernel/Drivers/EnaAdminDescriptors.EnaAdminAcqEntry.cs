@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly struct EnaAdminAcqEntry
@@ -9,6 +10,12 @@ public readonly struct EnaAdminAcqEntry
         CommonDescriptor = commonDescriptor;
     }
 
-    public bool IsInitialized { get; }
-    public EnaAdminAcqCommonDescriptor CommonDescriptor { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public EnaAdminAcqCommonDescriptor CommonDescriptor
+    {
+        get;
+    }
 }

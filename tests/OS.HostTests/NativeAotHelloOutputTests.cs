@@ -29,7 +29,8 @@ internal static class NativeAotHelloOutputTests
             First.Replace("bytes=27", "bytes=-27", StringComparison.Ordinal),
             First.Replace("bytes=27", "bytes=27x", StringComparison.Ordinal),
             First.Replace("data=", "data =", StringComparison.Ordinal)
-        }) Reject(changed + Second + Third);
+        })
+            Reject(changed + Second + Third);
     }
 
     [HostTest("nativeaot.hello-output preserves payload LF and requires line-bound markers and kernel CRLF")]
@@ -58,7 +59,10 @@ internal static class NativeAotHelloOutputTests
     private static void Reject(string raw)
     {
         bool rejected = false;
-        try { NativeAotHelloOutput.Validate(Encoding.ASCII.GetBytes(raw)); }
+        try
+        {
+            NativeAotHelloOutput.Validate(Encoding.ASCII.GetBytes(raw));
+        }
         catch (InvalidDataException error) { rejected = error.Message == "hello_output_envelopes"; }
         HostCheck.True(rejected, "strict raw Hello write admission");
     }

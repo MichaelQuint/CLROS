@@ -24,7 +24,10 @@ internal static partial class NativeAotWebSignalRaceTransportTests
         private readonly Task accepting;
         private int churnStarted, startRequests;
         private bool raceStarted, recovered, canceled, complete, released, initialObserved;
-        internal int Port { get; }
+        internal int Port
+        {
+            get;
+        }
         internal string Endpoint => "http://127.0.0.1:" + Port;
 
         internal int StartRequests
@@ -68,13 +71,13 @@ internal static partial class NativeAotWebSignalRaceTransportTests
                     }
                 }
             }
-            catch (OperationCanceledException)when (stop.IsCancellationRequested)
+            catch (OperationCanceledException) when (stop.IsCancellationRequested)
             {
             }
-            catch (SocketException)when (stop.IsCancellationRequested)
+            catch (SocketException) when (stop.IsCancellationRequested)
             {
             }
-            catch (ObjectDisposedException)when (stop.IsCancellationRequested)
+            catch (ObjectDisposedException) when (stop.IsCancellationRequested)
             {
             }
         }
@@ -86,7 +89,7 @@ internal static partial class NativeAotWebSignalRaceTransportTests
                 try
                 {
                     var stream = client.GetStream();
-                    while (await Head(stream, stop.Token)is { } request)
+                    while (await Head(stream, stop.Token) is { } request)
                     {
                         lock (gate)
                             connection.Requests.Add(request);
@@ -238,7 +241,8 @@ internal static partial class NativeAotWebSignalRaceTransportTests
                                     "/healthz" => Health,
                                     "/__clros/churn/status" => $"CLROS_CHURN_STATUS active={active} waiting={active} peakActive={(churnStarted == 0 ? 0 : 1)} started={churnStarted} completed={(complete ? 1 : 0)} canceled={(canceled ? 1 : 0)} failed=0 rejected=0 timers={work} workers={work} collections={work} heldBytes={active * 65536} peakHeldBytes={(churnStarted == 0 ? 0 : 65536)}",
                                     "/__clros/signalrace/status" => (eventOwned ? "CLROS_SIGNAL_RACE_V3_STATUS" : "CLROS_SIGNAL_RACE_STATUS") + (raceStarted ? $" phase={phase} pid={(startGate ? 1 : 43)} waiter=7 actor=8 callback={(phase == 2 ? 0 : 9)} recoveryRequested={(recovered ? 1 : 0)}" : " phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0"),
-                                    _ => throw new InvalidDataException("Unexpected request: " + first)};
+                                    _ => throw new InvalidDataException("Unexpected request: " + first)
+                                };
                             }
                         }
 
@@ -251,13 +255,13 @@ internal static partial class NativeAotWebSignalRaceTransportTests
                             Interlocked.Exchange(ref RecoveryArmed, null)?.Invoke();
                     }
                 }
-                catch (OperationCanceledException)when (stop.IsCancellationRequested)
+                catch (OperationCanceledException) when (stop.IsCancellationRequested)
                 {
                 }
-                catch (IOException)when (stop.IsCancellationRequested)
+                catch (IOException) when (stop.IsCancellationRequested)
                 {
                 }
-                catch (ObjectDisposedException)when (stop.IsCancellationRequested)
+                catch (ObjectDisposedException) when (stop.IsCancellationRequested)
                 {
                 }
             }

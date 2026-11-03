@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Manifest;
+
 public static class NativeAppSocketBindPolicy
 {
     public const bool RequiresManifestListenEndpoint = true;

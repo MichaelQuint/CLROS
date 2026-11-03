@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public enum NativeAotHelperStatus
 {
     Unknown = 0,

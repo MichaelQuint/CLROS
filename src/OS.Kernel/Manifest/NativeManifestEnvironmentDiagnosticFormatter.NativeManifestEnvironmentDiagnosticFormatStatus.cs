@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Manifest;
+
 public enum NativeManifestEnvironmentDiagnosticFormatStatus
 {
     Success = 0,

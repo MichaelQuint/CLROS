@@ -1,7 +1,11 @@
 namespace OS.Tooling;
+
 public sealed class QemuQcow2Options
 {
-    public QemuSmokeOptions Smoke { get; } = new()
+    public QemuSmokeOptions Smoke
+    {
+        get;
+    } = new()
     {
         BootPolicy = "Diagnostic",
         Image = "artifacts/images/os.qcow2",
@@ -12,7 +16,10 @@ public sealed class QemuQcow2Options
     };
     public string RawImage { get; set; } = "artifacts/images/os.raw";
     public string QemuImg { get; set; } = "";
-    public bool SkipRawImageBuild { get; set; }
+    public bool SkipRawImageBuild
+    {
+        get; set;
+    }
 
     public QemuQcow2Options()
     {

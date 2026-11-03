@@ -277,20 +277,20 @@ internal static partial class M02OwnedGdtTssTerminalEfiIntegrationTests
     [HostTest("m02.009 QEMU profile is cumulative terminal and fail closed", HostLane.Fast, 3)]
     private static bool TestQemuProfileAndNegativeArguments()
     {
-        var plan = QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run", "--build-efi", ..TerminalArguments]));
+        var plan = QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run", "--build-efi", .. TerminalArguments]));
         HostCheck.True(plan.Required.SequenceEqual(QemuContracts.M02OwnedGdtTssTerminalRequiredMarkers), "complete terminal required inventory");
         HostCheck.True(plan.Required.SequenceEqual(plan.Ordered) && plan.Required.SequenceEqual(plan.Unique), "complete ordered unique chain");
         HostCheck.True(plan.Forbidden.SequenceEqual(QemuContracts.M02OwnedGdtTssTerminalForbiddenMarkers), "complete terminal forbidden inventory");
         HostCheck.True(plan.ReplaceDefaultRequiredMarkers, "terminal plan replaces ordinary return markers");
-        string[][] invalid = [["--dry-run", "-EnableM02OwnedGdtTssTerminalProbe"], ["--dry-run", ..TerminalArguments], ["--dry-run", "--build-efi", "-EnableM02GuardedIstStackAllocationProbe", "-EnableM02OwnedGdtTssTerminalProbe"], ["--dry-run", "--build-efi", ..TerminalArguments, "--skip-image-build"], ["--dry-run", "--build-efi", ..TerminalArguments, "--m01-raw-observation-log", "blocked.log"]];
+        string[][] invalid = [["--dry-run", "-EnableM02OwnedGdtTssTerminalProbe"], ["--dry-run", .. TerminalArguments], ["--dry-run", "--build-efi", "-EnableM02GuardedIstStackAllocationProbe", "-EnableM02OwnedGdtTssTerminalProbe"], ["--dry-run", "--build-efi", .. TerminalArguments, "--skip-image-build"], ["--dry-run", "--build-efi", .. TerminalArguments, "--m01-raw-observation-log", "blocked.log"]];
         foreach (string[] arguments in invalid)
             QemuTerminalControls.AssertRejected(() => QemuProfiles.Create(QemuSmokeOptions.Parse(arguments)), "invalid terminal selection");
-        var implicitPlan = QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run", "--build-efi", ..TerminalArguments.Skip(3)]));
+        var implicitPlan = QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run", "--build-efi", .. TerminalArguments.Skip(3)]));
         HostCheck.True(implicitPlan.Flags.Where(p => p.Value).Select(p => p.Key).Order().SequenceEqual(plan.Flags.Where(p => p.Value).Select(p => p.Key).Order()), "owned COM1 chain activates original M01 prerequisites");
         foreach (string flag in TerminalArguments.Take(3))
-            QemuTerminalControls.AssertRejected(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run", "--build-efi", ..TerminalArguments.Skip(3), flag + "=false"])), "explicit false prerequisite");
+            QemuTerminalControls.AssertRejected(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run", "--build-efi", .. TerminalArguments.Skip(3), flag + "=false"])), "explicit false prerequisite");
         IReadOnlyList<string>? runnerArguments = null;
-        int result = QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), QemuSmokeOptions.Parse(["--dry-run", "--build-efi", ..TerminalArguments]), TextWriter.Null, (name, args) =>
+        int result = QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), QemuSmokeOptions.Parse(["--dry-run", "--build-efi", .. TerminalArguments]), TextWriter.Null, (name, args) =>
         {
             HostCheck.True(name == "OS.QemuRunner");
             runnerArguments = args;
@@ -350,7 +350,7 @@ internal static partial class M02OwnedGdtTssTerminalEfiIntegrationTests
             string[] terminalMarkers = ["TEST_START m02.009", ReadyMarker, "TEST_PASS m02.009"];
             foreach (string missingMarker in terminalMarkers)
             {
-                List<string> missingLines = [..requiredMarkers];
+                List<string> missingLines = [.. requiredMarkers];
                 if (!missingLines.Remove(missingMarker))
                 {
                     return false;
@@ -366,7 +366,7 @@ internal static partial class M02OwnedGdtTssTerminalEfiIntegrationTests
 
             foreach (string duplicateMarker in terminalMarkers)
             {
-                List<string> duplicateLines = [..requiredMarkers];
+                List<string> duplicateLines = [.. requiredMarkers];
                 int duplicateIndex = duplicateLines.IndexOf(duplicateMarker);
                 duplicateLines.Insert(duplicateIndex + 1, duplicateMarker);
                 string duplicateQemu = CreateM02FakeQemuScript(tempRoot, duplicateLines, persistent: true);
@@ -377,7 +377,7 @@ internal static partial class M02OwnedGdtTssTerminalEfiIntegrationTests
                 }
             }
 
-            List<string> reorderedLines = [..requiredMarkers];
+            List<string> reorderedLines = [.. requiredMarkers];
             int readyIndex = reorderedLines.IndexOf(ReadyMarker);
             int passIndex = reorderedLines.IndexOf("TEST_PASS m02.009");
             (reorderedLines[readyIndex], reorderedLines[passIndex]) = (reorderedLines[passIndex], reorderedLines[readyIndex]);
@@ -391,7 +391,7 @@ internal static partial class M02OwnedGdtTssTerminalEfiIntegrationTests
             string[] terminalFailures = ["M02_OWNED_GDT_TSS_PREENTRY_FAILED", "M02_OWNED_GDT_TSS_VERIFY_FAILED", "M02_OWNED_GDT_TSS_UNEXPECTED_RETURN"];
             foreach (string failureMarker in terminalFailures)
             {
-                List<string> failedLines = [..requiredMarkers];
+                List<string> failedLines = [.. requiredMarkers];
                 int terminalStartIndex = failedLines.IndexOf("TEST_START m02.009");
                 failedLines.Insert(terminalStartIndex + 1, failureMarker);
                 string failedQemu = CreateM02FakeQemuScript(tempRoot, failedLines, persistent: true);
@@ -795,7 +795,7 @@ internal static partial class M02OwnedGdtTssTerminalEfiIntegrationTests
             }
         }
 
-        string sanitized = new string (characters).Trim('-');
+        string sanitized = new string(characters).Trim('-');
         return sanitized.Length <= 48 ? sanitized : sanitized[..48];
     }
 
@@ -834,7 +834,7 @@ internal static partial class M02OwnedGdtTssTerminalEfiIntegrationTests
 
     private static ProcessResult RunQemu(params string[] arguments)
     {
-        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", ..arguments]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", .. arguments]);
         return new ProcessResult(result.ExitCode, result.Output + result.Error);
     }
 
@@ -865,7 +865,7 @@ internal static partial class M02OwnedGdtTssTerminalEfiIntegrationTests
             return string.Equals(values, "none", StringComparison.Ordinal) ? [] : values.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
 
-        return[];
+        return [];
     }
 
     private static int IndexOfAfter(string source, string value, int startIndex)

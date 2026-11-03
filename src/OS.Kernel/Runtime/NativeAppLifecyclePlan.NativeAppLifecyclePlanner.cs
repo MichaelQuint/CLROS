@@ -3,6 +3,7 @@ using OS.Manifest;
 using OS.Pal;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAppLifecyclePlanner
 {
     public static NativeAppLifecyclePlanResult Create(NativeAppInvocationPlanResult invocationPlan, OSHostAppLogTable? appLogTable)

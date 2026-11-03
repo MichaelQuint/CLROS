@@ -16,10 +16,25 @@ internal static partial class M02Ud2VectorStateEfiIntegrationTests
         public List<string> Events { get; } = [];
         public List<FakeAllocation> AllocationCalls { get; } = [];
         public List<FakeRelease> ReleaseCalls { get; } = [];
-        public DisabledDefaultUd2VectorStatePreTerminalStage Stage { get; set; }
-        public DisabledDefaultUd2VectorStatePreTerminalStatus Status { get; set; }
-        public bool Succeeded { get; set; }
-        public bool TerminalAllowed { get; set; }
-        public bool FailureEmitted { get; set; }
+        public DisabledDefaultUd2VectorStatePreTerminalStage Stage
+        {
+            get; set;
+        }
+        public DisabledDefaultUd2VectorStatePreTerminalStatus Status
+        {
+            get; set;
+        }
+        public bool Succeeded
+        {
+            get; set;
+        }
+        public bool TerminalAllowed
+        {
+            get; set;
+        }
+        public bool FailureEmitted
+        {
+            get; set;
+        }
     }
 }

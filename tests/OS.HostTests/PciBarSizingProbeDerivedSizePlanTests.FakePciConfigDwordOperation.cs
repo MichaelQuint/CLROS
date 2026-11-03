@@ -13,8 +13,17 @@ internal static partial class PciBarSizingProbeDerivedSizePlanTests
             Value = value;
         }
 
-        public PciBarSizingProbeCommandKind Kind { get; }
-        public ushort RegisterOffset { get; }
-        public uint Value { get; }
+        public PciBarSizingProbeCommandKind Kind
+        {
+            get;
+        }
+        public ushort RegisterOffset
+        {
+            get;
+        }
+        public uint Value
+        {
+            get;
+        }
     }
 }

@@ -9,6 +9,9 @@ namespace OS.Pal;
 public readonly struct OSHostHandle
 {
     public readonly ulong Value;
-    public OSHostHandle(ulong value) { Value = value; }
+    public OSHostHandle(ulong value)
+    {
+        Value = value;
+    }
     public bool IsValid => Value != 0;
 }

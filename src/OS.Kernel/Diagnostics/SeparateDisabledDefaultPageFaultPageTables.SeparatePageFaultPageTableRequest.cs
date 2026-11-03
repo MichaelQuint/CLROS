@@ -19,20 +19,24 @@ public readonly struct SeparatePageFaultPageTableRequest
     }
 
     public bool IsInitialized => _initialized == 1;
-    public PhysicalAddress ArenaStart { get; }
-    public ulong ArenaPageCount { get; }
-    public X64PageTableEncodingPreconditions Preconditions { get; }
+    public PhysicalAddress ArenaStart
+    {
+        get;
+    }
+    public ulong ArenaPageCount
+    {
+        get;
+    }
+    public X64PageTableEncodingPreconditions Preconditions
+    {
+        get;
+    }
 }
 #if M16_025_PROBE
-
-
 
 #else
 #endif
 #if M10_004_PROBE
-
-
-
 
 #else
 #endif

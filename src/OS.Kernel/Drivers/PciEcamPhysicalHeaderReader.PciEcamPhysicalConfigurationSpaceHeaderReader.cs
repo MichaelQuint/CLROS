@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Drivers;
+
 public sealed class PciEcamPhysicalConfigurationSpaceHeaderReader
 {
     private readonly PciEcamSegment _segment;
@@ -11,7 +12,10 @@ public sealed class PciEcamPhysicalConfigurationSpaceHeaderReader
         _physicalMemory = physicalMemory;
     }
 
-    public PciEcamPhysicalHeaderReadResult LastResult { get; private set; }
+    public PciEcamPhysicalHeaderReadResult LastResult
+    {
+        get; private set;
+    }
 
     public PciConfigurationSpaceReadStatus Read(byte bus, byte device, byte function, Span<byte> destination)
     {

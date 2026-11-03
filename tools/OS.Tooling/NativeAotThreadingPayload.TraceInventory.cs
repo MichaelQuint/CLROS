@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotThreadingPayload
 {
     /// <summary>Owned value-only trace inventory. Synthetic files may exercise

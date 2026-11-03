@@ -1790,7 +1790,7 @@ internal static unsafe partial class M01LivePagingIntegrationTests
 
     private static X64BootIdentityMappingPurpose[] LiveIntervalPurposes()
     {
-        return[X64BootIdentityMappingPurpose.BootStackGuard, X64BootIdentityMappingPurpose.CompositeCodeAndCallGate, X64BootIdentityMappingPurpose.CompositeOwnedStack, X64BootIdentityMappingPurpose.ProtectionProbePage, X64BootIdentityMappingPurpose.CompleteTableAndStateArena, X64BootIdentityMappingPurpose.RuntimeStateAndCanaryPage, X64BootIdentityMappingPurpose.OwnedRootPage];
+        return [X64BootIdentityMappingPurpose.BootStackGuard, X64BootIdentityMappingPurpose.CompositeCodeAndCallGate, X64BootIdentityMappingPurpose.CompositeOwnedStack, X64BootIdentityMappingPurpose.ProtectionProbePage, X64BootIdentityMappingPurpose.CompleteTableAndStateArena, X64BootIdentityMappingPurpose.RuntimeStateAndCanaryPage, X64BootIdentityMappingPurpose.OwnedRootPage];
     }
 
     private static bool ContainsHistoricalLiveIntervalAlias(X64BootIdentityMappingRequirement[] requirements)

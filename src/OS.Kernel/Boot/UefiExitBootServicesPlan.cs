@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static class UefiExitBootServicesPlan
 {
     public const uint DefaultMaximumRetryCount = 3;

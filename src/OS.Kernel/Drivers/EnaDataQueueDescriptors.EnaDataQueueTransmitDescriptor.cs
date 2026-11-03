@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly struct EnaDataQueueTransmitDescriptor
@@ -15,14 +16,38 @@ public readonly struct EnaDataQueueTransmitDescriptor
         HeaderLength = headerLength;
     }
 
-    public ushort RequestId { get; }
-    public uint Length { get; }
-    public ulong PhysicalAddress { get; }
-    public bool Phase { get; }
-    public bool First { get; }
-    public bool Last { get; }
-    public bool CompletionRequested { get; }
-    public byte HeaderLength { get; }
+    public ushort RequestId
+    {
+        get;
+    }
+    public uint Length
+    {
+        get;
+    }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
+    public bool Phase
+    {
+        get;
+    }
+    public bool First
+    {
+        get;
+    }
+    public bool Last
+    {
+        get;
+    }
+    public bool CompletionRequested
+    {
+        get;
+    }
+    public byte HeaderLength
+    {
+        get;
+    }
     public ushort RequestIdLow => (ushort)(RequestId & EnaDataQueueDescriptors.TxRequestIdLowMask);
     public byte RequestIdHigh => (byte)(RequestId >> EnaDataQueueDescriptors.TxRequestIdLowBitCount);
     public uint AddressLow => (uint)PhysicalAddress;

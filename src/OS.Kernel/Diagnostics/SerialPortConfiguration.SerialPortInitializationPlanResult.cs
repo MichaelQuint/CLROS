@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct SerialPortInitializationPlanResult
 {
     private SerialPortInitializationPlanResult(bool isInitialized, SerialPortConfigurationStatus status, int writesEmitted, int requiredWriteCount, SerialPortDivisorLatch divisorLatch)
@@ -10,11 +11,26 @@ public readonly struct SerialPortInitializationPlanResult
         DivisorLatch = divisorLatch;
     }
 
-    public bool IsInitialized { get; }
-    public SerialPortConfigurationStatus Status { get; }
-    public int WritesEmitted { get; }
-    public int RequiredWriteCount { get; }
-    public SerialPortDivisorLatch DivisorLatch { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public SerialPortConfigurationStatus Status
+    {
+        get;
+    }
+    public int WritesEmitted
+    {
+        get;
+    }
+    public int RequiredWriteCount
+    {
+        get;
+    }
+    public SerialPortDivisorLatch DivisorLatch
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == SerialPortConfigurationStatus.Success && RequiredWriteCount > 0 && WritesEmitted == RequiredWriteCount && DivisorLatch.Divisor != 0;
 
     public static SerialPortInitializationPlanResult Success(int writesEmitted, int requiredWriteCount, SerialPortDivisorLatch divisorLatch)

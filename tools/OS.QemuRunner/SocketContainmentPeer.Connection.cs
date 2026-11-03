@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 
 namespace OS.Tools.QemuRunner;
+
 public sealed partial class SocketContainmentPeer
 {
     private sealed class Connection(int role)

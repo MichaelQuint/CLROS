@@ -52,7 +52,7 @@ internal static partial class NativeAotServicePacketTests
             Reject(() => Inspect(Vector(mode)));
         var f = Vector("none");
         Reject(() => Inspect(f with { Ports = f.Ports.Reverse().ToArray() }));
-        Reject(() => Inspect(f with { Ports = [..f.Ports.Skip(1)] }));
+        Reject(() => Inspect(f with { Ports = [.. f.Ports.Skip(1)] }));
         Reject(() => Inspect(f with { Report = f.Report.Replace("CLROS_SERVICE_HEALTH_OK", "OTHER", StringComparison.Ordinal) + "{}" }));
         var corrupt = f.Frames.Select(frame => frame.ToArray()).ToList();
         corrupt[^1][40] ^= 1;
@@ -99,9 +99,9 @@ internal static partial class NativeAotServicePacketTests
                 date = date.AddSeconds(1);
             bool chunked = mode is "chunked" or "chunk-size";
             string framing = chunked ? "Transfer-Encoding: chunked\r\n" : "Content-Length: " + (body.Length - (i == 0 && mode == "length" ? 1 : 0)) + "\r\n";
-            byte[] entity = chunked && body.Length != 0 ? [..Encoding.ASCII.GetBytes((i == 0 && mode == "chunk-size" ? "g" : body.Length.ToString("x", CultureInfo.InvariantCulture)) + "\r\n"), ..body, .."\r\n0\r\n\r\n"u8.ToArray()] : chunked ? "0\r\n\r\n"u8.ToArray() : body;
+            byte[] entity = chunked && body.Length != 0 ? [.. Encoding.ASCII.GetBytes((i == 0 && mode == "chunk-size" ? "g" : body.Length.ToString("x", CultureInfo.InvariantCulture)) + "\r\n"), .. body, .. "\r\n0\r\n\r\n"u8.ToArray()] : chunked ? "0\r\n\r\n"u8.ToArray() : body;
             string extra = i == 0 && mode == "bare-lf" ? "X: a\nb\r\n" : i == 0 && mode == "bare-cr" ? "X: a\rb\r\n" : "";
-            byte[] response = [..Encoding.ASCII.GetBytes($"HTTP/1.1 {status} {(status == 200 ? "OK" : "Conflict")}\r\n{framing}Connection: close\r\nServer: Kestrel\r\nDate: {date:r}\r\n{extra}\r\n"), ..entity];
+            byte[] response = [.. Encoding.ASCII.GetBytes($"HTTP/1.1 {status} {(status == 200 ? "OK" : "Conflict")}\r\n{framing}Connection: close\r\nServer: Kestrel\r\nDate: {date:r}\r\n{extra}\r\n"), .. entity];
             if (i == 0 && mode == "early-fin")
             {
                 Add(false, client, server, 0x11);
@@ -186,7 +186,7 @@ internal static partial class NativeAotServicePacketTests
         {
             action();
         }
-        catch (Exception error)when (error is ToolFailure or InvalidDataException)
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
         {
             refused = true;
         }

@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public readonly struct OSHostSocketTableEntry
 {
     public readonly OSHostSocketHandle Socket;

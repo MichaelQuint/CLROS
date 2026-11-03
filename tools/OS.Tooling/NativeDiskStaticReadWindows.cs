@@ -30,7 +30,7 @@ public static partial class NativeDiskStaticReadWindows
         int windowCount = suppliedWindows?.Count ?? -1;
         Need(inventory is not null && device is not null && windowCount is >= 0 and <= MaximumWindows, "input");
         int rows = device!.Rows.Count;
-        Need(rows is> 0 and <= NativeDiskReadObservations.MaximumRows && ioRecordIndices is not null && ioRecordIndices.Count == rows, "io_indices");
+        Need(rows is > 0 and <= NativeDiskReadObservations.MaximumRows && ioRecordIndices is not null && ioRecordIndices.Count == rows, "io_indices");
         int[] indices = new int[rows];
         for (int i = 0; i < rows; i++)
         {
@@ -77,13 +77,16 @@ public static partial class NativeDiskStaticReadWindows
         {
             var window = suppliedWindows![w];
             windows[w] = window;
-            Need(window.Identity != 0 && window.Ordinal != 0 && window.Number is 0 or 17 && window.DescriptorGeneration != 0 && window.RequestGeneration != 0 && window.BeginRecordIndex >= 0 && window.CompleteRecordIndex > window.BeginRecordIndex && window.Requested != 0 && window.OutputPrefix is> 0 and <= MaximumReturnedBytes && window.ReturnedBytes is> 0 and <= MaximumReturnedBytes && window.ReturnedBytes <= window.Requested && window.ReturnedBytes <= window.OutputPrefix && window.OutputPrefix <= window.Requested && window.Offset <= long.MaxValue, "window");
+            Need(window.Identity != 0 && window.Ordinal != 0 && window.Number is 0 or 17 && window.DescriptorGeneration != 0 && window.RequestGeneration != 0 && window.BeginRecordIndex >= 0 && window.CompleteRecordIndex > window.BeginRecordIndex && window.Requested != 0 && window.OutputPrefix is > 0 and <= MaximumReturnedBytes && window.ReturnedBytes is > 0 and <= MaximumReturnedBytes && window.ReturnedBytes <= window.Requested && window.ReturnedBytes <= window.OutputPrefix && window.OutputPrefix <= window.Requested && window.Offset <= long.MaxValue, "window");
             Need(calls.Add((window.Identity, window.Ordinal)) && requests.Add(window.RequestGeneration), "duplicate_window");
             Need(entries.TryGetValue(window.Inode, out var entry) && !entry.IsDirectory && window.Offset < entry.Bytes && window.ReturnedBytes <= entry.Bytes - window.Offset, "file_range");
             foreach (var sector in entry!.Cover(window.Offset, window.ReturnedBytes))
             {
                 Need(demands.Count < copies.Count, "demand_bound");
-                demands.Add(new(w, entry, sector) { Index = demands.Count });
+                demands.Add(new(w, entry, sector)
+                {
+                    Index = demands.Count
+                });
             }
         }
 
@@ -116,7 +119,7 @@ public static partial class NativeDiskStaticReadWindows
                     if (!content.TryGetValue(demand.Entry.Inode, out var bytes))
                         content.Add(demand.Entry.Inode, bytes = demand.Entry.CopyBytes());
                     byte[] actual = Convert.FromHexString(observed.Observation.DataHex);
-                    Need(actual.Length == 512 && demand.Sector.ValidBytes is> 0 and <= 512 && actual.AsSpan(0, (int)demand.Sector.ValidBytes).SequenceEqual(bytes.AsSpan(checked((int)demand.Sector.FileOffset), (int)demand.Sector.ValidBytes)), "image_bytes");
+                    Need(actual.Length == 512 && demand.Sector.ValidBytes is > 0 and <= 512 && actual.AsSpan(0, (int)demand.Sector.ValidBytes).SequenceEqual(bytes.AsSpan(checked((int)demand.Sector.FileOffset), (int)demand.Sector.ValidBytes)), "image_bytes");
                     verified.Add(copy, (demand.Entry.Inode, demand.Sector.FileOffset));
                 }
 

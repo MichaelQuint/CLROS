@@ -54,8 +54,8 @@ internal static unsafe partial class M02NormalizedInterruptFramePageEfiIntegrati
             source.Compilation.References, source.Compilation.AssemblyName!, source.Compilation.Options);
         HostCheck.True(Matches(Change(document.Path + ".moved.cs", System.Text.Encoding.UTF8.GetBytes(lf))), "source name is independent of raw identity");
         HostCheck.True(!Matches(Change(document.Path, System.Text.Encoding.UTF8.GetBytes(lf.ReplaceLineEndings("\r\n")))), "original raw pin did not admit alternate newlines");
-        HostCheck.True(!Matches(Change(document.Path, [0xef, 0xbb, 0xbf, ..System.Text.Encoding.UTF8.GetBytes(lf)])), "BOM rejected");
-        HostCheck.True(!Matches(Change(document.Path, [0xff, 0xfe, ..System.Text.Encoding.Unicode.GetBytes(lf)])), "UTF16 rejected");
+        HostCheck.True(!Matches(Change(document.Path, [0xef, 0xbb, 0xbf, .. System.Text.Encoding.UTF8.GetBytes(lf)])), "BOM rejected");
+        HostCheck.True(!Matches(Change(document.Path, [0xff, 0xfe, .. System.Text.Encoding.Unicode.GetBytes(lf)])), "UTF16 rejected");
         string changed = document.Text.Remove(field.Initializer!.Value.SpanStart, field.Initializer.Value.Span.Length)
             .Insert(field.Initializer.Value.SpanStart, "255");
         var mutated = Change(document.Path, System.Text.Encoding.UTF8.GetBytes(changed));

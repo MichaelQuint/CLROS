@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public enum OSHostMemoryProtectionPlanStatus
 {
     Success = 0,

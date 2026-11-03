@@ -64,7 +64,7 @@ internal static partial class NativeDiskReadObservationTests
                 DiagnosticDeny(fixture, Replace(rows, index, Set(rows[index], "payload", payload ? "0" : "1")), payload);
                 DiagnosticDeny(fixture, Replace(rows, index, rows[index].Replace("CLROS_DISK_IO_V1", "M16_023_IO", StringComparison.Ordinal)), payload);
             }
-            DiagnosticDeny(fixture, [..rows, rows[^1]], payload);
+            DiagnosticDeny(fixture, [.. rows, rows[^1]], payload);
             var reordered = rows.ToArray();
             (reordered[3], reordered[4]) = (reordered[4], reordered[3]);
             DiagnosticDeny(fixture, reordered, payload);
@@ -77,7 +77,10 @@ internal static partial class NativeDiskReadObservationTests
             DiagnosticDeny(fixture, new CountOnly(Reads.MaximumRows + 1), payload);
             DiagnosticDeny(fixture, Replace(rows, 0, new string('x', Reads.MaximumRowChars + 1)), payload);
             DiagnosticDeny(fixture, Replace(rows, 0, null!), payload);
-            DiagnosticDeny(fixture, rows, payload, boundary: fixture.Boundary with { Completed = 0 });
+            DiagnosticDeny(fixture, rows, payload, boundary: fixture.Boundary with
+            {
+                Completed = 0
+            });
             DiagnosticDeny(fixture, rows, payload, image: new byte[513]);
             for (int sector = 1; sector <= 4; sector++)
             {

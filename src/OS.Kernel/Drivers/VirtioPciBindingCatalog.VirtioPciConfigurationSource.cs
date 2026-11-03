@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciConfigurationSource
 {
     public VirtioPciConfigurationSource(int sourceIndex, ReadOnlyMemory<byte> configurationSpace)
@@ -7,6 +8,12 @@ public readonly struct VirtioPciConfigurationSource
         ConfigurationSpace = configurationSpace;
     }
 
-    public int SourceIndex { get; }
-    public ReadOnlyMemory<byte> ConfigurationSpace { get; }
+    public int SourceIndex
+    {
+        get;
+    }
+    public ReadOnlyMemory<byte> ConfigurationSpace
+    {
+        get;
+    }
 }

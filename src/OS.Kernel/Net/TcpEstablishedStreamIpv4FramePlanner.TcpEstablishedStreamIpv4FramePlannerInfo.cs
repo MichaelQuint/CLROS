@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 using OS.Std.Memory;
 
@@ -16,12 +17,36 @@ public readonly struct TcpEstablishedStreamIpv4FramePlannerInfo
         Identification = identification;
     }
 
-    public MacAddress LocalMac { get; }
-    public MacAddress RemoteMac { get; }
-    public Ipv4Address LocalAddress { get; }
-    public Ipv4Address RemoteAddress { get; }
-    public int MaximumPayloadLength { get; }
-    public ushort WindowSize { get; }
-    public byte TimeToLive { get; }
-    public ushort Identification { get; }
+    public MacAddress LocalMac
+    {
+        get;
+    }
+    public MacAddress RemoteMac
+    {
+        get;
+    }
+    public Ipv4Address LocalAddress
+    {
+        get;
+    }
+    public Ipv4Address RemoteAddress
+    {
+        get;
+    }
+    public int MaximumPayloadLength
+    {
+        get;
+    }
+    public ushort WindowSize
+    {
+        get;
+    }
+    public byte TimeToLive
+    {
+        get;
+    }
+    public ushort Identification
+    {
+        get;
+    }
 }

@@ -3,6 +3,7 @@ using OS.Kernel.Diagnostics;
 using OS.Kernel.Memory;
 
 namespace OS.Boot;
+
 public enum OwnedAllocatorRoundTripStatus : uint
 {
     Empty,

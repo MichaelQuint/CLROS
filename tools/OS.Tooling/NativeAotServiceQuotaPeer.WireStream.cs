@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServiceQuotaPeer
 {
     private sealed class WireStream(WireCapture owner, Stream inner, int id) : Stream
@@ -14,7 +15,10 @@ public static partial class NativeAotServiceQuotaPeer
         public override bool CanWrite => inner.CanWrite;
         public override bool CanSeek => false;
         public override long Length => throw new NotSupportedException();
-        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override long Position
+        {
+            get => throw new NotSupportedException(); set => throw new NotSupportedException();
+        }
 
         public override void Flush() => inner.Flush();
         public override Task FlushAsync(CancellationToken cancellation) => inner.FlushAsync(cancellation);

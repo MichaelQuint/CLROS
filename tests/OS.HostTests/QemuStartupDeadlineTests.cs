@@ -38,7 +38,10 @@ internal static class QemuStartupDeadlineTests
         foreach (string invalid in new[] { "0", "-1", "garbage" })
         {
             bool rejected = false;
-            try { _ = OS.Tooling.QemuSmokeOptions.Parse("--startup-timeout", invalid); }
+            try
+            {
+                _ = OS.Tooling.QemuSmokeOptions.Parse("--startup-timeout", invalid);
+            }
             catch (Exception e) when (e is ArgumentException or FormatException or OverflowException) { rejected = true; }
             HostCheck.True(rejected);
         }

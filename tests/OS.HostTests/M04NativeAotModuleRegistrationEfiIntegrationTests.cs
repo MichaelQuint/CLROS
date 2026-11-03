@@ -47,9 +47,9 @@ internal static partial class M04NativeAotModuleRegistrationEfiIntegrationTests
         string root = Root();
         var project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
         var defaults = project.Descendants(Flag).ToArray();
-        Need(defaults.Length == 1 && defaults[0].Value == "false" && (string? )defaults[0].Attribute("Condition") == "'$(" + Flag + ")' == ''", "one false default");
+        Need(defaults.Length == 1 && defaults[0].Value == "false" && (string?)defaults[0].Attribute("Condition") == "'$(" + Flag + ")' == ''", "one false default");
         var define = project.Descendants("DefineConstants").Single(x => x.Value.Contains("M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE", StringComparison.Ordinal));
-        Need((string? )define.Parent?.Attribute("Condition") == "'$(" + Flag + ")' == 'true'" && define.Value == "$(DefineConstants);M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE", "exact symbol");
+        Need((string?)define.Parent?.Attribute("Condition") == "'$(" + Flag + ")' == 'true'" && define.Value == "$(DefineConstants);M04_TYPE_MANAGER_MODULE_REGISTRATION_PROBE", "exact symbol");
         var catalog = HostSourceCatalog.Efi(EfiOptions.Parse(
             ["--EnableM01LoadedImageStackProbe", "--" + Flag], build: true).Profile());
         var admitted = EfiProjectAdmission.InspectStatic(root);
@@ -124,7 +124,7 @@ internal static partial class M04NativeAotModuleRegistrationEfiIntegrationTests
     private static void TestProfile()
     {
         string root = Root();
-        Result Dry(params string[] args) => Invoke(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", ..args]);
+        Result Dry(params string[] args) => Invoke(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", .. args]);
         string[] positive = ["-BuildEfi", "-" + Flag, "-EnableM01LoadedImageStackProbe"];
         Result result = Dry(positive);
         Passed(result);
@@ -159,7 +159,7 @@ internal static partial class M04NativeAotModuleRegistrationEfiIntegrationTests
             Need(!missing.Passed && missing.MissingRequiredMarkers!.Count > 0, "missing registration row");
             var duplicate = Stream(ProtocolLines.Take(index + 1).Concat(ProtocolLines.Skip(index)).ToArray());
             Need(!duplicate.Passed && duplicate.DuplicateUniqueOccurrenceCount == 1, "duplicate registration row");
-            string[] swapped = [..ProtocolLines];
+            string[] swapped = [.. ProtocolLines];
             (swapped[index], swapped[index + 1]) = (swapped[index + 1], swapped[index]);
             Need(Stream(swapped).OutOfOrderOccurrenceCount > 0, "reordered registration row");
         }
@@ -175,16 +175,16 @@ internal static partial class M04NativeAotModuleRegistrationEfiIntegrationTests
         Need(flags.Length == OS.Tooling.EfiContracts.DiagnosticProbes.Count, "complete profile inventory");
         foreach (string other in flags.Where(x => x != Flag && x != "EnableM01LoadedImageStackProbe" && x != "EnableM04X64UnwindMetadataProbe"))
         {
-            Result failure = Dry([..positive, "-" + other]);
+            Result failure = Dry([.. positive, "-" + other]);
             string diagnostic = failure.Output + failure.Error;
             Need(failure.Exit != 0 && !failure.Timeout && diagnostic.Contains("TEST_FAIL qemu.smoke", StringComparison.Ordinal) && (diagnostic.Contains("_profile_conflict", StringComparison.Ordinal) || diagnostic.Contains("_requires", StringComparison.Ordinal) || diagnostic.Contains("_profile_invalid", StringComparison.Ordinal)), "mutually exclusive profile rejected " + other + ": " + diagnostic);
         }
 
         Reject(["-" + Flag, "-EnableM01LoadedImageStackProbe"], "m04_type_manager_requires_build_and_original_capture");
         Reject(["-BuildEfi", "-" + Flag], "m04_type_manager_requires_original_loaded_image");
-        Reject([..positive, "-SkipImageBuild"], "m04_type_manager_requires_build_and_original_capture");
-        Reject([..positive, "-M01RawObservationLog", ""], "m04_type_manager_requires_build_and_original_capture");
-        Reject([..positive, "-RequireNativeAppMarkers"], "m04_type_manager_requires_build_and_original_capture");
+        Reject([.. positive, "-SkipImageBuild"], "m04_type_manager_requires_build_and_original_capture");
+        Reject([.. positive, "-M01RawObservationLog", ""], "m04_type_manager_requires_build_and_original_capture");
+        Reject([.. positive, "-RequireNativeAppMarkers"], "m04_type_manager_requires_build_and_original_capture");
         foreach (string option in new[]
         {
             "RequireMarker",
@@ -195,7 +195,7 @@ internal static partial class M04NativeAotModuleRegistrationEfiIntegrationTests
         }
 
         )
-            Reject([..positive, "-" + option, "CLROS_M04_011_READY"], "m04_type_manager_forbids_override");
+            Reject([.. positive, "-" + option, "CLROS_M04_011_READY"], "m04_type_manager_forbids_override");
         Reject(["-RequireMarker", "CLROS_M04_011_READY"], "m04_type_manager_requires_explicit_profile");
         foreach (bool build in new[]
         {
@@ -240,7 +240,7 @@ internal static partial class M04NativeAotModuleRegistrationEfiIntegrationTests
         )
         {
             string directory = Scratch(enabled ? "enabled" : "default"), artifact = Path.Combine(root, "artifacts/efi/issue544-" + Guid.NewGuid().ToString("N") + ".EFI");
-            Result result = Invoke(["efi", "build", "-BootPolicy", "Diagnostic", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), ..(enabled ? new[] { "-EnableM04TypeManagerModuleRegistrationProbe", "-EnableM01LoadedImageStackProbe" } : Array.Empty<string>())]);
+            Result result = Invoke(["efi", "build", "-BootPolicy", "Diagnostic", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), .. (enabled ? new[] { "-EnableM04TypeManagerModuleRegistrationProbe", "-EnableM01LoadedImageStackProbe" } : Array.Empty<string>())]);
             Passed(result);
             Need(result.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && result.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), "actual producer/verifier");
             foreach (string suffix in new[]

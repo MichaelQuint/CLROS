@@ -1,6 +1,7 @@
 using OS.Std.Time;
 
 namespace OS.Kernel.Platform;
+
 public static partial class OwnedRealtimeClock
 {
     /// <summary>Copied 16-byte UEFI EFI_TIME value, without firmware ownership.

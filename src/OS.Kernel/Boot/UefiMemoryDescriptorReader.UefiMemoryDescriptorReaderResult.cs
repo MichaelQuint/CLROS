@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public readonly struct UefiMemoryDescriptorReaderResult
 {
     private UefiMemoryDescriptorReaderResult(bool succeeded, UefiMemoryDescriptorReaderStatus status, int descriptorsWritten, ulong requiredSourceBytes, ulong requiredDestinationCount)
@@ -12,11 +13,26 @@ public readonly struct UefiMemoryDescriptorReaderResult
         RequiredDestinationCount = requiredDestinationCount;
     }
 
-    public bool Succeeded { get; }
-    public UefiMemoryDescriptorReaderStatus Status { get; }
-    public int DescriptorsWritten { get; }
-    public ulong RequiredSourceBytes { get; }
-    public ulong RequiredDestinationCount { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public UefiMemoryDescriptorReaderStatus Status
+    {
+        get;
+    }
+    public int DescriptorsWritten
+    {
+        get;
+    }
+    public ulong RequiredSourceBytes
+    {
+        get;
+    }
+    public ulong RequiredDestinationCount
+    {
+        get;
+    }
 
     internal static UefiMemoryDescriptorReaderResult Success(int descriptorsWritten, ulong requiredSourceBytes)
     {

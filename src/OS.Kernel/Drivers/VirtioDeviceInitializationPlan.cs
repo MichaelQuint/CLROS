@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioDeviceInitializationPlan
 {
     public const VirtioDeviceStatus AcknowledgeStatus = VirtioDeviceStatus.Acknowledge;

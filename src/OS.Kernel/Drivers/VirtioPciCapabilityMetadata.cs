@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciCapabilityMetadata
 {
     public VirtioPciCapabilityMetadata(VirtioPciCapabilityType type, byte bar, uint offset, uint length, uint notifyOffsetMultiplier)
@@ -10,9 +11,24 @@ public readonly struct VirtioPciCapabilityMetadata
         NotifyOffsetMultiplier = notifyOffsetMultiplier;
     }
 
-    public VirtioPciCapabilityType Type { get; }
-    public byte Bar { get; }
-    public uint Offset { get; }
-    public uint Length { get; }
-    public uint NotifyOffsetMultiplier { get; }
+    public VirtioPciCapabilityType Type
+    {
+        get;
+    }
+    public byte Bar
+    {
+        get;
+    }
+    public uint Offset
+    {
+        get;
+    }
+    public uint Length
+    {
+        get;
+    }
+    public uint NotifyOffsetMultiplier
+    {
+        get;
+    }
 }

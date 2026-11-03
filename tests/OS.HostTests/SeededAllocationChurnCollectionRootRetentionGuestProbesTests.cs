@@ -23,7 +23,8 @@ internal static unsafe class SeededAllocationChurnCollectionRootRetentionGuestPr
                 Require(!default(SeededChurnResult).Succeeded, "default is not success");
                 foreach (uint seed in new uint[] { 0, 1, 0xDEADBEEF })
                 {
-                    using Fixture image = new(); using HeapFixture heap = new();
+                    using Fixture image = new();
+                    using HeapFixture heap = new();
                     image.Type(0x50000000, 24, 0);
                     RhpNewFastResult permanent = heap.Allocate(image);
                     const ulong cookie = 0xFEED1234ABCDEF;
@@ -42,7 +43,8 @@ internal static unsafe class SeededAllocationChurnCollectionRootRetentionGuestPr
                         "external retained root and payload survive both runs");
                     var one = Execute(image, heap, seed, 1, permanent);
                     Require(one.Succeeded && one.CompletedRounds == 1 && one.Allocations == one.Reclaimed, "minimum round count");
-                    heap.Guards(); image.Guards();
+                    heap.Guards();
+                    image.Guards();
                 }
                 using (Fixture image = new())
                 using (HeapFixture heap = new())
@@ -76,29 +78,48 @@ internal static unsafe class SeededAllocationChurnCollectionRootRetentionGuestPr
                 StaticRoot();
             }
             catch (Exception error)
-            { Console.WriteLine("TEST_FAIL m04.014 " + error.Message); throw; }
+            {
+                Console.WriteLine("TEST_FAIL m04.014 " + error.Message);
+                throw;
+            }
         });
     }
 
     private static SeededChurnResult Execute(Fixture image, HeapFixture heap, uint seed, uint rounds,
-        RhpNewFastResult permanent = default, CollectorStaticRootAccess retained = default) => Probe.Run(new CollectorModuleAccess {
-            Capture = image.Capture, Mapping = image.Mapping, Owner = image.Owner, Capacity = 4096,
-            Handle = image.Handle, Metadata = image.Window }, heap.Access, heap.State, HeapFixture.Capacity,
+        RhpNewFastResult permanent = default, CollectorStaticRootAccess retained = default) => Probe.Run(new CollectorModuleAccess
+        {
+            Capture = image.Capture,
+            Mapping = image.Mapping,
+            Owner = image.Owner,
+            Capacity = 4096,
+            Handle = image.Handle,
+            Metadata = image.Window
+        }, heap.Access, heap.State, HeapFixture.Capacity,
             image.Mt, seed, rounds, permanent, retained);
 
     private static void StaticRoot()
     {
-        using Fixture image = new(); using HeapFixture heap = new();
+        using Fixture image = new();
+        using HeapFixture heap = new();
         image.Type(0x50000000, 24, 0);
         ulong staticMt = image.Address(0x1800), systemObject = image.Address(0x1180);
         *(uint*)(image.Image + 0x1200) = 0x1000;
         *(ulong*)(image.Image + 0x2200) = unchecked((uint)(0x1800 - 0x2200 + 1));
-        *(long*)(staticMt - 24) = -16; *(ulong*)(staticMt - 16) = 8; *(ulong*)(staticMt - 8) = 1;
-        *(uint*)staticMt = 0x01000000; *(uint*)(staticMt + 4) = 24; *(ulong*)(staticMt + 8) = systemObject;
-        *(uint*)systemObject = 0x50000000; *(uint*)(systemObject + 4) = 24;
-        CollectorStaticRootAccess retained = new() { Owner = heap.Storage + 0x9000,
+        *(long*)(staticMt - 24) = -16;
+        *(ulong*)(staticMt - 16) = 8;
+        *(ulong*)(staticMt - 8) = 1;
+        *(uint*)staticMt = 0x01000000;
+        *(uint*)(staticMt + 4) = 24;
+        *(ulong*)(staticMt + 8) = systemObject;
+        *(uint*)systemObject = 0x50000000;
+        *(uint*)(systemObject + 4) = 24;
+        CollectorStaticRootAccess retained = new()
+        {
+            Owner = heap.Storage + 0x9000,
             Capacity = GCStaticRootsMalformedMetadata.RequiredRootOwnerBytes,
-            Cells = new(image.Address(0x2200), 8), SystemObjectMethodTable = systemObject };
+            Cells = new(image.Address(0x2200), 8),
+            SystemObjectMethodTable = systemObject
+        };
         NativeMemory.Clear(retained.Owner, (nuint)retained.Capacity);
         var root = GCStaticRootsMalformedMetadata.MaterializeOnce(image.Capture, image.Mapping,
             image.Owner, 4096, image.Handle, image.Window, retained.Cells, systemObject,
@@ -115,9 +136,13 @@ internal static unsafe class SeededAllocationChurnCollectionRootRetentionGuestPr
             image.Owner, 4096, image.Handle, image.Window, retained.Cells, systemObject,
             heap.Access, heap.State, HeapFixture.Capacity, retained.Owner, retained.Capacity);
         Require(queried.Succeeded && queried.ObjectReference == root.ObjectReference, "static owner receipt survives churn");
-        heap.Guards(); image.Guards();
+        heap.Guards();
+        image.Guards();
     }
 
     private static void Require(bool value, string reason)
-    { if (!value) throw new InvalidOperationException(reason); }
+    {
+        if (!value)
+            throw new InvalidOperationException(reason);
+    }
 }

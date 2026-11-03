@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public readonly struct AcpiTableSource
 {
     public AcpiTableSource(ulong physicalAddress, ReadOnlyMemory<byte> tableBytes)
@@ -9,6 +10,12 @@ public readonly struct AcpiTableSource
         TableBytes = tableBytes;
     }
 
-    public ulong PhysicalAddress { get; }
-    public ReadOnlyMemory<byte> TableBytes { get; }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
+    public ReadOnlyMemory<byte> TableBytes
+    {
+        get;
+    }
 }

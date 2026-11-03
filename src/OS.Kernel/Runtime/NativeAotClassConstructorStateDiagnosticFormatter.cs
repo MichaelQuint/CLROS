@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAotClassConstructorStateDiagnosticFormatter
 {
     public static NativeAotClassConstructorStateDiagnosticFormatResult FormatResult(in NativeAotClassConstructorStateTableResult result, Span<byte> destination)

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class PanicFormatter
 {
     public const string NullDereferenceProbe = "null-dereference-probe";

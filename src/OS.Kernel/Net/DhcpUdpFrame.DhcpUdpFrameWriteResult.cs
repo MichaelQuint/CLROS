@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct DhcpUdpFrameWriteResult
 {
     private DhcpUdpFrameWriteResult(DhcpUdpFrameStatus status, DhcpMessageStatus dhcpStatus, PacketParseStatus packetStatus, int dhcpPayloadLength, int bytesWritten)
@@ -11,13 +12,31 @@ public readonly struct DhcpUdpFrameWriteResult
         BytesWritten = bytesWritten;
     }
 
-    public DhcpUdpFrameStatus Status { get; }
-    public bool IsInitialized { get; }
+    public DhcpUdpFrameStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == DhcpUdpFrameStatus.Success;
-    public DhcpMessageStatus DhcpStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public int DhcpPayloadLength { get; }
-    public int BytesWritten { get; }
+    public DhcpMessageStatus DhcpStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public int DhcpPayloadLength
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
 
     public static DhcpUdpFrameWriteResult Success(int dhcpPayloadLength, int bytesWritten)
     {

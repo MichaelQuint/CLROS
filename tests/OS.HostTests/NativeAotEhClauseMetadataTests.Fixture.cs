@@ -17,8 +17,14 @@ internal static unsafe partial class NativeAotEhClauseMetadataTests
         private readonly byte* snapshotAllocation;
         internal byte* Owner => ownerAllocation + 8;
         internal byte* Snapshot => snapshotAllocation + 8;
-        internal EfiLoadedImageRangeCapturePlan Capture { get; }
-        internal M01LoadedImageVirtualMappingEvidence Mapping { get; }
+        internal EfiLoadedImageRangeCapturePlan Capture
+        {
+            get;
+        }
+        internal M01LoadedImageVirtualMappingEvidence Mapping
+        {
+            get;
+        }
 
         internal ulong Handle;
         internal NativeAotEhMethodBounds Bounds;

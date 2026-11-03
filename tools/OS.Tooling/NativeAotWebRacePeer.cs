@@ -65,7 +65,7 @@ public static partial class NativeAotWebRacePeer
     private static Task WaitForRecoveryWaitAsync(string root, string? serial, ulong[] status, CancellationToken cancellation, bool eventOwned) => WaitForPendingWaitAsync(root, serial, status, cancellation, eventOwned, true);
     private static async Task WaitForPendingWaitAsync(string root, string? serial, ulong[] status, CancellationToken cancellation, bool eventOwned, bool recovery)
     {
-        Need(!string.IsNullOrEmpty(serial) && status is { Length: 6 } && status[0] == 2 && status[1] == 1 && status[2] is> 0 and <= int.MaxValue, recovery ? "recovery_wait_inputs" : "initial_wait_inputs");
+        Need(!string.IsNullOrEmpty(serial) && status is { Length: 6 } && status[0] == 2 && status[1] == 1 && status[2] is > 0 and <= int.MaxValue, recovery ? "recovery_wait_inputs" : "initial_wait_inputs");
         string path = System.IO.Path.GetFullPath(serial!, root);
         AuthorityFiles.RequirePlainPath(root, path, recovery ? "web_race_owner_recovery_path" : "web_race_owner_initial_path");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
@@ -74,7 +74,7 @@ public static partial class NativeAotWebRacePeer
         {
             await NativeAotSocketPeer.WaitForSerialAsync(path, text => HasPendingWait(text, (int)status[2], eventOwned, recovery ? 2 : 1), deadline.Token);
         }
-        catch (OperationCanceledException)when (!cancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (!cancellation.IsCancellationRequested)
         {
             throw new ToolFailure(recovery ? "web_race_owner_recovery_wait_timeout" : "web_race_owner_initial_wait_timeout");
         }

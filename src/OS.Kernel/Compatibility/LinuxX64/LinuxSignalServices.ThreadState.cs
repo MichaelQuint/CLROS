@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxSignalServices
 {
     private struct ThreadState

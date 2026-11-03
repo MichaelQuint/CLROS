@@ -35,11 +35,11 @@ internal static class StorageGptHeaderSourceGuard
             || !SymbolEqualityComparer.Default.Equals(buffer.Type,
                 catalog.Compilation.GetTypeByMetadataName("System.Span`1")!.Construct(catalog.Compilation.GetSpecialType(SpecialType.System_Byte)))
             || storageVariable.Initializer?.Value is not StackAllocArrayCreationExpressionSyntax
-                { Type: ArrayTypeSyntax { RankSpecifiers.Count: 1 } allocated }
+            { Type: ArrayTypeSyntax { RankSpecifiers.Count: 1 } allocated }
             || allocated.RankSpecifiers[0].Sizes is not [var size]
             || model.GetTypeInfo(allocated.ElementType).Type?.SpecialType != SpecialType.System_Byte
             || ExpressionOperation(model, size) is not IConversionOperation
-                { IsChecked: true, Type.SpecialType: SpecialType.System_Int32, Operand: IParameterReferenceOperation length }
+            { IsChecked: true, Type.SpecialType: SpecialType.System_Int32, Operand: IParameterReferenceOperation length }
             || !SymbolEqualityComparer.Default.Equals(length.Parameter, symbol.Parameters[1])
             || !HostSourceOperations.IsUnmodifiedLocal(model, buffer, method)
             || copied.Declaration.Variables is not [var copyVariable]
@@ -56,12 +56,14 @@ internal static class StorageGptHeaderSourceGuard
             || source.Instance is null || !HostSourceOperations.IsParameter(source.Instance, symbol.Parameters[0])
             || source.Arguments.Length != 2 || !Integer(HostSourceOperations.Argument(source, 0), 0)
             || HostSourceOperations.Argument(source, 1) is not IPropertyReferenceOperation
-                { Property.Name: nameof(Span<byte>.Length), Instance: { } sized } count
+            { Property.Name: nameof(Span<byte>.Length), Instance: { } sized } count
             || !Local(sized, buffer) || !SymbolEqualityComparer.Default.Equals(count.Property.ContainingType, buffer.Type)
             || failure.Else is not null
             || model.GetOperation(failure.Condition) is not IUnaryOperation
-                { OperatorKind: UnaryOperatorKind.Not, Operand: IPropertyReferenceOperation
-                    { Property.Name: nameof(BufferOperationResult.Succeeded), Instance: { } instance } succeeded }
+            {
+                OperatorKind: UnaryOperatorKind.Not, Operand: IPropertyReferenceOperation
+                { Property.Name: nameof(BufferOperationResult.Succeeded), Instance: { } instance } succeeded
+            }
             || !Local(instance, result) || !SymbolEqualityComparer.Default.Equals(succeeded.Property.ContainingType, result.Type)
             || !Returns(failure.Statement, false) || !Returns(success, true))
             return false;

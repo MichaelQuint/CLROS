@@ -14,12 +14,18 @@ internal static partial class VirtioNetQueueMmioSetupPlanTests
         public uint[] Offsets { get; } = new uint[VirtioNetQueueMmioSetupPlanner.RequiredCommandCount];
         public uint[] Widths { get; } = new uint[VirtioNetQueueMmioSetupPlanner.RequiredCommandCount];
         public ulong[] Values { get; } = new ulong[VirtioNetQueueMmioSetupPlanner.RequiredCommandCount];
-        public int OperationCount { get; private set; }
+        public int OperationCount
+        {
+            get; private set;
+        }
         public int FailureOperationIndex { get; init; } = -1;
         public VirtioPciRegisterReadStatus ReadFailureStatus { get; init; } = VirtioPciRegisterReadStatus.Success;
         public VirtioPciRegisterWriteStatus WriteFailureStatus { get; init; } = VirtioPciRegisterWriteStatus.Success;
         public int MismatchReadOperationIndex { get; init; } = -1;
-        public ushort MismatchReadValue { get; init; }
+        public ushort MismatchReadValue
+        {
+            get; init;
+        }
 
         public VirtioPciRegisterRead16Result Read16(VirtioPciBarAperture aperture, uint relativeOffset)
         {

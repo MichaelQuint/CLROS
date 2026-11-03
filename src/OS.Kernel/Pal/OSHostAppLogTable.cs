@@ -1,6 +1,7 @@
 using OS.Std.Memory;
 
 namespace OS.Pal;
+
 public sealed partial class OSHostAppLogTable
 {
     private readonly AppLogSlot[] slots;

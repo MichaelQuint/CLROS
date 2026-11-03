@@ -147,11 +147,11 @@ internal static partial class NativeAotServiceQuotaNicTests
         {
             action();
         }
-        catch (ToolFailure error)when (reason is null || error.Reason == reason)
+        catch (ToolFailure error) when (reason is null || error.Reason == reason)
         {
             return;
         }
-        catch (InvalidDataException)when (reason is null)
+        catch (InvalidDataException) when (reason is null)
         {
             return;
         }

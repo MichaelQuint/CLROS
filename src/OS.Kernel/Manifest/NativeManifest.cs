@@ -1,4 +1,5 @@
 namespace OS.Manifest;
+
 public readonly struct NativeManifest
 {
     public const byte Version0 = 0;
@@ -24,17 +25,47 @@ public readonly struct NativeManifest
         ListenEndpoint = listenEndpoint;
     }
 
-    public byte Version { get; }
-    public NativeManifestField AppName { get; }
-    public NativeManifestField AppPath { get; }
-    public NativeManifestField Args { get; }
-    public NativeManifestAppKind AppKind { get; }
-    public NativeManifestRuntimeKind RuntimeKind { get; }
-    public NativeManifestNetworkMode NetworkMode { get; }
-    public NativeManifestLogMode LogMode { get; }
-    public NativeManifestEnvironmentBlock Environment { get; }
+    public byte Version
+    {
+        get;
+    }
+    public NativeManifestField AppName
+    {
+        get;
+    }
+    public NativeManifestField AppPath
+    {
+        get;
+    }
+    public NativeManifestField Args
+    {
+        get;
+    }
+    public NativeManifestAppKind AppKind
+    {
+        get;
+    }
+    public NativeManifestRuntimeKind RuntimeKind
+    {
+        get;
+    }
+    public NativeManifestNetworkMode NetworkMode
+    {
+        get;
+    }
+    public NativeManifestLogMode LogMode
+    {
+        get;
+    }
+    public NativeManifestEnvironmentBlock Environment
+    {
+        get;
+    }
     public int EnvironmentCount => Environment.Count;
-    public NativeManifestListenEndpoint ListenEndpoint { get; }
+    public NativeManifestListenEndpoint ListenEndpoint
+    {
+        get;
+    }
     public bool HasListenEndpoint => ListenEndpoint.IsPresent;
 
     public NativeManifestEnvironmentEntry GetEnvironmentEntry(int index)

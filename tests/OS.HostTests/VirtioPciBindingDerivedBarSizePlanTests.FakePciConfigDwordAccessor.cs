@@ -7,7 +7,10 @@ internal static partial class VirtioPciBindingDerivedBarSizePlanTests
     private sealed class FakePciConfigDwordAccessor : IPciConfigDwordAccessor
     {
         private readonly uint[] _readbacks = new uint[PciBarSizingProbeExecutor.RequiredReadbackCount];
-        public int OperationCount { get; private set; }
+        public int OperationCount
+        {
+            get; private set;
+        }
 
         public void SetReadback(ushort registerOffset, uint value)
         {

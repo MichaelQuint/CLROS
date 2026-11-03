@@ -34,8 +34,8 @@ internal static partial class M02GuardedIstStacksEfiIntegrationTests
         CSharpSourceCatalog Change(string path, byte[] bytes) => new(source.Documents.Select(item => item == document ? CSharpSourceDocument.FromBytes(path, bytes, (Microsoft.CodeAnalysis.CSharp.CSharpParseOptions)item.Syntax.Options) : item), source.Compilation.References, source.Compilation.AssemblyName!, source.Compilation.Options);
         HostCheck.True(Matches(Change(document.Path + ".moved.cs", System.Text.Encoding.UTF8.GetBytes(lf))), "arbitrary source filename preserves independent identity");
         HostCheck.True(Matches(Change(document.Path, System.Text.Encoding.UTF8.GetBytes(lf.ReplaceLineEndings("\r\n")))), "explicit CRLF variant");
-        HostCheck.True(!Matches(Change(document.Path, [0xef, 0xbb, 0xbf, ..System.Text.Encoding.UTF8.GetBytes(lf)])), "BOM remains outside reviewed byte variants");
-        HostCheck.True(!Matches(Change(document.Path, [0xff, 0xfe, ..System.Text.Encoding.Unicode.GetBytes(lf)])), "UTF16 remains outside reviewed byte variants");
+        HostCheck.True(!Matches(Change(document.Path, [0xef, 0xbb, 0xbf, .. System.Text.Encoding.UTF8.GetBytes(lf)])), "BOM remains outside reviewed byte variants");
+        HostCheck.True(!Matches(Change(document.Path, [0xff, 0xfe, .. System.Text.Encoding.Unicode.GetBytes(lf)])), "UTF16 remains outside reviewed byte variants");
         string changed = document.Text.Remove(field.Initializer!.Value.SpanStart, field.Initializer.Value.Span.Length).Insert(field.Initializer.Value.SpanStart, "4095");
         var mutated = Change(document.Path, System.Text.Encoding.UTF8.GetBytes(changed));
         HostCheck.True(!mutated.Compilation.GetDiagnostics().Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), "changed constant is valid code");
@@ -53,7 +53,7 @@ internal static partial class M02GuardedIstStacksEfiIntegrationTests
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location)
         };
-        foreach (var(signature, expected)in new[]
+        foreach (var (signature, expected) in new[]
         {
             ("private static void ArbitrarilyNamedCaller()", true),
             ("private static void ArbitrarilyNamedCaller<T>()", false),

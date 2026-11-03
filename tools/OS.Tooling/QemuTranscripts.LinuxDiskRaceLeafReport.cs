@@ -6,6 +6,7 @@ using OS.Manifest;
 using Race = OS.Tooling.LinuxDiskRaceProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied scalar checks of the exact two-worker mechanical leaf.
@@ -17,29 +18,68 @@ public static partial class QemuTranscripts
 
     public sealed class LinuxDiskRaceLeafReport
     {
-        public string Variant { get; }
-        public int Transfers { get; }
-        public ulong Epochs { get; }
+        public string Variant
+        {
+            get;
+        }
+        public int Transfers
+        {
+            get;
+        }
+        public ulong Epochs
+        {
+            get;
+        }
         public bool CheckedCalls => true;
         public bool CheckedWaitCompletions => true;
         public bool CheckedLifecycleRecords => true;
         public bool CheckedCrossWorkerOrdering => true;
         public bool CheckedSchedulerReplay => ExitPendingStages is not null;
-        public LinuxDiskExitPendingValues? ExitPendingStages { get; }
-        public LinuxDiskExitPendingRecord? ExitCleanupEnd { get; }
+        public LinuxDiskExitPendingValues? ExitPendingStages
+        {
+            get;
+        }
+        public LinuxDiskExitPendingRecord? ExitCleanupEnd
+        {
+            get;
+        }
         public bool CheckedUserMemoryOrAuxiliaryJoins => false;
         public bool CheckedSignalReturnEnvelopes => Variant is "InterruptWins" or "CompletionWins";
         public bool CheckedPostDeathSentinelOrOrphanDrain => false;
         public bool CompletionWinnerProvesBackendDataRace => false;
-        public IReadOnlyList<LinuxDiskRaceCall> Calls { get; }
-        public IReadOnlyList<LinuxDiskRaceWindow> Windows { get; }
-        public IReadOnlyList<LinuxDiskAuxiliary> Auxiliary { get; }
-        public IReadOnlyList<LinuxDiskRaceAbandoned> Abandoned { get; }
+        public IReadOnlyList<LinuxDiskRaceCall> Calls
+        {
+            get;
+        }
+        public IReadOnlyList<LinuxDiskRaceWindow> Windows
+        {
+            get;
+        }
+        public IReadOnlyList<LinuxDiskAuxiliary> Auxiliary
+        {
+            get;
+        }
+        public IReadOnlyList<LinuxDiskRaceAbandoned> Abandoned
+        {
+            get;
+        }
         public Race.MemoryLayout Memory => Race.Memory;
-        public int MainReadCallIndex { get; }
-        public int MainReadCompletionIndex { get; }
-        public int ChildCloseIndex { get; }
-        public int ChildSignalIndex { get; }
+        public int MainReadCallIndex
+        {
+            get;
+        }
+        public int MainReadCompletionIndex
+        {
+            get;
+        }
+        public int ChildCloseIndex
+        {
+            get;
+        }
+        public int ChildSignalIndex
+        {
+            get;
+        }
 
         internal LinuxDiskRaceLeafReport(string variant, int transfers, ulong epochs, List<LinuxDiskRaceCall> calls, List<LinuxDiskRaceWindow> windows, List<LinuxDiskAuxiliary> auxiliary, int read, int complete, int close, List<LinuxDiskRaceAbandoned> abandoned, int signal, LinuxDiskExitPendingValues? stages = null, LinuxDiskExitPendingRecord? cleanupEnd = null)
         {

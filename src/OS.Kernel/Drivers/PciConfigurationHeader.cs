@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public static class PciConfigurationHeader
 {
     public const int Type0HeaderLength = 64;

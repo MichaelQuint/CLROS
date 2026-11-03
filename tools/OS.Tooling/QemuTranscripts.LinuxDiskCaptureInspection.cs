@@ -4,6 +4,7 @@ using OS.Kernel.Compatibility.LinuxX64;
 using Block = OS.Storage.ContinuingReadOnlyBlockService;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied value joins only. Parent values, canonical leaf, independent
@@ -14,15 +15,42 @@ public static partial class QemuTranscripts
 
     public sealed class LinuxDiskCaptureInspection
     {
-        public WebParentReport Parent { get; }
-        public LinuxDiskFileLeafReport Leaf { get; }
-        public NativeDiskReadObservations.Inspection Device { get; }
-        public string ImageSha256 { get; }
-        public int LeafStartIndex { get; }
-        public IReadOnlyList<LinuxDiskAuxiliary> Auxiliary { get; }
-        public IReadOnlyList<int> IoRecordIndices { get; }
-        public IReadOnlyList<DiskReadWindow> ReadWindows { get; }
-        public int InstructionIrqs { get; }
+        public WebParentReport Parent
+        {
+            get;
+        }
+        public LinuxDiskFileLeafReport Leaf
+        {
+            get;
+        }
+        public NativeDiskReadObservations.Inspection Device
+        {
+            get;
+        }
+        public string ImageSha256
+        {
+            get;
+        }
+        public int LeafStartIndex
+        {
+            get;
+        }
+        public IReadOnlyList<LinuxDiskAuxiliary> Auxiliary
+        {
+            get;
+        }
+        public IReadOnlyList<int> IoRecordIndices
+        {
+            get;
+        }
+        public IReadOnlyList<DiskReadWindow> ReadWindows
+        {
+            get;
+        }
+        public int InstructionIrqs
+        {
+            get;
+        }
         public bool CheckedRunnerNativeFirmwarePackets => false;
         public bool ReplayedArbitraryInstructionsOrUserBuffers => false;
 

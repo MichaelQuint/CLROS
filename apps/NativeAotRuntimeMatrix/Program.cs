@@ -56,7 +56,7 @@ internal static partial class Program
                 {
                     Throw(original);
                 }
-                catch (InvalidOperationException caught)when (Filter(caught, original, state))
+                catch (InvalidOperationException caught) when (Filter(caught, original, state))
                 {
                     Require(ReferenceEquals(caught, original), "inner_exception_identity");
                     state.Catches++;
@@ -374,12 +374,12 @@ internal static partial class Program
         long stage = Stopwatch.GetTimestamp();
         while (!ready())
         {
-            Require(states.All(s => Volatile.Read(ref s.Failure)is null), "worker_failure");
+            Require(states.All(s => Volatile.Read(ref s.Failure) is null), "worker_failure");
             Require(Stopwatch.GetElapsedTime(stage) < TimeSpan.FromSeconds(TimeoutSeconds), reason + "_timeout");
             Thread.Yield();
         }
 
-        Require(states.All(s => Volatile.Read(ref s.Failure)is null), "worker_failure");
+        Require(states.All(s => Volatile.Read(ref s.Failure) is null), "worker_failure");
     }
 
     private static TimeSpan Remaining(long stage)

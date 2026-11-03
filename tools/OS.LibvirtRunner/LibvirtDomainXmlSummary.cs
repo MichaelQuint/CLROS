@@ -24,19 +24,64 @@ readonly struct LibvirtDomainXmlSummary
         OvmfLoaderPath = ovmfLoaderPath;
     }
 
-    public int XmlByteCount { get; }
-    public string DomainName { get; }
-    public string DomainType { get; }
-    public int MemoryMiB { get; }
-    public int CurrentMemoryMiB { get; }
-    public int VCpuCount { get; }
-    public string OsType { get; }
-    public string OsArch { get; }
-    public string OsMachine { get; }
-    public string DiskFormat { get; }
-    public string DiskSource { get; }
-    public string SerialLogPath { get; }
-    public string Network { get; }
-    public bool HasOvmfLoader { get; }
-    public string OvmfLoaderPath { get; }
+    public int XmlByteCount
+    {
+        get;
+    }
+    public string DomainName
+    {
+        get;
+    }
+    public string DomainType
+    {
+        get;
+    }
+    public int MemoryMiB
+    {
+        get;
+    }
+    public int CurrentMemoryMiB
+    {
+        get;
+    }
+    public int VCpuCount
+    {
+        get;
+    }
+    public string OsType
+    {
+        get;
+    }
+    public string OsArch
+    {
+        get;
+    }
+    public string OsMachine
+    {
+        get;
+    }
+    public string DiskFormat
+    {
+        get;
+    }
+    public string DiskSource
+    {
+        get;
+    }
+    public string SerialLogPath
+    {
+        get;
+    }
+    public string Network
+    {
+        get;
+    }
+    public bool HasOvmfLoader
+    {
+        get;
+    }
+    public string OvmfLoaderPath
+    {
+        get;
+    }
 }

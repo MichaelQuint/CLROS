@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public enum M02Com1OwnedPortIoBackendIntegrationStatus : byte
 {
     Uninitialized = 0,

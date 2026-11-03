@@ -2,6 +2,7 @@ using OS.Boot;
 using Unwind = OS.Kernel.Runtime.X64PERuntimeFunctionUnwindMetadataHostileInput;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAotEhMethodLookupResult
 {
     internal NativeAotEhMethodLookupResult(NativeAotEhClauseStatus status)
@@ -18,8 +19,17 @@ public readonly struct NativeAotEhMethodLookupResult
         ClauseCount = clauses;
     }
 
-    public NativeAotEhClauseStatus Status { get; }
+    public NativeAotEhClauseStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == NativeAotEhClauseStatus.Success;
-    public NativeAotEhMethodBounds Bounds { get; }
-    public uint ClauseCount { get; }
+    public NativeAotEhMethodBounds Bounds
+    {
+        get;
+    }
+    public uint ClauseCount
+    {
+        get;
+    }
 }

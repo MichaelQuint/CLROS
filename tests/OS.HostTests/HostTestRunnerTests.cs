@@ -12,7 +12,7 @@ internal static partial class HostTestRunnerTests
         {
             _ = HostTestRunner.Invoke(method);
         }
-        catch (InvalidOperationException error)when (ReferenceEquals(error, SynchronousFailure))
+        catch (InvalidOperationException error) when (ReferenceEquals(error, SynchronousFailure))
         {
             HostCheck.True(error.StackTrace?.Contains(nameof(SynchronousThrowControl), StringComparison.Ordinal) == true);
             return;
@@ -69,7 +69,7 @@ internal static partial class HostTestRunnerTests
             {
                 _ = Invoke(name);
             }
-            catch (InvalidOperationException error)when (error.Message == "joined_async_failure")
+            catch (InvalidOperationException error) when (error.Message == "joined_async_failure")
             {
                 fault = true;
             }
@@ -90,7 +90,7 @@ internal static partial class HostTestRunnerTests
             {
                 _ = Invoke(name);
             }
-            catch (InvalidOperationException error)when (error.Message.StartsWith("null_fixture_task", StringComparison.Ordinal))
+            catch (InvalidOperationException error) when (error.Message.StartsWith("null_fixture_task", StringComparison.Ordinal))
             {
                 rejected = true;
             }
@@ -114,7 +114,7 @@ internal static partial class HostTestRunnerTests
             {
                 _ = Invoke(name);
             }
-            catch (InvalidOperationException error)when (error.Message.StartsWith("unsupported_fixture_return", StringComparison.Ordinal))
+            catch (InvalidOperationException error) when (error.Message.StartsWith("unsupported_fixture_return", StringComparison.Ordinal))
             {
                 rejected = true;
             }
@@ -275,7 +275,11 @@ internal static partial class HostTestRunnerTests
             await bothStarted.Task;
             if (item == 0)
             {
-                string? reason = HostTestRunner.WorkerProcessFailure(confirmedFailure with { TerminationConfirmed = false, FailureReason = "TerminationUnconfirmed controlled" }, scheduling);
+                string? reason = HostTestRunner.WorkerProcessFailure(confirmedFailure with
+                {
+                    TerminationConfirmed = false,
+                    FailureReason = "TerminationUnconfirmed controlled"
+                }, scheduling);
                 HostCheck.Equal("termination_unconfirmed TerminationUnconfirmed controlled", reason);
             }
             else
@@ -326,7 +330,7 @@ internal static partial class HostTestRunnerTests
             await firstWorker!.WaitAsync(TimeSpan.FromSeconds(10));
             throw new InvalidOperationException("worker did not fail");
         }
-        catch (IOException error)when (error.Message == "controlled receipt failure")
+        catch (IOException error) when (error.Message == "controlled receipt failure")
         {
         }
 
@@ -337,7 +341,7 @@ internal static partial class HostTestRunnerTests
             await run;
             throw new InvalidOperationException("scheduler swallowed the failure");
         }
-        catch (IOException error)when (error.Message == "controlled receipt failure")
+        catch (IOException error) when (error.Message == "controlled receipt failure")
         {
         }
 
@@ -352,7 +356,7 @@ internal static partial class HostTestRunnerTests
         using Stream stream = typeof(HostBuildInputs).Assembly.GetManifestResourceStream("host-test-inputs.txt") ?? throw new InvalidOperationException("build input manifest missing");
         using StreamReader reader = new(stream);
         HashSet<string> paths = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
-        while (reader.ReadLine()is { } line)
+        while (reader.ReadLine() is { } line)
         {
             int delimiter = line.LastIndexOf('|');
             HostCheck.True(delimiter > 0, line);
@@ -409,7 +413,7 @@ internal static partial class HostTestRunnerTests
                 _ = HostBuildInputs.SourceInputs(root).ToArray();
                 throw new InvalidOperationException("linked source escaped inventory");
             }
-            catch (InvalidOperationException error)when (error.Message.StartsWith("build_input_reparse_point ", StringComparison.Ordinal))
+            catch (InvalidOperationException error) when (error.Message.StartsWith("build_input_reparse_point ", StringComparison.Ordinal))
             {
             }
         }
@@ -686,11 +690,15 @@ internal static partial class HostTestRunnerTests
     {
         using CancellationTokenSource cancellation = new();
         var streamed = new System.Text.StringBuilder();
-        var result = ProcessRunner.RunAsync(new("dotnet", [typeof(HostTestRunnerTests).Assembly.Location, "--runner-control", "wait-after-output"], HostToolProcess.FindRepositoryRoot()) { Timeout = TimeSpan.FromSeconds(15), OutputReceived = (text, _) =>
+        var result = ProcessRunner.RunAsync(new("dotnet", [typeof(HostTestRunnerTests).Assembly.Location, "--runner-control", "wait-after-output"], HostToolProcess.FindRepositoryRoot())
+        {
+            Timeout = TimeSpan.FromSeconds(15),
+            OutputReceived = (text, _) =>
         {
             streamed.Append(text);
             cancellation.Cancel();
-        } }, cancellation.Token).GetAwaiter().GetResult();
+        }
+        }, cancellation.Token).GetAwaiter().GetResult();
         HostCheck.True(result.Cancelled && !result.TimedOut && !result.Succeeded);
         HostCheck.Equal("control-ready", streamed.ToString().Trim());
         HostCheck.Equal(streamed.ToString(), result.StandardOutput);
@@ -838,6 +846,6 @@ internal static partial class HostTestRunnerTests
         }
     }
 
-    private static ProcessResult Control(string name, params string[] arguments) => Run(["--runner-control", name, ..arguments]);
-    private static ProcessResult Run(string[] arguments, TimeSpan? timeout = null, int limit = 64 * 1024) => ProcessRunner.RunAsync(new("dotnet", [typeof(HostTestRunnerTests).Assembly.Location, ..arguments], HostToolProcess.FindRepositoryRoot()) { Timeout = timeout ?? TimeSpan.FromSeconds(15), OutputCharacterLimit = limit }).GetAwaiter().GetResult();
+    private static ProcessResult Control(string name, params string[] arguments) => Run(["--runner-control", name, .. arguments]);
+    private static ProcessResult Run(string[] arguments, TimeSpan? timeout = null, int limit = 64 * 1024) => ProcessRunner.RunAsync(new("dotnet", [typeof(HostTestRunnerTests).Assembly.Location, .. arguments], HostToolProcess.FindRepositoryRoot()) { Timeout = timeout ?? TimeSpan.FromSeconds(15), OutputCharacterLimit = limit }).GetAwaiter().GetResult();
 }

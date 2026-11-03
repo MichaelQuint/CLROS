@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum Com1SerialWriterStatus
 {
     Success = 0,

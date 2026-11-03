@@ -1,4 +1,5 @@
 namespace OS.Std.Memory;
+
 public static class BufferOperations
 {
     public const CompatibilityStatus Status = CompatibilityStatus.Partial;

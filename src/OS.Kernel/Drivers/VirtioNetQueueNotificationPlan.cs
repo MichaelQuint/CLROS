@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioNetQueueNotificationPlan
 {
     internal VirtioNetQueueNotificationPlan(VirtioNetQueueNotificationKind kind, ushort publishedDescriptorCount, ushort previousAvailableRingIndex, ushort nextAvailableRingIndex, VirtioPciQueueNotificationPlan notificationPlan)
@@ -10,11 +11,26 @@ public readonly struct VirtioNetQueueNotificationPlan
         NotificationPlan = notificationPlan;
     }
 
-    public VirtioNetQueueNotificationKind Kind { get; }
-    public ushort PublishedDescriptorCount { get; }
-    public ushort PreviousAvailableRingIndex { get; }
-    public ushort NextAvailableRingIndex { get; }
-    public VirtioPciQueueNotificationPlan NotificationPlan { get; }
+    public VirtioNetQueueNotificationKind Kind
+    {
+        get;
+    }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
+    public VirtioPciQueueNotificationPlan NotificationPlan
+    {
+        get;
+    }
     public ushort QueueIndex => NotificationPlan.QueueIndex;
     public ushort QueueNotifyOffset => NotificationPlan.QueueNotifyOffset;
     public uint NotifyRelativeOffset => NotificationPlan.RelativeOffset;

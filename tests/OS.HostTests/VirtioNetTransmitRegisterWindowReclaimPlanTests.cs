@@ -226,12 +226,12 @@ internal static partial class VirtioNetTransmitRegisterWindowReclaimPlanTests
 
     private static ulong[] CreateBarSizes()
     {
-        return[0x1000, 0x1000, 0x1000, 0x1000, 0, 0];
+        return [0x1000, 0x1000, 0x1000, 0x1000, 0, 0];
     }
 
     private static VirtioPciMappedBarWindow[] CreateRegisterWindows()
     {
-        return[CreateRegisterWindow(0, 0x80000000UL, 0xFFFF800000000000UL), CreateRegisterWindow(1, NotifyBarPhysicalBase, NotifyBarVirtualBase), CreateRegisterWindow(2, 0x80002000UL, 0xFFFF800000002000UL), CreateRegisterWindow(3, 0x80003000UL, 0xFFFF800000003000UL), default, default ];
+        return [CreateRegisterWindow(0, 0x80000000UL, 0xFFFF800000000000UL), CreateRegisterWindow(1, NotifyBarPhysicalBase, NotifyBarVirtualBase), CreateRegisterWindow(2, 0x80002000UL, 0xFFFF800000002000UL), CreateRegisterWindow(3, 0x80003000UL, 0xFFFF800000003000UL), default, default];
     }
 
     private static VirtioPciMappedBarWindow CreateRegisterWindow(byte barIndex, ulong physicalBaseAddress, ulong virtualBaseAddress)

@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     // Original ELF165683B2 and runtime VMR820230c386db5b0106c5430b3e5aee92a7826bf5:
@@ -96,7 +97,7 @@ public static partial class QemuTranscripts
         private bool Inside(ulong a, ulong n) => a >= start && a < end && n > 0 && n <= end - a;
         private void Change(ulong a, ulong n, Operation operation, ulong protection = 0)
         {
-            Need(a % Page == 0 && n is> 0 and <= 0x400000000 && a <= ulong.MaxValue - n - (Page - 1), "service_gc_backing_extent");
+            Need(a % Page == 0 && n is > 0 and <= 0x400000000 && a <= ulong.MaxValue - n - (Page - 1), "service_gc_backing_extent");
             ulong finish = a + ((n + Page - 1) & ~(Page - 1));
             for (ulong cursor = Math.Max(a, start); cursor < Math.Min(finish, end); cursor += Page)
             {
@@ -110,7 +111,8 @@ public static partial class QemuTranscripts
                     Operation.Decommit => Owned,
                     Operation.Protect => (byte)((prior & ~Protection) | (byte)(protection << 2) | (protection != 0 ? Backed : 0)),
                     Operation.Advise => (prior & Protection) == 0 ? (byte)(prior & ~Backed) : prior,
-                    _ => throw new ToolFailure("service_gc_backing_operation")};
+                    _ => throw new ToolFailure("service_gc_backing_operation")
+                };
                 bool was = (prior & (Owned | Backed)) == (Owned | Backed), now = (next & (Owned | Backed)) == (Owned | Backed);
                 if (was != now)
                 {

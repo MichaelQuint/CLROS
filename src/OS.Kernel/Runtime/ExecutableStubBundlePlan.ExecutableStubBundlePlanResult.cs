@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public readonly struct ExecutableStubBundlePlanResult
 {
     public static readonly nuint MissingSlotOffset = nuint.MaxValue;
@@ -19,20 +20,59 @@ public readonly struct ExecutableStubBundlePlanResult
         NullWriteProbeOffset = nullWriteProbeOffset;
     }
 
-    public bool IsInitialized { get; }
-    public ExecutableStubBundlePlanStatus Status { get; }
-    public ExecutableStubMemoryPlanStatus MemoryPlanStatus { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public ExecutableStubBundlePlanStatus Status
+    {
+        get;
+    }
+    public ExecutableStubMemoryPlanStatus MemoryPlanStatus
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == ExecutableStubBundlePlanStatus.Success;
-    public int SlotCount { get; }
-    public nuint TotalPayloadLength { get; }
-    public nuint RequiredMemoryBytes { get; }
-    public nuint Com1Out8Offset { get; }
-    public nuint Com1In8Offset { get; }
-    public nuint InstallIdtOffset { get; }
-    public nuint InstallGdtOffset { get; }
-    public nuint LoadTaskRegisterOffset { get; }
-    public nuint InvalidOpcodeProbeOffset { get; }
-    public nuint NullWriteProbeOffset { get; }
+    public int SlotCount
+    {
+        get;
+    }
+    public nuint TotalPayloadLength
+    {
+        get;
+    }
+    public nuint RequiredMemoryBytes
+    {
+        get;
+    }
+    public nuint Com1Out8Offset
+    {
+        get;
+    }
+    public nuint Com1In8Offset
+    {
+        get;
+    }
+    public nuint InstallIdtOffset
+    {
+        get;
+    }
+    public nuint InstallGdtOffset
+    {
+        get;
+    }
+    public nuint LoadTaskRegisterOffset
+    {
+        get;
+    }
+    public nuint InvalidOpcodeProbeOffset
+    {
+        get;
+    }
+    public nuint NullWriteProbeOffset
+    {
+        get;
+    }
 
     public bool TryGetSlotOffset(ExecutableStubSlotKind kind, out nuint offset)
     {

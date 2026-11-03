@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public sealed partial class OSHostWaitTable
 {
     private struct WaitSlot

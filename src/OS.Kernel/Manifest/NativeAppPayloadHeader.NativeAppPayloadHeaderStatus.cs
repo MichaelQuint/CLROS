@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Manifest;
+
 public enum NativeAppPayloadHeaderStatus
 {
     Success = 0,

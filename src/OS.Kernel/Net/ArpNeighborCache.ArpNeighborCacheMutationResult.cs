@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct ArpNeighborCacheMutationResult
 {
     private ArpNeighborCacheMutationResult(ArpNeighborCacheStatus status, int count, int capacity, int removedCount, bool updatedExisting)
@@ -11,13 +12,31 @@ public readonly struct ArpNeighborCacheMutationResult
         UpdatedExisting = updatedExisting;
     }
 
-    public bool IsInitialized { get; }
-    public ArpNeighborCacheStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public ArpNeighborCacheStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == ArpNeighborCacheStatus.Success;
-    public int Count { get; }
-    public int Capacity { get; }
-    public int RemovedCount { get; }
-    public bool UpdatedExisting { get; }
+    public int Count
+    {
+        get;
+    }
+    public int Capacity
+    {
+        get;
+    }
+    public int RemovedCount
+    {
+        get;
+    }
+    public bool UpdatedExisting
+    {
+        get;
+    }
 
     public static ArpNeighborCacheMutationResult Success(int count, int capacity, int removedCount, bool updatedExisting)
     {

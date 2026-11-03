@@ -15,7 +15,10 @@ internal static unsafe partial class LinuxNativeSavedCodeTests
         private readonly int allocationBytes;
         private readonly byte[] originalCode;
         private readonly byte[] originalCopy;
-        internal int Length { get; }
+        internal int Length
+        {
+            get;
+        }
         internal byte* Code => codeAllocation + 8;
         internal byte* Copy => copyAllocation + 8;
 

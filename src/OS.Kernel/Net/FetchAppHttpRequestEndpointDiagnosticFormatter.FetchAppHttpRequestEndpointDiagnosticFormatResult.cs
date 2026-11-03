@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public readonly struct FetchAppHttpRequestEndpointDiagnosticFormatResult
 {
     private const uint InitializedFlag = 1;
@@ -14,12 +15,30 @@ public readonly struct FetchAppHttpRequestEndpointDiagnosticFormatResult
         Flags = flags;
     }
 
-    public FetchAppHttpRequestEndpointDiagnosticFormatStatus Status { get; }
-    public FetchAppHttpRequestEndpointStatus EndpointStatus { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
-    public uint Flags { get; }
+    public FetchAppHttpRequestEndpointDiagnosticFormatStatus Status
+    {
+        get;
+    }
+    public FetchAppHttpRequestEndpointStatus EndpointStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == FetchAppHttpRequestEndpointDiagnosticFormatStatus.Success && RequiredBytes > 0 && BytesWritten == RequiredBytes && RequiredBytes <= AvailableBytes;
 

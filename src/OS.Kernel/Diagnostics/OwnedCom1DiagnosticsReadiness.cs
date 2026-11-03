@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class OwnedCom1DiagnosticsReadiness
 {
     public const string PostFirmwareDiagnosticsOperation = "diagnostics.owned.com1.post-firmware";

@@ -2,6 +2,7 @@ using OS.Pal;
 using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAppExitLogObserverDiagnosticFormatResult
 {
     private const uint InitializedFlag = 1;
@@ -15,12 +16,30 @@ public readonly struct NativeAppExitLogObserverDiagnosticFormatResult
         Flags = flags;
     }
 
-    public NativeAppExitLogObserverDiagnosticFormatStatus Status { get; }
-    public NativeAppExitLogObserverStatus ObserverStatus { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
-    public uint Flags { get; }
+    public NativeAppExitLogObserverDiagnosticFormatStatus Status
+    {
+        get;
+    }
+    public NativeAppExitLogObserverStatus ObserverStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == NativeAppExitLogObserverDiagnosticFormatStatus.Success && RequiredBytes > 0 && BytesWritten == RequiredBytes && RequiredBytes <= AvailableBytes;
 

@@ -5,6 +5,7 @@ using System.Text.Json;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Joined captured child lifetime and HTTP elapsed observations.

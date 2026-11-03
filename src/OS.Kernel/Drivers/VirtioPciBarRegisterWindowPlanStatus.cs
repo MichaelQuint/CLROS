@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public enum VirtioPciBarRegisterWindowPlanStatus
 {
     Success = 0,

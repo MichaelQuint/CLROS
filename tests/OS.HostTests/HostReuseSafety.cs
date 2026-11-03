@@ -17,13 +17,16 @@ internal sealed class HostReuseSafety(CSharpSourceCatalog catalog)
 
     internal string? Reason(INamedTypeSymbol fixture, bool ownedArtifacts)
     {
-        if (hasModuleInitializer) return "module_initializer";
+        if (hasModuleInitializer)
+            return "module_initializer";
         HashSet<ISymbol> visited = new(SymbolEqualityComparer.Default);
         Queue<ISymbol> pending = new();
-        foreach (var member in fixture.GetMembers()) Add(member);
+        foreach (var member in fixture.GetMembers())
+            Add(member);
         while (pending.TryDequeue(out var symbol))
         {
-            if (!visited.Add(symbol.OriginalDefinition)) continue;
+            if (!visited.Add(symbol.OriginalDefinition))
+                continue;
             if (symbol is IMethodSymbol method && method.IsExtern)
                 return "external_method:" + method.ToDisplayString();
             foreach (var reference in symbol.DeclaringSyntaxReferences)
@@ -41,7 +44,8 @@ internal sealed class HostReuseSafety(CSharpSourceCatalog catalog)
                             || !ownedArtifacts && (value.Contains("artifacts/", StringComparison.OrdinalIgnoreCase)
                                 || value.Contains("artifacts\\", StringComparison.OrdinalIgnoreCase) || value == "artifacts")))
                         return "external_path:" + symbol.ToDisplayString();
-                    if (model.GetOperation(node) is { } root) Include(root);
+                    if (model.GetOperation(node) is { } root)
+                        Include(root);
                 }
                 foreach (var operation in operations)
                 {
@@ -58,8 +62,11 @@ internal sealed class HostReuseSafety(CSharpSourceCatalog catalog)
                         or IIncrementOrDecrementOperation { OperatorMethod: not null }
                         or ICompoundAssignmentOperation { OperatorMethod: not null })
                         return "operator_dispatch:" + symbol.ToDisplayString();
-                    if (operation is IBinaryOperation { OperatorKind: BinaryOperatorKind.Add, Type.SpecialType: SpecialType.System_String,
-                            ConstantValue.HasValue: false }
+                    if (operation is IBinaryOperation
+                        {
+                            OperatorKind: BinaryOperatorKind.Add, Type.SpecialType: SpecialType.System_String,
+                            ConstantValue.HasValue: false
+                        }
                         or ICompoundAssignmentOperation { OperatorKind: BinaryOperatorKind.Add, Type.SpecialType: SpecialType.System_String })
                         return "string_concatenation:" + symbol.ToDisplayString();
                     switch (operation)
@@ -78,42 +85,50 @@ internal sealed class HostReuseSafety(CSharpSourceCatalog catalog)
                                 || target.Parameters.Any(parameter => parameter.Type.TypeKind == TypeKind.Delegate))
                                 return "indirect_dispatch:" + target.ToDisplayString();
                             string? reason = External(target);
-                            if (reason is not null) return reason;
+                            if (reason is not null)
+                                return reason;
                             Add(target.ReducedFrom ?? target);
                             break;
                         case IObjectCreationOperation creation:
                             if (creation.Constructor is { } constructor)
                             {
                                 string? construction = External(constructor);
-                                if (construction is not null) return construction;
+                                if (construction is not null)
+                                    return construction;
                                 Add(constructor);
                             }
                             break;
                         case IPropertyReferenceOperation property:
                             string? access = External(property.Property);
-                            if (access is not null) return access;
+                            if (access is not null)
+                                return access;
                             if (property.Property.IsVirtual || property.Property.ContainingType.TypeKind == TypeKind.Interface)
                                 return "indirect_property:" + property.Property.ToDisplayString();
                             Add(property.Property);
                             break;
                         case IFieldReferenceOperation field:
-                            if (!field.Field.HasConstantValue && External(field.Field) is { } fieldAccess) return fieldAccess;
+                            if (!field.Field.HasConstantValue && External(field.Field) is { } fieldAccess)
+                                return fieldAccess;
                             Add(field.Field);
                             break;
                         case IEventReferenceOperation @event:
-                            if (External(@event.Event) is { } eventAccess) return eventAccess;
+                            if (External(@event.Event) is { } eventAccess)
+                                return eventAccess;
                             Add(@event.Event);
                             break;
                         default:
-                            if (!Supported(operation)) return "unsupported_operation:" + operation.Kind;
+                            if (!Supported(operation))
+                                return "unsupported_operation:" + operation.Kind;
                             break;
                     }
                 }
 
                 void Include(IOperation operation)
                 {
-                    if (!operations.Add(operation)) return;
-                    foreach (var child in operation.ChildOperations) Include(child);
+                    if (!operations.Add(operation))
+                        return;
+                    foreach (var child in operation.ChildOperations)
+                        Include(child);
                 }
             }
         }
@@ -121,19 +136,24 @@ internal sealed class HostReuseSafety(CSharpSourceCatalog catalog)
 
         void Add(ISymbol? member)
         {
-            if (member is null) return;
+            if (member is null)
+                return;
             member = member.OriginalDefinition;
-            if (member.DeclaringSyntaxReferences.Length != 0 && !visited.Contains(member)) pending.Enqueue(member);
-            if (member.ContainingType is not { } owner || owner.DeclaringSyntaxReferences.Length == 0 || visited.Contains(owner)) return;
+            if (member.DeclaringSyntaxReferences.Length != 0 && !visited.Contains(member))
+                pending.Enqueue(member);
+            if (member.ContainingType is not { } owner || owner.DeclaringSyntaxReferences.Length == 0 || visited.Contains(owner))
+                return;
             // Initializers and base constructors can execute without an explicit
             // invocation syntax in the selected method. Hashing only the caller
             // would miss their external-state dependencies.
             visited.Add(owner);
             foreach (var initializer in owner.GetMembers().Where(item => item is IFieldSymbol or IPropertySymbol or IEventSymbol
                          || item is IMethodSymbol { MethodKind: MethodKind.StaticConstructor or MethodKind.Constructor }))
-                if (initializer.DeclaringSyntaxReferences.Length != 0) pending.Enqueue(initializer);
+                if (initializer.DeclaringSyntaxReferences.Length != 0)
+                    pending.Enqueue(initializer);
             for (var parent = owner.BaseType; parent is not null; parent = parent.BaseType)
-                foreach (var constructor in parent.Constructors) Add(constructor);
+                foreach (var constructor in parent.Constructors)
+                    Add(constructor);
         }
     }
 

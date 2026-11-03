@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class CpuFaultPanicReadiness
 {
     public static CpuFaultPanicReadinessResult RequireReady(ReadOnlySpan<byte> faultEntryFrame, Span<byte> panicScratch, IPanicSerialByteSink? sink, ReadOnlySpan<char> subsystem, ReadOnlySpan<char> reason)

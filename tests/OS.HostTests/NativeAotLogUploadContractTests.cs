@@ -93,7 +93,7 @@ internal static partial class NativeAotLogUploadContractTests
 
         byte[] valid = SyntheticClrosElf();
         Reject(() => CreateCopiedPackage(valid.AsSpan(1), "write", Sha(valid)), "clros_elf_length");
-        Reject(() => CreateCopiedPackage([..valid, 0], "verify", Sha(valid)), "clros_elf_length");
+        Reject(() => CreateCopiedPackage([.. valid, 0], "verify", Sha(valid)), "clros_elf_length");
     }
 
     [HostTest("log upload copied CLROS manifests reject alternate roots permissions counts IRQ optin app paths duplicate keys and phase widening")]
@@ -151,7 +151,7 @@ internal static partial class NativeAotLogUploadContractTests
         }
 
         Reject(() => InspectCopiedPackage(package.AsSpan(0, package.Length - 1), "verify", digest), "clros_package");
-        Reject(() => InspectCopiedPackage([..package, 0], "verify", digest), "clros_package");
+        Reject(() => InspectCopiedPackage([.. package, 0], "verify", digest), "clros_package");
         int payload = (int)BinaryPrimitives.ReadUInt32LittleEndian(package.AsSpan(20)) + 64;
         foreach (int offset in new[]
         {
@@ -332,7 +332,7 @@ internal static partial class NativeAotLogUploadContractTests
             Reject(() => F.InspectTranscriptValues(legacy, phase), "transcript");
         }
 
-        Reject(() => F.InspectTranscriptValues(new string ('x', F.MaximumTranscriptBytes + 1), "write"), "transcript");
+        Reject(() => F.InspectTranscriptValues(new string('x', F.MaximumTranscriptBytes + 1), "write"), "transcript");
         Reject(() => F.InspectTranscriptValues(Write("write"), "unknown"), "phase");
     }
 
@@ -485,8 +485,8 @@ internal static partial class NativeAotLogUploadContractTests
             Reject(() => F.InspectTraceValues(One(name, valid), "write"), "trace_identity");
         Reject(() => F.InspectTraceValues(One("write-trace.1", valid[..^1]), "write"), "trace_truncated");
         Reject(() => F.InspectTraceValues(One("write-trace.1", "1.000001 read(3, \0, 0) = 0\n"), "write"), "trace_line");
-        Reject(() => F.InspectTraceValues(One("write-trace.1", new string ('x', 8193) + "\n"), "write"), "trace_line");
-        Reject(() => F.InspectTraceValues(One("write-trace.1", new string ('é', 2 * 1024 * 1024) + "\n"), "write"), "trace_capacity");
+        Reject(() => F.InspectTraceValues(One("write-trace.1", new string('x', 8193) + "\n"), "write"), "trace_line");
+        Reject(() => F.InspectTraceValues(One("write-trace.1", new string('é', 2 * 1024 * 1024) + "\n"), "write"), "trace_capacity");
         Reject(() => F.InspectTraceValues(Enumerable.Range(1, 65).ToDictionary(i => "write-trace." + i, _ => valid), "write"), "trace_inventory");
         Reject(() => F.InspectTraceValues(new Dictionary<string, string>(), "write"), "trace_inventory");
         if (!OperatingSystem.IsLinux())
@@ -497,7 +497,7 @@ internal static partial class NativeAotLogUploadContractTests
             {
                 using var reference = await F.RunLinuxReferenceAsync(root, root, destination, TextWriter.Null);
             }
-            catch (ToolFailure failure)when (failure.Reason == "log_upload_linux_builder_required")
+            catch (ToolFailure failure) when (failure.Reason == "log_upload_linux_builder_required")
             {
                 rejected = true;
             }
@@ -545,7 +545,7 @@ internal static partial class NativeAotLogUploadContractTests
         {
             action();
         }
-        catch (ToolFailure failure)when (failure.Reason == "log_upload_" + reason)
+        catch (ToolFailure failure) when (failure.Reason == "log_upload_" + reason)
         {
             rejected = true;
         }

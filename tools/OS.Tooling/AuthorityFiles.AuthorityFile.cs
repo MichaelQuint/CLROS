@@ -3,16 +3,41 @@ using System.Text;
 using OS.Tooling.Native;
 
 namespace OS.Tooling;
+
 public sealed class AuthorityFile : IDisposable
 {
-    public string Path { get; }
-    public string Root { get; }
-    public string Purpose { get; }
-    public string FailurePrefix { get; }
-    public long Length { get; }
-    public string Sha256 { get; }
-    internal FileIdentity InitialIdentity { get; }
-    internal bool RequireSingleLink { get; set; }
+    public string Path
+    {
+        get;
+    }
+    public string Root
+    {
+        get;
+    }
+    public string Purpose
+    {
+        get;
+    }
+    public string FailurePrefix
+    {
+        get;
+    }
+    public long Length
+    {
+        get;
+    }
+    public string Sha256
+    {
+        get;
+    }
+    internal FileIdentity InitialIdentity
+    {
+        get;
+    }
+    internal bool RequireSingleLink
+    {
+        get; set;
+    }
 
     private readonly FileStream stream;
     internal AuthorityFile(string path, string root, string purpose, string failurePrefix, FileStream stream, FileIdentity identity, bool singleLink)
@@ -110,7 +135,7 @@ public sealed class AuthorityFile : IDisposable
         {
             throw;
         }
-        catch (Exception error)when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
             throw new ToolFailure("authority_input_changed", $"purpose={Purpose} path={Path} type={error.GetType().Name}");
         }

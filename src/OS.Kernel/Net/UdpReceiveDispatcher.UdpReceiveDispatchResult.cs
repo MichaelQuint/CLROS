@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Drivers;
 
 public readonly struct UdpReceiveDispatchResult
@@ -14,25 +15,46 @@ public readonly struct UdpReceiveDispatchResult
         UdpPayloadLength = udpPayloadLength;
     }
 
-    public UdpReceiveDispatchStatus Status { get; }
-    public bool IsInitialized { get; }
+    public UdpReceiveDispatchStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == UdpReceiveDispatchStatus.Success;
-    public NetworkReceiveDispatchResult NetworkResult { get; }
+    public NetworkReceiveDispatchResult NetworkResult
+    {
+        get;
+    }
     public NetworkReceiveDispatchStatus NetworkStatus => NetworkResult.Status;
     public VirtioNetReceiveFrameClassifierStatus ClassifierStatus => NetworkResult.ClassifierStatus;
     public PacketParseStatus ClassifierPacketStatus => NetworkResult.ClassifierPacketStatus;
     public PacketParseStatus NetworkPacketStatus => NetworkResult.PayloadPacketStatus;
-    public PacketParseStatus UdpPacketStatus { get; }
+    public PacketParseStatus UdpPacketStatus
+    {
+        get;
+    }
     public EthernetPayloadKind PayloadKind => NetworkResult.PayloadKind;
     public EthernetHeader EthernetHeader => NetworkResult.EthernetHeader;
     public Ipv4Header Ipv4Header => NetworkResult.Ipv4Header;
     public Ipv4Address SourceAddress => NetworkResult.Ipv4Header.Source;
     public Ipv4Address DestinationAddress => NetworkResult.Ipv4Header.Destination;
-    public UdpHeader UdpHeader { get; }
+    public UdpHeader UdpHeader
+    {
+        get;
+    }
     public ushort SourcePort => UdpHeader.SourcePort;
     public ushort DestinationPort => UdpHeader.DestinationPort;
-    public int UdpPayloadOffset { get; }
-    public int UdpPayloadLength { get; }
+    public int UdpPayloadOffset
+    {
+        get;
+    }
+    public int UdpPayloadLength
+    {
+        get;
+    }
 
     public static UdpReceiveDispatchResult Success(NetworkReceiveDispatchResult networkResult, UdpHeader udpHeader, int udpPayloadOffset, int udpPayloadLength)
     {

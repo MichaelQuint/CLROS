@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Tooling;
+
 public sealed partial class NativeAotRuntimeProgram
 {
     /// <summary>Value-only report; partial/synthetic reports grant no admission.</summary>

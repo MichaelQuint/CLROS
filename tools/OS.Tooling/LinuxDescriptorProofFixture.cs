@@ -33,7 +33,8 @@ public static partial class LinuxDescriptorProofFixture
     {
         "Descriptors" => DescriptorCalls,
         "Pipes" => PipeCalls,
-        _ => throw new ToolFailure("m16_007_fixture_variant")};
+        _ => throw new ToolFailure("m16_007_fixture_variant")
+    };
     /// <summary>Fresh successful-path return RIPs, including the terminating exit.
     /// The failure block is excluded so transcript owners cannot accept exit 99.</summary>
 
@@ -43,7 +44,8 @@ public static partial class LinuxDescriptorProofFixture
     {
         "Descriptors" => DescriptorWitness,
         "Pipes" => PipeWitness,
-        _ => throw new ToolFailure("m16_007_fixture_variant")};
+        _ => throw new ToolFailure("m16_007_fixture_variant")
+    };
     /// <summary>Build a fresh canonical immutable package with the full ELF digest.
     /// The caller owns the returned bytes; no native source or host executable is used.</summary>
 

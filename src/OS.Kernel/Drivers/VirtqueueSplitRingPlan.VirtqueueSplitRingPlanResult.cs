@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtqueueSplitRingPlanResult
 {
     private VirtqueueSplitRingPlanResult(VirtqueueSplitRingPlanStatus status, ushort queueSize, VirtqueueSplitRingPlan plan)
@@ -9,10 +10,22 @@ public readonly struct VirtqueueSplitRingPlanResult
         Plan = plan;
     }
 
-    public bool IsInitialized { get; }
-    public VirtqueueSplitRingPlanStatus Status { get; }
-    public ushort QueueSize { get; }
-    public VirtqueueSplitRingPlan Plan { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtqueueSplitRingPlanStatus Status
+    {
+        get;
+    }
+    public ushort QueueSize
+    {
+        get;
+    }
+    public VirtqueueSplitRingPlan Plan
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtqueueSplitRingPlanStatus.Success;
 
     public static VirtqueueSplitRingPlanResult Success(VirtqueueSplitRingPlan plan)

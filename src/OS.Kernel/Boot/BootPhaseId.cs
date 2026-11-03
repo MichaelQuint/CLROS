@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public enum BootPhaseId
 {
     PhaseA_Audit = 0,

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciEcamSegmentScanResult
 {
     private PciEcamSegmentScanResult(PciEcamSegmentScanStatus status, int completedSegmentCount, int deviceCount, int functionReadCount, int requiredDeviceCapacity, int requiredScratchCapacity, int failingSegmentIndex, PciEcamSegment failingSegment, PciBusScanResult nestedResult, bool isInitialized)
@@ -16,16 +17,46 @@ public readonly struct PciEcamSegmentScanResult
     }
 
     public const int NoFailingSegmentIndex = -1;
-    public PciEcamSegmentScanStatus Status { get; }
-    public int CompletedSegmentCount { get; }
-    public int DeviceCount { get; }
-    public int FunctionReadCount { get; }
-    public int RequiredDeviceCapacity { get; }
-    public int RequiredScratchCapacity { get; }
-    public int FailingSegmentIndex { get; }
-    public PciEcamSegment FailingSegment { get; }
-    public PciBusScanResult NestedResult { get; }
-    public bool IsInitialized { get; }
+    public PciEcamSegmentScanStatus Status
+    {
+        get;
+    }
+    public int CompletedSegmentCount
+    {
+        get;
+    }
+    public int DeviceCount
+    {
+        get;
+    }
+    public int FunctionReadCount
+    {
+        get;
+    }
+    public int RequiredDeviceCapacity
+    {
+        get;
+    }
+    public int RequiredScratchCapacity
+    {
+        get;
+    }
+    public int FailingSegmentIndex
+    {
+        get;
+    }
+    public PciEcamSegment FailingSegment
+    {
+        get;
+    }
+    public PciBusScanResult NestedResult
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PciEcamSegmentScanStatus.Success;
 
     public static PciEcamSegmentScanResult Success(int completedSegmentCount, int deviceCount, int functionReadCount)

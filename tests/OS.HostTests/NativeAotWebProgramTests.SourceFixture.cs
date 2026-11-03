@@ -10,7 +10,10 @@ internal static partial class NativeAotWebProgramTests
     private sealed class SourceFixture : IDisposable
     {
         private readonly string parent = System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(System.IO.Path.GetTempPath()));
-        public string Root { get; }
+        public string Root
+        {
+            get;
+        }
 
         private static string[] Sources => NativeAotWebProgram.CurrentSources().Select(source => source.Path).ToArray();
         internal SourceFixture()

@@ -1,6 +1,7 @@
 using RingEngine = global::OS.Drivers.ContinuingVirtioNet;
 
 namespace OS.Drivers;
+
 public static unsafe partial class ContinuingVirtioNetDevice
 {
     /// <summary>Exclusive noncopyable owner. Start failures attempt bounded Stop;

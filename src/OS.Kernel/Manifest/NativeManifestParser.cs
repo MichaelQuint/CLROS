@@ -2,6 +2,7 @@ using OS.Std;
 using OS.Std.Text;
 
 namespace OS.Manifest;
+
 public static class NativeManifestParser
 {
     // Explicit v1 entry point keeps all legacy v0 consumers/rejections unchanged.

@@ -2,6 +2,7 @@ using OS.Boot;
 using Unwind = OS.Kernel.Runtime.X64PERuntimeFunctionUnwindMetadataHostileInput;
 
 namespace OS.Kernel.Runtime;
+
 public static unsafe partial class NativeAotEhClauseMetadata
 {
     /// <summary>Recovers one plain finally funclet's same-root normal caller under retained authority.</summary>

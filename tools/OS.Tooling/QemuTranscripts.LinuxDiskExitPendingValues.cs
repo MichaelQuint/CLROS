@@ -6,6 +6,7 @@ using OS.Manifest;
 using Race = OS.Tooling.LinuxDiskRaceProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Immutable copied stage values only. ResetAbortedRequest means
@@ -15,8 +16,14 @@ public static partial class QemuTranscripts
 
     public sealed class LinuxDiskExitPendingValues
     {
-        public IReadOnlyList<LinuxDiskExitPendingRecord> Records { get; }
-        public bool ResetAbortedRequest { get; }
+        public IReadOnlyList<LinuxDiskExitPendingRecord> Records
+        {
+            get;
+        }
+        public bool ResetAbortedRequest
+        {
+            get;
+        }
         public bool CheckedOriginalExecution => false;
         public bool CheckedNativeStopOrUserMemory => false;
 

@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Text;
 
 public readonly struct TcpReceiveDispatchDiagnosticFormatResult
@@ -14,12 +15,30 @@ public readonly struct TcpReceiveDispatchDiagnosticFormatResult
         Flags = flags;
     }
 
-    public TcpReceiveDispatchDiagnosticFormatStatus Status { get; }
-    public TcpReceiveDispatchStatus DispatchStatus { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
-    public uint Flags { get; }
+    public TcpReceiveDispatchDiagnosticFormatStatus Status
+    {
+        get;
+    }
+    public TcpReceiveDispatchStatus DispatchStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == TcpReceiveDispatchDiagnosticFormatStatus.Success && RequiredBytes > 0 && BytesWritten == RequiredBytes && RequiredBytes <= AvailableBytes;
 

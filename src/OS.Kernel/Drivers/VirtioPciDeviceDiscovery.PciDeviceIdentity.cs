@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciDeviceIdentity
 {
     public PciDeviceIdentity(ushort vendorId, ushort deviceId)
@@ -7,6 +8,12 @@ public readonly struct PciDeviceIdentity
         DeviceId = deviceId;
     }
 
-    public ushort VendorId { get; }
-    public ushort DeviceId { get; }
+    public ushort VendorId
+    {
+        get;
+    }
+    public ushort DeviceId
+    {
+        get;
+    }
 }

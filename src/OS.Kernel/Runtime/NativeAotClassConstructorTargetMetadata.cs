@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAotClassConstructorTargetMetadata
 {
     public NativeAotClassConstructorTargetMetadata(NativeAotClassConstructorKey key, nuint targetToken)
@@ -7,7 +8,13 @@ public readonly struct NativeAotClassConstructorTargetMetadata
         TargetToken = targetToken;
     }
 
-    public NativeAotClassConstructorKey Key { get; }
-    public nuint TargetToken { get; }
+    public NativeAotClassConstructorKey Key
+    {
+        get;
+    }
+    public nuint TargetToken
+    {
+        get;
+    }
     public bool IsValid => Key.IsValid && TargetToken != 0;
 }

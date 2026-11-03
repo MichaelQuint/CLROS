@@ -79,7 +79,7 @@ internal static class HostFormatterSourceGuard
         return ResultProperty(condition, "Succeeded") && Advances(branch.Statement);
 
         bool ResultProperty(IOperation? operation, string name) => operation is IPropertyReferenceOperation
-            { Instance: ILocalReferenceOperation localResult } property && property.Property.Name == name
+        { Instance: ILocalReferenceOperation localResult } property && property.Property.Name == name
             && SymbolEqualityComparer.Default.Equals(localResult.Local, result)
             && SymbolEqualityComparer.Default.Equals(property.Property.ContainingType, calls[0].TargetMethod.ReturnType);
 
@@ -152,7 +152,7 @@ internal static class HostFormatterSourceGuard
         return conversion.Operand.Type is { } source && conversion.Type is { } target
             && Integral(source.SpecialType) && Integral(target.SpecialType)
             && conversion.SemanticModel!.Compilation.ClassifyCommonConversion(source, target) is
-                { IsImplicit: true, IsNumeric: true, IsUserDefined: false };
+            { IsImplicit: true, IsNumeric: true, IsUserDefined: false };
     }
 
     private static bool Integral(SpecialType type) => type is SpecialType.System_Byte or SpecialType.System_SByte

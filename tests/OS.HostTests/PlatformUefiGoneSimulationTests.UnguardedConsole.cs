@@ -8,7 +8,10 @@ internal static partial class PlatformUefiGoneSimulationTests
 {
     private sealed class UnguardedConsole : IPlatformConsole
     {
-        public int WriteCount { get; private set; }
+        public int WriteCount
+        {
+            get; private set;
+        }
 
         public PlatformConsoleResult WriteLine(string line)
         {

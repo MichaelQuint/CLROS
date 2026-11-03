@@ -1,6 +1,7 @@
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect normalized borrowed rows for the explicit quota fixture's
@@ -14,7 +15,7 @@ public static partial class QemuTranscripts
 
     public static ServiceQuotaInspection InspectNativeAotServiceQuotaForTests(string[] rows)
     {
-        Need(rows is not null && rows.Length is> 0 and <= 1_000_000 && rows.All(r => r is not null && r.Length is> 0 and <= 4096 && r.All(c => c is >= ' ' and <= '~')) && rows.Sum(r => (long)r.Length + 2) <= 128L * 1024 * 1024, "service_quota_rows");
+        Need(rows is not null && rows.Length is > 0 and <= 1_000_000 && rows.All(r => r is not null && r.Length is > 0 and <= 4096 && r.All(c => c is >= ' ' and <= '~')) && rows.Sum(r => (long)r.Length + 2) <= 128L * 1024 * 1024, "service_quota_rows");
         string[] quotaMarkers = ["M16_016_QUOTA_ABORT", "M16_016_QUOTA_SOCKETS", "M16_016_QUOTA_PROCESS_FAILURE", "M16_016_QUOTA_NATIVE", "M16_016_QUOTA_RESTORE", "M16_016_QUOTA_CLEANUP"];
         Need(rows!.Where(r => r.StartsWith("M16_016_QUOTA_", StringComparison.Ordinal)).All(r => quotaMarkers.Contains(r.Split(' ', 2)[0], StringComparer.Ordinal)), "service_quota_unknown_record");
         int One(string prefix)

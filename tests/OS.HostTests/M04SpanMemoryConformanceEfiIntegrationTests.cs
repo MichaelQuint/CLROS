@@ -141,7 +141,7 @@ internal static partial class M04SpanMemoryConformanceEfiIntegrationTests
 
     private static ScriptResult RunQemuDryRun(string root, params string[] extraArguments)
     {
-        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..extraArguments]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. extraArguments]);
         return new(result.ExitCode, result.Output + result.Error);
     }
 

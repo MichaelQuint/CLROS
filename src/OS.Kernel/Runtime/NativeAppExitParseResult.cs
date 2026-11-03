@@ -2,6 +2,7 @@ using OS.Pal;
 using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAppExitParseResult
 {
     private NativeAppExitParseResult(NativeAppExitParseStatus status, bool isInitialized, NativeAppExitStatusRecord record, int bytesRead)
@@ -12,10 +13,22 @@ public readonly struct NativeAppExitParseResult
         BytesRead = bytesRead;
     }
 
-    public NativeAppExitParseStatus Status { get; }
-    public bool IsInitialized { get; }
-    public NativeAppExitStatusRecord Record { get; }
-    public int BytesRead { get; }
+    public NativeAppExitParseStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public NativeAppExitStatusRecord Record
+    {
+        get;
+    }
+    public int BytesRead
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeAppExitParseStatus.Success;
 
     public static NativeAppExitParseResult Success(NativeAppExitStatusRecord record, int bytesRead)

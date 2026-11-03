@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct FaultProbeReadinessResult
 {
     private FaultProbeReadinessResult(bool succeeded, FaultProbeReadinessStatus status, FaultProbeStubPlanStatus invalidOpcodeStubStatus, FaultProbeStubPlanStatus nullWriteStubStatus, ExecutableStubMemoryPlanStatus memoryPlanStatus, int invalidOpcodeBytesWritten, int nullWriteBytesWritten, int requiredPayloadBytes, nuint availablePayloadBytes)
@@ -17,16 +18,46 @@ public readonly struct FaultProbeReadinessResult
         AvailablePayloadBytes = availablePayloadBytes;
     }
 
-    public bool Succeeded { get; }
-    public FaultProbeReadinessStatus Status { get; }
-    public string Operation { get; }
-    public FaultProbeStubPlanStatus InvalidOpcodeStubStatus { get; }
-    public FaultProbeStubPlanStatus NullWriteStubStatus { get; }
-    public ExecutableStubMemoryPlanStatus MemoryPlanStatus { get; }
-    public int InvalidOpcodeBytesWritten { get; }
-    public int NullWriteBytesWritten { get; }
-    public int RequiredPayloadBytes { get; }
-    public nuint AvailablePayloadBytes { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public FaultProbeReadinessStatus Status
+    {
+        get;
+    }
+    public string Operation
+    {
+        get;
+    }
+    public FaultProbeStubPlanStatus InvalidOpcodeStubStatus
+    {
+        get;
+    }
+    public FaultProbeStubPlanStatus NullWriteStubStatus
+    {
+        get;
+    }
+    public ExecutableStubMemoryPlanStatus MemoryPlanStatus
+    {
+        get;
+    }
+    public int InvalidOpcodeBytesWritten
+    {
+        get;
+    }
+    public int NullWriteBytesWritten
+    {
+        get;
+    }
+    public int RequiredPayloadBytes
+    {
+        get;
+    }
+    public nuint AvailablePayloadBytes
+    {
+        get;
+    }
 
     public static FaultProbeReadinessResult Pass(FaultProbeStubPlanResult invalidOpcodeStubResult, FaultProbeStubPlanResult nullWriteStubResult, ExecutableStubMemoryPlanResult memoryPlanResult)
     {

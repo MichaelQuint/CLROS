@@ -114,9 +114,9 @@ public static partial class NativeAotLogUploadContract
         }
 
         )
-            Need(path.Length is> 1 and <= 4096 && path.StartsWith('/') && !path.Any(char.IsControl) && !path.Contains('\\') && path[1..].Split('/').All(part => part is not ("" or "." or "..")), "linux_path");
+            Need(path.Length is > 1 and <= 4096 && path.StartsWith('/') && !path.Any(char.IsControl) && !path.Contains('\\') && path[1..].Split('/').All(part => part is not ("" or "." or "..")), "linux_path");
         Need(executable != dataDirectory && executable != tracePrefix && dataDirectory != tracePrefix, "linux_path");
-        return["-ff", "-yy", "-ttt", "-s", "256", "-o", tracePrefix, executable, "--" + phase, "--root", dataDirectory];
+        return ["-ff", "-yy", "-ttt", "-s", "256", "-o", tracePrefix, executable, "--" + phase, "--root", dataDirectory];
     }
 
     /// <summary>Copy bounded complete strace -ff/-yy/-ttt text without dropping
@@ -127,14 +127,14 @@ public static partial class NativeAotLogUploadContract
     public static TraceValues InspectTraceValues(IReadOnlyDictionary<string, string> files, string phase)
     {
         Need(phase is "write" or "verify", "phase");
-        Need(files.Count is> 0 and <= 64, "trace_inventory");
+        Need(files.Count is > 0 and <= 64, "trace_inventory");
         List<TraceRow> rows = [];
         int total = 0, exited = 0;
         foreach (var file in files.OrderBy(row => row.Key, StringComparer.Ordinal))
         {
             string prefix = phase + "-trace.";
             Need(file.Key.StartsWith(prefix, StringComparison.Ordinal) && file.Key[prefix.Length..].All(char.IsAsciiDigit) && int.TryParse(file.Key.AsSpan(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out int pid) && pid > 0 && pid.ToString(CultureInfo.InvariantCulture) == file.Key[prefix.Length..], "trace_identity");
-            Need(file.Value.Length is> 0 and <= 4 * 1024 * 1024 && Encoding.UTF8.GetByteCount(file.Value) <= 4 * 1024 * 1024 && (total += Encoding.UTF8.GetByteCount(file.Value)) <= 16 * 1024 * 1024, "trace_capacity");
+            Need(file.Value.Length is > 0 and <= 4 * 1024 * 1024 && Encoding.UTF8.GetByteCount(file.Value) <= 4 * 1024 * 1024 && (total += Encoding.UTF8.GetByteCount(file.Value)) <= 16 * 1024 * 1024, "trace_capacity");
             Need(file.Value.EndsWith('\n'), "trace_truncated");
             string[] lines = file.Value[..^1].Split('\n');
             Need(lines.Length <= 200000, "trace_capacity");
@@ -289,8 +289,18 @@ public static partial class NativeAotLogUploadContract
         FileValues? fileValues = null;
         async Task<ProcessResult> Run(string name, string[] arguments, bool success = true)
         {
-            commands.Add(new { executable = "dotnet", arguments, workingDirectory = root, phase = name });
-            var result = await ProcessRunner.RunAsync(new("dotnet", arguments, root) { Timeout = TimeSpan.FromMinutes(5), OutputCharacterLimit = 4 * 1024 * 1024 }, cancellation);
+            commands.Add(new
+            {
+                executable = "dotnet",
+                arguments,
+                workingDirectory = root,
+                phase = name
+            });
+            var result = await ProcessRunner.RunAsync(new("dotnet", arguments, root)
+            {
+                Timeout = TimeSpan.FromMinutes(5),
+                OutputCharacterLimit = 4 * 1024 * 1024
+            }, cancellation);
             await Save(name + ".stdout.log", result.StandardOutput);
             await Save(name + ".stderr.log", result.StandardError);
             await Save(name + ".process.json", JsonSerializer.Serialize(result));
@@ -335,7 +345,7 @@ public static partial class NativeAotLogUploadContract
 
             string bin = Path.Combine(app, "bin", "Debug", "net11.0");
             string[] built = Directory.GetFiles(bin, "*", SearchOption.AllDirectories);
-            Need(built.Length is> 0 and <= 64, "built_count");
+            Need(built.Length is > 0 and <= 64, "built_count");
             inputs.AddRange(built.Select(path => held.Open(root, path, "log upload built output", "log_upload_built", 64 * 1024 * 1024, allowEmpty: true, singleLink: true)));
             using (var runtime = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(bin, Application + ".runtimeconfig.json"))))
             {
@@ -439,7 +449,20 @@ public static partial class NativeAotLogUploadContract
         finally
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "commands.json"), JsonSerializer.Serialize(commands), CancellationToken.None);
-            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new { Schema = "CLROS_LOG_UPLOAD_MANAGED_REFERENCE_V2", Succeeded = succeeded, Failure = failure, Write = write, Verify = verify, Files = fileValues, LinuxNativeAotQualified = false, GuestQualified = false, HttpQualified = false, FlushObserved = false, PersistenceQualified = false }), CancellationToken.None);
+            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new
+            {
+                Schema = "CLROS_LOG_UPLOAD_MANAGED_REFERENCE_V2",
+                Succeeded = succeeded,
+                Failure = failure,
+                Write = write,
+                Verify = verify,
+                Files = fileValues,
+                LinuxNativeAotQualified = false,
+                GuestQualified = false,
+                HttpQualified = false,
+                FlushObserved = false,
+                PersistenceQualified = false
+            }), CancellationToken.None);
         }
 
         artifacts.Add(Path.Combine(destination, "commands.json"));
@@ -474,7 +497,7 @@ public static partial class NativeAotLogUploadContract
         string[] SourcePaths() => ToolingBuildInputs.SourceInputs(root).Concat(new[] { Path.Combine(app, Application + ".csproj"), Path.Combine(app, "Program.cs") }).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         Dictionary<string, string> Sources() => SourcePaths().ToDictionary(path => Path.GetRelativePath(root, path).Replace('\\', '/'), NativeAotWebPayload.HashFile, StringComparer.Ordinal);
         var before = Sources();
-        Need(before.Count is> 0 and <= 8192, "source_capacity");
+        Need(before.Count is > 0 and <= 8192, "source_capacity");
         var held = new AuthorityFiles();
         bool transferred = false;
         try
@@ -494,7 +517,7 @@ public static partial class NativeAotLogUploadContract
                 originalInputs.Add(held.Open(root, path, "original reference source", "log_upload_linux_source", 16 * 1024 * 1024, singleLink: true));
             string producerDirectory = Path.GetDirectoryName(typeof(NativeAotLogUploadContract).Assembly.Location)!;
             string[] producerPaths = Directory.GetFiles(producerDirectory, "*.dll").Concat(Directory.GetFiles(producerDirectory, "*.deps.json")).Concat(Directory.GetFiles(producerDirectory, "*.runtimeconfig.json")).Order(StringComparer.Ordinal).ToArray();
-            Need(producerPaths.Length is> 0 and <= 64, "producer_capacity");
+            Need(producerPaths.Length is > 0 and <= 64, "producer_capacity");
             foreach (string path in producerPaths)
                 originalInputs.Add(held.Open(Path.GetPathRoot(path)!, path, "original managed producer closure", "log_upload_linux_producer", 64 * 1024 * 1024, singleLink: true));
             string recipe = Path.Combine(recipeRoot, "artifacts", "socket-qualification-r01");
@@ -530,7 +553,13 @@ public static partial class NativeAotLogUploadContract
             {
                 cancellation.ThrowIfCancellationRequested();
                 string[] arguments = LinuxTraceArguments(executable, data, Path.Combine(destination, phase + "-trace"), phase);
-                commands.Add(new { executable = "setsid", arguments = new[] { "strace" }.Concat(arguments).ToArray(), workingDirectory = root, phase });
+                commands.Add(new
+                {
+                    executable = "setsid",
+                    arguments = new[] { "strace" }.Concat(arguments).ToArray(),
+                    workingDirectory = root,
+                    phase
+                });
                 bool joined = false;
                 string processFailure = "";
                 try
@@ -545,7 +574,15 @@ public static partial class NativeAotLogUploadContract
                 }
                 finally
                 {
-                    await Save(phase + ".process.json", JsonSerializer.Serialize(new { Executable = "setsid", Arguments = new[] { "strace" }.Concat(arguments), Succeeded = joined, TerminationConfirmed = joined, Failure = processFailure, Boundary = "Normal return requires the existing owned session and output pipes joined; failed calls grant no cleanup confirmation" }));
+                    await Save(phase + ".process.json", JsonSerializer.Serialize(new
+                    {
+                        Executable = "setsid",
+                        Arguments = new[] { "strace" }.Concat(arguments),
+                        Succeeded = joined,
+                        TerminationConfirmed = joined,
+                        Failure = processFailure,
+                        Boundary = "Normal return requires the existing owned session and output pipes joined; failed calls grant no cleanup confirmation"
+                    }));
                 }
 
                 cancellation.ThrowIfCancellationRequested();
@@ -554,7 +591,7 @@ public static partial class NativeAotLogUploadContract
             TraceValues ReadTrace(string phase)
             {
                 string[] paths = Directory.GetFiles(destination, phase + "-trace.*").Order(StringComparer.Ordinal).ToArray();
-                Need(paths.Length is> 0 and <= 64, "trace_inventory");
+                Need(paths.Length is > 0 and <= 64, "trace_inventory");
                 Dictionary<string, string> copied = new(StringComparer.Ordinal);
                 foreach (string path in paths)
                 {
@@ -618,7 +655,12 @@ public static partial class NativeAotLogUploadContract
                     {
                         cancellation.ThrowIfCancellationRequested();
                         string logName = "native-library-" + name;
-                        commands.Add(new { executable = "setsid", arguments = new[] { gcc, "-print-file-name=" + name }, workingDirectory = root });
+                        commands.Add(new
+                        {
+                            executable = "setsid",
+                            arguments = new[] { gcc, "-print-file-name=" + name },
+                            workingDirectory = root
+                        });
                         await NativeAotWebPayload.ExecuteAsync(gcc, ["-print-file-name=" + name], root, Path.Combine(destination, logName), TimeSpan.FromMinutes(2));
                         string path = held.Open(root, Path.Combine(destination, logName + ".stdout.log"), "system static library location", "log_upload_linux_library", 4096, singleLink: true).ReadUtf8(4096, "log_upload_linux_library").Trim();
                         Need(Path.IsPathFullyQualified(path) && File.Exists(path), "static_library_missing");
@@ -641,13 +683,17 @@ public static partial class NativeAotLogUploadContract
 
                 await Save("original-inputs.json", JsonSerializer.Serialize(originalInputs.Select((file, i) => new { file.Path, file.Length, file.Sha256, Retained = "original-inputs/" + i.ToString("D3", CultureInfo.InvariantCulture) + "-" + Path.GetFileName(file.Path) })));
                 string publication = Path.Combine(destination, "publication");
-                commands.Add(new { producer = nameof(NativeAotSocketFixturePublisher), arguments = new[] { "publish", "--recipe-root", recipeRoot, "--output", publication } });
+                commands.Add(new
+                {
+                    producer = nameof(NativeAotSocketFixturePublisher),
+                    arguments = new[] { "publish", "--recipe-root", recipeRoot, "--output", publication }
+                });
                 Need(await Publisher.RunAsync(root, ["publish", "--recipe-root", recipeRoot, "--output", publication], output) == 0, "linux_publication_failed");
                 cancellation.ThrowIfCancellationRequested();
                 using var sourceLease = NativeAotPayload.OpenQualificationLease(root);
                 using var recipeLease = NativeAotPayload.OpenQualificationLease(recipeRoot);
                 string[] publicationFiles = Directory.GetFiles(publication, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path) != "publication.lock").Order(StringComparer.Ordinal).ToArray();
-                Need(publicationFiles.Length is> 0 and <= 512, "publication_capacity");
+                Need(publicationFiles.Length is > 0 and <= 512, "publication_capacity");
                 foreach (string path in publicationFiles)
                     held.Open(root, path, "original pinned publication", "log_upload_linux_publication", 256 * 1024 * 1024, allowEmpty: true, singleLink: true);
                 var publicationReceipt = held.Open(root, Path.Combine(publication, "publication.json"), "original publication receipt", "log_upload_linux_publication", 16 * 1024 * 1024, singleLink: true);
@@ -664,7 +710,7 @@ public static partial class NativeAotLogUploadContract
                         native[row.Name] = hash;
                     }
 
-                    Need(native.Count is> 0 and <= 16384 && native.All(row => Path.IsPathFullyQualified(row.Key) && row.Value.Length == 64 && row.Value.All(Uri.IsHexDigit)), "native_inventory");
+                    Need(native.Count is > 0 and <= 16384 && native.All(row => Path.IsPathFullyQualified(row.Key) && row.Value.Length == 64 && row.Value.All(Uri.IsHexDigit)), "native_inventory");
                     foreach (var row in value.GetProperty("outputs").EnumerateObject())
                     {
                         string path = Path.GetFullPath(row.Name, publication);
@@ -742,12 +788,36 @@ public static partial class NativeAotLogUploadContract
                 await Save("commands.json", JsonSerializer.Serialize(commands));
                 await Save("sources.json", JsonSerializer.Serialize(before));
                 await Save("native-inputs.json", JsonSerializer.Serialize(native));
-                var outputs = Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path)is not ("ownership.lock" or "publication.lock")).Order(StringComparer.Ordinal).ToDictionary(path => Path.GetRelativePath(destination, path).Replace('\\', '/'), NativeAotWebPayload.HashFile, StringComparer.Ordinal);
-                await Save("receipt.json", JsonSerializer.Serialize(new { Schema = "CLROS_LOG_UPLOAD_LINUX_REFERENCE_V2", Succeeded = succeeded, Failure = failure, Image = image, Write = write, Verify = verify, Files = actualFiles, WriteUnjoinedRows = writeTrace?.UnjoinedRows, VerifyUnjoinedRows = verifyTrace?.UnjoinedRows, WriteUnreturnedRows = writeTrace?.UnreturnedRows, VerifyUnreturnedRows = verifyTrace?.UnreturnedRows, CompleteTraceProjection = writeTrace?.CompleteTraceProjection == true && verifyTrace?.CompleteTraceProjection == true, Sources = before, Native = native, Outputs = outputs, GuestQualified = false, HttpQualified = false, SyscallClosureQualified = false, LockQualified = false, FlushObserved = false, PersistenceQualified = false, SqliteQualified = false }));
+                var outputs = Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path) is not ("ownership.lock" or "publication.lock")).Order(StringComparer.Ordinal).ToDictionary(path => Path.GetRelativePath(destination, path).Replace('\\', '/'), NativeAotWebPayload.HashFile, StringComparer.Ordinal);
+                await Save("receipt.json", JsonSerializer.Serialize(new
+                {
+                    Schema = "CLROS_LOG_UPLOAD_LINUX_REFERENCE_V2",
+                    Succeeded = succeeded,
+                    Failure = failure,
+                    Image = image,
+                    Write = write,
+                    Verify = verify,
+                    Files = actualFiles,
+                    WriteUnjoinedRows = writeTrace?.UnjoinedRows,
+                    VerifyUnjoinedRows = verifyTrace?.UnjoinedRows,
+                    WriteUnreturnedRows = writeTrace?.UnreturnedRows,
+                    VerifyUnreturnedRows = verifyTrace?.UnreturnedRows,
+                    CompleteTraceProjection = writeTrace?.CompleteTraceProjection == true && verifyTrace?.CompleteTraceProjection == true,
+                    Sources = before,
+                    Native = native,
+                    Outputs = outputs,
+                    GuestQualified = false,
+                    HttpQualified = false,
+                    SyscallClosureQualified = false,
+                    LockQualified = false,
+                    FlushObserved = false,
+                    PersistenceQualified = false,
+                    SqliteQualified = false
+                }));
             }
 
-            string[] artifactPaths = Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path)is not ("ownership.lock" or "publication.lock")).Order(StringComparer.Ordinal).ToArray();
-            Need(artifactPaths.Length is> 0 and <= 768, "artifact_capacity");
+            string[] artifactPaths = Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path) is not ("ownership.lock" or "publication.lock")).Order(StringComparer.Ordinal).ToArray();
+            Need(artifactPaths.Length is > 0 and <= 768, "artifact_capacity");
             var artifacts = artifactPaths.Select(path => held.Open(root, path, "original Linux reference evidence", "log_upload_linux_evidence", 256 * 1024 * 1024, allowEmpty: true, singleLink: true)).ToArray();
             AuthorityFiles.RequireDistinct(artifacts);
             held.VerifyUnchanged();

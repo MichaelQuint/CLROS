@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow a strict race stream join and added socket
@@ -16,7 +17,7 @@ public static partial class QemuTranscripts
 
     public static WebSignalRaceTemporalInspection InspectNativeAotWebSignalRaceTemporalForTests(WebSignalRaceStreamJoinInspection joined, IReadOnlyList<WebSignalRaceSocketCall> socketCalls)
     {
-        var(guest, hosts, indexes) = CopyWebRaceBoundPackets(joined);
+        var (guest, hosts, indexes) = CopyWebRaceBoundPackets(joined);
         var packets = guest.Streams.ToDictionary(s => s.RemotePort);
         var ports = hosts.ToDictionary(p => p.Value, p => p.Key);
         var calls = QuotaPairCopy(socketCalls, 100000);
@@ -74,7 +75,7 @@ public static partial class QemuTranscripts
             bool known = owners.TryGetValue(port, out var owner);
             if (!known || owner is null)
                 throw new ToolFailure("web_race_temporal_interval");
-            Need(interval.ExchangeId is> 0 and <= 8192 && interval.Kind is "complete-request" or "complete-response" && interval.Response == (interval.Kind == "complete-response"), "web_race_temporal_interval");
+            Need(interval.ExchangeId is > 0 and <= 8192 && interval.Kind is "complete-request" or "complete-response" && interval.Response == (interval.Kind == "complete-response"), "web_race_temporal_interval");
             var ranges = QuotaPairCopy(interval.Ranges, MaximumServiceWireRanges);
             Need(ranges.Length <= 2000000 - rangeReferences, "web_race_temporal_interval_bound");
             rangeReferences += ranges.Length;
@@ -103,7 +104,10 @@ public static partial class QemuTranscripts
             }
 
             Need(cursor == (ulong)interval.End, "web_race_temporal_coverage");
-            result.Add(new(interval with { Ranges = Array.AsReadOnly(ranges) }, owner.Identity, Array.AsReadOnly(clipped.ToArray())));
+            result.Add(new(interval with
+            {
+                Ranges = Array.AsReadOnly(ranges)
+            }, owner.Identity, Array.AsReadOnly(clipped.ToArray())));
         }
 
         foreach (var connection in result.GroupBy(i => i.Packet.ConnectionId))

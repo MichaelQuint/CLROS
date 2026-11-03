@@ -16,7 +16,13 @@ internal static partial class ImageBuilderTests
             Output = output;
         }
 
-        public int ExitCode { get; }
-        public string Output { get; }
+        public int ExitCode
+        {
+            get;
+        }
+        public string Output
+        {
+            get;
+        }
     }
 }

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct ManagedX64StubStrategyResult
 {
     private ManagedX64StubStrategyResult(ManagedX64StubStrategyStatus status, ManagedX64StubAuthoringKind strategy, int demonstratedFamilyCount, int generatorThreshold, bool generatorEligible, int out8ByteCount, int in8ByteCount, bool writeThenExecute, bool permanentRwx)
@@ -15,16 +16,46 @@ public readonly struct ManagedX64StubStrategyResult
         PermanentRwx = permanentRwx;
     }
 
-    public bool IsInitialized { get; }
-    public ManagedX64StubStrategyStatus Status { get; }
-    public ManagedX64StubAuthoringKind Strategy { get; }
-    public int DemonstratedFamilyCount { get; }
-    public int GeneratorThreshold { get; }
-    public bool GeneratorEligible { get; }
-    public int Out8ByteCount { get; }
-    public int In8ByteCount { get; }
-    public bool WriteThenExecute { get; }
-    public bool PermanentRwx { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public ManagedX64StubStrategyStatus Status
+    {
+        get;
+    }
+    public ManagedX64StubAuthoringKind Strategy
+    {
+        get;
+    }
+    public int DemonstratedFamilyCount
+    {
+        get;
+    }
+    public int GeneratorThreshold
+    {
+        get;
+    }
+    public bool GeneratorEligible
+    {
+        get;
+    }
+    public int Out8ByteCount
+    {
+        get;
+    }
+    public int In8ByteCount
+    {
+        get;
+    }
+    public bool WriteThenExecute
+    {
+        get;
+    }
+    public bool PermanentRwx
+    {
+        get;
+    }
 
     public bool Succeeded
     {

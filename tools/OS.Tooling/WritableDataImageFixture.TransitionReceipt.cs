@@ -8,6 +8,7 @@ using OS.Std.Time;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class WritableDataImageFixture
 {
     /// <summary>Copied, immutable final-image comparison for a small mechanical
@@ -50,9 +51,18 @@ public static partial class WritableDataImageFixture
             json = stream.ToArray();
         }
 
-        public Inspection Before { get; }
-        public Inspection After { get; }
-        public ReadOnlyCollection<SectorChange> Changes { get; }
+        public Inspection Before
+        {
+            get;
+        }
+        public Inspection After
+        {
+            get;
+        }
+        public ReadOnlyCollection<SectorChange> Changes
+        {
+            get;
+        }
 
         public byte[] CopyJson() => (byte[])json.Clone();
     }

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 
 namespace OS.X64TextSerializerGenerator;
+
 internal static partial class Program
 {
     private const string TestName = "x64.serializer.generate";
@@ -399,7 +400,7 @@ internal static partial class Program
             outputPath = candidate;
             return true;
         }
-        catch (Exception exception)when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
         {
             errorCode = "output_file_invalid";
             return false;
@@ -484,7 +485,7 @@ internal static partial class Program
                 temporaryOwned = false;
                 result = OutputWriteResult.Created;
             }
-            catch (IOException)when (File.Exists(outputPath))
+            catch (IOException) when (File.Exists(outputPath))
             {
                 if (!TryCompareExistingOutput(outputPath, objectBytes, out bool matches))
                 {
@@ -496,7 +497,7 @@ internal static partial class Program
                 }
             }
         }
-        catch (Exception exception)when (exception is IOException or UnauthorizedAccessException or NotSupportedException or System.Security.SecurityException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or System.Security.SecurityException)
         {
             result = OutputWriteResult.Fail("io_failure");
         }
@@ -509,7 +510,7 @@ internal static partial class Program
                     File.Delete(temporaryPath);
                 }
             }
-            catch (Exception exception)when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
                 cleanupFailed = true;
             }
@@ -553,7 +554,7 @@ internal static partial class Program
             matches = existing.AsSpan().SequenceEqual(expected);
             return true;
         }
-        catch (Exception exception)when (exception is IOException or UnauthorizedAccessException or NotSupportedException or System.Security.SecurityException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or System.Security.SecurityException)
         {
             return false;
         }

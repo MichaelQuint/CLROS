@@ -44,7 +44,10 @@ internal static partial class SocketContainmentPacketTests
         var late = Create();
         int syn = late.Records.FindIndex(row => IsTcp(row, false, 41000) && row.Frame[47] == 2);
         var first = late.Records[syn];
-        late.Records.Insert(syn + 2, first with { Time = late.Records[syn + 1].Time });
+        late.Records.Insert(syn + 2, first with
+        {
+            Time = late.Records[syn + 1].Time
+        });
         Reject(late);
         var other = Create();
         syn = other.Records.FindIndex(row => IsTcp(row, false, 41001) && row.Frame[47] == 2);
@@ -63,7 +66,7 @@ internal static partial class SocketContainmentPacketTests
     [HostTest("containment PCAP independently proves retries timed healthy traffic VLAN and exact resets")]
     private static void Complete()
     {
-        foreach (var(fin, acknowledged, late)in new[]
+        foreach (var (fin, acknowledged, late) in new[]
         {
             (false, false, false),
             (true, true, false),
@@ -141,13 +144,19 @@ internal static partial class SocketContainmentPacketTests
         f = Create();
         Wire moved = f.Records[vlan];
         f.Records.RemoveAt(vlan);
-        f.Records.Insert(14, moved with { Time = f.Records[14].Time });
+        f.Records.Insert(14, moved with
+        {
+            Time = f.Records[14].Time
+        });
         Reject(f);
         f = Create();
         int reset = f.Records.FindIndex(row => IsTcp(row, false, 41001) && row.Frame[47] == 0x14);
         Wire early = f.Records[reset];
         f.Records.RemoveAt(reset);
-        f.Records.Insert(vlan, early with { Time = f.Records[vlan].Time });
+        f.Records.Insert(vlan, early with
+        {
+            Time = f.Records[vlan].Time
+        });
         Reject(f);
         f = Create();
         f.Records.RemoveAt(f.Records.Count - 1);
@@ -221,7 +230,7 @@ internal static partial class SocketContainmentPacketTests
         {
             _ = Inspect(f, bytes ?? Capture(f.Records));
         }
-        catch (Exception error)when (error is ToolFailure or InvalidDataException)
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
         {
             rejected = true;
         }

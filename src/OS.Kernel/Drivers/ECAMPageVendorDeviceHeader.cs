@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static unsafe class ECAMPageVendorDeviceHeader
 {
     // Revalidate the complete retained MCFG, then select at most four buses of one

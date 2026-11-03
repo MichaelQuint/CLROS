@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioNetQueueNotificationRegisterWindowExecutor
 {
     public const bool RequiresRegisterWindowBinding = true;

@@ -352,7 +352,7 @@ internal static unsafe partial class LinuxWritableDiskDescriptorServicesTests
             HostCheck.Equal(0L, f.Core(3, fd));
             byte[] expected = FootprintBytes(40960, files[0].Salt);
             if (largeSearch)
-                expected = [..expected, ..payload];
+                expected = [.. expected, .. payload];
             f.Independent(files[0].Name, expected);
             foreach (var file in files.Skip(1))
                 f.Independent(file.Name, FootprintBytes(file.Bytes, file.Salt));
@@ -1180,7 +1180,7 @@ internal static unsafe partial class LinuxWritableDiskDescriptorServicesTests
                 HostCheck.True(wire[2] == OS.Tooling.LinuxWritableDiskProofFixture.LogUploadIovecs + (uint)writes * 16 && wire[3] == 1 && wire[5] == 0 && wire[6] == W.RwfNoAppend);
                 ReadOnlySpan<byte> vector = ElfRange(elf, wire[2], 16);
                 ulong source = BinaryPrimitives.ReadUInt64LittleEndian(vector), count = BinaryPrimitives.ReadUInt64LittleEndian(vector[8..]);
-                HostCheck.True(count == (ulong)spec.Result && count is> 0 and <= 4094);
+                HostCheck.True(count == (ulong)spec.Result && count is > 0 and <= 4094);
                 ReadOnlySpan<byte> payload = ElfRange(elf, source, count);
                 ReadOnlySpan<byte> expected = writes < 12 ? log.AsSpan(writes * 55, 55) : writes == 12 ? upload.AsSpan(0, 4094) : upload.AsSpan(4094);
                 HostCheck.True(payload.SequenceEqual(expected) && wire[4] == (writes < 12 ? (ulong)writes * 55 : writes == 12 ? 0UL : 4094UL));

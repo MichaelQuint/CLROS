@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static class EfiBootHandoffValidator
 {
     public const ulong DescriptorStride40 = 40;

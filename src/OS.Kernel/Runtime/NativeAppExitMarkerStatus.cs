@@ -2,6 +2,7 @@ using OS.Pal;
 using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
+
 public enum NativeAppExitMarkerStatus
 {
     Success = 0,

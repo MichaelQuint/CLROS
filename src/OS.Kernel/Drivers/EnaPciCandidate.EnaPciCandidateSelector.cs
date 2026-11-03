@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class EnaPciCandidateSelector
 {
     public const ushort AmazonVendorId = 0x1D0F;

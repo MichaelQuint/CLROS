@@ -101,9 +101,9 @@ internal static partial class NativeAotServiceRunnerTests
         )
             Reject(() => Inspect(f with { Runner = f.Runner with { StandardOutput = f.Runner.StandardOutput.Replace(text, text + "x", StringComparison.Ordinal) } }));
         Reject(() => Inspect(f with { Raw = Encoding.ASCII.GetBytes("TEST_START service\r\nOS_BOOT_OK\r\n") }));
-        Reject(() => Inspect(f with { Raw = [..f.Raw, ..Encoding.ASCII.GetBytes("OS_SMOKE_FAIL\r\n")] }));
+        Reject(() => Inspect(f with { Raw = [.. f.Raw, .. Encoding.ASCII.GetBytes("OS_SMOKE_FAIL\r\n")] }));
         Reject(() => Inspect(f with { Summary = f.Summary[3..] }));
-        Reject(() => Inspect(f with { Summary = [..f.Summary, (byte)'x'] }));
+        Reject(() => Inspect(f with { Summary = [.. f.Summary, (byte)'x'] }));
         Reject(() => Inspect(f with { Context = f.Context with { ForwardPort = 20809 } }));
         Reject(() => Inspect(f with { Context = f.Context with { Qemu = "relative" } }));
         Reject(() => Inspect(f with { Context = f.Context with { StartedUtc = default } }));
@@ -166,7 +166,7 @@ internal static partial class NativeAotServiceRunnerTests
         Reject(() => Inspect(Rewrite(f, "SERVICE_PROCESS_FAILURE none", "SERVICE_PROCESS_FAILURE none\r\nSERVICE_UNKNOWN true")));
         Reject(() => Inspect(Rewrite(f, "SERVICE_SOCKET_CONTROLS {}\r\nSERVICE_FRAME_CONTROL {}", "SERVICE_FRAME_CONTROL {}\r\nSERVICE_SOCKET_CONTROLS {}")));
         Reject(() => Inspect(f with { Summary = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(f.Summary).Replace("SERVICE_PROCESS_ID 1234", "SERVICE_PROCESS_ID 1235", StringComparison.Ordinal)) }));
-        Reject(() => Inspect(Rewrite(f, "SERVICE_SOCKET_CONTROLS {}", "SERVICE_SOCKET_CONTROLS {\"large\":\"" + new string ('a', 2 * 1024 * 1024) + "\"}")));
+        Reject(() => Inspect(Rewrite(f, "SERVICE_SOCKET_CONTROLS {}", "SERVICE_SOCKET_CONTROLS {\"large\":\"" + new string('a', 2 * 1024 * 1024) + "\"}")));
         var exactBoundary = Rewrite(Rewrite(f, "SERVICE_PROCESS_END_UTC 2026-10-18T12:13:19.0000000Z", "SERVICE_PROCESS_END_UTC 2026-10-18T12:05:01.0000000Z"), "SERVICE_PROCESS_LIFETIME_MS 798000", "SERVICE_PROCESS_LIFETIME_MS 300001");
         Reject(() => Inspect(exactBoundary));
         Reject(() => Inspect(Rewrite(f, "TEST_PASS m16-012", "OS_SMOKE_PASS")));
@@ -195,15 +195,15 @@ internal static partial class NativeAotServiceRunnerTests
         var started = new DateTimeOffset(2026, 10, 18, 12, 0, 0, TimeSpan.Zero);
         var context = new QemuTranscripts.ServiceRunnerContext(20808, Path.GetFullPath("mock-qemu.exe"), Path.GetFullPath("mock-ovmf.fd"), started, started.AddSeconds(800));
         string[] rawRows = ["TEST_START service", "OS_BOOT_OK", "TEST_PASS m16-012"];
-        string[] capturedRows = [..Enumerable.Repeat(new string ('x', 4094), paddingLines), ..rawRows];
+        string[] capturedRows = [.. Enumerable.Repeat(new string('x', 4094), paddingLines), .. rawRows];
         byte[] raw = Encoding.ASCII.GetBytes(string.Join("\r\n", capturedRows) + "\r\n");
         string[] selected = ["IMAGE_ARTIFACT " + options.Image, "SERIAL_LOG " + options.SerialLog, "WORKLOAD_PROFILE SingleMinimalApi", "FIRMWARE_RNG_SOURCE virtio", "SOCKET_FORWARD_PORT 20808", "CONTINUING_SERVICE true", "MARKER_PRESETS none", "REQUIRED_MARKERS TEST_PASS m16-012", "ORDERED_MARKERS TEST_PASS m16-012", "UNIQUE_MARKERS TEST_PASS m16-012", "FORBIDDEN_MARKERS OS_SMOKE_FAIL"];
-        string[] stdout = ["QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu, "OVMF_DISCOVERY result=" + context.Ovmf + " checked=" + context.Ovmf, "TEST_START qemu.smoke", selected[0], selected[1], "OVMF_CODE " + context.Ovmf, ..selected.Skip(2), $"SERIAL_MARKER_STREAM status=Passed terminal=Success bytes={raw.Length} lines={capturedRows.Length} invalidBytes=0 invalidLines=0 orderedSeen=1 outOfOrder=0 uniqueSeen=1 duplicateUnique=0", "SERIAL_MARKER_DRAIN milliseconds=750", "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1", ..Block(), "SUMMARY_LOG " + options.SummaryLog, "TEST_PASS qemu.smoke"];
-        string[] summary = ["QEMU_SMOKE_STATUS pass", ..selected, ..rawRows.Select(row => "OBSERVED_MARKER " + row), "APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240", ..capturedRows.TakeLast(8).Select(row => "SERIAL_TAIL_LINE " + (row.Length > 240 ? row[..237] + "..." : row)), ..Block()];
+        string[] stdout = ["QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu, "OVMF_DISCOVERY result=" + context.Ovmf + " checked=" + context.Ovmf, "TEST_START qemu.smoke", selected[0], selected[1], "OVMF_CODE " + context.Ovmf, .. selected.Skip(2), $"SERIAL_MARKER_STREAM status=Passed terminal=Success bytes={raw.Length} lines={capturedRows.Length} invalidBytes=0 invalidLines=0 orderedSeen=1 outOfOrder=0 uniqueSeen=1 duplicateUnique=0", "SERIAL_MARKER_DRAIN milliseconds=750", "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1", .. Block(), "SUMMARY_LOG " + options.SummaryLog, "TEST_PASS qemu.smoke"];
+        string[] summary = ["QEMU_SMOKE_STATUS pass", .. selected, .. rawRows.Select(row => "OBSERVED_MARKER " + row), "APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240", .. capturedRows.TakeLast(8).Select(row => "SERIAL_TAIL_LINE " + (row.Length > 240 ? row[..237] + "..." : row)), .. Block()];
         string[] backend = ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
-        stdout = [..backend, ..stdout];
-        summary = [..summary.Take(4), ..backend, ..summary.Skip(4)];
-        return new(options, plan, new(0, string.Join("\r\n", stdout) + "\r\n", "", false, false, false, TimeSpan.FromSeconds(800)), raw, [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")], context);
+        stdout = [.. backend, .. stdout];
+        summary = [.. summary.Take(4), .. backend, .. summary.Skip(4)];
+        return new(options, plan, new(0, string.Join("\r\n", stdout) + "\r\n", "", false, false, false, TimeSpan.FromSeconds(800)), raw, [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")], context);
     }
 
     private static string[] Block() => ["SERVICE_SOCKET_CONTROLS {}", "SERVICE_FRAME_CONTROL {}", "SERVICE_PROCESS_ID 1234", "SERVICE_PROCESS_START_UTC 2026-10-18T12:00:01.0000000Z", "SERVICE_PROCESS_END_UTC 2026-10-18T12:13:19.0000000Z", "SERVICE_PROCESS_LIFETIME_MS 798000", "SERVICE_ENDPOINT_PRELAUNCH_AVAILABLE true", "SERVICE_ENDPOINT_STOPPED_REFUSED true", "SERVICE_PROCESS_FAILURE none"];

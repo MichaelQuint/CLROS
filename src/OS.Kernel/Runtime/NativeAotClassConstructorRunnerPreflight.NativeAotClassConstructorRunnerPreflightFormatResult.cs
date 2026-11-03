@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAotClassConstructorRunnerPreflightFormatResult
 {
     private const uint InitializedFlag = 1;
@@ -14,12 +15,30 @@ public readonly struct NativeAotClassConstructorRunnerPreflightFormatResult
         Flags = flags;
     }
 
-    public NativeAotClassConstructorRunnerPreflightFormatStatus Status { get; }
-    public NativeAotClassConstructorRunnerPreflightStatus PreflightStatus { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
-    public uint Flags { get; }
+    public NativeAotClassConstructorRunnerPreflightFormatStatus Status
+    {
+        get;
+    }
+    public NativeAotClassConstructorRunnerPreflightStatus PreflightStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == NativeAotClassConstructorRunnerPreflightFormatStatus.Success && RequiredBytes > 0 && (BytesWritten == 0 || (BytesWritten == RequiredBytes && RequiredBytes <= AvailableBytes));
 

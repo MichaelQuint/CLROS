@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 
 public static class DnsMessage

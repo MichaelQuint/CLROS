@@ -7,4 +7,5 @@ using System.Xml;
 using System.Xml.Linq;
 
 namespace OS.Tooling;
+
 public sealed record EfiInput(string Path, string Sha256, long Bytes = -1);

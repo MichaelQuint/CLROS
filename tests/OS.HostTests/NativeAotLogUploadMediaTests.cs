@@ -66,14 +66,14 @@ internal static partial class NativeAotLogUploadMediaTests
         var noWrite = new Wire(f.Final);
         Reject(() => f.Check(noWrite, "write", f.Final, f.FinalInspection), "log_upload_media_write_flush");
         Reject(() => f.Check(w, "VERIFY"), "log_upload_media_phase");
-        Reject(() => f.Check(w, "verify", packageHash: new string ('0', 64)), "log_upload_media_esp_package");
+        Reject(() => f.Check(w, "verify", packageHash: new string('0', 64)), "log_upload_media_esp_package");
         Reject(() => f.Check(w, "verify", packageBytes: checked((int)f.Package.Bytes + 1)), "log_upload_media_esp_package");
     });
     [HostTest("log-upload media rejects transient protected FAT root FSInfo tail and nonowned OUT even after restoration")]
     private static void ProtectedWrites() => WithImages(f =>
     {
         ulong fat = f.Initial.Data.FirstFatSector, root = f.Initial.Data.FirstDataSector;
-        foreach ((ulong sector, int offset)in new[]
+        foreach ((ulong sector, int offset) in new[]
         {
             (fat, 0),
             (fat, 100 * 4 + 3),

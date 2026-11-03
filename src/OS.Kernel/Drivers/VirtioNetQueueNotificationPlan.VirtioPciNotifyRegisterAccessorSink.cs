@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public sealed class VirtioPciNotifyRegisterAccessorSink : IVirtioPciNotifyWriteSink
 {
     private readonly IVirtioPciRegisterAccessor? _accessor;

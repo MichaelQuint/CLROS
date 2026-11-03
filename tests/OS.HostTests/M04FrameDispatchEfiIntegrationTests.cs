@@ -70,19 +70,23 @@ internal static class M04FrameDispatchEfiIntegrationTests
             HostCheck.True(!EfiVerify.TestFrameDispatchCode(null, part) && !EfiVerify.TestFrameDispatchCode([.. bytes, 0], part), "null/extended code");
             for (int length = 0; length < bytes.Length; length++)
                 HostCheck.True(!EfiVerify.TestFrameDispatchCode(bytes[..length], part), "truncated code " + part + ":" + length);
-            foreach (int field in callRel32[part]) HostCheck.True(bytes[field - 1] == 0xE8, "independent call field position");
+            foreach (int field in callRel32[part])
+                HostCheck.True(bytes[field - 1] == 0xE8, "independent call field position");
             for (int offset = 0; offset < bytes.Length; offset++)
             {
                 bool exempt = callRel32[part].Any(field => offset >= field && offset < field + 4);
-                byte[] changed = [.. bytes]; changed[offset] ^= 1; byte[] before = [.. changed];
+                byte[] changed = [.. bytes];
+                changed[offset] ^= 1;
+                byte[] before = [.. changed];
                 // Production native verification independently binds all call rel32 targets.
                 HostCheck.True(EfiVerify.TestFrameDispatchCode(changed, part) == exempt, "code mutation " + part + ":" + offset);
                 HostCheck.True(changed.AsSpan().SequenceEqual(before), "mutation normalization preserves caller input");
             }
             foreach (int bad in new[] { -1, 3, int.MinValue, int.MaxValue })
                 HostCheck.True(!EfiVerify.TestFrameDispatchCode(bytes, bad), "invalid code part " + bad);
-            for (int other = 0; other < vectors.Length; other++) if (other != part)
-                HostCheck.True(!EfiVerify.TestFrameDispatchCode(bytes, other), "wrong method part");
+            for (int other = 0; other < vectors.Length; other++)
+                if (other != part)
+                    HostCheck.True(!EfiVerify.TestFrameDispatchCode(bytes, other), "wrong method part");
             HostCheck.True(bytes.AsSpan().SequenceEqual(original), "original normalization preserves caller input");
         }
     }
@@ -101,7 +105,17 @@ internal static class M04FrameDispatchEfiIntegrationTests
             catalog.Risk == ProbeRisk.Destructive, "catalog index 42");
         HostCheck.True(EfiContracts.DiagnosticProbes.Contains(Flag) &&
             EfiContracts.ProbeSymbols.TryGetValue(Flag, out var symbol) && symbol == "M04_FRAME_DISPATCH_PROBE", "shared flag/symbol declaration");
-        X64UnwindContext input = new() { Rip = 0x1234, Rsp = 0x10000, Rbx = 99, Xmm6 = new() { Low = 123, High = 456 } };
+        X64UnwindContext input = new()
+        {
+            Rip = 0x1234,
+            Rsp = 0x10000,
+            Rbx = 99,
+            Xmm6 = new()
+            {
+                Low = 123,
+                High = 456
+            }
+        };
         var result = BootSequence.RunFrameDispatchUnwind(default, default, null, 0, 0, null, 0, null, 0, input);
         HostCheck.True(!result.Succeeded && result.Status == X64FrameUnwindStatus.Uninitialized &&
             result.Caller.Equals(default(X64UnwindContext)), "disabled path publishes zero caller context");
@@ -149,14 +163,18 @@ internal static class M04FrameDispatchEfiIntegrationTests
         image.VerifyMapAndRuntime(map, Path.GetFileName(serializer));
         ulong Address(string symbol)
         {
-            var symbols = EfiPeImage.Symbols(map, symbol); HostCheck.True(symbols.Count == 1, "unique fresh symbol " + symbol);
+            var symbols = EfiPeImage.Symbols(map, symbol);
+            HostCheck.True(symbols.Count == 1, "unique fresh symbol " + symbol);
             return EfiPeImage.Hex(symbols[0].Groups[3].Value, "fixture address") - image.ImageBase;
         }
         int Offset(string symbol, int length) => image.Resolve(Address(symbol), (ulong)length, "fixture backing", "fixture ambiguity").Offset;
         void Verify(string? expected = null)
         {
             string? failure = null;
-            try { EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact", artifact, .. Arguments(Flags)], false)); }
+            try
+            {
+                EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact", artifact, .. Arguments(Flags)], false));
+            }
             catch (ToolFailure e) { failure = e.Reason; }
             HostCheck.True(failure == expected, "native expected=" + expected + " actual=" + failure);
         }
@@ -168,40 +186,57 @@ internal static class M04FrameDispatchEfiIntegrationTests
         for (int part = 0; part < methods.Length; part++)
         {
             string symbol = "OS_OS_Runtime_RhpNewFastAllocation__" + methods[part];
-            int at = Offset(symbol, lengths[part]); ulong rva = Address(symbol);
+            int at = Offset(symbol, lengths[part]);
+            ulong rva = Address(symbol);
             controls.Add((at + 3, "frames_method_bytes_mismatch"));
-            foreach (int field in callFields[part]) controls.Add((at + field, "frames_method_call_mismatch"));
+            foreach (int field in callFields[part])
+                controls.Add((at + field, "frames_method_call_mismatch"));
             var rows = image.RuntimeFunctions.Where(row => row.Begin < rva + (ulong)lengths[part] && row.End > rva).ToArray();
             HostCheck.True(rows.Length == part + 1, "all six physical unwind contributions");
             for (int i = 0; i < rows.Length; i++)
             {
                 // Keep the generic unwind header valid; exercise the frame-specific prolog check.
                 controls.Add((rows[i].UnwindOffset + 1, "frames_unwind_mismatch"));
-                if (part != 0 && i == 0) controls.Add((rows[i].UnwindOffset + (part == 1 ? 9 : 11), "frames_unwind_mismatch"));
+                if (part != 0 && i == 0)
+                    controls.Add((rows[i].UnwindOffset + (part == 1 ? 9 : 11), "frames_unwind_mismatch"));
             }
         }
         int middle = Offset("__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameMiddle", 4),
             catcher = Offset("__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameCatcher", 15),
             predicate = Offset("RhTypeCast_IsInstanceOfException", 5),
             run = Offset("OS_OS_Runtime_RhpNewFastAllocation__RunFrameDispatch", 1062) + 1002;
-        foreach (int at in new[] { middle, catcher, catcher + 4, catcher + 11 }) controls.Add((at, "frames_clause_table_mismatch"));
+        foreach (int at in new[] { middle, catcher, catcher + 4, catcher + 11 })
+            controls.Add((at, "frames_clause_table_mismatch"));
         controls.Add((predicate, "frames_predicate_export_shape"));
         controls.Add((predicate + 1, "frames_predicate_export_call"));
-        foreach (int at in new[] { 0, 18, 37 }) controls.Add((run + at, "frames_predicate_argument_shape"));
+        foreach (int at in new[] { 0, 18, 37 })
+            controls.Add((run + at, "frames_predicate_argument_shape"));
         controls.Add((run + 51, "frames_predicate_null_shape"));
-        foreach (int field in new[] { 7, 25, 44, 56 }) controls.Add((run + field, "frames_predicate_import_call"));
+        foreach (int field in new[] { 7, 25, 44, 56 })
+            controls.Add((run + field, "frames_predicate_import_call"));
         foreach (var (at, reason) in controls)
         {
             try
             {
-                byte[] changed = [.. original]; changed[at] ^= 1; File.WriteAllBytes(artifact, changed);
-                JsonObject evidence = JsonNode.Parse(originalEvidence)!.AsObject(); evidence["artifactSha256"] = ContractAudit.Hash(changed);
-                File.WriteAllText(evidencePath, evidence.ToJsonString()); Verify(reason);
+                byte[] changed = [.. original];
+                changed[at] ^= 1;
+                File.WriteAllBytes(artifact, changed);
+                JsonObject evidence = JsonNode.Parse(originalEvidence)!.AsObject();
+                evidence["artifactSha256"] = ContractAudit.Hash(changed);
+                File.WriteAllText(evidencePath, evidence.ToJsonString());
+                Verify(reason);
             }
             finally { File.WriteAllBytes(artifact, original); File.WriteAllText(evidencePath, originalEvidence); }
         }
-        string sidecar = artifact + ".frames.obj"; byte[] objectBytes = File.ReadAllBytes(sidecar);
-        try { byte[] changed = [.. objectBytes]; changed[0] ^= 1; File.WriteAllBytes(sidecar, changed); Verify("frames_object_identity_mismatch"); }
+        string sidecar = artifact + ".frames.obj";
+        byte[] objectBytes = File.ReadAllBytes(sidecar);
+        try
+        {
+            byte[] changed = [.. objectBytes];
+            changed[0] ^= 1;
+            File.WriteAllBytes(sidecar, changed);
+            Verify("frames_object_identity_mismatch");
+        }
         finally { File.WriteAllBytes(sidecar, objectBytes); }
         Verify();
         File.WriteAllText(log + ".controls", "fresh publication; " + controls.Count +
@@ -212,7 +247,10 @@ internal static class M04FrameDispatchEfiIntegrationTests
     private static void Reject(string[] arguments, bool build, string? expected = null)
     {
         string? reason = null;
-        try { _ = EfiOptions.Parse(arguments, build).Profile(); }
+        try
+        {
+            _ = EfiOptions.Parse(arguments, build).Profile();
+        }
         catch (ToolFailure failure) { reason = failure.Reason; }
         HostCheck.True(reason is not null && (expected is null || reason == expected), "profile rejection expected=" + expected + " actual=" + reason);
     }
@@ -220,10 +258,12 @@ internal static class M04FrameDispatchEfiIntegrationTests
     {
         byte[] original = [.. bytes];
         HostCheck.True(admits(bytes) && !admits(null) && !admits([.. bytes, 0]), "exact/null/extended bytes");
-        for (int length = 0; length < bytes.Length; length++) HostCheck.True(!admits(bytes[..length]), "truncated bytes " + length);
+        for (int length = 0; length < bytes.Length; length++)
+            HostCheck.True(!admits(bytes[..length]), "truncated bytes " + length);
         for (int offset = 0; offset < bytes.Length; offset++)
         {
-            byte[] changed = [.. bytes]; changed[offset] ^= 1;
+            byte[] changed = [.. bytes];
+            changed[offset] ^= 1;
             HostCheck.True(!admits(changed), "byte mutation " + offset);
         }
         HostCheck.True(bytes.AsSpan().SequenceEqual(original), "metadata input preserved");

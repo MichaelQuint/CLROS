@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum PanicSafeOwnedCom1FormatStatus : byte
 {
     Success = 0,

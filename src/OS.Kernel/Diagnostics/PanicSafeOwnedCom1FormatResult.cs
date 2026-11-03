@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct PanicSafeOwnedCom1FormatResult
 {
     private PanicSafeOwnedCom1FormatResult(bool isInitialized, PanicSafeOwnedCom1FormatStatus status, int requiredBytes, int bytesWritten)
@@ -9,10 +10,22 @@ public readonly struct PanicSafeOwnedCom1FormatResult
         BytesWritten = bytesWritten;
     }
 
-    public bool IsInitialized { get; }
-    public PanicSafeOwnedCom1FormatStatus Status { get; }
-    public int RequiredBytes { get; }
-    public int BytesWritten { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public PanicSafeOwnedCom1FormatStatus Status
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PanicSafeOwnedCom1FormatStatus.Success && RequiredBytes > 0 && BytesWritten == RequiredBytes;
 
     internal static PanicSafeOwnedCom1FormatResult Pass(int bytesWritten)

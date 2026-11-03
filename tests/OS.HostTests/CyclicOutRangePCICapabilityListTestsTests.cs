@@ -10,8 +10,10 @@ internal static unsafe class CyclicOutRangePCICapabilityListTestsTests
             byte[] config = Snapshot();
             config[0x0e] = header;
             config[0x34] = 0x80;
-            config[0x80] = 0xfe; config[0x81] = 0x40;
-            config[0x40] = 0x09; config[0x41] = 0xfc;
+            config[0x80] = 0xfe;
+            config[0x81] = 0x40;
+            config[0x40] = 0x09;
+            config[0x41] = 0xfc;
             config[0xfc] = 0xff;
             Check(config, PciCapabilityWalkStatus.CompletePresent, 3, 0);
         }
@@ -22,16 +24,19 @@ internal static unsafe class CyclicOutRangePCICapabilityListTestsTests
     private static bool EmptyAbsentAndUnsupported()
     {
         byte[] config = Snapshot();
-        config[6] = 0; config[0x34] = 0x41; // Ignore the stale pointer when no list is advertised.
+        config[6] = 0;
+        config[0x34] = 0x41; // Ignore the stale pointer when no list is advertised.
         Check(config, PciCapabilityWalkStatus.CompleteEmpty, 0, 0);
-        config[6] = 0x10; config[0x34] = 0;
+        config[6] = 0x10;
+        config[0x34] = 0;
         Check(config, PciCapabilityWalkStatus.CompleteEmpty, 0, 0);
         foreach (byte header in new byte[] { 2, 0x82, 0x7f, 0xff })
         {
             config[0x0e] = header;
             Check(config, PciCapabilityWalkStatus.UnsupportedHeader, 0, 0x0e);
         }
-        config[0] = 0xff; config[1] = 0xff;
+        config[0] = 0xff;
+        config[1] = 0xff;
         Check(config, PciCapabilityWalkStatus.AbsentDevice, 0, 0);
         return true;
     }
@@ -67,13 +72,17 @@ internal static unsafe class CyclicOutRangePCICapabilityListTestsTests
             byte[] config = Snapshot();
             config[0x34] = offset;
             Check(config, status, 0, offset);
-            config[0x34] = 0x40; config[0x41] = offset;
+            config[0x34] = 0x40;
+            config[0x41] = offset;
             Check(config, status, 1, offset);
         }
         byte[] cyclic = Snapshot();
-        cyclic[0x34] = 0x40; cyclic[0x41] = 0x40;
+        cyclic[0x34] = 0x40;
+        cyclic[0x41] = 0x40;
         Check(cyclic, PciCapabilityWalkStatus.LoopDetected, 1, 0x40);
-        cyclic[0x41] = 0x44; cyclic[0x45] = 0x80; cyclic[0x81] = 0x44;
+        cyclic[0x41] = 0x44;
+        cyclic[0x45] = 0x80;
+        cyclic[0x81] = 0x44;
         Check(cyclic, PciCapabilityWalkStatus.LoopDetected, 3, 0x44);
         return true;
     }
@@ -110,7 +119,8 @@ internal static unsafe class CyclicOutRangePCICapabilityListTestsTests
     private static byte[] Snapshot()
     {
         byte[] config = new byte[256];
-        config[0] = 0x34; config[1] = 0x12;
+        config[0] = 0x34;
+        config[1] = 0x12;
         config[6] = 0x10;
         return config;
     }

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class DiskStaticHttpContract
 {
     /// <summary>Copied immutable identity and upstream static metadata from one
@@ -12,15 +13,42 @@ public static partial class DiskStaticHttpContract
 
     public sealed class Asset
     {
-        public string Path { get; }
-        public string Target { get; }
-        public ulong Inode { get; }
-        public uint Bytes { get; }
-        public string Sha256 { get; }
-        public string MediaType { get; }
-        public string ETag { get; }
-        public string LastModified { get; }
-        public bool Published { get; }
+        public string Path
+        {
+            get;
+        }
+        public string Target
+        {
+            get;
+        }
+        public ulong Inode
+        {
+            get;
+        }
+        public uint Bytes
+        {
+            get;
+        }
+        public string Sha256
+        {
+            get;
+        }
+        public string MediaType
+        {
+            get;
+        }
+        public string ETag
+        {
+            get;
+        }
+        public string LastModified
+        {
+            get;
+        }
+        public bool Published
+        {
+            get;
+        }
 
         internal Asset(WebRootDiskInventory.Entry file, bool published)
         {

@@ -85,7 +85,7 @@ internal static class HostRhpAllocationChecks
             || length.IsStatic || length.DeclaredAccessibility != Accessibility.Public || length.Type.SpecialType != SpecialType.System_Int32
             || length.RefKind != RefKind.None || length.GetMethod is null || length.SetMethod is not null
             || length.DeclaringSyntaxReferences.Single().GetSyntax() is not PropertyDeclarationSyntax
-                { ExpressionBody.Expression: IdentifierNameSyntax expression }
+            { ExpressionBody.Expression: IdentifierNameSyntax expression }
             || !SymbolEqualityComparer.Default.Equals(source.Compilation.GetSemanticModel(expression.SyntaxTree)
                 .GetSymbolInfo(expression).Symbol, field))
             throw new InvalidOperationException("rhp_source_array_shape");

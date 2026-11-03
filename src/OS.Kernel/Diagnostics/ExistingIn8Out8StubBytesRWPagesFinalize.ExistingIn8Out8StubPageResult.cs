@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct ExistingIn8Out8StubPageResult
 {
     public const ulong StructureSize = 112;

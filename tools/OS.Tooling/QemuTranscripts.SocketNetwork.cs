@@ -3,11 +3,12 @@ using System.Text;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private static readonly string[] SocketLifetimeFields = "slot owner epoch generation index local localPort remote remotePort clock deadline duration".Split(' ').Select(s => s + ":dec").ToArray();
     private static bool IsSocketTransport(string row) => row.StartsWith("M16_011_SLOT ", StringComparison.Ordinal) || row.StartsWith("M16_011_TIMEWAIT ", StringComparison.Ordinal);
-    private static Dictionary<string, ulong> SocketTransport(string row) => row.StartsWith("M16_011_SLOT ", StringComparison.Ordinal) ? ReadRecord(row, "M16_011_SLOT", ["event:dec", ..SocketLifetimeFields]) : ReadRecord(row, "M16_011_TIMEWAIT", [..SocketLifetimeFields, "drain:dec"]);
+    private static Dictionary<string, ulong> SocketTransport(string row) => row.StartsWith("M16_011_SLOT ", StringComparison.Ordinal) ? ReadRecord(row, "M16_011_SLOT", ["event:dec", .. SocketLifetimeFields]) : ReadRecord(row, "M16_011_TIMEWAIT", [.. SocketLifetimeFields, "drain:dec"]);
     /// <summary>Check original handle/tuple lifetimes and actual TIME-WAIT
     /// deadline retention in supplied rows. Inputs are borrowed; malformed,
     /// stale, duplicate, early or incomplete releases throw. Parent and wire
@@ -23,7 +24,7 @@ public static partial class QemuTranscripts
     private static List<SocketLifetime> SocketLifetimes(string[] rows, bool continuingWeb = false, int webConnections = 5, WebSocketControls.Report? controls = null, bool signalRace = false, bool finiteStatic = false, int finiteConnections = 3)
     {
         Need(!finiteStatic || !continuingWeb && controls is null && !signalRace, "static_transport_selection");
-        Need(finiteStatic ? finiteConnections is> 0 and <= 512 : finiteConnections == 3, "static_transport_connection_bound");
+        Need(finiteStatic ? finiteConnections is > 0 and <= 512 : finiteConnections == 3, "static_transport_connection_bound");
         Need(controls is null || continuingWeb && webConnections is 7 or 8, "web_transport_selection");
         Need(!signalRace || continuingWeb && controls is not null && webConnections == 8, "web_transport_race_selection");
         Need(!continuingWeb || controls is not null || !rows.Any(IsWebControlEvent), "web_transport_unexpected_controls");
@@ -59,7 +60,7 @@ public static partial class QemuTranscripts
 
             var r = SocketTransport(row);
             bool slot = row.StartsWith("M16_011_SLOT ", StringComparison.Ordinal);
-            Need(r["slot"] < maximumConnections && r["index"] < maximumConnections && r["owner"] >= 4096 && r["owner"] % 8 == 0 && r["epoch"] != 0 && r["generation"] != 0 && r["local"] == 0x0a00020f && r["localPort"] == 8080 && r["remote"] == 0x0a000202 && r["remotePort"] is> 0 and <= 65535 && r["clock"] >= clock && r["clock"] <= long.MaxValue, "socket_transport_identity");
+            Need(r["slot"] < maximumConnections && r["index"] < maximumConnections && r["owner"] >= 4096 && r["owner"] % 8 == 0 && r["epoch"] != 0 && r["generation"] != 0 && r["local"] == 0x0a00020f && r["localPort"] == 8080 && r["remote"] == 0x0a000202 && r["remotePort"] is > 0 and <= 65535 && r["clock"] >= clock && r["clock"] <= long.MaxValue, "socket_transport_identity");
             clock = r["clock"];
             if (owner == 0)
             {
@@ -174,7 +175,7 @@ public static partial class QemuTranscripts
         string[] parent = ValidateServiceLoopTail(lines[..envelope.ParentsEnd], true);
         parent = ValidateLinuxStartupTail(parent, package);
         parent = ValidateLinuxElfTail(parent, package);
-        return ([..parent, ..envelope.Apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count)], envelope.Proof);
+        return ([.. parent, .. envelope.Apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count)], envelope.Proof);
     }
 
     private static (string[] Parent, SocketNetworkProof Proof) ValidateSocketVectorsNetworkTail(string[] lines, byte[] raw, byte[] package, NativeAotSocketVectorsProgram program)
@@ -189,7 +190,7 @@ public static partial class QemuTranscripts
         string[] parent = ValidateServiceLoopTail(lines[..envelope.ParentsEnd], true);
         parent = ValidateLinuxStartupTail(parent, package);
         parent = ValidateLinuxElfTail(parent, package);
-        return ([..parent, ..envelope.Apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count)], envelope.Proof);
+        return ([.. parent, .. envelope.Apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count)], envelope.Proof);
     }
 
     private static (string[] Parent, SocketNetworkProof Proof) ValidateSignalEpollNetworkTail(string[] lines, byte[] package)
@@ -208,7 +209,7 @@ public static partial class QemuTranscripts
         string[] parent = ValidateServiceLoopTail(lines[..envelope.ParentsEnd], true);
         parent = ValidateLinuxStartupTail(parent, package);
         parent = ValidateLinuxElfTail(parent, package);
-        return ([..parent, ..envelope.Apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count)], envelope.Proof);
+        return ([.. parent, .. envelope.Apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count)], envelope.Proof);
     }
 
     /// <summary>Value-only combined APIC/NIC wrapper inspection for synthetic
@@ -253,7 +254,7 @@ public static partial class QemuTranscripts
         int parentsEnd = QemuContracts.M03OwnedSubsystemMarkers.Count + 7 + M16LinuxStartupMarkers.Count + M16ServiceLoopMarkers.Count;
         int apicEnd = parentsEnd + QemuContracts.M05ApicSetupMarkers.Count - QemuContracts.M03OwnedSubsystemMarkers.Count;
         int networkStart = apicEnd + QemuContracts.M07ArpReceiveMarkers.Count - QemuContracts.M05PciEnumerationMarkers.Count;
-        Need(lines.Length > networkStart + 12 && !(containment && asynchronous) && (!vectors || asynchronous && !containment) && (!mechanical || asynchronous && !containment && !vectors) && (!staticFiles || asynchronous && !containment && !vectors && !mechanical) && (!diskFiles || mechanical && !staticFiles || diskStatic && staticFiles && !mechanical) && (!diskStatic || diskFiles && staticFiles && diskStaticConnections is> 0 and <= 512) && (diskExitPending is null || asynchronous && mechanical && diskFiles && !staticFiles && !diskStatic && !containment && !vectors) && (!writableDisk || diskFiles && mechanical && asynchronous && !staticFiles && !diskStatic && diskExitPending is null) && (diskCloseReuse is null || asynchronous && mechanical && diskFiles && !staticFiles && !diskStatic && !containment && !vectors && !writableDisk && diskExitPending is null) && (diskStaticFullDevice is null || asynchronous && diskStatic && staticFiles && diskFiles && !mechanical && !containment && !vectors && !writableDisk && diskExitPending is null && diskCloseReuse is null), "socket_parent_extent");
+        Need(lines.Length > networkStart + 12 && !(containment && asynchronous) && (!vectors || asynchronous && !containment) && (!mechanical || asynchronous && !containment && !vectors) && (!staticFiles || asynchronous && !containment && !vectors && !mechanical) && (!diskFiles || mechanical && !staticFiles || diskStatic && staticFiles && !mechanical) && (!diskStatic || diskFiles && staticFiles && diskStaticConnections is > 0 and <= 512) && (diskExitPending is null || asynchronous && mechanical && diskFiles && !staticFiles && !diskStatic && !containment && !vectors) && (!writableDisk || diskFiles && mechanical && asynchronous && !staticFiles && !diskStatic && diskExitPending is null) && (diskCloseReuse is null || asynchronous && mechanical && diskFiles && !staticFiles && !diskStatic && !containment && !vectors && !writableDisk && diskExitPending is null) && (diskStaticFullDevice is null || asynchronous && diskStatic && staticFiles && diskFiles && !mechanical && !containment && !vectors && !writableDisk && diskExitPending is null && diskCloseReuse is null), "socket_parent_extent");
         int cursor = networkStart;
         void Exact(string expected)
         {
@@ -349,10 +350,10 @@ public static partial class QemuTranscripts
         }
 
         Need(cursor == lines.Length, "socket_parent_extra_record");
-        string[] apic = [..lines[..QemuContracts.M03OwnedSubsystemMarkers.Count], ..lines[parentsEnd..apicEnd]];
+        string[] apic = [.. lines[..QemuContracts.M03OwnedSubsystemMarkers.Count], .. lines[parentsEnd..apicEnd]];
         Need(apic.Length == QemuContracts.M05ApicSetupMarkers.Count, "socket_apic_extent");
         AssertM05ApicSetupRecords(apic);
-        string[] nic = [..apic[..QemuContracts.M05PciEnumerationMarkers.Count], ..lines[apicEnd..networkStart]];
+        string[] nic = [.. apic[..QemuContracts.M05PciEnumerationMarkers.Count], .. lines[apicEnd..networkStart]];
         var arp = AssertM07ArpReceiveRecords(nic);
         Need(peer["mac"] == arp.PeerMac && peer["sent"] == 1 && peer["received"] >= 1 && peer["start"] >= end["start"] && peer["end"] >= peer["start"] && peer["end"] <= (mechanical ? end["end"] : containment ? control!.Lifetimes.Min(v => v.Created) : lifetimes.Min(v => v.First["clock"])), "socket_peer_parent");
         ulong maxDeadline = containment || mechanical ? 0 : lifetimes.Max(v => v.MaximumDeadline);
@@ -384,7 +385,7 @@ public static partial class QemuTranscripts
     public static SocketPacketInspection InspectSignalEpollPacketsForTests(byte[] capture, uint anchor, QemuArpReceiveReceipt arp) => SocketPackets(capture, anchor, arp, [], mechanical: true);
     private static SocketPacketInspection SocketPackets(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp, IReadOnlyList<uint> ports, bool vectors = false, bool mechanical = false)
     {
-        Need(ports.Count == (mechanical ? 0 : 4) && (!mechanical || !vectors) && ports.All(p => p is> 0 and <= 65535), "socket_wire_ports");
+        Need(ports.Count == (mechanical ? 0 : 4) && (!mechanical || !vectors) && ports.All(p => p is > 0 and <= 65535), "socket_wire_ports");
         _ = QemuEthernetCapture.Inspect(bytes, anchor);
         int offset = 24, records = 0, prefixEnd = 0, prefixStage = 0;
         ulong timestamp = 0, peerReceived = 0, pumpReceived = 0, arpReceived = 0, arpCopied = 0, tcpCopied = 0, ignored = 0;

@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct MsixCapability
 {
     public readonly byte CapabilityOffset, TableBar, PbaBar;

@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public static class FetchAppHttpCompletionPlanDiagnosticFormatter
 {
     public static FetchAppHttpCompletionPlanDiagnosticFormatResult FormatResult(in FetchAppHttpCompletionPlanResult result, Span<byte> destination)

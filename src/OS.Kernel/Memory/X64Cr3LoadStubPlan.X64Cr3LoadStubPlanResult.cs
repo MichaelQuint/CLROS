@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public readonly struct X64Cr3LoadStubPlanResult
 {
     public const ulong StructureSize = 1072;

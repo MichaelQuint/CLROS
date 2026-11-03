@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpConnectionTable
 {
     public enum OwnershipStatus : byte

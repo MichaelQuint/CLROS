@@ -44,7 +44,7 @@ internal static unsafe partial class LinuxSocketNetworkTests
     private static void BoundedAdmission()
     {
         using Model m = new(start: false);
-        foreach ((ulong address, uint bytes)in new[]
+        foreach ((ulong address, uint bytes) in new[]
         {
             (0UL, 8U),
             (1UL, 8U),

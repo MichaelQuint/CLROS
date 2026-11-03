@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Cloud;
+
 public readonly struct AzureWireServerRequestPlanResult
 {
     private AzureWireServerRequestPlanResult(AzureWireServerRequestPlanStatus status, AzureWireServerHttpRequestPlan request)
@@ -9,8 +10,14 @@ public readonly struct AzureWireServerRequestPlanResult
         Request = request;
     }
 
-    public AzureWireServerRequestPlanStatus Status { get; }
-    public AzureWireServerHttpRequestPlan Request { get; }
+    public AzureWireServerRequestPlanStatus Status
+    {
+        get;
+    }
+    public AzureWireServerHttpRequestPlan Request
+    {
+        get;
+    }
     public bool Succeeded => Status == AzureWireServerRequestPlanStatus.Success;
 
     public static AzureWireServerRequestPlanResult Success(AzureWireServerHttpRequestPlan request)

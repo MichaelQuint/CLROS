@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Runtime;
+
 public enum CompilerClassConstructorStatus : byte
 {
     Uninitialized = 0,

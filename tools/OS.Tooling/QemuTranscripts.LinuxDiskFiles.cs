@@ -5,6 +5,7 @@ using OS.Kernel.Threading;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow the complete m16-009 leaf (start through
@@ -18,7 +19,7 @@ public static partial class QemuTranscripts
     public static LinuxDiskFileLeafReport InspectLinuxDiskFileLeafForTests(IReadOnlyList<string> lines, byte[] package, ulong userRoot, ulong kernelRoot)
     {
         int rowCount = lines?.Count ?? 0;
-        Need(package is not null && rowCount is> 0 and <= 131072, "disk_leaf_input");
+        Need(package is not null && rowCount is > 0 and <= 131072, "disk_leaf_input");
         string[] input = new string[rowCount];
         for (int i = 0; i < rowCount; i++)
             input[i] = lines![i];
@@ -58,7 +59,7 @@ public static partial class QemuTranscripts
             clock = value;
         }
 
-        void Aux(int index) => auxiliary.Add(new(index, new string (input[index].AsSpan())));
+        void Aux(int index) => auxiliary.Add(new(index, new string(input[index].AsSpan())));
         Exact("TEST_START m16-009");
         LinuxMemoryPolicy(Take());
         Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=28672 package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
@@ -85,7 +86,7 @@ public static partial class QemuTranscripts
         const string diskSuffix = " pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained";
         Need(diskLine.EndsWith(diskSuffix, StringComparison.Ordinal), "disk_leaf_disk_policy");
         var disk = ReadRecord(diskLine[..^diskSuffix.Length], "M16_023_BOUND", "owner:dec", "epoch:dec", "arena:dec", "pages:dec", "bar:dec", "capacity:dec", "bootstrapCompleted:dec", "bootstrapCopied:dec", "clock:dec");
-        Need(disk["owner"] is >= 4096 and < 0x0000800000000000 && disk["owner"] % 8 == 0 && disk["epoch"] != 0 && disk["pages"] is> 0 and <= 256 && disk["arena"] >= 4096 && disk["arena"] % 4096 == 0 && disk["arena"] <= 0x100000000UL - disk["pages"] * 4096 && disk["bar"] >= 0x100000 && disk["bar"] % 16384 == 0 && disk["bar"] < 0x0000800000000000 - 16384 && disk["capacity"] is >= 68 and <= (ulong)long.MaxValue / 512 && disk["bootstrapCompleted"] > 0 && disk["bootstrapCopied"] <= disk["bootstrapCompleted"] && disk["clock"] <= long.MaxValue, "disk_leaf_disk_geometry");
+        Need(disk["owner"] is >= 4096 and < 0x0000800000000000 && disk["owner"] % 8 == 0 && disk["epoch"] != 0 && disk["pages"] is > 0 and <= 256 && disk["arena"] >= 4096 && disk["arena"] % 4096 == 0 && disk["arena"] <= 0x100000000UL - disk["pages"] * 4096 && disk["bar"] >= 0x100000 && disk["bar"] % 16384 == 0 && disk["bar"] < 0x0000800000000000 - 16384 && disk["capacity"] is >= 68 and <= (ulong)long.MaxValue / 512 && disk["bootstrapCompleted"] > 0 && disk["bootstrapCopied"] <= disk["bootstrapCompleted"] && disk["clock"] <= long.MaxValue, "disk_leaf_disk_geometry");
         Aux(diskBinding); // Exact native/image/counter ownership remains a required independent join.
         const string boundSuffix = " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack";
         string boundLine = Take();

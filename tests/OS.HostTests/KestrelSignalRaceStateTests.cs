@@ -11,13 +11,16 @@ internal static class KestrelSignalRaceStateTests
             HostCheck.True(state.TryRead(true, out string current));
             HostCheck.Equal("CLROS_SIGNAL_RACE_STATUS phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0", legacy);
             HostCheck.Equal("CLROS_SIGNAL_RACE_V3_STATUS phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0", current);
-            HostCheck.True(state.Begin(50, eventOwned)); var before = state.Inspect();
+            HostCheck.True(state.Begin(50, eventOwned));
+            var before = state.Inspect();
             HostCheck.True(!state.TryRead(!eventOwned, out string wrong) && wrong == "");
-            HostCheck.True(!state.Begin(99, !eventOwned)); HostCheck.Equal(before, state.Inspect());
+            HostCheck.True(!state.Begin(99, !eventOwned));
+            HostCheck.Equal(before, state.Inspect());
             HostCheck.True(state.TryRead(eventOwned, out string value));
             HostCheck.Equal((eventOwned ? "CLROS_SIGNAL_RACE_V3_STATUS" : "CLROS_SIGNAL_RACE_STATUS") +
                 " phase=1 pid=50 waiter=0 actor=0 callback=0 recoveryRequested=0", value);
-            if (!eventOwned) HostCheck.Equal(value, state.Read());
+            if (!eventOwned)
+                HostCheck.Equal(value, state.Read());
         }
     }
 
@@ -30,15 +33,19 @@ internal static class KestrelSignalRaceStateTests
             HostCheck.True(state.Begin(60, eventOwned) && state.Advance(2, waiter: 61, actor: 62));
             var armed = state.Inspect();
             HostCheck.True(!state.TryRequestStart(!eventOwned) && !state.StartRequested);
-            if (eventOwned) HostCheck.True(!state.TryRequestStart());
+            if (eventOwned)
+                HostCheck.True(!state.TryRequestStart());
             HostCheck.Equal(armed, state.Inspect());
             HostCheck.True(state.TryRequestStart(eventOwned) && state.StartRequested && !state.TryRequestStart(eventOwned));
-            HostCheck.True(state.Advance(4, callback: 62)); var recovery = state.Inspect();
+            HostCheck.True(state.Advance(4, callback: 62));
+            var recovery = state.Inspect();
             HostCheck.True(!state.TryRequestRecovery(!eventOwned));
-            if (eventOwned) HostCheck.True(!state.TryRequestRecovery());
+            if (eventOwned)
+                HostCheck.True(!state.TryRequestRecovery());
             HostCheck.Equal(recovery, state.Inspect());
             HostCheck.True(state.TryRequestRecovery(eventOwned) && !state.TryRequestRecovery(eventOwned));
-            HostCheck.True(state.Advance(6) && state.Finish(true)); var terminal = state.Inspect();
+            HostCheck.True(state.Advance(6) && state.Finish(true));
+            var terminal = state.Inspect();
             HostCheck.True(!state.TryRequestStart(eventOwned) && !state.TryRequestRecovery(eventOwned));
             HostCheck.True(!state.TryRead(!eventOwned, out string wrong) && wrong == "");
             HostCheck.Equal(terminal, state.Inspect());
@@ -68,9 +75,12 @@ internal static class KestrelSignalRaceStateTests
         foreach (int phase in new[] { 0, 1, 3, 4, 5, 6, 7, 8 })
         {
             var refused = new KestrelSignalRaceState();
-            if (phase > 0) HostCheck.True(refused.Begin(10));
-            if (phase > 1) HostCheck.True(refused.Advance(Math.Min(phase, 6), waiter: 11, actor: 12));
-            if (phase > 6) HostCheck.True(refused.Finish(phase == 7));
+            if (phase > 0)
+                HostCheck.True(refused.Begin(10));
+            if (phase > 1)
+                HostCheck.True(refused.Advance(Math.Min(phase, 6), waiter: 11, actor: 12));
+            if (phase > 6)
+                HostCheck.True(refused.Finish(phase == 7));
             var before = refused.Inspect();
             HostCheck.True(!refused.TryRequestStart() && !refused.StartRequested);
             HostCheck.Equal(before, refused.Inspect());
@@ -85,7 +95,8 @@ internal static class KestrelSignalRaceStateTests
         HostCheck.True(state.Begin(10) && state.Advance(2, waiter: 11, actor: 12));
         HostCheck.True(state.TryRequestStart() && state.StartRequested && !state.TryRequestRecovery());
         var armed = state.Inspect();
-        HostCheck.True(!state.TryRequestStart()); HostCheck.Equal(armed, state.Inspect());
+        HostCheck.True(!state.TryRequestStart());
+        HostCheck.Equal(armed, state.Inspect());
         HostCheck.True(state.Advance(6) && !state.TryRequestStart() && state.StartRequested);
     }
 
@@ -112,7 +123,8 @@ internal static class KestrelSignalRaceStateTests
         HostCheck.True(state.Advance(4) && state.TryRequestRecovery());
         var accepted = state.Inspect();
         HostCheck.True(accepted is { Phase: 4, Process: 10, Waiter: 11, Actor: 12, Callback: 12, RecoveryRequested: true });
-        HostCheck.True(!state.TryRequestRecovery()); HostCheck.Equal(accepted, state.Inspect());
+        HostCheck.True(!state.TryRequestRecovery());
+        HostCheck.Equal(accepted, state.Inspect());
         HostCheck.True(state.Advance(5) && !state.TryRequestRecovery());
         HostCheck.True(state.Inspect().RecoveryRequested);
     }
@@ -131,18 +143,31 @@ internal static class KestrelSignalRaceStateTests
     [HostTest("m10-012 signal race identity and phase refusals leave all copied fields unchanged")]
     private static void AtomicIdentity()
     {
-        var state = new KestrelSignalRaceState(); var idle = state.Inspect();
-        HostCheck.True(!state.Begin(0) && !state.Begin(-1)); HostCheck.Equal(idle, state.Inspect());
-        HostCheck.True(state.Begin(30) && state.Advance(2, waiter: 31)); var armed = state.Inspect();
+        var state = new KestrelSignalRaceState();
+        var idle = state.Inspect();
+        HostCheck.True(!state.Begin(0) && !state.Begin(-1));
+        HostCheck.Equal(idle, state.Inspect());
+        HostCheck.True(state.Begin(30) && state.Advance(2, waiter: 31));
+        var armed = state.Inspect();
         foreach (int phase in new[] { -1, 0, 1, 2, 7, 8, 9 })
-        { HostCheck.True(!state.Advance(phase, actor: 32)); HostCheck.Equal(armed, state.Inspect()); }
-        HostCheck.True(!state.Begin(30) && !state.Begin(99)); HostCheck.Equal(armed, state.Inspect());
-        HostCheck.True(!state.Advance(3, waiter: -1, actor: 32)); HostCheck.Equal(armed, state.Inspect());
-        HostCheck.True(!state.Advance(3, waiter: 99, actor: 32)); HostCheck.Equal(armed, state.Inspect());
-        HostCheck.True(!state.Advance(3, actor: 32, callback: 31)); HostCheck.Equal(armed, state.Inspect());
-        HostCheck.True(!state.Advance(3, actor: 31, callback: 32)); HostCheck.Equal(armed, state.Inspect());
-        HostCheck.True(!state.Advance(3, actor: 32, callback: -1)); HostCheck.Equal(armed, state.Inspect());
-        HostCheck.True(state.Advance(3, waiter: 31, actor: 32, callback: 32)); var acknowledged = state.Inspect();
+        {
+            HostCheck.True(!state.Advance(phase, actor: 32));
+            HostCheck.Equal(armed, state.Inspect());
+        }
+        HostCheck.True(!state.Begin(30) && !state.Begin(99));
+        HostCheck.Equal(armed, state.Inspect());
+        HostCheck.True(!state.Advance(3, waiter: -1, actor: 32));
+        HostCheck.Equal(armed, state.Inspect());
+        HostCheck.True(!state.Advance(3, waiter: 99, actor: 32));
+        HostCheck.Equal(armed, state.Inspect());
+        HostCheck.True(!state.Advance(3, actor: 32, callback: 31));
+        HostCheck.Equal(armed, state.Inspect());
+        HostCheck.True(!state.Advance(3, actor: 31, callback: 32));
+        HostCheck.Equal(armed, state.Inspect());
+        HostCheck.True(!state.Advance(3, actor: 32, callback: -1));
+        HostCheck.Equal(armed, state.Inspect());
+        HostCheck.True(state.Advance(3, waiter: 31, actor: 32, callback: 32));
+        var acknowledged = state.Inspect();
         HostCheck.True(!state.Advance(4, actor: 33) && !state.Advance(4, callback: 33));
         HostCheck.Equal(acknowledged, state.Inspect());
         HostCheck.True(state.Advance(4, waiter: 31, actor: 32, callback: 32));

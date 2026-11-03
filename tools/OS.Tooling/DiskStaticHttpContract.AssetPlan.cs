@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class DiskStaticHttpContract
 {
     /// <summary>Owned immutable request inventory, without response buffers or
@@ -13,15 +14,42 @@ public static partial class DiskStaticHttpContract
     {
         public string Schema => Truncated ? TruncatedAssetSchema : AssetSchema;
         public string Scope => Truncated ? TruncatedAssetScope : AssetScope;
-        public bool Truncated { get; }
-        public string ImageSha256 { get; }
-        public string PublishedInventorySha256 { get; }
-        public int PublishedFiles { get; }
-        public long PublishedBytes { get; }
-        public long ExpectedBodyBytes { get; }
-        public int MinimumReadCompletions { get; }
-        public IReadOnlyList<Asset> Assets { get; }
-        public IReadOnlyList<Request> Requests { get; }
+        public bool Truncated
+        {
+            get;
+        }
+        public string ImageSha256
+        {
+            get;
+        }
+        public string PublishedInventorySha256
+        {
+            get;
+        }
+        public int PublishedFiles
+        {
+            get;
+        }
+        public long PublishedBytes
+        {
+            get;
+        }
+        public long ExpectedBodyBytes
+        {
+            get;
+        }
+        public int MinimumReadCompletions
+        {
+            get;
+        }
+        public IReadOnlyList<Asset> Assets
+        {
+            get;
+        }
+        public IReadOnlyList<Request> Requests
+        {
+            get;
+        }
         public bool GrantsOriginalNativeProcessOrBrowserAuthority => false;
 
         internal AssetPlan(string imageHash, string publishedHash, Asset[] assets, Request[] requests, bool truncated = false)

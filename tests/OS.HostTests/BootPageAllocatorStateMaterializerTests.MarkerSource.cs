@@ -63,7 +63,7 @@ internal static partial class BootPageAllocatorStateMaterializerTests
             if (accepted)
             {
                 var foreign = new KeyValuePair<string, string>(Path.Combine(Path.GetTempPath(), "ForeignMarker.cs"), "// " + ready);
-                HostCheck.True(!CheckMaterializerMarker(source, [..inventory, foreign]), "global raw foreign marker rejected");
+                HostCheck.True(!CheckMaterializerMarker(source, [.. inventory, foreign]), "global raw foreign marker rejected");
                 HostCheck.True(!CheckMaterializerMarker(source, [new(moved.Path, moved.Text + "\n// drift")]), "observed emitter matches compiler snapshot");
             }
         }

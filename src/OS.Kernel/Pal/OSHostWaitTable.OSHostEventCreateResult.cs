@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public readonly struct OSHostEventCreateResult
 {
     public readonly OSHostStatus Status;

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public enum VirtioPciDeviceDiscoveryStatus
 {
     Success = 0,

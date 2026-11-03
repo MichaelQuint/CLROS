@@ -209,7 +209,7 @@ internal static partial class NativeAotLogUploadProtocolTests
         Reject([]);
         Reject(["not-a-leaf"]);
         Reject(Enumerable.Repeat("OUTER", Q.MaximumNativeAotLogUploadWaitRows + 1).ToArray());
-        Reject(Simple().Append(new string ('x', 2049)).ToArray(), "input", wait: true);
+        Reject(Simple().Append(new string('x', 2049)).ToArray(), "input", wait: true);
         Reject(Simple().Append("non-ascii=é").ToArray(), "input", wait: true);
         Reject(Change(Simple(), "M16_008_CALL ", "identity", 4294967313));
         Reject(Simple().Select(x => x.StartsWith("M16_012_POLL ", StringComparison.Ordinal) ? x + " injected=0" : x).ToArray());

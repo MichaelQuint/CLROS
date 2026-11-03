@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioNegotiationResult
 {
     public readonly VirtioNegotiationStatus Status;

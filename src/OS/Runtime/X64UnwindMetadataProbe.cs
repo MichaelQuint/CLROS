@@ -13,10 +13,6 @@ internal static unsafe partial class X64UnwindMetadataProbe
     private const ulong StackBytes = 33 * 4096, StackClearance = 16384;
     private const ulong StackWord0 = 0x3D947E21A6C850BF, StackWord1 = 0xC2715AB809E634DF;
 
-
-
-
-
     private static Buffer s_storage;
     private static StackState s_stack;
     private static ulong s_phase, s_sampleA, s_sampleB, s_sampleFailure;
@@ -32,8 +28,10 @@ internal static unsafe partial class X64UnwindMetadataProbe
         M01LoadedImageVirtualMappingEvidence mapping, byte* moduleOwner, ulong moduleCapacity,
         ulong moduleHandle, EfiConsoleAdapter console)
     {
-        Text(console, 0); console.WriteCrLf();
-        if (s_phase != 0) return Fail(console, 1, X64UnwindMetadataStatus.AlreadyBound);
+        Text(console, 0);
+        console.WriteCrLf();
+        if (s_phase != 0)
+            return Fail(console, 1, X64UnwindMetadataStatus.AlreadyBound);
         s_phase = 1;
         TypeManagerModuleResult original = TypeManagerModuleMetadataLiveNativeAOTImage.TryGetSection(
             capture, mapping, moduleOwner, moduleCapacity, moduleHandle, 204);
@@ -50,7 +48,8 @@ internal static unsafe partial class X64UnwindMetadataProbe
                 return Fail(console, 3, X64UnwindMetadataStatus.StorageRejected);
             X64UnwindMetadataResult measured = X64PERuntimeFunctionUnwindMetadataHostileInput.Validate(
                 capture, mapping, moduleOwner, moduleCapacity, moduleHandle);
-            if (!measured.Succeeded) return Fail(console, 4, measured.Status);
+            if (!measured.Succeeded)
+                return Fail(console, 4, measured.Status);
             if (measured.RequiredStorage == 0 || measured.RequiredStorage > GuardStart ||
                 measured.ImageBase != image || measured.ModuleOwner != (ulong)moduleOwner ||
                 measured.ModuleHandle != moduleHandle || measured.FunctionCount == 0 ||
@@ -58,13 +57,15 @@ internal static unsafe partial class X64UnwindMetadataProbe
                 return Fail(console, 5, X64UnwindMetadataStatus.StorageRejected);
             X64UnwindMetadataResult bound = X64PERuntimeFunctionUnwindMetadataHostileInput.Bind(
                 capture, mapping, moduleOwner, moduleCapacity, moduleHandle, storage, Capacity);
-            if (!bound.Succeeded) return Fail(console, 6, bound.Status);
+            if (!bound.Succeeded)
+                return Fail(console, 6, bound.Status);
             if (bound.RequiredStorage != measured.RequiredStorage || bound.FunctionCount != measured.FunctionCount ||
                 !Zero(storage, measured.RequiredStorage, Capacity - measured.RequiredStorage))
                 return Fail(console, 7, X64UnwindMetadataStatus.MetadataChanged);
             // Bind has admitted the complete static buffer. Sentinels are only
             // armed in its unused tail, never in the immutable snapshot prefix.
-            for (ulong i = GuardStart; i < Capacity; i++) storage[i] = Canary(i);
+            for (ulong i = GuardStart; i < Capacity; i++)
+                storage[i] = Canary(i);
             if (!Preserved(storage, measured.RequiredStorage) || !CheckStack())
                 return Fail(console, 8, X64UnwindMetadataStatus.MetadataChanged);
 
@@ -108,7 +109,10 @@ internal static unsafe partial class X64UnwindMetadataProbe
             Line(console, 17, measured.RequiredStorage, final.RequiredStorage, bound.FunctionCount, 4);
             Line(console, 18, (ulong)moduleOwner, moduleHandle, retained.Section, ReadWord(retained.Section));
             s_phase = 2;
-            Text(console, 2); console.WriteCrLf(); Text(console, 3); console.WriteCrLf();
+            Text(console, 2);
+            console.WriteCrLf();
+            Text(console, 3);
+            console.WriteCrLf();
             return true;
         }
     }
@@ -118,7 +122,8 @@ internal static unsafe partial class X64UnwindMetadataProbe
         ulong stage, ulong pc, ulong seed, ulong value)
     {
         X64UnwindMetadataResult found = BootSequence.RunX64UnwindMetadata(storage, Capacity, pc);
-        if (!found.Succeeded) return Fail(console, 13, found.Status);
+        if (!found.Succeeded)
+            return Fail(console, 13, found.Status);
         if (found.ImageBase != owner.ImageBase || found.ModuleOwner != owner.ModuleOwner ||
             found.ModuleHandle != owner.ModuleHandle || found.FunctionCount != owner.FunctionCount ||
             found.RequiredStorage != owner.RequiredStorage || found.FunctionIndex >= owner.FunctionCount ||
@@ -154,7 +159,11 @@ internal static unsafe partial class X64UnwindMetadataProbe
     {
         s_sampleB++;
         ulong local = value;
-        if (!CheckStack()) { s_sampleFailure = 1; return 0; }
+        if (!CheckStack())
+        {
+            s_sampleFailure = 1;
+            return 0;
+        }
         return ReadWord((ulong)&local) ^ 0x55;
     }
 
@@ -168,11 +177,16 @@ internal static unsafe partial class X64UnwindMetadataProbe
             !Separate(start, end, authority, 768) || !Separate(start, end, image, imageBytes) ||
             !Separate(start, end, owner, ownerBytes) || !Separate(start, end, storage, Capacity))
             return false;
-        s_stack.Authority = authority; s_stack.Start = start; s_stack.End = end;
-        s_stack.InitialRsp = initialRsp; s_stack.Witness = witness; s_stack.Minimum = witness;
+        s_stack.Authority = authority;
+        s_stack.Start = start;
+        s_stack.End = end;
+        s_stack.InitialRsp = initialRsp;
+        s_stack.Witness = witness;
+        s_stack.Minimum = witness;
         // Same original stack ownership protocol as the existing GC diagnostic.
         // These are diagnostic sentinels, not guard-page or current-RSP proof.
-        *(ulong*)start = StackWord0; *(ulong*)(start + 8) = StackWord1;
+        *(ulong*)start = StackWord0;
+        *(ulong*)(start + 8) = StackWord1;
         return ReadWord(start) == StackWord0 && ReadWord(start + 8) == StackWord1;
     }
 
@@ -186,7 +200,8 @@ internal static unsafe partial class X64UnwindMetadataProbe
             initialRsp != s_stack.InitialRsp || !Witness(witness, start, initialRsp) ||
             ReadWord(start) != StackWord0 || ReadWord(start + 8) != StackWord1)
             return false;
-        if (witness < s_stack.Minimum) s_stack.Minimum = witness;
+        if (witness < s_stack.Minimum)
+            s_stack.Minimum = witness;
         s_stack.Checks++;
         return true;
     }
@@ -198,13 +213,18 @@ internal static unsafe partial class X64UnwindMetadataProbe
     private static byte Canary(ulong offset) => offset < GuardStart + 16 ? (byte)0xA5 : (byte)0x5A;
     private static bool Preserved(byte* storage, ulong required)
     {
-        if (required > GuardStart || !Zero(storage, required, GuardStart - required)) return false;
-        for (ulong i = GuardStart; i < Capacity; i++) if (storage[i] != Canary(i)) return false;
+        if (required > GuardStart || !Zero(storage, required, GuardStart - required))
+            return false;
+        for (ulong i = GuardStart; i < Capacity; i++)
+            if (storage[i] != Canary(i))
+                return false;
         return true;
     }
     private static bool Zero(byte* storage, ulong start, ulong count)
     {
-        for (ulong i = 0; i < count; i++) if (storage[start + i] != 0) return false;
+        for (ulong i = 0; i < count; i++)
+            if (storage[start + i] != 0)
+                return false;
         return true;
     }
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -214,45 +234,292 @@ internal static unsafe partial class X64UnwindMetadataProbe
     private static bool Fail(EfiConsoleAdapter console, ulong reason, X64UnwindMetadataStatus status)
     {
         s_phase = 3;
-        Text(console, 1); Number(console, reason); Text(console, 9); Number(console, (ulong)status); console.WriteCrLf();
+        Text(console, 1);
+        Number(console, reason);
+        Text(console, 9);
+        Number(console, (ulong)status);
+        console.WriteCrLf();
         return false;
     }
     private static void Line(EfiConsoleAdapter console, ulong stage, ulong a, ulong b, ulong c, ulong d)
     {
-        Text(console, 4); Number(console, stage); Text(console, 5); Number(console, a);
-        Text(console, 6); Number(console, b); Text(console, 7); Number(console, c);
-        Text(console, 8); Number(console, d); console.WriteCrLf();
+        Text(console, 4);
+        Number(console, stage);
+        Text(console, 5);
+        Number(console, a);
+        Text(console, 6);
+        Number(console, b);
+        Text(console, 7);
+        Number(console, c);
+        Text(console, 8);
+        Number(console, d);
+        console.WriteCrLf();
     }
     private static void Number(EfiConsoleAdapter console, ulong value)
     {
         ulong divisor = 1;
-        while (divisor <= value / 10) divisor *= 10;
-        do { console.WriteByte((byte)(48 + value / divisor)); value %= divisor; divisor /= 10; } while (divisor != 0);
+        while (divisor <= value / 10)
+            divisor *= 10;
+        do
+        {
+            console.WriteByte((byte)(48 + value / divisor));
+            value %= divisor;
+            divisor /= 10;
+        } while (divisor != 0);
     }
     private static void Text(EfiConsoleAdapter console, uint token)
     {
         switch (token)
         {
             // TEST_START m04.020
-            case 0: console.WriteByte(84); console.WriteByte(69); console.WriteByte(83); console.WriteByte(84); console.WriteByte(95); console.WriteByte(83); console.WriteByte(84); console.WriteByte(65); console.WriteByte(82); console.WriteByte(84); console.WriteByte(32); console.WriteByte(109); console.WriteByte(48); console.WriteByte(52); console.WriteByte(46); console.WriteByte(48); console.WriteByte(50); console.WriteByte(48); break;
+            case 0:
+                console.WriteByte(84);
+                console.WriteByte(69);
+                console.WriteByte(83);
+                console.WriteByte(84);
+                console.WriteByte(95);
+                console.WriteByte(83);
+                console.WriteByte(84);
+                console.WriteByte(65);
+                console.WriteByte(82);
+                console.WriteByte(84);
+                console.WriteByte(32);
+                console.WriteByte(109);
+                console.WriteByte(48);
+                console.WriteByte(52);
+                console.WriteByte(46);
+                console.WriteByte(48);
+                console.WriteByte(50);
+                console.WriteByte(48);
+                break;
             // TEST_FAIL m04.020 reason=
-            case 1: console.WriteByte(84); console.WriteByte(69); console.WriteByte(83); console.WriteByte(84); console.WriteByte(95); console.WriteByte(70); console.WriteByte(65); console.WriteByte(73); console.WriteByte(76); console.WriteByte(32); console.WriteByte(109); console.WriteByte(48); console.WriteByte(52); console.WriteByte(46); console.WriteByte(48); console.WriteByte(50); console.WriteByte(48); console.WriteByte(32); console.WriteByte(114); console.WriteByte(101); console.WriteByte(97); console.WriteByte(115); console.WriteByte(111); console.WriteByte(110); console.WriteByte(61); break;
+            case 1:
+                console.WriteByte(84);
+                console.WriteByte(69);
+                console.WriteByte(83);
+                console.WriteByte(84);
+                console.WriteByte(95);
+                console.WriteByte(70);
+                console.WriteByte(65);
+                console.WriteByte(73);
+                console.WriteByte(76);
+                console.WriteByte(32);
+                console.WriteByte(109);
+                console.WriteByte(48);
+                console.WriteByte(52);
+                console.WriteByte(46);
+                console.WriteByte(48);
+                console.WriteByte(50);
+                console.WriteByte(48);
+                console.WriteByte(32);
+                console.WriteByte(114);
+                console.WriteByte(101);
+                console.WriteByte(97);
+                console.WriteByte(115);
+                console.WriteByte(111);
+                console.WriteByte(110);
+                console.WriteByte(61);
+                break;
             // CLROS_M04_020_READY methods=2 lookups=4 version=1 hostConformance=false guestIntegrated=true unwindExecution=false
-            case 2: console.WriteByte(67); console.WriteByte(76); console.WriteByte(82); console.WriteByte(79); console.WriteByte(83); console.WriteByte(95); console.WriteByte(77); console.WriteByte(48); console.WriteByte(52); console.WriteByte(95); console.WriteByte(48); console.WriteByte(50); console.WriteByte(48); console.WriteByte(95); console.WriteByte(82); console.WriteByte(69); console.WriteByte(65); console.WriteByte(68); console.WriteByte(89); console.WriteByte(32); console.WriteByte(109); console.WriteByte(101); console.WriteByte(116); console.WriteByte(104); console.WriteByte(111); console.WriteByte(100); console.WriteByte(115); console.WriteByte(61); console.WriteByte(50); console.WriteByte(32); console.WriteByte(108); console.WriteByte(111); console.WriteByte(111); console.WriteByte(107); console.WriteByte(117); console.WriteByte(112); console.WriteByte(115); console.WriteByte(61); console.WriteByte(52); console.WriteByte(32); console.WriteByte(118); console.WriteByte(101); console.WriteByte(114); console.WriteByte(115); console.WriteByte(105); console.WriteByte(111); console.WriteByte(110); console.WriteByte(61); console.WriteByte(49); console.WriteByte(32); console.WriteByte(104); console.WriteByte(111); console.WriteByte(115); console.WriteByte(116); console.WriteByte(67); console.WriteByte(111); console.WriteByte(110); console.WriteByte(102); console.WriteByte(111); console.WriteByte(114); console.WriteByte(109); console.WriteByte(97); console.WriteByte(110); console.WriteByte(99); console.WriteByte(101); console.WriteByte(61); console.WriteByte(102); console.WriteByte(97); console.WriteByte(108); console.WriteByte(115); console.WriteByte(101); console.WriteByte(32); console.WriteByte(103); console.WriteByte(117); console.WriteByte(101); console.WriteByte(115); console.WriteByte(116); console.WriteByte(73); console.WriteByte(110); console.WriteByte(116); console.WriteByte(101); console.WriteByte(103); console.WriteByte(114); console.WriteByte(97); console.WriteByte(116); console.WriteByte(101); console.WriteByte(100); console.WriteByte(61); console.WriteByte(116); console.WriteByte(114); console.WriteByte(117); console.WriteByte(101); console.WriteByte(32); console.WriteByte(117); console.WriteByte(110); console.WriteByte(119); console.WriteByte(105); console.WriteByte(110); console.WriteByte(100); console.WriteByte(69); console.WriteByte(120); console.WriteByte(101); console.WriteByte(99); console.WriteByte(117); console.WriteByte(116); console.WriteByte(105); console.WriteByte(111); console.WriteByte(110); console.WriteByte(61); console.WriteByte(102); console.WriteByte(97); console.WriteByte(108); console.WriteByte(115); console.WriteByte(101); break;
+            case 2:
+                console.WriteByte(67);
+                console.WriteByte(76);
+                console.WriteByte(82);
+                console.WriteByte(79);
+                console.WriteByte(83);
+                console.WriteByte(95);
+                console.WriteByte(77);
+                console.WriteByte(48);
+                console.WriteByte(52);
+                console.WriteByte(95);
+                console.WriteByte(48);
+                console.WriteByte(50);
+                console.WriteByte(48);
+                console.WriteByte(95);
+                console.WriteByte(82);
+                console.WriteByte(69);
+                console.WriteByte(65);
+                console.WriteByte(68);
+                console.WriteByte(89);
+                console.WriteByte(32);
+                console.WriteByte(109);
+                console.WriteByte(101);
+                console.WriteByte(116);
+                console.WriteByte(104);
+                console.WriteByte(111);
+                console.WriteByte(100);
+                console.WriteByte(115);
+                console.WriteByte(61);
+                console.WriteByte(50);
+                console.WriteByte(32);
+                console.WriteByte(108);
+                console.WriteByte(111);
+                console.WriteByte(111);
+                console.WriteByte(107);
+                console.WriteByte(117);
+                console.WriteByte(112);
+                console.WriteByte(115);
+                console.WriteByte(61);
+                console.WriteByte(52);
+                console.WriteByte(32);
+                console.WriteByte(118);
+                console.WriteByte(101);
+                console.WriteByte(114);
+                console.WriteByte(115);
+                console.WriteByte(105);
+                console.WriteByte(111);
+                console.WriteByte(110);
+                console.WriteByte(61);
+                console.WriteByte(49);
+                console.WriteByte(32);
+                console.WriteByte(104);
+                console.WriteByte(111);
+                console.WriteByte(115);
+                console.WriteByte(116);
+                console.WriteByte(67);
+                console.WriteByte(111);
+                console.WriteByte(110);
+                console.WriteByte(102);
+                console.WriteByte(111);
+                console.WriteByte(114);
+                console.WriteByte(109);
+                console.WriteByte(97);
+                console.WriteByte(110);
+                console.WriteByte(99);
+                console.WriteByte(101);
+                console.WriteByte(61);
+                console.WriteByte(102);
+                console.WriteByte(97);
+                console.WriteByte(108);
+                console.WriteByte(115);
+                console.WriteByte(101);
+                console.WriteByte(32);
+                console.WriteByte(103);
+                console.WriteByte(117);
+                console.WriteByte(101);
+                console.WriteByte(115);
+                console.WriteByte(116);
+                console.WriteByte(73);
+                console.WriteByte(110);
+                console.WriteByte(116);
+                console.WriteByte(101);
+                console.WriteByte(103);
+                console.WriteByte(114);
+                console.WriteByte(97);
+                console.WriteByte(116);
+                console.WriteByte(101);
+                console.WriteByte(100);
+                console.WriteByte(61);
+                console.WriteByte(116);
+                console.WriteByte(114);
+                console.WriteByte(117);
+                console.WriteByte(101);
+                console.WriteByte(32);
+                console.WriteByte(117);
+                console.WriteByte(110);
+                console.WriteByte(119);
+                console.WriteByte(105);
+                console.WriteByte(110);
+                console.WriteByte(100);
+                console.WriteByte(69);
+                console.WriteByte(120);
+                console.WriteByte(101);
+                console.WriteByte(99);
+                console.WriteByte(117);
+                console.WriteByte(116);
+                console.WriteByte(105);
+                console.WriteByte(111);
+                console.WriteByte(110);
+                console.WriteByte(61);
+                console.WriteByte(102);
+                console.WriteByte(97);
+                console.WriteByte(108);
+                console.WriteByte(115);
+                console.WriteByte(101);
+                break;
             // TEST_PASS m04.020
-            case 3: console.WriteByte(84); console.WriteByte(69); console.WriteByte(83); console.WriteByte(84); console.WriteByte(95); console.WriteByte(80); console.WriteByte(65); console.WriteByte(83); console.WriteByte(83); console.WriteByte(32); console.WriteByte(109); console.WriteByte(48); console.WriteByte(52); console.WriteByte(46); console.WriteByte(48); console.WriteByte(50); console.WriteByte(48); break;
+            case 3:
+                console.WriteByte(84);
+                console.WriteByte(69);
+                console.WriteByte(83);
+                console.WriteByte(84);
+                console.WriteByte(95);
+                console.WriteByte(80);
+                console.WriteByte(65);
+                console.WriteByte(83);
+                console.WriteByte(83);
+                console.WriteByte(32);
+                console.WriteByte(109);
+                console.WriteByte(48);
+                console.WriteByte(52);
+                console.WriteByte(46);
+                console.WriteByte(48);
+                console.WriteByte(50);
+                console.WriteByte(48);
+                break;
             // CLROS_M04_020_DATA stage=
-            case 4: console.WriteByte(67); console.WriteByte(76); console.WriteByte(82); console.WriteByte(79); console.WriteByte(83); console.WriteByte(95); console.WriteByte(77); console.WriteByte(48); console.WriteByte(52); console.WriteByte(95); console.WriteByte(48); console.WriteByte(50); console.WriteByte(48); console.WriteByte(95); console.WriteByte(68); console.WriteByte(65); console.WriteByte(84); console.WriteByte(65); console.WriteByte(32); console.WriteByte(115); console.WriteByte(116); console.WriteByte(97); console.WriteByte(103); console.WriteByte(101); console.WriteByte(61); break;
+            case 4:
+                console.WriteByte(67);
+                console.WriteByte(76);
+                console.WriteByte(82);
+                console.WriteByte(79);
+                console.WriteByte(83);
+                console.WriteByte(95);
+                console.WriteByte(77);
+                console.WriteByte(48);
+                console.WriteByte(52);
+                console.WriteByte(95);
+                console.WriteByte(48);
+                console.WriteByte(50);
+                console.WriteByte(48);
+                console.WriteByte(95);
+                console.WriteByte(68);
+                console.WriteByte(65);
+                console.WriteByte(84);
+                console.WriteByte(65);
+                console.WriteByte(32);
+                console.WriteByte(115);
+                console.WriteByte(116);
+                console.WriteByte(97);
+                console.WriteByte(103);
+                console.WriteByte(101);
+                console.WriteByte(61);
+                break;
             //  a=
-            case 5: console.WriteByte(32); console.WriteByte(97); console.WriteByte(61); break;
+            case 5:
+                console.WriteByte(32);
+                console.WriteByte(97);
+                console.WriteByte(61);
+                break;
             //  b=
-            case 6: console.WriteByte(32); console.WriteByte(98); console.WriteByte(61); break;
+            case 6:
+                console.WriteByte(32);
+                console.WriteByte(98);
+                console.WriteByte(61);
+                break;
             //  c=
-            case 7: console.WriteByte(32); console.WriteByte(99); console.WriteByte(61); break;
+            case 7:
+                console.WriteByte(32);
+                console.WriteByte(99);
+                console.WriteByte(61);
+                break;
             //  d=
-            case 8: console.WriteByte(32); console.WriteByte(100); console.WriteByte(61); break;
+            case 8:
+                console.WriteByte(32);
+                console.WriteByte(100);
+                console.WriteByte(61);
+                break;
             //  status=
-            case 9: console.WriteByte(32); console.WriteByte(115); console.WriteByte(116); console.WriteByte(97); console.WriteByte(116); console.WriteByte(117); console.WriteByte(115); console.WriteByte(61); break;
+            case 9:
+                console.WriteByte(32);
+                console.WriteByte(115);
+                console.WriteByte(116);
+                console.WriteByte(97);
+                console.WriteByte(116);
+                console.WriteByte(117);
+                console.WriteByte(115);
+                console.WriteByte(61);
+                break;
         }
     }
 }

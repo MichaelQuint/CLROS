@@ -162,7 +162,7 @@ public static partial class NativeAotThreadingOutput
 
     public static void ValidateRuntimeSmokeOutput(string text)
     {
-        Need(text.Length is> 0 and <= 4096, "runtime_smoke_size");
+        Need(text.Length is > 0 and <= 4096, "runtime_smoke_size");
         string normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal);
         Need(normalized == "TEST_START nativeaot.runtime\nNATIVEAOT_RUNTIME_EH_OK\n" + "NATIVEAOT_RUNTIME_GC_THREADS_TLS_OK\nNATIVEAOT_RUNTIME_TASK_TIMER_OK\nTEST_PASS nativeaot.runtime\n", "runtime_smoke_output");
     }

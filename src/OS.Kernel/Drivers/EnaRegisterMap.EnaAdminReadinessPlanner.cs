@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class EnaAdminReadinessPlanner
 {
     public static EnaAdminReadinessResult Assess(ulong registerBarApertureLength, uint capabilities, uint deviceStatus)

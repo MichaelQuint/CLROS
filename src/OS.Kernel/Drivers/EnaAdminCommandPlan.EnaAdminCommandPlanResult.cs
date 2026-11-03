@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct EnaAdminCommandPlanResult
 {
     private EnaAdminCommandPlanResult(bool isInitialized, EnaAdminCommandPlanStatus status, ushort commandId, bool submissionPhase, bool expectedCompletionPhase, EnaAdminFeatureId featureId, uint timeoutTicks, EnaAdminCommandPlan plan)
@@ -13,14 +14,38 @@ public readonly struct EnaAdminCommandPlanResult
         Plan = plan;
     }
 
-    public EnaAdminCommandPlanStatus Status { get; }
-    public ushort CommandId { get; }
-    public bool SubmissionPhase { get; }
-    public bool ExpectedCompletionPhase { get; }
-    public EnaAdminFeatureId FeatureId { get; }
-    public uint TimeoutTicks { get; }
-    public EnaAdminCommandPlan Plan { get; }
-    public bool IsInitialized { get; }
+    public EnaAdminCommandPlanStatus Status
+    {
+        get;
+    }
+    public ushort CommandId
+    {
+        get;
+    }
+    public bool SubmissionPhase
+    {
+        get;
+    }
+    public bool ExpectedCompletionPhase
+    {
+        get;
+    }
+    public EnaAdminFeatureId FeatureId
+    {
+        get;
+    }
+    public uint TimeoutTicks
+    {
+        get;
+    }
+    public EnaAdminCommandPlan Plan
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == EnaAdminCommandPlanStatus.Success;
 
     internal static EnaAdminCommandPlanResult Success(EnaAdminCommandPlan plan)

@@ -2,6 +2,7 @@ using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow bounded raw service bytes, frame fd1/fd2
@@ -22,7 +23,7 @@ public static partial class QemuTranscripts
         string text = framed.NormalizedTail;
         Need(text.EndsWith("\r\n", StringComparison.Ordinal), "service_startup_records");
         string[] rows = text[..^2].Split("\r\n", StringSplitOptions.None);
-        Need(rows.Length is> 0 and <= 1_000_000 && rows.All(row => row.Length is> 0 and <= 4096 && row.All(c => c is >= ' ' and <= '~')), "service_startup_records");
+        Need(rows.Length is > 0 and <= 1_000_000 && rows.All(row => row.Length is > 0 and <= 4096 && row.All(c => c is >= ' ' and <= '~')), "service_startup_records");
         int Marker(string marker, bool prefix = false)
         {
             int[] found = Enumerable.Range(0, rows.Length).Where(i => prefix ? rows[i].StartsWith(marker, StringComparison.Ordinal) : rows[i] == marker).ToArray();
@@ -58,7 +59,7 @@ public static partial class QemuTranscripts
         var listener = ReadRecord(rows[listen][..^listenSuffix.Length], "M16_014_LISTEN", "fd:dec");
         var lifetime = ReadRecord(rows[live][..^liveSuffix.Length], "M16_014_LIVE", "argc:dec", "envc:dec", "configBytes:dec", "bindFd:dec", "stdoutBytes:dec", "stderrBytes:dec", "active:dec", "clock:dec");
         ulong environmentCount = quota ? 4UL : lifecycle ? 3UL : 2UL;
-        Need(entry["argc"] == 5 && entry["envc"] == environmentCount && entry["configBytes"] == settingsBytes && settings["bytes"] == settingsBytes && settings["fd"] is >= 3 && settings["fd"] < NativeAotServicePackage.Descriptors && listener["fd"] is >= 3 && listener["fd"] < NativeAotServicePackage.Descriptors && prefix["stages"] == 4 && lifetime["argc"] == 5 && lifetime["envc"] == environmentCount && lifetime["configBytes"] == settingsBytes && lifetime["bindFd"] == listener["fd"] && lifetime["active"] > 0 && lifetime["active"] <= NativeAotServicePackage.Threads && lifetime["clock"] is> 0 and <= long.MaxValue, "service_startup_policy");
+        Need(entry["argc"] == 5 && entry["envc"] == environmentCount && entry["configBytes"] == settingsBytes && settings["bytes"] == settingsBytes && settings["fd"] is >= 3 && settings["fd"] < NativeAotServicePackage.Descriptors && listener["fd"] is >= 3 && listener["fd"] < NativeAotServicePackage.Descriptors && prefix["stages"] == 4 && lifetime["argc"] == 5 && lifetime["envc"] == environmentCount && lifetime["configBytes"] == settingsBytes && lifetime["bindFd"] == listener["fd"] && lifetime["active"] > 0 && lifetime["active"] <= NativeAotServicePackage.Threads && lifetime["clock"] is > 0 and <= long.MaxValue, "service_startup_policy");
         var returns = ReadLinuxServiceCallReturns(rows).ToDictionary(call => call.RecordIndex);
         string[] calls = ValidateLinuxServiceCallOrdinals(rows);
         var parsed = returns.ToDictionary(item => item.Key, item => ReadRecord(calls[item.Key], "M16_008_CALL", WebCallFields));
@@ -76,12 +77,12 @@ public static partial class QemuTranscripts
                 Need(topology["identity"] == entry["identity"] && topology["ordinal"] == 1 && topology["nr"] == memory["nr"] && topology["pool"] == memory["pool"] && topology["backed"] == memory["backed"] && topology["regions"] == memory["regions"] && topology["regionLimit"] == memory["regionLimit"], "service_startup_quota_topology");
                 metadataPositions.Add(position);
             }
-        // Full memory bounds, operation coverage and pressure joins belong
-        // to the independent memory replay before complete acceptance.
+            // Full memory bounds, operation coverage and pressure joins belong
+            // to the independent memory replay before complete acceptance.
         }
 
         Need(first == entryCall && returns[first].Ordinal == 1 && entry["identity"] == parsed[first]["identity"] && entry["rip"] == parsed[first]["rip"], "service_startup_entry");
-        Need(parsed.TryGetValue(config + 1, out var read) && read["nr"] is 0 or 17 or 19 && read["a0"] == settings["fd"] && read["action"] == 1 && read["status"] == 1 && read["valueBits"] > 0 && read["valueBits"] <= settingsBytes && (read["nr"] == 19 ? read["a2"] is> 0 and <= LinuxDescriptorServices.MaximumVectors : read["a2"] >= read["valueBits"]) && (read["nr"] != 17 || read["a3"] == settingsBytes - read["valueBits"]), "service_startup_settings_call");
+        Need(parsed.TryGetValue(config + 1, out var read) && read["nr"] is 0 or 17 or 19 && read["a0"] == settings["fd"] && read["action"] == 1 && read["status"] == 1 && read["valueBits"] > 0 && read["valueBits"] <= settingsBytes && (read["nr"] == 19 ? read["a2"] is > 0 and <= LinuxDescriptorServices.MaximumVectors : read["a2"] >= read["valueBits"]) && (read["nr"] != 17 || read["a3"] == settingsBytes - read["valueBits"]), "service_startup_settings_call");
         Need(parsed.TryGetValue(listen + 1, out var listenCall) && listenCall["nr"] == 50 && listenCall["a0"] == listener["fd"] && listenCall["action"] == 1 && listenCall["status"] == 1 && listenCall["valueBits"] == 0, "service_startup_listen_call");
         byte[] stdout = Encoding.UTF8.GetBytes(framed.Stdout), stderr = Encoding.UTF8.GetBytes(framed.Stderr);
         byte[] message = Encoding.ASCII.GetBytes(quota ? "CLROS_SERVICE_LISTEN contract=v3-quota endpoint=0.0.0.0:8080\n" : lifecycle ? "CLROS_SERVICE_LISTEN contract=v2 endpoint=0.0.0.0:8080\n" : "CLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n");
@@ -128,7 +129,7 @@ public static partial class QemuTranscripts
                 bool copied = call["nr"] is 1 or 20 && call["a0"] is 1 or 2 && unchecked((long)call["valueBits"]) > 0;
                 Need(pending == 0 ? !copied : copied && call["a0"] == channel && call["valueBits"] == (ulong)pending && call["action"] == 1 && call["status"] == 1, "service_startup_write_call");
                 if (copied)
-                    Need(call["nr"] == 1 ? call["a2"] > 0 && call["a2"] <= LinuxDescriptorServices.MaximumIo && call["valueBits"] <= call["a2"] : call["a2"] is> 0 and <= LinuxDescriptorServices.MaximumVectors, "service_startup_write_request");
+                    Need(call["nr"] == 1 ? call["a2"] > 0 && call["a2"] <= LinuxDescriptorServices.MaximumIo && call["valueBits"] <= call["a2"] : call["a2"] is > 0 and <= LinuxDescriptorServices.MaximumVectors, "service_startup_write_request");
                 foreach (var part in parts)
                 {
                     if (part.Fd != 2)

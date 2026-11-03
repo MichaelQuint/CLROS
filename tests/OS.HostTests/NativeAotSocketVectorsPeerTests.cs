@@ -93,14 +93,14 @@ internal static partial class NativeAotSocketVectorsPeerTests
         HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw(rows).TrimEnd('\r', '\n'), 0, 3));
         HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw(rows.Select(row => row.Replace("nr=47 a0=6", "nr=47 a0=7", StringComparison.Ordinal))), 0, 3));
         HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw(rows.Select(row => row.Replace("header=8192 flags=0", "header=8192 flags=2", StringComparison.Ordinal).Replace("nr=47 a0=6 a1=8192 a2=0", "nr=47 a0=6 a1=8192 a2=2", StringComparison.Ordinal))), 0, 3));
-        string[] complete = [..rows, Message(3, 61), Vector(3, 0, 14), Vector(3, 1, 47), Call(47, 6, 61, 3)];
+        string[] complete = [.. rows, Message(3, 61), Vector(3, 0, 14), Vector(3, 1, 47), Call(47, 6, 61, 3)];
         HostCheck.True(NativeAotSocketVectorsPeer.HasReceiveProgress(Raw(complete), 0, 64));
-        string[] closed = [..rows, Call(3, 6, 0, 3)];
+        string[] closed = [.. rows, Call(3, 6, 0, 3)];
         HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw(closed), 0, 3));
-        HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw([..closed, Call(43, 5, 6, 4)]), 0, 3));
-        HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw([..rows, Call(47, 6, 1, 3)]), 0, 3));
-        HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw([..rows, Call(45, 6, 1, 3)]), 0, 3));
-        HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw([..rows, Message(3, 1), Vector(3, 0, 1), Vector(3, 1, 0), Call(47, 6, 2, 3)]), 0, 3));
+        HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw([.. closed, Call(43, 5, 6, 4)]), 0, 3));
+        HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw([.. rows, Call(47, 6, 1, 3)]), 0, 3));
+        HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw([.. rows, Call(45, 6, 1, 3)]), 0, 3));
+        HostCheck.True(!NativeAotSocketVectorsPeer.HasReceiveProgress(Raw([.. rows, Message(3, 1), Vector(3, 0, 1), Vector(3, 1, 0), Call(47, 6, 2, 3)]), 0, 3));
     }
 
     [HostTest("socket vector send gate requires joined live first-connection sendmsg EAGAIN")]
@@ -112,11 +112,11 @@ internal static partial class NativeAotSocketVectorsPeerTests
         HostCheck.True(NativeAotSocketVectorsPeer.HasSendBackpressure(Raw(rows)));
         HostCheck.True(!NativeAotSocketVectorsPeer.HasSendBackpressure(Raw(rows).TrimEnd('\r', '\n')));
         HostCheck.True(!NativeAotSocketVectorsPeer.HasSendBackpressure(Raw(rows.Where(row => !row.StartsWith("M16_013_", StringComparison.Ordinal)))));
-        HostCheck.True(!NativeAotSocketVectorsPeer.HasSendBackpressure(Raw([..rows[..^1], Call(46, 6, 17, 2)])));
+        HostCheck.True(!NativeAotSocketVectorsPeer.HasSendBackpressure(Raw([.. rows[..^1], Call(46, 6, 17, 2)])));
         HostCheck.True(!NativeAotSocketVectorsPeer.HasSendBackpressure(Raw(rows.Select(row => row.Replace("nr=46", "nr=47", StringComparison.Ordinal)))));
         HostCheck.True(!NativeAotSocketVectorsPeer.HasSendBackpressure(Raw(rows.Select(row => row.Replace("nr=46 a0=6", "nr=46 a0=7", StringComparison.Ordinal)))));
-        HostCheck.True(!NativeAotSocketVectorsPeer.HasSendBackpressure(Raw([..rows, Call(3, 6, 0, 3)])));
-        HostCheck.True(!NativeAotSocketVectorsPeer.HasSendBackpressure(Raw([..rows, Call(3, 6, 0, 3), Call(43, 5, 6, 4)])));
+        HostCheck.True(!NativeAotSocketVectorsPeer.HasSendBackpressure(Raw([.. rows, Call(3, 6, 0, 3)])));
+        HostCheck.True(!NativeAotSocketVectorsPeer.HasSendBackpressure(Raw([.. rows, Call(3, 6, 0, 3), Call(43, 5, 6, 4)])));
         HostCheck.True(!NativeAotSocketVectorsPeer.HasSendBackpressure(Raw(rows.Select(row => row.Replace("generation=1", "generation=0", StringComparison.Ordinal)))));
     }
 

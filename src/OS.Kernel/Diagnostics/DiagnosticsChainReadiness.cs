@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class DiagnosticsChainReadiness
 {
     public static DiagnosticsChainReadinessResult RequireReady(Com1PortIoBackendPlanResult serialBackend, DescriptorTableInstallReadinessResult descriptorTables, FaultProbeReadinessResult faultProbe, CpuFaultPanicReadinessResult cpuFaultPanic, ExecutableStubBundleMaterializerResult stubMaterialization)

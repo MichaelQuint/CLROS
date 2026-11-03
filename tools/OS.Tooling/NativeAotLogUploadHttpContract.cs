@@ -37,11 +37,11 @@ public static partial class NativeAotLogUploadHttpContract
 
     public static string[] LinuxTraceArguments(string executable, string data, string tracePrefix, int port)
     {
-        Need(port is> 0 and <= 65535, "linux_port");
+        Need(port is > 0 and <= 65535, "linux_port");
         Need(new[] { executable, data, tracePrefix }.All(CanonicalLinux), "linux_path");
         // Reuse the unchanged canonical Linux path checks and trace flags.
         string[] prior = NativeAotLogUploadContract.LinuxTraceArguments(executable, data, tracePrefix, "write");
-        return[..prior[..8], "--serve-once", "--root", data, "--urls", "http://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture)];
+        return [.. prior[..8], "--serve-once", "--root", data, "--urls", "http://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture)];
     }
 
     /// <summary>Select exactly eight copied current-tool identities by their
@@ -58,7 +58,7 @@ public static partial class NativeAotLogUploadHttpContract
         using var document = JsonDocument.Parse(originalNativeJson);
         Need(document.RootElement.ValueKind == JsonValueKind.Object, "recipe_native_map");
         var rows = document.RootElement.EnumerateObject().ToArray();
-        Need(rows.Length is> 0 and <= 16384 && rows.Select(row => row.Name).Distinct(StringComparer.Ordinal).Count() == rows.Length && rows.All(row => row.Value.ValueKind == JsonValueKind.String && IsHash(row.Value.GetString())), "recipe_native_map");
+        Need(rows.Length is > 0 and <= 16384 && rows.Select(row => row.Name).Distinct(StringComparer.Ordinal).Count() == rows.Length && rows.All(row => row.Value.ValueKind == JsonValueKind.String && IsHash(row.Value.GetString())), "recipe_native_map");
         var native = rows.ToDictionary(row => row.Name, row => row.Value.GetString()!, StringComparer.Ordinal);
         List<LinuxToolValue> selected = [];
         foreach (string name in LinuxToolNames)
@@ -85,11 +85,11 @@ public static partial class NativeAotLogUploadHttpContract
         Need(session.Path == "/bin/busybox" && session.Sha256 == "01A989EB4D1D04B0D146C790AC536ABD88F374EC74A2E110C58910B840D42045" && tracer.Path == "/usr/bin/strace" && tracer.Sha256 == "BC573F002A4E1F4D3EA2209A01105D3B86DC59FC5DF0FEF3B1B191B2675A391D", "session_provider");
         if (traceArguments is null)
             throw new ToolFailure("log_upload_http_session_arguments");
-        Need(traceArguments.Count is> 0 and <= 32, "session_arguments");
+        Need(traceArguments.Count is > 0 and <= 32, "session_arguments");
         string[] copied = new string[traceArguments.Count];
         for (int i = 0; i < copied.Length; i++)
             copied[i] = traceArguments[i];
-        Need(copied.All(argument => argument is not null && argument.Length is> 0 and <= 4096 && !argument.Any(char.IsControl)) && copied.Sum(argument => Encoding.UTF8.GetByteCount(argument)) <= 32768, "session_arguments");
+        Need(copied.All(argument => argument is not null && argument.Length is > 0 and <= 4096 && !argument.Any(char.IsControl)) && copied.Sum(argument => Encoding.UTF8.GetByteCount(argument)) <= 32768, "session_arguments");
         return new(session.Path, new[] { "setsid", tracer.Path }.Concat(copied));
     }
 
@@ -149,7 +149,7 @@ public static partial class NativeAotLogUploadHttpContract
 
     public static PublicationValues InspectLinuxPublicationValues(string json, IReadOnlyDictionary<string, string> expectedSources)
     {
-        Need(json.Length <= 16 * 1024 * 1024 && Encoding.UTF8.GetByteCount(json) <= 16 * 1024 * 1024 && expectedSources.Count is> 0 and <= 8192, "publication_capacity");
+        Need(json.Length <= 16 * 1024 * 1024 && Encoding.UTF8.GetByteCount(json) <= 16 * 1024 * 1024 && expectedSources.Count is > 0 and <= 8192, "publication_capacity");
         using var document = JsonDocument.Parse(json);
         var value = document.RootElement;
         var fields = value.EnumerateObject().ToArray();
@@ -158,8 +158,8 @@ public static partial class NativeAotLogUploadHttpContract
         Need(sources.Length == expectedSources.Count && sources.Select(row => row.Name).Distinct(StringComparer.Ordinal).Count() == sources.Length && sources.All(row => SafeRelative(row.Name) && expectedSources.TryGetValue(row.Name, out string? hash) && IsHash(hash) && string.Equals(hash, row.Value.GetString(), StringComparison.OrdinalIgnoreCase)), "publication_sources");
         var native = value.GetProperty("native").EnumerateObject().ToArray();
         var outputs = value.GetProperty("outputs").EnumerateObject().ToArray();
-        Need(native.Length is> 0 and <= 16384 && native.Select(row => row.Name).Distinct(StringComparer.Ordinal).Count() == native.Length && native.All(row => CanonicalLinux(row.Name) && IsHash(row.Value.GetString())), "publication_native");
-        Need(outputs.Length is> 0 and <= 512 && outputs.Select(row => row.Name).Distinct(StringComparer.Ordinal).Count() == outputs.Length && outputs.All(row => SafeRelative(row.Name) && IsHash(row.Value.GetString())), "publication_outputs");
+        Need(native.Length is > 0 and <= 16384 && native.Select(row => row.Name).Distinct(StringComparer.Ordinal).Count() == native.Length && native.All(row => CanonicalLinux(row.Name) && IsHash(row.Value.GetString())), "publication_native");
+        Need(outputs.Length is > 0 and <= 512 && outputs.Select(row => row.Name).Distinct(StringComparer.Ordinal).Count() == outputs.Length && outputs.All(row => SafeRelative(row.Name) && IsHash(row.Value.GetString())), "publication_outputs");
         string image = value.GetProperty("image").GetProperty("Sha256").GetString() ?? "";
         Need(IsHash(image) && outputs.Any(row => row.Name == Application + "/" + Application && image.Equals(row.Value.GetString(), StringComparison.OrdinalIgnoreCase)), "publication_image");
         return new(image.ToUpperInvariant(), sources.Length, native.Length, outputs.Length);
@@ -196,7 +196,8 @@ public static partial class NativeAotLogUploadHttpContract
             ResponseKind.Accepted => ("POST", "/upload", 201, "text/plain; charset=utf-8", Encoding.ASCII.GetBytes("LOG_UPLOAD_HTTP_ACCEPTED\n")),
             ResponseKind.Log => ("GET", "/log", 200, "text/plain; charset=utf-8", NativeAotLogUploadContract.ExpectedLog()),
             ResponseKind.Upload => ("GET", "/upload", 200, "application/octet-stream", NativeAotLogUploadContract.ExpectedUpload()),
-            _ => throw new ToolFailure("log_upload_http_response_kind")};
+            _ => throw new ToolFailure("log_upload_http_response_kind")
+        };
         Need(method == expected.Method && target == expected.Target && status == expected.Status && contentType == expected.Type && body.SequenceEqual(expected.Body), "response");
         return new(kind, method, target, status, contentType, body.Length, Hash(body));
     }
@@ -296,7 +297,7 @@ public static partial class NativeAotLogUploadHttpContract
 
                 string bin = Path.Combine(directory, "bin", "Debug", NativeAotPayload.TargetFramework);
                 string[] built = Directory.GetFiles(bin, "*", SearchOption.AllDirectories);
-                Need(built.Length is> 0 and <= 64, "built_capacity");
+                Need(built.Length is > 0 and <= 64, "built_capacity");
                 inputs.AddRange(built.Select(path => held.Open(root, path, "managed HTTP built output", "log_upload_http_built", 64 * 1024 * 1024, allowEmpty: true, singleLink: true)));
                 using var runtime = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(bin, name + ".runtimeconfig.json")));
                 var options = runtime.RootElement.GetProperty("runtimeOptions");
@@ -346,14 +347,38 @@ public static partial class NativeAotLogUploadHttpContract
         finally
         {
             await Save(destination, "commands.json", JsonSerializer.Serialize(commands));
-            await Save(destination, "receipt.json", JsonSerializer.Serialize(new { Schema = "CLROS_LOG_UPLOAD_HTTP_MANAGED_REFERENCE_V1", Complete = complete, Failure = failure, Files = files, Responses = responses, Controls = controls, FlushRequested = true, DeviceFlushObserved = false, LinuxNativeAotQualified = false, GuestQualified = false, ColdRebootQualified = false, PhysicalPersistenceQualified = false }));
+            await Save(destination, "receipt.json", JsonSerializer.Serialize(new
+            {
+                Schema = "CLROS_LOG_UPLOAD_HTTP_MANAGED_REFERENCE_V1",
+                Complete = complete,
+                Failure = failure,
+                Files = files,
+                Responses = responses,
+                Controls = controls,
+                FlushRequested = true,
+                DeviceFlushObserved = false,
+                LinuxNativeAotQualified = false,
+                GuestQualified = false,
+                ColdRebootQualified = false,
+                PhysicalPersistenceQualified = false
+            }));
         }
 
         return new(destination, files!.Value, responses, controls);
         async Task<ProcessResult> Run(string phase, string[] arguments)
         {
-            commands.Add(new { Phase = phase, Executable = "dotnet", Arguments = arguments, WorkingDirectory = root });
-            var result = await ProcessRunner.RunAsync(new("dotnet", arguments, root) { Timeout = TimeSpan.FromMinutes(3), OutputCharacterLimit = 4 * 1024 * 1024 }, cancellation);
+            commands.Add(new
+            {
+                Phase = phase,
+                Executable = "dotnet",
+                Arguments = arguments,
+                WorkingDirectory = root
+            });
+            var result = await ProcessRunner.RunAsync(new("dotnet", arguments, root)
+            {
+                Timeout = TimeSpan.FromMinutes(3),
+                OutputCharacterLimit = 4 * 1024 * 1024
+            }, cancellation);
             await Save(destination, phase + ".stdout.log", result.StandardOutput);
             await Save(destination, phase + ".stderr.log", result.StandardError);
             await Save(destination, phase + ".process.json", JsonSerializer.Serialize(result));
@@ -385,8 +410,18 @@ public static partial class NativeAotLogUploadHttpContract
                 "--urls",
                 "http://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture)
             };
-            commands.Add(new { Phase = name, Executable = "dotnet", Arguments = arguments, WorkingDirectory = root });
-            Task<ProcessResult> child = ProcessRunner.RunAsync(new("dotnet", arguments, root) { Timeout = TimeSpan.FromSeconds(90), OutputCharacterLimit = 65536, OutputReceived = (text, error) =>
+            commands.Add(new
+            {
+                Phase = name,
+                Executable = "dotnet",
+                Arguments = arguments,
+                WorkingDirectory = root
+            });
+            Task<ProcessResult> child = ProcessRunner.RunAsync(new("dotnet", arguments, root)
+            {
+                Timeout = TimeSpan.FromSeconds(90),
+                OutputCharacterLimit = 65536,
+                OutputReceived = (text, error) =>
             {
                 if (!error)
                     lock (observed)
@@ -396,7 +431,8 @@ public static partial class NativeAotLogUploadHttpContract
                         if (observed.ToString().Replace("\r\n", "\n", StringComparison.Ordinal).Contains(Ready, StringComparison.Ordinal))
                             ready.TrySetResult();
                     }
-            } }, owner.Token);
+            }
+            }, owner.Token);
             bool succeeded = false, refused = false, joined = false;
             string sessionFailure = "", startup = "", snapshotFailure = "";
             ProcessResult? result = null;
@@ -546,7 +582,27 @@ public static partial class NativeAotLogUploadHttpContract
                         snapshotFailure = error is ToolFailure tool ? tool.Reason : error.GetType().Name;
                     }
 
-                    await Save(directory, "http.json", JsonSerializer.Serialize(new { Schema = "CLROS_LOG_UPLOAD_HTTP_SESSION_V1", Name = name, Complete = succeeded && snapshotFailure.Length == 0, ExpectedFailure = name != "positive", Failure = sessionFailure, Joined = joined, EndpointRefused = refused, Port = port, Server = result, Responses = sessionResponses, BeforeFilesJson = before, PreRequestFilesJson = startup, ActualFilesJson = actual, SnapshotFailure = snapshotFailure, DeviceFlushObserved = false, LinuxNativeAotQualified = false, GuestQualified = false, PhysicalPersistenceQualified = false }));
+                    await Save(directory, "http.json", JsonSerializer.Serialize(new
+                    {
+                        Schema = "CLROS_LOG_UPLOAD_HTTP_SESSION_V1",
+                        Name = name,
+                        Complete = succeeded && snapshotFailure.Length == 0,
+                        ExpectedFailure = name != "positive",
+                        Failure = sessionFailure,
+                        Joined = joined,
+                        EndpointRefused = refused,
+                        Port = port,
+                        Server = result,
+                        Responses = sessionResponses,
+                        BeforeFilesJson = before,
+                        PreRequestFilesJson = startup,
+                        ActualFilesJson = actual,
+                        SnapshotFailure = snapshotFailure,
+                        DeviceFlushObserved = false,
+                        LinuxNativeAotQualified = false,
+                        GuestQualified = false,
+                        PhysicalPersistenceQualified = false
+                    }));
                 }
             }
 
@@ -591,7 +647,7 @@ public static partial class NativeAotLogUploadHttpContract
         string[] SourcePaths() => ToolingBuildInputs.SourceInputs(root).Concat(new[] { Path.Combine(root, "apps", Application, "Program.cs"), Path.Combine(root, "apps", Application, Application + ".csproj") }).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         Dictionary<string, string> Sources() => SourcePaths().ToDictionary(path => Path.GetRelativePath(root, path).Replace('\\', '/'), NativeAotWebPayload.HashFile, StringComparer.Ordinal);
         var before = Sources();
-        Need(before.Count is> 0 and <= 8192, "source_capacity");
+        Need(before.Count is > 0 and <= 8192, "source_capacity");
         AuthorityFiles held = new();
         NativeAotLogUploadContract.LinuxReference? verifier = null;
         bool transferred = false;
@@ -627,7 +683,7 @@ public static partial class NativeAotLogUploadHttpContract
                 held.Open(root, path, "original HTTP reference source", "log_upload_http_linux_source", 16 * 1024 * 1024, singleLink: true);
             string producer = Path.GetDirectoryName(typeof(NativeAotLogUploadHttpContract).Assembly.Location)!;
             string[] producerFiles = Directory.GetFiles(producer, "*.dll").Concat(Directory.GetFiles(producer, "*.deps.json")).Concat(Directory.GetFiles(producer, "*.runtimeconfig.json")).Order(StringComparer.Ordinal).ToArray();
-            Need(producerFiles.Length is> 0 and <= 64, "producer_capacity");
+            Need(producerFiles.Length is > 0 and <= 64, "producer_capacity");
             foreach (string path in producerFiles)
                 held.Open(Path.GetPathRoot(path)!, path, "original HTTP producer closure", "log_upload_http_linux_producer", 64 * 1024 * 1024, singleLink: true);
             string recipe = Path.Combine(recipeRoot, "artifacts", "socket-qualification-r01");
@@ -670,7 +726,13 @@ public static partial class NativeAotLogUploadHttpContract
                     string queryLog = "native-library-" + library;
                     // ExecuteAsync uses its existing logical setsid wrapper;
                     // this is distinct from the pinned physical trace plan.
-                    commands.Add(new { Executable = "setsid", Arguments = new[] { gcc, "-print-file-name=" + library }, WorkingDirectory = root, Phase = "HTTP static-link discovery" });
+                    commands.Add(new
+                    {
+                        Executable = "setsid",
+                        Arguments = new[] { gcc, "-print-file-name=" + library },
+                        WorkingDirectory = root,
+                        Phase = "HTTP static-link discovery"
+                    });
                     bool succeeded = false;
                     string queryFailure = "";
                     try
@@ -686,7 +748,14 @@ public static partial class NativeAotLogUploadHttpContract
                     }
                     finally
                     {
-                        await Save(destination, queryLog + ".process.json", JsonSerializer.Serialize(new { NormalOwnedSessionReturned = succeeded, Executable = gcc, Arguments = new[] { "-print-file-name=" + library }, MaximumSeconds = 120, Failure = queryFailure }));
+                        await Save(destination, queryLog + ".process.json", JsonSerializer.Serialize(new
+                        {
+                            NormalOwnedSessionReturned = succeeded,
+                            Executable = gcc,
+                            Arguments = new[] { "-print-file-name=" + library },
+                            MaximumSeconds = 120,
+                            Failure = queryFailure
+                        }));
                     }
 
                     var answer = held.Open(root, Path.Combine(destination, queryLog + ".stdout.log"), "original HTTP static library query", "log_upload_http_linux_library", 4096, singleLink: true);
@@ -702,12 +771,18 @@ public static partial class NativeAotLogUploadHttpContract
                 cancellation.ThrowIfCancellationRequested();
                 ObserveDescriptors("before-http-publication");
                 string publication = Path.Combine(destination, "http-publication");
-                commands.Add(new { Producer = nameof(NativeAotSocketFixturePublisher), Application, RecipeRoot = recipeRoot, Output = publication });
+                commands.Add(new
+                {
+                    Producer = nameof(NativeAotSocketFixturePublisher),
+                    Application,
+                    RecipeRoot = recipeRoot,
+                    Output = publication
+                });
                 Need(await Publisher.RunAsync(root, ["publish", "--recipe-root", recipeRoot, "--output", publication], output) == 0, "linux_publication_failed");
                 cancellation.ThrowIfCancellationRequested();
                 CheckInputs();
                 string[] publishedFiles = Directory.GetFiles(publication, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path) != "publication.lock").Order(StringComparer.Ordinal).ToArray();
-                Need(publishedFiles.Length is> 0 and <= 512, "publication_capacity");
+                Need(publishedFiles.Length is > 0 and <= 512, "publication_capacity");
                 foreach (string path in publishedFiles)
                     held.Open(root, path, "original HTTP publication", "log_upload_http_linux_publication", 256 * 1024 * 1024, allowEmpty: true, singleLink: true);
                 var publicationFile = held.Open(root, Path.Combine(publication, "publication.json"), "original HTTP publication receipt", "log_upload_http_linux_publication", 16 * 1024 * 1024, singleLink: true);
@@ -731,7 +806,11 @@ public static partial class NativeAotLogUploadHttpContract
                 // A live original owner is composed, not reconstructed from a
                 // copied old receipt or ELF. Its own fresh write/verify data is
                 // separate from the HTTP app's data and proves no HTTP effect.
-                commands.Add(new { Producer = nameof(NativeAotLogUploadContract), Output = Path.Combine(destination, "verifier-reference") });
+                commands.Add(new
+                {
+                    Producer = nameof(NativeAotLogUploadContract),
+                    Output = Path.Combine(destination, "verifier-reference")
+                });
                 verifier = await NativeAotLogUploadContract.RunLinuxReferenceAsync(root, recipeRoot, Path.Combine(destination, "verifier-reference"), output, cancellation);
                 sourceLease = NativeAotPayload.OpenQualificationLease(root);
                 recipeLease = NativeAotPayload.OpenQualificationLease(recipeRoot);
@@ -768,7 +847,12 @@ public static partial class NativeAotLogUploadHttpContract
                 Need(verifyElf.Sha256.Equals(verifier.Image.Sha256, StringComparison.OrdinalIgnoreCase), "verifier_identity");
                 string[] verifyArguments = NativeAotLogUploadContract.LinuxTraceArguments(verifyExecutable, data, Path.Combine(destination, "verify-trace"), "verify");
                 LinuxTracePlan verifyPlan = TracePlan(verifyArguments);
-                commands.Add(new { verifyPlan.Executable, verifyPlan.Arguments, WorkingDirectory = root });
+                commands.Add(new
+                {
+                    verifyPlan.Executable,
+                    verifyPlan.Arguments,
+                    WorkingDirectory = root
+                });
                 bool verifyJoined = false, verifyNatural = false;
                 int? verifyExit = null;
                 ObserveDescriptors("before-additional-verifier");
@@ -801,7 +885,12 @@ public static partial class NativeAotLogUploadHttpContract
                             }
                             finally
                             {
-                                await Save(destination, "verify-process.json", JsonSerializer.Serialize(new { Joined = verifyJoined, NaturalExitObserved = verifyNatural, ExitCode = verifyExit }));
+                                await Save(destination, "verify-process.json", JsonSerializer.Serialize(new
+                                {
+                                    Joined = verifyJoined,
+                                    NaturalExitObserved = verifyNatural,
+                                    ExitCode = verifyExit
+                                }));
                             }
                         }
                     }
@@ -829,13 +918,42 @@ public static partial class NativeAotLogUploadHttpContract
                 await Save(destination, "sources.json", JsonSerializer.Serialize(before));
                 await Save(destination, "native-inputs.json", JsonSerializer.Serialize(native));
                 ObserveDescriptors("before-final-receipt");
-                await Save(destination, "fd-boundaries.json", JsonSerializer.Serialize(new { ObservedBoundaries = fdBoundaries, PeakOrCapacityProof = false, DescriptorLimitsChanged = false }));
+                await Save(destination, "fd-boundaries.json", JsonSerializer.Serialize(new
+                {
+                    ObservedBoundaries = fdBoundaries,
+                    PeakOrCapacityProof = false,
+                    DescriptorLimitsChanged = false
+                }));
                 string[] outputs = OutputPaths();
-                await Save(destination, "receipt.json", JsonSerializer.Serialize(new { Schema = "CLROS_LOG_UPLOAD_HTTP_LINUX_REFERENCE_V1", Complete = complete, Failure = failure, HttpImage = image, VerifierImage = verifier?.Image, ConsoleReferenceDirectory = verifier?.Directory, Files = files, Responses = responses, Controls = controls, WriteTraceProjectionComplete = writeTrace?.CompleteTraceProjection, VerifyTraceProjectionComplete = verifyTrace?.CompleteTraceProjection, Sources = before, Native = native, Outputs = outputs.ToDictionary(path => Path.GetRelativePath(destination, path).Replace('\\', '/'), NativeAotWebPayload.HashFile, StringComparer.Ordinal), WindowsSharingDenialControlsRun = false, LinuxPhysicalIoErrorInjectionQualified = false, SyscallClosureQualified = false, CallerCancellationRequested = cancellation.IsCancellationRequested, DeviceFlushObserved = false, GuestQualified = false, ColdRebootQualified = false, PhysicalPersistenceQualified = false }));
+                await Save(destination, "receipt.json", JsonSerializer.Serialize(new
+                {
+                    Schema = "CLROS_LOG_UPLOAD_HTTP_LINUX_REFERENCE_V1",
+                    Complete = complete,
+                    Failure = failure,
+                    HttpImage = image,
+                    VerifierImage = verifier?.Image,
+                    ConsoleReferenceDirectory = verifier?.Directory,
+                    Files = files,
+                    Responses = responses,
+                    Controls = controls,
+                    WriteTraceProjectionComplete = writeTrace?.CompleteTraceProjection,
+                    VerifyTraceProjectionComplete = verifyTrace?.CompleteTraceProjection,
+                    Sources = before,
+                    Native = native,
+                    Outputs = outputs.ToDictionary(path => Path.GetRelativePath(destination, path).Replace('\\', '/'), NativeAotWebPayload.HashFile, StringComparer.Ordinal),
+                    WindowsSharingDenialControlsRun = false,
+                    LinuxPhysicalIoErrorInjectionQualified = false,
+                    SyscallClosureQualified = false,
+                    CallerCancellationRequested = cancellation.IsCancellationRequested,
+                    DeviceFlushObserved = false,
+                    GuestQualified = false,
+                    ColdRebootQualified = false,
+                    PhysicalPersistenceQualified = false
+                }));
             }
 
             string[] artifacts = OutputPaths();
-            Need(artifacts.Length is> 0 and <= 2048, "artifact_capacity");
+            Need(artifacts.Length is > 0 and <= 2048, "artifact_capacity");
             var originals = artifacts.Select(path => held.Open(root, path, "original HTTP reference evidence", "log_upload_http_linux_evidence", 256 * 1024 * 1024, allowEmpty: true, singleLink: true)).ToArray();
             AuthorityFiles.RequireDistinct(originals);
             CheckInputs();
@@ -889,7 +1007,7 @@ public static partial class NativeAotLogUploadHttpContract
             }
         }
 
-        string[] OutputPaths() => Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path)is not ("ownership.lock" or "publication.lock")).Order(StringComparer.Ordinal).ToArray();
+        string[] OutputPaths() => Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path) is not ("ownership.lock" or "publication.lock")).Order(StringComparer.Ordinal).ToArray();
         void HoldNative(string path, string hash, bool allowEmpty = false)
         {
             Need(CanonicalLinux(path) && IsHash(hash) && (native.Count < 16384 || native.ContainsKey(path)), "native_identity");
@@ -920,14 +1038,22 @@ public static partial class NativeAotLogUploadHttpContract
                         throw new IOException("fd_census_capacity");
                 count = observed;
             }
-            catch (Exception error)when (error is IOException or UnauthorizedAccessException)
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
             {
                 censusFailure = error.GetType().Name;
             }
 
             // A diagnostic census must not prevent failure receipts or group
             // cleanup when the original resource failure was descriptor exhaustion.
-            fdBoundaries.Add(new { Phase = phase, ObservedOpenFileDescriptors = count, NativeInputPaths = native.Count, NestedConsoleArtifacts = verifier?.Artifacts.Count ?? 0, CensusFailure = censusFailure, PeakOrCapacityProof = false });
+            fdBoundaries.Add(new
+            {
+                Phase = phase,
+                ObservedOpenFileDescriptors = count,
+                NativeInputPaths = native.Count,
+                NestedConsoleArtifacts = verifier?.Artifacts.Count ?? 0,
+                CensusFailure = censusFailure,
+                PeakOrCapacityProof = false
+            });
             output.WriteLine("LOG_UPLOAD_HTTP_FD_BOUNDARY phase=" + phase + " observed=" + (count?.ToString(CultureInfo.InvariantCulture) ?? "unavailable") + " nativeInputs=" + native.Count.ToString(CultureInfo.InvariantCulture) + " peakOrCapacityProof=false");
         }
 
@@ -945,7 +1071,7 @@ public static partial class NativeAotLogUploadHttpContract
         NativeAotLogUploadContract.TraceValues ReadTraces(string directory, string phase)
         {
             string[] paths = Directory.GetFiles(directory, phase + "-trace.*").Order(StringComparer.Ordinal).ToArray();
-            Need(paths.Length is> 0 and <= 64, "trace_inventory");
+            Need(paths.Length is > 0 and <= 64, "trace_inventory");
             Dictionary<string, string> copied = new(StringComparer.Ordinal);
             long total = 0;
             foreach (string path in paths)
@@ -981,12 +1107,22 @@ public static partial class NativeAotLogUploadHttpContract
                 }
 
                 seeds.VerifyUnchanged();
-                await Save(directory, "initial-files.json", JsonSerializer.Serialize(new { Snapshot = baseline, Identities = identities }));
+                await Save(directory, "initial-files.json", JsonSerializer.Serialize(new
+                {
+                    Snapshot = baseline,
+                    Identities = identities
+                }));
             }
 
             string[] arguments = LinuxTraceArguments(executable, data, Path.Combine(directory, "write-trace"), port);
             LinuxTracePlan plan = TracePlan(arguments);
-            commands.Add(new { plan.Executable, plan.Arguments, WorkingDirectory = root, Phase = name });
+            commands.Add(new
+            {
+                plan.Executable,
+                plan.Arguments,
+                WorkingDirectory = root,
+                Phase = name
+            });
             ObserveDescriptors("before-" + name);
             cancellation.ThrowIfCancellationRequested();
             using var process = StartTrace(plan);
@@ -1020,7 +1156,13 @@ public static partial class NativeAotLogUploadHttpContract
                     startup = Snapshot(data);
                     var owner = Observe();
                     Need(Observe() == owner, "linux_process_identity_changed");
-                    await Save(directory, "process-owner.json", JsonSerializer.Serialize(new { Identity = owner, Executable = executable, ImageSha256 = image!.Sha256, Arguments = arguments[8..] }));
+                    await Save(directory, "process-owner.json", JsonSerializer.Serialize(new
+                    {
+                        Identity = owner,
+                        Executable = executable,
+                        ImageSha256 = image!.Sha256,
+                        Arguments = arguments[8..]
+                    }));
                     await Save(directory, "pre-request.json", startup);
                     if (name == "cancel-body")
                     {
@@ -1082,7 +1224,17 @@ public static partial class NativeAotLogUploadHttpContract
                         byte[] body = await ReadBounded(response, deadline.Token);
                         await File.WriteAllBytesAsync(Path.Combine(directory, prefix + ".body"), body, CancellationToken.None);
                         string contentType = response.Content.Headers.ContentType?.ToString() ?? "";
-                        await Save(directory, prefix + ".response.json", JsonSerializer.Serialize(new { ExpectedKind = kind, Method = method, Target = target, Status = (int)response.StatusCode, ContentType = contentType, Bytes = body.Length, Sha256 = Hash(body), CapturedBeforeValueValidation = true }));
+                        await Save(directory, prefix + ".response.json", JsonSerializer.Serialize(new
+                        {
+                            ExpectedKind = kind,
+                            Method = method,
+                            Target = target,
+                            Status = (int)response.StatusCode,
+                            ContentType = contentType,
+                            Bytes = body.Length,
+                            Sha256 = Hash(body),
+                            CapturedBeforeValueValidation = true
+                        }));
                         rows.Add(InspectResponseValues(kind, method, target, (int)response.StatusCode, contentType, body));
                     }
                 }
@@ -1111,7 +1263,7 @@ public static partial class NativeAotLogUploadHttpContract
                 {
                     await monitor;
                 }
-                catch (OperationCanceledException)when (monitorStop.IsCancellationRequested)
+                catch (OperationCanceledException) when (monitorStop.IsCancellationRequested)
                 {
                 }
                 catch (Exception error)
@@ -1176,7 +1328,33 @@ public static partial class NativeAotLogUploadHttpContract
                         cleanup = cleanup is null ? error : new AggregateException(cleanup, error);
                     }
 
-                await Save(directory, "http.json", JsonSerializer.Serialize(new { Schema = "CLROS_LOG_UPLOAD_HTTP_LINUX_SESSION_V1", Name = name, Complete = succeeded && cleanup is null && snapshotFailure.Length == 0, ExpectedFailure = name != "positive", Failure = sessionFailure, CleanupFailure = cleanup?.Message, NaturalExitObserved = natural, Joined = joined, EndpointRefused = refused, ExitCode = exit, ControlledBodyCancellation = cancelledBody, CallerCancellationRequested = cancellation.IsCancellationRequested, WaitCancelled = deadline.IsCancellationRequested, Port = port, Responses = rows, BeforeFilesJson = baseline, PreRequestFilesJson = startup, ActualFilesJson = actual, SnapshotFailure = snapshotFailure, Trace = trace, TraceProjectionFailure = projectionFailure, DeviceFlushObserved = false, GuestQualified = false, PhysicalPersistenceQualified = false }));
+                await Save(directory, "http.json", JsonSerializer.Serialize(new
+                {
+                    Schema = "CLROS_LOG_UPLOAD_HTTP_LINUX_SESSION_V1",
+                    Name = name,
+                    Complete = succeeded && cleanup is null && snapshotFailure.Length == 0,
+                    ExpectedFailure = name != "positive",
+                    Failure = sessionFailure,
+                    CleanupFailure = cleanup?.Message,
+                    NaturalExitObserved = natural,
+                    Joined = joined,
+                    EndpointRefused = refused,
+                    ExitCode = exit,
+                    ControlledBodyCancellation = cancelledBody,
+                    CallerCancellationRequested = cancellation.IsCancellationRequested,
+                    WaitCancelled = deadline.IsCancellationRequested,
+                    Port = port,
+                    Responses = rows,
+                    BeforeFilesJson = baseline,
+                    PreRequestFilesJson = startup,
+                    ActualFilesJson = actual,
+                    SnapshotFailure = snapshotFailure,
+                    Trace = trace,
+                    TraceProjectionFailure = projectionFailure,
+                    DeviceFlushObserved = false,
+                    GuestQualified = false,
+                    PhysicalPersistenceQualified = false
+                }));
                 if (cleanup is not null)
                     throw cleanup;
                 Need(snapshotFailure.Length == 0, "linux_snapshot_failed");
@@ -1203,7 +1381,7 @@ public static partial class NativeAotLogUploadHttpContract
                 }
 
                 string children = ReadProc($"/proc/{process.Id}/task/{process.Id}/children");
-                string[] ids = children.Split((char[]? )null, StringSplitOptions.RemoveEmptyEntries);
+                string[] ids = children.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
                 Need(ids.Length == 1 && ids[0].All(char.IsAsciiDigit), "linux_proc_children");
                 string child = ids[0];
                 string commandLine = ReadProc($"/proc/{child}/cmdline");
@@ -1256,7 +1434,7 @@ public static partial class NativeAotLogUploadHttpContract
                         await Task.Delay(100, monitorStop.Token);
                     }
                 }
-                catch (OperationCanceledException)when (monitorStop.IsCancellationRequested)
+                catch (OperationCanceledException) when (monitorStop.IsCancellationRequested)
                 {
                 }
                 catch
@@ -1357,7 +1535,7 @@ public static partial class NativeAotLogUploadHttpContract
         {
             await socket.ConnectAsync(IPAddress.Loopback, port, deadline.Token);
         }
-        catch (SocketException error)when (error.SocketErrorCode == SocketError.ConnectionRefused)
+        catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionRefused)
         {
             refused = true;
         }
@@ -1379,7 +1557,12 @@ public static partial class NativeAotLogUploadHttpContract
         foreach (string name in names)
         {
             var file = held.Open(data, Path.Combine(data, name), "managed HTTP data snapshot", "log_upload_http_snapshot", 8192, allowEmpty: true, singleLink: true);
-            records.Add(new { Name = name, file.Length, file.Sha256 });
+            records.Add(new
+            {
+                Name = name,
+                file.Length,
+                file.Sha256
+            });
         }
 
         held.VerifyUnchanged();
@@ -1396,8 +1579,8 @@ public static partial class NativeAotLogUploadHttpContract
 
     private static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static bool IsHash(string? hash) => hash is { Length: 64 } && hash.All(Uri.IsHexDigit);
-    private static bool SafeRelative(string path) => path.Length is> 0 and <= 4096 && path[0] != '/' && !path.Any(c => c is ':' or '\\' || char.IsControl(c)) && path.Split('/').All(part => part is not ("" or "." or ".."));
-    private static bool CanonicalLinux(string path) => path.Length is> 1 and <= 4096 && path[0] == '/' && path.All(c => c is >= ' ' and <= '~' && c is not ('"' or '\\')) && path[1..].Split('/').All(part => part is not ("" or "." or ".."));
+    private static bool SafeRelative(string path) => path.Length is > 0 and <= 4096 && path[0] != '/' && !path.Any(c => c is ':' or '\\' || char.IsControl(c)) && path.Split('/').All(part => part is not ("" or "." or ".."));
+    private static bool CanonicalLinux(string path) => path.Length is > 1 and <= 4096 && path[0] == '/' && path.All(c => c is >= ' ' and <= '~' && c is not ('"' or '\\')) && path[1..].Split('/').All(part => part is not ("" or "." or ".."));
     private static void Need(bool value, string reason)
     {
         if (!value)

@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Drivers;
+
 public static unsafe partial class ContinuingVirtioNet
 {
     /// <summary>Borrowed owner state, never copied or externally mutated while

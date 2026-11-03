@@ -224,8 +224,8 @@ internal static unsafe partial class M02SafeStubPageEfiEntryTests
 
     [HostTest("m02.017 QEMU profiles are immutable and match the guest", HostLane.Fast, 3)]
     private static bool TestQemuProfiles() => EfiProfileTestControls.Returning("M02SafeStub",
-        QemuContracts.M02SafeStubRequiredMarkers,QemuContracts.M02SafeStubForbiddenMarkers,
-        M02SuccessMarkers[4],M02ForbiddenMarkers[0]);
+        QemuContracts.M02SafeStubRequiredMarkers, QemuContracts.M02SafeStubForbiddenMarkers,
+        M02SuccessMarkers[4], M02ForbiddenMarkers[0]);
 
     [HostTest("m02.017 integration source keeps one safe no-firmware invocation", HostLane.Fast, 4)]
     private static bool TestIntegrationSourceBoundary()

@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotRuntimePayload
 {
     private sealed record App(string Name, NativeAotPayload.Inspection Image, TraceInventory Trace);

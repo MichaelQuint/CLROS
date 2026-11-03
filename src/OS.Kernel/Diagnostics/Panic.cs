@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class Panic
 {
     public static PanicReportAction Report(DiagnosticLog log, PanicContext context, PanicMode mode)

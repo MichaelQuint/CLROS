@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSocketPayload
 {
     /// <summary>Observed counters from four finite connections. Partial/blocked

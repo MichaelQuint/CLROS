@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Drivers;
 
 public readonly struct NetworkReceiveDispatchResult
@@ -15,21 +16,45 @@ public readonly struct NetworkReceiveDispatchResult
         Ipv4PayloadLength = ipv4PayloadLength;
     }
 
-    public NetworkReceiveDispatchStatus Status { get; }
-    public bool IsInitialized { get; }
+    public NetworkReceiveDispatchStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NetworkReceiveDispatchStatus.Success;
-    public VirtioNetReceiveFrameClassificationResult ClassifierResult { get; }
+    public VirtioNetReceiveFrameClassificationResult ClassifierResult
+    {
+        get;
+    }
     public VirtioNetReceiveFrameClassifierStatus ClassifierStatus => ClassifierResult.Status;
     public PacketParseStatus ClassifierPacketStatus => ClassifierResult.PacketStatus;
-    public PacketParseStatus PayloadPacketStatus { get; }
+    public PacketParseStatus PayloadPacketStatus
+    {
+        get;
+    }
     public EthernetHeader EthernetHeader => ClassifierResult.EthernetHeader;
     public EthernetPayloadKind PayloadKind => ClassifierResult.PayloadKind;
     public int PayloadOffset => ClassifierResult.PayloadOffset;
     public int PayloadLength => ClassifierResult.PayloadLength;
-    public ArpPacket ArpPacket { get; }
-    public Ipv4Header Ipv4Header { get; }
-    public int Ipv4PayloadOffset { get; }
-    public int Ipv4PayloadLength { get; }
+    public ArpPacket ArpPacket
+    {
+        get;
+    }
+    public Ipv4Header Ipv4Header
+    {
+        get;
+    }
+    public int Ipv4PayloadOffset
+    {
+        get;
+    }
+    public int Ipv4PayloadLength
+    {
+        get;
+    }
 
     public static NetworkReceiveDispatchResult Arp(VirtioNetReceiveFrameClassificationResult classifierResult, ArpPacket arpPacket)
     {

@@ -7,11 +7,23 @@ internal static partial class Com1SerialWriterTests
     {
         private readonly SerialPortWrite[] _writes = new SerialPortWrite[32];
         private readonly ushort[] _readPorts = new ushort[32];
-        public byte LineStatusValue { get; set; }
+        public byte LineStatusValue
+        {
+            get; set;
+        }
         public int FailWriteAfter { get; set; } = -1;
-        public bool FailReads { get; set; }
-        public int WriteCount { get; private set; }
-        public int ReadCount { get; private set; }
+        public bool FailReads
+        {
+            get; set;
+        }
+        public int WriteCount
+        {
+            get; private set;
+        }
+        public int ReadCount
+        {
+            get; private set;
+        }
 
         public bool TryReadByte(ushort port, out byte value)
         {

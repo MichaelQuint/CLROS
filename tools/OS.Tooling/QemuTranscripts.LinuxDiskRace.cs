@@ -6,6 +6,7 @@ using OS.Manifest;
 using Race = OS.Tooling.LinuxDiskRaceProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow bounded already-framed ASCII rows, the
@@ -22,7 +23,7 @@ public static partial class QemuTranscripts
     public static LinuxDiskProgressCaptureInspection InspectLinuxDiskProgressCaptureValues(IReadOnlyList<string> supplied, byte[] package, byte[] rawImage, WebRootImageFixture.Receipt receipt, string originalImagePath)
     {
         int count = supplied?.Count ?? 0;
-        Need(count is> 0 and <= 32768 && package is not null && rawImage is not null && receipt is not null, "disk_progress_capture_input");
+        Need(count is > 0 and <= 32768 && package is not null && rawImage is not null && receipt is not null, "disk_progress_capture_input");
         string[] rows = new string[count];
         for (int i = 0; i < count; i++)
         {
@@ -123,7 +124,7 @@ public static partial class QemuTranscripts
     public static LinuxDiskExitPendingCaptureInspection InspectLinuxDiskExitPendingCaptureValues(IReadOnlyList<string> supplied, byte[] package, byte[] rawImage, WebRootImageFixture.Receipt receipt, string originalImagePath)
     {
         int count = supplied?.Count ?? 0;
-        Need(count is> 0 and <= 32768 && package is not null && rawImage is not null && receipt is not null, "disk_exit_capture_input");
+        Need(count is > 0 and <= 32768 && package is not null && rawImage is not null && receipt is not null, "disk_exit_capture_input");
         string[] rows = new string[count];
         for (int i = 0; i < count; i++)
         {
@@ -328,7 +329,7 @@ public static partial class QemuTranscripts
     private static LinuxDiskRaceLeafReport InspectLinuxDiskRaceLeafCore(IReadOnlyList<string> supplied, byte[] package, ulong userRoot, ulong kernelRoot, LinuxDiskExitPendingValues? stages)
     {
         int count = supplied?.Count ?? 0;
-        Need(count is> 0 and <= 32768 && package is not null, "disk_race_input");
+        Need(count is > 0 and <= 32768 && package is not null, "disk_race_input");
         string[] input = new string[count];
         for (int i = 0; i < count; i++)
         {
@@ -381,7 +382,7 @@ public static partial class QemuTranscripts
             clock = value;
         }
 
-        void Aux(int index) => auxiliary.Add(new(index, new string (input[index].AsSpan())));
+        void Aux(int index) => auxiliary.Add(new(index, new string(input[index].AsSpan())));
         int Worker(ulong identity)
         {
             Need(identity is Race.MainIdentity or Race.ChildIdentity, "disk_race_identity");
@@ -522,7 +523,7 @@ public static partial class QemuTranscripts
             if (line.StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal))
             {
                 var time = Row("M16_025_COMPLETE_TIME", "identity:dec", "sequence:dec", "request:dec", "clock:dec");
-                Need(variant == "CloseReuse" && time["clock"] is> 0 and <= long.MaxValue, "disk_race_completion_time");
+                Need(variant == "CloseReuse" && time["clock"] is > 0 and <= long.MaxValue, "disk_race_completion_time");
                 // This is a physical wall-clock witness, outside the unchanged
                 // logical CALL/POLL/COMPLETE observation stream.
                 Aux(index);
@@ -842,7 +843,7 @@ public static partial class QemuTranscripts
         const string suffix = " pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained";
         Need(line.EndsWith(suffix, StringComparison.Ordinal), "disk_race_disk_policy");
         var d = ReadRecord(line[..^suffix.Length], "M16_023_BOUND", "owner:dec", "epoch:dec", "arena:dec", "pages:dec", "bar:dec", "capacity:dec", "bootstrapCompleted:dec", "bootstrapCopied:dec", "clock:dec");
-        Need(d["owner"] is >= 4096 and < 0x0000800000000000 && d["owner"] % 8 == 0 && d["epoch"] != 0 && d["arena"] >= 4096 && d["arena"] % 4096 == 0 && d["pages"] is> 0 and <= 256 && d["arena"] <= 0x100000000UL - d["pages"] * 4096 && d["bar"] >= 0x100000 && d["bar"] % 16384 == 0 && d["bar"] < 0x0000800000000000 - 16384 && d["capacity"] is >= 68 and <= (ulong)long.MaxValue / 512 && d["bootstrapCompleted"] > 0 && d["bootstrapCopied"] <= d["bootstrapCompleted"] && d["clock"] <= long.MaxValue, "disk_race_disk_geometry");
+        Need(d["owner"] is >= 4096 and < 0x0000800000000000 && d["owner"] % 8 == 0 && d["epoch"] != 0 && d["arena"] >= 4096 && d["arena"] % 4096 == 0 && d["pages"] is > 0 and <= 256 && d["arena"] <= 0x100000000UL - d["pages"] * 4096 && d["bar"] >= 0x100000 && d["bar"] % 16384 == 0 && d["bar"] < 0x0000800000000000 - 16384 && d["capacity"] is >= 68 and <= (ulong)long.MaxValue / 512 && d["bootstrapCompleted"] > 0 && d["bootstrapCopied"] <= d["bootstrapCompleted"] && d["clock"] <= long.MaxValue, "disk_race_disk_geometry");
     }
 
     private static void RaceIoShape(string line)
@@ -891,7 +892,7 @@ public static partial class QemuTranscripts
     private static LinuxDiskRaceLeafReport InspectLinuxDiskCloseReuseCandidateValues(IReadOnlyList<string> rows, byte[] package, ulong userRoot, ulong kernelRoot, byte[] rawImage, NativeDiskReadObservations.Boundary boundary, IReadOnlyList<ulong> dataSectors, ulong periodFs)
     {
         var leaf = InspectLinuxDiskRaceLeaf(rows, package, userRoot, kernelRoot);
-        Need(leaf.Variant == "CloseReuse" && rawImage is not null && dataSectors is { Count: 16 } && dataSectors.Distinct().Count() == 16 && dataSectors.All(s => s < (ulong)rawImage.Length / 512) && periodFs is> 0 and <= 1_000_000_000, "disk_close_reuse_input");
+        Need(leaf.Variant == "CloseReuse" && rawImage is not null && dataSectors is { Count: 16 } && dataSectors.Distinct().Count() == 16 && dataSectors.All(s => s < (ulong)rawImage.Length / 512) && periodFs is > 0 and <= 1_000_000_000, "disk_close_reuse_input");
         LinuxDiskRaceCall Call(string role) => leaf.Calls.Single(c => c.Spec.Role == role);
         LinuxDiskRaceWindow Window(LinuxDiskRaceCall call) => leaf.Windows.Single(w => w.CallRecordIndex == call.RecordIndex);
         var main = Call("main.read");
@@ -965,7 +966,7 @@ public static partial class QemuTranscripts
     private static (LinuxDiskRaceLeafReport Leaf, NativeDiskReadObservations.Inspection Device, IReadOnlyList<(LinuxDiskRaceCall Call, LinuxDiskRaceWindow Window, IReadOnlyList<ulong> DeviceGenerations)> Requests) InspectLinuxDiskCloseReuseTransactionsCandidateValues(IReadOnlyList<string> supplied, byte[] package, ulong userRoot, ulong kernelRoot, byte[] rawImage, WebRootImageFixture.Receipt receipt, string originalImagePath, NativeDiskReadObservations.Boundary boundary, ulong periodFs)
     {
         int count = supplied?.Count ?? 0;
-        Need(count is> 0 and <= 32768 && package is not null && rawImage is not null && receipt is not null, "disk_close_reuse_capture_input");
+        Need(count is > 0 and <= 32768 && package is not null && rawImage is not null && receipt is not null, "disk_close_reuse_capture_input");
         string[] rows = new string[count];
         for (int i = 0; i < count; i++)
         {
@@ -1073,7 +1074,7 @@ public static partial class QemuTranscripts
             if (request.Metadata)
                 Need(requestMetadata[i].Any(s => s.Kind == WebRootDiskInventory.MetadataKind.Directory && s.DirectoryPath == "/app/wwwroot") && requestMetadata[i].Any(s => s.Kind == WebRootDiskInventory.MetadataKind.Directory && s.DirectoryPath == "/app/wwwroot/fixture"), "disk_close_reuse_metadata_route");
             else if (request.Call.Spec.Role == "main.read")
-                Need(request.Observed.Count is> 0 and <= 16 && request.Observed.SequenceEqual(coverage.Take(request.Observed.Count)) && request.Generations[^1] == oldLast, "disk_close_reuse_old_data_prefix");
+                Need(request.Observed.Count is > 0 and <= 16 && request.Observed.SequenceEqual(coverage.Take(request.Observed.Count)) && request.Generations[^1] == oldLast, "disk_close_reuse_old_data_prefix");
             else
                 Need(request.Observed.SequenceEqual(request.Sectors), "disk_close_reuse_data_window");
         }
@@ -1091,7 +1092,7 @@ public static partial class QemuTranscripts
         int owner = -1;
         for (int i = 0; i < requests.Count; i++)
         {
-            var(call, window) = requests[i];
+            var (call, window) = requests[i];
             Need(window.Source == 4 && window.CallRecordIndex == call.RecordIndex && window.Identity == call.Identity && window.Ordinal == call.Ordinal && window.Sequence != 0 && window.RequestGeneration != 0 && window.CompletionRecordIndex > call.RecordIndex, "disk_close_reuse_owner_table");
             bool eligible = call.Spec.Role switch
             {
@@ -1116,7 +1117,7 @@ public static partial class QemuTranscripts
     private static (WebParentReport Parent, LinuxDiskRaceLeafReport Leaf, NativeDiskReadObservations.Inspection Device, IReadOnlyList<(LinuxDiskRaceCall Call, LinuxDiskRaceWindow Window, IReadOnlyList<ulong> DeviceGenerations)> Requests) InspectLinuxDiskCloseReuseCaptureValues(IReadOnlyList<string> supplied, byte[] package, byte[] rawImage, WebRootImageFixture.Receipt receipt, string originalImagePath)
     {
         int count = supplied?.Count ?? 0;
-        Need(count is> 0 and <= 32768 && package is not null && rawImage is not null && receipt is not null, "disk_close_reuse_original_input");
+        Need(count is > 0 and <= 32768 && package is not null && rawImage is not null && receipt is not null, "disk_close_reuse_original_input");
         string[] rows = new string[count];
         for (int i = 0; i < count; i++)
         {
@@ -1182,7 +1183,7 @@ public static partial class QemuTranscripts
         string clock = One("M16_003_CLOCK ");
         Need(clock.EndsWith(clockSuffix, StringComparison.Ordinal), "disk_close_reuse_clock_shape");
         var c = ReadRecord(clock[..^clockSuffix.Length], "M16_003_CLOCK", "frequency:dec", "period:dec", "recoveries:dec");
-        Need(c["period"] is> 0 and <= 1_000_000_000, "disk_close_reuse_clock_period");
+        Need(c["period"] is > 0 and <= 1_000_000_000, "disk_close_reuse_clock_period");
         return (table["root"], k["old"], c["period"], new(b["owner"], b["epoch"], b["bootstrapCompleted"], b["bootstrapCopied"], e["submitted"], e["completed"], e["copied"]));
     }
 }

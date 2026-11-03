@@ -15,6 +15,12 @@ public readonly struct GCStaticReadableWindow
         Bytes = bytes;
     }
 
-    public ulong Start { get; }
-    public ulong Bytes { get; }
+    public ulong Start
+    {
+        get;
+    }
+    public ulong Bytes
+    {
+        get;
+    }
 }

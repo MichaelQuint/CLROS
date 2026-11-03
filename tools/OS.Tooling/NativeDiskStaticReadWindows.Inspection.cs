@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class NativeDiskStaticReadWindows
 {
     /// <summary>Read-only copied windows and unique assignments in supplied-window,
@@ -16,9 +17,18 @@ public static partial class NativeDiskStaticReadWindows
             Residual = Array.AsReadOnly(residual);
         }
 
-        public IReadOnlyList<ReadWindow> Windows { get; }
-        public IReadOnlyList<AssignedCopy> Assigned { get; }
-        public IReadOnlyList<SectorCopy> Residual { get; }
+        public IReadOnlyList<ReadWindow> Windows
+        {
+            get;
+        }
+        public IReadOnlyList<AssignedCopy> Assigned
+        {
+            get;
+        }
+        public IReadOnlyList<SectorCopy> Residual
+        {
+            get;
+        }
         public bool CheckedResidualMetadata => false;
         public bool CheckedSchedulerOrMemory => false;
         public bool GrantsNativeProcessOrHttpAuthority => false;

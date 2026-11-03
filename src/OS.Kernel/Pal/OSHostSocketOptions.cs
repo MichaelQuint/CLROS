@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 public static class OSHostSocketOptions
 {
     public static bool IsDefined(uint optionName)

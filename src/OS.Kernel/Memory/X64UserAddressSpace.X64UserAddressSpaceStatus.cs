@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Memory;
+
 public enum X64UserAddressSpaceStatus : byte
 {
     Uninitialized,
@@ -15,11 +16,7 @@ public enum X64UserAddressSpaceStatus : byte
 }
 #if M10_004_PROBE
 
-
-
 #elif M16_025_PROBE
-
-
 
 #else
 #endif

@@ -20,9 +20,21 @@ internal static partial class BootPageAllocatorStressTests
             SourceUsableRangeIndex = sourceUsableRangeIndex;
         }
 
-        public int StartPage { get; }
-        public int PageCount { get; }
-        public int SourceFreeSegmentIndex { get; }
-        public int SourceUsableRangeIndex { get; }
+        public int StartPage
+        {
+            get;
+        }
+        public int PageCount
+        {
+            get;
+        }
+        public int SourceFreeSegmentIndex
+        {
+            get;
+        }
+        public int SourceUsableRangeIndex
+        {
+            get;
+        }
     }
 }

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioPciCandidateSelector
 {
     public static VirtioPciCandidateSelectionResult Select(ReadOnlySpan<PciEcamScannedDevice> devices, Span<VirtioPciCandidate> destination)

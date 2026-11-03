@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class NativeDiskReadObservations
 {
     /// <summary>Read-only copied observations and the inspected cumulative
@@ -17,9 +18,21 @@ public static partial class NativeDiskReadObservations
             ResetRetirement = reset;
         }
 
-        public Boundary Counters { get; }
-        public ulong Cancelled { get; }
-        public IReadOnlyList<Observation> Rows { get; }
-        public PendingResetRetirement? ResetRetirement { get; }
+        public Boundary Counters
+        {
+            get;
+        }
+        public ulong Cancelled
+        {
+            get;
+        }
+        public IReadOnlyList<Observation> Rows
+        {
+            get;
+        }
+        public PendingResetRetirement? ResetRetirement
+        {
+            get;
+        }
     }
 }

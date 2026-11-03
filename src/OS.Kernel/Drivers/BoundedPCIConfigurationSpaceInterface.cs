@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static unsafe class BoundedPCIConfigurationSpaceInterface
 {
     public static bool TryWindow(ulong busZeroBase, ushort segment, byte allocationFirst, byte allocationLast, byte firstBus, byte lastBus, out BoundedPciWindow window)

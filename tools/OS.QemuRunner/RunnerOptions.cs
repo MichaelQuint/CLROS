@@ -32,41 +32,125 @@ sealed class RunnerOptions
     public string SerialLogPath { get; private set; } = Path.Combine("artifacts", "logs", "qemu-smoke.log");
     public string SummaryLogPath { get; private set; } = string.Empty;
     public string Memory { get; private set; } = "256M";
-    public string? FirmwareRngSource { get; private set; }
-    public bool PciBarTestDevice { get; private set; }
-    public bool VirtioNegotiationDevice { get; private set; }
-    public bool ArpReceiveFixture { get; private set; }
-    public bool ContinuingNetworkPeer { get; private set; }
-    public bool SocketContainmentPeer { get; private set; }
-    public int? SocketForwardPort { get; private set; }
-    public bool ContinuingWeb { get; private set; }
-    public bool FiniteStaticFiles { get; private set; }
-    public bool FullDiskStaticFiles { get; private set; }
-    public bool DiskReadTiming { get; private set; }
+    public string? FirmwareRngSource
+    {
+        get; private set;
+    }
+    public bool PciBarTestDevice
+    {
+        get; private set;
+    }
+    public bool VirtioNegotiationDevice
+    {
+        get; private set;
+    }
+    public bool ArpReceiveFixture
+    {
+        get; private set;
+    }
+    public bool ContinuingNetworkPeer
+    {
+        get; private set;
+    }
+    public bool SocketContainmentPeer
+    {
+        get; private set;
+    }
+    public int? SocketForwardPort
+    {
+        get; private set;
+    }
+    public bool ContinuingWeb
+    {
+        get; private set;
+    }
+    public bool FiniteStaticFiles
+    {
+        get; private set;
+    }
+    public bool FullDiskStaticFiles
+    {
+        get; private set;
+    }
+    public bool DiskReadTiming
+    {
+        get; private set;
+    }
     public bool DiskStaticFiles => FiniteStaticFiles && ReadOnlyWebRootDisk;
-    public bool ReadOnlyWebRootDisk { get; private set; }
-    public StaticFileProcessEvidence? StaticEvidence { get; private set; }
-    public string? WebRacePipe { get; private set; }
-    public bool WebEventOwnedSignalRace { get; private set; }
-    public bool ContinuingService { get; private set; }
-    public bool ServiceQuotaFailure { get; private set; }
+    public bool ReadOnlyWebRootDisk
+    {
+        get; private set;
+    }
+    public StaticFileProcessEvidence? StaticEvidence
+    {
+        get; private set;
+    }
+    public string? WebRacePipe
+    {
+        get; private set;
+    }
+    public bool WebEventOwnedSignalRace
+    {
+        get; private set;
+    }
+    public bool ContinuingService
+    {
+        get; private set;
+    }
+    public bool ServiceQuotaFailure
+    {
+        get; private set;
+    }
     public long SerialByteCapacity => FullDiskStaticFiles ? OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.MaximumSerialBytes : ContinuingService ? SerialMarkerStateMachine.ContinuingServiceByteCapacity : SerialMarkerStateMachine.DefaultByteCapacity;
-    public ServiceEvidence? ServiceEvidence { get; private set; }
+    public ServiceEvidence? ServiceEvidence
+    {
+        get; private set;
+    }
     public string SuccessTerminalMarker => ServiceQuotaFailure ? ServiceQuotaCapture.Terminal : FiniteStaticFiles || ReadOnlyWebRootDisk ? "TEST_PASS m16-012" : ContinuingService ? "TEST_PASS m16-012" : ContinuingWeb ? "TEST_PASS m10.004" : SerialMarkerStateMachine.DefaultSuccessTerminalMarker;
-    public HttpProbeOptions? WebConfigProbe { get; private set; }
-    public HttpProbeOptions? WebLogProbe { get; private set; }
-    public HttpProbeOptions? WebLogRepeatProbe { get; private set; }
-    public HttpProbeOptions? WebVectorProbe { get; private set; }
-    public ContinuingWebEvidence? WebEvidence { get; private set; }
+    public HttpProbeOptions? WebConfigProbe
+    {
+        get; private set;
+    }
+    public HttpProbeOptions? WebLogProbe
+    {
+        get; private set;
+    }
+    public HttpProbeOptions? WebLogRepeatProbe
+    {
+        get; private set;
+    }
+    public HttpProbeOptions? WebVectorProbe
+    {
+        get; private set;
+    }
+    public ContinuingWebEvidence? WebEvidence
+    {
+        get; private set;
+    }
     public string WebLogCase { get; private set; } = "normal";
 
     private bool webLogCaseConfigured;
     private string? webConfigBody;
-    public string? EthernetCapturePath { get; private set; }
-    public bool VirtioBlockQueueDevice { get; private set; }
-    public string? VirtioBlockBootImagePath { get; private set; }
-    public string? WritableDataImagePath { get; private set; }
-    public WritableDataImageLease? WritableDataLease { get; set; }
+    public string? EthernetCapturePath
+    {
+        get; private set;
+    }
+    public bool VirtioBlockQueueDevice
+    {
+        get; private set;
+    }
+    public string? VirtioBlockBootImagePath
+    {
+        get; private set;
+    }
+    public string? WritableDataImagePath
+    {
+        get; private set;
+    }
+    public WritableDataImageLease? WritableDataLease
+    {
+        get; set;
+    }
     public string WorkloadProfile { get; private set; } = DefaultWorkloadProfile;
     public IReadOnlyList<string> RequiredMarkers => requiredMarkers;
     public IReadOnlyList<string> ForbiddenMarkers => forbiddenMarkers;
@@ -76,13 +160,34 @@ sealed class RunnerOptions
     public int TimeoutSeconds { get; private set; } = 30;
     public int StartupTimeoutSeconds { get; private set; } = 30;
     public bool WatchStartup => !ExpectedUnexpectedVectorPanic && !ExpectedOwnedSubsystemPanic && !ExpectedUnhandledException && (RequiredMarkers.Contains(QemuStartupDeadline.ReadyMarker) || OrderedMarkers.Contains(QemuStartupDeadline.ReadyMarker) || UniqueMarkers.Contains(QemuStartupDeadline.ReadyMarker));
-    public HttpProbeOptions? HttpProbe { get; private set; }
-    public bool ExpectedUnexpectedVectorPanic { get; private set; }
-    public bool ExpectedOwnedSubsystemPanic { get; private set; }
-    public bool ExpectedUnhandledException { get; private set; }
-    public bool DryRun { get; private set; }
-    public bool Preflight { get; private set; }
-    public bool ShowHelp { get; private set; }
+    public HttpProbeOptions? HttpProbe
+    {
+        get; private set;
+    }
+    public bool ExpectedUnexpectedVectorPanic
+    {
+        get; private set;
+    }
+    public bool ExpectedOwnedSubsystemPanic
+    {
+        get; private set;
+    }
+    public bool ExpectedUnhandledException
+    {
+        get; private set;
+    }
+    public bool DryRun
+    {
+        get; private set;
+    }
+    public bool Preflight
+    {
+        get; private set;
+    }
+    public bool ShowHelp
+    {
+        get; private set;
+    }
 
     private bool httpProbeConfigured;
     private string? httpProbeUrl;
@@ -592,7 +697,7 @@ sealed class RunnerOptions
             throw new ArgumentException("--continuing-web requires a captured guest 8080 forward, HTTP probe, summary log, SingleMinimalApi and timeout at most 285 seconds without a scripted peer or panic profile.");
         HttpProbeOptions probe = HttpProbe.Value;
         Uri uri = new(probe.Url, UriKind.Absolute);
-        if (uri.Host != "127.0.0.1" || uri.Port != SocketForwardPort || uri.PathAndQuery != "/healthz" || uri.Fragment.Length != 0 || uri.UserInfo.Length != 0 || probe.ExpectedStatusCode != 200 || !probe.ExpectedBodyConfigured || probe.ExpectedBodyByteLength is < 1 or > 65536 || probe.TimeoutSeconds > 30 || webConfigBody is null || Encoding.UTF8.GetByteCount(webConfigBody)is < 1 or > 65536)
+        if (uri.Host != "127.0.0.1" || uri.Port != SocketForwardPort || uri.PathAndQuery != "/healthz" || uri.Fragment.Length != 0 || uri.UserInfo.Length != 0 || probe.ExpectedStatusCode != 200 || !probe.ExpectedBodyConfigured || probe.ExpectedBodyByteLength is < 1 or > 65536 || probe.TimeoutSeconds > 30 || webConfigBody is null || Encoding.UTF8.GetByteCount(webConfigBody) is < 1 or > 65536)
             throw new ArgumentException("--continuing-web requires exact http://127.0.0.1:<forward>/healthz, status 200, bounded nonempty health/config bodies and an HTTP timeout at most 30 seconds.");
         // The inherited boot prefix can require OS_SMOKE_PASS. Web startup
         // still requires both M10 markers and uses its own success terminal.
@@ -632,7 +737,7 @@ sealed class RunnerOptions
 
         StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         Dictionary<string, string> nameByPath = new Dictionary<string, string>(comparer);
-        foreach ((string name, string path)in paths)
+        foreach ((string name, string path) in paths)
         {
             string fullPath = Path.GetFullPath(path);
             if (nameByPath.TryGetValue(fullPath, out string? existing))

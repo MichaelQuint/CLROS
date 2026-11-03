@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class FaultProbeReadiness
 {
     public const string OperationName = "fault.probe.ready";

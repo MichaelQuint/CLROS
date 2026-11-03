@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public ref struct ArpNeighborCache
 {
     private Span<ArpNeighborCacheEntry> _entries;

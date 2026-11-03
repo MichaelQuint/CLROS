@@ -118,7 +118,7 @@ internal static partial class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdow
     [HostTest("m03.003 rejects complete buffer aliases", HostLane.Fast, 4)]
     private static void TestBufferAliases()
     {
-        foreach ((int a, int al, int b, int bl)in new[]
+        foreach ((int a, int al, int b, int bl) in new[]
         {
             (0, 96, 0, 96),
             (0, 96, 1, 96),

@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class NativeDiskStaticReadWindows
 {
     /// <summary>One immutable committed sector with its original three-stage

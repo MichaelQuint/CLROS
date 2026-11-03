@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotLogUploadContract
 {
     /// <summary>Copied raw trace rows, including unfinished/resumed, unreturned
@@ -23,10 +24,22 @@ public static partial class NativeAotLogUploadContract
             Files = files;
         }
 
-        public string Phase { get; }
-        public ReadOnlyCollection<TraceRow> Rows { get; }
-        public int Files { get; }
-        public int ExitedFiles { get; }
+        public string Phase
+        {
+            get;
+        }
+        public ReadOnlyCollection<TraceRow> Rows
+        {
+            get;
+        }
+        public int Files
+        {
+            get;
+        }
+        public int ExitedFiles
+        {
+            get;
+        }
         public int UnjoinedRows => Rows.Count(row => row.Kind is TraceKind.UnfinishedCall or TraceKind.ResumedCall);
         public int UnreturnedRows => Rows.Count(row => row.Kind == TraceKind.UnreturnedCall);
         /// <summary>Explicit unknown results for nonreturning exit syscalls.

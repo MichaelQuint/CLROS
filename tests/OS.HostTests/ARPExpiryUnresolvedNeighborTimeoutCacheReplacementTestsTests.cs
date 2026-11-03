@@ -22,7 +22,8 @@ internal static class ARPExpiryUnresolvedNeighborTimeoutCacheReplacementTestsTes
     {
         Span<ArpNeighborCacheEntry> entries = stackalloc ArpNeighborCacheEntry[1];
         var cache = ArpNeighborCache.Create(entries);
-        if (cache.InsertOrUpdate(Address(2), Mac(2), insertedTick, out _) != ArpNeighborCacheStatus.Success) return false;
+        if (cache.InsertOrUpdate(Address(2), Mac(2), insertedTick, out _) != ArpNeighborCacheStatus.Success)
+            return false;
         ulong exactTick = insertedTick + ttl;
         return cache.PurgeStale(exactTick - 1, ttl, out var before) == ArpNeighborCacheStatus.Success &&
             before.Succeeded && before.RemovedCount == 0 && cache.Count == 1 &&
@@ -97,7 +98,8 @@ internal static class ARPExpiryUnresolvedNeighborTimeoutCacheReplacementTestsTes
         request.Fill(0xa5);
         bool repeat = pending.Timeout(out _) == ArpNeighborResolutionStatus.InvalidState &&
             pending.TryWriteRequest(request, out var rewrite) == ArpNeighborResolutionStatus.InvalidState && rewrite.BytesWritten == 0;
-        for (int i = 0; i < request.Length; i++) repeat &= request[i] == 0xa5;
+        for (int i = 0; i < request.Length; i++)
+            repeat &= request[i] == 0xa5;
         return HostCheck.Result(validReply && initial && sent && timeout && late && repeat);
     }
 

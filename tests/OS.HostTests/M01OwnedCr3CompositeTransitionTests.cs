@@ -1115,7 +1115,7 @@ internal static unsafe partial class M01OwnedCr3CompositeTransitionTests
 
         for (int duplicateIndex = 0; duplicateIndex < negative.Bindings.Length; duplicateIndex++)
         {
-            M01OwnedCr3CompositeTransitionRangeBinding[] duplicate = [..negative.Bindings];
+            M01OwnedCr3CompositeTransitionRangeBinding[] duplicate = [.. negative.Bindings];
             duplicate[duplicateIndex] = duplicate[(duplicateIndex + 1) % duplicate.Length];
             if (ExecuteWithBindings(negative, duplicate).Status != M01OwnedCr3CompositeTransitionStatus.DuplicateRangeRole)
             {
@@ -1136,7 +1136,7 @@ internal static unsafe partial class M01OwnedCr3CompositeTransitionTests
         byte[] forbiddenRoleValues = [0, 1, 2, 3, 4, 5, 6, 7, 255];
         for (int index = 0; index < forbiddenRoleValues.Length; index++)
         {
-            M01OwnedCr3CompositeTransitionRangeBinding[] bindings = [..negative.Bindings];
+            M01OwnedCr3CompositeTransitionRangeBinding[] bindings = [.. negative.Bindings];
             M01OwnedCr3CompositeTransitionRangeBinding source = bindings[0];
             bindings[0] = Binding((M01OwnedCr3CompositeTransitionRangeRole)forbiddenRoleValues[index], source.Provenance, Raw(source.PhysicalStart), Raw(source.PhysicalEndExclusive), source.AllocationIndex, source.ReservationIndex, source.IdentityMappingIndex);
             if (ExecuteWithBindings(negative, bindings).Status != M01OwnedCr3CompositeTransitionStatus.InvalidRangeBinding)
@@ -1155,7 +1155,7 @@ internal static unsafe partial class M01OwnedCr3CompositeTransitionTests
                     continue;
                 }
 
-                M01OwnedCr3CompositeTransitionRangeBinding[] aliased = [..negative.Bindings];
+                M01OwnedCr3CompositeTransitionRangeBinding[] aliased = [.. negative.Bindings];
                 M01OwnedCr3CompositeTransitionRangeBinding target = aliased[targetIndex];
                 M01OwnedCr3CompositeTransitionRangeBinding source = aliased[sourceIndex];
                 aliased[targetIndex] = Binding(target.Role, target.Provenance, Raw(source.PhysicalStart), Raw(source.PhysicalEndExclusive), target.AllocationIndex, target.ReservationIndex, target.IdentityMappingIndex);
@@ -1272,7 +1272,7 @@ internal static unsafe partial class M01OwnedCr3CompositeTransitionTests
     private static bool TestM01030MalformedBindingsAndAtomicity()
     {
         using CompositeFixture fixture = CompositeFixture.Create();
-        M01OwnedCr3CompositeTransitionRangeBinding[] malformed = [..fixture.Bindings];
+        M01OwnedCr3CompositeTransitionRangeBinding[] malformed = [.. fixture.Bindings];
         malformed[0] = default;
         if (ExecuteWithBindings(fixture, malformed).Status != M01OwnedCr3CompositeTransitionStatus.InvalidRangeBinding)
         {
@@ -1286,7 +1286,7 @@ internal static unsafe partial class M01OwnedCr3CompositeTransitionTests
         (ulong Start, ulong End)[] malformedGeometry = [(sourceStart + 1, sourceEnd), (sourceStart, sourceEnd - 1), (sourceEnd, sourceStart), (sourceStart, sourceStart)];
         for (int index = 0; index < malformedGeometry.Length; index++)
         {
-            malformed = [..fixture.Bindings];
+            malformed = [.. fixture.Bindings];
             malformed[0] = Binding(source.Role, source.Provenance, malformedGeometry[index].Start, malformedGeometry[index].End, source.AllocationIndex, source.ReservationIndex, source.IdentityMappingIndex);
             if (ExecuteWithBindings(fixture, malformed).IsSuccess)
             {
@@ -1300,7 +1300,7 @@ internal static unsafe partial class M01OwnedCr3CompositeTransitionTests
             M01OwnedCr3CompositeTransitionRangeBinding binding = fixture.Bindings[index];
             ulong start = Raw(binding.PhysicalStart);
             ulong end = Raw(binding.PhysicalEndExclusive);
-            malformed = [..fixture.Bindings];
+            malformed = [.. fixture.Bindings];
             malformed[index] = Binding(binding.Role, binding.Provenance, start + 8, end, binding.AllocationIndex, binding.ReservationIndex, binding.IdentityMappingIndex);
             if (ExecuteWithBindings(fixture, malformed).IsSuccess)
             {

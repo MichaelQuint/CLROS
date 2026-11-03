@@ -1,6 +1,7 @@
 using OS.Net;
 
 namespace OS.Manifest;
+
 public enum NativeManifestFetchAppConfigPreflightStatus
 {
     Success = 0,

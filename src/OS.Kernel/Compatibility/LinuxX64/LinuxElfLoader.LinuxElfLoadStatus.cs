@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public enum LinuxElfLoadStatus : byte
 {
     Uninitialized = 0,

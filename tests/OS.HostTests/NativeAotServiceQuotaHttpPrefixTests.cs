@@ -17,7 +17,8 @@ internal static class NativeAotServiceQuotaHttpPrefixTests
         {
             byte[] bytes = Encoding.ASCII.GetBytes(string.Concat(vector.Parts));
             int[] ends = vector.Parts.Select(part => Encoding.ASCII.GetByteCount(part)).ToArray();
-            for (int i = 1; i < ends.Length; i++) ends[i] += ends[i - 1];
+            for (int i = 1; i < ends.Length; i++)
+                ends[i] += ends[i - 1];
             for (int cut = 0; cut <= bytes.Length; cut++)
             {
                 var report = QemuTranscripts.InspectNativeAotServiceQuotaHttpPrefixesForTests(bytes.AsSpan(0, cut), vector.Responses);
@@ -27,8 +28,10 @@ internal static class NativeAotServiceQuotaHttpPrefixTests
                 int start = 0;
                 foreach (var message in report.Messages)
                 {
-                    HostCheck.Equal(start, message.Start); HostCheck.True(message.End > start && message.End <= cut);
-                    if (message.State == "complete") HostCheck.True(ends.Contains(message.End));
+                    HostCheck.Equal(start, message.Start);
+                    HostCheck.True(message.End > start && message.End <= cut);
+                    if (message.State == "complete")
+                        HostCheck.True(ends.Contains(message.End));
                     start = message.End;
                 }
                 HostCheck.Equal(cut, start);
@@ -46,7 +49,9 @@ internal static class NativeAotServiceQuotaHttpPrefixTests
     {
         var cancel = Read(ChunkHead, true).Messages.Single();
         HostCheck.True(cancel.State == "chunk-size" && cancel.Framing == "chunked" && cancel.BodyBase64 == "");
-        byte[] pattern = new byte[64]; for (int i = 0; i < pattern.Length; i++) pattern[i] = unchecked((byte)(31 + i * 17));
+        byte[] pattern = new byte[64];
+        for (int i = 0; i < pattern.Length; i++)
+            pattern[i] = unchecked((byte)(31 + i * 17));
         byte[] head = Encoding.ASCII.GetBytes("POST /__clros/service/lifecycle/echo HTTP/1.1\r\nHost: clros.service\r\nContent-Length: 32768\r\n\r\n");
         var echo = QemuTranscripts.InspectNativeAotServiceQuotaHttpPrefixesForTests(head.Concat(pattern).ToArray(), false).Messages.Single();
         HostCheck.True(echo.State == "body" && echo.DeclaredLength == 32768 && echo.HeaderEnd == head.Length &&
@@ -94,13 +99,24 @@ internal static class NativeAotServiceQuotaHttpPrefixTests
     [HostTest("quota HTTP prefix reports copy header and body bytes into immutable output")]
     private static void Copies()
     {
-        byte[] bytes = Encoding.ASCII.GetBytes(Length); var report = QemuTranscripts.InspectNativeAotServiceQuotaHttpPrefixesForTests(bytes, true);
-        bytes.AsSpan().Clear(); var message = report.Messages.Single();
+        byte[] bytes = Encoding.ASCII.GetBytes(Length);
+        var report = QemuTranscripts.InspectNativeAotServiceQuotaHttpPrefixesForTests(bytes, true);
+        bytes.AsSpan().Clear();
+        var message = report.Messages.Single();
         HostCheck.True(message.Headers["Content-Length"] == "3" && message.BodyBase64 == "YWJj");
         bool list = false, headers = false;
-        try { ((IList<QemuTranscripts.ServiceQuotaHttpPrefix>)report.Messages)[0] = message with { State = "forged" }; }
+        try
+        {
+            ((IList<QemuTranscripts.ServiceQuotaHttpPrefix>)report.Messages)[0] = message with
+            {
+                State = "forged"
+            };
+        }
         catch (NotSupportedException) { list = true; }
-        try { ((IDictionary<string, string>)message.Headers)["Content-Length"] = "9"; }
+        try
+        {
+            ((IDictionary<string, string>)message.Headers)["Content-Length"] = "9";
+        }
         catch (NotSupportedException) { headers = true; }
         HostCheck.True(list && headers);
     }
@@ -109,7 +125,12 @@ internal static class NativeAotServiceQuotaHttpPrefixTests
         QemuTranscripts.InspectNativeAotServiceQuotaHttpPrefixesForTests(Encoding.ASCII.GetBytes(value), responses);
     private static void Reject(Action action)
     {
-        bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected);
     }
 }

@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Pal;
+
 public readonly struct OSHostStatusNameFormatResult
 {
     private const uint InitializedFlag = 1;

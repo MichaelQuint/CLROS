@@ -13,14 +13,20 @@ public static partial class NativeAotDiskTimingPeer
         public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(180);
 
         /// <summary>Original evidence unless a diagnostic profile is explicitly selected.</summary>
-        public DiskEvidenceMode DiskEvidence { get; init; }
+        public DiskEvidenceMode DiskEvidence
+        {
+            get; init;
+        }
 
         /// <summary>
         /// Exact original image bytes for Trace/Summary only. RunAsync copies and
         /// hashes them before creating artifacts or starting a runner. The caller
         /// retains original image/source/native authority until the runner joins.
         /// </summary>
-        public ReadOnlyMemory<byte> DiskImageBytes { get; init; }
+        public ReadOnlyMemory<byte> DiskImageBytes
+        {
+            get; init;
+        }
 
         internal static BenchmarkOptions ForProfile(IReadOnlyDictionary<string, bool> flags, Func<byte[]> readImage)
         {

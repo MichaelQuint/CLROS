@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Observed TCP facts only. Missing FIN/RST is not an error or an

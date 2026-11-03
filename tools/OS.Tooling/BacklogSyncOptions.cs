@@ -5,9 +5,18 @@ namespace OS.Tooling;
 
 public sealed record BacklogSyncOptions
 {
-    public bool Apply { get; init; }
-    public bool Offline { get; init; }
-    public bool SelfTest { get; init; }
+    public bool Apply
+    {
+        get; init;
+    }
+    public bool Offline
+    {
+        get; init;
+    }
+    public bool SelfTest
+    {
+        get; init;
+    }
     public string IssueKeys { get; init; } = "";
     public string ManifestPath { get; init; } = "";
     public string BaseUrl { get; init; } = BacklogContracts.BaseUrl;
@@ -56,7 +65,8 @@ public sealed record BacklogSyncOptions
                 {
                     Repository = Next()
                 },
-                _ => throw new ArgumentException("unknown_option " + args[i])};
+                _ => throw new ArgumentException("unknown_option " + args[i])
+            };
         }
 
         value.Validate();

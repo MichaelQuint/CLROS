@@ -55,7 +55,15 @@ public static unsafe partial class LinuxWritableSyscallObservation
         for (int i = 0; i < copiedWithNul.Length - 1; i++)
             if (copiedWithNul[i] == 0)
                 return Status.InvalidRecord;
-        return Append(s, new() { Call = call, Request = request, UserAddress = address, RequestedBytes = PathCapacity, Kind = Kind.Path, Boundary = Boundary.Admission }, copiedWithNul);
+        return Append(s, new()
+        {
+            Call = call,
+            Request = request,
+            UserAddress = address,
+            RequestedBytes = PathCapacity,
+            Kind = Kind.Path,
+            Boundary = Boundary.Admission
+        }, copiedWithNul);
     }
 
     /// <summary>Copy one already-copied iovec value and its supervisor scratch
@@ -71,7 +79,17 @@ public static unsafe partial class LinuxWritableSyscallObservation
             return Status.InvalidRecord;
         if (!Source(s, copiedPayload))
             return Status.InvalidStorage;
-        return Append(s, new() { Call = call, Request = request, UserAddress = iovecAddress, VectorBase = copiedBase, RequestedBytes = copiedLength, FileOffset = offset, Kind = Kind.PwriteInput, Boundary = Boundary.Admission }, copiedPayload);
+        return Append(s, new()
+        {
+            Call = call,
+            Request = request,
+            UserAddress = iovecAddress,
+            VectorBase = copiedBase,
+            RequestedBytes = copiedLength,
+            FileOffset = offset,
+            Kind = Kind.PwriteInput,
+            Boundary = Boundary.Admission
+        }, copiedPayload);
     }
 
     /// <summary>Record positive read bytes only after actual Output success,
@@ -94,7 +112,17 @@ public static unsafe partial class LinuxWritableSyscallObservation
             return Status.InvalidRecord;
         if (!Source(s, committed))
             return Status.InvalidStorage;
-        return Append(s, new() { Call = call, Request = request, UserAddress = destination, RequestedBytes = requested, ValueBits = (ulong)result, OutputPrefix = outputPrefix, Kind = Kind.ReadOutput, Boundary = boundary }, committed);
+        return Append(s, new()
+        {
+            Call = call,
+            Request = request,
+            UserAddress = destination,
+            RequestedBytes = requested,
+            ValueBits = (ulong)result,
+            OutputPrefix = outputPrefix,
+            Kind = Kind.ReadOutput,
+            Boundary = boundary
+        }, committed);
     }
 
     /// <summary>Record the exact successful Linux x64 stat wire after Output,
@@ -115,7 +143,16 @@ public static unsafe partial class LinuxWritableSyscallObservation
             return Status.InvalidRecord;
         if (!Source(s, committed))
             return Status.InvalidStorage;
-        return Append(s, new() { Call = call, Request = request, UserAddress = destination, RequestedBytes = StatBytes, OutputPrefix = outputPrefix, Kind = Kind.StatOutput, Boundary = boundary }, committed);
+        return Append(s, new()
+        {
+            Call = call,
+            Request = request,
+            UserAddress = destination,
+            RequestedBytes = StatBytes,
+            OutputPrefix = outputPrefix,
+            Kind = Kind.StatOutput,
+            Boundary = boundary
+        }, committed);
     }
 
     /// <summary>Peek the original head without consuming it. All complete output

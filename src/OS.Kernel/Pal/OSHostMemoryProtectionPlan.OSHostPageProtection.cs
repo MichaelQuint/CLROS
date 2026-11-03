@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 [Flags]
 public enum OSHostPageProtection : ulong
 {

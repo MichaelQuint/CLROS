@@ -26,7 +26,7 @@ internal static partial class NativeAotLogUploadMediaTests
             {
                 if (rows.Count == 1)
                     State();
-                return[..rows, "OUTER_END synthetic=unjoined"];
+                return [.. rows, "OUTER_END synthetic=unjoined"];
             }
         }
 

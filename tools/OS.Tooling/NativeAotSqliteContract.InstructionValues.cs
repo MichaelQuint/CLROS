@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSqliteContract
 {
     public readonly record struct InstructionValues(int InstructionCount, int SyscallCount, string Sha256, bool SyscallContinuationsValid)

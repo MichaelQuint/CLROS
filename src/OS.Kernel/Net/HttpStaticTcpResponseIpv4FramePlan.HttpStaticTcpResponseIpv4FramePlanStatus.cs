@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public enum HttpStaticTcpResponseIpv4FramePlanStatus
 {
     Success = 0,

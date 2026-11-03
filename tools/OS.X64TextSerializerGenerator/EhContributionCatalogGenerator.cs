@@ -60,7 +60,7 @@ public static partial class EhContributionCatalogGenerator
             Console.WriteLine("TEST_PASS " + test);
             return 0;
         }
-        catch (Exception e)when (e is InvalidDataException or XmlException or IOException or UnauthorizedAccessException or OverflowException or FormatException)
+        catch (Exception e) when (e is InvalidDataException or XmlException or IOException or UnauthorizedAccessException or OverflowException or FormatException)
         {
             Console.WriteLine("TEST_FAIL " + test + " " + (e is InvalidDataException ? e.Message : e.GetType().Name));
             return 1;
@@ -132,9 +132,9 @@ public static partial class EhContributionCatalogGenerator
         {
             if (e.Name != "MethodCode" && e.Name != "MethodExceptionHandlingInfo")
                 continue;
-            string name = (string? )e.Attribute("Name") ?? "", hash = (string? )e.Attribute("Hash") ?? "";
+            string name = (string?)e.Attribute("Name") ?? "", hash = (string?)e.Attribute("Hash") ?? "";
             uint length = 0;
-            if (name.Length == 0 || hash.Length != 64 || !hash.All(Uri.IsHexDigit) || !uint.TryParse((string? )e.Attribute("Length"), NumberStyles.None, CultureInfo.InvariantCulture, out length) || length == 0)
+            if (name.Length == 0 || hash.Length != 64 || !hash.All(Uri.IsHexDigit) || !uint.TryParse((string?)e.Attribute("Length"), NumberStyles.None, CultureInfo.InvariantCulture, out length) || length == 0)
                 Fail("map_node");
             Node node = new(name, length, hash);
             if (e.Name == "MethodCode")
@@ -204,7 +204,7 @@ public static partial class EhContributionCatalogGenerator
             fixups.Add(new(at + 8, target + 1, 3));
         }
 
-        Amd64CoffObjectDefinition definition = new(0x8664, 0, [new(".text", [0x48, 0x8d, 0x05, 0, 0, 0, 0, 0xc3, 0x48, 0x8d, 0x05, 0, 0, 0, 0, 0xc3], 0x60500020, [new(3, 2, 4), new(11, 3, 4)]), new(".rdata", payload, 0x40300040, [..fixups])], [..outputSymbols]);
+        Amd64CoffObjectDefinition definition = new(0x8664, 0, [new(".text", [0x48, 0x8d, 0x05, 0, 0, 0, 0, 0xc3, 0x48, 0x8d, 0x05, 0, 0, 0, 0, 0xc3], 0x60500020, [new(3, 2, 4), new(11, 3, 4)]), new(".rdata", payload, 0x40300040, [.. fixups])], [.. outputSymbols]);
         byte[] output = new byte[65536];
         if (!Amd64CoffWriter.TryWriteContributionCatalog(in definition, output, out int written, out CoffWriteError error))
             Fail("catalog_write_" + error);

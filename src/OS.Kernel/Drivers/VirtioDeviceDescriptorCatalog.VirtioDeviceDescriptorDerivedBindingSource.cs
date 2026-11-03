@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Storage;
 
 public readonly struct VirtioDeviceDescriptorDerivedBindingSource
@@ -17,11 +18,29 @@ public readonly struct VirtioDeviceDescriptorDerivedBindingSource
         FeaturesOkAccepted = featuresOkAccepted;
     }
 
-    public int SourceIndex { get; }
-    public VirtioPciBindingDerivedBarSizePlanResult DerivedBindingPlan { get; }
+    public int SourceIndex
+    {
+        get;
+    }
+    public VirtioPciBindingDerivedBarSizePlanResult DerivedBindingPlan
+    {
+        get;
+    }
     public VirtioPciBindingPlanResult BindingPlan => DerivedBindingPlan.BindingPlan;
-    public VirtioPciDeviceKind DeviceKind { get; }
-    public ulong DeviceFeatures { get; }
-    public ushort AvailableQueueCount { get; }
-    public bool FeaturesOkAccepted { get; }
+    public VirtioPciDeviceKind DeviceKind
+    {
+        get;
+    }
+    public ulong DeviceFeatures
+    {
+        get;
+    }
+    public ushort AvailableQueueCount
+    {
+        get;
+    }
+    public bool FeaturesOkAccepted
+    {
+        get;
+    }
 }

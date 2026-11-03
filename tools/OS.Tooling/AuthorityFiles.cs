@@ -16,7 +16,7 @@ public sealed class AuthorityFiles : IDisposable
             fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
             fullPath = Path.GetFullPath(path);
         }
-        catch (Exception error)when (error is ArgumentException or IOException or NotSupportedException)
+        catch (Exception error) when (error is ArgumentException or IOException or NotSupportedException)
         {
             throw new ToolFailure(reason, "type=" + error.GetType().Name);
         }
@@ -34,7 +34,7 @@ public sealed class AuthorityFiles : IDisposable
             {
                 attributes = File.GetAttributes(current);
             }
-            catch (Exception error)when (error is IOException or UnauthorizedAccessException)
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
             {
                 throw new ToolFailure(reason, $"path={current} type={error.GetType().Name}");
             }
@@ -78,7 +78,7 @@ public sealed class AuthorityFiles : IDisposable
         {
             throw;
         }
-        catch (Exception error)when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
             throw new ToolFailure(failurePrefix + "_open_failed", $"purpose={purpose} path={fullPath} type={error.GetType().Name}");
         }

@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public readonly struct OSHostTimerWaitBridgeResult
 {
     private OSHostTimerWaitBridgeResult(OSHostTimerWaitBridgeStatus status, OSHostStatus timerStatus, OSHostStatus waitStatus, OSHostHandle timer, OSHostHandle completionWaitHandle, ulong firedCount, ulong nextDueTicks, bool timerSignaled, bool eventSet, bool isInitialized)
@@ -15,17 +16,47 @@ public readonly struct OSHostTimerWaitBridgeResult
         IsInitialized = isInitialized;
     }
 
-    public OSHostTimerWaitBridgeStatus Status { get; }
-    public bool IsInitialized { get; }
+    public OSHostTimerWaitBridgeStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == OSHostTimerWaitBridgeStatus.Success;
-    public OSHostStatus TimerStatus { get; }
-    public OSHostStatus WaitStatus { get; }
-    public OSHostHandle Timer { get; }
-    public OSHostHandle CompletionWaitHandle { get; }
-    public ulong FiredCount { get; }
-    public ulong NextDueTicks { get; }
-    public bool TimerSignaled { get; }
-    public bool EventSet { get; }
+    public OSHostStatus TimerStatus
+    {
+        get;
+    }
+    public OSHostStatus WaitStatus
+    {
+        get;
+    }
+    public OSHostHandle Timer
+    {
+        get;
+    }
+    public OSHostHandle CompletionWaitHandle
+    {
+        get;
+    }
+    public ulong FiredCount
+    {
+        get;
+    }
+    public ulong NextDueTicks
+    {
+        get;
+    }
+    public bool TimerSignaled
+    {
+        get;
+    }
+    public bool EventSet
+    {
+        get;
+    }
 
     public static OSHostTimerWaitBridgeResult Create(OSHostTimerWaitBridgeStatus status, OSHostStatus timerStatus, OSHostStatus waitStatus, OSHostHandle timer, OSHostHandle completionWaitHandle, ulong firedCount, ulong nextDueTicks, bool timerSignaled, bool eventSet)
     {

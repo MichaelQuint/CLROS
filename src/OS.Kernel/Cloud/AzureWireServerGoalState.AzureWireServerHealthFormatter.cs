@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Cloud;
+
 public static class AzureWireServerHealthFormatter
 {
     public const string ReadyState = "Ready";

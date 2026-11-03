@@ -6,6 +6,7 @@ using Writable = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescrip
 
 #endif
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxDescriptorServices
 {
 #if !NOSTDLIB_EFI || M16_025_PROBE

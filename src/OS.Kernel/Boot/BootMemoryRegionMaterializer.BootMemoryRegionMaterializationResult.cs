@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct BootMemoryRegionMaterializationResult
 {
     private BootMemoryRegionMaterializationResult(BootMemoryRegionMaterializationStatus status, ulong descriptorCount, ulong regionCount, ulong requiredRegionCapacity, ulong availableRegionCapacity, ulong invalidDescriptorIndex, ulong totalPages, ulong totalBytes, ulong conventionalMemoryPages, ulong conventionalMemoryBytes)
@@ -15,17 +16,47 @@ public readonly struct BootMemoryRegionMaterializationResult
         ConventionalMemoryBytes = conventionalMemoryBytes;
     }
 
-    public BootMemoryRegionMaterializationStatus Status { get; }
+    public BootMemoryRegionMaterializationStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == BootMemoryRegionMaterializationStatus.Success;
-    public ulong DescriptorCount { get; }
-    public ulong RegionCount { get; }
-    public ulong RequiredRegionCapacity { get; }
-    public ulong AvailableRegionCapacity { get; }
-    public ulong InvalidDescriptorIndex { get; }
-    public ulong TotalPages { get; }
-    public ulong TotalBytes { get; }
-    public ulong ConventionalMemoryPages { get; }
-    public ulong ConventionalMemoryBytes { get; }
+    public ulong DescriptorCount
+    {
+        get;
+    }
+    public ulong RegionCount
+    {
+        get;
+    }
+    public ulong RequiredRegionCapacity
+    {
+        get;
+    }
+    public ulong AvailableRegionCapacity
+    {
+        get;
+    }
+    public ulong InvalidDescriptorIndex
+    {
+        get;
+    }
+    public ulong TotalPages
+    {
+        get;
+    }
+    public ulong TotalBytes
+    {
+        get;
+    }
+    public ulong ConventionalMemoryPages
+    {
+        get;
+    }
+    public ulong ConventionalMemoryBytes
+    {
+        get;
+    }
 
     public static BootMemoryRegionMaterializationResult Success(ulong descriptorCount, ulong availableRegionCapacity, ulong totalPages, ulong totalBytes, ulong conventionalMemoryPages, ulong conventionalMemoryBytes)
     {

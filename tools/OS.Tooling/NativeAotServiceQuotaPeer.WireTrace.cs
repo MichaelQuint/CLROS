@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServiceQuotaPeer
 {
     /// <summary>Immutable bounded raw host I/O values. All ticks are elapsed100ns

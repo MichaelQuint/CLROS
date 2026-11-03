@@ -1,6 +1,7 @@
 using OS.Std.Memory;
 
 namespace OS.Drivers;
+
 public struct VirtioNetQueueResult
 {
     public VirtioNetQueueStatus Status, CleanupStatus;

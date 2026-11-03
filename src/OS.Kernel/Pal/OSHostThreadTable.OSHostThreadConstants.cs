@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public static class OSHostThreadConstants
 {
     public const uint CreateOptionsVersion = 1;

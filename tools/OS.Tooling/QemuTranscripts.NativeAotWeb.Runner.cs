@@ -5,6 +5,7 @@ using System.Text.Json;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect a borrowed raw serial, runner result and exact summary
@@ -20,8 +21,8 @@ public static partial class QemuTranscripts
     {
         Need(raceGate is null ? producerWindow is null && !eventOwned : producerWindow is not null && requireControls && !logQuota, "web_race_runner_mode");
         RequireCompleteProcess(runner, "web_runner_incomplete");
-        Need(runner.ExitCode == 0 && runner.StandardError.Length == 0 && raw.Length is> 0 and <= 8 * 1024 * 1024 && summaryBytes.Length is> 3 and <= 16 * 1024 * 1024 && summaryBytes.AsSpan(0, 3).SequenceEqual(Encoding.UTF8.GetPreamble()), "web_runner_inputs");
-        Need(context.ForwardPort is> 0 and <= 65535 && Path.IsPathFullyQualified(context.Qemu) && Path.IsPathFullyQualified(context.Ovmf) && !Controls.IsMatch(context.Qemu) && !Controls.IsMatch(context.Ovmf) && options.WorkloadProfile == "SingleMinimalApi" && options.FirmwareRngSource == "virtio" && options.TimeoutSeconds is> 0 and <= 285 && context.StartedUtc.Offset == TimeSpan.Zero && context.CompletedUtc.Offset == TimeSpan.Zero && context.StartedUtc > DateTimeOffset.UnixEpoch && context.CompletedUtc >= context.StartedUtc, "web_runner_selection");
+        Need(runner.ExitCode == 0 && runner.StandardError.Length == 0 && raw.Length is > 0 and <= 8 * 1024 * 1024 && summaryBytes.Length is > 3 and <= 16 * 1024 * 1024 && summaryBytes.AsSpan(0, 3).SequenceEqual(Encoding.UTF8.GetPreamble()), "web_runner_inputs");
+        Need(context.ForwardPort is > 0 and <= 65535 && Path.IsPathFullyQualified(context.Qemu) && Path.IsPathFullyQualified(context.Ovmf) && !Controls.IsMatch(context.Qemu) && !Controls.IsMatch(context.Ovmf) && options.WorkloadProfile == "SingleMinimalApi" && options.FirmwareRngSource == "virtio" && options.TimeoutSeconds is > 0 and <= 285 && context.StartedUtc.Offset == TimeSpan.Zero && context.CompletedUtc.Offset == TimeSpan.Zero && context.StartedUtc > DateTimeOffset.UnixEpoch && context.CompletedUtc >= context.StartedUtc, "web_runner_selection");
         string summaryText = DecodeUtf8(summaryBytes[3..]);
         Need(summaryText.EndsWith("\r\n", StringComparison.Ordinal), "web_runner_summary_end");
         string[] summary = summaryText[..^2].Split("\r\n", StringSplitOptions.None);
@@ -48,7 +49,7 @@ public static partial class QemuTranscripts
         // Reparse separately so both values are definitely assigned after Need.
         started = DateTime.ParseExact(first, "O", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
         ended = DateTime.ParseExact(last, "O", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        Need(pid is> 0 and <= int.MaxValue && ended >= started && life > 0 && life <= (ulong)(options.TimeoutSeconds * 1000L + 5000) && life == (ulong)((ended - started).Ticks / TimeSpan.TicksPerMillisecond) && started >= context.StartedUtc.UtcDateTime && ended <= context.CompletedUtc.UtcDateTime && runner.Duration.TotalMilliseconds >= life && runner.Duration.TotalSeconds <= options.TimeoutSeconds + 60 && Math.Abs((context.CompletedUtc - context.StartedUtc).TotalMilliseconds - runner.Duration.TotalMilliseconds) <= 5000 && health <= 20000 && config <= 20000 && logging <= 60000 && repeat <= 20000 && vector <= 20000 && after <= 20000 && health + config + logging + repeat + vector + after <= life && int.TryParse(exit, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int exitCode) && exitCode.ToString(CultureInfo.InvariantCulture) == exit, "web_runner_child_lifetime");
+        Need(pid is > 0 and <= int.MaxValue && ended >= started && life > 0 && life <= (ulong)(options.TimeoutSeconds * 1000L + 5000) && life == (ulong)((ended - started).Ticks / TimeSpan.TicksPerMillisecond) && started >= context.StartedUtc.UtcDateTime && ended <= context.CompletedUtc.UtcDateTime && runner.Duration.TotalMilliseconds >= life && runner.Duration.TotalSeconds <= options.TimeoutSeconds + 60 && Math.Abs((context.CompletedUtc - context.StartedUtc).TotalMilliseconds - runner.Duration.TotalMilliseconds) <= 5000 && health <= 20000 && config <= 20000 && logging <= 60000 && repeat <= 20000 && vector <= 20000 && after <= 20000 && health + config + logging + repeat + vector + after <= life && int.TryParse(exit, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int exitCode) && exitCode.ToString(CultureInfo.InvariantCulture) == exit, "web_runner_child_lifetime");
         string? socketsJson = requireControls ? Value("WEB_SOCKET_CONTROLS") : null, framesJson = requireControls ? Value("WEB_FRAME_CONTROL") : null;
         var controls = requireControls ? ReadWebControls(socketsJson!, framesJson!, context.ForwardPort) : null;
         int ordinary = logQuota ? 5 : 6, count = ordinary + (requireControls ? 3 : 0);
@@ -83,14 +84,14 @@ public static partial class QemuTranscripts
         string endpoint = "http://127.0.0.1:" + context.ForwardPort.ToString(CultureInfo.InvariantCulture);
         string Hash(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
         int bodyBytes = Encoding.UTF8.GetByteCount(body), configBytes = Encoding.UTF8.GetByteCount(configuration);
-        Need(bodyBytes is> 0 and <= 1024 && configBytes is> 0 and <= 4096, "web_runner_http_expectations");
+        Need(bodyBytes is > 0 and <= 1024 && configBytes is > 0 and <= 4096, "web_runner_http_expectations");
         Need(runner.StandardOutput.EndsWith("\r\n", StringComparison.Ordinal), "web_runner_stdout_end");
         string[] stdout = RunnerBody(options, runner.StandardOutput[..^2].Split("\r\n", StringSplitOptions.None));
         Need(stdout.Length == (logQuota ? 29 : 31), "web_runner_stdout_count");
         var healthStart = ReadRecord(stdout[14], $"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={bodyBytes}", "timeout_seconds:dec");
         var configStart = ReadRecord(stdout[16], $"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={configBytes}", "timeout_seconds:dec");
         ulong healthTimeout = healthStart["timeout_seconds"], configTimeout = configStart["timeout_seconds"];
-        Need(healthTimeout is> 0 and <= 20 && configTimeout is> 0 and <= 20 && health <= healthTimeout * 1000 && config <= configTimeout * 1000, "web_runner_http_deadline");
+        Need(healthTimeout is > 0 and <= 20 && configTimeout is > 0 and <= 20 && health <= healthTimeout * 1000 && config <= configTimeout * 1000, "web_runner_http_deadline");
         string healthHash = Hash(body), configHash = Hash(configuration);
         string logBody = logQuota ? "" : "CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9";
         List<(string Prefix, string Path, string Method, int Status, string Body, ulong Milliseconds)> extra = [("WEB_LOG_PROBE", "/__clros/logexercise", "POST", logQuota ? 500 : 200, logBody, logging), ("WEB_LOG_REPEAT_PROBE", "/__clros/logexercise", "POST", 409, "", repeat), ("WEB_HEALTH_AFTER_PROBE", "/healthz", "GET", 200, body, after)];
@@ -113,7 +114,7 @@ public static partial class QemuTranscripts
 
         string Format(IReadOnlyList<string> values) => values.Count == 0 ? "none" : string.Join(';', values);
         string[] selected = ["IMAGE_ARTIFACT " + options.Image, "SERIAL_LOG " + options.SerialLog, "WORKLOAD_PROFILE SingleMinimalApi", "FIRMWARE_RNG_SOURCE virtio", "SOCKET_FORWARD_PORT " + context.ForwardPort, "MARKER_PRESETS " + Format(plan.Presets), "REQUIRED_MARKERS " + Format(plan.Required), "ORDERED_MARKERS " + Format(plan.Ordered), "UNIQUE_MARKERS " + Format(plan.Unique), "FORBIDDEN_MARKERS " + Format(plan.Forbidden)];
-        List<string> expected = [..RunnerBackend(options), "QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu, "OVMF_DISCOVERY result=" + context.Ovmf + " checked=" + context.Ovmf, "TEST_START qemu.smoke", selected[0], selected[1], "OVMF_CODE " + context.Ovmf, ..selected.Skip(2), $"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={bodyBytes} timeout_seconds={healthTimeout}", $"HTTP_PROBE_PASS endpoint={endpoint} status=200 body_bytes={bodyBytes} body_sha256={healthHash} elapsed_ms={health}", $"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={configBytes} timeout_seconds={configTimeout}", $"HTTP_PROBE_PASS endpoint={endpoint} status=200 body_bytes={configBytes} body_sha256={configHash} elapsed_ms={config}", ..extraStdout, metrics, "SERIAL_MARKER_DRAIN milliseconds=750", "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=" + exit, "SUMMARY_LOG " + options.SummaryLog, "TEST_PASS qemu.smoke"];
+        List<string> expected = [.. RunnerBackend(options), "QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu, "OVMF_DISCOVERY result=" + context.Ovmf + " checked=" + context.Ovmf, "TEST_START qemu.smoke", selected[0], selected[1], "OVMF_CODE " + context.Ovmf, .. selected.Skip(2), $"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={bodyBytes} timeout_seconds={healthTimeout}", $"HTTP_PROBE_PASS endpoint={endpoint} status=200 body_bytes={bodyBytes} body_sha256={healthHash} elapsed_ms={health}", $"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={configBytes} timeout_seconds={configTimeout}", $"HTTP_PROBE_PASS endpoint={endpoint} status=200 body_bytes={configBytes} body_sha256={configHash} elapsed_ms={config}", .. extraStdout, metrics, "SERIAL_MARKER_DRAIN milliseconds=750", "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=" + exit, "SUMMARY_LOG " + options.SummaryLog, "TEST_PASS qemu.smoke"];
         Need(runner.StandardOutput == string.Join("\r\n", expected) + "\r\n", "web_runner_stdout");
         List<string> expectedSummary = ["QEMU_SMOKE_STATUS pass", ..selected, "HTTP_PROBE_ENDPOINT " + endpoint, "HTTP_PROBE_EXPECTED_STATUS 200", "HTTP_PROBE_EXPECTED_BODY_BYTES " + bodyBytes, "HTTP_PROBE_TIMEOUT_SECONDS 20", "HTTP_PROBE_RESULT pass", "HTTP_PROBE_REASON none", "HTTP_PROBE_STATUS 200", "HTTP_PROBE_BODY_BYTES " + bodyBytes, "HTTP_PROBE_BODY_SHA256 " + healthHash, "HTTP_PROBE_ELAPSED_MS " + health, "CONTINUING_WEB true", "WEB_LOG_CASE " + (logQuota ? "records64" : "normal"), "WEB_CONFIG_PROBE_URL " + endpoint + "/config", "WEB_CONFIG_PROBE_EXPECTED_STATUS 200", "WEB_CONFIG_PROBE_EXPECTED_BODY_BYTES " + configBytes, "WEB_CONFIG_PROBE_EXPECTED_BODY_SHA256 " + configHash, "WEB_CONFIG_PROBE_RESULT pass", "WEB_CONFIG_PROBE_REASON none", "WEB_CONFIG_PROBE_STATUS 200", "WEB_CONFIG_PROBE_BODY_BYTES " + configBytes, "WEB_CONFIG_PROBE_BODY_SHA256 " + configHash, "WEB_CONFIG_PROBE_ELAPSED_MS " + config, ..extraSummary, ..requireControls ? new[]
         {
@@ -141,7 +142,7 @@ public static partial class QemuTranscripts
         expectedSummary.AddRange(rawLines.Where(l => IsThreadingObservedLine(l, plan)).Select(l => "OBSERVED_MARKER " + l));
         expectedSummary.AddRange(["APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240"]);
         expectedSummary.AddRange(rawLines.TakeLast(8).Select(l => "SERIAL_TAIL_LINE " + (l.Length > 240 ? l[..237] + "..." : l)));
-        byte[] encoded = [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", expectedSummary) + "\r\n")];
+        byte[] encoded = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(string.Join("\r\n", expectedSummary) + "\r\n")];
         Need(summaryBytes.AsSpan().SequenceEqual(encoded), "web_runner_summary_bytes");
         return new((int)pid, (long)life, (int)health, (int)config, utc.AsReadOnly(), controls);
     }

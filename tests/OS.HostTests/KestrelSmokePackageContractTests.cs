@@ -75,7 +75,7 @@ internal static partial class KestrelSmokePackageContractTests
             }
             catch
             {
-            // Cleanup failure should not hide contract validation failures.
+                // Cleanup failure should not hide contract validation failures.
             }
         }
 
@@ -314,7 +314,7 @@ internal static partial class KestrelSmokePackageContractTests
             {
                 read = stream.Read(scratch, 0, scratch.Length);
             }
-            catch (IOException ex)when (ex.InnerException is SocketException)
+            catch (IOException ex) when (ex.InnerException is SocketException)
             {
                 throw new TimeoutException("Timed out reading MinimalApiSmoke response.", ex);
             }
@@ -628,7 +628,7 @@ internal static partial class KestrelSmokePackageContractTests
             }
             catch
             {
-            // Timeout is already the actionable failure.
+                // Timeout is already the actionable failure.
             }
 
             return new ToolResult(-1, "manifest tool timed out");

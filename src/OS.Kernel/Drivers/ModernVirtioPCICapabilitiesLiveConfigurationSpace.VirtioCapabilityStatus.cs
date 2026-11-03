@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public enum VirtioCapabilityStatus : byte
 {
     Uninitialized = 0,

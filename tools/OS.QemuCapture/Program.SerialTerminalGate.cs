@@ -30,7 +30,10 @@ internal static partial class Program
             _forbiddenMarkers = forbiddenMarkers;
         }
 
-        public bool TerminalWithheld { get; private set; }
+        public bool TerminalWithheld
+        {
+            get; private set;
+        }
 
         public void Accept(byte value)
         {

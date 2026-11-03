@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static unsafe class M02SafeStubPageIntegration
 {
     public const ulong PageSize = 4096;

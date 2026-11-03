@@ -36,61 +36,94 @@ public static class ToolCommand
             }
             if (args is ["qemu", "inspect-disk-static-values", var staticDiskPackage, var staticDiskImage, var staticDiskIndex, var staticDiskSerial, ..])
             {
-                bool full=args.Length==7 && args[6]=="--full";
-                if(args.Length!=6 && !full)throw new ToolFailure("disk_static_values_mode");
-                int serialMaximum=full?DiskStaticCapturePolicy.SerialBytes:8*1024*1024;
-                string root=Repository.FindRoot();
-                staticDiskPackage=Path.GetFullPath(staticDiskPackage);staticDiskImage=Path.GetFullPath(staticDiskImage);
-                staticDiskIndex=Path.GetFullPath(staticDiskIndex);staticDiskSerial=Path.GetFullPath(staticDiskSerial);
-                using AuthorityFiles files=new();
-                AuthorityFile Hold(string path,int maximum)=>files.Open(Path.GetDirectoryName(path)!,path,
-                    "disk static value inspection","disk_static_values",maximum,singleLink:true);
-                var package=Hold(staticDiskPackage,checked((int)OS.Manifest.LinuxElfPackage.MaximumBytes));
-                var image=Hold(staticDiskImage,WebRootImageFixture.MaximumImageBytes);
-                var receiptFile=Hold(staticDiskImage+".webroot.json",16*1024*1024);
-                var index=Hold(staticDiskIndex,NativeAotStaticFileProgram.MaximumDisassemblyBytes);
-                var serial=Hold(staticDiskSerial,serialMaximum);
-                AuthorityFiles.RequireDistinct(package,image,receiptFile,index,serial);
-                byte[] packageBytes=package.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"disk_static_values_package");
-                var program=NativeAotStaticFileProgram.Create(root,packageBytes,index.ReadUtf8(NativeAotStaticFileProgram.MaximumDisassemblyBytes,"disk_static_values_index"),false);
-                var packageView=NativeAotStaticFileProgram.RequirePackage(packageBytes,false);
-                var receipt=System.Text.Json.JsonSerializer.Deserialize<WebRootImageFixture.Receipt>(receiptFile.ReadUtf8(16*1024*1024,"disk_static_values_receipt"))
+                bool full = args.Length == 7 && args[6] == "--full";
+                if (args.Length != 6 && !full)
+                    throw new ToolFailure("disk_static_values_mode");
+                int serialMaximum = full ? DiskStaticCapturePolicy.SerialBytes : 8 * 1024 * 1024;
+                string root = Repository.FindRoot();
+                staticDiskPackage = Path.GetFullPath(staticDiskPackage);
+                staticDiskImage = Path.GetFullPath(staticDiskImage);
+                staticDiskIndex = Path.GetFullPath(staticDiskIndex);
+                staticDiskSerial = Path.GetFullPath(staticDiskSerial);
+                using AuthorityFiles files = new();
+                AuthorityFile Hold(string path, int maximum) => files.Open(Path.GetDirectoryName(path)!, path,
+                    "disk static value inspection", "disk_static_values", maximum, singleLink: true);
+                var package = Hold(staticDiskPackage, checked((int)OS.Manifest.LinuxElfPackage.MaximumBytes));
+                var image = Hold(staticDiskImage, WebRootImageFixture.MaximumImageBytes);
+                var receiptFile = Hold(staticDiskImage + ".webroot.json", 16 * 1024 * 1024);
+                var index = Hold(staticDiskIndex, NativeAotStaticFileProgram.MaximumDisassemblyBytes);
+                var serial = Hold(staticDiskSerial, serialMaximum);
+                AuthorityFiles.RequireDistinct(package, image, receiptFile, index, serial);
+                byte[] packageBytes = package.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes, "disk_static_values_package");
+                var program = NativeAotStaticFileProgram.Create(root, packageBytes, index.ReadUtf8(NativeAotStaticFileProgram.MaximumDisassemblyBytes, "disk_static_values_index"), false);
+                var packageView = NativeAotStaticFileProgram.RequirePackage(packageBytes, false);
+                var receipt = System.Text.Json.JsonSerializer.Deserialize<WebRootImageFixture.Receipt>(receiptFile.ReadUtf8(16 * 1024 * 1024, "disk_static_values_receipt"))
                     ?? throw new ToolFailure("disk_static_values_receipt_missing");
-                byte[] imageBytes=image.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_static_values_image");
-                var inventory=WebRootDiskInventory.Inspect(staticDiskImage,imageBytes,receipt);
-                byte[] raw=serial.ReadBytes(serialMaximum,"disk_static_values_serial");
-                int parentEnd=raw.AsSpan().IndexOf("TEST_START m16-011\r\n"u8);
-                if(parentEnd<0)throw new ToolFailure("disk_static_values_parent_missing");
-                var parent=QemuTranscripts.InspectNativeAotWebParentForTests(packageBytes,raw.AsSpan(0,parentEnd),diskStatic:true);
-                byte[] begin="TEST_START m16-009\r\n"u8.ToArray(),end="TEST_PASS m16-009\r\n"u8.ToArray();
-                int at=raw.AsSpan().IndexOf(begin),last=at<0?-1:raw.AsSpan(at).IndexOf(end);
-                if(at<0 || last<0)throw new ToolFailure("disk_static_values_leaf_missing");
-                byte[] leaf=raw.AsSpan(at,last+end.Length).ToArray();string text=System.Text.Encoding.UTF8.GetString(leaf);
+                byte[] imageBytes = image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_static_values_image");
+                var inventory = WebRootDiskInventory.Inspect(staticDiskImage, imageBytes, receipt);
+                byte[] raw = serial.ReadBytes(serialMaximum, "disk_static_values_serial");
+                int parentEnd = raw.AsSpan().IndexOf("TEST_START m16-011\r\n"u8);
+                if (parentEnd < 0)
+                    throw new ToolFailure("disk_static_values_parent_missing");
+                var parent = QemuTranscripts.InspectNativeAotWebParentForTests(packageBytes, raw.AsSpan(0, parentEnd), diskStatic: true);
+                byte[] begin = "TEST_START m16-009\r\n"u8.ToArray(), end = "TEST_PASS m16-009\r\n"u8.ToArray();
+                int at = raw.AsSpan().IndexOf(begin), last = at < 0 ? -1 : raw.AsSpan(at).IndexOf(end);
+                if (at < 0 || last < 0)
+                    throw new ToolFailure("disk_static_values_leaf_missing");
+                byte[] leaf = raw.AsSpan(at, last + end.Length).ToArray();
+                string text = System.Text.Encoding.UTF8.GetString(leaf);
                 ulong Root(string marker)
                 {
-                    var match=System.Text.RegularExpressions.Regex.Match(text,"(?m)^"+marker+" root=([1-9][0-9]*) ");
-                    return match.Success?ulong.Parse(match.Groups[1].Value,System.Globalization.CultureInfo.InvariantCulture):throw new ToolFailure("disk_static_values_root");
+                    var match = System.Text.RegularExpressions.Regex.Match(text, "(?m)^" + marker + " root=([1-9][0-9]*) ");
+                    return match.Success ? ulong.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) : throw new ToolFailure("disk_static_values_root");
                 }
-                var report=QemuTranscripts.InspectNativeAotDiskStaticProtocolForTests(packageBytes.AsSpan((int)packageView.PayloadOffset,(int)packageView.PayloadBytes).ToArray(),
-                    leaf,program.IsInstruction,program.IsSyscallReturn,Root("M16_005_ARMED"),Root("M16_008_BOUND"),inventory,diskStaticFull:full);
-                string whole=System.Text.Encoding.ASCII.GetString(raw);
-                var counts=System.Text.RegularExpressions.Regex.Match(whole,"(?m)^M16_025_END submitted=([0-9]+) completed=([0-9]+) copied=([0-9]+) ");
-                if(!counts.Success)throw new ToolFailure("disk_static_values_end_missing");
-                ulong Counter(int group)=>ulong.Parse(counts.Groups[group].Value,System.Globalization.CultureInfo.InvariantCulture);
-                var sectors=QemuTranscripts.InspectNativeAotDiskStaticSectorValues(report,inventory,imageBytes,
-                    new(report.Owner,report.Epoch,report.BootstrapCompleted,report.BootstrapCopied,Counter(1),Counter(2),Counter(3)));
-                if(full)QemuTranscripts.InspectNativeAotDiskStaticParentValues(raw,report,sectors);
+                var report = QemuTranscripts.InspectNativeAotDiskStaticProtocolForTests(packageBytes.AsSpan((int)packageView.PayloadOffset, (int)packageView.PayloadBytes).ToArray(),
+                    leaf, program.IsInstruction, program.IsSyscallReturn, Root("M16_005_ARMED"), Root("M16_008_BOUND"), inventory, diskStaticFull: full);
+                string whole = System.Text.Encoding.ASCII.GetString(raw);
+                var counts = System.Text.RegularExpressions.Regex.Match(whole, "(?m)^M16_025_END submitted=([0-9]+) completed=([0-9]+) copied=([0-9]+) ");
+                if (!counts.Success)
+                    throw new ToolFailure("disk_static_values_end_missing");
+                ulong Counter(int group) => ulong.Parse(counts.Groups[group].Value, System.Globalization.CultureInfo.InvariantCulture);
+                var sectors = QemuTranscripts.InspectNativeAotDiskStaticSectorValues(report, inventory, imageBytes,
+                    new(report.Owner, report.Epoch, report.BootstrapCompleted, report.BootstrapCopied, Counter(1), Counter(2), Counter(3)));
+                if (full)
+                    QemuTranscripts.InspectNativeAotDiskStaticParentValues(raw, report, sectors);
                 files.VerifyUnchanged();
-                if(full)
-                    Console.WriteLine("DISK_STATIC_FULL_PROTOCOL_DIAGNOSTIC "+System.Text.Json.JsonSerializer.Serialize(new {OriginalAccepted=false,ParentEnvelopeAndEndCountersChecked=true,
-                        report.Owner,report.Epoch,Calls=report.Static.Protocol.Calls,ReadWindows=report.Reads.Count,IoRows=report.DeviceRows.Count,
-                        Connections=report.Static.Connections.Count,sectors.Device.Counters,MetadataCopies=sectors.Metadata.Count,
-                        sectors.ReconstructsFileSystemCache,sectors.GrantsOriginalNativeProcessOrHttpAuthority}));
+                if (full)
+                    Console.WriteLine("DISK_STATIC_FULL_PROTOCOL_DIAGNOSTIC " + System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        OriginalAccepted = false,
+                        ParentEnvelopeAndEndCountersChecked = true,
+                        report.Owner,
+                        report.Epoch,
+                        Calls = report.Static.Protocol.Calls,
+                        ReadWindows = report.Reads.Count,
+                        IoRows = report.DeviceRows.Count,
+                        Connections = report.Static.Connections.Count,
+                        sectors.Device.Counters,
+                        MetadataCopies = sectors.Metadata.Count,
+                        sectors.ReconstructsFileSystemCache,
+                        sectors.GrantsOriginalNativeProcessOrHttpAuthority
+                    }));
                 else
-                    Console.WriteLine("DISK_STATIC_REPLAY_VALUES "+System.Text.Json.JsonSerializer.Serialize(new {Parent=parent,report.Static,report.Reads,report.Operations,report.SocketWrites,
-                        report.Owner,report.Epoch,report.BootstrapCompleted,report.BootstrapCopied,report.ReadinessRecordIndex,
-                        sectors.Device.Counters,Assigned=sectors.Data.Assigned.Select(c=>new{c.Path,c.Sector,c.Copy.CopyRecordIndex,c.Window.RequestGeneration}),sectors.Metadata,
-                        sectors.ReconstructsFileSystemCache,sectors.GrantsOriginalNativeProcessOrHttpAuthority}));
+                    Console.WriteLine("DISK_STATIC_REPLAY_VALUES " + System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        Parent = parent,
+                        report.Static,
+                        report.Reads,
+                        report.Operations,
+                        report.SocketWrites,
+                        report.Owner,
+                        report.Epoch,
+                        report.BootstrapCompleted,
+                        report.BootstrapCopied,
+                        report.ReadinessRecordIndex,
+                        sectors.Device.Counters,
+                        Assigned = sectors.Data.Assigned.Select(c => new { c.Path, c.Sector, c.Copy.CopyRecordIndex, c.Window.RequestGeneration }),
+                        sectors.Metadata,
+                        sectors.ReconstructsFileSystemCache,
+                        sectors.GrantsOriginalNativeProcessOrHttpAuthority
+                    }));
                 Console.WriteLine($"TEST_PASS qemu.disk.static.values report_only=true calls={report.Static.Protocol.Calls} readWindows={report.Reads.Count} ioRows={report.DeviceRows.Count} metadataCopies={sectors.Metadata.Count} original_native_process_device_and_http_authority=false");
                 return 0;
             }
@@ -110,20 +143,37 @@ public static class ToolCommand
                 files.VerifyUnchanged();
                 Console.WriteLine("WEBROOT_INVENTORY_VALUES " + System.Text.Json.JsonSerializer.Serialize(new
                 {
-                    report.ImageSha256, report.PartitionFirstLba, report.PartitionLastLba,
-                    Entries = report.Entries.Select(e => new { e.Path, e.Inode, e.Bytes, e.IsDirectory, e.Attributes,
-                        e.ModifiedSeconds, e.Sha256, e.ShortEntryLba, e.ShortEntrySlot, e.AllocatedSectors })
+                    report.ImageSha256,
+                    report.PartitionFirstLba,
+                    report.PartitionLastLba,
+                    Entries = report.Entries.Select(e => new
+                    {
+                        e.Path,
+                        e.Inode,
+                        e.Bytes,
+                        e.IsDirectory,
+                        e.Attributes,
+                        e.ModifiedSeconds,
+                        e.Sha256,
+                        e.ShortEntryLba,
+                        e.ShortEntrySlot,
+                        e.AllocatedSectors
+                    })
                 }));
                 Console.WriteLine($"TEST_PASS qemu.webroot.inventory report_only=true entries={report.Entries.Count} original_native_process_device_and_http_authority=false");
                 return 0;
             }
             if (args is ["qemu", "inspect-disk-values", var capturePackage, var captureImage, var captureSerial])
             {
-                capturePackage = Path.GetFullPath(capturePackage); captureImage = Path.GetFullPath(captureImage); captureSerial = Path.GetFullPath(captureSerial);
+                capturePackage = Path.GetFullPath(capturePackage);
+                captureImage = Path.GetFullPath(captureImage);
+                captureSerial = Path.GetFullPath(captureSerial);
                 using AuthorityFiles files = new();
                 AuthorityFile Hold(string path, int maximum) => files.Open(Path.GetDirectoryName(path)!, path, "disk value inspection", "disk_values", maximum, singleLink: true);
-                var package = Hold(capturePackage, 65536); var image = Hold(captureImage, WebRootImageFixture.MaximumImageBytes);
-                var serial = Hold(captureSerial, 8 * 1024 * 1024); var receiptFile = Hold(captureImage + ".webroot.json", 16 * 1024 * 1024);
+                var package = Hold(capturePackage, 65536);
+                var image = Hold(captureImage, WebRootImageFixture.MaximumImageBytes);
+                var serial = Hold(captureSerial, 8 * 1024 * 1024);
+                var receiptFile = Hold(captureImage + ".webroot.json", 16 * 1024 * 1024);
                 AuthorityFiles.RequireDistinct(package, image, serial, receiptFile);
                 var receipt = System.Text.Json.JsonSerializer.Deserialize<WebRootImageFixture.Receipt>(receiptFile.ReadUtf8(16 * 1024 * 1024, "disk_values_receipt"))
                     ?? throw new ToolFailure("disk_values_receipt_missing");
@@ -131,12 +181,13 @@ public static class ToolCommand
                 var report = QemuTranscripts.InspectLinuxDiskCaptureValues(rows, package.ReadBytes(65536, "disk_values_package"),
                     image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_values_image"), receipt, captureImage);
                 files.VerifyUnchanged();
-                Console.WriteLine($"TEST_PASS qemu.disk.values report_only=true calls={report.Leaf.Calls} sectors={report.Device.Counters.Copied-report.Device.Counters.BootstrapCopied} readWindows={report.ReadWindows.Count} instructionIrqs={report.InstructionIrqs} original_process_native_and_packets_required=true");
+                Console.WriteLine($"TEST_PASS qemu.disk.values report_only=true calls={report.Leaf.Calls} sectors={report.Device.Counters.Copied - report.Device.Counters.BootstrapCopied} readWindows={report.ReadWindows.Count} instructionIrqs={report.InstructionIrqs} original_process_native_and_packets_required=true");
                 return 0;
             }
             if (args is ["qemu", "inspect-disk-leaf", var diskPackage, var diskSerial])
             {
-                diskPackage = Path.GetFullPath(diskPackage); diskSerial = Path.GetFullPath(diskSerial);
+                diskPackage = Path.GetFullPath(diskPackage);
+                diskSerial = Path.GetFullPath(diskSerial);
                 using AuthorityFiles files = new();
                 var package = files.Open(Path.GetDirectoryName(diskPackage)!, diskPackage, "disk leaf package", "disk_leaf_package", 65536, singleLink: true);
                 var serial = files.Open(Path.GetDirectoryName(diskSerial)!, diskSerial, "disk leaf serial", "disk_leaf_serial", 8 * 1024 * 1024, singleLink: true);
@@ -162,17 +213,21 @@ public static class ToolCommand
             if (args is ["nativeaot", "static-files", "index", var staticElf, var staticDump])
             {
                 using AuthorityFiles files = new();
-                staticElf = Path.GetFullPath(staticElf); staticDump = Path.GetFullPath(staticDump);
+                staticElf = Path.GetFullPath(staticElf);
+                staticDump = Path.GetFullPath(staticDump);
                 var elf = files.Open(Path.GetDirectoryName(staticElf)!, staticElf, "static ELF", "static_index_elf", 16 * 1024 * 1024, singleLink: true);
                 var dump = files.Open(Path.GetDirectoryName(staticDump)!, staticDump, "static disassembly", "static_index_dump", NativeAotStaticFileProgram.MaximumDisassemblyBytes, singleLink: true);
                 AuthorityFiles.RequireDistinct(elf, dump);
                 var report = NativeAotStaticFileProgram.Inspect(elf.ReadBytes(16 * 1024 * 1024, "static_index_elf"), dump.ReadUtf8(NativeAotStaticFileProgram.MaximumDisassemblyBytes, "static_index_dump"));
-                files.VerifyUnchanged(); Console.WriteLine("TEST_PASS nativeaot.static-files.index report_only=true " + report); return 0;
+                files.VerifyUnchanged();
+                Console.WriteLine("TEST_PASS nativeaot.static-files.index report_only=true " + report);
+                return 0;
             }
             if (args is ["nativeaot", "static-files", "program", var staticPackage, var staticProgramDump, var staticProgramMode] && staticProgramMode is "--staged" or "--disk")
             {
                 var program = NativeAotStaticFileProgram.Read(Repository.FindRoot(), staticPackage, staticProgramDump, staticProgramMode == "--staged");
-                Console.WriteLine("TEST_PASS nativeaot.static-files.program " + program.Metadata); return 0;
+                Console.WriteLine("TEST_PASS nativeaot.static-files.program " + program.Metadata);
+                return 0;
             }
             if (args is ["nativeaot", "log-upload", "program", var logUploadPackage, var logUploadDump, var logUploadMode] && logUploadMode is "--write" or "--verify")
             {
@@ -228,38 +283,50 @@ public static class ToolCommand
             if (args is ["linux", "web-index", var webElf, var webDump])
             {
                 Console.WriteLine("TEST_START linux.web-index");
-                webElf = Path.GetFullPath(webElf); webDump = Path.GetFullPath(webDump);
+                webElf = Path.GetFullPath(webElf);
+                webDump = Path.GetFullPath(webDump);
                 using AuthorityFiles files = new();
                 var elf = files.Open(Path.GetDirectoryName(webElf)!, webElf, "web ELF", "web_index_elf", 16 * 1024 * 1024, singleLink: true);
                 var dump = files.Open(Path.GetDirectoryName(webDump)!, webDump, "web disassembly", "web_index_dump", NativeAotWebProgram.MaximumDisassemblyBytes, singleLink: true);
                 AuthorityFiles.RequireDistinct(elf, dump);
                 var report = NativeAotWebProgram.Inspect(elf.ReadBytes(16 * 1024 * 1024, "web_index_elf"), dump.ReadUtf8(NativeAotWebProgram.MaximumDisassemblyBytes, "web_index_dump"));
-                files.VerifyUnchanged(); Console.WriteLine("TEST_PASS linux.web-index report_only=true " + report); return 0;
+                files.VerifyUnchanged();
+                Console.WriteLine("TEST_PASS linux.web-index report_only=true " + report);
+                return 0;
             }
             if (args is ["linux", "web-program", var webPackage, var webProgramDump])
             {
                 Console.WriteLine("TEST_START linux.web-program");
                 var program = NativeAotWebProgram.Read(Repository.FindRoot(), webPackage, webProgramDump);
-                Console.WriteLine("TEST_PASS linux.web-program " + program.Metadata); return 0;
+                Console.WriteLine("TEST_PASS linux.web-program " + program.Metadata);
+                return 0;
             }
-            if(args is ["qemu","inspect-socket",var inspectMode,var inspectPackage,var inspectDump,var inspectSerial])
+            if (args is ["qemu", "inspect-socket", var inspectMode, var inspectPackage, var inspectDump, var inspectSerial])
             {
-                if(inspectMode is not ("sync" or "async"))throw new ArgumentException("socket_inspect_mode");
+                if (inspectMode is not ("sync" or "async"))
+                    throw new ArgumentException("socket_inspect_mode");
                 Console.WriteLine("TEST_START qemu.socket.capture report_only=true");
-                string root=Repository.FindRoot();inspectSerial=Path.GetFullPath(inspectSerial);inspectPackage=Path.GetFullPath(inspectPackage);inspectDump=Path.GetFullPath(inspectDump);
-                using AuthorityFiles files=new();
-                AuthorityFile Hold(string path,long maximum)=>files.Open(Path.GetDirectoryName(path)!,path,"socket capture inspection","socket_inspection",maximum,singleLink:true);
-                var serial=Hold(inspectSerial,8*1024*1024);var pcap=Hold(inspectSerial+".pcap",4*1024*1024);
-                var peer=Hold(inspectSerial+".peer.log",65536);var package=Hold(inspectPackage,16*1024*1024);var dump=Hold(inspectDump,NativeAotSocketProgram.MaximumDisassemblyBytes);
-                AuthorityFiles.RequireDistinct(serial,pcap,peer,package,dump);
-                var program=NativeAotSocketProgram.Read(root,inspectMode=="async",inspectPackage,inspectDump);
-                NativeAotSocketPeer.InspectOutput(peer.ReadUtf8(65536,"socket_inspection_peer"));
-                QemuTranscripts.AssertM03AcpiBootstrapTranscript(inspectSerial,firstRealExit:true,ownedSurvival:true,pciEnumeration:true,
-                    virtioNegotiation:true,virtqueuePolling:true,apicSetup:true,virtioNet:true,arpReceive:true,linuxElfPackagePath:inspectPackage,
-                    workloadServiceLoop:true,linuxStartup:true,linuxSyscalls:true,linuxMemory:true,linuxDescriptors:true,linuxThreads:true,linuxSignals:true,
-                    networkService:true,socketProgram:program);
+                string root = Repository.FindRoot();
+                inspectSerial = Path.GetFullPath(inspectSerial);
+                inspectPackage = Path.GetFullPath(inspectPackage);
+                inspectDump = Path.GetFullPath(inspectDump);
+                using AuthorityFiles files = new();
+                AuthorityFile Hold(string path, long maximum) => files.Open(Path.GetDirectoryName(path)!, path, "socket capture inspection", "socket_inspection", maximum, singleLink: true);
+                var serial = Hold(inspectSerial, 8 * 1024 * 1024);
+                var pcap = Hold(inspectSerial + ".pcap", 4 * 1024 * 1024);
+                var peer = Hold(inspectSerial + ".peer.log", 65536);
+                var package = Hold(inspectPackage, 16 * 1024 * 1024);
+                var dump = Hold(inspectDump, NativeAotSocketProgram.MaximumDisassemblyBytes);
+                AuthorityFiles.RequireDistinct(serial, pcap, peer, package, dump);
+                var program = NativeAotSocketProgram.Read(root, inspectMode == "async", inspectPackage, inspectDump);
+                NativeAotSocketPeer.InspectOutput(peer.ReadUtf8(65536, "socket_inspection_peer"));
+                QemuTranscripts.AssertM03AcpiBootstrapTranscript(inspectSerial, firstRealExit: true, ownedSurvival: true, pciEnumeration: true,
+                    virtioNegotiation: true, virtqueuePolling: true, apicSetup: true, virtioNet: true, arpReceive: true, linuxElfPackagePath: inspectPackage,
+                    workloadServiceLoop: true, linuxStartup: true, linuxSyscalls: true, linuxMemory: true, linuxDescriptors: true, linuxThreads: true, linuxSignals: true,
+                    networkService: true, socketProgram: program);
                 files.VerifyUnchanged();
-                Console.WriteLine("TEST_PASS qemu.socket.capture report_only=true own_process_and_native_provenance_required=true");return 0;
+                Console.WriteLine("TEST_PASS qemu.socket.capture report_only=true own_process_and_native_provenance_required=true");
+                return 0;
             }
             if (args is ["qemu", "validate-network", var networkSerial, var networkPcap, var networkPackage])
             {
@@ -278,50 +345,61 @@ public static class ToolCommand
             {
                 Console.WriteLine("TEST_START linux.socket-index");
                 using AuthorityFiles files = new();
-                socketElf = Path.GetFullPath(socketElf); socketDump = Path.GetFullPath(socketDump);
+                socketElf = Path.GetFullPath(socketElf);
+                socketDump = Path.GetFullPath(socketDump);
                 var elf = files.Open(Path.GetDirectoryName(socketElf)!, socketElf, "socket ELF", "socket_index_elf", 16 * 1024 * 1024, singleLink: true);
                 var dump = files.Open(Path.GetDirectoryName(socketDump)!, socketDump, "socket disassembly", "socket_index_dump", NativeAotSocketProgram.MaximumDisassemblyBytes, singleLink: true);
                 AuthorityFiles.RequireDistinct(elf, dump);
                 var report = NativeAotSocketProgram.Inspect(elf.ReadBytes(16 * 1024 * 1024, "socket_index_elf"), dump.ReadUtf8(NativeAotSocketProgram.MaximumDisassemblyBytes, "socket_index_dump"));
-                files.VerifyUnchanged(); Console.WriteLine("TEST_PASS linux.socket-index report_only=true " + report); return 0;
+                files.VerifyUnchanged();
+                Console.WriteLine("TEST_PASS linux.socket-index report_only=true " + report);
+                return 0;
             }
             if (args is ["linux", "socket-program", var programMode, var socketPackage, var programDump])
             {
-                if (programMode is not ("sync" or "async")) throw new ArgumentException("socket_program_mode");
+                if (programMode is not ("sync" or "async"))
+                    throw new ArgumentException("socket_program_mode");
                 Console.WriteLine("TEST_START linux.socket-program");
                 var program = NativeAotSocketProgram.Read(Repository.FindRoot(), programMode == "async", socketPackage, programDump);
-                Console.WriteLine("TEST_PASS linux.socket-program mode=" + programMode + " " + program.Metadata); return 0;
+                Console.WriteLine("TEST_PASS linux.socket-program mode=" + programMode + " " + program.Metadata);
+                return 0;
             }
             if (args is ["linux", "socket-vectors-package", var vectorEvidence, var vectorDestination])
             {
                 Console.WriteLine("TEST_START linux.socket-vectors-package");
                 string digest = NativeAotSocketVectorsPackage.Write(Repository.FindRoot(), vectorEvidence, vectorDestination);
-                Console.WriteLine("TEST_PASS linux.socket-vectors-package sha256=" + digest); return 0;
+                Console.WriteLine("TEST_PASS linux.socket-vectors-package sha256=" + digest);
+                return 0;
             }
             if (args is ["linux", "socket-vectors-program", var vectorPackage, var vectorDump])
             {
                 Console.WriteLine("TEST_START linux.socket-vectors-program");
                 var program = NativeAotSocketVectorsProgram.Read(Repository.FindRoot(), vectorPackage, vectorDump);
-                Console.WriteLine("TEST_PASS linux.socket-vectors-program " + program.Metadata); return 0;
+                Console.WriteLine("TEST_PASS linux.socket-vectors-program " + program.Metadata);
+                return 0;
             }
             if (args is ["linux", "socket-package", var socketMode, var socketEvidence, var socketDestination])
             {
-                if (socketMode is not ("sync" or "async")) throw new ArgumentException("socket_package_mode");
+                if (socketMode is not ("sync" or "async"))
+                    throw new ArgumentException("socket_package_mode");
                 Console.WriteLine("TEST_START linux.socket-package");
                 string digest = NativeAotSocketPackage.Write(Repository.FindRoot(), socketEvidence, socketMode == "async", socketDestination);
-                Console.WriteLine("TEST_PASS linux.socket-package mode=" + socketMode + " sha256=" + digest); return 0;
+                Console.WriteLine("TEST_PASS linux.socket-package mode=" + socketMode + " sha256=" + digest);
+                return 0;
             }
-            if(args is ["linux","runtime-package",var runtimeApp,var runtimeEvidence,var runtimeDestination])
+            if (args is ["linux", "runtime-package", var runtimeApp, var runtimeEvidence, var runtimeDestination])
             {
                 Console.WriteLine("TEST_START linux.runtime-package");
-                string digest=NativeAotRuntimePackage.Write(Repository.FindRoot(),runtimeEvidence,runtimeApp,runtimeDestination);
-                Console.WriteLine("TEST_PASS linux.runtime-package app="+runtimeApp+" sha256="+digest);return 0;
+                string digest = NativeAotRuntimePackage.Write(Repository.FindRoot(), runtimeEvidence, runtimeApp, runtimeDestination);
+                Console.WriteLine("TEST_PASS linux.runtime-package app=" + runtimeApp + " sha256=" + digest);
+                return 0;
             }
-            if(args is ["linux","runtime-program",var runtimeName,var runtimePackage,var runtimeDump])
+            if (args is ["linux", "runtime-program", var runtimeName, var runtimePackage, var runtimeDump])
             {
                 Console.WriteLine("TEST_START linux.runtime-program");
-                var program=NativeAotRuntimeProgram.Read(Repository.FindRoot(),runtimeName,runtimePackage,runtimeDump);
-                Console.WriteLine("TEST_PASS linux.runtime-program app="+program.Application+" "+program.Metadata);return 0;
+                var program = NativeAotRuntimeProgram.Read(Repository.FindRoot(), runtimeName, runtimePackage, runtimeDump);
+                Console.WriteLine("TEST_PASS linux.runtime-program app=" + program.Application + " " + program.Metadata);
+                return 0;
             }
             if (args is ["linux", "threading-package", var threadingApp, var threadingEvidence, var threadingDestination])
             {
@@ -381,16 +459,22 @@ public static class ToolCommand
             }
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "payload")
                 return NativeAotPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
-            if(args is ["nativeaot","socket","guest-peer","--port",var peerPort,"--serial",var peerSerial] &&
-                int.TryParse(peerPort,System.Globalization.NumberStyles.None,System.Globalization.CultureInfo.InvariantCulture,out int peerPortNumber))
-            {NativeAotSocketPeer.RunReceiveGatedPeerAsync(Repository.FindRoot(),peerPortNumber,peerSerial,Console.Out).GetAwaiter().GetResult();return 0;}
+            if (args is ["nativeaot", "socket", "guest-peer", "--port", var peerPort, "--serial", var peerSerial] &&
+                int.TryParse(peerPort, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int peerPortNumber))
+            {
+                NativeAotSocketPeer.RunReceiveGatedPeerAsync(Repository.FindRoot(), peerPortNumber, peerSerial, Console.Out).GetAwaiter().GetResult();
+                return 0;
+            }
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket")
                 return NativeAotSocketPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket-containment")
                 return NativeAotSocketContainmentPublisher.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
-            if(args is ["nativeaot","socket-vectors","guest-peer","--port",var vectorPort,"--serial",var vectorSerial] &&
-                int.TryParse(vectorPort,System.Globalization.NumberStyles.None,System.Globalization.CultureInfo.InvariantCulture,out int vectorPortNumber))
-            {NativeAotSocketVectorsPeer.RunGuestPeerAsync(Repository.FindRoot(),vectorPortNumber,vectorSerial,Console.Out).GetAwaiter().GetResult();return 0;}
+            if (args is ["nativeaot", "socket-vectors", "guest-peer", "--port", var vectorPort, "--serial", var vectorSerial] &&
+                int.TryParse(vectorPort, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int vectorPortNumber))
+            {
+                NativeAotSocketVectorsPeer.RunGuestPeerAsync(Repository.FindRoot(), vectorPortNumber, vectorSerial, Console.Out).GetAwaiter().GetResult();
+                return 0;
+            }
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket-vectors")
                 return NativeAotSocketVectorsPublisher.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 3 && args[0] == "nativeaot" && args[1] == "service" && args[2] == "quota-peer")
@@ -401,13 +485,15 @@ public static class ToolCommand
                     throw new ArgumentException("quota_peer_cli expected=nativeaot service quota-peer --port <1..65535> [--wire-report <fresh-absolute-artifact-file>]");
                 var observation = (args.Length == 5 ? NativeAotServiceQuotaPeer.RunAsync(quotaPort) :
                     NativeAotServiceQuotaPeer.RunWithWireReportAsync(Repository.FindRoot(), quotaPort, args[6])).GetAwaiter().GetResult();
-                Console.Out.Write(NativeAotServiceQuotaPeer.SerializeReport(observation) + "\r\n"); return 0;
+                Console.Out.Write(NativeAotServiceQuotaPeer.SerializeReport(observation) + "\r\n");
+                return 0;
             }
             if (args.Length is 7 or 8 && args[0] == "nativeaot" && args[1] == "service" && args[2] == "guest-peer" &&
                 args[3] == "--port" && int.TryParse(args[4], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int servicePort) &&
                 args[5] == "--serial" && args[6].Length != 0 && (args.Length == 7 || args[7] == "--lifecycle"))
             {
-                NativeAotServicePeer.RunGuestAsync(servicePort, Console.Out, lifecycle: args.Length == 8).GetAwaiter().GetResult(); return 0;
+                NativeAotServicePeer.RunGuestAsync(servicePort, Console.Out, lifecycle: args.Length == 8).GetAwaiter().GetResult();
+                return 0;
             }
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "service")
                 return NativeAotServicePublisher.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
@@ -420,8 +506,10 @@ public static class ToolCommand
                 return NativeAotThreadingPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "runtime")
                 return NativeAotRuntimePayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
-            if (args.Length >= 2 && args[0] == "efi" && args[1] == "build") return EfiBuild.Run(args[2..]);
-            if (args.Length >= 2 && args[0] == "efi" && args[1] == "verify") return EfiVerify.Run(args[2..]);
+            if (args.Length >= 2 && args[0] == "efi" && args[1] == "build")
+                return EfiBuild.Run(args[2..]);
+            if (args.Length >= 2 && args[0] == "efi" && args[1] == "verify")
+                return EfiVerify.Run(args[2..]);
             if (args.Length >= 2 && args[0] == "qemu" && args[1] == "smoke")
                 return QemuSmoke.RunAsync(Repository.FindRoot(), QemuSmokeOptions.Parse(args[2..]), Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "qemu" && args[1] == "qcow2")

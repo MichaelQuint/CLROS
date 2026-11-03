@@ -2,6 +2,7 @@ using OS.Kernel.Diagnostics;
 using OS.Std.Memory;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct ExecutableStubBundleMaterializerResult
 {
     private ExecutableStubBundleMaterializerResult(bool isInitialized, ExecutableStubBundleMaterializerStatus status, ExecutableStubBundlePlanStatus bundlePlanStatus, ExecutableStubMemoryPlanStatus memoryPlanStatus, nuint bytesCopied, int com1Out8BytesCopied, int com1In8BytesCopied, int installIdtBytesCopied, int installGdtBytesCopied, int loadTaskRegisterBytesCopied, int invalidOpcodeProbeBytesCopied, int nullWriteProbeBytesCopied)
@@ -20,19 +21,55 @@ public readonly struct ExecutableStubBundleMaterializerResult
         NullWriteProbeBytesCopied = nullWriteProbeBytesCopied;
     }
 
-    public bool IsInitialized { get; }
-    public ExecutableStubBundleMaterializerStatus Status { get; }
-    public ExecutableStubBundlePlanStatus BundlePlanStatus { get; }
-    public ExecutableStubMemoryPlanStatus MemoryPlanStatus { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public ExecutableStubBundleMaterializerStatus Status
+    {
+        get;
+    }
+    public ExecutableStubBundlePlanStatus BundlePlanStatus
+    {
+        get;
+    }
+    public ExecutableStubMemoryPlanStatus MemoryPlanStatus
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == ExecutableStubBundleMaterializerStatus.Success;
-    public nuint BytesCopied { get; }
-    public int Com1Out8BytesCopied { get; }
-    public int Com1In8BytesCopied { get; }
-    public int InstallIdtBytesCopied { get; }
-    public int InstallGdtBytesCopied { get; }
-    public int LoadTaskRegisterBytesCopied { get; }
-    public int InvalidOpcodeProbeBytesCopied { get; }
-    public int NullWriteProbeBytesCopied { get; }
+    public nuint BytesCopied
+    {
+        get;
+    }
+    public int Com1Out8BytesCopied
+    {
+        get;
+    }
+    public int Com1In8BytesCopied
+    {
+        get;
+    }
+    public int InstallIdtBytesCopied
+    {
+        get;
+    }
+    public int InstallGdtBytesCopied
+    {
+        get;
+    }
+    public int LoadTaskRegisterBytesCopied
+    {
+        get;
+    }
+    public int InvalidOpcodeProbeBytesCopied
+    {
+        get;
+    }
+    public int NullWriteProbeBytesCopied
+    {
+        get;
+    }
 
     public static ExecutableStubBundleMaterializerResult Success()
     {

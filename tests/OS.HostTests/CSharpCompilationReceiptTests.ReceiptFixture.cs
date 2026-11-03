@@ -9,11 +9,20 @@ internal static partial class CSharpCompilationReceiptTests
     private sealed class ReceiptFixture : IDisposable
     {
         internal string Root { get; } = Directory.CreateTempSubdirectory("clros-receipt-").FullName;
-        internal string Path { get; }
+        internal string Path
+        {
+            get;
+        }
         internal string[] Arguments { get; } = ["/target:library", "/langversion:14", "/define:SELECTED"];
         internal XmlDocument Inputs { get; } = new() { XmlResolver = null };
-        internal CSharpSourceDocument[] Sources { get; }
-        internal CSharpCompilerArtifacts Artifacts { get; }
+        internal CSharpSourceDocument[] Sources
+        {
+            get;
+        }
+        internal CSharpCompilerArtifacts Artifacts
+        {
+            get;
+        }
 
         internal ReceiptFixture(bool realReference = false)
         {
@@ -24,8 +33,10 @@ internal static partial class CSharpCompilationReceiptTests
             foreach (string kind in new[] { "Source", "Source", "Reference", "Analyzer", "Additional", "AnalyzerConfig", "Resource", "Import", "Compiler", "AnalyzerDependency" })
             {
                 string path = System.IO.Path.Combine(Root, declared.ChildNodes.Count + ".input");
-                if (realReference && kind == "Reference") File.Copy(typeof(object).Assembly.Location, path);
-                else File.WriteAllText(path, kind == "Source" ? "partial class Owner {}" : "original " + kind);
+                if (realReference && kind == "Reference")
+                    File.Copy(typeof(object).Assembly.Location, path);
+                else
+                    File.WriteAllText(path, kind == "Source" ? "partial class Owner {}" : "original " + kind);
                 AddFile(declared, path, kind);
             }
             var options = new CSharpParseOptions(LanguageVersion.CSharp14);

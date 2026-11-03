@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 
 namespace OS.Tools.QemuRunner;
+
 public static partial class WebRaceRendezvous
 {
     /// <summary>Canonical uppercase report hashes to recheck against independently held originals.</summary>

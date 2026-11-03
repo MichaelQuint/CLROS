@@ -15,9 +15,15 @@ public sealed class WritableStorageTimingReport
     private readonly ReadOnlyDictionary<string, ulong> values;
 
     private WritableStorageTimingReport(string row, Dictionary<string, ulong> parsed)
-    { RawRow = row; values = new(parsed); }
+    {
+        RawRow = row;
+        values = new(parsed);
+    }
 
-    public string RawRow { get; }
+    public string RawRow
+    {
+        get;
+    }
     public IReadOnlyDictionary<string, ulong> Values => values;
     public uint Width => (uint)values["width"];
     public ulong Frequency => values["frequency"];
@@ -66,11 +72,13 @@ public sealed class WritableStorageTimingReport
         var parsed = QemuTranscripts.ReadRecord(row, "M16_027_TIMING", Fields);
         Need(parsed["width"] <= uint.MaxValue && parsed["width"] is 32 or 64 && parsed["frequency"] != 0,
             "geometry");
-        foreach (string name in new[] { "valid", "beforeIo", "afterIo" }) Need(parsed[name] <= 1, "boolean");
+        foreach (string name in new[] { "valid", "beforeIo", "afterIo" })
+            Need(parsed[name] <= 1, "boolean");
         foreach (string name in new[] { "beforePhase", "beforeStep", "beforeWork", "afterPhase", "afterStep", "afterWork" })
             Need(parsed[name] <= uint.MaxValue, "progress_width");
         var report = new WritableStorageTimingReport(row, parsed);
-        if (report.Valid) report.CheckAccounting();
+        if (report.Valid)
+            report.CheckAccounting();
         return report;
     }
 
@@ -90,9 +98,13 @@ public sealed class WritableStorageTimingReport
         if (EngineCalls == 0)
             Need(EngineOwner == 0 && BeforePhase == 0 && BeforeStep == 0 && BeforeWork == 0 && !BeforeIo &&
                 AfterPhase == 0 && AfterStep == 0 && AfterWork == 0 && !AfterIo, "engine_absent");
-        else Need(EngineOwner != 0, "engine_owner");
+        else
+            Need(EngineOwner != 0, "engine_owner");
     }
 
     private static void Need(bool condition, string reason)
-    { if (!condition) throw new ToolFailure("writable_timing_" + reason); }
+    {
+        if (!condition)
+            throw new ToolFailure("writable_timing_" + reason);
+    }
 }

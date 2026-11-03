@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Kernel.Diagnostics;
 
 namespace OS.Kernel.Memory;
+
 public enum BootPageAllocatorReadinessComposeStatus
 {
     Success = 0,

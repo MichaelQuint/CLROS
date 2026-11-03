@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public struct HttpClientGetTransaction
 {
     private HttpClientGetTransaction(HttpClientGetTransactionState state)
@@ -16,17 +17,50 @@ public struct HttpClientGetTransaction
         BodyLength = 0;
     }
 
-    public HttpClientGetTransactionState State { get; private set; }
-    public int RequestBytesWritten { get; private set; }
-    public byte ProtocolMajor { get; private set; }
-    public byte ProtocolMinor { get; private set; }
-    public ushort StatusCode { get; private set; }
-    public int HeaderLength { get; private set; }
-    public bool HasContentLength { get; private set; }
-    public int ContentLength { get; private set; }
-    public bool ConnectionClose { get; private set; }
-    public int BodyOffset { get; private set; }
-    public int BodyLength { get; private set; }
+    public HttpClientGetTransactionState State
+    {
+        get; private set;
+    }
+    public int RequestBytesWritten
+    {
+        get; private set;
+    }
+    public byte ProtocolMajor
+    {
+        get; private set;
+    }
+    public byte ProtocolMinor
+    {
+        get; private set;
+    }
+    public ushort StatusCode
+    {
+        get; private set;
+    }
+    public int HeaderLength
+    {
+        get; private set;
+    }
+    public bool HasContentLength
+    {
+        get; private set;
+    }
+    public int ContentLength
+    {
+        get; private set;
+    }
+    public bool ConnectionClose
+    {
+        get; private set;
+    }
+    public int BodyOffset
+    {
+        get; private set;
+    }
+    public int BodyLength
+    {
+        get; private set;
+    }
 
     public static HttpClientGetTransaction Create()
     {

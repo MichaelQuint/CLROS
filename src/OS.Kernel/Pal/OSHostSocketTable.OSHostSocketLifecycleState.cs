@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public enum OSHostSocketLifecycleState : uint
 {
     Closed = 0,

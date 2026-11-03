@@ -2,6 +2,7 @@ using OS.Pal;
 using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAppExitStatusCreateResult
 {
     private NativeAppExitStatusCreateResult(NativeAppExitMarkerStatus status, bool isInitialized, NativeAppExitStatusRecord record)
@@ -11,9 +12,18 @@ public readonly struct NativeAppExitStatusCreateResult
         Record = record;
     }
 
-    public NativeAppExitMarkerStatus Status { get; }
-    public bool IsInitialized { get; }
-    public NativeAppExitStatusRecord Record { get; }
+    public NativeAppExitMarkerStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public NativeAppExitStatusRecord Record
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == NativeAppExitMarkerStatus.Success;
 
     public static NativeAppExitStatusCreateResult Success(NativeAppExitStatusRecord record)

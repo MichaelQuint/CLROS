@@ -159,7 +159,7 @@ internal static partial class DiagnosticsTests
     private static bool IsCompileTimeFalseProbe(string fieldName)
     {
         FieldInfo? field = typeof(Probes).GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
-        return field is not null && field.FieldType == typeof(bool) && field.IsLiteral && !field.IsInitOnly && field.GetRawConstantValue()is bool enabled && !enabled;
+        return field is not null && field.FieldType == typeof(bool) && field.IsLiteral && !field.IsInitOnly && field.GetRawConstantValue() is bool enabled && !enabled;
     }
 
     private static bool IsGeneratedBuildPath(string fullPath)

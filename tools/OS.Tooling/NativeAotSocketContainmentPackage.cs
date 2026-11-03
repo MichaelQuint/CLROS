@@ -32,7 +32,8 @@ public static class NativeAotSocketContainmentPackage
     /// and extra source files reject. No publication or execution is performed.</summary>
     public static void RequireCurrentSources(string root)
     {
-        root = Path.GetFullPath(root); NativeAotSocketPackage.RequireCurrentSources(root);
+        root = Path.GetFullPath(root);
+        NativeAotSocketPackage.RequireCurrentSources(root);
         string directory = Path.Combine(root, "apps", App);
         var inventory = Inventory(root, directory, generated: true);
         var current = NativeAotCurrentSources.AppSources(App, AppSources);
@@ -53,11 +54,13 @@ public static class NativeAotSocketContainmentPackage
     /// Returned bytes grant package identity only, never guest success.</summary>
     public static unsafe byte[] Create(string root, string publicationRoot)
     {
-        RequireCurrentSources(root); publicationRoot = Path.GetFullPath(publicationRoot);
+        RequireCurrentSources(root);
+        publicationRoot = Path.GetFullPath(publicationRoot);
         using AuthorityFiles locks = new();
         byte[] receipt = Read(locks, publicationRoot, "publication.json", 1024 * 1024);
         Need(Hash(receipt) == ReceiptSha256, "publication_identity");
-        using var document = JsonDocument.Parse(receipt); var data = document.RootElement;
+        using var document = JsonDocument.Parse(receipt);
+        var data = document.RootElement;
         Need(data.GetProperty("schema").GetString() == "clros.nativeaot.socket-containment.publication.v1" &&
             data.GetProperty("sdk").GetString() == NativeAotPayload.SdkVersion &&
             data.GetProperty("runtime").GetString() == NativeAotPayload.RuntimeVersion &&
@@ -71,7 +74,8 @@ public static class NativeAotSocketContainmentPackage
         foreach (var output in outputs)
         {
             byte[] bytes = Read(locks, publicationRoot, output.Name, 16 * 1024 * 1024);
-            Need(Hash(bytes) == output.Value.GetString(), "output_identity"); retained.Add(output.Name, bytes);
+            Need(Hash(bytes) == output.Value.GetString(), "output_identity");
+            retained.Add(output.Name, bytes);
         }
         Need(Inventory(publicationRoot, publicationRoot, generated: false).SequenceEqual(
             outputs.Select(o => o.Name).Concat(["publication.json", "publication.lock"]).Order(StringComparer.Ordinal)), "output_inventory");
@@ -80,10 +84,16 @@ public static class NativeAotSocketContainmentPackage
         byte[] elf = retained[App + "/" + App];
         Need(elf.Length == ElfBytes && Hash(elf) == ElfSha256, "elf_identity");
         _ = NativeAotPayload.Inspect(elf);
-        fixed (byte* image = elf) Need(LinuxElfLoader.Validate(image, (uint)elf.Length, 67108864, 1572864, out _) == LinuxElfLoadStatus.Ready, "loader");
+        fixed (byte* image = elf)
+            Need(LinuxElfLoader.Validate(image, (uint)elf.Length, 67108864, 1572864, out _) == LinuxElfLoadStatus.Ready, "loader");
         byte[] manifest = Encoding.ASCII.GetBytes(Manifest), package = new byte[64 + manifest.Length + elf.Length];
-        Header(manifest.Length).CopyTo(package, 0); manifest.CopyTo(package, 64); elf.CopyTo(package, 64 + manifest.Length);
-        RequirePackage(package); locks.VerifyUnchanged(); RequireCurrentSources(root); return package;
+        Header(manifest.Length).CopyTo(package, 0);
+        manifest.CopyTo(package, 64);
+        elf.CopyTo(package, 64 + manifest.Length);
+        RequirePackage(package);
+        locks.VerifyUnchanged();
+        RequireCurrentSources(root);
+        return package;
     }
 
     /// <summary>Admit only canonical policy/header and original ELF bytes.
@@ -100,15 +110,24 @@ public static class NativeAotSocketContainmentPackage
     private static string[] Inventory(string root, string directory, bool generated)
     {
         AuthorityFiles.RequirePlainPath(root, directory, "socket_containment_inventory");
-        Stack<string> pending = new(); pending.Push(directory); List<string> files = []; int entries = 0;
-        while (pending.TryPop(out string? current)) foreach (string path in Directory.EnumerateFileSystemEntries(current))
-        {
-            Need(++entries <= 256, "inventory_bound");
-            var attributes = File.GetAttributes(path); Need((attributes & FileAttributes.ReparsePoint) == 0, "inventory_link");
-            if ((attributes & FileAttributes.Directory) != 0)
-            { if (!generated || Path.GetFileName(path) is not ("bin" or "obj")) pending.Push(path); }
-            else files.Add(Path.GetRelativePath(directory, path).Replace('\\', '/'));
-        }
+        Stack<string> pending = new();
+        pending.Push(directory);
+        List<string> files = [];
+        int entries = 0;
+        while (pending.TryPop(out string? current))
+            foreach (string path in Directory.EnumerateFileSystemEntries(current))
+            {
+                Need(++entries <= 256, "inventory_bound");
+                var attributes = File.GetAttributes(path);
+                Need((attributes & FileAttributes.ReparsePoint) == 0, "inventory_link");
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    if (!generated || Path.GetFileName(path) is not ("bin" or "obj"))
+                        pending.Push(path);
+                }
+                else
+                    files.Add(Path.GetRelativePath(directory, path).Replace('\\', '/'));
+            }
         return files.Order(StringComparer.Ordinal).ToArray();
     }
     private static byte[] Read(AuthorityFiles locks, string root, string relative, int maximum)
@@ -119,11 +138,19 @@ public static class NativeAotSocketContainmentPackage
     }
     private static byte[] Header(int manifest)
     {
-        byte[] header = new byte[64]; BinaryPrimitives.WriteUInt64LittleEndian(header, LinuxElfPackage.Magic);
-        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(8), 1); BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(12), 1);
-        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(16), 64); BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(20), (uint)manifest);
-        BinaryPrimitives.WriteUInt64LittleEndian(header.AsSpan(24), ElfBytes); return header;
+        byte[] header = new byte[64];
+        BinaryPrimitives.WriteUInt64LittleEndian(header, LinuxElfPackage.Magic);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(8), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(12), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(16), 64);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(20), (uint)manifest);
+        BinaryPrimitives.WriteUInt64LittleEndian(header.AsSpan(24), ElfBytes);
+        return header;
     }
     private static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));
-    private static void Need(bool condition, string reason) { if (!condition) throw new InvalidDataException("socket_containment_package_" + reason); }
+    private static void Need(bool condition, string reason)
+    {
+        if (!condition)
+            throw new InvalidDataException("socket_containment_package_" + reason);
+    }
 }

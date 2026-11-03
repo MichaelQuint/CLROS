@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 using OS.Std.Binary;
 
@@ -19,9 +20,18 @@ public readonly struct VirtioNetDeviceConfig
         StatusBits = statusBits;
     }
 
-    public MacAddress MacAddress { get; }
-    public bool HasStatus { get; }
-    public ushort StatusBits { get; }
+    public MacAddress MacAddress
+    {
+        get;
+    }
+    public bool HasStatus
+    {
+        get;
+    }
+    public ushort StatusBits
+    {
+        get;
+    }
     public bool IsLinkUp => HasStatus && (StatusBits & StatusLinkUp) != 0;
     public bool HasAnnounce => HasStatus && (StatusBits & StatusAnnounce) != 0;
 

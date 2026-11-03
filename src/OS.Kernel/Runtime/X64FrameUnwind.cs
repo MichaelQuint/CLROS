@@ -169,7 +169,11 @@ public static unsafe partial class X64FrameUnwind
                 if (size == 8)
                     context.SetInteger(register, U64((byte*)next));
                 else
-                    context.SetVector(register, new() { Low = U64((byte*)next), High = U64((byte*)next + 8) });
+                    context.SetVector(register, new()
+                    {
+                        Low = U64((byte*)next),
+                        High = U64((byte*)next + 8)
+                    });
             }
             else
                 return X64FrameUnwindStatus.UnsupportedFrame;

@@ -23,17 +23,47 @@ public readonly struct ManagedHeapPageRangeResult
         AllocationStatus = allocationStatus;
     }
 
-    public ManagedHeapPageRangeStatus Status { get; }
-    public ManagedHeapPageRangeLifecycle Lifecycle { get; }
+    public ManagedHeapPageRangeStatus Status
+    {
+        get;
+    }
+    public ManagedHeapPageRangeLifecycle Lifecycle
+    {
+        get;
+    }
     public bool Succeeded => Status == ManagedHeapPageRangeStatus.Success;
     public bool IsReady => Succeeded && Lifecycle == ManagedHeapPageRangeLifecycle.Ready;
-    public ulong PhysicalStart { get; }
-    public ulong PhysicalEndExclusive { get; }
-    public ulong MappedStart { get; }
-    public BootPageAllocatorState InitialAllocatorState { get; }
-    public BootPageAllocatorState CurrentAllocatorState { get; }
-    public ulong ReadBytes { get; }
-    public bool ContentsAreZeroNow { get; }
+    public ulong PhysicalStart
+    {
+        get;
+    }
+    public ulong PhysicalEndExclusive
+    {
+        get;
+    }
+    public ulong MappedStart
+    {
+        get;
+    }
+    public BootPageAllocatorState InitialAllocatorState
+    {
+        get;
+    }
+    public BootPageAllocatorState CurrentAllocatorState
+    {
+        get;
+    }
+    public ulong ReadBytes
+    {
+        get;
+    }
+    public bool ContentsAreZeroNow
+    {
+        get;
+    }
     // Relevant only when Status is AllocationRejected.
-    public BootPageAllocatorMutationStatus AllocationStatus { get; }
+    public BootPageAllocatorMutationStatus AllocationStatus
+    {
+        get;
+    }
 }

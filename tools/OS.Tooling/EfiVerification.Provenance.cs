@@ -4,6 +4,7 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 internal sealed partial class EfiVerification
 {
     private void VerifyProvenance(string project)
@@ -41,7 +42,7 @@ internal sealed partial class EfiVerification
         var pinnedHashes = EfiContracts.RestoreArchives.ToDictionary(a => pinnedRelative + "/" + a.FileName, a => a.Sha256, StringComparer.Ordinal);
         VerifySnapshot(locks, Root, pinnedPaths, evidence["pinnedRestoreSourceInputs"], "pinned_restore_source", Text("pinnedRestoreSourceSha256"), pins: pinnedHashes);
         VerifyPinnedConfig(Open(Path.Combine(pinned, "NuGet.Config"), "pinned_restore_config", 65536, root: pinned).ReadUtf8(65536, "pinned_restore_config_invalid"), pinned);
-        string global = Path.GetFullPath(Environment.GetEnvironmentVariable("NUGET_PACKAGES")is string custom && !string.IsNullOrWhiteSpace(custom) ? custom : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget/packages"));
+        string global = Path.GetFullPath(Environment.GetEnvironmentVariable("NUGET_PACKAGES") is string custom && !string.IsNullOrWhiteSpace(custom) ? custom : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget/packages"));
         string archiveRoot = EvidencePath("restoreArchiveSourceRootPath", "restore_archive_source_root_path_invalid");
         Require(SamePath(archiveRoot, global), "restore_archive_source_root_not_canonical");
         var archivePaths = EfiContracts.RestoreArchives.Select(a => a.Id + "/" + a.Version + "/" + a.FileName).ToArray();
@@ -152,7 +153,7 @@ internal sealed partial class EfiVerification
         Require(runtime is not null, "nativeaot_runtime_package_snapshot_missing");
         Require(Number("nativeAotRuntimePackFileCount") == runtime!.FileCount && Number("nativeAotRuntimePackBytes") == runtime.TotalBytes && Text("nativeAotRuntimePackSha256") == runtime.AggregateSha256, "nativeaot_runtime_pack_tree_mismatch");
         VerifySnapshot(locks, packages, EfiContracts.PackageBuildClosure.Select(p => p.Path), evidence["packageBuildClosureInputs"], "package_build_closure", Text("packageBuildClosureSha256"), pins: EfiContracts.PackageBuildClosure.ToDictionary(p => p.Path, p => p.Sha256, StringComparer.Ordinal));
-        foreach ((string property, IReadOnlyList<string> expected, string hashProperty, string mismatch, string hashMismatch)in new[]
+        foreach ((string property, IReadOnlyList<string> expected, string hashProperty, string mismatch, string hashMismatch) in new[]
         {
             ("activePackageImportEdges", (IReadOnlyList<string>)EfiContracts.ActivePackageImportEdges, "activePackageImportGraphSha256", "active_package_import_edges_mismatch", "active_package_import_graph_hash_mismatch"),
             ("packageTaskBindings", (IReadOnlyList<string>)EfiContracts.PackageTaskBindings, "packageTaskBindingsSha256", "package_task_bindings_mismatch", "package_task_bindings_hash_mismatch")

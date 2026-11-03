@@ -45,8 +45,10 @@ public static partial class QemuTranscripts
         string text = DecodeUtf8(File.ReadAllBytes(path)), candidate = Classify(text);
         Need(!Regex.IsMatch(candidate, "(?i)TEST_FAIL|OS_SMOKE_FAIL|" + (doubleFault ? "M02_DOUBLE_FAULT_FAILED" : "M02_PAGE_FAULT_CR2_ERROR_CODE_FAILED") + "|CLROS_M02_" + id + "_(?:HOST|PAGE_IMAGE_HOST|TRANSITION_HOST|EFI_HOST)_READY"), reason + "_failure_or_host_record");
         (string Pattern, int Count)[] counts = [(prefix + "_", doubleFault ? 11 : 9), ("CLROS_M02_" + id, 1), ("TEST_STARTm02\\." + id, 1), ("TEST_PASSm02\\." + id, 1), ("OS_SMOKE_PASS", 1)];
-        foreach (var pair in counts) Need(Regex.Matches(candidate, "(?i)" + pair.Pattern).Count == pair.Count, reason + "_duplicate_or_disguised_record");
-        if (doubleFault) M02TerminalPrefix(text, QemuContracts.M02DoubleFaultCaptureRecordCount, reason);
+        foreach (var pair in counts)
+            Need(Regex.Matches(candidate, "(?i)" + pair.Pattern).Count == pair.Count, reason + "_duplicate_or_disguised_record");
+        if (doubleFault)
+            M02TerminalPrefix(text, QemuContracts.M02DoubleFaultCaptureRecordCount, reason);
         const string anchor = "OS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\n";
         int start = text.IndexOf(anchor, StringComparison.Ordinal);
         Need(start >= 0, reason + "_smoke_terminal_missing");
@@ -61,7 +63,8 @@ public static partial class QemuTranscripts
         v.AddRange(NamedHex(lines[2], prefix + "_MODE", "firmwareCs", "cr0", "firmwareCr3", "cr4Before", "efer", "pat", "physicalBits"));
         v.AddRange(NamedHex(lines[3], prefix + "_ROOT", "cr3", "expectedCr3", "cr4", "expectedCr4"));
         string[] roles = ["zero", "df", "pf", "nmi", "transition"];
-        for (int i = 0; i < roles.Length; i++) v.AddRange(NamedHex(lines[4 + i], prefix + "_ABSENT role=" + roles[i], "linear", "levelsRead", "pml4e", "pdpte", "pde", "pte"));
+        for (int i = 0; i < roles.Length; i++)
+            v.AddRange(NamedHex(lines[4 + i], prefix + "_ABSENT role=" + roles[i], "linear", "levelsRead", "pml4e", "pdpte", "pde", "pte"));
         string[] frame = ["vector", "hasErrorCode", "error", "cr2", "rip", "cs", "rflags", "savedRsp", "savedSs", "handlerRsp", "handlerSs", "cr3"];
         v.AddRange(NamedHex(lines[9], prefix + "_FRAME", doubleFault ? [.. frame, "handlerCs"] : frame));
         if (doubleFault)
@@ -78,12 +81,14 @@ public static partial class QemuTranscripts
         {
             ulong a = starts[i], n = sizes[i];
             Need(a != 0 && a % 4096 == 0 && (decimal)a + n < 0x0000800000000000UL && (decimal)a + n < limit, reason + "_allocation_extent");
-            for (int j = 0; j < i; j++) Need(a >= (decimal)starts[j] + sizes[j] || starts[j] >= (decimal)a + n, reason + "_allocation_overlap");
+            for (int j = 0; j < i; j++)
+                Need(a >= (decimal)starts[j] + sizes[j] || starts[j] >= (decimal)a + n, reason + "_allocation_overlap");
         }
         Need(rip == c + 4096 + (doubleFault ? 2698UL : 2841UL), reason + "_fault_rip");
         ulong cs = v[4], cr0 = v[5], firmwareRoot = v[6], before = v[7], efer = v[8], pat = v[9];
         Need(cs <= 65535 && (cs & 7) == 0 && (cs & 0xfff8) != 0 && (cr0 & 2147549185UL) == 2147549185UL && (before & 0x20) != 0 && (before & 0x01821000) == 0 && (efer & 0xd00) == 0xd00 && firmwareRoot < limit && (firmwareRoot & 0xfe7) == 0 && (firmwareRoot >> 12) != 0 && (pat & 255) == 6, reason + "_mode");
-        for (int i = 0; i < 8; i++) Need(((pat >> (8 * i)) & 255) is 0 or 1 or 4 or 5 or 6 or 7, reason + "_pat");
+        for (int i = 0; i < 8; i++)
+            Need(((pat >> (8 * i)) & 255) is 0 or 1 or 4 or 5 or 6 or 7, reason + "_pat");
         ulong after = before & ~0x80UL;
         Need(v[11] == t && v[12] == t && v[13] == after && v[14] == after, reason + "_root");
         ulong[] linear = [0, d + 0x2000, d + 0x4000, d + 0x6000, d + 0x8000];
@@ -92,38 +97,60 @@ public static partial class QemuTranscripts
         var parents = new Dictionary<ulong, (ulong Table, ulong Index)>();
         for (int walk = 0; walk < linear.Length; walk++)
         {
-            int offset = 15 + walk * 6; ulong levels = v[offset + 1];
+            int offset = 15 + walk * 6;
+            ulong levels = v[offset + 1];
             Need(v[offset] == linear[walk] && levels is >= 1 and <= 4, reason + "_absence_identity");
             int shift = 12 + 9 * (4 - (int)levels);
             ulong absentStart = (linear[walk] >> shift) << shift, absentEnd = absentStart + (1UL << shift);
-            for (int i = 0; i < mappedStarts.Length; i++) Need(absentStart >= mappedStarts[i] + mappedSizes[i] || mappedStarts[i] >= absentEnd, reason + "_absence_overlaps_known_mapping");
-            HashSet<ulong> visited = [t]; ulong table = t;
+            for (int i = 0; i < mappedStarts.Length; i++)
+                Need(absentStart >= mappedStarts[i] + mappedSizes[i] || mappedStarts[i] >= absentEnd, reason + "_absence_overlaps_known_mapping");
+            HashSet<ulong> visited = [t];
+            ulong table = t;
             for (int level = 0; level < 4; level++)
             {
                 ulong entry = v[offset + 2 + level];
-                if ((ulong)level >= levels) { Need(entry == 0, reason + "_nonzero_placeholder"); continue; }
+                if ((ulong)level >= levels)
+                {
+                    Need(entry == 0, reason + "_nonzero_placeholder");
+                    continue;
+                }
                 var slot = (table, (linear[walk] >> (39 - 9 * level)) & 511);
                 ulong structural = entry & ~0x20UL;
-                Need(!slots.TryGetValue(slot, out ulong known) || known == structural, reason + "_inconsistent_shared_slot"); slots[slot] = structural;
-                if ((ulong)level == levels - 1) { Need(entry == 0, reason + "_nonzero_absence"); continue; }
+                Need(!slots.TryGetValue(slot, out ulong known) || known == structural, reason + "_inconsistent_shared_slot");
+                slots[slot] = structural;
+                if ((ulong)level == levels - 1)
+                {
+                    Need(entry == 0, reason + "_nonzero_absence");
+                    continue;
+                }
                 ulong flags = entry & 4095, target = (entry >> 12) << 12;
                 Need(flags is 3 or 35 && entry < limit && target >= t && target < t + 176128 && visited.Add(target), reason + "_ancestor");
-                Need(!parents.TryGetValue(target, out var parent) || parent == slot, reason + "_aliased_child_table"); parents[target] = slot; table = target;
+                Need(!parents.TryGetValue(target, out var parent) || parent == slot, reason + "_aliased_child_table");
+                parents[target] = slot;
+                table = target;
             }
         }
         if (!doubleFault)
         {
             ulong[] expected = [14, 1, 0, 0, rip, cs, 0x10046, d + 0xa000, 0x10, d + 0x6000 - 192, 0, t];
-            for (int i = 0; i < expected.Length; i++) Need(v[45 + i] == expected[i], reason + "_frame_" + i);
+            for (int i = 0; i < expected.Length; i++)
+                Need(v[45 + i] == expected[i], reason + "_frame_" + i);
         }
         else
         {
             (int Index, ulong Value)[] expectedFrame = [(45, 8), (46, 1), (47, 0), (54, d + 0x4000 - 192), (55, 0), (56, t), (57, 8)];
-            foreach (var pair in expectedFrame) Need(v[pair.Index] == pair.Value, reason + "_current_frame");
+            foreach (var pair in expectedFrame)
+                Need(v[pair.Index] == pair.Value, reason + "_current_frame");
             var expected = new List<ulong> { 39, d + 4096 + 24, 24, 4095, d, 139, d + 0x4000 };
             (ulong Vector, ulong Ist, ulong Type)[] gates = [(8, 1, 142), (14, 2, 14)];
-            foreach (var gate in gates) { ulong target = c + gate.Vector * 16; expected.Add((target & 65535) | (8UL << 16) | (gate.Ist << 32) | (gate.Type << 40) | ((target & 4294901760) << 32)); expected.Add(target >> 32); }
-            for (int i = 0; i < expected.Count; i++) Need(v[58 + i] == expected[i], reason + "_descriptor_" + i);
+            foreach (var gate in gates)
+            {
+                ulong target = c + gate.Vector * 16;
+                expected.Add((target & 65535) | (8UL << 16) | (gate.Ist << 32) | (gate.Type << 40) | ((target & 4294901760) << 32));
+                expected.Add(target >> 32);
+            }
+            for (int i = 0; i < expected.Count; i++)
+                Need(v[58 + i] == expected[i], reason + "_descriptor_" + i);
         }
     }
 

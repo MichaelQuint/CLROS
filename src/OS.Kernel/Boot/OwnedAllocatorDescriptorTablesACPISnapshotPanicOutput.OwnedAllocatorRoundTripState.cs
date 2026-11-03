@@ -3,6 +3,7 @@ using OS.Kernel.Diagnostics;
 using OS.Kernel.Memory;
 
 namespace OS.Boot;
+
 public struct OwnedAllocatorRoundTripState
 {
     internal OwnedAllocatorRoundTripStatus StatusValue;

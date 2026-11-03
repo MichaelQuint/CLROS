@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct Com1PortIoBackendPlanResult
 {
     private Com1PortIoBackendPlanResult(bool isInitialized, Com1PortIoBackendPlanStatus status, SerialPortConfigurationStatus serialConfigurationStatus, PortIoOperationPlanStatus operationPlanStatus, PortIoStubPlanStatus stubPlanStatus, ExecutableStubMemoryPlanStatus stubMemoryPlanStatus, int requiredStubBytes, nuint availableStubBytes)
@@ -15,14 +16,38 @@ public readonly struct Com1PortIoBackendPlanResult
         AvailableStubBytes = availableStubBytes;
     }
 
-    public bool IsInitialized { get; }
-    public Com1PortIoBackendPlanStatus Status { get; }
-    public SerialPortConfigurationStatus SerialConfigurationStatus { get; }
-    public PortIoOperationPlanStatus OperationPlanStatus { get; }
-    public PortIoStubPlanStatus StubPlanStatus { get; }
-    public ExecutableStubMemoryPlanStatus StubMemoryPlanStatus { get; }
-    public int RequiredStubBytes { get; }
-    public nuint AvailableStubBytes { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public Com1PortIoBackendPlanStatus Status
+    {
+        get;
+    }
+    public SerialPortConfigurationStatus SerialConfigurationStatus
+    {
+        get;
+    }
+    public PortIoOperationPlanStatus OperationPlanStatus
+    {
+        get;
+    }
+    public PortIoStubPlanStatus StubPlanStatus
+    {
+        get;
+    }
+    public ExecutableStubMemoryPlanStatus StubMemoryPlanStatus
+    {
+        get;
+    }
+    public int RequiredStubBytes
+    {
+        get;
+    }
+    public nuint AvailableStubBytes
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == Com1PortIoBackendPlanStatus.Success && SerialConfigurationStatus == SerialPortConfigurationStatus.Success && OperationPlanStatus == PortIoOperationPlanStatus.Success && StubPlanStatus == PortIoStubPlanStatus.Success && StubMemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success && RequiredStubBytes > 0 && AvailableStubBytes >= (nuint)RequiredStubBytes;
 
     public static Com1PortIoBackendPlanResult Success(int requiredStubBytes, nuint availableStubBytes)

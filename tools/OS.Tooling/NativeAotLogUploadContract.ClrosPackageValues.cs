@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotLogUploadContract
 {
     /// <summary>Immutable copied package/ELF geometry, never a prepared program.
@@ -26,14 +27,32 @@ public static partial class NativeAotLogUploadContract
             Arguments = Array.AsReadOnly(new[] { "--" + phase, "--root", "/data" });
         }
 
-        public string Phase { get; }
-        public string Manifest { get; }
-        public int PackageBytes { get; }
-        public string PackageSha256 { get; }
-        public NativeAotPayload.Inspection Image { get; }
+        public string Phase
+        {
+            get;
+        }
+        public string Manifest
+        {
+            get;
+        }
+        public int PackageBytes
+        {
+            get;
+        }
+        public string PackageSha256
+        {
+            get;
+        }
+        public NativeAotPayload.Inspection Image
+        {
+            get;
+        }
         /// <summary>The three manifest arguments, excluding argv0.</summary>
 
-        public ReadOnlyCollection<string> Arguments { get; }
+        public ReadOnlyCollection<string> Arguments
+        {
+            get;
+        }
         public bool InstructionIndexAdmitted => false;
         public bool ExecutionAuthority => false;
         public bool GrantsOriginalPublicationGuestOrPersistenceAuthority => false;

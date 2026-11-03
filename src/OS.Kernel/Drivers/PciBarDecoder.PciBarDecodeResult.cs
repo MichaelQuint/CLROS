@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciBarDecodeResult
 {
     private PciBarDecodeResult(bool isInitialized, PciBarDecodeStatus status, PciBarDescriptorSet bars, byte failingBarIndex)
@@ -9,10 +10,22 @@ public readonly struct PciBarDecodeResult
         FailingBarIndex = failingBarIndex;
     }
 
-    public bool IsInitialized { get; }
-    public PciBarDecodeStatus Status { get; }
-    public PciBarDescriptorSet Bars { get; }
-    public byte FailingBarIndex { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public PciBarDecodeStatus Status
+    {
+        get;
+    }
+    public PciBarDescriptorSet Bars
+    {
+        get;
+    }
+    public byte FailingBarIndex
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PciBarDecodeStatus.Success;
 
     public static PciBarDecodeResult Create(PciBarDecodeStatus status, PciBarDescriptorSet bars, byte failingBarIndex)

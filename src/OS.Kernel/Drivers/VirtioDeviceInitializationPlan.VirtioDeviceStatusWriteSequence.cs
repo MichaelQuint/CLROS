@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioDeviceStatusWriteSequence
 {
     private readonly VirtioDeviceStatus _status0;
@@ -14,7 +15,10 @@ public readonly struct VirtioDeviceStatusWriteSequence
         _status3 = status3;
     }
 
-    public byte Count { get; }
+    public byte Count
+    {
+        get;
+    }
 
     public bool TryGetStatus(byte index, out VirtioDeviceStatus status)
     {

@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public static class AcpiTableDirectory
 {
     public const uint McfgSignature = 0x4746434D;

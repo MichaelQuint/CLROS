@@ -223,11 +223,11 @@ internal static partial class BootPageAllocatorOnePageAllocationTests
         BootPageFreeListNode[] nodes = [Node(0, 0, 0x300000, 2, -1), Node(77, 77, 0x700000, 1, -1)];
         BootPageAllocatorState state = State(0, 1, 2, 0);
         BootReservedRange malformed = MutateByte(Reservation(BootReservationKind.LoadedImage, 0x100000, 1), 1, 1);
-        BootReservedRange[] defaults = [default, default ];
-        BootReservedRange[] malformedTable = [malformed, default ];
-        BootReservedRange[] unsorted = [Reservation(BootReservationKind.LoadedImage, 0x200000, 1), Reservation(BootReservationKind.BootStack, 0x100000, 1), default ];
-        BootReservedRange[] overlapping = [Reservation(BootReservationKind.LoadedImage, 0x100000, 2), Reservation(BootReservationKind.BootStack, 0x101000, 2), default ];
-        BootReservedRange[] duplicate = [Reservation(BootReservationKind.LoadedImage, 0x100000, 1), Reservation(BootReservationKind.BootStack, 0x100000, 1), default ];
+        BootReservedRange[] defaults = [default, default];
+        BootReservedRange[] malformedTable = [malformed, default];
+        BootReservedRange[] unsorted = [Reservation(BootReservationKind.LoadedImage, 0x200000, 1), Reservation(BootReservationKind.BootStack, 0x100000, 1), default];
+        BootReservedRange[] overlapping = [Reservation(BootReservationKind.LoadedImage, 0x100000, 2), Reservation(BootReservationKind.BootStack, 0x101000, 2), default];
+        BootReservedRange[] duplicate = [Reservation(BootReservationKind.LoadedImage, 0x100000, 1), Reservation(BootReservationKind.BootStack, 0x100000, 1), default];
         return ReservationFailure(state, nodes, defaults, 1, BootPageAllocatorMutationStatus.InvalidReservation, BootReservedRangeStatus.UninitializedKind) && ReservationFailure(state, nodes, malformedTable, 1, BootPageAllocatorMutationStatus.InvalidReservation, BootReservedRangeStatus.ReservedBitsSet) && ReservationFailure(state, nodes, unsorted, 2, BootPageAllocatorMutationStatus.UnsortedReservation, BootReservedRangeStatus.Success) && ReservationFailure(state, nodes, overlapping, 2, BootPageAllocatorMutationStatus.OverlappingReservation, BootReservedRangeStatus.Success) && ReservationFailure(state, nodes, duplicate, 2, BootPageAllocatorMutationStatus.OverlappingReservation, BootReservedRangeStatus.Success);
     }
 
@@ -250,9 +250,9 @@ internal static partial class BootPageAllocatorOnePageAllocationTests
     private static bool TestExhaustionAndMetadataCapacity()
     {
         BootPageFreeListNode[] noRange = [Node(0, 0, 0x101000, 1, -1), Node(77, 77, 0x700000, 1, -1)];
-        BootPageFreeListNode[] noSplitMetadata = [Node(0, 0, 0x101000, 8, -1), default ];
+        BootPageFreeListNode[] noSplitMetadata = [Node(0, 0, 0x101000, 8, -1), default];
         BootPageFreeListNode[] staleUnlinkedSlot = [Node(0, 0, 0x101000, 8, -1), Node(77, 77, 0x700000, 1, -1)];
-        BootPageFreeListNode[] alignmentWrap = [Node(0, 0, 0xFFFF_FFFF_FFFF_E000, 1, -1), default ];
+        BootPageFreeListNode[] alignmentWrap = [Node(0, 0, 0xFFFF_FFFF_FFFF_E000, 1, -1), default];
         return FailurePreserves(State(0, 1, 1, 0), noRange, 1, 2, [], 0, 0, 1, 4 * PageSize, BootPageAllocatorMutationStatus.NoSuitableRange) && FailurePreserves(State(0, 1, 8, 0), noSplitMetadata, nodeCount: 1, nodeCapacity: 2, reservations: [], reservationCount: 0, reservationCapacity: 0, pageCount: 1, alignment: 4 * PageSize, BootPageAllocatorMutationStatus.MetadataCapacityTooSmall) && FailurePreserves(State(0, 1, 8, 0), staleUnlinkedSlot, nodeCount: 2, nodeCapacity: 2, reservations: [], reservationCount: 0, reservationCapacity: 0, pageCount: 1, alignment: 4 * PageSize, BootPageAllocatorMutationStatus.MetadataCapacityTooSmall) && FailurePreserves(State(0, 1, 1, 0), alignmentWrap, nodeCount: 1, nodeCapacity: 2, reservations: [], reservationCount: 0, reservationCapacity: 0, pageCount: 1, alignment: 4 * PageSize, BootPageAllocatorMutationStatus.AllocationAddressOverflow, expectedAddressStatus: AddressValueStatus.AddressOverflow);
     }
 
@@ -629,7 +629,8 @@ internal static partial class BootPageAllocatorOnePageAllocationTests
             {
                 0 => Node(0, 0, 0x101000, 8, -1),
                 1 => default,
-                _ => Node(72, 72, 0x720000, 1, -1)};
+                _ => Node(72, 72, 0x720000, 1, -1)
+            };
             first[index] = value;
             second[index] = value;
         }

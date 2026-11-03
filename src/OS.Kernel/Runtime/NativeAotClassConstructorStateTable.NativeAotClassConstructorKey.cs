@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAotClassConstructorKey
 {
     public NativeAotClassConstructorKey(uint moduleId, uint typeId)
@@ -7,8 +8,14 @@ public readonly struct NativeAotClassConstructorKey
         TypeId = typeId;
     }
 
-    public uint ModuleId { get; }
-    public uint TypeId { get; }
+    public uint ModuleId
+    {
+        get;
+    }
+    public uint TypeId
+    {
+        get;
+    }
     public bool IsValid => ModuleId != 0 && TypeId != 0;
 
     public bool Equals(NativeAotClassConstructorKey other)

@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Manifest;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAppInvocationPlanner
 {
     public const ulong MinimumStackBytes = 16 * 1024;

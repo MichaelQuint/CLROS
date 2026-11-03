@@ -63,7 +63,7 @@ internal static partial class ManifestToolTests
 """), 1, "invalid_kestrel_endpoint"));
             Run("manifesttool rejects invalid args and env shapes", ref failures, () => ExpectValidation(tempRoot, "invalid-args.json", ManifestWithInvalidArg(), 1, "invalid_arg") && ExpectValidation(tempRoot, "invalid-env-key.json", ManifestWithInvalidEnvKey(), 1, "invalid_env_key") && ExpectValidation(tempRoot, "invalid-env-value.json", ManifestWithInvalidEnvValue(), 1, "invalid_env_value"));
             Run("manifesttool rejects duplicate env keys", ref failures, () => ExpectValidation(tempRoot, "duplicate-env.json", DuplicateEnvManifest(), 1, "duplicate_env_key"));
-            Run("manifesttool rejects oversized manifests", ref failures, () => ExpectValidation(tempRoot, "oversized.json", new string (' ', OversizedManifestLength), 1, "manifest_too_large"));
+            Run("manifesttool rejects oversized manifests", ref failures, () => ExpectValidation(tempRoot, "oversized.json", new string(' ', OversizedManifestLength), 1, "manifest_too_large"));
         }
         finally
         {
@@ -73,7 +73,7 @@ internal static partial class ManifestToolTests
             }
             catch
             {
-            // Test cleanup failure should not hide validation results.
+                // Test cleanup failure should not hide validation results.
             }
         }
 
@@ -145,7 +145,7 @@ internal static partial class ManifestToolTests
             }
             catch
             {
-            // Timeout is already the actionable failure.
+                // Timeout is already the actionable failure.
             }
 
             return new ToolResult(-1, "manifest tool timed out");

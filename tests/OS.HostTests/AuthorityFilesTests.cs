@@ -14,7 +14,11 @@ internal static class AuthorityFilesTests
     }
     private static void Reject(Action action, string reason)
     {
-        try { action(); } catch (ToolFailure error) { HostCheck.Equal(reason, error.Reason); return; }
+        try
+        {
+            action();
+        }
+        catch (ToolFailure error) { HostCheck.Equal(reason, error.Reason); return; }
         throw new InvalidOperationException("expected rejection " + reason);
     }
 
@@ -34,16 +38,23 @@ internal static class AuthorityFilesTests
             foreach (string path in new[] { root + "-outside/leaf", Path.Combine(root, "missing", "leaf"), file + "/leaf" })
                 Reject(() => AuthorityFiles.RequirePlainPath(root, path, "fixture_reparse"), "fixture_reparse");
             string target = Path.Combine(root, "target"), junction = Path.Combine(root, "junction");
-            Directory.CreateDirectory(target); File.WriteAllText(Path.Combine(target, "leaf"), "owned");
+            Directory.CreateDirectory(target);
+            File.WriteAllText(Path.Combine(target, "leaf"), "owned");
             TestJunction.Create(junction, target);
-            try { Reject(() => AuthorityFiles.RequirePlainPath(root, Path.Combine(junction, "leaf"), "fixture_reparse"), "fixture_reparse"); }
+            try
+            {
+                Reject(() => AuthorityFiles.RequirePlainPath(root, Path.Combine(junction, "leaf"), "fixture_reparse"), "fixture_reparse");
+            }
             finally { Directory.Delete(junction); }
             // A file symlink may require local privilege; the junction above always exercises reparse rejection.
             string link = Path.Combine(root, "file-link");
             try
             {
                 File.CreateSymbolicLink(link, file);
-                try { Reject(() => AuthorityFiles.RequirePlainPath(root, link, "fixture_reparse"), "fixture_reparse"); }
+                try
+                {
+                    Reject(() => AuthorityFiles.RequirePlainPath(root, link, "fixture_reparse"), "fixture_reparse");
+                }
                 finally { File.Delete(link); }
             }
             catch (UnauthorizedAccessException) { Console.WriteLine("PATH_HELPER_SYMLINK_UNAVAILABLE privilege"); }
@@ -60,14 +71,24 @@ internal static class AuthorityFilesTests
                     var denied = info.GetAccessControl();
                     using var identity = WindowsIdentity.GetCurrent();
                     denied.AddAccessRule(new FileSystemAccessRule(identity.User!, FileSystemRights.ReadAttributes, AccessControlType.Deny));
-                    try { info.SetAccessControl(denied); changed = true; }
+                    try
+                    {
+                        info.SetAccessControl(denied);
+                        changed = true;
+                    }
                     catch (UnauthorizedAccessException) { Console.WriteLine("PATH_HELPER_ACL_UNAVAILABLE privilege"); }
                     if (changed)
                     {
                         bool attributesDenied = false;
-                        try { File.GetAttributes(restricted); } catch (UnauthorizedAccessException) { attributesDenied = true; }
-                        if (attributesDenied) Reject(() => AuthorityFiles.RequirePlainPath(root, restricted, "fixture_reparse"), "fixture_reparse");
-                        else Console.WriteLine("PATH_HELPER_ACL_UNAVAILABLE attributes_remain_readable");
+                        try
+                        {
+                            File.GetAttributes(restricted);
+                        }
+                        catch (UnauthorizedAccessException) { attributesDenied = true; }
+                        if (attributesDenied)
+                            Reject(() => AuthorityFiles.RequirePlainPath(root, restricted, "fixture_reparse"), "fixture_reparse");
+                        else
+                            Console.WriteLine("PATH_HELPER_ACL_UNAVAILABLE attributes_remain_readable");
                     }
                 }
                 finally { if (changed) info.SetAccessControl(original); }
@@ -90,20 +111,35 @@ internal static class AuthorityFilesTests
             if (OperatingSystem.IsWindows())
             {
                 bool writeRejected = false, deleteRejected = false;
-                try { using var forbidden = File.OpenWrite(path); } catch (IOException) { writeRejected = true; }
-                try { File.Delete(path); } catch (IOException) { deleteRejected = true; }
-                HostCheck.True(writeRejected && deleteRejected); files.VerifyUnchanged();
+                try
+                {
+                    using var forbidden = File.OpenWrite(path);
+                }
+                catch (IOException) { writeRejected = true; }
+                try
+                {
+                    File.Delete(path);
+                }
+                catch (IOException) { deleteRejected = true; }
+                HostCheck.True(writeRejected && deleteRejected);
+                files.VerifyUnchanged();
             }
             else
             {
                 // Larger than the stream buffer: native changes must reach the copied bytes.
                 byte[] original = Enumerable.Repeat((byte)0x11, 131089).ToArray();
-                string snapshot = Path.Combine(root, "snapshot.bin"); File.WriteAllBytes(snapshot, original);
+                string snapshot = Path.Combine(root, "snapshot.bin");
+                File.WriteAllBytes(snapshot, original);
                 var mutable = files.Open(root, snapshot, "snapshot", "snapshot", original.Length, singleLink: true);
                 File.WriteAllBytes(snapshot, Enumerable.Repeat((byte)0x22, original.Length).ToArray());
-                try { Reject(() => mutable.ReadBytes(original.Length, "read"), "authority_input_changed"); }
+                try
+                {
+                    Reject(() => mutable.ReadBytes(original.Length, "read"), "authority_input_changed");
+                }
                 finally { File.WriteAllBytes(snapshot, original); }
-                files.VerifyUnchanged(); File.Delete(path); File.WriteAllBytes(path, [1, 2, 3]);
+                files.VerifyUnchanged();
+                File.Delete(path);
+                File.WriteAllBytes(path, [1, 2, 3]);
                 Reject(files.VerifyUnchanged, "authority_input_changed");
             }
         }
@@ -127,11 +163,14 @@ internal static class AuthorityFilesTests
         {
             File.WriteAllBytes(lower, [4, 5, 6]);
             var second = files.Open(root, lower, "distinct Unix file", "case", 3, singleLink: true);
-            HostCheck.True(!ReferenceEquals(first, second)); AuthorityFiles.RequireDistinct(first, second);
+            HostCheck.True(!ReferenceEquals(first, second));
+            AuthorityFiles.RequireDistinct(first, second);
             HostCheck.True(second.ReadBytes(3, "case_read").SequenceEqual(new byte[] { 4, 5, 6 }));
             string sibling = root + "-case", siblingCase = root + "-CASE";
-            Directory.CreateDirectory(sibling); Directory.CreateDirectory(siblingCase);
-            string outside = Path.Combine(siblingCase, "outside"); File.WriteAllText(outside, "outside");
+            Directory.CreateDirectory(sibling);
+            Directory.CreateDirectory(siblingCase);
+            string outside = Path.Combine(siblingCase, "outside");
+            File.WriteAllText(outside, "outside");
             Reject(() => AuthorityFiles.RequirePlainPath(sibling, outside, "case_root"), "case_root");
         }
         files.VerifyUnchanged();
@@ -147,7 +186,8 @@ internal static class AuthorityFilesTests
         var record = files.Open(root, path, "input", "input", 3);
         Reject(() => record.ReadBytes(2, "read_bound"), "read_bound");
         Reject(() => files.Open(root, path, "input", "input", 2), "input_size_out_of_range");
-        string empty = Path.Combine(root, "empty"); File.WriteAllBytes(empty, []);
+        string empty = Path.Combine(root, "empty");
+        File.WriteAllBytes(empty, []);
         Reject(() => files.Open(root, empty, "empty", "input"), "input_size_out_of_range");
         HostCheck.Equal(0L, files.Open(root, empty, "empty", "input", allowEmpty: true).Length);
     }
@@ -158,7 +198,8 @@ internal static class AuthorityFilesTests
         string root = Scratch();
         using AuthorityFiles files = new();
         string good = Path.Combine(root, "utf8"), bad = Path.Combine(root, "invalid");
-        File.WriteAllBytes(good, [0xef, 0xbb, 0xbf, 0x61]); File.WriteAllBytes(bad, [0xff]);
+        File.WriteAllBytes(good, [0xef, 0xbb, 0xbf, 0x61]);
+        File.WriteAllBytes(bad, [0xff]);
         HostCheck.Equal("a", files.Open(root, good, "good", "input").ReadUtf8(4, "utf8"));
         Reject(() => files.Open(root, bad, "bad", "input").ReadUtf8(4, "utf8"), "utf8");
     }
@@ -173,7 +214,8 @@ internal static class AuthorityFilesTests
             var record = files.Open(root, path, "input", "input");
             Reject(() => AuthorityFiles.RequireDistinct(record, record), "authority_output_file_alias");
         }
-        if (!CreateHardLinkW(alias, path, IntPtr.Zero)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        if (!CreateHardLinkW(alias, path, IntPtr.Zero))
+            throw new Win32Exception(Marshal.GetLastWin32Error());
         using AuthorityFiles linked = new();
         Reject(() => linked.Open(root, path, "input", "input", singleLink: true), "authority_output_hardlink_invalid");
         var permissive = linked.Open(root, path, "input", "input");

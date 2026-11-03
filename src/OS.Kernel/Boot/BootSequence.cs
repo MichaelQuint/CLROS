@@ -158,7 +158,7 @@ public static class BootSequence
             return OS.Boot.FirstExitReturn.InvalidStorage;
         if (OS.Boot.FirstExitFirmwareBinding.Consume(ref *arena.Binding, OS.Kernel.Platform.FirmwareServicesMode.BootServicesAvailable, out var getMap, out var exit, out void* handle) != OS.Boot.FirstExitBindingStatus.Consumed)
             return OS.Boot.FirstExitReturn.FirmwareUnavailable;
-        return OS.Boot.FirstOptRealExitBootServicesTransition.AttemptAndTransfer(ref *arena.Transition, OS.Kernel.Platform.FirmwareServicesMode.BootServicesAvailable, getMap, exit, handle, arena.Map, OS.Boot.FirstExitOwnedArena.MapBytes, (delegate* unmanaged<OS.Boot.FirstExitTransitionState*, void*, void> )(code + OS.Boot.FirstExitCodeBundle.PermanentOffset), arena.Permanent, OS.Boot.FirstExitPermanentCr3Stub.ContextBytes);
+        return OS.Boot.FirstOptRealExitBootServicesTransition.AttemptAndTransfer(ref *arena.Transition, OS.Kernel.Platform.FirmwareServicesMode.BootServicesAvailable, getMap, exit, handle, arena.Map, OS.Boot.FirstExitOwnedArena.MapBytes, (delegate* unmanaged<OS.Boot.FirstExitTransitionState*, void*, void>)(code + OS.Boot.FirstExitCodeBundle.PermanentOffset), arena.Permanent, OS.Boot.FirstExitPermanentCr3Stub.ContextBytes);
     }
 
     private static bool IsFirstRealExitBootServicesEnabled() => VerifiedExitPathOptDefaultRepeatedCleanQEMU.Enabled || OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe;

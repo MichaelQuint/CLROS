@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect supplied complete call/message rows for the four-peer
@@ -57,7 +58,7 @@ public static partial class QemuTranscripts
 
     private static SocketPolicyCallInspection VectorSocketPolicyCalls(string[] rows)
     {
-        Need(rows is not null && rows.Length is> 0 and <= 100000, "socket_policy_extent");
+        Need(rows is not null && rows.Length is > 0 and <= 100000, "socket_policy_extent");
         var calls = ReadLinuxCallReturns(rows!, allowEpoll: true);
         HashSet<ulong> open = [];
         int binds = 0, listens = 0, created = 0, closed = 0, capacity = 0;
@@ -123,7 +124,7 @@ public static partial class QemuTranscripts
 
     private static SocketVectorsCallInspection VectorSocketCalls(string[] rows)
     {
-        Need(rows is not null && rows.Length is> 0 and <= 100000, "socket_vectors_call_extent");
+        Need(rows is not null && rows.Length is > 0 and <= 100000, "socket_vectors_call_extent");
         var returns = ReadLinuxCallReturns(rows!, allowEpoll: true);
         var messages = NativeAotSocketMessages.Read(rows!, returns.ToDictionary(call => call.RecordIndex)).ToDictionary(message => message.CallRecordIndex);
         Dictionary<ulong, VectorConnection> active = [];
@@ -180,7 +181,7 @@ public static partial class QemuTranscripts
                 uint sent = connection.Sent % batch, remaining = batch - sent;
                 Need(connection.Sent < expected, "socket_vectors_send_extent");
                 VectorShape(message, sent < split ? split - sent : remaining, sent < split ? batch - split : 0);
-                Need(result == -11 || result is> 0 and <= 8192 && (ulong)result <= remaining, "socket_vectors_send_result");
+                Need(result == -11 || result is > 0 and <= 8192 && (ulong)result <= remaining, "socket_vectors_send_result");
                 if (result == -11)
                 {
                     Need(index == 0, "socket_vectors_send_block_owner");

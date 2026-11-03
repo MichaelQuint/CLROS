@@ -27,7 +27,7 @@ public static partial class NativeAotDiskTimingPeer
 
     internal static void InspectStatusJson(ReadOnlySpan<byte> body, string? mediaType)
     {
-        Need(body.Length is> 0 and <= 1024 && mediaType == "application/json", "json_response");
+        Need(body.Length is > 0 and <= 1024 && mediaType == "application/json", "json_response");
         try
         {
             using var document = JsonDocument.Parse(body.ToArray());
@@ -36,7 +36,7 @@ public static partial class NativeAotDiskTimingPeer
             var fields = value.EnumerateObject().ToArray();
             Need(fields.Length == 3 && fields.Select(field => field.Name).Distinct(StringComparer.Ordinal).Count() == 3 && value.TryGetProperty("profile", out var profile) && profile.ValueKind == JsonValueKind.String && profile.GetString() == "v1" && value.TryGetProperty("ready", out var ready) && ready.ValueKind == JsonValueKind.True && value.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String && message.GetString() == "CLROS ready — café", "json_response");
         }
-        catch (Exception error)when (error is JsonException or ArgumentException or InvalidOperationException)
+        catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
         {
             throw new ToolFailure("disk_timing_json_response");
         }
@@ -60,12 +60,12 @@ public static partial class NativeAotDiskTimingPeer
             string prefix = Fields[i] + "=";
             Need(tokens[i].StartsWith(prefix, StringComparison.Ordinal), "metric_field");
             string number = tokens[i][prefix.Length..];
-            Need(number.Length is> 0 and <= 20 && (number.Length == 1 || number[0] != '0') && number.All(c => c is >= '0' and <= '9') && ulong.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out _), "metric_number");
+            Need(number.Length is > 0 and <= 20 && (number.Length == 1 || number[0] != '0') && number.All(c => c is >= '0' and <= '9') && ulong.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out _), "metric_number");
             values.Add(Fields[i], ulong.Parse(number, CultureInfo.InvariantCulture));
         }
 
         ulong calls = values["calls"], steps = values["steps"];
-        Need(values["bytes"] == 65536 && calls is> 0 and <= 10_000_000 && steps >= calls && steps <= calls * 4 && values["networkCalls"] == calls && values["failures"] == 0 && values["flushedPastBudget"] <= steps && values["postReadinessNs"] <= ulong.MaxValue - values["postWaitRecordNs"] && values["postReadinessNs"] + values["postWaitRecordNs"] == values["postNetworkNs"] && values["readinessRefreshNs"] <= ulong.MaxValue - values["readinessWaitScanNs"] && values["readinessRefreshNs"] + values["readinessWaitScanNs"] == values["postReadinessNs"], "metric_bounds");
+        Need(values["bytes"] == 65536 && calls is > 0 and <= 10_000_000 && steps >= calls && steps <= calls * 4 && values["networkCalls"] == calls && values["failures"] == 0 && values["flushedPastBudget"] <= steps && values["postReadinessNs"] <= ulong.MaxValue - values["postWaitRecordNs"] && values["postReadinessNs"] + values["postWaitRecordNs"] == values["postNetworkNs"] && values["readinessRefreshNs"] <= ulong.MaxValue - values["readinessWaitScanNs"] && values["readinessRefreshNs"] + values["readinessWaitScanNs"] == values["postReadinessNs"], "metric_bounds");
         ulong reasons = 0;
         foreach (string field in new[]
         {
@@ -125,12 +125,12 @@ public static partial class NativeAotDiskTimingPeer
             string prefix = DispatchFields[i] + "=";
             Need(tokens[i].StartsWith(prefix, StringComparison.Ordinal), "dispatch_field");
             string number = tokens[i][prefix.Length..];
-            Need(number.Length is> 0 and <= 20 && (number.Length == 1 || number[0] != '0') && number.All(c => c is >= '0' and <= '9') && ulong.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out _), "dispatch_number");
+            Need(number.Length is > 0 and <= 20 && (number.Length == 1 || number[0] != '0') && number.All(c => c is >= '0' and <= '9') && ulong.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out _), "dispatch_number");
             values.Add(DispatchFields[i], ulong.Parse(number, CultureInfo.InvariantCulture));
         }
 
         ulong phase = values["phaseNs"], poll = values["pollNs"], dispatch = values["dispatchNs"], nested = values["nestedPollNs"];
-        Need(values["bytes"] == 65536 && phase > 0 && pollMetrics.TryGetValue("pollNs", out ulong oldPoll) && oldPoll == poll && poll <= phase && dispatch <= phase && nested <= poll && nested <= dispatch && values["dispatchNonPollNs"] == dispatch - nested && dispatch - nested <= phase - poll && values["supervisorNonPollNs"] == phase - poll - (dispatch - nested) && values["completed"] <= 10_000_000 && values["clipped"] is> 0 and <= 2 && values["physicalActive"] == 1 && values["phaseComplete"] == 1, "dispatch_partition");
+        Need(values["bytes"] == 65536 && phase > 0 && pollMetrics.TryGetValue("pollNs", out ulong oldPoll) && oldPoll == poll && poll <= phase && dispatch <= phase && nested <= poll && nested <= dispatch && values["dispatchNonPollNs"] == dispatch - nested && dispatch - nested <= phase - poll && values["supervisorNonPollNs"] == phase - poll - (dispatch - nested) && values["completed"] <= 10_000_000 && values["clipped"] is > 0 and <= 2 && values["physicalActive"] == 1 && values["phaseComplete"] == 1, "dispatch_partition");
         return new System.Collections.ObjectModel.ReadOnlyDictionary<string, ulong>(values);
     }
 
@@ -153,14 +153,14 @@ public static partial class NativeAotDiskTimingPeer
             string prefix = DriverFields[i] + "=";
             Need(tokens[i].StartsWith(prefix, StringComparison.Ordinal), "driver_field");
             string number = tokens[i][prefix.Length..];
-            Need(number.Length is> 0 and <= 20 && (number.Length == 1 || number[0] != '0') && number.All(c => c is >= '0' and <= '9') && ulong.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out _), "driver_number");
+            Need(number.Length is > 0 and <= 20 && (number.Length == 1 || number[0] != '0') && number.All(c => c is >= '0' and <= '9') && ulong.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out _), "driver_number");
             values.Add(DriverFields[i], ulong.Parse(number, CultureInfo.InvariantCulture));
         }
 
         ulong phase = 0, poll = 0, dispatch = 0, parentPoll = 0, parentNonPoll = 0;
         Need(dispatchMetrics.TryGetValue("phaseNs", out phase) && dispatchMetrics.TryGetValue("pollNs", out poll) && dispatchMetrics.TryGetValue("dispatchNs", out dispatch) && dispatchMetrics.TryGetValue("nestedPollNs", out parentPoll) && dispatchMetrics.TryGetValue("dispatchNonPollNs", out parentNonPoll), "driver_parent");
         ulong driver = values["driverNs"], nested = values["nestedPollNs"];
-        Need(values["bytes"] == 65536 && phase > 0 && values["phaseNs"] == phase && values["pollNs"] == poll && poll <= phase && dispatch <= phase && parentPoll <= poll && parentPoll <= dispatch && parentNonPoll == dispatch - parentPoll && parentNonPoll <= phase - poll && driver <= dispatch && nested <= driver && nested <= parentPoll && parentPoll - nested <= dispatch - driver && values["driverNonPollNs"] == driver - nested && values["driverNonPollNs"] <= parentNonPoll && values["dispatchShellNonPollNs"] == (dispatch - driver) - (parentPoll - nested) && values["dispatchShellNonPollNs"] == parentNonPoll - values["driverNonPollNs"] && values["completed"] <= 10_000_000 && values["clipped"] is> 0 and <= 2 && values["physicalActive"] == 1 && values["phaseComplete"] == 1, "driver_partition");
+        Need(values["bytes"] == 65536 && phase > 0 && values["phaseNs"] == phase && values["pollNs"] == poll && poll <= phase && dispatch <= phase && parentPoll <= poll && parentPoll <= dispatch && parentNonPoll == dispatch - parentPoll && parentNonPoll <= phase - poll && driver <= dispatch && nested <= driver && nested <= parentPoll && parentPoll - nested <= dispatch - driver && values["driverNonPollNs"] == driver - nested && values["driverNonPollNs"] <= parentNonPoll && values["dispatchShellNonPollNs"] == (dispatch - driver) - (parentPoll - nested) && values["dispatchShellNonPollNs"] == parentNonPoll - values["driverNonPollNs"] && values["completed"] <= 10_000_000 && values["clipped"] is > 0 and <= 2 && values["physicalActive"] == 1 && values["phaseComplete"] == 1, "driver_partition");
         return new System.Collections.ObjectModel.ReadOnlyDictionary<string, ulong>(values);
     }
 
@@ -261,7 +261,7 @@ public static partial class NativeAotDiskTimingPeer
             {
                 await stopped.ConnectAsync(IPAddress.Loopback, port, refusal.Token);
             }
-            catch (SocketException error)when (error.SocketErrorCode == SocketError.ConnectionRefused)
+            catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionRefused)
             {
                 refused = true;
             }
@@ -303,7 +303,41 @@ public static partial class NativeAotDiskTimingPeer
             try
             {
                 using FileStream receipt = new(Path.Combine(directory, "diagnostic.json"), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-                await JsonSerializer.SerializeAsync(receipt, new { Schema = "clros-disk-read-timing-v11", Scope = "diagnostic-only", Complete = complete, RequestSequence = "json-health-head-range-health", FullAndCleanupQualified = false, Port = port, RunnerTimeoutSeconds = runnerTimeoutSeconds, PeerTimeoutSeconds = peerTimeoutSeconds, RequestTimeoutTicks = options.RequestTimeout.Ticks, RequestTimeoutScope = "headers-and-streamed-body", DiskEvidenceMode = options.DiskEvidence.ToString(), DiskEvidence = diskEvidence, ImageSha256 = inventory.ImageSha256, Asset = asset, ClockFrequency = Stopwatch.Frequency, Responses = rows, IncompleteRequest = requestPhase is null ? null : new { Phase = requestPhase, Bytes = requestBytes }, Metrics = metrics, DispatchMetrics = dispatchMetrics, DriverMetrics = driverMetrics, VerificationSchema, VerificationMetrics = verificationMetrics, SelectionSchema = "clros-thread-dispatch-selection-v1", Selections = selections, Failure = failure, RunnerJoined = true, Runner = joined, JoinFault = joinFault }, cancellationToken: CancellationToken.None);
+                await JsonSerializer.SerializeAsync(receipt, new
+                {
+                    Schema = "clros-disk-read-timing-v11",
+                    Scope = "diagnostic-only",
+                    Complete = complete,
+                    RequestSequence = "json-health-head-range-health",
+                    FullAndCleanupQualified = false,
+                    Port = port,
+                    RunnerTimeoutSeconds = runnerTimeoutSeconds,
+                    PeerTimeoutSeconds = peerTimeoutSeconds,
+                    RequestTimeoutTicks = options.RequestTimeout.Ticks,
+                    RequestTimeoutScope = "headers-and-streamed-body",
+                    DiskEvidenceMode = options.DiskEvidence.ToString(),
+                    DiskEvidence = diskEvidence,
+                    ImageSha256 = inventory.ImageSha256,
+                    Asset = asset,
+                    ClockFrequency = Stopwatch.Frequency,
+                    Responses = rows,
+                    IncompleteRequest = requestPhase is null ? null : new
+                    {
+                        Phase = requestPhase,
+                        Bytes = requestBytes
+                    },
+                    Metrics = metrics,
+                    DispatchMetrics = dispatchMetrics,
+                    DriverMetrics = driverMetrics,
+                    VerificationSchema,
+                    VerificationMetrics = verificationMetrics,
+                    SelectionSchema = "clros-thread-dispatch-selection-v1",
+                    Selections = selections,
+                    Failure = failure,
+                    RunnerJoined = true,
+                    Runner = joined,
+                    JoinFault = joinFault
+                }, cancellationToken: CancellationToken.None);
                 receipt.Flush(true);
             }
             catch (IOException)
@@ -388,7 +422,24 @@ public static partial class NativeAotDiskTimingPeer
                     bodyFlushed = Stopwatch.GetTimestamp();
                 }
 
-                rows.Add(new { Ordinal = ordinal, Method = method, Path = path, Status = (int)response.StatusCode, Started = start, HeadersReceived = headersReceived, BodyReceived = bodyReceived, BodyWritten = bodyWritten, BodyFlushed = bodyFlushed, Finished = Stopwatch.GetTimestamp(), Bytes = actual.Length, Sha256 = Convert.ToHexString(SHA256.HashData(actual)), BodyFile = bodyFile, RequestHeaders = request.Headers.ToString(), ResponseHeaders = response.Headers.ToString() + response.Content.Headers.ToString() });
+                rows.Add(new
+                {
+                    Ordinal = ordinal,
+                    Method = method,
+                    Path = path,
+                    Status = (int)response.StatusCode,
+                    Started = start,
+                    HeadersReceived = headersReceived,
+                    BodyReceived = bodyReceived,
+                    BodyWritten = bodyWritten,
+                    BodyFlushed = bodyFlushed,
+                    Finished = Stopwatch.GetTimestamp(),
+                    Bytes = actual.Length,
+                    Sha256 = Convert.ToHexString(SHA256.HashData(actual)),
+                    BodyFile = bodyFile,
+                    RequestHeaders = request.Headers.ToString(),
+                    ResponseHeaders = response.Headers.ToString() + response.Content.Headers.ToString()
+                });
                 requestPhase = "validation";
                 Need((int)response.StatusCode == status && (expected is null || actual.AsSpan().SequenceEqual(expected)), "response");
                 if (path == "/api/status")

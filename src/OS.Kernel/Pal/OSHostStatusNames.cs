@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 public static class OSHostStatusNames
 {
     public const string Unknown = "OSHOST_STATUS_UNKNOWN";

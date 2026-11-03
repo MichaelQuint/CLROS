@@ -3,6 +3,7 @@ using OS.Manifest;
 using OS.Pal;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAppLogSinkReadiness
 {
     public NativeAppLogSinkReadiness(OSHostStatus status, int remainingRecordCapacity, int maxRecordBytes)
@@ -13,10 +14,22 @@ public readonly struct NativeAppLogSinkReadiness
         IsInitialized = true;
     }
 
-    public OSHostStatus Status { get; }
-    public bool IsInitialized { get; }
-    public int RemainingRecordCapacity { get; }
-    public int MaxRecordBytes { get; }
+    public OSHostStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public int RemainingRecordCapacity
+    {
+        get;
+    }
+    public int MaxRecordBytes
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == OSHostStatus.Ok && RemainingRecordCapacity > 0 && MaxRecordBytes >= NativeAppExitStatusFormatter.MaximumMarkerBytes;
 
     public static NativeAppLogSinkReadiness FromTable(OSHostAppLogTable? table)

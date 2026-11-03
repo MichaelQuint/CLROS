@@ -1,6 +1,7 @@
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public enum NativeManifestLoadStatus
 {
     Success = 0,

@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct VirtioPciBarRegisterWindowAccessPlanResult
 {
     private VirtioPciBarRegisterWindowAccessPlanResult(VirtioPciBarRegisterWindowPlanStatus status, VirtioPciCapabilityType capabilityType, byte barIndex, uint relativeOffset, VirtioPciRegisterAccessWidth width, VirtioPciBarRegisterWindowAccessPlan plan, bool isInitialized)
@@ -14,13 +15,34 @@ public readonly struct VirtioPciBarRegisterWindowAccessPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioPciBarRegisterWindowPlanStatus Status { get; }
-    public bool IsInitialized { get; }
-    public VirtioPciCapabilityType CapabilityType { get; }
-    public byte BarIndex { get; }
-    public uint RelativeOffset { get; }
-    public VirtioPciRegisterAccessWidth Width { get; }
-    public VirtioPciBarRegisterWindowAccessPlan Plan { get; }
+    public VirtioPciBarRegisterWindowPlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtioPciCapabilityType CapabilityType
+    {
+        get;
+    }
+    public byte BarIndex
+    {
+        get;
+    }
+    public uint RelativeOffset
+    {
+        get;
+    }
+    public VirtioPciRegisterAccessWidth Width
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowAccessPlan Plan
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioPciBarRegisterWindowPlanStatus.Success;
 
     internal static VirtioPciBarRegisterWindowAccessPlanResult Success(VirtioPciBarRegisterWindowAccessPlan plan)

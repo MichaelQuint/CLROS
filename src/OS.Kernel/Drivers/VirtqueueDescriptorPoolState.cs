@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public unsafe struct VirtqueueDescriptorPoolState
 {
     internal ulong Self, Epoch;

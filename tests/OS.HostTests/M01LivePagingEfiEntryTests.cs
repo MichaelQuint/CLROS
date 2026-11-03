@@ -740,7 +740,7 @@ internal static partial class M01LivePagingEfiEntryTests
             return Failure("mutation-stage-three-missing");
         int stageThreeStart = HostEfiSourceRegions.TypeBody(source, "M01StageThreeAdapter")!.Value.Start;
         (string Name, string Old, string New)[] mutations = [("guard", "\n#if M01_OWNED_PAGING_PROBE\n", "\n#if true // M01_OWNED_PAGING_PROBE\n"), ("allocate-address-mode", "private const uint AllocateAddress = 2;", "private const uint AllocateAddress = 0;"), ("code-type", "private const uint EfiLoaderCode = 1;", "private const uint EfiLoaderCode = 2;"), ("allocation-count", "private const ulong AllocationRecordCount = 3;", "private const ulong AllocationRecordCount = 2;"), ("fixed-address-readback", "tableAddress != requestedTableAddress", "false"), ("map-key", "refreshedMap.MapKey == previousMapKey", "refreshedMap.MapKey != previousMapKey"), ("final-ledger", "private const ulong FinalReservationCount = 8;", "private const ulong FinalReservationCount = 7;"), ("PAT-length", "private const ulong PatReaderByteLength = 49;", "private const ulong PatReaderByteLength = 48;"), ("PAT-live-value", "                            *rawIa32Pat,", "                            0UL,"), ("prepare-only", "M01LivePagingIntegration.Prepare(", "M01LivePagingIntegration.Execute("), ("arena-readback", ".VerifyExisting,", ".EmitAndVerify,"), ("binding-count", "private const ulong BindingCount = 6;", "private const ulong BindingCount = 5;"), ("transfer-offset", "private const ulong TransferThunkEntryOffset = 128;", "private const ulong TransferThunkEntryOffset = 64;"), ("transfer-length", "private const ulong TransferThunkByteLength = 68;", "private const ulong TransferThunkByteLength = 67;"), ("planner-thunk-offset", "private const ulong PlannerCallThunkEntryOffset = 256;", "private const ulong PlannerCallThunkEntryOffset = 192;"), ("planner-thunk-length", "private const ulong PlannerCallThunkByteLength = 39;", "private const ulong PlannerCallThunkByteLength = 38;"), ("planner-stack-capacity", "private const ulong PlannerStackByteCount = 256 * 1024;", "private const ulong PlannerStackByteCount = 128 * 1024;"), ("planner-stack-minimum", "            224 * 1024;", "            128 * 1024;"), ("planner-wrapper-attribute", "[System.Runtime.InteropServices.UnmanagedCallers\\u004fnly]", "[System.Runtime.CompilerServices.SkipLocalsInit]"), ("planner-wrapper-boundary", "RunPreparationOnPlannerStack(", "BypassPlannerStack("), ("prior-map-allocation-validation", "ValidateNewAllocationAgainstStageTwo(", "BypassPriorMapValidation("), ("code-ownership-at-status", "codeAllocated = firmwareStatus == EfiSuccess;", "bool codeAllocationSucceeded = " + "firmwareStatus == EfiSuccess;"), ("probe-ownership-at-status", "probeAllocated = firmwareStatus == EfiSuccess;", "bool probeAllocationSucceeded = " + "firmwareStatus == EfiSuccess;"), ("table-ownership-at-status", "tableAllocated = firmwareStatus == EfiSuccess;", "bool tableAllocationSucceeded = " + "firmwareStatus == EfiSuccess;"), ("code-ownership-address-truthiness", "codeAllocated = firmwareStatus == EfiSuccess;", "codeAllocated = codeAddress != 0;"), ("probe-ownership-address-truthiness", "probeAllocated = firmwareStatus == EfiSuccess;", "probeAllocated = probeAddress != 0;"), ("table-ownership-address-truthiness", "tableAllocated = firmwareStatus == EfiSuccess;", "tableAllocated = tableAddress != 0;"), ("failure-call-drops-code-ownership", "                    codeAddress,\n" + "                    codeAllocated,\n" + "                    probeAddress,", "                    codeAddress,\n" + "                    false,\n" + "                    probeAddress,"), ("cleanup-removes-table-branch", "if (tableAllocated)", "if (false)"), ("cleanup-removes-probe-branch", "if (probeAllocated)", "if (false)"), ("cleanup-removes-code-branch", "if (codeAllocated)", "if (false)"), ("cleanup-table-wrong-page-count", "                            tableAddress,\n" + "                            tablePageCount);", "                            tableAddress,\n" + "                            ProbePageCount);"), ("cleanup-table-early-return", "                            tablePageCount);\n" + "                }\n" + "                if (probeAllocated)", "                            tablePageCount);\n" + "                    return false;\n" + "                }\n" + "                if (probeAllocated)"), ("planner-low-canary", "*lowCanary == PlannerStackLowCanary", "true"), ("post-entry-fail-stop", "            while (true)", "            return false"), ("one-shot-guard", "if (s_runState != 0)", "if (false)"), ("one-shot-running-state", "s_runState = 1;", "s_runState = 0;"), ("one-shot-success-state", "s_runState = 2;", "s_runState = 0;"), ("one-shot-failure-state", "s_runState = 3;", "s_runState = 0;"), ("observation-offset", "private const ulong GateObservationOffset = 0x300;", "private const ulong GateObservationOffset = 0x1e8;"), ("gate-invocation", "uint runtimeReturn = transfer(", "uint runtimeReturn = BypassTransfer("), ("post-audit", ".AuditCallGateObservation(", ".BypassCallGateAudit("), ("post-marker-start", "for (int lineIndex = 9;", "for (int lineIndex = 8;"), ("null-fault", "s_runState = 1;", "NullPageFaultProbePlan.Plan(default);" + " s_runState = 1;")];
-        foreach ((string name, string oldText, string newText)in mutations)
+        foreach ((string name, string oldText, string newText) in mutations)
         {
             // Other adapters may contain the same text before stage three.
             bool guard = name == "guard";
@@ -863,10 +863,10 @@ internal static partial class M01LivePagingEfiEntryTests
         string method = FindMethodBody(typeSource, methodName) ?? string.Empty;
         if (method.Length == 0)
         {
-            return[];
+            return [];
         }
 
-        byte? [] indexed = new byte? [expectedLength];
+        byte?[] indexed = new byte?[expectedLength];
         MatchCollection switchArms = Regex.Matches(method, @"(?m)^\s*(?<index>\d+)\s*=>\s*" + @"(?<value>0x[0-9a-fA-F]+|\d+)\s*,?\s*$", RegexOptions.CultureInvariant);
         foreach (Match match in switchArms)
         {
@@ -874,7 +874,7 @@ internal static partial class M01LivePagingEfiEntryTests
             int value = ParseInteger(match.Groups["value"].Value);
             if ((uint)index >= (uint)indexed.Length || (uint)value > byte.MaxValue || indexed[index].HasValue)
             {
-                return[];
+                return [];
             }
 
             indexed[index] = (byte)value;
@@ -914,7 +914,7 @@ internal static partial class M01LivePagingEfiEntryTests
 
         if (sequential.Count == expectedLength)
         {
-            return[..sequential];
+            return [.. sequential];
         }
 
         MatchCollection literals = Regex.Matches(method, @"(?<![A-Za-z0-9_])0x(?<value>[0-9a-fA-F]{2})" + @"(?![A-Za-z0-9_])", RegexOptions.CultureInvariant);
@@ -923,7 +923,7 @@ internal static partial class M01LivePagingEfiEntryTests
             sequential.Add(byte.Parse(match.Groups["value"].Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture));
         }
 
-        return sequential.Count == expectedLength ? [..sequential] : [];
+        return sequential.Count == expectedLength ? [.. sequential] : [];
     }
 
     private static int ParseInteger(string value)
@@ -964,7 +964,7 @@ internal static partial class M01LivePagingEfiEntryTests
     private static int FindFreePagesCallIndex(string source, string addressName)
     {
         List<(int Index, string[] Arguments)> calls = FindInvocationArgumentsWithIndices(source, "FreePages");
-        foreach ((int index, string[] arguments)in calls)
+        foreach ((int index, string[] arguments) in calls)
         {
             if (arguments.Length != 0 && Compact(arguments[0]).Contains(addressName, StringComparison.Ordinal))
             {
@@ -1278,7 +1278,7 @@ internal static partial class M01LivePagingEfiEntryTests
     {
         if (string.IsNullOrWhiteSpace(arguments))
         {
-            return[];
+            return [];
         }
 
         string sanitized = SanitizeStringsAndCharacters(arguments);
@@ -1321,7 +1321,7 @@ internal static partial class M01LivePagingEfiEntryTests
         }
 
         parts.Add(arguments[start..].Trim());
-        return[..parts];
+        return [.. parts];
     }
 
     private static int CountFlexibleQualifiedCalls(string source, string qualifiedName)

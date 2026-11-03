@@ -3,6 +3,7 @@ using OS.Kernel.Compatibility.LinuxX64;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>One still-retained original1MiB mapping and exact successful CALL

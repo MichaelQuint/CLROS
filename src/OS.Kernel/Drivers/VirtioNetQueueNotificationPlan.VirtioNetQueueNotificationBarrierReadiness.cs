@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioNetQueueNotificationBarrierReadiness
 {
     public VirtioNetQueueNotificationBarrierReadiness(bool descriptorWritesVisible, bool availableRingWritesVisible, bool orderedBeforeNotify, uint barrierSequence)
@@ -9,10 +10,22 @@ public readonly struct VirtioNetQueueNotificationBarrierReadiness
         BarrierSequence = barrierSequence;
     }
 
-    public bool DescriptorWritesVisible { get; }
-    public bool AvailableRingWritesVisible { get; }
-    public bool OrderedBeforeNotify { get; }
-    public uint BarrierSequence { get; }
+    public bool DescriptorWritesVisible
+    {
+        get;
+    }
+    public bool AvailableRingWritesVisible
+    {
+        get;
+    }
+    public bool OrderedBeforeNotify
+    {
+        get;
+    }
+    public uint BarrierSequence
+    {
+        get;
+    }
     public bool Succeeded => DescriptorWritesVisible && AvailableRingWritesVisible && OrderedBeforeNotify;
 
     public static VirtioNetQueueNotificationBarrierReadiness Ready(uint barrierSequence)

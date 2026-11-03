@@ -13,7 +13,8 @@ internal static class ContinuingNetworkTranscriptTests
         HostCheck.Equal(start, QemuTranscripts.ValidateNetworkServiceTail(rows).Length);
         foreach (int index in Enumerable.Range(start, tail))
         {
-            string[] bad = (string[])rows.Clone(); bad[index] += " extra";
+            string[] bad = (string[])rows.Clone();
+            bad[index] += " extra";
             Reject(() => QemuTranscripts.ValidateNetworkServiceTail(bad));
         }
         Reject(() => QemuTranscripts.ValidateNetworkServiceTail(rows[..^1]));
@@ -28,7 +29,8 @@ internal static class ContinuingNetworkTranscriptTests
         foreach ((string from, string to) in new[] { ("a=20", "a=19"), ("b=32", "b=31"), ("d=90525193470466", "d=90525193470467"), (" c=0 d=", " c=1 d="), ("a=8 b=0 c=8", "a=8 b=1 c=8") })
         {
             string[] bad = rows.Select(x => x.Replace(from, to, StringComparison.Ordinal)).ToArray();
-            HostCheck.True(!bad.SequenceEqual(rows)); Reject(() => QemuTranscripts.ValidateNetworkServiceTail(bad));
+            HostCheck.True(!bad.SequenceEqual(rows));
+            Reject(() => QemuTranscripts.ValidateNetworkServiceTail(bad));
         }
         foreach ((string from, string to) in new[] { ("a=4194304 b=32", "a=2097152 b=32"),
             ("a=2400 b=200 c=2200 d=100000000", "a=2400 b=200 c=0 d=100000000"),
@@ -37,7 +39,8 @@ internal static class ContinuingNetworkTranscriptTests
             ("a=4802 b=1 c=0 d=32", "a=4802 b=0 c=0 d=32") })
         {
             string[] bad = rows.Select(x => x.Replace(from, to, StringComparison.Ordinal)).ToArray();
-            HostCheck.True(!bad.SequenceEqual(rows)); Reject(() => QemuTranscripts.ValidateNetworkServiceTail(bad));
+            HostCheck.True(!bad.SequenceEqual(rows));
+            Reject(() => QemuTranscripts.ValidateNetworkServiceTail(bad));
         }
     }
 
@@ -51,25 +54,41 @@ internal static class ContinuingNetworkTranscriptTests
             string serial = Path.Combine(directory, "serial.log"), capture = Path.Combine(directory, "ethernet.pcap");
             File.WriteAllLines(serial, Records());
             var frames = Frames();
-            void Inspect(List<byte[]> values) { File.WriteAllBytes(capture, Pcap(values)); QemuTranscripts.AssertM07026Capture(serial, capture); }
+            void Inspect(List<byte[]> values)
+            {
+                File.WriteAllBytes(capture, Pcap(values));
+                QemuTranscripts.AssertM07026Capture(serial, capture);
+            }
             Inspect(frames);
             Reject(() => Inspect(frames.Skip(1).ToList()));
             Reject(() => Inspect(frames.Where((_, i) => i != 1).ToList()));
-            var badPrefix = frames.Select(x => (byte[])x.Clone()).ToList(); badPrefix[0][14] = 1; Reject(() => Inspect(badPrefix));
-            var duplicatePrefix = frames.ToList(); duplicatePrefix.Insert(1, frames[0]); Reject(() => Inspect(duplicatePrefix));
+            var badPrefix = frames.Select(x => (byte[])x.Clone()).ToList();
+            badPrefix[0][14] = 1;
+            Reject(() => Inspect(badPrefix));
+            var duplicatePrefix = frames.ToList();
+            duplicatePrefix.Insert(1, frames[0]);
+            Reject(() => Inspect(duplicatePrefix));
             Reject(() => Inspect(frames.Take(frames.Count - 1).ToList()));
-            var duplicate = frames.ToList(); duplicate.Add(frames[^1]); Reject(() => Inspect(duplicate));
+            var duplicate = frames.ToList();
+            duplicate.Add(frames[^1]);
+            Reject(() => Inspect(duplicate));
             foreach (int offset in new[] { 0, 6, 24, 36, 38, 40, 42 })
             {
-                var bad = frames.Select(x => (byte[])x.Clone()).ToList(); bad[^1][offset] ^= 1; Reject(() => Inspect(bad));
+                var bad = frames.Select(x => (byte[])x.Clone()).ToList();
+                bad[^1][offset] ^= 1;
+                Reject(() => Inspect(bad));
             }
-            var swapped = frames.ToList(); (swapped[^1], swapped[^2]) = (swapped[^2], swapped[^1]); Reject(() => Inspect(swapped));
+            var swapped = frames.ToList();
+            (swapped[^1], swapped[^2]) = (swapped[^2], swapped[^1]);
+            Reject(() => Inspect(swapped));
             File.WriteAllBytes(capture, Pcap(frames, compressTimers: true));
             Reject(() => QemuTranscripts.AssertM07026Capture(serial, capture));
             int firstTcp = frames.Count - ContinuingTcpScenario.Packets.Count - 2;
             foreach (int offset in new[] { 34, 38, 42, 46, 47, 48, 50, 54 })
             {
-                var bad = frames.Select(x => (byte[])x.Clone()).ToList(); bad[firstTcp + 1][offset] ^= 1; Reject(() => Inspect(bad));
+                var bad = frames.Select(x => (byte[])x.Clone()).ToList();
+                bad[firstTcp + 1][offset] ^= 1;
+                Reject(() => Inspect(bad));
             }
         }
         finally { Directory.Delete(directory, true); }
@@ -82,7 +101,8 @@ internal static class ContinuingNetworkTranscriptTests
         Directory.CreateDirectory(directory);
         try
         {
-            byte[] package = LinuxElfPackageTests.CapturePackage(); var view = OS.Manifest.LinuxElfPackage.Validate(package);
+            byte[] package = LinuxElfPackageTests.CapturePackage();
+            var view = OS.Manifest.LinuxElfPackage.Validate(package);
             HostCheck.True(view.Succeeded);
             string Digest(ReadOnlySpan<byte> data) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(data)).ToLowerInvariant();
             string[] staged = ["TEST_START m16-002", $"M16_002_STAGED bytes={package.Length} payload={view.PayloadBytes} pages={(package.Length + 4095) / 4096} handlesClosed=2 reads=1",
@@ -93,28 +113,35 @@ internal static class ContinuingNetworkTranscriptTests
                 .. Enumerable.Range(0, 8).Select(i => $"M16_003_FIRMWARE_DENIED index={i} status=ServicesUnavailable providers=1 outputs=unchanged"),
                 "M16_003_STOP iterations=4 reads=65 first=50 last=40050 interval=10000 firmware=revoked providers=1 shutdown=owned-controller",
                 "CLROS_M16_003_READY", "TEST_PASS m16-003"];
-            string[] rows = Records(); int owned = QemuContracts.M03OwnedSubsystemMarkers.Count;
-            staged.CopyTo(rows, owned); service.CopyTo(rows, owned + staged.Length);
+            string[] rows = Records();
+            int owned = QemuContracts.M03OwnedSubsystemMarkers.Count;
+            staged.CopyTo(rows, owned);
+            service.CopyTo(rows, owned + staged.Length);
             string serial = Path.Combine(directory, "serial.log"), packagePath = Path.Combine(directory, "app.pkg");
             File.WriteAllBytes(packagePath, package);
             void Inspect(string[] values)
             {
                 File.WriteAllText(serial, M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(values));
-                QemuTranscripts.AssertM03AcpiBootstrapTranscript(serial, firstRealExit:true, ownedSurvival:true, pciEnumeration:true,
-                    virtioNegotiation:true, virtqueuePolling:true, virtioNet:true, arpReceive:true,
-                    linuxElfPackagePath:packagePath, workloadServiceLoop:true, networkService:true);
+                QemuTranscripts.AssertM03AcpiBootstrapTranscript(serial, firstRealExit: true, ownedSurvival: true, pciEnumeration: true,
+                    virtioNegotiation: true, virtqueuePolling: true, virtioNet: true, arpReceive: true,
+                    linuxElfPackagePath: packagePath, workloadServiceLoop: true, networkService: true);
             }
             Inspect(rows);
-            string pcap = Path.Combine(directory, "ethernet.pcap"); File.WriteAllBytes(pcap, Pcap(Frames()));
+            string pcap = Path.Combine(directory, "ethernet.pcap");
+            File.WriteAllBytes(pcap, Pcap(Frames()));
             var replay = HostToolProcess.RunTool("qemu", "validate-network", serial, pcap, packagePath);
             HostCheck.True(replay.ExitCode == 0 && replay.Output.Contains("TEST_PASS qemu.network.capture", StringComparison.Ordinal), replay.Error + replay.Output);
             File.Copy(pcap, serial + ".pcap");
             ContinuingNetworkRunnerTranscriptControls.Run(directory, serial, rows, packagePath);
             foreach (int index in new[] { owned + 2, owned + 7 + 1, owned + 7 + 6 })
             {
-                string[] bad = (string[])rows.Clone(); bad[index] += " extra"; Reject(() => Inspect(bad));
+                string[] bad = (string[])rows.Clone();
+                bad[index] += " extra";
+                Reject(() => Inspect(bad));
             }
-            package[^1] ^= 1; File.WriteAllBytes(packagePath, package); Reject(() => Inspect(rows));
+            package[^1] ^= 1;
+            File.WriteAllBytes(packagePath, package);
+            Reject(() => Inspect(rows));
         }
         finally { Directory.Delete(directory, true); }
     }
@@ -148,12 +175,16 @@ internal static class ContinuingNetworkTranscriptTests
 
     private static List<byte[]> Frames()
     {
-        byte[] anchor = new byte[60]; Convert.FromHexString("02000000000202000000000188B5").CopyTo(anchor, 0);
+        byte[] anchor = new byte[60];
+        Convert.FromHexString("02000000000202000000000188B5").CopyTo(anchor, 0);
         "CLROS-M07"u8.CopyTo(anchor.AsSpan(14));
-        byte[] warmup = (byte[])anchor.Clone(); warmup.AsSpan(14).Clear();
+        byte[] warmup = (byte[])anchor.Clone();
+        warmup.AsSpan(14).Clear();
         var frames = new List<byte[]> { warmup, anchor };
-        var localMac = new MacAddress(2, 0, 0, 0, 0, 1); var peerMac = new MacAddress(0x52, 0x55, 10, 0, 2, 2);
-        var local = new Ipv4Address(10, 0, 2, 15); var peer = new Ipv4Address(10, 0, 2, 2);
+        var localMac = new MacAddress(2, 0, 0, 0, 0, 1);
+        var peerMac = new MacAddress(0x52, 0x55, 10, 0, 2, 2);
+        var local = new Ipv4Address(10, 0, 2, 15);
+        var peer = new Ipv4Address(10, 0, 2, 2);
         for (int i = 0; i < 21; i++)
         {
             byte[] request = new byte[60], reply = new byte[60];
@@ -161,21 +192,26 @@ internal static class ContinuingNetworkTranscriptTests
             EthernetHeader.TryWrite(reply, new(localMac, peerMac, 0x806));
             ArpPacket.TryWrite(request.AsSpan(14), new(1, localMac, local, default, peer), out _);
             ArpPacket.TryWrite(reply.AsSpan(14), new(2, peerMac, peer, localMac, local), out _);
-            frames.Add(request); frames.Add(reply);
+            frames.Add(request);
+            frames.Add(reply);
         }
         for (ushort i = 0; i < 12; i++)
         {
             byte[] request = new byte[66], reply = new byte[66];
             Ipv4IcmpEchoFrame.TryWriteEchoRequest(request, new(peerMac, localMac, local, peer), 226, i, "CLROS continuing network"u8, out int a);
             Ipv4IcmpEchoFrame.TryWriteEchoReply(reply, new(localMac, peerMac, peer, local), 226, i, "CLROS continuing network"u8, out int b);
-            HostCheck.True(a == 66 && b == 66); frames.Add(request); frames.Add(reply);
+            HostCheck.True(a == 66 && b == 66);
+            frames.Add(request);
+            frames.Add(reply);
         }
         const ulong peerAddress = 0x52550a000202;
-        foreach (var packet in ContinuingTcpScenario.Packets) frames.Add(ContinuingTcpScenario.Write(packet, peerAddress));
+        foreach (var packet in ContinuingTcpScenario.Packets)
+            frames.Add(ContinuingTcpScenario.Write(packet, peerAddress));
         byte[] finalRequest = new byte[60], finalReply = new byte[60];
         Ipv4IcmpEchoFrame.TryWriteEchoRequest(finalRequest, new(peerMac, localMac, local, peer), 227, 0, "CLROS TCP closed"u8, out _);
         Ipv4IcmpEchoFrame.TryWriteEchoReply(finalReply, new(localMac, peerMac, peer, local), 227, 0, "CLROS TCP closed"u8, out _);
-        frames.Add(finalRequest); frames.Add(finalReply);
+        frames.Add(finalRequest);
+        frames.Add(finalReply);
         return frames;
     }
     private static byte[] Pcap(List<byte[]> frames, bool compressTimers = false)
@@ -187,26 +223,42 @@ internal static class ContinuingNetworkTranscriptTests
         int tcpStart = frames.Count - ContinuingTcpScenario.Packets.Count - 2;
         for (int index = 0; index < frames.Count; index++)
         {
-            byte[] frame = frames[index]; timestamp += 100;
+            byte[] frame = frames[index];
+            timestamp += 100;
             if (!compressTimers && index >= tcpStart && index < frames.Count - 2)
             {
                 var packet = ContinuingTcpScenario.Packets[index - tcpStart];
                 timestamp += (ulong)packet.DelayMilliseconds * 1000;
-                timestamp += packet.Tag switch { "syn.retry" or "loss.retry1" or "pending.retry1" or "pending.retry2" => 1000000UL,
-                    "data.retry" => 3000000UL, "loss.retry2" => 2000000UL, _ => 0 };
-                if (packet.Tag == "wait.fin") waitFin = timestamp;
+                timestamp += packet.Tag switch
+                {
+                    "syn.retry" or "loss.retry1" or "pending.retry1" or "pending.retry2" => 1000000UL,
+                    "data.retry" => 3000000UL,
+                    "loss.retry2" => 2000000UL,
+                    _ => 0
+                };
+                if (packet.Tag == "wait.fin")
+                    waitFin = timestamp;
             }
-            if (!compressTimers && index == frames.Count - 2) timestamp = Math.Max(timestamp, waitFin + 240005000);
-            header.Clear(); BinaryPrimitives.WriteUInt32LittleEndian(header, (uint)(timestamp / 1000000));
+            if (!compressTimers && index == frames.Count - 2)
+                timestamp = Math.Max(timestamp, waitFin + 240005000);
+            header.Clear();
+            BinaryPrimitives.WriteUInt32LittleEndian(header, (uint)(timestamp / 1000000));
             BinaryPrimitives.WriteUInt32LittleEndian(header[4..], (uint)(timestamp % 1000000));
             BinaryPrimitives.WriteUInt32LittleEndian(header[8..], (uint)frame.Length);
-            BinaryPrimitives.WriteUInt32LittleEndian(header[12..], (uint)frame.Length); stream.Write(header); stream.Write(frame);
+            BinaryPrimitives.WriteUInt32LittleEndian(header[12..], (uint)frame.Length);
+            stream.Write(header);
+            stream.Write(frame);
         }
         return stream.ToArray();
     }
     private static void Reject(Action action)
     {
-        try { action(); } catch (ToolFailure) { return; } catch (InvalidDataException) { return; }
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { return; }
+        catch (InvalidDataException) { return; }
         throw new InvalidOperationException("m07_026_invalid_evidence_accepted");
     }
 }

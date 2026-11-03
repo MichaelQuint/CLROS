@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpReceiveWindow
 {
     /// <summary>Initially zero, noncopyable metadata. Buffer and callback/code

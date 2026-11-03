@@ -19,7 +19,10 @@ internal static unsafe partial class TcpReceiveWindowTests
         public byte* Buffer => memory + 2048;
         public byte* OtherBuffer => memory + 2560;
         public Hardware* Hardware => (Hardware*)(memory + 3072);
-        public Tcb.Handle Handle { get; private set; }
+        public Tcb.Handle Handle
+        {
+            get; private set;
+        }
 
         public Fixture(int capacity = 8, uint remote = Remote, bool bind = true)
         {

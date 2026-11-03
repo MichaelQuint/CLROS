@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Memory;
+
 public readonly partial struct MemoryMapInfoResult
 {
     private readonly struct RegionSummaryResult
@@ -18,13 +19,34 @@ public readonly partial struct MemoryMapInfoResult
             _message = message;
         }
 
-        public bool Succeeded { get; }
-        public MemoryMapInfoStatus Status { get; }
-        public int InvalidDescriptorIndex { get; }
-        public ulong TotalPages { get; }
-        public ulong TotalBytes { get; }
-        public ulong ConventionalMemoryPages { get; }
-        public ulong ConventionalMemoryBytes { get; }
+        public bool Succeeded
+        {
+            get;
+        }
+        public MemoryMapInfoStatus Status
+        {
+            get;
+        }
+        public int InvalidDescriptorIndex
+        {
+            get;
+        }
+        public ulong TotalPages
+        {
+            get;
+        }
+        public ulong TotalBytes
+        {
+            get;
+        }
+        public ulong ConventionalMemoryPages
+        {
+            get;
+        }
+        public ulong ConventionalMemoryBytes
+        {
+            get;
+        }
         public string Message => _message ?? string.Empty;
 
         public static RegionSummaryResult Valid(ulong totalPages, ulong totalBytes, ulong conventionalMemoryPages, ulong conventionalMemoryBytes)

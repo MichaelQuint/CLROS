@@ -25,17 +25,50 @@ internal static partial class ImageBuilderTests
             PackageStatus = packageStatus;
         }
 
-        public string PublishOutput { get; }
-        public string ImageBuilderOutput { get; }
-        public string ImagePath { get; }
-        public string PackageRootPath { get; }
-        public byte[] ManifestBytesFromPublish { get; }
-        public byte[] ManifestBytesFromImage { get; }
-        public bool ManifestReadbackSucceeded { get; }
-        public byte[] PackageBytes { get; }
-        public bool PackageLoadSucceeded { get; }
-        public string PackageLoadStatus { get; }
-        public string PackageStatus { get; }
+        public string PublishOutput
+        {
+            get;
+        }
+        public string ImageBuilderOutput
+        {
+            get;
+        }
+        public string ImagePath
+        {
+            get;
+        }
+        public string PackageRootPath
+        {
+            get;
+        }
+        public byte[] ManifestBytesFromPublish
+        {
+            get;
+        }
+        public byte[] ManifestBytesFromImage
+        {
+            get;
+        }
+        public bool ManifestReadbackSucceeded
+        {
+            get;
+        }
+        public byte[] PackageBytes
+        {
+            get;
+        }
+        public bool PackageLoadSucceeded
+        {
+            get;
+        }
+        public string PackageLoadStatus
+        {
+            get;
+        }
+        public string PackageStatus
+        {
+            get;
+        }
 
         public static KestrelPublishedImageFixture CreateFailed(string publishOutput, string imageBuilderOutput, string imagePath, string packageRootPath)
         {

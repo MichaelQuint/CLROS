@@ -2,6 +2,7 @@ using OS.Pal;
 using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAppExitLogObserverDiagnosticFormatter
 {
     public static NativeAppExitLogObserverDiagnosticFormatResult FormatResult(in NativeAppExitLogObserverResult result, Span<byte> destination)

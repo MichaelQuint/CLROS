@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct DhcpClientTransitionResult
 {
     private DhcpClientTransitionResult(DhcpClientStatus status, DhcpClientState state, DhcpMessageStatus messageStatus, int bytesWritten)
@@ -10,12 +11,27 @@ public readonly struct DhcpClientTransitionResult
         BytesWritten = bytesWritten;
     }
 
-    public DhcpClientStatus Status { get; }
-    public bool IsInitialized { get; }
+    public DhcpClientStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == DhcpClientStatus.Success;
-    public DhcpClientState State { get; }
-    public DhcpMessageStatus MessageStatus { get; }
-    public int BytesWritten { get; }
+    public DhcpClientState State
+    {
+        get;
+    }
+    public DhcpMessageStatus MessageStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
 
     public static DhcpClientTransitionResult Success(DhcpClientState state, int bytesWritten)
     {

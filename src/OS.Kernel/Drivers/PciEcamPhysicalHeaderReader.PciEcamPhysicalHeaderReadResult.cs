@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Drivers;
+
 public readonly struct PciEcamPhysicalHeaderReadResult
 {
     private PciEcamPhysicalHeaderReadResult(PciEcamPhysicalHeaderReadStatus status, PciEcamConfigurationAddressResult addressResult, PlatformPhysicalMemoryStatus physicalReadStatus, int requiredBytes, int bytesRead, bool isInitialized)
@@ -13,14 +14,32 @@ public readonly struct PciEcamPhysicalHeaderReadResult
         IsInitialized = isInitialized;
     }
 
-    public PciEcamPhysicalHeaderReadStatus Status { get; }
-    public bool IsInitialized { get; }
+    public PciEcamPhysicalHeaderReadStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PciEcamPhysicalHeaderReadStatus.Success;
-    public PciEcamConfigurationAddressResult AddressResult { get; }
+    public PciEcamConfigurationAddressResult AddressResult
+    {
+        get;
+    }
     public PciEcamConfigurationSpaceStatus AddressStatus => AddressResult.Status;
-    public PlatformPhysicalMemoryStatus PhysicalReadStatus { get; }
-    public int RequiredBytes { get; }
-    public int BytesRead { get; }
+    public PlatformPhysicalMemoryStatus PhysicalReadStatus
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int BytesRead
+    {
+        get;
+    }
     public ulong PhysicalAddress => AddressResult.PhysicalAddress;
     public byte Bus => AddressResult.Bus;
     public byte Device => AddressResult.Device;

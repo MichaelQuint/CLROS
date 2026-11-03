@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public static class HttpStaticResponseTransactionDiagnosticFormatter
 {
     public const bool UsesSharedAsciiTextBuilder = true;

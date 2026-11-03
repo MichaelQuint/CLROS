@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSqliteContract
 {
     /// <summary>Immutable copied package/ELF values for one exact app mode.
@@ -34,13 +35,34 @@ public static partial class NativeAotSqliteContract
             Arguments = Array.AsReadOnly(new[] { "--" + mode, path });
         }
 
-        public string Mode { get; }
-        public string DatabasePath { get; }
-        public string Manifest { get; }
-        public int PackageBytes { get; }
-        public string PackageSha256 { get; }
-        public NativeAotPayload.Inspection Image { get; }
-        public ReadOnlyCollection<string> Arguments { get; }
+        public string Mode
+        {
+            get;
+        }
+        public string DatabasePath
+        {
+            get;
+        }
+        public string Manifest
+        {
+            get;
+        }
+        public int PackageBytes
+        {
+            get;
+        }
+        public string PackageSha256
+        {
+            get;
+        }
+        public NativeAotPayload.Inspection Image
+        {
+            get;
+        }
+        public ReadOnlyCollection<string> Arguments
+        {
+            get;
+        }
         public bool ResourceEnvelopeMeasured => false;
         public bool InstructionIndexAdmitted => false;
         public bool ExecutionAuthority => false;

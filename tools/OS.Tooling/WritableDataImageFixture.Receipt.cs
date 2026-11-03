@@ -8,6 +8,7 @@ using OS.Std.Time;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class WritableDataImageFixture
 {
     /// <summary>Exact initial-image extraction receipt, independent of output
@@ -22,7 +23,10 @@ public static partial class WritableDataImageFixture
         }
 
         private readonly byte[] json;
-        public Inspection Image { get; }
+        public Inspection Image
+        {
+            get;
+        }
 
         public byte[] CopyJson() => (byte[])json.Clone();
     }

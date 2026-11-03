@@ -50,7 +50,9 @@ internal static class EfiExceptionTranscriptControls
         controls.Structure(lines, insert, child.Length);
         void Mutate(int stage, int field, ulong value, string reason)
         {
-            string[] bad = [.. lines]; ulong[] values = [.. rows[stage]]; values[field] = value;
+            string[] bad = [.. lines];
+            ulong[] values = [.. rows[stage]];
+            values[field] = value;
             bad[insert + 1 + Array.IndexOf(stages, stage)] = EfiTranscriptControls.Row(prefix, stage, values);
             controls.Check(bad, false, reason);
         }
@@ -58,13 +60,16 @@ internal static class EfiExceptionTranscriptControls
             foreach (int field in Enumerable.Range(0, 4))
                 if (finallyProfile || !(stage == 3 && field is 0 or 2 || stage == 4 && field == 0))
                     Mutate(stage, field, ulong.MaxValue, "numeric " + stage + ":" + field);
-        foreach (ulong wrongRip in new[] { rip, rip ^ 2UL }) Mutate(2, 1, wrongRip, "invalid local rejection RIP");
-        if (!finallyProfile) Mutate(2, 3, 1, "invalid local rejection admitted");
+        foreach (ulong wrongRip in new[] { rip, rip ^ 2UL })
+            Mutate(2, 1, wrongRip, "invalid local rejection RIP");
+        if (!finallyProfile)
+            Mutate(2, 3, 1, "invalid local rejection admitted");
         else
         {
             foreach (int offset in Enumerable.Range(5, 6))
             {
-                string[] bad = [.. lines]; (bad[insert + offset], bad[insert + offset + 1]) = (bad[insert + offset + 1], bad[insert + offset]);
+                string[] bad = [.. lines];
+                (bad[insert + offset], bad[insert + offset + 1]) = (bad[insert + offset + 1], bad[insert + offset]);
                 controls.Check(bad, false, "ordered stage swap " + offset);
             }
             controls.Check("M04_\tFINALLY 9\r\n" + good, false, "disguised preamble");
@@ -72,7 +77,8 @@ internal static class EfiExceptionTranscriptControls
             controls.Check(good.Replace("TEST_START m04.021.single-finally", "TEST_START m04.021.simple-catch", StringComparison.Ordinal), false, "sibling record");
         }
         foreach (string tail in finallyProfile ? new[] { "\r\n", "noise\r\n", "TEST_FAIL m04.021.single-finally 1\r\n", "T E S T_\tFAIL bad\r\n" }
-            : new[] { "\r\n", "TEST_FAIL m04.021.simple-catch 1\r\n" }) controls.Check(good + tail, false, "late tail");
+            : new[] { "\r\n", "TEST_FAIL m04.021.simple-catch 1\r\n" })
+            controls.Check(good + tail, false, "late tail");
         controls.Check(good.Replace("\r\n", "\n", StringComparison.Ordinal), false, "LF framing");
         controls.Check(good.TrimEnd('\n'), false, "incomplete final record");
         if (finallyProfile)
@@ -95,7 +101,11 @@ internal static class EfiExceptionTranscriptControls
     private static void Rejected(Action action, string reason)
     {
         bool accepted = true;
-        try { action(); } catch (ToolFailure) { accepted = false; }
+        try
+        {
+            action();
+        }
+        catch (ToolFailure) { accepted = false; }
         HostCheck.True(!accepted, reason);
     }
 }

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum Com1OwnedPortIoConfigurationStatus : byte
 {
     Success = 0,

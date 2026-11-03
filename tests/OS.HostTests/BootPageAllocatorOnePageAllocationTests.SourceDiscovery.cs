@@ -28,12 +28,12 @@ internal static partial class BootPageAllocatorOnePageAllocationTests
         if (type.TypeKind != TypeKind.Enum || type.DeclaredAccessibility != Accessibility.Public || type.EnumUnderlyingType?.SpecialType != SpecialType.System_Int32)
             return false;
         var fields = type.GetMembers().OfType<IFieldSymbol>().Where(field => field.HasConstantValue).ToArray();
-        return fields.Select(field => (field.Name, field.ConstantValue)).SequenceEqual(expected.Select(item => (item.Name, (object? )item.Value)));
+        return fields.Select(field => (field.Name, field.ConstantValue)).SequenceEqual(expected.Select(item => (item.Name, (object?)item.Value)));
     }
 
     private static bool CheckOnePageSource(CSharpSourceCatalog host, CSharpSourceCatalog efi)
     {
-        var production = HostSourceText.DocumentSources(host, [..OnePageOwners, "OS.Kernel.Memory.BootPageAllocatorMutationResult"]);
+        var production = HostSourceText.DocumentSources(host, [.. OnePageOwners, "OS.Kernel.Memory.BootPageAllocatorMutationResult"]);
         foreach (var document in production)
             if (!efi.Documents.Any(candidate => candidate.Path.Equals(document.Path, StringComparison.OrdinalIgnoreCase) && candidate.Sha256 == document.Sha256))
                 return SourceFailure("raw-production-source-join");
@@ -45,7 +45,7 @@ internal static partial class BootPageAllocatorOnePageAllocationTests
         if (System.Text.RegularExpressions.Regex.IsMatch(core, @"(?m)^\s*(?:global\s+)?using\b") || System.Text.RegularExpressions.Regex.IsMatch(core, @"\b(?:throw|try|catch|finally)\b") || System.Text.RegularExpressions.Regex.IsMatch(core, @"\b(object|dynamic|delegate|record|Exception|String|Array|Type)\b"))
             return SourceFailure("production-surface");
         var owner = efi.Type(OnePageOwner);
-        if (owner is not { TypeKind: TypeKind.Class, IsStatic: true, IsRecord: false, Arity: 0, DeclaredAccessibility: Accessibility.Public } || !owner.DeclaringSyntaxReferences.Any(reference => reference.GetSyntax()is TypeDeclarationSyntax type && type.Modifiers.Any(SyntaxKind.UnsafeKeyword)))
+        if (owner is not { TypeKind: TypeKind.Class, IsStatic: true, IsRecord: false, Arity: 0, DeclaredAccessibility: Accessibility.Public } || !owner.DeclaringSyntaxReferences.Any(reference => reference.GetSyntax() is TypeDeclarationSyntax type && type.Modifiers.Any(SyntaxKind.UnsafeKeyword)))
             return SourceFailure("production-surface");
         var method = efi.Method(OnePageOwner, "AllocateOnePage");
         var symbol = efi.Compilation.GetSemanticModel(method.SyntaxTree).GetDeclaredSymbol(method)!;
@@ -55,7 +55,7 @@ internal static partial class BootPageAllocatorOnePageAllocationTests
         _ = efi.MethodInvocations(method);
         var span = host.Compilation.GetTypeByMetadataName("System.Span`1");
         var node = host.Type("OS.Kernel.Memory.BootPageFreeListNode");
-        if (span is null || !host.Type(OnePageOwner).GetMembers("Allocate").OfType<IMethodSymbol>().Any(candidate => candidate.Parameters.Any(parameter => parameter.Type is INamedTypeSymbol named && SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, span) && named.TypeArguments.Length == 1 && SymbolEqualityComparer.Default.Equals(named.TypeArguments[0], node))) || efi.Type(OnePageOwner).GetMembers("Allocate").Length != 0 || efi.Compilation.GetTypeByMetadataName("OS.Kernel.Memory.BootPageAllocatorMutationResult")is not null)
+        if (span is null || !host.Type(OnePageOwner).GetMembers("Allocate").OfType<IMethodSymbol>().Any(candidate => candidate.Parameters.Any(parameter => parameter.Type is INamedTypeSymbol named && SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, span) && named.TypeArguments.Length == 1 && SymbolEqualityComparer.Default.Equals(named.TypeArguments[0], node))) || efi.Type(OnePageOwner).GetMembers("Allocate").Length != 0 || efi.Compilation.GetTypeByMetadataName("OS.Kernel.Memory.BootPageAllocatorMutationResult") is not null)
             return SourceFailure("host-span-boundary");
         return OnePageLegacyLayersExcluded(efi);
     }

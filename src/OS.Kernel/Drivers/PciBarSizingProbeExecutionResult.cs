@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciBarSizingProbeExecutionResult
 {
     private PciBarSizingProbeExecutionResult(PciBarSizingProbeExecutionStatus status, PciBarSizingProbeAddressPlanResult addressPlan, PciConfigDwordAccessStatus accessStatus, int requiredCommandCount, int availableCommandCount, int executedCommandCount, int requiredReadbackCount, int availableReadbackCount, int readbackCount, int failingCommandIndex, byte failingBarIndex, ushort failingRegisterOffset, PciBarSizingProbeCommandKind failingCommandKind, ulong failingPhysicalAddress, uint value, bool isInitialized)
@@ -21,23 +22,71 @@ public readonly struct PciBarSizingProbeExecutionResult
         IsInitialized = isInitialized;
     }
 
-    public PciBarSizingProbeExecutionStatus Status { get; }
-    public PciBarSizingProbeAddressPlanResult AddressPlan { get; }
+    public PciBarSizingProbeExecutionStatus Status
+    {
+        get;
+    }
+    public PciBarSizingProbeAddressPlanResult AddressPlan
+    {
+        get;
+    }
     public PciBarSizingProbeAddressPlanStatus AddressPlanStatus => AddressPlan.Status;
-    public PciConfigDwordAccessStatus AccessStatus { get; }
-    public int RequiredCommandCount { get; }
-    public int AvailableCommandCount { get; }
-    public int ExecutedCommandCount { get; }
-    public int RequiredReadbackCount { get; }
-    public int AvailableReadbackCount { get; }
-    public int ReadbackCount { get; }
-    public int FailingCommandIndex { get; }
-    public byte FailingBarIndex { get; }
-    public ushort FailingRegisterOffset { get; }
-    public PciBarSizingProbeCommandKind FailingCommandKind { get; }
-    public ulong FailingPhysicalAddress { get; }
-    public uint Value { get; }
-    public bool IsInitialized { get; }
+    public PciConfigDwordAccessStatus AccessStatus
+    {
+        get;
+    }
+    public int RequiredCommandCount
+    {
+        get;
+    }
+    public int AvailableCommandCount
+    {
+        get;
+    }
+    public int ExecutedCommandCount
+    {
+        get;
+    }
+    public int RequiredReadbackCount
+    {
+        get;
+    }
+    public int AvailableReadbackCount
+    {
+        get;
+    }
+    public int ReadbackCount
+    {
+        get;
+    }
+    public int FailingCommandIndex
+    {
+        get;
+    }
+    public byte FailingBarIndex
+    {
+        get;
+    }
+    public ushort FailingRegisterOffset
+    {
+        get;
+    }
+    public PciBarSizingProbeCommandKind FailingCommandKind
+    {
+        get;
+    }
+    public ulong FailingPhysicalAddress
+    {
+        get;
+    }
+    public uint Value
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PciBarSizingProbeExecutionStatus.Success;
 
     public static PciBarSizingProbeExecutionResult Create(PciBarSizingProbeExecutionStatus status, PciBarSizingProbeAddressPlanResult addressPlan, PciConfigDwordAccessStatus accessStatus, int requiredCommandCount, int availableCommandCount, int executedCommandCount, int requiredReadbackCount, int availableReadbackCount, int readbackCount, int failingCommandIndex, byte failingBarIndex, ushort failingRegisterOffset, PciBarSizingProbeCommandKind failingCommandKind, ulong failingPhysicalAddress, uint value)

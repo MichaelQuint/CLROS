@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.ExceptionServices;
 
 namespace OS.Tools.QemuRunner;
+
 public sealed partial class WebFrameControl
 {
     /// <summary>Literal bounded service injection, ordered after original

@@ -2,6 +2,7 @@ using OS.Boot;
 using Unwind = OS.Kernel.Runtime.X64PERuntimeFunctionUnwindMetadataHostileInput;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAotNormalFinallyResult
 {
     internal NativeAotNormalFinallyResult(NativeAotNormalFinallyStatus status)
@@ -19,10 +20,25 @@ public readonly struct NativeAotNormalFinallyResult
         ExitedClauseIndex = exitedClause;
     }
 
-    public NativeAotNormalFinallyStatus Status { get; }
+    public NativeAotNormalFinallyStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == NativeAotNormalFinallyStatus.Success;
-    public X64UnwindContext Parent { get; }
-    public NativeAotEhMethodBounds Bounds { get; }
-    public uint ProtectedOffset { get; }
-    public uint ExitedClauseIndex { get; }
+    public X64UnwindContext Parent
+    {
+        get;
+    }
+    public NativeAotEhMethodBounds Bounds
+    {
+        get;
+    }
+    public uint ProtectedOffset
+    {
+        get;
+    }
+    public uint ExitedClauseIndex
+    {
+        get;
+    }
 }

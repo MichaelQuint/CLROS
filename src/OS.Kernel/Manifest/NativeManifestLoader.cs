@@ -1,6 +1,7 @@
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public static class NativeManifestLoader
 {
     public const string ManifestPath = "OS/MANIFEST.JSON";

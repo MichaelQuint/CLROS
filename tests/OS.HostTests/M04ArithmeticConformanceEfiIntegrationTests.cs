@@ -35,7 +35,7 @@ internal static partial class M04ArithmeticConformanceEfiIntegrationTests
         Require(defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(" + Flag + ")' == ''", "one false default");
         XElement symbol = project.Descendants("PropertyGroup").Single(group => group.Attribute("Condition")?.Value == "'$(" + Flag + ")' == 'true'");
         Require(symbol.Elements().Single().Value == "$(DefineConstants);" + Symbol, "exact symbol");
-        foreach ((string dependency, string relation)in new[]
+        foreach ((string dependency, string relation) in new[]
         {
             (SpanFlag, "!="),
             ("EnableM02OwnedGdtTssTerminalProbe", "=="),
@@ -72,7 +72,7 @@ internal static partial class M04ArithmeticConformanceEfiIntegrationTests
     [HostTest("m04.004.efi source identity accepts line endings and rejects content changes", HostLane.Fast, 1)]
     private static void TestSourceIdentity()
     {
-        foreach ((string relative, string expected)in new[]
+        foreach ((string relative, string expected) in new[]
         {
             (Leaf, LeafSourceHash)
         }
@@ -190,7 +190,7 @@ internal static partial class M04ArithmeticConformanceEfiIntegrationTests
         string[] forbidden = Markers(profile.Output, "FORBIDDEN_MARKERS ");
         Require(required.Length == 17 && ordered.Length == 5 && unique.Length == 3 && forbidden.Length == 5, "17/5/3/5 enabled profile");
         Require(ordered[0] == "EFI_CONSOLE_READY" && ordered[1].StartsWith("CLROS_M04_002_READY ", StringComparison.Ordinal) && ordered[2].StartsWith("CLROS_M04_003_READY ", StringComparison.Ordinal) && ordered[3] == Ready && ordered[4] == "UEFI_MEMORY_MAP_READY" && unique.SequenceEqual(ordered[1..4]) && forbidden.Contains(Failed), "exact order and uniqueness");
-        foreach ((string[] arguments, int count)in new[]
+        foreach ((string[] arguments, int count) in new[]
         {
             (Array.Empty<string>(), 12),
             (new[] { "-BuildEfi", "-" + EndianFlag }, 15),
@@ -203,7 +203,7 @@ internal static partial class M04ArithmeticConformanceEfiIntegrationTests
             Require(baseline.ExitCode == 0 && Markers(baseline.Output, "REQUIRED_MARKERS ").Length == count && !Markers(baseline.Output, "REQUIRED_MARKERS ").Contains(Ready), "unchanged older profile " + count);
         }
 
-        foreach ((string[] arguments, string reason)in new[]
+        foreach ((string[] arguments, string reason) in new[]
         {
             (new[] { "-BuildEfi", "-" + Flag }, "m04_arithmetic_conformance_requires_span_memory_conformance"),
             (new[] { "-BuildEfi", "-" + SpanFlag, "-" + Flag }, "m04_span_memory_conformance_requires_independent_endian_conformance"),
@@ -219,7 +219,7 @@ internal static partial class M04ArithmeticConformanceEfiIntegrationTests
             Require(rejected.ExitCode != 0 && rejected.Output.Contains("TEST_FAIL qemu.smoke " + reason, StringComparison.Ordinal), rejected.Output);
         }
 
-        ScriptResult combined = Qemu(root, [..enabled, "-EnableM02NormalizedInterruptFramePageProbe"]);
+        ScriptResult combined = Qemu(root, [.. enabled, "-EnableM02NormalizedInterruptFramePageProbe"]);
         Require(combined.ExitCode == 0 && Markers(combined.Output, "ORDERED_MARKERS ").Contains(Ready), "returning M02 combination");
         string stream = string.Join('\n', ordered.Concat(required.Where(marker => !ordered.Contains(marker) && marker != "OS_SMOKE_PASS"))) + "\nOS_SMOKE_PASS\n";
         SerialMarkerCompletionResult Evaluate(string input)
@@ -262,7 +262,7 @@ internal static partial class M04ArithmeticConformanceEfiIntegrationTests
         }
 
         )
-            foreach ((string[] arguments, string reason)in new[]
+            foreach ((string[] arguments, string reason) in new[]
             {
                 (new[] { "--" + Flag }, "m04_arithmetic_conformance_requires_span_memory_conformance"),
                 (new[] { "--" + Flag, "--" + SpanFlag, "--" + EndianFlag, "--EnableM02OwnedGdtTssTerminalProbe" }, "m04_arithmetic_conformance_forbids_owned_gdt_tss_terminal"),
@@ -279,7 +279,7 @@ internal static partial class M04ArithmeticConformanceEfiIntegrationTests
     private static string Compile(string root, string relative) => "<Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, relative)) + "\"/>";
     private static ScriptResult Qemu(string root, params string[] arguments)
     {
-        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..arguments]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. arguments]);
         return new(result.ExitCode, result.Output + result.Error);
     }
 

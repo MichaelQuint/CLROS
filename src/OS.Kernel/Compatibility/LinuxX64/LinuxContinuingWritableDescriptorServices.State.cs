@@ -1,6 +1,7 @@
 using C = OS.Storage.ContinuingFat32Mutation;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxContinuingWritableDescriptorServices
 {
     /// <summary>Noncopyable-by-contract retained owner. Contains only POD and

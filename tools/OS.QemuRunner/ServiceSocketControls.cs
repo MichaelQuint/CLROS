@@ -110,7 +110,7 @@ public sealed partial class ServiceSocketControls : IDisposable
 
             async Task<Seen> Next(int port)
             {
-                for (;;)
+                for (; ; )
                 {
                     token.ThrowIfCancellationRequested();
                     Poll();
@@ -161,7 +161,7 @@ public sealed partial class ServiceSocketControls : IDisposable
 
             async Task<Seen> Probe(Flow flow)
             {
-                for (;;)
+                for (; ; )
                 {
                     Seen packet = await Next(flow.Port).ConfigureAwait(false);
                     Need(packet.Flags is 0x10 or 0x18 && packet.Ack == flow.Next, "control persist flags");
@@ -175,7 +175,7 @@ public sealed partial class ServiceSocketControls : IDisposable
 
             async Task<uint> ReceiveFin(Flow flow)
             {
-                for (;;)
+                for (; ; )
                 {
                     Seen packet = await Next(flow.Port).ConfigureAwait(false);
                     Need(packet.Flags is 0x10 or 0x18 or 0x11 or 0x19 && packet.Ack == flow.Next, "control HTTP flags");
@@ -216,7 +216,7 @@ public sealed partial class ServiceSocketControls : IDisposable
                 const string late = "CLROS_UNREAD_LATE";
                 byte[] sent = await Send(flow, flow.Next, serverEnd, 0x18, 8192, late, "unread.late").ConfigureAwait(false);
                 flow.Next = unchecked(flow.Next + (uint)Encoding.ASCII.GetByteCount(late));
-                for (;;)
+                for (; ; )
                 {
                     Seen packet = await Next(flow.Port).ConfigureAwait(false);
                     Need(packet.Sequence == serverEnd && packet.Ack == flow.Next && packet.Payload.Length == 0 && packet.Flags is 0x10 or 0x14, "control unread reset");
@@ -268,7 +268,7 @@ public sealed partial class ServiceSocketControls : IDisposable
         string? found = null;
         byte[] bytes = new byte[8192];
         string[] names = ["slot", "owner", "epoch", "generation", "index", "local", "localPort", "remote", "remotePort", "clock", "localNext", "remoteNext", "unread"];
-        for (;;)
+        for (; ; )
         {
             token.ThrowIfCancellationRequested();
             if (File.Exists(serialPath))
@@ -298,7 +298,7 @@ public sealed partial class ServiceSocketControls : IDisposable
                             Need(fields[i + 1].StartsWith(prefix, StringComparison.Ordinal) && ulong.TryParse(fields[i + 1].AsSpan(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out values[i]) && fields[i + 1] == prefix + values[i].ToString(CultureInfo.InvariantCulture), "control unread close field");
                         }
 
-                        Need(values[0] < 8 && values[1] >= 4096 && values[1] % 8 == 0 && values[2] != 0 && values[3] != 0 && values[4] < 8 && values[5] == 0x0a00020f && values[6] == 8080 && values[7] == 0x0a000202 && values[8] is> 0 and <= 65535 && values[9] is> 0 and <= long.MaxValue && values[10] <= uint.MaxValue && values[11] <= uint.MaxValue && values[12] <= 8192, "control unread close values");
+                        Need(values[0] < 8 && values[1] >= 4096 && values[1] % 8 == 0 && values[2] != 0 && values[3] != 0 && values[4] < 8 && values[5] == 0x0a00020f && values[6] == 8080 && values[7] == 0x0a000202 && values[8] is > 0 and <= 65535 && values[9] is > 0 and <= long.MaxValue && values[10] <= uint.MaxValue && values[11] <= uint.MaxValue && values[12] <= 8192, "control unread close values");
                         if (values[8] != (uint)port)
                             continue;
                         Need(found is null && (values[10] == serverEnd || values[10] == unchecked(serverEnd - 1)) && values[11] == clientNext && values[12] == 0, "control unread close owner");
@@ -322,7 +322,7 @@ public sealed partial class ServiceSocketControls : IDisposable
         ulong peer = 0;
         string tail = "";
         byte[] bytes = new byte[8192];
-        for (;;)
+        for (; ; )
         {
             token.ThrowIfCancellationRequested();
             if (File.Exists(serialPath))
@@ -343,7 +343,7 @@ public sealed partial class ServiceSocketControls : IDisposable
                         if (row.StartsWith("M16_011_PEER mac=", StringComparison.Ordinal))
                         {
                             string value = row.Split(' ')[1][4..];
-                            Need(peer == 0 && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out peer) && peer is> 0 and <= 0xffffffffffff, "control peer MAC");
+                            Need(peer == 0 && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out peer) && peer is > 0 and <= 0xffffffffffff, "control peer MAC");
                         }
 
                         if (row.StartsWith("M16_011_SLOT event=0 ", StringComparison.Ordinal))
@@ -367,7 +367,7 @@ public sealed partial class ServiceSocketControls : IDisposable
     {
         byte[] bytes = Convert.FromHexString(exchange.ResponseHex);
         int end = bytes.AsSpan().IndexOf("\r\n\r\n"u8);
-        Need(end is> 0 and <= 4096 && bytes.AsSpan(end + 4).SequenceEqual("CLROS_SERVICE_HEALTH_OK"u8), "control health body");
+        Need(end is > 0 and <= 4096 && bytes.AsSpan(end + 4).SequenceEqual("CLROS_SERVICE_HEALTH_OK"u8), "control health body");
         string[] header = Encoding.ASCII.GetString(bytes, 0, end).Split("\r\n", StringSplitOptions.None);
         Need(header[0] == "HTTP/1.1 200 OK" && header.Contains("Connection: close") && header.Contains("Content-Length: " + "CLROS_SERVICE_HEALTH_OK".Length.ToString(CultureInfo.InvariantCulture)) && header.Count(row => row.StartsWith("Date: ", StringComparison.Ordinal)) == 1, "control health header");
         string date = header.Single(row => row.StartsWith("Date: ", StringComparison.Ordinal))[6..];

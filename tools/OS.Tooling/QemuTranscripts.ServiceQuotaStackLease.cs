@@ -2,6 +2,7 @@ using OS.Kernel.Compatibility.LinuxX64;
 using OS.Kernel.Threading;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Original kernel generation, its guarded usable stack/context,

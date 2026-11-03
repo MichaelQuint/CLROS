@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 using OS.Std.Memory;
 
@@ -19,15 +20,48 @@ public readonly struct TcpConnectionCloseIpv4FramePlannerInfo
         Identification = identification;
     }
 
-    public MacAddress LocalMac { get; }
-    public MacAddress RemoteMac { get; }
-    public Ipv4Address LocalAddress { get; }
-    public Ipv4Address RemoteAddress { get; }
-    public ushort LocalPort { get; }
-    public ushort RemotePort { get; }
-    public uint LocalNextSequenceNumber { get; }
-    public uint RemoteNextSequenceNumber { get; }
-    public ushort WindowSize { get; }
-    public byte TimeToLive { get; }
-    public ushort Identification { get; }
+    public MacAddress LocalMac
+    {
+        get;
+    }
+    public MacAddress RemoteMac
+    {
+        get;
+    }
+    public Ipv4Address LocalAddress
+    {
+        get;
+    }
+    public Ipv4Address RemoteAddress
+    {
+        get;
+    }
+    public ushort LocalPort
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get;
+    }
+    public ushort WindowSize
+    {
+        get;
+    }
+    public byte TimeToLive
+    {
+        get;
+    }
+    public ushort Identification
+    {
+        get;
+    }
 }

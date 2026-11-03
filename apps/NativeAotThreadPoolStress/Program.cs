@@ -253,7 +253,7 @@ internal static partial class Program
             long after = Stopwatch.GetTimestamp();
             Elapsed(state.Before, fired, "timer_due");
             Elapsed(drained, after, "timer_observation");
-            Require(Volatile.Read(ref state.Failure)is null && state.Callbacks == 1 && state.Completed == 1 && state.Stale == 0 && Volatile.Read(ref never) == 0, "timer_drained");
+            Require(Volatile.Read(ref state.Failure) is null && state.Callbacks == 1 && state.Completed == 1 && state.Stale == 0 && Volatile.Read(ref never) == 0, "timer_drained");
             Console.WriteLine(FormattableString.Invariant($"NATIVEAOT_TP_STRESS_TIMER lifetime={lifetime} before={state.Before} fired={fired} drained={drained} after={after} frequency={Stopwatch.Frequency} callbacks={state.Callbacks} completed={state.Completed} stale={state.Stale} never={never} pendingDrain=true"));
         }
         finally

@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class TssIstPlan
 {
     public const int MinimumTssByteLength = 104;

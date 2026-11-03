@@ -158,7 +158,8 @@ internal static unsafe partial class GuestTestStringAllocationCharacterStorageTe
                     3 => Fixed.TryAllocate(f.Access, f.State, f.StateCapacity, Profile, Prefix(0x51000000, 32), token),
                     4 => Arrays.TryAllocate(f.Access, f.State, f.StateCapacity, Profile, Prefix(0xE1020008, 24), token, 2),
                     5 => Allocate(f, 0, token),
-                    _ => Allocate(f, 7, token)};
+                    _ => Allocate(f, 7, token)
+                };
                 CheckResult(f, result, used, sizes[i], (ulong)i + 1, token);
                 CheckBytesAt(f.Page + used, sizes[i], token, kind switch
                 {
@@ -509,7 +510,7 @@ internal static unsafe partial class GuestTestStringAllocationCharacterStorageTe
             Expect(f, expected, heapStatus: expected == Status.HeapBindingMismatch ? ManagedHeapPageRangeStatus.Success : default);
         }
 
-        foreach ((ulong used, ulong count)in new (ulong, ulong)[]
+        foreach ((ulong used, ulong count) in new (ulong, ulong)[]
         {
             (4097, 1),
             (8, 1),
@@ -722,7 +723,13 @@ internal static unsafe partial class GuestTestStringAllocationCharacterStorageTe
         string[] arguments = ["build", "Compile.csproj", "--nologo", "-m:1", "-c", "Release", "-nodeReuse:false"];
         foreach (string arg in arguments)
             start.ArgumentList.Add(arg);
-        File.WriteAllText(Path.Combine(directory, "command.json"), System.Text.Json.JsonSerializer.Serialize(new { Executable = start.FileName, Arguments = arguments, WorkingDirectory = directory, StartedUtc = DateTime.UtcNow }));
+        File.WriteAllText(Path.Combine(directory, "command.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Executable = start.FileName,
+            Arguments = arguments,
+            WorkingDirectory = directory,
+            StartedUtc = DateTime.UtcNow
+        }));
         using Process process = Process.Start(start) ?? throw new InvalidOperationException("no-stdlib start");
         Task<string> stdout = process.StandardOutput.ReadToEndAsync(), stderr = process.StandardError.ReadToEndAsync();
         bool exited = process.WaitForExit(90000);
@@ -735,13 +742,18 @@ internal static unsafe partial class GuestTestStringAllocationCharacterStorageTe
         Task.WaitAll(stdout, stderr);
         File.WriteAllText(Path.Combine(directory, "build.stdout.log"), stdout.Result);
         File.WriteAllText(Path.Combine(directory, "build.stderr.log"), stderr.Result);
-        File.WriteAllText(Path.Combine(directory, "result.json"), System.Text.Json.JsonSerializer.Serialize(new { Exited = exited, NativeExit = process.ExitCode, EndedUtc = DateTime.UtcNow }));
+        File.WriteAllText(Path.Combine(directory, "result.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Exited = exited,
+            NativeExit = process.ExitCode,
+            EndedUtc = DateTime.UtcNow
+        }));
         Require(exited && process.ExitCode == 0, "actual eleven-source String no-stdlib compile: " + directory + " " + stdout.Result + stderr.Result);
         using FileStream stream = File.OpenRead(Path.Combine(directory, "bin", "Release", "net11.0", "CLROS.M04.String.NoStdLib.dll"));
         using PEReader pe = new(stream);
         MetadataReader metadata = pe.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count == 0, "zero AssemblyRefs");
-        foreach ((string type, string method)in new[]
+        foreach ((string type, string method) in new[]
         {
             ("GuestTestStringAllocationCharacterStorage", "TryAllocate"),
             ("GuestTestRhpNewFast", "TryAllocate"),
@@ -757,7 +769,12 @@ internal static unsafe partial class GuestTestStringAllocationCharacterStorageTe
             Require(entry.RelativeVirtualAddress != 0 && pe.GetMethodBody(entry.RelativeVirtualAddress).GetILBytes()!.Length > 0, "actual production method body " + type + "." + method);
         }
 
-        File.WriteAllText(Path.Combine(directory, "metadata-result.json"), System.Text.Json.JsonSerializer.Serialize(new { SourceCount = sources.Length, AssemblyReferences = metadata.AssemblyReferences.Count, ProductionMethodsVerified = true }));
+        File.WriteAllText(Path.Combine(directory, "metadata-result.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            SourceCount = sources.Length,
+            AssemblyReferences = metadata.AssemblyReferences.Count,
+            ProductionMethodsVerified = true
+        }));
         Console.WriteLine("M04_STRING_HOST_NOSTDLIB inputs=" + sources.Length + " assemblyReferences=0 sharedCore=true");
     }
 

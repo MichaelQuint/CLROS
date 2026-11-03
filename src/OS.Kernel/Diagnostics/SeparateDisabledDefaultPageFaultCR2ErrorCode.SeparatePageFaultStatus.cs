@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum SeparatePageFaultStatus : byte
 {
     Uninitialized = 0,

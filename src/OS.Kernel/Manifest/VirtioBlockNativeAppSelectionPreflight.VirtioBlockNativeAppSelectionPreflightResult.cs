@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public readonly struct VirtioBlockNativeAppSelectionPreflightResult
 {
     private readonly bool _isInitialized;
@@ -24,21 +25,63 @@ public readonly struct VirtioBlockNativeAppSelectionPreflightResult
         SelectionLoad = selectionLoad;
     }
 
-    public VirtioBlockNativeAppSelectionPreflightStatus Status { get; }
+    public VirtioBlockNativeAppSelectionPreflightStatus Status
+    {
+        get;
+    }
     public bool IsInitialized => _isInitialized;
-    public bool ReadSessionComplete { get; }
-    public VirtioBlockReadOnlyReadSessionStatus ReadSessionStatus { get; }
-    public VirtioBlockReadQueuePipelineStatus ReadSessionPipelineStatus { get; }
-    public VirtioBlockQueueCursorState CursorBefore { get; }
-    public VirtioBlockQueueCursorState CursorAfter { get; }
-    public ulong ReadSessionByteCount { get; }
-    public BlockDeviceStatus BlockDeviceStatus { get; }
-    public bool AdapterCreateAttempted { get; }
-    public VirtioBlockReadSessionBlockDeviceCreateResult AdapterCreate { get; }
-    public bool ScratchPlanAttempted { get; }
-    public NativeAppSelectionBootScratchPlanResult ScratchPlan { get; }
-    public bool SelectionLoadAttempted { get; }
-    public NativeAppSelectionLoadResult SelectionLoad { get; }
+    public bool ReadSessionComplete
+    {
+        get;
+    }
+    public VirtioBlockReadOnlyReadSessionStatus ReadSessionStatus
+    {
+        get;
+    }
+    public VirtioBlockReadQueuePipelineStatus ReadSessionPipelineStatus
+    {
+        get;
+    }
+    public VirtioBlockQueueCursorState CursorBefore
+    {
+        get;
+    }
+    public VirtioBlockQueueCursorState CursorAfter
+    {
+        get;
+    }
+    public ulong ReadSessionByteCount
+    {
+        get;
+    }
+    public BlockDeviceStatus BlockDeviceStatus
+    {
+        get;
+    }
+    public bool AdapterCreateAttempted
+    {
+        get;
+    }
+    public VirtioBlockReadSessionBlockDeviceCreateResult AdapterCreate
+    {
+        get;
+    }
+    public bool ScratchPlanAttempted
+    {
+        get;
+    }
+    public NativeAppSelectionBootScratchPlanResult ScratchPlan
+    {
+        get;
+    }
+    public bool SelectionLoadAttempted
+    {
+        get;
+    }
+    public NativeAppSelectionLoadResult SelectionLoad
+    {
+        get;
+    }
     public bool Succeeded => _isInitialized && Status == VirtioBlockNativeAppSelectionPreflightStatus.Success;
 
     internal static VirtioBlockNativeAppSelectionPreflightResult Reject(VirtioBlockNativeAppSelectionPreflightStatus status, in VirtioBlockReadOnlyReadSessionResult session, BlockDeviceStatus blockDeviceStatus, bool scratchPlanAttempted, NativeAppSelectionBootScratchPlanResult scratchPlan, bool selectionLoadAttempted, NativeAppSelectionLoadResult selectionLoad, bool adapterCreateAttempted = false, VirtioBlockReadSessionBlockDeviceCreateResult adapterCreate = default)

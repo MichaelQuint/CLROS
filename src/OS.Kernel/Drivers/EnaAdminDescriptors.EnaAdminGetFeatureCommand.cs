@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly struct EnaAdminGetFeatureCommand
@@ -12,12 +13,27 @@ public readonly struct EnaAdminGetFeatureCommand
         FeatureVersion = featureVersion;
     }
 
-    public EnaAdminAqCommonDescriptor CommonDescriptor { get; }
-    public EnaAdminControlBuffer ControlBuffer { get; }
-    public byte FeatureFlags { get; }
+    public EnaAdminAqCommonDescriptor CommonDescriptor
+    {
+        get;
+    }
+    public EnaAdminControlBuffer ControlBuffer
+    {
+        get;
+    }
+    public byte FeatureFlags
+    {
+        get;
+    }
     public byte FeatureSelect => (byte)(FeatureFlags & EnaAdminDescriptors.FeatureSelectMask);
-    public byte FeatureId { get; }
-    public byte FeatureVersion { get; }
+    public byte FeatureId
+    {
+        get;
+    }
+    public byte FeatureVersion
+    {
+        get;
+    }
 
     public static EnaAdminGetFeatureCommand Create(ushort commandId, bool phase, EnaAdminFeatureId featureId, byte featureVersion, EnaAdminFeatureSelect featureSelect, EnaAdminControlBuffer controlBuffer, bool controlBufferAddressValid, bool controlBufferIndirect)
     {

@@ -12,7 +12,10 @@ internal static unsafe class M04X64UnwindMetadataEfiIntegrationTests
     private const string Flag = "EnableM04X64UnwindMetadataProbe";
 
     private static void Need(bool value, string reason)
-    { if (!value) throw new InvalidOperationException(reason); }
+    {
+        if (!value)
+            throw new InvalidOperationException(reason);
+    }
 
     [HostTest("m04.020.efi original module and disabled boot boundary", HostLane.Fast, 0)]
     private static void Source()
@@ -84,7 +87,10 @@ internal static unsafe class M04X64UnwindMetadataEfiIntegrationTests
         void Check(string[] lines, bool expected)
         {
             bool accepted = true;
-            try { QemuTranscripts.AssertM04X64UnwindMetadataTranscript(lines, image, module, registration); }
+            try
+            {
+                QemuTranscripts.AssertM04X64UnwindMetadataTranscript(lines, image, module, registration);
+            }
             catch (ToolFailure) when (!expected) { accepted = false; }
             Need(accepted == expected, "unwind admission control " + controls++);
         }
@@ -92,10 +98,14 @@ internal static unsafe class M04X64UnwindMetadataEfiIntegrationTests
         for (int i = 0; i < good.Length; i++)
         {
             Check(good.Where((_, index) => index != i).ToArray(), false);
-            string[] bad = [..good]; bad[i] += " "; Check(bad, false);
+            string[] bad = [.. good];
+            bad[i] += " ";
+            Check(bad, false);
         }
-        Check([..good, good[0]], false);
-        string[] swapped = [..good]; (swapped[6], swapped[11]) = (swapped[11], swapped[6]); Check(swapped, false);
+        Check([.. good, good[0]], false);
+        string[] swapped = [.. good];
+        (swapped[6], swapped[11]) = (swapped[11], swapped[6]);
+        Check(swapped, false);
         foreach ((int row, int field, ulong value) in new (int, int, ulong)[] {
             (0,2,1056776),(1,2,2049),(1,3,65505),(2,1,65535),(2,0,1056768),(2,3,8),
             (3,3,2232288),(4,1,2097160),(4,2,0),(5,1,2),(5,0,1081408),
@@ -103,17 +113,27 @@ internal static unsafe class M04X64UnwindMetadataEfiIntegrationTests
             (8,0,4),(8,3,1),(9,2,0),(9,3,1081408),(10,1,0),
             (15,1,1),(15,3,1),(16,0,6),(17,1,255),(18,3,1057048) })
         {
-            string[] bad = [..good]; ulong[] values = [..rows[row]]; values[field] = value;
-            bad[row + 1] = Row(row, values); Check(bad, false);
+            string[] bad = [.. good];
+            ulong[] values = [.. rows[row]];
+            values[field] = value;
+            bad[row + 1] = Row(row, values);
+            Check(bad, false);
         }
         foreach (string value in new[] { "-1", "01", "18446744073709551616" })
-        { string[] bad = [..good]; bad[1] = bad[1].Replace("a=1048576", "a=" + value, StringComparison.Ordinal); Check(bad, false); }
+        {
+            string[] bad = [.. good];
+            bad[1] = bad[1].Replace("a=1048576", "a=" + value, StringComparison.Ordinal);
+            Check(bad, false);
+        }
         QemuTranscripts.AssertM04X64UnwindMetadataSelection("OS_BOOT_OK", false);
         QemuTranscripts.AssertM04X64UnwindMetadataSelection(string.Join("\r\n", good), true);
         foreach (string claim in new[] { "TEST_START m04.020", "CLROS_M04_020_DATA stage=0", "clros_\tM04_020_READY", "TEST_PASS m04.\0" + "020" })
         {
             bool rejected = false;
-            try { QemuTranscripts.AssertM04X64UnwindMetadataSelection(claim, false); }
+            try
+            {
+                QemuTranscripts.AssertM04X64UnwindMetadataSelection(claim, false);
+            }
             catch (ToolFailure) { rejected = true; }
             Need(rejected, "unselected child admitted " + claim);
         }

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum OwnedX64GdtVerificationStatus : byte
 {
     Success = 0,

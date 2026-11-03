@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace OS.Cloud;
+
 public static class AzureWireServerRequestPlanner
 {
     public const string PlatformHost = "168.63.129.16";

@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public readonly struct HttpRequestParseResult
 {
     private HttpRequestParseResult(HttpRequestParseStatus status, HttpRequestMethod method, int targetOffset, int targetLength, byte protocolMajor, byte protocolMinor, int headerLength, bool hasHost, int hostOffset, int hostLength, bool hasContentLength, int contentLength, bool connectionClose, int bodyOffset, int bodyLength)
@@ -23,23 +24,71 @@ public readonly struct HttpRequestParseResult
         BodyLength = bodyLength;
     }
 
-    public HttpRequestParseStatus Status { get; }
-    public bool IsInitialized { get; }
+    public HttpRequestParseStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == HttpRequestParseStatus.Success;
-    public HttpRequestMethod Method { get; }
-    public int TargetOffset { get; }
-    public int TargetLength { get; }
-    public byte ProtocolMajor { get; }
-    public byte ProtocolMinor { get; }
-    public int HeaderLength { get; }
-    public bool HasHost { get; }
-    public int HostOffset { get; }
-    public int HostLength { get; }
-    public bool HasContentLength { get; }
-    public int ContentLength { get; }
-    public bool ConnectionClose { get; }
-    public int BodyOffset { get; }
-    public int BodyLength { get; }
+    public HttpRequestMethod Method
+    {
+        get;
+    }
+    public int TargetOffset
+    {
+        get;
+    }
+    public int TargetLength
+    {
+        get;
+    }
+    public byte ProtocolMajor
+    {
+        get;
+    }
+    public byte ProtocolMinor
+    {
+        get;
+    }
+    public int HeaderLength
+    {
+        get;
+    }
+    public bool HasHost
+    {
+        get;
+    }
+    public int HostOffset
+    {
+        get;
+    }
+    public int HostLength
+    {
+        get;
+    }
+    public bool HasContentLength
+    {
+        get;
+    }
+    public int ContentLength
+    {
+        get;
+    }
+    public bool ConnectionClose
+    {
+        get;
+    }
+    public int BodyOffset
+    {
+        get;
+    }
+    public int BodyLength
+    {
+        get;
+    }
 
     public static HttpRequestParseResult Success(HttpRequestMethod method, int targetOffset, int targetLength, byte protocolMajor, byte protocolMinor, int headerLength, bool hasHost, int hostOffset, int hostLength, bool hasContentLength, int contentLength, bool connectionClose, int bodyOffset, int bodyLength)
     {

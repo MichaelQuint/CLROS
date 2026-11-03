@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct TssIstPlanResult
 {
     private TssIstPlanResult(bool succeeded, TssIstPlanStatus status, byte istIndex, int actualBytes, int requiredBytes)
@@ -12,11 +13,26 @@ public readonly struct TssIstPlanResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool Succeeded { get; }
-    public TssIstPlanStatus Status { get; }
-    public byte IstIndex { get; }
-    public int ActualBytes { get; }
-    public int RequiredBytes { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public TssIstPlanStatus Status
+    {
+        get;
+    }
+    public byte IstIndex
+    {
+        get;
+    }
+    public int ActualBytes
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
 
     public static TssIstPlanResult Success(byte istIndex)
     {

@@ -24,8 +24,14 @@ internal static unsafe partial class TypeManagerCaptureHost
         internal const ulong Capacity = 4096;
         internal readonly byte* Image;
         internal byte* Storage => Image + 0x3000;
-        internal EfiLoadedImageRangeCapturePlan Capture { get; }
-        internal M01LoadedImageVirtualMappingEvidence Mapping { get; }
+        internal EfiLoadedImageRangeCapturePlan Capture
+        {
+            get;
+        }
+        internal M01LoadedImageVirtualMappingEvidence Mapping
+        {
+            get;
+        }
 
         internal Fixture()
         {

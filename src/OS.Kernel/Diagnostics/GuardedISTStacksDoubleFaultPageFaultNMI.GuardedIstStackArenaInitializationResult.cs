@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct GuardedIstStackArenaInitializationResult
 {
     private GuardedIstStackArenaInitializationResult(bool isInitialized, GuardedIstStackArenaStatus status, ulong requiredBytes, ulong availableBytes)
@@ -9,10 +10,22 @@ public readonly struct GuardedIstStackArenaInitializationResult
         AvailableBytes = availableBytes;
     }
 
-    public bool IsInitialized { get; }
-    public GuardedIstStackArenaStatus Status { get; }
-    public ulong RequiredBytes { get; }
-    public ulong AvailableBytes { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public GuardedIstStackArenaStatus Status
+    {
+        get;
+    }
+    public ulong RequiredBytes
+    {
+        get;
+    }
+    public ulong AvailableBytes
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == GuardedIstStackArenaStatus.Success && RequiredBytes != 0 && AvailableBytes >= RequiredBytes;
 
     internal static GuardedIstStackArenaInitializationResult Pass(ulong requiredBytes, ulong availableBytes)

@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Pal;
+
 public static class OSHostStatusCategoryFormatter
 {
     public static OSHostStatusCategory Categorize(OSHostStatus status)

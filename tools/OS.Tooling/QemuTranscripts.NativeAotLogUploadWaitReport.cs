@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Complete copied source5 envelopes only. Calls, EnvelopeRows and
@@ -24,14 +25,38 @@ public static partial class QemuTranscripts
             UnjoinedSource4Wakes = Array.AsReadOnly(readonlyWakes.ToArray());
         }
 
-        public int OriginalRowCount { get; }
-        public uint DescriptorCapacity { get; }
-        public uint CopiedOutputCapacity { get; }
-        public IReadOnlyList<NativeAotLogUploadWaitRow> Calls { get; }
-        public IReadOnlyList<NativeAotLogUploadWaitRow> EnvelopeRows { get; }
-        public IReadOnlyList<NativeAotLogUploadWaitOperation> Operations { get; }
-        public IReadOnlyList<WritableDiskRow> ResidualRows { get; }
-        public IReadOnlyList<NativeAotLogUploadWaitRow> UnjoinedSource4Wakes { get; }
+        public int OriginalRowCount
+        {
+            get;
+        }
+        public uint DescriptorCapacity
+        {
+            get;
+        }
+        public uint CopiedOutputCapacity
+        {
+            get;
+        }
+        public IReadOnlyList<NativeAotLogUploadWaitRow> Calls
+        {
+            get;
+        }
+        public IReadOnlyList<NativeAotLogUploadWaitRow> EnvelopeRows
+        {
+            get;
+        }
+        public IReadOnlyList<NativeAotLogUploadWaitOperation> Operations
+        {
+            get;
+        }
+        public IReadOnlyList<WritableDiskRow> ResidualRows
+        {
+            get;
+        }
+        public IReadOnlyList<NativeAotLogUploadWaitRow> UnjoinedSource4Wakes
+        {
+            get;
+        }
         public bool GrantsSchedulerAuthority => false;
         public bool GrantsPackageOrProcessAuthority => false;
         public bool GrantsGuestOrNativeAuthority => false;

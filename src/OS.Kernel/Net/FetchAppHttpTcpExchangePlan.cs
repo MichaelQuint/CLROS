@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class FetchAppHttpTcpExchangePlan
 {
     public const bool UsesCallerOwnedFrameBuffers = true;

@@ -4,6 +4,7 @@ using System.Text;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class LinuxThreadProofFixture
 {
     // All syscall arguments are explicit. Only pipe fd arguments are replaced

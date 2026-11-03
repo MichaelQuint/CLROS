@@ -21,13 +21,34 @@ internal static unsafe partial class M01OwnedCr3CompositeTransitionTests
         {
         }
 
-        internal required BootMemoryRegionRecord[] Allocations { get; init; }
-        internal required BootReservedRange[] Reservations { get; init; }
-        internal required X64BootIdentityMappingRange[] Mappings { get; init; }
-        internal required ulong MappingCount { get; init; }
-        internal required M01OwnedCr3CompositeTransitionRangeBinding[] Bindings { get; init; }
-        internal required ulong CodeMappingIndex { get; init; }
-        internal required ulong TableMappingIndex { get; init; }
+        internal required BootMemoryRegionRecord[] Allocations
+        {
+            get; init;
+        }
+        internal required BootReservedRange[] Reservations
+        {
+            get; init;
+        }
+        internal required X64BootIdentityMappingRange[] Mappings
+        {
+            get; init;
+        }
+        internal required ulong MappingCount
+        {
+            get; init;
+        }
+        internal required M01OwnedCr3CompositeTransitionRangeBinding[] Bindings
+        {
+            get; init;
+        }
+        internal required ulong CodeMappingIndex
+        {
+            get; init;
+        }
+        internal required ulong TableMappingIndex
+        {
+            get; init;
+        }
 
         internal M01LivePagingPreparationResult PriorEvidence;
         internal BootMemoryRegionRecord* AllocationPointer;

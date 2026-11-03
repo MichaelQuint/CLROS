@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public static class NativeAppSelectionLoader
 {
     public static NativeAppSelectionLoadResult LoadFromPrimaryGptEspWithCallerBuffers(IReadOnlyBlockDevice? disk, Span<byte> primaryHeaderSector, Span<byte> partitionEntrySectors, Span<GptPartitionDescriptor> partitions, Span<byte> manifestBuffer, Span<byte> packageBuffer, BootInfo bootInfo, NativeAppLaunchRuntimeCapabilities runtimeCapabilities)

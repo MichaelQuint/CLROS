@@ -24,7 +24,7 @@ internal static partial class NativeAotWebSignalRaceAttemptTests
         {
             await NativeAotWebPayload.CaptureSignalRaceAsync(client, Endpoint, Health, path, token);
         }
-        catch (Exception error)when (error is InvalidDataException or IOException or HttpRequestException or OperationCanceledException or DecoderFallbackException)
+        catch (Exception error) when (error is InvalidDataException or IOException or HttpRequestException or OperationCanceledException or DecoderFallbackException)
         {
             failure = error is InvalidDataException ? error.Message : error.GetType().Name;
         }

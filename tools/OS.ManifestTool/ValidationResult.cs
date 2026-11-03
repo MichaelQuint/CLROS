@@ -11,9 +11,18 @@ public sealed class ValidationResult
         this.Message = message;
     }
 
-    public bool Succeeded { get; }
-    public string Code { get; }
-    public string Message { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public string Code
+    {
+        get;
+    }
+    public string Message
+    {
+        get;
+    }
 
     public static ValidationResult Pass()
     {

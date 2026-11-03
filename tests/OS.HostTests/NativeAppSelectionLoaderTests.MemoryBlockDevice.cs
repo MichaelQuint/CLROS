@@ -16,8 +16,14 @@ internal static partial class NativeAppSelectionLoaderTests
             Image = image;
         }
 
-        public BlockDeviceInfo Info { get; }
-        private byte[] Image { get; }
+        public BlockDeviceInfo Info
+        {
+            get;
+        }
+        private byte[] Image
+        {
+            get;
+        }
 
         public static MemoryBlockDevice FromImage(byte[] image, uint blockSize)
         {

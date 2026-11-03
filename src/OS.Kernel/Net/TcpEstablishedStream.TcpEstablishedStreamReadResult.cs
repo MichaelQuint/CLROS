@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct TcpEstablishedStreamReadResult
 {
     private TcpEstablishedStreamReadResult(TcpEstablishedStreamStatus status, int bytesRead, int unreadBytes, uint acknowledgementNumber)
@@ -10,12 +11,27 @@ public readonly struct TcpEstablishedStreamReadResult
         AcknowledgementNumber = acknowledgementNumber;
     }
 
-    public bool IsInitialized { get; }
-    public TcpEstablishedStreamStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public TcpEstablishedStreamStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == TcpEstablishedStreamStatus.Success;
-    public int BytesRead { get; }
-    public int UnreadBytes { get; }
-    public uint AcknowledgementNumber { get; }
+    public int BytesRead
+    {
+        get;
+    }
+    public int UnreadBytes
+    {
+        get;
+    }
+    public uint AcknowledgementNumber
+    {
+        get;
+    }
 
     public static TcpEstablishedStreamReadResult Success(int bytesRead, int unreadBytes, uint acknowledgementNumber)
     {

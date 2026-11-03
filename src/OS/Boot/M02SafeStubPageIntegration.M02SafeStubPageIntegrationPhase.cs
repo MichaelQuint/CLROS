@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public enum M02SafeStubPageIntegrationPhase : byte
 {
     Uninitialized = 0,

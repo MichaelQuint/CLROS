@@ -17,7 +17,10 @@ internal static partial class AcpiRootSdtSnapshotTests
             _failureStatus = failureStatus;
         }
 
-        public int ReadCount { get; private set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
         public int[] RequestedBytes { get; } = new int[8];
 
         public static PhysicalMemoryDouble Success(params PhysicalMemoryEntry[] entries)

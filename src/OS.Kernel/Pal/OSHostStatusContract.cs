@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Pal;
+
 public static class OSHostStatusContract
 {
     private const ulong OkBit = 1UL << (int)OSHostStatus.Ok;

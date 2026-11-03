@@ -15,7 +15,13 @@ internal static partial class QemuRunnerHttpProbeTests
             Url = url;
         }
 
-        public string QemuPath { get; }
-        public string Url { get; }
+        public string QemuPath
+        {
+            get;
+        }
+        public string Url
+        {
+            get;
+        }
     }
 }

@@ -45,7 +45,7 @@ internal static unsafe partial class MSIMSIXSetupInterruptDrivenVirtqueueComplet
         c.InterruptedRip = 0x100000 + 70;
         c.Iterations = 1000000;
         HostCheck.True(Complete(&c));
-        foreach ((int field, ulong value)in new (int, ulong)[]
+        foreach ((int field, ulong value) in new (int, ulong)[]
         {
             (0, 0),
             (0, 0xfee000b4),
@@ -457,7 +457,7 @@ internal static unsafe partial class MSIMSIXSetupInterruptDrivenVirtqueueComplet
     [HostTest("msix.discovery rejects malformed disabled admission without partial metadata", HostLane.Fast, 1)]
     private static void InvalidDiscovery()
     {
-        foreach ((Action<byte[]> change, MsixStatus expected)in new (Action<byte[]>, MsixStatus)[]
+        foreach ((Action<byte[]> change, MsixStatus expected) in new (Action<byte[]>, MsixStatus)[]
         {
             (b =>
             {
@@ -546,7 +546,7 @@ internal static unsafe partial class MSIMSIXSetupInterruptDrivenVirtqueueComplet
     {
         PciSizedBar* bars = stackalloc PciSizedBar[6];
         Bars(bars);
-        foreach ((ushort count, uint tableBytes, uint pbaBytes)in new (ushort, uint, uint)[]
+        foreach ((ushort count, uint tableBytes, uint pbaBytes) in new (ushort, uint, uint)[]
         {
             (1, 16, 8),
             (64, 1024, 8),

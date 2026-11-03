@@ -11,7 +11,8 @@ internal static class NativeAotSocketContainmentPublisherTests
         string[] plan = NativeAotSocketContainmentPublisher.PublishArguments(Json(original), destination);
         HostCheck.Equal("apps/NativeAotSocketContainment/NativeAotSocketContainment.csproj", plan[1]);
         HostCheck.Equal(Path.GetFullPath(destination), plan[Array.IndexOf(plan, "-o") + 1]);
-        plan[1] = original[1]; HostCheck.True(plan.SequenceEqual(original));
+        plan[1] = original[1];
+        HostCheck.True(plan.SequenceEqual(original));
         HostCheck.True(!Directory.Exists(destination));
     }
 
@@ -45,7 +46,8 @@ internal static class NativeAotSocketContainmentPublisherTests
     private static string[] Original(string destination)
     {
         string[] args = NativeAotThreadingPayload.PublishArguments("NativeAotSuspensionSmoke", destination).ToArray();
-        args[1] = "apps/NativeAotSocketSmoke/NativeAotSocketSmoke.csproj"; return args;
+        args[1] = "apps/NativeAotSocketSmoke/NativeAotSocketSmoke.csproj";
+        return args;
     }
 
     private static string Json(params string[][] commands) => JsonSerializer.Serialize(commands.Select(args => new { executable = "dotnet", arguments = args }));
@@ -53,7 +55,11 @@ internal static class NativeAotSocketContainmentPublisherTests
     private static void Reject(string recipe, string destination)
     {
         bool rejected = false;
-        try { _ = NativeAotSocketContainmentPublisher.PublishArguments(recipe, destination); } catch (ToolFailure) { rejected = true; }
+        try
+        {
+            _ = NativeAotSocketContainmentPublisher.PublishArguments(recipe, destination);
+        }
+        catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected);
     }
 }

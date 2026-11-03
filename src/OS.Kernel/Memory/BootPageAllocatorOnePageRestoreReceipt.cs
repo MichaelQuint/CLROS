@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public readonly struct BootPageAllocatorOnePageRestoreReceipt
 {
     private readonly byte _isInitialized;
@@ -11,9 +12,18 @@ public readonly struct BootPageAllocatorOnePageRestoreReceipt
     }
 
     public bool IsInitialized => _isInitialized == 1;
-    public BootPageFreeListNode SourceNodeBefore { get; }
-    public int PreviousNodeIndexBefore { get; }
-    public BootPageFreeListNode PreviousNodeBefore { get; }
+    public BootPageFreeListNode SourceNodeBefore
+    {
+        get;
+    }
+    public int PreviousNodeIndexBefore
+    {
+        get;
+    }
+    public BootPageFreeListNode PreviousNodeBefore
+    {
+        get;
+    }
 
     internal static BootPageAllocatorOnePageRestoreReceipt Create(BootPageFreeListNode sourceNodeBefore, int previousNodeIndexBefore, BootPageFreeListNode previousNodeBefore)
     {

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 using OS.Std.Binary;
 
@@ -12,10 +13,22 @@ public readonly struct VirtioNetReceivedFrameParseResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioNetHeaderStatus Status { get; }
-    public VirtioNetHeader Header { get; }
-    public VirtioNetReceivedFrameMetadata Metadata { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetHeaderStatus Status
+    {
+        get;
+    }
+    public VirtioNetHeader Header
+    {
+        get;
+    }
+    public VirtioNetReceivedFrameMetadata Metadata
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetHeaderStatus.Success;
 
     public static VirtioNetReceivedFrameParseResult Success(VirtioNetHeader header, VirtioNetReceivedFrameMetadata metadata)

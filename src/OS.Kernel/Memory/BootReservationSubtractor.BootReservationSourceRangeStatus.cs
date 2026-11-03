@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public enum BootReservationSourceRangeStatus : byte
 {
     Uninitialized = 0,

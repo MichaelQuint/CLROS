@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public enum OSHostTimeoutState : uint
 {
     Infinite = 0,

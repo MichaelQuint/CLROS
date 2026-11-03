@@ -98,7 +98,14 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
                 signalBytes = checked(((uint)sizeof(Signals.State) + 4095U) & ~4095U);
                 signalState = (Signals.State*)NativeMemory.AlignedAlloc(signalBytes, 4096);
                 new Span<byte>(signalState, checked((int)signalBytes)).Clear();
-                HostCheck.True(Signals.Initialize(signalState, signalBytes, SignalKey, 2, new() { User = Thread.Access, CopyToUser = Thread.UserCopyOut, Capacity = Thread.Capacity, FirmwareExited = true, SingleOwnerValidated = true }));
+                HostCheck.True(Signals.Initialize(signalState, signalBytes, SignalKey, 2, new()
+                {
+                    User = Thread.Access,
+                    CopyToUser = Thread.UserCopyOut,
+                    Capacity = Thread.Capacity,
+                    FirmwareExited = true,
+                    SingleOwnerValidated = true
+                }));
                 HostCheck.True(Thread.Service->EnableSignals(Key, 2, signalState));
             }
 
@@ -173,7 +180,14 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
         internal long SCall(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0)
         {
             if (!threadsAttached)
-                return F.Dispatch(Files.State, new() { Number = number, Argument0 = a0, Argument1 = a1, Argument2 = a2, Argument3 = a3 });
+                return F.Dispatch(Files.State, new()
+                {
+                    Number = number,
+                    Argument0 = a0,
+                    Argument1 = a1,
+                    Argument2 = a2,
+                    Argument3 = a3
+                });
             var result = Thread.DescriptorCall(number, a0, a1, a2, a3);
             HostCheck.Equal(LinuxSyscallAction.Return, result.Action);
             return result.Value;
@@ -262,7 +276,7 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
             // Copied host-test storage, including the actual contiguous engine
             // arena and all declared filesystem ranges. No producer authority.
             var a = Files.Admission;
-            List<(ulong Address, ulong Bytes)> ranges = [..TransportExtents(), ..Storage.FsExtents(), ((ulong)Files.State, (ulong)sizeof(F.State)), ((ulong)a.Slots, a.DescriptorCount * (ulong)sizeof(F.Slot)), ((ulong)a.Descriptions, a.DescriptionCount * (ulong)sizeof(F.Description)), ((ulong)Disk, (ulong)sizeof(F.DiskState)), ((ulong)bindings, 8UL * (ulong)sizeof(F.DiskBinding)), ((ulong)Requests, 8UL * (ulong)sizeof(F.DiskRequest)), ((ulong)WriteDisk, (ulong)sizeof(F.WritableDiskState)), ((ulong)WriteBindings, 32UL * (ulong)sizeof(F.WritableDiskBinding)), ((ulong)Provider, (ulong)sizeof(W.State)), ((ulong)writeFds, 32UL * (ulong)sizeof(W.Descriptor)), ((ulong)writeDescriptions, 32UL * (ulong)sizeof(W.Description)), ((ulong)WriteInput, W.IoBytes), ((ulong)processes, 4UL * (ulong)sizeof(W.ProcessSlot)), ((ulong)locks, 32UL * (ulong)sizeof(W.RangeLock)), ((ulong)lockScratch, 65UL * (ulong)sizeof(W.RangeLock)), ((ulong)Storage.Port, (ulong)sizeof(P.State)), ((ulong)Storage.Engine, (ulong)sizeof(C.State)), ((ulong)Storage.EngineInput.Changes, Storage.EngineBackingBytes), ((ulong)Storage.Block, (ulong)sizeof(B.State)), ((ulong)Storage.Device.Observation, (ulong)sizeof(B.Observation)), ((ulong)Storage.Device.Data, 4096), ((ulong)Storage.Device.Hardware, (ulong)sizeof(WritableBlockSessionTests.Hardware)), ((ulong)Thread.Kernel.Memory, KernelThreadTableTests.Model.Bytes), ((ulong)Thread.Access.Context, Thread.UserContextBytes)];
+            List<(ulong Address, ulong Bytes)> ranges = [.. TransportExtents(), .. Storage.FsExtents(), ((ulong)Files.State, (ulong)sizeof(F.State)), ((ulong)a.Slots, a.DescriptorCount * (ulong)sizeof(F.Slot)), ((ulong)a.Descriptions, a.DescriptionCount * (ulong)sizeof(F.Description)), ((ulong)Disk, (ulong)sizeof(F.DiskState)), ((ulong)bindings, 8UL * (ulong)sizeof(F.DiskBinding)), ((ulong)Requests, 8UL * (ulong)sizeof(F.DiskRequest)), ((ulong)WriteDisk, (ulong)sizeof(F.WritableDiskState)), ((ulong)WriteBindings, 32UL * (ulong)sizeof(F.WritableDiskBinding)), ((ulong)Provider, (ulong)sizeof(W.State)), ((ulong)writeFds, 32UL * (ulong)sizeof(W.Descriptor)), ((ulong)writeDescriptions, 32UL * (ulong)sizeof(W.Description)), ((ulong)WriteInput, W.IoBytes), ((ulong)processes, 4UL * (ulong)sizeof(W.ProcessSlot)), ((ulong)locks, 32UL * (ulong)sizeof(W.RangeLock)), ((ulong)lockScratch, 65UL * (ulong)sizeof(W.RangeLock)), ((ulong)Storage.Port, (ulong)sizeof(P.State)), ((ulong)Storage.Engine, (ulong)sizeof(C.State)), ((ulong)Storage.EngineInput.Changes, Storage.EngineBackingBytes), ((ulong)Storage.Block, (ulong)sizeof(B.State)), ((ulong)Storage.Device.Observation, (ulong)sizeof(B.Observation)), ((ulong)Storage.Device.Data, 4096), ((ulong)Storage.Device.Hardware, (ulong)sizeof(WritableBlockSessionTests.Hardware)), ((ulong)Thread.Kernel.Memory, KernelThreadTableTests.Model.Bytes), ((ulong)Thread.Access.Context, Thread.UserContextBytes)];
             if (signalState != null)
                 ranges.Add(((ulong)signalState, signalBytes));
             return ranges.Select(range => (range.Address, new ReadOnlySpan<byte>((void*)range.Address, checked((int)range.Bytes)).ToArray())).ToArray();
@@ -389,8 +403,28 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
             lockScratch = (W.RangeLock*)NativeMemory.AllocZeroed(65, (nuint)sizeof(W.RangeLock));
             WriteDisk = (F.WritableDiskState*)NativeMemory.AllocZeroed((nuint)sizeof(F.WritableDiskState));
             WriteBindings = (F.WritableDiskBinding*)NativeMemory.AllocZeroed(32, (nuint)sizeof(F.WritableDiskBinding));
-            HostCheck.True(W.Start(Provider, new() { Engine = Storage.Engine, Epoch = Storage.EngineInput.Epoch, Descriptors = writeFds, Descriptions = writeDescriptions, DescriptorCount = 32, DescriptionCount = 32, Input = WriteInput, InputBytes = W.IoBytes, ExclusiveOwnerValidated = true }));
-            HostCheck.True(W.EnableLocks(Provider, new() { Processes = processes, ProcessCount = 4, Locks = locks, LockCount = 32, Scratch = lockScratch, ScratchCount = 65, PrimaryPid = 101 }));
+            HostCheck.True(W.Start(Provider, new()
+            {
+                Engine = Storage.Engine,
+                Epoch = Storage.EngineInput.Epoch,
+                Descriptors = writeFds,
+                Descriptions = writeDescriptions,
+                DescriptorCount = 32,
+                DescriptionCount = 32,
+                Input = WriteInput,
+                InputBytes = W.IoBytes,
+                ExclusiveOwnerValidated = true
+            }));
+            HostCheck.True(W.EnableLocks(Provider, new()
+            {
+                Processes = processes,
+                ProcessCount = 4,
+                Locks = locks,
+                LockCount = 32,
+                Scratch = lockScratch,
+                ScratchCount = 65,
+                PrimaryPid = 101
+            }));
         }
 
         internal bool AttachWritable()
@@ -721,7 +755,11 @@ internal static unsafe partial class LinuxBorrowedDiskDescriptorServicesTests
                     // may now close the three retained standard descriptions.
                     for (uint fd = 0; fd < 3; fd++)
                         if (F.Capture(Files.State, fd, out _))
-                            HostCheck.Equal(0L, F.Dispatch(Files.State, new() { Number = 3, Argument0 = fd }));
+                            HostCheck.Equal(0L, F.Dispatch(Files.State, new()
+                            {
+                                Number = 3,
+                                Argument0 = fd
+                            }));
                     PacketNetwork.Retire();
                 }
 

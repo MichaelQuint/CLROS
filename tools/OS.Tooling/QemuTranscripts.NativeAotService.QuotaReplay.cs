@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private static ServiceQuotaReplayReport ReplayServiceQuota(NativeAotThreadingOutput.Capture framed, byte[] elf, Func<ulong, bool> instruction, Func<ulong, bool> syscallReturn, ulong userRoot, ulong kernelRoot, ulong entitlementBytes)

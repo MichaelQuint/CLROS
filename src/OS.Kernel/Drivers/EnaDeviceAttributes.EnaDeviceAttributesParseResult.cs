@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 using OS.Std.Binary;
 
@@ -18,16 +19,46 @@ public readonly struct EnaDeviceAttributesParseResult
         Attributes = attributes;
     }
 
-    public EnaDeviceAttributesStatus Status { get; }
-    public int InputLength { get; }
-    public int BytesConsumed { get; }
-    public EnaAdminCompletionStatus CompletionStatus { get; }
-    public ushort CommandId { get; }
-    public ushort ExpectedCommandId { get; }
-    public bool Phase { get; }
-    public bool ExpectedPhase { get; }
-    public EnaDeviceAttributes Attributes { get; }
-    public bool IsInitialized { get; }
+    public EnaDeviceAttributesStatus Status
+    {
+        get;
+    }
+    public int InputLength
+    {
+        get;
+    }
+    public int BytesConsumed
+    {
+        get;
+    }
+    public EnaAdminCompletionStatus CompletionStatus
+    {
+        get;
+    }
+    public ushort CommandId
+    {
+        get;
+    }
+    public ushort ExpectedCommandId
+    {
+        get;
+    }
+    public bool Phase
+    {
+        get;
+    }
+    public bool ExpectedPhase
+    {
+        get;
+    }
+    public EnaDeviceAttributes Attributes
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == EnaDeviceAttributesStatus.Success;
 
     internal static EnaDeviceAttributesParseResult Success(int inputLength, EnaDeviceAttributes attributes)

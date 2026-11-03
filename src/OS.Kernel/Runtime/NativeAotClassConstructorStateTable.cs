@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public static class NativeAotClassConstructorStateTable
 {
     public const bool UsesCallerOwnedStorage = true;
@@ -43,7 +44,8 @@ public static class NativeAotClassConstructorStateTable
             NativeAotClassConstructorState.Initializing => NativeAotClassConstructorStateTableResult.Fail(NativeAotClassConstructorStateTableStatus.ReentryCycle, key, entry.State, entry.State, entry.FailureCode, found.SlotIndex, duplicateSlotIndex: -1, found.OccupiedCount, entries.Length),
             NativeAotClassConstructorState.Initialized => NativeAotClassConstructorStateTableResult.Fail(NativeAotClassConstructorStateTableStatus.AlreadyInitialized, key, entry.State, entry.State, entry.FailureCode, found.SlotIndex, duplicateSlotIndex: -1, found.OccupiedCount, entries.Length),
             NativeAotClassConstructorState.Failed => NativeAotClassConstructorStateTableResult.Fail(NativeAotClassConstructorStateTableStatus.PreviouslyFailed, key, entry.State, entry.State, entry.FailureCode, found.SlotIndex, duplicateSlotIndex: -1, found.OccupiedCount, entries.Length),
-            _ => InvalidState(key, entry, found.SlotIndex, found.OccupiedCount, entries.Length)};
+            _ => InvalidState(key, entry, found.SlotIndex, found.OccupiedCount, entries.Length)
+        };
     }
 
     public static NativeAotClassConstructorStateTableResult MarkInitialized(Span<NativeAotClassConstructorStateEntry> entries, NativeAotClassConstructorKey key)
@@ -61,7 +63,8 @@ public static class NativeAotClassConstructorStateTable
             NativeAotClassConstructorState.Failed => NativeAotClassConstructorStateTableResult.Fail(NativeAotClassConstructorStateTableStatus.PreviouslyFailed, key, entry.State, entry.State, entry.FailureCode, found.SlotIndex, duplicateSlotIndex: -1, found.OccupiedCount, entries.Length),
             NativeAotClassConstructorState.Initialized => NativeAotClassConstructorStateTableResult.Fail(NativeAotClassConstructorStateTableStatus.AlreadyInitialized, key, entry.State, entry.State, entry.FailureCode, found.SlotIndex, duplicateSlotIndex: -1, found.OccupiedCount, entries.Length),
             NativeAotClassConstructorState.Uninitialized => NativeAotClassConstructorStateTableResult.Fail(NativeAotClassConstructorStateTableStatus.NotInitializing, key, entry.State, entry.State, entry.FailureCode, found.SlotIndex, duplicateSlotIndex: -1, found.OccupiedCount, entries.Length),
-            _ => InvalidState(key, entry, found.SlotIndex, found.OccupiedCount, entries.Length)};
+            _ => InvalidState(key, entry, found.SlotIndex, found.OccupiedCount, entries.Length)
+        };
     }
 
     public static NativeAotClassConstructorStateTableResult MarkFailed(Span<NativeAotClassConstructorStateEntry> entries, NativeAotClassConstructorKey key, uint failureCode)
@@ -80,7 +83,8 @@ public static class NativeAotClassConstructorStateTable
             NativeAotClassConstructorState.Failed => NativeAotClassConstructorStateTableResult.Fail(NativeAotClassConstructorStateTableStatus.PreviouslyFailed, key, entry.State, entry.State, entry.FailureCode, found.SlotIndex, duplicateSlotIndex: -1, found.OccupiedCount, entries.Length),
             NativeAotClassConstructorState.Initialized => NativeAotClassConstructorStateTableResult.Fail(NativeAotClassConstructorStateTableStatus.AlreadyInitialized, key, entry.State, entry.State, entry.FailureCode, found.SlotIndex, duplicateSlotIndex: -1, found.OccupiedCount, entries.Length),
             NativeAotClassConstructorState.Uninitialized => NativeAotClassConstructorStateTableResult.Fail(NativeAotClassConstructorStateTableStatus.NotInitializing, key, entry.State, entry.State, entry.FailureCode, found.SlotIndex, duplicateSlotIndex: -1, found.OccupiedCount, entries.Length),
-            _ => InvalidState(key, entry, found.SlotIndex, found.OccupiedCount, entries.Length)};
+            _ => InvalidState(key, entry, found.SlotIndex, found.OccupiedCount, entries.Length)
+        };
     }
 
     public static NativeAotClassConstructorStateTableResult TryGet(ReadOnlySpan<NativeAotClassConstructorStateEntry> entries, NativeAotClassConstructorKey key)

@@ -4,6 +4,7 @@ using System.Text;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class WebRootImageFixture
 {
     private sealed class Node(string name, bool directory)

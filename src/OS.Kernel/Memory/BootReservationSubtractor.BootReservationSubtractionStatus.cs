@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public enum BootReservationSubtractionStatus : byte
 {
     Uninitialized = 0,

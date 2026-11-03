@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public struct VirtioNetHeaderChecksumPolicyResult
 {
     public VirtioNetHeaderChecksumPolicyStatus Status;

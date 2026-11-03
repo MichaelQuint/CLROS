@@ -29,7 +29,7 @@ internal static partial class KestrelRequestChurnTests
             {
                 await all;
             }
-            catch (OperationCanceledException)when (requests.All(t => t.IsCanceled || t.IsCompletedSuccessfully))
+            catch (OperationCanceledException) when (requests.All(t => t.IsCanceled || t.IsCompletedSuccessfully))
             {
             }
         }

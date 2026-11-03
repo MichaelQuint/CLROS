@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private const int MaximumServiceWireRanges = 65_536;

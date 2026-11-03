@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class PciVirtioDescriptorCatalogPlanner
 {
     public const bool UsesInjectedEcamReader = true;

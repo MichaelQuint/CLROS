@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public readonly struct BootPageAllocatorStateInitResult
 {
     private BootPageAllocatorStateInitResult(BootPageAllocatorStateStatus status, BootPageFreeListPlanStatus freeListPlanStatus, int requiredNodeCapacity, int availableNodeCapacity, int visitedNodeCount, int invalidNodeIndex, ulong pageSize, ulong totalFreePages, ulong totalFreeBytes, BootPageAllocatorState state)
@@ -15,17 +16,47 @@ public readonly struct BootPageAllocatorStateInitResult
         State = state;
     }
 
-    public BootPageAllocatorStateStatus Status { get; }
+    public BootPageAllocatorStateStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == BootPageAllocatorStateStatus.Success && State.IsInitialized;
-    public BootPageFreeListPlanStatus FreeListPlanStatus { get; }
-    public int RequiredNodeCapacity { get; }
-    public int AvailableNodeCapacity { get; }
-    public int VisitedNodeCount { get; }
-    public int InvalidNodeIndex { get; }
-    public ulong PageSize { get; }
-    public ulong TotalFreePages { get; }
-    public ulong TotalFreeBytes { get; }
-    public BootPageAllocatorState State { get; }
+    public BootPageFreeListPlanStatus FreeListPlanStatus
+    {
+        get;
+    }
+    public int RequiredNodeCapacity
+    {
+        get;
+    }
+    public int AvailableNodeCapacity
+    {
+        get;
+    }
+    public int VisitedNodeCount
+    {
+        get;
+    }
+    public int InvalidNodeIndex
+    {
+        get;
+    }
+    public ulong PageSize
+    {
+        get;
+    }
+    public ulong TotalFreePages
+    {
+        get;
+    }
+    public ulong TotalFreeBytes
+    {
+        get;
+    }
+    public BootPageAllocatorState State
+    {
+        get;
+    }
 
     internal static BootPageAllocatorStateInitResult Success(BootPageFreeListPlanResult freeListPlan, int requiredNodeCapacity, int availableNodeCapacity, int visitedNodeCount, ulong totalFreePages, ulong totalFreeBytes)
     {

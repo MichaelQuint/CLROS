@@ -33,7 +33,7 @@ public static partial class NativeAotSocketMessages
             int start = i;
             ulong[] header = Record(rows[i], "M16_013_MESSAGE", "identity", "ordinal", "nr", "fd", "generation", "header", "flags", "table", "vectors", "total");
             ulong identity = header[0], ordinal = header[1], number = header[2], flags = header[6];
-            Need(identity != 0 && ordinal != 0 && number is 46 or 47 && header[3] <= uint.MaxValue && header[4] is> 0 and <= uint.MaxValue && header[8] <= LinuxSocketServices.MaximumMessageVectors && header[9] <= LinuxSocketServices.MaximumMessageBytes && header[5] != 0 && header[5] <= ulong.MaxValue - 56 && (header[8] == 0 || header[7] != 0 && header[7] <= ulong.MaxValue - header[8] * 16) && (flags & ~(number == 46 ? 0x4040UL : 0x42UL)) == 0, "header");
+            Need(identity != 0 && ordinal != 0 && number is 46 or 47 && header[3] <= uint.MaxValue && header[4] is > 0 and <= uint.MaxValue && header[8] <= LinuxSocketServices.MaximumMessageVectors && header[9] <= LinuxSocketServices.MaximumMessageBytes && header[5] != 0 && header[5] <= ulong.MaxValue - 56 && (header[8] == 0 || header[7] != 0 && header[7] <= ulong.MaxValue - header[8] * 16) && (flags & ~(number == 46 ? 0x4040UL : 0x42UL)) == 0, "header");
             Need(owners.Add((identity, ordinal)), "duplicate_owner_ordinal");
             uint count = (uint)header[8], total = 0;
             var vectors = new Vector[count];

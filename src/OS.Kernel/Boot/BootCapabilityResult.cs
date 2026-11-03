@@ -18,13 +18,25 @@ public readonly struct BootCapabilityResult
         _message = message;
     }
 
-    public bool Succeeded { get; }
+    public bool Succeeded
+    {
+        get;
+    }
 
-    public BootCapabilities RequiredCapabilities { get; }
+    public BootCapabilities RequiredCapabilities
+    {
+        get;
+    }
 
-    public BootCapabilities MissingCapabilities { get; }
+    public BootCapabilities MissingCapabilities
+    {
+        get;
+    }
 
-    public BootCapabilities UnknownCapabilities { get; }
+    public BootCapabilities UnknownCapabilities
+    {
+        get;
+    }
 
     public string Message => _message ?? string.Empty;
 

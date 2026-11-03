@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public static class VirtioBlockNativeAppSelectionPreflight
 {
     public const bool ValidatesCallerOwnedReadSession = true;

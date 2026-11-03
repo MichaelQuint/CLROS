@@ -15,7 +15,10 @@ public sealed partial class NativeAotWebProgram
     internal const int ElfBytes = 8_870_568;
     private const string ElfSha256 = "7327C153F4352B7D1F4151103DF3C36DBE22F10BDE1C8D778DDC7314CE686178";
     private readonly NativeAotInstructionIndex index;
-    internal string SourceRoot { get; }
+    internal string SourceRoot
+    {
+        get;
+    }
     /// <summary>Reviewed complete instruction/syscall identity of this prepared lookup.</summary>
 
     public Inspection Metadata => Report(index);
@@ -60,8 +63,17 @@ public sealed partial class NativeAotWebProgram
             using JsonDocument json = JsonDocument.Parse(package.Slice((int)data.DataOffset, (int)data.DataBytes).ToArray());
             Need(json.RootElement.EnumerateObject().Count() == 1 && json.RootElement.TryGetProperty("OS_SMOKE_EXPECTED_BODY", out var value) && value.ValueKind == JsonValueKind.String, "configuration_settings_shape");
             string body = json.RootElement.GetProperty("OS_SMOKE_EXPECTED_BODY").GetString()!;
-            Need(body.Length is> 0 and <= 256 && body.All(c => c is >= ' ' and <= '~'), "configuration_body");
-            string response = JsonSerializer.Serialize(new { appId = "minimal.api.smoke", contractId = "kestrel.smoke.package.v0", expectedBodyKey = "OS_SMOKE_EXPECTED_BODY", expectedBody = body, expectedBodyBytes = Encoding.UTF8.GetByteCount(body), listenEndpoint = endpoint, healthPath = "/healthz" });
+            Need(body.Length is > 0 and <= 256 && body.All(c => c is >= ' ' and <= '~'), "configuration_body");
+            string response = JsonSerializer.Serialize(new
+            {
+                appId = "minimal.api.smoke",
+                contractId = "kestrel.smoke.package.v0",
+                expectedBodyKey = "OS_SMOKE_EXPECTED_BODY",
+                expectedBody = body,
+                expectedBodyBytes = Encoding.UTF8.GetByteCount(body),
+                listenEndpoint = endpoint,
+                healthPath = "/healthz"
+            });
             return new(body, response, 5, m.EnvironmentCount, data.DataBytes, quota);
         }
     }
@@ -166,7 +178,7 @@ public sealed partial class NativeAotWebProgram
                 Need((attributes & FileAttributes.ReparsePoint) == 0, "source_link");
                 if ((attributes & FileAttributes.Directory) != 0)
                 {
-                    if (Path.GetFileName(path)is not ("bin" or "obj" or "artifacts"))
+                    if (Path.GetFileName(path) is not ("bin" or "obj" or "artifacts"))
                         pending.Push(path);
                 }
                 else

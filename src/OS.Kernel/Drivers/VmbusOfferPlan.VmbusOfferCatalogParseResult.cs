@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct VmbusOfferCatalogParseResult
 {
     private VmbusOfferCatalogParseResult(bool isInitialized, VmbusOfferPlanStatus status, int offerCount, int parsedOfferCount, int requiredOfferCapacity, int failingOfferIndex, VmbusOfferPlanStatus failingOfferStatus, uint duplicateChannelId)
@@ -16,14 +17,38 @@ public readonly struct VmbusOfferCatalogParseResult
     }
 
     public const int NoFailingOfferIndex = -1;
-    public VmbusOfferPlanStatus Status { get; }
-    public int OfferCount { get; }
-    public int ParsedOfferCount { get; }
-    public int RequiredOfferCapacity { get; }
-    public int FailingOfferIndex { get; }
-    public VmbusOfferPlanStatus FailingOfferStatus { get; }
-    public uint DuplicateChannelId { get; }
-    public bool IsInitialized { get; }
+    public VmbusOfferPlanStatus Status
+    {
+        get;
+    }
+    public int OfferCount
+    {
+        get;
+    }
+    public int ParsedOfferCount
+    {
+        get;
+    }
+    public int RequiredOfferCapacity
+    {
+        get;
+    }
+    public int FailingOfferIndex
+    {
+        get;
+    }
+    public VmbusOfferPlanStatus FailingOfferStatus
+    {
+        get;
+    }
+    public uint DuplicateChannelId
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VmbusOfferPlanStatus.Success;
 
     public static VmbusOfferCatalogParseResult Success(int offerCount, int parsedOfferCount)

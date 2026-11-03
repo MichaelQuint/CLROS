@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioPciBindingDerivedBarSizePlanner
 {
     public const bool RequiresCallerProvidedPciConfigurationSpace = true;

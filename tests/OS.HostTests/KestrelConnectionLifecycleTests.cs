@@ -117,7 +117,12 @@ internal static partial class KestrelConnectionLifecycleTests
         NativeAotServiceLifecyclePeer.Validate(observed);
         // Value-only boundary: the failed first guest used its old90s budget
         // before completing the fixed sequence. No slow test or guest is implied.
-        NativeAotServiceLifecyclePeer.Validate(observed with { HoldStartedTicks = TimeSpan.FromSeconds(100).Ticks, HealthyCompletedTicks = TimeSpan.FromSeconds(110).Ticks, HoldReleasedTicks = TimeSpan.FromSeconds(120).Ticks });
+        NativeAotServiceLifecyclePeer.Validate(observed with
+        {
+            HoldStartedTicks = TimeSpan.FromSeconds(100).Ticks,
+            HealthyCompletedTicks = TimeSpan.FromSeconds(110).Ticks,
+            HoldReleasedTicks = TimeSpan.FromSeconds(120).Ticks
+        });
         foreach (var changed in new[]
         {
             observed with

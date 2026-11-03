@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct FetchAppHttpTcpContextPlanResult
 {
     private const uint InitializedFlag = 1;
@@ -21,21 +22,66 @@ public readonly struct FetchAppHttpTcpContextPlanResult
         Flags = flags;
     }
 
-    public FetchAppHttpTcpContextPlanStatus Status { get; }
-    public FetchAppHttpRequestEndpointStatus EndpointStatus { get; }
-    public DnsResolverTransactionPlanStatus DnsStatus { get; }
-    public Ipv4NeighborRoutePlanStatus RouteStatus { get; }
-    public Ipv4NeighborRoutePlanAction RouteAction { get; }
-    public int HostBytes { get; }
-    public int PathBytes { get; }
-    public ushort RemotePort { get; }
-    public uint HostFingerprint { get; }
-    public uint DnsQueryNameFingerprint { get; }
-    public int DnsQueryNameLength { get; }
-    public Ipv4Address ResolvedAddress { get; }
-    public MacAddress RouteMac { get; }
-    public HttpTcpClientGetPlannerInfo PlannerInfo { get; }
-    public uint Flags { get; }
+    public FetchAppHttpTcpContextPlanStatus Status
+    {
+        get;
+    }
+    public FetchAppHttpRequestEndpointStatus EndpointStatus
+    {
+        get;
+    }
+    public DnsResolverTransactionPlanStatus DnsStatus
+    {
+        get;
+    }
+    public Ipv4NeighborRoutePlanStatus RouteStatus
+    {
+        get;
+    }
+    public Ipv4NeighborRoutePlanAction RouteAction
+    {
+        get;
+    }
+    public int HostBytes
+    {
+        get;
+    }
+    public int PathBytes
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
+    public uint HostFingerprint
+    {
+        get;
+    }
+    public uint DnsQueryNameFingerprint
+    {
+        get;
+    }
+    public int DnsQueryNameLength
+    {
+        get;
+    }
+    public Ipv4Address ResolvedAddress
+    {
+        get;
+    }
+    public MacAddress RouteMac
+    {
+        get;
+    }
+    public HttpTcpClientGetPlannerInfo PlannerInfo
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == FetchAppHttpTcpContextPlanStatus.Success && EndpointStatus == FetchAppHttpRequestEndpointStatus.Success && DnsStatus == DnsResolverTransactionPlanStatus.Success && RouteStatus == Ipv4NeighborRoutePlanStatus.Success && RouteAction == Ipv4NeighborRoutePlanAction.UseCachedMac && HostBytes > 0 && PathBytes > 0 && RemotePort != 0 && HostFingerprint != 0 && HostFingerprint == DnsQueryNameFingerprint && HostBytes == DnsQueryNameLength && ResolvedAddress != default && !RouteMac.IsZero && !RouteMac.IsBroadcast;
 

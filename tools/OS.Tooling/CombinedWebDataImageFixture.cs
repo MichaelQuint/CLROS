@@ -49,7 +49,7 @@ public static partial class CombinedWebDataImageFixture
             AuthorityFiles.RequireDistinct(image, proof, efi, package);
             Need(image.Length == ImageBytes && image.Sha256.Equals(expected.Image.RawSha256, StringComparison.OrdinalIgnoreCase) && proof.ReadBytes(receipt.Length, "combined_clone_receipt").AsSpan().SequenceEqual(receipt), "clone_receipt");
             Inspection actual = Verify(image.Path, expected);
-            bool Matches(AuthorityFile file, string guest) => actual.WebFiles.SingleOrDefault(x => x.Path == guest)is { } entry && entry.Bytes == (ulong)file.Length && entry.Sha256.Equals(file.Sha256, StringComparison.OrdinalIgnoreCase);
+            bool Matches(AuthorityFile file, string guest) => actual.WebFiles.SingleOrDefault(x => x.Path == guest) is { } entry && entry.Bytes == (ulong)file.Length && entry.Sha256.Equals(file.Sha256, StringComparison.OrdinalIgnoreCase);
             Need(Matches(efi, "/EFI/BOOT/BOOTX64.EFI") && Matches(package, "/OS/APP.PKG"), "clone_preserved_inputs");
             byte[] bytes = image.ReadBytes(ImageBytes, "combined_clone_input");
             inputs.VerifyUnchanged();
@@ -99,7 +99,7 @@ public static partial class CombinedWebDataImageFixture
         var dataPart = dataLayout.Parts[0];
         Need(webPart.EntryIndex == 0 && webPart.PartitionTypeGuid == EfiPartitionType && webPart.FirstLba == WebFirstLba && webPart.LastLba == WebLastLba && webPart.Attributes == 0 && dataPart.EntryIndex == 0 && dataPart.PartitionTypeGuid == DataImage.PartitionType && dataPart.FirstLba == DataImage.PartitionFirstLba && dataPart.LastLba == DataImage.PartitionLastLba && dataPart.Attributes == 0 && webPart.UniquePartitionGuid != dataPart.UniquePartitionGuid, "input_partition");
         var initialData = DataImage.Inspect(data);
-        Need(initialData.Find(DataImage.ExclusiveCreateName)is null && new[] { "LOG.TXT", "UPLOAD.BIN", "SQLITE.DB" }.All(name => initialData.Find(name)is { Bytes: 0 }), "data_seed");
+        Need(initialData.Find(DataImage.ExclusiveCreateName) is null && new[] { "LOG.TXT", "UPLOAD.BIN", "SQLITE.DB" }.All(name => initialData.Find(name) is { Bytes: 0 }), "data_seed");
         byte[] combined = new byte[ImageBytes];
         web.CopyTo(combined, 0);
         Partition(data, DataImage.PartitionFirstLba, DataImage.PartitionLastLba).CopyTo(Partition(combined, DataFirstLba, DataLastLba));

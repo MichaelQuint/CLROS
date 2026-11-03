@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct VirtioPciCapabilityListParseResult
 {
     private VirtioPciCapabilityListParseResult(VirtioPciCapabilityListParseStatus status, VirtioPciCapabilitySet capabilities, byte failingOffset, byte failingCapabilityId, byte parsedVirtioCapabilityCount, bool isInitialized)
@@ -13,12 +14,30 @@ public readonly struct VirtioPciCapabilityListParseResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioPciCapabilityListParseStatus Status { get; }
-    public VirtioPciCapabilitySet Capabilities { get; }
-    public byte FailingOffset { get; }
-    public byte FailingCapabilityId { get; }
-    public byte ParsedVirtioCapabilityCount { get; }
-    public bool IsInitialized { get; }
+    public VirtioPciCapabilityListParseStatus Status
+    {
+        get;
+    }
+    public VirtioPciCapabilitySet Capabilities
+    {
+        get;
+    }
+    public byte FailingOffset
+    {
+        get;
+    }
+    public byte FailingCapabilityId
+    {
+        get;
+    }
+    public byte ParsedVirtioCapabilityCount
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioPciCapabilityListParseStatus.Success;
 
     public bool TryCopyRequiredCapabilities(Span<VirtioPciCapabilityMetadata> destination)

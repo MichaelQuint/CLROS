@@ -20,20 +20,24 @@ public static class NativeAotHelloOutput
         while (cursor < rawTail.Length)
         {
             int relative = rawTail[cursor..].IndexOf("M16_005_WRITE"u8);
-            if (relative < 0) break;
+            if (relative < 0)
+                break;
             int at = cursor + relative;
-            if (count == 3 || at != 0 && rawTail[at - 1] != (byte)'\n') Reject();
+            if (count == 3 || at != 0 && rawTail[at - 1] != (byte)'\n')
+                Reject();
             ReadOnlySpan<byte> expected = count switch
             {
                 0 => "M16_005_WRITE fd=1 bytes=27 data=TEST_START nativeaot.hello\n\r\n"u8,
                 1 => "M16_005_WRITE fd=1 bytes=19 data=NATIVEAOT_HELLO_OK\n\r\n"u8,
                 _ => "M16_005_WRITE fd=1 bytes=26 data=TEST_PASS nativeaot.hello\n\r\n"u8
             };
-            if (!rawTail[at..].StartsWith(expected)) Reject();
+            if (!rawTail[at..].StartsWith(expected))
+                Reject();
             cursor = at + expected.Length;
             count++;
         }
-        if (count != 3) Reject();
+        if (count != 3)
+            Reject();
     }
 
     private static void Reject() => throw new InvalidDataException("hello_output_envelopes");

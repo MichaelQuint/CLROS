@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct HyperVPlatformCpuidSnapshot
 {
     public HyperVPlatformCpuidSnapshot(CpuidRegisterSnapshot processorFeatureLeaf, CpuidRegisterSnapshot hypervisorVendorLeaf, bool hasFeatureIdentificationLeaf, CpuidRegisterSnapshot featureIdentificationLeaf)
@@ -9,8 +10,20 @@ public readonly struct HyperVPlatformCpuidSnapshot
         FeatureIdentificationLeaf = featureIdentificationLeaf;
     }
 
-    public CpuidRegisterSnapshot ProcessorFeatureLeaf { get; }
-    public CpuidRegisterSnapshot HypervisorVendorLeaf { get; }
-    public bool HasFeatureIdentificationLeaf { get; }
-    public CpuidRegisterSnapshot FeatureIdentificationLeaf { get; }
+    public CpuidRegisterSnapshot ProcessorFeatureLeaf
+    {
+        get;
+    }
+    public CpuidRegisterSnapshot HypervisorVendorLeaf
+    {
+        get;
+    }
+    public bool HasFeatureIdentificationLeaf
+    {
+        get;
+    }
+    public CpuidRegisterSnapshot FeatureIdentificationLeaf
+    {
+        get;
+    }
 }

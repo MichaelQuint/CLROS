@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static class MinimalApiPackage
 {
     public static IReadOnlyList<string> RequiredFiles { get; } = Array.AsReadOnly<string>(["MinimalApiSmoke.dll", "MinimalApiSmoke.deps.json", "MinimalApiSmoke.runtimeconfig.json", "appsettings.json"]);
@@ -23,7 +24,10 @@ public static class MinimalApiPackage
         string manifest = Path.Combine(destination, "package.json");
         Directory.CreateDirectory(appRoot);
         invoke ??= request => ProcessRunner.RunAsync(request, cancellation);
-        var publish = await invoke(new("dotnet", ["publish", Path.Combine(root, "apps/MinimalApiSmoke/MinimalApiSmoke.csproj"), "--configuration", options.Configuration, "--framework", "net11.0", "--self-contained", "false", "-p:UseAppHost=false", "/p:OSWorkloadProfile=" + options.WorkloadProfile, "--output", appRoot], root) { Timeout = TimeSpan.FromMinutes(3) });
+        var publish = await invoke(new("dotnet", ["publish", Path.Combine(root, "apps/MinimalApiSmoke/MinimalApiSmoke.csproj"), "--configuration", options.Configuration, "--framework", "net11.0", "--self-contained", "false", "-p:UseAppHost=false", "/p:OSWorkloadProfile=" + options.WorkloadProfile, "--output", appRoot], root)
+        {
+            Timeout = TimeSpan.FromMinutes(3)
+        });
         output.Write(publish.StandardOutput);
         output.Write(publish.StandardError);
         if (!publish.Succeeded)
@@ -84,6 +88,26 @@ public static class MinimalApiPackage
         };
         if (includeExpectedBody)
             environment.Add("OS_SMOKE_EXPECTED_BODY", "OS_MINIMAL_API_OK");
-        File.WriteAllText(path, JsonSerializer.Serialize(new { schemaVersion = 0, workloadProfile = "SingleMinimalApi", app = new { id = "minimal.api.smoke", entry = "apps/minimal-api/MinimalApiSmoke.dll" }, args = Array.Empty<string>(), env = environment, runtime = new { kind = "dotnet10", assembly = "apps/minimal-api/MinimalApiSmoke.dll", kestrel = new { listen = new[] { new { scheme = "http", host = "0.0.0.0", port = 8080 } } } } }, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, new System.Text.UTF8Encoding(false));
+        File.WriteAllText(path, JsonSerializer.Serialize(new
+        {
+            schemaVersion = 0,
+            workloadProfile = "SingleMinimalApi",
+            app = new
+            {
+                id = "minimal.api.smoke",
+                entry = "apps/minimal-api/MinimalApiSmoke.dll"
+            },
+            args = Array.Empty<string>(),
+            env = environment,
+            runtime = new
+            {
+                kind = "dotnet10",
+                assembly = "apps/minimal-api/MinimalApiSmoke.dll",
+                kestrel = new
+                {
+                    listen = new[] { new { scheme = "http", host = "0.0.0.0", port = 8080 } }
+                }
+            }
+        }, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, new System.Text.UTF8Encoding(false));
     }
 }

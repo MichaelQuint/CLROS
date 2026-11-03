@@ -8,6 +8,7 @@ using Chain = OS.Storage.FATClusterChainsLoopBadClusterTruncationDetection;
 using Vfat = OS.Storage.MultiClusterDirectoryVFATLongNameSupportSeparate;
 
 namespace OS.Tooling;
+
 public static partial class WebRootDiskInventory
 {
     public readonly record struct Extent(uint FirstCluster, uint Clusters, ulong FirstLba, uint Sectors);

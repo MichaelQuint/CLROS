@@ -18,14 +18,38 @@ internal static unsafe partial class M02IdtrContinuedExecutionEfiIntegrationTest
         public bool FreePresent { get; init; } = true;
         public ulong CodeAddress { get; init; } = ValidCodeAddress;
         public ulong DataAddress { get; init; } = ValidDataAddress;
-        public ulong CodeAllocationStatus { get; init; }
-        public ulong DataAllocationStatus { get; init; }
-        public bool CorruptNormalizedPage { get; init; }
-        public bool CorruptIdt { get; init; }
-        public bool CorruptTransitionStub { get; init; }
+        public ulong CodeAllocationStatus
+        {
+            get; init;
+        }
+        public ulong DataAllocationStatus
+        {
+            get; init;
+        }
+        public bool CorruptNormalizedPage
+        {
+            get; init;
+        }
+        public bool CorruptIdt
+        {
+            get; init;
+        }
+        public bool CorruptTransitionStub
+        {
+            get; init;
+        }
         public bool PublicationSucceeded { get; init; } = true;
-        public FakeObservation Observation { get; init; }
-        public ulong DataReleaseStatus { get; init; }
-        public ulong CodeReleaseStatus { get; init; }
+        public FakeObservation Observation
+        {
+            get; init;
+        }
+        public ulong DataReleaseStatus
+        {
+            get; init;
+        }
+        public ulong CodeReleaseStatus
+        {
+            get; init;
+        }
     }
 }

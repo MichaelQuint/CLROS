@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 using OS.Std.Text;
 
 public readonly struct OwnedSerialSmokeMarkerFormatResult
@@ -14,13 +15,34 @@ public readonly struct OwnedSerialSmokeMarkerFormatResult
         AvailableBytes = availableBytes;
     }
 
-    public bool IsInitialized { get; }
-    public OwnedSerialSmokeMarkerFormatStatus Status { get; }
-    public int PrefixBytes { get; }
-    public int TokenBytes { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public OwnedSerialSmokeMarkerFormatStatus Status
+    {
+        get;
+    }
+    public int PrefixBytes
+    {
+        get;
+    }
+    public int TokenBytes
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == OwnedSerialSmokeMarkerFormatStatus.Success && PrefixBytes > 0 && TokenBytes > 0 && RequiredBytes > PrefixBytes && BytesWritten == RequiredBytes && AvailableBytes >= RequiredBytes;
 
     public static OwnedSerialSmokeMarkerFormatResult Formatted(int prefixBytes, int tokenBytes, int bytesWritten, int availableBytes)

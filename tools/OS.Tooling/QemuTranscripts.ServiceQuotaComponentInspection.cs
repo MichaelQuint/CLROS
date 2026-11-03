@@ -2,6 +2,7 @@ using OS.Kernel.Compatibility.LinuxX64;
 using OS.Kernel.Threading;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Immutable component observations only. Original row positions

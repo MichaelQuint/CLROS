@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 public sealed partial class OSHostMemoryTable
 {
     public const ulong DefaultBaseAddress = 0x400000;
@@ -15,9 +16,18 @@ public sealed partial class OSHostMemoryTable
         slots = handleCapacity > 0 ? new MemorySlot[handleCapacity] : [];
     }
 
-    public ulong PageSizeBytes { get; }
-    public ulong BaseAddress { get; }
-    public ulong PageCapacity { get; }
+    public ulong PageSizeBytes
+    {
+        get;
+    }
+    public ulong BaseAddress
+    {
+        get;
+    }
+    public ulong PageCapacity
+    {
+        get;
+    }
     public ulong ByteCapacity => capacityBytes;
     public int HandleCapacity => slots.Length;
 

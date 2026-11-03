@@ -16,9 +16,21 @@ internal static unsafe partial class M02IdtrContinuedExecutionEfiIntegrationTest
         public List<FakeAllocation> AllocationCalls { get; } = [];
         public List<FakeRelease> ReleaseCalls { get; } = [];
         public List<string> Events { get; } = [];
-        public bool Succeeded { get; set; }
-        public bool ReadyEmitted { get; set; }
-        public bool FailureEmitted { get; set; }
-        public bool FailClosed { get; set; }
+        public bool Succeeded
+        {
+            get; set;
+        }
+        public bool ReadyEmitted
+        {
+            get; set;
+        }
+        public bool FailureEmitted
+        {
+            get; set;
+        }
+        public bool FailClosed
+        {
+            get; set;
+        }
     }
 }

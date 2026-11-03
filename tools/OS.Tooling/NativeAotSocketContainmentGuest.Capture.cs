@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class NativeAotSocketContainmentGuest
 {
     /// <summary>Owned immutable decoded text and read-only observations.
@@ -13,8 +14,17 @@ public static partial class NativeAotSocketContainmentGuest
             Transport = transport;
         }
 
-        public NativeAotSocketGuest.Capture Scheduling { get; }
-        public NativeAotSocketContainmentOutput.Observation Application { get; }
-        public QemuTranscripts.SocketContainmentTransport Transport { get; }
+        public NativeAotSocketGuest.Capture Scheduling
+        {
+            get;
+        }
+        public NativeAotSocketContainmentOutput.Observation Application
+        {
+            get;
+        }
+        public QemuTranscripts.SocketContainmentTransport Transport
+        {
+            get;
+        }
     }
 }

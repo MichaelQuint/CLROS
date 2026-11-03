@@ -87,7 +87,7 @@ internal static partial class M02Ud2VectorStateEfiIntegrationTests
         string enabledArtifact = Path.Combine(artifactDirectory, prefix + "-ENABLED.EFI");
         string defaultLog = Path.Combine(logDirectory, "m02-013-hosttest-" + identity + "-default.log");
         string enabledLog = Path.Combine(logDirectory, "m02-013-hosttest-" + identity + "-enabled.log");
-        string[] ownedOutputs = [..ArtifactOutputPaths(defaultArtifact), ..ArtifactOutputPaths(enabledArtifact), defaultLog, enabledLog];
+        string[] ownedOutputs = [.. ArtifactOutputPaths(defaultArtifact), .. ArtifactOutputPaths(enabledArtifact), defaultLog, enabledLog];
         SourceAuthoritySnapshot before = CaptureSourceAuthoritySnapshot(root);
         try
         {
@@ -534,7 +534,7 @@ internal static partial class M02Ud2VectorStateEfiIntegrationTests
 
     private static string[] ArtifactOutputPaths(string artifactPath)
     {
-        return[artifactPath, artifactPath + ".link.map", artifactPath + ".link.rsp", artifactPath + ".link.json", artifactPath + ".serializer.obj"];
+        return [artifactPath, artifactPath + ".link.map", artifactPath + ".link.rsp", artifactPath + ".link.json", artifactPath + ".serializer.obj"];
     }
 
     private static void DeleteOwnedFiles(IEnumerable<string> paths)
@@ -550,7 +550,7 @@ internal static partial class M02Ud2VectorStateEfiIntegrationTests
 
     private static ScriptResult RunEfiBuild(params string[] arguments)
     {
-        var result = HostToolProcess.RunTool(["efi", "build", "--boot-policy", "Diagnostic", ..arguments]);
+        var result = HostToolProcess.RunTool(["efi", "build", "--boot-policy", "Diagnostic", .. arguments]);
         return new ScriptResult(result.ExitCode, result.Output + result.Error);
     }
 

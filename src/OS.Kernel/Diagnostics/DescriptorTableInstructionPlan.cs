@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class DescriptorTableInstructionPlan
 {
     public const int RipRelativeDescriptorInstructionLength = 7;

@@ -1,4 +1,5 @@
 namespace OS.Std.Text;
+
 public enum AsciiArgumentStatus : byte
 {
     Uninitialized = 0,

@@ -28,7 +28,8 @@ internal static class CiSmokeScriptTests
             if (node["markerPresets"] is JsonArray presets)
             {
                 string text = File.ReadAllText(Path.GetFullPath((string)node["log"]!, root));
-                foreach (var preset in presets) HostCheck.True(text.Contains("QEMU_MARKER_PRESETS " + (string)preset!, StringComparison.Ordinal));
+                foreach (var preset in presets)
+                    HostCheck.True(text.Contains("QEMU_MARKER_PRESETS " + (string)preset!, StringComparison.Ordinal));
             }
         }
     }
@@ -74,22 +75,35 @@ internal static class CiSmokeScriptTests
         Check("ci.smoke returns nonzero on failed command", () => ExecuteControls(root, temporary, false));
         Check("baseline evidence script wires qcow2 and libvirt intent", () =>
         {
-            var baseline = EvidenceOrchestration.Plan(root, temporary, options with { WorkloadProfile = "MultiMinimalApi" }, true);
+            var baseline = EvidenceOrchestration.Plan(root, temporary, options with
+            {
+                WorkloadProfile = "MultiMinimalApi"
+            }, true);
             return ValidateQcow(baseline, false) && ValidateLibvirt(baseline) && baseline.Where(x => x.SerialLog.Length != 0).All(x => Option(x.Arguments, "--workload-profile") == "MultiMinimalApi");
         });
         Check("baseline evidence script enforces complete host gate", () => ExecuteControls(root, temporary, true));
         Check("baseline evidence self-test rejects malformed terminals and summary", () =>
         {
             using StringWriter log = new();
-            return EvidenceOrchestration.RunAsync(root, options with { PlanOnly = false, SelfTest = true, LogRoot = Path.Combine(temporary, "selftest") }, true, log).GetAwaiter().GetResult() == 0 &&
+            return EvidenceOrchestration.RunAsync(root, options with
+            {
+                PlanOnly = false,
+                SelfTest = true,
+                LogRoot = Path.Combine(temporary, "selftest")
+            }, true, log).GetAwaiter().GetResult() == 0 &&
                 log.ToString().Contains("TEST_PASS baseline.evidence.selftest malformed_summary", StringComparison.Ordinal);
         });
         Check("baseline evidence script records artifact summary lanes", () => BaselinePlan(root, temporary));
         Check("baseline evidence script rejects nonempty log root", () =>
         {
-            string used = Path.Combine(temporary, "used"); Directory.CreateDirectory(used); File.WriteAllText(Path.Combine(used, "stale.log"), "stale");
+            string used = Path.Combine(temporary, "used");
+            Directory.CreateDirectory(used);
+            File.WriteAllText(Path.Combine(used, "stale.log"), "stale");
             using StringWriter log = new();
-            return EvidenceOrchestration.RunAsync(root, options with { LogRoot = used }, true, log).GetAwaiter().GetResult() == 1 && log.ToString().Contains("must be new or empty", StringComparison.Ordinal);
+            return EvidenceOrchestration.RunAsync(root, options with
+            {
+                LogRoot = used
+            }, true, log).GetAwaiter().GetResult() == 1 && log.ToString().Contains("must be new or empty", StringComparison.Ordinal);
         });
         Check("baseline evidence plan records missing qemu-img discovery", () => Discovery(root, temporary, false, true));
         Check("baseline evidence plan records found qemu-img discovery", () => Discovery(root, temporary, true, true));
@@ -97,7 +111,8 @@ internal static class CiSmokeScriptTests
             "TEST_PASS host.tests\nTEST_PASS host.tests\n", "TEST_PASS host.tests\nTEST_FAIL host.tests failures=1\n" }.All(x => !EvidenceOrchestration.ValidateHostTerminal(x).Valid) &&
             EvidenceOrchestration.ValidateHostTerminal("TEST_PASS host.tests\r\n").Valid);
         Check("orchestration cancellation preserves incomplete evidence", () => Cancellation(root, temporary));
-        if (failures != 0) throw new InvalidOperationException("Orchestration checks failed: " + failures);
+        if (failures != 0)
+            throw new InvalidOperationException("Orchestration checks failed: " + failures);
     }
 
     private static bool Profile(string root, string temporary)
@@ -124,10 +139,12 @@ internal static class CiSmokeScriptTests
     {
         string directory = Path.Combine(temporary, "discovery-" + baseline + "-" + found);
         string tool = Path.Combine(temporary, "qemu-img-" + baseline + "-" + found + ".exe");
-        if (found) File.WriteAllText(tool, "controlled tool discovery fixture, never executed");
+        if (found)
+            File.WriteAllText(tool, "controlled tool discovery fixture, never executed");
         var options = new EvidenceOptions { PlanOnly = true, LogRoot = directory, RunQcow2RealSmoke = true, QemuImg = tool };
         using StringWriter log = new();
-        if (EvidenceOrchestration.RunAsync(root, options, baseline, log).GetAwaiter().GetResult() != 0) return false;
+        if (EvidenceOrchestration.RunAsync(root, options, baseline, log).GetAwaiter().GetResult() != 0)
+            return false;
         var summary = JsonNode.Parse(File.ReadAllText(Path.Combine(directory, baseline ? "summary.json" : "ci-smoke.summary.json")))!;
         return (bool?)summary["qemuImgDiscovery"]?["available"] == found && (string?)summary["qemuImgDiscovery"]?["source"] == "configured" &&
             (string?)summary["qcow2ConversionIntent"]?["status"] == (found ? "planned" : "blocked_by_missing_qemu_img") &&
@@ -138,7 +155,8 @@ internal static class CiSmokeScriptTests
         string directory = Path.Combine(temporary, "baseline-plan");
         var options = new EvidenceOptions { PlanOnly = true, LogRoot = directory };
         using StringWriter log = new();
-        if (EvidenceOrchestration.RunAsync(root, options, true, log).GetAwaiter().GetResult() != 0) return false;
+        if (EvidenceOrchestration.RunAsync(root, options, true, log).GetAwaiter().GetResult() != 0)
+            return false;
         var steps = EvidenceOrchestration.Plan(root, directory, options, true);
         return EvidenceOrchestration.SummaryMatches(Path.Combine(directory, "summary.json"), "os.baseline.evidence.summary.v0", "planned", "plan-only", steps.Count) &&
             steps.Count(x => x.Arguments.FirstOrDefault() == "build") == 1 && steps.Any(x => x.Name == "baseline.naming.guard") && steps.Any(x => x.Name == "baseline.git.status") &&
@@ -154,11 +172,19 @@ internal static class CiSmokeScriptTests
             List<ProcessRequest> calls = [];
             Task<OS.Tooling.ProcessResult> Execute(ProcessRequest request, CancellationToken _)
             {
-                calls.Add(request); bool host = request.Arguments.Contains("--lane"); bool build = request.Arguments.FirstOrDefault() == "build";
-                if (kind == "exception" && build) throw new IOException("controlled failure");
+                calls.Add(request);
+                bool host = request.Arguments.Contains("--lane");
+                bool build = request.Arguments.FirstOrDefault() == "build";
+                if (kind == "exception" && build)
+                    throw new IOException("controlled failure");
                 string text = !host ? "CONTROL_OK\n" : kind switch
-                { "host-missing" => "", "host-fast" => "TEST_PASS host.tests.fast\n", "host-duplicate" => "TEST_PASS host.tests\nTEST_PASS host.tests\n",
-                    "host-fail" => "TEST_PASS host.tests\nTEST_FAIL host.tests failures=1\n", _ => "TEST_PASS host.tests\n" };
+                {
+                    "host-missing" => "",
+                    "host-fast" => "TEST_PASS host.tests.fast\n",
+                    "host-duplicate" => "TEST_PASS host.tests\nTEST_PASS host.tests\n",
+                    "host-fail" => "TEST_PASS host.tests\nTEST_FAIL host.tests failures=1\n",
+                    _ => "TEST_PASS host.tests\n"
+                };
                 request.OutputReceived?.Invoke(text, false);
                 return Task.FromResult(new OS.Tooling.ProcessResult(kind == "build-failure" && build ? 42 : 0, text, "", kind == "timeout" && host, kind == "overflow" && host, false, TimeSpan.Zero));
             }
@@ -166,27 +192,54 @@ internal static class CiSmokeScriptTests
             int exit = EvidenceOrchestration.RunAsync(root, options, baseline, log, execute: Execute).GetAwaiter().GetResult();
             var summary = JsonNode.Parse(File.ReadAllText(Path.Combine(directory, baseline ? "summary.json" : "ci-smoke.summary.json")))!;
             if (calls.Count != steps.Count || exit != (kind == "valid" ? 0 : 1) || (string?)summary["status"] != (kind == "valid" ? "passed" : "failed") ||
-                summary["steps"]!.AsArray().Count != steps.Count || calls.Count(x => x.Arguments.FirstOrDefault() == "build") != 1) { Console.WriteLine("ORCHESTRATION_CONTROL " + kind + " " + log); return false; }
-            if (calls.Single(x => x.Arguments.Contains("--lane")).Timeout != EvidenceOrchestration.FullHostTimeout) return false;
-            if (kind == "build-failure" && (int?)summary["steps"]!.AsArray().Single(x => ((string?)x?["name"])?.EndsWith(".build", StringComparison.Ordinal) == true)!["exitCode"] != 42) return false;
+                summary["steps"]!.AsArray().Count != steps.Count || calls.Count(x => x.Arguments.FirstOrDefault() == "build") != 1)
+            {
+                Console.WriteLine("ORCHESTRATION_CONTROL " + kind + " " + log);
+                return false;
+            }
+            if (calls.Single(x => x.Arguments.Contains("--lane")).Timeout != EvidenceOrchestration.FullHostTimeout)
+                return false;
+            if (kind == "build-failure" && (int?)summary["steps"]!.AsArray().Single(x => ((string?)x?["name"])?.EndsWith(".build", StringComparison.Ordinal) == true)!["exitCode"] != 42)
+                return false;
         }
         return true;
     }
     private static bool Cancellation(string root, string temporary)
     {
         string directory = Path.Combine(temporary, "cancelled");
-        using CancellationTokenSource cancellation = new(); int calls = 0;
+        using CancellationTokenSource cancellation = new();
+        int calls = 0;
         Task<OS.Tooling.ProcessResult> Execute(ProcessRequest request, CancellationToken token)
         {
-            if (++calls == 2) { cancellation.Cancel(); throw new OperationCanceledException(token); }
+            if (++calls == 2)
+            {
+                cancellation.Cancel();
+                throw new OperationCanceledException(token);
+            }
             return Task.FromResult(new OS.Tooling.ProcessResult(0, "", "", false, false, false, TimeSpan.Zero));
         }
         using StringWriter log = new();
-        int exit = EvidenceOrchestration.RunAsync(root, new() { LogRoot = directory }, false, log, cancellation.Token, Execute).GetAwaiter().GetResult();
+        int exit = EvidenceOrchestration.RunAsync(root, new()
+        {
+            LogRoot = directory
+        }, false, log, cancellation.Token, Execute).GetAwaiter().GetResult();
         var summary = JsonNode.Parse(File.ReadAllText(Path.Combine(directory, "ci-smoke.summary.json")))!;
         return exit == 1 && calls == 2 && (string?)summary["status"] == "incomplete" && summary["steps"]!.AsArray().Count == 1;
     }
     private static string Option(IReadOnlyList<string> args, string key)
-    { for (int i = 0; i + 1 < args.Count; i++) if (args[i] == key) return args[i + 1]; return ""; }
-    private static bool Rejects(Action action) { try { action(); return false; } catch (ArgumentException) { return true; } }
+    {
+        for (int i = 0; i + 1 < args.Count; i++)
+            if (args[i] == key)
+                return args[i + 1];
+        return "";
+    }
+    private static bool Rejects(Action action)
+    {
+        try
+        {
+            action();
+            return false;
+        }
+        catch (ArgumentException) { return true; }
+    }
 }

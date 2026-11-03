@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct TcpEstablishedStreamSendResult
 {
     private TcpEstablishedStreamSendResult(TcpEstablishedStreamStatus status, PacketParseStatus packetStatus, int segmentBytesWritten, int payloadBytesWritten, uint sequenceNumber, uint acknowledgementNumber, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
@@ -14,16 +15,43 @@ public readonly struct TcpEstablishedStreamSendResult
         RemoteNextSequenceNumber = remoteNextSequenceNumber;
     }
 
-    public bool IsInitialized { get; }
-    public TcpEstablishedStreamStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public TcpEstablishedStreamStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == TcpEstablishedStreamStatus.Success;
-    public PacketParseStatus PacketStatus { get; }
-    public int SegmentBytesWritten { get; }
-    public int PayloadBytesWritten { get; }
-    public uint SequenceNumber { get; }
-    public uint AcknowledgementNumber { get; }
-    public uint LocalNextSequenceNumber { get; }
-    public uint RemoteNextSequenceNumber { get; }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public int SegmentBytesWritten
+    {
+        get;
+    }
+    public int PayloadBytesWritten
+    {
+        get;
+    }
+    public uint SequenceNumber
+    {
+        get;
+    }
+    public uint AcknowledgementNumber
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get;
+    }
 
     public static TcpEstablishedStreamSendResult Success(int segmentBytesWritten, int payloadBytesWritten, uint sequenceNumber, uint acknowledgementNumber, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
     {

@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 public sealed class OSHostWaitFacade
 {
     private const ulong WaitableHandleByteLength = 8;

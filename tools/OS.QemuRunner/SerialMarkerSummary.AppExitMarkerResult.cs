@@ -1,4 +1,5 @@
 namespace OS.Tools.QemuRunner;
+
 public readonly struct AppExitMarkerResult
 {
     public AppExitMarkerResult(int exitCode, string status)
@@ -7,6 +8,12 @@ public readonly struct AppExitMarkerResult
         Status = status;
     }
 
-    public int ExitCode { get; }
-    public string Status { get; }
+    public int ExitCode
+    {
+        get;
+    }
+    public string Status
+    {
+        get;
+    }
 }

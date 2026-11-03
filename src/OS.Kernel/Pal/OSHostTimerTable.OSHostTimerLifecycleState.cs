@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public enum OSHostTimerLifecycleState : uint
 {
     Closed = 0,

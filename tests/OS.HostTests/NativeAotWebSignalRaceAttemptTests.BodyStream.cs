@@ -16,7 +16,10 @@ internal static partial class NativeAotWebSignalRaceAttemptTests
         public override bool CanSeek => false;
         public override bool CanWrite => false;
         public override long Length => throw new NotSupportedException();
-        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override long Position
+        {
+            get => throw new NotSupportedException(); set => throw new NotSupportedException();
+        }
 
         public override int Read(byte[] buffer, int start, int count) => throw new NotSupportedException();
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken token = default)

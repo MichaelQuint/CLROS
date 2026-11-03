@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformSerialWriteResult
 {
     public const int MaximumPayloadBytes = 512;
@@ -13,14 +14,35 @@ public readonly struct PlatformSerialWriteResult
         BackendStatus = backendStatus;
     }
 
-    public PlatformSerialWriteStatus Status { get; }
-    public FirmwareServicesMode Mode { get; }
-    public PlatformSerialTransportKind TransportKind { get; }
+    public PlatformSerialWriteStatus Status
+    {
+        get;
+    }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
+    public PlatformSerialTransportKind TransportKind
+    {
+        get;
+    }
     public string Operation => PlatformSerialOperations.WriteBytes;
-    public int RequestedBytes { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
-    public ulong BackendStatus { get; }
+    public int RequestedBytes
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public ulong BackendStatus
+    {
+        get;
+    }
     public bool Succeeded => Status == PlatformSerialWriteStatus.Success;
 
     public static bool IsValidPayload(ReadOnlySpan<byte> bytes)

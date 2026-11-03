@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public static class OSHostRandomConstants
 {
     public const uint FlagNone = 0;

@@ -64,36 +64,126 @@ internal static partial class Program
                 RestoredRflagsIntent = runtime.RestoredRflagsIntent;
             }
 
-            public string MemorySha256 { get; }
-            public int PreflightCandidateCount { get; }
-            public string PreflightPhysicalAddresses { get; }
-            public ulong PreflightPhysicalAddress { get; }
-            public string PreflightPodSha256 { get; }
-            public string PreflightPodBase64 { get; }
-            public ulong Cr0 { get; }
-            public ulong RawCr3 { get; }
-            public ulong RawCr4 { get; }
-            public ulong Ia32Efer { get; }
-            public uint CpuidMaximumExtendedLeaf { get; }
-            public uint CpuidAddressSizesEax { get; }
-            public byte PhysicalAddressWidth { get; }
-            public ulong PhysicalAddressMask { get; }
-            public ulong OwnedCr3 { get; }
-            public ulong Rflags { get; }
-            public ulong RuntimeStatePhysicalAddress { get; }
-            public string RuntimeStatePodSha256 { get; }
-            public string RuntimeStatePodBase64 { get; }
-            public ulong TransitionCanaryPhysicalAddress { get; }
-            public ulong TransitionCanaryValue { get; }
-            public ulong CallGatePhysicalAddress { get; }
-            public string CallGatePodSha256 { get; }
-            public string CallGatePodBase64 { get; }
-            public ulong PostReturnRflags { get; }
-            public ulong PostReturnCr3 { get; }
-            public ulong PostReturnCr4 { get; }
-            public ulong FirmwareCr3Readback { get; }
-            public ulong RestoredCr4Readback { get; }
-            public ulong RestoredRflagsIntent { get; }
+            public string MemorySha256
+            {
+                get;
+            }
+            public int PreflightCandidateCount
+            {
+                get;
+            }
+            public string PreflightPhysicalAddresses
+            {
+                get;
+            }
+            public ulong PreflightPhysicalAddress
+            {
+                get;
+            }
+            public string PreflightPodSha256
+            {
+                get;
+            }
+            public string PreflightPodBase64
+            {
+                get;
+            }
+            public ulong Cr0
+            {
+                get;
+            }
+            public ulong RawCr3
+            {
+                get;
+            }
+            public ulong RawCr4
+            {
+                get;
+            }
+            public ulong Ia32Efer
+            {
+                get;
+            }
+            public uint CpuidMaximumExtendedLeaf
+            {
+                get;
+            }
+            public uint CpuidAddressSizesEax
+            {
+                get;
+            }
+            public byte PhysicalAddressWidth
+            {
+                get;
+            }
+            public ulong PhysicalAddressMask
+            {
+                get;
+            }
+            public ulong OwnedCr3
+            {
+                get;
+            }
+            public ulong Rflags
+            {
+                get;
+            }
+            public ulong RuntimeStatePhysicalAddress
+            {
+                get;
+            }
+            public string RuntimeStatePodSha256
+            {
+                get;
+            }
+            public string RuntimeStatePodBase64
+            {
+                get;
+            }
+            public ulong TransitionCanaryPhysicalAddress
+            {
+                get;
+            }
+            public ulong TransitionCanaryValue
+            {
+                get;
+            }
+            public ulong CallGatePhysicalAddress
+            {
+                get;
+            }
+            public string CallGatePodSha256
+            {
+                get;
+            }
+            public string CallGatePodBase64
+            {
+                get;
+            }
+            public ulong PostReturnRflags
+            {
+                get;
+            }
+            public ulong PostReturnCr3
+            {
+                get;
+            }
+            public ulong PostReturnCr4
+            {
+                get;
+            }
+            public ulong FirmwareCr3Readback
+            {
+                get;
+            }
+            public ulong RestoredCr4Readback
+            {
+                get;
+            }
+            public ulong RestoredRflagsIntent
+            {
+                get;
+            }
 
             private static string HashBytes(byte[] bytes)
             {

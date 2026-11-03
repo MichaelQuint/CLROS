@@ -19,12 +19,30 @@ public readonly struct SeparatePageFaultResult
     }
 
     public bool IsInitialized => _initialized == 1 && Status > SeparatePageFaultStatus.Uninitialized && Status <= SeparatePageFaultStatus.InstructionAddressMismatch && FirstMismatchField <= SeparatePageFaultField.Rip && ComparedFieldCount <= SeparateDisabledDefaultPageFaultCR2ErrorCode.AuditFieldCount;
-    public SeparatePageFaultStatus Status { get; }
-    public SeparatePageFaultRequest Request { get; }
-    public SeparatePageFaultField FirstMismatchField { get; }
-    public byte ComparedFieldCount { get; }
-    public ulong ExpectedValue { get; }
-    public ulong ObservedValue { get; }
+    public SeparatePageFaultStatus Status
+    {
+        get;
+    }
+    public SeparatePageFaultRequest Request
+    {
+        get;
+    }
+    public SeparatePageFaultField FirstMismatchField
+    {
+        get;
+    }
+    public byte ComparedFieldCount
+    {
+        get;
+    }
+    public ulong ExpectedValue
+    {
+        get;
+    }
+    public ulong ObservedValue
+    {
+        get;
+    }
     public bool ReadyDisabled => IsConsistentSuccess && Status == SeparatePageFaultStatus.ReadyDisabled && ComparedFieldCount == 0;
     public bool SyntheticObservationAccepted => IsConsistentSuccess && Status == SeparatePageFaultStatus.SyntheticObservationAccepted && ComparedFieldCount == SeparateDisabledDefaultPageFaultCR2ErrorCode.AuditFieldCount;
     public bool Succeeded => ReadyDisabled || SyntheticObservationAccepted;

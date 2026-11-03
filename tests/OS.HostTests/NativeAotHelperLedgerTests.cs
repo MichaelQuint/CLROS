@@ -538,7 +538,7 @@ internal static class NativeAotHelperLedgerTests
             && entry.Arity == 0 && entry.RefKind == RefKind.None
             && entry.ReturnType.SpecialType == SpecialType.System_Int64
             && entry.Parameters is [{ RefKind: RefKind.None, Type: IPointerTypeSymbol image },
-                { RefKind: RefKind.None, Type: IPointerTypeSymbol table }]
+            { RefKind: RefKind.None, Type: IPointerTypeSymbol table }]
             && image.PointedAtType.SpecialType == SpecialType.System_Void
             && SymbolEqualityComparer.Default.Equals(table.PointedAtType, catalog.Type("OS.Boot.EfiSystemTable")), "EFI entry ABI");
         var cookie = exports["__security_cookie"];

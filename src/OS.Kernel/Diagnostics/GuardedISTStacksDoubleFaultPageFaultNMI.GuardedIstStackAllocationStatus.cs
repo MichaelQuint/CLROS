@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum GuardedIstStackAllocationStatus : byte
 {
     Success = 0,

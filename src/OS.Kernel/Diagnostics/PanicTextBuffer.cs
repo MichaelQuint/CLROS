@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Kernel.Diagnostics;
+
 public ref struct PanicTextBuffer
 {
     private Span<byte> _destination;

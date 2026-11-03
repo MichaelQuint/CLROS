@@ -22,7 +22,11 @@ public static class AtomicReceipt
         {
             while (true)
             {
-                try { operation(); return; }
+                try
+                {
+                    operation();
+                    return;
+                }
                 catch (Exception error) when (OperatingSystem.IsWindows() &&
                     error is IOException or UnauthorizedAccessException &&
                     (error.HResult & 0xffff) is 5 or 32 or 33 && deadline.Elapsed < SharingRetryTimeout)
@@ -31,7 +35,8 @@ public static class AtomicReceipt
                     // previous complete receipt stays intact; persistent denial
                     // escapes with its original exception after this small bound.
                     TimeSpan remaining = SharingRetryTimeout - deadline.Elapsed;
-                    if (remaining > TimeSpan.Zero) Thread.Sleep(TimeSpan.FromMilliseconds(Math.Min(25, remaining.TotalMilliseconds)));
+                    if (remaining > TimeSpan.Zero)
+                        Thread.Sleep(TimeSpan.FromMilliseconds(Math.Min(25, remaining.TotalMilliseconds)));
                 }
             }
         }

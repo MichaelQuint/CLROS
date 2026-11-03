@@ -323,7 +323,7 @@ internal static unsafe partial class TypeManagerModuleMetadataLiveNativeAOTImage
         (int Offset, ulong Size, RangeKind Kind, Status Expected)[] cases = [(0x1200, 24, RangeKind.ImmutableMetadata, Status.Success), (0x1000, 136, RangeKind.ImmutableMetadata, Status.Success), (0x5000, 16, RangeKind.ImmutableMetadata, Status.Success), (0x1FF8, 8, RangeKind.ImmutableMetadata, Status.Success), (0x1FF8, 9, RangeKind.ImmutableMetadata, Status.RangePermissionRejected), (0x2200, 64, RangeKind.MutableData, Status.Success), (0x3FFF, 1, RangeKind.MutableData, Status.Success), (0x3FFF, 2, RangeKind.MutableData, Status.RangePermissionRejected), (0x2200, 8, RangeKind.ImmutableMetadata, Status.RangePermissionRejected), (0x1300, 8, RangeKind.MutableData, Status.RangePermissionRejected), (0x6000, 8, RangeKind.ImmutableMetadata, Status.RangePermissionRejected), (0x6000, 8, RangeKind.MutableData, Status.RangePermissionRejected), (0x6000, 0x1000, RangeKind.ExecutableEntry, Status.Success), (0x6FFF, 1, RangeKind.ExecutableEntry, Status.Success), (0x6FFF, 2, RangeKind.ExecutableEntry, Status.RangePermissionRejected), (0x2200, 8, RangeKind.ExecutableEntry, Status.RangePermissionRejected), (0x1300, 8, RangeKind.ExecutableEntry, Status.RangePermissionRejected), (0, 1, RangeKind.ExecutableEntry, Status.RangePermissionRejected), (0x4000, 8, RangeKind.MutableData, Status.RangePermissionRejected), (0x7000, 8, RangeKind.ImmutableMetadata, Status.RangePermissionRejected), (0x7FFF, 2, RangeKind.ImmutableMetadata, Status.RangeRejected), (0x8000, 1, RangeKind.MutableData, Status.RangeRejected)];
         foreach (var c in cases)
             ExpectRange(f, r.Handle, f.Address(c.Offset), c.Size, c.Kind, c.Expected);
-        foreach ((ulong address, ulong size)in new (ulong, ulong)[]
+        foreach ((ulong address, ulong size) in new (ulong, ulong)[]
         {
             (0, 8),
             (f.Address(0x2200), 0),
@@ -376,7 +376,7 @@ internal static unsafe partial class TypeManagerModuleMetadataLiveNativeAOTImage
         ExpectRange(f, r.Handle, f.Address(0x6000), 8, RangeKind.ReadableSectionData, Status.RangePermissionRejected);
         ExpectRange(f, r.Handle, f.Address(0x2200), 8, RangeKind.MutableData, Status.Success);
         ExpectRange(f, r.Handle, f.Address(0x22F8), 16, RangeKind.MutableData, Status.Success); // empty row excludes no byte.
-        foreach ((int offset, ulong size)in new (int, ulong)[]
+        foreach ((int offset, ulong size) in new (int, ulong)[]
         {
             (0, 1),
             (0x1000, 1),
@@ -401,7 +401,7 @@ internal static unsafe partial class TypeManagerModuleMetadataLiveNativeAOTImage
         var registered = Core.RegisterOnce(inside.Capture, inside.Mapping, owner, 0x1000);
         Check(registered.Succeeded && registered.RequiredStorage < 0x1000, "owner unused tail exists");
         byte[] before = Bytes(inside.Image, Fixture.ImageSize);
-        foreach ((int offset, ulong size)in new (int, ulong)[]
+        foreach ((int offset, ulong size) in new (int, ulong)[]
         {
             (0x2800, 1),
             (0x37FF, 1),
@@ -574,7 +574,13 @@ internal static unsafe partial class TypeManagerModuleMetadataLiveNativeAOTImage
         )
             start.ArgumentList.Add(arg);
         DateTime begin = DateTime.UtcNow;
-        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new { start.FileName, Arguments = start.ArgumentList.ToArray(), start.WorkingDirectory, StartedUtc = begin }));
+        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new
+        {
+            start.FileName,
+            Arguments = start.ArgumentList.ToArray(),
+            start.WorkingDirectory,
+            StartedUtc = begin
+        }));
         using Process process = Process.Start(start)!;
         var outputTask = process.StandardOutput.ReadToEndAsync();
         var errorTask = process.StandardError.ReadToEndAsync();
@@ -589,7 +595,14 @@ internal static unsafe partial class TypeManagerModuleMetadataLiveNativeAOTImage
         File.WriteAllText(Path.Combine(directory, "stdout.log"), output);
         File.WriteAllText(Path.Combine(directory, "stderr.log"), error);
         bool unchanged = identities.All(r => new FileInfo(r.Path).Length == r.Bytes && Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(r.Path))) == r.Sha256);
-        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new { NativeExit = process.ExitCode, Timeout = timeout, StartedUtc = begin, EndedUtc = DateTime.UtcNow, InputsUnchanged = unchanged }));
+        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new
+        {
+            NativeExit = process.ExitCode,
+            Timeout = timeout,
+            StartedUtc = begin,
+            EndedUtc = DateTime.UtcNow,
+            InputsUnchanged = unchanged
+        }));
         Check(!timeout && process.ExitCode == 0 && error.Length == 0 && unchanged, "no-stdlib command " + directory);
         string dll = Path.Combine(directory, "bin", "Release", "net11.0", "M04_011_Closure.dll");
         using var stream = File.OpenRead(dll);

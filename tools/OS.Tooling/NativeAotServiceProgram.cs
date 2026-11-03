@@ -12,7 +12,10 @@ public sealed partial class NativeAotServiceProgram
     internal const int ElfBytes = 8501192;
     private const string ElfSha256 = "5ED02AB93C4854B8E4C379811A0139AF2A905E160317BB83AA538D9F22FD117D";
     private readonly NativeAotInstructionIndex index;
-    internal string SourceRoot { get; }
+    internal string SourceRoot
+    {
+        get;
+    }
 
     private NativeAotServiceProgram(string root, NativeAotInstructionIndex value, NativeAotServiceContract contract)
     {
@@ -25,7 +28,10 @@ public sealed partial class NativeAotServiceProgram
     /// V1, V2 and QuotaFailure share the reviewed original executable; their
     /// immutable package policies remain distinct.</summary>
 
-    public NativeAotServiceContract Contract { get; }
+    public NativeAotServiceContract Contract
+    {
+        get;
+    }
     /// <summary>Compatibility selector for the original positive v2 envelope.
     /// New contract dispatch must use Contract rather than infer policy here.</summary>
 

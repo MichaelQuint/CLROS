@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformFramebufferSourceResult
 {
     private PlatformFramebufferSourceResult(bool succeeded, PlatformFramebufferSourceStatus status, PlatformFramebufferMetadata metadata, ulong firmwareStatus)
@@ -9,10 +10,22 @@ public readonly struct PlatformFramebufferSourceResult
         FirmwareStatus = firmwareStatus;
     }
 
-    public bool Succeeded { get; }
-    public PlatformFramebufferSourceStatus Status { get; }
-    public PlatformFramebufferMetadata Metadata { get; }
-    public ulong FirmwareStatus { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformFramebufferSourceStatus Status
+    {
+        get;
+    }
+    public PlatformFramebufferMetadata Metadata
+    {
+        get;
+    }
+    public ulong FirmwareStatus
+    {
+        get;
+    }
 
     public static PlatformFramebufferSourceResult Captured(PlatformFramebufferMetadata metadata)
     {

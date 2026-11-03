@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public sealed record LibvirtSmokeOptions
 {
     public string Image { get; init; } = "artifacts/images/os.raw";
@@ -14,11 +15,26 @@ public sealed record LibvirtSmokeOptions
     public int TimeoutSeconds { get; init; } = 30;
     public IReadOnlyList<string> RequireMarkers { get; init; } = SmokeContracts.RequiredMarkers;
     public IReadOnlyList<string> ForbidMarkers { get; init; } = [];
-    public bool DryRun { get; init; }
-    public bool PlanLifecycle { get; init; }
-    public bool CheckSerialOnly { get; init; }
-    public bool AllowRealLibvirtLifecycle { get; init; }
-    public bool ValidatePaths { get; init; }
+    public bool DryRun
+    {
+        get; init;
+    }
+    public bool PlanLifecycle
+    {
+        get; init;
+    }
+    public bool CheckSerialOnly
+    {
+        get; init;
+    }
+    public bool AllowRealLibvirtLifecycle
+    {
+        get; init;
+    }
+    public bool ValidatePaths
+    {
+        get; init;
+    }
 
     public static LibvirtSmokeOptions Parse(string[] args)
     {
@@ -96,7 +112,8 @@ public sealed record LibvirtSmokeOptions
                     ValidatePaths = true
                 },
                 "--require-marker" or "--forbid-marker" => options,
-                _ => throw new ArgumentException("unknown_option " + option)};
+                _ => throw new ArgumentException("unknown_option " + option)
+            };
             if (option == "--require-marker")
             {
                 explicitRequired = true;

@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class DhcpUdpFrame
 {
     public const int FrameHeaderLength = EthernetHeader.HeaderLength + Ipv4Header.MinHeaderLength + UdpHeader.HeaderLength;

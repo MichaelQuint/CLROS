@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 
 namespace OS.Tools.QemuRunner;
+
 public static partial class WebRaceRendezvous
 {
     /// <summary>Own one server and strictly ordered READY then DONE. Methods
@@ -20,10 +21,16 @@ public static partial class WebRaceRendezvous
         private int phase;
         /// <summary>Fresh same-user endpoint name to pass explicitly to the owned runner.</summary>
 
-        public string PipeName { get; }
+        public string PipeName
+        {
+            get;
+        }
         /// <summary>Immutable protocol profile selected before the pipe opens.</summary>
 
-        public bool EventOwned { get; }
+        public bool EventOwned
+        {
+            get;
+        }
 
         internal Producer(string name, bool eventOwned)
         {

@@ -282,7 +282,7 @@ public static unsafe partial class TcpPassiveConnection
         return Status.Success;
     }
 
-    private static bool Valid(Operations io) => io.NowNanoseconds != null && io.Send != null && io.LifetimeNanoseconds is> 0 and <= 60_000_000_000 && io.RetryNanoseconds > 0 && io.RetryNanoseconds <= io.LifetimeNanoseconds && io.MaximumAttempts is> 0 and <= 8;
+    private static bool Valid(Operations io) => io.NowNanoseconds != null && io.Send != null && io.LifetimeNanoseconds is > 0 and <= 60_000_000_000 && io.RetryNanoseconds > 0 && io.RetryNanoseconds <= io.LifetimeNanoseconds && io.MaximumAttempts is > 0 and <= 8;
     private static bool SynParameters(ReadOnlySpan<byte> frame, out ushort mss, out ushort window)
     {
         mss = 0;

@@ -3,6 +3,7 @@ using System.Text;
 using Block = OS.Storage.WritableBlockSession;
 
 namespace OS.Tooling;
+
 public static partial class LinuxWritableDiskProofFixture
 {
     /// <summary>Immutable copied facts for one published generation. Original
@@ -37,25 +38,82 @@ public static partial class LinuxWritableDiskProofFixture
             payload = data;
         }
 
-        public Block.RequestToken Request { get; }
-        public Block.Operation Kind { get; }
-        public ulong Sector { get; }
-        public Block.ObservationFlags Flags { get; }
-        public bool Cancelled { get; }
-        public Block.Status DeviceResult { get; }
-        public uint CompletionBytes { get; }
-        public int FirstSampleIndex { get; }
-        public int CompletionSampleIndex { get; }
-        public int ReadCopySampleIndex { get; }
-        public int LastSampleIndex { get; }
-        public ushort AvailableIndex { get; }
-        public ushort ConsumedIndex { get; }
-        public ulong SubmittedCount { get; }
-        public ulong CompletedCount { get; }
-        public ulong SubmittedBytes { get; }
-        public ulong CompletedBytes { get; }
-        public ulong FlushTargetBytes { get; }
-        public ulong FlushAcknowledgedBytes { get; }
+        public Block.RequestToken Request
+        {
+            get;
+        }
+        public Block.Operation Kind
+        {
+            get;
+        }
+        public ulong Sector
+        {
+            get;
+        }
+        public Block.ObservationFlags Flags
+        {
+            get;
+        }
+        public bool Cancelled
+        {
+            get;
+        }
+        public Block.Status DeviceResult
+        {
+            get;
+        }
+        public uint CompletionBytes
+        {
+            get;
+        }
+        public int FirstSampleIndex
+        {
+            get;
+        }
+        public int CompletionSampleIndex
+        {
+            get;
+        }
+        public int ReadCopySampleIndex
+        {
+            get;
+        }
+        public int LastSampleIndex
+        {
+            get;
+        }
+        public ushort AvailableIndex
+        {
+            get;
+        }
+        public ushort ConsumedIndex
+        {
+            get;
+        }
+        public ulong SubmittedCount
+        {
+            get;
+        }
+        public ulong CompletedCount
+        {
+            get;
+        }
+        public ulong SubmittedBytes
+        {
+            get;
+        }
+        public ulong CompletedBytes
+        {
+            get;
+        }
+        public ulong FlushTargetBytes
+        {
+            get;
+        }
+        public ulong FlushAcknowledgedBytes
+        {
+            get;
+        }
         public bool CompletionValidated => CompletionSampleIndex >= 0;
         public bool ReadCopied => ReadCopySampleIndex >= 0;
         public bool HasHeldRead => Kind == Block.Operation.Read && CompletionValidated && DeviceResult == Block.Status.Success && !ReadCopied && !Cancelled;

@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tools.QemuRunner;
+
 public static partial class EvidenceManifestWriter
 {
     private const int SchemaVersion = 1;
@@ -273,7 +274,7 @@ public static partial class EvidenceManifestWriter
                 }
                 catch
                 {
-                // The process is already gone or cannot be terminated.
+                    // The process is already gone or cannot be terminated.
                 }
 
                 return false;
@@ -456,7 +457,7 @@ public static partial class EvidenceManifestWriter
     {
         List<string> lines = new List<string>();
         using StringReader reader = new StringReader(serialText);
-        while (reader.ReadLine()is { } line)
+        while (reader.ReadLine() is { } line)
         {
             string trimmed = line.Trim();
             if (trimmed.Length != 0)
@@ -582,7 +583,8 @@ public static partial class EvidenceManifestWriter
             EvidenceRunClassification.Passed => "pass",
             EvidenceRunClassification.Failed => "fail",
             EvidenceRunClassification.TimedOut => "timeout",
-            _ => throw new ArgumentOutOfRangeException(nameof(classification))};
+            _ => throw new ArgumentOutOfRangeException(nameof(classification))
+        };
     }
 
     private static void WriteStringArray(Utf8JsonWriter writer, string propertyName, IReadOnlyList<string> values)

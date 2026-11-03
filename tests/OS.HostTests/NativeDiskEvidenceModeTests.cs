@@ -41,16 +41,34 @@ internal static class NativeDiskEvidenceModeTests
     [HostTest("disk evidence modes reject mixed modes false parents normal boot and incompatible profiles")]
     private static void Rejections()
     {
-        Reject(new() { [Trace] = true, [Summary] = true });
+        Reject(new()
+        {
+            [Trace] = true,
+            [Summary] = true
+        });
         foreach (string mode in new[] { Trace, Summary })
         {
             foreach (string parent in new[] { "EnableM10018TimingProbe", "EnableM10018FullProbe", "EnableM10018Probe", "EnableM16025Probe" })
-                Reject(new() { [mode] = true, [parent] = false });
+                Reject(new()
+                {
+                    [mode] = true,
+                    [parent] = false
+                });
             foreach (string conflict in new[] { "EnableM16027Probe", "EnableM10017Probe", "EnableM16014Probe" })
-                Reject(new() { [mode] = true, [conflict] = true });
-            Reject(new() { [mode] = true }, "VerifiedExit");
+                Reject(new()
+                {
+                    [mode] = true,
+                    [conflict] = true
+                });
+            Reject(new()
+            {
+                [mode] = true
+            }, "VerifiedExit");
         }
-        Reject(new() { ["EnableM10018EvidenceUnknownProbe"] = true });
+        Reject(new()
+        {
+            ["EnableM10018EvidenceUnknownProbe"] = true
+        });
     }
 
     [HostTest("disk evidence controls preserve timing capture resources through actual QEMU planning")]

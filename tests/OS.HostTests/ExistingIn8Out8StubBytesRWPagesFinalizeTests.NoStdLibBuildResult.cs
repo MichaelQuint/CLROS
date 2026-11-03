@@ -20,8 +20,17 @@ internal static unsafe partial class ExistingIn8Out8StubBytesRWPagesFinalizeTest
             Output = output;
         }
 
-        internal int ExitCode { get; }
-        internal bool TimedOut { get; }
-        internal string Output { get; }
+        internal int ExitCode
+        {
+            get;
+        }
+        internal bool TimedOut
+        {
+            get;
+        }
+        internal string Output
+        {
+            get;
+        }
     }
 }

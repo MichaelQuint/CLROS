@@ -115,7 +115,7 @@ internal static partial class NativeAotSqliteContractTests
         }
 
         Reject(() => InspectCopiedPackage(package.AsSpan(0, package.Length - 1), "recovery-seed", hash), "clros_package");
-        Reject(() => InspectCopiedPackage([..package, (byte)0], "recovery-seed", hash), "clros_package");
+        Reject(() => InspectCopiedPackage([.. package, (byte)0], "recovery-seed", hash), "clros_package");
         int payload = package.Length - elf.Length;
         package[payload + 4096] ^= 1;
         Reject(() => InspectCopiedPackage(package, "recovery-seed", hash), "clros_elf_identity");
@@ -395,7 +395,7 @@ internal static partial class NativeAotSqliteContractTests
         }
 
         string header = "sqlite.o/".PadRight(16) + "0".PadRight(12) + "0".PadRight(6) + "0".PadRight(6) + "100644".PadRight(8) + elf.Length.ToString(CultureInfo.InvariantCulture).PadRight(10) + "`\n";
-        return[.."!<arch>\n"u8.ToArray(), ..Encoding.ASCII.GetBytes(header), ..elf, ..(elf.Length % 2 == 0 ? Array.Empty<byte>() : new byte[]
+        return [.."!<arch>\n"u8.ToArray(), ..Encoding.ASCII.GetBytes(header), ..elf, ..(elf.Length % 2 == 0 ? Array.Empty<byte>() : new byte[]
         {
             10
         }
@@ -410,7 +410,7 @@ internal static partial class NativeAotSqliteContractTests
         var actual = vector.Inspect();
         HostCheck.True(actual.Archive.ObjectFiles == 1 && actual.Archive.Bytes == vector.Artifacts["libe_sqlite3.a"].Length && actual.ReceiptSha256 == DependencyVector.Hash(Json(vector.Receipt)) && actual.ObjectSha256 == DependencyVector.Hash(vector.Artifacts["round0/sqlite3.o"]) && actual.CompilerInputs.Count == 18 && !actual.GrantsNativeOrExecutionAuthority);
         string gcc = actual.CompilerInputs["gcc"].Sha256;
-        vector.Compiler["gcc"] = new("/changed/gcc", new string ('A', 64));
+        vector.Compiler["gcc"] = new("/changed/gcc", new string('A', 64));
         vector.Artifacts["round0/sqlite3.o"].AsSpan().Clear();
         vector.Receipt.Clear();
         HostCheck.Equal(gcc, actual.CompilerInputs["gcc"].Sha256);
@@ -432,7 +432,7 @@ internal static partial class NativeAotSqliteContractTests
     {
         var original = new DependencyVector();
         byte[] exact = Json(original.Receipt);
-        Reject(() => NativeAotSqliteContract.InspectArchiveDependencyValues(exact, new string ('A', 64), original.Artifacts, original.Imports, original.Compiler), "dependency_receipt_hash");
+        Reject(() => NativeAotSqliteContract.InspectArchiveDependencyValues(exact, new string('A', 64), original.Artifacts, original.Imports, original.Compiler), "dependency_receipt_hash");
         foreach (string mode in new[]
         {
             "failed",
@@ -460,7 +460,8 @@ internal static partial class NativeAotSqliteContractTests
                 "duplicate" => Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(Json(f.Receipt)).Replace("\"Succeeded\":true", "\"Succeeded\":true,\"Succeeded\":false", StringComparison.Ordinal)),
                 "malformed" => "{"u8.ToArray(),
                 "capacity" => new byte[2 * 1024 * 1024 + 1],
-                _ => Json(f.Receipt)};
+                _ => Json(f.Receipt)
+            };
             Reject(() => NativeAotSqliteContract.InspectArchiveDependencyValues(bytes, DependencyVector.Hash(bytes), f.Artifacts, f.Imports, f.Compiler), mode is "failed" or "failure" or "schema" ? "dependency_original_failed" : mode == "capacity" ? "dependency_receipt_hash" : "dependency_json");
         }
     }
@@ -486,11 +487,11 @@ internal static partial class NativeAotSqliteContractTests
         {
             var f = new DependencyVector();
             if (mode == "zip")
-                f.Receipt["SourceArchiveSha256"] = new string ('A', 64);
+                f.Receipt["SourceArchiveSha256"] = new string('A', 64);
             if (mode == "c")
-                f.Receipt["Outputs"]!["upstream/sqlite3.c"] = new string ('A', 64);
+                f.Receipt["Outputs"]!["upstream/sqlite3.c"] = new string('A', 64);
             if (mode == "header")
-                f.Receipt["Outputs"]!["upstream/sqlite3.h"] = new string ('A', 64);
+                f.Receipt["Outputs"]!["upstream/sqlite3.h"] = new string('A', 64);
             if (mode == "id")
                 f.Receipt["SourceId"] = "different engine";
             if (mode == "imports")
@@ -498,16 +499,16 @@ internal static partial class NativeAotSqliteContractTests
             if (mode == "gcc")
                 f.Compiler["gcc"] = f.Compiler["gcc"] with
                 {
-                    Sha256 = new string ('A', 64)
+                    Sha256 = new string('A', 64)
                 };
             if (mode == "library")
-                f.Receipt["Native"]![f.Compiler["libc.a"].Path] = new string ('A', 64);
+                f.Receipt["Native"]![f.Compiler["libc.a"].Path] = new string('A', 64);
             if (mode == "missing-tool")
                 f.Compiler.Remove("ar");
             if (mode == "extra-tool")
-                f.Compiler.Add("unreviewed", new("/compiler/unreviewed", new string ('A', 64)));
+                f.Compiler.Add("unreviewed", new("/compiler/unreviewed", new string('A', 64)));
             if (mode == "source-native")
-                f.Receipt["Native"]![DependencyVector.Directory + "/upstream/sqlite3.c"] = new string ('A', 64);
+                f.Receipt["Native"]![DependencyVector.Directory + "/upstream/sqlite3.c"] = new string('A', 64);
             Reject(() => f.Inspect(), mode switch
             {
                 "imports" => "dependency_imports",
@@ -558,7 +559,7 @@ internal static partial class NativeAotSqliteContractTests
                 }
 
             if (mode == "native")
-                f.Receipt["Native"]![DependencyVector.Directory + "/round0/sqlite3.o"] = new string ('A', 64);
+                f.Receipt["Native"]![DependencyVector.Directory + "/round0/sqlite3.o"] = new string('A', 64);
             if (mode == "declared")
                 f.Receipt["Archive"]!["Bytes"] = 1;
             if (mode == "extra")
@@ -764,7 +765,7 @@ internal static partial class NativeAotSqliteContractTests
                 bool denied = false;
                 try
                 {
-                    File.WriteAllBytes(path, [..original, 0x7f]);
+                    File.WriteAllBytes(path, [.. original, 0x7f]);
                 }
                 catch (IOException)
                 {
@@ -828,7 +829,7 @@ internal static partial class NativeAotSqliteContractTests
     private static void RecoveryDependencyFailureLifetime()
     {
         using var vector = new HeldDependencyVector();
-        vector.Values.Receipt["Outputs"]!["upstream/sqlite-amalgamation-3530400.zip"] = new string ('A', 64);
+        vector.Values.Receipt["Outputs"]!["upstream/sqlite-amalgamation-3530400.zip"] = new string('A', 64);
         vector.WriteReceipt();
         string path = vector.PathOf("receipt.json");
         byte[] bytes = File.ReadAllBytes(path);
@@ -838,7 +839,7 @@ internal static partial class NativeAotSqliteContractTests
             bool denied = false;
             try
             {
-                File.WriteAllBytes(path, [..bytes, 0]);
+                File.WriteAllBytes(path, [.. bytes, 0]);
             }
             catch (IOException)
             {
@@ -1384,7 +1385,11 @@ internal static partial class NativeAotSqliteContractTests
                     await File.WriteAllBytesAsync(target + "-journal", new byte[] { 1 });
             }
 
-            var rejectedProcess = await ProcessRunner.RunAsync(new("dotnet", new[] { app, "--verify-database", target }, root) { Timeout = TimeSpan.FromSeconds(30), OutputCharacterLimit = 65536 });
+            var rejectedProcess = await ProcessRunner.RunAsync(new("dotnet", new[] { app, "--verify-database", target }, root)
+            {
+                Timeout = TimeSpan.FromSeconds(30),
+                OutputCharacterLimit = 65536
+            });
             await File.WriteAllTextAsync(Path.Combine(negatives, control + ".stdout.log"), rejectedProcess.StandardOutput);
             await File.WriteAllTextAsync(Path.Combine(negatives, control + ".stderr.log"), rejectedProcess.StandardError);
             QemuTranscripts.RequireCompleteProcess(rejectedProcess, "sqlite_verify_negative_incomplete");
@@ -1556,7 +1561,7 @@ internal static partial class NativeAotSqliteContractTests
     {
         var input = JournalSegments();
         var value = NativeAotSqliteContract.InspectRollbackJournalSegmentValues(input.Baseline, input.Changed, input.Journal);
-        HostCheck.True(value.OriginalPages == 5 && value.SectorBytes == 512 && value.ChangedDatabasePages == 2 && value.ValidSegments.Count == 2 && value.ValidSegments.Select(s => s.HeaderOffset).SequenceEqual(new[] { 0, 5120 }) && value.ValidSegments.SelectMany(s => s.Pages).Select(p => p.Number).SequenceEqual(new uint[] { 2, 3 }) && value.ValidSegments.SelectMany(s => s.Pages).All(p => p.DiffersInDatabase) && value.UncommittedTail is { HeaderOffset: 10240 } && value.UncommittedTail.Pages.Single()is { Number: 4, DiffersInDatabase: false } && !value.GrantsOriginalCapturePlaybackFlushOrDurabilityAuthority && value.JournalSha256 == Convert.ToHexString(SHA256.HashData(input.Journal)));
+        HostCheck.True(value.OriginalPages == 5 && value.SectorBytes == 512 && value.ChangedDatabasePages == 2 && value.ValidSegments.Count == 2 && value.ValidSegments.Select(s => s.HeaderOffset).SequenceEqual(new[] { 0, 5120 }) && value.ValidSegments.SelectMany(s => s.Pages).Select(p => p.Number).SequenceEqual(new uint[] { 2, 3 }) && value.ValidSegments.SelectMany(s => s.Pages).All(p => p.DiffersInDatabase) && value.UncommittedTail is { HeaderOffset: 10240 } && value.UncommittedTail.Pages.Single() is { Number: 4, DiffersInDatabase: false } && !value.GrantsOriginalCapturePlaybackFlushOrDurabilityAuthority && value.JournalSha256 == Convert.ToHexString(SHA256.HashData(input.Journal)));
         string original = value.ValidSegments[1].Pages.Single().OriginalSha256;
         input.Journal.AsSpan().Clear();
         HostCheck.True(value.ValidSegments[1].Pages.Single().OriginalSha256 == original);
@@ -1679,7 +1684,7 @@ internal static partial class NativeAotSqliteContractTests
                     reason = "header_truncated";
                     break;
                 case "tail_extra":
-                    journal = [..journal, 1];
+                    journal = [.. journal, 1];
                     reason = "tail_truncated";
                     break;
                 case "tail_checksum":

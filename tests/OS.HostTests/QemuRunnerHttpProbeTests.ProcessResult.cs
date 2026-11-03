@@ -15,7 +15,13 @@ internal static partial class QemuRunnerHttpProbeTests
             Output = output;
         }
 
-        public int ExitCode { get; }
-        public string Output { get; }
+        public int ExitCode
+        {
+            get;
+        }
+        public string Output
+        {
+            get;
+        }
     }
 }

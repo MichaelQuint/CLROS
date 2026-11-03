@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct HttpStaticTcpResponsePlanResult
 {
     private HttpStaticTcpResponsePlanResult(HttpStaticTcpResponsePlanStatus status, TcpReceiveDispatchStatus tcpDispatchStatus, TcpReceiveDispatchAction tcpAction, HttpStaticResponseTransactionStatus httpStatus, HttpRequestParseStatus requestStatus, HttpResponseWriterStatus responseStatus, HttpRequestMethod method, ushort httpStatusCode, int requestPayloadOffset, int requestPayloadLength, int responseBytesWritten, int responseBytesRequired, int responseBodyOffset, int responseBodyLength)
@@ -20,22 +21,67 @@ public readonly struct HttpStaticTcpResponsePlanResult
         ResponseBodyLength = responseBodyLength;
     }
 
-    public bool IsInitialized { get; }
-    public HttpStaticTcpResponsePlanStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public HttpStaticTcpResponsePlanStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == HttpStaticTcpResponsePlanStatus.Success;
-    public TcpReceiveDispatchStatus TcpDispatchStatus { get; }
-    public TcpReceiveDispatchAction TcpAction { get; }
-    public HttpStaticResponseTransactionStatus HttpStatus { get; }
-    public HttpRequestParseStatus RequestStatus { get; }
-    public HttpResponseWriterStatus ResponseStatus { get; }
-    public HttpRequestMethod Method { get; }
-    public ushort HttpStatusCode { get; }
-    public int RequestPayloadOffset { get; }
-    public int RequestPayloadLength { get; }
-    public int ResponseBytesWritten { get; }
-    public int ResponseBytesRequired { get; }
-    public int ResponseBodyOffset { get; }
-    public int ResponseBodyLength { get; }
+    public TcpReceiveDispatchStatus TcpDispatchStatus
+    {
+        get;
+    }
+    public TcpReceiveDispatchAction TcpAction
+    {
+        get;
+    }
+    public HttpStaticResponseTransactionStatus HttpStatus
+    {
+        get;
+    }
+    public HttpRequestParseStatus RequestStatus
+    {
+        get;
+    }
+    public HttpResponseWriterStatus ResponseStatus
+    {
+        get;
+    }
+    public HttpRequestMethod Method
+    {
+        get;
+    }
+    public ushort HttpStatusCode
+    {
+        get;
+    }
+    public int RequestPayloadOffset
+    {
+        get;
+    }
+    public int RequestPayloadLength
+    {
+        get;
+    }
+    public int ResponseBytesWritten
+    {
+        get;
+    }
+    public int ResponseBytesRequired
+    {
+        get;
+    }
+    public int ResponseBodyOffset
+    {
+        get;
+    }
+    public int ResponseBodyLength
+    {
+        get;
+    }
 
     public static HttpStaticTcpResponsePlanResult Success(TcpReceiveDispatchResult tcpDispatch, int requestPayloadOffset, HttpStaticResponseTransactionResult http)
     {

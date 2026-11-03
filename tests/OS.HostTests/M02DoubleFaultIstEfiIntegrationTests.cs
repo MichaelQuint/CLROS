@@ -316,15 +316,15 @@ internal static partial class M02DoubleFaultIstEfiIntegrationTests
         List<(byte[] Bytes, bool Accept)> cases = [];
         void Add(string text, bool accept) => cases.Add((Encoding.UTF8.GetBytes(text), accept));
         Add(valid, true);
-        cases.Add(([..acceptedPreamble, ..Encoding.ASCII.GetBytes(valid)], true));
+        cases.Add(([.. acceptedPreamble, .. Encoding.ASCII.GetBytes(valid)], true));
         for (int i = 1; i <= 4; i++)
             Add(Transcript(i), true);
         Add("OVMF arbitrary\r\n" + valid, false);
         Add("\0" + valid, false);
-        cases.Add(([0xc0, 0xaf, ..Encoding.ASCII.GetBytes(valid)], false));
+        cases.Add(([0xc0, 0xaf, .. Encoding.ASCII.GetBytes(valid)], false));
         byte[] changedPrefix = (byte[])acceptedPreamble.Clone();
         changedPrefix[0] ^= 1;
-        cases.Add(([..changedPrefix, ..Encoding.ASCII.GetBytes(valid)], false));
+        cases.Add(([.. changedPrefix, .. Encoding.ASCII.GetBytes(valid)], false));
         Add(valid.Replace("firmwareCs=0x0000000000000008", "firmwareCs=0x0000000000000038", StringComparison.Ordinal), true);
         foreach (string selector in new[]
         {
@@ -539,7 +539,7 @@ internal static partial class M02DoubleFaultIstEfiIntegrationTests
                     opposing += " -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe";
                 if (option.Contains("RhpNewFast", StringComparison.Ordinal))
                     opposing = " " + string.Join(' ', m04.Select(x => "-" + x)) + " -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe" + (option == "EnableM04RhpNewFastProbe" ? string.Empty : " -EnableM04RhpNewFastProbe");
-                Result r = Profile(endpoint, ["-" + Flag, "-" + option, ..opposing.Split(' ', StringSplitOptions.RemoveEmptyEntries)]);
+                Result r = Profile(endpoint, ["-" + Flag, "-" + option, .. opposing.Split(' ', StringSplitOptions.RemoveEmptyEntries)]);
                 Save("conflict-" + option, r);
                 Require(r.Code != 0 && (r.Output.Contains("m02_double_fault_ist_profile_conflict", StringComparison.Ordinal) || r.Output.Contains("m04_rhp_new_fast_conflicting_profile", StringComparison.Ordinal) || r.Output.Contains("m02_page_fault_cr2_error_code_profile_conflict", StringComparison.Ordinal)), r.Output);
             }
@@ -610,7 +610,7 @@ internal static partial class M02DoubleFaultIstEfiIntegrationTests
         {
             string id = "issue521-tests-" + Guid.NewGuid().ToString("N"), dir = Scratch(enabled ? "artifact-enabled" : "artifact-default");
             string artifact = "artifacts/efi/" + id + ".EFI";
-            Result r = Tool(["efi", "build", "--boot-policy", "Diagnostic", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(dir, "publish.log"), ..(enabled ? new[] { "-" + Flag } : Array.Empty<string>())]);
+            Result r = Tool(["efi", "build", "--boot-policy", "Diagnostic", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(dir, "publish.log"), .. (enabled ? new[] { "-" + Flag } : Array.Empty<string>())]);
             File.WriteAllText(Path.Combine(dir, "run.log"), r.Output);
             Require(r.Code == 0 && r.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), r.Output);
             foreach (string suffix in new[]
@@ -682,7 +682,14 @@ internal static partial class M02DoubleFaultIstEfiIntegrationTests
                     cursor = at + 1;
                 }
 
-                File.WriteAllText(Path.Combine(dir, "managed-adapter.json"), JsonSerializer.Serialize(new { GuestExecution = false, NativeAbiAccepted = false, RunCalls = runCalls, PrepareCalls = prepareCalls, Methods = methods.Select(x => new { Name = x.Key, Rva = metadata.GetMethodDefinition(x.Value).RelativeVirtualAddress }) }, new JsonSerializerOptions { WriteIndented = true }));
+                File.WriteAllText(Path.Combine(dir, "managed-adapter.json"), JsonSerializer.Serialize(new
+                {
+                    GuestExecution = false,
+                    NativeAbiAccepted = false,
+                    RunCalls = runCalls,
+                    PrepareCalls = prepareCalls,
+                    Methods = methods.Select(x => new { Name = x.Key, Rva = metadata.GetMethodDefinition(x.Value).RelativeVirtualAddress })
+                }, new JsonSerializerOptions { WriteIndented = true }));
             }
 
             File.WriteAllText(Path.Combine(dir, "identities.json"), JsonSerializer.Serialize(Directory.GetFiles(dir).Select(p => new { Path = Path.GetFileName(p), Sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p))) }), new JsonSerializerOptions { WriteIndented = true }));
@@ -786,7 +793,7 @@ internal static partial class M02DoubleFaultIstEfiIntegrationTests
             throw new InvalidOperationException(reason);
     }
 
-    private static Result Qemu(params string[] args) => Tool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..args]);
+    private static Result Qemu(params string[] args) => Tool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. args]);
     private static Result Tool(params string[] args)
     {
         var r = HostToolProcess.RunTool(args);
@@ -795,7 +802,7 @@ internal static partial class M02DoubleFaultIstEfiIntegrationTests
 
     private static Result Profile(string endpoint, string[] args)
     {
-        var r = endpoint == "qemu" ? HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", "--build-efi", ..args]) : HostToolProcess.ValidateEfiProfile(endpoint == "build", ["--boot-policy", "Diagnostic", ..args]);
+        var r = endpoint == "qemu" ? HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", "--build-efi", .. args]) : HostToolProcess.ValidateEfiProfile(endpoint == "build", ["--boot-policy", "Diagnostic", .. args]);
         return new(r.ExitCode, r.Output + r.Error);
     }
 }

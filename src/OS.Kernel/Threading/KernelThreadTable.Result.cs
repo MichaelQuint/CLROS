@@ -1,6 +1,7 @@
 using OS.Pal;
 
 namespace OS.Kernel.Threading;
+
 public unsafe partial struct KernelThreadTable
 {
     /// <summary>By-value operation/snapshot result. Default is not successful.

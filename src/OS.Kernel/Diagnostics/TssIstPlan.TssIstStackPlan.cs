@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct TssIstStackPlan
 {
     public TssIstStackPlan(ulong stackTop, ulong stackSizeBytes, ulong guardSizeBytes)
@@ -10,7 +11,16 @@ public readonly struct TssIstStackPlan
         GuardSizeBytes = guardSizeBytes;
     }
 
-    public ulong StackTop { get; }
-    public ulong StackSizeBytes { get; }
-    public ulong GuardSizeBytes { get; }
+    public ulong StackTop
+    {
+        get;
+    }
+    public ulong StackSizeBytes
+    {
+        get;
+    }
+    public ulong GuardSizeBytes
+    {
+        get;
+    }
 }

@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class DiagnosticStubInvocationReadiness
 {
     public static DiagnosticStubInvocationReadinessResult RequireReady(ExecutableStubPageTransitionPlanResult pageTransition, Com1PortIoBackendContractResult backendContract)

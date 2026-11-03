@@ -15,10 +15,22 @@ internal static partial class PlatformPhysicalMemoryGuardTests
             _result = result;
         }
 
-        public int ReadCount { get; private set; }
-        public ulong LastPhysicalAddress { get; private set; }
-        public int LastByteCount { get; private set; }
-        public int LastDestinationLength { get; private set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
+        public ulong LastPhysicalAddress
+        {
+            get; private set;
+        }
+        public int LastByteCount
+        {
+            get; private set;
+        }
+        public int LastDestinationLength
+        {
+            get; private set;
+        }
 
         public static PhysicalMemorySourceDouble Success(byte firstByte, int bytesToRead)
         {

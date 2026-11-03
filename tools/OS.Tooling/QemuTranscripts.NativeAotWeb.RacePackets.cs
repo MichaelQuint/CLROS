@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Borrow the original bounded whole PCAP and ordered distinct
@@ -18,7 +19,7 @@ public static partial class QemuTranscripts
 
     public static WebRacePacketInspection InspectNativeAotWebRacePacketsForTests(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp, IReadOnlyList<uint> ports, int forward, string body, string configuration, IReadOnlyList<WebUtcObservation> utcWindows, WebControlInspection controls)
     {
-        Need(ports is not null && ports.Count is >= 9 and <= 512 && ports.Distinct().Count() == ports.Count && ports.All(p => p is> 0 and <= 65535) && controls is not null && utcWindows is not null, "web_race_wire_inputs");
+        Need(ports is not null && ports.Count is >= 9 and <= 512 && ports.Distinct().Count() == ports.Count && ports.All(p => p is > 0 and <= 65535) && controls is not null && utcWindows is not null, "web_race_wire_inputs");
         uint[] all = ports!.ToArray();
         var partition = new WebRacePacketPartition(all[8..], controls!);
         var ordinary = ReadWebPackets(bytes, anchor, arp, all[..8], forward, body, configuration, false, utcWindows, controls, partition);

@@ -19,7 +19,7 @@ public static class EfiEvidence
             EfiPeImage.Require(!string.IsNullOrWhiteSpace(value) && !value.Contains('\0'), reason);
             return Path.GetFullPath(value, root);
         }
-        catch (Exception error)when (error is ArgumentException or NotSupportedException or IOException)
+        catch (Exception error) when (error is ArgumentException or NotSupportedException or IOException)
         {
             throw new ToolFailure(reason, "type=" + error.GetType().Name);
         }
@@ -75,7 +75,12 @@ public static class EfiEvidence
     {
         try
         {
-            using JsonDocument document = JsonDocument.Parse(text, new() { MaxDepth = 64, AllowTrailingCommas = false, CommentHandling = JsonCommentHandling.Disallow });
+            using JsonDocument document = JsonDocument.Parse(text, new()
+            {
+                MaxDepth = 64,
+                AllowTrailingCommas = false,
+                CommentHandling = JsonCommentHandling.Disallow
+            });
             ValidateDuplicateProperties(document.RootElement, reason);
             return Object(JsonNode.Parse(text), reason);
         }
@@ -133,7 +138,7 @@ public static class EfiEvidence
         HashSet<string> paths = new(StringComparer.OrdinalIgnoreCase);
         foreach (var node in nodes)
         {
-            string include = (string? )node.Attribute("Include") ?? "";
+            string include = (string?)node.Attribute("Include") ?? "";
             EfiPeImage.Require(!string.IsNullOrWhiteSpace(include) && !include.Any(c => "$*?[]".Contains(c)), "source_closure_compile_input_invalid");
             string full = FullPath(Path.Combine(root, "src/OS"), include, "source_closure_compile_input_invalid");
             string relative = RelativePath(root, full, "source_closure_compile_input_outside_repository");
@@ -149,7 +154,7 @@ public static class EfiEvidence
         {
             toolingInputs = ToolingBuildInputs.SourceInputs(root);
         }
-        catch (InvalidOperationException error)when (error.Message.StartsWith(ToolingBuildInputs.ReparsePointDiagnosticPrefix, StringComparison.Ordinal))
+        catch (InvalidOperationException error) when (error.Message.StartsWith(ToolingBuildInputs.ReparsePointDiagnosticPrefix, StringComparison.Ordinal))
         {
             throw new ToolFailure("source_closure_reparse_point", error.Message[ToolingBuildInputs.ReparsePointDiagnosticPrefix.Length..]);
         }
@@ -169,10 +174,10 @@ public static class EfiEvidence
                 EfiPeImage.Require((attributes & FileAttributes.ReparsePoint) == 0, "source_closure_reparse_point", path);
                 if ((attributes & FileAttributes.Directory) != 0)
                 {
-                    if (Path.GetFileName(path)is not ("bin" or "obj"))
+                    if (Path.GetFileName(path) is not ("bin" or "obj"))
                         pending.Push(path);
                 }
-                else if (Path.GetExtension(path)is ".cs" or ".csproj")
+                else if (Path.GetExtension(path) is ".cs" or ".csproj")
                     paths.Add(RelativePath(root, path, "source_closure_input_outside_repository"));
             }
         }
@@ -291,7 +296,7 @@ public static class EfiEvidence
         for (int i = 0; i < names.Length; i++)
             EfiPeImage.Require(children[i].Name == names[i] && !children[i].HasAttributes, "pinned_restore_config_child_invalid", "index=" + i);
         var sources = children[0].Elements().ToArray();
-        EfiPeImage.Require(sources.Length == 2 && sources[0].Name == "clear" && !sources[0].HasAttributes && sources[1].Name == "add" && sources[1].Attributes().Count() == 2 && (string? )sources[1].Attribute("key") == "CLROS_PINNED" && SamePath((string? )sources[1].Attribute("value") ?? "", source), "pinned_restore_config_package_sources_invalid");
+        EfiPeImage.Require(sources.Length == 2 && sources[0].Name == "clear" && !sources[0].HasAttributes && sources[1].Name == "add" && sources[1].Attributes().Count() == 2 && (string?)sources[1].Attribute("key") == "CLROS_PINNED" && SamePath((string?)sources[1].Attribute("value") ?? "", source), "pinned_restore_config_package_sources_invalid");
         foreach (var group in children.Skip(1))
             EfiPeImage.Require(group.Elements().Count() == 1 && group.Elements().Single().Name == "clear" && !group.Elements().Single().HasAttributes, "pinned_restore_config_clear_group_invalid");
     }

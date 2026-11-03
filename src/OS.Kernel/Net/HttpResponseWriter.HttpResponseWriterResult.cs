@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Memory;
 
 public readonly struct HttpResponseWriterResult
@@ -15,15 +16,39 @@ public readonly struct HttpResponseWriterResult
         BodyLength = bodyLength;
     }
 
-    public bool IsInitialized { get; }
-    public HttpResponseWriterStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public HttpResponseWriterStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == HttpResponseWriterStatus.Success;
-    public ushort StatusCode { get; }
-    public int BytesWritten { get; }
-    public int BytesRequired { get; }
-    public int HeaderLength { get; }
-    public int BodyOffset { get; }
-    public int BodyLength { get; }
+    public ushort StatusCode
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int BytesRequired
+    {
+        get;
+    }
+    public int HeaderLength
+    {
+        get;
+    }
+    public int BodyOffset
+    {
+        get;
+    }
+    public int BodyLength
+    {
+        get;
+    }
 
     public static HttpResponseWriterResult Success(ushort statusCode, int bytesWritten, int headerLength, int bodyOffset, int bodyLength)
     {

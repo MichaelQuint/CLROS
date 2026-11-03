@@ -11,7 +11,10 @@ internal static partial class PlatformFramebufferGuardTests
             _result = result;
         }
 
-        public int CaptureCount { get; private set; }
+        public int CaptureCount
+        {
+            get; private set;
+        }
 
         public static FramebufferSourceDouble Success(PlatformFramebufferMetadata metadata)
         {

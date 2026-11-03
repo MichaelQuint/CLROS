@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotStagedStaticPeer
 {
     public sealed class Completion
@@ -19,9 +20,21 @@ public static partial class NativeAotStagedStaticPeer
             Runner = runner;
         }
 
-        public int Port { get; }
-        public string Directory { get; }
-        public string ReceiptSha256 { get; }
-        public ProcessResult Runner { get; }
+        public int Port
+        {
+            get;
+        }
+        public string Directory
+        {
+            get;
+        }
+        public string ReceiptSha256
+        {
+            get;
+        }
+        public ProcessResult Runner
+        {
+            get;
+        }
     }
 }

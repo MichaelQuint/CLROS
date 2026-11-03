@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 using OS.Std.Binary;
 
@@ -34,32 +35,110 @@ public readonly struct VirtioNetReceiveRegisterWindowSlabCompletionResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioNetReceiveRegisterWindowSlabCompletionStatus Status { get; }
-    public VirtioNetReceiveReadinessStatus ReadinessStatus { get; }
-    public VirtioNetReceiveBufferSlabSelectionStatus SlabSelectionStatus { get; }
-    public VirtioNetReceiveRegisterWindowCompletionStatus CompletionPlanStatus { get; }
-    public VirtioNetReceiveLifecycleCompletionStatus CompletionStatus { get; }
-    public VirtioNetReceiveFrameClassifierStatus ClassifierStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public bool SlabSelectionAttempted { get; }
-    public bool CompletionAttempted { get; }
-    public ushort DescriptorHead { get; }
-    public ushort BufferIndex { get; }
-    public int ReceiveBufferSlabLength { get; }
-    public uint ReceiveBufferStrideBytes { get; }
-    public uint SelectedBufferOffset { get; }
-    public uint SelectedBufferLength { get; }
-    public ushort PreviousUsedIndex { get; }
-    public ushort CurrentUsedIndex { get; }
-    public ushort NextUsedIndex { get; }
-    public ushort UsedRingSlot { get; }
-    public uint UsedRingElementOffset { get; }
-    public uint UsedByteCount { get; }
-    public EthernetPayloadKind PayloadKind { get; }
-    public int PayloadOffset { get; }
-    public int PayloadLength { get; }
-    public VirtioNetReceiveRegisterWindowCompletionResult Completion { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetReceiveRegisterWindowSlabCompletionStatus Status
+    {
+        get;
+    }
+    public VirtioNetReceiveReadinessStatus ReadinessStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveBufferSlabSelectionStatus SlabSelectionStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveRegisterWindowCompletionStatus CompletionPlanStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveLifecycleCompletionStatus CompletionStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveFrameClassifierStatus ClassifierStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public bool SlabSelectionAttempted
+    {
+        get;
+    }
+    public bool CompletionAttempted
+    {
+        get;
+    }
+    public ushort DescriptorHead
+    {
+        get;
+    }
+    public ushort BufferIndex
+    {
+        get;
+    }
+    public int ReceiveBufferSlabLength
+    {
+        get;
+    }
+    public uint ReceiveBufferStrideBytes
+    {
+        get;
+    }
+    public uint SelectedBufferOffset
+    {
+        get;
+    }
+    public uint SelectedBufferLength
+    {
+        get;
+    }
+    public ushort PreviousUsedIndex
+    {
+        get;
+    }
+    public ushort CurrentUsedIndex
+    {
+        get;
+    }
+    public ushort NextUsedIndex
+    {
+        get;
+    }
+    public ushort UsedRingSlot
+    {
+        get;
+    }
+    public uint UsedRingElementOffset
+    {
+        get;
+    }
+    public uint UsedByteCount
+    {
+        get;
+    }
+    public EthernetPayloadKind PayloadKind
+    {
+        get;
+    }
+    public int PayloadOffset
+    {
+        get;
+    }
+    public int PayloadLength
+    {
+        get;
+    }
+    public VirtioNetReceiveRegisterWindowCompletionResult Completion
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetReceiveRegisterWindowSlabCompletionStatus.Success;
 
     internal static VirtioNetReceiveRegisterWindowSlabCompletionResult FromReadinessFailure(VirtioNetReceiveReadinessResult readiness, int receiveBufferSlabLength)

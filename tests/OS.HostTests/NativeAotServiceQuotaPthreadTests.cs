@@ -126,7 +126,7 @@ internal static partial class NativeAotServiceQuotaPthreadTests
     [HostTest("quota pthread copied fixed replacement shrink and holes revoke only old allocation backing")]
     private static void AllocationMutations()
     {
-        foreach (var(mutation, dynamicBytes, pthreadBytes, stackBytes, tailBytes)in new[]
+        foreach (var (mutation, dynamicBytes, pthreadBytes, stackBytes, tailBytes) in new[]
         {
             (Mutation.Fixed, 0x5000UL, 0x4000UL, 0x3000UL, 0x1000UL),
             (Mutation.Shrink, 0x3000UL, 0x3000UL, 0x3000UL, 0UL),
@@ -181,7 +181,7 @@ internal static partial class NativeAotServiceQuotaPthreadTests
         orphan.RemoveAt(3);
         orphan.Insert(2, tcb);
         Reject(orphan.ToArray());
-        foreach (var(oldValue, newValue)in new[]
+        foreach (var (oldValue, newValue) in new[]
         {
             ("bytes=112", "bytes=111"),
             ("ordinal=3", "ordinal=2"),
@@ -215,10 +215,10 @@ internal static partial class NativeAotServiceQuotaPthreadTests
             Change(valid, 3, "data=" + Data(), "data=" + Data(corrupt));
         Change(valid, 4, $"old={Child}", $"old={Child + (1UL << 32)}");
         Change(valid, valid.Length - 1, "userBacked=0", "userBacked=4096");
-        Reject([..valid, valid[3].Replace("M16_016_PTHREAD ", "M16_016_PTHREADx ", StringComparison.Ordinal)]);
+        Reject([.. valid, valid[3].Replace("M16_016_PTHREAD ", "M16_016_PTHREADx ", StringComparison.Ordinal)]);
         Reject([]);
         Reject(null!);
-        Reject([..valid, ""]);
+        Reject([.. valid, ""]);
     }
 
     private static void FinalZero(QemuTranscripts.ServiceQuotaPthreadSnapshot value, int at) => HostCheck.True(value.RecordIndex == at && value.DynamicBackedBytes == 0 && value.PthreadBackedBytes == 0 && value.StackBackedBytes == 0 && value.GuardBackedBytes == 0 && value.TailBackedBytes == 0 && value.RetainedAfterReapBytes == 0);

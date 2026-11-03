@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct GuardedIstStackReleaseResult
 {
     private GuardedIstStackReleaseResult(bool isInitialized, GuardedIstStackReleaseStatus status, ulong releasedGeneration, bool stateMutated)
@@ -9,10 +10,22 @@ public readonly struct GuardedIstStackReleaseResult
         StateMutated = stateMutated;
     }
 
-    public bool IsInitialized { get; }
-    public GuardedIstStackReleaseStatus Status { get; }
-    public ulong ReleasedGeneration { get; }
-    public bool StateMutated { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public GuardedIstStackReleaseStatus Status
+    {
+        get;
+    }
+    public ulong ReleasedGeneration
+    {
+        get;
+    }
+    public bool StateMutated
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == GuardedIstStackReleaseStatus.Success && ReleasedGeneration != 0 && StateMutated;
 
     internal static GuardedIstStackReleaseResult Pass(ulong releasedGeneration)

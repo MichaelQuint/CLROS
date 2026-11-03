@@ -27,11 +27,11 @@ internal static partial class BootReservationSubtractorTests
             return SourceFailure("production-surface");
         var owner = source.Type(SubtractorOwner);
         var maximum = owner.GetMembers("MaximumUnsignedLong").OfType<IFieldSymbol>().Single();
-        if (owner.TypeKind != TypeKind.Class || !owner.IsStatic || owner.IsRecord || owner.Arity != 0 || owner.DeclaredAccessibility != Accessibility.Public || !owner.DeclaringSyntaxReferences.Any(reference => reference.GetSyntax()is TypeDeclarationSyntax declaration && declaration.Modifiers.Any(SyntaxKind.UnsafeKeyword)) || !Pod("OS.Kernel.Memory.BootReservationSourceRange") || !Pod("OS.Kernel.Memory.BootReservationSubtractionResult") || maximum is not { IsConst: true, DeclaredAccessibility: Accessibility.Private, ConstantValue: ulong.MaxValue })
+        if (owner.TypeKind != TypeKind.Class || !owner.IsStatic || owner.IsRecord || owner.Arity != 0 || owner.DeclaredAccessibility != Accessibility.Public || !owner.DeclaringSyntaxReferences.Any(reference => reference.GetSyntax() is TypeDeclarationSyntax declaration && declaration.Modifiers.Any(SyntaxKind.UnsafeKeyword)) || !Pod("OS.Kernel.Memory.BootReservationSourceRange") || !Pod("OS.Kernel.Memory.BootReservationSubtractionResult") || maximum is not { IsConst: true, DeclaredAccessibility: Accessibility.Private, ConstantValue: ulong.MaxValue })
             return SourceFailure("production-surface");
         string[] excluded = ["BootMemoryRegionPlanner", "BootMemoryRegionPlanStatus", "BootMemoryRegionPlanResult", "BootPageAllocatorPlanner", "BootPageAllocatorPlanStatus", "BootPageAllocatorPlanResult"];
         foreach (string type in excluded)
-            if (source.Compilation.GetTypeByMetadataName("OS.Kernel.Memory." + type)is not null)
+            if (source.Compilation.GetTypeByMetadataName("OS.Kernel.Memory." + type) is not null)
                 return SourceFailure("efi-compile-import=" + type);
         string integration = HostSourceText.Documents(source, "OS.Boot.EfiEntry", "OS.Boot.BootSequence", "OS.Kernel.Diagnostics.Probes");
         string[] forbiddenIntegrationNames = [nameof(OS.Kernel.Memory.BootReservationSubtractor), nameof(OS.Kernel.Memory.BootReservationSourceRange), nameof(OS.Kernel.Memory.BootReservationSubtractionResult), ReadyMarker];
@@ -39,7 +39,7 @@ internal static partial class BootReservationSubtractorTests
             if (integration.Contains(name, StringComparison.Ordinal))
                 return SourceFailure("integration=" + name);
         return true;
-        bool Pod(string identity) => source.Type(identity)is { TypeKind: TypeKind.Struct, IsReadOnly: true, IsRecord: false, Arity: 0, DeclaredAccessibility: Accessibility.Public };
+        bool Pod(string identity) => source.Type(identity) is { TypeKind: TypeKind.Struct, IsReadOnly: true, IsRecord: false, Arity: 0, DeclaredAccessibility: Accessibility.Public };
     }
 
     private static bool SourceEnum<T>((string Name, byte Value)[] expected)
@@ -50,7 +50,7 @@ internal static partial class BootReservationSubtractorTests
         if (type.TypeKind != TypeKind.Enum || type.DeclaredAccessibility != Accessibility.Public || type.EnumUnderlyingType?.SpecialType != SpecialType.System_Byte)
             return false;
         var fields = type.GetMembers().OfType<IFieldSymbol>().Where(field => field.HasConstantValue).ToArray();
-        return fields.Length == expected.Length && fields.Select(field => (field.Name, field.ConstantValue)).SequenceEqual(expected.Select(value => (value.Name, (object? )value.Value)));
+        return fields.Length == expected.Length && fields.Select(field => (field.Name, field.ConstantValue)).SequenceEqual(expected.Select(value => (value.Name, (object?)value.Value)));
     }
 
     // The host graph stops at metadata System types. Admit only byte-identical
@@ -74,7 +74,7 @@ internal static partial class BootReservationSubtractorTests
                 throw new InvalidOperationException("subtractor_efi_source_join " + document.Path);
             var model = efi.Compilation.GetSemanticModel(admitted.Syntax);
             var types = admitted.Syntax.GetRoot().DescendantNodes().Where(node => node is BaseTypeDeclarationSyntax or DelegateDeclarationSyntax).Select(node => (INamedTypeSymbol)model.GetDeclaredSymbol(node)!).ToArray();
-            if (types.Length == 0 || types.Any(type => type.ContainingNamespace.ToDisplayString()is not ("OS.Boot" or "OS.Kernel.Memory")))
+            if (types.Length == 0 || types.Any(type => type.ContainingNamespace.ToDisplayString() is not ("OS.Boot" or "OS.Kernel.Memory")))
                 throw new InvalidOperationException("subtractor_dependency_layer " + document.Path);
             selected.Add(admitted.Path);
         }

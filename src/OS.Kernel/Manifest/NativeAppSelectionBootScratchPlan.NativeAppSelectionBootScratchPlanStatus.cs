@@ -1,6 +1,7 @@
 using OS.Storage;
 
 namespace OS.Manifest;
+
 public enum NativeAppSelectionBootScratchPlanStatus
 {
     Success = 0,

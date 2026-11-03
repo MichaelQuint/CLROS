@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Manifest;
+
 public readonly struct NativeAppLaunchPlan
 {
     private NativeAppLaunchPlan(byte manifestVersion, NativeManifestField appName, NativeManifestField appPath, NativeManifestField arguments, int argumentByteLength, NativeManifestAppKind appKind, NativeManifestRuntimeKind runtimeKind, NativeManifestNetworkMode requestedNetworkMode, NativeManifestLogMode logMode, NativeManifestListenEndpoint listenEndpoint, NativeManifestEnvironmentBlock environment, NativeAppStorageRequirement storageRequirement, BootCapabilities requiredBootCapabilities, NativeAppLaunchRuntimeCapabilities requiredRuntimeCapabilities)
@@ -21,25 +22,67 @@ public readonly struct NativeAppLaunchPlan
         RequiredRuntimeCapabilities = requiredRuntimeCapabilities;
     }
 
-    public byte ManifestVersion { get; }
-    public NativeManifestField AppName { get; }
-    public NativeManifestField AppPath { get; }
-    public NativeManifestField Arguments { get; }
-    public int ArgumentByteLength { get; }
-    public NativeManifestEnvironmentBlock Environment { get; }
+    public byte ManifestVersion
+    {
+        get;
+    }
+    public NativeManifestField AppName
+    {
+        get;
+    }
+    public NativeManifestField AppPath
+    {
+        get;
+    }
+    public NativeManifestField Arguments
+    {
+        get;
+    }
+    public int ArgumentByteLength
+    {
+        get;
+    }
+    public NativeManifestEnvironmentBlock Environment
+    {
+        get;
+    }
     public int EnvironmentCount => Environment.Count;
-    public NativeManifestAppKind AppKind { get; }
-    public NativeManifestRuntimeKind RuntimeKind { get; }
-    public NativeManifestNetworkMode RequestedNetworkMode { get; }
-    public NativeManifestLogMode LogMode { get; }
-    public NativeManifestListenEndpoint ListenEndpoint { get; }
+    public NativeManifestAppKind AppKind
+    {
+        get;
+    }
+    public NativeManifestRuntimeKind RuntimeKind
+    {
+        get;
+    }
+    public NativeManifestNetworkMode RequestedNetworkMode
+    {
+        get;
+    }
+    public NativeManifestLogMode LogMode
+    {
+        get;
+    }
+    public NativeManifestListenEndpoint ListenEndpoint
+    {
+        get;
+    }
     public bool HasListenEndpoint => ListenEndpoint.IsPresent;
-    public NativeAppStorageRequirement StorageRequirement { get; }
+    public NativeAppStorageRequirement StorageRequirement
+    {
+        get;
+    }
     public bool RequiresPackageStorage => StorageRequirement == NativeAppStorageRequirement.PackageFile;
     public bool RequiresNetwork => RequestedNetworkMode != NativeManifestNetworkMode.None || ListenEndpoint.IsPresent;
     public ushort ListenPort => ListenEndpoint.Port;
-    public BootCapabilities RequiredBootCapabilities { get; }
-    public NativeAppLaunchRuntimeCapabilities RequiredRuntimeCapabilities { get; }
+    public BootCapabilities RequiredBootCapabilities
+    {
+        get;
+    }
+    public NativeAppLaunchRuntimeCapabilities RequiredRuntimeCapabilities
+    {
+        get;
+    }
 
     public bool TryGetAppName(ReadOnlySpan<byte> manifestSource, out ReadOnlySpan<byte> value)
     {

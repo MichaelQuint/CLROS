@@ -54,8 +54,14 @@ internal static unsafe partial class M01OwnedCr3CompositeTransitionTests
             }
         }
 
-        internal byte* Bytes { get; private set; }
-        internal M01OwnedCr3CompositeTransitionSemanticRecord* Semantics { get; private set; }
+        internal byte* Bytes
+        {
+            get; private set;
+        }
+        internal M01OwnedCr3CompositeTransitionSemanticRecord* Semantics
+        {
+            get; private set;
+        }
 
         internal void Fill(byte value)
         {

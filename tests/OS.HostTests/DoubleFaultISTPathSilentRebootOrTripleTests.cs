@@ -144,7 +144,7 @@ internal static unsafe partial class DoubleFaultISTPathSilentRebootOrTripleTests
         Require(noPge.Output.ToString() == noPgeExpected && !noPge.Events.Contains("cr4"), "PGE-clear path");
         f.Request = original;
         f.Prepare();
-        foreach ((ulong code, ulong data, ulong tables, byte width)in new[]
+        foreach ((ulong code, ulong data, ulong tables, byte width) in new[]
         {
             (0x100000UL, 0x200000UL, 0x300000UL, (byte)36),
             (0x00007fffffffc000UL, 0x00007ffffff00000UL, 0x00007fffffe00000UL, (byte)48)
@@ -300,7 +300,13 @@ internal static unsafe partial class DoubleFaultISTPathSilentRebootOrTripleTests
                     Require(i.Next <= end && i.Op is "pushi" or "jmp" or "nop", "closed normalizer instructions");
                     if (i.Op == "jmp")
                         Require(i.Immediate == f.Code + 4096, "normalizer local target");
-                    records.Add(new { Region = "slots", Offset = (int)(cursor - f.Code), Hex = Convert.ToHexString(new ReadOnlySpan<byte>(f.Slots + (int)(cursor - f.Code), (int)(i.Next - cursor))), Operation = i.Op });
+                    records.Add(new
+                    {
+                        Region = "slots",
+                        Offset = (int)(cursor - f.Code),
+                        Hex = Convert.ToHexString(new ReadOnlySpan<byte>(f.Slots + (int)(cursor - f.Code), (int)(i.Next - cursor))),
+                        Operation = i.Op
+                    });
                     cursor = i.Next;
                 }
             }
@@ -1068,7 +1074,7 @@ internal static unsafe partial class DoubleFaultISTPathSilentRebootOrTripleTests
         var accessed = good;
         BinaryPrimitives.WriteUInt64LittleEndian(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref accessed, 1)).Slice(dfOffset + 16), good.Df.Pml4e | 0x20);
         Require(Emitter.AuditSyntheticObservation(f.Request, accessed).Succeeded, "shared entry accessed bit may differ");
-        foreach ((ulong code, ulong data, ulong tables, byte width, ulong depth)in new[]
+        foreach ((ulong code, ulong data, ulong tables, byte width, ulong depth) in new[]
         {
             (1UL << 39, 2UL << 39, 3UL << 39, (byte)48, 1UL),
             (1UL << 30, 2UL << 30, 3UL << 30, (byte)36, 2UL),

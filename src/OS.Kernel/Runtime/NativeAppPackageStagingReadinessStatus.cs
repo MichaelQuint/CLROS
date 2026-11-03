@@ -2,6 +2,7 @@ using OS.Manifest;
 using OS.Storage;
 
 namespace OS.Kernel.Runtime;
+
 public enum NativeAppPackageStagingReadinessStatus
 {
     Success = 0,

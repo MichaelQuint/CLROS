@@ -2,6 +2,7 @@ using System.Globalization;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSocketMessages
 {
     /// <summary>One immutable observed input joined to a current call ordinal.

@@ -4,6 +4,7 @@ using System.Text.Json;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private static bool DiskFullOptionalHeadLength(DiskStaticHttpContract.AssetPlan plan, string method, string target) => plan.Truncated && method == "HEAD" && plan.Requests.Any(r => r.Method == method && r.Target == target && r.Status == 404 && r.ContentLength is null);
@@ -24,7 +25,7 @@ public static partial class QemuTranscripts
 
     public static IReadOnlyList<(int Status, int HeaderBytes, int BodyBytes)> InspectNativeAotDiskStaticHttpResponsesForTests(ReadOnlySpan<byte> responses, DiskStaticHttpContract.AssetPlan plan, IReadOnlyList<(string Method, string Target)> requests, bool diskStaticFull = false)
     {
-        Need(plan is not null && requests is { Count: > 0 and <= 512 } && responses.Length is> 0 and <= DiskStaticCapturePolicy.PacketBytes, "disk_full_http_test_input");
+        Need(plan is not null && requests is { Count: > 0 and <= 512 } && responses.Length is > 0 and <= DiskStaticCapturePolicy.PacketBytes, "disk_full_http_test_input");
         List<(int Status, int HeaderBytes, int BodyBytes)> result = [];
         int at = 0;
         foreach (var request in requests)
@@ -50,19 +51,22 @@ public static partial class QemuTranscripts
 
     public static DiskStaticFullHttpInspection InspectNativeAotDiskStaticFullHttpValues(byte[] packets, uint anchor, QemuArpReceiveReceipt arp, IReadOnlyList<uint> ports, ReadOnlySpan<byte> receiptJson, IReadOnlyDictionary<string, byte[]> bodies, WebRootDiskInventory.Inspection inventory, DiskStaticReplayReport replay, WebRootDiskInventory.VerifiedTruncated? truncated = null)
     {
-        Need(replay.FullProfile && packets is { Length: > 24 and <= DiskStaticCapturePolicy.PacketBytes } && ports is { Count: > 0 and <= 32 } && receiptJson.Length is> 0 and <= 524288, "disk_full_http_input");
+        Need(replay.FullProfile && packets is { Length: > 24 and <= DiskStaticCapturePolicy.PacketBytes } && ports is { Count: > 0 and <= 32 } && receiptJson.Length is > 0 and <= 524288, "disk_full_http_input");
         Need(replay.Truncated == (truncated is not null) && (truncated is null || ReferenceEquals(inventory, truncated.Baseline)), "disk_full_http_fault_scope");
         var plan = truncated is null ? DiskStaticHttpContract.CreateAssetPlan(inventory) : DiskStaticHttpContract.CreateTruncatedAssetPlan(truncated);
         string scope = truncated is null ? "disk-static-full-v1" : "disk-static-truncated-v1";
         int count = 4 + plan.Requests.Count + 2;
         Need(bodies.Count == count && bodies.Sum(b => (long)b.Value.Length) <= DiskStaticHttpContract.MaximumExpectedBodyBytes, "disk_full_http_bodies");
-        using var document = JsonDocument.Parse(receiptJson.ToArray(), new() { MaxDepth = 8 });
+        using var document = JsonDocument.Parse(receiptJson.ToArray(), new()
+        {
+            MaxDepth = 8
+        });
         var root = document.RootElement;
         StaticObject(root, "Schema", "Scope", "Port", "Complete", "ClockFrequency", "ImageSha256", "PublishedInventorySha256", "Responses");
         int port = root.GetProperty("Port").GetInt32();
         long frequency = root.GetProperty("ClockFrequency").GetInt64();
         var rows = root.GetProperty("Responses");
-        Need(root.GetProperty("Schema").GetString() == (truncated is null ? "clros-disk-http-full-v1" : "clros-disk-http-truncated-v1") && root.GetProperty("Scope").GetString() == scope && root.GetProperty("Complete").GetBoolean() && root.GetProperty("ImageSha256").GetString() == plan.ImageSha256 && root.GetProperty("PublishedInventorySha256").GetString() == plan.PublishedInventorySha256 && port is> 0 and <= 65535 && frequency is> 0 and <= 1_000_000_000 && rows.ValueKind == JsonValueKind.Array && rows.GetArrayLength() == count, "disk_full_http_receipt");
+        Need(root.GetProperty("Schema").GetString() == (truncated is null ? "clros-disk-http-full-v1" : "clros-disk-http-truncated-v1") && root.GetProperty("Scope").GetString() == scope && root.GetProperty("Complete").GetBoolean() && root.GetProperty("ImageSha256").GetString() == plan.ImageSha256 && root.GetProperty("PublishedInventorySha256").GetString() == plan.PublishedInventorySha256 && port is > 0 and <= 65535 && frequency is > 0 and <= 1_000_000_000 && rows.ValueKind == JsonValueKind.Array && rows.GetArrayLength() == count, "disk_full_http_receipt");
         List<ServiceWireByteRange> ranges = [];
         var capture = ServiceWirePackets(packets, anchor, arp, ports, true, true, r =>
         {
@@ -277,7 +281,7 @@ public static partial class QemuTranscripts
         foreach (var message in messages)
         {
             byte[] request = Convert.FromBase64String(message.RequestBase64), header = Convert.FromBase64String(message.ResponseHeaderBase64), body = Convert.FromBase64String(message.BodyBase64);
-            Need(request.Length is> 0 and <= 4096 && header.Length is> 0 and <= 4096 && body.Length <= DiskStaticHttpContract.MaximumAssetBytes, "disk_full_browser_wire_extents");
+            Need(request.Length is > 0 and <= 4096 && header.Length is > 0 and <= 4096 && body.Length <= DiskStaticHttpContract.MaximumAssetBytes, "disk_full_browser_wire_extents");
             var sent = ServiceHttpHead(request);
             var response = ServiceHttpHead(header);
             string[] first = sent.First.Split(' ');
@@ -298,7 +302,7 @@ public static partial class QemuTranscripts
 
     public static IReadOnlyList<NativeDiskStaticReadWindows.ReadWindow> InspectDiskStaticBodyReadValues(ulong inode, ulong fileOffset, uint bytes, int readiness, int previousSend, ulong bodyStart, ulong bodyEnd, IReadOnlyList<NativeDiskStaticReadWindows.ReadWindow> reads, IReadOnlyList<DiskStaticSocketWrite> writes)
     {
-        Need(inode != 0 && bytes is> 0 and <= DiskStaticHttpContract.MaximumAssetBytes && fileOffset <= ulong.MaxValue - bytes && bodyEnd > bodyStart && bodyEnd - bodyStart == bytes && readiness >= 0 && previousSend >= -1 && reads is { Count: > 0 and <= NativeDiskStaticReadWindows.MaximumWindows } && writes is { Count: > 0 and <= DiskStaticCapturePolicy.ProtocolRows }, "disk_full_body_input");
+        Need(inode != 0 && bytes is > 0 and <= DiskStaticHttpContract.MaximumAssetBytes && fileOffset <= ulong.MaxValue - bytes && bodyEnd > bodyStart && bodyEnd - bodyStart == bytes && readiness >= 0 && previousSend >= -1 && reads is { Count: > 0 and <= NativeDiskStaticReadWindows.MaximumWindows } && writes is { Count: > 0 and <= DiskStaticCapturePolicy.ProtocolRows }, "disk_full_body_input");
         var sends = writes.Where(w => w.Before < bodyEnd && w.After > bodyStart).ToArray();
         Need(sends.Length > 0 && sends[0].Before <= bodyStart && sends[^1].After >= bodyEnd && sends.All(w => w.Before < w.After) && sends.Zip(sends.Skip(1)).All(p => p.First.After == p.Second.Before && p.First.CallRecordIndex < p.Second.CallRecordIndex), "disk_full_body_sends");
         int last = sends[^1].CallRecordIndex;
@@ -313,7 +317,7 @@ public static partial class QemuTranscripts
             for (int i = 0; i < sequence.Length && good; i++)
             {
                 var r = sequence[i];
-                good = r.Identity != 0 && r.Ordinal != 0 && r.RequestGeneration != 0 && r.Number is 0 or 17 && r.ReturnedBytes is> 0 and <= 8192 && r.ReturnedBytes <= r.Requested && r.ReturnedBytes <= r.OutputPrefix && r.OutputPrefix <= 8192 && r.Offset <= ulong.MaxValue - r.ReturnedBytes && r.BeginRecordIndex < r.CompleteRecordIndex && (i == 0 ? r.Offset <= fileOffset && r.Offset + r.ReturnedBytes > fileOffset : r.Offset == sequence[i - 1].Offset + sequence[i - 1].ReturnedBytes && r.BeginRecordIndex > sequence[i - 1].CompleteRecordIndex);
+                good = r.Identity != 0 && r.Ordinal != 0 && r.RequestGeneration != 0 && r.Number is 0 or 17 && r.ReturnedBytes is > 0 and <= 8192 && r.ReturnedBytes <= r.Requested && r.ReturnedBytes <= r.OutputPrefix && r.OutputPrefix <= 8192 && r.Offset <= ulong.MaxValue - r.ReturnedBytes && r.BeginRecordIndex < r.CompleteRecordIndex && (i == 0 ? r.Offset <= fileOffset && r.Offset + r.ReturnedBytes > fileOffset : r.Offset == sequence[i - 1].Offset + sequence[i - 1].ReturnedBytes && r.BeginRecordIndex > sequence[i - 1].CompleteRecordIndex);
                 if (good)
                     covered = r.Offset + r.ReturnedBytes;
             }

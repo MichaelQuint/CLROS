@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Memory;
+
 public enum MemoryMapInfoRegionWriteStatus
 {
     Unknown = 0,

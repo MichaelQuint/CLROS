@@ -14,7 +14,13 @@ internal static partial class AcpiMcfgPhysicalDiscoveryTests
             Bytes = bytes;
         }
 
-        public ulong PhysicalAddress { get; }
-        public byte[] Bytes { get; }
+        public ulong PhysicalAddress
+        {
+            get;
+        }
+        public byte[] Bytes
+        {
+            get;
+        }
     }
 }

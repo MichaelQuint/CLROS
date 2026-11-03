@@ -30,13 +30,15 @@ internal sealed class CSharpSourceDependencies(CSharpSourceCatalog catalog)
 
         void Add(SyntaxTree tree)
         {
-            if (selected.Add(tree)) pending.Enqueue(tree);
+            if (selected.Add(tree))
+                pending.Enqueue(tree);
         }
     }
 
     private SyntaxTree[] Direct(SyntaxTree tree)
     {
-        if (edges.TryGetValue(tree, out var known)) return known;
+        if (edges.TryGetValue(tree, out var known))
+            return known;
         var model = catalog.Compilation.GetSemanticModel(tree);
         var errors = model.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).ToArray();
         if (errors.Length != 0)
@@ -98,26 +100,34 @@ internal sealed class CSharpSourceDependencies(CSharpSourceCatalog catalog)
         void Deconstruction(DeconstructionInfo value)
         {
             Symbol(value.Method);
-            if (value.Conversion is { } conversion) Symbol(conversion.MethodSymbol);
+            if (value.Conversion is { } conversion)
+                Symbol(conversion.MethodSymbol);
             if (!value.Nested.IsDefaultOrEmpty)
-                foreach (var nested in value.Nested) Deconstruction(nested);
+                foreach (var nested in value.Nested)
+                    Deconstruction(nested);
         }
 
         void Type(ITypeSymbol? type)
         {
-            if (type is IArrayTypeSymbol array) Type(array.ElementType);
-            else if (type is IPointerTypeSymbol pointer) Type(pointer.PointedAtType);
-            else if (type is IFunctionPointerTypeSymbol function) Symbol(function.Signature);
+            if (type is IArrayTypeSymbol array)
+                Type(array.ElementType);
+            else if (type is IPointerTypeSymbol pointer)
+                Type(pointer.PointedAtType);
+            else if (type is IFunctionPointerTypeSymbol function)
+                Symbol(function.Signature);
             else if (type is ITypeParameterSymbol parameter)
             {
-                foreach (var constraint in parameter.ConstraintTypes) Type(constraint);
+                foreach (var constraint in parameter.ConstraintTypes)
+                    Type(constraint);
             }
             else if (type is INamedTypeSymbol named)
             {
                 // Register before traversing arguments: recursive generic
                 // constraints must not recurse indefinitely.
-                if (!visited.Add(named)) return;
-                foreach (var argument in named.TypeArguments) Type(argument);
+                if (!visited.Add(named))
+                    return;
+                foreach (var argument in named.TypeArguments)
+                    Type(argument);
                 foreach (var declaration in named.OriginalDefinition.DeclaringSyntaxReferences)
                     dependencies.Add(declaration.SyntaxTree);
                 Type(named.ContainingType);
@@ -128,18 +138,34 @@ internal sealed class CSharpSourceDependencies(CSharpSourceCatalog catalog)
         {
             switch (symbol)
             {
-                case IAliasSymbol alias: Symbol(alias.Target); break;
-                case ITypeSymbol type: Type(type); break;
+                case IAliasSymbol alias:
+                    Symbol(alias.Target);
+                    break;
+                case ITypeSymbol type:
+                    Type(type);
+                    break;
                 case IMethodSymbol method:
                     Type(method.ReturnType);
-                    foreach (var argument in method.TypeArguments) Type(argument);
-                    foreach (var parameter in method.Parameters) Type(parameter.Type);
+                    foreach (var argument in method.TypeArguments)
+                        Type(argument);
+                    foreach (var parameter in method.Parameters)
+                        Type(parameter.Type);
                     break;
-                case IPropertySymbol property: Type(property.Type); break;
-                case IFieldSymbol field: Type(field.Type); break;
-                case IEventSymbol @event: Type(@event.Type); break;
-                case ILocalSymbol local: Type(local.Type); break;
-                case IParameterSymbol parameter: Type(parameter.Type); break;
+                case IPropertySymbol property:
+                    Type(property.Type);
+                    break;
+                case IFieldSymbol field:
+                    Type(field.Type);
+                    break;
+                case IEventSymbol @event:
+                    Type(@event.Type);
+                    break;
+                case ILocalSymbol local:
+                    Type(local.Type);
+                    break;
+                case IParameterSymbol parameter:
+                    Type(parameter.Type);
+                    break;
             }
             Type(symbol?.ContainingType);
         }

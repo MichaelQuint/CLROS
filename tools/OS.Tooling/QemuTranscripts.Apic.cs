@@ -9,8 +9,10 @@ public static partial class QemuTranscripts
         for (int i = QemuContracts.M05PciEnumerationMarkers.Count; i < lines.Count; i++)
         {
             string expected = QemuContracts.M05ApicSetupMarkers[i];
-            if (expected.StartsWith("M05_APIC ", StringComparison.Ordinal)) rows.Add(ReadHexRecord(lines[i], expected, 4));
-            else Need(lines[i] == expected, "m05_apic_marker_order");
+            if (expected.StartsWith("M05_APIC ", StringComparison.Ordinal))
+                rows.Add(ReadHexRecord(lines[i], expected, 4));
+            else
+                Need(lines[i] == expected, "m05_apic_marker_order");
         }
         ulong local = rows[0][0], io = rows[0][1], id = rows[0][2], flags = rows[0][3];
         Need(local is >= 0x100000 and <= 0xfffff000 && io is >= 0x100000 and <= 0xfffff000 &&

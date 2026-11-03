@@ -8,7 +8,10 @@ internal static partial class PlatformUefiGoneSimulationTests
 {
     private sealed class FramebufferSourceDouble : IPlatformFramebufferSource
     {
-        public int CaptureCount { get; private set; }
+        public int CaptureCount
+        {
+            get; private set;
+        }
 
         public PlatformFramebufferSourceResult CaptureSnapshot()
         {

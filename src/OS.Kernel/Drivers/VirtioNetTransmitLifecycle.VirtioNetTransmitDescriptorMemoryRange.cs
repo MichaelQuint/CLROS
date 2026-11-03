@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Std.Binary;
 
 public readonly struct VirtioNetTransmitDescriptorMemoryRange
@@ -11,8 +12,20 @@ public readonly struct VirtioNetTransmitDescriptorMemoryRange
         EndExclusive = endExclusive;
     }
 
-    public VirtioNetTransmitDescriptorRole Role { get; }
-    public ulong PhysicalAddress { get; }
-    public uint Length { get; }
-    public ulong EndExclusive { get; }
+    public VirtioNetTransmitDescriptorRole Role
+    {
+        get;
+    }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
+    public uint Length
+    {
+        get;
+    }
+    public ulong EndExclusive
+    {
+        get;
+    }
 }

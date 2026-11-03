@@ -3,6 +3,7 @@ using OS.Manifest;
 using OS.Pal;
 
 namespace OS.Kernel.Runtime;
+
 public enum NativeAppLifecyclePlanStatus
 {
     Success = 0,

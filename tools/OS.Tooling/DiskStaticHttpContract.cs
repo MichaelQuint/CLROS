@@ -39,10 +39,10 @@ public static partial class DiskStaticHttpContract
     {
         ArgumentNullException.ThrowIfNull(inventory);
         var files = inventory.Entries.Where(e => !e.IsDirectory).OrderBy(e => e.Path, StringComparer.Ordinal).ToArray();
-        Need(files.Length is> 5 and <= MaximumPublishedAssets + 5 && files.All(f => f.Bytes <= MaximumAssetBytes), "asset_capacity");
+        Need(files.Length is > 5 and <= MaximumPublishedAssets + 5 && files.All(f => f.Bytes <= MaximumAssetBytes), "asset_capacity");
         bool Fixture(WebRootDiskInventory.Entry file) => FixturePaths.Contains(file.Path[(WebRootDiskInventory.Root.Length + 1)..], StringComparer.Ordinal);
         var published = files.Where(f => !Fixture(f)).ToArray();
-        Need(published.Length is> 0 and <= MaximumPublishedAssets && published.Sum(f => (long)f.Bytes) <= MaximumPublishedBytes && FixturePaths.All(p => files.Any(f => f.Path == WebRootDiskInventory.Root + "/" + p)), "published_capacity");
+        Need(published.Length is > 0 and <= MaximumPublishedAssets && published.Sum(f => (long)f.Bytes) <= MaximumPublishedBytes && FixturePaths.All(p => files.Any(f => f.Path == WebRootDiskInventory.Root + "/" + p)), "published_capacity");
         Need(published.Any(f => f.Path == WebRootDiskInventory.Root + "/index.html") && published.Any(f => f.Path == WebRootDiskInventory.Root + "/_framework/blazor.webassembly.js") && published.Any(f => f.Path.EndsWith(".wasm", StringComparison.OrdinalIgnoreCase)), "bootstrap");
         Asset[] assets = files.Select(f => new Asset(f, !Fixture(f))).ToArray();
         var byPath = assets.ToDictionary(a => a.Path, StringComparer.Ordinal);
@@ -72,7 +72,7 @@ public static partial class DiskStaticHttpContract
         Add("HEAD", "/", 200, index);
         var selected = byPath[largest.Path];
         string total = largest.Bytes.ToString(CultureInfo.InvariantCulture);
-        void Range(uint offset, uint count, string header, params Header[] extra) => Add("GET", selected.Target, 206, largest, offset, count, count, "bytes " + offset.ToString(CultureInfo.InvariantCulture) + "-" + (offset + count - 1).ToString(CultureInfo.InvariantCulture) + "/" + total, [new("Range", header), ..extra]);
+        void Range(uint offset, uint count, string header, params Header[] extra) => Add("GET", selected.Target, 206, largest, offset, count, count, "bytes " + offset.ToString(CultureInfo.InvariantCulture) + "-" + (offset + count - 1).ToString(CultureInfo.InvariantCulture) + "/" + total, [new("Range", header), .. extra]);
         Range(510, 522, "bytes=510-1031");
         Range(largest.Bytes - 513, 513, "bytes=-513");
         Range(largest.Bytes - 32, 32, "bytes=" + (largest.Bytes - 32).ToString(CultureInfo.InvariantCulture) + "-");
@@ -90,7 +90,7 @@ public static partial class DiskStaticHttpContract
 
         )
         {
-            Need(inventory.Find(WebRootDiskInventory.Root + path)is null, "control_collision");
+            Need(inventory.Find(WebRootDiskInventory.Root + path) is null, "control_collision");
             Add("GET", path, 404);
         }
 
@@ -126,7 +126,8 @@ public static partial class DiskStaticHttpContract
         ".txt" => "text/plain",
         ".wasm" => "application/wasm",
         ".dat" or ".bin" => "application/octet-stream",
-        _ => throw new ToolFailure("disk_http_plan_media")};
+        _ => throw new ToolFailure("disk_http_plan_media")
+    };
     private static void Need(bool condition, string reason)
     {
         if (!condition)

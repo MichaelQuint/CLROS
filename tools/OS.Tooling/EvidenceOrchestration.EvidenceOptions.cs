@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public sealed record EvidenceOptions
 {
     public string WorkloadProfile { get; init; } = "SingleMinimalApi";
@@ -13,9 +14,18 @@ public sealed record EvidenceOptions
     public string Qemu { get; init; } = "";
     public string QemuImg { get; init; } = "";
     public string OvmfCode { get; init; } = "";
-    public bool PlanOnly { get; init; }
-    public bool SelfTest { get; init; }
-    public bool RunQcow2RealSmoke { get; init; }
+    public bool PlanOnly
+    {
+        get; init;
+    }
+    public bool SelfTest
+    {
+        get; init;
+    }
+    public bool RunQcow2RealSmoke
+    {
+        get; init;
+    }
 
     public static EvidenceOptions Parse(string[] args)
     {
@@ -61,7 +71,8 @@ public sealed record EvidenceOptions
                 {
                     OvmfCode = Next()
                 },
-                _ => throw new ArgumentException("unknown_option " + args[i])};
+                _ => throw new ArgumentException("unknown_option " + args[i])
+            };
         }
 
         SmokeContracts.ValidateWorkload(value.WorkloadProfile);

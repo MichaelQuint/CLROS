@@ -3,6 +3,7 @@ using System.Text;
 using Writer = OS.Tooling.LinuxThreadProofFixture.Writer;
 
 namespace OS.Tooling;
+
 public static partial class LinuxSignalProofFixture
 {
     /// <summary>One actual syscall in nested execution order. Depth0 belongs to

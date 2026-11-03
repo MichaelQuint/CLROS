@@ -6,6 +6,7 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 internal sealed partial class EfiVerification
 {
     private void VerifyEhCatalog()
@@ -46,7 +47,7 @@ internal sealed partial class EfiVerification
             string originalText = originalMap.ReadUtf8(MaximumTextBytes, "eh_catalog_map_read");
             expected = normal ? EhContributionCatalogGenerator.GenerateForMethod(originalBytes, originalText, "OS_OS_Runtime_RhpNewFastAllocation__NormalCatcher") : EhContributionCatalogGenerator.Generate(originalBytes, originalText);
         }
-        catch (Exception error)when (error is InvalidDataException or System.Xml.XmlException or OverflowException or FormatException)
+        catch (Exception error) when (error is InvalidDataException or System.Xml.XmlException or OverflowException or FormatException)
         {
             throw new ToolFailure("eh_catalog_original_inputs_rejected", error.GetType().Name);
         }

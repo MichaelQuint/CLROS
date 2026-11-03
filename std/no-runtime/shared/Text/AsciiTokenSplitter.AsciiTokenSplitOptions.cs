@@ -1,6 +1,7 @@
 using OS.Std;
 
 namespace OS.Std.Text;
+
 [Flags]
 public enum AsciiTokenSplitOptions
 {

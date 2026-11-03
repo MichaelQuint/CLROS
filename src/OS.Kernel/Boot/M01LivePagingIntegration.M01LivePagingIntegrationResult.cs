@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct M01LivePagingIntegrationResult
 {
     private readonly M01LivePagingStatus _status;

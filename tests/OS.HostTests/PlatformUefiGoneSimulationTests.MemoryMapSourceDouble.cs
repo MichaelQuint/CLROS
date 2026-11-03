@@ -14,7 +14,10 @@ internal static partial class PlatformUefiGoneSimulationTests
             _snapshot = snapshot;
         }
 
-        public int CaptureCount { get; private set; }
+        public int CaptureCount
+        {
+            get; private set;
+        }
 
         public UefiMemoryMapSnapshot CaptureSnapshot()
         {

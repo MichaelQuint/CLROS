@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public struct EthernetFrameReceiveResult
 {
     public VirtioNetQueueResult Queue;

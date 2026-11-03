@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public enum CheckedReferenceBulkStatus : byte
 {
     Uninitialized = 0,

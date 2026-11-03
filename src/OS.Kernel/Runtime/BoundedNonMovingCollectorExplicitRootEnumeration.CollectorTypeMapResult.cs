@@ -24,11 +24,26 @@ public readonly struct CollectorTypeMapResult
     }
 
     private readonly CollectorReferenceSeries first, second, third, fourth;
-    public CollectorTypeMapStatus Status { get; }
-    public TypeManagerModuleStatus ModuleStatus { get; }
-    public ulong MethodTable { get; }
-    public NativeAotMethodTablePrefix Prefix { get; }
-    public uint SeriesCount { get; }
+    public CollectorTypeMapStatus Status
+    {
+        get;
+    }
+    public TypeManagerModuleStatus ModuleStatus
+    {
+        get;
+    }
+    public ulong MethodTable
+    {
+        get;
+    }
+    public NativeAotMethodTablePrefix Prefix
+    {
+        get;
+    }
+    public uint SeriesCount
+    {
+        get;
+    }
     public bool Succeeded => Status == CollectorTypeMapStatus.Success;
 
     public bool TryGetSeries(uint index, out CollectorReferenceSeries series)

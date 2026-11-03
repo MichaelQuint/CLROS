@@ -26,7 +26,10 @@ namespace OS.Tooling.Native
             private bool captureComplete = true, assigned, terminationRequested, joined;
             private uint active, total;
             private string failure = String.Empty;
-            internal bool Uncertain { get; private set; }
+            internal bool Uncertain
+            {
+                get; private set;
+            }
             internal string Detail => failure;
 
             internal OwnedProcessJoin(SafeKernelHandle job, SafeKernelHandle root, Func<OwnershipJoinObservation, bool> pendingForTest)

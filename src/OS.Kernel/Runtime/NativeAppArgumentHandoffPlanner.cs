@@ -1,6 +1,7 @@
 using OS.Manifest;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAppArgumentHandoffPlanner
 {
     public const bool ExecutesApp = false;

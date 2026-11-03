@@ -128,7 +128,7 @@ internal static partial class FetchAppHttpCompletionPlanTests
     [HostTest("fetch.http completion config rejects oversized marker", HostLane.Fast, 12)]
     private static bool TestConfigRejectsOversizedMarker()
     {
-        string marker = new string ('A', FetchAppHttpCompletionExpectation.MaximumExpectedMarkerLength + 1);
+        string marker = new string('A', FetchAppHttpCompletionExpectation.MaximumExpectedMarkerLength + 1);
         byte[] manifestBytes = NativeManifest("env.OS_SMOKE_EXPECTED_BODY=" + marker + "\n");
         NativeManifestParseResult manifest = NativeManifestParser.Parse(manifestBytes);
         FetchAppHttpCompletionExpectationResult expectation = FetchAppHttpCompletionExpectation.FromManifest(manifest, manifestBytes);
@@ -206,8 +206,8 @@ internal static partial class FetchAppHttpCompletionPlanTests
     [HostTest("fetch.http request endpoint oversized fields", HostLane.Fast, 21)]
     private static bool TestRequestEndpointOversizedFields()
     {
-        string oversizedHost = new string ('a', FetchAppHttpRequestEndpoint.MaximumHostLength + 1);
-        string oversizedPath = "/" + new string ('b', FetchAppHttpRequestEndpoint.MaximumPathLength);
+        string oversizedHost = new string('a', FetchAppHttpRequestEndpoint.MaximumHostLength + 1);
+        string oversizedPath = "/" + new string('b', FetchAppHttpRequestEndpoint.MaximumPathLength);
         return HostCheck.Result(EndpointStatusIs("env.FETCH_HTTP_HOST=" + oversizedHost + "\n", FetchAppHttpRequestEndpointStatus.FieldTooLarge) && EndpointStatusIs("env.FETCH_HTTP_PATH=" + oversizedPath + "\n", FetchAppHttpRequestEndpointStatus.FieldTooLarge));
     }
 

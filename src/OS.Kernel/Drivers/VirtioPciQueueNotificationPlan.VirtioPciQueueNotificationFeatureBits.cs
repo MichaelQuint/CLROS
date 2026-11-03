@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioPciQueueNotificationFeatureBits
 {
     public const int NotificationDataBit = 38;

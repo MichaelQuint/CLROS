@@ -21,8 +21,10 @@ public sealed class QemuStartupDeadline
     {
         ArgumentOutOfRangeException.ThrowIfNegative(elapsedMilliseconds);
         ArgumentNullException.ThrowIfNull(markers);
-        if (completed) return false;
-        if (expired || elapsedMilliseconds >= deadline) return expired = true;
+        if (completed)
+            return false;
+        if (expired || elapsedMilliseconds >= deadline)
+            return expired = true;
         completed = markers.HasSeenRequiredMarker(ReadyMarker);
         return false;
     }

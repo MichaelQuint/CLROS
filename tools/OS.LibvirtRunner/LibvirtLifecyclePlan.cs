@@ -21,16 +21,46 @@ sealed class LibvirtLifecyclePlan
         this.steps = steps;
     }
 
-    public string DomainName { get; }
-    public string ImagePath { get; }
-    public string DiskFormat { get; }
-    public string SerialLogPath { get; }
-    public string Network { get; }
-    public int TimeoutSeconds { get; }
-    public IReadOnlyList<string> RequiredMarkers { get; }
-    public IReadOnlyList<string> ForbiddenMarkers { get; }
-    public bool AllowRealLifecycle { get; }
-    public int XmlByteCount { get; }
+    public string DomainName
+    {
+        get;
+    }
+    public string ImagePath
+    {
+        get;
+    }
+    public string DiskFormat
+    {
+        get;
+    }
+    public string SerialLogPath
+    {
+        get;
+    }
+    public string Network
+    {
+        get;
+    }
+    public int TimeoutSeconds
+    {
+        get;
+    }
+    public IReadOnlyList<string> RequiredMarkers
+    {
+        get;
+    }
+    public IReadOnlyList<string> ForbiddenMarkers
+    {
+        get;
+    }
+    public bool AllowRealLifecycle
+    {
+        get;
+    }
+    public int XmlByteCount
+    {
+        get;
+    }
 
     public static LibvirtLifecyclePlan Create(LibvirtOptions options, int xmlByteCount)
     {

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Threading;
+
 public static unsafe partial class X64TimerInterrupt
 {
     /// <summary>Actual stack image after fifteen pushes and a sixteen-aligned

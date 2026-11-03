@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class DescriptorTableInstallReadiness
 {
     public const string OperationName = "descriptor-table.install.ready";

@@ -65,7 +65,8 @@ internal static partial class NativeAotWebSignalRaceAttemptTests
                 "cancel" => StreamReply([65, 255], "cancel"),
                 "overflow" => StreamReply(new byte[4097], "eof"),
                 "media" => StreamReply([65], "eof", "application/json"),
-                _ => throw new InvalidOperationException("Unexpected mode")});
+                _ => throw new InvalidOperationException("Unexpected mode")
+            });
         }
 
         private async Task<HttpResponseMessage> Hold(CancellationToken token)

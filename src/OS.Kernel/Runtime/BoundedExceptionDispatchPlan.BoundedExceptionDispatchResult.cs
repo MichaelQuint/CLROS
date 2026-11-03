@@ -1,6 +1,7 @@
 using System;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct BoundedExceptionDispatchResult
 {
     internal BoundedExceptionDispatchResult(BoundedExceptionDispatchStatus status)
@@ -19,11 +20,29 @@ public readonly struct BoundedExceptionDispatchResult
         SecondCleanup = second;
     }
 
-    public BoundedExceptionDispatchStatus Status { get; }
+    public BoundedExceptionDispatchStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == BoundedExceptionDispatchStatus.Success;
-    public uint CatchIndex { get; }
-    public ulong CatchHandler { get; }
-    public uint CleanupCount { get; }
-    public ulong FirstCleanup { get; }
-    public ulong SecondCleanup { get; }
+    public uint CatchIndex
+    {
+        get;
+    }
+    public ulong CatchHandler
+    {
+        get;
+    }
+    public uint CleanupCount
+    {
+        get;
+    }
+    public ulong FirstCleanup
+    {
+        get;
+    }
+    public ulong SecondCleanup
+    {
+        get;
+    }
 }

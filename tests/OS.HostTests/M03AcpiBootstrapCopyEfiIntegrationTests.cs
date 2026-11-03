@@ -14,211 +14,6 @@ using System.Xml.Linq;
 #if ACPI_BOOTSTRAP_HOST
 using OS.Boot;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
 {
@@ -257,7 +52,13 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
         foreach (string arg in args)
             start.ArgumentList.Add(arg);
         DateTime begin = DateTime.UtcNow;
-        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new { File = file, Arguments = args, WorkingDirectory = Root(), StartedUtc = begin }));
+        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new
+        {
+            File = file,
+            Arguments = args,
+            WorkingDirectory = Root(),
+            StartedUtc = begin
+        }));
         using var p = System.Diagnostics.Process.Start(start)!;
         var stdout = p.StandardOutput.ReadToEndAsync();
         var stderr = p.StandardError.ReadToEndAsync();
@@ -271,7 +72,13 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
         string output = stdout.GetAwaiter().GetResult(), error = stderr.GetAwaiter().GetResult();
         File.WriteAllText(Path.Combine(directory, "stdout.log"), output);
         File.WriteAllText(Path.Combine(directory, "stderr.log"), error);
-        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new { NativeExit = p.ExitCode, TimedOut = timeout, StartedUtc = begin, EndedUtc = DateTime.UtcNow }));
+        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new
+        {
+            NativeExit = p.ExitCode,
+            TimedOut = timeout,
+            StartedUtc = begin,
+            EndedUtc = DateTime.UtcNow
+        }));
         return new(p.ExitCode, timeout, output, error);
     }
 
@@ -289,7 +96,7 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
         var project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
         Need(!project.Descendants("EnableAcpiPhysicalDiscoveryProbe").Any(), "existing property unset by default");
         var symbol = project.Descendants("DefineConstants").Single(x => x.Value.Contains("ACPI_PHYSICAL_DISCOVERY_PROBE", StringComparison.Ordinal));
-        Need(string.Equals((string? )symbol.Parent?.Attribute("Condition"), "'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'", StringComparison.Ordinal), "existing symbol requires explicit true");
+        Need(string.Equals((string?)symbol.Parent?.Attribute("Condition"), "'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'", StringComparison.Ordinal), "existing symbol requires explicit true");
         Need(project.Descendants("DefineConstants").Count(x => x.Value.Contains("ACPI_PHYSICAL_DISCOVERY_PROBE", StringComparison.Ordinal)) == 1, "one existing symbol");
         Need(string.Equals(Hash(Path.Combine(root, "src/OS.Kernel/Boot/RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap.cs")), OS.Tooling.EfiContracts.AcpiBootstrapHostOracleSha256, StringComparison.OrdinalIgnoreCase), "frozen host oracle");
         string source = File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.cs"));
@@ -394,7 +201,7 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
         string items = string.Join('\n', sources.Select(x => "<Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, x)) + "\"/>"));
         string project = Path.Combine(directory, "Capture.csproj");
         File.WriteAllText(project, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><OutputType>Exe</OutputType><StartupObject>AcpiBootstrapHost</StartupObject><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><EnableDefaultCompileItems>false</EnableDefaultCompileItems><DefineConstants>ACPI_BOOTSTRAP_HOST;ACPI_PHYSICAL_DISCOVERY_PROBE</DefineConstants></PropertyGroup><ItemGroup>" + items + "<Compile Include=\"Attribute.cs\"/><ProjectReference Include=\"" + SecurityElement.Escape(Path.Combine(root, "src/OS.Kernel/OS.Kernel.csproj")) + "\"/></ItemGroup></Project>");
-        string[] inputs = [..sources.Select(x => Path.Combine(root, x)), Path.Combine(directory, "Attribute.cs"), project];
+        string[] inputs = [.. sources.Select(x => Path.Combine(root, x)), Path.Combine(directory, "Attribute.cs"), project];
         var identities = inputs.Select(path => new { Path = path, Bytes = new FileInfo(path).Length, Sha256 = Hash(path) }).ToArray();
         File.WriteAllText(Path.Combine(directory, "inputs.json"), JsonSerializer.Serialize(identities));
         Passed(Process(Path.Combine(directory, "build"), "dotnet", "build", project, "-c", "Release", "--nologo", "-m:1", "--disable-build-servers", "-p:UseSharedCompilation=false"));
@@ -431,7 +238,7 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
         string before = Hash(script);
         var buildProfile = OS.Tooling.EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableAcpiPhysicalDiscoveryProbe"] = true });
         Need(buildProfile.CommandArguments().Contains("--EnableAcpiPhysicalDiscoveryProbe"), "conditional build forwarding");
-        Result Dry(params string[] args) => Tool(["qemu", "smoke", "-DryRun", ..args]);
+        Result Dry(params string[] args) => Tool(["qemu", "smoke", "-DryRun", .. args]);
         void Reject(params string[] args)
         {
             Result r = Dry(args);
@@ -463,8 +270,8 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
         Reject("-BuildEfi", flag);
         Reject("-BuildEfi", flag, "-MarkerPreset", "baseline");
         Reject("-BuildEfi", flag, "-MarkerPreset", "acpi,baseline");
-        Reject([..positive, "-SkipImageBuild"]);
-        Reject([..positive, "-RequireNativeAppMarkers"]);
+        Reject([.. positive, "-SkipImageBuild"]);
+        Reject([.. positive, "-RequireNativeAppMarkers"]);
         Reject("-RequireMarker", "CLROS_M03_002_READY");
         foreach (string option in new[]
         {
@@ -478,11 +285,11 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
         }
 
         )
-            Reject([..positive, option, "extra"]);
+            Reject([.. positive, option, "extra"]);
         var flags = OS.Tooling.EfiContracts.DiagnosticProbes.ToArray();
         Need(flags.Length == OS.Tooling.EfiContracts.DiagnosticProbes.Count, "actual current requested profile vector");
         foreach (string other in flags.Where(x => x != "EnableAcpiPhysicalDiscoveryProbe"))
-            Reject([..positive, "-" + other]);
+            Reject([.. positive, "-" + other]);
         Result markerOnly = Dry("-BootPolicy", "Diagnostic", "-MarkerPreset", "acpi");
         Passed(markerOnly);
         Need(!markerOnly.Output.Contains("CLROS_M03_002_", StringComparison.Ordinal), "historical marker-only preset remains separate");
@@ -496,7 +303,7 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
         var control = new FirmwareTranscriptControls(directory, path => OS.Tooling.QemuTranscripts.AssertM03AcpiBootstrapTranscript(path));
         byte[] good = FirmwareTranscriptControls.Bytes(lines);
         control.Check(good, true);
-        string[] rsdt = [..lines];
+        string[] rsdt = [.. lines];
         rsdt[19] = rsdt[19].Replace("length=36", "length=20").Replace("compared=36", "compared=20");
         rsdt[20] = rsdt[20].Replace("owned=1073741876 offset=36 length=60 signature=1413763928", "owned=1073741860 offset=20 length=48 signature=1413763922").Replace("compared=60", "compared=48");
         rsdt[21] = rsdt[21].Replace("owned=1073741936 offset=96", "owned=1073741908 offset=68");
@@ -504,18 +311,18 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
         rsdt[23] = rsdt[23].Replace("owned=1073742040 offset=200", "owned=1073742012 offset=172");
         rsdt[24] = rsdt[24].Replace("total=256", "total=228").Replace("tail=265984", "tail=266012");
         control.Check(FirmwareTranscriptControls.Bytes(rsdt), true);
-        string[] touch = [..rsdt];
+        string[] touch = [.. rsdt];
         touch[20] = touch[20].Replace("physical=805310464", "physical=805306388");
         control.Check(FirmwareTranscriptControls.Bytes(touch), true);
         for (int i = 0; i < lines.Length; i++)
         {
-            string[] copy = [..lines];
+            string[] copy = [.. lines];
             copy[i] += " extra=1";
             control.Check(FirmwareTranscriptControls.Bytes(copy), false);
-            copy = [..lines];
+            copy = [.. lines];
             copy[i] = "";
             control.Check(FirmwareTranscriptControls.Bytes(copy), false);
-            copy = [..lines];
+            copy = [.. lines];
             copy[i] = copy[i].ToLowerInvariant();
             if (copy[i] != lines[i])
                 control.Check(FirmwareTranscriptControls.Bytes(copy), false);
@@ -544,7 +351,7 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
 
                 )
                 {
-                    string[] copy = [..lines];
+                    string[] copy = [.. lines];
                     copy[i] = Regex.Replace(copy[i], " " + field + "=[0-9]+", " " + field + "=" + value);
                     control.Check(FirmwareTranscriptControls.Bytes(copy), false);
                 }
@@ -559,15 +366,15 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
 
             )
             {
-                string[] copy = [..lines];
+                string[] copy = [.. lines];
                 copy[i] = Regex.Replace(copy[i], " " + field + "=[0-9]+", " " + field + "=1");
                 control.Check(FirmwareTranscriptControls.Bytes(copy), false);
             }
 
-            string[] overlap = [..lines];
+            string[] overlap = [.. lines];
             overlap[i] = Regex.Replace(overlap[i], " physical=[0-9]+", " physical=1073741840");
             control.Check(FirmwareTranscriptControls.Bytes(overlap), false);
-            string[] index = [..lines];
+            string[] index = [.. lines];
             index[i] = Regex.Replace(index[i], " rootIndex=[0-9]+", " rootIndex=" + (i < 21 ? "0" : "3"));
             control.Check(FirmwareTranscriptControls.Bytes(index), false);
         }
@@ -589,16 +396,16 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
 
         )
             control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace(pair.Old, pair.New)), false);
-        string[] swap = [..lines];
+        string[] swap = [.. lines];
         (swap[21], swap[22]) = (swap[22], swap[21]);
         control.Check(FirmwareTranscriptControls.Bytes(swap), false);
         control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace("\r\n", "\n")), false);
         control.Check(good[..^1], false);
-        control.Check([..good, 0], false);
-        control.Check([..good, 255], false);
+        control.Check([.. good, 0], false);
+        control.Check([.. good, 255], false);
         control.Check(good, false, [255]);
         control.Check(good, false, Encoding.ASCII.GetBytes("arbitrary"));
-        control.Check(good, false, post: [..FirmwareTranscriptControls.Suffix, 65]);
+        control.Check(good, false, post: [.. FirmwareTranscriptControls.Suffix, 65]);
         control.Check(good, true);
         string[] ordered = lines.Select(line => line.StartsWith("UEFI_MEMORY_MAP_DESCRIPTOR_COUNT ", StringComparison.Ordinal) || line.StartsWith("BOOT_MEMORY_REGION_COUNT ", StringComparison.Ordinal) || line.StartsWith("BOOT_PAGE_ALLOCATOR_READY ", StringComparison.Ordinal) || line.StartsWith("CLROS_M03_002_RETAIN ", StringComparison.Ordinal) ? line.Split(' ')[0] : line.StartsWith("CLROS_M03_002_TABLE ", StringComparison.Ordinal) ? string.Join(' ', line.Split(' ').Take(2)) : line).ToArray();
         var runner = new StandardFirmwareRunnerControls(directory, lines, ordered, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL"], "EnableAcpiPhysicalDiscoveryProbe", preset: "acpi");
@@ -619,7 +426,7 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
         )
         {
             string directory = Scratch(enabled ? "enabled" : "default"), artifact = Path.Combine(root, "artifacts/efi/issue539-" + Guid.NewGuid().ToString("N") + ".EFI");
-            Result result = Tool(["efi", "build", "-BootPolicy", "Diagnostic", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), ..(enabled ? new[] { "-EnableAcpiPhysicalDiscoveryProbe" } : Array.Empty<string>())]);
+            Result result = Tool(["efi", "build", "-BootPolicy", "Diagnostic", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), .. (enabled ? new[] { "-EnableAcpiPhysicalDiscoveryProbe" } : Array.Empty<string>())]);
             Passed(result);
             Need(result.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && result.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), "actual producer/verifier");
             foreach (string suffix in new[]

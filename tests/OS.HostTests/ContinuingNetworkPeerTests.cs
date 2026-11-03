@@ -16,7 +16,9 @@ internal static class ContinuingNetworkPeerTests
         NetworkStream stream = client.GetStream();
         byte[] arp = Arp(), expected = new byte[60];
         Convert.FromHexString("020000000001020000000002080600010800060400020200000000020A0002020200000000010A00020F").CopyTo(expected, 0);
-        byte[] unrelated = new byte[60]; unrelated[12] = 0x88; unrelated[13] = 0xb5;
+        byte[] unrelated = new byte[60];
+        unrelated[12] = 0x88;
+        unrelated[13] = 0xb5;
         await Write(stream, unrelated);
         for (int i = 0; i < 21; i++)
         {
@@ -36,7 +38,8 @@ internal static class ContinuingNetworkPeerTests
         }
         await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5));
         HostCheck.True(peer.Stop() && peer.Completion.IsCompletedSuccessfully);
-        HostCheck.Equal(21, peer.ArpReplies); HostCheck.Equal(12, peer.EchoReplies);
+        HostCheck.Equal(21, peer.ArpReplies);
+        HostCheck.Equal(12, peer.EchoReplies);
     }
 
     [HostTest("qemu.continuing-peer rejects checksum fragmentation wrong sequence and ARP identity", HostLane.Fast, 1)]
@@ -49,16 +52,24 @@ internal static class ContinuingNetworkPeerTests
             using var peer = new ContinuingNetworkPeer(TimeSpan.FromSeconds(10));
             using TcpClient client = await Connect(peer);
             byte[] frame = control == 3 ? Arp() : Echo(control == 2 ? (ushort)1 : (ushort)0);
-            if (control == 0) frame[36] ^= 1;
-            if (control == 1) frame[20] = 0x20;
-            if (control == 3) frame[32] = 1;
-            if (control == 4) frame = frame[..33];
+            if (control == 0)
+                frame[36] ^= 1;
+            if (control == 1)
+                frame[20] = 0x20;
+            if (control == 3)
+                frame[32] = 1;
+            if (control == 4)
+                frame = frame[..33];
             await Write(client.GetStream(), frame);
             bool rejected = false;
-            try { await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5)); }
+            try
+            {
+                await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+            }
             catch (InvalidDataException) { rejected = true; }
             HostCheck.True(rejected && peer.Stop());
-            HostCheck.Equal(0, peer.ArpReplies); HostCheck.Equal(0, peer.EchoReplies);
+            HostCheck.Equal(0, peer.ArpReplies);
+            HostCheck.Equal(0, peer.EchoReplies);
         }
     }
 
@@ -77,9 +88,16 @@ internal static class ContinuingNetworkPeerTests
         using (var peer = new ContinuingNetworkPeer(TimeSpan.FromSeconds(10)))
         {
             using TcpClient client = await Connect(peer);
-            for (ushort i = 0; i < 12; i++) { await Write(client.GetStream(), Echo(i)); _ = await Read(client.GetStream()); }
+            for (ushort i = 0; i < 12; i++)
+            {
+                await Write(client.GetStream(), Echo(i));
+                _ = await Read(client.GetStream());
+            }
             bool rejected = false;
-            try { await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5)); }
+            try
+            {
+                await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+            }
             catch (InvalidDataException) { rejected = true; }
             HostCheck.True(rejected && peer.Stop());
         }
@@ -100,9 +118,18 @@ internal static class ContinuingNetworkPeerTests
         for (int control = 0; control < 2; control++)
         {
             using var peer = new ContinuingNetworkPeer(TimeSpan.FromSeconds(10), runTcp: true);
-            using TcpClient client = await Connect(peer); var stream = client.GetStream();
-            for (int i = 0; i < 21; i++) { await Write(stream, Arp()); _ = await Read(stream); }
-            for (ushort i = 0; i < 12; i++) { await Write(stream, Echo(i)); _ = await Read(stream); }
+            using TcpClient client = await Connect(peer);
+            var stream = client.GetStream();
+            for (int i = 0; i < 21; i++)
+            {
+                await Write(stream, Arp());
+                _ = await Read(stream);
+            }
+            for (ushort i = 0; i < 12; i++)
+            {
+                await Write(stream, Echo(i));
+                _ = await Read(stream);
+            }
             HostCheck.True(!peer.Completion.IsCompleted && peer.TcpPackets == 0);
             if (control == 0)
             {
@@ -112,7 +139,8 @@ internal static class ContinuingNetworkPeerTests
             peer.AllowTcp();
             byte[] syn = await Read(stream), reply = SynAck(syn, 40000, 1000);
             await Write(stream, reply);
-            HostCheck.True((await Read(stream)).AsSpan().SequenceEqual(syn)); await Write(stream, reply);
+            HostCheck.True((await Read(stream)).AsSpan().SequenceEqual(syn));
+            await Write(stream, reply);
             _ = await Read(stream); // Deliberate invalid final ACK.
             await Write(stream, reply); // Original-codec retry; this host test makes no elapsed-time claim.
             _ = await Read(stream); // Valid final ACK.
@@ -120,7 +148,10 @@ internal static class ContinuingNetworkPeerTests
             byte[] other = await Read(stream);
             await Write(stream, SynAck(other, 40001, 2001)); // Correct checksum/tuple, wrong authoritative ISS.
             bool rejected = false;
-            try { await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5)); }
+            try
+            {
+                await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+            }
             catch (InvalidDataException) { rejected = true; }
             HostCheck.True(rejected && peer.Stop() && peer.TcpPackets == 9);
         }
@@ -130,7 +161,8 @@ internal static class ContinuingNetworkPeerTests
     {
         var info = new TcpPassiveIpv4FramePlannerInfo(new MacAddress(2, 0, 0, 0, 0, 1), new MacAddress(2, 0, 0, 0, 0, 2),
             new Ipv4Address(10, 0, 2, 15), new Ipv4Address(10, 0, 2, 2), 8080, port, sequence, 8, maximumSegmentSize: 4);
-        var planner = TcpPassiveIpv4FramePlanner.Create(info); byte[] output = new byte[1514];
+        var planner = TcpPassiveIpv4FramePlanner.Create(info);
+        byte[] output = new byte[1514];
         HostCheck.Equal(TcpPassiveIpv4FramePlanStatus.Success, planner.ReceiveSynFrameAndWriteSynAckFrame(syn, output, out var packet));
         return output[..packet.BytesWritten];
     }
@@ -154,15 +186,21 @@ internal static class ContinuingNetworkPeerTests
 
     private static async Task Write(NetworkStream stream, byte[] frame)
     {
-        byte[] wire = new byte[frame.Length + 4]; BinaryPrimitives.WriteUInt32BigEndian(wire, (uint)frame.Length);
-        frame.CopyTo(wire, 4); await stream.WriteAsync(wire);
+        byte[] wire = new byte[frame.Length + 4];
+        BinaryPrimitives.WriteUInt32BigEndian(wire, (uint)frame.Length);
+        frame.CopyTo(wire, 4);
+        await stream.WriteAsync(wire);
     }
 
     private static async Task<byte[]> Read(NetworkStream stream)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        byte[] prefix = new byte[4]; await stream.ReadExactlyAsync(prefix, deadline.Token);
-        uint length = BinaryPrimitives.ReadUInt32BigEndian(prefix); HostCheck.True(length is >= 14 and <= 1514);
-        byte[] frame = new byte[(int)length]; await stream.ReadExactlyAsync(frame, deadline.Token); return frame;
+        byte[] prefix = new byte[4];
+        await stream.ReadExactlyAsync(prefix, deadline.Token);
+        uint length = BinaryPrimitives.ReadUInt32BigEndian(prefix);
+        HostCheck.True(length is >= 14 and <= 1514);
+        byte[] frame = new byte[(int)length];
+        await stream.ReadExactlyAsync(frame, deadline.Token);
+        return frame;
     }
 }

@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public sealed partial class OSHostThreadTable
 {
     private struct ThreadSlot

@@ -199,7 +199,7 @@ internal static partial class NativeAotWebSignalRaceTransportTests
         {
             await NativeAotWebPayload.CaptureObservedSignalRaceAsync(peer.Port, Health, path, deadline.Token);
         }
-        catch (Exception error)when (error is IOException or HttpRequestException)
+        catch (Exception error) when (error is IOException or HttpRequestException)
         {
             failed = true;
         }

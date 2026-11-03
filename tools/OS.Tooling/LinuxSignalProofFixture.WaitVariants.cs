@@ -3,6 +3,7 @@ using System.Text;
 using Writer = OS.Tooling.LinuxThreadProofFixture.Writer;
 
 namespace OS.Tooling;
+
 public static partial class LinuxSignalProofFixture
 {
     public static IReadOnlyList<string> WaitVariants { get; } = Array.AsReadOnly<string>(["SignalPipeEintr", "SignalPipeRestart", "SignalFutexEintr", "SignalFutexRestart", "SignalPipePartial"]);

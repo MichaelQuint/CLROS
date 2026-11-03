@@ -1,6 +1,7 @@
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Borrow an original package, prepared program and complete raw
@@ -13,7 +14,7 @@ public static partial class QemuTranscripts
 
     public static ServiceCaptureReport ValidateNativeAotServiceCapture(string root, byte[] package, NativeAotServiceProgram program, ReadOnlySpan<byte> raw)
     {
-        Need(raw.Length is> FirmwarePrefixBytes and <= 128 * 1024 * 1024, "service_capture_extent");
+        Need(raw.Length is > FirmwarePrefixBytes and <= 128 * 1024 * 1024, "service_capture_extent");
         using AuthorityFiles sources = new();
         NativeAotServiceProgram.HoldSources(root, sources);
         Need(program is not null, "service_program_owner");
@@ -45,7 +46,7 @@ public static partial class QemuTranscripts
 
     public static ServiceEnvelopeInspection InspectNativeAotServiceEnvelopeForTests(string[] rows, WebParentReport parent, ServiceReplayReport leaf, (ulong Before, ulong After, ulong Allocated, ulong Command, ulong PeerSent, ulong PeerReceived) baseline)
     {
-        Need(rows is not null && rows.Length is> 0 and <= 1_000_000 && rows.All(row => row is not null && row.Length is> 0 and <= 4096 && row.All(c => c is >= ' ' and <= '~')) && rows.Sum(row => (long)row.Length + 2) <= 128L * 1024 * 1024, "service_envelope_input");
+        Need(rows is not null && rows.Length is > 0 and <= 1_000_000 && rows.All(row => row is not null && row.Length is > 0 and <= 4096 && row.All(c => c is >= ' ' and <= '~')) && rows.Sum(row => (long)row.Length + 2) <= 128L * 1024 * 1024, "service_envelope_input");
         int One(string marker, bool prefix = true)
         {
             int[] found = Enumerable.Range(0, rows!.Length).Where(i => prefix ? rows[i].StartsWith(marker, StringComparison.Ordinal) : rows[i] == marker).ToArray();

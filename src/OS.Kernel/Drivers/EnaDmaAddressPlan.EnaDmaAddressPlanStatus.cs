@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public enum EnaDmaAddressPlanStatus
 {
     Success = 0,

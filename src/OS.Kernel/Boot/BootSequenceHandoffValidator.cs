@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static class BootSequenceHandoffValidator
 {
     public const string ReadyMarker = "BOOT_HANDOFF_READY";

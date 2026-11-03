@@ -8,9 +8,6 @@ namespace System
 #pragma warning restore 169
 #if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE || M04_FILTERED_CATCH_PROBE || M04_NORMAL_FINALLY_PROBE
 
-
-
-
 #endif
 #pragma warning disable CS0649
 #pragma warning restore CS0649
@@ -137,11 +134,6 @@ namespace System.Runtime.CompilerServices
 #if M04_STRING_ALLOCATION_PROBE
 namespace System.Runtime
 {
-
-
-
-
-
 
 }
 #endif

@@ -2,6 +2,7 @@ using OS.Std.Hash;
 using OS.Std.Memory;
 
 namespace OS.Net;
+
 public static unsafe partial class TcpInitialSequence
 {
     /// <summary>Returned by value so output cannot alias retained secret state.
@@ -15,7 +16,13 @@ public static unsafe partial class TcpInitialSequence
             Sequence = sequence;
         }
 
-        public Status Status { get; }
-        public uint Sequence { get; }
+        public Status Status
+        {
+            get;
+        }
+        public uint Sequence
+        {
+            get;
+        }
     }
 }

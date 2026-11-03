@@ -224,7 +224,7 @@ internal static partial class LinuxDescriptorTranscriptTests
             Reject(Change(rows, 86, "used", 13), package);
             Reject(Change(rows, 110, "root", 1048576), package);
             Reject(rows[1..], package);
-            Reject([..rows, "extra"], package);
+            Reject([.. rows, "extra"], package);
             Reject(Remove(rows, rows.Length - 6), package);
             Reject(Remove(rows, rows.Length - 3), package);
         }
@@ -314,8 +314,10 @@ internal static partial class LinuxDescriptorTranscriptTests
                         0x3d => 6,
                         0x8b => 7,
                         0x39 or 0x85 => 3,
-                        _ => throw new InvalidOperationException("unknown fixture REX opcode")},
-                    _ => throw new InvalidOperationException("unknown fixture opcode")};
+                        _ => throw new InvalidOperationException("unknown fixture REX opcode")
+                    },
+                    _ => throw new InvalidOperationException("unknown fixture opcode")
+                };
             at += size;
         }
 
@@ -337,8 +339,8 @@ internal static partial class LinuxDescriptorTranscriptTests
         return changed;
     }
 
-    private static string[] Remove(string[] rows, int at) => [..rows[..at], ..rows[(at + 1)..]];
-    private static string[] Insert(string[] rows, int at, string row) => [..rows[..at], row, ..rows[at..]];
+    private static string[] Remove(string[] rows, int at) => [.. rows[..at], .. rows[(at + 1)..]];
+    private static string[] Insert(string[] rows, int at, string row) => [.. rows[..at], row, .. rows[at..]];
     private static void Reject(string[] rows, byte[] package)
     {
         bool rejected = false;

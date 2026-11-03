@@ -1,6 +1,7 @@
 using System;
 
 namespace OS.Kernel.Runtime;
+
 public enum BoundedExceptionFilterSearchStatus : byte
 {
     Uninitialized = 0,

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class EnaDmaAddressPlan
 {
     public const bool AllocatesDmaMemory = false;

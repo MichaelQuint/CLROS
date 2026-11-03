@@ -17,8 +17,17 @@ internal static partial class ImageBuilderTests
             FileSize = fileSize;
         }
 
-        public bool IsDirectory { get; }
-        public int FirstCluster { get; }
-        public int FileSize { get; }
+        public bool IsDirectory
+        {
+            get;
+        }
+        public int FirstCluster
+        {
+            get;
+        }
+        public int FileSize
+        {
+            get;
+        }
     }
 }

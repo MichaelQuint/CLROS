@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotWebPayload
 {
     /// <summary>Counts copied logical HTTP attempts after every owned task has

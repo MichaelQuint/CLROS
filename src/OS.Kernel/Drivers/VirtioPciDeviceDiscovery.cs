@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioPciDeviceDiscovery
 {
     public const ushort VirtioVendorId = 0x1AF4;

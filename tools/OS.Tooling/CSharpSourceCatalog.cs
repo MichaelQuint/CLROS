@@ -15,8 +15,14 @@ public sealed class CSharpSourceCatalog
     private CSharpSourceDependencies? dependencies;
     internal CSharpSourceDependencies Dependencies => dependencies ??= new(this);
 
-    public CSharpCompilation Compilation { get; }
-    public IReadOnlyList<CSharpSourceDocument> Documents { get; }
+    public CSharpCompilation Compilation
+    {
+        get;
+    }
+    public IReadOnlyList<CSharpSourceDocument> Documents
+    {
+        get;
+    }
 
     public CSharpSourceCatalog(IEnumerable<CSharpSourceDocument> sources,
         IEnumerable<MetadataReference> references, string assemblyName = "SourceInspection",

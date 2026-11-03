@@ -1,6 +1,7 @@
 using OS.Drivers;
 
 namespace OS.Net;
+
 public struct ARPRequestReplyBoundedNeighborCacheResult
 {
     public EthernetFrameReceiveResult Receive;

@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct DescriptorTableInstructionPlanResult
 {
     private DescriptorTableInstructionPlanResult(bool succeeded, DescriptorTableInstructionPlanStatus status, DescriptorTableInstructionKind operationKind, int bytesWritten, int requiredBytes)
@@ -12,11 +13,26 @@ public readonly struct DescriptorTableInstructionPlanResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool Succeeded { get; }
-    public DescriptorTableInstructionPlanStatus Status { get; }
-    public DescriptorTableInstructionKind OperationKind { get; }
-    public int BytesWritten { get; }
-    public int RequiredBytes { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public DescriptorTableInstructionPlanStatus Status
+    {
+        get;
+    }
+    public DescriptorTableInstructionKind OperationKind
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
 
     public static DescriptorTableInstructionPlanResult Success(DescriptorTableInstructionKind operationKind, int bytesWritten)
     {

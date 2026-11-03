@@ -80,7 +80,7 @@ internal static partial class NativeDiskReadObservationTests
             Deny(Replace(f.Rows, 3, Set(f.Rows[3], key, "0")));
         Deny(Replace(f.Rows, 3, Set(f.Rows[3], "kind", "2")));
         Deny(Replace(f.Rows, 2, Set(f.Rows[2], "kind", "3")));
-        Deny([..f.Rows, f.Rows[^1]]);
+        Deny([.. f.Rows, f.Rows[^1]]);
         var reordered = f.Rows.ToList();
         (reordered[3], reordered[4]) = (reordered[4], reordered[3]);
         Deny(reordered);
@@ -175,7 +175,7 @@ internal static partial class NativeDiskReadObservationTests
             return Set(changed, "clock", "101");
         }
 
-        List<string> joined = [..first.Rows, ..second.Rows.Select(Next)];
+        List<string> joined = [.. first.Rows, .. second.Rows.Select(Next)];
         var final = first.Boundary with
         {
             Submitted = 2,
@@ -205,14 +205,14 @@ internal static partial class NativeDiskReadObservationTests
         interleaved.Insert(3, interleaved[4]);
         Deny(interleaved, final);
         var cancelled = MultiVector(4, true);
-        List<string> withCancellation = [..first.Rows, ..cancelled.Rows.Select(Next)];
+        List<string> withCancellation = [.. first.Rows, .. cancelled.Rows.Select(Next)];
         var cancelledFinal = final with
         {
             Copied = 1
         };
         actual = Reads.Inspect(withCancellation, first.Image, cancelledFinal, allowMultiSector: true);
         HostCheck.True(actual.Counters.Copied == 1 && actual.Cancelled == 1);
-        Deny([..withCancellation, Next(MultiVector(4).Rows[3])], cancelledFinal);
+        Deny([.. withCancellation, Next(MultiVector(4).Rows[3])], cancelledFinal);
         var legacy = Vector();
         foreach (bool multi in new[]
         {
@@ -309,8 +309,14 @@ internal static partial class NativeDiskReadObservationTests
         };
         Deny(FullParentCounterEnd(forged, 8), f.Boundary, device);
         Deny(FullParentCounterEnd(forged, 8), forged, device);
-        Deny(end, f.Boundary with { Owner = f.Boundary.Owner + 1 }, device);
-        Deny(end, f.Boundary with { Epoch = f.Boundary.Epoch + 1 }, device);
+        Deny(end, f.Boundary with
+        {
+            Owner = f.Boundary.Owner + 1
+        }, device);
+        Deny(end, f.Boundary with
+        {
+            Epoch = f.Boundary.Epoch + 1
+        }, device);
         var wrongBootstrap = f.Boundary with
         {
             BootstrapCompleted = 36,
@@ -318,7 +324,10 @@ internal static partial class NativeDiskReadObservationTests
         };
         Deny(end, wrongBootstrap, device);
         Deny(FullParentCounterEnd(wrongBootstrap, 8), f.Boundary, device);
-        Deny(end, f.Boundary with { BootstrapCopied = 36 }, device);
+        Deny(end, f.Boundary with
+        {
+            BootstrapCopied = 36
+        }, device);
         var one = FullParentCounterVector(37, 4);
         var other = Reads.Inspect(one.Rows, one.Image, one.Boundary, allowMultiSector: true);
         Deny(end, f.Boundary, other);
@@ -491,10 +500,19 @@ internal static partial class NativeDiskReadObservationTests
         Deny(reset, rows[..^1]);
         Deny(reset, full.Rows);
         Deny(reset, full.Rows.Take(full.Rows.Count - 1).ToArray());
-        Deny(reset, [..rows, rows[^1]]);
-        Deny(reset, counters: boundary with { Submitted = boundary.Submitted + 1 });
-        Deny(reset, counters: boundary with { Completed = boundary.Completed + 1 });
-        Deny(reset, counters: boundary with { BootstrapCopied = boundary.BootstrapCopied - 1 });
+        Deny(reset, [.. rows, rows[^1]]);
+        Deny(reset, counters: boundary with
+        {
+            Submitted = boundary.Submitted + 1
+        });
+        Deny(reset, counters: boundary with
+        {
+            Completed = boundary.Completed + 1
+        });
+        Deny(reset, counters: boundary with
+        {
+            BootstrapCopied = boundary.BootstrapCopied - 1
+        });
         Deny(reset, Replace(rows, 0, Set(rows[0], "sector", "2")));
     }
 
@@ -578,7 +596,7 @@ internal static partial class NativeDiskReadObservationTests
     private static void Shapes()
     {
         var f = Vector();
-        string[] badSubmit = [" " + f.Rows[0], f.Rows[0] + " ", f.Rows[0] + "\r", f.Rows[0] + "\n", f.Rows[0].Replace(" owner=", "\towner=", StringComparison.Ordinal), f.Rows[0].Replace(" owner=", "  owner=", StringComparison.Ordinal), f.Rows[0].Replace(" epoch=", " unknown=", StringComparison.Ordinal), Set(f.Rows[0], "kind", "3"), Set(f.Rows[0], "kind", "00"), Set(f.Rows[0], "owner", "+7"), Set(f.Rows[0], "owner", "-7"), Set(f.Rows[0], "owner", "\u0661"), Set(f.Rows[0], "owner", "18446744073709551616"), Set(f.Rows[0], "epoch", "01"), Set(f.Rows[0], "clock", "1.0"), Set(f.Rows[0], "clock", "18446744073709551616"), Set(f.Rows[0], "available", "65536"), f.Rows[0] + " extra=0", f.Rows[0] + " copied=committed data=" + new string ('0', 1024)];
+        string[] badSubmit = [" " + f.Rows[0], f.Rows[0] + " ", f.Rows[0] + "\r", f.Rows[0] + "\n", f.Rows[0].Replace(" owner=", "\towner=", StringComparison.Ordinal), f.Rows[0].Replace(" owner=", "  owner=", StringComparison.Ordinal), f.Rows[0].Replace(" epoch=", " unknown=", StringComparison.Ordinal), Set(f.Rows[0], "kind", "3"), Set(f.Rows[0], "kind", "00"), Set(f.Rows[0], "owner", "+7"), Set(f.Rows[0], "owner", "-7"), Set(f.Rows[0], "owner", "\u0661"), Set(f.Rows[0], "owner", "18446744073709551616"), Set(f.Rows[0], "epoch", "01"), Set(f.Rows[0], "clock", "1.0"), Set(f.Rows[0], "clock", "18446744073709551616"), Set(f.Rows[0], "available", "65536"), f.Rows[0] + " extra=0", f.Rows[0] + " copied=committed data=" + new string('0', 1024)];
         foreach (string row in badSubmit)
             Reject(f, Replace(f.Rows, 0, row));
         string hex = Inspect(f).Rows[2].DataHex;
@@ -649,11 +667,11 @@ internal static partial class NativeDiskReadObservationTests
             Reject(f, rows);
         }
 
-        Reject(f, [..f.Rows, f.Rows[0]]);
-        Reject(f, [..f.Rows, "TEST_PASS unrelated"]);
+        Reject(f, [.. f.Rows, f.Rows[0]]);
+        Reject(f, [.. f.Rows, "TEST_PASS unrelated"]);
         var cancelled = Vector(0, 0, true, false);
         string falseCopy = Set(Set(f.Rows[2], "sequence", "1"), "consumed", "1");
-        Reject(cancelled, [cancelled.Rows[0], cancelled.Rows[1], falseCopy, ..cancelled.Rows.Skip(2)]);
+        Reject(cancelled, [cancelled.Rows[0], cancelled.Rows[1], falseCopy, .. cancelled.Rows.Skip(2)]);
         // A positive completion cannot silently become a cancelled/omitted copy.
         Reject(f, Replace(f.Rows, 1, Set(f.Rows[1], "bytes", "0")));
     }
@@ -769,11 +787,11 @@ internal static partial class NativeDiskReadObservationTests
             Reject(f, boundary: boundary);
         Reject(f, []);
         Reject(f, new CountOnly(Reads.MaximumRows + 1));
-        Reject(f, Replace(f.Rows, 0, new string ('x', Reads.MaximumRowChars + 1)));
+        Reject(f, Replace(f.Rows, 0, new string('x', Reads.MaximumRowChars + 1)));
         Reject(f, Replace(f.Rows, 0, null!));
         var last = Vector(ulong.MaxValue - 1, ulong.MaxValue - 1, false);
         Reject(last, Replace(last.Rows, 0, Set(last.Rows[0], "sequence", "18446744073709551616")));
-        Reject(last, [..last.Rows, last.Rows[0]]);
+        Reject(last, [.. last.Rows, last.Rows[0]]);
     }
 
     private static Reads.Inspection Inspect(Fixture f) => Reads.Inspect(f.Rows, f.Image, f.Boundary);
@@ -781,7 +799,7 @@ internal static partial class NativeDiskReadObservationTests
     private static Fixture Vector(ulong bootstrap = 0, ulong bootstrapCopied = 0, params bool[] cancellations)
     {
         if (cancellations.Length == 0)
-            cancellations = [false, false ];
+            cancellations = [false, false];
         byte[] image = Enumerable.Range(0, 8 * 512).Select(i => unchecked((byte)((i * 31) ^ (i >> 8) ^ 0x5a))).ToArray();
         List<string> rows = [];
         ulong submitted = bootstrap, completed = bootstrap, copied = bootstrapCopied, clock = 100;

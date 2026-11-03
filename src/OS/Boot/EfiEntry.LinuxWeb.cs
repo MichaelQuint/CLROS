@@ -17,16 +17,21 @@ public static unsafe partial class EfiEntry
         {
             if (c == null || c->Phase != 3 || c->Published != 1 || c->State->NetworkPhase != 2 ||
                 !c->Threads.Current.IsValid || c->Process.ActiveThreads == 0 ||
-                c->WebStartup.IsService != Probes.EnableM16014Probe) return false;
+                c->WebStartup.IsService != Probes.EnableM16014Probe)
+                return false;
             Storage* state = c->State;
             // This PAL turns a failed realtime acquisition into Unix epoch.
             // Do not resume a declared realtime-dependent application on that
             // path, including expiry and checked-copy failure after admission.
             if (call.Number == 228 && unchecked((uint)call.Argument0) == 0 && result.Value != 0)
-            { LinuxText(state, "TEST_FAIL m16.019 realtime-unavailable\r\n"); return false; }
+            {
+                LinuxText(state, "TEST_FAIL m16.019 realtime-unavailable\r\n");
+                return false;
+            }
             var descriptors = state->LinuxDescriptors.Owner;
             if (descriptors.ViewCount != 2 || descriptors.Views[1].Inode != 257 ||
-                descriptors.Views[1].Bytes == 0 || descriptors.Views[1].Bytes > 65536) return false;
+                descriptors.Views[1].Bytes == 0 || descriptors.Views[1].Bytes > 65536)
+                return false;
             if ((c->WebFlags & 1) == 0)
             {
                 if (!LinuxText(state, Probes.EnableM16014Probe ? "TEST_START m16.014.startup\r\nM16_014_ENTER identity=" :
@@ -35,22 +40,32 @@ public static unsafe partial class EfiEntry
                     !LinuxText(state, " argc=") || !LinuxNumber(state, state->LinuxInitialStack.ArgumentCount) ||
                     !LinuxText(state, " envc=") || !LinuxNumber(state, state->LinuxInitialStack.EnvironmentCount) ||
                     !LinuxText(state, " configBytes=") || !LinuxNumber(state, descriptors.Views[1].Bytes) ||
-                    !LinuxText(state, "\r\n")) return false;
+                    !LinuxText(state, "\r\n"))
+                    return false;
                 c->WebFlags |= 1;
             }
             if (c->WebStartup.Failed)
-            { LinuxText(state, Probes.EnableM16014Probe ? "TEST_FAIL m16.014.startup startup-observation\r\n" : "TEST_FAIL m10.006 startup-observation\r\n"); return false; }
+            {
+                LinuxText(state, Probes.EnableM16014Probe ? "TEST_FAIL m16.014.startup startup-observation\r\n" : "TEST_FAIL m10.006 startup-observation\r\n");
+                return false;
+            }
 #if !M16_014_PROBE
             // The finite eight-writer exercise belongs to the original smoke
             // fixture. Service output still uses the shared charged log budget.
             bool quota = state->LinuxLogRecordLimit == LinuxAppLogBudget.QuotaRecordLimit;
             if (!(quota ? c->WebQuota.RecordCall(c->Threads.Current.Value, call, result) : c->WebLogs.RecordCall(c->Threads.Current.Value, call, result)))
-            { LinuxText(state, "TEST_FAIL m10.005 log-observation\r\n"); return false; }
+            {
+                LinuxText(state, "TEST_FAIL m10.005 log-observation\r\n");
+                return false;
+            }
             if ((quota ? c->WebQuota.Complete : c->WebLogs.Complete) && (c->WebFlags & 64) == 0)
             {
                 if ((c->WebFlags & 48) != 48 || c->Failed != 0 || c->Stopping != 0 ||
                     c->Process.Failed || state->LinuxSyscallFailed != 0 || state->LinuxSyscallFaults != 0)
-                { LinuxText(state, "TEST_FAIL m10.005 log-lifetime\r\n"); return false; }
+                {
+                    LinuxText(state, "TEST_FAIL m10.005 log-lifetime\r\n");
+                    return false;
+                }
                 if (quota)
                 {
                     if (!LinuxText(state, "M10_005_LOGS case=records64 copiedRecords=") || !LinuxNumber(state, c->WebQuota.CopiedRecords) ||
@@ -59,12 +74,14 @@ public static unsafe partial class EfiEntry
                         !LinuxText(state, " stderr=") || !LinuxNumber(state, c->WebQuota.StderrRecords) ||
                         !LinuxText(state, " deniedCalls=") || !LinuxNumber(state, c->WebQuota.DeniedCalls) ||
                         !LinuxText(state, " eioCalls=") || !LinuxNumber(state, c->WebQuota.EioCalls) ||
-                        !LinuxText(state, "\r\nCLROS_M10_005_READY\r\nTEST_PASS m10.005\r\n")) return false;
+                        !LinuxText(state, "\r\nCLROS_M10_005_READY\r\nTEST_PASS m10.005\r\n"))
+                        return false;
                 }
                 else if (!LinuxText(state, "M10_005_LOGS stdout=") || !LinuxNumber(state, c->WebLogs.StdoutRecords) ||
                     !LinuxText(state, " stderr=") || !LinuxNumber(state, c->WebLogs.StderrRecords) ||
                     !LinuxText(state, " writers=8 writev=") || !LinuxNumber(state, c->WebLogs.WritevRecords) ||
-                    !LinuxText(state, " invalidErrno=9\r\nCLROS_M10_005_READY\r\nTEST_PASS m10.005\r\n")) return false;
+                    !LinuxText(state, " invalidErrno=9\r\nCLROS_M10_005_READY\r\nTEST_PASS m10.005\r\n"))
+                    return false;
                 c->WebFlags |= 64;
             }
 #endif
@@ -85,7 +102,8 @@ public static unsafe partial class EfiEntry
                     !LinuxText(state, " backed=") || !LinuxNumber(state, state->LinuxMemory.BackedPages) ||
                     !LinuxText(state, " pool=") || !LinuxNumber(state, state->LinuxMemory.Memory.PoolPages) ||
                     !LinuxText(state, " reserved=") || !LinuxNumber(state, state->LinuxMemory.ReservedBytes) ||
-                    !LinuxText(state, "\r\n")) return false;
+                    !LinuxText(state, "\r\n"))
+                    return false;
 #if M16_014_PROBE
                 if (LinuxQuotaPolicy(state))
                 {
@@ -96,14 +114,16 @@ public static unsafe partial class EfiEntry
                         c->Selected == 0 || c->Selected > c->Capacity || c->Failed != 0 || c->Stopping != 0 ||
                         c->Process.Failed || c->ServiceShutdown != 0 || !c->Budget.IsContinuingService ||
                         state->LinuxSyscallFailed != 0 || state->LinuxSyscallFaults != 0 ||
-                        state->LinuxQuota is not (LinuxQuotaDisposition.None or LinuxQuotaDisposition.Pending)) return false;
+                        state->LinuxQuota is not (LinuxQuotaDisposition.None or LinuxQuotaDisposition.Pending))
+                        return false;
                     uint index = c->Selected - 1;
                     var running = c->Threads.Inspect(c->Key, 2, c->Threads.Current);
                     ulong ordinal = LinuxNativeCallOrdinal(c, index);
                     if (!running.Succeeded || running.State != OS.Kernel.Threading.KernelThreadTable.State.Running ||
                         c->Entered[index] != 1 || c->Gates[index].Status != LinuxSyscallGateStatus.Active || ordinal == 0 ||
                         c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity ||
-                        !LinuxMemoryServices.TryObserve(&state->LinuxMemory, out var topology)) return false;
+                        !LinuxMemoryServices.TryObserve(&state->LinuxMemory, out var topology))
+                        return false;
                     if (!LinuxText(state, "M16_016_TOPOLOGY identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
                         !LinuxText(state, " ordinal=") || !LinuxNumber(state, ordinal) ||
                         !LinuxText(state, " nr=") || !LinuxNumber(state, call.Number) ||
@@ -116,7 +136,8 @@ public static unsafe partial class EfiEntry
                         !LinuxText(state, " regionLimit=") || !LinuxNumber(state, topology.RegionCapacity) ||
                         !LinuxText(state, " tables=") || !LinuxNumber(state, topology.UsedTables) ||
                         !LinuxText(state, " tableLimit=") || !LinuxNumber(state, topology.TableCapacity) ||
-                        !LinuxText(state, "\r\n")) return false;
+                        !LinuxText(state, "\r\n"))
+                        return false;
                 }
 #endif
             }
@@ -127,19 +148,25 @@ public static unsafe partial class EfiEntry
                 if (!c->WebStartup.RecordBind(c->Threads.Current.Value,
                     result.Action == LinuxSyscallAction.Return && result.Value == 0 &&
                     call.Argument0 < LinuxDescriptorServices.MaximumDescriptors))
-                { LinuxText(state, Probes.EnableM16014Probe ? "TEST_FAIL m16.014.startup bind-observation\r\n" : "TEST_FAIL m10.006 bind-observation\r\n"); return false; }
+                {
+                    LinuxText(state, Probes.EnableM16014Probe ? "TEST_FAIL m16.014.startup bind-observation\r\n" : "TEST_FAIL m10.006 bind-observation\r\n");
+                    return false;
+                }
                 c->WebBoundFd = (uint)call.Argument0 + 1;
                 if (!LinuxText(state, Probes.EnableM16014Probe ? "M16_014_BIND identity=" : "M10_006_BIND identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
-                    !LinuxText(state, " fd=") || !LinuxNumber(state, call.Argument0) || !LinuxText(state, "\r\n")) return false;
+                    !LinuxText(state, " fd=") || !LinuxNumber(state, call.Argument0) || !LinuxText(state, "\r\n"))
+                    return false;
             }
-            if (result.Action != LinuxSyscallAction.Return || result.Value < 0) return true;
+            if (result.Action != LinuxSyscallAction.Return || result.Value < 0)
+                return true;
             if ((c->WebFlags & 2) == 0 && result.Value > 0 && call.Number is 0 or 17 or 19 &&
                 call.Argument0 < descriptors.DescriptorCount)
             {
                 uint fd = (uint)call.Argument0, slot = descriptors.Slots[fd].Description;
                 if (slot != 0 && slot <= descriptors.DescriptionCount)
                 {
-                    var file = descriptors.Descriptions[slot - 1]; var expected = descriptors.Views[1];
+                    var file = descriptors.Descriptions[slot - 1];
+                    var expected = descriptors.Views[1];
                     ulong count = (ulong)result.Value;
                     bool position = call.Number == 17 ? call.Argument3 == c->WebConfigBytes :
                         file.Position >= count && file.Position - count == c->WebConfigBytes;
@@ -152,7 +179,8 @@ public static unsafe partial class EfiEntry
                             c->WebFlags |= 2;
                             if (!LinuxText(state, Probes.EnableM16014Probe ? "M16_014_CONFIG fd=" : "M10_004_CONFIG fd=") || !LinuxNumber(state, fd) ||
                                 !LinuxText(state, " bytes=") || !LinuxNumber(state, c->WebConfigBytes) ||
-                                !LinuxText(state, " source=immutable-package copied=user\r\n")) return false;
+                                !LinuxText(state, " source=immutable-package copied=user\r\n"))
+                                return false;
                         }
                     }
                 }
@@ -161,7 +189,8 @@ public static unsafe partial class EfiEntry
             {
                 c->WebFlags |= 4;
                 if (!LinuxText(state, Probes.EnableM16014Probe ? "M16_014_LISTEN fd=" : "M10_004_LISTEN fd=") || !LinuxNumber(state, call.Argument0) ||
-                    !LinuxText(state, " address=0 port=8080 owner=live\r\n")) return false;
+                    !LinuxText(state, " address=0 port=8080 owner=live\r\n"))
+                    return false;
             }
             if (call.Number == 3 && result.Value == 0 && c->WebBoundFd != 0 && call.Argument0 + 1 == c->WebBoundFd)
             {
@@ -171,12 +200,17 @@ public static unsafe partial class EfiEntry
                     if (c->ServiceReady != 1 || c->ServiceShutdown != 0 ||
                         !LinuxText(state, "M16_014_LISTENER_CLOSE identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
                         !LinuxText(state, " fd=") || !LinuxNumber(state, call.Argument0) ||
-                        !LinuxText(state, " process=live cleanup=pending\r\n")) return false;
+                        !LinuxText(state, " process=live cleanup=pending\r\n"))
+                        return false;
                 }
 #else
-                { _ = LinuxText(state, "TEST_FAIL m10.004 listener_closed\r\n"); return false; }
+                {
+                    _ = LinuxText(state, "TEST_FAIL m10.004 listener_closed\r\n");
+                    return false;
+                }
 #endif
-                c->WebBoundFd = 0; c->WebFlags &= ~4U;
+                c->WebBoundFd = 0;
+                c->WebFlags &= ~4U;
             }
             return LinuxWebPublishLive(c);
         }
@@ -189,13 +223,16 @@ public static unsafe partial class EfiEntry
         {
             LinuxNativeControl* c = LinuxNativeOwner(state);
             if (c == null || c->Phase != 3 || c->Published != 1 || source == null || bytes == 0 || bytes > 8192 ||
-                c->WebStartup.IsService != Probes.EnableM16014Probe) return false;
+                c->WebStartup.IsService != Probes.EnableM16014Probe)
+                return false;
 #if !M16_014_PROBE
             bool quota = state->LinuxLogRecordLimit == LinuxAppLogBudget.QuotaRecordLimit;
-            if (!(quota ? c->WebQuota.Observe(channel, c->Threads.Current.Value, source, bytes) : c->WebLogs.Observe(channel, c->Threads.Current.Value, source, bytes))) return false;
+            if (!(quota ? c->WebQuota.Observe(channel, c->Threads.Current.Value, source, bytes) : c->WebLogs.Observe(channel, c->Threads.Current.Value, source, bytes)))
+                return false;
             if ((c->WebFlags & 32) == 0 && (quota ? c->WebQuota.StdoutRecords + c->WebQuota.StderrRecords : c->WebLogs.StdoutRecords + c->WebLogs.StderrRecords) != 0)
             {
-                if (!LinuxText(state, "TEST_START m10.005\r\n")) return false;
+                if (!LinuxText(state, "TEST_START m10.005\r\n"))
+                    return false;
                 c->WebFlags |= 32;
             }
 #endif
@@ -203,18 +240,21 @@ public static unsafe partial class EfiEntry
             {
                 bool wasComplete = c->WebStartup.StartupComplete;
                 if (c->WebStderrBytes > ulong.MaxValue - bytes ||
-                    !c->WebStartup.Observe(c->Threads.Current.Value, source, bytes)) return false;
+                    !c->WebStartup.Observe(c->Threads.Current.Value, source, bytes))
+                    return false;
                 c->WebStderrBytes += bytes;
                 if (!wasComplete && c->WebStartup.StartupComplete &&
                     (!LinuxText(state, Probes.EnableM16014Probe ? "M16_014_STARTUP writer=" : "M10_006_STARTUP writer=") || !LinuxNumber(state, c->WebStartup.WriterIdentity) ||
-                    !LinuxText(state, " stages=4\r\n"))) return false;
+                    !LinuxText(state, " stages=4\r\n")))
+                    return false;
 #if !M16_014_PROBE
                 return true;
 #endif
             }
             else
             {
-                if (channel != 1 || c->WebStdoutBytes > ulong.MaxValue - bytes) return false;
+                if (channel != 1 || c->WebStdoutBytes > ulong.MaxValue - bytes)
+                    return false;
                 c->WebStdoutBytes += bytes;
 #if M16_014_PROBE
                 return true;
@@ -229,10 +269,18 @@ public static unsafe partial class EfiEntry
 #endif
             for (uint i = 0; i < bytes && (c->WebFlags & 8) == 0; i++)
             {
-                byte value = source[i]; if (value == 13) continue;
-                if (value == started[(int)c->WebStartMatch]) c->WebStartMatch++;
-                else c->WebStartMatch = value == started[0] ? 1U : 0U;
-                if (c->WebStartMatch == started.Length) { c->WebFlags |= 8; c->WebStartMatch = 0; }
+                byte value = source[i];
+                if (value == 13)
+                    continue;
+                if (value == started[(int)c->WebStartMatch])
+                    c->WebStartMatch++;
+                else
+                    c->WebStartMatch = value == started[0] ? 1U : 0U;
+                if (c->WebStartMatch == started.Length)
+                {
+                    c->WebFlags |= 8;
+                    c->WebStartMatch = 0;
+                }
             }
             return LinuxWebPublishLive(c);
         }
@@ -249,7 +297,10 @@ public static unsafe partial class EfiEntry
             LinuxNativeControl* c = LinuxNativeOwner(state);
             if (c == null || c->Phase != 3 || c->Published != 1 || (c->WebFlags & 48) != 48 ||
                 !c->WebQuota.Deny(channel, c->Threads.Current.Value, bytes, state->LinuxLogBudget.ChargedRecords, state->LinuxLogBudget.ChargedBytes))
-            { _ = LinuxText(state, "TEST_FAIL m10.005 quota-observation\r\n"); return false; }
+            {
+                _ = LinuxText(state, "TEST_FAIL m10.005 quota-observation\r\n");
+                return false;
+            }
             return LinuxText(state, "M10_005_QUOTA_DENY identity=") && LinuxNumber(state, c->Threads.Current.Value) &&
                 LinuxText(state, " fd=") && LinuxNumber(state, channel) && LinuxText(state, " bytes=") && LinuxNumber(state, bytes) &&
                 LinuxText(state, " chargedRecords=") && LinuxNumber(state, state->LinuxLogBudget.ChargedRecords) &&
@@ -260,10 +311,12 @@ public static unsafe partial class EfiEntry
 
         private static bool LinuxWebPublishLive(LinuxNativeControl* c)
         {
-            if ((c->WebFlags & 16) != 0 || (c->WebFlags & 15) != 15) return true;
+            if ((c->WebFlags & 16) != 0 || (c->WebFlags & 15) != 15)
+                return true;
             if (c->Failed != 0 || c->Stopping != 0 || c->Process.Failed || c->Process.ActiveThreads == 0 ||
                 c->State->LinuxSyscallFailed != 0 || c->State->LinuxSyscallFaults != 0 ||
-                !c->WebStartup.StartupComplete || !c->WebStartup.SuccessfulBind) return false;
+                !c->WebStartup.StartupComplete || !c->WebStartup.SuccessfulBind)
+                return false;
             Storage* state = c->State;
             if (!LinuxText(state, Probes.EnableM16014Probe ? "M16_014_LIVE argc=" : "M10_004_LIVE argc=") || !LinuxNumber(state, state->LinuxInitialStack.ArgumentCount) ||
                 !LinuxText(state, " envc=") || !LinuxNumber(state, state->LinuxInitialStack.EnvironmentCount) ||
@@ -275,8 +328,10 @@ public static unsafe partial class EfiEntry
                 !LinuxText(state, " clock=") || !LinuxNumber(state, c->Threads.ObservedTicks) ||
                 !LinuxText(state, Probes.EnableM16014Probe ?
                     " owner=retained externalHttp=required\r\nCLROS_M16_014_LISTENING\r\nTEST_PASS m16.014.startup\r\n" :
-                    " owner=retained externalHttp=required\r\nCLROS_M10_004_READY\r\nTEST_PASS m10.004\r\nCLROS_M10_006_READY\r\nTEST_PASS m10.006\r\n")) return false;
-            c->WebFlags |= 16; return true;
+                    " owner=retained externalHttp=required\r\nCLROS_M10_004_READY\r\nTEST_PASS m10.004\r\nCLROS_M10_006_READY\r\nTEST_PASS m10.006\r\n"))
+                return false;
+            c->WebFlags |= 16;
+            return true;
         }
 
         // Entered only on the owned supervisor after a rejected setup or native
@@ -290,7 +345,9 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " current=") && LinuxNumber(state, c == null ? 0UL : c->Threads.Current.Value) &&
                 LinuxText(state, " handoff=") && LinuxNumber(state, c != null && c->Threads.HandoffPending ? 1UL : 0UL) &&
                 LinuxText(state, " cleanup=withheld\r\n");
-            while (true) { }
+            while (true)
+            {
+            }
         }
     }
 }

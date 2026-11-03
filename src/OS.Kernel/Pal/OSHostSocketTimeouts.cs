@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 public static class OSHostSocketTimeouts
 {
     public static OSHostTimeout Infinite => new OSHostTimeout(OSHostSocketConstants.TimeoutKindInfinite, flags: 0, ticks: 0, tickFrequency: 0);

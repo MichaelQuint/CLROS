@@ -21,12 +21,18 @@ internal static class HostResumeTests
             origin = entry!.Origin;
             HostCheck.True(!checkpoint.TryReuse("passed", "changed", out _));
             HostCheck.True(!checkpoint.TryReuse("passed", "fresh:identity", out _));
-            checkpoint.Finish("failed", "identity", result with { ExitCode = 1 });
+            checkpoint.Finish("failed", "identity", result with
+            {
+                ExitCode = 1
+            });
             checkpoint.Start("interrupted");
             HostCheck.True(!checkpoint.TryReuse("failed", "identity", out _));
             HostCheck.True(!checkpoint.TryReuse("interrupted", "identity", out _));
             bool locked = false;
-            try { using var second = new HostRunCheckpoint(root, directory, true); }
+            try
+            {
+                using var second = new HostRunCheckpoint(root, directory, true);
+            }
             catch (IOException) { locked = true; }
             HostCheck.True(locked, "simultaneous resume must refuse the active receipt");
         }
@@ -40,7 +46,10 @@ internal static class HostResumeTests
         using (var worker = File.Open(Path.Combine(directory, "active.worker.lock"), FileMode.OpenOrCreate, FileAccess.Read, FileShare.Read))
         {
             bool locked = false;
-            try { using var checkpoint = new HostRunCheckpoint(root, directory, true); }
+            try
+            {
+                using var checkpoint = new HostRunCheckpoint(root, directory, true);
+            }
             catch (IOException) { locked = true; }
             HostCheck.True(locked, "surviving worker must prevent resume");
         }
@@ -120,7 +129,10 @@ internal static class HostResumeTests
         var outputs = HostNativeResumePolicy.Outputs(HostToolProcess.FindRepositoryRoot(), owned, result).ToArray();
         HostCheck.Equal(12, outputs.Length); // Five exported files and one producer log per variant.
         HostCheck.True(outputs.All(path => path.Contains("12345", StringComparison.Ordinal)));
-        HostCheck.Equal(0, HostNativeResumePolicy.Outputs("unused", owned, result with { ExitCode = 1 }).Count());
+        HostCheck.Equal(0, HostNativeResumePolicy.Outputs("unused", owned, result with
+        {
+            ExitCode = 1
+        }).Count());
     }
 
     [HostTest("runner refuses an interrupted pass with changed post-fixture inputs")]
@@ -138,7 +150,12 @@ internal static class HostResumeTests
             File.WriteAllText(log, "TEST_START control\nTEST_PASS control\n");
             File.WriteAllText(source, "B");
             var result = new HostTestRunner.FixtureResult("changed", "Fast", 0, false, 1, log, 1, 1, 0, null);
-            if (!HostTestFingerprint.FilesMatch(files)) result = result with { ExitCode = 1, Error = "inputs_changed_during_fixture" };
+            if (!HostTestFingerprint.FilesMatch(files))
+                result = result with
+                {
+                    ExitCode = 1,
+                    Error = "inputs_changed_during_fixture"
+                };
             checkpoint.Finish("changed", "A", result);
             // No whole-run completion occurs before disposal/interruption.
         }
@@ -161,7 +178,11 @@ internal static class HostResumeTests
             string late = checkpoint.Start("late");
             File.WriteAllText(late, "TEST_START control\nTEST_PASS control\n");
             checkpoint.InvalidateRun();
-            checkpoint.Finish("late", "identity", result with { Id = "late", Log = late });
+            checkpoint.Finish("late", "identity", result with
+            {
+                Id = "late",
+                Log = late
+            });
             HostCheck.True(!checkpoint.TryReuse("before", "identity", out _) && !checkpoint.TryReuse("late", "identity", out _));
         }
         using var resumed = new HostRunCheckpoint(root, directory, true);
@@ -276,5 +297,7 @@ internal static class HostResumeTests
     private static string Scratch() => Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts", "host-resume-controls", Guid.NewGuid().ToString("N"));
     private static ProcessResult Run(params string[] args) => ProcessRunner.RunAsync(new("dotnet",
         [typeof(HostResumeTests).Assembly.Location, .. args], HostToolProcess.FindRepositoryRoot())
-        { Timeout = TimeSpan.FromSeconds(60) }).GetAwaiter().GetResult();
+    {
+        Timeout = TimeSpan.FromSeconds(60)
+    }).GetAwaiter().GetResult();
 }

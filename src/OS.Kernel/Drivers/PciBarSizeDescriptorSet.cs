@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciBarSizeDescriptorSet
 {
     public PciBarSizeDescriptorSet(PciBarSizeDescriptor bar0, PciBarSizeDescriptor bar1, PciBarSizeDescriptor bar2, PciBarSizeDescriptor bar3, PciBarSizeDescriptor bar4, PciBarSizeDescriptor bar5)
@@ -11,12 +12,30 @@ public readonly struct PciBarSizeDescriptorSet
         Bar5 = bar5;
     }
 
-    public PciBarSizeDescriptor Bar0 { get; }
-    public PciBarSizeDescriptor Bar1 { get; }
-    public PciBarSizeDescriptor Bar2 { get; }
-    public PciBarSizeDescriptor Bar3 { get; }
-    public PciBarSizeDescriptor Bar4 { get; }
-    public PciBarSizeDescriptor Bar5 { get; }
+    public PciBarSizeDescriptor Bar0
+    {
+        get;
+    }
+    public PciBarSizeDescriptor Bar1
+    {
+        get;
+    }
+    public PciBarSizeDescriptor Bar2
+    {
+        get;
+    }
+    public PciBarSizeDescriptor Bar3
+    {
+        get;
+    }
+    public PciBarSizeDescriptor Bar4
+    {
+        get;
+    }
+    public PciBarSizeDescriptor Bar5
+    {
+        get;
+    }
 
     public bool TryGet(byte index, out PciBarSizeDescriptor descriptor)
     {

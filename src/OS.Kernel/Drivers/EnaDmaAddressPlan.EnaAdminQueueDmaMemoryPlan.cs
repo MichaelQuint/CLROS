@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct EnaAdminQueueDmaMemoryPlan
 {
     internal EnaAdminQueueDmaMemoryPlan(EnaDmaPhysicalRegion contiguousRegion, EnaDmaPhysicalRegion adminSubmissionQueue, EnaDmaPhysicalRegion adminCompletionQueue, EnaAdminQueueLayoutPlan queueLayout)
@@ -9,8 +10,20 @@ public readonly struct EnaAdminQueueDmaMemoryPlan
         QueueLayout = queueLayout;
     }
 
-    public EnaDmaPhysicalRegion ContiguousRegion { get; }
-    public EnaDmaPhysicalRegion AdminSubmissionQueue { get; }
-    public EnaDmaPhysicalRegion AdminCompletionQueue { get; }
-    public EnaAdminQueueLayoutPlan QueueLayout { get; }
+    public EnaDmaPhysicalRegion ContiguousRegion
+    {
+        get;
+    }
+    public EnaDmaPhysicalRegion AdminSubmissionQueue
+    {
+        get;
+    }
+    public EnaDmaPhysicalRegion AdminCompletionQueue
+    {
+        get;
+    }
+    public EnaAdminQueueLayoutPlan QueueLayout
+    {
+        get;
+    }
 }

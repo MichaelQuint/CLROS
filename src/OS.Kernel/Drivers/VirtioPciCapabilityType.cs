@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public enum VirtioPciCapabilityType : byte
 {
     CommonConfiguration = 1,

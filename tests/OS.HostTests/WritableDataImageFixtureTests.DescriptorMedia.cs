@@ -26,7 +26,18 @@ internal static unsafe partial class WritableDataImageFixtureTests
         internal DescriptorMedia(MutationMedia owner, ulong epoch = 702)
         {
             media = owner;
-            HostCheck.True(W.Start(State, new() { Engine = media.State, Epoch = epoch, Descriptors = slots, Descriptions = descriptions, DescriptorCount = 32, DescriptionCount = 32, Input = input, InputBytes = W.IoBytes, ExclusiveOwnerValidated = true }));
+            HostCheck.True(W.Start(State, new()
+            {
+                Engine = media.State,
+                Epoch = epoch,
+                Descriptors = slots,
+                Descriptions = descriptions,
+                DescriptorCount = 32,
+                DescriptionCount = 32,
+                Input = input,
+                InputBytes = W.IoBytes,
+                ExclusiveOwnerValidated = true
+            }));
         }
 
         private W.Result Wait(W.Result begun)

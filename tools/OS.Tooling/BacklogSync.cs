@@ -184,7 +184,7 @@ public static partial class BacklogSync
             return remote.Milestones.TryGetValue(title, out var value) ? Number(value, "id") : 0;
         }
 
-        JsonArray LabelIds(string[] names) => new(names.Select(name => (JsonNode? )JsonValue.Create(remote.Labels.TryGetValue(name, out var label) ? Number(label, "id") : throw new InvalidDataException("Required remote label '" + name + "' is unavailable."))).ToArray());
+        JsonArray LabelIds(string[] names) => new(names.Select(name => (JsonNode?)JsonValue.Create(remote.Labels.TryGetValue(name, out var label) ? Number(label, "id") : throw new InvalidDataException("Required remote label '" + name + "' is unavailable."))).ToArray());
         foreach (var issue in manifest.Issues)
         {
             string key = Text(issue, "key");
@@ -282,7 +282,7 @@ public static partial class BacklogSync
                 {
                     // Label replacement has no version precondition on this server. Add only
                     // missing labels and remove individual obsolete managed labels instead.
-                    for (int step = 0;; step++)
+                    for (int step = 0; ; step++)
                     {
                         live = await ReadIssueAsync(api, number, key, cancellation);
                         remote.Issues[key] = live;
@@ -301,7 +301,7 @@ public static partial class BacklogSync
                             // The label endpoint has no version precondition. An open
                             // owner's two-step handoff can change after this GET;
                             // deleting either sticky label could erase its sole owner.
-                            if (Text(live, "state") == "open" && Text(obsolete, "name")is "agent:claimed" or "agent:review")
+                            if (Text(live, "state") == "open" && Text(obsolete, "name") is "agent:claimed" or "agent:review")
                                 throw new InvalidDataException("Open issue ownership labels conflict for '" + key + "'; preserve ownership and resolve the handoff explicitly.");
                             await api("DELETE", RepoPath + "/issues/" + number + "/labels/" + Number(obsolete, "id"), null, cancellation);
                         }
@@ -521,9 +521,9 @@ public static partial class BacklogSync
         }
 
         )
-            if (Environment.GetEnvironmentVariable(name)is string path)
+            if (Environment.GetEnvironmentVariable(name) is string path)
                 candidates.Add(Path.Combine(path, "tea", "config.yml"));
-        if (Environment.GetEnvironmentVariable("USERPROFILE")is string profile)
+        if (Environment.GetEnvironmentVariable("USERPROFILE") is string profile)
             candidates.AddRange(new[] { ".config/tea/config.yml", ".tea/config.yml", ".gitea/tea.yml" }.Select(x => Path.Combine(profile, x)));
         foreach (string path in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
         {
@@ -551,7 +551,7 @@ public static partial class BacklogSync
             }
 
             foreach (var item in records)
-                if (item.GetValueOrDefault("name") == "local-gitea" && item.GetValueOrDefault("url")?.TrimEnd('/') == BacklogContracts.BaseUrl && item.GetValueOrDefault("token")is string token && token.Length != 0)
+                if (item.GetValueOrDefault("name") == "local-gitea" && item.GetValueOrDefault("url")?.TrimEnd('/') == BacklogContracts.BaseUrl && item.GetValueOrDefault("token") is string token && token.Length != 0)
                     return token;
         }
 

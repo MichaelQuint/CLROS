@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum ExistingIn8Out8StubPageStatus : byte
 {
     Uninitialized = 0,

@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct PciMsixRegionPlan
 {
     internal PciMsixRegionPlan(byte barIndex, uint offset, ulong length)
@@ -11,8 +12,20 @@ public readonly struct PciMsixRegionPlan
         EndOffsetExclusive = (ulong)offset + length;
     }
 
-    public byte BarIndex { get; }
-    public uint Offset { get; }
-    public ulong Length { get; }
-    public ulong EndOffsetExclusive { get; }
+    public byte BarIndex
+    {
+        get;
+    }
+    public uint Offset
+    {
+        get;
+    }
+    public ulong Length
+    {
+        get;
+    }
+    public ulong EndOffsetExclusive
+    {
+        get;
+    }
 }

@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public static class HttpClientGetTransactionDiagnosticFormatter
 {
     public static HttpClientGetTransactionDiagnosticFormatResult FormatResult(in HttpClientGetTransactionResult result, int requestBytesWritten, Span<byte> destination)

@@ -4,6 +4,7 @@ using OS.Std.Hash;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     public static void AssertM06FatReadRecords(IReadOnlyList<string> lines)

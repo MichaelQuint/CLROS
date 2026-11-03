@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Manifest;
+
 public enum NativeAppLaunchStatus
 {
     Success = 0,

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class GuardedISTStacksDoubleFaultPageFaultNMI
 {
     public const ulong PageSize = 4096;

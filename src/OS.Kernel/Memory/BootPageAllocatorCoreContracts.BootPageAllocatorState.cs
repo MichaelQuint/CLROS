@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public readonly struct BootPageAllocatorState
 {
     public const ulong StructureSize = 56;
@@ -14,12 +15,36 @@ public readonly struct BootPageAllocatorState
         AllocatedByteCount = allocatedByteCount;
     }
 
-    public bool IsInitialized { get; }
-    public ulong PageSize { get; }
-    public int HeadNodeIndex { get; }
-    public int FreeNodeCount { get; }
-    public ulong FreePageCount { get; }
-    public ulong FreeByteCount { get; }
-    public ulong AllocatedPageCount { get; }
-    public ulong AllocatedByteCount { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public ulong PageSize
+    {
+        get;
+    }
+    public int HeadNodeIndex
+    {
+        get;
+    }
+    public int FreeNodeCount
+    {
+        get;
+    }
+    public ulong FreePageCount
+    {
+        get;
+    }
+    public ulong FreeByteCount
+    {
+        get;
+    }
+    public ulong AllocatedPageCount
+    {
+        get;
+    }
+    public ulong AllocatedByteCount
+    {
+        get;
+    }
 }

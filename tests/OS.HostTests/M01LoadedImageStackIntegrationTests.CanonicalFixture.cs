@@ -58,21 +58,57 @@ internal static unsafe partial class M01LoadedImageStackIntegrationTests
             }
         }
 
-        public byte* CodePage { get; private set; }
-        public BootMemoryRegionRecord* Records { get; private set; }
-        public BootReservedRange* Ledger { get; private set; }
-        public M01LoadedImageStackStaticState* StaticState { get; private set; }
-        public M01LoadedImageStackEvidence* EvidenceScratch { get; private set; }
+        public byte* CodePage
+        {
+            get; private set;
+        }
+        public BootMemoryRegionRecord* Records
+        {
+            get; private set;
+        }
+        public BootReservedRange* Ledger
+        {
+            get; private set;
+        }
+        public M01LoadedImageStackStaticState* StaticState
+        {
+            get; private set;
+        }
+        public M01LoadedImageStackEvidence* EvidenceScratch
+        {
+            get; private set;
+        }
         public ulong ImageBase => (ulong)_imageMemory;
         public ulong AlternateOwnedMapAddress => (ulong)(_backingMemory + AlternateOwnedMapOffset);
-        public ulong CodePhysicalStart { get; private set; }
-        public ulong DataPhysicalStart { get; private set; }
-        public ulong DataVirtualStart { get; private set; }
-        public ulong LedgerCount { get; private set; }
+        public ulong CodePhysicalStart
+        {
+            get; private set;
+        }
+        public ulong DataPhysicalStart
+        {
+            get; private set;
+        }
+        public ulong DataVirtualStart
+        {
+            get; private set;
+        }
+        public ulong LedgerCount
+        {
+            get; private set;
+        }
         public ulong LedgerCapacity => LedgerSlotCapacity;
-        public EfiLoadedImageRangeCapturePlan LoadedImage { get; private set; }
-        public VirtualAddress Continuation { get; private set; }
-        public FirmwareMemoryMapRecord RefreshedMap { get; set; }
+        public EfiLoadedImageRangeCapturePlan LoadedImage
+        {
+            get; private set;
+        }
+        public VirtualAddress Continuation
+        {
+            get; private set;
+        }
+        public FirmwareMemoryMapRecord RefreshedMap
+        {
+            get; set;
+        }
 
         public void ResetCanonical()
         {
@@ -295,7 +331,7 @@ internal static unsafe partial class M01LoadedImageStackIntegrationTests
 
         public BootMemoryRegionRecord[] CopyAllocationRecords()
         {
-            return[Records[0], Records[1]];
+            return [Records[0], Records[1]];
         }
 
         public BootReservedRange[] CopyLedger()

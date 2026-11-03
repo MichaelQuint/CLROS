@@ -3,6 +3,7 @@ using OS.Kernel.Runtime;
 
 #endif
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct CheckedPortIoFunctionPointerBindingRequest
 {
     private CheckedPortIoFunctionPointerBindingRequest(bool isInitialized, bool sourcePlanSucceeded, ushort configuredBasePort, nuint payloadBaseAddress, nuint payloadEndAddress, nuint bytesMaterialized, nuint out8StubOffset, nuint in8StubOffset, nuint out8StubAddress, nuint in8StubAddress, int out8StubByteLength, int in8StubByteLength, int out8BytesCopied, int in8BytesCopied)
@@ -23,20 +24,62 @@ public readonly struct CheckedPortIoFunctionPointerBindingRequest
         In8BytesCopied = in8BytesCopied;
     }
 
-    public bool IsInitialized { get; }
-    public bool SourcePlanSucceeded { get; }
-    public ushort ConfiguredBasePort { get; }
-    public nuint PayloadBaseAddress { get; }
-    public nuint PayloadEndAddress { get; }
-    public nuint BytesMaterialized { get; }
-    public nuint Out8StubOffset { get; }
-    public nuint In8StubOffset { get; }
-    public nuint Out8StubAddress { get; }
-    public nuint In8StubAddress { get; }
-    public int Out8StubByteLength { get; }
-    public int In8StubByteLength { get; }
-    public int Out8BytesCopied { get; }
-    public int In8BytesCopied { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public bool SourcePlanSucceeded
+    {
+        get;
+    }
+    public ushort ConfiguredBasePort
+    {
+        get;
+    }
+    public nuint PayloadBaseAddress
+    {
+        get;
+    }
+    public nuint PayloadEndAddress
+    {
+        get;
+    }
+    public nuint BytesMaterialized
+    {
+        get;
+    }
+    public nuint Out8StubOffset
+    {
+        get;
+    }
+    public nuint In8StubOffset
+    {
+        get;
+    }
+    public nuint Out8StubAddress
+    {
+        get;
+    }
+    public nuint In8StubAddress
+    {
+        get;
+    }
+    public int Out8StubByteLength
+    {
+        get;
+    }
+    public int In8StubByteLength
+    {
+        get;
+    }
+    public int Out8BytesCopied
+    {
+        get;
+    }
+    public int In8BytesCopied
+    {
+        get;
+    }
 
     public static CheckedPortIoFunctionPointerBindingRequest Create(bool sourcePlanSucceeded, ushort configuredBasePort, nuint payloadBaseAddress, nuint payloadEndAddress, nuint bytesMaterialized, nuint out8StubOffset, nuint in8StubOffset, nuint out8StubAddress, nuint in8StubAddress, int out8StubByteLength, int in8StubByteLength, int out8BytesCopied, int in8BytesCopied)
     {

@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct UefiMemoryMapCaptureResult
 {
     private UefiMemoryMapCaptureResult(bool succeeded, UefiMemoryMapCaptureStatus status, UefiMemoryMapCopyPlanStatus copyPlanStatus, FirmwareMemoryMapRecord sourceRecord, FirmwareMemoryMapRecord ownedRecord, UefiMemoryMapCopyPlan copyPlan, ulong firmwareStatus, ulong requiredBufferSize, ulong allocationSize)
@@ -14,15 +15,42 @@ public readonly struct UefiMemoryMapCaptureResult
         AllocationSize = allocationSize;
     }
 
-    public bool Succeeded { get; }
-    public UefiMemoryMapCaptureStatus Status { get; }
-    public UefiMemoryMapCopyPlanStatus CopyPlanStatus { get; }
-    public FirmwareMemoryMapRecord SourceRecord { get; }
-    public FirmwareMemoryMapRecord OwnedRecord { get; }
-    public UefiMemoryMapCopyPlan CopyPlan { get; }
-    public ulong FirmwareStatus { get; }
-    public ulong RequiredBufferSize { get; }
-    public ulong AllocationSize { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public UefiMemoryMapCaptureStatus Status
+    {
+        get;
+    }
+    public UefiMemoryMapCopyPlanStatus CopyPlanStatus
+    {
+        get;
+    }
+    public FirmwareMemoryMapRecord SourceRecord
+    {
+        get;
+    }
+    public FirmwareMemoryMapRecord OwnedRecord
+    {
+        get;
+    }
+    public UefiMemoryMapCopyPlan CopyPlan
+    {
+        get;
+    }
+    public ulong FirmwareStatus
+    {
+        get;
+    }
+    public ulong RequiredBufferSize
+    {
+        get;
+    }
+    public ulong AllocationSize
+    {
+        get;
+    }
 
     public static UefiMemoryMapCaptureResult Success(FirmwareMemoryMapRecord sourceRecord, FirmwareMemoryMapRecord ownedRecord, UefiMemoryMapCopyPlan copyPlan, ulong allocationSize)
     {

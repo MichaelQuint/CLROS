@@ -254,7 +254,7 @@ internal static unsafe partial class ConsoleFilesystemTimerRNGConfigurationTable
         changed.Context = (void*)1;
         Need(Core.Bind(ref f.State->Authority, &f.State->Arena, f.References, changed) == FirmwareAdapterStatus.InvalidAuthority, "backend context must remain in admitted owner extent");
         changed = f.Backends;
-        changed.Timer = (delegate* unmanaged<void*, ulong*, ulong> )f.Arena;
+        changed.Timer = (delegate* unmanaged<void*, ulong*, ulong>)f.Arena;
         Need(Core.Bind(ref f.State->Authority, &f.State->Arena, f.References, changed) == FirmwareAdapterStatus.InvalidAuthority, "arena data cannot be a callback");
         Need(new ReadOnlySpan<byte>(&f.State->Authority, sizeof(FirmwareAdapterAuthority)).IndexOfAnyExcept((byte)0) < 0, "failed bindings leave authority empty");
         f.Bind();

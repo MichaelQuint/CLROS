@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpReceiveWindow
 {
     public enum Status : byte

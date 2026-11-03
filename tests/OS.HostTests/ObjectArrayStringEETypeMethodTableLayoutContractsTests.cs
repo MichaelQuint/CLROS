@@ -105,12 +105,18 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
             Require(prefix.Flags == expectedFlags[i] && prefix.BaseSize == (i == 4 ? 22U : 24U), "literal flag variant");
             NativeAotLayoutResult result = Layout.Evaluate(Profile, prefix, 0, 24);
             Require(result.Status == expectedStatuses[i], "literal flag status");
-            if (i == 0) CheckResult(result, NativeAotLayoutShape.FixedObject, 0, false, -1, 8, 24, 24);
-            if (i == 1) CheckResult(result, NativeAotLayoutShape.FixedObject, 0, true, -1, 8, 24, 24);
-            if (i == 2) CheckResult(result, NativeAotLayoutShape.SzArray, 3, false, 8, 16, 24, 24);
-            if (i == 3) CheckResult(result, NativeAotLayoutShape.SzArray, 8, true, 8, 16, 24, 24);
-            if (i == 4) CheckResult(result, NativeAotLayoutShape.String, 2, false, 8, 12, 22, 24);
-            if (i >= 5) CheckFailure(result, expectedStatuses[i]);
+            if (i == 0)
+                CheckResult(result, NativeAotLayoutShape.FixedObject, 0, false, -1, 8, 24, 24);
+            if (i == 1)
+                CheckResult(result, NativeAotLayoutShape.FixedObject, 0, true, -1, 8, 24, 24);
+            if (i == 2)
+                CheckResult(result, NativeAotLayoutShape.SzArray, 3, false, 8, 16, 24, 24);
+            if (i == 3)
+                CheckResult(result, NativeAotLayoutShape.SzArray, 8, true, 8, 16, 24, 24);
+            if (i == 4)
+                CheckResult(result, NativeAotLayoutShape.String, 2, false, 8, 12, 22, 24);
+            if (i >= 5)
+                CheckFailure(result, expectedStatuses[i]);
         }
 
         byte[] text = [0, 0, 0, 0, 0, 0, 0, 0, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11,
@@ -226,8 +232,10 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
             else
                 CheckFailure(fixedResult, (low & 0xE800) != 0 ? NativeAotLayoutStatus.InvalidFlags : NativeAotLayoutStatus.UnsupportedTypeFeatures);
             NativeAotLayoutResult arrayResult = Evaluate(0xE0020000 | low, 24, 0);
-            if (low == 0) CheckFailure(arrayResult, NativeAotLayoutStatus.InvalidComponentSize);
-            else CheckResult(arrayResult, NativeAotLayoutShape.SzArray, (ushort)low, false, 8, 16, 24, 24);
+            if (low == 0)
+                CheckFailure(arrayResult, NativeAotLayoutStatus.InvalidComponentSize);
+            else
+                CheckResult(arrayResult, NativeAotLayoutShape.SzArray, (ushort)low, false, 8, 16, 24, 24);
         }
 
         // Precedence uses single-cause coverage above, then these multi-error cases.
@@ -251,9 +259,11 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
         Require(!RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotMethodTablePrefix>() &&
             !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotLayoutResult>(), "reference-free PODs");
         bool passed = true;
-        for (int i = 0; i < 10000; i++) passed &= AllocationIteration(i);
+        for (int i = 0; i < 10000; i++)
+            passed &= AllocationIteration(i);
         long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < 10000; i++) passed &= AllocationIteration(i);
+        for (int i = 0; i < 10000; i++)
+            passed &= AllocationIteration(i);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Require(passed && allocated == 0, "zero allocated bytes across 40000 warmed evaluations");
     }
@@ -364,8 +374,11 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
             """, new UTF8Encoding(false));
         ProcessStartInfo start = new("dotnet")
         {
-            WorkingDirectory = directory, UseShellExecute = false, CreateNoWindow = true,
-            RedirectStandardOutput = true, RedirectStandardError = true
+            WorkingDirectory = directory,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
         foreach (string arg in new[] { "build", "Compile.csproj", "--nologo", "-m:1", "-c", "Release" })
             start.ArgumentList.Add(arg);
@@ -373,7 +386,11 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
         Task<string> stdout = process.StandardOutput.ReadToEndAsync();
         Task<string> stderr = process.StandardError.ReadToEndAsync();
         bool exited = process.WaitForExit(90000);
-        if (!exited) { process.Kill(entireProcessTree: true); process.WaitForExit(); }
+        if (!exited)
+        {
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit();
+        }
         Task.WaitAll(stdout, stderr);
         File.WriteAllText(Path.Combine(directory, "build.stdout.log"), stdout.Result);
         File.WriteAllText(Path.Combine(directory, "build.stderr.log"), stderr.Result);
@@ -393,7 +410,8 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
         DirectoryInfo? current = new(AppContext.BaseDirectory);
         while (current is not null)
         {
-            if (File.Exists(Path.Combine(current.FullName, "CLROS.slnx"))) return current.FullName;
+            if (File.Exists(Path.Combine(current.FullName, "CLROS.slnx")))
+                return current.FullName;
             current = current.Parent;
         }
         throw new InvalidOperationException("CLROS root not found");
@@ -401,6 +419,7 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
 
     private static void Require(bool condition, string reason)
     {
-        if (!condition) throw new InvalidOperationException(reason);
+        if (!condition)
+            throw new InvalidOperationException(reason);
     }
 }

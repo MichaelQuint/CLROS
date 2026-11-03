@@ -2,6 +2,7 @@ using OS.Std;
 using OS.Std.Memory;
 
 namespace OS.Std.Text;
+
 public enum AsciiTextBuilderStatus
 {
     Success = 0,

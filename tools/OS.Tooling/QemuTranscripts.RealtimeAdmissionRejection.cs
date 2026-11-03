@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Observed controlled pre-entry UTC refusal and original cleanup

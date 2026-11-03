@@ -82,7 +82,7 @@ public static class EfiSourceAdmission
             return active;
         string code = Regex.Replace(active.ActiveText, @"/\*.*?\*/", "", Options | RegexOptions.Singleline);
         code = Regex.Replace(code, @"//.*$", "", Options | RegexOptions.Multiline);
-        foreach (var(reason, pattern)in ForbiddenPatterns)
+        foreach (var (reason, pattern) in ForbiddenPatterns)
             if (Match(code, pattern))
                 return Fail(sourceName, "forbidden_active_source", reason);
         foreach (Match constant in Regex.Matches(code, @"\b[A-Za-z_][A-Za-z0-9_.<>]*\s*\.\s*(?:MaxValue|MinValue|Empty)\b", Options))

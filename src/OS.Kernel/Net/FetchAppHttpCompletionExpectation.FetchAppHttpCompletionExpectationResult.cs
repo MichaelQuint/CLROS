@@ -3,6 +3,7 @@ using OS.Std.Memory;
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public readonly struct FetchAppHttpCompletionExpectationResult
 {
     private const uint InitializedFlag = 1;
@@ -18,11 +19,26 @@ public readonly struct FetchAppHttpCompletionExpectationResult
         Flags = flags;
     }
 
-    public FetchAppHttpCompletionExpectationStatus Status { get; }
-    public ushort ExpectedHttpStatusCode { get; }
-    public NativeManifestField MarkerField { get; }
-    public int ExpectedMarkerLength { get; }
-    public uint Flags { get; }
+    public FetchAppHttpCompletionExpectationStatus Status
+    {
+        get;
+    }
+    public ushort ExpectedHttpStatusCode
+    {
+        get;
+    }
+    public NativeManifestField MarkerField
+    {
+        get;
+    }
+    public int ExpectedMarkerLength
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool UsesDefaultMarker => (Flags & UsesDefaultMarkerFlag) != 0;
     public bool HasConfiguredStatus => (Flags & StatusConfiguredFlag) != 0;

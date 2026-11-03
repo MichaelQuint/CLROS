@@ -148,7 +148,7 @@ internal static partial class BootPageAllocatorFreeCoalescingTests
     private static unsafe bool TestResultEvidence()
     {
         BootPageFreeListNode[] nodes = [Node(31, 41, 0x101000, 5, -1), default, RawNode(91, 92, 3, 4, 5, 6, 7)];
-        BootReservedRange[] reservations = [Reservation(BootReservationKind.LoadedImage, 0x800000, 2), Reservation(BootReservationKind.BootStack, 0x900000, 1), default ];
+        BootReservedRange[] reservations = [Reservation(BootReservationKind.LoadedImage, 0x800000, 2), Reservation(BootReservationKind.BootStack, 0x900000, 1), default];
         BootPageAllocatorState before = State(0, 1, 5, 7);
         fixed (BootPageFreeListNode* nodePointer = nodes)
         fixed (BootReservedRange* reservationPointer = reservations)
@@ -191,7 +191,7 @@ internal static partial class BootPageAllocatorFreeCoalescingTests
 
     private static unsafe bool TestDefaultFailedAndNonRestorable()
     {
-        BootPageFreeListNode[] nodes = [Node(1, 2, 0x200000, 2, -1), default ];
+        BootPageFreeListNode[] nodes = [Node(1, 2, 0x200000, 2, -1), default];
         BootPageAllocatorState state = State(0, 1, 2, 1);
         fixed (BootPageFreeListNode* pointer = nodes)
         {
@@ -223,7 +223,7 @@ internal static partial class BootPageAllocatorFreeCoalescingTests
 
     private static unsafe bool TestAlteredAndForeignReceipts()
     {
-        BootPageFreeListNode[] nodes = [Node(10, 20, 0x100000, 4, -1), default ];
+        BootPageFreeListNode[] nodes = [Node(10, 20, 0x100000, 4, -1), default];
         BootPageAllocatorState before = State(0, 1, 4, 0);
         fixed (BootPageFreeListNode* pointer = nodes)
         {
@@ -242,7 +242,7 @@ internal static partial class BootPageAllocatorFreeCoalescingTests
                 }
             }
 
-            BootPageFreeListNode[] foreignNodes = [Node(30, 40, 0x500000, 4, -1), default ];
+            BootPageFreeListNode[] foreignNodes = [Node(30, 40, 0x500000, 4, -1), default];
             fixed (BootPageFreeListNode* foreignPointer = foreignNodes)
             {
                 BootPageAllocatorOnePageResult foreign = Allocate(before, foreignPointer, 1, 2, null, 0, 0, PageSize);
@@ -330,7 +330,7 @@ internal static partial class BootPageAllocatorFreeCoalescingTests
             }
         }
 
-        BootPageFreeListNode[] activeNodes = [MutateTailPadding(Node(60, 70, 0x200000, 3, -1), 0x11223344), default ];
+        BootPageFreeListNode[] activeNodes = [MutateTailPadding(Node(60, 70, 0x200000, 3, -1), 0x11223344), default];
         byte[] activeBytes = StructArrayBytes(activeNodes);
         BootPageAllocatorState activeState = State(0, 1, 3, 0);
         fixed (BootPageFreeListNode* pointer = activeNodes)
@@ -348,7 +348,7 @@ internal static partial class BootPageAllocatorFreeCoalescingTests
 
     private static unsafe bool TestOverlapAndReservationConflicts()
     {
-        BootPageFreeListNode[] nodes = [Node(10, 20, 0x100000, 4, -1), default ];
+        BootPageFreeListNode[] nodes = [Node(10, 20, 0x100000, 4, -1), default];
         BootPageAllocatorState before = State(0, 1, 4, 0);
         fixed (BootPageFreeListNode* pointer = nodes)
         {
@@ -388,7 +388,7 @@ internal static partial class BootPageAllocatorFreeCoalescingTests
 
     private static unsafe bool TestCorruptStatesAndChains()
     {
-        BootPageFreeListNode[] nodes = [Node(10, 20, 0x100000, 3, 1), Node(11, 21, 0x300000, 2, -1), default ];
+        BootPageFreeListNode[] nodes = [Node(10, 20, 0x100000, 3, 1), Node(11, 21, 0x300000, 2, -1), default];
         BootPageAllocatorState before = State(0, 2, 5, 0);
         fixed (BootPageFreeListNode* pointer = nodes)
         {
@@ -1403,7 +1403,7 @@ internal static partial class BootPageAllocatorFreeCoalescingTests
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         var source = HostSourceCatalog.Project("tests/OS.HostTests/OS.HostTests.csproj");
         string testSource = HostSourceText.Documents(source, nameof(BootPageAllocatorFreeCoalescingTests));
-        string productionSource = HostSourceText.Documents(HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), [..FreeOwners, "OS.Kernel.Memory.BootPageAllocatorMutationResult"]);
+        string productionSource = HostSourceText.Documents(HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), [.. FreeOwners, "OS.Kernel.Memory.BootPageAllocatorMutationResult"]);
         var familyPaths = HostSourceText.DocumentSources(source, nameof(BootPageAllocatorFreeCoalescingTests)).Select(document => document.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
         string canonicalBootDocPath = Path.GetFullPath(Path.Combine(repositoryRoot, "docs", "boot.md"));
         string canonicalArchitectureDocPath = Path.GetFullPath(Path.Combine(repositoryRoot, "docs", "architecture.md"));

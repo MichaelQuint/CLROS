@@ -106,7 +106,7 @@ public static unsafe partial class CompilerClassConstructorExecution
             status = Validate(storage, capacity, out state);
             if (status != CompilerClassConstructorStatus.Success)
                 return status;
-            ((delegate*<void> )targets[i].Target)();
+            ((delegate*<void>)targets[i].Target)();
             status = Validate(storage, capacity, out state);
             if (status != CompilerClassConstructorStatus.Success)
                 return status;
@@ -132,7 +132,7 @@ public static unsafe partial class CompilerClassConstructorExecution
         CompilerClassConstructorStatus status = BeginLazy(storage, capacity, contextAddress, out var invocation);
         if (status != CompilerClassConstructorStatus.Success || !invocation.RequiresInvocation)
             return status;
-        ((delegate*<void> )invocation.Target)();
+        ((delegate*<void>)invocation.Target)();
         return FinishLazy(storage, capacity, invocation, returnedNormally: true);
     }
 

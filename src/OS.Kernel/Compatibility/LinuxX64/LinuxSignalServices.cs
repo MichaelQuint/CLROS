@@ -44,7 +44,7 @@ public static unsafe partial class LinuxSignalServices
         return true;
     }
 
-    internal static bool Audit(State* s) => Buffer((ulong)s, (uint)sizeof(State)) && s->Initialized == 1 && s->Self == (ulong)s && s->Key != 0 && s->Capacity is> 0 and <= MaximumThreads && s->User.Context != null && s->User.PageAccess != null && s->User.CopyFromUser != null && s->CopyToUser != null;
+    internal static bool Audit(State* s) => Buffer((ulong)s, (uint)sizeof(State)) && s->Initialized == 1 && s->Self == (ulong)s && s->Key != 0 && s->Capacity is > 0 and <= MaximumThreads && s->User.Context != null && s->User.PageAccess != null && s->User.CopyFromUser != null && s->CopyToUser != null;
     internal static bool Attach(State* s, ulong process, uint capacity, LinuxSyscallAccess user, delegate* unmanaged<void*, ulong, byte*, uint, byte> copyToUser)
     {
         if (!Audit(s) || process == 0 || s->Process != 0 || capacity != s->Capacity || !Empty(s) || s->User.Context != user.Context || s->User.UserInterrupts != user.UserInterrupts || (ulong)s->User.PageAccess != (ulong)user.PageAccess || (ulong)s->User.CopyFromUser != (ulong)user.CopyFromUser || (ulong)s->CopyToUser != (ulong)copyToUser)

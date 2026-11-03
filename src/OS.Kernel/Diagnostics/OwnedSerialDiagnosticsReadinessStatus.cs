@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public enum OwnedSerialDiagnosticsReadinessStatus
 {
     Success = 0,

@@ -36,13 +36,19 @@ internal static unsafe class DMASafeRequestStatusDescriptorAvailableUsedRingTest
         HostCheck.Equal(0x200000UL, layout.Range.PhysicalAddress);
         HostCheck.Equal(0x123400000000UL, layout.Range.DeviceAddress);
         HostCheck.Equal((ushort)8, layout.Rings.QueueSize);
-        HostCheck.Equal(0U, layout.Rings.DescriptorTable.Offset); HostCheck.Equal(128U, layout.Rings.DescriptorTable.Length);
-        HostCheck.Equal(128U, layout.Rings.AvailableRing.Offset); HostCheck.Equal(20U, layout.Rings.AvailableRing.Length);
-        HostCheck.Equal(148U, layout.Rings.UsedRing.Offset); HostCheck.Equal(68U, layout.Rings.UsedRing.Length);
+        HostCheck.Equal(0U, layout.Rings.DescriptorTable.Offset);
+        HostCheck.Equal(128U, layout.Rings.DescriptorTable.Length);
+        HostCheck.Equal(128U, layout.Rings.AvailableRing.Offset);
+        HostCheck.Equal(20U, layout.Rings.AvailableRing.Length);
+        HostCheck.Equal(148U, layout.Rings.UsedRing.Offset);
+        HostCheck.Equal(68U, layout.Rings.UsedRing.Length);
         HostCheck.Equal(216U, layout.Rings.EndOffset);
-        HostCheck.Equal(256U, VirtioBlkDmaLayout.RequestOffset); HostCheck.Equal(16U, VirtioBlkDmaLayout.RequestBytes);
-        HostCheck.Equal(272U, VirtioBlkDmaLayout.StatusOffset); HostCheck.Equal(1U, VirtioBlkDmaLayout.StatusBytes);
-        HostCheck.Equal(512U, VirtioBlkDmaLayout.DataOffset); HostCheck.Equal(512U, VirtioBlkDmaLayout.DataBytes);
+        HostCheck.Equal(256U, VirtioBlkDmaLayout.RequestOffset);
+        HostCheck.Equal(16U, VirtioBlkDmaLayout.RequestBytes);
+        HostCheck.Equal(272U, VirtioBlkDmaLayout.StatusOffset);
+        HostCheck.Equal(1U, VirtioBlkDmaLayout.StatusBytes);
+        HostCheck.Equal(512U, VirtioBlkDmaLayout.DataOffset);
+        HostCheck.Equal(512U, VirtioBlkDmaLayout.DataBytes);
         HostCheck.Equal(VirtioBlkDmaStatus.InvalidRange,
             DMASafeRequestStatusDescriptorAvailableUsedRing.TryLayout(default, out layout));
         HostCheck.True(!layout.IsInitialized);
@@ -69,7 +75,8 @@ internal static unsafe class DMASafeRequestStatusDescriptorAvailableUsedRingTest
             new Span<byte>(bytes, 8192).Fill(0xa5);
             HostCheck.Equal(DmaAddressStatus.Success,
                 DmaAddressWindow.TryCreate((ulong)bytes, 0x220000, 0x123400000000, 4096, 64, out var window));
-            DmaBufferPool pool = default; DmaBufferSlot slot = default;
+            DmaBufferPool pool = default;
+            DmaBufferSlot slot = default;
             HostCheck.Equal(DmaBufferStatus.Success, PageAlignedDmaBuffers.TryInitialize(&pool, window, &slot, 1, 1));
             HostCheck.Equal(VirtioBlkDmaStatus.Success,
                 DMASafeRequestStatusDescriptorAvailableUsedRing.TryAllocate(&pool, out var allocation, out var layout));

@@ -1,6 +1,7 @@
 using OS.Std;
 
 namespace OS.Std.Text;
+
 public readonly struct AsciiInt64ParseResult
 {
     private AsciiInt64ParseResult(bool isInitialized, AsciiDecimalParseStatus status, long value, int bytesConsumed, int invalidInputIndex)
@@ -12,11 +13,26 @@ public readonly struct AsciiInt64ParseResult
         InvalidInputIndex = invalidInputIndex;
     }
 
-    public bool IsInitialized { get; }
-    public AsciiDecimalParseStatus Status { get; }
-    public long Value { get; }
-    public int BytesConsumed { get; }
-    public int InvalidInputIndex { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public AsciiDecimalParseStatus Status
+    {
+        get;
+    }
+    public long Value
+    {
+        get;
+    }
+    public int BytesConsumed
+    {
+        get;
+    }
+    public int InvalidInputIndex
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == AsciiDecimalParseStatus.Success && BytesConsumed > 0 && InvalidInputIndex < 0;
 
     public static AsciiInt64ParseResult Success(long value, int bytesConsumed)

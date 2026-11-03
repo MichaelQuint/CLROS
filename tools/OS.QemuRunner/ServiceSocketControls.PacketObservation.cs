@@ -6,6 +6,7 @@ using System.Text;
 using OS.Net;
 
 namespace OS.Tools.QemuRunner;
+
 public sealed partial class ServiceSocketControls
 {
     public readonly record struct PacketObservation(long Ordinal, ulong Microseconds, string Hex);

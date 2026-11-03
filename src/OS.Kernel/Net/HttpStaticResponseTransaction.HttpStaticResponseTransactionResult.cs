@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct HttpStaticResponseTransactionResult
 {
     private HttpStaticResponseTransactionResult(HttpStaticResponseTransactionStatus status, HttpRequestParseStatus requestStatus, HttpResponseWriterStatus responseStatus, HttpRequestMethod method, ushort statusCode, bool targetMatched, bool methodAllowed, bool connectionClose, int requestTargetOffset, int requestTargetLength, int bytesWritten, int bytesRequired, int bodyOffset, int bodyLength)
@@ -20,22 +21,67 @@ public readonly struct HttpStaticResponseTransactionResult
         BodyLength = bodyLength;
     }
 
-    public bool IsInitialized { get; }
-    public HttpStaticResponseTransactionStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public HttpStaticResponseTransactionStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == HttpStaticResponseTransactionStatus.Success;
-    public HttpRequestParseStatus RequestStatus { get; }
-    public HttpResponseWriterStatus ResponseStatus { get; }
-    public HttpRequestMethod Method { get; }
-    public ushort StatusCode { get; }
-    public bool TargetMatched { get; }
-    public bool MethodAllowed { get; }
-    public bool ConnectionClose { get; }
-    public int RequestTargetOffset { get; }
-    public int RequestTargetLength { get; }
-    public int BytesWritten { get; }
-    public int BytesRequired { get; }
-    public int BodyOffset { get; }
-    public int BodyLength { get; }
+    public HttpRequestParseStatus RequestStatus
+    {
+        get;
+    }
+    public HttpResponseWriterStatus ResponseStatus
+    {
+        get;
+    }
+    public HttpRequestMethod Method
+    {
+        get;
+    }
+    public ushort StatusCode
+    {
+        get;
+    }
+    public bool TargetMatched
+    {
+        get;
+    }
+    public bool MethodAllowed
+    {
+        get;
+    }
+    public bool ConnectionClose
+    {
+        get;
+    }
+    public int RequestTargetOffset
+    {
+        get;
+    }
+    public int RequestTargetLength
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int BytesRequired
+    {
+        get;
+    }
+    public int BodyOffset
+    {
+        get;
+    }
+    public int BodyLength
+    {
+        get;
+    }
 
     public static HttpStaticResponseTransactionResult Success(HttpRequestParseResult request, HttpResponseWriterResult response, ushort statusCode, bool targetMatched, bool methodAllowed, bool connectionClose)
     {

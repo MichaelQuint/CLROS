@@ -46,7 +46,7 @@ public static class KestrelSmokePackageContractValidator
         {
             packageRoot = new DirectoryInfo(packageRootPath);
         }
-        catch (Exception ex)when (ex is ArgumentException || ex is NotSupportedException || ex is PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException || ex is NotSupportedException || ex is PathTooLongException)
         {
             return ValidationResult.Fail("kestrel_package_invalid_root", "Package root path is invalid.");
         }
@@ -93,7 +93,7 @@ public static class KestrelSmokePackageContractValidator
         {
             return ValidationResult.Fail("malformed_json", "Manifest is not valid JSON.");
         }
-        catch (Exception ex)when (ex is IOException || ex is UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
         {
             return ValidationResult.Fail("manifest_read_failed", "Manifest could not be read.");
         }

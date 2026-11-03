@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Drivers;
+
 public static class PciEcamPhysicalHeaderReader
 {
     public static PciEcamPhysicalHeaderReadResult ReadType0Header(PciEcamSegment segment, IPlatformPhysicalMemory? physicalMemory, byte bus, byte device, byte function, Span<byte> destination)

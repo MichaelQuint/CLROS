@@ -100,7 +100,7 @@ internal static partial class ImageBuilderTests
             }
             catch
             {
-            // Cleanup failure should not hide image layout validation results.
+                // Cleanup failure should not hide image layout validation results.
             }
         }
 
@@ -265,8 +265,8 @@ internal static partial class ImageBuilderTests
         File.WriteAllBytes(prefix + ".json", manifest);
         File.WriteAllBytes(prefix + ".pkg", package);
         string[] options = ["--efi", prefix + ".efi", "--manifest", prefix + ".json", "--package", prefix + ".pkg", "--output", prefix + ".raw", "--image-size-mib", sizeMiB.ToString(System.Globalization.CultureInfo.InvariantCulture)];
-        ToolResult plan = RunImageBuilder(["plan-raw", ..options]);
-        ToolResult create = RunImageBuilder(["create-raw", ..options]);
+        ToolResult plan = RunImageBuilder(["plan-raw", .. options]);
+        ToolResult create = RunImageBuilder(["create-raw", .. options]);
         if (plan.ExitCode != 0 || create.ExitCode != 0)
         {
             PrintToolFailure(plan);
@@ -330,7 +330,7 @@ internal static partial class ImageBuilderTests
         if (BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[488..]) != clusters - allocated || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[492..]) != firstFree || allocated != plannedAllocated || entries["efi-system-partition"].GetProperty("sectors").GetUInt64() != totalSectors || entries["fat32-fat-primary"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved || entries["fat32-fat-primary"].GetProperty("sectors").GetUInt64() != fatSectors || entries["fat32-fat-backup"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved + fatSectors || entries["fat32-fat-backup"].GetProperty("sectors").GetUInt64() != fatSectors || entries["fat32-root-directory"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved + fatCount * fatSectors || !ContainsBootFile(image, efi) || !ContainsManifestFile(image, manifest) || !ContainsPackageFile(image, package))
             return false;
         // The second build uses the same inputs and must preserve every image byte.
-        create = RunImageBuilder(["create-raw", ..options]);
+        create = RunImageBuilder(["create-raw", .. options]);
         if (create.ExitCode != 0)
         {
             PrintToolFailure(create);
@@ -1230,7 +1230,7 @@ internal static partial class ImageBuilderTests
             content = ReadFile(image, fatOffset, dataOffset, file.FirstCluster, file.FileSize);
             return true;
         }
-        catch (Exception ex)when (ex is ArgumentException or InvalidOperationException or OverflowException)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or OverflowException)
         {
             return false;
         }
@@ -1737,7 +1737,7 @@ internal static partial class ImageBuilderTests
             chars[i] = (char)bytes[i];
         }
 
-        return new string (chars);
+        return new string(chars);
     }
 
     private static bool MatchesShortName(ReadOnlySpan<byte> actual, string expected)
@@ -1827,7 +1827,7 @@ internal static partial class ImageBuilderTests
             }
             catch
             {
-            // Timeout is the actionable failure.
+                // Timeout is the actionable failure.
             }
 
             return new ToolResult(-1, "image builder timed out");

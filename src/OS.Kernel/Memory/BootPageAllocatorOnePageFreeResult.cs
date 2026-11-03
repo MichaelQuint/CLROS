@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public readonly struct BootPageAllocatorOnePageFreeResult
 {
     private readonly byte _isInitialized;
@@ -25,28 +26,79 @@ public readonly struct BootPageAllocatorOnePageFreeResult
     }
 
     public bool IsInitialized => _isInitialized == 1;
-    public BootPageAllocatorMutationStatus Status { get; }
-    public BootReservedRangeStatus ReservationStatus { get; }
-    public OS.Boot.AddressValueStatus AddressStatus { get; }
+    public BootPageAllocatorMutationStatus Status
+    {
+        get;
+    }
+    public BootReservedRangeStatus ReservationStatus
+    {
+        get;
+    }
+    public OS.Boot.AddressValueStatus AddressStatus
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == BootPageAllocatorMutationStatus.Success && ReservationStatus == BootReservedRangeStatus.Success && AddressStatus == OS.Boot.AddressValueStatus.Success && InvalidReservationIndex == BootPageAllocatorMutator.NoIndex && ConflictingIndex == BootPageAllocatorMutator.NoIndex && BootPageAllocatorMutator.IsRepresentableFreeSuccessSummary(BeforeState, AfterState, Allocation, CoalescingKind, NodeCount, NodeCapacity, ReservationCount, ReservationCapacity, RestoredNodeIndex, PreviousNodeIndex, RemovedSuffixNodeIndex, VisitedNodeCount);
-    public BootPageAllocatorState BeforeState { get; }
-    public BootPageAllocatorState AfterState { get; }
-    public BootPageAllocatorOnePageResult Allocation { get; }
-    public BootPageAllocatorOnePageCoalescingKind CoalescingKind { get; }
+    public BootPageAllocatorState BeforeState
+    {
+        get;
+    }
+    public BootPageAllocatorState AfterState
+    {
+        get;
+    }
+    public BootPageAllocatorOnePageResult Allocation
+    {
+        get;
+    }
+    public BootPageAllocatorOnePageCoalescingKind CoalescingKind
+    {
+        get;
+    }
     public OS.Boot.PhysicalAddress PhysicalStart => Allocation.PhysicalStart;
     public OS.Boot.PhysicalAddress PhysicalEndExclusive => Allocation.PhysicalEndExclusive;
     public ulong PageCount => Allocation.PageCount;
     public ulong ByteLength => Allocation.ByteLength;
-    public ulong NodeCount { get; }
-    public ulong NodeCapacity { get; }
-    public ulong ReservationCount { get; }
-    public ulong ReservationCapacity { get; }
-    public int RestoredNodeIndex { get; }
-    public int PreviousNodeIndex { get; }
-    public int RemovedSuffixNodeIndex { get; }
-    public ulong VisitedNodeCount { get; }
-    public ulong InvalidReservationIndex { get; }
-    public ulong ConflictingIndex { get; }
+    public ulong NodeCount
+    {
+        get;
+    }
+    public ulong NodeCapacity
+    {
+        get;
+    }
+    public ulong ReservationCount
+    {
+        get;
+    }
+    public ulong ReservationCapacity
+    {
+        get;
+    }
+    public int RestoredNodeIndex
+    {
+        get;
+    }
+    public int PreviousNodeIndex
+    {
+        get;
+    }
+    public int RemovedSuffixNodeIndex
+    {
+        get;
+    }
+    public ulong VisitedNodeCount
+    {
+        get;
+    }
+    public ulong InvalidReservationIndex
+    {
+        get;
+    }
+    public ulong ConflictingIndex
+    {
+        get;
+    }
     public int BeforeFreeNodeCount => BeforeState.FreeNodeCount;
     public int AfterFreeNodeCount => AfterState.FreeNodeCount;
     public ulong BeforeFreePageCount => BeforeState.FreePageCount;

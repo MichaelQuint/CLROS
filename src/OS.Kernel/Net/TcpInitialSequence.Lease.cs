@@ -2,6 +2,7 @@ using OS.Std.Hash;
 using OS.Std.Memory;
 
 namespace OS.Net;
+
 public static unsafe partial class TcpInitialSequence
 {
     /// <summary>Exact owner/epoch/generation/borrower identity; not authority to

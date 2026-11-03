@@ -8,6 +8,7 @@ using Chain = OS.Storage.FATClusterChainsLoopBadClusterTruncationDetection;
 using Vfat = OS.Storage.MultiClusterDirectoryVFATLongNameSupportSeparate;
 
 namespace OS.Tooling;
+
 public static partial class WebRootDiskInventory
 {
     /// <summary>All collections and content are owned copies. Inode identifies
@@ -19,21 +20,63 @@ public static partial class WebRootDiskInventory
     public sealed class Entry
     {
         private readonly byte[] content;
-        public string Path { get; }
-        public string ShortAlias { get; }
-        public ulong Inode { get; }
-        public byte Attributes { get; }
+        public string Path
+        {
+            get;
+        }
+        public string ShortAlias
+        {
+            get;
+        }
+        public ulong Inode
+        {
+            get;
+        }
+        public byte Attributes
+        {
+            get;
+        }
         public bool IsDirectory => (Attributes & 0x10) != 0;
-        public uint Bytes { get; }
-        public string Sha256 { get; }
-        public long ModifiedSeconds { get; }
-        public ushort FatDate { get; }
-        public ushort FatTime { get; }
-        public ulong ShortEntryLba { get; }
-        public uint ShortEntrySlot { get; }
-        public ulong AllocatedSectors { get; }
-        public IReadOnlyList<Extent> Extents { get; }
-        public IReadOnlyList<Sector> Sectors { get; }
+        public uint Bytes
+        {
+            get;
+        }
+        public string Sha256
+        {
+            get;
+        }
+        public long ModifiedSeconds
+        {
+            get;
+        }
+        public ushort FatDate
+        {
+            get;
+        }
+        public ushort FatTime
+        {
+            get;
+        }
+        public ulong ShortEntryLba
+        {
+            get;
+        }
+        public uint ShortEntrySlot
+        {
+            get;
+        }
+        public ulong AllocatedSectors
+        {
+            get;
+        }
+        public IReadOnlyList<Extent> Extents
+        {
+            get;
+        }
+        public IReadOnlyList<Sector> Sectors
+        {
+            get;
+        }
 
         internal Entry(string path, Found raw, uint[] chain, LiveFat32Volume volume, byte[] data)
         {

@@ -45,7 +45,8 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
             var actual = Catalog.Evaluate(vector.Operation, vector.Left, vector.Right);
             Require(actual.Status == expected.Status && actual.Value == expected.Value,
                 "executed catalog vector " + i);
-            if (expected.Status != ArithmeticEvaluationStatus.Success) rejected++;
+            if (expected.Status != ArithmeticEvaluationStatus.Success)
+                rejected++;
         }
         Require(seen.Count == 30 && rejected == 6, "operation/rejection coverage");
         foreach (int index in new[] { int.MinValue, -1, 57, int.MaxValue })
@@ -73,16 +74,17 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
         int comparisons = 0;
         foreach (ArithmeticOperation operation in Enum.GetValues<ArithmeticOperation>())
         {
-            if (operation == ArithmeticOperation.Uninitialized) continue;
+            if (operation == ArithmeticOperation.Uninitialized)
+                continue;
             foreach (ulong left in values)
-            foreach (ulong right in rightValues)
-            {
-                var expected = Model(operation, left, right);
-                var actual = Catalog.Evaluate(operation, left, right);
-                Require(actual.Status == expected.Status && actual.Value == expected.Value,
-                    $"matrix {operation} left={left:X16} right={right:X16}");
-                comparisons++;
-            }
+                foreach (ulong right in rightValues)
+                {
+                    var expected = Model(operation, left, right);
+                    var actual = Catalog.Evaluate(operation, left, right);
+                    Require(actual.Status == expected.Status && actual.Value == expected.Value,
+                        $"matrix {operation} left={left:X16} right={right:X16}");
+                    comparisons++;
+                }
         }
         Require(comparisons == 6300, "boundary matrix count");
     }
@@ -117,52 +119,94 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
         bool unsignedDivision = operation is ArithmeticOperation.DivideU64 or ArithmeticOperation.RemainderU64;
         if (signedDivision || unsignedDivision)
         {
-            if (right == 0) return (ArithmeticEvaluationStatus.DivideByZero, 0);
+            if (right == 0)
+                return (ArithmeticEvaluationStatus.DivideByZero, 0);
             if (signedDivision && signed == -BigInteger.Pow(2, 63) && divisor == -1)
                 return (ArithmeticEvaluationStatus.SignedOverflow, 0);
         }
         switch (operation)
         {
-            case ArithmeticOperation.Add32: value = (u32 + v32) % BigInteger.Pow(2, 32); break;
+            case ArithmeticOperation.Add32:
+                value = (u32 + v32) % BigInteger.Pow(2, 32);
+                break;
             case ArithmeticOperation.Subtract32:
-                value = (u32 - v32 + BigInteger.Pow(2, 32)) % BigInteger.Pow(2, 32); break;
-            case ArithmeticOperation.Multiply32: value = (u32 * v32) % BigInteger.Pow(2, 32); break;
-            case ArithmeticOperation.Add64: value = u64 + v64; break;
-            case ArithmeticOperation.Subtract64: value = u64 - v64; break;
-            case ArithmeticOperation.Multiply64: value = u64 * v64; break;
+                value = (u32 - v32 + BigInteger.Pow(2, 32)) % BigInteger.Pow(2, 32);
+                break;
+            case ArithmeticOperation.Multiply32:
+                value = (u32 * v32) % BigInteger.Pow(2, 32);
+                break;
+            case ArithmeticOperation.Add64:
+                value = u64 + v64;
+                break;
+            case ArithmeticOperation.Subtract64:
+                value = u64 - v64;
+                break;
+            case ArithmeticOperation.Multiply64:
+                value = u64 * v64;
+                break;
             case ArithmeticOperation.ShiftLeft32:
-                value = u32 * BigInteger.Pow(2, (int)(right % 32)) % BigInteger.Pow(2, 32); break;
+                value = u32 * BigInteger.Pow(2, (int)(right % 32)) % BigInteger.Pow(2, 32);
+                break;
             case ArithmeticOperation.ShiftLeft64:
-                value = u64 * BigInteger.Pow(2, (int)(right % 64)); break;
+                value = u64 * BigInteger.Pow(2, (int)(right % 64));
+                break;
             case ArithmeticOperation.ShiftRightUnsigned32:
-                value = u32 / BigInteger.Pow(2, (int)(right % 32)); break;
+                value = u32 / BigInteger.Pow(2, (int)(right % 32));
+                break;
             case ArithmeticOperation.ShiftRightUnsigned64:
-                value = u64 / BigInteger.Pow(2, (int)(right % 64)); break;
+                value = u64 / BigInteger.Pow(2, (int)(right % 64));
+                break;
             case ArithmeticOperation.ShiftRightSigned32:
             case ArithmeticOperation.ShiftRightSigned64:
                 int width = operation == ArithmeticOperation.ShiftRightSigned32 ? 32 : 64;
                 BigInteger number = Signed(left, width);
                 BigInteger power = BigInteger.Pow(2, (int)(right % (ulong)width));
-                value = (number < 0 ? number - power + 1 : number) / power; break;
+                value = (number < 0 ? number - power + 1 : number) / power;
+                break;
             case ArithmeticOperation.CastI8:
-            case ArithmeticOperation.EnumI8: value = Signed(left, 8); break;
+            case ArithmeticOperation.EnumI8:
+                value = Signed(left, 8);
+                break;
             case ArithmeticOperation.CastU8:
-            case ArithmeticOperation.EnumU8: value = Unsigned(left, 8); break;
+            case ArithmeticOperation.EnumU8:
+                value = Unsigned(left, 8);
+                break;
             case ArithmeticOperation.CastI16:
-            case ArithmeticOperation.EnumI16: value = Signed(left, 16); break;
+            case ArithmeticOperation.EnumI16:
+                value = Signed(left, 16);
+                break;
             case ArithmeticOperation.CastU16:
-            case ArithmeticOperation.EnumU16: value = Unsigned(left, 16); break;
+            case ArithmeticOperation.EnumU16:
+                value = Unsigned(left, 16);
+                break;
             case ArithmeticOperation.CastI32:
-            case ArithmeticOperation.EnumI32: value = Signed(left, 32); break;
+            case ArithmeticOperation.EnumI32:
+                value = Signed(left, 32);
+                break;
             case ArithmeticOperation.CastU32:
-            case ArithmeticOperation.EnumU32: value = Unsigned(left, 32); break;
-            case ArithmeticOperation.EnumI64: value = signed; break;
-            case ArithmeticOperation.EnumU64: value = u64; break;
-            case ArithmeticOperation.DivideI64: value = signed / divisor; break;
-            case ArithmeticOperation.RemainderI64: value = signed - (signed / divisor) * divisor; break;
-            case ArithmeticOperation.DivideU64: value = u64 / v64; break;
-            case ArithmeticOperation.RemainderU64: value = u64 - (u64 / v64) * v64; break;
-            default: return (ArithmeticEvaluationStatus.UnknownOperation, 0);
+            case ArithmeticOperation.EnumU32:
+                value = Unsigned(left, 32);
+                break;
+            case ArithmeticOperation.EnumI64:
+                value = signed;
+                break;
+            case ArithmeticOperation.EnumU64:
+                value = u64;
+                break;
+            case ArithmeticOperation.DivideI64:
+                value = signed / divisor;
+                break;
+            case ArithmeticOperation.RemainderI64:
+                value = signed - (signed / divisor) * divisor;
+                break;
+            case ArithmeticOperation.DivideU64:
+                value = u64 / v64;
+                break;
+            case ArithmeticOperation.RemainderU64:
+                value = u64 - (u64 / v64) * v64;
+                break;
+            default:
+                return (ArithmeticEvaluationStatus.UnknownOperation, 0);
         }
         return (ArithmeticEvaluationStatus.Success, Bits(value));
     }
@@ -173,15 +217,18 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
             !default(ArithmeticConformanceResult).Succeeded, "default result fails closed");
         for (int code = 0; code <= byte.MaxValue; code++)
         {
-            if (code >= 1 && code <= 30) continue;
+            if (code >= 1 && code <= 30)
+                continue;
             var result = Catalog.Evaluate((ArithmeticOperation)code, ulong.MaxValue, 0);
             Require(result.Status == ArithmeticEvaluationStatus.UnknownOperation &&
                 result.Value == 0 && !result.Succeeded, "unknown operation " + code);
         }
-        for (int i = 0; i < 100; i++) _ = Catalog.RunCatalog();
+        for (int i = 0; i < 100; i++)
+            _ = Catalog.RunCatalog();
         long before = GC.GetAllocatedBytesForCurrentThread();
         bool passed = true;
-        for (int i = 0; i < 1000; i++) passed &= Catalog.RunCatalog().Succeeded;
+        for (int i = 0; i < 1000; i++)
+            passed &= Catalog.RunCatalog().Succeeded;
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Require(passed && allocated == 0, "allocation-free repeated execution");
     }
@@ -271,8 +318,11 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
             """, new UTF8Encoding(false));
         ProcessStartInfo start = new("dotnet")
         {
-            WorkingDirectory = directory, UseShellExecute = false, CreateNoWindow = true,
-            RedirectStandardOutput = true, RedirectStandardError = true
+            WorkingDirectory = directory,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
         foreach (string arg in new[] { "build", "Compile.csproj", "--nologo", "-m:1", "-c", "Release" })
             start.ArgumentList.Add(arg);
@@ -280,7 +330,11 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
         Task<string> stdout = process.StandardOutput.ReadToEndAsync();
         Task<string> stderr = process.StandardError.ReadToEndAsync();
         bool exited = process.WaitForExit(90000);
-        if (!exited) { process.Kill(entireProcessTree: true); process.WaitForExit(); }
+        if (!exited)
+        {
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit();
+        }
         Task.WaitAll(stdout, stderr);
         File.WriteAllText(Path.Combine(directory, "build.stdout.log"), stdout.Result);
         File.WriteAllText(Path.Combine(directory, "build.stderr.log"), stderr.Result);
@@ -297,7 +351,8 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
         DirectoryInfo? current = new(AppContext.BaseDirectory);
         while (current is not null)
         {
-            if (File.Exists(Path.Combine(current.FullName, "CLROS.slnx"))) return current.FullName;
+            if (File.Exists(Path.Combine(current.FullName, "CLROS.slnx")))
+                return current.FullName;
             current = current.Parent;
         }
         throw new InvalidOperationException("CLROS root not found");
@@ -305,6 +360,7 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
 
     private static void Require(bool condition, string reason)
     {
-        if (!condition) throw new InvalidOperationException(reason);
+        if (!condition)
+            throw new InvalidOperationException(reason);
     }
 }

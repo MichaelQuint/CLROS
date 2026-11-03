@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public readonly struct OSHostTimerPollResult
 {
     public readonly OSHostStatus Status;

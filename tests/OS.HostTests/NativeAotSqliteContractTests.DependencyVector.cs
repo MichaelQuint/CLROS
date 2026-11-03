@@ -84,7 +84,7 @@ internal static partial class NativeAotSqliteContractTests
                 ["SourceArchiveSha256"] = NativeAotSqliteContract.SourceArchiveSha256,
                 ["SourceArchiveSha3"] = NativeAotSqliteContract.SourceArchiveSha3,
                 ["SourceId"] = NativeAotSqliteContract.SourceId,
-                ["Imports"] = new JsonArray(Imports.Select(p => (JsonNode? )JsonValue.Create(p)).ToArray()),
+                ["Imports"] = new JsonArray(Imports.Select(p => (JsonNode?)JsonValue.Create(p)).ToArray()),
                 ["Archive"] = JsonSerializer.SerializeToNode(inspected),
                 ["Native"] = native,
                 ["Outputs"] = outputs

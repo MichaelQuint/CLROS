@@ -198,7 +198,7 @@ static LibvirtDomainXmlValidationResult ValidateLibvirtDomainXml(XDocument docum
     }
 
     XElement? features = domain.Element("features");
-    if (features?.Element("acpi")is null || features.Element("apic")is null)
+    if (features?.Element("acpi") is null || features.Element("apic") is null)
     {
         return LibvirtDomainXmlValidationResult.Fail("features_missing");
     }

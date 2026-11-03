@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied fresh SLOT event0 identity. RowIndex is zero-based in the

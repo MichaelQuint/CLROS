@@ -22,8 +22,17 @@ internal static unsafe partial class M01LivePagingIntegrationTests
             Output = output;
         }
 
-        public int ExitCode { get; }
-        public bool TimedOut { get; }
-        public string Output { get; }
+        public int ExitCode
+        {
+            get;
+        }
+        public bool TimedOut
+        {
+            get;
+        }
+        public string Output
+        {
+            get;
+        }
     }
 }

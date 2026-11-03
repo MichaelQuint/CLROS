@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect the successful service fixture's random metadata against
@@ -11,7 +12,7 @@ public static partial class QemuTranscripts
     public static ServiceRandomInspection InspectNativeAotServiceRandomForTests(string[] rows) => ReadServiceRandom(rows);
     private static ServiceRandomInspection ReadServiceRandom(string[] rows)
     {
-        Need(rows is not null && rows.Length is> 0 and <= 1_000_000 && rows.All(row => row is not null && row.Length <= 4096) && rows.Sum(row => (long)row.Length + 2) <= 128L * 1024 * 1024, "service_random_input");
+        Need(rows is not null && rows.Length is > 0 and <= 1_000_000 && rows.All(row => row is not null && row.Length <= 4096) && rows.Sum(row => (long)row.Length + 2) <= 128L * 1024 * 1024, "service_random_input");
         var returned = ReadLinuxServiceCallReturns(rows!).ToDictionary(row => row.RecordIndex);
         string[] fields = "identity nr a0 a1 a2 a3 a4 a5 rip rsp flags fs gs clock valueBits action status".Split(' ').Select(field => field + ":dec").ToArray();
         const string seed = "M11_012_SEED source=firmware-rng acquisitions=2 entropyBytes=32 nonceBytes=16 domain=getrandom state=ready firmwareCallbacks=none";

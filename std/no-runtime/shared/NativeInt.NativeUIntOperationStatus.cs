@@ -1,4 +1,5 @@
 namespace OS.Std;
+
 public enum NativeUIntOperationStatus
 {
     Success = 0,

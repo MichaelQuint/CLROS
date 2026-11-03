@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 namespace OS.Pal;
+
 public sealed class OSHostTimerFacade
 {
     private readonly OSHostTimerTable? table;

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 
 public readonly struct VirtioNetDriverQueueBringUpPlanResult
@@ -28,27 +29,90 @@ public readonly struct VirtioNetDriverQueueBringUpPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioNetDriverQueueBringUpPlanStatus Status { get; }
-    public VirtioPciDeviceKind DeviceKind { get; }
-    public VirtioPciBindingPlanStatus BindingPlanStatus { get; }
-    public VirtioNetDeviceConfigStatus NetworkConfigurationStatus { get; }
-    public VirtioDeviceInitializationProfileStatus InitializationProfileStatus { get; }
-    public VirtioDeviceInitializationPlanStatus InitializationPlanStatus { get; }
-    public VirtioNetQueuePlanStatus QueuePlanStatus { get; }
-    public VirtqueueSplitRingPlanStatus RxQueueStatus { get; }
-    public VirtqueueSplitRingPlanStatus TxQueueStatus { get; }
-    public ulong SelectedFeatures { get; }
-    public ulong UnsupportedSelectedFeatures { get; }
-    public uint RequiredRxQueueMemoryBytes { get; }
-    public uint RequiredTxQueueMemoryBytes { get; }
-    public uint AvailableRxQueueMemoryBytes { get; }
-    public uint AvailableTxQueueMemoryBytes { get; }
-    public uint RequiredRxBufferBytes { get; }
-    public uint RequiredTxBufferBytes { get; }
-    public uint AvailableRxBufferBytes { get; }
-    public uint AvailableTxBufferBytes { get; }
-    public VirtioNetDriverQueueBringUpMetadata Plan { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetDriverQueueBringUpPlanStatus Status
+    {
+        get;
+    }
+    public VirtioPciDeviceKind DeviceKind
+    {
+        get;
+    }
+    public VirtioPciBindingPlanStatus BindingPlanStatus
+    {
+        get;
+    }
+    public VirtioNetDeviceConfigStatus NetworkConfigurationStatus
+    {
+        get;
+    }
+    public VirtioDeviceInitializationProfileStatus InitializationProfileStatus
+    {
+        get;
+    }
+    public VirtioDeviceInitializationPlanStatus InitializationPlanStatus
+    {
+        get;
+    }
+    public VirtioNetQueuePlanStatus QueuePlanStatus
+    {
+        get;
+    }
+    public VirtqueueSplitRingPlanStatus RxQueueStatus
+    {
+        get;
+    }
+    public VirtqueueSplitRingPlanStatus TxQueueStatus
+    {
+        get;
+    }
+    public ulong SelectedFeatures
+    {
+        get;
+    }
+    public ulong UnsupportedSelectedFeatures
+    {
+        get;
+    }
+    public uint RequiredRxQueueMemoryBytes
+    {
+        get;
+    }
+    public uint RequiredTxQueueMemoryBytes
+    {
+        get;
+    }
+    public uint AvailableRxQueueMemoryBytes
+    {
+        get;
+    }
+    public uint AvailableTxQueueMemoryBytes
+    {
+        get;
+    }
+    public uint RequiredRxBufferBytes
+    {
+        get;
+    }
+    public uint RequiredTxBufferBytes
+    {
+        get;
+    }
+    public uint AvailableRxBufferBytes
+    {
+        get;
+    }
+    public uint AvailableTxBufferBytes
+    {
+        get;
+    }
+    public VirtioNetDriverQueueBringUpMetadata Plan
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetDriverQueueBringUpPlanStatus.Success;
 
     internal static VirtioNetDriverQueueBringUpPlanResult Success(VirtioDeviceDescriptor descriptor, VirtioNetQueuePlanResult queuePlan, uint availableRxQueueMemoryBytes, uint availableTxQueueMemoryBytes, uint availableRxBufferBytes, uint availableTxBufferBytes, uint totalRequiredQueueMemoryBytes, uint totalAvailableQueueMemoryBytes, uint totalAvailableBufferBytes)

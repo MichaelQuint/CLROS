@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciCapabilityWalkResult
 {
     public readonly PciCapabilityWalkStatus Status;

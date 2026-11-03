@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow original package/program/raw serial and
@@ -12,7 +13,7 @@ public static partial class QemuTranscripts
     public static ServiceQuotaCaptureReport ValidateNativeAotServiceQuotaCapture(string root, byte[] package, NativeAotServiceProgram program, ReadOnlySpan<byte> raw)
     {
         Need(program is not null && program.Contract == NativeAotServiceContract.QuotaFailure && string.Equals(Path.GetFullPath(root), program.SourceRoot, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal), "service_quota_program_owner");
-        Need(raw.Length is> FirmwarePrefixBytes and <= 128 * 1024 * 1024, "service_quota_capture_extent");
+        Need(raw.Length is > FirmwarePrefixBytes and <= 128 * 1024 * 1024, "service_quota_capture_extent");
         using AuthorityFiles sources = new();
         NativeAotServiceProgram.HoldSources(root, sources);
         var view = NativeAotServiceProgram.RequirePackage(package, NativeAotServiceContract.QuotaFailure);

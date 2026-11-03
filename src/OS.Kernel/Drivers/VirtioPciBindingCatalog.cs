@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class VirtioPciBindingCatalog
 {
     public static VirtioPciBindingCatalogResult Build(ReadOnlySpan<VirtioPciCandidate> candidates, ReadOnlySpan<VirtioPciConfigurationSource> configurationSources, ReadOnlySpan<VirtioPciBarSizeSource> barSizeSources, Span<VirtioPciBindingCatalogEntry> destination)

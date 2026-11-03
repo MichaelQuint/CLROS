@@ -6,6 +6,7 @@ using B = OS.Storage.WritableBlockSession;
 using Fixture = OS.Tooling.LinuxWritableDiskProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Check copied mechanical NIC/envelope values and the exact027
@@ -156,7 +157,11 @@ public static partial class QemuTranscripts
             }
             else
             {
-                WdNeed(current.Owner == prior!.Owner && current.Epoch == prior.Epoch && current.Kind == prior.Kind && current.Sector == prior.Sector && (current.Flags & prior.Flags) == prior.Flags && (!prior.Cancelled || current.Cancelled) && (!prior.IsComplete || current.Status == prior.Status) && (!current.Cancelled || prior.Cancelled || !prior.IsCopied && (!prior.IsComplete || prior.Kind == B.Operation.Read && prior.Status == B.Status.Success)) && (prior.PayloadBytes == 0 || current.DataHex == prior.DataHex) && (current with { RecordIndex = prior.RecordIndex, Clock = prior.Clock }) != prior, "accumulation");
+                WdNeed(current.Owner == prior!.Owner && current.Epoch == prior.Epoch && current.Kind == prior.Kind && current.Sector == prior.Sector && (current.Flags & prior.Flags) == prior.Flags && (!prior.Cancelled || current.Cancelled) && (!prior.IsComplete || current.Status == prior.Status) && (!current.Cancelled || prior.Cancelled || !prior.IsCopied && (!prior.IsComplete || prior.Kind == B.Operation.Read && prior.Status == B.Status.Success)) && (prior.PayloadBytes == 0 || current.DataHex == prior.DataHex) && (current with
+                {
+                    RecordIndex = prior.RecordIndex,
+                    Clock = prior.Clock
+                }) != prior, "accumulation");
             }
 
             WdSnapshot(current, baseline);
@@ -187,7 +192,7 @@ public static partial class QemuTranscripts
     private static bool WdResolved(WritableDiskIo r) => r.IsComplete && (r.Kind != B.Operation.Read || r.Status != B.Status.Success || r.Cancelled || r.IsCopied);
     private static Fixture.BlockBoundary WdBoundary(WritableDiskIo r, Fixture.BlockBoundary b) => new(b.Owner, b.Epoch, b.SectorCount, r.Submitted, r.Completed, r.SubmittedBytes, r.CompletedBytes, r.FlushAcknowledgedBytes);
     private static Fixture.BlockBoundary WdBoundary(IReadOnlyDictionary<string, ulong> r, Fixture.BlockBoundary b) => new(b.Owner, b.Epoch, b.SectorCount, r["submitted"], r["completed"], r["submittedBytes"], r["completedBytes"], r["flushAcknowledgedBytes"]);
-    private static void WritableBoundary(Fixture.BlockBoundary b) => WdNeed(b.Owner >= 4096 && b.Owner < 0x0000800000000000 && b.Owner % 8 == 0 && b.Epoch != 0 && b.SectorCount is> 0 and <= ulong.MaxValue / 512 && b.Completed <= b.Submitted && b.Submitted - b.Completed <= 1 && b.SubmittedBytes % 512 == 0 && b.CompletedBytes % 512 == 0 && b.FlushAcknowledgedBytes % 512 == 0 && b.CompletedBytes <= b.SubmittedBytes && b.FlushAcknowledgedBytes <= b.CompletedBytes && b.SubmittedBytes / 512 <= b.Submitted && b.CompletedBytes / 512 <= b.Completed, "boundary");
+    private static void WritableBoundary(Fixture.BlockBoundary b) => WdNeed(b.Owner >= 4096 && b.Owner < 0x0000800000000000 && b.Owner % 8 == 0 && b.Epoch != 0 && b.SectorCount is > 0 and <= ulong.MaxValue / 512 && b.Completed <= b.Submitted && b.Submitted - b.Completed <= 1 && b.SubmittedBytes % 512 == 0 && b.CompletedBytes % 512 == 0 && b.FlushAcknowledgedBytes % 512 == 0 && b.CompletedBytes <= b.SubmittedBytes && b.FlushAcknowledgedBytes <= b.CompletedBytes && b.SubmittedBytes / 512 <= b.Submitted && b.CompletedBytes / 512 <= b.Completed, "boundary");
     private static Dictionary<string, ulong> WdRecord(string text, string prefix, string keys) => ReadRecord(text, prefix, keys.Split(' ').Select(k => k + ":dec").ToArray());
     private static void WdClock(ulong now, ref ulong last)
     {
@@ -237,7 +242,7 @@ public static partial class QemuTranscripts
 
     private static WritableDiskValueReport WdInspect(IReadOnlyList<string> leaf, int first, int originalCount, IReadOnlyList<WritableDiskRow> selected, byte[] package, bool logUpload, bool images)
     {
-        WdNeed(leaf is not null && leaf.Count is> 0 and <= MaximumWritableDiskRows && first >= 0 && first <= originalCount - leaf.Count, "leaf_extent");
+        WdNeed(leaf is not null && leaf.Count is > 0 and <= MaximumWritableDiskRows && first >= 0 && first <= originalCount - leaf.Count, "leaf_extent");
         WritableRows(selected, originalCount);
         if (logUpload)
             Fixture.RequireLogUploadPackage(package);
@@ -612,7 +617,7 @@ public static partial class QemuTranscripts
     {
         // The boot arena stays below4GiB; retained supervisor MMIO uses its
         // separate supported mapping envelope, including decoded Memory64 BARs.
-        WdNeed(b["pages"] is> 0 and <= 256 && b["arena"] >= 4096 && b["arena"] % 4096 == 0 && b["arena"] <= 0x100000000UL - b["pages"] * 4096 && b["bar"] >= 0x100000 && b["bar"] % 16384 == 0 && b["bar"] <= OS.Kernel.Memory.X64UserAddressSpace.UserEnd - 16384 && b["capacity"] == CombinedWebDataImageFixture.Sectors && b["dataFirst"] == CombinedWebDataImageFixture.DataFirstLba && b["dataLast"] == CombinedWebDataImageFixture.DataLastLba && b["webFirst"] == CombinedWebDataImageFixture.WebFirstLba && b["webLast"] == CombinedWebDataImageFixture.WebLastLba && b["pid"] == 1 && b["epoch"] is> 0 and <= ulong.MaxValue - 4 && b["engineEpoch"] == b["epoch"] + 2 && b["providerEpoch"] == b["engineEpoch"] && b["portEpoch"] == b["epoch"] + 3 && b["mountEpoch"] == b["epoch"] + 4 && b["clock"] <= long.MaxValue && b["nativeOwnerBytes"] is> 0 and <= 4096 && b["bootBytes"] is> 0 and <= 1024 * 1024 && b["carrierBytes"] is> 0 and <= 4096 && b["observationBytes"] is >= 512 and <= 4096, "binding");
+        WdNeed(b["pages"] is > 0 and <= 256 && b["arena"] >= 4096 && b["arena"] % 4096 == 0 && b["arena"] <= 0x100000000UL - b["pages"] * 4096 && b["bar"] >= 0x100000 && b["bar"] % 16384 == 0 && b["bar"] <= OS.Kernel.Memory.X64UserAddressSpace.UserEnd - 16384 && b["capacity"] == CombinedWebDataImageFixture.Sectors && b["dataFirst"] == CombinedWebDataImageFixture.DataFirstLba && b["dataLast"] == CombinedWebDataImageFixture.DataLastLba && b["webFirst"] == CombinedWebDataImageFixture.WebFirstLba && b["webLast"] == CombinedWebDataImageFixture.WebLastLba && b["pid"] == 1 && b["epoch"] is > 0 and <= ulong.MaxValue - 4 && b["engineEpoch"] == b["epoch"] + 2 && b["providerEpoch"] == b["engineEpoch"] && b["portEpoch"] == b["epoch"] + 3 && b["mountEpoch"] == b["epoch"] + 4 && b["clock"] <= long.MaxValue && b["nativeOwnerBytes"] is > 0 and <= 4096 && b["bootBytes"] is > 0 and <= 1024 * 1024 && b["carrierBytes"] is > 0 and <= 4096 && b["observationBytes"] is >= 512 and <= 4096, "binding");
         ulong arena = b["arena"], length = b["pages"] * 4096;
         List<(ulong, ulong)> inside = [];
         foreach (string name in new[]
@@ -681,7 +686,7 @@ public static partial class QemuTranscripts
         WdNeed(initial is not null && final is not null && initialBytes.Length == CombinedWebDataImageFixture.ImageBytes && finalBytes.Length == initialBytes.Length && Convert.ToHexString(SHA256.HashData(initialBytes)).Equals(initial!.RawSha256, StringComparison.OrdinalIgnoreCase) && Convert.ToHexString(SHA256.HashData(finalBytes)).Equals(final!.RawSha256, StringComparison.OrdinalIgnoreCase), "image_hash");
         WdNeed(initial!.CapacitySectors == block.Before.SectorCount && final!.CapacitySectors == block.Before.SectorCount && initial.DiskGuid == final.DiskGuid && initial.WebPartitionGuid == final.WebPartitionGuid && initial.DataPartitionGuid == final.DataPartitionGuid && initial.WebFirst == final.WebFirst && initial.WebLast == final.WebLast && initial.DataFirst == final.DataFirst && initial.DataLast == final.DataLast && initial.WebPartitionSha256 == final.WebPartitionSha256, "image_geometry");
         if (logUpload)
-            WdNeed(initial.Data.Find("LOG.TXT")is { Name: "LOG.TXT", Bytes: 0 } && initial.Data.Find("UPLOAD.BIN")is { Name: "UPLOAD.BIN", Bytes: 0 } && final.Data.Find("LOG.TXT")is not null && final.Data.Find("UPLOAD.BIN")is not null, "named_seeds");
+            WdNeed(initial.Data.Find("LOG.TXT") is { Name: "LOG.TXT", Bytes: 0 } && initial.Data.Find("UPLOAD.BIN") is { Name: "UPLOAD.BIN", Bytes: 0 } && final.Data.Find("LOG.TXT") is not null && final.Data.Find("UPLOAD.BIN") is not null, "named_seeds");
         int first = checked((int)(initial.DataFirst * 512)), end = checked((int)((initial.DataLast + 1) * 512));
         WdNeed(initialBytes[..first].SequenceEqual(finalBytes[..first]) && initialBytes[end..].SequenceEqual(finalBytes[end..]), "image_outside_data");
         WdNeed(initialBytes[first + 13] == 1 && finalBytes[first + 13] == 1 && initialBytes.Slice(first, 512).SequenceEqual(finalBytes.Slice(first, 512)) && initialBytes.Slice(first + 6 * 512, 512).SequenceEqual(finalBytes.Slice(first + 6 * 512, 512)), "image_bpb");
@@ -720,7 +725,7 @@ public static partial class QemuTranscripts
             WdNeed(finalBytes.Slice(offset, 512).SequenceEqual(expected), "final_bytes");
         }
 
-        WdNeed(initial.Data.Files.Count == final.Data.Files.Count && initial.Data.Find(WritableDataImageFixture.ExclusiveCreateName)is null && final.Data.Find(WritableDataImageFixture.ExclusiveCreateName)is null, "file_inventory");
+        WdNeed(initial.Data.Files.Count == final.Data.Files.Count && initial.Data.Find(WritableDataImageFixture.ExclusiveCreateName) is null && final.Data.Find(WritableDataImageFixture.ExclusiveCreateName) is null, "file_inventory");
         foreach (var file in initial.Data.Files)
         {
             var after = final.Data.Find(file.Name);

@@ -22,13 +22,22 @@ internal static partial class VirtioBlockNativeAppSelectionPreflightTests
 
         public byte[] PrimaryHeader { get; } = new byte[SectorSize];
 
-        public byte[] PartitionEntries { get; } =
+        public byte[] PartitionEntries
+        {
+            get;
+        } =
             new byte[checked((int)(PartitionEntryCount * PartitionEntrySize))];
 
         public GptPartitionDescriptor[] Partitions { get; } = new GptPartitionDescriptor[2];
 
-        public byte[] ManifestBuffer { get; }
+        public byte[] ManifestBuffer
+        {
+            get;
+        }
 
-        public byte[] PackageBuffer { get; }
+        public byte[] PackageBuffer
+        {
+            get;
+        }
     }
 }

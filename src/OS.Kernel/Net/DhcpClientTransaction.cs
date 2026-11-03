@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public struct DhcpClientTransaction
 {
     private DhcpClientTransaction(uint transactionId, MacAddress clientMac)
@@ -11,12 +12,30 @@ public struct DhcpClientTransaction
         Lease = default;
     }
 
-    public DhcpClientState State { get; private set; }
-    public uint TransactionId { get; }
-    public MacAddress ClientMac { get; }
-    public Ipv4Address OfferedAddress { get; private set; }
-    public Ipv4Address ServerIdentifier { get; private set; }
-    public DhcpClientLease Lease { get; private set; }
+    public DhcpClientState State
+    {
+        get; private set;
+    }
+    public uint TransactionId
+    {
+        get;
+    }
+    public MacAddress ClientMac
+    {
+        get;
+    }
+    public Ipv4Address OfferedAddress
+    {
+        get; private set;
+    }
+    public Ipv4Address ServerIdentifier
+    {
+        get; private set;
+    }
+    public DhcpClientLease Lease
+    {
+        get; private set;
+    }
 
     public static DhcpClientTransaction Create(uint transactionId, MacAddress clientMac)
     {

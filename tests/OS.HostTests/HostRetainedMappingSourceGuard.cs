@@ -56,7 +56,7 @@ internal static class HostRetainedMappingSourceGuard
             if (!Same(local.ContainingSymbol, owner)
                 || local.Type is not IPointerTypeSymbol { PointedAtType.SpecialType: SpecialType.System_UInt64 }
                 || local.DeclaringSyntaxReferences.Single().GetSyntax() is not VariableDeclaratorSyntax
-                    { Initializer.Value: StackAllocArrayCreationExpressionSyntax { Type: ArrayTypeSyntax array } }
+                { Initializer.Value: StackAllocArrayCreationExpressionSyntax { Type: ArrayTypeSyntax array } }
                 || array.RankSpecifiers.Count != 1 || array.RankSpecifiers[0].Sizes.Count != 1
                 || !Same(model.GetSymbolInfo(array.RankSpecifiers[0].Sizes[0]).Symbol, capacity))
                 return false;

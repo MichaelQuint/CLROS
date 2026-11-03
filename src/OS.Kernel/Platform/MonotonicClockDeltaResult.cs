@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct MonotonicClockDeltaResult
 {
     public readonly MonotonicClockMathStatus Status;

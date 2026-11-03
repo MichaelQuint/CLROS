@@ -9,9 +9,18 @@ namespace OS.Tooling.Native
 {
     public sealed class FileIdentity
     {
-        public string Key { get; private set; }
-        public uint LinkCount { get; private set; }
-        public ulong Length { get; private set; }
+        public string Key
+        {
+            get; private set;
+        }
+        public uint LinkCount
+        {
+            get; private set;
+        }
+        public ulong Length
+        {
+            get; private set;
+        }
 
         internal FileIdentity(string key, uint linkCount, ulong length)
         {

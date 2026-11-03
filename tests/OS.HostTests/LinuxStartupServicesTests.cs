@@ -497,7 +497,10 @@ internal static unsafe partial class LinuxStartupServicesTests
         HostCheck.True(!exhausted);
         HostCheck.Equal(-22L, CallWithBackingObservation(owner, out exhausted, 28, Output, 4096, 999));
         HostCheck.True(!exhausted);
-        HostCheck.Equal(-14L, LinuxStartupServices.Dispatch(null, new() { Number = 9 }, out exhausted));
+        HostCheck.Equal(-14L, LinuxStartupServices.Dispatch(null, new()
+        {
+            Number = 9
+        }, out exhausted));
         HostCheck.True(!exhausted);
         HostCheck.Equal((long)address, owner.Call(9, address, 8192, 0, 0x100022, ulong.MaxValue));
         ulong pin = address;

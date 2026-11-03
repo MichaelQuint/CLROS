@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class FaultEntryStubPlan
 {
     public const byte PushImmediate8Opcode = 0x6a;

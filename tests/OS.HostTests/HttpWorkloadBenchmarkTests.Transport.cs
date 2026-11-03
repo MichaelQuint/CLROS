@@ -17,8 +17,14 @@ internal static partial class HttpWorkloadBenchmarkTests
 
         internal int Requests => requests;
         internal int ActiveBodies => activeBodies;
-        internal int MaximumInFlight { get; private set; }
-        internal bool Disposed { get; private set; }
+        internal int MaximumInFlight
+        {
+            get; private set;
+        }
+        internal bool Disposed
+        {
+            get; private set;
+        }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellation)
         {

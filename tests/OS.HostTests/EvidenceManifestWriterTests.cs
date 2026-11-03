@@ -36,7 +36,7 @@ internal static partial class EvidenceManifestWriterTests
             }
             catch
             {
-            // Cleanup failure must not replace evidence assertions.
+                // Cleanup failure must not replace evidence assertions.
             }
         }
 
@@ -219,7 +219,7 @@ internal static partial class EvidenceManifestWriterTests
         List<EvidenceArtifactInput> mismatch = fixture.PassingRequest.Artifacts.ToList();
         mismatch[0] = mismatch[0] with
         {
-            ExpectedSha256 = new string ('0', 64)
+            ExpectedSha256 = new string('0', 64)
         };
         EvidenceManifestWriteResult malformedResult = EvidenceManifestWriter.Write(Clone(fixture.PassingRequest, artifacts: malformed), output);
         EvidenceManifestWriteResult mismatchResult = EvidenceManifestWriter.Write(Clone(fixture.PassingRequest, artifacts: mismatch), output);

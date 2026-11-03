@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 internal static class AddressValueOperations
 {
     private const ulong MaximumValue = ~0UL;

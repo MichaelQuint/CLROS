@@ -1,4 +1,5 @@
 namespace OS.Manifest;
+
 public struct NativeManifestEnvironmentBlock
 {
     private NativeManifestEnvironmentEntry _entry0;
@@ -17,7 +18,10 @@ public struct NativeManifestEnvironmentBlock
     private NativeManifestEnvironmentEntry _entry13;
     private NativeManifestEnvironmentEntry _entry14;
     private NativeManifestEnvironmentEntry _entry15;
-    public int Count { get; private set; }
+    public int Count
+    {
+        get; private set;
+    }
 
     public bool TryAdd(NativeManifestEnvironmentEntry entry)
     {

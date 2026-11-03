@@ -8,7 +8,10 @@ public sealed class Com1OwnedPortIoByteBackend : IBytePortBackend
         _backend = backend;
     }
 
-    public Com1OwnedPortIoOperationResult LastOperation { get; private set; }
+    public Com1OwnedPortIoOperationResult LastOperation
+    {
+        get; private set;
+    }
 
     public bool TryReadByte(ushort port, out byte value)
     {

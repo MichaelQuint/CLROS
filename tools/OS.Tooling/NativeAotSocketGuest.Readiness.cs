@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSocketGuest
 {
     /// <summary>An actual poll, retained source3 completion or repark record. Poll

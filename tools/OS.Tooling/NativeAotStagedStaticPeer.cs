@@ -59,7 +59,7 @@ public static partial class NativeAotStagedStaticPeer
                 {
                     await stopped.ConnectAsync(IPAddress.Loopback, port, refusal.Token);
                 }
-                catch (SocketException error)when (error.SocketErrorCode == SocketError.ConnectionRefused)
+                catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionRefused)
                 {
                     refused = true;
                 }
@@ -67,7 +67,12 @@ public static partial class NativeAotStagedStaticPeer
                 if (!refused)
                     throw new ToolFailure("static_peer_stopped_endpoint_live");
                 using var output = new FileStream(Path.Combine(destination, "stopped.json"), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-                await JsonSerializer.SerializeAsync(output, new { Port = port, EndpointRefused = true, RunnerExit = result.ExitCode }, cancellationToken: cancellation);
+                await JsonSerializer.SerializeAsync(output, new
+                {
+                    Port = port,
+                    EndpointRefused = true,
+                    RunnerExit = result.ExitCode
+                }, cancellationToken: cancellation);
                 output.Flush(true);
             }
 
@@ -185,7 +190,8 @@ public static partial class NativeAotStagedStaticPeer
                         ".json" => "application/json",
                         ".txt" => "text/plain",
                         ".bin" => "application/octet-stream",
-                        _ => throw new ToolFailure("static_peer_asset_type")};
+                        _ => throw new ToolFailure("static_peer_asset_type")
+                    };
                     if (!response.Row.ResponseHeaders.Any(x => x.Equals("Content-Type: " + mediaType, StringComparison.OrdinalIgnoreCase) || x.StartsWith("Content-Type: " + mediaType + ";", StringComparison.OrdinalIgnoreCase)) || !response.Row.ResponseHeaders.Contains("Content-Length: " + asset.Bytes.Length.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparer.OrdinalIgnoreCase) || !response.Row.ResponseHeaders.Contains("Cache-Control: no-store", StringComparer.OrdinalIgnoreCase))
                         throw new ToolFailure("static_peer_asset_headers");
                     if (path == "/boundary.bin")
@@ -243,7 +249,15 @@ public static partial class NativeAotStagedStaticPeer
                     abort.LingerState = new(true, 0);
                     abort.Close();
                     using var abortReceipt = new FileStream(Path.Combine(destination, "abort.json"), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-                    await JsonSerializer.SerializeAsync(abortReceipt, new { LocalPort = localPort, Request = Convert.ToBase64String(request), Prefix = Convert.ToBase64String(prefix.AsSpan(0, received)), Started = started, Closed = Stopwatch.GetTimestamp(), Close = "reset" }, cancellationToken: matrix.Token);
+                    await JsonSerializer.SerializeAsync(abortReceipt, new
+                    {
+                        LocalPort = localPort,
+                        Request = Convert.ToBase64String(request),
+                        Prefix = Convert.ToBase64String(prefix.AsSpan(0, received)),
+                        Started = started,
+                        Closed = Stopwatch.GetTimestamp(),
+                        Close = "reset"
+                    }, cancellationToken: matrix.Token);
                     abortReceipt.Flush(true);
                 }
 
@@ -270,7 +284,14 @@ public static partial class NativeAotStagedStaticPeer
             async Task WriteReceipt(string name, bool complete)
             {
                 using var output = new FileStream(Path.Combine(destination, name), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-                await JsonSerializer.SerializeAsync(output, new { Schema = "clros-staged-http-v1", Port = port, Complete = complete, ClockFrequency = Stopwatch.Frequency, Responses = rows.OrderBy(x => x.Ordinal).ToArray() }, cancellationToken: CancellationToken.None);
+                await JsonSerializer.SerializeAsync(output, new
+                {
+                    Schema = "clros-staged-http-v1",
+                    Port = port,
+                    Complete = complete,
+                    ClockFrequency = Stopwatch.Frequency,
+                    Responses = rows.OrderBy(x => x.Ordinal).ToArray()
+                }, cancellationToken: CancellationToken.None);
                 output.Flush(true);
             }
         }

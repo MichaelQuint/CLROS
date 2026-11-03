@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Platform;
+
 public sealed class GuardedPlatformMemoryMap : IPlatformMemoryMap
 {
     private readonly IPlatformFirmware _firmware;

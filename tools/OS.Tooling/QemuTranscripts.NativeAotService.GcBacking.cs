@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously inspect borrowed framed canonical call values.
@@ -10,7 +11,7 @@ public static partial class QemuTranscripts
         var framed = NativeAotThreadingOutput.ReadService(raw);
         Need(framed.NormalizedTail.EndsWith("\r\n", StringComparison.Ordinal), "service_gc_backing_records");
         string[] rows = framed.NormalizedTail[..^2].Split("\r\n", StringSplitOptions.None);
-        Need(rows.Length is> 0 and <= 1_000_000 && rows.All(r => r.Length is> 0 and <= 4096), "service_gc_backing_records");
+        Need(rows.Length is > 0 and <= 1_000_000 && rows.All(r => r.Length is > 0 and <= 4096), "service_gc_backing_records");
         return ReadServiceGcBacking(rows, ValidateLinuxServiceCallOrdinals(rows), ReadLinuxServiceCallReturns(rows).Select(r => r.RecordIndex).ToHashSet()).Summary;
     }
 

@@ -13,8 +13,10 @@ public unsafe partial struct LinuxThreadServices
     {
         deadline = 0;
         if (!Access(key, flags) || !Current(flags, out uint index) || _epollExpiredDeadline == 0 ||
-            _owner.Slots[index].Kernel.Value != _epollExpiredThread.Value) return false;
-        deadline = _epollExpiredDeadline; return true;
+            _owner.Slots[index].Kernel.Value != _epollExpiredThread.Value)
+            return false;
+        deadline = _epollExpiredDeadline;
+        return true;
     }
 
     /// <summary>Refresh actual socket readiness and wake matching retained epoll
@@ -36,37 +38,55 @@ public unsafe partial struct LinuxThreadServices
         delegate* unmanaged<void*, ulong*, byte> clock, out ulong afterRefresh)
     {
         afterRefresh = 0;
-        if (context == null || clock == null || !Access(key, flags) || _failed || _descriptors == null) return false;
+        if (context == null || clock == null || !Access(key, flags) || _failed || _descriptors == null)
+            return false;
         ulong boundary = 0;
         LinuxEpollServices.ThreadRefresh refresh = default;
-        if (!WakeEpollChanges(flags, ref refresh, context, clock, &boundary)) return false;
-        afterRefresh = boundary; return true;
+        if (!WakeEpollChanges(flags, ref refresh, context, clock, &boundary))
+            return false;
+        afterRefresh = boundary;
+        return true;
     }
 #endif
 
     private LinuxSyscallResult BeginEpoll(ulong flags, Slot* slot, LinuxSyscallFrame frame)
     {
-        _epollExpiredDeadline = 0; _epollExpiredThread = default;
+        _epollExpiredDeadline = 0;
+        _epollExpiredThread = default;
         bool selected = LinuxEpollServices.BeginOperation(_descriptors, _self, frame, ref slot->EpollOperation, out long value);
-        if (!selected) { _failed = true; return new(LinuxSyscallAction.Rejected); }
-        if (!slot->EpollOperation.IsActive) return new(LinuxSyscallAction.Return, value);
+        if (!selected)
+        {
+            _failed = true;
+            return new(LinuxSyscallAction.Rejected);
+        }
+        if (!slot->EpollOperation.IsActive)
+            return new(LinuxSyscallAction.Return, value);
         int milliseconds = unchecked((int)frame.Argument3);
-        slot->WaitDeadline = 0; slot->WaitCall = frame;
+        slot->WaitDeadline = 0;
+        slot->WaitCall = frame;
         if (milliseconds > 0)
         {
             if (!_futexEnabled)
             {
-                if (!DropEpollOperation(slot)) return new(LinuxSyscallAction.Rejected);
+                if (!DropEpollOperation(slot))
+                    return new(LinuxSyscallAction.Rejected);
                 return new(LinuxSyscallAction.Return, Unsupported);
             }
-            if (!Clock(out ulong now)) { _failed = true; return new(LinuxSyscallAction.Rejected); }
+            if (!Clock(out ulong now))
+            {
+                _failed = true;
+                return new(LinuxSyscallAction.Rejected);
+            }
             ulong duration = (ulong)milliseconds * 1_000_000;
             slot->WaitDeadline = duration > TimeEnd - now ? TimeEnd : now + duration;
         }
         ulong deadline = slot->WaitDeadline;
         var result = ContinueEpoll(flags, slot);
         if (result.Action == LinuxSyscallAction.Return && result.Value == 0 && deadline != 0 && _owner.Threads->ObservedTicks >= deadline)
-        { _epollExpiredDeadline = deadline; _epollExpiredThread = slot->Kernel; }
+        {
+            _epollExpiredDeadline = deadline;
+            _epollExpiredThread = slot->Kernel;
+        }
         return result;
     }
 
@@ -76,12 +96,16 @@ public unsafe partial struct LinuxThreadServices
     public bool CommitEpollWait(ulong key, ulong flags, ThreadContextSwitch.Descriptor captured, out bool handoff)
     {
         handoff = false;
-        if (!Access(key, flags) || _descriptors == null || !Lookup(flags, _owner.Threads->Current, out uint index)) return false;
+        if (!Access(key, flags) || _descriptors == null || !Lookup(flags, _owner.Threads->Current, out uint index))
+            return false;
         Slot* slot = _owner.Slots + index;
-        if (!slot->EpollOperation.IsActive || !slot->Wait.IsValid || slot->WaitSource != 3) return false;
+        if (!slot->EpollOperation.IsActive || !slot->Wait.IsValid || slot->WaitSource != 3)
+            return false;
         var parked = _owner.Threads->Park(_owner.ThreadKey, flags, slot->Wait, captured);
-        if (!parked.Succeeded) return false;
-        handoff = parked.State == KernelThreadTable.State.Waiting; return true;
+        if (!parked.Succeeded)
+            return false;
+        handoff = parked.State == KernelThreadTable.State.Waiting;
+        return true;
     }
 
     /// <summary>Consume the actual current worker's completed epoll wait. Woken
@@ -91,27 +115,38 @@ public unsafe partial struct LinuxThreadServices
     /// Output faults consume no queued events. No signal handler executes here.</summary>
     public LinuxSyscallResult CompleteEpollWait(ulong key, ulong flags)
     {
-        if (!Access(key, flags) || _descriptors == null || !Current(flags, out uint index)) return new(LinuxSyscallAction.Rejected);
+        if (!Access(key, flags) || _descriptors == null || !Current(flags, out uint index))
+            return new(LinuxSyscallAction.Rejected);
         Slot* slot = _owner.Slots + index;
         var state = _owner.Threads->Inspect(_owner.ThreadKey, flags, slot->Kernel);
         if (!state.Succeeded || !slot->Wait.IsValid || slot->WaitSource != 3 || !slot->EpollOperation.IsActive ||
-            slot->Wait.Sequence != state.Wait.Sequence || state.Completion == KernelThreadTable.Completion.None) return new(LinuxSyscallAction.Rejected);
+            slot->Wait.Sequence != state.Wait.Sequence || state.Completion == KernelThreadTable.Completion.None)
+            return new(LinuxSyscallAction.Rejected);
         if (_stopping || slot->Exiting != 0)
         {
-            if (!DropEpollOperation(slot)) return new(LinuxSyscallAction.Rejected);
+            if (!DropEpollOperation(slot))
+                return new(LinuxSyscallAction.Rejected);
             return new(LinuxSyscallAction.ThreadExited, exitCode: slot->ExitCode);
         }
-        if (_failed) return new(LinuxSyscallAction.Rejected);
+        if (_failed)
+            return new(LinuxSyscallAction.Rejected);
         if (state.Completion == KernelThreadTable.Completion.Interrupted)
         {
-            if (!DropEpollOperation(slot)) return new(LinuxSyscallAction.Rejected);
-            slot->Image.Value = -4; return new(LinuxSyscallAction.Return, -4);
+            if (!DropEpollOperation(slot))
+                return new(LinuxSyscallAction.Rejected);
+            slot->Image.Value = -4;
+            return new(LinuxSyscallAction.Return, -4);
         }
         if (state.Completion is not (KernelThreadTable.Completion.Woken or KernelThreadTable.Completion.Deadline))
-        { _failed = true; return new(LinuxSyscallAction.Rejected); }
-        slot->Wait = default; slot->WaitSource = 0;
+        {
+            _failed = true;
+            return new(LinuxSyscallAction.Rejected);
+        }
+        slot->Wait = default;
+        slot->WaitSource = 0;
         var result = ContinueEpoll(flags, slot);
-        if (result.Action == LinuxSyscallAction.Return) slot->Image.Value = result.Value;
+        if (result.Action == LinuxSyscallAction.Return)
+            slot->Image.Value = result.Value;
         return result;
     }
 
@@ -119,10 +154,16 @@ public unsafe partial struct LinuxThreadServices
     {
         ulong now = _owner.Threads->ObservedTicks;
         if (slot->WaitDeadline != 0 && (!Clock(out now) || _owner.Threads->Advance(_owner.ThreadKey, flags, now) != KernelThreadTable.Status.Ok))
-        { _failed = true; return new(LinuxSyscallAction.Rejected); }
+        {
+            _failed = true;
+            return new(LinuxSyscallAction.Rejected);
+        }
         bool expired = slot->WaitDeadline != 0 && now >= slot->WaitDeadline;
         if (!LinuxEpollServices.AttemptOperation(_self, ref slot->EpollOperation, expired, out long value, out bool blocked))
-        { _failed = true; return new(LinuxSyscallAction.Rejected); }
+        {
+            _failed = true;
+            return new(LinuxSyscallAction.Rejected);
+        }
         if (blocked)
         {
             bool timed = slot->WaitDeadline != 0;
@@ -130,13 +171,16 @@ public unsafe partial struct LinuxThreadServices
                 timed ? KernelThreadTable.WaitKind.Sleep : KernelThreadTable.WaitKind.Park, now, timed ? slot->WaitDeadline - now : 0);
             if (begin.Succeeded)
             {
-                slot->Wait = begin.Wait; slot->WaitSource = 3;
-                if (!WakeEpollChanges(flags) || !InterruptPendingWait(flags, slot)) return new(LinuxSyscallAction.Rejected);
+                slot->Wait = begin.Wait;
+                slot->WaitSource = 3;
+                if (!WakeEpollChanges(flags) || !InterruptPendingWait(flags, slot))
+                    return new(LinuxSyscallAction.Rejected);
                 return new(LinuxSyscallAction.Blocked);
             }
             value = Again;
         }
-        if (!DropEpollOperation(slot)) return new(LinuxSyscallAction.Rejected);
+        if (!DropEpollOperation(slot))
+            return new(LinuxSyscallAction.Rejected);
         return new(LinuxSyscallAction.Return, value);
     }
 
@@ -152,33 +196,68 @@ public unsafe partial struct LinuxThreadServices
 #endif
         )
     {
-        if (!refresh.Refresh(_descriptors, _self)) { _failed = true; return false; }
+        if (!refresh.Refresh(_descriptors, _self))
+        {
+            _failed = true;
+            return false;
+        }
 #if !NOSTDLIB_EFI || M10_018_TIMING_PROBE
-        if (clock != null && (afterRefresh == null || clock(context, afterRefresh) != 1)) { _failed = true; return false; }
+        if (clock != null && (afterRefresh == null || clock(context, afterRefresh) != 1))
+        {
+            _failed = true;
+            return false;
+        }
 #endif
-        if (_descriptors->Epoll == null) return true;
+        if (_descriptors->Epoll == null)
+            return true;
         LinuxEpollServices.ReadinessScan scan = default;
         for (uint i = 0; i < _owner.Capacity; i++)
         {
             Slot* slot = _owner.Slots + i;
-            if (!slot->Wait.IsValid || slot->WaitSource != 3 || !slot->EpollOperation.IsActive) continue;
-            if (!scan.HasEvents(_self, ref slot->EpollOperation, out bool ready)) { _failed = true; return false; }
-            if (!ready) continue;
+            if (!slot->Wait.IsValid || slot->WaitSource != 3 || !slot->EpollOperation.IsActive)
+                continue;
+            if (!scan.HasEvents(_self, ref slot->EpollOperation, out bool ready))
+            {
+                _failed = true;
+                return false;
+            }
+            if (!ready)
+                continue;
             // Never carry descriptor authority across a thread-table operation.
             scan = default;
             var state = _owner.Threads->Inspect(_owner.ThreadKey, flags, slot->Kernel);
-            if (!state.Succeeded || state.Wait.Sequence != slot->Wait.Sequence) { _failed = true; return false; }
-            if (state.Completion != KernelThreadTable.Completion.None) continue;
-            if (!_owner.Threads->Wake(_owner.ThreadKey, flags, slot->Wait).Succeeded) { _failed = true; return false; }
+            if (!state.Succeeded || state.Wait.Sequence != slot->Wait.Sequence)
+            {
+                _failed = true;
+                return false;
+            }
+            if (state.Completion != KernelThreadTable.Completion.None)
+                continue;
+            if (!_owner.Threads->Wake(_owner.ThreadKey, flags, slot->Wait).Succeeded)
+            {
+                _failed = true;
+                return false;
+            }
         }
         return true;
     }
     private bool DropEpollOperation(Slot* slot)
     {
-        if (!slot->EpollOperation.IsActive) return true;
-        if (_descriptors == null || !LinuxEpollServices.EndOperation(_self, ref slot->EpollOperation)) { _failed = true; return false; }
-        if (slot->WaitSource == 3) { slot->Wait = default; slot->WaitSource = 0; }
-        slot->WaitDeadline = 0; slot->WaitCall = default; return true;
+        if (!slot->EpollOperation.IsActive)
+            return true;
+        if (_descriptors == null || !LinuxEpollServices.EndOperation(_self, ref slot->EpollOperation))
+        {
+            _failed = true;
+            return false;
+        }
+        if (slot->WaitSource == 3)
+        {
+            slot->Wait = default;
+            slot->WaitSource = 0;
+        }
+        slot->WaitDeadline = 0;
+        slot->WaitCall = default;
+        return true;
     }
 }
 #endif

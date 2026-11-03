@@ -17,17 +17,35 @@ public readonly struct MacAddress
         Octet5 = octet5;
     }
 
-    public byte Octet0 { get; }
+    public byte Octet0
+    {
+        get;
+    }
 
-    public byte Octet1 { get; }
+    public byte Octet1
+    {
+        get;
+    }
 
-    public byte Octet2 { get; }
+    public byte Octet2
+    {
+        get;
+    }
 
-    public byte Octet3 { get; }
+    public byte Octet3
+    {
+        get;
+    }
 
-    public byte Octet4 { get; }
+    public byte Octet4
+    {
+        get;
+    }
 
-    public byte Octet5 { get; }
+    public byte Octet5
+    {
+        get;
+    }
 
     public bool IsZero =>
         Octet0 == 0 &&

@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct TcpActiveConnectTransitionResult
 {
     private TcpActiveConnectTransitionResult(TcpActiveConnectStatus status, TcpActiveConnectState state, PacketParseStatus packetStatus, int bytesWritten, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
@@ -12,14 +13,35 @@ public readonly struct TcpActiveConnectTransitionResult
         RemoteNextSequenceNumber = remoteNextSequenceNumber;
     }
 
-    public TcpActiveConnectStatus Status { get; }
-    public bool IsInitialized { get; }
+    public TcpActiveConnectStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == TcpActiveConnectStatus.Success;
-    public TcpActiveConnectState State { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public int BytesWritten { get; }
-    public uint LocalNextSequenceNumber { get; }
-    public uint RemoteNextSequenceNumber { get; }
+    public TcpActiveConnectState State
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get;
+    }
 
     public static TcpActiveConnectTransitionResult Success(TcpActiveConnectState state, PacketParseStatus packetStatus, int bytesWritten, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
     {

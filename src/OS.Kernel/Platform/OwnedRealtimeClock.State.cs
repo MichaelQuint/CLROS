@@ -1,6 +1,7 @@
 using OS.Std.Time;
 
 namespace OS.Kernel.Platform;
+
 public static partial class OwnedRealtimeClock
 {
     /// <summary>Zero-initialize once, retain exclusively and never copy a live

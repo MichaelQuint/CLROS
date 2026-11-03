@@ -19,7 +19,7 @@ internal static partial class NativeAotWebSignalRaceHostHttpTests
         {
             action();
         }
-        catch (Exception error)when (error is ToolFailure or InvalidDataException)
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
         {
             refused = true;
         }

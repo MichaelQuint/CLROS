@@ -3,6 +3,7 @@ using OS.Kernel.Compatibility.LinuxX64;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow original framed v3-quota bytes and validate
@@ -19,7 +20,7 @@ public static partial class QemuTranscripts
         const string memoryMarker = "M16_014_MEMORY", topologyMarker = "M16_016_TOPOLOGY";
         Need(framed.NormalizedTail.EndsWith("\r\n", StringComparison.Ordinal), "service_quota_memory_records");
         string[] rows = framed.NormalizedTail[..^2].Split("\r\n", StringSplitOptions.None);
-        Need(rows.Length is> 0 and <= 1_000_000 && rows.All(r => r.Length is> 0 and <= 4096 && r.All(c => c is >= ' ' and <= '~')), "service_quota_memory_records");
+        Need(rows.Length is > 0 and <= 1_000_000 && rows.All(r => r.Length is > 0 and <= 4096 && r.All(c => c is >= ' ' and <= '~')), "service_quota_memory_records");
         var output = InspectNativeAotServiceQuotaOutputForTests(framed.Stdout, framed.Stderr);
         foreach (string marker in new[]
         {
@@ -50,7 +51,7 @@ public static partial class QemuTranscripts
         const string serviceSuffix = " process=drained mappings=restored pool=scrubbed random=zero reservation=retained";
         Need(rows[serviceAt].EndsWith(serviceSuffix, StringComparison.Ordinal), "service_quota_memory_service_end");
         var service = ReadRecord(rows[serviceAt][..^serviceSuffix.Length], "M16_014_END", "identity:dec", "calls:dec", "started:dec", "nanos:dec", "reaped:dec");
-        Need(abortAt < memoryAt && memoryAt + 1 == clockAt && clockAt + 1 == ownerAt && ownerAt + 1 == serviceAt && owner["exit"] == 99 && owner["reaped"] > 0 && owner["userReserved"] == 0 && owner["userBacked"] == 0 && service["identity"] > 0 && service["calls"] > 0 && service["reaped"] == owner["reaped"] && service["started"] <= clock["nanos"] && clock["nanos"] <= service["nanos"] && service["nanos"] <= long.MaxValue && finalMemory["poolPages"] == pool / page && finalMemory["peakPages"] is> 0 && finalMemory["peakPages"] <= pool / page && finalMemory["endPages"] == 0, "service_quota_memory_end");
+        Need(abortAt < memoryAt && memoryAt + 1 == clockAt && clockAt + 1 == ownerAt && ownerAt + 1 == serviceAt && owner["exit"] == 99 && owner["reaped"] > 0 && owner["userReserved"] == 0 && owner["userBacked"] == 0 && service["identity"] > 0 && service["calls"] > 0 && service["reaped"] == owner["reaped"] && service["started"] <= clock["nanos"] && clock["nanos"] <= service["nanos"] && service["nanos"] <= long.MaxValue && finalMemory["poolPages"] == pool / page && finalMemory["peakPages"] is > 0 && finalMemory["peakPages"] <= pool / page && finalMemory["endPages"] == 0, "service_quota_memory_end");
         var calls = ValidateLinuxServiceCallOrdinals(rows);
         var returns = ReadLinuxServiceCallReturns(rows).ToDictionary(r => r.RecordIndex);
         var callValues = returns.Keys.ToDictionary(at => at, at => ReadRecord(calls[at], "M16_008_CALL", WebCallFields));

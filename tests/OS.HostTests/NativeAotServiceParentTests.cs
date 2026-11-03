@@ -13,11 +13,17 @@ internal static class NativeAotServiceParentTests
     private static void Complete()
     {
         string[] rows = Rows(), before = rows.ToArray();
-        var value = Inspect(rows); HostCheck.Equal(10UL, value.Fresh); HostCheck.Equal(10UL, value.Retired);
-        HostCheck.Equal(100UL, value.Received); HostCheck.Equal(200UL, value.TcpCopied);
-        HostCheck.Equal(Deadline, value.MaximumDeadline); HostCheck.Equal(Finished, value.Ended);
-        HostCheck.Equal(10UL, value.Started); HostCheck.True(rows.SequenceEqual(before));
-        Array.Fill(rows, "changed"); HostCheck.Equal(Finished, value.Ended);
+        var value = Inspect(rows);
+        HostCheck.Equal(10UL, value.Fresh);
+        HostCheck.Equal(10UL, value.Retired);
+        HostCheck.Equal(100UL, value.Received);
+        HostCheck.Equal(200UL, value.TcpCopied);
+        HostCheck.Equal(Deadline, value.MaximumDeadline);
+        HostCheck.Equal(Finished, value.Ended);
+        HostCheck.Equal(10UL, value.Started);
+        HostCheck.True(rows.SequenceEqual(before));
+        Array.Fill(rows, "changed");
+        HostCheck.Equal(Finished, value.Ended);
     }
 
     [HostTest("service parent envelope refuses missing duplicated reordered finite and incomplete terminals", HostLane.Fast, 1)]
@@ -29,16 +35,24 @@ internal static class NativeAotServiceParentTests
             "M16_011_WIRE ", "M16_011_END ", "M07_026_ROW stage=4 ", "M07_026_ROW stage=5 ", "M07_026_ROW stage=6 ",
             "CLROS_M07_026_READY", "TEST_PASS m07-026", "CLROS_M16_011_READY", "TEST_PASS m16-011", "CLROS_M16_012_READY", "TEST_PASS m16-012" })
         {
-            int at = Array.FindIndex(rows, row => row.StartsWith(prefix, StringComparison.Ordinal)); HostCheck.True(at >= 0);
+            int at = Array.FindIndex(rows, row => row.StartsWith(prefix, StringComparison.Ordinal));
+            HostCheck.True(at >= 0);
             Reject(rows.Where((_, i) => i != at).ToArray());
-            var duplicate = rows.ToList(); duplicate.Insert(at, rows[at]); Reject(duplicate.ToArray());
+            var duplicate = rows.ToList();
+            duplicate.Insert(at, rows[at]);
+            Reject(duplicate.ToArray());
         }
-        var swapped = rows.ToArray(); (swapped[^1], swapped[^2]) = (swapped[^2], swapped[^1]); Reject(swapped);
-        Reject([..rows, "TEST_PASS m16-013"]); Reject([..rows, "extra"]);
+        var swapped = rows.ToArray();
+        (swapped[^1], swapped[^2]) = (swapped[^2], swapped[^1]);
+        Reject(swapped);
+        Reject([.. rows, "TEST_PASS m16-013"]);
+        Reject([.. rows, "extra"]);
         Reject(rows.Select(row => row.Replace("workers=reaped", "workers=retained", StringComparison.Ordinal)).ToArray());
         Reject(rows.Select(row => row.Replace("root=true descriptors=true", "root=false descriptors=true", StringComparison.Ordinal)).ToArray());
-        var restoration = rows.ToArray(); int restoreAt = Array.FindIndex(rows, row => row.StartsWith("M16_009_RESTORE ", StringComparison.Ordinal));
-        (restoration[restoreAt], restoration[restoreAt-1]) = (restoration[restoreAt-1], restoration[restoreAt]); Reject(restoration);
+        var restoration = rows.ToArray();
+        int restoreAt = Array.FindIndex(rows, row => row.StartsWith("M16_009_RESTORE ", StringComparison.Ordinal));
+        (restoration[restoreAt], restoration[restoreAt - 1]) = (restoration[restoreAt - 1], restoration[restoreAt]);
+        Reject(restoration);
     }
 
     [HostTest("service parent envelope rejects borrowed report counter deadline peer clock and NIC mismatches", HostLane.Fast, 2)]
@@ -51,13 +65,36 @@ internal static class NativeAotServiceParentTests
             ("stage=5 a=8 b=0", "stage=5 a=8 b=1"), ("stage=6 a=100", "stage=6 a=99"),
             ("progressNanos=30000000000", "progressNanos=30000000001"), ("started=30", "started=19") })
         {
-            string[] rows = Rows(); var changed = rows.Select(row => row.Replace(change.Item1, change.Item2, StringComparison.Ordinal)).ToArray();
-            HostCheck.True(!rows.SequenceEqual(changed)); Reject(changed);
+            string[] rows = Rows();
+            var changed = rows.Select(row => row.Replace(change.Item1, change.Item2, StringComparison.Ordinal)).ToArray();
+            HostCheck.True(!rows.SequenceEqual(changed));
+            Reject(changed);
         }
-        Reject(Rows(), leaf: Leaf with { Random = Leaf.Random with { Requests = 34 } });
-        Reject(Rows(), leaf: Leaf with { Transport = Leaf.Transport with { BulkHighWater = 3 } });
-        Reject(Rows(), leaf: Leaf with { Protocol = Leaf.Protocol with { Reaped = 4 } });
-        Reject(Rows(), parent: Parent with { PeerEnd = 31 });
+        Reject(Rows(), leaf: Leaf with
+        {
+            Random = Leaf.Random with
+            {
+                Requests = 34
+            }
+        });
+        Reject(Rows(), leaf: Leaf with
+        {
+            Transport = Leaf.Transport with
+            {
+                BulkHighWater = 3
+            }
+        });
+        Reject(Rows(), leaf: Leaf with
+        {
+            Protocol = Leaf.Protocol with
+            {
+                Reaped = 4
+            }
+        });
+        Reject(Rows(), parent: Parent with
+        {
+            PeerEnd = 31
+        });
     }
 
     [HostTest("service parent envelope binds original timing period and disjoint roots worker pool and DMA", HostLane.Fast, 3)]
@@ -87,5 +124,13 @@ internal static class NativeAotServiceParentTests
     private static QemuTranscripts.ServiceEnvelopeInspection Inspect(string[] rows, QemuTranscripts.WebParentReport? parent = null,
         QemuTranscripts.ServiceReplayReport? leaf = null) => QemuTranscripts.InspectNativeAotServiceEnvelopeForTests(rows, parent ?? Parent, leaf ?? Leaf, Baseline);
     private static void Reject(string[] rows, QemuTranscripts.WebParentReport? parent = null, QemuTranscripts.ServiceReplayReport? leaf = null)
-    { bool rejected = false; try { _ = Inspect(rows, parent, leaf); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
+    {
+        bool rejected = false;
+        try
+        {
+            _ = Inspect(rows, parent, leaf);
+        }
+        catch (ToolFailure) { rejected = true; }
+        HostCheck.True(rejected);
+    }
 }

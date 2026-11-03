@@ -2,6 +2,7 @@ using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed partial class ThreadingProtocol
@@ -196,9 +197,9 @@ public static partial class QemuTranscripts
                     WebBadIo(requirePrivate: true);
                     webPrivateRetired = true;
                 }
-            // Transport clocks do not advance the released thread table.
-            // The mandatory parent/packet consumer owns full handle/tuple,
-            // TIME-WAIT, retire, NIC and wire accounting for these rows.
+                // Transport clocks do not advance the released thread table.
+                // The mandatory parent/packet consumer owns full handle/tuple,
+                // TIME-WAIT, retire, NIC and wire accounting for these rows.
             }
         }
 
@@ -214,7 +215,7 @@ public static partial class QemuTranscripts
             var controls = webControls!.Sockets;
             int ordinary = webLogQuota ? 5 : 6;
             var bad = WebControlDescription(ordinary);
-            bool later = allowLaterAccepts && webRaceTransport && webRaceExtraAccepted && socketAccepts is> 8 and <= 512 && socketAccepts == webLifetimes!.Count;
+            bool later = allowLaterAccepts && webRaceTransport && webRaceExtraAccepted && socketAccepts is > 8 and <= 512 && socketAccepts == webLifetimes!.Count;
             Need((socketAccepts == ordinary + 2 || later) && bad.Sent == (ulong)controls.Deadline.ResponseHex.Length / 2 && bad.Received == (ulong)controls.Deadline.RequestHex.Length / 2 && bad.Reset == 0 && (!requirePrivate || !socketDescriptors.ContainsValue(bad)), "web_replay_control_bad_io");
         }
 
@@ -436,7 +437,7 @@ public static partial class QemuTranscripts
                 else
                 {
                     int timeout = unchecked((int)d);
-                    Need(c is> 0 and <= 1024 && memory.Covered(b, c * 12, 3) && (nr != 281 || e == 0 && f == 8), "socket_epoll_buffer");
+                    Need(c is > 0 and <= 1024 && memory.Covered(b, c * 12, 3) && (nr != 281 || e == 0 && f == 8), "socket_epoll_buffer");
                     if (r["action"] == 3)
                     {
                         Need(v == 0 && timeout != 0 && (timeout < 0 ? witness.Deadline == 0 : witness.Deadline > clock && witness.Deadline - clock <= (ulong)timeout * 1_000_000), "socket_epoll_deadline");
@@ -592,7 +593,7 @@ public static partial class QemuTranscripts
         private void SocketFinish()
         {
             if (staticFiles)
-                Need((diskInventory is null ? socketAccepts == 3 : socketAccepts is> 0 and <= 512) && socketSent > 0 && socketReceived > 0 && clones >= 2, "static_socket_workload_lifetimes");
+                Need((diskInventory is null ? socketAccepts == 3 : socketAccepts is > 0 and <= 512) && socketSent > 0 && socketReceived > 0 && clones >= 2, "static_socket_workload_lifetimes");
             else if (service)
                 Need(socketAccepts >= 10 && socketSent > 0 && socketReceived > 0 && clones >= 2, "service_socket_workload_lifetimes");
             else if (containment)

@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public readonly struct FetchAppHttpTcpExchangePlanResult
 {
     private const uint InitializedFlag = 1;
@@ -20,20 +21,62 @@ public readonly struct FetchAppHttpTcpExchangePlanResult
         Flags = flags;
     }
 
-    public FetchAppHttpTcpExchangePlanStatus Status { get; }
-    public FetchAppHttpTcpContextPlanResult Context { get; }
-    public HttpTcpClientGetPlanResult Syn { get; }
-    public HttpTcpClientGetPlanResult SynAck { get; }
-    public HttpTcpClientGetPlanResult FinalAck { get; }
-    public HttpTcpClientGetPlanResult Request { get; }
-    public HttpTcpClientGetPlanResult Response { get; }
-    public FetchAppHttpCompletionPlanResult Completion { get; }
-    public TcpConnectionCloseIpv4FramePlanResult Close { get; }
-    public int HostBytes { get; }
-    public int PathBytes { get; }
-    public ushort ExpectedHttpStatusCode { get; }
-    public int ExpectedMarkerLength { get; }
-    public uint Flags { get; }
+    public FetchAppHttpTcpExchangePlanStatus Status
+    {
+        get;
+    }
+    public FetchAppHttpTcpContextPlanResult Context
+    {
+        get;
+    }
+    public HttpTcpClientGetPlanResult Syn
+    {
+        get;
+    }
+    public HttpTcpClientGetPlanResult SynAck
+    {
+        get;
+    }
+    public HttpTcpClientGetPlanResult FinalAck
+    {
+        get;
+    }
+    public HttpTcpClientGetPlanResult Request
+    {
+        get;
+    }
+    public HttpTcpClientGetPlanResult Response
+    {
+        get;
+    }
+    public FetchAppHttpCompletionPlanResult Completion
+    {
+        get;
+    }
+    public TcpConnectionCloseIpv4FramePlanResult Close
+    {
+        get;
+    }
+    public int HostBytes
+    {
+        get;
+    }
+    public int PathBytes
+    {
+        get;
+    }
+    public ushort ExpectedHttpStatusCode
+    {
+        get;
+    }
+    public int ExpectedMarkerLength
+    {
+        get;
+    }
+    public uint Flags
+    {
+        get;
+    }
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
     public bool Succeeded => IsInitialized && Status == FetchAppHttpTcpExchangePlanStatus.Success && Context.Succeeded && Syn.Succeeded && SynAck.Succeeded && FinalAck.Succeeded && Request.Succeeded && Response.Succeeded && Completion.Succeeded && Close.Succeeded && HostBytes > 0 && PathBytes > 0 && ExpectedHttpStatusCode != 0 && ExpectedMarkerLength > 0;
     public int SynFrameBytes => Syn.BytesWritten;

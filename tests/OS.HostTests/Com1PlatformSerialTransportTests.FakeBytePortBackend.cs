@@ -10,12 +10,27 @@ internal static partial class Com1PlatformSerialTransportTests
         private readonly byte[] _dataBytes = new byte[1024];
         private readonly byte[] _lineStatusSequence = new byte[64];
         private int _lineStatusSequenceLength;
-        public byte LineStatusValue { get; set; }
+        public byte LineStatusValue
+        {
+            get; set;
+        }
         public int FailWriteAfter { get; set; } = -1;
-        public int WriteCount { get; private set; }
-        public int ReadCount { get; private set; }
-        public int InitializationWriteCount { get; private set; }
-        public int DataWriteCount { get; private set; }
+        public int WriteCount
+        {
+            get; private set;
+        }
+        public int ReadCount
+        {
+            get; private set;
+        }
+        public int InitializationWriteCount
+        {
+            get; private set;
+        }
+        public int DataWriteCount
+        {
+            get; private set;
+        }
 
         public bool TryReadByte(ushort port, out byte value)
         {

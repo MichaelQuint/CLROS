@@ -2,6 +2,7 @@
 using Fds = OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxEpollServices
 {
     /// <summary>Stack-only admission for one serialized IRQ-off refresh. Begin

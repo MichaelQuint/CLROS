@@ -8,6 +8,7 @@ using System.Text.Json;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServicePeer
 {
     /// <summary>Identity of this owned peer, serial path and exact runner result.
@@ -26,15 +27,36 @@ public static partial class NativeAotServicePeer
             Lifecycle = lifecycle;
         }
 
-        internal string Root { get; }
-        public int Port { get; }
-        public string Path { get; }
-        public string Sha256 { get; }
-        public string SerialPath { get; }
-        public ProcessResult Runner { get; }
+        internal string Root
+        {
+            get;
+        }
+        public int Port
+        {
+            get;
+        }
+        public string Path
+        {
+            get;
+        }
+        public string Sha256
+        {
+            get;
+        }
+        public string SerialPath
+        {
+            get;
+        }
+        public ProcessResult Runner
+        {
+            get;
+        }
         /// <summary>Factory-selected report contract, never inferred from supplied text.</summary>
 
-        public bool Lifecycle { get; }
+        public bool Lifecycle
+        {
+            get;
+        }
 
         internal void Verify(AuthorityFiles files)
         {

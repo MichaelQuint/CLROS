@@ -1,4 +1,5 @@
 namespace OS.Manifest;
+
 public static class NativeAppArgumentVectorPlanner
 {
     public const int MaximumArgumentCount = 16;

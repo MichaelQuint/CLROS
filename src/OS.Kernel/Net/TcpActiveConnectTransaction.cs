@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public struct TcpActiveConnectTransaction
 {
     public const byte FlagFin = 0x01;
@@ -26,13 +27,34 @@ public struct TcpActiveConnectTransaction
         _synAckAccepted = false;
     }
 
-    public TcpActiveConnectState State { get; private set; }
-    public ushort LocalPort { get; }
-    public ushort RemotePort { get; }
-    public uint InitialSequenceNumber { get; }
-    public uint LocalNextSequenceNumber { get; private set; }
-    public uint RemoteInitialSequenceNumber { get; private set; }
-    public uint RemoteNextSequenceNumber { get; private set; }
+    public TcpActiveConnectState State
+    {
+        get; private set;
+    }
+    public ushort LocalPort
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
+    public uint InitialSequenceNumber
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get; private set;
+    }
+    public uint RemoteInitialSequenceNumber
+    {
+        get; private set;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get; private set;
+    }
     public bool RequiresRemoteInitialSequenceNumber => _requiresRemoteInitialSequenceNumber;
     public uint ExpectedRemoteInitialSequenceNumber => _expectedRemoteInitialSequenceNumber;
 

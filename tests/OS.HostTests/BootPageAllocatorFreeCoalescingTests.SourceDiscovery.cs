@@ -21,7 +21,7 @@ internal static partial class BootPageAllocatorFreeCoalescingTests
     private static void ValidateFreeShimClosure(IReadOnlyList<CSharpSourceDocument> sources, string shim) => HostBootPageAllocatorSources.ValidateShimClosure(sources, shim);
     private static bool CheckFreeSource(CSharpSourceCatalog host, CSharpSourceCatalog efi)
     {
-        var production = HostSourceText.DocumentSources(host, [..FreeOwners, "OS.Kernel.Memory.BootPageAllocatorMutationResult"]);
+        var production = HostSourceText.DocumentSources(host, [.. FreeOwners, "OS.Kernel.Memory.BootPageAllocatorMutationResult"]);
         foreach (var document in production)
             if (!efi.Documents.Any(candidate => candidate.Path.Equals(document.Path, StringComparison.OrdinalIgnoreCase) && candidate.Sha256 == document.Sha256))
                 return SourceFailure("raw-production-source-join");

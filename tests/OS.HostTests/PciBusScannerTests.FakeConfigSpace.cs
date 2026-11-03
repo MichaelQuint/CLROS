@@ -14,7 +14,10 @@ internal static partial class PciBusScannerTests
         private byte _failureDevice;
         private byte _failureFunction;
         private PciConfigurationSpaceReadStatus _failureStatus;
-        public int ReadCount { get; private set; }
+        public int ReadCount
+        {
+            get; private set;
+        }
 
         public void SetHeader(byte bus, byte device, byte function, byte[] headerBytes)
         {

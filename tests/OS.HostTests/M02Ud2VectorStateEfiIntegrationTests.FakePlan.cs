@@ -13,13 +13,22 @@ internal static partial class M02Ud2VectorStateEfiIntegrationTests
 {
     private sealed class FakePlan
     {
-        public byte CurrentState { get; init; }
+        public byte CurrentState
+        {
+            get; init;
+        }
         public bool BootServicesPresent { get; init; } = true;
         public bool AllocatePresent { get; init; } = true;
         public bool FreePresent { get; init; } = true;
-        public ulong CodeAllocationStatus { get; init; }
+        public ulong CodeAllocationStatus
+        {
+            get; init;
+        }
         public ulong CodeAddress { get; init; } = ValidCodeAddress;
-        public ulong DataAllocationStatus { get; init; }
+        public ulong DataAllocationStatus
+        {
+            get; init;
+        }
         public ulong DataAddress { get; init; } = ValidDataAddress;
         public bool MaterializationSucceeded { get; init; } = true;
         public bool ReadBackSucceeded { get; init; } = true;

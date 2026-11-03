@@ -23,7 +23,10 @@ internal static partial class KestrelSmokePackageContractTests
             this.BaseUri = baseUri;
         }
 
-        public Uri BaseUri { get; }
+        public Uri BaseUri
+        {
+            get;
+        }
         public bool HasExited => this.process.HasExited;
 
         public string StopAndCaptureOutput()
@@ -36,7 +39,7 @@ internal static partial class KestrelSmokePackageContractTests
                 }
                 catch
                 {
-                // The process may have exited between the check and the kill request.
+                    // The process may have exited between the check and the kill request.
                 }
             }
 

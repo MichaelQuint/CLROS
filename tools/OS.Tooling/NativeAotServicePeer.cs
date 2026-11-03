@@ -102,7 +102,7 @@ public static partial class NativeAotServicePeer
                 exchanges.Add(await Send("GET", "/healthz", startup: true));
                 break;
             }
-            catch (Exception error)when ((error is SocketException or IOException or OperationCanceledException) && !token.IsCancellationRequested)
+            catch (Exception error) when ((error is SocketException or IOException or OperationCanceledException) && !token.IsCancellationRequested)
             {
                 await Task.Delay(1000, token);
             }
@@ -124,7 +124,7 @@ public static partial class NativeAotServicePeer
         NativeAotServiceLifecyclePeer.Observation? lifecycleObservation = null;
         if (lifecycle)
             lifecycleObservation = await NativeAotServiceLifecyclePeer.RunAsync(port, token);
-        for (int samples = 0;; samples++)
+        for (int samples = 0; ; samples++)
         {
             Need(samples < 65, "sample_bound");
             exchanges.Add(await Send("GET", StatusPath));
@@ -141,7 +141,22 @@ public static partial class NativeAotServicePeer
         Require(exchanges[^1], "GET", "/healthz", 200, "CLROS_SERVICE_HEALTH_OK");
         exchanges.Add(await Send("POST", StopPath));
         Require(exchanges[^1], "POST", StopPath, 200, "CLROS_SERVICE_STOPPED");
-        string report = lifecycle ? JsonSerializer.Serialize(new { schema = "clros.nativeaot.service.peer.v2", port, durationMilliseconds = clock.ElapsedMilliseconds, connectAttempts = attempts, exchanges, lifecycle = lifecycleObservation }, JsonOptions) : JsonSerializer.Serialize(new { schema = Schema, port, durationMilliseconds = clock.ElapsedMilliseconds, connectAttempts = attempts, exchanges }, JsonOptions);
+        string report = lifecycle ? JsonSerializer.Serialize(new
+        {
+            schema = "clros.nativeaot.service.peer.v2",
+            port,
+            durationMilliseconds = clock.ElapsedMilliseconds,
+            connectAttempts = attempts,
+            exchanges,
+            lifecycle = lifecycleObservation
+        }, JsonOptions) : JsonSerializer.Serialize(new
+        {
+            schema = Schema,
+            port,
+            durationMilliseconds = clock.ElapsedMilliseconds,
+            connectAttempts = attempts,
+            exchanges
+        }, JsonOptions);
         _ = InspectOutput(report, lifecycle);
         await output.WriteLineAsync(report);
     }
@@ -171,7 +186,7 @@ public static partial class NativeAotServicePeer
         byte[]? decoded = null;
         DateTimeOffset date = default;
         bool notified = false, chunked = false, entityComplete = false;
-        for (;;)
+        for (; ; )
         {
             int count = await stream.ReadAsync(bytes.AsMemory(received), limit.Token);
             if (count == 0)
@@ -221,7 +236,7 @@ public static partial class NativeAotServicePeer
         foreach (byte value in bytes)
             Need(value is 10 or 13 or >= 32 and <= 126, "http_headers");
         string[] rows = Encoding.ASCII.GetString(bytes).Split("\r\n", StringSplitOptions.None);
-        Need(rows.Length is >= 2 and <= 64 && rows.All(row => row.Length is> 0 and <= 8192 && row.All(c => c is >= ' ' and <= '~')), "http_headers");
+        Need(rows.Length is >= 2 and <= 64 && rows.All(row => row.Length is > 0 and <= 8192 && row.All(c => c is >= ' ' and <= '~')), "http_headers");
         int status = rows[0] switch
         {
             "HTTP/1.1 200 OK" => 200,
@@ -250,7 +265,7 @@ public static partial class NativeAotServicePeer
     {
         decoded = 0;
         int offset = 0;
-        for (;;)
+        for (; ; )
         {
             int end = bytes[offset..].IndexOf("\r\n"u8);
             if (end < 0)
@@ -259,7 +274,7 @@ public static partial class NativeAotServicePeer
                 return false;
             }
 
-            Need(end is> 0 and <= 8, "http_chunk_size");
+            Need(end is > 0 and <= 8, "http_chunk_size");
             string hex = Encoding.ASCII.GetString(bytes.Slice(offset, end));
             bool valid = uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint size);
             Need(hex.All(char.IsAsciiHexDigit) && valid && size <= (uint)(body.Length - decoded), "http_chunk_size");
@@ -300,10 +315,10 @@ public static partial class NativeAotServicePeer
                 Fields(root, "schema", "port", "durationMilliseconds", "connectAttempts", "exchanges");
             Need(root.GetProperty("schema").GetString() == (lifecycle ? "clros.nativeaot.service.peer.v2" : Schema), "schema");
             long port = Number(root, "port"), duration = Number(root, "durationMilliseconds"), attempts = Number(root, "connectAttempts");
-            Need(port is >= 1 and <= 65535 && duration is> 300_000 and < 800_000 && attempts is >= 1 and <= 400, "report_ranges");
+            Need(port is >= 1 and <= 65535 && duration is > 300_000 and < 800_000 && attempts is >= 1 and <= 400, "report_ranges");
             var observation = lifecycle ? ReadLifecycle(root.GetProperty("lifecycle"), (int)port) : null;
             var array = root.GetProperty("exchanges");
-            Need(array.ValueKind == JsonValueKind.Array && array.GetArrayLength()is >= 10 and <= 73, "exchange_count");
+            Need(array.ValueKind == JsonValueKind.Array && array.GetArrayLength() is >= 10 and <= 73, "exchange_count");
             List<Exchange> exchanges = [];
             long previous = 0;
             DateTimeOffset priorDate = DateTimeOffset.MinValue;

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class HyperVPlatformIdentification
 {
     public const uint HypervisorVendorLeafNumber = 0x40000000;

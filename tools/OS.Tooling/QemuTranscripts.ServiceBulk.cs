@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed class ServiceBulk(Dictionary<string, ulong> identity)

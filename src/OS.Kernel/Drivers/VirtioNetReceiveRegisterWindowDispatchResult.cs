@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 
 public readonly struct VirtioNetReceiveRegisterWindowDispatchResult
@@ -24,23 +25,74 @@ public readonly struct VirtioNetReceiveRegisterWindowDispatchResult
         Dispatch = dispatch;
     }
 
-    public bool IsInitialized { get; }
-    public VirtioNetReceiveRegisterWindowDispatchStatus Status { get; }
-    public VirtioNetReceiveRegisterWindowSlabCompletionStatus SlabCompletionStatus { get; }
-    public NetworkReceiveDispatchStatus DispatchStatus { get; }
-    public VirtioNetReceiveReadinessStatus ReadinessStatus { get; }
-    public VirtioNetReceiveFrameClassifierStatus ClassifierStatus { get; }
-    public PacketParseStatus ClassifierPacketStatus { get; }
-    public PacketParseStatus PayloadPacketStatus { get; }
-    public EthernetPayloadKind PayloadKind { get; }
-    public bool DispatchAttempted { get; }
-    public ushort DescriptorHead { get; }
-    public ushort BufferIndex { get; }
-    public uint SelectedBufferOffset { get; }
-    public uint SelectedBufferLength { get; }
-    public uint UsedByteCount { get; }
-    public VirtioNetReceiveRegisterWindowSlabCompletionResult SlabCompletion { get; }
-    public NetworkReceiveDispatchResult Dispatch { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtioNetReceiveRegisterWindowDispatchStatus Status
+    {
+        get;
+    }
+    public VirtioNetReceiveRegisterWindowSlabCompletionStatus SlabCompletionStatus
+    {
+        get;
+    }
+    public NetworkReceiveDispatchStatus DispatchStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveReadinessStatus ReadinessStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveFrameClassifierStatus ClassifierStatus
+    {
+        get;
+    }
+    public PacketParseStatus ClassifierPacketStatus
+    {
+        get;
+    }
+    public PacketParseStatus PayloadPacketStatus
+    {
+        get;
+    }
+    public EthernetPayloadKind PayloadKind
+    {
+        get;
+    }
+    public bool DispatchAttempted
+    {
+        get;
+    }
+    public ushort DescriptorHead
+    {
+        get;
+    }
+    public ushort BufferIndex
+    {
+        get;
+    }
+    public uint SelectedBufferOffset
+    {
+        get;
+    }
+    public uint SelectedBufferLength
+    {
+        get;
+    }
+    public uint UsedByteCount
+    {
+        get;
+    }
+    public VirtioNetReceiveRegisterWindowSlabCompletionResult SlabCompletion
+    {
+        get;
+    }
+    public NetworkReceiveDispatchResult Dispatch
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetReceiveRegisterWindowDispatchStatus.Success;
 
     internal static VirtioNetReceiveRegisterWindowDispatchResult FromSlabCompletion(VirtioNetReceiveRegisterWindowSlabCompletionResult slabCompletion)

@@ -231,7 +231,7 @@ internal static partial class QemuRunnerTests
             }
             catch
             {
-            // Test cleanup failure should not hide validation results.
+                // Test cleanup failure should not hide validation results.
             }
         }
 
@@ -279,7 +279,7 @@ internal static partial class QemuRunnerTests
         if (arp.ExitCode != 0 || !arp.Output.Contains(",mac=02:00:00:00:00:01", StringComparison.Ordinal) || virtio.Output.Contains(",mac=", StringComparison.Ordinal))
             return false;
         string[] peerFlags = ["--virtio-negotiation-device", "--ethernet-capture", Path.Combine(root, "peer-" + Guid.NewGuid().ToString("N") + ".pcap"), "--arp-receive-fixture", "--continuing-network-peer"];
-        ProcessResult peer = RunQemuRunner(["--dry-run", ..peerFlags]);
+        ProcessResult peer = RunQemuRunner(["--dry-run", .. peerFlags]);
         if (peer.ExitCode != 0 || !peer.Output.Contains("socket,id=n0,connect=127.0.0.1:<ephemeral>", StringComparison.Ordinal) || !arp.Output.Contains("user,id=n0", StringComparison.Ordinal))
             return false;
         foreach (string[] extra in new string[][]
@@ -290,7 +290,7 @@ internal static partial class QemuRunnerTests
         }
 
         )
-            if (RunQemuRunner(["--dry-run", ..peerFlags, ..extra]).ExitCode == 0)
+            if (RunQemuRunner(["--dry-run", .. peerFlags, .. extra]).ExitCode == 0)
                 return false;
         if (ordinary.ExitCode != 0 || virtio.ExitCode != 0 || ordinary.Output.Contains("disable-legacy=on", StringComparison.Ordinal) || !virtio.Output.Contains("-device virtio-net-pci,netdev=n0,addr=06.0,disable-legacy=on,romfile=", StringComparison.Ordinal) || virtio.Output.Contains("pci-testdev", StringComparison.Ordinal))
             return false;
@@ -305,7 +305,7 @@ internal static partial class QemuRunnerTests
         }
 
         )
-            if (RunQemuRunner(["--dry-run", ..flags]).ExitCode == 0)
+            if (RunQemuRunner(["--dry-run", .. flags]).ExitCode == 0)
                 return false;
         return true;
     }
@@ -324,7 +324,7 @@ internal static partial class QemuRunnerTests
         )
         {
             string value = port.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            ProcessResult result = RunQemuRunner([..fixture, "--socket-forward-port", value]);
+            ProcessResult result = RunQemuRunner([.. fixture, "--socket-forward-port", value]);
             if (result.ExitCode != 0 || !result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal))
                 return false;
             string command = result.Output.Split('\n').Single(line => line.StartsWith("qemu-test ", StringComparison.Ordinal));
@@ -355,12 +355,12 @@ internal static partial class QemuRunnerTests
 
         )
         {
-            ProcessResult result = RunQemuRunner([..fixture, "--socket-forward-port", value]);
+            ProcessResult result = RunQemuRunner([.. fixture, "--socket-forward-port", value]);
             if (result.ExitCode == 0 || !result.Output.Contains("--socket-forward-port must be a decimal port", StringComparison.Ordinal))
                 return false;
         }
 
-        ProcessResult missing = RunQemuRunner([..fixture, "--socket-forward-port"]);
+        ProcessResult missing = RunQemuRunner([.. fixture, "--socket-forward-port"]);
         if (missing.ExitCode == 0 || !missing.Output.Contains("Missing value for --socket-forward-port", StringComparison.Ordinal))
             return false;
         foreach (string duplicate in new[]
@@ -371,7 +371,7 @@ internal static partial class QemuRunnerTests
 
         )
         {
-            ProcessResult result = RunQemuRunner([..fixture, "--socket-forward-port", "20080", "--socket-forward-port", duplicate]);
+            ProcessResult result = RunQemuRunner([.. fixture, "--socket-forward-port", "20080", "--socket-forward-port", duplicate]);
             if (result.ExitCode == 0 || !result.Output.Contains("--socket-forward-port may be specified only once", StringComparison.Ordinal))
                 return false;
         }
@@ -393,12 +393,12 @@ internal static partial class QemuRunnerTests
 
         )
         {
-            ProcessResult result = RunQemuRunner([..common, ..incomplete]);
+            ProcessResult result = RunQemuRunner([.. common, .. incomplete]);
             if (result.ExitCode == 0 || result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal))
                 return false;
         }
 
-        string[] fixture = [..common, "--virtio-negotiation-device", "--arp-receive-fixture", "--ethernet-capture", capture];
+        string[] fixture = [.. common, "--virtio-negotiation-device", "--arp-receive-fixture", "--ethernet-capture", capture];
         foreach (string[] conflict in new string[][]
         {
             ["--continuing-network-peer"],
@@ -410,7 +410,7 @@ internal static partial class QemuRunnerTests
 
         )
         {
-            ProcessResult result = RunQemuRunner([..fixture, ..conflict]);
+            ProcessResult result = RunQemuRunner([.. fixture, .. conflict]);
             if (result.ExitCode == 0 || !result.Output.Contains("--socket-forward-port requires", StringComparison.Ordinal))
                 return false;
         }
@@ -432,7 +432,7 @@ internal static partial class QemuRunnerTests
     private static bool WritableDryRun(string root)
     {
         var f = WritableFiles(root, "dry with spaces");
-        var result = RunQemuRunner(["--dry-run", "--qemu", "qemu-test", ..WritableArguments(f.Root, f.Boot, f.Data)]);
+        var result = RunQemuRunner(["--dry-run", "--qemu", "qemu-test", .. WritableArguments(f.Root, f.Boot, f.Data)]);
         string text = result.Output;
         return result.ExitCode == 0 && text.Contains("WRITABLE_DATA_POLICY boot=immutable-overlay data=mutable cache=writeback acceptance=pending", StringComparison.Ordinal) && text.Contains("if=none,id=esp,format=raw,snapshot=on,file=" + f.Boot, StringComparison.Ordinal) && text.Contains("ide-hd,drive=esp,bus=ahci.0", StringComparison.Ordinal) && text.Contains("virtio-net-pci,netdev=n0,addr=06.0,disable-legacy=on", StringComparison.Ordinal) && text.Contains("if=none,id=writabledata,format=raw,cache=writeback,readonly=off,file=" + f.Data, StringComparison.Ordinal) && text.Contains("virtio-blk-pci,drive=writabledata,addr=07.0,disable-legacy=on", StringComparison.Ordinal) && !text.Contains("drive=esp,addr=06", StringComparison.Ordinal) && !text.Contains("id=gptdata", StringComparison.Ordinal) && !text.Contains("id=webroot", StringComparison.Ordinal) && !text.Contains("cache=unsafe", StringComparison.Ordinal) && !text.Contains("no-flush", StringComparison.Ordinal) && !File.Exists(Path.Combine(f.Root, "serial.log"));
     }
@@ -466,7 +466,7 @@ internal static partial class QemuRunnerTests
         }
 
         )
-            if (RunQemuRunner(["--dry-run", ..good, ..conflict]).ExitCode == 0)
+            if (RunQemuRunner(["--dry-run", .. good, .. conflict]).ExitCode == 0)
                 return false;
         foreach (string remove in new[]
         {
@@ -476,7 +476,7 @@ internal static partial class QemuRunnerTests
         }
 
         )
-            if (RunQemuRunner(["--dry-run", ..good.Where(x => x != remove)]).ExitCode == 0)
+            if (RunQemuRunner(["--dry-run", .. good.Where(x => x != remove)]).ExitCode == 0)
                 return false;
         foreach (string remove in new[]
         {
@@ -488,7 +488,7 @@ internal static partial class QemuRunnerTests
         {
             var incomplete = good.ToList();
             incomplete.RemoveRange(incomplete.IndexOf(remove), 2);
-            if (RunQemuRunner(["--dry-run", ..incomplete]).ExitCode == 0)
+            if (RunQemuRunner(["--dry-run", .. incomplete]).ExitCode == 0)
                 return false;
         }
 
@@ -504,7 +504,7 @@ internal static partial class QemuRunnerTests
         {
             string[] copy = (string[])good.Clone();
             copy[Array.IndexOf(copy, "--timeout") + 1] = seconds.ToString();
-            if ((RunQemuRunner(["--dry-run", ..copy]).ExitCode == 0) != (seconds is 120 or 295))
+            if ((RunQemuRunner(["--dry-run", .. copy]).ExitCode == 0) != (seconds is 120 or 295))
                 return false;
         }
 
@@ -520,7 +520,7 @@ internal static partial class QemuRunnerTests
         {
             string[] copy = (string[])good.Clone();
             copy[Array.IndexOf(copy, "--writable-data-image") + 1] = alias;
-            if (RunQemuRunner(["--dry-run", ..copy]).ExitCode == 0)
+            if (RunQemuRunner(["--dry-run", .. copy]).ExitCode == 0)
                 return false;
         }
 
@@ -532,7 +532,7 @@ internal static partial class QemuRunnerTests
         }
 
         )
-            if (RunQemuRunner(["--dry-run", ..missing]).ExitCode == 0)
+            if (RunQemuRunner(["--dry-run", .. missing]).ExitCode == 0)
                 return false;
         return !File.Exists(Path.Combine(f.Root, "serial.log"));
     }
@@ -540,13 +540,13 @@ internal static partial class QemuRunnerTests
     private static bool WritablePreflight(string root)
     {
         var f = WritableFiles(root, "preflight");
-        var result = RunQemuRunner(["preflight", ..WritableArguments(f.Root, f.Boot, f.Data)]);
+        var result = RunQemuRunner(["preflight", .. WritableArguments(f.Root, f.Boot, f.Data)]);
         bool valid = result.ExitCode == 0 && result.Output.Contains("TEST_PASS qemu.runner.preflight", StringComparison.Ordinal) && result.Output.Contains("WRITABLE_DATA_LIFETIME joined=false finalVerified=false acceptance=pending", StringComparison.Ordinal) && !File.Exists(Path.Combine(f.Root, "serial.log"));
         string redirect = Path.Combine(f.Root, "output-link");
         Directory.CreateSymbolicLink(redirect, f.Root);
         try
         {
-            var alias = RunQemuRunner(["preflight", ..WritableArguments(f.Root, f.Boot, f.Data), "--summary-log", Path.Combine(redirect, "working.raw")]);
+            var alias = RunQemuRunner(["preflight", .. WritableArguments(f.Root, f.Boot, f.Data), "--summary-log", Path.Combine(redirect, "working.raw")]);
             return valid && alias.ExitCode != 0 && alias.Output.Contains("writable_data_reparse_path", StringComparison.Ordinal) && !File.Exists(Path.Combine(f.Root, "serial.log")) && File.ReadAllBytes(f.Data).All(value => value == 0);
         }
         finally
@@ -581,7 +581,7 @@ internal static partial class QemuRunnerTests
             action();
             return false;
         }
-        catch (Exception error)when (error is ArgumentException or IOException or UnauthorizedAccessException)
+        catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException)
         {
             return true;
         }
@@ -795,7 +795,7 @@ internal static partial class QemuRunnerTests
             var f = WritableFiles(root, "fake" + mode);
             string fake = mode == 1 ? CreateFakeQemuScript(f.Root, "TEST_START writable.fixture", "OS_SMOKE_PASS") : CreatePersistentFakeQemuScript(f.Root, mode == 2 ? ["TEST_START writable.fixture", "OS_SMOKE_PASS", "OS_SMOKE_PASS"] : ["TEST_START writable.fixture", "OS_SMOKE_PASS"]);
             string ovmf = CreateEmptyFile(f.Root, "OVMF.fd");
-            var result = RunQemuRunner(["--qemu", fake, "--ovmf-code", ovmf, ..WritableArguments(f.Root, f.Boot, f.Data)]);
+            var result = RunQemuRunner(["--qemu", fake, "--ovmf-code", ovmf, .. WritableArguments(f.Root, f.Boot, f.Data)]);
             string summary = File.ReadAllText(Path.Combine(f.Root, "summary.log"));
             PanicCheck(summary.Contains("WRITABLE_DATA_LIFETIME joined=true finalVerified=true acceptance=pending", StringComparison.Ordinal), "actual fake child joined with final media identity checks", result.Output);
             if (!failures)
@@ -841,7 +841,7 @@ internal static partial class QemuRunnerTests
             }
 
             )
-                if (RunQemuRunner(["--dry-run", ..flags]).ExitCode == 0)
+                if (RunQemuRunner(["--dry-run", .. flags]).ExitCode == 0)
                     return false;
         string data = Path.Combine(root, "damaged.raw"), boot = Path.Combine(root, "intact.raw");
         ProcessResult separate = RunQemuRunner("--dry-run", "--qemu", "qemu-test", "--image", data, "--virtio-block-queue-device", "--virtio-block-boot-image", boot);
@@ -860,7 +860,7 @@ internal static partial class QemuRunnerTests
         }
 
         )
-            if (RunQemuRunner(["--dry-run", "--image", data, ..args]).ExitCode == 0)
+            if (RunQemuRunner(["--dry-run", "--image", data, .. args]).ExitCode == 0)
                 return false;
         if (RunQemuRunner("preflight", "--image", data, "--virtio-block-queue-device", "--virtio-block-boot-image", boot).ExitCode == 0)
             return false;
@@ -882,7 +882,7 @@ internal static partial class QemuRunnerTests
 
         )
         {
-            ProcessResult r = RunQemuRunner(["--dry-run", ..args]);
+            ProcessResult r = RunQemuRunner(["--dry-run", .. args]);
             if (r.ExitCode == 0 || r.Output.Contains("TEST_PASS", StringComparison.Ordinal) || r.Output.Contains("TEST_START qemu.runner.dryrun", StringComparison.Ordinal))
                 return false;
         }
@@ -1281,7 +1281,7 @@ internal static partial class QemuRunnerTests
             string name = "unrequested-first-exit-" + index;
             string serialLog = Path.Combine(tempRoot, name + "-serial.log");
             string summaryLog = Path.Combine(tempRoot, name + "-summary.log");
-            string qemuPath = CreateFakeQemuScript(tempRoot, [..SmokeScriptDefaultRequiredMarkers.Split(';').Where(marker => marker != "OS_SMOKE_PASS"), ..cases[index], "OS_SMOKE_PASS"]);
+            string qemuPath = CreateFakeQemuScript(tempRoot, [.. SmokeScriptDefaultRequiredMarkers.Split(';').Where(marker => marker != "OS_SMOKE_PASS"), .. cases[index], "OS_SMOKE_PASS"]);
             ProcessResult result = RunQemuSmokeScript("-SkipImageBuild", "-Image", imagePath, "-SerialLog", serialLog, "-SummaryLog", summaryLog, "-Qemu", qemuPath, "-OvmfCode", ovmfPath);
             File.WriteAllText(Path.Combine(tempRoot, name + "-wrapper.log"), "WRAPPER_EXIT " + result.ExitCode + Environment.NewLine + result.Output);
             bool mustReject = index < 2;
@@ -1366,7 +1366,7 @@ internal static partial class QemuRunnerTests
         }
 
         string[] requiredMarkers = issue.GetProperty("requiredMarkers").EnumerateArray().Select(value => value.GetString() ?? string.Empty).ToArray();
-        string[] expectedRequiredMarkers = ["TEST_START qemu.smoke", ..M01StageThreeGuestMarkers, "TEST_PASS qemu.smoke", "TEST_FAIL m01.stage3 <reason>", "TEST_FAIL qemu.smoke <reason>"];
+        string[] expectedRequiredMarkers = ["TEST_START qemu.smoke", .. M01StageThreeGuestMarkers, "TEST_PASS qemu.smoke", "TEST_FAIL m01.stage3 <reason>", "TEST_FAIL qemu.smoke <reason>"];
         if (!requiredMarkers.SequenceEqual(expectedRequiredMarkers, StringComparer.Ordinal))
         {
             return false;
@@ -1390,7 +1390,7 @@ internal static partial class QemuRunnerTests
         string formattedMarkers = string.Join(";", M01StageThreeGuestMarkers);
         string normalizedRequiredMarkers = DefaultBootRequiredMarkers + ";" + string.Join(";", M01StageThreeGuestMarkers.Where(marker => marker != "OS_SMOKE_PASS"));
         string forbidden = string.Join(",", M01StageThreeForbiddenMarkers);
-        string[] runnerForbiddenMarkers = ["OS_SMOKE_FAIL", "TEST_FAIL", ..M01StageThreeForbiddenMarkers.Where(marker => marker != "OS_SMOKE_FAIL" && marker != "TEST_FAIL")];
+        string[] runnerForbiddenMarkers = ["OS_SMOKE_FAIL", "TEST_FAIL", .. M01StageThreeForbiddenMarkers.Where(marker => marker != "OS_SMOKE_FAIL" && marker != "TEST_FAIL")];
         string formattedForbidden = string.Join(";", runnerForbiddenMarkers);
         ProcessResult result = RunQemuSmokeScript("-DryRun", "-BuildEfi", "-EnableM01LoadedImageStackProbe", "-EnableM01LiveAllocatorProbe", "-EnableM01OwnedPagingProbe", "-Image", imagePath, "-SerialLog", serialLog, "-SummaryLog", summaryLog, "-RequireMarker", markers, "-RequireOrderedMarker", markers, "-RequireUniqueMarker", markers, "-ForbidMarker", forbidden);
         return result.ExitCode == 0 && result.Output.Contains("REQUIRED_MARKERS " + normalizedRequiredMarkers, StringComparison.Ordinal) && result.Output.Contains("ORDERED_MARKERS " + formattedMarkers, StringComparison.Ordinal) && result.Output.Contains("UNIQUE_MARKERS " + formattedMarkers, StringComparison.Ordinal) && result.Output.Contains("FORBIDDEN_MARKERS " + formattedForbidden, StringComparison.Ordinal) && result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal) && !File.Exists(serialLog) && !File.Exists(summaryLog);
@@ -1441,7 +1441,7 @@ internal static partial class QemuRunnerTests
             return false;
         }
 
-        string[] expectedManifestMarkers = [..M02HistoricalManifestSuccessMarkers, ..M02IssueForbiddenMarkers.Take(8), "TEST_FAIL m02.017 <reason>"];
+        string[] expectedManifestMarkers = [.. M02HistoricalManifestSuccessMarkers, .. M02IssueForbiddenMarkers.Take(8), "TEST_FAIL m02.017 <reason>"];
         string[] manifestMarkers = issue.GetProperty("requiredMarkers").EnumerateArray().Select(value => value.GetString() ?? string.Empty).ToArray();
         if (!manifestMarkers.SequenceEqual(expectedManifestMarkers, StringComparer.Ordinal))
         {
@@ -1461,7 +1461,7 @@ internal static partial class QemuRunnerTests
         string summaryLog = Path.Combine(tempRoot, "m02-safe-stub-dry-" + suffix + "-summary.log");
         string formattedGuest = string.Join(";", M02GuestMarkers);
         string normalizedRequired = SmokeScriptDefaultRequiredMarkers + ";" + string.Join(";", M02GuestMarkers.Where(marker => marker != "OS_SMOKE_PASS"));
-        string[] runnerForbidden = ["OS_SMOKE_FAIL", "TEST_FAIL", ..M02ForbiddenMarkers.Where(marker => marker != "OS_SMOKE_FAIL" && marker != "TEST_FAIL")];
+        string[] runnerForbidden = ["OS_SMOKE_FAIL", "TEST_FAIL", .. M02ForbiddenMarkers.Where(marker => marker != "OS_SMOKE_FAIL" && marker != "TEST_FAIL")];
         string formattedForbidden = string.Join(";", runnerForbidden);
         ProcessResult result = RunQemuSmokeScript("-DryRun", "-BuildEfi", "-EnableM01LoadedImageStackProbe", "-EnableM01LiveAllocatorProbe", "-EnableM01OwnedPagingProbe", "-EnableM02SafeStubProbe", "-Image", imagePath, "-SerialLog", serialLog, "-SummaryLog", summaryLog);
         return result.ExitCode == 0 && result.Output.Contains("REQUIRED_MARKERS " + normalizedRequired, StringComparison.Ordinal) && result.Output.Contains("ORDERED_MARKERS " + formattedGuest, StringComparison.Ordinal) && result.Output.Contains("UNIQUE_MARKERS " + formattedGuest, StringComparison.Ordinal) && result.Output.Contains("FORBIDDEN_MARKERS " + formattedForbidden, StringComparison.Ordinal) && result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal) && !File.Exists(imagePath) && !File.Exists(serialLog) && !File.Exists(summaryLog);
@@ -1488,7 +1488,7 @@ internal static partial class QemuRunnerTests
         string summaryLog = Path.Combine(tempRoot, "m02-checked-binding-dry-" + suffix + "-summary.log");
         string formattedGuest = string.Join(";", M02CheckedPortIoBindingGuestMarkers);
         string normalizedRequired = SmokeScriptDefaultRequiredMarkers + ";" + string.Join(";", M02CheckedPortIoBindingGuestMarkers.Where(marker => marker != "OS_SMOKE_PASS"));
-        string[] runnerForbidden = ["OS_SMOKE_FAIL", "TEST_FAIL", ..M02CheckedPortIoBindingForbiddenMarkers.Where(marker => marker != "OS_SMOKE_FAIL" && marker != "TEST_FAIL")];
+        string[] runnerForbidden = ["OS_SMOKE_FAIL", "TEST_FAIL", .. M02CheckedPortIoBindingForbiddenMarkers.Where(marker => marker != "OS_SMOKE_FAIL" && marker != "TEST_FAIL")];
         string formattedForbidden = string.Join(";", runnerForbidden);
         ProcessResult result = RunQemuSmokeScript("-DryRun", "-BuildEfi", "-EnableM01LoadedImageStackProbe", "-EnableM01LiveAllocatorProbe", "-EnableM01OwnedPagingProbe", "-EnableM02SafeStubProbe", "-EnableM02CheckedPortIoBindingProbe", "-Image", imagePath, "-SerialLog", serialLog, "-SummaryLog", summaryLog);
         return result.ExitCode == 0 && result.Output.Contains("REQUIRED_MARKERS " + normalizedRequired, StringComparison.Ordinal) && result.Output.Contains("ORDERED_MARKERS " + formattedGuest, StringComparison.Ordinal) && result.Output.Contains("UNIQUE_MARKERS " + formattedGuest, StringComparison.Ordinal) && result.Output.Contains("FORBIDDEN_MARKERS " + formattedForbidden, StringComparison.Ordinal) && result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal) && !File.Exists(imagePath) && !File.Exists(serialLog) && !File.Exists(summaryLog);
@@ -1525,20 +1525,20 @@ internal static partial class QemuRunnerTests
         byte[] before = File.ReadAllBytes(staleEfi);
         string[] enabled = ["-DryRun", "-BuildEfi", "-EnableM02Ud2VectorStateProbe", "-EfiArtifact", staleEfi];
         ProcessResult missingBuild = RunQemuSmokeScript(enabled.Where(argument => argument != "-BuildEfi").ToArray());
-        ProcessResult skippedImage = RunQemuSmokeScript([..enabled, "-SkipImageBuild"]);
-        ProcessResult ownedX64GdtConflict = RunQemuSmokeScript([..enabled, "-EnableM02OwnedX64GdtEncodingProbe"]);
-        ProcessResult guardedIstConflict = RunQemuSmokeScript([..enabled, "-EnableM02GuardedIstStackAllocationProbe"]);
-        ProcessResult terminalConflict = RunQemuSmokeScript([..enabled, "-EnableM02OwnedGdtTssTerminalProbe"]);
-        ProcessResult normalizedConflict = RunQemuSmokeScript([..enabled, "-EnableM02NormalizedInterruptFramePageProbe"]);
-        ProcessResult idtConflict = RunQemuSmokeScript([..enabled, "-EnableM02OwnedIdtGatePopulationProbe"]);
-        ProcessResult idtrConflict = RunQemuSmokeScript([..enabled, "-EnableM02IdtrContinuedExecutionProbe"]);
-        ProcessResult independentM04Allowed = RunQemuSmokeScript([..enabled, "-EnableM04IndependentEndianConformanceProbe"]);
-        ProcessResult m04Conflict = RunQemuSmokeScript([..enabled, "-EnableM04IndependentEndianConformanceProbe", "-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"]);
-        ProcessResult rawObservationConflict = RunQemuSmokeScript([..enabled, "-M01RawObservationLog", Path.Combine(tempRoot, "m02-013-raw-observation.json")]);
+        ProcessResult skippedImage = RunQemuSmokeScript([.. enabled, "-SkipImageBuild"]);
+        ProcessResult ownedX64GdtConflict = RunQemuSmokeScript([.. enabled, "-EnableM02OwnedX64GdtEncodingProbe"]);
+        ProcessResult guardedIstConflict = RunQemuSmokeScript([.. enabled, "-EnableM02GuardedIstStackAllocationProbe"]);
+        ProcessResult terminalConflict = RunQemuSmokeScript([.. enabled, "-EnableM02OwnedGdtTssTerminalProbe"]);
+        ProcessResult normalizedConflict = RunQemuSmokeScript([.. enabled, "-EnableM02NormalizedInterruptFramePageProbe"]);
+        ProcessResult idtConflict = RunQemuSmokeScript([.. enabled, "-EnableM02OwnedIdtGatePopulationProbe"]);
+        ProcessResult idtrConflict = RunQemuSmokeScript([.. enabled, "-EnableM02IdtrContinuedExecutionProbe"]);
+        ProcessResult independentM04Allowed = RunQemuSmokeScript([.. enabled, "-EnableM04IndependentEndianConformanceProbe"]);
+        ProcessResult m04Conflict = RunQemuSmokeScript([.. enabled, "-EnableM04IndependentEndianConformanceProbe", "-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"]);
+        ProcessResult rawObservationConflict = RunQemuSmokeScript([.. enabled, "-M01RawObservationLog", Path.Combine(tempRoot, "m02-013-raw-observation.json")]);
         ProcessResult untypedMarker = RunQemuSmokeScript("-DryRun", "-RequireMarker", "CLROS_M02_013_READY");
         ProcessResult untypedHostMarker = RunQemuSmokeScript("-DryRun", "-RequireMarker", "CLROS_M02_013_HOST_READY");
         ProcessResult[] failures = [missingBuild, skippedImage, ownedX64GdtConflict, guardedIstConflict, terminalConflict, normalizedConflict, idtConflict, idtrConflict, m04Conflict, rawObservationConflict, untypedMarker, untypedHostMarker];
-        return failures.All(result => result.ExitCode == 1) && independentM04Allowed.ExitCode == 0 && independentM04Allowed.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal) && missingBuild.Output.Contains("qemu_profile_requires_build_efi", StringComparison.Ordinal) && skippedImage.Output.Contains("qemu_profile_forbids_skip_image_build", StringComparison.Ordinal) && ownedX64GdtConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe", StringComparison.Ordinal) && guardedIstConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe", StringComparison.Ordinal) && terminalConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_owned_gdt_tss_terminal", StringComparison.Ordinal) && normalizedConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_normalized_interrupt_frame_page_probe", StringComparison.Ordinal) && idtConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_owned_idt_gate_population_probe", StringComparison.Ordinal) && idtrConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_idtr_continued_execution_probe", StringComparison.Ordinal) && m04Conflict.Output.Contains("m04_span_memory_conformance_forbids_m02_ud2_vector_state", StringComparison.Ordinal) && rawObservationConflict.Output.Contains("m01_raw_observation_log_forbidden_terminal_profile", StringComparison.Ordinal) && untypedMarker.Output.Contains("m02_ud2_vector_state_requires_explicit_profile", StringComparison.Ordinal) && untypedHostMarker.Output.Contains("m02_ud2_vector_state_requires_explicit_profile", StringComparison.Ordinal) && RunQemuSmokeScript([..enabled, "-EnableM01LoadedImageStackProbe:false"]).ExitCode == 1 && failures.All(result => !result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal)) && before.AsSpan().SequenceEqual(File.ReadAllBytes(staleEfi));
+        return failures.All(result => result.ExitCode == 1) && independentM04Allowed.ExitCode == 0 && independentM04Allowed.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal) && missingBuild.Output.Contains("qemu_profile_requires_build_efi", StringComparison.Ordinal) && skippedImage.Output.Contains("qemu_profile_forbids_skip_image_build", StringComparison.Ordinal) && ownedX64GdtConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe", StringComparison.Ordinal) && guardedIstConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe", StringComparison.Ordinal) && terminalConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_owned_gdt_tss_terminal", StringComparison.Ordinal) && normalizedConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_normalized_interrupt_frame_page_probe", StringComparison.Ordinal) && idtConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_owned_idt_gate_population_probe", StringComparison.Ordinal) && idtrConflict.Output.Contains("m02_ud2_vector_state_probe_forbids_idtr_continued_execution_probe", StringComparison.Ordinal) && m04Conflict.Output.Contains("m04_span_memory_conformance_forbids_m02_ud2_vector_state", StringComparison.Ordinal) && rawObservationConflict.Output.Contains("m01_raw_observation_log_forbidden_terminal_profile", StringComparison.Ordinal) && untypedMarker.Output.Contains("m02_ud2_vector_state_requires_explicit_profile", StringComparison.Ordinal) && untypedHostMarker.Output.Contains("m02_ud2_vector_state_requires_explicit_profile", StringComparison.Ordinal) && RunQemuSmokeScript([.. enabled, "-EnableM01LoadedImageStackProbe:false"]).ExitCode == 1 && failures.All(result => !result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal)) && before.AsSpan().SequenceEqual(File.ReadAllBytes(staleEfi));
     }
 
     private static bool TestM02Ud2VectorStateTerminalTranscriptValidation(string tempRoot)
@@ -1553,9 +1553,9 @@ internal static partial class QemuRunnerTests
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string[] successLines = ["EFI_CONSOLE_READY", "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "TEST_START m02.013", M02Ud2VectorStateReadyMarker, "TEST_PASS m02.013"];
         File.WriteAllLines(successPath, successLines);
-        File.WriteAllLines(postPassNoisePath, [..successLines, "OS_BOOT_OK"]);
-        File.WriteAllLines(reorderedPath, [..successLines[..4], M02Ud2VectorStateReadyMarker, "TEST_START m02.013", "TEST_PASS m02.013"]);
-        File.WriteAllLines(alteredReadyPath, [..successLines[..5], M02Ud2VectorStateReadyMarker.Replace("registerFields=23", "registerFields=22", StringComparison.Ordinal), "TEST_PASS m02.013"]);
+        File.WriteAllLines(postPassNoisePath, [.. successLines, "OS_BOOT_OK"]);
+        File.WriteAllLines(reorderedPath, [.. successLines[..4], M02Ud2VectorStateReadyMarker, "TEST_START m02.013", "TEST_PASS m02.013"]);
+        File.WriteAllLines(alteredReadyPath, [.. successLines[..5], M02Ud2VectorStateReadyMarker.Replace("registerFields=23", "registerFields=22", StringComparison.Ordinal), "TEST_PASS m02.013"]);
         File.WriteAllLines(missingSmokePath, successLines.Where(line => line != "OS_SMOKE_PASS"));
         ProcessResult success = ValidateUd2TranscriptFixture(successPath, expectedReason: "none");
         ProcessResult postPassNoise = ValidateUd2TranscriptFixture(postPassNoisePath, expectedReason: "m02_ud2_vector_state_post_smoke_sequence_invalid");
@@ -2178,7 +2178,7 @@ internal static partial class QemuRunnerTests
     private static bool TestM01StageTwoRejectsAdapterFailures(string tempRoot)
     {
         (string Scenario, ulong CoordinatorStatus, ulong AdapterStatus, ulong Checkpoint, ulong FirmwareStatus, ulong ArenaCleanupStatus)[] failures = [("efi-allocation-failure", 0, 6, 0, 9223372036854775817, ulong.MaxValue), ("arena-geometry-or-type", 0, 7, 0, 0, 0), ("map-recapture-growth-or-overflow", 0, 8, 0, 9223372036854775813, 0), ("stale-map-key", 0, 9, 0, 0, 0), ("arena-map-type-mismatch", 0, 10, 0, 0, 0), ("reservation-mismatch-or-overlap", 0, 14, 0, 0, 0), ("map-ledger-evidence-mismatch", 0, 15, 0, 0, 0), ("page-allocation-failure", 15, 16, 5, 0, 0), ("outside-arena-result", 16, 16, 6, 0, 0), ("page-free-failure", 17, 16, 7, 0, 0), ("double-free-not-rejected", 19, 16, 8, 0, 0)];
-        foreach ((string scenario, ulong coordinatorStatus, ulong adapterStatus, ulong checkpoint, ulong firmwareStatus, ulong arenaCleanupStatus)in failures)
+        foreach ((string scenario, ulong coordinatorStatus, ulong adapterStatus, ulong checkpoint, ulong firmwareStatus, ulong arenaCleanupStatus) in failures)
         {
             string detail = "status=" + coordinatorStatus + " adapter=" + adapterStatus + " checkpoint=" + checkpoint + " firmware=" + firmwareStatus + " free_arena=" + arenaCleanupStatus;
             List<string> serialLines = CreateM01StageTwoFailurePrefixLines();
@@ -2278,7 +2278,7 @@ internal static partial class QemuRunnerTests
     private static bool TestM01StageThreeRejectsReordering(string tempRoot)
     {
         (string First, string Second)[] reorderPairs = [("TEST_PASS m01.stage1", "TEST_START m01.stage2"), ("TEST_PASS m01.stage2", "TEST_START m01.stage3"), ("M01_PAGING_MODE_VALIDATED", "M01_PRE_CR3"), ("M01_PRE_CR3", "M01_FIRMWARE_CR3_RESTORED"), ("M01_FIRMWARE_CR3_RESTORED", "M01_RFLAGS_RESTORED"), ("M01_RFLAGS_RESTORED", "M01_PGE_CYCLE_VERIFIED"), ("M01_PGE_CYCLE_VERIFIED", "M01_OWNED_CR3_CANARY_VERIFIED"), ("M01_OWNED_CR3_CANARY_VERIFIED", "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED"), ("M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED", "M01_POST_CR3"), ("M01_RW_TO_RX_VERIFIED", "M01_TLB_INVALIDATION_COMPLETE"), ("M01_TLB_INVALIDATION_COMPLETE", "M01_RX_PROBE_EXECUTED"), ("M01_RX_PROBE_EXECUTED", "M01_PAGE_ZERO_ABSENT"), ("TEST_PASS m01.stage3", "CLROS_M01_LIVE_BOOT_MEMORY_READY")];
-        foreach ((string first, string second)in reorderPairs)
+        foreach ((string first, string second) in reorderPairs)
         {
             List<string> serialLines = CreateM01StageThreeSerialLines();
             int firstIndex = serialLines.IndexOf(first);
@@ -2582,7 +2582,8 @@ internal static partial class QemuRunnerTests
             "timeout" => (4, "timeout"),
             "forbidden" => (8, "forbidden_marker"),
             "exit" => (14, "qemu_exit_nonzero"),
-            _ => (19, "network_peer_incomplete")};
+            _ => (19, "network_peer_incomplete")
+        };
         HostCheck.Equal(expectedExit, result.ExitCode);
         string summary = File.ReadAllText(prefix + ".summary.log");
         HostCheck.True(summary.Contains("FAIL_REASON " + reason, StringComparison.Ordinal), summary + result.Output);
@@ -2756,7 +2757,7 @@ internal static partial class QemuRunnerTests
         string[][] invalid = [["--expect-unexpected-vector-panic"], ["--expect-unexpected-vector-panic", "--summary-log", summary, "--expect-unexpected-vector-panic"], ["--expect-unexpected-vector-panic", "--summary-log", summary, "--marker-preset", "acpi"], ["--expect-unexpected-vector-panic", "--summary-log", summary, "--http-probe-url", "http://127.0.0.1:1/"]];
         foreach (string[] tail in invalid)
         {
-            ProcessResult result = RunQemuRunner(["--qemu", fake, "--image", image, ..tail]);
+            ProcessResult result = RunQemuRunner(["--qemu", fake, "--image", image, .. tail]);
             PanicCheck(result.ExitCode != 0 && result.ExitCode != 19 && !File.Exists(sentinel), "invalid panic options must reject before launching", result.Output);
         }
 
@@ -2805,7 +2806,7 @@ internal static partial class QemuRunnerTests
         string alteredSerial = serial + ".tooling-byte-control";
         PanicCheck(summaryText.Contains(hash, StringComparison.Ordinal), "independent original capture hash present", summaryText);
         File.WriteAllText(alteredSummary, summaryText.Replace(hash, badHash, StringComparison.Ordinal));
-        File.WriteAllBytes(alteredSerial, [..raw, (byte)'X']);
+        File.WriteAllBytes(alteredSerial, [.. raw, (byte)'X']);
         foreach (string backend in new[]
         {
             "tcg",
@@ -2816,7 +2817,7 @@ internal static partial class QemuRunnerTests
         {
             // These header variants are parser grammar controls over one controlled
             // child's retained evidence; they do not prove execution on either backend.
-            string[] rows = [..output];
+            string[] rows = [.. output];
             rows[0] = "QEMU_ACCELERATOR " + backend;
             rows[1] = "QEMU_MACHINE " + OS.Tooling.QemuContracts.MachineArgument(backend);
             void Check(string name, string[] candidate, string? expected = null, int exit = 19, bool owned = false, bool unhandled = false, string? serialPath = null, string? summaryPath = null)
@@ -2846,12 +2847,12 @@ internal static partial class QemuRunnerTests
             Check("valid", rows);
             const string identity = "qemu_runner_accelerator_identity";
             Check("missing-backend", rows[2..], identity);
-            Check("reordered-backend", [rows[1], rows[0], ..rows[2..]], identity);
-            Check("duplicate-accelerator", [..rows, rows[0]], identity);
-            Check("duplicate-machine", [..rows, rows[1]], identity);
-            Check("wrong-accelerator", ["QEMU_ACCELERATOR " + (backend == "tcg" ? "whpx" : "tcg"), ..rows[1..]], identity);
-            Check("wrong-machine", [rows[0], "QEMU_MACHINE q35,accel=unknown", ..rows[2..]], identity);
-            Check("extra-row", [..rows, "QEMU_INJECTED extra"], "qemu_panic_runner_inventory");
+            Check("reordered-backend", [rows[1], rows[0], .. rows[2..]], identity);
+            Check("duplicate-accelerator", [.. rows, rows[0]], identity);
+            Check("duplicate-machine", [.. rows, rows[1]], identity);
+            Check("wrong-accelerator", ["QEMU_ACCELERATOR " + (backend == "tcg" ? "whpx" : "tcg"), .. rows[1..]], identity);
+            Check("wrong-machine", [rows[0], "QEMU_MACHINE q35,accel=unknown", .. rows[2..]], identity);
+            Check("extra-row", [.. rows, "QEMU_INJECTED extra"], "qemu_panic_runner_inventory");
             Check("wrong-exit", rows, "qemu_panic_runner_inventory", exit: 0);
             Check("owned-mode-isolation", rows, "qemu_panic_runner_schema", owned: true);
             Check("unhandled-mode-isolation", rows, "qemu_panic_runner_schema", unhandled: true);
@@ -3265,7 +3266,7 @@ internal static partial class QemuRunnerTests
             }
         }
 
-        return new string (characters).Trim('-');
+        return new string(characters).Trim('-');
     }
 
     private static string CreatePersistentFakeQemuScript(string tempRoot, IReadOnlyList<string> serialLines)
@@ -3325,7 +3326,7 @@ internal static partial class QemuRunnerTests
 
     private static List<string> CreateFakeQemuScriptPreamble()
     {
-        return["@echo off", "set \"serial=\"", ":scan", "if \"%~1\"==\"\" goto write", "if not \"%~1\"==\"-serial\" goto next", "shift", "set \"serial=%~1\"", ":next", "shift", "goto scan", ":write", "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"", "if \"%serial%\"==\"\" exit /b 12"];
+        return ["@echo off", "set \"serial=\"", ":scan", "if \"%~1\"==\"\" goto write", "if not \"%~1\"==\"-serial\" goto next", "shift", "set \"serial=%~1\"", ":next", "shift", "goto scan", ":write", "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"", "if \"%serial%\"==\"\" exit /b 12"];
     }
 
     private static void AddSerialLines(List<string> script, IReadOnlyList<string> serialLines)
@@ -3639,7 +3640,7 @@ internal static partial class QemuRunnerTests
 
     private static string[] GetM01RawObservationEnvironmentNames()
     {
-        return["CLROS_M01_REAL_QEMU", "CLROS_M01_PRIVATE_SERIAL", "CLROS_M01_RAW_OBSERVATION_LOG", "CLROS_M01_QMP_TRANSCRIPT_LOG", "CLROS_M01_CAPTURE_SCRATCH", "CLROS_M01_GUEST_TIMEOUT_SECONDS", "CLROS_M01_CAPTURE_TIMEOUT_SECONDS", "CLROS_M02_SAFE_STUB_PROBE"];
+        return ["CLROS_M01_REAL_QEMU", "CLROS_M01_PRIVATE_SERIAL", "CLROS_M01_RAW_OBSERVATION_LOG", "CLROS_M01_QMP_TRANSCRIPT_LOG", "CLROS_M01_CAPTURE_SCRATCH", "CLROS_M01_GUEST_TIMEOUT_SECONDS", "CLROS_M01_CAPTURE_TIMEOUT_SECONDS", "CLROS_M02_SAFE_STUB_PROBE"];
     }
 
     private static Dictionary<string, string?> SnapshotProcessEnvironment(IEnumerable<string> names)
@@ -3654,7 +3655,7 @@ internal static partial class QemuRunnerTests
             return false;
         }
 
-        foreach ((string name, string? value)in first)
+        foreach ((string name, string? value) in first)
         {
             if (!second.TryGetValue(name, out string? secondValue) || !string.Equals(value, secondValue, StringComparison.Ordinal))
             {
@@ -3726,7 +3727,7 @@ internal static partial class QemuRunnerTests
 
     private static ProcessResult RunQemuSmokeScript(params string[] args)
     {
-        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", ..args]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", .. args]);
         return new ProcessResult(result.ExitCode, result.Output + result.Error);
     }
 

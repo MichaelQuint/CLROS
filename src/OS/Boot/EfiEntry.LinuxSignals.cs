@@ -14,20 +14,32 @@ public static unsafe partial class EfiEntry
         {
             if (c == null || c->Signals == null || c->SignalsInitialized != 0 || c->ProcessAttached != 1 ||
                 !LinuxSignalServices.Initialize(c->Signals, (uint)sizeof(LinuxSignalServices.State), c->Key, 2,
-                    new() { User = c->User, CopyToUser = &LinuxThreadCopyOutput, Capacity = c->Capacity,
-                        FirmwareExited = true, SingleOwnerValidated = true })) return false;
+                    new()
+                    {
+                        User = c->User,
+                        CopyToUser = &LinuxThreadCopyOutput,
+                        Capacity = c->Capacity,
+                        FirmwareExited = true,
+                        SingleOwnerValidated = true
+                    }))
+                return false;
             c->SignalsInitialized = 1;
             return c->Process.EnableSignals(c->Key, 2, c->Signals);
         }
 
         private static bool LinuxNativeReleaseSignals(LinuxNativeControl* c)
         {
-            if (c == null || c->ProcessAttached != 0) return false;
-            if (c->SignalsInitialized == 0) return true;
-            if (!LinuxSignalServices.End(c->Signals, c->Key, 2)) return false;
+            if (c == null || c->ProcessAttached != 0)
+                return false;
+            if (c->SignalsInitialized == 0)
+                return true;
+            if (!LinuxSignalServices.End(c->Signals, c->Key, 2))
+                return false;
             for (uint i = 0; i < (uint)sizeof(LinuxSignalServices.State); i++)
-                if (((byte*)c->Signals)[i] != 0) return false;
-            c->SignalsInitialized = 0; return true;
+                if (((byte*)c->Signals)[i] != 0)
+                    return false;
+            c->SignalsInitialized = 0;
+            return true;
         }
 
         // Both the active syscall gateway and a rescheduled kernel worker use
@@ -45,7 +57,8 @@ public static unsafe partial class EfiEntry
             var result = c->Process.PrepareUserReturn(c->Key, 2, out image);
             if (result.Action == LinuxSyscallAction.Terminate)
             {
-                c->State->LinuxSyscallExitCode = result.ExitCode; c->Stopping = 1;
+                c->State->LinuxSyscallExitCode = result.ExitCode;
+                c->Stopping = 1;
                 c->Actions[index] = (uint)LinuxSyscallAction.Terminate;
             }
             return result;
@@ -58,12 +71,14 @@ public static unsafe partial class EfiEntry
         private static byte LinuxNativeUserFault(Storage* state, byte* data)
         {
             LinuxNativeControl* c = LinuxNativeOwner(state);
-            if (c == null || data != (byte*)state->LinuxSyscallData || c->Selected == 0 || c->Selected > c->Capacity) return 0;
+            if (c == null || data != (byte*)state->LinuxSyscallData || c->Selected == 0 || c->Selected > c->Capacity)
+                return 0;
             uint index = c->Selected - 1;
-            if (c->Entered[index] != 1 || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity) return 0;
+            if (c->Entered[index] != 1 || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity)
+                return 0;
             if (c->UserFaults >= 64 || !c->Process.CurrentImage(c->Key, 2, out var image) ||
                 !X64LinuxUserTransition.CaptureFaultUserImage(data, X64LinuxUserTransition.DataBytes, image,
-                    X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask,c->User.UserInterrupts))
+                    X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User.UserInterrupts))
                 return LinuxNativeAbort(c, index);
             uint trap = (uint)*(ulong*)(data + X64LinuxUserTransition.VectorOffset);
             ulong error = *(ulong*)(data + X64LinuxUserTransition.ErrorOffset);
@@ -84,10 +99,12 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " rip=") && LinuxNumber(state, rip) && LinuxText(state, " rsp=") && LinuxNumber(state, rsp) &&
                 LinuxText(state, " address=") && LinuxNumber(state, address) && LinuxText(state, " code=") && LinuxNumber(state, (uint)code) &&
                 LinuxText(state, " delivery=") && LinuxNumber(state, (uint)delivery) && LinuxText(state, "\r\n");
-            if (!logged || !delivered && !fatal) return LinuxNativeAbort(c, index);
+            if (!logged || !delivered && !fatal)
+                return LinuxNativeAbort(c, index);
             if (fatal)
             {
-                state->LinuxSyscallExitCode = 139; c->Stopping = 1;
+                state->LinuxSyscallExitCode = 139;
+                c->Stopping = 1;
                 c->Actions[index] = (uint)LinuxSyscallAction.Terminate;
                 return 2; // Original native cleanup, then actual captured exit/reap.
             }

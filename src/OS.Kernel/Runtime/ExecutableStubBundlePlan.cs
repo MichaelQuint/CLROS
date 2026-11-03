@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public static class ExecutableStubBundlePlan
 {
     public const int StableSlotCount = 7;

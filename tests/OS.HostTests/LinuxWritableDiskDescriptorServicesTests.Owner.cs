@@ -90,7 +90,16 @@ internal static unsafe partial class LinuxWritableDiskDescriptorServicesTests
                 ExclusiveOwnerValidated = true
             };
             HostCheck.True(W.Start(Provider, ProviderAdmission));
-            HostCheck.True(W.EnableLocks(Provider, new() { Processes = Processes, ProcessCount = 4, Locks = Locks, LockCount = 32, Scratch = Scratch, ScratchCount = 65, PrimaryPid = 101 }));
+            HostCheck.True(W.EnableLocks(Provider, new()
+            {
+                Processes = Processes,
+                ProcessCount = 4,
+                Locks = Locks,
+                LockCount = 32,
+                Scratch = Scratch,
+                ScratchCount = 65,
+                PrimaryPid = 101
+            }));
             Files.Admission.User = Thread.DescriptorAccess;
             Files.Admission.CopyToUser = Thread.UserCopyOut;
             Files.Begin();

@@ -2,6 +2,7 @@ using OS.Kernel.Platform;
 using OS.Std.Binary;
 
 namespace OS.Boot;
+
 public readonly struct AcpiRootSdtSnapshotResult
 {
     private AcpiRootSdtSnapshotResult(AcpiRootSdtSnapshotStatus status, AcpiSdtTableKind tableKind, ulong physicalAddress, int bytesRead, int requiredBytes, uint declaredLength, int entryCount, bool usedRsdtFallback, PlatformPhysicalMemoryStatus physicalReadStatus, AcpiRsdpSnapshotStatus rsdpStatus, uint tableSignature)
@@ -19,18 +20,51 @@ public readonly struct AcpiRootSdtSnapshotResult
         TableSignature = tableSignature;
     }
 
-    public AcpiRootSdtSnapshotStatus Status { get; }
+    public AcpiRootSdtSnapshotStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == AcpiRootSdtSnapshotStatus.Success;
-    public AcpiSdtTableKind TableKind { get; }
-    public ulong PhysicalAddress { get; }
-    public int BytesRead { get; }
-    public int RequiredBytes { get; }
-    public uint DeclaredLength { get; }
-    public int EntryCount { get; }
-    public bool UsedRsdtFallback { get; }
-    public PlatformPhysicalMemoryStatus PhysicalReadStatus { get; }
-    public AcpiRsdpSnapshotStatus RsdpStatus { get; }
-    public uint TableSignature { get; }
+    public AcpiSdtTableKind TableKind
+    {
+        get;
+    }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
+    public int BytesRead
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public uint DeclaredLength
+    {
+        get;
+    }
+    public int EntryCount
+    {
+        get;
+    }
+    public bool UsedRsdtFallback
+    {
+        get;
+    }
+    public PlatformPhysicalMemoryStatus PhysicalReadStatus
+    {
+        get;
+    }
+    public AcpiRsdpSnapshotStatus RsdpStatus
+    {
+        get;
+    }
+    public uint TableSignature
+    {
+        get;
+    }
 
     public static AcpiRootSdtSnapshotResult Success(AcpiSdtTableKind tableKind, ulong physicalAddress, int bytesRead, uint declaredLength, int entryCount, bool usedRsdtFallback)
     {

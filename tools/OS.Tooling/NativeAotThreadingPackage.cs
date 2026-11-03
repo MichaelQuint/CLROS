@@ -21,7 +21,8 @@ public static partial class NativeAotThreadingPackage
     {
         "NativeAotSuspensionSmoke" => new(app, 1320176, "D20F5740BAF1040A2F57C3F0865034AE114BCE4004255A6D0C2FB253372F1409", 4, "33D3FC94C6A82EF52F83A773A7CB7890A913896502882BD5984036326410DA68", 7680, "13FC042F9639DE74C2FF4752186BA52CC07BED59A7737DDDBDBF8B7F34E69316", 4378164, "EDB96F2D791D9966B7B8EA3AD2B86DD5F4AB4347093372110CE53E34906658C6", 380, "550955BF31DCAE6D93A5A37C00B8CF5C1DAE12FAF77E221490A9B384BE8DB868", 4),
         "NativeAotThreadPoolSmoke" => new(app, 1577712, "CB742912776B9BB792B0394FE09241625B31D240ABDCA692223089D4127F393A", 8, "9BB7F4F0483521A6C428CF6CC656F23372F1B55805473D38893E57403C9DB5D8", 22016, "88FDBFD6F62FAAF82D40EC8BD6D7FD0D67C82EA1435F7DF15EED8E2FB3937D41", 5880820, "70B45197A306350E92D66DB08C7AEDE06DE6D7057D1A6B9752EF5452753E2337", 621, "0FAE1F3E9F7CABC33A856523E2DF3A3E599F6C4561F920A637062FA4D763C2B5", 7),
-        _ => throw new ArgumentException("threading_package_app", nameof(app))};
+        _ => throw new ArgumentException("threading_package_app", nameof(app))
+    };
     /// <summary>Canonical no-argument/no-runtime-override policy: 64 MiB memory,
     /// 1.5 MiB main stack, four/eight thread slots, sixteen descriptors and
     /// explicit user IRQs. The required manifest endpoint grants no socket.</summary>
@@ -61,7 +62,7 @@ public static partial class NativeAotThreadingPackage
             foreach (string path in Directory.EnumerateFileSystemEntries(next))
             {
                 Need(++entries <= 128, "source_inventory");
-                if (Path.GetFileName(path)is "bin" or "obj" or "artifacts" && Directory.Exists(path))
+                if (Path.GetFileName(path) is "bin" or "obj" or "artifacts" && Directory.Exists(path))
                     continue;
                 FileAttributes attributes = File.GetAttributes(path);
                 Need((attributes & FileAttributes.ReparsePoint) == 0, "source_link");
@@ -210,7 +211,7 @@ public static partial class NativeAotThreadingPackage
         string path = Path.Combine(root, relative);
         AuthorityFiles.RequirePlainPath(root, path, "threading_evidence_path");
         using FileStream file = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        Need(file.Length is> 0 && file.Length <= maximum, "input_size " + relative);
+        Need(file.Length is > 0 && file.Length <= maximum, "input_size " + relative);
         byte[] bytes = new byte[(int)file.Length];
         file.ReadExactly(bytes);
         Need(file.ReadByte() == -1, "input_changed");

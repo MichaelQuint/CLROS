@@ -90,9 +90,18 @@ internal static partial class NativeAotServiceLifecyclePacketTests
         var fixture = Vector("plain");
         var corrupt = fixture.Frames.Select(frame => frame.ToArray()).ToList();
         corrupt[^1][40] ^= 1;
-        Reject(fixture with { Frames = corrupt });
-        Reject(fixture with { Ports = fixture.Ports.Reverse().ToArray() });
-        Reject(fixture with { Report = NativeAotServicePacketTests.Peer().ToJsonString() });
+        Reject(fixture with
+        {
+            Frames = corrupt
+        });
+        Reject(fixture with
+        {
+            Ports = fixture.Ports.Reverse().ToArray()
+        });
+        Reject(fixture with
+        {
+            Report = NativeAotServicePacketTests.Peer().ToJsonString()
+        });
     }
 
     // Each vector is invented host input. The independent Ethernet/TCP helpers
@@ -126,7 +135,7 @@ internal static partial class NativeAotServiceLifecyclePacketTests
             ports.Add(port);
             var flow = new Flow(frames, port, mode);
             body ??= [];
-            byte[] request = [..Encoding.ASCII.GetBytes(method + " " + path + " HTTP/1.1\r\nHost: clros.service\r\nConnection: close\r\n" + (method == "POST" ? "Content-Length: " + body.Length.ToString(CultureInfo.InvariantCulture) + "\r\n" : "") + "\r\n"), ..body];
+            byte[] request = [.. Encoding.ASCII.GetBytes(method + " " + path + " HTTP/1.1\r\nHost: clros.service\r\nConnection: close\r\n" + (method == "POST" ? "Content-Length: " + body.Length.ToString(CultureInfo.InvariantCulture) + "\r\n" : "") + "\r\n"), .. body];
             flow.Send(false, request);
             return flow;
         }
@@ -209,7 +218,7 @@ internal static partial class NativeAotServiceLifecyclePacketTests
     }
 
     private static byte[] Pattern(int bytes) => Enumerable.Range(0, bytes).Select(i => unchecked((byte)(i * 17 + 31))).ToArray();
-    private static byte[] Response(byte[] body, int status, DateTimeOffset date) => [..Encoding.ASCII.GetBytes("HTTP/1.1 " + status.ToString(CultureInfo.InvariantCulture) + " " + (status == 200 ? "OK" : status == 400 ? "Bad Request" : "Conflict") + "\r\nContent-Length: " + body.Length.ToString(CultureInfo.InvariantCulture) + "\r\nConnection: close\r\nServer: Kestrel\r\nDate: " + date.ToString("r", CultureInfo.InvariantCulture) + "\r\n\r\n"), ..body];
+    private static byte[] Response(byte[] body, int status, DateTimeOffset date) => [.. Encoding.ASCII.GetBytes("HTTP/1.1 " + status.ToString(CultureInfo.InvariantCulture) + " " + (status == 200 ? "OK" : status == 400 ? "Bad Request" : "Conflict") + "\r\nContent-Length: " + body.Length.ToString(CultureInfo.InvariantCulture) + "\r\nConnection: close\r\nServer: Kestrel\r\nDate: " + date.ToString("r", CultureInfo.InvariantCulture) + "\r\n\r\n"), .. body];
     private static void Reject(Fixture fixture)
     {
         bool refused = false;
@@ -217,7 +226,7 @@ internal static partial class NativeAotServiceLifecyclePacketTests
         {
             _ = QemuTranscripts.InspectNativeAotServiceLifecyclePacketsForTests(NativeAotSocketIntegrationTests.Capture(fixture.Frames), fixture.Anchor, fixture.Arp, fixture.Ports, fixture.Report);
         }
-        catch (Exception error)when (error is ToolFailure or InvalidDataException)
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
         {
             refused = true;
         }

@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSqliteContract
 {
     public sealed record StorageLifetime(int Id, int Descriptor, string Kind, string Path, string OpenFlags, string Mode, int OpenLine, int? CloseLine);

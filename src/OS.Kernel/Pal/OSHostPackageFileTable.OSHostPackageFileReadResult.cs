@@ -2,6 +2,7 @@ using OS.Std.Memory;
 using OS.Storage;
 
 namespace OS.Pal;
+
 public readonly struct OSHostPackageFileReadResult
 {
     public readonly OSHostStatus Status;

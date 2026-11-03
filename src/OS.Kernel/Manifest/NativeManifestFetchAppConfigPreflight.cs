@@ -1,6 +1,7 @@
 using OS.Net;
 
 namespace OS.Manifest;
+
 public static class NativeManifestFetchAppConfigPreflight
 {
     public static NativeManifestFetchAppConfigPreflightResult Validate(in NativeManifestLoadResult manifestLoad, ReadOnlySpan<byte> manifestBytes, Span<byte> expectedMarkerScratch, bool requireConfiguredMarker = false)

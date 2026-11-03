@@ -1,6 +1,7 @@
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Copied denial/trailer values only. These authenticate no package,

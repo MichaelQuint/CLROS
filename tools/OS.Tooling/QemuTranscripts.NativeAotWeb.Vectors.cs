@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Require six ordered accepts, or eight with explicit transport

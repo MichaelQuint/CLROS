@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public enum M01LivePagingCleanupStatus : byte
 {
     Uninitialized = 0,

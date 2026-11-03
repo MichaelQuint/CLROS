@@ -24,11 +24,8 @@ namespace OS.Boot;
 #endif
 #if M16_005_PROBE
 
-
-
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
-
 
 #endif
 #if M05_PCI_ENUMERATION_PROBE
@@ -44,7 +41,6 @@ namespace OS.Boot;
 
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
-
 
 #endif
 /// <summary>
@@ -194,8 +190,11 @@ public static unsafe class FirstExitRetainedMappings
 #if M16_002_PROBE
         if (references.RuntimeSupportCode == 0 || references.LinuxPackageStart < 4096 ||
             (references.LinuxPackageStart & 4095) != 0 || references.LinuxPackagePages == 0 || references.LinuxPackagePages > 4096 ||
-            references.LinuxPackageStart >= LowEnd - references.LinuxPackagePages * 4096) return false;
-        starts[6] = references.LinuxPackageStart; lengths[6] = references.LinuxPackagePages * 4096; allocations = 7;
+            references.LinuxPackageStart >= LowEnd - references.LinuxPackagePages * 4096)
+            return false;
+        starts[6] = references.LinuxPackageStart;
+        lengths[6] = references.LinuxPackagePages * 4096;
+        allocations = 7;
 #endif
 #if M16_004_PROBE
         if (references.LinuxBackingStart < 4096 || (references.LinuxBackingStart & 4095) != 0 ||
@@ -203,9 +202,12 @@ public static unsafe class FirstExitRetainedMappings
             references.LinuxBackingStart > 0x100000000UL - references.LinuxBackingPages * 4096 ||
             references.LinuxUserTablesStart < 4096 || (references.LinuxUserTablesStart & 4095) != 0 ||
             references.LinuxUserTablePages != X64UserAddressSpace.MaximumTables ||
-            references.LinuxUserTablesStart > 0x100000000UL - references.LinuxUserTablePages * 4096) return false;
-        starts[allocations] = references.LinuxBackingStart; lengths[allocations++] = references.LinuxBackingPages * 4096;
-        starts[allocations] = references.LinuxUserTablesStart; lengths[allocations++] = references.LinuxUserTablePages * 4096;
+            references.LinuxUserTablesStart > 0x100000000UL - references.LinuxUserTablePages * 4096)
+            return false;
+        starts[allocations] = references.LinuxBackingStart;
+        lengths[allocations++] = references.LinuxBackingPages * 4096;
+        starts[allocations] = references.LinuxUserTablesStart;
+        lengths[allocations++] = references.LinuxUserTablePages * 4096;
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
         if (references.RuntimeSupportCode == 0 || references.MappingScratchBacking < 0x100000 ||
@@ -213,70 +215,94 @@ public static unsafe class FirstExitRetainedMappings
             references.MappingScratchBacking >= LowEnd - 1023 * 4096 ||
             (references.MappingScratchStart & 0x1fffff) != 0 ||
             references.MappingScratchStart < references.MappingScratchBacking ||
-            references.MappingScratchStart - references.MappingScratchBacking > (1023 - 512) * 4096) return false;
-        starts[6] = references.MappingScratchBacking; lengths[6] = 1023 * 4096;
+            references.MappingScratchStart - references.MappingScratchBacking > (1023 - 512) * 4096)
+            return false;
+        starts[6] = references.MappingScratchBacking;
+        lengths[6] = 1023 * 4096;
         allocations = 7;
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
         if (references.RuntimeSupportCode == 0 || references.HpetDevicePage < 0x100000 ||
-            references.HpetDevicePage > 0xfffff000 || (references.HpetDevicePage & 4095) != 0) return false;
-        starts[allocations] = references.HpetDevicePage; lengths[allocations++] = 4096;
+            references.HpetDevicePage > 0xfffff000 || (references.HpetDevicePage & 4095) != 0)
+            return false;
+        starts[allocations] = references.HpetDevicePage;
+        lengths[allocations++] = 4096;
 #endif
 #if M05_PCI_ENUMERATION_PROBE
         if (references.RuntimeSupportCode == 0 || references.EcamStart < 0x100000 ||
             (references.EcamStart & 0xfffff) != 0 || references.EcamPages != 256 ||
-            references.EcamStart > 0x100000000UL - 0x100000) return false;
-        starts[allocations] = references.EcamStart; lengths[allocations++] = 0x100000;
+            references.EcamStart > 0x100000000UL - 0x100000)
+            return false;
+        starts[allocations] = references.EcamStart;
+        lengths[allocations++] = 0x100000;
 #endif
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         if (references.VirtioBarStart < 0x100000 || (references.VirtioBarStart & 0x3fff) != 0 ||
-            references.VirtioBarStart >= LowEnd - 0x4000) return false;
+            references.VirtioBarStart >= LowEnd - 0x4000)
+            return false;
         // Append after package, user tables, HPET and ECAM. A fixed index here
         // overwrote earlier owners and omitted them from the overlap audit.
-        starts[allocations] = references.VirtioBarStart; lengths[allocations++] = 0x4000;
+        starts[allocations] = references.VirtioBarStart;
+        lengths[allocations++] = 0x4000;
 #if M16_025_PROBE
         if (references.NativeDiskBarStart < 0x100000 || (references.NativeDiskBarStart & 0x3fff) != 0 ||
             references.NativeDiskBarStart >= LowEnd - 0x4000 || references.NativeDiskArenaStart < 4096 ||
-            (references.NativeDiskArenaStart & 4095) != 0 || references.NativeDiskArenaPages is 0 or >256 ||
-            references.NativeDiskArenaStart > 0x100000000UL - references.NativeDiskArenaPages * 4096) return false;
-        starts[allocations] = references.NativeDiskBarStart; lengths[allocations++] = 0x4000;
-        starts[allocations] = references.NativeDiskArenaStart; lengths[allocations++] = references.NativeDiskArenaPages * 4096;
+            (references.NativeDiskArenaStart & 4095) != 0 || references.NativeDiskArenaPages is 0 or > 256 ||
+            references.NativeDiskArenaStart > 0x100000000UL - references.NativeDiskArenaPages * 4096)
+            return false;
+        starts[allocations] = references.NativeDiskBarStart;
+        lengths[allocations++] = 0x4000;
+        starts[allocations] = references.NativeDiskArenaStart;
+        lengths[allocations++] = references.NativeDiskArenaPages * 4096;
 #endif
 #endif
 #if M05_APIC_SETUP_PROBE
         if (references.LocalApicPage < 0x100000 || references.LocalApicPage > 0xfffff000 || (references.LocalApicPage & 4095) != 0 ||
-            references.IoApicPage < 0x100000 || references.IoApicPage > 0xfffff000 || (references.IoApicPage & 4095) != 0) return false;
-        starts[allocations] = references.LocalApicPage; lengths[allocations++] = 4096;
-        starts[allocations] = references.IoApicPage; lengths[allocations++] = 4096;
+            references.IoApicPage < 0x100000 || references.IoApicPage > 0xfffff000 || (references.IoApicPage & 4095) != 0)
+            return false;
+        starts[allocations] = references.LocalApicPage;
+        lengths[allocations++] = 4096;
+        starts[allocations] = references.IoApicPage;
+        lengths[allocations++] = 4096;
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
-        if (references.MsixPage < 0x100000 || references.MsixPage >= LowEnd - 4096 || (references.MsixPage & 4095) != 0) return false;
-        starts[allocations] = references.MsixPage; lengths[allocations++] = 4096;
+        if (references.MsixPage < 0x100000 || references.MsixPage >= LowEnd - 4096 || (references.MsixPage & 4095) != 0)
+            return false;
+        starts[allocations] = references.MsixPage;
+        lengths[allocations++] = 4096;
 #endif
 #if M16_005_PROBE
         if (references.LinuxSyscallCodeStart < 4096 || (references.LinuxSyscallCodeStart & 4095) != 0 ||
             references.LinuxSyscallCodeStart > 0x100000000UL - X64LinuxUserTransition.CodeBytes ||
             references.LinuxSyscallDataStart < 4096 || (references.LinuxSyscallDataStart & 4095) != 0 ||
-            references.LinuxSyscallDataStart > 0x100000000UL - X64LinuxUserTransition.DataBytes) return false;
+            references.LinuxSyscallDataStart > 0x100000000UL - X64LinuxUserTransition.DataBytes)
+            return false;
         // Ownership includes the unmapped guard, so no other retained allocation
         // may occupy any page of the original twenty-page syscall data backing.
-        starts[allocations] = references.LinuxSyscallCodeStart; lengths[allocations++] = X64LinuxUserTransition.CodeBytes;
-        starts[allocations] = references.LinuxSyscallDataStart; lengths[allocations++] = X64LinuxUserTransition.DataBytes;
+        starts[allocations] = references.LinuxSyscallCodeStart;
+        lengths[allocations++] = X64LinuxUserTransition.CodeBytes;
+        starts[allocations] = references.LinuxSyscallDataStart;
+        lengths[allocations++] = X64LinuxUserTransition.DataBytes;
 #endif
 #if M16_006_PROBE
         if (references.LinuxMemoryPoolPages == 0 || references.LinuxMemoryPoolPages > LinuxMemoryServices.MaximumPoolPages ||
             references.LinuxMemoryPoolStart < 4096 || (references.LinuxMemoryPoolStart & 4095) != 0 ||
             references.LinuxMemoryPoolStart > 0x100000000UL - references.LinuxMemoryPoolPages * 4096 ||
             references.LinuxMemoryCandidateStart < 4096 || (references.LinuxMemoryCandidateStart & 4095) != 0 ||
-            references.LinuxMemoryCandidateStart > 0x100000000UL - X64UserAddressSpace.MaximumTables * 4096UL) return false;
-        starts[allocations] = references.LinuxMemoryPoolStart; lengths[allocations++] = references.LinuxMemoryPoolPages * 4096;
-        starts[allocations] = references.LinuxMemoryCandidateStart; lengths[allocations++] = X64UserAddressSpace.MaximumTables * 4096UL;
+            references.LinuxMemoryCandidateStart > 0x100000000UL - X64UserAddressSpace.MaximumTables * 4096UL)
+            return false;
+        starts[allocations] = references.LinuxMemoryPoolStart;
+        lengths[allocations++] = references.LinuxMemoryPoolPages * 4096;
+        starts[allocations] = references.LinuxMemoryCandidateStart;
+        lengths[allocations++] = X64UserAddressSpace.MaximumTables * 4096UL;
 #endif
 #if M16_007_PROBE
         if (references.LinuxDescriptorPages == 0 || references.LinuxDescriptorPages > MaximumDescriptorPages ||
             references.LinuxDescriptorStart < 4096 || (references.LinuxDescriptorStart & 4095) != 0 ||
-            references.LinuxDescriptorStart > 0x100000000UL - references.LinuxDescriptorPages * 4096) return false;
-        starts[allocations] = references.LinuxDescriptorStart; lengths[allocations++] = references.LinuxDescriptorPages * 4096;
+            references.LinuxDescriptorStart > 0x100000000UL - references.LinuxDescriptorPages * 4096)
+            return false;
+        starts[allocations] = references.LinuxDescriptorStart;
+        lengths[allocations++] = references.LinuxDescriptorPages * 4096;
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
 #if M16_008_PROBE
@@ -286,14 +312,17 @@ public static unsafe class FirstExitRetainedMappings
 #endif
         if (references.CooperativePoolPages != cooperativePages ||
             references.CooperativePoolStart < 4096 || (references.CooperativePoolStart & 4095) != 0 ||
-            references.CooperativePoolStart > 0x100000000UL - cooperativePages * 4096UL) return false;
+            references.CooperativePoolStart > 0x100000000UL - cooperativePages * 4096UL)
+            return false;
         starts[allocations] = references.CooperativePoolStart;
         lengths[allocations++] = cooperativePages * 4096UL;
 #endif
 #if M07_026_PROBE
         if (references.NetworkArenaPages != 8 || references.NetworkArenaStart < 4096 ||
-            (references.NetworkArenaStart & 4095) != 0 || references.NetworkArenaStart > 0x100000000UL - 32768) return false;
-        starts[allocations] = references.NetworkArenaStart; lengths[allocations++] = 32768;
+            (references.NetworkArenaStart & 4095) != 0 || references.NetworkArenaStart > 0x100000000UL - 32768)
+            return false;
+        starts[allocations] = references.NetworkArenaStart;
+        lengths[allocations++] = 32768;
 #endif
         for (int i = 0; i < allocations; i++)
             for (int j = 0; j < i; j++)
@@ -403,7 +432,6 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
 #if M07_026_PROBE
 
-
 #else
 
 #endif
@@ -413,7 +441,6 @@ public static unsafe class FirstExitRetainedMappings
 #endif
 #if M05_PCI_ENUMERATION_PROBE
 #if M16_008_PROBE
-
 
 #else
 
@@ -431,12 +458,8 @@ public static unsafe class FirstExitRetainedMappings
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
 
-
-
-
 #endif
 #if M16_006_PROBE
-
 
 #elif M05_APIC_SETUP_PROBE
 
@@ -446,6 +469,35 @@ public static unsafe class FirstExitRetainedMappings
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
 
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
+
+#endif
+#if M16_004_PROBE
+
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+
+#endif
+#endif
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE
+
+#endif
+#if M05_APIC_SETUP_PROBE || M16_006_PROBE
+
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
+
+#endif
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
 
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
@@ -465,9 +517,6 @@ public static unsafe class FirstExitRetainedMappings
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
 
-
-
-
 #endif
 #if M05_APIC_SETUP_PROBE || M16_006_PROBE
 
@@ -476,22 +525,6 @@ public static unsafe class FirstExitRetainedMappings
 
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
-
-
-
-
-
-
-
-#endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
-
-
-
-
-
-
-
 
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
@@ -511,11 +544,6 @@ public static unsafe class FirstExitRetainedMappings
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
 
-
-
-
-
-
 #endif
 #if M05_APIC_SETUP_PROBE || M16_006_PROBE
 
@@ -524,44 +552,5 @@ public static unsafe class FirstExitRetainedMappings
 
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
-
-
-
-
-
-
-
-#endif
-#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
-
-#endif
-#if M16_004_PROBE
-
-#endif
-#if M05_PCI_ENUMERATION_PROBE
-
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
-
-#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
-
-#endif
-#endif
-#endif
-#if M05_PHYSICAL_MAPPING_PROBE
-
-
-
-
-#endif
-#if M05_APIC_SETUP_PROBE || M16_006_PROBE
-
-#endif
-#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
-
-#endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
-
-
-
 
 #endif

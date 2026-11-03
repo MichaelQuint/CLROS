@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static class M02Com1OwnedPortIoBackendIntegration
 {
     public const int ExactConfigurationWriteCount = OS.Kernel.Diagnostics.Com1OwnedPortIoBackend.RequiredConfigurationWriteCount;

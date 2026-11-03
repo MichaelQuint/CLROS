@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciQueueNotificationPlan
 {
     internal VirtioPciQueueNotificationPlan(VirtioPciBarAperture aperture, ushort queueIndex, ushort queueNotifyOffset, uint notifyOffsetMultiplier, uint relativeOffset)
@@ -10,11 +11,26 @@ public readonly struct VirtioPciQueueNotificationPlan
         RelativeOffset = relativeOffset;
     }
 
-    public VirtioPciBarAperture Aperture { get; }
-    public ushort QueueIndex { get; }
-    public ushort QueueNotifyOffset { get; }
-    public uint NotifyOffsetMultiplier { get; }
-    public uint RelativeOffset { get; }
+    public VirtioPciBarAperture Aperture
+    {
+        get;
+    }
+    public ushort QueueIndex
+    {
+        get;
+    }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
+    public uint NotifyOffsetMultiplier
+    {
+        get;
+    }
+    public uint RelativeOffset
+    {
+        get;
+    }
     public ulong BarRelativeOffset => (ulong)Aperture.Offset + RelativeOffset;
     public ulong Address => Aperture.BarBaseAddressBits + BarRelativeOffset;
     public ushort WriteValue => QueueIndex;

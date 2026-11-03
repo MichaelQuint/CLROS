@@ -102,7 +102,7 @@ public static partial class SocketVectorsFixture
             {
                 return listener.Accept();
             }
-            catch (SocketException failure)when (failure.SocketErrorCode == SocketError.WouldBlock)
+            catch (SocketException failure) when (failure.SocketErrorCode == SocketError.WouldBlock)
             {
                 counts.AcceptBlocked++;
                 Thread.Sleep(1);
@@ -135,7 +135,7 @@ public static partial class SocketVectorsFixture
                 Advance(buffers, count);
                 output.WriteLine($"SOCKET_VECTOR_RECEIVE index={index} bytes={count} total={received} remaining={64 - received}");
             }
-            catch (SocketException failure)when (failure.SocketErrorCode == SocketError.WouldBlock)
+            catch (SocketException failure) when (failure.SocketErrorCode == SocketError.WouldBlock)
             {
                 counts.ReceiveBlocked++;
                 Thread.Sleep(1);
@@ -163,12 +163,12 @@ public static partial class SocketVectorsFixture
                     throw new Failure(14);
                 return;
             }
-            catch (SocketException failure)when (reset && failure.SocketErrorCode == SocketError.ConnectionReset)
+            catch (SocketException failure) when (reset && failure.SocketErrorCode == SocketError.ConnectionReset)
             {
                 counts.Reset++;
                 return;
             }
-            catch (SocketException failure)when (failure.SocketErrorCode == SocketError.WouldBlock)
+            catch (SocketException failure) when (failure.SocketErrorCode == SocketError.WouldBlock)
             {
                 counts.ReceiveBlocked++;
                 Thread.Sleep(1);
@@ -201,7 +201,7 @@ public static partial class SocketVectorsFixture
                     counts.Sent += count;
                     Advance(buffers, count);
                 }
-                catch (SocketException failure)when (failure.SocketErrorCode == SocketError.WouldBlock)
+                catch (SocketException failure) when (failure.SocketErrorCode == SocketError.WouldBlock)
                 {
                     counts.SendBlocked++;
                     Thread.Sleep(1);
@@ -233,7 +233,7 @@ public static partial class SocketVectorsFixture
             _ = pending.GetAwaiter().GetResult();
             throw new Failure(21);
         }
-        catch (SocketException failure)when (failure.SocketErrorCode == SocketError.OperationAborted)
+        catch (SocketException failure) when (failure.SocketErrorCode == SocketError.OperationAborted)
         {
             counts.Aborted++;
         }

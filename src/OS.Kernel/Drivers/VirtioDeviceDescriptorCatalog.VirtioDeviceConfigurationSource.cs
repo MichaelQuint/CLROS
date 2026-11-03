@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Storage;
 
 public readonly struct VirtioDeviceConfigurationSource
@@ -9,6 +10,12 @@ public readonly struct VirtioDeviceConfigurationSource
         Configuration = configuration;
     }
 
-    public int SourceIndex { get; }
-    public ReadOnlyMemory<byte> Configuration { get; }
+    public int SourceIndex
+    {
+        get;
+    }
+    public ReadOnlyMemory<byte> Configuration
+    {
+        get;
+    }
 }

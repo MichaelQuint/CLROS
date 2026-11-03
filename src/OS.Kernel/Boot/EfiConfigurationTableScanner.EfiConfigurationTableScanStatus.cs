@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public enum EfiConfigurationTableScanStatus
 {
     Ok = 0,

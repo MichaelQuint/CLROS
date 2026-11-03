@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 internal static unsafe class X64Cr3LoadStubPlanComposer
 {
     private const ulong MaximumUnsignedLong = ~0UL;

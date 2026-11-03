@@ -24,14 +24,19 @@ internal static class DiskSourceFamilySelectionTests
         var catalog = new CSharpSourceCatalog([secondDocument, otherDocument, firstDocument], references);
         var reasons = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["renamed.cs"] = reason, ["partials/relocated.cs"] = reason
+            ["renamed.cs"] = reason,
+            ["partials/relocated.cs"] = reason
         };
         var pins = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["renamed.cs"] = ContractAudit.HashSource(first), ["partials/relocated.cs"] = ContractAudit.HashSource(second)
+            ["renamed.cs"] = ContractAudit.HashSource(first),
+            ["partials/relocated.cs"] = ContractAudit.HashSource(second)
         };
         Dictionary<string, IReadOnlyList<CSharpSourceDocument>> Anchors(CSharpSourceCatalog source) =>
-            new(StringComparer.Ordinal) { [reason] = source.TypeSources("StorageParts.Owner") };
+            new(StringComparer.Ordinal)
+            {
+                [reason] = source.TypeSources("StorageParts.Owner")
+            };
         var selected = DiskSourceFamilySelection.Select(catalog, directory, reasons, pins, Anchors(catalog));
         HostCheck.True(selected.Values.ToHashSet().SetEquals(catalog.TypeSources("StorageParts.Owner")),
             "both moved owner and nested helper are selected without the unrelated source");
@@ -39,7 +44,10 @@ internal static class DiskSourceFamilySelectionTests
         void Reject(CSharpSourceCatalog source, IReadOnlyDictionary<string, string> selectedReasons,
             IReadOnlyDictionary<string, string> selectedPins, IReadOnlyDictionary<string, IReadOnlyList<CSharpSourceDocument>> anchors)
         {
-            try { _ = DiskSourceFamilySelection.Select(source, directory, selectedReasons, selectedPins, anchors); }
+            try
+            {
+                _ = DiskSourceFamilySelection.Select(source, directory, selectedReasons, selectedPins, anchors);
+            }
             catch (InvalidOperationException error) when (error.Message.StartsWith("disk_source_family_", StringComparison.Ordinal)) { return; }
             throw new InvalidOperationException("unreviewed disk source family accepted");
         }

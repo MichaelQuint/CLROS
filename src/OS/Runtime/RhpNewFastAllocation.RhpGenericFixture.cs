@@ -7,16 +7,6 @@ namespace OS.Runtime;
 #pragma warning restore CS0649
 #if NOSTDLIB_EFI && M04_RHP_NEW_FAST_PROBE
 
-
-
-
-
-
-
-
-
-
-
 #if M04_CHECKED_REFERENCE_BARRIER_PROBE
 
 #else
@@ -27,76 +17,19 @@ namespace OS.Runtime;
 
 #else
 
-
-
-
-
-
-
-
 #if M04_RHP_NEW_FAST_BEFORE_BIND_FAILURE_PROBE
 
-
-
-
-
 #else
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M04_RHP_NEW_FAST_EXHAUSTION_FAILURE_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 
-
-
-
-
-
-
-
-
-
-
 #endif
 #endif
 
 #endif
 #endif
-
-
-
-
 
 #if M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE
 
@@ -106,472 +39,54 @@ namespace OS.Runtime;
 
 #elif M04_SZ_ARRAY_ALLOCATION_PROBE
 
-
-
 #else
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif
 
-
 #if M04_STRING_ALLOCATION_PROBE
-
-
-
-
-
-
-
-
-
 
 #if M04_STRING_ALLOCATION_BEFORE_BIND_PROBE
 
-
-
-
 #else
-
-
 
 #if M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE
 
-
-
-
 #else
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M04_STRING_ALLOCATION_EXHAUSTION_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 
-
-
-
-
-
-
-
 #endif
 #endif
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif
 
 #if M04_SZ_ARRAY_ALLOCATION_PROBE
-
-
-
-
-
-
-
-
-
 
 #if M04_SZ_ARRAY_ALLOCATION_BEFORE_BIND_PROBE
 
-
-
-
 #else
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M04_SZ_ARRAY_ALLOCATION_EXHAUSTION_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 
-
-
-
-
-
-
-
 #endif
 #endif
-
-
-
-
-
 
 #if M04_STRING_ALLOCATION_PROBE
 
-
 #else
 
-
-
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M04_STRING_ALLOCATION_PROBE
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M04_STRING_ALLOCATION_PROBE
 
@@ -581,316 +96,44 @@ namespace OS.Runtime;
 
 #endif
 
-
-
-
-
 #if M04_STRING_ALLOCATION_PROBE
-
-
-
 
 #elif M04_SZ_ARRAY_ALLOCATION_PROBE
 
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if M04_CHECKED_REFERENCE_BARRIER_PROBE
 
-
-
 #endif
-
-
 
 #if M04_STRING_ALLOCATION_PROBE
 
-
 #elif M04_SZ_ARRAY_ALLOCATION_PROBE
-
 
 #else
 
 #endif
 
-
-
 #if M04_SZ_ARRAY_ALLOCATION_PROBE
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif
 #if M04_STRING_ALLOCATION_PROBE
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #pragma warning disable 649
-
-
-
-
-
-
-
-
-
-
-
-
 
 internal sealed class RhpGenericFixture<T>
 {
     internal T Item;
     internal ulong Value;
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    internal RhpGenericFixture(ulong value) { RhpNewFastAllocation.ConstructorEntered(); Value = value; }
+    internal RhpGenericFixture(ulong value)
+    {
+        RhpNewFastAllocation.ConstructorEntered();
+        Value = value;
+    }
 }
-
-
-
 
 #pragma warning restore 649
 #endif

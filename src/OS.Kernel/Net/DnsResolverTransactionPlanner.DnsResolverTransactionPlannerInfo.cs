@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 
 public readonly struct DnsResolverTransactionPlannerInfo
@@ -14,13 +15,34 @@ public readonly struct DnsResolverTransactionPlannerInfo
         Identification = identification;
     }
 
-    public MacAddress LocalMac { get; }
-    public MacAddress NextHopMac { get; }
-    public Ipv4Address LocalAddress { get; }
-    public Ipv4Address DnsServerAddress { get; }
-    public ushort ClientPort { get; }
-    public ushort TransactionId { get; }
-    public ushort Identification { get; }
+    public MacAddress LocalMac
+    {
+        get;
+    }
+    public MacAddress NextHopMac
+    {
+        get;
+    }
+    public Ipv4Address LocalAddress
+    {
+        get;
+    }
+    public Ipv4Address DnsServerAddress
+    {
+        get;
+    }
+    public ushort ClientPort
+    {
+        get;
+    }
+    public ushort TransactionId
+    {
+        get;
+    }
+    public ushort Identification
+    {
+        get;
+    }
 
     public DnsUdpQueryFrameInfo ToQueryFrameInfo()
     {

@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotLogUploadContract
 {
     public sealed class ManagedReference
@@ -19,10 +20,22 @@ public static partial class NativeAotLogUploadContract
             Artifacts = Array.AsReadOnly(artifacts.ToArray());
         }
 
-        public string Directory { get; }
-        public Transcript Write { get; }
-        public Transcript Verify { get; }
-        public ReadOnlyCollection<string> Artifacts { get; }
+        public string Directory
+        {
+            get;
+        }
+        public Transcript Write
+        {
+            get;
+        }
+        public Transcript Verify
+        {
+            get;
+        }
+        public ReadOnlyCollection<string> Artifacts
+        {
+            get;
+        }
         public bool GrantsLinuxNativeAotGuestOrPersistenceAuthority => false;
     }
 }

@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSqliteContract
 {
     public sealed class ManagedReference
@@ -25,10 +26,22 @@ public static partial class NativeAotSqliteContract
             DatabaseSha256 = databaseHash;
         }
 
-        public string Directory { get; }
-        public Transcript Values { get; }
-        public Transcript Verification { get; }
-        public string DatabaseSha256 { get; }
+        public string Directory
+        {
+            get;
+        }
+        public Transcript Values
+        {
+            get;
+        }
+        public Transcript Verification
+        {
+            get;
+        }
+        public string DatabaseSha256
+        {
+            get;
+        }
         public bool GrantsLinuxNativeAotGuestOrDurabilityAuthority => false;
     }
 }

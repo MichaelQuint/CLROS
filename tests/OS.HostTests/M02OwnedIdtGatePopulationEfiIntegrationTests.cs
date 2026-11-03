@@ -476,12 +476,12 @@ internal static partial class M02OwnedIdtGatePopulationEfiIntegrationTests
 
     private static string[] ExpectedBaselineRequiredMarkers()
     {
-        return["OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT", "BOOT_PAGE_ALLOCATOR_READY", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY"];
+        return ["OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT", "BOOT_PAGE_ALLOCATOR_READY", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY"];
     }
 
     private static string[] ExpectedM02011RequiredMarkers()
     {
-        return[..ExpectedBaselineRequiredMarkers(), "EFI_CONSOLE_READY", StartMarker, ReadyMarker, PassMarker, "UEFI_MEMORY_MAP_READY"];
+        return [.. ExpectedBaselineRequiredMarkers(), "EFI_CONSOLE_READY", StartMarker, ReadyMarker, PassMarker, "UEFI_MEMORY_MAP_READY"];
     }
 
     private static SerialMarkerCompletionResult ParseTranscript(IReadOnlyList<string> required, IReadOnlyList<string> forbidden, IReadOnlyList<string> ordered, IReadOnlyList<string> unique, IEnumerable<string> lines)
@@ -493,13 +493,13 @@ internal static partial class M02OwnedIdtGatePopulationEfiIntegrationTests
 
     private static ScriptResult RunQemuDryRun(string root, params string[] arguments)
     {
-        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..arguments]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. arguments]);
         return new(result.ExitCode, result.Output + result.Error);
     }
 
     private static ScriptResult RunToolCommand(string root, string command, int timeoutMilliseconds, params string[] arguments)
     {
-        var result = HostToolProcess.RunTool([..command.Split(' '), ..arguments]);
+        var result = HostToolProcess.RunTool([.. command.Split(' '), .. arguments]);
         return new(result.ExitCode, result.Output + result.Error);
     }
 

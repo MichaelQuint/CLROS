@@ -22,7 +22,8 @@ public static unsafe class KernelThreadProgressProgram
     /// leave every byte unchanged; the IRQ region remains independently owned.</summary>
     public static bool Emit(byte* output, uint capacity, KernelThreadProgram.Plan plan, ulong progress, ulong stop)
     {
-        if (!Inputs(output, capacity, plan, progress, stop, true) || !Encode(null, plan, progress, stop, false)) return false;
+        if (!Inputs(output, capacity, plan, progress, stop, true) || !Encode(null, plan, progress, stop, false))
+            return false;
         return Encode(output, plan, progress, stop, false);
     }
 
@@ -44,23 +45,36 @@ public static unsafe class KernelThreadProgressProgram
 
     private static bool Encode(byte* output, KernelThreadProgram.Plan p, ulong progress, ulong stop, bool compare)
     {
-        if (!KernelThreadProgram.EncodeInfrastructure(output, p, compare, recoverySwitchStack: true)) return false;
+        if (!KernelThreadProgram.EncodeInfrastructure(output, p, compare, recoverySwitchStack: true))
+            return false;
         ulong code = p.Owner.CodeStart;
         for (uint i = 0; i < 3; i++)
         {
             uint offset = i == 0 ? KernelThreadProgram.WorkerA : i == 1 ? KernelThreadProgram.WorkerB : KernelThreadProgram.ReusedWorker;
             uint back = i == 1 ? KernelThreadProgram.FromB : KernelThreadProgram.FromA;
             ThreadContextSwitch.StubWriter w = new(output == null ? null : output + offset, code + offset, compare, 256);
-            w.Bytes(0x57565553, 4); w.Bytes(0x5741564155415441, 8); w.Bytes(0x28ec8348, 4);
-            w.Immediate(0, stop); w.Bytes(0x003883, 3); // CMP dword ptr [RAX],0.
+            w.Bytes(0x57565553, 4);
+            w.Bytes(0x5741564155415441, 8);
+            w.Bytes(0x28ec8348, 4);
+            w.Immediate(0, stop);
+            w.Bytes(0x003883, 3); // CMP dword ptr [RAX],0.
             w.Reject(code + offset + WorkerReturn); // JNE normal return before increment or transfer.
-            w.Immediate(0, progress); w.Bytes(0x00ff48, 3); // INC qword ptr [RAX].
-            w.Bytes(0xba, 1); w.Bytes(0, 4); w.Call(code + back);
+            w.Immediate(0, progress);
+            w.Bytes(0x00ff48, 3); // INC qword ptr [RAX].
+            w.Bytes(0xba, 1);
+            w.Bytes(0, 4);
+            w.Call(code + back);
             w.Jump(code + offset + Loop);
             w.Pad(WorkerReturn);
-            w.Bytes(0x28c48348, 4); w.Bytes(0x5c415d415e415f41, 8); w.Bytes(0x5b5d5e5f, 4);
-            w.Bytes(0xb8, 1); w.Bytes(17, 4); w.Bytes(0xc3, 1);
-            w.Pad(); if (!w.Valid) return false;
+            w.Bytes(0x28c48348, 4);
+            w.Bytes(0x5c415d415e415f41, 8);
+            w.Bytes(0x5b5d5e5f, 4);
+            w.Bytes(0xb8, 1);
+            w.Bytes(17, 4);
+            w.Bytes(0xc3, 1);
+            w.Pad();
+            if (!w.Valid)
+                return false;
         }
         return true;
     }

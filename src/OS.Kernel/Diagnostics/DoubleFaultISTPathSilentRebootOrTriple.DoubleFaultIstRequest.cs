@@ -18,15 +18,48 @@ public readonly struct DoubleFaultIstRequest
         ClaimedGuestCapture = claimedGuestCapture;
     }
 
-    public bool EnabledByDefault { get; }
-    public bool ExecutionRequested { get; }
-    public bool ExecutionAttempted { get; }
-    public bool ClaimedGuestCapture { get; }
-    public bool IsInitialized { get; }
-    public ulong Code { get; }
-    public ulong Data { get; }
-    public ulong Tables { get; }
-    public OS.Kernel.Memory.X64PagingModePreflightObservation Observation { get; }
-    public ulong Pat { get; }
-    public SeparatePageFaultPageTableResult Image { get; }
+    public bool EnabledByDefault
+    {
+        get;
+    }
+    public bool ExecutionRequested
+    {
+        get;
+    }
+    public bool ExecutionAttempted
+    {
+        get;
+    }
+    public bool ClaimedGuestCapture
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public ulong Code
+    {
+        get;
+    }
+    public ulong Data
+    {
+        get;
+    }
+    public ulong Tables
+    {
+        get;
+    }
+    public OS.Kernel.Memory.X64PagingModePreflightObservation Observation
+    {
+        get;
+    }
+    public ulong Pat
+    {
+        get;
+    }
+    public SeparatePageFaultPageTableResult Image
+    {
+        get;
+    }
 }

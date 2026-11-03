@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public struct BootHandoffRecord
 {
     public const uint BootModeUnknown = 0;

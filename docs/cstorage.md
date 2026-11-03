@@ -1,5 +1,11 @@
 # Storage
 
+[Step1736](../done/step1736.md) integrates21 token/order/layout-source-preserving
+NVMe formatting files after guarding all22 original/candidate rows. The filesystem
+control is byte-identical; changed NVMe files have no explicit EFI links/pins.
+The graph and49 affected/shared checks pass with unchanged inputs and zero reuse.
+This is host/source evidence, with no live NVMe, native or performance acceptance.
+
 [Step1735](../done/step1735.md) measures bounded full-byte COM1 FIFO output after
 its stack repair and conditional native review. All12 quiet originals retain145
 reads and241 copied sectors each:47 directory,66 FAT and128 payload sectors.

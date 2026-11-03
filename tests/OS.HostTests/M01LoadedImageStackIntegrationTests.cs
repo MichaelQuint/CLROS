@@ -732,7 +732,7 @@ internal static unsafe partial class M01LoadedImageStackIntegrationTests
         }
 
         (ulong Offset, ulong Length, OwnedBootStackSwitchStatus Leaf)[] malformedPlans = [(1, OwnedBootStackSwitchPlan.RequiredStubByteLength, OwnedBootStackSwitchStatus.MisalignedStubEntry), (PageSize, OwnedBootStackSwitchPlan.RequiredStubByteLength, OwnedBootStackSwitchStatus.InvalidStubEntryOffset), (PageSize - 8, OwnedBootStackSwitchPlan.RequiredStubByteLength, OwnedBootStackSwitchStatus.StubBytePlanOutOfRange), (~0UL, OwnedBootStackSwitchPlan.RequiredStubByteLength, OwnedBootStackSwitchStatus.StubEntryOverflow), (StubEntryOffset, 0, OwnedBootStackSwitchStatus.InvalidDeclaredStubByteLength), (StubEntryOffset, OwnedBootStackSwitchPlan.RequiredStubByteLength - 1, OwnedBootStackSwitchStatus.InvalidDeclaredStubByteLength), (StubEntryOffset, OwnedBootStackSwitchPlan.RequiredStubByteLength + 1, OwnedBootStackSwitchStatus.InvalidDeclaredStubByteLength)];
-        foreach ((ulong offset, ulong length, OwnedBootStackSwitchStatus leaf)in malformedPlans)
+        foreach ((ulong offset, ulong length, OwnedBootStackSwitchStatus leaf) in malformedPlans)
         {
             fixture.ResetCanonical();
             M01LoadedImageStackIntegrationResult result = fixture.PrepareWithStub(offset, length);

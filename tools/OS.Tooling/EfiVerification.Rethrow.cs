@@ -4,6 +4,7 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 internal sealed partial class EfiVerification
 {
     // Exact retained COFF text, relocated calls, compiled clauses and unwind rows.

@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Runtime;
+
 public static unsafe partial class TypeManagerModuleMetadataLiveNativeAOTImage
 {
     // ABI storage follows this private POD. The immutable byte snapshot follows

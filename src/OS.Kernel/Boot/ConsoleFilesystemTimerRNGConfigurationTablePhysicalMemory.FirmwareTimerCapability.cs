@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Boot;
+
 public unsafe struct FirmwareTimerCapability
 {
     private readonly FirmwareAdapterAuthority* _authority;

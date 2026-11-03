@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public static class NativeAotClassConstructorWorkItemPlanner
 {
     public const bool UsesCallerOwnedStorage = true;

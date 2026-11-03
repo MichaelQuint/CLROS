@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct CpuFaultEntryFrameLayoutResult
 {
     private CpuFaultEntryFrameLayoutResult(bool succeeded, CpuFaultEntryFrameLayoutStatus status, CpuFaultFrame frame, ushort codeSegment, ushort stackSegment, int vector, int requiredBytes)
@@ -14,13 +15,34 @@ public readonly struct CpuFaultEntryFrameLayoutResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool Succeeded { get; }
-    public CpuFaultEntryFrameLayoutStatus Status { get; }
-    public CpuFaultFrame Frame { get; }
-    public ushort CodeSegment { get; }
-    public ushort StackSegment { get; }
-    public int Vector { get; }
-    public int RequiredBytes { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public CpuFaultEntryFrameLayoutStatus Status
+    {
+        get;
+    }
+    public CpuFaultFrame Frame
+    {
+        get;
+    }
+    public ushort CodeSegment
+    {
+        get;
+    }
+    public ushort StackSegment
+    {
+        get;
+    }
+    public int Vector
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
 
     public static CpuFaultEntryFrameLayoutResult Success(in CpuFaultFrame frame, ushort codeSegment, ushort stackSegment)
     {

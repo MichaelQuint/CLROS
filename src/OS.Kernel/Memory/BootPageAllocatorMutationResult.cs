@@ -16,17 +16,47 @@ public readonly struct BootPageAllocatorMutationResult
         VisitedNodeCount = visitedNodeCount;
     }
 
-    public bool IsInitialized { get; }
-    public BootPageAllocatorMutationStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public BootPageAllocatorMutationStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == BootPageAllocatorMutationStatus.Success;
-    public BootPageAllocatorState State { get; }
-    public ulong PhysicalStart { get; }
-    public ulong PhysicalEndExclusive { get; }
-    public ulong PageCount { get; }
-    public ulong ByteLength { get; }
-    public int NodeIndex { get; }
-    public int InsertedNodeIndex { get; }
-    public int VisitedNodeCount { get; }
+    public BootPageAllocatorState State
+    {
+        get;
+    }
+    public ulong PhysicalStart
+    {
+        get;
+    }
+    public ulong PhysicalEndExclusive
+    {
+        get;
+    }
+    public ulong PageCount
+    {
+        get;
+    }
+    public ulong ByteLength
+    {
+        get;
+    }
+    public int NodeIndex
+    {
+        get;
+    }
+    public int InsertedNodeIndex
+    {
+        get;
+    }
+    public int VisitedNodeCount
+    {
+        get;
+    }
 
     internal static BootPageAllocatorMutationResult Success(BootPageAllocatorState state, ulong physicalStart, ulong physicalEndExclusive, ulong pageCount, ulong byteLength, int nodeIndex, int insertedNodeIndex, int visitedNodeCount)
     {

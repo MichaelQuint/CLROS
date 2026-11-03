@@ -1,6 +1,7 @@
 using System;
 
 namespace OS.Kernel.Runtime;
+
 public enum BoundedExceptionDispatchStatus : byte
 {
     Uninitialized = 0,

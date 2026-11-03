@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public readonly struct ExecutableStubPageTransitionPlanResult
 {
     private ExecutableStubPageTransitionPlanResult(bool isInitialized, ExecutableStubPageTransitionPlanStatus status, ExecutableStubMemoryPlanStatus memoryPlanStatus, ExecutableStubBundleMaterializerStatus materializerStatus, nuint regionBaseAddress, nuint regionByteLength, nuint transitionBaseAddress, nuint transitionByteLength, nuint transitionEndAddress, nuint payloadBaseAddress, nuint payloadByteLength, nuint payloadEndAddress, nuint bytesMaterialized, ExecutableStubMemoryProtection writePhaseProtection, ExecutableStubMemoryProtection executePhaseProtection, ExecutableStubMemoryProtection finalProtection)
@@ -21,23 +22,71 @@ public readonly struct ExecutableStubPageTransitionPlanResult
         FinalProtection = finalProtection;
     }
 
-    public bool IsInitialized { get; }
-    public ExecutableStubPageTransitionPlanStatus Status { get; }
-    public ExecutableStubMemoryPlanStatus MemoryPlanStatus { get; }
-    public ExecutableStubBundleMaterializerStatus MaterializerStatus { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public ExecutableStubPageTransitionPlanStatus Status
+    {
+        get;
+    }
+    public ExecutableStubMemoryPlanStatus MemoryPlanStatus
+    {
+        get;
+    }
+    public ExecutableStubBundleMaterializerStatus MaterializerStatus
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == ExecutableStubPageTransitionPlanStatus.Success;
-    public nuint RegionBaseAddress { get; }
-    public nuint RegionByteLength { get; }
-    public nuint TransitionBaseAddress { get; }
-    public nuint TransitionByteLength { get; }
-    public nuint TransitionEndAddress { get; }
-    public nuint PayloadBaseAddress { get; }
-    public nuint PayloadByteLength { get; }
-    public nuint PayloadEndAddress { get; }
-    public nuint BytesMaterialized { get; }
-    public ExecutableStubMemoryProtection WritePhaseProtection { get; }
-    public ExecutableStubMemoryProtection ExecutePhaseProtection { get; }
-    public ExecutableStubMemoryProtection FinalProtection { get; }
+    public nuint RegionBaseAddress
+    {
+        get;
+    }
+    public nuint RegionByteLength
+    {
+        get;
+    }
+    public nuint TransitionBaseAddress
+    {
+        get;
+    }
+    public nuint TransitionByteLength
+    {
+        get;
+    }
+    public nuint TransitionEndAddress
+    {
+        get;
+    }
+    public nuint PayloadBaseAddress
+    {
+        get;
+    }
+    public nuint PayloadByteLength
+    {
+        get;
+    }
+    public nuint PayloadEndAddress
+    {
+        get;
+    }
+    public nuint BytesMaterialized
+    {
+        get;
+    }
+    public ExecutableStubMemoryProtection WritePhaseProtection
+    {
+        get;
+    }
+    public ExecutableStubMemoryProtection ExecutePhaseProtection
+    {
+        get;
+    }
+    public ExecutableStubMemoryProtection FinalProtection
+    {
+        get;
+    }
 
     public static ExecutableStubPageTransitionPlanResult Success(ExecutableStubMemoryPlanResult memoryPlan, ExecutableStubBundleMaterializerResult materializerResult, nuint regionBaseAddress, nuint regionByteLength, nuint transitionEndAddress, nuint payloadBaseAddress, nuint payloadEndAddress)
     {

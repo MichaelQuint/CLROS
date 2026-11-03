@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct M02SafeStubPageIntegrationResult
 {
     public const ulong StructureSize = 96;

@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public readonly struct OSHostTimerTableEntry
 {
     public readonly OSHostHandle Timer;

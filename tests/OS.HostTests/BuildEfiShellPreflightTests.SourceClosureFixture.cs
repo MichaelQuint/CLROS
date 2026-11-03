@@ -10,9 +10,21 @@ internal static partial class BuildEfiShellPreflightTests
 {
     private sealed class SourceClosureFixture
     {
-        public required string Root { get; init; }
-        public required string ProjectPath { get; init; }
-        public required string ScriptPath { get; init; }
-        public required string SerializerTargetsPath { get; init; }
+        public required string Root
+        {
+            get; init;
+        }
+        public required string ProjectPath
+        {
+            get; init;
+        }
+        public required string ScriptPath
+        {
+            get; init;
+        }
+        public required string SerializerTargetsPath
+        {
+            get; init;
+        }
     }
 }

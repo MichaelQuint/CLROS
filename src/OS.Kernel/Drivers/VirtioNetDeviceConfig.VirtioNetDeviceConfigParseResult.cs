@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 using OS.Std.Binary;
 
@@ -13,11 +14,26 @@ public readonly struct VirtioNetDeviceConfigParseResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioNetDeviceConfigStatus Status { get; }
-    public VirtioNetDeviceConfig Config { get; }
-    public int InputLength { get; }
-    public int BytesConsumed { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetDeviceConfigStatus Status
+    {
+        get;
+    }
+    public VirtioNetDeviceConfig Config
+    {
+        get;
+    }
+    public int InputLength
+    {
+        get;
+    }
+    public int BytesConsumed
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetDeviceConfigStatus.Success;
 
     public static VirtioNetDeviceConfigParseResult Success(VirtioNetDeviceConfig config, int inputLength, int bytesConsumed)

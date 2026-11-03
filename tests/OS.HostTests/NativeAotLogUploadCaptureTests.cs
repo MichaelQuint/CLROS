@@ -11,7 +11,9 @@ internal static class NativeAotLogUploadCaptureTests
     [HostTest("log-upload wait values retain every original index and full numeric call without capture authority")]
     private static void Census()
     {
-        string[] rows = Simple(); string[] original = rows.ToArray(); var report = Read(rows);
+        string[] rows = Simple();
+        string[] original = rows.ToArray();
+        var report = Read(rows);
         HostCheck.True(report.OriginalRowCount == rows.Length && report.Calls.Count == 1 && report.EnvelopeRows.Count == 3 &&
             report.Operations.Count == 1 && report.ResidualRows.Count == 4 && report.UnjoinedSource4Wakes.Count == 0);
         HostCheck.True(report.Calls[0].RecordIndex == 1 && report.Calls[0]["a2"] == 19 && report.Calls[0]["rsp"] == 8000000 &&
@@ -29,15 +31,32 @@ internal static class NativeAotLogUploadCaptureTests
     [HostTest("log-upload wait values own immutable calls envelopes attempts and residual census")]
     private static void Immutable()
     {
-        string[] rows = Simple(); var report = Read(rows); rows[1] = "changed"; rows[7] = "changed";
+        string[] rows = Simple();
+        var report = Read(rows);
+        rows[1] = "changed";
+        rows[7] = "changed";
         HostCheck.True(report.Calls[0]["nr"] == 17 && report.Calls[0].Text.StartsWith("M16_008_CALL ", StringComparison.Ordinal) &&
             report.ResidualRows[^1].Text == "FUTURE_OUTER_RECORD remains=unqualified");
         bool denied = false;
-        try { ((IDictionary<string, ulong>)report.Calls[0].Values)["nr"] = 99; } catch (NotSupportedException) { denied = true; }
-        HostCheck.True(denied); denied = false;
-        try { ((IList<Q.NativeAotLogUploadWaitAttempt>)report.Operations[0].Attempts).Clear(); } catch (NotSupportedException) { denied = true; }
-        HostCheck.True(denied); denied = false;
-        try { ((IList<Q.WritableDiskRow>)report.ResidualRows).Clear(); } catch (NotSupportedException) { denied = true; }
+        try
+        {
+            ((IDictionary<string, ulong>)report.Calls[0].Values)["nr"] = 99;
+        }
+        catch (NotSupportedException) { denied = true; }
+        HostCheck.True(denied);
+        denied = false;
+        try
+        {
+            ((IList<Q.NativeAotLogUploadWaitAttempt>)report.Operations[0].Attempts).Clear();
+        }
+        catch (NotSupportedException) { denied = true; }
+        HostCheck.True(denied);
+        denied = false;
+        try
+        {
+            ((IList<Q.WritableDiskRow>)report.ResidualRows).Clear();
+        }
+        catch (NotSupportedException) { denied = true; }
         HostCheck.True(denied);
     }
 
@@ -46,15 +65,23 @@ internal static class NativeAotLogUploadCaptureTests
     {
         foreach (ulong value in new[] { 0UL, 7UL, unchecked((ulong)-5L), unchecked((ulong)-4L) })
         {
-            string[] rows = Simple(); rows[5] = Set(rows[5], "valueBits", value);
-            if (value == unchecked((ulong)-4L)) { rows[4] = Set(rows[4], "completion", 5); rows[5] = Set(rows[5], "completion", 5); }
-            var report = Read(rows); var attempt = report.Operations[0].Attempts[0];
+            string[] rows = Simple();
+            rows[5] = Set(rows[5], "valueBits", value);
+            if (value == unchecked((ulong)-4L))
+            {
+                rows[4] = Set(rows[4], "completion", 5);
+                rows[5] = Set(rows[5], "completion", 5);
+            }
+            var report = Read(rows);
+            var attempt = report.Operations[0].Attempts[0];
             HostCheck.True(attempt.Complete["valueBits"] == value && attempt.Complete["outputBytes"] == 19 &&
                 attempt.Wake["completion"] == attempt.Complete["completion"] && !report.GrantsSchedulerAuthority);
         }
         // Prefix zero is an actual captured fact, including for a requested read;
         // requested-byte/copy semantics remain the separate original consumer.
-        string[] zero = Simple(); foreach (int i in new[] { 2, 4, 5 }) zero[i] = Set(zero[i], i == 5 ? "outputBytes" : "outputPrefix", 0);
+        string[] zero = Simple();
+        foreach (int i in new[] { 2, 4, 5 })
+            zero[i] = Set(zero[i], i == 5 ? "outputBytes" : "outputPrefix", 0);
         HostCheck.True(Read(zero).Operations[0].Begin["outputPrefix"] == 0);
     }
 
@@ -64,7 +91,8 @@ internal static class NativeAotLogUploadCaptureTests
         string[] rows = [Call(), Begin(), Wake(clock: 101), Complete(action: 3, value: 0, clock: 102), ReparkRow(1, 7, 103),
             "M16_027_IO outside=table-clock-domain clock=0", Wake(sequence: 7, clock: 103), Complete(sequence: 7, action: 3, value: 0, clock: 104),
             ReparkRow(7, 11, 105), Wake(sequence: 11, completion: 5, clock: 106), Complete(sequence: 11, completion: 5, value: unchecked((ulong)-4L), clock: 107)];
-        var result = Read(rows); var attempts = result.Operations[0].Attempts;
+        var result = Read(rows);
+        var attempts = result.Operations[0].Attempts;
         HostCheck.True(attempts.Count == 3 && attempts[0].Repark!["sequence"] == 7 && attempts[1].Repark!["sequence"] == 11 &&
             attempts[2].Repark is null && result.ResidualRows.Single().RecordIndex == 5 && result.EnvelopeRows.Count == 9);
         Reject(Change(rows, 4, "previous", 2), "repark_identity");
@@ -117,13 +145,15 @@ internal static class NativeAotLogUploadCaptureTests
         Reject(rows, "request_reuse");
         // Different attachments are representable copied facts; an original owner
         // must independently bind its actual single attachment and process.
-        foreach (int i in new[] { 3, 6, 7 }) rows[i] = Set(rows[i], "requestOwner", 9000);
+        foreach (int i in new[] { 3, 6, 7 })
+            rows[i] = Set(rows[i], "requestOwner", 9000);
         HostCheck.True(Read(rows).Operations.Count == 2);
         Reject([Call(), Begin(), Call(ordinal: 2, source: 0, sequence: 0, clock: 101), Wake(clock: 102), Complete(clock: 103)], "call_while_waiting");
         string[] serial = [Call(), Begin(), Wake(), Complete(), Call(ordinal: 2, sequence: 8, clock: 104),
             Begin(ordinal: 2, sequence: 8, request: 2, clock: 104), Wake(sequence: 8, request: 2, clock: 105), Complete(sequence: 8, request: 2, clock: 106)];
         HostCheck.True(Read(serial).Operations.Count == 2);
-        foreach (int index in new[] { 5, 6, 7 }) serial[index] = Set(serial[index], "request", 1);
+        foreach (int index in new[] { 5, 6, 7 })
+            serial[index] = Set(serial[index], "request", 1);
         Reject(serial, "request_reuse");
     }
 
@@ -131,8 +161,10 @@ internal static class NativeAotLogUploadCaptureTests
     private static void Transitions()
     {
         string[] basic = [Call(), Begin(), Wake(), Complete()];
-        for (int i = 0; i < basic.Length; i++) Reject(basic.Where((_, index) => index != i).ToArray());
-        for (int i = 0; i < basic.Length; i++) Reject(basic.Take(i + 1).Concat([basic[i]]).Concat(basic.Skip(i + 1)).ToArray());
+        for (int i = 0; i < basic.Length; i++)
+            Reject(basic.Where((_, index) => index != i).ToArray());
+        for (int i = 0; i < basic.Length; i++)
+            Reject(basic.Take(i + 1).Concat([basic[i]]).Concat(basic.Skip(i + 1)).ToArray());
         Reject([Call(), "unrelated interrupts=immediate-BEGIN", Begin(), Wake(), Complete()], "begin_missing");
         Reject([Call(), Begin(), Complete(completion: 5, value: unchecked((ulong)-4L))], "complete_without_wake_unsupported");
         Reject([Call(), Begin(), Wake(), Complete(action: 4)], "teardown_unsupported");
@@ -146,15 +178,20 @@ internal static class NativeAotLogUploadCaptureTests
     private static void JoinedIdentity()
     {
         string[] rows = Simple();
-        foreach (string field in new[] { "identity", "ordinal", "sequence", "nr", "rip" }) Reject(Change(rows, 2, field, field == "identity" ? Peer : 999), "begin_call");
+        foreach (string field in new[] { "identity", "ordinal", "sequence", "nr", "rip" })
+            Reject(Change(rows, 2, field, field == "identity" ? Peer : 999), "begin_call");
         foreach (int index in new[] { 4, 5 })
         {
-            foreach (string field in new[] { "identity", "sequence", "requestOwner", "requestEpoch", "request" }) Reject(Change(rows, index, field, 999));
+            foreach (string field in new[] { "identity", "sequence", "requestOwner", "requestEpoch", "request" })
+                Reject(Change(rows, index, field, 999));
             Reject(Change(rows, index, index == 4 ? "outputPrefix" : "outputBytes", 18), "request_identity");
         }
-        foreach (string field in new[] { "nr", "rip", "completion" }) Reject(Change(rows, 5, field, 999), "complete_result");
-        foreach (ulong state in new[] { 0UL, 2UL, 3UL, 4UL, 5UL, 6UL, 8UL }) Reject(Change(rows, 4, "state", state), "wake_state");
-        foreach (ulong completion in new[] { 2UL, 3UL, 4UL }) Reject(Change(rows, 4, "completion", completion), "wake_state");
+        foreach (string field in new[] { "nr", "rip", "completion" })
+            Reject(Change(rows, 5, field, 999), "complete_result");
+        foreach (ulong state in new[] { 0UL, 2UL, 3UL, 4UL, 5UL, 6UL, 8UL })
+            Reject(Change(rows, 4, "state", state), "wake_state");
+        foreach (ulong completion in new[] { 2UL, 3UL, 4UL })
+            Reject(Change(rows, 4, "completion", completion), "wake_state");
         Reject(Change(rows, 2, "clock", 99), "clock");
         Reject(Change(rows, 4, "clock", 99), "clock");
         Reject(Change(rows, 5, "clock", 100), "clock");
@@ -164,26 +201,35 @@ internal static class NativeAotLogUploadCaptureTests
     private static void Bounds()
     {
         string[] rows = Simple();
-        foreach (uint descriptors in new[] { 0U, 3U, 33U, uint.MaxValue }) Reject(rows, "input", descriptors);
-        foreach (uint output in new[] { 0U, 8193U, uint.MaxValue }) Reject(rows, "input", output: output);
-        foreach (string field in new[] { "fd", "description", "reservedFd", "reservedDescription" }) Reject(Change(rows, 2, field, 32), "begin_values");
-        foreach (string field in new[] { "fdGeneration", "reservationGeneration" }) Reject(Change(rows, 2, field, (ulong)uint.MaxValue + 1), "begin_values");
+        foreach (uint descriptors in new[] { 0U, 3U, 33U, uint.MaxValue })
+            Reject(rows, "input", descriptors);
+        foreach (uint output in new[] { 0U, 8193U, uint.MaxValue })
+            Reject(rows, "input", output: output);
+        foreach (string field in new[] { "fd", "description", "reservedFd", "reservedDescription" })
+            Reject(Change(rows, 2, field, 32), "begin_values");
+        foreach (string field in new[] { "fdGeneration", "reservationGeneration" })
+            Reject(Change(rows, 2, field, (ulong)uint.MaxValue + 1), "begin_values");
         Reject(Change(rows, 2, "outputPrefix", 20), "begin_values", output: 19);
         foreach (string field in new[] { "requestOwner", "requestEpoch", "request", "fdGeneration", "providerEpoch", "providerRequest" })
             Reject(Change(rows, 2, field, 0), "begin_values");
-        foreach (ulong operation in new[] { 0UL, 8UL, 256UL }) Reject(Change(rows, 2, "operation", operation), "begin_values");
-        foreach (ulong phase in new[] { 0UL, 3UL, 256UL }) Reject(Change(rows, 2, "phase", phase), "begin_values");
+        foreach (ulong operation in new[] { 0UL, 8UL, 256UL })
+            Reject(Change(rows, 2, "operation", operation), "begin_values");
+        foreach (ulong phase in new[] { 0UL, 3UL, 256UL })
+            Reject(Change(rows, 2, "phase", phase), "begin_values");
         // Both admitted byte phases, every actual operation, and nullable provider
         // tokens are copied shapes, not syscall/operation semantic permission.
         foreach (ulong operation in Enumerable.Range(1, 7).Select(i => (ulong)i))
             HostCheck.True(Read(Change(Change(rows, 2, "operation", operation), 2, "phase", 2)).Operations.Count == 1);
         string[] optional = rows.ToArray();
-        foreach (string field in new[] { "fdOwner", "fd", "fdGeneration", "providerOwner", "providerEpoch", "providerRequest" }) optional[2] = Set(optional[2], field, 0);
+        foreach (string field in new[] { "fdOwner", "fd", "fdGeneration", "providerOwner", "providerEpoch", "providerRequest" })
+            optional[2] = Set(optional[2], field, 0);
         HostCheck.True(Read(optional).Operations.Count == 1);
-        foreach (int i in new[] { 2, 4, 5 }) rows[i] = Set(rows[i], i == 5 ? "outputBytes" : "outputPrefix", 8192);
+        foreach (int i in new[] { 2, 4, 5 })
+            rows[i] = Set(rows[i], i == 5 ? "outputBytes" : "outputPrefix", 8192);
         HostCheck.True(Read(rows).Operations[0].Begin["outputPrefix"] == 8192);
         rows[2] = Set(rows[2], "fd", 3);
-        foreach (int i in new[] { 2, 4, 5 }) rows[i] = Set(rows[i], i == 5 ? "outputBytes" : "outputPrefix", 1);
+        foreach (int i in new[] { 2, 4, 5 })
+            rows[i] = Set(rows[i], i == 5 ? "outputBytes" : "outputPrefix", 1);
         HostCheck.True(Read(rows, descriptors: 4, output: 1).Operations[0].Begin["outputPrefix"] == 1);
     }
 
@@ -196,11 +242,17 @@ internal static class NativeAotLogUploadCaptureTests
         foreach ((string field, ulong value) in new (string, ulong)[] { ("waitSource", 6), ("waitSequence", 0), ("waitDeadline", 1), ("identity", 1), ("ordinal", 4097) })
             Reject(Change(rows, 1, field, value));
         foreach (string addition in new[] { " outputPrefix=19", " extra=0", " a0=0" })
-        { var copy = rows.ToArray(); copy[1] += addition; Reject(copy); }
+        {
+            var copy = rows.ToArray();
+            copy[1] += addition;
+            Reject(copy);
+        }
         foreach (string removed in new[] { " a0=5", " rsp=8000000", " clock=100", " returnFs=7000000" })
         {
-            var copy = rows.ToArray(); copy[1] = copy[1].Replace(removed, "", StringComparison.Ordinal);
-            HostCheck.True(copy[1] != rows[1], "negative vector must actually remove a field"); Reject(copy);
+            var copy = rows.ToArray();
+            copy[1] = copy[1].Replace(removed, "", StringComparison.Ordinal);
+            HostCheck.True(copy[1] != rows[1], "negative vector must actually remove a field");
+            Reject(copy);
         }
         Reject([Call(ordinal: 2), Begin(ordinal: 2), Wake(), Complete()]);
         Reject([Call(), Begin(), Wake(), Complete(), Call(ordinal: 3, source: 0, sequence: 0, clock: 104)]);
@@ -214,12 +266,24 @@ internal static class NativeAotLogUploadCaptureTests
         foreach (int index in new[] { 1, 2, 4, 5 })
         {
             foreach (string value in new[] { "00", "+1", "01", "0x1", "18446744073709551616", "-1", "one" })
-            { var copy = rows.ToArray(); copy[index] = ReplaceValue(copy[index], "identity", value); Reject(copy); }
+            {
+                var copy = rows.ToArray();
+                copy[index] = ReplaceValue(copy[index], "identity", value);
+                Reject(copy);
+            }
             foreach (string suffix in new[] { " unknown=0", " ", "\t", "\0" })
-            { var copy = rows.ToArray(); copy[index] += suffix; Reject(copy); }
+            {
+                var copy = rows.ToArray();
+                copy[index] += suffix;
+                Reject(copy);
+            }
         }
-        Reject(null!, "input"); Reject([], "input"); Reject([null!], "input"); Reject([""], "input");
-        Reject([new string('x', 2049)], "input"); Reject(["non-ascii=é"], "input");
+        Reject(null!, "input");
+        Reject([], "input");
+        Reject([null!], "input");
+        Reject([""], "input");
+        Reject([new string('x', 2049)], "input");
+        Reject(["non-ascii=é"], "input");
         string[] maximum = Enumerable.Repeat("UNJOINED_OUTER_ROW", Q.MaximumNativeAotLogUploadWaitRows - 4)
             .Concat([Call(), Begin(), Wake(), Complete()]).ToArray();
         HostCheck.True(Read(maximum).OriginalRowCount == Q.MaximumNativeAotLogUploadWaitRows);
@@ -243,15 +307,25 @@ internal static class NativeAotLogUploadCaptureTests
     private static string ReparkRow(ulong previous, ulong sequence, ulong clock) =>
         FormattableString.Invariant($"M16_027_REPARK identity=4294967297 previous={previous} sequence={sequence} request=1 clock={clock}");
     private static string[] Change(string[] rows, int index, string field, ulong value)
-    { var copy = rows.ToArray(); copy[index] = Set(copy[index], field, value); return copy; }
+    {
+        var copy = rows.ToArray();
+        copy[index] = Set(copy[index], field, value);
+        return copy;
+    }
     private static string Set(string row, string field, ulong value) => ReplaceValue(row, field, value.ToString(CultureInfo.InvariantCulture));
     private static string ReplaceValue(string row, string field, string value) => string.Join(' ', row.Split(' ').Select(part =>
         part.StartsWith(field + "=", StringComparison.Ordinal) ? field + "=" + value : part));
     private static void Reject(string[] rows, string reason = "", uint descriptors = 32, uint output = 8192)
     {
-        try { _ = Read(rows, descriptors, output); }
+        try
+        {
+            _ = Read(rows, descriptors, output);
+        }
         catch (ToolFailure failure)
-        { HostCheck.True(reason.Length == 0 || failure.Message == "log_upload_wait_" + reason, "unexpected rejection: " + failure.Message); return; }
+        {
+            HostCheck.True(reason.Length == 0 || failure.Message == "log_upload_wait_" + reason, "unexpected rejection: " + failure.Message);
+            return;
+        }
         HostCheck.True(false, "copied malformed rows accepted: " + reason);
     }
 }

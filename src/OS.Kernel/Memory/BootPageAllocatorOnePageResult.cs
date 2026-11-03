@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public readonly struct BootPageAllocatorOnePageResult
 {
     private readonly byte _isInitialized;
@@ -27,26 +28,83 @@ public readonly struct BootPageAllocatorOnePageResult
     }
 
     public bool IsInitialized => _isInitialized == 1;
-    public BootPageAllocatorMutationStatus Status { get; }
-    public BootReservedRangeStatus ReservationStatus { get; }
-    public OS.Boot.AddressValueStatus AddressStatus { get; }
+    public BootPageAllocatorMutationStatus Status
+    {
+        get;
+    }
+    public BootReservedRangeStatus ReservationStatus
+    {
+        get;
+    }
+    public OS.Boot.AddressValueStatus AddressStatus
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == BootPageAllocatorMutationStatus.Success && ReservationStatus == BootReservedRangeStatus.Success && AddressStatus == OS.Boot.AddressValueStatus.Success && InvalidReservationIndex == BootPageAllocatorMutator.NoIndex && ConflictingIndex == BootPageAllocatorMutator.NoIndex && BootPageAllocatorMutator.IsRepresentableSuccessSummary(BeforeState, AfterState, PhysicalStart, PhysicalEndExclusive, PageCount, ByteLength, NodeCount, NodeCapacity, ReservationCount, ReservationCapacity, NodeIndex, InsertedNodeIndex, VisitedNodeCount);
-    public BootPageAllocatorState BeforeState { get; }
-    public BootPageAllocatorState AfterState { get; }
-    public OS.Boot.PhysicalAddress PhysicalStart { get; }
-    public OS.Boot.PhysicalAddress PhysicalEndExclusive { get; }
-    public ulong PageCount { get; }
-    public ulong ByteLength { get; }
-    public ulong NodeCount { get; }
-    public ulong NodeCapacity { get; }
-    public ulong ReservationCount { get; }
-    public ulong ReservationCapacity { get; }
-    public int NodeIndex { get; }
-    public int InsertedNodeIndex { get; }
-    public ulong VisitedNodeCount { get; }
-    public ulong InvalidReservationIndex { get; }
-    public ulong ConflictingIndex { get; }
-    public BootPageAllocatorOnePageRestoreReceipt RestoreReceipt { get; }
+    public BootPageAllocatorState BeforeState
+    {
+        get;
+    }
+    public BootPageAllocatorState AfterState
+    {
+        get;
+    }
+    public OS.Boot.PhysicalAddress PhysicalStart
+    {
+        get;
+    }
+    public OS.Boot.PhysicalAddress PhysicalEndExclusive
+    {
+        get;
+    }
+    public ulong PageCount
+    {
+        get;
+    }
+    public ulong ByteLength
+    {
+        get;
+    }
+    public ulong NodeCount
+    {
+        get;
+    }
+    public ulong NodeCapacity
+    {
+        get;
+    }
+    public ulong ReservationCount
+    {
+        get;
+    }
+    public ulong ReservationCapacity
+    {
+        get;
+    }
+    public int NodeIndex
+    {
+        get;
+    }
+    public int InsertedNodeIndex
+    {
+        get;
+    }
+    public ulong VisitedNodeCount
+    {
+        get;
+    }
+    public ulong InvalidReservationIndex
+    {
+        get;
+    }
+    public ulong ConflictingIndex
+    {
+        get;
+    }
+    public BootPageAllocatorOnePageRestoreReceipt RestoreReceipt
+    {
+        get;
+    }
     public bool CanRestore => Succeeded && RestoreReceipt.IsInitialized;
     public int BeforeFreeNodeCount => BeforeState.FreeNodeCount;
     public int AfterFreeNodeCount => AfterState.FreeNodeCount;

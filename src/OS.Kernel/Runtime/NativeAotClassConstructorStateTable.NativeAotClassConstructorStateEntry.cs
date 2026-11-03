@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public readonly struct NativeAotClassConstructorStateEntry
 {
     private NativeAotClassConstructorStateEntry(bool isOccupied, NativeAotClassConstructorKey key, NativeAotClassConstructorState state, uint failureCode, uint transitionCount)
@@ -10,11 +11,26 @@ public readonly struct NativeAotClassConstructorStateEntry
         TransitionCount = transitionCount;
     }
 
-    public bool IsOccupied { get; }
-    public NativeAotClassConstructorKey Key { get; }
-    public NativeAotClassConstructorState State { get; }
-    public uint FailureCode { get; }
-    public uint TransitionCount { get; }
+    public bool IsOccupied
+    {
+        get;
+    }
+    public NativeAotClassConstructorKey Key
+    {
+        get;
+    }
+    public NativeAotClassConstructorState State
+    {
+        get;
+    }
+    public uint FailureCode
+    {
+        get;
+    }
+    public uint TransitionCount
+    {
+        get;
+    }
 
     public static NativeAotClassConstructorStateEntry Occupied(NativeAotClassConstructorKey key, NativeAotClassConstructorState state, uint failureCode, uint transitionCount)
     {

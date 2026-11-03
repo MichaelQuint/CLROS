@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Inspect bounded copied rows without mutation or execution.
@@ -59,7 +60,10 @@ public static partial class QemuTranscripts
             Need(t.GuardBytes == 0 ? origin.Protection == 3 : origin.Protection == 0 && backing.Protections.Any(p => p.RecordIndex > origin.RecordIndex && p.RecordIndex < t.CallRecordIndex && p.Start == t.MappingStart + t.GuardBytes && p.Bytes == t.MappingBytes - t.GuardBytes && p.Protection == 3 && p.Identity == origin.Identity && p.Rip == 0x47068a), "pthread_guard_provenance");
             foreach (var prior in threads.Where(p => p.AllocationRecordIndex == origin.RecordIndex))
                 Need(prior.MappingStart == t.MappingStart && prior.MappingBytes == t.MappingBytes && prior.StackStart == t.StackStart && prior.StackBytes == t.StackBytes && prior.GuardBytes == t.GuardBytes, "pthread_cached_shape");
-            threads.Add(t with { AllocationRecordIndex = origin.RecordIndex });
+            threads.Add(t with
+            {
+                AllocationRecordIndex = origin.RecordIndex
+            });
             metadata.Add(at);
         }
 

@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct BootMemoryRegionRecord
 {
     public const ulong PageSize = 4096;
@@ -13,13 +14,34 @@ public readonly struct BootMemoryRegionRecord
         PhysicalEndExclusive = physicalEndExclusive;
     }
 
-    public uint UefiType { get; }
-    public ulong PhysicalStart { get; }
-    public ulong VirtualStart { get; }
-    public ulong PageCount { get; }
-    public ulong Attribute { get; }
-    public ulong ByteLength { get; }
-    public ulong PhysicalEndExclusive { get; }
+    public uint UefiType
+    {
+        get;
+    }
+    public ulong PhysicalStart
+    {
+        get;
+    }
+    public ulong VirtualStart
+    {
+        get;
+    }
+    public ulong PageCount
+    {
+        get;
+    }
+    public ulong Attribute
+    {
+        get;
+    }
+    public ulong ByteLength
+    {
+        get;
+    }
+    public ulong PhysicalEndExclusive
+    {
+        get;
+    }
 }
 #if !NOSTDLIB_EFI
 #endif

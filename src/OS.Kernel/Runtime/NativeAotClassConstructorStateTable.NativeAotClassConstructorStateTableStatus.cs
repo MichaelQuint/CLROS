@@ -1,4 +1,5 @@
 namespace OS.Kernel.Runtime;
+
 public enum NativeAotClassConstructorStateTableStatus
 {
     Success = 0,

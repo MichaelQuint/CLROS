@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class PciBarSizingPlanner
 {
     public const byte RequiredReadbackCount = PciBarDecoder.BarCount;

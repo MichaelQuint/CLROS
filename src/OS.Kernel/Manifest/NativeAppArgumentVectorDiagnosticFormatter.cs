@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Manifest;
+
 public static class NativeAppArgumentVectorDiagnosticFormatter
 {
     public static NativeAppArgumentVectorDiagnosticFormatResult FormatResult(in NativeAppArgumentVectorPlanResult result, Span<byte> destination)

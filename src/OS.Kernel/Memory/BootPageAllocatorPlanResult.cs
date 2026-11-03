@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public readonly struct BootPageAllocatorPlanResult
 {
     private BootPageAllocatorPlanResult(BootPageAllocatorPlanStatus status, int usableRangeCount, int reservedRangeCount, int freeSegmentCount, int requiredFreeSegmentCapacity, int availableFreeSegmentCapacity, int invalidUsableRangeIndex, int invalidReservedRangeIndex, ulong pageSize, ulong totalFreePages, ulong totalFreeBytes)
@@ -16,18 +17,51 @@ public readonly struct BootPageAllocatorPlanResult
         TotalFreeBytes = totalFreeBytes;
     }
 
-    public BootPageAllocatorPlanStatus Status { get; }
+    public BootPageAllocatorPlanStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == BootPageAllocatorPlanStatus.Success;
-    public int UsableRangeCount { get; }
-    public int ReservedRangeCount { get; }
-    public int FreeSegmentCount { get; }
-    public int RequiredFreeSegmentCapacity { get; }
-    public int AvailableFreeSegmentCapacity { get; }
-    public int InvalidUsableRangeIndex { get; }
-    public int InvalidReservedRangeIndex { get; }
-    public ulong PageSize { get; }
-    public ulong TotalFreePages { get; }
-    public ulong TotalFreeBytes { get; }
+    public int UsableRangeCount
+    {
+        get;
+    }
+    public int ReservedRangeCount
+    {
+        get;
+    }
+    public int FreeSegmentCount
+    {
+        get;
+    }
+    public int RequiredFreeSegmentCapacity
+    {
+        get;
+    }
+    public int AvailableFreeSegmentCapacity
+    {
+        get;
+    }
+    public int InvalidUsableRangeIndex
+    {
+        get;
+    }
+    public int InvalidReservedRangeIndex
+    {
+        get;
+    }
+    public ulong PageSize
+    {
+        get;
+    }
+    public ulong TotalFreePages
+    {
+        get;
+    }
+    public ulong TotalFreeBytes
+    {
+        get;
+    }
 
     internal static BootPageAllocatorPlanResult Success(int usableRangeCount, int reservedRangeCount, int availableFreeSegmentCapacity, ulong pageSize, ulong totalFreePages, ulong totalFreeBytes)
     {

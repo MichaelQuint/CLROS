@@ -31,8 +31,9 @@ internal static class M04UnhandledExceptionEfiIntegrationTests
             ExactBytes(bytes, b => EfiVerify.TestUnhandledUnwindBytes(b, selected, TableRva));
             foreach (int bad in new[] { -1, 4, int.MinValue, int.MaxValue })
                 HostCheck.True(!EfiVerify.TestUnhandledUnwindBytes(bytes, bad, TableRva), "invalid unwind part " + bad);
-            for (int other = 0; other < vectors.Length; other++) if (other != part)
-                HostCheck.True(!EfiVerify.TestUnhandledUnwindBytes(bytes, other, TableRva), "wrong unwind part");
+            for (int other = 0; other < vectors.Length; other++)
+                if (other != part)
+                    HostCheck.True(!EfiVerify.TestUnhandledUnwindBytes(bytes, other, TableRva), "wrong unwind part");
         }
         byte[] root = Convert.FromHexString(vectors[2]);
         foreach (ulong bad in new ulong[] { 0, TableRva - 1, TableRva + 1, uint.MaxValue, 0x100000000, ulong.MaxValue })
@@ -58,14 +59,16 @@ internal static class M04UnhandledExceptionEfiIntegrationTests
             for (int offset = 0; offset < bytes.Length; offset++)
             {
                 bool rel32 = relocations[part].Any(field => offset >= field && offset < field + 4);
-                byte[] changed = [.. bytes]; changed[offset] ^= 1;
+                byte[] changed = [.. bytes];
+                changed[offset] ^= 1;
                 // The production verifier binds each rel32 to its actual linked target.
                 HostCheck.True(EfiVerify.TestUnhandledCode(changed, part) == rel32, "code mutation " + part + ":" + offset);
             }
             foreach (int bad in new[] { -1, 3, int.MinValue, int.MaxValue })
                 HostCheck.True(!EfiVerify.TestUnhandledCode(bytes, bad), "invalid code part " + bad);
-            for (int other = 0; other < vectors.Length; other++) if (other != part)
-                HostCheck.True(!EfiVerify.TestUnhandledCode(bytes, other), "wrong code part");
+            for (int other = 0; other < vectors.Length; other++)
+                if (other != part)
+                    HostCheck.True(!EfiVerify.TestUnhandledCode(bytes, other), "wrong code part");
             HostCheck.True(bytes.AsSpan().SequenceEqual(original), "normalization preserves caller bytes");
         }
     }
@@ -84,41 +87,52 @@ internal static class M04UnhandledExceptionEfiIntegrationTests
             catalog.Risk == ProbeRisk.Destructive, "catalog index 41");
         HostCheck.True(EfiContracts.DiagnosticProbes.Contains(Flag) &&
             EfiContracts.ProbeSymbols.TryGetValue(Flag, out var symbol) && symbol == "M04_UNHANDLED_EXCEPTION_PROBE", "shared diagnostic declaration");
-        X64UnwindContext input = new() { Rip = 0x1234, Rsp = 0x10000, Rbx = 99 };
+        X64UnwindContext input = new()
+        {
+            Rip = 0x1234,
+            Rsp = 0x10000,
+            Rbx = 99
+        };
         var result = BootSequence.RunUnhandledExceptionUnwind(default, default, null, 0, 0, null, 0, null, 0, input);
         HostCheck.True(!result.Succeeded && result.Status == X64FrameUnwindStatus.Uninitialized &&
             result.Caller.Equals(default(X64UnwindContext)), "disabled path publishes no unwind context");
     }
 
-    [HostTest("m04.021.unhandled.efi fresh native geometry and export controls",HostLane.Native,4)]
+    [HostTest("m04.021.unhandled.efi fresh native geometry and export controls", HostLane.Native, 4)]
     private static void Native()
     {
-        string root=HostToolProcess.FindRepositoryRoot(),name="unhandled-controls-"+Guid.NewGuid().ToString("N"),
-            artifact=Path.Combine(root,"artifacts/efi",name+".EFI"),log=Path.Combine(root,"artifacts/unhandled-native",name+".log");
-        using StringWriter output=new();
-        int code=EfiBuild.Run(["--EfiOutputPath",artifact,"--LogPath",log,..UnhandledExceptionTranscriptTests.Arguments],output);
-        string text=output.ToString();HostCheck.True(code==0,text.Length>4000?text[^4000..]:text);
-        byte[] original=File.ReadAllBytes(artifact);string evidencePath=artifact+".link.json",originalEvidence=File.ReadAllText(evidencePath),map=File.ReadAllText(artifact+".link.map");
-        EfiPeImage image=new(original);
-        int Offset(string symbol,int length)
+        string root = HostToolProcess.FindRepositoryRoot(), name = "unhandled-controls-" + Guid.NewGuid().ToString("N"),
+            artifact = Path.Combine(root, "artifacts/efi", name + ".EFI"), log = Path.Combine(root, "artifacts/unhandled-native", name + ".log");
+        using StringWriter output = new();
+        int code = EfiBuild.Run(["--EfiOutputPath", artifact, "--LogPath", log, .. UnhandledExceptionTranscriptTests.Arguments], output);
+        string text = output.ToString();
+        HostCheck.True(code == 0, text.Length > 4000 ? text[^4000..] : text);
+        byte[] original = File.ReadAllBytes(artifact);
+        string evidencePath = artifact + ".link.json", originalEvidence = File.ReadAllText(evidencePath), map = File.ReadAllText(artifact + ".link.map");
+        EfiPeImage image = new(original);
+        int Offset(string symbol, int length)
         {
-            var symbols=EfiPeImage.Symbols(map,symbol);HostCheck.True(symbols.Count==1);
-            ulong rva=EfiPeImage.Hex(symbols[0].Groups[3].Value,"fixture address")-image.ImageBase;
-            return image.Resolve(rva,(ulong)length,"fixture backing","fixture ambiguity").Offset;
+            var symbols = EfiPeImage.Symbols(map, symbol);
+            HostCheck.True(symbols.Count == 1);
+            ulong rva = EfiPeImage.Hex(symbols[0].Groups[3].Value, "fixture address") - image.ImageBase;
+            return image.Resolve(rva, (ulong)length, "fixture backing", "fixture ambiguity").Offset;
         }
-        void Verify(string? expected=null)
+        void Verify(string? expected = null)
         {
-            string? failure=null;
-            try{EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact",artifact,..UnhandledExceptionTranscriptTests.Arguments],false));}
-            catch(ToolFailure e){failure=e.Reason;}
-            HostCheck.True(failure==expected,"native expected="+expected+" actual="+failure);
+            string? failure = null;
+            try
+            {
+                EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact", artifact, .. UnhandledExceptionTranscriptTests.Arguments], false));
+            }
+            catch (ToolFailure e) { failure = e.Reason; }
+            HostCheck.True(failure == expected, "native expected=" + expected + " actual=" + failure);
         }
         Verify();
-        int table=Offset("__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__Catcher",8),catcher=Offset("OS_OS_Runtime_RhpNewFastAllocation__Catcher",56),
-            middle=Offset("OS_OS_Runtime_RhpNewFastAllocation__UnhandledMiddle",46),thrower=Offset("OS_OS_Runtime_RhpNewFastAllocation__Thrower",10),
-            bridge=Offset("RhpThrowEx",1032),predicate=Offset("RhTypeCast_IsInstanceOfException",5),
-            unwind=Offset("_unwind0OS_OS_Runtime_RhpNewFastAllocation__Catcher",13),run=Offset("OS_OS_Runtime_RhpNewFastAllocation__RunUnhandledException",996);
-        foreach(var(at,reason) in new[]{(table,"unhandled_clause_table_mismatch"),(table+4,"unhandled_clause_table_mismatch"),
+        int table = Offset("__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__Catcher", 8), catcher = Offset("OS_OS_Runtime_RhpNewFastAllocation__Catcher", 56),
+            middle = Offset("OS_OS_Runtime_RhpNewFastAllocation__UnhandledMiddle", 46), thrower = Offset("OS_OS_Runtime_RhpNewFastAllocation__Thrower", 10),
+            bridge = Offset("RhpThrowEx", 1032), predicate = Offset("RhTypeCast_IsInstanceOfException", 5),
+            unwind = Offset("_unwind0OS_OS_Runtime_RhpNewFastAllocation__Catcher", 13), run = Offset("OS_OS_Runtime_RhpNewFastAllocation__RunUnhandledException", 996);
+        foreach (var (at, reason) in new[]{(table,"unhandled_clause_table_mismatch"),(table+4,"unhandled_clause_table_mismatch"),
             (catcher+3,"unhandled_method_bytes_mismatch"),(catcher+11,"unhandled_method_call_mismatch"),
             (middle+4,"unhandled_method_bytes_mismatch"),(thrower+5,"unhandled_method_call_mismatch"),
             (bridge+330,"unhandled_selector_relocation"),(unwind+8,"unhandled_unwind_mismatch"),
@@ -126,26 +140,39 @@ internal static class M04UnhandledExceptionEfiIntegrationTests
         {
             try
             {
-                byte[] changed=[..original];changed[at]^=1;File.WriteAllBytes(artifact,changed);
-                JsonObject evidence=JsonNode.Parse(originalEvidence)!.AsObject();evidence["artifactSha256"]=ContractAudit.Hash(changed);
-                File.WriteAllText(evidencePath,evidence.ToJsonString());Verify(reason);
+                byte[] changed = [.. original];
+                changed[at] ^= 1;
+                File.WriteAllBytes(artifact, changed);
+                JsonObject evidence = JsonNode.Parse(originalEvidence)!.AsObject();
+                evidence["artifactSha256"] = ContractAudit.Hash(changed);
+                File.WriteAllText(evidencePath, evidence.ToJsonString());
+                Verify(reason);
             }
-            finally{File.WriteAllBytes(artifact,original);File.WriteAllText(evidencePath,originalEvidence);}
+            finally { File.WriteAllBytes(artifact, original); File.WriteAllText(evidencePath, originalEvidence); }
         }
-        string sidecar=artifact+".catch.obj";byte[] objectBytes=File.ReadAllBytes(sidecar);
-        try{byte[] changed=[..objectBytes];changed[0]^=1;File.WriteAllBytes(sidecar,changed);Verify("unhandled_object_identity_mismatch");}
-        finally{File.WriteAllBytes(sidecar,objectBytes);}
+        string sidecar = artifact + ".catch.obj";
+        byte[] objectBytes = File.ReadAllBytes(sidecar);
+        try
+        {
+            byte[] changed = [.. objectBytes];
+            changed[0] ^= 1;
+            File.WriteAllBytes(sidecar, changed);
+            Verify("unhandled_object_identity_mismatch");
+        }
+        finally { File.WriteAllBytes(sidecar, objectBytes); }
         Verify();
-        File.WriteAllText(log+".controls","fresh publication; eleven rehashed PE mutations and one object mutation rejected; originals restored and reverified\n");
+        File.WriteAllText(log + ".controls", "fresh publication; eleven rehashed PE mutations and one object mutation rejected; originals restored and reverified\n");
     }
 
     private static void ExactBytes(byte[] bytes, Func<byte[]?, bool> admits)
     {
         HostCheck.True(admits(bytes) && !admits(null) && !admits([.. bytes, 0]), "exact/null/extended bytes");
-        for (int length = 0; length < bytes.Length; length++) HostCheck.True(!admits(bytes[..length]), "truncated bytes " + length);
+        for (int length = 0; length < bytes.Length; length++)
+            HostCheck.True(!admits(bytes[..length]), "truncated bytes " + length);
         for (int offset = 0; offset < bytes.Length; offset++)
         {
-            byte[] changed = [.. bytes]; changed[offset] ^= 1;
+            byte[] changed = [.. bytes];
+            changed[offset] ^= 1;
             HostCheck.True(!admits(changed), "byte mutation " + offset);
         }
     }

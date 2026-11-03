@@ -750,7 +750,7 @@ internal static partial class BootReservationTableValidatorTests
             }
             catch
             {
-            // Preserve the workspace-creation failure as primary evidence.
+                // Preserve the workspace-creation failure as primary evidence.
             }
 
             throw;
@@ -804,7 +804,7 @@ internal static partial class BootReservationTableValidatorTests
                 }
                 catch
                 {
-                // Timeout remains the primary failure.
+                    // Timeout remains the primary failure.
                 }
             }
         }

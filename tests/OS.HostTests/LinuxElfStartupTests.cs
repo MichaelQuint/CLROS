@@ -27,7 +27,8 @@ internal static unsafe class LinuxElfStartupTests
                     random, 32, stack, Stack, high, Hwcap, out var plan));
                 HostCheck.True(plan.StackPointer >= high && plan.StackPointer < high + Stack && plan.RandomAddress >= high);
                 ulong* frame = (ulong*)(stack + plan.StackPointer - high);
-                HostCheck.Equal(4UL, frame[0]); HostCheck.True(frame[1] >= high && frame[1] < high + Stack);
+                HostCheck.Equal(4UL, frame[0]);
+                HostCheck.True(frame[1] >= high && frame[1] < high + Stack);
                 HostCheck.True(LinuxElfStartup.ValidateReadBack(m, (uint)manifest.Length, e, (uint)elf.Length,
                     random, 32, stack, Stack, high, Hwcap, plan));
                 HostCheck.Equal(LinuxElfStartupStatus.InvalidStorage, LinuxElfStartup.Build(m, (uint)manifest.Length, e, (uint)elf.Length,
@@ -39,20 +40,35 @@ internal static unsafe class LinuxElfStartupTests
     private static byte[] Elf()
     {
         byte[] b = new byte[8192];
-        W32(b, 0, 0x464c457f); b[4] = 2; b[5] = b[6] = 1;
-        W16(b, 16, 2); W16(b, 18, 62); W32(b, 20, 1); W64(b, 24, 0x401010);
-        W64(b, 32, 64); W16(b, 52, 64); W16(b, 54, 56); W16(b, 56, 2);
+        W32(b, 0, 0x464c457f);
+        b[4] = 2;
+        b[5] = b[6] = 1;
+        W16(b, 16, 2);
+        W16(b, 18, 62);
+        W32(b, 20, 1);
+        W64(b, 24, 0x401010);
+        W64(b, 32, 64);
+        W16(b, 52, 64);
+        W16(b, 54, 56);
+        W16(b, 56, 2);
         Row(b, 0, 4, 0, 0x400000, 512, 512);
         Row(b, 1, 5, 4096, 0x401000, 32, 4096);
-        b[4112] = 0xc3; return b;
+        b[4112] = 0xc3;
+        return b;
     }
     private static void W16(byte[] b, int o, ushort v) => BinaryPrimitives.WriteUInt16LittleEndian(b.AsSpan(o), v);
     private static void W32(byte[] b, int o, uint v) => BinaryPrimitives.WriteUInt32LittleEndian(b.AsSpan(o), v);
     private static void W64(byte[] b, int o, ulong v) => BinaryPrimitives.WriteUInt64LittleEndian(b.AsSpan(o), v);
     private static void Row(byte[] b, int index, uint flags, ulong file, ulong address, ulong bytes, ulong memory)
     {
-        int o = 64 + index * 56; W32(b, o, 1); W32(b, o + 4, flags); W64(b, o + 8, file); W64(b, o + 16, address);
-        W64(b, o + 32, bytes); W64(b, o + 40, memory); W64(b, o + 48, 4096);
+        int o = 64 + index * 56;
+        W32(b, o, 1);
+        W32(b, o + 4, flags);
+        W64(b, o + 8, file);
+        W64(b, o + 16, address);
+        W64(b, o + 32, bytes);
+        W64(b, o + 40, memory);
+        W64(b, o + 48, 4096);
     }
     private static string Text(byte* stack, ulong address) => Marshal.PtrToStringUTF8((nint)(stack + address - Start))!;
 
@@ -63,9 +79,14 @@ internal static unsafe class LinuxElfStartupTests
         byte[] manifest = Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(Manifest()).Replace(new string('0', 64),
             Convert.ToHexString(SHA256.HashData(elf)).ToLowerInvariant(), StringComparison.Ordinal));
         byte[] package = new byte[64 + manifest.Length + elf.Length];
-        W64(package, 0, 0x3130464c45524c43); W32(package, 8, 1); W32(package, 12, 1); W32(package, 16, 64);
-        W32(package, 20, (uint)manifest.Length); W64(package, 24, (ulong)elf.Length);
-        manifest.CopyTo(package, 64); elf.CopyTo(package, 64 + manifest.Length);
+        W64(package, 0, 0x3130464c45524c43);
+        W32(package, 8, 1);
+        W32(package, 12, 1);
+        W32(package, 16, 64);
+        W32(package, 20, (uint)manifest.Length);
+        W64(package, 24, (ulong)elf.Length);
+        manifest.CopyTo(package, 64);
+        elf.CopyTo(package, 64 + manifest.Length);
         string[] tail = ["TEST_START m16-004",
             "M16_004_IMAGE base=4194304 bytes=8192 loads=2 entry=4198416 phdr=4194368 tlsFile=0 tlsMemory=0",
             $"M16_004_STACK start={Start} bytes=4096 sp={Start + 3648} argc=4 envc=2 random={Start + 4000} entropyBytes=32 seedCleared=32",
@@ -88,8 +109,13 @@ internal static unsafe class LinuxElfStartupTests
             (6, "TEST_PASS m16-003")
         })
         {
-            string[] bad = rows.ToArray(); bad[bad.Length - 7 + mutation.Index] = mutation.Text;
-            bool rejected = false; try { _ = QemuTranscripts.ValidateLinuxStartupTail(bad, package); }
+            string[] bad = rows.ToArray();
+            bad[bad.Length - 7 + mutation.Index] = mutation.Text;
+            bool rejected = false;
+            try
+            {
+                _ = QemuTranscripts.ValidateLinuxStartupTail(bad, package);
+            }
             catch (ToolFailure) { rejected = true; }
             HostCheck.True(rejected);
         }
@@ -107,12 +133,17 @@ internal static unsafe class LinuxElfStartupTests
         foreach (string[] extra in new string[][]
         { ["-FirmwareRngSource", "arbitrary"], ["-LinuxElfImageVariant", "DigestFault"], ["-RequireMarker", "CLROS_M16_002_READY"] })
         {
-            bool rejected = false; try { _ = QemuProfiles.Create(QemuSmokeOptions.Parse(["-BuildEfi", "-EnableM16004Probe", "-DryRun", .. extra])); }
+            bool rejected = false;
+            try
+            {
+                _ = QemuProfiles.Create(QemuSmokeOptions.Parse(["-BuildEfi", "-EnableM16004Probe", "-DryRun", .. extra]));
+            }
             catch (ToolFailure) { rejected = true; }
             HostCheck.True(rejected);
         }
         var missing = QemuSmokeOptions.Parse("-BuildEfi", "-EnableM16004Probe", "-FirmwareRngSource", "missing", "-DryRun");
-        _ = QemuProfiles.Create(missing); HostCheck.Equal("missing", missing.FirmwareRngSource);
+        _ = QemuProfiles.Create(missing);
+        HostCheck.Equal("missing", missing.FirmwareRngSource);
     }
 
     [HostTest("m16-004 independent argc argv envp auxv user addresses real PHDR entropy and 16-byte alignment", HostLane.Fast, 0)]
@@ -134,12 +165,15 @@ internal static unsafe class LinuxElfStartupTests
                 ulong* frame = (ulong*)(stack + plan.StackPointer - Start);
                 HostCheck.Equal(4UL, frame[0]);
                 string[] expected = ["apps/example.elf", "one two", "ab cd", ""];
-                for (int i = 0; i < expected.Length; i++) HostCheck.Equal(expected[i], Text(stack, frame[1 + i]));
+                for (int i = 0; i < expected.Length; i++)
+                    HostCheck.Equal(expected[i], Text(stack, frame[1 + i]));
                 HostCheck.Equal(0UL, frame[5]);
                 HostCheck.Equal("NAME=value=with=equals", Text(stack, frame[6]));
-                HostCheck.Equal("EMPTY=", Text(stack, frame[7])); HostCheck.Equal(0UL, frame[8]);
+                HostCheck.Equal("EMPTY=", Text(stack, frame[7]));
+                HostCheck.Equal(0UL, frame[8]);
                 var aux = new Dictionary<ulong, ulong>();
-                for (int i = 9; frame[i] != 0; i += 2) aux.Add(frame[i], frame[i + 1]);
+                for (int i = 9; frame[i] != 0; i += 2)
+                    aux.Add(frame[i], frame[i + 1]);
                 HostCheck.Equal(16, aux.Count);
                 HostCheck.True(aux[3] == 0x400040 && aux[4] == 56 && aux[5] == 2 && aux[6] == 4096 && aux[7] == 0 && aux[8] == 0 && aux[9] == 0x401010);
                 HostCheck.True(aux[11] == 0 && aux[12] == 0 && aux[13] == 0 && aux[14] == 0 && aux[23] == 0 && aux[16] == Hwcap && !aux.ContainsKey(33));
@@ -153,7 +187,8 @@ internal static unsafe class LinuxElfStartupTests
                     HostCheck.True(!LinuxElfStartup.ValidateReadBack(m, (uint)manifest.Length, e, (uint)elf.Length, random, 32, stack, Stack, Start, Hwcap, plan));
                     stack[offset] ^= 1;
                 }
-                var forged = plan; forged.StackPointer += 16;
+                var forged = plan;
+                forged.StackPointer += 16;
                 HostCheck.True(!LinuxElfStartup.ValidateReadBack(m, (uint)manifest.Length, e, (uint)elf.Length, random, 32, stack, Stack, Start, Hwcap, forged));
             }
         }
@@ -172,8 +207,10 @@ internal static unsafe class LinuxElfStartupTests
                 byte[] manifest = variant == 7 ? Manifest(string.Join(' ', Enumerable.Repeat("a", 128)),
                     string.Concat(Enumerable.Range(0, 16).Select(i => "env.K" + i + "=" + new string('v', 180) + "\n"))) : Manifest();
                 byte[] seed = entropy.ToArray();
-                if (variant == 0) Array.Clear(seed);
-                if (variant == 1) Array.Clear(seed, 0, 16);
+                if (variant == 0)
+                    Array.Clear(seed);
+                if (variant == 1)
+                    Array.Clear(seed, 0, 16);
                 new Span<byte>(stack, (int)Stack).Fill(0xa5);
                 fixed (byte* m = manifest, e = elf, random = seed)
                 {
@@ -181,7 +218,8 @@ internal static unsafe class LinuxElfStartupTests
                         variant == 3 ? stack + 16 : random, variant == 4 ? 16U : 32U,
                         variant == 5 ? stack + 1 : stack, variant == 6 ? Stack - 16 : Stack, Start, Hwcap, out var plan);
                     HostCheck.True(status != LinuxElfStartupStatus.Ready && !plan.Succeeded && plan.StackPointer == 0);
-                    if (variant == 7) HostCheck.Equal(LinuxElfStartupStatus.InsufficientStack, status);
+                    if (variant == 7)
+                        HostCheck.Equal(LinuxElfStartupStatus.InsufficientStack, status);
                     HostCheck.True(new ReadOnlySpan<byte>(stack, (int)Stack).IndexOfAnyExcept((byte)0xa5) == -1);
                 }
             }

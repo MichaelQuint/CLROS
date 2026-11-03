@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class NativeDiskStaticReadWindows
 {
     private sealed class Demand(int window, WebRootDiskInventory.Entry entry, WebRootDiskInventory.Sector sector)

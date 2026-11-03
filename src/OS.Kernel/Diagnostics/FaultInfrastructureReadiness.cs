@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static class FaultInfrastructureReadiness
 {
     public const string OperationName = "fault.infrastructure.ready-for-privileged-install";

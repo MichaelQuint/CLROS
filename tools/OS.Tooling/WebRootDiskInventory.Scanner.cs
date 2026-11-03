@@ -8,6 +8,7 @@ using Chain = OS.Storage.FATClusterChainsLoopBadClusterTruncationDetection;
 using Vfat = OS.Storage.MultiClusterDirectoryVFATLongNameSupportSeparate;
 
 namespace OS.Tooling;
+
 public static partial class WebRootDiskInventory
 {
     private sealed class Scanner
@@ -97,7 +98,7 @@ public static partial class WebRootDiskInventory
                     string alias = Encoding.ASCII.GetString(slot[..8]).TrimEnd(' '), ext = Encoding.ASCII.GetString(slot.Slice(8, 3)).TrimEnd(' ');
                     if (ext.Length != 0)
                         alias += "." + ext;
-                    string name = entry.NameLength == 0 ? alias : new string (words[..entry.NameLength].ToArray().Select(c => (char)c).ToArray());
+                    string name = entry.NameLength == 0 ? alias : new string(words[..entry.NameLength].ToArray().Select(c => (char)c).ToArray());
                     Need(name.All(c => c is >= ' ' and <= '~') && name is not ("." or "..") && !name.EndsWith('.') && !name.EndsWith(' ') && names.Add(name) && (alias.Equals(name, StringComparison.OrdinalIgnoreCase) || names.Add(alias)), "name_alias");
                     ushort date = BinaryPrimitives.ReadUInt16LittleEndian(slot[24..]), time = BinaryPrimitives.ReadUInt16LittleEndian(slot[22..]);
                     long modified = 0;

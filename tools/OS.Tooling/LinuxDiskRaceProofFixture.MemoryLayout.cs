@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class LinuxDiskRaceProofFixture
 {
     /// <summary>Fixed user-memory ownership for native sentinel/data joins.

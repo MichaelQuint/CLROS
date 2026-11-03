@@ -38,7 +38,7 @@ internal static partial class ServicePacketCaptureTests
     [HostTest("service packet capture requires complete header and exact record EOF", HostLane.Fast, 1)]
     private static void Completion()
     {
-        byte[] bytes = [..Header(), ..Record(0, 0, 60, 1)];
+        byte[] bytes = [.. Header(), .. Record(0, 0, 60, 1)];
         foreach (int length in new[]
         {
             0,
@@ -105,7 +105,7 @@ internal static partial class ServicePacketCaptureTests
         )
         {
             using var temp = new CaptureFile();
-            temp.Append([..Header(), ..Record(0, 0, 60, 1), 0]);
+            temp.Append([.. Header(), .. Record(0, 0, 60, 1), 0]);
             using var capture = new ServicePacketCapture(temp.Path);
             _ = capture.Poll();
             temp.Truncate(length);
@@ -123,7 +123,7 @@ internal static partial class ServicePacketCaptureTests
     [HostTest("service packet capture rejects invalid global record sizes and nonmonotonic timestamps", HostLane.Fast, 3)]
     private static void Malformed()
     {
-        byte[] good = [..Header(), ..Record(1, 999_999, 60, 1)];
+        byte[] good = [.. Header(), .. Record(1, 999_999, 60, 1)];
         foreach (int field in new[]
         {
             0,
@@ -158,8 +158,8 @@ internal static partial class ServicePacketCaptureTests
             RejectBytes(changed, edit.Item1 == 28 ? "service_capture_timestamp" : "service_capture_record_extent");
         }
 
-        RejectBytes([..good, ..Record(1, 999_998, 14, 2)], "service_capture_timestamp");
-        RejectBytes([..good, ..Record(0, 999_999, 14, 2)], "service_capture_timestamp");
+        RejectBytes([.. good, .. Record(1, 999_998, 14, 2)], "service_capture_timestamp");
+        RejectBytes([.. good, .. Record(0, 999_999, 14, 2)], "service_capture_timestamp");
     }
 
     [HostTest("service packet capture bounds file records and disposes its exclusive reader", HostLane.Fast, 4)]

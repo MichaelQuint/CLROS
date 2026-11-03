@@ -67,13 +67,15 @@ public static partial class NativeAotServicePackage
         NativeAotServiceContract.V1 => SettingsJson,
         NativeAotServiceContract.V2 => LifecycleSettingsJson,
         NativeAotServiceContract.QuotaFailure => QuotaSettingsJson,
-        _ => throw new ArgumentOutOfRangeException(nameof(contract))};
+        _ => throw new ArgumentOutOfRangeException(nameof(contract))
+    };
     private static string ArgumentsFor(NativeAotServiceContract contract) => contract switch
     {
         NativeAotServiceContract.V1 => Arguments,
         NativeAotServiceContract.V2 => LifecycleArguments,
         NativeAotServiceContract.QuotaFailure => QuotaArguments,
-        _ => throw new ArgumentOutOfRangeException(nameof(contract))};
+        _ => throw new ArgumentOutOfRangeException(nameof(contract))
+    };
     private static string Manifest(string digest, NativeAotServiceContract contract) => "format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\n" + "app.path=" + ApplicationPath + "\nargs=" + ArgumentsFor(contract) + "\ndigest=" + digest.ToLowerInvariant() + "\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=16\nlisten=0.0.0.0:8080\n" + "env.CLROS_USER_IRQS=1\nenv.DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false\n" + (contract != NativeAotServiceContract.V1 ? "env.DOTNET_GCHeapHardLimit=1000000\n" : "") + (contract == NativeAotServiceContract.QuotaFailure ? "env.CLROS_MEMORY_EXHAUSTION=terminate\n" : "");
     private static void Need(bool condition, string reason)
     {

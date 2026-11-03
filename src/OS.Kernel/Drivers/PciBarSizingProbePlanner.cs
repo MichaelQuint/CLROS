@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class PciBarSizingProbePlanner
 {
     public const ushort FirstBarRegisterOffset = 0x10;

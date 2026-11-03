@@ -2,6 +2,7 @@ using OS.Manifest;
 using OS.Storage;
 
 namespace OS.Kernel.Runtime;
+
 public static class NativeAppPackageStagingReadinessPlanner
 {
     public const bool RequiresManifestPackageAndPayloadResults = true;

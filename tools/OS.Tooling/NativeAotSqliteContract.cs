@@ -99,7 +99,8 @@ public static partial class NativeAotSqliteContract
     {
         "database" or "verify-database" => "/data/contract.db",
         "recovery-seed" or "recovery-spill" or "recovery-verify" => "/data/recovery.db",
-        _ => throw new ToolFailure("sqlite_contract_clros_mode")};
+        _ => throw new ToolFailure("sqlite_contract_clros_mode")
+    };
     private static string ClrosManifest(string mode, string path, string digest)
     {
         Need(Hex(digest), "clros_elf_identity");
@@ -145,19 +146,19 @@ public static partial class NativeAotSqliteContract
 
     public static LinuxRecoveryIdentity InspectLinuxRecoveryIdentityValues(int tracer, string tracerStat, string children, string writerStat, string status, string executable, string expected)
     {
-        Need(tracer > 0 && new[] { tracerStat, children, writerStat, status, executable, expected }.All(s => s.Length is> 0 and <= 65536), "recovery_proc_input");
+        Need(tracer > 0 && new[] { tracerStat, children, writerStat, status, executable, expected }.All(s => s.Length is > 0 and <= 65536), "recovery_proc_input");
         (int Pid, int Parent, int Group, int Session, ulong Start) Stat(string text)
         {
             int first = text.IndexOf('('), last = text.LastIndexOf(')');
             Need(first > 1 && last > first, "recovery_proc_stat");
-            string[] fields = text[(last + 1)..].Split((char[]? )null, StringSplitOptions.RemoveEmptyEntries);
+            string[] fields = text[(last + 1)..].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             Need(fields.Length >= 20 && fields[0] is "R" or "S" or "D" or "T" or "t" && int.TryParse(text[..first].Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out _) && fields.Skip(1).Take(3).All(f => int.TryParse(f, NumberStyles.None, CultureInfo.InvariantCulture, out _)) && ulong.TryParse(fields[19], NumberStyles.None, CultureInfo.InvariantCulture, out ulong start) && start > 0, "recovery_proc_stat");
             return (int.Parse(text[..first].Trim(), CultureInfo.InvariantCulture), int.Parse(fields[1], CultureInfo.InvariantCulture), int.Parse(fields[2], CultureInfo.InvariantCulture), int.Parse(fields[3], CultureInfo.InvariantCulture), ulong.Parse(fields[19], CultureInfo.InvariantCulture));
         }
 
         var parent = Stat(tracerStat);
         var writer = Stat(writerStat);
-        string[] ids = children.Split((char[]? )null, StringSplitOptions.RemoveEmptyEntries);
+        string[] ids = children.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         var tgids = Regex.Matches(status, @"(?m)^Tgid:[ \t]*(\d+)[ \t]*\r?$", RegexOptions.CultureInvariant);
         var tracers = Regex.Matches(status, @"(?m)^TracerPid:[ \t]*(\d+)[ \t]*\r?$", RegexOptions.CultureInvariant);
         Need(parent.Pid == tracer && parent.Group == tracer && parent.Session == tracer && ids.Length == 1 && ids[0] == writer.Pid.ToString(CultureInfo.InvariantCulture) && writer.Pid != tracer && writer.Parent == tracer && writer.Group == tracer && writer.Session == tracer && tgids.Count == 1 && tgids[0].Groups[1].Value == writer.Pid.ToString(CultureInfo.InvariantCulture) && tracers.Count == 1 && tracers[0].Groups[1].Value == tracer.ToString(CultureInfo.InvariantCulture) && expected.StartsWith('/') && executable == expected, "recovery_proc_owner");
@@ -184,9 +185,9 @@ public static partial class NativeAotSqliteContract
     public static RecoveryJournal InspectRecoveryJournalValues(ReadOnlySpan<byte> baseline, ReadOnlySpan<byte> changed, ReadOnlySpan<byte> journal)
     {
         Need(baseline.Length is >= 4096 and <= 2 * 1024 * 1024 && baseline.Length % 4096 == 0 && changed.Length == baseline.Length && baseline[..16].SequenceEqual("SQLite format 3\0"u8) && changed[..16].SequenceEqual("SQLite format 3\0"u8) && BinaryPrimitives.ReadUInt16BigEndian(baseline[16..]) == 4096, "recovery_database_bytes");
-        Need(journal.Length is> 512 and <= 8 * 1024 * 1024 && journal[..8].SequenceEqual(new byte[] { 0xd9, 0xd5, 5, 0xf9, 0x20, 0xa1, 0x63, 0xd7 }), "recovery_journal_header");
+        Need(journal.Length is > 512 and <= 8 * 1024 * 1024 && journal[..8].SequenceEqual(new byte[] { 0xd9, 0xd5, 5, 0xf9, 0x20, 0xa1, 0x63, 0xd7 }), "recovery_journal_header");
         uint records = BinaryPrimitives.ReadUInt32BigEndian(journal[8..]), nonce = BinaryPrimitives.ReadUInt32BigEndian(journal[12..]), pages = BinaryPrimitives.ReadUInt32BigEndian(journal[16..]), sector = BinaryPrimitives.ReadUInt32BigEndian(journal[20..]), size = BinaryPrimitives.ReadUInt32BigEndian(journal[24..]);
-        Need(size == 4096 && pages == baseline.Length / 4096 && records is> 0 and <= 512 && records <= pages && sector is >= 512 and <= 65536 && (sector & (sector - 1)) == 0 && (ulong)sector + (ulong)records * 4104 <= (ulong)journal.Length, "recovery_journal_segment");
+        Need(size == 4096 && pages == baseline.Length / 4096 && records is > 0 and <= 512 && records <= pages && sector is >= 512 and <= 65536 && (sector & (sector - 1)) == 0 && (ulong)sector + (ulong)records * 4104 <= (ulong)journal.Length, "recovery_journal_segment");
         HashSet<uint> seen = [];
         int dirty = 0;
         for (int index = 0; index < records; index++)
@@ -224,7 +225,7 @@ public static partial class NativeAotSqliteContract
     public static RollbackSegments InspectRollbackJournalSegmentValues(ReadOnlySpan<byte> baseline, ReadOnlySpan<byte> changed, ReadOnlySpan<byte> journal)
     {
         Need(baseline.Length is >= 4096 and <= 2 * 1024 * 1024 && baseline.Length % 4096 == 0 && changed.Length == baseline.Length && baseline[..16].SequenceEqual("SQLite format 3\0"u8) && changed[..16].SequenceEqual("SQLite format 3\0"u8) && BinaryPrimitives.ReadUInt16BigEndian(baseline[16..]) == 4096 && BinaryPrimitives.ReadUInt16BigEndian(changed[16..]) == 4096 && baseline[18] == 1 && baseline[19] == 1 && changed[18] == 1 && changed[19] == 1, "segments_database");
-        Need(journal.Length is> 512 and <= 8 * 1024 * 1024, "segments_capacity");
+        Need(journal.Length is > 512 and <= 8 * 1024 * 1024, "segments_capacity");
         int pages = baseline.Length / 4096;
         Need(BinaryPrimitives.ReadUInt32BigEndian(baseline[28..]) == pages, "segments_database_pages");
         ReadOnlySpan<byte> magic = [0xd9, 0xd5, 5, 0xf9, 0x20, 0xa1, 0x63, 0xd7];
@@ -252,7 +253,7 @@ public static partial class NativeAotSqliteContract
             }
             else
             {
-                Need(records is> 0 and <= 512 && records <= pages, "segments_record_count");
+                Need(records is > 0 and <= 512 && records <= pages, "segments_record_count");
                 count = (int)records;
                 Need((long)at + sector + (long)count * 4104 <= journal.Length, "segments_records_truncated");
             }
@@ -349,11 +350,11 @@ public static partial class NativeAotSqliteContract
 
     public static IReadOnlyList<string> InspectProviderImports(ReadOnlySpan<byte> package)
     {
-        Need(package.Length is> 0 and <= 1024 * 1024 && Convert.ToHexString(SHA256.HashData(package)) == PackageArchiveSha256["SQLitePCLRaw.provider.e_sqlite3"], "provider_package_hash");
+        Need(package.Length is > 0 and <= 1024 * 1024 && Convert.ToHexString(SHA256.HashData(package)) == PackageArchiveSha256["SQLitePCLRaw.provider.e_sqlite3"], "provider_package_hash");
         using var zipStream = new MemoryStream(package.ToArray(), false);
         using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read);
         var entries = zip.Entries.Where(e => e.FullName == "lib/net8.0/SQLitePCLRaw.provider.e_sqlite3.dll").ToArray();
-        Need(entries.Length == 1 && entries[0].Length is> 0 and <= 1024 * 1024, "provider_assembly");
+        Need(entries.Length == 1 && entries[0].Length is > 0 and <= 1024 * 1024, "provider_assembly");
         using var stream = new MemoryStream();
         using (var input = entries[0].Open())
             input.CopyTo(stream);
@@ -369,7 +370,7 @@ public static partial class NativeAotSqliteContract
                 continue;
             var import = method.GetImport();
             string module = metadata.GetString(metadata.GetModuleReference(import.Module).Name), name = metadata.GetString(import.Name);
-            Need(module == "e_sqlite3" && name.Length is> 8 and <= 128 && name.StartsWith("sqlite3", StringComparison.Ordinal) && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_') && imports.Count < 512, "provider_import");
+            Need(module == "e_sqlite3" && name.Length is > 8 and <= 128 && name.StartsWith("sqlite3", StringComparison.Ordinal) && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_') && imports.Count < 512, "provider_import");
             imports.Add(name);
         }
 
@@ -401,7 +402,7 @@ public static partial class NativeAotSqliteContract
         {
             using var original = DependencyJson(receipt.ReadBytes(2 * 1024 * 1024, "sqlite_archive_dependency"));
             var value = original.RootElement;
-            Need(value.GetProperty("Schema").GetString()is "clros-sqlite-linux-reference-v1" or "clros-sqlite-linux-reference-v2" && value.GetProperty("Succeeded").ValueKind == JsonValueKind.True && value.GetProperty("Failure").GetString() == "", "dependency_original_failed");
+            Need(value.GetProperty("Schema").GetString() is "clros-sqlite-linux-reference-v1" or "clros-sqlite-linux-reference-v2" && value.GetProperty("Succeeded").ValueKind == JsonValueKind.True && value.GetProperty("Failure").GetString() == "", "dependency_original_failed");
             var outputs = DependencyMap(value.GetProperty("Outputs"), 512);
             foreach (string relative in DependencyArtifacts.Concat(new[] { "upstream/sqlite3.c", "upstream/sqlite3.h", "upstream/sqlite-amalgamation-3530400.zip" }))
             {
@@ -414,7 +415,7 @@ public static partial class NativeAotSqliteContract
             held.VerifyUnchanged();
             return new ReadOnlyDictionary<string, AuthorityFile>(files);
         }
-        catch (Exception error)when (error is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or OverflowException)
+        catch (Exception error) when (error is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or OverflowException)
         {
             throw new ToolFailure("sqlite_contract_dependency_json");
         }
@@ -434,7 +435,7 @@ public static partial class NativeAotSqliteContract
         {
             return InspectArchiveDependency(receipt, expectedReceiptSha256, artifacts, imports, compilerInputs);
         }
-        catch (Exception error)when (error is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or OverflowException)
+        catch (Exception error) when (error is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or OverflowException)
         {
             throw new ToolFailure("sqlite_contract_dependency_json");
         }
@@ -442,7 +443,7 @@ public static partial class NativeAotSqliteContract
 
     private static ArchiveDependency InspectArchiveDependency(ReadOnlySpan<byte> receipt, string expectedReceiptSha256, IReadOnlyDictionary<string, byte[]> artifacts, IReadOnlyList<string> imports, IReadOnlyDictionary<string, CompilerInput> compilerInputs)
     {
-        Need(receipt.Length is> 0 and <= 2 * 1024 * 1024 && Hex(expectedReceiptSha256) && Convert.ToHexString(SHA256.HashData(receipt)) == expectedReceiptSha256, "dependency_receipt_hash");
+        Need(receipt.Length is > 0 and <= 2 * 1024 * 1024 && Hex(expectedReceiptSha256) && Convert.ToHexString(SHA256.HashData(receipt)) == expectedReceiptSha256, "dependency_receipt_hash");
         Need(artifacts is not null && artifacts.Count == DependencyArtifacts.Length && DependencyArtifacts.All(artifacts.ContainsKey), "dependency_inventory");
         Need(imports is { Count: > 0 and <= 512 } && imports.Distinct(StringComparer.Ordinal).Count() == imports.Count, "dependency_imports");
         string[] roles = CompilerTools.Concat(CompilerLibraries).ToArray();
@@ -451,7 +452,7 @@ public static partial class NativeAotSqliteContract
             Need(pair.Value is not null && pair.Value.Length > 0 && pair.Value.Length <= (pair.Key == "commands.json" ? 2 * 1024 * 1024 : 16 * 1024 * 1024), "dependency_artifact_size");
         using var original = DependencyJson(receipt);
         var root = original.RootElement;
-        Need(root.GetProperty("Schema").GetString()is "clros-sqlite-linux-reference-v1" or "clros-sqlite-linux-reference-v2" && root.GetProperty("Succeeded").ValueKind == JsonValueKind.True && root.GetProperty("Failure").GetString() == "", "dependency_original_failed");
+        Need(root.GetProperty("Schema").GetString() is "clros-sqlite-linux-reference-v1" or "clros-sqlite-linux-reference-v2" && root.GetProperty("Succeeded").ValueKind == JsonValueKind.True && root.GetProperty("Failure").GetString() == "", "dependency_original_failed");
         Need(root.GetProperty("SourceArchiveSha256").GetString() == SourceArchiveSha256 && root.GetProperty("SourceArchiveSha3").GetString() == SourceArchiveSha3 && root.GetProperty("SourceId").GetString() == SourceId, "dependency_source");
         var provider = root.GetProperty("Imports");
         Need(provider.ValueKind == JsonValueKind.Array && provider.GetArrayLength() == imports.Count && provider.EnumerateArray().Select(p => p.GetString()).SequenceEqual(imports), "dependency_imports");
@@ -500,7 +501,7 @@ public static partial class NativeAotSqliteContract
         Need(matched, "dependency_object_member");
         using var planned = DependencyJson(artifacts["commands.json"]);
         var commands = planned.RootElement;
-        Need(commands.ValueKind == JsonValueKind.Array && commands.GetArrayLength()is> 0 and <= 128, "dependency_commands");
+        Need(commands.ValueKind == JsonValueKind.Array && commands.GetArrayLength() is > 0 and <= 128, "dependency_commands");
         Dictionary<string, (JsonElement Value, int Index)> selected = new(StringComparer.Ordinal);
         int index = 0;
         foreach (var command in commands.EnumerateArray())
@@ -517,7 +518,7 @@ public static partial class NativeAotSqliteContract
         string[] Arguments(JsonElement command)
         {
             var args = command.GetProperty("arguments");
-            Need(args.ValueKind == JsonValueKind.Array && args.GetArrayLength()is> 0 and <= 128, "dependency_recipe");
+            Need(args.ValueKind == JsonValueKind.Array && args.GetArrayLength() is > 0 and <= 128, "dependency_recipe");
             return args.EnumerateArray().Select(p =>
             {
                 string? value = p.GetString();
@@ -546,7 +547,7 @@ public static partial class NativeAotSqliteContract
         return new(archive, expectedReceiptSha256, Convert.ToHexString(SHA256.HashData(artifacts["commands.json"])), Convert.ToHexString(SHA256.HashData(object0)), new ReadOnlyDictionary<string, CompilerInput>(copiedInputs));
     }
 
-    private static bool DependencyLinuxPath(string path) => path.Length is> 1 and <= 4096 && path.StartsWith('/') && !path.Any(char.IsControl) && path.Split('/').Skip(1).All(p => p.Length > 0 && p is not "." and not "..");
+    private static bool DependencyLinuxPath(string path) => path.Length is > 1 and <= 4096 && path.StartsWith('/') && !path.Any(char.IsControl) && path.Split('/').Skip(1).All(p => p.Length > 0 && p is not "." and not "..");
     private static void DependencyUnique(JsonElement value)
     {
         Need(value.ValueKind == JsonValueKind.Object && value.EnumerateObject().Select(p => p.Name).Distinct(StringComparer.Ordinal).Count() == value.EnumerateObject().Count(), "dependency_json");
@@ -581,7 +582,7 @@ public static partial class NativeAotSqliteContract
         foreach (var property in value.EnumerateObject())
         {
             string? hash = property.Value.GetString();
-            Need(property.Name.Length is> 0 and <= 8192 && hash is not null && Hex(hash), "dependency_json");
+            Need(property.Name.Length is > 0 and <= 8192 && hash is not null && Hex(hash), "dependency_json");
             result.Add(property.Name, hash!);
         }
 
@@ -638,7 +639,7 @@ public static partial class NativeAotSqliteContract
 
     public static IReadOnlyList<string> InspectRetainedImportValues(string nm, IReadOnlyList<string> providerImports)
     {
-        Need(nm.Length is> 0 and <= 16 * 1024 * 1024 && providerImports is { Count: > 0 and <= 512 }, "retained_import_input");
+        Need(nm.Length is > 0 and <= 16 * 1024 * 1024 && providerImports is { Count: > 0 and <= 512 }, "retained_import_input");
         SortedSet<string> result = new(StringComparer.Ordinal);
         int rows = 0;
         foreach (string row in nm.Replace("\r\n", "\n").Split('\n'))
@@ -669,8 +670,8 @@ public static partial class NativeAotSqliteContract
         {
             if (string.IsNullOrWhiteSpace(line))
                 continue;
-            string[] fields = line.Split((char[]? )null, StringSplitOptions.RemoveEmptyEntries);
-            Need(fields.Length == 2 && fields[0].Length is> 0 and <= 255 && fields[1] is "w" or "v" && weak.Count < 256, "final_undefined_strong");
+            string[] fields = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            Need(fields.Length == 2 && fields[0].Length is > 0 and <= 255 && fields[1] is "w" or "v" && weak.Count < 256, "final_undefined_strong");
             Need(!fields[0].StartsWith("sqlite3", StringComparison.Ordinal), "final_undefined_sqlite");
             weak.Add(new(fields[0], fields[1][0]));
         }
@@ -689,7 +690,7 @@ public static partial class NativeAotSqliteContract
         Need(Path.IsPathFullyQualified(archive) && archive.EndsWith(".a", StringComparison.Ordinal), "publish_archive");
         string[] args = NativeAotStaticFilePublisher.PublishArguments(originalCommands, destination);
         args[1] = "apps/" + Application + "/" + Application + ".csproj";
-        return Array.AsReadOnly([..args, "--no-restore", "-p:SqliteNativeArchive=" + archive, "-p:StripSymbols=false", "-p:IlcGenerateMapFile=true"]);
+        return Array.AsReadOnly([.. args, "--no-restore", "-p:SqliteNativeArchive=" + archive, "-p:StripSymbols=false", "-p:IlcGenerateMapFile=true"]);
     }
 
     /// <summary>Borrow bounded project.assets.json values and require the exact
@@ -699,8 +700,11 @@ public static partial class NativeAotSqliteContract
 
     public static Dependencies InspectDependencyValues(ReadOnlySpan<byte> assets)
     {
-        Need(assets.Length is> 0 and <= 32 * 1024 * 1024, "assets_size");
-        using var json = JsonDocument.Parse(assets.ToArray(), new() { MaxDepth = 32 });
+        Need(assets.Length is > 0 and <= 32 * 1024 * 1024, "assets_size");
+        using var json = JsonDocument.Parse(assets.ToArray(), new()
+        {
+            MaxDepth = 32
+        });
         var root = json.RootElement;
         List<Package> packages = [];
         HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
@@ -736,7 +740,7 @@ public static partial class NativeAotSqliteContract
                         foreach (var file in values.EnumerateObject())
                         {
                             string path = file.Name;
-                            Need(path.Length is> 0 and <= 512 && !path.StartsWith('/') && !path.Contains('\\') && path.Split('/').All(s => s.Length > 0 && s is not ("." or "..")), "native_path");
+                            Need(path.Length is > 0 and <= 512 && !path.StartsWith('/') && !path.Contains('\\') && path.Split('/').All(s => s.Length > 0 && s is not ("." or "..")), "native_path");
                             if (path.StartsWith("runtimes/linux-musl-x64/native/", StringComparison.Ordinal))
                             {
                                 Need(native.Count < 64, "native_count");
@@ -790,7 +794,7 @@ public static partial class NativeAotSqliteContract
         Need(elf.Length >= 64 && elf[..7].SequenceEqual(new byte[] { 0x7f, 69, 76, 70, 2, 1, 1 }) && U16(elf, 16) == 1 && U16(elf, 18) == 62 && U16(elf, 52) == 64 && U16(elf, 58) == 64, "archive_elf");
         ulong sectionAt = U64(elf, 40);
         uint count = U16(elf, 60);
-        Need(count is> 0 and <= 16384 && sectionAt <= (ulong)elf.Length && count * 64UL <= (ulong)elf.Length - sectionAt, "archive_sections");
+        Need(count is > 0 and <= 16384 && sectionAt <= (ulong)elf.Length && count * 64UL <= (ulong)elf.Length - sectionAt, "archive_sections");
         for (uint i = 0; i < count; i++)
         {
             int header = checked((int)(sectionAt + i * 64UL));
@@ -808,7 +812,7 @@ public static partial class NativeAotSqliteContract
                 uint nameAt = U32(elf, row);
                 byte info = elf[row + 4];
                 Need(nameAt < textBytes, "archive_symbol_name");
-                if ((info >> 4)is not (1 or 2) || (info & 15) != 2 || U16(elf, row + 6) == 0)
+                if ((info >> 4) is not (1 or 2) || (info & 15) != 2 || U16(elf, row + 6) == 0)
                     continue;
                 var rest = elf.Slice(checked((int)(textOffset + nameAt)), checked((int)(textBytes - nameAt)));
                 int end = rest.IndexOf((byte)0);
@@ -834,7 +838,7 @@ public static partial class NativeAotSqliteContract
 
     public static Transcript InspectTranscriptValues(string output)
     {
-        Need(output.Length is> 0 and <= 65536, "transcript_size");
+        Need(output.Length is > 0 and <= 65536, "transcript_size");
         string[] lines = output.Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
         Need(lines.Length == 10 && lines[0] == "TEST_START m10.020" && lines[9] == "TEST_PASS m10.020", "transcript_inventory");
         const string prefix = "SQLITE_ENGINE version=3.53.4 sourceBase64=";
@@ -851,7 +855,7 @@ public static partial class NativeAotSqliteContract
 
     public static Transcript InspectVerificationTranscriptValues(string output)
     {
-        Need(output.Length is> 0 and <= 65536, "verify_transcript_size");
+        Need(output.Length is > 0 and <= 65536, "verify_transcript_size");
         string[] lines = output.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n').Split('\n');
         string[] expected = ["TEST_START m10.020.verify", "SQLITE_VERIFY_ENGINE version=" + EngineVersion + " sourceBase64=" + Convert.ToBase64String(Encoding.UTF8.GetBytes(SourceId)), "SQLITE_VERIFY rows=1 textBytes=22 blobBytes=34003 integrity=ok readonly=true", "SQLITE_VERIFY_CLEANUP journal=false wal=false shm=false", "TEST_PASS m10.020.verify"];
         Need(lines.SequenceEqual(expected), "verify_transcript_contract");
@@ -867,13 +871,13 @@ public static partial class NativeAotSqliteContract
 
     public static Trace InspectTraceValues(IReadOnlyDictionary<string, string> files, string databasePath)
     {
-        Need(files is { Count: > 0 and <= 64 } && databasePath.Length is> 0 and <= 255 && databasePath.StartsWith('/') && !databasePath.Any(c => c is '"' or '\n' or '\r' or '\0'), "trace_input");
+        Need(files is { Count: > 0 and <= 64 } && databasePath.Length is > 0 and <= 255 && databasePath.StartsWith('/') && !databasePath.Any(c => c is '"' or '\n' or '\r' or '\0'), "trace_input");
         List<TraceCall> calls = [];
         List<TraceRow> rows = [];
         int unjoined = 0, total = 0;
         foreach (var file in files.OrderBy(f => f.Key, StringComparer.Ordinal))
         {
-            Need(file.Key.Length is> 0 and <= 255 && file.Value.Length <= 4 * 1024 * 1024 && (total += file.Value.Length) <= 16 * 1024 * 1024, "trace_capacity");
+            Need(file.Key.Length is > 0 and <= 255 && file.Value.Length <= 4 * 1024 * 1024 && (total += file.Value.Length) <= 16 * 1024 * 1024, "trace_capacity");
             int lineNumber = 0;
             foreach (string line in file.Value.Replace("\r\n", "\n").Split('\n'))
             {
@@ -1008,7 +1012,7 @@ public static partial class NativeAotSqliteContract
             string[] parts = Parts(call.Arguments);
             if (call.Syscall is "open" or "openat")
                 return Kind(OpenPath(call, parts));
-            return Kind(PathValue(parts[0]))is { Length: > 0 } kind ? kind : parts.Select(AnnotatedPath).Select(Kind).FirstOrDefault(k => k.Length != 0) ?? "";
+            return Kind(PathValue(parts[0])) is { Length: > 0 } kind ? kind : parts.Select(AnnotatedPath).Select(Kind).FirstOrDefault(k => k.Length != 0) ?? "";
         }
 
         string[] owners = trace.Calls.Where(c => CallKind(c).Length != 0).Select(c => c.Source).Distinct(StringComparer.Ordinal).ToArray();
@@ -1140,7 +1144,10 @@ public static partial class NativeAotSqliteContract
 
                 if (count.HasValue)
                     Need(count <= 16 * 1024 * 1024 && offset <= long.MaxValue - count && returned <= count, "storage_io_result");
-                events.Add(new(call, id, fd, kind, count, offset, returned, flags, region) { ReturnedLock = returnedLock });
+                events.Add(new(call, id, fd, kind, count, offset, returned, flags, region)
+                {
+                    ReturnedLock = returnedLock
+                });
             }
             else if (kind.Length != 0)
             {
@@ -1205,7 +1212,7 @@ public static partial class NativeAotSqliteContract
         long journalBytes = long.Parse(marker.Groups[2].Value, CultureInfo.InvariantCulture);
         string encoded = marker.Groups[3].Value;
         byte[] header = new byte[28];
-        Need(journalBytes is> 512 and <= 8 * 1024 * 1024 && Convert.TryFromBase64String(encoded, header, out int headerBytes) && headerBytes == 28 && Convert.ToBase64String(header) == encoded && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0xd9, 0xd5, 5, 0xf9, 0x20, 0xa1, 0x63, 0xd7 }), "recovery_trace_spill_header");
+        Need(journalBytes is > 512 and <= 8 * 1024 * 1024 && Convert.TryFromBase64String(encoded, header, out int headerBytes) && headerBytes == 28 && Convert.ToBase64String(header) == encoded && header.AsSpan(0, 8).SequenceEqual(new byte[] { 0xd9, 0xd5, 5, 0xf9, 0x20, 0xa1, 0x63, 0xd7 }), "recovery_trace_spill_header");
         var observers = storage.Lifetimes.Where(l => l.Kind == "journal" && l.OpenLine > lastWrite && l.OpenFlags.Split('|').Contains("O_RDONLY", StringComparer.Ordinal)).ToArray();
         Need(observers.Length == 1, "recovery_trace_observer");
         var observer = observers[0];
@@ -1339,8 +1346,17 @@ public static partial class NativeAotSqliteContract
         ProcessResult? writer = null, verifier = null;
         async Task<ProcessResult> Run(string name, string[] arguments)
         {
-            commands.Add(new { executable = "dotnet", arguments, workingDirectory = root });
-            var result = await ProcessRunner.RunAsync(new("dotnet", arguments, root) { Timeout = TimeSpan.FromMinutes(5), OutputCharacterLimit = 4 * 1024 * 1024 }, cancellation);
+            commands.Add(new
+            {
+                executable = "dotnet",
+                arguments,
+                workingDirectory = root
+            });
+            var result = await ProcessRunner.RunAsync(new("dotnet", arguments, root)
+            {
+                Timeout = TimeSpan.FromMinutes(5),
+                OutputCharacterLimit = 4 * 1024 * 1024
+            }, cancellation);
             await File.WriteAllTextAsync(Path.Combine(destination, name + ".stdout.log"), result.StandardOutput, CancellationToken.None);
             await File.WriteAllTextAsync(Path.Combine(destination, name + ".stderr.log"), result.StandardError, CancellationToken.None);
             QemuTranscripts.RequireCompleteProcess(result, "sqlite_" + name + "_incomplete");
@@ -1372,7 +1388,7 @@ public static partial class NativeAotSqliteContract
 
             string bin = Path.Combine(app, "bin/Debug/net11.0");
             var built = System.IO.Directory.GetFiles(bin, "*", SearchOption.AllDirectories);
-            Need(built.Length is> 0 and <= 256, "built_count");
+            Need(built.Length is > 0 and <= 256, "built_count");
             var outputs = built.Select(path => held.Open(root, path, "sqlite built output", "sqlite_built", 64 * 1024 * 1024, allowEmpty: true, singleLink: true)).ToArray();
             writer = await Run("fixture", [Path.Combine(bin, Application + ".dll"), "--database", Path.Combine(destination, "contract.db")]);
             Need(writer.StandardError.Length == 0, "fixture_stderr");
@@ -1413,7 +1429,20 @@ public static partial class NativeAotSqliteContract
         finally
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "commands.json"), JsonSerializer.Serialize(commands), CancellationToken.None);
-            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new { Schema = "clros-sqlite-managed-reference-v3", Succeeded = succeeded, Failure = failure, Transcript = transcript, Verification = verification, Writer = writer, Verifier = verifier, DatabaseSha256 = databaseHash, LinuxNativeAotQualified = false, GuestQualified = false, DurabilityQualified = false }), CancellationToken.None);
+            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new
+            {
+                Schema = "clros-sqlite-managed-reference-v3",
+                Succeeded = succeeded,
+                Failure = failure,
+                Transcript = transcript,
+                Verification = verification,
+                Writer = writer,
+                Verifier = verifier,
+                DatabaseSha256 = databaseHash,
+                LinuxNativeAotQualified = false,
+                GuestQualified = false,
+                DurabilityQualified = false
+            }), CancellationToken.None);
         }
 
         return new(destination, transcript!, verification!, databaseHash);
@@ -1455,7 +1484,7 @@ public static partial class NativeAotSqliteContract
         byte[] ReadDatabaseFile(string path, FileShare share)
         {
             using var file = new FileStream(path, FileMode.Open, FileAccess.Read, share);
-            Need(file.Length is> 0 and <= 8 * 1024 * 1024, "recovery_file_capacity");
+            Need(file.Length is > 0 and <= 8 * 1024 * 1024, "recovery_file_capacity");
             byte[] bytes = new byte[(int)file.Length];
             file.ReadExactly(bytes);
             Need(file.ReadByte() == -1, "recovery_file_changed");
@@ -1472,7 +1501,7 @@ public static partial class NativeAotSqliteContract
             using (var inputs = JsonDocument.Parse(inventory.ReadBytes(1024 * 1024, "sqlite_recovery_inputs")))
             {
                 var entries = inputs.RootElement.EnumerateObject().ToArray();
-                Need(entries.Length is> 5 and <= 512, "recovery_input_inventory");
+                Need(entries.Length is > 5 and <= 512, "recovery_input_inventory");
                 foreach (var entry in entries)
                 {
                     string path = Path.GetFullPath(entry.Name, root);
@@ -1492,8 +1521,17 @@ public static partial class NativeAotSqliteContract
             async Task<ProcessResult> Run(string mode)
             {
                 string[] arguments = [app, "--recovery-" + mode, database];
-                commands.Add(new { Executable = "dotnet", Arguments = arguments, WorkingDirectory = root });
-                var result = await ProcessRunner.RunAsync(new("dotnet", arguments, root) { Timeout = TimeSpan.FromMinutes(1), OutputCharacterLimit = 64 * 1024 }, cancellation);
+                commands.Add(new
+                {
+                    Executable = "dotnet",
+                    Arguments = arguments,
+                    WorkingDirectory = root
+                });
+                var result = await ProcessRunner.RunAsync(new("dotnet", arguments, root)
+                {
+                    Timeout = TimeSpan.FromMinutes(1),
+                    OutputCharacterLimit = 64 * 1024
+                }, cancellation);
                 SaveProcess(mode, result);
                 QemuTranscripts.RequireCompleteProcess(result, "sqlite_recovery_" + mode + "_cleanup");
                 Need(result.Succeeded && result.StandardError.Length == 0, "recovery_" + mode + "_process");
@@ -1512,8 +1550,17 @@ public static partial class NativeAotSqliteContract
                 var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 StringBuilder output = new();
                 string[] arguments = [app, "--recovery-spill", database];
-                commands.Add(new { Executable = "dotnet", Arguments = arguments, WorkingDirectory = root });
-                var running = ProcessRunner.RunAsync(new("dotnet", arguments, root) { Timeout = TimeSpan.FromMinutes(1), OutputCharacterLimit = 64 * 1024, OutputReceived = (text, error) =>
+                commands.Add(new
+                {
+                    Executable = "dotnet",
+                    Arguments = arguments,
+                    WorkingDirectory = root
+                });
+                var running = ProcessRunner.RunAsync(new("dotnet", arguments, root)
+                {
+                    Timeout = TimeSpan.FromMinutes(1),
+                    OutputCharacterLimit = 64 * 1024,
+                    OutputReceived = (text, error) =>
                 {
                     if (error)
                         return;
@@ -1522,7 +1569,8 @@ public static partial class NativeAotSqliteContract
                         throw new ToolFailure("sqlite_contract_recovery_output_capacity");
                     if (output.ToString().Split('\n').SkipLast(1).Any(line => line.StartsWith("SQLITE_RECOVERY_SPILL ", StringComparison.Ordinal)))
                         ready.TrySetResult();
-                } }, kill.Token);
+                }
+                }, kill.Token);
                 byte[]? changed = null, journal = null;
                 try
                 {
@@ -1592,7 +1640,25 @@ public static partial class NativeAotSqliteContract
         finally
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "commands.json"), JsonSerializer.Serialize(commands), CancellationToken.None);
-            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new { Schema = "clros-sqlite-managed-process-kill-recovery-v1", Succeeded = succeeded, Failure = failure, WriterFailure = writerFailure, Journal = barrier, Writer = writer, RecoveredDatabaseSha256 = recoveredHash, FullPolicyConfigured = true, SqliteFlushCallsObserved = false, HostAssistedFlush = false, OriginalLinuxProducerSource = "f61648c223e9aad99e0bbb48a4be5ee19a0c1bce", RequiresDistinctLinuxPublication = true, LinuxNativeAotQualified = false, GuestQualified = false, PowerLossQualified = false, DurabilityQualified = false }), CancellationToken.None);
+            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new
+            {
+                Schema = "clros-sqlite-managed-process-kill-recovery-v1",
+                Succeeded = succeeded,
+                Failure = failure,
+                WriterFailure = writerFailure,
+                Journal = barrier,
+                Writer = writer,
+                RecoveredDatabaseSha256 = recoveredHash,
+                FullPolicyConfigured = true,
+                SqliteFlushCallsObserved = false,
+                HostAssistedFlush = false,
+                OriginalLinuxProducerSource = "f61648c223e9aad99e0bbb48a4be5ee19a0c1bce",
+                RequiresDistinctLinuxPublication = true,
+                LinuxNativeAotQualified = false,
+                GuestQualified = false,
+                PowerLossQualified = false,
+                DurabilityQualified = false
+            }), CancellationToken.None);
         }
 
         return new(destination, barrier!, writer!, recoveredHash);
@@ -1613,7 +1679,7 @@ public static partial class NativeAotSqliteContract
         }
 
         )
-            Need(path.Length is> 1 and <= 4096 && path.StartsWith('/') && !path.Any(char.IsControl) && path.Split('/').Skip(1).All(p => p.Length > 0 && p is not "." and not ".."), "recovery_linux_path");
+            Need(path.Length is > 1 and <= 4096 && path.StartsWith('/') && !path.Any(char.IsControl) && path.Split('/').Skip(1).All(p => p.Length > 0 && p is not "." and not ".."), "recovery_linux_path");
         Need(executable != database && executable != trace && database != trace, "recovery_linux_path");
         return Array.AsReadOnly(new[] { "-ff", "-yy", "-ttt", "-s", "256", "-o", trace, executable, "--recovery-" + mode, database });
     }
@@ -1631,7 +1697,7 @@ public static partial class NativeAotSqliteContract
         }
 
         )
-            Need(path.Length is> 1 and <= 4096 && path.StartsWith('/') && !path.Any(char.IsControl) && path.Split('/').Skip(1).All(p => p.Length > 0 && p is not "." and not ".."), "reference_linux_path");
+            Need(path.Length is > 1 and <= 4096 && path.StartsWith('/') && !path.Any(char.IsControl) && path.Split('/').Skip(1).All(p => p.Length > 0 && p is not "." and not ".."), "reference_linux_path");
         Need(executable != database && executable != trace && database != trace, "reference_linux_path");
         return Array.AsReadOnly(new[] { "-ff", "-yy", "-ttt", "-s", "256", "-o", trace, executable, verify ? "--verify-database" : "--database", database });
     }
@@ -1689,7 +1755,7 @@ public static partial class NativeAotSqliteContract
         async Task<Dictionary<string, string>> Traces(string mode, int? killedPid = null)
         {
             string[] paths = Directory.GetFiles(destination, mode + "-trace.*");
-            Need(paths.Length is> 0 and <= 64, "recovery_trace_inventory");
+            Need(paths.Length is > 0 and <= 64, "recovery_trace_inventory");
             Dictionary<string, string> values = new(StringComparer.Ordinal);
             int total = 0;
             foreach (string path in paths.Order(StringComparer.Ordinal))
@@ -1743,7 +1809,12 @@ public static partial class NativeAotSqliteContract
             async Task<string> Run(string mode)
             {
                 string[] arguments = LinuxRecoveryTraceArguments(executable, database, mode, Path.Combine(destination, mode + "-trace")).ToArray();
-                commands.Add(new { Executable = "setsid", Arguments = new[] { "strace" }.Concat(arguments), WorkingDirectory = root });
+                commands.Add(new
+                {
+                    Executable = "setsid",
+                    Arguments = new[] { "strace" }.Concat(arguments),
+                    WorkingDirectory = root
+                });
                 await NativeAotWebPayload.ExecuteAsync("strace", arguments, root, Path.Combine(destination, mode), TimeSpan.FromMinutes(2));
                 await Traces(mode);
                 var stdout = held.Open(root, Path.Combine(destination, mode + ".stdout.log"), "original recovery console", "sqlite_recovery_console", 65536, singleLink: true);
@@ -1758,7 +1829,12 @@ public static partial class NativeAotSqliteContract
             var baselineFile = held.Open(root, Path.Combine(destination, "baseline.db"), "recovery baseline", "sqlite_recovery_baseline", 2 * 1024 * 1024, singleLink: true);
             Need(baselineFile.Sha256.Equals(Convert.ToHexString(SHA256.HashData(baseline)), StringComparison.OrdinalIgnoreCase), "recovery_baseline_changed");
             string[] spill = LinuxRecoveryTraceArguments(executable, database, "spill", Path.Combine(destination, "spill-trace")).ToArray();
-            commands.Add(new { Executable = "setsid", Arguments = new[] { "strace" }.Concat(spill), WorkingDirectory = root });
+            commands.Add(new
+            {
+                Executable = "setsid",
+                Arguments = new[] { "strace" }.Concat(spill),
+                WorkingDirectory = root
+            });
             using (var process = NativeAotWebPayload.Start("strace", spill, root, expectedBody: null))
             using (var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2)))
             {
@@ -1799,7 +1875,7 @@ public static partial class NativeAotSqliteContract
                     LinuxRecoveryIdentity Observe()
                     {
                         string children = ReadRecoveryProc($"/proc/{process.Id}/task/{process.Id}/children");
-                        string[] ids = children.Split((char[]? )null, StringSplitOptions.RemoveEmptyEntries);
+                        string[] ids = children.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
                         Need(ids.Length == 1 && int.TryParse(ids[0], NumberStyles.None, CultureInfo.InvariantCulture, out _), "recovery_proc_children");
                         string child = ids[0];
                         return InspectLinuxRecoveryIdentityValues(process.Id, ReadRecoveryProc($"/proc/{process.Id}/stat"), children, ReadRecoveryProc($"/proc/{child}/stat"), ReadRecoveryProc($"/proc/{child}/status"), File.ResolveLinkTarget($"/proc/{child}/exe", true)?.FullName ?? "", executable);
@@ -1851,7 +1927,14 @@ public static partial class NativeAotSqliteContract
                         cleanup = cleanup is null ? error : new AggregateException(cleanup, error);
                     }
 
-                    await File.WriteAllTextAsync(Path.Combine(destination, "writer-owner.json"), JsonSerializer.Serialize(new { Identity = identity, PidfdDeathObserved = pidfdDead, SessionJoined = sessionJoined, Signal = 9, TracerExit = process.HasExited ? process.ExitCode : (int? )null }));
+                    await File.WriteAllTextAsync(Path.Combine(destination, "writer-owner.json"), JsonSerializer.Serialize(new
+                    {
+                        Identity = identity,
+                        PidfdDeathObserved = pidfdDead,
+                        SessionJoined = sessionJoined,
+                        Signal = 9,
+                        TracerExit = process.HasExited ? process.ExitCode : (int?)null
+                    }));
                     if (cleanup is not null)
                         throw runFailure is null ? cleanup : new AggregateException(runFailure, cleanup);
                 }
@@ -1872,8 +1955,17 @@ public static partial class NativeAotSqliteContract
                 };
                 Need(RecoveryGetLock(db.SafeFileHandle, 5, ref region) == 0 && region.Type == 2, "recovery_reserved_lock_remains");
                 lockClear = true;
-                await File.WriteAllTextAsync(Path.Combine(destination, "reserved-lock.json"), JsonSerializer.Serialize(new { Command = "F_GETLK", RequestedType = "F_WRLCK", Start = 1073741825, Length = 1, ReturnedType = region.Type, region.Pid, ReservedLockAbsent = true }));
-                Need(db.Length is> 0 and <= 2 * 1024 * 1024, "recovery_file_capacity");
+                await File.WriteAllTextAsync(Path.Combine(destination, "reserved-lock.json"), JsonSerializer.Serialize(new
+                {
+                    Command = "F_GETLK",
+                    RequestedType = "F_WRLCK",
+                    Start = 1073741825,
+                    Length = 1,
+                    ReturnedType = region.Type,
+                    region.Pid,
+                    ReservedLockAbsent = true
+                }));
+                Need(db.Length is > 0 and <= 2 * 1024 * 1024, "recovery_file_capacity");
                 byte[] bytes = new byte[(int)db.Length];
                 db.ReadExactly(bytes);
                 byte[] journal = ReadBytes(database + "-journal", 8 * 1024 * 1024);
@@ -1916,8 +2008,34 @@ public static partial class NativeAotSqliteContract
         finally
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "commands.json"), JsonSerializer.Serialize(commands));
-            var files = Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(p => Path.GetFileName(p)is not "ownership.lock" and not "qualification.lock" && p != Path.Combine(destination, "receipt.json")).Order(StringComparer.Ordinal);
-            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new { Schema = "clros-sqlite-linux-process-kill-recovery-v1", Succeeded = succeeded, Failure = failure, FreshPublicationReceiptSha256 = publicationHash, Journal = barrier, ArchiveBuild = archiveBuild, FreshCompilesCompleted = freshCompilesCompleted, ArchiveDependencyRoot = archiveDependencyRoot, ArchiveDependencyReceiptSha256 = dependencyInputs?["receipt.json"].Sha256, ArchiveDependencyInputs = dependencyInputs?.ToDictionary(p => p.Key, p => p.Value.Sha256, StringComparer.Ordinal), WriterTrace = writerTrace, Identity = identity, PidfdDeathObserved = pidfdDead, SessionJoined = sessionJoined, ReservedLockAbsent = lockClear, RecoveredDatabaseSha256 = recoveredHash, TraceSha256 = traceHashes, Outputs = files.ToDictionary(p => Path.GetRelativePath(destination, p), NativeAotWebPayload.HashFile), CompleteWriterTraceProjection = false, OriginalLinuxProducerSource = "f61648c223e9aad99e0bbb48a4be5ee19a0c1bce", FreshPublicationRequired = true, GuestQualified = false, PowerLossQualified = false, DurabilityQualified = false }));
+            var files = Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(p => Path.GetFileName(p) is not "ownership.lock" and not "qualification.lock" && p != Path.Combine(destination, "receipt.json")).Order(StringComparer.Ordinal);
+            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new
+            {
+                Schema = "clros-sqlite-linux-process-kill-recovery-v1",
+                Succeeded = succeeded,
+                Failure = failure,
+                FreshPublicationReceiptSha256 = publicationHash,
+                Journal = barrier,
+                ArchiveBuild = archiveBuild,
+                FreshCompilesCompleted = freshCompilesCompleted,
+                ArchiveDependencyRoot = archiveDependencyRoot,
+                ArchiveDependencyReceiptSha256 = dependencyInputs?["receipt.json"].Sha256,
+                ArchiveDependencyInputs = dependencyInputs?.ToDictionary(p => p.Key, p => p.Value.Sha256, StringComparer.Ordinal),
+                WriterTrace = writerTrace,
+                Identity = identity,
+                PidfdDeathObserved = pidfdDead,
+                SessionJoined = sessionJoined,
+                ReservedLockAbsent = lockClear,
+                RecoveredDatabaseSha256 = recoveredHash,
+                TraceSha256 = traceHashes,
+                Outputs = files.ToDictionary(p => Path.GetRelativePath(destination, p), NativeAotWebPayload.HashFile),
+                CompleteWriterTraceProjection = false,
+                OriginalLinuxProducerSource = "f61648c223e9aad99e0bbb48a4be5ee19a0c1bce",
+                FreshPublicationRequired = true,
+                GuestQualified = false,
+                PowerLossQualified = false,
+                DurabilityQualified = false
+            }));
         }
 
         output.WriteLine("TEST_PASS " + marker);
@@ -2222,12 +2340,12 @@ public static partial class NativeAotSqliteContract
             transcript = InspectTranscriptValues(result);
             Need(transcript.SourceSha256 == Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(SourceId))), "engine_source_id");
             string[] traces = Directory.GetFiles(destination, "sqlite-trace.*");
-            Need(traces.Length is> 0 and <= 64, "trace_inventory");
+            Need(traces.Length is > 0 and <= 64, "trace_inventory");
             Dictionary<string, string> traceValues = new(StringComparer.Ordinal);
             foreach (string file in traces)
             {
                 string suffix = file[(file.LastIndexOf('.') + 1)..];
-                Need(int.TryParse(suffix, out int pid) && pid > 0 && new FileInfo(file).Length is> 0 and <= 4 * 1024 * 1024, "trace_identity");
+                Need(int.TryParse(suffix, out int pid) && pid > 0 && new FileInfo(file).Length is > 0 and <= 4 * 1024 * 1024, "trace_identity");
                 string text = await File.ReadAllTextAsync(file);
                 Need(text.TrimEnd('\n', '\r').EndsWith("+++ exited with 0 +++", StringComparison.Ordinal) && !text.Contains("+++ killed by", StringComparison.Ordinal), "trace_process_exit");
                 traceValues.Add(Path.GetFileName(file), text);
@@ -2241,13 +2359,13 @@ public static partial class NativeAotSqliteContract
             result = await Run("verify", "strace", LinuxReferenceTraceArguments(executable, database, true, Path.Combine(destination, "sqlite-verify-trace")), TimeSpan.FromMinutes(2));
             verification = InspectVerificationTranscriptValues(result);
             string[] verifyTraces = Directory.GetFiles(destination, "sqlite-verify-trace.*");
-            Need(verifyTraces.Length is> 0 and <= 64, "verify_trace_inventory");
+            Need(verifyTraces.Length is > 0 and <= 64, "verify_trace_inventory");
             Dictionary<string, string> verifyTraceValues = new(StringComparer.Ordinal);
             var writerPids = traces.Select(file => file[(file.LastIndexOf('.') + 1)..]).ToHashSet(StringComparer.Ordinal);
             foreach (string file in verifyTraces)
             {
                 string suffix = file[(file.LastIndexOf('.') + 1)..];
-                Need(int.TryParse(suffix, out int pid) && pid > 0 && !writerPids.Contains(suffix) && new FileInfo(file).Length is> 0 and <= 4 * 1024 * 1024, "verify_trace_identity");
+                Need(int.TryParse(suffix, out int pid) && pid > 0 && !writerPids.Contains(suffix) && new FileInfo(file).Length is > 0 and <= 4 * 1024 * 1024, "verify_trace_identity");
                 string text = await File.ReadAllTextAsync(file);
                 Need(text.TrimEnd('\n', '\r').EndsWith("+++ exited with 0 +++", StringComparison.Ordinal) && !text.Contains("+++ killed by", StringComparison.Ordinal), "verify_trace_process_exit");
                 verifyTraceValues.Add(Path.GetFileName(file), text);
@@ -2276,7 +2394,40 @@ public static partial class NativeAotSqliteContract
             await File.WriteAllTextAsync(Path.Combine(destination, "sources.json"), JsonSerializer.Serialize(sources));
             await File.WriteAllTextAsync(Path.Combine(destination, "native-inputs.json"), JsonSerializer.Serialize(native));
             var files = Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(p => Path.GetFileName(p) != "qualification.lock").Order(StringComparer.Ordinal).ToDictionary(p => Path.GetRelativePath(destination, p), NativeAotWebPayload.HashFile);
-            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new { Schema = "clros-sqlite-linux-reference-v2", Succeeded = succeeded, Failure = failure, Archive = archive, ArchiveBuild = dependency is not null ? "reused_verified_dependency" : archiveDependencyRoot is not null ? "dependency_not_validated" : freshCompilesCompleted == 2 ? "fresh_two_compiles" : "fresh_incomplete", FreshCompilesCompleted = freshCompilesCompleted, ArchiveDependencyRoot = archiveDependencyRoot, ArchiveDependency = dependency, Imports = imports, RetainedImports = retainedImports, MetadataWithoutArchive = metadataWithoutArchive, WeakUndefined = weakUndefined, Image = image, Transcript = transcript, Verification = verification, TraceUnjoinedLines = trace?.UnjoinedLines, VerificationTraceUnjoinedLines = verificationTrace?.UnjoinedLines, TraceUnreturnedCalls = trace?.UnreturnedCalls, VerificationTraceUnreturnedCalls = verificationTrace?.UnreturnedCalls, TraceTerminalUnreturnedCalls = trace?.TerminalUnreturnedCalls, VerificationTraceTerminalUnreturnedCalls = verificationTrace?.TerminalUnreturnedCalls, SourceArchiveSha256, SourceArchiveSha3, SourceId, Sources = sources, Native = native, Outputs = files, GuestQualified = false, DurabilityQualified = false, RecoveryQualified = false, CompleteTraceProjection = trace?.CompleteTraceProjection == true && verificationTrace?.CompleteTraceProjection == true }));
+            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new
+            {
+                Schema = "clros-sqlite-linux-reference-v2",
+                Succeeded = succeeded,
+                Failure = failure,
+                Archive = archive,
+                ArchiveBuild = dependency is not null ? "reused_verified_dependency" : archiveDependencyRoot is not null ? "dependency_not_validated" : freshCompilesCompleted == 2 ? "fresh_two_compiles" : "fresh_incomplete",
+                FreshCompilesCompleted = freshCompilesCompleted,
+                ArchiveDependencyRoot = archiveDependencyRoot,
+                ArchiveDependency = dependency,
+                Imports = imports,
+                RetainedImports = retainedImports,
+                MetadataWithoutArchive = metadataWithoutArchive,
+                WeakUndefined = weakUndefined,
+                Image = image,
+                Transcript = transcript,
+                Verification = verification,
+                TraceUnjoinedLines = trace?.UnjoinedLines,
+                VerificationTraceUnjoinedLines = verificationTrace?.UnjoinedLines,
+                TraceUnreturnedCalls = trace?.UnreturnedCalls,
+                VerificationTraceUnreturnedCalls = verificationTrace?.UnreturnedCalls,
+                TraceTerminalUnreturnedCalls = trace?.TerminalUnreturnedCalls,
+                VerificationTraceTerminalUnreturnedCalls = verificationTrace?.TerminalUnreturnedCalls,
+                SourceArchiveSha256,
+                SourceArchiveSha3,
+                SourceId,
+                Sources = sources,
+                Native = native,
+                Outputs = files,
+                GuestQualified = false,
+                DurabilityQualified = false,
+                RecoveryQualified = false,
+                CompleteTraceProjection = trace?.CompleteTraceProjection == true && verificationTrace?.CompleteTraceProjection == true
+            }));
         }
 
         output.WriteLine("TEST_PASS " + marker);

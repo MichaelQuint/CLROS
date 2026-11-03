@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformRandomResult
 {
     private PlatformRandomResult(bool succeeded, PlatformRandomStatus status, FirmwareServicesMode mode, int requestedBytes, int bytesWritten, ulong firmwareStatus)
@@ -11,13 +12,31 @@ public readonly struct PlatformRandomResult
         FirmwareStatus = firmwareStatus;
     }
 
-    public bool Succeeded { get; }
-    public PlatformRandomStatus Status { get; }
-    public FirmwareServicesMode Mode { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformRandomStatus Status
+    {
+        get;
+    }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
     public string Operation => PlatformRandomOperations.FillBytes;
-    public int RequestedBytes { get; }
-    public int BytesWritten { get; }
-    public ulong FirmwareStatus { get; }
+    public int RequestedBytes
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public ulong FirmwareStatus
+    {
+        get;
+    }
 
     public static PlatformRandomResult Fill(FirmwareCallResult guardResult, PlatformRandomSourceResult sourceResult, int requestedBytes)
     {

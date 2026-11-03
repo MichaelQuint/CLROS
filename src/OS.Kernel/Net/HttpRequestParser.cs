@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public static class HttpRequestParser
 {
     public const int MinimumRequestLineLength = 16;

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public unsafe struct OwnedMonotonicClockState
 {
     internal OwnedClockStatus status, hpetStatus;

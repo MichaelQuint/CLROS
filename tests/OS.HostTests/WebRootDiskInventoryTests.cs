@@ -15,7 +15,10 @@ internal static partial class WebRootDiskInventoryTests
         var fault = WebRootImageFixture.CreateFaultVariant(root, image, receipt, path, "Truncated");
         var verified = I.VerifiedTruncated.Verify(root, image, receipt, path, fault);
         File.WriteAllText(metadata, JsonSerializer.Serialize(fault));
-        File.WriteAllText(wrongMetadata, JsonSerializer.Serialize(fault with { TargetPath = I.Root + "/index.html" }));
+        File.WriteAllText(wrongMetadata, JsonSerializer.Serialize(fault with
+        {
+            TargetPath = I.Root + "/index.html"
+        }));
         using AuthorityFiles held = new();
         var positive = held.Open(root, image, "positive image", "held_positive", WebRootImageFixture.MaximumImageBytes, singleLink: true);
         var actual = held.Open(root, path, "fault image", "held_fault", WebRootImageFixture.MaximumImageBytes, singleLink: true);
@@ -147,7 +150,7 @@ internal static partial class WebRootDiskInventoryTests
         var positive = QemuSmokeOptions.Parse(args);
         _ = QemuProfiles.Create(positive);
         HostCheck.Equal("None", positive.WebRootFault);
-        var negative = QemuSmokeOptions.Parse([..args, "-WebRootFault", "Truncated"]);
+        var negative = QemuSmokeOptions.Parse([.. args, "-WebRootFault", "Truncated"]);
         _ = QemuProfiles.Create(negative);
         HostCheck.Equal(positive.TimeoutSeconds, negative.TimeoutSeconds);
         foreach (string[] suffix in new[]
@@ -186,7 +189,7 @@ internal static partial class WebRootDiskInventoryTests
         }
 
         )
-            Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([..args, "-WebRootFault", "Truncated", ..suffix])));
+            Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([.. args, "-WebRootFault", "Truncated", .. suffix])));
         foreach (string[] suffix in new[]
         {
             new[]
@@ -213,7 +216,7 @@ internal static partial class WebRootDiskInventoryTests
             bool denied = false;
             try
             {
-                _ = QemuSmokeOptions.Parse([..args, ..suffix]);
+                _ = QemuSmokeOptions.Parse([.. args, .. suffix]);
             }
             catch (ArgumentException)
             {
@@ -291,7 +294,7 @@ internal static partial class WebRootDiskInventoryTests
         // Only the borrowed receipt was changed; the original image pair is
         // still exact, so rechecking must use the context's private snapshot.
         verified.VerifyUnchanged();
-        HostCheck.True(ReferenceEquals(baseline, verified.Baseline) && baseline.ImageSha256 == receipt.FinalSha256 && verified.ActualImageSha256 == fault.FinalSha256 && baseline.Find(I.Root + "/changed.bin")is null && target.CopyBytes().SequenceEqual(content) && target.Extents.SequenceEqual(extents) && target.Sectors.SequenceEqual(sectors));
+        HostCheck.True(ReferenceEquals(baseline, verified.Baseline) && baseline.ImageSha256 == receipt.FinalSha256 && verified.ActualImageSha256 == fault.FinalSha256 && baseline.Find(I.Root + "/changed.bin") is null && target.CopyBytes().SequenceEqual(content) && target.Extents.SequenceEqual(extents) && target.Sectors.SequenceEqual(sectors));
         HostCheck.Equal(plan, JsonSerializer.Serialize(DiskStaticHttpContract.CreateTruncatedAssetPlan(verified)));
         HostCheck.True(!verified.Fault.GrantsNativeDeviceOrProcessAuthority && !verified.Fault.GrantsGuestReadFailureAuthority);
     });
@@ -340,7 +343,7 @@ internal static partial class WebRootDiskInventoryTests
         HostCheck.True(head.ContentLength is null && get.ContentLength == 0 && head.BodyBytes == 0 && get.BodyBytes == 0);
         (string Method, string Target)[] pair = [(head.Method, head.Target), (next.Method, next.Target)];
         byte[] following = Reply(404, "0");
-        foreach (string? length in new string? []
+        foreach (string? length in new string?[]
         {
             null,
             "0"
@@ -349,7 +352,7 @@ internal static partial class WebRootDiskInventoryTests
         )
         {
             byte[] first = Reply(404, length);
-            var parsed = Read([..first, ..following]);
+            var parsed = Read([.. first, .. following]);
             HostCheck.True(parsed.Count == 2 && parsed.All(r => r.Status == 404 && r.BodyBytes == 0) && parsed[0].HeaderBytes == first.Length);
         }
 
@@ -367,9 +370,9 @@ internal static partial class WebRootDiskInventoryTests
         }
 
         )
-            Reject(() => Read([..first, ..following]));
-        Reject(() => Read([..Reply(404), ..following, ..following]));
-        Reject(() => Read([..Reply(404), ..following], full: false));
+            Reject(() => Read([.. first, .. following]));
+        Reject(() => Read([.. Reply(404), .. following, .. following]));
+        Reject(() => Read([.. Reply(404), .. following], full: false));
         Reject(() => Read(Reply(404), requests: [("HEAD", "/not-the-verified-target")]));
         Reject(() => Read(Reply(200), requests: [(head.Method, head.Target)]));
         Reject(() => Read(Reply(404), requests: [(get.Method, get.Target)]));
@@ -431,9 +434,9 @@ internal static partial class WebRootDiskInventoryTests
 
         var largest = actual.Find(I.Root + "/_framework/Inventory-00.wasm")!;
         HostCheck.Equal(3925UL, largest.AllocatedSectors);
-        HostCheck.True(actual.Find(I.Root)is { IsDirectory: true } && actual.Find(I.Root + "/fixture/nested")is { IsDirectory: true });
+        HostCheck.True(actual.Find(I.Root) is { IsDirectory: true } && actual.Find(I.Root + "/fixture/nested") is { IsDirectory: true });
         HostCheck.True(actual.Entries.Select(e => e.Inode).Distinct().Count() == actual.Entries.Count);
-        HostCheck.True(actual.Find("/private/sentinel.txt")is null && actual.Find("/OS/APP.PKG")is null);
+        HostCheck.True(actual.Find("/private/sentinel.txt") is null && actual.Find("/OS/APP.PKG") is null);
     });
     [HostTest("disk inventory fragmentation and EOF produce exact independent range sectors without content aliases", HostLane.Native)]
     private static void Sectors() => WithInventory((_, _, _, _, _, actual) =>
@@ -472,12 +475,12 @@ internal static partial class WebRootDiskInventoryTests
         }
 
         )
-            HostCheck.True(actual.Find(path)is null);
+            HostCheck.True(actual.Find(path) is null);
         foreach (var entry in actual.Entries.Where(e => !e.IsDirectory && e.Path.Contains("/many/", StringComparison.Ordinal)))
         {
             HostCheck.True(actual.Find(entry.Path) == entry);
             string alias = entry.Path[..(entry.Path.LastIndexOf('/') + 1)] + entry.ShortAlias;
-            HostCheck.True(alias != entry.Path && actual.Find(alias)is null);
+            HostCheck.True(alias != entry.Path && actual.Find(alias) is null);
         }
     });
     [HostTest("disk inventory all-zero FAT time is unspecified while nonzero Gregorian corruption rejects", HostLane.Native)]
@@ -492,7 +495,7 @@ internal static partial class WebRootDiskInventoryTests
         File.WriteAllBytes(candidate, zero);
         var zeroReceipt = Rebase(receipt, candidate);
         HostCheck.Equal(0L, I.Inspect(candidate, zero, zeroReceipt).Find(file.Path)!.ModifiedSeconds);
-        foreach (var(date, time)in new (ushort, ushort)[]
+        foreach (var (date, time) in new (ushort, ushort)[]
         {
             (1, 0),
             (0x21, 31),
@@ -525,7 +528,7 @@ internal static partial class WebRootDiskInventoryTests
         var forged = receipt.WebRootFiles.ToArray();
         forged[0] = forged[0] with
         {
-            Sha256 = new string ('0', 64)
+            Sha256 = new string('0', 64)
         };
         Reject(() => I.Inspect(image, raw, receipt with { WebRootFiles = forged }), "webroot_disk_inventory_receipt");
         foreach (string variant in new[]
@@ -593,8 +596,8 @@ internal static partial class WebRootDiskInventoryTests
         Reject(() => WebRootImageFixture.VerifyFaultVariant(root, image, receipt, path, fault with { Variant = "Unknown" }), "webroot_image_fault_variant");
         Reject(() => WebRootImageFixture.VerifyFaultVariant(root, image, receipt, path, fault with { TargetPath = I.Root + "/index.html" }), "webroot_image_fault_receipt");
         Reject(() => WebRootImageFixture.VerifyFaultVariant(root, image, receipt, path, fault with { ExpectedReadback = "webroot_image_chain_loop_or_crosslink" }), "webroot_image_fault_receipt");
-        Reject(() => WebRootImageFixture.VerifyFaultVariant(root, image, receipt, path, fault with { SourceSha256 = new string ('0', 64) }), "webroot_image_fault_receipt");
-        Reject(() => WebRootImageFixture.VerifyFaultVariant(root, image, receipt, path, fault with { FinalSha256 = new string ('0', 64) }), "webroot_image_fault_identity");
+        Reject(() => WebRootImageFixture.VerifyFaultVariant(root, image, receipt, path, fault with { SourceSha256 = new string('0', 64) }), "webroot_image_fault_receipt");
+        Reject(() => WebRootImageFixture.VerifyFaultVariant(root, image, receipt, path, fault with { FinalSha256 = new string('0', 64) }), "webroot_image_fault_identity");
         Reject(() => WebRootImageFixture.VerifyFaultVariant(root, image, receipt with { PublishedFileCount = receipt.PublishedFileCount + 1 }, path, fault), "webroot_disk_inventory_published_shape");
         Reject(() => WebRootImageFixture.VerifyFaultVariant(root, image, null!, path, fault), "webroot_image_fault_input");
         Reject(() => WebRootImageFixture.VerifyFaultVariant(root, image, receipt, path, null!), "webroot_image_fault_input");
@@ -820,7 +823,7 @@ internal static partial class WebRootDiskInventoryTests
         HostCheck.True(result.Take(3).All(s => s.Kind == I.MetadataKind.Directory) && result[0].DirectoryPath == "/" && result[1].DirectoryPath == "/app" && result[2].DirectoryPath == I.Root + "/fixture/nested");
         HostCheck.True(result[3].Kind == I.MetadataKind.Fat0 && result[4].Kind == I.MetadataKind.Fat0 && result[5].Kind == I.MetadataKind.Fat1 && result[6].Kind == I.MetadataKind.Fat1 && result.Skip(3).Take(4).All(s => s.DirectoryPath == ""));
         HostCheck.Equal(result[0], result[^1]);
-        HostCheck.True(actual.Find("/")is null && actual.Find("/app")is null && actual.Entries.All(e => e.Path == I.Root || e.Path.StartsWith(I.Root + "/", StringComparison.Ordinal)));
+        HostCheck.True(actual.Find("/") is null && actual.Find("/app") is null && actual.Entries.All(e => e.Path == I.Root || e.Path.StartsWith(I.Root + "/", StringComparison.Ordinal)));
         HostCheck.Equal(2 + actual.Entries.Where(e => e.IsDirectory).Sum(e => e.Sectors.Count), actual.DirectorySectors.Count);
         HostCheck.True(actual.DirectorySectors.Select(s => s.Lba).Distinct().Count() == actual.DirectorySectors.Count);
     });

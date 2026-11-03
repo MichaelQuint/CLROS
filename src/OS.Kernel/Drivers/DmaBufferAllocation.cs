@@ -1,6 +1,7 @@
 using OS.Kernel.Platform;
 
 namespace OS.Drivers;
+
 public readonly struct DmaBufferAllocation
 {
     public readonly DmaAddressRange Range;

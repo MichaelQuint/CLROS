@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotLogUploadHttpContract
 {
     /// <summary>Copied immutable argv for the pinned physical BusyBox setsid
@@ -25,8 +26,14 @@ public static partial class NativeAotLogUploadHttpContract
             Arguments = Array.AsReadOnly(arguments.ToArray());
         }
 
-        public string Executable { get; }
-        public ReadOnlyCollection<string> Arguments { get; }
+        public string Executable
+        {
+            get;
+        }
+        public ReadOnlyCollection<string> Arguments
+        {
+            get;
+        }
         public bool GrantsOriginalProcessOrToolAuthority => false;
 
         /// <summary>Create an independent, unstarted process configuration

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public readonly struct BootPageFreeListPlanResult
 {
     private BootPageFreeListPlanResult(BootPageFreeListPlanStatus status, BootPageAllocatorPlanStatus allocatorPlanStatus, int freeSegmentCount, int requiredNodeCapacity, int availableNodeCapacity, int availableSegmentCapacity, int invalidSegmentIndex, int headNodeIndex, ulong pageSize, ulong totalFreePages, ulong totalFreeBytes)
@@ -16,18 +17,51 @@ public readonly struct BootPageFreeListPlanResult
         TotalFreeBytes = totalFreeBytes;
     }
 
-    public BootPageFreeListPlanStatus Status { get; }
+    public BootPageFreeListPlanStatus Status
+    {
+        get;
+    }
     public bool Succeeded => Status == BootPageFreeListPlanStatus.Success;
-    public BootPageAllocatorPlanStatus AllocatorPlanStatus { get; }
-    public int FreeSegmentCount { get; }
-    public int RequiredNodeCapacity { get; }
-    public int AvailableNodeCapacity { get; }
-    public int AvailableSegmentCapacity { get; }
-    public int InvalidSegmentIndex { get; }
-    public int HeadNodeIndex { get; }
-    public ulong PageSize { get; }
-    public ulong TotalFreePages { get; }
-    public ulong TotalFreeBytes { get; }
+    public BootPageAllocatorPlanStatus AllocatorPlanStatus
+    {
+        get;
+    }
+    public int FreeSegmentCount
+    {
+        get;
+    }
+    public int RequiredNodeCapacity
+    {
+        get;
+    }
+    public int AvailableNodeCapacity
+    {
+        get;
+    }
+    public int AvailableSegmentCapacity
+    {
+        get;
+    }
+    public int InvalidSegmentIndex
+    {
+        get;
+    }
+    public int HeadNodeIndex
+    {
+        get;
+    }
+    public ulong PageSize
+    {
+        get;
+    }
+    public ulong TotalFreePages
+    {
+        get;
+    }
+    public ulong TotalFreeBytes
+    {
+        get;
+    }
 
     internal static BootPageFreeListPlanResult Success(BootPageAllocatorPlanStatus allocatorPlanStatus, int freeSegmentCount, int availableNodeCapacity, int availableSegmentCapacity, ulong pageSize, ulong totalFreePages, ulong totalFreeBytes)
     {

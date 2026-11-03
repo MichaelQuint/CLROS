@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct FaultProbeStubPlan
 {
     public const byte TwoByteOpcodePrefix = 0x0f;
@@ -16,7 +17,10 @@ public readonly struct FaultProbeStubPlan
         Kind = kind;
     }
 
-    public FaultProbeStubKind Kind { get; }
+    public FaultProbeStubKind Kind
+    {
+        get;
+    }
     public static FaultProbeStubPlan InvalidOpcode => new FaultProbeStubPlan(FaultProbeStubKind.InvalidOpcode);
     public static FaultProbeStubPlan NullWrite => new FaultProbeStubPlan(FaultProbeStubKind.NullWrite);
 

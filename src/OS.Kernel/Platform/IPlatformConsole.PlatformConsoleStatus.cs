@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public enum PlatformConsoleStatus
 {
     Unknown = 0,

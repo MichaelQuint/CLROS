@@ -33,8 +33,8 @@ internal static unsafe partial class ConsoleFilesystemTimerRNGConfigurationTable
             *(ulong*)boot = 0x56524553544f4f42;
             *(uint*)(boot + 8) = 0x20000;
             *(uint*)(boot + 12) = 384;
-            ulong get = (ulong)(delegate* unmanaged<ulong*, void*, ulong*, ulong*, uint*, ulong> )&GetMap;
-            ulong exit = (ulong)(delegate* unmanaged<void*, ulong, ulong> )&Exit;
+            ulong get = (ulong)(delegate* unmanaged<ulong*, void*, ulong*, ulong*, uint*, ulong>)&GetMap;
+            ulong exit = (ulong)(delegate* unmanaged<void*, ulong, ulong>)&Exit;
             *(ulong*)(boot + 56) = get;
             *(ulong*)(boot + 232) = exit;
             Seal(Tables, 128);
@@ -58,7 +58,7 @@ internal static unsafe partial class ConsoleFilesystemTimerRNGConfigurationTable
             {
                 AdapterState = (ulong)State,
                 AdapterStateBytes = (ulong)sizeof(Storage),
-                EntryCallback = (ulong)(delegate* unmanaged<FirstExitOwnedStackContext*, void> )&Entry
+                EntryCallback = (ulong)(delegate* unmanaged<FirstExitOwnedStackContext*, void>)&Entry
             };
             Backends = new FirmwareAdapterBackends
             {

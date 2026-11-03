@@ -1,4 +1,5 @@
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Synchronously borrow bounded original framed service bytes and
@@ -22,7 +23,7 @@ public static partial class QemuTranscripts
         string text = framed.NormalizedTail;
         Need(text.EndsWith("\r\n", StringComparison.Ordinal), "service_gc_records");
         string[] rows = text[..^2].Split("\r\n", StringSplitOptions.None);
-        Need(rows.Length is> 0 and <= 1_000_000 && rows.All(row => row.Length is> 0 and <= 4096 && row.All(c => c is >= ' ' and <= '~')), "service_gc_records");
+        Need(rows.Length is > 0 and <= 1_000_000 && rows.All(row => row.Length is > 0 and <= 4096 && row.All(c => c is >= ' ' and <= '~')), "service_gc_records");
         int[] budgets = Enumerable.Range(0, rows.Length).Where(i => rows[i].Contains(budgetMarker, StringComparison.Ordinal)).ToArray();
         int[] memories = Enumerable.Range(0, rows.Length).Where(i => rows[i].Contains(memoryMarker, StringComparison.Ordinal)).ToArray();
         int[] starts = Enumerable.Range(0, rows.Length).Where(i => rows[i] == "TEST_START m16.014.startup").ToArray();
@@ -69,7 +70,7 @@ public static partial class QemuTranscripts
     {
         var row = ReadRecord(line, marker, "capacityBytes:dec", "retainedBytes:dec", "gcCommitted:dec", "quota:dec", "errno:dec", "releasedBytes:dec", "recoveredBytes:dec");
         const ulong chunk = 1048576, capacity = 32 * chunk;
-        Need(row["capacityBytes"] == capacity && row["retainedBytes"] is >= chunk and < capacity && row["retainedBytes"] % chunk == 0 && row["gcCommitted"] is> 0 and <= 16 * chunk && row["gcCommitted"] % 4096 == 0 && row["quota"] == 1 && row["errno"] == 12 && row["releasedBytes"] == row["retainedBytes"] && row["recoveredBytes"] == chunk, "service_native_pressure");
+        Need(row["capacityBytes"] == capacity && row["retainedBytes"] is >= chunk and < capacity && row["retainedBytes"] % chunk == 0 && row["gcCommitted"] is > 0 and <= 16 * chunk && row["gcCommitted"] % 4096 == 0 && row["quota"] == 1 && row["errno"] == 12 && row["releasedBytes"] == row["retainedBytes"] && row["recoveredBytes"] == chunk, "service_native_pressure");
         Need(row["retainedBytes"] + row["gcCommitted"] <= peakBytes, "service_native_memory_coverage");
         return new(row["retainedBytes"], row["gcCommitted"]);
     }
@@ -79,7 +80,7 @@ public static partial class QemuTranscripts
         var row = ReadRecord(line, marker, "limit:dec", "baselineHeap:dec", "baselineCommitted:dec", "liveBytes:dec", "liveHeap:dec", "liveCommitted:dec", "pressureBytes:dec", "pressureHeap:dec", "pressureCommitted:dec", "pressureCollections:dec", "oom:dec");
         const ulong limit = 16 * 1024 * 1024, live = 2 * 1024 * 1024;
         Need(row["limit"] == limit && row["liveBytes"] == live && row["baselineHeap"] <= row["baselineCommitted"] && row["baselineCommitted"] <= limit && row["liveHeap"] >= live && row["liveHeap"] <= row["liveCommitted"] && row["liveCommitted"] <= limit, "service_gc_measurement");
-        Need(row["pressureBytes"] is >= 1048576 and < limit && row["pressureBytes"] % 1048576 == 0 && row["pressureHeap"] >= row["pressureBytes"] && row["pressureHeap"] <= row["pressureCommitted"] && row["pressureCommitted"] <= limit && row["pressureCollections"] is> 0 and <= int.MaxValue && row["oom"] == 1, "service_gc_pressure");
+        Need(row["pressureBytes"] is >= 1048576 and < limit && row["pressureBytes"] % 1048576 == 0 && row["pressureHeap"] >= row["pressureBytes"] && row["pressureHeap"] <= row["pressureCommitted"] && row["pressureCommitted"] <= limit && row["pressureCollections"] is > 0 and <= int.MaxValue && row["oom"] == 1, "service_gc_pressure");
         return new(row["limit"], row["baselineHeap"], row["baselineCommitted"], row["liveBytes"], row["liveHeap"], row["liveCommitted"], row["pressureBytes"], row["pressureHeap"], row["pressureCommitted"], row["pressureCollections"]);
     }
 }

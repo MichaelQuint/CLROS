@@ -2,6 +2,7 @@ using OS.Drivers;
 using OS.Kernel.Memory;
 
 namespace OS.Kernel.Platform;
+
 public static class PhysicalMmioOwnershipPlan
 {
     public const ulong EcamWindowAlignment = PciEcamConfigurationSpace.BytesPerBus;

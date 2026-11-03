@@ -57,7 +57,10 @@ internal static class HostProjectOutputsTests
         Reject(() => HostProjectOutputs.Snapshot(root, [original], []));
         Reject(() => HostProjectOutputs.AdmitHash(original, HostRunCheckpoint.HashFile(target)));
         Reject(() => HostProjectOutputs.Verify(root, original));
-        var missing = original with { TargetPath = Path.Combine(directory, "missing.dll") };
+        var missing = original with
+        {
+            TargetPath = Path.Combine(directory, "missing.dll")
+        };
         Reject(() => HostProjectOutputs.Verify(root, missing));
         Reject(() => HostProjectOutputs.Snapshot(root, [missing], []));
     }

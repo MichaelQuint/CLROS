@@ -15,10 +15,25 @@ internal static partial class QemuRunnerTests
             CaptureScratchPath = captureScratchPath;
         }
 
-        public string ObservationPath { get; }
-        public string PrivateSerialPath { get; }
-        public string PublicSerialPath { get; }
-        public string QmpTranscriptPath { get; }
-        public string CaptureScratchPath { get; }
+        public string ObservationPath
+        {
+            get;
+        }
+        public string PrivateSerialPath
+        {
+            get;
+        }
+        public string PublicSerialPath
+        {
+            get;
+        }
+        public string QmpTranscriptPath
+        {
+            get;
+        }
+        public string CaptureScratchPath
+        {
+            get;
+        }
     }
 }

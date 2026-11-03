@@ -21,8 +21,17 @@ internal static partial class BootPageAllocatorFreeCoalescingTests
             Output = output;
         }
 
-        public int ExitCode { get; }
-        public bool TimedOut { get; }
-        public string Output { get; }
+        public int ExitCode
+        {
+            get;
+        }
+        public bool TimedOut
+        {
+            get;
+        }
+        public string Output
+        {
+            get;
+        }
     }
 }

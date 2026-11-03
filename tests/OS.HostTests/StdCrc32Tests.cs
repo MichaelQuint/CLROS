@@ -15,10 +15,12 @@ internal static class StdCrc32Tests
     {
         ExpectValue("empty byte stream", 0u, Crc32.Finish(Crc32.InitialState));
         uint state = Crc32.InitialState;
-        foreach (byte value in "123456789"u8) state = Crc32.UpdateByte(state, value);
+        foreach (byte value in "123456789"u8)
+            state = Crc32.UpdateByte(state, value);
         ExpectValue("bytewise ascii", 0xCBF43926u, Crc32.Finish(state));
         state = Crc32.InitialState;
-        for (int value = 0; value < 256; value++) state = Crc32.UpdateByte(state, (byte)value);
+        for (int value = 0; value < 256; value++)
+            state = Crc32.UpdateByte(state, (byte)value);
         ExpectValue("all byte values", 0x29058C73u, Crc32.Finish(state));
     }
 

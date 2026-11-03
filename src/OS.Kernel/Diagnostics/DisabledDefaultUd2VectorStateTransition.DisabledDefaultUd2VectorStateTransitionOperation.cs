@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum DisabledDefaultUd2VectorStateTransitionOperation : byte
 {
     None = 0,

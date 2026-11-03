@@ -129,7 +129,7 @@ internal static partial class M02OwnedX64GdtEfiIntegrationTests
         string root = HostToolProcess.FindRepositoryRoot();
         if (!HostSourceOracle.MatchesUtf8Family(HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), EfiContracts.OwnedGdtHostOracleTypes))
             return false;
-        foreach ((string relativePath, string expectedSha256)in ImmutableReviewedInputs)
+        foreach ((string relativePath, string expectedSha256) in ImmutableReviewedInputs)
         {
             string path = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
             if (!File.Exists(path))

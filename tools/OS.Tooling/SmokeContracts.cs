@@ -2,7 +2,10 @@ namespace OS.Tooling;
 
 public static class SmokeContracts
 {
-    public static IReadOnlyList<string> RequiredMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> RequiredMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
     [
         "OS_SMOKE_PASS", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY",
         "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED",

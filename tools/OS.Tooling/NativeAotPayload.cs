@@ -38,7 +38,7 @@ public static partial class NativeAotPayload
         Require(U16(image, 16) == 2 && U16(image, 18) == 62 && U32(image, 20) == 1 && U32(image, 48) == 0 && U16(image, 52) == 64 && U16(image, 54) == 56, "elf_header");
         int count = U16(image, 56);
         ulong headers = U64(image, 32);
-        Require(count is> 0 and <= 128 && headers >= 64 && Fits(headers, (ulong)count * 56, (ulong)image.Length), "elf_program_headers");
+        Require(count is > 0 and <= 128 && headers >= 64 && Fits(headers, (ulong)count * 56, (ulong)image.Length), "elf_program_headers");
         ulong entry = U64(image, 24);
         var loads = new List<Segment>();
         Segment? tls = null;
@@ -250,7 +250,13 @@ public static partial class NativeAotPayload
         async Task<string> Run(string name, string executable, string[] arguments, TimeSpan? timeout = null)
         {
             string log = Path.Combine(destination, name);
-            commands.Add(new { executable, arguments, workingDirectory = root, log });
+            commands.Add(new
+            {
+                executable,
+                arguments,
+                workingDirectory = root,
+                log
+            });
             await ExecuteAsync(executable, arguments, root, log, timeout ?? TimeSpan.FromMinutes(2));
             return await File.ReadAllTextAsync(log + ".stdout.log");
         }
@@ -379,7 +385,13 @@ public static partial class NativeAotPayload
         string log = Path.Combine(destination, "MinimalApiSmoke-run");
         string expectedBody = "OS_MINIMAL_API_OK_" + Guid.NewGuid().ToString("N");
         string[] arguments = ["-ff", "-s", "256", "-o", trace, executable, "--urls", endpoint];
-        commands.Add(new { executable = "strace", arguments, workingDirectory = root, log });
+        commands.Add(new
+        {
+            executable = "strace",
+            arguments,
+            workingDirectory = root,
+            log
+        });
         using var process = Start("strace", arguments, root, expectedBody);
         Task stdout = CaptureAsync(process.StandardOutput, log + ".stdout.log", process);
         Task stderr = CaptureAsync(process.StandardError, log + ".stderr.log", process);
@@ -420,7 +432,13 @@ public static partial class NativeAotPayload
 
             using var config = JsonDocument.Parse(await client.GetStringAsync(endpoint + "/config", deadline.Token));
             Require(config.RootElement.GetProperty("appId").GetString() == "minimal.api.smoke" && config.RootElement.GetProperty("expectedBody").GetString() == expectedBody, "http_config_contract");
-            await File.WriteAllTextAsync(Path.Combine(destination, "http.json"), JsonSerializer.Serialize(new { endpoint, paths = new[] { "/", "/healthz", "/config" }, status = 200, body = expectedBody }));
+            await File.WriteAllTextAsync(Path.Combine(destination, "http.json"), JsonSerializer.Serialize(new
+            {
+                endpoint,
+                paths = new[] { "/", "/healthz", "/config" },
+                status = 200,
+                body = expectedBody
+            }));
             string[] children = (await File.ReadAllTextAsync($"/proc/{process.Id}/task/{process.Id}/children", deadline.Token)).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             Require(children.Length == 1 && int.TryParse(children[0], out _), "http_tracee_identity");
             Require(File.ResolveLinkTarget($"/proc/{children[0]}/exe", true)?.FullName == executable, "http_tracee_executable");
@@ -501,7 +519,7 @@ public static partial class NativeAotPayload
                 if (!process.HasExited)
                     process.Kill(entireProcessTree: true);
             }
-            catch (InvalidOperationException)when (process.HasExited)
+            catch (InvalidOperationException) when (process.HasExited)
             {
             }
 

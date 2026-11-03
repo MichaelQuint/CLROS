@@ -204,12 +204,12 @@ internal sealed partial class ServiceLifecycleExercise
             Interlocked.Increment(ref echoes);
             return new(true, count, hash);
         }
-        catch (OperationCanceledException)when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
             Interlocked.Increment(ref canceled);
             throw;
         }
-        catch (IOException)when (cancellation.IsCancellationRequested)
+        catch (IOException) when (cancellation.IsCancellationRequested)
         {
             Interlocked.Increment(ref canceled);
             throw;
@@ -237,12 +237,12 @@ internal sealed partial class ServiceLifecycleExercise
 
             Interlocked.Increment(ref streams);
         }
-        catch (OperationCanceledException)when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
             Interlocked.Increment(ref canceled);
             throw;
         }
-        catch (IOException)when (cancellation.IsCancellationRequested)
+        catch (IOException) when (cancellation.IsCancellationRequested)
         {
             Interlocked.Increment(ref canceled);
             throw;
@@ -264,7 +264,7 @@ internal sealed partial class ServiceLifecycleExercise
         {
             await Task.Delay(Timeout.Infinite, cancellation);
         }
-        catch (OperationCanceledException)when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
             Interlocked.Increment(ref canceled);
         }

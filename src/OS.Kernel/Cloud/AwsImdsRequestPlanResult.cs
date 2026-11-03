@@ -1,4 +1,5 @@
 namespace OS.Cloud;
+
 public readonly struct AwsImdsRequestPlanResult
 {
     private AwsImdsRequestPlanResult(AwsImdsRequestPlanStatus status, AwsImdsV2HttpRequestPlan request)
@@ -7,8 +8,14 @@ public readonly struct AwsImdsRequestPlanResult
         Request = request;
     }
 
-    public AwsImdsRequestPlanStatus Status { get; }
-    public AwsImdsV2HttpRequestPlan Request { get; }
+    public AwsImdsRequestPlanStatus Status
+    {
+        get;
+    }
+    public AwsImdsV2HttpRequestPlan Request
+    {
+        get;
+    }
     public bool Succeeded => Status == AwsImdsRequestPlanStatus.Success;
 
     public static AwsImdsRequestPlanResult Success(AwsImdsV2HttpRequestPlan request)

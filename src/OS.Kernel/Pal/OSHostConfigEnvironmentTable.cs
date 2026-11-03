@@ -4,6 +4,7 @@ using OS.Std.Memory;
 using OS.Std.Text;
 
 namespace OS.Pal;
+
 public sealed class OSHostConfigEnvironmentTable
 {
     public const int MaxConfigEntries = 16;

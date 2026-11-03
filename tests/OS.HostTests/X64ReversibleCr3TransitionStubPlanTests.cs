@@ -786,7 +786,7 @@ internal static unsafe partial class X64ReversibleCr3TransitionStubPlanTests
                 index += immediateLength;
             }
 
-            if (opcode == 0xff && (((modrm >> 3) & 7)is 2 or 3 or 4 or 5))
+            if (opcode == 0xff && (((modrm >> 3) & 7) is 2 or 3 or 4 or 5))
             {
                 kind = InstructionKind.IndirectControl;
             }
@@ -1096,7 +1096,7 @@ internal static unsafe partial class X64ReversibleCr3TransitionStubPlanTests
             }
             catch
             {
-            // Cleanup is not product evidence.
+                // Cleanup is not product evidence.
             }
         }
     }
@@ -1116,14 +1116,5 @@ internal static unsafe partial class X64ReversibleCr3TransitionStubPlanTests
     }
 }
 #if M01_013_TRANSITION_FOCUSED
-
-
-
-
-
-
-
-
-
 
 #endif

@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 using OS.Std.Net;
 
@@ -14,13 +15,31 @@ public readonly struct Ipv4TransportChecksumResult
         IsValid = isValid;
     }
 
-    public bool IsInitialized { get; }
-    public Ipv4TransportChecksumStatus Status { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public Ipv4TransportChecksumStatus Status
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == Ipv4TransportChecksumStatus.Success;
-    public byte Protocol { get; }
-    public int TransportLength { get; }
-    public ushort Checksum { get; }
-    public bool IsValid { get; }
+    public byte Protocol
+    {
+        get;
+    }
+    public int TransportLength
+    {
+        get;
+    }
+    public ushort Checksum
+    {
+        get;
+    }
+    public bool IsValid
+    {
+        get;
+    }
 
     public static Ipv4TransportChecksumResult Success(byte protocol, int transportLength, ushort checksum, bool isValid)
     {

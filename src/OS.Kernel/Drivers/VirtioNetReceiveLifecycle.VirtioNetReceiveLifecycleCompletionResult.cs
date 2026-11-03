@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 using OS.Std.Binary;
 
@@ -24,22 +25,70 @@ public readonly struct VirtioNetReceiveLifecycleCompletionResult
         Classification = classification;
     }
 
-    public VirtioNetReceiveLifecycleCompletionStatus Status { get; }
-    public bool IsInitialized { get; }
-    public VirtioNetReceiveLifecyclePublishStatus PublishStatus { get; }
-    public VirtqueueSplitRingPlanStatus QueuePlanStatus { get; }
-    public VirtioNetReceiveFrameClassifierStatus ClassifierStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public ushort DescriptorHead { get; }
-    public ushort BufferIndex { get; }
-    public ushort PreviousUsedIndex { get; }
-    public ushort CurrentUsedIndex { get; }
-    public ushort NextUsedIndex { get; }
-    public ushort UsedRingSlot { get; }
-    public uint UsedRingElementOffset { get; }
-    public uint UsedByteCount { get; }
-    public uint FrameBufferBytes { get; }
-    public VirtioNetReceiveFrameClassificationResult Classification { get; }
+    public VirtioNetReceiveLifecycleCompletionStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtioNetReceiveLifecyclePublishStatus PublishStatus
+    {
+        get;
+    }
+    public VirtqueueSplitRingPlanStatus QueuePlanStatus
+    {
+        get;
+    }
+    public VirtioNetReceiveFrameClassifierStatus ClassifierStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public ushort DescriptorHead
+    {
+        get;
+    }
+    public ushort BufferIndex
+    {
+        get;
+    }
+    public ushort PreviousUsedIndex
+    {
+        get;
+    }
+    public ushort CurrentUsedIndex
+    {
+        get;
+    }
+    public ushort NextUsedIndex
+    {
+        get;
+    }
+    public ushort UsedRingSlot
+    {
+        get;
+    }
+    public uint UsedRingElementOffset
+    {
+        get;
+    }
+    public uint UsedByteCount
+    {
+        get;
+    }
+    public uint FrameBufferBytes
+    {
+        get;
+    }
+    public VirtioNetReceiveFrameClassificationResult Classification
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetReceiveLifecycleCompletionStatus.Success;
 
     internal static VirtioNetReceiveLifecycleCompletionResult Create(VirtioNetReceiveLifecycleCompletionStatus status, VirtioNetReceiveLifecyclePublishResult publish, VirtioNetReceiveFrameClassifierStatus classifierStatus, PacketParseStatus packetStatus, ushort descriptorHead, ushort bufferIndex, ushort currentUsedIndex, ushort usedRingSlot, uint usedRingElementOffset, uint usedByteCount, VirtioNetReceiveFrameClassificationResult classification)

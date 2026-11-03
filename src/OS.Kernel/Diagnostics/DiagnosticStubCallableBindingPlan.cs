@@ -1,6 +1,7 @@
 using OS.Kernel.Runtime;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class DiagnosticStubCallableBindingPlan
 {
     public static DiagnosticStubCallableBindingPlanResult Create(DiagnosticStubInvocationReadinessResult invocationReadiness, Com1PortIoBackendContractResult backendContract, ExecutableStubBundleMaterializerResult materializerResult)

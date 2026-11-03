@@ -88,9 +88,9 @@ internal static unsafe partial class OwnedAllocatorDescriptorTablesACPISnapshotP
             byte[] owner = fixture.OwnerBytes(), backing = fixture.BackingBytes();
             Need(fixture.Invoke() == Status.OwnerRejected && fixture.State.Status == Status.Empty && fixture.Diagnostic.Status == FirstExitDiagnosticStatus.Empty && outputBytes == 0 && polls == 0 && owner.AsSpan().SequenceEqual(fixture.OwnerSpan()) && backing.AsSpan().SequenceEqual(fixture.BackingSpan()), "stale/nonfree completed-owner contract rejects before mutation " + scenario);
         }
-    // A valid completed original owner starts wholly free with at least two
-    // pages. Exhaustion is an invalid prerequisite, not a fabricated reachable
-    // NoSuitableRange result from this operation.
+        // A valid completed original owner starts wholly free with at least two
+        // pages. Exhaustion is an invalid prerequisite, not a fabricated reachable
+        // NoSuitableRange result from this operation.
     }
 
     [HostTest("m03.010.allocator.consumed_and_diagnostic_failure", HostLane.Fast, 3)]

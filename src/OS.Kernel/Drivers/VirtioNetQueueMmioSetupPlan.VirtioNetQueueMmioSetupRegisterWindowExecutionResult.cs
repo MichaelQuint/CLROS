@@ -1,6 +1,7 @@
 using OS.Std.Binary;
 
 namespace OS.Drivers;
+
 public readonly struct VirtioNetQueueMmioSetupRegisterWindowExecutionResult
 {
     private VirtioNetQueueMmioSetupRegisterWindowExecutionResult(bool isInitialized, VirtioNetQueueMmioSetupRegisterWindowExecutionStatus status, VirtioNetQueueMmioSetupPlanStatus setupPlanStatus, VirtioPciBarRegisterWindowPlanStatus registerWindowStatus, VirtioPciBarRegisterWindowAccessExecutionStatus accessExecutionStatus, VirtioNetQueueMmioSetupCommandKind commandKind, int commandIndex, int commandsExecuted, ushort queueIndex, uint relativeOffset, uint widthBytes, ulong expectedValue, ulong observedValue)
@@ -20,19 +21,58 @@ public readonly struct VirtioNetQueueMmioSetupRegisterWindowExecutionResult
         ObservedValue = observedValue;
     }
 
-    public VirtioNetQueueMmioSetupRegisterWindowExecutionStatus Status { get; }
-    public VirtioNetQueueMmioSetupPlanStatus SetupPlanStatus { get; }
-    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowStatus { get; }
-    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus { get; }
-    public VirtioNetQueueMmioSetupCommandKind CommandKind { get; }
-    public int CommandIndex { get; }
-    public int CommandsExecuted { get; }
-    public ushort QueueIndex { get; }
-    public uint RelativeOffset { get; }
-    public uint WidthBytes { get; }
-    public ulong ExpectedValue { get; }
-    public ulong ObservedValue { get; }
-    public bool IsInitialized { get; }
+    public VirtioNetQueueMmioSetupRegisterWindowExecutionStatus Status
+    {
+        get;
+    }
+    public VirtioNetQueueMmioSetupPlanStatus SetupPlanStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowStatus
+    {
+        get;
+    }
+    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus
+    {
+        get;
+    }
+    public VirtioNetQueueMmioSetupCommandKind CommandKind
+    {
+        get;
+    }
+    public int CommandIndex
+    {
+        get;
+    }
+    public int CommandsExecuted
+    {
+        get;
+    }
+    public ushort QueueIndex
+    {
+        get;
+    }
+    public uint RelativeOffset
+    {
+        get;
+    }
+    public uint WidthBytes
+    {
+        get;
+    }
+    public ulong ExpectedValue
+    {
+        get;
+    }
+    public ulong ObservedValue
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetQueueMmioSetupRegisterWindowExecutionStatus.Success;
 
     internal static VirtioNetQueueMmioSetupRegisterWindowExecutionResult Success(VirtioNetQueueMmioSetupPlanResult setupPlan, int commandsExecuted)

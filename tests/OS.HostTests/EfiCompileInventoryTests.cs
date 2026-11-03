@@ -14,7 +14,8 @@ internal static class EfiCompileInventoryTests
             ?? throw new InvalidOperationException("dotnet host missing");
         var version = ProcessRunner.RunAsync(new ProcessRequest(dotnet, ["--version"], root)
         {
-            Timeout = TimeSpan.FromSeconds(30), OutputCharacterLimit = 65536
+            Timeout = TimeSpan.FromSeconds(30),
+            OutputCharacterLimit = 65536
         }).GetAwaiter().GetResult();
         string[] lines = version.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         HostCheck.True(version.Succeeded && EfiPreflight.SdkVersionFailure("ok", lines) == "ok");
@@ -58,7 +59,10 @@ internal static class EfiCompileInventoryTests
             void Reject(IEnumerable<string> items, string reason)
             {
                 string? actual = null;
-                try { EfiMsbuild.VerifyEvaluation(Snapshot(items, profile), expected); }
+                try
+                {
+                    EfiMsbuild.VerifyEvaluation(Snapshot(items, profile), expected);
+                }
                 catch (ToolFailure failure) { actual = failure.Reason; }
                 HostCheck.Equal(reason, actual);
             }
@@ -70,28 +74,34 @@ internal static class EfiCompileInventoryTests
     {
         EfiProfile[] profiles = Profiles();
         foreach (EfiProfile requested in profiles)
-        foreach (EfiProfile other in profiles.Where(profile => !ReferenceEquals(profile, requested)))
-        {
-            string? actual = null;
-            if (DeclaredItems(other).SequenceEqual(DeclaredItems(requested), StringComparer.Ordinal))
+            foreach (EfiProfile other in profiles.Where(profile => !ReferenceEquals(profile, requested)))
             {
-                bool waitPair = requested.IsEnabled("M09009") && other.IsEnabled("M09010") ||
-                    requested.IsEnabled("M09010") && other.IsEnabled("M09009");
-                bool signalPair = requested.IsEnabled("M16009") && other.IsEnabled("M16009");
-                bool diskPair=requested.IsEnabled("M10018") && other.IsEnabled("M10018");
-                HostCheck.True(waitPair || signalPair || diskPair, "only reviewed wait/TLS or signal/runtime leaves share an inventory");
-                try { EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), other), Snapshot(DeclaredItems(requested), requested)); }
+                string? actual = null;
+                if (DeclaredItems(other).SequenceEqual(DeclaredItems(requested), StringComparer.Ordinal))
+                {
+                    bool waitPair = requested.IsEnabled("M09009") && other.IsEnabled("M09010") ||
+                        requested.IsEnabled("M09010") && other.IsEnabled("M09009");
+                    bool signalPair = requested.IsEnabled("M16009") && other.IsEnabled("M16009");
+                    bool diskPair = requested.IsEnabled("M10018") && other.IsEnabled("M10018");
+                    HostCheck.True(waitPair || signalPair || diskPair, "only reviewed wait/TLS or signal/runtime leaves share an inventory");
+                    try
+                    {
+                        EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), other), Snapshot(DeclaredItems(requested), requested));
+                    }
+                    catch (ToolFailure failure) { actual = failure.Reason; }
+                    HostCheck.Equal("post_restore_evidence_property_mismatch", actual);
+                    continue;
+                }
+                // Keep requested properties fixed: the compile inventory alone must
+                // reject another profile, even when its metadata claims this one.
+                try
+                {
+                    EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), requested), Snapshot(DeclaredItems(requested), requested));
+                }
                 catch (ToolFailure failure) { actual = failure.Reason; }
-                HostCheck.Equal("post_restore_evidence_property_mismatch", actual);
-                continue;
+                HostCheck.Equal(DeclaredItems(other).Length == DeclaredItems(requested).Length
+                    ? "post_restore_evidence_hash_mismatch" : "post_restore_evidence_count_mismatch", actual);
             }
-            // Keep requested properties fixed: the compile inventory alone must
-            // reject another profile, even when its metadata claims this one.
-            try { EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), requested), Snapshot(DeclaredItems(requested), requested)); }
-            catch (ToolFailure failure) { actual = failure.Reason; }
-            HostCheck.Equal(DeclaredItems(other).Length == DeclaredItems(requested).Length
-                ? "post_restore_evidence_hash_mismatch" : "post_restore_evidence_count_mismatch", actual);
-        }
     }
 
     [HostTest("EFI writable leaf admits only its independently declared reviewed source bytes")]
@@ -201,14 +211,22 @@ internal static class EfiCompileInventoryTests
     private static JsonObject Snapshot(IEnumerable<string> inventory, EfiProfile profile)
     {
         string[] items = inventory.ToArray();
-        JsonObject properties = new() { ["ClrosBootPolicy"] = profile.BootPolicy };
-        foreach (var flag in profile.Flags) properties[flag.Key] = flag.Value.ToString();
+        JsonObject properties = new()
+        {
+            ["ClrosBootPolicy"] = profile.BootPolicy
+        };
+        foreach (var flag in profile.Flags)
+            properties[flag.Key] = flag.Value.ToString();
         return new()
         {
-            ["compileCount"] = items.Length, ["compileSha256"] = Hash(items),
-            ["projectReferenceCount"] = 0, ["projectReferenceSha256"] = Hash([]),
-            ["referenceCount"] = 0, ["referenceSha256"] = Hash([]),
-            ["analyzerCount"] = 2, ["analyzerSha256"] = Hash(["analyzer-a", "analyzer-b"]),
+            ["compileCount"] = items.Length,
+            ["compileSha256"] = Hash(items),
+            ["projectReferenceCount"] = 0,
+            ["projectReferenceSha256"] = Hash([]),
+            ["referenceCount"] = 0,
+            ["referenceSha256"] = Hash([]),
+            ["analyzerCount"] = 2,
+            ["analyzerSha256"] = Hash(["analyzer-a", "analyzer-b"]),
             ["properties"] = properties
         };
     }

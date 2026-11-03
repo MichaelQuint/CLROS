@@ -2,6 +2,7 @@ using OS.Kernel.Runtime;
 using OS.Std.Text;
 
 namespace OS.Kernel.Diagnostics;
+
 public static class DiagnosticStubCallableBindingPlanDiagnosticFormatter
 {
     public const bool UsesSharedAsciiTextBuilder = true;

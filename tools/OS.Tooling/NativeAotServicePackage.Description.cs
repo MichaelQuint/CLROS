@@ -2,6 +2,7 @@ using System.Text;
 using OS.Manifest;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotServicePackage
 {
     /// <summary>Numeric/identity observation only. A matching envelope does not

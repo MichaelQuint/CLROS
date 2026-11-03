@@ -34,7 +34,7 @@ internal static class HostLinuxSignalSourceGuard
             || gate.Statement is BlockSyntax { Statements.Count: 1 } block && block.Statements[0] is ReturnStatementSyntax;
         if (!rejects || gate.Parent != signalGate.Parent
             || HostSourceOperations.Value(model.GetOperation(gate.Condition)!) is not IUnaryOperation
-                { OperatorKind: UnaryOperatorKind.Not, Operand: IInvocationOperation condition }
+            { OperatorKind: UnaryOperatorKind.Not, Operand: IInvocationOperation condition }
             || !Same(condition.TargetMethod, apic.TargetMethod))
             return false;
         var ready = catalog.Method(Owner, "RunOwnedLinuxSyscalls").DescendantNodes().OfType<LiteralExpressionSyntax>()

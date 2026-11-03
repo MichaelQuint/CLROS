@@ -26,15 +26,30 @@ public readonly struct ArpPacket
         TargetAddress = targetAddress;
     }
 
-    public ushort Operation { get; }
+    public ushort Operation
+    {
+        get;
+    }
 
-    public MacAddress SenderMac { get; }
+    public MacAddress SenderMac
+    {
+        get;
+    }
 
-    public Ipv4Address SenderAddress { get; }
+    public Ipv4Address SenderAddress
+    {
+        get;
+    }
 
-    public MacAddress TargetMac { get; }
+    public MacAddress TargetMac
+    {
+        get;
+    }
 
-    public Ipv4Address TargetAddress { get; }
+    public Ipv4Address TargetAddress
+    {
+        get;
+    }
 
     public static PacketParseStatus TryParse(ReadOnlySpan<byte> packet, out ArpPacket arp)
     {

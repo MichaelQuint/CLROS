@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class NativeDiskReadObservations
 {
     /// <summary>Copied immutable facts. Copied and CopyChunk each carry512
@@ -10,7 +11,10 @@ public static partial class NativeDiskReadObservations
 
     public readonly record struct Observation(Kind Kind, ulong Owner, ulong Epoch, ulong Generation, ulong Sector, ulong Sequence, uint Bytes, ushort AvailableIndex, ushort ConsumedIndex, ulong Clock, string DataHex)
     {
-        public uint ChunkIndex { get; init; }
+        public uint ChunkIndex
+        {
+            get; init;
+        }
         public ulong DataSector => Sector + ChunkIndex;
     }
 }

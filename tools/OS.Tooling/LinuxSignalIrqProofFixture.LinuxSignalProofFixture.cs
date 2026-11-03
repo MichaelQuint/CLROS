@@ -3,6 +3,7 @@ using System.Text;
 using Writer = OS.Tooling.LinuxThreadProofFixture.Writer;
 
 namespace OS.Tooling;
+
 public static partial class LinuxSignalProofFixture
 {
     public const string IrqVariant = "Activation";
@@ -262,7 +263,7 @@ public static partial class LinuxSignalProofFixture
         failure.Op(0xfc, 1);
         failure.Call(231, 99, 0, 0);
         failure.Op(0x0b0f, 2);
-        Invocation[] parent = [..p.Invocations.Take(7), ..h.Invocations, ..r.Invocations, ..p.Invocations.Skip(7)];
+        Invocation[] parent = [.. p.Invocations.Take(7), .. h.Invocations, .. r.Invocations, .. p.Invocations.Skip(7)];
         if (parent.Length != 13 || c.Invocations.Count != 5 || points.DistinctBy(x => (x.Child, x.Rip)).Count() != points.Count)
             throw new ToolFailure("m16_009_irq_inventory");
         return (elf, parent, c.Invocations.ToArray(), points.ToArray(), loop);

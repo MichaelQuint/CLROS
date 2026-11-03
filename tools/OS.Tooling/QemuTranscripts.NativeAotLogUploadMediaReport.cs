@@ -4,6 +4,7 @@ using Data = OS.Tooling.WritableDataImageFixture;
 using F = OS.Tooling.LinuxWritableDiskProofFixture;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     /// <summary>Immutable copied media consistency and independent extractions.
@@ -28,17 +29,50 @@ public static partial class QemuTranscripts
             ObservedOutSectors = Array.AsReadOnly(block.Io.Where(row => row.Kind == B.Operation.Write).Select(row => row.Sector).Distinct().Order().ToArray());
         }
 
-        public string Phase { get; }
-        public string PackageSha256 { get; }
-        public int OriginalRowCount { get; }
-        public int FirstRecordIndex { get; }
-        public int LastRecordIndex { get; }
-        public WritableBlockValueReport Block { get; }
-        public IReadOnlyList<WritableDiskRow> BlockRows { get; }
-        public IReadOnlyList<WritableDiskRow> UnjoinedRows { get; }
-        public IReadOnlyList<ulong> ObservedOutSectors { get; }
-        public Combined.Inspection Initial { get; }
-        public Combined.Inspection Final { get; }
+        public string Phase
+        {
+            get;
+        }
+        public string PackageSha256
+        {
+            get;
+        }
+        public int OriginalRowCount
+        {
+            get;
+        }
+        public int FirstRecordIndex
+        {
+            get;
+        }
+        public int LastRecordIndex
+        {
+            get;
+        }
+        public WritableBlockValueReport Block
+        {
+            get;
+        }
+        public IReadOnlyList<WritableDiskRow> BlockRows
+        {
+            get;
+        }
+        public IReadOnlyList<WritableDiskRow> UnjoinedRows
+        {
+            get;
+        }
+        public IReadOnlyList<ulong> ObservedOutSectors
+        {
+            get;
+        }
+        public Combined.Inspection Initial
+        {
+            get;
+        }
+        public Combined.Inspection Final
+        {
+            get;
+        }
         public bool SyscallInputQualified => false;
         public bool OriginalCreatorOrProcessQualified => false;
         public bool NativeOrGuestQualified => false;

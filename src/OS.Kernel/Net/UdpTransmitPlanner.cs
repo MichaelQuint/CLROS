@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static class UdpTransmitPlanner
 {
     public const int HeaderBytes = EthernetHeader.HeaderLength + Ipv4Header.MinHeaderLength + UdpHeader.HeaderLength;

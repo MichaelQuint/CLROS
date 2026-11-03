@@ -1,5 +1,11 @@
 # RC3 and WHPX qualification contract
 
+[Step1736](../done/step1736.md) adds the host-only explicit first/ten-warm/
+full-asset/concurrent HTTP observation API and21 NVMe formatting files. The r134
+graph/49 focused checks pass. Actual extended guest/browser measurements and
+every final acceptance gate below remain required; API report completion is
+not original-process, native or browser qualification.
+
 ## Current diagnostic attribution checkpoint
 
 [Step1732](../done/step1732.md) completes the current-image native Timing review

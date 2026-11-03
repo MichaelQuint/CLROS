@@ -22,10 +22,22 @@ internal static partial class X64PageTableEntryTests
             StandardError = standardError;
         }
 
-        public int ExitCode { get; }
-        public bool TimedOut { get; }
-        public string StandardOutput { get; }
-        public string StandardError { get; }
+        public int ExitCode
+        {
+            get;
+        }
+        public bool TimedOut
+        {
+            get;
+        }
+        public string StandardOutput
+        {
+            get;
+        }
+        public string StandardError
+        {
+            get;
+        }
         public string Output => StandardOutput + Environment.NewLine + StandardError;
     }
 }

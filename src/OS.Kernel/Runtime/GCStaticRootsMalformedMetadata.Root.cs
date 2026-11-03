@@ -2,6 +2,7 @@ using OS.Boot;
 using System.Runtime.CompilerServices;
 
 namespace OS.Kernel.Runtime;
+
 public static unsafe partial class GCStaticRootsMalformedMetadata
 {
     private struct Root

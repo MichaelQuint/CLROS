@@ -14,9 +14,24 @@ public readonly struct AcpiOwnedTableDescriptor
         RootPointerIndex = rootPointerIndex;
     }
 
-    public ulong PhysicalAddress { get; }
-    public int Offset { get; }
-    public int Length { get; }
-    public ulong Signature { get; }
-    public int RootPointerIndex { get; }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
+    public int Offset
+    {
+        get;
+    }
+    public int Length
+    {
+        get;
+    }
+    public ulong Signature
+    {
+        get;
+    }
+    public int RootPointerIndex
+    {
+        get;
+    }
 }

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct VirtioPciIsrReadPlanResult
 {
     private VirtioPciIsrReadPlanResult(VirtioPciIsrReadPlanStatus status, VirtioPciBarAperture aperture, VirtioPciIsrReadPlan plan, bool isInitialized)
@@ -9,10 +10,22 @@ public readonly struct VirtioPciIsrReadPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioPciIsrReadPlanStatus Status { get; }
-    public bool IsInitialized { get; }
-    public VirtioPciBarAperture Aperture { get; }
-    public VirtioPciIsrReadPlan Plan { get; }
+    public VirtioPciIsrReadPlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public VirtioPciBarAperture Aperture
+    {
+        get;
+    }
+    public VirtioPciIsrReadPlan Plan
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioPciIsrReadPlanStatus.Success;
 
     public static VirtioPciIsrReadPlanResult Success(VirtioPciIsrReadPlan plan)

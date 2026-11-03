@@ -216,7 +216,13 @@ public static partial class NativeAotSocketPayload
         async Task Run(string name, string executable, string[] arguments, TimeSpan timeout)
         {
             string log = Path.Combine(destination, name);
-            commands.Add(new { executable, arguments, workingDirectory = root, log });
+            commands.Add(new
+            {
+                executable,
+                arguments,
+                workingDirectory = root,
+                log
+            });
             await NativeAotWebPayload.ExecuteAsync(executable, arguments, root, log, timeout);
         }
 
@@ -278,12 +284,12 @@ public static partial class NativeAotSocketPayload
             asyncObserved = ValidateAsyncOutput(await RunSocketAsync(executable, publish, destination, true, commands, output));
             Need(asyncObserved.PendingAccepts > 0 && asyncObserved.PendingReceives > 0 && asyncObserved.PendingSends > 0, "socket_async_waits_not_observed");
             string[] traces = Directory.GetFiles(destination, App + "*-trace.*");
-            Need(traces.Length is> 0 and <= 64, "socket_trace_inventory");
+            Need(traces.Length is > 0 and <= 64, "socket_trace_inventory");
             var calls = new SortedSet<string>(StringComparer.Ordinal);
             var asyncCalls = new SortedSet<string>(StringComparer.Ordinal);
             foreach (string file in traces)
             {
-                Need(new FileInfo(file).Length is> 0 and <= 4 * 1024 * 1024, "socket_trace_size");
+                Need(new FileInfo(file).Length is > 0 and <= 4 * 1024 * 1024, "socket_trace_size");
                 string text = await File.ReadAllTextAsync(file, new UTF8Encoding(false, true));
                 Need(text.TrimEnd('\r', '\n').EndsWith("+++ exited with 0 +++", StringComparison.Ordinal) && !text.Contains("+++ killed by", StringComparison.Ordinal), "socket_trace_exit");
                 foreach (string line in text.Split('\n'))
@@ -313,7 +319,19 @@ public static partial class NativeAotSocketPayload
         }
 
         var outputs = Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path) != "qualification.lock").ToDictionary(path => Path.GetRelativePath(destination, path).Replace('\\', '/'), NativeAotWebPayload.HashFile);
-        await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new { schema = "clros.nativeaot.socket.v2", sdk = NativeAotPayload.SdkVersion, runtime = NativeAotPayload.RuntimeVersion, image = image ?? throw new InvalidDataException("socket_inspection_missing"), observed = observed ?? throw new InvalidDataException("socket_observations_missing"), asyncObserved = asyncObserved ?? throw new InvalidDataException("socket_async_observations_missing"), sources, native, outputs, boundary = "Linux builder loopback only; no CLROS guest or epoll acceptance." }));
+        await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new
+        {
+            schema = "clros.nativeaot.socket.v2",
+            sdk = NativeAotPayload.SdkVersion,
+            runtime = NativeAotPayload.RuntimeVersion,
+            image = image ?? throw new InvalidDataException("socket_inspection_missing"),
+            observed = observed ?? throw new InvalidDataException("socket_observations_missing"),
+            asyncObserved = asyncObserved ?? throw new InvalidDataException("socket_async_observations_missing"),
+            sources,
+            native,
+            outputs,
+            boundary = "Linux builder loopback only; no CLROS guest or epoll acceptance."
+        }));
     }
 
     private static async Task<string> RunSocketAsync(string executable, string publish, string destination, bool asynchronous, List<object> commands, TextWriter output)
@@ -322,8 +340,13 @@ public static partial class NativeAotSocketPayload
         string trace = App + (asynchronous ? "-async" : "") + "-trace";
         string[] arguments = ["-ff", "-s", "256", "-o", Path.Combine(destination, trace), executable];
         if (asynchronous)
-            arguments = [..arguments, "--async"];
-        commands.Add(new { name, executable = "strace", arguments });
+            arguments = [.. arguments, "--async"];
+        commands.Add(new
+        {
+            name,
+            executable = "strace",
+            arguments
+        });
         using var process = NativeAotWebPayload.Start("strace", arguments, publish);
         Task stdout = NativeAotWebPayload.CaptureAsync(process.StandardOutput, Path.Combine(destination, name + ".stdout.log"), process);
         Task stderr = NativeAotWebPayload.CaptureAsync(process.StandardError, Path.Combine(destination, name + ".stderr.log"), process);
@@ -375,7 +398,7 @@ public static partial class NativeAotSocketPayload
                 await socket.ConnectAsync(IPAddress.Loopback, port, token);
                 return socket;
             }
-            catch (SocketException error)when (error.SocketErrorCode == SocketError.ConnectionRefused)
+            catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionRefused)
             {
                 socket.Dispose();
                 await Task.Delay(50, token);

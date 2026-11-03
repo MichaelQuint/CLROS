@@ -4,6 +4,7 @@ using OS.Std.Hash;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private sealed class FatTranscriptDevice(FileStream disk, ulong capacity) : IReadOnlyBlockDevice

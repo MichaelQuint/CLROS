@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public readonly struct OSHostThreadCapabilityResult
 {
     public readonly OSHostStatus Status;

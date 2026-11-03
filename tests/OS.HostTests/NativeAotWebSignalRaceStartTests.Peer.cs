@@ -119,7 +119,7 @@ internal static partial class NativeAotWebSignalRaceStartTests
 
         private async Task<HttpResponseMessage> AfterRealProgress(string body, CancellationToken token)
         {
-            while (ActualChurn!.Inspect()is not { Workers: >= 9, Waiting: 1 } && ActualChurn!.Inspect().Completed == 0)
+            while (ActualChurn!.Inspect() is not { Workers: >= 9, Waiting: 1 } && ActualChurn!.Inspect().Completed == 0)
                 await Task.Delay(1, token);
             return Reply(body);
         }
@@ -133,7 +133,7 @@ internal static partial class NativeAotWebSignalRaceStartTests
                 complete = true;
                 return Reply(result!);
             }
-            catch (OperationCanceledException)when (token.IsCancellationRequested)
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
                 ChurnCanceled = true;
                 throw;

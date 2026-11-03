@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tools.QemuRunner;
+
 public static partial class EvidenceManifestCommand
 {
     public static bool TryRun(string[] args, out int exitCode)

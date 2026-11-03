@@ -2,6 +2,7 @@ using OS.Boot;
 using OS.Kernel.Diagnostics;
 
 namespace OS.Kernel.Memory;
+
 public static class BootPageAllocatorReadinessComposer
 {
     public static BootPageAllocatorReadinessComposeResult ComposeAndRun(ReadOnlySpan<BootMemoryRegionRecord> sourceRegions, ulong pageSize, Span<BootMemoryUsableRange> usableRanges, Span<BootMemoryReservedRange> reservedRanges, Span<BootPageFreeSegment> freeSegments, Span<BootPageFreeListNode> nodes, ISerialSink serial, BootEventRingBuffer events)

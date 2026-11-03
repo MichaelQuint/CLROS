@@ -6,4 +6,5 @@ using System.Text.RegularExpressions;
 using OS.Tooling.Native;
 
 namespace OS.Tooling;
+
 public sealed record EfiOvmfEvidence(string Status, string Path, long Length, string Sha256);

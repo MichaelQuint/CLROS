@@ -49,7 +49,10 @@ internal static class HostRuntimeExportsTests
                 .Replace("static void A", "void A", StringComparison.Ordinal)
         })
         {
-            try { _ = Read(mutation, true); }
+            try
+            {
+                _ = Read(mutation, true);
+            }
             catch (InvalidOperationException error) when (error.Message.StartsWith("runtime_export_", StringComparison.Ordinal)) { continue; }
             throw new InvalidOperationException("runtime export mutation was accepted");
         }

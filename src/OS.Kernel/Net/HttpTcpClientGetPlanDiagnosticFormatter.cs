@@ -1,6 +1,7 @@
 using OS.Std.Text;
 
 namespace OS.Net;
+
 public static class HttpTcpClientGetPlanDiagnosticFormatter
 {
     public static HttpTcpClientGetPlanDiagnosticFormatResult FormatResult(in HttpTcpClientGetPlanResult result, Span<byte> destination)

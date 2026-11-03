@@ -15,9 +15,21 @@ internal static partial class VirtioNetTransmitDescriptorOwnershipPlanTests
             QueuePlan = queuePlan;
         }
 
-        public VirtioPciBarApertureSet Apertures { get; }
-        public VirtioNetQueueMmioSetupPlanResult QueueSetup { get; }
-        public VirtioNetQueueMmioSetupCommand[] QueueSetupCommands { get; }
-        public VirtioNetQueuePlanResult QueuePlan { get; }
+        public VirtioPciBarApertureSet Apertures
+        {
+            get;
+        }
+        public VirtioNetQueueMmioSetupPlanResult QueueSetup
+        {
+            get;
+        }
+        public VirtioNetQueueMmioSetupCommand[] QueueSetupCommands
+        {
+            get;
+        }
+        public VirtioNetQueuePlanResult QueuePlan
+        {
+            get;
+        }
     }
 }

@@ -1,4 +1,5 @@
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformFileSystemSourceReadResult
 {
     private PlatformFileSystemSourceReadResult(bool succeeded, PlatformFileSystemSourceStatus status, int bytesRead, int requiredBytes, int availableBytes, ulong firmwareStatus)
@@ -11,12 +12,30 @@ public readonly struct PlatformFileSystemSourceReadResult
         FirmwareStatus = firmwareStatus;
     }
 
-    public bool Succeeded { get; }
-    public PlatformFileSystemSourceStatus Status { get; }
-    public int BytesRead { get; }
-    public int RequiredBytes { get; }
-    public int AvailableBytes { get; }
-    public ulong FirmwareStatus { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformFileSystemSourceStatus Status
+    {
+        get;
+    }
+    public int BytesRead
+    {
+        get;
+    }
+    public int RequiredBytes
+    {
+        get;
+    }
+    public int AvailableBytes
+    {
+        get;
+    }
+    public ulong FirmwareStatus
+    {
+        get;
+    }
 
     public static PlatformFileSystemSourceReadResult Read(int bytesRead, int availableBytes)
     {

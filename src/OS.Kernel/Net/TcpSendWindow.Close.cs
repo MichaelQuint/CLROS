@@ -20,10 +20,12 @@ public static unsafe partial class TcpSendWindow
         if (!Outside(owner, (byte*)target, (ulong)sizeof(TcpTimeWaitTable.Owner)) ||
             !Outside(owner, (byte*)target->Entries, target->CapacityValue * (ulong)sizeof(TcpTimeWaitTable.Entry)))
             return TcpTimeWaitTable.Status.InvalidStorage;
-        if (Time(owner, out ulong now) != Status.Success) return TcpTimeWaitTable.Status.InvalidClock;
+        if (Time(owner, out ulong now) != Status.Success)
+            return TcpTimeWaitTable.Status.InvalidClock;
         var retained = TcpTimeWaitTable.Retain(target, entry.Key, owner->Next, owner->Receiver->RemoteNext,
             owner->TimeWaitDeadline, owner->TimeWaitDuration, now, out _);
-        if (retained != TcpTimeWaitTable.Status.Success) return retained;
+        if (retained != TcpTimeWaitTable.Status.Success)
+            return retained;
         return CloseTable(owner, false) == Status.Success ? TcpTimeWaitTable.Status.Success : TcpTimeWaitTable.Status.InvalidState;
     }
 
@@ -39,12 +41,18 @@ public static unsafe partial class TcpSendWindow
     public static Status ConfigureClose(Owner* owner, ulong closeTimeoutNanoseconds,
         ulong timeWaitNanoseconds = 240_000_000_000)
     {
-        var status = Validate(owner, out _); if (status != Status.Success) return status;
-        if (owner->CloseEnabled != 0 || owner->Timed == 0) return Status.InvalidState;
+        var status = Validate(owner, out _);
+        if (status != Status.Success)
+            return status;
+        if (owner->CloseEnabled != 0 || owner->Timed == 0)
+            return Status.InvalidState;
         if (closeTimeoutNanoseconds == 0 || closeTimeoutNanoseconds > ~0UL / 16 ||
-            timeWaitNanoseconds < 240_000_000_000 || timeWaitNanoseconds > ~0UL / 16) return Status.InvalidOptions;
-        owner->CloseLimit = closeTimeoutNanoseconds; owner->TimeWaitDuration = timeWaitNanoseconds;
-        owner->CloseStateValue = TcpConnectionCloseState.Established; owner->CloseEnabled = 1;
+            timeWaitNanoseconds < 240_000_000_000 || timeWaitNanoseconds > ~0UL / 16)
+            return Status.InvalidOptions;
+        owner->CloseLimit = closeTimeoutNanoseconds;
+        owner->TimeWaitDuration = timeWaitNanoseconds;
+        owner->CloseStateValue = TcpConnectionCloseState.Established;
+        owner->CloseEnabled = 1;
         return Status.Success;
     }
 
@@ -55,10 +63,17 @@ public static unsafe partial class TcpSendWindow
     /// further writes. No FIN sequence is consumed until copied TX succeeds.</summary>
     public static Status ShutdownWrite(Owner* owner)
     {
-        var status = Validate(owner, out _); if (status != Status.Success) return status;
-        if (owner->CloseEnabled == 0 || owner->WriteShutdown != 0) return Status.InvalidState;
-        status = Time(owner, out ulong now); if (status != Status.Success) return status;
-        owner->WriteShutdown = 1; StartClose(owner, now); return Status.Success;
+        var status = Validate(owner, out _);
+        if (status != Status.Success)
+            return status;
+        if (owner->CloseEnabled == 0 || owner->WriteShutdown != 0)
+            return Status.InvalidState;
+        status = Time(owner, out ulong now);
+        if (status != Status.Success)
+            return status;
+        owner->WriteShutdown = 1;
+        StartClose(owner, now);
+        return Status.Success;
     }
 
     /// <summary>Dispatch one original Ethernet/IPv4 TCP frame. Validate its
@@ -73,12 +88,19 @@ public static unsafe partial class TcpSendWindow
         out TcpEstablishedStreamIpv4FramePlanResult packet)
     {
         packet = default;
-        var status = Validate(owner, out var entry); if (status != Status.Success) return status;
-        if (owner->CloseEnabled == 0) return Status.InvalidState;
+        var status = Validate(owner, out var entry);
+        if (status != Status.Success)
+            return status;
+        if (owner->CloseEnabled == 0)
+            return Status.InvalidState;
         fixed (byte* bytes = frame)
-            if (!Outside(owner, bytes, (ulong)frame.Length)) return Status.InvalidStorage;
-        if (frame.Length is < 54 or > 1514 || (frame[20] & 0xbf) != 0 || frame[21] != 0) return Status.InvalidPacket;
-        status = Time(owner, out ulong now); if (status != Status.Success) return status;
+            if (!Outside(owner, bytes, (ulong)frame.Length))
+                return Status.InvalidStorage;
+        if (frame.Length is < 54 or > 1514 || (frame[20] & 0xbf) != 0 || frame[21] != 0)
+            return Status.InvalidPacket;
+        status = Time(owner, out ulong now);
+        if (status != Status.Success)
+            return status;
         var receiver = owner->Receiver;
         var stream = TcpEstablishedStream.Create(entry.Key.LocalPort, entry.Key.RemotePort, owner->Next, receiver->RemoteNext, Span<byte>.Empty);
         if (TcpEstablishedStreamIpv4FramePlanner.ValidateFrame(stream, receiver->Info, frame, out packet) != TcpEstablishedStreamIpv4FramePlanStatus.Success)
@@ -90,7 +112,8 @@ public static unsafe partial class TcpSendWindow
                 return Status.InvalidPacket;
             if (tcp.SequenceNumber != receiver->RemoteNext)
             {
-                if (AcceptableSequence(tcp.SequenceNumber, 0, receiver->RemoteNext, receiver->AvailableWindow)) receiver->AckPending = 1;
+                if (AcceptableSequence(tcp.SequenceNumber, 0, receiver->RemoteNext, receiver->AvailableWindow))
+                    receiver->AckPending = 1;
                 return Status.InvalidPacket;
             }
             return AbortCore(owner, true) == Status.Success ? Status.ConnectionReset : Status.TableRejected;
@@ -99,14 +122,17 @@ public static unsafe partial class TcpSendWindow
         {
             if ((tcp.Flags & 0x11) != 0x11 || (tcp.Flags & ~0x19) != 0 ||
                 unchecked(tcp.SequenceNumber + (uint)packet.PayloadBytes + 1) != receiver->RemoteNext ||
-                unchecked(owner->Next - tcp.AcknowledgementNumber) > 1) return Status.InvalidPacket;
+                unchecked(owner->Next - tcp.AcknowledgementNumber) > 1)
+                return Status.InvalidPacket;
             receiver->AckPending = 1;
             var restart = EnterTimeWait(owner, now);
             return restart == Status.Success ? Status.PeerClosed : restart;
         }
         status = AcknowledgeCore(owner, frame, out _, true);
-        if (status is not (Status.Success or Status.DuplicateAck or Status.WindowUpdated or Status.OldAck)) return status;
-        if (owner->CloseStateValue == TcpConnectionCloseState.Closed) return Status.ConnectionClosed;
+        if (status is not (Status.Success or Status.DuplicateAck or Status.WindowUpdated or Status.OldAck))
+            return status;
+        if (owner->CloseStateValue == TcpConnectionCloseState.Closed)
+            return Status.ConnectionClosed;
         bool hadFin = receiver->PeerClosed != 0;
         var received = TcpReceiveWindow.ReceiveCloseFrame(receiver, frame, out packet);
         if (received == TcpReceiveWindow.Status.PeerClosed)
@@ -114,10 +140,16 @@ public static unsafe partial class TcpSendWindow
             if (!hadFin)
             {
                 StartClose(owner, now);
-                if (owner->CloseStateValue == TcpConnectionCloseState.Established) owner->CloseStateValue = TcpConnectionCloseState.CloseWait;
-                else if (owner->CloseStateValue == TcpConnectionCloseState.FinWait1) owner->CloseStateValue = TcpConnectionCloseState.Closing;
+                if (owner->CloseStateValue == TcpConnectionCloseState.Established)
+                    owner->CloseStateValue = TcpConnectionCloseState.CloseWait;
+                else if (owner->CloseStateValue == TcpConnectionCloseState.FinWait1)
+                    owner->CloseStateValue = TcpConnectionCloseState.Closing;
                 else if (owner->CloseStateValue == TcpConnectionCloseState.FinWait2)
-                { status = EnterTimeWait(owner, now); if (status != Status.Success) return status; }
+                {
+                    status = EnterTimeWait(owner, now);
+                    if (status != Status.Success)
+                        return status;
+                }
             }
             return Status.PeerClosed;
         }
@@ -142,35 +174,60 @@ public static unsafe partial class TcpSendWindow
         out TcpEstablishedStreamIpv4FramePlanResult packet)
     {
         packet = default;
-        var status = Validate(owner, out var entry); if (status != Status.Success) return status;
-        if (owner->CloseEnabled == 0) return Status.InvalidState;
-        status = Time(owner, out ulong now); if (status != Status.Success) return status;
+        var status = Validate(owner, out var entry);
+        if (status != Status.Success)
+            return status;
+        if (owner->CloseEnabled == 0)
+            return Status.InvalidState;
+        status = Time(owner, out ulong now);
+        if (status != Status.Success)
+            return status;
         if (owner->CloseStateValue == TcpConnectionCloseState.TimeWait)
         {
-            if (now < owner->TimeWaitDeadline) return Status.NotDue;
+            if (now < owner->TimeWaitDeadline)
+                return Status.NotDue;
             return CloseTable(owner, false);
         }
-        if (owner->FinPending != 0) return PumpRetransmission(owner, output, out packet);
-        if (owner->WriteShutdown == 0) return Status.NothingToSend;
-        if (owner->Count != 0 || owner->Sent != 0) return Status.WaitingForDrain;
-        if (owner->CloseStateValue is not (TcpConnectionCloseState.Established or TcpConnectionCloseState.CloseWait)) return Status.AwaitingAck;
-        if (unchecked((int)(owner->WindowAck + owner->PeerWindow - owner->Next)) <= 0) return Status.WindowClosed;
-        if (output.Length < 54) return Status.OutputTooSmall;
+        if (owner->FinPending != 0)
+            return PumpRetransmission(owner, output, out packet);
+        if (owner->WriteShutdown == 0)
+            return Status.NothingToSend;
+        if (owner->Count != 0 || owner->Sent != 0)
+            return Status.WaitingForDrain;
+        if (owner->CloseStateValue is not (TcpConnectionCloseState.Established or TcpConnectionCloseState.CloseWait))
+            return Status.AwaitingAck;
+        if (unchecked((int)(owner->WindowAck + owner->PeerWindow - owner->Next)) <= 0)
+            return Status.WindowClosed;
+        if (output.Length < 54)
+            return Status.OutputTooSmall;
         fixed (byte* bytes = output)
-            if (!Outside(owner, bytes, (ulong)output.Length)) return Status.InvalidStorage;
+            if (!Outside(owner, bytes, (ulong)output.Length))
+                return Status.InvalidStorage;
         var receiver = owner->Receiver;
         var stream = TcpEstablishedStream.Create(entry.Key.LocalPort, entry.Key.RemotePort, owner->Next, receiver->RemoteNext, Span<byte>.Empty);
         if (TcpEstablishedStreamIpv4FramePlanner.TryWriteControlFrame(ref stream, receiver->Info, receiver->AvailableWindow, 0x11, output, out packet) != TcpEstablishedStreamIpv4FramePlanStatus.Success)
             return Status.InvalidPacket;
         byte sent;
-        fixed (byte* bytes = output) sent = owner->Send(owner->Context, bytes, (uint)packet.BytesWritten);
-        if (sent == 0) return Status.WouldBlock;
-        if (sent != 1) { owner->Phase = 2; return Status.SendFailed; }
-        owner->Next = unchecked(owner->Next + 1); owner->FinPending = 1;
+        fixed (byte* bytes = output)
+            sent = owner->Send(owner->Context, bytes, (uint)packet.BytesWritten);
+        if (sent == 0)
+            return Status.WouldBlock;
+        if (sent != 1)
+        {
+            owner->Phase = 2;
+            return Status.SendFailed;
+        }
+        owner->Next = unchecked(owner->Next + 1);
+        owner->FinPending = 1;
         owner->CloseStateValue = owner->CloseStateValue == TcpConnectionCloseState.CloseWait ? TcpConnectionCloseState.LastAck : TcpConnectionCloseState.FinWait1;
-        Commit(owner, entry); owner->Sampling = 0; owner->RetryCount = 0;
-        status = Time(owner, out now); if (status != Status.Success) return status;
-        owner->RetryAt = Deadline(now, owner->Rto); return Status.Success;
+        Commit(owner, entry);
+        owner->Sampling = 0;
+        owner->RetryCount = 0;
+        status = Time(owner, out now);
+        if (status != Status.Success)
+            return status;
+        owner->RetryAt = Deadline(now, owner->Rto);
+        return Status.Success;
     }
 
     /// <summary>After the serialized socket owner removes the last fd, signal
@@ -185,26 +242,45 @@ public static unsafe partial class TcpSendWindow
         out TcpEstablishedStreamIpv4FramePlanResult packet)
     {
         packet = default;
-        var status = Validate(owner, out var entry); if (status != Status.Success) return status;
+        var status = Validate(owner, out var entry);
+        if (status != Status.Success)
+            return status;
         if (owner->CloseEnabled == 0 || owner->WriteShutdown == 0 || owner->CloseDeadline == 0 ||
-            owner->Receiver->UnreadBytes == 0) return Status.InvalidState;
-        status = Time(owner, out ulong now); if (status != Status.Success) return status;
+            owner->Receiver->UnreadBytes == 0)
+            return Status.InvalidState;
+        status = Time(owner, out ulong now);
+        if (status != Status.Success)
+            return status;
         // Ordinary TIME-WAIT bypasses the close budget; explicit unread abort
         // must still terminate a connection whose reset cannot enter copied TX.
         if (now >= owner->CloseDeadline)
-        { owner->Phase = 2; owner->TimeoutError = 1; return Status.Timeout; }
-        if (output.Length < 54) return Status.OutputTooSmall;
+        {
+            owner->Phase = 2;
+            owner->TimeoutError = 1;
+            return Status.Timeout;
+        }
+        if (output.Length < 54)
+            return Status.OutputTooSmall;
         fixed (byte* bytes = output)
-            if (!Outside(owner, bytes, (ulong)output.Length)) return Status.InvalidStorage;
+            if (!Outside(owner, bytes, (ulong)output.Length))
+                return Status.InvalidStorage;
         var receiver = owner->Receiver;
         var stream = TcpEstablishedStream.Create(entry.Key.LocalPort, entry.Key.RemotePort, owner->Next, receiver->RemoteNext, Span<byte>.Empty);
         if (TcpEstablishedStreamIpv4FramePlanner.TryWriteControlFrame(ref stream, receiver->Info, 0, 0x14, output, out packet) !=
-            TcpEstablishedStreamIpv4FramePlanStatus.Success) return Status.InvalidPacket;
+            TcpEstablishedStreamIpv4FramePlanStatus.Success)
+            return Status.InvalidPacket;
         byte sent;
-        fixed (byte* bytes = output) sent = owner->Send(owner->Context, bytes, (uint)packet.BytesWritten);
-        if (sent == 0) return Status.WouldBlock;
-        if (sent != 1) { owner->Phase = 2; return Status.SendFailed; }
-        status = AbortCore(owner, true); return status == Status.Success ? Status.ConnectionReset : status;
+        fixed (byte* bytes = output)
+            sent = owner->Send(owner->Context, bytes, (uint)packet.BytesWritten);
+        if (sent == 0)
+            return Status.WouldBlock;
+        if (sent != 1)
+        {
+            owner->Phase = 2;
+            return Status.SendFailed;
+        }
+        status = AbortCore(owner, true);
+        return status == Status.Success ? Status.ConnectionReset : status;
     }
 
     /// <summary>Explicitly abandon the exact held connection after a caller
@@ -215,7 +291,9 @@ public static unsafe partial class TcpSendWindow
     /// exactly once. This emits no synthetic RST and proves no NIC/DMA teardown.</summary>
     public static Status AbortConnection(Owner* owner)
     {
-        var status = Validate(owner, out _, allowFault: true); if (status != Status.Success) return status;
+        var status = Validate(owner, out _, allowFault: true);
+        if (status != Status.Success)
+            return status;
         return AbortCore(owner, false);
     }
 
@@ -226,15 +304,19 @@ public static unsafe partial class TcpSendWindow
     /// Invalid/corrupt ownership is rejected without claiming peer retirement.</summary>
     public static Status RetireTimedOut(Owner* owner)
     {
-        var status = Validate(owner, out _, allowFault: true); if (status != Status.Success) return status;
-        if (owner->Phase != 2 || owner->TimeoutError != 1) return Status.InvalidState;
+        var status = Validate(owner, out _, allowFault: true);
+        if (status != Status.Success)
+            return status;
+        if (owner->Phase != 2 || owner->TimeoutError != 1)
+            return Status.InvalidState;
         return AbortCore(owner, true);
     }
 
     private static Status AbortCore(Owner* owner, bool reset)
     {
         var status = CloseTable(owner, reset);
-        if (status == Status.Success) owner->Receiver->PeerClosed = 0;
+        if (status == Status.Success)
+            owner->Receiver->PeerClosed = 0;
         return status;
     }
 
@@ -242,31 +324,50 @@ public static unsafe partial class TcpSendWindow
     {
         var status = TcpConnectionTable.TransitionOwned(owner->Table, owner->Handle,
             TcpConnectionLifecycleState.Established, TcpConnectionLifecycleState.Closed);
-        if (status != TcpConnectionTable.OwnershipStatus.Success) return Status.TableRejected;
+        if (status != TcpConnectionTable.OwnershipStatus.Success)
+            return Status.TableRejected;
         owner->CloseStateValue = reset ? TcpConnectionCloseState.Reset : TcpConnectionCloseState.Closed;
-        if (!reset) owner->TimeoutError = 0;
-        owner->RetryAt = 0; owner->PersistAt = 0; owner->PersistDelay = 0;
-        owner->WriteShutdown = 1; owner->Phase = 2; return Status.Success;
+        if (!reset)
+            owner->TimeoutError = 0;
+        owner->RetryAt = 0;
+        owner->PersistAt = 0;
+        owner->PersistDelay = 0;
+        owner->WriteShutdown = 1;
+        owner->Phase = 2;
+        return Status.Success;
     }
 
     private static void StartClose(Owner* owner, ulong now)
-    { if (owner->CloseDeadline == 0) owner->CloseDeadline = Deadline(now, owner->CloseLimit); }
+    {
+        if (owner->CloseDeadline == 0)
+            owner->CloseDeadline = Deadline(now, owner->CloseLimit);
+    }
 
     private static Status EnterTimeWait(Owner* owner, ulong now)
     {
         // Saturating here could reclaim before the actual 2MSL duration. Fail
         // with the connection retained if this clock domain cannot represent it.
-        if (owner->TimeWaitDuration > ~0UL - now) { owner->Phase = 2; return Status.InvalidClock; }
+        if (owner->TimeWaitDuration > ~0UL - now)
+        {
+            owner->Phase = 2;
+            return Status.InvalidClock;
+        }
         owner->CloseStateValue = TcpConnectionCloseState.TimeWait;
-        owner->PersistAt = 0; owner->PersistDelay = 0;
-        owner->TimeWaitDeadline = now + owner->TimeWaitDuration; owner->RetryAt = 0; return Status.Success;
+        owner->PersistAt = 0;
+        owner->PersistDelay = 0;
+        owner->TimeWaitDeadline = now + owner->TimeWaitDuration;
+        owner->RetryAt = 0;
+        return Status.Success;
     }
 
     private static Status FinAcknowledged(Owner* owner, ulong now)
     {
-        if (owner->CloseStateValue == TcpConnectionCloseState.FinWait1) owner->CloseStateValue = TcpConnectionCloseState.FinWait2;
-        else if (owner->CloseStateValue == TcpConnectionCloseState.Closing) return EnterTimeWait(owner, now);
-        else if (owner->CloseStateValue == TcpConnectionCloseState.LastAck) return CloseTable(owner, false);
+        if (owner->CloseStateValue == TcpConnectionCloseState.FinWait1)
+            owner->CloseStateValue = TcpConnectionCloseState.FinWait2;
+        else if (owner->CloseStateValue == TcpConnectionCloseState.Closing)
+            return EnterTimeWait(owner, now);
+        else if (owner->CloseStateValue == TcpConnectionCloseState.LastAck)
+            return CloseTable(owner, false);
         return Status.Success;
     }
 }

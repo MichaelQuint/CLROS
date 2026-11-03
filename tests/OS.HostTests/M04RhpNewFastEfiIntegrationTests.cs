@@ -17,296 +17,6 @@ using OS.Kernel.Memory;
 using OS.Kernel.Runtime;
 using OS.Runtime;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 internal static partial class M04RhpNewFastEfiIntegrationTests
 {
@@ -351,7 +61,6 @@ internal static partial class M04RhpNewFastEfiIntegrationTests
 
         foreach (string required in Chain)
             Need(p.Descendants("Error").Any(x => x.Attribute("Condition")?.Value == "'$(" + Flag + ")' == 'true' and '$(" + required + ")' != 'true'"), "explicit prerequisite " + required);
-
 
         string entry = HostRhpAllocationChecks.Handoff(catalog).ToFullString();
         int zero = entry.IndexOf("if (!M01StageTwoAdapter.ValidateManagedHeapBeforeBootPlan", StringComparison.Ordinal);
@@ -435,11 +144,11 @@ internal static partial class M04RhpNewFastEfiIntegrationTests
     private static void TestTranscript()
     {
         string root = HostToolProcess.FindRepositoryRoot(), directory = Scratch(root, "transcript");
-        Result dry = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..Chain.Append(Flag).Select(x => "-" + x)]);
+        Result dry = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", .. Chain.Append(Flag).Select(x => "-" + x)]);
         Save(Path.Combine(directory, "dryrun"), dry);
         Need(dry.Code == 0, dry.Output);
         string[] chain = dry.Output.Replace("\r", "").Split('\n').Single(x => x.StartsWith("ORDERED_MARKERS ", StringComparison.Ordinal))[16..].Split(';');
-        List<string> lines = ["TEST_START efi.main", ..chain.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", ..chain.Skip(6)];
+        List<string> lines = ["TEST_START efi.main", .. chain.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", .. chain.Skip(6)];
         const string identity = "allocatorState=0x0000000000100000 nodes=0x0000000000100040 heapState=0x0000000000101000 ledger=0x0000000000102000 parentIndex=4 parentStart=0x0000000000900000 parentEnd=0x0000000000902000 backing=0x0000000000900000 retainedStart=0x0000000000900000 retainedEnd=0x0000000000901000";
         lines[lines.IndexOf("M04_HEAP_PAGE_BOUND")] += " " + identity;
         lines[lines.IndexOf("M04_HEAP_PAGE_RETAINED")] += " checkpoint=beforeBootPlan " + identity;
@@ -503,7 +212,7 @@ internal static partial class M04RhpNewFastEfiIntegrationTests
             cases.Add((good + tail, false));
         cases.Add((good.Replace("\r\n", "\n", StringComparison.Ordinal), false));
         cases.Add((good[..^1], false));
-        foreach ((string from, string to)in new[]
+        foreach ((string from, string to) in new[]
         {
             ("accessBytes=104", "accessBytes=103"),
             ("controlBytes=96", "controlBytes=95"),
@@ -554,12 +263,12 @@ internal static partial class M04RhpNewFastEfiIntegrationTests
         string root = HostToolProcess.FindRepositoryRoot(), directory = Scratch(root, "profiles");
         string before = "EnableM04RhpNewFastBeforeBindFailureProbe", exhaust = "EnableM04RhpNewFastExhaustionFailureProbe";
         string[] all = Chain.Append(Flag).ToArray();
-        string[] conflicts = ["EnableM01OwnedPagingProbe", ..XDocument.Load(Path.Combine(root, "src/OS/OS.csproj")).Descendants().Where(x => x.Name.LocalName.StartsWith("EnableM02", StringComparison.Ordinal)).Select(x => x.Name.LocalName).Distinct(StringComparer.Ordinal), "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM03MemoryMapCaptureProbe", "EnableM03FirmwareEntropySeedProbe", "EnableM04TypeManagerModuleRegistrationProbe"];
+        string[] conflicts = ["EnableM01OwnedPagingProbe", .. XDocument.Load(Path.Combine(root, "src/OS/OS.csproj")).Descendants().Where(x => x.Name.LocalName.StartsWith("EnableM02", StringComparison.Ordinal)).Select(x => x.Name.LocalName).Distinct(StringComparer.Ordinal), "EnableUefiGoneSimulationProbe", "EnableExitBootServicesFreshMapProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM03MemoryMapCaptureProbe", "EnableM03FirmwareEntropySeedProbe", "EnableM04TypeManagerModuleRegistrationProbe"];
         Need(OS.Tooling.ContractAudit.Inspect(root).Count == 0, "complete independent compiler/link/profile identity");
         Need(Chain.Length != 0 && Chain.Distinct(StringComparer.Ordinal).Count() == Chain.Length
             && conflicts.Length != 0 && conflicts.Distinct(StringComparer.Ordinal).Count() == conflicts.Length,
             "nonempty unique prerequisite and conflict vectors");
-        List<string[]> invalid = [..Chain.Select(missing => all.Where(x => x != missing).ToArray()), ..conflicts.Select(x => all.Append(x).ToArray()), [before], [exhaust], [..all, before, exhaust]];
+        List<string[]> invalid = [.. Chain.Select(missing => all.Where(x => x != missing).ToArray()), .. conflicts.Select(x => all.Append(x).ToArray()), [before], [exhaust], [.. all, before, exhaust]];
         int id = 0;
         foreach (string[] flags in invalid)
             foreach (bool runner in new[]
@@ -570,7 +279,7 @@ internal static partial class M04RhpNewFastEfiIntegrationTests
 
             )
             {
-                Result r = Command([..(runner ? new[] { "qemu", "smoke" } : new[] { "efi", "build" }), ..(runner ? new[] { "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi" } : new[] { "-PreflightOnly", "-LogPath", Path.Combine(directory, "preflight-" + id + ".log") }), ..flags.Select(x => "-" + x)]);
+                Result r = Command([.. (runner ? new[] { "qemu", "smoke" } : new[] { "efi", "build" }), .. (runner ? new[] { "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi" } : new[] { "-PreflightOnly", "-LogPath", Path.Combine(directory, "preflight-" + id + ".log") }), .. flags.Select(x => "-" + x)]);
                 Save(Path.Combine(directory, (id++).ToString()), r);
                 Need(r.Code != 0 && (flags.Contains("EnableM04TypeManagerModuleRegistrationProbe", StringComparer.Ordinal) ? r.Output.Contains("m04_type_manager_profile_conflict property=EnableM01LiveAllocatorProbe", StringComparison.Ordinal) : flags.Contains("EnableM03FirmwareEntropySeedProbe", StringComparer.Ordinal) ? r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LoadedImageStackProbe", StringComparison.Ordinal) : flags.Contains("EnableM03MemoryMapCaptureProbe", StringComparer.Ordinal) ? r.Output.Contains("m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe", StringComparison.Ordinal) : r.Output.Contains("m04_rhp_new_fast", StringComparison.Ordinal)), "explicit profile rejection " + string.Join(',', flags) + " " + r.Output);
             }
@@ -584,7 +293,7 @@ internal static partial class M04RhpNewFastEfiIntegrationTests
 
         )
         {
-            Result r = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..flags.Select(x => "-" + x)]);
+            Result r = Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", .. flags.Select(x => "-" + x)]);
             Save(Path.Combine(directory, (id++).ToString()), r);
             Need(r.Code == 0, r.Output);
             Need(r.Output.Contains("TEST_FAIL m04.007.rhp_new_fast", StringComparison.Ordinal), "negative profile does not weaken generic failure inventory");
@@ -607,7 +316,7 @@ internal static partial class M04RhpNewFastEfiIntegrationTests
         )
         {
             string directory = Scratch(root, "artifact-" + lane.Item1), artifact = Path.Combine(root, "artifacts/efi/issue519-tests-" + Guid.NewGuid().ToString("N") + ".EFI");
-            Result r = Command(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), ..lane.Item2.Select(x => "-" + x)]);
+            Result r = Command(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), .. lane.Item2.Select(x => "-" + x)]);
             Save(directory, r);
             Need(r.Code == 0 && r.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), r.Output);
             foreach (string suffix in new[]
@@ -666,7 +375,7 @@ internal static partial class M04RhpNewFastEfiIntegrationTests
         byte[] image = File.ReadAllBytes(Path.Combine(directory, "image.EFI"));
         using var reader = new PEReader(new MemoryStream(image));
         var header = reader.PEHeaders.PEHeader!;
-        Need(header.Magic == PEMagic.PE32Plus && reader.PEHeaders.SectionHeaders.Length is> 0 and <= 8, "bounded actual x64 PE sections");
+        Need(header.Magic == PEMagic.PE32Plus && reader.PEHeaders.SectionHeaders.Length is > 0 and <= 8, "bounded actual x64 PE sections");
         byte[] At(ulong rva, int bytes)
         {
             var sections = reader.PEHeaders.SectionHeaders.Where(s => rva >= (ulong)s.VirtualAddress && rva + (ulong)bytes <= (ulong)s.VirtualAddress + (ulong)s.VirtualSize && rva + (ulong)bytes <= (ulong)s.VirtualAddress + (ulong)s.SizeOfRawData).ToArray();
@@ -682,7 +391,11 @@ internal static partial class M04RhpNewFastEfiIntegrationTests
         Result dis = Process(root, llvm, ["--disassemble", "--reloc", "--x86-asm-syntax=intel", Path.Combine(directory, "OS.obj")]);
         Save(Path.Combine(directory, "disassembly"), dis);
         Need(dis.Code == 0, dis.Output);
-        File.WriteAllText(Path.Combine(directory, "disassembler.json"), System.Text.Json.JsonSerializer.Serialize(new { Path = llvm, Sha256 = Hash(File.ReadAllBytes(llvm)) }));
+        File.WriteAllText(Path.Combine(directory, "disassembler.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Path = llvm,
+            Sha256 = Hash(File.ReadAllBytes(llvm))
+        }));
         const string prefix = "OS_OS_Runtime_RhpNewFastAllocation__";
         string[] types = ["Plain", "Reference", "GenericReference", "GenericValue", "Int32", "Enum", "Value", "ReferenceValue", "GenericStruct", "Nullable"];
         string[] calls = ["NewPlain", "NewReference", "NewGenericReference", "NewGenericValue", "AllocateInt32", "AllocateEnum", "AllocateValue", "AllocateReferenceValue", "AllocateGenericValue", "AllocateNullable"];
@@ -724,10 +437,30 @@ internal static partial class M04RhpNewFastEfiIntegrationTests
                 Need(symbols.ContainsKey(constructor), "linked constructor identity");
             }
 
-            rows.Add(new { Id = i + 1, Getter = getter, GetterRva = rva, Caller = caller, CallerRva = symbols[caller], CallerTokenRelocation = operand[0].Groups[1].Value, MethodTable = mtName, MethodTableRva = mt, RawPrefix = Convert.ToHexString(raw), BaseSize = sizes[i], Flags = flags[i], ScalarOffset = offset, Constructor = constructor });
+            rows.Add(new
+            {
+                Id = i + 1,
+                Getter = getter,
+                GetterRva = rva,
+                Caller = caller,
+                CallerRva = symbols[caller],
+                CallerTokenRelocation = operand[0].Groups[1].Value,
+                MethodTable = mtName,
+                MethodTableRva = mt,
+                RawPrefix = Convert.ToHexString(raw),
+                BaseSize = sizes[i],
+                Flags = flags[i],
+                ScalarOffset = offset,
+                Constructor = constructor
+            });
         }
 
-        File.WriteAllText(Path.Combine(directory, "linked-ten-routes.json"), System.Text.Json.JsonSerializer.Serialize(new { PreferredBase = header.ImageBase, ExportRva = symbols["RhpNewFast"], Rows = rows }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(directory, "linked-ten-routes.json"), System.Text.Json.JsonSerializer.Serialize(new
+        {
+            PreferredBase = header.ImageBase,
+            ExportRva = symbols["RhpNewFast"],
+            Rows = rows
+        }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
     }
 
     private static string Between(string text, string start, string end)

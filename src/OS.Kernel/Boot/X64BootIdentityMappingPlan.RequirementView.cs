@@ -1,4 +1,5 @@
 namespace OS.Kernel.Boot;
+
 public static unsafe partial class X64BootIdentityMappingPlan
 {
     private readonly struct RequirementView
@@ -15,13 +16,37 @@ public static unsafe partial class X64BootIdentityMappingPlan
             IsGuard = isGuard;
         }
 
-        public ulong Start { get; }
-        public ulong EndExclusive { get; }
-        public ulong PageCount { get; }
-        public ulong ByteLength { get; }
-        public ulong PurposeMask { get; }
-        public OS.Kernel.Memory.PageProtection Protection { get; }
-        public OS.Kernel.Memory.PageCachePolicy CachePolicy { get; }
-        public bool IsGuard { get; }
+        public ulong Start
+        {
+            get;
+        }
+        public ulong EndExclusive
+        {
+            get;
+        }
+        public ulong PageCount
+        {
+            get;
+        }
+        public ulong ByteLength
+        {
+            get;
+        }
+        public ulong PurposeMask
+        {
+            get;
+        }
+        public OS.Kernel.Memory.PageProtection Protection
+        {
+            get;
+        }
+        public OS.Kernel.Memory.PageCachePolicy CachePolicy
+        {
+            get;
+        }
+        public bool IsGuard
+        {
+            get;
+        }
     }
 }

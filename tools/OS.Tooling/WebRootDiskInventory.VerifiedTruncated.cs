@@ -8,6 +8,7 @@ using Chain = OS.Storage.FATClusterChainsLoopBadClusterTruncationDetection;
 using Vfat = OS.Storage.MultiClusterDirectoryVFATLongNameSupportSeparate;
 
 namespace OS.Tooling;
+
 public static partial class WebRootDiskInventory
 {
     /// <summary>Copied authority for the fixed truncated-chain control. Creation
@@ -22,7 +23,10 @@ public static partial class WebRootDiskInventory
         public const string Target = Root + "/fixture/fragmented.bin";
         private readonly string root, positivePath, faultPath, positiveJson;
         private readonly WebRootImageFixture.FaultInspection inspected;
-        public Inspection Baseline { get; }
+        public Inspection Baseline
+        {
+            get;
+        }
         public string ActualImageSha256 => inspected.Receipt.FinalSha256;
         public WebRootImageFixture.FaultInspection Fault => inspected;
 

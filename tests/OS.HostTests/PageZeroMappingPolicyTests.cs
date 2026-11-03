@@ -737,7 +737,7 @@ internal static unsafe partial class PageZeroMappingPolicyTests
         Dictionary<ushort, OpCode> result = new();
         foreach (FieldInfo field in typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static))
         {
-            if (field.FieldType == typeof(OpCode) && field.GetValue(null)is OpCode opCode)
+            if (field.FieldType == typeof(OpCode) && field.GetValue(null) is OpCode opCode)
             {
                 result[unchecked((ushort)opCode.Value)] = opCode;
             }
@@ -873,8 +873,6 @@ internal static unsafe partial class PageZeroMappingPolicyTests
 
         return false;
     }
-
-
 
     private static string SanitizeCSharpSource(string source, out bool hasStringLiteral, out bool hasInterpolatedString)
     {

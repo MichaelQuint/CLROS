@@ -62,7 +62,8 @@ internal static class WhpxPrelaunchTests
         HostCheck.Equal("whpx_prelaunch_seal_changed", Seal(Warning, Warning, key: "replacement"));
         for (int offset = 0; offset < Warning.Length; offset++)
         {
-            byte[] changed = Warning; changed[offset] ^= 1;
+            byte[] changed = Warning;
+            changed[offset] ^= 1;
             HostCheck.Equal("whpx_prelaunch_seal_changed", Seal(Warning, changed));
         }
     }
@@ -88,7 +89,8 @@ internal static class WhpxPrelaunchTests
     [HostTest("Windows retained external stderr preserves independent read position and launch failure ownership")]
     private static async Task DirectFileLifecycle()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
         string root = Path.Combine(Path.GetTempPath(), "clros-whpx-file-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         string raw = Path.Combine(root, "stderr.raw");
@@ -98,14 +100,20 @@ internal static class WhpxPrelaunchTests
         {
             var request = new ProcessRequest(host, [typeof(HostTestRunner).Assembly.Location, "--runner-control", "streams"], root)
             {
-                Timeout = TimeSpan.FromSeconds(10), OutputCharacterLimit = 4096,
-                RetainOwnershipUntilJoined = true, StandardErrorHandle = writer
+                Timeout = TimeSpan.FromSeconds(10),
+                OutputCharacterLimit = 4096,
+                RetainOwnershipUntilJoined = true,
+                StandardErrorHandle = writer
             };
             string? previous = null;
             JoinProbe(request) = observation =>
             {
                 string row = $"WHPX_FILE_JOIN value={text} active={observation.ActiveProcesses} total={observation.TotalProcesses} captured={observation.CapturedProcesses} complete={observation.CaptureComplete} root={observation.RootSignaled} members={observation.MembersSignaled} assigned={observation.Assigned} expired={observation.InitialWaitExpired}";
-                if (row != previous) { Console.WriteLine(row); previous = row; }
+                if (row != previous)
+                {
+                    Console.WriteLine(row);
+                    previous = row;
+                }
                 return false; // Observe only; never fabricate or bypass an original join.
             };
             Console.WriteLine("WHPX_FILE_STAGE emit-start=" + text);
@@ -124,17 +132,28 @@ internal static class WhpxPrelaunchTests
         Console.WriteLine("WHPX_FILE_STAGE missing-launch-start");
         var missing = await ProcessRunner.RunAsync(new(Path.Combine(root, "missing.exe"), [], root)
         {
-            Timeout = TimeSpan.FromSeconds(10), RetainOwnershipUntilJoined = true, StandardErrorHandle = writer
+            Timeout = TimeSpan.FromSeconds(10),
+            RetainOwnershipUntilJoined = true,
+            StandardErrorHandle = writer
         });
         HostCheck.True(!missing.Succeeded && missing.TerminationConfirmed && !writer.IsClosed);
         Console.WriteLine("WHPX_FILE_STAGE missing-launch-returned");
         HostCheck.Equal("stderr-okstderr-ok", ReadSharedText(raw));
         bool protectedFile = false;
-        try { using var other = new FileStream(raw, FileMode.Open, FileAccess.Write, FileShare.ReadWrite); }
+        try
+        {
+            using var other = new FileStream(raw, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+        }
         catch (IOException) { protectedFile = true; }
         HostCheck.True(protectedFile, "surviving original writer still denies a second writer");
         bool refused = false;
-        try { await ProcessRunner.RunAsync(new(host, [typeof(HostTestRunner).Assembly.Location, "--runner-control", "streams"], root) { StandardErrorHandle = writer }); }
+        try
+        {
+            await ProcessRunner.RunAsync(new(host, [typeof(HostTestRunner).Assembly.Location, "--runner-control", "streams"], root)
+            {
+                StandardErrorHandle = writer
+            });
+        }
         catch (ArgumentException error) { refused = error.Message == "process_external_stderr_requires_live_handle_and_retained_windows_job"; }
         HostCheck.True(refused, "external handle cannot release ownership on a bounded but unconfirmed join");
     }
@@ -142,7 +161,8 @@ internal static class WhpxPrelaunchTests
     [HostTest("Windows external stderr remains protected and byte exact after inner owner cancellation")]
     private static async Task DirectFileCancellation()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
         string root = Path.Combine(Path.GetTempPath(), "clros-whpx-cancel-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         string raw = Path.Combine(root, "stderr.raw");
@@ -152,18 +172,24 @@ internal static class WhpxPrelaunchTests
             (HostTools.FindExecutable(null, "DOTNET_HOST_PATH", "dotnet") ?? throw new FileNotFoundException("dotnet host missing")),
             [typeof(HostTestRunner).Assembly.Location, "--runner-control", "streams-wait"], root)
         {
-            Timeout = TimeSpan.FromSeconds(10), OutputCharacterLimit = 4096,
-            RetainOwnershipUntilJoined = true, StandardErrorHandle = writer
+            Timeout = TimeSpan.FromSeconds(10),
+            OutputCharacterLimit = 4096,
+            RetainOwnershipUntilJoined = true,
+            StandardErrorHandle = writer
         }, stop.Token);
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        while (!process.IsCompleted && ReadSharedText(raw) != "stderr-ok" && clock.Elapsed < TimeSpan.FromSeconds(5)) await Task.Delay(10);
+        while (!process.IsCompleted && ReadSharedText(raw) != "stderr-ok" && clock.Elapsed < TimeSpan.FromSeconds(5))
+            await Task.Delay(10);
         stop.Cancel();
         ProcessResult joined = await process;
         HostCheck.True(joined.Cancelled && joined.TerminationConfirmed && !joined.TimedOut && joined.StandardErrorExternallyOwned);
         HostCheck.Equal("stderr-ok", ReadSharedText(raw));
         HostCheck.True(!writer.IsClosed);
         bool protectedFile = false;
-        try { File.WriteAllBytes(raw, []); }
+        try
+        {
+            File.WriteAllBytes(raw, []);
+        }
         catch (IOException) { protectedFile = true; }
         HostCheck.True(protectedFile, "original lease must survive the complete cancelled process-tree join");
         HostCheck.Equal("whpx_prelaunch_seal_changed", Seal([], Encoding.ASCII.GetBytes(ReadSharedText(raw))));
@@ -172,7 +198,8 @@ internal static class WhpxPrelaunchTests
     [HostTest("WHPX joined-file controls bind original phase anchors and refuse late bytes and incomplete ownership")]
     private static void JoinedFileControls()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
         string root = Path.Combine(Path.GetTempPath(), "clros-whpx-joined-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         var validate = typeof(QemuTranscripts).GetMethod("AssertWhpxJoinedFile", BindingFlags.Static | BindingFlags.NonPublic)!;
@@ -183,18 +210,28 @@ internal static class WhpxPrelaunchTests
         {
             string serial = Path.Combine(root, (++index).ToString() + ".serial.log"), directory = serial + ".whpx-prelaunch";
             Directory.CreateDirectory(directory);
-            byte[] warning = Warning, raw = mutation == "late" ? [..warning, ..warning] : mutation == "empty" ? [] : warning;
+            byte[] warning = Warning, raw = mutation == "late" ? [.. warning, .. warning] : mutation == "empty" ? [] : warning;
             string rawPath = Path.Combine(directory, "stderr.raw");
             File.WriteAllBytes(rawPath, raw);
             using var writer = File.OpenHandle(rawPath, FileMode.Open, FileAccess.Write, FileShare.Read);
             string key = OS.Tooling.Native.NativeFile.GetIdentity(writer).Key;
             byte[] owner = Json(new
             {
-                Schema = "clros.whpx.outer-file-owner.v2", Mode = "surviving-original-owner", RawIdentity = key,
-                Qemu = Executable, Serial = serial, Raw = rawPath, QemuSha256 = Hash, Machine
+                Schema = "clros.whpx.outer-file-owner.v2",
+                Mode = "surviving-original-owner",
+                RawIdentity = key,
+                Qemu = Executable,
+                Serial = serial,
+                Raw = rawPath,
+                QemuSha256 = Hash,
+                Machine
             });
             string ownerHash = Digest(owner), start = "2026-11-01T00:00:00.0000000Z";
-            var status = new { status = "prelaunch", running = false };
+            var status = new
+            {
+                status = "prelaunch",
+                running = false
+            };
             var cpus = new[] { new Dictionary<string, object> { ["cpu-index"] = 0 } };
             string registers = "EIP=0000fff0 CS =f000 ffff0000 CR0=60000010";
             object[] values = [new { }, status, cpus, registers, status, new { }];
@@ -204,7 +241,9 @@ internal static class WhpxPrelaunchTests
             {
                 qmp.Append("REQUEST ").Append(System.Text.Json.JsonSerializer.Serialize(new
                 {
-                    execute = commands[i], arguments = i == 3 ? new Dictionary<string, string> { ["command-line"] = "info registers" } : new(), id = i + 1
+                    execute = commands[i],
+                    arguments = i == 3 ? new Dictionary<string, string> { ["command-line"] = "info registers" } : new(),
+                    id = i + 1
                 })).Append('\n');
                 qmp.Append(System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object> { ["return"] = values[i], ["id"] = i + 1 })).Append('\n');
             }
@@ -212,69 +251,117 @@ internal static class WhpxPrelaunchTests
             byte[] prefix = mutation == "empty" ? [] : warning;
             byte[] seal = Json(new
             {
-                Schema = "clros.whpx.prelaunch-seal.v2", Transport = "inherited-standard-error-file", OwnerSha256 = ownerHash,
-                QemuSha256 = Hash, Executable, RawIdentity = key, ContCommandsBeforeSeal = 0, ProcessId = 123, StartUtc = start,
-                PrefixBytes = prefix.Length, PrefixSha256 = Digest(prefix), Before = status, After = status, Cpus = cpus, Registers = registers,
+                Schema = "clros.whpx.prelaunch-seal.v2",
+                Transport = "inherited-standard-error-file",
+                OwnerSha256 = ownerHash,
+                QemuSha256 = Hash,
+                Executable,
+                RawIdentity = key,
+                ContCommandsBeforeSeal = 0,
+                ProcessId = 123,
+                StartUtc = start,
+                PrefixBytes = prefix.Length,
+                PrefixSha256 = Digest(prefix),
+                Before = status,
+                After = status,
+                Cpus = cpus,
+                Registers = registers,
                 Arguments = new[] { "-machine", Machine, "-cpu", "Nehalem", "-S" }
             });
             byte[] resume = Json(new
             {
-                Schema = "clros.whpx.prelaunch-resume.v2", OwnerSha256 = ownerHash, ContCommands = 1, ContAcknowledged = true,
-                ProcessId = 123, SealSha256 = Digest(seal), PrefixSha256 = Digest(prefix), PrefixBytes = prefix.Length, QmpSha256 = Digest(qmpBytes)
+                Schema = "clros.whpx.prelaunch-resume.v2",
+                OwnerSha256 = ownerHash,
+                ContCommands = 1,
+                ContAcknowledged = true,
+                ProcessId = 123,
+                SealSha256 = Digest(seal),
+                PrefixSha256 = Digest(prefix),
+                PrefixBytes = prefix.Length,
+                QmpSha256 = Digest(qmpBytes)
             });
-            string child = "QEMU_WHPX_CHILD " + Encoding.UTF8.GetString(Json(new { OwnerSha256 = ownerHash, ProcessId = 123, StartUtc = start }));
+            string child = "QEMU_WHPX_CHILD " + Encoding.UTF8.GetString(Json(new
+            {
+                OwnerSha256 = ownerHash,
+                ProcessId = 123,
+                StartUtc = start
+            }));
             string resumed = "QEMU_WHPX_RESUME " + Encoding.UTF8.GetString(Json(new
             {
-                OwnerSha256 = ownerHash, ProcessId = mutation == "wrong-child" ? 124 : 123, StartUtc = start,
-                SealSha256 = Digest(seal), ResumeSha256 = Digest(resume), QmpSha256 = Digest(qmpBytes)
+                OwnerSha256 = ownerHash,
+                ProcessId = mutation == "wrong-child" ? 124 : 123,
+                StartUtc = start,
+                SealSha256 = Digest(seal),
+                ResumeSha256 = Digest(resume),
+                QmpSha256 = Digest(qmpBytes)
             }));
             string stdout = child + "\r\n" + resumed + "\r\n";
-            if (mutation == "missing-anchor") stdout = child + "\r\n";
-            if (mutation == "duplicate-anchor") stdout += resumed + "\r\n";
-            if (mutation == "reordered-anchor") stdout = resumed + "\r\n" + child + "\r\n";
+            if (mutation == "missing-anchor")
+                stdout = child + "\r\n";
+            if (mutation == "duplicate-anchor")
+                stdout += resumed + "\r\n";
+            if (mutation == "reordered-anchor")
+                stdout = resumed + "\r\n" + child + "\r\n";
             if (mutation == "sidecar-rewrite")
             {
                 // Mutually consistent files cannot replace the earlier original stdout anchor.
-                qmpBytes = [..qmpBytes, 10];
+                qmpBytes = [.. qmpBytes, 10];
                 var node = System.Text.Json.Nodes.JsonNode.Parse(resume)!;
-                node["QmpSha256"] = Digest(qmpBytes); resume = Encoding.UTF8.GetBytes(node.ToJsonString());
+                node["QmpSha256"] = Digest(qmpBytes);
+                resume = Encoding.UTF8.GetBytes(node.ToJsonString());
             }
-            if (mutation == "duplicate-json") seal = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(seal).Replace("\"ProcessId\":123", "\"ProcessId\":123,\"ProcessId\":123", StringComparison.Ordinal));
+            if (mutation == "duplicate-json")
+                seal = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(seal).Replace("\"ProcessId\":123", "\"ProcessId\":123,\"ProcessId\":123", StringComparison.Ordinal));
             foreach (var file in new[] { ("ownership.json", owner), ("seal.json", seal), ("resume.json", resume), ("qmp.log", qmpBytes) })
                 File.WriteAllBytes(Path.Combine(directory, file.Item1), file.Item2);
-            if (mutation == "missing-resume") File.Delete(Path.Combine(directory, "resume.json"));
+            if (mutation == "missing-resume")
+                File.Delete(Path.Combine(directory, "resume.json"));
             var original = new ProcessResult(0, stdout, "", mutation == "timeout", false, mutation == "cancelled", TimeSpan.Zero)
             {
-                StandardErrorExternallyOwned = mutation != "pipe", TerminationConfirmed = mutation != "unjoined"
+                StandardErrorExternallyOwned = mutation != "pipe",
+                TerminationConfirmed = mutation != "unjoined"
             };
             bool accepted = false;
-            try { validate.Invoke(null, [root, serial, Executable, key, ownerHash, original, mutation == "quota" ? 1 : 65536]); accepted = true; }
+            try
+            {
+                validate.Invoke(null, [root, serial, Executable, key, ownerHash, original, mutation == "quota" ? 1 : 65536]);
+                accepted = true;
+            }
             catch (TargetInvocationException error) when (!expected && error.InnerException is ToolFailure or IOException or System.Text.Json.JsonException) { }
             HostCheck.Equal(expected, accepted, "copied joined-file control " + mutation);
             HostCheck.Equal(expected, File.Exists(Path.Combine(directory, "outer-final.json")), "only accepted copied controls emit a final file");
         }
-        foreach (string mutation in new[] { "exact", "empty", "cancelled" }) Check(mutation, true);
+        foreach (string mutation in new[] { "exact", "empty", "cancelled" })
+            Check(mutation, true);
         foreach (string mutation in new[] { "late", "missing-anchor", "duplicate-anchor", "reordered-anchor", "wrong-child",
-            "sidecar-rewrite", "duplicate-json", "missing-resume", "timeout", "pipe", "unjoined", "quota" }) Check(mutation, false);
+            "sidecar-rewrite", "duplicate-json", "missing-resume", "timeout", "pipe", "unjoined", "quota" })
+            Check(mutation, false);
     }
-
 
     [HostTest("WHPX rejected original retains captured stdout and process facts before phase validation")]
     private static void RejectedOriginalPreserved()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+            return;
         string qemu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "qemu", "qemu-system-x86_64.exe");
-        if (!File.Exists(qemu)) return;
+        if (!File.Exists(qemu))
+            return;
         string root = Path.Combine(Path.GetTempPath(), "clros-whpx-rejected-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         string serial = Path.Combine(root, "serial.log");
         var type = typeof(QemuTranscripts).Assembly.GetType("OS.Tooling.WhpxLaunchSession", true)!;
         using var owner = (IDisposable?)type.GetMethod("Create")!.Invoke(null, [root, serial, qemu, "whpx"]);
-        if (owner is null) return; // This compatibility policy applies to one exact installed binary.
+        if (owner is null)
+            return; // This compatibility policy applies to one exact installed binary.
         var rejected = new ProcessResult(1, "QEMU_WHPX_CHILD incomplete-original\r\n", "", false, false, false, TimeSpan.Zero)
-        { StandardErrorExternallyOwned = true };
+        {
+            StandardErrorExternallyOwned = true
+        };
         bool failed = false;
-        try { type.GetMethod("VerifyJoined")!.Invoke(owner, [rejected, 65536]); }
+        try
+        {
+            type.GetMethod("VerifyJoined")!.Invoke(owner, [rejected, 65536]);
+        }
         catch (TargetInvocationException error) when (error.InnerException is IOException or ToolFailure) { failed = true; }
         HostCheck.True(failed && !File.Exists(serial + ".whpx-prelaunch/outer-final.json"));
         HostCheck.Equal(rejected.StandardOutput, File.ReadAllText(serial + ".whpx-prelaunch/stdout.original.log"));

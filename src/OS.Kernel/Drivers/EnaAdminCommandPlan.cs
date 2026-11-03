@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct EnaAdminCommandPlan
 {
     private EnaAdminCommandPlan(ushort commandId, bool submissionPhase, bool expectedCompletionPhase, EnaAdminFeatureId featureId, uint timeoutTicks)
@@ -19,12 +20,30 @@ public readonly struct EnaAdminCommandPlan
     public const bool PerformsPacketIo = false;
     public const bool ExecutesAdminCommand = false;
     public EnaAdminOpcode Opcode => EnaAdminOpcode.GetFeature;
-    public EnaAdminFeatureId FeatureId { get; }
-    public ushort CommandId { get; }
-    public bool SubmissionPhase { get; }
-    public ushort ExpectedCompletionCommandId { get; }
-    public bool ExpectedCompletionPhase { get; }
-    public uint TimeoutTicks { get; }
+    public EnaAdminFeatureId FeatureId
+    {
+        get;
+    }
+    public ushort CommandId
+    {
+        get;
+    }
+    public bool SubmissionPhase
+    {
+        get;
+    }
+    public ushort ExpectedCompletionCommandId
+    {
+        get;
+    }
+    public bool ExpectedCompletionPhase
+    {
+        get;
+    }
+    public uint TimeoutTicks
+    {
+        get;
+    }
     public int SubmissionDescriptorLength => EnaAdminDescriptors.GetFeatureCommandByteLength;
     public int CompletionDescriptorLength => EnaDeviceAttributesParser.ResponseByteLength;
 

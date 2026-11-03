@@ -35,7 +35,8 @@ internal static partial class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdow
                 1 => PlatformRandomSourceResult.Unavailable(),
                 2 => PlatformRandomSourceResult.FirmwareError(0x8000000000000007UL),
                 3 => default,
-                _ => PlatformRandomSourceResult.Filled(Reported < 0 ? destination.Length : Reported)};
+                _ => PlatformRandomSourceResult.Filled(Reported < 0 ? destination.Length : Reported)
+            };
         }
     }
 }

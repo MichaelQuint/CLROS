@@ -86,7 +86,11 @@ internal static unsafe partial class BoundedExceptionFrameDispatchTests
                 R15 = seed + 15
             };
             for (byte register = 6; register <= 15; register++)
-                context.SetVector(register, new() { Low = seed + register, High = ~seed - register });
+                context.SetVector(register, new()
+                {
+                    Low = seed + register,
+                    High = ~seed - register
+                });
             return new(context, 25, count == 0 ? 0x80U : 0x500U, offset, count);
         }
 

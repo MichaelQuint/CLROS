@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 
 public readonly struct HttpTcpClientGetPlanResult
@@ -30,30 +31,99 @@ public readonly struct HttpTcpClientGetPlanResult
         RemoteNextSequenceNumber = remoteNextSequenceNumber;
     }
 
-    public HttpTcpClientGetPlanStatus Status { get; }
-    public bool IsInitialized { get; }
+    public HttpTcpClientGetPlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == HttpTcpClientGetPlanStatus.Success;
-    public HttpTcpClientGetPlannerState State { get; }
-    public TcpIpv4FramePlanStatus TcpFrameStatus { get; }
-    public TcpActiveConnectStatus TcpStatus { get; }
-    public TcpEstablishedStreamStatus StreamStatus { get; }
-    public HttpClientGetTransactionStatus HttpStatus { get; }
-    public HttpRequestBuilderStatus RequestStatus { get; }
-    public HttpResponseParseStatus ResponseStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public EthernetHeader EthernetHeader { get; }
-    public Ipv4Header Ipv4Header { get; }
-    public TcpHeader TcpHeader { get; }
-    public int BytesWritten { get; }
-    public int TcpSegmentOffset { get; }
-    public int TcpSegmentLength { get; }
-    public int RequestBytesWritten { get; }
-    public int ResponseBytesRead { get; }
-    public ushort HttpStatusCode { get; }
-    public int HttpBodyOffset { get; }
-    public int HttpBodyLength { get; }
-    public uint LocalNextSequenceNumber { get; }
-    public uint RemoteNextSequenceNumber { get; }
+    public HttpTcpClientGetPlannerState State
+    {
+        get;
+    }
+    public TcpIpv4FramePlanStatus TcpFrameStatus
+    {
+        get;
+    }
+    public TcpActiveConnectStatus TcpStatus
+    {
+        get;
+    }
+    public TcpEstablishedStreamStatus StreamStatus
+    {
+        get;
+    }
+    public HttpClientGetTransactionStatus HttpStatus
+    {
+        get;
+    }
+    public HttpRequestBuilderStatus RequestStatus
+    {
+        get;
+    }
+    public HttpResponseParseStatus ResponseStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public EthernetHeader EthernetHeader
+    {
+        get;
+    }
+    public Ipv4Header Ipv4Header
+    {
+        get;
+    }
+    public TcpHeader TcpHeader
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int TcpSegmentOffset
+    {
+        get;
+    }
+    public int TcpSegmentLength
+    {
+        get;
+    }
+    public int RequestBytesWritten
+    {
+        get;
+    }
+    public int ResponseBytesRead
+    {
+        get;
+    }
+    public ushort HttpStatusCode
+    {
+        get;
+    }
+    public int HttpBodyOffset
+    {
+        get;
+    }
+    public int HttpBodyLength
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get;
+    }
 
     public static HttpTcpClientGetPlanResult FromTcpFrame(HttpTcpClientGetPlanStatus status, HttpTcpClientGetPlannerState state, in TcpIpv4FramePlanResult tcpResult)
     {

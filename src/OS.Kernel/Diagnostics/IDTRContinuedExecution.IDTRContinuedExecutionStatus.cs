@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public enum IDTRContinuedExecutionStatus : byte
 {
     Uninitialized = 0,

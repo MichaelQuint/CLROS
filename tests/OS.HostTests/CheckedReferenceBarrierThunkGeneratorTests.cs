@@ -5,252 +5,6 @@ using System.Text;
 using System.Text.Json;
 using OS.X64TextSerializerGenerator;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -308,7 +62,13 @@ internal static class CheckedReferenceBarrierThunkGeneratorTests
         foreach (string argument in arguments)
             start.ArgumentList.Add(argument);
         start.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
-        File.WriteAllText(Path.Combine(folder, label + ".command.json"), JsonSerializer.Serialize(new { Executable = "dotnet", Arguments = arguments, WorkingDirectory = folder, TimeoutMilliseconds = timeout }));
+        File.WriteAllText(Path.Combine(folder, label + ".command.json"), JsonSerializer.Serialize(new
+        {
+            Executable = "dotnet",
+            Arguments = arguments,
+            WorkingDirectory = folder,
+            TimeoutMilliseconds = timeout
+        }));
         using var process = new Process
         {
             StartInfo = start
@@ -326,7 +86,11 @@ internal static class CheckedReferenceBarrierThunkGeneratorTests
         string stdout = output.GetAwaiter().GetResult(), stderr = error.GetAwaiter().GetResult();
         File.WriteAllText(Path.Combine(folder, label + ".stdout.log"), stdout, new UTF8Encoding(false));
         File.WriteAllText(Path.Combine(folder, label + ".stderr.log"), stderr, new UTF8Encoding(false));
-        File.WriteAllText(Path.Combine(folder, label + ".result.json"), JsonSerializer.Serialize(new { NativeExit = process.ExitCode, TimedOut = timedOut }));
+        File.WriteAllText(Path.Combine(folder, label + ".result.json"), JsonSerializer.Serialize(new
+        {
+            NativeExit = process.ExitCode,
+            TimedOut = timedOut
+        }));
         if (timedOut || process.ExitCode != 0 || stderr.Length != 0)
             throw new InvalidOperationException("child failed: " + label + "; retained " + folder);
         return stdout;

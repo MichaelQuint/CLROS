@@ -17,8 +17,14 @@ internal static partial class OwnedSerialDiagnosticsTests
             _backendStatus = backendStatus;
         }
 
-        public PlatformSerialTransportKind Kind { get; }
-        public int WriteCount { get; private set; }
+        public PlatformSerialTransportKind Kind
+        {
+            get;
+        }
+        public int WriteCount
+        {
+            get; private set;
+        }
         public byte[] LastBytes { get; private set; } = Array.Empty<byte>();
 
         public static SerialTransportDouble Success(PlatformSerialTransportKind kind)

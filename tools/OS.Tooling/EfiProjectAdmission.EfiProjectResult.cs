@@ -7,4 +7,5 @@ using static OS.Tooling.EfiEvidence;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
+
 public sealed record EfiProjectResult(bool Succeeded, string Reason, string Detail, int CompileItemCount, int ReviewedSourceCount, int PrerequisiteSourceCount);

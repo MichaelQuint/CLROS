@@ -69,7 +69,8 @@ internal static unsafe class NativeAotHelloGuestTests
         BinaryPrimitives.WriteUInt32LittleEndian(package.AsSpan(16), 64);
         BinaryPrimitives.WriteUInt32LittleEndian(package.AsSpan(20), (uint)manifest.Length);
         BinaryPrimitives.WriteUInt64LittleEndian(package.AsSpan(24), (ulong)elf.Length);
-        manifest.CopyTo(package, 64); elf.CopyTo(package, 64 + manifest.Length);
+        manifest.CopyTo(package, 64);
+        elf.CopyTo(package, 64 + manifest.Length);
         HostCheck.True(LinuxElfPackage.Validate(package).Succeeded, "valid substitution control");
         Reject(() => NativeAotHelloGuest.RequirePackage(package), "hello_package_identity");
         Reject(() => NativeAotHelloGuest.RequirePackage(package[..^1]), "hello_package_identity");
@@ -89,17 +90,26 @@ internal static unsafe class NativeAotHelloGuestTests
         try
         {
             bool rejected = false;
-            try { NativeAotHelloGuest.WritePackage(root, absent, path); }
+            try
+            {
+                NativeAotHelloGuest.WritePackage(root, absent, path);
+            }
             catch (DirectoryNotFoundException) { rejected = true; }
             HostCheck.True(rejected && !File.Exists(path) && Directory.GetFiles(directory).Length == 0);
             File.WriteAllBytes(path, [1, 3, 5, 7]);
             rejected = false;
-            try { NativeAotHelloGuest.WritePackage(root, absent, path); }
+            try
+            {
+                NativeAotHelloGuest.WritePackage(root, absent, path);
+            }
             catch (IOException error) { rejected = error.Message == "hello_output_exists"; }
             HostCheck.True(rejected && File.ReadAllBytes(path).AsSpan().SequenceEqual(new byte[] { 1, 3, 5, 7 }));
             Reject(() => NativeAotHelloGuest.WritePackage(root, absent, Path.Combine(root, "outside.pkg")), "hello_output_outside_artifacts");
             rejected = false;
-            try { NativeAotHelloGuest.WritePackage(root, absent, Path.Combine(directory, "missing-parent", "hello.pkg")); }
+            try
+            {
+                NativeAotHelloGuest.WritePackage(root, absent, Path.Combine(directory, "missing-parent", "hello.pkg"));
+            }
             catch (DirectoryNotFoundException error) { rejected = error.Message == "hello_output_parent_missing"; }
             HostCheck.True(rejected && !Directory.Exists(Path.Combine(directory, "missing-parent")));
             var result = HostToolProcess.RunTool("linux", "hello-package", absent, Path.Combine(directory, "rejected.pkg"));
@@ -112,7 +122,10 @@ internal static unsafe class NativeAotHelloGuestTests
     private static void Reject(Action action, string reason)
     {
         bool rejected = false;
-        try { action(); }
+        try
+        {
+            action();
+        }
         catch (InvalidDataException error) { rejected = error.Message == reason; }
         HostCheck.True(rejected, reason);
     }

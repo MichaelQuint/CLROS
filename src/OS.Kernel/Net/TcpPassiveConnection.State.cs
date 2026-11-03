@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public static unsafe partial class TcpPassiveConnection
 {
     /// <summary>Noncopyable caller-retained metadata, initially all zero.

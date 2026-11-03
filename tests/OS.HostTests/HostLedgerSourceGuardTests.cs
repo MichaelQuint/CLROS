@@ -19,7 +19,10 @@ internal static class HostLedgerSourceGuardTests
         foreach (string statement in new[] { "object boxed = index;", "int[] values = [1];", "int value = Outside.Value;",
             "Foreign value = default; int implicitValue = value;", "System.Action callback = () => {};", "string text = index.ToString();" })
         {
-            try { Check(statement); }
+            try
+            {
+                Check(statement);
+            }
             catch (InvalidOperationException error) when (error.Message.StartsWith("ledger_", StringComparison.Ordinal)) { continue; }
             throw new InvalidOperationException("ledger mutation was accepted: " + statement);
         }

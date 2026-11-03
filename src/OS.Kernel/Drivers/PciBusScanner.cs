@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static partial class PciBusScanner
 {
     public static PciBusScanResult Scan(PciBusScanRange range, PciConfigurationSpaceHeaderReader reader, Span<PciScannedDevice> destination)

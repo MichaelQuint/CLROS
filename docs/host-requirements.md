@@ -1,5 +1,15 @@
 # Host Requirements
 
+[Step1736](../done/step1736.md) passes the r134 graph and49 fresh focused checks
+for explicit C# HTTP benchmark observation and21 NVMe formatting files. The new
+HttpWorkloadBenchmark API observes an already owned endpoint; its caller supplies
+actual immutable disk inventory and retains readiness, source/native/device/input
+guards, the existing outer profile deadline and process cleanup. WarmSequences
+defaults10 and may be shortened explicitly for diagnostics; RequestTimeout may
+shorten the existing180-second header/body ceiling. First and warm distributions
+stay separate. CLROS/Alpine and WHPX/TCG labels do not prove matching execution.
+No VM/browser benchmark or new native admission occurs in this host-only step.
+
 [Step1735](../done/step1735.md) binds r132's complete graph and27 focused checks,
 complete conditional native review, six initial originals and twelve quiet
 interleaved originals. Independent rehashes match all5853 source inputs,31

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public static class PciEcamConfigurationSpace
 {
     public const byte MaximumDevice = 31;

@@ -2,42 +2,8 @@
 namespace System.Runtime.CompilerServices;
 
 // Compiler metadata modifier required by the volatile pointer field below.
-public static class IsVolatile { }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+public static class IsVolatile
+{
+}
 
 #endif

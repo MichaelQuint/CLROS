@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 
 namespace OS.Tooling;
+
 public static partial class QemuTranscripts
 {
     private readonly ref struct SocketTcpPacket(uint remote, uint sequence, uint acknowledgement, byte flags, ReadOnlySpan<byte> payload)

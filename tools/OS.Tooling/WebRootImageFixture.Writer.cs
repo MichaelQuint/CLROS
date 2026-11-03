@@ -4,6 +4,7 @@ using System.Text;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class WebRootImageFixture
 {
     private sealed class Writer(byte[] disk, Reader original)
@@ -68,7 +69,7 @@ public static partial class WebRootImageFixture
             if (required > rootChain.Length)
             {
                 uint[] added = Allocate(required - rootChain.Length);
-                rootChain = [..rootChain, ..added];
+                rootChain = [.. rootChain, .. added];
                 Link(rootChain);
             }
 

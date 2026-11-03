@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 using OS.Std.Binary;
 using OS.Std.Memory;
 
@@ -29,28 +30,91 @@ public readonly struct TcpConnectionCloseIpv4FramePlanResult
         IsInitialized = true;
     }
 
-    public TcpConnectionCloseIpv4FramePlanStatus Status { get; }
-    public bool IsInitialized { get; }
+    public TcpConnectionCloseIpv4FramePlanStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == TcpConnectionCloseIpv4FramePlanStatus.Success;
-    public TcpConnectionCloseState State { get; }
-    public TcpConnectionCloseStatus TcpStatus { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public EthernetHeader EthernetHeader { get; }
-    public Ipv4Header Ipv4Header { get; }
-    public TcpHeader TcpHeader { get; }
-    public int BytesWritten { get; }
-    public int TcpSegmentOffset { get; }
-    public int TcpSegmentLength { get; }
-    public MacAddress LocalMac { get; }
-    public MacAddress RemoteMac { get; }
-    public Ipv4Address LocalAddress { get; }
-    public Ipv4Address RemoteAddress { get; }
-    public ushort LocalPort { get; }
-    public ushort RemotePort { get; }
-    public byte TimeToLive { get; }
-    public ushort Identification { get; }
-    public uint LocalNextSequenceNumber { get; }
-    public uint RemoteNextSequenceNumber { get; }
+    public TcpConnectionCloseState State
+    {
+        get;
+    }
+    public TcpConnectionCloseStatus TcpStatus
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public EthernetHeader EthernetHeader
+    {
+        get;
+    }
+    public Ipv4Header Ipv4Header
+    {
+        get;
+    }
+    public TcpHeader TcpHeader
+    {
+        get;
+    }
+    public int BytesWritten
+    {
+        get;
+    }
+    public int TcpSegmentOffset
+    {
+        get;
+    }
+    public int TcpSegmentLength
+    {
+        get;
+    }
+    public MacAddress LocalMac
+    {
+        get;
+    }
+    public MacAddress RemoteMac
+    {
+        get;
+    }
+    public Ipv4Address LocalAddress
+    {
+        get;
+    }
+    public Ipv4Address RemoteAddress
+    {
+        get;
+    }
+    public ushort LocalPort
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
+    public byte TimeToLive
+    {
+        get;
+    }
+    public ushort Identification
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get;
+    }
 
     public static TcpConnectionCloseIpv4FramePlanResult Success(TcpConnectionCloseState state, TcpConnectionCloseStatus tcpStatus, PacketParseStatus packetStatus, EthernetHeader ethernetHeader, Ipv4Header ipv4Header, TcpHeader tcpHeader, int bytesWritten, int tcpSegmentOffset, int tcpSegmentLength, in TcpConnectionCloseIpv4FramePlannerInfo info, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
     {

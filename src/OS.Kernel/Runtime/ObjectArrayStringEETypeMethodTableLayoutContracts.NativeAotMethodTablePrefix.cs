@@ -15,10 +15,28 @@ public readonly struct NativeAotMethodTablePrefix
         TypeHash = typeHash;
     }
 
-    public uint Flags { get; }
-    public uint BaseSize { get; }
-    public ulong RelatedTypeToken { get; }
-    public ushort VTableSlotCount { get; }
-    public ushort InterfaceCount { get; }
-    public uint TypeHash { get; }
+    public uint Flags
+    {
+        get;
+    }
+    public uint BaseSize
+    {
+        get;
+    }
+    public ulong RelatedTypeToken
+    {
+        get;
+    }
+    public ushort VTableSlotCount
+    {
+        get;
+    }
+    public ushort InterfaceCount
+    {
+        get;
+    }
+    public uint TypeHash
+    {
+        get;
+    }
 }

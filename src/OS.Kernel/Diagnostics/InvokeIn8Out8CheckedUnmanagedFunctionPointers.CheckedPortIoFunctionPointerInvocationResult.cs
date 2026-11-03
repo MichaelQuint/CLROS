@@ -17,12 +17,30 @@ public readonly struct CheckedPortIoFunctionPointerInvocationResult
         WasInvoked = wasInvoked;
     }
 
-    public bool IsInitialized { get; }
-    public CheckedPortIoFunctionPointerInvocationStatus Status { get; }
-    public PortIoOperationKind OperationKind { get; }
-    public ushort Port { get; }
-    public byte Value { get; }
-    public bool WasInvoked { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public CheckedPortIoFunctionPointerInvocationStatus Status
+    {
+        get;
+    }
+    public PortIoOperationKind OperationKind
+    {
+        get;
+    }
+    public ushort Port
+    {
+        get;
+    }
+    public byte Value
+    {
+        get;
+    }
+    public bool WasInvoked
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == CheckedPortIoFunctionPointerInvocationStatus.Success && WasInvoked && (OperationKind == PortIoOperationKind.Out8 || OperationKind == PortIoOperationKind.In8);
 
     internal static CheckedPortIoFunctionPointerInvocationResult Pass(PortIoOperationKind operationKind, ushort port, byte value)

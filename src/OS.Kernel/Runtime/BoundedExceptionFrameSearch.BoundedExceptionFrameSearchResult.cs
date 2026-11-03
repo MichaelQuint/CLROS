@@ -1,6 +1,7 @@
 using System;
 
 namespace OS.Kernel.Runtime;
+
 public readonly struct BoundedExceptionFrameSearchResult
 {
     internal BoundedExceptionFrameSearchResult(BoundedExceptionFrameSearchStatus status, BoundedExceptionDispatchStatus dispatchStatus = default)
@@ -21,12 +22,33 @@ public readonly struct BoundedExceptionFrameSearchResult
         CleanupCount = cleanupCount;
     }
 
-    public BoundedExceptionFrameSearchStatus Status { get; }
-    public BoundedExceptionDispatchStatus DispatchStatus { get; }
+    public BoundedExceptionFrameSearchStatus Status
+    {
+        get;
+    }
+    public BoundedExceptionDispatchStatus DispatchStatus
+    {
+        get;
+    }
     public bool Succeeded => Status == BoundedExceptionFrameSearchStatus.Success;
-    public uint CatchFrameIndex { get; }
-    public uint CatchClauseIndex { get; }
-    public ulong CatchHandler { get; }
-    public X64UnwindContext CatchContext { get; }
-    public uint CleanupCount { get; }
+    public uint CatchFrameIndex
+    {
+        get;
+    }
+    public uint CatchClauseIndex
+    {
+        get;
+    }
+    public ulong CatchHandler
+    {
+        get;
+    }
+    public X64UnwindContext CatchContext
+    {
+        get;
+    }
+    public uint CleanupCount
+    {
+        get;
+    }
 }

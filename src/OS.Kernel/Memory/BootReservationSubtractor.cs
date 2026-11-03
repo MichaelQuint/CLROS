@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public static unsafe class BootReservationSubtractor
 {
     public const ulong RequiredPageSize = 4096;

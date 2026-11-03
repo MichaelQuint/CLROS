@@ -1,6 +1,7 @@
 using OS.Boot;
 
 namespace OS.Kernel.Platform;
+
 public readonly struct PlatformConfigurationTableScanResult
 {
     private PlatformConfigurationTableScanResult(bool succeeded, PlatformConfigurationTableScanStatus status, FirmwareServicesMode mode, PlatformConfigurationTableMetadata metadata, bool acpiScanAttempted, EfiConfigurationTableScanStatus acpiScanStatus, EfiAcpiTableKind tableKind, ulong rsdpAddress)
@@ -15,15 +16,39 @@ public readonly struct PlatformConfigurationTableScanResult
         RsdpAddress = rsdpAddress;
     }
 
-    public bool Succeeded { get; }
-    public PlatformConfigurationTableScanStatus Status { get; }
-    public FirmwareServicesMode Mode { get; }
+    public bool Succeeded
+    {
+        get;
+    }
+    public PlatformConfigurationTableScanStatus Status
+    {
+        get;
+    }
+    public FirmwareServicesMode Mode
+    {
+        get;
+    }
     public string Operation => PlatformConfigurationTableOperations.ScanAcpiRsdp;
-    public PlatformConfigurationTableMetadata Metadata { get; }
-    public bool AcpiScanAttempted { get; }
-    public EfiConfigurationTableScanStatus AcpiScanStatus { get; }
-    public EfiAcpiTableKind TableKind { get; }
-    public ulong RsdpAddress { get; }
+    public PlatformConfigurationTableMetadata Metadata
+    {
+        get;
+    }
+    public bool AcpiScanAttempted
+    {
+        get;
+    }
+    public EfiConfigurationTableScanStatus AcpiScanStatus
+    {
+        get;
+    }
+    public EfiAcpiTableKind TableKind
+    {
+        get;
+    }
+    public ulong RsdpAddress
+    {
+        get;
+    }
 
     public static unsafe PlatformConfigurationTableScanResult ScanAcpiRsdp(FirmwareCallResult guardResult, PlatformConfigurationTableMetadata metadata)
     {

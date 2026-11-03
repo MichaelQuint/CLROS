@@ -3,6 +3,7 @@ using OS.Std.Binary;
 using OS.Std.Text;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
+
 public static unsafe partial class LinuxElfStartup
 {
     private struct Layout

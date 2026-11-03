@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public readonly struct M02Com1OwnedPortIoBackendIntegrationResult
 {
     private readonly byte _isInitialized;
@@ -17,9 +18,18 @@ public readonly struct M02Com1OwnedPortIoBackendIntegrationResult
     }
 
     public bool IsInitialized => _isInitialized == 1 && _markerTransportUsesUefiSerial == 1;
-    public M02Com1OwnedPortIoBackendIntegrationStatus Status { get; }
-    public OS.Kernel.Diagnostics.CheckedPortIoFunctionPointerBindingStatus BindingStatus { get; }
-    public OS.Kernel.Diagnostics.Com1OwnedPortIoConfigurationResult Configuration { get; }
+    public M02Com1OwnedPortIoBackendIntegrationStatus Status
+    {
+        get;
+    }
+    public OS.Kernel.Diagnostics.CheckedPortIoFunctionPointerBindingStatus BindingStatus
+    {
+        get;
+    }
+    public OS.Kernel.Diagnostics.Com1OwnedPortIoConfigurationResult Configuration
+    {
+        get;
+    }
     public int ConfigurationWrites => Configuration.WritesCompleted;
     public bool GuestPortIo => _guestPortIo != 0;
     public bool GuestIn8 => _guestIn8 != 0;

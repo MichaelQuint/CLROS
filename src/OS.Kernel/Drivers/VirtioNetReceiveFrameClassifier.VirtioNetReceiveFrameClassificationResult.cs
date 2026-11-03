@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 using OS.Net;
 
 public readonly struct VirtioNetReceiveFrameClassificationResult
@@ -15,14 +16,38 @@ public readonly struct VirtioNetReceiveFrameClassificationResult
         PayloadLength = payloadLength;
     }
 
-    public VirtioNetReceiveFrameClassifierStatus Status { get; }
-    public bool IsInitialized { get; }
-    public PacketParseStatus PacketStatus { get; }
-    public VirtioNetReceivedFrameMetadata VirtioMetadata { get; }
-    public EthernetHeader EthernetHeader { get; }
-    public EthernetPayloadKind PayloadKind { get; }
-    public int PayloadOffset { get; }
-    public int PayloadLength { get; }
+    public VirtioNetReceiveFrameClassifierStatus Status
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public PacketParseStatus PacketStatus
+    {
+        get;
+    }
+    public VirtioNetReceivedFrameMetadata VirtioMetadata
+    {
+        get;
+    }
+    public EthernetHeader EthernetHeader
+    {
+        get;
+    }
+    public EthernetPayloadKind PayloadKind
+    {
+        get;
+    }
+    public int PayloadOffset
+    {
+        get;
+    }
+    public int PayloadLength
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == VirtioNetReceiveFrameClassifierStatus.Success;
 
     public static VirtioNetReceiveFrameClassificationResult Create(VirtioNetReceiveFrameClassifierStatus status, PacketParseStatus packetStatus, VirtioNetReceivedFrameMetadata virtioMetadata, EthernetHeader ethernetHeader, EthernetPayloadKind payloadKind, int payloadOffset, int payloadLength)

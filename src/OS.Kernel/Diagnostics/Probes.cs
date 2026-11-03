@@ -1,4 +1,5 @@
 namespace OS.Kernel.Diagnostics;
+
 public static partial class Probes
 {
 #if M16_027_TIMING_PROBE

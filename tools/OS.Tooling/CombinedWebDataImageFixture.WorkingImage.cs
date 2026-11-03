@@ -9,6 +9,7 @@ using DataImage = OS.Tooling.WritableDataImageFixture;
 using Gpt = OS.Storage.PrimaryGPTIndependentlyBoundsCRC;
 
 namespace OS.Tooling;
+
 public static partial class CombinedWebDataImageFixture
 {
     /// <summary>A mutable working image with separately held immutable image,
@@ -43,13 +44,34 @@ public static partial class CombinedWebDataImageFixture
             working.Position = 0;
         }
 
-        public string Path { get; }
-        public string OriginalImagePath { get; }
-        public string OriginalReceiptPath { get; }
-        public string EfiPath { get; }
-        public string PackagePath { get; }
-        public string IdentityKey { get; }
-        public string InitialSha256 { get; }
+        public string Path
+        {
+            get;
+        }
+        public string OriginalImagePath
+        {
+            get;
+        }
+        public string OriginalReceiptPath
+        {
+            get;
+        }
+        public string EfiPath
+        {
+            get;
+        }
+        public string PackagePath
+        {
+            get;
+        }
+        public string IdentityKey
+        {
+            get;
+        }
+        public string InitialSha256
+        {
+            get;
+        }
         public long Length => ImageBytes;
 
         /// <summary>Recheck every immutable input and the working pathname,
@@ -71,7 +93,7 @@ public static partial class CombinedWebDataImageFixture
                 var named = NativeFile.GetIdentity(probe.SafeFileHandle);
                 Need(retained.Key == IdentityKey && named.Key == IdentityKey && retained.LinkCount == 1 && named.LinkCount == 1 && retained.Length == ImageBytes && named.Length == ImageBytes, "working_identity");
             }
-            catch (Exception error)when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
             {
                 throw new ToolFailure("combined_image_working_identity", "type=" + error.GetType().Name);
             }

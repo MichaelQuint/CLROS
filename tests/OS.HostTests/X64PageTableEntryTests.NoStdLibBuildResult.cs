@@ -22,10 +22,22 @@ internal static partial class X64PageTableEntryTests
             Assembly = assembly;
         }
 
-        public int ExitCode { get; }
-        public bool TimedOut { get; }
-        public string Output { get; }
-        public byte[] Assembly { get; }
+        public int ExitCode
+        {
+            get;
+        }
+        public bool TimedOut
+        {
+            get;
+        }
+        public string Output
+        {
+            get;
+        }
+        public byte[] Assembly
+        {
+            get;
+        }
         public byte[] AssemblyBytes => Assembly;
     }
 }

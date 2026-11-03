@@ -1,6 +1,7 @@
 using OS.Std;
 
 namespace OS.Std.Text;
+
 public readonly struct AsciiUInt32ParseResult
 {
     private AsciiUInt32ParseResult(bool isInitialized, AsciiDecimalParseStatus status, uint value, int bytesConsumed, int invalidInputIndex)
@@ -12,11 +13,26 @@ public readonly struct AsciiUInt32ParseResult
         InvalidInputIndex = invalidInputIndex;
     }
 
-    public bool IsInitialized { get; }
-    public AsciiDecimalParseStatus Status { get; }
-    public uint Value { get; }
-    public int BytesConsumed { get; }
-    public int InvalidInputIndex { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
+    public AsciiDecimalParseStatus Status
+    {
+        get;
+    }
+    public uint Value
+    {
+        get;
+    }
+    public int BytesConsumed
+    {
+        get;
+    }
+    public int InvalidInputIndex
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == AsciiDecimalParseStatus.Success && BytesConsumed > 0 && InvalidInputIndex < 0;
 
     public static AsciiUInt32ParseResult Success(uint value, int bytesConsumed)

@@ -33,25 +33,30 @@ public static partial class QemuTranscripts
         byte[] raw = File.ReadAllBytes(Path.GetFullPath(options.SerialLog, root));
         string serial = DecodeUtf8(raw);
         int invalid = ownedSubsystem || unhandled ? raw.Count(b => b is not (9 or 10 or 13) && (b < 32 || b > 126)) : 0;
-        int invalidLines=unhandled ? serial.Split("\r\n",StringSplitOptions.None).Count(l=>Controls.IsMatch(l)) : ownedSubsystem ? 1 : 0;
+        int invalidLines = unhandled ? serial.Split("\r\n", StringSplitOptions.None).Count(l => Controls.IsMatch(l)) : ownedSubsystem ? 1 : 0;
         Need(lines[11] == $"SERIAL_MARKER_STREAM status=ExpectedPanic terminal=ExpectedPanic bytes={raw.Length} lines={(unhandled ? UnhandledRecordCount : ownedSubsystem ? 79 : QemuContracts.M02UnexpectedCaptureRecordCount)} invalidBytes={invalid} invalidLines={invalidLines} orderedSeen={plan.Ordered.Count} outOfOrder=0 uniqueSeen={plan.Unique.Count} duplicateUnique=0", "qemu_panic_stream_accounting");
         byte[] summaryBytes = File.ReadAllBytes(Path.GetFullPath(options.SummaryLog, root));
         string summary = DecodeUtf8(summaryBytes);
         Need(summaryBytes.Length <= 1048576 && !Regex.IsMatch(summary, @"[^\x20-\x7e\r\n]|(?<!\r)\n|\r(?!\n)"), "qemu_panic_summary_delimiter");
         List<string> wanted = ["QEMU_SMOKE_STATUS expected-panic"];
-        foreach (int i in new[] { 1, 2, 4, 5, 6, 7, 8, 9 }) wanted.Add(expected[i]);
+        foreach (int i in new[] { 1, 2, 4, 5, 6, 7, 8, 9 })
+            wanted.Add(expected[i]);
         string[] allMarkers = [.. required, .. plan.Ordered, .. plan.Unique, .. forbidden];
         string[] serialLines = serial.Split("\r\n", StringSplitOptions.None);
         foreach (string line in serialLines)
         {
             bool observed = Regex.IsMatch(line, @"\A(?:TEST_|BOOT_|OS_|UEFI_|ACPI_)") || line == "APP_EXIT" || line.StartsWith("APP_EXIT ", StringComparison.Ordinal) ||
                 allMarkers.Any(marker => line == marker || line.StartsWith(marker + " ", StringComparison.Ordinal));
-            if (observed) wanted.Add("OBSERVED_MARKER " + line);
+            if (observed)
+                wanted.Add("OBSERVED_MARKER " + line);
         }
         wanted.AddRange(["APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON " + reason,
             "EXPECTED_PANIC_DRAIN milliseconds=750 observedMilliseconds=" + quiet, lines[13], "EXPECTED_PANIC_CAPTURE bytes=" + raw.Length + " sha256=" + Convert.ToHexString(SHA256.HashData(raw)), "SERIAL_TAIL_LIMIT lines=8 chars=240"]);
         foreach (string line in serialLines.Where(l => l.Length > 0).TakeLast(8))
-        { string value = line.Trim(); wanted.Add("SERIAL_TAIL_LINE " + (value.Length > 240 ? value[..237] + "..." : value)); }
+        {
+            string value = line.Trim();
+            wanted.Add("SERIAL_TAIL_LINE " + (value.Length > 240 ? value[..237] + "..." : value));
+        }
         Need(summary == string.Join("\r\n", wanted) + "\r\n", "qemu_panic_summary_exact");
     }
 }

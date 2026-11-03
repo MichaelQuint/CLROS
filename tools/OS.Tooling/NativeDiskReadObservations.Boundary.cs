@@ -1,6 +1,7 @@
 using System.Globalization;
 
 namespace OS.Tooling;
+
 public static partial class NativeDiskReadObservations
 {
     /// <summary>Separately authenticated owner/counter boundaries. Bootstrap is

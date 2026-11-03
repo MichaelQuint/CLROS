@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotWebPayload
 {
     // The existing qualifier owns the launched app, endpoint, client, deadline,
@@ -18,7 +19,7 @@ public static partial class NativeAotWebPayload
             using var stream = await response.Content.ReadAsStreamAsync(cancellation);
             using MemoryStream bytes = new();
             byte[] chunk = new byte[1024];
-            for (;;)
+            for (; ; )
             {
                 int length = await stream.ReadAsync(chunk, cancellation);
                 if (length == 0)
@@ -92,7 +93,7 @@ public static partial class NativeAotWebPayload
                 samples.Add(new("bad", -1, reason, (int)response.StatusCode, body));
             }
 
-            foreach (var(reason, target)in new[]
+            foreach (var (reason, target) in new[]
             {
                 ("empty_query", "/__clros/churn?"),
                 ("empty_separator_query", "/__clros/churn?&&")
@@ -108,7 +109,7 @@ public static partial class NativeAotWebPayload
                 await stream.WriteAsync(request, cancellation);
                 using MemoryStream bytes = new();
                 byte[] chunk = new byte[1024];
-                for (;;)
+                for (; ; )
                 {
                     int length = await stream.ReadAsync(chunk, cancellation);
                     if (length == 0)
@@ -139,7 +140,7 @@ public static partial class NativeAotWebPayload
                     {
                         using var unexpected = await pending;
                     }
-                    catch (OperationCanceledException)when (cancel.IsCancellationRequested)
+                    catch (OperationCanceledException) when (cancel.IsCancellationRequested)
                     {
                         observed = true;
                     }
@@ -154,7 +155,7 @@ public static partial class NativeAotWebPayload
                     {
                         using var joined = await pending;
                     }
-                    catch (OperationCanceledException)when (cancel.IsCancellationRequested)
+                    catch (OperationCanceledException) when (cancel.IsCancellationRequested)
                     {
                     }
                 }
@@ -178,7 +179,7 @@ public static partial class NativeAotWebPayload
                     {
                         using var joined = await running;
                     }
-                    catch (OperationCanceledException)when (finish.IsCancellationRequested)
+                    catch (OperationCanceledException) when (finish.IsCancellationRequested)
                     {
                     }
                 }
@@ -188,7 +189,12 @@ public static partial class NativeAotWebPayload
             }
 
             await Status("final", -1, false);
-            string json = JsonSerializer.Serialize(new { schema = "clros.web.churn.v1", endpoint, samples });
+            string json = JsonSerializer.Serialize(new
+            {
+                schema = "clros.web.churn.v1",
+                endpoint,
+                samples
+            });
             ValidateChurnEvidence(json, endpoint, expectedBody);
             return json;
         }
@@ -196,7 +202,12 @@ public static partial class NativeAotWebPayload
         {
             // A partial or rejected report remains rejected. Preserve it even
             // when an HTTP/deadline/grammar failure prevents a sealed receipt.
-            byte[] json = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { schema = "clros.web.churn.v1", endpoint, samples }));
+            byte[] json = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+            {
+                schema = "clros.web.churn.v1",
+                endpoint,
+                samples
+            }));
             await output.WriteAsync(json);
             await output.FlushAsync();
         }
@@ -205,7 +216,7 @@ public static partial class NativeAotWebPayload
     private static void ValidateRecordedChurn(string destination, string suffix)
     {
         string path = Path.Combine(destination, "web-churn" + suffix + ".json");
-        Require(new FileInfo(path).Length is> 0 and <= 65536, "churn_recorded_size");
+        Require(new FileInfo(path).Length is > 0 and <= 65536, "churn_recorded_size");
         using JsonDocument http = JsonDocument.Parse(File.ReadAllText(Path.Combine(destination, "web-http" + suffix + ".json")));
         ValidateChurnEvidence(File.ReadAllText(path), http.RootElement.GetProperty("endpoint").GetString()!, http.RootElement.GetProperty("body").GetString()!);
     }

@@ -1,4 +1,5 @@
 namespace OS.Drivers;
+
 public readonly struct PciBarSizingProbeDerivedSizeResult
 {
     private PciBarSizingProbeDerivedSizeResult(PciBarSizingProbeDerivedSizeStatus status, PciBarSizingProbeAddressPlanResult addressPlan, PciBarSizingProbeExecutionResult execution, PciBarSizingPlanResult sizing, byte failingBarIndex, PciBarSizeDescriptorStatus failingDescriptorStatus, bool isInitialized)
@@ -12,17 +13,38 @@ public readonly struct PciBarSizingProbeDerivedSizeResult
         IsInitialized = isInitialized;
     }
 
-    public PciBarSizingProbeDerivedSizeStatus Status { get; }
-    public PciBarSizingProbeAddressPlanResult AddressPlan { get; }
+    public PciBarSizingProbeDerivedSizeStatus Status
+    {
+        get;
+    }
+    public PciBarSizingProbeAddressPlanResult AddressPlan
+    {
+        get;
+    }
     public PciBarSizingProbeAddressPlanStatus AddressPlanStatus => AddressPlan.Status;
-    public PciBarSizingProbeExecutionResult Execution { get; }
+    public PciBarSizingProbeExecutionResult Execution
+    {
+        get;
+    }
     public PciBarSizingProbeExecutionStatus ExecutionStatus => Execution.Status;
-    public PciBarSizingPlanResult Sizing { get; }
+    public PciBarSizingPlanResult Sizing
+    {
+        get;
+    }
     public PciBarSizingPlanStatus SizingStatus => Sizing.Status;
     public PciBarSizeDescriptorSet Bars => Sizing.Bars;
-    public byte FailingBarIndex { get; }
-    public PciBarSizeDescriptorStatus FailingDescriptorStatus { get; }
-    public bool IsInitialized { get; }
+    public byte FailingBarIndex
+    {
+        get;
+    }
+    public PciBarSizeDescriptorStatus FailingDescriptorStatus
+    {
+        get;
+    }
+    public bool IsInitialized
+    {
+        get;
+    }
     public bool Succeeded => IsInitialized && Status == PciBarSizingProbeDerivedSizeStatus.Success;
 
     public bool TryCopySizesTo(Span<ulong> destination)

@@ -2,6 +2,7 @@ using OS.Kernel.Memory;
 using System.Runtime.CompilerServices;
 
 namespace OS.Kernel.Runtime;
+
 public enum ManagedHeapPageRangeStatus : byte
 {
     Uninitialized = 0,

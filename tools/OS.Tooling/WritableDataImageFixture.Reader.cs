@@ -8,6 +8,7 @@ using OS.Std.Time;
 using OS.Storage;
 
 namespace OS.Tooling;
+
 public static partial class WritableDataImageFixture
 {
     private sealed class Reader(byte[] disk, uint first = PartitionFirstLba)
@@ -133,7 +134,7 @@ public static partial class WritableDataImageFixture
 
                     Need(status == LiveDirectoryStatus.Entry && (entry.Attributes & 0x18) == 0 && files.Count < MaximumFiles && raw[12] == 0, "directory");
                     string alias = Alias(raw[..11]);
-                    string name = entry.HasLongName ? new string (words[..entry.NameLength].ToArray().Select(x => (char)x).ToArray()) : alias;
+                    string name = entry.HasLongName ? new string(words[..entry.NameLength].ToArray().Select(x => (char)x).ToArray()) : alias;
                     Need(names.Add(name) && (alias.Equals(name, StringComparison.OrdinalIgnoreCase) || names.Add(alias)), "name_collision");
                     uint[] chain = entry.FirstCluster == 0 ? [] : Chain(entry.FirstCluster);
                     Need(entry.ByteCount <= MaximumFileBytes && (ulong)chain.Length == ((ulong)entry.ByteCount + 511) / 512 && extracted <= MaximumExtractedBytes - entry.ByteCount, "file_length");

@@ -1,4 +1,5 @@
 namespace OS.Net;
+
 public struct TcpConnectionClose
 {
     public const byte FlagFin = 0x01;
@@ -19,11 +20,26 @@ public struct TcpConnectionClose
         State = TcpConnectionCloseState.Established;
     }
 
-    public TcpConnectionCloseState State { get; private set; }
-    public ushort LocalPort { get; }
-    public ushort RemotePort { get; }
-    public uint LocalNextSequenceNumber { get; private set; }
-    public uint RemoteNextSequenceNumber { get; private set; }
+    public TcpConnectionCloseState State
+    {
+        get; private set;
+    }
+    public ushort LocalPort
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get; private set;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get; private set;
+    }
     public uint AcknowledgementNumber => RemoteNextSequenceNumber;
 
     public static TcpConnectionClose CreateEstablished(ushort localPort, ushort remotePort, uint localNextSequenceNumber, uint remoteNextSequenceNumber)

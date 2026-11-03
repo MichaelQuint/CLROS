@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotLogUploadHttpContract
 {
     public sealed class ManagedReference
@@ -21,10 +22,22 @@ public static partial class NativeAotLogUploadHttpContract
             Controls = Array.AsReadOnly(controls.ToArray());
         }
 
-        public string Directory { get; }
-        public NativeAotLogUploadContract.FileValues Files { get; }
-        public ReadOnlyCollection<ResponseFact> Responses { get; }
-        public ReadOnlyCollection<Control> Controls { get; }
+        public string Directory
+        {
+            get;
+        }
+        public NativeAotLogUploadContract.FileValues Files
+        {
+            get;
+        }
+        public ReadOnlyCollection<ResponseFact> Responses
+        {
+            get;
+        }
+        public ReadOnlyCollection<Control> Controls
+        {
+            get;
+        }
         public bool GrantsLinuxNativeGuestOrPhysicalPersistenceAuthority => false;
     }
 }

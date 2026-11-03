@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 
 namespace OS.Kernel.Runtime;
+
 public enum NativeAotLayoutStatus : byte
 {
     Uninitialized = 0,

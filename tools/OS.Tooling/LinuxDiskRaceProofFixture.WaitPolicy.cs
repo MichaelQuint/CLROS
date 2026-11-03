@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Text;
 
 namespace OS.Tooling;
+
 public static partial class LinuxDiskRaceProofFixture
 {
     /// <summary>None is immediate; Disk always owns a source4 wait. PipeRead

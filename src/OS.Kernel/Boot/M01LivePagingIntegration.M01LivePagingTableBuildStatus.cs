@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public enum M01LivePagingTableBuildStatus : byte
 {
     Uninitialized = 0,

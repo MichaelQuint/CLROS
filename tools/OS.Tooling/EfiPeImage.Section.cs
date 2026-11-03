@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public sealed partial class EfiPeImage
 {
     public sealed record Section(string Name, uint VirtualSize, uint VirtualAddress, uint RawSize, uint RawOffset, uint Characteristics)

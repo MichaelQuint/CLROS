@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public enum M02CheckedPortIoFunctionPointerIntegrationStatus : byte
 {
     Uninitialized = 0,

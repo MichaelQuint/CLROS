@@ -1,4 +1,5 @@
 namespace OS.Pal;
+
 public readonly struct OSHostRandomBytesResult
 {
     public readonly OSHostStatus Status;

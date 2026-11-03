@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
+
 public static partial class NativeAotSocketVectorsPeer
 {
     /// <summary>Immutable identity of this owned vector peer and its exact
@@ -22,12 +23,30 @@ public static partial class NativeAotSocketVectorsPeer
             SerialPath = serial;
         }
 
-        internal string Root { get; }
-        public int Port { get; }
-        public string Path { get; }
-        public string Sha256 { get; }
-        public string SerialPath { get; }
-        public ProcessResult Runner { get; }
+        internal string Root
+        {
+            get;
+        }
+        public int Port
+        {
+            get;
+        }
+        public string Path
+        {
+            get;
+        }
+        public string Sha256
+        {
+            get;
+        }
+        public string SerialPath
+        {
+            get;
+        }
+        public ProcessResult Runner
+        {
+            get;
+        }
 
         internal void Verify(AuthorityFiles files)
         {

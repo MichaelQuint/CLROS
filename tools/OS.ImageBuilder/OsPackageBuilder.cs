@@ -80,7 +80,7 @@ internal static partial class OsPackageBuilder
         {
             directory = new DirectoryInfo(inputPath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(16, "package_input_not_found", "Package input directory path is invalid: " + inputPath);
         }
@@ -104,7 +104,7 @@ internal static partial class OsPackageBuilder
         {
             return Path.GetFullPath(outputPath);
         }
-        catch (Exception ex)when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             throw new ImageBuilderException(7, "invalid_output_path", "Output path is invalid: " + outputPath);
         }
