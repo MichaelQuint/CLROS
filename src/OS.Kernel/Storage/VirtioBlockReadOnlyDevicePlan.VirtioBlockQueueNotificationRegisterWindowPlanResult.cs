@@ -40,37 +40,85 @@ public readonly struct VirtioBlockQueueNotificationRegisterWindowPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockQueueNotificationRegisterWindowPlanStatus Status { get; }
+    public VirtioBlockQueueNotificationRegisterWindowPlanStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockQueueNotifyOffsetPlanStatus NotifyOffsetPlanStatus { get; }
+    public VirtioBlockQueueNotifyOffsetPlanStatus NotifyOffsetPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueNotificationMetadataStatus NotificationMetadataStatus { get; }
+    public VirtioBlockQueueNotificationMetadataStatus NotificationMetadataStatus
+    {
+        get;
+    }
 
-    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus { get; }
+    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus
+    {
+        get;
+    }
 
-    public ushort QueueIndex { get; }
+    public ushort QueueIndex
+    {
+        get;
+    }
 
-    public ushort QueueNotifyOffset { get; }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
 
-    public uint NotifyOffsetMultiplier { get; }
+    public uint NotifyOffsetMultiplier
+    {
+        get;
+    }
 
-    public uint NotifyRelativeOffset { get; }
+    public uint NotifyRelativeOffset
+    {
+        get;
+    }
 
-    public ushort PublishedDescriptorCount { get; }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
 
-    public ushort PreviousAvailableRingIndex { get; }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort NextAvailableRingIndex { get; }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort DescriptorHead { get; }
+    public ushort DescriptorHead
+    {
+        get;
+    }
 
-    public ushort WriteValue { get; }
+    public ushort WriteValue
+    {
+        get;
+    }
 
-    public uint WriteWidthBytes { get; }
+    public uint WriteWidthBytes
+    {
+        get;
+    }
 
-    public VirtioPciBarRegisterWindowAccessPlan AccessPlan { get; }
+    public VirtioPciBarRegisterWindowAccessPlan AccessPlan
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded =>
         IsInitialized && Status == VirtioBlockQueueNotificationRegisterWindowPlanStatus.Success;

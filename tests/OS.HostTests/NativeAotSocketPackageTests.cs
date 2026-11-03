@@ -7,9 +7,7 @@ using OS.Tooling;
 
 internal static unsafe class NativeAotSocketPackageTests
 {
-    private static readonly string[] Sources = ["global.json", "Directory.Build.props", "Directory.Build.targets", "tools/Directory.Build.props",
-        "tools/OS.Tooling/NativeAotPayload.cs", "tools/OS.Tooling/NativeAotWebPayload.cs", "tools/OS.Tooling/NativeAotSocketPayload.cs",
-        "apps/NativeAotSocketSmoke/Program.cs", "apps/NativeAotSocketSmoke/NativeAotSocketSmoke.csproj"];
+    private static string[] Sources => NativeAotSocketPackage.CurrentSources().Select(source => source.Path).ToArray();
 
     [HostTest("socket package rejects changed relevant sources and new app or restore inputs")]
     private static void CurrentSources()

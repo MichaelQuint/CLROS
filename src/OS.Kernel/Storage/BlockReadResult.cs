@@ -10,13 +10,25 @@ public readonly struct BlockReadResult
         BytesRead = bytesRead;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public BlockDeviceStatus Status { get; }
+    public BlockDeviceStatus Status
+    {
+        get;
+    }
 
-    public ulong BlocksRead { get; }
+    public ulong BlocksRead
+    {
+        get;
+    }
 
-    public ulong BytesRead { get; }
+    public ulong BytesRead
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == BlockDeviceStatus.Success;
 

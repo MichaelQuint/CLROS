@@ -1,35 +1,27 @@
 using System.Text;
 using OS.Tooling;
 
-internal static class NativeAotServiceGcBackingTests
+internal static partial class NativeAotServiceGcBackingTests
 {
     private const ulong Reservation = 0x100185000, Start = Reservation + 4096, ArenaBytes = 5 * 16777216UL;
     private const ulong Mmap = 0x4705da, Munmap = 0x4706d1, Madvise = 0x470581, Mprotect = 0x47068a;
     private const ulong NoMemory = unchecked((ulong)-12L);
-
-    // Independent copied-value vectors, not an original executable/capture.
-    private sealed class Trace
-    {
-        private readonly StringBuilder text = new(); private ulong ordinal;
-        private readonly Dictionary<ulong, ulong> ordinals = [];
-        internal Trace Call(ulong nr, ulong address, ulong bytes, ulong protection, ulong value, ulong rip,
-            ulong flags = 0, ulong fd = 4294967295, ulong identity = 4294967297)
-        {
-            ulong at = ++ordinal, callOrdinal = ordinals.GetValueOrDefault(identity) + 1; ordinals[identity] = callOrdinal;
-            text.Append($"M16_008_CALL identity={identity} nr={nr} a0={address} a1={bytes} a2={protection} a3={flags} a4={fd} a5=0 rip={rip} rsp=1879047184 flags=514 fs=0 gs=0 clock={at} valueBits={value} action=1 status=1 ordinal={callOrdinal}" +
-                $" waitSource=0 waitDeadline=0 waitSequence=0 signalDepth=0 signalFrame=0 blockedSignals=0 returnRip={rip} returnRsp=1879047184 returnFlags=514 returnFs=0 returnGs=0 returnValueBits={value}\r\n");
-            return this;
-        }
-        internal Trace Reserve() => Call(9, 0, ArenaBytes + 4096, 0, Reservation, Mmap, 0x22);
-        internal Trace FinishArena() => Call(11, Reservation, 4096, 0, 0, Munmap).Call(28, Start, ArenaBytes, 16, 0, Madvise);
-        internal Trace Arena() => Reserve().FinishArena();
-        public override string ToString() => text.ToString();
-    }
-    private static QemuTranscripts.ServiceGcBackingInspection Read(string raw) =>
-        QemuTranscripts.InspectNativeAotServiceGcBackingForTests(Encoding.UTF8.GetBytes(raw));
+    private static QemuTranscripts.ServiceGcBackingInspection Read(string raw) => QemuTranscripts.InspectNativeAotServiceGcBackingForTests(Encoding.UTF8.GetBytes(raw));
     private static QemuTranscripts.ServiceGcBackingInspection Read(Trace trace) => Read(trace.ToString());
     private static void Reject(string raw)
-    { bool rejected = false; try { _ = Read(raw); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
+    {
+        bool rejected = false;
+        try
+        {
+            _ = Read(raw);
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
+
+        HostCheck.True(rejected);
+    }
 
     [HostTest("GC backing identifies the complete arena sequence and returns independent copied counters")]
     private static void ArenaAndCopies()
@@ -37,10 +29,14 @@ internal static class NativeAotServiceGcBackingTests
         var trace = new Trace().Arena().Call(10, Start, 8192, 3, 0, Mprotect);
         byte[] raw = Encoding.UTF8.GetBytes(trace.ToString()), before = raw.ToArray();
         var result = QemuTranscripts.InspectNativeAotServiceGcBackingForTests(raw);
-        HostCheck.True(result.ArenaIdentified); HostCheck.Equal(Start, result.ArenaStart);
-        HostCheck.Equal(ArenaBytes, result.ArenaBytes); HostCheck.Equal(8192UL, result.LastBackedBytes);
-        HostCheck.Equal(8192UL, result.PeakBackedBytes); HostCheck.Equal(0, result.RevokedPages);
-        HostCheck.True(raw.AsSpan().SequenceEqual(before)); Array.Clear(raw);
+        HostCheck.True(result.ArenaIdentified);
+        HostCheck.Equal(Start, result.ArenaStart);
+        HostCheck.Equal(ArenaBytes, result.ArenaBytes);
+        HostCheck.Equal(8192UL, result.LastBackedBytes);
+        HostCheck.Equal(8192UL, result.PeakBackedBytes);
+        HostCheck.Equal(0, result.RevokedPages);
+        HostCheck.True(raw.AsSpan().SequenceEqual(before));
+        Array.Clear(raw);
         HostCheck.Equal(8192UL, result.LastBackedBytes);
         HostCheck.True(!Read(new Trace().Call(228, 0, 4096, 0, 0, 4198402)).ArenaIdentified);
     }
@@ -57,7 +53,10 @@ internal static class NativeAotServiceGcBackingTests
             raw.Replace("ordinal=2", "ordinal=3", StringComparison.Ordinal),
             raw.Replace($"nr=11 a0={Reservation}", $"nr=28 a0={Reservation}", StringComparison.Ordinal),
             new Trace().Arena().Arena().ToString()
-        }) Reject(changed);
+        }
+
+        )
+            Reject(changed);
         HostCheck.True(!Read(raw.Replace($"rip={Mmap}", "rip=4198402", StringComparison.Ordinal)).ArenaIdentified);
         HostCheck.True(!Read(raw.Replace($"a1={ArenaBytes + 4096}", $"a1={ArenaBytes + 8192}", StringComparison.Ordinal)).ArenaIdentified);
         HostCheck.True(!Read(raw.Replace("a4=4294967295", "a4=3", StringComparison.Ordinal)).ArenaIdentified);
@@ -67,33 +66,38 @@ internal static class NativeAotServiceGcBackingTests
     private static void PrecedingPublication()
     {
         string current = new Trace().Arena().ToString();
-        string preceding = current.Replace($"rip={Mmap}", $"rip={0x47059aUL}", StringComparison.Ordinal)
-            .Replace($"rip={Munmap}", $"rip={0x470691UL}", StringComparison.Ordinal)
-            .Replace($"rip={Madvise}", $"rip={0x470541UL}", StringComparison.Ordinal);
+        string preceding = current.Replace($"rip={Mmap}", $"rip={0x47059aUL}", StringComparison.Ordinal).Replace($"rip={Munmap}", $"rip={0x470691UL}", StringComparison.Ordinal).Replace($"rip={Madvise}", $"rip={0x470541UL}", StringComparison.Ordinal);
         HostCheck.True(!Read(preceding).ArenaIdentified);
         Reject(current.Replace($"rip={Munmap}", $"rip={0x470691UL}", StringComparison.Ordinal));
         Reject(current.Replace($"rip={Madvise}", $"rip={0x470541UL}", StringComparison.Ordinal));
         var currentArena = new Trace().Arena().Call(10, Start, 4096, 3, 0, Mprotect);
         HostCheck.Equal(4096UL, Read(currentArena).LastBackedBytes);
         var staleCommit = Read(currentArena.ToString().Replace($"rip={Mprotect}", $"rip={0x47064aUL}", StringComparison.Ordinal));
-        HostCheck.Equal(0UL, staleCommit.LastBackedBytes); HostCheck.Equal(1, staleCommit.RevokedPages);
+        HostCheck.Equal(0UL, staleCommit.LastBackedBytes);
+        HostCheck.Equal(1, staleCommit.RevokedPages);
     }
 
     [HostTest("GC arena startup permits unrelated workers while rejecting interleaved mutations of its pending reservation")]
     private static void InterleavedWorkers()
     {
         const ulong child = 4294967298, outside = 0x200000000;
-        var trace = new Trace().Reserve().Call(186, 0, 4096, 0, 2, 4198402, identity: child)
-            .Call(9, 0, 16384, 3, outside, Mmap, 0x22, identity: child).FinishArena()
-            .Call(10, Start, 4096, 3, 0, Mprotect);
-        var result = Read(trace); HostCheck.True(result.ArenaIdentified); HostCheck.Equal(4096UL, result.LastBackedBytes);
-        foreach (var (nr, address, bytes, protection, value, rip, flags) in new (ulong, ulong, ulong, ulong, ulong, ulong, ulong)[]
+        var trace = new Trace().Reserve().Call(186, 0, 4096, 0, 2, 4198402, identity: child).Call(9, 0, 16384, 3, outside, Mmap, 0x22, identity: child).FinishArena().Call(10, Start, 4096, 3, 0, Mprotect);
+        var result = Read(trace);
+        HostCheck.True(result.ArenaIdentified);
+        HostCheck.Equal(4096UL, result.LastBackedBytes);
+        foreach (var(nr, address, bytes, protection, value, rip, flags)in new (ulong, ulong, ulong, ulong, ulong, ulong, ulong)[]
         {
-            (9, Reservation, 4096, 3, Reservation, Mmap, 0x32), (10, Start, 4096, 3, 0, Mprotect, 0),
-            (11, Reservation, 4096, 0, 0, Munmap, 0), (28, Start, 4096, 4, 0, Madvise, 0),
-            (25, outside, 4096, 4096, Start, 4198402, 0), (25, Start, 4096, 4096, outside, 4198402, 0),
+            (9, Reservation, 4096, 3, Reservation, Mmap, 0x32),
+            (10, Start, 4096, 3, 0, Mprotect, 0),
+            (11, Reservation, 4096, 0, 0, Munmap, 0),
+            (28, Start, 4096, 4, 0, Madvise, 0),
+            (25, outside, 4096, 4096, Start, 4198402, 0),
+            (25, Start, 4096, 4096, outside, 4198402, 0),
             (12, outside, 4096, 0, outside, 4198402, 0)
-        }) Reject(new Trace().Reserve().Call(nr, address, bytes, protection, value, rip, flags, identity: child).FinishArena().ToString());
+        }
+
+        )
+            Reject(new Trace().Reserve().Call(nr, address, bytes, protection, value, rip, flags, identity: child).FinishArena().ToString());
         HostCheck.True(Read(new Trace().Reserve().Call(9, 0, 4096, 3, NoMemory, Mmap, 0x22, identity: child).FinishArena()).ArenaIdentified);
     }
 
@@ -102,41 +106,44 @@ internal static class NativeAotServiceGcBackingTests
     {
         var trace = new Trace().Arena().Call(10, Start, 8192, 3, 0, Mprotect).Call(10, Start, 8192, 0, 0, Mprotect);
         HostCheck.Equal(8192UL, Read(trace).LastBackedBytes);
-        trace.Call(28, Start, 8192, 4, 0, Madvise); HostCheck.Equal(0UL, Read(trace).LastBackedBytes);
+        trace.Call(28, Start, 8192, 4, 0, Madvise);
+        HostCheck.Equal(0UL, Read(trace).LastBackedBytes);
         trace.Call(10, Start, 4096, 1, 0, Mprotect).Call(28, Start, 4096, 4, 0, Madvise);
         HostCheck.Equal(4096UL, Read(trace).LastBackedBytes);
-        trace.Call(9, Start, 4096, 0, Start, Mmap, 0x32); HostCheck.Equal(0UL, Read(trace).LastBackedBytes);
+        trace.Call(9, Start, 4096, 0, Start, Mmap, 0x32);
+        HostCheck.Equal(0UL, Read(trace).LastBackedBytes);
         trace.Call(10, Start, 4096, 3, 0, Mprotect);
-        var result = Read(trace); HostCheck.Equal(4096UL, result.LastBackedBytes);
-        HostCheck.Equal(8192UL, result.PeakBackedBytes); HostCheck.Equal(0, result.RevokedPages);
+        var result = Read(trace);
+        HostCheck.Equal(4096UL, result.LastBackedBytes);
+        HostCheck.Equal(8192UL, result.PeakBackedBytes);
+        HostCheck.Equal(0, result.RevokedPages);
     }
 
     [HostTest("GC backing irrevocably excludes holes foreign replacements and remapped intervals")]
     private static void LostOwnership()
     {
-        var trace = new Trace().Arena().Call(10, Start, 12288, 3, 0, Mprotect)
-            .Call(11, Start + 4096, 4096, 0, 0, Munmap)
-            .Call(9, 0, 4096, 3, Start + 4096, Mmap, 0x22)
-            .Call(10, Start + 4096, 4096, 3, 0, Mprotect);
+        var trace = new Trace().Arena().Call(10, Start, 12288, 3, 0, Mprotect).Call(11, Start + 4096, 4096, 0, 0, Munmap).Call(9, 0, 4096, 3, Start + 4096, Mmap, 0x22).Call(10, Start + 4096, 4096, 3, 0, Mprotect);
         HostCheck.Equal(8192UL, Read(trace).LastBackedBytes);
         trace.Call(9, Start, 4096, 3, Start, Mmap, 0x32).Call(10, Start, 4096, 3, 0, Mprotect);
         HostCheck.Equal(4096UL, Read(trace).LastBackedBytes);
         trace.Call(25, Start + 8192, 4096, 4096, Start + 8192, 4198402);
-        var result = Read(trace); HostCheck.Equal(0UL, result.LastBackedBytes);
-        HostCheck.Equal(12288UL, result.PeakBackedBytes); HostCheck.Equal(3, result.RevokedPages);
+        var result = Read(trace);
+        HostCheck.Equal(0UL, result.LastBackedBytes);
+        HostCheck.Equal(12288UL, result.PeakBackedBytes);
+        HostCheck.Equal(3, result.RevokedPages);
     }
 
     [HostTest("GC backing preserves failed operations excludes foreign callbacks and rejects impossible physical bounds")]
     private static void FailuresAndBounds()
     {
-        var trace = new Trace().Arena().Call(10, Start, 4096, 3, 0, Mprotect)
-            .Call(10, Start, 8192, 3, NoMemory, Mprotect).Call(11, Start, 4096, 0, NoMemory, Munmap)
-            .Call(9, Start, 4096, 0, NoMemory, Mmap, 0x32).Call(28, Start, 4096, 4, NoMemory, Madvise);
+        var trace = new Trace().Arena().Call(10, Start, 4096, 3, 0, Mprotect).Call(10, Start, 8192, 3, NoMemory, Mprotect).Call(11, Start, 4096, 0, NoMemory, Munmap).Call(9, Start, 4096, 0, NoMemory, Mmap, 0x32).Call(28, Start, 4096, 4, NoMemory, Madvise);
         HostCheck.Equal(4096UL, Read(trace).LastBackedBytes);
         trace.Call(10, Start, 4096, 0, 0, 4198402);
-        HostCheck.Equal(0UL, Read(trace).LastBackedBytes); HostCheck.Equal(1, Read(trace).RevokedPages);
+        HostCheck.Equal(0UL, Read(trace).LastBackedBytes);
+        HostCheck.Equal(1, Read(trace).RevokedPages);
         var unknown = new Trace().Arena().Call(10, Start, 4096, 3, 0, Mprotect).Call(28, Start, 4096, 8, 0, Madvise);
-        HostCheck.Equal(0UL, Read(unknown).LastBackedBytes); HostCheck.Equal(1, Read(unknown).RevokedPages);
+        HostCheck.Equal(0UL, Read(unknown).LastBackedBytes);
+        HostCheck.Equal(1, Read(unknown).RevokedPages);
         Reject(new Trace().Arena().Call(10, Start, 16777216 + 4096, 3, 0, Mprotect).ToString());
         Reject(new Trace().Arena().Call(10, Start + 1, 4096, 3, 0, Mprotect).ToString());
         Reject(new Trace().Arena().Call(10, Start, 0, 3, 0, Mprotect).ToString());

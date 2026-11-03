@@ -17,17 +17,35 @@ public readonly struct Fat32DirectoryReadResult
         ReachedEndMarker = reachedEndMarker;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public Fat32Status Status { get; }
+    public Fat32Status Status
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockStatus { get; }
+    public BlockDeviceStatus BlockStatus
+    {
+        get;
+    }
 
-    public Fat32Bpb Bpb { get; }
+    public Fat32Bpb Bpb
+    {
+        get;
+    }
 
-    public int EntriesRead { get; }
+    public int EntriesRead
+    {
+        get;
+    }
 
-    public bool ReachedEndMarker { get; }
+    public bool ReachedEndMarker
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == Fat32Status.Success;
 

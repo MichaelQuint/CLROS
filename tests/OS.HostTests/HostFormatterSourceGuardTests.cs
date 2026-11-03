@@ -5,6 +5,61 @@ using OS.Tooling;
 
 internal static class HostFormatterSourceGuardTests
 {
+    [HostTest("formatter guards preserve counter widths and successful offset flow across wrapper styles")]
+    private static void CounterAndTryWrapperControls()
+    {
+        const string source = """
+            using System;
+            using Digits = OS.Std.Text.AsciiDecimalFormatter;
+            using Builder = OS.Std.Text.AsciiTextBuilder;
+            namespace MixedFormatter;
+            class Input { public int A { get; } public uint B { get; } public long C { get; } public ulong D { get; } }
+            static class Candidate
+            {
+                static int Size(Input value) => Digits.CountInt32Digits(value.A) + Digits.CountUInt32Digits(value.B)
+                    + Digits.CountInt64Digits(value.C) + Digits.CountUInt64Digits(value.D);
+                static bool Append(ulong value, Span<byte> destination, ref int offset)
+                {
+                    var appended = Builder.AppendUInt64Decimal(destination, offset, value);
+                    if (!appended.Succeeded) return false;
+                    offset = appended.NextOffset;
+                    return true;
+                }
+            }
+            """;
+        var references = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj").Compilation.References;
+        bool Check(string candidate)
+        {
+            var syntax = CSharpSyntaxTree.ParseText(candidate, new CSharpParseOptions(LanguageVersion.CSharp14));
+            var catalog = new CSharpSourceCatalog([new CSharpSourceDocument("renamed-part.cs", "synthetic", syntax)], references);
+            return HostFormatterSourceGuard.CountFields(catalog, "MixedFormatter.Candidate", "Size",
+                    [("A", "CountInt32Digits"), ("B", "CountUInt32Digits"), ("C", "CountInt64Digits"), ("D", "CountUInt64Digits")])
+                && HostFormatterSourceGuard.Append(catalog, "MixedFormatter.Candidate", "Append", "AppendUInt64Decimal", tryStyle: true);
+        }
+        HostCheck.True(Check(source));
+        HostCheck.True(Check(source.Replace("{ get; }", ";", StringComparison.Ordinal)), "POD fields and properties both retain bound member identity");
+        foreach ((string before, string after) in new[]
+        {
+            ("CountInt32Digits(value.A)", "CountInt64Digits(value.A)"),
+            ("CountUInt32Digits(value.B)", "CountUInt64Digits(value.B)"),
+            ("CountUInt64Digits(value.D)", "CountUInt64Digits(value.B)"),
+            ("CountInt64Digits(value.C)", "CountInt64Digits((short)value.C)"),
+            ("static int Size(Input value) =>", "static byte Size(Input value) => (byte)("),
+            ("Digits.CountInt32Digits(value.A)", "0 * Digits.CountInt32Digits(value.A)"),
+            ("if (!appended.Succeeded) return false", "if (!appended.Succeeded) return true"),
+            ("if (!appended.Succeeded)", "if (appended.Succeeded)"),
+            ("offset = appended.NextOffset", "offset = 0"),
+            ("destination, offset, value", "destination, offset, (byte)value"),
+            ("return true;", "return false;")
+        })
+        {
+            string changed = source.Replace(before, after, StringComparison.Ordinal);
+            if (after.StartsWith("static byte", StringComparison.Ordinal))
+                changed = changed.Replace("CountUInt64Digits(value.D);", "CountUInt64Digits(value.D));", StringComparison.Ordinal);
+            HostCheck.True(!Check(changed), before);
+        }
+    }
+
     [HostTest("storage preflight formatter source guard binds fields and append results")]
     private static void FieldsAndAppendResults()
     {

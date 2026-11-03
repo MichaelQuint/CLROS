@@ -36,17 +36,15 @@ internal static unsafe class M06GptPartitionEfiIntegrationTests
     [HostTest("m06.gpt.efi allocator admission rejects altered sector core arguments and callers")]
     private static void Ownership()
     {
-        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs"));
+        var snapshot = new EfiAllocatorOwnershipSources(EfiOptions.Parse(Flags, false).Profile());
         foreach (string call in new[] { "BootPageAllocatorMutator.AllocateOnePage", "BootPageAllocatorMutator.FreeOnePage" })
         {
-            string accepted = source;
-            HostCheck.True(EfiProfileTestControls.RemoveOwnedDmaCalls(ref accepted, call, out string reason), reason);
-            foreach (string changed in new[] { source.Replace("reads + 4UL)", "reads + 3UL)", StringComparison.Ordinal),
-                source.Replace("RunBlockReadCore(state, false, destination", "UnreviewedRead(state, false, destination", StringComparison.Ordinal),
-                source.Replace("RunBlockReadCore(state, false, destination", "RunBlockReadCore(state, true, destination", StringComparison.Ordinal) })
-            {
-                string rejected = changed; HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(ref rejected, call, out _));
-            }
+            HostCheck.True(EfiProfileTestControls.RemoveOwnedDmaCalls(snapshot.Sources, call, out _, out string reason), reason);
+            foreach (var changed in new[] {
+                snapshot.ChangeEpoch("ReadGptSector", 4UL, 3UL),
+                snapshot.RedirectCall("ReadGptSector", "RunBlockReadCore"),
+                snapshot.ChangePurpose("ReadGptSector", 1, false, true) })
+                HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(changed, call, out _, out _));
         }
     }
 

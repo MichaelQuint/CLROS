@@ -32,8 +32,15 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
         var project = XDocument.Load(Path.Combine(Root, "src/OS/OS.csproj"));
         var defaults = project.Descendants(Flag).ToArray();
         Need(defaults.Length == 1 && defaults[0].Value == "false", "one disabled profile default");
-        string authority = File.ReadAllText(Path.Combine(Root, "src/OS.Kernel/Diagnostics/GCStaticRootMaterializationProbeAuthority.cs"));
-        Need(authority.Contains("EnableGCStaticRootMaterializationProbe = false;", StringComparison.Ordinal), "disabled compile-time authority");
+        var source = HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(
+            Chain.Append(Flag).Select(flag => "--" + flag).ToArray(), true).Profile());
+        Need(source.Type("OS.Kernel.Diagnostics.Probes")
+            .GetMembers("EnableGCStaticRootMaterializationProbe").Single() is Microsoft.CodeAnalysis.IFieldSymbol
+            {
+                IsStatic: true, IsConst: true, ConstantValue: false,
+                Type.SpecialType: Microsoft.CodeAnalysis.SpecialType.System_Boolean,
+                DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public
+            }, "disabled compile-time authority");
         var conditions = project.Descendants("Error").Select(x => (string)x.Attribute("Condition")!).ToArray();
         foreach (string prerequisite in Chain)
             Need(conditions.Count(x => x == "'$(" + Flag + ")' == 'true' and '$(" + prerequisite + ")' != 'true'") == 1, "explicit prerequisite " + prerequisite);
@@ -66,10 +73,15 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
                 ? "'$(" + profile + ")' == 'true' and '$(" + Flag + ")' == 'true'"
                 : "'$(" + Flag + ")' == 'true' and '$(" + profile + ")' == 'true'")) == 1, "conflict " + other);
         }
-        string[] compile = project.Descendants("Compile").Select(x => (string)x.Attribute("Include")!).ToArray();
-        Need(compile.Length == OS.Tooling.EfiContracts.CompileItems.Count && compile.Distinct(StringComparer.Ordinal).Count() == OS.Tooling.EfiContracts.CompileItems.Count, "unique complete closure");
-        foreach (string file in new[] { @"..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs", @"Runtime\GCStaticRootMaterializationProbe.cs", @"..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs", @"..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" })
-            Need(compile.Contains(file, StringComparer.Ordinal), "compiled source " + file);
+        foreach (string owner in new[]
+        {
+            "OS.Kernel.Runtime.GCStaticRootsMalformedMetadata",
+            "OS.Runtime.RhpNewFastAllocation",
+            "OS.Kernel.Runtime.BoundedNonMovingCollectorExplicitRootEnumeration",
+            "OS.Kernel.Diagnostics.Probes"
+        })
+            _ = source.Type(owner);
+        _ = source.Method("OS.Runtime.RhpNewFastAllocation", "RunGcStatics");
     }
 
     private static (int Exit, string Output, string Error) InvokeTool(string directory, params string[] args)

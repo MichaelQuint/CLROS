@@ -48,45 +48,105 @@ public readonly struct VirtioBlockReadQueuePublishResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockReadQueuePublishStatus Status { get; }
+    public VirtioBlockReadQueuePublishStatus Status
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockDeviceStatus { get; }
+    public BlockDeviceStatus BlockDeviceStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorPublishStatus CursorPublishStatus { get; }
+    public VirtioBlockQueueCursorPublishStatus CursorPublishStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorPublishPlanStatus DescriptorPublishStatus { get; }
+    public VirtioBlockDescriptorPublishPlanStatus DescriptorPublishStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorFreeListStatus FreeListStatus { get; }
+    public VirtioBlockDescriptorFreeListStatus FreeListStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadLifecyclePublishStatus LifecyclePublishStatus { get; }
+    public VirtioBlockReadLifecyclePublishStatus LifecyclePublishStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus { get; }
+    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus
+    {
+        get;
+    }
 
-    public bool CursorPublishAttempted { get; }
+    public bool CursorPublishAttempted
+    {
+        get;
+    }
 
-    public uint SectorSizeBytes { get; }
+    public uint SectorSizeBytes
+    {
+        get;
+    }
 
-    public ulong DeviceSectorCount { get; }
+    public ulong DeviceSectorCount
+    {
+        get;
+    }
 
-    public ulong FirstSector { get; }
+    public ulong FirstSector
+    {
+        get;
+    }
 
-    public uint SectorCount { get; }
+    public uint SectorCount
+    {
+        get;
+    }
 
-    public ulong RequestedByteCount { get; }
+    public ulong RequestedByteCount
+    {
+        get;
+    }
 
-    public ushort QueueSize { get; }
+    public ushort QueueSize
+    {
+        get;
+    }
 
-    public ushort PreviousAvailableRingIndex { get; }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort CurrentAvailableRingIndex { get; }
+    public ushort CurrentAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort PreviousUsedRingIndex { get; }
+    public ushort PreviousUsedRingIndex
+    {
+        get;
+    }
 
-    public ushort CurrentUsedRingIndex { get; }
+    public ushort CurrentUsedRingIndex
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorPublishResult CursorPublish { get; }
+    public VirtioBlockQueueCursorPublishResult CursorPublish
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == VirtioBlockReadQueuePublishStatus.Success;
 

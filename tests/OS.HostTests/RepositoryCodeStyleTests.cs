@@ -2,6 +2,38 @@ using OS.Tooling;
 
 internal static class RepositoryCodeStyleTests
 {
+    [HostTest("source style keeps finally host and EFI entry modes separate")]
+    private static void FinallyEntryModes()
+    {
+        const string source = """
+            #if NOSTDLIB_EFI
+            namespace N;
+            #endif
+            #if SINGLE_FINALLY_CORE_TEST
+            namespace N;
+            #endif
+            #if NOSTDLIB_EFI || SINGLE_FINALLY_CORE_TEST
+            class Owner {}
+            #endif
+            """;
+        const string path = "src/OS/Runtime/ExceptionCatchProbe.cs";
+        var profiles = CSharpSourceProfiles.ForSource(source, path);
+        foreach (string mode in new[] { "NOSTDLIB_EFI", "SINGLE_FINALLY_CORE_TEST" })
+            HostCheck.True(profiles.Any(profile => profile.PreprocessorSymbolNames.Contains(mode)), mode);
+        HostCheck.True(profiles.All(profile => !(profile.PreprocessorSymbolNames.Contains("NOSTDLIB_EFI")
+            && profile.PreprocessorSymbolNames.Contains("SINGLE_FINALLY_CORE_TEST"))));
+        HostCheck.True(CSharpSourceProfiles.ForSource(source).Any(profile => profile.PreprocessorSymbolNames.Contains("NOSTDLIB_EFI")
+            && profile.PreprocessorSymbolNames.Contains("SINGLE_FINALLY_CORE_TEST")), "generic enumeration is unconstrained");
+        HostCheck.True(RepositoryCodeStyle.CheckFile(path, source).All(finding => finding.Rule != "CLROSSTYLE000"));
+        HostCheck.True(RepositoryCodeStyle.CheckFile("unrelated/ExceptionCatchProbe.cs",
+            "#if NOSTDLIB_EFI && SINGLE_FINALLY_CORE_TEST\nclass First {}\nclass Second {}\n#endif")
+            .Any(finding => finding.Rule == "CLROSSTYLE001"), "unrelated files retain both-symbol coverage");
+        HostCheck.True(RepositoryCodeStyle.CheckFile(path, "#if NOSTDLIB_EFI\nclass Owner {\n#endif")
+            .Any(finding => finding.Rule == "CLROSSTYLE000"), "EFI syntax errors remain visible");
+        HostCheck.True(RepositoryCodeStyle.CheckFile(path, "#if SINGLE_FINALLY_CORE_TEST\nclass Owner {\n#endif")
+            .Any(finding => finding.Rule == "CLROSSTYLE000"), "host syntax errors remain visible");
+    }
+
     [HostTest("source style permits standalone, helper and partial filenames")]
     private static void AcceptedFiles()
     {
@@ -11,6 +43,7 @@ internal static class RepositoryCodeStyleTests
             ("Owner.Result.cs", "namespace N; public readonly struct Result {}"),
             ("Owner.Read.cs", "namespace N; public partial class Owner { void Read() {} }"),
             ("Owner.Inner.cs", "namespace N; public partial class Owner { private struct Inner { int value; } }"),
+            ("Owner.Inner.cs", "partial class Owner {} partial class Owner { private struct Inner { int value; } }"),
             ("Owner.Inner.Leaf.cs", "partial class Owner { partial class Inner { private enum Leaf { A } } }"),
             ("Owner.Inner.Feature.cs", "partial class Owner { partial class Inner { void Read() {} } }"),
             ("Owner.Feature.cs", "partial class Owner { partial class Inner { void Read() {} } }"),
@@ -31,6 +64,8 @@ internal static class RepositoryCodeStyleTests
         {
             ("A.cs", "class A {} struct B {}", "CLROSSTYLE001"),
             ("Owner.cs", "partial class Owner { int value; private struct Inner {} }", "CLROSSTYLE001"),
+            ("Owner.Inner.cs", "partial class Owner {} partial class Owner { int value; private struct Inner {} }", "CLROSSTYLE001"),
+            ("Owner.Inner.cs", "partial class Owner {} partial struct Owner { private struct Inner {} }", "CLROSSTYLE001"),
             ("Owner.Inner.cs", "partial class Owner { struct Inner {} enum Other { A } }", "CLROSSTYLE001"),
             ("Wrong.cs", "public struct Value {}", "CLROSSTYLE002"),
             ("Inner.cs", "partial class Owner { private struct Inner {} }", "CLROSSTYLE002"),

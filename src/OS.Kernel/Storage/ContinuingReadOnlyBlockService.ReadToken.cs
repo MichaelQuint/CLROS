@@ -11,7 +11,11 @@ public static unsafe partial class ContinuingReadOnlyBlockService
     {
         internal readonly ulong Owner, Epoch, Generation;
         internal ReadToken(ulong owner, ulong epoch, ulong generation)
-        { Owner = owner; Epoch = epoch; Generation = generation; }
+        {
+            Owner = owner;
+            Epoch = epoch;
+            Generation = generation;
+        }
         public bool IsInitialized => Owner != 0 && Epoch != 0 && Generation != 0;
     }
 }

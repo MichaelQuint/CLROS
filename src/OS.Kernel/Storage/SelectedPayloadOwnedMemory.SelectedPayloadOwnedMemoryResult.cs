@@ -20,10 +20,25 @@ public readonly struct SelectedPayloadOwnedMemoryResult
         PayloadCrc32 = payloadCrc32;
     }
 
-    public SelectedPayloadOwnedMemoryStatus Status { get; }
-    public LivePackageStatus PackageStatus { get; }
-    public uint BytesWritten { get; }
-    public uint EntryOffset { get; }
-    public uint PayloadCrc32 { get; }
+    public SelectedPayloadOwnedMemoryStatus Status
+    {
+        get;
+    }
+    public LivePackageStatus PackageStatus
+    {
+        get;
+    }
+    public uint BytesWritten
+    {
+        get;
+    }
+    public uint EntryOffset
+    {
+        get;
+    }
+    public uint PayloadCrc32
+    {
+        get;
+    }
     public bool Succeeded => Status == SelectedPayloadOwnedMemoryStatus.Success;
 }

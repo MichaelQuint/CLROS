@@ -12,7 +12,13 @@ public struct VirtioBlockQueueCursorState
         UsedRingIndex = usedRingIndex;
     }
 
-    public ushort AvailableRingIndex { get; set; }
+    public ushort AvailableRingIndex
+    {
+        get; set;
+    }
 
-    public ushort UsedRingIndex { get; set; }
+    public ushort UsedRingIndex
+    {
+        get; set;
+    }
 }

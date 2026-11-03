@@ -45,25 +45,55 @@ public readonly struct GptEspLocationReadinessResult
         ComputedPartitionEntryArrayCrc32 = computedPartitionEntryArrayCrc32;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public GptEspLocationReadinessStatus Status { get; }
+    public GptEspLocationReadinessStatus Status
+    {
+        get;
+    }
 
-    public GptStatus GptStatus { get; }
+    public GptStatus GptStatus
+    {
+        get;
+    }
 
-    public GptPartitionTableStatus GptTableStatus { get; }
+    public GptPartitionTableStatus GptTableStatus
+    {
+        get;
+    }
 
-    public GptPartitionTableCrcStatus GptCrcStatus { get; }
+    public GptPartitionTableCrcStatus GptCrcStatus
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockStatus { get; }
+    public BlockDeviceStatus BlockStatus
+    {
+        get;
+    }
 
-    public GptHeader Header { get; }
+    public GptHeader Header
+    {
+        get;
+    }
 
-    public GptPartitionEntry Partition { get; }
+    public GptPartitionEntry Partition
+    {
+        get;
+    }
 
-    public uint PartitionEntryIndex { get; }
+    public uint PartitionEntryIndex
+    {
+        get;
+    }
 
-    public uint BlockSizeBytes { get; }
+    public uint BlockSizeBytes
+    {
+        get;
+    }
 
     public ulong PartitionStartLba => Partition.FirstLba;
 
@@ -73,25 +103,55 @@ public readonly struct GptEspLocationReadinessResult
         ? Partition.LastLba - Partition.FirstLba + 1
         : 0;
 
-    public ulong PartitionEntryBytesRequired { get; }
+    public ulong PartitionEntryBytesRequired
+    {
+        get;
+    }
 
-    public ulong PartitionEntrySectorBytesRequired { get; }
+    public ulong PartitionEntrySectorBytesRequired
+    {
+        get;
+    }
 
-    public ulong HeaderBytesRequired { get; }
+    public ulong HeaderBytesRequired
+    {
+        get;
+    }
 
-    public ulong HeaderBufferBytesAvailable { get; }
+    public ulong HeaderBufferBytesAvailable
+    {
+        get;
+    }
 
-    public ulong PartitionEntryBufferBytesAvailable { get; }
+    public ulong PartitionEntryBufferBytesAvailable
+    {
+        get;
+    }
 
-    public GptPartitionTableSource TableSource { get; }
+    public GptPartitionTableSource TableSource
+    {
+        get;
+    }
 
-    public uint ExpectedHeaderCrc32 { get; }
+    public uint ExpectedHeaderCrc32
+    {
+        get;
+    }
 
-    public uint ComputedHeaderCrc32 { get; }
+    public uint ComputedHeaderCrc32
+    {
+        get;
+    }
 
-    public uint ExpectedPartitionEntryArrayCrc32 { get; }
+    public uint ExpectedPartitionEntryArrayCrc32
+    {
+        get;
+    }
 
-    public uint ComputedPartitionEntryArrayCrc32 { get; }
+    public uint ComputedPartitionEntryArrayCrc32
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == GptEspLocationReadinessStatus.Success;
 

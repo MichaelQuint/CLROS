@@ -16,6 +16,12 @@ public static unsafe partial class ContinuingFat32Mutation
         public readonly ulong Owner, Epoch, Revision, Generation;
         public readonly uint NextCluster;
         internal FreeCursor(State* s, uint next)
-        { Owner = (ulong)s; Epoch = s->Input.Epoch; Revision = s->Revision; Generation = s->RequestGeneration; NextCluster = next; }
+        {
+            Owner = (ulong)s;
+            Epoch = s->Input.Epoch;
+            Revision = s->Revision;
+            Generation = s->RequestGeneration;
+            NextCluster = next;
+        }
     }
 }

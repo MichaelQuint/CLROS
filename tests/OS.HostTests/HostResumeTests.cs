@@ -72,17 +72,20 @@ internal static class HostResumeTests
         var extensionBefore = new HostTestFingerprint(sources, "production-a").For("First", "all");
         sources["Extensions"] = "static class Checks { public static bool Valid(this int value) => false; }";
         HostCheck.True(extensionBefore != new HostTestFingerprint(sources, "production-a").For("First", "all"));
-        HostCheck.True(HostTestFingerprint.AffectsAllFixtures("global /* comment */ using System;"));
-        HostCheck.True(HostTestFingerprint.AffectsAllFixtures("#if DEBUG\nglobal using Chosen = System.Int32;\n#endif", ["DEBUG"]));
-        HostCheck.True(HostTestFingerprint.AffectsAllFixtures("[assembly: System.CLSCompliant(true)]"));
-        HostCheck.True(HostTestFingerprint.AffectsAllFixtures("static class Extensions { extension(int value) { public bool Valid() => true; } }"));
+        foreach (string global in new[] { "global /* comment */ using System;", "[assembly: System.CLSCompliant(true)]" })
+        {
+            string prior = new HostTestFingerprint(sources, "production-a").For("Sibling", "all");
+            sources["Global.cs"] = global;
+            HostCheck.True(prior != new HostTestFingerprint(sources, "production-a").For("Sibling", "all"));
+            sources.Remove("Global.cs");
+        }
     }
 
     [HostTest("runner resumes a focused selection without replaying passing checks")]
     private static void ResumeCommand()
     {
         string directory = Scratch();
-        var first = Run("--filter", "BootInfoTests", "--results", directory);
+        var first = Run("--filter", nameof(HostResumeControlTests), "--results", directory);
         HostCheck.True(first.Succeeded, first.StandardError + first.StandardOutput);
         using var initial = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, "results.json")));
         string id = initial.RootElement.GetProperty("Results")[0].GetProperty("Id").GetString()!;
@@ -199,15 +202,40 @@ internal static class HostResumeTests
         var initialized = ProcessRunner.RunAsync(new("git", ["init", "--quiet", directory], directory)).GetAwaiter().GetResult();
         HostCheck.True(initialized.Succeeded, initialized.StandardError);
         var recorded = HostBuildInputs.SourceInputs(directory).ToDictionary(Path.GetFullPath, _ => "unused", StringComparer.OrdinalIgnoreCase);
-        HostCheck.True(HostTestFingerprint.InventoryRecorded(directory, recorded));
+        HostCheck.True(HostTestFingerprint.InventoryRecorded(directory, recorded, []));
         foreach (string name in new[] { "src/Added.cs", "done/step-new.md" })
         {
             string added = Path.Combine(directory, name);
             File.WriteAllText(added, "new input");
-            HostCheck.True(!HostTestFingerprint.InventoryRecorded(directory, recorded), name);
+            HostCheck.True(!HostTestFingerprint.InventoryRecorded(directory, recorded, []), name);
             File.Delete(added);
-            HostCheck.True(HostTestFingerprint.InventoryRecorded(directory, recorded));
+            HostCheck.True(HostTestFingerprint.InventoryRecorded(directory, recorded, []));
         }
+        string ignore = Path.Combine(directory, ".gitignore");
+        File.WriteAllText(ignore, "bin/\n");
+        recorded[ignore] = HostRunCheckpoint.HashFile(ignore);
+        string output = Path.Combine(directory, "bin", "selected-output");
+        Directory.CreateDirectory(output);
+        string sidecar = Path.Combine(output, "tool.pdb");
+        File.WriteAllText(sidecar, "initial sidecar");
+        var original = HostProjectOutputs.FilesInDirectories(directory, [output])
+            .ToDictionary(path => path, HostRunCheckpoint.HashFile, StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in original)
+            recorded[pair.Key] = pair.Value;
+        bool Inventory() => HostTestFingerprint.InventoryRecorded(directory, recorded,
+            HostProjectOutputs.FilesInDirectories(directory, [output]));
+        HostCheck.True(Inventory());
+        string addedRuntime = Path.Combine(output, "native-dependency.so");
+        File.WriteAllText(addedRuntime, "added ignored runtime file");
+        HostCheck.True(!Inventory(), "ignored output membership changed");
+        File.Delete(addedRuntime);
+        HostCheck.True(Inventory());
+        var outputStamps = new Dictionary<string, HostTestFingerprint.FileStamp>(StringComparer.OrdinalIgnoreCase);
+        HostCheck.True(HostTestFingerprint.StampedFilesMatch(original, outputStamps));
+        File.WriteAllText(sidecar, "changed sidecar");
+        HostCheck.True(!HostTestFingerprint.StampedFilesMatch(original, outputStamps));
+        File.Delete(sidecar);
+        HostCheck.True(!HostTestFingerprint.StampedFilesMatch(original, outputStamps));
     }
 
     [HostTest("runner exact input hashes reject a binary replacement with preserved file stamps")]

@@ -16,11 +16,13 @@ public static unsafe class APPPKGDisk
     public static LivePackageResult Validate(Span<byte> package, Span<byte> selectedPath, uint expectedCrc32)
     {
         uint size = (uint)package.Length;
-        if (size < 32 || size > MaximumBytes) return Fail(LivePackageStatus.InvalidLength);
+        if (size < 32 || size > MaximumBytes)
+            return Fail(LivePackageStatus.InvalidLength);
         fixed (byte* bytes = package)
         fixed (byte* path = selectedPath)
         {
-            if (bytes == null || (ulong)bytes > ulong.MaxValue - size) return Fail(LivePackageStatus.InvalidLength);
+            if (bytes == null || (ulong)bytes > ulong.MaxValue - size)
+                return Fail(LivePackageStatus.InvalidLength);
             if (!AsciiPointerMatcher.IsRelativePath(path, (uint)selectedPath.Length))
                 return Fail(LivePackageStatus.InvalidPath);
             if (!AsciiPointerMatcher.Matches(bytes, 8, 8, 0x003076474b50534fUL) ||
@@ -34,8 +36,10 @@ public static unsafe class APPPKGDisk
             uint table = EndianPrimitives.ReadUInt32LittleEndian(bytes + 16);
             uint tableLength = EndianPrimitives.ReadUInt32LittleEndian(bytes + 20);
             if (files == 0 || files > MaximumFiles || tableLength != (uint)files * 32 ||
-                table < 32 || !Inside(size, table, tableLength)) return Fail(LivePackageStatus.InvalidTable);
-            LivePackageResult result = default; bool found = false;
+                table < 32 || !Inside(size, table, tableLength))
+                return Fail(LivePackageStatus.InvalidTable);
+            LivePackageResult result = default;
+            bool found = false;
             for (uint i = 0; i < files; i++)
             {
                 byte* entry = bytes + table + i * 32;
@@ -70,15 +74,22 @@ public static unsafe class APPPKGDisk
                 }
                 if (Equal(bytes + pathOffset, pathLength, path, (uint)selectedPath.Length))
                 {
-                    found = true; result.ContentOffset = (uint)contentOffset; result.ContentLength = (uint)contentLength;
+                    found = true;
+                    result.ContentOffset = (uint)contentOffset;
+                    result.ContentLength = (uint)contentLength;
                 }
             }
-            if (!found) return Fail(LivePackageStatus.MissingFile);
+            if (!found)
+                return Fail(LivePackageStatus.MissingFile);
             uint crc = Crc32.InitialState;
-            for (uint i = 0; i < size; i++) crc = Crc32.UpdateByte(crc, bytes[i]);
+            for (uint i = 0; i < size; i++)
+                crc = Crc32.UpdateByte(crc, bytes[i]);
             crc = Crc32.Finish(crc);
-            if (crc != expectedCrc32) return Fail(LivePackageStatus.ChecksumMismatch);
-            result.Status = LivePackageStatus.Success; result.FileCount = files; result.PackageCrc32 = crc;
+            if (crc != expectedCrc32)
+                return Fail(LivePackageStatus.ChecksumMismatch);
+            result.Status = LivePackageStatus.Success;
+            result.FileCount = files;
+            result.PackageCrc32 = crc;
             return result;
         }
     }
@@ -90,8 +101,11 @@ public static unsafe class APPPKGDisk
     private static bool Overlaps(ulong a, ulong al, ulong b, ulong bl) => al != 0 && bl != 0 && a < b + bl && b < a + al;
     private static bool Equal(byte* a, uint al, byte* b, uint bl)
     {
-        if (al != bl) return false;
-        for (uint i = 0; i < al; i++) if (a[i] != b[i]) return false;
+        if (al != bl)
+            return false;
+        for (uint i = 0; i < al; i++)
+            if (a[i] != b[i])
+                return false;
         return true;
     }
     private static LivePackageResult Fail(LivePackageStatus status) => new LivePackageResult { Status = status };

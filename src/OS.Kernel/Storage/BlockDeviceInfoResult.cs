@@ -9,11 +9,20 @@ public readonly struct BlockDeviceInfoResult
         Info = info;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public BlockDeviceStatus Status { get; }
+    public BlockDeviceStatus Status
+    {
+        get;
+    }
 
-    public BlockDeviceInfo Info { get; }
+    public BlockDeviceInfo Info
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == BlockDeviceStatus.Success;
 

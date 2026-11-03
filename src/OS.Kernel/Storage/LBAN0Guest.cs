@@ -20,26 +20,53 @@ public static unsafe class LBAN0Guest
 
     public static Lba0Result Validate(Span<byte> sector, ulong capacity, BlockReadResult read)
     {
-        Lba0Result result = default; result.Read = read;
+        Lba0Result result = default;
+        result.Read = read;
         if (!read.Succeeded || read.BlocksRead != 1 || read.BytesRead != 512)
-        { result.Status = Lba0Status.ReadFailed; return result; }
-        if (sector.Length != 512) { result.Status = Lba0Status.InvalidLength; return result; }
+        {
+            result.Status = Lba0Status.ReadFailed;
+            return result;
+        }
+        if (sector.Length != 512)
+        {
+            result.Status = Lba0Status.InvalidLength;
+            return result;
+        }
         if (capacity < 2 || capacity > ulong.MaxValue / 512)
-        { result.Status = Lba0Status.InvalidCapacity; return result; }
+        {
+            result.Status = Lba0Status.InvalidCapacity;
+            return result;
+        }
         fixed (byte* bytes = sector)
         {
-            if (bytes == null) { result.Status = Lba0Status.InvalidLength; return result; }
+            if (bytes == null)
+            {
+                result.Status = Lba0Status.InvalidLength;
+                return result;
+            }
             if (bytes[510] != 0x55 || bytes[511] != 0xaa)
-            { result.Status = Lba0Status.BadSignature; return result; }
+            {
+                result.Status = Lba0Status.BadSignature;
+                return result;
+            }
             result.FirstLba = EndianPrimitives.ReadUInt32LittleEndian(bytes + 454);
             result.ProtectedSectors = EndianPrimitives.ReadUInt32LittleEndian(bytes + 458);
             ulong expected = capacity - 1;
-            if (expected > 0xffffffffUL) expected = 0xffffffffUL;
+            if (expected > 0xffffffffUL)
+                expected = 0xffffffffUL;
             if (bytes[446] != 0 || bytes[450] != 0xee || result.FirstLba != 1 || result.ProtectedSectors != expected)
-            { result.Status = Lba0Status.BadProtectiveEntry; return result; }
+            {
+                result.Status = Lba0Status.BadProtectiveEntry;
+                return result;
+            }
             for (uint i = 462; i < 510; i++)
-                if (bytes[i] != 0) { result.Status = Lba0Status.HybridEntry; return result; }
+                if (bytes[i] != 0)
+                {
+                    result.Status = Lba0Status.HybridEntry;
+                    return result;
+                }
         }
-        result.Status = Lba0Status.Success; return result;
+        result.Status = Lba0Status.Success;
+        return result;
     }
 }

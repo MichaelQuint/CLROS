@@ -72,14 +72,20 @@ internal static class M04ConstructorFailureEfiIntegrationTests
         var defines = project.Descendants("DefineConstants").Where(node => node.Value.Split(';').Contains(Symbol)).ToArray();
         HostCheck.True(defines.Length == 1 && defines[0].Parent?.Attribute("Condition")?.Value == "'$(EnableM04ConstructorFailureProbe)' == 'true'",
             "symbol appears only in the explicitly enabled property group");
-        foreach (string include in new[] { @"Runtime\ConstructorFailureProbe.cs", @"Runtime\TypeInitializationException.cs",
-            @"..\OS.Kernel\Runtime\CompilerClassConstructorExecution.Invocation.cs" })
+        var source = HostSourceCatalog.Efi(EfiOptions.Parse(Arguments(Flags), true).Profile());
+        var sources = source.TypeSources("System.TypeInitializationException")
+            .Append(source.Document(source.Method("OS.Runtime.RhpNewFastAllocation", "RunConstructorFailure")))
+            .Append(source.Document(source.Method("OS.Kernel.Runtime.CompilerClassConstructorExecution", "BeginLazy")))
+            .Append(source.Document(source.Method("OS.Kernel.Runtime.CompilerClassConstructorExecution", "FinishLazy")))
+            .DistinctBy(document => document.Path);
+        foreach (var document in sources)
         {
-            var compile = project.Descendants("Compile").Where(node => node.Attribute("Include")?.Value == include).ToArray();
-            HostCheck.True(compile.Length == 1 && EfiContracts.ReviewedSourceIncludes.Contains(include), "explicit reviewed compile include " + include);
-            if (include.StartsWith("..", StringComparison.Ordinal))
-                HostCheck.True(compile[0].Attribute("Link")?.Value == @"Runtime\CompilerClassConstructorExecution.Invocation.cs", "kernel invocation compile link");
+            string include = Path.GetRelativePath(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src", "OS"), document.Path).Replace('/', '\\');
+            HostCheck.True(EfiContracts.ReviewedSourceIncludes.Contains(include)
+                && HostEfiSourceAdmission.Accepts(include, document.Text), "reviewed compiler input " + include);
         }
+        var admission = EfiProjectAdmission.InspectStatic(HostToolProcess.FindRepositoryRoot());
+        HostCheck.True(admission.Succeeded, admission.Reason + " " + admission.Detail);
     }
 
     [HostTest("m04.021.ctor-failure.efi native geometry and rehashed rejection controls", HostLane.Native, 3)]

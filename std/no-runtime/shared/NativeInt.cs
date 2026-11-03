@@ -1,35 +1,7 @@
 namespace OS.Std;
-
-public readonly struct NativeUIntOperationResult
-{
-    public NativeUIntOperationResult(NativeUIntOperationStatus status, nuint value)
-    {
-        Status = status;
-        Value = value;
-        IsInitialized = true;
-    }
-
-    public NativeUIntOperationStatus Status { get; }
-
-    public nuint Value { get; }
-
-    public bool IsInitialized { get; }
-
-    public bool Succeeded => IsInitialized && Status == NativeUIntOperationStatus.Success;
-}
-
-public enum NativeUIntOperationStatus
-{
-    Success = 0,
-    Overflow = 1,
-    Underflow = 2,
-    InvalidAlignment = 3
-}
-
 public static class NativeInt
 {
     public const CompatibilityStatus Status = CompatibilityStatus.Partial;
-
     public static NativeUIntOperationResult Add(nuint value, nuint offset)
     {
         nuint result = value + offset;

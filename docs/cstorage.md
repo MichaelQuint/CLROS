@@ -1,5 +1,65 @@
 # Storage
 
+[Step1730](../done/step1730.md) integrates explicit diagnostic trace/summary
+selections and a shared ordered image-CRC reader. All 69 focused graph checks
+pass. Both modes retain record reservation/order/commit/failure checks; summary
+omits payload hex and cannot replace ordinary full byte evidence. Independent
+native start/end counters, their complete consumer and exact native review remain
+required before launch. No storage speedup is claimed.
+
+[Step1729](../done/step1729.md) repeats three first sequences per backend with
+unchanged retained guest/image and the v10 observer. Median 64KiB network-body
+completion is 12.484s WHPX/10.419s TCG, while local durable body-file flush is
+1.798ms/1.741ms. Local flushing does not explain that gap. Guest evidence-flush
+regions remain 3.98-4.09s WHPX/0.90-0.92s TCG; those include checks, formatting and
+serial work across requests. They are not isolated UART or device service times.
+No source change, optimization, warm/full-asset or new qualification follows.
+
+[Step1728](../done/step1728.md) improves host timing observations before controlled
+storage/serial experiments: network-body completion is distinct from host file
+writing/flushing, and the original 180-second budget now covers streamed reads.
+The final 24 focused checks include a real loopback stall after one received byte
+and joined failure cleanup. Storage algorithms, guest code, guest serial evidence bytes and
+resource bounds are unchanged. No serial/FAT32 speedup is established.
+
+[Step1706](../done/step1706.md) expands the writable-disk wait, cancellation and
+completion formatting without token or algorithm changes. Independent
+conditional-source and one-pin checks pass, alongside 76 existing writable-disk
+host checks and EFI source admission. This does not qualify guest writes,
+SQLite execution or performance.
+
+[Step1705](../done/step1705.md) formats the EFI disk bootstrap, native device,
+evidence writer and six helper facets. Independent execution verifies identical
+tokens, syntax shape, member order, comments and directives across all 576
+conditional projections; exactly nine corresponding source pins change.
+The r67 build and 59 focused checks pass, unchanged inputs and zero reuse.
+Tracing, storage algorithms and budgets are unchanged; this is not native,
+guest or performance qualification.
+
+[Step1702](../done/step1702.md) accounts for all six retained diagnostic boots'
+145 requests/241 sectors: 47 directory reads, 66 mirrored FAT reads and 32
+four-sector payload reads. Six path operations include two failed trailing-slash
+stats; the 64 KiB range is only part of a 2,009,369-byte asset. The five-slot cache
+already reaches the full-scan read lower bound for these directories. Earlier
+ENOTDIR rejection predicts shifted work, not fewer requests, and changes error
+precedence. Exact-path certificate lifetime remains unproven. No cache/budget or
+runtime change, measured speedup or fresh guest acceptance follows from this
+analysis; controlled synchronous-evidence A/B remains first.
+
+[Step1696](../done/step1696.md) records whitespace cleanup of 164 storage files,
+independent token/shape checks across all 2,648 storage syntax projections and
+passing focused regression selections from the compiled test inventory. The
+74 changed EFI source pins match those exact formatted bytes. This changes no
+algorithm or budget and makes no native, guest or performance acceptance claim.
+
+[Step1694](../done/step1694.md) records the current refactor's FileChains and
+Directories partial extraction and 61 passing focused host checks. Method
+tokens, field order and explicit EFI admission were independently checked;
+native and guest qualification remain pending. Six retained diagnostic boots
+each contain 145 post-readiness block requests/241 sectors. Their I/O row clocks
+are sampled when evidence is flushed, not at physical completion; they cannot
+attribute device latency. No performance improvement is claimed for this move.
+
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
 The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.

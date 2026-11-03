@@ -17,15 +17,30 @@ public readonly struct OsPackageOpenFileResult
         Entry = entry;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public OsPackageFileSystemStatus Status { get; }
+    public OsPackageFileSystemStatus Status
+    {
+        get;
+    }
 
-    public OsPackageStatus PackageStatus { get; }
+    public OsPackageStatus PackageStatus
+    {
+        get;
+    }
 
-    public OsPackageHeader Header { get; }
+    public OsPackageHeader Header
+    {
+        get;
+    }
 
-    public OsPackageFileEntry Entry { get; }
+    public OsPackageFileEntry Entry
+    {
+        get;
+    }
 
     public ulong FileLength => Entry.ContentLength;
 

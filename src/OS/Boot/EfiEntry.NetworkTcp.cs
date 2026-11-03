@@ -13,29 +13,29 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
-        private struct NetworkTcpSlot
-        {
-            internal TcpPending.State Pending;
-            internal TcpRx.Owner Receiver;
-            internal TcpTx.Owner Sender;
-            internal fixed byte ReceiveBytes[8];
-            internal fixed byte SendBytes[8];
-        }
 
-        // The single BSP dispatcher retains these image-backed owners even after
-        // failure. No callback context, table generation or byte buffer is on its stack.
-        private struct NetworkTcpStorage
-        {
-            internal Storage* Boot;
-            internal NetDevice.State* Device;
-            internal TcpConnectionTable.Owner Table;
-            internal NetworkTcpSlot A, B, C, D, E;
-            internal fixed ulong TableBytes[32];
-            internal fixed ulong BacklogBytes[16];
-            internal MacAddress Peer;
-            internal uint Failed;
-            internal ulong CopiedFrames, IncomingFrames, Controls;
-        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         private static NetworkTcpStorage s_networkTcp;
 
         private static bool RunNetworkTcp(Storage* boot, NetDevice.State* device, MacAddress peer,

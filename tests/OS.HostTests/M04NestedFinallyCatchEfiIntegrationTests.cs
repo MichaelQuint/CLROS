@@ -53,15 +53,20 @@ internal static class M04NestedFinallyCatchEfiIntegrationTests
     [HostTest("m04.021.nested-finally.efi retained exception allocation routing")]
     private static void AllocationRouting()
     {
-        string source=File.ReadAllText(Path.Combine(Root,"src/OS/Runtime/GCStaticRootMaterializationProbe.cs"));
-        foreach(string symbol in new[]{"M04_SIMPLE_THROW_CATCH_PROBE","M04_SINGLE_FINALLY_CATCH_PROBE","M04_RETHROW_PROBE","M04_NESTED_FINALLY_CATCH_PROBE"})
+        const string owner = "OS.Runtime.RhpNewFastAllocation";
+        foreach (string leaf in new[] { "M04SimpleThrowCatch", "M04SingleFinallyCatch", "M04Rethrow", "M04NestedFinallyCatch" })
         {
-            var tree=Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(source,
-                new Microsoft.CodeAnalysis.CSharp.CSharpParseOptions(preprocessorSymbols:["NOSTDLIB_EFI","M04_GC_STATIC_ROOT_MATERIALIZATION_PROBE",symbol]));
-            var method=tree.GetRoot().DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>().Single(m=>m.Identifier.Text=="AllocateGcValue");
-            var route=method.Body!.Statements[0] as Microsoft.CodeAnalysis.CSharp.Syntax.IfStatementSyntax;
-            HostCheck.True(route is not null && route.Condition.ToString()=="s_gcPhase == 5" &&
-                route.Statement is Microsoft.CodeAnalysis.CSharp.Syntax.ReturnStatementSyntax returned && returned.Expression?.ToString()=="AllocateCatchException(token)",symbol);
+            var source = HostSourceCatalog.Efi(EfiOptions.Parse(
+                Arguments([.. RuntimeProfilePortTests.RethrowFlags[..^1], leaf]), true).Profile());
+            var method = source.Method(owner, "AllocateGcValue");
+            _ = source.MethodInvocations(method);
+            var route = method.Body!.Statements[0] as Microsoft.CodeAnalysis.CSharp.Syntax.IfStatementSyntax;
+            HostCheck.True(route is not null && HostSourceText.Active(route.Condition) == "s_gcPhase == 5"
+                && route.Statement is Microsoft.CodeAnalysis.CSharp.Syntax.ReturnStatementSyntax returned
+                && returned.Expression is Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax invocation
+                && HostSourceText.Active(invocation) == "AllocateCatchException(token)"
+                && Microsoft.CodeAnalysis.SymbolEqualityComparer.Default.Equals(source.Invocation(invocation),
+                    source.Type(owner).GetMembers("AllocateCatchException").OfType<Microsoft.CodeAnalysis.IMethodSymbol>().Single()), leaf);
         }
     }
 

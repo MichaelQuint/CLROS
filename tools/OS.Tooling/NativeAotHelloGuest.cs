@@ -51,19 +51,22 @@ public static class NativeAotHelloGuest
         "memory=67108864\nstack=1572864\nthreads=4\ndescriptors=16\nlisten=127.0.0.1:8080\nenv.CLROS_USER_IRQS=1\n";
 
     /// <summary>
-    /// Checks the seven current app/SDK/build/qualifier inputs against the original
-    /// raw source hashes. Missing, oversized or changed inputs throw; unrelated
+    /// Checks current app/SDK/build/qualifier inputs against reviewed raw source
+    /// hashes, expanding admitted source-only splits. Missing or changed inputs throw; unrelated
     /// kernel/tooling edits do not become claims of whole-repository identity.
     /// </summary>
     public static void RequireCurrentSources(string root)
     {
         root = Path.GetFullPath(root);
-        foreach (var source in Sources)
+        foreach (var source in CurrentSources())
         {
             byte[] bytes = ReadBounded(Path.Combine(root, source.Path), 1024 * 1024);
             Require(Hash(bytes) == source.Hash, "hello_source_identity " + source.Path);
         }
+        NativeAotCurrentSources.RequireToolingOwnership(root, Sources);
     }
+
+    internal static IReadOnlyList<(string Path, string Hash)> CurrentSources() => NativeAotCurrentSources.Expand(Sources).ToArray();
 
     /// <summary>
     /// Returns a fresh package from the extracted RC3 original directory. Exact

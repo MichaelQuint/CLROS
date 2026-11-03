@@ -58,12 +58,20 @@ public static class NativeAotSocketPackage
             { if (Path.GetFileName(path) is not ("bin" or "obj" or "artifacts")) pending.Push(path); }
             else files.Add(Path.GetRelativePath(directory, path).Replace('\\', '/'));
         }
-        Need(files.Order(StringComparer.Ordinal).SequenceEqual(new[] { App + ".csproj", "Program.cs" }.Order(StringComparer.Ordinal)), "source_inventory");
-        foreach (var source in ProducerSources)
+        var current = CurrentSources();
+        string prefix = "apps/" + App + "/";
+        var expected = current.Where(source => source.Path.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(source => source.Path[prefix.Length..]);
+        Need(files.Order(StringComparer.Ordinal).SequenceEqual(expected.Order(StringComparer.Ordinal)), "source_inventory");
+        foreach (var source in current)
         {
             Need(Hash(Read(root, source.Path, 1024 * 1024)) == source.Hash, "source_identity " + source.Path);
         }
+        NativeAotCurrentSources.RequireToolingOwnership(root, ProducerSources);
     }
+
+    internal static IReadOnlyList<(string Path, string Hash)> CurrentSources() =>
+        NativeAotCurrentSources.Expand(ProducerSources).ToArray();
 
     /// <summary>Reads the immutable original receipt, all 33 retained outputs,
     /// produced DLL/object and original producer DLL before creating owned bytes.

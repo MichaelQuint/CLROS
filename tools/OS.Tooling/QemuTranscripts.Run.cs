@@ -3,130 +3,137 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
-
 public static partial class QemuTranscripts
 {
-    private static string[] RunnerBackend(QemuSmokeOptions options) =>
-        ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
-
+    private static string[] RunnerBackend(QemuSmokeOptions options) => ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
     private static string[] RunnerBody(QemuSmokeOptions options, IReadOnlyList<string> rows)
     {
-        Need(rows.Count >= 2 && rows.Take(2).SequenceEqual(RunnerBackend(options)) &&
-            rows.Count(row => row.StartsWith("QEMU_ACCELERATOR", StringComparison.Ordinal)) == 1 &&
-            rows.Count(row => row.StartsWith("QEMU_MACHINE", StringComparison.Ordinal)) == 1, "qemu_runner_accelerator_identity");
+        Need(rows.Count >= 2 && rows.Take(2).SequenceEqual(RunnerBackend(options)) && rows.Count(row => row.StartsWith("QEMU_ACCELERATOR", StringComparison.Ordinal)) == 1 && rows.Count(row => row.StartsWith("QEMU_MACHINE", StringComparison.Ordinal)) == 1, "qemu_runner_accelerator_identity");
         return rows.Skip(2).ToArray();
     }
 
-    public static void RequireCompleteProcess(ProcessResult result, string reason = "qemu_runner_incomplete") =>
-        Need(result.TerminationConfirmed && result.FailureReason.Length == 0 && !result.TimedOut && !result.Cancelled && !result.OutputLimitExceeded, reason);
-
-    public static int ValidateRun(string root, QemuSmokeOptions options, QemuSmokePlan plan, ProcessResult runner, TextWriter output,
-        NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null,
-        NativeAotSocketProgram? socketProgram=null,NativeAotSocketPeer.Completion? socketPeer=null,NativeAotSocketContainmentProgram? containmentProgram=null,
-        NativeAotSocketVectorsProgram? vectorsProgram=null,NativeAotSocketVectorsPeer.Completion? vectorsPeer=null)
+    public static void RequireCompleteProcess(ProcessResult result, string reason = "qemu_runner_incomplete") => Need(result.TerminationConfirmed && result.FailureReason.Length == 0 && !result.TimedOut && !result.Cancelled && !result.OutputLimitExceeded, reason);
+    public static int ValidateRun(string root, QemuSmokeOptions options, QemuSmokePlan plan, ProcessResult runner, TextWriter output, NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null, NativeAotSocketProgram? socketProgram = null, NativeAotSocketPeer.Completion? socketPeer = null, NativeAotSocketContainmentProgram? containmentProgram = null, NativeAotSocketVectorsProgram? vectorsProgram = null, NativeAotSocketVectorsPeer.Completion? vectorsPeer = null)
     {
         RequireCompleteProcess(runner);
         Need((options.LinuxHelloDisassembly.Length != 0) == (helloProgram is not null), "hello_prepared_program_required");
-        if (helloProgram is not null) Need(string.Equals(Path.GetFullPath(root), helloProgram.SourceRoot,
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal), "hello_prepared_source_root");
-        bool signalEpoll=LinuxSignalEpollSelection.Bind(options,plan.Flags);
-        Need(!signalEpoll||helloProgram is null&&threadingProgram is null&&runtimeProgram is null&&socketProgram is null&&socketPeer is null&&
-            containmentProgram is null&&vectorsProgram is null&&vectorsPeer is null,"signal_epoll_prepared_program_conflict");
-        string socketApp=signalEpoll?"":NativeAotSocketSelection.Application(plan.Flags,options.LinuxThreadingApplication);
-        bool containment=NativeAotSocketContainmentSelection.Selected(plan.Flags);
-        bool vectors=NativeAotSocketVectorsSelection.Selected(plan.Flags);
-        Need(vectors==(vectorsProgram is not null) && (vectorsProgram is not null)==(vectorsPeer is not null),"socket_vectors_prepared_program_and_peer_required");
-        if(vectorsProgram is not null)
+        if (helloProgram is not null)
+            Need(string.Equals(Path.GetFullPath(root), helloProgram.SourceRoot, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal), "hello_prepared_source_root");
+        bool signalEpoll = LinuxSignalEpollSelection.Bind(options, plan.Flags);
+        Need(!signalEpoll || helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null && socketPeer is null && containmentProgram is null && vectorsProgram is null && vectorsPeer is null, "signal_epoll_prepared_program_conflict");
+        string socketApp = signalEpoll ? "" : NativeAotSocketSelection.Application(plan.Flags, options.LinuxThreadingApplication);
+        bool containment = NativeAotSocketContainmentSelection.Selected(plan.Flags);
+        bool vectors = NativeAotSocketVectorsSelection.Selected(plan.Flags);
+        Need(vectors == (vectorsProgram is not null) && (vectorsProgram is not null) == (vectorsPeer is not null), "socket_vectors_prepared_program_and_peer_required");
+        if (vectorsProgram is not null)
         {
-            var comparison=OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal;
-            Need(helloProgram is null&&threadingProgram is null&&runtimeProgram is null&&socketProgram is null&&socketPeer is null&&containmentProgram is null&&
-                vectorsPeer is not null&&ReferenceEquals(runner,vectorsPeer.Runner)&&plan.IsEnabled("EnableM16012Probe")&&plan.IsEnabled("EnableM16011Probe")&&
-                options.LinuxThreadingApplication==NativeAotSocketVectorsPublisher.Application&&options.LinuxThreadingDisassembly.Length!=0&&
-                string.Equals(Path.GetFullPath(root),vectorsProgram.SourceRoot,comparison)&&string.Equals(Path.GetFullPath(root),vectorsPeer.Root,comparison)&&
-                string.Equals(Path.GetFullPath(options.SerialLog,root),vectorsPeer.SerialPath,comparison)&&
-                string.Equals(Path.GetFullPath(options.SerialLog+".peer.log",root),vectorsPeer.Path,comparison),"socket_vectors_prepared_selection");
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            Need(helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null && socketPeer is null && containmentProgram is null && vectorsPeer is not null && ReferenceEquals(runner, vectorsPeer.Runner) && plan.IsEnabled("EnableM16012Probe") && plan.IsEnabled("EnableM16011Probe") && options.LinuxThreadingApplication == NativeAotSocketVectorsPublisher.Application && options.LinuxThreadingDisassembly.Length != 0 && string.Equals(Path.GetFullPath(root), vectorsProgram.SourceRoot, comparison) && string.Equals(Path.GetFullPath(root), vectorsPeer.Root, comparison) && string.Equals(Path.GetFullPath(options.SerialLog, root), vectorsPeer.SerialPath, comparison) && string.Equals(Path.GetFullPath(options.SerialLog + ".peer.log", root), vectorsPeer.Path, comparison), "socket_vectors_prepared_selection");
         }
-        Need(containment==(containmentProgram is not null),"socket_containment_prepared_program_required");
-        if(containmentProgram is not null)
-            Need(helloProgram is null&&threadingProgram is null&&runtimeProgram is null&&socketProgram is null&&socketPeer is null&&
-                options.LinuxThreadingApplication==NativeAotSocketContainmentPublisher.Application&&options.LinuxThreadingDisassembly.Length!=0&&
-                string.Equals(Path.GetFullPath(root),containmentProgram.SourceRoot,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal),
-                "socket_containment_prepared_selection");
-        Need((socketApp.Length!=0)==(socketProgram is not null) && (socketProgram is not null)==(socketPeer is not null),"socket_prepared_program_and_peer_required");
-        if(socketProgram is not null)
+
+        Need(containment == (containmentProgram is not null), "socket_containment_prepared_program_required");
+        if (containmentProgram is not null)
+            Need(helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null && socketPeer is null && options.LinuxThreadingApplication == NativeAotSocketContainmentPublisher.Application && options.LinuxThreadingDisassembly.Length != 0 && string.Equals(Path.GetFullPath(root), containmentProgram.SourceRoot, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal), "socket_containment_prepared_selection");
+        Need((socketApp.Length != 0) == (socketProgram is not null) && (socketProgram is not null) == (socketPeer is not null), "socket_prepared_program_and_peer_required");
+        if (socketProgram is not null)
         {
-            Need(helloProgram is null&&threadingProgram is null&&runtimeProgram is null&&socketPeer is not null&&ReferenceEquals(runner,socketPeer.Runner) &&
-                socketProgram.Asynchronous==plan.IsEnabled("EnableM16012Probe") && options.LinuxThreadingDisassembly.Length!=0 &&
-                string.Equals(Path.GetFullPath(root),socketProgram.SourceRoot,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal) &&
-                string.Equals(Path.GetFullPath(root),socketPeer.Root,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal) &&
-                (socketProgram.Asynchronous?string.Equals(Path.GetFullPath(options.SerialLog,root),socketPeer.ReceiveGateSerial,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal):socketPeer.ReceiveGateSerial.Length==0) &&
-                string.Equals(Path.GetFullPath(options.SerialLog+".peer.log",root),socketPeer.Path,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal),"socket_prepared_selection");
+            Need(helloProgram is null && threadingProgram is null && runtimeProgram is null && socketPeer is not null && ReferenceEquals(runner, socketPeer.Runner) && socketProgram.Asynchronous == plan.IsEnabled("EnableM16012Probe") && options.LinuxThreadingDisassembly.Length != 0 && string.Equals(Path.GetFullPath(root), socketProgram.SourceRoot, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) && string.Equals(Path.GetFullPath(root), socketPeer.Root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) && (socketProgram.Asynchronous ? string.Equals(Path.GetFullPath(options.SerialLog, root), socketPeer.ReceiveGateSerial, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) : socketPeer.ReceiveGateSerial.Length == 0) && string.Equals(Path.GetFullPath(options.SerialLog + ".peer.log", root), socketPeer.Path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal), "socket_prepared_selection");
         }
-        string runtimeApp = signalEpoll||socketProgram is not null||containment||vectors?"":NativeAotRuntimeSelection.Application(plan.Flags, options.LinuxThreadingApplication);
+
+        string runtimeApp = signalEpoll || socketProgram is not null || containment || vectors ? "" : NativeAotRuntimeSelection.Application(plan.Flags, options.LinuxThreadingApplication);
         Need((runtimeApp.Length != 0) == (runtimeProgram is not null), "runtime_prepared_program_required");
         Need(options.HasThreadingSelection == (threadingProgram is not null || runtimeProgram is not null || socketProgram is not null || containmentProgram is not null || vectorsProgram is not null), "threading_prepared_program_required");
         Need(threadingProgram is null || runtimeProgram is null, "runtime_threading_conflict");
         if (runtimeProgram is not null)
         {
             Need(helloProgram is null && options.LinuxHelloDisassembly.Length == 0, "threading_hello_conflict");
-            Need(runtimeProgram.Application == runtimeApp && options.LinuxThreadingApplication == runtimeApp &&
-                options.LinuxThreadingDisassembly.Length != 0 && plan.IsEnabled("EnableM16009Probe"), "runtime_prepared_selection");
-            Need(string.Equals(Path.GetFullPath(root), runtimeProgram.SourceRoot,
-                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal), "runtime_prepared_source_root");
+            Need(runtimeProgram.Application == runtimeApp && options.LinuxThreadingApplication == runtimeApp && options.LinuxThreadingDisassembly.Length != 0 && plan.IsEnabled("EnableM16009Probe"), "runtime_prepared_selection");
+            Need(string.Equals(Path.GetFullPath(root), runtimeProgram.SourceRoot, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal), "runtime_prepared_source_root");
         }
+
         if (threadingProgram is not null)
         {
             Need(helloProgram is null && options.LinuxHelloDisassembly.Length == 0, "threading_hello_conflict");
-            Need(options.LinuxThreadingApplication == threadingProgram.Application && options.LinuxThreadingDisassembly.Length != 0 &&
-                plan.IsEnabled("EnableM16009Probe"), "threading_prepared_selection");
-            Need(string.Equals(Path.GetFullPath(root), threadingProgram.SourceRoot,
-                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal), "threading_prepared_source_root");
+            Need(options.LinuxThreadingApplication == threadingProgram.Application && options.LinuxThreadingDisassembly.Length != 0 && plan.IsEnabled("EnableM16009Probe"), "threading_prepared_selection");
+            Need(string.Equals(Path.GetFullPath(root), threadingProgram.SourceRoot, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal), "threading_prepared_source_root");
         }
-        using AuthorityFiles? threadingEvidence = signalEpoll?HoldSignalEpollEvidence(root,options):
-            vectorsPeer is not null?HoldSocketVectorsEvidence(root,options,vectorsPeer):
-            containmentProgram is not null?HoldSocketContainmentEvidence(root,options):
-            socketPeer is not null?HoldSocketEvidence(root,options,socketPeer):
-            threadingProgram is null && runtimeProgram is null ? null : HoldThreadingEvidence(root, options);
+
+        using AuthorityFiles? threadingEvidence = signalEpoll ? HoldSignalEpollEvidence(root, options) : vectorsPeer is not null ? HoldSocketVectorsEvidence(root, options, vectorsPeer) : containmentProgram is not null ? HoldSocketContainmentEvidence(root, options) : socketPeer is not null ? HoldSocketEvidence(root, options, socketPeer) : threadingProgram is null && runtimeProgram is null ? null : HoldThreadingEvidence(root, options);
         bool Enabled(string name) => plan.IsEnabled("Enable" + name + "Probe");
         string path = Path.GetFullPath(options.SerialLog, root);
-        if (plan.IsNormalBoot || new[] { "M03TypedExitBootServicesCall", "M04TypeManagerModuleRegistration", "M03FirmwareEntropySeed", "AcpiPhysicalDiscovery", "M02UnexpectedVectorPanic", "M03MemoryMapCapture" }.Any(Enabled))
+        if (plan.IsNormalBoot || new[]
+        {
+            "M03TypedExitBootServicesCall",
+            "M04TypeManagerModuleRegistration",
+            "M03FirmwareEntropySeed",
+            "AcpiPhysicalDiscovery",
+            "M02UnexpectedVectorPanic",
+            "M03MemoryMapCapture"
+        }.Any(Enabled))
             RequireEmptyNativeError(runner.StandardError, Path.GetFullPath(options.SummaryLog + ".stderr.log", root));
         string[] lines = runner.StandardOutput.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
-        string containmentPeerLine="";
-        if(containment)
+        string containmentPeerLine = "";
+        if (containment)
         {
-            string[] peerLines=lines.Where(line=>line.StartsWith("SOCKET_CONTAINMENT_PEER_RESULT ",StringComparison.Ordinal)).ToArray();
-            Need(peerLines.Length==1,"socket_containment_runner_peer_count");containmentPeerLine=peerLines[0];
-            _=ReadSocketContainmentPeerResult(containmentPeerLine);
+            string[] peerLines = lines.Where(line => line.StartsWith("SOCKET_CONTAINMENT_PEER_RESULT ", StringComparison.Ordinal)).ToArray();
+            Need(peerLines.Length == 1, "socket_containment_runner_peer_count");
+            containmentPeerLine = peerLines[0];
+            _ = ReadSocketContainmentPeerResult(containmentPeerLine);
         }
-        if (lines.Length != 0 && lines[^1] == "") lines = lines[..^1];
+
+        if (lines.Length != 0 && lines[^1] == "")
+            lines = lines[..^1];
         if (runner.ExitCode != 0 && !Enabled("M02UnexpectedVectorPanic") && !Enabled("M03OwnedSubsystemPanic") && !Enabled("M04UnhandledException"))
         {
-            if (Enabled("M03FirmwareEntropySeed") && options.FirmwareRngSource == "missing") AssertM03FirmwareEntropyTranscript(path, true);
+            if (Enabled("M03FirmwareEntropySeed") && options.FirmwareRngSource == "missing")
+                AssertM03FirmwareEntropyTranscript(path, true);
             return runner.ExitCode;
         }
+
         if (plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices") || Enabled("AcpiPhysicalDiscovery"))
         {
             Need(runner.StandardError.Length == 0, "qemu_runner_stderr_not_empty");
-            AssertM03AcpiBootstrapTranscript(path, plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices"), Enabled("M03FirmwareAdapterRevocation"), plan.IsNormalBoot || Enabled("M03OwnedSubsystemSurvival"), Enabled("M03OwnedSubsystemPanic"), plan.IsNormalBoot, Enabled("M05PhysicalMapping"), Enabled("M05OwnedAcpiSelection"), Enabled("M05MonotonicClock"), Enabled("M05PciEnumeration"), Enabled("M05BarDma"), Enabled("M05VirtioNegotiation"), Enabled("M05VirtqueuePolling"), Enabled("M05ApicSetup"), Enabled("M05VirtqueueInterrupt"), Enabled("M06VirtioBlockQueueSetup"), Enabled("M06VirtioBlockRead"), Enabled("M06LiveBlockContract"), Enabled("M06GptPartition"), options.GptImageVariant == "PrimaryHeaderCrcFault", Enabled("M06FatRead"), Enabled("M06PackageRead"), options.PackageImageVariant, Enabled("M06BlockMsix"), Enabled("M06BlockMsixPollingRecovery"), Enabled("M07VirtioNet"), Enabled("M07ArpReceive"), Enabled("M16002") ? Path.GetFullPath(options.LinuxElfPackage, root) : "", Enabled("M16003"), Enabled("M16004"), Enabled("M16005"), linuxMemory: Enabled("M16006"), linuxDescriptors: Enabled("M16007"), cooperativeSwitch: Enabled("M09004"), schedulerTimer: Enabled("M09005"), kernelThreads: Enabled("M09006"), waitAddress: Enabled("M09009"), privateTls: Enabled("M09010"), linuxThreads: Enabled("M16008"), linuxSignals: Enabled("M16009"), helloProgram: helloProgram, threadingProgram: threadingProgram, runtimeProgram: runtimeProgram, networkService: Enabled("M07026"),socketProgram:socketProgram,containmentProgram:containmentProgram,containmentPeerLine:containmentPeerLine,vectorsProgram:vectorsProgram,signalEpollRace:signalEpoll);
-            if(signalEpoll||socketProgram is not null||containmentProgram is not null||vectorsProgram is not null){}
-            else if (Enabled("M07026")) AssertM07026Capture(path, Path.GetFullPath(options.SerialLog + ".pcap", root));
-            else if (Enabled("M07ArpReceive")) _ = AssertM07ArpReceiveCapture(path, Path.GetFullPath(options.SerialLog + ".pcap", root));
-            else if (Enabled("M07VirtioNet")) _ = AssertM07VirtioNetCapture(path, Path.GetFullPath(options.SerialLog + ".pcap", root));
-            if (Enabled("M06BlockMsix")) AssertM06BlockMsixImage(path, Path.GetFullPath(options.Image, root), Enabled("M06BlockMsixPollingRecovery"));
-            if (Enabled("M06VirtioBlockRead")) AssertM06VirtioBlockReadImage(path, Path.GetFullPath(options.Image, root));
-            if (Enabled("M06LiveBlockContract")) AssertM06LiveBlockContractImage(path, Path.GetFullPath(options.Image, root));
-            if (Enabled("M06FatRead")) AssertM06FatReadImage(path, Path.GetFullPath(options.Image, root));
-            if (Enabled("M06PackageRead") && !Enabled("M06BlockMsix")) AssertM06PackageReadImage(path, Path.GetFullPath(options.Image, root), options.PackageImageVariant);
-            if (Enabled("M06GptPartition")) AssertM06GptPartitionImage(path, Path.GetFullPath(options.Image, root), options.GptImageVariant == "PrimaryHeaderCrcFault");
-            if (Enabled("M03OwnedSubsystemPanic")) AssertExpectedPanicRunner(root, options, plan, runner, lines, ownedSubsystem: true);
-            else AssertStandardRunnerResult(root, options, plan, lines, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer?.Port,containmentProgram,vectorsProgram,vectorsPeer?.Port);
+            AssertM03AcpiBootstrapTranscript(path, plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices"), Enabled("M03FirmwareAdapterRevocation"), plan.IsNormalBoot || Enabled("M03OwnedSubsystemSurvival"), Enabled("M03OwnedSubsystemPanic"), plan.IsNormalBoot, Enabled("M05PhysicalMapping"), Enabled("M05OwnedAcpiSelection"), Enabled("M05MonotonicClock"), Enabled("M05PciEnumeration"), Enabled("M05BarDma"), Enabled("M05VirtioNegotiation"), Enabled("M05VirtqueuePolling"), Enabled("M05ApicSetup"), Enabled("M05VirtqueueInterrupt"), Enabled("M06VirtioBlockQueueSetup"), Enabled("M06VirtioBlockRead"), Enabled("M06LiveBlockContract"), Enabled("M06GptPartition"), options.GptImageVariant == "PrimaryHeaderCrcFault", Enabled("M06FatRead"), Enabled("M06PackageRead"), options.PackageImageVariant, Enabled("M06BlockMsix"), Enabled("M06BlockMsixPollingRecovery"), Enabled("M07VirtioNet"), Enabled("M07ArpReceive"), Enabled("M16002") ? Path.GetFullPath(options.LinuxElfPackage, root) : "", Enabled("M16003"), Enabled("M16004"), Enabled("M16005"), linuxMemory: Enabled("M16006"), linuxDescriptors: Enabled("M16007"), cooperativeSwitch: Enabled("M09004"), schedulerTimer: Enabled("M09005"), kernelThreads: Enabled("M09006"), waitAddress: Enabled("M09009"), privateTls: Enabled("M09010"), linuxThreads: Enabled("M16008"), linuxSignals: Enabled("M16009"), helloProgram: helloProgram, threadingProgram: threadingProgram, runtimeProgram: runtimeProgram, networkService: Enabled("M07026"), socketProgram: socketProgram, containmentProgram: containmentProgram, containmentPeerLine: containmentPeerLine, vectorsProgram: vectorsProgram, signalEpollRace: signalEpoll);
+            if (signalEpoll || socketProgram is not null || containmentProgram is not null || vectorsProgram is not null)
+            {
+            }
+            else if (Enabled("M07026"))
+                AssertM07026Capture(path, Path.GetFullPath(options.SerialLog + ".pcap", root));
+            else if (Enabled("M07ArpReceive"))
+                _ = AssertM07ArpReceiveCapture(path, Path.GetFullPath(options.SerialLog + ".pcap", root));
+            else if (Enabled("M07VirtioNet"))
+                _ = AssertM07VirtioNetCapture(path, Path.GetFullPath(options.SerialLog + ".pcap", root));
+            if (Enabled("M06BlockMsix"))
+                AssertM06BlockMsixImage(path, Path.GetFullPath(options.Image, root), Enabled("M06BlockMsixPollingRecovery"));
+            if (Enabled("M06VirtioBlockRead"))
+                AssertM06VirtioBlockReadImage(path, Path.GetFullPath(options.Image, root));
+            if (Enabled("M06LiveBlockContract"))
+                AssertM06LiveBlockContractImage(path, Path.GetFullPath(options.Image, root));
+            if (Enabled("M06FatRead"))
+                AssertM06FatReadImage(path, Path.GetFullPath(options.Image, root));
+            if (Enabled("M06PackageRead") && !Enabled("M06BlockMsix"))
+                AssertM06PackageReadImage(path, Path.GetFullPath(options.Image, root), options.PackageImageVariant);
+            if (Enabled("M06GptPartition"))
+                AssertM06GptPartitionImage(path, Path.GetFullPath(options.Image, root), options.GptImageVariant == "PrimaryHeaderCrcFault");
+            if (Enabled("M03OwnedSubsystemPanic"))
+                AssertExpectedPanicRunner(root, options, plan, runner, lines, ownedSubsystem: true);
+            else
+                AssertStandardRunnerResult(root, options, plan, lines, helloProgram, threadingProgram, runtimeProgram, socketProgram, socketPeer?.Port, containmentProgram, vectorsProgram, vectorsPeer?.Port);
         }
         else if (Enabled("M03TypedExitBootServicesCall"))
-        { Need(runner.StandardError.Length == 0, "qemu_runner_stderr_not_empty"); AssertM03TypedExitBootServicesTranscript(path); AssertStandardRunnerResult(root, options, plan, lines); }
+        {
+            Need(runner.StandardError.Length == 0, "qemu_runner_stderr_not_empty");
+            AssertM03TypedExitBootServicesTranscript(path);
+            AssertStandardRunnerResult(root, options, plan, lines);
+        }
         else if (Enabled("M03FirmwareEntropySeed"))
-        { Need(runner.StandardError.Length == 0, "qemu_runner_stderr_not_empty"); AssertM03FirmwareEntropyTranscript(path); AssertStandardRunnerResult(root, options, plan, lines); }
-        else ValidateDiagnosticTranscript(root, options, plan, runner, lines);
+        {
+            Need(runner.StandardError.Length == 0, "qemu_runner_stderr_not_empty");
+            AssertM03FirmwareEntropyTranscript(path);
+            AssertStandardRunnerResult(root, options, plan, lines);
+        }
+        else
+            ValidateDiagnosticTranscript(root, options, plan, runner, lines);
         ValidateUnselectedRecords(File.ReadAllText(path), plan);
         threadingEvidence?.VerifyUnchanged();
         return 0;
@@ -134,120 +141,143 @@ public static partial class QemuTranscripts
 
     public static void RequireEmptyNativeError(string error, string preservedPath)
     {
-        if (error.Length == 0) return;
+        if (error.Length == 0)
+            return;
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(preservedPath))!);
         File.WriteAllText(preservedPath, error, new UTF8Encoding(false));
         throw new ToolFailure("qemu_runner_stderr_not_empty", "path=" + preservedPath);
     }
 
-    /// <summary>Copied original file identities used to reproduce the writable
-    /// runner's exact stdout and summary. Values alone grant no process, image,
-    /// device, execution or persistence authority; the enclosing owner retains
-    /// and revalidates those files across the actual joined invocation.</summary>
-    public sealed record WritableRunnerValues(string WorkingPath,string BootIdentity,long BootLength,string BootSha256,
-        string WorkingIdentity,long WorkingLength,string InitialSha256)
-    {
-        internal string[] Rows(bool joined) => ["WRITABLE_DATA_IMAGE "+WorkingPath,
-            $"WRITABLE_DATA_BOOT identity={BootIdentity} bytes={BootLength} sha256={BootSha256}",
-            $"WRITABLE_DATA_WORKING identity={WorkingIdentity} bytes={WorkingLength} initialSha256={InitialSha256} content=mutable cache=writeback",
-            "WRITABLE_DATA_LIFETIME joined="+(joined?"true":"false")+" finalVerified="+(joined?"true":"false")+" acceptance=pending"];
-    }
-
-    public static void AssertStandardRunnerResult(string root, QemuSmokeOptions options, QemuSmokePlan plan, IReadOnlyList<string> original,
-        NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null,
-        NativeAotSocketProgram? socketProgram=null,int? socketForwardPort=null,NativeAotSocketContainmentProgram? containmentProgram=null,
-        NativeAotSocketVectorsProgram? vectorsProgram=null,int? vectorsForwardPort=null,
-        NativeAotStaticFileProgram? staticProgram=null,int? staticForwardPort=null,IReadOnlyList<string>? staticChildRows=null,
-        WritableRunnerValues? writableData=null)
+    public static void AssertStandardRunnerResult(string root, QemuSmokeOptions options, QemuSmokePlan plan, IReadOnlyList<string> original, NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null, NativeAotSocketProgram? socketProgram = null, int? socketForwardPort = null, NativeAotSocketContainmentProgram? containmentProgram = null, NativeAotSocketVectorsProgram? vectorsProgram = null, int? vectorsForwardPort = null, NativeAotStaticFileProgram? staticProgram = null, int? staticForwardPort = null, IReadOnlyList<string>? staticChildRows = null, WritableRunnerValues? writableData = null)
     {
         var lines = original.ToList();
         bool entropy = plan.IsEnabled("EnableM03FirmwareEntropySeedProbe") || plan.IsEnabled("EnableM16004Probe");
-        bool staticFiles=staticProgram is not null;
-        bool diskFiles=NativeAotDiskSelection.Selected(plan.Flags);
-        bool diskStatic=NativeAotDiskSelection.StaticSelected(plan.Flags);
-        bool writableDisk=NativeAotDiskSelection.WritableSelected(plan.Flags);
-        Need(writableDisk==(writableData is not null),"writable_runner_original_values_required");
-        Need(!diskStatic || staticFiles,"disk_static_runner_program_required");
-        Need(!diskFiles || helloProgram is null && threadingProgram is null && runtimeProgram is null &&
-            socketProgram is null && containmentProgram is null && vectorsProgram is null && (!staticFiles || diskStatic && !staticProgram!.Staged),"disk_runner_program_selection");
-        Need(!staticFiles || (diskStatic ? plan.IsEnabled("EnableM10018Probe") && !staticProgram!.Staged : plan.IsEnabled("EnableM10017Probe") && staticProgram!.Staged) && staticChildRows is {Count:12} &&
-            helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null &&
-            containmentProgram is null && vectorsProgram is null,"static_runner_program_selection");
-        Need(vectorsProgram is null || socketProgram is null&&containmentProgram is null&&helloProgram is null&&threadingProgram is null&&runtimeProgram is null,"socket_vectors_runner_program_conflict");
+        bool staticFiles = staticProgram is not null;
+        bool diskFiles = NativeAotDiskSelection.Selected(plan.Flags);
+        bool diskStatic = NativeAotDiskSelection.StaticSelected(plan.Flags);
+        bool writableDisk = NativeAotDiskSelection.WritableSelected(plan.Flags);
+        Need(writableDisk == (writableData is not null), "writable_runner_original_values_required");
+        Need(!diskStatic || staticFiles, "disk_static_runner_program_required");
+        Need(!diskFiles || helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null && containmentProgram is null && vectorsProgram is null && (!staticFiles || diskStatic && !staticProgram!.Staged), "disk_runner_program_selection");
+        Need(!staticFiles || (diskStatic ? plan.IsEnabled("EnableM10018Probe") && !staticProgram!.Staged : plan.IsEnabled("EnableM10017Probe") && staticProgram!.Staged) && staticChildRows is { Count: 12 } && helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null && containmentProgram is null && vectorsProgram is null, "static_runner_program_selection");
+        Need(vectorsProgram is null || socketProgram is null && containmentProgram is null && helloProgram is null && threadingProgram is null && runtimeProgram is null, "socket_vectors_runner_program_conflict");
         string[] backend = ["QEMU_ACCELERATOR " + options.Accelerator, "QEMU_MACHINE " + QemuContracts.MachineArgument(options.Accelerator)];
-        Need(lines.Count >= 2 && lines.Take(2).SequenceEqual(backend) &&
-            lines.Count(l => l.StartsWith("QEMU_ACCELERATOR", StringComparison.Ordinal)) == 1 &&
-            lines.Count(l => l.StartsWith("QEMU_MACHINE", StringComparison.Ordinal)) == 1, "qemu_runner_accelerator_identity");
+        Need(lines.Count >= 2 && lines.Take(2).SequenceEqual(backend) && lines.Count(l => l.StartsWith("QEMU_ACCELERATOR", StringComparison.Ordinal)) == 1 && lines.Count(l => l.StartsWith("QEMU_MACHINE", StringComparison.Ordinal)) == 1, "qemu_runner_accelerator_identity");
         lines.RemoveRange(0, 2);
-        if(writableData is not null)
+        if (writableData is not null)
         {
-            Need(entropy && lines.Count==22 && lines.Skip(7).Take(4).SequenceEqual(writableData.Rows(false)),"writable_runner_initial_identity");
-            lines.RemoveRange(7,4);
+            Need(entropy && lines.Count == 22 && lines.Skip(7).Take(4).SequenceEqual(writableData.Rows(false)), "writable_runner_initial_identity");
+            lines.RemoveRange(7, 4);
         }
-        if(socketProgram is not null||vectorsProgram is not null||staticFiles)
+
+        if (socketProgram is not null || vectorsProgram is not null || staticFiles)
         {
-            if(vectorsProgram is not null)socketForwardPort=vectorsForwardPort;
-            if(staticFiles)socketForwardPort=staticForwardPort;
-            int at=entropy?8:7;Need(socketForwardPort is >0 and <=65535 && lines.Count==(entropy?19:18) &&
-                lines[at]=="SOCKET_FORWARD_PORT "+socketForwardPort.Value.ToString(CultureInfo.InvariantCulture),"socket_runner_forward_identity");lines.RemoveAt(at);
+            if (vectorsProgram is not null)
+                socketForwardPort = vectorsForwardPort;
+            if (staticFiles)
+                socketForwardPort = staticForwardPort;
+            int at = entropy ? 8 : 7;
+            Need(socketForwardPort is> 0 and <= 65535 && lines.Count == (entropy ? 19 : 18) && lines[at] == "SOCKET_FORWARD_PORT " + socketForwardPort.Value.ToString(CultureInfo.InvariantCulture), "socket_runner_forward_identity");
+            lines.RemoveAt(at);
         }
-        if(containmentProgram is not null)
+
+        if (containmentProgram is not null)
         {
-            int at=entropy?16:15;Need(lines.Count==(entropy?19:18),"socket_containment_runner_count");
-            _=ReadSocketContainmentPeerResult(lines[at]);lines.RemoveAt(at);
+            int at = entropy ? 16 : 15;
+            Need(lines.Count == (entropy ? 19 : 18), "socket_containment_runner_count");
+            _ = ReadSocketContainmentPeerResult(lines[at]);
+            lines.RemoveAt(at);
         }
-        if (plan.IsEnabled("EnableM07026Probe")&&!options.SignalEpollRace&&socketProgram is null&&containmentProgram is null&&vectorsProgram is null&&!staticFiles&&!diskFiles)
+
+        if (plan.IsEnabled("EnableM07026Probe") && !options.SignalEpollRace && socketProgram is null && containmentProgram is null && vectorsProgram is null && !staticFiles && !diskFiles)
         {
-            Need(!entropy && lines.Count == 18 && lines[15] ==
-                "NETWORK_PEER_RESULT complete=True stopped=True arpReplies=21 echoReplies=12 tcpPackets=80", "m07_026_peer_runner_result");
+            Need(!entropy && lines.Count == 18 && lines[15] == "NETWORK_PEER_RESULT complete=True stopped=True arpReplies=21 echoReplies=12 tcpPackets=80", "m07_026_peer_runner_result");
             lines.RemoveAt(15);
         }
+
         if (entropy)
         {
-            Need(lines.Count == 18 && lines[7] == "FIRMWARE_RNG_SOURCE virtio", "qemu_runner_source"); lines.RemoveAt(7);
+            Need(lines.Count == 18 && lines[7] == "FIRMWARE_RNG_SOURCE virtio", "qemu_runner_source");
+            lines.RemoveAt(7);
         }
+
         Need(lines.Count == 17 && lines.All(l => !Controls.IsMatch(l)), "qemu_runner_count_or_control");
         Match q = Regex.Match(lines[0], @"\AQEMU_DISCOVERY result=(.+) checked=(.+)\z"), o = Regex.Match(lines[1], @"\AOVMF_DISCOVERY result=(.+) checked=(.+)\z");
         Need(q.Success && o.Success && q.Groups[1].Value != "not_found" && o.Groups[1].Value != "not_found", "qemu_runner_discovery");
         string Format(IReadOnlyList<string> values) => values.Count == 0 ? "none" : string.Join(';', values);
-        string[] expected = ["TEST_START qemu.smoke", "IMAGE_ARTIFACT " + options.Image, "SERIAL_LOG " + options.SerialLog, "OVMF_CODE " + o.Groups[1].Value,
-            "WORKLOAD_PROFILE " + options.WorkloadProfile, "MARKER_PRESETS " + Format(plan.Presets), "REQUIRED_MARKERS " + string.Join(';', plan.Required),
-            "ORDERED_MARKERS " + Format(plan.Ordered), "UNIQUE_MARKERS " + Format(plan.Unique), "FORBIDDEN_MARKERS " + string.Join(';', plan.Forbidden),
-            lines[12], "SERIAL_MARKER_DRAIN milliseconds=750", lines[14], "SUMMARY_LOG " + options.SummaryLog, "TEST_PASS qemu.smoke"];
-        for (int i = 0; i < expected.Length; i++) Need(lines[i + 2] == expected[i], "qemu_runner_record_" + i);
+        string[] expected = ["TEST_START qemu.smoke", "IMAGE_ARTIFACT " + options.Image, "SERIAL_LOG " + options.SerialLog, "OVMF_CODE " + o.Groups[1].Value, "WORKLOAD_PROFILE " + options.WorkloadProfile, "MARKER_PRESETS " + Format(plan.Presets), "REQUIRED_MARKERS " + string.Join(';', plan.Required), "ORDERED_MARKERS " + Format(plan.Ordered), "UNIQUE_MARKERS " + Format(plan.Unique), "FORBIDDEN_MARKERS " + string.Join(';', plan.Forbidden), lines[12], "SERIAL_MARKER_DRAIN milliseconds=750", lines[14], "SUMMARY_LOG " + options.SummaryLog, "TEST_PASS qemu.smoke"];
+        for (int i = 0; i < expected.Length; i++)
+            Need(lines[i + 2] == expected[i], "qemu_runner_record_" + i);
         AssertRunnerTerminated(lines);
         string serialPath = Path.GetFullPath(options.SerialLog, root);
-        byte[] raw = File.ReadAllBytes(serialPath); string serial = DecodeUtf8(raw);
+        byte[] raw = File.ReadAllBytes(serialPath);
+        string serial = DecodeUtf8(raw);
         int terminal = serial.IndexOf("OS_SMOKE_PASS\r\n", StringComparison.Ordinal);
         bool noSuffix = plan.IsNormalBoot || plan.IsEnabled("EnableM03FirstRealExitBootServicesProbe") || plan.IsEnabled("EnableM04TypeManagerModuleRegistrationProbe");
         int protocolEnd = noSuffix ? serial.Length : terminal + "OS_SMOKE_PASS\r\n".Length;
         int prefixBytes = plan.IsEnabled("EnableM06VirtioBlockQueueSetupProbe") && options.GptImageVariant != "PrimaryHeaderCrcFault" ? QemuContracts.BlockFirmwarePrefixBytes : FirmwarePrefixBytes;
         Need(protocolEnd >= prefixBytes, "qemu_runner_protocol_extent");
         string protocolText = serial[prefixBytes..protocolEnd];
-        if (helloProgram is not null) protocolText = NormalizeHelloWrites(protocolText);
-        if (threadingProgram is not null) protocolText = NormalizeThreadingWrites(protocolText, threadingProgram.Application);
-        if (runtimeProgram is not null) protocolText = NormalizeRuntimeWrites(protocolText, runtimeProgram.Application);
-        if(socketProgram is not null)protocolText=NormalizeSocketWrites(protocolText,socketProgram.Asynchronous);
-        if(containmentProgram is not null)protocolText=NormalizeSocketContainmentWrites(protocolText);
-        if(vectorsProgram is not null)protocolText=NormalizeSocketVectorWrites(protocolText);
-        if(staticFiles)protocolText=NormalizeStaticFileWrites(protocolText,NativeAotDiskSelection.FullStaticSelected(plan.Flags));
+        if (helloProgram is not null)
+            protocolText = NormalizeHelloWrites(protocolText);
+        if (threadingProgram is not null)
+            protocolText = NormalizeThreadingWrites(protocolText, threadingProgram.Application);
+        if (runtimeProgram is not null)
+            protocolText = NormalizeRuntimeWrites(protocolText, runtimeProgram.Application);
+        if (socketProgram is not null)
+            protocolText = NormalizeSocketWrites(protocolText, socketProgram.Asynchronous);
+        if (containmentProgram is not null)
+            protocolText = NormalizeSocketContainmentWrites(protocolText);
+        if (vectorsProgram is not null)
+            protocolText = NormalizeSocketVectorWrites(protocolText);
+        if (staticFiles)
+            protocolText = NormalizeStaticFileWrites(protocolText, NativeAotDiskSelection.FullStaticSelected(plan.Flags));
         string[] protocol = protocolText.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         int suffixBytes = raw.Length - protocolEnd;
         int streamLines = protocol.Length + (noSuffix ? 2 : suffixBytes == 251 ? 4 : 5), invalidLines = noSuffix || suffixBytes == 251 ? 1 : 2;
-        if (helloProgram is not null || threadingProgram is not null || runtimeProgram is not null || socketProgram is not null || containmentProgram is not null || vectorsProgram is not null || staticFiles || diskFiles) streamLines = serial.Count(c => c == '\n');
+        if (helloProgram is not null || threadingProgram is not null || runtimeProgram is not null || socketProgram is not null || containmentProgram is not null || vectorsProgram is not null || staticFiles || diskFiles)
+            streamLines = serial.Count(c => c == '\n');
         int invalid = raw.Count(b => b is not (9 or 10 or 13) && (b < 32 || b > 126));
         string stream = $"SERIAL_MARKER_STREAM status=Passed terminal=Success bytes={raw.Length} lines={streamLines} invalidBytes={invalid} invalidLines={invalidLines} orderedSeen={plan.Ordered.Count} outOfOrder=0 uniqueSeen={plan.Unique.Count} duplicateUnique=0";
         Need(lines[12] == stream, "qemu_runner_stream_accounting");
         List<string> summary = ["QEMU_SMOKE_STATUS pass"];
-        foreach (int i in new[] { 1, 2, 4, 5, 6, 7, 8, 9 })
-        { summary.Add(expected[i]); if(i==4)summary.AddRange(backend); if(writableData is not null && i==4)summary.AddRange(writableData.Rows(true)); if (entropy && i == 4) summary.Add("FIRMWARE_RNG_SOURCE virtio");if((socketProgram is not null||vectorsProgram is not null||staticFiles)&&i==4)summary.Add("SOCKET_FORWARD_PORT "+socketForwardPort!.Value.ToString(CultureInfo.InvariantCulture)); }
+        foreach (int i in new[]
+        {
+            1,
+            2,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+        }
+
+        )
+        {
+            summary.Add(expected[i]);
+            if (i == 4)
+                summary.AddRange(backend);
+            if (writableData is not null && i == 4)
+                summary.AddRange(writableData.Rows(true));
+            if (entropy && i == 4)
+                summary.Add("FIRMWARE_RNG_SOURCE virtio");
+            if ((socketProgram is not null || vectorsProgram is not null || staticFiles) && i == 4)
+                summary.Add("SOCKET_FORWARD_PORT " + socketForwardPort!.Value.ToString(CultureInfo.InvariantCulture));
+        }
+
         string[]? rawLines = threadingProgram is null && runtimeProgram is null && socketProgram is null && containmentProgram is null && vectorsProgram is null && !staticFiles && !diskFiles ? null : ReadThreadingSerialLines(serial);
         summary.AddRange((rawLines is null ? protocol : rawLines.Where(l => IsThreadingObservedLine(l, plan))).Select(l => "OBSERVED_MARKER " + l));
         summary.AddRange(["APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240"]);
         foreach (string line in (rawLines ?? serial.Split("\r\n", StringSplitOptions.None).Where(l => l.Trim().Length != 0)).TakeLast(8))
-        { string s = line.Trim(); summary.Add("SERIAL_TAIL_LINE " + (s.Length > 240 ? s[..237] + "..." : s)); }
-        if(staticFiles)summary.AddRange(staticChildRows!);
-        byte[] expectedBytes = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")];
+        {
+            string s = line.Trim();
+            summary.Add("SERIAL_TAIL_LINE " + (s.Length > 240 ? s[..237] + "..." : s));
+        }
+
+        if (staticFiles)
+            summary.AddRange(staticChildRows!);
+        byte[] expectedBytes = [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")];
         Need(File.ReadAllBytes(Path.GetFullPath(options.SummaryLog, root)).AsSpan().SequenceEqual(expectedBytes), "qemu_runner_summary_bytes");
     }
 
@@ -257,24 +287,17 @@ public static partial class QemuTranscripts
     {
         List<string> lines = [];
         using StringReader reader = new(serial);
-        while (reader.ReadLine() is string line)
-            if (line.Trim() is { Length: > 0 } trimmed) lines.Add(trimmed);
+        while (reader.ReadLine()is string line)
+            if (line.Trim()is { Length: > 0 } trimmed)
+                lines.Add(trimmed);
         return lines.ToArray();
     }
 
-    private static bool IsThreadingObservedLine(string line, QemuSmokePlan plan) =>
-        OS.Tools.QemuRunner.SerialMarkerSummary.IsStandardObservedMarkerLine(line) ||
-        plan.Required.Concat(plan.Ordered).Concat(plan.Unique).Concat(plan.Forbidden).Any(marker =>
-            line == marker || line.StartsWith(marker + " ", StringComparison.Ordinal));
-
-    public static void AssertM04SimpleCatchSelection(string text, bool enabled, bool finallyEnabled = false, bool rethrowEnabled = false, bool nestedEnabled = false, bool unhandledEnabled = false, bool framesEnabled = false, bool constructorFailureEnabled = false, bool filteredCatchEnabled = false, bool normalFinallyEnabled = false)
-        => Need(enabled || !Regex.IsMatch(Classify(text), finallyEnabled || rethrowEnabled || nestedEnabled || unhandledEnabled || framesEnabled || constructorFailureEnabled || filteredCatchEnabled || normalFinallyEnabled ? @"(?i)M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|m04\.021\.simple-catch" : @"(?i)M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|m04\.021"), "m04_simple_catch_unselected_record");
-    public static void AssertM04SingleFinallySelection(string text, bool enabled)
-        => Need(enabled || !Regex.IsMatch(Classify(text), @"(?i)M04_FINALLY|CLROS_M04_SINGLE_FINALLY_READY|m04\.021\.single-finally"), "m04_single_finally_unselected_record");
-    public static void AssertM04InterfaceDispatchSelection(string text, bool enabled)
-        => Need(enabled || !Regex.IsMatch(Classify(text), @"(?i)M04_DISPATCH|CLROS_M04_016_READY|m04\.016"), "m04_dispatch_unselected_record");
-    public static void AssertM04X64UnwindMetadataSelection(string text, bool enabled)
-        => Need(enabled || !Regex.IsMatch(Classify(text), @"(?i)CLROS_M04_020_|m04\.020"), "m04_x64_unwind_unselected_record");
+    private static bool IsThreadingObservedLine(string line, QemuSmokePlan plan) => OS.Tools.QemuRunner.SerialMarkerSummary.IsStandardObservedMarkerLine(line) || plan.Required.Concat(plan.Ordered).Concat(plan.Unique).Concat(plan.Forbidden).Any(marker => line == marker || line.StartsWith(marker + " ", StringComparison.Ordinal));
+    public static void AssertM04SimpleCatchSelection(string text, bool enabled, bool finallyEnabled = false, bool rethrowEnabled = false, bool nestedEnabled = false, bool unhandledEnabled = false, bool framesEnabled = false, bool constructorFailureEnabled = false, bool filteredCatchEnabled = false, bool normalFinallyEnabled = false) => Need(enabled || !Regex.IsMatch(Classify(text), finallyEnabled || rethrowEnabled || nestedEnabled || unhandledEnabled || framesEnabled || constructorFailureEnabled || filteredCatchEnabled || normalFinallyEnabled ? @"(?i)M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|m04\.021\.simple-catch" : @"(?i)M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|m04\.021"), "m04_simple_catch_unselected_record");
+    public static void AssertM04SingleFinallySelection(string text, bool enabled) => Need(enabled || !Regex.IsMatch(Classify(text), @"(?i)M04_FINALLY|CLROS_M04_SINGLE_FINALLY_READY|m04\.021\.single-finally"), "m04_single_finally_unselected_record");
+    public static void AssertM04InterfaceDispatchSelection(string text, bool enabled) => Need(enabled || !Regex.IsMatch(Classify(text), @"(?i)M04_DISPATCH|CLROS_M04_016_READY|m04\.016"), "m04_dispatch_unselected_record");
+    public static void AssertM04X64UnwindMetadataSelection(string text, bool enabled) => Need(enabled || !Regex.IsMatch(Classify(text), @"(?i)CLROS_M04_020_|m04\.020"), "m04_x64_unwind_unselected_record");
     public static void ValidateUnselectedRecords(string text, QemuSmokePlan plan)
     {
         string candidate = Classify(text);
@@ -288,9 +311,8 @@ public static partial class QemuTranscripts
         Need(Enabled("M03OwnedSubsystemPanic") || !Regex.IsMatch(text, @"(?m)^M03_OWNED [78](?: |$)"), "m03_owned_panic_unselected_record");
         Need(Enabled("M03FirmwareAdapterRevocation") || !Regex.IsMatch(candidate, @"(?i)M03_ADAPTER_|CLROS_M03_008_READY|m03\.008"), "m03_revocation_unselected_record");
         Need(Enabled("M04ClassConstructorExecution") || !Regex.IsMatch(candidate, @"(?i)M04_CCTOR|CLROS_M04_024_READY|m04\.024"), "m04_cctor_unselected_record");
-        Need(Enabled("M05VirtqueuePolling") || Enabled("M05VirtqueueInterrupt") ||
-            !Regex.IsMatch(candidate, @"(?i)M05_QUEUE|CLROS_M05_01[6-9]_READY|m05\.01[6-9]"), "m05_queue_unselected_record");
-        foreach (var (flag, pattern) in new (string Flag, string Pattern)[]
+        Need(Enabled("M05VirtqueuePolling") || Enabled("M05VirtqueueInterrupt") || !Regex.IsMatch(candidate, @"(?i)M05_QUEUE|CLROS_M05_01[6-9]_READY|m05\.01[6-9]"), "m05_queue_unselected_record");
+        foreach (var(flag, pattern)in new (string Flag, string Pattern)[]
         {
             ("M16013", @"CLROS_M16_013_READY|TEST_(?:START|PASS)m16-013"),
             ("M04SimpleThrowCatch", "M04_CATCH|CLROS_M04_SIMPLE_CATCH|m04\\.021\\.simple-catch"),
@@ -317,9 +339,15 @@ public static partial class QemuTranscripts
             ("M04SeededCollectorChurn", "M04_CHURN|CLROS_M04_014"),
             ("M04GcStaticRootMaterialization", "M04_GC_ROOT|M04_COLLECT|CLROS_M04_013"),
             ("M04CheckedReferenceBarrier", @"M04_REFERENCE_|CLROS_M04_010_NATIVE|m04\.010\.references"),
-            ("M04StringAllocation", @"M04_STRING_|CLROS_M04_009|m04\.009"), ("M04SzArrayAllocation", @"M04_ARRAY_|CLROS_M04_008|m04\.008\.sz_array"),
-            ("M02PageFaultCr2ErrorCode", @"M02_PAGE_FAULT|CLROS_M02_014|TEST_(?:START|PASS|FAIL)m02\.014"), ("M02DoubleFaultIst", @"M02_DF_|M02_DOUBLE_FAULT|CLROS_M02_015|TEST_(?:START|PASS|FAIL)m02\.015")
-        }) if (!plan.IsEnabled("Enable" + flag + "Probe")) Need(!Regex.IsMatch(candidate, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "qemu_unselected_profile_record_" + flag);
+            ("M04StringAllocation", @"M04_STRING_|CLROS_M04_009|m04\.009"),
+            ("M04SzArrayAllocation", @"M04_ARRAY_|CLROS_M04_008|m04\.008\.sz_array"),
+            ("M02PageFaultCr2ErrorCode", @"M02_PAGE_FAULT|CLROS_M02_014|TEST_(?:START|PASS|FAIL)m02\.014"),
+            ("M02DoubleFaultIst", @"M02_DF_|M02_DOUBLE_FAULT|CLROS_M02_015|TEST_(?:START|PASS|FAIL)m02\.015")
+        }
+
+        )
+            if (!plan.IsEnabled("Enable" + flag + "Probe"))
+                Need(!Regex.IsMatch(candidate, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), "qemu_unselected_profile_record_" + flag);
         if (!plan.IsNormalBoot && !plan.IsEnabled("EnableM03FirstRealExitBootServicesProbe"))
             Need(!Regex.IsMatch(candidate, @"(?i)M03_EBS_|M03_PERMANENT_|M03_POST_EBS_|CLROS_M03_007_READY|m03\.007|UEFI_EBS_SUCCESS|CLROS_M03_009_READY|m03\.009"), "m03_first_exit_unselected_record");
     }

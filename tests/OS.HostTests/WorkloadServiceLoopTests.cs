@@ -2,53 +2,72 @@ using System.Runtime.InteropServices;
 using OS.Boot;
 using OS.Tooling;
 
-internal static unsafe class WorkloadServiceLoopTests
+internal static unsafe partial class WorkloadServiceLoopTests
 {
-    private struct Context
-    {
-        public ulong Now, Step, LastService;
-        public uint ClockCalls, Services, StopCalls, StopAt, FailClockAt, FailServiceAt;
-        public bool Regress, FailStop, EarlyRefused, WrongState, StopChangesState;
-        public WorkloadServiceLoopState* Original;
-    }
-
     private static WorkloadServiceLoopRequest Request() => new()
     {
-        FrequencyHz = 1000000, IntervalMilliseconds = 1, MinimumIterations = 3,
-        MaximumIterations = 8, PollLimit = 4, FirmwareExited = true,
-        RetainedPointersCleared = true, OwnedMappingsValidated = true
+        FrequencyHz = 1000000,
+        IntervalMilliseconds = 1,
+        MinimumIterations = 3,
+        MaximumIterations = 8,
+        PollLimit = 4,
+        FirmwareExited = true,
+        RetainedPointersCleared = true,
+        OwnedMappingsValidated = true
     };
     private static WorkloadServiceLoopCallbacks Callbacks(Context* context) => new()
-    { Context = context, ReadClock = &Read, Service = &Service, Stop = &Stop };
-
+    {
+        Context = context,
+        ReadClock = &Read,
+        Service = &Service,
+        Stop = &Stop
+    };
     [UnmanagedCallersOnly]
     private static byte Read(void* pointer, ulong* value)
     {
         Context* c = (Context*)pointer;
-        if (++c->ClockCalls == c->FailClockAt) return 0;
-        if (c->ClockCalls != 1) c->Now = c->Regress ? c->Now - 1 : c->Now + c->Step;
+        if (++c->ClockCalls == c->FailClockAt)
+            return 0;
+        if (c->ClockCalls != 1)
+            c->Now = c->Regress ? c->Now - 1 : c->Now + c->Step;
         *value = c->Now;
         return 1;
     }
+
     [UnmanagedCallersOnly]
     private static byte Service(void* pointer, WorkloadServiceLoopState* state, uint iteration, ulong ticks)
     {
         Context* c = (Context*)pointer;
         c->Services++;
-        if (state != c->Original || iteration != c->Services || ticks - c->LastService < 1000) return 0;
+        if (state != c->Original || iteration != c->Services || ticks - c->LastService < 1000)
+            return 0;
         c->LastService = ticks;
-        if (iteration == 1) c->EarlyRefused = !WorkloadServiceLoop.RequestShutdown(ref *state);
-        if (c->WrongState) { *state = default; return 1; }
-        if (iteration == c->FailServiceAt) return 0;
-        if (iteration == c->StopAt && !WorkloadServiceLoop.RequestShutdown(ref *state)) return 0;
+        if (iteration == 1)
+            c->EarlyRefused = !WorkloadServiceLoop.RequestShutdown(ref *state);
+        if (c->WrongState)
+        {
+            *state = default;
+            return 1;
+        }
+
+        if (iteration == c->FailServiceAt)
+            return 0;
+        if (iteration == c->StopAt && !WorkloadServiceLoop.RequestShutdown(ref *state))
+            return 0;
         return 1;
     }
+
     [UnmanagedCallersOnly]
     private static byte Stop(void* pointer, uint iterations, ulong ticks)
     {
         Context* c = (Context*)pointer;
         c->StopCalls++;
-        if (c->StopChangesState) { *c->Original = default; return 1; }
+        if (c->StopChangesState)
+        {
+            *c->Original = default;
+            return 1;
+        }
+
         return !c->FailStop && iterations == c->StopAt && ticks == c->LastService && c->Original->Status == WorkloadServiceStatus.ShutdownRequested ? (byte)1 : (byte)0;
     }
 
@@ -56,7 +75,12 @@ internal static unsafe class WorkloadServiceLoopTests
     private static void TimedStop()
     {
         WorkloadServiceLoopState state = default;
-        Context context = new() { Step = 250, StopAt = 4, Original = &state };
+        Context context = new()
+        {
+            Step = 250,
+            StopAt = 4,
+            Original = &state
+        };
         HostCheck.Equal(WorkloadServiceStatus.Stopped, WorkloadServiceLoop.Run(ref state, Request(), Callbacks(&context)));
         HostCheck.True(state.IsStopped && state.Iterations == 4 && context.Services == 4 && context.StopCalls == 1 && context.EarlyRefused);
         HostCheck.Equal(17U, state.ClockReads);
@@ -73,28 +97,69 @@ internal static unsafe class WorkloadServiceLoopTests
         for (int variant = 0; variant < 17; variant++)
         {
             WorkloadServiceLoopState state = default;
-            Context context = new() { Step = 1000, StopAt = 4, Original = &state };
-            var request = Request(); var callbacks = Callbacks(&context);
+            Context context = new()
+            {
+                Step = 1000,
+                StopAt = 4,
+                Original = &state
+            };
+            var request = Request();
+            var callbacks = Callbacks(&context);
             switch (variant)
             {
-                case 0: request = default; break;
-                case 1: request.FirmwareExited = false; break;
-                case 2: request.RetainedPointersCleared = false; break;
-                case 3: request.OwnedMappingsValidated = false; break;
-                case 4: request.FrequencyHz = 999999; break;
-                case 5: request.FrequencyHz = 10000000001; break;
-                case 6: request.IntervalMilliseconds = 0; break;
-                case 7: request.IntervalMilliseconds = 1001; break;
-                case 8: request.MinimumIterations = 1; break;
-                case 9: request.MaximumIterations = 2; break;
-                case 10: request.MaximumIterations = 65; break;
-                case 11: request.PollLimit = 0; break;
-                case 12: request.PollLimit = 1000001; break;
-                case 13: callbacks.ReadClock = null; break;
-                case 14: callbacks.Context = null; break;
-                case 15: callbacks.Service = null; break;
-                default: callbacks.Stop = null; break;
+                case 0:
+                    request = default;
+                    break;
+                case 1:
+                    request.FirmwareExited = false;
+                    break;
+                case 2:
+                    request.RetainedPointersCleared = false;
+                    break;
+                case 3:
+                    request.OwnedMappingsValidated = false;
+                    break;
+                case 4:
+                    request.FrequencyHz = 999999;
+                    break;
+                case 5:
+                    request.FrequencyHz = 10000000001;
+                    break;
+                case 6:
+                    request.IntervalMilliseconds = 0;
+                    break;
+                case 7:
+                    request.IntervalMilliseconds = 1001;
+                    break;
+                case 8:
+                    request.MinimumIterations = 1;
+                    break;
+                case 9:
+                    request.MaximumIterations = 2;
+                    break;
+                case 10:
+                    request.MaximumIterations = 65;
+                    break;
+                case 11:
+                    request.PollLimit = 0;
+                    break;
+                case 12:
+                    request.PollLimit = 1000001;
+                    break;
+                case 13:
+                    callbacks.ReadClock = null;
+                    break;
+                case 14:
+                    callbacks.Context = null;
+                    break;
+                case 15:
+                    callbacks.Service = null;
+                    break;
+                default:
+                    callbacks.Stop = null;
+                    break;
             }
+
             HostCheck.Equal(WorkloadServiceStatus.InvalidAdmission, WorkloadServiceLoop.Run(ref state, request, callbacks));
             HostCheck.True(state.Status == WorkloadServiceStatus.Uninitialized && state.ClockReads == 0 && context.ClockCalls == 0);
         }
@@ -106,13 +171,35 @@ internal static unsafe class WorkloadServiceLoopTests
         for (int variant = 0; variant < 5; variant++)
         {
             WorkloadServiceLoopState state = default;
-            Context context = new() { Original = &state };
+            Context context = new()
+            {
+                Original = &state
+            };
             WorkloadServiceStatus expected;
-            if (variant == 0) expected = WorkloadServiceStatus.DeadlineExhausted;
-            else if (variant == 1) { context.Now = 10000; context.Regress = true; expected = WorkloadServiceStatus.ClockRegressed; }
-            else if (variant == 2) { context.FailClockAt = 2; expected = WorkloadServiceStatus.ClockFailed; }
-            else if (variant == 3) { context.Now = ulong.MaxValue - 999; expected = WorkloadServiceStatus.DeadlineOverflow; }
-            else { context.FailClockAt = 1; expected = WorkloadServiceStatus.ClockFailed; }
+            if (variant == 0)
+                expected = WorkloadServiceStatus.DeadlineExhausted;
+            else if (variant == 1)
+            {
+                context.Now = 10000;
+                context.Regress = true;
+                expected = WorkloadServiceStatus.ClockRegressed;
+            }
+            else if (variant == 2)
+            {
+                context.FailClockAt = 2;
+                expected = WorkloadServiceStatus.ClockFailed;
+            }
+            else if (variant == 3)
+            {
+                context.Now = ulong.MaxValue - 999;
+                expected = WorkloadServiceStatus.DeadlineOverflow;
+            }
+            else
+            {
+                context.FailClockAt = 1;
+                expected = WorkloadServiceStatus.ClockFailed;
+            }
+
             HostCheck.Equal(expected, WorkloadServiceLoop.Run(ref state, Request(), Callbacks(&context)));
             HostCheck.True(!state.IsStopped && context.Services == 0 && context.StopCalls == 0 && state.ClockReads <= 5);
             HostCheck.Equal(WorkloadServiceStatus.AlreadyConsumed, WorkloadServiceLoop.Run(ref state, Request(), Callbacks(&context)));
@@ -125,13 +212,37 @@ internal static unsafe class WorkloadServiceLoopTests
         for (int variant = 0; variant < 5; variant++)
         {
             WorkloadServiceLoopState state = default;
-            Context context = new() { Step = 1000, Original = &state };
+            Context context = new()
+            {
+                Step = 1000,
+                Original = &state
+            };
             WorkloadServiceStatus expected;
-            if (variant == 0) expected = WorkloadServiceStatus.ShutdownMissing;
-            else if (variant == 1) { context.FailServiceAt = 2; expected = WorkloadServiceStatus.ServiceFailed; }
-            else if (variant == 2) { context.StopAt = 4; context.FailStop = true; expected = WorkloadServiceStatus.ShutdownFailed; }
-            else if (variant == 3) { context.WrongState = true; expected = WorkloadServiceStatus.StateChanged; }
-            else { context.StopAt = 4; context.StopChangesState = true; expected = WorkloadServiceStatus.StateChanged; }
+            if (variant == 0)
+                expected = WorkloadServiceStatus.ShutdownMissing;
+            else if (variant == 1)
+            {
+                context.FailServiceAt = 2;
+                expected = WorkloadServiceStatus.ServiceFailed;
+            }
+            else if (variant == 2)
+            {
+                context.StopAt = 4;
+                context.FailStop = true;
+                expected = WorkloadServiceStatus.ShutdownFailed;
+            }
+            else if (variant == 3)
+            {
+                context.WrongState = true;
+                expected = WorkloadServiceStatus.StateChanged;
+            }
+            else
+            {
+                context.StopAt = 4;
+                context.StopChangesState = true;
+                expected = WorkloadServiceStatus.StateChanged;
+            }
+
             HostCheck.Equal(expected, WorkloadServiceLoop.Run(ref state, Request(), Callbacks(&context)));
             HostCheck.True(!state.IsStopped && state.Status == expected && context.StopCalls <= 1);
         }
@@ -141,9 +252,7 @@ internal static unsafe class WorkloadServiceLoopTests
     private static void Routing()
     {
         var plan = QemuProfiles.Create(QemuSmokeOptions.Parse("-BuildEfi", "-EnableM16003Probe", "-DryRun"));
-        HostCheck.True(plan.BootPolicy == "Diagnostic" && plan.IsEnabled("EnableM16002Probe") &&
-            plan.IsEnabled("EnableM03FirstRealExitBootServicesProbe") && plan.IsEnabled("EnableM03OwnedSubsystemSurvivalProbe") &&
-            !plan.IsEnabled("EnableM05MonotonicClockProbe") && !plan.IsEnabled("EnableM03FirmwareAdapterRevocationProbe"));
+        HostCheck.True(plan.BootPolicy == "Diagnostic" && plan.IsEnabled("EnableM16002Probe") && plan.IsEnabled("EnableM03FirstRealExitBootServicesProbe") && plan.IsEnabled("EnableM03OwnedSubsystemSurvivalProbe") && !plan.IsEnabled("EnableM05MonotonicClockProbe") && !plan.IsEnabled("EnableM03FirmwareAdapterRevocationProbe"));
         HostCheck.True(plan.Ordered.Contains("TEST_PASS m16-003") && plan.Unique.Contains("M16_003_ITERATION index=4"));
         foreach (string[] args in new string[][]
         {
@@ -153,13 +262,23 @@ internal static unsafe class WorkloadServiceLoopTests
             ["-EnableM16003Probe", "-BootPolicy", "VerifiedExit"],
             ["-EnableM16003Probe", "-LinuxElfImageVariant", "DigestFault"],
             ["-EnableM16003Probe", "-RequireMarker", "CLROS_M16_002_READY"]
-        })
+        }
+
+        )
         {
             bool rejected = false;
-            try { _ = QemuProfiles.Create(QemuSmokeOptions.Parse(["-BuildEfi", "-DryRun", .. args])); }
-            catch (ToolFailure) { rejected = true; }
+            try
+            {
+                _ = QemuProfiles.Create(QemuSmokeOptions.Parse(["-BuildEfi", "-DryRun", ..args]));
+            }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
+
             HostCheck.True(rejected);
         }
+
         var ordinary = EfiProfile.Create("VerifiedExit", new Dictionary<string, bool>());
         HostCheck.True(!ordinary.IsEnabled("EnableM16003Probe") && !ordinary.IsEnabled("EnableM16002Probe"));
     }
@@ -167,12 +286,8 @@ internal static unsafe class WorkloadServiceLoopTests
     [HostTest("m16-003 independent transcript requires elapsed ticks copied-handle denials and owned shutdown", HostLane.Fast, 6)]
     private static void Transcript()
     {
-        string[] tail = ["TEST_START m16-003", "M16_003_CLOCK frequency=10000000 period=100000000 recoveries=0 source=owned-hpet",
-            .. Enumerable.Range(1, 4).Select(i => $"M16_003_ITERATION index={i} ticks={i * 10000 + 50}"),
-            .. Enumerable.Range(0, 8).Select(i => $"M16_003_FIRMWARE_DENIED index={i} status=ServicesUnavailable providers=1 outputs=unchanged"),
-            "M16_003_STOP iterations=4 reads=65 first=50 last=40050 interval=10000 firmware=revoked providers=1 shutdown=owned-controller",
-            "CLROS_M16_003_READY", "TEST_PASS m16-003"];
-        string[] rows = [.. Enumerable.Repeat("parent checked separately", QemuContracts.M03OwnedSubsystemMarkers.Count + 7), .. tail];
+        string[] tail = ["TEST_START m16-003", "M16_003_CLOCK frequency=10000000 period=100000000 recoveries=0 source=owned-hpet", ..Enumerable.Range(1, 4).Select(i => $"M16_003_ITERATION index={i} ticks={i * 10000 + 50}"), ..Enumerable.Range(0, 8).Select(i => $"M16_003_FIRMWARE_DENIED index={i} status=ServicesUnavailable providers=1 outputs=unchanged"), "M16_003_STOP iterations=4 reads=65 first=50 last=40050 interval=10000 firmware=revoked providers=1 shutdown=owned-controller", "CLROS_M16_003_READY", "TEST_PASS m16-003"];
+        string[] rows = [..Enumerable.Repeat("parent checked separately", QemuContracts.M03OwnedSubsystemMarkers.Count + 7), ..tail];
         HostCheck.Equal(rows.Length - 17, QemuTranscripts.ValidateServiceLoopTail(rows).Length);
         string[] recovered = rows.ToArray();
         recovered[recovered.Length - 16] = tail[1].Replace("recoveries=0", "recoveries=1", StringComparison.Ordinal);
@@ -189,15 +304,35 @@ internal static unsafe class WorkloadServiceLoopTests
             (14, tail[14].Replace("reads=65", "reads=16386", StringComparison.Ordinal)),
             (14, tail[14].Replace("owned-controller", "firmware", StringComparison.Ordinal)),
             (16, "TEST_PASS m16-002")
-        })
+        }
+
+        )
         {
-            string[] bad = rows.ToArray(); bad[bad.Length - 17 + mutation.Index] = mutation.Text;
-            bool rejected = false; try { _ = QemuTranscripts.ValidateServiceLoopTail(bad); }
-            catch (ToolFailure) { rejected = true; }
+            string[] bad = rows.ToArray();
+            bad[bad.Length - 17 + mutation.Index] = mutation.Text;
+            bool rejected = false;
+            try
+            {
+                _ = QemuTranscripts.ValidateServiceLoopTail(bad);
+            }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
+
             HostCheck.True(rejected);
         }
-        bool shortRejected = false; try { _ = QemuTranscripts.ValidateServiceLoopTail(rows[..^1]); }
-        catch (ToolFailure) { shortRejected = true; }
+
+        bool shortRejected = false;
+        try
+        {
+            _ = QemuTranscripts.ValidateServiceLoopTail(rows[..^1]);
+        }
+        catch (ToolFailure)
+        {
+            shortRejected = true;
+        }
+
         HostCheck.True(shortRejected);
     }
 
@@ -205,8 +340,14 @@ internal static unsafe class WorkloadServiceLoopTests
     private static void FractionalFrequency()
     {
         WorkloadServiceLoopState state = default;
-        Context context = new() { Step = 1001, StopAt = 4, Original = &state };
-        var request = Request(); request.FrequencyHz = 1000001;
+        Context context = new()
+        {
+            Step = 1001,
+            StopAt = 4,
+            Original = &state
+        };
+        var request = Request();
+        request.FrequencyHz = 1000001;
         long before = GC.GetAllocatedBytesForCurrentThread();
         var result = WorkloadServiceLoop.Run(ref state, request, Callbacks(&context));
         long bytes = GC.GetAllocatedBytesForCurrentThread() - before;

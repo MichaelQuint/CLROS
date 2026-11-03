@@ -3,7 +3,7 @@ using OS.Drivers;
 using OS.Net;
 using OS.Std.Binary;
 
-internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
+internal static partial class VirtioNetTransmitDescriptorOwnershipPlanTests
 {
     private const byte CommonOffset = 0x40;
     private const byte NotifyOffset = 0x60;
@@ -20,16 +20,11 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     private const uint FrameBufferBytes = VirtioNetReceiveLifecycle.MaximumReceiveBufferBytes;
     private const ulong TxHeaderPhysicalAddress = 0x0050_0000UL;
     private const ulong TxFramePhysicalAddress = 0x0060_0000UL;
-
     [HostTest("drivers.virtionet.tx.readiness default result is not success", HostLane.Fast, 23)]
     private static bool TestReadinessDefaultResultIsNotSuccess()
     {
         VirtioNetTransmitReadinessResult result = default;
-
-        return HostCheck.Result(!result.IsInitialized
-            && !result.Succeeded
-            && result.Status == VirtioNetTransmitReadinessStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitReadinessResult>());
+        return HostCheck.Result(!result.IsInitialized && !result.Succeeded && result.Status == VirtioNetTransmitReadinessStatus.Success && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitReadinessResult>());
     }
 
     [HostTest("drivers.virtionet.tx.descriptor default results are not success", HostLane.Fast, 21)]
@@ -38,22 +33,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         VirtioNetTransmitDescriptorFreeListResult freeList = default;
         VirtioNetTransmitDescriptorOwnershipPlanResult ownership = default;
         VirtioNetTransmitDescriptorPublishPlanResult publish = default;
-
-        return HostCheck.Result(!freeList.IsInitialized
-            && !freeList.Succeeded
-            && freeList.Status == VirtioNetTransmitDescriptorFreeListStatus.Success
-            && !ownership.IsInitialized
-            && !ownership.Succeeded
-            && ownership.Status == VirtioNetTransmitDescriptorOwnershipStatus.Success
-            && !publish.IsInitialized
-            && !publish.Succeeded
-            && publish.Status == VirtioNetTransmitDescriptorPublishPlanStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetTransmitDescriptorFreeListResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetTransmitDescriptorOwnershipPlanResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetTransmitDescriptorPublishPlanResult>());
+        return HostCheck.Result(!freeList.IsInitialized && !freeList.Succeeded && freeList.Status == VirtioNetTransmitDescriptorFreeListStatus.Success && !ownership.IsInitialized && !ownership.Succeeded && ownership.Status == VirtioNetTransmitDescriptorOwnershipStatus.Success && !publish.IsInitialized && !publish.Succeeded && publish.Status == VirtioNetTransmitDescriptorPublishPlanStatus.Success && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitDescriptorFreeListResult>() && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitDescriptorOwnershipPlanResult>() && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitDescriptorPublishPlanResult>());
     }
 
     [HostTest("drivers.virtionet.tx.ownership marks published descriptors in flight", HostLane.Fast, 0)]
@@ -61,26 +41,9 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetTransmitLifecycleResult publish = CreateTxPublish(context.QueuePlan, out _);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
-
-        VirtioNetTransmitDescriptorOwnershipPlanResult result =
-            VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
-
-        return HostCheck.Result(result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.Success
-            && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.Success
-            && result.HeaderDescriptorIndex == publish.Plan.HeaderDescriptor.DescriptorIndex
-            && result.FrameDescriptorIndex == publish.Plan.FrameDescriptor.DescriptorIndex
-            && result.RequiredStateTableLength == 2
-            && result.StateTableLength == states.Length
-            && result.DescriptorsMarkedInFlight == VirtioNetTransmitLifecycle.RequiredDescriptorCount
-            && states[publish.Plan.HeaderDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[2] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free);
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipPlanResult result = VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
+        return HostCheck.Result(result.Succeeded && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.Success && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.Success && result.HeaderDescriptorIndex == publish.Plan.HeaderDescriptor.DescriptorIndex && result.FrameDescriptorIndex == publish.Plan.FrameDescriptor.DescriptorIndex && result.RequiredStateTableLength == 2 && result.StateTableLength == states.Length && result.DescriptorsMarkedInFlight == VirtioNetTransmitLifecycle.RequiredDescriptorCount && states[publish.Plan.HeaderDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[publish.Plan.FrameDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[2] == VirtioNetTransmitDescriptorOwnershipState.Free && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
     [HostTest("drivers.virtionet.tx.ownership reclaims completed descriptors", HostLane.Fast, 1)]
@@ -88,28 +51,12 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetTransmitLifecycleResult publish = CreateTxPublish(context.QueuePlan, out byte[] queueMemory);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         states[3] = VirtioNetTransmitDescriptorOwnershipState.InFlight;
-        VirtioNetTransmitDescriptorOwnershipPlanResult mark =
-            VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
-        VirtioNetTransmitCompletionPlanResult completion =
-            CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
-
-        VirtioNetTransmitDescriptorOwnershipPlanResult reclaim =
-            VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
-
-        return HostCheck.Result(mark.Succeeded
-            && completion.Succeeded
-            && reclaim.Succeeded
-            && reclaim.Status == VirtioNetTransmitDescriptorOwnershipStatus.Success
-            && reclaim.CompletionPlanStatus == VirtioNetTransmitCompletionPlanStatus.Success
-            && reclaim.DescriptorsFreed == VirtioNetTransmitLifecycle.RequiredDescriptorCount
-            && states[publish.Plan.HeaderDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.InFlight);
+        VirtioNetTransmitDescriptorOwnershipPlanResult mark = VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
+        VirtioNetTransmitCompletionPlanResult completion = CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
+        VirtioNetTransmitDescriptorOwnershipPlanResult reclaim = VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
+        return HostCheck.Result(mark.Succeeded && completion.Succeeded && reclaim.Succeeded && reclaim.Status == VirtioNetTransmitDescriptorOwnershipStatus.Success && reclaim.CompletionPlanStatus == VirtioNetTransmitCompletionPlanStatus.Success && reclaim.DescriptorsFreed == VirtioNetTransmitLifecycle.RequiredDescriptorCount && states[publish.Plan.HeaderDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free && states[publish.Plan.FrameDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free && states[3] == VirtioNetTransmitDescriptorOwnershipState.InFlight);
     }
 
     [HostTest("drivers.virtionet.tx.ownership rejects failed publish", HostLane.Fast, 2)]
@@ -117,29 +64,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
-        VirtioNetTransmitLifecycleResult failedPublish =
-            VirtioNetTransmitLifecycle.Publish(
-                context.QueuePlan,
-                firstDescriptorIndex: 0,
-                availableDescriptorCount: VirtioNetTransmitLifecycle.RequiredDescriptorCount,
-                availableRingIndex: 0,
-                txHeaderPhysicalAddress: TxHeaderPhysicalAddress,
-                ethernetFramePhysicalAddress: TxFramePhysicalAddress,
-                ethernetFrame: CreateEthernetFrame(),
-                txHeader: [],
-                queueMemory);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
-
-        VirtioNetTransmitDescriptorOwnershipPlanResult result =
-            VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(failedPublish, states);
-
-        return HostCheck.Result(!failedPublish.Succeeded
-            && failedPublish.Status == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall
-            && !result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.TransmitPublishFailed
-            && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall
-            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free));
+        VirtioNetTransmitLifecycleResult failedPublish = VirtioNetTransmitLifecycle.Publish(context.QueuePlan, firstDescriptorIndex: 0, availableDescriptorCount: VirtioNetTransmitLifecycle.RequiredDescriptorCount, availableRingIndex: 0, txHeaderPhysicalAddress: TxHeaderPhysicalAddress, ethernetFramePhysicalAddress: TxFramePhysicalAddress, ethernetFrame: CreateEthernetFrame(), txHeader: [], queueMemory);
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipPlanResult result = VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(failedPublish, states);
+        return HostCheck.Result(!failedPublish.Succeeded && failedPublish.Status == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall && !result.Succeeded && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.TransmitPublishFailed && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free));
     }
 
     [HostTest("drivers.virtionet.tx.ownership rejects failed completion", HostLane.Fast, 3)]
@@ -147,32 +75,12 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetTransmitLifecycleResult publish = CreateTxPublish(context.QueuePlan, out byte[] queueMemory);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
-        VirtioNetTransmitDescriptorOwnershipPlanResult mark =
-            VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
-        VirtioNetQueueNotificationExecutionResult notification =
-            CreateExecutedTxNotification(context, publish);
-        VirtioNetTransmitCompletionPlanResult failedCompletion =
-            VirtioNetTransmitCompletionPlanner.Create(
-                publish,
-                notification,
-                previousUsedIndex: 0,
-                queueMemory);
-
-        VirtioNetTransmitDescriptorOwnershipPlanResult result =
-            VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(failedCompletion, states);
-
-        return HostCheck.Result(mark.Succeeded
-            && !failedCompletion.Succeeded
-            && failedCompletion.Status == VirtioNetTransmitCompletionPlanStatus.NoCompletion
-            && !result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.CompletionPlanFailed
-            && result.CompletionPlanStatus == VirtioNetTransmitCompletionPlanStatus.NoCompletion
-            && states[publish.Plan.HeaderDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.InFlight);
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipPlanResult mark = VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
+        VirtioNetQueueNotificationExecutionResult notification = CreateExecutedTxNotification(context, publish);
+        VirtioNetTransmitCompletionPlanResult failedCompletion = VirtioNetTransmitCompletionPlanner.Create(publish, notification, previousUsedIndex: 0, queueMemory);
+        VirtioNetTransmitDescriptorOwnershipPlanResult result = VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(failedCompletion, states);
+        return HostCheck.Result(mark.Succeeded && !failedCompletion.Succeeded && failedCompletion.Status == VirtioNetTransmitCompletionPlanStatus.NoCompletion && !result.Succeeded && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.CompletionPlanFailed && result.CompletionPlanStatus == VirtioNetTransmitCompletionPlanStatus.NoCompletion && states[publish.Plan.HeaderDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[publish.Plan.FrameDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.InFlight);
     }
 
     [HostTest("drivers.virtionet.tx.ownership rejects short state table", HostLane.Fast, 4)]
@@ -180,23 +88,11 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetTransmitLifecycleResult publish = CreateTxPublish(context.QueuePlan, out byte[] queueMemory);
-        VirtioNetTransmitCompletionPlanResult completion =
-            CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
-        VirtioNetTransmitDescriptorOwnershipState[] shortStates =
-            new VirtioNetTransmitDescriptorOwnershipState[1];
-
-        VirtioNetTransmitDescriptorOwnershipPlanResult mark =
-            VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, shortStates);
-        VirtioNetTransmitDescriptorOwnershipPlanResult reclaim =
-            VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, shortStates);
-
-        return HostCheck.Result(!mark.Succeeded
-            && mark.Status == VirtioNetTransmitDescriptorOwnershipStatus.StateTableTooSmall
-            && mark.RequiredStateTableLength == 2
-            && mark.StateTableLength == 1
-            && !reclaim.Succeeded
-            && reclaim.Status == VirtioNetTransmitDescriptorOwnershipStatus.StateTableTooSmall
-            && shortStates[0] == VirtioNetTransmitDescriptorOwnershipState.Free);
+        VirtioNetTransmitCompletionPlanResult completion = CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
+        VirtioNetTransmitDescriptorOwnershipState[] shortStates = new VirtioNetTransmitDescriptorOwnershipState[1];
+        VirtioNetTransmitDescriptorOwnershipPlanResult mark = VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, shortStates);
+        VirtioNetTransmitDescriptorOwnershipPlanResult reclaim = VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, shortStates);
+        return HostCheck.Result(!mark.Succeeded && mark.Status == VirtioNetTransmitDescriptorOwnershipStatus.StateTableTooSmall && mark.RequiredStateTableLength == 2 && mark.StateTableLength == 1 && !reclaim.Succeeded && reclaim.Status == VirtioNetTransmitDescriptorOwnershipStatus.StateTableTooSmall && shortStates[0] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
     [HostTest("drivers.virtionet.tx.ownership rejects descriptor already in flight", HostLane.Fast, 5)]
@@ -204,20 +100,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetTransmitLifecycleResult publish = CreateTxPublish(context.QueuePlan, out _);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
-        states[publish.Plan.HeaderDescriptor.DescriptorIndex] =
-            VirtioNetTransmitDescriptorOwnershipState.InFlight;
-
-        VirtioNetTransmitDescriptorOwnershipPlanResult result =
-            VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.DescriptorAlreadyInFlight
-            && states[publish.Plan.HeaderDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.Free);
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        states[publish.Plan.HeaderDescriptor.DescriptorIndex] = VirtioNetTransmitDescriptorOwnershipState.InFlight;
+        VirtioNetTransmitDescriptorOwnershipPlanResult result = VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
+        return HostCheck.Result(!result.Succeeded && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.DescriptorAlreadyInFlight && states[publish.Plan.HeaderDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[publish.Plan.FrameDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
     [HostTest("drivers.virtionet.tx.ownership rejects descriptor not in flight", HostLane.Fast, 6)]
@@ -225,22 +111,11 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetTransmitLifecycleResult publish = CreateTxPublish(context.QueuePlan, out byte[] queueMemory);
-        VirtioNetTransmitCompletionPlanResult completion =
-            CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
-        states[publish.Plan.HeaderDescriptor.DescriptorIndex] =
-            VirtioNetTransmitDescriptorOwnershipState.InFlight;
-
-        VirtioNetTransmitDescriptorOwnershipPlanResult result =
-            VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.DescriptorNotInFlight
-            && states[publish.Plan.HeaderDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.Free);
+        VirtioNetTransmitCompletionPlanResult completion = CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        states[publish.Plan.HeaderDescriptor.DescriptorIndex] = VirtioNetTransmitDescriptorOwnershipState.InFlight;
+        VirtioNetTransmitDescriptorOwnershipPlanResult result = VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
+        return HostCheck.Result(!result.Succeeded && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.DescriptorNotInFlight && states[publish.Plan.HeaderDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[publish.Plan.FrameDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
     [HostTest("drivers.virtionet.tx.ownership rejects duplicate completion", HostLane.Fast, 7)]
@@ -248,25 +123,12 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetTransmitLifecycleResult publish = CreateTxPublish(context.QueuePlan, out byte[] queueMemory);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
-        VirtioNetTransmitDescriptorOwnershipPlanResult mark =
-            VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
-        VirtioNetTransmitCompletionPlanResult completion =
-            CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
-        VirtioNetTransmitDescriptorOwnershipPlanResult first =
-            VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
-        VirtioNetTransmitDescriptorOwnershipPlanResult second =
-            VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
-
-        return HostCheck.Result(mark.Succeeded
-            && first.Succeeded
-            && !second.Succeeded
-            && second.Status == VirtioNetTransmitDescriptorOwnershipStatus.DuplicateCompletion
-            && states[publish.Plan.HeaderDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.Free);
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipPlanResult mark = VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
+        VirtioNetTransmitCompletionPlanResult completion = CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
+        VirtioNetTransmitDescriptorOwnershipPlanResult first = VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
+        VirtioNetTransmitDescriptorOwnershipPlanResult second = VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
+        return HostCheck.Result(mark.Succeeded && first.Succeeded && !second.Succeeded && second.Status == VirtioNetTransmitDescriptorOwnershipStatus.DuplicateCompletion && states[publish.Plan.HeaderDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free && states[publish.Plan.FrameDescriptor.DescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
     [HostTest("drivers.virtionet.tx.ownership preserves no-mmio boundary", HostLane.Fast, 8)]
@@ -274,75 +136,31 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetTransmitLifecycleResult publish = CreateTxPublish(context.QueuePlan, out byte[] queueMemory);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
-        VirtioNetTransmitDescriptorOwnershipPlanResult mark =
-            VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
-        VirtioNetTransmitCompletionPlanResult completion =
-            CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
-        VirtioNetTransmitDescriptorOwnershipPlanResult reclaim =
-            VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
-
-        return HostCheck.Result(mark.Succeeded
-            && reclaim.Succeeded
-            && !VirtioNetTransmitDescriptorOwnershipPlan.PerformsMmio
-            && !VirtioNetTransmitDescriptorOwnershipPlan.NotifiesDevice
-            && !VirtioNetTransmitDescriptorOwnershipPlan.PollsDevice
-            && !VirtioNetTransmitDescriptorOwnershipPlan.HandlesInterrupts
-            && !VirtioNetTransmitDescriptorOwnershipPlan.PerformsDmaMapping
-            && !VirtioNetTransmitDescriptorOwnershipPlan.PerformsPacketIo
-            && !VirtioNetTransmitDescriptorOwnershipPlan.ReadsQueueMemory
-            && VirtioNetTransmitDescriptorOwnershipPlan.MutatesCallerOwnedStateTable);
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipPlanResult mark = VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
+        VirtioNetTransmitCompletionPlanResult completion = CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
+        VirtioNetTransmitDescriptorOwnershipPlanResult reclaim = VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
+        return HostCheck.Result(mark.Succeeded && reclaim.Succeeded && !VirtioNetTransmitDescriptorOwnershipPlan.PerformsMmio && !VirtioNetTransmitDescriptorOwnershipPlan.NotifiesDevice && !VirtioNetTransmitDescriptorOwnershipPlan.PollsDevice && !VirtioNetTransmitDescriptorOwnershipPlan.HandlesInterrupts && !VirtioNetTransmitDescriptorOwnershipPlan.PerformsDmaMapping && !VirtioNetTransmitDescriptorOwnershipPlan.PerformsPacketIo && !VirtioNetTransmitDescriptorOwnershipPlan.ReadsQueueMemory && VirtioNetTransmitDescriptorOwnershipPlan.MutatesCallerOwnedStateTable);
     }
 
     [HostTest("drivers.virtionet.tx.freelist selects first free pair", HostLane.Fast, 9)]
     private static bool TestFreeListSelectsFirstFreePair()
     {
         TestContext context = CreateContext();
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
-
-        VirtioNetTransmitDescriptorFreeListResult result =
-            VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(
-                context.QueuePlan,
-                states);
-
-        return HostCheck.Result(result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorFreeListStatus.Success
-            && result.QueuePlanStatus == VirtioNetQueuePlanStatus.Success
-            && result.HeaderDescriptorIndex == 0
-            && result.FrameDescriptorIndex == 1
-            && result.FirstDescriptorIndex == 0
-            && result.StateTableLength == states.Length
-            && result.RequiredStateTableLength == TxQueueSize
-            && result.DescriptorsRequired == VirtioNetTransmitLifecycle.RequiredDescriptorCount
-            && result.DescriptorsScanned == 2
-            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free));
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorFreeListResult result = VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(context.QueuePlan, states);
+        return HostCheck.Result(result.Succeeded && result.Status == VirtioNetTransmitDescriptorFreeListStatus.Success && result.QueuePlanStatus == VirtioNetQueuePlanStatus.Success && result.HeaderDescriptorIndex == 0 && result.FrameDescriptorIndex == 1 && result.FirstDescriptorIndex == 0 && result.StateTableLength == states.Length && result.RequiredStateTableLength == TxQueueSize && result.DescriptorsRequired == VirtioNetTransmitLifecycle.RequiredDescriptorCount && result.DescriptorsScanned == 2 && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free));
     }
 
     [HostTest("drivers.virtionet.tx.freelist skips in-flight descriptors", HostLane.Fast, 10)]
     private static bool TestFreeListSkipsInFlightDescriptors()
     {
         TestContext context = CreateContext();
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         states[0] = VirtioNetTransmitDescriptorOwnershipState.InFlight;
         states[1] = VirtioNetTransmitDescriptorOwnershipState.InFlight;
-
-        VirtioNetTransmitDescriptorFreeListResult result =
-            VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(
-                context.QueuePlan,
-                states);
-
-        return HostCheck.Result(result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorFreeListStatus.Success
-            && result.HeaderDescriptorIndex == 2
-            && result.FrameDescriptorIndex == 3
-            && result.DescriptorsScanned == TxQueueSize
-            && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[2] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free);
+        VirtioNetTransmitDescriptorFreeListResult result = VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(context.QueuePlan, states);
+        return HostCheck.Result(result.Succeeded && result.Status == VirtioNetTransmitDescriptorFreeListStatus.Success && result.HeaderDescriptorIndex == 2 && result.FrameDescriptorIndex == 3 && result.DescriptorsScanned == TxQueueSize && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[2] == VirtioNetTransmitDescriptorOwnershipState.Free && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
     [HostTest("drivers.virtionet.tx.freelist reuses reclaimed descriptors", HostLane.Fast, 11)]
@@ -350,346 +168,116 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetTransmitLifecycleResult publish = CreateTxPublish(context.QueuePlan, out byte[] queueMemory);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
-        VirtioNetTransmitDescriptorOwnershipPlanResult mark =
-            VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
-        VirtioNetTransmitCompletionPlanResult completion =
-            CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
-        VirtioNetTransmitDescriptorOwnershipPlanResult reclaim =
-            VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
-
-        VirtioNetTransmitDescriptorFreeListResult result =
-            VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(
-                context.QueuePlan,
-                states);
-
-        return HostCheck.Result(mark.Succeeded
-            && reclaim.Succeeded
-            && result.Succeeded
-            && result.HeaderDescriptorIndex == publish.Plan.HeaderDescriptor.DescriptorIndex
-            && result.FrameDescriptorIndex == publish.Plan.FrameDescriptor.DescriptorIndex
-            && states[result.HeaderDescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[result.FrameDescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free);
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipPlanResult mark = VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
+        VirtioNetTransmitCompletionPlanResult completion = CreateSuccessfulCompletion(context, publish, queueMemory, previousUsedIndex: 0);
+        VirtioNetTransmitDescriptorOwnershipPlanResult reclaim = VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
+        VirtioNetTransmitDescriptorFreeListResult result = VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(context.QueuePlan, states);
+        return HostCheck.Result(mark.Succeeded && reclaim.Succeeded && result.Succeeded && result.HeaderDescriptorIndex == publish.Plan.HeaderDescriptor.DescriptorIndex && result.FrameDescriptorIndex == publish.Plan.FrameDescriptor.DescriptorIndex && states[result.HeaderDescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free && states[result.FrameDescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
     [HostTest("drivers.virtionet.tx.freelist reports capacity exhaustion", HostLane.Fast, 12)]
     private static bool TestFreeListReportsCapacityExhaustion()
     {
         TestContext context = CreateContext();
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-        [
-            VirtioNetTransmitDescriptorOwnershipState.InFlight,
-            VirtioNetTransmitDescriptorOwnershipState.Free,
-            VirtioNetTransmitDescriptorOwnershipState.InFlight,
-            VirtioNetTransmitDescriptorOwnershipState.Free
-        ];
-
-        VirtioNetTransmitDescriptorFreeListResult result =
-            VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(
-                context.QueuePlan,
-                states);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorFreeListStatus.NoFreeDescriptorPair
-            && result.RequiredStateTableLength == TxQueueSize
-            && result.StateTableLength == states.Length
-            && result.DescriptorsScanned == TxQueueSize
-            && states[1] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free);
+        VirtioNetTransmitDescriptorOwnershipState[] states = [VirtioNetTransmitDescriptorOwnershipState.InFlight, VirtioNetTransmitDescriptorOwnershipState.Free, VirtioNetTransmitDescriptorOwnershipState.InFlight, VirtioNetTransmitDescriptorOwnershipState.Free];
+        VirtioNetTransmitDescriptorFreeListResult result = VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(context.QueuePlan, states);
+        return HostCheck.Result(!result.Succeeded && result.Status == VirtioNetTransmitDescriptorFreeListStatus.NoFreeDescriptorPair && result.RequiredStateTableLength == TxQueueSize && result.StateTableLength == states.Length && result.DescriptorsScanned == TxQueueSize && states[1] == VirtioNetTransmitDescriptorOwnershipState.Free && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
     [HostTest("drivers.virtionet.tx.freelist rejects invalid queue state", HostLane.Fast, 13)]
     private static bool TestFreeListRejectsInvalidQueueState()
     {
         TestContext context = CreateContext();
-        VirtioNetTransmitDescriptorOwnershipState[] invalidStates =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] invalidStates = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         invalidStates[1] = (VirtioNetTransmitDescriptorOwnershipState)99;
-        VirtioNetTransmitDescriptorOwnershipState[] shortStates =
-            new VirtioNetTransmitDescriptorOwnershipState[1];
-
-        VirtioNetTransmitDescriptorFreeListResult invalidState =
-            VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(
-                context.QueuePlan,
-                invalidStates);
-        VirtioNetTransmitDescriptorFreeListResult shortState =
-            VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(
-                context.QueuePlan,
-                shortStates);
-
-        return HostCheck.Result(!invalidState.Succeeded
-            && invalidState.Status == VirtioNetTransmitDescriptorFreeListStatus.InvalidDescriptorState
-            && invalidState.InvalidDescriptorIndex == 1
-            && invalidStates[1] == (VirtioNetTransmitDescriptorOwnershipState)99
-            && !shortState.Succeeded
-            && shortState.Status == VirtioNetTransmitDescriptorFreeListStatus.StateTableTooSmall
-            && shortState.RequiredStateTableLength == TxQueueSize
-            && shortState.StateTableLength == shortStates.Length
-            && shortStates[0] == VirtioNetTransmitDescriptorOwnershipState.Free);
+        VirtioNetTransmitDescriptorOwnershipState[] shortStates = new VirtioNetTransmitDescriptorOwnershipState[1];
+        VirtioNetTransmitDescriptorFreeListResult invalidState = VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(context.QueuePlan, invalidStates);
+        VirtioNetTransmitDescriptorFreeListResult shortState = VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(context.QueuePlan, shortStates);
+        return HostCheck.Result(!invalidState.Succeeded && invalidState.Status == VirtioNetTransmitDescriptorFreeListStatus.InvalidDescriptorState && invalidState.InvalidDescriptorIndex == 1 && invalidStates[1] == (VirtioNetTransmitDescriptorOwnershipState)99 && !shortState.Succeeded && shortState.Status == VirtioNetTransmitDescriptorFreeListStatus.StateTableTooSmall && shortState.RequiredStateTableLength == TxQueueSize && shortState.StateTableLength == shortStates.Length && shortStates[0] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
     [HostTest("drivers.virtionet.tx.freelist preserves no-mmio boundary", HostLane.Fast, 14)]
     private static bool TestFreeListPreservesNoMmioBoundary()
     {
         TestContext context = CreateContext();
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
-
-        VirtioNetTransmitDescriptorFreeListResult result =
-            VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(
-                context.QueuePlan,
-                states);
-
-        return HostCheck.Result(result.Succeeded
-            && !VirtioNetTransmitDescriptorFreeListPlanner.PerformsMmio
-            && !VirtioNetTransmitDescriptorFreeListPlanner.NotifiesDevice
-            && !VirtioNetTransmitDescriptorFreeListPlanner.PollsDevice
-            && !VirtioNetTransmitDescriptorFreeListPlanner.HandlesInterrupts
-            && !VirtioNetTransmitDescriptorFreeListPlanner.PerformsDmaMapping
-            && !VirtioNetTransmitDescriptorFreeListPlanner.PerformsPacketIo
-            && !VirtioNetTransmitDescriptorFreeListPlanner.ReadsQueueMemory
-            && !VirtioNetTransmitDescriptorFreeListPlanner.MutatesCallerOwnedStateTable
-            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free));
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorFreeListResult result = VirtioNetTransmitDescriptorFreeListPlanner.SelectFreeDescriptorPair(context.QueuePlan, states);
+        return HostCheck.Result(result.Succeeded && !VirtioNetTransmitDescriptorFreeListPlanner.PerformsMmio && !VirtioNetTransmitDescriptorFreeListPlanner.NotifiesDevice && !VirtioNetTransmitDescriptorFreeListPlanner.PollsDevice && !VirtioNetTransmitDescriptorFreeListPlanner.HandlesInterrupts && !VirtioNetTransmitDescriptorFreeListPlanner.PerformsDmaMapping && !VirtioNetTransmitDescriptorFreeListPlanner.PerformsPacketIo && !VirtioNetTransmitDescriptorFreeListPlanner.ReadsQueueMemory && !VirtioNetTransmitDescriptorFreeListPlanner.MutatesCallerOwnedStateTable && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free));
     }
 
     [HostTest("drivers.virtionet.tx.publishplan publishes selected free pair", HostLane.Fast, 15)]
     private static bool TestPublishPlanPublishesSelectedFreePair()
     {
         TestContext context = CreateContext();
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         byte[] txHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
         byte[] frame = CreateEthernetFrame();
-
-        VirtioNetTransmitDescriptorPublishPlanResult result =
-            VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(
-                context.QueuePlan,
-                states,
-                availableRingIndex: 11,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                frame,
-                txHeader,
-                queueMemory);
-
-        return HostCheck.Result(result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.Success
-            && result.QueuePlanStatus == VirtioNetQueuePlanStatus.Success
-            && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.Success
-            && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.Success
-            && result.HeaderStatus == VirtioNetHeaderStatus.Success
-            && result.OwnershipStatus == VirtioNetTransmitDescriptorOwnershipStatus.Success
-            && result.TransmitPublishAttempted
-            && result.OwnershipMarkAttempted
-            && result.HeaderDescriptorIndex == 0
-            && result.FrameDescriptorIndex == 1
-            && result.TransmitPublish.HeadDescriptorIndex == 0
-            && result.NextAvailableRingIndex == 12
-            && result.StateTableLength == states.Length
-            && result.RequiredStateTableLength == TxQueueSize
-            && result.DescriptorsSelected == VirtioNetTransmitLifecycle.RequiredDescriptorCount
-            && result.DescriptorsWritten == VirtioNetTransmitLifecycle.RequiredDescriptorCount
-            && result.DescriptorsMarkedInFlight == VirtioNetTransmitLifecycle.RequiredDescriptorCount
-            && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[2] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && BytesAreZero(txHeader)
-            && DescriptorMatches(
-                queueMemory,
-                result.TransmitPublish.Plan.HeaderDescriptor.DescriptorTableOffset,
-                TxHeaderPhysicalAddress,
-                VirtioNetTransmitLifecycle.TxHeaderBytes,
-                flags: 1,
-                next: 1)
-            && DescriptorMatches(
-                queueMemory,
-                result.TransmitPublish.Plan.FrameDescriptor.DescriptorTableOffset,
-                TxFramePhysicalAddress,
-                (uint)frame.Length,
-                flags: 0,
-                next: 0));
+        VirtioNetTransmitDescriptorPublishPlanResult result = VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(context.QueuePlan, states, availableRingIndex: 11, TxHeaderPhysicalAddress, TxFramePhysicalAddress, frame, txHeader, queueMemory);
+        return HostCheck.Result(result.Succeeded && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.Success && result.QueuePlanStatus == VirtioNetQueuePlanStatus.Success && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.Success && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.Success && result.HeaderStatus == VirtioNetHeaderStatus.Success && result.OwnershipStatus == VirtioNetTransmitDescriptorOwnershipStatus.Success && result.TransmitPublishAttempted && result.OwnershipMarkAttempted && result.HeaderDescriptorIndex == 0 && result.FrameDescriptorIndex == 1 && result.TransmitPublish.HeadDescriptorIndex == 0 && result.NextAvailableRingIndex == 12 && result.StateTableLength == states.Length && result.RequiredStateTableLength == TxQueueSize && result.DescriptorsSelected == VirtioNetTransmitLifecycle.RequiredDescriptorCount && result.DescriptorsWritten == VirtioNetTransmitLifecycle.RequiredDescriptorCount && result.DescriptorsMarkedInFlight == VirtioNetTransmitLifecycle.RequiredDescriptorCount && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[2] == VirtioNetTransmitDescriptorOwnershipState.Free && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free && BytesAreZero(txHeader) && DescriptorMatches(queueMemory, result.TransmitPublish.Plan.HeaderDescriptor.DescriptorTableOffset, TxHeaderPhysicalAddress, VirtioNetTransmitLifecycle.TxHeaderBytes, flags: 1, next: 1) && DescriptorMatches(queueMemory, result.TransmitPublish.Plan.FrameDescriptor.DescriptorTableOffset, TxFramePhysicalAddress, (uint)frame.Length, flags: 0, next: 0));
     }
 
     [HostTest("drivers.virtionet.tx.publishplan skips in-flight descriptors", HostLane.Fast, 16)]
     private static bool TestPublishPlanSkipsInFlightDescriptors()
     {
         TestContext context = CreateContext();
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         states[0] = VirtioNetTransmitDescriptorOwnershipState.InFlight;
         states[1] = VirtioNetTransmitDescriptorOwnershipState.InFlight;
         byte[] txHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
-
-        VirtioNetTransmitDescriptorPublishPlanResult result =
-            VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(
-                context.QueuePlan,
-                states,
-                availableRingIndex: 0,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                CreateEthernetFrame(),
-                txHeader,
-                queueMemory);
-
-        return HostCheck.Result(result.Succeeded
-            && result.HeaderDescriptorIndex == 2
-            && result.FrameDescriptorIndex == 3
-            && result.TransmitPublish.HeadDescriptorIndex == 2
-            && result.TransmitPublish.Plan.HeaderDescriptor.NextDescriptorIndex == 3
-            && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[2] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.InFlight);
+        VirtioNetTransmitDescriptorPublishPlanResult result = VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(context.QueuePlan, states, availableRingIndex: 0, TxHeaderPhysicalAddress, TxFramePhysicalAddress, CreateEthernetFrame(), txHeader, queueMemory);
+        return HostCheck.Result(result.Succeeded && result.HeaderDescriptorIndex == 2 && result.FrameDescriptorIndex == 3 && result.TransmitPublish.HeadDescriptorIndex == 2 && result.TransmitPublish.Plan.HeaderDescriptor.NextDescriptorIndex == 3 && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[2] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[3] == VirtioNetTransmitDescriptorOwnershipState.InFlight);
     }
 
     [HostTest("drivers.virtionet.tx.publishplan rejects free-list exhaustion", HostLane.Fast, 17)]
     private static bool TestPublishPlanRejectsFreeListExhaustion()
     {
         TestContext context = CreateContext();
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-        [
-            VirtioNetTransmitDescriptorOwnershipState.InFlight,
-            VirtioNetTransmitDescriptorOwnershipState.Free,
-            VirtioNetTransmitDescriptorOwnershipState.InFlight,
-            VirtioNetTransmitDescriptorOwnershipState.Free
-        ];
+        VirtioNetTransmitDescriptorOwnershipState[] states = [VirtioNetTransmitDescriptorOwnershipState.InFlight, VirtioNetTransmitDescriptorOwnershipState.Free, VirtioNetTransmitDescriptorOwnershipState.InFlight, VirtioNetTransmitDescriptorOwnershipState.Free];
         byte[] txHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
         Array.Fill(queueMemory, (byte)0x37);
-
-        VirtioNetTransmitDescriptorPublishPlanResult result =
-            VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(
-                context.QueuePlan,
-                states,
-                availableRingIndex: 0,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                CreateEthernetFrame(),
-                txHeader,
-                queueMemory);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.FreeListFailed
-            && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.NoFreeDescriptorPair
-            && !result.TransmitPublishAttempted
-            && !result.OwnershipMarkAttempted
-            && result.DescriptorsSelected == 0
-            && result.DescriptorsWritten == 0
-            && result.DescriptorsMarkedInFlight == 0
-            && states[1] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && AllBytesEqual(queueMemory, 0x37));
+        VirtioNetTransmitDescriptorPublishPlanResult result = VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(context.QueuePlan, states, availableRingIndex: 0, TxHeaderPhysicalAddress, TxFramePhysicalAddress, CreateEthernetFrame(), txHeader, queueMemory);
+        return HostCheck.Result(!result.Succeeded && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.FreeListFailed && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.NoFreeDescriptorPair && !result.TransmitPublishAttempted && !result.OwnershipMarkAttempted && result.DescriptorsSelected == 0 && result.DescriptorsWritten == 0 && result.DescriptorsMarkedInFlight == 0 && states[1] == VirtioNetTransmitDescriptorOwnershipState.Free && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free && AllBytesEqual(queueMemory, 0x37));
     }
 
     [HostTest("drivers.virtionet.tx.publishplan preserves state on publish failure", HostLane.Fast, 18)]
     private static bool TestPublishPlanPreservesStateOnPublishFailure()
     {
         TestContext context = CreateContext();
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         byte[] shortTxHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers - 1];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
         Array.Fill(shortTxHeader, (byte)0x21);
         Array.Fill(queueMemory, (byte)0x21);
-
-        VirtioNetTransmitDescriptorPublishPlanResult result =
-            VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(
-                context.QueuePlan,
-                states,
-                availableRingIndex: 0,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                CreateEthernetFrame(),
-                shortTxHeader,
-                queueMemory);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.TransmitPublishFailed
-            && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.Success
-            && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall
-            && result.HeaderStatus == VirtioNetHeaderStatus.BufferTooSmall
-            && result.TransmitPublishAttempted
-            && !result.OwnershipMarkAttempted
-            && result.HeaderDescriptorIndex == 0
-            && result.FrameDescriptorIndex == 1
-            && result.DescriptorsSelected == VirtioNetTransmitLifecycle.RequiredDescriptorCount
-            && result.DescriptorsWritten == 0
-            && result.DescriptorsMarkedInFlight == 0
-            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free)
-            && AllBytesEqual(shortTxHeader, 0x21)
-            && AllBytesEqual(queueMemory, 0x21));
+        VirtioNetTransmitDescriptorPublishPlanResult result = VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(context.QueuePlan, states, availableRingIndex: 0, TxHeaderPhysicalAddress, TxFramePhysicalAddress, CreateEthernetFrame(), shortTxHeader, queueMemory);
+        return HostCheck.Result(!result.Succeeded && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.TransmitPublishFailed && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.Success && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall && result.HeaderStatus == VirtioNetHeaderStatus.BufferTooSmall && result.TransmitPublishAttempted && !result.OwnershipMarkAttempted && result.HeaderDescriptorIndex == 0 && result.FrameDescriptorIndex == 1 && result.DescriptorsSelected == VirtioNetTransmitLifecycle.RequiredDescriptorCount && result.DescriptorsWritten == 0 && result.DescriptorsMarkedInFlight == 0 && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free) && AllBytesEqual(shortTxHeader, 0x21) && AllBytesEqual(queueMemory, 0x21));
     }
 
     [HostTest("drivers.virtionet.tx.publishplan rejects invalid ownership state", HostLane.Fast, 19)]
     private static bool TestPublishPlanRejectsInvalidOwnershipState()
     {
         TestContext context = CreateContext();
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         states[0] = (VirtioNetTransmitDescriptorOwnershipState)99;
         byte[] txHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
         Array.Fill(queueMemory, (byte)0x49);
-
-        VirtioNetTransmitDescriptorPublishPlanResult result =
-            VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(
-                context.QueuePlan,
-                states,
-                availableRingIndex: 0,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                CreateEthernetFrame(),
-                txHeader,
-                queueMemory);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.FreeListFailed
-            && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.InvalidDescriptorState
-            && result.FreeList.InvalidDescriptorIndex == 0
-            && !result.TransmitPublishAttempted
-            && !result.OwnershipMarkAttempted
-            && states[0] == (VirtioNetTransmitDescriptorOwnershipState)99
-            && AllBytesEqual(queueMemory, 0x49));
+        VirtioNetTransmitDescriptorPublishPlanResult result = VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(context.QueuePlan, states, availableRingIndex: 0, TxHeaderPhysicalAddress, TxFramePhysicalAddress, CreateEthernetFrame(), txHeader, queueMemory);
+        return HostCheck.Result(!result.Succeeded && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.FreeListFailed && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.InvalidDescriptorState && result.FreeList.InvalidDescriptorIndex == 0 && !result.TransmitPublishAttempted && !result.OwnershipMarkAttempted && states[0] == (VirtioNetTransmitDescriptorOwnershipState)99 && AllBytesEqual(queueMemory, 0x49));
     }
 
     [HostTest("drivers.virtionet.tx.publishplan preserves no-mmio boundary", HostLane.Fast, 20)]
     private static bool TestPublishPlanPreservesNoMmioBoundary()
     {
         TestContext context = CreateContext();
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         byte[] txHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
-
-        VirtioNetTransmitDescriptorPublishPlanResult result =
-            VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(
-                context.QueuePlan,
-                states,
-                availableRingIndex: 0,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                CreateEthernetFrame(),
-                txHeader,
-                queueMemory);
-
-        return HostCheck.Result(result.Succeeded
-            && !VirtioNetTransmitDescriptorPublishPlanner.PerformsMmio
-            && !VirtioNetTransmitDescriptorPublishPlanner.NotifiesDevice
-            && !VirtioNetTransmitDescriptorPublishPlanner.PollsDevice
-            && !VirtioNetTransmitDescriptorPublishPlanner.HandlesInterrupts
-            && !VirtioNetTransmitDescriptorPublishPlanner.PerformsDmaMapping
-            && !VirtioNetTransmitDescriptorPublishPlanner.AllocatesDmaMemory
-            && !VirtioNetTransmitDescriptorPublishPlanner.PerformsPacketIo
-            && !VirtioNetTransmitDescriptorPublishPlanner.PerformsPacketTransmit
-            && !VirtioNetTransmitDescriptorPublishPlanner.WaitsForUsedRingCompletion
-            && !VirtioNetTransmitDescriptorPublishPlanner.ReadsQueueMemory
-            && VirtioNetTransmitDescriptorPublishPlanner.WritesQueueMemory
-            && VirtioNetTransmitDescriptorPublishPlanner.WritesTransmitHeader
-            && VirtioNetTransmitDescriptorPublishPlanner.MutatesCallerOwnedStateTable);
+        VirtioNetTransmitDescriptorPublishPlanResult result = VirtioNetTransmitDescriptorPublishPlanner.PublishFromFreeList(context.QueuePlan, states, availableRingIndex: 0, TxHeaderPhysicalAddress, TxFramePhysicalAddress, CreateEthernetFrame(), txHeader, queueMemory);
+        return HostCheck.Result(result.Succeeded && !VirtioNetTransmitDescriptorPublishPlanner.PerformsMmio && !VirtioNetTransmitDescriptorPublishPlanner.NotifiesDevice && !VirtioNetTransmitDescriptorPublishPlanner.PollsDevice && !VirtioNetTransmitDescriptorPublishPlanner.HandlesInterrupts && !VirtioNetTransmitDescriptorPublishPlanner.PerformsDmaMapping && !VirtioNetTransmitDescriptorPublishPlanner.AllocatesDmaMemory && !VirtioNetTransmitDescriptorPublishPlanner.PerformsPacketIo && !VirtioNetTransmitDescriptorPublishPlanner.PerformsPacketTransmit && !VirtioNetTransmitDescriptorPublishPlanner.WaitsForUsedRingCompletion && !VirtioNetTransmitDescriptorPublishPlanner.ReadsQueueMemory && VirtioNetTransmitDescriptorPublishPlanner.WritesQueueMemory && VirtioNetTransmitDescriptorPublishPlanner.WritesTransmitHeader && VirtioNetTransmitDescriptorPublishPlanner.MutatesCallerOwnedStateTable);
     }
 
     [HostTest("drivers.virtionet.tx.readiness composes setup publish notify", HostLane.Fast, 22)]
@@ -697,117 +285,28 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetQueueMmioSetupExecutionResult setupExecution = ExecuteQueueSetup(context);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         byte[] txHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
         byte[] notifyBytes = CreateNotifyBytes(context);
         FakeRegisterAccessor notifyAccessor = new FakeRegisterAccessor(notifyBytes);
-
-        VirtioNetTransmitReadinessResult result =
-            VirtioNetTransmitReadinessPlanner.ComposeTransmit(
-                context.QueueSetup,
-                setupExecution,
-                context.QueuePlan,
-                states,
-                availableRingIndex: 11,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                CreateEthernetFrame(),
-                txHeader,
-                queueMemory,
-                VirtioNetQueueNotificationBarrierReadiness.Ready(31),
-                context.Apertures.NotifyConfiguration,
-                negotiatedFeatures: 0,
-                notifyAccessor);
-
+        VirtioNetTransmitReadinessResult result = VirtioNetTransmitReadinessPlanner.ComposeTransmit(context.QueueSetup, setupExecution, context.QueuePlan, states, availableRingIndex: 11, TxHeaderPhysicalAddress, TxFramePhysicalAddress, CreateEthernetFrame(), txHeader, queueMemory, VirtioNetQueueNotificationBarrierReadiness.Ready(31), context.Apertures.NotifyConfiguration, negotiatedFeatures: 0, notifyAccessor);
         int notifyOffset = checked((int)(TxNotifyOffset * NotifyOffsetMultiplier));
-        return HostCheck.Result(setupExecution.Succeeded
-            && result.Succeeded
-            && result.Status == VirtioNetTransmitReadinessStatus.Success
-            && result.QueueSetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
-            && result.QueueSetupExecutionStatus == VirtioNetQueueMmioSetupExecutionStatus.Success
-            && result.TransmitPublishPlanStatus == VirtioNetTransmitDescriptorPublishPlanStatus.Success
-            && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.Success
-            && result.NotificationPlanStatus == VirtioNetQueueNotificationPlanStatus.Success
-            && result.PciNotificationStatus == VirtioPciQueueNotificationPlanStatus.Success
-            && result.NotificationExecutionStatus == VirtioNetQueueNotificationExecutionStatus.Success
-            && result.NotificationSinkStatus == VirtioPciNotifyWriteStatus.Success
-            && result.TransmitPublishAttempted
-            && result.NotificationPlanAttempted
-            && result.NotificationExecutionAttempted
-            && result.BarrierSucceeded
-            && result.BarrierSequence == 31
-            && result.HeaderDescriptorIndex == 0
-            && result.FrameDescriptorIndex == 1
-            && result.DescriptorsWritten == VirtioNetTransmitLifecycle.RequiredDescriptorCount
-            && result.DescriptorsMarkedInFlight == VirtioNetTransmitLifecycle.RequiredDescriptorCount
-            && result.QueueIndex == VirtioNetQueuePlan.TransmitQueueIndex
-            && result.PublishedDescriptorCount == VirtioNetTransmitLifecycle.RequiredDescriptorCount
-            && result.PreviousAvailableRingIndex == 11
-            && result.NextAvailableRingIndex == 12
-            && result.NotifyRelativeOffset == TxNotifyOffset * NotifyOffsetMultiplier
-            && result.WriteValue == VirtioNetQueuePlan.TransmitQueueIndex
-            && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && notifyAccessor.NotifyWrite16Count == 1
-            && notifyAccessor.LastStatus == VirtioPciRegisterWriteStatus.Success
-            && ReadUInt16(notifyBytes, notifyOffset) == VirtioNetQueuePlan.TransmitQueueIndex
-            && BytesAreZero(txHeader)
-            && DescriptorMatches(
-                queueMemory,
-                result.TransmitPublish.TransmitPublish.Plan.HeaderDescriptor.DescriptorTableOffset,
-                TxHeaderPhysicalAddress,
-                VirtioNetTransmitLifecycle.TxHeaderBytes,
-                flags: 1,
-                next: 1));
+        return HostCheck.Result(setupExecution.Succeeded && result.Succeeded && result.Status == VirtioNetTransmitReadinessStatus.Success && result.QueueSetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success && result.QueueSetupExecutionStatus == VirtioNetQueueMmioSetupExecutionStatus.Success && result.TransmitPublishPlanStatus == VirtioNetTransmitDescriptorPublishPlanStatus.Success && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.Success && result.NotificationPlanStatus == VirtioNetQueueNotificationPlanStatus.Success && result.PciNotificationStatus == VirtioPciQueueNotificationPlanStatus.Success && result.NotificationExecutionStatus == VirtioNetQueueNotificationExecutionStatus.Success && result.NotificationSinkStatus == VirtioPciNotifyWriteStatus.Success && result.TransmitPublishAttempted && result.NotificationPlanAttempted && result.NotificationExecutionAttempted && result.BarrierSucceeded && result.BarrierSequence == 31 && result.HeaderDescriptorIndex == 0 && result.FrameDescriptorIndex == 1 && result.DescriptorsWritten == VirtioNetTransmitLifecycle.RequiredDescriptorCount && result.DescriptorsMarkedInFlight == VirtioNetTransmitLifecycle.RequiredDescriptorCount && result.QueueIndex == VirtioNetQueuePlan.TransmitQueueIndex && result.PublishedDescriptorCount == VirtioNetTransmitLifecycle.RequiredDescriptorCount && result.PreviousAvailableRingIndex == 11 && result.NextAvailableRingIndex == 12 && result.NotifyRelativeOffset == TxNotifyOffset * NotifyOffsetMultiplier && result.WriteValue == VirtioNetQueuePlan.TransmitQueueIndex && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight && notifyAccessor.NotifyWrite16Count == 1 && notifyAccessor.LastStatus == VirtioPciRegisterWriteStatus.Success && ReadUInt16(notifyBytes, notifyOffset) == VirtioNetQueuePlan.TransmitQueueIndex && BytesAreZero(txHeader) && DescriptorMatches(queueMemory, result.TransmitPublish.TransmitPublish.Plan.HeaderDescriptor.DescriptorTableOffset, TxHeaderPhysicalAddress, VirtioNetTransmitLifecycle.TxHeaderBytes, flags: 1, next: 1));
     }
 
     [HostTest("drivers.virtionet.tx.readiness rejects failed setup execution", HostLane.Fast, 24)]
     private static bool TestReadinessRejectsFailedSetupExecution()
     {
         TestContext context = CreateContext();
-        VirtioNetQueueMmioSetupExecutionResult failedSetupExecution =
-            VirtioNetQueueMmioSetupExecutor.Execute(
-                context.QueueSetup,
-                context.QueueSetupCommands,
-                context.Apertures.CommonConfiguration,
-                accessor: null);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetQueueMmioSetupExecutionResult failedSetupExecution = VirtioNetQueueMmioSetupExecutor.Execute(context.QueueSetup, context.QueueSetupCommands, context.Apertures.CommonConfiguration, accessor: null);
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         byte[] txHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
         byte[] notifyBytes = CreateNotifyBytes(context);
         FakeRegisterAccessor notifyAccessor = new FakeRegisterAccessor(notifyBytes);
-
-        VirtioNetTransmitReadinessResult result =
-            VirtioNetTransmitReadinessPlanner.ComposeTransmit(
-                context.QueueSetup,
-                failedSetupExecution,
-                context.QueuePlan,
-                states,
-                availableRingIndex: 0,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                CreateEthernetFrame(),
-                txHeader,
-                queueMemory,
-                VirtioNetQueueNotificationBarrierReadiness.Ready(32),
-                context.Apertures.NotifyConfiguration,
-                negotiatedFeatures: 0,
-                notifyAccessor);
-
-        return HostCheck.Result(!failedSetupExecution.Succeeded
-            && !result.Succeeded
-            && result.Status == VirtioNetTransmitReadinessStatus.QueueSetupExecutionFailed
-            && result.QueueSetupExecutionStatus == VirtioNetQueueMmioSetupExecutionStatus.AccessorNotReady
-            && !result.TransmitPublishAttempted
-            && !result.NotificationPlanAttempted
-            && !result.NotificationExecutionAttempted
-            && notifyAccessor.NotifyWrite16Count == 0
-            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free)
-            && BytesAreZero(txHeader)
-            && BytesAreZero(queueMemory));
+        VirtioNetTransmitReadinessResult result = VirtioNetTransmitReadinessPlanner.ComposeTransmit(context.QueueSetup, failedSetupExecution, context.QueuePlan, states, availableRingIndex: 0, TxHeaderPhysicalAddress, TxFramePhysicalAddress, CreateEthernetFrame(), txHeader, queueMemory, VirtioNetQueueNotificationBarrierReadiness.Ready(32), context.Apertures.NotifyConfiguration, negotiatedFeatures: 0, notifyAccessor);
+        return HostCheck.Result(!failedSetupExecution.Succeeded && !result.Succeeded && result.Status == VirtioNetTransmitReadinessStatus.QueueSetupExecutionFailed && result.QueueSetupExecutionStatus == VirtioNetQueueMmioSetupExecutionStatus.AccessorNotReady && !result.TransmitPublishAttempted && !result.NotificationPlanAttempted && !result.NotificationExecutionAttempted && notifyAccessor.NotifyWrite16Count == 0 && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free) && BytesAreZero(txHeader) && BytesAreZero(queueMemory));
     }
 
     [HostTest("drivers.virtionet.tx.readiness rejects failed publish", HostLane.Fast, 25)]
@@ -815,42 +314,13 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetQueueMmioSetupExecutionResult setupExecution = ExecuteQueueSetup(context);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         byte[] shortTxHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers - 1];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
         byte[] notifyBytes = CreateNotifyBytes(context);
         FakeRegisterAccessor notifyAccessor = new FakeRegisterAccessor(notifyBytes);
-
-        VirtioNetTransmitReadinessResult result =
-            VirtioNetTransmitReadinessPlanner.ComposeTransmit(
-                context.QueueSetup,
-                setupExecution,
-                context.QueuePlan,
-                states,
-                availableRingIndex: 0,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                CreateEthernetFrame(),
-                shortTxHeader,
-                queueMemory,
-                VirtioNetQueueNotificationBarrierReadiness.Ready(33),
-                context.Apertures.NotifyConfiguration,
-                negotiatedFeatures: 0,
-                notifyAccessor);
-
-        return HostCheck.Result(setupExecution.Succeeded
-            && !result.Succeeded
-            && result.Status == VirtioNetTransmitReadinessStatus.TransmitPublishFailed
-            && result.TransmitPublishPlanStatus ==
-                VirtioNetTransmitDescriptorPublishPlanStatus.TransmitPublishFailed
-            && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall
-            && result.TransmitPublishAttempted
-            && !result.NotificationPlanAttempted
-            && !result.NotificationExecutionAttempted
-            && notifyAccessor.NotifyWrite16Count == 0
-            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free)
-            && BytesAreZero(queueMemory));
+        VirtioNetTransmitReadinessResult result = VirtioNetTransmitReadinessPlanner.ComposeTransmit(context.QueueSetup, setupExecution, context.QueuePlan, states, availableRingIndex: 0, TxHeaderPhysicalAddress, TxFramePhysicalAddress, CreateEthernetFrame(), shortTxHeader, queueMemory, VirtioNetQueueNotificationBarrierReadiness.Ready(33), context.Apertures.NotifyConfiguration, negotiatedFeatures: 0, notifyAccessor);
+        return HostCheck.Result(setupExecution.Succeeded && !result.Succeeded && result.Status == VirtioNetTransmitReadinessStatus.TransmitPublishFailed && result.TransmitPublishPlanStatus == VirtioNetTransmitDescriptorPublishPlanStatus.TransmitPublishFailed && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall && result.TransmitPublishAttempted && !result.NotificationPlanAttempted && !result.NotificationExecutionAttempted && notifyAccessor.NotifyWrite16Count == 0 && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free) && BytesAreZero(queueMemory));
     }
 
     [HostTest("drivers.virtionet.tx.readiness rejects missing barrier", HostLane.Fast, 26)]
@@ -858,50 +328,14 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetQueueMmioSetupExecutionResult setupExecution = ExecuteQueueSetup(context);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         byte[] txHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
         byte[] notifyBytes = CreateNotifyBytes(context);
         FakeRegisterAccessor notifyAccessor = new FakeRegisterAccessor(notifyBytes);
-        VirtioNetQueueNotificationBarrierReadiness missingBarrier =
-            new VirtioNetQueueNotificationBarrierReadiness(
-                descriptorWritesVisible: true,
-                availableRingWritesVisible: false,
-                orderedBeforeNotify: true,
-                barrierSequence: 34);
-
-        VirtioNetTransmitReadinessResult result =
-            VirtioNetTransmitReadinessPlanner.ComposeTransmit(
-                context.QueueSetup,
-                setupExecution,
-                context.QueuePlan,
-                states,
-                availableRingIndex: 0,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                CreateEthernetFrame(),
-                txHeader,
-                queueMemory,
-                missingBarrier,
-                context.Apertures.NotifyConfiguration,
-                negotiatedFeatures: 0,
-                notifyAccessor);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == VirtioNetTransmitReadinessStatus.BarrierNotReady
-            && result.NotificationExecutionStatus ==
-                VirtioNetQueueNotificationExecutionStatus.MemoryBarrierNotReady
-            && result.NotificationSinkStatus == VirtioPciNotifyWriteStatus.NotReady
-            && result.TransmitPublishAttempted
-            && result.NotificationPlanAttempted
-            && result.NotificationExecutionAttempted
-            && !result.BarrierSucceeded
-            && result.BarrierSequence == 34
-            && notifyAccessor.NotifyWrite16Count == 0
-            && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && AllBytesEqual(notifyBytes, 0xCC));
+        VirtioNetQueueNotificationBarrierReadiness missingBarrier = new VirtioNetQueueNotificationBarrierReadiness(descriptorWritesVisible: true, availableRingWritesVisible: false, orderedBeforeNotify: true, barrierSequence: 34);
+        VirtioNetTransmitReadinessResult result = VirtioNetTransmitReadinessPlanner.ComposeTransmit(context.QueueSetup, setupExecution, context.QueuePlan, states, availableRingIndex: 0, TxHeaderPhysicalAddress, TxFramePhysicalAddress, CreateEthernetFrame(), txHeader, queueMemory, missingBarrier, context.Apertures.NotifyConfiguration, negotiatedFeatures: 0, notifyAccessor);
+        return HostCheck.Result(!result.Succeeded && result.Status == VirtioNetTransmitReadinessStatus.BarrierNotReady && result.NotificationExecutionStatus == VirtioNetQueueNotificationExecutionStatus.MemoryBarrierNotReady && result.NotificationSinkStatus == VirtioPciNotifyWriteStatus.NotReady && result.TransmitPublishAttempted && result.NotificationPlanAttempted && result.NotificationExecutionAttempted && !result.BarrierSucceeded && result.BarrierSequence == 34 && notifyAccessor.NotifyWrite16Count == 0 && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight && AllBytesEqual(notifyBytes, 0xCC));
     }
 
     [HostTest("drivers.virtionet.tx.readiness propagates notification failure", HostLane.Fast, 27)]
@@ -909,8 +343,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetQueueMmioSetupExecutionResult setupExecution = ExecuteQueueSetup(context);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         byte[] txHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
         byte[] notifyBytes = CreateNotifyBytes(context);
@@ -918,34 +351,8 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         {
             NotifyFailureStatus = VirtioPciRegisterWriteStatus.WriteFailed
         };
-
-        VirtioNetTransmitReadinessResult result =
-            VirtioNetTransmitReadinessPlanner.ComposeTransmit(
-                context.QueueSetup,
-                setupExecution,
-                context.QueuePlan,
-                states,
-                availableRingIndex: 0,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                CreateEthernetFrame(),
-                txHeader,
-                queueMemory,
-                VirtioNetQueueNotificationBarrierReadiness.Ready(35),
-                context.Apertures.NotifyConfiguration,
-                negotiatedFeatures: 0,
-                notifyAccessor);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == VirtioNetTransmitReadinessStatus.NotificationExecutionFailed
-            && result.NotificationExecutionStatus ==
-                VirtioNetQueueNotificationExecutionStatus.SinkWriteFailed
-            && result.NotificationSinkStatus == VirtioPciNotifyWriteStatus.WriteFailed
-            && result.BarrierSucceeded
-            && result.BarrierSequence == 35
-            && notifyAccessor.NotifyWrite16Count == 1
-            && notifyAccessor.LastStatus == VirtioPciRegisterWriteStatus.WriteFailed
-            && AllBytesEqual(notifyBytes, 0xCC));
+        VirtioNetTransmitReadinessResult result = VirtioNetTransmitReadinessPlanner.ComposeTransmit(context.QueueSetup, setupExecution, context.QueuePlan, states, availableRingIndex: 0, TxHeaderPhysicalAddress, TxFramePhysicalAddress, CreateEthernetFrame(), txHeader, queueMemory, VirtioNetQueueNotificationBarrierReadiness.Ready(35), context.Apertures.NotifyConfiguration, negotiatedFeatures: 0, notifyAccessor);
+        return HostCheck.Result(!result.Succeeded && result.Status == VirtioNetTransmitReadinessStatus.NotificationExecutionFailed && result.NotificationExecutionStatus == VirtioNetQueueNotificationExecutionStatus.SinkWriteFailed && result.NotificationSinkStatus == VirtioPciNotifyWriteStatus.WriteFailed && result.BarrierSucceeded && result.BarrierSequence == 35 && notifyAccessor.NotifyWrite16Count == 1 && notifyAccessor.LastStatus == VirtioPciRegisterWriteStatus.WriteFailed && AllBytesEqual(notifyBytes, 0xCC));
     }
 
     [HostTest("drivers.virtionet.tx.readiness preserves no-live-mmio boundary", HostLane.Fast, 28)]
@@ -953,183 +360,65 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     {
         TestContext context = CreateContext();
         VirtioNetQueueMmioSetupExecutionResult setupExecution = ExecuteQueueSetup(context);
-        VirtioNetTransmitDescriptorOwnershipState[] states =
-            new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
+        VirtioNetTransmitDescriptorOwnershipState[] states = new VirtioNetTransmitDescriptorOwnershipState[TxQueueSize];
         byte[] txHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
         byte[] queueMemory = new byte[(int)context.QueuePlan.Plan.TxQueue.EndOffset];
-
-        VirtioNetTransmitReadinessResult result =
-            VirtioNetTransmitReadinessPlanner.ComposeTransmit(
-                context.QueueSetup,
-                setupExecution,
-                context.QueuePlan,
-                states,
-                availableRingIndex: 0,
-                TxHeaderPhysicalAddress,
-                TxFramePhysicalAddress,
-                CreateEthernetFrame(),
-                txHeader,
-                queueMemory,
-                VirtioNetQueueNotificationBarrierReadiness.Ready(36),
-                context.Apertures.NotifyConfiguration,
-                negotiatedFeatures: 0,
-                new FakeRegisterAccessor(CreateNotifyBytes(context)));
-
-        return HostCheck.Result(result.Succeeded
-            && VirtioNetTransmitReadinessPlanner.RequiresQueueSetupExecution
-            && VirtioNetTransmitReadinessPlanner.RequiresBarrierReadiness
-            && VirtioNetTransmitReadinessPlanner.UsesInjectedRegisterAccessor
-            && VirtioNetTransmitReadinessPlanner.UsesFakeRegisterAccessorSink
-            && VirtioNetTransmitReadinessPlanner.PublishesCallerOwnedDescriptors
-            && VirtioNetTransmitReadinessPlanner.WritesQueueMemory
-            && VirtioNetTransmitReadinessPlanner.WritesTransmitHeader
-            && VirtioNetTransmitReadinessPlanner.MutatesCallerOwnedStateTable
-            && !VirtioNetTransmitReadinessPlanner.PerformsLiveMmio
-            && !VirtioNetTransmitReadinessPlanner.MapsBars
-            && !VirtioNetTransmitReadinessPlanner.NotifiesLiveDevice
-            && !VirtioNetTransmitReadinessPlanner.PollsDevice
-            && !VirtioNetTransmitReadinessPlanner.HandlesInterrupts
-            && !VirtioNetTransmitReadinessPlanner.PerformsDmaMapping
-            && !VirtioNetTransmitReadinessPlanner.AllocatesDmaMemory
-            && !VirtioNetTransmitReadinessPlanner.PerformsPacketIo
-            && !VirtioNetTransmitReadinessPlanner.PerformsPacketTransmit
-            && !VirtioNetTransmitReadinessPlanner.WaitsForUsedRingCompletion
-            && !VirtioNetTransmitReadinessPlanner.ReadsQueueMemory
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitReadinessResult>());
+        VirtioNetTransmitReadinessResult result = VirtioNetTransmitReadinessPlanner.ComposeTransmit(context.QueueSetup, setupExecution, context.QueuePlan, states, availableRingIndex: 0, TxHeaderPhysicalAddress, TxFramePhysicalAddress, CreateEthernetFrame(), txHeader, queueMemory, VirtioNetQueueNotificationBarrierReadiness.Ready(36), context.Apertures.NotifyConfiguration, negotiatedFeatures: 0, new FakeRegisterAccessor(CreateNotifyBytes(context)));
+        return HostCheck.Result(result.Succeeded && VirtioNetTransmitReadinessPlanner.RequiresQueueSetupExecution && VirtioNetTransmitReadinessPlanner.RequiresBarrierReadiness && VirtioNetTransmitReadinessPlanner.UsesInjectedRegisterAccessor && VirtioNetTransmitReadinessPlanner.UsesFakeRegisterAccessorSink && VirtioNetTransmitReadinessPlanner.PublishesCallerOwnedDescriptors && VirtioNetTransmitReadinessPlanner.WritesQueueMemory && VirtioNetTransmitReadinessPlanner.WritesTransmitHeader && VirtioNetTransmitReadinessPlanner.MutatesCallerOwnedStateTable && !VirtioNetTransmitReadinessPlanner.PerformsLiveMmio && !VirtioNetTransmitReadinessPlanner.MapsBars && !VirtioNetTransmitReadinessPlanner.NotifiesLiveDevice && !VirtioNetTransmitReadinessPlanner.PollsDevice && !VirtioNetTransmitReadinessPlanner.HandlesInterrupts && !VirtioNetTransmitReadinessPlanner.PerformsDmaMapping && !VirtioNetTransmitReadinessPlanner.AllocatesDmaMemory && !VirtioNetTransmitReadinessPlanner.PerformsPacketIo && !VirtioNetTransmitReadinessPlanner.PerformsPacketTransmit && !VirtioNetTransmitReadinessPlanner.WaitsForUsedRingCompletion && !VirtioNetTransmitReadinessPlanner.ReadsQueueMemory && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitReadinessResult>());
     }
 
-    private static VirtioNetTransmitLifecycleResult CreateTxPublish(
-        VirtioNetQueuePlanResult queuePlan,
-        out byte[] queueMemory)
+    private static VirtioNetTransmitLifecycleResult CreateTxPublish(VirtioNetQueuePlanResult queuePlan, out byte[] queueMemory)
     {
         byte[] txHeader = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
         queueMemory = new byte[(int)queuePlan.Plan.TxQueue.EndOffset];
-
-        return VirtioNetTransmitLifecycle.Publish(
-            queuePlan,
-            firstDescriptorIndex: 0,
-            availableDescriptorCount: VirtioNetTransmitLifecycle.RequiredDescriptorCount,
-            availableRingIndex: 7,
-            txHeaderPhysicalAddress: TxHeaderPhysicalAddress,
-            ethernetFramePhysicalAddress: TxFramePhysicalAddress,
-            ethernetFrame: CreateEthernetFrame(),
-            txHeader,
-            queueMemory);
+        return VirtioNetTransmitLifecycle.Publish(queuePlan, firstDescriptorIndex: 0, availableDescriptorCount: VirtioNetTransmitLifecycle.RequiredDescriptorCount, availableRingIndex: 7, txHeaderPhysicalAddress: TxHeaderPhysicalAddress, ethernetFramePhysicalAddress: TxFramePhysicalAddress, ethernetFrame: CreateEthernetFrame(), txHeader, queueMemory);
     }
 
-    private static VirtioNetTransmitCompletionPlanResult CreateSuccessfulCompletion(
-        TestContext context,
-        VirtioNetTransmitLifecycleResult publish,
-        byte[] queueMemory,
-        ushort previousUsedIndex)
+    private static VirtioNetTransmitCompletionPlanResult CreateSuccessfulCompletion(TestContext context, VirtioNetTransmitLifecycleResult publish, byte[] queueMemory, ushort previousUsedIndex)
     {
-        VirtioNetQueueNotificationExecutionResult notification =
-            CreateExecutedTxNotification(context, publish);
-        WriteUsedCompletion(
-            publish.Plan.TxQueue,
-            queueMemory,
-            previousUsedIndex,
-            unchecked((ushort)(previousUsedIndex + 1)),
-            publish.HeadDescriptorIndex,
-            usedByteCount: 0);
-
-        return VirtioNetTransmitCompletionPlanner.Create(
-            publish,
-            notification,
-            previousUsedIndex,
-            queueMemory);
+        VirtioNetQueueNotificationExecutionResult notification = CreateExecutedTxNotification(context, publish);
+        WriteUsedCompletion(publish.Plan.TxQueue, queueMemory, previousUsedIndex, unchecked((ushort)(previousUsedIndex + 1)), publish.HeadDescriptorIndex, usedByteCount: 0);
+        return VirtioNetTransmitCompletionPlanner.Create(publish, notification, previousUsedIndex, queueMemory);
     }
 
-    private static VirtioNetQueueNotificationExecutionResult CreateExecutedTxNotification(
-        TestContext context,
-        VirtioNetTransmitLifecycleResult publish)
+    private static VirtioNetQueueNotificationExecutionResult CreateExecutedTxNotification(TestContext context, VirtioNetTransmitLifecycleResult publish)
     {
-        VirtioNetQueueNotificationPlanResult plan =
-            VirtioNetQueueNotificationPlanner.CreateTransmitNotification(
-            context.QueueSetup,
-            publish,
-            context.Apertures.NotifyConfiguration,
-            negotiatedFeatures: 0);
-
-        return VirtioNetQueueNotificationExecutor.Execute(
-            plan,
-            VirtioNetQueueNotificationBarrierReadiness.Ready(20),
-            new FakeNotifyWriteSink());
+        VirtioNetQueueNotificationPlanResult plan = VirtioNetQueueNotificationPlanner.CreateTransmitNotification(context.QueueSetup, publish, context.Apertures.NotifyConfiguration, negotiatedFeatures: 0);
+        return VirtioNetQueueNotificationExecutor.Execute(plan, VirtioNetQueueNotificationBarrierReadiness.Ready(20), new FakeNotifyWriteSink());
     }
 
-    private static VirtioNetQueueMmioSetupExecutionResult ExecuteQueueSetup(
-        TestContext context)
+    private static VirtioNetQueueMmioSetupExecutionResult ExecuteQueueSetup(TestContext context)
     {
-        return VirtioNetQueueMmioSetupExecutor.Execute(
-            context.QueueSetup,
-            context.QueueSetupCommands,
-            context.Apertures.CommonConfiguration,
-            new FakeRegisterAccessor());
+        return VirtioNetQueueMmioSetupExecutor.Execute(context.QueueSetup, context.QueueSetupCommands, context.Apertures.CommonConfiguration, new FakeRegisterAccessor());
     }
 
-    private static void WriteUsedCompletion(
-        VirtqueueSplitRingPlan queue,
-        byte[] queueMemory,
-        ushort previousUsedIndex,
-        ushort currentUsedIndex,
-        uint descriptorHead,
-        uint usedByteCount)
+    private static void WriteUsedCompletion(VirtqueueSplitRingPlan queue, byte[] queueMemory, ushort previousUsedIndex, ushort currentUsedIndex, uint descriptorHead, uint usedByteCount)
     {
-        EndianPrimitives.WriteUInt16LittleEndian(
-            queueMemory.AsSpan((int)queue.UsedRing.Offset + 2, sizeof(ushort)),
-            currentUsedIndex);
-
+        EndianPrimitives.WriteUInt16LittleEndian(queueMemory.AsSpan((int)queue.UsedRing.Offset + 2, sizeof(ushort)), currentUsedIndex);
         ushort slot = (ushort)(previousUsedIndex & (queue.QueueSize - 1));
-        int elementOffset = (int)queue.UsedRing.Offset +
-            (int)VirtqueueSplitRingPlan.UsedRingHeaderLength +
-            (slot * (int)VirtqueueSplitRingPlan.UsedRingElementLength);
-        EndianPrimitives.WriteUInt32LittleEndian(
-            queueMemory.AsSpan(elementOffset, sizeof(uint)),
-            descriptorHead);
-        EndianPrimitives.WriteUInt32LittleEndian(
-            queueMemory.AsSpan(elementOffset + sizeof(uint), sizeof(uint)),
-            usedByteCount);
+        int elementOffset = (int)queue.UsedRing.Offset + (int)VirtqueueSplitRingPlan.UsedRingHeaderLength + (slot * (int)VirtqueueSplitRingPlan.UsedRingElementLength);
+        EndianPrimitives.WriteUInt32LittleEndian(queueMemory.AsSpan(elementOffset, sizeof(uint)), descriptorHead);
+        EndianPrimitives.WriteUInt32LittleEndian(queueMemory.AsSpan(elementOffset + sizeof(uint), sizeof(uint)), usedByteCount);
     }
 
     private static TestContext CreateContext()
     {
         VirtioPciBindingPlanResult bindingPlan = CreateBindingPlan();
         VirtioDeviceDescriptor descriptor = CreateNetworkDescriptor(bindingPlan);
-        VirtioNetQueuePlanResult queuePlan = VirtioNetQueuePlan.Create(
-            VirtioNetQueuePlan.MinimumQueueCount,
-            RxQueueSize,
-            TxQueueSize,
-            RxBufferCount,
-            FrameBufferBytes);
+        VirtioNetQueuePlanResult queuePlan = VirtioNetQueuePlan.Create(VirtioNetQueuePlan.MinimumQueueCount, RxQueueSize, TxQueueSize, RxBufferCount, FrameBufferBytes);
         if (!queuePlan.Succeeded)
         {
             throw new InvalidOperationException("Failed to create deterministic queue plan.");
         }
 
-        VirtioNetDriverQueueBringUpPlanResult bringUp = VirtioNetDriverQueueBringUpPlan.Create(
-            descriptor,
-            RxQueueSize,
-            TxQueueSize,
-            RxBufferCount,
-            FrameBufferBytes,
-            queuePlan.Plan.RxQueue.RequiredByteLength,
-            queuePlan.Plan.TxQueue.RequiredByteLength,
-            queuePlan.Plan.RxBuffers.RequiredBufferBytes,
-            queuePlan.Plan.TxFrame.RequiredBufferBytes);
+        VirtioNetDriverQueueBringUpPlanResult bringUp = VirtioNetDriverQueueBringUpPlan.Create(descriptor, RxQueueSize, TxQueueSize, RxBufferCount, FrameBufferBytes, queuePlan.Plan.RxQueue.RequiredByteLength, queuePlan.Plan.TxQueue.RequiredByteLength, queuePlan.Plan.RxBuffers.RequiredBufferBytes, queuePlan.Plan.TxFrame.RequiredBufferBytes);
         if (!bringUp.Succeeded)
         {
             throw new InvalidOperationException("Failed to create deterministic bring-up plan.");
         }
 
-        VirtioNetQueueMmioSetupCommand[] commands =
-            new VirtioNetQueueMmioSetupCommand[VirtioNetQueueMmioSetupPlanner.RequiredCommandCount];
-        VirtioNetQueueMmioSetupPlanResult queueSetup = VirtioNetQueueMmioSetupPlanner.Create(
-            bringUp,
-            CreateRxAddresses(),
-            CreateTxAddresses(),
-            CreateRxMetadata(),
-            CreateTxMetadata(),
-            commands);
+        VirtioNetQueueMmioSetupCommand[] commands = new VirtioNetQueueMmioSetupCommand[VirtioNetQueueMmioSetupPlanner.RequiredCommandCount];
+        VirtioNetQueueMmioSetupPlanResult queueSetup = VirtioNetQueueMmioSetupPlanner.Create(bringUp, CreateRxAddresses(), CreateTxAddresses(), CreateRxMetadata(), CreateTxMetadata(), commands);
         if (!queueSetup.Succeeded)
         {
             throw new InvalidOperationException("Failed to create deterministic queue setup plan.");
@@ -1151,62 +440,30 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
 
     private static VirtioNetQueueMmioSetupQueueAddresses CreateRxAddresses()
     {
-        return new VirtioNetQueueMmioSetupQueueAddresses(
-            descriptorTablePhysicalAddress: 0x100000,
-            driverRingPhysicalAddress: 0x101000,
-            deviceRingPhysicalAddress: 0x102000);
+        return new VirtioNetQueueMmioSetupQueueAddresses(descriptorTablePhysicalAddress: 0x100000, driverRingPhysicalAddress: 0x101000, deviceRingPhysicalAddress: 0x102000);
     }
 
     private static VirtioNetQueueMmioSetupQueueAddresses CreateTxAddresses()
     {
-        return new VirtioNetQueueMmioSetupQueueAddresses(
-            descriptorTablePhysicalAddress: 0x110000,
-            driverRingPhysicalAddress: 0x111000,
-            deviceRingPhysicalAddress: 0x112000);
+        return new VirtioNetQueueMmioSetupQueueAddresses(descriptorTablePhysicalAddress: 0x110000, driverRingPhysicalAddress: 0x111000, deviceRingPhysicalAddress: 0x112000);
     }
 
     private static VirtioNetQueueMmioSetupQueueDeviceMetadata CreateRxMetadata()
     {
-        return new VirtioNetQueueMmioSetupQueueDeviceMetadata(
-            RxDeviceMaximumQueueSize,
-            hasNotifyOffset: true,
-            RxNotifyOffset);
+        return new VirtioNetQueueMmioSetupQueueDeviceMetadata(RxDeviceMaximumQueueSize, hasNotifyOffset: true, RxNotifyOffset);
     }
 
     private static VirtioNetQueueMmioSetupQueueDeviceMetadata CreateTxMetadata()
     {
-        return new VirtioNetQueueMmioSetupQueueDeviceMetadata(
-            TxDeviceMaximumQueueSize,
-            hasNotifyOffset: true,
-            TxNotifyOffset);
+        return new VirtioNetQueueMmioSetupQueueDeviceMetadata(TxDeviceMaximumQueueSize, hasNotifyOffset: true, TxNotifyOffset);
     }
 
-    private static VirtioDeviceDescriptor CreateNetworkDescriptor(
-        VirtioPciBindingPlanResult bindingPlan)
+    private static VirtioDeviceDescriptor CreateNetworkDescriptor(VirtioPciBindingPlanResult bindingPlan)
     {
-        VirtioDeviceDescriptorSource[] sources =
-        [
-            new VirtioDeviceDescriptorSource(
-                sourceIndex: 43,
-                bindingPlan,
-                VirtioDeviceInitializationProfile.NetworkOptionalFeatureMask,
-                VirtioDeviceInitializationProfile.NetworkRequiredQueueCount,
-                featuresOkAccepted: true)
-        ];
-        VirtioDeviceConfigurationSource[] configurations =
-        [
-            new VirtioDeviceConfigurationSource(
-                sourceIndex: 43,
-                CreateNetworkConfiguration(
-                    new MacAddress(0x02, 0x33, 0x44, 0x55, 0x66, 0xCF),
-                    VirtioNetDeviceConfig.StatusLinkUp))
-        ];
+        VirtioDeviceDescriptorSource[] sources = [new VirtioDeviceDescriptorSource(sourceIndex: 43, bindingPlan, VirtioDeviceInitializationProfile.NetworkOptionalFeatureMask, VirtioDeviceInitializationProfile.NetworkRequiredQueueCount, featuresOkAccepted: true)];
+        VirtioDeviceConfigurationSource[] configurations = [new VirtioDeviceConfigurationSource(sourceIndex: 43, CreateNetworkConfiguration(new MacAddress(0x02, 0x33, 0x44, 0x55, 0x66, 0xCF), VirtioNetDeviceConfig.StatusLinkUp))];
         VirtioDeviceDescriptor[] destination = new VirtioDeviceDescriptor[1];
-
-        VirtioDeviceDescriptorCatalogResult result = VirtioDeviceDescriptorCatalog.Build(
-            sources,
-            configurations,
-            destination);
+        VirtioDeviceDescriptorCatalogResult result = VirtioDeviceDescriptorCatalog.Build(sources, configurations, destination);
         if (!result.Succeeded)
         {
             throw new InvalidOperationException("Failed to create deterministic virtio-net descriptor.");
@@ -1217,104 +474,37 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
 
     private static VirtioPciBindingPlanResult CreateBindingPlan()
     {
-        ushort deviceId = (ushort)(VirtioPciDeviceDiscovery.ModernDeviceIdStart +
-            VirtioPciDeviceDiscovery.NetworkDeviceId);
-
-        return VirtioPciBindingPlan.Create(
-            CreateScannedDevice(deviceId),
-            CreatePciConfiguration(deviceId),
-            CreateBarSizes());
+        ushort deviceId = (ushort)(VirtioPciDeviceDiscovery.ModernDeviceIdStart + VirtioPciDeviceDiscovery.NetworkDeviceId);
+        return VirtioPciBindingPlan.Create(CreateScannedDevice(deviceId), CreatePciConfiguration(deviceId), CreateBarSizes());
     }
 
     private static PciEcamScannedDevice CreateScannedDevice(ushort deviceId)
     {
-        return new PciEcamScannedDevice(
-            segmentIndex: 2,
-            new PciEcamSegment(
-                basePhysicalAddress: 0xE0000000UL,
-                segmentGroup: 1,
-                startBus: 0,
-                endBus: 0x7F),
-            new PciScannedDevice(
-                bus: 3,
-                device: 5,
-                function: 0,
-                vendorId: VirtioPciDeviceDiscovery.VirtioVendorId,
-                deviceId: deviceId,
-                revisionId: 0,
-                classCode: 0,
-                subclass: 0,
-                programmingInterface: 0,
-                headerType: PciConfigurationHeader.Type0HeaderType,
-                isMultifunction: false,
-                hasCapabilitiesList: true,
-                capabilityPointer: CommonOffset));
+        return new PciEcamScannedDevice(segmentIndex: 2, new PciEcamSegment(basePhysicalAddress: 0xE0000000UL, segmentGroup: 1, startBus: 0, endBus: 0x7F), new PciScannedDevice(bus: 3, device: 5, function: 0, vendorId: VirtioPciDeviceDiscovery.VirtioVendorId, deviceId: deviceId, revisionId: 0, classCode: 0, subclass: 0, programmingInterface: 0, headerType: PciConfigurationHeader.Type0HeaderType, isMultifunction: false, hasCapabilitiesList: true, capabilityPointer: CommonOffset));
     }
 
     private static byte[] CreatePciConfiguration(ushort deviceId)
     {
         byte[] config = new byte[256];
-        EndianPrimitives.WriteUInt16LittleEndian(
-            config.AsSpan(0x00, sizeof(ushort)),
-            VirtioPciDeviceDiscovery.VirtioVendorId);
+        EndianPrimitives.WriteUInt16LittleEndian(config.AsSpan(0x00, sizeof(ushort)), VirtioPciDeviceDiscovery.VirtioVendorId);
         EndianPrimitives.WriteUInt16LittleEndian(config.AsSpan(0x02, sizeof(ushort)), deviceId);
-        EndianPrimitives.WriteUInt16LittleEndian(
-            config.AsSpan(0x06, sizeof(ushort)),
-            PciConfigurationHeader.StatusCapabilitiesListBit);
+        EndianPrimitives.WriteUInt16LittleEndian(config.AsSpan(0x06, sizeof(ushort)), PciConfigurationHeader.StatusCapabilitiesListBit);
         config[0x0E] = PciConfigurationHeader.Type0HeaderType;
         WriteUInt32(config, 0x10, 0x80000000);
         WriteUInt32(config, 0x14, 0x80001000);
         WriteUInt32(config, 0x18, 0x80002000);
         WriteUInt32(config, 0x1C, 0x80003000);
         config[0x34] = CommonOffset;
-
-        WriteVirtioCapability(
-            config,
-            CommonOffset,
-            NotifyOffset,
-            VirtioPciCapabilityType.CommonConfiguration,
-            bar: 0,
-            offsetValue: 0x20,
-            length: VirtioPciDeviceDiscovery.CommonConfigurationMinimumLength,
-            notifyOffsetMultiplier: 0,
-            capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
-        WriteVirtioCapability(
-            config,
-            NotifyOffset,
-            IsrOffset,
-            VirtioPciCapabilityType.NotifyConfiguration,
-            bar: 1,
-            offsetValue: 0x80,
-            length: 0x100,
-            notifyOffsetMultiplier: NotifyOffsetMultiplier,
-            capabilityLength: VirtioPciCapabilityListParser.ModernVirtioNotifyCapabilityLength);
-        WriteVirtioCapability(
-            config,
-            IsrOffset,
-            DeviceOffset,
-            VirtioPciCapabilityType.IsrStatus,
-            bar: 2,
-            offsetValue: 0,
-            length: 1,
-            notifyOffsetMultiplier: 0,
-            capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
-        WriteVirtioCapability(
-            config,
-            DeviceOffset,
-            nextOffset: 0,
-            VirtioPciCapabilityType.DeviceConfiguration,
-            bar: 3,
-            offsetValue: 0,
-            length: 0x10,
-            notifyOffsetMultiplier: 0,
-            capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
-
+        WriteVirtioCapability(config, CommonOffset, NotifyOffset, VirtioPciCapabilityType.CommonConfiguration, bar: 0, offsetValue: 0x20, length: VirtioPciDeviceDiscovery.CommonConfigurationMinimumLength, notifyOffsetMultiplier: 0, capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
+        WriteVirtioCapability(config, NotifyOffset, IsrOffset, VirtioPciCapabilityType.NotifyConfiguration, bar: 1, offsetValue: 0x80, length: 0x100, notifyOffsetMultiplier: NotifyOffsetMultiplier, capabilityLength: VirtioPciCapabilityListParser.ModernVirtioNotifyCapabilityLength);
+        WriteVirtioCapability(config, IsrOffset, DeviceOffset, VirtioPciCapabilityType.IsrStatus, bar: 2, offsetValue: 0, length: 1, notifyOffsetMultiplier: 0, capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
+        WriteVirtioCapability(config, DeviceOffset, nextOffset: 0, VirtioPciCapabilityType.DeviceConfiguration, bar: 3, offsetValue: 0, length: 0x10, notifyOffsetMultiplier: 0, capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
         return config;
     }
 
     private static ulong[] CreateBarSizes()
     {
-        return [0x1000, 0x1000, 0x1000, 0x1000, 0, 0];
+        return[0x1000, 0x1000, 0x1000, 0x1000, 0, 0];
     }
 
     private static byte[] CreateNetworkConfiguration(MacAddress mac, ushort status)
@@ -1330,16 +520,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         return configuration;
     }
 
-    private static void WriteVirtioCapability(
-        Span<byte> config,
-        byte offset,
-        byte nextOffset,
-        VirtioPciCapabilityType type,
-        byte bar,
-        uint offsetValue,
-        uint length,
-        uint notifyOffsetMultiplier,
-        byte capabilityLength)
+    private static void WriteVirtioCapability(Span<byte> config, byte offset, byte nextOffset, VirtioPciCapabilityType type, byte bar, uint offsetValue, uint length, uint notifyOffsetMultiplier, byte capabilityLength)
     {
         config[offset] = VirtioPciCapabilityListParser.VendorSpecificCapabilityId;
         config[offset + 1] = nextOffset;
@@ -1371,9 +552,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         return EndianPrimitives.ReadUInt16LittleEndian(source.Slice(offset, sizeof(ushort)));
     }
 
-    private static bool AllStatesAre(
-        ReadOnlySpan<VirtioNetTransmitDescriptorOwnershipState> states,
-        VirtioNetTransmitDescriptorOwnershipState expected)
+    private static bool AllStatesAre(ReadOnlySpan<VirtioNetTransmitDescriptorOwnershipState> states, VirtioNetTransmitDescriptorOwnershipState expected)
     {
         for (int index = 0; index < states.Length; index++)
         {
@@ -1386,19 +565,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         return true;
     }
 
-    private static bool DescriptorMatches(
-        ReadOnlySpan<byte> queueMemory,
-        uint descriptorOffset,
-        ulong expectedAddress,
-        uint expectedLength,
-        ushort flags,
-        ushort next)
+    private static bool DescriptorMatches(ReadOnlySpan<byte> queueMemory, uint descriptorOffset, ulong expectedAddress, uint expectedLength, ushort flags, ushort next)
     {
         ReadOnlySpan<byte> descriptor = queueMemory.Slice((int)descriptorOffset, 16);
-        return EndianPrimitives.ReadUInt64LittleEndian(descriptor.Slice(0, 8)) == expectedAddress
-            && EndianPrimitives.ReadUInt32LittleEndian(descriptor.Slice(8, 4)) == expectedLength
-            && EndianPrimitives.ReadUInt16LittleEndian(descriptor.Slice(12, 2)) == flags
-            && EndianPrimitives.ReadUInt16LittleEndian(descriptor.Slice(14, 2)) == next;
+        return EndianPrimitives.ReadUInt64LittleEndian(descriptor.Slice(0, 8)) == expectedAddress && EndianPrimitives.ReadUInt32LittleEndian(descriptor.Slice(8, 4)) == expectedLength && EndianPrimitives.ReadUInt16LittleEndian(descriptor.Slice(12, 2)) == flags && EndianPrimitives.ReadUInt16LittleEndian(descriptor.Slice(14, 2)) == next;
     }
 
     private static bool BytesAreZero(ReadOnlySpan<byte> bytes)
@@ -1414,9 +584,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         return true;
     }
 
-    private static bool AllBytesEqual(
-        ReadOnlySpan<byte> bytes,
-        byte value)
+    private static bool AllBytesEqual(ReadOnlySpan<byte> bytes, byte value)
     {
         for (int index = 0; index < bytes.Length; index++)
         {
@@ -1427,158 +595,5 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         }
 
         return true;
-    }
-
-    private sealed class FakeNotifyWriteSink : IVirtioPciNotifyWriteSink
-    {
-        public VirtioPciNotifyWriteStatus Write16(
-            VirtioPciBarAperture aperture,
-            uint relativeOffset,
-            ushort value)
-        {
-            _ = aperture;
-            _ = relativeOffset;
-            _ = value;
-            return VirtioPciNotifyWriteStatus.Success;
-        }
-    }
-
-    private sealed class FakeRegisterAccessor : IVirtioPciRegisterAccessor
-    {
-        private readonly byte[]? _notifyBytes;
-        private ushort _selectedQueue;
-
-        public FakeRegisterAccessor(byte[]? notifyBytes = null)
-        {
-            _notifyBytes = notifyBytes;
-        }
-
-        public VirtioPciRegisterWriteStatus NotifyFailureStatus { get; init; } =
-            VirtioPciRegisterWriteStatus.Success;
-
-        public VirtioPciRegisterWriteStatus LastStatus { get; private set; } =
-            VirtioPciRegisterWriteStatus.NotReady;
-
-        public int NotifyWrite16Count { get; private set; }
-
-        public uint LastNotifyRelativeOffset { get; private set; }
-
-        public ushort LastNotifyValue { get; private set; }
-
-        public VirtioPciRegisterRead16Result Read16(
-            VirtioPciBarAperture aperture,
-            uint relativeOffset)
-        {
-            if (aperture.CapabilityType != VirtioPciCapabilityType.CommonConfiguration)
-            {
-                return new VirtioPciRegisterRead16Result(
-                    VirtioPciRegisterReadStatus.ReadFailed,
-                    value: 0);
-            }
-
-            if (relativeOffset == VirtioPciModernRegisterMap.CommonConfiguration.QueueSizeOffset)
-            {
-                ushort size = _selectedQueue == VirtioNetQueuePlan.ReceiveQueueIndex
-                    ? RxDeviceMaximumQueueSize
-                    : TxDeviceMaximumQueueSize;
-                return new VirtioPciRegisterRead16Result(
-                    VirtioPciRegisterReadStatus.Success,
-                    size);
-            }
-
-            if (relativeOffset == VirtioPciModernRegisterMap.CommonConfiguration.QueueNotifyOffOffset)
-            {
-                ushort notifyOffset = _selectedQueue == VirtioNetQueuePlan.ReceiveQueueIndex
-                    ? RxNotifyOffset
-                    : TxNotifyOffset;
-                return new VirtioPciRegisterRead16Result(
-                    VirtioPciRegisterReadStatus.Success,
-                    notifyOffset);
-            }
-
-            return new VirtioPciRegisterRead16Result(
-                VirtioPciRegisterReadStatus.ReadFailed,
-                value: 0);
-        }
-
-        public VirtioPciRegisterWriteStatus Write16(
-            VirtioPciBarAperture aperture,
-            uint relativeOffset,
-            ushort value)
-        {
-            if (aperture.CapabilityType == VirtioPciCapabilityType.NotifyConfiguration)
-            {
-                NotifyWrite16Count++;
-                LastNotifyRelativeOffset = relativeOffset;
-                LastNotifyValue = value;
-
-                if (NotifyFailureStatus != VirtioPciRegisterWriteStatus.Success)
-                {
-                    LastStatus = NotifyFailureStatus;
-                    return LastStatus;
-                }
-
-                if (_notifyBytes is null ||
-                    relativeOffset > int.MaxValue ||
-                    (ulong)relativeOffset + sizeof(ushort) > (ulong)_notifyBytes.Length)
-                {
-                    LastStatus = VirtioPciRegisterWriteStatus.RangeOutsideAperture;
-                    return LastStatus;
-                }
-
-                EndianPrimitives.WriteUInt16LittleEndian(
-                    _notifyBytes.AsSpan((int)relativeOffset, sizeof(ushort)),
-                    value);
-                LastStatus = VirtioPciRegisterWriteStatus.Success;
-                return LastStatus;
-            }
-
-            if (aperture.CapabilityType != VirtioPciCapabilityType.CommonConfiguration)
-            {
-                return VirtioPciRegisterWriteStatus.RangeOutsideAperture;
-            }
-
-            if (relativeOffset == VirtioPciModernRegisterMap.CommonConfiguration.QueueSelectOffset)
-            {
-                _selectedQueue = value;
-            }
-
-            return VirtioPciRegisterWriteStatus.Success;
-        }
-
-        public VirtioPciRegisterWriteStatus Write64(
-            VirtioPciBarAperture aperture,
-            uint relativeOffset,
-            ulong value)
-        {
-            _ = relativeOffset;
-            _ = value;
-            return aperture.CapabilityType == VirtioPciCapabilityType.CommonConfiguration
-                ? VirtioPciRegisterWriteStatus.Success
-                : VirtioPciRegisterWriteStatus.UnsupportedWidth;
-        }
-    }
-
-    private readonly struct TestContext
-    {
-        public TestContext(
-            VirtioPciBarApertureSet apertures,
-            VirtioNetQueueMmioSetupPlanResult queueSetup,
-            VirtioNetQueueMmioSetupCommand[] queueSetupCommands,
-            VirtioNetQueuePlanResult queuePlan)
-        {
-            Apertures = apertures;
-            QueueSetup = queueSetup;
-            QueueSetupCommands = queueSetupCommands;
-            QueuePlan = queuePlan;
-        }
-
-        public VirtioPciBarApertureSet Apertures { get; }
-
-        public VirtioNetQueueMmioSetupPlanResult QueueSetup { get; }
-
-        public VirtioNetQueueMmioSetupCommand[] QueueSetupCommands { get; }
-
-        public VirtioNetQueuePlanResult QueuePlan { get; }
     }
 }

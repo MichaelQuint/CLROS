@@ -5,44 +5,81 @@ using System.Text;
 using OS.Tooling;
 using P = OS.Tooling.NativeAotLogUploadProgram;
 
-internal static class NativeAotLogUploadProgramTests
+internal static partial class NativeAotLogUploadProgramTests
 {
     private const string Rows = "400200: b8 0f 05 00 00\tmovl $0x50f, %eax\n400205: 0f 05\tsyscall\n400207: c3\tretq\n";
     private static byte[] Elf()
     {
         byte[] elf = LinuxThreadProofFixture.CreateElf("Threads");
-        new byte[] { 0xb8, 0x0f, 0x05, 0, 0, 0x0f, 0x05, 0xc3 }.CopyTo(elf, 0x200); return elf;
+        new byte[]
+        {
+            0xb8,
+            0x0f,
+            0x05,
+            0,
+            0,
+            0x0f,
+            0x05,
+            0xc3
+        }.CopyTo(elf, 0x200);
+        return elf;
     }
 
     [HostTest("nativeaot.log-upload-program independent domain vector binds starts and syscall continuations rather than operand bytes")]
     private static void IndependentVector()
     {
-        byte[] elf = Elf(), before = elf.ToArray(); var report = P.Inspect(elf, Rows);
-        using MemoryStream vector = new(); vector.Write(Encoding.ASCII.GetBytes("CLROS_LOG_UPLOAD_INSTRUCTIONS_V1\n"));
+        byte[] elf = Elf(), before = elf.ToArray();
+        var report = P.Inspect(elf, Rows);
+        using MemoryStream vector = new();
+        vector.Write(Encoding.ASCII.GetBytes("CLROS_LOG_UPLOAD_INSTRUCTIONS_V1\n"));
         using (BinaryWriter writer = new(vector, Encoding.ASCII, leaveOpen: true))
         {
-            writer.Write(0x400200UL); writer.Write((byte)5); writer.Write(new byte[] { 0xb8, 0x0f, 0x05, 0, 0 }); writer.Write((byte)0);
-            writer.Write(0x400205UL); writer.Write((byte)2); writer.Write(new byte[] { 0x0f, 0x05 }); writer.Write((byte)1);
-            writer.Write(0x400207UL); writer.Write((byte)1); writer.Write((byte)0xc3); writer.Write((byte)0);
+            writer.Write(0x400200UL);
+            writer.Write((byte)5);
+            writer.Write(new byte[] { 0xb8, 0x0f, 0x05, 0, 0 });
+            writer.Write((byte)0);
+            writer.Write(0x400205UL);
+            writer.Write((byte)2);
+            writer.Write(new byte[] { 0x0f, 0x05 });
+            writer.Write((byte)1);
+            writer.Write(0x400207UL);
+            writer.Write((byte)1);
+            writer.Write((byte)0xc3);
+            writer.Write((byte)0);
         }
-        HostCheck.Equal(3, report.InstructionCount); HostCheck.Equal(1, report.SyscallCount);
+
+        HostCheck.Equal(3, report.InstructionCount);
+        HostCheck.Equal(1, report.SyscallCount);
         HostCheck.Equal(Convert.ToHexString(SHA256.HashData(vector.ToArray())), report.Sha256);
-        HostCheck.True(report.Sha256 != NativeAotThreadingProgram.Inspect(elf, Rows).Sha256 &&
-            report.Sha256 != NativeAotStaticFileProgram.Inspect(elf, Rows).Sha256 && elf.SequenceEqual(before));
+        HostCheck.True(report.Sha256 != NativeAotThreadingProgram.Inspect(elf, Rows).Sha256 && report.Sha256 != NativeAotStaticFileProgram.Inspect(elf, Rows).Sha256 && elf.SequenceEqual(before));
         HostCheck.Equal(report, P.Inspect(elf, "C:\\original\\app: file format elf64-x86-64\n" + Rows.Replace("\n", "\r\n", StringComparison.Ordinal)));
     }
 
     [HostTest("nativeaot.log-upload-program partial and forged equal-count rows remain reports and cannot prepare counterfeit packages")]
     private static void ReportOnly()
     {
-        byte[] elf = Elf(); var original = P.Inspect(elf, Rows);
+        byte[] elf = Elf();
+        var original = P.Inspect(elf, Rows);
         const string forged = "400200: b8\tmovl\n400201: 0f 05\tsyscall\n400203: 00 00 0f 05\tnop\n";
-        var counterfeit = P.Inspect(elf, forged); var partial = P.Inspect(elf, "400205: 0f 05\tsyscall\n");
-        HostCheck.True(counterfeit.InstructionCount == original.InstructionCount && counterfeit.SyscallCount == original.SyscallCount &&
-            counterfeit.Sha256 != original.Sha256 && partial.InstructionCount == 1);
+        var counterfeit = P.Inspect(elf, forged);
+        var partial = P.Inspect(elf, "400205: 0f 05\tsyscall\n");
+        HostCheck.True(counterfeit.InstructionCount == original.InstructionCount && counterfeit.SyscallCount == original.SyscallCount && counterfeit.Sha256 != original.Sha256 && partial.InstructionCount == 1);
         byte[] package = LinuxThreadProofFixture.CreatePackage("Threads");
-        foreach (string phase in new[] { "write", "verify" })
-            foreach (string rows in new[] { Rows, forged, "400205: 0f 05\tsyscall\n" })
+        foreach (string phase in new[]
+        {
+            "write",
+            "verify"
+        }
+
+        )
+            foreach (string rows in new[]
+            {
+                Rows,
+                forged,
+                "400205: 0f 05\tsyscall\n"
+            }
+
+            )
                 Reject(() => P.Create("missing-root", package, rows, phase), "log_upload_clros_package");
         HostCheck.True(typeof(P).IsSealed && typeof(P).GetConstructors().Length == 0 && typeof(P).GetProperty("Phase")!.SetMethod is null);
     }
@@ -51,13 +88,24 @@ internal static class NativeAotLogUploadProgramTests
     private static void MalformedRows()
     {
         byte[] elf = Elf();
-        foreach (string rows in new[] {
-            "", "headers only", Rows + Rows, Rows.Replace("syscall", "nop", StringComparison.Ordinal),
-            "400200: 90\tnop\n", "500000: 00\taddb\n", "400200: b8\t<unknown>\n",
-            "400200: b8\t.byte\n", "400200: b8 mov\n", "400200: b8\tmov\0\n",
-            "400200: " + new string('a', 1025) + "\n" })
+        foreach (string rows in new[]
+        {
+            "",
+            "headers only",
+            Rows + Rows,
+            Rows.Replace("syscall", "nop", StringComparison.Ordinal),
+            "400200: 90\tnop\n",
+            "500000: 00\taddb\n",
+            "400200: b8\t<unknown>\n",
+            "400200: b8\t.byte\n",
+            "400200: b8 mov\n",
+            "400200: b8\tmov\0\n",
+            "400200: " + new string ('a', 1025) + "\n"
+        }
+
+        )
             Reject(() => P.Inspect(elf, rows), "log_upload_instruction_");
-        Reject(() => P.Inspect(elf, new string('x', P.MaximumDisassemblyBytes + 1)), "log_upload_instruction_text");
+        Reject(() => P.Inspect(elf, new string ('x', P.MaximumDisassemblyBytes + 1)), "log_upload_instruction_text");
         Reject(() => P.Inspect(elf, null!), "log_upload_instruction_text");
         Reject(() => P.Inspect([], Rows), "log_upload_instruction_elf");
     }
@@ -65,12 +113,30 @@ internal static class NativeAotLogUploadProgramTests
     [HostTest("nativeaot.log-upload-program phase is explicit and invalid phases reject before package or filesystem admission")]
     private static void ExplicitPhase()
     {
-        foreach (string phase in new[] { "", "Write", "VERIFY", "default", "--write", "write\n", null! })
+        foreach (string phase in new[]
+        {
+            "",
+            "Write",
+            "VERIFY",
+            "default",
+            "--write",
+            "write\n",
+            null!
+        }
+
+        )
         {
             Reject(() => P.Create("missing-root", [], Rows, phase), "log_upload_instruction_phase");
             Reject(() => P.Read("missing-root", "missing-package", "missing-dump", phase), "log_upload_instruction_phase");
         }
-        foreach (string phase in new[] { "write", "verify" })
+
+        foreach (string phase in new[]
+        {
+            "write",
+            "verify"
+        }
+
+        )
             Reject(() => P.Create("missing-root", [], Rows, phase), "log_upload_clros_package");
     }
 
@@ -78,7 +144,10 @@ internal static class NativeAotLogUploadProgramTests
     private static void CurrentSources()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        using var sources = new AuthorityFiles(); Hold(root, sources); Hold(root, sources); sources.VerifyUnchanged();
+        using var sources = new AuthorityFiles();
+        Hold(root, sources);
+        Hold(root, sources);
+        sources.VerifyUnchanged();
         NativeAotLogUploadContract.RequireCurrentSources(root);
     }
 
@@ -87,81 +156,108 @@ internal static class NativeAotLogUploadProgramTests
     {
         using SourceCopy copy = new(complete: false);
         File.WriteAllText(Path.Combine(copy.Root, "global.json"), "{}");
-        using var sources = new AuthorityFiles(); Reject(() => Hold(copy.Root, sources), "log_upload_source_identity global.json");
+        using var sources = new AuthorityFiles();
+        Reject(() => Hold(copy.Root, sources), "log_upload_source_identity global.json");
     }
 
     [HostTest("nativeaot.log-upload-program source inventory and override mutations reject after exact declared source hashes")]
     private static void SourceInventory()
     {
-        using SourceCopy copy = new(); string app = Path.Combine(copy.Root, "apps", NativeAotLogUploadContract.Application);
-        using (var valid = new AuthorityFiles()) { Hold(copy.Root, valid); valid.VerifyUnchanged(); }
-        string added = Path.Combine(app, "Unreviewed.cs"); File.WriteAllText(added, "// not admitted");
-        using (var sources = new AuthorityFiles()) Reject(() => Hold(copy.Root, sources), "socket_log-upload_publish_app_inventory");
-        File.Delete(added); File.WriteAllText(Path.Combine(copy.Root, "apps", "Directory.Build.props"), "<Project />");
-        using (var sources = new AuthorityFiles()) Reject(() => Hold(copy.Root, sources), "socket_log-upload_publish_source_override");
+        using SourceCopy copy = new();
+        string app = Path.Combine(copy.Root, "apps", NativeAotLogUploadContract.Application);
+        using (var valid = new AuthorityFiles())
+        {
+            Hold(copy.Root, valid);
+            valid.VerifyUnchanged();
+        }
+
+        string added = Path.Combine(app, "Unreviewed.cs");
+        File.WriteAllText(added, "// not admitted");
+        using (var sources = new AuthorityFiles())
+            Reject(() => Hold(copy.Root, sources), "socket_log-upload_publish_app_inventory");
+        File.Delete(added);
+        File.WriteAllText(Path.Combine(copy.Root, "apps", "Directory.Build.props"), "<Project />");
+        using (var sources = new AuthorityFiles())
+            Reject(() => Hold(copy.Root, sources), "socket_log-upload_publish_source_override");
     }
 
     [HostTest("nativeaot.log-upload-program source holds deny or detect mutations through the real preparation helper")]
     private static void HeldSources()
     {
-        using SourceCopy copy = new(); string path = Path.Combine(copy.Root, "apps", NativeAotLogUploadContract.Application, "Program.cs");
+        using SourceCopy copy = new();
+        string path = Path.Combine(copy.Root, "apps", NativeAotLogUploadContract.Application, "Program.cs");
         using (var sources = new AuthorityFiles())
         {
-            Hold(copy.Root, sources); bool denied = false;
-            try { File.WriteAllText(path, "// changed"); } catch (IOException) { denied = true; }
-            if (denied) sources.VerifyUnchanged();
-            else Reject(sources.VerifyUnchanged, "authority_input_changed");
+            Hold(copy.Root, sources);
+            bool denied = false;
+            try
+            {
+                File.WriteAllText(path, "// changed");
+            }
+            catch (IOException)
+            {
+                denied = true;
+            }
+
+            if (denied)
+                sources.VerifyUnchanged();
+            else
+                Reject(sources.VerifyUnchanged, "authority_input_changed");
         }
+
         File.WriteAllText(path, "// changed after preparation lease ended");
-        using var later = new AuthorityFiles(); Reject(() => Hold(copy.Root, later), "log_upload_source_identity apps/NativeAotLogUploadContract/Program.cs");
+        using var later = new AuthorityFiles();
+        Reject(() => Hold(copy.Root, later), "log_upload_source_identity apps/NativeAotLogUploadContract/Program.cs");
     }
 
     [HostTest("nativeaot.log-upload-program bounded file admission rejects aliases bad UTF8 empty oversized and missing inputs")]
     private static void FileAdmission()
     {
-        using SourceCopy copy = new(complete: false); string package = Path.Combine(copy.Root, "input.pkg"), dump = Path.Combine(copy.Root, "input.llvm");
-        File.WriteAllBytes(package, [1]); File.WriteAllBytes(dump, [0xff]);
+        using SourceCopy copy = new(complete: false);
+        string package = Path.Combine(copy.Root, "input.pkg"), dump = Path.Combine(copy.Root, "input.llvm");
+        File.WriteAllBytes(package, [1]);
+        File.WriteAllBytes(dump, [0xff]);
         Reject(() => P.Read(copy.Root, package, package, "write"), "log_upload_instruction_alias");
         Reject(() => P.Read(copy.Root, package, dump, "write"), "log_upload_instruction_dump");
-        File.WriteAllBytes(dump, []); Reject(() => P.Read(copy.Root, package, dump, "verify"), "size_out_of_range");
-        using (var stream = new FileStream(dump, FileMode.Create)) stream.SetLength(P.MaximumDisassemblyBytes + 1);
+        File.WriteAllBytes(dump, []);
+        Reject(() => P.Read(copy.Root, package, dump, "verify"), "size_out_of_range");
+        using (var stream = new FileStream(dump, FileMode.Create))
+            stream.SetLength(P.MaximumDisassemblyBytes + 1);
         Reject(() => P.Read(copy.Root, package, dump, "write"), "size_out_of_range");
         File.WriteAllText(dump, Rows);
-        using (var stream = new FileStream(package, FileMode.Create)) stream.SetLength(NativeAotLogUploadContract.ClrosElfBytes + 4097);
+        using (var stream = new FileStream(package, FileMode.Create))
+            stream.SetLength(NativeAotLogUploadContract.ClrosElfBytes + 4097);
         Reject(() => P.Read(copy.Root, package, dump, "write"), "log_upload_instruction_package_size_out_of_range");
-        File.Delete(package); Reject(() => P.Read(copy.Root, package, dump, "write"), "log_upload_instruction_package_");
+        File.Delete(package);
+        Reject(() => P.Read(copy.Root, package, dump, "write"), "log_upload_instruction_package_");
     }
 
     private static void Hold(string root, AuthorityFiles sources)
     {
         var method = typeof(P).GetMethod("HoldSources", BindingFlags.Static | BindingFlags.NonPublic)!;
-        try { method.Invoke(null, [root, sources]); }
-        catch (TargetInvocationException error) when (error.InnerException is not null)
-        { ExceptionDispatchInfo.Capture(error.InnerException).Throw(); throw; }
-    }
-
-    private sealed class SourceCopy : IDisposable
-    {
-        public string Root { get; } = Directory.CreateTempSubdirectory("clros-log-upload-program-").FullName;
-        public SourceCopy(bool complete = true)
+        try
         {
-            if (!complete) return;
-            string original = HostToolProcess.FindRepositoryRoot();
-            foreach (string relative in new[] { "global.json", "Directory.Build.props", "Directory.Build.targets", "tools/Directory.Build.props",
-                "tools/OS.Tooling/NativeAotPayload.cs", "tools/OS.Tooling/NativeAotWebPayload.cs", "tools/OS.Tooling/NativeAotSocketFixturePublisher.cs",
-                "apps/NativeAotLogUploadContract/NativeAotLogUploadContract.csproj", "apps/NativeAotLogUploadContract/Program.cs" })
-            {
-                string path = Path.Combine(Root, relative); Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                File.Copy(Path.Combine(original, relative), path);
-            }
+            method.Invoke(null, [root, sources]);
         }
-        public void Dispose() => Directory.Delete(Root, recursive: true);
+        catch (TargetInvocationException error)when (error.InnerException is not null)
+        {
+            ExceptionDispatchInfo.Capture(error.InnerException).Throw();
+            throw;
+        }
     }
 
     private static void Reject(Action action, string expected)
     {
         string? actual = null;
-        try { action(); } catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure) { actual = error.Message; }
+        try
+        {
+            action();
+        }
+        catch (Exception error)when (error is InvalidDataException or ArgumentException or ToolFailure)
+        {
+            actual = error.Message;
+        }
+
         HostCheck.True(actual?.Contains(expected, StringComparison.Ordinal) == true, expected + " actual=" + actual);
     }
 }

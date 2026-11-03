@@ -10,46 +10,23 @@ internal static class BootSmokeTests
         HostCheck.Run("boot.sequence emits machine-readable smoke markers", TestBootSequenceMarkers, ref failures);
         HostCheck.Run("boot event ring buffer preserves newest events", TestBootEventRingBuffer, ref failures);
     }
-static bool TestBootSequenceMarkers()
-{
-    StringSerialSink serial = new StringSerialSink();
-    BootEventRingBuffer events = new BootEventRingBuffer(16);
-    BootResult result = BootSequence.Run(serial, events);
 
-    return result.Succeeded
-        && serial.Contains(SerialSmokeMarkers.BootOk)
-        && serial.Contains(SerialSmokeMarkers.OsSmokePass)
-        && serial.Contains(SerialSmokeMarkers.TestPass + " boot.sequence")
-        && events.Count >= 5;
-}
-
-static bool TestBootEventRingBuffer()
-{
-    BootEventRingBuffer events = new BootEventRingBuffer(3);
-    events.Record("one");
-    events.Record("two");
-    events.Record("three");
-    events.Record("four");
-
-    string[] snapshot = events.Snapshot();
-    return snapshot.Length == 3
-        && snapshot[0] == "two"
-        && snapshot[1] == "three"
-        && snapshot[2] == "four";
-}
-
-}
-sealed class StringSerialSink : ISerialSink
-{
-    private readonly List<string> _lines = new List<string>();
-
-    public void WriteLine(string line)
+    static bool TestBootSequenceMarkers()
     {
-        _lines.Add(line);
+        StringSerialSink serial = new StringSerialSink();
+        BootEventRingBuffer events = new BootEventRingBuffer(16);
+        BootResult result = BootSequence.Run(serial, events);
+        return result.Succeeded && serial.Contains(SerialSmokeMarkers.BootOk) && serial.Contains(SerialSmokeMarkers.OsSmokePass) && serial.Contains(SerialSmokeMarkers.TestPass + " boot.sequence") && events.Count >= 5;
     }
 
-    public bool Contains(string line)
+    static bool TestBootEventRingBuffer()
     {
-        return _lines.Contains(line);
+        BootEventRingBuffer events = new BootEventRingBuffer(3);
+        events.Record("one");
+        events.Record("two");
+        events.Record("three");
+        events.Record("four");
+        string[] snapshot = events.Snapshot();
+        return snapshot.Length == 3 && snapshot[0] == "two" && snapshot[1] == "three" && snapshot[2] == "four";
     }
 }

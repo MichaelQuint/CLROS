@@ -16,13 +16,25 @@ public readonly struct VirtioBlockQueueNotificationBarrierReadiness
         BarrierSequence = barrierSequence;
     }
 
-    public bool DescriptorWritesVisible { get; }
+    public bool DescriptorWritesVisible
+    {
+        get;
+    }
 
-    public bool AvailableRingWritesVisible { get; }
+    public bool AvailableRingWritesVisible
+    {
+        get;
+    }
 
-    public bool OrderedBeforeNotify { get; }
+    public bool OrderedBeforeNotify
+    {
+        get;
+    }
 
-    public uint BarrierSequence { get; }
+    public uint BarrierSequence
+    {
+        get;
+    }
 
     public bool Succeeded =>
         DescriptorWritesVisible &&

@@ -67,65 +67,155 @@ public readonly struct VirtioBlockDescriptorPublishPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockDescriptorPublishPlanStatus Status { get; }
+    public VirtioBlockDescriptorPublishPlanStatus Status
+    {
+        get;
+    }
 
-    public VirtqueueSplitRingPlanStatus QueuePlanStatus { get; }
+    public VirtqueueSplitRingPlanStatus QueuePlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorFreeListStatus FreeListStatus { get; }
+    public VirtioBlockDescriptorFreeListStatus FreeListStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadLifecyclePublishStatus LifecyclePublishStatus { get; }
+    public VirtioBlockReadLifecyclePublishStatus LifecyclePublishStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadTransactionPlanStatus ReadPlanStatus { get; }
+    public VirtioBlockReadTransactionPlanStatus ReadPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockRequestPlanStatus RequestPlanStatus { get; }
+    public VirtioBlockRequestPlanStatus RequestPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorChainPlanStatus DescriptorPlanStatus { get; }
+    public VirtioBlockDescriptorChainPlanStatus DescriptorPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorChainWriterStatus DescriptorWriterStatus { get; }
+    public VirtioBlockDescriptorChainWriterStatus DescriptorWriterStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus { get; }
+    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus
+    {
+        get;
+    }
 
-    public bool LifecyclePublishAttempted { get; }
+    public bool LifecyclePublishAttempted
+    {
+        get;
+    }
 
-    public bool OwnershipMarkAttempted { get; }
+    public bool OwnershipMarkAttempted
+    {
+        get;
+    }
 
-    public ushort RequestHeaderDescriptorIndex { get; }
+    public ushort RequestHeaderDescriptorIndex
+    {
+        get;
+    }
 
-    public ushort DataBufferDescriptorIndex { get; }
+    public ushort DataBufferDescriptorIndex
+    {
+        get;
+    }
 
-    public ushort StatusByteDescriptorIndex { get; }
+    public ushort StatusByteDescriptorIndex
+    {
+        get;
+    }
 
-    public ushort FirstDescriptorIndex { get; }
+    public ushort FirstDescriptorIndex
+    {
+        get;
+    }
 
-    public ushort PreviousAvailableRingIndex { get; }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort NextAvailableRingIndex { get; }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort PreviousUsedIndex { get; }
+    public ushort PreviousUsedIndex
+    {
+        get;
+    }
 
-    public ushort ExpectedNextUsedIndex { get; }
+    public ushort ExpectedNextUsedIndex
+    {
+        get;
+    }
 
-    public ushort AvailableRingSlot { get; }
+    public ushort AvailableRingSlot
+    {
+        get;
+    }
 
-    public uint AvailableRingEntryOffset { get; }
+    public uint AvailableRingEntryOffset
+    {
+        get;
+    }
 
-    public int StateTableLength { get; }
+    public int StateTableLength
+    {
+        get;
+    }
 
-    public int RequiredStateTableLength { get; }
+    public int RequiredStateTableLength
+    {
+        get;
+    }
 
-    public ushort DescriptorsSelected { get; }
+    public ushort DescriptorsSelected
+    {
+        get;
+    }
 
-    public ushort DescriptorsWritten { get; }
+    public ushort DescriptorsWritten
+    {
+        get;
+    }
 
-    public ushort DescriptorsMarkedInFlight { get; }
+    public ushort DescriptorsMarkedInFlight
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorFreeListResult FreeList { get; }
+    public VirtioBlockDescriptorFreeListResult FreeList
+    {
+        get;
+    }
 
-    public VirtioBlockReadLifecyclePublishResult LifecyclePublish { get; }
+    public VirtioBlockReadLifecyclePublishResult LifecyclePublish
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorOwnershipPlanResult OwnershipMark { get; }
+    public VirtioBlockDescriptorOwnershipPlanResult OwnershipMark
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == VirtioBlockDescriptorPublishPlanStatus.Success;
 

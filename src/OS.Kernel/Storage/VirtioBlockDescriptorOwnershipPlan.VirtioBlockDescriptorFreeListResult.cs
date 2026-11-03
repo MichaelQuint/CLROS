@@ -31,29 +31,65 @@ public readonly struct VirtioBlockDescriptorFreeListResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockDescriptorFreeListStatus Status { get; }
+    public VirtioBlockDescriptorFreeListStatus Status
+    {
+        get;
+    }
 
-    public VirtqueueSplitRingPlanStatus QueuePlanStatus { get; }
+    public VirtqueueSplitRingPlanStatus QueuePlanStatus
+    {
+        get;
+    }
 
-    public ushort RequestHeaderDescriptorIndex { get; }
+    public ushort RequestHeaderDescriptorIndex
+    {
+        get;
+    }
 
-    public ushort DataBufferDescriptorIndex { get; }
+    public ushort DataBufferDescriptorIndex
+    {
+        get;
+    }
 
-    public ushort StatusByteDescriptorIndex { get; }
+    public ushort StatusByteDescriptorIndex
+    {
+        get;
+    }
 
-    public ushort FirstDescriptorIndex { get; }
+    public ushort FirstDescriptorIndex
+    {
+        get;
+    }
 
-    public int StateTableLength { get; }
+    public int StateTableLength
+    {
+        get;
+    }
 
-    public int RequiredStateTableLength { get; }
+    public int RequiredStateTableLength
+    {
+        get;
+    }
 
-    public ushort DescriptorsRequired { get; }
+    public ushort DescriptorsRequired
+    {
+        get;
+    }
 
-    public ushort DescriptorsScanned { get; }
+    public ushort DescriptorsScanned
+    {
+        get;
+    }
 
-    public ushort InvalidDescriptorIndex { get; }
+    public ushort InvalidDescriptorIndex
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == VirtioBlockDescriptorFreeListStatus.Success;
 

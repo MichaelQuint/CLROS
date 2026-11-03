@@ -30,7 +30,10 @@ public sealed class VirtioBlockReadSessionBlockDevice : IReadOnlyBlockDevice
     public const bool PerformsDiskRead = false;
     public const bool ReadsRealDisk = false;
 
-    public BlockDeviceInfo Info { get; }
+    public BlockDeviceInfo Info
+    {
+        get;
+    }
 
     public static VirtioBlockReadSessionBlockDeviceCreateResult Create(
         in VirtioBlockReadOnlyReadSessionResult session,

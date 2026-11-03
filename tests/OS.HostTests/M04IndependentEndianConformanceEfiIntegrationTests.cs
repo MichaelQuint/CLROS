@@ -1,8 +1,6 @@
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 
 internal static class M04IndependentEndianConformanceEfiIntegrationTests
 {
@@ -11,8 +9,6 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
         OS.Tooling.QemuContracts.Record278;
     private const string FailureMarker =
         OS.Tooling.QemuContracts.Record274;
-    private static readonly string CompileClosureSha256 =
-        OS.Tooling.EfiContracts.CompileInventorySha256;
 
     [HostFixture(HostLane.Fast)]
     internal static void RunAll()
@@ -62,42 +58,20 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
         string root = HostToolProcess.FindRepositoryRoot();
         XDocument project = XDocument.Load(
             Path.Combine(root, "src", "OS", "OS.csproj"));
-        XElement[] compileItems = project.Descendants("Compile").ToArray();
-        string[] compileKeys = compileItems
-            .Select(item =>
-                (item.Attribute("Include")?.Value ?? string.Empty) + "|" +
-                (item.Attribute("Link")?.Value ?? string.Empty))
-            .ToArray();
-        string compileHash = Convert.ToHexString(
-                SHA256.HashData(
-                    Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n")))
-            .ToLowerInvariant();
-        const string CatalogKey =
-            @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
-        const string GuardedIstKey =
-            @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
-        const string TerminalKey =
-            @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
-        const string NormalizedInterruptFrameKey =
-            @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
-        int backendIndex = Array.IndexOf(
-            compileKeys,
-            @"..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs");
-        int ownedWriterIndex = Array.IndexOf(
-            compileKeys,
-            @"..\OS.Kernel\Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs|Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs");
-        int panicReporterIndex = Array.IndexOf(
-            compileKeys,
-            @"..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs");
-        int gdtIndex = Array.IndexOf(
-            compileKeys,
-            @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs");
-        int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
-        int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
-        int normalizedInterruptFrameIndex =
-            Array.IndexOf(compileKeys, NormalizedInterruptFrameKey);
-        int catalogIndex = Array.IndexOf(compileKeys, CatalogKey);
-
+        var profile = OS.Tooling.EfiOptions.Parse(["--EnableM04IndependentEndianConformanceProbe"], true).Profile();
+        var source = HostSourceCatalog.Efi(profile);
+        foreach (string type in new[]
+        {
+            "OS.Kernel.Diagnostics.Com1OwnedPortIoBackend",
+            "OS.Kernel.Diagnostics.OwnedCom1ReadyExclusivelyOwnedWriter",
+            "OS.Kernel.Diagnostics.PanicSafeFormattingSerialReportingOwnedCom1",
+            "OS.Kernel.Diagnostics.OwnedX64GdtContainingNullN64BitCode",
+            "OS.Kernel.Diagnostics.GuardedISTStacksDoubleFaultPageFaultNMI",
+            "OS.Kernel.Diagnostics.OwnedGDTTSSGeneratedAuditedCSharpStubBytes",
+            "OS.Kernel.Diagnostics.NormalizeErrorCodeNonErrorCodeInterruptFrame",
+            "OS.Std.Binary.IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa"
+        })
+            _ = source.Type(type);
         XElement[] defaults = project
             .Descendants("EnableM04IndependentEndianConformanceProbe")
             .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
@@ -113,18 +87,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
             if (!OS.Tooling.EfiOptions.Parse(["--EnableM04IndependentEndianConformanceProbe"], build).Profile().IsEnabled("EnableM04IndependentEndianConformanceProbe")) return false;
         HostCheck.Equal(0, OS.Tooling.ContractAudit.Inspect(root).Count);
 
-        return compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count
-            && compileHash == CompileClosureSha256
-            && backendIndex >= 0
-            && ownedWriterIndex == backendIndex + 1
-            && panicReporterIndex == ownedWriterIndex + 1
-            && gdtIndex == panicReporterIndex + 1
-            && guardedIstIndex == gdtIndex + 1
-            && terminalIndex == guardedIstIndex + 1
-            && normalizedInterruptFrameIndex == terminalIndex + 1
-            && catalogIndex == normalizedInterruptFrameIndex + 17
-            && compileKeys.Count(key => key == CatalogKey) == 1
-            && defaults.Length == 1
+        return defaults.Length == 1
             && defaults[0].Value == "false"
             && defaults[0].Attribute("Condition")?.Value ==
                 "'$(EnableM04IndependentEndianConformanceProbe)' == ''"
@@ -136,189 +99,124 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
 
     private static bool TestNoStdLibCatalogSource()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(
-                root,
-                "std",
-                "no-runtime",
-                "shared",
-                "Binary",
-                "IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs"));
-
-        int hostBranch = source.IndexOf("#if !NOSTDLIB_EFI", StringComparison.Ordinal);
-        int efiBranch = source.IndexOf("#else", hostBranch, StringComparison.Ordinal);
-        int end = source.IndexOf("#endif", efiBranch, StringComparison.Ordinal);
-        string efiSource = hostBranch >= 0 && efiBranch > hostBranch && end > efiBranch
-            ? source[efiBranch..end]
-            : string.Empty;
-
-        return source.Contains(
-                "public const bool ReferenceFilesRequired = false;",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "public const bool RequiresHostConformance = false;",
-                StringComparison.Ordinal)
-            && efiSource.Contains(
-                "IndependentEndianReadVector* readDestination",
-                StringComparison.Ordinal)
-            && efiSource.Contains(
-                "IndependentEndianReverseVector* reverseDestination",
-                StringComparison.Ordinal)
-            && efiSource.Contains(
-                "IndependentEndianConformanceStatus.ReadVectorPointerNull",
-                StringComparison.Ordinal)
-            && efiSource.Contains(
-                "IndependentEndianConformanceStatus.ReverseVectorPointerNull",
-                StringComparison.Ordinal)
-            && efiSource.Contains(
-                "if (readDestinationCapacity < ReadVectorCount)",
-                StringComparison.Ordinal)
-            && efiSource.Contains(
-                "if (reverseDestinationCapacity < ReverseVectorCount)",
-                StringComparison.Ordinal)
-            && efiSource.Contains(
-                "public static unsafe IndependentEndianConformanceResult ValidateCatalog(",
-                StringComparison.Ordinal)
-            && efiSource.Contains(
-                "public static unsafe ulong ComputeCatalogFingerprint(",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "#if NOSTDLIB_EFI && M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE && !M01_OWNED_PAGING_PROBE",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "[System.Runtime.RuntimeExport(\"__security_cookie\")]",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "private static ulong M04SecurityCookieStorageAnchor()",
-                StringComparison.Ordinal)
-            && CountOccurrences(source, "\"__security_cookie\"") == 1
+        const string owner = "OS.Std.Binary.IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa";
+        var source = HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(["--EnableM04IndependentEndianConformanceProbe"], true).Profile());
+        var type = source.Type(owner);
+        foreach (string name in new[] { "ReferenceFilesRequired", "RequiresHostConformance" })
+            HostCheck.True(type.GetMembers(name).OfType<IFieldSymbol>().Single() is
+                { DeclaredAccessibility: Accessibility.Public, IsConst: true,
+                    Type.SpecialType: SpecialType.System_Boolean, ConstantValue: false });
+        var copy = source.Method(owner, "CopyBuiltInCatalog");
+        var model = source.Compilation.GetSemanticModel(copy.SyntaxTree);
+        var signature = model.GetDeclaredSymbol(copy)!;
+        foreach (var (ordinal, element) in new[] { (0, "IndependentEndianReadVector"), (2, "IndependentEndianReverseVector") })
+            HostCheck.True(signature.Parameters[ordinal].Type is Microsoft.CodeAnalysis.IPointerTypeSymbol pointer
+                && Microsoft.CodeAnalysis.SymbolEqualityComparer.Default.Equals(pointer.PointedAtType, source.Type("OS.Std.Binary." + element)));
+        string efiSource = string.Join("\n", new[] { "CopyBuiltInCatalog", "ValidateCatalog", "ComputeCatalogFingerprint" }
+            .Select(name => HostSourceText.Active(source.Method(owner, name))));
+        return ContainsCode(efiSource, "IndependentEndianConformanceStatus.ReadVectorPointerNull", StringComparison.Ordinal)
+            && ContainsCode(efiSource, "IndependentEndianConformanceStatus.ReverseVectorPointerNull", StringComparison.Ordinal)
+            && ContainsCode(efiSource, "if (readDestinationCapacity < ReadVectorCount)", StringComparison.Ordinal)
+            && ContainsCode(efiSource, "if (reverseDestinationCapacity < ReverseVectorCount)", StringComparison.Ordinal)
+            && ContainsCode(efiSource, "public static unsafe IndependentEndianConformanceResult ValidateCatalog(", StringComparison.Ordinal)
+            && ContainsCode(efiSource, "public static unsafe ulong ComputeCatalogFingerprint(", StringComparison.Ordinal)
+            && HostSecurityCookieSourceGuard.Check(source, owner, "M04SecurityCookieStorageAnchor", 0x434c_524f_5347_5334UL)
             && !efiSource.Contains("Span<", StringComparison.Ordinal)
             && !efiSource.Contains("throw ", StringComparison.Ordinal)
             && !efiSource.Contains("new ", StringComparison.Ordinal);
     }
-
     private static bool TestEfiEntryMarkerContract()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
-        string reconstructedReady = ExtractAsciiMarker(
-            source,
-            "private static void WriteM04IndependentEndianConformanceSuccessLine(");
-        string reconstructedFailure = ExtractAsciiMarker(
-            source,
-            "private static void WriteM04IndependentEndianConformanceFailureLine(");
-
-        int consoleReady = source.IndexOf(
-            "WriteEfiConsoleReady(console, serial);",
-            StringComparison.Ordinal);
-        int probe = IndexOfAfter(
-            source,
-            "WriteM04IndependentEndianConformanceProbe(console, serial)",
-            consoleReady);
-        int memoryMap = IndexOfAfter(
-            source,
-            "TryCaptureUefiMemoryMap(systemTable)",
-            probe);
-        int copy = source.IndexOf(".CopyBuiltInCatalog(", StringComparison.Ordinal);
-        int validate = IndexOfAfter(source, ".ValidateCatalog(", copy);
-        int guard = IndexOfAfter(source, "if (!copyResult.Succeeded ||", validate);
-        int success = IndexOfAfter(
-            source,
-            "WriteM04IndependentEndianConformanceSuccessLine(console, serial);",
-            guard);
-
-        return reconstructedReady == ReadyMarker
-            && reconstructedFailure == FailureMarker
-            && consoleReady >= 0
-            && probe > consoleReady
-            && memoryMap > probe
-            && copy >= 0
-            && validate > copy
-            && guard > validate
-            && success > guard
-            && source.Contains(
-                "stackalloc OS.Std.Binary.IndependentEndianReadVector[",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "stackalloc OS.Std.Binary.IndependentEndianReverseVector[",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "validationResult.ActualFingerprint != 0xE81E4451E8D999F6UL",
-                StringComparison.Ordinal)
-            && CountOccurrences(
-                source,
-                "WriteM04IndependentEndianConformanceProbe(") == 2
-            && CountOccurrences(
-                source,
-                "WriteM04IndependentEndianConformanceSuccessLine(") == 2
-            && CountOccurrences(
-                source,
-                "WriteM04IndependentEndianConformanceFailureLine(") == 2
-            && HasGuardedSecurityCookieOwners(source)
-            && !source.Contains(
-                "M04SecurityCookieStorageAnchor",
-                StringComparison.Ordinal)
-            && CountOccurrences(source, ReadyMarker) == 0
-            && CountOccurrences(source, FailureMarker) == 0;
-    }
-
-    private static bool HasGuardedSecurityCookieOwners(string source)
-    {
-        source = source.Replace("\r\n", "\n", StringComparison.Ordinal);
-        const string export =
-            "[System.Runtime.RuntimeExport(\"__security_cookie\")]";
-        // Cookie ownership depends on these prerequisites/exclusions, not on
-        // unrelated conditional using directives above them.
-        string incompatibleProfiles = """
-            #if !(M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(M01_LIVE_ALLOCATOR_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
-            #error The first real exit requires the original loaded-image, live allocator and copied ACPI adapters.
-            #endif
-            #if M01_OWNED_PAGING_PROBE || M04_MANAGED_HEAP_PAGE_RANGE_PROBE || M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE || M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE
-            #error The first real exit is an exclusive firmware-CR3 path, with no intervening paging, heap or controlled exit probe.
-            #endif
-            """.Replace("\r\n", "\n", StringComparison.Ordinal);
-
-        bool HasOwner(string guard, string owner, string declaration)
+        const string owner = "OS.Boot.EfiEntry";
+        var source = HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(["--EnableM04IndependentEndianConformanceProbe"], true).Profile());
+        var type = source.Type(owner);
+        var entry = source.Method(owner, "WriteBootMarkers");
+        var probe = source.Method(owner, "WriteM04IndependentEndianConformanceProbe");
+        string entryText = HostSourceText.Active(entry);
+        string probeText = HostSourceText.Active(probe);
+        string ownerText = HostSourceText.Documents(source, owner);
+        string reconstructedReady = ExtractAsciiMarker(source, "WriteM04IndependentEndianConformanceSuccessLine");
+        string reconstructedFailure = ExtractAsciiMarker(source, "WriteM04IndependentEndianConformanceFailureLine");
+        int consoleReady = IndexOfAfter(entryText, "WriteEfiConsoleReady(console, serial);", 0);
+        int probeCall = IndexOfAfter(entryText, "WriteM04IndependentEndianConformanceProbe(console, serial)", consoleReady);
+        int memoryMap = IndexOfAfter(entryText, "TryCaptureUefiMemoryMap(systemTable)", probeCall);
+        int copy = IndexOfAfter(probeText, ".CopyBuiltInCatalog(", 0);
+        int validate = IndexOfAfter(probeText, ".ValidateCatalog(", copy);
+        int guard = IndexOfAfter(probeText, "if (!copyResult.Succeeded ||", validate);
+        int success = IndexOfAfter(probeText, "WriteM04IndependentEndianConformanceSuccessLine(console, serial);", guard);
+        foreach (string name in new[] { "WriteM04IndependentEndianConformanceProbe",
+            "WriteM04IndependentEndianConformanceSuccessLine", "WriteM04IndependentEndianConformanceFailureLine" })
         {
-            string ownerToken = "    private static " + (owner == "M03FirstExitAdapter" ? "partial " : string.Empty)
-                + "class " + owner + "\n    {";
-            // Only comments/blank lines may separate the guard and owner.
-            // Adapter types close at four spaces; their members close deeper.
-            MatchCollection matches = Regex.Matches(
-                source,
-                "^#if " + Regex.Escape(guard) + "\n"
-                    + @"(?:[ \t]*//[^\n]*\n|[ \t]*\n)*"
-                    + Regex.Escape(ownerToken)
-                    + @"\n(?<body>[\s\S]*?)\n    \}\n#endif(?=\n|\z)",
-                RegexOptions.Multiline | RegexOptions.CultureInvariant);
-            if (CountOccurrences(source, ownerToken) != 1 || matches.Count != 1)
-            {
-                return false;
-            }
-
-            string body = matches[0].Groups["body"].Value;
-            return CountOccurrences(body, export) == 1
-                && CountOccurrences(body, "\"__security_cookie\"") == 1
-                && CountOccurrences(body, "SecurityCookieStorageAnchor(") == 1
-                && CountOccurrences(body, declaration) == 1;
+            var target = source.Compilation.GetSemanticModel(source.Method(owner, name).SyntaxTree)
+                .GetDeclaredSymbol(source.Method(owner, name));
+            int calls = HostSourceOperations.CallsTo(source, target!).Length;
+            HostCheck.Equal(1, calls, name + " has one declaration and one bound caller");
         }
-
-        return CountOccurrences(source, "\"__security_cookie\"") == 2
-            && CountOccurrences(source, export) == 2
-            && CountOccurrences(source, incompatibleProfiles) == 1
-            && HasOwner(
-                "(M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)",
-                "M03FirstExitAdapter",
-                export + "\n        private static ulong SecurityCookieStorageAnchor()"
-                    + " => 0x434c_524f_5347_5331UL;")
-            && HasOwner(
-                "M01_OWNED_PAGING_PROBE",
-                "M01StageThreeAdapter",
-                export + "\n        private static ulong SecurityCookieStorageAnchor()\n"
-                    + "        {\n            return 0x434c_524f_5347_5331UL;\n"
-                    + "        }");
+        return reconstructedReady == ReadyMarker && reconstructedFailure == FailureMarker
+            && consoleReady >= 0 && probeCall > consoleReady && memoryMap > probeCall
+            && copy >= 0 && validate > copy && guard > validate && success > guard
+            && ContainsCode(probeText, "stackalloc OS.Std.Binary.IndependentEndianReadVector[", StringComparison.Ordinal)
+            && ContainsCode(probeText, "stackalloc OS.Std.Binary.IndependentEndianReverseVector[", StringComparison.Ordinal)
+            && ContainsCode(probeText, "validationResult.ActualFingerprint != 0xE81E4451E8D999F6UL", StringComparison.Ordinal)
+            && HasGuardedSecurityCookieOwners() && FirstExitCompilerRejections()
+            && type.GetMembers("M04SecurityCookieStorageAnchor").Length == 0
+            && CountOccurrences(ownerText, ReadyMarker) == 0 && CountOccurrences(ownerText, FailureMarker) == 0;
+    }
+    private static bool HasGuardedSecurityCookieOwners()
+    {
+        const string stage = "OS.Boot.EfiEntry+M01StageThreeAdapter";
+        const string firstExit = "OS.Boot.EfiEntry+M03FirstExitAdapter";
+        const string catalog = "OS.Std.Binary.IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa";
+        string[] paging = ["--EnableM01LoadedImageStackProbe", "--EnableM01LiveAllocatorProbe", "--EnableM01OwnedPagingProbe"];
+        string[] exited = ["--EnableM01LoadedImageStackProbe", "--EnableM01LiveAllocatorProbe",
+            "--EnableAcpiPhysicalDiscoveryProbe", "--EnableM03FirstRealExitBootServicesProbe"];
+        foreach (var (arguments, owner, method, value) in new (string[], string?, string?, ulong)[]
+        {
+            (["--BootPolicy", "Diagnostic"], null, null, 0),
+            (["--EnableM04IndependentEndianConformanceProbe"], catalog, "M04SecurityCookieStorageAnchor", 0x434c_524f_5347_5334UL),
+            (paging, stage, "SecurityCookieStorageAnchor", 0x434c_524f_5347_5331UL),
+            ([.. paging, "--EnableM04IndependentEndianConformanceProbe"], stage, "SecurityCookieStorageAnchor", 0x434c_524f_5347_5331UL),
+            (exited, firstExit, "SecurityCookieStorageAnchor", 0x434c_524f_5347_5331UL),
+            ([], firstExit, "SecurityCookieStorageAnchor", 0x434c_524f_5347_5331UL)
+        })
+            if (!HostSecurityCookieSourceGuard.Check(HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(arguments, true).Profile()), owner, method, value))
+                return false;
+        return true;
+    }
+    private static bool FirstExitCompilerRejections()
+    {
+        var source = HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(
+            ["--EnableM01LoadedImageStackProbe", "--EnableM01LiveAllocatorProbe",
+                "--EnableAcpiPhysicalDiscoveryProbe", "--EnableM03FirstRealExitBootServicesProbe"], true).Profile());
+        var documents = source.Documents;
+        const string prerequisite = "The first real exit requires the original loaded-image, live allocator and copied ACPI adapters.";
+        const string exclusive = "The first real exit is an exclusive firmware-CR3 path, with no intervening paging, heap or controlled exit probe.";
+        foreach (var (symbol, add, expected) in new (string, bool, string)[]
+        {
+            ("M01_LOADED_IMAGE_STACK_PROBE", false, prerequisite),
+            ("M01_LIVE_ALLOCATOR_PROBE", false, prerequisite),
+            ("ACPI_PHYSICAL_DISCOVERY_PROBE", false, prerequisite),
+            ("M01_OWNED_PAGING_PROBE", true, exclusive),
+            ("M04_MANAGED_HEAP_PAGE_RANGE_PROBE", true, exclusive),
+            ("M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE", true, exclusive),
+            ("M03_TYPED_EXIT_BOOT_SERVICES_CALL_PROBE", true, exclusive)
+        })
+        {
+            // These deliberately invalid symbol sets must fail in the source
+            // compiler, independently of the host profile argument validator.
+            bool rejected = documents.Any(document =>
+            {
+                var options = (CSharpParseOptions)document.Syntax.Options;
+                var symbols = options.PreprocessorSymbolNames.ToHashSet(StringComparer.Ordinal);
+                HostCheck.True(!symbols.Contains("CLROS_NORMAL_VERIFIED_EXIT"), "diagnostic first-exit authority");
+                HostCheck.True(add ? symbols.Add(symbol) : symbols.Remove(symbol), "control changes selected symbols");
+                var syntax = CSharpSyntaxTree.ParseText(document.Text, options.WithPreprocessorSymbols(symbols), document.Path);
+                return syntax.GetDiagnostics().Any(diagnostic => diagnostic.Id == "CS1029"
+                    && diagnostic.GetMessage().Contains(expected, StringComparison.Ordinal));
+            });
+            HostCheck.True(rejected, "compiler rejects first-exit symbol change: " + symbol);
+        }
+        return true;
     }
 
     private static bool TestQemuProfile()
@@ -334,36 +232,15 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
     return true;
 }
 
-    private static string ExtractAsciiMarker(string source, string methodToken)
-    {
-        int start = source.IndexOf(methodToken, StringComparison.Ordinal);
-        int end = start < 0
-            ? -1
-            : source.IndexOf(
-                "\n    private static ",
-                start + methodToken.Length,
-                StringComparison.Ordinal);
-        if (start < 0 || end <= start)
-        {
-            return string.Empty;
-        }
+    private static string ExtractAsciiMarker(OS.Tooling.CSharpSourceCatalog source, string methodName) =>
+        HostSourceText.ByteCharacters(source, "OS.Boot.EfiEntry", methodName);
 
-        MatchCollection characters = Regex.Matches(
-            source[start..end],
-            @"\(byte\)'(?<value>.)'",
-            RegexOptions.CultureInvariant);
-        return string.Concat(
-            characters
-                .Cast<Match>()
-                .Select(match => match.Groups["value"].Value));
-    }
+    private static bool ContainsCode(string source, string fragment, StringComparison comparison) =>
+        comparison == StringComparison.Ordinal && HostSourceText.Contains(source, fragment);
 
-    private static int IndexOfAfter(string source, string value, int start)
-    {
-        return start < 0 || start > source.Length
-            ? -1
-            : source.IndexOf(value, start, StringComparison.Ordinal);
-    }
+    private static int CountCodeOccurrences(string source, string fragment) => HostSourceText.Count(source, fragment);
+
+    private static int IndexOfAfter(string source, string value, int start) => HostSourceText.IndexOf(source, value, start);
 
     private static int CountOccurrences(string source, string value)
     {

@@ -30,29 +30,65 @@ public readonly struct Fat32Bpb
         ClusterCount = clusterCount;
     }
 
-    public ulong PartitionStartLba { get; }
+    public ulong PartitionStartLba
+    {
+        get;
+    }
 
-    public ushort BytesPerSector { get; }
+    public ushort BytesPerSector
+    {
+        get;
+    }
 
-    public byte SectorsPerCluster { get; }
+    public byte SectorsPerCluster
+    {
+        get;
+    }
 
-    public ushort ReservedSectorCount { get; }
+    public ushort ReservedSectorCount
+    {
+        get;
+    }
 
-    public byte FatCount { get; }
+    public byte FatCount
+    {
+        get;
+    }
 
-    public uint FatSizeSectors { get; }
+    public uint FatSizeSectors
+    {
+        get;
+    }
 
-    public uint RootCluster { get; }
+    public uint RootCluster
+    {
+        get;
+    }
 
-    public uint TotalSectors { get; }
+    public uint TotalSectors
+    {
+        get;
+    }
 
-    public ulong FirstFatLba { get; }
+    public ulong FirstFatLba
+    {
+        get;
+    }
 
-    public ulong FirstDataLba { get; }
+    public ulong FirstDataLba
+    {
+        get;
+    }
 
-    public ulong RootDirectoryFirstLba { get; }
+    public ulong RootDirectoryFirstLba
+    {
+        get;
+    }
 
-    public uint ClusterCount { get; }
+    public uint ClusterCount
+    {
+        get;
+    }
 
     public ulong ClusterSizeBytes => (ulong)BytesPerSector * SectorsPerCluster;
 }

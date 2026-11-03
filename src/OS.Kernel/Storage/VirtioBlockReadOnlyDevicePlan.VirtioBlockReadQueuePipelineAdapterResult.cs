@@ -28,25 +28,55 @@ public readonly struct VirtioBlockReadQueuePipelineAdapterResult
         NotifyWindowPlanStatus = notifyWindowPlanStatus;
     }
 
-    public VirtioBlockReadQueuePipelineAdapterStatus Status { get; }
+    public VirtioBlockReadQueuePipelineAdapterStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueuePipelineResult Pipeline { get; }
+    public VirtioBlockReadQueuePipelineResult Pipeline
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public bool PipelineAttempted { get; }
+    public bool PipelineAttempted
+    {
+        get;
+    }
 
-    public ulong RequiredByteCount { get; }
+    public ulong RequiredByteCount
+    {
+        get;
+    }
 
-    public ulong AvailableByteCount { get; }
+    public ulong AvailableByteCount
+    {
+        get;
+    }
 
-    public uint RequiredElementCount { get; }
+    public uint RequiredElementCount
+    {
+        get;
+    }
 
-    public uint AvailableElementCount { get; }
+    public uint AvailableElementCount
+    {
+        get;
+    }
 
-    public VirtqueueSplitRingPlanStatus QueuePlanStatus { get; }
+    public VirtqueueSplitRingPlanStatus QueuePlanStatus
+    {
+        get;
+    }
 
-    public VirtioPciBarRegisterWindowPlanStatus NotifyWindowPlanStatus { get; }
+    public VirtioPciBarRegisterWindowPlanStatus NotifyWindowPlanStatus
+    {
+        get;
+    }
 
     public VirtioBlockReadQueuePipelineStatus PipelineStatus =>
         PipelineAttempted ?

@@ -1,3 +1,7 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Operations;
 using System.Runtime.CompilerServices;
 using System.Text;
 using OS.Pal;
@@ -166,21 +170,34 @@ internal static class PalAppLogTableTests
     [HostTest("pal.applog table uses shared buffer operations", HostLane.Fast, 7)]
     private static bool TestUsesSharedBufferOperations()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(Path.Combine(
-            repositoryRoot,
-            "src",
-            "OS.Kernel",
-            "Pal",
-            "OSHostAppLogTable.cs"));
-
-        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
-            && source.Contains("BufferOperations.MemoryCopy(bytes, payload)", StringComparison.Ordinal)
-            && source.Contains("BufferOperations.MemoryCopy(source, destination)", StringComparison.Ordinal)
-            && !source.Contains("bytes.CopyTo(payload)", StringComparison.Ordinal)
-            && !source.Contains(
-                "payload.AsSpan(0, (int)ByteLength).CopyTo(destination)",
-                StringComparison.Ordinal));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        string owner = typeof(OSHostAppLogTable).FullName! + "+AppLogSlot";
+        var slot = catalog.Type(owner);
+        var payload = slot.GetMembers("payload").OfType<IFieldSymbol>().Single();
+        var write = catalog.Method(owner, "Write");
+        var copy = catalog.Method(owner, "CopyTo");
+        var writeModel = catalog.Compilation.GetSemanticModel(write.SyntaxTree);
+        var copyModel = catalog.Compilation.GetSemanticModel(copy.SyntaxTree);
+        var writeSymbol = (IMethodSymbol)writeModel.GetDeclaredSymbol(write)!;
+        var copySymbol = (IMethodSymbol)copyModel.GetDeclaredSymbol(copy)!;
+        var writeCalls = HostSourceOperations.Calls(catalog, write, typeof(OS.Std.Memory.BufferOperations), "MemoryCopy");
+        var readCalls = HostSourceOperations.Calls(catalog, copy, typeof(OS.Std.Memory.BufferOperations), "MemoryCopy");
+        return HostCheck.Result(writeCalls.Length == 1 && readCalls.Length == 1
+            && HostSourceOperations.IsParameter(HostSourceOperations.Argument(writeCalls[0], 0), writeSymbol.Parameters[3])
+            && HostSourceOperations.Argument(writeCalls[0], 1) is IFieldReferenceOperation field
+            && SymbolEqualityComparer.Default.Equals(field.Field, payload)
+            && HostSourceOperations.IsParameter(HostSourceOperations.Argument(readCalls[0], 1), copySymbol.Parameters[0])
+            && HostSourceOperations.LocalInitializer(copyModel, HostSourceOperations.Argument(readCalls[0], 0)) is IInvocationOperation slice
+            && slice.TargetMethod.Name == nameof(MemoryExtensions.AsSpan)
+            && slice.TargetMethod.ContainingType.ToDisplayString() == typeof(MemoryExtensions).FullName
+            && HostSourceOperations.Argument(slice, 0) is IFieldReferenceOperation source
+            && SymbolEqualityComparer.Default.Equals(source.Field, payload)
+            && HostSourceOperations.Constant(copyModel, HostSourceOperations.Argument(slice, 1).Syntax, 0)
+            && HostSourceOperations.Argument(slice, 2) is IPropertyReferenceOperation length
+            && SymbolEqualityComparer.Default.Equals(length.Property, slot.GetMembers("ByteLength").Single())
+            && new[] { write, copy }.All(method => !method.DescendantNodes()
+                .OfType<InvocationExpressionSyntax>()
+                .Any(call => catalog.Invocation(call).Name == "CopyTo")));
     }
 
     private static bool BytesEqual(ReadOnlySpan<byte> expected, ReadOnlySpan<byte> actual)

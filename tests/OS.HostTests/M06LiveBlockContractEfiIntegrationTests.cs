@@ -32,15 +32,33 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
     private static void SourceAdmission()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        string entry = File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.cs"));
+        var profile = EfiOptions.Parse(Flags, false).Profile();
+        var snapshot = new EfiAllocatorOwnershipSources(profile);
         foreach (string call in new[] { "BootPageAllocatorMutator.AllocateOnePage", "BootPageAllocatorMutator.FreeOnePage" })
-            foreach (string changed in new[] { entry.Replace("RunBlockReadCore(state, true)", "RunBlockReadCore(state, false)", StringComparison.Ordinal),
-                entry.Replace("RunBlockReadCore(state, true)", "UnreviewedRead(state, true)", StringComparison.Ordinal),
-                entry.Replace("RunBlockReadCore(state)", "RunBlockReadCore(state, true)", StringComparison.Ordinal) })
-            {
-                string rejected = changed;
-                HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(ref rejected, call, out _));
-            }
+        {
+            HostCheck.True(EfiProfileTestControls.RemoveOwnedDmaCalls(snapshot.Sources, call, out _, out string reason), reason);
+            foreach (var changed in new[] {
+                snapshot.ChangePurpose("RunOwnedLiveBlockContract", 1, true, false),
+                snapshot.RedirectCall("RunOwnedLiveBlockContract", "RunBlockReadCore"), snapshot.AddContractPurpose() })
+                HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(changed, call, out _, out _));
+        }
+        var catalog = HostSourceCatalog.Efi(profile);
+        string projectDirectory = Path.Combine(root, "src", "OS");
+        var runtime = EfiContracts.SourceAdmissionReasons.Where(pair => pair.Value == "reviewed_minimal_runtime_source_identity")
+            .Select(pair => Path.GetFullPath(pair.Key, projectDirectory)).ToHashSet(StringComparer.Ordinal);
+        foreach (string primitive in new[] { "System.Object", "System.Array" })
+            HostCheck.True(catalog.TypeSources(primitive).All(document => runtime.Contains(document.Path)), "minimal runtime anchor: " + primitive);
+        var selected = new HashSet<string>(runtime, StringComparer.Ordinal);
+        foreach (string primitive in new[] { "System.Span`1", "System.ReadOnlySpan`1" })
+            selected.UnionWith(catalog.TypeSources(primitive).Select(document => document.Path));
+        foreach (Type owner in new[] { typeof(OS.Storage.IReadOnlyBlockDevice), typeof(OS.Storage.BlockDeviceInfo),
+            typeof(OS.Storage.BlockDeviceInfoResult), typeof(OS.Storage.BlockDeviceStatus), typeof(OS.Storage.BlockReadResult),
+            typeof(OS.Storage.BlockDeviceRead), typeof(OS.Storage.LiveDeviceExistingIReadOnlyBlockDeviceContract),
+            typeof(OS.Storage.LBAN0Guest), typeof(OS.Storage.PrimaryGPTIndependentlyBoundsCRC),
+            typeof(OS.Storage.ExerciseBackupGPTFallbackLiveDisk), typeof(OS.Storage.FAT32ApplicationEFIPartition) })
+            selected.UnionWith(catalog.TypeSources(owner.FullName!).Select(document => document.Path));
+        HostCheck.True(selected.All(path => catalog.Documents.Any(document => document.Path == path)), "mutation targets are actual EFI Compile inputs");
+
         string copy = Path.Combine(root, "artifacts/bdev-admission", Guid.NewGuid().ToString("N"));
         void Copy(string relative)
         {
@@ -56,21 +74,19 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
             foreach (string item in EfiContracts.CompileItems) Copy(Path.Combine("src/OS", item.Split('|')[0]));
             var accepted = EfiProjectAdmission.InspectStatic(copy);
             HostCheck.True(accepted.Succeeded, accepted.Reason + " " + accepted.Detail);
-            string[] sources = [@"..\..\std\no-runtime\shared\Memory\SystemSpanPointer.cs", @"Runtime\MinimalRuntime.cs",
-                .. new[] { "IReadOnlyBlockDevice", "BlockDeviceInfo", "BlockDeviceInfoResult", "BlockDeviceStatus",
-                    "BlockReadResult", "BlockDeviceRead", "LiveDeviceExistingIReadOnlyBlockDeviceContract", "LBAN0Guest",
-                    "PrimaryGPTIndependentlyBoundsCRC", "ExerciseBackupGPTFallbackLiveDisk", "FAT32ApplicationEFIPartition" }
-                    .Select(name => @"..\OS.Kernel\Storage\" + name + ".cs")];
-            foreach (string source in sources)
+            foreach (string originalPath in selected.Order(StringComparer.Ordinal))
             {
-                string path = Path.GetFullPath(Path.Combine(copy, "src/OS", source)), original = File.ReadAllText(path);
-                // The actual wrapper admission must bind every byte of the reviewed surface,
-                // including the shared/compiler inputs that are outside OS.Kernel.
-                File.WriteAllText(path, original + "\n// unreviewed local input\n");
-                var rejected = EfiProjectAdmission.InspectStatic(copy);
-                HostCheck.True(!rejected.Succeeded && rejected.Reason == "forbidden_active_source" &&
-                    rejected.Detail.Contains(source, StringComparison.Ordinal), source + ":" + rejected.Reason);
-                File.WriteAllText(path, original);
+                string source = Path.GetRelativePath(projectDirectory, originalPath).Replace('/', '\\');
+                string path = Path.GetFullPath(Path.Combine(copy, "src/OS", source));
+                byte[] original = File.ReadAllBytes(path);
+                try
+                {
+                    File.WriteAllBytes(path, [.. original, .. System.Text.Encoding.UTF8.GetBytes("\n// unreviewed local input\n")]);
+                    var rejected = EfiProjectAdmission.InspectStatic(copy);
+                    HostCheck.True(!rejected.Succeeded && rejected.Reason == "forbidden_active_source" &&
+                        rejected.Detail.Contains(source, StringComparison.Ordinal), source + ":" + rejected.Reason);
+                }
+                finally { File.WriteAllBytes(path, original); }
             }
             HostCheck.True(EfiProjectAdmission.InspectStatic(copy).Succeeded);
         }

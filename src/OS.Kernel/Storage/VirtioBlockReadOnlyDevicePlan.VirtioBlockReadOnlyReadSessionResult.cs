@@ -18,15 +18,30 @@ public readonly struct VirtioBlockReadOnlyReadSessionResult
         CursorAfter = cursorAfter;
     }
 
-    public VirtioBlockReadOnlyReadSessionStatus Status { get; }
+    public VirtioBlockReadOnlyReadSessionStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueuePipelineAdapterResult Adapter { get; }
+    public VirtioBlockReadQueuePipelineAdapterResult Adapter
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorState CursorBefore { get; }
+    public VirtioBlockQueueCursorState CursorBefore
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorState CursorAfter { get; }
+    public VirtioBlockQueueCursorState CursorAfter
+    {
+        get;
+    }
 
     public BlockReadResult BlockRead => Adapter.BlockRead;
 

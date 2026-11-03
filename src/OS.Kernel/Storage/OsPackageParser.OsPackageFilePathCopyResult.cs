@@ -20,17 +20,35 @@ public readonly struct OsPackageFilePathCopyResult
         RequiredBytes = requiredBytes;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public OsPackageStatus Status { get; }
+    public OsPackageStatus Status
+    {
+        get;
+    }
 
-    public OsPackageHeader Header { get; }
+    public OsPackageHeader Header
+    {
+        get;
+    }
 
-    public OsPackageFileEntry Entry { get; }
+    public OsPackageFileEntry Entry
+    {
+        get;
+    }
 
-    public ulong BytesWritten { get; }
+    public ulong BytesWritten
+    {
+        get;
+    }
 
-    public ulong RequiredBytes { get; }
+    public ulong RequiredBytes
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == OsPackageStatus.Success;
 

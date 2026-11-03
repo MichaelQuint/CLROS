@@ -10,7 +10,12 @@ public static unsafe partial class WritableBlockSession
     public readonly struct RequestToken
     {
         public readonly ulong Owner, Epoch, Generation;
-        internal RequestToken(State* s) { Owner = (ulong)s; Epoch = s->Input.Epoch; Generation = s->Generation; }
+        internal RequestToken(State* s)
+        {
+            Owner = (ulong)s;
+            Epoch = s->Input.Epoch;
+            Generation = s->Generation;
+        }
         public bool IsInitialized => Owner != 0 && Epoch != 0 && Generation != 0;
     }
 }

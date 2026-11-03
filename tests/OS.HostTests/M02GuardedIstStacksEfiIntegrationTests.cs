@@ -1,10 +1,14 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using OS.Tooling;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
-internal static class M02GuardedIstStacksEfiIntegrationTests
+internal static partial class M02GuardedIstStacksEfiIntegrationTests
 {
     private const string TestName = "m02.008.efi.integration";
     private const string ReadyMarker =
@@ -17,13 +21,6 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
         OS.Tooling.EfiContracts.ProjectSourceSha256;
     private const string CanonicalProjectShapeSha256 =
         OS.Tooling.EfiContracts.CanonicalProjectSha256;
-
-    private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
-    [
-        (
-            "src/OS.Kernel/Diagnostics/GuardedISTStacksDoubleFaultPageFaultNMI.cs",
-            "cb3deb08256d85ec85cc017aa30938498705ae65956d69235993a411e4fb5703")
-    ];
 
     [HostFixture(HostLane.Fast)]
     internal static void RunAll()
@@ -73,231 +70,108 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
     }
 
     private static bool TestPrimitiveAndCompileClosure()
-{
-    string root = HostToolProcess.FindRepositoryRoot();
-    string runtime = File.ReadAllText(Path.Combine(root, "src", "OS", "Runtime", "MinimalRuntime.cs"));
-    MatchCollection maxValueDeclarations = Regex.Matches(runtime, @"public\s+const\s+ulong\s+MaxValue\s*=\s*0xffff_ffff_ffff_ffffUL\s*;", RegexOptions.CultureInvariant);
-    string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");
-    XDocument project = XDocument.Load(projectPath);
-    XElement[] compileItems = project.Descendants("Compile").ToArray();
-    string[] compileKeys = compileItems.Select(item => (item.Attribute("Include")?.Value ?? string.Empty) + "|" + (item.Attribute("Link")?.Value ?? string.Empty)).ToArray();
-    string compileHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n"))).ToLowerInvariant();
-    string projectHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(File.ReadAllText(projectPath).Replace("\r\n", "\n", StringComparison.Ordinal)))).ToLowerInvariant();
-    const string GdtKey = @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
-    const string GuardedIstKey = @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
-    const string TerminalKey = @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
-    const string NormalizedInterruptFrameKey = @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
-    const string EndianKey = @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
-    int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
-    int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
-    int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
-    int normalizedInterruptFrameIndex = Array.IndexOf(compileKeys, NormalizedInterruptFrameKey);
-    int endianIndex = Array.IndexOf(compileKeys, EndianKey);
-    XElement[] defaults = project.Descendants("EnableM02GuardedIstStackAllocationProbe").Where(element => element.Parent?.Name.LocalName == "PropertyGroup").ToArray();
-    XElement[] symbolGroups = project.Descendants("PropertyGroup").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02GuardedIstStackAllocationProbe)' == 'true'").ToArray();
-    string[] dependencyConditions = project.Descendants("Error").Select(element => element.Attribute("Condition")?.Value ?? string.Empty).Where(value => value.StartsWith("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true'", StringComparison.Ordinal)).ToArray();
-    return (maxValueDeclarations.Count == 1 && runtime.Contains("public struct UInt64", StringComparison.Ordinal) && compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count && compileHash == CompileClosureSha256 && projectHash == ProjectFileSha256 && gdtIndex >= 0 && guardedIstIndex == gdtIndex + 1 && terminalIndex == guardedIstIndex + 1 && normalizedInterruptFrameIndex == terminalIndex + 1 && endianIndex == normalizedInterruptFrameIndex + 17 && compileKeys.Count(key => key == GuardedIstKey) == 1 && defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02GuardedIstStackAllocationProbe)' == ''" && symbolGroups.Length == 1 && symbolGroups[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_GUARDED_IST_STACK_ALLOCATION_PROBE" && dependencyConditions.Length == 15 && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' != 'true'", StringComparer.Ordinal)) && OS.Tooling.ContractAudit.Inspect(root).Count == 0;
-}
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        var catalog = IstSources();
+        var primitive = catalog.Type("System.UInt64");
+        var maximum = primitive.GetMembers("MaxValue").OfType<IFieldSymbol>().Single();
+        bool maxValue = primitive.TypeKind == TypeKind.Struct
+            && primitive.DeclaredAccessibility == Accessibility.Public
+            && maximum.IsConst
+            && maximum.DeclaredAccessibility == Accessibility.Public
+            && maximum.Type.SpecialType == SpecialType.System_UInt64
+            && maximum.ConstantValue is ulong.MaxValue;
+        foreach (string owner in new[]
+        {
+            "OS.Kernel.Diagnostics.OwnedX64GdtContainingNullN64BitCode",
+            "OS.Kernel.Diagnostics.GuardedISTStacksDoubleFaultPageFaultNMI",
+            "OS.Kernel.Diagnostics.OwnedGDTTSSGeneratedAuditedCSharpStubBytes",
+            "OS.Kernel.Diagnostics.NormalizeErrorCodeNonErrorCodeInterruptFrame",
+            "OS.Std.Binary.IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa"
+        }
+
+        )
+            foreach (var document in catalog.TypeSources(owner))
+            {
+                string include = Path.GetRelativePath(Path.Combine(root, "src", "OS"), document.Path).Replace('/', '\\');
+                if (owner != "OS.Std.Binary.IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa")
+                    HostCheck.True(HostEfiSourceAdmission.Accepts(include, document.Text), "compiled reviewed source " + owner);
+            }
+
+        XDocument project = XDocument.Load(Path.Combine(root, "src", "OS", "OS.csproj"));
+        XElement[] defaults = project.Descendants("EnableM02GuardedIstStackAllocationProbe").Where(element => element.Parent?.Name.LocalName == "PropertyGroup").ToArray();
+        XElement[] symbolGroups = project.Descendants("PropertyGroup").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02GuardedIstStackAllocationProbe)' == 'true'").ToArray();
+        string[] dependencyConditions = project.Descendants("Error").Select(element => element.Attribute("Condition")?.Value ?? string.Empty).Where(value => value.StartsWith("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true'", StringComparison.Ordinal)).ToArray();
+        return (maxValue
+            && defaults.Length == 1
+            && defaults[0].Value == "false"
+            && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02GuardedIstStackAllocationProbe)' == ''"
+            && symbolGroups.Length == 1
+            && symbolGroups[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_GUARDED_IST_STACK_ALLOCATION_PROBE"
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal)
+            && dependencyConditions.Contains("'$(EnableM02GuardedIstStackAllocationProbe)' == 'true' and '$(EnableM02OwnedX64GdtEncodingProbe)' != 'true'", StringComparer.Ordinal))
+            && OS.Tooling.ContractAudit.Inspect(root).Count == 0;
+    }
 
     private static bool TestGuestArenaSequence()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
-        int priorMarker = source.IndexOf(
-            "WriteM02OwnedX64GdtEncodingSuccessLine(",
-            StringComparison.Ordinal);
-        int switchStart = IndexOfAfter(
-            source,
-            "#if M02_GUARDED_IST_STACK_ALLOCATION_PROBE",
-            priorMarker);
+        var catalog = IstSources();
+        var method = IstEvidenceMethod(catalog);
+        string source = method.ToFullString();
+        int priorMarker = source.IndexOf("WriteM02OwnedX64GdtEncodingSuccessLine(", StringComparison.Ordinal);
+        int switchStart = IndexOfAfter(source, "#if M02_GUARDED_IST_STACK_ALLOCATION_PROBE", priorMarker);
         int switchEnd = IndexOfAfter(source, "#endif", switchStart);
         if (switchStart < 0 || switchEnd <= switchStart)
         {
             return false;
         }
 
-        string probe = source[switchStart..switchEnd];
-        int bootServicesGate = probe.IndexOf(
-            "bootServices == null ||",
-            StringComparison.Ordinal);
-        int allocatePages = IndexOfAfter(
-            probe,
-            "bootServices->AllocatePages(",
-            bootServicesGate);
-        int request = IndexOfAfter(
-            probe,
-            "new OS.Kernel.Diagnostics\n                            .GuardedIstStackArenaRequest(",
-            allocatePages);
-        if (request < 0)
-        {
-            request = IndexOfAfter(
-                probe,
-                ".GuardedIstStackArenaRequest(",
-                allocatePages);
-        }
-        int initialize = IndexOfAfter(probe, ".Initialize(", request);
-        int allocate = IndexOfAfter(probe, ".Allocate(ref m02GuardedState);", initialize);
-        int layoutGate = IndexOfAfter(
-            probe,
-            "bool m02GuardedLayoutValid =",
-            allocate);
-        int firstStackWrite = IndexOfAfter(
-            probe,
-            "m02GuardedDoubleFaultBytes[0] = 0xD1;",
-            layoutGate);
-        int readBack = IndexOfAfter(
-            probe,
-            "m02GuardedStackReadBack =",
-            firstStackWrite);
-        int release = IndexOfAfter(
-            probe,
-            ".Release(",
-            readBack);
-        int freePages = IndexOfAfter(
-            probe,
-            "bootServices->FreePages(",
-            release);
-        int finalFailureGate = IndexOfAfter(
-            probe,
-            "if (!m02GuardedLayoutValid ||",
-            freePages);
-        int success = IndexOfAfter(
-            probe,
-            "WriteM02GuardedIstStackAllocationSuccessLine(",
-            finalFailureGate);
-
-        return source.Contains(
-                "EfiBootServices* bootServices,\n            int lineIndex)",
-                StringComparison.Ordinal) ||
-            source.Contains(
-                "EfiBootServices* bootServices,\r\n            int lineIndex)",
-                StringComparison.Ordinal)
-            ? bootServicesGate >= 0
-                && allocatePages > bootServicesGate
-                && request > allocatePages
-                && initialize > request
-                && allocate > initialize
-                && layoutGate > allocate
-                && firstStackWrite > layoutGate
-                && readBack > firstStackWrite
-                && release > readBack
-                && freePages > release
-                && finalFailureGate > freePages
-                && success > finalFailureGate
-                && probe.Contains(
-                    "const ulong m02GuardedPageCount = 6;",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "const ulong m02GuardedPageSize = 4096;",
-                    StringComparison.Ordinal)
-                && probe.Contains("EfiLoaderData", StringComparison.Ordinal)
-                && probe.Contains(
-                    "0x004D30322D303038UL",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "stackWritable: true",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "stackExecutable: false",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "m02GuardedDoubleFault.IstIndex == 1",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "m02GuardedPageFault.IstIndex == 2",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "m02GuardedNmi.IstIndex == 3",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "!m02GuardedDoubleFault.GuardPagePresent",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "!m02GuardedPageFault.GuardPagePresent",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "!m02GuardedNmi.GuardPagePresent",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "m02GuardedDoubleFaultBytes[m02GuardedPageSize - 1]",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "m02GuardedPageFaultBytes[m02GuardedPageSize - 1]",
-                    StringComparison.Ordinal)
-                && probe.Contains(
-                    "m02GuardedNmiBytes[m02GuardedPageSize - 1]",
-                    StringComparison.Ordinal)
-                && !probe.Contains(
-                    "(byte*)m02GuardedDoubleFault.GuardBaseAddress",
-                    StringComparison.Ordinal)
-                && !probe.Contains(
-                    "(byte*)m02GuardedPageFault.GuardBaseAddress",
-                    StringComparison.Ordinal)
-                && !probe.Contains(
-                    "(byte*)m02GuardedNmi.GuardBaseAddress",
-                    StringComparison.Ordinal)
-                && CountOccurrences(probe, ".Initialize(") == 1
-                && CountOccurrences(probe, ".Allocate(ref m02GuardedState);") == 1
-                && CountOccurrences(probe, ".Release(") == 1
-                && CountOccurrences(probe, "m02GuardedStackReadBack =") == 2
-            : false;
+        int bodyStart = source.IndexOf('\n', switchStart);
+        if (bodyStart < 0 || bodyStart >= switchEnd)
+            return false;
+        string probe = source[bodyStart..switchEnd];
+        int bootServicesGate = HostSourceText.IndexOf(probe, "bootServices == null ||");
+        int allocatePages = HostSourceText.IndexOf(probe, "bootServices->AllocatePages(", bootServicesGate);
+        int request = HostSourceText.IndexOf(probe, ".GuardedIstStackArenaRequest(", allocatePages);
+        int initialize = HostSourceText.IndexOf(probe, ".Initialize(", request);
+        int allocate = HostSourceText.IndexOf(probe, ".Allocate(ref m02GuardedState);", initialize);
+        int layoutGate = HostSourceText.IndexOf(probe, "bool m02GuardedLayoutValid =", allocate);
+        int firstStackWrite = HostSourceText.IndexOf(probe, "m02GuardedDoubleFaultBytes[0] = 0xD1;", layoutGate);
+        int readBack = HostSourceText.IndexOf(probe, "m02GuardedStackReadBack =", firstStackWrite);
+        int release = HostSourceText.IndexOf(probe, ".Release(", readBack);
+        int freePages = HostSourceText.IndexOf(probe, "bootServices->FreePages(", release);
+        int finalFailureGate = HostSourceText.IndexOf(probe, "if (!m02GuardedLayoutValid ||", freePages);
+        int success = HostSourceText.IndexOf(probe, "WriteM02GuardedIstStackAllocationSuccessLine(", finalFailureGate);
+        return HostSourceText.Contains(HostSourceText.Active(method.ParameterList), "EfiBootServices* bootServices, int lineIndex)") ? bootServicesGate >= 0 && allocatePages > bootServicesGate && request > allocatePages && initialize > request && allocate > initialize && layoutGate > allocate && firstStackWrite > layoutGate && readBack > firstStackWrite && release > readBack && freePages > release && finalFailureGate > freePages && success > finalFailureGate && HostSourceText.Contains(probe, "const ulong m02GuardedPageCount = 6;") && HostSourceText.Contains(probe, "const ulong m02GuardedPageSize = 4096;") && HostSourceText.Contains(probe, "EfiLoaderData") && HostSourceText.Contains(probe, "0x004D30322D303038UL") && HostSourceText.Contains(probe, "stackWritable: true") && HostSourceText.Contains(probe, "stackExecutable: false") && HostSourceText.Contains(probe, "m02GuardedDoubleFault.IstIndex == 1") && HostSourceText.Contains(probe, "m02GuardedPageFault.IstIndex == 2") && HostSourceText.Contains(probe, "m02GuardedNmi.IstIndex == 3") && HostSourceText.Contains(probe, "!m02GuardedDoubleFault.GuardPagePresent") && HostSourceText.Contains(probe, "!m02GuardedPageFault.GuardPagePresent") && HostSourceText.Contains(probe, "!m02GuardedNmi.GuardPagePresent") && HostSourceText.Contains(probe, "m02GuardedDoubleFaultBytes[m02GuardedPageSize - 1]") && HostSourceText.Contains(probe, "m02GuardedPageFaultBytes[m02GuardedPageSize - 1]") && HostSourceText.Contains(probe, "m02GuardedNmiBytes[m02GuardedPageSize - 1]") && !probe.Contains("(byte*)m02GuardedDoubleFault.GuardBaseAddress", StringComparison.Ordinal) && !probe.Contains("(byte*)m02GuardedPageFault.GuardBaseAddress", StringComparison.Ordinal) && !probe.Contains("(byte*)m02GuardedNmi.GuardBaseAddress", StringComparison.Ordinal) && CountOccurrences(probe, ".Initialize(") == 1 && CountOccurrences(probe, ".Allocate(ref m02GuardedState);") == 1 && CountOccurrences(probe, ".Release(") == 1 && CountOccurrences(probe, "m02GuardedStackReadBack =") == 2 : false;
     }
 
     private static bool TestMarkerEncodingAndFailureGate()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
-        string normalizedSource = source.Replace(
-            "\r\n",
-            "\n",
-            StringComparison.Ordinal);
-        string reconstructedReady = ExtractAsciiMarker(
-            normalizedSource,
-            "private static void\n            WriteM02GuardedIstStackAllocationSuccessLine(");
-        string reconstructedFailure = ExtractAsciiMarker(
-            normalizedSource,
-            "private static void\n            WriteM02GuardedIstStackAllocationFailureLine(");
-
-        int finalGate = source.IndexOf(
-            "if (!m02GuardedLayoutValid ||",
-            StringComparison.Ordinal);
-        int failureCall = IndexOfAfter(
-            source,
-            "WriteM02GuardedIstStackAllocationFailureLine(",
-            finalGate);
-        int abortReturn = IndexOfAfter(source, "return;", failureCall);
-        int successCall = IndexOfAfter(
-            source,
-            "WriteM02GuardedIstStackAllocationSuccessLine(",
-            abortReturn);
-
-        return reconstructedReady == ReadyMarker
-            && reconstructedFailure == FailureMarker
-            && ReadyMarker.Contains(
-                "guestGuardMappings=false",
-                StringComparison.Ordinal)
-            && ReadyMarker.Contains("guestTss=false", StringComparison.Ordinal)
-            && ReadyMarker.Contains("guestIdt=false", StringComparison.Ordinal)
-            && ReadyMarker.Contains("arenaFreed=true", StringComparison.Ordinal)
-            && ReadyMarker.Contains(
-                "postExitBootServices=false",
-                StringComparison.Ordinal)
-            && !ReadyMarker.Contains("CloudReady", StringComparison.OrdinalIgnoreCase)
-            && !ReadyMarker.Contains("production", StringComparison.OrdinalIgnoreCase)
-            && finalGate >= 0
-            && failureCall > finalGate
-            && abortReturn > failureCall
-            && successCall > abortReturn
-            && CountOccurrences(
-                source,
-                "WriteM02GuardedIstStackAllocationSuccessLine(") == 2
-            && CountOccurrences(
-                source,
-                "WriteM02GuardedIstStackAllocationFailureLine(") == 4
-            && !source.Contains("\"" + ReadyMarker + "\"", StringComparison.Ordinal)
-            && !source.Contains("\"" + FailureMarker + "\"", StringComparison.Ordinal);
+        var catalog = IstSources();
+        var method = IstEvidenceMethod(catalog);
+        string source = method.ToFullString();
+        string raw = HostSourceText.Documents(catalog, "OS.Boot.EfiEntry");
+        source = HostSourceText.Active(method);
+        string reconstructedReady = HostSourceText.ByteCharacters(catalog, IstEntryOwner, "WriteM02GuardedIstStackAllocationSuccessLine");
+        string reconstructedFailure = HostSourceText.ByteCharacters(catalog, IstEntryOwner, "WriteM02GuardedIstStackAllocationFailureLine");
+        int finalGate = HostSourceText.IndexOf(source, "if (!m02GuardedLayoutValid ||");
+        int failureCall = HostSourceText.IndexOf(source, "WriteM02GuardedIstStackAllocationFailureLine(", finalGate);
+        int abortReturn = HostSourceText.IndexOf(source, "return;", failureCall);
+        int successCall = HostSourceText.IndexOf(source, "WriteM02GuardedIstStackAllocationSuccessLine(", abortReturn);
+        return reconstructedReady == ReadyMarker && reconstructedFailure == FailureMarker && ReadyMarker.Contains("guestGuardMappings=false", StringComparison.Ordinal) && ReadyMarker.Contains("guestTss=false", StringComparison.Ordinal) && ReadyMarker.Contains("guestIdt=false", StringComparison.Ordinal) && ReadyMarker.Contains("arenaFreed=true", StringComparison.Ordinal) && ReadyMarker.Contains("postExitBootServices=false", StringComparison.Ordinal) && !ReadyMarker.Contains("CloudReady", StringComparison.OrdinalIgnoreCase) && !ReadyMarker.Contains("production", StringComparison.OrdinalIgnoreCase) && finalGate >= 0 && failureCall > finalGate && abortReturn > failureCall && successCall > abortReturn && CountOccurrences(raw, "WriteM02GuardedIstStackAllocationSuccessLine(") == 2 && CountOccurrences(raw, "WriteM02GuardedIstStackAllocationFailureLine(") == 4 && !raw.Contains("\"" + ReadyMarker + "\"", StringComparison.Ordinal) && !raw.Contains("\"" + FailureMarker + "\"", StringComparison.Ordinal);
     }
 
     private static bool TestQemuProfileSource() => EfiProfileTestControls.Returning("M02GuardedIstStackAllocation", OS.Tooling.QemuContracts.M02GuardedIstStackAllocationRequiredMarkers, OS.Tooling.QemuContracts.M02GuardedIstStackAllocationForbiddenMarkers, ReadyMarker, FailureMarker);
@@ -306,219 +180,21 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
     {
         HostCheck.Registered(typeof(GuardedISTStacksDoubleFaultPageFaultNMITests));
         string root = HostToolProcess.FindRepositoryRoot();
-        foreach ((string relativePath, string expectedSha256) in ImmutableReviewedInputs)
-        {
-            string path = Path.Combine(
-                root,
-                relativePath.Replace('/', Path.DirectorySeparatorChar));
-            if (!File.Exists(path))
-            {
-                return false;
-            }
-
-            string actual = Convert.ToHexString(
-                    SHA256.HashData(File.ReadAllBytes(path)))
-                .ToLowerInvariant();
-            if (actual != expectedSha256)
-            {
-                return false;
-            }
-        }
-
-        string diagnostics = File.ReadAllText(
-            Path.Combine(root, "docs", "diagnostics.md"));
-        string bootOrder = File.ReadAllText(
-            Path.Combine(root, "docs", "boot-order.md"));
+        if (!HostSourceOracle.MatchesUtf8Family(HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), EfiContracts.GuardedIstHostOracleTypes))
+            return false;
+        string diagnostics = File.ReadAllText(Path.Combine(root, "docs", "diagnostics.md"));
+        string bootOrder = File.ReadAllText(Path.Combine(root, "docs", "boot-order.md"));
         if (!HasRequiredDocumentationBoundaries(diagnostics, bootOrder))
         {
             return false;
         }
 
-        string fixtureRoot = Path.Combine(
-            Path.GetTempPath(),
-            "clros-m02-008-documentation-boundaries-" + Guid.NewGuid().ToString("N"));
+        string fixtureRoot = Path.Combine(Path.GetTempPath(), "clros-m02-008-documentation-boundaries-" + Guid.NewGuid().ToString("N"));
         bool hostileFixturesRejected;
         try
         {
             Directory.CreateDirectory(fixtureRoot);
-            hostileFixturesRejected =
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-issue-identity",
-                    diagnostics.Replace(
-                        "M02-008 adds a caller-owned",
-                        "A removed issue adds a caller-owned",
-                        StringComparison.Ordinal),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-three-guard-intent",
-                    diagnostics.Replace(
-                        "one non-present guard range followed",
-                        "one unspecified range followed",
-                        StringComparison.Ordinal),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-three-stack-intent",
-                    diagnostics.Replace(
-                        "three stack ranges",
-                        "an unspecified set of stack ranges",
-                        StringComparison.Ordinal),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-loaderdata-evidence",
-                    diagnostics.Replace(
-                        "temporary six-page UEFI",
-                        "temporary unspecified",
-                        StringComparison.Ordinal),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-stack-only-readback",
-                    diagnostics.Replace(
-                        "writes and reads back only the",
-                        "touches an unspecified set of",
-                        StringComparison.Ordinal),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-release-free-boundary",
-                    diagnostics.Replace(
-                        "releases the lease, and frees the same arena before return",
-                        "retains the lease and leaves cleanup unspecified",
-                        StringComparison.Ordinal),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-capability-negation",
-                    Regex.Replace(
-                        diagnostics,
-                        @"The proof does\s+not change page tables",
-                        "The proof does change page tables",
-                        RegexOptions.CultureInvariant),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-guard-nonclaim",
-                    diagnostics.Replace(
-                        "map guards non-present",
-                        "activate guard mappings",
-                        StringComparison.Ordinal),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-tss-nonclaim",
-                    diagnostics.Replace(
-                        "write TSS IST slots",
-                        "install live TSS IST slots",
-                        StringComparison.Ordinal),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-idt-nonclaim",
-                    diagnostics.Replace(
-                        "descriptor tables",
-                        "active descriptor state",
-                        StringComparison.Ordinal),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-fault-nonclaim",
-                    diagnostics.Replace(
-                        "execute a fault",
-                        "exercise live fault behavior",
-                        StringComparison.Ordinal),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "diagnostics-missing-exitbootservices-nonclaim",
-                    diagnostics.Replace(
-                        "cross real",
-                        "complete a live",
-                        StringComparison.Ordinal),
-                    bootOrder) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "boot-order-missing-issue-identity",
-                    diagnostics,
-                    bootOrder.Replace(
-                        "M02-008 adds a host-tested",
-                        "A removed issue adds a host-tested",
-                        StringComparison.Ordinal)) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "boot-order-missing-three-pair-intent",
-                    diagnostics,
-                    bootOrder.Replace(
-                        "three adjacent",
-                        "an unspecified number of adjacent",
-                        StringComparison.Ordinal)) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "boot-order-missing-loaderdata-evidence",
-                    diagnostics,
-                    bootOrder.Replace(
-                        "temporary six-page LoaderData allocation",
-                        "temporary allocation",
-                        StringComparison.Ordinal)) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "boot-order-missing-stack-only-readback",
-                    diagnostics,
-                    bootOrder.Replace(
-                        "stack-only write/readback",
-                        "unspecified memory access",
-                        StringComparison.Ordinal)) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "boot-order-missing-release-boundary",
-                    diagnostics,
-                    bootOrder.Replace(
-                        "lease release",
-                        "lease retention",
-                        StringComparison.Ordinal)) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "boot-order-missing-same-allocation-free-boundary",
-                    diagnostics,
-                    bootOrder.Replace(
-                        "same-base",
-                        "unbound",
-                        StringComparison.Ordinal)) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "boot-order-missing-guard-nonclaim",
-                    diagnostics,
-                    bootOrder.Replace(
-                        "no guard mapping",
-                        "active guard mapping",
-                        StringComparison.Ordinal)) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "boot-order-missing-tss-idt-nonclaim",
-                    diagnostics,
-                    bootOrder.Replace(
-                        "TSS/IDT installation",
-                        "active descriptor installation",
-                        StringComparison.Ordinal)) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "boot-order-missing-fault-nonclaim",
-                    diagnostics,
-                    bootOrder.Replace(
-                        "fault execution",
-                        "live fault behavior",
-                        StringComparison.Ordinal)) &&
-                WriteHostileFixtureAndRequireRejection(
-                    fixtureRoot,
-                    "boot-order-missing-exitbootservices-nonclaim",
-                    diagnostics,
-                    bootOrder.Replace(
-                        "`ExitBootServices` transition",
-                        "`ExitBootServices` success",
-                        StringComparison.Ordinal));
+            hostileFixturesRejected = WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-issue-identity", diagnostics.Replace("M02-008 adds a caller-owned", "A removed issue adds a caller-owned", StringComparison.Ordinal), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-three-guard-intent", diagnostics.Replace("one non-present guard range followed", "one unspecified range followed", StringComparison.Ordinal), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-three-stack-intent", diagnostics.Replace("three stack ranges", "an unspecified set of stack ranges", StringComparison.Ordinal), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-loaderdata-evidence", diagnostics.Replace("temporary six-page UEFI", "temporary unspecified", StringComparison.Ordinal), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-stack-only-readback", diagnostics.Replace("writes and reads back only the", "touches an unspecified set of", StringComparison.Ordinal), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-release-free-boundary", diagnostics.Replace("releases the lease, and frees the same arena before return", "retains the lease and leaves cleanup unspecified", StringComparison.Ordinal), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-capability-negation", Regex.Replace(diagnostics, @"The proof does\s+not change page tables", "The proof does change page tables", RegexOptions.CultureInvariant), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-guard-nonclaim", diagnostics.Replace("map guards non-present", "activate guard mappings", StringComparison.Ordinal), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-tss-nonclaim", diagnostics.Replace("write TSS IST slots", "install live TSS IST slots", StringComparison.Ordinal), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-idt-nonclaim", diagnostics.Replace("descriptor tables", "active descriptor state", StringComparison.Ordinal), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-fault-nonclaim", diagnostics.Replace("execute a fault", "exercise live fault behavior", StringComparison.Ordinal), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "diagnostics-missing-exitbootservices-nonclaim", diagnostics.Replace("cross real", "complete a live", StringComparison.Ordinal), bootOrder) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "boot-order-missing-issue-identity", diagnostics, bootOrder.Replace("M02-008 adds a host-tested", "A removed issue adds a host-tested", StringComparison.Ordinal)) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "boot-order-missing-three-pair-intent", diagnostics, bootOrder.Replace("three adjacent", "an unspecified number of adjacent", StringComparison.Ordinal)) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "boot-order-missing-loaderdata-evidence", diagnostics, bootOrder.Replace("temporary six-page LoaderData allocation", "temporary allocation", StringComparison.Ordinal)) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "boot-order-missing-stack-only-readback", diagnostics, bootOrder.Replace("stack-only write/readback", "unspecified memory access", StringComparison.Ordinal)) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "boot-order-missing-release-boundary", diagnostics, bootOrder.Replace("lease release", "lease retention", StringComparison.Ordinal)) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "boot-order-missing-same-allocation-free-boundary", diagnostics, bootOrder.Replace("same-base", "unbound", StringComparison.Ordinal)) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "boot-order-missing-guard-nonclaim", diagnostics, bootOrder.Replace("no guard mapping", "active guard mapping", StringComparison.Ordinal)) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "boot-order-missing-tss-idt-nonclaim", diagnostics, bootOrder.Replace("TSS/IDT installation", "active descriptor installation", StringComparison.Ordinal)) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "boot-order-missing-fault-nonclaim", diagnostics, bootOrder.Replace("fault execution", "live fault behavior", StringComparison.Ordinal)) && WriteHostileFixtureAndRequireRejection(fixtureRoot, "boot-order-missing-exitbootservices-nonclaim", diagnostics, bootOrder.Replace("`ExitBootServices` transition", "`ExitBootServices` success", StringComparison.Ordinal));
         }
         finally
         {
@@ -533,41 +209,10 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
             return false;
         }
 
-        string efiBuild = File.ReadAllText(
-            Path.Combine(root, "docs", "efi-build.md"));
-        string qemu = File.ReadAllText(
-            Path.Combine(root, "docs", "qemu.md"));
+        string efiBuild = File.ReadAllText(Path.Combine(root, "docs", "efi-build.md"));
+        string qemu = File.ReadAllText(Path.Combine(root, "docs", "qemu.md"));
         string readme = File.ReadAllText(Path.Combine(root, "README.md"));
-
-        return efiBuild.Contains(
-                "EnableM02GuardedIstStackAllocationProbe",
-                StringComparison.Ordinal)
-            && efiBuild.Contains("six", StringComparison.OrdinalIgnoreCase)
-            && efiBuild.Contains("UEFI LoaderData", StringComparison.Ordinal)
-            && efiBuild.Contains(
-                "pre-`ExitBootServices`",
-                StringComparison.Ordinal)
-            && efiBuild.Contains(
-                "does not make the guard-intent pages non-present",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "CLROS_M02_008_READY",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "guestGuardMappings=false",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "M02_GUARDED_IST_STACK_ALLOCATION_FAILED",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "postExitBootServices=false",
-                StringComparison.Ordinal)
-            && readme.Contains(
-                "(docs/efi-build.md)",
-                StringComparison.Ordinal)
-            && readme.Contains(
-                "(docs/qemu.md)",
-                StringComparison.Ordinal);
+        return efiBuild.Contains("EnableM02GuardedIstStackAllocationProbe", StringComparison.Ordinal) && efiBuild.Contains("six", StringComparison.OrdinalIgnoreCase) && efiBuild.Contains("UEFI LoaderData", StringComparison.Ordinal) && efiBuild.Contains("pre-`ExitBootServices`", StringComparison.Ordinal) && efiBuild.Contains("does not make the guard-intent pages non-present", StringComparison.Ordinal) && qemu.Contains("CLROS_M02_008_READY", StringComparison.Ordinal) && qemu.Contains("guestGuardMappings=false", StringComparison.Ordinal) && qemu.Contains("M02_GUARDED_IST_STACK_ALLOCATION_FAILED", StringComparison.Ordinal) && qemu.Contains("postExitBootServices=false", StringComparison.Ordinal) && readme.Contains("(docs/efi-build.md)", StringComparison.Ordinal) && readme.Contains("(docs/qemu.md)", StringComparison.Ordinal);
     }
 
     private static bool HasRequiredDocumentationBoundaries(

@@ -49,47 +49,110 @@ public readonly struct VirtioBlockReadLifecyclePublishResult
         DescriptorsWritten = descriptorsWritten;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockReadLifecyclePublishStatus Status { get; }
+    public VirtioBlockReadLifecyclePublishStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockReadTransactionPlanStatus ReadPlanStatus { get; }
+    public VirtioBlockReadTransactionPlanStatus ReadPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockRequestPlanStatus RequestPlanStatus { get; }
+    public VirtioBlockRequestPlanStatus RequestPlanStatus
+    {
+        get;
+    }
 
-    public VirtqueueSplitRingPlanStatus QueuePlanStatus { get; }
+    public VirtqueueSplitRingPlanStatus QueuePlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorChainPlanStatus DescriptorPlanStatus { get; }
+    public VirtioBlockDescriptorChainPlanStatus DescriptorPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorChainWriterStatus DescriptorWriterStatus { get; }
+    public VirtioBlockDescriptorChainWriterStatus DescriptorWriterStatus
+    {
+        get;
+    }
 
-    public VirtqueueSplitRingPlan QueuePlan { get; }
+    public VirtqueueSplitRingPlan QueuePlan
+    {
+        get;
+    }
 
-    public ulong FirstSector { get; }
+    public ulong FirstSector
+    {
+        get;
+    }
 
-    public uint SectorCount { get; }
+    public uint SectorCount
+    {
+        get;
+    }
 
-    public ulong LastSectorInclusive { get; }
+    public ulong LastSectorInclusive
+    {
+        get;
+    }
 
-    public uint DataByteCount { get; }
+    public uint DataByteCount
+    {
+        get;
+    }
 
-    public ushort QueueSize { get; }
+    public ushort QueueSize
+    {
+        get;
+    }
 
-    public ushort DescriptorHead { get; }
+    public ushort DescriptorHead
+    {
+        get;
+    }
 
-    public ushort PreviousAvailableRingIndex { get; }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort NextAvailableRingIndex { get; }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort PreviousUsedIndex { get; }
+    public ushort PreviousUsedIndex
+    {
+        get;
+    }
 
-    public ushort ExpectedNextUsedIndex { get; }
+    public ushort ExpectedNextUsedIndex
+    {
+        get;
+    }
 
-    public ushort AvailableRingSlot { get; }
+    public ushort AvailableRingSlot
+    {
+        get;
+    }
 
-    public uint AvailableRingEntryOffset { get; }
+    public uint AvailableRingEntryOffset
+    {
+        get;
+    }
 
-    public ushort DescriptorsWritten { get; }
+    public ushort DescriptorsWritten
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized &&
         Status == VirtioBlockReadLifecyclePublishStatus.Success;

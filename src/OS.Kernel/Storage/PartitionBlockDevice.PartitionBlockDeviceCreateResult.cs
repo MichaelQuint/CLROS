@@ -11,11 +11,20 @@ public readonly struct PartitionBlockDeviceCreateResult
         Device = device;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public BlockDeviceStatus Status { get; }
+    public BlockDeviceStatus Status
+    {
+        get;
+    }
 
-    public PartitionBlockDevice? Device { get; }
+    public PartitionBlockDevice? Device
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == BlockDeviceStatus.Success;
 

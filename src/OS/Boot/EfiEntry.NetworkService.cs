@@ -16,12 +16,12 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
-        private struct NetworkOwnerStorage
-        {
-            internal NetDevice.State Device;
-            internal DmaBufferPool Pool;
-            internal fixed ulong Metadata[256];
-        }
+
+
+
+
+
+
         // Image-resident and never recycled. Failed reset may outlive this call;
         // every driver metadata pointer remains mapped until explicit cleanup.
         private static NetworkOwnerStorage s_networkOwner;

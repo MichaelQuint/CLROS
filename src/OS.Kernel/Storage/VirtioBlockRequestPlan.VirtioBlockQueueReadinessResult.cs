@@ -17,15 +17,30 @@ public readonly struct VirtioBlockQueueReadinessResult
         QueueSize = queueSize;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockQueueReadinessStatus Status { get; }
+    public VirtioBlockQueueReadinessStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockRequestPlanStatus RequestPlanStatus { get; }
+    public VirtioBlockRequestPlanStatus RequestPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockRequestPlan RequestPlan { get; }
+    public VirtioBlockRequestPlan RequestPlan
+    {
+        get;
+    }
 
-    public ushort QueueSize { get; }
+    public ushort QueueSize
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized &&
         Status == VirtioBlockQueueReadinessStatus.Ready;

@@ -12,5 +12,8 @@ namespace OS.Storage;
 
 public static unsafe partial class ReadOnlyWebRootFileSystem
 {
-    private struct Extent { internal ulong Start, Bytes; }
+    private struct Extent
+    {
+        internal ulong Start, Bytes;
+    }
 }

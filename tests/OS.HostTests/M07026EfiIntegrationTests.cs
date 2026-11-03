@@ -4,6 +4,7 @@ using OS.Tooling;
 using OS.Drivers;
 using OS.Kernel.Platform;
 using OS.Kernel.Threading;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -65,16 +66,13 @@ internal static unsafe class M07026EfiIntegrationTests
         {
             bool workers = probe == "EnableM07026Probe";
             var profile = EfiOptions.Parse(["--" + probe], true).Profile();
-            string[] symbols = ["NOSTDLIB_EFI", .. profile.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key])];
-            var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(),
-                "src/OS/Boot/EfiEntry.cs")), new CSharpParseOptions(preprocessorSymbols: symbols));
-            var adapter = tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
-                .Single(x => x.Identifier.Text == "M03FirstExitAdapter");
-            int capacity = (int)((LiteralExpressionSyntax)adapter.Members.OfType<FieldDeclarationSyntax>()
-                .SelectMany(x => x.Declaration.Variables).Single(x => x.Identifier.Text == "LinuxLedgerCapacity")
-                .Initializer!.Value).Token.Value!;
+            var source = HostSourceCatalog.Efi(profile);
+            const string owner = "OS.Boot.EfiEntry+M03FirstExitAdapter";
+            var field = source.Type(owner).GetMembers("LinuxLedgerCapacity").OfType<IFieldSymbol>().Single();
+            HostCheck.True(field.HasConstantValue);
+            int capacity = Convert.ToInt32(field.ConstantValue, System.Globalization.CultureInfo.InvariantCulture);
             HostCheck.Equal(workers ? 11 : 9, capacity, probe + " ledger capacity");
-            var seal = adapter.Members.OfType<MethodDeclarationSyntax>().Single(x => x.Identifier.Text == "SealLinuxLedger");
+            var seal = source.Method(owner, "SealLinuxLedger");
             var reservations = seal.DescendantNodes().OfType<InvocationExpressionSyntax>()
                 .Where(x => x.Expression.ToString() == "LinuxReservation").ToArray();
             HostCheck.Equal(capacity, 5 + reservations.Length, probe + " complete reservation count");
@@ -87,13 +85,13 @@ internal static unsafe class M07026EfiIntegrationTests
                 HostCheck.Equal("ledger", worker[0].ArgumentList.Arguments[3].Expression.ToString());
                 HostCheck.Equal("ref", worker[0].ArgumentList.Arguments[4].RefKindKeyword.Text);
                 HostCheck.Equal("count", worker[0].ArgumentList.Arguments[4].Expression.ToString());
-                var append=adapter.Members.OfType<MethodDeclarationSyntax>().Single(x=>x.Identifier.Text=="LinuxReservation");
+                var append = source.Method(owner, "LinuxReservation");
                 var guard=append.Body!.Statements.OfType<IfStatementSyntax>().Single();
                 HostCheck.True(guard.Condition.ToString().StartsWith("count >= LinuxLedgerCapacity ||",StringComparison.Ordinal));
                 var write=append.DescendantNodes().OfType<AssignmentExpressionSyntax>().Single();
                 HostCheck.True(guard.SpanStart<write.SpanStart&&write.Left.ToString()=="ledger[count++]");
             }
-            var overlap = adapter.Members.OfType<MethodDeclarationSyntax>().Single(x => x.Identifier.Text == "LinuxPoolDisjoint");
+            var overlap = source.Method(owner, "LinuxPoolDisjoint");
             var checks = overlap.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(x => x.Expression.ToString() == "Disjoint").ToArray();
             HostCheck.Equal(workers ? 1 : 0, checks.Length, probe + " pre-write overlap check");
             if (workers)
@@ -112,12 +110,14 @@ internal static unsafe class M07026EfiIntegrationTests
     private static void HelperLayout()
     {
         var profile = EfiOptions.Parse(["--EnableM07026Probe"], true).Profile();
-        string[] symbols = ["NOSTDLIB_EFI", .. profile.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key])];
-        var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(),
-            "src/OS.Kernel/Boot/FirstOptRealExitBootServicesTransition.cs")), new CSharpParseOptions(preprocessorSymbols: symbols));
-        var bundle = tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().Single(x => x.Identifier.Text == "FirstExitCodeBundle");
-        uint Offset(string name) => checked((uint)(int)((LiteralExpressionSyntax)bundle.Members.OfType<FieldDeclarationSyntax>()
-            .SelectMany(x => x.Declaration.Variables).Single(x => x.Identifier.Text == name).Initializer!.Value).Token.Value!);
+        var source = HostSourceCatalog.Efi(profile);
+        var bundle = source.Type("OS.Boot.FirstExitCodeBundle");
+        uint Offset(string name)
+        {
+            var field = bundle.GetMembers(name).OfType<IFieldSymbol>().Single();
+            HostCheck.True(field.HasConstantValue);
+            return Convert.ToUInt32(field.ConstantValue, System.Globalization.CultureInfo.InvariantCulture);
+        }
         (string Name, uint Start, uint Bytes)[] helpers = [("clock",Offset("ClockAccessOffset"),X64OwnedClockAccess.Bytes),
             ("pci-read",Offset("PciReadOffset"),X64PciConfigurationRead.Bytes), ("pci-bar",Offset("PciBarOffset"),X64PciBarAccess.Bytes),
             ("queue-fence",Offset("QueueFenceOffset"),X64VirtqueueMemoryFence.Bytes),

@@ -3,205 +3,66 @@ using OS.Boot;
 using OS.Drivers;
 using OS.Std.Binary;
 
-internal static class AcpiMcfgParserTests
+internal static partial class AcpiMcfgParserTests
 {
-
     [HostTest("acpi.mcfg parses ecam segment", HostLane.Fast, 0)]
     private static bool TestParsesEcamSegment()
     {
-        byte[] mcfg = CreateMcfg(
-            new McfgEntrySpec(
-                basePhysicalAddress: 0x00000000E0000000,
-                segmentGroup: 2,
-                startBus: 0x20,
-                endBus: 0x2F));
+        byte[] mcfg = CreateMcfg(new McfgEntrySpec(basePhysicalAddress: 0x00000000E0000000, segmentGroup: 2, startBus: 0x20, endBus: 0x2F));
         PciEcamSegment[] segments = new PciEcamSegment[1];
-
         AcpiMcfgParseResult result = AcpiMcfgParser.TryParse(mcfg, segments);
-        PciEcamConfigurationAddressResult address = PciEcamConfigurationSpace.CalculateAddress(
-            segments[0],
-            bus: 0x24,
-            device: 0,
-            function: 0,
-            registerOffset: 0,
-            accessWidth: 4);
-
-        return HostCheck.Result(result.Succeeded
-            && result.Status == AcpiMcfgParseStatus.Success
-            && result.SegmentCount == 1
-            && result.DeclaredLength == mcfg.Length
-            && result.RequiredSegmentCapacity == 1
-            && segments[0].BasePhysicalAddress == 0x00000000E0000000
-            && segments[0].SegmentGroup == 2
-            && segments[0].StartBus == 0x20
-            && segments[0].EndBus == 0x2F
-            && address.Succeeded
-            && address.PhysicalAddress == 0x00000000E0400000);
+        PciEcamConfigurationAddressResult address = PciEcamConfigurationSpace.CalculateAddress(segments[0], bus: 0x24, device: 0, function: 0, registerOffset: 0, accessWidth: 4);
+        return HostCheck.Result(result.Succeeded && result.Status == AcpiMcfgParseStatus.Success && result.SegmentCount == 1 && result.DeclaredLength == mcfg.Length && result.RequiredSegmentCapacity == 1 && segments[0].BasePhysicalAddress == 0x00000000E0000000 && segments[0].SegmentGroup == 2 && segments[0].StartBus == 0x20 && segments[0].EndBus == 0x2F && address.Succeeded && address.PhysicalAddress == 0x00000000E0400000);
     }
 
     [HostTest("acpi.mcfg rejects bad signature", HostLane.Fast, 1)]
     private static bool TestRejectsBadSignature()
     {
-        byte[] badSignature = CreateMcfg(
-            new McfgEntrySpec(
-                basePhysicalAddress: 0xE0000000,
-                segmentGroup: 0,
-                startBus: 0,
-                endBus: 0));
+        byte[] badSignature = CreateMcfg(new McfgEntrySpec(basePhysicalAddress: 0xE0000000, segmentGroup: 0, startBus: 0, endBus: 0));
         badSignature[0] = (byte)'X';
-
         byte[] tooShort = new byte[AcpiMcfgParser.SystemDescriptionTableHeaderLength - 1];
-
-        byte[] declaredTooSmall = CreateMcfg(
-            new McfgEntrySpec(
-                basePhysicalAddress: 0xE0000000,
-                segmentGroup: 0,
-                startBus: 0,
-                endBus: 0));
+        byte[] declaredTooSmall = CreateMcfg(new McfgEntrySpec(basePhysicalAddress: 0xE0000000, segmentGroup: 0, startBus: 0, endBus: 0));
         WriteLength(declaredTooSmall, AcpiMcfgParser.AllocationEntryOffset);
-
-        byte[] invalidReservedBytes = CreateMcfg(
-            new McfgEntrySpec(
-                basePhysicalAddress: 0xE0000000,
-                segmentGroup: 0,
-                startBus: 0,
-                endBus: 0));
+        byte[] invalidReservedBytes = CreateMcfg(new McfgEntrySpec(basePhysicalAddress: 0xE0000000, segmentGroup: 0, startBus: 0, endBus: 0));
         invalidReservedBytes[AcpiMcfgParser.HeaderReservedOffset] = 1;
-
-        AcpiMcfgParseResult badSignatureResult = AcpiMcfgParser.TryParse(
-            badSignature,
-            new PciEcamSegment[1]);
-        AcpiMcfgParseResult tooShortResult = AcpiMcfgParser.TryParse(
-            tooShort,
-            new PciEcamSegment[1]);
-        AcpiMcfgParseResult declaredTooSmallResult = AcpiMcfgParser.TryParse(
-            declaredTooSmall,
-            new PciEcamSegment[1]);
-        AcpiMcfgParseResult invalidReservedBytesResult = AcpiMcfgParser.TryParse(
-            invalidReservedBytes,
-            new PciEcamSegment[1]);
-
-        return HostCheck.Result(IsFailure(badSignatureResult, AcpiMcfgParseStatus.InvalidSignature)
-            && IsFailure(
-                tooShortResult,
-                AcpiMcfgParseStatus.SourceTooShort,
-                requiredLength: AcpiMcfgParser.SystemDescriptionTableHeaderLength)
-            && IsFailure(
-                declaredTooSmallResult,
-                AcpiMcfgParseStatus.DeclaredLengthTooSmall,
-                declaredLength: AcpiMcfgParser.AllocationEntryOffset,
-                requiredLength: AcpiMcfgParser.MinimumLength)
-            && IsFailure(
-                invalidReservedBytesResult,
-                AcpiMcfgParseStatus.InvalidReservedBytes,
-                declaredLength: (uint)invalidReservedBytes.Length,
-                requiredLength: (uint)invalidReservedBytes.Length));
+        AcpiMcfgParseResult badSignatureResult = AcpiMcfgParser.TryParse(badSignature, new PciEcamSegment[1]);
+        AcpiMcfgParseResult tooShortResult = AcpiMcfgParser.TryParse(tooShort, new PciEcamSegment[1]);
+        AcpiMcfgParseResult declaredTooSmallResult = AcpiMcfgParser.TryParse(declaredTooSmall, new PciEcamSegment[1]);
+        AcpiMcfgParseResult invalidReservedBytesResult = AcpiMcfgParser.TryParse(invalidReservedBytes, new PciEcamSegment[1]);
+        return HostCheck.Result(IsFailure(badSignatureResult, AcpiMcfgParseStatus.InvalidSignature) && IsFailure(tooShortResult, AcpiMcfgParseStatus.SourceTooShort, requiredLength: AcpiMcfgParser.SystemDescriptionTableHeaderLength) && IsFailure(declaredTooSmallResult, AcpiMcfgParseStatus.DeclaredLengthTooSmall, declaredLength: AcpiMcfgParser.AllocationEntryOffset, requiredLength: AcpiMcfgParser.MinimumLength) && IsFailure(invalidReservedBytesResult, AcpiMcfgParseStatus.InvalidReservedBytes, declaredLength: (uint)invalidReservedBytes.Length, requiredLength: (uint)invalidReservedBytes.Length));
     }
 
     [HostTest("acpi.mcfg rejects truncated entry", HostLane.Fast, 2)]
     private static bool TestRejectsTruncatedEntry()
     {
-        byte[] truncatedEntry = CreateMcfg(
-            new McfgEntrySpec(
-                basePhysicalAddress: 0xE0000000,
-                segmentGroup: 0,
-                startBus: 0,
-                endBus: 0));
+        byte[] truncatedEntry = CreateMcfg(new McfgEntrySpec(basePhysicalAddress: 0xE0000000, segmentGroup: 0, startBus: 0, endBus: 0));
         Array.Resize(ref truncatedEntry, truncatedEntry.Length + 1);
         WriteLength(truncatedEntry, truncatedEntry.Length);
-
-        byte[] sourceTooShort = CreateMcfg(
-            new McfgEntrySpec(
-                basePhysicalAddress: 0xE0000000,
-                segmentGroup: 0,
-                startBus: 0,
-                endBus: 0));
+        byte[] sourceTooShort = CreateMcfg(new McfgEntrySpec(basePhysicalAddress: 0xE0000000, segmentGroup: 0, startBus: 0, endBus: 0));
         WriteLength(sourceTooShort, sourceTooShort.Length + AcpiMcfgParser.AllocationEntryLength);
-
-        AcpiMcfgParseResult truncatedEntryResult = AcpiMcfgParser.TryParse(
-            truncatedEntry,
-            new PciEcamSegment[2]);
-        AcpiMcfgParseResult sourceTooShortResult = AcpiMcfgParser.TryParse(
-            sourceTooShort,
-            new PciEcamSegment[2]);
-
-        return HostCheck.Result(IsFailure(
-                truncatedEntryResult,
-                AcpiMcfgParseStatus.TruncatedAllocationEntry,
-                declaredLength: (uint)truncatedEntry.Length,
-                requiredLength: (uint)(truncatedEntry.Length + (AcpiMcfgParser.AllocationEntryLength - 1)),
-                entryIndex: 1)
-            && IsFailure(
-                sourceTooShortResult,
-                AcpiMcfgParseStatus.SourceTooShortForDeclaredLength,
-                declaredLength: (uint)(sourceTooShort.Length + AcpiMcfgParser.AllocationEntryLength),
-                requiredLength: (uint)(sourceTooShort.Length + AcpiMcfgParser.AllocationEntryLength)));
+        AcpiMcfgParseResult truncatedEntryResult = AcpiMcfgParser.TryParse(truncatedEntry, new PciEcamSegment[2]);
+        AcpiMcfgParseResult sourceTooShortResult = AcpiMcfgParser.TryParse(sourceTooShort, new PciEcamSegment[2]);
+        return HostCheck.Result(IsFailure(truncatedEntryResult, AcpiMcfgParseStatus.TruncatedAllocationEntry, declaredLength: (uint)truncatedEntry.Length, requiredLength: (uint)(truncatedEntry.Length + (AcpiMcfgParser.AllocationEntryLength - 1)), entryIndex: 1) && IsFailure(sourceTooShortResult, AcpiMcfgParseStatus.SourceTooShortForDeclaredLength, declaredLength: (uint)(sourceTooShort.Length + AcpiMcfgParser.AllocationEntryLength), requiredLength: (uint)(sourceTooShort.Length + AcpiMcfgParser.AllocationEntryLength)));
     }
 
     [HostTest("acpi.mcfg rejects invalid bus range", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidBusRange()
     {
-        byte[] invalidRange = CreateMcfg(
-            new McfgEntrySpec(
-                basePhysicalAddress: 0xE0000000,
-                segmentGroup: 0,
-                startBus: 4,
-                endBus: 3));
-        byte[] validTwoSegments = CreateMcfg(
-            new McfgEntrySpec(
-                basePhysicalAddress: 0xE0000000,
-                segmentGroup: 0,
-                startBus: 0,
-                endBus: 0),
-            new McfgEntrySpec(
-                basePhysicalAddress: 0xE1000000,
-                segmentGroup: 1,
-                startBus: 1,
-                endBus: 2));
-
-        AcpiMcfgParseResult invalidRangeResult = AcpiMcfgParser.TryParse(
-            invalidRange,
-            new PciEcamSegment[1]);
-        AcpiMcfgParseResult destinationTooSmallResult = AcpiMcfgParser.TryParse(
-            validTwoSegments,
-            new PciEcamSegment[1]);
-
-        return HostCheck.Result(IsFailure(
-                invalidRangeResult,
-                AcpiMcfgParseStatus.InvalidBusRange,
-                declaredLength: (uint)invalidRange.Length,
-                requiredLength: (uint)invalidRange.Length,
-                entryIndex: 0)
-            && IsFailure(
-                destinationTooSmallResult,
-                AcpiMcfgParseStatus.DestinationTooSmall,
-                declaredLength: (uint)validTwoSegments.Length,
-                requiredLength: (uint)validTwoSegments.Length,
-                requiredSegmentCapacity: 2));
+        byte[] invalidRange = CreateMcfg(new McfgEntrySpec(basePhysicalAddress: 0xE0000000, segmentGroup: 0, startBus: 4, endBus: 3));
+        byte[] validTwoSegments = CreateMcfg(new McfgEntrySpec(basePhysicalAddress: 0xE0000000, segmentGroup: 0, startBus: 0, endBus: 0), new McfgEntrySpec(basePhysicalAddress: 0xE1000000, segmentGroup: 1, startBus: 1, endBus: 2));
+        AcpiMcfgParseResult invalidRangeResult = AcpiMcfgParser.TryParse(invalidRange, new PciEcamSegment[1]);
+        AcpiMcfgParseResult destinationTooSmallResult = AcpiMcfgParser.TryParse(validTwoSegments, new PciEcamSegment[1]);
+        return HostCheck.Result(IsFailure(invalidRangeResult, AcpiMcfgParseStatus.InvalidBusRange, declaredLength: (uint)invalidRange.Length, requiredLength: (uint)invalidRange.Length, entryIndex: 0) && IsFailure(destinationTooSmallResult, AcpiMcfgParseStatus.DestinationTooSmall, declaredLength: (uint)validTwoSegments.Length, requiredLength: (uint)validTwoSegments.Length, requiredSegmentCapacity: 2));
     }
 
-    private static bool IsFailure(
-        AcpiMcfgParseResult result,
-        AcpiMcfgParseStatus status,
-        uint declaredLength = 0,
-        uint requiredLength = 0,
-        int requiredSegmentCapacity = 0,
-        int entryIndex = -1)
+    private static bool IsFailure(AcpiMcfgParseResult result, AcpiMcfgParseStatus status, uint declaredLength = 0, uint requiredLength = 0, int requiredSegmentCapacity = 0, int entryIndex = -1)
     {
-        return !result.Succeeded
-            && result.Status == status
-            && result.SegmentCount == 0
-            && result.DeclaredLength == declaredLength
-            && result.RequiredLength == requiredLength
-            && result.RequiredSegmentCapacity == requiredSegmentCapacity
-            && result.EntryIndex == entryIndex;
+        return !result.Succeeded && result.Status == status && result.SegmentCount == 0 && result.DeclaredLength == declaredLength && result.RequiredLength == requiredLength && result.RequiredSegmentCapacity == requiredSegmentCapacity && result.EntryIndex == entryIndex;
     }
 
     private static byte[] CreateMcfg(params McfgEntrySpec[] entries)
     {
-        byte[] mcfg = new byte[
-            AcpiMcfgParser.AllocationEntryOffset + (entries.Length * AcpiMcfgParser.AllocationEntryLength)];
-
+        byte[] mcfg = new byte[AcpiMcfgParser.AllocationEntryOffset + (entries.Length * AcpiMcfgParser.AllocationEntryLength)];
         mcfg[0] = (byte)'M';
         mcfg[1] = (byte)'C';
         mcfg[2] = (byte)'F';
@@ -213,14 +74,9 @@ internal static class AcpiMcfgParserTests
         EndianPrimitives.WriteUInt32LittleEndian(mcfg.AsSpan(24, sizeof(uint)), 1);
         WriteAscii(mcfg, 28, "OS  ");
         EndianPrimitives.WriteUInt32LittleEndian(mcfg.AsSpan(32, sizeof(uint)), 1);
-
         for (int index = 0; index < entries.Length; index++)
         {
-            WriteEntry(
-                mcfg.AsSpan(
-                    AcpiMcfgParser.AllocationEntryOffset + (index * AcpiMcfgParser.AllocationEntryLength),
-                    AcpiMcfgParser.AllocationEntryLength),
-                entries[index]);
+            WriteEntry(mcfg.AsSpan(AcpiMcfgParser.AllocationEntryOffset + (index * AcpiMcfgParser.AllocationEntryLength), AcpiMcfgParser.AllocationEntryLength), entries[index]);
         }
 
         SetChecksum(mcfg);
@@ -229,21 +85,15 @@ internal static class AcpiMcfgParserTests
 
     private static void WriteEntry(Span<byte> destination, McfgEntrySpec entry)
     {
-        EndianPrimitives.WriteUInt64LittleEndian(
-            destination.Slice(AcpiMcfgParser.AllocationBaseAddressOffset, sizeof(ulong)),
-            entry.BasePhysicalAddress);
-        EndianPrimitives.WriteUInt16LittleEndian(
-            destination.Slice(AcpiMcfgParser.AllocationSegmentGroupOffset, sizeof(ushort)),
-            entry.SegmentGroup);
+        EndianPrimitives.WriteUInt64LittleEndian(destination.Slice(AcpiMcfgParser.AllocationBaseAddressOffset, sizeof(ulong)), entry.BasePhysicalAddress);
+        EndianPrimitives.WriteUInt16LittleEndian(destination.Slice(AcpiMcfgParser.AllocationSegmentGroupOffset, sizeof(ushort)), entry.SegmentGroup);
         destination[AcpiMcfgParser.AllocationStartBusOffset] = entry.StartBus;
         destination[AcpiMcfgParser.AllocationEndBusOffset] = entry.EndBus;
     }
 
     private static void WriteLength(byte[] mcfg, int length)
     {
-        EndianPrimitives.WriteUInt32LittleEndian(
-            mcfg.AsSpan(AcpiMcfgParser.LengthOffset, sizeof(uint)),
-            (uint)length);
+        EndianPrimitives.WriteUInt32LittleEndian(mcfg.AsSpan(AcpiMcfgParser.LengthOffset, sizeof(uint)), (uint)length);
         SetChecksum(mcfg);
     }
 
@@ -270,28 +120,5 @@ internal static class AcpiMcfgParserTests
         }
 
         mcfg[9] = unchecked((byte)(0 - sum));
-    }
-
-    private readonly struct McfgEntrySpec
-    {
-        public McfgEntrySpec(
-            ulong basePhysicalAddress,
-            ushort segmentGroup,
-            byte startBus,
-            byte endBus)
-        {
-            BasePhysicalAddress = basePhysicalAddress;
-            SegmentGroup = segmentGroup;
-            StartBus = startBus;
-            EndBus = endBus;
-        }
-
-        public ulong BasePhysicalAddress { get; }
-
-        public ushort SegmentGroup { get; }
-
-        public byte StartBus { get; }
-
-        public byte EndBus { get; }
     }
 }

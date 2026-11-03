@@ -35,31 +35,70 @@ public readonly struct GptPartitionTableParseResult
         ComputedPartitionEntryArrayCrc32 = computedPartitionEntryArrayCrc32;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public GptPartitionTableStatus Status { get; }
+    public GptPartitionTableStatus Status
+    {
+        get;
+    }
 
-    public GptPartitionTableCrcStatus CrcStatus { get; }
+    public GptPartitionTableCrcStatus CrcStatus
+    {
+        get;
+    }
 
-    public GptHeader Header { get; }
+    public GptHeader Header
+    {
+        get;
+    }
 
-    public int PartitionsWritten { get; }
+    public int PartitionsWritten
+    {
+        get;
+    }
 
-    public uint EmptyEntriesSkipped { get; }
+    public uint EmptyEntriesSkipped
+    {
+        get;
+    }
 
-    public ulong PartitionEntryBytesRequired { get; }
+    public ulong PartitionEntryBytesRequired
+    {
+        get;
+    }
 
-    public ulong PartitionEntrySectorsRequired { get; }
+    public ulong PartitionEntrySectorsRequired
+    {
+        get;
+    }
 
-    public uint FailingEntryIndex { get; }
+    public uint FailingEntryIndex
+    {
+        get;
+    }
 
-    public uint ExpectedHeaderCrc32 { get; }
+    public uint ExpectedHeaderCrc32
+    {
+        get;
+    }
 
-    public uint ComputedHeaderCrc32 { get; }
+    public uint ComputedHeaderCrc32
+    {
+        get;
+    }
 
-    public uint ExpectedPartitionEntryArrayCrc32 { get; }
+    public uint ExpectedPartitionEntryArrayCrc32
+    {
+        get;
+    }
 
-    public uint ComputedPartitionEntryArrayCrc32 { get; }
+    public uint ComputedPartitionEntryArrayCrc32
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == GptPartitionTableStatus.Success;
 

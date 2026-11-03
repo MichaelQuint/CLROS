@@ -2,15 +2,17 @@ using System.Runtime.InteropServices;
 using OS.Drivers;
 using OS.Std.Memory;
 
-internal static unsafe class MemoryOrderingPrimitivesReplacingReadinessBooleansTests
+internal static unsafe partial class MemoryOrderingPrimitivesReplacingReadinessBooleansTests
 {
-    private struct CallbackState { public uint Trace, Calls; public byte Result; }
-
     [HostTest("virtqueue.fence invokes the actual callback between caller operations", HostLane.Fast, 0)]
     private static void CallbackOrder()
     {
         HostCheck.True(default(MemoryOrderStatus) != MemoryOrderStatus.Success);
-        CallbackState state = new() { Trace = 1, Result = 1 };
+        CallbackState state = new()
+        {
+            Trace = 1,
+            Result = 1
+        };
         HostCheck.Equal(MemoryOrderStatus.Success, MemoryOrder.Fence(&state, &Barrier));
         HostCheck.Equal(1U, state.Calls);
         HostCheck.Equal(0x12U, state.Trace);
@@ -22,14 +24,31 @@ internal static unsafe class MemoryOrderingPrimitivesReplacingReadinessBooleansT
     [HostTest("virtqueue.fence rejects null callbacks and preserves effects of failed callbacks", HostLane.Fast, 1)]
     private static void CallbackFailures()
     {
-        CallbackState state = new() { Trace = 1, Result = 1 };
-        HostCheck.Equal(MemoryOrderStatus.InvalidCallback, MemoryOrder.Fence(&state, null));
-        HostCheck.Equal(0U, state.Calls); HostCheck.Equal(1U, state.Trace);
-        foreach (byte result in new byte[] { 0, 2, 255 })
+        CallbackState state = new()
         {
-            state = new() { Trace = 1, Result = result };
+            Trace = 1,
+            Result = 1
+        };
+        HostCheck.Equal(MemoryOrderStatus.InvalidCallback, MemoryOrder.Fence(&state, null));
+        HostCheck.Equal(0U, state.Calls);
+        HostCheck.Equal(1U, state.Trace);
+        foreach (byte result in new byte[]
+        {
+            0,
+            2,
+            255
+        }
+
+        )
+        {
+            state = new()
+            {
+                Trace = 1,
+                Result = result
+            };
             HostCheck.Equal(MemoryOrderStatus.Failed, MemoryOrder.Fence(&state, &Barrier));
-            HostCheck.Equal(1U, state.Calls); HostCheck.Equal(0x12U, state.Trace);
+            HostCheck.Equal(1U, state.Calls);
+            HostCheck.Equal(0x12U, state.Trace);
         }
     }
 
@@ -49,6 +68,7 @@ internal static unsafe class MemoryOrderingPrimitivesReplacingReadinessBooleansT
             HostCheck.True(!X64VirtqueueMemoryFence.Validate(storage + 1, 16));
             storage[i + 1] ^= 1;
         }
+
         HostCheck.True(X64VirtqueueMemoryFence.Validate(storage + 1, 16));
     }
 
@@ -57,12 +77,19 @@ internal static unsafe class MemoryOrderingPrimitivesReplacingReadinessBooleansT
     {
         byte* storage = stackalloc byte[18];
         new Span<byte>(storage, 18).Fill(0xa5);
-        foreach (uint capacity in new uint[] { 0, 15 })
+        foreach (uint capacity in new uint[]
+        {
+            0,
+            15
+        }
+
+        )
         {
             HostCheck.True(!X64VirtqueueMemoryFence.Emit(storage + 1, capacity));
             HostCheck.True(!X64VirtqueueMemoryFence.Validate(storage + 1, capacity));
             HostCheck.True(new ReadOnlySpan<byte>(storage, 18).IndexOfAnyExcept((byte)0xa5) < 0);
         }
+
         HostCheck.True(!X64VirtqueueMemoryFence.Emit(null, 16) && !X64VirtqueueMemoryFence.Validate(null, 16));
         byte* overflowing = (byte*)(ulong.MaxValue - 7);
         HostCheck.True(!X64VirtqueueMemoryFence.Emit(overflowing, 16) && !X64VirtqueueMemoryFence.Validate(overflowing, 16));
@@ -74,7 +101,8 @@ internal static unsafe class MemoryOrderingPrimitivesReplacingReadinessBooleansT
     private static byte Barrier(void* context)
     {
         CallbackState* state = (CallbackState*)context;
-        state->Trace = state->Trace * 16 + 2; state->Calls++;
+        state->Trace = state->Trace * 16 + 2;
+        state->Calls++;
         return state->Result;
     }
 

@@ -11,27 +11,53 @@ internal static class NormalFinallyEfiIntegrationTests
     [HostTest("m04.021.normal-finally guarded compiler fixture admission", HostLane.Fast, 0)]
     private static void CompilerFixtureAdmission()
     {
-        string root=HostToolProcess.FindRepositoryRoot();
-        const string relative=@"Runtime\NormalFinallyProbe.cs";
-        string source=File.ReadAllText(Path.Combine(root,"src/OS",relative));
-        var project=EfiProjectAdmission.InspectStatic(root);
-        HostCheck.True(project.Succeeded,project.Reason+":"+project.Detail);
-        HostCheck.True(EfiSourceAdmission.Inspect(source,relative).Succeeded,"exact reviewed fixture");
-        HostCheck.True(source.StartsWith("#if NOSTDLIB_EFI && M04_NORMAL_FINALLY_PROBE",StringComparison.Ordinal),"dedicated opt-in fixture, no ancestor anchoring");
-        foreach(var (from,to) in new[]{("(MethodImplOptions)0x40","(MethodImplOptions)0"),
-            ("NormalThrower(value);","NormalBody(value);"),
-            ("stamp = value.Payload + 2;","stamp = value.Payload + 3;"),
-            ("CLROS_NormalFinally_CompilerAddress","CLROS_Unreviewed_CompilerAddress"),
-            ("NormalTransferAdmitted = true;","NormalTransferAdmitted = false;"),
-            ("recovered.ExitedClauseIndex != 0","recovered.ExitedClauseIndex != 1"),
-            ("actual->GetInteger(reg) != s_ehCaller.GetInteger(reg)","false"),
-            ("a.Low != b.Low || a.High != b.High","false")})
+        string root = HostToolProcess.FindRepositoryRoot();
+        var project = EfiProjectAdmission.InspectStatic(root);
+        HostCheck.True(project.Succeeded, project.Reason + ":" + project.Detail);
+        var catalog = HostSourceCatalog.Efi(EfiOptions.Parse(Arguments, true).Profile());
+        const string owner = "OS.Runtime.RhpNewFastAllocation";
+        const string reason = "reviewed_normal_finally_source_identity";
+        string Relative(CSharpSourceDocument document) =>
+            Path.GetRelativePath(Path.Combine(root, "src", "OS"), document.Path).Replace('/', '\\');
+        var compiled = catalog.Documents.ToDictionary(Relative, StringComparer.Ordinal);
+        var family = EfiContracts.SourceAdmissionReasons.Where(pair => pair.Value == reason).ToArray();
+        HostCheck.True(family.Length != 0, "reviewed normal-finally source family exists");
+        foreach (var member in family)
         {
-            string changed=source.Replace(from,to,StringComparison.Ordinal);
-            HostCheck.True(changed!=source,"control changes source");
-            var rejected=EfiSourceAdmission.Inspect(changed,relative);
-            HostCheck.True(!rejected.Succeeded&&rejected.Reason=="forbidden_active_source"&&
-                rejected.Detail.EndsWith(":reviewed_normal_finally_source_identity",StringComparison.Ordinal),"fixture control "+from+":"+rejected.Reason);
+            HostCheck.True(compiled.TryGetValue(member.Key, out var document), "reviewed family member is compiled");
+            HostCheck.True(EfiSourceAdmission.Inspect(document!.Text, member.Key).Succeeded, "exact reviewed fixture member");
+            HostCheck.True(document.Text.StartsWith("#if NOSTDLIB_EFI && M04_NORMAL_FINALLY_PROBE", StringComparison.Ordinal),
+                "dedicated opt-in fixture, no ancestor anchoring");
+        }
+
+        Microsoft.CodeAnalysis.SyntaxNode Method(string name) => catalog.Method(owner, name);
+        var authority = catalog.Type(owner).GetMembers("NormalTransferAdmitted").Single();
+        var field = authority.DeclaringSyntaxReferences.Single().GetSyntax();
+        foreach (var (member, from, to) in new (Microsoft.CodeAnalysis.SyntaxNode, string, string)[]
+        {
+            (Method("NormalCatcher"), "(MethodImplOptions)0x40", "(MethodImplOptions)0"),
+            (Method("NormalCatcher"), "NormalThrower(value)", "NormalBody(value)"),
+            (Method("NormalFinallyEntered"), "stamp = value.Payload + 2", "stamp = value.Payload + 3"),
+            (Method("NormalCompilerAddress"), "\"CLROS_NormalFinally_CompilerAddress\"", "\"CLROS_Unreviewed_CompilerAddress\""),
+            (field, "true", "false"),
+            (Method("NormalSelect"), "recovered.ExitedClauseIndex != 0", "recovered.ExitedClauseIndex != 1"),
+            (Method("NormalContextIntact"), "actual->GetInteger(reg) != s_ehCaller.GetInteger(reg)", "false"),
+            (Method("NormalContextIntact"), "a.Low != b.Low || a.High != b.High", "false")
+        })
+        {
+            var document = catalog.Document(member);
+            string relative = Relative(document);
+            HostCheck.True(family.Any(pair => pair.Key == relative), "independent semantic anchor belongs to reviewed family");
+            var expected = Microsoft.CodeAnalysis.CSharp.SyntaxFactory.ParseExpression(from);
+            var matches = member.DescendantNodesAndSelf().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax>()
+                .Where(expression => Microsoft.CodeAnalysis.CSharp.SyntaxFactory.AreEquivalent(expression, expected)).ToArray();
+            HostCheck.True(matches.Length == 1, "control has one active syntax anchor: " + from);
+            var span = matches[0].Span;
+            string changed = document.Text.Remove(span.Start, span.Length).Insert(span.Start, to);
+            HostCheck.True(changed != document.Text, "control changes source");
+            var rejected = EfiSourceAdmission.Inspect(changed, relative);
+            HostCheck.True(!rejected.Succeeded && rejected.Reason == "forbidden_active_source"
+                && rejected.Detail.EndsWith(":" + reason, StringComparison.Ordinal), "fixture control " + from + ":" + rejected.Reason);
         }
     }
 

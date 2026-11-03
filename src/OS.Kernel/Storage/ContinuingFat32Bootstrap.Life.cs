@@ -7,5 +7,8 @@ namespace OS.Storage;
 
 public static unsafe partial class ContinuingFat32Bootstrap
 {
-    internal enum Life : byte { Working = 1, Ready, Consumed, Faulted, Cancelled, Retired }
+    internal enum Life : byte
+    {
+        Working = 1, Ready, Consumed, Faulted, Cancelled, Retired
+    }
 }

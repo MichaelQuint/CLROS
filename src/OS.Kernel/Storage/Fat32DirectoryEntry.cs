@@ -14,13 +14,25 @@ public readonly struct Fat32DirectoryEntry
         FileSize = fileSize;
     }
 
-    public string ShortName { get; }
+    public string ShortName
+    {
+        get;
+    }
 
-    public byte Attributes { get; }
+    public byte Attributes
+    {
+        get;
+    }
 
-    public uint FirstCluster { get; }
+    public uint FirstCluster
+    {
+        get;
+    }
 
-    public uint FileSize { get; }
+    public uint FileSize
+    {
+        get;
+    }
 
     public bool IsDirectory => (Attributes & Fat32Parser.DirectoryAttribute) != 0;
 }

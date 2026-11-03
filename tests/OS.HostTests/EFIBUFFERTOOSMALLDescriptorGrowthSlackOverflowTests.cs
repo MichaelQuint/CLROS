@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OS.Boot;
 
-internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
+internal static unsafe partial class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
 {
     private const ulong TooSmall = 0x8000000000000005;
     private const ulong DeviceError = 0x8000000000000007;
@@ -21,25 +21,6 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
     private static int s_maps;
     private static int s_allocations;
     private static bool s_callbackMismatch;
-
-    private struct Scenario
-    {
-        internal ulong InitialSize;
-        internal ulong InitialStride;
-        internal ulong FinalSize;
-        internal ulong FinalStride;
-        internal uint Version;
-        internal ulong Slack;
-        internal ulong QueryStatus;
-        internal ulong AllocationStatus;
-        internal ulong FinalStatus;
-        internal bool NullAllocation;
-        internal bool MissingMap;
-        internal bool MissingAllocation;
-        internal bool MissingDestination;
-        internal bool DefaultSlack;
-    }
-
     private static Scenario Normal() => new()
     {
         InitialSize = 96,
@@ -50,7 +31,6 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
         Slack = 8,
         QueryStatus = TooSmall
     };
-
     [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
@@ -71,12 +51,12 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
             Console.WriteLine("TEST_FAIL m03.001 assertion_failed");
             throw new InvalidOperationException("M03-001 host regressions failed.");
         }
+
         Console.WriteLine("TEST_PASS m03.001");
     }
 
     private static void Run(string name, Action test, ref int failures)
     {
-
         HostCheck.Run("" + name, test, ref failures);
     }
 
@@ -135,12 +115,19 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
 
     private static void TestFirmwareFailures()
     {
-        foreach (ulong status in new ulong[] { 0, DeviceError })
+        foreach (ulong status in new ulong[]
+        {
+            0,
+            DeviceError
+        }
+
+        )
         {
             Scenario s = Normal();
             s.QueryStatus = status;
             Check(s, 0, 512, UefiMemoryMapCaptureStatus.InitialGetMemoryMapFailed, firmware: status, required: 96, events: 1);
         }
+
         Scenario allocation = Normal();
         allocation.AllocationStatus = OutOfResources;
         Check(allocation, 480, 512, UefiMemoryMapCaptureStatus.AllocatePoolFailed, firmware: OutOfResources, required: 96, events: 0x12);
@@ -245,8 +232,13 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
     {
         FirmwareMemoryMapRecord r = new()
         {
-            BufferAddress = 0x100000, BufferSize = 120, MapSize = 120,
-            DescriptorSize = 40, DescriptorVersion = 1, DescriptorCount = 3, MapKey = 0xFEDCBA9876543210
+            BufferAddress = 0x100000,
+            BufferSize = 120,
+            MapSize = 120,
+            DescriptorSize = 40,
+            DescriptorVersion = 1,
+            DescriptorCount = 3,
+            MapKey = 0xFEDCBA9876543210
         };
         UefiMemoryMapCopyPlanResult ok = UefiMemoryMapCopyPlanResult.Create(r, 120);
         Need(ok.Succeeded && ok.Plan.RequiredDestinationBytes == 120 && ok.Plan.DescriptorCount == 3 && ok.Plan.MapKey == 0xFEDCBA9876543210, "literal copy plan");
@@ -282,21 +274,13 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
         Check(s, 480, 512, UefiMemoryMapCaptureStatus.FinalGetMemoryMapFailed, firmware: TooSmall, required: 528, measure: true);
     }
 
-    private static void Check(Scenario scenario, ulong allocation, int destinationCapacity,
-        UefiMemoryMapCaptureStatus status, UefiMemoryMapCopyPlanStatus copyStatus = UefiMemoryMapCopyPlanStatus.Success,
-        ulong firmware = 0, ulong required = 0, ulong count = 0, int events = 0x123,
-        int firmwareCapacity = 512, bool measure = false)
+    private static void Check(Scenario scenario, ulong allocation, int destinationCapacity, UefiMemoryMapCaptureStatus status, UefiMemoryMapCopyPlanStatus copyStatus = UefiMemoryMapCopyPlanStatus.Success, ulong firmware = 0, ulong required = 0, ulong count = 0, int events = 0x123, int firmwareCapacity = 512, bool measure = false)
     {
         // The fixture input is authored independently of the production sizing/copy loops.
-        ReadOnlySpan<byte> descriptor = [
-            7, 0, 0, 0, 0xA1, 0xB2, 0xC3, 0xD4,
-            0, 0, 0x20, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            3, 0, 0, 0, 0, 0, 0, 0,
-            8, 0, 0, 0, 0, 0, 0, 0,
-            0x81, 0x92, 0xA3, 0xB4, 0xC5, 0xD6, 0xE7, 0xF8];
+        ReadOnlySpan<byte> descriptor = [7, 0, 0, 0, 0xA1, 0xB2, 0xC3, 0xD4, 0, 0, 0x20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0x81, 0x92, 0xA3, 0xB4, 0xC5, 0xD6, 0xE7, 0xF8];
         byte[] payload = new byte[firmwareCapacity];
-        for (int i = 0; i < payload.Length; i++) payload[i] = descriptor[i % descriptor.Length];
+        for (int i = 0; i < payload.Length; i++)
+            payload[i] = descriptor[i % descriptor.Length];
         byte[] source = new byte[firmwareCapacity + Guard * 2];
         byte[] destination = new byte[destinationCapacity + Guard * 2];
         Array.Fill(source, Untouched);
@@ -320,9 +304,11 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
                     Reset(scenario);
                     result = Invoke(dst + Guard, (ulong)destinationCapacity);
                 }
+
                 long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
                 Need(allocated == 0, "capture/callback allocated managed bytes");
             }
+
             Need(!s_callbackMismatch && s_events == events, "callback order/argument mismatch");
             Need(s_maps == (events == 0 ? 0 : events == 0x123 ? 2 : 1), "GetMemoryMap call count");
             Need(s_allocations == (events is 0x12 or 0x123 ? 1 : 0), "AllocatePool call count");
@@ -334,10 +320,7 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
                 CheckRecord(result.SourceRecord, (ulong)s_firmware, allocation, (ulong)s_firmware, allocation, scenario, count, 0);
                 CheckRecord(result.OwnedRecord, (ulong)(dst + Guard), (ulong)destinationCapacity, (ulong)s_firmware, allocation, scenario, count, 1);
                 UefiMemoryMapCopyPlan plan = result.CopyPlan;
-                Need(plan.SourceAddress == (ulong)s_firmware && plan.SourceBufferSize == allocation && plan.SourceMapSize == scenario.FinalSize
-                    && plan.DestinationCapacity == (ulong)destinationCapacity && plan.RequiredDestinationBytes == scenario.FinalSize
-                    && plan.MapKey == 0xFEDCBA9876543210 && plan.DescriptorSize == scenario.FinalStride
-                    && plan.DescriptorVersion == scenario.Version && plan.DescriptorCount == count, "copy plan binding");
+                Need(plan.SourceAddress == (ulong)s_firmware && plan.SourceBufferSize == allocation && plan.SourceMapSize == scenario.FinalSize && plan.DestinationCapacity == (ulong)destinationCapacity && plan.RequiredDestinationBytes == scenario.FinalSize && plan.MapKey == 0xFEDCBA9876543210 && plan.DescriptorSize == scenario.FinalStride && plan.DescriptorVersion == scenario.Version && plan.DescriptorCount == count, "copy plan binding");
             }
             else
             {
@@ -347,38 +330,32 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
                 else
                     Need(ZeroRecord(result.SourceRecord), "unexpected source diagnostics");
             }
-            ulong expectedWritten = events == 0x123 && scenario.FinalStatus == 0 && scenario.FinalSize <= allocation
-                && scenario.FinalSize <= (ulong)firmwareCapacity ? scenario.FinalSize : 0;
+
+            ulong expectedWritten = events == 0x123 && scenario.FinalStatus == 0 && scenario.FinalSize <= allocation && scenario.FinalSize <= (ulong)firmwareCapacity ? scenario.FinalSize : 0;
             Need(s_written == expectedWritten, "callback bounded write count");
             for (int i = 0; i < source.Length; i++)
             {
                 bool copied = i >= Guard && (ulong)(i - Guard) < expectedWritten;
                 Need(source[i] == (copied ? payload[i - Guard] : Untouched), "firmware bytes/canaries");
             }
+
             for (int i = 0; i < destination.Length; i++)
             {
                 bool copied = result.Succeeded && i >= Guard && (ulong)(i - Guard) < scenario.FinalSize;
                 Need(destination[i] == (copied ? payload[i - Guard] : Untouched), "whole owned buffer/canaries");
             }
         }
+
         s_firmware = s_payload = null;
     }
 
     private static void CheckRecord(FirmwareMemoryMapRecord r, ulong address, ulong capacity, ulong source, ulong sourceCapacity, Scenario s, ulong count, uint flags)
     {
-        Need(r.BufferAddress == address && r.BufferSize == capacity && r.SourceBufferAddress == source && r.SourceBufferSize == sourceCapacity
-            && r.MapSize == s.FinalSize && r.MapKey == 0xFEDCBA9876543210 && r.DescriptorSize == s.FinalStride
-            && r.DescriptorVersion == s.Version && r.DescriptorCount == count && r.Flags == flags, "record identity/final metadata");
+        Need(r.BufferAddress == address && r.BufferSize == capacity && r.SourceBufferAddress == source && r.SourceBufferSize == sourceCapacity && r.MapSize == s.FinalSize && r.MapKey == 0xFEDCBA9876543210 && r.DescriptorSize == s.FinalStride && r.DescriptorVersion == s.Version && r.DescriptorCount == count && r.Flags == flags, "record identity/final metadata");
     }
 
-    private static bool ZeroRecord(FirmwareMemoryMapRecord r) => r.BufferAddress == 0 && r.BufferSize == 0
-        && r.SourceBufferAddress == 0 && r.SourceBufferSize == 0 && r.MapSize == 0 && r.MapKey == 0
-        && r.DescriptorSize == 0 && r.DescriptorVersion == 0 && r.DescriptorCount == 0 && r.Flags == 0;
-
-    private static bool ZeroPlan(UefiMemoryMapCopyPlan p) => p.SourceAddress == 0 && p.SourceBufferSize == 0
-        && p.SourceMapSize == 0 && p.DestinationCapacity == 0 && p.RequiredDestinationBytes == 0
-        && p.MapKey == 0 && p.DescriptorSize == 0 && p.DescriptorVersion == 0 && p.DescriptorCount == 0;
-
+    private static bool ZeroRecord(FirmwareMemoryMapRecord r) => r.BufferAddress == 0 && r.BufferSize == 0 && r.SourceBufferAddress == 0 && r.SourceBufferSize == 0 && r.MapSize == 0 && r.MapKey == 0 && r.DescriptorSize == 0 && r.DescriptorVersion == 0 && r.DescriptorCount == 0 && r.Flags == 0;
+    private static bool ZeroPlan(UefiMemoryMapCopyPlan p) => p.SourceAddress == 0 && p.SourceBufferSize == 0 && p.SourceMapSize == 0 && p.DestinationCapacity == 0 && p.RequiredDestinationBytes == 0 && p.MapKey == 0 && p.DescriptorSize == 0 && p.DescriptorVersion == 0 && p.DescriptorCount == 0;
     private static void Reset(Scenario scenario)
     {
         s_scenario = scenario;
@@ -393,9 +370,7 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
         delegate* unmanaged<uint, ulong, void**, ulong> allocate = &AllocatePool;
         if (s_scenario.DefaultSlack)
             return UefiMemoryMapCapture.Capture(map, allocate, destination, capacity);
-        return UefiMemoryMapCapture.Capture(s_scenario.MissingMap ? null : map,
-            s_scenario.MissingAllocation ? null : allocate,
-            s_scenario.MissingDestination ? null : destination, capacity, s_scenario.Slack);
+        return UefiMemoryMapCapture.Capture(s_scenario.MissingMap ? null : map, s_scenario.MissingAllocation ? null : allocate, s_scenario.MissingDestination ? null : destination, capacity, s_scenario.Slack);
     }
 
     [UnmanagedCallersOnly]
@@ -412,11 +387,13 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
             *key = 0x123456789ABCDEF0;
             return s_scenario.QueryStatus;
         }
+
         if (s_maps != 2 || s_events != 0x12 || buffer != s_firmware)
         {
             s_callbackMismatch = true;
             return DeviceError;
         }
+
         s_events = 0x123;
         s_recaptureCapacity = *size;
         s_callbackMismatch |= *size != s_expectedAllocation;
@@ -424,9 +401,11 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
         // BUFFER_TOO_SMALL and every other error write no descriptor bytes.
         if (s_scenario.FinalStatus == 0 && s_scenario.FinalSize <= *size && s_scenario.FinalSize <= s_capacity)
         {
-            for (ulong i = 0; i < s_scenario.FinalSize; i++) s_firmware[i] = s_payload[i];
+            for (ulong i = 0; i < s_scenario.FinalSize; i++)
+                s_firmware[i] = s_payload[i];
             s_written = s_scenario.FinalSize;
         }
+
         *size = s_scenario.FinalSize;
         *stride = s_scenario.FinalStride;
         *version = s_scenario.Version;
@@ -442,13 +421,16 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
         s_events = (s_events << 4) | 2;
         s_requestedAllocation = size;
         *buffer = null;
-        if (s_scenario.AllocationStatus != 0) return s_scenario.AllocationStatus;
-        if (s_scenario.NullAllocation) return 0;
+        if (s_scenario.AllocationStatus != 0)
+            return s_scenario.AllocationStatus;
+        if (s_scenario.NullAllocation)
+            return 0;
         if (size > s_capacity)
         {
             s_callbackMismatch = true;
             return OutOfResources;
         }
+
         *buffer = s_firmware;
         return 0;
     }

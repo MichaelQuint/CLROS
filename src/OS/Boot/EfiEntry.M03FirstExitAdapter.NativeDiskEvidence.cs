@@ -1,0 +1,31 @@
+#if M16_025_PROBE
+using OS.Storage;
+using OS.Kernel.Compatibility.LinuxX64;
+using OS.Kernel.Threading;
+using Block = OS.Storage.ContinuingReadOnlyBlockService;
+
+namespace OS.Boot;
+
+#pragma warning disable 649 // Eight contiguous caller-owned records are written through admitted native pointers.
+
+public static unsafe partial class EfiEntry
+{
+    private static partial class M03FirstExitAdapter
+    {
+
+        private struct NativeDiskEvidence
+        {
+            internal NativeDiskRecord A, B, C, D, E, F, G, H;
+            internal ulong Generation, CopiedRecords;
+            internal uint Count, Total;
+            internal bool Enabled, Failed;
+        }
+
+#if M10_018_PROBE
+
+#endif
+
+    }
+}
+#pragma warning restore 649
+#endif

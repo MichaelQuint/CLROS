@@ -21,21 +21,45 @@ public readonly struct Fat32FileReadResult
         AssumedContiguousClusters = assumedContiguousClusters;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public Fat32Status Status { get; }
+    public Fat32Status Status
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockStatus { get; }
+    public BlockDeviceStatus BlockStatus
+    {
+        get;
+    }
 
-    public Fat32Bpb Bpb { get; }
+    public Fat32Bpb Bpb
+    {
+        get;
+    }
 
-    public Fat32DirectoryEntry Entry { get; }
+    public Fat32DirectoryEntry Entry
+    {
+        get;
+    }
 
-    public uint FileSize { get; }
+    public uint FileSize
+    {
+        get;
+    }
 
-    public uint BytesRead { get; }
+    public uint BytesRead
+    {
+        get;
+    }
 
-    public bool AssumedContiguousClusters { get; }
+    public bool AssumedContiguousClusters
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == Fat32Status.Success;
 

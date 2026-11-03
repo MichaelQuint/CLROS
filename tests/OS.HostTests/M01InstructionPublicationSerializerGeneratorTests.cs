@@ -11,61 +11,33 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
     private const string ToolProjectName = "OS.X64TextSerializerGenerator";
     private const string ObjectFileName = "instruction-publication.obj";
     private const int ExpectedObjectSize = OS.Tooling.EfiContracts.SerializerObjectBytes;
-    private static readonly string ExpectedSha256 =
-        OS.Tooling.EfiContracts.SerializerObjectSha256.ToUpperInvariant();
-
+    private static readonly string ExpectedSha256 = OS.Tooling.EfiContracts.SerializerObjectSha256.ToUpperInvariant();
     private const ushort Amd64Machine = 0x8664;
     private const ushort Amd64Addr32Nb = 0x0003;
     private const uint TextCharacteristics = 0x60500020;
     private const uint ReadOnlyDataCharacteristics = 0x40300040;
-
-    private static readonly byte[] ExpectedText =
-    [
-        0x53,
-        0xB8, 0x00, 0x00, 0x00, 0x00,
-        0xB9, 0x00, 0x00, 0x00, 0x00,
-        0x0F, 0xA2,
-        0xB8, 0x43, 0x4C, 0x52, 0x53,
-        0x5B,
-        0xC3
-    ];
-
-    private static readonly byte[] ExpectedUnwind =
-    [
-        0x01, 0x01, 0x01, 0x00,
-        0x01, 0x30, 0x00, 0x00
-    ];
-
+    private static readonly byte[] ExpectedText = [0x53, 0xB8, 0x00, 0x00, 0x00, 0x00, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x0F, 0xA2, 0xB8, 0x43, 0x4C, 0x52, 0x53, 0x5B, 0xC3];
+    private static readonly byte[] ExpectedUnwind = [0x01, 0x01, 0x01, 0x00, 0x01, 0x30, 0x00, 0x00];
     private static readonly byte[] ExpectedStringTable = BuildExpectedStringTable();
     private static string? _boundedProcessHelperPath;
-
     [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         HostCheck.Run(AggregateName, () =>
         {
-
             try
             {
                 Execute();
-                Console.WriteLine(
-                    "CLROS_M01_033_READY bytes=" +
-                    ExpectedObjectSize.ToString(CultureInfo.InvariantCulture) +
-                    " sha256=" +
-                    ExpectedSha256);
+                Console.WriteLine("CLROS_M01_033_READY bytes=" + ExpectedObjectSize.ToString(CultureInfo.InvariantCulture) + " sha256=" + ExpectedSha256);
             }
             catch (M01TestFailureException ex)
             {
-                throw new InvalidOperationException(
-                    "M01-033 serializer generator tests failed: " + ex.Code,
-                    ex);
+                throw new InvalidOperationException("M01-033 serializer generator tests failed: " + ex.Code, ex);
             }
             catch (Exception ex)
             {
                 string code = "unexpected-" + ex.GetType().Name;
-                throw new InvalidOperationException(
-                    "M01-033 serializer generator tests failed: " + code,
-                    ex);
+                throw new InvalidOperationException("M01-033 serializer generator tests failed: " + code, ex);
             }
         });
     }
@@ -75,81 +47,47 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string projectRoot = Path.Combine(repositoryRoot, "tools", ToolProjectName);
         string projectPath = Path.Combine(projectRoot, ToolProjectName + ".csproj");
-
         Require(File.Exists(projectPath), "tool-project-missing");
         Require(File.Exists(Path.Combine(projectRoot, "Program.cs")), "tool-program-missing");
         Require(File.Exists(Path.Combine(projectRoot, "Amd64CoffWriter.cs")), "tool-writer-missing");
-        Require(
-            File.Exists(Path.Combine(projectRoot, "InstructionPublicationSerializerGenerator.cs")),
-            "tool-generator-missing");
-
-        string temporaryRoot = Path.Combine(
-            Path.GetTempPath(),
-            "clros-m01-033-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture));
-
+        Require(File.Exists(Path.Combine(projectRoot, "InstructionPublicationSerializerGenerator.cs")), "tool-generator-missing");
+        string temporaryRoot = Path.Combine(Path.GetTempPath(), "clros-m01-033-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture));
         try
         {
             Directory.CreateDirectory(temporaryRoot);
             _boundedProcessHelperPath = BuildBoundedProcessHelper(temporaryRoot);
-
             string checkoutA = CreateCleanToolCheckout(repositoryRoot, temporaryRoot, "checkout-a");
             string checkoutB = CreateCleanToolCheckout(repositoryRoot, temporaryRoot, "checkout-b");
             string toolA = BuildCleanTool(checkoutA, "a");
             string toolB = BuildCleanTool(checkoutB, "b");
-
             string outputRootA = Path.Combine(temporaryRoot, "output-a");
             string outputRootB = Path.Combine(temporaryRoot, "different", "absolute", "output-b");
             Directory.CreateDirectory(outputRootA);
             Directory.CreateDirectory(outputRootB);
-
-            ProcessResult createdA = RunGenerator(
-                toolA,
-                outputRootA,
-                ObjectFileName,
-                timeoutMilliseconds: 15_000);
+            ProcessResult createdA = RunGenerator(toolA, outputRootA, ObjectFileName, timeoutMilliseconds: 15_000);
             AssertGeneratorSuccess(createdA, "created", "generator-create-a");
-
             string objectPathA = Path.Combine(outputRootA, ObjectFileName);
             byte[] objectA = ReadExpectedObject(objectPathA, "object-a");
             ParsedCoff parsed = ParseAndValidateExpected(objectA);
             ValidateSerializerAbi(parsed);
             ValidatePublicWriterContract(checkoutA);
-
             DateTime frozenWriteTime = new DateTime(2001, 2, 3, 4, 5, 6, DateTimeKind.Utc);
             File.SetLastWriteTimeUtc(objectPathA, frozenWriteTime);
-            ProcessResult unchanged = RunGenerator(
-                toolA,
-                outputRootA,
-                ObjectFileName,
-                timeoutMilliseconds: 15_000);
+            ProcessResult unchanged = RunGenerator(toolA, outputRootA, ObjectFileName, timeoutMilliseconds: 15_000);
             AssertGeneratorSuccess(unchanged, "unchanged", "generator-idempotent");
-            Require(
-                File.GetLastWriteTimeUtc(objectPathA) == frozenWriteTime,
-                "generator-idempotent-rewrote-file");
-            Require(
-                File.ReadAllBytes(objectPathA).AsSpan().SequenceEqual(objectA),
-                "generator-idempotent-bytes-changed");
-
+            Require(File.GetLastWriteTimeUtc(objectPathA) == frozenWriteTime, "generator-idempotent-rewrote-file");
+            Require(File.ReadAllBytes(objectPathA).AsSpan().SequenceEqual(objectA), "generator-idempotent-bytes-changed");
             Dictionary<string, string?> cultureEnvironment = new(StringComparer.Ordinal)
             {
                 ["DOTNET_CLI_UI_LANGUAGE"] = "tr-TR",
                 ["LANG"] = "tr_TR.UTF-8",
                 ["LC_ALL"] = "tr_TR.UTF-8"
             };
-            ProcessResult createdB = RunGenerator(
-                toolB,
-                outputRootB,
-                "INSTRUCTION-PUBLICATION.OBJ",
-                timeoutMilliseconds: 15_000,
-                cultureEnvironment);
+            ProcessResult createdB = RunGenerator(toolB, outputRootB, "INSTRUCTION-PUBLICATION.OBJ", timeoutMilliseconds: 15_000, cultureEnvironment);
             AssertGeneratorSuccess(createdB, "created", "generator-create-b");
-
-            byte[] objectB = ReadExpectedObject(
-                Path.Combine(outputRootB, "INSTRUCTION-PUBLICATION.OBJ"),
-                "object-b");
+            byte[] objectB = ReadExpectedObject(Path.Combine(outputRootB, "INSTRUCTION-PUBLICATION.OBJ"), "object-b");
             Require(objectB.AsSpan().SequenceEqual(objectA), "checkout-path-nondeterministic");
             Require(ComputeSha256(objectB) == ExpectedSha256, "culture-hash-mismatch");
-
             ValidateCliFailureBoundaries(toolA, temporaryRoot, outputRootA, objectA);
             ValidateIndependentParserMutationFamilies(objectA);
             ValidateBoundedProcessAndPartialObject(temporaryRoot);
@@ -168,9 +106,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         Directory.CreateDirectory(helperRoot);
         string projectPath = Path.Combine(helperRoot, "BoundedProcessHelper.csproj");
         string sourcePath = Path.Combine(helperRoot, "Program.cs");
-        File.WriteAllText(
-            projectPath,
-            """
+        File.WriteAllText(projectPath, """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <OutputType>Exe</OutputType>
@@ -181,11 +117,8 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                 <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
               </PropertyGroup>
             </Project>
-            """,
-            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        File.WriteAllText(
-            sourcePath,
-            """
+            """, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.WriteAllText(sourcePath, """
             using System.Diagnostics;
             using System.Globalization;
             using System.Text;
@@ -529,9 +462,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                     }
                 }
             }
-            """,
-            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
+            """, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         ProcessStartInfo build = new ProcessStartInfo("dotnet")
         {
             UseShellExecute = false,
@@ -555,8 +486,10 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         build.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
         build.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
         build.Environment["DOTNET_NOLOGO"] = "1";
-
-        using Process process = new Process { StartInfo = build };
+        using Process process = new Process
+        {
+            StartInfo = build
+        };
         bool processStarted = false;
         try
         {
@@ -565,9 +498,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             bool exited = process.WaitForExit(120_000);
             if (!exited)
             {
-                Require(
-                    BestEffortTerminateAndReap(process, 10_000),
-                    "process-helper-build-kill-timeout");
+                Require(BestEffortTerminateAndReap(process, 10_000), "process-helper-build-kill-timeout");
             }
 
             Require(exited, "process-helper-build-timeout");
@@ -581,21 +512,12 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             }
         }
 
-        string helperPath = Path.Combine(
-            helperRoot,
-            "bin",
-            "Release",
-            "net11.0",
-            OperatingSystem.IsWindows()
-                ? "BoundedProcessHelper.exe"
-                : "BoundedProcessHelper");
+        string helperPath = Path.Combine(helperRoot, "bin", "Release", "net11.0", OperatingSystem.IsWindows() ? "BoundedProcessHelper.exe" : "BoundedProcessHelper");
         Require(File.Exists(helperPath), "process-helper-build-output-missing");
         return helperPath;
     }
 
-    private static bool BestEffortTerminateAndReap(
-        Process process,
-        int timeoutMilliseconds)
+    private static bool BestEffortTerminateAndReap(Process process, int timeoutMilliseconds)
     {
         bool knownExited;
         try
@@ -653,38 +575,17 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         }
     }
 
-    private static string CreateCleanToolCheckout(
-        string repositoryRoot,
-        string temporaryRoot,
-        string checkoutName)
+    private static string CreateCleanToolCheckout(string repositoryRoot, string temporaryRoot, string checkoutName)
     {
         string checkoutRoot = Path.Combine(temporaryRoot, checkoutName);
         string toolsRoot = Path.Combine(checkoutRoot, "tools");
         string destinationProjectRoot = Path.Combine(toolsRoot, ToolProjectName);
         string sourceProjectRoot = Path.Combine(repositoryRoot, "tools", ToolProjectName);
-
         Directory.CreateDirectory(destinationProjectRoot);
         CopyFile(repositoryRoot, checkoutRoot, "global.json");
         CopyFile(repositoryRoot, checkoutRoot, "Directory.Build.props");
-        CopyFile(
-            Path.Combine(repositoryRoot, "tools"),
-            toolsRoot,
-            "Directory.Build.props");
-
-        string[] sourceFiles =
-        [
-            ToolProjectName + ".csproj",
-            "Program.cs",
-            "Amd64CoffWriter.cs",
-            "CheckedReferenceBarrierThunkGenerator.cs",
-            "InterfaceDispatchThunkGenerator.cs",
-            "ExceptionHandlingThunkGenerator.cs",
-            "ExceptionFilterThunkGenerator.cs",
-            "NormalFinallyThunkGenerator.cs",
-            "EhContributionCatalogGenerator.cs",
-            "InstructionPublicationSerializerGenerator.cs"
-        ];
-
+        CopyFile(Path.Combine(repositoryRoot, "tools"), toolsRoot, "Directory.Build.props");
+        string[] sourceFiles = [ToolProjectName + ".csproj", "Program.cs", "Amd64CoffWriter.cs", "CheckedReferenceBarrierThunkGenerator.cs", "InterfaceDispatchThunkGenerator.cs", "ExceptionHandlingThunkGenerator.cs", "ExceptionFilterThunkGenerator.cs", "NormalFinallyThunkGenerator.cs", "EhContributionCatalogGenerator.cs", "InstructionPublicationSerializerGenerator.cs"];
         foreach (string sourceFile in sourceFiles)
         {
             string source = Path.Combine(sourceProjectRoot, sourceFile);
@@ -693,10 +594,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             File.Copy(source, destination, overwrite: false);
         }
 
-        Require(
-            !Directory.Exists(Path.Combine(destinationProjectRoot, "bin")) &&
-            !Directory.Exists(Path.Combine(destinationProjectRoot, "obj")),
-            "clean-checkout-contained-build-output");
+        Require(!Directory.Exists(Path.Combine(destinationProjectRoot, "bin")) && !Directory.Exists(Path.Combine(destinationProjectRoot, "obj")), "clean-checkout-contained-build-output");
         return checkoutRoot;
     }
 
@@ -711,50 +609,20 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
 
     private static string BuildCleanTool(string checkoutRoot, string suffix)
     {
-        string projectPath = Path.Combine(
-            checkoutRoot,
-            "tools",
-            ToolProjectName,
-            ToolProjectName + ".csproj");
-
-        ProcessResult result = RunCleanBuild(
-            checkoutRoot,
-            projectPath,
-            "tool-" + suffix,
-            timeoutMilliseconds: 120_000);
+        string projectPath = Path.Combine(checkoutRoot, "tools", ToolProjectName, ToolProjectName + ".csproj");
+        ProcessResult result = RunCleanBuild(checkoutRoot, projectPath, "tool-" + suffix, timeoutMilliseconds: 120_000);
         Require(!result.TimedOut, "tool-build-" + suffix + "-timeout");
-        Require(
-            !result.StandardOutputOverflow && !result.StandardErrorOverflow,
-            "tool-build-" + suffix + "-output-overflow");
-        Require(
-            !result.StandardOutputIncomplete && !result.StandardErrorIncomplete,
-            "tool-build-" + suffix + "-output-incomplete");
+        Require(!result.StandardOutputOverflow && !result.StandardErrorOverflow, "tool-build-" + suffix + "-output-overflow");
+        Require(!result.StandardOutputIncomplete && !result.StandardErrorIncomplete, "tool-build-" + suffix + "-output-incomplete");
         Require(result.ExitCode == 0, "tool-build-" + suffix + "-failed");
-
-        string toolPath = Path.Combine(
-            checkoutRoot,
-            "tools",
-            ToolProjectName,
-            "bin",
-            "Release",
-            "net11.0",
-            OperatingSystem.IsWindows()
-                ? ToolProjectName + ".exe"
-                : ToolProjectName);
+        string toolPath = Path.Combine(checkoutRoot, "tools", ToolProjectName, "bin", "Release", "net11.0", OperatingSystem.IsWindows() ? ToolProjectName + ".exe" : ToolProjectName);
         Require(File.Exists(toolPath), "tool-build-" + suffix + "-output-missing");
         return toolPath;
     }
 
-    private static ProcessResult RunGenerator(
-        string toolPath,
-        string outputRoot,
-        string outputFile,
-        int timeoutMilliseconds,
-        IReadOnlyDictionary<string, string?>? environment = null)
+    private static ProcessResult RunGenerator(string toolPath, string outputRoot, string outputFile, int timeoutMilliseconds, IReadOnlyDictionary<string, string?>? environment = null)
     {
-        ProcessStartInfo start = NewExecutableStartInfo(
-            toolPath,
-            Path.GetDirectoryName(toolPath)!);
+        ProcessStartInfo start = NewExecutableStartInfo(toolPath, Path.GetDirectoryName(toolPath)!);
         start.ArgumentList.Add("--output-root");
         start.ArgumentList.Add(outputRoot);
         start.ArgumentList.Add("--output-file");
@@ -763,14 +631,9 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         return RunBounded(start, timeoutMilliseconds);
     }
 
-    private static ProcessResult RunGeneratorArguments(
-        string toolPath,
-        int timeoutMilliseconds,
-        params string[] arguments)
+    private static ProcessResult RunGeneratorArguments(string toolPath, int timeoutMilliseconds, params string[] arguments)
     {
-        ProcessStartInfo start = NewExecutableStartInfo(
-            toolPath,
-            Path.GetDirectoryName(toolPath)!);
+        ProcessStartInfo start = NewExecutableStartInfo(toolPath, Path.GetDirectoryName(toolPath)!);
         foreach (string argument in arguments)
         {
             start.ArgumentList.Add(argument);
@@ -791,9 +654,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         };
     }
 
-    private static ProcessStartInfo NewExecutableStartInfo(
-        string executable,
-        string workingDirectory)
+    private static ProcessStartInfo NewExecutableStartInfo(string executable, string workingDirectory)
     {
         return new ProcessStartInfo(executable)
         {
@@ -805,54 +666,30 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         };
     }
 
-    private static void AddEnvironment(
-        ProcessStartInfo start,
-        IReadOnlyDictionary<string, string?>? environment)
+    private static void AddEnvironment(ProcessStartInfo start, IReadOnlyDictionary<string, string?>? environment)
     {
         if (environment is null)
         {
             return;
         }
 
-        foreach ((string key, string? value) in environment)
+        foreach ((string key, string? value)in environment)
         {
             start.Environment[key] = value;
         }
     }
 
-    private static void AssertGeneratorSuccess(
-        ProcessResult result,
-        string expectedState,
-        string failureCode)
+    private static void AssertGeneratorSuccess(ProcessResult result, string expectedState, string failureCode)
     {
         Require(!result.TimedOut, failureCode + "-timeout");
-        Require(
-            !result.StandardOutputOverflow && !result.StandardErrorOverflow,
-            failureCode + "-output-overflow");
-        Require(
-            !result.StandardOutputIncomplete,
-            failureCode + "-stdout-incomplete-" + result.StandardOutputDrainResult);
-        Require(
-            !result.StandardErrorIncomplete,
-            failureCode + "-stderr-incomplete-" + result.StandardErrorDrainResult);
+        Require(!result.StandardOutputOverflow && !result.StandardErrorOverflow, failureCode + "-output-overflow");
+        Require(!result.StandardOutputIncomplete, failureCode + "-stdout-incomplete-" + result.StandardOutputDrainResult);
+        Require(!result.StandardErrorIncomplete, failureCode + "-stderr-incomplete-" + result.StandardErrorDrainResult);
         Require(result.ExitCode == 0, failureCode + "-exit");
         Require(string.IsNullOrWhiteSpace(result.StandardError), failureCode + "-stderr");
-
         string[] lines = NonEmptyLines(result.StandardOutput);
-        string ready =
-            "X64_SERIALIZER_OBJECT_READY bytes=" +
-            ExpectedObjectSize.ToString(CultureInfo.InvariantCulture) +
-            " sha256=" +
-            ExpectedSha256 +
-            " state=" +
-            expectedState;
-        string[] expected =
-        [
-            "TEST_START x64.serializer.generate",
-            ready,
-            "TEST_PASS x64.serializer.generate"
-        ];
-
+        string ready = "X64_SERIALIZER_OBJECT_READY bytes=" + ExpectedObjectSize.ToString(CultureInfo.InvariantCulture) + " sha256=" + ExpectedSha256 + " state=" + expectedState;
+        string[] expected = ["TEST_START x64.serializer.generate", ready, "TEST_PASS x64.serializer.generate"];
         Require(lines.SequenceEqual(expected, StringComparer.Ordinal), failureCode + "-markers");
     }
 
@@ -870,161 +707,48 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         return Convert.ToHexString(SHA256.HashData(bytes));
     }
 
-    private static void ValidateCliFailureBoundaries(
-        string toolPath,
-        string temporaryRoot,
-        string validOutputRoot,
-        byte[] validObject)
+    private static void ValidateCliFailureBoundaries(string toolPath, string temporaryRoot, string validOutputRoot, byte[] validObject)
     {
         ProcessResult missingA = RunGeneratorArguments(toolPath, 15_000);
         ProcessResult missingB = RunGeneratorArguments(toolPath, 15_000);
-        AssertStableGeneratorFailure(
-            missingA,
-            missingB,
-            2,
-            "arguments_missing",
-            "cli-default");
-
-        AssertGeneratorFailure(
-            RunGeneratorArguments(
-                toolPath,
-                15_000,
-                "--output-root", " ",
-                "--output-file", ObjectFileName),
-            2,
-            "output_root_invalid",
-            "cli-empty-root");
-        AssertGeneratorFailure(
-            RunGeneratorArguments(
-                toolPath,
-                15_000,
-                "--output-root", validOutputRoot,
-                "--output-file", " "),
-            2,
-            "output_file_invalid",
-            "cli-empty-file");
-        AssertGeneratorFailure(
-            RunGeneratorArguments(
-                toolPath,
-                15_000,
-                "--output-root", validOutputRoot,
-                "--output-root", validOutputRoot,
-                "--output-file", ObjectFileName),
-            2,
-            "argument_duplicate",
-            "cli-duplicate-option");
-        AssertGeneratorFailure(
-            RunGeneratorArguments(
-                toolPath,
-                15_000,
-                "--unknown", "value",
-                "--output-root", validOutputRoot,
-                "--output-file", ObjectFileName),
-            2,
-            "argument_unknown",
-            "cli-unknown-option");
-        AssertGeneratorFailure(
-            RunGeneratorArguments(
-                toolPath,
-                15_000,
-                "--output-root", "relative-root",
-                "--output-file", ObjectFileName),
-            2,
-            "output_root_invalid",
-            "cli-relative-root");
-
+        AssertStableGeneratorFailure(missingA, missingB, 2, "arguments_missing", "cli-default");
+        AssertGeneratorFailure(RunGeneratorArguments(toolPath, 15_000, "--output-root", " ", "--output-file", ObjectFileName), 2, "output_root_invalid", "cli-empty-root");
+        AssertGeneratorFailure(RunGeneratorArguments(toolPath, 15_000, "--output-root", validOutputRoot, "--output-file", " "), 2, "output_file_invalid", "cli-empty-file");
+        AssertGeneratorFailure(RunGeneratorArguments(toolPath, 15_000, "--output-root", validOutputRoot, "--output-root", validOutputRoot, "--output-file", ObjectFileName), 2, "argument_duplicate", "cli-duplicate-option");
+        AssertGeneratorFailure(RunGeneratorArguments(toolPath, 15_000, "--unknown", "value", "--output-root", validOutputRoot, "--output-file", ObjectFileName), 2, "argument_unknown", "cli-unknown-option");
+        AssertGeneratorFailure(RunGeneratorArguments(toolPath, 15_000, "--output-root", "relative-root", "--output-file", ObjectFileName), 2, "output_root_invalid", "cli-relative-root");
         string absentRoot = Path.Combine(temporaryRoot, "absent-output-root");
-        AssertGeneratorFailure(
-            RunGeneratorArguments(
-                toolPath,
-                15_000,
-                "--output-root", absentRoot,
-                "--output-file", ObjectFileName),
-            2,
-            "output_root_invalid",
-            "cli-absent-root");
+        AssertGeneratorFailure(RunGeneratorArguments(toolPath, 15_000, "--output-root", absentRoot, "--output-file", ObjectFileName), 2, "output_root_invalid", "cli-absent-root");
         Require(!Directory.Exists(absentRoot), "cli-absent-root-created");
-
-        string[] unsafeNames =
-        [
-            ".." + Path.DirectorySeparatorChar + "escape.obj",
-            "sub" + Path.DirectorySeparatorChar + "escape.obj",
-            Path.Combine(validOutputRoot, "rooted.obj"),
-            "wrong.bin",
-            "CON.obj",
-            "bad:stream.obj",
-            "trailing.obj ",
-            ".obj",
-            ".",
-            ".."
-        ];
-
+        string[] unsafeNames = [".." + Path.DirectorySeparatorChar + "escape.obj", "sub" + Path.DirectorySeparatorChar + "escape.obj", Path.Combine(validOutputRoot, "rooted.obj"), "wrong.bin", "CON.obj", "bad:stream.obj", "trailing.obj ", ".obj", ".", ".."];
         for (int unsafeIndex = 0; unsafeIndex < unsafeNames.Length; unsafeIndex++)
         {
             string unsafeName = unsafeNames[unsafeIndex];
-            ProcessResult failure = RunGeneratorArguments(
-                toolPath,
-                15_000,
-                "--output-root", validOutputRoot,
-                "--output-file", unsafeName);
-            AssertGeneratorFailure(
-                failure,
-                2,
-                "output_file_invalid",
-                "cli-unsafe-name-" +
-                unsafeIndex.ToString(CultureInfo.InvariantCulture));
+            ProcessResult failure = RunGeneratorArguments(toolPath, 15_000, "--output-root", validOutputRoot, "--output-file", unsafeName);
+            AssertGeneratorFailure(failure, 2, "output_file_invalid", "cli-unsafe-name-" + unsafeIndex.ToString(CultureInfo.InvariantCulture));
         }
 
         string escapePath = Path.Combine(Path.GetDirectoryName(validOutputRoot)!, "escape.obj");
         Require(!File.Exists(escapePath), "cli-path-traversal-created-output");
-
         string staleName = "stale.obj";
         string stalePath = Path.Combine(validOutputRoot, staleName);
         byte[] staleBytes = (byte[])validObject.Clone();
         staleBytes[140] ^= 0x01;
         File.WriteAllBytes(stalePath, staleBytes);
-
         ProcessResult staleA = RunGenerator(toolPath, validOutputRoot, staleName, 15_000);
         ProcessResult staleB = RunGenerator(toolPath, validOutputRoot, staleName, 15_000);
-        AssertStableGeneratorFailure(
-            staleA,
-            staleB,
-            1,
-            "existing_output_mismatch",
-            "cli-stale-output");
-        Require(
-            File.ReadAllBytes(stalePath).AsSpan().SequenceEqual(staleBytes),
-            "cli-stale-output-overwritten");
-
+        AssertStableGeneratorFailure(staleA, staleB, 1, "existing_output_mismatch", "cli-stale-output");
+        Require(File.ReadAllBytes(stalePath).AsSpan().SequenceEqual(staleBytes), "cli-stale-output-overwritten");
         string blockedName = "blocked.obj";
         string blockedPath = Path.Combine(validOutputRoot, blockedName);
         Directory.CreateDirectory(blockedPath);
-        ProcessResult blocked = RunGenerator(
-            toolPath,
-            validOutputRoot,
-            blockedName,
-            15_000);
-        AssertGeneratorFailure(
-            blocked,
-            1,
-            "io_failure",
-            "cli-blocked-destination");
+        ProcessResult blocked = RunGenerator(toolPath, validOutputRoot, blockedName, 15_000);
+        AssertGeneratorFailure(blocked, 1, "io_failure", "cli-blocked-destination");
         Require(Directory.Exists(blockedPath), "cli-blocked-directory-removed");
         Require(!File.Exists(blockedPath), "cli-blocked-destination-became-file");
-        Require(
-            Directory.GetFiles(
-                validOutputRoot,
-                ".clros-x64-*.tmp",
-                SearchOption.TopDirectoryOnly).Length == 0,
-            "cli-blocked-destination-left-temporary-file");
-
+        Require(Directory.GetFiles(validOutputRoot, ".clros-x64-*.tmp", SearchOption.TopDirectoryOnly).Length == 0, "cli-blocked-destination-left-temporary-file");
         string[] filesAfterFailure = Directory.GetFiles(validOutputRoot, "*", SearchOption.TopDirectoryOnly);
-        Require(
-            filesAfterFailure.All(
-                path =>
-                    string.Equals(Path.GetFileName(path), ObjectFileName, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(Path.GetFileName(path), staleName, StringComparison.OrdinalIgnoreCase)),
-            "cli-failure-left-temporary-file");
+        Require(filesAfterFailure.All(path => string.Equals(Path.GetFileName(path), ObjectFileName, StringComparison.OrdinalIgnoreCase) || string.Equals(Path.GetFileName(path), staleName, StringComparison.OrdinalIgnoreCase)), "cli-failure-left-temporary-file");
     }
 
     private static void ValidatePublicWriterContract(string checkoutRoot)
@@ -1033,10 +757,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         Directory.CreateDirectory(probeRoot);
         string projectPath = Path.Combine(probeRoot, "WriterContractProbe.csproj");
         string programPath = Path.Combine(probeRoot, "Program.cs");
-
-        File.WriteAllText(
-            projectPath,
-            """
+        File.WriteAllText(projectPath, """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <OutputType>Exe</OutputType>
@@ -1050,12 +771,8 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                 <ProjectReference Include="..\tools\OS.X64TextSerializerGenerator\OS.X64TextSerializerGenerator.csproj" />
               </ItemGroup>
             </Project>
-            """,
-            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-        File.WriteAllText(
-            programPath,
-            """
+            """, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.WriteAllText(programPath, """
             using System.Security.Cryptography;
             using OS.X64TextSerializerGenerator;
 
@@ -1426,58 +1143,25 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                 ];
                 return new(0x8664, 0, sections, symbols);
             }
-            """.Replace("__SERIALIZER_OBJECT_SHA256__", ExpectedSha256, StringComparison.Ordinal)
-                .Replace("__SERIALIZER_OBJECT_BYTES__", ExpectedObjectSize.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
-                .Replace("__SERIALIZER_SYMBOL__", OS.Tooling.EfiContracts.SerializerSymbol, StringComparison.Ordinal),
-            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-        ProcessResult buildResult = RunCleanBuild(
-            checkoutRoot,
-            projectPath,
-            "writer-probe",
-            timeoutMilliseconds: 120_000);
+            """.Replace("__SERIALIZER_OBJECT_SHA256__", ExpectedSha256, StringComparison.Ordinal).Replace("__SERIALIZER_OBJECT_BYTES__", ExpectedObjectSize.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal).Replace("__SERIALIZER_SYMBOL__", OS.Tooling.EfiContracts.SerializerSymbol, StringComparison.Ordinal), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        ProcessResult buildResult = RunCleanBuild(checkoutRoot, projectPath, "writer-probe", timeoutMilliseconds: 120_000);
         Require(!buildResult.TimedOut, "writer-probe-build-timeout");
-        Require(
-            !buildResult.StandardOutputOverflow && !buildResult.StandardErrorOverflow,
-            "writer-probe-build-output-overflow");
-        Require(
-            !buildResult.StandardOutputIncomplete && !buildResult.StandardErrorIncomplete,
-            "writer-probe-build-output-incomplete");
+        Require(!buildResult.StandardOutputOverflow && !buildResult.StandardErrorOverflow, "writer-probe-build-output-overflow");
+        Require(!buildResult.StandardOutputIncomplete && !buildResult.StandardErrorIncomplete, "writer-probe-build-output-incomplete");
         Require(buildResult.ExitCode == 0, "writer-probe-build-failed");
-
-        string probeExecutable = Path.Combine(
-            probeRoot,
-            "bin",
-            "Release",
-            "net11.0",
-            OperatingSystem.IsWindows()
-                ? "WriterContractProbe.exe"
-                : "WriterContractProbe");
+        string probeExecutable = Path.Combine(probeRoot, "bin", "Release", "net11.0", OperatingSystem.IsWindows() ? "WriterContractProbe.exe" : "WriterContractProbe");
         Require(File.Exists(probeExecutable), "writer-probe-output-missing");
-
         ProcessStartInfo run = NewExecutableStartInfo(probeExecutable, checkoutRoot);
         ProcessResult runResult = RunBounded(run, 15_000);
         Require(!runResult.TimedOut, "writer-probe-run-timeout");
-        Require(
-            !runResult.StandardOutputOverflow && !runResult.StandardErrorOverflow,
-            "writer-probe-run-output-overflow");
-        Require(
-            !runResult.StandardOutputIncomplete && !runResult.StandardErrorIncomplete,
-            "writer-probe-run-output-incomplete");
+        Require(!runResult.StandardOutputOverflow && !runResult.StandardErrorOverflow, "writer-probe-run-output-overflow");
+        Require(!runResult.StandardOutputIncomplete && !runResult.StandardErrorIncomplete, "writer-probe-run-output-incomplete");
         Require(runResult.ExitCode == 0, "writer-probe-run-failed");
-        Require(
-            NonEmptyLines(runResult.StandardOutput).SequenceEqual(
-                ["WRITER_CONTRACT_PROBE_PASS"],
-                StringComparer.Ordinal),
-            "writer-probe-pass-marker");
+        Require(NonEmptyLines(runResult.StandardOutput).SequenceEqual(["WRITER_CONTRACT_PROBE_PASS"], StringComparer.Ordinal), "writer-probe-pass-marker");
         Require(string.IsNullOrWhiteSpace(runResult.StandardError), "writer-probe-stderr");
     }
 
-    private static ProcessResult RunCleanBuild(
-        string checkoutRoot,
-        string projectPath,
-        string logName,
-        int timeoutMilliseconds)
+    private static ProcessResult RunCleanBuild(string checkoutRoot, string projectPath, string logName, int timeoutMilliseconds)
     {
         _ = logName;
         ProcessStartInfo start = NewDotnetStartInfo(checkoutRoot);
@@ -1497,70 +1181,26 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         return RunBounded(start, timeoutMilliseconds);
     }
 
-    private static void AssertStableGeneratorFailure(
-        ProcessResult first,
-        ProcessResult second,
-        int expectedExitCode,
-        string expectedDiagnosticCode,
-        string failureCode)
+    private static void AssertStableGeneratorFailure(ProcessResult first, ProcessResult second, int expectedExitCode, string expectedDiagnosticCode, string failureCode)
     {
-        AssertGeneratorFailure(
-            first,
-            expectedExitCode,
-            expectedDiagnosticCode,
-            failureCode + "-first");
-        AssertGeneratorFailure(
-            second,
-            expectedExitCode,
-            expectedDiagnosticCode,
-            failureCode + "-second");
-        Require(
-            string.Equals(first.StandardError, second.StandardError, StringComparison.Ordinal),
-            failureCode + "-diagnostic-unstable");
-        Require(
-            string.Equals(first.StandardOutput, second.StandardOutput, StringComparison.Ordinal),
-            failureCode + "-stdout-unstable");
+        AssertGeneratorFailure(first, expectedExitCode, expectedDiagnosticCode, failureCode + "-first");
+        AssertGeneratorFailure(second, expectedExitCode, expectedDiagnosticCode, failureCode + "-second");
+        Require(string.Equals(first.StandardError, second.StandardError, StringComparison.Ordinal), failureCode + "-diagnostic-unstable");
+        Require(string.Equals(first.StandardOutput, second.StandardOutput, StringComparison.Ordinal), failureCode + "-stdout-unstable");
     }
 
-    private static void AssertGeneratorFailure(
-        ProcessResult result,
-        int expectedExitCode,
-        string expectedDiagnosticCode,
-        string failureCode)
+    private static void AssertGeneratorFailure(ProcessResult result, int expectedExitCode, string expectedDiagnosticCode, string failureCode)
     {
         Require(!result.TimedOut, failureCode + "-timeout");
-        Require(
-            !result.StandardOutputOverflow && !result.StandardErrorOverflow,
-            failureCode + "-output-overflow");
-        Require(
-            !result.StandardOutputIncomplete && !result.StandardErrorIncomplete,
-            failureCode + "-output-incomplete");
+        Require(!result.StandardOutputOverflow && !result.StandardErrorOverflow, failureCode + "-output-overflow");
+        Require(!result.StandardOutputIncomplete && !result.StandardErrorIncomplete, failureCode + "-output-incomplete");
         Require(result.ExitCode == expectedExitCode, failureCode + "-exit");
-        Require(
-            TryGetSingleOutputLine(result.StandardOutput, out string actualOutputLine) &&
-            actualOutputLine == "TEST_START x64.serializer.generate",
-            failureCode + "-stdout");
-        Require(
-            !result.StandardOutput.Contains(
-                "X64_SERIALIZER_OBJECT_READY",
-                StringComparison.Ordinal) &&
-            !result.StandardOutput.Contains(
-                "TEST_PASS x64.serializer.generate",
-                StringComparison.Ordinal),
-            failureCode + "-accepted-output");
-
-        string expectedMarker =
-            "TEST_FAIL x64.serializer.generate " +
-            expectedDiagnosticCode;
-        Require(
-            TryGetSingleOutputLine(result.StandardError, out string actualErrorLine),
-            failureCode + "-diagnostic-count");
-        Require(
-            string.Equals(actualErrorLine, expectedMarker, StringComparison.Ordinal),
-            failureCode + "-diagnostic-marker");
-        Require(
-            actualErrorLine.All(character => character >= 0x20 && character <= 0x7E),
-            failureCode + "-diagnostic-not-ascii");
+        Require(TryGetSingleOutputLine(result.StandardOutput, out string actualOutputLine) && actualOutputLine == "TEST_START x64.serializer.generate", failureCode + "-stdout");
+        Require(!result.StandardOutput.Contains("X64_SERIALIZER_OBJECT_READY", StringComparison.Ordinal) && !result.StandardOutput.Contains("TEST_PASS x64.serializer.generate", StringComparison.Ordinal), failureCode + "-accepted-output");
+        string expectedMarker = "TEST_FAIL x64.serializer.generate " + expectedDiagnosticCode;
+        Require(TryGetSingleOutputLine(result.StandardError, out string actualErrorLine), failureCode + "-diagnostic-count");
+        Require(string.Equals(actualErrorLine, expectedMarker, StringComparison.Ordinal), failureCode + "-diagnostic-marker");
+        Require(actualErrorLine.All(character => character >= 0x20 && character <= 0x7E), failureCode + "-diagnostic-not-ascii");
     }
 
     private static bool TryGetSingleOutputLine(string text, out string line)
@@ -1571,9 +1211,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             return false;
         }
 
-        string normalized = text
-            .Replace("\r\n", "\n", StringComparison.Ordinal)
-            .Replace('\r', '\n');
+        string normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
         if (normalized.EndsWith('\n'))
         {
             normalized = normalized[..^1];
@@ -1590,15 +1228,12 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
 
     private static string[] NonEmptyLines(string text)
     {
-        return text
-            .Replace("\r\n", "\n", StringComparison.Ordinal)
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     private static ParsedCoff ParseAndValidateExpected(byte[] bytes)
     {
         ParsedCoff coff = IndependentCoffParser.Parse(bytes);
-
         Require(bytes.Length == ExpectedObjectSize, "coff-size");
         Require(coff.Machine == Amd64Machine, "coff-machine");
         Require(coff.SectionCount == 3, "coff-section-count");
@@ -1609,62 +1244,19 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         Require(coff.Characteristics == 0, "coff-characteristics");
         Require(coff.Sections.Count == 3, "coff-parsed-section-count");
         Require(coff.Symbols.Count == 2, "coff-parsed-symbol-count");
-        Require(
-            bytes.AsSpan(20, 8).SequenceEqual(
-                new byte[] { (byte)'/', (byte)'4', 0, 0, 0, 0, 0, 0 }),
-            "text-raw-name");
-        Require(
-            bytes.AsSpan(60, 8).SequenceEqual(
-                new byte[] { (byte)'/', (byte)'1', (byte)'8', 0, 0, 0, 0, 0 }),
-            "xdata-raw-name");
-        Require(
-            bytes.AsSpan(100, 8).SequenceEqual(
-                new byte[] { (byte)'/', (byte)'3', (byte)'3', 0, 0, 0, 0, 0 }),
-            "pdata-raw-name");
-        Require(
-            coff.StringTable.AsSpan().SequenceEqual(ExpectedStringTable),
-            "coff-string-table");
-
-        ValidateSection(
-            coff.Sections[0],
-            ".text$clrossm",
-            rawSize: 20,
-            rawPointer: 140,
-            relocationPointer: 0,
-            relocationCount: 0,
-            TextCharacteristics,
-            "text");
-        ValidateSection(
-            coff.Sections[1],
-            ".xdata$clrossm",
-            rawSize: 8,
-            rawPointer: 160,
-            relocationPointer: 0,
-            relocationCount: 0,
-            ReadOnlyDataCharacteristics,
-            "xdata");
-        ValidateSection(
-            coff.Sections[2],
-            ".pdata$clrossm",
-            rawSize: 12,
-            rawPointer: 168,
-            relocationPointer: 180,
-            relocationCount: 3,
-            ReadOnlyDataCharacteristics,
-            "pdata");
-
-        Require(
-            coff.Sections[0].RawData.AsSpan().SequenceEqual(ExpectedText),
-            "text-bytes");
-        Require(
-            coff.Sections[1].RawData.AsSpan().SequenceEqual(ExpectedUnwind),
-            "unwind-bytes");
-
+        Require(bytes.AsSpan(20, 8).SequenceEqual(new byte[] { (byte)'/', (byte)'4', 0, 0, 0, 0, 0, 0 }), "text-raw-name");
+        Require(bytes.AsSpan(60, 8).SequenceEqual(new byte[] { (byte)'/', (byte)'1', (byte)'8', 0, 0, 0, 0, 0 }), "xdata-raw-name");
+        Require(bytes.AsSpan(100, 8).SequenceEqual(new byte[] { (byte)'/', (byte)'3', (byte)'3', 0, 0, 0, 0, 0 }), "pdata-raw-name");
+        Require(coff.StringTable.AsSpan().SequenceEqual(ExpectedStringTable), "coff-string-table");
+        ValidateSection(coff.Sections[0], ".text$clrossm", rawSize: 20, rawPointer: 140, relocationPointer: 0, relocationCount: 0, TextCharacteristics, "text");
+        ValidateSection(coff.Sections[1], ".xdata$clrossm", rawSize: 8, rawPointer: 160, relocationPointer: 0, relocationCount: 0, ReadOnlyDataCharacteristics, "xdata");
+        ValidateSection(coff.Sections[2], ".pdata$clrossm", rawSize: 12, rawPointer: 168, relocationPointer: 180, relocationCount: 3, ReadOnlyDataCharacteristics, "pdata");
+        Require(coff.Sections[0].RawData.AsSpan().SequenceEqual(ExpectedText), "text-bytes");
+        Require(coff.Sections[1].RawData.AsSpan().SequenceEqual(ExpectedUnwind), "unwind-bytes");
         byte[] pdata = coff.Sections[2].RawData;
         Require(ReadUInt32(pdata, 0) == 0, "pdata-begin-addend");
         Require(ReadUInt32(pdata, 4) == 20, "pdata-end-addend");
         Require(ReadUInt32(pdata, 8) == 0, "pdata-unwind-addend");
-
         Require(coff.Sections[0].Relocations.Count == 0, "text-relocations");
         Require(coff.Sections[1].Relocations.Count == 0, "xdata-relocations");
         IReadOnlyList<ParsedRelocation> relocations = coff.Sections[2].Relocations;
@@ -1672,18 +1264,14 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         ValidateRelocation(relocations[0], 0, 0, "pdata-begin-relocation");
         ValidateRelocation(relocations[1], 4, 0, "pdata-end-relocation");
         ValidateRelocation(relocations[2], 8, 1, "pdata-unwind-relocation");
-
         ParsedSymbol exported = coff.Symbols[0];
-        Require(
-            exported.Name == OS.Tooling.EfiContracts.SerializerSymbol,
-            "external-symbol-name");
+        Require(exported.Name == OS.Tooling.EfiContracts.SerializerSymbol, "external-symbol-name");
         Require(exported.RawNameStringOffset == 48, "external-symbol-name-offset");
         Require(exported.Value == 0, "external-symbol-value");
         Require(exported.SectionNumber == 1, "external-symbol-section");
         Require(exported.Type == 0x20, "external-symbol-type");
         Require(exported.StorageClass == 2, "external-symbol-storage");
         Require(exported.AuxiliaryCount == 0, "external-symbol-aux");
-
         ParsedSymbol xdataBase = coff.Symbols[1];
         Require(xdataBase.Name == ".xdata$clrossm", "xdata-symbol-name");
         Require(xdataBase.RawNameStringOffset == 18, "xdata-symbol-name-offset");
@@ -1692,43 +1280,23 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         Require(xdataBase.Type == 0, "xdata-symbol-type");
         Require(xdataBase.StorageClass == 3, "xdata-symbol-storage");
         Require(xdataBase.AuxiliaryCount == 0, "xdata-symbol-aux");
-
-        Require(
-            coff.Symbols.Count(symbol => symbol.StorageClass == 2) == 1,
-            "external-symbol-count");
-        Require(
-            coff.Sections.All(section => section.LineNumberCount == 0),
-            "coff-line-numbers-present");
-        Require(
-            coff.Sections.All(section => section.LineNumberPointer == 0),
-            "coff-line-number-pointer");
+        Require(coff.Symbols.Count(symbol => symbol.StorageClass == 2) == 1, "external-symbol-count");
+        Require(coff.Sections.All(section => section.LineNumberCount == 0), "coff-line-numbers-present");
+        Require(coff.Sections.All(section => section.LineNumberPointer == 0), "coff-line-number-pointer");
         return coff;
     }
 
-    private static void ValidateSection(
-        ParsedSection section,
-        string expectedName,
-        uint rawSize,
-        uint rawPointer,
-        uint relocationPointer,
-        ushort relocationCount,
-        uint characteristics,
-        string failurePrefix)
+    private static void ValidateSection(ParsedSection section, string expectedName, uint rawSize, uint rawPointer, uint relocationPointer, ushort relocationCount, uint characteristics, string failurePrefix)
     {
         Require(section.Name == expectedName, failurePrefix + "-name");
         Require(section.VirtualSize == 0, failurePrefix + "-virtual-size");
         Require(section.VirtualAddress == 0, failurePrefix + "-virtual-address");
         Require(section.RawSize == rawSize, failurePrefix + "-raw-size");
         Require(section.RawPointer == rawPointer, failurePrefix + "-raw-pointer");
-        Require(
-            section.RelocationPointer == relocationPointer,
-            failurePrefix + "-relocation-pointer");
-        Require(
-            section.RelocationCount == relocationCount,
-            failurePrefix + "-relocation-count");
+        Require(section.RelocationPointer == relocationPointer, failurePrefix + "-relocation-pointer");
+        Require(section.RelocationCount == relocationCount, failurePrefix + "-relocation-count");
         Require(section.Characteristics == characteristics, failurePrefix + "-characteristics");
         Require(section.RawSize != 0 && section.RawPointer != 0, failurePrefix + "-not-file-backed");
-
         bool writable = (section.Characteristics & 0x80000000) != 0;
         bool executable = (section.Characteristics & 0x20000000) != 0;
         bool code = (section.Characteristics & 0x00000020) != 0;
@@ -1738,14 +1306,12 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         bool comdat = (section.Characteristics & 0x00001000) != 0;
         bool discardable = (section.Characteristics & 0x02000000) != 0;
         bool relocationOverflow = (section.Characteristics & 0x01000000) != 0;
-
         Require(!writable, failurePrefix + "-writable");
         Require(!uninitializedData, failurePrefix + "-uninitialized");
         Require(!remove, failurePrefix + "-remove");
         Require(!comdat, failurePrefix + "-comdat");
         Require(!discardable, failurePrefix + "-discardable");
         Require(!relocationOverflow, failurePrefix + "-relocation-overflow");
-
         if (failurePrefix == "text")
         {
             Require(executable && code && !initializedData, "text-memory-contract");
@@ -1754,17 +1320,11 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         else
         {
             Require(!executable && !code && initializedData, failurePrefix + "-memory-contract");
-            Require(
-                (section.Characteristics & 0x00F00000) == 0x00300000,
-                failurePrefix + "-alignment");
+            Require((section.Characteristics & 0x00F00000) == 0x00300000, failurePrefix + "-alignment");
         }
     }
 
-    private static void ValidateRelocation(
-        ParsedRelocation relocation,
-        uint expectedOffset,
-        uint expectedSymbolIndex,
-        string failurePrefix)
+    private static void ValidateRelocation(ParsedRelocation relocation, uint expectedOffset, uint expectedSymbolIndex, string failurePrefix)
     {
         Require(relocation.VirtualAddress == expectedOffset, failurePrefix + "-offset");
         Require(relocation.SymbolIndex == expectedSymbolIndex, failurePrefix + "-symbol");
@@ -1788,7 +1348,6 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         Require(ComputeStackDelta(text) == 0, "abi-rsp-not-restored");
         Require(InstructionsPreserveRflags(text), "abi-rflags-not-preserved");
         Require(!ContainsCallOrConditionalBranch(text), "abi-control-transfer");
-
         byte[] unwind = coff.Sections[1].RawData;
         Require((unwind[0] & 0x07) == 1, "unwind-version");
         Require((unwind[0] >> 3) == 0, "unwind-flags");
@@ -1852,15 +1411,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
 
     private static bool InstructionsPreserveRflags(ReadOnlySpan<byte> bytes)
     {
-        return bytes.SequenceEqual(ExpectedText)
-            && bytes[0] == 0x53
-            && bytes[1] == 0xB8
-            && bytes[6] == 0xB9
-            && bytes[11] == 0x0F
-            && bytes[12] == 0xA2
-            && bytes[13] == 0xB8
-            && bytes[18] == 0x5B
-            && bytes[19] == 0xC3;
+        return bytes.SequenceEqual(ExpectedText) && bytes[0] == 0x53 && bytes[1] == 0xB8 && bytes[6] == 0xB9 && bytes[11] == 0x0F && bytes[12] == 0xA2 && bytes[13] == 0xB8 && bytes[18] == 0x5B && bytes[19] == 0xC3;
     }
 
     private static bool ContainsCallOrConditionalBranch(ReadOnlySpan<byte> bytes)
@@ -1873,9 +1424,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                 return true;
             }
 
-            if (opcode == 0x0F &&
-                index + 1 < bytes.Length &&
-                bytes[index + 1] is >= 0x80 and <= 0x8F)
+            if (opcode == 0x0F && index + 1 < bytes.Length && bytes[index + 1] is >= 0x80 and <= 0x8F)
             {
                 return true;
             }
@@ -1895,19 +1444,13 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         byte[] extended = new byte[valid.Length + 1];
         valid.CopyTo(extended, 0);
         RequireRejected(extended, "trailing-data");
-
         for (int byteIndex = 0; byteIndex < valid.Length; byteIndex++)
         {
             for (int bit = 0; bit < 8; bit++)
             {
                 byte[] mutated = (byte[])valid.Clone();
                 mutated[byteIndex] ^= (byte)(1 << bit);
-                RequireRejected(
-                    mutated,
-                    "bit-mutation-" +
-                    byteIndex.ToString(CultureInfo.InvariantCulture) +
-                    "-" +
-                    bit.ToString(CultureInfo.InvariantCulture));
+                RequireRejected(mutated, "bit-mutation-" + byteIndex.ToString(CultureInfo.InvariantCulture) + "-" + bit.ToString(CultureInfo.InvariantCulture));
             }
         }
 
@@ -1918,28 +1461,18 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         AssertUInt32MutationRejected(valid, 12, uint.MaxValue, "symbol-count-overflow");
         AssertUInt16MutationRejected(valid, 16, ushort.MaxValue, "optional-header-overflow");
         AssertUInt16MutationRejected(valid, 18, ushort.MaxValue, "header-characteristics");
-
         AssertUInt32MutationRejected(valid, 20 + 20, 0, "text-non-file-backed");
         AssertUInt32MutationRejected(valid, 20 + 36, TextCharacteristics | 0x80000000, "text-writable");
         AssertUInt32MutationRejected(valid, 20 + 36, TextCharacteristics & ~0x20000000u, "text-not-executable");
         AssertUInt32MutationRejected(valid, 20 + 36, TextCharacteristics & ~0x20u, "text-not-code");
-        AssertUInt32MutationRejected(
-            valid,
-            60 + 36,
-            ReadOnlyDataCharacteristics | 0x20000000,
-            "xdata-executable");
-        AssertUInt32MutationRejected(
-            valid,
-            100 + 36,
-            ReadOnlyDataCharacteristics | 0x80000000,
-            "pdata-writable");
+        AssertUInt32MutationRejected(valid, 60 + 36, ReadOnlyDataCharacteristics | 0x20000000, "xdata-executable");
+        AssertUInt32MutationRejected(valid, 100 + 36, ReadOnlyDataCharacteristics | 0x80000000, "pdata-writable");
         AssertUInt16MutationRejected(valid, 100 + 32, 2, "relocation-missing");
         AssertUInt16MutationRejected(valid, 100 + 32, 4, "relocation-extra");
         AssertUInt32MutationRejected(valid, 180, 1, "relocation-offset");
         AssertUInt32MutationRejected(valid, 184, 1, "relocation-symbol");
         AssertUInt16MutationRejected(valid, 188, 0, "relocation-type");
         AssertUInt32MutationRejected(valid, 168 + 4, 19, "pdata-function-range");
-
         AssertByteMutationRejected(valid, 160, 0, "unwind-version");
         AssertByteMutationRejected(valid, 161, 2, "unwind-prolog");
         AssertByteMutationRejected(valid, 162, 0, "unwind-code-count");
@@ -1948,81 +1481,58 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         AssertByteMutationRejected(valid, 165, 0x20, "unwind-operation");
         AssertByteMutationRejected(valid, 165, 0x40, "unwind-register");
         AssertByteMutationRejected(valid, 166, 1, "unwind-padding");
-
         AssertByteMutationRejected(valid, 140, 0x90, "abi-push-missing");
         AssertByteMutationRejected(valid, 151, 0x90, "abi-cpuid-missing");
         AssertByteMutationRejected(valid, 154, 0, "abi-cookie-wrong");
         AssertByteMutationRejected(valid, 158, 0x90, "abi-rbx-not-restored");
         AssertByteMutationRejected(valid, 159, 0x90, "abi-ret-missing");
-
         byte[] malformedSectionName = (byte[])valid.Clone();
         malformedSectionName[20] = (byte)'x';
         RequireRejected(malformedSectionName, "malformed-section-name");
-
         byte[] emptySectionName = (byte[])valid.Clone();
         Array.Clear(emptySectionName, 20, 8);
         RequireRejected(emptySectionName, "empty-section-name");
-
         byte[] directiveSection = (byte[])valid.Clone();
         WriteShortName(directiveSection, 20, ".drectve");
         RequireRejected(directiveSection, "unexpected-directive");
-
         byte[] debugSection = (byte[])valid.Clone();
         WriteShortName(debugSection, 20, ".debug");
         RequireRejected(debugSection, "unexpected-debug");
-
         byte[] duplicateSymbol = (byte[])valid.Clone();
         valid.AsSpan(210, 18).CopyTo(duplicateSymbol.AsSpan(228, 18));
         RequireRejected(duplicateSymbol, "duplicate-symbol");
-
         byte[] emptySymbol = (byte[])valid.Clone();
         Array.Clear(emptySymbol, 210, 8);
         RequireRejected(emptySymbol, "empty-symbol");
-
         byte[] missingStringTerminator = (byte[])valid.Clone();
         missingStringTerminator[335] = (byte)'X';
         RequireRejected(missingStringTerminator, "string-unterminated");
-
         byte[] overlappingRaw = (byte[])valid.Clone();
         WriteUInt32(overlappingRaw, 60 + 20, 140);
         RequireRejected(overlappingRaw, "raw-ranges-overlap");
-
         byte[] rawOutOfBounds = (byte[])valid.Clone();
         WriteUInt32(rawOutOfBounds, 20 + 20, uint.MaxValue);
         RequireRejected(rawOutOfBounds, "raw-range-overflow");
-
         byte[] relocOutOfBounds = (byte[])valid.Clone();
         WriteUInt32(relocOutOfBounds, 100 + 24, uint.MaxValue);
         RequireRejected(relocOutOfBounds, "relocation-range-overflow");
     }
 
-    private static void AssertByteMutationRejected(
-        byte[] valid,
-        int offset,
-        byte value,
-        string name)
+    private static void AssertByteMutationRejected(byte[] valid, int offset, byte value, string name)
     {
         byte[] mutated = (byte[])valid.Clone();
         mutated[offset] = value;
         RequireRejected(mutated, name);
     }
 
-    private static void AssertUInt16MutationRejected(
-        byte[] valid,
-        int offset,
-        ushort value,
-        string name)
+    private static void AssertUInt16MutationRejected(byte[] valid, int offset, ushort value, string name)
     {
         byte[] mutated = (byte[])valid.Clone();
         BinaryPrimitives.WriteUInt16LittleEndian(mutated.AsSpan(offset, 2), value);
         RequireRejected(mutated, name);
     }
 
-    private static void AssertUInt32MutationRejected(
-        byte[] valid,
-        int offset,
-        uint value,
-        string name)
+    private static void AssertUInt32MutationRejected(byte[] valid, int offset, uint value, string name)
     {
         byte[] mutated = (byte[])valid.Clone();
         WriteUInt32(mutated, offset, value);
@@ -2032,8 +1542,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
     private static void WriteShortName(byte[] destination, int offset, string name)
     {
         Array.Clear(destination, offset, 8);
-        Encoding.ASCII.GetBytes(name).AsSpan(0, Math.Min(name.Length, 8))
-            .CopyTo(destination.AsSpan(offset, 8));
+        Encoding.ASCII.GetBytes(name).AsSpan(0, Math.Min(name.Length, 8)).CopyTo(destination.AsSpan(offset, 8));
     }
 
     private static void RequireRejected(byte[] bytes, string mutationName)
@@ -2069,52 +1578,30 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         // imply that the real serializer generator intentionally blocks or truncates.
         string fakeRoot = Path.Combine(temporaryRoot, "fake-child");
         Directory.CreateDirectory(fakeRoot);
-
         string partialPath = Path.Combine(fakeRoot, "partial.obj");
         ProcessStartInfo partialStart = NewControlStartInfo(fakeRoot, "partial-object");
         partialStart.ArgumentList.Add(partialPath);
         ProcessResult partial = RunBounded(partialStart, 10_000);
         Require(!partial.TimedOut && partial.ExitCode == 0, "fake-partial-process");
-        Require(
-            !partial.StandardOutputOverflow && !partial.StandardErrorOverflow,
-            "fake-partial-output-overflow");
-        Require(
-            !partial.StandardOutputIncomplete && !partial.StandardErrorIncomplete,
-            "fake-partial-output-incomplete");
-        Require(
-            partial.StandardOutput.Contains("partial-object-written", StringComparison.Ordinal),
-            "fake-partial-marker");
+        Require(!partial.StandardOutputOverflow && !partial.StandardErrorOverflow, "fake-partial-output-overflow");
+        Require(!partial.StandardOutputIncomplete && !partial.StandardErrorIncomplete, "fake-partial-output-incomplete");
+        Require(partial.StandardOutput.Contains("partial-object-written", StringComparison.Ordinal), "fake-partial-marker");
         Require(File.Exists(partialPath), "fake-partial-file-missing");
         RequireRejected(File.ReadAllBytes(partialPath), "partial-process-output");
-
         ProcessStartInfo timeoutStart = NewControlStartInfo(fakeRoot, "partial-before-timeout");
         ProcessResult timeout = RunBounded(timeoutStart, 2_000);
         Require(timeout.TimedOut, "fake-child-timeout-not-detected");
-        Require(
-            !timeout.StandardOutputOverflow && !timeout.StandardErrorOverflow,
-            "fake-child-timeout-output-overflow");
-        Require(
-            !timeout.StandardOutputIncomplete && !timeout.StandardErrorIncomplete,
-            "fake-child-timeout-output-incomplete");
-        Require(
-            timeout.StandardOutput.Contains("partial-before-timeout", StringComparison.Ordinal),
-            "fake-child-timeout-lost-partial-output");
-
+        Require(!timeout.StandardOutputOverflow && !timeout.StandardErrorOverflow, "fake-child-timeout-output-overflow");
+        Require(!timeout.StandardOutputIncomplete && !timeout.StandardErrorIncomplete, "fake-child-timeout-output-incomplete");
+        Require(timeout.StandardOutput.Contains("partial-before-timeout", StringComparison.Ordinal), "fake-child-timeout-lost-partial-output");
         ProcessStartInfo overflowStart = NewControlStartInfo(fakeRoot, "uppercase-output");
-        ProcessResult overflow = RunBounded(
-            overflowStart,
-            timeoutMilliseconds: 10_000,
-            maximumBytesPerStream: 1024);
+        ProcessResult overflow = RunBounded(overflowStart, timeoutMilliseconds: 10_000, maximumBytesPerStream: 1024);
         Require(!overflow.TimedOut && overflow.ExitCode == 0, "fake-child-overflow-process");
         Require(overflow.StandardOutputOverflow, "fake-child-overflow-not-detected");
         Require(!overflow.StandardErrorOverflow, "fake-child-stderr-overflow");
-        Require(
-            !overflow.StandardOutputIncomplete && !overflow.StandardErrorIncomplete,
-            "fake-child-overflow-output-incomplete");
+        Require(!overflow.StandardOutputIncomplete && !overflow.StandardErrorIncomplete, "fake-child-overflow-output-incomplete");
         Require(overflow.StandardOutput.Length == 1024, "fake-child-overflow-cap");
-        Require(
-            overflow.StandardOutput.All(character => character == 'X'),
-            "fake-child-overflow-capture");
+        Require(overflow.StandardOutput.All(character => character == 'X'), "fake-child-overflow-capture");
     }
 
     private static ProcessStartInfo NewControlStartInfo(string workingDirectory, string control)
@@ -2133,30 +1620,18 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         return start;
     }
 
-    private static ProcessResult RunBounded(
-        ProcessStartInfo start,
-        int timeoutMilliseconds,
-        int maximumBytesPerStream = 1_048_576)
+    private static ProcessResult RunBounded(ProcessStartInfo start, int timeoutMilliseconds, int maximumBytesPerStream = 1_048_576)
     {
         Require(timeoutMilliseconds > 0, "process-timeout-invalid");
-        Require(
-            maximumBytesPerStream > 0 &&
-            maximumBytesPerStream <= 16 * 1024 * 1024,
-            "process-output-cap-invalid");
+        Require(maximumBytesPerStream > 0 && maximumBytesPerStream <= 16 * 1024 * 1024, "process-output-cap-invalid");
         Require(string.IsNullOrEmpty(start.Arguments), "process-arguments-string-unsupported");
         string helperPath = _boundedProcessHelperPath ?? string.Empty;
         Require(File.Exists(helperPath), "process-helper-missing");
-
-        string resultRoot = Path.Combine(
-            Path.GetTempPath(),
-            "clros-m01-process-" +
-            Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture));
+        string resultRoot = Path.Combine(Path.GetTempPath(), "clros-m01-process-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture));
         Directory.CreateDirectory(resultRoot);
         try
         {
-            string workingDirectory = string.IsNullOrWhiteSpace(start.WorkingDirectory)
-                ? Environment.CurrentDirectory
-                : Path.GetFullPath(start.WorkingDirectory);
+            string workingDirectory = string.IsNullOrWhiteSpace(start.WorkingDirectory) ? Environment.CurrentDirectory : Path.GetFullPath(start.WorkingDirectory);
             var helperStart = new ProcessStartInfo(helperPath)
             {
                 UseShellExecute = false,
@@ -2166,7 +1641,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                 WorkingDirectory = Path.GetDirectoryName(helperPath)!
             };
             helperStart.Environment.Clear();
-            foreach ((string key, string? value) in start.Environment)
+            foreach ((string key, string? value)in start.Environment)
             {
                 if (value is not null)
                 {
@@ -2177,11 +1652,9 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             helperStart.ArgumentList.Add("--result-root");
             helperStart.ArgumentList.Add(resultRoot);
             helperStart.ArgumentList.Add("--timeout-ms");
-            helperStart.ArgumentList.Add(
-                timeoutMilliseconds.ToString(CultureInfo.InvariantCulture));
+            helperStart.ArgumentList.Add(timeoutMilliseconds.ToString(CultureInfo.InvariantCulture));
             helperStart.ArgumentList.Add("--max-bytes");
-            helperStart.ArgumentList.Add(
-                maximumBytesPerStream.ToString(CultureInfo.InvariantCulture));
+            helperStart.ArgumentList.Add(maximumBytesPerStream.ToString(CultureInfo.InvariantCulture));
             helperStart.ArgumentList.Add("--working-directory");
             helperStart.ArgumentList.Add(workingDirectory);
             helperStart.ArgumentList.Add("--executable");
@@ -2202,7 +1675,10 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                 throw new M01TestFailureException("process-helper-timeout-overflow");
             }
 
-            using Process helper = new Process { StartInfo = helperStart };
+            using Process helper = new Process
+            {
+                StartInfo = helperStart
+            };
             bool helperStarted = false;
             try
             {
@@ -2211,9 +1687,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                 bool helperExited = helper.WaitForExit(helperTimeout);
                 if (!helperExited)
                 {
-                    Require(
-                        BestEffortTerminateAndReap(helper, 10_000),
-                        "process-helper-kill-timeout");
+                    Require(BestEffortTerminateAndReap(helper, 10_000), "process-helper-kill-timeout");
                 }
 
                 Require(helperExited, "process-helper-timeout");
@@ -2234,9 +1708,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         }
     }
 
-    private static ProcessResult ReadBoundedProcessResult(
-        string resultRoot,
-        int maximumBytesPerStream)
+    private static ProcessResult ReadBoundedProcessResult(string resultRoot, int maximumBytesPerStream)
     {
         string stdoutPath = Path.Combine(resultRoot, "stdout.bin");
         string stderrPath = Path.Combine(resultRoot, "stderr.bin");
@@ -2244,69 +1716,22 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         Require(File.Exists(stdoutPath), "process-helper-stdout-missing");
         Require(File.Exists(stderrPath), "process-helper-stderr-missing");
         Require(File.Exists(metadataPath), "process-helper-metadata-missing");
-        Require(
-            new FileInfo(stdoutPath).Length <= maximumBytesPerStream &&
-            new FileInfo(stderrPath).Length <= maximumBytesPerStream,
-            "process-helper-capture-oversized");
+        Require(new FileInfo(stdoutPath).Length <= maximumBytesPerStream && new FileInfo(stderrPath).Length <= maximumBytesPerStream, "process-helper-capture-oversized");
         Require(new FileInfo(metadataPath).Length <= 2_048, "process-helper-metadata-oversized");
-
         string[] metadata = File.ReadAllLines(metadataPath, Encoding.ASCII);
         Require(metadata.Length == 7, "process-helper-metadata-line-count");
         Require(metadata[0] == "format=1", "process-helper-metadata-format");
-        Require(
-            int.TryParse(
-                MetadataValue(metadata[1], "exitCode="),
-                NumberStyles.AllowLeadingSign,
-                CultureInfo.InvariantCulture,
-                out int exitCode),
-            "process-helper-exit-code");
-        Require(
-            bool.TryParse(
-                MetadataValue(metadata[2], "timedOut="),
-                out bool timedOut),
-            "process-helper-timed-out");
-        Require(
-            bool.TryParse(
-                MetadataValue(metadata[3], "stdoutOverflow="),
-                out bool stdoutOverflow),
-            "process-helper-stdout-overflow");
-        Require(
-            bool.TryParse(
-                MetadataValue(metadata[4], "stderrOverflow="),
-                out bool stderrOverflow),
-            "process-helper-stderr-overflow");
-        Require(
-            Enum.TryParse(
-                MetadataValue(metadata[5], "stdoutDrain="),
-                ignoreCase: false,
-                out StreamDrainResult stdoutDrain) &&
-            Enum.IsDefined(stdoutDrain),
-            "process-helper-stdout-drain");
-        Require(
-            Enum.TryParse(
-                MetadataValue(metadata[6], "stderrDrain="),
-                ignoreCase: false,
-                out StreamDrainResult stderrDrain) &&
-            Enum.IsDefined(stderrDrain),
-            "process-helper-stderr-drain");
-
+        Require(int.TryParse(MetadataValue(metadata[1], "exitCode="), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int exitCode), "process-helper-exit-code");
+        Require(bool.TryParse(MetadataValue(metadata[2], "timedOut="), out bool timedOut), "process-helper-timed-out");
+        Require(bool.TryParse(MetadataValue(metadata[3], "stdoutOverflow="), out bool stdoutOverflow), "process-helper-stdout-overflow");
+        Require(bool.TryParse(MetadataValue(metadata[4], "stderrOverflow="), out bool stderrOverflow), "process-helper-stderr-overflow");
+        Require(Enum.TryParse(MetadataValue(metadata[5], "stdoutDrain="), ignoreCase: false, out StreamDrainResult stdoutDrain) && Enum.IsDefined(stdoutDrain), "process-helper-stdout-drain");
+        Require(Enum.TryParse(MetadataValue(metadata[6], "stderrDrain="), ignoreCase: false, out StreamDrainResult stderrDrain) && Enum.IsDefined(stderrDrain), "process-helper-stderr-drain");
         byte[] stdout = File.ReadAllBytes(stdoutPath);
         byte[] stderr = File.ReadAllBytes(stderrPath);
-        bool stdoutComplete =
-            stdoutDrain == StreamDrainResult.EndOfStream;
-        bool stderrComplete =
-            stderrDrain == StreamDrainResult.EndOfStream;
-        return new ProcessResult(
-            exitCode,
-            Encoding.UTF8.GetString(stdout),
-            Encoding.UTF8.GetString(stderr),
-            timedOut,
-            stdoutOverflow,
-            stderrOverflow,
-            StandardOutputIncomplete: !stdoutComplete,
-            StandardErrorIncomplete: !stderrComplete,
-            stdoutDrain,
-            stderrDrain);
+        bool stdoutComplete = stdoutDrain == StreamDrainResult.EndOfStream;
+        bool stderrComplete = stderrDrain == StreamDrainResult.EndOfStream;
+        return new ProcessResult(exitCode, Encoding.UTF8.GetString(stdout), Encoding.UTF8.GetString(stderr), timedOut, stdoutOverflow, stderrOverflow, StandardOutputIncomplete: !stdoutComplete, StandardErrorIncomplete: !stderrComplete, stdoutDrain, stderrDrain);
     }
 
     private static string MetadataValue(string line, string prefix)
@@ -2339,9 +1764,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
 
     private static uint ReadUInt32(byte[] bytes, int offset)
     {
-        Require(
-            offset >= 0 && offset <= bytes.Length - sizeof(uint),
-            "test-read-u32-out-of-range");
+        Require(offset >= 0 && offset <= bytes.Length - sizeof(uint), "test-read-u32-out-of-range");
         return BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset, sizeof(uint)));
     }
 
@@ -2357,10 +1780,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         WriteNullTerminatedAscii(result, 4, ".text$clrossm");
         WriteNullTerminatedAscii(result, 18, ".xdata$clrossm");
         WriteNullTerminatedAscii(result, 33, ".pdata$clrossm");
-        WriteNullTerminatedAscii(
-            result,
-            48,
-            OS.Tooling.EfiContracts.SerializerSymbol);
+        WriteNullTerminatedAscii(result, 48, OS.Tooling.EfiContracts.SerializerSymbol);
         return result;
     }
 
@@ -2377,493 +1797,8 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             throw new M01TestFailureException(code);
         }
     }
-
-    private readonly record struct ProcessResult(
-        int ExitCode,
-        string StandardOutput,
-        string StandardError,
-        bool TimedOut,
-        bool StandardOutputOverflow,
-        bool StandardErrorOverflow,
-        bool StandardOutputIncomplete,
-        bool StandardErrorIncomplete,
-        StreamDrainResult StandardOutputDrainResult,
-        StreamDrainResult StandardErrorDrainResult);
-}
-
-internal enum StreamDrainResult
-{
-    EndOfStream,
-    Faulted,
-    Incomplete
 }
 
 internal static partial class M01InstructionPublicationSerializerGeneratorTests
 {
-
-    private sealed class M01TestFailureException : Exception
-    {
-        public M01TestFailureException(string code)
-            : base(code)
-        {
-            Code = code;
-        }
-
-        public string Code { get; }
-    }
-
-    private sealed class CoffFormatException : Exception
-    {
-        public CoffFormatException(string code)
-            : base(code)
-        {
-        }
-    }
-
-    private sealed record ParsedCoff(
-        ushort Machine,
-        ushort SectionCount,
-        uint TimeDateStamp,
-        uint SymbolTablePointer,
-        uint SymbolCount,
-        ushort OptionalHeaderSize,
-        ushort Characteristics,
-        IReadOnlyList<ParsedSection> Sections,
-        IReadOnlyList<ParsedSymbol> Symbols,
-        byte[] StringTable);
-
-    private sealed record ParsedSection(
-        string Name,
-        uint VirtualSize,
-        uint VirtualAddress,
-        uint RawSize,
-        uint RawPointer,
-        uint RelocationPointer,
-        uint LineNumberPointer,
-        ushort RelocationCount,
-        ushort LineNumberCount,
-        uint Characteristics,
-        byte[] RawData,
-        IReadOnlyList<ParsedRelocation> Relocations);
-
-    private readonly record struct ParsedRelocation(
-        uint VirtualAddress,
-        uint SymbolIndex,
-        ushort Type);
-
-    private sealed record ParsedSymbol(
-        string Name,
-        uint RawNameStringOffset,
-        uint Value,
-        short SectionNumber,
-        ushort Type,
-        byte StorageClass,
-        byte AuxiliaryCount);
-
-    private static class IndependentCoffParser
-    {
-        private const int CoffHeaderSize = 20;
-        private const int SectionHeaderSize = 40;
-        private const int RelocationSize = 10;
-        private const int SymbolSize = 18;
-        private const int MaxSections = 32;
-        private const int MaxRelocationsPerSection = 4096;
-        private const int MaxSymbols = 4096;
-
-        public static ParsedCoff Parse(byte[] bytes)
-        {
-            if (bytes is null)
-            {
-                throw new CoffFormatException("null-object");
-            }
-
-            ReadOnlySpan<byte> data = bytes;
-            RequireRange(data.Length, 0, CoffHeaderSize, "header");
-
-            ushort machine = ReadU16(data, 0, "machine");
-            ushort sectionCount = ReadU16(data, 2, "section-count");
-            uint timestamp = ReadU32(data, 4, "timestamp");
-            uint symbolTablePointer = ReadU32(data, 8, "symbol-pointer");
-            uint symbolCount = ReadU32(data, 12, "symbol-count");
-            ushort optionalHeaderSize = ReadU16(data, 16, "optional-header-size");
-            ushort characteristics = ReadU16(data, 18, "characteristics");
-
-            if (sectionCount == 0 || sectionCount > MaxSections)
-            {
-                throw new CoffFormatException("section-count-capacity");
-            }
-
-            if (symbolCount == 0 || symbolCount > MaxSymbols)
-            {
-                throw new CoffFormatException("symbol-count-capacity");
-            }
-
-            int sectionTableStart = CheckedAdd(
-                CoffHeaderSize,
-                optionalHeaderSize,
-                "section-table-start");
-            int sectionTableSize = CheckedMultiply(
-                sectionCount,
-                SectionHeaderSize,
-                "section-table-size");
-            RequireRange(data.Length, sectionTableStart, sectionTableSize, "section-table");
-
-            int symbolTableStart = CheckedUIntToInt(symbolTablePointer, "symbol-table-pointer");
-            int symbolTableSize = CheckedMultiply(
-                CheckedUIntToInt(symbolCount, "symbol-count"),
-                SymbolSize,
-                "symbol-table-size");
-            RequireRange(data.Length, symbolTableStart, symbolTableSize, "symbol-table");
-
-            int stringTableStart = CheckedAdd(
-                symbolTableStart,
-                symbolTableSize,
-                "string-table-start");
-            RequireRange(data.Length, stringTableStart, 4, "string-table-prefix");
-            uint stringTableSizeValue = ReadU32(data, stringTableStart, "string-table-size");
-            int stringTableSize = CheckedUIntToInt(stringTableSizeValue, "string-table-size");
-            if (stringTableSize < 4)
-            {
-                throw new CoffFormatException("string-table-too-small");
-            }
-
-            RequireRange(data.Length, stringTableStart, stringTableSize, "string-table");
-            int stringTableEnd = CheckedAdd(
-                stringTableStart,
-                stringTableSize,
-                "string-table-end");
-            if (stringTableEnd != data.Length)
-            {
-                throw new CoffFormatException("trailing-or-missing-data");
-            }
-
-            ReadOnlySpan<byte> stringTable = data.Slice(stringTableStart, stringTableSize);
-            List<ParsedSection> sections = new(sectionCount);
-            List<RangeRecord> occupied =
-            [
-                new RangeRecord(0, CheckedAdd(sectionTableStart, sectionTableSize, "headers-end"), "headers"),
-                new RangeRecord(symbolTableStart, stringTableStart, "symbols"),
-                new RangeRecord(stringTableStart, stringTableEnd, "strings")
-            ];
-
-            for (int index = 0; index < sectionCount; index++)
-            {
-                int offset = CheckedAdd(
-                    sectionTableStart,
-                    CheckedMultiply(index, SectionHeaderSize, "section-offset"),
-                    "section-offset");
-                ReadOnlySpan<byte> header = data.Slice(offset, SectionHeaderSize);
-
-                string name = DecodeName(header.Slice(0, 8), stringTable, allowSlashDecimal: true);
-                uint virtualSize = ReadU32(header, 8, "section-virtual-size");
-                uint virtualAddress = ReadU32(header, 12, "section-virtual-address");
-                uint rawSizeValue = ReadU32(header, 16, "section-raw-size");
-                uint rawPointerValue = ReadU32(header, 20, "section-raw-pointer");
-                uint relocationPointerValue = ReadU32(header, 24, "section-relocation-pointer");
-                uint linePointer = ReadU32(header, 28, "section-line-pointer");
-                ushort relocationCount = ReadU16(header, 32, "section-relocation-count");
-                ushort lineCount = ReadU16(header, 34, "section-line-count");
-                uint sectionCharacteristics = ReadU32(header, 36, "section-characteristics");
-
-                if (rawSizeValue == 0 || rawPointerValue == 0)
-                {
-                    throw new CoffFormatException("section-not-file-backed");
-                }
-
-                int rawSize = CheckedUIntToInt(rawSizeValue, "section-raw-size");
-                int rawPointer = CheckedUIntToInt(rawPointerValue, "section-raw-pointer");
-                RequireRange(data.Length, rawPointer, rawSize, "section-raw");
-                occupied.Add(
-                    new RangeRecord(
-                        rawPointer,
-                        CheckedAdd(rawPointer, rawSize, "section-raw-end"),
-                        "section-raw"));
-
-                if (relocationCount > MaxRelocationsPerSection)
-                {
-                    throw new CoffFormatException("relocation-count-capacity");
-                }
-
-                List<ParsedRelocation> relocations = new(relocationCount);
-                if (relocationCount == 0)
-                {
-                    if (relocationPointerValue != 0)
-                    {
-                        throw new CoffFormatException("empty-relocation-pointer");
-                    }
-                }
-                else
-                {
-                    int relocationPointer = CheckedUIntToInt(
-                        relocationPointerValue,
-                        "relocation-pointer");
-                    int relocationBytes = CheckedMultiply(
-                        relocationCount,
-                        RelocationSize,
-                        "relocation-table-size");
-                    RequireRange(data.Length, relocationPointer, relocationBytes, "relocations");
-                    occupied.Add(
-                        new RangeRecord(
-                            relocationPointer,
-                            CheckedAdd(relocationPointer, relocationBytes, "relocations-end"),
-                            "relocations"));
-
-                    for (int relocationIndex = 0;
-                         relocationIndex < relocationCount;
-                         relocationIndex++)
-                    {
-                        int relocationOffset = CheckedAdd(
-                            relocationPointer,
-                            CheckedMultiply(relocationIndex, RelocationSize, "relocation-offset"),
-                            "relocation-offset");
-                        uint address = ReadU32(data, relocationOffset, "relocation-address");
-                        uint symbolIndex = ReadU32(data, relocationOffset + 4, "relocation-symbol");
-                        ushort type = ReadU16(data, relocationOffset + 8, "relocation-type");
-                        if (symbolIndex >= symbolCount)
-                        {
-                            throw new CoffFormatException("relocation-symbol-out-of-range");
-                        }
-
-                        relocations.Add(new ParsedRelocation(address, symbolIndex, type));
-                    }
-                }
-
-                sections.Add(
-                    new ParsedSection(
-                        name,
-                        virtualSize,
-                        virtualAddress,
-                        rawSizeValue,
-                        rawPointerValue,
-                        relocationPointerValue,
-                        linePointer,
-                        relocationCount,
-                        lineCount,
-                        sectionCharacteristics,
-                        data.Slice(rawPointer, rawSize).ToArray(),
-                        relocations));
-            }
-
-            ValidateNonOverlapping(occupied);
-
-            List<ParsedSymbol> symbols = new(CheckedUIntToInt(symbolCount, "symbols-capacity"));
-            int symbolIndexValue = 0;
-            while (symbolIndexValue < symbolCount)
-            {
-                int recordOffset = CheckedAdd(
-                    symbolTableStart,
-                    CheckedMultiply(symbolIndexValue, SymbolSize, "symbol-offset"),
-                    "symbol-offset");
-                ReadOnlySpan<byte> record = data.Slice(recordOffset, SymbolSize);
-                string name = DecodeName(record.Slice(0, 8), stringTable, allowSlashDecimal: false);
-                uint nameOffset = ReadU32(record, 0, "symbol-name-zero") == 0
-                    ? ReadU32(record, 4, "symbol-name-offset")
-                    : 0;
-                uint value = ReadU32(record, 8, "symbol-value");
-                short sectionNumber = ReadI16(record, 12, "symbol-section");
-                ushort type = ReadU16(record, 14, "symbol-type");
-                byte storageClass = record[16];
-                byte auxiliaryCount = record[17];
-
-                int nextSymbol = CheckedAdd(
-                    symbolIndexValue,
-                    CheckedAdd(1, auxiliaryCount, "symbol-aux-count"),
-                    "next-symbol");
-                if (nextSymbol > symbolCount)
-                {
-                    throw new CoffFormatException("symbol-aux-out-of-range");
-                }
-
-                symbols.Add(
-                    new ParsedSymbol(
-                        name,
-                        nameOffset,
-                        value,
-                        sectionNumber,
-                        type,
-                        storageClass,
-                        auxiliaryCount));
-                symbolIndexValue = nextSymbol;
-            }
-
-            return new ParsedCoff(
-                machine,
-                sectionCount,
-                timestamp,
-                symbolTablePointer,
-                symbolCount,
-                optionalHeaderSize,
-                characteristics,
-                sections,
-                symbols,
-                stringTable.ToArray());
-        }
-
-        private static string DecodeName(
-            ReadOnlySpan<byte> nameBytes,
-            ReadOnlySpan<byte> stringTable,
-            bool allowSlashDecimal)
-        {
-            if (nameBytes.Length != 8)
-            {
-                throw new CoffFormatException("name-width");
-            }
-
-            if (ReadU32(nameBytes, 0, "name-zero") == 0)
-            {
-                uint offset = ReadU32(nameBytes, 4, "name-offset");
-                return DecodeStringTableName(stringTable, offset);
-            }
-
-            if (allowSlashDecimal && nameBytes[0] == (byte)'/')
-            {
-                int terminator = nameBytes.IndexOf((byte)0);
-                ReadOnlySpan<byte> decimalBytes =
-                    terminator < 0 ? nameBytes.Slice(1) : nameBytes.Slice(1, terminator - 1);
-                if (decimalBytes.IsEmpty)
-                {
-                    throw new CoffFormatException("section-name-offset-empty");
-                }
-
-                uint offset = 0;
-                foreach (byte digit in decimalBytes)
-                {
-                    if (digit < (byte)'0' || digit > (byte)'9')
-                    {
-                        throw new CoffFormatException("section-name-offset-invalid");
-                    }
-
-                    try
-                    {
-                        offset = checked(offset * 10 + (uint)(digit - (byte)'0'));
-                    }
-                    catch (OverflowException)
-                    {
-                        throw new CoffFormatException("section-name-offset-overflow");
-                    }
-                }
-
-                return DecodeStringTableName(stringTable, offset);
-            }
-
-            int shortTerminator = nameBytes.IndexOf((byte)0);
-            ReadOnlySpan<byte> shortName =
-                shortTerminator < 0 ? nameBytes : nameBytes.Slice(0, shortTerminator);
-            if (shortName.IsEmpty)
-            {
-                throw new CoffFormatException("short-name-empty");
-            }
-
-            return DecodeAscii(shortName, "short-name");
-        }
-
-        private static string DecodeStringTableName(ReadOnlySpan<byte> stringTable, uint offsetValue)
-        {
-            int offset = CheckedUIntToInt(offsetValue, "string-name-offset");
-            if (offset < 4 || offset >= stringTable.Length)
-            {
-                throw new CoffFormatException("string-name-offset-out-of-range");
-            }
-
-            ReadOnlySpan<byte> tail = stringTable.Slice(offset);
-            int terminator = tail.IndexOf((byte)0);
-            if (terminator <= 0)
-            {
-                throw new CoffFormatException("string-name-unterminated-or-empty");
-            }
-
-            return DecodeAscii(tail.Slice(0, terminator), "string-name");
-        }
-
-        private static string DecodeAscii(ReadOnlySpan<byte> bytes, string code)
-        {
-            foreach (byte value in bytes)
-            {
-                if (value < 0x21 || value > 0x7E)
-                {
-                    throw new CoffFormatException(code + "-non-ascii");
-                }
-            }
-
-            return Encoding.ASCII.GetString(bytes);
-        }
-
-        private static void ValidateNonOverlapping(List<RangeRecord> ranges)
-        {
-            RangeRecord[] ordered = ranges
-                .OrderBy(range => range.Start)
-                .ThenBy(range => range.End)
-                .ToArray();
-            for (int index = 1; index < ordered.Length; index++)
-            {
-                if (ordered[index].Start < ordered[index - 1].End)
-                {
-                    throw new CoffFormatException(
-                        "range-overlap-" + ordered[index - 1].Kind + "-" + ordered[index].Kind);
-                }
-            }
-        }
-
-        private static ushort ReadU16(ReadOnlySpan<byte> bytes, int offset, string code)
-        {
-            RequireRange(bytes.Length, offset, sizeof(ushort), code);
-            return BinaryPrimitives.ReadUInt16LittleEndian(bytes.Slice(offset, sizeof(ushort)));
-        }
-
-        private static short ReadI16(ReadOnlySpan<byte> bytes, int offset, string code)
-        {
-            RequireRange(bytes.Length, offset, sizeof(short), code);
-            return BinaryPrimitives.ReadInt16LittleEndian(bytes.Slice(offset, sizeof(short)));
-        }
-
-        private static uint ReadU32(ReadOnlySpan<byte> bytes, int offset, string code)
-        {
-            RequireRange(bytes.Length, offset, sizeof(uint), code);
-            return BinaryPrimitives.ReadUInt32LittleEndian(bytes.Slice(offset, sizeof(uint)));
-        }
-
-        private static int CheckedUIntToInt(uint value, string code)
-        {
-            if (value > int.MaxValue)
-            {
-                throw new CoffFormatException(code + "-overflow");
-            }
-
-            return (int)value;
-        }
-
-        private static int CheckedAdd(int left, int right, string code)
-        {
-            try
-            {
-                return checked(left + right);
-            }
-            catch (OverflowException)
-            {
-                throw new CoffFormatException(code + "-overflow");
-            }
-        }
-
-        private static int CheckedMultiply(int left, int right, string code)
-        {
-            try
-            {
-                return checked(left * right);
-            }
-            catch (OverflowException)
-            {
-                throw new CoffFormatException(code + "-overflow");
-            }
-        }
-
-        private static void RequireRange(int length, int offset, int count, string code)
-        {
-            if (offset < 0 || count < 0 || offset > length || count > length - offset)
-            {
-                throw new CoffFormatException(code + "-out-of-range");
-            }
-        }
-
-        private readonly record struct RangeRecord(int Start, int End, string Kind);
-    }
 }

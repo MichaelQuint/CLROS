@@ -28,21 +28,45 @@ public readonly struct VirtioBlockReadTransactionPlan
         RequestPlan = requestPlan;
     }
 
-    public uint SectorSizeBytes { get; }
+    public uint SectorSizeBytes
+    {
+        get;
+    }
 
-    public ulong DeviceSectorCount { get; }
+    public ulong DeviceSectorCount
+    {
+        get;
+    }
 
-    public ulong FirstSector { get; }
+    public ulong FirstSector
+    {
+        get;
+    }
 
-    public uint SectorCount { get; }
+    public uint SectorCount
+    {
+        get;
+    }
 
-    public ulong LastSectorInclusive { get; }
+    public ulong LastSectorInclusive
+    {
+        get;
+    }
 
-    public uint DataByteCount { get; }
+    public uint DataByteCount
+    {
+        get;
+    }
 
-    public ushort QueueSize { get; }
+    public ushort QueueSize
+    {
+        get;
+    }
 
-    public VirtioBlockRequestPlan RequestPlan { get; }
+    public VirtioBlockRequestPlan RequestPlan
+    {
+        get;
+    }
 
     public static VirtioBlockReadTransactionPlanResult Create(
         uint sectorSizeBytes,

@@ -29,27 +29,60 @@ public readonly struct OsPackageFileStagingResult
         SourceRangeOverflow = sourceRangeOverflow;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public OsPackageFileStagingStatus Status { get; }
+    public OsPackageFileStagingStatus Status
+    {
+        get;
+    }
 
-    public OsPackageFileSystemStatus OpenStatus { get; }
+    public OsPackageFileSystemStatus OpenStatus
+    {
+        get;
+    }
 
-    public OsPackageStatus PackageStatus { get; }
+    public OsPackageStatus PackageStatus
+    {
+        get;
+    }
 
-    public uint FileIndex { get; }
+    public uint FileIndex
+    {
+        get;
+    }
 
-    public ulong PackageOffset { get; }
+    public ulong PackageOffset
+    {
+        get;
+    }
 
-    public ulong FileLength { get; }
+    public ulong FileLength
+    {
+        get;
+    }
 
-    public ulong BytesWritten { get; }
+    public ulong BytesWritten
+    {
+        get;
+    }
 
-    public ulong RequiredBytes { get; }
+    public ulong RequiredBytes
+    {
+        get;
+    }
 
-    public bool CopyAttempted { get; }
+    public bool CopyAttempted
+    {
+        get;
+    }
 
-    public bool SourceRangeOverflow { get; }
+    public bool SourceRangeOverflow
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized &&
         Status == OsPackageFileStagingStatus.Success &&

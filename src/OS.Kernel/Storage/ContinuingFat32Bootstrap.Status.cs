@@ -8,6 +8,8 @@ namespace OS.Storage;
 public static unsafe partial class ContinuingFat32Bootstrap
 {
     public enum Status : byte
-    { Uninitialized, Success, Pending, Ready, InvalidState, InvalidStorage, InvalidDevice, InvalidBudget, StaleEpoch,
-        BudgetExceeded, InvalidMbr, InvalidGpt, MissingPartition, AmbiguousPartition, UnsupportedAttributes, InvalidVolume, BlockFailure, Cancelled, Busy }
+    {
+        Uninitialized, Success, Pending, Ready, InvalidState, InvalidStorage, InvalidDevice, InvalidBudget, StaleEpoch,
+        BudgetExceeded, InvalidMbr, InvalidGpt, MissingPartition, AmbiguousPartition, UnsupportedAttributes, InvalidVolume, BlockFailure, Cancelled, Busy
+    }
 }

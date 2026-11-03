@@ -1,20 +1,9 @@
 namespace OS.Tools.QemuRunner;
-
 public sealed class SerialMarkerSummary
 {
     private static readonly string[] EmptyMarkers = [];
     private static readonly AppExitMarkerResult[] EmptyAppExitResults = [];
-
-    private SerialMarkerSummary(
-        string[] requiredMarkers,
-        string[] forbiddenMarkers,
-        string[] orderedMarkers,
-        string[] observedMarkerLines,
-        string[] missingMarkers,
-        string[] outOfOrderMarkers,
-        string[] forbiddenMarkerHits,
-        AppExitMarkerResult[] appExitResults,
-        string[] malformedAppExitMarkers)
+    private SerialMarkerSummary(string[] requiredMarkers, string[] forbiddenMarkers, string[] orderedMarkers, string[] observedMarkerLines, string[] missingMarkers, string[] outOfOrderMarkers, string[] forbiddenMarkerHits, AppExitMarkerResult[] appExitResults, string[] malformedAppExitMarkers)
     {
         RequiredMarkers = requiredMarkers;
         ForbiddenMarkers = forbiddenMarkers;
@@ -28,21 +17,13 @@ public sealed class SerialMarkerSummary
     }
 
     public IReadOnlyList<string> RequiredMarkers { get; }
-
     public IReadOnlyList<string> ForbiddenMarkers { get; }
-
     public IReadOnlyList<string> OrderedMarkers { get; }
-
     public IReadOnlyList<string> ObservedMarkerLines { get; }
-
     public IReadOnlyList<string> MissingMarkers { get; }
-
     public IReadOnlyList<string> OutOfOrderMarkers { get; }
-
     public IReadOnlyList<string> ForbiddenMarkerHits { get; }
-
     public IReadOnlyList<AppExitMarkerResult> AppExitResults { get; }
-
     public IReadOnlyList<string> MalformedAppExitMarkers { get; }
 
     public bool HasAllRequiredMarkers
@@ -69,11 +50,7 @@ public sealed class SerialMarkerSummary
         }
     }
 
-    public static SerialMarkerSummary Parse(
-        string? serialText,
-        IReadOnlyList<string> requiredMarkers,
-        IReadOnlyList<string> forbiddenMarkers,
-        IReadOnlyList<string>? orderedMarkers = null)
+    public static SerialMarkerSummary Parse(string? serialText, IReadOnlyList<string> requiredMarkers, IReadOnlyList<string> forbiddenMarkers, IReadOnlyList<string>? orderedMarkers = null)
     {
         if (requiredMarkers is null)
         {
@@ -89,21 +66,8 @@ public sealed class SerialMarkerSummary
         string[] required = CopyMarkers(requiredMarkers);
         string[] forbidden = CopyMarkers(forbiddenMarkers);
         string[] ordered = orderedMarkers is null ? EmptyMarkers : CopyMarkers(orderedMarkers);
-        FindAppExitMarkers(
-            serial,
-            out AppExitMarkerResult[] appExitResults,
-            out string[] malformedAppExitMarkers);
-
-        return new SerialMarkerSummary(
-            required,
-            forbidden,
-            ordered,
-            FindObservedMarkerLines(serial),
-            FindMissingMarkers(serial, required),
-            FindOutOfOrderMarkers(serial, ordered),
-            FindForbiddenMarkerHits(serial, forbidden),
-            appExitResults,
-            malformedAppExitMarkers);
+        FindAppExitMarkers(serial, out AppExitMarkerResult[] appExitResults, out string[] malformedAppExitMarkers);
+        return new SerialMarkerSummary(required, forbidden, ordered, FindObservedMarkerLines(serial), FindMissingMarkers(serial, required), FindOutOfOrderMarkers(serial, ordered), FindForbiddenMarkerHits(serial, forbidden), appExitResults, malformedAppExitMarkers);
     }
 
     private static string[] CopyMarkers(IReadOnlyList<string> markers)
@@ -144,9 +108,7 @@ public sealed class SerialMarkerSummary
             }
         }
 
-        return missingMarkers.Count == 0
-            ? EmptyMarkers
-            : missingMarkers.ToArray();
+        return missingMarkers.Count == 0 ? EmptyMarkers : missingMarkers.ToArray();
     }
 
     private static string[] FindOutOfOrderMarkers(string serial, IReadOnlyList<string> markers)
@@ -178,9 +140,7 @@ public sealed class SerialMarkerSummary
             }
         }
 
-        return outOfOrderMarkers.Count == 0
-            ? EmptyMarkers
-            : outOfOrderMarkers.ToArray();
+        return outOfOrderMarkers.Count == 0 ? EmptyMarkers : outOfOrderMarkers.ToArray();
     }
 
     private static string[] FindForbiddenMarkerHits(string serial, IReadOnlyList<string> markers)
@@ -199,15 +159,13 @@ public sealed class SerialMarkerSummary
             }
         }
 
-        return hits.Count == 0
-            ? EmptyMarkers
-            : hits.ToArray();
+        return hits.Count == 0 ? EmptyMarkers : hits.ToArray();
     }
 
     private static bool ContainsMarkerLine(string serial, string marker)
     {
         using StringReader reader = new StringReader(serial);
-        while (reader.ReadLine() is { } line)
+        while (reader.ReadLine()is { } line)
         {
             if (LineMatchesMarker(line.Trim(), marker))
             {
@@ -220,15 +178,14 @@ public sealed class SerialMarkerSummary
 
     private static bool LineMatchesMarker(string line, string marker)
     {
-        return string.Equals(line, marker, StringComparison.Ordinal)
-            || line.StartsWith(marker + " ", StringComparison.Ordinal);
+        return string.Equals(line, marker, StringComparison.Ordinal) || line.StartsWith(marker + " ", StringComparison.Ordinal);
     }
 
     private static string[] ReadTrimmedLines(string serial)
     {
         List<string> lines = new List<string>();
         using StringReader reader = new StringReader(serial);
-        while (reader.ReadLine() is { } line)
+        while (reader.ReadLine()is { } line)
         {
             string trimmed = line.Trim();
             if (trimmed.Length != 0)
@@ -244,7 +201,7 @@ public sealed class SerialMarkerSummary
     {
         List<string> observedMarkers = new List<string>();
         using StringReader reader = new StringReader(serial);
-        while (reader.ReadLine() is { } line)
+        while (reader.ReadLine()is { } line)
         {
             string trimmed = line.Trim();
             if (trimmed.Length == 0)
@@ -258,35 +215,24 @@ public sealed class SerialMarkerSummary
             }
         }
 
-        return observedMarkers.Count == 0
-            ? EmptyMarkers
-            : observedMarkers.ToArray();
+        return observedMarkers.Count == 0 ? EmptyMarkers : observedMarkers.ToArray();
     }
 
     /// <summary>Classify one caller-trimmed host serial line for summary retention.
     /// Optional M16 witnesses, faults and IRQ rows remain visible without becoming
     /// required, ordered or unique markers. Recording a line does not validate it.</summary>
+
     public static bool IsStandardObservedMarkerLine(string line)
     {
-        return line.StartsWith("TEST_", StringComparison.Ordinal)
-            || line.StartsWith("BOOT_", StringComparison.Ordinal)
-            || line.StartsWith("OS_", StringComparison.Ordinal)
-            || line.StartsWith("UEFI_", StringComparison.Ordinal)
-            || line.StartsWith("ACPI_", StringComparison.Ordinal)
-            || line.StartsWith("M16_", StringComparison.Ordinal)
-            || IsAppExitLine(line);
+        return line.StartsWith("TEST_", StringComparison.Ordinal) || line.StartsWith("BOOT_", StringComparison.Ordinal) || line.StartsWith("OS_", StringComparison.Ordinal) || line.StartsWith("UEFI_", StringComparison.Ordinal) || line.StartsWith("ACPI_", StringComparison.Ordinal) || line.StartsWith("M16_", StringComparison.Ordinal) || IsAppExitLine(line);
     }
 
-    private static void FindAppExitMarkers(
-        string serial,
-        out AppExitMarkerResult[] appExitResults,
-        out string[] malformedAppExitMarkers)
+    private static void FindAppExitMarkers(string serial, out AppExitMarkerResult[] appExitResults, out string[] malformedAppExitMarkers)
     {
         List<AppExitMarkerResult> results = new List<AppExitMarkerResult>();
         List<string> malformed = new List<string>();
-
         using StringReader reader = new StringReader(serial);
-        while (reader.ReadLine() is { } line)
+        while (reader.ReadLine()is { } line)
         {
             string trimmed = line.Trim();
             if (!IsAppExitLine(trimmed))
@@ -294,10 +240,7 @@ public sealed class SerialMarkerSummary
                 continue;
             }
 
-            if (TryParseAppExitLine(
-                trimmed,
-                out AppExitMarkerResult result,
-                out string malformedMarker))
+            if (TryParseAppExitLine(trimmed, out AppExitMarkerResult result, out string malformedMarker))
             {
                 results.Add(result);
                 continue;
@@ -306,25 +249,16 @@ public sealed class SerialMarkerSummary
             malformed.Add(malformedMarker);
         }
 
-        appExitResults = results.Count == 0
-            ? EmptyAppExitResults
-            : results.ToArray();
-        malformedAppExitMarkers = malformed.Count == 0
-            ? EmptyMarkers
-            : malformed.ToArray();
+        appExitResults = results.Count == 0 ? EmptyAppExitResults : results.ToArray();
+        malformedAppExitMarkers = malformed.Count == 0 ? EmptyMarkers : malformed.ToArray();
     }
 
-    private static bool TryParseAppExitLine(
-        string line,
-        out AppExitMarkerResult result,
-        out string malformedMarker)
+    private static bool TryParseAppExitLine(string line, out AppExitMarkerResult result, out string malformedMarker)
     {
         result = default;
         malformedMarker = string.Empty;
-
         string[] tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (tokens.Length != 3 ||
-            !string.Equals(tokens[0], "APP_EXIT", StringComparison.Ordinal))
+        if (tokens.Length != 3 || !string.Equals(tokens[0], "APP_EXIT", StringComparison.Ordinal))
         {
             malformedMarker = FormatMalformedAppExitMarker("invalid_format", line);
             return false;
@@ -334,8 +268,7 @@ public sealed class SerialMarkerSummary
         const string statusPrefix = "status=";
         string codeToken = tokens[1];
         string statusToken = tokens[2];
-        if (!codeToken.StartsWith(codePrefix, StringComparison.Ordinal) ||
-            !statusToken.StartsWith(statusPrefix, StringComparison.Ordinal))
+        if (!codeToken.StartsWith(codePrefix, StringComparison.Ordinal) || !statusToken.StartsWith(statusPrefix, StringComparison.Ordinal))
         {
             malformedMarker = FormatMalformedAppExitMarker("invalid_format", line);
             return false;
@@ -343,9 +276,7 @@ public sealed class SerialMarkerSummary
 
         string codeText = codeToken[codePrefix.Length..];
         string status = statusToken[statusPrefix.Length..];
-        if (!IsUnsignedDecimal(codeText) ||
-            !int.TryParse(codeText, out int exitCode) ||
-            exitCode is < 0 or > 255)
+        if (!IsUnsignedDecimal(codeText) || !int.TryParse(codeText, out int exitCode) || exitCode is < 0 or > 255)
         {
             malformedMarker = FormatMalformedAppExitMarker("invalid_code", line);
             return false;
@@ -363,8 +294,7 @@ public sealed class SerialMarkerSummary
 
     private static bool IsAppExitLine(string line)
     {
-        return string.Equals(line, "APP_EXIT", StringComparison.Ordinal)
-            || line.StartsWith("APP_EXIT ", StringComparison.Ordinal);
+        return string.Equals(line, "APP_EXIT", StringComparison.Ordinal) || line.StartsWith("APP_EXIT ", StringComparison.Ordinal);
     }
 
     private static bool IsUnsignedDecimal(string value)
@@ -389,8 +319,7 @@ public sealed class SerialMarkerSummary
     private static bool IsAppExitStatusToken(string value)
     {
         const string prefix = "OSHOST_STATUS_";
-        if (!value.StartsWith(prefix, StringComparison.Ordinal) ||
-            value.Length == prefix.Length)
+        if (!value.StartsWith(prefix, StringComparison.Ordinal) || value.Length == prefix.Length)
         {
             return false;
         }
@@ -398,9 +327,7 @@ public sealed class SerialMarkerSummary
         for (int index = 0; index < value.Length; index++)
         {
             char character = value[index];
-            if ((character is >= 'A' and <= 'Z') ||
-                (character is >= '0' and <= '9') ||
-                character == '_')
+            if ((character is >= 'A' and <= 'Z') || (character is >= '0' and <= '9') || character == '_')
             {
                 continue;
             }
@@ -415,17 +342,4 @@ public sealed class SerialMarkerSummary
     {
         return "reason=" + reason + " line=" + line;
     }
-}
-
-public readonly struct AppExitMarkerResult
-{
-    public AppExitMarkerResult(int exitCode, string status)
-    {
-        ExitCode = exitCode;
-        Status = status;
-    }
-
-    public int ExitCode { get; }
-
-    public string Status { get; }
 }

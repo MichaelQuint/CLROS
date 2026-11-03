@@ -400,33 +400,94 @@ internal static partial class NativeAotDiskTimingPeerTests
         string applied=Path.Combine(dir,"timing.raw");
         var receipt=WebRootImageFixture.Apply(root,image,source,WebRootImageFixture.SnapshotPublishedRoot(source),applied);
         var inventory=WebRootDiskInventory.Inspect(applied,File.ReadAllBytes(applied),receipt);
-        foreach(string mode in new[]{"good","json","json-type","body","etag","metrics","dispatch","driver","driver-duplicate","driver-late-change","verification","verification-duplicate","verification-late-change","selection","selection-late-change","late-fault","unconfirmed"})
+        foreach(string mode in new[]{"good","body-timeout","json","json-type","body","etag","metrics","dispatch","driver","driver-duplicate","driver-late-change","verification","verification-duplicate","verification-late-change","selection","selection-late-change","late-fault","unconfirmed",
+            "evidence-trace", "evidence-summary", "evidence-image-alias", "evidence-crc", "evidence-missing-end", "evidence-late-row", "evidence-unselected"})
             Check(mode).GetAwaiter().GetResult();
 
         async Task Check(string mode)
         {
             string serial=Path.Combine(root,"artifacts","tests","disk-timing-"+Guid.NewGuid().ToString("N")+".serial.log");
             Directory.CreateDirectory(Path.GetDirectoryName(serial)!);bool exited=false;
+            bool bodyStarted = false, bodyTimedOut = false;
+            bool evidenceSelected = mode.StartsWith("evidence-", StringComparison.Ordinal) && mode != "evidence-unselected";
+            bool succeeds = mode is "good" or "evidence-trace" or "evidence-summary" or "evidence-image-alias";
+            bool payload = mode != "evidence-summary";
+            byte[] evidenceImage = evidenceSelected || mode == "evidence-unselected" ? File.ReadAllBytes(applied) : [];
+            var evidence = evidenceImage.Length != 0 ? HostDiskDiagnosticFixture.Create(evidenceImage,
+                inventory.Find(WebRootDiskInventory.Root + NativeAotDiskTimingPeer.Target)!, payload) :
+                (Prefix: "", BeforeMetrics: "", AfterMetrics: "", Rows: 0, Sectors: 0);
             using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(20));ToolFailure? failure=null;
             try
             {
-                var result=await NativeAotDiskTimingPeer.RunAsync(root,serial,Stub,inventory,600,deadline.Token);
-                HostCheck.True(mode=="good" && result.Runner.Cancelled && result.Runner.TerminationConfirmed && exited);
+                var result = mode == "body-timeout"
+                    ? await NativeAotDiskTimingPeer.RunAsync(root, serial, Stub, inventory,
+                        new NativeAotDiskTimingPeer.BenchmarkOptions { RequestTimeout = TimeSpan.FromSeconds(1) }, 600, deadline.Token)
+                    : evidenceSelected
+                        ? await NativeAotDiskTimingPeer.RunAsync(root, serial, Stub, inventory,
+                            new NativeAotDiskTimingPeer.BenchmarkOptions
+                            {
+                                DiskEvidence = payload ? NativeAotDiskTimingPeer.DiskEvidenceMode.Trace : NativeAotDiskTimingPeer.DiskEvidenceMode.Summary,
+                                DiskImageBytes = evidenceImage
+                            }, 600, deadline.Token)
+                        : await NativeAotDiskTimingPeer.RunAsync(root,serial,Stub,inventory,600,deadline.Token);
+                HostCheck.True(succeeds && result.Runner.Cancelled && result.Runner.TerminationConfirmed && exited);
                 int starts=0;bool denied=false;
                 try{_=await NativeAotDiskTimingPeer.RunAsync(root,serial,(_,_)=>{starts++;throw new InvalidOperationException();},inventory,600,deadline.Token);}
                 catch(ToolFailure error){denied=error.Reason=="disk_timing_fresh_artifacts";}
                 HostCheck.True(denied && starts==0);
             }
             catch(ToolFailure error){failure=error;}
-            HostCheck.True(exited && (mode=="good"?failure is null:failure is not null),mode+" "+failure?.Message);
+            catch (OperationCanceledException) when (mode == "body-timeout" && !deadline.IsCancellationRequested)
+            {
+                bodyTimedOut = true;
+            }
+            if (mode == "body-timeout")
+                HostCheck.True(exited && bodyStarted && bodyTimedOut && failure is null,
+                    "streamed body must expire after headers and partial data, before the outer watchdog");
+            else
+                HostCheck.True(exited && (succeeds?failure is null:failure is not null),mode+" "+failure?.Message);
             using var actual=JsonDocument.Parse(File.ReadAllBytes(serial+".disk-timing/diagnostic.json"));
-            HostCheck.Equal(mode=="good",actual.RootElement.GetProperty("Complete").GetBoolean());
+            HostCheck.Equal(succeeds,actual.RootElement.GetProperty("Complete").GetBoolean());
             HostCheck.True(!actual.RootElement.GetProperty("FullAndCleanupQualified").GetBoolean() &&
                 actual.RootElement.GetProperty("RunnerJoined").GetBoolean());
-            HostCheck.Equal("clros-disk-read-timing-v8", actual.RootElement.GetProperty("Schema").GetString()!);
+            HostCheck.Equal("clros-disk-read-timing-v11", actual.RootElement.GetProperty("Schema").GetString()!);
+            HostCheck.Equal(evidenceSelected ? payload ? "Trace" : "Summary" : "Original",
+                actual.RootElement.GetProperty("DiskEvidenceMode").GetString()!);
+            if (mode is "evidence-trace" or "evidence-summary" or "evidence-image-alias")
+            {
+                var disk = actual.RootElement.GetProperty("DiskEvidence");
+                HostCheck.Equal(evidence.Rows, disk.GetProperty("Rows").GetInt32());
+                HostCheck.Equal(evidence.Sectors, disk.GetProperty("CopiedSectors").GetInt32());
+                HostCheck.Equal(payload, disk.GetProperty("PayloadIncluded").GetBoolean());
+                HostCheck.Equal(0UL, disk.GetProperty("Cancelled").GetUInt64());
+            }
+            HostCheck.Equal((mode == "body-timeout" ? TimeSpan.FromSeconds(1) : TimeSpan.FromSeconds(180)).Ticks,
+                actual.RootElement.GetProperty("RequestTimeoutTicks").GetInt64());
+            HostCheck.Equal("headers-and-streamed-body", actual.RootElement.GetProperty("RequestTimeoutScope").GetString()!);
+            if (mode == "body-timeout")
+            {
+                HostCheck.Equal(0, actual.RootElement.GetProperty("Responses").GetArrayLength());
+                var incomplete = actual.RootElement.GetProperty("IncompleteRequest");
+                HostCheck.Equal("body", incomplete.GetProperty("Phase").GetString()!);
+                HostCheck.Equal(1L, incomplete.GetProperty("Bytes").GetInt64());
+                var runner = actual.RootElement.GetProperty("Runner");
+                HostCheck.True(runner.GetProperty("Cancelled").GetBoolean() && runner.GetProperty("TerminationConfirmed").GetBoolean());
+            }
             HostCheck.Equal("json-health-head-range-health", actual.RootElement.GetProperty("RequestSequence").GetString()!);
             HostCheck.Equal("clros-thread-dispatch-selection-v1", actual.RootElement.GetProperty("SelectionSchema").GetString()!);
-            if (mode == "good")
+            HostCheck.True(actual.RootElement.GetProperty("ClockFrequency").GetInt64() > 0);
+            foreach (var response in actual.RootElement.GetProperty("Responses").EnumerateArray())
+            {
+                long started = response.GetProperty("Started").GetInt64();
+                long headers = response.GetProperty("HeadersReceived").GetInt64();
+                long received = response.GetProperty("BodyReceived").GetInt64();
+                long written = response.GetProperty("BodyWritten").GetInt64();
+                long flushed = response.GetProperty("BodyFlushed").GetInt64();
+                long finished = response.GetProperty("Finished").GetInt64();
+                HostCheck.True(started <= headers && headers <= received && received <= written && written <= flushed && flushed <= finished,
+                    "network completion must precede saved body and durable-flush completion");
+            }
+            if (succeeds)
             {
                 HostCheck.Equal(5, actual.RootElement.GetProperty("Responses").GetArrayLength());
                 HostCheck.Equal(4, actual.RootElement.GetProperty("Selections").GetArrayLength());
@@ -443,7 +504,11 @@ internal static partial class NativeAotDiskTimingPeerTests
             {
                 using HttpListener listener=new();listener.Prefixes.Add("http://127.0.0.1:"+port+"/");listener.Start();
                 File.WriteAllText(serial,"M10_018_LISTENING main=1\r\n");
+                if (evidenceSelected || mode == "evidence-unselected")
+                    File.AppendAllText(serial, evidence.Prefix);
                 var entry=inventory.Find(WebRootDiskInventory.Root+NativeAotDiskTimingPeer.Target)!;
+                if (mode == "evidence-image-alias")
+                    evidenceImage[checked((int)(entry.Sectors[0].Lba * 512))] ^= 1;
                 long modified=DateTimeOffset.FromUnixTimeSeconds(entry.ModifiedSeconds).ToFileTime();
                 string etag="\""+(modified^entry.Bytes).ToString("x")+"\"";
                 try
@@ -461,14 +526,36 @@ internal static partial class NativeAotDiskTimingPeerTests
                         context.Response.ContentType=json&&mode!="json-type"?"application/json":asset?"application/wasm":"text/plain";
                         if(asset)context.Response.Headers["ETag"]=mode=="etag"?"\"wrong\"":etag;
                         if(range)context.Response.Headers["Content-Range"]="bytes 0-65535/"+core.Length;
+                        if (mode == "body-timeout")
+                        {
+                            await context.Response.OutputStream.WriteAsync(entity.AsMemory(0, 1), cancellation);
+                            await context.Response.OutputStream.FlushAsync(cancellation);
+                            bodyStarted = true;
+                            await Task.Delay(Timeout.Infinite, cancellation);
+                        }
                         if(!head)await context.Response.OutputStream.WriteAsync(entity,cancellation);
                         context.Response.Close();
+                        if (i == 4 && (evidenceSelected || mode == "evidence-unselected"))
+                        {
+                            string observations = evidence.BeforeMetrics;
+                            if (mode == "evidence-crc")
+                            {
+                                int start = observations.IndexOf(" crc32=", StringComparison.Ordinal) + 7;
+                                int end = observations.IndexOf(' ', start);
+                                uint crc = uint.Parse(observations[start..end], System.Globalization.CultureInfo.InvariantCulture);
+                                observations = observations[..start] + (crc ^ 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + observations[end..];
+                            }
+                            if (mode == "evidence-missing-end")
+                                observations = observations[..observations.IndexOf("CLROS_DISK_IO_END_V1 ", StringComparison.Ordinal)];
+                            File.AppendAllText(serial, observations);
+                        }
                         if(i==4)File.AppendAllText(serial,(mode=="metrics"?Metrics+Metrics:Metrics)+
                             (mode=="dispatch"?Dispatch.Replace("nestedPollNs=10000","nestedPollNs=20000"):Dispatch)+
                             (mode=="driver"?Driver.Replace("dispatchShellNonPollNs=2000","dispatchShellNonPollNs=2001"):
                                 mode=="driver-duplicate"?Driver+Driver:Driver)+
                             (mode=="verification"?Verification.Replace("elapsedNs=3000","elapsedNs=20001"):
                                 mode=="verification-duplicate"?Verification+Verification:Verification)+
+                            (evidenceSelected || mode == "evidence-unselected" ? evidence.AfterMetrics : "")+
                              (mode=="selection"?SelectionStream.Replace("sequence=2", "sequence=02"):SelectionStream));
                     }
                 }
@@ -478,10 +565,34 @@ internal static partial class NativeAotDiskTimingPeerTests
                     if (mode == "driver-late-change") File.AppendAllText(serial, Driver);
                     if (mode == "verification-late-change") File.AppendAllText(serial, Verification);
                     if (mode == "selection-late-change") File.AppendAllText(serial, SelectionStream);
+                    if (mode == "evidence-late-row") File.AppendAllText(serial, "CLROS_DISK_IO_V1 kind=0\r\n");
                     return new(-1,"synthetic-runner-cancelled","",false,false,true,TimeSpan.Zero){TerminationConfirmed=mode!="unconfirmed"};
                 }
                 finally{exited=true;listener.Stop();}
             }
         }
     });
+
+    [HostTest("short timing peer rejects invalid request budgets before artifacts or runner creation")]
+    private static void InvalidRequestBudgets()
+    {
+        foreach (var timeout in new[] { TimeSpan.Zero, Timeout.InfiniteTimeSpan, TimeSpan.FromSeconds(181), TimeSpan.MaxValue })
+        {
+            int starts = 0;
+            bool rejected = false;
+            try
+            {
+                _ = NativeAotDiskTimingPeer.RunAsync(".", "unused.serial", (_, _) =>
+                {
+                    starts++;
+                    throw new InvalidOperationException("invalid budget started a runner");
+                }, null!, new NativeAotDiskTimingPeer.BenchmarkOptions { RequestTimeout = timeout }).GetAwaiter().GetResult();
+            }
+            catch (ToolFailure error) when (error.Reason == "disk_timing_request_timeout")
+            {
+                rejected = true;
+            }
+            HostCheck.True(rejected && starts == 0);
+        }
+    }
 }

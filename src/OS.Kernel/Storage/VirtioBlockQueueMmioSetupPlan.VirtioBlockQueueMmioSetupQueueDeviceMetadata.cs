@@ -14,9 +14,18 @@ public readonly struct VirtioBlockQueueMmioSetupQueueDeviceMetadata
         NotifyOffset = notifyOffset;
     }
 
-    public ushort DeviceMaximumQueueSize { get; }
+    public ushort DeviceMaximumQueueSize
+    {
+        get;
+    }
 
-    public bool HasNotifyOffset { get; }
+    public bool HasNotifyOffset
+    {
+        get;
+    }
 
-    public ushort NotifyOffset { get; }
+    public ushort NotifyOffset
+    {
+        get;
+    }
 }

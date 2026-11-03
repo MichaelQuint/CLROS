@@ -13,9 +13,7 @@ internal static unsafe class NativeAotHelloGuestTests
         string root = HostToolProcess.FindRepositoryRoot();
         NativeAotHelloGuest.RequireCurrentSources(root);
         string temporary = Directory.CreateTempSubdirectory("clros-hello-sources-").FullName;
-        string[] sources = ["apps/NativeAotHello/Program.cs", "apps/NativeAotHello/NativeAotHello.csproj",
-            "global.json", "Directory.Build.props", "Directory.Build.targets", "tools/Directory.Build.props",
-            "tools/OS.Tooling/NativeAotPayload.cs"];
+        string[] sources = NativeAotHelloGuest.CurrentSources().Select(source => source.Path).ToArray();
         try
         {
             foreach (string source in sources)

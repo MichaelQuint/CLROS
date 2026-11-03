@@ -30,19 +30,40 @@ public readonly struct VirtioBlockRequestPlan
         StatusDescriptor = statusDescriptor;
     }
 
-    public VirtioBlockRequestType RequestType { get; }
+    public VirtioBlockRequestType RequestType
+    {
+        get;
+    }
 
-    public ulong Sector { get; }
+    public ulong Sector
+    {
+        get;
+    }
 
-    public uint SectorCount { get; }
+    public uint SectorCount
+    {
+        get;
+    }
 
-    public uint DataByteCount { get; }
+    public uint DataByteCount
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorMetadata HeaderDescriptor { get; }
+    public VirtioBlockDescriptorMetadata HeaderDescriptor
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorMetadata DataDescriptor { get; }
+    public VirtioBlockDescriptorMetadata DataDescriptor
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorMetadata StatusDescriptor { get; }
+    public VirtioBlockDescriptorMetadata StatusDescriptor
+    {
+        get;
+    }
 
     public static VirtioBlockRequestPlanResult Create(
         VirtioBlockRequestType requestType,

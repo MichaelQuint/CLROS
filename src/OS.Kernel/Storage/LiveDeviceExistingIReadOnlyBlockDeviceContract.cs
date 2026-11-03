@@ -24,23 +24,37 @@ public unsafe struct LiveDeviceExistingIReadOnlyBlockDeviceContract : IReadOnlyB
         VirtioMappedRegion common, VirtioMappedRegion notify, VirtioMappedRegion device,
         uint multiplier, DmaBufferPool* dma, VirtioBlkReadAccess access, uint pollLimit, uint resetLimit)
     {
-        _info = info; _common = common; _notify = notify; _device = device;
-        _multiplier = multiplier; _dma = dma; _access = access;
-        _pollLimit = pollLimit; _resetLimit = resetLimit;
+        _info = info;
+        _common = common;
+        _notify = notify;
+        _device = device;
+        _multiplier = multiplier;
+        _dma = dma;
+        _access = access;
+        _pollLimit = pollLimit;
+        _resetLimit = resetLimit;
     }
 
     public readonly BlockDeviceInfo Info => _info;
-    public VirtioBlkReadResult LastRead { get; private set; }
+    public VirtioBlkReadResult LastRead
+    {
+        get; private set;
+    }
     public readonly bool Attempted => _attempted;
 
     public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
     {
         var bounds = BlockDeviceRead.Validate(_info, firstBlock, blockCount, destination);
-        if (!bounds.Succeeded) return bounds;
-        if (_info.BlockSize != 512) return BlockReadResult.Fail(BlockDeviceStatus.InvalidBlockSize);
-        if (blockCount == 0) return bounds;
-        if (blockCount != 1) return BlockReadResult.Fail(BlockDeviceStatus.InvalidBlockCount);
-        if (_attempted) return BlockReadResult.Fail(BlockDeviceStatus.IoError);
+        if (!bounds.Succeeded)
+            return bounds;
+        if (_info.BlockSize != 512)
+            return BlockReadResult.Fail(BlockDeviceStatus.InvalidBlockSize);
+        if (blockCount == 0)
+            return bounds;
+        if (blockCount != 1)
+            return BlockReadResult.Fail(BlockDeviceStatus.InvalidBlockCount);
+        if (_attempted)
+            return BlockReadResult.Fail(BlockDeviceStatus.IoError);
         fixed (LiveDeviceExistingIReadOnlyBlockDeviceContract* self = &this)
         fixed (byte* output = destination)
         {

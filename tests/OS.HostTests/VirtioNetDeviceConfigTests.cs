@@ -145,30 +145,23 @@ internal static class VirtioNetDeviceConfigTests
     [HostTest("drivers.net mac validation uses shared helpers", HostLane.Fast, 7)]
     private static bool TestMacValidationUsesSharedHelpers()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string virtioSource = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "OS.Kernel",
-            "Drivers",
-            "VirtioNetDeviceConfig.cs"));
-        string enaSource = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "OS.Kernel",
-            "Drivers",
-            "EnaDeviceAttributes.cs"));
-
-        return HostCheck.Result(DriverSourceUsesSharedMacHelpers(virtioSource)
-            && DriverSourceUsesSharedMacHelpers(enaSource));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        return HostCheck.Result(DriverSourceUsesSharedMacHelpers(catalog, typeof(VirtioNetDeviceConfig))
+            && DriverSourceUsesSharedMacHelpers(catalog, typeof(EnaDeviceAttributesParser)));
     }
 
-    private static bool DriverSourceUsesSharedMacHelpers(string source)
+    private static bool DriverSourceUsesSharedMacHelpers(OS.Tooling.CSharpSourceCatalog catalog, Type owner)
     {
-        return source.Contains("macAddress.IsZero", StringComparison.Ordinal)
-            && source.Contains("macAddress.IsBroadcast", StringComparison.Ordinal)
-            && !source.Contains("private static bool IsZero(MacAddress", StringComparison.Ordinal)
-            && !source.Contains("private static bool IsBroadcast(MacAddress", StringComparison.Ordinal);
+        var method = catalog.Method(owner.FullName!, "TryParse");
+        var model = catalog.Compilation.GetSemanticModel(method.SyntaxTree);
+        var mac = catalog.Compilation.GetTypeByMetadataName(typeof(MacAddress).FullName!);
+        var checks = method.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.IfStatementSyntax>()
+            .Select(branch => model.GetOperation(branch.Condition)).OfType<Microsoft.CodeAnalysis.Operations.IPropertyReferenceOperation>()
+            .Where(property => Microsoft.CodeAnalysis.SymbolEqualityComparer.Default.Equals(property.Property.ContainingType, mac))
+            .Select(property => property.Property.Name).ToArray();
+        var type = catalog.Type(owner.FullName!);
+        return checks.Contains(nameof(MacAddress.IsZero)) && checks.Contains(nameof(MacAddress.IsBroadcast))
+            && type.GetMembers("IsZero").Length == 0 && type.GetMembers("IsBroadcast").Length == 0;
     }
 
     [HostTest("drivers.virtionet.config.windowexec reads mac address", HostLane.Fast, 8)]

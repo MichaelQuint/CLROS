@@ -16,11 +16,23 @@ public readonly struct VirtioBlockDescriptorMemoryRange
         EndExclusive = endExclusive;
     }
 
-    public VirtioBlockDescriptorChainRole Role { get; }
+    public VirtioBlockDescriptorChainRole Role
+    {
+        get;
+    }
 
-    public ulong PhysicalAddress { get; }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
 
-    public uint Length { get; }
+    public uint Length
+    {
+        get;
+    }
 
-    public ulong EndExclusive { get; }
+    public ulong EndExclusive
+    {
+        get;
+    }
 }

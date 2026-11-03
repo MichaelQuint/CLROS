@@ -17,35 +17,49 @@ public static unsafe class KnownFileSHAN256EquivalentKnownFixtureHash
         if (!entry.Succeeded || (entry.Attributes & 0xd8) != 0 || entry.ByteCount != expectedBytes ||
             (entry.ByteCount == 0 ? entry.FirstCluster != 0 : entry.FirstCluster < 2 || entry.FirstCluster >= 0x0ffffff0))
             return LiveFileStatus.InvalidEntry;
-        state.Status = LiveFileStatus.Success; state.ByteCount = expectedBytes;
-        state.BytesRead = 0; state.CrcState = Crc32.InitialState; state.ExpectedCrc = expectedCrc;
+        state.Status = LiveFileStatus.Success;
+        state.ByteCount = expectedBytes;
+        state.BytesRead = 0;
+        state.CrcState = Crc32.InitialState;
+        state.ExpectedCrc = expectedCrc;
         return LiveFileStatus.Success;
     }
 
     public static LiveFileStatus Append(Span<byte> sector, BlockReadResult read,
         uint fileOffset, ref LiveFileChecksum state)
     {
-        if (!Valid(state) || state.BytesRead == state.ByteCount) return LiveFileStatus.InvalidState;
-        if (!read.Succeeded || read.BlocksRead != 1 || read.BytesRead != 512) return LiveFileStatus.ReadFailed;
-        if (sector.Length != 512) return LiveFileStatus.InvalidLength;
-        if (fileOffset != state.BytesRead) return LiveFileStatus.UnexpectedOffset;
+        if (!Valid(state) || state.BytesRead == state.ByteCount)
+            return LiveFileStatus.InvalidState;
+        if (!read.Succeeded || read.BlocksRead != 1 || read.BytesRead != 512)
+            return LiveFileStatus.ReadFailed;
+        if (sector.Length != 512)
+            return LiveFileStatus.InvalidLength;
+        if (fileOffset != state.BytesRead)
+            return LiveFileStatus.UnexpectedOffset;
         fixed (byte* bytes = sector)
         {
-            if (bytes == null || (ulong)bytes > ulong.MaxValue - 512) return LiveFileStatus.InvalidLength;
+            if (bytes == null || (ulong)bytes > ulong.MaxValue - 512)
+                return LiveFileStatus.InvalidLength;
             uint count = state.ByteCount - state.BytesRead;
-            if (count > 512) count = 512;
+            if (count > 512)
+                count = 512;
             uint crc = state.CrcState;
-            for (uint i = 0; i < count; i++) crc = Crc32.UpdateByte(crc, bytes[i]);
-            state.CrcState = crc; state.BytesRead += count;
+            for (uint i = 0; i < count; i++)
+                crc = Crc32.UpdateByte(crc, bytes[i]);
+            state.CrcState = crc;
+            state.BytesRead += count;
             return LiveFileStatus.Success;
         }
     }
 
     public static LiveFileStatus Finish(ref LiveFileChecksum state)
     {
-        if (!Valid(state)) return LiveFileStatus.InvalidState;
-        if (state.BytesRead != state.ByteCount) return LiveFileStatus.Truncated;
-        if (Crc32.Finish(state.CrcState) != state.ExpectedCrc) return LiveFileStatus.ChecksumMismatch;
+        if (!Valid(state))
+            return LiveFileStatus.InvalidState;
+        if (state.BytesRead != state.ByteCount)
+            return LiveFileStatus.Truncated;
+        if (Crc32.Finish(state.CrcState) != state.ExpectedCrc)
+            return LiveFileStatus.ChecksumMismatch;
         state.Status = LiveFileStatus.Complete;
         return LiveFileStatus.Complete;
     }

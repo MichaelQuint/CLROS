@@ -26,35 +26,53 @@ public static unsafe partial class WritableBlockSession
         if (!common.IsValid || common.Bytes < 56 || (common.VirtualStart & 3) != 0 || resetLimit is 0 or > 1024 ||
             a.Read8 == null || a.Write8 == null || a.Read32 == null || a.Write32 == null)
             return new(VirtioNegotiationStatus.InvalidAccess, 0, 0, 0, false, false);
-        ulong c = common.VirtualStart, offered = 0, selected = 0; byte observed = 255;
+        ulong c = common.VirtualStart, offered = 0, selected = 0;
+        byte observed = 255;
         var failure = a.Write8(a.Context, c + 20, 0) == 1 ? VirtioNegotiationStatus.Success : VirtioNegotiationStatus.WriteFailed;
         bool reset = false;
         for (uint i = 0; failure == VirtioNegotiationStatus.Success && i < resetLimit; i++)
         {
-            if (a.Read8(a.Context, c + 20, &observed) != 1) { failure = VirtioNegotiationStatus.ReadFailed; break; }
-            if (observed == 0) { reset = true; break; }
+            if (a.Read8(a.Context, c + 20, &observed) != 1)
+            {
+                failure = VirtioNegotiationStatus.ReadFailed;
+                break;
+            }
+            if (observed == 0)
+            {
+                reset = true;
+                break;
+            }
         }
-        if (failure == VirtioNegotiationStatus.Success && !reset) failure = VirtioNegotiationStatus.ResetTimeout;
+        if (failure == VirtioNegotiationStatus.Success && !reset)
+            failure = VirtioNegotiationStatus.ResetTimeout;
         for (uint stage = 0; stage < 2; stage++)
         {
-            if (failure != VirtioNegotiationStatus.Success) break;
+            if (failure != VirtioNegotiationStatus.Success)
+                break;
             failure = AdvanceStatus(c, a, stage == 0 ? (byte)1 : (byte)3, out observed);
         }
         for (uint i = 0; failure == VirtioNegotiationStatus.Success && i < 2; i++)
         {
             uint value = 0;
-            if (a.Write32(a.Context, c, i) != 1) failure = VirtioNegotiationStatus.WriteFailed;
-            else if (a.Read32(a.Context, c + 4, &value) != 1) failure = VirtioNegotiationStatus.ReadFailed;
-            else offered |= (ulong)value << (int)(32 * i);
+            if (a.Write32(a.Context, c, i) != 1)
+                failure = VirtioNegotiationStatus.WriteFailed;
+            else if (a.Read32(a.Context, c + 4, &value) != 1)
+                failure = VirtioNegotiationStatus.ReadFailed;
+            else
+                offered |= (ulong)value << (int)(32 * i);
         }
         if (failure == VirtioNegotiationStatus.Success &&
-            ((offered & Features) != Features || (offered & (1UL << 5)) != 0)) failure = VirtioNegotiationStatus.UnsupportedFeatures;
-        if (failure == VirtioNegotiationStatus.Success) selected = Features;
+            ((offered & Features) != Features || (offered & (1UL << 5)) != 0))
+            failure = VirtioNegotiationStatus.UnsupportedFeatures;
+        if (failure == VirtioNegotiationStatus.Success)
+            selected = Features;
         for (uint i = 0; failure == VirtioNegotiationStatus.Success && i < 2; i++)
             if (a.Write32(a.Context, c + 8, i) != 1 || a.Write32(a.Context, c + 12, (uint)(Features >> (int)(32 * i))) != 1)
                 failure = VirtioNegotiationStatus.WriteFailed;
-        if (failure == VirtioNegotiationStatus.Success) failure = AdvanceStatus(c, a, 11, out observed);
-        if (failure == VirtioNegotiationStatus.Success) return new(failure, offered, Features, observed, false, false);
+        if (failure == VirtioNegotiationStatus.Success)
+            failure = AdvanceStatus(c, a, 11, out observed);
+        if (failure == VirtioNegotiationStatus.Success)
+            return new(failure, offered, Features, observed, false, false);
         byte current = 0;
         bool attempted = reset && a.Read8(a.Context, c + 20, &current) == 1 && (current & 0x34) == 0;
         bool written = attempted && a.Write8(a.Context, c + 20, (byte)(current | 0x80)) == 1;
@@ -63,14 +81,21 @@ public static unsafe partial class WritableBlockSession
 
     private static VirtioNegotiationStatus AdvanceStatus(ulong c, VirtioBlkQueueAccess a, byte next, out byte observed)
     {
-        observed = 0; byte prior = 0, value = 0;
-        if (a.Read8(a.Context, c + 20, &prior) != 1) return VirtioNegotiationStatus.ReadFailed;
-        if ((prior & 0xc0) != 0) return VirtioNegotiationStatus.DeviceFailed;
-        if (prior != (next == 1 ? 0 : next == 3 ? 1 : 3)) return VirtioNegotiationStatus.StatusRejected;
-        if (a.Write8(a.Context, c + 20, next) != 1) return VirtioNegotiationStatus.WriteFailed;
-        if (a.Read8(a.Context, c + 20, &value) != 1) return VirtioNegotiationStatus.ReadFailed;
+        observed = 0;
+        byte prior = 0, value = 0;
+        if (a.Read8(a.Context, c + 20, &prior) != 1)
+            return VirtioNegotiationStatus.ReadFailed;
+        if ((prior & 0xc0) != 0)
+            return VirtioNegotiationStatus.DeviceFailed;
+        if (prior != (next == 1 ? 0 : next == 3 ? 1 : 3))
+            return VirtioNegotiationStatus.StatusRejected;
+        if (a.Write8(a.Context, c + 20, next) != 1)
+            return VirtioNegotiationStatus.WriteFailed;
+        if (a.Read8(a.Context, c + 20, &value) != 1)
+            return VirtioNegotiationStatus.ReadFailed;
         observed = value;
-        if ((value & 0xc0) != 0) return VirtioNegotiationStatus.DeviceFailed;
+        if ((value & 0xc0) != 0)
+            return VirtioNegotiationStatus.DeviceFailed;
         return value == next ? VirtioNegotiationStatus.Success : next == 11 && value == 3 ?
             VirtioNegotiationStatus.FeaturesRejected : VirtioNegotiationStatus.StatusRejected;
     }
@@ -81,35 +106,59 @@ public static unsafe partial class WritableBlockSession
     public static Status Start(State* s, in Admission input)
     {
         Admission a = input;
-        if ((a.Negotiation.Offered & (1UL << 5)) != 0) return Status.ReadOnlyDevice;
-        if ((a.Negotiation.Offered & FlushFeature) == 0) return Status.UnsupportedFlush;
+        if ((a.Negotiation.Offered & (1UL << 5)) != 0)
+            return Status.ReadOnlyDevice;
+        if ((a.Negotiation.Offered & FlushFeature) == 0)
+            return Status.UnsupportedFlush;
         if (!a.Negotiation.Succeeded || a.Negotiation.Selected != Features || (a.Negotiation.Offered & Features) != Features)
             return Status.UnsupportedFeatures;
-        if (!Admit(s, a)) return Status.InvalidAccess;
-        s->Self = (ulong)s; s->PoolEpoch = a.Pool->Epoch; s->Input = a; s->Phase = StartingPhase;
-        if (a.Observation != null) *a.Observation = default;
+        if (!Admit(s, a))
+            return Status.InvalidAccess;
+        s->Self = (ulong)s;
+        s->PoolEpoch = a.Pool->Epoch;
+        s->Input = a;
+        s->Phase = StartingPhase;
+        if (a.Observation != null)
+            *a.Observation = default;
         Status result = ReadClock(s, out _);
-        if (result == Status.Success) result = ReadCapacity(s);
-        if (result == Status.Success && s->Capacity != a.ExpectedCapacity) result = Status.ConfigurationChanged;
+        if (result == Status.Success)
+            result = ReadCapacity(s);
+        if (result == Status.Success && s->Capacity != a.ExpectedCapacity)
+            result = Status.ConfigurationChanged;
         if (result == Status.Success)
         {
             s->Queue.Status = VirtioBlkQueueN0.Configure(a.Common, a.Pool, a.Access.Queue,
                 ref s->Allocation, ref s->DeviceOwned, ref s->Queue, a.Notify, a.Device);
-            if (s->Queue.Status != VirtioBlkQueueStatus.Success) result = Status.SetupFailed;
+            if (s->Queue.Status != VirtioBlkQueueStatus.Success)
+                result = Status.SetupFailed;
         }
         if (result == Status.Success)
         {
             ushort offset = 0;
-            if (a.Access.Queue.Read16(a.Access.Queue.Context, a.Common.VirtualStart + 30, &offset) != 1) result = Status.ReadFailed;
-            else if ((ulong)offset * a.NotifyMultiplier > a.Notify.Bytes - 2u) result = Status.InvalidNotify;
-            else s->NotifyAddress = a.Notify.VirtualStart + (ulong)offset * a.NotifyMultiplier;
+            if (a.Access.Queue.Read16(a.Access.Queue.Context, a.Common.VirtualStart + 30, &offset) != 1)
+                result = Status.ReadFailed;
+            else if ((ulong)offset * a.NotifyMultiplier > a.Notify.Bytes - 2u)
+                result = Status.InvalidNotify;
+            else
+                s->NotifyAddress = a.Notify.VirtualStart + (ulong)offset * a.NotifyMultiplier;
         }
-        if (result == Status.Success && a.Access.BusMasterOn(a.Access.Queue.Context) != 1) result = Status.BusMasterFailed;
-        if (result == Status.Success && !Fence(s)) result = Status.OrderingFailed;
-        if (result == Status.Success && a.Access.Queue.Write8(a.Access.Queue.Context, a.Common.VirtualStart + 20, 15) != 1) result = Status.WriteFailed;
-        if (result == Status.Success) result = DeviceStatus(s);
-        if (result == Status.Success) { s->Phase = IdlePhase; s->Failure = Status.Success; return result; }
-        Fault(s, result); _ = Stop(s); return result;
+        if (result == Status.Success && a.Access.BusMasterOn(a.Access.Queue.Context) != 1)
+            result = Status.BusMasterFailed;
+        if (result == Status.Success && !Fence(s))
+            result = Status.OrderingFailed;
+        if (result == Status.Success && a.Access.Queue.Write8(a.Access.Queue.Context, a.Common.VirtualStart + 20, 15) != 1)
+            result = Status.WriteFailed;
+        if (result == Status.Success)
+            result = DeviceStatus(s);
+        if (result == Status.Success)
+        {
+            s->Phase = IdlePhase;
+            s->Failure = Status.Success;
+            return result;
+        }
+        Fault(s, result);
+        _ = Stop(s);
+        return result;
     }
 
     /// <summary>Copy exactly512 caller bytes into exclusive DMA, publish OUT,
@@ -135,59 +184,98 @@ public static unsafe partial class WritableBlockSession
 
     private static Status Submit(State* s, Operation kind, ulong sector, ReadOnlySpan<byte> source, RequestToken* token)
     {
-        if (!Running(s)) return Status.InvalidState;
-        if (!MetadataOutput(s, (ulong)token, (ulong)sizeof(RequestToken))) return Status.InvalidStorage;
+        if (!Running(s))
+            return Status.InvalidState;
+        if (!MetadataOutput(s, (ulong)token, (ulong)sizeof(RequestToken)))
+            return Status.InvalidStorage;
         fixed (byte* bytes = source)
         {
             if (kind == Operation.Write && (source.Length != 512 || !CallerBuffer(s, (ulong)bytes, 512) ||
-                Overlap((ulong)bytes, 512, (ulong)token, (ulong)sizeof(RequestToken)))) return Status.InvalidStorage;
+                Overlap((ulong)bytes, 512, (ulong)token, (ulong)sizeof(RequestToken))))
+                return Status.InvalidStorage;
             *token = default;
-            if (s->Phase != IdlePhase) return Status.Busy;
-            if (kind != Operation.Flush && sector >= s->Capacity) return Status.SectorOutOfRange;
+            if (s->Phase != IdlePhase)
+                return Status.Busy;
+            if (kind != Operation.Flush && sector >= s->Capacity)
+                return Status.SectorOutOfRange;
             if (s->Generation == ulong.MaxValue || s->SubmittedCount == ulong.MaxValue ||
-                kind == Operation.Write && s->SubmittedWriteBytes > ulong.MaxValue - 512) return Status.GenerationExhausted;
-            if (!DmaBound(s)) return Fault(s, Status.DmaRejected);
-            Status result = CheckUnchanged(s); if (result != Status.Success) return Fault(s, result);
-            result = ReadClock(s, out ulong now); if (result != Status.Success) return Fault(s, result);
-            if (now > ulong.MaxValue - s->Input.CompletionTimeoutNanos) return Fault(s, Status.ClockFailed);
-            byte* data = (byte*)s->Queue.Layout.Range.CpuVirtualAddress; ulong device = s->Queue.Layout.Range.DeviceAddress;
+                kind == Operation.Write && s->SubmittedWriteBytes > ulong.MaxValue - 512)
+                return Status.GenerationExhausted;
+            if (!DmaBound(s))
+                return Fault(s, Status.DmaRejected);
+            Status result = CheckUnchanged(s);
+            if (result != Status.Success)
+                return Fault(s, result);
+            result = ReadClock(s, out ulong now);
+            if (result != Status.Success)
+                return Fault(s, result);
+            if (now > ulong.MaxValue - s->Input.CompletionTimeoutNanos)
+                return Fault(s, Status.ClockFailed);
+            byte* data = (byte*)s->Queue.Layout.Range.CpuVirtualAddress;
+            ulong device = s->Queue.Layout.Range.DeviceAddress;
             *(uint*)(data + 256) = kind == Operation.Write ? 1u : kind == Operation.Flush ? 4u : 0u;
-            *(uint*)(data + 260) = 0; *(ulong*)(data + 264) = sector;
+            *(uint*)(data + 260) = 0;
+            *(ulong*)(data + 264) = sector;
             data[272] = 255;
             Descriptor(data, device + 256, 16, 1, 1);
             if (kind != Operation.Flush)
             {
-                for (uint i = 0; i < 512; i++) data[512 + i] = kind == Operation.Write ? bytes[i] : (byte)0;
+                for (uint i = 0; i < 512; i++)
+                    data[512 + i] = kind == Operation.Write ? bytes[i] : (byte)0;
                 Descriptor(data + 16, device + 512, 512, kind == Operation.Write ? (ushort)1 : (ushort)3, 2);
                 Descriptor(data + 32, device + 272, 1, 2, 0);
             }
-            else { Descriptor(data + 16, device + 272, 1, 2, 0); Descriptor(data + 32, 0, 0, 0, 0); }
+            else
+            {
+                Descriptor(data + 16, device + 272, 1, 2, 0);
+                Descriptor(data + 32, 0, 0, 0, 0);
+            }
             ushort* available = (ushort*)(data + s->Queue.Layout.Rings.AvailableRing.Offset);
             available[2 + (s->AvailableIndex & 7)] = 0;
-            if (!Fence(s)) return Fault(s, Status.OrderingFailed);
-            s->Generation++; s->Sector = sector; s->Kind = kind; s->Deadline = now + s->Input.CompletionTimeoutNanos;
-            s->FlushTarget = s->CompletedWriteBytes; s->CancelRequested = false; s->Phase = PendingPhase;
+            if (!Fence(s))
+                return Fault(s, Status.OrderingFailed);
+            s->Generation++;
+            s->Sector = sector;
+            s->Kind = kind;
+            s->Deadline = now + s->Input.CompletionTimeoutNanos;
+            s->FlushTarget = s->CompletedWriteBytes;
+            s->CancelRequested = false;
+            s->Phase = PendingPhase;
             // After the first successful release fence only ordinary RAM work
             // remains before actual index publication. Capture the exact DMA
             // OUT payload while it is still unpublished, never stale IN data.
             if (s->Input.Observation != null)
             {
-                Observation* observed = s->Input.Observation; *observed = default;
-                observed->Request = new(s); observed->Kind = kind; observed->Sector = sector;
+                Observation* observed = s->Input.Observation;
+                *observed = default;
+                observed->Request = new(s);
+                observed->Kind = kind;
+                observed->Sector = sector;
                 if (kind == Operation.Write)
-                { for (uint i = 0; i < 512; i++) observed->Data[i] = data[512 + i]; observed->PayloadBytes = 512; }
+                {
+                    for (uint i = 0; i < 512; i++)
+                        observed->Data[i] = data[512 + i];
+                    observed->PayloadBytes = 512;
+                }
             }
-            s->AvailableIndex = unchecked((ushort)(s->AvailableIndex + 1)); available[1] = s->AvailableIndex;
-            s->SubmittedCount++; if (kind == Operation.Write) s->SubmittedWriteBytes += 512;
+            s->AvailableIndex = unchecked((ushort)(s->AvailableIndex + 1));
+            available[1] = s->AvailableIndex;
+            s->SubmittedCount++;
+            if (kind == Operation.Write)
+                s->SubmittedWriteBytes += 512;
             if (s->Input.Observation != null)
             {
                 Observation* observed = s->Input.Observation;
-                ObserveFrontiers(s, observed); observed->Flags = ObservationFlags.Published;
+                ObserveFrontiers(s, observed);
+                observed->Flags = ObservationFlags.Published;
             }
-            if (!Fence(s)) return Fault(s, Status.OrderingFailed);
+            if (!Fence(s))
+                return Fault(s, Status.OrderingFailed);
             var a = s->Input.Access.Queue;
-            if (a.Write16(a.Context, s->NotifyAddress, 0) != 1) return Fault(s, Status.WriteFailed);
-            *token = new(s); return Status.Success;
+            if (a.Write16(a.Context, s->NotifyAddress, 0) != 1)
+                return Fault(s, Status.WriteFailed);
+            *token = new(s);
+            return Status.Success;
         }
     }
 
@@ -202,38 +290,68 @@ public static unsafe partial class WritableBlockSession
     /// validate its bounds/aliases before clearing or publishing any metadata.</summary>
     public static Status Poll(State* s, Completion* completion)
     {
-        if (!Running(s)) return Status.InvalidState;
-        if (!MetadataOutput(s, (ulong)completion, (ulong)sizeof(Completion))) return Status.InvalidStorage;
+        if (!Running(s))
+            return Status.InvalidState;
+        if (!MetadataOutput(s, (ulong)completion, (ulong)sizeof(Completion)))
+            return Status.InvalidStorage;
         *completion = default;
-        if (!DmaBound(s)) return Fault(s, Status.DmaRejected);
-        Status result = DeviceStatus(s); if (result != Status.Success) return Fault(s, result);
-        var a = s->Input.Access.Queue; ushort index = 0;
+        if (!DmaBound(s))
+            return Fault(s, Status.DmaRejected);
+        Status result = DeviceStatus(s);
+        if (result != Status.Success)
+            return Fault(s, result);
+        var a = s->Input.Access.Queue;
+        ushort index = 0;
         ulong used = s->Queue.Layout.Range.CpuVirtualAddress + s->Queue.Layout.Rings.UsedRing.Offset;
-        if (a.Read16(a.Context, used + 2, &index) != 1) return Fault(s, Status.ReadFailed);
+        if (a.Read16(a.Context, used + 2, &index) != 1)
+            return Fault(s, Status.ReadFailed);
         ushort delta = unchecked((ushort)(index - s->UsedConsumed));
         if (delta != 0)
         {
-            if (s->Phase != PendingPhase || delta != 1) return Fault(s, Status.InvalidCompletion);
-            if (!Fence(s)) return Fault(s, Status.OrderingFailed);
-            uint id = 0, length = 0; byte status = 255; ulong item = used + 4 + (ulong)(s->UsedConsumed & 7) * 8;
+            if (s->Phase != PendingPhase || delta != 1)
+                return Fault(s, Status.InvalidCompletion);
+            if (!Fence(s))
+                return Fault(s, Status.OrderingFailed);
+            uint id = 0, length = 0;
+            byte status = 255;
+            ulong item = used + 4 + (ulong)(s->UsedConsumed & 7) * 8;
             if (a.Read32(a.Context, item, &id) != 1 || a.Read32(a.Context, item + 4, &length) != 1 ||
-                a.Read8(a.Context, s->Queue.Layout.Range.CpuVirtualAddress + 272, &status) != 1) return Fault(s, Status.ReadFailed);
+                a.Read8(a.Context, s->Queue.Layout.Range.CpuVirtualAddress + 272, &status) != 1)
+                return Fault(s, Status.ReadFailed);
             if (id != 0 || status > 2 || (s->Kind == Operation.Read ? length is 0 or > 513 || status == 0 && length != 513 : length != 1))
                 return Fault(s, Status.InvalidCompletion);
-            result = DeviceStatus(s); if (result != Status.Success) return Fault(s, result);
-            result = ReadClock(s, out _); if (result != Status.Success) return Fault(s, result);
-            s->UsedConsumed = index; s->CompletedCount++; s->Deadline = 0;
+            result = DeviceStatus(s);
+            if (result != Status.Success)
+                return Fault(s, result);
+            result = ReadClock(s, out _);
+            if (result != Status.Success)
+                return Fault(s, result);
+            s->UsedConsumed = index;
+            s->CompletedCount++;
+            s->Deadline = 0;
             result = status == 0 ? Status.Success : status == 1 ? Status.DeviceIoError : Status.UnsupportedRequest;
             *completion = new(s, result);
-            if (result != Status.Success) { ObserveCompletion(s, result); return Fault(s, result); }
-            if (s->Kind == Operation.Write) s->CompletedWriteBytes += 512;
-            else if (s->Kind == Operation.Flush) s->FlushedWriteBytes = s->FlushTarget;
+            if (result != Status.Success)
+            {
+                ObserveCompletion(s, result);
+                return Fault(s, result);
+            }
+            if (s->Kind == Operation.Write)
+                s->CompletedWriteBytes += 512;
+            else if (s->Kind == Operation.Flush)
+                s->FlushedWriteBytes = s->FlushTarget;
             s->Phase = s->Kind == Operation.Read && !s->CancelRequested ? ReadReadyPhase : IdlePhase;
             ObserveCompletion(s, result);
             return s->CancelRequested ? Status.Cancelled : s->Phase == ReadReadyPhase ? Status.Ready : Status.Success;
         }
-        if (s->Phase == ReadReadyPhase) { *completion = new(s, Status.Success); return Status.Ready; }
-        result = ReadClock(s, out ulong now); if (result != Status.Success) return Fault(s, result);
+        if (s->Phase == ReadReadyPhase)
+        {
+            *completion = new(s, Status.Success);
+            return Status.Ready;
+        }
+        result = ReadClock(s, out ulong now);
+        if (result != Status.Success)
+            return Fault(s, result);
         return s->Phase == IdlePhase ? Status.Idle : now >= s->Deadline ? Fault(s, Status.Timeout) : Status.Pending;
     }
 
@@ -242,12 +360,17 @@ public static unsafe partial class WritableBlockSession
     /// never changes physical completion/durability counters or frees backing.</summary>
     public static Status Cancel(State* s, RequestToken token)
     {
-        if (!Running(s)) return Status.InvalidState;
+        if (!Running(s))
+            return Status.InvalidState;
         if (s->Phase is not (PendingPhase or ReadReadyPhase) || !token.IsInitialized || token.Owner != (ulong)s ||
-            token.Epoch != s->Input.Epoch || token.Generation != s->Generation) return Status.StaleToken;
+            token.Epoch != s->Input.Epoch || token.Generation != s->Generation)
+            return Status.StaleToken;
         s->CancelRequested = true;
-        if (s->Input.Observation != null) s->Input.Observation->Cancelled = true;
-        if (s->Phase == ReadReadyPhase) s->Phase = IdlePhase; return Status.Success;
+        if (s->Input.Observation != null)
+            s->Input.Observation->Cancelled = true;
+        if (s->Phase == ReadReadyPhase)
+            s->Phase = IdlePhase;
+        return Status.Success;
     }
 
     /// <summary>Copy exactly512 validated IN bytes to exclusive ordinary RAM,
@@ -257,23 +380,40 @@ public static unsafe partial class WritableBlockSession
     /// follows it. Destination is borrowed only until return.</summary>
     public static Status CopyRead(State* s, RequestToken token, Span<byte> destination)
     {
-        if (!Running(s)) return Status.InvalidState;
+        if (!Running(s))
+            return Status.InvalidState;
         if (!token.IsInitialized || token.Owner != (ulong)s || token.Epoch != s->Input.Epoch || token.Generation != s->Generation ||
-            s->Kind != Operation.Read || s->Phase == IdlePhase) return Status.StaleToken;
-        if (s->Phase != ReadReadyPhase) return Status.Pending;
+            s->Kind != Operation.Read || s->Phase == IdlePhase)
+            return Status.StaleToken;
+        if (s->Phase != ReadReadyPhase)
+            return Status.Pending;
         fixed (byte* output = destination)
         {
-            if (destination.Length != 512 || !CallerBuffer(s, (ulong)output, 512)) return Status.InvalidStorage;
-            if (!DmaBound(s)) return Fault(s, Status.DmaRejected);
-            Status status = CheckUnchanged(s); if (status != Status.Success) return Fault(s, status);
-            if (!Fence(s)) return Fault(s, Status.OrderingFailed);
+            if (destination.Length != 512 || !CallerBuffer(s, (ulong)output, 512))
+                return Status.InvalidStorage;
+            if (!DmaBound(s))
+                return Fault(s, Status.DmaRejected);
+            Status status = CheckUnchanged(s);
+            if (status != Status.Success)
+                return Fault(s, status);
+            if (!Fence(s))
+                return Fault(s, Status.OrderingFailed);
             byte* source = (byte*)s->Queue.Layout.Range.CpuVirtualAddress + 512;
             for (uint i = 0; i < 512; i++)
-            { byte value = source[i]; output[i] = value; if (s->Input.Observation != null) s->Input.Observation->Data[i] = value; }
+            {
+                byte value = source[i];
+                output[i] = value;
+                if (s->Input.Observation != null)
+                    s->Input.Observation->Data[i] = value;
+            }
         }
         if (s->Input.Observation != null)
-        { s->Input.Observation->PayloadBytes = 512; s->Input.Observation->Flags |= ObservationFlags.ReadCopied; }
-        s->Phase = IdlePhase; return Status.Success;
+        {
+            s->Input.Observation->PayloadBytes = 512;
+            s->Input.Observation->Flags |= ObservationFlags.ReadCopied;
+        }
+        s->Phase = IdlePhase;
+        return Status.Success;
     }
 
     /// <summary>Bounded actual reset/readback, bus-master disable/readback and
@@ -282,81 +422,157 @@ public static unsafe partial class WritableBlockSession
     /// completed cleanup is idempotent and preserves the original failure.</summary>
     public static Status Stop(State* s)
     {
-        if (!Bound(s)) return Status.InvalidState;
-        if (s->Phase == RetiredPhase) return Status.Success;
-        if (s->Phase == PendingPhase || s->Dirty) s->Retry = true;
-        s->Phase = FaultPhase; s->Queue.ResetComplete = false; s->Queue.BusMasterDisabled = false;
+        if (!Bound(s))
+            return Status.InvalidState;
+        if (s->Phase == RetiredPhase)
+            return Status.Success;
+        if (s->Phase == PendingPhase || s->Dirty)
+            s->Retry = true;
+        s->Phase = FaultPhase;
+        s->Queue.ResetComplete = false;
+        s->Queue.BusMasterDisabled = false;
         s->Queue.CleanupStatus = VirtioBlkQueueStatus.ResetFailed;
-        var a = s->Input.Access.Queue; byte value = 255;
+        var a = s->Input.Access.Queue;
+        byte value = 255;
         if (a.Write8(a.Context, s->Input.Common.VirtualStart + 20, 0) == 1)
             for (uint i = 0; i < s->Input.ResetLimit; i++)
-            { s->Queue.ResetReads++; if (a.Read8(a.Context, s->Input.Common.VirtualStart + 20, &value) != 1) break;
-              if (value == 0) { s->Queue.ResetComplete = true; break; } }
+            {
+                s->Queue.ResetReads++;
+                if (a.Read8(a.Context, s->Input.Common.VirtualStart + 20, &value) != 1)
+                    break;
+                if (value == 0)
+                {
+                    s->Queue.ResetComplete = true;
+                    break;
+                }
+            }
         s->Queue.BusMasterDisabled = a.BusMasterOff(a.Context) == 1;
-        if (!s->Queue.ResetComplete) return CleanupFailure(s, Status.ResetFailed);
-        if (!s->Queue.BusMasterDisabled) { s->Queue.CleanupStatus = VirtioBlkQueueStatus.BusMasterFailed; return CleanupFailure(s, Status.ResetFailed); }
-        if (!Fence(s)) { s->Queue.CleanupStatus = VirtioBlkQueueStatus.OrderingFailed; return CleanupFailure(s, Status.ResetFailed); }
+        if (!s->Queue.ResetComplete)
+            return CleanupFailure(s, Status.ResetFailed);
+        if (!s->Queue.BusMasterDisabled)
+        {
+            s->Queue.CleanupStatus = VirtioBlkQueueStatus.BusMasterFailed;
+            return CleanupFailure(s, Status.ResetFailed);
+        }
+        if (!Fence(s))
+        {
+            s->Queue.CleanupStatus = VirtioBlkQueueStatus.OrderingFailed;
+            return CleanupFailure(s, Status.ResetFailed);
+        }
         s->Queue.CleanupStatus = VirtioBlkQueueStatus.Success;
         if (s->Allocation.IsInitialized && !s->Queue.DmaReleased)
         {
             // Quiescence alone does not authenticate which pool lease can be
             // scrubbed/released. Reject changed range/slot authority as well.
             if (!DmaBound(s, s->DeviceOwned && !s->ReturnedToCpu ? DmaBufferOwnership.Device : DmaBufferOwnership.Cpu))
-            { s->Queue.CleanupStatus = VirtioBlkQueueStatus.DmaRejected; return CleanupFailure(s, Status.DmaRejected); }
+            {
+                s->Queue.CleanupStatus = VirtioBlkQueueStatus.DmaRejected;
+                return CleanupFailure(s, Status.DmaRejected);
+            }
             if (s->DeviceOwned && !s->ReturnedToCpu)
-            { if (PageAlignedDmaBuffers.TryReturnToCpu(s->Input.Pool, s->Allocation.Token) != DmaBufferStatus.Success)
-              { s->Queue.CleanupStatus = VirtioBlkQueueStatus.DmaRejected; return CleanupFailure(s, Status.DmaRejected); }
-              s->ReturnedToCpu = true; }
+            {
+                if (PageAlignedDmaBuffers.TryReturnToCpu(s->Input.Pool, s->Allocation.Token) != DmaBufferStatus.Success)
+                {
+                    s->Queue.CleanupStatus = VirtioBlkQueueStatus.DmaRejected;
+                    return CleanupFailure(s, Status.DmaRejected);
+                }
+                s->ReturnedToCpu = true;
+            }
             if (!s->Scrubbed)
-            { for (ulong i = 0; i < s->Allocation.Range.ByteLength; i++) ((byte*)s->Allocation.Range.CpuVirtualAddress)[i] = 0; s->Scrubbed = true; }
+            {
+                for (ulong i = 0; i < s->Allocation.Range.ByteLength; i++)
+                    ((byte*)s->Allocation.Range.CpuVirtualAddress)[i] = 0;
+                s->Scrubbed = true;
+            }
             if (PageAlignedDmaBuffers.TryRelease(s->Input.Pool, s->Allocation.Token) != DmaBufferStatus.Success)
-            { s->Queue.CleanupStatus = VirtioBlkQueueStatus.DmaRejected; return CleanupFailure(s, Status.DmaRejected); }
+            {
+                s->Queue.CleanupStatus = VirtioBlkQueueStatus.DmaRejected;
+                return CleanupFailure(s, Status.DmaRejected);
+            }
         }
-        s->Queue.DmaReleased = true; s->Phase = RetiredPhase; return Status.Success;
+        s->Queue.DmaReleased = true;
+        s->Phase = RetiredPhase;
+        return Status.Success;
     }
 
     private static Status Fault(State* s, Status reason)
-    { if (s->Phase == PendingPhase || s->Dirty) s->Retry = true; s->Phase = FaultPhase; if (s->Failure is Status.Uninitialized or Status.Success) s->Failure = reason; return reason; }
+    {
+        if (s->Phase == PendingPhase || s->Dirty)
+            s->Retry = true;
+        s->Phase = FaultPhase;
+        if (s->Failure is Status.Uninitialized or Status.Success)
+            s->Failure = reason;
+        return reason;
+    }
     private static Status CleanupFailure(State* s, Status reason)
-    { if (s->Failure is Status.Uninitialized or Status.Success) s->Failure = reason; return reason; }
+    {
+        if (s->Failure is Status.Uninitialized or Status.Success)
+            s->Failure = reason;
+        return reason;
+    }
     private static Status ReadCapacity(State* s)
     {
         var a = s->Input.Access.Queue;
         for (uint i = 0; i < 16; i++)
         {
-            byte before = 0, after = 0; uint low = 0, high = 0;
+            byte before = 0, after = 0;
+            uint low = 0, high = 0;
             if (a.Read8(a.Context, s->Input.Common.VirtualStart + 21, &before) != 1 || a.Read32(a.Context, s->Input.Device.VirtualStart, &low) != 1 ||
-                a.Read32(a.Context, s->Input.Device.VirtualStart + 4, &high) != 1 || a.Read8(a.Context, s->Input.Common.VirtualStart + 21, &after) != 1) return Status.ReadFailed;
-            if (before != after) continue;
-            s->Capacity = ((ulong)high << 32) | low; s->ConfigGeneration = after;
+                a.Read32(a.Context, s->Input.Device.VirtualStart + 4, &high) != 1 || a.Read8(a.Context, s->Input.Common.VirtualStart + 21, &after) != 1)
+                return Status.ReadFailed;
+            if (before != after)
+                continue;
+            s->Capacity = ((ulong)high << 32) | low;
+            s->ConfigGeneration = after;
             return s->Capacity == 0 || s->Capacity > ulong.MaxValue / 512 ? Status.InvalidCapacity : Status.Success;
         }
         return Status.ConfigurationChanged;
     }
     private static Status DeviceStatus(State* s)
     {
-        var a = s->Input.Access.Queue; byte value = 0, generation = 0;
-        if (a.Read8(a.Context, s->Input.Common.VirtualStart + 20, &value) != 1 || a.Read8(a.Context, s->Input.Common.VirtualStart + 21, &generation) != 1) return Status.ReadFailed;
+        var a = s->Input.Access.Queue;
+        byte value = 0, generation = 0;
+        if (a.Read8(a.Context, s->Input.Common.VirtualStart + 20, &value) != 1 || a.Read8(a.Context, s->Input.Common.VirtualStart + 21, &generation) != 1)
+            return Status.ReadFailed;
         return value != 15 ? Status.StatusRejected : generation != s->ConfigGeneration ? Status.ConfigurationChanged : Status.Success;
     }
     private static Status CheckUnchanged(State* s)
     {
-        Status result = DeviceStatus(s); if (result != Status.Success) return result;
-        var a = s->Input.Access.Queue; ushort index = 0;
-        if (a.Read16(a.Context, s->Queue.Layout.Range.CpuVirtualAddress + s->Queue.Layout.Rings.UsedRing.Offset + 2, &index) != 1) return Status.ReadFailed;
+        Status result = DeviceStatus(s);
+        if (result != Status.Success)
+            return result;
+        var a = s->Input.Access.Queue;
+        ushort index = 0;
+        if (a.Read16(a.Context, s->Queue.Layout.Range.CpuVirtualAddress + s->Queue.Layout.Rings.UsedRing.Offset + 2, &index) != 1)
+            return Status.ReadFailed;
         return index == s->UsedConsumed ? Status.Success : Status.InvalidCompletion;
     }
     private static Status ReadClock(State* s, out ulong now)
     {
-        now = 0; ulong value = 0;
-        if (s->Input.Clock.Read(s->Input.Clock.Context, &value) != 1) return Status.ClockFailed;
-        if (value < s->LastClock) return Status.ClockRegressed;
-        now = s->LastClock = value; return Status.Success;
+        now = 0;
+        ulong value = 0;
+        if (s->Input.Clock.Read(s->Input.Clock.Context, &value) != 1)
+            return Status.ClockFailed;
+        if (value < s->LastClock)
+            return Status.ClockRegressed;
+        now = s->LastClock = value;
+        return Status.Success;
     }
     private static void Descriptor(byte* p, ulong address, uint length, ushort flags, ushort next)
-    { *(ulong*)p = address; *(uint*)(p + 8) = length; *(ushort*)(p + 12) = flags; *(ushort*)(p + 14) = next; }
+    {
+        *(ulong*)p = address;
+        *(uint*)(p + 8) = length;
+        *(ushort*)(p + 12) = flags;
+        *(ushort*)(p + 14) = next;
+    }
     private static bool Fence(State* s)
-    { var a = s->Input.Access.Queue; if (a.Fence(a.Context) != 1) return false; s->Queue.Fences++; return true; }
+    {
+        var a = s->Input.Access.Queue;
+        if (a.Fence(a.Context) != 1)
+            return false;
+        s->Queue.Fences++;
+        return true;
+    }
     private static bool Bound(State* s) => Storage((ulong)s, (ulong)sizeof(State)) && s->Self == (ulong)s &&
         s->Phase is >= StartingPhase and <= ReadReadyPhase && (s->Phase == RetiredPhase ||
         (Storage((ulong)s->Input.Pool, (ulong)sizeof(DmaBufferPool)) && s->Input.Pool->Self == (ulong)s->Input.Pool &&
@@ -373,23 +589,29 @@ public static unsafe partial class WritableBlockSession
     // cleanup. Pool/slots/window must remain retained; no live DMA/MMIO authority.
     internal static bool CanBorrowStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes)
     {
-        if (!Bound(s) || s->Input.Epoch != expectedEpoch) return false;
-        var a = s->Input; var p = a.Pool;
+        if (!Bound(s) || s->Input.Epoch != expectedEpoch)
+            return false;
+        var a = s->Input;
+        var p = a.Pool;
         if (!Storage((ulong)p, (ulong)sizeof(DmaBufferPool)) || p->Self != (ulong)p || p->Epoch != s->PoolEpoch || p->Count is 0 or > 64 ||
             !Storage((ulong)p->Slots, p->Count * (ulong)sizeof(DmaBufferSlot)) || !p->Window.IsInitialized || p->Window.ByteLength != p->Count * 4096UL ||
             !Storage(p->Window.CpuVirtualBase, p->Window.ByteLength, 1) || !a.Common.IsValid || !a.Notify.IsValid || !a.Device.IsValid ||
             !Storage(a.Common.VirtualStart, a.Common.Bytes, 1) || !Storage(a.Notify.VirtualStart, a.Notify.Bytes, 1) || !Storage(a.Device.VirtualStart, a.Device.Bytes, 1) ||
-            a.Observation != null && (!Storage((ulong)a.Observation, (ulong)sizeof(Observation)) || !CallerBufferCore(s, (ulong)a.Observation, (ulong)sizeof(Observation)))) return false;
+            a.Observation != null && (!Storage((ulong)a.Observation, (ulong)sizeof(Observation)) || !CallerBufferCore(s, (ulong)a.Observation, (ulong)sizeof(Observation))))
+            return false;
         return CallerBuffer(s, address, bytes);
     }
     private static bool DmaBound(State* s, DmaBufferOwnership ownership = DmaBufferOwnership.Device)
     {
-        var p = s->Input.Pool; var t = s->Allocation.Token;
-        if (!s->Allocation.IsInitialized || t.Pool != (ulong)p || t.Epoch != p->Epoch || t.Slot >= p->Count) return false;
+        var p = s->Input.Pool;
+        var t = s->Allocation.Token;
+        if (!s->Allocation.IsInitialized || t.Pool != (ulong)p || t.Epoch != p->Epoch || t.Slot >= p->Count)
+            return false;
         var slot = p->Slots + t.Slot;
         if (slot->Generation != t.Generation || slot->Owner != ownership || slot->Pages != 1 ||
             slot->FirstPage >= p->Count || (p->Used & (1UL << (int)slot->FirstPage)) == 0 ||
-            p->Window.TrySlice((ulong)slot->FirstPage * 4096, 4096, out var range) != OS.Kernel.Platform.DmaAddressStatus.Success) return false;
+            p->Window.TrySlice((ulong)slot->FirstPage * 4096, 4096, out var range) != OS.Kernel.Platform.DmaAddressStatus.Success)
+            return false;
         var original = s->Allocation.Range;
         return range.CpuVirtualAddress == original.CpuVirtualAddress && range.PhysicalAddress == original.PhysicalAddress &&
             range.DeviceAddress == original.DeviceAddress && range.ByteLength == original.ByteLength;
@@ -413,35 +635,49 @@ public static unsafe partial class WritableBlockSession
             q.Write16 == null || q.Read32 == null || q.Write32 == null || q.Fence == null || q.BusMasterOff == null || a.Access.BusMasterOn == null ||
             a.Access.PrepareInterrupt != null || a.Access.WaitInterrupt != null || a.Access.StopInterrupt != null ||
             !Storage((ulong)s, (ulong)sizeof(State)) || !Storage((ulong)a.Pool, (ulong)sizeof(DmaBufferPool)) ||
-            a.Observation != null && !Storage((ulong)a.Observation, (ulong)sizeof(Observation))) return false;
+            a.Observation != null && !Storage((ulong)a.Observation, (ulong)sizeof(Observation)))
+            return false;
         if (a.Pool->Self != (ulong)a.Pool || a.Pool->Epoch == 0 || a.Pool->Count is 0 or > 64 || !a.Pool->Window.IsInitialized ||
-            a.Pool->Window.ByteLength != a.Pool->Count * 4096UL || !Storage((ulong)a.Pool->Slots, a.Pool->Count * (ulong)sizeof(DmaBufferSlot))) return false;
+            a.Pool->Window.ByteLength != a.Pool->Count * 4096UL || !Storage((ulong)a.Pool->Slots, a.Pool->Count * (ulong)sizeof(DmaBufferSlot)))
+            return false;
         ulong* starts = stackalloc ulong[] { (ulong)s, (ulong)a.Pool, (ulong)a.Pool->Slots, (ulong)a.Observation };
         ulong* lengths = stackalloc ulong[] { (ulong)sizeof(State), (ulong)sizeof(DmaBufferPool), a.Pool->Count * (ulong)sizeof(DmaBufferSlot), (ulong)sizeof(Observation) };
         for (int i = 0; i < (a.Observation == null ? 3 : 4); i++)
         {
             if (Overlap(starts[i], lengths[i], a.Pool->Window.CpuVirtualBase, a.Pool->Window.ByteLength) ||
-                OverlapsRegion(starts[i], lengths[i], a.Common) || OverlapsRegion(starts[i], lengths[i], a.Notify) || OverlapsRegion(starts[i], lengths[i], a.Device)) return false;
-            for (int j = 0; j < i; j++) if (Overlap(starts[i], lengths[i], starts[j], lengths[j])) return false;
+                OverlapsRegion(starts[i], lengths[i], a.Common) || OverlapsRegion(starts[i], lengths[i], a.Notify) || OverlapsRegion(starts[i], lengths[i], a.Device))
+                return false;
+            for (int j = 0; j < i; j++)
+                if (Overlap(starts[i], lengths[i], starts[j], lengths[j]))
+                    return false;
         }
         if (RegionAlias(a.Common, a.Pool->Window) || RegionAlias(a.Notify, a.Pool->Window) || RegionAlias(a.Device, a.Pool->Window) ||
-            RegionOverlap(a.Common, a.Notify) || RegionOverlap(a.Common, a.Device) || RegionOverlap(a.Notify, a.Device)) return false;
-        for (ulong i = 0; i < (ulong)sizeof(State); i++) if (((byte*)s)[i] != 0) return false;
+            RegionOverlap(a.Common, a.Notify) || RegionOverlap(a.Common, a.Device) || RegionOverlap(a.Notify, a.Device))
+            return false;
+        for (ulong i = 0; i < (ulong)sizeof(State); i++)
+            if (((byte*)s)[i] != 0)
+                return false;
         return true;
     }
     private static void ObserveFrontiers(State* s, Observation* observed)
     {
-        observed->SubmittedCount = s->SubmittedCount; observed->CompletedCount = s->CompletedCount;
-        observed->SubmittedBytes = s->SubmittedWriteBytes; observed->CompletedBytes = s->CompletedWriteBytes;
+        observed->SubmittedCount = s->SubmittedCount;
+        observed->CompletedCount = s->CompletedCount;
+        observed->SubmittedBytes = s->SubmittedWriteBytes;
+        observed->CompletedBytes = s->CompletedWriteBytes;
         observed->FlushTargetBytes = s->Kind == Operation.Flush ? s->FlushTarget : 0;
         observed->FlushAcknowledgedBytes = s->FlushedWriteBytes;
-        observed->AvailableIndex = s->AvailableIndex; observed->ConsumedIndex = s->UsedConsumed;
+        observed->AvailableIndex = s->AvailableIndex;
+        observed->ConsumedIndex = s->UsedConsumed;
     }
     private static void ObserveCompletion(State* s, Status result)
     {
-        if (s->Input.Observation == null) return;
-        Observation* observed = s->Input.Observation; ObserveFrontiers(s, observed);
-        observed->DeviceResult = result; observed->Cancelled = s->CancelRequested;
+        if (s->Input.Observation == null)
+            return;
+        Observation* observed = s->Input.Observation;
+        ObserveFrontiers(s, observed);
+        observed->DeviceResult = result;
+        observed->Cancelled = s->CancelRequested;
         observed->CompletionBytes = result == Status.Success && s->Kind != Operation.Flush ? 512U : 0;
         observed->Flags |= ObservationFlags.CompletionValidated;
     }

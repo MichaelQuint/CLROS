@@ -83,16 +83,32 @@ internal static class ReadOnlyDiskProfileTests
         string root = HostToolProcess.FindRepositoryRoot();
         var project = EfiProjectAdmission.InspectStatic(root);
         HostCheck.True(project.Succeeded, project.Reason + ":" + project.Detail);
-        string[] sources = [@"Boot\EfiEntry.DiskNative.cs", @"Boot\EfiEntry.DiskBootstrap.cs", @"Boot\EfiEntry.DiskEvidence.cs",
-            @"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs", @"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs",
-            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs", @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"];
-        foreach (string source in sources)
+        var catalog = HostSourceCatalog.Efi(EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16025Probe"] = true }));
+        const string adapter = "OS.Boot.EfiEntry+M03FirstExitAdapter";
+        string descriptors = typeof(OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices).FullName!;
+        string threads = typeof(OS.Kernel.Compatibility.LinuxX64.LinuxThreadServices).FullName!;
+        Dictionary<string, IReadOnlyList<CSharpSourceDocument>> anchors = new(StringComparer.Ordinal)
         {
-            HostCheck.True(EfiContracts.SourceAdmissionReasons.ContainsKey(source) && EfiContracts.SourceIdentities.ContainsKey(source));
-            string text = File.ReadAllText(Path.GetFullPath(Path.Combine(root, "src", "OS", source.Replace('\\', Path.DirectorySeparatorChar))));
-            HostCheck.True(EfiSourceAdmission.Inspect(text, source).Succeeded);
-            var changed = EfiSourceAdmission.Inspect(text + "\n// unreviewed source mutation\n", source);
-            HostCheck.True(!changed.Succeeded && changed.Reason == "forbidden_active_source");
+            ["reviewed_retained_read_block_observer_identity"] = catalog.TypeSources(typeof(OS.Storage.ContinuingReadOnlyBlockService).FullName!),
+            ["reviewed_confined_fat_files_cache_cursor_identity"] = catalog.TypeSources(typeof(OS.Storage.ReadOnlyWebRootFileSystem).FullName!),
+            ["reviewed_disk_descriptor_generation_close_drain_identity"] =
+                [catalog.Document(catalog.Method(descriptors, "AttachDisk")), .. catalog.TypeSources(descriptors + "+DiskState")],
+            ["reviewed_source4_wait_output_ceiling_identity"] =
+                [catalog.Document(catalog.Method(threads, "PollDiskReadiness")), .. catalog.TypeSources(threads + "+DiskPumpAccess")],
+            ["reviewed_retained_bdf7_disk_mapping_bootstrap_identity"] =
+                [catalog.Document(catalog.Method(adapter, "PrepareNativeDisk")), .. catalog.TypeSources(adapter + "+NativeDiskOwner")],
+            ["reviewed_disk_quiescent_flush_retirement_identity"] = [catalog.Document(catalog.Method(adapter, "RunNativeDiskBootstrap"))],
+            ["reviewed_bounded_committed_sector_observation_identity"] =
+                [catalog.Document(catalog.Method(adapter, "FlushNativeDiskEvidence")), .. catalog.TypeSources(adapter + "+NativeDiskRecord")]
+        };
+        var sources = DiskSourceFamilySelection.Select(catalog, Path.Combine(root, "src", "OS"),
+            EfiContracts.SourceAdmissionReasons, EfiContracts.SourceIdentities, anchors);
+        foreach (var (source, document) in sources)
+        {
+            HostCheck.True(EfiSourceAdmission.Inspect(document.Text, source).Succeeded, source);
+            var changed = EfiSourceAdmission.Inspect(document.Text + "\n// unreviewed source mutation\n", source);
+            HostCheck.True(!changed.Succeeded && changed.Reason == "forbidden_active_source"
+                && changed.Detail.Contains(source, StringComparison.Ordinal), source + ":" + changed.Reason);
         }
     }
 }

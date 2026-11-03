@@ -15,11 +15,20 @@ public static partial class Fat32Parser
             NextCluster = nextCluster;
         }
 
-        public Fat32Status Status { get; }
+        public Fat32Status Status
+        {
+            get;
+        }
 
-        public BlockDeviceStatus BlockStatus { get; }
+        public BlockDeviceStatus BlockStatus
+        {
+            get;
+        }
 
-        public uint NextCluster { get; }
+        public uint NextCluster
+        {
+            get;
+        }
 
         public bool Succeeded => Status == Fat32Status.Success;
 

@@ -28,23 +28,50 @@ public readonly struct VirtioBlockReadQueueNotifyCompletionResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockReadQueueNotifyCompletionStatus Status { get; }
+    public VirtioBlockReadQueueNotifyCompletionStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueueNotifyReadinessResult NotifyReadiness { get; }
+    public VirtioBlockReadQueueNotifyReadinessResult NotifyReadiness
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueueCompletionResult Completion { get; }
+    public VirtioBlockReadQueueCompletionResult Completion
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueuePublishStatus ReadQueuePublishStatus { get; }
+    public VirtioBlockReadQueuePublishStatus ReadQueuePublishStatus
+    {
+        get;
+    }
 
-    public bool CompletionAttempted { get; }
+    public bool CompletionAttempted
+    {
+        get;
+    }
 
-    public ushort PreviousAvailableRingIndex { get; }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort CurrentAvailableRingIndex { get; }
+    public ushort CurrentAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort PreviousUsedRingIndex { get; }
+    public ushort PreviousUsedRingIndex
+    {
+        get;
+    }
 
-    public ushort CurrentUsedRingIndex { get; }
+    public ushort CurrentUsedRingIndex
+    {
+        get;
+    }
 
     public VirtioBlockReadQueueNotifyReadinessStatus NotifyReadinessStatus =>
         NotifyReadiness.Status;
@@ -88,7 +115,10 @@ public readonly struct VirtioBlockReadQueueNotifyCompletionResult
             Completion.OwnershipStatus :
             VirtioBlockDescriptorOwnershipStatus.Success;
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded =>
         IsInitialized &&

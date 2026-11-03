@@ -30,27 +30,60 @@ public readonly struct VirtioBlockQueueCursorPublishResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockQueueCursorPublishStatus Status { get; }
+    public VirtioBlockQueueCursorPublishStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorPublishPlanStatus PublishPlanStatus { get; }
+    public VirtioBlockDescriptorPublishPlanStatus PublishPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorFreeListStatus FreeListStatus { get; }
+    public VirtioBlockDescriptorFreeListStatus FreeListStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadLifecyclePublishStatus LifecyclePublishStatus { get; }
+    public VirtioBlockReadLifecyclePublishStatus LifecyclePublishStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus { get; }
+    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus
+    {
+        get;
+    }
 
-    public ushort PreviousAvailableRingIndex { get; }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort CurrentAvailableRingIndex { get; }
+    public ushort CurrentAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort PreviousUsedRingIndex { get; }
+    public ushort PreviousUsedRingIndex
+    {
+        get;
+    }
 
-    public ushort CurrentUsedRingIndex { get; }
+    public ushort CurrentUsedRingIndex
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorPublishPlanResult Publish { get; }
+    public VirtioBlockDescriptorPublishPlanResult Publish
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == VirtioBlockQueueCursorPublishStatus.Success;
 

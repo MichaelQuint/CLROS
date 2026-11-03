@@ -14,91 +14,92 @@ namespace OS.Boot;
 
 #pragma warning disable 649 // Caller-owned buffers are initialized through admitted native pointers.
 
+
 public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
 #if M16_014_PROBE
-        // One serialized, supervisor-only negative lifetime. Each stage requires
-        // its exact predecessor and independently checked owned restoration;
-        // neither a log string nor an arbitrary false return can advance it.
-        private enum LinuxQuotaDisposition : uint { None, Pending, Terminating, NativeCleaned, CpuRestored, NetworkCleaned }
+
+
+
+
 
         private static bool LinuxQuotaPolicy(Storage* state) => state != null &&
             state->LinuxServices.GcBudget.Succeeded && state->LinuxServices.GcBudget.TerminateOnPhysicalBackingExhaustion;
 #endif
 
         private const uint LinuxNativeWorkers = NativeProgram.MaximumWorkers, LinuxNativeFutexes = 16;
-        // Metadata lives only in the program's retained RW/NX arena. No user leaf
-        // exposes this storage. One IRQ-off BSP owns the complete lifetime.
-        private struct LinuxNativeControl
-        {
-            internal Storage* State;
-            internal ulong Key, AliasSerial;
-            internal uint Phase, Published, Capacity, Selected, Failed, Stopping, Reaped, Transfers, UserFaults;
+
+
+
+
+
+
+
 #if M10_017_PROBE || M10_018_PROBE
-            internal LinuxStaticFileObservation StaticApp;
-            internal OSHostHandle StaticMain;
-            internal LinuxDescriptorServices.Token StaticListener;
+
+
+
 #if M10_018_PROBE
-            internal LinuxStaticPending* StaticPending;
+
 #endif
 #endif
 #if M16_014_PROBE
-            internal ulong QuotaStackAcquired, QuotaStackLastReturned, QuotaStackPeakBytes, QuotaContextPeakBytes;
-            internal uint QuotaStackPeakLive, QuotaStackStarted, QuotaStackEnded;
-            internal fixed ulong QuotaStackGenerations[(int)LinuxNativeWorkers];
+
+
+
 #endif
 #if M10_004_PROBE
-            internal uint WebFlags, WebBoundFd, WebStartMatch;
-            internal ulong WebConfigBytes, WebStdoutBytes, WebStderrBytes;
-            internal LinuxAppStartupObservation WebStartup;
-            internal LinuxAppLogObservation WebLogs;
-            internal LinuxAppLogQuotaObservation WebQuota;
+
+
+
+
+
 #endif
 #if M16_009_PROBE
-            internal uint UserTimer, UserAcknowledged, UserDrain, UserPreempted;
-            internal ulong TimingStart, TimingArm, TimingCapture, TimingReady;
-            internal uint TimingValid;
+
+
+
 #endif
-            internal NativeProgram.Plan Plan;
-            internal KernelThreadTable Threads;
-            internal LinuxThreadServices Process;
-            internal LinuxSignalServices.State* Signals;
-            internal LinuxThreadServices.FutexCell* Cells;
-            internal LinuxThreadServices.Slot* Slots;
-            internal LinuxThreadServices.Worker* Workers;
-            internal LinuxSyscallGateState* Gates;
-            internal uint* Actions;
-            internal uint* Entered;
-            internal LinuxSyscallAccess User;
-            internal KernelThreadSlot* KernelSlots;
-            internal OSHostHandle* Ready;
-            internal DeadlineQueue.Entry* Deadlines;
-            internal WaitAddress.Slot* Addresses;
-            internal WaitAddress.Registration* Registrations;
-            internal X64LinuxUserTransition.UserImage* Initial;
-            internal byte* CodeCopy;
-            internal X64TimerInterrupt.Plan Handler;
-            internal SchedulerTimer Timer;
-            internal DeadlineQueue TimerDeadlines;
-            internal DeadlineQueue.Entry TimerDeadline;
-            internal ulong Epoch, OriginalIst;
-            internal LinuxThreadExecutionBudget Budget;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #if M16_014_PROBE
-            internal ulong ServiceProgress, ServicePeakCalls, ServicePeakIdentity, ServiceFinished;
-            internal uint ServiceReady, ServiceShutdown;
+
+
 #endif
-            internal uint Installed, GuardAttached, ProcessAttached, TableAttached, SignalsInitialized;
-            internal fixed ulong Cpu[(int)NativeSwitch.ObservationWords];
-            internal fixed ulong GatewayCpu[(int)X64LinuxUserTransition.ObservationWords];
-            internal fixed ulong OriginalIdtr[2], NewIdtr[2], ObservedIdtr[2];
-            internal fixed byte OriginalTss[104];
-        }
+
+
+
+
+
+
 
         private static LinuxNativeControl* LinuxNativeOwner(void* context)
         {
-            #if M16_027_PROBE
+#if M16_027_PROBE
             Storage* state = ResolveLinuxUserCallbackStorage(context);
             if (state == null) return null;
 #else
@@ -571,7 +572,7 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte LinuxNativeReturnPolicy(void* context,LinuxSyscallFrame* frame)
         {
-            #if M16_027_PROBE
+#if M16_027_PROBE
             Storage* state = ResolveLinuxUserCallbackStorage(context);
             if (state == null) return 2;
 #else

@@ -45,37 +45,85 @@ public readonly struct VirtioBlockPackageReadPreflightResult
         PackageLoad = packageLoad;
     }
 
-    public VirtioBlockPackageReadPreflightStatus Status { get; }
+    public VirtioBlockPackageReadPreflightStatus Status
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public bool ReadSessionComplete { get; }
+    public bool ReadSessionComplete
+    {
+        get;
+    }
 
-    public VirtioBlockReadOnlyReadSessionStatus ReadSessionStatus { get; }
+    public VirtioBlockReadOnlyReadSessionStatus ReadSessionStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueuePipelineStatus ReadSessionPipelineStatus { get; }
+    public VirtioBlockReadQueuePipelineStatus ReadSessionPipelineStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorState CursorBefore { get; }
+    public VirtioBlockQueueCursorState CursorBefore
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorState CursorAfter { get; }
+    public VirtioBlockQueueCursorState CursorAfter
+    {
+        get;
+    }
 
-    public ulong ReadSessionByteCount { get; }
+    public ulong ReadSessionByteCount
+    {
+        get;
+    }
 
-    public ulong HeaderScratchBytesRequired { get; }
+    public ulong HeaderScratchBytesRequired
+    {
+        get;
+    }
 
-    public ulong HeaderScratchBytesAvailable { get; }
+    public ulong HeaderScratchBytesAvailable
+    {
+        get;
+    }
 
-    public ulong PartitionEntryScratchBytesAvailable { get; }
+    public ulong PartitionEntryScratchBytesAvailable
+    {
+        get;
+    }
 
-    public int PartitionDescriptorCapacity { get; }
+    public int PartitionDescriptorCapacity
+    {
+        get;
+    }
 
-    public ulong PackageBufferBytesRequired { get; }
+    public ulong PackageBufferBytesRequired
+    {
+        get;
+    }
 
-    public ulong PackageBufferBytesAvailable { get; }
+    public ulong PackageBufferBytesAvailable
+    {
+        get;
+    }
 
-    public bool PackageLoadAttempted { get; }
+    public bool PackageLoadAttempted
+    {
+        get;
+    }
 
-    public OsPackageLoadResult PackageLoad { get; }
+    public OsPackageLoadResult PackageLoad
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized &&
         Status == VirtioBlockPackageReadPreflightStatus.Success;

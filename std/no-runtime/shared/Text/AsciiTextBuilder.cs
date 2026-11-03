@@ -2,108 +2,10 @@ using OS.Std;
 using OS.Std.Memory;
 
 namespace OS.Std.Text;
-
-public enum AsciiTextBuilderStatus
-{
-    Success = 0,
-    InvalidOffset = 1,
-    DestinationTooSmall = 2,
-    NonAsciiInput = 3,
-    LengthOverflow = 4,
-    InvalidMinimumDigits = 5
-}
-
-public readonly struct AsciiTextBuilderResult
-{
-    private AsciiTextBuilderResult(
-        bool isInitialized,
-        AsciiTextBuilderStatus status,
-        int initialOffset,
-        int destinationLength,
-        int bytesWritten,
-        int requiredBytes,
-        int nextOffset,
-        int invalidInputIndex)
-    {
-        IsInitialized = isInitialized;
-        Status = status;
-        InitialOffset = initialOffset;
-        DestinationLength = destinationLength;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-        NextOffset = nextOffset;
-        InvalidInputIndex = invalidInputIndex;
-    }
-
-    public bool IsInitialized { get; }
-
-    public AsciiTextBuilderStatus Status { get; }
-
-    public int InitialOffset { get; }
-
-    public int DestinationLength { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public int NextOffset { get; }
-
-    public int InvalidInputIndex { get; }
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == AsciiTextBuilderStatus.Success &&
-        BytesWritten >= 0 &&
-        InitialOffset >= 0 &&
-        NextOffset == InitialOffset + BytesWritten &&
-        RequiredBytes == NextOffset &&
-        RequiredBytes <= DestinationLength;
-
-    public static AsciiTextBuilderResult Success(
-        int initialOffset,
-        int destinationLength,
-        int bytesWritten)
-    {
-        int nextOffset = initialOffset + bytesWritten;
-        return new AsciiTextBuilderResult(
-            true,
-            AsciiTextBuilderStatus.Success,
-            initialOffset,
-            destinationLength,
-            bytesWritten,
-            nextOffset,
-            nextOffset,
-            -1);
-    }
-
-    public static AsciiTextBuilderResult Fail(
-        AsciiTextBuilderStatus status,
-        int initialOffset,
-        int destinationLength,
-        int requiredBytes,
-        int invalidInputIndex = -1)
-    {
-        return new AsciiTextBuilderResult(
-            true,
-            status,
-            initialOffset,
-            destinationLength,
-            0,
-            requiredBytes,
-            initialOffset,
-            invalidInputIndex);
-    }
-}
-
 public static class AsciiTextBuilder
 {
     public const CompatibilityStatus Status = CompatibilityStatus.Partial;
-
-    public static AsciiTextBuilderResult AppendByte(
-        Span<byte> destination,
-        int offset,
-        byte value)
+    public static AsciiTextBuilderResult AppendByte(Span<byte> destination, int offset, byte value)
     {
         if (!TryValidateOffset(destination, offset, out AsciiTextBuilderResult offsetFailure))
         {
@@ -112,40 +14,24 @@ public static class AsciiTextBuilder
 
         if (!IsAllowedAsciiText(value))
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.NonAsciiInput,
-                offset,
-                destination.Length,
-                offset,
-                0);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.NonAsciiInput, offset, destination.Length, offset, 0);
         }
 
         if (!TryCalculateRequiredBytes(offset, 1, out int requiredBytes))
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.LengthOverflow,
-                offset,
-                destination.Length,
-                0);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.LengthOverflow, offset, destination.Length, 0);
         }
 
         if (requiredBytes > destination.Length)
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.DestinationTooSmall,
-                offset,
-                destination.Length,
-                requiredBytes);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.DestinationTooSmall, offset, destination.Length, requiredBytes);
         }
 
         destination[offset] = value;
         return AsciiTextBuilderResult.Success(offset, destination.Length, 1);
     }
 
-    public static AsciiTextBuilderResult AppendBytes(
-        Span<byte> destination,
-        int offset,
-        ReadOnlySpan<byte> value)
+    public static AsciiTextBuilderResult AppendBytes(Span<byte> destination, int offset, ReadOnlySpan<byte> value)
     {
         if (!TryValidateOffset(destination, offset, out AsciiTextBuilderResult offsetFailure))
         {
@@ -156,42 +42,25 @@ public static class AsciiTextBuilder
         {
             if (!IsAllowedAsciiText(value[index]))
             {
-                return AsciiTextBuilderResult.Fail(
-                    AsciiTextBuilderStatus.NonAsciiInput,
-                    offset,
-                    destination.Length,
-                    offset + index,
-                    index);
+                return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.NonAsciiInput, offset, destination.Length, offset + index, index);
             }
         }
 
         if (!TryCalculateRequiredBytes(offset, value.Length, out int requiredBytes))
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.LengthOverflow,
-                offset,
-                destination.Length,
-                0);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.LengthOverflow, offset, destination.Length, 0);
         }
 
         if (requiredBytes > destination.Length)
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.DestinationTooSmall,
-                offset,
-                destination.Length,
-                requiredBytes);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.DestinationTooSmall, offset, destination.Length, requiredBytes);
         }
 
         BufferOperations.MemoryCopy(value, destination.Slice(offset, value.Length));
-
         return AsciiTextBuilderResult.Success(offset, destination.Length, value.Length);
     }
 
-    public static AsciiTextBuilderResult AppendChars(
-        Span<byte> destination,
-        int offset,
-        ReadOnlySpan<char> value)
+    public static AsciiTextBuilderResult AppendChars(Span<byte> destination, int offset, ReadOnlySpan<char> value)
     {
         if (!TryValidateOffset(destination, offset, out AsciiTextBuilderResult offsetFailure))
         {
@@ -203,31 +72,18 @@ public static class AsciiTextBuilder
             char current = value[index];
             if (current > 0x7F || !IsAllowedAsciiText((byte)current))
             {
-                return AsciiTextBuilderResult.Fail(
-                    AsciiTextBuilderStatus.NonAsciiInput,
-                    offset,
-                    destination.Length,
-                    offset + index,
-                    index);
+                return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.NonAsciiInput, offset, destination.Length, offset + index, index);
             }
         }
 
         if (!TryCalculateRequiredBytes(offset, value.Length, out int requiredBytes))
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.LengthOverflow,
-                offset,
-                destination.Length,
-                0);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.LengthOverflow, offset, destination.Length, 0);
         }
 
         if (requiredBytes > destination.Length)
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.DestinationTooSmall,
-                offset,
-                destination.Length,
-                requiredBytes);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.DestinationTooSmall, offset, destination.Length, requiredBytes);
         }
 
         for (int index = 0; index < value.Length; index++)
@@ -238,10 +94,7 @@ public static class AsciiTextBuilder
         return AsciiTextBuilderResult.Success(offset, destination.Length, value.Length);
     }
 
-    public static AsciiTextBuilderResult AppendUInt64Decimal(
-        Span<byte> destination,
-        int offset,
-        ulong value)
+    public static AsciiTextBuilderResult AppendUInt64Decimal(Span<byte> destination, int offset, ulong value)
     {
         if (!TryValidateOffset(destination, offset, out AsciiTextBuilderResult offsetFailure))
         {
@@ -251,30 +104,19 @@ public static class AsciiTextBuilder
         int digitCount = CountDecimalDigits(value);
         if (!TryCalculateRequiredBytes(offset, digitCount, out int requiredBytes))
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.LengthOverflow,
-                offset,
-                destination.Length,
-                0);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.LengthOverflow, offset, destination.Length, 0);
         }
 
         if (requiredBytes > destination.Length)
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.DestinationTooSmall,
-                offset,
-                destination.Length,
-                requiredBytes);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.DestinationTooSmall, offset, destination.Length, requiredBytes);
         }
 
         WriteUInt64Decimal(destination.Slice(offset, digitCount), value);
         return AsciiTextBuilderResult.Success(offset, destination.Length, digitCount);
     }
 
-    public static AsciiTextBuilderResult AppendInt64Decimal(
-        Span<byte> destination,
-        int offset,
-        long value)
+    public static AsciiTextBuilderResult AppendInt64Decimal(Span<byte> destination, int offset, long value)
     {
         if (!TryValidateOffset(destination, offset, out AsciiTextBuilderResult offsetFailure))
         {
@@ -299,20 +141,12 @@ public static class AsciiTextBuilder
         int bytesToWrite = CountDecimalDigits(magnitude) + (negative ? 1 : 0);
         if (!TryCalculateRequiredBytes(offset, bytesToWrite, out int requiredBytes))
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.LengthOverflow,
-                offset,
-                destination.Length,
-                0);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.LengthOverflow, offset, destination.Length, 0);
         }
 
         if (requiredBytes > destination.Length)
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.DestinationTooSmall,
-                offset,
-                destination.Length,
-                requiredBytes);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.DestinationTooSmall, offset, destination.Length, requiredBytes);
         }
 
         int digitOffset = offset;
@@ -326,12 +160,7 @@ public static class AsciiTextBuilder
         return AsciiTextBuilderResult.Success(offset, destination.Length, bytesToWrite);
     }
 
-    public static AsciiTextBuilderResult AppendUInt64Hex(
-        Span<byte> destination,
-        int offset,
-        ulong value,
-        int minimumDigits,
-        bool includePrefix)
+    public static AsciiTextBuilderResult AppendUInt64Hex(Span<byte> destination, int offset, ulong value, int minimumDigits, bool includePrefix)
     {
         if (!TryValidateOffset(destination, offset, out AsciiTextBuilderResult offsetFailure))
         {
@@ -340,33 +169,20 @@ public static class AsciiTextBuilder
 
         if (minimumDigits < 1 || minimumDigits > 16)
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.InvalidMinimumDigits,
-                offset,
-                destination.Length,
-                offset);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.InvalidMinimumDigits, offset, destination.Length, offset);
         }
 
         int significantDigits = CountHexDigits(value);
         int digitCount = significantDigits > minimumDigits ? significantDigits : minimumDigits;
         int bytesToWrite = digitCount + (includePrefix ? 2 : 0);
-
         if (!TryCalculateRequiredBytes(offset, bytesToWrite, out int requiredBytes))
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.LengthOverflow,
-                offset,
-                destination.Length,
-                0);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.LengthOverflow, offset, destination.Length, 0);
         }
 
         if (requiredBytes > destination.Length)
         {
-            return AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.DestinationTooSmall,
-                offset,
-                destination.Length,
-                requiredBytes);
+            return AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.DestinationTooSmall, offset, destination.Length, requiredBytes);
         }
 
         int writeOffset = offset;
@@ -387,18 +203,11 @@ public static class AsciiTextBuilder
         return AsciiTextBuilderResult.Success(offset, destination.Length, bytesToWrite);
     }
 
-    private static bool TryValidateOffset(
-        Span<byte> destination,
-        int offset,
-        out AsciiTextBuilderResult failure)
+    private static bool TryValidateOffset(Span<byte> destination, int offset, out AsciiTextBuilderResult failure)
     {
         if (offset < 0 || offset > destination.Length)
         {
-            failure = AsciiTextBuilderResult.Fail(
-                AsciiTextBuilderStatus.InvalidOffset,
-                offset,
-                destination.Length,
-                0);
+            failure = AsciiTextBuilderResult.Fail(AsciiTextBuilderStatus.InvalidOffset, offset, destination.Length, 0);
             return false;
         }
 
@@ -406,10 +215,7 @@ public static class AsciiTextBuilder
         return true;
     }
 
-    private static bool TryCalculateRequiredBytes(
-        int offset,
-        int appendLength,
-        out int requiredBytes)
+    private static bool TryCalculateRequiredBytes(int offset, int appendLength, out int requiredBytes)
     {
         if (appendLength < 0 || offset > int.MaxValue - appendLength)
         {
@@ -423,10 +229,7 @@ public static class AsciiTextBuilder
 
     private static bool IsAllowedAsciiText(byte value)
     {
-        return Ascii.IsPrintable(value)
-            || value == (byte)'\r'
-            || value == (byte)'\n'
-            || value == (byte)'\t';
+        return Ascii.IsPrintable(value) || value == (byte)'\r' || value == (byte)'\n' || value == (byte)'\t';
     }
 
     private static int CountDecimalDigits(ulong value)
@@ -464,8 +267,6 @@ public static class AsciiTextBuilder
 
     private static byte ToUpperHexDigit(byte value)
     {
-        return value < 10
-            ? (byte)('0' + value)
-            : (byte)('A' + (value - 10));
+        return value < 10 ? (byte)('0' + value) : (byte)('A' + (value - 10));
     }
 }

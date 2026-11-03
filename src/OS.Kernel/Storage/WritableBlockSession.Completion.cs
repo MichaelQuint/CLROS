@@ -21,9 +21,12 @@ public static unsafe partial class WritableBlockSession
         public readonly bool Cancelled;
         internal Completion(State* s, Status result)
         {
-            Token = new(s); Kind = s->Kind; Sector = s->Sector;
+            Token = new(s);
+            Kind = s->Kind;
+            Sector = s->Sector;
             Bytes = result == Status.Success && Kind != Operation.Flush ? 512U : 0;
-            DeviceResult = result; Cancelled = s->CancelRequested;
+            DeviceResult = result;
+            Cancelled = s->CancelRequested;
         }
     }
 }

@@ -12,6 +12,10 @@ public static unsafe partial class ContinuingReadOnlyBlockService
         public readonly ulong Sector;
         public readonly uint Bytes;
         internal Completion(ReadToken token, ulong sector, uint bytes)
-        { Token = token; Sector = sector; Bytes = bytes; }
+        {
+            Token = token;
+            Sector = sector;
+            Bytes = bytes;
+        }
     }
 }

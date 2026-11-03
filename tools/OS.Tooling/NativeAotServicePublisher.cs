@@ -19,7 +19,7 @@ public static class NativeAotServicePublisher
     /// not publication or execution authority. Changed/duplicate recipes throw.</summary>
     public static string[] PublishArguments(string originalCommands, string destination) => Publisher.PublishArguments(originalCommands, destination);
 
-    /// <summary>Read-only check of six exact app files and absent policy/source
+    /// <summary>Read-only check of the reviewed app family and absent policy/source
     /// overrides. Caller retains plain stable files; bin/obj are excluded.
     /// Source identity alone grants neither publication nor executable authority.</summary>
     public static void RequireCurrentSources(string root) => Publisher.RequireCurrentSources(root);

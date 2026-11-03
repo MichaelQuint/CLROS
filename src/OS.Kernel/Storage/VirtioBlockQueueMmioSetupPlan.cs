@@ -26,21 +26,48 @@ public readonly struct VirtioBlockQueueMmioSetupPlan
         CommandCount = commandCount;
     }
 
-    public ushort QueueIndex { get; }
+    public ushort QueueIndex
+    {
+        get;
+    }
 
-    public ushort PlannedQueueSize { get; }
+    public ushort PlannedQueueSize
+    {
+        get;
+    }
 
-    public ushort DeviceMaximumQueueSize { get; }
+    public ushort DeviceMaximumQueueSize
+    {
+        get;
+    }
 
-    public ushort NotifyOffset { get; }
+    public ushort NotifyOffset
+    {
+        get;
+    }
 
-    public VirtioBlockQueueMmioSetupQueueAddresses Addresses { get; }
+    public VirtioBlockQueueMmioSetupQueueAddresses Addresses
+    {
+        get;
+    }
 
-    public uint DescriptorTableBytes { get; }
+    public uint DescriptorTableBytes
+    {
+        get;
+    }
 
-    public uint DriverRingBytes { get; }
+    public uint DriverRingBytes
+    {
+        get;
+    }
 
-    public uint DeviceRingBytes { get; }
+    public uint DeviceRingBytes
+    {
+        get;
+    }
 
-    public int CommandCount { get; }
+    public int CommandCount
+    {
+        get;
+    }
 }

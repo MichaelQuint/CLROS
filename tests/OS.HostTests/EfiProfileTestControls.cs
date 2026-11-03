@@ -3,14 +3,28 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Tooling;
 
-internal static class EfiProfileTestControls
+internal static partial class EfiProfileTestControls
 {
     // Inspect each active diagnostic branch; strip only the union of exactly
     // owned call sites so the existing raw-source firewall still sees all others.
     internal static bool RemoveOwnedDmaCalls(ref string source, string call, out string reason)
     {
+        if (!RemoveOwnedDmaCalls(new Dictionary<string, string> { ["single.cs"] = source }, call, out var remaining, out reason))
+            return false;
+        source = remaining["single.cs"];
+        return true;
+    }
+
+    internal static bool RemoveOwnedDmaCalls(IReadOnlyDictionary<string, string> source, string call,
+        out IReadOnlyDictionary<string, string> remaining, out string reason)
+    {
+        remaining = source;
+        reason = "source-inventory";
+        if (source.Count == 0 || source.Keys.Any(string.IsNullOrWhiteSpace)
+            || source.Keys.Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal).Count() != source.Count)
+            return false;
         reason = string.Empty;
-        var admitted = new SortedSet<(int Start, int Length)>();
+        var admitted = new HashSet<(string Path, int Start, int Length)>();
         // The cooperative profile borrows ordinary retained pages, independently
         // of the DMA profiles below. Admit its exact owner/receipt arguments and
         // ordered post-exit edge; leave every other raw occurrence visible.
@@ -24,7 +38,7 @@ internal static class EfiProfileTestControls
             static string Tokens(Microsoft.CodeAnalysis.SyntaxNode node) => string.Concat(node.DescendantTokens().Select(token => token.Text));
             reason = "M09_004_PROBE:allocator-owner-receipt";
             if (calls.Length != 1 || Tokens(calls[0].ArgumentList) != expected ||
-                calls[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Span != owner.Span) return false;
+                !SameOwner(calls[0], owner)) return false;
             if (call.EndsWith(".AllocateOnePage", StringComparison.Ordinal))
             {
                 var receipts = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>()
@@ -32,9 +46,9 @@ internal static class EfiProfileTestControls
                 reason = "M09_004_PROBE:receipt-storage";
                 if (receipts.Length != 1 || Tokens(receipts[0]) !=
                     "BootPageAllocatorOnePageResult*receipts=stackallocBootPageAllocatorOnePageResult[20];") return false;
-                admitted.Add((receipts[0].SpanStart, receipts[0].Span.Length));
+                admitted.Add((receipts[0].SyntaxTree.FilePath, receipts[0].SpanStart, receipts[0].Span.Length));
             }
-            admitted.Add((calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
+            admitted.Add((calls[0].Expression.SyntaxTree.FilePath, calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
         }
         {
             if (!TryGetSchedulerTimerSource(source, out var root, out var owner, out reason)) return false;
@@ -43,7 +57,7 @@ internal static class EfiProfileTestControls
             reason = "M09_005_PROBE:allocator-owner-receipt";
             if (calls.Length != 2 || calls.Count(i => i.Ancestors().OfType<MethodDeclarationSyntax>()
                 .FirstOrDefault()?.Identifier.Text == "RunCooperativeSwitch") != 1) return false;
-            calls = calls.Where(i => i.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Span == owner.Span).ToArray();
+            calls = calls.Where(i => SameOwner(i, owner)).ToArray();
             string expected = call.EndsWith(".AllocateOnePage", StringComparison.Ordinal)
                 ? "(allocator,&node,1,1,null,0,0,1,Page)"
                 : "(allocator,&node,1,1,null,0,0,receipts[i-1])";
@@ -59,9 +73,9 @@ internal static class EfiProfileTestControls
             {
                 var receipts = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>()
                     .Single(d => d.Declaration.Variables.Any(v => v.Identifier.Text == "receipts"));
-                admitted.Add((receipts.SpanStart, receipts.Span.Length));
+                admitted.Add((receipts.SyntaxTree.FilePath, receipts.SpanStart, receipts.Span.Length));
             }
-            admitted.Add((calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
+            admitted.Add((calls[0].Expression.SyntaxTree.FilePath, calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
         }
         foreach (var (symbol, entry, body) in EfiContracts.OwnedDmaAllocatorProfiles)
         {
@@ -80,30 +94,33 @@ internal static class EfiProfileTestControls
                     "M05_VIRTQUEUE_INTERRUPT_PROBE" => ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_APIC_SETUP_PROBE"],
                     _ => ["M05_VIRTIO_NEGOTIATION_PROBE"]
                 }];
-            var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(source,
-                new Microsoft.CodeAnalysis.CSharp.CSharpParseOptions(preprocessorSymbols: symbols));
+            var tree = SourceForest.Parse(source,
+                new CSharpParseOptions(LanguageVersion.CSharp14, preprocessorSymbols: symbols));
             reason = symbol + ":syntax " + string.Join(" | ", tree.GetDiagnostics().Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
             if (tree.GetDiagnostics().Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)) return false;
-            var root = tree.GetRoot();
+            var root = tree;
             var methods = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>();
             reason = symbol + ":entry-body";
-            if (methods.Count(m => m.Identifier.Text == entry) != 1 || methods.Count(m => m.Identifier.Text == body) != 1) return false;
+            if (methods.Count(m => m.Identifier.Text == entry) != 1 || methods.Count(m => m.Identifier.Text == body) != 1
+                || methods.Where(m => m.Identifier.Text == entry || m.Identifier.Text == body).Any(m => !IsAllocatorOwner(m))) return false;
             var invocations = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>().ToArray();
             var calls = invocations.Where(i => i.Expression.ToString() == call).ToArray();
+            if (calls.Any(i => !IsAllocatorOwner(i.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()))) return false;
             var payloadCalls = calls.Where(i => i.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
                 .FirstOrDefault()?.Identifier.Text == "StagePackagePayload").ToArray();
             if (symbol == "M06_PACKAGE_READ_PROBE")
             {
                 if (payloadCalls.Length != 1 || calls.Length != 2) return false;
                 var payloadEdges = invocations.Where(i => i.Expression.ToString() == "StagePackagePayload").ToArray();
-                if (payloadEdges.Length != 1 || payloadEdges[0].ArgumentList.ToString() != "(state, packageBytes, selectedPath)" ||
+                if (payloadEdges.Length != 1 || !IsAllocatorOwner(payloadEdges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault())
+                    || !ArgumentsEqual(payloadEdges[0], "(state, packageBytes, selectedPath)") ||
                     payloadEdges[0].Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
                         .FirstOrDefault()?.Identifier.Text != "RunPackageReadCore") return false;
                 string expectedPayload = call.EndsWith(".AllocateOnePage", StringComparison.Ordinal)
                     ? "(before, &owner->FreeNodeValue, 1, 1, null, 0, 0, 1, 4096)"
                     : "(owner->AllocatorStateValue, &owner->FreeNodeValue, 1, 1, null, 0, 0, allocation)";
-                if (payloadCalls[0].ArgumentList.ToString() != expectedPayload) return false;
-                admitted.Add((payloadCalls[0].Expression.SpanStart, payloadCalls[0].Expression.Span.Length));
+                if (!ArgumentsEqual(payloadCalls[0], expectedPayload)) return false;
+                admitted.Add((payloadCalls[0].Expression.SyntaxTree.FilePath, payloadCalls[0].Expression.SpanStart, payloadCalls[0].Expression.Span.Length));
                 calls = calls.Except(payloadCalls).ToArray();
             }
             reason = symbol + ":call-count-owner " + calls.Length;
@@ -129,28 +146,35 @@ internal static class EfiProfileTestControls
             if (body != entry)
             {
                 var edges = invocations.Where(i => i.Expression.ToString() == body).ToArray();
+                if (edges.Any(edge => !IsAllocatorOwner(edge.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()))) return false;
                 reason = symbol + ":shared-body-caller " + edges.Length;
                 string[] expectedCallers = symbol == "M06_PACKAGE_READ_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", "ReadGptSector", "ReadFatSector", entry] : symbol == "M06_FAT_READ_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", "ReadGptSector", entry] : symbol == "M06_GPT_PARTITION_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", entry] : symbol == "M06_LIVE_BLOCK_CONTRACT_PROBE" ? ["RunOwnedVirtioBlockRead", entry] : [entry];
                 if (!edges.Select(e => e.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
                     .FirstOrDefault()?.Identifier.Text).Order().SequenceEqual(expectedCallers.Order())) return false;
+                InvocationExpressionSyntax Edge(string caller) => edges.Single(edge => edge.Ancestors().OfType<MethodDeclarationSyntax>()
+                    .FirstOrDefault()?.Identifier.ValueText == caller);
                 if (symbol == "M06_FAT_READ_PROBE" &&
-                    (edges[0].ArgumentList.ToString() != "(state)" || edges[1].ArgumentList.ToString() != "(state, true)" ||
-                     edges[2].ArgumentList.ToString() != "(state, false, destination, sector, reads + 4UL)" ||
-                     edges[3].ArgumentList.ToString() != "(state, false, destination, sector, reads + 70UL, true)")) return false;
+                    (!ArgumentsEqual(Edge("RunOwnedVirtioBlockRead"), "(state)") || !ArgumentsEqual(Edge("RunOwnedLiveBlockContract"), "(state, true)") ||
+                     !ArgumentsEqual(Edge("ReadGptSector"), "(state, false, destination, sector, reads + 4UL)") ||
+                     !ArgumentsEqual(Edge("ReadFatSector"), "(state, false, destination, sector, reads + 70UL, true)"))) return false;
                 if (symbol == "M06_PACKAGE_READ_PROBE" &&
-                    (edges[0].ArgumentList.ToString() != "(state)" || edges[1].ArgumentList.ToString() != "(state, true)" ||
-                     edges[2].ArgumentList.ToString() != "(state, false, destination, sector, reads + 4UL)" ||
-                     edges[3].ArgumentList.ToString() != "(state, false, destination, sector, reads + 70UL, true)" ||
-                     edges[4].ArgumentList.ToString() != "(state, false, destination, sector, reads + 134UL, false, true)")) return false;
+                    (!ArgumentsEqual(Edge("RunOwnedVirtioBlockRead"), "(state)") || !ArgumentsEqual(Edge("RunOwnedLiveBlockContract"), "(state, true)") ||
+                     !ArgumentsEqual(Edge("ReadGptSector"), "(state, false, destination, sector, reads + 4UL)") ||
+                     !ArgumentsEqual(Edge("ReadFatSector"), "(state, false, destination, sector, reads + 70UL, true)") ||
+                     !ArgumentsEqual(Edge("ReadPackageSector"), "(state, false, destination, sector, reads + 134UL, false, true)"))) return false;
                 if (symbol == "M06_GPT_PARTITION_PROBE" &&
-                    (edges[0].ArgumentList.ToString() != "(state)" || edges[1].ArgumentList.ToString() != "(state, true)" ||
-                     edges[2].ArgumentList.ToString() != "(state, false, destination, sector, reads + 4UL)")) return false;
+                    (!ArgumentsEqual(Edge("RunOwnedVirtioBlockRead"), "(state)") || !ArgumentsEqual(Edge("RunOwnedLiveBlockContract"), "(state, true)") ||
+                     !ArgumentsEqual(Edge("ReadGptSector"), "(state, false, destination, sector, reads + 4UL)"))) return false;
                 if (symbol == "M06_LIVE_BLOCK_CONTRACT_PROBE" &&
-                    (edges[0].ArgumentList.ToString() != "(state)" || edges[1].ArgumentList.ToString() != "(state, true)")) return false;
+                    (!ArgumentsEqual(Edge("RunOwnedVirtioBlockRead"), "(state)") || !ArgumentsEqual(Edge("RunOwnedLiveBlockContract"), "(state, true)"))) return false;
             }
-            admitted.Add((calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
+            admitted.Add((calls[0].Expression.SyntaxTree.FilePath, calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
         }
-        foreach (var span in admitted.Reverse()) source = source.Remove(span.Start, span.Length);
+        var stripped = new Dictionary<string, string>(source, StringComparer.Ordinal);
+        foreach (var file in admitted.GroupBy(span => span.Path, StringComparer.Ordinal))
+            foreach (var span in file.OrderByDescending(span => span.Start))
+                stripped[file.Key] = stripped[file.Key].Remove(span.Start, span.Length);
+        remaining = stripped;
         reason = string.Empty;
         return true;
     }
@@ -159,10 +183,21 @@ internal static class EfiProfileTestControls
     // other references visible to the caller's whole-source materializer firewall.
     internal static bool RemoveOwnedCooperativeMaterializer(ref string source, out string reason)
     {
-        var admitted = new SortedSet<(int Start, int Length)>();
+        if (!RemoveOwnedCooperativeMaterializer(new Dictionary<string, string> { ["single.cs"] = source },
+            out var remaining, out reason))
+            return false;
+        source = remaining["single.cs"];
+        return true;
+    }
+
+    internal static bool RemoveOwnedCooperativeMaterializer(IReadOnlyDictionary<string, string> source,
+        out IReadOnlyDictionary<string, string> remaining, out string reason)
+    {
+        remaining = source;
+        var admitted = new SortedSet<(string Path, int Start, int Length)>();
         foreach (bool timer in new[] { false, true })
         {
-            SyntaxNode root; MethodDeclarationSyntax owner;
+            SourceForest root; MethodDeclarationSyntax owner;
             if (timer ? !TryGetSchedulerTimerSource(source, out root, out owner, out reason) :
                 !TryGetCooperativeSource(source, out root, out owner, out reason)) return false;
             string symbol = timer ? "M09_005_PROBE" : "M09_004_PROBE";
@@ -173,12 +208,12 @@ internal static class EfiProfileTestControls
                 reason = symbol + ":materializer-call-count";
                 if (calls.Length != 2 || calls.Count(i => i.Ancestors().OfType<MethodDeclarationSyntax>()
                     .FirstOrDefault()?.Identifier.Text == "RunCooperativeSwitch") != 1) return false;
-                calls = calls.Where(i => i.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Span == owner.Span).ToArray();
+                calls = calls.Where(i => SameOwner(i, owner)).ToArray();
             }
             reason = symbol + ":materializer-owner-arguments";
             if (calls.Length != 1 || Tokens(calls[0].ArgumentList) !=
                 "(&node,1,1,1,0,Page,32,32*Page,&allocator,1)" ||
-                calls[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Span != owner.Span) return false;
+                !SameOwner(calls[0], owner)) return false;
             var declarations = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>().ToArray();
             string[] expected = ["ulongpool=state->CooperativePool;",
                 "BootPageFreeListNodenode=new(0,0,pool,pool+32*Page,32,32*Page,-1);",
@@ -196,12 +231,30 @@ internal static class EfiProfileTestControls
                 succeeded.Parent is not PrefixUnaryExpressionSyntax condition || !condition.IsKind(SyntaxKind.LogicalNotExpression) ||
                 condition.Parent is not IfStatementSyntax branch || branch.Condition != condition || branch.Else is not null ||
                 Tokens(branch.Statement) != (timer ? "returnfalse;" : "{_=CooperativeMarker(state,3);returnfalse;}")) return false;
-            admitted.Add((calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
+            admitted.Add((calls[0].Expression.SyntaxTree.FilePath, calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
         }
-        foreach (var span in admitted.Reverse()) source = source.Remove(span.Start, span.Length);
+        var stripped = new Dictionary<string, string>(source, StringComparer.Ordinal);
+        foreach (var file in admitted.GroupBy(span => span.Path, StringComparer.Ordinal))
+            foreach (var span in file.OrderByDescending(span => span.Start))
+                stripped[file.Key] = stripped[file.Key].Remove(span.Start, span.Length);
+        remaining = stripped;
         reason = string.Empty;
         return true;
     }
+
+    private static bool SameOwner(InvocationExpressionSyntax invocation, MethodDeclarationSyntax owner)
+    {
+        var actual = invocation.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault();
+        return actual is not null && IsAllocatorOwner(actual) && actual.SyntaxTree == owner.SyntaxTree && actual.Span == owner.Span;
+    }
+
+    private static bool IsAllocatorOwner(MethodDeclarationSyntax? method) => method is not null
+        && method.Ancestors().OfType<TypeDeclarationSyntax>().Reverse().Select(type => type.Identifier.ValueText)
+            .SequenceEqual(new[] { "EfiEntry", "M03FirstExitAdapter" }, StringComparer.Ordinal)
+        && string.Join(".", method.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(space => Tokens(space.Name))) == "OS.Boot";
+
+    private static bool ArgumentsEqual(InvocationExpressionSyntax invocation, string expected) =>
+        Tokens(invocation.ArgumentList) == Tokens(SyntaxFactory.ParseArgumentList(expected));
 
     private static string Tokens(SyntaxNode node) => string.Concat(node.DescendantTokens().Select(token => token.Text));
 
@@ -209,44 +262,59 @@ internal static class EfiProfileTestControls
     // post-exit call. Sharing this admission keeps both narrow removals aligned.
     private static bool TryGetCooperativeSource(string source, out SyntaxNode root, out MethodDeclarationSyntax owner, out string reason)
     {
+        bool accepted = TryGetCooperativeSource(new Dictionary<string, string> { ["single.cs"] = source }, out SourceForest forest, out owner, out reason);
+        root = forest.Roots.Single();
+        return accepted;
+    }
+
+    private static bool TryGetSchedulerTimerSource(string source, out SyntaxNode root, out MethodDeclarationSyntax owner, out string reason)
+    {
+        bool accepted = TryGetSchedulerTimerSource(new Dictionary<string, string> { ["single.cs"] = source }, out SourceForest forest, out owner, out reason);
+        root = forest.Roots.Single();
+        return accepted;
+    }
+
+    private static bool TryGetCooperativeSource(IReadOnlyDictionary<string, string> source, out SourceForest root, out MethodDeclarationSyntax owner, out string reason)
+    {
         string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
             "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE", "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE", "M09_004_PROBE"];
-        var tree = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(preprocessorSymbols: symbols));
-        root = tree.GetRoot(); owner = null!;
+        var tree = SourceForest.Parse(source, new CSharpParseOptions(LanguageVersion.CSharp14, preprocessorSymbols: symbols));
+        root = tree; owner = null!;
         reason = "M09_004_PROBE:syntax";
         if (tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error)) return false;
         var owners = root.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(m => m.Identifier.Text == "RunCooperativeSwitch").ToArray();
         reason = "M09_004_PROBE:conditional-owner";
-        if (owners.Length != 1) return false;
-        var disabled = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(preprocessorSymbols: symbols[..^1]));
-        if (disabled.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error) || disabled.GetRoot().DescendantNodes()
+        if (owners.Length != 1 || !IsAllocatorOwner(owners[0])) return false;
+        var disabled = SourceForest.Parse(source, new CSharpParseOptions(LanguageVersion.CSharp14, preprocessorSymbols: symbols[..^1]));
+        if (disabled.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error) || disabled.DescendantNodes()
             .OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.Text == "RunCooperativeSwitch")) return false;
         owner = owners[0];
         var edges = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
             .Where(i => i.Expression.ToString() == "BootSequence.RunOwnedCooperativeSwitch").ToArray();
         reason = "M09_004_PROBE:ordered-owned-edge";
-        if (edges.Length != 1 || edges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Identifier.Text != "Diagnose" ||
+        if (edges.Length != 1 || !IsAllocatorOwner(edges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault())
+            || edges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Identifier.Text != "Diagnose" ||
             Tokens(edges[0].ArgumentList) != "(state->OwnedPhase==2,transition->Mode==FirmwareServicesMode.BootServicesExited&&transition->RetainedFirmwareCallbacksCleared&&state->Arena.Binding->RetainedPointersCleared,state,&RunCooperativeSwitch)") return false;
         reason = string.Empty;
         return true;
     }
 
-    private static bool TryGetSchedulerTimerSource(string source, out SyntaxNode root, out MethodDeclarationSyntax owner, out string reason)
+    private static bool TryGetSchedulerTimerSource(IReadOnlyDictionary<string, string> source, out SourceForest root, out MethodDeclarationSyntax owner, out string reason)
     {
         string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
             "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE", "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE",
             "M05_PCI_ENUMERATION_PROBE", "M05_APIC_SETUP_PROBE", "M09_005_PROBE"];
-        var tree = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(preprocessorSymbols: symbols));
-        root = tree.GetRoot(); owner = null!;
+        var tree = SourceForest.Parse(source, new CSharpParseOptions(LanguageVersion.CSharp14, preprocessorSymbols: symbols));
+        root = tree; owner = null!;
         reason = "M09_005_PROBE:syntax";
         if (tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error)) return false;
         var owners = root.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(m => m.Identifier.Text == "RunSchedulerTimer").ToArray();
         reason = "M09_005_PROBE:conditional-owner";
-        if (owners.Length != 1) return false;
+        if (owners.Length != 1 || !IsAllocatorOwner(owners[0])) return false;
         foreach (string[] disabledSymbols in new string[][] { symbols[..^1], [.. symbols[..^1], "M09_004_PROBE"] })
         {
-            var disabled = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(preprocessorSymbols: disabledSymbols));
-            if (disabled.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error) || disabled.GetRoot().DescendantNodes()
+            var disabled = SourceForest.Parse(source, new CSharpParseOptions(LanguageVersion.CSharp14, preprocessorSymbols: disabledSymbols));
+            if (disabled.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error) || disabled.DescendantNodes()
                 .OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.Text == "RunSchedulerTimer")) return false;
         }
         owner = owners[0];
@@ -258,7 +326,8 @@ internal static class EfiProfileTestControls
         var edges = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
             .Where(i => i.Expression.ToString() == "BootSequence.RunOwnedSchedulerTimer").ToArray();
         reason = "M09_005_PROBE:ordered-owned-apic-edge";
-        if (edges.Length != 1 || edges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Identifier.Text != "Diagnose" ||
+        if (edges.Length != 1 || !IsAllocatorOwner(edges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault())
+            || edges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Identifier.Text != "Diagnose" ||
             Tokens(edges[0].ArgumentList) != "(state->OwnedPhase==2,state->ApicPhase==2,transition->Mode==FirmwareServicesMode.BootServicesExited&&transition->RetainedFirmwareCallbacksCleared&&state->Arena.Binding->RetainedPointersCleared,state,&RunSchedulerTimer)" ||
             edges[0].Parent is not PrefixUnaryExpressionSyntax condition || !condition.IsKind(SyntaxKind.LogicalNotExpression) ||
             condition.Parent is not IfStatementSyntax branch || branch.Condition != condition || branch.Else is not null ||
@@ -589,10 +658,8 @@ internal static class EfiProfileTestControls
     internal static bool Returning(string profileName, IReadOnlyList<string> required, IReadOnlyList<string> forbidden,
         string ready, string failure)
     {
-        int at = Array.IndexOf(ReturningChain, profileName);
-        HostCheck.True(at >= 0, "reviewed returning profile");
-        string[] flags = ReturningChain[..(at + 1)].Select(n => "Enable" + n + "Probe").ToArray();
-        string[] arguments = flags.Select(n => "--" + n).ToArray();
+        string[] arguments = ReturningArguments(profileName);
+        string[] flags = arguments.Select(argument => argument[2..]).ToArray();
         foreach (bool build in new[] { true, false })
         {
             var profile = EfiOptions.Parse(arguments, build).Profile();
@@ -626,5 +693,12 @@ internal static class EfiProfileTestControls
             HostCheck.True(!accepted, "profile needs fresh built image");
         }
         return true;
+    }
+
+    internal static string[] ReturningArguments(string profileName)
+    {
+        int at = Array.IndexOf(ReturningChain, profileName);
+        HostCheck.True(at >= 0, "reviewed returning profile");
+        return ReturningChain[..(at + 1)].Select(name => "--Enable" + name + "Probe").ToArray();
     }
 }

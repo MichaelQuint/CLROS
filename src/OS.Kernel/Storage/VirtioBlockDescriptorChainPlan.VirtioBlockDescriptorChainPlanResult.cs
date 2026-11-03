@@ -19,17 +19,35 @@ public readonly struct VirtioBlockDescriptorChainPlanResult
         Plan = plan;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorChainPlanStatus Status { get; }
+    public VirtioBlockDescriptorChainPlanStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockReadTransactionPlanStatus TransactionPlanStatus { get; }
+    public VirtioBlockReadTransactionPlanStatus TransactionPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockRequestPlanStatus RequestPlanStatus { get; }
+    public VirtioBlockRequestPlanStatus RequestPlanStatus
+    {
+        get;
+    }
 
-    public VirtqueueSplitRingPlanStatus QueuePlanStatus { get; }
+    public VirtqueueSplitRingPlanStatus QueuePlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorChainPlan Plan { get; }
+    public VirtioBlockDescriptorChainPlan Plan
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized &&
         Status == VirtioBlockDescriptorChainPlanStatus.Success;

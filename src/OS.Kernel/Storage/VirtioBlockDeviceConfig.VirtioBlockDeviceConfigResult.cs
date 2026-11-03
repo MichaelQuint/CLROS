@@ -20,17 +20,35 @@ public readonly struct VirtioBlockDeviceConfigResult
         BlockDeviceInfo = blockDeviceInfo;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockDeviceConfigStatus Status { get; }
+    public VirtioBlockDeviceConfigStatus Status
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockDeviceStatus { get; }
+    public BlockDeviceStatus BlockDeviceStatus
+    {
+        get;
+    }
 
-    public ulong RawCapacitySectors { get; }
+    public ulong RawCapacitySectors
+    {
+        get;
+    }
 
-    public uint SectorSizeBytes { get; }
+    public uint SectorSizeBytes
+    {
+        get;
+    }
 
-    public BlockDeviceInfo BlockDeviceInfo { get; }
+    public BlockDeviceInfo BlockDeviceInfo
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized &&
         Status == VirtioBlockDeviceConfigStatus.Success;

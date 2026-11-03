@@ -47,13 +47,42 @@ re-analysis passes without changing its failed outer exit1. A fresh expected-
 unhandled original, final host renewal and the remaining matrix are required under
 [the phase contract](../work/rc3-whpx-qualification.md).
 
-The current short disk diagnostic uses a separate v8 receipt and five responses:
+The current short disk observer emits a separate v10 receipt and five responses:
 status JSON, health, actual CoreLib HEAD, an independently checked 64KiB range,
 and final health. It retains the existing Timing selection, metrics checks,
-runner/peer/body limits and owned cancellation/join/refusal. JSON has three
+runner/peer limits and owned cancellation/join/refusal. JSON has three
 unique DTO fields with the exact fixture values and `application/json` media
-type. Historical v7 four-response originals stay unchanged. Neither diagnostic
-supplies full-workload, browser or ordinary guest-cleanup acceptance.
+type. [Step1728](../done/step1728.md) records separate monotonic ticks after
+headers, complete body receipt, file writing, durable flushing and the original
+Finished boundary. BodyReceived includes this client's reading/memory work;
+Finished continues to include host output I/O. This is not guest-only CPU time.
+
+The default 180-second request budget now reaches streamed body reads through a
+linked cancellation token. Explicit host BenchmarkOptions may shorten it. Peer
+and runner limits remain unchanged; synchronous Flush(true) cannot be interrupted
+by that token. Failure retains incomplete request phase/bytes and joined runner
+disposition. The existing exception type does not uniquely attribute cancellation
+origin. Host loopback tests cover the repaired body timeout; no new guest sample
+has been produced by this tooling step. Historical v7/v8 originals and the
+intermediate v9 observations retain their original schemas and boundaries.
+These diagnostics do not supply full-workload, browser or ordinary cleanup acceptance.
+
+[Step1729](../done/step1729.md) completes six v10 observations of the same retained
+image, alternating WHPX/TCG for three rounds. All five response hashes, metrics,
+intentional runner cancellation/join/refusal and input guards pass. Median 64KiB
+body receipt is 12.484s/10.419s; separate local durable flush is 1.798ms/1.741ms.
+There are no warm sequences and no current-source kernel publication. Host body
+receipt includes client streaming/memory work. Raw stamps, distributions, serial,
+PCAP, bodies and original owners are retained; these are diagnostic measurements.
+
+[Step1730](../done/step1730.md) adds explicit default-off
+`-EnableM10018EvidenceTraceProbe` and `-EnableM10018EvidenceSummaryProbe` selections.
+They are mutually exclusive and imply the existing timing chain; explicit false
+parents reject. Host planning retains resources and deadlines. The diagnostic
+writer/ordered image reader pass focused checks, but independent native terminal
+snapshots and their complete consumer are pending. Do not launch either profile
+until exact native output is reviewed. Summary cannot supply ordinary full-byte,
+browser or cleanup acceptance, and no performance improvement is established.
 
 [Step1676](../done/step1676.md) preserves the first RC3 WHPX guest failure and
 its paused-state diagnosis. The owned timer interrupt reached its drain, but

@@ -22,19 +22,40 @@ public readonly struct VirtioBlockDescriptorChainWriterResult
         DescriptorsWritten = descriptorsWritten;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorChainWriterStatus Status { get; }
+    public VirtioBlockDescriptorChainWriterStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorChainPlanStatus DescriptorPlanStatus { get; }
+    public VirtioBlockDescriptorChainPlanStatus DescriptorPlanStatus
+    {
+        get;
+    }
 
-    public VirtqueueSplitRingPlanStatus QueuePlanStatus { get; }
+    public VirtqueueSplitRingPlanStatus QueuePlanStatus
+    {
+        get;
+    }
 
-    public ushort HeadDescriptorIndex { get; }
+    public ushort HeadDescriptorIndex
+    {
+        get;
+    }
 
-    public ushort NextAvailableRingIndex { get; }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort DescriptorsWritten { get; }
+    public ushort DescriptorsWritten
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == VirtioBlockDescriptorChainWriterStatus.Success;
 

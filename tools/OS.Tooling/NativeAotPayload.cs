@@ -9,62 +9,51 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
-
 /// <summary>
 /// Host-only qualification of upstream static Linux x64 NativeAOT payloads.
 /// Inspection consumes supplied bytes without mapping or executing them. Qualification
 /// requires a Linux builder and owns only its child processes and fresh output directory.
 /// Neither operation grants CLROS loader, syscall, runtime or guest authority.
 /// </summary>
-public static class NativeAotPayload
+
+public static partial class NativeAotPayload
 {
     public const int MaximumImageBytes = 128 * 1024 * 1024;
     public const ulong MaximumMappedBytes = 1024 * 1024 * 1024;
     public const string SdkVersion = "11.0.100-rc.3.26522.148";
     public const string RuntimeVersion = "11.0.0-rc.3.26522.148";
     public const string TargetFramework = "net11.0";
-
-    public sealed record Segment(uint Type, uint Flags, ulong Offset, ulong Address,
-        ulong FileSize, ulong MemorySize, ulong Alignment);
-    public sealed record Inspection(ulong Entry, int ProgramHeaderCount,
-        IReadOnlyList<Segment> Loads, Segment? Tls, string Sha256);
-
     /// <summary>
     /// Accepts bounded little-endian ELF64 ET_EXEC/x86-64 images with file-backed executable
     /// entry, disjoint W^X loads, optional contained TLS, and no interpreter or dynamic loader.
     /// Throws InvalidDataException on unsupported/malformed bytes. Returned metadata owns no input.
     /// Section headers, relocations, auxv and instruction requirements remain separate review inputs.
     /// </summary>
+
     public static Inspection Inspect(ReadOnlySpan<byte> image)
     {
         Require(image.Length is >= 64 and <= MaximumImageBytes, "elf_image_size");
-        Require(image[..4].SequenceEqual("\u007fELF"u8) && image[4] == 2 && image[5] == 1 && image[6] == 1,
-            "elf_identification");
-        Require(image[7] is 0 or 3 && image[8] == 0 && image.Slice(9, 7).IndexOfAnyExcept((byte)0) < 0,
-            "elf_abi");
-        Require(U16(image, 16) == 2 && U16(image, 18) == 62 && U32(image, 20) == 1 &&
-            U32(image, 48) == 0 && U16(image, 52) == 64 && U16(image, 54) == 56, "elf_header");
+        Require(image[..4].SequenceEqual("\u007fELF"u8) && image[4] == 2 && image[5] == 1 && image[6] == 1, "elf_identification");
+        Require(image[7] is 0 or 3 && image[8] == 0 && image.Slice(9, 7).IndexOfAnyExcept((byte)0) < 0, "elf_abi");
+        Require(U16(image, 16) == 2 && U16(image, 18) == 62 && U32(image, 20) == 1 && U32(image, 48) == 0 && U16(image, 52) == 64 && U16(image, 54) == 56, "elf_header");
         int count = U16(image, 56);
         ulong headers = U64(image, 32);
-        Require(count is > 0 and <= 128 && headers >= 64 && Fits(headers, (ulong)count * 56, (ulong)image.Length),
-            "elf_program_headers");
+        Require(count is> 0 and <= 128 && headers >= 64 && Fits(headers, (ulong)count * 56, (ulong)image.Length), "elf_program_headers");
         ulong entry = U64(image, 24);
         var loads = new List<Segment>();
         Segment? tls = null;
         for (int i = 0; i < count; i++)
         {
             int at = checked((int)headers + i * 56);
-            var row = new Segment(U32(image, at), U32(image, at + 4), U64(image, at + 8),
-                U64(image, at + 16), U64(image, at + 32), U64(image, at + 40), U64(image, at + 48));
+            var row = new Segment(U32(image, at), U32(image, at + 4), U64(image, at + 8), U64(image, at + 16), U64(image, at + 32), U64(image, at + 40), U64(image, at + 48));
             Require(row.Type is not (2 or 3), row.Type == 3 ? "elf_interpreter" : "elf_dynamic_segment");
             Require(Fits(row.Offset, row.FileSize, (ulong)image.Length), "elf_segment_file_bounds");
-            if (row.Type == 0x6474e551) Require((row.Flags & 1) == 0, "elf_executable_stack");
-            if (row.Type is not (1 or 7)) continue;
-            Require(row.Flags <= 7 && row.FileSize <= row.MemorySize && row.MemorySize > 0 &&
-                row.Address != 0 && row.Address < 0x800000000000UL &&
-                row.MemorySize <= Math.Min(MaximumMappedBytes, 0x800000000000UL - row.Address), "elf_segment_memory_bounds");
-            Require(row.Alignment <= 1 || ((row.Alignment & (row.Alignment - 1)) == 0 &&
-                row.Address % row.Alignment == row.Offset % row.Alignment), "elf_segment_alignment");
+            if (row.Type == 0x6474e551)
+                Require((row.Flags & 1) == 0, "elf_executable_stack");
+            if (row.Type is not (1 or 7))
+                continue;
+            Require(row.Flags <= 7 && row.FileSize <= row.MemorySize && row.MemorySize > 0 && row.Address != 0 && row.Address < 0x800000000000UL && row.MemorySize <= Math.Min(MaximumMappedBytes, 0x800000000000UL - row.Address), "elf_segment_memory_bounds");
+            Require(row.Alignment <= 1 || ((row.Alignment & (row.Alignment - 1)) == 0 && row.Address % row.Alignment == row.Offset % row.Alignment), "elf_segment_alignment");
             if (row.Type == 7)
             {
                 Require(tls is null, "elf_duplicate_tls");
@@ -74,24 +63,20 @@ public static class NativeAotPayload
             {
                 Require((row.Flags & 3) != 3 && (row.Flags & 4) != 0, "elf_load_permissions");
                 Require(row.Address % 4096 == row.Offset % 4096, "elf_load_page_alignment");
-                Require(loads.All(other => PageStart(row.Address) >= PageEnd(other) ||
-                    PageStart(other.Address) >= PageEnd(row)), "elf_overlapping_load_pages");
-                Require(loads.Sum(other => (decimal)other.MemorySize) + row.MemorySize <= MaximumMappedBytes,
-                    "elf_mapped_size_limit");
+                Require(loads.All(other => PageStart(row.Address) >= PageEnd(other) || PageStart(other.Address) >= PageEnd(row)), "elf_overlapping_load_pages");
+                Require(loads.Sum(other => (decimal)other.MemorySize) + row.MemorySize <= MaximumMappedBytes, "elf_mapped_size_limit");
                 loads.Add(row);
             }
         }
-        Require(loads.Any(row => (row.Flags & 1) != 0 && entry >= row.Address &&
-            entry - row.Address < row.FileSize), "elf_entry");
+
+        Require(loads.Any(row => (row.Flags & 1) != 0 && entry >= row.Address && entry - row.Address < row.FileSize), "elf_entry");
         if (tls is not null)
-            Require(loads.Any(row => tls.Address >= row.Address &&
-                Fits(tls.Address - row.Address, tls.MemorySize, row.MemorySize) &&
-                Fits(tls.Address - row.Address, tls.FileSize, row.FileSize) &&
-                tls.Offset == row.Offset + (tls.Address - row.Address)), "elf_tls_load_association");
+            Require(loads.Any(row => tls.Address >= row.Address && Fits(tls.Address - row.Address, tls.MemorySize, row.MemorySize) && Fits(tls.Address - row.Address, tls.FileSize, row.FileSize) && tls.Offset == row.Offset + (tls.Address - row.Address)), "elf_tls_load_association");
         return new(entry, count, loads.AsReadOnly(), tls, Convert.ToHexString(SHA256.HashData(image)));
     }
 
     /// <summary>CLI: inspect &lt;file&gt; or qualify --output &lt;fresh directory&gt;. Failures emit no pass marker.</summary>
+
     public static async Task<int> RunAsync(string root, string[] args, TextWriter output)
     {
         string marker = args.FirstOrDefault() == "inspect" ? "nativeaot.payload.inspect" : "m16-001";
@@ -105,7 +90,8 @@ public static class NativeAotPayload
             }
             else if (args is ["qualify", "--output", var destination])
                 await QualifyAsync(Path.GetFullPath(root), Path.GetFullPath(destination), output);
-            else throw new ArgumentException("nativeaot payload inspect <file> | qualify --output <fresh-directory>");
+            else
+                throw new ArgumentException("nativeaot payload inspect <file> | qualify --output <fresh-directory>");
             output.WriteLine("TEST_PASS " + marker);
             return 0;
         }
@@ -128,54 +114,52 @@ public static class NativeAotPayload
     /// compiler, linker-task and NativeAOT runtime pins; missing packs fail closed. The
     /// caller owns the assets document and must recheck returned file hashes after use.
     /// </summary>
+
     public static IReadOnlyDictionary<string, string> CapturePackageInputs(JsonElement assets)
     {
         var inputs = new Dictionary<string, string>(StringComparer.Ordinal);
-        string[] requiredLibraries = ["Microsoft.DotNet.ILCompiler", "Microsoft.NET.ILLink.Tasks",
-            "runtime.linux-musl-x64.Microsoft.DotNet.ILCompiler"];
+        string[] requiredLibraries = ["Microsoft.DotNet.ILCompiler", "Microsoft.NET.ILLink.Tasks", "runtime.linux-musl-x64.Microsoft.DotNet.ILCompiler"];
         var foundLibraries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (JsonProperty package in assets.GetProperty("libraries").EnumerateObject())
         {
-            if (package.Value.GetProperty("type").GetString() != "package") continue;
+            if (package.Value.GetProperty("type").GetString() != "package")
+                continue;
             string[] identity = package.Name.Split('/');
             Require(identity.Length == 2, "native_package_identity");
             Require(package.Value.GetProperty("path").GetString() == package.Name.ToLowerInvariant(), "native_package_path");
-            if (requiredLibraries.Contains(identity[0], StringComparer.OrdinalIgnoreCase) ||
-                identity[0].Contains("runtime.nativeaot.", StringComparison.OrdinalIgnoreCase))
+            if (requiredLibraries.Contains(identity[0], StringComparer.OrdinalIgnoreCase) || identity[0].Contains("runtime.nativeaot.", StringComparison.OrdinalIgnoreCase))
             {
                 Require(identity[1] == RuntimeVersion, "native_runtime_pin_mismatch");
                 foundLibraries.Add(identity[0]);
             }
+
             CaptureDirectory(package.Value.GetProperty("path").GetString()!);
         }
-        Require(requiredLibraries.All(foundLibraries.Contains), "native_compiler_package_missing");
 
+        Require(requiredLibraries.All(foundLibraries.Contains), "native_compiler_package_missing");
         JsonElement framework = assets.GetProperty("project").GetProperty("frameworks").GetProperty(TargetFramework);
         Require(framework.TryGetProperty("downloadDependencies", out JsonElement downloads), "native_runtime_pack_missing");
         bool foundRuntime = false;
         foreach (JsonElement package in downloads.EnumerateArray())
         {
             string name = package.GetProperty("name").GetString()!;
-            Require(name.Length > 0 && name.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_'),
-                "native_package_identity");
-            Require(package.GetProperty("version").GetString() == $"[{RuntimeVersion}, {RuntimeVersion}]",
-                "native_runtime_pin_mismatch");
+            Require(name.Length > 0 && name.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_'), "native_package_identity");
+            Require(package.GetProperty("version").GetString() == $"[{RuntimeVersion}, {RuntimeVersion}]", "native_runtime_pin_mismatch");
             foundRuntime |= name.Equals("Microsoft.NETCore.App.Runtime.NativeAOT.linux-musl-x64", StringComparison.OrdinalIgnoreCase);
             CaptureDirectory(name.ToLowerInvariant() + "/" + RuntimeVersion);
         }
+
         Require(foundRuntime, "native_runtime_pack_missing");
         return inputs;
-
         void CaptureDirectory(string relative)
         {
-            Require(!Path.IsPathRooted(relative) && relative.Split(new[] { '/', '\\' }).All(part => part is not ("" or "." or "..")),
-                "native_package_path");
-            string? directory = assets.GetProperty("packageFolders").EnumerateObject()
-                .Select(folder => Path.Combine(folder.Name, relative)).FirstOrDefault(Directory.Exists);
+            Require(!Path.IsPathRooted(relative) && relative.Split(new[] { '/', '\\' }).All(part => part is not ("" or "." or "..")), "native_package_path");
+            string? directory = assets.GetProperty("packageFolders").EnumerateObject().Select(folder => Path.Combine(folder.Name, relative)).FirstOrDefault(Directory.Exists);
             Require(directory is not null, "native_package_missing");
             string[] files = Directory.GetFiles(directory!, "*", SearchOption.AllDirectories);
             Require(files.Length > 0, "native_package_empty");
-            foreach (string input in files) AddNativeInput(inputs, input);
+            foreach (string input in files)
+                AddNativeInput(inputs, input);
         }
     }
 
@@ -185,13 +169,20 @@ public static class NativeAotPayload
     /// The ignored lock file remains after disposal and is never deleted to release a lease.
     /// This lease does not serialize arbitrary manual dotnet builds outside qualification.
     /// </summary>
+
     public static FileStream OpenQualificationLease(string root)
     {
         string directory = EfiBuildFiles.InitializeDirectory(Path.Combine(root, "artifacts"), "native_qualification_lock_path");
         string path = Path.Combine(directory, "nativeaot-payload-build.lock");
         EfiBuildFiles.RequirePlainOrMissing(directory, path, "native_qualification_lock_path");
-        try { return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
-        catch (IOException error) { throw new InvalidDataException("native_qualification_busy", error); }
+        try
+        {
+            return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        }
+        catch (IOException error)
+        {
+            throw new InvalidDataException("native_qualification_busy", error);
+        }
     }
 
     /// <summary>
@@ -202,6 +193,7 @@ public static class NativeAotPayload
     /// Source and output must share a filesystem for Directory.Move. A failed move retains
     /// existing bytes and prevents publishing; nothing is recursively deleted.
     /// </summary>
+
     public static void ArchiveBuildCache(string root, string app, string destination)
     {
         Require(app is "NativeAotHello" or "NativeAotRuntimeSmoke" or "MinimalApiSmoke", "native_payload_app");
@@ -211,8 +203,7 @@ public static class NativeAotPayload
         AuthorityFiles.RequirePlainPath(root, appRoot, "native_cache_path");
         AuthorityFiles.RequirePlainPath(destination, destination, "native_cache_path");
         string relative = Path.GetRelativePath(appRoot, destination);
-        Require(relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
-            Path.IsPathRooted(relative), "native_cache_output_overlap");
+        Require(relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) || Path.IsPathRooted(relative), "native_cache_output_overlap");
         string archive = Path.Combine(destination, "retained-build-cache", app);
         EfiBuildFiles.RequirePlainOrMissing(destination, archive, "native_cache_path");
         Require(!Path.Exists(archive), "native_cache_archive_exists");
@@ -221,18 +212,24 @@ public static class NativeAotPayload
         {
             EfiBuildFiles.RequirePlainOrMissing(appRoot, source, "native_cache_path");
             Require(!File.Exists(source), "native_cache_not_directory");
-            if (!Directory.Exists(source)) continue;
-            Stack<string> pending = new(); pending.Push(source);
-            while (pending.TryPop(out string? directory)) foreach (string item in Directory.EnumerateFileSystemEntries(directory))
-            {
-                FileAttributes attributes = File.GetAttributes(item);
-                Require((attributes & FileAttributes.ReparsePoint) == 0, "native_cache_reparse_point");
-                if ((attributes & FileAttributes.Directory) != 0) pending.Push(item);
-            }
+            if (!Directory.Exists(source))
+                continue;
+            Stack<string> pending = new();
+            pending.Push(source);
+            while (pending.TryPop(out string? directory))
+                foreach (string item in Directory.EnumerateFileSystemEntries(directory))
+                {
+                    FileAttributes attributes = File.GetAttributes(item);
+                    Require((attributes & FileAttributes.ReparsePoint) == 0, "native_cache_reparse_point");
+                    if ((attributes & FileAttributes.Directory) != 0)
+                        pending.Push(item);
+                }
         }
+
         EfiBuildFiles.InitializeDirectory(archive, "native_cache_path");
         foreach (string source in sources)
-            if (Directory.Exists(source)) Directory.Move(source, Path.Combine(archive, Path.GetFileName(source)));
+            if (Directory.Exists(source))
+                Directory.Move(source, Path.Combine(archive, Path.GetFileName(source)));
         Require(sources.All(source => !Path.Exists(source)), "native_cache_still_present");
     }
 
@@ -242,16 +239,10 @@ public static class NativeAotPayload
         using var repositoryLease = OpenQualificationLease(root);
         Require(!Directory.Exists(destination) && !File.Exists(destination), "fresh_output_required");
         Directory.CreateDirectory(destination);
-        using var ownership = new FileStream(Path.Combine(destination, "qualification.lock"), FileMode.CreateNew,
-            FileAccess.Write, FileShare.None);
+        using var ownership = new FileStream(Path.Combine(destination, "qualification.lock"), FileMode.CreateNew, FileAccess.Write, FileShare.None);
         Require(ToolingBuildInputs.Validate(root).Count == 0, "tooling_inputs_changed");
         string[] apps = ["NativeAotHello", "NativeAotRuntimeSmoke", "MinimalApiSmoke"];
-        string[] inputs = apps.SelectMany(app => Directory.EnumerateFiles(Path.Combine(root, "apps", app), "*", SearchOption.AllDirectories))
-            .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
-            .Where(path => !path.Split('/').Any(part => part is "bin" or "obj" or "artifacts"))
-            .Concat(ToolingBuildInputs.SourceInputs(root).Select(path => Path.GetRelativePath(root, path).Replace('\\', '/')))
-            .Concat(new[] { "NuGet.Config", "nuget.config" }.Where(path => File.Exists(Path.Combine(root, path))))
-            .Distinct().Order().ToArray();
+        string[] inputs = apps.SelectMany(app => Directory.EnumerateFiles(Path.Combine(root, "apps", app), "*", SearchOption.AllDirectories)).Select(path => Path.GetRelativePath(root, path).Replace('\\', '/')).Where(path => !path.Split('/').Any(part => part is "bin" or "obj" or "artifacts")).Concat(ToolingBuildInputs.SourceInputs(root).Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))).Concat(new[] { "NuGet.Config", "nuget.config" }.Where(path => File.Exists(Path.Combine(root, path)))).Distinct().Order().ToArray();
         Dictionary<string, string> hashes = HashInputs(root, inputs);
         await File.WriteAllTextAsync(Path.Combine(destination, "inputs.json"), JsonSerializer.Serialize(hashes));
         var commands = new List<object>();
@@ -263,6 +254,7 @@ public static class NativeAotPayload
             await ExecuteAsync(executable, arguments, root, log, timeout ?? TimeSpan.FromMinutes(2));
             return await File.ReadAllTextAsync(log + ".stdout.log");
         }
+
         try
         {
             string sdk = await Run("sdk-version", "dotnet", ["--version"]);
@@ -273,39 +265,66 @@ public static class NativeAotPayload
             await Run("kernel", "uname", ["-a"]);
             await Run("packages", "apk", ["info", "-vv"]);
             await Run("cpu", "cat", ["/proc/cpuinfo"]);
-            foreach (string name in new[] { "dotnet", "clang", "ld", "gcc", "strace", "readelf", "nm", "setsid" })
+            foreach (string name in new[]
             {
-                string? path = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
-                    .Select(directory => Path.Combine(directory, name)).FirstOrDefault(File.Exists);
+                "dotnet",
+                "clang",
+                "ld",
+                "gcc",
+                "strace",
+                "readelf",
+                "nm",
+                "setsid"
+            }
+
+            )
+            {
+                string? path = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).Select(directory => Path.Combine(directory, name)).FirstOrDefault(File.Exists);
                 Require(path is not null, "native_tool_missing_" + name);
                 AddNativeInput(nativeInputs, path!);
             }
-            foreach (string library in new[] { "libc.a", "libz.a", "libstdc++.a", "libgcc.a", "libgcc_eh.a", "crt1.o", "crti.o", "crtn.o" })
+
+            foreach (string library in new[]
+            {
+                "libc.a",
+                "libz.a",
+                "libstdc++.a",
+                "libgcc.a",
+                "libgcc_eh.a",
+                "crt1.o",
+                "crti.o",
+                "crtn.o"
+            }
+
+            )
             {
                 string path = (await Run("library-" + library, "gcc", ["-print-file-name=" + library])).Trim();
                 Require(Path.IsPathFullyQualified(path) && File.Exists(path), "static_dependency_missing_" + library);
                 AddNativeInput(nativeInputs, path);
             }
+
             var inspections = new Dictionary<string, Inspection>();
             foreach (string app in apps)
             {
                 ArchiveBuildCache(root, app, destination);
                 output.WriteLine("NATIVEAOT_PAYLOAD_PUBLISH " + app);
                 string publish = Path.Combine(destination, app);
-                await Run(app + "-publish", "dotnet", ["publish", $"apps/{app}/{app}.csproj", "-c", "Release",
-                    "-f", TargetFramework, "-r", "linux-musl-x64", "--self-contained", "true", "-o", publish, "--nologo",
-                    "-p:PublishAot=true", "-p:StaticExecutable=true", "-p:PositionIndependentExecutable=false",
-                    "-p:InvariantGlobalization=true", "-p:ServerGarbageCollection=false", "-p:EventSourceSupport=false",
-                    "-p:EnableDiagnostics=false", "-p:DebuggerSupport=false", "-p:RuntimeFrameworkVersion=" + RuntimeVersion,
-                    "-p:TargetLatestRuntimePatch=false", "-p:UseSharedCompilation=false", "-nr:false"], TimeSpan.FromMinutes(45));
+                await Run(app + "-publish", "dotnet", ["publish", $"apps/{app}/{app}.csproj", "-c", "Release", "-f", TargetFramework, "-r", "linux-musl-x64", "--self-contained", "true", "-o", publish, "--nologo", "-p:PublishAot=true", "-p:StaticExecutable=true", "-p:PositionIndependentExecutable=false", "-p:InvariantGlobalization=true", "-p:ServerGarbageCollection=false", "-p:EventSourceSupport=false", "-p:EnableDiagnostics=false", "-p:DebuggerSupport=false", "-p:RuntimeFrameworkVersion=" + RuntimeVersion, "-p:TargetLatestRuntimePatch=false", "-p:UseSharedCompilation=false", "-nr:false"], TimeSpan.FromMinutes(45));
                 string executable = Path.Combine(publish, app);
                 string intermediate = Path.Combine(root, "apps", app, "obj", "Release", TargetFramework, "linux-musl-x64");
-                foreach (string produced in new[] { Path.Combine(intermediate, app + ".dll"), Path.Combine(intermediate, "native", app + ".o") })
+                foreach (string produced in new[]
+                {
+                    Path.Combine(intermediate, app + ".dll"),
+                    Path.Combine(intermediate, "native", app + ".o")
+                }
+
+                )
                 {
                     AuthorityFiles.RequirePlainPath(root, produced, "native_produced_input_path");
                     Require(new FileInfo(produced).Length > 0, "native_produced_input_empty");
                     AddNativeInput(nativeInputs, produced);
                 }
+
                 string assetsPath = Path.Combine(root, "apps", app, "obj", "project.assets.json");
                 File.Copy(assetsPath, Path.Combine(destination, app + "-assets.json"));
                 using (JsonDocument assets = JsonDocument.Parse(await File.ReadAllTextAsync(assetsPath)))
@@ -316,6 +335,7 @@ public static class NativeAotPayload
                         nativeInputs.TryAdd(input.Key, input.Value);
                     }
                 }
+
                 foreach (string input in Directory.EnumerateFiles(Path.Combine(root, "apps", app, "obj"), "*.rsp", SearchOption.AllDirectories))
                     File.Copy(input, Path.Combine(destination, app + "-" + Path.GetFileName(input)), overwrite: false);
                 inspections.Add(app, InspectFile(executable));
@@ -324,28 +344,22 @@ public static class NativeAotPayload
                 await Run(app + "-symbols", "nm", ["-a", executable]);
                 if (app != "MinimalApiSmoke")
                 {
-                    string text = await Run(app + "-run", "strace", ["-ff", "-s", "256", "-o",
-                        Path.Combine(destination, app + "-trace"), executable]);
+                    string text = await Run(app + "-run", "strace", ["-ff", "-s", "256", "-o", Path.Combine(destination, app + "-trace"), executable]);
                     string marker = app == "NativeAotHello" ? "TEST_PASS nativeaot.hello" : "TEST_PASS nativeaot.runtime";
                     Require(text.Replace("\r", "").Split('\n').Contains(marker), "payload_run_marker");
                 }
-                else await RunHttpAsync(root, destination, executable, commands);
+                else
+                    await RunHttpAsync(root, destination, executable, commands);
             }
-            string[] currentApps = apps.SelectMany(app => Directory.EnumerateFiles(Path.Combine(root, "apps", app), "*", SearchOption.AllDirectories))
-                .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
-                .Where(path => !path.Split('/').Any(part => part is "bin" or "obj" or "artifacts")).Distinct().Order().ToArray();
-            Require(currentApps.SequenceEqual(inputs.Where(path => path.StartsWith("apps/"))) &&
-                ToolingBuildInputs.Validate(root).Count == 0 &&
-                HashInputs(root, inputs).OrderBy(x => x.Key).SequenceEqual(hashes.OrderBy(x => x.Key)), "source_inputs_changed");
+
+            string[] currentApps = apps.SelectMany(app => Directory.EnumerateFiles(Path.Combine(root, "apps", app), "*", SearchOption.AllDirectories)).Select(path => Path.GetRelativePath(root, path).Replace('\\', '/')).Where(path => !path.Split('/').Any(part => part is "bin" or "obj" or "artifacts")).Distinct().Order().ToArray();
+            Require(currentApps.SequenceEqual(inputs.Where(path => path.StartsWith("apps/"))) && ToolingBuildInputs.Validate(root).Count == 0 && HashInputs(root, inputs).OrderBy(x => x.Key).SequenceEqual(hashes.OrderBy(x => x.Key)), "source_inputs_changed");
             Require(nativeInputs.All(input => HashFile(input.Key) == input.Value), "native_inputs_changed");
             await File.WriteAllTextAsync(Path.Combine(destination, "inspection.json"), JsonSerializer.Serialize(inspections));
-            string[] syscalls = Directory.GetFiles(destination, "*-trace.*").SelectMany(File.ReadLines)
-                .Select(line => Regex.Match(line, "^([a-zA-Z0-9_]+)\\("))
-                .Where(match => match.Success).Select(match => match.Groups[1].Value).Distinct().Order().ToArray();
+            string[] syscalls = Directory.GetFiles(destination, "*-trace.*").SelectMany(File.ReadLines).Select(line => Regex.Match(line, "^([a-zA-Z0-9_]+)\\(")).Where(match => match.Success).Select(match => match.Groups[1].Value).Distinct().Order().ToArray();
             Require(syscalls.Contains("execve") && syscalls.Contains("exit_group"), "trace_inventory_incomplete");
             await File.WriteAllLinesAsync(Path.Combine(destination, "observed-syscalls.txt"), syscalls);
-            await File.WriteAllTextAsync(Path.Combine(destination, "boundary.txt"),
-                "Linux builder qualification only. Observed syscalls are not exhaustive; source/error-path, auxv, TLS and CPU review remain required. No CLROS guest authority.\n");
+            await File.WriteAllTextAsync(Path.Combine(destination, "boundary.txt"), "Linux builder qualification only. Observed syscalls are not exhaustive; source/error-path, auxv, TLS and CPU review remain required. No CLROS guest authority.\n");
         }
         finally
         {
@@ -370,7 +384,10 @@ public static class NativeAotPayload
         Task stdout = CaptureAsync(process.StandardOutput, log + ".stdout.log", process);
         Task stderr = CaptureAsync(process.StandardError, log + ".stderr.log", process);
         using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-        using var client = new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(5) };
+        using var client = new HttpClient(new HttpClientHandler { UseProxy = false })
+        {
+            Timeout = TimeSpan.FromSeconds(5)
+        };
         try
         {
             while (true)
@@ -379,28 +396,35 @@ public static class NativeAotPayload
                 try
                 {
                     using var response = await client.GetAsync(endpoint + "/healthz", deadline.Token);
-                    if (response.IsSuccessStatusCode) break;
+                    if (response.IsSuccessStatusCode)
+                        break;
                 }
-                catch (HttpRequestException) { }
+                catch (HttpRequestException)
+                {
+                }
+
                 await Task.Delay(100, deadline.Token);
             }
-            foreach (string path in new[] { "/", "/healthz" })
+
+            foreach (string path in new[]
+            {
+                "/",
+                "/healthz"
+            }
+
+            )
             {
                 using var response = await client.GetAsync(endpoint + path, deadline.Token);
-                Require(response.StatusCode == HttpStatusCode.OK &&
-                    await response.Content.ReadAsStringAsync(deadline.Token) == expectedBody, "http_status_or_body");
+                Require(response.StatusCode == HttpStatusCode.OK && await response.Content.ReadAsStringAsync(deadline.Token) == expectedBody, "http_status_or_body");
             }
+
             using var config = JsonDocument.Parse(await client.GetStringAsync(endpoint + "/config", deadline.Token));
-            Require(config.RootElement.GetProperty("appId").GetString() == "minimal.api.smoke" &&
-                config.RootElement.GetProperty("expectedBody").GetString() == expectedBody, "http_config_contract");
-            await File.WriteAllTextAsync(Path.Combine(destination, "http.json"),
-                JsonSerializer.Serialize(new { endpoint, paths = new[] { "/", "/healthz", "/config" }, status = 200, body = expectedBody }));
-            string[] children = (await File.ReadAllTextAsync($"/proc/{process.Id}/task/{process.Id}/children", deadline.Token))
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            Require(config.RootElement.GetProperty("appId").GetString() == "minimal.api.smoke" && config.RootElement.GetProperty("expectedBody").GetString() == expectedBody, "http_config_contract");
+            await File.WriteAllTextAsync(Path.Combine(destination, "http.json"), JsonSerializer.Serialize(new { endpoint, paths = new[] { "/", "/healthz", "/config" }, status = 200, body = expectedBody }));
+            string[] children = (await File.ReadAllTextAsync($"/proc/{process.Id}/task/{process.Id}/children", deadline.Token)).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             Require(children.Length == 1 && int.TryParse(children[0], out _), "http_tracee_identity");
             Require(File.ResolveLinkTarget($"/proc/{children[0]}/exe", true)?.FullName == executable, "http_tracee_executable");
-            await ExecuteAsync("kill", ["-TERM", children[0]], root,
-                Path.Combine(destination, "MinimalApiSmoke-shutdown"), TimeSpan.FromSeconds(10));
+            await ExecuteAsync("kill", ["-TERM", children[0]], root, Path.Combine(destination, "MinimalApiSmoke-shutdown"), TimeSpan.FromSeconds(10));
             await process.WaitForExitAsync(deadline.Token);
             Require(process.ExitCode == 0, "http_shutdown_exit");
             await Task.WhenAll(stdout, stderr).WaitAsync(deadline.Token);
@@ -432,10 +456,17 @@ public static class NativeAotPayload
 
     private static Process Start(string executable, string[] args, string root, string expectedBody = "OS_MINIMAL_API_OK")
     {
-        var start = new ProcessStartInfo("setsid") { WorkingDirectory = root, UseShellExecute = false,
-            RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
+        var start = new ProcessStartInfo("setsid")
+        {
+            WorkingDirectory = root,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
         start.ArgumentList.Add(executable);
-        foreach (string argument in args) start.ArgumentList.Add(argument);
+        foreach (string argument in args)
+            start.ArgumentList.Add(argument);
         start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
         start.Environment["DOTNET_NOLOGO"] = "1";
         start.Environment["OS_SMOKE_EXPECTED_BODY"] = expectedBody;
@@ -455,7 +486,8 @@ public static class NativeAotPayload
             while (true)
             {
                 int count = await reader.ReadAsync(buffer);
-                if (count == 0) return;
+                if (count == 0)
+                    return;
                 total = checked(total + count);
                 Require(total <= 32 * 1024 * 1024, "native_log_limit");
                 await log.WriteAsync(Encoding.UTF8.GetBytes(buffer.AsSpan(0, count).ToString()));
@@ -464,28 +496,36 @@ public static class NativeAotPayload
         catch
         {
             Kill(-process.Id, 9);
-            try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
-            catch (InvalidOperationException) when (process.HasExited) { }
+            try
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)when (process.HasExited)
+            {
+            }
+
             throw;
         }
     }
 
-    private static Dictionary<string, string> HashInputs(string root, string[] paths) =>
-        paths.ToDictionary(path => path, path => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, path)))));
+    private static Dictionary<string, string> HashInputs(string root, string[] paths) => paths.ToDictionary(path => path, path => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, path)))));
     private static void AddNativeInput(Dictionary<string, string> inputs, string path)
     {
         string resolved = File.ResolveLinkTarget(path, true)?.FullName ?? Path.GetFullPath(path);
-        if (!inputs.ContainsKey(resolved)) inputs.Add(resolved, HashFile(resolved));
+        if (!inputs.ContainsKey(resolved))
+            inputs.Add(resolved, HashFile(resolved));
     }
+
     private static string HashFile(string path)
     {
         using var file = File.OpenRead(path);
         return Convert.ToHexString(SHA256.HashData(file));
     }
+
     private static bool Fits(ulong offset, ulong length, ulong available) => offset <= available && length <= available - offset;
     private static ulong PageStart(ulong address) => address & ~4095UL;
     private static ulong PageEnd(Segment row) => (row.Address + row.MemorySize + 4095) & ~4095UL;
-
     // Every Linux child starts in its own session/process group. This also covers
     // descendants retaining pipes after a successful compiler/wrapper exit.
     private static async Task StopSessionAsync(Process process)
@@ -499,8 +539,10 @@ public static class NativeAotPayload
             Require(elapsed.Elapsed < TimeSpan.FromSeconds(10), "native_session_still_live");
             await Task.Delay(10);
         }
+
         Require(Marshal.GetLastPInvokeError() == 3, "native_session_confirmation");
     }
+
     [DllImport("libc", EntryPoint = "kill", SetLastError = true)]
     private static extern int Kill(int pid, int signal);
     private static ushort U16(ReadOnlySpan<byte> bytes, int at) => BinaryPrimitives.ReadUInt16LittleEndian(bytes[at..]);
@@ -508,6 +550,7 @@ public static class NativeAotPayload
     private static ulong U64(ReadOnlySpan<byte> bytes, int at) => BinaryPrimitives.ReadUInt64LittleEndian(bytes[at..]);
     private static void Require(bool condition, string reason)
     {
-        if (!condition) throw new InvalidDataException(reason);
+        if (!condition)
+            throw new InvalidDataException(reason);
     }
 }

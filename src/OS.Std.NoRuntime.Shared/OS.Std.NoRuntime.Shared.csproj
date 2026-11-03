@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
 	<PropertyGroup>
 		<TargetFramework>net11.0</TargetFramework>
@@ -17,4 +18,6 @@
 		         Exclude="../../std/no-runtime/shared/**/bin/**;../../std/no-runtime/shared/**/obj/**;../../std/no-runtime/shared/**/artifacts/**"
 		         Link="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="../../tools/OS.CompilerReceipts/HostCompilationReceipts.targets" />
 </Project>

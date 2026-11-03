@@ -38,35 +38,80 @@ public readonly struct VirtioBlockReadQueueCompletionResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockReadQueueCompletionStatus Status { get; }
+    public VirtioBlockReadQueueCompletionStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueuePublishStatus ReadQueuePublishStatus { get; }
+    public VirtioBlockReadQueuePublishStatus ReadQueuePublishStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorReclaimStatus CursorReclaimStatus { get; }
+    public VirtioBlockQueueCursorReclaimStatus CursorReclaimStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorReclaimPlanStatus ReclaimPlanStatus { get; }
+    public VirtioBlockDescriptorReclaimPlanStatus ReclaimPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadLifecycleCompletionStatus CompletionStatus { get; }
+    public VirtioBlockReadLifecycleCompletionStatus CompletionStatus
+    {
+        get;
+    }
 
-    public VirtioBlockUsedRingCompletionReaderStatus CompletionReaderStatus { get; }
+    public VirtioBlockUsedRingCompletionReaderStatus CompletionReaderStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus { get; }
+    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus
+    {
+        get;
+    }
 
-    public bool CursorReclaimAttempted { get; }
+    public bool CursorReclaimAttempted
+    {
+        get;
+    }
 
-    public ushort PreviousAvailableRingIndex { get; }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort CurrentAvailableRingIndex { get; }
+    public ushort CurrentAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort PreviousUsedRingIndex { get; }
+    public ushort PreviousUsedRingIndex
+    {
+        get;
+    }
 
-    public ushort CurrentUsedRingIndex { get; }
+    public ushort CurrentUsedRingIndex
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueuePublishResult ReadQueuePublish { get; }
+    public VirtioBlockReadQueuePublishResult ReadQueuePublish
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorReclaimResult CursorReclaim { get; }
+    public VirtioBlockQueueCursorReclaimResult CursorReclaim
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == VirtioBlockReadQueueCompletionStatus.Success;
 

@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
@@ -12,6 +13,10 @@
   <ItemGroup>
     <Compile Remove="QemuContracts.cs" />
     <Compile Remove="NativeFile.cs" />
+    <Compile Remove="NativeFile.FileIdentity.cs" />
+    <Compile Remove="NativeFile.FILETIME.cs" />
+    <Compile Remove="NativeFile.BY_HANDLE_FILE_INFORMATION.cs" />
+    <Compile Remove="NativeFile.LinuxStat.cs" />
     <ProjectReference Include="..\OS.LibvirtRunner\OS.LibvirtRunner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\OS.QemuRunner\OS.QemuRunner.csproj" />
     <ProjectReference Include="..\OS.X64TextSerializerGenerator\OS.X64TextSerializerGenerator.csproj" />
@@ -39,7 +44,7 @@
     <_ToolingAbsolutePatterns>$(_ToolingRepositoryRoot)$(_ToolingInputPatterns.Replace(';', ';$(_ToolingRepositoryRoot)'))</_ToolingAbsolutePatterns>
     <_ToolingManifestPatterns>GLOB|$(_ToolingInputPatterns.Replace(';', ';GLOB|'))</_ToolingManifestPatterns>
   </PropertyGroup>
-  <Target Name="CaptureToolingBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveReferences">
+  <Target Name="CaptureToolingBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="CaptureHostProjectOutputs;ResolveReferences">
     <ItemGroup>
       <_ToolingInput Include="$([MSBuild]::Unescape('$(_ToolingAbsolutePatterns)'))"
         Exclude="$(_ToolingRepositoryRoot)**/bin/**;$(_ToolingRepositoryRoot)**/obj/**;$(_ToolingRepositoryRoot)**/artifacts/**" />
@@ -54,4 +59,7 @@
       <EmbeddedResource Include="$(IntermediateOutputPath)tooling-build-inputs.txt" LogicalName="tooling-build-inputs.txt" />
     </ItemGroup>
   </Target>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="../OS.CompilerReceipts/HostProjectOutputs.targets" Condition="'$(_ClrosHostProjectOutputsImported)' != 'true'" />
+  <Import Project="../OS.CompilerReceipts/HostCompilationReceipts.targets" />
 </Project>

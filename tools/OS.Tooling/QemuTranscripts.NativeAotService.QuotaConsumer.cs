@@ -1,15 +1,6 @@
 namespace OS.Tooling;
-
 public static partial class QemuTranscripts
 {
-    /// <summary>Internal joined observations from one held original capture.
-    /// Source/native locks remain the caller's responsibility. This result
-    /// grants no issue closure, component-budget fit or broader guest gate.</summary>
-    internal sealed record ServiceQuotaOwnedInspection(ServiceQuotaCaptureReport Capture,
-        ServiceQuotaRunnerInspection Runner, ServiceQuotaStreamJoinInspection Streams,
-        ServiceQuotaTemporalInspection Temporal, ServiceQuotaOverlapInspection Overlap,
-        ServiceNicAccountingInspection Nic);
-
     /// <summary>Inspect the eight original output snapshots and actual borrowed
     /// pre-run package through one privately owned observed Completion. Compose
     /// the strict quota parent, complete scheduler/syscall/memory/GC/cleanup
@@ -19,18 +10,14 @@ public static partial class QemuTranscripts
     /// Nothing runs; evidence bytes come from held records/snapshots. QemuSmoke
     /// must keep its original current-source/native locks through final readback.
     /// Only its explicit quota route supplies these original owners and locks.</summary>
-    internal static ServiceQuotaOwnedInspection InspectOwnedServiceQuota(string root,
-        QemuSmokeOptions options, QemuSmokePlan plan, NativeAotServiceProgram program,
-        ServiceRunnerContext context, ServiceQuotaOwnedEvidence evidence) => evidence.Inspect<ServiceQuotaOwnedInspection>(held =>
+
+    internal static ServiceQuotaOwnedInspection InspectOwnedServiceQuota(string root, QemuSmokeOptions options, QemuSmokePlan plan, NativeAotServiceProgram program, ServiceRunnerContext context, ServiceQuotaOwnedEvidence evidence) => evidence.Inspect<ServiceQuotaOwnedInspection>(held =>
     {
         byte[] raw = held.Serial.ToArray(), packets = held.Packets.ToArray();
         var peer = held.Completion;
         var capture = ValidateNativeAotServiceQuotaCapture(root, held.ReadPackage(), program, raw);
-        var runner = InspectNativeAotServiceQuotaRunnerForTests(options, plan, peer.Runner, raw,
-            held.Summary.ToArray(), context, packets, capture.Parent.FrameAnchor);
-        Need(peer.Port == context.ForwardPort && peer.PeerStartedUtc >= context.StartedUtc &&
-            peer.PeerStartedUtc <= runner.EndUtc && peer.PeerCompletedUtc > peer.PeerStartedUtc,
-            "service_quota_owned_peer_bounds");
+        var runner = InspectNativeAotServiceQuotaRunnerForTests(options, plan, peer.Runner, raw, held.Summary.ToArray(), context, packets, capture.Parent.FrameAnchor);
+        Need(peer.Port == context.ForwardPort && peer.PeerStartedUtc >= context.StartedUtc && peer.PeerStartedUtc <= runner.EndUtc && peer.PeerCompletedUtc > peer.PeerStartedUtc, "service_quota_owned_peer_bounds");
         // Peer completion may follow expected runner22 while its pending I/O
         // observes the stopped endpoint. Never require a guest/host clock join
         // or equate that host failure with the independently replayed cleanup.
@@ -42,11 +29,7 @@ public static partial class QemuTranscripts
         var framed = NativeAotThreadingOutput.ReadService(raw.AsSpan(start));
         var overlap = ReadServiceQuotaOverlap(framed, capture.Leaf.Memory, streams.Host, temporal, peer.Report);
         var nic = ReadServiceQuotaNic(packets, capture.Parent, capture.Envelope, raw);
-        Need(capture.Envelope.Fresh == (ulong)ports.Length && streams.Guest.Streams.Count == ports.Length &&
-            temporal.SocketObservations == capture.Leaf.SocketIo.Count &&
-            temporal.RequestBytesConsumed == capture.Leaf.SocketReceived &&
-            temporal.ResponseBytesAccepted == capture.Leaf.SocketSent,
-            "service_quota_owned_totals");
+        Need(capture.Envelope.Fresh == (ulong)ports.Length && streams.Guest.Streams.Count == ports.Length && temporal.SocketObservations == capture.Leaf.SocketIo.Count && temporal.RequestBytesConsumed == capture.Leaf.SocketReceived && temporal.ResponseBytesAccepted == capture.Leaf.SocketSent, "service_quota_owned_totals");
         return new(capture, runner, streams, temporal, overlap, nic);
     });
 }

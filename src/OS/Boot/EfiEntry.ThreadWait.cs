@@ -16,23 +16,24 @@ namespace OS.Boot;
 
 #pragma warning disable 649 // Adjacent caller-owned slots are reached through their first element.
 
+
 public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
-        // One extra internally leased RW/NX page holds registrations and TLS
-        // ownership. It never aliases the existing context/control/stack spans.
-        private struct ThreadWaitControl
-        {
-            internal Waiter Addresses;
-            internal Waiter.Slot AddressSlotA, AddressSlotB;
-            internal Waiter.Registration RegistrationA, RegistrationB;
-            internal Waiter.Binding AddressA, AddressB;
-            internal TlsOwner Tls;
-            internal TlsOwner.Slot TlsSlotA, TlsSlotB;
-            internal TlsOwner.Binding TlsA, TlsB;
-            internal uint NextA, NextB;
-        }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         private static ulong ThreadWaitKey(LifecycleControl* c) => c->Key ^ 0x57414954;
         private static ulong ThreadTlsKey(LifecycleControl* c) => c->Key ^ 0x544c53;

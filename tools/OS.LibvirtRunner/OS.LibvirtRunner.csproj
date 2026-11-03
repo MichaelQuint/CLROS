@@ -10,6 +10,7 @@
 
 	<ItemGroup>
 		<Compile Include="..\OS.QemuRunner\SerialMarkerSummary.cs" Link="SerialMarkerSummary.cs" />
+		<Compile Include="..\OS.QemuRunner\SerialMarkerSummary.AppExitMarkerResult.cs" Link="SerialMarkerSummary.AppExitMarkerResult.cs" />
 	</ItemGroup>
 
 </Project>

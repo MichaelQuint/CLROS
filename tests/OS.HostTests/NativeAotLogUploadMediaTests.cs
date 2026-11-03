@@ -10,117 +10,182 @@ using Q = OS.Tooling.QemuTranscripts;
 
 // Synthetic copied protocol/image vectors, not engine or SQLite execution.
 // The internal pure seam cannot supply public pinned-B8 package authority.
-internal static class NativeAotLogUploadMediaTests
+internal static partial class NativeAotLogUploadMediaTests
 {
-    private delegate Q.NativeAotLogUploadMediaReport Core(string[] rows, int first, int last, F.BlockBoundary before,
-        F.BlockBoundary after, int packageBytes, string packageHash, string phase, ReadOnlySpan<byte> initialBytes,
-        ReadOnlySpan<byte> finalBytes, Combined.Inspection initial, Combined.Inspection final);
     private static readonly Core Inspect = typeof(Q).GetMethod("InspectNativeAotLogUploadMediaCore", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Core>();
-
     [HostTest("log-upload media copied write replays all sectors and independently extracts canonical outputs without original authority")]
     private static void WriteValues() => WithImages(f =>
     {
-        var w = f.Write(); string[] rows = w.Rows; var result = f.Check(w);
-        HostCheck.True(result.Phase == "write" && result.Block.After.FlushAcknowledgedBytes > 0 && !result.Block.Dirty &&
-            result.Block.Io.Any(row => row.Kind == B.Operation.Flush && row.IsComplete) && result.ObservedOutSectors.Count == 18 &&
-            result.Final.Data.Find("LOG.TXT")!.CopyBytes().AsSpan().SequenceEqual(NativeAotLogUploadContract.ExpectedLog()) &&
-            result.Final.Data.Find("UPLOAD.BIN")!.CopyBytes().AsSpan().SequenceEqual(NativeAotLogUploadContract.ExpectedUpload()));
-        HostCheck.True(result.Initial.WebPartitionSha256 == result.Final.WebPartitionSha256 &&
-            result.Initial.Data.Find("GUARD.TXT")!.Sha256 == result.Final.Data.Find("GUARD.TXT")!.Sha256 &&
-            result.BlockRows.Select(row => row.RecordIndex).Concat(result.UnjoinedRows.Select(row => row.RecordIndex)).Order()
-                .SequenceEqual(Enumerable.Range(0, rows.Length)) && result.FirstRecordIndex == 1 && result.LastRecordIndex == rows.Length - 2);
-        HostCheck.True(!result.SyscallInputQualified && !result.OriginalCreatorOrProcessQualified && !result.NativeOrGuestQualified &&
-            !result.RebootOrPhysicalPersistenceQualified && !result.WholeCaptureQualified);
-        byte[] copy = result.Final.Data.Find("UPLOAD.BIN")!.CopyBytes(); copy.AsSpan().Clear(); rows[0] = "changed";
+        var w = f.Write();
+        string[] rows = w.Rows;
+        var result = f.Check(w);
+        HostCheck.True(result.Phase == "write" && result.Block.After.FlushAcknowledgedBytes > 0 && !result.Block.Dirty && result.Block.Io.Any(row => row.Kind == B.Operation.Flush && row.IsComplete) && result.ObservedOutSectors.Count == 18 && result.Final.Data.Find("LOG.TXT")!.CopyBytes().AsSpan().SequenceEqual(NativeAotLogUploadContract.ExpectedLog()) && result.Final.Data.Find("UPLOAD.BIN")!.CopyBytes().AsSpan().SequenceEqual(NativeAotLogUploadContract.ExpectedUpload()));
+        HostCheck.True(result.Initial.WebPartitionSha256 == result.Final.WebPartitionSha256 && result.Initial.Data.Find("GUARD.TXT")!.Sha256 == result.Final.Data.Find("GUARD.TXT")!.Sha256 && result.BlockRows.Select(row => row.RecordIndex).Concat(result.UnjoinedRows.Select(row => row.RecordIndex)).Order().SequenceEqual(Enumerable.Range(0, rows.Length)) && result.FirstRecordIndex == 1 && result.LastRecordIndex == rows.Length - 2);
+        HostCheck.True(!result.SyscallInputQualified && !result.OriginalCreatorOrProcessQualified && !result.NativeOrGuestQualified && !result.RebootOrPhysicalPersistenceQualified && !result.WholeCaptureQualified);
+        byte[] copy = result.Final.Data.Find("UPLOAD.BIN")!.CopyBytes();
+        copy.AsSpan().Clear();
+        rows[0] = "changed";
         HostCheck.True(result.UnjoinedRows[0].Text == "OUTER synthetic=unjoined" && result.Final.Data.Find("UPLOAD.BIN")!.Bytes == 5126);
         bool denied = false;
-        try { ((IList<ulong>)result.ObservedOutSectors).Clear(); } catch (NotSupportedException) { denied = true; }
+        try
+        {
+            ((IList<ulong>)result.ObservedOutSectors).Clear();
+        }
+        catch (NotSupportedException)
+        {
+            denied = true;
+        }
+
         HostCheck.True(denied);
     });
-
     [HostTest("log-upload media verify requires canonical initial data identical entire image and zero OUT even for no-op metadata")]
     private static void VerifyValues() => WithImages(f =>
     {
-        var w = new Wire(f.Final); foreach (ulong lba in f.TargetSectors) w.Read(lba); var result = f.Check(w, "verify");
-        HostCheck.True(result.ObservedOutSectors.Count == 0 && result.Initial.RawSha256 == result.Final.RawSha256 &&
-            result.Block.Before.SubmittedBytes == result.Block.After.SubmittedBytes && result.Block.Io.All(row => row.Kind == B.Operation.Read));
-        foreach (ulong lba in new[] { (ulong)f.Initial.Data.FirstFatSector, Combined.DataFirstLba + 1UL, f.TargetSectors[0] })
-        { var noop = new Wire(f.Final); noop.Write(lba, f.Sector(f.Final, lba)); noop.Flush(); Reject(() => f.Check(noop, "verify"), "log_upload_media_verify_out"); }
-        var empty = new Wire(f.InitialBytes); Reject(() => f.Check(empty, "verify", f.InitialBytes, f.Initial,
-            f.InitialBytes, f.Initial), "log_upload_media_canonical_files");
-        var noWrite = new Wire(f.Final); Reject(() => f.Check(noWrite, "write", f.Final, f.FinalInspection), "log_upload_media_write_flush");
+        var w = new Wire(f.Final);
+        foreach (ulong lba in f.TargetSectors)
+            w.Read(lba);
+        var result = f.Check(w, "verify");
+        HostCheck.True(result.ObservedOutSectors.Count == 0 && result.Initial.RawSha256 == result.Final.RawSha256 && result.Block.Before.SubmittedBytes == result.Block.After.SubmittedBytes && result.Block.Io.All(row => row.Kind == B.Operation.Read));
+        foreach (ulong lba in new[]
+        {
+            (ulong)f.Initial.Data.FirstFatSector,
+            Combined.DataFirstLba + 1UL,
+            f.TargetSectors[0]
+        }
+
+        )
+        {
+            var noop = new Wire(f.Final);
+            noop.Write(lba, f.Sector(f.Final, lba));
+            noop.Flush();
+            Reject(() => f.Check(noop, "verify"), "log_upload_media_verify_out");
+        }
+
+        var empty = new Wire(f.InitialBytes);
+        Reject(() => f.Check(empty, "verify", f.InitialBytes, f.Initial, f.InitialBytes, f.Initial), "log_upload_media_canonical_files");
+        var noWrite = new Wire(f.Final);
+        Reject(() => f.Check(noWrite, "write", f.Final, f.FinalInspection), "log_upload_media_write_flush");
         Reject(() => f.Check(w, "VERIFY"), "log_upload_media_phase");
-        Reject(() => f.Check(w, "verify", packageHash: new string('0', 64)), "log_upload_media_esp_package");
+        Reject(() => f.Check(w, "verify", packageHash: new string ('0', 64)), "log_upload_media_esp_package");
         Reject(() => f.Check(w, "verify", packageBytes: checked((int)f.Package.Bytes + 1)), "log_upload_media_esp_package");
     });
-
     [HostTest("log-upload media rejects transient protected FAT root FSInfo tail and nonowned OUT even after restoration")]
     private static void ProtectedWrites() => WithImages(f =>
     {
         ulong fat = f.Initial.Data.FirstFatSector, root = f.Initial.Data.FirstDataSector;
-        foreach ((ulong sector, int offset) in new[] { (fat, 0), (fat, 100 * 4 + 3), (root, 21), (root, 128 + 11),
-            (root, 5 * 32 + 1), (Combined.DataFirstLba + 1UL, 20), (f.TargetSectors[1], 200) })
+        foreach ((ulong sector, int offset)in new[]
         {
-            byte[] changed = f.Sector(f.InitialBytes, sector); changed[offset] ^= 0x80;
-            var w = f.Write(prefix: wire => { wire.Write(sector, changed); wire.Write(sector, f.Sector(f.InitialBytes, sector)); });
+            (fat, 0),
+            (fat, 100 * 4 + 3),
+            (root, 21),
+            (root, 128 + 11),
+            (root, 5 * 32 + 1),
+            (Combined.DataFirstLba + 1UL, 20),
+            (f.TargetSectors[1], 200)
+        }
+
+        )
+        {
+            byte[] changed = f.Sector(f.InitialBytes, sector);
+            changed[offset] ^= 0x80;
+            var w = f.Write(prefix: wire =>
+            {
+                wire.Write(sector, changed);
+                wire.Write(sector, f.Sector(f.InitialBytes, sector));
+            });
             Reject(() => f.Check(w), "log_upload_media_out_protected_bytes");
         }
+
         // Only the low12 bits of the high word are mutable. This is a copied
         // field-mask control, not validity/allocation authority for that transient
         // cluster value or an assertion about intermediate filesystem states.
-        byte[] low12 = f.Sector(f.InitialBytes, root); low12[20] = 0xff; low12[21] = 0x0f;
-        var permitted = f.Write(prefix: wire => { wire.Write(root, low12); wire.Write(root, f.Sector(f.InitialBytes, root)); });
+        byte[] low12 = f.Sector(f.InitialBytes, root);
+        low12[20] = 0xff;
+        low12[21] = 0x0f;
+        var permitted = f.Write(prefix: wire =>
+        {
+            wire.Write(root, low12);
+            wire.Write(root, f.Sector(f.InitialBytes, root));
+        });
         HostCheck.True(!f.Check(permitted).WholeCaptureQualified);
-        foreach (ulong sector in new[] { root + 900, fat + Data.FatSectors - 1, (ulong)Combined.WebFirstLba,
-            f.Initial.Data.Find("GUARD.TXT")!.Extents[0].FirstLba, Combined.DataFirstLba + 2UL })
+        foreach (ulong sector in new[]
+        {
+            root + 900,
+            fat + Data.FatSectors - 1,
+            (ulong)Combined.WebFirstLba,
+            f.Initial.Data.Find("GUARD.TXT")!.Extents[0].FirstLba,
+            Combined.DataFirstLba + 2UL
+        }
+
+        )
         {
             var w = f.Write(prefix: wire => wire.Write(sector, f.Sector(f.InitialBytes, sector)));
             Reject(() => f.Check(w));
         }
     });
-
     [HostTest("log-upload media IN order payload and final full raw equality reject forged or unobserved copies")]
     private static void Replay() => WithImages(f =>
     {
-        var correct = f.Write(); string[] rows = correct.Rows;
+        var correct = f.Write();
+        string[] rows = correct.Rows;
         int read = Array.FindIndex(rows, row => row.StartsWith("M16_027_IO ", StringComparison.Ordinal) && Field(row, "flags") == 7);
-        var forged = rows.ToArray(); int data = forged[read].IndexOf(" data=", StringComparison.Ordinal) + 6;
+        var forged = rows.ToArray();
+        int data = forged[read].IndexOf(" data=", StringComparison.Ordinal) + 6;
         forged[read] = forged[read][..data] + (forged[read][data] == '0' ? '1' : '0') + forged[read][(data + 1)..];
         Reject(() => f.Check(correct, rows: forged), "writable_transcript_read_bytes");
         // This positive read precedes every OUT; future final bytes cannot be
         // substituted for the observed initial directory sector.
-        forged = rows.ToArray(); forged[read] = forged[read][..data] + Convert.ToHexString(f.Sector(f.Final, f.Initial.Data.FirstDataSector)).ToLowerInvariant();
+        forged = rows.ToArray();
+        forged[read] = forged[read][..data] + Convert.ToHexString(f.Sector(f.Final, f.Initial.Data.FirstDataSector)).ToLowerInvariant();
         Reject(() => f.Check(correct, rows: forged), "writable_transcript_read_bytes");
-        var omitted = f.Write(omit: f.TargetSectors[0]); Reject(() => f.Check(omitted), "writable_transcript_final_bytes");
-        byte[] changed = f.Final.ToArray(); changed[checked((int)f.TargetSectors[0] * 512)] ^= 1;
+        var omitted = f.Write(omit: f.TargetSectors[0]);
+        Reject(() => f.Check(omitted), "writable_transcript_final_bytes");
+        byte[] changed = f.Final.ToArray();
+        changed[checked((int)f.TargetSectors[0] * 512)] ^= 1;
         Reject(() => f.Check(correct, finalBytes: changed), "writable_transcript_image_hash");
-        changed = f.Final.ToArray(); changed[512 + 16] ^= 1;
+        changed = f.Final.ToArray();
+        changed[512 + 16] ^= 1;
         Reject(() => f.Check(correct, finalBytes: changed), "writable_transcript_image_hash");
-        var noFlush = f.Write(flush: false); Reject(() => f.Check(noFlush), "log_upload_media_clean_frontiers");
+        var noFlush = f.Write(flush: false);
+        Reject(() => f.Check(noFlush), "log_upload_media_clean_frontiers");
     });
-
     [HostTest("log-upload media refuses cancelled failed held unresolved dirty and unacknowledged FLUSH facts")]
     private static void Failures() => WithImages(f =>
     {
-        var cancelled = new Wire(f.InitialBytes); cancelled.Read(f.Initial.Data.FirstDataSector, cancelled: true);
+        var cancelled = new Wire(f.InitialBytes);
+        cancelled.Read(f.Initial.Data.FirstDataSector, cancelled: true);
         Reject(() => f.Check(cancelled), "log_upload_media_clean_frontiers");
-        var held = new Wire(f.InitialBytes); held.Read(f.Initial.Data.FirstDataSector, held: true);
+        var held = new Wire(f.InitialBytes);
+        held.Read(f.Initial.Data.FirstDataSector, held: true);
         Reject(() => f.Check(held), "log_upload_media_clean_frontiers");
-        var pending = new Wire(f.InitialBytes); pending.Write(f.TargetSectors[0], f.Sector(f.Final, f.TargetSectors[0]), pending: true);
+        var pending = new Wire(f.InitialBytes);
+        pending.Write(f.TargetSectors[0], f.Sector(f.Final, f.TargetSectors[0]), pending: true);
         Reject(() => f.Check(pending), "log_upload_media_clean_frontiers");
-        var failed = f.Write(flush: false); failed.Flush(error: true); Reject(() => f.Check(failed), "log_upload_media_clean_frontiers");
-        var missing = f.Write(flush: false); missing.Flush(pending: true); Reject(() => f.Check(missing), "log_upload_media_clean_frontiers");
-        var rollback = f.Write(); string[] rows = rollback.Rows; int lastFlush = Array.FindLastIndex(rows, row => row.StartsWith("M16_027_IO ", StringComparison.Ordinal) && Field(row, "kind") == 1);
-        rows[lastFlush] = Set(rows[lastFlush], "flushAcknowledgedBytes", 0); Reject(() => f.Check(rollback, rows: rows));
+        var failed = f.Write(flush: false);
+        failed.Flush(error: true);
+        Reject(() => f.Check(failed), "log_upload_media_clean_frontiers");
+        var missing = f.Write(flush: false);
+        missing.Flush(pending: true);
+        Reject(() => f.Check(missing), "log_upload_media_clean_frontiers");
+        var rollback = f.Write();
+        string[] rows = rollback.Rows;
+        int lastFlush = Array.FindLastIndex(rows, row => row.StartsWith("M16_027_IO ", StringComparison.Ordinal) && Field(row, "kind") == 1);
+        rows[lastFlush] = Set(rows[lastFlush], "flushAcknowledgedBytes", 0);
+        Reject(() => f.Check(rollback, rows: rows));
     });
-
     [HostTest("log-upload media public B8 gate and full indexed census reject synthetic packages omissions windows and unknown writable rows")]
     private static void PublicAndCensus() => WithImages(f =>
     {
-        var w = f.Write(); string[] rows = w.Rows;
-        foreach (string phase in new[] { "write", "verify" })
-            Reject(() => Q.InspectNativeAotLogUploadMediaValues(rows, 1, rows.Length - 2, w.Before, w.After,
-                f.Package.CopyBytes(), phase, f.InitialBytes, f.Final, f.Initial, f.FinalInspection), "log_upload_clros_package");
+        var w = f.Write();
+        string[] rows = w.Rows;
+        foreach (string phase in new[]
+        {
+            "write",
+            "verify"
+        }
+
+        )
+            Reject(() => Q.InspectNativeAotLogUploadMediaValues(rows, 1, rows.Length - 2, w.Before, w.After, f.Package.CopyBytes(), phase, f.InitialBytes, f.Final, f.Initial, f.FinalInspection), "log_upload_clros_package");
         Reject(() => f.Check(w, first: 2), "log_upload_media_window");
         Reject(() => f.Check(w, last: rows.Length - 3), "log_upload_media_window");
         Reject(() => f.Check(w, first: -1), "log_upload_media_input");
@@ -128,113 +193,88 @@ internal static class NativeAotLogUploadMediaTests
         int io = Array.FindIndex(rows, row => row.StartsWith("M16_027_IO ", StringComparison.Ordinal));
         Reject(() => f.Check(w, rows: rows.Where((_, i) => i != io).ToArray()));
         Reject(() => f.Check(w, rows: rows.Take(io + 1).Concat([rows[io]]).Concat(rows.Skip(io + 1)).ToArray()));
-        var reordered = rows.ToArray(); (reordered[io], reordered[io + 1]) = (reordered[io + 1], reordered[io]); Reject(() => f.Check(w, rows: reordered));
+        var reordered = rows.ToArray();
+        (reordered[io], reordered[io + 1]) = (reordered[io + 1], reordered[io]);
+        Reject(() => f.Check(w, rows: reordered));
         Reject(() => f.Check(w, rows: rows.Append("M16_027_NEW value=1").ToArray()), "log_upload_media_unknown_writable_record");
         string[] extra = rows.Append("M16_027_WAKE synthetic=requires-wait-consumer").Append("FUTURE_PARENT_ROW retained=1").ToArray();
-        var report = f.Check(w, rows: extra); HostCheck.True(report.UnjoinedRows[^2].RecordIndex == rows.Length && report.UnjoinedRows[^1].Text == extra[^1]);
+        var report = f.Check(w, rows: extra);
+        HostCheck.True(report.UnjoinedRows[^2].RecordIndex == rows.Length && report.UnjoinedRows[^1].Text == extra[^1]);
         Reject(() => f.Check(w, rows: [null!]), "log_upload_media_input");
         Reject(() => f.Check(w, rows: Enumerable.Repeat("outer", Q.MaximumWritableDiskRows + 1).ToArray()), "log_upload_media_input");
     });
-
     [HostTest("log-upload media requires zero new allocation tail independently of logical file extraction")]
     private static void ZeroTail() => WithImages(f =>
     {
-        byte[] changed = f.Final.ToArray(); ulong last = f.TargetSectors[1]; changed[checked((int)last * 512 + 200)] = 0x5a;
-        string path = Path.Combine(f.Folder, "nonzero-tail.raw"); File.WriteAllBytes(path, changed); var actual = Combined.Inspect(path);
+        byte[] changed = f.Final.ToArray();
+        ulong last = f.TargetSectors[1];
+        changed[checked((int)last * 512 + 200)] = 0x5a;
+        string path = Path.Combine(f.Folder, "nonzero-tail.raw");
+        File.WriteAllBytes(path, changed);
+        var actual = Combined.Inspect(path);
         HostCheck.True(actual.Data.Find("LOG.TXT")!.Sha256 == f.FinalInspection.Data.Find("LOG.TXT")!.Sha256);
-        var w = f.Write(final: changed); Reject(() => f.Check(w, finalBytes: changed, finalInspection: actual), "log_upload_media_target_tail");
+        var w = f.Write(final: changed);
+        Reject(() => f.Check(w, finalBytes: changed, finalInspection: actual), "log_upload_media_target_tail");
     });
-
-    private sealed class Images(string folder, byte[] initial, byte[] final, Combined.Inspection before, Combined.Inspection after)
-    {
-        internal string Folder = folder;
-        internal byte[] InitialBytes = initial, Final = final;
-        internal Combined.Inspection Initial = before, FinalInspection = after;
-        internal Combined.WebFile Package => Initial.WebFiles.Single(file => file.Path == "/OS/APP.PKG");
-        internal ulong[] TargetSectors => FinalInspection.Data.Find("LOG.TXT")!.Extents.Concat(FinalInspection.Data.Find("UPLOAD.BIN")!.Extents)
-            .SelectMany(extent => Enumerable.Range(0, (int)extent.Clusters).Select(i => extent.FirstLba + (uint)i)).ToArray();
-        internal byte[] Sector(byte[] raw, ulong lba) => raw.AsSpan(checked((int)lba * 512), 512).ToArray();
-        internal Wire Write(Action<Wire>? prefix = null, ulong? omit = null, bool flush = true, byte[]? final = null)
-        {
-            final ??= Final; var wire = new Wire(InitialBytes); wire.Read(Initial.Data.FirstDataSector); prefix?.Invoke(wire);
-            for (ulong sector = Combined.DataFirstLba; sector <= Combined.DataLastLba; sector++)
-                if (sector != omit && !InitialBytes.AsSpan(checked((int)sector * 512), 512).SequenceEqual(final.AsSpan(checked((int)sector * 512), 512)))
-                    wire.Write(sector, Sector(final, sector));
-            if (flush) wire.Flush(); foreach (ulong sector in TargetSectors) wire.Read(sector); return wire;
-        }
-        internal Q.NativeAotLogUploadMediaReport Check(Wire w, string phase = "write", byte[]? initialBytes = null,
-            Combined.Inspection? initialInspection = null, byte[]? finalBytes = null, Combined.Inspection? finalInspection = null,
-            string[]? rows = null, int? first = null, int? last = null, string? packageHash = null, int? packageBytes = null)
-        {
-            rows ??= w.Rows; bool verify = phase == "verify";
-            return Inspect(rows, first ?? 1, last ?? (rows.Length - 2), w.Before, w.After, packageBytes ?? (int)Package.Bytes,
-                packageHash ?? Package.Sha256, phase, initialBytes ?? (verify ? Final : InitialBytes), finalBytes ?? Final,
-                initialInspection ?? (verify ? FinalInspection : Initial), finalInspection ?? FinalInspection);
-        }
-    }
-
     private static void WithImages(Action<Images> action) => CombinedWebDataImageFixtureTests.WithImage((_, folder, _, _, path, receipt) =>
     {
         byte[] before = File.ReadAllBytes(path), after = before.ToArray();
         uint[] log = [100, 102], upload = Enumerable.Range(110, 11).Select(i => (uint)i).ToArray();
-        Put("LOG.TXT", log, NativeAotLogUploadContract.ExpectedLog()); Put("UPLOAD.BIN", upload, NativeAotLogUploadContract.ExpectedUpload());
-        foreach (ulong lba in new[] { receipt.Image.DataFirst + 1, receipt.Image.DataFirst + 7 })
+        Put("LOG.TXT", log, NativeAotLogUploadContract.ExpectedLog());
+        Put("UPLOAD.BIN", upload, NativeAotLogUploadContract.ExpectedUpload());
+        foreach (ulong lba in new[]
+        {
+            receipt.Image.DataFirst + 1,
+            receipt.Image.DataFirst + 7
+        }
+
+        )
             U32(after, checked((int)lba * 512 + 488), receipt.Image.Data.FreeClusters - 13);
-        string final = Path.Combine(folder, "synthetic-written.raw"); File.WriteAllBytes(final, after); var extracted = Combined.Inspect(final);
+        string final = Path.Combine(folder, "synthetic-written.raw");
+        File.WriteAllBytes(final, after);
+        var extracted = Combined.Inspect(final);
         action(new(folder, before, after, receipt.Image, extracted));
         void Put(string name, uint[] chain, byte[] bytes)
         {
             int entry = checked((int)receipt.Image.Data.Find(name)!.ShortEntryOffset);
             BinaryPrimitives.WriteUInt16LittleEndian(after.AsSpan(entry + 20), (ushort)(chain[0] >> 16));
-            BinaryPrimitives.WriteUInt16LittleEndian(after.AsSpan(entry + 26), (ushort)chain[0]); U32(after, entry + 28, (uint)bytes.Length);
+            BinaryPrimitives.WriteUInt16LittleEndian(after.AsSpan(entry + 26), (ushort)chain[0]);
+            U32(after, entry + 28, (uint)bytes.Length);
             int copied = 0;
             for (int i = 0; i < chain.Length; i++)
             {
-                foreach (uint fat in new[] { receipt.Image.Data.FirstFatSector, receipt.Image.Data.FirstFatSector + Data.FatSectors })
+                foreach (uint fat in new[]
+                {
+                    receipt.Image.Data.FirstFatSector,
+                    receipt.Image.Data.FirstFatSector + Data.FatSectors
+                }
+
+                )
                     U32(after, checked((int)fat * 512 + (int)chain[i] * 4), i == chain.Length - 1 ? 0x0fffffffU : chain[i + 1]);
                 int take = Math.Min(512, bytes.Length - copied), offset = checked((int)(receipt.Image.Data.FirstDataSector + chain[i] - 2) * 512);
-                after.AsSpan(offset, 512).Clear(); bytes.AsSpan(copied, take).CopyTo(after.AsSpan(offset)); copied += take;
+                after.AsSpan(offset, 512).Clear();
+                bytes.AsSpan(copied, take).CopyTo(after.AsSpan(offset));
+                copied += take;
             }
+
             HostCheck.Equal(bytes.Length, copied);
         }
     });
-
-    private sealed class Wire(byte[] initial)
-    {
-        private readonly List<string> rows = ["OUTER synthetic=unjoined"];
-        private readonly Dictionary<ulong, byte[]> current = [];
-        private ulong submitted, completed, submittedBytes, completedBytes, flushed, clock = 10;
-        internal F.BlockBoundary Before => new(4096, 99, Combined.Sectors, 0, 0, 0, 0, 0);
-        internal F.BlockBoundary After => new(4096, 99, Combined.Sectors, submitted, completed, submittedBytes, completedBytes, flushed);
-        internal string[] Rows { get { if (rows.Count == 1) State(); return [.. rows, "OUTER_END synthetic=unjoined"]; } }
-        private void State(bool error = false) => rows.Add(FormattableString.Invariant($"M16_027_STATE owner=4096 epoch=99 bound=1 status={(byte)(error ? B.Status.DeviceIoError : B.Status.Success)} running={(error ? 0 : 1)} retired=0 dirty={(submittedBytes != flushed ? 1 : 0)} retry={(error ? 1 : 0)} submitted={submitted} completed={completed} submittedBytes={submittedBytes} completedBytes={completedBytes} flushAcknowledgedBytes={flushed} clock={clock++}"));
-        private void Io(B.Operation kind, ulong sector, byte flags, B.Status status, byte[]? payload = null, bool cancelled = false, ulong target = 0) =>
-            rows.Add(FormattableString.Invariant($"M16_027_IO owner=4096 epoch=99 generation={submitted} kind={(byte)kind} sector={sector} flags={flags} status={(byte)status} cancelled={(cancelled ? 1 : 0)} submitted={submitted} completed={completed} submittedBytes={submittedBytes} completedBytes={completedBytes} flushTargetBytes={target} flushAcknowledgedBytes={flushed} available={unchecked((ushort)submitted)} consumed={unchecked((ushort)completed)} completionBytes={(status == B.Status.Success && kind != B.Operation.Flush ? 512 : 0)} payloadBytes={(payload is null ? 0 : 512)} clock={clock++}") + (payload is null ? "" : " data=" + Convert.ToHexString(payload).ToLowerInvariant()));
-        private void Initial() { if (rows.Count == 1) State(); }
-        internal void Write(ulong sector, byte[] payload, bool pending = false)
-        {
-            Initial(); submitted++; submittedBytes += 512; State(); Io(B.Operation.Write, sector, 1, B.Status.Uninitialized, payload);
-            if (pending) return; completed++; completedBytes += 512; State(); Io(B.Operation.Write, sector, 3, B.Status.Success, payload); current[sector] = payload.ToArray();
-        }
-        internal void Read(ulong sector, bool cancelled = false, bool held = false)
-        {
-            Initial(); submitted++; State(); Io(B.Operation.Read, sector, 1, B.Status.Uninitialized);
-            if (cancelled) Io(B.Operation.Read, sector, 1, B.Status.Uninitialized, cancelled: true);
-            completed++; State(); byte[] bytes = current.TryGetValue(sector, out var data) ? data : initial.AsSpan(checked((int)sector * 512), 512).ToArray();
-            Io(B.Operation.Read, sector, (byte)(cancelled || held ? 3 : 7), B.Status.Success, cancelled || held ? null : bytes, cancelled);
-        }
-        internal void Flush(bool error = false, bool pending = false)
-        {
-            Initial(); ulong target = completedBytes; submitted++; State(); Io(B.Operation.Flush, 0, 1, B.Status.Uninitialized, target: target);
-            if (pending) return; completed++; if (!error) flushed = target; State(error); Io(B.Operation.Flush, 0, 3, error ? B.Status.DeviceIoError : B.Status.Success, target: target);
-        }
-    }
     private static ulong Field(string row, string key) => ulong.Parse(row.Split(' ').Single(part => part.StartsWith(key + "=", StringComparison.Ordinal))[(key.Length + 1)..], CultureInfo.InvariantCulture);
     private static string Set(string row, string key, ulong value) => string.Join(' ', row.Split(' ').Select(part => part.StartsWith(key + "=", StringComparison.Ordinal) ? key + "=" + value.ToString(CultureInfo.InvariantCulture) : part));
     private static void U32(byte[] raw, int offset, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(raw.AsSpan(offset), value);
     private static void Reject(Action action, string? reason = null)
     {
-        try { action(); } catch (ToolFailure failure) { HostCheck.True(reason is null || failure.Message == reason, "unexpected rejection: " + failure.Message); return; }
+        try
+        {
+            action();
+        }
+        catch (ToolFailure failure)
+        {
+            HostCheck.True(reason is null || failure.Message == reason, "unexpected rejection: " + failure.Message);
+            return;
+        }
+
         HostCheck.True(false, "expected media rejection: " + reason);
     }
 }

@@ -3,7 +3,7 @@ using OS.Drivers;
 using OS.Net;
 using OS.Std.Binary;
 
-internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
+internal static partial class VirtioNetReceiveRegisterWindowDispatchPlanTests
 {
     private const byte CommonOffset = 0x40;
     private const byte NotifyOffset = 0x60;
@@ -22,53 +22,19 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
     private const ulong NotifyBarVirtualBase = 0xFFFF800000001000UL;
     private const uint FrameBufferBytes = VirtioNetReceiveLifecycle.MaximumReceiveBufferBytes;
     private const ulong RxBufferPhysicalAddress = 0x0040_0000UL;
-
     [HostTest("drivers.virtionet.rx.dispatch.windowexec dispatches arp slab completion", HostLane.Fast, 0)]
     private static bool TestDispatchesArpSlabCompletion()
     {
         TestContext context = CreateContext();
         byte[] queueMemory = CreateRxQueueMemory(context);
         byte[] notifyBytes = CreateNotifyWindowBytes();
-        VirtioNetReceiveReadinessResult readiness =
-            CreateSuccessfulReadiness(context, queueMemory, notifyBytes, barrierSequence: 91);
+        VirtioNetReceiveReadinessResult readiness = CreateSuccessfulReadiness(context, queueMemory, notifyBytes, barrierSequence: 91);
         byte[] receiveBuffer = CreateArpReceiveBuffer();
         byte[] slab = CreateReceiveSlab();
         Copy(receiveBuffer, slab.AsSpan((int)FrameBufferBytes));
-        WriteUsedCompletion(
-            readiness.ReceivePublish.QueuePlan,
-            queueMemory,
-            readiness.PreviousUsedIndex,
-            readiness.ExpectedNextUsedIndex,
-            descriptorHead: 2,
-            usedByteCount: (uint)receiveBuffer.Length);
-
-        VirtioNetReceiveRegisterWindowDispatchResult result =
-            VirtioNetReceiveRegisterWindowDispatchPlanner.CompleteReceiveAndDispatch(
-                readiness,
-                queueMemory,
-                slab);
-
-        return HostCheck.Result(result.Succeeded
-            && result.Status == VirtioNetReceiveRegisterWindowDispatchStatus.Success
-            && result.SlabCompletionStatus == VirtioNetReceiveRegisterWindowSlabCompletionStatus.Success
-            && result.DispatchStatus == NetworkReceiveDispatchStatus.Success
-            && result.ReadinessStatus == VirtioNetReceiveReadinessStatus.Success
-            && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.Success
-            && result.ClassifierPacketStatus == PacketParseStatus.Success
-            && result.PayloadPacketStatus == PacketParseStatus.Success
-            && result.PayloadKind == EthernetPayloadKind.Arp
-            && result.DispatchAttempted
-            && result.DescriptorHead == 2
-            && result.BufferIndex == 1
-            && result.SelectedBufferOffset == FrameBufferBytes
-            && result.SelectedBufferLength == FrameBufferBytes
-            && result.UsedByteCount == receiveBuffer.Length
-            && result.SlabCompletion.PayloadKind == EthernetPayloadKind.Arp
-            && result.Dispatch.PayloadKind == EthernetPayloadKind.Arp
-            && result.Dispatch.ArpPacket.Operation == ArpPacket.OperationRequest
-            && result.Dispatch.ArpPacket.SenderMac == SourceMac
-            && result.Dispatch.ArpPacket.SenderAddress == LocalAddress()
-            && result.Dispatch.ArpPacket.TargetAddress == TargetAddress());
+        WriteUsedCompletion(readiness.ReceivePublish.QueuePlan, queueMemory, readiness.PreviousUsedIndex, readiness.ExpectedNextUsedIndex, descriptorHead: 2, usedByteCount: (uint)receiveBuffer.Length);
+        VirtioNetReceiveRegisterWindowDispatchResult result = VirtioNetReceiveRegisterWindowDispatchPlanner.CompleteReceiveAndDispatch(readiness, queueMemory, slab);
+        return HostCheck.Result(result.Succeeded && result.Status == VirtioNetReceiveRegisterWindowDispatchStatus.Success && result.SlabCompletionStatus == VirtioNetReceiveRegisterWindowSlabCompletionStatus.Success && result.DispatchStatus == NetworkReceiveDispatchStatus.Success && result.ReadinessStatus == VirtioNetReceiveReadinessStatus.Success && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.Success && result.ClassifierPacketStatus == PacketParseStatus.Success && result.PayloadPacketStatus == PacketParseStatus.Success && result.PayloadKind == EthernetPayloadKind.Arp && result.DispatchAttempted && result.DescriptorHead == 2 && result.BufferIndex == 1 && result.SelectedBufferOffset == FrameBufferBytes && result.SelectedBufferLength == FrameBufferBytes && result.UsedByteCount == receiveBuffer.Length && result.SlabCompletion.PayloadKind == EthernetPayloadKind.Arp && result.Dispatch.PayloadKind == EthernetPayloadKind.Arp && result.Dispatch.ArpPacket.Operation == ArpPacket.OperationRequest && result.Dispatch.ArpPacket.SenderMac == SourceMac && result.Dispatch.ArpPacket.SenderAddress == LocalAddress() && result.Dispatch.ArpPacket.TargetAddress == TargetAddress());
     }
 
     [HostTest("drivers.virtionet.rx.dispatch.windowexec dispatches ipv4 slab completion", HostLane.Fast, 1)]
@@ -77,43 +43,13 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
         TestContext context = CreateContext();
         byte[] queueMemory = CreateRxQueueMemory(context);
         byte[] notifyBytes = CreateNotifyWindowBytes();
-        VirtioNetReceiveReadinessResult readiness =
-            CreateSuccessfulReadiness(context, queueMemory, notifyBytes, barrierSequence: 92);
+        VirtioNetReceiveReadinessResult readiness = CreateSuccessfulReadiness(context, queueMemory, notifyBytes, barrierSequence: 92);
         byte[] receiveBuffer = CreateIpv4UdpReceiveBuffer();
         byte[] slab = CreateReceiveSlab();
         Copy(receiveBuffer, slab.AsSpan(0));
-        WriteUsedCompletion(
-            readiness.ReceivePublish.QueuePlan,
-            queueMemory,
-            readiness.PreviousUsedIndex,
-            readiness.ExpectedNextUsedIndex,
-            readiness.FirstDescriptorIndex,
-            (uint)receiveBuffer.Length);
-
-        VirtioNetReceiveRegisterWindowDispatchResult result =
-            VirtioNetReceiveRegisterWindowDispatchPlanner.CompleteReceiveAndDispatch(
-                readiness,
-                queueMemory,
-                slab);
-
-        return HostCheck.Result(result.Succeeded
-            && result.Status == VirtioNetReceiveRegisterWindowDispatchStatus.Success
-            && result.SlabCompletionStatus == VirtioNetReceiveRegisterWindowSlabCompletionStatus.Success
-            && result.DispatchStatus == NetworkReceiveDispatchStatus.Success
-            && result.PayloadKind == EthernetPayloadKind.Ipv4
-            && result.DispatchAttempted
-            && result.DescriptorHead == readiness.FirstDescriptorIndex
-            && result.BufferIndex == 0
-            && result.SelectedBufferOffset == 0
-            && result.UsedByteCount == receiveBuffer.Length
-            && result.Dispatch.Ipv4Header.Source == LocalAddress()
-            && result.Dispatch.Ipv4Header.Destination == RemoteAddress()
-            && result.Dispatch.Ipv4Header.Protocol == Ipv4Header.ProtocolUdp
-            && result.Dispatch.Ipv4PayloadOffset ==
-                VirtioNetHeader.HeaderLengthWithoutMergeableBuffers +
-                EthernetHeader.HeaderLength +
-                Ipv4Header.MinHeaderLength
-            && result.Dispatch.Ipv4PayloadLength == UdpHeader.HeaderLength + 4);
+        WriteUsedCompletion(readiness.ReceivePublish.QueuePlan, queueMemory, readiness.PreviousUsedIndex, readiness.ExpectedNextUsedIndex, readiness.FirstDescriptorIndex, (uint)receiveBuffer.Length);
+        VirtioNetReceiveRegisterWindowDispatchResult result = VirtioNetReceiveRegisterWindowDispatchPlanner.CompleteReceiveAndDispatch(readiness, queueMemory, slab);
+        return HostCheck.Result(result.Succeeded && result.Status == VirtioNetReceiveRegisterWindowDispatchStatus.Success && result.SlabCompletionStatus == VirtioNetReceiveRegisterWindowSlabCompletionStatus.Success && result.DispatchStatus == NetworkReceiveDispatchStatus.Success && result.PayloadKind == EthernetPayloadKind.Ipv4 && result.DispatchAttempted && result.DescriptorHead == readiness.FirstDescriptorIndex && result.BufferIndex == 0 && result.SelectedBufferOffset == 0 && result.UsedByteCount == receiveBuffer.Length && result.Dispatch.Ipv4Header.Source == LocalAddress() && result.Dispatch.Ipv4Header.Destination == RemoteAddress() && result.Dispatch.Ipv4Header.Protocol == Ipv4Header.ProtocolUdp && result.Dispatch.Ipv4PayloadOffset == VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + EthernetHeader.HeaderLength + Ipv4Header.MinHeaderLength && result.Dispatch.Ipv4PayloadLength == UdpHeader.HeaderLength + 4);
     }
 
     [HostTest("drivers.virtionet.rx.dispatch.windowexec rejects failed slab completion", HostLane.Fast, 2)]
@@ -122,28 +58,10 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
         TestContext context = CreateContext();
         byte[] queueMemory = CreateRxQueueMemory(context);
         byte[] notifyBytes = CreateNotifyWindowBytes();
-        VirtioNetReceiveReadinessResult readiness =
-            CreateSuccessfulReadiness(context, queueMemory, notifyBytes, barrierSequence: 93);
-        WriteUsedIndex(
-            readiness.ReceivePublish.QueuePlan,
-            queueMemory,
-            readiness.PreviousUsedIndex);
-
-        VirtioNetReceiveRegisterWindowDispatchResult result =
-            VirtioNetReceiveRegisterWindowDispatchPlanner.CompleteReceiveAndDispatch(
-                readiness,
-                queueMemory,
-                CreateReceiveSlab());
-
-        return HostCheck.Result(readiness.Succeeded
-            && !result.Succeeded
-            && result.Status == VirtioNetReceiveRegisterWindowDispatchStatus.SlabCompletionFailed
-            && result.SlabCompletionStatus == VirtioNetReceiveRegisterWindowSlabCompletionStatus.NoCompletion
-            && result.ReadinessStatus == VirtioNetReceiveReadinessStatus.Success
-            && !result.DispatchAttempted
-            && result.DispatchStatus == default
-            && result.DescriptorHead == 0
-            && result.UsedByteCount == 0);
+        VirtioNetReceiveReadinessResult readiness = CreateSuccessfulReadiness(context, queueMemory, notifyBytes, barrierSequence: 93);
+        WriteUsedIndex(readiness.ReceivePublish.QueuePlan, queueMemory, readiness.PreviousUsedIndex);
+        VirtioNetReceiveRegisterWindowDispatchResult result = VirtioNetReceiveRegisterWindowDispatchPlanner.CompleteReceiveAndDispatch(readiness, queueMemory, CreateReceiveSlab());
+        return HostCheck.Result(readiness.Succeeded && !result.Succeeded && result.Status == VirtioNetReceiveRegisterWindowDispatchStatus.SlabCompletionFailed && result.SlabCompletionStatus == VirtioNetReceiveRegisterWindowSlabCompletionStatus.NoCompletion && result.ReadinessStatus == VirtioNetReceiveReadinessStatus.Success && !result.DispatchAttempted && result.DispatchStatus == default && result.DescriptorHead == 0 && result.UsedByteCount == 0);
     }
 
     [HostTest("drivers.virtionet.rx.dispatch.windowexec propagates dispatcher failure", HostLane.Fast, 3)]
@@ -152,55 +70,20 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
         TestContext context = CreateContext();
         byte[] queueMemory = CreateRxQueueMemory(context);
         byte[] notifyBytes = CreateNotifyWindowBytes();
-        VirtioNetReceiveReadinessResult readiness =
-            CreateSuccessfulReadiness(context, queueMemory, notifyBytes, barrierSequence: 94);
+        VirtioNetReceiveReadinessResult readiness = CreateSuccessfulReadiness(context, queueMemory, notifyBytes, barrierSequence: 94);
         byte[] receiveBuffer = CreateMalformedArpReceiveBuffer();
         byte[] slab = CreateReceiveSlab();
         Copy(receiveBuffer, slab.AsSpan(0));
-        WriteUsedCompletion(
-            readiness.ReceivePublish.QueuePlan,
-            queueMemory,
-            readiness.PreviousUsedIndex,
-            readiness.ExpectedNextUsedIndex,
-            readiness.FirstDescriptorIndex,
-            (uint)receiveBuffer.Length);
-
-        VirtioNetReceiveRegisterWindowDispatchResult result =
-            VirtioNetReceiveRegisterWindowDispatchPlanner.CompleteReceiveAndDispatch(
-                readiness,
-                queueMemory,
-                slab);
-
-        return HostCheck.Result(readiness.Succeeded
-            && !result.Succeeded
-            && result.Status == VirtioNetReceiveRegisterWindowDispatchStatus.DispatchFailed
-            && result.SlabCompletionStatus == VirtioNetReceiveRegisterWindowSlabCompletionStatus.Success
-            && result.DispatchStatus == NetworkReceiveDispatchStatus.ArpParseFailed
-            && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.Success
-            && result.ClassifierPacketStatus == PacketParseStatus.Success
-            && result.PayloadPacketStatus == PacketParseStatus.BufferTooSmall
-            && result.PayloadKind == EthernetPayloadKind.Arp
-            && result.DispatchAttempted
-            && result.UsedByteCount == receiveBuffer.Length
-            && result.Dispatch.PayloadLength == ArpPacket.PacketLength - 1);
+        WriteUsedCompletion(readiness.ReceivePublish.QueuePlan, queueMemory, readiness.PreviousUsedIndex, readiness.ExpectedNextUsedIndex, readiness.FirstDescriptorIndex, (uint)receiveBuffer.Length);
+        VirtioNetReceiveRegisterWindowDispatchResult result = VirtioNetReceiveRegisterWindowDispatchPlanner.CompleteReceiveAndDispatch(readiness, queueMemory, slab);
+        return HostCheck.Result(readiness.Succeeded && !result.Succeeded && result.Status == VirtioNetReceiveRegisterWindowDispatchStatus.DispatchFailed && result.SlabCompletionStatus == VirtioNetReceiveRegisterWindowSlabCompletionStatus.Success && result.DispatchStatus == NetworkReceiveDispatchStatus.ArpParseFailed && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.Success && result.ClassifierPacketStatus == PacketParseStatus.Success && result.PayloadPacketStatus == PacketParseStatus.BufferTooSmall && result.PayloadKind == EthernetPayloadKind.Arp && result.DispatchAttempted && result.UsedByteCount == receiveBuffer.Length && result.Dispatch.PayloadLength == ArpPacket.PacketLength - 1);
     }
 
     [HostTest("drivers.virtionet.rx.dispatch.windowexec default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioNetReceiveRegisterWindowDispatchResult result = default;
-
-        return HostCheck.Result(!result.Succeeded
-            && !result.IsInitialized
-            && result.Status == VirtioNetReceiveRegisterWindowDispatchStatus.Success
-            && result.SlabCompletionStatus == default
-            && result.DispatchStatus == default
-            && !result.DispatchAttempted
-            && result.DescriptorHead == 0
-            && result.BufferIndex == 0
-            && result.SelectedBufferOffset == 0
-            && result.SelectedBufferLength == 0
-            && result.UsedByteCount == 0);
+        return HostCheck.Result(!result.Succeeded && !result.IsInitialized && result.Status == VirtioNetReceiveRegisterWindowDispatchStatus.Success && result.SlabCompletionStatus == default && result.DispatchStatus == default && !result.DispatchAttempted && result.DescriptorHead == 0 && result.BufferIndex == 0 && result.SelectedBufferOffset == 0 && result.SelectedBufferLength == 0 && result.UsedByteCount == 0);
     }
 
     [HostTest("drivers.virtionet.rx.dispatch.windowexec preserves no-live-mmio boundary", HostLane.Fast, 5)]
@@ -209,225 +92,85 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
         TestContext context = CreateContext();
         byte[] queueMemory = CreateRxQueueMemory(context);
         byte[] notifyBytes = CreateNotifyWindowBytes();
-        VirtioNetReceiveReadinessResult readiness =
-            CreateSuccessfulReadiness(context, queueMemory, notifyBytes, barrierSequence: 95);
+        VirtioNetReceiveReadinessResult readiness = CreateSuccessfulReadiness(context, queueMemory, notifyBytes, barrierSequence: 95);
         byte[] receiveBuffer = CreateArpReceiveBuffer();
         byte[] slab = CreateReceiveSlab();
         Copy(receiveBuffer, slab.AsSpan(0));
-        WriteUsedCompletion(
-            readiness.ReceivePublish.QueuePlan,
-            queueMemory,
-            readiness.PreviousUsedIndex,
-            readiness.ExpectedNextUsedIndex,
-            readiness.FirstDescriptorIndex,
-            (uint)receiveBuffer.Length);
-
-        VirtioNetReceiveRegisterWindowDispatchResult result =
-            VirtioNetReceiveRegisterWindowDispatchPlanner.CompleteReceiveAndDispatch(
-                readiness,
-                queueMemory,
-                slab);
-
-        return HostCheck.Result(result.Succeeded
-            && VirtioNetReceiveRegisterWindowDispatchPlanner.RequiresSuccessfulRegisterWindowReadiness
-            && VirtioNetReceiveRegisterWindowDispatchPlanner.UsesSlabCompletionPlanner
-            && VirtioNetReceiveRegisterWindowDispatchPlanner.SelectsCallerOwnedReceiveBufferFromSlab
-            && VirtioNetReceiveRegisterWindowDispatchPlanner.DispatchesCallerOwnedReceiveBuffer
-            && VirtioNetReceiveRegisterWindowDispatchPlanner.RequiresCallerOwnedQueueMemory
-            && VirtioNetReceiveRegisterWindowDispatchPlanner.RequiresCallerOwnedReceiveBufferSlab
-            && VirtioNetReceiveRegisterWindowDispatchPlanner.ReadsQueueMemory
-            && VirtioNetReceiveRegisterWindowDispatchPlanner.ReadsCallerOwnedReceiveBuffer
-            && VirtioNetReceiveRegisterWindowDispatchPlanner.ClassifiesCallerOwnedFrame
-            && VirtioNetReceiveRegisterWindowDispatchPlanner.ParsesNetworkPayloadMetadata
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.PerformsLiveMmio
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.MapsBars
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.ContainsVolatileAccess
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.AccessesPhysicalAddresses
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.ExecutesMemoryBarriers
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.ConfiguresLiveQueues
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.NotifiesLiveDevice
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.PollsDevice
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.HandlesInterrupts
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.PerformsDmaMapping
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.AllocatesDmaMemory
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.PerformsPacketIo
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.PerformsPacketReceive
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.CopiesPayload
-            && !VirtioNetReceiveRegisterWindowDispatchPlanner.WritesQueueMemory
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetReceiveRegisterWindowDispatchResult>());
+        WriteUsedCompletion(readiness.ReceivePublish.QueuePlan, queueMemory, readiness.PreviousUsedIndex, readiness.ExpectedNextUsedIndex, readiness.FirstDescriptorIndex, (uint)receiveBuffer.Length);
+        VirtioNetReceiveRegisterWindowDispatchResult result = VirtioNetReceiveRegisterWindowDispatchPlanner.CompleteReceiveAndDispatch(readiness, queueMemory, slab);
+        return HostCheck.Result(result.Succeeded && VirtioNetReceiveRegisterWindowDispatchPlanner.RequiresSuccessfulRegisterWindowReadiness && VirtioNetReceiveRegisterWindowDispatchPlanner.UsesSlabCompletionPlanner && VirtioNetReceiveRegisterWindowDispatchPlanner.SelectsCallerOwnedReceiveBufferFromSlab && VirtioNetReceiveRegisterWindowDispatchPlanner.DispatchesCallerOwnedReceiveBuffer && VirtioNetReceiveRegisterWindowDispatchPlanner.RequiresCallerOwnedQueueMemory && VirtioNetReceiveRegisterWindowDispatchPlanner.RequiresCallerOwnedReceiveBufferSlab && VirtioNetReceiveRegisterWindowDispatchPlanner.ReadsQueueMemory && VirtioNetReceiveRegisterWindowDispatchPlanner.ReadsCallerOwnedReceiveBuffer && VirtioNetReceiveRegisterWindowDispatchPlanner.ClassifiesCallerOwnedFrame && VirtioNetReceiveRegisterWindowDispatchPlanner.ParsesNetworkPayloadMetadata && !VirtioNetReceiveRegisterWindowDispatchPlanner.PerformsLiveMmio && !VirtioNetReceiveRegisterWindowDispatchPlanner.MapsBars && !VirtioNetReceiveRegisterWindowDispatchPlanner.ContainsVolatileAccess && !VirtioNetReceiveRegisterWindowDispatchPlanner.AccessesPhysicalAddresses && !VirtioNetReceiveRegisterWindowDispatchPlanner.ExecutesMemoryBarriers && !VirtioNetReceiveRegisterWindowDispatchPlanner.ConfiguresLiveQueues && !VirtioNetReceiveRegisterWindowDispatchPlanner.NotifiesLiveDevice && !VirtioNetReceiveRegisterWindowDispatchPlanner.PollsDevice && !VirtioNetReceiveRegisterWindowDispatchPlanner.HandlesInterrupts && !VirtioNetReceiveRegisterWindowDispatchPlanner.PerformsDmaMapping && !VirtioNetReceiveRegisterWindowDispatchPlanner.AllocatesDmaMemory && !VirtioNetReceiveRegisterWindowDispatchPlanner.PerformsPacketIo && !VirtioNetReceiveRegisterWindowDispatchPlanner.PerformsPacketReceive && !VirtioNetReceiveRegisterWindowDispatchPlanner.CopiesPayload && !VirtioNetReceiveRegisterWindowDispatchPlanner.WritesQueueMemory && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetReceiveRegisterWindowDispatchResult>());
     }
 
-    private static VirtioNetReceiveReadinessResult CreateSuccessfulReadiness(
-        TestContext context,
-        Span<byte> queueMemory,
-        Span<byte> notifyBytes,
-        uint barrierSequence)
+    private static VirtioNetReceiveReadinessResult CreateSuccessfulReadiness(TestContext context, Span<byte> queueMemory, Span<byte> notifyBytes, uint barrierSequence)
     {
         byte[] commonBytes = CreateCommonWindowBytes();
-        VirtioNetQueueMmioSetupRegisterWindowExecutionResult setupExecution =
-            ExecuteQueueSetupWindow(context, commonBytes);
-
-        return ComposeReceive(
-            context,
-            setupExecution,
-            queueMemory,
-            notifyBytes,
-            VirtioNetQueueNotificationBarrierReadiness.Ready(barrierSequence));
+        VirtioNetQueueMmioSetupRegisterWindowExecutionResult setupExecution = ExecuteQueueSetupWindow(context, commonBytes);
+        return ComposeReceive(context, setupExecution, queueMemory, notifyBytes, VirtioNetQueueNotificationBarrierReadiness.Ready(barrierSequence));
     }
 
-    private static VirtioNetReceiveReadinessResult ComposeReceive(
-        TestContext context,
-        VirtioNetQueueMmioSetupRegisterWindowExecutionResult setupExecution,
-        Span<byte> queueMemory,
-        Span<byte> notifyBytes,
-        VirtioNetQueueNotificationBarrierReadiness barrier)
+    private static VirtioNetReceiveReadinessResult ComposeReceive(TestContext context, VirtioNetQueueMmioSetupRegisterWindowExecutionResult setupExecution, Span<byte> queueMemory, Span<byte> notifyBytes, VirtioNetQueueNotificationBarrierReadiness barrier)
     {
-        return VirtioNetReceiveReadinessPlanner.ComposeReceive(
-            context.QueueSetup,
-            setupExecution,
-            firstDescriptorIndex: 1,
-            availableDescriptorCount: RxBufferCount,
-            previousAvailableRingIndex: 6,
-            previousUsedIndex: 4,
-            RxBufferPhysicalAddress,
-            receiveBufferStrideBytes: FrameBufferBytes,
-            receiveBufferCount: 2,
-            frameBufferBytes: FrameBufferBytes,
-            queueMemory,
-            barrier,
-            context.Apertures.NotifyConfiguration,
-            context.RegisterWindows.Bindings.NotifyConfiguration,
-            notifyBytes,
-            negotiatedFeatures: 0);
+        return VirtioNetReceiveReadinessPlanner.ComposeReceive(context.QueueSetup, setupExecution, firstDescriptorIndex: 1, availableDescriptorCount: RxBufferCount, previousAvailableRingIndex: 6, previousUsedIndex: 4, RxBufferPhysicalAddress, receiveBufferStrideBytes: FrameBufferBytes, receiveBufferCount: 2, frameBufferBytes: FrameBufferBytes, queueMemory, barrier, context.Apertures.NotifyConfiguration, context.RegisterWindows.Bindings.NotifyConfiguration, notifyBytes, negotiatedFeatures: 0);
     }
 
-    private static VirtioNetQueueMmioSetupRegisterWindowExecutionResult ExecuteQueueSetupWindow(
-        TestContext context,
-        Span<byte> commonBytes)
+    private static VirtioNetQueueMmioSetupRegisterWindowExecutionResult ExecuteQueueSetupWindow(TestContext context, Span<byte> commonBytes)
     {
-        return VirtioNetQueueMmioSetupRegisterWindowExecutor.Execute(
-            context.QueueSetup,
-            context.QueueSetupCommands,
-            context.RegisterWindows.Bindings.CommonConfiguration,
-            commonBytes);
+        return VirtioNetQueueMmioSetupRegisterWindowExecutor.Execute(context.QueueSetup, context.QueueSetupCommands, context.RegisterWindows.Bindings.CommonConfiguration, commonBytes);
     }
 
     private static TestContext CreateContext()
     {
         VirtioPciBindingPlanResult bindingPlan = CreateBindingPlan();
-        VirtioPciBarRegisterWindowBindingResult registerWindows =
-            VirtioPciBarRegisterWindowPlanner.BindRequiredApertures(
-                bindingPlan,
-                CreateRegisterWindows());
+        VirtioPciBarRegisterWindowBindingResult registerWindows = VirtioPciBarRegisterWindowPlanner.BindRequiredApertures(bindingPlan, CreateRegisterWindows());
         VirtioDeviceDescriptor descriptor = CreateNetworkDescriptor(bindingPlan);
-        VirtioNetQueuePlanResult queuePlan = VirtioNetQueuePlan.Create(
-            VirtioNetQueuePlan.MinimumQueueCount,
-            RxQueueSize,
-            TxQueueSize,
-            RxBufferCount,
-            FrameBufferBytes);
+        VirtioNetQueuePlanResult queuePlan = VirtioNetQueuePlan.Create(VirtioNetQueuePlan.MinimumQueueCount, RxQueueSize, TxQueueSize, RxBufferCount, FrameBufferBytes);
         if (!queuePlan.Succeeded)
         {
             throw new InvalidOperationException("Failed to create deterministic queue plan.");
         }
 
-        VirtioNetDriverQueueBringUpPlanResult bringUp = VirtioNetDriverQueueBringUpPlan.Create(
-            descriptor,
-            RxQueueSize,
-            TxQueueSize,
-            RxBufferCount,
-            FrameBufferBytes,
-            queuePlan.Plan.RxQueue.RequiredByteLength,
-            queuePlan.Plan.TxQueue.RequiredByteLength,
-            queuePlan.Plan.RxBuffers.RequiredBufferBytes,
-            queuePlan.Plan.TxFrame.RequiredBufferBytes);
+        VirtioNetDriverQueueBringUpPlanResult bringUp = VirtioNetDriverQueueBringUpPlan.Create(descriptor, RxQueueSize, TxQueueSize, RxBufferCount, FrameBufferBytes, queuePlan.Plan.RxQueue.RequiredByteLength, queuePlan.Plan.TxQueue.RequiredByteLength, queuePlan.Plan.RxBuffers.RequiredBufferBytes, queuePlan.Plan.TxFrame.RequiredBufferBytes);
         if (!bringUp.Succeeded)
         {
             throw new InvalidOperationException("Failed to create deterministic bring-up plan.");
         }
 
-        VirtioNetQueueMmioSetupCommand[] commands =
-            new VirtioNetQueueMmioSetupCommand[VirtioNetQueueMmioSetupPlanner.RequiredCommandCount];
-        VirtioNetQueueMmioSetupPlanResult queueSetup = VirtioNetQueueMmioSetupPlanner.Create(
-            bringUp,
-            CreateRxAddresses(),
-            CreateTxAddresses(),
-            CreateRxMetadata(),
-            CreateTxMetadata(),
-            commands);
-        if (!queueSetup.Succeeded ||
-            !registerWindows.Succeeded)
+        VirtioNetQueueMmioSetupCommand[] commands = new VirtioNetQueueMmioSetupCommand[VirtioNetQueueMmioSetupPlanner.RequiredCommandCount];
+        VirtioNetQueueMmioSetupPlanResult queueSetup = VirtioNetQueueMmioSetupPlanner.Create(bringUp, CreateRxAddresses(), CreateTxAddresses(), CreateRxMetadata(), CreateTxMetadata(), commands);
+        if (!queueSetup.Succeeded || !registerWindows.Succeeded)
         {
             throw new InvalidOperationException("Failed to create deterministic register-window setup.");
         }
 
-        return new TestContext(
-            bindingPlan.Binding.Apertures,
-            registerWindows,
-            queueSetup,
-            commands,
-            queuePlan);
+        return new TestContext(bindingPlan.Binding.Apertures, registerWindows, queueSetup, commands, queuePlan);
     }
 
     private static VirtioNetQueueMmioSetupQueueAddresses CreateRxAddresses()
     {
-        return new VirtioNetQueueMmioSetupQueueAddresses(
-            descriptorTablePhysicalAddress: 0x100000,
-            driverRingPhysicalAddress: 0x101000,
-            deviceRingPhysicalAddress: 0x102000);
+        return new VirtioNetQueueMmioSetupQueueAddresses(descriptorTablePhysicalAddress: 0x100000, driverRingPhysicalAddress: 0x101000, deviceRingPhysicalAddress: 0x102000);
     }
 
     private static VirtioNetQueueMmioSetupQueueAddresses CreateTxAddresses()
     {
-        return new VirtioNetQueueMmioSetupQueueAddresses(
-            descriptorTablePhysicalAddress: 0x110000,
-            driverRingPhysicalAddress: 0x111000,
-            deviceRingPhysicalAddress: 0x112000);
+        return new VirtioNetQueueMmioSetupQueueAddresses(descriptorTablePhysicalAddress: 0x110000, driverRingPhysicalAddress: 0x111000, deviceRingPhysicalAddress: 0x112000);
     }
 
     private static VirtioNetQueueMmioSetupQueueDeviceMetadata CreateRxMetadata()
     {
-        return new VirtioNetQueueMmioSetupQueueDeviceMetadata(
-            RxDeviceMaximumQueueSize,
-            hasNotifyOffset: true,
-            RxNotifyOffset);
+        return new VirtioNetQueueMmioSetupQueueDeviceMetadata(RxDeviceMaximumQueueSize, hasNotifyOffset: true, RxNotifyOffset);
     }
 
     private static VirtioNetQueueMmioSetupQueueDeviceMetadata CreateTxMetadata()
     {
-        return new VirtioNetQueueMmioSetupQueueDeviceMetadata(
-            TxDeviceMaximumQueueSize,
-            hasNotifyOffset: true,
-            TxNotifyOffset);
+        return new VirtioNetQueueMmioSetupQueueDeviceMetadata(TxDeviceMaximumQueueSize, hasNotifyOffset: true, TxNotifyOffset);
     }
 
-    private static VirtioDeviceDescriptor CreateNetworkDescriptor(
-        VirtioPciBindingPlanResult bindingPlan)
+    private static VirtioDeviceDescriptor CreateNetworkDescriptor(VirtioPciBindingPlanResult bindingPlan)
     {
-        VirtioDeviceDescriptorSource[] sources =
-        [
-            new VirtioDeviceDescriptorSource(
-                sourceIndex: 49,
-                bindingPlan,
-                VirtioDeviceInitializationProfile.NetworkOptionalFeatureMask,
-                VirtioDeviceInitializationProfile.NetworkRequiredQueueCount,
-                featuresOkAccepted: true)
-        ];
-        VirtioDeviceConfigurationSource[] configurations =
-        [
-            new VirtioDeviceConfigurationSource(
-                sourceIndex: 49,
-                CreateNetworkConfiguration(
-                    new MacAddress(0x02, 0x33, 0x44, 0x55, 0x66, 0xD5),
-                    VirtioNetDeviceConfig.StatusLinkUp))
-        ];
+        VirtioDeviceDescriptorSource[] sources = [new VirtioDeviceDescriptorSource(sourceIndex: 49, bindingPlan, VirtioDeviceInitializationProfile.NetworkOptionalFeatureMask, VirtioDeviceInitializationProfile.NetworkRequiredQueueCount, featuresOkAccepted: true)];
+        VirtioDeviceConfigurationSource[] configurations = [new VirtioDeviceConfigurationSource(sourceIndex: 49, CreateNetworkConfiguration(new MacAddress(0x02, 0x33, 0x44, 0x55, 0x66, 0xD5), VirtioNetDeviceConfig.StatusLinkUp))];
         VirtioDeviceDescriptor[] destination = new VirtioDeviceDescriptor[1];
-
-        VirtioDeviceDescriptorCatalogResult result = VirtioDeviceDescriptorCatalog.Build(
-            sources,
-            configurations,
-            destination);
+        VirtioDeviceDescriptorCatalogResult result = VirtioDeviceDescriptorCatalog.Build(sources, configurations, destination);
         if (!result.Succeeded)
         {
             throw new InvalidOperationException("Failed to create deterministic virtio-net descriptor.");
@@ -438,133 +181,47 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
 
     private static VirtioPciBindingPlanResult CreateBindingPlan()
     {
-        ushort deviceId = (ushort)(VirtioPciDeviceDiscovery.ModernDeviceIdStart +
-            VirtioPciDeviceDiscovery.NetworkDeviceId);
-
-        return VirtioPciBindingPlan.Create(
-            CreateScannedDevice(deviceId),
-            CreatePciConfiguration(deviceId),
-            CreateBarSizes());
+        ushort deviceId = (ushort)(VirtioPciDeviceDiscovery.ModernDeviceIdStart + VirtioPciDeviceDiscovery.NetworkDeviceId);
+        return VirtioPciBindingPlan.Create(CreateScannedDevice(deviceId), CreatePciConfiguration(deviceId), CreateBarSizes());
     }
 
     private static PciEcamScannedDevice CreateScannedDevice(ushort deviceId)
     {
-        return new PciEcamScannedDevice(
-            segmentIndex: 2,
-            new PciEcamSegment(
-                basePhysicalAddress: 0xE0000000UL,
-                segmentGroup: 1,
-                startBus: 0,
-                endBus: 0x7F),
-            new PciScannedDevice(
-                bus: 3,
-                device: 5,
-                function: 0,
-                vendorId: VirtioPciDeviceDiscovery.VirtioVendorId,
-                deviceId: deviceId,
-                revisionId: 0,
-                classCode: 0,
-                subclass: 0,
-                programmingInterface: 0,
-                headerType: PciConfigurationHeader.Type0HeaderType,
-                isMultifunction: false,
-                hasCapabilitiesList: true,
-                capabilityPointer: CommonOffset));
+        return new PciEcamScannedDevice(segmentIndex: 2, new PciEcamSegment(basePhysicalAddress: 0xE0000000UL, segmentGroup: 1, startBus: 0, endBus: 0x7F), new PciScannedDevice(bus: 3, device: 5, function: 0, vendorId: VirtioPciDeviceDiscovery.VirtioVendorId, deviceId: deviceId, revisionId: 0, classCode: 0, subclass: 0, programmingInterface: 0, headerType: PciConfigurationHeader.Type0HeaderType, isMultifunction: false, hasCapabilitiesList: true, capabilityPointer: CommonOffset));
     }
 
     private static byte[] CreatePciConfiguration(ushort deviceId)
     {
         byte[] config = new byte[256];
-        EndianPrimitives.WriteUInt16LittleEndian(
-            config.AsSpan(0x00, sizeof(ushort)),
-            VirtioPciDeviceDiscovery.VirtioVendorId);
+        EndianPrimitives.WriteUInt16LittleEndian(config.AsSpan(0x00, sizeof(ushort)), VirtioPciDeviceDiscovery.VirtioVendorId);
         EndianPrimitives.WriteUInt16LittleEndian(config.AsSpan(0x02, sizeof(ushort)), deviceId);
-        EndianPrimitives.WriteUInt16LittleEndian(
-            config.AsSpan(0x06, sizeof(ushort)),
-            PciConfigurationHeader.StatusCapabilitiesListBit);
+        EndianPrimitives.WriteUInt16LittleEndian(config.AsSpan(0x06, sizeof(ushort)), PciConfigurationHeader.StatusCapabilitiesListBit);
         config[0x0E] = PciConfigurationHeader.Type0HeaderType;
         WriteUInt32(config, 0x10, 0x80000000);
         WriteUInt32(config, 0x14, 0x80001000);
         WriteUInt32(config, 0x18, 0x80002000);
         WriteUInt32(config, 0x1C, 0x80003000);
         config[0x34] = CommonOffset;
-
-        WriteVirtioCapability(
-            config,
-            CommonOffset,
-            NotifyOffset,
-            VirtioPciCapabilityType.CommonConfiguration,
-            bar: 0,
-            offsetValue: 0x20,
-            length: VirtioPciDeviceDiscovery.CommonConfigurationMinimumLength,
-            notifyOffsetMultiplier: 0,
-            capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
-        WriteVirtioCapability(
-            config,
-            NotifyOffset,
-            IsrOffset,
-            VirtioPciCapabilityType.NotifyConfiguration,
-            bar: 1,
-            offsetValue: NotifyApertureBarOffset,
-            length: 0x100,
-            notifyOffsetMultiplier: NotifyOffsetMultiplier,
-            capabilityLength: VirtioPciCapabilityListParser.ModernVirtioNotifyCapabilityLength);
-        WriteVirtioCapability(
-            config,
-            IsrOffset,
-            DeviceOffset,
-            VirtioPciCapabilityType.IsrStatus,
-            bar: 2,
-            offsetValue: 0,
-            length: 1,
-            notifyOffsetMultiplier: 0,
-            capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
-        WriteVirtioCapability(
-            config,
-            DeviceOffset,
-            nextOffset: 0,
-            VirtioPciCapabilityType.DeviceConfiguration,
-            bar: 3,
-            offsetValue: 0,
-            length: 0x10,
-            notifyOffsetMultiplier: 0,
-            capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
-
+        WriteVirtioCapability(config, CommonOffset, NotifyOffset, VirtioPciCapabilityType.CommonConfiguration, bar: 0, offsetValue: 0x20, length: VirtioPciDeviceDiscovery.CommonConfigurationMinimumLength, notifyOffsetMultiplier: 0, capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
+        WriteVirtioCapability(config, NotifyOffset, IsrOffset, VirtioPciCapabilityType.NotifyConfiguration, bar: 1, offsetValue: NotifyApertureBarOffset, length: 0x100, notifyOffsetMultiplier: NotifyOffsetMultiplier, capabilityLength: VirtioPciCapabilityListParser.ModernVirtioNotifyCapabilityLength);
+        WriteVirtioCapability(config, IsrOffset, DeviceOffset, VirtioPciCapabilityType.IsrStatus, bar: 2, offsetValue: 0, length: 1, notifyOffsetMultiplier: 0, capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
+        WriteVirtioCapability(config, DeviceOffset, nextOffset: 0, VirtioPciCapabilityType.DeviceConfiguration, bar: 3, offsetValue: 0, length: 0x10, notifyOffsetMultiplier: 0, capabilityLength: VirtioPciCapabilityListParser.ModernVirtioCapabilityLength);
         return config;
     }
 
     private static ulong[] CreateBarSizes()
     {
-        return [0x1000, 0x1000, 0x1000, 0x1000, 0, 0];
+        return[0x1000, 0x1000, 0x1000, 0x1000, 0, 0];
     }
 
     private static VirtioPciMappedBarWindow[] CreateRegisterWindows()
     {
-        return
-        [
-            CreateRegisterWindow(0, 0x80000000UL, 0xFFFF800000000000UL),
-            CreateRegisterWindow(1, NotifyBarPhysicalBase, NotifyBarVirtualBase),
-            CreateRegisterWindow(2, 0x80002000UL, 0xFFFF800000002000UL),
-            CreateRegisterWindow(3, 0x80003000UL, 0xFFFF800000003000UL),
-            default,
-            default
-        ];
+        return[CreateRegisterWindow(0, 0x80000000UL, 0xFFFF800000000000UL), CreateRegisterWindow(1, NotifyBarPhysicalBase, NotifyBarVirtualBase), CreateRegisterWindow(2, 0x80002000UL, 0xFFFF800000002000UL), CreateRegisterWindow(3, 0x80003000UL, 0xFFFF800000003000UL), default, default ];
     }
 
-    private static VirtioPciMappedBarWindow CreateRegisterWindow(
-        byte barIndex,
-        ulong physicalBaseAddress,
-        ulong virtualBaseAddress)
+    private static VirtioPciMappedBarWindow CreateRegisterWindow(byte barIndex, ulong physicalBaseAddress, ulong virtualBaseAddress)
     {
-        return new VirtioPciMappedBarWindow(
-            barIndex,
-            physicalBaseAddress,
-            virtualBaseAddress,
-            length: 0x1000,
-            isMapped: true,
-            isMmio: true,
-            isDeviceMemory: true,
-            isUncached: true);
+        return new VirtioPciMappedBarWindow(barIndex, physicalBaseAddress, virtualBaseAddress, length: 0x1000, isMapped: true, isMmio: true, isDeviceMemory: true, isUncached: true);
     }
 
     private static byte[] CreateNetworkConfiguration(MacAddress mac, ushort status)
@@ -580,16 +237,7 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
         return configuration;
     }
 
-    private static void WriteVirtioCapability(
-        Span<byte> config,
-        byte offset,
-        byte nextOffset,
-        VirtioPciCapabilityType type,
-        byte bar,
-        uint offsetValue,
-        uint length,
-        uint notifyOffsetMultiplier,
-        byte capabilityLength)
+    private static void WriteVirtioCapability(Span<byte> config, byte offset, byte nextOffset, VirtioPciCapabilityType type, byte bar, uint offsetValue, uint length, uint notifyOffsetMultiplier, byte capabilityLength)
     {
         config[offset] = VirtioPciCapabilityListParser.VendorSpecificCapabilityId;
         config[offset + 1] = nextOffset;
@@ -635,20 +283,9 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
 
     private static byte[] CreateArpReceiveBuffer()
     {
-        byte[] buffer = CreateReceiveBuffer(
-            EthernetHeader.EtherTypeArp,
-            ArpPacket.PacketLength);
-        ArpPacket packet = new ArpPacket(
-            ArpPacket.OperationRequest,
-            SourceMac,
-            LocalAddress(),
-            default,
-            TargetAddress());
-
-        PacketParseStatus status = ArpPacket.TryWrite(
-            buffer.AsSpan(ExpectedPayloadOffset, ArpPacket.PacketLength),
-            packet,
-            out int bytesWritten);
+        byte[] buffer = CreateReceiveBuffer(EthernetHeader.EtherTypeArp, ArpPacket.PacketLength);
+        ArpPacket packet = new ArpPacket(ArpPacket.OperationRequest, SourceMac, LocalAddress(), default, TargetAddress());
+        PacketParseStatus status = ArpPacket.TryWrite(buffer.AsSpan(ExpectedPayloadOffset, ArpPacket.PacketLength), packet, out int bytesWritten);
         if (status != PacketParseStatus.Success || bytesWritten != ArpPacket.PacketLength)
         {
             throw new InvalidOperationException("Failed to build deterministic ARP receive buffer.");
@@ -659,38 +296,22 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
 
     private static byte[] CreateMalformedArpReceiveBuffer()
     {
-        return CreateReceiveBuffer(
-            EthernetHeader.EtherTypeArp,
-            ArpPacket.PacketLength - 1);
+        return CreateReceiveBuffer(EthernetHeader.EtherTypeArp, ArpPacket.PacketLength - 1);
     }
 
     private static byte[] CreateIpv4UdpReceiveBuffer()
     {
-        byte[] payload = { 0x70, 0x69, 0x6E, 0x67 };
-        byte[] buffer = new byte[
-            VirtioNetHeader.HeaderLengthWithoutMergeableBuffers +
-            EthernetHeader.HeaderLength +
-            Ipv4Header.MinHeaderLength +
-            UdpHeader.HeaderLength +
-            payload.Length];
-
-        EthernetIpv4UdpPacketInfo info = new EthernetIpv4UdpPacketInfo(
-            DestinationMac,
-            SourceMac,
-            LocalAddress(),
-            RemoteAddress(),
-            sourcePort: 12345,
-            destinationPort: 8080,
-            timeToLive: 64,
-            identification: 0x1234);
-
-        PacketParseStatus status = EthernetIpv4UdpPacket.TryWrite(
-            buffer.AsSpan(VirtioNetHeader.HeaderLengthWithoutMergeableBuffers),
-            info,
-            payload,
-            out int bytesWritten);
-        if (status != PacketParseStatus.Success ||
-            bytesWritten != buffer.Length - VirtioNetHeader.HeaderLengthWithoutMergeableBuffers)
+        byte[] payload =
+        {
+            0x70,
+            0x69,
+            0x6E,
+            0x67
+        };
+        byte[] buffer = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + EthernetHeader.HeaderLength + Ipv4Header.MinHeaderLength + UdpHeader.HeaderLength + payload.Length];
+        EthernetIpv4UdpPacketInfo info = new EthernetIpv4UdpPacketInfo(DestinationMac, SourceMac, LocalAddress(), RemoteAddress(), sourcePort: 12345, destinationPort: 8080, timeToLive: 64, identification: 0x1234);
+        PacketParseStatus status = EthernetIpv4UdpPacket.TryWrite(buffer.AsSpan(VirtioNetHeader.HeaderLengthWithoutMergeableBuffers), info, payload, out int bytesWritten);
+        if (status != PacketParseStatus.Success || bytesWritten != buffer.Length - VirtioNetHeader.HeaderLengthWithoutMergeableBuffers)
         {
             throw new InvalidOperationException("Failed to build deterministic IPv4 receive buffer.");
         }
@@ -700,19 +321,9 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
 
     private static byte[] CreateReceiveBuffer(ushort etherType, int payloadBytes)
     {
-        byte[] buffer = new byte[
-            VirtioNetHeader.HeaderLengthWithoutMergeableBuffers +
-            EthernetHeader.HeaderLength +
-            payloadBytes];
-
-        EthernetHeader ethernetHeader = new EthernetHeader(
-            DestinationMac,
-            SourceMac,
-            etherType);
-
-        PacketParseStatus status = EthernetHeader.TryWrite(
-            buffer.AsSpan(VirtioNetHeader.HeaderLengthWithoutMergeableBuffers),
-            ethernetHeader);
+        byte[] buffer = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + EthernetHeader.HeaderLength + payloadBytes];
+        EthernetHeader ethernetHeader = new EthernetHeader(DestinationMac, SourceMac, etherType);
+        PacketParseStatus status = EthernetHeader.TryWrite(buffer.AsSpan(VirtioNetHeader.HeaderLengthWithoutMergeableBuffers), ethernetHeader);
         if (status != PacketParseStatus.Success)
         {
             throw new InvalidOperationException("Failed to build deterministic Ethernet frame.");
@@ -721,53 +332,28 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
         return buffer;
     }
 
-    private static void WriteUsedIndex(
-        VirtqueueSplitRingPlan queue,
-        byte[] queueMemory,
-        ushort currentUsedIndex)
+    private static void WriteUsedIndex(VirtqueueSplitRingPlan queue, byte[] queueMemory, ushort currentUsedIndex)
     {
-        EndianPrimitives.WriteUInt16LittleEndian(
-            queueMemory.AsSpan((int)queue.UsedRing.Offset + 2, sizeof(ushort)),
-            currentUsedIndex);
+        EndianPrimitives.WriteUInt16LittleEndian(queueMemory.AsSpan((int)queue.UsedRing.Offset + 2, sizeof(ushort)), currentUsedIndex);
     }
 
-    private static void WriteUsedCompletion(
-        VirtqueueSplitRingPlan queue,
-        byte[] queueMemory,
-        ushort previousUsedIndex,
-        ushort currentUsedIndex,
-        uint descriptorHead,
-        uint usedByteCount)
+    private static void WriteUsedCompletion(VirtqueueSplitRingPlan queue, byte[] queueMemory, ushort previousUsedIndex, ushort currentUsedIndex, uint descriptorHead, uint usedByteCount)
     {
         WriteUsedIndex(queue, queueMemory, currentUsedIndex);
-
         ushort slot = (ushort)(previousUsedIndex & (queue.QueueSize - 1));
         int elementOffset = GetUsedEntryOffset(queue, slot);
-        EndianPrimitives.WriteUInt32LittleEndian(
-            queueMemory.AsSpan(elementOffset, sizeof(uint)),
-            descriptorHead);
-        EndianPrimitives.WriteUInt32LittleEndian(
-            queueMemory.AsSpan(elementOffset + sizeof(uint), sizeof(uint)),
-            usedByteCount);
+        EndianPrimitives.WriteUInt32LittleEndian(queueMemory.AsSpan(elementOffset, sizeof(uint)), descriptorHead);
+        EndianPrimitives.WriteUInt32LittleEndian(queueMemory.AsSpan(elementOffset + sizeof(uint), sizeof(uint)), usedByteCount);
     }
 
-    private static int GetUsedEntryOffset(
-        VirtqueueSplitRingPlan queue,
-        int slot)
+    private static int GetUsedEntryOffset(VirtqueueSplitRingPlan queue, int slot)
     {
-        return (int)queue.UsedRing.Offset +
-            (int)VirtqueueSplitRingPlan.UsedRingHeaderLength +
-            (slot * (int)VirtqueueSplitRingPlan.UsedRingElementLength);
+        return (int)queue.UsedRing.Offset + (int)VirtqueueSplitRingPlan.UsedRingHeaderLength + (slot * (int)VirtqueueSplitRingPlan.UsedRingElementLength);
     }
 
-    private static int ExpectedPayloadOffset =>
-        VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + EthernetHeader.HeaderLength;
-
-    private static MacAddress DestinationMac =>
-        new MacAddress(0x02, 0x00, 0x00, 0x00, 0x00, 0x22);
-
-    private static MacAddress SourceMac =>
-        new MacAddress(0x02, 0x00, 0x00, 0x00, 0x00, 0x11);
+    private static int ExpectedPayloadOffset => VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + EthernetHeader.HeaderLength;
+    private static MacAddress DestinationMac => new MacAddress(0x02, 0x00, 0x00, 0x00, 0x00, 0x22);
+    private static MacAddress SourceMac => new MacAddress(0x02, 0x00, 0x00, 0x00, 0x00, 0x11);
 
     private static Ipv4Address LocalAddress()
     {
@@ -784,9 +370,7 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
         return new Ipv4Address(198, 51, 100, 20);
     }
 
-    private static void Copy(
-        ReadOnlySpan<byte> source,
-        Span<byte> destination)
+    private static void Copy(ReadOnlySpan<byte> source, Span<byte> destination)
     {
         for (int index = 0; index < source.Length; index++)
         {
@@ -800,32 +384,5 @@ internal static class VirtioNetReceiveRegisterWindowDispatchPlanTests
         {
             bytes[index] = value;
         }
-    }
-
-    private readonly struct TestContext
-    {
-        public TestContext(
-            VirtioPciBarApertureSet apertures,
-            VirtioPciBarRegisterWindowBindingResult registerWindows,
-            VirtioNetQueueMmioSetupPlanResult queueSetup,
-            VirtioNetQueueMmioSetupCommand[] queueSetupCommands,
-            VirtioNetQueuePlanResult queuePlan)
-        {
-            Apertures = apertures;
-            RegisterWindows = registerWindows;
-            QueueSetup = queueSetup;
-            QueueSetupCommands = queueSetupCommands;
-            QueuePlan = queuePlan;
-        }
-
-        public VirtioPciBarApertureSet Apertures { get; }
-
-        public VirtioPciBarRegisterWindowBindingResult RegisterWindows { get; }
-
-        public VirtioNetQueueMmioSetupPlanResult QueueSetup { get; }
-
-        public VirtioNetQueueMmioSetupCommand[] QueueSetupCommands { get; }
-
-        public VirtioNetQueuePlanResult QueuePlan { get; }
     }
 }

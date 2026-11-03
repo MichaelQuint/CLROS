@@ -1,5 +1,271 @@
 # Repository Audit
 
+[Step1730](../done/step1730.md) passes 69 fresh focused checks across seven groups
+on the r124 graph, unchanged inputs and zero reuse. Explicit default-off disk
+trace/summary flags, project guards/pins and the ordered diagnostic image reader
+are integrated; ordinary reader behavior remains reviewed and tested. Repo and
+contract checks pass. Independent terminal protocol and native/guest execution
+remain pending; the r121 complete Fast result is not renewed by this batch.
+
+[Step1729](../done/step1729.md) completes six authenticated retained-image boots,
+three per backend with the v10 host observer. Thirty exact responses and owned
+cleanup assertions pass with frozen source/documents/producers. Separate stamps
+exclude local body-file flushing as the explanation for the 10-13s range delay.
+Guest evidence/verification regions remain costs requiring controlled attribution.
+Guest source stays 853ea7ed; this is not an optimization, new kernel/native review,
+warm/full/concurrent/browser or current-source acceptance.
+
+[Step1728](../done/step1728.md) passes 24 final focused checks at r123 after 23
+intermediate checks at r122. Host-only v9 timestamps split network completion from
+file write/flush; v10 then enforces the existing 180-second streamed request budget
+and records incomplete phase/bytes. All five requests, original 17 lifecycle modes,
+functional predicates, runner/peer bounds and original API remain. A new stalled
+body control and invalid-budget check pass. No guest/kernel changes or measured
+OS-performance improvement follow. The complete Fast result below remains r121.
+
+[Step1727](../done/step1727.md) passes fresh unfiltered Fast at r121: 6,424
+reported checks across 876 groups, 6,088 selected cases from 6,381 discovered
+cases, unchanged inputs and zero reuse. All thirty groups that failed in step1711 now
+pass. All 876 raw worker logs join exact marker totals, origins and successful
+exits; code/configuration and 31 producers remain bound to r121. Production source
+inputs remain unchanged. Unfiltered Full, native/guest/browser and OS-performance
+qualification remain pending.
+
+The earlier entries below describe their own source-bound checkpoints. Pending
+Fast states and failures in those snapshots are historical; step1727 is the
+current complete Fast result. Their original receipts and failed outcomes remain.
+
+[Step1726](../done/step1726.md) passes 23 reported checks across two focused
+selections at r121. Paging discovery follows actual profiles and direct methods
+across partials, retaining raw default exclusions, inactive text, callback scopes,
+cleanup/cardinality predicates and all 44 bypass tuples. Both formatting replays
+pass. Synthetic controls and independent review cover ambiguous methods and guard
+dominance; failed artifact proposals/observers remain preserved. Production source
+inputs are unchanged. That focused result alone did not renew complete host,
+native/guest or performance qualification.
+
+[Step1725](../done/step1725.md) passes 17 reported checks across three focused
+selections at r120. Logical partial owners and direct syntax spans replace the
+instruction reader's monolithic file/regex/whitespace locations. Its nine original
+checks, aggregate marker, 97 mutation vectors and synthetic selector remain.
+Shared mutation behavior is retained. r119's generated-using syntax failure is
+preserved; r120 builds cleanly after a one-space repair. Raw policy and source
+profiles retain separate authority; production bytes are unchanged. Complete
+Fast/Full, NativeAOT/EFI, guest/browser and OS-performance qualification is pending.
+
+[Step1724](../done/step1724.md) passes 18 checks across ten focused selections
+at r118: allocation discovery controls, three Fast fixtures, their three original
+managed SDK programs and profile rejection cases. Compiler declarations replace
+physical compile positions and file lists. The original POD core boundary,
+source identities, raw exclusions, SDK XML/runtime vectors and 900000 ms deadlines
+remain. Review covers SDK-only declarations/overloads, partial moves and the Array
+getter ABI. A failed String case-name selection is retained; subsequent case names
+come from actual runner discovery. Production bytes remain unchanged. Complete
+Fast/Full, NativeAOT/EFI, guest/browser and OS-performance qualification is pending.
+
+[Step1723](../done/step1723.md) passes ten panic-fixture checks at r117: eight
+Fast checks and both original managed SDK cases. Discovery follows actual EFI
+compiler types/methods and complete pinned families. Review reproduced and fixed
+two raw-policy gaps and a missing owner-accessibility check before integration.
+Original SDK member/layout/constants, seven cleanup input types, runtime vectors
+and distinct deadlines remain. Whole-owner projection deliberately restricts
+future extraction contexts. Production source bytes remain unchanged; complete
+Fast/Full, NativeAOT/EFI, guest/browser and OS-performance qualification is pending.
+
+[Step1722](../done/step1722.md) passes 40 checks across four filtered Full
+selections at r115/r116. Original heap, NewFast, array and string SDK programs,
+runtime assertions and 90-second subprocess deadlines remain. Common discovery
+preserves the complete reviewed runtime shim, caller-specific permitted owners,
+host/EFI raw-byte joins and compiler order. Array/string controls reject the
+opposite wrapper and unrelated dependencies. All production source bytes remain
+unchanged across these snapshots. Complete Fast/Full and OS-performance
+qualification remain pending.
+
+[Step1721](../done/step1721.md) passes 28 checks across five focused selections
+at r113/r114, including the original page-zero, heap and double-fault SDK probes.
+Page-zero and heap source selection retain their different original shims,
+independent layer limits and exact host/EFI byte joins. Shared fault checks
+retain pinned families, false authority and unique stage-one callers. Valid-code
+controls reject misleading raw-tail comments and ref-return ABI changes.
+r113 retains a failed whitespace check; r114 repairs it and passes repository,
+contracts and diff checks. The latest complete Fast at that checkpoint was r92.
+
+[Step1720](../done/step1720.md) passes 29 checks across five focused selections.
+Page-table entry inputs follow compiler dependencies and exact host/EFI joins;
+the original query and SDK deadlines remain. Page-fault source guards follow
+bound declarations and complete reviewed families. Generated host adapters freeze
+the selected EFI branches and require import-independent bindings. Review caught
+conditional-code and implicit collection-call changes; their controls now pass.
+The original SDK probes execute. Production inputs remain unchanged; complete
+Fast/Full, NativeAOT/EFI, guest/browser and OS-performance qualification is pending.
+
+[Step1719](../done/step1719.md) passes 45 checks across four focused selections.
+Page-map SDK inputs follow compiler dependencies and exact host/EFI byte joins;
+the original no-stdlib probe and map/invalidation/protection runtime vectors run.
+Sibling raw readers and UD2 source checks retain independent predicates. Review
+restores raw counting of disabled/comment text and replaces single-part control
+assumptions with bound field ownership. No production inputs change. Complete
+Fast/Full and native/guest/performance qualification remain pending.
+
+[Step1718](../done/step1718.md) passes 50 checks across five focused selections.
+Materializer and disk-policy readers follow actual compiler inputs. COM1 uses
+typed public inventory anchors; IDT retains its independently reviewed raw-byte
+oracle; safe-stub checks follow bound calls and within-method operation order.
+The original COM1 metadata-name failure remains recorded alongside the corrected
+run. Those focused results alone did not replace the failed complete Fast receipt.
+
+[Step1717](../done/step1717.md) passes 31 focused checks across terminal cleanup,
+reservation validation and normalized frames. Compiler-owned declarations and
+dependencies replace source positions; raw exclusions and the normalized frame's
+original raw-byte boundary remain. A stale-producer rejection and a forbidden
+marker inventory-order failure are retained with their corrected r108 results.
+The failed complete Fast receipt was then the last complete diagnostic.
+
+[Step1716](../done/step1716.md) passes 64 focused checks across free/coalescing,
+one-page allocation and guarded IST. Allocator dependency selection is shared;
+raw source exclusions, independent byte identities and original SDK/hostile
+probes remain. That focused batch did not replace the complete Fast failure below.
+
+[Step1715](../done/step1715.md) passes 52 checks across five focused selections.
+One-page discovery retains its original hostile-pointer subprocesses and SDK
+no-stdlib probe. Checked-reference and GDT now resolve compiler-owned declarations
+and independently reviewed successor identities. Raw inactive-source policies,
+project completeness and byte boundaries remain; full qualification is pending.
+
+[Step1714](../done/step1714.md) passes 26 focused checks across stress and three
+EFI fixtures. Dynamic compiler inputs replace host/EFI file assumptions; exact
+byte pins and the complete pinned project retain independent acceptance.
+Review repairs an omitted raw-byte comparison and an unjustified runtime
+admission predicate. Three further previously failing EFI groups pass focused
+validation; that focused batch did not replace the failed complete Fast below.
+
+[Step1713](../done/step1713.md) records dynamic reservation dependencies and
+entropy type/caller discovery. The reservation's 28 focused checks include its
+existing SDK no-stdlib compile and zero-reference inspection; entropy passes
+four Fast checks after a preserved caller-selection failure. Independent review
+joins the original source identities and unchanged behavioral oracles. All 3,037
+production inputs remain identical to r96; complete qualification is pending.
+
+[Step1712](../done/step1712.md) records dynamic loaded-image, exception,
+constructor, dispatch and revocation source checks: 51 passing checks across
+twelve focused selections and four clean builds. Nine previously failing groups
+pass focused validation. Review restores signature and inactive-body exclusions;
+all 3,037 production inputs remain identical to r92. Complete Fast/Full and
+native/guest/performance renewal remain pending.
+
+[Step1711](../done/step1711.md) records the r92 unfiltered Fast diagnostic:
+6,345 started checks across 856 groups, unchanged inputs and zero reuse.
+Twenty-six previously failing groups now pass; thirty still fail and none
+newly fail compared with r57. All remaining failures are in legacy M01-M04 or
+normal-finally source readers. Repository/contracts/style and diff checks pass.
+This failed run is preserved; Full/native/guest/performance renewal is pending.
+
+[Step1710](../done/step1710.md) replaces M02 filename/Compile-position readers
+and the live allocator's custom preprocessor with compiler-owned discovery.
+Eight focused selections pass 45 checks at r90; seven affected selections pass
+44 checks at r91 after avoiding redundant raw-document discovery. Original
+allocator predicates and mutation vectors remain intact. Independent review
+adds marker signature, nested caller and inactive-partial controls. Source,
+repository/contracts/style and diff checks pass; successful complete Fast/Full and
+native/guest/performance renewal remain pending.
+
+[Step1709](../done/step1709.md) moves endian/span and allocator-materializer
+fixtures to compiler-selected source discovery. The original materializer Native
+fixture now passes at r83; all 31 focused checks pass there. Four affected Fast
+selections pass 14 checks at r85 after independent review restores nested callers,
+raw marker exclusions and compiler rejection controls. Earlier failures remain
+retained; unfiltered Full and native/guest/performance renewal are still pending.
+
+[Step1708](../done/step1708.md) moves the M16008/M07026/M09004 readers to
+compiler-selected declarations and per-file allocator admission. Thirty-seven
+of 38 focused Fast checks pass at r79; the corrected move control passes both
+affected checks at r80. Its failed Native materializer filename reader is retained;
+step1709 records the fresh repair. IDE2001's following-line statement preference is verified with
+the pinned SDK. No production or performance change is claimed.
+
+[Step1707](../done/step1707.md) replaces the managed-heap fixture's filename and
+region assumptions with selected compiler declarations and separate import scopes.
+Nine focused Fast/Native checks pass at r74, including no-stdlib managed metadata
+and original/split-partial hosted adapters; five affected Fast checks pass at r76
+after retained-failure guarding. Earlier false rejections and the ignored-result
+counterexample remain preserved. Full/native-image/guest/performance renewal is
+still pending.
+
+[Step1706](../done/step1706.md) repairs the remaining M16009 filename readers
+and formats one writable-disk thread-service file with independent token/pin
+proof. The r68 graph passes 97 focused checks; the r69 signal refinement passes
+13 affected checks. Both preserve inputs and use zero reuse. Complete Fast,
+Full, native, guest and performance qualification remain pending.
+
+[Step1705](../done/step1705.md) adds the nine-file EFI disk formatting batch and
+nine corresponding source pins. All 576 conditional token/shape/member-order
+comparisons and 59 focused checks pass; r67 archives the exact input/producer
+candidate. No storage algorithm or diagnostic change, native equivalence or
+performance improvement is claimed.
+
+[Step1704](../done/step1704.md) replaces module-registration, EH admission and
+leaf-reuse filename/declaration-shape assumptions with compiler-owned selection.
+The module-registration fixture that failed in step1703 now passes. Fifteen
+overlapping focused selections execute 638 passing checks (586 unique selected
+cases, 97 unique groups), unchanged inputs and zero reuse. The r66 build,
+repository/contracts checks and diff check pass. The failed r62-r65 originals
+and independent mutation counterexamples remain preserved; this is not a
+complete Fast, Full, native or guest qualification.
+
+[Step1703](../done/step1703.md) extends current payload inventories and held-source
+checks to complete threading/socket/web/service/storage families, retaining the
+historical source tables and native joins. The shared publisher's intentional
+current-input revision is separate from source-equivalent moves. The broad
+NativeAot Fast selection passes 973 of 974 checks across 163 groups, unchanged
+and zero reuse; the remaining failure is an existing EFI module-registration
+filename assumption. This is focused host evidence, not full/native/guest renewal.
+
+[Step1701](../done/step1701.md) shares selected-output discovery with the tooling
+launcher, including self-spawn and producers with no children. Eight focused
+checks pass at r58. The preceding r57 complete fast diagnostic runs 6,325 checks
+across 848 groups and remains failed in 56 groups (172 failed checks), unchanged
+and zero reuse. Twelve earlier failing groups clear with no newly failing group;
+final full/native/guest renewal remains pending.
+
+[Step1700](../done/step1700.md) separates reviewed current payload source families
+from immutable historical receipt identities. Hello/runtime app inventories and
+mutation controls follow the expanded files; protected producer declarations
+cannot be added under unrelated filenames. Twenty-five focused checks pass.
+This is source/host admission, not renewed native or guest qualification.
+
+[Step1699](../done/step1699.md) removes the exit-status fixture's stale filename
+and source-string dependencies. Bound helper/input/result checks and real partial
+move controls pass alongside the unchanged behavior cases: 16 focused checks,
+unchanged inputs and zero reuse. Remaining migration and qualification work below
+is still pending.
+
+[Step1698](../done/step1698.md) makes runtime-ledger checks follow admitted source
+families and bound export identities. It preserves append-only ledger contracts,
+adds checks for implicit allocation and opaque implementations, and fixes ordered
+comparison of linked compiler paths. Thirty-one focused checks pass; this does
+not renew complete fast/full, native or guest qualification.
+
+[Step1697](../done/step1697.md) replaces the host runner's fixed companion list
+and output-path guesses with its selected recursive MSBuild graph. Output hashes,
+nested sidecars and directory membership participate in resume validation; 57
+focused checks pass. Arbitrary custom MSBuild hooks and selective cross-build
+reuse remain outside that evidence. The complete Fast failure recorded then is
+preserved; step1727 is the later passing diagnostic.
+
+[Step1695](../done/step1695.md) replaces boot-boundary filename/region/order
+assumptions with actual EFI type and member lookup. The original API contract
+remains independent of discovery; moved partials and aliases pass while leaked
+host APIs, indirect forbidden calls, duplicate phase calls and truncated callback
+addresses fail. Its 57 focused checks cover the selected default/Diagnostic,
+M01 and syscall contexts, not the complete native profile matrix.
+
+[Step1692](../done/step1692.md) records evaluated source-family and serializer
+inventory updates, 86 focused checks across their recorded intermediate
+sources, and the retained failed complete fast diagnostic. Remaining legacy
+boot/EFI readers and current producer source admission must be repaired before
+the combined full-host/native/guest qualification. Historical receipts retain
+their original sources and hashes.
+
 [Step1689](../done/step1689.md) records the independently reviewed kernel type
 extraction: 434 original families, 2,132 outputs and 92 focused host checks.
 The combined refactor remains in progress; explicit EFI source admission and

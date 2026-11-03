@@ -59,8 +59,16 @@ internal static class M04FilteredCatchEfiIntegrationTests
         HostCheck.True(EfiContracts.DiagnosticProbes.Contains(Flag) && EfiContracts.ProbeSymbols[Flag] == Symbol, "shared flag and symbol");
         var defines = project.Descendants("DefineConstants").Where(node=>node.Value.Split(';').Contains(Symbol)).ToArray();
         HostCheck.True(defines.Length == 1 && defines[0].Parent?.Attribute("Condition")?.Value == "'$(EnableM04FilteredCatchProbe)' == 'true'", "explicit compile gate");
-        foreach (string include in new[] { @"Runtime\FilteredCatchProbe.cs", @"..\OS.Kernel\Runtime\BoundedExceptionFilterSearch.cs" })
-            HostCheck.True(project.Descendants("Compile").Count(node=>(string?)node.Attribute("Include")==include)==1 && EfiContracts.ReviewedSourceIncludes.Contains(include), "reviewed compile "+include);
+        var source = HostSourceCatalog.Efi(EfiOptions.Parse(Arguments(Flags), true).Profile());
+        var sources = source.TypeSources("OS.Kernel.Runtime.BoundedExceptionFilterSearch")
+            .Append(source.Document(source.Method("OS.Runtime.RhpNewFastAllocation", "RunFilteredCatch")))
+            .DistinctBy(document => document.Path);
+        foreach (var document in sources)
+        {
+            string include = Path.GetRelativePath(Path.Combine(root, "src", "OS"), document.Path).Replace('/', '\\');
+            HostCheck.True(EfiContracts.ReviewedSourceIncludes.Contains(include)
+                && HostEfiSourceAdmission.Accepts(include, document.Text), "reviewed compiler input " + include);
+        }
         var admission = EfiProjectAdmission.InspectStatic(root);
         HostCheck.True(admission.Succeeded,admission.Reason+" "+admission.Detail);
     }

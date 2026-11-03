@@ -18,7 +18,13 @@ public static unsafe partial class WritableBlockReadPort
         public readonly Status Result;
         public readonly B.Status BlockFailure;
         internal Completion(State* s, Status result)
-        { Request = new(s); Physical = s->Physical; Sector = s->Sector; Result = result;
-            AvailableBytes = result == Status.Ready ? SectorBytes : 0; BlockFailure = s->Failure; }
+        {
+            Request = new(s);
+            Physical = s->Physical;
+            Sector = s->Sector;
+            Result = result;
+            AvailableBytes = result == Status.Ready ? SectorBytes : 0;
+            BlockFailure = s->Failure;
+        }
     }
 }

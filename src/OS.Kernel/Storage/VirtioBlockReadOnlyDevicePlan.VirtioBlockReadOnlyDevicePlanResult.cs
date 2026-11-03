@@ -29,27 +29,60 @@ public readonly struct VirtioBlockReadOnlyDevicePlanResult
         Publish = publish;
     }
 
-    public VirtioBlockReadOnlyDevicePlanStatus Status { get; }
+    public VirtioBlockReadOnlyDevicePlanStatus Status
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockDeviceStatus { get; }
+    public BlockDeviceStatus BlockDeviceStatus
+    {
+        get;
+    }
 
-    public bool LifecycleInvoked { get; }
+    public bool LifecycleInvoked
+    {
+        get;
+    }
 
-    public uint SectorSizeBytes { get; }
+    public uint SectorSizeBytes
+    {
+        get;
+    }
 
-    public ulong DeviceSectorCount { get; }
+    public ulong DeviceSectorCount
+    {
+        get;
+    }
 
-    public ulong FirstSector { get; }
+    public ulong FirstSector
+    {
+        get;
+    }
 
-    public uint SectorCount { get; }
+    public uint SectorCount
+    {
+        get;
+    }
 
-    public ulong RequestedByteCount { get; }
+    public ulong RequestedByteCount
+    {
+        get;
+    }
 
-    public ushort QueueSize { get; }
+    public ushort QueueSize
+    {
+        get;
+    }
 
-    public VirtioBlockReadLifecyclePublishResult Publish { get; }
+    public VirtioBlockReadLifecyclePublishResult Publish
+    {
+        get;
+    }
 
     public VirtioBlockReadLifecyclePublishStatus LifecyclePublishStatus => Publish.Status;
 

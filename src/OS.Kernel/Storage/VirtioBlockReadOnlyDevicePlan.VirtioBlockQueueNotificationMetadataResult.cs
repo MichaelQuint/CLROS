@@ -34,31 +34,70 @@ public readonly struct VirtioBlockQueueNotificationMetadataResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockQueueNotificationMetadataStatus Status { get; }
+    public VirtioBlockQueueNotificationMetadataStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueuePublishStatus ReadQueuePublishStatus { get; }
+    public VirtioBlockReadQueuePublishStatus ReadQueuePublishStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorPublishStatus CursorPublishStatus { get; }
+    public VirtioBlockQueueCursorPublishStatus CursorPublishStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorPublishPlanStatus DescriptorPublishStatus { get; }
+    public VirtioBlockDescriptorPublishPlanStatus DescriptorPublishStatus
+    {
+        get;
+    }
 
-    public ushort QueueIndex { get; }
+    public ushort QueueIndex
+    {
+        get;
+    }
 
-    public ushort QueueNotifyOffset { get; }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
 
-    public ushort PublishedDescriptorCount { get; }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
 
-    public ushort PreviousAvailableRingIndex { get; }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort NextAvailableRingIndex { get; }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort DescriptorHead { get; }
+    public ushort DescriptorHead
+    {
+        get;
+    }
 
-    public ushort WriteValue { get; }
+    public ushort WriteValue
+    {
+        get;
+    }
 
-    public uint WriteWidthBytes { get; }
+    public uint WriteWidthBytes
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == VirtioBlockQueueNotificationMetadataStatus.Success;
 

@@ -12,5 +12,8 @@ namespace OS.Storage;
 
 public static unsafe partial class ReadOnlyWebRootFileSystem
 {
-    public struct OpenResult { public FileToken File; public Metadata Info; }
+    public struct OpenResult
+    {
+        public FileToken File; public Metadata Info;
+    }
 }

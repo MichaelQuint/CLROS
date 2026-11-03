@@ -42,38 +42,38 @@ internal static unsafe class M09004EfiIntegrationTests
     [HostTest("m09.004 allocator firewall rejects redirected receipts ownership gates and callbacks", HostLane.Fast, 5)]
     private static void AllocatorFirewall()
     {
-        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs"));
+        var source = new EfiAllocatorOwnershipSources(EfiOptions.Parse(["--EnableM09004Probe"], false).Profile()).Sources;
         foreach (string call in new[] { "BootPageAllocatorMutator.AllocateOnePage", "BootPageAllocatorMutator.FreeOnePage" })
         {
-            string admitted = source;
-            HostCheck.True(EfiProfileTestControls.RemoveOwnedDmaCalls(ref admitted, call, out string reason), reason);
-            HostCheck.True(!admitted.Contains(call, StringComparison.Ordinal));
+            var admitted = source;
+            HostCheck.True(EfiProfileTestControls.RemoveOwnedDmaCalls(admitted, call, out admitted, out string reason), reason);
+            HostCheck.True(!Contains(admitted, call, StringComparison.Ordinal));
             if (call.EndsWith(".AllocateOnePage", StringComparison.Ordinal))
             {
                 const string receiptType = "BootPageAllocatorOnePageResult";
-                HostCheck.True(!admitted.Contains(receiptType, StringComparison.Ordinal));
-                foreach (string corrupted in new[] {
-                    source.Replace("stackalloc BootPageAllocatorOnePageResult[20]", "stackalloc BootPageAllocatorOnePageResult[19]", StringComparison.Ordinal),
-                    source.Replace("BootPageAllocatorOnePageResult* receipts =", "BootPageAllocatorOnePageResult* unreviewed =", StringComparison.Ordinal),
-                    source.Replace("BootPageAllocatorOnePageResult* receipts = stackalloc BootPageAllocatorOnePageResult[20];", "BootPageAllocatorOnePageResult* receipts = stackalloc BootPageAllocatorOnePageResult[20];\n            BootPageAllocatorOnePageResult* receipts = stackalloc BootPageAllocatorOnePageResult[20];", StringComparison.Ordinal),
-                    source.Replace("private static bool RunCooperativeSwitch(void* context)", "private static BootPageAllocatorOnePageResult RogueReceipt;\n        private static bool RunCooperativeSwitch(void* context)", StringComparison.Ordinal) })
+                HostCheck.True(!Contains(admitted, receiptType, StringComparison.Ordinal));
+                foreach (var corrupted in new[] {
+                    Replace(source, "stackalloc BootPageAllocatorOnePageResult[20]", "stackalloc BootPageAllocatorOnePageResult[19]", StringComparison.Ordinal),
+                    Replace(source, "BootPageAllocatorOnePageResult* receipts =", "BootPageAllocatorOnePageResult* unreviewed =", StringComparison.Ordinal),
+                    Replace(source, "BootPageAllocatorOnePageResult* receipts = stackalloc BootPageAllocatorOnePageResult[20];", "BootPageAllocatorOnePageResult* receipts = stackalloc BootPageAllocatorOnePageResult[20];\n            BootPageAllocatorOnePageResult* receipts = stackalloc BootPageAllocatorOnePageResult[20];", StringComparison.Ordinal),
+                    Replace(source, "private static bool RunCooperativeSwitch(void* context)", "private static BootPageAllocatorOnePageResult RogueReceipt;\n        private static bool RunCooperativeSwitch(void* context)", StringComparison.Ordinal) })
                 {
-                    HostCheck.True(corrupted != source);
-                    string rejected = corrupted;
-                    HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(ref rejected, call, out _) ||
-                        rejected.Contains(receiptType, StringComparison.Ordinal));
+                    HostCheck.True(corrupted.Any(pair => pair.Value != source[pair.Key]));
+                    var rejected = corrupted;
+                    HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(rejected, call, out rejected, out _) ||
+                        Contains(rejected, receiptType, StringComparison.Ordinal));
                 }
             }
-            foreach (string corrupted in new[] {
-                source.Replace("receipts[count - 1]", "receipts[0]", StringComparison.Ordinal),
-                source.Replace("RunOwnedCooperativeSwitch(state->OwnedPhase == 2", "RunOwnedCooperativeSwitch(true", StringComparison.Ordinal),
-                source.Replace("state, &RunCooperativeSwitch)", "state, &UnreviewedCooperativeSwitch)", StringComparison.Ordinal) })
+            foreach (var corrupted in new[] {
+                Replace(source, "receipts[count - 1]", "receipts[0]", StringComparison.Ordinal),
+                Replace(source, "RunOwnedCooperativeSwitch(state->OwnedPhase == 2", "RunOwnedCooperativeSwitch(true", StringComparison.Ordinal),
+                Replace(source, "state, &RunCooperativeSwitch)", "state, &UnreviewedCooperativeSwitch)", StringComparison.Ordinal) })
             {
-                string rejected = corrupted;
+                var rejected = corrupted;
                 // Receipt corruption affects only release; the ordered edge
                 // controls must reject independently for allocation as well.
-                if (call.EndsWith(".AllocateOnePage", StringComparison.Ordinal) && corrupted.Contains("receipts[0]", StringComparison.Ordinal)) continue;
-                HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(ref rejected, call, out _));
+                if (call.EndsWith(".AllocateOnePage", StringComparison.Ordinal) && Contains(corrupted, "receipts[0]", StringComparison.Ordinal)) continue;
+                HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(rejected, call, out rejected, out _));
             }
         }
     }
@@ -81,31 +81,37 @@ internal static unsafe class M09004EfiIntegrationTests
     [HostTest("m09.004 materializer firewall requires exact retained pool owner gate and failure arm", HostLane.Fast, 7)]
     private static void MaterializerFirewall()
     {
-        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs"));
-        string admitted = source;
-        HostCheck.True(EfiProfileTestControls.RemoveOwnedCooperativeMaterializer(ref admitted, out string reason), reason);
-        HostCheck.True(!admitted.Contains("BootPageAllocatorStateMaterializer", StringComparison.Ordinal));
-        foreach (string corrupted in new[] {
-            source.Replace("Materialize(&node, 1, 1, 1, 0, Page, 32, 32 * Page, &allocator, 1)", "Materialize(&other, 1, 1, 1, 0, Page, 32, 32 * Page, &allocator, 1)", StringComparison.Ordinal),
-            source.Replace("Materialize(&node, 1, 1, 1, 0, Page, 32, 32 * Page, &allocator, 1)", "Materialize(&node, 1, 1, 1, 0, Page, 20, 20 * Page, &allocator, 1)", StringComparison.Ordinal),
-            source.Replace("32 * Page, &allocator, 1).Succeeded", "32 * Page, &other, 1).Succeeded", StringComparison.Ordinal),
-            source.Replace("new(0, 0, pool, pool + 32 * Page, 32, 32 * Page, -1)", "new(0, 0, pool, pool + 31 * Page, 31, 31 * Page, -1)", StringComparison.Ordinal),
-            source.Replace("ulong pool = state->CooperativePool;", "ulong pool = state->CooperativePool + Page;", StringComparison.Ordinal),
-            source.Replace("if (!BootPageAllocatorStateMaterializer.Materialize", "if (BootPageAllocatorStateMaterializer.Materialize", StringComparison.Ordinal),
-            source.Replace("{ _ = CooperativeMarker(state, 3); return false; }", "{ _ = CooperativeMarker(state, 3); return true; }", StringComparison.Ordinal),
-            source.Replace("private static bool RunCooperativeSwitch(void* context)", "private static bool UnreviewedCooperativeSwitch(void* context)", StringComparison.Ordinal),
-            source.Replace("#if M09_004_PROBE", "#if M09_004_PROBE || M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE", StringComparison.Ordinal),
-            source.Replace("RunOwnedCooperativeSwitch(state->OwnedPhase == 2", "RunOwnedCooperativeSwitch(true", StringComparison.Ordinal),
-            source.Replace("state, &RunCooperativeSwitch)", "state, &UnreviewedCooperativeSwitch)", StringComparison.Ordinal),
-            source.Replace("private static bool RunCooperativeSwitch(void* context)", "private static void RogueMaterializer() { _ = BootPageAllocatorStateMaterializer.Materialize(null, 0, 0, 0, 0, 0, 0, 0, null, 0); }\n        private static bool RunCooperativeSwitch(void* context)", StringComparison.Ordinal) })
+        var source = new EfiAllocatorOwnershipSources(EfiOptions.Parse(["--EnableM09004Probe"], false).Profile()).Sources;
+        var admitted = source;
+        HostCheck.True(EfiProfileTestControls.RemoveOwnedCooperativeMaterializer(admitted, out admitted, out string reason), reason);
+        HostCheck.True(!Contains(admitted, "BootPageAllocatorStateMaterializer", StringComparison.Ordinal));
+        foreach (var corrupted in new[] {
+            Replace(source, "Materialize(&node, 1, 1, 1, 0, Page, 32, 32 * Page, &allocator, 1)", "Materialize(&other, 1, 1, 1, 0, Page, 32, 32 * Page, &allocator, 1)", StringComparison.Ordinal),
+            Replace(source, "Materialize(&node, 1, 1, 1, 0, Page, 32, 32 * Page, &allocator, 1)", "Materialize(&node, 1, 1, 1, 0, Page, 20, 20 * Page, &allocator, 1)", StringComparison.Ordinal),
+            Replace(source, "32 * Page, &allocator, 1).Succeeded", "32 * Page, &other, 1).Succeeded", StringComparison.Ordinal),
+            Replace(source, "new(0, 0, pool, pool + 32 * Page, 32, 32 * Page, -1)", "new(0, 0, pool, pool + 31 * Page, 31, 31 * Page, -1)", StringComparison.Ordinal),
+            Replace(source, "ulong pool = state->CooperativePool;", "ulong pool = state->CooperativePool + Page;", StringComparison.Ordinal),
+            Replace(source, "if (!BootPageAllocatorStateMaterializer.Materialize", "if (BootPageAllocatorStateMaterializer.Materialize", StringComparison.Ordinal),
+            Replace(source, "{ _ = CooperativeMarker(state, 3); return false; }", "{ _ = CooperativeMarker(state, 3); return true; }", StringComparison.Ordinal),
+            Replace(source, "private static bool RunCooperativeSwitch(void* context)", "private static bool UnreviewedCooperativeSwitch(void* context)", StringComparison.Ordinal),
+            Replace(source, "#if M09_004_PROBE", "#if M09_004_PROBE || M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE", StringComparison.Ordinal),
+            Replace(source, "RunOwnedCooperativeSwitch(state->OwnedPhase == 2", "RunOwnedCooperativeSwitch(true", StringComparison.Ordinal),
+            Replace(source, "state, &RunCooperativeSwitch)", "state, &UnreviewedCooperativeSwitch)", StringComparison.Ordinal),
+            Replace(source, "private static bool RunCooperativeSwitch(void* context)", "private static void RogueMaterializer() { _ = BootPageAllocatorStateMaterializer.Materialize(null, 0, 0, 0, 0, 0, 0, 0, null, 0); }\n        private static bool RunCooperativeSwitch(void* context)", StringComparison.Ordinal) })
         {
-            HostCheck.True(corrupted != source);
-            string rejected = corrupted;
-            HostCheck.True(!EfiProfileTestControls.RemoveOwnedCooperativeMaterializer(ref rejected, out _) ||
-                rejected.Contains("BootPageAllocatorStateMaterializer", StringComparison.Ordinal));
+            HostCheck.True(corrupted.Any(pair => pair.Value != source[pair.Key]));
+            var rejected = corrupted;
+            HostCheck.True(!EfiProfileTestControls.RemoveOwnedCooperativeMaterializer(rejected, out rejected, out _) ||
+                Contains(rejected, "BootPageAllocatorStateMaterializer", StringComparison.Ordinal));
         }
     }
 
+    private static bool Contains(IReadOnlyDictionary<string, string> sources, string value, StringComparison comparison) =>
+        sources.Values.Any(source => source.Contains(value, comparison));
+
+    private static IReadOnlyDictionary<string, string> Replace(IReadOnlyDictionary<string, string> sources,
+        string before, string after, StringComparison comparison) =>
+        sources.ToDictionary(pair => pair.Key, pair => pair.Value.Replace(before, after, comparison), StringComparer.Ordinal);
     [HostTest("m09.004 project exclusion covers every declared unrelated probe", HostLane.Fast, 6)]
     private static void ProjectExclusion()
     {

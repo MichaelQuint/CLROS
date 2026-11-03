@@ -31,7 +31,9 @@ public static class RetainedDiskTimingBenchmark
 
         string[] arguments = await CreateRunnerArgumentsAsync(root, recipe);
         output.WriteLine($"RETAINED_TIMING_START imageSha256={image.Sha256} accelerator={recipe.Accelerator} freshKernelBuild=false fullAndCleanupQualified=false");
-        var result = await NativeAotDiskTimingPeer.RunAsync(root, serial, RunRunner, inventory,
+        var options = NativeAotDiskTimingPeer.BenchmarkOptions.ForProfile(QemuProfiles.Create(recipe).Flags,
+            () => image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "retained_timing_image"));
+        var result = await NativeAotDiskTimingPeer.RunAsync(root, serial, RunRunner, inventory, options,
             recipe.TimeoutSeconds, cancellation);
         inputs.VerifyUnchanged();
         output.WriteLine("TEST_PASS benchmark.retained-disk-timing full_and_cleanup_qualified=false");

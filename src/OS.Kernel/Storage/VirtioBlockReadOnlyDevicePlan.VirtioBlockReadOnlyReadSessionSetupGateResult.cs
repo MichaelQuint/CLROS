@@ -22,19 +22,40 @@ public readonly struct VirtioBlockReadOnlyReadSessionSetupGateResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockReadOnlyReadSessionSetupGateStatus Status { get; }
+    public VirtioBlockReadOnlyReadSessionSetupGateStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionResult QueueSetup { get; }
+    public VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionResult QueueSetup
+    {
+        get;
+    }
 
-    public VirtioBlockReadOnlyReadSessionResult ReadSession { get; }
+    public VirtioBlockReadOnlyReadSessionResult ReadSession
+    {
+        get;
+    }
 
-    public bool ReadSessionAttempted { get; }
+    public bool ReadSessionAttempted
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorState CursorBefore { get; }
+    public VirtioBlockQueueCursorState CursorBefore
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorState CursorAfter { get; }
+    public VirtioBlockQueueCursorState CursorAfter
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionStatus QueueSetupStatus =>
         QueueSetup.Status;

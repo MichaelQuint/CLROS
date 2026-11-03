@@ -17,5 +17,8 @@ public readonly struct VirtioBlkDmaLayout
     public readonly VirtqueueSplitRingPlan Rings;
     public bool IsInitialized => Range.IsInitialized && Rings.QueueSize == QueueSize;
     internal VirtioBlkDmaLayout(DmaAddressRange range, VirtqueueSplitRingPlan rings)
-    { Range = range; Rings = rings; }
+    {
+        Range = range;
+        Rings = rings;
+    }
 }

@@ -19,6 +19,11 @@ public static unsafe partial class ContinuingFat32Mutation
         public readonly uint ClusterBytes, AllocatedClusters;
         public readonly ulong Allocated512Blocks;
         internal OpenFacts(FileToken file, uint clusterBytes, uint clusters, ulong blocks)
-        { File = file; ClusterBytes = clusterBytes; AllocatedClusters = clusters; Allocated512Blocks = blocks; }
+        {
+            File = file;
+            ClusterBytes = clusterBytes;
+            AllocatedClusters = clusters;
+            Allocated512Blocks = blocks;
+        }
     }
 }

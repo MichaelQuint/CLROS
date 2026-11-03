@@ -8,5 +8,8 @@ namespace OS.Storage;
 
 public static unsafe partial class ContinuingFat32Mutation
 {
-    internal enum Kind : byte { Mount, Open, Overwrite, Barrier, Create, Grow, Read, Truncate, Delete, FindFree, RootMetadata }
+    internal enum Kind : byte
+    {
+        Mount, Open, Overwrite, Barrier, Create, Grow, Read, Truncate, Delete, FindFree, RootMetadata
+    }
 }

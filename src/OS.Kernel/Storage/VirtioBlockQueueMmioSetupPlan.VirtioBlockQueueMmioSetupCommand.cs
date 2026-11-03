@@ -18,15 +18,30 @@ public readonly struct VirtioBlockQueueMmioSetupCommand
         Value = value;
     }
 
-    public VirtioBlockQueueMmioSetupCommandKind Kind { get; }
+    public VirtioBlockQueueMmioSetupCommandKind Kind
+    {
+        get;
+    }
 
-    public ushort QueueIndex { get; }
+    public ushort QueueIndex
+    {
+        get;
+    }
 
-    public uint RelativeOffset { get; }
+    public uint RelativeOffset
+    {
+        get;
+    }
 
-    public uint WidthBytes { get; }
+    public uint WidthBytes
+    {
+        get;
+    }
 
-    public ulong Value { get; }
+    public ulong Value
+    {
+        get;
+    }
 
     public bool ReadsRegister =>
         Kind == VirtioBlockQueueMmioSetupCommandKind.ReadQueueSize ||

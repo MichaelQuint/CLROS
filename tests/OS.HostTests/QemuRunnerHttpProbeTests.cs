@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 
-internal static class QemuRunnerHttpProbeTests
+internal static partial class QemuRunnerHttpProbeTests
 {
     [HostFixture(HostLane.Native)]
     public static void Initialize()
@@ -13,7 +13,6 @@ internal static class QemuRunnerHttpProbeTests
         int failures = 0;
         string tempRoot = Path.Combine(Path.GetTempPath(), "os-qemu-http-probe-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
-
         try
         {
             Run("qemu.runner.http_probe accepts expected response", () => TestAcceptsExpectedResponse(tempRoot), ref failures);
@@ -33,7 +32,7 @@ internal static class QemuRunnerHttpProbeTests
             }
             catch
             {
-                // Cleanup failure should not hide probe validation.
+            // Cleanup failure should not hide probe validation.
             }
         }
 
@@ -46,44 +45,17 @@ internal static class QemuRunnerHttpProbeTests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-
         HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestAcceptsExpectedResponse(string tempRoot)
     {
         const string expectedBody = "OS_MINIMAL_API_OK";
-
-        ProbeRunResult result = RunQemuRunnerWithProbe(
-            tempRoot,
-            actualStatusCode: 200,
-            actualBody: expectedBody,
-            hangBeforeResponse: false,
-            expectedStatusCode: 200,
-            expectedBody,
-            timeoutSeconds: 3,
-            includeExpectedBody: true);
-
+        ProbeRunResult result = RunQemuRunnerWithProbe(tempRoot, actualStatusCode: 200, actualBody: expectedBody, hangBeforeResponse: false, expectedStatusCode: 200, expectedBody, timeoutSeconds: 3, includeExpectedBody: true);
         string output = result.Process.Output;
         string summary = File.ReadAllText(result.SummaryLogPath);
         string bodyHash = Sha256Utf8(expectedBody);
-
-        bool passed = result.Process.ExitCode == 0
-            && output.Contains("HTTP_PROBE_START endpoint=http://127.0.0.1:", StringComparison.Ordinal)
-            && output.Contains("HTTP_PROBE_PASS endpoint=http://127.0.0.1:", StringComparison.Ordinal)
-            && output.Contains("status=200", StringComparison.Ordinal)
-            && output.Contains("body_bytes=17", StringComparison.Ordinal)
-            && output.Contains("body_sha256=" + bodyHash, StringComparison.Ordinal)
-            && output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal)
-            && !output.Contains(expectedBody, StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_RESULT pass", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_REASON none", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_STATUS 200", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_BODY_BYTES 17", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_BODY_SHA256 " + bodyHash, StringComparison.Ordinal)
-            && summary.Contains("FAIL_REASON none", StringComparison.Ordinal)
-            && !summary.Contains(expectedBody, StringComparison.Ordinal);
-
+        bool passed = result.Process.ExitCode == 0 && output.Contains("HTTP_PROBE_START endpoint=http://127.0.0.1:", StringComparison.Ordinal) && output.Contains("HTTP_PROBE_PASS endpoint=http://127.0.0.1:", StringComparison.Ordinal) && output.Contains("status=200", StringComparison.Ordinal) && output.Contains("body_bytes=17", StringComparison.Ordinal) && output.Contains("body_sha256=" + bodyHash, StringComparison.Ordinal) && output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal) && !output.Contains(expectedBody, StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_RESULT pass", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_REASON none", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_STATUS 200", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_BODY_BYTES 17", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_BODY_SHA256 " + bodyHash, StringComparison.Ordinal) && summary.Contains("FAIL_REASON none", StringComparison.Ordinal) && !summary.Contains(expectedBody, StringComparison.Ordinal);
         return PassOrReport("accepts expected response", passed, result);
     }
 
@@ -91,36 +63,10 @@ internal static class QemuRunnerHttpProbeTests
     {
         const string expectedBody = "OS_MINIMAL_API_OK";
         const string actualBody = "SERVICE_DOWN";
-
-        ProbeRunResult result = RunQemuRunnerWithProbe(
-            tempRoot,
-            actualStatusCode: 503,
-            actualBody,
-            hangBeforeResponse: false,
-            expectedStatusCode: 200,
-            expectedBody,
-            timeoutSeconds: 3,
-            includeExpectedBody: true);
-
+        ProbeRunResult result = RunQemuRunnerWithProbe(tempRoot, actualStatusCode: 503, actualBody, hangBeforeResponse: false, expectedStatusCode: 200, expectedBody, timeoutSeconds: 3, includeExpectedBody: true);
         string output = result.Process.Output;
         string summary = File.ReadAllText(result.SummaryLogPath);
-
-        bool passed = result.Process.ExitCode == 9
-            && output.Contains("HTTP_PROBE_FAIL endpoint=http://127.0.0.1:", StringComparison.Ordinal)
-            && output.Contains("status=503", StringComparison.Ordinal)
-            && output.Contains("reason=status_mismatch", StringComparison.Ordinal)
-            && output.Contains("OS_SMOKE_FAIL http-probe=status_mismatch", StringComparison.Ordinal)
-            && output.Contains("TEST_FAIL qemu.runner.http_probe reason=status_mismatch", StringComparison.Ordinal)
-            && !output.Contains(expectedBody, StringComparison.Ordinal)
-            && !output.Contains(actualBody, StringComparison.Ordinal)
-            && summary.Contains("QEMU_SMOKE_STATUS fail", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_RESULT fail", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_REASON status_mismatch", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_STATUS 503", StringComparison.Ordinal)
-            && summary.Contains("FAIL_REASON http_probe_status_mismatch", StringComparison.Ordinal)
-            && !summary.Contains(expectedBody, StringComparison.Ordinal)
-            && !summary.Contains(actualBody, StringComparison.Ordinal);
-
+        bool passed = result.Process.ExitCode == 9 && output.Contains("HTTP_PROBE_FAIL endpoint=http://127.0.0.1:", StringComparison.Ordinal) && output.Contains("status=503", StringComparison.Ordinal) && output.Contains("reason=status_mismatch", StringComparison.Ordinal) && output.Contains("OS_SMOKE_FAIL http-probe=status_mismatch", StringComparison.Ordinal) && output.Contains("TEST_FAIL qemu.runner.http_probe reason=status_mismatch", StringComparison.Ordinal) && !output.Contains(expectedBody, StringComparison.Ordinal) && !output.Contains(actualBody, StringComparison.Ordinal) && summary.Contains("QEMU_SMOKE_STATUS fail", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_RESULT fail", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_REASON status_mismatch", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_STATUS 503", StringComparison.Ordinal) && summary.Contains("FAIL_REASON http_probe_status_mismatch", StringComparison.Ordinal) && !summary.Contains(expectedBody, StringComparison.Ordinal) && !summary.Contains(actualBody, StringComparison.Ordinal);
         return PassOrReport("rejects status mismatch", passed, result);
     }
 
@@ -128,65 +74,21 @@ internal static class QemuRunnerHttpProbeTests
     {
         const string expectedBody = "OS_MINIMAL_API_OK";
         const string actualBody = "WRONG_BODY";
-
-        ProbeRunResult result = RunQemuRunnerWithProbe(
-            tempRoot,
-            actualStatusCode: 200,
-            actualBody,
-            hangBeforeResponse: false,
-            expectedStatusCode: 200,
-            expectedBody,
-            timeoutSeconds: 3,
-            includeExpectedBody: true);
-
+        ProbeRunResult result = RunQemuRunnerWithProbe(tempRoot, actualStatusCode: 200, actualBody, hangBeforeResponse: false, expectedStatusCode: 200, expectedBody, timeoutSeconds: 3, includeExpectedBody: true);
         string output = result.Process.Output;
         string summary = File.ReadAllText(result.SummaryLogPath);
-
-        bool passed = result.Process.ExitCode == 9
-            && output.Contains("HTTP_PROBE_FAIL endpoint=http://127.0.0.1:", StringComparison.Ordinal)
-            && output.Contains("status=200", StringComparison.Ordinal)
-            && output.Contains("reason=body_mismatch", StringComparison.Ordinal)
-            && output.Contains("TEST_FAIL qemu.runner.http_probe reason=body_mismatch", StringComparison.Ordinal)
-            && !output.Contains(expectedBody, StringComparison.Ordinal)
-            && !output.Contains(actualBody, StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_RESULT fail", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_REASON body_mismatch", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_STATUS 200", StringComparison.Ordinal)
-            && summary.Contains("FAIL_REASON http_probe_body_mismatch", StringComparison.Ordinal)
-            && !summary.Contains(expectedBody, StringComparison.Ordinal)
-            && !summary.Contains(actualBody, StringComparison.Ordinal);
-
+        bool passed = result.Process.ExitCode == 9 && output.Contains("HTTP_PROBE_FAIL endpoint=http://127.0.0.1:", StringComparison.Ordinal) && output.Contains("status=200", StringComparison.Ordinal) && output.Contains("reason=body_mismatch", StringComparison.Ordinal) && output.Contains("TEST_FAIL qemu.runner.http_probe reason=body_mismatch", StringComparison.Ordinal) && !output.Contains(expectedBody, StringComparison.Ordinal) && !output.Contains(actualBody, StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_RESULT fail", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_REASON body_mismatch", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_STATUS 200", StringComparison.Ordinal) && summary.Contains("FAIL_REASON http_probe_body_mismatch", StringComparison.Ordinal) && !summary.Contains(expectedBody, StringComparison.Ordinal) && !summary.Contains(actualBody, StringComparison.Ordinal);
         return PassOrReport("rejects body mismatch", passed, result);
     }
 
     private static bool TestTimesOutDeterministically(string tempRoot)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
-
-        ProbeRunResult result = RunQemuRunnerWithProbe(
-            tempRoot,
-            actualStatusCode: 200,
-            actualBody: "unused",
-            hangBeforeResponse: true,
-            expectedStatusCode: 200,
-            expectedBody: string.Empty,
-            timeoutSeconds: 1,
-            includeExpectedBody: false);
-
+        ProbeRunResult result = RunQemuRunnerWithProbe(tempRoot, actualStatusCode: 200, actualBody: "unused", hangBeforeResponse: true, expectedStatusCode: 200, expectedBody: string.Empty, timeoutSeconds: 1, includeExpectedBody: false);
         stopwatch.Stop();
         string output = result.Process.Output;
         string summary = File.ReadAllText(result.SummaryLogPath);
-
-        bool passed = result.Process.ExitCode == 9
-            && stopwatch.ElapsedMilliseconds < 10000
-            && output.Contains("HTTP_PROBE_FAIL endpoint=http://127.0.0.1:", StringComparison.Ordinal)
-            && output.Contains("reason=timeout", StringComparison.Ordinal)
-            && output.Contains("TEST_FAIL qemu.runner.http_probe reason=timeout", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_RESULT fail", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_REASON timeout", StringComparison.Ordinal)
-            && summary.Contains("HTTP_PROBE_STATUS none", StringComparison.Ordinal)
-            && summary.Contains("FAIL_REASON http_probe_timeout", StringComparison.Ordinal);
-
+        bool passed = result.Process.ExitCode == 9 && stopwatch.ElapsedMilliseconds < 10000 && output.Contains("HTTP_PROBE_FAIL endpoint=http://127.0.0.1:", StringComparison.Ordinal) && output.Contains("reason=timeout", StringComparison.Ordinal) && output.Contains("TEST_FAIL qemu.runner.http_probe reason=timeout", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_RESULT fail", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_REASON timeout", StringComparison.Ordinal) && summary.Contains("HTTP_PROBE_STATUS none", StringComparison.Ordinal) && summary.Contains("FAIL_REASON http_probe_timeout", StringComparison.Ordinal);
         return PassOrReport("times out deterministically", passed, result);
     }
 
@@ -197,9 +99,7 @@ internal static class QemuRunnerHttpProbeTests
             return true;
         }
 
-        Console.WriteLine(
-            "TEST_FAIL_DETAIL qemu.runner.http_probe scenario=" + scenario +
-            " exit=" + result.Process.ExitCode);
+        Console.WriteLine("TEST_FAIL_DETAIL qemu.runner.http_probe scenario=" + scenario + " exit=" + result.Process.ExitCode);
         Console.WriteLine("TEST_FAIL_DETAIL qemu.runner.http_probe.output.begin");
         Console.Write(result.Process.Output);
         Console.WriteLine("TEST_FAIL_DETAIL qemu.runner.http_probe.output.end");
@@ -213,54 +113,42 @@ internal static class QemuRunnerHttpProbeTests
         return false;
     }
 
-    private static List<string> ContinuingWebArguments(string tempRoot, int port)
-        => ["--continuing-web", "--socket-forward-port", port.ToString(),
-            "--virtio-negotiation-device", "--arp-receive-fixture",
-            "--ethernet-capture", Path.Combine(tempRoot, "web-" + Guid.NewGuid().ToString("N") + ".pcap"),
-            "--summary-log", Path.Combine(tempRoot, "web-" + Guid.NewGuid().ToString("N") + ".summary"),
-            "--replace-default-required-markers", "--http-probe-url", "http://127.0.0.1:" + port + "/healthz",
-            "--http-probe-expected-body", "OS_MINIMAL_API_OK", "--web-config-body", "{\"selected\":true}"];
-
+    private static List<string> ContinuingWebArguments(string tempRoot, int port) => ["--continuing-web", "--socket-forward-port", port.ToString(), "--virtio-negotiation-device", "--arp-receive-fixture", "--ethernet-capture", Path.Combine(tempRoot, "web-" + Guid.NewGuid().ToString("N") + ".pcap"), "--summary-log", Path.Combine(tempRoot, "web-" + Guid.NewGuid().ToString("N") + ".summary"), "--replace-default-required-markers", "--http-probe-url", "http://127.0.0.1:" + port + "/healthz", "--http-probe-expected-body", "OS_MINIMAL_API_OK", "--web-config-body", "{\"selected\":true}"];
     private static bool TestContinuingWebSelection(string tempRoot)
     {
         List<string> valid = ContinuingWebArguments(tempRoot, 20080);
         valid.AddRange(["--require-marker", "OS_SMOKE_PASS"]);
-        ProcessResult accepted = RunQemuRunner([.. valid, "--dry-run"]);
-        if (accepted.ExitCode != 0 || !accepted.Output.Contains("CLROS_M10_004_READY", StringComparison.Ordinal) ||
-            !accepted.Output.Contains("TEST_PASS m10.004", StringComparison.Ordinal) ||
-            !accepted.Output.Contains("OS_SMOKE_PASS", StringComparison.Ordinal) ||
-            !accepted.Output.Contains("hostfwd=tcp:127.0.0.1:20080-:8080", StringComparison.Ordinal) ||
-            !accepted.Output.Contains("if=none,id=esp,format=raw,snapshot=on,file=", StringComparison.Ordinal) ||
-            accepted.Output.Contains("selected", StringComparison.Ordinal)) return false;
-        int redirect=accepted.Output.IndexOf("filter-redirector,id=clroswebfilter,netdev=n0,queue=tx,indev=clroswebin,outdev=clroswebout",StringComparison.Ordinal);
-        int dump=accepted.Output.IndexOf("filter-dump,id=clroscapture,netdev=n0",StringComparison.Ordinal);
-        if(redirect<0 || dump<=redirect || !accepted.Output.Contains("port=<ephemeral-out>",StringComparison.Ordinal) ||
-            !accepted.Output.Contains("port=<ephemeral-in>",StringComparison.Ordinal))return false;
+        ProcessResult accepted = RunQemuRunner([..valid, "--dry-run"]);
+        if (accepted.ExitCode != 0 || !accepted.Output.Contains("CLROS_M10_004_READY", StringComparison.Ordinal) || !accepted.Output.Contains("TEST_PASS m10.004", StringComparison.Ordinal) || !accepted.Output.Contains("OS_SMOKE_PASS", StringComparison.Ordinal) || !accepted.Output.Contains("hostfwd=tcp:127.0.0.1:20080-:8080", StringComparison.Ordinal) || !accepted.Output.Contains("if=none,id=esp,format=raw,snapshot=on,file=", StringComparison.Ordinal) || accepted.Output.Contains("selected", StringComparison.Ordinal))
+            return false;
+        int redirect = accepted.Output.IndexOf("filter-redirector,id=clroswebfilter,netdev=n0,queue=tx,indev=clroswebin,outdev=clroswebout", StringComparison.Ordinal);
+        int dump = accepted.Output.IndexOf("filter-dump,id=clroscapture,netdev=n0", StringComparison.Ordinal);
+        if (redirect < 0 || dump <= redirect || !accepted.Output.Contains("port=<ephemeral-out>", StringComparison.Ordinal) || !accepted.Output.Contains("port=<ephemeral-in>", StringComparison.Ordinal))
+            return false;
         bool Reject(string key, string? value = null, bool remove = false)
         {
-            List<string> changed = [.. valid];
+            List<string> changed = [..valid];
             int index = changed.IndexOf(key);
-            if (remove) { changed.RemoveAt(index); if (value is not null) changed.RemoveAt(index); }
-            else if (index >= 0 && value is not null) changed[index + 1] = value;
-            else { changed.Add(key); if (value is not null) changed.Add(value); }
-            ProcessResult result = RunQemuRunner([.. changed, "--dry-run"]);
+            if (remove)
+            {
+                changed.RemoveAt(index);
+                if (value is not null)
+                    changed.RemoveAt(index);
+            }
+            else if (index >= 0 && value is not null)
+                changed[index + 1] = value;
+            else
+            {
+                changed.Add(key);
+                if (value is not null)
+                    changed.Add(value);
+            }
+
+            ProcessResult result = RunQemuRunner([..changed, "--dry-run"]);
             return result.ExitCode == 1 && result.Output.Contains("qemu.runner.invalid_args", StringComparison.Ordinal);
         }
-        return Reject("--continuing-web", remove: true)
-            && Reject("--web-config-body", "", remove: true)
-            && Reject("--socket-forward-port", "", remove: true)
-            && Reject("--http-probe-url", "http://127.0.0.1:20081/healthz")
-            && Reject("--http-probe-url", "http://localhost:20080/healthz")
-            && Reject("--http-probe-url", "http://127.0.0.1:20080/config")
-            && Reject("--http-probe-url", "http://127.0.0.1:20080/healthz?x=1")
-            && Reject("--http-probe-url", "http://127.0.0.1:20080/healthz#x")
-            && Reject("--http-probe-url", "http://user@127.0.0.1:20080/healthz")
-            && Reject("--http-probe-expected-status", "201")
-            && Reject("--http-probe-expected-body", "")
-            && Reject("--http-probe-timeout", "31")
-            && Reject("--timeout", "286")
-            && Reject("--workload-profile", "MultiMinimalApi")
-            && Reject("--continuing-network-peer");
+
+        return Reject("--continuing-web", remove: true) && Reject("--web-config-body", "", remove: true) && Reject("--socket-forward-port", "", remove: true) && Reject("--http-probe-url", "http://127.0.0.1:20081/healthz") && Reject("--http-probe-url", "http://localhost:20080/healthz") && Reject("--http-probe-url", "http://127.0.0.1:20080/config") && Reject("--http-probe-url", "http://127.0.0.1:20080/healthz?x=1") && Reject("--http-probe-url", "http://127.0.0.1:20080/healthz#x") && Reject("--http-probe-url", "http://user@127.0.0.1:20080/healthz") && Reject("--http-probe-expected-status", "201") && Reject("--http-probe-expected-body", "") && Reject("--http-probe-timeout", "31") && Reject("--timeout", "286") && Reject("--workload-profile", "MultiMinimalApi") && Reject("--continuing-network-peer");
     }
 
     private static bool TestContinuingWebOccupiedPort(string tempRoot)
@@ -271,16 +159,10 @@ internal static class QemuRunnerHttpProbeTests
         List<string> arguments = ContinuingWebArguments(tempRoot, port);
         string summaryPath = arguments[arguments.IndexOf("--summary-log") + 1];
         FakeQemuHttpEndpoint fake = CreateFakeQemuHttpEndpoint(tempRoot, 200, "unused", false);
-        arguments.AddRange(["--qemu", fake.QemuPath,
-            "--image", CreateEmptyFile(tempRoot, "occupied-web.raw"),
-            "--ovmf-code", CreateEmptyFile(tempRoot, "occupied-web-OVMF_CODE.fd"),
-            "--serial-log", Path.Combine(tempRoot, "occupied-web.serial")]);
-        ProcessResult result = RunQemuRunner([.. arguments]);
+        arguments.AddRange(["--qemu", fake.QemuPath, "--image", CreateEmptyFile(tempRoot, "occupied-web.raw"), "--ovmf-code", CreateEmptyFile(tempRoot, "occupied-web-OVMF_CODE.fd"), "--serial-log", Path.Combine(tempRoot, "occupied-web.serial")]);
+        ProcessResult result = RunQemuRunner([..arguments]);
         string summary = File.Exists(summaryPath) ? File.ReadAllText(summaryPath) : string.Empty;
-        return result.ExitCode == 20 && summary.Contains("FAIL_REASON web_endpoint_occupied_before_launch", StringComparison.Ordinal)
-            && summary.Contains("WEB_ENDPOINT_PRELAUNCH_AVAILABLE false", StringComparison.Ordinal)
-            && summary.Contains("WEB_PROCESS_ID none", StringComparison.Ordinal)
-            && summary.Contains("WEB_CONFIG_PROBE_RESULT not_run", StringComparison.Ordinal);
+        return result.ExitCode == 20 && summary.Contains("FAIL_REASON web_endpoint_occupied_before_launch", StringComparison.Ordinal) && summary.Contains("WEB_ENDPOINT_PRELAUNCH_AVAILABLE false", StringComparison.Ordinal) && summary.Contains("WEB_PROCESS_ID none", StringComparison.Ordinal) && summary.Contains("WEB_CONFIG_PROBE_RESULT not_run", StringComparison.Ordinal);
     }
 
     private static bool TestContinuingWebDeferredLogs(string tempRoot, bool wrongVector = false)
@@ -290,85 +172,39 @@ internal static class QemuRunnerHttpProbeTests
         List<string> arguments = ContinuingWebArguments(tempRoot, new Uri(fake.Url).Port);
         string summaryPath = arguments[arguments.IndexOf("--summary-log") + 1];
         string scenario = wrongVector ? "wrong-vector-web" : "deferred-web", serialPath = Path.Combine(tempRoot, scenario + ".serial");
-        arguments.AddRange(["--qemu", fake.QemuPath, "--image", CreateEmptyFile(tempRoot, scenario + ".raw"),
-            "--ovmf-code", CreateEmptyFile(tempRoot, scenario + "-OVMF_CODE.fd"),
-            "--serial-log", serialPath, "--timeout", "8"]);
-        foreach (string marker in new[] { "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "CLROS_M10_004_READY", "TEST_PASS m10.004",
-            "TEST_START m10.005", "M10_005_LOGS", "CLROS_M10_005_READY", "TEST_PASS m10.005" })
+        arguments.AddRange(["--qemu", fake.QemuPath, "--image", CreateEmptyFile(tempRoot, scenario + ".raw"), "--ovmf-code", CreateEmptyFile(tempRoot, scenario + "-OVMF_CODE.fd"), "--serial-log", serialPath, "--timeout", "8"]);
+        foreach (string marker in new[]
+        {
+            "OS_BOOT_OK",
+            "TEST_PASS boot.sequence",
+            "OS_SMOKE_PASS",
+            "CLROS_M10_004_READY",
+            "TEST_PASS m10.004",
+            "TEST_START m10.005",
+            "M10_005_LOGS",
+            "CLROS_M10_005_READY",
+            "TEST_PASS m10.005"
+        }
+
+        )
             arguments.AddRange(["--require-ordered-marker", marker]);
-        ProcessResult result = RunQemuRunner([.. arguments]);
+        ProcessResult result = RunQemuRunner([..arguments]);
         string summary = File.Exists(summaryPath) ? File.ReadAllText(summaryPath) : "";
-        string[] expectedRequests = ["GET /healthz HTTP/1.0", "GET /config HTTP/1.0", "POST /__clros/logexercise HTTP/1.0",
-            "POST /__clros/logexercise HTTP/1.0", "GET /__clros/vectors HTTP/1.0", "GET /healthz HTTP/1.0"];
-        bool requestOrder = File.Exists(serialPath + ".requests") && File.ReadAllLines(serialPath + ".requests")
-            .SequenceEqual(expectedRequests.Take(wrongVector ? 5 : 6));
-        bool common = requestOrder &&
-            summary.Contains("WEB_VECTOR_PROBE_URL " + fake.Url.Replace("/healthz", "/__clros/vectors", StringComparison.Ordinal), StringComparison.Ordinal) &&
-            summary.Contains("WEB_VECTOR_PROBE_METHOD GET", StringComparison.Ordinal) &&
-            summary.Contains("WEB_VECTOR_PROBE_EXPECTED_STATUS 200", StringComparison.Ordinal) &&
-            summary.Contains("WEB_VECTOR_PROBE_EXPECTED_BODY_BYTES 49152", StringComparison.Ordinal) &&
-            summary.Contains("WEB_VECTOR_PROBE_EXPECTED_BODY_SHA256 " + vectorHash, StringComparison.Ordinal) &&
-            summary.Contains("WEB_VECTOR_PROBE_BODY_BYTES 49152", StringComparison.Ordinal) &&
-            summary.Contains("WEB_PROCESS_ALIVE_AFTER_VECTORS true", StringComparison.Ordinal) &&
-            summary.Contains("WEB_PROCESS_TERMINATION_REQUESTED true", StringComparison.Ordinal) &&
-            summary.Contains("WEB_PROCESS_DEATH_CONFIRMED true", StringComparison.Ordinal) &&
-            summary.Contains("WEB_ENDPOINT_STOPPED_REFUSED true", StringComparison.Ordinal) &&
-            summary.Contains("MISSING_MARKERS none", StringComparison.Ordinal) &&
-            summary.Contains("OUT_OF_ORDER_MARKERS none", StringComparison.Ordinal);
-        bool passed = common && (wrongVector ? result.ExitCode == 20 &&
-            summary.Contains("WEB_VECTOR_PROBE_RESULT fail", StringComparison.Ordinal) &&
-            summary.Contains("WEB_VECTOR_PROBE_REASON body_mismatch", StringComparison.Ordinal) &&
-            summary.Contains("WEB_HEALTH_AFTER_PROBE_RESULT not_run", StringComparison.Ordinal) &&
-            summary.Contains("FAIL_REASON web_vector_http_body_mismatch", StringComparison.Ordinal) : result.ExitCode == 20 &&
-            result.Output.Split("HTTP_PROBE_PASS endpoint=", StringSplitOptions.None).Length == 7 &&
-            summary.Contains("WEB_VECTOR_PROBE_RESULT pass", StringComparison.Ordinal) &&
-            summary.Contains("WEB_VECTOR_PROBE_BODY_SHA256 " + vectorHash, StringComparison.Ordinal) &&
-            summary.Contains("WEB_HEALTH_AFTER_PROBE_RESULT pass", StringComparison.Ordinal) &&
-            summary.Contains("WEB_SOCKET_CONTROLS none",StringComparison.Ordinal) &&
-            summary.Contains("WEB_PROCESS_ALIVE_AFTER_CONTROLS false",StringComparison.Ordinal) &&
-            summary.Contains("FAIL_REASON web_socket_controls_TimeoutException", StringComparison.Ordinal));
+        string[] expectedRequests = ["GET /healthz HTTP/1.0", "GET /config HTTP/1.0", "POST /__clros/logexercise HTTP/1.0", "POST /__clros/logexercise HTTP/1.0", "GET /__clros/vectors HTTP/1.0", "GET /healthz HTTP/1.0"];
+        bool requestOrder = File.Exists(serialPath + ".requests") && File.ReadAllLines(serialPath + ".requests").SequenceEqual(expectedRequests.Take(wrongVector ? 5 : 6));
+        bool common = requestOrder && summary.Contains("WEB_VECTOR_PROBE_URL " + fake.Url.Replace("/healthz", "/__clros/vectors", StringComparison.Ordinal), StringComparison.Ordinal) && summary.Contains("WEB_VECTOR_PROBE_METHOD GET", StringComparison.Ordinal) && summary.Contains("WEB_VECTOR_PROBE_EXPECTED_STATUS 200", StringComparison.Ordinal) && summary.Contains("WEB_VECTOR_PROBE_EXPECTED_BODY_BYTES 49152", StringComparison.Ordinal) && summary.Contains("WEB_VECTOR_PROBE_EXPECTED_BODY_SHA256 " + vectorHash, StringComparison.Ordinal) && summary.Contains("WEB_VECTOR_PROBE_BODY_BYTES 49152", StringComparison.Ordinal) && summary.Contains("WEB_PROCESS_ALIVE_AFTER_VECTORS true", StringComparison.Ordinal) && summary.Contains("WEB_PROCESS_TERMINATION_REQUESTED true", StringComparison.Ordinal) && summary.Contains("WEB_PROCESS_DEATH_CONFIRMED true", StringComparison.Ordinal) && summary.Contains("WEB_ENDPOINT_STOPPED_REFUSED true", StringComparison.Ordinal) && summary.Contains("MISSING_MARKERS none", StringComparison.Ordinal) && summary.Contains("OUT_OF_ORDER_MARKERS none", StringComparison.Ordinal);
+        bool passed = common && (wrongVector ? result.ExitCode == 20 && summary.Contains("WEB_VECTOR_PROBE_RESULT fail", StringComparison.Ordinal) && summary.Contains("WEB_VECTOR_PROBE_REASON body_mismatch", StringComparison.Ordinal) && summary.Contains("WEB_HEALTH_AFTER_PROBE_RESULT not_run", StringComparison.Ordinal) && summary.Contains("FAIL_REASON web_vector_http_body_mismatch", StringComparison.Ordinal) : result.ExitCode == 20 && result.Output.Split("HTTP_PROBE_PASS endpoint=", StringSplitOptions.None).Length == 7 && summary.Contains("WEB_VECTOR_PROBE_RESULT pass", StringComparison.Ordinal) && summary.Contains("WEB_VECTOR_PROBE_BODY_SHA256 " + vectorHash, StringComparison.Ordinal) && summary.Contains("WEB_HEALTH_AFTER_PROBE_RESULT pass", StringComparison.Ordinal) && summary.Contains("WEB_SOCKET_CONTROLS none", StringComparison.Ordinal) && summary.Contains("WEB_PROCESS_ALIVE_AFTER_CONTROLS false", StringComparison.Ordinal) && summary.Contains("FAIL_REASON web_socket_controls_TimeoutException", StringComparison.Ordinal));
         return PassOrReport(wrongVector ? "wrong vector byte before later health" : "ordered startup before deferred logs", passed, new(result, summaryPath));
     }
 
-    private static ProbeRunResult RunQemuRunnerWithProbe(
-        string tempRoot,
-        int actualStatusCode,
-        string actualBody,
-        bool hangBeforeResponse,
-        int expectedStatusCode,
-        string expectedBody,
-        int timeoutSeconds,
-        bool includeExpectedBody)
+    private static ProbeRunResult RunQemuRunnerWithProbe(string tempRoot, int actualStatusCode, string actualBody, bool hangBeforeResponse, int expectedStatusCode, string expectedBody, int timeoutSeconds, bool includeExpectedBody)
     {
         string imagePath = CreateEmptyFile(tempRoot, "http-probe-" + Guid.NewGuid().ToString("N") + ".raw");
         string ovmfPath = CreateEmptyFile(tempRoot, "http-probe-" + Guid.NewGuid().ToString("N") + "-OVMF_CODE.fd");
         string serialLog = Path.Combine(tempRoot, "http-probe-" + Guid.NewGuid().ToString("N") + "-serial.log");
         string summaryLog = Path.Combine(tempRoot, "http-probe-" + Guid.NewGuid().ToString("N") + "-summary.log");
-        FakeQemuHttpEndpoint endpoint =
-            CreateFakeQemuHttpEndpoint(tempRoot, actualStatusCode, actualBody, hangBeforeResponse);
-
-        List<string> args =
-        [
-            "--qemu",
-            endpoint.QemuPath,
-            "--ovmf-code",
-            ovmfPath,
-            "--image",
-            imagePath,
-            "--serial-log",
-            serialLog,
-            "--summary-log",
-            summaryLog,
-            "--timeout",
-            "5",
-            "--http-probe-url",
-            endpoint.Url,
-            "--http-probe-expected-status",
-            expectedStatusCode.ToString(),
-            "--http-probe-timeout",
-            timeoutSeconds.ToString()
-        ];
-
+        FakeQemuHttpEndpoint endpoint = CreateFakeQemuHttpEndpoint(tempRoot, actualStatusCode, actualBody, hangBeforeResponse);
+        List<string> args = ["--qemu", endpoint.QemuPath, "--ovmf-code", ovmfPath, "--image", imagePath, "--serial-log", serialLog, "--summary-log", summaryLog, "--timeout", "5", "--http-probe-url", endpoint.Url, "--http-probe-expected-status", expectedStatusCode.ToString(), "--http-probe-timeout", timeoutSeconds.ToString()];
         if (includeExpectedBody)
         {
             args.Add("--http-probe-expected-body");
@@ -378,37 +214,14 @@ internal static class QemuRunnerHttpProbeTests
         return new ProbeRunResult(RunQemuRunner(args.ToArray()), summaryLog);
     }
 
-    private static FakeQemuHttpEndpoint CreateFakeQemuHttpEndpoint(
-        string tempRoot,
-        int statusCode,
-        string body,
-        bool hangBeforeResponse, bool continuingWeb = false, bool wrongVector = false)
+    private static FakeQemuHttpEndpoint CreateFakeQemuHttpEndpoint(string tempRoot, int statusCode, string body, bool hangBeforeResponse, bool continuingWeb = false, bool wrongVector = false)
     {
         int port = ReserveFreeLoopbackPort();
         string qemuScript = Path.Combine(tempRoot, "fake-qemu-" + Guid.NewGuid().ToString("N") + ".cmd");
-        List<string> control = [continuingWeb ? "web" : "http", "%serial%", port.ToString(), statusCode.ToString(),
-            Convert.ToBase64String(Encoding.UTF8.GetBytes(body)), hangBeforeResponse ? "1" : "0"];
-        if (continuingWeb) control.Add(wrongVector ? "wrong-vector" : "normal");
-
-        List<string> script =
-        [
-            "@echo off",
-            "set \"serial=\"",
-            ":scan",
-            "if \"%~1\"==\"\" goto serve",
-            "if not \"%~1\"==\"-serial\" goto next",
-            "shift",
-            "set \"serial=%~1\"",
-            ":next",
-            "shift",
-            "goto scan",
-            ":serve",
-            "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
-            "if \"%serial%\"==\"\" exit /b 12",
-            QemuTestControl.Command(control.ToArray()),
-            "exit /b %ERRORLEVEL%"
-        ];
-
+        List<string> control = [continuingWeb ? "web" : "http", "%serial%", port.ToString(), statusCode.ToString(), Convert.ToBase64String(Encoding.UTF8.GetBytes(body)), hangBeforeResponse ? "1" : "0"];
+        if (continuingWeb)
+            control.Add(wrongVector ? "wrong-vector" : "normal");
+        List<string> script = ["@echo off", "set \"serial=\"", ":scan", "if \"%~1\"==\"\" goto serve", "if not \"%~1\"==\"-serial\" goto next", "shift", "set \"serial=%~1\"", ":next", "shift", "goto scan", ":serve", "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"", "if \"%serial%\"==\"\" exit /b 12", QemuTestControl.Command(control.ToArray()), "exit /b %ERRORLEVEL%"];
         File.WriteAllLines(qemuScript, script, Encoding.ASCII);
         return new FakeQemuHttpEndpoint(qemuScript, "http://127.0.0.1:" + port + "/healthz");
     }
@@ -437,15 +250,12 @@ internal static class QemuRunnerHttpProbeTests
         }
 
         ProcessStartInfo startInfo = HostToolProcess.CreateDotnetToolStartInfo(repositoryRoot, "OS.QemuRunner");
-
         foreach (string arg in args)
         {
             startInfo.ArgumentList.Add(arg);
         }
 
-        using Process process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Failed to start dotnet.");
-
+        using Process process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start dotnet.");
         bool exited = process.WaitForExit(15000);
         if (!exited)
         {
@@ -453,52 +263,11 @@ internal static class QemuRunnerHttpProbeTests
             throw new TimeoutException("OS.QemuRunner did not exit within 15 seconds.");
         }
 
-        return new ProcessResult(
-            process.ExitCode,
-            process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd());
+        return new ProcessResult(process.ExitCode, process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd());
     }
 
     private static string Sha256Utf8(string value)
     {
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
-    }
-
-    private readonly struct FakeQemuHttpEndpoint
-    {
-        public FakeQemuHttpEndpoint(string qemuPath, string url)
-        {
-            QemuPath = qemuPath;
-            Url = url;
-        }
-
-        public string QemuPath { get; }
-
-        public string Url { get; }
-    }
-
-    private readonly struct ProbeRunResult
-    {
-        public ProbeRunResult(ProcessResult process, string summaryLogPath)
-        {
-            Process = process;
-            SummaryLogPath = summaryLogPath;
-        }
-
-        public ProcessResult Process { get; }
-
-        public string SummaryLogPath { get; }
-    }
-
-    private readonly struct ProcessResult
-    {
-        public ProcessResult(int exitCode, string output)
-        {
-            ExitCode = exitCode;
-            Output = output;
-        }
-
-        public int ExitCode { get; }
-
-        public string Output { get; }
     }
 }

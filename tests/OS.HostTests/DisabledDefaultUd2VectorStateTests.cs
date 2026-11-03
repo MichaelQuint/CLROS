@@ -584,11 +584,11 @@ internal static class DisabledDefaultUd2VectorStateTests
                 Path.Combine(workspace, "M02.013.NoStdLib.csproj"),
                 NoStdLibProjectSource.Replace(
                     "__PROBE_AUTHORITY_SOURCE__",
-                    EscapeXml(probeAuthoritySource),
+                    EscapeXml(Path.GetDirectoryName(probeAuthoritySource)!),
                     StringComparison.Ordinal)
                 .Replace(
                     "__VECTOR_AUTHORITY_SOURCE__",
-                    EscapeXml(vectorAuthoritySource),
+                    EscapeXml(Path.GetDirectoryName(vectorAuthoritySource)!),
                     StringComparison.Ordinal)
                 .Replace(
                     "__CPU_FAULT_FRAME_SOURCE__",
@@ -596,7 +596,7 @@ internal static class DisabledDefaultUd2VectorStateTests
                     StringComparison.Ordinal)
                 .Replace(
                     "__PRODUCTION_SOURCE__",
-                    EscapeXml(productionSource),
+                    EscapeXml(Path.GetDirectoryName(productionSource)!),
                     StringComparison.Ordinal),
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
@@ -1296,14 +1296,16 @@ internal static class DisabledDefaultUd2VectorStateTests
           </PropertyGroup>
           <ItemGroup>
             <Compile Include="NoStdLibRuntime.cs" />
-            <Compile Include="__PROBE_AUTHORITY_SOURCE__"
-                     Link="Diagnostics\InvalidOpcodeProbeAuthority.cs" />
-            <Compile Include="__VECTOR_AUTHORITY_SOURCE__"
-                     Link="Diagnostics\InvalidOpcodeVectorAuthority.cs" />
+            <Compile Include="__PROBE_AUTHORITY_SOURCE__/InvalidOpcodeProbeAuthority.Probes.cs" Link="Diagnostics/InvalidOpcodeProbeAuthority.Probes.cs" />
+            <Compile Include="__VECTOR_AUTHORITY_SOURCE__/FaultVectorCatalog.cs" Link="Diagnostics/FaultVectorCatalog.cs" />
             <Compile Include="__CPU_FAULT_FRAME_SOURCE__"
                      Link="Diagnostics\CpuFaultFrame.cs" />
-            <Compile Include="__PRODUCTION_SOURCE__"
-                     Link="Diagnostics\DisabledDefaultUd2VectorState.cs" />
+            <Compile Include="__PRODUCTION_SOURCE__/DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateStatus.cs" Link="Diagnostics/DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateStatus.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorField.cs" Link="Diagnostics/DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorField.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateOperation.cs" Link="Diagnostics/DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateOperation.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateRequest.cs" Link="Diagnostics/DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateRequest.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateResult.cs" Link="Diagnostics/DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateResult.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/DisabledDefaultUd2VectorState.cs" Link="Diagnostics/DisabledDefaultUd2VectorState.cs" />
           </ItemGroup>
           <Target Name="CustomizeReferences"
                   BeforeTargets="BeforeCompile"

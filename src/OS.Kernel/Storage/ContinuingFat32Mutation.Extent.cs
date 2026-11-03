@@ -8,5 +8,8 @@ namespace OS.Storage;
 
 public static unsafe partial class ContinuingFat32Mutation
 {
-    private struct Extent { internal ulong Start, Bytes; }
+    private struct Extent
+    {
+        internal ulong Start, Bytes;
+    }
 }

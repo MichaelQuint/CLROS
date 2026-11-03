@@ -44,41 +44,95 @@ public readonly struct VirtioBlockDeviceConfigRegisterWindowReadResult
         Value = value;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockDeviceConfigRegisterWindowReadStatus Status { get; }
+    public VirtioBlockDeviceConfigRegisterWindowReadStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockDeviceConfigStatus ConfigStatus { get; }
+    public VirtioBlockDeviceConfigStatus ConfigStatus
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockDeviceStatus { get; }
+    public BlockDeviceStatus BlockDeviceStatus
+    {
+        get;
+    }
 
-    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus { get; }
+    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus
+    {
+        get;
+    }
 
-    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus { get; }
+    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus
+    {
+        get;
+    }
 
-    public ulong RawCapacitySectors { get; }
+    public ulong RawCapacitySectors
+    {
+        get;
+    }
 
-    public uint SectorSizeBytes { get; }
+    public uint SectorSizeBytes
+    {
+        get;
+    }
 
-    public BlockDeviceInfo BlockDeviceInfo { get; }
+    public BlockDeviceInfo BlockDeviceInfo
+    {
+        get;
+    }
 
-    public int ScratchLength { get; }
+    public int ScratchLength
+    {
+        get;
+    }
 
-    public int BytesRead { get; }
+    public int BytesRead
+    {
+        get;
+    }
 
-    public VirtioPciCapabilityType CapabilityType { get; }
+    public VirtioPciCapabilityType CapabilityType
+    {
+        get;
+    }
 
-    public byte BarIndex { get; }
+    public byte BarIndex
+    {
+        get;
+    }
 
-    public uint RelativeOffset { get; }
+    public uint RelativeOffset
+    {
+        get;
+    }
 
-    public VirtioPciRegisterAccessWidth AccessWidth { get; }
+    public VirtioPciRegisterAccessWidth AccessWidth
+    {
+        get;
+    }
 
-    public uint AccessWidthBytes { get; }
+    public uint AccessWidthBytes
+    {
+        get;
+    }
 
-    public ulong BarRelativeOffset { get; }
+    public ulong BarRelativeOffset
+    {
+        get;
+    }
 
-    public ulong Value { get; }
+    public ulong Value
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized &&
         Status == VirtioBlockDeviceConfigRegisterWindowReadStatus.Success;

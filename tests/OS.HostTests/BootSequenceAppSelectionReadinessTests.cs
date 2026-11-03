@@ -6,64 +6,31 @@ using OS.Manifest;
 using OS.Std.Binary;
 using OS.Storage;
 
-internal static class BootSequenceAppSelectionReadinessTests
+internal static partial class BootSequenceAppSelectionReadinessTests
 {
     private const string AppPath = "apps/hello.bin";
     private const ushort FileCount = 1;
     private const int AppContentLength = 40;
-
     [HostTest("boot.sequence app selection ready", HostLane.Fast, 0)]
     private static bool TestAppSelectionReady()
     {
         AppSelectionInputs inputs = CreateReadyInputs();
         SequenceTestSerialSink serial = new();
         BootEventRingBuffer events = new(8);
-
-        BootResult result = BootSequence.RunAppSelectionReadiness(
-            inputs.ManifestLoad,
-            inputs.PackageParse,
-            inputs.LaunchPlan,
-            inputs.Descriptor,
-            serial,
-            events);
-
-        return HostCheck.Result(result.Succeeded
-            && serial.Count == 1
-            && serial.LineAt(0) == BootSequence.AppSelectionReady
-            && events.Snapshot()[0] == BootSequence.AppSelectionReady);
+        BootResult result = BootSequence.RunAppSelectionReadiness(inputs.ManifestLoad, inputs.PackageParse, inputs.LaunchPlan, inputs.Descriptor, serial, events);
+        return HostCheck.Result(result.Succeeded && serial.Count == 1 && serial.LineAt(0) == BootSequence.AppSelectionReady && events.Snapshot()[0] == BootSequence.AppSelectionReady);
     }
 
     [HostTest("boot.sequence app selection rejects manifest failure", HostLane.Fast, 1)]
     private static bool TestRejectsManifestFailure()
     {
         AppSelectionInputs inputs = CreateReadyInputs();
-        NativeManifestLoadResult manifestLoad = NativeManifestLoadResult.ManifestFail(
-            NativeManifestParseStatus.UnknownKey,
-            64);
+        NativeManifestLoadResult manifestLoad = NativeManifestLoadResult.ManifestFail(NativeManifestParseStatus.UnknownKey, 64);
         SequenceTestSerialSink serial = new();
         BootEventRingBuffer events = new(8);
-
-        BootResult result = BootSequence.RunAppSelectionReadiness(
-            manifestLoad,
-            inputs.PackageParse,
-            inputs.LaunchPlan,
-            inputs.Descriptor,
-            serial,
-            events);
-        string expectedMarker = BootSequence.CreateAppSelectionNotReadyMarker(
-            AppSelectionReadinessStatus.ManifestFailed,
-            NativeManifestLoadStatus.ManifestParseFailed,
-            OsPackageStatus.Success,
-            NativeAppLaunchStatus.Success,
-            NativeAppLaunchDescriptorStatus.Success,
-            OsPackageFileSystemStatus.Success,
-            OsPackageStatus.Success);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Reason.Contains(nameof(AppSelectionReadinessStatus.ManifestFailed), StringComparison.Ordinal)
-            && serial.Count == 1
-            && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker);
+        BootResult result = BootSequence.RunAppSelectionReadiness(manifestLoad, inputs.PackageParse, inputs.LaunchPlan, inputs.Descriptor, serial, events);
+        string expectedMarker = BootSequence.CreateAppSelectionNotReadyMarker(AppSelectionReadinessStatus.ManifestFailed, NativeManifestLoadStatus.ManifestParseFailed, OsPackageStatus.Success, NativeAppLaunchStatus.Success, NativeAppLaunchDescriptorStatus.Success, OsPackageFileSystemStatus.Success, OsPackageStatus.Success);
+        return HostCheck.Result(!result.Succeeded && result.Reason.Contains(nameof(AppSelectionReadinessStatus.ManifestFailed), StringComparison.Ordinal) && serial.Count == 1 && serial.LineAt(0) == expectedMarker && events.Snapshot()[0] == expectedMarker);
     }
 
     [HostTest("boot.sequence app selection rejects package failure", HostLane.Fast, 2)]
@@ -72,28 +39,9 @@ internal static class BootSequenceAppSelectionReadinessTests
         AppSelectionInputs inputs = CreateReadyInputs();
         SequenceTestSerialSink serial = new();
         BootEventRingBuffer events = new(8);
-
-        BootResult result = BootSequence.RunAppSelectionReadiness(
-            inputs.ManifestLoad,
-            OsPackageParseResult.Fail(OsPackageStatus.InvalidMagic),
-            inputs.LaunchPlan,
-            inputs.Descriptor,
-            serial,
-            events);
-        string expectedMarker = BootSequence.CreateAppSelectionNotReadyMarker(
-            AppSelectionReadinessStatus.PackageFailed,
-            NativeManifestLoadStatus.Success,
-            OsPackageStatus.InvalidMagic,
-            NativeAppLaunchStatus.Success,
-            NativeAppLaunchDescriptorStatus.Success,
-            OsPackageFileSystemStatus.Success,
-            OsPackageStatus.Success);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Reason.Contains(nameof(AppSelectionReadinessStatus.PackageFailed), StringComparison.Ordinal)
-            && serial.Count == 1
-            && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker);
+        BootResult result = BootSequence.RunAppSelectionReadiness(inputs.ManifestLoad, OsPackageParseResult.Fail(OsPackageStatus.InvalidMagic), inputs.LaunchPlan, inputs.Descriptor, serial, events);
+        string expectedMarker = BootSequence.CreateAppSelectionNotReadyMarker(AppSelectionReadinessStatus.PackageFailed, NativeManifestLoadStatus.Success, OsPackageStatus.InvalidMagic, NativeAppLaunchStatus.Success, NativeAppLaunchDescriptorStatus.Success, OsPackageFileSystemStatus.Success, OsPackageStatus.Success);
+        return HostCheck.Result(!result.Succeeded && result.Reason.Contains(nameof(AppSelectionReadinessStatus.PackageFailed), StringComparison.Ordinal) && serial.Count == 1 && serial.LineAt(0) == expectedMarker && events.Snapshot()[0] == expectedMarker);
     }
 
     [HostTest("boot.sequence app selection rejects descriptor failure", HostLane.Fast, 3)]
@@ -103,37 +51,12 @@ internal static class BootSequenceAppSelectionReadinessTests
         NativeManifestLoadResult manifestLoad = CreateManifestLoad(manifestSource);
         byte[] package = CreatePackage("apps/other.bin");
         NativeAppLaunchPlanResult launchPlan = CreateLaunchPlan(manifestSource);
-        NativeAppLaunchDescriptorResult descriptor = NativeAppLaunchDescriptorBuilder.Create(
-            manifestSource,
-            package,
-            launchPlan);
+        NativeAppLaunchDescriptorResult descriptor = NativeAppLaunchDescriptorBuilder.Create(manifestSource, package, launchPlan);
         SequenceTestSerialSink serial = new();
         BootEventRingBuffer events = new(8);
-
-        BootResult result = BootSequence.RunAppSelectionReadiness(
-            manifestLoad,
-            OsPackageParser.Parse(package),
-            launchPlan,
-            descriptor,
-            serial,
-            events);
-        string expectedMarker = BootSequence.CreateAppSelectionNotReadyMarker(
-            AppSelectionReadinessStatus.LaunchDescriptorFailed,
-            NativeManifestLoadStatus.Success,
-            OsPackageStatus.Success,
-            NativeAppLaunchStatus.Success,
-            NativeAppLaunchDescriptorStatus.PackageFileMissing,
-            OsPackageFileSystemStatus.MissingFile,
-            OsPackageStatus.MissingFile);
-
-        return HostCheck.Result(!descriptor.Succeeded
-            && !result.Succeeded
-            && result.Reason.Contains(
-                nameof(AppSelectionReadinessStatus.LaunchDescriptorFailed),
-                StringComparison.Ordinal)
-            && serial.Count == 1
-            && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker);
+        BootResult result = BootSequence.RunAppSelectionReadiness(manifestLoad, OsPackageParser.Parse(package), launchPlan, descriptor, serial, events);
+        string expectedMarker = BootSequence.CreateAppSelectionNotReadyMarker(AppSelectionReadinessStatus.LaunchDescriptorFailed, NativeManifestLoadStatus.Success, OsPackageStatus.Success, NativeAppLaunchStatus.Success, NativeAppLaunchDescriptorStatus.PackageFileMissing, OsPackageFileSystemStatus.MissingFile, OsPackageStatus.MissingFile);
+        return HostCheck.Result(!descriptor.Succeeded && !result.Succeeded && result.Reason.Contains(nameof(AppSelectionReadinessStatus.LaunchDescriptorFailed), StringComparison.Ordinal) && serial.Count == 1 && serial.LineAt(0) == expectedMarker && events.Snapshot()[0] == expectedMarker);
     }
 
     private static AppSelectionInputs CreateReadyInputs()
@@ -141,21 +64,13 @@ internal static class BootSequenceAppSelectionReadinessTests
         byte[] manifestSource = ValidManifest(AppPath);
         byte[] package = CreatePackage(AppPath);
         NativeAppLaunchPlanResult launchPlan = CreateLaunchPlan(manifestSource);
-        NativeAppLaunchDescriptorResult descriptor = NativeAppLaunchDescriptorBuilder.Create(
-            manifestSource,
-            package,
-            launchPlan);
-
+        NativeAppLaunchDescriptorResult descriptor = NativeAppLaunchDescriptorBuilder.Create(manifestSource, package, launchPlan);
         if (!descriptor.Succeeded)
         {
             throw new InvalidOperationException("Test descriptor failed: " + descriptor.Status);
         }
 
-        return new AppSelectionInputs(
-            CreateManifestLoad(manifestSource),
-            OsPackageParser.Parse(package),
-            launchPlan,
-            descriptor);
+        return new AppSelectionInputs(CreateManifestLoad(manifestSource), OsPackageParser.Parse(package), launchPlan, descriptor);
     }
 
     private static NativeManifestLoadResult CreateManifestLoad(byte[] manifestSource)
@@ -177,25 +92,12 @@ internal static class BootSequenceAppSelectionReadinessTests
             throw new InvalidOperationException("Test manifest did not parse: " + parsed.Status);
         }
 
-        return NativeAppLaunchPlan.Create(
-            manifestSource,
-            parsed.Manifest,
-            BootInfo.CreateHost(BootCapabilities.TextOutput),
-            NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
+        return NativeAppLaunchPlan.Create(manifestSource, parsed.Manifest, BootInfo.CreateHost(BootCapabilities.TextOutput), NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
     }
 
     private static byte[] ValidManifest(string appPath)
     {
-        return Encoding.ASCII.GetBytes(
-            "format=os-native-manifest\n" +
-            "version=0\n" +
-            "app.name=hello.app\n" +
-            "app.kind=package\n" +
-            "app.path=" + appPath + "\n" +
-            "runtime.kind=native-aot\n" +
-            "args=--port=8080\n" +
-            "network=dhcp\n" +
-            "log=serial\n");
+        return Encoding.ASCII.GetBytes("format=os-native-manifest\n" + "version=0\n" + "app.name=hello.app\n" + "app.kind=package\n" + "app.path=" + appPath + "\n" + "runtime.kind=native-aot\n" + "args=--port=8080\n" + "network=dhcp\n" + "log=serial\n");
     }
 
     private static byte[] CreatePackage(string appPath)
@@ -205,7 +107,6 @@ internal static class BootSequenceAppSelectionReadinessTests
         int appPathOffset = tableOffset + tableLength;
         int appContentOffset = appPathOffset + appPath.Length;
         int packageLength = appContentOffset + AppContentLength;
-
         byte[] package = new byte[packageLength];
         WriteMagic(package);
         WriteUInt16(package, 8, OsPackageParser.SupportedVersion);
@@ -234,13 +135,7 @@ internal static class BootSequenceAppSelectionReadinessTests
         package[7] = 0;
     }
 
-    private static void WriteEntry(
-        byte[] package,
-        int offset,
-        int pathOffset,
-        int pathLength,
-        int contentOffset,
-        int contentLength)
+    private static void WriteEntry(byte[] package, int offset, int pathOffset, int pathLength, int contentOffset, int contentLength)
     {
         WriteUInt32(package, offset, (uint)pathOffset);
         WriteUInt16(package, offset + 4, (ushort)pathLength);
@@ -261,7 +156,6 @@ internal static class BootSequenceAppSelectionReadinessTests
     private static void WriteGeneratedContent(byte[] package, int offset)
     {
         WritePayloadHeader(package, offset, NativeAppPayloadHeader.HeaderSize);
-
         for (int index = NativeAppPayloadHeader.HeaderSize; index < AppContentLength; index++)
         {
             package[offset + index] = (byte)(0x61 + index);
@@ -308,45 +202,5 @@ internal static class BootSequenceAppSelectionReadinessTests
     private static void WriteUInt64(byte[] package, int offset, int value)
     {
         WriteUInt64(package, offset, (ulong)value);
-    }
-
-    private readonly struct AppSelectionInputs
-    {
-        public AppSelectionInputs(
-            NativeManifestLoadResult manifestLoad,
-            OsPackageParseResult packageParse,
-            NativeAppLaunchPlanResult launchPlan,
-            NativeAppLaunchDescriptorResult descriptor)
-        {
-            ManifestLoad = manifestLoad;
-            PackageParse = packageParse;
-            LaunchPlan = launchPlan;
-            Descriptor = descriptor;
-        }
-
-        public NativeManifestLoadResult ManifestLoad { get; }
-
-        public OsPackageParseResult PackageParse { get; }
-
-        public NativeAppLaunchPlanResult LaunchPlan { get; }
-
-        public NativeAppLaunchDescriptorResult Descriptor { get; }
-    }
-
-    private sealed class SequenceTestSerialSink : ISerialSink
-    {
-        private readonly List<string> _lines = new();
-
-        public int Count => _lines.Count;
-
-        public void WriteLine(string line)
-        {
-            _lines.Add(line);
-        }
-
-        public string LineAt(int index)
-        {
-            return _lines[index];
-        }
     }
 }

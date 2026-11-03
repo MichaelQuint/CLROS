@@ -32,29 +32,65 @@ public readonly struct GptPartitionSelectorResult
         Flags = flags;
     }
 
-    public GptPartitionSelectorStatus Status { get; }
+    public GptPartitionSelectorStatus Status
+    {
+        get;
+    }
 
-    public GptPartitionSelectorKind SelectorKind { get; }
+    public GptPartitionSelectorKind SelectorKind
+    {
+        get;
+    }
 
-    public GptPartitionTableStatus ParseStatus { get; }
+    public GptPartitionTableStatus ParseStatus
+    {
+        get;
+    }
 
-    public GptPartitionDescriptor Descriptor { get; }
+    public GptPartitionDescriptor Descriptor
+    {
+        get;
+    }
 
-    public int DescriptorSpanLength { get; }
+    public int DescriptorSpanLength
+    {
+        get;
+    }
 
-    public int PartitionsScanned { get; }
+    public int PartitionsScanned
+    {
+        get;
+    }
 
-    public int SelectedDescriptorIndex { get; }
+    public int SelectedDescriptorIndex
+    {
+        get;
+    }
 
-    public int MatchCount { get; }
+    public int MatchCount
+    {
+        get;
+    }
 
-    public int DuplicateCount { get; }
+    public int DuplicateCount
+    {
+        get;
+    }
 
-    public int FailingDescriptorIndex { get; }
+    public int FailingDescriptorIndex
+    {
+        get;
+    }
 
-    public Guid RequestedGuid { get; }
+    public Guid RequestedGuid
+    {
+        get;
+    }
 
-    public uint Flags { get; }
+    public uint Flags
+    {
+        get;
+    }
 
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
 

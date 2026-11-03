@@ -12,6 +12,10 @@ public static unsafe partial class ContinuingFat32Mutation
     {
         public readonly Status Status;
         public readonly uint Bytes;
-        internal Result(Status status, uint bytes) { Status = status; Bytes = bytes; }
+        internal Result(Status status, uint bytes)
+        {
+            Status = status;
+            Bytes = bytes;
+        }
     }
 }

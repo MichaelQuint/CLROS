@@ -32,29 +32,65 @@ public readonly struct VirtioBlockQueueMmioSetupRegisterWindowPlanResult
         WidthBytes = widthBytes;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockQueueMmioSetupRegisterWindowPlanStatus Status { get; }
+    public VirtioBlockQueueMmioSetupRegisterWindowPlanStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockQueueMmioSetupPlanStatus SetupPlanStatus { get; }
+    public VirtioBlockQueueMmioSetupPlanStatus SetupPlanStatus
+    {
+        get;
+    }
 
-    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowStatus { get; }
+    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueMmioSetupCommandKind CommandKind { get; }
+    public VirtioBlockQueueMmioSetupCommandKind CommandKind
+    {
+        get;
+    }
 
-    public int CommandIndex { get; }
+    public int CommandIndex
+    {
+        get;
+    }
 
-    public int AccessPlansWritten { get; }
+    public int AccessPlansWritten
+    {
+        get;
+    }
 
-    public int RequiredAccessPlanCount { get; }
+    public int RequiredAccessPlanCount
+    {
+        get;
+    }
 
-    public int AvailableAccessPlanCount { get; }
+    public int AvailableAccessPlanCount
+    {
+        get;
+    }
 
-    public ushort QueueIndex { get; }
+    public ushort QueueIndex
+    {
+        get;
+    }
 
-    public uint RelativeOffset { get; }
+    public uint RelativeOffset
+    {
+        get;
+    }
 
-    public uint WidthBytes { get; }
+    public uint WidthBytes
+    {
+        get;
+    }
 
     public bool Succeeded =>
         IsInitialized &&

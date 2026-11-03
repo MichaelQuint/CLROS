@@ -1262,9 +1262,12 @@ public static partial class Fat32Parser
         Span<uint> history,
         ref int count)
     {
-        if (!IsValidDataCluster(bpb, cluster)) return Fat32Status.InvalidDirectoryCluster;
-        if (ContainsCluster(history[..count], cluster)) return Fat32Status.DirectoryClusterChainLoop;
-        if (count >= history.Length) return Fat32Status.DirectoryBudgetExceeded;
+        if (!IsValidDataCluster(bpb, cluster))
+            return Fat32Status.InvalidDirectoryCluster;
+        if (ContainsCluster(history[..count], cluster))
+            return Fat32Status.DirectoryClusterChainLoop;
+        if (count >= history.Length)
+            return Fat32Status.DirectoryBudgetExceeded;
         history[count++] = cluster;
         return Fat32Status.Success;
     }

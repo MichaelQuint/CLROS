@@ -18,15 +18,30 @@ public readonly struct VirtioBlockQueueMmioSetupBarrierReadiness
         BarrierSequence = barrierSequence;
     }
 
-    public bool QueueSelectVisible { get; }
+    public bool QueueSelectVisible
+    {
+        get;
+    }
 
-    public bool QueueSizeVisible { get; }
+    public bool QueueSizeVisible
+    {
+        get;
+    }
 
-    public bool QueueAddressWritesVisible { get; }
+    public bool QueueAddressWritesVisible
+    {
+        get;
+    }
 
-    public bool OrderedBeforeQueueEnable { get; }
+    public bool OrderedBeforeQueueEnable
+    {
+        get;
+    }
 
-    public uint BarrierSequence { get; }
+    public uint BarrierSequence
+    {
+        get;
+    }
 
     public bool Succeeded =>
         QueueSelectVisible &&

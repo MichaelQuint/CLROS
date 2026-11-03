@@ -33,31 +33,70 @@ public readonly struct VirtioBlockDescriptorOwnershipPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockDescriptorOwnershipStatus Status { get; }
+    public VirtioBlockDescriptorOwnershipStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockReadLifecyclePublishStatus PublishStatus { get; }
+    public VirtioBlockReadLifecyclePublishStatus PublishStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadLifecycleCompletionStatus CompletionStatus { get; }
+    public VirtioBlockReadLifecycleCompletionStatus CompletionStatus
+    {
+        get;
+    }
 
-    public VirtioBlockUsedRingCompletionReaderStatus CompletionReaderStatus { get; }
+    public VirtioBlockUsedRingCompletionReaderStatus CompletionReaderStatus
+    {
+        get;
+    }
 
-    public ushort RequestHeaderDescriptorIndex { get; }
+    public ushort RequestHeaderDescriptorIndex
+    {
+        get;
+    }
 
-    public ushort DataBufferDescriptorIndex { get; }
+    public ushort DataBufferDescriptorIndex
+    {
+        get;
+    }
 
-    public ushort StatusByteDescriptorIndex { get; }
+    public ushort StatusByteDescriptorIndex
+    {
+        get;
+    }
 
-    public ushort FirstDescriptorIndex { get; }
+    public ushort FirstDescriptorIndex
+    {
+        get;
+    }
 
-    public int StateTableLength { get; }
+    public int StateTableLength
+    {
+        get;
+    }
 
-    public int RequiredStateTableLength { get; }
+    public int RequiredStateTableLength
+    {
+        get;
+    }
 
-    public ushort DescriptorsMarkedInFlight { get; }
+    public ushort DescriptorsMarkedInFlight
+    {
+        get;
+    }
 
-    public ushort DescriptorsFreed { get; }
+    public ushort DescriptorsFreed
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == VirtioBlockDescriptorOwnershipStatus.Success;
 

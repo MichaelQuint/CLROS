@@ -35,7 +35,7 @@ public static class RepositoryCodeStyle
             return [];
 
         var result = new HashSet<SourceStyleDiagnostic>();
-        foreach (var options in CSharpSourceProfiles.ForSource(source))
+        foreach (var options in CSharpSourceProfiles.ForSource(source, path))
         {
             var tree = CSharpSyntaxTree.ParseText(source, options, path);
             var root = tree.GetRoot();
@@ -45,8 +45,13 @@ public static class RepositoryCodeStyle
                 result.Add(new(path, diagnostic.Location.GetLineSpan().StartLinePosition.Line + 1,
                     "CLROSSTYLE000", diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)));
 
-            var declarations = root.DescendantNodes().OfType<MemberDeclarationSyntax>()
-                .Where(IsType).Where(value => !IsContainingWrapper(value)).ToArray();
+            var types = root.DescendantNodes().OfType<MemberDeclarationSyntax>().Where(IsType).ToArray();
+            var wrappers = types.GroupBy(TypeIdentity, StringComparer.Ordinal)
+                .Where(group => group.All(IsContainingWrapper)
+                    && group.Select(value => value.RawKind).Distinct().Count() == 1
+                    && group.Any(value => ((TypeDeclarationSyntax)value).Members.Any(IsType)))
+                .Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
+            var declarations = types.Where(value => !wrappers.Contains(TypeIdentity(value))).ToArray();
             int logicalTypes = declarations.GroupBy(TypeIdentity, StringComparer.Ordinal).Sum(group =>
                 group.All(value => value is TypeDeclarationSyntax && value.Modifiers.Any(SyntaxKind.PartialKeyword))
                     && group.Select(value => value.RawKind).Distinct().Count() == 1 ? 1 : group.Count());
@@ -105,7 +110,7 @@ public static class RepositoryCodeStyle
     };
 
     private static bool IsContainingWrapper(MemberDeclarationSyntax node) => node is TypeDeclarationSyntax type
-        && type.Modifiers.Any(SyntaxKind.PartialKeyword) && type.Members.Count != 0 && type.Members.All(IsType)
+        && type.Modifiers.Any(SyntaxKind.PartialKeyword) && type.Members.All(IsType)
         && type.AttributeLists.Count == 0 && type.BaseList is null && type.ParameterList is null
         && (type.TypeParameterList is null || type.TypeParameterList.Parameters.All(value => value.AttributeLists.Count == 0));
 }

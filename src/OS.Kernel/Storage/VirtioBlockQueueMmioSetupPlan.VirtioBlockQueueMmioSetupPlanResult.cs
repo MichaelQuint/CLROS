@@ -38,35 +38,80 @@ public readonly struct VirtioBlockQueueMmioSetupPlanResult
         Plan = plan;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockQueueMmioSetupPlanStatus Status { get; }
+    public VirtioBlockQueueMmioSetupPlanStatus Status
+    {
+        get;
+    }
 
-    public VirtioPciDeviceKind DeviceKind { get; }
+    public VirtioPciDeviceKind DeviceKind
+    {
+        get;
+    }
 
-    public VirtioPciBindingPlanStatus BindingStatus { get; }
+    public VirtioPciBindingPlanStatus BindingStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDeviceConfigStatus BlockConfigurationStatus { get; }
+    public VirtioBlockDeviceConfigStatus BlockConfigurationStatus
+    {
+        get;
+    }
 
-    public VirtioDeviceInitializationProfileStatus InitializationProfileStatus { get; }
+    public VirtioDeviceInitializationProfileStatus InitializationProfileStatus
+    {
+        get;
+    }
 
-    public VirtqueueSplitRingPlanStatus QueuePlanStatus { get; }
+    public VirtqueueSplitRingPlanStatus QueuePlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueMmioSetupAddressKind FailingAddressKind { get; }
+    public VirtioBlockQueueMmioSetupAddressKind FailingAddressKind
+    {
+        get;
+    }
 
-    public ulong FailingPhysicalAddress { get; }
+    public ulong FailingPhysicalAddress
+    {
+        get;
+    }
 
-    public ushort PlannedQueueSize { get; }
+    public ushort PlannedQueueSize
+    {
+        get;
+    }
 
-    public ushort DeviceMaximumQueueSize { get; }
+    public ushort DeviceMaximumQueueSize
+    {
+        get;
+    }
 
-    public int RequiredCommandCount { get; }
+    public int RequiredCommandCount
+    {
+        get;
+    }
 
-    public int AvailableCommandCount { get; }
+    public int AvailableCommandCount
+    {
+        get;
+    }
 
-    public int CommandCount { get; }
+    public int CommandCount
+    {
+        get;
+    }
 
-    public VirtioBlockQueueMmioSetupPlan Plan { get; }
+    public VirtioBlockQueueMmioSetupPlan Plan
+    {
+        get;
+    }
 
     public bool Succeeded =>
         IsInitialized &&

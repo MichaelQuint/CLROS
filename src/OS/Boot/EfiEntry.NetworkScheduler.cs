@@ -13,21 +13,21 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
-        // Pool pages/context offsets and live admission are the accepted M09
-        // layout. One persistent ready worker runs on its guarded stack; no
-        // timer IRQ, arbitrary entry, firmware reclamation or SMP is supplied.
-        private struct NetworkSchedulerControl
-        {
-            internal Storage* State;
-            internal Program.Plan Plan;
-            internal Lifecycle Threads;
-            internal KernelThreadSlot Slot;
-            internal OSHostHandle Ready, Worker;
-            internal DeadlineQueue.Entry Deadline;
-            internal ulong Key, Progress, PacketDispatches, TimeWaitDispatches, LastProgress, NextDue, MaximumGap;
-            internal uint Stop, Bound, Selected, Failed, Transfers;
-            internal fixed ulong Cpu[19];
-        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         private static bool RunNetworkScheduledService(Storage* state)
         {

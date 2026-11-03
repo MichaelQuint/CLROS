@@ -19,13 +19,28 @@ public readonly struct OsPackageFileEntry
         ContentLength = contentLength;
     }
 
-    public uint Index { get; }
+    public uint Index
+    {
+        get;
+    }
 
-    public uint PathOffset { get; }
+    public uint PathOffset
+    {
+        get;
+    }
 
-    public ushort PathLength { get; }
+    public ushort PathLength
+    {
+        get;
+    }
 
-    public ulong ContentOffset { get; }
+    public ulong ContentOffset
+    {
+        get;
+    }
 
-    public ulong ContentLength { get; }
+    public ulong ContentLength
+    {
+        get;
+    }
 }

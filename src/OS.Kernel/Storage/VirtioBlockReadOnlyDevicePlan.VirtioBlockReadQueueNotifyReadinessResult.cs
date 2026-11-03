@@ -34,25 +34,55 @@ public readonly struct VirtioBlockReadQueueNotifyReadinessResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockReadQueueNotifyReadinessStatus Status { get; }
+    public VirtioBlockReadQueueNotifyReadinessStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueuePublishStatus ReadQueuePublishStatus { get; }
+    public VirtioBlockReadQueuePublishStatus ReadQueuePublishStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueNotificationMetadataResult NotificationMetadata { get; }
+    public VirtioBlockQueueNotificationMetadataResult NotificationMetadata
+    {
+        get;
+    }
 
-    public VirtioBlockQueueNotifyOffsetPlanResult NotifyOffset { get; }
+    public VirtioBlockQueueNotifyOffsetPlanResult NotifyOffset
+    {
+        get;
+    }
 
-    public VirtioBlockQueueNotificationRegisterWindowBarrierExecutionResult NotifyExecution { get; }
+    public VirtioBlockQueueNotificationRegisterWindowBarrierExecutionResult NotifyExecution
+    {
+        get;
+    }
 
-    public VirtioBlockQueueNotificationBarrierReadiness Barrier { get; }
+    public VirtioBlockQueueNotificationBarrierReadiness Barrier
+    {
+        get;
+    }
 
-    public uint NotifyOffsetMultiplier { get; }
+    public uint NotifyOffsetMultiplier
+    {
+        get;
+    }
 
-    public bool NotificationMetadataAttempted { get; }
+    public bool NotificationMetadataAttempted
+    {
+        get;
+    }
 
-    public bool NotifyOffsetPlanAttempted { get; }
+    public bool NotifyOffsetPlanAttempted
+    {
+        get;
+    }
 
-    public bool NotifyExecutionAttempted { get; }
+    public bool NotifyExecutionAttempted
+    {
+        get;
+    }
 
     public VirtioBlockQueueNotificationMetadataStatus NotificationMetadataStatus =>
         NotificationMetadataAttempted ?
@@ -84,9 +114,15 @@ public readonly struct VirtioBlockReadQueueNotifyReadinessResult
             NotifyExecution.AccessExecutionStatus :
             VirtioPciBarRegisterWindowAccessExecutionStatus.Success;
 
-    public ushort QueueIndex { get; }
+    public ushort QueueIndex
+    {
+        get;
+    }
 
-    public ushort QueueNotifyOffset { get; }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
 
     public uint NotifyRelativeOffset =>
         NotifyOffsetPlanAttempted ?
@@ -149,7 +185,10 @@ public readonly struct VirtioBlockReadQueueNotifyReadinessResult
             NotifyExecution.WrittenValue :
             0;
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded =>
         IsInitialized &&

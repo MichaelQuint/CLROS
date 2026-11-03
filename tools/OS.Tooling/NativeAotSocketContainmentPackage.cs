@@ -27,20 +27,25 @@ public static class NativeAotSocketContainmentPackage
         "\nargs=\ndigest=" + ElfSha256.ToLowerInvariant() +
         "\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=16\nlisten=0.0.0.0:8080\nenv.CLROS_USER_IRQS=1\n";
 
-    /// <summary>Validate current original build/recipe inputs and the exact two
-    /// containment app files. Generated bin/obj are excluded; overrides, links
+    /// <summary>Validate reviewed build/recipe inputs and the complete current
+    /// containment app source family. Generated bin/obj are excluded; overrides, links
     /// and extra source files reject. No publication or execution is performed.</summary>
     public static void RequireCurrentSources(string root)
     {
         root = Path.GetFullPath(root); NativeAotSocketPackage.RequireCurrentSources(root);
         string directory = Path.Combine(root, "apps", App);
         var inventory = Inventory(root, directory, generated: true);
-        Need(inventory.SequenceEqual(AppSources.Select(s => s.Name).Order(StringComparer.Ordinal)), "source_inventory");
+        var current = NativeAotCurrentSources.AppSources(App, AppSources);
+        string prefix = "apps/" + App + "/";
+        Need(inventory.SequenceEqual(current.Select(source => source.Path[prefix.Length..]).Order(StringComparer.Ordinal)), "source_inventory");
         using AuthorityFiles locks = new();
-        foreach (var source in AppSources)
-            Need(Hash(Read(locks, root, Path.Combine("apps", App, source.Name), 1024 * 1024)) == source.Sha256, "source_identity");
+        foreach (var source in current)
+            Need(Hash(Read(locks, root, source.Path, 1024 * 1024)) == source.Hash, "source_identity");
         locks.VerifyUnchanged();
     }
+
+    internal static IReadOnlyList<(string Path, string Hash)> CurrentSources() =>
+        NativeAotSocketPackage.CurrentSources().Concat(NativeAotCurrentSources.AppSources(App, AppSources)).ToArray();
 
     /// <summary>Require the immutable original publication receipt and its
     /// complete20-output inventory, producer, recipe, managed/native objects and

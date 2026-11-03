@@ -1,17 +1,12 @@
 using System.Diagnostics;
+using OS.Tooling;
 
-internal static class HostToolProcess
+internal static partial class HostToolProcess
 {
     public const string RepositorySolutionFileName = "CLROS.slnx";
-
-    internal readonly record struct ToolResult(int ExitCode, string Output, string Error);
-
     // Build provenance follows the current ordered input inventory and exact raw
     // bytes. It must not pin the changing host-tool implementation to an old run.
-    public static string SourceClosureSha256(string root) => OS.Tooling.EfiEvidence.Aggregate(
-        OS.Tooling.EfiEvidence.SourceClosurePaths(root).Select(path => new OS.Tooling.EfiInput(path,
-            OS.Tooling.ContractAudit.Hash(File.ReadAllBytes(Path.Combine(root, path))))));
-
+    public static string SourceClosureSha256(string root) => OS.Tooling.EfiEvidence.Aggregate(OS.Tooling.EfiEvidence.SourceClosurePaths(root).Select(path => new OS.Tooling.EfiInput(path, OS.Tooling.ContractAudit.Hash(File.ReadAllBytes(Path.Combine(root, path))))));
     // Each fixture is isolated in its own process; pure argument/profile controls
     // can call the same production command without spawning another runtime.
     public static ToolResult RunTool(params string[] arguments)
@@ -41,19 +36,19 @@ internal static class HostToolProcess
             options.Profile();
             return new(0, "", "");
         }
-        catch (OS.Tooling.ToolFailure error) { return new(1, error.Reason + " " + error.Message, ""); }
+        catch (OS.Tooling.ToolFailure error)
+        {
+            return new(1, error.Reason + " " + error.Message, "");
+        }
     }
 
     public static string FindLlvmObjdump()
     {
         const string variable = "CLROS_LLVM_OBJDUMP";
-        string? configured = Environment.GetEnvironmentVariable(variable)
-            ?? (OperatingSystem.IsWindows() ? Environment.GetEnvironmentVariable(variable, EnvironmentVariableTarget.User) : null);
+        string? configured = Environment.GetEnvironmentVariable(variable) ?? (OperatingSystem.IsWindows() ? Environment.GetEnvironmentVariable(variable, EnvironmentVariableTarget.User) : null);
         if (!string.IsNullOrEmpty(configured))
         {
-            if (!Path.IsPathFullyQualified(configured) ||
-                !string.Equals(Path.GetFileName(configured), "llvm-objdump.exe", StringComparison.OrdinalIgnoreCase) ||
-                !File.Exists(configured))
+            if (!Path.IsPathFullyQualified(configured) || !string.Equals(Path.GetFileName(configured), "llvm-objdump.exe", StringComparison.OrdinalIgnoreCase) || !File.Exists(configured))
             {
                 throw new InvalidOperationException(variable + " must name an existing absolute llvm-objdump.exe path.");
             }
@@ -61,16 +56,9 @@ internal static class HostToolProcess
             return Path.GetFullPath(configured);
         }
 
-        string visualStudio = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft Visual Studio");
-        string? discovered = Directory.Exists(visualStudio)
-            ? Directory.EnumerateFiles(visualStudio, "llvm-objdump.exe", SearchOption.AllDirectories)
-                .Where(path => path.Contains("\\x64\\", StringComparison.OrdinalIgnoreCase))
-                .Order(StringComparer.Ordinal).FirstOrDefault()
-            : null;
-        return discovered ?? throw new InvalidOperationException(
-            "Missing x64 llvm-objdump.exe. Install Visual Studio's C++ Clang Compiler for Windows component " +
-            "or set " + variable + " to a verified user-local tool before running native inspection fixtures.");
+        string visualStudio = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft Visual Studio");
+        string? discovered = Directory.Exists(visualStudio) ? Directory.EnumerateFiles(visualStudio, "llvm-objdump.exe", SearchOption.AllDirectories).Where(path => path.Contains("\\x64\\", StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal).FirstOrDefault() : null;
+        return discovered ?? throw new InvalidOperationException("Missing x64 llvm-objdump.exe. Install Visual Studio's C++ Clang Compiler for Windows component " + "or set " + variable + " to a verified user-local tool before running native inspection fixtures.");
     }
 
     public static string FindRepositoryRoot()
@@ -86,23 +74,11 @@ internal static class HostToolProcess
             directory = directory.Parent;
         }
 
-        throw new DirectoryNotFoundException(
-            "Could not find repository root containing " + RepositorySolutionFileName + ".");
+        throw new DirectoryNotFoundException("Could not find repository root containing " + RepositorySolutionFileName + ".");
     }
 
     public static string GetBuiltToolPath(string repositoryRoot, string toolProjectName)
-    {
-        string configuration = GetCurrentBuildConfiguration();
-        string targetFramework = GetCurrentTargetFramework();
-        return Path.Combine(
-            repositoryRoot,
-            "tools",
-            toolProjectName,
-            "bin",
-            configuration,
-            targetFramework,
-            toolProjectName + ".dll");
-    }
+        => HostProjectOutputs.Resolve(repositoryRoot, toolProjectName, typeof(HostToolProcess).Assembly);
 
     public static ProcessStartInfo CreateDotnetToolStartInfo(string repositoryRoot, string toolProjectName)
     {
@@ -113,30 +89,8 @@ internal static class HostToolProcess
             RedirectStandardError = true,
             WorkingDirectory = repositoryRoot
         };
-
         startInfo.ArgumentList.Add(GetBuiltToolPath(repositoryRoot, toolProjectName));
         return startInfo;
     }
 
-    private static string GetCurrentBuildConfiguration()
-    {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (directory.Parent?.Parent?.Name == "bin")
-            {
-                return directory.Parent.Name;
-            }
-
-            directory = directory.Parent;
-        }
-
-        return "Debug";
-    }
-
-    private static string GetCurrentTargetFramework()
-    {
-        DirectoryInfo directory = new DirectoryInfo(AppContext.BaseDirectory);
-        return string.IsNullOrWhiteSpace(directory.Name) ? "net11.0" : directory.Name;
-    }
 }

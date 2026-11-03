@@ -34,31 +34,70 @@ public readonly struct VirtioBlockQueueNotifyOffsetPlanResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockQueueNotifyOffsetPlanStatus Status { get; }
+    public VirtioBlockQueueNotifyOffsetPlanStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockQueueNotificationMetadataStatus NotificationMetadataStatus { get; }
+    public VirtioBlockQueueNotificationMetadataStatus NotificationMetadataStatus
+    {
+        get;
+    }
 
-    public ushort QueueIndex { get; }
+    public ushort QueueIndex
+    {
+        get;
+    }
 
-    public ushort QueueNotifyOffset { get; }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
 
-    public uint NotifyOffsetMultiplier { get; }
+    public uint NotifyOffsetMultiplier
+    {
+        get;
+    }
 
-    public uint NotifyRelativeOffset { get; }
+    public uint NotifyRelativeOffset
+    {
+        get;
+    }
 
-    public ushort PublishedDescriptorCount { get; }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
 
-    public ushort PreviousAvailableRingIndex { get; }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort NextAvailableRingIndex { get; }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort DescriptorHead { get; }
+    public ushort DescriptorHead
+    {
+        get;
+    }
 
-    public ushort WriteValue { get; }
+    public ushort WriteValue
+    {
+        get;
+    }
 
-    public uint WriteWidthBytes { get; }
+    public uint WriteWidthBytes
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == VirtioBlockQueueNotifyOffsetPlanStatus.Success;
 

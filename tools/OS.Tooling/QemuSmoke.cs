@@ -493,7 +493,9 @@ public static class QemuSmoke
                         var inventory=diskTruncated?.Baseline??WebRootDiskInventory.Inspect(diskImageInput.Path,diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_full_browser_image"),diskImageReceipt);
                         if(NativeAotDiskSelection.TimingSelected(plan.Flags))
                         {
-                            var diagnostic=await NativeAotDiskTimingPeer.RunAsync(root,options.SerialLog,RunSocketRunner,inventory,options.TimeoutSeconds,cancellation);
+                            var benchmark = NativeAotDiskTimingPeer.BenchmarkOptions.ForProfile(plan.Flags,
+                                () => diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_timing_image"));
+                            var diagnostic=await NativeAotDiskTimingPeer.RunAsync(root,options.SerialLog,RunSocketRunner,inventory,benchmark,options.TimeoutSeconds,cancellation);
                             diskInputs!.VerifyUnchanged();diskNative!.VerifyHeldInputs();
                             webInputs!.VerifyUnchanged();webNative!.VerifyHeldInputs();
                             WebRootImageFixture.Verify(Path.GetFullPath(options.Image,root),diskImageReceipt);

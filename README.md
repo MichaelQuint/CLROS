@@ -13,6 +13,52 @@ configured .NET 11 applications. It uses a restricted Linux x64 compatibility
 layer and statically published NativeAOT applications targeting **`linux-musl-x64`**.
 First-party kernel, shared-library and application source is C# 14.
 
+The combined RC3/code-quality/performance refactor is in progress. Host checks
+and tool paths follow evaluated compiler inputs, bound declarations and the
+selected build graph. The [fresh complete Fast diagnostic](done/step1727.md)
+passes 6,424 checks across 876 groups, unchanged inputs and zero reuse. All thirty
+groups that failed in the earlier complete diagnostic now pass.
+[Diagnostic disk controls and image checks](done/step1730.md) pass 69 focused
+checks. Trace/summary modes remain default off and require independent terminal
+protocol and native review before launch; no OS speedup is established.
+[Performance observation tooling](done/step1728.md) now separates complete body
+receipt from host writing/flushing and enforces the existing 180-second streamed
+request budget. Its 24 final focused checks pass.
+[Six retained-image observations](done/step1729.md) measure median 64KiB body
+completion at 12.484s WHPX/10.419s TCG, versus 1.8ms/1.7ms local durable flushing.
+The delay occurs before client body completion; no optimization or current-source
+guest qualification is claimed. The
+[latest focused batch](done/step1726.md) passes 23
+reported checks for paging source discovery and raw-source/guard controls. All 44
+original bypass vectors pass with original and normalized whitespace. Compiler
+identities locate owners; raw inactive text and original safety predicates remain.
+The [instruction batch](done/step1725.md) retains its 97 mutation vectors and
+synthetic selectors. The
+[allocation batch](done/step1724.md) passes 18
+allocation-fixture checks, including all three original managed SDK programs and
+profile rejection cases. Discovery follows compiler declarations across partial
+files while retaining raw negative guards and independent source identities. The
+[panic batch](done/step1723.md) passes ten checks, including both original SDK probes. The
+[earlier SDK batch](done/step1722.md) passes 40 checks with shared bounded SDK
+discovery and actual input counts. Independent
+byte/project identities, ABI values, raw-source exclusions and failure predicates
+remain explicit.
+
+The [earlier complete Fast failure](done/step1711.md) remains preserved with its
+original inputs and thirty failing groups. The new Fast result does not renew
+unfiltered Full, native/guest/browser qualification or establish an OS-performance
+improvement; those remain pending.
+[Current payload source admission](done/step1703.md) follows complete reviewed
+families; its focused selection passes 973 of 974 checks, with one existing EFI
+source-reader failure. [Bound EFI source checks](done/step1704.md) subsequently
+repair that module-registration fixture, EH admission and leaf-reuse discovery;
+15 overlapping focused selections execute 638 passing checks with zero reuse.
+[Signal-profile source discovery](done/step1706.md) also passes the complete
+focused M16009 Fast fixture, retaining independent behavioral expectations.
+Structural moves, source-reader repairs and focused passes do not renew
+the recorded full-host, native or guest qualification. Performance fixes and
+the combined browser qualification remain pending.
+
 The active development toolchain pins SDK `11.0.100-rc.3.26522.148` and
 runtime/ILC/ILLink `11.0.0-rc.3.26522.148`, retaining C#14 and `net11.0`.
 Windows QEMU defaults to explicit WHPX with its hardware interrupt controller;

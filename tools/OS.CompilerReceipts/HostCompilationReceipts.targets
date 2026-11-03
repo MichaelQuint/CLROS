@@ -1,0 +1,97 @@
+<Project>
+  <!-- Explicitly imported AFTER Sdk.targets by managed projects used for host
+       source discovery, so SDK/package BeforeTargets compiler inputs are ready.
+       Root build customizations, EFI and the pinned native serializer are unchanged. -->
+  <!-- The SDK sets NoStdLib=true even for ordinary managed projects, because it
+       supplies explicit reference-pack assemblies. The freestanding boundary is
+       DisableImplicitFrameworkReferences plus the independently excluded EFI path. -->
+  <PropertyGroup>
+    <HostReceiptRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../..'))</HostReceiptRoot>
+    <HostReceiptTaskSource>$(MSBuildThisFileDirectory)HostCompilationReceiptTask.cs</HostReceiptTaskSource>
+    <HostReceiptEfiProject>$([System.IO.Path]::GetFullPath('$(HostReceiptRoot)/src/OS/OS.csproj'))</HostReceiptEfiProject>
+    <HostReceiptEnabled Condition="'$(MSBuildProjectExtension)' == '.csproj' and '$(MSBuildProjectFullPath)' != '$(HostReceiptEfiProject)' and '$(DisableImplicitFrameworkReferences)' != 'true'">true</HostReceiptEnabled>
+    <ProvideCommandLineArgs Condition="'$(HostReceiptEnabled)' == 'true'">true</ProvideCommandLineArgs>
+    <TargetsTriggeredByCompilation Condition="'$(HostReceiptEnabled)' == 'true'">_MarkHostCompilationExecuted;$(TargetsTriggeredByCompilation)</TargetsTriggeredByCompilation>
+  </PropertyGroup>
+  <UsingTask TaskName="OS.CompilerReceipts.HostCompilationReceiptTask" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <Task>
+      <Code Type="Class" Language="cs" Source="$(HostReceiptTaskSource)" />
+    </Task>
+  </UsingTask>
+  <Target Name="_PrepareHostCompilationReceipt" BeforeTargets="CoreCompile"
+          Condition="'$(HostReceiptEnabled)' == 'true' and '$(DisableImplicitFrameworkReferences)' != 'true' and '$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <HostCompilationReceiptPath>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)$(TargetName).host-compilation.xml', '$(MSBuildProjectDirectory)'))</HostCompilationReceiptPath>
+    </PropertyGroup>
+    <ItemGroup>
+      <_HostReceiptInput Remove="@(_HostReceiptInput)" />
+      <_HostReceiptOutput Remove="@(_HostReceiptOutput)" />
+      <_HostReceiptInput Include="@(Compile)"><ReceiptKind>Source</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="@(ReferencePathWithRefAssemblies)"><ReceiptKind>Reference</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="@(Analyzer)"><ReceiptKind>Analyzer</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="@(AdditionalFiles)"><ReceiptKind>Additional</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="@(EditorConfigFiles)"><ReceiptKind>AnalyzerConfig</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="@(EmbeddedFiles)"><ReceiptKind>Embedded</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="$(SourceLink)" Condition="'$(SourceLink)' != ''"><ReceiptKind>SourceLink</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="$(ResolvedCodeAnalysisRuleSet)" Condition="'$(ResolvedCodeAnalysisRuleSet)' != ''"><ReceiptKind>RuleSet</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="@(_CoreCompileResourceInputs)" Condition="'%(_CoreCompileResourceInputs.WithCulture)' != 'true'"><ReceiptKind>Resource</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="@(CompiledLicenseFile)"><ReceiptKind>Resource</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="@(LinkResource)"><ReceiptKind>LinkResource</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="$(Win32Resource)" Condition="'$(Win32Resource)' != ''"><ReceiptKind>Win32Resource</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="$(ApplicationIcon)" Condition="'$(ApplicationIcon)' != ''"><ReceiptKind>Win32Icon</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="$(Win32Manifest)" Condition="'$(Win32Manifest)' != ''"><ReceiptKind>Win32Manifest</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="$(AppConfigForCompiler)" Condition="'$(AppConfigForCompiler)' != ''"><ReceiptKind>AppConfig</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="$(HostReceiptTaskSource)"><ReceiptKind>ReceiptImplementation</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="$(MSBuildToolsPath)/Roslyn/Microsoft.Build.Tasks.CodeAnalysis.dll"><ReceiptKind>CompilerTask</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptOutput Include="@(IntermediateAssembly)"><ReceiptKind>PE</ReceiptKind></_HostReceiptOutput>
+      <_HostReceiptOutput Include="@(_DebugSymbolsIntermediatePath)"><ReceiptKind>PDB</ReceiptKind></_HostReceiptOutput>
+    </ItemGroup>
+    <Error Condition="'$(CscEnvironment)' != '' or '$(CscToolPath)' != '' or '$(CscToolExe)' != ''" Text="host_receipt_custom_compiler_or_environment_unsupported" />
+  </Target>
+  <Target Name="_CaptureHostCompilationReceipt" BeforeTargets="CoreCompile" DependsOnTargets="_PrepareHostCompilationReceipt"
+          Condition="'$(HostReceiptEnabled)' == 'true' and '$(DisableImplicitFrameworkReferences)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(SkipCompilerExecution)' != 'true'">
+    <OS.CompilerReceipts.HostCompilationReceiptTask Mode="Begin"
+        Root="$(HostReceiptRoot)" Project="$(MSBuildProjectFullPath)" ReceiptPath="$(HostCompilationReceiptPath)"
+        CompilerDirectory="$(MSBuildToolsPath)/Roslyn/bincore" Inputs="@(_HostReceiptInput)"
+        DesignTimeBuild="$(DesignTimeBuild)" SkipCompilerExecution="$(SkipCompilerExecution)" DisableImplicitFrameworkReferences="$(DisableImplicitFrameworkReferences)">
+      <Output TaskParameter="Token" PropertyName="_HostReceiptToken" />
+    </OS.CompilerReceipts.HostCompilationReceiptTask>
+  </Target>
+  <!-- CallTarget has its own item scope, so mark execution here and consume the
+       actual CscCommandLineArgs only after the CoreCompile scope has returned. -->
+  <Target Name="_MarkHostCompilationExecuted"
+          Condition="'$(HostReceiptEnabled)' == 'true' and '$(DisableImplicitFrameworkReferences)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(SkipCompilerExecution)' != 'true'">
+    <OS.CompilerReceipts.HostCompilationReceiptTask Mode="Mark"
+        Root="$(HostReceiptRoot)" Project="$(MSBuildProjectFullPath)" ReceiptPath="$(HostCompilationReceiptPath)"
+        CompilerDirectory="$(MSBuildToolsPath)/Roslyn/bincore" Token="$(_HostReceiptToken)"
+        DesignTimeBuild="$(DesignTimeBuild)" SkipCompilerExecution="$(SkipCompilerExecution)" DisableImplicitFrameworkReferences="$(DisableImplicitFrameworkReferences)" />
+  </Target>
+  <Target Name="_CompleteHostCompilationReceipt" AfterTargets="CoreCompile"
+          Condition="'$(HostReceiptEnabled)' == 'true' and '$(DisableImplicitFrameworkReferences)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(SkipCompilerExecution)' != 'true'">
+    <OS.CompilerReceipts.HostCompilationReceiptTask Mode="Complete"
+        Root="$(HostReceiptRoot)" Project="$(MSBuildProjectFullPath)" ReceiptPath="$(HostCompilationReceiptPath)"
+        CompilerDirectory="$(MSBuildToolsPath)/Roslyn/bincore" Inputs="@(_HostReceiptInput)" Outputs="@(_HostReceiptOutput)"
+        Arguments="@(CscCommandLineArgs)" Token="$(_HostReceiptToken)"
+        DesignTimeBuild="$(DesignTimeBuild)" SkipCompilerExecution="$(SkipCompilerExecution)" DisableImplicitFrameworkReferences="$(DisableImplicitFrameworkReferences)" />
+    <ItemGroup><FileWrites Include="$(HostCompilationReceiptPath)" /></ItemGroup>
+  </Target>
+  <Target Name="_CopyHostCompilationReceipt" AfterTargets="CopyFilesToOutputDirectory"
+          Condition="'$(HostReceiptEnabled)' == 'true' and '$(DisableImplicitFrameworkReferences)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(SkipCompilerExecution)' != 'true'">
+    <Copy SourceFiles="$(HostCompilationReceiptPath)"
+          DestinationFiles="$(TargetDir)$(TargetName).host-compilation.xml" SkipUnchangedFiles="true" />
+    <ItemGroup><FileWrites Include="$(TargetDir)$(TargetName).host-compilation.xml" /></ItemGroup>
+  </Target>
+  <!-- The caller supplies a unique absent NonExistentFile global property so the
+       SDK Csc task returns fresh arguments despite incremental output timestamps. -->
+  <Target Name="HostCompilationReceiptEvaluate" DependsOnTargets="PrepareResources;Compile"
+          Condition="'$(HostReceiptEnabled)' == 'true' and '$(DisableImplicitFrameworkReferences)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(SkipCompilerExecution)' == 'true'">
+    <Error Condition="'$(NonExistentFile)' == '' or Exists('$(NonExistentFile)')" Text="host_receipt_evaluation_requires_absent_output_sentinel" />
+    <OS.CompilerReceipts.HostCompilationReceiptTask Mode="Evaluate"
+        Root="$(HostReceiptRoot)" Project="$(MSBuildProjectFullPath)" ReceiptPath="$(HostCompilationReceiptPath)"
+        CompilerDirectory="$(MSBuildToolsPath)/Roslyn/bincore" Inputs="@(_HostReceiptInput)" Arguments="@(CscCommandLineArgs)"
+        DesignTimeBuild="$(DesignTimeBuild)" SkipCompilerExecution="$(SkipCompilerExecution)" DisableImplicitFrameworkReferences="$(DisableImplicitFrameworkReferences)">
+      <Output TaskParameter="SnapshotXml" PropertyName="HostCompilationReceiptCurrentInputs" />
+    </OS.CompilerReceipts.HostCompilationReceiptTask>
+  </Target>
+</Project>

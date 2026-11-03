@@ -34,25 +34,55 @@ public readonly struct GptPartitionDescriptor
         NameIsNullTerminated = nameIsNullTerminated;
     }
 
-    public uint EntryIndex { get; }
+    public uint EntryIndex
+    {
+        get;
+    }
 
-    public int EntryByteOffset { get; }
+    public int EntryByteOffset
+    {
+        get;
+    }
 
-    public Guid PartitionTypeGuid { get; }
+    public Guid PartitionTypeGuid
+    {
+        get;
+    }
 
-    public Guid UniquePartitionGuid { get; }
+    public Guid UniquePartitionGuid
+    {
+        get;
+    }
 
-    public ulong FirstLba { get; }
+    public ulong FirstLba
+    {
+        get;
+    }
 
-    public ulong LastLba { get; }
+    public ulong LastLba
+    {
+        get;
+    }
 
-    public ulong Attributes { get; }
+    public ulong Attributes
+    {
+        get;
+    }
 
-    public int NameByteOffset { get; }
+    public int NameByteOffset
+    {
+        get;
+    }
 
     public int NameByteLength => NameFieldLengthBytes;
 
-    public int NameUtf16CodeUnitLength { get; }
+    public int NameUtf16CodeUnitLength
+    {
+        get;
+    }
 
-    public bool NameIsNullTerminated { get; }
+    public bool NameIsNullTerminated
+    {
+        get;
+    }
 }

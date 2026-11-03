@@ -8,19 +8,15 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
+using OS.Tooling;
 
-internal static class M04ManagedHeapPageRangeEfiIntegrationTests
+internal static partial class M04ManagedHeapPageRangeEfiIntegrationTests
 {
     private const string Flag = "EnableM04ManagedHeapPageRangeProbe";
     private const string Leaf = "src/OS.Kernel/Runtime/ManagedHeapPageRangeLiveAllocator.cs";
     private static readonly string LeafHash = OS.Tooling.EfiContracts.SourceIdentities[@"..\OS.Kernel\Runtime\ManagedHeapPageRangeLiveAllocator.cs"];
     private const string Ready = OS.Tooling.QemuContracts.Record286;
     private static readonly string[] Prerequisites = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableM04IndependentEndianConformanceProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe"];
-
-
-
-
-
     [HostTest("m04.006.efi frozen source and explicit project", HostLane.Fast, 0)]
     private static void TestProject()
     {
@@ -34,25 +30,18 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
         Require(flag.Value == "false" && flag.Attribute("Condition")?.Value == "'$(" + Flag + ")' == ''", "default false");
         foreach (string p in Prerequisites)
             Require(project.Descendants("Error").Any(x => x.Attribute("Condition")?.Value == "'$(" + Flag + ")' == 'true' and '$(" + p + ")' != 'true'"), "explicit prerequisite " + p);
-        string entry = File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.cs"));
-        int handoff = entry.IndexOf("if (!M04ManagedHeapAdapter.Checkpoint(true", StringComparison.Ordinal);
-        Require(handoff > entry.IndexOf("if (!M01StageThreeAdapter.RunAfterStageTwo", StringComparison.Ordinal), "handoff follows all M01 consumers");
-        Require(entry.Contains("fixed (ManagedHeapPageRangeState* heap = &s_heapState)", StringComparison.Ordinal), "stable owned slot");
-        int later = entry.IndexOf("if (!M01StageTwoAdapter.ValidateManagedHeapBeforeBootPlan", StringComparison.Ordinal);
-        Require(later > 0 && entry.IndexOf("EfiEntry.WriteBootSequencePlan(", later, StringComparison.Ordinal) > later, "later retention before boot plan");
-        string adapter = Adapter(entry);
-        Require(adapter.Contains("&state->AllocatorStateValue", StringComparison.Ordinal) && adapter.Contains("&state->FreeNodeValue", StringComparison.Ordinal), "original authority fields");
-        foreach (string prohibited in new[] { "FreeOnePage", "FreePages", "AllocatedPageStart", "*ledger", "ledger[index] =", "*heap =", "*allocator =", "IsCompleted =" })
-            Require(!adapter.Contains(prohibited, StringComparison.Ordinal), "no free/reset/replay " + prohibited);
-        Require(!entry[handoff..entry.IndexOf("private static bool ValidateStageOneReservationStorage", handoff, StringComparison.Ordinal)].Contains("return Fail(", StringComparison.Ordinal), "no stage-two cleanup after reserve");
+        var source = Sources();
+        Require(HostManagedHeapSourceGuard.Wiring(source), "selected heap handoff, fixed slot and retention ordering");
+        Require(HostManagedHeapSourceGuard.OriginalAuthority(source), "original allocator fields and no adapter free/reset");
     }
 
     [HostTest("m04.006.efi actual enabled no-stdlib metadata", HostLane.Native, 1)]
     private static void TestBuild()
     {
         string root = Root();
-        Result r = Process(root, "dotnet", ["build", "src/OS/OS.csproj", "-c", "Release", "--nologo", .. Prerequisites.Append(Flag).Select(x => "-p:" + x + "=true")]);
-        Save("enabled-build", r); Require(r.Code == 0, r.Output);
+        Result r = Process(root, "dotnet", ["build", "src/OS/OS.csproj", "-c", "Release", "--nologo", ..Prerequisites.Append(Flag).Select(x => "-p:" + x + "=true")]);
+        Save("enabled-build", r);
+        Require(r.Code == 0, r.Output);
         using FileStream input = File.OpenRead(Path.Combine(root, "src/OS/bin/Release/net11.0/win-x64/OS.dll"));
         using PEReader reader = new(input);
         MetadataReader metadata = reader.GetMetadataReader();
@@ -62,25 +51,34 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
     }
 
     [HostTest("m04.006.efi actual adapter original authority and retained failures", HostLane.Native, 2)]
-    private static void TestAdapter()
+    private static void TestAdapter() => TestAdapterSource(Sources());
+
+    internal static void TestAdapterSource(CSharpSourceCatalog source)
     {
         string root = Root(), directory = Scratch("adapter");
-        string adapter = Adapter(File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.cs")));
-        XDocument sourceProject = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
+        var adapters = HostManagedHeapSourceGuard.AdapterSources(source);
+        var adapterPaths = adapters.Select((text, index) =>
+        {
+            string name = "Adapter" + index + ".cs";
+            File.WriteAllText(Path.Combine(directory, name), text);
+            return "<Compile Include=\"" + name + "\"/>";
+        }).ToArray();
         // This hosted adapter needs the framework Span used by its setup. Keep
         // NOSTDLIB_EFI branches, but leave the replacement to TestBuild's real
         // no-stdlib compilation, which includes the complete project inventory.
-        string includes = string.Join('\n', sourceProject.Descendants("Compile")
-            .Select(x => x.Attribute("Include")!.Value).Where(x => x.StartsWith("..", StringComparison.Ordinal)
-                && x != @"..\..\std\no-runtime\shared\Memory\SystemSpanPointer.cs")
-            .Select(x => "<Compile Include=\"" + SecurityElement.Escape(Path.GetFullPath(Path.Combine(root, "src/OS", x))) + "\"/>"));
+        var spanSources = source.TypeSources("System.Span`1").Concat(source.TypeSources("System.ReadOnlySpan`1"))
+            .Select(document => document.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        string includes = string.Join('\n', source.Documents.Where(document =>
+                Path.GetRelativePath(Path.Combine(root, "src/OS"), document.Path).StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                && !spanSources.Contains(document.Path))
+            .Select(document => "<Compile Include=\"" + SecurityElement.Escape(document.Path) + "\"/>"));
         File.WriteAllText(Path.Combine(directory, "Adapter.csproj"), """
             <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType>
             <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
             <ImplicitUsings>enable</ImplicitUsings><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
             <DefineConstants>NOSTDLIB_EFI</DefineConstants></PropertyGroup><ItemGroup><Compile Include="Program.cs"/>
-            """ + includes + "</ItemGroup></Project>");
-        string program = "using OS.Boot; using OS.Kernel.Memory; using OS.Kernel.Runtime; using System.Runtime.InteropServices;\nunsafe static class Program {\n" + """
+            """ + includes + string.Join('\n', adapterPaths) + "</ItemGroup></Project>");
+        string program = "using OS.Boot; using OS.Kernel.Memory; using OS.Kernel.Runtime; using System.Runtime.InteropServices;\nnamespace OS.Boot;\nunsafe static partial class Program {\n" + """
             private struct EfiSimpleTextOutputProtocol { }
             private struct EfiSerialIoProtocol { }
             private static readonly System.Text.StringBuilder Output = new();
@@ -207,7 +205,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
                     return 0;
                 } finally { NativeMemory.AlignedFree(memory); }
             }
-            """ + adapter.Replace("ManagedHeapPageRangeLiveAllocator.ReserveAndInitializeOnce(", "Reserve(", StringComparison.Ordinal).Replace("ManagedHeapPageRangeLiveAllocator.ValidateRetained(", "Retain(", StringComparison.Ordinal) + "\n}\n";
+            """ + "\n}\n";
         File.WriteAllText(Path.Combine(directory, "Program.cs"), program);
         Result result = Process(root, "dotnet", "run", "--project", Path.Combine(directory, "Adapter.csproj"), "-c", "Release");
         File.WriteAllText(Path.Combine(directory, "run.log"), result.Output);
@@ -221,48 +219,66 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
     {
         string root = Root();
         string[] enabled = Prerequisites.Append(Flag).Select(x => "-" + x).ToArray();
-        Result good = Qemu(["-BuildEfi", .. enabled]); Save("dryrun", good); Require(good.Code == 0, good.Output);
+        Result good = Qemu(["-BuildEfi", ..enabled]);
+        Save("dryrun", good);
+        Require(good.Code == 0, good.Output);
         string[] ordered = Markers(good.Output, "ORDERED_MARKERS ");
         Require(ordered.Length == 41 && Markers(good.Output, "REQUIRED_MARKERS ").Length == 50 && Markers(good.Output, "UNIQUE_MARKERS ").Length == 41, "41 anchors / 50 merged required / 52 strict lines");
         foreach (string missing in Prerequisites)
-            foreach (bool explicitFalse in new[] { false, true })
-                foreach (string command in new[] { "qemu", "build", "verify" })
+            foreach (bool explicitFalse in new[]
+            {
+                false,
+                true
+            }
+
+            )
+                foreach (string command in new[]
                 {
-                    string[] arguments = Prerequisites.Append(Flag).Where(x => explicitFalse || x != missing)
-                        .Select(x => "--" + x + (x == missing ? ":false" : "")).ToArray();
-                    HostToolProcess.ToolResult result = command == "qemu"
-                        ? HostToolProcess.RunTool(["qemu", "smoke", "--dry-run", "--build-efi", .. arguments])
-                        : HostToolProcess.ValidateEfiProfile(command == "build", arguments);
+                    "qemu",
+                    "build",
+                    "verify"
+                }
+
+                )
+                {
+                    string[] arguments = Prerequisites.Append(Flag).Where(x => explicitFalse || x != missing).Select(x => "--" + x + (x == missing ? ":false" : "")).ToArray();
+                    HostToolProcess.ToolResult result = command == "qemu" ? HostToolProcess.RunTool(["qemu", "smoke", "--dry-run", "--build-efi", ..arguments]) : HostToolProcess.ValidateEfiProfile(command == "build", arguments);
                     Require(result.ExitCode != 0 && (result.Output + result.Error).Contains("m04_managed_heap_page_range_requires_explicit_chain", StringComparison.Ordinal), result.Output + result.Error);
                 }
-        string[] collisions = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj")).Descendants("Error")
-            .Select(x => x.Attribute("Condition")?.Value ?? "").Where(x => x.StartsWith("'$(" + Flag + ")'", StringComparison.Ordinal) && x.EndsWith("== 'true'", StringComparison.Ordinal))
-            .Select(x => Regex.Matches(x, @"\$\(([^)]+)\)")[1].Groups[1].Value).ToArray();
+
+        string[] collisions = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj")).Descendants("Error").Select(x => x.Attribute("Condition")?.Value ?? "").Where(x => x.StartsWith("'$(" + Flag + ")'", StringComparison.Ordinal) && x.EndsWith("== 'true'", StringComparison.Ordinal)).Select(x => Regex.Matches(x, @"\$\(([^)]+)\)")[1].Groups[1].Value).ToArray();
         Require(collisions.Length == 21, "bounded collision list");
         foreach (string collision in collisions)
         {
-            Result r = Qemu(["-BuildEfi", .. enabled, "-" + collision]);
-            string expectedDiagnostic = string.Equals(collision, "EnableM03TypedExitBootServicesCallProbe", StringComparison.Ordinal)
-                ? "m03_typed_ebs_profile_conflict property=EnableM01LoadedImageStackProbe"
-                : string.Equals(collision, "EnableM04TypeManagerModuleRegistrationProbe", StringComparison.Ordinal)
-                ? "m04_type_manager_profile_conflict property=EnableM01LiveAllocatorProbe"
-                : string.Equals(collision, "EnableM02UnexpectedVectorPanicProbe", StringComparison.Ordinal)
-                ? "m02_unexpected_vector_panic_profile_conflict property=EnableM04IndependentEndianConformanceProbe"
-                : string.Equals(collision, "EnableM03FirmwareEntropySeedProbe", StringComparison.Ordinal)
-                    ? "m03_firmware_entropy_profile_conflict property=EnableM01LoadedImageStackProbe"
-                    : string.Equals(collision, "EnableM03MemoryMapCaptureProbe", StringComparison.Ordinal)
-                    ? "m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe"
-                    : "m04_managed_heap_page_range_forbids_";
+            Result r = Qemu(["-BuildEfi", ..enabled, "-" + collision]);
+            string expectedDiagnostic = string.Equals(collision, "EnableM03TypedExitBootServicesCallProbe", StringComparison.Ordinal) ? "m03_typed_ebs_profile_conflict property=EnableM01LoadedImageStackProbe" : string.Equals(collision, "EnableM04TypeManagerModuleRegistrationProbe", StringComparison.Ordinal) ? "m04_type_manager_profile_conflict property=EnableM01LiveAllocatorProbe" : string.Equals(collision, "EnableM02UnexpectedVectorPanicProbe", StringComparison.Ordinal) ? "m02_unexpected_vector_panic_profile_conflict property=EnableM04IndependentEndianConformanceProbe" : string.Equals(collision, "EnableM03FirmwareEntropySeedProbe", StringComparison.Ordinal) ? "m03_firmware_entropy_profile_conflict property=EnableM01LoadedImageStackProbe" : string.Equals(collision, "EnableM03MemoryMapCaptureProbe", StringComparison.Ordinal) ? "m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe" : "m04_managed_heap_page_range_forbids_";
             Require(r.Code != 0 && r.Output.Contains(expectedDiagnostic, StringComparison.Ordinal), r.Output);
         }
-        foreach (string[] extra in new[] { new[] { "-SkipImageBuild" }, new[] { "-M01RawObservationLog", "artifacts/issue516-tests/forbidden.json" } })
+
+        foreach (string[] extra in new[]
         {
-            Result r = Qemu(["-BuildEfi", .. enabled, .. extra]); Require(r.Code != 0, r.Output);
+            new[]
+            {
+                "-SkipImageBuild"
+            },
+            new[]
+            {
+                "-M01RawObservationLog",
+                "artifacts/issue516-tests/forbidden.json"
+            }
         }
+
+        )
+        {
+            Result r = Qemu(["-BuildEfi", ..enabled, ..extra]);
+            Require(r.Code != 0, r.Output);
+        }
+
         Require(Qemu(enabled).Code != 0, "requires BuildEfi");
-        Result pageFault = Qemu(["-BuildEfi", .. enabled, "-EnableM02PageFaultCr2ErrorCodeProbe"]);
+        Result pageFault = Qemu(["-BuildEfi", ..enabled, "-EnableM02PageFaultCr2ErrorCodeProbe"]);
         Require(pageFault.Code != 0 && pageFault.Output.Contains("m02_page_fault_cr2_error_code_profile_conflict", StringComparison.Ordinal), "page-fault/heap reciprocal collision " + pageFault.Output);
-        Result sibling = Qemu(["-BuildEfi", .. enabled.Where(x => x != "-" + Flag)]); Require(sibling.Code == 0 && Markers(sibling.Output, "ORDERED_MARKERS ").Length == 6, "standalone layout preserved");
+        Result sibling = Qemu(["-BuildEfi", ..enabled.Where(x => x != "-" + Flag)]);
+        Require(sibling.Code == 0 && Markers(sibling.Output, "ORDERED_MARKERS ").Length == 6, "standalone layout preserved");
         Require(Qemu(["-RequireMarker", Ready]).Code != 0, "marker-only spoof rejected");
     }
 
@@ -270,8 +286,8 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
     private static void TestTranscript()
     {
         string root = Root(), directory = Scratch("serial");
-        string[] chain = Markers(Qemu(["-BuildEfi", .. Prerequisites.Append(Flag).Select(x => "-" + x)]).Output, "ORDERED_MARKERS ");
-        List<string> lines = ["TEST_START efi.main", .. chain.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", .. chain.Skip(6)];
+        string[] chain = Markers(Qemu(["-BuildEfi", ..Prerequisites.Append(Flag).Select(x => "-" + x)]).Output, "ORDERED_MARKERS ");
+        List<string> lines = ["TEST_START efi.main", ..chain.Take(6), "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY", "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT 3", "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0", "BOOT_ACPI_RSDP_HANDOFF_READY", "UEFI_ACPI_RSDP_READY", ..chain.Skip(6)];
         const string identity = "allocatorState=0x0000000000100000 nodes=0x0000000000100040 heapState=0x0000000000101000 ledger=0x0000000000102000 parentIndex=4 parentStart=0x0000000000900000 parentEnd=0x0000000000902000 backing=0x0000000000900000 retainedStart=0x0000000000900000 retainedEnd=0x0000000000901000";
         lines[lines.IndexOf("M04_HEAP_PAGE_BOUND")] += " " + identity;
         lines[lines.IndexOf("M04_HEAP_PAGE_RETAINED")] += " checkpoint=beforeBootPlan " + identity;
@@ -282,45 +298,144 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
         List<(string Text, bool Accept)> cases = [(good, true), ("\u001b[2J\u001b[HUEFI Interactive Shell\r\n" + good, true), (good + "\r\n", true)];
         for (int i = 0; i < lines.Count; i++)
         {
-            foreach (string replacement in new[] { "", lines[i] + " ", " " + lines[i], lines[i] + " diagnostic", lines[i] + "\0", lines[i] + "\t", lines[i] + "\uFEFF", lines[i].ToLowerInvariant() })
+            foreach (string replacement in new[]
+            {
+                "",
+                lines[i] + " ",
+                " " + lines[i],
+                lines[i] + " diagnostic",
+                lines[i] + "\0",
+                lines[i] + "\t",
+                lines[i] + "\uFEFF",
+                lines[i].ToLowerInvariant()
+            }
+
+            )
                 cases.Add((good.Replace(lines[i] + "\r\n", replacement + "\r\n", StringComparison.Ordinal), false));
             cases.Add((good.Replace(lines[i] + "\r\n", lines[i] + "\r\n" + lines[i] + "\r\n", StringComparison.Ordinal), false));
         }
-        foreach (string tail in new[] { "OVMF menu\r\n", "partial", "\r", "OS_SMOKE_PASS\r\n", "M04_HEAP_PAGE_RANGE_FAILED\r\n", "TEST_FAIL m04.006\r\n" }) cases.Add((good + tail, false));
-        foreach (string bad in new[] { "TEST_FAIL m04.006\r\n", "prefixCLROS_M04_006_READY\r\n", "M\0\uFEFF04_HEAP_PAGE_BOUND\r\n", "TE\r\nST_FA\r\nIL firmware\r\n", "OS_SMO\r\nKE_FA\r\nIL\r\n", "TE\r\nST_START efi.main\r\n" }) cases.Add((bad + good, false));
-        cases.Add((good.Replace("\r\n", "\n", StringComparison.Ordinal), false)); cases.Add((good[..^1], false));
-        foreach ((string old, string changed) in new[] { ("parentIndex=4", "parentIndex=5"), ("pages=1 ", "pages=01 "), ("readBytes=4096", "readBytes=4095"), ("contentsZero=true", "contentsZero=false"), ("nodes=0x0000000000100040", "nodes=0x0000000000100030"), ("ledger=0x0000000000102000", "ledger=0x0000000000901000"), ("heapState=0x0000000000101000", "heapState=0xFFFFFFFFFFFFFFF8"), ("conventionalPages=20", "conventionalPages=18446744073709551616"), ("conventionalBytes=81920", "conventionalBytes=81921"), ("regionCount 3", "regionCount 4"), ("UEFI_ACPI_RSDP_READY", "UEFI_ACPI_RSDP_MISSING"), ("BOOT_ACPI_RSDP_HANDOFF_READY", "BOOT_ACPI_RSDP_HANDOFF_INVALID") })
+
+        foreach (string tail in new[]
         {
-            string changedText = good.Replace(old, changed, StringComparison.Ordinal); if (changedText != good) cases.Add((changedText, false));
+            "OVMF menu\r\n",
+            "partial",
+            "\r",
+            "OS_SMOKE_PASS\r\n",
+            "M04_HEAP_PAGE_RANGE_FAILED\r\n",
+            "TEST_FAIL m04.006\r\n"
         }
+
+        )
+            cases.Add((good + tail, false));
+        foreach (string bad in new[]
+        {
+            "TEST_FAIL m04.006\r\n",
+            "prefixCLROS_M04_006_READY\r\n",
+            "M\0\uFEFF04_HEAP_PAGE_BOUND\r\n",
+            "TE\r\nST_FA\r\nIL firmware\r\n",
+            "OS_SMO\r\nKE_FA\r\nIL\r\n",
+            "TE\r\nST_START efi.main\r\n"
+        }
+
+        )
+            cases.Add((bad + good, false));
+        cases.Add((good.Replace("\r\n", "\n", StringComparison.Ordinal), false));
+        cases.Add((good[..^1], false));
+        foreach ((string old, string changed)in new[]
+        {
+            ("parentIndex=4", "parentIndex=5"),
+            ("pages=1 ", "pages=01 "),
+            ("readBytes=4096", "readBytes=4095"),
+            ("contentsZero=true", "contentsZero=false"),
+            ("nodes=0x0000000000100040", "nodes=0x0000000000100030"),
+            ("ledger=0x0000000000102000", "ledger=0x0000000000901000"),
+            ("heapState=0x0000000000101000", "heapState=0xFFFFFFFFFFFFFFF8"),
+            ("conventionalPages=20", "conventionalPages=18446744073709551616"),
+            ("conventionalBytes=81920", "conventionalBytes=81921"),
+            ("regionCount 3", "regionCount 4"),
+            ("UEFI_ACPI_RSDP_READY", "UEFI_ACPI_RSDP_MISSING"),
+            ("BOOT_ACPI_RSDP_HANDOFF_READY", "BOOT_ACPI_RSDP_HANDOFF_INVALID")
+        }
+
+        )
+        {
+            string changedText = good.Replace(old, changed, StringComparison.Ordinal);
+            if (changedText != good)
+                cases.Add((changedText, false));
+        }
+
         foreach (Match m in Regex.Matches(identity, @"[a-zA-Z]+=(?:0x[0-9A-F]{16}|[0-9]+)"))
         {
             string bad = m.Value.EndsWith('0') ? m.Value[..^1] + "1" : m.Value[..^1] + "0";
-            int at = good.IndexOf(m.Value, StringComparison.Ordinal); cases.Add((good[..at] + bad + good[(at + m.Length)..], false));
+            int at = good.IndexOf(m.Value, StringComparison.Ordinal);
+            cases.Add((good[..at] + bad + good[(at + m.Length)..], false));
         }
+
         var records = cases.Select((c, i) => new { Path = Path.Combine(directory, i + ".log"), c.Accept }).ToArray();
-        for (int i = 0; i < cases.Count; i++) File.WriteAllText(records[i].Path, cases[i].Text, new UTF8Encoding(false));
-        string manifest = Path.Combine(directory, "cases.json"); File.WriteAllText(manifest, System.Text.Json.JsonSerializer.Serialize(records));
+        for (int i = 0; i < cases.Count; i++)
+            File.WriteAllText(records[i].Path, cases[i].Text, new UTF8Encoding(false));
+        string manifest = Path.Combine(directory, "cases.json");
+        File.WriteAllText(manifest, System.Text.Json.JsonSerializer.Serialize(records));
         foreach (var entry in records)
         {
             bool accepted = true;
-            try { OS.Tooling.QemuTranscripts.AssertM04ManagedHeapPageRangeTranscript(entry.Path); }
-            catch (OS.Tooling.ToolFailure) { accepted = false; }
+            try
+            {
+                OS.Tooling.QemuTranscripts.AssertM04ManagedHeapPageRangeTranscript(entry.Path);
+            }
+            catch (OS.Tooling.ToolFailure)
+            {
+                accepted = false;
+            }
+
             Require(accepted == entry.Accept, "whole transcript " + entry.Path + " expected=" + entry.Accept);
         }
+
         EfiTranscriptControls.RunnerExitCodes();
         string[] Runner(string exit, string disposition = "runner-terminated") => ["QEMU_PROCESS_RESULT disposition=" + disposition + " exitCode=" + exit, "SERIAL_MARKER_DRAIN milliseconds=750"];
-        foreach (string exit in new[] { "-1", "0", "1", "-2147483648", "2147483647" }) OS.Tooling.QemuTranscripts.AssertM04ManagedHeapRunnerResult(Runner(exit));
-        foreach (string[] bad in new[] { "none", "", "2147483648", "-2147483649", "99999999999999999999", "-0", "00", "01", "-01", "+1", " 1", "1 " }.Select(x => Runner(x))
-            .Concat(new[] { "exited", "cleanup-failed", "running" }.Select(x => Runner("0", x))))
+        foreach (string exit in new[]
+        {
+            "-1",
+            "0",
+            "1",
+            "-2147483648",
+            "2147483647"
+        }
+
+        )
+            OS.Tooling.QemuTranscripts.AssertM04ManagedHeapRunnerResult(Runner(exit));
+        foreach (string[] bad in new[]
+        {
+            "none",
+            "",
+            "2147483648",
+            "-2147483649",
+            "99999999999999999999",
+            "-0",
+            "00",
+            "01",
+            "-01",
+            "+1",
+            " 1",
+            "1 "
+        }.Select(x => Runner(x)).Concat(new[] { "exited", "cleanup-failed", "running" }.Select(x => Runner("0", x))))
         {
             bool accepted = true;
-            try { OS.Tooling.QemuTranscripts.AssertM04ManagedHeapRunnerResult(bad); }
-            catch (OS.Tooling.ToolFailure) { accepted = false; }
+            try
+            {
+                OS.Tooling.QemuTranscripts.AssertM04ManagedHeapRunnerResult(bad);
+            }
+            catch (OS.Tooling.ToolFailure)
+            {
+                accepted = false;
+            }
+
             Require(!accepted, "invalid runner exit or disposition");
         }
+
         Console.WriteLine("TRANSCRIPT_CONTROLS m04.006 cases=" + records.Length);
     }
+
     [HostTest("m04.006.efi schema-three complete evaluated probe vector", HostLane.Native, 4)]
     private static void TestArtifactAuthority()
     {
@@ -336,8 +451,9 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
         string evidencePath = artifact + ".link.json";
         JsonObject evidence = JsonNode.Parse(File.ReadAllText(evidencePath))!.AsObject();
         JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
-        string[] enabled = [.. Prerequisites, Flag];
-        foreach (string flag in enabled) properties[flag] = "true";
+        string[] enabled = [..Prerequisites, Flag];
+        foreach (string flag in enabled)
+            properties[flag] = "true";
         string[] vector = properties.Select(x => x.Key).Where(x => x.StartsWith("Enable", StringComparison.Ordinal)).ToArray();
         HostCheck.Equal(OS.Tooling.EfiContracts.DiagnosticProbes.Count, vector.Length);
         string[] verifierArgs = enabled.Select(x => "-" + x).ToArray();
@@ -347,8 +463,10 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             var result = EfiArtifactVerificationScriptTests.RunVerifier(artifact, serializerObjectPath: paths.ObjectPath, additionalArguments: verifierArgs);
             File.WriteAllText(Path.Combine(path, context + ".log"), result.Output);
             Require((result.ExitCode == 0) == success && !result.TimedOut, context + " " + result.Output);
-            if (!success) Require(result.Output.Contains("post_restore_evidence_property_", StringComparison.Ordinal), "wrong rejection " + context + " " + result.Output);
+            if (!success)
+                Require(result.Output.Contains("post_restore_evidence_property_", StringComparison.Ordinal), "wrong rejection " + context + " " + result.Output);
         }
+
         Verify(true, "heap-positive");
         properties[enabled[0]] = "false";
         Verify(false, "flipped-prerequisite");
@@ -359,56 +477,125 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
         void Reject(JsonNode changed, string context)
         {
             bool accepted = true;
-            try { OS.Tooling.EfiMsbuild.VerifyEvaluation(changed, snapshot); }
-            catch (OS.Tooling.ToolFailure) { accepted = false; }
+            try
+            {
+                OS.Tooling.EfiMsbuild.VerifyEvaluation(changed, snapshot);
+            }
+            catch (OS.Tooling.ToolFailure)
+            {
+                accepted = false;
+            }
+
             Require(!accepted, context);
         }
+
         foreach (string flag in vector)
         {
             JsonObject changed = snapshot.DeepClone().AsObject();
             changed["properties"]![flag] = properties[flag]!.GetValue<string>() == "true" ? "false" : "true";
             Reject(changed, "flipped flag " + flag);
         }
-        JsonObject missing = snapshot.DeepClone().AsObject(); missing["properties"]!.AsObject().Remove("EnableM01LoadedImageStackProbe");
+
+        JsonObject missing = snapshot.DeepClone().AsObject();
+        missing["properties"]!.AsObject().Remove("EnableM01LoadedImageStackProbe");
         Reject(missing, "missing property");
-        JsonObject nul = snapshot.DeepClone().AsObject(); nul["properties"]!["EnableM01LiveAllocatorProbe"] = "true\0";
+        JsonObject nul = snapshot.DeepClone().AsObject();
+        nul["properties"]!["EnableM01LiveAllocatorProbe"] = "true\0";
         Reject(nul, "embedded NUL");
         Console.WriteLine("EVALUATION_VECTOR_CONTROLS flags=" + vector.Length + " flipped=" + vector.Length + " missing=1 embeddedNul=1");
     }
+
     [HostTest("m04.006.efi exact frozen source firewall", HostLane.Fast, 6)]
     private static void TestFirewall()
     {
         const string name = @"..\OS.Kernel\Runtime\ManagedHeapPageRangeLiveAllocator.cs";
         string text = File.ReadAllText(Path.Combine(Root(), Leaf)).Replace("\r\n", "\n", StringComparison.Ordinal);
-        foreach (string good in new[] { text, text.Replace("\n", "\r\n", StringComparison.Ordinal) })
+        foreach (string good in new[]
+        {
+            text,
+            text.Replace("\n", "\r\n", StringComparison.Ordinal)
+        }
+
+        )
             Require(OS.Tooling.EfiSourceAdmission.Inspect(good, name).Succeeded, "exact reviewed source");
-        foreach (string bad in new[] { text + " ", text + "\r", text.Replace("4096", "4095", StringComparison.Ordinal), text + "\n// edit" })
+        foreach (string bad in new[]
+        {
+            text + " ",
+            text + "\r",
+            text.Replace("4096", "4095", StringComparison.Ordinal),
+            text + "\n// edit"
+        }
+
+        )
             Require(!OS.Tooling.EfiSourceAdmission.Inspect(bad, name).Succeeded, "source mutation");
-        foreach (string alias in new[] { name.ToLowerInvariant(), name + " ", name.Replace('\\', '/'), name.Replace("Runtime\\", "Runtime\\.\\", StringComparison.Ordinal), name.Insert(5, "\0"), @"..\OS.Kernel\Runtime\Other.cs" })
+        foreach (string alias in new[]
+        {
+            name.ToLowerInvariant(),
+            name + " ",
+            name.Replace('\\', '/'),
+            name.Replace("Runtime\\", "Runtime\\.\\", StringComparison.Ordinal),
+            name.Insert(5, "\0"),
+            @"..\OS.Kernel\Runtime\Other.cs"
+        }
+
+        )
             Require(!OS.Tooling.EfiSourceAdmission.Inspect(text, alias).Succeeded, "path alias");
     }
 
-    private static string Adapter(string text) => Between(text, "    private static class M04ManagedHeapAdapter", "#endif");
-    private static string Between(string text, string start, string end) { int i = text.IndexOf(start, StringComparison.Ordinal); Require(i >= 0, start); return text[i..text.IndexOf(end, i, StringComparison.Ordinal)]; }
+    internal static CSharpSourceCatalog Sources() => HostSourceCatalog.Efi(EfiOptions.Parse(
+        Prerequisites.Append(Flag).Select(flag => "--" + flag).ToArray(), true).Profile());
+
     private static string Hash(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
     private static Result Qemu(params string[] args)
     {
-        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. args]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..args]);
         return new(result.ExitCode, result.Output + result.Error);
     }
+
     private static string[] Markers(string output, string prefix) => output.Replace("\r", "").Split('\n').Single(x => x.StartsWith(prefix, StringComparison.Ordinal))[prefix.Length..].Split(';');
     private static Result Process(string root, string exe, params string[] args)
     {
-        ProcessStartInfo start = new(exe) { WorkingDirectory = root, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (string arg in args) start.ArgumentList.Add(arg);
+        ProcessStartInfo start = new(exe)
+        {
+            WorkingDirectory = root,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        foreach (string arg in args)
+            start.ArgumentList.Add(arg);
         using System.Diagnostics.Process process = System.Diagnostics.Process.Start(start)!;
         Task<string> stdout = process.StandardOutput.ReadToEndAsync(), stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(180000)) { process.Kill(true); throw new TimeoutException(exe); }
-        Task.WaitAll(stdout, stderr); return new(process.ExitCode, stdout.Result + stderr.Result);
+        if (!process.WaitForExit(180000))
+        {
+            process.Kill(true);
+            throw new TimeoutException(exe);
+        }
+
+        Task.WaitAll(stdout, stderr);
+        return new(process.ExitCode, stdout.Result + stderr.Result);
     }
+
     private static void Save(string name, Result r) => File.WriteAllText(Path.Combine(Scratch(name), "run.log"), r.Output);
-    private static string Scratch(string name) { string path = Path.Combine(Root(), "artifacts/issue516-tests", name, Guid.NewGuid().ToString("N")); Directory.CreateDirectory(path); return path; }
-    private static string Root() { for (DirectoryInfo? d = new(Environment.CurrentDirectory); d != null; d = d.Parent) if (File.Exists(Path.Combine(d.FullName, "CLROS.slnx"))) return d.FullName; throw new DirectoryNotFoundException(); }
-    private static void Require(bool value, string reason) { if (!value) throw new InvalidOperationException(reason); }
-    private readonly record struct Result(int Code, string Output);
+    private static string Scratch(string name)
+    {
+        string path = Path.Combine(Root(), "artifacts/issue516-tests", name, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    private static string Root()
+    {
+        for (DirectoryInfo? d = new(Environment.CurrentDirectory); d != null; d = d.Parent)
+            if (File.Exists(Path.Combine(d.FullName, "CLROS.slnx")))
+                return d.FullName;
+        throw new DirectoryNotFoundException();
+    }
+
+    private static void Require(bool value, string reason)
+    {
+        if (!value)
+            throw new InvalidOperationException(reason);
+    }
 }

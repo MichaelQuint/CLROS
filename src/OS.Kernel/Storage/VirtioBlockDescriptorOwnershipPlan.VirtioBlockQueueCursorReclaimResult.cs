@@ -36,33 +36,75 @@ public readonly struct VirtioBlockQueueCursorReclaimResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockQueueCursorReclaimStatus Status { get; }
+    public VirtioBlockQueueCursorReclaimStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorReclaimPlanStatus ReclaimPlanStatus { get; }
+    public VirtioBlockDescriptorReclaimPlanStatus ReclaimPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorPublishPlanStatus PublishPlanStatus { get; }
+    public VirtioBlockDescriptorPublishPlanStatus PublishPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadLifecycleCompletionStatus CompletionStatus { get; }
+    public VirtioBlockReadLifecycleCompletionStatus CompletionStatus
+    {
+        get;
+    }
 
-    public VirtioBlockUsedRingCompletionReaderStatus CompletionReaderStatus { get; }
+    public VirtioBlockUsedRingCompletionReaderStatus CompletionReaderStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus { get; }
+    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus
+    {
+        get;
+    }
 
-    public bool CompletionAttempted { get; }
+    public bool CompletionAttempted
+    {
+        get;
+    }
 
-    public bool OwnershipReclaimAttempted { get; }
+    public bool OwnershipReclaimAttempted
+    {
+        get;
+    }
 
-    public ushort PreviousAvailableRingIndex { get; }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort CurrentAvailableRingIndex { get; }
+    public ushort CurrentAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort PreviousUsedRingIndex { get; }
+    public ushort PreviousUsedRingIndex
+    {
+        get;
+    }
 
-    public ushort CurrentUsedRingIndex { get; }
+    public ushort CurrentUsedRingIndex
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorReclaimPlanResult Reclaim { get; }
+    public VirtioBlockDescriptorReclaimPlanResult Reclaim
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == VirtioBlockQueueCursorReclaimStatus.Success;
 

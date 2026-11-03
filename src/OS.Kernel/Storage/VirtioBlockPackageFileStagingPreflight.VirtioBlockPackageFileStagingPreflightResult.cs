@@ -17,17 +17,35 @@ public readonly struct VirtioBlockPackageFileStagingPreflightResult
         StagingDestinationBytesAvailable = stagingDestinationBytesAvailable;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockPackageFileStagingPreflightStatus Status { get; }
+    public VirtioBlockPackageFileStagingPreflightStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockPackageReadPreflightResult PackagePreflight { get; }
+    public VirtioBlockPackageReadPreflightResult PackagePreflight
+    {
+        get;
+    }
 
-    public OsPackageOpenFileResult PackageOpen { get; }
+    public OsPackageOpenFileResult PackageOpen
+    {
+        get;
+    }
 
-    public OsPackageFileStagingResult PackageStaging { get; }
+    public OsPackageFileStagingResult PackageStaging
+    {
+        get;
+    }
 
-    public ulong StagingDestinationBytesAvailable { get; }
+    public ulong StagingDestinationBytesAvailable
+    {
+        get;
+    }
 
     public VirtioBlockReadOnlyReadSessionStatus ReadSessionStatus =>
         PackagePreflight.ReadSessionStatus;

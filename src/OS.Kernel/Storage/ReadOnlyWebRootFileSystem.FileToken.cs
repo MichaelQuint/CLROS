@@ -17,7 +17,12 @@ public static unsafe partial class ReadOnlyWebRootFileSystem
         internal readonly ulong Owner, Epoch, Generation;
         internal readonly uint Index;
         internal FileToken(ulong owner, ulong epoch, ulong generation, uint index)
-        { Owner = owner; Epoch = epoch; Generation = generation; Index = index; }
+        {
+            Owner = owner;
+            Epoch = epoch;
+            Generation = generation;
+            Index = index;
+        }
         public bool IsInitialized => Owner != 0 && Epoch != 0 && Generation != 0;
     }
 }

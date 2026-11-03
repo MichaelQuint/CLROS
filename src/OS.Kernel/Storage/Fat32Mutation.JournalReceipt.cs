@@ -18,6 +18,12 @@ public static unsafe partial class Fat32Mutation
         public readonly int Count;
         public readonly uint Crc32;
         internal JournalReceipt(ulong owner, ulong epoch, ulong generation, int count, uint crc)
-        { Owner = owner; Epoch = epoch; Generation = generation; Count = count; Crc32 = crc; }
+        {
+            Owner = owner;
+            Epoch = epoch;
+            Generation = generation;
+            Count = count;
+            Crc32 = crc;
+        }
     }
 }

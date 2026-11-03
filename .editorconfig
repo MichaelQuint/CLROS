@@ -15,6 +15,7 @@ csharp_new_line_before_catch = true
 csharp_new_line_before_finally = true
 csharp_preserve_single_line_statements = false
 csharp_preserve_single_line_blocks = false
+csharp_style_allow_embedded_statements_on_same_line_experimental = false
 csharp_indent_case_contents = true
 csharp_indent_switch_labels = true
 csharp_style_namespace_declarations = file_scoped:suggestion
@@ -22,6 +23,7 @@ csharp_style_namespace_declarations = file_scoped:suggestion
 # Existing braces and member order are not rewritten by policy.
 dotnet_diagnostic.IDE0011.severity = none
 dotnet_diagnostic.IDE0055.severity = warning
+dotnet_diagnostic.IDE2001.severity = warning
 dotnet_sort_system_directives_first = true
 dotnet_naming_rule.types_pascal_case.symbols = types
 dotnet_naming_rule.types_pascal_case.style = pascal_case

@@ -11,7 +11,7 @@ internal static class RuntimeExceptionTypePredicateBindingTests
     private static MethodDeclarationSyntax ExportMethod(string name, params string[] symbols)
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        var unit = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root, "src/OS/Runtime/MinimalRuntime.cs")),
+        var unit = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root, "src/OS/Runtime/TypeCast.cs")),
             new CSharpParseOptions(preprocessorSymbols: symbols)).GetCompilationUnitRoot();
         return unit.DescendantNodes().OfType<ClassDeclarationSyntax>().Single(c => c.Identifier.Text == "TypeCast")
             .Members.OfType<MethodDeclarationSyntax>().Single(m => m.Identifier.Text == name);

@@ -51,51 +51,120 @@ public readonly struct OsPackageLoadResult
         PackageBufferBytesAvailable = packageBufferBytesAvailable;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public OsPackageLoadStatus Status { get; }
+    public OsPackageLoadStatus Status
+    {
+        get;
+    }
 
-    public GptStatus GptStatus { get; }
+    public GptStatus GptStatus
+    {
+        get;
+    }
 
-    public GptPartitionTableStatus GptTableStatus { get; }
+    public GptPartitionTableStatus GptTableStatus
+    {
+        get;
+    }
 
-    public GptPartitionTableCrcStatus GptCrcStatus { get; }
+    public GptPartitionTableCrcStatus GptCrcStatus
+    {
+        get;
+    }
 
-    public GptPartitionTableSource GptTableSource { get; }
+    public GptPartitionTableSource GptTableSource
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockStatus { get; }
+    public BlockDeviceStatus BlockStatus
+    {
+        get;
+    }
 
-    public Fat32Status Fat32Status { get; }
+    public Fat32Status Fat32Status
+    {
+        get;
+    }
 
-    public OsPackageStatus PackageStatus { get; }
+    public OsPackageStatus PackageStatus
+    {
+        get;
+    }
 
-    public uint GptPartitionEntryIndex { get; }
+    public uint GptPartitionEntryIndex
+    {
+        get;
+    }
 
-    public ulong GptPartitionEntryBytesRequired { get; }
+    public ulong GptPartitionEntryBytesRequired
+    {
+        get;
+    }
 
-    public ulong GptPartitionEntrySectorBytesRequired { get; }
+    public ulong GptPartitionEntrySectorBytesRequired
+    {
+        get;
+    }
 
-    public ulong GptHeaderBytesRequired { get; }
+    public ulong GptHeaderBytesRequired
+    {
+        get;
+    }
 
-    public ulong GptHeaderBufferBytesAvailable { get; }
+    public ulong GptHeaderBufferBytesAvailable
+    {
+        get;
+    }
 
-    public ulong GptPartitionEntryBufferBytesAvailable { get; }
+    public ulong GptPartitionEntryBufferBytesAvailable
+    {
+        get;
+    }
 
-    public uint ExpectedGptHeaderCrc32 { get; }
+    public uint ExpectedGptHeaderCrc32
+    {
+        get;
+    }
 
-    public uint ComputedGptHeaderCrc32 { get; }
+    public uint ComputedGptHeaderCrc32
+    {
+        get;
+    }
 
-    public uint ExpectedGptPartitionEntryArrayCrc32 { get; }
+    public uint ExpectedGptPartitionEntryArrayCrc32
+    {
+        get;
+    }
 
-    public uint ComputedGptPartitionEntryArrayCrc32 { get; }
+    public uint ComputedGptPartitionEntryArrayCrc32
+    {
+        get;
+    }
 
-    public OsPackageHeader PackageHeader { get; }
+    public OsPackageHeader PackageHeader
+    {
+        get;
+    }
 
-    public uint BytesRead { get; }
+    public uint BytesRead
+    {
+        get;
+    }
 
-    public uint PackageBytesRequired { get; }
+    public uint PackageBytesRequired
+    {
+        get;
+    }
 
-    public uint PackageBufferBytesAvailable { get; }
+    public uint PackageBufferBytesAvailable
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == OsPackageLoadStatus.Success;
 

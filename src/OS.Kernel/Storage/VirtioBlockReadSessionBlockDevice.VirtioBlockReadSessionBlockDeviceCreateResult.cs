@@ -21,21 +21,45 @@ public readonly struct VirtioBlockReadSessionBlockDeviceCreateResult
         BackingByteCount = backingByteCount;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockReadSessionBlockDeviceCreateStatus Status { get; }
+    public VirtioBlockReadSessionBlockDeviceCreateStatus Status
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockDeviceStatus { get; }
+    public BlockDeviceStatus BlockDeviceStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadOnlyReadSessionStatus ReadSessionStatus { get; }
+    public VirtioBlockReadOnlyReadSessionStatus ReadSessionStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueuePipelineStatus ReadSessionPipelineStatus { get; }
+    public VirtioBlockReadQueuePipelineStatus ReadSessionPipelineStatus
+    {
+        get;
+    }
 
-    public ulong CompletedByteCount { get; }
+    public ulong CompletedByteCount
+    {
+        get;
+    }
 
-    public ulong ExpectedByteCount { get; }
+    public ulong ExpectedByteCount
+    {
+        get;
+    }
 
-    public ulong BackingByteCount { get; }
+    public ulong BackingByteCount
+    {
+        get;
+    }
 
     public bool Succeeded =>
         IsInitialized &&

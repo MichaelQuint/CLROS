@@ -15,11 +15,20 @@ public static partial class Fat32Parser
             Bytes = bytes;
         }
 
-        public Fat32Status Status { get; }
+        public Fat32Status Status
+        {
+            get;
+        }
 
-        public BlockDeviceStatus BlockStatus { get; }
+        public BlockDeviceStatus BlockStatus
+        {
+            get;
+        }
 
-        public byte[] Bytes { get; }
+        public byte[] Bytes
+        {
+            get;
+        }
 
         public bool Succeeded => Status == Fat32Status.Success;
 

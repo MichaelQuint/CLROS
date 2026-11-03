@@ -21,15 +21,30 @@ public readonly struct VirtioBlockDescriptorMetadata
         NextIndex = nextIndex;
     }
 
-    public ushort Index { get; }
+    public ushort Index
+    {
+        get;
+    }
 
-    public uint Length { get; }
+    public uint Length
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorAccess Access { get; }
+    public VirtioBlockDescriptorAccess Access
+    {
+        get;
+    }
 
-    public bool HasNext { get; }
+    public bool HasNext
+    {
+        get;
+    }
 
-    public ushort NextIndex { get; }
+    public ushort NextIndex
+    {
+        get;
+    }
 
     public bool DeviceWrites => Access == VirtioBlockDescriptorAccess.DeviceWrites;
 

@@ -1,0 +1,58 @@
+<Project>
+  <PropertyGroup>
+    <_ClrosHostProjectOutputsImported>true</_ClrosHostProjectOutputsImported>
+  </PropertyGroup>
+  <!-- Query the SDK-selected reference contexts after the normal reference build.
+       The query target is injected only into that host query; EFI imports and
+       compilation are unchanged. No guessed configuration/framework paths. -->
+  <Target Name="CaptureHostProjectOutputs" DependsOnTargets="ResolveProjectReferences;GetTargetPath">
+    <Error Condition="'$(CustomAfterMicrosoftCommonTargets)' != '' and Exists('$(CustomAfterMicrosoftCommonTargets)')"
+           Text="host_project_outputs_custom_import_unsupported" />
+    <MSBuild Projects="@(_MSBuildProjectReferenceExistent)" Targets="CollectHostProjectOutputs" BuildInParallel="false"
+      Properties="%(_MSBuildProjectReferenceExistent.SetConfiguration);%(_MSBuildProjectReferenceExistent.SetPlatform);%(_MSBuildProjectReferenceExistent.SetTargetFramework);BuildProjectReferences=false;CustomAfterMicrosoftCommonTargets=$(MSBuildThisFileFullPath)"
+      RemoveProperties="%(_MSBuildProjectReferenceExistent.GlobalPropertiesToRemove)$(_GlobalPropertiesToRemoveFromProjectReferences)"
+      Condition="'%(_MSBuildProjectReferenceExistent.BuildReference)' == 'true'">
+      <Output TaskParameter="TargetOutputs" ItemName="_HostReferencedProjectOutput" />
+    </MSBuild>
+    <WriteLinesToFile File="$(IntermediateOutputPath)host-project-outputs.txt"
+      Lines="CLROS_HOST_PROJECT_OUTPUTS_1;@(_HostReferencedProjectOutput->'%(SourceProject)|%(FullPath)|%(FileHash)|%(BuildConfiguration)|%(BuildPlatform)|%(BuildFramework)|%(BuildRuntimeIdentifier)')"
+      Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <EmbeddedResource Include="$(IntermediateOutputPath)host-project-outputs.txt" LogicalName="host-project-outputs.txt" />
+      <FileWrites Include="$(IntermediateOutputPath)host-project-outputs.txt" />
+    </ItemGroup>
+    <!-- The root cannot contain its own finished hash. Record its selected target
+         and compare it with the loaded producer when a tool spawns itself. -->
+    <WriteLinesToFile File="$(IntermediateOutputPath)host-project-self.txt"
+      Lines="CLROS_HOST_PROJECT_SELF_1;$(MSBuildProjectFullPath)|$(TargetPath)|$(Configuration)|$(Platform)|$(TargetFramework)|$(RuntimeIdentifier)"
+      Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <EmbeddedResource Include="$(IntermediateOutputPath)host-project-self.txt" LogicalName="host-project-self.txt" />
+      <FileWrites Include="$(IntermediateOutputPath)host-project-self.txt" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CollectHostProjectOutputs" DependsOnTargets="ResolveProjectReferences;GetTargetPath"
+          Returns="@(_HostCollectedProjectOutput)" KeepDuplicateOutputs="true">
+    <Error Condition="'$(CustomAfterMicrosoftCommonTargets)' != '$(MSBuildThisFileFullPath)'"
+           Text="host_project_outputs_query_import_required" />
+    <ItemGroup>
+      <_HostOwnProjectOutput Include="@(TargetPathWithTargetPlatformMoniker)">
+        <SourceProject>$(MSBuildProjectFullPath)</SourceProject>
+        <BuildConfiguration>$(Configuration)</BuildConfiguration>
+        <BuildPlatform>$(Platform)</BuildPlatform>
+        <BuildFramework>$(TargetFramework)</BuildFramework>
+        <BuildRuntimeIdentifier>$(RuntimeIdentifier)</BuildRuntimeIdentifier>
+      </_HostOwnProjectOutput>
+    </ItemGroup>
+    <GetFileHash Files="@(_HostOwnProjectOutput)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="_HostCollectedProjectOutput" />
+    </GetFileHash>
+    <MSBuild Projects="@(_MSBuildProjectReferenceExistent)" Targets="CollectHostProjectOutputs" BuildInParallel="false"
+      Properties="%(_MSBuildProjectReferenceExistent.SetConfiguration);%(_MSBuildProjectReferenceExistent.SetPlatform);%(_MSBuildProjectReferenceExistent.SetTargetFramework);BuildProjectReferences=false;CustomAfterMicrosoftCommonTargets=$(MSBuildThisFileFullPath)"
+      RemoveProperties="%(_MSBuildProjectReferenceExistent.GlobalPropertiesToRemove)$(_GlobalPropertiesToRemoveFromProjectReferences)"
+      Condition="'%(_MSBuildProjectReferenceExistent.BuildReference)' == 'true'">
+      <Output TaskParameter="TargetOutputs" ItemName="_HostCollectedProjectOutput" />
+    </MSBuild>
+  </Target>
+</Project>

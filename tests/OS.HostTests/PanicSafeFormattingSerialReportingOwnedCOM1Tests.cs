@@ -436,7 +436,7 @@ internal static unsafe class PanicSafeFormattingSerialReportingOwnedCOM1Tests
             "src",
             "OS.Kernel",
             "Diagnostics",
-            "PanicSafeFormattingSerialReportingOwnedCOM1.cs"));
+            "PanicSafeFormattingSerialReportingOwnedCom1.cs"));
 
         return !format.IsInitialized &&
             !format.Succeeded &&

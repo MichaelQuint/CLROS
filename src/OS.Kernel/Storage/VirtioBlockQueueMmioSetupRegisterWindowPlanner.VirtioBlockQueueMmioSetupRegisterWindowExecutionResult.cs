@@ -34,31 +34,70 @@ public readonly struct VirtioBlockQueueMmioSetupRegisterWindowExecutionResult
         ObservedValue = observedValue;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockQueueMmioSetupRegisterWindowExecutionStatus Status { get; }
+    public VirtioBlockQueueMmioSetupRegisterWindowExecutionStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockQueueMmioSetupPlanStatus SetupPlanStatus { get; }
+    public VirtioBlockQueueMmioSetupPlanStatus SetupPlanStatus
+    {
+        get;
+    }
 
-    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowStatus { get; }
+    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowStatus
+    {
+        get;
+    }
 
-    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus { get; }
+    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueMmioSetupCommandKind CommandKind { get; }
+    public VirtioBlockQueueMmioSetupCommandKind CommandKind
+    {
+        get;
+    }
 
-    public int CommandIndex { get; }
+    public int CommandIndex
+    {
+        get;
+    }
 
-    public int CommandsExecuted { get; }
+    public int CommandsExecuted
+    {
+        get;
+    }
 
-    public ushort QueueIndex { get; }
+    public ushort QueueIndex
+    {
+        get;
+    }
 
-    public uint RelativeOffset { get; }
+    public uint RelativeOffset
+    {
+        get;
+    }
 
-    public uint WidthBytes { get; }
+    public uint WidthBytes
+    {
+        get;
+    }
 
-    public ulong ExpectedValue { get; }
+    public ulong ExpectedValue
+    {
+        get;
+    }
 
-    public ulong ObservedValue { get; }
+    public ulong ObservedValue
+    {
+        get;
+    }
 
     public bool Succeeded =>
         IsInitialized &&

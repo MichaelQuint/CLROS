@@ -2,10 +2,44 @@ using OS.Tooling;
 
 internal static class EfiSourceAdmissionTests
 {
+    [HostTest("EFI extracted source families reject changed or missing siblings without widening admission")]
+    private static void ExtractedSourceFamilies()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string[] includes = EfiContracts.CompileItems.Select(item => item.Split('|')[0]).ToArray();
+        EfiProjectAdmission.VerifySourceFamilyInventory(includes);
+        foreach (string include in EfiContracts.SourceFamilyIdentities.Keys)
+            EfiProjectAdmission.VerifySourceFamilyPin(include, File.ReadAllText(Path.GetFullPath(include, Path.Combine(root, "src/OS"))));
+
+        string sibling = @"Boot\EfiEntry.M01StageOneAdapter.M01StageOneMemoryMapBuffer.cs";
+        string original = File.ReadAllText(Path.GetFullPath(sibling, Path.Combine(root, "src/OS")));
+        Reject(() => EfiProjectAdmission.VerifySourceFamilyPin(sibling, original + "\n// changed sibling\n"), "source_family_identity_mismatch");
+        Reject(() => EfiProjectAdmission.VerifySourceFamilyInventory(includes.Where(include => include != sibling)), "source_family_member_missing");
+        string generic = @"..\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorStateTransition.cs";
+        HostCheck.True(EfiSourceAdmission.Inspect("public static class Plain {}", generic).Succeeded,
+            "family integrity remains separate from the existing generic admission policy");
+        HostCheck.True(!EfiSourceAdmission.Inspect("public sealed class Forbidden {}", generic).Succeeded,
+            "family pin does not bypass generic source admission");
+
+        static void Reject(Action action, string reason)
+        {
+            try
+            {
+                action();
+            }
+            catch (ToolFailure failure)
+            {
+                HostCheck.Equal(reason, failure.Reason);
+                return;
+            }
+            HostCheck.True(false, reason);
+        }
+    }
+
     [HostTest("EFI allocator firewall admits shared queue ownership and rejects extra or redirected calls")]
     private static void AllocatorOwnership()
     {
-        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs"));
+        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.M03FirstExitAdapter.cs"));
         foreach (string call in new[] { "BootPageAllocatorMutator.AllocateOnePage", "BootPageAllocatorMutator.FreeOnePage" })
         {
             string admitted = source;
@@ -26,7 +60,7 @@ internal static class EfiSourceAdmissionTests
     [HostTest("EFI timer allocator firewall rejects rogue calls, redirected ownership and mismatched receipts")]
     private static void TimerAllocatorOwnership()
     {
-        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs"));
+        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.M03FirstExitAdapter.cs"));
         int start = source.IndexOf("private static bool RunSchedulerTimer(", StringComparison.Ordinal);
         HostCheck.True(start >= 0);
         int end = source.IndexOf("private static bool TimerPrepare(", start, StringComparison.Ordinal);

@@ -7,16 +7,16 @@ namespace OS.Runtime;
 
 // One original TypeManager registration, one static metadata snapshot. No heap,
 // second registration, stack walk, language handler or unwind execution occurs.
-internal static unsafe class X64UnwindMetadataProbe
+internal static unsafe partial class X64UnwindMetadataProbe
 {
     internal const ulong Capacity = 65536, GuardStart = Capacity - 32;
     private const ulong StackBytes = 33 * 4096, StackClearance = 16384;
     private const ulong StackWord0 = 0x3D947E21A6C850BF, StackWord1 = 0xC2715AB809E634DF;
-    private struct Buffer { internal fixed ulong Words[8192]; }
-    private struct StackState
-    {
-        internal ulong Authority, Start, End, InitialRsp, Witness, Minimum, Checks;
-    }
+
+
+
+
+
     private static Buffer s_storage;
     private static StackState s_stack;
     private static ulong s_phase, s_sampleA, s_sampleB, s_sampleFailure;

@@ -15,7 +15,9 @@ public static class NativeAotSocketVectorsPublisher
     /// Caller retains input; returned owned arguments grant planning authority only.</summary>
     public static string[] PublishArguments(string originalCommands,string destination)=>Publisher.PublishArguments(originalCommands,destination);
 
-    /// <summary>Check the four exact current app files and absence of build
+    internal static IReadOnlyList<(string Path, string Hash)> CurrentSources() => Publisher.CurrentSources();
+
+    /// <summary>Check the complete current app source family and absence of build
     /// overrides/source links. Generated bin/obj are excluded; changed sources throw.
     /// This validates app identity only, without publication or execution authority.</summary>
     public static void RequireCurrentSources(string root)=>Publisher.RequireCurrentSources(root);

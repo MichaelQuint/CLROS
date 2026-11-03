@@ -17,9 +17,17 @@ public static unsafe partial class ContinuingFat32Bootstrap
         public readonly LiveFat32Volume Volume;
         internal Result(State* s)
         {
-            Owner = (ulong)s; Epoch = s->Input.Epoch; DeviceOwner = s->DeviceOwner; DeviceEpoch = s->Input.DeviceEpoch;
-            DiskGuidLow = s->Header.DiskGuidLow; DiskGuidHigh = s->Header.DiskGuidHigh; PartitionGuidLow = s->PartitionLow; PartitionGuidHigh = s->PartitionHigh;
-            EntryIndex = s->Selected; Reads = s->Reads; Volume = s->Volume;
+            Owner = (ulong)s;
+            Epoch = s->Input.Epoch;
+            DeviceOwner = s->DeviceOwner;
+            DeviceEpoch = s->Input.DeviceEpoch;
+            DiskGuidLow = s->Header.DiskGuidLow;
+            DiskGuidHigh = s->Header.DiskGuidHigh;
+            PartitionGuidLow = s->PartitionLow;
+            PartitionGuidHigh = s->PartitionHigh;
+            EntryIndex = s->Selected;
+            Reads = s->Reads;
+            Volume = s->Volume;
         }
     }
 }

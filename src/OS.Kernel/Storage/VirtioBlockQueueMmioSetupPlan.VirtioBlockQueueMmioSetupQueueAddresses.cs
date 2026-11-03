@@ -14,9 +14,18 @@ public readonly struct VirtioBlockQueueMmioSetupQueueAddresses
         DeviceRingPhysicalAddress = deviceRingPhysicalAddress;
     }
 
-    public ulong DescriptorTablePhysicalAddress { get; }
+    public ulong DescriptorTablePhysicalAddress
+    {
+        get;
+    }
 
-    public ulong DriverRingPhysicalAddress { get; }
+    public ulong DriverRingPhysicalAddress
+    {
+        get;
+    }
 
-    public ulong DeviceRingPhysicalAddress { get; }
+    public ulong DeviceRingPhysicalAddress
+    {
+        get;
+    }
 }

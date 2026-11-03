@@ -32,29 +32,65 @@ public readonly struct VirtioBlockReadQueueBlockReadProjectionResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockReadQueueBlockReadProjectionStatus Status { get; }
+    public VirtioBlockReadQueueBlockReadProjectionStatus Status
+    {
+        get;
+    }
 
-    public BlockReadResult BlockRead { get; }
+    public BlockReadResult BlockRead
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueueCompletionStatus ReadQueueCompletionStatus { get; }
+    public VirtioBlockReadQueueCompletionStatus ReadQueueCompletionStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueuePublishStatus ReadQueuePublishStatus { get; }
+    public VirtioBlockReadQueuePublishStatus ReadQueuePublishStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueCursorReclaimStatus CursorReclaimStatus { get; }
+    public VirtioBlockQueueCursorReclaimStatus CursorReclaimStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorReclaimPlanStatus ReclaimPlanStatus { get; }
+    public VirtioBlockDescriptorReclaimPlanStatus ReclaimPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockUsedRingCompletionReaderStatus CompletionReaderStatus { get; }
+    public VirtioBlockUsedRingCompletionReaderStatus CompletionReaderStatus
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus { get; }
+    public VirtioBlockDescriptorOwnershipStatus OwnershipStatus
+    {
+        get;
+    }
 
-    public uint RequestedBlockCount { get; }
+    public uint RequestedBlockCount
+    {
+        get;
+    }
 
-    public ulong RequestedByteCount { get; }
+    public ulong RequestedByteCount
+    {
+        get;
+    }
 
-    public uint CompletedByteCount { get; }
+    public uint CompletedByteCount
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == VirtioBlockReadQueueBlockReadProjectionStatus.Success;
 

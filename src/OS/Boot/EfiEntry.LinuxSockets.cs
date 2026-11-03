@@ -166,63 +166,63 @@ public static unsafe partial class EfiEntry
         private const uint LinuxSocketConnections = 8;
 #endif
         private const uint LinuxSocketReceive = 8192, LinuxSocketSend = 32768;
-        // Borrowed observations only. A release is reported after the original
-        // handle becomes stale and its network slot disappears or is reused.
-        private struct LinuxSocketLifetime
-        {
-            internal TcpConnectionTable.Handle Handle;
-            internal TcpConnectionKey Key;
-            internal ulong MaximumDeadline, Duration;
-            internal uint Active, WaitObserved, DrainObserved, TimeoutObserved;
+
+
+
+
+
+
+
+
 #if M16_014_PROBE
-            internal uint LastCloseObserved, QuotaLeaseObserved;
-            internal ulong AppSent, AppReceived;
+
+
 #endif
-        }
-        // Image-resident ownership outlives every borrowed callback, including a
-        // rejected native transfer. Never reuse or free this storage after fault.
-        private struct LinuxSocketStorage
-        {
-            internal Storage* Boot;
-            internal NetDevice.State* Device;
-            internal LinuxSocketServices.State Sockets;
-            internal LinuxEpollServices.State Epoll;
-            internal SocketNetwork.State Network;
-            internal TcpConnectionTable.Owner Table;
-            internal MacAddress Peer;
-            internal uint Phase, Failed, Draining;
-            internal ulong Polls, Received, Copied, Started;
-            internal ulong ResolveSent, ResolveReceived, ResolveStarted, ResolveEnded;
-            internal ulong ArpReceived, Accepted, Ignored, Capacity, ArpCopied;
-            internal ulong Fresh, Retired, Ended, MaximumDeadline;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #if M16_014_PROBE
-            internal ulong CompactTransfers, CompactFresh, CompactRetired;
-            internal uint BulkHighWater, CompactHighWater;
-            internal uint QuotaLeasePublished;
-            internal ulong QuotaLeaseAcquired, QuotaLeaseReturned;
-            internal ulong QuotaBindingAcquired, QuotaBindingReturned;
-            internal fixed ulong CompactGenerations[64], CompactDeadlines[64];
+
+
+
+
+
+
 #endif
-            internal fixed byte Endpoints[2048], Ports[32], Registrations[2560];
-            internal fixed byte Slots[1024 * (int)LinuxSocketConnections], Entries[128 * (int)LinuxSocketConnections];
-            internal fixed ulong Generations[(int)LinuxSocketConnections];
-            internal fixed ulong Lifetimes[16 * (int)LinuxSocketConnections];
-            internal fixed ulong WakeIdentities[(int)LinuxNativeWorkers], WakeSequences[(int)LinuxNativeWorkers];
-            internal fixed byte Buffers[((int)LinuxSocketReceive + (int)LinuxSocketSend) * (int)LinuxSocketConnections];
-            internal fixed byte Input[1536], Output[1536];
-        }
+
+
+
+
+
+
+
+
         private static LinuxSocketStorage s_linuxSocketStorage;
 #if M16_027_PROBE
-        // The whole direct IO carrier is separate from transport metadata and
-        // the user-copy carrier. Original Boot/NIC and all opaque referents
-        // retain their independent native mappings and lifetime obligations.
-        private struct LinuxSocketIoCarrier
-        {
-            internal ulong Self, NetworkArena;
-            internal Storage* Boot;
-            internal LinuxSocketStorage* Owner;
-            internal NetDevice.State* Device;
-        }
+
+
+
+
+
+
+
+
+
+
         private static LinuxSocketIoCarrier s_linuxSocketIoCarrier;
 
         // Independent original addresses and whole context sizes are checked

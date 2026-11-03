@@ -15,15 +15,30 @@ public readonly struct GptParseResult
         FirstPartition = firstPartition;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public GptStatus Status { get; }
+    public GptStatus Status
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockStatus { get; }
+    public BlockDeviceStatus BlockStatus
+    {
+        get;
+    }
 
-    public GptHeader Header { get; }
+    public GptHeader Header
+    {
+        get;
+    }
 
-    public GptPartitionEntry FirstPartition { get; }
+    public GptPartitionEntry FirstPartition
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == GptStatus.Success;
 

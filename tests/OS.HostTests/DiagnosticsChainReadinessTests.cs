@@ -3,131 +3,56 @@ using OS.Boot;
 using OS.Kernel.Diagnostics;
 using OS.Kernel.Runtime;
 
-internal static class DiagnosticsChainReadinessTests
+internal static partial class DiagnosticsChainReadinessTests
 {
-
     [HostTest("diagnostics.chain readiness accepts complete chain", HostLane.Fast, 0)]
     private static bool TestAcceptsCompleteChain()
     {
         DiagnosticsChainReadinessResult result = CreateReadyChain();
-
-        return HostCheck.Result(result.Succeeded
-            && result.IsInitialized
-            && result.Status == DiagnosticsChainReadinessStatus.Ready
-            && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.Success
-            && result.DescriptorTableStatus == DescriptorTableInstallReadinessStatus.Ready
-            && result.FaultProbeStatus == FaultProbeReadinessStatus.Ready
-            && result.CpuFaultPanicStatus == CpuFaultPanicReadinessStatus.Ready
-            && result.StubMaterializationStatus == ExecutableStubBundleMaterializerStatus.Success
-            && result.StubMaterializationBytesCopied > 0);
+        return HostCheck.Result(result.Succeeded && result.IsInitialized && result.Status == DiagnosticsChainReadinessStatus.Ready && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.Success && result.DescriptorTableStatus == DescriptorTableInstallReadinessStatus.Ready && result.FaultProbeStatus == FaultProbeReadinessStatus.Ready && result.CpuFaultPanicStatus == CpuFaultPanicReadinessStatus.Ready && result.StubMaterializationStatus == ExecutableStubBundleMaterializerStatus.Success && result.StubMaterializationBytesCopied > 0);
     }
 
     [HostTest("diagnostics.chain readiness rejects serial backend failure", HostLane.Fast, 1)]
     private static bool TestRejectsSerialBackendFailure()
     {
-        DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(
-            Com1PortIoBackendPlanResult.InvalidSerialConfiguration(
-                SerialPortConfigurationStatus.InvalidBasePort,
-                Com1PortIoBackendPlan.RequiredExecutableStubBytes,
-                availableStubBytes: 0),
-            CreateReadyDescriptorInstallResult(),
-            CreateReadyFaultProbeResult(),
-            CreateReadyCpuFaultPanicResult(),
-            ExecutableStubBundleMaterializerResult.Success());
-
-        return HostCheck.Result(!result.Succeeded
-            && result.IsInitialized
-            && result.Status == DiagnosticsChainReadinessStatus.SerialBackendNotReady
-            && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.InvalidSerialConfiguration);
+        DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(Com1PortIoBackendPlanResult.InvalidSerialConfiguration(SerialPortConfigurationStatus.InvalidBasePort, Com1PortIoBackendPlan.RequiredExecutableStubBytes, availableStubBytes: 0), CreateReadyDescriptorInstallResult(), CreateReadyFaultProbeResult(), CreateReadyCpuFaultPanicResult(), ExecutableStubBundleMaterializerResult.Success());
+        return HostCheck.Result(!result.Succeeded && result.IsInitialized && result.Status == DiagnosticsChainReadinessStatus.SerialBackendNotReady && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.InvalidSerialConfiguration);
     }
 
     [HostTest("diagnostics.chain readiness rejects descriptor failure", HostLane.Fast, 2)]
     private static bool TestRejectsDescriptorFailure()
     {
-        DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(
-            CreateReadyCom1BackendResult(),
-            DescriptorTableInstallReadinessResult.Fail(
-                DescriptorTableInstallReadinessStatus.IdtTableNotReady,
-                IdtTablePlanStatus.MissingRequiredVector,
-                IdtrDescriptorStatus.Ok,
-                GdtDescriptorPlanStatus.Ok,
-                TssIstPlanStatus.Ok),
-            CreateReadyFaultProbeResult(),
-            CreateReadyCpuFaultPanicResult(),
-            ExecutableStubBundleMaterializerResult.Success());
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == DiagnosticsChainReadinessStatus.DescriptorTablesNotReady
-            && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.Success
-            && result.DescriptorTableStatus == DescriptorTableInstallReadinessStatus.IdtTableNotReady);
+        DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(CreateReadyCom1BackendResult(), DescriptorTableInstallReadinessResult.Fail(DescriptorTableInstallReadinessStatus.IdtTableNotReady, IdtTablePlanStatus.MissingRequiredVector, IdtrDescriptorStatus.Ok, GdtDescriptorPlanStatus.Ok, TssIstPlanStatus.Ok), CreateReadyFaultProbeResult(), CreateReadyCpuFaultPanicResult(), ExecutableStubBundleMaterializerResult.Success());
+        return HostCheck.Result(!result.Succeeded && result.Status == DiagnosticsChainReadinessStatus.DescriptorTablesNotReady && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.Success && result.DescriptorTableStatus == DescriptorTableInstallReadinessStatus.IdtTableNotReady);
     }
 
     [HostTest("diagnostics.chain readiness rejects fault probe failure", HostLane.Fast, 3)]
     private static bool TestRejectsFaultProbeFailure()
     {
-        DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(
-            CreateReadyCom1BackendResult(),
-            CreateReadyDescriptorInstallResult(),
-            FaultProbeReadinessResult.Fail(FaultProbeReadinessStatus.MemoryPlanTooSmall),
-            CreateReadyCpuFaultPanicResult(),
-            ExecutableStubBundleMaterializerResult.Success());
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == DiagnosticsChainReadinessStatus.FaultProbeNotReady
-            && result.FaultProbeStatus == FaultProbeReadinessStatus.MemoryPlanTooSmall);
+        DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(CreateReadyCom1BackendResult(), CreateReadyDescriptorInstallResult(), FaultProbeReadinessResult.Fail(FaultProbeReadinessStatus.MemoryPlanTooSmall), CreateReadyCpuFaultPanicResult(), ExecutableStubBundleMaterializerResult.Success());
+        return HostCheck.Result(!result.Succeeded && result.Status == DiagnosticsChainReadinessStatus.FaultProbeNotReady && result.FaultProbeStatus == FaultProbeReadinessStatus.MemoryPlanTooSmall);
     }
 
     [HostTest("diagnostics.chain readiness rejects panic failure", HostLane.Fast, 4)]
     private static bool TestRejectsPanicFailure()
     {
-        DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(
-            CreateReadyCom1BackendResult(),
-            CreateReadyDescriptorInstallResult(),
-            CreateReadyFaultProbeResult(),
-            default,
-            ExecutableStubBundleMaterializerResult.Success());
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == DiagnosticsChainReadinessStatus.CpuFaultPanicNotReady
-            && result.CpuFaultPanicStatus == CpuFaultPanicReadinessStatus.Ready);
+        DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(CreateReadyCom1BackendResult(), CreateReadyDescriptorInstallResult(), CreateReadyFaultProbeResult(), default, ExecutableStubBundleMaterializerResult.Success());
+        return HostCheck.Result(!result.Succeeded && result.Status == DiagnosticsChainReadinessStatus.CpuFaultPanicNotReady && result.CpuFaultPanicStatus == CpuFaultPanicReadinessStatus.Ready);
     }
 
     [HostTest("diagnostics.chain readiness rejects stub materialization failure", HostLane.Fast, 5)]
     private static bool TestRejectsStubMaterializationFailure()
     {
-        ExecutableStubBundleMaterializerResult materializer =
-            ExecutableStubBundleMaterializerResult.Fail(
-                ExecutableStubBundleMaterializerStatus.InvalidBundlePlan,
-                ExecutableStubBundlePlanStatus.InvalidMemoryPlan,
-                ExecutableStubMemoryPlanStatus.Success);
-
-        DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(
-            CreateReadyCom1BackendResult(),
-            CreateReadyDescriptorInstallResult(),
-            CreateReadyFaultProbeResult(),
-            CreateReadyCpuFaultPanicResult(),
-            materializer);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Status == DiagnosticsChainReadinessStatus.StubMaterializationNotReady
-            && result.StubMaterializationStatus == ExecutableStubBundleMaterializerStatus.InvalidBundlePlan
-            && result.StubMaterializationBytesCopied == 0);
+        ExecutableStubBundleMaterializerResult materializer = ExecutableStubBundleMaterializerResult.Fail(ExecutableStubBundleMaterializerStatus.InvalidBundlePlan, ExecutableStubBundlePlanStatus.InvalidMemoryPlan, ExecutableStubMemoryPlanStatus.Success);
+        DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(CreateReadyCom1BackendResult(), CreateReadyDescriptorInstallResult(), CreateReadyFaultProbeResult(), CreateReadyCpuFaultPanicResult(), materializer);
+        return HostCheck.Result(!result.Succeeded && result.Status == DiagnosticsChainReadinessStatus.StubMaterializationNotReady && result.StubMaterializationStatus == ExecutableStubBundleMaterializerStatus.InvalidBundlePlan && result.StubMaterializationBytesCopied == 0);
     }
 
     [HostTest("diagnostics.chain readiness default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         DiagnosticsChainReadinessResult result = default;
-
-        return HostCheck.Result(!result.IsInitialized
-            && !result.Succeeded
-            && result.Status == DiagnosticsChainReadinessStatus.Ready
-            && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.Success
-            && result.DescriptorTableStatus == DescriptorTableInstallReadinessStatus.Ready
-            && result.FaultProbeStatus == FaultProbeReadinessStatus.Ready
-            && result.CpuFaultPanicStatus == CpuFaultPanicReadinessStatus.Ready
-            && result.StubMaterializationStatus == ExecutableStubBundleMaterializerStatus.Success
-            && result.StubMaterializationBytesCopied == 0);
+        return HostCheck.Result(!result.IsInitialized && !result.Succeeded && result.Status == DiagnosticsChainReadinessStatus.Ready && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.Success && result.DescriptorTableStatus == DescriptorTableInstallReadinessStatus.Ready && result.FaultProbeStatus == FaultProbeReadinessStatus.Ready && result.CpuFaultPanicStatus == CpuFaultPanicReadinessStatus.Ready && result.StubMaterializationStatus == ExecutableStubBundleMaterializerStatus.Success && result.StubMaterializationBytesCopied == 0);
     }
 
     [HostTest("diagnostics.chain readiness result contains no managed references", HostLane.Fast, 7)]
@@ -142,35 +67,19 @@ internal static class DiagnosticsChainReadinessTests
         DiagnosticsChainReadinessResult readiness = CreateReadyChain();
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
         BootEventRingBuffer events = new BootEventRingBuffer(8);
-
         BootResult result = BootSequence.RunDiagnosticsChainReadiness(readiness, serial, events);
-
-        return HostCheck.Result(result.Succeeded
-            && serial.Count == 1
-            && serial.LineAt(0) == BootSequence.DiagnosticsChainReady
-            && events.Snapshot()[0] == BootSequence.DiagnosticsChainReady);
+        return HostCheck.Result(result.Succeeded && serial.Count == 1 && serial.LineAt(0) == BootSequence.DiagnosticsChainReady && events.Snapshot()[0] == BootSequence.DiagnosticsChainReady);
     }
 
     [HostTest("boot.sequence diagnostics chain emits blocked marker", HostLane.Fast, 9)]
     private static bool TestBootSequenceBlockedMarker()
     {
-        DiagnosticsChainReadinessResult readiness = DiagnosticsChainReadiness.RequireReady(
-            CreateReadyCom1BackendResult(),
-            CreateReadyDescriptorInstallResult(),
-            CreateReadyFaultProbeResult(),
-            default,
-            ExecutableStubBundleMaterializerResult.Success());
+        DiagnosticsChainReadinessResult readiness = DiagnosticsChainReadiness.RequireReady(CreateReadyCom1BackendResult(), CreateReadyDescriptorInstallResult(), CreateReadyFaultProbeResult(), default, ExecutableStubBundleMaterializerResult.Success());
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
         BootEventRingBuffer events = new BootEventRingBuffer(8);
         string expectedMarker = BootSequence.CreateDiagnosticsChainNotReadyMarker(readiness);
-
         BootResult result = BootSequence.RunDiagnosticsChainReadiness(readiness, serial, events);
-
-        return HostCheck.Result(!result.Succeeded
-            && result.Reason.Contains(nameof(DiagnosticsChainReadinessStatus.CpuFaultPanicNotReady), StringComparison.Ordinal)
-            && serial.Count == 1
-            && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker);
+        return HostCheck.Result(!result.Succeeded && result.Reason.Contains(nameof(DiagnosticsChainReadinessStatus.CpuFaultPanicNotReady), StringComparison.Ordinal) && serial.Count == 1 && serial.LineAt(0) == expectedMarker && events.Snapshot()[0] == expectedMarker);
     }
 
     [HostTest("boot.sequence diagnostics chain leaves default markers unchanged", HostLane.Fast, 10)]
@@ -178,9 +87,7 @@ internal static class DiagnosticsChainReadinessTests
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
         BootEventRingBuffer events = new BootEventRingBuffer(16);
-
         BootResult result = BootSequence.Run(serial, events);
-
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
             return HostCheck.Result(false);
@@ -194,55 +101,36 @@ internal static class DiagnosticsChainReadinessTests
             }
         }
 
-        return HostCheck.Result(!serial.Contains(BootSequence.DiagnosticsChainReady)
-            && !serial.ContainsPrefix(BootSequence.DiagnosticsChainNotReadyPrefix));
+        return HostCheck.Result(!serial.Contains(BootSequence.DiagnosticsChainReady) && !serial.ContainsPrefix(BootSequence.DiagnosticsChainNotReadyPrefix));
     }
 
     private static DiagnosticsChainReadinessResult CreateReadyChain()
     {
-        return DiagnosticsChainReadiness.RequireReady(
-            CreateReadyCom1BackendResult(),
-            CreateReadyDescriptorInstallResult(),
-            CreateReadyFaultProbeResult(),
-            CreateReadyCpuFaultPanicResult(),
-            ExecutableStubBundleMaterializerResult.Success());
+        return DiagnosticsChainReadiness.RequireReady(CreateReadyCom1BackendResult(), CreateReadyDescriptorInstallResult(), CreateReadyFaultProbeResult(), CreateReadyCpuFaultPanicResult(), ExecutableStubBundleMaterializerResult.Success());
     }
 
     private static Com1PortIoBackendPlanResult CreateReadyCom1BackendResult()
     {
-        return Com1PortIoBackendPlanResult.Success(
-            Com1PortIoBackendPlan.RequiredExecutableStubBytes,
-            availableStubBytes: 4096);
+        return Com1PortIoBackendPlanResult.Success(Com1PortIoBackendPlan.RequiredExecutableStubBytes, availableStubBytes: 4096);
     }
 
     private static DescriptorTableInstallReadinessResult CreateReadyDescriptorInstallResult()
     {
-        return DescriptorTableInstallReadinessResult.Pass(
-            IdtTablePlanStatus.Ok,
-            IdtrDescriptorStatus.Ok,
-            GdtDescriptorPlanStatus.Ok,
-            TssIstPlanStatus.Ok);
+        return DescriptorTableInstallReadinessResult.Pass(IdtTablePlanStatus.Ok, IdtrDescriptorStatus.Ok, GdtDescriptorPlanStatus.Ok, TssIstPlanStatus.Ok);
     }
 
     private static FaultProbeReadinessResult CreateReadyFaultProbeResult()
     {
         byte[] invalidOpcodeBuffer = new byte[FaultProbeStubPlan.InvalidOpcodeRequiredByteLength];
         byte[] nullWriteBuffer = new byte[FaultProbeStubPlan.NullWriteRequiredByteLength];
-        ExecutableStubMemoryPlanResult memoryPlan =
-            ExecutableStubMemoryPlan.Create((nuint)FaultProbeReadiness.RequiredPayloadBytes);
-
+        ExecutableStubMemoryPlanResult memoryPlan = ExecutableStubMemoryPlan.Create((nuint)FaultProbeReadiness.RequiredPayloadBytes);
         return FaultProbeReadiness.RequireReady(invalidOpcodeBuffer, nullWriteBuffer, memoryPlan);
     }
 
     private static CpuFaultPanicReadinessResult CreateReadyCpuFaultPanicResult()
     {
         byte[] frameBytes = new byte[CpuFaultEntryFrameLayout.TotalSize];
-        CpuFaultEntryFrameLayoutResult writeResult = CpuFaultEntryFrameLayout.TryWrite(
-            frameBytes,
-            CreateFaultFrame(),
-            codeSegment: 0x0008,
-            stackSegment: 0x0010);
-
+        CpuFaultEntryFrameLayoutResult writeResult = CpuFaultEntryFrameLayout.TryWrite(frameBytes, CreateFaultFrame(), codeSegment: 0x0008, stackSegment: 0x0010);
         if (!writeResult.Succeeded)
         {
             throw new InvalidOperationException("Failed to encode diagnostics chain CPU fault frame.");
@@ -250,97 +138,11 @@ internal static class DiagnosticsChainReadinessTests
 
         byte[] scratch = new byte[1024];
         CapturingByteSink sink = new CapturingByteSink(1024);
-        return CpuFaultPanicReadiness.RequireReady(
-            frameBytes,
-            scratch,
-            sink,
-            "idt",
-            "diagnostics-chain");
+        return CpuFaultPanicReadiness.RequireReady(frameBytes, scratch, sink, "idt", "diagnostics-chain");
     }
 
     private static CpuFaultFrame CreateFaultFrame()
     {
-        return new CpuFaultFrame(
-            FaultVectorCatalog.PageFault,
-            hasErrorCode: true,
-            errorCode: 0x0000000000000002,
-            rip: 0x0000000010002000,
-            rsp: 0x0000000000700000,
-            rbp: 0x0000000000700100,
-            rflags: 0x0000000000000202,
-            cr2: 0x0000000000001000,
-            cr3: 0x00000000001AA000,
-            rax: 0x1111111111111111,
-            rbx: 0x2222222222222222,
-            rcx: 0x3333333333333333,
-            rdx: 0x4444444444444444,
-            rsi: 0x5555555555555555,
-            rdi: 0x6666666666666666,
-            r8: 0x8888888888888888,
-            r9: 0x9999999999999999,
-            r10: 0xAAAAAAAAAAAAAAAA,
-            r11: 0xBBBBBBBBBBBBBBBB,
-            r12: 0xCCCCCCCCCCCCCCCC,
-            r13: 0xDDDDDDDDDDDDDDDD,
-            r14: 0xEEEEEEEEEEEEEEEE,
-            r15: 0xFFFFFFFFFFFFFFFF);
-    }
-
-    private sealed class CapturingByteSink : IPanicSerialByteSink
-    {
-        private readonly byte[] _buffer;
-        private int _written;
-
-        public CapturingByteSink(int capacity)
-        {
-            _buffer = new byte[capacity];
-        }
-
-        public bool TryWriteByte(byte value)
-        {
-            if (_written >= _buffer.Length)
-            {
-                return false;
-            }
-
-            _buffer[_written] = value;
-            _written++;
-            return true;
-        }
-    }
-
-    private sealed class SequenceTestSerialSink : ISerialSink
-    {
-        private readonly List<string> _lines = new List<string>();
-
-        public int Count => _lines.Count;
-
-        public void WriteLine(string line)
-        {
-            _lines.Add(line);
-        }
-
-        public string LineAt(int index)
-        {
-            return _lines[index];
-        }
-
-        public bool Contains(string value)
-        {
-            return _lines.Contains(value);
-        }
-
-        public bool ContainsPrefix(string value)
-        {
-            for (int index = 0; index < _lines.Count; index++)
-            {
-                if (_lines[index].StartsWith(value, StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
+        return new CpuFaultFrame(FaultVectorCatalog.PageFault, hasErrorCode: true, errorCode: 0x0000000000000002, rip: 0x0000000010002000, rsp: 0x0000000000700000, rbp: 0x0000000000700100, rflags: 0x0000000000000202, cr2: 0x0000000000001000, cr3: 0x00000000001AA000, rax: 0x1111111111111111, rbx: 0x2222222222222222, rcx: 0x3333333333333333, rdx: 0x4444444444444444, rsi: 0x5555555555555555, rdi: 0x6666666666666666, r8: 0x8888888888888888, r9: 0x9999999999999999, r10: 0xAAAAAAAAAAAAAAAA, r11: 0xBBBBBBBBBBBBBBBB, r12: 0xCCCCCCCCCCCCCCCC, r13: 0xDDDDDDDDDDDDDDDD, r14: 0xEEEEEEEEEEEEEEEE, r15: 0xFFFFFFFFFFFFFFFF);
     }
 }

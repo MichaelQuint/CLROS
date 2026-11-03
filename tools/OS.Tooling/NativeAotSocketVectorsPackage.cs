@@ -30,7 +30,7 @@ public static class NativeAotSocketVectorsPackage
         "\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=16\nlisten=0.0.0.0:8080\nenv.CLROS_USER_IRQS=1\n";
 
     /// <summary>Validate current original socket build/consumer inputs and the
-    /// publisher's exact four app files. Generated bin/obj are excluded; source
+    /// publisher's complete current app family. Generated bin/obj are excluded; source
     /// links, overrides and extra app files reject. No publication is performed.</summary>
     public static void RequireCurrentSources(string root)
     {
@@ -38,6 +38,9 @@ public static class NativeAotSocketVectorsPackage
         NativeAotSocketPackage.RequireCurrentSources(root);
         NativeAotSocketVectorsPublisher.RequireCurrentSources(root);
     }
+
+    internal static IReadOnlyList<(string Path, string Hash)> CurrentSources() =>
+        NativeAotSocketPackage.CurrentSources().Concat(NativeAotSocketVectorsPublisher.CurrentSources()).ToArray();
 
     /// <summary>Require the immutable original receipt and complete20-output
     /// inventory, producer, recipe, managed/native objects and original ELF.

@@ -22,7 +22,7 @@ internal static class NativeAotSocketVectorsPublisherTests
         HostCheck.True(!Directory.Exists(destination));
     }
 
-    [HostTest("socket vectors publisher binds all four app files and rejects extra sources and build overrides")]
+    [HostTest("socket vectors publisher binds the complete app family and rejects extra sources and build overrides")]
     private static void Sources()
     {
         string root=HostToolProcess.FindRepositoryRoot();
@@ -30,8 +30,8 @@ internal static class NativeAotSocketVectorsPublisherTests
         try
         {
             string app=Path.Combine(temporary,"apps","NativeAotSocketVectors");Directory.CreateDirectory(app);
-            foreach(string file in new[]{"Program.cs","SocketVectorsFixture.cs","SocketPolicyFixture.cs","NativeAotSocketVectors.csproj"})
-                File.Copy(Path.Combine(root,"apps","NativeAotSocketVectors",file),Path.Combine(app,file));
+            foreach(var file in NativeAotSocketVectorsPublisher.CurrentSources())
+                File.Copy(Path.Combine(root,file.Path),Path.Combine(temporary,file.Path));
             NativeAotSocketVectorsPublisher.RequireCurrentSources(temporary);
             string source=Path.Combine(app,"SocketVectorsFixture.cs");byte[] original=File.ReadAllBytes(source);
             File.AppendAllText(source,"\n");Reject(()=>NativeAotSocketVectorsPublisher.RequireCurrentSources(temporary));File.WriteAllBytes(source,original);

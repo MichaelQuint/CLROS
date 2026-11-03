@@ -41,11 +41,21 @@ internal static class EhCatalogEfiIntegrationTests
         string root=HostToolProcess.FindRepositoryRoot();
         var admitted=EfiProjectAdmission.InspectStatic(root);
         HostCheck.True(admitted.Succeeded,admitted.Reason+":"+admitted.Detail);
-        foreach (string relative in new[]{@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.Catalog.cs",@"..\OS.Kernel\Runtime\BoundedExceptionCallerWindow.cs",@"Runtime\ExceptionFrameDispatchProbe.cs"})
+        var catalog = HostSourceCatalog.Efi(EfiOptions.Parse(Arguments, build: true).Profile());
+        // Select the independently admitted frame operation and its helper
+        // types, not unrelated allocation/runtime features in the same owner.
+        var sources = new[] { "OS.Kernel.Runtime.NativeAotEhClauseMetadata",
+            "OS.Kernel.Runtime.BoundedExceptionCallerWindow", "OS.Runtime.SimpleCatchSibling",
+            "OS.Runtime.RhpNewFastAllocation+FrameScratch" }
+            .SelectMany(type => catalog.TypeSources(type))
+            .Append(catalog.Document(catalog.Method("OS.Runtime.RhpNewFastAllocation", "FrameCatcher")))
+            .DistinctBy(source => source.Path);
+        foreach (var source in sources)
         {
-            string path=Path.GetFullPath(Path.Combine(root,"src/OS",relative)), source=File.ReadAllText(path);
-            HostCheck.True(EfiSourceAdmission.Inspect(source,relative).Succeeded,"exact reviewed source "+relative);
-            HostCheck.True(!EfiSourceAdmission.Inspect(source+"\npublic class Unreviewed {}",relative).Succeeded,"source mutation "+relative);
+            string relative = Path.GetRelativePath(Path.Combine(root, "src", "OS"), source.Path).Replace('/', '\\');
+            HostCheck.True(HostEfiSourceAdmission.Accepts(relative, source.Text), "exact reviewed source " + relative);
+            HostCheck.True(!HostEfiSourceAdmission.Accepts(relative, source.Text + "\npublic class Unreviewed {}"),
+                "source mutation " + relative);
         }
     }
 

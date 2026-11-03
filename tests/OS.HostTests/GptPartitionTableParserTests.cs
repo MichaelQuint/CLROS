@@ -144,46 +144,17 @@ internal static class GptPartitionTableParserTests
     [HostTest("storage.gpt.parser uses shared memory helpers", HostLane.Fast, 4)]
     private static bool TestUsesSharedMemoryHelpers()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "GptPartitionTableParser.cs"));
-
-        return HostCheck.Result(source.Contains("\"EFI PART\"u8", StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(bytes.Slice(0, signature.Length), signature)",
-                StringComparison.Ordinal)
-            && source.Contains("stackalloc byte[16]", StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(bytes, zeroGuid)",
-                StringComparison.Ordinal)
-            && !source.Contains("bytes[0] == (byte)'E'", StringComparison.Ordinal)
-            && !source.Contains("bytes[1] == (byte)'F'", StringComparison.Ordinal)
-            && !source.Contains("bytes[2] == (byte)'I'", StringComparison.Ordinal)
-            && !source.Contains("bytes[3] == (byte)' '", StringComparison.Ordinal)
-            && !source.Contains("bytes[4] == (byte)'P'", StringComparison.Ordinal)
-            && !source.Contains("bytes[5] == (byte)'A'", StringComparison.Ordinal)
-            && !source.Contains("bytes[6] == (byte)'R'", StringComparison.Ordinal)
-            && !source.Contains("bytes[7] == (byte)'T'", StringComparison.Ordinal)
-            && !source.Contains("for (int i = 0; i < 16; i++)", StringComparison.Ordinal)
-            && !source.Contains("bytes[i] != 0", StringComparison.Ordinal));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        string owner = typeof(GptPartitionTableParser).FullName!;
+        return HostCheck.Result(StorageEqualitySourceGuard.Literal(catalog, owner, "HasGptSignature", "EFI PART", 8)
+            && StorageEqualitySourceGuard.ZeroBuffer(catalog, owner, "IsZeroGuid", 16));
     }
 
     [HostTest("storage.gpt.partition parser header copy uses shared buffer operations", HostLane.Fast, 5)]
     private static bool TestHeaderCopyUsesSharedBufferOperations()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "GptPartitionTableParser.cs"));
-
-        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
-            && source.Contains("private static bool TryComputeHeaderCrc32(", StringComparison.Ordinal)
-            && source.Contains("BufferOperationResult copy = BufferOperations.MemoryCopy(", StringComparison.Ordinal)
-            && source.Contains("primaryHeaderSector.Slice(0, headerBytes.Length)", StringComparison.Ordinal)
-            && source.Contains("if (!copy.Succeeded)", StringComparison.Ordinal)
-            && source.Contains("GptPartitionTableStatus.HeaderSectorTooSmall", StringComparison.Ordinal)
-            && !source.Contains(
-                "primaryHeaderSector.Slice(0, headerBytes.Length).CopyTo(headerBytes)",
-                StringComparison.Ordinal));
+        return HostCheck.Result(StorageGptHeaderSourceGuard.Check(
+            HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), typeof(GptPartitionTableParser).FullName!));
     }
 
     [HostTest("storage.gpt.parser parses backup caller buffers", HostLane.Fast, 1)]

@@ -21,15 +21,33 @@ public readonly struct OsPackageHeader
         FileTableLength = fileTableLength;
     }
 
-    public ushort Version { get; }
+    public ushort Version
+    {
+        get;
+    }
 
-    public ushort HeaderSize { get; }
+    public ushort HeaderSize
+    {
+        get;
+    }
 
-    public ushort FileCount { get; }
+    public ushort FileCount
+    {
+        get;
+    }
 
-    public ushort FileTableEntrySize { get; }
+    public ushort FileTableEntrySize
+    {
+        get;
+    }
 
-    public uint FileTableOffset { get; }
+    public uint FileTableOffset
+    {
+        get;
+    }
 
-    public uint FileTableLength { get; }
+    public uint FileTableLength
+    {
+        get;
+    }
 }

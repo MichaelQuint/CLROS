@@ -22,17 +22,35 @@ public readonly struct VirtioBlockPackageFileStagingPreflightDiagnosticFormatRes
         Flags = flags;
     }
 
-    public VirtioBlockPackageFileStagingPreflightDiagnosticFormatStatus Status { get; }
+    public VirtioBlockPackageFileStagingPreflightDiagnosticFormatStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockPackageFileStagingPreflightStatus PreflightStatus { get; }
+    public VirtioBlockPackageFileStagingPreflightStatus PreflightStatus
+    {
+        get;
+    }
 
-    public int BytesWritten { get; }
+    public int BytesWritten
+    {
+        get;
+    }
 
-    public int RequiredBytes { get; }
+    public int RequiredBytes
+    {
+        get;
+    }
 
-    public int AvailableBytes { get; }
+    public int AvailableBytes
+    {
+        get;
+    }
 
-    public uint Flags { get; }
+    public uint Flags
+    {
+        get;
+    }
 
     public bool IsInitialized => (Flags & InitializedFlag) != 0;
 

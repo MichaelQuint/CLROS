@@ -33,7 +33,9 @@ internal static class NativeAotServicePublisherTests
         try
         {
             string app = Path.Combine(temporary, "apps", "MinimalApiService"); Directory.CreateDirectory(app);
-            string[] files = ["Program.cs", "ServiceExercise.cs", "ServiceLifecycleExercise.cs", "ServiceQuotaExercise.cs", "MinimalApiService.csproj", "appsettings.json"];
+            const string prefix = "apps/MinimalApiService/";
+            string[] files = NativeAotServiceProgram.CurrentSources().Where(source => source.Path.StartsWith(prefix, StringComparison.Ordinal))
+                .Select(source => source.Path[prefix.Length..]).ToArray();
             foreach (string file in files) File.Copy(Path.Combine(root, "apps", "MinimalApiService", file), Path.Combine(app, file));
             NativeAotServicePublisher.RequireCurrentSources(temporary);
             foreach (string file in files)

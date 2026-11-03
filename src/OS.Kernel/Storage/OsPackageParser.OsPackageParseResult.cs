@@ -12,11 +12,20 @@ public readonly struct OsPackageParseResult
         Header = header;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public OsPackageStatus Status { get; }
+    public OsPackageStatus Status
+    {
+        get;
+    }
 
-    public OsPackageHeader Header { get; }
+    public OsPackageHeader Header
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == OsPackageStatus.Success;
 

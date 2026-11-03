@@ -19,7 +19,14 @@ public static unsafe partial class ContinuingFat32Mutation
         public readonly uint ClusterBytes, AllocatedClusters;
         public readonly ulong Allocated512Blocks;
         internal RootFacts(State* s, ulong sector, uint clusterBytes, uint clusters, ulong blocks)
-        { Owner = (ulong)s; Epoch = s->Input.Epoch; Revision = s->Revision; FirstSector = sector;
-            ClusterBytes = clusterBytes; AllocatedClusters = clusters; Allocated512Blocks = blocks; }
+        {
+            Owner = (ulong)s;
+            Epoch = s->Input.Epoch;
+            Revision = s->Revision;
+            FirstSector = sector;
+            ClusterBytes = clusterBytes;
+            AllocatedClusters = clusters;
+            Allocated512Blocks = blocks;
+        }
     }
 }

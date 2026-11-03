@@ -50,20 +50,16 @@ internal static unsafe class M06PackageReadEfiIntegrationTests
     [HostTest("m06.package.efi restricts both allocator owners and exact transport purpose epochs")]
     private static void Ownership()
     {
-        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs"));
+        var snapshot = new EfiAllocatorOwnershipSources(EfiOptions.Parse(Flags, false).Profile());
         foreach (string call in new[] { "BootPageAllocatorMutator.AllocateOnePage", "BootPageAllocatorMutator.FreeOnePage" })
         {
-            string accepted = source;
-            HostCheck.True(EfiProfileTestControls.RemoveOwnedDmaCalls(ref accepted, call, out string reason), reason);
-            foreach (string changed in new[] {
-                source.Replace("reads + 134UL, false, true)", "reads + 133UL, false, true)", StringComparison.Ordinal),
-                source.Replace("reads + 134UL, false, true)", "reads + 134UL, true, false)", StringComparison.Ordinal),
-                source.Replace("private static bool ReadPackageSector(", "private static bool UnreviewedPackageRead(", StringComparison.Ordinal),
-                source.Replace("StagePackagePayload(state, packageBytes, selectedPath)", "StagePackagePayload(state, selectedPath, packageBytes)", StringComparison.Ordinal) })
-            {
-                string rejected = changed;
-                HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(ref rejected, call, out _));
-            }
+            HostCheck.True(EfiProfileTestControls.RemoveOwnedDmaCalls(snapshot.Sources, call, out _, out string reason), reason);
+            foreach (var changed in new[] {
+                snapshot.ChangeEpoch("ReadPackageSector", 134UL, 133UL),
+                snapshot.SwapArguments("ReadPackageSector", "RunBlockReadCore", 5, 6),
+                snapshot.RenameMethod("ReadPackageSector"),
+                snapshot.SwapArguments("RunPackageReadCore", "StagePackagePayload", 1, 2) })
+                HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(changed, call, out _, out _));
         }
     }
 

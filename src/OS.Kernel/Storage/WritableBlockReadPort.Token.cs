@@ -10,7 +10,12 @@ public static unsafe partial class WritableBlockReadPort
     public readonly struct Token
     {
         public readonly ulong Owner, Epoch, Generation;
-        internal Token(State* s) { Owner = (ulong)s; Epoch = s->Input.Epoch; Generation = s->Generation; }
+        internal Token(State* s)
+        {
+            Owner = (ulong)s;
+            Epoch = s->Input.Epoch;
+            Generation = s->Generation;
+        }
         public bool IsInitialized => Owner != 0 && Epoch != 0 && Generation != 0;
     }
 }

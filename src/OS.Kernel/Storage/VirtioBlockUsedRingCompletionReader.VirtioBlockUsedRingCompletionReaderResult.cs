@@ -30,27 +30,60 @@ public readonly struct VirtioBlockUsedRingCompletionReaderResult
         StatusByte = statusByte;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockUsedRingCompletionReaderStatus Status { get; }
+    public VirtioBlockUsedRingCompletionReaderStatus Status
+    {
+        get;
+    }
 
-    public VirtqueueSplitRingPlanStatus QueueStatus { get; }
+    public VirtqueueSplitRingPlanStatus QueueStatus
+    {
+        get;
+    }
 
-    public ushort PreviousUsedIndex { get; }
+    public ushort PreviousUsedIndex
+    {
+        get;
+    }
 
-    public ushort CurrentUsedIndex { get; }
+    public ushort CurrentUsedIndex
+    {
+        get;
+    }
 
-    public ushort NextUsedIndex { get; }
+    public ushort NextUsedIndex
+    {
+        get;
+    }
 
-    public ushort UsedRingSlot { get; }
+    public ushort UsedRingSlot
+    {
+        get;
+    }
 
-    public uint UsedRingElementOffset { get; }
+    public uint UsedRingElementOffset
+    {
+        get;
+    }
 
-    public uint DescriptorHead { get; }
+    public uint DescriptorHead
+    {
+        get;
+    }
 
-    public uint UsedByteCount { get; }
+    public uint UsedByteCount
+    {
+        get;
+    }
 
-    public byte StatusByte { get; }
+    public byte StatusByte
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized &&
         Status == VirtioBlockUsedRingCompletionReaderStatus.Success;

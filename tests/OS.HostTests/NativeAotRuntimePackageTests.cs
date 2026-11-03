@@ -7,8 +7,6 @@ using OS.Tooling;
 
 internal static unsafe class NativeAotRuntimePackageTests
 {
-    private static readonly string[] Shared=["global.json","Directory.Build.props","Directory.Build.targets","tools/Directory.Build.props",
-        "tools/OS.Tooling/NativeAotPayload.cs","tools/OS.Tooling/NativeAotRuntimePayload.cs"];
     [HostTest("nativeaot.runtime-package exact relevant source inventories reject raw changes overrides and extra app input")]
     private static void Sources()
     {
@@ -17,7 +15,7 @@ internal static unsafe class NativeAotRuntimePackageTests
         {
             foreach(string app in NativeAotRuntimePayload.Applications)
             {
-                string[] paths=[..Shared,$"apps/{app}/Program.cs",$"apps/{app}/{app}.csproj",$"tools/OS.Tooling/{app}Guest.cs"];
+                string[] paths=NativeAotRuntimePackage.CurrentSources(app).Select(source=>source.Path).ToArray();
                 foreach(string relative in paths)
                 {string path=Path.Combine(temporary,relative);Directory.CreateDirectory(Path.GetDirectoryName(path)!);File.Copy(Path.Combine(root,relative),path,true);}
                 NativeAotRuntimePackage.RequireCurrentSources(root,app);NativeAotRuntimePackage.RequireCurrentSources(temporary,app);

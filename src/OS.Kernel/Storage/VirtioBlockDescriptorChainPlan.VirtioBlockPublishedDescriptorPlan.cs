@@ -28,25 +28,55 @@ public readonly struct VirtioBlockPublishedDescriptorPlan
         MemoryRange = memoryRange;
     }
 
-    public VirtioBlockDescriptorChainRole Role { get; }
+    public VirtioBlockDescriptorChainRole Role
+    {
+        get;
+    }
 
-    public ushort DescriptorIndex { get; }
+    public ushort DescriptorIndex
+    {
+        get;
+    }
 
-    public ulong PhysicalAddress { get; }
+    public ulong PhysicalAddress
+    {
+        get;
+    }
 
-    public uint Length { get; }
+    public uint Length
+    {
+        get;
+    }
 
-    public bool HasNext { get; }
+    public bool HasNext
+    {
+        get;
+    }
 
-    public ushort NextDescriptorIndex { get; }
+    public ushort NextDescriptorIndex
+    {
+        get;
+    }
 
-    public bool DeviceWritable { get; }
+    public bool DeviceWritable
+    {
+        get;
+    }
 
     public bool DeviceReadable => !DeviceWritable;
 
-    public ushort Flags { get; }
+    public ushort Flags
+    {
+        get;
+    }
 
-    public uint DescriptorTableOffset { get; }
+    public uint DescriptorTableOffset
+    {
+        get;
+    }
 
-    public VirtioBlockDescriptorMemoryRange MemoryRange { get; }
+    public VirtioBlockDescriptorMemoryRange MemoryRange
+    {
+        get;
+    }
 }

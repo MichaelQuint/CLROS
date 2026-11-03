@@ -11,6 +11,11 @@ public static unsafe partial class ContinuingFat32Mutation
     public readonly struct RequestToken
     {
         public readonly ulong Owner, Epoch, Generation;
-        internal RequestToken(State* s) { Owner = (ulong)s; Epoch = s->Input.Epoch; Generation = s->RequestGeneration; }
+        internal RequestToken(State* s)
+        {
+            Owner = (ulong)s;
+            Epoch = s->Input.Epoch;
+            Generation = s->RequestGeneration;
+        }
     }
 }

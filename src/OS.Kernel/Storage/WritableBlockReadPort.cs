@@ -24,11 +24,20 @@ public static unsafe partial class WritableBlockReadPort
         if (!Storage((ulong)s, (ulong)sizeof(State), 8) || !InputShape(a) ||
             !C.CanRetainReadRange(a.Engine, a.EngineEpoch, a.Device, a.DeviceEpoch, a.FirstLba, a.LastLba) ||
             !C.CanRetainStorage(a.Engine, a.EngineEpoch, (ulong)s, (ulong)sizeof(State)) ||
-            !B.CanBorrowStorage(a.Device, a.DeviceEpoch, (ulong)s, (ulong)sizeof(State))) return Status.InvalidStorage;
-        for (uint i = 0; i < sizeof(State); i++) if (((byte*)s)[i] != 0) return Status.InvalidState;
-        if (a.Engine->RequestActive || a.Device->RequestPending) return Status.Busy;
-        if (!C.CanAdmitStorage(a.Engine, a.EngineEpoch) || !B.CanAdmitStorage(a.Device, a.DeviceEpoch)) return Status.DeviceFailed;
-        s->Self = (ulong)s; s->Input = a; s->Phase = IdlePhase; s->Failure = B.Status.Success; return Status.Success;
+            !B.CanBorrowStorage(a.Device, a.DeviceEpoch, (ulong)s, (ulong)sizeof(State)))
+            return Status.InvalidStorage;
+        for (uint i = 0; i < sizeof(State); i++)
+            if (((byte*)s)[i] != 0)
+                return Status.InvalidState;
+        if (a.Engine->RequestActive || a.Device->RequestPending)
+            return Status.Busy;
+        if (!C.CanAdmitStorage(a.Engine, a.EngineEpoch) || !B.CanAdmitStorage(a.Device, a.DeviceEpoch))
+            return Status.DeviceFailed;
+        s->Self = (ulong)s;
+        s->Input = a;
+        s->Phase = IdlePhase;
+        s->Failure = B.Status.Success;
+        return Status.Success;
     }
 
     /// <summary>Inspect without I/O. Busy is an unavailable writer/foreign-read
@@ -39,15 +48,24 @@ public static unsafe partial class WritableBlockReadPort
     /// alias rules and are borrowed only through return.</summary>
     public static Status Inspect(State* s, ulong epoch, Inspection* result)
     {
-        if (!Bound(s) || s->Input.Epoch != epoch) return Status.InvalidState;
-        if (s->Phase == RetiredPhase) return Status.Retired;
-        if (!Retained(s)) return Status.InvalidState;
-        if (!External(s, (ulong)result, (ulong)sizeof(Inspection), 8)) return Status.InvalidStorage;
-        if (s->Phase == FaultPhase) return Status.DeviceFailed;
-        if (s->Input.Engine->RequestActive) return Status.Busy;
-        if (!Clean(s)) return Status.DeviceFailed;
-        if (s->HasIo ? !CurrentRead(s) : s->Input.Device->RequestPending) return s->HasIo ? Status.DeviceFailed : Status.Busy;
-        *result = new(s); return Status.Success;
+        if (!Bound(s) || s->Input.Epoch != epoch)
+            return Status.InvalidState;
+        if (s->Phase == RetiredPhase)
+            return Status.Retired;
+        if (!Retained(s))
+            return Status.InvalidState;
+        if (!External(s, (ulong)result, (ulong)sizeof(Inspection), 8))
+            return Status.InvalidStorage;
+        if (s->Phase == FaultPhase)
+            return Status.DeviceFailed;
+        if (s->Input.Engine->RequestActive)
+            return Status.Busy;
+        if (!Clean(s))
+            return Status.DeviceFailed;
+        if (s->HasIo ? !CurrentRead(s) : s->Input.Device->RequestPending)
+            return s->HasIo ? Status.DeviceFailed : Status.Busy;
+        *result = new(s);
+        return Status.Success;
     }
 
     /// <summary>Submit at most one real IN. The engine must have no logical
@@ -56,19 +74,31 @@ public static unsafe partial class WritableBlockReadPort
     /// clear the token. Sample B.Observation after this call before another submit.</summary>
     public static Status Submit(State* s, ulong lba, Token* token)
     {
-        if (!Retained(s)) return Status.InvalidState;
-        if (!External(s, (ulong)token, (ulong)sizeof(Token), 8)) return Status.InvalidStorage;
+        if (!Retained(s))
+            return Status.InvalidState;
+        if (!External(s, (ulong)token, (ulong)sizeof(Token), 8))
+            return Status.InvalidStorage;
         *token = default;
-        if (s->Phase == FaultPhase) return Status.DeviceFailed;
-        if (s->Phase != IdlePhase) return Status.Busy;
-        if (lba < s->Input.FirstLba || lba > s->Input.LastLba) return Status.InvalidRange;
+        if (s->Phase == FaultPhase)
+            return Status.DeviceFailed;
+        if (s->Phase != IdlePhase)
+            return Status.Busy;
+        if (lba < s->Input.FirstLba || lba > s->Input.LastLba)
+            return Status.InvalidRange;
         // A normal writer is temporarily dirty between its OUT and final FLUSH.
         // Do not misclassify that exclusive logical turn as a port/device fault.
-        if (s->Input.Engine->RequestActive) return Status.Busy;
-        if (!Clean(s)) return Status.DeviceFailed;
-        if (s->Input.Device->RequestPending) return Status.Busy;
-        if (s->Generation == ulong.MaxValue) return Status.GenerationExhausted;
-        s->Generation++; s->Sector = lba; s->Physical = default; s->CancelRequested = false;
+        if (s->Input.Engine->RequestActive)
+            return Status.Busy;
+        if (!Clean(s))
+            return Status.DeviceFailed;
+        if (s->Input.Device->RequestPending)
+            return Status.Busy;
+        if (s->Generation == ulong.MaxValue)
+            return Status.GenerationExhausted;
+        s->Generation++;
+        s->Sector = lba;
+        s->Physical = default;
+        s->CancelRequested = false;
         ulong before = s->Input.Device->Submitted;
         B.RequestToken io = default;
         var status = B.SubmitRead(s->Input.Device, lba, &io);
@@ -76,10 +106,18 @@ public static unsafe partial class WritableBlockReadPort
         {
             // Publication may precede a failed fence/notify and returned token.
             // Retain that ORIGINAL generation, never infer a completed request.
-            if (s->Input.Device->Submitted != before) { s->Io = new(s->Input.Device); s->HasIo = true; }
+            if (s->Input.Device->Submitted != before)
+            {
+                s->Io = new(s->Input.Device);
+                s->HasIo = true;
+            }
             return Fault(s, status);
         }
-        s->Io = io; s->HasIo = true; s->Phase = PendingPhase; *token = new(s); return Status.Success;
+        s->Io = io;
+        s->HasIo = true;
+        s->Phase = PendingPhase;
+        *token = new(s);
+        return Status.Success;
     }
 
     /// <summary>Poll only this port's exact IN generation/kind/LBA. A wrong
@@ -88,23 +126,53 @@ public static unsafe partial class WritableBlockReadPort
     /// only; final Copy separately revalidates the actual device and destination.</summary>
     public static Status Poll(State* s, Token token, Completion* result)
     {
-        if (!Retained(s)) return Status.InvalidState;
-        if (!External(s, (ulong)result, (ulong)sizeof(Completion), 8)) return Status.InvalidStorage;
-        if (!Matches(s, token)) return Status.StaleToken;
-        if (s->Phase == FaultPhase) { *result = new(s, Status.DeviceFailed); return Status.DeviceFailed; }
+        if (!Retained(s))
+            return Status.InvalidState;
+        if (!External(s, (ulong)result, (ulong)sizeof(Completion), 8))
+            return Status.InvalidStorage;
+        if (!Matches(s, token))
+            return Status.StaleToken;
+        if (s->Phase == FaultPhase)
+        {
+            *result = new(s, Status.DeviceFailed);
+            return Status.DeviceFailed;
+        }
         if (!Clean(s) || s->Input.Engine->RequestActive || !CurrentRead(s))
-        { var failure = Fault(s, B.Status.StaleToken); *result = new(s, failure); return failure; }
-        if (s->Phase == ReadyPhase) { *result = new(s, Status.Ready); return Status.Ready; }
+        {
+            var failure = Fault(s, B.Status.StaleToken);
+            *result = new(s, failure);
+            return failure;
+        }
+        if (s->Phase == ReadyPhase)
+        {
+            *result = new(s, Status.Ready);
+            return Status.Ready;
+        }
         B.Completion physical = default;
         var status = B.Poll(s->Input.Device, &physical);
-        if (status == B.Status.Pending) { *result = new(s, Status.Pending); return Status.Pending; }
-        if (PhysicalMatches(s, physical)) s->Physical = physical;
+        if (status == B.Status.Pending)
+        {
+            *result = new(s, Status.Pending);
+            return Status.Pending;
+        }
+        if (PhysicalMatches(s, physical))
+            s->Physical = physical;
         if (status is not (B.Status.Ready or B.Status.Cancelled) || !PhysicalMatches(s, physical) ||
             physical.DeviceResult != B.Status.Success || physical.Bytes != SectorBytes || physical.Cancelled != s->CancelRequested)
-        { var failure = Fault(s, status is B.Status.Ready or B.Status.Cancelled ? B.Status.InvalidCompletion : status); *result = new(s, failure); return failure; }
+        {
+            var failure = Fault(s, status is B.Status.Ready or B.Status.Cancelled ? B.Status.InvalidCompletion : status);
+            *result = new(s, failure);
+            return failure;
+        }
         if (status == B.Status.Cancelled)
-        { *result = new(s, Status.Cancelled); End(s); return Status.Cancelled; }
-        s->Phase = ReadyPhase; *result = new(s, Status.Ready); return Status.Ready;
+        {
+            *result = new(s, Status.Cancelled);
+            End(s);
+            return Status.Cancelled;
+        }
+        s->Phase = ReadyPhase;
+        *result = new(s, Status.Ready);
+        return Status.Ready;
     }
 
     /// <summary>Copy exactly512 bytes from the authenticated held IN, then
@@ -113,17 +181,25 @@ public static unsafe partial class WritableBlockReadPort
     /// mapping/fd generations and other provider buffers remain outer obligations.</summary>
     public static Status Copy(State* s, Token token, Span<byte> destination)
     {
-        if (!Retained(s)) return Status.InvalidState;
+        if (!Retained(s))
+            return Status.InvalidState;
         fixed (byte* output = destination)
         {
-            if (destination.Length != SectorBytes || !External(s, (ulong)output, SectorBytes, 1)) return Status.InvalidStorage;
-            if (!Matches(s, token)) return Status.StaleToken;
-            if (s->Phase == FaultPhase) return Status.DeviceFailed;
-            if (s->Phase != ReadyPhase) return Status.Pending;
-            if (!Clean(s) || s->Input.Engine->RequestActive || !CurrentRead(s)) return Fault(s, B.Status.StaleToken);
+            if (destination.Length != SectorBytes || !External(s, (ulong)output, SectorBytes, 1))
+                return Status.InvalidStorage;
+            if (!Matches(s, token))
+                return Status.StaleToken;
+            if (s->Phase == FaultPhase)
+                return Status.DeviceFailed;
+            if (s->Phase != ReadyPhase)
+                return Status.Pending;
+            if (!Clean(s) || s->Input.Engine->RequestActive || !CurrentRead(s))
+                return Fault(s, B.Status.StaleToken);
             var status = B.CopyRead(s->Input.Device, s->Io, destination);
-            if (status != B.Status.Success) return Fault(s, status);
-            End(s); return Status.Success;
+            if (status != B.Status.Success)
+                return Fault(s, status);
+            End(s);
+            return Status.Success;
         }
     }
 
@@ -132,14 +208,23 @@ public static unsafe partial class WritableBlockReadPort
     /// revokes copy immediately. Physical facts/counters are never undone.</summary>
     public static Status Cancel(State* s, Token token)
     {
-        if (!Retained(s)) return Status.InvalidState;
-        if (!Matches(s, token)) return Status.StaleToken;
-        if (s->Phase == FaultPhase) return Status.DeviceFailed;
-        if (!Clean(s) || s->Input.Engine->RequestActive || !CurrentRead(s)) return Fault(s, B.Status.StaleToken);
+        if (!Retained(s))
+            return Status.InvalidState;
+        if (!Matches(s, token))
+            return Status.StaleToken;
+        if (s->Phase == FaultPhase)
+            return Status.DeviceFailed;
+        if (!Clean(s) || s->Input.Engine->RequestActive || !CurrentRead(s))
+            return Fault(s, B.Status.StaleToken);
         var status = B.Cancel(s->Input.Device, s->Io);
-        if (status != B.Status.Success) return Fault(s, status);
+        if (status != B.Status.Success)
+            return Fault(s, status);
         s->CancelRequested = true;
-        if (s->Phase == ReadyPhase) { End(s); return Status.Cancelled; }
+        if (s->Phase == ReadyPhase)
+        {
+            End(s);
+            return Status.Cancelled;
+        }
         return Status.Pending;
     }
 
@@ -149,16 +234,25 @@ public static unsafe partial class WritableBlockReadPort
     /// is performed. The caller stops this port before releasing C backing.</summary>
     public static Status Stop(State* s)
     {
-        if (!Bound(s)) return Status.InvalidState;
-        if (s->Phase == RetiredPhase) return Status.Success;
-        if (!Retained(s)) return Status.InvalidState;
+        if (!Bound(s))
+            return Status.InvalidState;
+        if (s->Phase == RetiredPhase)
+            return Status.Success;
+        if (!Retained(s))
+            return Status.InvalidState;
         if (s->HasIo && !s->Input.Device->Retired)
         {
-            if (s->Phase == FaultPhase) return Status.DeviceFailed;
+            if (s->Phase == FaultPhase)
+                return Status.DeviceFailed;
             var status = Cancel(s, new(s));
-            if (status != Status.Cancelled) return status;
+            if (status != Status.Cancelled)
+                return status;
         }
-        s->HasIo = false; s->Io = default; s->Physical = default; s->Phase = RetiredPhase; return Status.Success;
+        s->HasIo = false;
+        s->Io = default;
+        s->Physical = default;
+        s->Phase = RetiredPhase;
+        return Status.Success;
     }
 
     // Structural extent authority only, including dirty/fault/original stopped
@@ -180,7 +274,8 @@ public static unsafe partial class WritableBlockReadPort
     internal static bool CanRetainStorageRanges(State* s, ulong epoch, ReadOnlySpan<ulong> pairs)
     {
         if (pairs.Length == 0 || (pairs.Length & 1) != 0 || pairs.Length > MaximumRetainedStorageRanges * 2 ||
-            !Retained(s) || s->Input.Epoch != epoch) return false;
+            !Retained(s) || s->Input.Epoch != epoch)
+            return false;
         return C.CanRetainStorageRanges(s->Input.Engine, s->Input.EngineEpoch, pairs) && RetainedRangesOutside(s, pairs);
     }
 
@@ -189,9 +284,11 @@ public static unsafe partial class WritableBlockReadPort
         for (int i = 0; i < pairs.Length; i += 2)
         {
             ulong address = pairs[i], bytes = pairs[i + 1];
-            if (bytes == 0) continue;
+            if (bytes == 0)
+                continue;
             if (!Storage(address, bytes, 1) || Overlap(address, bytes, (ulong)s, (ulong)sizeof(State)) ||
-                !B.CanBorrowStorage(s->Input.Device, s->Input.DeviceEpoch, address, bytes)) return false;
+                !B.CanBorrowStorage(s->Input.Device, s->Input.DeviceEpoch, address, bytes))
+                return false;
         }
         return true;
     }
@@ -230,8 +327,19 @@ public static unsafe partial class WritableBlockReadPort
         s->Input.Device->LastOperation == B.Operation.Read && s->Input.Device->LastSector == s->Sector;
     private static bool PhysicalMatches(State* s, B.Completion c) => c.Token.Owner == s->Io.Owner && c.Token.Epoch == s->Io.Epoch &&
         c.Token.Generation == s->Io.Generation && c.Kind == B.Operation.Read && c.Sector == s->Sector;
-    private static Status Fault(State* s, B.Status status) { s->Failure = status; s->Phase = FaultPhase; return Status.DeviceFailed; }
-    private static void End(State* s) { s->HasIo = false; s->Io = default; s->Phase = IdlePhase; s->CancelRequested = false; }
+    private static Status Fault(State* s, B.Status status)
+    {
+        s->Failure = status;
+        s->Phase = FaultPhase;
+        return Status.DeviceFailed;
+    }
+    private static void End(State* s)
+    {
+        s->HasIo = false;
+        s->Io = default;
+        s->Phase = IdlePhase;
+        s->CancelRequested = false;
+    }
     private static bool Storage(ulong address, ulong bytes, ulong alignment) => address >= 4096 && address < Limit &&
         bytes != 0 && bytes <= Limit - address && (address & (alignment - 1)) == 0;
     private static bool Overlap(ulong a, ulong n, ulong b, ulong m) => a < b + m && b < a + n;

@@ -8,7 +8,8 @@ public static class MalformedDiskPackageFailureProbesRemainDiagnosableEBS
     public static LiveStorageFailure Create(LiveStorageFailureKind kind, byte code,
         bool cleanupComplete, bool canariesValid)
     {
-        if (!cleanupComplete || !canariesValid) return default;
+        if (!cleanupComplete || !canariesValid)
+            return default;
         bool valid = kind == LiveStorageFailureKind.Manifest
             ? code > (byte)LiveManifestStatus.Success && code <= (byte)LiveManifestStatus.InvalidPath
             : kind == LiveStorageFailureKind.Package

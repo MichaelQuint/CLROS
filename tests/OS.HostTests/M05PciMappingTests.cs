@@ -4,11 +4,10 @@ using OS.Kernel.Diagnostics;
 using OS.Kernel.Memory;
 using Image = OS.Kernel.Diagnostics.SeparateDisabledDefaultPageFaultPageTables;
 
-internal static unsafe class M05PciMappingTests
+internal static unsafe partial class M05PciMappingTests
 {
     private const ulong Root = 0x100000, Ecam = 0xe0000000, PageCount = 55;
     private const ulong Nx = 1UL << 63;
-
     [HostTest("m05.pci ecam leaves are uncached readonly nx with writeback tables")]
     private static void EcamLeaves()
     {
@@ -17,7 +16,14 @@ internal static unsafe class M05PciMappingTests
         var result = image.Build();
         HostCheck.True(result.Succeeded);
         HostCheck.Equal(PageCount + 256, result.MappedPages);
-        foreach (ulong page in new ulong[] { 0, 128, 255 })
+        foreach (ulong page in new ulong[]
+        {
+            0,
+            128,
+            255
+        }
+
+        )
         {
             ulong address = Ecam + page * 4096;
             ulong leaf = image.Leaf(address);
@@ -25,20 +31,30 @@ internal static unsafe class M05PciMappingTests
             HostCheck.Equal(address | Nx | 0x19UL, image.Entries[leaf]);
             image.Entries[leaf] |= 0x20; // Hardware Accessed is permitted on read-only ECAM.
         }
+
         for (ulong page = 0; page < PageCount; page++)
         {
             ulong address = Root + page * 4096;
             HostCheck.Equal(address | Nx | 3UL, image.Entries[image.Leaf(address)]);
         }
-        HostCheck.True(image.Audit().Succeeded);
 
+        HostCheck.True(image.Audit().Succeeded);
         ulong middle = image.Leaf(Ecam + 128 * 4096), original = image.Entries[middle];
-        foreach (ulong changed in new[] { original | 0x40, original | 2, original ^ 0x18, original ^ Nx })
+        foreach (ulong changed in new[]
+        {
+            original | 0x40,
+            original | 2,
+            original ^ 0x18,
+            original ^ Nx
+        }
+
+        )
         {
             image.Entries[middle] = changed;
             HostCheck.Equal(SeparatePageFaultPageTableStatus.MappingMismatch, image.Audit().Status);
             image.Entries[middle] = original;
         }
+
         HostCheck.True(image.Audit().Succeeded);
         image.Entries[image.Leaf(Root)] |= 0x18;
         HostCheck.Equal(SeparatePageFaultPageTableStatus.MappingMismatch, image.Audit().Status);
@@ -56,26 +72,28 @@ internal static unsafe class M05PciMappingTests
             HostCheck.Equal((Ecam + 1023 * 4096) | Nx | 0x19UL, maximum.Entries[maximum.Leaf(Ecam + 1023 * 4096)]);
             HostCheck.True(maximum.Audit().Succeeded);
         }
+
         using var image = new Fixture();
         foreach (var range in new SeparatePageFaultMappingRange[]
         {
             new(Ecam, 1025, PageProtection.Read, PageCachePolicy.Uncached),
             new(Ecam, 256, PageProtection.Read | PageProtection.Execute, PageCachePolicy.Uncached),
             new(Ecam, 2, PageProtection.Read | PageProtection.Write, PageCachePolicy.Uncached)
-        })
+        }
+
+        )
         {
             image.Range[0] = range;
             HostCheck.Equal(SeparatePageFaultPageTableStatus.InvalidRange, image.Build().Status);
             image.AssertEmpty();
         }
+
         image.Range[0] = new(Root, 256, PageProtection.Read, PageCachePolicy.Uncached);
         HostCheck.Equal(SeparatePageFaultPageTableStatus.TableArenaOverlap, image.Build().Status);
         image.AssertEmpty();
-
         // An otherwise-admitted one-page RW mapping isolates ordinary-builder UC rejection.
         image.Range[0] = new(Ecam, 1, PageProtection.Read | PageProtection.Write, PageCachePolicy.Uncached);
-        HostCheck.Equal(SeparatePageFaultPageTableStatus.InvalidRange,
-            Image.Build(image.Request, image.Range, 1, 1, image.Pages, PageCount, image.Entries, PageCount * 512).Status);
+        HostCheck.Equal(SeparatePageFaultPageTableStatus.InvalidRange, Image.Build(image.Request, image.Range, 1, 1, image.Pages, PageCount, image.Entries, PageCount * 512).Status);
         image.AssertEmpty();
         image.Range[0] = new(Ecam, 256, PageProtection.Read, PageCachePolicy.Uncached);
         image.Request = Request(255);
@@ -85,37 +103,8 @@ internal static unsafe class M05PciMappingTests
 
     private static SeparatePageFaultPageTableRequest Request(byte uncached = 3)
     {
-        HostCheck.Equal(X64PageTableEntryStatus.Success,
-            X64PatMappingToken.TryCreate(0x0007040600070406UL, 0, uncached, 255, out var pat));
+        HostCheck.Equal(X64PageTableEntryStatus.Success, X64PatMappingToken.TryCreate(0x0007040600070406UL, 0, uncached, 255, out var pat));
         PhysicalAddress.TryCreateFromHardwareRegisterBoundary(Root, out var root);
         return new(root, PageCount, X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat));
-    }
-
-    private sealed class Fixture : IDisposable
-    {
-        internal SeparatePageFaultPageTableRequest Request = M05PciMappingTests.Request();
-        internal readonly SeparatePageFaultMappingRange* Range = (SeparatePageFaultMappingRange*)NativeMemory.AllocZeroed((nuint)sizeof(SeparatePageFaultMappingRange));
-        internal readonly X64PageTableImagePage* Pages = (X64PageTableImagePage*)NativeMemory.AllocZeroed((nuint)PageCount, (nuint)sizeof(X64PageTableImagePage));
-        internal readonly ulong* Entries = (ulong*)NativeMemory.AllocZeroed((nuint)(PageCount * 512), sizeof(ulong));
-        internal SeparatePageFaultPageTableResult Build() => Image.BuildRetainedImage(Request, Range, 1, 1, Pages, PageCount, Entries, PageCount * 512);
-        internal SeparatePageFaultPageTableResult Audit() => Image.AuditRetainedAccessedImage(Request, Range, 1, 1, Pages, PageCount, Entries, PageCount * 512);
-        internal ulong Leaf(ulong address)
-        {
-            ulong table = 0;
-            for (int level = 4; level > 1; level--)
-            {
-                ulong value = Entries[table * 512 + ((address >> (12 + 9 * (level - 1))) & 511)];
-                HostCheck.True((value & 3) == 3 && (value & 0x98) == 0, "table pointer must remain writable writeback without a large-page bit");
-                table = ((value & 0x000ffffffffff000UL) - Root) / 4096;
-                HostCheck.True(table < PageCount);
-            }
-            return table * 512 + ((address >> 12) & 511);
-        }
-        internal void AssertEmpty()
-        {
-            HostCheck.True(new ReadOnlySpan<byte>(Entries, (int)(PageCount * 4096)).IndexOfAnyExcept((byte)0) < 0);
-            HostCheck.True(new ReadOnlySpan<byte>(Pages, (int)PageCount * sizeof(X64PageTableImagePage)).IndexOfAnyExcept((byte)0) < 0);
-        }
-        public void Dispose() { NativeMemory.Free(Range); NativeMemory.Free(Pages); NativeMemory.Free(Entries); }
     }
 }

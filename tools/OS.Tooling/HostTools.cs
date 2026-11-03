@@ -2,13 +2,8 @@ namespace OS.Tooling;
 
 public static class HostTools
 {
-    public static string ManagedTool(string root, string name)
-    {
-        string configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Debug";
-        string path = Path.Combine(root, "tools", name, "bin", configuration, "net11.0", name + ".dll");
-        if (!File.Exists(path)) throw new FileNotFoundException("host_tool_not_built build CLROS.slnx first", path);
-        return path;
-    }
+    public static string ManagedTool(string root, string name) =>
+        HostProjectOutputs.ResolveTool(root, name, typeof(HostTools).Assembly);
 
     public static string? FindExecutable(string? requested, string environmentName, string name, string? fallback = null)
     {

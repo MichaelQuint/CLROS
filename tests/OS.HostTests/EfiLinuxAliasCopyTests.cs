@@ -5,25 +5,49 @@ using OS.Kernel.Compatibility.LinuxX64;
 using OS.Tooling;
 using System.Runtime.Loader;
 
-internal static class EfiLinuxAliasCopyTests
+internal static partial class EfiLinuxAliasCopyTests
 {
     [HostTest("efi linux alias copy actual aligned image and pool copies in both directions")]
-    private static void AlignedCopies() { using var fixture = Compile(); fixture.Run(0); }
+    private static void AlignedCopies()
+    {
+        using var fixture = Compile();
+        fixture.Run(0);
+    }
 
     [HostTest("efi linux alias copy actual unaligned noncontiguous pages preserve bounds")]
-    private static void NoncontiguousPages() { using var fixture = Compile(); fixture.Run(1); }
+    private static void NoncontiguousPages()
+    {
+        using var fixture = Compile();
+        fixture.Run(1);
+    }
 
     [HostTest("efi linux alias copy later permission failures publish no partial output")]
-    private static void Permissions() { using var fixture = Compile(); fixture.Run(2); }
+    private static void Permissions()
+    {
+        using var fixture = Compile();
+        fixture.Run(2);
+    }
 
     [HostTest("efi linux alias copy later foreign backing rejects before any output")]
-    private static void Ownership() { using var fixture = Compile(); fixture.Run(3); }
+    private static void Ownership()
+    {
+        using var fixture = Compile();
+        fixture.Run(3);
+    }
 
     [HostTest("efi linux alias copy actual range and authority rejection preserves output")]
-    private static void Admission() { using var fixture = Compile(); fixture.Run(4); }
+    private static void Admission()
+    {
+        using var fixture = Compile();
+        fixture.Run(4);
+    }
 
     [HostTest("efi linux alias copy translates by touched page rather than byte")]
-    private static void TranslationCounts() { using var fixture = Compile(); fixture.Run(5); }
+    private static void TranslationCounts()
+    {
+        using var fixture = Compile();
+        fixture.Run(5);
+    }
 
     private static Fixture Compile()
     {
@@ -32,12 +56,8 @@ internal static class EfiLinuxAliasCopyTests
         // exercise CopyLinuxAlias's real TryReadLeaf admission.
         HostCheck.True(OperatingSystem.IsWindows(), "actual alias-copy controls require Windows low-address ordinary RAM; no skipped behavioral pass");
         var profile = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM10018FullProbe"] = true });
-        var options = new CSharpParseOptions(LanguageVersion.CSharp14,
-            preprocessorSymbols: profile.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key]));
-        string path = Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs");
-        SyntaxNode syntax = CSharpSyntaxTree.ParseText(File.ReadAllText(path), options).GetRoot();
-        MethodDeclarationSyntax Method(string name) => syntax.DescendantNodes().OfType<MethodDeclarationSyntax>()
-            .Single(m => m.Identifier.ValueText == name);
+        var catalog = HostSourceCatalog.Efi(profile);
+        MethodDeclarationSyntax Method(string name) => catalog.Method("OS.Boot.EfiEntry+M03FirstExitAdapter", name);
         string Text(string name) => Method(name).WithoutLeadingTrivia().WithoutTrailingTrivia().ToFullString();
         HostCheck.Equal(5, Method("CopyLinuxAlias").ParameterList.Parameters.Count);
         string source = $$"""
@@ -258,12 +278,8 @@ internal static class EfiLinuxAliasCopyTests
                 }
             }
             """;
-        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
-            .Concat([typeof(LinuxSyscallGateway).Assembly.Location, typeof(OS.Boot.PhysicalAddress).Assembly.Location])
-            .Distinct(StringComparer.OrdinalIgnoreCase).Select(p => MetadataReference.CreateFromFile(p));
-        var compilation = CSharpCompilation.Create("AliasCopy" + Guid.NewGuid().ToString("N"),
-            [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp14))], references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release, allowUnsafe: true));
+        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Concat([typeof(LinuxSyscallGateway).Assembly.Location, typeof(OS.Boot.PhysicalAddress).Assembly.Location]).Distinct(StringComparer.OrdinalIgnoreCase).Select(p => MetadataReference.CreateFromFile(p));
+        var compilation = CSharpCompilation.Create("AliasCopy" + Guid.NewGuid().ToString("N"), [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp14))], references, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release, allowUnsafe: true));
         using var image = new MemoryStream();
         var emitted = compilation.Emit(image);
         HostCheck.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));
@@ -274,12 +290,10 @@ internal static class EfiLinuxAliasCopyTests
             Type fixture = context.LoadFromStream(image).GetType("AliasCopyProductionFixture", throwOnError: true)!;
             return new Fixture(context, fixture.GetMethod("Run")!.CreateDelegate<Action<int>>());
         }
-        catch { context.Unload(); throw; }
-    }
-
-    private sealed class Fixture(AssemblyLoadContext context, Action<int> run) : IDisposable
-    {
-        internal void Run(int section) => run(section);
-        public void Dispose() => context.Unload();
+        catch
+        {
+            context.Unload();
+            throw;
+        }
     }
 }

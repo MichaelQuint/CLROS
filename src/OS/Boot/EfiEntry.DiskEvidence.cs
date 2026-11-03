@@ -1,3 +1,11 @@
+#if CLROS_DISK_EVIDENCE_TRACE || CLROS_DISK_EVIDENCE_SUMMARY
+#if !M10_018_TIMING_PROBE || !M10_018_FULL_PROBE || !M10_018_PROBE || !M16_025_PROBE
+#error disk_evidence_experiment_requires_timing_profile
+#endif
+#if CLROS_DISK_EVIDENCE_TRACE && CLROS_DISK_EVIDENCE_SUMMARY
+#error disk_evidence_experiment_modes_conflict
+#endif
+#endif
 #if M16_025_PROBE
 using OS.Storage;
 using OS.Kernel.Compatibility.LinuxX64;
@@ -12,27 +20,11 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
-        // Scalars only: never copy a live block, filesystem, descriptor or
-        // thread owner. These observations are selected by the entire canonical
-        // ExitPending package, not a path, fd, address or application marker.
-        private struct NativeDiskExitObservation
-        {
-            internal ulong Main, Child, Ordinal, Rip, WaitSequence;
-            internal ulong RequestOwner, RequestEpoch, RequestGeneration;
-            internal ulong BindingGeneration, DescriptionPosition, FileGeneration, Inode;
-            internal ulong FsOwner, FsEpoch, FsGeneration, BlockOwner, BlockEpoch, BlockGeneration, Sector;
-            internal ulong Submitted, Completed, Copied, Cancelled, StopCompleted, StopCancelled;
-            internal ulong CancelSubmitted, CancelCopied, Cursor;
-            internal ulong RequestWorker, LastClock;
-            internal uint RequestIndex, Fd, FdGeneration, Binding, Description, FsIndex, FileIndex, OutputBytes;
-            internal uint SlotBytes;
-            internal byte Phase, RequestPhase;
-            internal bool SlotActive;
-        }
 
         private static bool IsNativeDiskExitPackage(Storage* state)
         {
-            if (state == null || state->LinuxBytes != 29002 || state->LinuxPackage == 0) return false;
+            if (state == null || state->LinuxBytes != 29002 || state->LinuxPackage == 0)
+                return false;
             ulong* digest = stackalloc ulong[4];
             return OS.Std.Hash.Sha256.TryCompute((byte*)state->LinuxPackage, state->LinuxBytes, (byte*)digest, 32) &&
                 digest[0] == 0xf1c4de52c3eb7a3b && digest[1] == 0x8e4cd7a7c9450031 &&
@@ -44,7 +36,8 @@ public static unsafe partial class EfiEntry
         // submitted block request. No progress, copy, wake or cancellation here.
         private static bool ObserveNativeDiskExitCall(LinuxNativeControl* c, uint index, LinuxSyscallFrame call)
         {
-            if (call.Number != 231 || !IsNativeDiskExitPackage(c->State)) return true;
+            if (call.Number != 231 || !IsNativeDiskExitPackage(c->State))
+                return true;
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
                 var parent = c->Slots;
@@ -83,22 +76,47 @@ public static unsafe partial class EfiEntry
                     !binding->File.IsInitialized || binding->File.Owner != (ulong)(&o->Mount) ||
                     binding->File.Epoch != fs.Epoch || binding->File.Index >= o->Mount.Input.FileCount ||
                     o->Files[binding->File.Index].Generation != binding->File.Generation || description->Position != request->Offset ||
-                    !NativeDiskExitSentinelBytes(c->State)) return RejectNativeDiskExitObservation(c, index, 5);
+                    !NativeDiskExitSentinelBytes(c->State))
+                    return RejectNativeDiskExitObservation(c, index, 5);
                 o->ExitObservation = new()
                 {
-                    Main = parent->Kernel.Value, Child = c->Threads.Current.Value, Ordinal = LinuxNativeCallOrdinal(c, 0),
-                    Rip = parent->WaitCall.Rip, WaitSequence = parent->Wait.Sequence,
-                    RequestOwner = token.Owner, RequestEpoch = token.Epoch, RequestGeneration = token.Generation, RequestIndex = token.Index,
-                    Fd = request->OriginalFd.Number, FdGeneration = request->OriginalFd.Generation,
-                    Binding = request->Binding, BindingGeneration = request->BindingGeneration, Description = request->Description,
-                    DescriptionPosition = description->Position, FileGeneration = binding->File.Generation, FileIndex = binding->File.Index,
+                    Main = parent->Kernel.Value,
+                    Child = c->Threads.Current.Value,
+                    Ordinal = LinuxNativeCallOrdinal(c, 0),
+                    Rip = parent->WaitCall.Rip,
+                    WaitSequence = parent->Wait.Sequence,
+                    RequestOwner = token.Owner,
+                    RequestEpoch = token.Epoch,
+                    RequestGeneration = token.Generation,
+                    RequestIndex = token.Index,
+                    Fd = request->OriginalFd.Number,
+                    FdGeneration = request->OriginalFd.Generation,
+                    Binding = request->Binding,
+                    BindingGeneration = request->BindingGeneration,
+                    Description = request->Description,
+                    DescriptionPosition = description->Position,
+                    FileGeneration = binding->File.Generation,
+                    FileIndex = binding->File.Index,
                     Inode = binding->Metadata.Info.Inode,
-                    FsOwner = fs.Owner, FsEpoch = fs.Epoch, FsGeneration = fs.Generation, FsIndex = fs.Index,
-                    BlockOwner = o->Mount.IoToken.Owner, BlockEpoch = o->Mount.IoToken.Epoch, BlockGeneration = o->Device.RequestGeneration,
-                    Sector = o->Device.RequestSector, Submitted = o->Device.Submitted, Completed = o->Device.Completed,
-                    Copied = o->Device.Copied, Cancelled = o->Device.Cancelled, OutputBytes = parent->DiskOutputBytes, Phase = 1,
-                    RequestWorker = request->Worker.Value, RequestPhase = request->Phase,
-                    Cursor = description->Position, SlotActive = true, SlotBytes = parent->DiskOutputBytes
+                    FsOwner = fs.Owner,
+                    FsEpoch = fs.Epoch,
+                    FsGeneration = fs.Generation,
+                    FsIndex = fs.Index,
+                    BlockOwner = o->Mount.IoToken.Owner,
+                    BlockEpoch = o->Mount.IoToken.Epoch,
+                    BlockGeneration = o->Device.RequestGeneration,
+                    Sector = o->Device.RequestSector,
+                    Submitted = o->Device.Submitted,
+                    Completed = o->Device.Completed,
+                    Copied = o->Device.Copied,
+                    Cancelled = o->Device.Cancelled,
+                    OutputBytes = parent->DiskOutputBytes,
+                    Phase = 1,
+                    RequestWorker = request->Worker.Value,
+                    RequestPhase = request->Phase,
+                    Cursor = description->Position,
+                    SlotActive = true,
+                    SlotBytes = parent->DiskOutputBytes
                 };
                 return WriteNativeDiskExitObservation(o);
             }
@@ -112,7 +130,8 @@ public static unsafe partial class EfiEntry
         {
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
-                if (o->Boot != c->State) return false;
+                if (o->Boot != c->State)
+                    return false;
                 _ = LinuxText(c->State, "M16_025_EXIT_REJECT reason=") && LinuxNumber(c->State, reason) &&
                     LinuxText(c->State, " index=") && LinuxNumber(c->State, index) &&
                     LinuxText(c->State, " phase=") && LinuxNumber(c->State, o->ExitObservation.Phase) &&
@@ -135,10 +154,12 @@ public static unsafe partial class EfiEntry
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
                 var e = &o->ExitObservation;
-                if (e->Phase == 0 || index != 0) return true;
+                if (e->Phase == 0 || index != 0)
+                    return true;
                 var slot = c->Slots;
                 if (o->Boot != c->State || slot->Kernel.Value != e->Main || slot->Exiting == 0 ||
-                    o->Device.Submitted != e->Submitted || o->Device.Copied != e->Copied) return false;
+                    o->Device.Submitted != e->Submitted || o->Device.Copied != e->Copied)
+                    return false;
                 if (!committed)
                 {
                     var request = o->Requests + e->RequestIndex;
@@ -156,7 +177,8 @@ public static unsafe partial class EfiEntry
                         binding->Generation != e->BindingGeneration || binding->Description != e->Description ||
                         binding->File.Generation != e->FileGeneration || binding->File.Index != e->FileIndex ||
                         c->State->LinuxDescriptors.Owner.Descriptions[e->Description].Position != e->DescriptionPosition ||
-                        o->Device.RequestGeneration != e->BlockGeneration || o->Device.RequestSector != e->Sector) return false;
+                        o->Device.RequestGeneration != e->BlockGeneration || o->Device.RequestSector != e->Sector)
+                        return false;
                     e->Phase = 2;
                 }
                 else
@@ -166,15 +188,20 @@ public static unsafe partial class EfiEntry
                         request->Generation != 0 && (request->Generation != e->RequestGeneration || request->Worker.IsValid ||
                             !request->Cancelling || !request->Borrowed || request->BindingGeneration != e->BindingGeneration ||
                             request->Operation.Owner != e->FsOwner || request->Operation.Epoch != e->FsEpoch ||
-                            request->Operation.Generation != e->FsGeneration || request->Operation.Index != e->FsIndex)) return false;
-                    e->CancelSubmitted = o->Device.Submitted; e->CancelCopied = o->Device.Copied;
+                            request->Operation.Generation != e->FsGeneration || request->Operation.Index != e->FsIndex))
+                        return false;
+                    e->CancelSubmitted = o->Device.Submitted;
+                    e->CancelCopied = o->Device.Copied;
                     e->Phase = 3;
                 }
                 var observedRequest = o->Requests + e->RequestIndex;
-                e->RequestWorker = observedRequest->Worker.Value; e->RequestPhase = observedRequest->Phase;
-                e->SlotActive = slot->DiskOperation.IsActive; e->SlotBytes = slot->DiskOutputBytes;
+                e->RequestWorker = observedRequest->Worker.Value;
+                e->RequestPhase = observedRequest->Phase;
+                e->SlotActive = slot->DiskOperation.IsActive;
+                e->SlotBytes = slot->DiskOutputBytes;
                 e->Cursor = c->State->LinuxDescriptors.Owner.Descriptions[e->Description].Position;
-                if (e->Cursor != e->DescriptionPosition) return false;
+                if (e->Cursor != e->DescriptionPosition)
+                    return false;
                 return WriteNativeDiskExitObservation(o);
             }
         }
@@ -182,12 +209,16 @@ public static unsafe partial class EfiEntry
         private static bool ObserveNativeDiskExitBeforeStop(NativeDiskOwner* o)
         {
             var e = &o->ExitObservation;
-            if (e->Phase == 0) return true;
+            if (e->Phase == 0)
+                return true;
             if (e->Phase != 3 || !o->Device.RequiresCleanup || o->Device.Retired ||
                 o->Device.Submitted != e->CancelSubmitted || o->Device.Copied != e->CancelCopied ||
                 o->Device.Completed < e->Completed || o->Device.Completed > e->Completed + 1 ||
-                o->Device.Cancelled < e->Cancelled || o->Device.Cancelled > e->Cancelled + 1) return false;
-            e->StopCompleted = o->Device.Completed; e->StopCancelled = o->Device.Cancelled; e->Phase = 4;
+                o->Device.Cancelled < e->Cancelled || o->Device.Cancelled > e->Cancelled + 1)
+                return false;
+            e->StopCompleted = o->Device.Completed;
+            e->StopCancelled = o->Device.Cancelled;
+            e->Phase = 4;
             return WriteNativeDiskExitObservation(o);
         }
 
@@ -196,14 +227,17 @@ public static unsafe partial class EfiEntry
         private static bool ObserveNativeDiskExitStopped(NativeDiskOwner* o, Block.Status stopped)
         {
             var e = &o->ExitObservation;
-            if (e->Phase == 0) return true;
+            if (e->Phase == 0)
+                return true;
             var receipt = o->Device.Receipt;
             if (e->Phase != 4 || stopped != Block.Status.Success || !o->Device.Retired ||
                 !receipt.ResetComplete || receipt.ResetReads == 0 || !receipt.BusMasterDisabled || !receipt.DmaReleased ||
                 receipt.CleanupStatus != VirtioBlkQueueStatus.Success || !o->Device.ReturnedToCpu || !o->Device.Scrubbed ||
                 o->Pool.AllocatedMask != 0 || o->Device.Submitted != e->Submitted || o->Device.Completed != e->StopCompleted ||
-                o->Device.Cancelled != e->StopCancelled || o->Device.Copied != e->Copied) return false;
-            e->Phase = 5; return WriteNativeDiskExitObservation(o);
+                o->Device.Cancelled != e->StopCancelled || o->Device.Copied != e->Copied)
+                return false;
+            e->Phase = 5;
+            return WriteNativeDiskExitObservation(o);
         }
 
         // Whole mapped output, using validated kernel aliases and a fixed
@@ -213,8 +247,11 @@ public static unsafe partial class EfiEntry
             byte* chunk = stackalloc byte[128];
             for (uint offset = 0; offset < 8192; offset += 128)
             {
-                if (CopyLinuxAlias(state, 0x404000UL + offset, chunk, 128, false) != 1) return false;
-                for (uint i = 0; i < 128; i++) if (chunk[i] != 0xa5) return false;
+                if (CopyLinuxAlias(state, 0x404000UL + offset, chunk, 128, false) != 1)
+                    return false;
+                for (uint i = 0; i < 128; i++)
+                    if (chunk[i] != 0xa5)
+                        return false;
             }
             return true;
         }
@@ -224,13 +261,16 @@ public static unsafe partial class EfiEntry
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
                 var e = &o->ExitObservation;
-                if (e->Phase == 0) return !IsNativeDiskExitPackage(state);
+                if (e->Phase == 0)
+                    return !IsNativeDiskExitPackage(state);
                 if (e->Phase != 5 || o->Boot != state || o->Phase != 9 || !o->Mount.IsRetired || c == null ||
                     c->GuardAttached != 1 || c->ProcessAttached != 1 || c->Reaped != 2 || c->Process.ActiveThreads != 0 ||
                     c->Threads.Current.IsValid || c->Threads.HandoffPending || o->Device.Copied != e->Copied ||
                     !LinuxDescriptorServices.CanDetachThreads(&state->LinuxDescriptors, (ulong)(&c->Process)) ||
-                    !NativeDiskExitSentinelBytes(state)) return false;
-                e->Phase = 6; return WriteNativeDiskExitObservation(o);
+                    !NativeDiskExitSentinelBytes(state))
+                    return false;
+                e->Phase = 6;
+                return WriteNativeDiskExitObservation(o);
             }
         }
 
@@ -238,9 +278,12 @@ public static unsafe partial class EfiEntry
         {
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
-                if (o->ExitObservation.Phase == 0) return true;
-                if (o->ExitObservation.Phase != 6 || c == null || c->GuardAttached != 0 || c->ProcessAttached != 0) return false;
-                o->ExitObservation.Phase = 7; return WriteNativeDiskExitObservation(o);
+                if (o->ExitObservation.Phase == 0)
+                    return true;
+                if (o->ExitObservation.Phase != 6 || c == null || c->GuardAttached != 0 || c->ProcessAttached != 0)
+                    return false;
+                o->ExitObservation.Phase = 7;
+                return WriteNativeDiskExitObservation(o);
             }
         }
 
@@ -248,11 +291,14 @@ public static unsafe partial class EfiEntry
         {
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
-                if (o->ExitObservation.Phase == 0) return true;
+                if (o->ExitObservation.Phase == 0)
+                    return true;
                 if (o->ExitObservation.Phase != 7 || o->Boot != state || o->Device.Copied != o->ExitObservation.Copied ||
                     state->LinuxMemory.ReservedBytes != 0 || state->LinuxMemory.BackedPages != 0 ||
-                    state->LinuxMemory.HasImageProtections || state->LinuxMemory.HasMutationGuard) return false;
-                o->ExitObservation.Phase = 8; return WriteNativeDiskExitObservation(o);
+                    state->LinuxMemory.HasImageProtections || state->LinuxMemory.HasMutationGuard)
+                    return false;
+                o->ExitObservation.Phase = 8;
+                return WriteNativeDiskExitObservation(o);
             }
         }
 
@@ -264,12 +310,14 @@ public static unsafe partial class EfiEntry
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
                 var e = &o->ExitObservation;
-                if (e->Phase == 0) return true;
+                if (e->Phase == 0)
+                    return true;
                 if (e->Phase != 8 || o->Boot != state || o->Phase != 9 || !o->Device.Retired || !o->Mount.IsRetired ||
                     o->Pool.AllocatedMask != 0 || o->Device.Copied != e->Copied || state->CooperativePhase != 6 ||
                     state->LinuxSyscallPhase != 6 || state->LinuxMemoryPhase != 6 || state->LinuxDescriptorPhase != 6 ||
                     !ReadNetworkTime(state, out ulong now) || now < e->LastClock || now < started ||
-                    now - started >= LinuxThreadExecutionBudget.RuntimeNanoseconds) return false;
+                    now - started >= LinuxThreadExecutionBudget.RuntimeNanoseconds)
+                    return false;
                 return LinuxText(state, "M16_025_EXIT_CLEANUP_END owner=") && LinuxNumber(state, e->RequestOwner) &&
                     LinuxText(state, " epoch=") && LinuxNumber(state, e->RequestEpoch) &&
                     LinuxText(state, " clock=") && LinuxNumber(state, now) && LinuxText(state, "\r\n");
@@ -280,7 +328,9 @@ public static unsafe partial class EfiEntry
         {
             // Request/slot/cursor fields retain the last stage1..3 snapshot;
             // backend and mount fields are read afresh at each actual stage.
-            var e = &o->ExitObservation; var state = o->Boot; var receipt = o->Device.Receipt;
+            var e = &o->ExitObservation;
+            var state = o->Boot;
+            var receipt = o->Device.Receipt;
             bool written = ReadNetworkTime(state, out ulong now) && LinuxText(state, "M16_025_EXIT_PENDING stage=") && LinuxNumber(state, e->Phase) &&
                 LinuxText(state, " main=") && LinuxNumber(state, e->Main) && LinuxText(state, " child=") && LinuxNumber(state, e->Child) &&
                 LinuxText(state, " ordinal=") && LinuxNumber(state, e->Ordinal) && LinuxText(state, " rip=") && LinuxNumber(state, e->Rip) &&
@@ -323,24 +373,11 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " cursor=") && LinuxNumber(state, e->Cursor) &&
                 LinuxText(state, " clock=") && LinuxNumber(state, now) &&
                 LinuxText(state, "\r\n");
-            if (written) e->LastClock = now;
+            if (written)
+                e->LastClock = now;
             return written;
         }
 
-        // One bounded pump can complete/copy and submit its next request. Keep
-        // their original order without performing serial I/O inside callbacks.
-        private struct NativeDiskRecord
-        {
-            internal Block.Observation Observation;
-            internal fixed byte Bytes[512];
-        }
-        private struct NativeDiskEvidence
-        {
-            internal NativeDiskRecord A, B, C, D, E, F, G, H;
-            internal ulong Generation, CopiedRecords;
-            internal uint Count, Total;
-            internal bool Enabled, Failed;
-        }
         private const uint NativeDiskEvidenceCapacity = 8, NativeDiskEvidenceLimit = 65536;
         private static uint SelectedNativeDiskEvidenceLimit => OS.Kernel.Diagnostics.Probes.EnableM10018FullProbe ?
             OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.MaximumDeviceRecords : NativeDiskEvidenceLimit;
@@ -351,35 +388,49 @@ public static unsafe partial class EfiEntry
             NativeDiskOwner* o = (NativeDiskOwner*)context;
             if (o == null || observation == null || observation->Owner != (ulong)(&o->Device) ||
                 observation->Epoch != NativeDiskEpoch || observation->Generation == 0 ||
-                observation->Kind is not (Block.ObservationKind.Submitted or Block.ObservationKind.CompletionValidated or Block.ObservationKind.CopyReady)) return 0;
+                observation->Kind is not (Block.ObservationKind.Submitted or Block.ObservationKind.CompletionValidated or Block.ObservationKind.CopyReady))
+                return 0;
             NativeDiskEvidence* evidence = &o->Evidence;
-            if (evidence->Failed) return 0;
-            if (!evidence->Enabled) return 1;
-            if (observation->Kind == Block.ObservationKind.Submitted) evidence->Generation = observation->Generation;
+            if (evidence->Failed)
+                return 0;
+            if (!evidence->Enabled)
+                return 1;
+            if (observation->Kind == Block.ObservationKind.Submitted)
+                evidence->Generation = observation->Generation;
             // A read admitted before arming retains its earlier scope.
-            if (evidence->Generation != observation->Generation) return 1;
+            if (evidence->Generation != observation->Generation)
+                return 1;
             bool copy = observation->Kind == Block.ObservationKind.CopyReady;
             uint slots = copy ? observation->Bytes / 512 : 1;
             if (slots is 0 or > 4 || evidence->Count > NativeDiskEvidenceCapacity - slots ||
                 evidence->Total > SelectedNativeDiskEvidenceLimit - slots ||
                 (copy ? bytes == null || observation->Bytes != slots * 512 : bytes != null))
-            { evidence->Failed = true; return 0; }
+            {
+                evidence->Failed = true;
+                return 0;
+            }
             // Reserve the complete group before accepting CopyReady. Each slot
             // holds one payload sector of the SAME physical transaction.
             for (uint chunk = 0; chunk < slots; chunk++)
             {
                 NativeDiskRecord* record = &evidence->A + evidence->Count + chunk;
                 record->Observation = *observation;
-                if (copy) for (uint i = 0; i < 512; i++) record->Bytes[i] = bytes[chunk * 512 + i];
+                if (copy)
+                    for (uint i = 0; i < 512; i++)
+                        record->Bytes[i] = bytes[chunk * 512 + i];
             }
-            evidence->Count += slots; evidence->Total += slots; return 1;
+            evidence->Count += slots;
+            evidence->Total += slots;
+            return 1;
         }
 
         private static bool ArmNativeDiskEvidence(NativeDiskOwner* o)
         {
             if (o == null || o->Phase != 7 || !o->Device.Running || !o->Mount.Ready || o->Evidence.Enabled ||
-                o->Evidence.Failed || o->Evidence.Count != 0) return false;
-            o->Evidence.Enabled = true; return true;
+                o->Evidence.Failed || o->Evidence.Count != 0)
+                return false;
+            o->Evidence.Enabled = true;
+            return true;
         }
 
 #if M10_018_PROBE
@@ -393,7 +444,43 @@ public static unsafe partial class EfiEntry
                     LinuxText(state, "M10_018_DISK_READY submitted=") && LinuxNumber(state, o->Device.Submitted) &&
                     LinuxText(state, " completed=") && LinuxNumber(state, o->Device.Completed) &&
                     LinuxText(state, " copied=") && LinuxNumber(state, o->Device.Copied) &&
-                    LinuxText(state, " clock=") && LinuxNumber(state, now) && LinuxText(state, "\r\n");
+                    LinuxText(state, " clock=") && LinuxNumber(state, now) && LinuxText(state, "\r\n")
+#if CLROS_DISK_EVIDENCE_TRACE || CLROS_DISK_EVIDENCE_SUMMARY
+                    && WriteNativeDiskDiagnosticBoundary(o, now, true)
+#endif
+                    ;
+        }
+#endif
+
+#if CLROS_DISK_EVIDENCE_TRACE || CLROS_DISK_EVIDENCE_SUMMARY
+        // Selected diagnostic only. Snapshot real counters without progressing,
+        // copying or retiring I/O. The host checks every record between these
+        // independently emitted boundaries; neither row grants normal cleanup.
+        private static bool WriteNativeDiskDiagnosticBoundary(NativeDiskOwner* o, ulong now, bool beginning)
+        {
+            if (o == null || o->Boot == null || o->Phase != 7 || !o->Device.Running || !o->Mount.Ready ||
+                o->Device.ReadPending || o->Device.ReadReady || o->Mount.IoActive ||
+                o->Device.Submitted != o->Device.Completed || o->Device.Copied > o->Device.Completed ||
+                !o->Evidence.Enabled || o->Evidence.Failed || o->Evidence.Count != 0 ||
+                (beginning ? o->Evidence.Total != 0 || o->Evidence.CopiedRecords != 0 :
+                    o->Evidence.Total == 0 || o->Evidence.CopiedRecords == 0))
+                return false;
+            var state = o->Boot;
+            return LinuxText(state, beginning ? "CLROS_DISK_IO_BEGIN_V1 payload=" : "CLROS_DISK_IO_END_V1 payload=") &&
+#if CLROS_DISK_EVIDENCE_TRACE
+                LinuxNumber(state, 1) &&
+#else
+                LinuxNumber(state, 0) &&
+#endif
+                LinuxText(state, " owner=") && LinuxNumber(state, (ulong)(&o->Device)) &&
+                LinuxText(state, " epoch=") && LinuxNumber(state, NativeDiskEpoch) &&
+                LinuxText(state, " submitted=") && LinuxNumber(state, o->Device.Submitted) &&
+                LinuxText(state, " completed=") && LinuxNumber(state, o->Device.Completed) &&
+                LinuxText(state, " copied=") && LinuxNumber(state, o->Device.Copied) &&
+                LinuxText(state, " cancelled=") && LinuxNumber(state, o->Device.Cancelled) &&
+                LinuxText(state, " records=") && LinuxNumber(state, o->Evidence.Total) &&
+                LinuxText(state, " copiedRecords=") && LinuxNumber(state, o->Evidence.CopiedRecords) &&
+                LinuxText(state, " clock=") && LinuxNumber(state, now) && LinuxText(state, "\r\n");
         }
 #endif
 
@@ -404,7 +491,8 @@ public static unsafe partial class EfiEntry
         {
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
-                if (o->Boot != state || o->Evidence.Failed) return false;
+                if (o->Boot != state || o->Evidence.Failed)
+                    return false;
                 NativeDiskEvidence* evidence = &o->Evidence;
                 for (uint i = 0; i < evidence->Count;)
                 {
@@ -413,23 +501,37 @@ public static unsafe partial class EfiEntry
                     uint slots = value.Kind == Block.ObservationKind.CopyReady ? value.Bytes / 512 : 1;
                     if (slots is 0 or > 4 || slots > evidence->Count - i ||
                         value.Kind == Block.ObservationKind.CopyReady && value.Bytes != slots * 512)
-                    { evidence->Failed = true; return false; }
+                    {
+                        evidence->Failed = true;
+                        return false;
+                    }
                     for (uint chunk = 1; chunk < slots; chunk++)
                         if (!SameNativeDiskObservation(value, record[chunk].Observation))
-                        { evidence->Failed = true; return false; }
+                        {
+                            evidence->Failed = true;
+                            return false;
+                        }
                     if (value.Kind == Block.ObservationKind.CopyReady && o->Device.Copied != value.Sequence ||
                         !ReadNetworkTime(state, out ulong now))
-                    { evidence->Failed = true; return false; }
+                    {
+                        evidence->Failed = true;
+                        return false;
+                    }
                     for (uint chunk = 0; chunk < slots; chunk++)
                     {
                         if (!WriteNativeDiskRecord(state, record + chunk, now, chunk))
-                        { evidence->Failed = true; return false; }
+                        {
+                            evidence->Failed = true;
+                            return false;
+                        }
                         record[chunk] = default;
                     }
-                    if (value.Kind == Block.ObservationKind.CopyReady) evidence->CopiedRecords++;
+                    if (value.Kind == Block.ObservationKind.CopyReady)
+                        evidence->CopiedRecords++;
                     i += slots;
                 }
-                evidence->Count = 0; return true;
+                evidence->Count = 0;
+                return true;
             }
         }
 
@@ -442,7 +544,11 @@ public static unsafe partial class EfiEntry
         {
             var value = record->Observation;
             uint kind = chunk == 0 ? (uint)value.Kind : 3U;
+#if CLROS_DISK_EVIDENCE_TRACE || CLROS_DISK_EVIDENCE_SUMMARY
+            if (!LinuxText(state, "CLROS_DISK_IO_V1 kind=") || !LinuxNumber(state, kind) ||
+#else
             if (!LinuxText(state, "M16_023_IO kind=") || !LinuxNumber(state, kind) ||
+#endif
                 !LinuxText(state, " owner=") || !LinuxNumber(state, value.Owner) ||
                 !LinuxText(state, " epoch=") || !LinuxNumber(state, value.Epoch) ||
                 !LinuxText(state, " generation=") || !LinuxNumber(state, value.Generation) ||
@@ -451,16 +557,39 @@ public static unsafe partial class EfiEntry
                 !LinuxText(state, " bytes=") || !LinuxNumber(state, value.Bytes) ||
                 !LinuxText(state, " available=") || !LinuxNumber(state, value.AvailableIndex) ||
                 !LinuxText(state, " consumed=") || !LinuxNumber(state, value.ConsumedIndex) ||
-                !LinuxText(state, " clock=") || !LinuxNumber(state, now)) return false;
+                !LinuxText(state, " clock=") || !LinuxNumber(state, now))
+                return false;
+#if CLROS_DISK_EVIDENCE_TRACE
+            if (!LinuxText(state, " payload=1"))
+                return false;
+#elif CLROS_DISK_EVIDENCE_SUMMARY
+            if (!LinuxText(state, " payload=0"))
+                return false;
+#endif
             if (value.Kind == Block.ObservationKind.CopyReady)
             {
-                if (!LinuxText(state, " copied=committed")) return false;
-                if (value.Bytes != 512 && (!LinuxText(state, " chunk=") || !LinuxNumber(state, chunk))) return false;
-                if (!LinuxText(state, " data=")) return false;
+                if (!LinuxText(state, " copied=committed"))
+                    return false;
+                if (value.Bytes != 512 && (!LinuxText(state, " chunk=") || !LinuxNumber(state, chunk)))
+                    return false;
+#if CLROS_DISK_EVIDENCE_TRACE || CLROS_DISK_EVIDENCE_SUMMARY
+                // Both experimental modes inspect the same retained sector.
+                // CRC is diagnostic corruption evidence, not exact-byte proof.
+                uint crc = OS.Std.Hash.Crc32.InitialState;
+                for (uint i = 0; i < 512; i++)
+                    crc = OS.Std.Hash.Crc32.UpdateByte(crc, record->Bytes[i]);
+                if (!LinuxText(state, " crc32=") || !LinuxNumber(state, OS.Std.Hash.Crc32.Finish(crc)))
+                    return false;
+#endif
+#if !CLROS_DISK_EVIDENCE_SUMMARY
+                if (!LinuxText(state, " data="))
+                    return false;
                 const string hex = "0123456789abcdef";
                 for (uint i = 0; i < 512; i++)
                     if (!LinuxByte(state, (byte)hex[record->Bytes[i] >> 4]) ||
-                        !LinuxByte(state, (byte)hex[record->Bytes[i] & 15])) return false;
+                        !LinuxByte(state, (byte)hex[record->Bytes[i] & 15]))
+                        return false;
+#endif
             }
             return LinuxText(state, "\r\n");
         }

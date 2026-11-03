@@ -29,22 +29,44 @@ internal static class M04CompilerClassConstructorExecutionEfiIntegrationTests
             catch (OS.Tooling.ToolFailure failure) { reason = failure.Reason; }
             Need(reason == "m04_filter_profile_conflict", "filtered catch excludes the original constructor leaf");
         }
-        string helper = File.ReadAllText(Path.Combine(Root, "src/OS/Runtime/ClassConstructorRunner.cs"));
-        Need(helper.StartsWith("#if NOSTDLIB_EFI && (M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE)", StringComparison.Ordinal) &&
-            helper.Contains("public volatile nint cctorMethodAddress;", StringComparison.Ordinal), "profile-only exact pointer context");
+        var source = HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(
+            [.. RuntimeProfilePortTests.RethrowFlags[..^1].Select(name => "--Enable" + name + "Probe"), "--" + Flag], true).Profile());
+        const string runner = "System.Runtime.CompilerServices.ClassConstructorRunner";
+        const string context = "System.Runtime.CompilerServices.StaticClassConstructionContext";
+        const string owner = "OS.Runtime.RhpNewFastAllocation";
+        const string guard = "#if NOSTDLIB_EFI && (M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE)";
+        foreach (var document in source.TypeSources(runner).Concat(source.TypeSources(context)).DistinctBy(document => document.Path))
+            Need(document.Text.StartsWith(guard, StringComparison.Ordinal), "original profile-only compiler helper guard");
+        Need(source.Type(context).GetMembers("cctorMethodAddress").Single() is Microsoft.CodeAnalysis.IFieldSymbol
+        {
+            IsVolatile: true, IsStatic: false,
+            Type.SpecialType: Microsoft.CodeAnalysis.SpecialType.System_IntPtr,
+            DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public
+        }, "profile-only exact pointer context");
         foreach (string name in new[] { "CheckStaticClassConstructionReturnNonGCStaticBase", "CheckStaticClassConstructionReturnGCStaticBase", "EnsureClassConstructorRun" })
-            Need(helper.Contains(name + "(", StringComparison.Ordinal), "pinned managed helper " + name);
-        Need(!helper.Contains("ThreadStatic", StringComparison.Ordinal) && !helper.Contains("RuntimeExport", StringComparison.Ordinal) &&
-            !helper.Contains("UnmanagedCallersOnly", StringComparison.Ordinal), "no unsupported ABI placeholder");
-        string gc = File.ReadAllText(Path.Combine(Root, "src/OS/Runtime/GCStaticRootMaterializationProbe.cs"));
-        int bind = gc.IndexOf("BindAndRunCompilerClassConstructors(materialized.ObjectReference);", StringComparison.Ordinal);
-        Need(bind > gc.IndexOf("s_gcHandle = registered.Handle;", StringComparison.Ordinal) &&
-            bind < gc.IndexOf("GcStaticFixture.Get()", bind, StringComparison.Ordinal), "registration and materialization before first constructor-bearing accessor");
-        string probe = File.ReadAllText(Path.Combine(Root, "src/OS/Runtime/CompilerClassConstructorExecutionProbe.cs"));
-        Need(probe.Contains("BootSequence.RunCompilerClassConstructors(", StringComparison.Ordinal) &&
-            probe.Contains("CctorDirectRead() => CctorDirectFixture.Read();", StringComparison.Ordinal) &&
-            probe.Contains("s_cctorDepthOneReentries != 5 || s_cctorDepthTwoReentries != 3", StringComparison.Ordinal) &&
-            probe.Contains("if (*(ulong*)context == 0) RejectCctor(20);", StringComparison.Ordinal), "actual active-context reentry and callable preservation");
+            _ = source.MethodInvocations(source.Method(runner, name));
+        string helper = HostSourceText.Documents(source, runner, context);
+        Need(!helper.Contains("ThreadStatic", StringComparison.Ordinal) && !helper.Contains("RuntimeExport", StringComparison.Ordinal)
+            && !helper.Contains("UnmanagedCallersOnly", StringComparison.Ordinal), "no unsupported ABI placeholder");
+
+        string Body(string name)
+        {
+            var method = source.Method(owner, name);
+            _ = source.MethodInvocations(method);
+            return HostSourceText.Active(method);
+        }
+        string gc = Body("RunGcStatics");
+        int registered = HostSourceText.IndexOf(gc, "s_gcHandle = registered.Handle;");
+        int bind = HostSourceText.IndexOf(gc, "BindAndRunCompilerClassConstructors(materialized.ObjectReference);");
+        int accessor = HostSourceText.IndexOf(gc, "GcStaticFixture.Get()", Math.Max(bind, 0));
+        Need(registered >= 0 && bind > registered && accessor > bind,
+            "registration and materialization before first constructor-bearing accessor");
+        string bootstrap = Body("BindAndRunCompilerClassConstructors");
+        Need(HostSourceText.Contains(bootstrap, "BootSequence.RunCompilerClassConstructors(")
+            && HostSourceText.Contains(Body("CctorDirectRead"), "CctorDirectRead() => CctorDirectFixture.Read();")
+            && HostSourceText.Contains(bootstrap, "s_cctorDepthOneReentries != 5 || s_cctorDepthTwoReentries != 3")
+            && HostSourceText.Contains(Body("EnsureCompilerClassConstructor"), "if (*(ulong*)context == 0) RejectCctor(20);"),
+            "actual active-context reentry and callable preservation");
     }
 
     private static string InvokeQemu(params string[] arguments)

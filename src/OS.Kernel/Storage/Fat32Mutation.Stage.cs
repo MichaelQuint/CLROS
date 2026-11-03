@@ -6,5 +6,8 @@ namespace OS.Storage;
 
 public static unsafe partial class Fat32Mutation
 {
-    public enum Stage : byte { Data = 1, AllocateFat, PublishDirectory, RetireDirectory, ReleaseFat, FsInfo }
+    public enum Stage : byte
+    {
+        Data = 1, AllocateFat, PublishDirectory, RetireDirectory, ReleaseFat, FsInfo
+    }
 }

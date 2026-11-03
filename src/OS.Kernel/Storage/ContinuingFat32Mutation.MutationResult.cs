@@ -21,6 +21,13 @@ public static unsafe partial class ContinuingFat32Mutation
         public readonly FileToken OriginalFile, NewFile;
         public readonly bool Deleted;
         internal MutationResult(Status status, uint bytes, RequestToken request, FileToken original, FileToken next, bool deleted)
-        { Status = status; Bytes = bytes; Request = request; OriginalFile = original; NewFile = next; Deleted = deleted; }
+        {
+            Status = status;
+            Bytes = bytes;
+            Request = request;
+            OriginalFile = original;
+            NewFile = next;
+            Deleted = deleted;
+        }
     }
 }

@@ -11,7 +11,8 @@ public static unsafe class PollingCompletionMSIXRemovingPollingRecoveryPath
         ulong originalIdt, ulong temporaryIdt, ulong localApic, uint limit, uint returned,
         bool deliveryMasked)
     {
-        if (!deliveryMasked) return BlockCompletionRoute.InvalidWait;
+        if (!deliveryMasked)
+            return BlockCompletionRoute.InvalidWait;
         if (X64MsixInterrupt.ValidateCompletion(context, code, originalIdt, temporaryIdt, localApic, limit, returned))
             return BlockCompletionRoute.Interrupt;
         if (X64MsixInterrupt.ValidatePollingRecovery(context, code, originalIdt, temporaryIdt, localApic, limit, returned))

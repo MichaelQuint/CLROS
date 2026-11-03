@@ -8,6 +8,25 @@ using OS.Tooling;
 /// or local-variable names. Behavioral fixtures own the expected data and statuses.</summary>
 internal static class HostSourceOperations
 {
+    internal static InvocationExpressionSyntax[] CallsTo(CSharpSourceCatalog catalog, string owner, string name)
+    {
+        var declaration = catalog.Method(owner, name);
+        var target = catalog.Compilation.GetSemanticModel(declaration.SyntaxTree).GetDeclaredSymbol(declaration)!;
+        return CallsTo(catalog, target);
+    }
+
+    // Include nested owners, constructors, accessors and local functions. A
+    // matching name must bind before it can be counted or dismissed as foreign.
+    internal static InvocationExpressionSyntax[] CallsTo(CSharpSourceCatalog catalog, IMethodSymbol target) =>
+        catalog.Documents.SelectMany(document => document.Syntax.GetRoot().DescendantNodes()
+            .OfType<InvocationExpressionSyntax>()).Where(invocation => (invocation.Expression switch
+            {
+                SimpleNameSyntax name => name.Identifier.ValueText,
+                MemberAccessExpressionSyntax access => access.Name.Identifier.ValueText,
+                MemberBindingExpressionSyntax binding => binding.Name.Identifier.ValueText,
+                _ => null
+            }) == target.Name && SymbolEqualityComparer.Default.Equals(catalog.Invocation(invocation), target)).ToArray();
+
     internal static IInvocationOperation[] Calls(CSharpSourceCatalog catalog, MethodDeclarationSyntax method,
         Type dependency, string name)
     {
@@ -70,17 +89,25 @@ internal static class HostSourceOperations
     }
 
     internal static bool IsUnmodifiedLocal(SemanticModel model, ILocalSymbol local, MethodDeclarationSyntax method)
+        => IsUnmodifiedSymbol(model, local, method);
+
+    internal static bool IsUnmodifiedParameter(SemanticModel model, IParameterSymbol parameter, MethodDeclarationSyntax method)
+        => IsUnmodifiedSymbol(model, parameter, method);
+
+    private static bool IsUnmodifiedSymbol(SemanticModel model, ISymbol symbol, MethodDeclarationSyntax method)
     {
         foreach (var identifier in method.DescendantNodes().OfType<IdentifierNameSyntax>())
         {
-            if (!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(identifier).Symbol, local))
+            if (!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(identifier).Symbol, symbol))
                 continue;
             if (identifier.Ancestors().TakeWhile(node => node != method).Any(node => node switch
             {
                 AssignmentExpressionSyntax assignment => assignment.Left.Span.Contains(identifier.Span),
-                PrefixUnaryExpressionSyntax prefix => prefix.IsKind(SyntaxKind.PreIncrementExpression) || prefix.IsKind(SyntaxKind.PreDecrementExpression),
+                PrefixUnaryExpressionSyntax prefix => prefix.IsKind(SyntaxKind.PreIncrementExpression)
+                    || prefix.IsKind(SyntaxKind.PreDecrementExpression) || prefix.IsKind(SyntaxKind.AddressOfExpression),
                 PostfixUnaryExpressionSyntax postfix => postfix.IsKind(SyntaxKind.PostIncrementExpression) || postfix.IsKind(SyntaxKind.PostDecrementExpression),
                 ArgumentSyntax argument => argument.RefKindKeyword.IsKind(SyntaxKind.RefKeyword) || argument.RefKindKeyword.IsKind(SyntaxKind.OutKeyword),
+                RefExpressionSyntax => true,
                 _ => false
             }))
                 return false;

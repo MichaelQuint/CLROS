@@ -26,21 +26,45 @@ public readonly struct VirtioBlockReadQueuePipelineResult
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockReadQueuePipelineStatus Status { get; }
+    public VirtioBlockReadQueuePipelineStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueuePublishResult Publish { get; }
+    public VirtioBlockReadQueuePublishResult Publish
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueueNotifyReadinessResult NotifyReadiness { get; }
+    public VirtioBlockReadQueueNotifyReadinessResult NotifyReadiness
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueueNotifyCompletionResult NotifyCompletion { get; }
+    public VirtioBlockReadQueueNotifyCompletionResult NotifyCompletion
+    {
+        get;
+    }
 
-    public VirtioBlockReadQueueNotifyBlockReadProjectionResult BlockProjection { get; }
+    public VirtioBlockReadQueueNotifyBlockReadProjectionResult BlockProjection
+    {
+        get;
+    }
 
-    public bool NotifyReadinessAttempted { get; }
+    public bool NotifyReadinessAttempted
+    {
+        get;
+    }
 
-    public bool NotifyCompletionAttempted { get; }
+    public bool NotifyCompletionAttempted
+    {
+        get;
+    }
 
-    public bool BlockProjectionAttempted { get; }
+    public bool BlockProjectionAttempted
+    {
+        get;
+    }
 
     public VirtioBlockReadQueuePublishStatus PublishStatus => Publish.Status;
 
@@ -64,7 +88,10 @@ public readonly struct VirtioBlockReadQueuePipelineResult
             BlockProjection.BlockRead :
             BlockReadResult.Fail(BlockDeviceStatus.IoError);
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded =>
         IsInitialized &&

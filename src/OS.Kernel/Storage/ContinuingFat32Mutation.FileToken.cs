@@ -18,8 +18,16 @@ public static unsafe partial class ContinuingFat32Mutation
         public readonly uint FirstCluster, Length;
         internal FileToken(State* s, ulong offset, uint first, uint length, ReadOnlySpan<byte> raw)
         {
-            Owner = (ulong)s; Epoch = s->Input.Epoch; Revision = s->Revision; EntryOffset = offset; FirstCluster = first; Length = length;
-            Fingerprint0 = U64(raw, 0); Fingerprint1 = U64(raw, 8); Fingerprint2 = U64(raw, 16); Fingerprint3 = U64(raw, 24);
+            Owner = (ulong)s;
+            Epoch = s->Input.Epoch;
+            Revision = s->Revision;
+            EntryOffset = offset;
+            FirstCluster = first;
+            Length = length;
+            Fingerprint0 = U64(raw, 0);
+            Fingerprint1 = U64(raw, 8);
+            Fingerprint2 = U64(raw, 16);
+            Fingerprint3 = U64(raw, 24);
         }
     }
 }

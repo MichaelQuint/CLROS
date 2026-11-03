@@ -7,7 +7,6 @@ using System.Text;
 using OS.Tooling.Native;
 
 namespace OS.Tooling;
-
 public static partial class NativeAotWebPayload
 {
     /// <summary>Run the unchanged bounded controller against one owned IPv4
@@ -19,129 +18,93 @@ public static partial class NativeAotWebPayload
     /// final snapshot. Snapshot/write errors preserve any controller error too.
     /// Stream IDs/endpoints/ticks confer no NAT tuple, PCAP, native process or
     /// guest authority. HTTP framing and the owned runner join remain separate.</summary>
-    public static Task<string> CaptureObservedSignalRaceAsync(int port,string expectedHealthBody,
-        string observationPath,CancellationToken cancellation=default)=>CaptureObservedSignalRaceCoreAsync(port,expectedHealthBody,observationPath,cancellation,null);
 
+    public static Task<string> CaptureObservedSignalRaceAsync(int port, string expectedHealthBody, string observationPath, CancellationToken cancellation = default) => CaptureObservedSignalRaceCoreAsync(port, expectedHealthBody, observationPath, cancellation, null);
     /// <summary>Capture the explicit event-owned v3 controller over owned
     /// loopback HTTP/1.1 streams. One 150-second capture deadline owns the
     /// request tasks. Retain partial selected/attempt reports after request
     /// joins, then close/join role handlers before the raw wire snapshot. Framed
     /// selector headers require separate HTTP inspection. The caller owns the
     /// endpoint; this establishes no native process, wait, cleanup or guest proof.</summary>
-    public static Task<string> CaptureObservedEventOwnedSignalRaceAsync(int port,string expectedHealthBody,
-        string observationPath,CancellationToken cancellation=default)=>CaptureObservedSignalRaceCoreAsync(port,
-            expectedHealthBody,observationPath,cancellation,null,startGate:true,eventOwned:true);
 
-    private static async Task<string> CaptureObservedSignalRaceCoreAsync(int port,string expectedHealthBody,
-        string observationPath,CancellationToken cancellation,Action<string,CreatedRaceReport,CreatedRaceReport,CreatedRaceReport>? retainCreated,
-        bool startGate=false,RaceStartHooks? startHooks=null,bool eventOwned=false)
+    public static Task<string> CaptureObservedEventOwnedSignalRaceAsync(int port, string expectedHealthBody, string observationPath, CancellationToken cancellation = default) => CaptureObservedSignalRaceCoreAsync(port, expectedHealthBody, observationPath, cancellation, null, startGate: true, eventOwned: true);
+    private static async Task<string> CaptureObservedSignalRaceCoreAsync(int port, string expectedHealthBody, string observationPath, CancellationToken cancellation, Action<string, CreatedRaceReport, CreatedRaceReport, CreatedRaceReport>? retainCreated, bool startGate = false, RaceStartHooks? startHooks = null, bool eventOwned = false)
     {
-        string endpoint="http://127.0.0.1:"+port.ToString(CultureInfo.InvariantCulture);RaceInputs(endpoint,expectedHealthBody);
-        string path=Path.GetFullPath(observationPath);AuthorityFiles.RequirePlainPath(Path.GetDirectoryName(path)!,Path.GetDirectoryName(path)!,"web_signalrace_output_path");
-        using var output=new FileStream(path+".wire.json",FileMode.CreateNew,FileAccess.Write,FileShare.Read);
-        var wire=new NativeAotServiceQuotaPeer.WireCapture(port,signalRace:true);wire.BindClock(Stopwatch.StartNew());
-        string? selected=null;Exception? failure=null;CreatedRaceReport? selectedFile=null,attemptFile=null,wireFile=null;
+        string endpoint = "http://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture);
+        RaceInputs(endpoint, expectedHealthBody);
+        string path = Path.GetFullPath(observationPath);
+        AuthorityFiles.RequirePlainPath(Path.GetDirectoryName(path)!, Path.GetDirectoryName(path)!, "web_signalrace_output_path");
+        using var output = new FileStream(path + ".wire.json", FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+        var wire = new NativeAotServiceQuotaPeer.WireCapture(port, signalRace: true);
+        wire.BindClock(Stopwatch.StartNew());
+        string? selected = null;
+        Exception? failure = null;
+        CreatedRaceReport? selectedFile = null, attemptFile = null, wireFile = null;
         try
         {
-            using var client=new HttpClient(new RaceRoutingHandler(wire,port),disposeHandler:true)
-            {Timeout=Timeout.InfiniteTimeSpan,DefaultRequestVersion=HttpVersion.Version11,DefaultVersionPolicy=HttpVersionPolicy.RequestVersionExact};
-            selected=await CaptureSignalRaceCoreAsync(client,endpoint,expectedHealthBody,path,cancellation,wire,
-                retainCreated is null?null:(first,second)=>{selectedFile=first;attemptFile=second;},startGate,startHooks,eventOwned);
+            using var client = new HttpClient(new RaceRoutingHandler(wire, port), disposeHandler: true)
+            {
+                Timeout = Timeout.InfiniteTimeSpan,
+                DefaultRequestVersion = HttpVersion.Version11,
+                DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact
+            };
+            selected = await CaptureSignalRaceCoreAsync(client, endpoint, expectedHealthBody, path, cancellation, wire, retainCreated is null ? null : (first, second) =>
+            {
+                selectedFile = first;
+                attemptFile = second;
+            }, startGate, startHooks, eventOwned);
         }
-        catch(Exception error){failure=error;}
+        catch (Exception error)
+        {
+            failure = error;
+        }
+
         try
         {
-            await wire.StopAsync();var trace=wire.Snapshot(failure is null?"signalrace-run":"signalrace-partial");
-            byte[] bytes=Encoding.UTF8.GetBytes(SerializeSignalRaceWire(trace));await output.WriteAsync(bytes);await output.FlushAsync();
-            if(failure is null&&retainCreated is not null)
+            await wire.StopAsync();
+            var trace = wire.Snapshot(failure is null ? "signalrace-run" : "signalrace-partial");
+            byte[] bytes = Encoding.UTF8.GetBytes(SerializeSignalRaceWire(trace));
+            await output.WriteAsync(bytes);
+            await output.FlushAsync();
+            if (failure is null && retainCreated is not null)
             {
-                wireFile=CreatedRaceReport.Retain(output,bytes);retainCreated(selected!,selectedFile!,attemptFile!,wireFile);
-                selectedFile=null;attemptFile=null;wireFile=null;
+                wireFile = CreatedRaceReport.Retain(output, bytes);
+                retainCreated(selected!, selectedFile!, attemptFile!, wireFile);
+                selectedFile = null;
+                attemptFile = null;
+                wireFile = null;
             }
         }
-        catch(Exception error){if(failure is not null)throw new AggregateException(failure,error);throw;}
-        finally{selectedFile?.Dispose();attemptFile?.Dispose();wireFile?.Dispose();}
-        if(failure is not null)ExceptionDispatchInfo.Capture(failure).Throw();return selected!;
-    }
-
-    // Keep actual creation identities alive across writer closure and the first
-    // immutable AuthorityFiles open. The bridge grants read access while the
-    // creator still excludes other writers, and never permits delete sharing.
-    internal sealed class CreatedRaceReport : IDisposable
-    {
-        private readonly FileStream bridge;
-        private readonly FileIdentity identity;
-        private readonly string hash;
-        private CreatedRaceReport(FileStream bridge,FileIdentity identity,string hash)
-        {this.bridge=bridge;this.identity=identity;this.hash=hash;}
-        internal static CreatedRaceReport Retain(FileStream creator,byte[] written)
+        catch (Exception error)
         {
-            var identity=NativeFile.GetIdentity(creator.SafeFileHandle);FileStream? bridge=null;
-            try
-            {
-                RaceNeed(identity.LinkCount==1&&identity.Length==(ulong)written.Length,"created_report_shape");
-                bridge=new(creator.Name,FileMode.Open,FileAccess.Read,FileShare.ReadWrite);
-                var held=NativeFile.GetIdentity(bridge.SafeFileHandle);
-                RaceNeed(held.Key==identity.Key&&held.LinkCount==1&&held.Length==identity.Length,"created_report_identity");
-                var result=new CreatedRaceReport(bridge,identity,Convert.ToHexString(SHA256.HashData(written)));bridge=null;return result;
-            }
-            finally{bridge?.Dispose();}
+            if (failure is not null)
+                throw new AggregateException(failure, error);
+            throw;
         }
-        internal void Verify(AuthorityFile file)
+        finally
         {
-            var held=NativeFile.GetIdentity(bridge.SafeFileHandle);
-            RaceNeed(file.InitialIdentity.Key==identity.Key&&held.Key==identity.Key&&held.LinkCount==1&&
-                file.InitialIdentity.LinkCount==1&&held.Length==identity.Length&&file.Length==(long)identity.Length&&
-                file.Sha256.Equals(hash,StringComparison.OrdinalIgnoreCase),"created_report_changed");
+            selectedFile?.Dispose();
+            attemptFile?.Dispose();
+            wireFile?.Dispose();
         }
-        public void Dispose()=>bridge.Dispose();
+
+        if (failure is not null)
+            ExceptionDispatchInfo.Capture(failure).Throw();
+        return selected!;
     }
 
-    internal sealed record OwnedRaceCapture(string SelectedJson,CreatedRaceReport Selected,CreatedRaceReport Attempts,CreatedRaceReport Wire) : IDisposable
+    internal static async Task<OwnedRaceCapture> CaptureOwnedObservedSignalRaceAsync(int port, string health, string path, CancellationToken cancellation, RaceStartHooks startHooks, bool eventOwned = false)
     {
-        public void Dispose(){Selected.Dispose();Attempts.Dispose();Wire.Dispose();}
-    }
-
-    internal static async Task<OwnedRaceCapture> CaptureOwnedObservedSignalRaceAsync(int port,string health,string path,CancellationToken cancellation,RaceStartHooks startHooks,bool eventOwned=false)
-    {
-        OwnedRaceCapture? result=null;
+        OwnedRaceCapture? result = null;
         try
         {
-            _=await CaptureObservedSignalRaceCoreAsync(port,health,path,cancellation,
-                (text,selected,attempts,wire)=>result=new(text,selected,attempts,wire),startGate:true,startHooks:startHooks,eventOwned:eventOwned);
-            return result??throw new InvalidDataException("web_signalrace_created_reports_missing");
+            _ = await CaptureObservedSignalRaceCoreAsync(port, health, path, cancellation, (text, selected, attempts, wire) => result = new(text, selected, attempts, wire), startGate: true, startHooks: startHooks, eventOwned: eventOwned);
+            return result ?? throw new InvalidDataException("web_signalrace_created_reports_missing");
         }
-        catch{result?.Dispose();throw;}
-    }
-
-    private sealed class RaceRoutingHandler : HttpMessageHandler
-    {
-        private readonly Dictionary<string,HttpMessageInvoker> handlers=new(StringComparer.Ordinal);
-        private readonly int port;
-        internal RaceRoutingHandler(NativeAotServiceQuotaPeer.WireCapture wire,int port)
+        catch
         {
-            this.port=port;
-            foreach(string role in new[]{"control","churn","race"})
-            {
-                string ownedRole=role;
-                var handler=new SocketsHttpHandler{UseProxy=false,AllowAutoRedirect=false,UseCookies=false,MaxConnectionsPerServer=1,
-                    ConnectTimeout=TimeSpan.FromSeconds(10),MaxResponseHeadersLength=8};
-                handler.ConnectCallback=async(context,token)=>
-                {
-                    RaceNeed(context.DnsEndPoint.Host=="127.0.0.1"&&context.DnsEndPoint.Port==port,"wire_connect_target");
-                    return await wire.ConnectAsync(ownedRole,token);
-                };
-                handlers.Add(role,new(handler,disposeHandler:true));
-            }
+            result?.Dispose();
+            throw;
         }
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken token)
-        {
-            RaceNeed(request.RequestUri is { } uri&&uri.Scheme=="http"&&uri.Host=="127.0.0.1"&&uri.Port==port&&uri.UserInfo==""&&uri.Query==""&&uri.Fragment=="","wire_request_target");
-            request.Version=HttpVersion.Version11;request.VersionPolicy=HttpVersionPolicy.RequestVersionExact;
-            string role=NativeAotServiceQuotaPeer.SignalRaceWireRole(request.Method.Method,request.RequestUri!.AbsolutePath);
-            return handlers[role].SendAsync(request,token);
-        }
-        protected override void Dispose(bool disposing)
-        {if(disposing)foreach(var handler in handlers.Values)handler.Dispose();base.Dispose(disposing);}
     }
 }

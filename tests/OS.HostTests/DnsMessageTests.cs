@@ -144,32 +144,17 @@ internal static class DnsMessageTests
     [HostTest("net.dns message uses shared ascii hostname helper", HostLane.Fast, 6)]
     private static bool TestUsesSharedAsciiHostnameHelper()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Net", "DnsMessage.cs"));
-
-        int helperStart = source.IndexOf(
-            "private static bool IsHostNameByte(byte value)",
-            StringComparison.Ordinal);
-        if (helperStart < 0)
-        {
-            return HostCheck.Result(false);
-        }
-
-        int helperEnd = source.IndexOf("public enum DnsMessageStatus", helperStart, StringComparison.Ordinal);
-        if (helperEnd < 0)
-        {
-            return HostCheck.Result(false);
-        }
-
-        string helperSource = source[helperStart..helperEnd];
-        return HostCheck.Result(helperSource.Contains("OS.Std.Ascii.IsLetterOrDigit(value)", StringComparison.Ordinal)
-            && !helperSource.Contains("value >= (byte)'A'", StringComparison.Ordinal)
-            && !helperSource.Contains("value <= (byte)'Z'", StringComparison.Ordinal)
-            && !helperSource.Contains("value >= (byte)'a'", StringComparison.Ordinal)
-            && !helperSource.Contains("value <= (byte)'z'", StringComparison.Ordinal)
-            && !helperSource.Contains("value >= (byte)'0'", StringComparison.Ordinal)
-            && !helperSource.Contains("value <= (byte)'9'", StringComparison.Ordinal));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        var helper = catalog.Method(typeof(DnsMessage).FullName!, "IsHostNameByte");
+        var calls = helper.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>()
+            .Select(catalog.Invocation).ToArray();
+        return HostCheck.Result(calls.Length == 1
+            && calls[0].Name == nameof(OS.Std.Ascii.IsLetterOrDigit)
+            && calls[0].ContainingType.ToDisplayString() == typeof(OS.Std.Ascii).FullName
+            && calls[0].ContainingAssembly.Name == typeof(OS.Std.Ascii).Assembly.GetName().Name
+            && !helper.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.BinaryExpressionSyntax>()
+                .Any(binary => binary.RawKind is (int)Microsoft.CodeAnalysis.CSharp.SyntaxKind.GreaterThanOrEqualExpression
+                    or (int)Microsoft.CodeAnalysis.CSharp.SyntaxKind.LessThanOrEqualExpression));
     }
 
     private const int EncodedExampleComLength = 13;

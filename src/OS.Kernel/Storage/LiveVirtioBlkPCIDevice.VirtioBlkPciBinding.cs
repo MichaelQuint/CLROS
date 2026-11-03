@@ -12,7 +12,11 @@ public readonly struct VirtioBlkPciBinding
     internal VirtioBlkPciBinding(uint identity, ushort command, byte bus, byte device,
         byte function, VirtioPciCapabilitySet capabilities)
     {
-        Identity = identity; OriginalCommand = command; Bus = bus; Device = device;
-        Function = function; Capabilities = capabilities;
+        Identity = identity;
+        OriginalCommand = command;
+        Bus = bus;
+        Device = device;
+        Function = function;
+        Capabilities = capabilities;
     }
 }

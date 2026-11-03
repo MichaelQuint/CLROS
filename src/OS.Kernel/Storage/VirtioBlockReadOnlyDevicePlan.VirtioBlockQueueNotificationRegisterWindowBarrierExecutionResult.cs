@@ -64,66 +64,150 @@ public readonly struct VirtioBlockQueueNotificationRegisterWindowBarrierExecutio
         IsInitialized = isInitialized;
     }
 
-    public VirtioBlockQueueNotificationRegisterWindowBarrierExecutionStatus Status { get; }
+    public VirtioBlockQueueNotificationRegisterWindowBarrierExecutionStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockQueueNotificationRegisterWindowPlanStatus PlanStatus { get; }
+    public VirtioBlockQueueNotificationRegisterWindowPlanStatus PlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueNotifyOffsetPlanStatus NotifyOffsetPlanStatus { get; }
+    public VirtioBlockQueueNotifyOffsetPlanStatus NotifyOffsetPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockQueueNotificationMetadataStatus NotificationMetadataStatus { get; }
+    public VirtioBlockQueueNotificationMetadataStatus NotificationMetadataStatus
+    {
+        get;
+    }
 
-    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus { get; }
+    public VirtioPciBarRegisterWindowPlanStatus RegisterWindowPlanStatus
+    {
+        get;
+    }
 
-    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus { get; }
+    public VirtioPciBarRegisterWindowAccessExecutionStatus AccessExecutionStatus
+    {
+        get;
+    }
 
-    public ushort QueueIndex { get; }
+    public ushort QueueIndex
+    {
+        get;
+    }
 
-    public ushort QueueNotifyOffset { get; }
+    public ushort QueueNotifyOffset
+    {
+        get;
+    }
 
-    public uint NotifyOffsetMultiplier { get; }
+    public uint NotifyOffsetMultiplier
+    {
+        get;
+    }
 
-    public uint NotifyRelativeOffset { get; }
+    public uint NotifyRelativeOffset
+    {
+        get;
+    }
 
-    public ushort PublishedDescriptorCount { get; }
+    public ushort PublishedDescriptorCount
+    {
+        get;
+    }
 
-    public ushort PreviousAvailableRingIndex { get; }
+    public ushort PreviousAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort NextAvailableRingIndex { get; }
+    public ushort NextAvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort DescriptorHead { get; }
+    public ushort DescriptorHead
+    {
+        get;
+    }
 
-    public ushort WriteValue { get; }
+    public ushort WriteValue
+    {
+        get;
+    }
 
-    public uint WriteWidthBytes { get; }
+    public uint WriteWidthBytes
+    {
+        get;
+    }
 
-    public bool DescriptorWritesVisible { get; }
+    public bool DescriptorWritesVisible
+    {
+        get;
+    }
 
-    public bool AvailableRingWritesVisible { get; }
+    public bool AvailableRingWritesVisible
+    {
+        get;
+    }
 
-    public bool OrderedBeforeNotify { get; }
+    public bool OrderedBeforeNotify
+    {
+        get;
+    }
 
-    public uint BarrierSequence { get; }
+    public uint BarrierSequence
+    {
+        get;
+    }
 
     public bool BarrierSucceeded =>
         DescriptorWritesVisible &&
         AvailableRingWritesVisible &&
         OrderedBeforeNotify;
 
-    public bool RegisterWindowExecutionAttempted { get; }
+    public bool RegisterWindowExecutionAttempted
+    {
+        get;
+    }
 
-    public VirtioPciCapabilityType CapabilityType { get; }
+    public VirtioPciCapabilityType CapabilityType
+    {
+        get;
+    }
 
-    public byte BarIndex { get; }
+    public byte BarIndex
+    {
+        get;
+    }
 
-    public VirtioPciRegisterAccessWidth AccessWidth { get; }
+    public VirtioPciRegisterAccessWidth AccessWidth
+    {
+        get;
+    }
 
-    public uint AccessWidthBytes { get; }
+    public uint AccessWidthBytes
+    {
+        get;
+    }
 
-    public ulong BarRelativeOffset { get; }
+    public ulong BarRelativeOffset
+    {
+        get;
+    }
 
-    public ulong WrittenValue { get; }
+    public ulong WrittenValue
+    {
+        get;
+    }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
     public bool Succeeded =>
         IsInitialized &&

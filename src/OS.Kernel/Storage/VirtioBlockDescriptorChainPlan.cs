@@ -34,27 +34,54 @@ public readonly struct VirtioBlockDescriptorChainPlan
         StatusByteDescriptor = statusByteDescriptor;
     }
 
-    public VirtioBlockReadTransactionPlan TransactionPlan { get; }
+    public VirtioBlockReadTransactionPlan TransactionPlan
+    {
+        get;
+    }
 
     public VirtioBlockRequestPlan RequestPlan => TransactionPlan.RequestPlan;
 
-    public VirtqueueSplitRingPlan QueuePlan { get; }
+    public VirtqueueSplitRingPlan QueuePlan
+    {
+        get;
+    }
 
-    public ushort AvailableDescriptorCount { get; }
+    public ushort AvailableDescriptorCount
+    {
+        get;
+    }
 
-    public ushort AvailableRingIndex { get; }
+    public ushort AvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort AvailableRingSlot { get; }
+    public ushort AvailableRingSlot
+    {
+        get;
+    }
 
-    public uint AvailableRingEntryOffset { get; }
+    public uint AvailableRingEntryOffset
+    {
+        get;
+    }
 
     public ushort HeadDescriptorIndex => RequestHeaderDescriptor.DescriptorIndex;
 
-    public VirtioBlockPublishedDescriptorPlan RequestHeaderDescriptor { get; }
+    public VirtioBlockPublishedDescriptorPlan RequestHeaderDescriptor
+    {
+        get;
+    }
 
-    public VirtioBlockPublishedDescriptorPlan DataBufferDescriptor { get; }
+    public VirtioBlockPublishedDescriptorPlan DataBufferDescriptor
+    {
+        get;
+    }
 
-    public VirtioBlockPublishedDescriptorPlan StatusByteDescriptor { get; }
+    public VirtioBlockPublishedDescriptorPlan StatusByteDescriptor
+    {
+        get;
+    }
 
     public static VirtioBlockDescriptorChainPlanResult Create(
         VirtioBlockReadTransactionPlanResult transactionPlan,

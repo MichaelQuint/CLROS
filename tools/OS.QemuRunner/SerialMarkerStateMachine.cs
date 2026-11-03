@@ -1,20 +1,19 @@
 using System.Text;
 
 namespace OS.Tools.QemuRunner;
-
 public sealed class SerialMarkerStateMachine
 {
     public const int DefaultLineCapacity = 4096;
     public const long DefaultByteCapacity = 16L * 1024L * 1024L;
     /// <summary>Finite serial bound for the explicitly selected continuing
     /// service diagnostic; ordinary profiles retain DefaultByteCapacity.</summary>
+
     public const long ContinuingServiceByteCapacity = 64L * 1024L * 1024L;
     public const int MaximumMarkerCount = 512;
     public const int MaximumMarkerLength = 512;
     public const int MaximumLineCapacity = 1024 * 1024;
     public const string DefaultSuccessTerminalMarker = "OS_SMOKE_PASS";
     public const string DefaultFailureTerminalMarker = "OS_SMOKE_FAIL";
-
     private readonly string[] _requiredMarkers;
     private readonly string[] _forbiddenMarkers;
     private readonly string[] _orderedMarkers;
@@ -29,7 +28,6 @@ public sealed class SerialMarkerStateMachine
     private readonly byte[] _lineBuffer;
     private readonly long _byteCapacity;
     private readonly SerialMarkerByteNoisePolicy _byteNoisePolicy;
-
     private int _lineLength;
     private int _lineByteCount;
     private bool _lineHasInvalidBytes;
@@ -52,34 +50,18 @@ public sealed class SerialMarkerStateMachine
     private int _duplicateUniqueOccurrenceCount;
     private int _successTerminalCount;
     private int _failureTerminalCount;
-
-    public SerialMarkerStateMachine(
-        IReadOnlyList<string> requiredMarkers,
-        IReadOnlyList<string> forbiddenMarkers,
-        string successTerminalMarker = DefaultSuccessTerminalMarker,
-        string failureTerminalMarker = DefaultFailureTerminalMarker,
-        int lineCapacity = DefaultLineCapacity,
-        long byteCapacity = DefaultByteCapacity,
-        SerialMarkerByteNoisePolicy byteNoisePolicy =
-            SerialMarkerByteNoisePolicy.IgnoreInvalidLines,
-        IReadOnlyList<string>? orderedMarkers = null,
-        IReadOnlyList<string>? uniqueMarkers = null)
+    public SerialMarkerStateMachine(IReadOnlyList<string> requiredMarkers, IReadOnlyList<string> forbiddenMarkers, string successTerminalMarker = DefaultSuccessTerminalMarker, string failureTerminalMarker = DefaultFailureTerminalMarker, int lineCapacity = DefaultLineCapacity, long byteCapacity = DefaultByteCapacity, SerialMarkerByteNoisePolicy byteNoisePolicy = SerialMarkerByteNoisePolicy.IgnoreInvalidLines, IReadOnlyList<string>? orderedMarkers = null, IReadOnlyList<string>? uniqueMarkers = null)
     {
         ArgumentNullException.ThrowIfNull(requiredMarkers);
         ArgumentNullException.ThrowIfNull(forbiddenMarkers);
-
         if (lineCapacity is <= 0 or > MaximumLineCapacity)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(lineCapacity),
-                "Line capacity must be positive and no greater than " + MaximumLineCapacity + ".");
+            throw new ArgumentOutOfRangeException(nameof(lineCapacity), "Line capacity must be positive and no greater than " + MaximumLineCapacity + ".");
         }
 
         if (byteCapacity <= 0)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(byteCapacity),
-                "Byte capacity must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(byteCapacity), "Byte capacity must be positive.");
         }
 
         if (!Enum.IsDefined(byteNoisePolicy))
@@ -87,44 +69,17 @@ public sealed class SerialMarkerStateMachine
             throw new ArgumentOutOfRangeException(nameof(byteNoisePolicy));
         }
 
-        string[] required = CopyAndValidateMarkers(
-            requiredMarkers,
-            nameof(requiredMarkers),
-            lineCapacity);
-        _orderedMarkers = CopyAndValidateMarkers(
-            orderedMarkers ?? [],
-            nameof(orderedMarkers),
-            lineCapacity);
-        _uniqueMarkers = CopyAndValidateMarkers(
-            uniqueMarkers ?? [],
-            nameof(uniqueMarkers),
-            lineCapacity);
-        _requiredMarkers = MergeRequiredMarkers(
-            required,
-            _orderedMarkers,
-            _uniqueMarkers);
-        _forbiddenMarkers = CopyAndValidateMarkers(
-            forbiddenMarkers,
-            nameof(forbiddenMarkers),
-            lineCapacity);
+        string[] required = CopyAndValidateMarkers(requiredMarkers, nameof(requiredMarkers), lineCapacity);
+        _orderedMarkers = CopyAndValidateMarkers(orderedMarkers ?? [], nameof(orderedMarkers), lineCapacity);
+        _uniqueMarkers = CopyAndValidateMarkers(uniqueMarkers ?? [], nameof(uniqueMarkers), lineCapacity);
+        _requiredMarkers = MergeRequiredMarkers(required, _orderedMarkers, _uniqueMarkers);
+        _forbiddenMarkers = CopyAndValidateMarkers(forbiddenMarkers, nameof(forbiddenMarkers), lineCapacity);
         RejectOverlappingMarkerSets(_requiredMarkers, _forbiddenMarkers);
-
-        _successTerminalMarker = NormalizeMarker(
-            successTerminalMarker,
-            nameof(successTerminalMarker),
-            lineCapacity);
-        _failureTerminalMarker = NormalizeMarker(
-            failureTerminalMarker,
-            nameof(failureTerminalMarker),
-            lineCapacity);
-        if (string.Equals(
-            _successTerminalMarker,
-            _failureTerminalMarker,
-            StringComparison.Ordinal))
+        _successTerminalMarker = NormalizeMarker(successTerminalMarker, nameof(successTerminalMarker), lineCapacity);
+        _failureTerminalMarker = NormalizeMarker(failureTerminalMarker, nameof(failureTerminalMarker), lineCapacity);
+        if (string.Equals(_successTerminalMarker, _failureTerminalMarker, StringComparison.Ordinal))
         {
-            throw new ArgumentException(
-                "Success and failure terminal markers must be distinct.",
-                nameof(failureTerminalMarker));
+            throw new ArgumentException("Success and failure terminal markers must be distinct.", nameof(failureTerminalMarker));
         }
 
         _requiredSeen = new bool[_requiredMarkers.Length];
@@ -138,39 +93,24 @@ public sealed class SerialMarkerStateMachine
     }
 
     public long TotalBytes => _totalBytes;
-
     public long LinesProcessed => _linesProcessed;
-
     public long InvalidByteCount => _invalidByteCount;
-
     public long InvalidNoiseLineCount => _invalidNoiseLineCount;
-
     public int RequiredSeenCount => _requiredSeenCount;
-
     public int RequiredMarkerCount => _requiredMarkers.Length;
-
     public int ForbiddenOccurrenceCount => _forbiddenOccurrenceCount;
-
     public int OrderedMarkerCount => _orderedMarkers.Length;
-
     public int OrderedSeenCount => _orderedNextIndex;
-
     public int OutOfOrderOccurrenceCount => _outOfOrderOccurrenceCount;
-
     public int UniqueMarkerCount => _uniqueMarkers.Length;
-
     public int UniqueSeenCount => _uniqueSeenCount;
-
-    public int DuplicateUniqueOccurrenceCount =>
-        _duplicateUniqueOccurrenceCount;
-
+    public int DuplicateUniqueOccurrenceCount => _duplicateUniqueOccurrenceCount;
     public int SuccessTerminalCount => _successTerminalCount;
-
     public int FailureTerminalCount => _failureTerminalCount;
-
     public bool IsFinalized => _finalized;
 
     /// <summary>Queries an exact configured marker after a complete serial line was received.</summary>
+
     public bool HasSeenRequiredMarker(string marker)
     {
         int index = Array.IndexOf(_requiredMarkers, marker);
@@ -181,35 +121,25 @@ public sealed class SerialMarkerStateMachine
     {
         if (_finalized)
         {
-            return SerialMarkerFeedResult.Create(
-                SerialMarkerFeedStatus.AlreadyFinalized,
-                bytesConsumed: 0,
-                _totalBytes);
+            return SerialMarkerFeedResult.Create(SerialMarkerFeedStatus.AlreadyFinalized, bytesConsumed: 0, _totalBytes);
         }
 
         if (_hasFeedFailure)
         {
-            return SerialMarkerFeedResult.Create(
-                _feedFailureStatus,
-                bytesConsumed: 0,
-                _totalBytes);
+            return SerialMarkerFeedResult.Create(_feedFailureStatus, bytesConsumed: 0, _totalBytes);
         }
 
         if (_totalBytes > _byteCapacity - chunk.Length)
         {
             _hasFeedFailure = true;
             _feedFailureStatus = SerialMarkerFeedStatus.TotalCapacityExceeded;
-            return SerialMarkerFeedResult.Create(
-                _feedFailureStatus,
-                bytesConsumed: 0,
-                _totalBytes);
+            return SerialMarkerFeedResult.Create(_feedFailureStatus, bytesConsumed: 0, _totalBytes);
         }
 
         for (int index = 0; index < chunk.Length; index++)
         {
             byte value = chunk[index];
             _totalBytes++;
-
             if (_pendingCarriageReturn)
             {
                 _pendingCarriageReturn = false;
@@ -243,10 +173,7 @@ public sealed class SerialMarkerStateMachine
             }
         }
 
-        return SerialMarkerFeedResult.Create(
-            SerialMarkerFeedStatus.Accepted,
-            chunk.Length,
-            _totalBytes);
+        return SerialMarkerFeedResult.Create(SerialMarkerFeedStatus.Accepted, chunk.Length, _totalBytes);
     }
 
     public SerialMarkerCompletionResult Complete(bool timedOut = false)
@@ -257,7 +184,6 @@ public sealed class SerialMarkerStateMachine
         }
 
         _finalized = true;
-
         if (!_hasFeedFailure)
         {
             FinalizePendingLine();
@@ -265,41 +191,11 @@ public sealed class SerialMarkerStateMachine
 
         string[] missingMarkers = FindMissingMarkers();
         string[] forbiddenMarkerHits = FindForbiddenMarkerHits();
-        string[] outOfOrderMarkerHits = FindMarkerHits(
-            _orderedMarkers,
-            _outOfOrderSeen);
-        string[] duplicateUniqueMarkerHits = FindMarkerHits(
-            _uniqueMarkers,
-            _duplicateUniqueSeen);
+        string[] outOfOrderMarkerHits = FindMarkerHits(_orderedMarkers, _outOfOrderSeen);
+        string[] duplicateUniqueMarkerHits = FindMarkerHits(_uniqueMarkers, _duplicateUniqueSeen);
         SerialMarkerTerminalState terminalState = GetTerminalState();
-        SerialMarkerCompletionStatus status = SelectCompletionStatus(
-            timedOut,
-            missingMarkers.Length,
-            forbiddenMarkerHits.Length,
-            outOfOrderMarkerHits.Length,
-            duplicateUniqueMarkerHits.Length,
-            terminalState);
-
-        _completionResult = SerialMarkerCompletionResult.Create(
-            status,
-            terminalState,
-            missingMarkers,
-            forbiddenMarkerHits,
-            outOfOrderMarkerHits,
-            duplicateUniqueMarkerHits,
-            _totalBytes,
-            _linesProcessed,
-            _invalidByteCount,
-            _invalidNoiseLineCount,
-            _requiredSeenCount,
-            _forbiddenOccurrenceCount,
-            _orderedNextIndex,
-            _outOfOrderOccurrenceCount,
-            _uniqueSeenCount,
-            _duplicateUniqueOccurrenceCount,
-            _successTerminalCount,
-            _failureTerminalCount,
-            _partialMarkerAtEndOfStream);
+        SerialMarkerCompletionStatus status = SelectCompletionStatus(timedOut, missingMarkers.Length, forbiddenMarkerHits.Length, outOfOrderMarkerHits.Length, duplicateUniqueMarkerHits.Length, terminalState);
+        _completionResult = SerialMarkerCompletionResult.Create(status, terminalState, missingMarkers, forbiddenMarkerHits, outOfOrderMarkerHits, duplicateUniqueMarkerHits, _totalBytes, _linesProcessed, _invalidByteCount, _invalidNoiseLineCount, _requiredSeenCount, _forbiddenOccurrenceCount, _orderedNextIndex, _outOfOrderOccurrenceCount, _uniqueSeenCount, _duplicateUniqueOccurrenceCount, _successTerminalCount, _failureTerminalCount, _partialMarkerAtEndOfStream);
         return _completionResult;
     }
 
@@ -317,8 +213,7 @@ public sealed class SerialMarkerStateMachine
 
         if (_lineByteCount == _lineBuffer.Length)
         {
-            if (_byteNoisePolicy == SerialMarkerByteNoisePolicy.IgnoreInvalidLines &&
-                (_lineHasInvalidBytes || !IsMarkerTextByte(value)))
+            if (_byteNoisePolicy == SerialMarkerByteNoisePolicy.IgnoreInvalidLines && (_lineHasInvalidBytes || !IsMarkerTextByte(value)))
             {
                 _lineHasInvalidBytes = true;
                 _discardingInvalidLine = true;
@@ -356,10 +251,7 @@ public sealed class SerialMarkerStateMachine
 
     private SerialMarkerFeedResult CreateFailedFeedResult(int bytesConsumed)
     {
-        return SerialMarkerFeedResult.Create(
-            _feedFailureStatus,
-            bytesConsumed,
-            _totalBytes);
+        return SerialMarkerFeedResult.Create(_feedFailureStatus, bytesConsumed, _totalBytes);
     }
 
     private void FinalizePendingLine()
@@ -396,7 +288,6 @@ public sealed class SerialMarkerStateMachine
     private void ProcessBufferedLine()
     {
         _linesProcessed++;
-
         if (_lineHasInvalidBytes)
         {
             _invalidNoiseLineCount++;
@@ -433,7 +324,6 @@ public sealed class SerialMarkerStateMachine
 
         ProcessOrderedMarkers(line);
         ProcessUniqueMarkers(line);
-
         if (LineMatchesMarker(line, _successTerminalMarker))
         {
             _successTerminalCount++;
@@ -508,9 +398,7 @@ public sealed class SerialMarkerStateMachine
             end--;
         }
 
-        return end == start
-            ? string.Empty
-            : Encoding.ASCII.GetString(_lineBuffer, start, end - start);
+        return end == start ? string.Empty : Encoding.ASCII.GetString(_lineBuffer, start, end - start);
     }
 
     private bool IsStrictMarkerPrefix(string line)
@@ -531,23 +419,14 @@ public sealed class SerialMarkerStateMachine
             }
         }
 
-        return IsStrictPrefix(line, _successTerminalMarker)
-            || IsStrictPrefix(line, _failureTerminalMarker);
+        return IsStrictPrefix(line, _successTerminalMarker) || IsStrictPrefix(line, _failureTerminalMarker);
     }
 
-    private SerialMarkerCompletionStatus SelectCompletionStatus(
-        bool timedOut,
-        int missingMarkerCount,
-        int forbiddenMarkerHitCount,
-        int outOfOrderMarkerHitCount,
-        int duplicateUniqueMarkerHitCount,
-        SerialMarkerTerminalState terminalState)
+    private SerialMarkerCompletionStatus SelectCompletionStatus(bool timedOut, int missingMarkerCount, int forbiddenMarkerHitCount, int outOfOrderMarkerHitCount, int duplicateUniqueMarkerHitCount, SerialMarkerTerminalState terminalState)
     {
         if (_hasFeedFailure)
         {
-            return _feedFailureStatus == SerialMarkerFeedStatus.InvalidByteRejected
-                ? SerialMarkerCompletionStatus.InvalidByteSequence
-                : SerialMarkerCompletionStatus.CapacityExceeded;
+            return _feedFailureStatus == SerialMarkerFeedStatus.InvalidByteRejected ? SerialMarkerCompletionStatus.InvalidByteSequence : SerialMarkerCompletionStatus.CapacityExceeded;
         }
 
         if (forbiddenMarkerHitCount != 0)
@@ -615,9 +494,7 @@ public sealed class SerialMarkerStateMachine
             return SerialMarkerTerminalState.Success;
         }
 
-        return _failureTerminalCount != 0
-            ? SerialMarkerTerminalState.Failure
-            : SerialMarkerTerminalState.None;
+        return _failureTerminalCount != 0 ? SerialMarkerTerminalState.Failure : SerialMarkerTerminalState.None;
     }
 
     private string[] FindMissingMarkers()
@@ -625,7 +502,7 @@ public sealed class SerialMarkerStateMachine
         int count = _requiredMarkers.Length - _requiredSeenCount;
         if (count == 0)
         {
-            return [];
+            return[];
         }
 
         string[] missing = new string[count];
@@ -654,7 +531,7 @@ public sealed class SerialMarkerStateMachine
 
         if (count == 0)
         {
-            return [];
+            return[];
         }
 
         string[] hits = new string[count];
@@ -670,9 +547,7 @@ public sealed class SerialMarkerStateMachine
         return hits;
     }
 
-    private static string[] FindMarkerHits(
-        IReadOnlyList<string> markers,
-        IReadOnlyList<bool> seen)
+    private static string[] FindMarkerHits(IReadOnlyList<string> markers, IReadOnlyList<bool> seen)
     {
         int count = 0;
         for (int index = 0; index < seen.Count; index++)
@@ -685,7 +560,7 @@ public sealed class SerialMarkerStateMachine
 
         if (count == 0)
         {
-            return [];
+            return[];
         }
 
         string[] hits = new string[count];
@@ -709,21 +584,16 @@ public sealed class SerialMarkerStateMachine
         _discardingInvalidLine = false;
     }
 
-    private static string[] CopyAndValidateMarkers(
-        IReadOnlyList<string> markers,
-        string parameterName,
-        int lineCapacity)
+    private static string[] CopyAndValidateMarkers(IReadOnlyList<string> markers, string parameterName, int lineCapacity)
     {
         if (markers.Count > MaximumMarkerCount)
         {
-            throw new ArgumentOutOfRangeException(
-                parameterName,
-                "Marker count cannot exceed " + MaximumMarkerCount + ".");
+            throw new ArgumentOutOfRangeException(parameterName, "Marker count cannot exceed " + MaximumMarkerCount + ".");
         }
 
         if (markers.Count == 0)
         {
-            return [];
+            return[];
         }
 
         string[] result = new string[markers.Count];
@@ -734,9 +604,7 @@ public sealed class SerialMarkerStateMachine
             {
                 if (string.Equals(result[previous], marker, StringComparison.Ordinal))
                 {
-                    throw new ArgumentException(
-                        "Marker entries must be unique.",
-                        parameterName);
+                    throw new ArgumentException("Marker entries must be unique.", parameterName);
                 }
             }
 
@@ -746,10 +614,7 @@ public sealed class SerialMarkerStateMachine
         return result;
     }
 
-    private static string[] MergeRequiredMarkers(
-        IReadOnlyList<string> requiredMarkers,
-        IReadOnlyList<string> orderedMarkers,
-        IReadOnlyList<string> uniqueMarkers)
+    private static string[] MergeRequiredMarkers(IReadOnlyList<string> requiredMarkers, IReadOnlyList<string> orderedMarkers, IReadOnlyList<string> uniqueMarkers)
     {
         List<string> merged = new List<string>(requiredMarkers.Count);
         AddDistinctMarkers(merged, requiredMarkers);
@@ -757,19 +622,13 @@ public sealed class SerialMarkerStateMachine
         AddDistinctMarkers(merged, uniqueMarkers);
         if (merged.Count > MaximumMarkerCount)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(requiredMarkers),
-                "Combined required marker count cannot exceed "
-                    + MaximumMarkerCount
-                    + ".");
+            throw new ArgumentOutOfRangeException(nameof(requiredMarkers), "Combined required marker count cannot exceed " + MaximumMarkerCount + ".");
         }
 
         return merged.ToArray();
     }
 
-    private static void AddDistinctMarkers(
-        List<string> destination,
-        IReadOnlyList<string> source)
+    private static void AddDistinctMarkers(List<string> destination, IReadOnlyList<string> source)
     {
         for (int index = 0; index < source.Count; index++)
         {
@@ -780,10 +639,7 @@ public sealed class SerialMarkerStateMachine
         }
     }
 
-    private static string NormalizeMarker(
-        string? marker,
-        string parameterName,
-        int lineCapacity)
+    private static string NormalizeMarker(string? marker, string parameterName, int lineCapacity)
     {
         if (string.IsNullOrWhiteSpace(marker))
         {
@@ -793,9 +649,7 @@ public sealed class SerialMarkerStateMachine
         string normalized = marker.Trim();
         if (normalized.Length > MaximumMarkerLength || normalized.Length > lineCapacity)
         {
-            throw new ArgumentOutOfRangeException(
-                parameterName,
-                "Marker length exceeds the configured capacity.");
+            throw new ArgumentOutOfRangeException(parameterName, "Marker length exceeds the configured capacity.");
         }
 
         for (int index = 0; index < normalized.Length; index++)
@@ -803,33 +657,22 @@ public sealed class SerialMarkerStateMachine
             char character = normalized[index];
             if (character is < ' ' or > '~')
             {
-                throw new ArgumentException(
-                    "Markers must contain printable ASCII characters only.",
-                    parameterName);
+                throw new ArgumentException("Markers must contain printable ASCII characters only.", parameterName);
             }
         }
 
         return normalized;
     }
 
-    private static void RejectOverlappingMarkerSets(
-        IReadOnlyList<string> requiredMarkers,
-        IReadOnlyList<string> forbiddenMarkers)
+    private static void RejectOverlappingMarkerSets(IReadOnlyList<string> requiredMarkers, IReadOnlyList<string> forbiddenMarkers)
     {
         for (int requiredIndex = 0; requiredIndex < requiredMarkers.Count; requiredIndex++)
         {
-            for (int forbiddenIndex = 0;
-                forbiddenIndex < forbiddenMarkers.Count;
-                forbiddenIndex++)
+            for (int forbiddenIndex = 0; forbiddenIndex < forbiddenMarkers.Count; forbiddenIndex++)
             {
-                if (string.Equals(
-                    requiredMarkers[requiredIndex],
-                    forbiddenMarkers[forbiddenIndex],
-                    StringComparison.Ordinal))
+                if (string.Equals(requiredMarkers[requiredIndex], forbiddenMarkers[forbiddenIndex], StringComparison.Ordinal))
                 {
-                    throw new ArgumentException(
-                        "A marker cannot be both required and forbidden.",
-                        nameof(forbiddenMarkers));
+                    throw new ArgumentException("A marker cannot be both required and forbidden.", nameof(forbiddenMarkers));
                 }
             }
         }
@@ -847,231 +690,11 @@ public sealed class SerialMarkerStateMachine
 
     private static bool LineMatchesMarker(string line, string marker)
     {
-        return string.Equals(line, marker, StringComparison.Ordinal)
-            || line.StartsWith(marker + " ", StringComparison.Ordinal);
+        return string.Equals(line, marker, StringComparison.Ordinal) || line.StartsWith(marker + " ", StringComparison.Ordinal);
     }
 
     private static bool IsStrictPrefix(string candidate, string marker)
     {
-        return candidate.Length < marker.Length
-            && marker.StartsWith(candidate, StringComparison.Ordinal);
-    }
-}
-
-public enum SerialMarkerByteNoisePolicy
-{
-    IgnoreInvalidLines = 0,
-    RejectInvalidBytes = 1
-}
-
-public enum SerialMarkerFeedStatus
-{
-    Uninitialized = 0,
-    Accepted = 1,
-    AlreadyFinalized = 2,
-    LineCapacityExceeded = 3,
-    TotalCapacityExceeded = 4,
-    InvalidByteRejected = 5
-}
-
-public enum SerialMarkerCompletionStatus
-{
-    Uninitialized = 0,
-    Passed = 1,
-    CapacityExceeded = 2,
-    InvalidByteSequence = 3,
-    ForbiddenMarker = 4,
-    ConflictingTerminalMarkers = 5,
-    DuplicateTerminalMarker = 6,
-    FailureTerminal = 7,
-    Timeout = 8,
-    PartialMarkerAtEndOfStream = 9,
-    MissingRequiredMarker = 10,
-    MissingSuccessTerminal = 11,
-    OutOfOrderMarker = 12,
-    DuplicateUniqueMarker = 13
-}
-
-public enum SerialMarkerTerminalState
-{
-    None = 0,
-    Success = 1,
-    Failure = 2,
-    Conflicting = 3
-}
-
-public readonly struct SerialMarkerFeedResult
-{
-    private readonly bool _isInitialized;
-
-    private SerialMarkerFeedResult(
-        SerialMarkerFeedStatus status,
-        int bytesConsumed,
-        long totalBytes)
-    {
-        _isInitialized = true;
-        Status = status;
-        BytesConsumed = bytesConsumed;
-        TotalBytes = totalBytes;
-    }
-
-    public SerialMarkerFeedStatus Status { get; }
-
-    public int BytesConsumed { get; }
-
-    public long TotalBytes { get; }
-
-    public bool Succeeded =>
-        _isInitialized &&
-        Status == SerialMarkerFeedStatus.Accepted &&
-        BytesConsumed >= 0 &&
-        TotalBytes >= BytesConsumed;
-
-    internal static SerialMarkerFeedResult Create(
-        SerialMarkerFeedStatus status,
-        int bytesConsumed,
-        long totalBytes)
-    {
-        return new SerialMarkerFeedResult(status, bytesConsumed, totalBytes);
-    }
-}
-
-public readonly struct SerialMarkerCompletionResult
-{
-    private readonly bool _isInitialized;
-
-    private SerialMarkerCompletionResult(
-        SerialMarkerCompletionStatus status,
-        SerialMarkerTerminalState terminalState,
-        string[] missingRequiredMarkers,
-        string[] forbiddenMarkerHits,
-        string[] outOfOrderMarkerHits,
-        string[] duplicateUniqueMarkerHits,
-        long totalBytes,
-        long linesProcessed,
-        long invalidByteCount,
-        long invalidNoiseLineCount,
-        int requiredSeenCount,
-        int forbiddenOccurrenceCount,
-        int orderedSeenCount,
-        int outOfOrderOccurrenceCount,
-        int uniqueSeenCount,
-        int duplicateUniqueOccurrenceCount,
-        int successTerminalCount,
-        int failureTerminalCount,
-        bool partialMarkerAtEndOfStream)
-    {
-        _isInitialized = true;
-        Status = status;
-        TerminalState = terminalState;
-        MissingRequiredMarkers = missingRequiredMarkers;
-        ForbiddenMarkerHits = forbiddenMarkerHits;
-        OutOfOrderMarkerHits = outOfOrderMarkerHits;
-        DuplicateUniqueMarkerHits = duplicateUniqueMarkerHits;
-        TotalBytes = totalBytes;
-        LinesProcessed = linesProcessed;
-        InvalidByteCount = invalidByteCount;
-        InvalidNoiseLineCount = invalidNoiseLineCount;
-        RequiredSeenCount = requiredSeenCount;
-        ForbiddenOccurrenceCount = forbiddenOccurrenceCount;
-        OrderedSeenCount = orderedSeenCount;
-        OutOfOrderOccurrenceCount = outOfOrderOccurrenceCount;
-        UniqueSeenCount = uniqueSeenCount;
-        DuplicateUniqueOccurrenceCount = duplicateUniqueOccurrenceCount;
-        SuccessTerminalCount = successTerminalCount;
-        FailureTerminalCount = failureTerminalCount;
-        PartialMarkerAtEndOfStream = partialMarkerAtEndOfStream;
-    }
-
-    public SerialMarkerCompletionStatus Status { get; }
-
-    public SerialMarkerTerminalState TerminalState { get; }
-
-    public IReadOnlyList<string>? MissingRequiredMarkers { get; }
-
-    public IReadOnlyList<string>? ForbiddenMarkerHits { get; }
-
-    public IReadOnlyList<string>? OutOfOrderMarkerHits { get; }
-
-    public IReadOnlyList<string>? DuplicateUniqueMarkerHits { get; }
-
-    public long TotalBytes { get; }
-
-    public long LinesProcessed { get; }
-
-    public long InvalidByteCount { get; }
-
-    public long InvalidNoiseLineCount { get; }
-
-    public int RequiredSeenCount { get; }
-
-    public int ForbiddenOccurrenceCount { get; }
-
-    public int OrderedSeenCount { get; }
-
-    public int OutOfOrderOccurrenceCount { get; }
-
-    public int UniqueSeenCount { get; }
-
-    public int DuplicateUniqueOccurrenceCount { get; }
-
-    public int SuccessTerminalCount { get; }
-
-    public int FailureTerminalCount { get; }
-
-    public bool PartialMarkerAtEndOfStream { get; }
-
-    public bool Passed =>
-        _isInitialized &&
-        Status == SerialMarkerCompletionStatus.Passed &&
-        TerminalState == SerialMarkerTerminalState.Success &&
-        SuccessTerminalCount == 1 &&
-        FailureTerminalCount == 0 &&
-        MissingRequiredMarkers is { Count: 0 } &&
-        ForbiddenMarkerHits is { Count: 0 } &&
-        OutOfOrderMarkerHits is { Count: 0 } &&
-        DuplicateUniqueMarkerHits is { Count: 0 };
-
-    internal static SerialMarkerCompletionResult Create(
-        SerialMarkerCompletionStatus status,
-        SerialMarkerTerminalState terminalState,
-        string[] missingRequiredMarkers,
-        string[] forbiddenMarkerHits,
-        string[] outOfOrderMarkerHits,
-        string[] duplicateUniqueMarkerHits,
-        long totalBytes,
-        long linesProcessed,
-        long invalidByteCount,
-        long invalidNoiseLineCount,
-        int requiredSeenCount,
-        int forbiddenOccurrenceCount,
-        int orderedSeenCount,
-        int outOfOrderOccurrenceCount,
-        int uniqueSeenCount,
-        int duplicateUniqueOccurrenceCount,
-        int successTerminalCount,
-        int failureTerminalCount,
-        bool partialMarkerAtEndOfStream)
-    {
-        return new SerialMarkerCompletionResult(
-            status,
-            terminalState,
-            missingRequiredMarkers,
-            forbiddenMarkerHits,
-            outOfOrderMarkerHits,
-            duplicateUniqueMarkerHits,
-            totalBytes,
-            linesProcessed,
-            invalidByteCount,
-            invalidNoiseLineCount,
-            requiredSeenCount,
-            forbiddenOccurrenceCount,
-            orderedSeenCount,
-            outOfOrderOccurrenceCount,
-            uniqueSeenCount,
-            duplicateUniqueOccurrenceCount,
-            successTerminalCount,
-            failureTerminalCount,
-            partialMarkerAtEndOfStream);
+        return candidate.Length < marker.Length && marker.StartsWith(candidate, StringComparison.Ordinal);
     }
 }

@@ -13,13 +13,25 @@ public readonly struct VirtioBlockReadTransactionPlanResult
         Plan = plan;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public VirtioBlockReadTransactionPlanStatus Status { get; }
+    public VirtioBlockReadTransactionPlanStatus Status
+    {
+        get;
+    }
 
-    public VirtioBlockRequestPlanStatus RequestPlanStatus { get; }
+    public VirtioBlockRequestPlanStatus RequestPlanStatus
+    {
+        get;
+    }
 
-    public VirtioBlockReadTransactionPlan Plan { get; }
+    public VirtioBlockReadTransactionPlan Plan
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized &&
         Status == VirtioBlockReadTransactionPlanStatus.Success;

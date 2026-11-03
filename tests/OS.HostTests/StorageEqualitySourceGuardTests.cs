@@ -61,6 +61,15 @@ internal static class StorageEqualitySourceGuardTests
             "equivalent prefix slice spelling is accepted");
         HostCheck.True(Check(source.Replace("\"EFI PART\"u8", "\"\"\"EFI PART\"\"\"u8", StringComparison.Ordinal), "Signature"),
             "equivalent raw UTF-8 literal spelling is accepted");
+        string local = source.Replace("return input.Length >= 8 && Bytes.SequenceEqual(input[..8], \"EFI PART\"u8);",
+            "ReadOnlySpan<byte> marker = \"EFI PART\"u8; return Bytes.SequenceEqual(input.Slice(0, marker.Length), marker);", StringComparison.Ordinal);
+        HostCheck.True(Check(local, "Signature"), "a renamed immutable local retains the exact UTF-8 signature and prefix width");
+        HostCheck.True(!Check(local.Replace("marker.Length", "input.Length", StringComparison.Ordinal), "Signature"),
+            "the input length cannot substitute for the fixed signature width");
+        HostCheck.True(!Check(local.Replace("return Bytes.SequenceEqual(input.Slice", "marker = input; return Bytes.SequenceEqual(input.Slice", StringComparison.Ordinal), "Signature"),
+            "a reassigned local cannot make the signature a self-comparison");
+        HostCheck.True(!Check(local.Replace("Slice(0, marker.Length)", "Slice(1, marker.Length)", StringComparison.Ordinal), "Signature"),
+            "the GPT signature starts at byte zero");
         HostCheck.True(!Check(source.Replace("0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0",
             "1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0", StringComparison.Ordinal), "Empty"),
             "all GUID comparison bytes are zero");

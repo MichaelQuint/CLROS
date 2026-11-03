@@ -11,31 +11,31 @@ public static unsafe partial class EfiEntry
         private const string LinuxStaticTag = "M10_018";
         private const string LinuxStaticStart = "TEST_START m10.018\r\n";
         private const string LinuxStaticFinish = "M10_018_CLEANUP process=drained cpu=restored nic=retired dma=zero allocator=unchanged pci=restored canaries=valid reservation=retained\r\nCLROS_M10_018_READY\r\nTEST_PASS m10.018\r\n";
-        private struct LinuxStaticPending
-        {
-            internal LinuxStaticFileBefore Before;
-            internal ulong Identity, Ordinal;
-        }
+
+
+
+
+
 #else
         private const string LinuxStaticTag = "M10_017";
         private const string LinuxStaticStart = "TEST_START m10.017\r\n";
         private const string LinuxStaticFinish = "M10_017_CLEANUP process=drained cpu=restored nic=retired dma=zero allocator=unchanged pci=restored canaries=valid reservation=retained\r\nCLROS_M10_017_READY\r\nTEST_PASS m10.017\r\n";
 #endif
-        private struct LinuxStaticFileIdentity
-        {
-            internal uint Fd, Generation, Kind, View;
-            internal ulong Inode, Bytes, Position;
-        }
 
-        // These synchronous stack borrows never survive Dispatch or a handoff.
-        // Preserve the actual input path before a stat output can overwrite it.
-        private struct LinuxStaticFileBefore
-        {
-            internal LinuxStaticFileIdentity File;
-            internal fixed byte Path[(int)LinuxDescriptorServices.MaximumPath];
-            internal uint PathBytes;
-            internal bool HasPath;
-        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         private static bool LinuxStaticCaptureFile(LinuxNativeControl* c, ulong number, out LinuxStaticFileIdentity file)
         {
@@ -341,6 +341,10 @@ public static unsafe partial class EfiEntry
                 }
                 if (calls != disk->TimingNetworkCalls || calls != p.Calls || total != disk->TimingNetworkTotal ||
                     pre != disk->TimingPreNetwork || round != disk->TimingDiskRound || post != disk->TimingPostNetwork) return false;
+#if CLROS_DISK_EVIDENCE_TRACE || CLROS_DISK_EVIDENCE_SUMMARY
+                if (!WriteNativeDiskDiagnosticBoundary(disk, frozen, false))
+                    return false;
+#endif
                 if (!(LinuxText(c->State, "M10_018_TIMING bytes=") && LinuxNumber(c->State, disk->TimingReadBytes) &&
                     LinuxText(c->State, " calls=") && LinuxNumber(c->State, p.Calls) &&
                     LinuxText(c->State, " steps=") && LinuxNumber(c->State, p.Steps) &&

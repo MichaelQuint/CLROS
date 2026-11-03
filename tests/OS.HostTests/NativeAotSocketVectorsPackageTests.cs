@@ -5,11 +5,7 @@ using OS.Tooling;
 
 internal static unsafe class NativeAotSocketVectorsPackageTests
 {
-    private static readonly string[] Sources = ["global.json", "Directory.Build.props", "Directory.Build.targets", "tools/Directory.Build.props",
-        "tools/OS.Tooling/NativeAotPayload.cs", "tools/OS.Tooling/NativeAotWebPayload.cs", "tools/OS.Tooling/NativeAotSocketPayload.cs",
-        "apps/NativeAotSocketSmoke/Program.cs", "apps/NativeAotSocketSmoke/NativeAotSocketSmoke.csproj",
-        "apps/NativeAotSocketVectors/Program.cs", "apps/NativeAotSocketVectors/SocketVectorsFixture.cs",
-        "apps/NativeAotSocketVectors/SocketPolicyFixture.cs", "apps/NativeAotSocketVectors/NativeAotSocketVectors.csproj"];
+    private static string[] Sources => NativeAotSocketVectorsPackage.CurrentSources().Select(source => source.Path).ToArray();
 
     [HostTest("vectors package rejects changed app files extra sources and build overrides before reading publication")]
     private static void SourceInventory()
@@ -23,9 +19,9 @@ internal static unsafe class NativeAotSocketVectorsPackageTests
                 File.Copy(Path.Combine(root, relative), path);
             }
             NativeAotSocketVectorsPackage.RequireCurrentSources(temporary);
-            foreach (string name in new[] { "Program.cs", "SocketVectorsFixture.cs", "SocketPolicyFixture.cs", "NativeAotSocketVectors.csproj" })
+            foreach (var source in NativeAotSocketVectorsPublisher.CurrentSources())
             {
-                string path = Path.Combine(temporary, "apps", "NativeAotSocketVectors", name);
+                string path = Path.Combine(temporary, source.Path);
                 byte[] original = File.ReadAllBytes(path); File.AppendAllText(path, "\n");
                 Reject(() => NativeAotSocketVectorsPackage.RequireCurrentSources(temporary), "app_source_identity");
                 File.WriteAllBytes(path, original);

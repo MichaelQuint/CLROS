@@ -8,5 +8,8 @@ namespace OS.Storage;
 
 public static unsafe partial class ContinuingFat32Mutation
 {
-    internal enum Life : byte { Mounting = 1, Idle, Working, Ready, Faulted, Retired }
+    internal enum Life : byte
+    {
+        Mounting = 1, Idle, Working, Ready, Faulted, Retired
+    }
 }

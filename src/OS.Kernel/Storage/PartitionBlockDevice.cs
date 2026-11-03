@@ -15,7 +15,10 @@ public sealed class PartitionBlockDevice : IReadOnlyBlockDevice
         _startBlock = startBlock;
     }
 
-    public BlockDeviceInfo Info { get; }
+    public BlockDeviceInfo Info
+    {
+        get;
+    }
 
     public ulong ParentStartBlock => _startBlock;
 

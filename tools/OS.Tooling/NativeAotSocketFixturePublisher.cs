@@ -52,7 +52,7 @@ internal sealed class NativeAotSocketFixturePublisher(string Application,string 
             string appRoot = Path.Combine(root, "apps", Application);
             RequireCurrentSources(root, fresh:true);
             Dictionary<string, string> Sources() => ToolingBuildInputs.SourceInputs(root)
-                .Concat(appSources.Select(source=>Path.Combine(appRoot,source.Name))).Distinct()
+                .Concat(CurrentSources().Select(source => Path.Combine(root, source.Path))).Distinct()
                 .Order(StringComparer.Ordinal).ToDictionary(path => Path.GetRelativePath(root, path).Replace('\\', '/'), NativeAotWebPayload.HashFile);
             var before = Sources(); var native = new Dictionary<string, string>(StringComparer.Ordinal); var commands = new List<object>();
             var recipeNative = JsonSerializer.Deserialize<Dictionary<string, string>>(await File.ReadAllTextAsync(Path.Combine(recipeEvidence, "native-inputs.json")))!;
@@ -134,19 +134,24 @@ internal sealed class NativeAotSocketFixturePublisher(string Application,string 
         }
     }
 
+    internal IReadOnlyList<(string Path, string Hash)> CurrentSources() =>
+        NativeAotCurrentSources.AppSources(Application, appSources);
+
     internal void RequireCurrentSources(string root,bool fresh=false)
     {
         root=Path.GetFullPath(root);string directory=Path.Combine(root,"apps",Application);
         AuthorityFiles.RequirePlainPath(root,directory,"socket_fixture_source_path");
         foreach(string path in new[]{"apps/Directory.Build.props","apps/Directory.Build.targets","apps/Directory.Packages.props",
             "Directory.Packages.props","NuGet.Config","nuget.config"})Need(!Path.Exists(Path.Combine(root,path)),"source_override");
+        var current = CurrentSources();
+        string prefix = "apps/" + Application + "/";
         Need(Directory.GetFiles(directory).Select(Path.GetFileName).Order(StringComparer.Ordinal)
-            .SequenceEqual(appSources.Select(source=>source.Name).Order(StringComparer.Ordinal)),"app_inventory");
+            .SequenceEqual(current.Select(source => source.Path[prefix.Length..]).Order(StringComparer.Ordinal)),"app_inventory");
         foreach(string child in Directory.EnumerateDirectories(directory))
             Need(!fresh && (Path.GetFileName(child) is "bin" or "obj"),"fresh_app_cache_required");
-        foreach(var source in appSources)
+        foreach(var source in current)
         {
-            string path=Path.Combine(directory,source.Name);AuthorityFiles.RequirePlainPath(root,path,"socket_fixture_source_path");
+            string path=Path.Combine(root,source.Path);AuthorityFiles.RequirePlainPath(root,path,"socket_fixture_source_path");
             Need(NativeAotWebPayload.HashFile(path)==source.Hash,"app_source_identity");
         }
     }

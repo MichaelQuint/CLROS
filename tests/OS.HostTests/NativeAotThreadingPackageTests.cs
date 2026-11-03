@@ -7,9 +7,6 @@ using OS.Tooling;
 
 internal static unsafe class NativeAotThreadingPackageTests
 {
-    private static readonly string[] Shared = ["global.json", "Directory.Build.props", "Directory.Build.targets", "tools/Directory.Build.props",
-        "tools/OS.Tooling/NativeAotPayload.cs", "tools/OS.Tooling/NativeAotThreadingPayload.cs", "tools/OS.Tooling/NativeAotThreadingGuest.cs"];
-
     [HostTest("nativeaot.threading-package exact current app and producer sources reject raw changes without freezing unrelated kernel files")]
     private static void Sources()
     {
@@ -18,7 +15,7 @@ internal static unsafe class NativeAotThreadingPackageTests
         {
             foreach (string app in NativeAotThreadingPayload.Applications)
             {
-                string[] paths = [.. Shared, $"apps/{app}/Program.cs", $"apps/{app}/{app}.csproj"];
+                string[] paths = NativeAotThreadingPackage.CurrentSources(app).Select(source => source.Path).ToArray();
                 foreach (string relative in paths)
                 {
                     string path = Path.Combine(temporary, relative); Directory.CreateDirectory(Path.GetDirectoryName(path)!);

@@ -1,3 +1,6 @@
+using OS.Tooling;
+using Microsoft.CodeAnalysis;
+using OS.X64TextSerializerGenerator;
 using System.Runtime.CompilerServices;
 using OS.Kernel.Memory;
 using OS.Kernel.Runtime;
@@ -346,7 +349,14 @@ internal static class NativeAotHelperLedgerTests
     {
         string[] sourceSymbols = ExtractRuntimeExportSymbols();
 
-        ExpectEqual("RuntimeExport symbol count", 21, sourceSymbols.Length);
+        string[] ledgerExports = Enumerable.Range(0, NativeAotHelperLedger.EntryCount)
+            .Select(NativeAotHelperLedger.GetEntry)
+            .Where(entry => entry.IsEfiOnly && entry.Area != NativeAotHelperArea.EfiCheckedReferences)
+            .SelectMany(entry => SplitSymbols(entry.HelperSymbols)).ToArray();
+        HostCheck.True(sourceSymbols.Order(StringComparer.Ordinal).SequenceEqual(ledgerExports.Order(StringComparer.Ordinal)),
+            "ordinary runtime exports and independently maintained EFI ledger must agree; missing="
+                + string.Join(",", ledgerExports.Except(sourceSymbols, StringComparer.Ordinal)) + "; extra="
+                + string.Join(",", sourceSymbols.Except(ledgerExports, StringComparer.Ordinal)));
 
         foreach (string symbol in sourceSymbols)
         {
@@ -354,7 +364,7 @@ internal static class NativeAotHelperLedgerTests
             if (sourceCount != 1)
             {
                 throw new InvalidOperationException(
-                    "RuntimeExport symbol " + symbol + " appears " + sourceCount + " times in MinimalRuntime.cs.");
+                    "RuntimeExport symbol " + symbol + " appears " + sourceCount + " times in the selected runtime compilation.");
             }
 
             int ledgerCount = CountLedgerSymbol(symbol);
@@ -379,20 +389,36 @@ internal static class NativeAotHelperLedgerTests
             {
                 // These three symbols are COFF definitions, not fabricated C#
                 // RuntimeExport declarations. The fourth is the ordinary adapter.
-                string root = HostToolProcess.FindRepositoryRoot();
-                string generator = File.ReadAllText(Path.Combine(root,"tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs"));
-                string adapter = File.ReadAllText(Path.Combine(root,"src/OS/Runtime/CheckedReferenceBarrierAdapter.cs"));
-                ExpectEqual("finite reference symbol count",4,ledgerSymbols.Length);
-                for (int j=0;j<3;j++)
+                var definition = CheckedReferenceBarrierThunkGenerator.Define();
+                string callback = CheckedReferenceBarrierThunkGenerator.Callback;
+                var symbols = definition.Symbols ?? throw new InvalidOperationException("generated symbol inventory missing");
+                var defined = symbols.Where(symbol => symbol.SectionNumber > 0).ToArray();
+                HostCheck.True(defined.Select(symbol => symbol.Name).Order(StringComparer.Ordinal)
+                    .SequenceEqual(ledgerSymbols.Where(name => name != callback).Order(StringComparer.Ordinal)),
+                    "generated COFF definitions match the ledger without counting source literals");
+                ExpectEqual("one undefined callback relocation target", 1,
+                    symbols.Count(symbol => symbol.Name == callback && symbol.SectionNumber == 0));
+                foreach (string name in ledgerSymbols)
                 {
-                    ExpectEqual("generated symbol absent from unchanged shim",0,CountSymbols(sourceSymbols,ledgerSymbols[j]));
-                    ExpectEqual("generated symbol one ledger entry",1,CountLedgerSymbol(ledgerSymbols[j]));
-                    ExpectEqual("generated object symbol declaration",1,generator.Split('"'+ledgerSymbols[j]+'"',StringSplitOptions.None).Length-1);
+                    ExpectEqual("generated symbol absent from ordinary shim", 0, CountSymbols(sourceSymbols, name));
+                    ExpectEqual("generated symbol one ledger entry", 1, CountLedgerSymbol(name));
                 }
-                // The mutually exclusive checked-reference and GC-static profiles
-                // each declare this ordinary callback; the exported symbol is shared.
-                ExpectEqual("ordinary callback declarations across two profiles",2,adapter.Split("RuntimeExport(\""+ledgerSymbols[3]+"\")",StringSplitOptions.None).Length-1);
-                ExpectEqual("ordinary callback one ledger entry",1,CountLedgerSymbol(ledgerSymbols[3]));
+                foreach (string flag in new[] { "EnableM04CheckedReferenceBarrierProbe", "EnableM04GcStaticRootMaterializationProbe" })
+                {
+                    string[] heapPrerequisites = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+                        "EnableM04IndependentEndianConformanceProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe",
+                        "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe",
+                        "EnableM04ManagedHeapPageRangeProbe", "EnableM04RhpNewFastProbe"];
+                    var catalog = HostSourceCatalog.Efi(EfiProfile.Create("Diagnostic",
+                        heapPrerequisites.Append(flag).ToDictionary(name => name, _ => true, StringComparer.Ordinal)));
+                    var exports = HostRuntimeExports.Read(catalog);
+                    HostCheck.True(exports.TryGetValue(callback, out var method), flag);
+                    HostCheck.Equal("OS.Runtime.RhpNewFastAllocation", method!.ContainingType.ToDisplayString());
+                    HostCheck.Equal(4, method.Parameters.Length);
+                    HostCheck.True(method.Arity == 0 && method.RefKind == RefKind.None
+                        && method.Parameters.All(parameter => parameter.RefKind == RefKind.None && parameter.Type.SpecialType == SpecialType.System_UInt64)
+                        && method.ReturnType.SpecialType == SpecialType.System_UInt32, "callback POD ABI");
+                }
                 continue;
             }
             for (int symbolIndex = 0; symbolIndex < ledgerSymbols.Length; symbolIndex++)
@@ -405,12 +431,12 @@ internal static class NativeAotHelperLedgerTests
                 {
                     throw new InvalidOperationException(
                         "EFI ledger symbol " + ledgerSymbol + " appears " + sourceCount +
-                        " times in MinimalRuntime.cs.");
+                        " times in the selected runtime compilation.");
                 }
             }
         }
 
-        ExpectEqual("EFI ledger symbol count", 21, efiLedgerSymbolCount);
+        ExpectEqual("EFI ledger symbol count", sourceSymbols.Length, efiLedgerSymbolCount);
 
         ExpectEqual(
             "reverse p/invoke symbol count",
@@ -502,34 +528,25 @@ internal static class NativeAotHelperLedgerTests
 
     private static string[] ExtractRuntimeExportSymbols()
     {
-        string runtimeSource = File.ReadAllText(
-            Path.Combine(HostToolProcess.FindRepositoryRoot(), "src", "OS", "Runtime", "MinimalRuntime.cs"));
-        List<string> symbols = new List<string>();
-        const string marker = "[RuntimeExport(\"";
-        int searchStart = 0;
-
-        while (true)
-        {
-            int markerIndex = runtimeSource.IndexOf(marker, searchStart, StringComparison.Ordinal);
-            if (markerIndex < 0)
-            {
-                break;
-            }
-
-            int symbolStart = markerIndex + marker.Length;
-            int symbolEnd = runtimeSource.IndexOf("\")", symbolStart, StringComparison.Ordinal);
-            if (symbolEnd < symbolStart)
-            {
-                throw new InvalidOperationException("Malformed RuntimeExport attribute near offset " + markerIndex + ".");
-            }
-
-            symbols.Add(runtimeSource[symbolStart..symbolEnd]);
-            searchStart = symbolEnd + 2;
-        }
-
-        return symbols.ToArray();
+        var catalog = HostSourceCatalog.Efi(EfiProfile.Create(null, new Dictionary<string, bool>()));
+        var exports = HostRuntimeExports.Read(catalog);
+        // These two bootstrap contracts belong to the EFI image rather than the
+        // runtime helper ledger. Validate their owners and ABI before removing
+        // them; every other discovered export must have a ledger entry.
+        var entry = exports["EfiMain"];
+        HostCheck.True(SymbolEqualityComparer.Default.Equals(entry.ContainingType, catalog.Type("OS.Boot.EfiEntry"))
+            && entry.Arity == 0 && entry.RefKind == RefKind.None
+            && entry.ReturnType.SpecialType == SpecialType.System_Int64
+            && entry.Parameters is [{ RefKind: RefKind.None, Type: IPointerTypeSymbol image },
+                { RefKind: RefKind.None, Type: IPointerTypeSymbol table }]
+            && image.PointedAtType.SpecialType == SpecialType.System_Void
+            && SymbolEqualityComparer.Default.Equals(table.PointedAtType, catalog.Type("OS.Boot.EfiSystemTable")), "EFI entry ABI");
+        var cookie = exports["__security_cookie"];
+        HostCheck.True(SymbolEqualityComparer.Default.Equals(cookie.ContainingType, catalog.Type("OS.Boot.EfiEntry+M03FirstExitAdapter"))
+            && cookie.Arity == 0 && cookie.RefKind == RefKind.None && cookie.Parameters.Length == 0
+            && cookie.ReturnType.SpecialType == SpecialType.System_UInt64, "EFI cookie storage ABI");
+        return exports.Keys.Where(name => name is not "EfiMain" and not "__security_cookie").ToArray();
     }
-
     private static void ExpectEqual(string scenario, int expected, int actual)
     {
         if (actual != expected)

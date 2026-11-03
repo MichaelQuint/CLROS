@@ -33,18 +33,15 @@ internal static unsafe class M06FatReadEfiIntegrationTests
     [HostTest("m06.fat.efi allocator ownership rejects altered FAT epochs purpose and caller")]
     private static void Ownership()
     {
-        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs"));
+        var snapshot = new EfiAllocatorOwnershipSources(EfiOptions.Parse(Flags, false).Profile());
         foreach (string call in new[] { "BootPageAllocatorMutator.AllocateOnePage", "BootPageAllocatorMutator.FreeOnePage" })
         {
-            string accepted = source;
-            HostCheck.True(EfiProfileTestControls.RemoveOwnedDmaCalls(ref accepted, call, out string reason), reason);
-            foreach (string changed in new[] { source.Replace("reads + 70UL, true)", "reads + 69UL, true)", StringComparison.Ordinal),
-                source.Replace("reads + 70UL, true)", "reads + 70UL, false)", StringComparison.Ordinal),
-                source.Replace("private static bool ReadFatSector(", "private static bool UnreviewedFatRead(", StringComparison.Ordinal) })
-            {
-                string rejected = changed;
-                HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(ref rejected, call, out _));
-            }
+            HostCheck.True(EfiProfileTestControls.RemoveOwnedDmaCalls(snapshot.Sources, call, out _, out string reason), reason);
+            foreach (var changed in new[] {
+                snapshot.ChangeEpoch("ReadFatSector", 70UL, 69UL),
+                snapshot.ChangePurpose("ReadFatSector", 5, true, false),
+                snapshot.RenameMethod("ReadFatSector") })
+                HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(changed, call, out _, out _));
         }
     }
 

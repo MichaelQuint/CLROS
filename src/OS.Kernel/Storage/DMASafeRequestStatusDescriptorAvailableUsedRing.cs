@@ -46,9 +46,11 @@ public static unsafe class DMASafeRequestStatusDescriptorAvailableUsedRing
     /// coherent backing disjoint from MMIO and metadata. No device has seen it.</summary>
     public static void Initialize(VirtioBlkDmaLayout layout)
     {
-        if (!layout.IsInitialized) return;
+        if (!layout.IsInitialized)
+            return;
         byte* bytes = (byte*)layout.Range.CpuVirtualAddress;
-        for (uint i = 0; i < VirtioBlkDmaLayout.PageBytes; i++) bytes[i] = 0;
+        for (uint i = 0; i < VirtioBlkDmaLayout.PageBytes; i++)
+            bytes[i] = 0;
         bytes[layout.Rings.AvailableRing.Offset] = 1; // NO_INTERRUPT; available index stays zero.
         bytes[VirtioBlkDmaLayout.StatusOffset] = 0xff; // Not a completed request.
     }

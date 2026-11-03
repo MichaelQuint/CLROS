@@ -17,6 +17,13 @@ public static unsafe partial class Fat32Mutation
         public readonly ulong Owner, Epoch, Generation, EntryOffset;
         public readonly uint FirstCluster, Length;
         internal FileToken(ulong owner, ulong epoch, ulong generation, ulong entry, uint first, uint length)
-        { Owner = owner; Epoch = epoch; Generation = generation; EntryOffset = entry; FirstCluster = first; Length = length; }
+        {
+            Owner = owner;
+            Epoch = epoch;
+            Generation = generation;
+            EntryOffset = entry;
+            FirstCluster = first;
+            Length = length;
+        }
     }
 }

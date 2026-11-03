@@ -19,6 +19,13 @@ public static unsafe partial class ContinuingFat32Mutation
         public readonly RequestToken Request;
         public readonly FreeCursor NextCursor;
         internal FreeResult(Status status, uint count, uint scanned, uint reads, RequestToken request, FreeCursor next)
-        { Status = status; Count = count; Scanned = scanned; SectorReads = reads; Request = request; NextCursor = next; }
+        {
+            Status = status;
+            Count = count;
+            Scanned = scanned;
+            SectorReads = reads;
+            Request = request;
+            NextCursor = next;
+        }
     }
 }

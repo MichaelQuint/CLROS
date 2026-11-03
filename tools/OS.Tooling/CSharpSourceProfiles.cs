@@ -9,7 +9,7 @@ namespace OS.Tooling;
 /// supported EFI workload selections or authority to execute a guest.</summary>
 public static partial class CSharpSourceProfiles
 {
-    public static IReadOnlyList<CSharpParseOptions> ForSource(string source)
+    public static IReadOnlyList<CSharpParseOptions> ForSource(string source, string? repositoryPath = null)
     {
         var options = new CSharpParseOptions(LanguageVersion.CSharp14);
         var result = new List<CSharpParseOptions> { options };
@@ -149,6 +149,15 @@ public static partial class CSharpSourceProfiles
 
             bool Solve(int index)
             {
+                // The finally-admission host fixture compiles with only
+                // SINGLE_FINALLY_CORE_TEST; OS.csproj uses NOSTDLIB_EFI instead.
+                // Combining those entry modes invents a second file-scoped
+                // namespace. Preserve both supported modes without manufacturing
+                // that unsupported host/EFI combination (see its GuardCore test).
+                if (UsesSeparateFinallyEntryModes(repositoryPath) && values.GetValueOrDefault("NOSTDLIB_EFI")
+                    && values.GetValueOrDefault("SINGLE_FINALLY_CORE_TEST"))
+                    return false;
+
                 if (required.Any(value => Evaluate(value.Expression, values) is bool actual && actual != value.Expected))
                     return false;
 

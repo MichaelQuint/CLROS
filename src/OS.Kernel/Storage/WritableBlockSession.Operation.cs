@@ -4,5 +4,8 @@ namespace OS.Storage;
 
 public static unsafe partial class WritableBlockSession
 {
-    public enum Operation : byte { Write, Flush, Read }
+    public enum Operation : byte
+    {
+        Write, Flush, Read
+    }
 }

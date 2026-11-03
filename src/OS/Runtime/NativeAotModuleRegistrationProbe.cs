@@ -7,19 +7,19 @@ namespace OS.Runtime;
 
 // One caller-owned static buffer, one original M01 authority, one core decoder.
 // The numeric entry is also exercised on genuinely mapped controlled host storage.
-internal static unsafe class NativeAotModuleRegistrationProbe
+internal static unsafe partial class NativeAotModuleRegistrationProbe
 {
     internal const ulong Capacity = 4096;
     internal const ulong GuardStart = 4064;
-    internal struct Buffer { internal fixed ulong Words[512]; }
-    internal struct Observation
-    {
-        internal ulong Image, ImageBytes, Required, Storage, Slot, Handle;
-        internal NativeAotTypeManagerAbi Abi;
-        internal TypeManagerModuleResult Thread, Indirection, Empty, Absent;
-        internal TypeManagerModuleStatus Short, Repeat, Foreign;
-        internal ulong Failure;
-    }
+
+
+
+
+
+
+
+
+
     private static Buffer s_storage;
     private static bool s_attempted;
 

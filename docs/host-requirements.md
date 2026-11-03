@@ -1,5 +1,242 @@
 # Host Requirements
 
+[Step1730](../done/step1730.md) qualifies the host wiring of explicit
+EnableM10018EvidenceTraceProbe/EnableM10018EvidenceSummaryProbe controls and the
+ordered diagnostic image reader with 69 focused checks. Both selections require
+the original timing chain and remain off by default. Summary is diagnostic only;
+independent terminal protocol and actual native review still precede activation.
+
+The current disk diagnostic observer uses v10 host receipts; [step1728](../done/step1728.md)
+separates body receipt from output-file writing/durable flushing and fixes the
+inherited ResponseHeadersRead timeout gap. A positive explicit request budget may
+shorten the existing 180-second ceiling. Cancellation is cooperative, includes
+headers/body reads and retains the original finally/join path. The unchanged
+synchronous durable flush has no new cancellation guarantee. Original five-request
+assertions, data bounds and guest metrics remain; 24 final focused checks pass.
+
+## Dynamic host-test source discovery
+
+[Step1727](../done/step1727.md) passes the complete discovered Fast selection at
+r121: 6,088 selected cases across 876 groups produce 6,424 reported checks, with
+unchanged inputs and zero reuse. Counts are observations, not acceptance constants.
+All thirty earlier failing groups pass. Fast is a host/source/managed boundary;
+unfiltered Full and native/guest/browser evidence remain separate requirements.
+
+[Step1726](../done/step1726.md) extends the paging fixture to actual EFI profiles
+and direct-owner raw method spans. Known branches are selected on each complete
+document before partial bodies are combined; unknown inactive text and original
+sanitizers remain visible to conservative negative/count checks. Requested method
+ambiguity rejects, while unrelated overloads and nested helpers remain allowed.
+Guard mutations target the actual bound call's dominating directive and must
+demonstrably invalidate the off profile. The original 44 bypass vectors pass
+with original and normalized formatting; six regression cases cover these rules.
+
+[Step1725](../done/step1725.md) provides logical-owner inspection views for the
+instruction fixture. Views combine partial members and preserve body/token/comment
+content and type attributes; they are never SDK/compiler inputs. Direct-owner
+syntax spans exclude nested decoys. Unsupported merged header contexts require
+review. Raw comments/inactive text remain available through complete document
+families. Profile prerequisite discovery uses a single independently pinned XML
+snapshot; EfiProfile admission and the original test oracles remain separate.
+Both original and normalized-whitespace views pass the original mutation matrix.
+
+Fast and full lanes share the same discovered fixture inventory. The runner
+reads the executing assembly's ordered compiler inputs from a companion
+`*.host-compilation.xml` receipt, bound to the exact PE/PDB and current input
+bytes. Test sources may live in subdirectories, use linked files, contain
+partial helpers, or share a basename. Fixture groups use namespace-qualified
+type identities. Counts come from discovery; they are not acceptance constants.
+
+SDK fixture source discovery must retain each fixture's original runtime shim,
+independent dependency limits, raw byte joins and compiler declaration order
+where partial initialization matters. [Step1722](../done/step1722.md) shares
+discovery across heap, NewFast, array and string SDK fixtures. Each caller retains
+its explicit permitted runtime owners and original shim; common discovery does
+not broaden that boundary. Diagnostic input counts use selected sources.
+Shared fault checks bind the original authority, caller and signature; comments
+and inactive text remain visible to raw negative guards. Their focused passes
+include original SDK probes, not new NativeAOT or guest acceptance.
+
+[Step1723](../done/step1723.md) extends this to panic cleanup and preparation.
+Their different explicit member subsets, constants, layout and deadlines remain.
+The host adapter projection checks the whole owner's branch/import context before
+selecting a subset; unsupported context in an unselected member can therefore
+reject extraction. This conservative restriction does not add emitted members.
+Raw cleanup occurrences and terminal-tail exclusions retain comments/inactive text.
+
+[Step1724](../done/step1724.md) extends discovery to the three allocation POD
+programs. Runtime inputs follow the original logical owners and explicit Core
+member boundary; the separate reference-stack service stays outside this SDK
+scope. Program partials follow the selected SDK symbol, including conditional
+parts absent from the default host context. Namespace/declaration witnesses are
+a conservative source policy, not general SDK semantic equivalence. All three
+original SDK programs execute with their original 900000 ms deadlines. Complete
+pinned kernel families, original leaf/entry identities, raw exclusions and
+profile command/error vectors remain independent of source discovery.
+
+Payload source admission also separates current reviewed families from original
+receipt identities. Current fixture copies and held-source checks include complete
+partial owners and app helpers; historical raw pins remain bound to their original
+artifacts. Intentional current-consumer revisions are reviewed separately from
+token-equivalent moves. [Step1703](../done/step1703.md) retains its failed focused
+result; [step1704](../done/step1704.md) repairs its module-registration source
+reader and adds bound EH/leaf-reuse discovery. These fixtures resolve methods,
+fields and complete selected type families through the actual EFI profile.
+Independent image, storage, caller and read-order requirements remain explicit.
+Moved partials and aliases pass; mutable capture escapes and foreign or extra
+walk callers reject. This does not qualify newly emitted native code.
+
+[Step1706](../done/step1706.md) extends bound discovery to the M16009 boot and
+syscall-gate readers. Partial moves, aliases and renamed locals remain valid;
+permissive foreign callers, mutation/address escapes and dormant calls reject.
+Compiler statement reachability is a source check, not runtime-path proof.
+
+[Step1707](../done/step1707.md) also moves the managed-heap adapter fixture to
+compiler-selected declarations and per-file import scopes. The original and
+split-partial/conflicting-alias variants execute the same 50-case hosted oracle.
+Actual no-stdlib managed metadata passes separately; the Native lane name alone
+does not mean a published NativeAOT/EFI artifact or guest was qualified.
+
+[Step1708](../done/step1708.md) extends selected-source discovery to thread
+layout, network-worker reservations and cooperative allocator admission.
+Retained mapping controls bind paired arrays and their shared advancing index;
+moving declarations preserves source-file coordinates and original ownership.
+Explicit limits and failure expectations remain independent. The root editor
+configuration also enables the experimentally named IDE2001 option, verified
+against the pinned SDK, to warn on same-line embedded statements while allowing
+unbraced following-line guards.
+
+[Step1709](../done/step1709.md) repairs the Native materializer's filename reader
+using host dependencies joined to actual EFI inputs and an independently bound
+no-stdlib shim. Original runtime checks and malformed-input vectors remain intact.
+Endian/span checks also use selected declarations, whole-token fragments and bound
+callers including nested accessors/constructors. Raw exclusions and invalid-profile
+compiler errors stay explicit. Focused Fast/Native passes do not establish Full,
+new NativeAOT artifacts, guest execution or performance improvement.
+
+[Step1710](../done/step1710.md) extends this model to checked port I/O, COM1,
+panic reporting and the live allocator. M02 readers resolve selected types and
+bound marker/caller identities; allocator profiles use the actual compiler
+instead of a custom preprocessor. Default-off gates, ABI values, failure order
+and mutation vectors remain explicit. Raw exclusions include inactive partials
+and conservatively reserve containing names/arity across namespaces. Branch
+witnesses and physical cast unions are exclusion views, not exhaustive execution
+profiles. Cached raw discovery belongs to immutable document snapshots; selected
+declarations can prove whole-document inclusion without reparsing body switches.
+
+Checkpoint dependencies use a cached Roslyn symbol graph, preserving compiler
+source order and all partial declarations. Shared infrastructure is derived from
+the compiled entrypoint, not a list of helper names. References bind an immutable
+image of their receipt-checked bytes; generated source remains PE/PDB-bound.
+The word `Host` in a fixture cannot select an unrelated nested `Host` type.
+
+Managed source-inspection fixtures use MSBuild's actual compiler arguments,
+Compile items, references and selected symbols through `CSharpProjectEvaluation`.
+The receipt covers analyzer/configuration/additional inputs, resources,
+compiler files and evaluated imports. Portable PDB embedded source supplies
+checked generator output. Querying an unbuilt profile fails with `rebuild_required`;
+inspection does not compile application code or refresh its receipt. Trusted
+project targets prepare intermediate resources and SDK files. This is declared
+input provenance under a frozen producer, not a sandbox.
+
+The participating managed projects import their receipt targets after
+`Sdk.targets`, so SDK/package compiler inputs are captured after their producers.
+The restricted EFI project and pinned serializer do not import these targets.
+EFI inspection instead evaluates its explicit admitted source/profile inventory,
+with no framework references or native publication. Dependency slices are
+resolved through Roslyn and rebound; independent layer boundaries and behavior
+assertions remain the fixture's responsibility.
+
+Resume eligibility still requires intact evidence, reviewed native output
+ownership and unchanged inputs. Non-source compiler inputs are conservatively
+shared cache dependencies. Final acceptance requires an unfiltered full run
+with zero reuse. Compiler-option/input errors, missing receipts and changed
+binary bytes fail closed. Freeze source, documentation and producers throughout
+each run; rebuild before starting after changes.
+
+[Step1711](../done/step1711.md) preserves the earlier failed r92 complete Fast
+diagnostic: 6,345 started checks across 856 groups, unchanged inputs and zero
+reuse. Twenty-six formerly failing groups now pass compared with r57; thirty
+failed at that checkpoint and none newly failed. Failure reports include aggregate markers.
+The r57 original in step1701 and r25 original in step1692 remain preserved.
+Step1727 supplies the later passing complete Fast result; remaining qualification
+is unfinished. These old receipts are not Full/native/guest renewal.
+
+[Step1712](../done/step1712.md) subsequently passes 51 checks across twelve
+focused selections, repairing nine formerly failing groups. Compiler identities
+replace physical file boundaries while original ABI, source restrictions and
+mutation expectations remain independent. All four managed builds and
+repository/contracts/style checks pass. Those focused results alone did not
+replace the failed complete-run boundary; step1727 subsequently supplies a fresh
+complete Fast result.
+
+[Step1713](../done/step1713.md) derives the reservation fixture's dependency
+slice from actual compiler inputs, then checks allowed layers, exact EFI bytes
+and the original no-stdlib shim. Entropy discovery follows types and a bound
+caller while retaining independently reviewed byte identities. Focused results
+pass; its Native capture source list and remaining readers are still pending.
+
+[Step1714](../done/step1714.md) validates stress in both Release workload
+inventories and migrates typed exit, throw/catch and memory-map readers.
+Twenty-six focused checks pass. The complete pinned project replaces the old
+memory-map conflict count while reciprocal assertions remain. Strict typed host
+byte pins reject encoding changes. Stress source inspection uses the existing
+bounded shared SDK/query path; NativeAOT/guest execution deadlines are unchanged.
+
+[Step1715](../done/step1715.md) validates the one-page allocator's discovered
+dependency closure with its unchanged shim and original SDK/hostile-process
+checks. It shares raw-owner document selection and reviewed UTF-8 oracle
+matching across consumers. Checked-reference and GDT follow bound declarations;
+52 focused checks pass across the batch. Raw inactive policies and independent
+project/byte checks remain mandatory. This is not complete Full or EFI evidence.
+
+[Step1716](../done/step1716.md) extends that selector to free/coalescing and
+qualifies guarded IST discovery. The 64 focused checks retain the original
+allocator SDK/hostile subprocesses, raw exclusions and independent source pins.
+No unfiltered Full, NativeAOT or guest qualification follows from these results.
+
+[Step1717](../done/step1717.md) adds terminal, reservation-validator and normalized
+frame discovery with 31 passing focused checks. Reservation validation retains
+the original SDK no-stdlib/zero-reference probe; terminal retains SDK cleanup and
+hostile fake-QEMU runner checks. Forbidden marker inventories compare members
+and multiplicity without imposing an irrelevant order; required/ordered/unique
+inventories keep their sequence checks. Raw-byte oracles stay raw-byte checks.
+
+[Step1718](../done/step1718.md) adds materializer and disk-policy source discovery,
+typed COM1 inventory anchors, and bound IDT/safe-stub checks. Fifty checks pass
+across five focused selections, including the original materializer SDK probe.
+COM1's earlier metadata spelling failure remains preserved. Public host types
+can supply metadata names through typeof, while EFI-only declarations retain
+explicit logical identities; both resolve against the actual selected compiler
+inputs. Runtime assertions, raw exclusions and independent byte pins remain.
+
+[Step1719](../done/step1719.md) adds page-map dependency discovery with exact
+host/EFI raw-byte joins and the original shim/SDK deadline. Its sibling source
+policies include extracted and inactive helpers. UD2 discovery retains raw
+occurrence guards: token counting cannot replace a policy that deliberately
+counts comments or disabled text. Cross-profile ordering uses an inspection
+view with only directive trivia removed; compiled inputs remain raw. Forty-five
+focused checks pass, including the original page-map runtime vectors.
+
+[Step1720](../done/step1720.md) adds page-table entry dependency discovery and
+bound page-fault readers. The optional EFI query deadline accepts 1 through 120
+seconds, retains the existing 120-second default and participates in cache identity.
+The page-table fixture keeps its original 60-second MSBuild query and 90-second
+SDK deadlines; the SDK identity preflight retains its separate 30-second bound.
+Generated host adapter inputs freeze the selected EFI branches. Raw source views
+still include disabled code. Projection rejects changed bindings when visible
+imports are removed and explicitly unsupported implicit protocols; this is a
+bounded adapter harness, not a general C# semantic-equivalence service. Twenty-nine
+focused checks pass, including the original page-table and page-fault SDK probes.
+
+Managed tools resolve through the selected producer's embedded MSBuild output
+map, shared by host tests and OS.Tooling. Renamed assemblies, custom output paths,
+transitive and ReferenceOutputAssembly=false dependencies are discovered.
+Self-spawn compares the loaded tool file against its recorded original target;
+there is no bin/framework/name fallback. A valid producer can have no children.
+Missing/malformed maps, unknown tools, changed bytes and conflicting identities
+reject. Imports remain managed-only; the restricted EFI compiler is unchanged.
+
 ## C# source organization checks
 
 The November1 combined refactor uses root `.editorconfig` for IDE formatting and
@@ -722,10 +959,25 @@ leases prevent resuming an active run. Normal Ctrl+C still terminates workers.
 
 Fingerprints include shared production/tooling/configuration/documentation,
 producer dependencies, compiler options, runtime/SDK and environment identity
-(digest only). Test-file changes invalidate their transitive test dependencies,
-without invalidating every result merely because the host DLL was rebuilt.
-Global imports and assembly attributes are shared inputs. Unknown external,
-artifact or dynamic source dependencies run fresh. Do not edit sources or share
+(digest only). Bound source dependencies distinguish namespaces, aliases,
+nested identities and partial declarations. Global imports, assembly attributes
+and actual source order participate in the key. The host DLL itself is retained
+as provenance; non-source compiler inputs, including embedded input manifests,
+remain conservative shared dependencies and can invalidate every cached group.
+
+Reuse has a deliberately limited execution boundary. Only supported operations
+whose reachable implementations are inspected in the current source catalog
+are eligible. Opaque metadata calls or fields, external input, dynamic/virtual/
+delegate/function-pointer dispatch, user operators, implicit calls and unknown
+compiler operation forms execute fresh. A referenced DLL hash proves code
+identity, not the state that code reads. Shared runner helpers receive the same
+inspection when a fixture calls them. Source-only controls exercise real reuse;
+metadata-dependent kernel fixtures still execute their behavioral checks.
+Each fixture group executes in its own worker process; optional reuse does not
+carry mutable static state between groups. [Step1693](../done/step1693.md)
+records the focused dependency, resume and worker-protocol checkpoint.
+
+Do not edit sources or share
 native output directories between simultaneous suites. Checkpoints are local to
 the same workspace and machine, and do not import legacy runner receipts.
 
@@ -739,15 +991,17 @@ Pointer-probe and finally-guard builds use `--no-dependencies` so they cannot re
 already admitted by the running harness. Step1117 records the commit-version
 staleness failures that led to these fixes and their focused checks.
 
-Native reuse is deliberately explicit. The owned-IDT group and the individually
-selected IDTR publication case produce every artifact they read. Their keys also
+Native output ownership is deliberately explicit. The owned-IDT group and the
+individually selected IDTR publication case produce every artifact they read. Their keys also
 hash the resolved SDK, linker/support files, Windows library, LLVM, runtime and
 pinned package contents. Twelve original outputs per publication fixture are
 copied into content-addressed storage; later builds cannot overwrite that
-evidence. The full IDTR group and other unclassified native groups still execute
-fresh. Retained publication records are historical host evidence, not restored
-canonical build outputs or new guest execution. Broader native reuse requires
-reviewed input/output ownership in `HostNativeResumePolicy`.
+evidence. Ownership is necessary but does not override the execution boundary:
+opaque implementations still run fresh. The full IDTR group and other
+unclassified native groups execute fresh. Retained publication records are
+historical host evidence, not restored canonical build outputs or new guest
+execution. Broader native reuse requires both reviewed input/output ownership
+in `HostNativeResumePolicy` and a demonstrated execution/input boundary.
 
 This C# implementation continues [issue #600](http://192.168.4.35:3000/admin/CLROS/issues/600)
 on the merged [PR #602](http://192.168.4.35:3000/admin/CLROS/pulls/602) runner.

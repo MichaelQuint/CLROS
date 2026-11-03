@@ -22,17 +22,35 @@ public static partial class GptParser
             BlockSizeBytes = blockSizeBytes;
         }
 
-        public GptStatus Status { get; }
+        public GptStatus Status
+        {
+            get;
+        }
 
-        public BlockDeviceStatus BlockStatus { get; }
+        public BlockDeviceStatus BlockStatus
+        {
+            get;
+        }
 
-        public GptHeader Header { get; }
+        public GptHeader Header
+        {
+            get;
+        }
 
-        public GptPartitionEntry Partition { get; }
+        public GptPartitionEntry Partition
+        {
+            get;
+        }
 
-        public uint PartitionEntryIndex { get; }
+        public uint PartitionEntryIndex
+        {
+            get;
+        }
 
-        public uint BlockSizeBytes { get; }
+        public uint BlockSizeBytes
+        {
+            get;
+        }
 
         public bool Succeeded => Status == GptStatus.Success;
 

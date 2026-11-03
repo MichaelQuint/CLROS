@@ -7,5 +7,8 @@ namespace OS.Storage;
 
 public static unsafe partial class ContinuingFat32Bootstrap
 {
-    internal enum Step : byte { Mbr, Header, Entries, Select, Bpb }
+    internal enum Step : byte
+    {
+        Mbr, Header, Entries, Select, Bpb
+    }
 }

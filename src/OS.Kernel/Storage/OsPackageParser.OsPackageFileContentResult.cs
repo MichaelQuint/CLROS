@@ -20,13 +20,25 @@ public readonly ref struct OsPackageFileContentResult
         _content = content;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public OsPackageStatus Status { get; }
+    public OsPackageStatus Status
+    {
+        get;
+    }
 
-    public OsPackageHeader Header { get; }
+    public OsPackageHeader Header
+    {
+        get;
+    }
 
-    public OsPackageFileEntry Entry { get; }
+    public OsPackageFileEntry Entry
+    {
+        get;
+    }
 
     public ReadOnlySpan<byte> Content => _content;
 

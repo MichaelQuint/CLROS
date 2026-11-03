@@ -1,23 +1,31 @@
 using System.Runtime.InteropServices;
 using OS.Drivers;
 
-internal static unsafe class DescriptorAllocationExhaustionInvalidIndexDoubleFreeTestsTests
+internal static unsafe partial class DescriptorAllocationExhaustionInvalidIndexDoubleFreeTestsTests
 {
     [HostTest("virtqueue.descriptors exhausts capacity and reuses lowest free index with fresh generation", HostLane.Fast, 0)]
     private static void CapacityAndReuse()
     {
         using var f = new Fixture(8, 1);
         VirtqueueDescriptorToken[] tokens = new VirtqueueDescriptorToken[8];
-        for (ushort i = 0; i < 8; i++) { tokens[i] = Allocate(f.Pool); HostCheck.Equal(i, tokens[i].Index); }
+        for (ushort i = 0; i < 8; i++)
+        {
+            tokens[i] = Allocate(f.Pool);
+            HostCheck.Equal(i, tokens[i].Index);
+        }
+
         HostCheck.Equal((ushort)8, f.Pool->Capacity);
         HostCheck.Equal((ushort)8, f.Pool->AllocatedCount);
         byte[] before = Snapshot(f);
         HostCheck.Equal(VirtqueueDescriptorStatus.Exhausted, VirtqueueDescriptors.TryAllocate(f.Pool, out var rejected));
-        Empty(rejected); Unchanged(f, before);
+        Empty(rejected);
+        Unchanged(f, before);
         HostCheck.Equal(VirtqueueDescriptorStatus.Success, VirtqueueDescriptors.TryRelease(f.Pool, tokens[1]));
         HostCheck.Equal(VirtqueueDescriptorStatus.Success, VirtqueueDescriptors.TryRelease(f.Pool, tokens[5]));
-        var one = Allocate(f.Pool); var five = Allocate(f.Pool);
-        HostCheck.Equal((ushort)1, one.Index); HostCheck.Equal((ushort)5, five.Index);
+        var one = Allocate(f.Pool);
+        var five = Allocate(f.Pool);
+        HostCheck.Equal((ushort)1, one.Index);
+        HostCheck.Equal((ushort)5, five.Index);
         before = Snapshot(f);
         HostCheck.Equal(VirtqueueDescriptorStatus.StaleToken, VirtqueueDescriptors.TryRelease(f.Pool, tokens[1]));
         HostCheck.Equal(VirtqueueDescriptorStatus.StaleToken, VirtqueueDescriptors.TryPublish(f.Pool, tokens[5]));
@@ -41,7 +49,8 @@ internal static unsafe class DescriptorAllocationExhaustionInvalidIndexDoubleFre
         HostCheck.Equal(VirtqueueDescriptorStatus.InvalidOwnership, VirtqueueDescriptors.TryPublish(f.Pool, token));
         HostCheck.Equal(VirtqueueDescriptorStatus.InvalidOwnership, VirtqueueDescriptors.TryRelease(f.Pool, token));
         HostCheck.Equal(VirtqueueDescriptorStatus.Exhausted, VirtqueueDescriptors.TryAllocate(f.Pool, out var rejected));
-        Empty(rejected); Unchanged(f, before);
+        Empty(rejected);
+        Unchanged(f, before);
         HostCheck.Equal(VirtqueueDescriptorStatus.Success, VirtqueueDescriptors.TryReclaim(f.Pool, token));
         HostCheck.Equal(VirtqueueDescriptorStatus.Success, VirtqueueDescriptors.TryRelease(f.Pool, token));
         HostCheck.Equal((ushort)0, f.Pool->AllocatedCount);
@@ -60,12 +69,19 @@ internal static unsafe class DescriptorAllocationExhaustionInvalidIndexDoubleFre
         HostCheck.Equal(VirtqueueDescriptorStatus.InvalidToken, VirtqueueDescriptors.TryRelease(second.Pool, token));
         HostCheck.Equal(VirtqueueDescriptorStatus.InvalidToken, VirtqueueDescriptors.TryPublish(first.Pool, default));
         // Host-only corrupt-token vectors independently exercise the opaque boundary.
-        foreach (ushort index in new ushort[] { 8, ushort.MaxValue })
+        foreach (ushort index in new ushort[]
+        {
+            8,
+            ushort.MaxValue
+        }
+
+        )
         {
             var invalid = token;
             *(ushort*)((byte*)&invalid + (int)Marshal.OffsetOf<VirtqueueDescriptorToken>("Index")) = index;
             HostCheck.Equal(VirtqueueDescriptorStatus.InvalidToken, VirtqueueDescriptors.TryRelease(first.Pool, invalid));
         }
+
         var wrongEpoch = token;
         *(ulong*)((byte*)&wrongEpoch + (int)Marshal.OffsetOf<VirtqueueDescriptorToken>("Epoch")) = 4;
         HostCheck.Equal(VirtqueueDescriptorStatus.InvalidToken, VirtqueueDescriptors.TryRelease(first.Pool, wrongEpoch));
@@ -76,7 +92,9 @@ internal static unsafe class DescriptorAllocationExhaustionInvalidIndexDoubleFre
         HostCheck.Equal(VirtqueueDescriptorStatus.InvalidPool, VirtqueueDescriptors.TryAllocate(&empty, out rejected));
         Empty(rejected);
         HostCheck.Equal(VirtqueueDescriptorStatus.InvalidPool, VirtqueueDescriptors.TryAllocate(null, out rejected));
-        Empty(rejected); Unchanged(first, before); Unchanged(second, other);
+        Empty(rejected);
+        Unchanged(first, before);
+        Unchanged(second, other);
         HostCheck.True(default(VirtqueueDescriptorStatus) != VirtqueueDescriptorStatus.Success);
     }
 
@@ -95,7 +113,8 @@ internal static unsafe class DescriptorAllocationExhaustionInvalidIndexDoubleFre
         HostCheck.Equal(VirtqueueDescriptorStatus.AlreadyInitialized, VirtqueueDescriptors.TryInitialize(f.Pool, f.Slots, 2, 6));
         VirtqueueDescriptorPoolState second = default;
         HostCheck.Equal(VirtqueueDescriptorStatus.MetadataNotEmpty, VirtqueueDescriptors.TryInitialize(&second, f.Slots, 2, 6));
-        HostCheck.True(!second.IsInitialized); Unchanged(f, before);
+        HostCheck.True(!second.IsInitialized);
+        Unchanged(f, before);
         HostCheck.Equal((ushort)0, f.Pool->AllocatedCount);
     }
 
@@ -104,15 +123,37 @@ internal static unsafe class DescriptorAllocationExhaustionInvalidIndexDoubleFre
     {
         using var f = new Fixture(8, 7, false);
         byte[] before = Snapshot(f);
-        foreach (uint capacity in new uint[] { 0, 3, 32769, 65536, uint.MaxValue })
+        foreach (uint capacity in new uint[]
+        {
+            0,
+            3,
+            32769,
+            65536,
+            uint.MaxValue
+        }
+
+        )
             HostCheck.Equal(VirtqueueDescriptorStatus.InvalidSize, VirtqueueDescriptors.TryInitialize(f.Pool, f.Slots, capacity, 7));
         HostCheck.Equal(VirtqueueDescriptorStatus.InvalidEpoch, VirtqueueDescriptors.TryInitialize(f.Pool, f.Slots, 8, 0));
-        foreach (nint address in new nint[] { 0, (nint)((byte*)f.Slots + 1), (nint)f.Pool, unchecked((nint)(ulong.MaxValue - 7)) })
-            HostCheck.Equal(VirtqueueDescriptorStatus.InvalidStorage,
-                VirtqueueDescriptors.TryInitialize(f.Pool, (VirtqueueDescriptorSlot*)address, 8, 7));
-        foreach (nint address in new nint[] { 0, (nint)((byte*)f.Pool + 1), unchecked((nint)(ulong.MaxValue - 7)) })
-            HostCheck.Equal(VirtqueueDescriptorStatus.InvalidStorage,
-                VirtqueueDescriptors.TryInitialize((VirtqueueDescriptorPoolState*)address, f.Slots, 8, 7));
+        foreach (nint address in new nint[]
+        {
+            0,
+            (nint)((byte*)f.Slots + 1),
+            (nint)f.Pool,
+            unchecked((nint)(ulong.MaxValue - 7))
+        }
+
+        )
+            HostCheck.Equal(VirtqueueDescriptorStatus.InvalidStorage, VirtqueueDescriptors.TryInitialize(f.Pool, (VirtqueueDescriptorSlot*)address, 8, 7));
+        foreach (nint address in new nint[]
+        {
+            0,
+            (nint)((byte*)f.Pool + 1),
+            unchecked((nint)(ulong.MaxValue - 7))
+        }
+
+        )
+            HostCheck.Equal(VirtqueueDescriptorStatus.InvalidStorage, VirtqueueDescriptors.TryInitialize((VirtqueueDescriptorPoolState*)address, f.Slots, 8, 7));
         Unchanged(f, before);
         *(byte*)f.Slots = 1;
         before = Snapshot(f);
@@ -124,7 +165,8 @@ internal static unsafe class DescriptorAllocationExhaustionInvalidIndexDoubleFre
         new Span<byte>(f.Slots, sizeof(VirtqueueDescriptorSlot)).Clear();
         before = Snapshot(f);
         HostCheck.Equal(VirtqueueDescriptorStatus.InvalidPool, VirtqueueDescriptors.TryAllocate(f.Pool, out var rejected));
-        Empty(rejected); Unchanged(f, before);
+        Empty(rejected);
+        Unchanged(f, before);
         using var maximum = new Fixture(32768, 8);
         HostCheck.Equal((ushort)32768, maximum.Pool->Capacity);
         HostCheck.Equal((ushort)0, Allocate(maximum.Pool).Index);
@@ -136,6 +178,7 @@ internal static unsafe class DescriptorAllocationExhaustionInvalidIndexDoubleFre
         HostCheck.True(token.IsInitialized);
         return token;
     }
+
     private static void Empty(VirtqueueDescriptorToken token) => HostCheck.True(!token.IsInitialized && token.Index == 0);
     private static byte[] Snapshot(Fixture fixture)
     {
@@ -145,18 +188,6 @@ internal static unsafe class DescriptorAllocationExhaustionInvalidIndexDoubleFre
         new ReadOnlySpan<byte>(fixture.Slots, slotBytes).CopyTo(result.AsSpan(poolBytes));
         return result;
     }
+
     private static void Unchanged(Fixture fixture, byte[] before) => HostCheck.True(Snapshot(fixture).AsSpan().SequenceEqual(before));
-    private sealed class Fixture : IDisposable
-    {
-        internal readonly VirtqueueDescriptorPoolState* Pool = (VirtqueueDescriptorPoolState*)NativeMemory.AllocZeroed((nuint)sizeof(VirtqueueDescriptorPoolState));
-        internal readonly VirtqueueDescriptorSlot* Slots;
-        internal readonly uint Count;
-        internal Fixture(uint count, ulong epoch, bool initialize = true)
-        {
-            Count = count;
-            Slots = (VirtqueueDescriptorSlot*)NativeMemory.AllocZeroed(count, (nuint)sizeof(VirtqueueDescriptorSlot));
-            if (initialize) HostCheck.Equal(VirtqueueDescriptorStatus.Success, VirtqueueDescriptors.TryInitialize(Pool, Slots, count, epoch));
-        }
-        public void Dispose() { NativeMemory.Free(Slots); NativeMemory.Free(Pool); }
-    }
 }

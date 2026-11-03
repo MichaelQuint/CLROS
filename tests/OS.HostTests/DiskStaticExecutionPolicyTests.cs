@@ -2,16 +2,27 @@ using System.Runtime.InteropServices;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Tooling;
 
-internal static unsafe class DiskStaticExecutionPolicyTests
+internal static unsafe partial class DiskStaticExecutionPolicyTests
 {
     [HostTest("disk full live serial shares finite policy while ordinary and service bounds remain")]
     private static void LiveCapturePolicy()
     {
         HostCheck.Equal(128*1024*1024,DiskStaticExecutionPolicy.MaximumSerialBytes);
         HostCheck.Equal(DiskStaticExecutionPolicy.MaximumSerialBytes,DiskStaticCapturePolicy.SerialBytes);
-        string source=File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(),"tools/OS.QemuRunner/Program.cs"));
-        string normalized=string.Concat(source.Where(c=>!char.IsWhiteSpace(c)));
-        HostCheck.True(normalized.Contains("SerialByteCapacity=>FullDiskStaticFiles?OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.MaximumSerialBytes:ContinuingService?SerialMarkerStateMachine.ContinuingServiceByteCapacity:SerialMarkerStateMachine.DefaultByteCapacity;",StringComparison.Ordinal));
+        // Exercise the actual internal runner policy. File location, whitespace
+        // and the spelling of an equivalent conditional are not its contract.
+        var optionsType = typeof(OS.Tools.QemuRunner.SerialMarkerStateMachine).Assembly.GetType("RunnerOptions", throwOnError: true)!;
+        var options = Activator.CreateInstance(optionsType)!;
+        foreach (bool disk in new[] { false, true })
+            foreach (bool service in new[] { false, true })
+            {
+                optionsType.GetProperty("FullDiskStaticFiles")!.SetValue(options, disk);
+                optionsType.GetProperty("ContinuingService")!.SetValue(options, service);
+                long expected = disk ? DiskStaticExecutionPolicy.MaximumSerialBytes
+                    : service ? OS.Tools.QemuRunner.SerialMarkerStateMachine.ContinuingServiceByteCapacity
+                    : OS.Tools.QemuRunner.SerialMarkerStateMachine.DefaultByteCapacity;
+                HostCheck.Equal(expected, (long)optionsType.GetProperty("SerialByteCapacity")!.GetValue(options)!);
+            }
         var full=new OS.Tools.QemuRunner.SerialMarkerStateMachine([],[],byteCapacity:DiskStaticCapturePolicy.SerialBytes);
         var ordinary=new OS.Tools.QemuRunner.SerialMarkerStateMachine([],[]);
         byte[] chunk=new byte[4096];Array.Fill(chunk,(byte)'x');chunk[^1]=(byte)'\n';
@@ -31,9 +42,8 @@ internal static unsafe class DiskStaticExecutionPolicyTests
         HostCheck.Equal((ulong)DiskStaticCapturePolicy.MaximumTimeoutSeconds,DiskStaticExecutionPolicy.RealtimeMaximumElapsedSeconds);
         HostCheck.True(DiskStaticExecutionPolicy.RealtimeMaximumElapsedSeconds*1_000_000_000UL>DiskStaticExecutionPolicy.RuntimeNanoseconds);
         string root=HostToolProcess.FindRepositoryRoot();
-        string source=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.Realtime.cs"));
-        string normalized=string.Concat(source.Where(c=>!char.IsWhiteSpace(c)));
-        HostCheck.True(normalized.Contains("maximumElapsedSeconds:Probes.EnableM16014Probe?0UL:Probes.EnableM10018FullProbe?DiskStaticExecutionPolicy.RealtimeMaximumElapsedSeconds:600UL,continuing:Probes.EnableM16014Probe",StringComparison.Ordinal));
+        HostCheck.True(RealtimeSource(HostSourceCatalog.Efi(
+            EfiOptions.Parse(["--EnableM10018FullProbe"], false).Profile())));
         var admission=EfiProjectAdmission.InspectStatic(root);
         HostCheck.True(admission.Succeeded,admission.Reason+" "+admission.Detail);
     }
@@ -74,12 +84,7 @@ internal static unsafe class DiskStaticExecutionPolicyTests
         HostCheck.Equal(1_800_000_000_000UL,DiskStaticExecutionPolicy.RequestDelayNanoseconds);
         HostCheck.Equal(120_000_000_000UL,DiskStaticExecutionPolicy.GraceNanoseconds);
         HostCheck.True(DiskStaticExecutionPolicy.RuntimeNanoseconds>DiskStaticExecutionPolicy.RequestDelayNanoseconds+DiskStaticExecutionPolicy.GraceNanoseconds);
-        string root=HostToolProcess.FindRepositoryRoot();
-        string source=File.ReadAllText(Path.Combine(root,"tools/OS.Tooling/NativeAotDiskStaticPeer.cs"));
-        string normalized=string.Concat(source.Where(c=>!char.IsWhiteSpace(c)));
-        HostCheck.True(normalized.Contains("awaitbrowser!(port,Path.Combine(directory,\"browser\"),owned.Token);",StringComparison.Ordinal));
-        HostCheck.True(normalized.Contains("matrix.CancelAfter(TimeSpan.FromSeconds(full?1700:DiskStaticHttpContract.MatrixTimeoutSeconds));",StringComparison.Ordinal));
-        HostCheck.True(normalized.Contains("owned.Cancel();if(peerisnotnull)try{awaitpeer;}catch{}",StringComparison.Ordinal));
+        HostCheck.True(TimeoutSource(HostSourceCatalog.Project("tools/OS.Tooling/OS.Tooling.csproj")));
     }
 
     [HostTest("disk full retains elapsed ceiling and disallows service quota renewal")]

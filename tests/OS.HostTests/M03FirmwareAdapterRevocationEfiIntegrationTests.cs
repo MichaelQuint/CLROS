@@ -19,22 +19,79 @@ internal static class M03FirmwareAdapterRevocationEfiIntegrationTests
         Need(project.Descendants(Flag).Single().Value == "false", "disabled default");
         Need(project.Descendants("Error").Count(x => (string?)x.Attribute("Condition") ==
             "'$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'") == 1, "exact first-exit dependency");
-        string entry = File.ReadAllText(Path.Combine(Root, "src/OS/Boot/EfiEntry.cs"));
-        int prepare = entry.IndexOf("private static bool PrepareAdapters(", StringComparison.Ordinal);
-        int report = entry.IndexOf("private static bool ReportRevokedAdapters(", StringComparison.Ordinal);
-        int marker = entry.IndexOf("private static bool WriteAdapterMarker(", StringComparison.Ordinal);
-        Need(prepare > 0 && report > prepare && marker > report, "bounded profile implementation");
-        Need(entry[prepare..report].Contains("&state->Arena, state->Memory.References, backends)", StringComparison.Ordinal), "original owner binding");
-        Need(entry[prepare..report].Contains("state->CopiedHandles = state->OriginalHandles;", StringComparison.Ordinal), "retained handle copies");
-        Need(entry[prepare..report].Contains("state->OriginalHandles.Console.Write(&empty, 1)", StringComparison.Ordinal), "actual admitted console positive");
-        string diagnostic = entry[report..marker];
+        var source = HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(
+            ["--EnableM01LoadedImageStackProbe", "--EnableM01LiveAllocatorProbe",
+                "--EnableAcpiPhysicalDiscoveryProbe", "--EnableM03FirstRealExitBootServicesProbe", "--" + Flag], true).Profile());
+        const string owner = "OS.Boot.EfiEntry+M03FirstExitAdapter";
+        string Body(string name)
+        {
+            var method = source.Method(owner, name, name == "DenyCopiedFirmwareAdapter" ? null : OriginalDiagnosticSignature);
+            _ = source.MethodInvocations(method);
+            return HostSourceText.Active(method);
+        }
+        string prepare = Body("PrepareAdapters");
+        Need(HostSourceText.Contains(prepare, "&state->Arena, state->Memory.References, backends)"), "original owner binding");
+        Need(HostSourceText.Contains(prepare, "state->CopiedHandles = state->OriginalHandles;"), "retained handle copies");
+        Need(HostSourceText.Contains(prepare, "state->OriginalHandles.Console.Write(&empty, 1)"), "actual admitted console positive");
+        _ = Body("ReportRevokedAdapters");
+        string denied = Body("DenyCopiedFirmwareAdapter");
         foreach (string method in new[] { "Console.Write", "MemoryMap.Capture", "FileSystem.Read", "Timer.Read", "Random.Fill", "ConfigurationTable.Find", "PhysicalMemory.Read", "Framebuffer.Snapshot" })
-            Need(diagnostic.Contains("state->CopiedHandles." + method, StringComparison.Ordinal), "typed copied capability " + method);
-        Need(diagnostic.Contains("FirmwareAdapterStatus.ServicesUnavailable", StringComparison.Ordinal) &&
-            diagnostic.Contains("AdapterEntryCount(state) == 1", StringComparison.Ordinal) &&
-            diagnostic.Contains("output[j] != 0xa5", StringComparison.Ordinal), "denial before backend or output mutation");
-        Need(!diagnostic.Contains("Write(console", StringComparison.Ordinal) &&
-            entry[marker..entry.IndexOf("#endif", marker, StringComparison.Ordinal)].Contains("state->Arena.Fault->Backend", StringComparison.Ordinal), "owned diagnostic transport");
+            Need(HostSourceText.Contains(denied, "state->CopiedHandles." + method), "typed copied capability " + method);
+        Need(HostSourceText.Contains(denied, "FirmwareAdapterStatus.ServicesUnavailable")
+            && HostSourceText.Contains(denied, "AdapterEntryCount(state) == 1")
+            && HostSourceText.Contains(denied, "output[j] != 0xa5"), "denial before backend or output mutation");
+        Need(!UsesForbiddenDiagnosticTransport(source.Method(owner, "ReportRevokedAdapters"))
+            && !UsesForbiddenDiagnosticTransport(source.Method(owner, "DenyCopiedFirmwareAdapter"))
+            && HostSourceText.Contains(Body("WriteAdapterMarker"), "state->Arena.Fault->Backend"), "owned diagnostic transport");
+    }
+
+    private static bool OriginalDiagnosticSignature(Microsoft.CodeAnalysis.IMethodSymbol method) =>
+        method.IsStatic && method.Arity == 0 && !method.ReturnsByRef && !method.ReturnsByRefReadonly
+        && method.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Private
+        && method.ReturnType.SpecialType == Microsoft.CodeAnalysis.SpecialType.System_Boolean;
+
+    private static bool UsesForbiddenDiagnosticTransport(Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax method) =>
+        method.ToString().Contains("Write(console", StringComparison.Ordinal);
+
+    [HostTest("m03.008.efi method signature and inactive diagnostic exclusions remain strict")]
+    private static void SourceGuardControls()
+    {
+        const string text = """
+            internal class Controls
+            {
+                private static bool value;
+                private static bool Original() => value;
+                private static bool Generic<T>() => value;
+                private static ref bool Reference() => ref value;
+                private static ref readonly bool ReadOnlyReference() => ref value;
+                private bool Instance() => value;
+                public static bool Public() => value;
+                private static int NonBoolean() => 0;
+                private static bool InactiveTransport()
+                {
+            #if REVIEW_DISABLED
+                    Write(console, serial, 1);
+            #endif
+                    return true;
+                }
+            }
+            """;
+        var source = new OS.Tooling.CSharpSourceCatalog(
+            [OS.Tooling.CSharpSourceDocument.FromBytes("arbitrary-diagnostics.cs", Encoding.UTF8.GetBytes(text),
+                new Microsoft.CodeAnalysis.CSharp.CSharpParseOptions(Microsoft.CodeAnalysis.CSharp.LanguageVersion.CSharp14))],
+            [Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(typeof(object).Assembly.Location)]);
+        HostCheck.True(!source.Compilation.GetDiagnostics().Any(diagnostic =>
+            diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error), "all controls compile");
+        foreach (string name in new[] { "Original", "Generic", "Reference", "ReadOnlyReference", "Instance", "Public", "NonBoolean" })
+        {
+            var method = source.Type("Controls").GetMembers(name).OfType<Microsoft.CodeAnalysis.IMethodSymbol>().Single();
+            HostCheck.True(OriginalDiagnosticSignature(method) == (name == "Original"), name);
+        }
+        HostCheck.True(!UsesForbiddenDiagnosticTransport(source.Method("Controls", "Original")), "ordinary method");
+        var inactive = source.Method("Controls", "InactiveTransport");
+        HostCheck.True(!HostSourceText.Active(inactive).Contains("Write(console", StringComparison.Ordinal),
+            "the control is disabled in the selected profile");
+        HostCheck.True(UsesForbiddenDiagnosticTransport(inactive), "disabled diagnostic text remains excluded");
     }
 
     private static string Invoke(params string[] arguments)

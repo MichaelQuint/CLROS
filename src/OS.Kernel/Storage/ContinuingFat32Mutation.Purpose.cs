@@ -8,5 +8,8 @@ namespace OS.Storage;
 
 public static unsafe partial class ContinuingFat32Mutation
 {
-    internal enum Purpose : byte { Bpb, Fat0, Fat1, Directory, Original, Write, Flush, GrowthEdit, FileData }
+    internal enum Purpose : byte
+    {
+        Bpb, Fat0, Fat1, Directory, Original, Write, Flush, GrowthEdit, FileData
+    }
 }
