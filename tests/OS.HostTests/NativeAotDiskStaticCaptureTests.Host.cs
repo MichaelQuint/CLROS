@@ -57,7 +57,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
                     return;
                 }
 
-                if (mode == Mode.WrongStatus && context.Request.Path == "/healthz")
+                if ((mode is Mode.WrongStatus or Mode.WrongStatusReceiptFailure) && context.Request.Path == "/healthz")
                 {
                     context.Response.StatusCode = 503;
                     await context.Response.WriteAsync("host-unavailable", context.RequestAborted);
@@ -91,6 +91,14 @@ internal static partial class NativeAotDiskStaticCaptureTests
             try
             {
                 await app.StartAsync(token);
+                if (mode == Mode.WrongStatusReceiptFailure)
+                {
+                    // Preserve an invalid original receipt before readiness. The
+                    // existing JSON poll keeps this runner pending until cancellation.
+                    using FileStream existing = new(Path.Combine(Destination, "http.json"), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+                    await existing.WriteAsync("{preserved-invalid-http-receipt\r\n"u8.ToArray(), token);
+                    existing.Flush(true);
+                }
                 await File.WriteAllTextAsync(Serial, "M10_018_LISTENING synthetic-host-only\r\n", token);
                 // Poll only for the peer's closed receipt, never for a response
                 // winner. Preserve partial output and keep the host cancellable.

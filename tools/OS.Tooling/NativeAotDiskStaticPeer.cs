@@ -278,6 +278,7 @@ public static partial class NativeAotDiskStaticPeer
                 }
             }
 
+            Exception? observationFailure = null;
             try
             {
                 if (!full)
@@ -336,32 +337,44 @@ public static partial class NativeAotDiskStaticPeer
 
                 complete = true;
             }
+            catch (Exception error)
+            {
+                observationFailure = error;
+                throw;
+            }
             finally
             {
-                using FileStream receipt = new(Path.Combine(directory, "http.json"), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-                if (full)
-                    await JsonSerializer.SerializeAsync(receipt, new
-                    {
-                        Schema = truncated is null ? "clros-disk-http-full-v1" : "clros-disk-http-truncated-v1",
-                        Scope = truncated is null ? "disk-static-full-v1" : "disk-static-truncated-v1",
-                        Port = port,
-                        Complete = complete,
-                        ClockFrequency = Stopwatch.Frequency,
-                        ImageSha256 = assetPlan!.ImageSha256,
-                        PublishedInventorySha256 = assetPlan.PublishedInventorySha256,
-                        Responses = rows.OrderBy(r => r.Ordinal).ToArray()
-                    }, cancellationToken: CancellationToken.None);
-                else
-                    await JsonSerializer.SerializeAsync(receipt, new
-                    {
-                        Schema = DiskStaticHttpContract.Schema,
-                        Scope = DiskStaticHttpContract.Scope,
-                        Port = port,
-                        Complete = complete,
-                        ClockFrequency = Stopwatch.Frequency,
-                        Responses = rows.OrderBy(r => r.Ordinal).ToArray()
-                    }, cancellationToken: CancellationToken.None);
-                receipt.Flush(true);
+                try
+                {
+                    using FileStream receipt = new(Path.Combine(directory, "http.json"), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+                    if (full)
+                        await JsonSerializer.SerializeAsync(receipt, new
+                        {
+                            Schema = truncated is null ? "clros-disk-http-full-v1" : "clros-disk-http-truncated-v1",
+                            Scope = truncated is null ? "disk-static-full-v1" : "disk-static-truncated-v1",
+                            Port = port,
+                            Complete = complete,
+                            ClockFrequency = Stopwatch.Frequency,
+                            ImageSha256 = assetPlan!.ImageSha256,
+                            PublishedInventorySha256 = assetPlan.PublishedInventorySha256,
+                            Responses = rows.OrderBy(r => r.Ordinal).ToArray()
+                        }, cancellationToken: CancellationToken.None);
+                    else
+                        await JsonSerializer.SerializeAsync(receipt, new
+                        {
+                            Schema = DiskStaticHttpContract.Schema,
+                            Scope = DiskStaticHttpContract.Scope,
+                            Port = port,
+                            Complete = complete,
+                            ClockFrequency = Stopwatch.Frequency,
+                            Responses = rows.OrderBy(r => r.Ordinal).ToArray()
+                        }, cancellationToken: CancellationToken.None);
+                    receipt.Flush(true);
+                }
+                catch (Exception receiptFailure) when (observationFailure is not null)
+                {
+                    throw new AggregateException("disk_http_observation_and_receipt", observationFailure, receiptFailure);
+                }
             }
         }
     }

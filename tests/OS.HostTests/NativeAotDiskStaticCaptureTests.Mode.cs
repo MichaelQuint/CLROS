@@ -21,6 +21,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
         WrongStatus,
         CancelBody,
         ResetHeaders,
-        BodyTimeout
+        BodyTimeout,
+        WrongStatusReceiptFailure
     }
 }
