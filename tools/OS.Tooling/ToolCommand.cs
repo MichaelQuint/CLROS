@@ -41,40 +41,9 @@ public static partial class ToolCommand
 
                 return InspectWebRootInventory(inventoryImage);
             if (args is ["qemu", "inspect-disk-values", var capturePackage, var captureImage, var captureSerial])
-            {
-                capturePackage = Path.GetFullPath(capturePackage);
-                captureImage = Path.GetFullPath(captureImage);
-                captureSerial = Path.GetFullPath(captureSerial);
-                using AuthorityFiles files = new();
-                AuthorityFile Hold(string path, int maximum) => files.Open(Path.GetDirectoryName(path)!, path, "disk value inspection", "disk_values", maximum, singleLink: true);
-                var package = Hold(capturePackage, 65536);
-                var image = Hold(captureImage, WebRootImageFixture.MaximumImageBytes);
-                var serial = Hold(captureSerial, 8 * 1024 * 1024);
-                var receiptFile = Hold(captureImage + ".webroot.json", 16 * 1024 * 1024);
-                AuthorityFiles.RequireDistinct(package, image, serial, receiptFile);
-                var receipt = System.Text.Json.JsonSerializer.Deserialize<WebRootImageFixture.Receipt>(receiptFile.ReadUtf8(16 * 1024 * 1024, "disk_values_receipt"))
-                    ?? throw new ToolFailure("disk_values_receipt_missing");
-                string[] rows = QemuTranscripts.FirmwareProtocol(captureSerial, "TEST_PASS m16-012\r\n", true, false, "disk_values_capture", linuxThreads: true);
-                var report = QemuTranscripts.InspectLinuxDiskCaptureValues(rows, package.ReadBytes(65536, "disk_values_package"),
-                    image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_values_image"), receipt, captureImage);
-                files.VerifyUnchanged();
-                Console.WriteLine($"TEST_PASS qemu.disk.values report_only=true calls={report.Leaf.Calls} sectors={report.Device.Counters.Copied - report.Device.Counters.BootstrapCopied} readWindows={report.ReadWindows.Count} instructionIrqs={report.InstructionIrqs} original_process_native_and_packets_required=true");
-                return 0;
-            }
+                return InspectDiskValues(capturePackage, captureImage, captureSerial);
             if (args is ["qemu", "inspect-disk-leaf", var diskPackage, var diskSerial])
-            {
-                diskPackage = Path.GetFullPath(diskPackage);
-                diskSerial = Path.GetFullPath(diskSerial);
-                using AuthorityFiles files = new();
-                var package = files.Open(Path.GetDirectoryName(diskPackage)!, diskPackage, "disk leaf package", "disk_leaf_package", 65536, singleLink: true);
-                var serial = files.Open(Path.GetDirectoryName(diskSerial)!, diskSerial, "disk leaf serial", "disk_leaf_serial", 8 * 1024 * 1024, singleLink: true);
-                AuthorityFiles.RequireDistinct(package, serial);
-                string[] rows = QemuTranscripts.FirmwareProtocol(diskSerial, "TEST_PASS m16-012\r\n", true, false, "disk_leaf_capture", linuxThreads: true);
-                var report = QemuTranscripts.InspectLinuxDiskCaptureLeafForTests(rows, package.ReadBytes(65536, "disk_leaf_package"));
-                files.VerifyUnchanged();
-                Console.WriteLine($"TEST_PASS qemu.disk.leaf report_only=true calls={report.Calls} transfers={report.Transfers} epochs={report.Epochs} completions={report.Completions.Count} auxiliary={report.Auxiliary.Count} auxiliary_joins=false original_process_and_native_required=true");
-                return 0;
-            }
+                return InspectDiskLeaf(diskPackage, diskSerial);
             if (args is ["linux", "disk-files-package", var diskFilePackage])
             {
                 LinuxDiskFileProofFixture.WritePackage(Repository.FindRoot(), diskFilePackage);
@@ -88,18 +57,7 @@ public static partial class ToolCommand
                 return 0;
             }
             if (args is ["nativeaot", "static-files", "index", var staticElf, var staticDump])
-            {
-                using AuthorityFiles files = new();
-                staticElf = Path.GetFullPath(staticElf);
-                staticDump = Path.GetFullPath(staticDump);
-                var elf = files.Open(Path.GetDirectoryName(staticElf)!, staticElf, "static ELF", "static_index_elf", 16 * 1024 * 1024, singleLink: true);
-                var dump = files.Open(Path.GetDirectoryName(staticDump)!, staticDump, "static disassembly", "static_index_dump", NativeAotStaticFileProgram.MaximumDisassemblyBytes, singleLink: true);
-                AuthorityFiles.RequireDistinct(elf, dump);
-                var report = NativeAotStaticFileProgram.Inspect(elf.ReadBytes(16 * 1024 * 1024, "static_index_elf"), dump.ReadUtf8(NativeAotStaticFileProgram.MaximumDisassemblyBytes, "static_index_dump"));
-                files.VerifyUnchanged();
-                Console.WriteLine("TEST_PASS nativeaot.static-files.index report_only=true " + report);
-                return 0;
-            }
+                return InspectStaticIndex(staticElf, staticDump);
             if (args is ["nativeaot", "static-files", "program", var staticPackage, var staticProgramDump, var staticProgramMode] && staticProgramMode is "--staged" or "--disk")
             {
                 var program = NativeAotStaticFileProgram.Read(Repository.FindRoot(), staticPackage, staticProgramDump, staticProgramMode == "--staged");
@@ -158,19 +116,7 @@ public static partial class ToolCommand
             if (args.Length >= 3 && args[0] == "nativeaot" && args[1] == "static-files")
                 return NativeAotStaticFileContract.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args is ["linux", "web-index", var webElf, var webDump])
-            {
-                Console.WriteLine("TEST_START linux.web-index");
-                webElf = Path.GetFullPath(webElf);
-                webDump = Path.GetFullPath(webDump);
-                using AuthorityFiles files = new();
-                var elf = files.Open(Path.GetDirectoryName(webElf)!, webElf, "web ELF", "web_index_elf", 16 * 1024 * 1024, singleLink: true);
-                var dump = files.Open(Path.GetDirectoryName(webDump)!, webDump, "web disassembly", "web_index_dump", NativeAotWebProgram.MaximumDisassemblyBytes, singleLink: true);
-                AuthorityFiles.RequireDistinct(elf, dump);
-                var report = NativeAotWebProgram.Inspect(elf.ReadBytes(16 * 1024 * 1024, "web_index_elf"), dump.ReadUtf8(NativeAotWebProgram.MaximumDisassemblyBytes, "web_index_dump"));
-                files.VerifyUnchanged();
-                Console.WriteLine("TEST_PASS linux.web-index report_only=true " + report);
-                return 0;
-            }
+                return InspectWebIndex(webElf, webDump);
             if (args is ["linux", "web-program", var webPackage, var webProgramDump])
             {
                 Console.WriteLine("TEST_START linux.web-program");
@@ -179,32 +125,7 @@ public static partial class ToolCommand
                 return 0;
             }
             if (args is ["qemu", "inspect-socket", var inspectMode, var inspectPackage, var inspectDump, var inspectSerial])
-            {
-                if (inspectMode is not ("sync" or "async"))
-                    throw new ArgumentException("socket_inspect_mode");
-                Console.WriteLine("TEST_START qemu.socket.capture report_only=true");
-                string root = Repository.FindRoot();
-                inspectSerial = Path.GetFullPath(inspectSerial);
-                inspectPackage = Path.GetFullPath(inspectPackage);
-                inspectDump = Path.GetFullPath(inspectDump);
-                using AuthorityFiles files = new();
-                AuthorityFile Hold(string path, long maximum) => files.Open(Path.GetDirectoryName(path)!, path, "socket capture inspection", "socket_inspection", maximum, singleLink: true);
-                var serial = Hold(inspectSerial, 8 * 1024 * 1024);
-                var pcap = Hold(inspectSerial + ".pcap", 4 * 1024 * 1024);
-                var peer = Hold(inspectSerial + ".peer.log", 65536);
-                var package = Hold(inspectPackage, 16 * 1024 * 1024);
-                var dump = Hold(inspectDump, NativeAotSocketProgram.MaximumDisassemblyBytes);
-                AuthorityFiles.RequireDistinct(serial, pcap, peer, package, dump);
-                var program = NativeAotSocketProgram.Read(root, inspectMode == "async", inspectPackage, inspectDump);
-                NativeAotSocketPeer.InspectOutput(peer.ReadUtf8(65536, "socket_inspection_peer"));
-                QemuTranscripts.AssertM03AcpiBootstrapTranscript(inspectSerial, firstRealExit: true, ownedSurvival: true, pciEnumeration: true,
-                    virtioNegotiation: true, virtqueuePolling: true, apicSetup: true, virtioNet: true, arpReceive: true, linuxElfPackagePath: inspectPackage,
-                    workloadServiceLoop: true, linuxStartup: true, linuxSyscalls: true, linuxMemory: true, linuxDescriptors: true, linuxThreads: true, linuxSignals: true,
-                    networkService: true, socketProgram: program);
-                files.VerifyUnchanged();
-                Console.WriteLine("TEST_PASS qemu.socket.capture report_only=true own_process_and_native_provenance_required=true");
-                return 0;
-            }
+                return InspectSocketCapture(inspectMode, inspectPackage, inspectDump, inspectSerial);
             if (args is ["qemu", "validate-network", var networkSerial, var networkPcap, var networkPackage])
             {
                 Console.WriteLine("TEST_START qemu.network.capture");
@@ -219,19 +140,7 @@ public static partial class ToolCommand
                 return 0;
             }
             if (args is ["linux", "socket-index", var socketElf, var socketDump])
-            {
-                Console.WriteLine("TEST_START linux.socket-index");
-                using AuthorityFiles files = new();
-                socketElf = Path.GetFullPath(socketElf);
-                socketDump = Path.GetFullPath(socketDump);
-                var elf = files.Open(Path.GetDirectoryName(socketElf)!, socketElf, "socket ELF", "socket_index_elf", 16 * 1024 * 1024, singleLink: true);
-                var dump = files.Open(Path.GetDirectoryName(socketDump)!, socketDump, "socket disassembly", "socket_index_dump", NativeAotSocketProgram.MaximumDisassemblyBytes, singleLink: true);
-                AuthorityFiles.RequireDistinct(elf, dump);
-                var report = NativeAotSocketProgram.Inspect(elf.ReadBytes(16 * 1024 * 1024, "socket_index_elf"), dump.ReadUtf8(NativeAotSocketProgram.MaximumDisassemblyBytes, "socket_index_dump"));
-                files.VerifyUnchanged();
-                Console.WriteLine("TEST_PASS linux.socket-index report_only=true " + report);
-                return 0;
-            }
+                return InspectSocketIndex(socketElf, socketDump);
             if (args is ["linux", "socket-program", var programMode, var socketPackage, var programDump])
             {
                 if (programMode is not ("sync" or "async"))
