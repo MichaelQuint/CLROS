@@ -18,12 +18,13 @@ public unsafe partial struct SchedulerTimer
     // reload through initial count; writing zero stops the counter.
     public const byte Vector = 0xe1;
     public const uint DivideBy16 = 3;
-    private const uint Mask = 1U << 16, IsrBit = 2;
+    private const uint Mask = 1U << 16, DeliveryPending = 1U << 12, IsrBit = 2;
     private XApicSetupAccess _access;
     private ulong _owner, _base, _ticks;
     private uint _reload, _maximumDeferredTicks, _deferredTicks, _originalDivide, _originalLvt;
-    private bool _prepared, _dirty, _armed;
+    private bool _prepared, _dirty, _armed, _quiesced;
     public readonly bool IsPrepared => _prepared;
+    // An authenticated stopped E1 may remain armed for its real interrupt drain.
     public readonly bool IsArmed => _armed;
     public readonly bool NeedsRestore => _dirty;
     public readonly ulong Ticks => _ticks;
@@ -135,12 +136,28 @@ public unsafe partial struct SchedulerTimer
             return new(status);
         if (!_armed)
             return new(Status.NotArmed);
-        status = ActiveTimer();
+        status = _quiesced ? Registers(Mask | Vector, DivideBy16, 0) : ActiveTimer();
         if (status != Status.Ok)
             return Fault(status);
         status = CheckPending(true);
         if (status != Status.Ok)
             return Fault(status);
+        if (_quiesced)
+        {
+            // A stopped borrow can acknowledge only its already-due final IRQ.
+            // It cannot advance an unsafe phase or restart the cancelled timer.
+            if (phase != Phase.Safe)
+                return Fault(Status.InvalidPhase);
+            if ((interruptedFlags & 0x202) != 0x202)
+                return Fault(Status.InvalidInterruptedFlags);
+            if (_ticks == ulong.MaxValue)
+                return Fault(Status.TickOverflow);
+            DeadlineQueue.Result pending = deadlines.Peek(deadlineOwner);
+            if (deadlines.ObservedTicks > _ticks)
+                return Fault(Status.ClockMismatch);
+            if (pending.Code != DeadlineQueue.Status.Ok || pending.Value.Deadline > _ticks + 1)
+                return Fault(Status.InvalidDeadlineQueue);
+        }
         // EOI is write-only. Its completion is proved by the subsequent ISR read,
         // never by reading the EOI register or assuming a failed callback did nothing.
         if (_access.Write32(_access.Context, _base + 0xb0, 0) != 1)
@@ -161,6 +178,8 @@ public unsafe partial struct SchedulerTimer
         if (deadlines.ObservedTicks > _ticks)
             return Fault(Status.ClockMismatch);
         bool due = earliest.Code == DeadlineQueue.Status.Ok && earliest.Value.Deadline <= _ticks;
+        if (_quiesced && !due)
+            return Fault(Status.InvalidDeadlineQueue);
         if (phase != Phase.Safe)
         {
             if (_deferredTicks == _maximumDeferredTicks)
@@ -185,7 +204,12 @@ public unsafe partial struct SchedulerTimer
 
     /// <summary>
     /// With IF clear, mask then stop the timer and require empty ISR/no deliverable
-    /// IRR before restoring its original divider/masked LVT. Verify all timer and
+    /// IRR before restoring its original divider/masked LVT. An armed borrow is
+    /// authenticated before mutation; stopped LVT delivery Idle precedes the
+    /// pending scan. Exact E1 IRR or Send Pending retains IsArmed and returns
+    /// PendingInterrupt for the owner's real Safe/due interrupt drain. No other
+    /// failure authorizes that drain. A quiet early stop acknowledges no tick;
+    /// the owner separately cancels its unconsumed deadline. Verify all timer and
     /// retained TPR/SVR registers before releasing this borrow. A failure retains
     /// IsPrepared/NeedsRestore and all external IDT/stack/mapping lifetimes; retry
     /// only after the owner resolves the cause. Pending IRQs are never silently
@@ -198,19 +222,28 @@ public unsafe partial struct SchedulerTimer
         Status status = Access(owner, rflags);
         if (status != Status.Ok)
             return status;
+        if (_armed)
+        {
+            status = QuiesceArmedTimer();
+            if (status != Status.Ok)
+                return status;
+        }
         if (_dirty)
         {
             _armed = false;
-            status = WriteChecked(0x320, Mask | Vector);
-            if (status == Status.Ok)
-                status = WriteChecked(0x380, 0);
-            if (status != Status.Ok)
-                return status;
-            uint current = 0;
-            if (!Read(0x390, &current))
-                return Status.ReadFailed;
-            if (current != 0)
-                return Status.ReadBackFailed;
+            if (!_quiesced)
+            {
+                status = WriteChecked(0x320, Mask | Vector);
+                if (status == Status.Ok)
+                    status = WriteChecked(0x380, 0);
+                if (status != Status.Ok)
+                    return status;
+                uint current = 0;
+                if (!Read(0x390, &current))
+                    return Status.ReadFailed;
+                if (current != 0)
+                    return Status.ReadBackFailed;
+            }
         }
 
         status = CheckPending(false);
@@ -233,6 +266,75 @@ public unsafe partial struct SchedulerTimer
             return status;
         this = default;
         return Status.Ok;
+    }
+
+    // Strong UC reads, IF clear and the sole BSP writer are admission premises.
+    // SDM 11.5.1/.4/.5 and 11.8.4: after stopping generation, LVT Idle means
+    // inactivity or accepted delivery, covered by the following ISR/IRR scan.
+    // Send Pending is never quiet, even before its request appears in IRR.
+    private Status QuiesceArmedTimer()
+    {
+        bool previouslyQuiesced = _quiesced;
+        _armed = false;
+        Status status = TimerEnvelope(previouslyQuiesced, out bool sawPending);
+        if (status != Status.Ok)
+            return status;
+        if (!previouslyQuiesced)
+        {
+            if (_access.Write32(_access.Context, _base + 0x320, Mask | Vector) != 1)
+                return Status.WriteFailed;
+            uint lvt = 0;
+            if (!Read(0x320, &lvt))
+                return Status.ReadFailed;
+            if ((lvt & ~DeliveryPending) != (Mask | Vector))
+                return Status.ReadBackFailed;
+            sawPending |= (lvt & DeliveryPending) != 0;
+            status = WriteChecked(0x380, 0);
+            if (status != Status.Ok)
+                return status;
+        }
+
+        status = TimerEnvelope(true, out bool deliveryPending);
+        if (status != Status.Ok)
+            return status;
+        uint value = 0;
+        for (uint i = 0; i < 8; i++)
+        {
+            if (!Read(0x100 + i * 16, &value))
+                return Status.ReadFailed;
+            if (value != 0)
+                return Status.PendingInterrupt;
+        }
+        if (!Read(0x270, &value))
+            return Status.ReadFailed;
+        if (value != 0 && value != IsrBit)
+            return Status.PendingInterrupt;
+        if (deliveryPending || value == IsrBit)
+        {
+            _quiesced = _armed = true;
+            return Status.PendingInterrupt;
+        }
+        // A previously observed request cannot disappear without acceptance.
+        // Do not enter HLT or release a borrow on contradictory observations.
+        if (previouslyQuiesced || sawPending)
+            return Status.PendingInterrupt;
+        _quiesced = true;
+        return Status.Ok;
+    }
+
+    private readonly Status TimerEnvelope(bool stopped, out bool deliveryPending)
+    {
+        uint lvt = 0, divide = 0, initial = 0, current = 0, tpr = 0, svr = 0;
+        deliveryPending = false;
+        if (!Read(0x320, &lvt) || !Read(0x3e0, &divide) || !Read(0x380, &initial) ||
+            !Read(0x390, &current) || !Read(0x80, &tpr) || !Read(0xf0, &svr))
+            return Status.ReadFailed;
+        deliveryPending = (lvt & DeliveryPending) != 0;
+        return (lvt & ~DeliveryPending) == (stopped ? Mask | Vector : Vector) &&
+            divide == DivideBy16 && initial == (stopped ? 0U : _reload) &&
+            (stopped ? current == 0 : current <= _reload) &&
+            tpr == BoundedXApicSetup.TaskPriority && svr == BoundedXApicSetup.SpuriousValue
+                ? Status.Ok : Status.BaselineMismatch;
     }
 
     private readonly Status Access(ulong owner, ulong flags) => !_prepared ? Status.Uninitialized : owner != _owner ? Status.WrongOwner : !IfClear(flags) ? Status.InterruptsEnabled : Status.Ok;

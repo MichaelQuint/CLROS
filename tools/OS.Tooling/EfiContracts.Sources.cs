@@ -369,7 +369,7 @@ public static partial class EfiContracts
             ["..\\OS.Kernel\\Threading\\DeadlineQueue.Entry.cs"] = "f3723dc2965457df8de6139eb2890509f52c0724b33e46a00b6fc22c95d16feb",
             ["..\\OS.Kernel\\Threading\\DeadlineQueue.Result.cs"] = "b23581176fdc38152d1de479d28bf33ae3e4a7a65f91cba48f5c94432ac6e14b",
             ["..\\OS.Kernel\\Threading\\DeadlineQueue.DrainResult.cs"] = "f15efe439b914b4198730944f52ac3d0a3a0b997bc9560a15aa1e1d1c614532e",
-            ["..\\OS.Kernel\\Threading\\SchedulerTimer.cs"] = "5942c542f833d47a7aa92871b2441094d79eeb76b2dc2ba856530c798eecddf6",
+            ["..\\OS.Kernel\\Threading\\SchedulerTimer.cs"] = "b1543d415af4168be2f80e648e2d881edfd047fe39b02a07cfa6e5b03a192689",
             ["..\\OS.Kernel\\Threading\\SchedulerTimer.Status.cs"] = "4ce8b1df5e4cf5ccbafc975711bd00663972b6dc876564935a460746873ec2ce",
             ["..\\OS.Kernel\\Threading\\SchedulerTimer.Phase.cs"] = "69d2d89855250032a6ddea838ebeac455675bfc76c95aac9124c301d6b6b183c",
             ["..\\OS.Kernel\\Threading\\SchedulerTimer.Action.cs"] = "e5656d54f053ff92f530895fa10a82868e551f15eecb17aa72e77b523a1fa0d0",

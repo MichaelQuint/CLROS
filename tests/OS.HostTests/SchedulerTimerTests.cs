@@ -14,10 +14,24 @@ internal static unsafe partial class SchedulerTimerTests
     {
         Model* m = (Model*)context;
         m->Reads++;
-        if (address < Apic || address >= Apic + 4096 || (address & 3) != 0 || m->Reads == m->FailRead)
+        if (address < Apic || address >= Apic + 4096 || (address & 3) != 0)
             return 0;
+        if (m->Reads == m->BeforeRead)
+            Deliver(m, m->InjectDelivery);
         *value = m->Registers[(address - Apic) / 4];
-        return 1;
+        if (m->Reads == m->CorruptRead)
+            *value = m->CorruptReadValue;
+        if (m->Reads <= 512)
+        {
+            uint index = m->Reads - 1;
+            m->ReadOffsets[index] = (uint)(address - Apic);
+            m->ReadValues[index] = *value;
+            m->ReadWrites[index] = m->Writes;
+        }
+
+        if (m->Reads == m->AfterRead)
+            Deliver(m, m->InjectDelivery);
+        return m->Reads == m->FailRead ? m->FailReadResult : (byte)1;
     }
 
     [UnmanagedCallersOnly]
@@ -35,17 +49,23 @@ internal static unsafe partial class SchedulerTimerTests
 
         if (offset == 0xb0)
         {
+            m->EoiWrites++;
             if (m->RetainIsr == 0)
                 m->Registers[0x170 / 4] = 0;
         }
         else
         {
+            // LVT Delivery Status is read-only and survives writable-field changes.
+            if (offset == 0x320)
+                value = (value & ~0x1000U) | (m->Registers[offset / 4] & 0x1000U);
             m->Registers[offset / 4] = m->Writes == m->CorruptWrite ? value ^ 1U : value;
             if (offset == 0x380)
                 m->Registers[0x390 / 4] = m->Registers[offset / 4];
         }
 
-        return m->Writes == m->FailWrite ? (byte)0 : (byte)1;
+        if (m->Writes == m->AfterWrite)
+            Deliver(m, m->InjectDelivery);
+        return m->Writes == m->FailWrite ? m->FailWriteResult : (byte)1;
     }
 
     private static void Arm(ref Timer timer) => HostCheck.Equal(Timer.Status.Ok, timer.Arm(Key, 2, true));
@@ -345,8 +365,13 @@ internal static unsafe partial class SchedulerTimerTests
         Arm(ref pending);
         retained.M->Registers[0x270 / 4] = 2;
         HostCheck.Equal(Timer.Status.PendingInterrupt, pending.Restore(Key, 2));
-        HostCheck.True(pending.IsPrepared && pending.NeedsRestore && !pending.IsArmed);
-        retained.M->Registers[0x270 / 4] = 0;
+        HostCheck.True(pending.IsPrepared && pending.NeedsRestore && pending.IsArmed);
+        HostCheck.True(retained.M->Registers[0x320 / 4] == 0x100e1 && retained.M->Registers[0x380 / 4] == 0 && retained.M->Registers[0x390 / 4] == 0 && retained.M->EoiWrites == 0);
+        DeadlineQueue due = retained.Queue();
+        Add(ref due, 1, 1);
+        Deliver(retained.M, Model.Delivery.InService);
+        HostCheck.Equal(Timer.Action.WakeReady, pending.HandleInterrupt(Key, 2, 0x202, ref due, Key, Timer.Phase.Safe).Next);
+        HostCheck.Equal(DeadlineQueue.Status.Ok, due.Cancel(Key, Id(1)));
         retained.M->FailWrite = retained.M->Writes + 1;
         HostCheck.Equal(Timer.Status.WriteFailed, pending.Restore(Key, 2));
         HostCheck.True(pending.IsPrepared && pending.NeedsRestore);
