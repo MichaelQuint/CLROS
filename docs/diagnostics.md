@@ -1,5 +1,13 @@
 # Diagnostics
 
+[Step1738](../done/step1738.md) wires the first/warm HTTP observer into an
+explicit owned Full018 diagnostic. Partial failures retain body prefixes and
+joined runner disposition. Request and secondary receipt errors are both kept.
+Serial/PCAP/summary are held and hashed under existing final reader bounds;
+these bounds do not claim a total-PCAP writer quota or full traffic acceptance.
+All 68 host checks pass. The inherited browser secondary-IO masking finding,
+actual guest quota fit and extended measurements remain pending.
+
 [Step1737](../done/step1737.md) preserves complete Fast r02/r03 and later host
 integration failures. A read-only compiler query rewrites an output-map resource;
 the repair preserves resources and exact guards. Complete r03 records6456 checks

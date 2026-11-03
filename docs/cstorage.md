@@ -1,5 +1,13 @@
 # Storage
 
+[Step1738](../done/step1738.md) reviews the explicit warm/full/concurrent HTTP
+owner against unchanged storage/device/call/serial/lifetime limits. No guest
+quota fit or FAT performance is inferred. The diagnostic uses existing final
+128 MiB serial, 64 MiB PCAP and 256 MiB summary bounds and skips the ordinary
+24 MiB stream acceptance consumer. Its flags deny full qualification. The
+source-only commit partition separates 22 formatter files from nine FIFO paths,
+with a reviewed shared-map resolution and exact r132 non-doc composition.
+
 [Step1737](../done/step1737.md) completes the remaining formatting and extracts
 host committed-sector indexing without changing stage joins, ownership, failure
 reasons or bounds. Eight synthetic Native-labelled storage-window checks and21

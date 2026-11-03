@@ -1,5 +1,12 @@
 # RC3 and WHPX qualification contract
 
+[Step1738](../done/step1738.md) passes the host-only explicit HTTP benchmark
+owner and semantic timeout checks: 68 fresh checks, unchanged inputs, zero reuse,
+with independent 5,874-input/31-producer readback. Actual quota fit and guest/
+browser/performance measurements remain pending. The inherited browser error
+masking finding needs bounded follow-up. Reviewable storage/FIFO maps are ready;
+case-correct staging and every final qualification gate below remain required.
+
 [Step1737](../done/step1737.md) completes remaining formatting and host source/
 compiler-resource/EFI policy repairs. The r140 graph and57 fresh check markers
 pass with unchanged5867-input/31-producer boundaries and zero reuse; independent

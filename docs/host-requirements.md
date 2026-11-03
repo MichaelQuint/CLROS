@@ -1,5 +1,13 @@
 # Host Requirements
 
+[Step1738](../done/step1738.md) adds `-HttpBenchmarkWarmSequences 0..10` for a
+healthy, untimed Full018 diagnostic only. Null retains ordinary qualification.
+The first sequence precedes the selected warm sequences, then the existing
+browser owner runs. Existing readiness/matrix/request/browser/runner and guest
+limits remain; success requires joined deliberate stop and endpoint refusal.
+Reports remain diagnostic-only. The r143 graph and 68 focused checks pass with
+unchanged inputs and zero reuse; actual guest and browser execution are pending.
+
 [Step1737](../done/step1737.md) closes the formatting/host-repair checkpoint.
 Read-only compiler-context queries retain built output/self resource maps and
 reject missing resources; actual build collection remains. Build current tooling

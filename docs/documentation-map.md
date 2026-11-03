@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1738](../done/step1738.md) records the explicit HTTP benchmark owner and
+68 passing host checks. Host requirements owns selection and lifetime limits;
+diagnostics owns first/warm observations and failure preservation; storage owns
+unchanged quota/capture boundaries and the reviewed commit partition.
+
 [Step1737](../done/step1737.md) records complete remaining formatting, host
 inspection extractions and guarded compiler-resource/EFI policy repairs. Repo
 audit owns source/type/pin proofs; host requirements owns current build/fixture

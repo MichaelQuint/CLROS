@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 using OS.Tooling;
 using B = OS.Tooling.NativeAotDiskStaticBrowser;
 
-internal static class NativeAotDiskStaticBrowserTests
+internal static partial class NativeAotDiskStaticBrowserTests
 {
     private const int Port = 18777;
     private static JsonElement Element(JsonObject value)

@@ -4,6 +4,11 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1738](done/step1738.md) adds an explicit owner for first/warm HTTP and
+browser diagnostics, preserving existing resources and cleanup boundaries.
+All 68 focused host checks pass. Actual guest quota fit, extended performance,
+real browser and final combined qualification remain pending.
+
 [Step1737](done/step1737.md) completes the remaining C# formatting pass and repairs
 host compiler-resource discovery, negative mutations and EFI policy identities.
 The r140 graph,57 fresh check markers and repo/contracts checks pass. Final

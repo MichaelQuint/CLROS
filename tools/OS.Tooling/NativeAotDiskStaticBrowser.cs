@@ -215,6 +215,7 @@ public static partial class NativeAotDiskStaticBrowser
         Dom? dom = null;
         Exchange[] exchanges = [];
         string failure = "";
+        Exception? observationFailure = null;
         bool succeeded = false;
         using var capture = new Capture();
         try
@@ -343,49 +344,53 @@ public static partial class NativeAotDiskStaticBrowser
         catch (Exception error)
         {
             failure = error is ToolFailure tool ? tool.Reason : error.GetType().Name + ": " + error.Message.ReplaceLineEndings(" ");
+            observationFailure = error;
             throw;
         }
         finally
         {
-            if (!process.IsCompleted)
-                processStop.Cancel();
-            try
+            await RunCleanupPreservingFailureAsync(observationFailure, async () =>
             {
-                joined ??= await process;
-            }
-            catch (Exception cleanup)
-            {
-                succeeded = false;
-                failure += " process-owner: " + cleanup.GetType().Name + ": " + cleanup.Message.ReplaceLineEndings(" ");
-            }
-            finally
-            {
-                if (cdp is not null)
-                    await cdp.DisposeAsync();
-            }
+                if (!process.IsCompleted)
+                    processStop.Cancel();
+                try
+                {
+                    joined ??= await process;
+                }
+                catch (Exception cleanup)
+                {
+                    succeeded = false;
+                    failure += " process-owner: " + cleanup.GetType().Name + ": " + cleanup.Message.ReplaceLineEndings(" ");
+                }
+                finally
+                {
+                    if (cdp is not null)
+                        await cdp.DisposeAsync();
+                }
 
-            await File.WriteAllTextAsync(Path.Combine(destination, "browser.stdout.log"), joined?.StandardOutput ?? "", CancellationToken.None);
-            await File.WriteAllTextAsync(Path.Combine(destination, "browser.stderr.log"), joined?.StandardError ?? "", CancellationToken.None);
-            await File.WriteAllTextAsync(Path.Combine(destination, "errors.json"), JsonSerializer.Serialize(capture.Errors()), CancellationToken.None);
-            await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new
-            {
-                Schema,
-                Succeeded = succeeded,
-                Failure = failure,
-                Port = guestForwardPort,
-                InventorySha256 = inventory.ImageSha256,
-                Browser = browser,
-                BrowserSha256 = browserHash,
-                Arguments = arguments,
-                Process = joined,
-                DebuggerShutdown = cdp?.Shutdown,
-                Document = dom,
-                Exchanges = exchanges,
-                ScreenshotSha256 = File.Exists(Path.Combine(destination, "screenshot.png")) ? NativeAotWebPayload.HashFile(Path.Combine(destination, "screenshot.png")) : "",
-                ProtocolSha256 = File.Exists(Path.Combine(destination, "protocol.jsonl")) ? NativeAotWebPayload.HashFile(Path.Combine(destination, "protocol.jsonl")) : "",
-                PacketJoinQualified = false,
-                GuestQualified = false
-            }), CancellationToken.None);
+                await File.WriteAllTextAsync(Path.Combine(destination, "browser.stdout.log"), joined?.StandardOutput ?? "", CancellationToken.None);
+                await File.WriteAllTextAsync(Path.Combine(destination, "browser.stderr.log"), joined?.StandardError ?? "", CancellationToken.None);
+                await File.WriteAllTextAsync(Path.Combine(destination, "errors.json"), JsonSerializer.Serialize(capture.Errors()), CancellationToken.None);
+                await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new
+                {
+                    Schema,
+                    Succeeded = succeeded,
+                    Failure = failure,
+                    Port = guestForwardPort,
+                    InventorySha256 = inventory.ImageSha256,
+                    Browser = browser,
+                    BrowserSha256 = browserHash,
+                    Arguments = arguments,
+                    Process = joined,
+                    DebuggerShutdown = cdp?.Shutdown,
+                    Document = dom,
+                    Exchanges = exchanges,
+                    ScreenshotSha256 = File.Exists(Path.Combine(destination, "screenshot.png")) ? NativeAotWebPayload.HashFile(Path.Combine(destination, "screenshot.png")) : "",
+                    ProtocolSha256 = File.Exists(Path.Combine(destination, "protocol.jsonl")) ? NativeAotWebPayload.HashFile(Path.Combine(destination, "protocol.jsonl")) : "",
+                    PacketJoinQualified = false,
+                    GuestQualified = false
+                }), CancellationToken.None);
+            });
         }
 
         var retained = System.IO.Directory.GetFiles(destination, "*", SearchOption.TopDirectoryOnly).Where(p => Path.GetFileName(p) != "ownership.lock").ToDictionary(p => p, NativeAotWebPayload.HashFile, StringComparer.Ordinal);
