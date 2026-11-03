@@ -359,11 +359,48 @@ internal static partial class BuildEfiShellPreflightTests
     private static bool TestM01SemanticContractMatrix(string tempRoot)
     {
         ToolFixture tools = CreateCompleteToolFixture(tempRoot, "m01-contract-negative-tools");
-        (string Name, string Area, string File, string OldText, string NewText)[] cases = [("three-allocation-count", "Boot", "M01LivePagingIntegration.cs", "public const ulong RequiredAllocationRecordCount = 3;", "public const ulong RequiredAllocationRecordCount = 2;"), ("distinct-protection-allocation", "Boot", "M01LivePagingIntegration.cs", "public const ulong ProtectionProbeAllocationRecordIndex = 1;", "public const ulong ProtectionProbeAllocationRecordIndex = 0;"), ("table-state-allocation", "Boot", "M01LivePagingIntegration.cs", "public const ulong TableStateAllocationRecordIndex = 2;", "public const ulong TableStateAllocationRecordIndex = 1;"), ("non-image-map-count", "Boot", "M01LivePagingIntegration.cs", "public const ulong RequiredNonImageMappingRequirementCount = 10;", "public const ulong RequiredNonImageMappingRequirementCount = 9;"), ("allocator-arena", "Boot", "M01LivePagingIntegration.cs", "BootReservationKind.AllocatorArena", "BootReservationKind.LoadedImage"), ("page-table-arena", "Boot", "M01LivePagingIntegration.cs", "BootReservationKind.PageTableArena", "BootReservationKind.LoadedImage"), ("post-allocation-map-order", "Boot", "M01LivePagingIntegration.cs", "_mapCaptureOrdinal > _lastAllocationOrdinal", "_mapCaptureOrdinal >= _lastAllocationOrdinal"), ("post-map-ledger-order", "Boot", "M01LivePagingIntegration.cs", "_ledgerBuildOrdinal > _mapCaptureOrdinal", "_ledgerBuildOrdinal >= _mapCaptureOrdinal"), ("firmware-callback-exclusion", "Boot", "M01OwnedCr3CompositeTransition.cs", "public const bool InvokesFirmwareCallbacks = false;", "public const bool InvokesFirmwareCallbacks = true;"), ("arbitrary-callback-exclusion", "Boot", "M01OwnedCr3CompositeTransition.cs", "public const bool InvokesArbitraryCallbacks = false;", "public const bool InvokesArbitraryCallbacks = true;"), ("firmware-call-exclusion", "Boot", "M01OwnedCr3CompositeTransition.cs", "public const bool CallsFirmware = false;", "public const bool CallsFirmware = true;"), ("restore-order", "Boot", "M01OwnedCr3CompositeTransition.cs", "RestoreCr3ThenCr4ThenRflags", "RestoreCr4ThenCr3ThenRflags"), ("firmware-cr3-restoration", "Boot", "M01OwnedCr3CompositeTransition.cs", "RestoreFirmwareCr3", "RetainOwnedCr3"), ("post-restore-canary", "Boot", "M01OwnedCr3CompositeTransition.cs", "PostRestoreCanaryMismatch", "PostRestoreCanaryIgnored"), ("expected-canary-state", "Boot", "M01OwnedCr3CompositeTransition.cs", "StateExpectedCanaryOffset", "StateExpectedValueOffset"), ("cr4-restoration-readback", "Boot", "M01OwnedCr3CompositeTransition.cs", "Cr4RestoreReadbackMismatch", "Cr4RestoreIgnored"), ("rflags-restoration-readback", "Boot", "M01OwnedCr3CompositeTransition.cs", "RflagsRestoreReadbackMismatch", "RflagsRestoreIgnored")];
+        (string Name, string Family, string OldText, string NewText)[] cases =
+        [
+            ("three-allocation-count", "M01LivePagingIntegration",
+                "public const ulong RequiredAllocationRecordCount = 3;", "public const ulong RequiredAllocationRecordCount = 2;"),
+            ("distinct-protection-allocation", "M01LivePagingIntegration",
+                "public const ulong ProtectionProbeAllocationRecordIndex = 1;", "public const ulong ProtectionProbeAllocationRecordIndex = 0;"),
+            ("table-state-allocation", "M01LivePagingIntegration",
+                "public const ulong TableStateAllocationRecordIndex = 2;", "public const ulong TableStateAllocationRecordIndex = 1;"),
+            ("non-image-map-count", "M01LivePagingIntegration",
+                "public const ulong RequiredNonImageMappingRequirementCount = 10;", "public const ulong RequiredNonImageMappingRequirementCount = 9;"),
+            ("allocator-arena", "M01LivePagingIntegration",
+                "BootReservationKind.AllocatorArena", "BootReservationKind.LoadedImage"),
+            ("page-table-arena", "M01LivePagingIntegration",
+                "BootReservationKind.PageTableArena", "BootReservationKind.LoadedImage"),
+            ("post-allocation-map-order", "M01LivePagingIntegration",
+                "_mapCaptureOrdinal > _lastAllocationOrdinal", "_mapCaptureOrdinal >= _lastAllocationOrdinal"),
+            ("post-map-ledger-order", "M01LivePagingIntegration",
+                "_ledgerBuildOrdinal > _mapCaptureOrdinal", "_ledgerBuildOrdinal >= _mapCaptureOrdinal"),
+            ("firmware-callback-exclusion", "M01OwnedCr3CompositeTransition",
+                "public const bool InvokesFirmwareCallbacks = false;", "public const bool InvokesFirmwareCallbacks = true;"),
+            ("arbitrary-callback-exclusion", "M01OwnedCr3CompositeTransition",
+                "public const bool InvokesArbitraryCallbacks = false;", "public const bool InvokesArbitraryCallbacks = true;"),
+            ("firmware-call-exclusion", "M01OwnedCr3CompositeTransition",
+                "public const bool CallsFirmware = false;", "public const bool CallsFirmware = true;"),
+            ("restore-order", "M01OwnedCr3CompositeTransition",
+                "RestoreCr3ThenCr4ThenRflags", "RestoreCr4ThenCr3ThenRflags"),
+            ("firmware-cr3-restoration", "M01OwnedCr3CompositeTransition",
+                "RestoreFirmwareCr3", "RetainOwnedCr3"),
+            ("post-restore-canary", "M01OwnedCr3CompositeTransition",
+                "PostRestoreCanaryMismatch", "PostRestoreCanaryIgnored"),
+            ("expected-canary-state", "M01OwnedCr3CompositeTransition",
+                "StateExpectedCanaryOffset", "StateExpectedValueOffset"),
+            ("cr4-restoration-readback", "M01OwnedCr3CompositeTransition",
+                "Cr4RestoreReadbackMismatch", "Cr4RestoreIgnored"),
+            ("rflags-restoration-readback", "M01OwnedCr3CompositeTransition",
+                "RflagsRestoreReadbackMismatch", "RflagsRestoreIgnored")
+        ];
         SourceClosureFixture source = CreateSourceClosureFixture(tempRoot, "m01-contract-negative");
-        foreach ((string name, string area, string file, string oldText, string newText) in cases)
+        foreach ((string name, string family, string oldText, string newText) in cases)
         {
-            if (!WithSemanticMutation(SourcePath(source, area, file), oldText, newText, () => ExpectM01SourceClosureFailure(tools, source, "source_contract_missing")))
+            string path = SemanticContractPath(source.Root, source.ProjectPath, family, oldText, EfiContracts.SourceContractTokens);
+            if (!WithSemanticMutation(path, oldText, newText, () => ExpectM01SourceClosureFailure(tools, source, "source_contract_missing")))
             {
                 Console.WriteLine("M01 semantic-contract case failed: " + name);
                 return false;
