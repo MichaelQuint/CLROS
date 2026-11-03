@@ -585,11 +585,54 @@ public static class QemuSmoke
                         if (diskImageInput is null || diskImageReceipt is null)
                             throw new ToolFailure("disk_full_image_owner_required");
                         var inventory = diskTruncated?.Baseline ?? WebRootDiskInventory.Inspect(diskImageInput.Path, diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_full_browser_image"), diskImageReceipt);
+                        if (options.HttpBenchmarkWarmSequences is int warmSequences)
+                        {
+                            var observed = await NativeAotHttpBenchmarkPeer.RunAsync(root, options.SerialLog,
+                                RunSocketRunner, inventory, new HttpWorkloadBenchmark.Options
+                                {
+                                    System = "CLROS",
+                                    Backend = options.Accelerator,
+                                    WarmSequences = warmSequences
+                                }, options.TimeoutSeconds,
+                                async (port, directory, token) =>
+                                {
+                                    diskBrowser = await NativeAotDiskStaticBrowser.RunAsync(root, port, directory, inventory, token);
+                                }, cancellation);
+                            VerifyDiskDiagnosticInputs();
+                            diskBrowser!.VerifyUnchanged();
+                            // This diagnostic does not invoke the ordinary full
+                            // stream consumer. Retain its final capture bounds
+                            // explicitly; these are not total-file writer quotas.
+                            using AuthorityFiles captures = new();
+                            var heldCaptures = new (string Path, int Maximum)[]
+                            {
+                                (options.SerialLog, DiskStaticCapturePolicy.SerialBytes),
+                                (options.SerialLog + ".pcap", DiskStaticCapturePolicy.PacketBytes),
+                                (options.SummaryLog, DiskStaticCapturePolicy.SummaryBytes)
+                            }.Select(input => captures.Open(root, Path.GetFullPath(input.Path, root),
+                                "HTTP diagnostic capture", "http_benchmark_capture", input.Maximum, singleLink: true)).ToArray();
+                            using (FileStream receipt = new(Path.Combine(observed.Directory, "captures.json"),
+                                FileMode.CreateNew, FileAccess.Write, FileShare.Read))
+                            {
+                                System.Text.Json.JsonSerializer.Serialize(receipt,
+                                    heldCaptures.Select(input => new { input.Path, input.Length, input.Sha256 }));
+                                receipt.Flush(true);
+                            }
+                            captures.VerifyUnchanged();
+                            output.WriteLine($"TEST_PASS qemu.smoke.http-workload-diagnostic responses={observed.Observations.Samples.Count} runner_joined=true full_and_cleanup_qualified=false");
+                            return 0;
+                        }
                         if (NativeAotDiskSelection.TimingSelected(plan.Flags))
                         {
                             var benchmark = NativeAotDiskTimingPeer.BenchmarkOptions.ForProfile(plan.Flags,
                                 () => diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_timing_image"));
                             var diagnostic = await NativeAotDiskTimingPeer.RunAsync(root, options.SerialLog, RunSocketRunner, inventory, benchmark, options.TimeoutSeconds, cancellation);
+                            VerifyDiskDiagnosticInputs();
+                            output.WriteLine("TEST_PASS qemu.smoke.disk-read-timing-diagnostic responses=5 bytes=65536 runner_joined=true full_and_cleanup_qualified=false");
+                            return 0;
+                        }
+                        void VerifyDiskDiagnosticInputs()
+                        {
                             diskInputs!.VerifyUnchanged();
                             diskNative!.VerifyHeldInputs();
                             webInputs!.VerifyUnchanged();
@@ -598,8 +641,6 @@ public static class QemuSmoke
                             if (capture is not null)
                                 capture.Validate();
                             cancellation.ThrowIfCancellationRequested();
-                            output.WriteLine("TEST_PASS qemu.smoke.disk-read-timing-diagnostic responses=5 bytes=65536 runner_joined=true full_and_cleanup_qualified=false");
-                            return 0;
                         }
                         diskStaticPeer = await NativeAotDiskStaticPeer.RunAsync(root, options.SerialLog, RunSocketRunner, cancellation, inventory,
                             async (port, directory, token) => { diskBrowser = await NativeAotDiskStaticBrowser.RunAsync(root, port, directory, inventory, token); }, diskTruncated);

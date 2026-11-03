@@ -1,5 +1,13 @@
 # RC3 and WHPX qualification contract
 
+[Step1737](../done/step1737.md) completes remaining formatting and host source/
+compiler-resource/EFI policy repairs. The r140 graph and57 fresh check markers
+pass with unchanged5867-input/31-producer boundaries and zero reuse; independent
+metadata/source/result review passes. Preserve r139 mixed128/129 and all original
+failures, including unresolved full-Fast allocation7936. Eight index case aliases,
+responsibility review, real extended benchmark ownership and all final gates
+below remain. No native/guest/browser or combined acceptance is renewed.
+
 [Step1736](../done/step1736.md) adds the host-only explicit first/ten-warm/
 full-asset/concurrent HTTP observation API and21 NVMe formatting files. The r134
 graph/49 focused checks pass. Actual extended guest/browser measurements and

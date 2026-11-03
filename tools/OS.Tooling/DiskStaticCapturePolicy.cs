@@ -12,6 +12,8 @@ public static class DiskStaticCapturePolicy
     // Combined host stdout/stderr collection; guest byte/write quotas are separate.
     public const int CombinedOutputBytes = 128 * 1024;
     public const int ProtocolRows = 1_000_000;
+    public const int HttpReadinessTimeoutSeconds = 240;
+    public const int HttpMatrixTimeoutSeconds = 1700;
     public const int DeviceRows = (int)OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.MaximumDeviceRecords;
     // The human accepts slow but correct QEMU startup. Keep the HTTP matrix
     // deadline separate from the browser and leave time for natural shutdown.

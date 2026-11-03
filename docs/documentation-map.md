@@ -1,5 +1,11 @@
 # Documentation Map
 
+[Step1737](../done/step1737.md) records complete remaining formatting, host
+inspection extractions and guarded compiler-resource/EFI policy repairs. Repo
+audit owns source/type/pin proofs; host requirements owns current build/fixture
+boundaries; diagnostics preserves all failed originals and unresolved allocation.
+The57-marker r140 focused pass does not renew Full/native/guest/browser gates.
+
 [Step1736](../done/step1736.md) records the explicit C# HTTP observation API and
 21-file NVMe formatting batch. Host requirements owns invocation/ownership limits;
 diagnostics owns request/body-file timing and partial-failure interpretation;

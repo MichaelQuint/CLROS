@@ -38,6 +38,10 @@ public static class QemuProfiles
         bool writableDisk = NativeAotDiskSelection.WritableSelected(profile.Flags);
         bool diskStatic = NativeAotDiskSelection.StaticSelected(profile.Flags);
         bool diskStaticFull = NativeAotDiskSelection.FullStaticSelected(profile.Flags);
+        Require(options.HttpBenchmarkWarmSequences is null or >= 0 and <= 10, "http_benchmark_warm_sequences");
+        Require(options.HttpBenchmarkWarmSequences is null || diskStaticFull
+            && !NativeAotDiskSelection.TimingSelected(profile.Flags) && options.WebRootFault == "None",
+            "http_benchmark_requires_healthy_full_profile");
         bool signalEpoll = LinuxSignalEpollSelection.Bind(options, profile.Flags);
         bool service = NativeAotServiceSelection.Bind(options, profile.Flags);
         bool quota = service && NativeAotServiceSelection.Contract(options, profile.Flags) == NativeAotServiceContract.QuotaFailure;

@@ -4,6 +4,11 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1737](done/step1737.md) completes the remaining C# formatting pass and repairs
+host compiler-resource discovery, negative mutations and EFI policy identities.
+The r140 graph,57 fresh check markers and repo/contracts checks pass. Final
+unfiltered Full, native/guest/browser qualification and delivery remain pending.
+
 [Step1736](done/step1736.md) adds explicit C# first/warm/full-asset/concurrent
 HTTP observation and integrates 21 NVMe formatting files. The graph and 49 focused
 checks pass; extended guest and browser measurements remain pending.

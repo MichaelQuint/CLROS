@@ -1,5 +1,13 @@
 # Repository Audit
 
+[Step1737](../done/step1737.md) completes3880 changes among5716 first-party C#
+formatting inputs across22625 selected syntax configurations, with token/member/
+field/initializer/directive/comment/diagnostic and fixed-point proofs. Guarded
+source pins retain historical anchors. The r140 graph/57 focused markers/repo/
+contracts pass; independent5867-input/31-producer and compiled-constant readback
+passes. Exact source and canonical XML pins remain distinct. Eight case-only Git
+index aliases still need final canonical staging. No current native acceptance.
+
 [Step1736](../done/step1736.md) records21 reviewed NVMe formatting files and the
 explicit host C# HTTP benchmark API. Its associated types use separate files and
 partial containing wrappers; source-style controls pass. The r134 graph and49

@@ -1,5 +1,14 @@
 # Host Requirements
 
+[Step1737](../done/step1737.md) closes the formatting/host-repair checkpoint.
+Read-only compiler-context queries retain built output/self resource maps and
+reject missing resources; actual build collection remains. Build current tooling
+first, validate repo/contracts, then select discovered fixtures with --filter and
+the existing --case option. r139 remains failed128/129 at the raw project pin;
+r140 rebuilds its const consumers and passes57 fresh markers across9 groups,
+unchanged inputs/zero reuse. Original Fast r03 allocation7936 remains unresolved;
+focused zero-allocation passes do not replace final unfiltered Full.
+
 [Step1736](../done/step1736.md) passes the r134 graph and49 fresh focused checks
 for explicit C# HTTP benchmark observation and21 NVMe formatting files. The new
 HttpWorkloadBenchmark API observes an already owned endpoint; its caller supplies

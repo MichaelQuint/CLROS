@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
+using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -72,6 +73,7 @@ public static partial class HttpWorkloadBenchmark
         int nextOrdinal = 0;
         bool complete = false;
         string? failure = null;
+        Exception? observationFailure = null;
         try
         {
             for (int sequence = 0; sequence <= options.WarmSequences; sequence++)
@@ -109,9 +111,9 @@ public static partial class HttpWorkloadBenchmark
         catch (Exception error)
         {
             failure = error is ToolFailure tool ? tool.Reason : error.GetType().FullName;
-            throw;
+            observationFailure = error;
         }
-        finally
+        try
         {
             var report = CreateReport();
             using FileStream receipt = new(Path.Combine(directory, "benchmark.json"),
@@ -119,6 +121,14 @@ public static partial class HttpWorkloadBenchmark
             await JsonSerializer.SerializeAsync(receipt, report, cancellationToken: CancellationToken.None);
             receipt.Flush(true);
         }
+        catch (Exception receiptFailure)
+        {
+            if (observationFailure is not null)
+                throw new AggregateException("http_benchmark_observation_and_receipt", observationFailure, receiptFailure);
+            throw;
+        }
+        if (observationFailure is not null)
+            ExceptionDispatchInfo.Capture(observationFailure).Throw();
 
         return CreateReport();
 

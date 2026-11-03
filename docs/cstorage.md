@@ -1,5 +1,13 @@
 # Storage
 
+[Step1737](../done/step1737.md) completes the remaining formatting and extracts
+host committed-sector indexing without changing stage joins, ownership, failure
+reasons or bounds. Eight synthetic Native-labelled storage-window checks and21
+read-observation checks pass on r139; the subsequent project-pin repair has its
+own r140 source/producer/const validation. These are host controls, not live block/
+FAT/native/guest evidence. Existing measured FIFO and deferred storage boundaries
+stay; no new storage algorithm, budget or performance claim is introduced.
+
 [Step1736](../done/step1736.md) integrates21 token/order/layout-source-preserving
 NVMe formatting files after guarding all22 original/candidate rows. The filesystem
 control is byte-identical; changed NVMe files have no explicit EFI links/pins.

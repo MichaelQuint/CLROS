@@ -1,5 +1,13 @@
 # Diagnostics
 
+[Step1737](../done/step1737.md) preserves complete Fast r02/r03 and later host
+integration failures. A read-only compiler query rewrites an output-map resource;
+the repair preserves resources and exact guards. Complete r03 records6456 checks
+with12 failures across11 groups; final failures=11 is a fixture count. The7936-
+byte allocation observation remains unexplained despite zero isolated/focused
+samples; no warmup or assertion changes follow. r140 passes57 affected markers
+with unchanged inputs/zero reuse. No new VM/browser/performance result occurs.
+
 [Step1736](../done/step1736.md) adds explicit C# HTTP observation for JSON/health,
 HEAD,64KiB range, complete inventory asset and concurrent asset/JSON. It preserves
 exact body/metadata assertions and separates headers, complete body receipt,

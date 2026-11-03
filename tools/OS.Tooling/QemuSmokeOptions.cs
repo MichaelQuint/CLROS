@@ -52,6 +52,10 @@ public sealed class QemuSmokeOptions
         get; set;
     }
     public int TimeoutSeconds { get; set; } = 30;
+    /// <summary>Explicit healthy Full018 HTTP/browser diagnostic. Null retains
+    /// ordinary qualification;0 through10 selects the number of warm sequences
+    /// after one first sequence without extending guest resources or deadlines.</summary>
+    public int? HttpBenchmarkWarmSequences { get; set; }
     public int StartupTimeoutSeconds { get; set; } = 30;
     public bool DryRun
     {
@@ -141,6 +145,7 @@ public sealed class QemuSmokeOptions
             ["memorymib"] = "MemoryMiB",
             ["timeoutseconds"] = "TimeoutSeconds",
             ["timeout"] = "TimeoutSeconds",
+            ["httpbenchmarkwarmsequences"] = "HttpBenchmarkWarmSequences",
             ["webrootfixture"] = "WebRootFixture",
             ["webrootassets"] = "WebRootAssets",
             ["webrootfault"] = "WebRootFault",
@@ -181,7 +186,7 @@ public sealed class QemuSmokeOptions
             bool first = result.Explicit.Add(name);
             if (!first && name == "Accelerator")
                 throw new ArgumentException("qemu_duplicate_option Accelerator");
-            if (!first && name is "WebEventOwnedSignalRace" or "LinuxDiskRaceVariant" or "WritableDiskFixture" or "WritableDiskDisassembly" or "WebRootFault")
+            if (!first && name is "WebEventOwnedSignalRace" or "LinuxDiskRaceVariant" or "WritableDiskFixture" or "WritableDiskDisassembly" or "WebRootFault" or "HttpBenchmarkWarmSequences")
                 throw new ArgumentException("qemu_duplicate_option " + name);
             bool flag = name.StartsWith("Enable", StringComparison.Ordinal) || name is "DryRun" or "BuildEfi" or "SkipImageBuild" or "RequireNativeAppMarkers" or "ServiceLifecycle" or "ServiceQuotaFailure" or "SignalEpollRace" or "WebSignalRace" or "WebEventOwnedSignalRace";
             string value = separator >= 0 ? input[(separator + 1)..] : flag ? "true" : ++i < arguments.Length ? arguments[i] : throw new ArgumentException("qemu_missing_value " + name);
@@ -284,6 +289,9 @@ public sealed class QemuSmokeOptions
                     break;
                 case "TimeoutSeconds":
                     result.TimeoutSeconds = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture);
+                    break;
+                case "HttpBenchmarkWarmSequences":
+                    result.HttpBenchmarkWarmSequences = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture);
                     break;
                 case "StartupTimeoutSeconds":
                     result.StartupTimeoutSeconds = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture);

@@ -21,8 +21,23 @@ internal static unsafe partial class DiskStaticExecutionPolicyTests
         var method = source.Method(PeerOwner, "RunCoreAsync");
         _ = source.MethodInvocations(method);
         string normalized = string.Concat(method.ToString().Where(character => !char.IsWhiteSpace(character)));
+        var model = source.Compilation.GetSemanticModel(method.SyntaxTree);
+        var calls = method.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(call =>
+            call.Expression is MemberAccessExpressionSyntax member && member.Expression is IdentifierNameSyntax receiver &&
+            receiver.Identifier.ValueText == "matrix" && member.Name.Identifier.ValueText == "CancelAfter").ToArray();
+        if (calls.Length != 1 || model.GetSymbolInfo(calls[0]).Symbol is not IMethodSymbol cancel ||
+            cancel.ContainingType.ToDisplayString() != "System.Threading.CancellationTokenSource" ||
+            calls[0].ArgumentList.Arguments.SingleOrDefault()?.Expression is not InvocationExpressionSyntax seconds ||
+            model.GetSymbolInfo(seconds).Symbol is not IMethodSymbol factory ||
+            factory.ContainingType.ToDisplayString() != "System.TimeSpan" || factory.Name != "FromSeconds" ||
+            seconds.ArgumentList.Arguments.SingleOrDefault()?.Expression is not ConditionalExpressionSyntax duration ||
+            duration.Condition is not IdentifierNameSyntax { Identifier.ValueText: "full" })
+            return false;
+        var full = model.GetConstantValue(duration.WhenTrue);
+        var development = model.GetConstantValue(duration.WhenFalse);
         return normalized.Contains("awaitbrowser!(port,Path.Combine(directory,\"browser\"),owned.Token);", StringComparison.Ordinal)
-            && normalized.Contains("matrix.CancelAfter(TimeSpan.FromSeconds(full?1700:DiskStaticHttpContract.MatrixTimeoutSeconds));", StringComparison.Ordinal)
+            && full.HasValue && Convert.ToDouble(full.Value, System.Globalization.CultureInfo.InvariantCulture) == 1700
+            && development.HasValue && Convert.ToDouble(development.Value, System.Globalization.CultureInfo.InvariantCulture) == DiskStaticHttpContract.MatrixTimeoutSeconds
             && normalized.Contains("owned.Cancel();if(peerisnotnull)try{awaitpeer;}catch{}", StringComparison.Ordinal);
     }
 
@@ -59,7 +74,7 @@ internal static unsafe partial class DiskStaticExecutionPolicyTests
         {
             (realtime, RealtimeOwner, "AdmitRealtime", ": 600UL", ": 601UL", (Func<CSharpSourceCatalog, bool>)RealtimeSource),
             (realtime, RealtimeOwner, "AdmitRealtime", "continuing: Probes.EnableM16014Probe", "continuing: false", (Func<CSharpSourceCatalog, bool>)RealtimeSource),
-            (peer, PeerOwner, "RunCoreAsync", "full ? 1700", "full ? 1701", (Func<CSharpSourceCatalog, bool>)TimeoutSource),
+            (peer, PeerOwner, "RunCoreAsync", "full ? DiskStaticCapturePolicy.HttpMatrixTimeoutSeconds", "full ? 1701", (Func<CSharpSourceCatalog, bool>)TimeoutSource),
             (peer, PeerOwner, "RunCoreAsync", "Path.Combine(directory, \"browser\"), owned.Token", "Path.Combine(directory, \"browser\"), CancellationToken.None", (Func<CSharpSourceCatalog, bool>)TimeoutSource),
             (peer, PeerOwner, "RunCoreAsync", "owned.Cancel();", "owned.CancelAfter(1);", (Func<CSharpSourceCatalog, bool>)TimeoutSource)
         })
@@ -78,6 +93,15 @@ internal static unsafe partial class DiskStaticExecutionPolicyTests
             DiskPolicyBound(decoy, owner, name);
             HostCheck.True(!check(decoy), "unrelated raw text cannot supply the selected method policy");
         }
+        var field = peer.Type("OS.Tooling.DiskStaticCapturePolicy").GetMembers("HttpMatrixTimeoutSeconds")
+            .OfType<IFieldSymbol>().Single();
+        var declaration = (VariableDeclaratorSyntax)field.DeclaringSyntaxReferences.Single().GetSyntax();
+        var initializer = declaration.Initializer!.Value;
+        var policy = peer.Document(initializer);
+        string policyText = policy.Text.Remove(initializer.SpanStart, initializer.Span.Length).Insert(initializer.SpanStart, "1701");
+        var changedPolicy = DiskPolicyChange(peer, policy, policyText);
+        DiskPolicyBound(changedPolicy, PeerOwner, "RunCoreAsync");
+        HostCheck.True(!TimeoutSource(changedPolicy), "changing the resolved constant cannot preserve the accepted timeout");
     }
 
     private static CSharpSourceCatalog DiskPolicyChange(CSharpSourceCatalog source, CSharpSourceDocument original,

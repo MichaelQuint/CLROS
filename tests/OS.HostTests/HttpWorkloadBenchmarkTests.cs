@@ -140,6 +140,7 @@ internal static partial class HttpWorkloadBenchmarkTests
     private static void WithAsset(Action<string, WebRootDiskInventory.Inspection, byte[]> test) =>
         WebRootImageFixtureTests.WithImage((root, directory, image, source) =>
         {
+            Directory.CreateDirectory(Path.Combine(root, "artifacts", "tests"));
             byte[] body = Enumerable.Range(0, 70001).Select(index => (byte)(index * 37 ^ (index >> 9))).ToArray();
             File.WriteAllBytes(Path.Combine(source, "_framework", "System.Private.CoreLib.wasm"), body);
             string imported = Path.Combine(directory, "benchmark.raw");

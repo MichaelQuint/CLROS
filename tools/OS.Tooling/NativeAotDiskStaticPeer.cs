@@ -165,10 +165,10 @@ public static partial class NativeAotDiskStaticPeer
         async Task Observe()
         {
             using var startup = CancellationTokenSource.CreateLinkedTokenSource(owned.Token);
-            startup.CancelAfter(TimeSpan.FromSeconds(240));
+            startup.CancelAfter(TimeSpan.FromSeconds(DiskStaticCapturePolicy.HttpReadinessTimeoutSeconds));
             await NativeAotSocketPeer.WaitForSerialAsync(serial, text => text.Contains("M10_018_LISTENING ", StringComparison.Ordinal), startup.Token);
             using var matrix = CancellationTokenSource.CreateLinkedTokenSource(owned.Token);
-            matrix.CancelAfter(TimeSpan.FromSeconds(full ? 1700 : DiskStaticHttpContract.MatrixTimeoutSeconds));
+            matrix.CancelAfter(TimeSpan.FromSeconds(full ? DiskStaticCapturePolicy.HttpMatrixTimeoutSeconds : DiskStaticHttpContract.MatrixTimeoutSeconds));
             HttpClient Client() => new(new SocketsHttpHandler { AllowAutoRedirect = false, AutomaticDecompression = DecompressionMethods.None, UseProxy = false, MaxConnectionsPerServer = 1 })
             {
                 BaseAddress = new Uri("http://127.0.0.1:" + port),
