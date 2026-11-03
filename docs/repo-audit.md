@@ -1,5 +1,13 @@
 # Repository Audit
 
+[Step1744](../done/step1744.md) adds host-only CLROSSTYLE005: lambda braces must
+remain within the containing statement/member's visual indentation, allowing
+deeper headers and both valid continuation styles.29 files/86 blocks/30 profiles
+have independently checked whitespace-only changes; six valid files stay exact.
+Two current app hashes change, with all historical anchors preserved. The full
+solution and66 fresh focused checks pass; no unexplained current style findings.
+This minimum-containment guard does not replace IDE formatting or native proof.
+
 [Step1743](../done/step1743.md) separately commits body-deadline and receipt-error
 repairs with associated partial fixture files. Dynamic discovery splits the new
 expensive timer into Native while existing cases stay Fast. Red expected failure,

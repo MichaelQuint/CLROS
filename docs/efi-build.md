@@ -1,5 +1,11 @@
 # EFI Build
 
+[Step1744](../done/step1744.md) refreshes only two current app source-output
+hashes after reviewed lambda whitespace changes; kernel/std/EFI source links,
+historical anchors and native pins remain exact. Host source/admission success
+does not renew objects/maps/stack/metadata/EFI or transfer r154 numeric margins.
+Fresh own-Full publication and actual emitted review precede guest activation.
+
 [Step1742](../done/step1742.md) refreshes80 current source pins after token-
 preserving layout changes and retains all historical/object/byte pins. Source
 admission and source guards pass. Actual emitted objects/maps/stack/metadata/EFI

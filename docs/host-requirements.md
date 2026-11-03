@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1744](../done/step1744.md) validates the lambda-containment guard against
+the unapplied packet (172 intended failures), then rebuilds the complete solution
+and passes66 fresh focused checks with zero reuse/unchanged inputs. Dynamic
+discovery adds four style cases without a registry edit. Repo/contracts/diff
+pass; final frozen unfiltered Full remains mandatory.
+
 [Step1743](../done/step1743.md) keeps existing60/240-second request durations
 active through headers and streamed body, with outer-token persistence unchanged.
 A real60-second expiry is expensive synthetic Native-lane host work. Receipt

@@ -4,6 +4,11 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1744](done/step1744.md) repairs lambda block indentation with independently
+verified whitespace equivalence and a host containment rule. The complete
+solution and66 fresh focused checks pass, with zero repository findings.
+Remaining responsibility, Full/native/performance/browser and final gates stay open.
+
 [Step1743](done/step1743.md) verifies unchanged-duration streamed-body deadlines
 and preserves original request errors when HTTP receipt writing also fails. Real
 loopback timer and retained red/green controls pass with source-bound checks.

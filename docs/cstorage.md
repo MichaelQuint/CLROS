@@ -1,5 +1,10 @@
 # Storage
 
+[Step1744](../done/step1744.md) independently checks the exact lambda packet,
+two current app pins and66 passing host controls against all current/archived
+sources and producers. Storage implementation and resources stay unchanged.
+This host integration does not renew live block/storage or native qualification.
+
 [Step1743](../done/step1743.md) repairs two host storage-peer correctness gaps:
 request deadlines cover streamed bodies, and a receipt I/O failure preserves
 the original request exception. Captured60-second expiry and actual file-collision

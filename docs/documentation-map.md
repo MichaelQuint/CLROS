@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1744](../done/step1744.md) owns lambda containment, the reviewed29-file
+whitespace packet/two current pins, retained valid styles and66 focused checks.
+Repository audit owns the rule's limits; EFI guidance keeps renewed native proof
+mandatory. Primary responsibility review and extended/final gates remain open.
+
 [Step1743](../done/step1743.md) owns the host HTTP deadline and receipt-error
 repairs, real timer and preserved red/green originals. Diagnostics/storage guides
 retain source/result boundaries. Remaining lambda indentation and qualification
