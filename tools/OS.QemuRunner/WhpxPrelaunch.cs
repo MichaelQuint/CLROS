@@ -19,7 +19,7 @@ namespace OS.Tools.QemuRunner;
 // is inherited: written raw stderr is retained in a synchronous file, and any
 // bytes after the authenticated pre-resume seal fail. The runner owns both QMP endpoints; its
 // existing stdio endpoint is used only for failed-startup capture after resume.
-internal sealed class WhpxPrelaunch : IDisposable
+internal sealed partial class WhpxPrelaunch : IDisposable
 {
     public const string AffectedSha256 = OS.Tooling.QemuContracts.WhpxPrelaunchQemuSha256;
     public const string Machine = OS.Tooling.QemuContracts.WhpxPrelaunchMachine;
@@ -31,6 +31,7 @@ internal sealed class WhpxPrelaunch : IDisposable
     private readonly StreamWriter qmp = null!;
     private readonly string directory, executablePath, rawKey;
     private readonly TcpListener listener = null!;
+    private QmpConnection? connection;
     private long qmpBytes;
     private FileStream? sealLease;
     private string? sealDigest;
@@ -141,9 +142,18 @@ internal sealed class WhpxPrelaunch : IDisposable
         if (milliseconds <= 0)
             throw new IOException("whpx_prelaunch_budget_expired");
         using var deadline = new CancellationTokenSource(TimeSpan.FromMilliseconds(milliseconds));
-        using var client = await listener.AcceptTcpClientAsync(deadline.Token);
+        TcpClient accepted = await listener.AcceptTcpClientAsync(deadline.Token);
+        try
+        {
+            connection = new QmpConnection(accepted);
+        }
+        catch
+        {
+            accepted.Dispose();
+            throw;
+        }
         listener.Stop();
-        using var stream = client.GetStream();
+        var stream = connection.Stream;
         using var writer = new StreamWriter(stream, new UTF8Encoding(false), 4096, true) { AutoFlush = true };
         int id = 0;
         async Task<JsonElement> Read()
@@ -410,6 +420,24 @@ internal sealed class WhpxPrelaunch : IDisposable
             if (!completed && started)
                 Complete();
         }
-        finally { listener.Stop(); resumeLease?.Dispose(); sealLease?.Dispose(); qmp.Dispose(); raw.Dispose(); writer.Dispose(); executable.Dispose(); }
+        finally
+        {
+            try
+            {
+                // Handshake completion does not end the monitor connection's
+                // lifetime. Retain it through the existing child join.
+                connection?.CloseAfterChildJoin(!started || process.HasExited);
+            }
+            finally
+            {
+                listener.Stop();
+                resumeLease?.Dispose();
+                sealLease?.Dispose();
+                qmp.Dispose();
+                raw.Dispose();
+                writer.Dispose();
+                executable.Dispose();
+            }
+        }
     }
 }

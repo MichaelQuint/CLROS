@@ -5,7 +5,7 @@ using OS.Tooling;
 using OS.Tooling.Native;
 
 // Copied protocol controls only; no QEMU, firmware, guest or native acceptance.
-internal static class WhpxPrelaunchTests
+internal static partial class WhpxPrelaunchTests
 {
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<JoinPendingForTest>k__BackingField")]
     private static extern ref Func<BoundedJobProcessRunner.OwnershipJoinObservation, bool>? JoinProbe(ProcessRequest request);
