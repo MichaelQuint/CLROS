@@ -1,5 +1,18 @@
 # Diagnostics
 
+[Step1741](../done/step1741.md) completes three fresh boots per native variant
+and backend. All sixty responses and raw joins pass. JSON/HEAD medians improve;
+initial WHPX health worsens in all three pairs, and range distributions overlap.
+Keep raw samples, overlapping timing-region limits and the excluded observer
+casing failure. Full/warm/concurrent/browser and final qualification remain.
+
+[Step1740](../done/step1740.md) preserves every literal-text/decimal/sector byte
+while testing FIFO strings. Stack-rejected A/B never launch; C passes conditional
+Timing review and one five-response functional Short. Two WHPX pairs pass, then
+the third baseline fails strict post-seal invalid-handle stderr before storage/
+HTTP. No TCG series or repeatable gain is accepted. Keep the failed original,
+guards and deadlines; a separate QMP lifetime repair requires fresh originals.
+
 [Step1739](../done/step1739.md) preserves the first current Full018 benchmark
 failure:1,490,944/2,009,369 full-asset bytes at the unchanged180-second request
 deadline, after complete JSON/health/HEAD/64KiB responses. Owner cancellation,

@@ -4,6 +4,17 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1741](done/step1741.md) completes twelve fresh paired Timing Short boots
+and sixty exact responses after renewed QMP/native provenance. JSON/HEAD medians
+improve, initial WHPX health regresses, and range distributions overlap. Full
+asset/browser and final combined qualification remain pending.
+
+[Step1740](done/step1740.md) passes the literal-text FIFO candidate's conditional
+Timing native review and first functional guest. Its paired series stops after
+four passes at a baseline QEMU stderr failure, so repeatable improvement remains
+unaccepted. A bounded QMP lifetime repair passes 51 focused host checks; fresh
+native/guest and final combined qualification remain required.
+
 [Step1739](done/step1739.md) records the cleanup/native checkpoint and twelve
 separate local refactor commits. The first full-asset diagnostic fails at the
 unchanged180-second body deadline after1,490,944 of2,009,369 bytes; all children

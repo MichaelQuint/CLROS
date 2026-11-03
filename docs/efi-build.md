@@ -1,5 +1,18 @@
 # EFI Build
 
+[Step1741](../done/step1741.md) closes fresh r154 Timing provenance: EFI, native
+object/maps/responses/serializer match C exactly; managed 72-byte identity changes
+are fully attributed. All 46 copied leaves, 556 Release leaves and 3,977 source
+closure entries join. Keep every own-Timing runtime/stack/provider premise;
+twelve Short boots do not grant Full/browser or cross-profile admission.
+
+[Step1740](../done/step1740.md) binds candidate C's actual inlined text loop to
+its own Timing parent, complete code/data/metadata/PE and 131-method/20-witness
+reviews. Text adds zero positive debit; original IRQ/supervisor margins and
+conditions remain. A/B exceed conservative bounds and never launch. Subsequent
+host lifetime/doc changes require fresh provenance, even if native image bytes
+remain equal. No Full or final matrix qualification is inferred.
+
 [Step1739](../done/step1739.md) binds actual r148 Timing/Full publications and
 independent whole-object/data/layout review to their own profile parents. Timing
 EFI remains byte-exact to its FIFO parent; Full has separately attributed code,

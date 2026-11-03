@@ -1,5 +1,18 @@
 # NativeAOT NoStdLib Limits
 
+[Step1741](../done/step1741.md) authenticates the post-host-repair Timing image
+as byte-exact to candidate C, including native object, maps and compiler/link
+responses. Managed identity-field changes do not expand runtime support. All
+conditional own-profile premises remain; no Full/browser admission transfers.
+
+The combined refactor's `MethodImplOptions.AggressiveInlining = 0x0100` is the
+standard compiler metadata request verified against the pinned .NET 11 RC3
+compiler/runtime inputs. It adds no runtime implementation and does not guarantee
+inlining. Constrained paths still require inspection of actual emitted calls,
+frames and metadata before activation. `NoInlining = 0x0008` remains available to
+preserve an existing caller boundary; neither flag changes an ownership check,
+resource bound, GC/EH capability or failure policy.
+
 [Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
 

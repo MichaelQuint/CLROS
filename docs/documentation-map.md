@@ -1,5 +1,16 @@
 # Documentation Map
 
+[Step1741](../done/step1741.md) records fresh QMP/native provenance, all twelve
+paired Short originals, exact raw joins and mixed per-request distributions.
+Diagnostics owns timing/tradeoff scope; host/EFI guides own unchanged execution
+conditions; storage owns sector/media joins. Extended and final gates remain.
+
+[Step1740](../done/step1740.md) records conditional literal-text native review,
+one functional Short, the incomplete paired series and the host QMP lifetime
+repair. Diagnostics owns raw observations and failure boundaries; host/EFI guides
+own renewed provenance and execution conditions; storage owns media/counter joins.
+No complete performance distribution or final qualification is claimed.
+
 [Step1739](../done/step1739.md) records the r148 cleanup, conditional native
 review, twelve local commits and first failed full-asset diagnostic. Repository
 audit owns type/conditional/pin proofs; EFI build owns current native limits;

@@ -1,5 +1,18 @@
 # Storage
 
+[Step1741](../done/step1741.md) independently verifies all twelve new Short
+originals: 145 physical transactions, 531 rows and 241 sectors per boot, with
+exact GPT/FAT/image/packet/body/counter joins. Text-FIFO timing remains mixed;
+range overlap and the initial WHPX health regression prevent a universal gain
+claim. No full-asset, natural-cleanup or browser acceptance follows.
+
+[Step1740](../done/step1740.md) verifies 145 physical transactions/531 rows/241
+copied sectors and all five HTTP bodies for the functional C original and each
+of four completed paired originals. All raw media and packet joins pass. The
+next baseline fails before storage/HTTP at a strict QEMU stderr guard; no storage
+defect or repeatable gain is established. Four-sector reads and all existing
+device/serial/call/memory bounds remain. Full/warm/browser and writes stay open.
+
 [Step1739](../done/step1739.md) preserves the failed first full-asset original.
 All3213 captured copied sectors match the actual image;909 physical reads include
 768 four-sector payload transactions, so existing2048-byte batching works.

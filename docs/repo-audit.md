@@ -1,5 +1,18 @@
 # Repository Audit
 
+[Step1741](../done/step1741.md) retains r154 source/producers through twelve
+new Short originals and independent closing hash checks. Artifact-only observer
+repairs preserve failed originals and fresh-path guards. Remaining responsibility
+review and same-line executable formatting gaps are still open; IDE settings
+alone did not expand every finally block. Final unfiltered Full remains required.
+
+[Step1740](../done/step1740.md) adds separate associated text/connection/test
+files and preserves the capture tool's explicit helper source link. r153 binds
+5,885 sources and 31 producers; 51 focused checks pass unchanged with zero reuse.
+Private QMP ownership survives handshake completion and closes only after join.
+Compiler hints remain metadata requests requiring actual native proof; failed
+builds, rejected native candidates and the incomplete guest series stay preserved.
+
 [Step1739](../done/step1739.md) records twelve separate local commits through
 c3b118f3, with exact final-tree parity across7545 Git files and resolved case
 aliases. r148 passes the graph,13 fresh style/admission checks and repo/contracts.

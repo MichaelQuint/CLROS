@@ -1,5 +1,18 @@
 # Host Requirements
 
+[Step1741](../done/step1741.md) completes twelve new Short boots through the
+current retained-QMP runner, four preflights and exact current input guards.
+The prior warning does not recur in six WHPX boots; its cause is still unproven.
+A separate artifact-observer casing error is preserved, corrected and excluded
+from the fresh series. No stderr, deadline, resource or cleanup guard changes.
+
+[Step1740](../done/step1740.md) retains QMP through the runner's existing child
+join, with borrowed stream ownership and no changed stderr/deadline policy.
+The r153 graph and 51 focused checks pass; real loopback controls and all prior
+strict rejections remain. Refresh provenance and owner manifests before new
+guests. The failed baseline series is not resumed/relabelled as complete, and
+the earlier warning's cause is not proven by this host-only result.
+
 [Step1739](../done/step1739.md) runs the first actual warm=0 Full018 HTTP
 diagnostic through a guarded C# owner and fresh matching EFI rebuild. The first
 full asset exceeds the existing180-second header/body bound; cancellation and

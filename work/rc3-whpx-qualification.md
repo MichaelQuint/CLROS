@@ -1,5 +1,18 @@
 # RC3 and WHPX qualification contract
 
+[Step1741](../done/step1741.md) renews QMP/native provenance and completes a
+fresh twelve-boot paired Timing Short series, sixty responses and exact raw
+joins. JSON/HEAD improve but initial WHPX health regresses and range overlaps;
+no universal gain or causal QMP proof follows. All Full/browser/final frozen
+host and 29/24/7 contexts below remain required. Failed originals stay failed.
+
+[Step1740](../done/step1740.md) passes conditional Timing C native review, one
+functional Short and four paired WHPX originals. The series then stops on a
+baseline post-seal QEMU warning before storage/HTTP; three-pair/TCG acceptance is
+absent. The QMP ownership repair passes 51 focused host checks but needs renewed
+source/native/guest evidence. The cause remains unproven; no guard/budget is
+relaxed and no final gate below is closed.
+
 [Step1739](../done/step1739.md) records r148 cleanup and conditional current
 Timing/Full native reviews, plus twelve separate local commits through c3b118f3.
 The first actual Full018 warm=0 diagnostic fails the unchanged180-second full-asset
