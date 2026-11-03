@@ -116,7 +116,10 @@ internal static unsafe class LinuxSignalProofFixtureTests
             {
                 Fixture.WritePackage(path);
             }
-            catch (IOException) { rejected = true; }
+            catch (IOException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected && File.ReadAllBytes(path).AsSpan().SequenceEqual(before));
             foreach (string invalid in new[] { "", "alternatestack", "BadReturn ", "Threads", "Hello" })
             {
@@ -129,7 +132,11 @@ internal static unsafe class LinuxSignalProofFixtureTests
             HostCheck.True(Fixture.CreateElf("AlternateStack").AsSpan(0x180, 15).SequenceEqual("M16_SIGNALS_OK!"u8));
             HostCheck.True(!ReferenceEquals(Fixture.ExpectedInvocations("UserStack"), Fixture.ExpectedInvocations("UserStack")));
         }
-        finally { File.Delete(path); Directory.Delete(directory); }
+        finally
+        {
+            File.Delete(path);
+            Directory.Delete(directory);
+        }
     }
 
     [HostTest("m16-009 mechanical helper reuse preserves all four original M16-008 package identities")]
@@ -153,7 +160,10 @@ internal static unsafe class LinuxSignalProofFixtureTests
         {
             action();
         }
-        catch (ToolFailure error) { actual = error.Reason; }
+        catch (ToolFailure error)
+        {
+            actual = error.Reason;
+        }
         HostCheck.Equal(reason, actual!);
     }
 }

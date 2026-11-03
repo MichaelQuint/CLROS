@@ -66,7 +66,10 @@ internal static class ContinuingNetworkPeerTests
             {
                 await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5));
             }
-            catch (InvalidDataException) { rejected = true; }
+            catch (InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected && peer.Stop());
             HostCheck.Equal(0, peer.ArpReplies);
             HostCheck.Equal(0, peer.EchoReplies);
@@ -98,7 +101,10 @@ internal static class ContinuingNetworkPeerTests
             {
                 await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5));
             }
-            catch (InvalidDataException) { rejected = true; }
+            catch (InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected && peer.Stop());
         }
     }
@@ -152,7 +158,10 @@ internal static class ContinuingNetworkPeerTests
             {
                 await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5));
             }
-            catch (InvalidDataException) { rejected = true; }
+            catch (InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected && peer.Stop() && peer.TcpPackets == 9);
         }
     }

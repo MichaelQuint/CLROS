@@ -16,7 +16,10 @@ internal static class EfiPreflightTestControl
                     using var owned = EfiBuildFiles.OpenPublishLock(args[1]);
                     return args[2] == "acquire" ? 0 : 20;
                 }
-                catch (ToolFailure error) { return error.Reason == "publish_output_lock_failed" && args[2] == "blocked" ? 0 : 21; }
+                catch (ToolFailure error)
+                {
+                    return error.Reason == "publish_output_lock_failed" && args[2] == "blocked" ? 0 : 21;
+                }
             case "child":
                 using (File.Open(args[1], FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
                 {

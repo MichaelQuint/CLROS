@@ -54,22 +54,6 @@ public static unsafe partial class EfiEntry
     private static partial class M01StageThreeAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M02_OWNED_X64_GDT_ENCODING_PROBE
         private unsafe struct M02OwnedX64GdtEncodingStackWorkspace
         {

@@ -507,7 +507,10 @@ public static class QemuSmoke
                         lease.Start();
                         port = ((System.Net.IPEndPoint)lease.LocalEndpoint).Port;
                     }
-                    finally { lease.Stop(); }
+                    finally
+                    {
+                        lease.Stop();
+                    }
                 }
                 webForwardPort = port;
                 arguments.AddRange(["--socket-forward-port",port.ToString(CultureInfo.InvariantCulture),"--continuing-web",
@@ -643,7 +646,10 @@ public static class QemuSmoke
                             cancellation.ThrowIfCancellationRequested();
                         }
                         diskStaticPeer = await NativeAotDiskStaticPeer.RunAsync(root, options.SerialLog, RunSocketRunner, cancellation, inventory,
-                            async (port, directory, token) => { diskBrowser = await NativeAotDiskStaticBrowser.RunAsync(root, port, directory, inventory, token); }, diskTruncated);
+                            async (port, directory, token) =>
+{
+    diskBrowser = await NativeAotDiskStaticBrowser.RunAsync(root, port, directory, inventory, token);
+}, diskTruncated);
                     }
                     else
                         diskStaticPeer = await NativeAotDiskStaticPeer.RunAsync(root, options.SerialLog, RunSocketRunner, cancellation);
@@ -696,7 +702,10 @@ public static class QemuSmoke
                         output.Write(result.StandardError);
                         return result;
                     }
-                    finally { webCompleted = DateTimeOffset.UtcNow; }
+                    finally
+                    {
+                        webCompleted = DateTimeOffset.UtcNow;
+                    }
                 }
                 webRacePeer = options.WebEventOwnedSignalRace ?
                     await NativeAotWebRacePeer.RunEventOwnedAsync(root, webForwardPort, webConfiguration.Body,
@@ -882,8 +891,21 @@ public static class QemuSmoke
                     throw new ToolFailure("web_race_original_inputs_required");
                 int result = QemuTranscripts.InspectOwnedWebRace(root, options, plan, webProgram, webRacePeer, runner,
                     new(webForwardPort, qemu, ovmf, webStarted, webCompleted), webInputs, webPackageInput, webDisassemblyInput, webImageInput, webEfiInput, output,
-                    () => { if (capture is not null) { capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations"); } },
-                    () => { NativeAotWebProgram.HoldSources(root, webInputs); webInputs.VerifyUnchanged(); webNative.VerifyHeldInputs(); cancellation.ThrowIfCancellationRequested(); });
+                    () =>
+{
+    if (capture is not null)
+    {
+        capture.Validate();
+        output.WriteLine("TEST_PASS m01.026.raw-observations");
+    }
+},
+                    () =>
+{
+    NativeAotWebProgram.HoldSources(root, webInputs);
+    webInputs.VerifyUnchanged();
+    webNative.VerifyHeldInputs();
+    cancellation.ThrowIfCancellationRequested();
+});
                 cancellation.ThrowIfCancellationRequested();
                 if (result == 0)
                     output.WriteLine("TEST_PASS qemu.smoke.web-race");
@@ -956,7 +978,20 @@ public static class QemuSmoke
             output.WriteLine("TEST_FAIL qemu.smoke " + error.Message);
             return 1;
         }
-        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); webInputs?.Dispose(); webNative?.Dispose(); serviceInputs?.Dispose(); serviceNative?.Dispose(); writableWorking?.Dispose(); diskInputs?.Dispose(); diskNative?.Dispose(); }
+        finally
+        {
+            capture?.Dispose();
+            linuxInput?.Dispose();
+            helloDisassemblyInput?.Dispose();
+            threadingDisassemblyInput?.Dispose();
+            webInputs?.Dispose();
+            webNative?.Dispose();
+            serviceInputs?.Dispose();
+            serviceNative?.Dispose();
+            writableWorking?.Dispose();
+            diskInputs?.Dispose();
+            diskNative?.Dispose();
+        }
     }
 
     // The original owner holds these files and all four identities unchanged
@@ -1027,7 +1062,11 @@ public static class QemuSmoke
             working.VerifyOriginalsAndWorkingIdentity();
             return snapshot;
         }
-        catch { stream.Dispose(); throw; }
+        catch
+        {
+            stream.Dispose();
+            throw;
+        }
     }
 
     public static string? ResolveExecutable(string? requested)

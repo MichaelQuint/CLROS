@@ -70,7 +70,10 @@ internal static unsafe class M05PhysicalMappingEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid mapping evidence must be rejected");
     }
 }

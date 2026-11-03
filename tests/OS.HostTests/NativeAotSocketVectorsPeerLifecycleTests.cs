@@ -43,12 +43,23 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
         bool fresh = false;
         try
         {
-            _ = await NativeAotSocketVectorsPeer.RunAsync(root, log, serial, (_, _) => { starts++; return Task.FromResult(expected); }, deadline.Token);
+            _ = await NativeAotSocketVectorsPeer.RunAsync(root, log, serial, (_, _) =>
+{
+    starts++;
+    return Task.FromResult(expected);
+}, deadline.Token);
         }
-        catch (IOException) { fresh = true; }
+        catch (IOException)
+        {
+            fresh = true;
+        }
         HostCheck.True(fresh && starts == 0);
         File.AppendAllText(log, "extra\n");
-        Reject(() => { using var files = new AuthorityFiles(); Verify(result, files); }, "socket_vectors_peer_log_identity");
+        Reject(() =>
+{
+    using var files = new AuthorityFiles();
+    Verify(result, files);
+}, "socket_vectors_peer_log_identity");
     }
 
     [HostTest("vector peer orchestration retains an empty log when runner exits before accept readiness")]
@@ -64,7 +75,10 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
             _ = await NativeAotSocketVectorsPeer.RunAsync(root, log, serial, (_, _) =>
             Task.FromResult(new ProcessResult(2, "", "", false, false, false, TimeSpan.Zero)), deadline.Token);
         }
-        catch (ToolFailure error) { failure = error.Message; }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.StartsWith("socket_vectors_runner_exited_before_peer exit=2 terminationConfirmed=True", StringComparison.Ordinal) == true);
         HostCheck.True(new FileInfo(log).Length == 0 && !File.Exists(serial));
     }
@@ -86,10 +100,16 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
                 {
                     return await Stub(port, serial, new ProcessResult(2, "", "", false, false, false, TimeSpan.Zero), token, stopAtGate: true);
                 }
-                finally { exited = true; }
+                finally
+                {
+                    exited = true;
+                }
             }, deadline.Token);
         }
-        catch (ToolFailure error) { failure = error.Message; }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(exited && failure?.StartsWith("socket_vectors_peer_", StringComparison.Ordinal) == true);
         HostCheck.True(File.Exists(log) && !File.ReadAllText(log).Contains("TEST_PASS", StringComparison.Ordinal));
     }
@@ -109,7 +129,10 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
             {
                 return await Stub(port, serial, new ProcessResult(0, "", "", false, false, false, TimeSpan.Zero), token, stopAtGate: true, connected: connected);
             }
-            finally { exited = true; }
+            finally
+            {
+                exited = true;
+            }
         }, deadline.Token);
         try
         {
@@ -119,10 +142,23 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
             {
                 _ = await run;
             }
-            catch (OperationCanceledException) { cancelled = true; }
+            catch (OperationCanceledException)
+            {
+                cancelled = true;
+            }
             HostCheck.True(cancelled && exited && File.Exists(log) && !File.ReadAllText(log).Contains("TEST_PASS", StringComparison.Ordinal));
         }
-        finally { deadline.Cancel(); try { _ = await run; } catch { } }
+        finally
+        {
+            deadline.Cancel();
+            try
+            {
+                _ = await run;
+            }
+            catch
+            {
+            }
+        }
     }
 
     private static string DirectoryFor(string root)
@@ -174,7 +210,10 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
                     {
                         _ = await peer.ReceiveAsync(new byte[1], SocketFlags.None, token);
                     }
-                    catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionReset) { reset = true; }
+                    catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionReset)
+                    {
+                        reset = true;
+                    }
                     HostCheck.True(reset);
                 }
                 else if (index != 2)
@@ -240,7 +279,10 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
         {
             action();
         }
-        catch (ToolFailure error) { failure = error.Reason; }
+        catch (ToolFailure error)
+        {
+            failure = error.Reason;
+        }
         HostCheck.Equal(reason, failure ?? "accepted");
     }
 }

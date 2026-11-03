@@ -32,7 +32,10 @@ internal static class NativeAotServiceProgramTests
             {
                 NativeAotServiceProgram.Create(root, NativeAotServicePackage.Create(elf, contract), dump, contract);
             }
-            catch (InvalidDataException error) { rejected = error.Message == "service_package_identity"; }
+            catch (InvalidDataException error)
+            {
+                rejected = error.Message == "service_package_identity";
+            }
             HostCheck.True(rejected);
         }
     }
@@ -50,7 +53,10 @@ internal static class NativeAotServiceProgramTests
             {
                 NativeAotServiceProgram.Inspect(elf, dump);
             }
-            catch (InvalidDataException) { rejected = true; }
+            catch (InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(68), 4);
@@ -59,7 +65,10 @@ internal static class NativeAotServiceProgramTests
         {
             NativeAotServiceProgram.Inspect(elf, "400200: 0f 05\tsyscall\n");
         }
-        catch (InvalidDataException) { dataRejected = true; }
+        catch (InvalidDataException)
+        {
+            dataRejected = true;
+        }
         HostCheck.True(dataRejected);
     }
 }

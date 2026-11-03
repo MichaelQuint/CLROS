@@ -26,7 +26,10 @@ internal static class NativeAotWebSignalRaceWireTests
         {
             action();
         }
-        catch (Exception error) when (error is ToolFailure or InvalidDataException) { rejected = true; }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 

@@ -38,7 +38,11 @@ internal static unsafe partial class RhpCoreTestProgram
             test();
             Console.WriteLine("TEST_PASS rhp.core " + name);
         }
-        catch (Exception ex) { Console.WriteLine("TEST_FAIL rhp.core " + name + " " + ex.Message); throw; }
+        catch (Exception ex)
+        {
+            Console.WriteLine("TEST_FAIL rhp.core " + name + " " + ex.Message);
+            throw;
+        }
     }
     private static void Need(bool value, string detail)
     {

@@ -63,7 +63,10 @@ internal static class NativeAotHelloOutputTests
         {
             NativeAotHelloOutput.Validate(Encoding.ASCII.GetBytes(raw));
         }
-        catch (InvalidDataException error) { rejected = error.Message == "hello_output_envelopes"; }
+        catch (InvalidDataException error)
+        {
+            rejected = error.Message == "hello_output_envelopes";
+        }
         HostCheck.True(rejected, "strict raw Hello write admission");
     }
 }

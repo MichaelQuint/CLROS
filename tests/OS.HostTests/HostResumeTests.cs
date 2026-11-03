@@ -33,7 +33,10 @@ internal static class HostResumeTests
             {
                 using var second = new HostRunCheckpoint(root, directory, true);
             }
-            catch (IOException) { locked = true; }
+            catch (IOException)
+            {
+                locked = true;
+            }
             HostCheck.True(locked, "simultaneous resume must refuse the active receipt");
         }
         using (var checkpoint = new HostRunCheckpoint(root, directory, true))
@@ -50,7 +53,10 @@ internal static class HostResumeTests
             {
                 using var checkpoint = new HostRunCheckpoint(root, directory, true);
             }
-            catch (IOException) { locked = true; }
+            catch (IOException)
+            {
+                locked = true;
+            }
             HostCheck.True(locked, "surviving worker must prevent resume");
         }
     }

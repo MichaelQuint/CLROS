@@ -92,7 +92,10 @@ public sealed class QemuEthernetPeer : IDisposable
             linked.Token.ThrowIfCancellationRequested();
             throw;
         }
-        finally { accepted?.Dispose(); }
+        finally
+        {
+            accepted?.Dispose();
+        }
     }
 
     /// <summary>
@@ -130,7 +133,10 @@ public sealed class QemuEthernetPeer : IDisposable
                 throw;
             }
         }
-        finally { Volatile.Write(ref reading, 0); }
+        finally
+        {
+            Volatile.Write(ref reading, 0);
+        }
     }
 
     /// <summary>
@@ -162,7 +168,10 @@ public sealed class QemuEthernetPeer : IDisposable
                 throw;
             }
         }
-        finally { Volatile.Write(ref writing, 0); }
+        finally
+        {
+            Volatile.Write(ref writing, 0);
+        }
     }
 
     /// <summary>Closes listener/connection and interrupts pending I/O. Repeated disposal is harmless.</summary>

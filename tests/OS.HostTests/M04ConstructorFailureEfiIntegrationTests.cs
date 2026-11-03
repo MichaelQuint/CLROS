@@ -115,7 +115,10 @@ internal static class M04ConstructorFailureEfiIntegrationTests
             {
                 EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact", artifact, .. Arguments(Flags)], false));
             }
-            catch (ToolFailure rejected) { failure = rejected.Reason; }
+            catch (ToolFailure rejected)
+            {
+                failure = rejected.Reason;
+            }
             HostCheck.True(failure == expected, "expected=" + expected + " actual=" + failure);
         }
         Verify(null);
@@ -146,7 +149,11 @@ internal static class M04ConstructorFailureEfiIntegrationTests
                 File.WriteAllText(evidencePath, evidence.ToJsonString());
                 Verify(reason);
             }
-            finally { File.WriteAllBytes(artifact, original); File.WriteAllText(evidencePath, originalEvidence); }
+            finally
+            {
+                File.WriteAllBytes(artifact, original);
+                File.WriteAllText(evidencePath, originalEvidence);
+            }
         }
         string sidecar = artifact + ".ctor-failure.obj";
         byte[] bridge = File.ReadAllBytes(sidecar);
@@ -157,7 +164,10 @@ internal static class M04ConstructorFailureEfiIntegrationTests
             File.WriteAllBytes(sidecar, changed);
             Verify("constructor_failure_object_identity_mismatch");
         }
-        finally { File.WriteAllBytes(sidecar, bridge); }
+        finally
+        {
+            File.WriteAllBytes(sidecar, bridge);
+        }
         Verify(null);
         File.WriteAllText(log + ".controls", controls.Count + " rehashed PE controls and one object mutation rejected; originals restored and native geometry admitted again. No actual transfer/guest acceptance.\n");
     }
@@ -170,7 +180,10 @@ internal static class M04ConstructorFailureEfiIntegrationTests
         {
             _ = EfiOptions.Parse(arguments, build).Profile();
         }
-        catch (ToolFailure failure) { reason = failure.Reason; }
+        catch (ToolFailure failure)
+        {
+            reason = failure.Reason;
+        }
         HostCheck.True(reason == expected, "expected=" + expected + " actual=" + reason);
     }
 }

@@ -15,7 +15,10 @@ internal static class ContinuingServiceProfileTests
         {
             _ = QemuSmokeOptions.Parse("--service-lifecycle=invalid");
         }
-        catch (ArgumentException) { rejected = true; }
+        catch (ArgumentException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
@@ -51,7 +54,11 @@ internal static class ContinuingServiceProfileTests
         options.Flags["EnableM16014Probe"] = true;
         int children = 0;
         using var output = new StringWriter();
-        int result = await QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output, (_, _) => { children++; throw new InvalidOperationException("Unexpected lifecycle child."); });
+        int result = await QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output, (_, _) =>
+{
+    children++;
+    throw new InvalidOperationException("Unexpected lifecycle child.");
+});
         HostCheck.Equal(1, result);
         HostCheck.Equal(0, children);
         HostCheck.True(output.ToString().Contains("TEST_FAIL qemu.smoke", StringComparison.Ordinal) &&
@@ -101,7 +108,10 @@ internal static class ContinuingServiceProfileTests
             {
                 EfiProfile.Create(null, flags);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         bool bootRejected = false;
@@ -109,7 +119,10 @@ internal static class ContinuingServiceProfileTests
         {
             EfiProfile.Create("VerifiedExit", Flags());
         }
-        catch (ToolFailure) { bootRejected = true; }
+        catch (ToolFailure)
+        {
+            bootRejected = true;
+        }
         HostCheck.True(bootRejected);
     }
 
@@ -165,7 +178,10 @@ internal static class ContinuingServiceProfileTests
         {
             action();
         }
-        catch (ToolFailure error) { observed = error.Reason; }
+        catch (ToolFailure error)
+        {
+            observed = error.Reason;
+        }
         HostCheck.Equal(reason, observed ?? "accepted");
     }
 }

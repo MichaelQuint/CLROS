@@ -59,7 +59,10 @@ internal static class NativeAotSocketContainmentPublisherTests
         {
             _ = NativeAotSocketContainmentPublisher.PublishArguments(recipe, destination);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

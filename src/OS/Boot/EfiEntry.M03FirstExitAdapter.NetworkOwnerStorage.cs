@@ -23,11 +23,6 @@ public static unsafe partial class EfiEntry
             internal fixed ulong Metadata[256];
         }
 
-
-
-
-
-
     }
 }
 #endif

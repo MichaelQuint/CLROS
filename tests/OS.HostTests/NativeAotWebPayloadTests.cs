@@ -48,7 +48,10 @@ internal static class NativeAotWebPayloadTests
                 {
                     NativeAotWebPayload.ValidateQualification(root, evidence);
                 }
-                catch (InvalidDataException error) { failure = error.Message; }
+                catch (InvalidDataException error)
+                {
+                    failure = error.Message;
+                }
                 HostCheck.Equal(mutation switch
                 {
                     "pin" or "schema" or "old_schema" => "native_receipt_pin",
@@ -56,7 +59,10 @@ internal static class NativeAotWebPayloadTests
                     _ => "native_evidence_changed"
                 }, failure!);
             }
-            finally { Directory.Delete(root, recursive: true); }
+            finally
+            {
+                Directory.Delete(root, recursive: true);
+            }
         }
     }
 
@@ -126,7 +132,10 @@ internal static class NativeAotWebPayloadTests
             {
                 NativeAotWebPayload.ValidateLoggingEvidence(stdout, stderr, traces);
             }
-            catch (InvalidDataException) { rejected = true; }
+            catch (InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.Equal(mutation != "none", rejected, mutation);
         }
     }

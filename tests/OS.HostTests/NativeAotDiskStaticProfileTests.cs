@@ -25,7 +25,10 @@ internal static class NativeAotDiskStaticProfileTests
             {
                 _ = QemuProfiles.Create(QemuSmokeOptions.Parse([.. Arguments, "-EnableM10018TimingProbe", .. suffix]));
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, string.Join(' ', suffix));
         }
     }
@@ -66,7 +69,10 @@ internal static class NativeAotDiskStaticProfileTests
             {
                 _ = QemuProfiles.Create(QemuSmokeOptions.Parse([.. Arguments, .. suffix]));
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, string.Join(' ', suffix));
         }
         var missing = QemuSmokeOptions.Parse(Arguments);
@@ -76,7 +82,10 @@ internal static class NativeAotDiskStaticProfileTests
         {
             _ = QemuProfiles.Create(missing);
         }
-        catch (ToolFailure) { denied = true; }
+        catch (ToolFailure)
+        {
+            denied = true;
+        }
         HostCheck.True(denied);
     }
 

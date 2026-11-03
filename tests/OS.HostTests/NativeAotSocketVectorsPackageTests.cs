@@ -38,7 +38,10 @@ internal static unsafe class NativeAotSocketVectorsPackageTests
             File.Delete(policy);
             NativeAotSocketVectorsPackage.RequireCurrentSources(temporary);
         }
-        finally { Directory.Delete(temporary, recursive: true); }
+        finally
+        {
+            Directory.Delete(temporary, recursive: true);
+        }
     }
 
     [HostTest("vectors package policy binds original digest finite resources explicit IRQ and one passive bind")]
@@ -68,7 +71,10 @@ internal static unsafe class NativeAotSocketVectorsPackageTests
             Reject(() => NativeAotSocketVectorsPackage.Create(root, temporary), "publication_identity");
             HostCheck.True(Directory.GetFiles(temporary).SequenceEqual(new[] { receipt }));
         }
-        finally { Directory.Delete(temporary, recursive: true); }
+        finally
+        {
+            Directory.Delete(temporary, recursive: true);
+        }
     }
 
     private static void Reject(Action action, string reason)
@@ -78,7 +84,10 @@ internal static unsafe class NativeAotSocketVectorsPackageTests
         {
             action();
         }
-        catch (Exception error) when (error is InvalidDataException or ToolFailure) { observed = error.Message; }
+        catch (Exception error) when (error is InvalidDataException or ToolFailure)
+        {
+            observed = error.Message;
+        }
         HostCheck.True(observed?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + observed);
     }
 }

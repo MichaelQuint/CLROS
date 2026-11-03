@@ -46,7 +46,10 @@ internal static unsafe class LinuxDiskFileProofFixtureTests
             {
                 LinuxDiskFileProofFixture.RequirePackage(input);
             }
-            catch (ToolFailure failure) when (failure.Reason == "m16_025_fixture_package_identity") { rejected = true; }
+            catch (ToolFailure failure) when (failure.Reason == "m16_025_fixture_package_identity")
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -118,7 +121,10 @@ internal static unsafe class LinuxDiskFileProofFixtureTests
         {
             ((IList<ulong>)starts)[0] = 1;
         }
-        catch (NotSupportedException) { rejected = true; }
+        catch (NotSupportedException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && starts.SequenceEqual(before));
         Array.Fill(elf, (byte)0);
         Array.Fill(package, (byte)0);

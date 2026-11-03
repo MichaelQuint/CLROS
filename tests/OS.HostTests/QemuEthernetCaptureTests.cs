@@ -20,7 +20,10 @@ internal static class QemuEthernetCaptureTests
             {
                 _ = QemuEthernetCapture.InspectArp(capture, receipt);
             }
-            catch (InvalidDataException) { rejected = true; }
+            catch (InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         Bad(Capture(Frame(), reply, request), expected);
@@ -97,7 +100,11 @@ internal static class QemuEthernetCaptureTests
                 file.SetLength(4 * 1024 * 1024 + 1);
             RejectFile(path, crc, "m07_capture_file_extent");
         }
-        finally { File.Delete(path); Directory.Delete(directory); }
+        finally
+        {
+            File.Delete(path);
+            Directory.Delete(directory);
+        }
     }
 
     [HostTest("qemu.ethernet.capture rejects malformed global and record headers and every truncation", HostLane.Fast, 1)]
@@ -201,7 +208,11 @@ internal static class QemuEthernetCaptureTests
         {
             _ = QemuEthernetCapture.Inspect(bytes, crc);
         }
-        catch (InvalidDataException error) { HostCheck.Equal(reason, error.Message); return; }
+        catch (InvalidDataException error)
+        {
+            HostCheck.Equal(reason, error.Message);
+            return;
+        }
         throw new InvalidOperationException("capture_accepts_invalid " + reason);
     }
     private static void RejectFile(string path, uint crc, string reason)
@@ -210,7 +221,11 @@ internal static class QemuEthernetCaptureTests
         {
             _ = QemuEthernetCapture.Assert(path, crc);
         }
-        catch (InvalidDataException error) { HostCheck.Equal(reason, error.Message); return; }
+        catch (InvalidDataException error)
+        {
+            HostCheck.Equal(reason, error.Message);
+            return;
+        }
         throw new InvalidOperationException("capture_file_accepts_invalid " + reason);
     }
     private static string RepoRoot()

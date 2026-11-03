@@ -48,7 +48,10 @@ internal static class NativeAotServicePackageTests
         {
             _ = NativeAotServicePackage.Describe(original, lifecycle: true);
         }
-        catch (InvalidDataException) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && !original.AsSpan().SequenceEqual(lifecycle));
         var view = LinuxElfPackage.Validate(lifecycle);
         byte[] manifest = lifecycle.AsSpan((int)view.ManifestOffset, (int)view.ManifestBytes).ToArray();
@@ -75,7 +78,10 @@ internal static class NativeAotServicePackageTests
             {
                 _ = NativeAotServicePackage.Describe(changed, lifecycle: true);
             }
-            catch (InvalidDataException) { rejected = true; }
+            catch (InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -169,14 +175,20 @@ internal static class NativeAotServicePackageTests
             {
                 _ = NativeAotServicePackage.Create(elf, contract);
             }
-            catch (ArgumentOutOfRangeException) { rejected = true; }
+            catch (ArgumentOutOfRangeException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
             rejected = false;
             try
             {
                 _ = NativeAotServicePackage.Describe(package, contract);
             }
-            catch (ArgumentOutOfRangeException) { rejected = true; }
+            catch (ArgumentOutOfRangeException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -188,7 +200,10 @@ internal static class NativeAotServicePackageTests
         {
             _ = NativeAotServicePackage.Describe(package, contract);
         }
-        catch (InvalidDataException) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "noncanonical service contract accepted");
     }
 
@@ -199,7 +214,10 @@ internal static class NativeAotServicePackageTests
         {
             _ = NativeAotServicePackage.Describe(package);
         }
-        catch (InvalidDataException) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "noncanonical service envelope accepted");
     }
 }

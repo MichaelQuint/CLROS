@@ -312,7 +312,10 @@ internal static class NativeAotWebSignalRaceTests
         {
             action();
         }
-        catch (ToolFailure) { failed = true; }
+        catch (ToolFailure)
+        {
+            failed = true;
+        }
         HostCheck.True(failed);
     }
 
@@ -399,7 +402,10 @@ internal static class NativeAotWebSignalRaceTests
         {
             ((IList<QemuTranscripts.WebSignalRaceSocketCall>)report.SocketCalls).Clear();
         }
-        catch (NotSupportedException) { immutable = true; }
+        catch (NotSupportedException)
+        {
+            immutable = true;
+        }
         HostCheck.True(immutable);
         Reject(() => Run(controls: true, extraSocket: true, missingAfter: true));
         Reject(() => Run(controls: true, extraSocket: true, lateRetirement: true));

@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-
 internal static unsafe partial class RhpNewFastAllocation
 {
     private const ulong GcCookie = 0x7143B6A952D08E2F;

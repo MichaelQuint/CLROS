@@ -134,7 +134,10 @@ internal static class SocketContainmentProfileTests
         {
             action();
         }
-        catch (ToolFailure) { return; }
+        catch (ToolFailure)
+        {
+            return;
+        }
         throw new InvalidOperationException("socket_containment_invalid_profile_accepted");
     }
 }

@@ -23,7 +23,10 @@ internal static class HostLedgerSourceGuardTests
             {
                 Check(statement);
             }
-            catch (InvalidOperationException error) when (error.Message.StartsWith("ledger_", StringComparison.Ordinal)) { continue; }
+            catch (InvalidOperationException error) when (error.Message.StartsWith("ledger_", StringComparison.Ordinal))
+            {
+                continue;
+            }
             throw new InvalidOperationException("ledger mutation was accepted: " + statement);
         }
     }
@@ -70,7 +73,10 @@ internal static class HostLedgerSourceGuardTests
                 foreach (var document in catalog.TypeSources("Ledger").Concat(catalog.TypeSources("Entry")))
                     HostLedgerSourceGuard.Validate(catalog, document, catalog.Type("Ledger"), [catalog.Type("Entry")]);
             }
-            catch (InvalidOperationException error) when (error.Message.StartsWith("ledger_", StringComparison.Ordinal)) { continue; }
+            catch (InvalidOperationException error) when (error.Message.StartsWith("ledger_", StringComparison.Ordinal))
+            {
+                continue;
+            }
             throw new InvalidOperationException("opaque ledger implementation accepted");
         }
     }

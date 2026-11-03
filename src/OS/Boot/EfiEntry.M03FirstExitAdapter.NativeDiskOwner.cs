@@ -20,7 +20,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
         private struct NativeDiskOwner
         {
             internal Storage* Boot;
@@ -65,9 +64,6 @@ public static unsafe partial class EfiEntry
             internal LiveGptHeaderResult Header;
             internal LiveEfiPartitionResult Partition;
         }
-
-
-
 
     }
 }

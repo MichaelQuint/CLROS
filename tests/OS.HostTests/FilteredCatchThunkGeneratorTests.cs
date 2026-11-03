@@ -60,7 +60,10 @@ internal static class FilteredCatchThunkGeneratorTests
             {
                 VerifyReturn(changed, -1, 0);
             }
-            catch (InvalidOperationException) { rejected = true; }
+            catch (InvalidOperationException)
+            {
+                rejected = true;
+            }
             Need(rejected, "substituted return slot rejected");
             string tool = assembly.Location;
             foreach (var pair in new[] { ("--filtered-catch", OS.Tooling.EfiContracts.FilteredCatchObjectBytes, OS.Tooling.EfiContracts.FilteredCatchObjectSha256),

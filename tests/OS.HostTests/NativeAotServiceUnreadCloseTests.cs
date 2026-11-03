@@ -57,7 +57,10 @@ internal static class NativeAotServiceUnreadCloseTests
         {
             action();
         }
-        catch (ToolFailure) { refused = true; }
+        catch (ToolFailure)
+        {
+            refused = true;
+        }
         HostCheck.True(refused);
     }
 }

@@ -58,7 +58,10 @@ internal static class NativeAotServiceQuotaTransportTests
         {
             _ = QemuTranscripts.InspectNativeAotServiceTransportForTests(valid);
         }
-        catch (ToolFailure) { positiveRejected = true; }
+        catch (ToolFailure)
+        {
+            positiveRejected = true;
+        }
         HostCheck.True(positiveRejected);
     }
 
@@ -104,7 +107,10 @@ internal static class NativeAotServiceQuotaTransportTests
         {
             ((IList<QemuTranscripts.ServiceQuotaTransportLifetime>)report.FreshLifetimes)[0] = next;
         }
-        catch (NotSupportedException) { immutable = true; }
+        catch (NotSupportedException)
+        {
+            immutable = true;
+        }
         HostCheck.True(immutable);
     }
 
@@ -115,7 +121,12 @@ internal static class NativeAotServiceQuotaTransportTests
         {
             _ = QemuTranscripts.InspectNativeAotServiceQuotaTransportForTests(rows);
         }
-        catch (ToolFailure error) { rejected = true; if (reason is not null) HostCheck.Equal(reason, error.Reason); }
+        catch (ToolFailure error)
+        {
+            rejected = true;
+            if (reason is not null)
+                HostCheck.Equal(reason, error.Reason);
+        }
         HostCheck.True(rejected);
     }
 }

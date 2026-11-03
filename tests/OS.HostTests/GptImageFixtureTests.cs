@@ -178,7 +178,9 @@ internal static class GptImageFixtureTests
             GptImageFixture.ApplyPrimaryHeaderCrcFault(path);
             HostCheck.True(false, "invalid image accepted");
         }
-        catch (ToolFailure) { }
+        catch (ToolFailure)
+        {
+        }
     }
     private static void WithImage(byte[] image, Action<string> action)
     {
@@ -190,6 +192,9 @@ internal static class GptImageFixtureTests
             File.WriteAllBytes(path, image);
             action(path);
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 }

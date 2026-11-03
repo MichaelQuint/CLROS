@@ -3,6 +3,7 @@ using OS.Kernel.Runtime;
 
 #endif
 namespace OS.Kernel.Diagnostics;
+
 public readonly struct CheckedPortIoFunctionPointerInvocationResult
 {
     private CheckedPortIoFunctionPointerInvocationResult(bool isInitialized, CheckedPortIoFunctionPointerInvocationStatus status, PortIoOperationKind operationKind, ushort port, byte value, bool wasInvoked)

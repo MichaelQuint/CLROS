@@ -56,7 +56,10 @@ internal static partial class NativeAotDiskStaticBrowserTests
         {
             action();
         }
-        catch (ToolFailure error) { rejected = error.Reason.StartsWith("disk_browser_", StringComparison.Ordinal) && error.Reason.Contains(reason, StringComparison.Ordinal); }
+        catch (ToolFailure error)
+        {
+            rejected = error.Reason.StartsWith("disk_browser_", StringComparison.Ordinal) && error.Reason.Contains(reason, StringComparison.Ordinal);
+        }
         HostCheck.True(rejected, reason);
     }
 
@@ -79,7 +82,10 @@ internal static partial class NativeAotDiskStaticBrowserTests
         {
             ((IList<B.Header>)actual.ResponseHeaders).Clear();
         }
-        catch (NotSupportedException) { immutable = true; }
+        catch (NotSupportedException)
+        {
+            immutable = true;
+        }
         HostCheck.True(immutable);
         var repeated = Exchange(actual.Target, actual.CopyBody(), "application/wasm", "129.2");
         HostCheck.True(actual.Sha256 == repeated.Sha256 && actual.RequestId != repeated.RequestId);

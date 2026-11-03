@@ -48,7 +48,10 @@ internal static class DiskSourceFamilySelectionTests
             {
                 _ = DiskSourceFamilySelection.Select(source, directory, selectedReasons, selectedPins, anchors);
             }
-            catch (InvalidOperationException error) when (error.Message.StartsWith("disk_source_family_", StringComparison.Ordinal)) { return; }
+            catch (InvalidOperationException error) when (error.Message.StartsWith("disk_source_family_", StringComparison.Ordinal))
+            {
+                return;
+            }
             throw new InvalidOperationException("unreviewed disk source family accepted");
         }
         var missingPin = new Dictionary<string, string>(pins, StringComparer.Ordinal);

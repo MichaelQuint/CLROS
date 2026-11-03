@@ -70,7 +70,10 @@ internal static class NativeAotServiceQuotaWireTests
             {
                 _ = await pending;
             }
-            catch (OperationCanceledException) { canceled = true; }
+            catch (OperationCanceledException)
+            {
+                canceled = true;
+            }
         }, deadline.Token);
         HostCheck.True(canceled && trace.Operations.Count == 1 && trace.Operations[0].Outcome == "canceled" &&
             trace.Operations[0].Transferred == -1 && trace.Operations[0].DataBase64 == "" && trace.RawBytes == 0);
@@ -95,7 +98,10 @@ internal static class NativeAotServiceQuotaWireTests
             {
                 await stream.WriteAsync(new byte[NativeAotServiceQuotaPeer.WireMaximumOperationBytes + 1], token);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
         }, deadline.Token);
         HostCheck.True(rejected && trace.Operations.Count == 0 && trace.RawBytes == 0);
         HostCheck.Equal(0, await server.GetStream().ReadAsync(new byte[1], deadline.Token));
@@ -144,7 +150,10 @@ internal static class NativeAotServiceQuotaWireTests
             preserved = error.InnerExceptions.Count == 2 && error.InnerExceptions[0] is ToolFailure { Reason: "quota_peer_startup_health" } &&
                 error.InnerExceptions[1] is IOException { Message: "wire_sink_fixture" };
         }
-        finally { await serving.WaitAsync(TimeSpan.FromSeconds(10)); }
+        finally
+        {
+            await serving.WaitAsync(TimeSpan.FromSeconds(10));
+        }
         HostCheck.True(preserved && callbacks == 1 && snapshot is { Purpose: "quota-partial" } && received is not null);
         byte[] written = snapshot!.Operations.Where(o => o.Direction == "write" && o.Outcome == "complete")
             .SelectMany(o => Convert.FromBase64String(o.DataBase64)).ToArray();
@@ -166,7 +175,10 @@ internal static class NativeAotServiceQuotaWireTests
         {
             _ = await NativeAotServiceQuotaPeer.RunObservedAsync(8080, canceled.Token, trace => snapshot = trace);
         }
-        catch (OperationCanceledException) { preserved = true; }
+        catch (OperationCanceledException)
+        {
+            preserved = true;
+        }
         HostCheck.True(preserved && snapshot is { Purpose: "quota-partial", RawBytes: 0 } && snapshot.Connections.Count == 0);
         _ = NativeAotServiceQuotaPeer.InspectWireReport(Encoding.UTF8.GetBytes(NativeAotServiceQuotaPeer.SerializeWireReport(snapshot!)));
     }
@@ -224,7 +236,10 @@ internal static class NativeAotServiceQuotaWireTests
                 {
                     _ = await stream.ReadAsync(bytes.AsMemory(0, 2), token);
                 }
-                catch (ToolFailure) { rejected = true; }
+                catch (ToolFailure)
+                {
+                    rejected = true;
+                }
                 HostCheck.True(rejected && client.Available == available);
             }, deadline.Token);
         }

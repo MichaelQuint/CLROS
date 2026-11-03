@@ -15,7 +15,10 @@ internal static class NativeAotWebSignalRaceNativeScheduleTests
         {
             _ = Parse(method, args);
         }
-        catch (TargetInvocationException error) { failure = error.InnerException; }
+        catch (TargetInvocationException error)
+        {
+            failure = error.InnerException;
+        }
         HostCheck.True(failure is not null);
     }
 
@@ -75,7 +78,10 @@ internal static class NativeAotWebSignalRaceNativeScheduleTests
         {
             _ = Activator.CreateInstance(Schedule, BindingFlags.Instance | BindingFlags.NonPublic, null, [process, "unused", folder], null);
         }
-        catch (TargetInvocationException error) { failure = error.InnerException; }
+        catch (TargetInvocationException error)
+        {
+            failure = error.InnerException;
+        }
         HostCheck.True(failure is InvalidDataException && failure.Message.Contains("signalrace_schedule_platform", StringComparison.Ordinal) && !Directory.Exists(folder));
     }
 }

@@ -26,7 +26,10 @@ internal static class NativeAotWebVectorEvidenceTests
         {
             action();
         }
-        catch (InvalidDataException) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

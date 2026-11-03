@@ -21,7 +21,6 @@ public static unsafe partial class EfiEntry
             internal fixed byte Bytes[512];
         }
 
-
     }
 }
 #pragma warning restore 649

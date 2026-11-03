@@ -27,7 +27,10 @@ internal static class NativeAotRuntimeOutputTests
                 {
                     list[0] = 1;
                 }
-                catch (NotSupportedException) { rejected = true; }
+                catch (NotSupportedException)
+                {
+                    rejected = true;
+                }
                 HostCheck.True(rejected);
             }
             Array.Fill(raw, (byte)0);
@@ -145,8 +148,14 @@ internal static class NativeAotRuntimeOutputTests
         {
             _ = NativeAotThreadingOutput.Read(application, raw);
         }
-        catch (ToolFailure) { rejected = true; }
-        catch (DecoderFallbackException) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
+        catch (DecoderFallbackException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "strict raw runtime output admission");
     }
 }

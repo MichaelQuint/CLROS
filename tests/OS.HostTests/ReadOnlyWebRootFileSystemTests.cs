@@ -539,7 +539,10 @@ internal static unsafe partial class ReadOnlyWebRootFileSystemTests
                 HostCheck.Equal(Fs.Status.DeviceFailed, fresh.Drive(token)); // Old mount payload cannot bypass a new cold request.
             }
         }
-        finally { NativeMemory.AlignedFree(backing); }
+        finally
+        {
+            NativeMemory.AlignedFree(backing);
+        }
     }
 
     [HostTest("webroot.fs immutable-directory-cache rejects the actual borrowed writable backend")]
@@ -556,7 +559,10 @@ internal static unsafe partial class ReadOnlyWebRootFileSystemTests
             HostCheck.True(new ReadOnlySpan<byte>(f.Mount, sizeof(Fs.Mount)).SequenceEqual(mount));
             HostCheck.True(new ReadOnlySpan<byte>(backing, 2800).IndexOfAnyExcept((byte)0xa5) < 0);
         }
-        finally { NativeMemory.AlignedFree(backing); }
+        finally
+        {
+            NativeMemory.AlignedFree(backing);
+        }
     });
 
     private static int DirectoryCachePhases(Fixture f, ulong phase)
@@ -1638,7 +1644,10 @@ internal static unsafe partial class ReadOnlyWebRootFileSystemTests
                 good &= fixture.OneRead();
             return GC.GetAllocatedBytesForCurrentThread() - before;
         }
-        finally { GC.EndNoGCRegion(); }
+        finally
+        {
+            GC.EndNoGCRegion();
+        }
     }
 
     [HostTest("webroot.fs scratch admission is independent of advertised volume size", HostLane.Fast, 12)]

@@ -53,7 +53,10 @@ internal static class SocketContainmentNetworkTests
             {
                 _ = QemuTranscripts.InspectSocketContainmentEvidenceForTests(rows.Select(row => row.Replace("accepted=71 ignored=12", pair, StringComparison.Ordinal)).ToArray(), reference.Capture, Peer);
             }
-            catch (ToolFailure error) { rejected = error.Reason == "socket_containment_capture_serial_peer_join"; }
+            catch (ToolFailure error)
+            {
+                rejected = error.Reason == "socket_containment_capture_serial_peer_join";
+            }
             HostCheck.True(rejected);
         }
     }
@@ -64,7 +67,10 @@ internal static class SocketContainmentNetworkTests
         {
             _ = QemuTranscripts.InspectSocketContainmentEvidenceForTests(rows, SocketContainmentPacketTests.ReferenceCapture().Capture, peer);
         }
-        catch (ToolFailure error) { actual = error.Message; }
+        catch (ToolFailure error)
+        {
+            actual = error.Message;
+        }
         HostCheck.True(actual?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + actual);
     }
 

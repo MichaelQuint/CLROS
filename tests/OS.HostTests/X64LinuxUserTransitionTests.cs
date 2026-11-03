@@ -79,7 +79,12 @@ internal static unsafe class X64LinuxUserTransitionTests
             HostCheck.True(!Transition.Prepare(data, Transition.DataBytes, plan, gdt, 4096, idt, 4096));
             HostCheck.True(new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).IndexOfAnyExcept((byte)0xa5) < 0);
         }
-        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(gdt); NativeMemory.AlignedFree(idt); }
+        finally
+        {
+            NativeMemory.AlignedFree(data);
+            NativeMemory.AlignedFree(gdt);
+            NativeMemory.AlignedFree(idt);
+        }
     }
 
     [HostTest("m16-006 dispatcher adopts original kernel root and reloads user root before checked IRET", HostLane.Fast, 5)]
@@ -110,7 +115,10 @@ internal static unsafe class X64LinuxUserTransitionTests
             plan.KernelRoot = 0x100000000;
             HostCheck.True(!X64LinuxUserTransition.Emit(code, 4096, plan));
         }
-        finally { NativeMemory.AlignedFree(code); }
+        finally
+        {
+            NativeMemory.AlignedFree(code);
+        }
     }
 
     [HostTest("m16-006 high transition RIP RSP FS GS preserve qwords while kernel pointers stay low", HostLane.Fast, 4)]
@@ -136,7 +144,13 @@ internal static unsafe class X64LinuxUserTransitionTests
             plan.Dispatcher += 0x100000000;
             HostCheck.True(!X64LinuxUserTransition.Emit(code, 4096, plan));
         }
-        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(gdt); NativeMemory.AlignedFree(idt); NativeMemory.AlignedFree(code); }
+        finally
+        {
+            NativeMemory.AlignedFree(data);
+            NativeMemory.AlignedFree(gdt);
+            NativeMemory.AlignedFree(idt);
+            NativeMemory.AlignedFree(code);
+        }
     }
 
     [HostTest("m16-005 user transition preserves original descriptor inputs and prepares private selectors FP and guard", HostLane.Fast, 0)]
@@ -188,7 +202,12 @@ internal static unsafe class X64LinuxUserTransitionTests
             HostCheck.True(new ReadOnlySpan<byte>(data + 0x4000, (int)X64LinuxUserTransition.DataBytes - 0x4000).IndexOfAnyExcept((byte)0) == -1);
             HostCheck.Equal(96, sizeof(LinuxSyscallFrame));
         }
-        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(gdt); NativeMemory.AlignedFree(idt); }
+        finally
+        {
+            NativeMemory.AlignedFree(data);
+            NativeMemory.AlignedFree(gdt);
+            NativeMemory.AlignedFree(idt);
+        }
     }
 
     [HostTest("m16-005 transition admission rejects malformed descriptors and aliases before mutation", HostLane.Fast, 1)]
@@ -247,7 +266,12 @@ internal static unsafe class X64LinuxUserTransitionTests
                 HostCheck.True(new ReadOnlySpan<byte>(data, (int)X64LinuxUserTransition.DataBytes).IndexOfAnyExcept((byte)0xa5) == -1);
             }
         }
-        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(gdt); NativeMemory.AlignedFree(idt); }
+        finally
+        {
+            NativeMemory.AlignedFree(data);
+            NativeMemory.AlignedFree(gdt);
+            NativeMemory.AlignedFree(idt);
+        }
     }
 
     [HostTest("m16-005 syscall entry switches from hostile RSP before GPR FP and Win64 bridge use", HostLane.Fast, 2)]
@@ -291,7 +315,10 @@ internal static unsafe class X64LinuxUserTransitionTests
             // The byte helper is intentionally usable for an independent local
             // disassembly review, never executable in this host process.
         }
-        finally { NativeMemory.AlignedFree(code); }
+        finally
+        {
+            NativeMemory.AlignedFree(code);
+        }
     }
 
     [HostTest("m16-005 fault branches preserve kernel frames and user cleanup restores roots MSRs selectors and FP", HostLane.Fast, 3)]
@@ -327,7 +354,10 @@ internal static unsafe class X64LinuxUserTransitionTests
                 }
             HostCheck.Equal(9, conditional);
         }
-        finally { NativeMemory.AlignedFree(code); }
+        finally
+        {
+            NativeMemory.AlignedFree(code);
+        }
     }
 
     [HostTest("m16-005 transition code capacity corruption and unsupported CPU controls fail closed", HostLane.Fast, 4)]
@@ -362,7 +392,10 @@ internal static unsafe class X64LinuxUserTransitionTests
             HostCheck.True(!X64LinuxUserTransition.AdmitCpu(0x80000001, 0x220, 0xd00, 0x07000000, 0x20100000, 2));
             HostCheck.True(!X64LinuxUserTransition.AdmitCpu(0x80000001, 0x220, 0xd00, 0x07000000, 0x20100800, 0x202));
         }
-        finally { NativeMemory.AlignedFree(code); }
+        finally
+        {
+            NativeMemory.AlignedFree(code);
+        }
     }
 
     [HostTest("m16-005 syscall transcript binds write result exit accounting and rejects forged or partial receipts", HostLane.Fast, 5)]
@@ -423,7 +456,10 @@ internal static unsafe class X64LinuxUserTransitionTests
             {
                 _ = QemuTranscripts.ValidateLinuxSyscallTail([.. parents, .. bad]);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, "transcript corruption " + variant);
         }
         string unsupported = "M16_005_CALL nr=999 a0=0 a1=0 a2=0 a3=0 a4=0 a5=0 rip=4194544 rsp=1879048176 flags=2 valueBits=18446744073709551578 action=1 status=1";
@@ -436,7 +472,10 @@ internal static unsafe class X64LinuxUserTransitionTests
         {
             _ = QemuTranscripts.ValidateLinuxSyscallTail([.. parents, .. withUnsupported]);
         }
-        catch (ToolFailure) { wrongErrnoRejected = true; }
+        catch (ToolFailure)
+        {
+            wrongErrnoRejected = true;
+        }
         HostCheck.True(wrongErrnoRejected);
     }
     private static LinuxSyscallFrame ImageFrame() => new()
@@ -514,7 +553,11 @@ internal static unsafe class X64LinuxUserTransitionTests
                 HostCheck.True(bytes.SequenceEqual(baseline));
             }
         }
-        finally { NativeMemory.AlignedFree(code); NativeMemory.AlignedFree(fault); }
+        finally
+        {
+            NativeMemory.AlignedFree(code);
+            NativeMemory.AlignedFree(fault);
+        }
     }
 
     [HostTest("m16-009 active gate observation permits syscall SS16 only explicitly and preserves IRQ descriptor guards")]
@@ -590,7 +633,11 @@ internal static unsafe class X64LinuxUserTransitionTests
             HostCheck.True(Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords, allowSyscall: true));
             HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords));
         }
-        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(storage); }
+        finally
+        {
+            NativeMemory.AlignedFree(data);
+            NativeMemory.AlignedFree(storage);
+        }
     }
 
     [HostTest("m16-009 active gateway admits actual swapped user bases and rejects every mismatched CPU or retained root field")]
@@ -634,7 +681,10 @@ internal static unsafe class X64LinuxUserTransitionTests
             HostCheck.True(!Check(data, cpu));
             static bool Check(byte* d, ulong* c) => Transition.ValidateCallback(d, Transition.DataBytes, c[10], c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9]);
         }
-        finally { NativeMemory.AlignedFree(data); }
+        finally
+        {
+            NativeMemory.AlignedFree(data);
+        }
     }
 
     private static LinuxSyscallAccess ImageAccess(ulong* denied) => new() { Context = denied, PageAccess = &ImagePageAccess };
@@ -729,7 +779,10 @@ internal static unsafe class X64LinuxUserTransitionTests
                 HostCheck.True(new ReadOnlySpan<byte>(storage, 4096).IndexOfAnyExcept((byte)0xa5) == -1);
             }
         }
-        finally { NativeMemory.AlignedFree(storage); }
+        finally
+        {
+            NativeMemory.AlignedFree(storage);
+        }
     }
 
     [HostTest("m16-008 user image copies every frame GPR return and FP byte without supervisor mutation", HostLane.Fast, 1)]
@@ -777,7 +830,13 @@ internal static unsafe class X64LinuxUserTransitionTests
                 HostCheck.True(new ReadOnlySpan<byte>(storage, 4096).SequenceEqual(imageBefore));
             }
         }
-        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(storage); NativeMemory.AlignedFree(gdt); NativeMemory.AlignedFree(idt); }
+        finally
+        {
+            NativeMemory.AlignedFree(data);
+            NativeMemory.AlignedFree(storage);
+            NativeMemory.AlignedFree(gdt);
+            NativeMemory.AlignedFree(idt);
+        }
     }
 
     [HostTest("m16-008 capture requires active phase and installation requires inactive phase", HostLane.Fast, 2)]
@@ -809,7 +868,11 @@ internal static unsafe class X64LinuxUserTransitionTests
                     HostCheck.True(new ReadOnlySpan<byte>(storage, 4096).SequenceEqual(imageBefore));
                 }
         }
-        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(storage); }
+        finally
+        {
+            NativeMemory.AlignedFree(data);
+            NativeMemory.AlignedFree(storage);
+        }
     }
 
     [HostTest("m16-008 invalid user image return mask capacity and aliases reject before mutation", HostLane.Fast, 3)]
@@ -907,7 +970,11 @@ internal static unsafe class X64LinuxUserTransitionTests
                     HostCheck.True(new ReadOnlySpan<byte>(storage, 4096).SequenceEqual(imageBefore));
                 }
         }
-        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(storage); }
+        finally
+        {
+            NativeMemory.AlignedFree(data);
+            NativeMemory.AlignedFree(storage);
+        }
     }
 
     [HostTest("m16-008 resume entry restores Frame FS GS IRET and all GPRs with R14 last while legacy stays unchanged", HostLane.Fast, 4)]
@@ -982,6 +1049,11 @@ internal static unsafe class X64LinuxUserTransitionTests
                 HostCheck.True(new ReadOnlySpan<byte>(code, 4096).IndexOfAnyExcept((byte)0xa5) == -1);
             }
         }
-        finally { NativeMemory.AlignedFree(code); NativeMemory.AlignedFree(legacy); NativeMemory.AlignedFree(explicitLegacy); }
+        finally
+        {
+            NativeMemory.AlignedFree(code);
+            NativeMemory.AlignedFree(legacy);
+            NativeMemory.AlignedFree(explicitLegacy);
+        }
     }
 }

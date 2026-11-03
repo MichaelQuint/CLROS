@@ -54,22 +54,6 @@ public static unsafe partial class EfiEntry
     private static partial class M01StageThreeAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         private struct M01StageThreeBindingBuffer
         {
             public M01OwnedCr3CompositeTransitionRangeBinding
@@ -85,7 +69,6 @@ public static unsafe partial class EfiEntry
             public M01OwnedCr3CompositeTransitionRangeBinding
                 Binding5;
         }
-
 
     }
 #endif

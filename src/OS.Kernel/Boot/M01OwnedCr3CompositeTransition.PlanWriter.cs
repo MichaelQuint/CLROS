@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public static unsafe partial class M01OwnedCr3CompositeTransition
 {
     private struct PlanWriter

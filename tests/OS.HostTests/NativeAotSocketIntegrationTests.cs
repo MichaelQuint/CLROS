@@ -19,7 +19,10 @@ internal static class NativeAotSocketIntegrationTests
         {
             action();
         }
-        catch (ToolFailure error) { failure = error.Message; }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + failure);
     }
     [HostTest("socket selection preserves the exact sync async application and rejects broader runtime substitution")]
@@ -80,7 +83,9 @@ internal static class NativeAotSocketIntegrationTests
                 {
                     HostCheck.Equal(0, await client.ReceiveAsync(new byte[1], SocketFlags.None, token));
                 }
-                catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionReset) { }
+                catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionReset)
+                {
+                }
                 continue;
             }
             if (index >= 2)
@@ -113,7 +118,10 @@ internal static class NativeAotSocketIntegrationTests
         {
             _ = await NativeAotSocketPeer.RunAsync(root, log, Stub);
         }
-        catch (IOException) { rejected = true; }
+        catch (IOException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
     private const string PendingReceive = "M16_008_CALL identity=4294967302 nr=288 a0=6 a1=0 valueBits=7 action=1 status=1 ordinal=11\r\n" +
@@ -159,7 +167,10 @@ internal static class NativeAotSocketIntegrationTests
                 return new ProcessResult(2, "", "", false, false, false, TimeSpan.Zero);
             }, receiveGateSerial: serial);
         }
-        catch (ToolFailure error) { failure = error.Message; }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.StartsWith("socket_peer_", StringComparison.Ordinal) == true);
         HostCheck.True(File.Exists(log));
         HostCheck.True(!File.Exists(serial));
@@ -175,7 +186,10 @@ internal static class NativeAotSocketIntegrationTests
         {
             _ = await NativeAotSocketPeer.RunAsync(root, log, (_, _) => Task.FromResult(new ProcessResult(2, "", "", false, false, false, TimeSpan.Zero)));
         }
-        catch (ToolFailure error) { failure = error.Message; }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.StartsWith("socket_peer_", StringComparison.Ordinal) == true);
         HostCheck.True(File.Exists(log));
         string early = log + ".early";
@@ -185,7 +199,10 @@ internal static class NativeAotSocketIntegrationTests
             _ = await NativeAotSocketPeer.RunAsync(root, early, (_, _) => Task.FromResult(new ProcessResult(2, "", "", false, false, false, TimeSpan.Zero)),
             beforePeer: token => Task.Delay(Timeout.Infinite, token));
         }
-        catch (ToolFailure error) { failure = error.Message; }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.StartsWith("socket_runner_exited_before_peer exit=2 terminationConfirmed=True", StringComparison.Ordinal) == true);
         HostCheck.True(File.Exists(early) && new FileInfo(early).Length == 0);
     }

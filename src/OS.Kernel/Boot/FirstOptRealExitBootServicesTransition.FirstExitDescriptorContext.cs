@@ -7,6 +7,7 @@ using OS.Std.Hash;
 using OS.Kernel.Compatibility.LinuxX64;
 #endif
 namespace OS.Boot;
+
 public unsafe struct FirstExitDescriptorContext
 {
     public fixed byte Gdtr[16], BridgeIdtr[16], FinalIdtr[16];

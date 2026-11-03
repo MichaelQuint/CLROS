@@ -3,6 +3,7 @@ using OS.Kernel.Runtime;
 
 #endif
 namespace OS.Kernel.Diagnostics;
+
 public static unsafe class InvokeIn8Out8CheckedUnmanagedFunctionPointers
 {
     public const ushort RequiredCom1BasePort = 0x03f8;

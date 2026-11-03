@@ -56,23 +56,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
         private struct CooperativeControl
         {
@@ -84,21 +67,6 @@ public static unsafe partial class EfiEntry
         }
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 #endif

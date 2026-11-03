@@ -130,7 +130,10 @@ internal static class NativeAotServiceParentTests
         {
             _ = Inspect(rows, parent, leaf);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

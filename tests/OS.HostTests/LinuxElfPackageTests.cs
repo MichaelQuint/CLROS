@@ -261,7 +261,10 @@ internal static unsafe class LinuxElfPackageTests
             {
                 _ = OS.Tooling.EfiProfile.Create(null, new Dictionary<string, bool> { ["EnableM16002Probe"] = true, [extra.Item1] = extra.Item2 });
             }
-            catch (OS.Tooling.ToolFailure) { rejected = true; }
+            catch (OS.Tooling.ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         var plan = OS.Tooling.QemuProfiles.Create(OS.Tooling.QemuSmokeOptions.Parse("-BuildEfi", "-EnableM16002Probe", "-RequireMarker", "CLROS_M16_002_READY", "-DryRun"));
@@ -307,7 +310,10 @@ internal static unsafe class LinuxElfPackageTests
         {
             _ = OS.Tooling.QemuTranscripts.ValidateLinuxElfTail(lines, package);
         }
-        catch (OS.Tooling.ToolFailure) { rejected = true; }
+        catch (OS.Tooling.ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
@@ -368,7 +374,10 @@ internal static unsafe class LinuxElfPackageTests
             {
                 _ = OS.Tooling.LinuxElfImageFixture.Inspect(disk, boot, app);
             }
-            catch (OS.Tooling.ToolFailure) { rejected = true; }
+            catch (OS.Tooling.ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         foreach (int at in new[]{locations.EfiStart+100,locations.PackageStart+package.Length-1,locations.PackageEntry+28,
@@ -421,10 +430,19 @@ internal static unsafe class LinuxElfPackageTests
                 {
                     _ = OS.Tooling.LinuxElfImageFixture.Apply(disk, elf, input, variant);
                 }
-                catch (OS.Tooling.ToolFailure) { rejected = true; }
+                catch (OS.Tooling.ToolFailure)
+                {
+                    rejected = true;
+                }
                 HostCheck.True(rejected);
             }
         }
-        finally { File.Delete(disk); File.Delete(elf); File.Delete(input); Directory.Delete(root); }
+        finally
+        {
+            File.Delete(disk);
+            File.Delete(elf);
+            File.Delete(input);
+            Directory.Delete(root);
+        }
     }
 }

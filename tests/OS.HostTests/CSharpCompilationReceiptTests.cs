@@ -100,7 +100,9 @@ internal static partial class CSharpCompilationReceiptTests
             fixture.Read();
             throw new InvalidOperationException("expected prohibited DTD");
         }
-        catch (XmlException) { }
+        catch (XmlException)
+        {
+        }
         File.Delete(fixture.Path);
         Reject(() => fixture.Read(), "source_catalog_receipt_missing");
         Reject(() => CSharpCompilationReceipt.Read(fixture.Root, "", "", fixture.Arguments), "source_catalog_receipt_discovery_missing");
@@ -112,7 +114,10 @@ internal static partial class CSharpCompilationReceiptTests
         {
             action();
         }
-        catch (InvalidOperationException error) when (error.Message.StartsWith(reason, StringComparison.Ordinal)) { return; }
+        catch (InvalidOperationException error) when (error.Message.StartsWith(reason, StringComparison.Ordinal))
+        {
+            return;
+        }
         throw new InvalidOperationException("expected rejection " + reason);
     }
 }

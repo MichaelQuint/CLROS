@@ -99,7 +99,10 @@ internal static class NativeAotHelloProgramTests
                 file.SetLength(20 * 1024 * 1024 + 1);
             Reject(() => NativeAotHelloProgram.Read(root, package, dump), "hello_instruction_file_size");
         }
-        finally { Directory.Delete(directory, recursive: true); }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static byte[] Elf()
@@ -116,7 +119,10 @@ internal static class NativeAotHelloProgramTests
         {
             action();
         }
-        catch (InvalidDataException error) { rejected = error.Message == reason; }
+        catch (InvalidDataException error)
+        {
+            rejected = error.Message == reason;
+        }
         HostCheck.True(rejected, reason);
     }
 }

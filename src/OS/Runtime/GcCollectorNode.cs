@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-
 // A genuine compiler-described fixed class with one reference series. Its
 // constructor and accessors run only after the original allocator is bound.
 internal sealed class GcCollectorNode
@@ -26,10 +25,6 @@ internal sealed class GcCollectorNode
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal ref GcCollectorNode ChildAddress() => ref child;
 }
-
-
-
-
 
 #pragma warning disable CS0649 // Written through bounded sequential POD slots.
 

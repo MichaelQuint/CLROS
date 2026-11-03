@@ -39,7 +39,10 @@ internal static class FrameDispatchTranscriptTests
             {
                 QemuTranscripts.AssertM04ManagedHeapPageRangeTranscript(path, includeGcStatics: true, includeFrameDispatch: true);
             }
-            catch (ToolFailure) { accepted = false; }
+            catch (ToolFailure)
+            {
+                accepted = false;
+            }
             HostCheck.True(accepted == pass, name);
         }
         Check("valid", Text(lines), true);
@@ -86,7 +89,10 @@ internal static class FrameDispatchTranscriptTests
         {
             QemuTranscripts.ValidateUnselectedRecords("M04_FRAMES 0", QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run"])));
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
         foreach (string[] args in new string[][]{["--dry-run",..Arguments],["--dry-run","--build-efi","--skip-image-build",..Arguments],
             ["--dry-run","--build-efi",..Arguments,"--require-marker","x"],["--dry-run","--build-efi",..Arguments,"--EnableM04UnhandledExceptionProbe"],
@@ -97,7 +103,10 @@ internal static class FrameDispatchTranscriptTests
             {
                 _ = QemuProfiles.Create(QemuSmokeOptions.Parse(args));
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, "invalid frame selection");
         }
     }

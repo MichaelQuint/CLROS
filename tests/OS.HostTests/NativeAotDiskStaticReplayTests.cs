@@ -231,7 +231,10 @@ internal static class NativeAotDiskStaticReplayTests
         {
             Inspect(rows, inventory, full, truncated);
         }
-        catch (ToolFailure e) { actual = e.Reason; }
+        catch (ToolFailure e)
+        {
+            actual = e.Reason;
+        }
         HostCheck.True(actual is not null && (reason is null || actual.Contains(reason, StringComparison.Ordinal)), "disk replay expected " + reason + " got " + actual);
     }
 
@@ -566,7 +569,10 @@ internal static class NativeAotDiskStaticReplayTests
             QemuTranscripts.InspectNativeAotStaticFileProtocolForTests(NativeAotThreadingTranscriptTests.Elf(),
             Encoding.UTF8.GetBytes(string.Join("\r\n", rows) + "\r\n"), _ => true, _ => true, 8192, 12288);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     });
 
@@ -594,7 +600,10 @@ internal static class NativeAotDiskStaticReplayTests
         {
             QemuTranscripts.InspectNativeAotDiskStaticSectorValues(bad, inventory, image, new(16384, 3, 37, 37, 39, 39, 39));
         }
-        catch (ToolFailure e) { interval = e.Reason == "disk_static_metadata_pending_interval"; }
+        catch (ToolFailure e)
+        {
+            interval = e.Reason == "disk_static_metadata_pending_interval";
+        }
         HostCheck.True(interval);
         byte[] changed = image.ToArray();
         changed[^1] ^= 1;
@@ -603,7 +612,10 @@ internal static class NativeAotDiskStaticReplayTests
         {
             QemuTranscripts.InspectNativeAotDiskStaticSectorValues(report, inventory, changed, new(16384, 3, 37, 37, 39, 39, 39));
         }
-        catch (ToolFailure e) { identity = e.Reason == "webroot_disk_inventory_metadata_image"; }
+        catch (ToolFailure e)
+        {
+            identity = e.Reason == "webroot_disk_inventory_metadata_image";
+        }
         HostCheck.True(identity);
         var early = Vector(inventory, image);
         int wake = early.FindIndex(r => r.StartsWith("M16_025_WAKE ", StringComparison.Ordinal) && r.Contains(" request=2 ", StringComparison.Ordinal));
@@ -617,7 +629,10 @@ internal static class NativeAotDiskStaticReplayTests
         {
             QemuTranscripts.InspectNativeAotDiskStaticSectorValues(earlyReport, inventory, image, new(16384, 3, 37, 37, 38, 38, 38));
         }
-        catch (ToolFailure e) { ready = e.Reason == "disk_static_data_ready_interval"; }
+        catch (ToolFailure e)
+        {
+            ready = e.Reason == "disk_static_data_ready_interval";
+        }
         HostCheck.True(ready);
     });
 }

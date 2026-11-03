@@ -18,7 +18,10 @@ internal static class LinuxSignalTranscriptTests
         {
             QemuTranscripts.ValidateLinuxSignalTail(Change(rows, 4, "pool", 0x50000), package, 0x200000, 0x100000);
         }
-        catch (ToolFailure failure) { rejected = failure.Reason == "m16_009_roots_pool_alias"; }
+        catch (ToolFailure failure)
+        {
+            rejected = failure.Reason == "m16_009_roots_pool_alias";
+        }
         HostCheck.True(rejected);
     }
 
@@ -112,7 +115,10 @@ internal static class LinuxSignalTranscriptTests
         {
             QemuTranscripts.ValidateLinuxSignalTail(rows, package, 0x400000, 0x100000);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
         foreach (string old in new[] { "TEST_START m16-008", "CLROS_M16_008_READY", "TEST_PASS m16-008" })
         {
@@ -169,7 +175,10 @@ internal static class LinuxSignalTranscriptTests
         {
             QemuTranscripts.ValidateLinuxSignalTail(rows, package, 0x200000, 0x100000);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

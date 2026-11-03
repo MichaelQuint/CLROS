@@ -83,7 +83,10 @@ internal static unsafe class M07ArpReceiveEfiIntegrationTests
             string[] duplicate = [.. lines, lines[^1]];
             Reject(() => QemuTranscripts.AssertM07ArpReceiveRecords(duplicate));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     internal static string[] Capture()
@@ -127,7 +130,10 @@ internal static unsafe class M07ArpReceiveEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

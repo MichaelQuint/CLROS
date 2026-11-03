@@ -258,7 +258,10 @@ internal static class NativeAotWritableDiskSelectionTests
         {
             action();
         }
-        catch (ToolFailure error) { found = error.Reason; }
+        catch (ToolFailure error)
+        {
+            found = error.Reason;
+        }
         HostCheck.Equal(reason, found);
     }
 
@@ -269,7 +272,10 @@ internal static class NativeAotWritableDiskSelectionTests
         {
             action();
         }
-        catch (Exception error) when (error is ToolFailure or ArgumentException) { rejected = true; }
+        catch (Exception error) when (error is ToolFailure or ArgumentException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

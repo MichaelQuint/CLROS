@@ -79,7 +79,10 @@ internal static class NativeAotWebVectorCallTests
         {
             QemuTranscripts.InspectNativeAotWebVectorCallsForTests(rows, controls);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
@@ -93,7 +96,10 @@ internal static class NativeAotWebVectorCallTests
             {
                 QemuTranscripts.InspectNativeAotWebVectorCallsForTests(Rows(change));
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, change);
         }
     }

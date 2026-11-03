@@ -20,7 +20,11 @@ internal static class MinimalApiPackageTests
         {
             WorkloadProfile = "MultiMinimalApi"
         }, output,
-            _ => { calls++; return Task.FromResult(Result()); }).GetAwaiter().GetResult();
+            _ =>
+{
+    calls++;
+    return Task.FromResult(Result());
+}).GetAwaiter().GetResult();
         HostCheck.Equal(1, result);
         HostCheck.Equal(0, calls);
         HostCheck.True(output.ToString().Contains("TEST_FAIL workload.profile.tooling", StringComparison.Ordinal));
@@ -37,7 +41,11 @@ internal static class MinimalApiPackageTests
             {
                 OutputRoot = Scratch()
             }, output,
-                _ => { calls++; return Task.FromResult(process); }).GetAwaiter().GetResult();
+                _ =>
+{
+    calls++;
+    return Task.FromResult(process);
+}).GetAwaiter().GetResult();
             HostCheck.True(result != 0);
             HostCheck.Equal(1, calls);
             HostCheck.True(!output.ToString().Split('\n').Any(line => line.TrimEnd('\r') == "TEST_PASS kestrel.smoke_app"));

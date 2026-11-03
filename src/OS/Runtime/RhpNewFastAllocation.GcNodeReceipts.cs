@@ -5,13 +5,8 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-
 internal static unsafe partial class RhpNewFastAllocation
 {
-
-
-
-
 
     private struct GcNodeReceipts
     {

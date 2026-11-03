@@ -114,7 +114,10 @@ internal static class NativeAotSocketContainmentProtocolTests
         {
             _ = Inspect(rows);
         }
-        catch (ToolFailure error) { actual = error.Message; }
+        catch (ToolFailure error)
+        {
+            actual = error.Message;
+        }
         HostCheck.True(actual?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + actual);
     }
 

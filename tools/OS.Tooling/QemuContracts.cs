@@ -39,7 +39,10 @@ public static class QemuContracts
         {
             return GetHypervisorCapability(0, out int present, sizeof(int), out uint written) == 0 && written == sizeof(int) && present != 0;
         }
-        catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException) { return false; }
+        catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
+        {
+            return false;
+        }
     }
 
     [System.Runtime.InteropServices.DllImport("WinHvPlatform.dll", EntryPoint = "WHvGetCapability", ExactSpelling = true)]

@@ -30,7 +30,10 @@ internal static class NativeAotServiceQuotaPeerReportTests
         {
             ((IList<NativeAotServiceQuotaPeer.Sample>)result.Samples)[0] = default;
         }
-        catch (NotSupportedException) { immutable = true; }
+        catch (NotSupportedException)
+        {
+            immutable = true;
+        }
         HostCheck.True(immutable);
         var late = Root();
         Row(late, 17)["elapsedTicks"] = 20;
@@ -207,7 +210,10 @@ internal static class NativeAotServiceQuotaPeerReportTests
         {
             action();
         }
-        catch (Exception error) when (error is ToolFailure or InvalidDataException) { refused = true; }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
+        {
+            refused = true;
+        }
         HostCheck.True(refused);
     }
 }

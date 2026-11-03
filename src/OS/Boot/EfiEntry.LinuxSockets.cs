@@ -186,8 +186,6 @@ public static unsafe partial class EfiEntry
 #endif
         private const uint LinuxSocketReceive = 8192, LinuxSocketSend = 32768;
 
-
-
         private static LinuxSocketStorage s_linuxSocketStorage;
 #if M16_027_PROBE
 

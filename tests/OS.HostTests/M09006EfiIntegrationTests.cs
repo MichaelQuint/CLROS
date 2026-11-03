@@ -162,7 +162,10 @@ internal static unsafe class M09006EfiIntegrationTests
         {
             operation();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

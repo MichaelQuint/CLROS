@@ -17,7 +17,10 @@ internal static class QemuEthernetPeerTests
             {
                 using var invalid = new QemuEthernetPeer(duration);
             }
-            catch (ArgumentOutOfRangeException) { rejected = true; }
+            catch (ArgumentOutOfRangeException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         using (var service = new QemuEthernetPeer(TimeSpan.FromMinutes(18), continuingService: true))
@@ -27,7 +30,10 @@ internal static class QemuEthernetPeerTests
         {
             using var invalid = new QemuEthernetPeer(TimeSpan.FromMinutes(18) + TimeSpan.FromMilliseconds(1), continuingService: true);
         }
-        catch (ArgumentOutOfRangeException) { tooLong = true; }
+        catch (ArgumentOutOfRangeException)
+        {
+            tooLong = true;
+        }
         HostCheck.True(tooLong);
         using var peer = NewPeer();
         HostCheck.True(peer.Port is > 0 and <= 65535);
@@ -99,7 +105,10 @@ internal static class QemuEthernetPeerTests
             byte[] header = new byte[4];
             BinaryPrimitives.WriteUInt32BigEndian(header, length);
             await remote.GetStream().WriteAsync(header);
-            await Reject<InvalidDataException>(async () => { await receive; });
+            await Reject<InvalidDataException>(async () =>
+{
+    await receive;
+});
             HostCheck.Equal(0L, peer.FramesRead);
             await Reject<IOException>(() => peer.ReadFrameAsync(new byte[1514]).AsTask());
             await Reject<IOException>(() => peer.WriteFrameAsync(new byte[14]).AsTask());
@@ -119,7 +128,10 @@ internal static class QemuEthernetPeerTests
             Task<int> receive = peer.ReadFrameAsync(new byte[1514]).AsTask();
             await remote.GetStream().WriteAsync(Packet(Frame(14, 0x92)).AsMemory(0, count));
             remote.Client.Shutdown(SocketShutdown.Send);
-            await Reject<EndOfStreamException>(async () => { await receive; });
+            await Reject<EndOfStreamException>(async () =>
+{
+    await receive;
+});
             HostCheck.Equal(0L, peer.FramesRead);
             await Reject<IOException>(() => peer.WriteFrameAsync(new byte[14]).AsTask());
         }
@@ -145,7 +157,10 @@ internal static class QemuEthernetPeerTests
             Task<int> receive = peer.ReadFrameAsync(new byte[1514], cancel.Token).AsTask();
             await remote.GetStream().WriteAsync(new byte[] { 0, 0 });
             cancel.Cancel();
-            await Reject<OperationCanceledException>(async () => { await receive; });
+            await Reject<OperationCanceledException>(async () =>
+{
+    await receive;
+});
             HostCheck.Equal(0L, peer.FramesRead);
             await Reject<IOException>(() => peer.ReadFrameAsync(new byte[1514]).AsTask());
         }
@@ -184,7 +199,10 @@ internal static class QemuEthernetPeerTests
             receive = peer.ReadFrameAsync(buffer).AsTask();
             peer.Dispose();
             peer.Dispose();
-            await Closed(async () => { await receive; });
+            await Closed(async () =>
+{
+    await receive;
+});
             await Reject<ObjectDisposedException>(() => peer.ReadFrameAsync(buffer).AsTask());
         }
         using (var peer = NewPeer())
@@ -209,7 +227,11 @@ internal static class QemuEthernetPeerTests
             await accept;
             return remote;
         }
-        catch { remote.Dispose(); throw; }
+        catch
+        {
+            remote.Dispose();
+            throw;
+        }
     }
 
     private static byte[] Frame(int size, byte seed)
@@ -244,7 +266,10 @@ internal static class QemuEthernetPeerTests
         {
             await action().WaitAsync(TimeSpan.FromSeconds(5));
         }
-        catch (T) { rejected = true; }
+        catch (T)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "Expected " + typeof(T).Name);
     }
 
@@ -255,7 +280,10 @@ internal static class QemuEthernetPeerTests
         {
             await action().WaitAsync(TimeSpan.FromSeconds(5));
         }
-        catch (Exception error) when (error is IOException or SocketException or ObjectDisposedException) { closed = true; }
+        catch (Exception error) when (error is IOException or SocketException or ObjectDisposedException)
+        {
+            closed = true;
+        }
         HostCheck.True(closed, "Disposal must interrupt pending socket I/O.");
     }
 }

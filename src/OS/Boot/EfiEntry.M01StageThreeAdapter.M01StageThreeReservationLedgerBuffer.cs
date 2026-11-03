@@ -54,22 +54,6 @@ public static unsafe partial class EfiEntry
     private static partial class M01StageThreeAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         private struct M01StageThreeReservationLedgerBuffer
         {
             public OS.Kernel.Memory.BootReservedRange Range0;
@@ -81,7 +65,6 @@ public static unsafe partial class EfiEntry
             public OS.Kernel.Memory.BootReservedRange Range6;
             public OS.Kernel.Memory.BootReservedRange Range7;
         }
-
 
     }
 #endif

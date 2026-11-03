@@ -91,7 +91,10 @@ internal static unsafe partial class RhpNewFastAllocation
             {
                 RethrowThrower(value);
             }
-            finally { RethrowFinallyEntered(value, ref cleanupStamp); }
+            finally
+            {
+                RethrowFinallyEntered(value, ref cleanupStamp);
+            }
         }
         catch (SimpleCatchBase caught)
         {

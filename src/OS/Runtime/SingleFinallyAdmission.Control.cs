@@ -5,15 +5,9 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-
 #pragma warning disable CS0649
 
 #pragma warning restore CS0649
-
-
-
-
-
 
 #endif
 #if SINGLE_FINALLY_CORE_TEST

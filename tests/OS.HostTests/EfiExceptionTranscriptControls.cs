@@ -105,7 +105,10 @@ internal static class EfiExceptionTranscriptControls
         {
             action();
         }
-        catch (ToolFailure) { accepted = false; }
+        catch (ToolFailure)
+        {
+            accepted = false;
+        }
         HostCheck.True(!accepted, reason);
     }
 }

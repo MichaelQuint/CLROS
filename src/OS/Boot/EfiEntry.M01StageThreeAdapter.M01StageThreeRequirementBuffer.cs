@@ -54,22 +54,6 @@ public static unsafe partial class EfiEntry
     private static partial class M01StageThreeAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         private struct M01StageThreeRequirementBuffer
         {
             public OS.Kernel.Boot
@@ -87,7 +71,6 @@ public static unsafe partial class EfiEntry
             public OS.Kernel.Boot
                 .X64BootIdentityMappingRequirement Requirement6;
         }
-
 
     }
 #endif

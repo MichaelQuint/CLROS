@@ -36,7 +36,11 @@ internal static unsafe partial class ArrayCoreTestProgram
             test();
             Console.WriteLine("TEST_PASS array.core " + name);
         }
-        catch (Exception e) { Console.WriteLine("TEST_FAIL array.core " + name + " " + e); throw; }
+        catch (Exception e)
+        {
+            Console.WriteLine("TEST_FAIL array.core " + name + " " + e);
+            throw;
+        }
     }
     private static void Need(bool value, string message)
     {

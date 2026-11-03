@@ -207,7 +207,10 @@ internal static class NativeAotSocketGuestTests
         {
             action();
         }
-        catch (Exception error) when (error is ToolFailure or InvalidDataException or ArgumentException) { failure = error.Message; }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException or ArgumentException)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + failure);
     }
 }

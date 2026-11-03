@@ -354,7 +354,10 @@ internal static class NativeAotServiceStartupReplayTests
         {
             _ = QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(raw), entitlement, lifecycle);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
     private const string EntryMemory = "M16_014_MEMORY nr=12 regions=0 regionLimit=256 backed=0 pool=9216 reserved=0\r\n";
@@ -389,7 +392,10 @@ internal static class NativeAotServiceStartupReplayTests
             {
                 _ = QemuTranscripts.InspectNativeAotServiceStartupForTests(Encoding.UTF8.GetBytes(raw), NativeAotServiceContract.QuotaFailure);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -468,7 +474,10 @@ internal static class NativeAotServiceStartupReplayTests
         {
             _ = Read(raw, lifecycle);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

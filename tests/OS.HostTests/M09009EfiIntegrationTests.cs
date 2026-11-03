@@ -197,7 +197,10 @@ internal static class M09009EfiIntegrationTests
         {
             work();
         }
-        catch (ToolFailure) { failed = true; }
+        catch (ToolFailure)
+        {
+            failed = true;
+        }
         HostCheck.True(failed);
     }
 }

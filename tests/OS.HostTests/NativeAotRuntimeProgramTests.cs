@@ -71,7 +71,10 @@ internal static class NativeAotRuntimeProgramTests
             var result = HostToolProcess.RunTool("linux", "runtime-program", "NativeAotRuntimeMatrix", Path.Combine(directory, "absent"), dump);
             HostCheck.True(result.ExitCode != 0 && !result.Output.Contains("TEST_PASS linux.runtime-program", StringComparison.Ordinal));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
     private static void Reject(Action action, string reason)
     {
@@ -80,7 +83,10 @@ internal static class NativeAotRuntimeProgramTests
         {
             action();
         }
-        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure) { failure = error.Message; }
+        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + failure);
     }
 }

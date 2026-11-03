@@ -34,8 +34,14 @@ internal static class NativeAotWebSignalRaceStreamJoinTests
         {
             action();
         }
-        catch (ToolFailure e) { reason = e.Reason; }
-        catch (InvalidDataException e) { reason = e.Message; }
+        catch (ToolFailure e)
+        {
+            reason = e.Reason;
+        }
+        catch (InvalidDataException e)
+        {
+            reason = e.Message;
+        }
         HostCheck.True(reason is not null);
         if (expected is not null)
             HostCheck.Equal(expected, reason);
@@ -128,7 +134,10 @@ internal static class NativeAotWebSignalRaceStreamJoinTests
         {
             ((IList<Q.ServiceQuotaPacketStream>)joined.Guest.Streams).Clear();
         }
-        catch (NotSupportedException) { immutable = true; }
+        catch (NotSupportedException)
+        {
+            immutable = true;
+        }
         HostCheck.True(immutable);
     }
 

@@ -69,7 +69,10 @@ internal static unsafe class M05BarDmaEfiIntegrationTests
             badPrefix[67] = badPrefix[67].Replace("M03_OWNED 0", "M03_OWNED 1", StringComparison.Ordinal);
             Reject(() => Check(badPrefix));
         }
-        finally { File.Delete(path); }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     private static string[] Capture()
@@ -104,7 +107,10 @@ internal static unsafe class M05BarDmaEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid profile or evidence must be rejected");
     }
 }

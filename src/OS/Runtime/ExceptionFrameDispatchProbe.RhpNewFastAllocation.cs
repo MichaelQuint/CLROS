@@ -134,7 +134,10 @@ internal static unsafe partial class RhpNewFastAllocation
         {
             FrameThrower(value);
         }
-        finally { FrameCleanupEntered(value, ref stamp); }
+        finally
+        {
+            FrameCleanupEntered(value, ref stamp);
+        }
         return stamp;
     }
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -146,7 +149,10 @@ internal static unsafe partial class RhpNewFastAllocation
         {
             FrameMiddle(value);
         }
-        catch (SimpleCatchSibling wrong) { FrameUnexpectedCatch(wrong); }
+        catch (SimpleCatchSibling wrong)
+        {
+            FrameUnexpectedCatch(wrong);
+        }
         catch (SimpleCatchBase caught)
         {
             FrameCatchEntered(caught, ref stamp);

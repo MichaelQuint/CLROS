@@ -27,7 +27,10 @@ internal static class EfiConstructorTranscriptControls
             {
                 QemuTranscripts.AssertM04ClassConstructorRecords(lines, gc, heap);
             }
-            catch (ToolFailure) when (!accept) { accepted = false; }
+            catch (ToolFailure) when (!accept)
+            {
+                accepted = false;
+            }
             HostCheck.Equal(accept, accepted);
             count++;
         }

@@ -32,7 +32,9 @@ internal static class EhContributionCatalogGeneratorTests
                     _ = Generate(obj, map);
                     throw new InvalidOperationException("accepted " + why);
                 }
-                catch (TargetInvocationException e) when (e.InnerException is InvalidDataException or System.Xml.XmlException) { }
+                catch (TargetInvocationException e) when (e.InnerException is InvalidDataException or System.Xml.XmlException)
+                {
+                }
             }
             void RejectSelection(byte[] obj, string map, string method, string why)
             {
@@ -41,7 +43,9 @@ internal static class EhContributionCatalogGeneratorTests
                     _ = Select(obj, map, method);
                     throw new InvalidOperationException("accepted selection " + why);
                 }
-                catch (TargetInvocationException e) when (e.InnerException is InvalidDataException or System.Xml.XmlException) { }
+                catch (TargetInvocationException e) when (e.InnerException is InvalidDataException or System.Xml.XmlException)
+                {
+                }
             }
             var input = Input();
             byte[] saved = [.. input.Object];
@@ -155,7 +159,10 @@ internal static class EhContributionCatalogGeneratorTests
                     Console.SetOut(output);
                     return ((int)run.Invoke(null, [args])!, output.ToString());
                 }
-                finally { Console.SetOut(prior); }
+                finally
+                {
+                    Console.SetOut(prior);
+                }
             }
             string[] args = ["--eh-contribution-catalog", "--object", objPath, "--map", mapPath, "--output", outputPath];
             Need(Run(args).Exit == 0 && File.ReadAllBytes(outputPath).SequenceEqual(all), "legacy CLI keeps both methods");

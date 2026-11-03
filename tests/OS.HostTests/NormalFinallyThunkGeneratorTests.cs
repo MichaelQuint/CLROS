@@ -35,7 +35,11 @@ internal static class NormalFinallyThunkGeneratorTests
                     Console.SetError(output);
                     return ((int)main.Invoke(null, [args])!, output.ToString());
                 }
-                finally { Console.SetOut(priorOut); Console.SetError(priorError); }
+                finally
+                {
+                    Console.SetOut(priorOut);
+                    Console.SetError(priorError);
+                }
             }
             string[] outputArgs = ["--output-root", folder, "--output-file", "normal.obj"];
             HostCheck.True(Invoke(["--normal-finally", .. outputArgs]).Exit == 0, "normal mode emits reviewed object");

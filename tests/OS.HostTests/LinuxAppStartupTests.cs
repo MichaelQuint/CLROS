@@ -156,7 +156,10 @@ internal static unsafe class LinuxAppStartupTests
             {
                 QemuTranscripts.InspectNativeAotWebStartupForTests(StartupRaw(mutation));
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, mutation);
         }
     }

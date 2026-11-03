@@ -82,7 +82,10 @@ internal static class NativeAotSocketMessageTests
             {
                 NativeAotSocketMessages.Read(rows);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, string.Join(" | ", rows));
         }
     }

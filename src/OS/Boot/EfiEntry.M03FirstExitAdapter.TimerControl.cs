@@ -56,24 +56,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
         private struct TimerControl
         {
@@ -89,20 +71,6 @@ public static unsafe partial class EfiEntry
         }
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 #endif

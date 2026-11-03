@@ -122,7 +122,10 @@ internal static class NativeAotServiceQuotaTests
         {
             _ = QemuTranscripts.InspectNativeAotServiceQuotaForTests(rows);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid quota leaf accepted");
     }
 }

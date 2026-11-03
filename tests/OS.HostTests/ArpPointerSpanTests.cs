@@ -76,7 +76,10 @@ internal static unsafe class ArpPointerSpanTests
                         break;
                 }
             }
-            catch (ArgumentOutOfRangeException) { rejected = true; }
+            catch (ArgumentOutOfRangeException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         for (int i = 0; i < 4; i++)

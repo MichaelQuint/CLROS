@@ -76,7 +76,11 @@ internal sealed partial class WhpxPrelaunch : IDisposable
                 throw new IOException("whpx_prelaunch_recipe");
             return new(process, serialPath, executable);
         }
-        catch { executable.Dispose(); throw; }
+        catch
+        {
+            executable.Dispose();
+            throw;
+        }
     }
 
     private WhpxPrelaunch(Process process, string serialPath, FileStream executable)
@@ -123,7 +127,14 @@ internal sealed partial class WhpxPrelaunch : IDisposable
             process.StartInfo.RedirectStandardError = false;
             process.StartInfo.StandardErrorHandle = writer;
         }
-        catch { listener?.Stop(); qmp?.Dispose(); raw?.Dispose(); writer?.Dispose(); throw; }
+        catch
+        {
+            listener?.Stop();
+            qmp?.Dispose();
+            raw?.Dispose();
+            writer?.Dispose();
+            throw;
+        }
     }
 
     public void ResumeAfterStart(TimeSpan remaining) => Resume(remaining).GetAwaiter().GetResult();
@@ -399,7 +410,11 @@ internal sealed partial class WhpxPrelaunch : IDisposable
                 output.Dispose();
             return path;
         }
-        catch { output.Dispose(); throw; }
+        catch
+        {
+            output.Dispose();
+            throw;
+        }
     }
     public void Dispose()
     {
@@ -411,7 +426,9 @@ internal sealed partial class WhpxPrelaunch : IDisposable
                 {
                     process.Kill(entireProcessTree: true);
                 }
-                catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
+                {
+                }
                 process.WaitForExit(1000);
             }
         }

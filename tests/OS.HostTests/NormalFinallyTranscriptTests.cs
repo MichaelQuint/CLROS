@@ -67,7 +67,10 @@ internal static class NormalFinallyTranscriptTests
                 QemuTranscripts.AssertM04ManagedHeapPageRangeTranscript(validPath, includeGcStatics: true, includeNormalFinally: true,
                 includeFrameDispatch: collision == "frames", includeEhCatalog: collision == "catalog", includeNestedFinally: collision == "nested", includeFilteredCatch: collision == "filtered");
             }
-            catch (ToolFailure e) { rejected = e.Reason == "m04_normal_finally_profile_collision"; }
+            catch (ToolFailure e)
+            {
+                rejected = e.Reason == "m04_normal_finally_profile_collision";
+            }
             HostCheck.True(rejected, "profile collision " + collision);
         }
         controls.Complete("normal-finally.synthetic");
@@ -84,7 +87,10 @@ internal static class NormalFinallyTranscriptTests
             {
                 QemuTranscripts.ValidateUnselectedRecords(text, ordinary);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, "unselected normal fixture");
         }
         QemuTranscripts.AssertM04SimpleCatchSelection("TEST_START m04.021.normal-finally", false, normalFinallyEnabled: true);

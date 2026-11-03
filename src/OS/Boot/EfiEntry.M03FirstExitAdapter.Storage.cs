@@ -56,7 +56,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
         private struct Storage
         {
             internal ulong Phase;
@@ -235,36 +234,6 @@ public static unsafe partial class EfiEntry
             internal fixed ulong AdapterEntries[8];
 #endif
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 #endif

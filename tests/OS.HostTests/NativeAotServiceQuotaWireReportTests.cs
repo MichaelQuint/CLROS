@@ -35,7 +35,10 @@ internal static class NativeAotServiceQuotaWireReportTests
         {
             ((IList<NativeAotServiceQuotaPeer.WireOperation>)copy.Operations)[0] = operations[0];
         }
-        catch (NotSupportedException) { immutable = true; }
+        catch (NotSupportedException)
+        {
+            immutable = true;
+        }
         HostCheck.True(immutable);
         var partial = original with
         {
@@ -66,7 +69,12 @@ internal static class NativeAotServiceQuotaWireReportTests
             r => r["port"] = "8080", r => r["rawBytes"] = 5, r => r["snapshotTicks"] = 9,
             r => Connection(r)["id"] = 2, r => Connection(r)["remotePort"] = 8081,
             r => Connection(r)["localAddress"] = "::1", r => Connection(r)["disposedTicks"] = 0,
-            r => { var c = Connection(r).DeepClone().AsObject(); c["id"] = 2; r["connections"]!.AsArray().Add(c); },
+            r =>
+{
+var c = Connection(r).DeepClone().AsObject();
+c["id"] = 2;
+r["connections"]!.AsArray().Add(c);
+},
             r => Operation(r)["id"] = 2, r => Operation(r)["connectionId"] = 2,
             r => Operation(r)["direction"] = "send", r => Operation(r)["offset"] = 1,
             r => Operation(r)["startedTicks"] = 0, r => Operation(r)["endedTicks"] = 1,
@@ -161,7 +169,10 @@ internal static class NativeAotServiceQuotaWireReportTests
         {
             action();
         }
-        catch (Exception error) when (error is ToolFailure or InvalidDataException) { rejected = true; }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

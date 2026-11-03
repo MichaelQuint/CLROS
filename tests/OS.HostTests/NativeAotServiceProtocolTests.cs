@@ -215,7 +215,10 @@ internal static class NativeAotServiceProtocolTests
             {
                 InspectQuota(v, rows);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         foreach (int at in Enumerable.Range(0, v.Rows.Count).Where(i => v.Rows[i].StartsWith("M16_016_SOCKET ", StringComparison.Ordinal)))
@@ -274,7 +277,10 @@ internal static class NativeAotServiceProtocolTests
         {
             Inspect(v, rows);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
@@ -302,7 +308,10 @@ internal static class NativeAotServiceProtocolTests
         {
             Inspect(Vector(), configuredMemory: true);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 

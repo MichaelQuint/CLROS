@@ -122,7 +122,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
             *other = *f.Device.State;
             HostCheck.True(!ReadRangePredicate(f.State, f.Input.Epoch, other, f.Device.Input.Epoch, 1, 7));
         }
-        finally { NativeMemory.Free(other); }
+        finally
+        {
+            NativeMemory.Free(other);
+        }
         byte[] engine = new ReadOnlySpan<byte>(f.State, sizeof(C.State)).ToArray();
         uint calls = f.Device.Hardware->Calls;
         long allocated = GC.GetAllocatedBytesForCurrentThread();
@@ -149,7 +152,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
             input->Before = input->After;
             HostCheck.True(!Range(f));
         }
-        finally { *input = saved; }
+        finally
+        {
+            *input = saved;
+        }
         LiveFat32Volume* volume = (LiveFat32Volume*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Volume"));
         var originalVolume = *volume;
         try
@@ -158,7 +164,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
             volume->PartitionLastLba = 7;
             HostCheck.True(!Range(f));
         }
-        finally { *volume = originalVolume; }
+        finally
+        {
+            *volume = originalVolume;
+        }
         B.Admission* block = (B.Admission*)((byte*)f.Device.State + WritableBlockSessionTests.ManagedOffset(f.Device.State, "Input"));
         ulong epoch = block->Epoch;
         try
@@ -166,7 +175,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
             block->Epoch++;
             HostCheck.True(!Range(f));
         }
-        finally { block->Epoch = epoch; }
+        finally
+        {
+            block->Epoch = epoch;
+        }
         ulong* poolEpoch = (ulong*)((byte*)f.Device.State + WritableBlockSessionTests.ManagedOffset(f.Device.State, "PoolEpoch"));
         ulong pool = *poolEpoch;
         try
@@ -174,7 +186,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
             (*poolEpoch)++;
             HostCheck.True(!Range(f));
         }
-        finally { *poolEpoch = pool; }
+        finally
+        {
+            *poolEpoch = pool;
+        }
         HostCheck.True(Range(f));
         HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State));
         HostCheck.True(Range(f));
@@ -376,7 +391,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
                 (*generation)++;
                 HostCheck.Equal(C.Status.BlockFailure, C.CopyRootFacts(f.State, next, &facts, (uint)sizeof(C.RootFacts)));
             }
-            finally { *generation = saved; }
+            finally
+            {
+                *generation = saved;
+            }
             HostCheck.True(f.State->IsReady && facts.Owner == 0);
             B.Stop(f.Device.State);
             HostCheck.Equal(C.Status.BlockFailure, C.CopyRootFacts(f.State, next, &facts, (uint)sizeof(C.RootFacts)));
@@ -612,7 +630,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
                 HostCheck.Equal(C.Status.BlockFailure, C.CopyOpenFacts(f.State, request, &facts, (uint)sizeof(C.OpenFacts)));
                 HostCheck.True(f.State->RequestActive && facts.File.Owner == 0 && f.Device.Hardware->Calls == calls);
             }
-            finally { *generation = original; }
+            finally
+            {
+                *generation = original;
+            }
             HostCheck.Equal(C.Status.Success, C.CopyOpenFacts(f.State, request, &facts, (uint)sizeof(C.OpenFacts)));
             Open(f, "DATA.BIN", out request);
             f.Run();
@@ -1265,7 +1286,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
                 {
                     HostCheck.Equal(C.Status.BlockFailure, C.Pump(f.State));
                 }
-                finally { *epoch = original; }
+                finally
+                {
+                    *epoch = original;
+                }
                 HostCheck.True(!f.State->IsReady && f.State->LastBlockFailure == B.Status.InvalidState);
             }
             HostCheck.True(*Field<uint>(f, "Work") == work && f.Device.State->SubmittedBytes == 0 && !f.State->Dirty &&
@@ -2318,7 +2342,12 @@ internal static unsafe partial class ContinuingFat32MutationTests
                 HostCheck.True(!RetainBatch(f.State, f.Input.Epoch, [ulong.MaxValue, 0]));
             }
         }
-        finally { *input = original; *block = originalBlock; *pool = originalPool; }
+        finally
+        {
+            *input = original;
+            *block = originalBlock;
+            *pool = originalPool;
+        }
         CompareRetainBatch(f, pairs, true);
         pairs[0] = (ulong)f.Input.After;
         CompareRetainBatch(f, pairs, false);
@@ -2405,7 +2434,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
                 input->Before = (byte*)ulong.MaxValue;
                 HostCheck.True(!RetainBatch(f.State, f.Input.Epoch, [(ulong)f.Output, 1]) && !RetainBatch(f.State, f.Input.Epoch, [0, 0]));
             }
-            finally { *input = original; }
+            finally
+            {
+                *input = original;
+            }
         }
         using (var f = new Fixture(observe: true))
         {
@@ -2446,7 +2478,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
         {
             accepted = RetainBatch(f.State, f.Input.Epoch, pairs);
         }
-        finally { HostCheck.True(OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing)); }
+        finally
+        {
+            HostCheck.True(OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing));
+        }
         HostCheck.True(accepted && timing.AuditCalls == 1 && timing.OutsideDeviceCalls == 14 && timing.RawReads == 6);
         HostCheck.True(before.SequenceEqual(RetainBatchSnapshot(f)) && f.Device.Hardware->Calls == calls && !OS.Kernel.Diagnostics.WritableStorageTiming.IsActive);
     }
@@ -2517,7 +2552,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
             input->Epoch++;
             HostCheck.True(borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8) && !retain(f.State, f.Input.Epoch, (ulong)f.Output, 8));
         }
-        finally { input->Epoch = epoch; }
+        finally
+        {
+            input->Epoch = epoch;
+        }
         foreach (string field in new[] { "PoolEpoch", "Self" })
         {
             ulong* value = (ulong*)((byte*)f.Device.State + WritableBlockSessionTests.ManagedOffset(f.Device.State, field));
@@ -2527,7 +2565,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
                 *value = prior + 8;
                 HostCheck.True(!retain(f.State, f.Input.Epoch, (ulong)f.Output, 8));
             }
-            finally { *value = prior; }
+            finally
+            {
+                *value = prior;
+            }
         }
         HostCheck.True(calls == f.Device.Hardware->Calls && retain(f.State, f.Input.Epoch, (ulong)f.Output, 8));
         HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State));
@@ -2575,7 +2616,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
                     HostCheck.True(!admit(f.State, f.Input.Epoch), $"live admission accepted observer={address:x}");
                 }
         }
-        finally { blockInput->Observation = original; }
+        finally
+        {
+            blockInput->Observation = original;
+        }
         HostCheck.True(calls == f.Device.Hardware->Calls && new ReadOnlySpan<byte>(f.State, sizeof(C.State)).SequenceEqual(state) &&
             new ReadOnlySpan<byte>(f.Input.Before, (int)C.JournalChanges * 512).SequenceEqual(before) && new ReadOnlySpan<byte>(original, sizeof(B.Observation)).SequenceEqual(receipt));
         HostCheck.True(admit(f.State, f.Input.Epoch) && borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8));
@@ -2601,7 +2645,10 @@ internal static unsafe partial class ContinuingFat32MutationTests
             input->Before = (byte*)f.Device.Observation;
             HostCheck.True(!borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8) && !admit(f.State, f.Input.Epoch));
         }
-        finally { input->Before = before; }
+        finally
+        {
+            input->Before = before;
+        }
         HostCheck.True(calls == f.Device.Hardware->Calls && admit(f.State, f.Input.Epoch));
         var file = File(f);
         f.FailAt = f.Device.Hardware->Notifies + 1;

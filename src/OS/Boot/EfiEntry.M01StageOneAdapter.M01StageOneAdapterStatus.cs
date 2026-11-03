@@ -55,11 +55,6 @@ public static unsafe partial class EfiEntry
     private static partial class M01StageOneAdapter
     {
 
-
-
-
-
-
         private enum M01StageOneAdapterStatus : ulong
         {
             Success = 0,

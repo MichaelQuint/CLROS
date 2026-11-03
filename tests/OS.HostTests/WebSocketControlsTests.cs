@@ -40,7 +40,10 @@ internal static class WebSocketControlsTests
             {
                 _ = await WebSocketControls.ReadHealthResponseAsync(wire, true, CancellationToken.None);
             }
-            catch (Exception failure) when (failure is InvalidDataException or EndOfStreamException) { rejected = true; }
+            catch (Exception failure) when (failure is InvalidDataException or EndOfStreamException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -75,7 +78,10 @@ internal static class WebSocketControlsTests
             {
                 _ = WebSocketControls.ObserveEvents(rows, 50000);
             }
-            catch (InvalidDataException) { rejected = true; }
+            catch (InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }

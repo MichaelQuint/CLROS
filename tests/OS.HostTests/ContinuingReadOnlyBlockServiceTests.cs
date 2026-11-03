@@ -43,7 +43,10 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
                     HostCheck.Equal(Block.Status.Success, Block.Stop(f.State));
                     f.CheckGuards();
                 }
-                finally { capture.Sink->Output = allocation; }
+                finally
+                {
+                    capture.Sink->Output = allocation;
+                }
             }
     }
 
@@ -111,7 +114,10 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
                     HostCheck.Equal(Block.Status.Success, Block.Stop(f.State));
                     f.CheckGuards();
                 }
-                finally { capture.Sink->Output = allocation; }
+                finally
+                {
+                    capture.Sink->Output = allocation;
+                }
             }
     }
 

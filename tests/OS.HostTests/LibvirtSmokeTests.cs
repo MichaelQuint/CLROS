@@ -107,7 +107,11 @@ internal static class LibvirtSmokeTests
             using StringWriter output = new();
             bool called = false;
             int exit = LibvirtSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output,
-                _ => { called = true; throw new InvalidOperationException("must not invoke"); }).GetAwaiter().GetResult();
+                _ =>
+{
+    called = true;
+    throw new InvalidOperationException("must not invoke");
+}).GetAwaiter().GetResult();
             HostCheck.True(exit != 0 && !called);
         }
     }
@@ -140,7 +144,10 @@ internal static class LibvirtSmokeTests
             {
                 LibvirtSmokeOptions.Parse(args);
             }
-            catch (ArgumentException) { rejected = true; }
+            catch (ArgumentException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }

@@ -75,7 +75,10 @@ internal static class NativeAotStaticFileProfileTests
         {
             QemuProfiles.Create(options);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

@@ -146,7 +146,11 @@ public static class NativeAotHelloGuest
             RequireOutputParent(path, artifacts.TrimEnd(Path.DirectorySeparatorChar));
             File.Move(temporary, path, overwrite: false);
         }
-        finally { if (ownsTemporary) File.Delete(temporary); }
+        finally
+        {
+            if (ownsTemporary)
+                File.Delete(temporary);
+        }
         return Hash(package);
     }
 

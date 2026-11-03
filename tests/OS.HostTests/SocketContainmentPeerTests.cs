@@ -16,7 +16,10 @@ internal static class SocketContainmentPeerTests
             {
                 using var bad = new SocketContainmentPeer(TimeSpan.FromSeconds(seconds));
             }
-            catch (ArgumentOutOfRangeException) { rejected = true; }
+            catch (ArgumentOutOfRangeException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         using var peer = new SocketContainmentPeer(TimeSpan.FromSeconds(120));
@@ -120,7 +123,10 @@ internal static class SocketContainmentPeerTests
         {
             await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5));
         }
-        catch (InvalidDataException) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && peer.Stop() && peer.HealthyReplies == 0);
     }
 
@@ -142,7 +148,10 @@ internal static class SocketContainmentPeerTests
         {
             await peer.WriteFrameAsync(new byte[1518]);
         }
-        catch (ArgumentOutOfRangeException) { rejected = true; }
+        catch (ArgumentOutOfRangeException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && peer.FramesWritten == 0);
         await peer.WriteFrameAsync(vlan);
         byte[] wire = new byte[1522];
@@ -159,7 +168,10 @@ internal static class SocketContainmentPeerTests
         {
             await peer.ReadFrameAsync(buffer);
         }
-        catch (InvalidDataException) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && peer.FramesRead == 1);
     }
 
@@ -198,7 +210,13 @@ internal static class SocketContainmentPeerTests
             {
                 await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
             }
-            catch { if (!process.HasExited) process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); throw; }
+            catch
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync();
+                throw;
+            }
             return (process.ExitCode, await stdout + await stderr);
         }
     }
@@ -210,7 +228,10 @@ internal static class SocketContainmentPeerTests
         {
             _ = SocketContainmentPeer.ParseGuest(bytes);
         }
-        catch (InvalidDataException) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 

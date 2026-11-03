@@ -132,7 +132,10 @@ internal static class NativeAotServiceQuotaEnvelopeTests
         {
             _ = Inspect(rows, parent, protocol, transport, quota);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

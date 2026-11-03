@@ -52,7 +52,6 @@ public static unsafe partial class EfiEntry
 {
 #if M03_FIRMWARE_ENTROPY_SEED_PROBE || M16_004_PROBE
 
-
     // One pre-EBS acquisition. The host Span/interface contract is deliberately
     // separate; this EFI boundary has only numeric values and admitted pointers.
     internal static partial class FirmwareEntropyCapture

@@ -28,7 +28,11 @@ internal static class QemuProcessAuthorityTests
             }
             HostCheck.Equal(local, QemuSmoke.ResolveOvmf(null, qemu));
         }
-        finally { for (int i = 0; i < names.Length; i++) Environment.SetEnvironmentVariable(names[i], original[i]); }
+        finally
+        {
+            for (int i = 0; i < names.Length; i++)
+                Environment.SetEnvironmentVariable(names[i], original[i]);
+        }
     }
 
     [HostTest("qemu refuses incomplete process authority before ordinary or expected panic classification")]
@@ -64,7 +68,10 @@ internal static class QemuProcessAuthorityTests
                     {
                         QemuTranscripts.ValidateRun(root, options, plan, result, TextWriter.Null);
                     }
-                    catch (ToolFailure error) when (error.Reason == "qemu_runner_incomplete") { rejected = true; }
+                    catch (ToolFailure error) when (error.Reason == "qemu_runner_incomplete")
+                    {
+                        rejected = true;
+                    }
                     HostCheck.True(rejected, "incomplete process status cannot reach a guest transcript");
                 }
             }

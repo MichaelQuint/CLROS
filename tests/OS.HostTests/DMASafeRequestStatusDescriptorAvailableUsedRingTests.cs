@@ -99,7 +99,10 @@ internal static unsafe class DMASafeRequestStatusDescriptorAvailableUsedRingTest
             HostCheck.Equal(DmaBufferStatus.Success, PageAlignedDmaBuffers.TryRelease(&pool, extra.Token));
             HostCheck.Equal(0UL, pool.AllocatedMask);
         }
-        finally { NativeMemory.AlignedFree(bytes); }
+        finally
+        {
+            NativeMemory.AlignedFree(bytes);
+        }
         HostCheck.Equal(VirtioBlkDmaStatus.AllocationFailed,
             DMASafeRequestStatusDescriptorAvailableUsedRing.TryAllocate(null, out var none, out var noLayout));
         HostCheck.True(!none.IsInitialized && !noLayout.IsInitialized);

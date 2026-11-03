@@ -97,7 +97,10 @@ internal static class SocketContainmentTransportTests
         {
             _ = QemuTranscripts.InspectSocketContainmentTransportForTests(rows);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

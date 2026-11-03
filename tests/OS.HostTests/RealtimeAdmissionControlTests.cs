@@ -17,7 +17,10 @@ internal static class RealtimeAdmissionControlTests
         {
             action();
         }
-        catch (ToolFailure e) { rejected = reason is null || e.Reason == reason; }
+        catch (ToolFailure e)
+        {
+            rejected = reason is null || e.Reason == reason;
+        }
         HostCheck.True(rejected);
     }
     private static EfiProfile Profile(string control, Dictionary<string, bool>? extra = null, string? boot = null)
@@ -111,6 +114,9 @@ internal static class RealtimeAdmissionControlTests
                 file.Write(new byte[QemuTranscripts.FirmwarePrefixBytes + 128]);
             Reject(() => QemuTranscripts.AssertRealtimeAdmissionRejectionCapture(path, "Unavailable"), "realtime_rejection_firmware_prefix");
         }
-        finally { File.Delete(path); }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }

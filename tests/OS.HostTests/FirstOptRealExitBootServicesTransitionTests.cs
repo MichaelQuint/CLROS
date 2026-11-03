@@ -244,7 +244,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(image, (int)bytes)),
                 "capacity, overlap and identity evidence refuse without modifying image");
         }
-        finally { NativeMemory.AlignedFree(image); }
+        finally
+        {
+            NativeMemory.AlignedFree(image);
+        }
     }
 
     private static void VerifyCodeBundle(EfiLoadedImageRangeCapturePlan capture,
@@ -300,7 +303,11 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             arena = default;
             // No generated IN/OUT or privileged transition instruction is executed.
         }
-        finally { NativeMemory.AlignedFree(allocation); NativeMemory.AlignedFree(data); }
+        finally
+        {
+            NativeMemory.AlignedFree(allocation);
+            NativeMemory.AlignedFree(data);
+        }
     }
 
     private static void VerifyCompleteRetainedMappings(ref FirstExitOwnedArenaState arena, byte* code,
@@ -382,7 +389,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             VerifyRetainedArenaImage(arena.Storage, output, count, FirstExitRetainedMappings.MaximumRanges, 110);
             VerifyPostExitReport(ref arena, code, capture, mapping, references, backing, output, count);
         }
-        finally { NativeMemory.AlignedFree(allocator); }
+        finally
+        {
+            NativeMemory.AlignedFree(allocator);
+        }
     }
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -683,7 +693,12 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             Console.WriteLine("CLROS_M03_007_REPORT_HOST_READY identityBacking=true markerBytes=235 guestExecution=false");
             Console.WriteLine("CLROS_M03_009_REPORT_HOST_READY tailCases=13 markerBytes=111 guestExecution=false");
         }
-        finally { faultTransmitByteLimit = int.MaxValue; faultCorruptCanary = null; VirtualFree(entries, 0, 0x8000); }
+        finally
+        {
+            faultTransmitByteLimit = int.MaxValue;
+            faultCorruptCanary = null;
+            VirtualFree(entries, 0, 0x8000);
+        }
     }
 
     private static void OwnedArena()
@@ -764,7 +779,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             Need(FirstExitOwnedArena.ValidateCanaries(state) &&
                 !FirstExitOwnedArena.Materialize(ref state, data, FirstExitOwnedArena.Bytes, 0x100000, 56), "prepared arena cannot be reset");
         }
-        finally { NativeMemory.AlignedFree(allocation); }
+        finally
+        {
+            NativeMemory.AlignedFree(allocation);
+        }
     }
 
     private static void VerifyRetainedArenaImage(byte* data, SeparatePageFaultMappingRange* ranges, ulong rangeCount,
@@ -826,7 +844,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                     "actual arena mapping is exact RW/NX or an absent guard");
             }
         }
-        finally { NativeMemory.AlignedFree(entries); }
+        finally
+        {
+            NativeMemory.AlignedFree(entries);
+        }
     }
 
     private static void OwnedStackEntry()
@@ -877,7 +898,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             Directory.CreateDirectory(path);
             File.WriteAllBytes(Path.Combine(path, "entry.bin"), code);
         }
-        finally { NativeMemory.AlignedFree(memory); }
+        finally
+        {
+            NativeMemory.AlignedFree(memory);
+        }
     }
 
     private static void SealTable(byte* table, int bytes)
@@ -1004,7 +1028,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 binding.IsConsumed && binding.RetainedPointersCleared, "changed valid-CRC table consumes without exposing entries");
             Need(maps == oldMaps && exits == oldExits, "binding never invokes firmware or host callbacks");
         }
-        finally { NativeMemory.AlignedFree(memory); }
+        finally
+        {
+            NativeMemory.AlignedFree(memory);
+        }
     }
 
     [UnmanagedCallersOnly]
@@ -1052,7 +1079,11 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             Need(PrepareDescriptors(memory), "prepare actual descriptor buffers");
             PermanentContinuationCore();
         }
-        finally { descriptors = null; NativeMemory.AlignedFree(memory); }
+        finally
+        {
+            descriptors = null;
+            NativeMemory.AlignedFree(memory);
+        }
     }
 
     private static void PermanentContinuationCore()
@@ -1221,7 +1252,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                     memory + 12288, shortBuffer == 2 ? 4095UL : 4096UL,
                     memory + 16384, shortBuffer == 3 ? 4095UL : 4096UL, 56), "short descriptor buffer");
         }
-        finally { NativeMemory.AlignedFree(memory); }
+        finally
+        {
+            NativeMemory.AlignedFree(memory);
+        }
     }
 
     private static FirstExitReturn Invoke(ref FirstExitTransitionState state, byte* buffer, void* context)

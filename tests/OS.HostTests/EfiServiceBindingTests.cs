@@ -50,7 +50,10 @@ internal static class EfiServiceBindingTests
         {
             action();
         }
-        catch (ToolFailure) { refused = true; }
+        catch (ToolFailure)
+        {
+            refused = true;
+        }
         HostCheck.True(refused);
     }
 }

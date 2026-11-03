@@ -34,7 +34,10 @@ internal static unsafe class NativeAotHelloGuestTests
                 NativeAotHelloGuest.RequireCurrentSources(temporary);
             }
         }
-        finally { Directory.Delete(temporary, recursive: true); }
+        finally
+        {
+            Directory.Delete(temporary, recursive: true);
+        }
     }
 
     [HostTest("nativeaot.hello-guest manifest retains bounded upstream startup policy and explicit IRQ authority")]
@@ -94,7 +97,10 @@ internal static unsafe class NativeAotHelloGuestTests
             {
                 NativeAotHelloGuest.WritePackage(root, absent, path);
             }
-            catch (DirectoryNotFoundException) { rejected = true; }
+            catch (DirectoryNotFoundException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected && !File.Exists(path) && Directory.GetFiles(directory).Length == 0);
             File.WriteAllBytes(path, [1, 3, 5, 7]);
             rejected = false;
@@ -102,7 +108,10 @@ internal static unsafe class NativeAotHelloGuestTests
             {
                 NativeAotHelloGuest.WritePackage(root, absent, path);
             }
-            catch (IOException error) { rejected = error.Message == "hello_output_exists"; }
+            catch (IOException error)
+            {
+                rejected = error.Message == "hello_output_exists";
+            }
             HostCheck.True(rejected && File.ReadAllBytes(path).AsSpan().SequenceEqual(new byte[] { 1, 3, 5, 7 }));
             Reject(() => NativeAotHelloGuest.WritePackage(root, absent, Path.Combine(root, "outside.pkg")), "hello_output_outside_artifacts");
             rejected = false;
@@ -110,13 +119,19 @@ internal static unsafe class NativeAotHelloGuestTests
             {
                 NativeAotHelloGuest.WritePackage(root, absent, Path.Combine(directory, "missing-parent", "hello.pkg"));
             }
-            catch (DirectoryNotFoundException error) { rejected = error.Message == "hello_output_parent_missing"; }
+            catch (DirectoryNotFoundException error)
+            {
+                rejected = error.Message == "hello_output_parent_missing";
+            }
             HostCheck.True(rejected && !Directory.Exists(Path.Combine(directory, "missing-parent")));
             var result = HostToolProcess.RunTool("linux", "hello-package", absent, Path.Combine(directory, "rejected.pkg"));
             HostCheck.True(result.ExitCode != 0 && result.Error.Contains("TEST_FAIL tooling", StringComparison.Ordinal) &&
                 !result.Output.Contains("TEST_PASS linux.hello-package", StringComparison.Ordinal) && !File.Exists(Path.Combine(directory, "rejected.pkg")));
         }
-        finally { Directory.Delete(directory, recursive: true); }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static void Reject(Action action, string reason)
@@ -126,7 +141,10 @@ internal static unsafe class NativeAotHelloGuestTests
         {
             action();
         }
-        catch (InvalidDataException error) { rejected = error.Message == reason; }
+        catch (InvalidDataException error)
+        {
+            rejected = error.Message == reason;
+        }
         HostCheck.True(rejected, reason);
     }
 }

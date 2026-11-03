@@ -51,7 +51,10 @@ internal static class NativeAotSocketVectorsPacketTests
         {
             action();
         }
-        catch (ToolFailure error) { observed = error.Reason; }
+        catch (ToolFailure error)
+        {
+            observed = error.Reason;
+        }
         HostCheck.Equal(reason, observed ?? "accepted");
     }
 }

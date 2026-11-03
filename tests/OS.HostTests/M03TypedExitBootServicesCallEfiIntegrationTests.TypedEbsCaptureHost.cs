@@ -140,7 +140,11 @@ internal static unsafe class TypedEbsCaptureHost
             Console.WriteLine("TEST_PASS m03.typedebs.host.tests");
             return 0;
         }
-        finally { NativeMemory.AlignedFree(storage); NativeMemory.AlignedFree(fresh); }
+        finally
+        {
+            NativeMemory.AlignedFree(storage);
+            NativeMemory.AlignedFree(fresh);
+        }
     }
 }
 #else

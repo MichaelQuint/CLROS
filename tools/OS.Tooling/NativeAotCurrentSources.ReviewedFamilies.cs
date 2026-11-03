@@ -101,7 +101,7 @@ internal static partial class NativeAotCurrentSources
         ]),
         ["apps/NativeAotSocketVectors/SocketPolicyFixture.cs"] = ("B0DADF95D3BCD1C33EC36A0EFCBD5B8C5991F34606538BCFE067085AC700AE4E", "OS.Apps.NativeAotSocketVectors:SocketPolicyFixture",
         [
-            ("apps/NativeAotSocketVectors/SocketPolicyFixture.cs", "BDE09A54FC77D512BC432B373CFB0CF66DC39E5880361D36E0756A41DDA36B2B"),
+            ("apps/NativeAotSocketVectors/SocketPolicyFixture.cs", "C266FF7D93EDAAE8D3B06E01147A2D37AD1818AD321BCDD32C06A91B0E9006EF"),
         ]),
         ["tools/OS.Tooling/NativeAotWebPayload.Churn.cs"] = ("756C5C80EBCA09BFE5379752FB3CECE88E0B20F826371E9D2409B80A03903F22", "OS.Tooling:NativeAotWebPayload",
         [
@@ -264,7 +264,7 @@ internal static partial class NativeAotCurrentSources
         // Reviewed full-file formatting; retained original anchors remain authoritative.
         ["apps/MinimalApiLogUploadContract/Program.cs"] = ("1B10C6E6578E104845074BF716BD7D34F52F36FB1F3B47481C24FDB653ACE043", ":Program",
         [
-            ("apps/MinimalApiLogUploadContract/Program.cs", "BB5BFB6338B39B7968649BCB459B0F01B5590C28F44E204F2907BA661C63251C"),
+            ("apps/MinimalApiLogUploadContract/Program.cs", "A45E505E6E3728011F69BA138F375CD2DCE1D5CE99A4AE144FB871316273EA84"),
         ]),
         ["apps/MinimalApiService/ServiceQuotaExercise.cs"] = ("31C19556890F5C100D83A63F462ACCF3F87374642F9B43FCE9075B73D66B2867", ":ServiceQuotaExercise",
         [
@@ -284,7 +284,7 @@ internal static partial class NativeAotCurrentSources
         ]),
         ["apps/NativeAotSqliteContract/Program.cs"] = ("29A852A3322D6919F909FFEDCD73279CDF5BDC084890DEF40EDDCC0367DCC45A", ":Program",
         [
-            ("apps/NativeAotSqliteContract/Program.cs", "99683DC7DCBEBBC1BDA8D39A71A0FF4F1C6D74BC178975A1901EDBFE84103C00"),
+            ("apps/NativeAotSqliteContract/Program.cs", "74FF7D1D521B5B3EB00ACFD753FC407C6A8FC6AC34D027B68697F224BB74FEA9"),
         ]),
         ["tools/OS.Tooling/NativeAotRuntimeMatrixGuest.cs"] = ("15264115F5D1826A172258D8A18A16DB3FDA9300652F85760C444AC9E0D3451E", "OS.Tooling:NativeAotRuntimeMatrixGuest",
         [

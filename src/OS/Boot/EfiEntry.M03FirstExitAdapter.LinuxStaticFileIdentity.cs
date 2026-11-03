@@ -13,14 +13,6 @@ public static unsafe partial class EfiEntry
             internal ulong Inode, Bytes, Position;
         }
 
-
-
-
-
-
-
-
-
     }
 }
 #endif

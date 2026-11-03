@@ -8,7 +8,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
         // Retained ordinary RAM, separate from B's exclusive observation slot.
         // Root samples before and immediately after EVERY possible B-touching
         // dispatch/commit/complete/readiness/cancel/exit/detach/end call. No
@@ -25,7 +24,6 @@ public static unsafe partial class EfiEntry
             internal OS.Kernel.Diagnostics.WritableStorageTiming.State Timing;
 #endif
         }
-
 
     }
 }

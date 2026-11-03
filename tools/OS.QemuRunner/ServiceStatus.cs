@@ -104,7 +104,10 @@ public sealed class ServiceStatus
                 throw Invalid();
             return new(values);
         }
-        catch (JsonException error) { throw new InvalidDataException("service_status_invalid", error); }
+        catch (JsonException error)
+        {
+            throw new InvalidDataException("service_status_invalid", error);
+        }
     }
 
     /// <summary>Require nonregressing successful telemetry from an earlier

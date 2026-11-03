@@ -60,6 +60,11 @@ internal static unsafe class M05VirtioNegotiationMappingTests
             entries[Leaf(Bar + 0x4000)] = Bar + 0x4000 | Nx | 0x1b;
             HostCheck.True(!Audit());
         }
-        finally { NativeMemory.Free(ranges); NativeMemory.Free(pages); NativeMemory.Free(entries); }
+        finally
+        {
+            NativeMemory.Free(ranges);
+            NativeMemory.Free(pages);
+            NativeMemory.Free(entries);
+        }
     }
 }

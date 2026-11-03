@@ -183,7 +183,10 @@ internal static class NativeAotStaticFileReplayTests
         {
             Inspect(rows);
         }
-        catch (ToolFailure failure) { actual = failure.Reason; }
+        catch (ToolFailure failure)
+        {
+            actual = failure.Reason;
+        }
         HostCheck.True(actual is not null && (reason is null || actual.Contains(reason, StringComparison.Ordinal)), "static replay accepted mutation or wrong failure: " + actual);
     }
     private static string[] Change(IEnumerable<string> rows, string selector, string field, ulong value)
@@ -225,7 +228,10 @@ internal static class NativeAotStaticFileReplayTests
             {
                 ((IList<QemuTranscripts.StaticFileSocketIo>)report.Connections)[0] = default;
             }
-            catch (NotSupportedException) { denied = true; }
+            catch (NotSupportedException)
+            {
+                denied = true;
+            }
             HostCheck.True(denied, "copied socket facts must be read only");
         }
         var states = Inspect(Vector(ioStates: true).Rows).Connections;

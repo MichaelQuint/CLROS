@@ -34,7 +34,10 @@ internal static class UnhandledExceptionTranscriptTests
             {
                 QemuTranscripts.AssertM04ManagedHeapPageRangeTranscript(path, includeGcStatics: true, includeUnhandled: true);
             }
-            catch (ToolFailure) { accepted = false; }
+            catch (ToolFailure)
+            {
+                accepted = false;
+            }
             HostCheck.True(accepted == pass, name);
             int result = QemuTranscripts.EvaluateM04UnhandledCapture(text, out string prerequisites);
             HostCheck.True((result == 1) == pass && (pass || prerequisites.Length == 0), "capture " + name);
@@ -87,7 +90,10 @@ internal static class UnhandledExceptionTranscriptTests
         {
             QemuTranscripts.ValidateUnselectedRecords("M04_UNHANDLED 0", QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run"])));
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
         foreach (string[] invalid in new string[][]{["--dry-run",..Arguments],["--dry-run","--build-efi",..Arguments,"--require-marker","x"],
             ["--dry-run","--build-efi",..Arguments,"--EnableM04NestedFinallyCatchProbe"],["--dry-run","--build-efi","--boot-policy","VerifiedExit",..Arguments]})
@@ -97,7 +103,10 @@ internal static class UnhandledExceptionTranscriptTests
             {
                 _ = QemuProfiles.Create(QemuSmokeOptions.Parse(invalid));
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, "invalid unhandled selection");
         }
     }

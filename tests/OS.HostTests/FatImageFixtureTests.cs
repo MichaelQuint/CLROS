@@ -122,7 +122,10 @@ internal static class FatImageFixtureTests
         {
             FatImageFixture.Apply(path, efi);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && FileHash(path) == before);
     }
     private static void WithFreshImage(Action<string, string> action)
@@ -151,7 +154,10 @@ internal static class FatImageFixtureTests
             HostCheck.Equal(64L * 1024 * 1024, new FileInfo(path).Length);
             action(path, efi);
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static string FileHash(string path)

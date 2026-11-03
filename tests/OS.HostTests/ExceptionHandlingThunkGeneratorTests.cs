@@ -221,7 +221,11 @@ internal static class ExceptionHandlingThunkGeneratorTests
                     }
             Console.WriteLine("TEST_PASS " + name);
         }
-        catch (Exception ex) { Console.WriteLine("TEST_FAIL " + name + " " + ex); throw; }
+        catch (Exception ex)
+        {
+            Console.WriteLine("TEST_FAIL " + name + " " + ex);
+            throw;
+        }
     }
 
     internal static void VerifyTransfer(byte[] code, int failure, bool singleFinally = false, int finallyValidator = -1,

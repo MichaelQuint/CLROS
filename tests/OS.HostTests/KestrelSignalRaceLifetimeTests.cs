@@ -33,8 +33,14 @@ internal static class KestrelSignalRaceLifetimeTests
                 entered.Set();
                 lifetime.Wait(gate);
             }
-            catch (OperationCanceledException) { Interlocked.Exchange(ref canceled, 1); }
-            catch (Exception error) { failure = error; }
+            catch (OperationCanceledException)
+            {
+                Interlocked.Exchange(ref canceled, 1);
+            }
+            catch (Exception error)
+            {
+                failure = error;
+            }
         })
         {
             IsBackground = true
@@ -52,12 +58,18 @@ internal static class KestrelSignalRaceLifetimeTests
             {
                 transactionStop.ThrowIfCancellationRequested();
             }
-            catch (OperationCanceledException) { entryRefused = true; }
+            catch (OperationCanceledException)
+            {
+                entryRefused = true;
+            }
             try
             {
                 lifetime.Check();
             }
-            catch (OperationCanceledException) { completionRefused = true; }
+            catch (OperationCanceledException)
+            {
+                completionRefused = true;
+            }
             HostCheck.True(entryRefused && completionRefused, "cached entry cancellation and absolute completion fence retain the original lifetime");
         }
         finally
@@ -85,7 +97,10 @@ internal static class KestrelSignalRaceLifetimeTests
                 lifetime.Wait(gate);
                 Interlocked.Exchange(ref completed, 1);
             }
-            catch (Exception error) { failure = error; }
+            catch (Exception error)
+            {
+                failure = error;
+            }
         })
         {
             IsBackground = true
@@ -98,7 +113,11 @@ internal static class KestrelSignalRaceLifetimeTests
             HostCheck.True(lifetime.Join(thread));
             HostCheck.True(!thread.IsAlive && failure is null && completed == 1 && !lifetime.Token.IsCancellationRequested);
         }
-        finally { gate.Set(); HostCheck.True(thread.Join(TimeSpan.FromSeconds(5))); }
+        finally
+        {
+            gate.Set();
+            HostCheck.True(thread.Join(TimeSpan.FromSeconds(5)));
+        }
     }
 
     [HostTest("m10-012 event lifetime expired or caller-canceled Join refuses without claiming thread completion")]
@@ -111,7 +130,14 @@ internal static class KestrelSignalRaceLifetimeTests
                 deadline ? TimeSpan.FromMilliseconds(50) : TimeSpan.FromSeconds(10));
             using var release = new ManualResetEventSlim();
             using var entered = new ManualResetEventSlim();
-            var thread = new Thread(() => { entered.Set(); release.Wait(); }) { IsBackground = true };
+            var thread = new Thread(() =>
+{
+    entered.Set();
+    release.Wait();
+})
+            {
+                IsBackground = true
+            };
             thread.Start();
             try
             {
@@ -122,7 +148,11 @@ internal static class KestrelSignalRaceLifetimeTests
                     request.Cancel();
                 HostCheck.True(!lifetime.Join(thread) && thread.IsAlive);
             }
-            finally { release.Set(); HostCheck.True(thread.Join(TimeSpan.FromSeconds(5))); }
+            finally
+            {
+                release.Set();
+                HostCheck.True(thread.Join(TimeSpan.FromSeconds(5)));
+            }
         }
     }
 
@@ -136,7 +166,10 @@ internal static class KestrelSignalRaceLifetimeTests
             {
                 using var invalid = new KestrelSignalProbe.EventLifetime(CancellationToken.None, budget);
             }
-            catch (ArgumentOutOfRangeException) { refused = true; }
+            catch (ArgumentOutOfRangeException)
+            {
+                refused = true;
+            }
             HostCheck.True(refused);
         }
         using (var maximum = new KestrelSignalProbe.EventLifetime(CancellationToken.None, TimeSpan.FromSeconds(120)))
@@ -150,7 +183,10 @@ internal static class KestrelSignalRaceLifetimeTests
         {
             lifetime.Wait(gate);
         }
-        catch (OperationCanceledException) { observed = true; }
+        catch (OperationCanceledException)
+        {
+            observed = true;
+        }
         HostCheck.True(observed && lifetime.Token.IsCancellationRequested);
     }
 }

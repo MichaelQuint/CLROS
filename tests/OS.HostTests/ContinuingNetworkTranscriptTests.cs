@@ -91,7 +91,10 @@ internal static class ContinuingNetworkTranscriptTests
                 Reject(() => Inspect(bad));
             }
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     [HostTest("m07-026 full parser preserves exact package live-clock and original network parents", HostLane.Fast, 2)]
@@ -143,7 +146,10 @@ internal static class ContinuingNetworkTranscriptTests
             File.WriteAllBytes(packagePath, package);
             Reject(() => Inspect(rows));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     private static string[] Records()
@@ -257,8 +263,14 @@ internal static class ContinuingNetworkTranscriptTests
         {
             action();
         }
-        catch (ToolFailure) { return; }
-        catch (InvalidDataException) { return; }
+        catch (ToolFailure)
+        {
+            return;
+        }
+        catch (InvalidDataException)
+        {
+            return;
+        }
         throw new InvalidOperationException("m07_026_invalid_evidence_accepted");
     }
 }

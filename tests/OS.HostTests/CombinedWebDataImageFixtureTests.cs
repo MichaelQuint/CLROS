@@ -125,7 +125,10 @@ internal static unsafe class CombinedWebDataImageFixtureTests
             File.Copy(web, Path.Combine(target, "web.raw"));
             Reject(() => Image.CreateWithRetainedData(root, Path.Combine(redirect, "web.raw"), prior, expected, output), "combined_web_input_reparse_point");
         }
-        finally { Directory.Delete(redirect); }
+        finally
+        {
+            Directory.Delete(redirect);
+        }
         if (OperatingSystem.IsWindows())
         {
             string alias = Path.Combine(folder, "prior-hardlink.raw");
@@ -135,7 +138,10 @@ internal static unsafe class CombinedWebDataImageFixtureTests
             {
                 Reject(() => Image.CreateWithRetainedData(root, web, alias, expected, output), "authority_output_hardlink_invalid");
             }
-            finally { File.Delete(alias); }
+            finally
+            {
+                File.Delete(alias);
+            }
         }
         HostCheck.True(!File.Exists(output) && !File.Exists(Path.Combine(target, "never.raw")) && FileHash(web) == webHash && FileHash(prior) == expected.RawSha256);
     });
@@ -162,7 +168,10 @@ internal static unsafe class CombinedWebDataImageFixtureTests
                     {
                         using var forbidden = new FileStream(held, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
                     }
-                    catch (IOException) { denied = true; }
+                    catch (IOException)
+                    {
+                        denied = true;
+                    }
                     HostCheck.True(denied, "new clone inputs must remain immutable while held");
                 }
         }
@@ -346,7 +355,10 @@ internal static unsafe class CombinedWebDataImageFixtureTests
         {
             Reject(() => Clone(Path.Combine(redirect, "never.raw")), "combined_output_path");
         }
-        finally { Directory.Delete(redirect); }
+        finally
+        {
+            Directory.Delete(redirect);
+        }
         HostCheck.True(!File.Exists(Path.Combine(target, "never.raw")));
         Image.Verify(original, receipt);
     });
@@ -369,7 +381,10 @@ internal static unsafe class CombinedWebDataImageFixtureTests
                 {
                     using var forbidden = new FileStream(held, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
                 }
-                catch (IOException) { denied = true; }
+                catch (IOException)
+                {
+                    denied = true;
+                }
                 HostCheck.True(denied, "immutable input must reject a writable Windows open");
             }
             ReplaceSameBytes(held, first.VerifyOriginalsAndWorkingIdentity, "authority_input_changed");
@@ -395,7 +410,10 @@ internal static unsafe class CombinedWebDataImageFixtureTests
                 File.Move(path, saved);
                 renamed = true;
             }
-            catch (IOException) when (OperatingSystem.IsWindows()) { verify(); }
+            catch (IOException) when (OperatingSystem.IsWindows())
+            {
+                verify();
+            }
             if (!renamed)
                 return;
             try
@@ -403,7 +421,11 @@ internal static unsafe class CombinedWebDataImageFixtureTests
                 File.Copy(saved, path);
                 Reject(verify, reason);
             }
-            finally { File.Delete(path); File.Move(saved, path); }
+            finally
+            {
+                File.Delete(path);
+                File.Move(saved, path);
+            }
             verify();
         }
     });
@@ -575,11 +597,31 @@ internal static unsafe class CombinedWebDataImageFixtureTests
     {
         byte[] raw = File.ReadAllBytes(path);
         Mutant(folder, raw, x => x[512 + 16] ^= 1, "combined_image_gpt_header");
-        Mutant(folder, raw, x => { x[x.Length - 512 + 56] ^= 1; HeaderCrc(x, x.Length - 512); }, "combined_image_gpt_header");
-        Mutant(folder, raw, x => { W64(x, 1024 + 128 + 32, 131038); ArraysCrc(x); }, "combined_image_gpt_array");
-        Mutant(folder, raw, x => { x.AsSpan(1024 + 16, 16).CopyTo(x.AsSpan(1024 + 128 + 16, 16)); ArraysCrc(x); }, "combined_image_gpt_array");
-        Mutant(folder, raw, x => { W64(x, 1024 + 128 + 48, 1UL << 60); ArraysCrc(x); }, "combined_image_partitions");
-        Mutant(folder, raw, x => { W64(x, 1024 + 128 + 40, 260061); ArraysCrc(x); }, "combined_image_partitions");
+        Mutant(folder, raw, x =>
+{
+    x[x.Length - 512 + 56] ^= 1;
+    HeaderCrc(x, x.Length - 512);
+}, "combined_image_gpt_header");
+        Mutant(folder, raw, x =>
+{
+    W64(x, 1024 + 128 + 32, 131038);
+    ArraysCrc(x);
+}, "combined_image_gpt_array");
+        Mutant(folder, raw, x =>
+{
+    x.AsSpan(1024 + 16, 16).CopyTo(x.AsSpan(1024 + 128 + 16, 16));
+    ArraysCrc(x);
+}, "combined_image_gpt_array");
+        Mutant(folder, raw, x =>
+{
+    W64(x, 1024 + 128 + 48, 1UL << 60);
+    ArraysCrc(x);
+}, "combined_image_partitions");
+        Mutant(folder, raw, x =>
+{
+    W64(x, 1024 + 128 + 40, 260061);
+    ArraysCrc(x);
+}, "combined_image_partitions");
         Mutant(folder, raw, x =>
         {
             x.AsSpan(1024 + 128, 128).CopyTo(x.AsSpan(1024 + 256, 128));
@@ -594,7 +636,11 @@ internal static unsafe class CombinedWebDataImageFixtureTests
     private static void DataRejection() => WithImage((_, folder, _, _, path, receipt) =>
     {
         byte[] raw = File.ReadAllBytes(path);
-        Mutant(folder, raw, x => { W32(x, 131072 * 512 + 28, 2048); W32(x, (131072 + 6) * 512 + 28, 2048); }, "writable_image_bpb");
+        Mutant(folder, raw, x =>
+{
+    W32(x, 131072 * 512 + 28, 2048);
+    W32(x, (131072 + 6) * 512 + 28, 2048);
+}, "writable_image_bpb");
         Mutant(folder, raw, x => x[(131072 + 6) * 512 + 71] ^= 1, "writable_image_boot_backup");
         Mutant(folder, raw, x => x[(131104 + 993) * 512 + 5 * 4] ^= 1, "writable_image_fat_mirror");
         Mutant(folder, raw, x => x[(131072 + 7) * 512 + 488] ^= 1, "writable_image_fsinfo_backup");
@@ -660,7 +706,12 @@ internal static unsafe class CombinedWebDataImageFixtureTests
                 result.Volume.FirstFatLba == receipt.Image.Data.FirstFatSector && result.Volume.FirstDataLba == receipt.Image.Data.FirstDataSector &&
                 device.State->Submitted == 35 && device.State->Completed == 35 && device.State->SubmittedBytes == 0 && !device.State->Dirty);
         }
-        finally { HostCheck.Equal(K.Status.Success, K.Stop(state)); HostCheck.Equal(B.Status.Success, B.Stop(device.State)); NativeMemory.AlignedFree(scratch); }
+        finally
+        {
+            HostCheck.Equal(K.Status.Success, K.Stop(state));
+            HostCheck.Equal(B.Status.Success, B.Stop(device.State));
+            NativeMemory.AlignedFree(scratch);
+        }
     });
 
     internal static void WithImage(Action<string, string, string, string, string, Image.Receipt> action) => WebRootImageFixtureTests.WithImage((root, folder, baseImage, source) =>
@@ -686,7 +737,10 @@ internal static unsafe class CombinedWebDataImageFixtureTests
             action();
             throw new InvalidOperationException("expected " + reason);
         }
-        catch (ToolFailure error) { HostCheck.Equal(reason, error.Reason); }
+        catch (ToolFailure error)
+        {
+            HostCheck.Equal(reason, error.Reason);
+        }
     }
     private static void ArraysCrc(byte[] raw)
     {

@@ -56,20 +56,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE || M16_003_PROBE
         private struct AdapterHandles
         {
@@ -84,24 +70,6 @@ public static unsafe partial class EfiEntry
         }
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 #endif

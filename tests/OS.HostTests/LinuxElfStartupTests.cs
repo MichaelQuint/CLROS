@@ -35,7 +35,10 @@ internal static unsafe class LinuxElfStartupTests
                     random, 32, stack, Stack, LinuxSyscallGateway.UserEnd, Hwcap, out _));
             }
         }
-        finally { NativeMemory.AlignedFree(stack); }
+        finally
+        {
+            NativeMemory.AlignedFree(stack);
+        }
     }
     private static byte[] Elf()
     {
@@ -116,7 +119,10 @@ internal static unsafe class LinuxElfStartupTests
             {
                 _ = QemuTranscripts.ValidateLinuxStartupTail(bad, package);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -138,7 +144,10 @@ internal static unsafe class LinuxElfStartupTests
             {
                 _ = QemuProfiles.Create(QemuSmokeOptions.Parse(["-BuildEfi", "-EnableM16004Probe", "-DryRun", .. extra]));
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         var missing = QemuSmokeOptions.Parse("-BuildEfi", "-EnableM16004Probe", "-FirmwareRngSource", "missing", "-DryRun");
@@ -192,7 +201,10 @@ internal static unsafe class LinuxElfStartupTests
                 HostCheck.True(!LinuxElfStartup.ValidateReadBack(m, (uint)manifest.Length, e, (uint)elf.Length, random, 32, stack, Stack, Start, Hwcap, forged));
             }
         }
-        finally { NativeMemory.AlignedFree(stack); }
+        finally
+        {
+            NativeMemory.AlignedFree(stack);
+        }
     }
 
     [HostTest("m16-004 invalid entropy stale ELF short alias and exhausted stack reject before writes", HostLane.Fast, 1)]
@@ -224,6 +236,9 @@ internal static unsafe class LinuxElfStartupTests
                 }
             }
         }
-        finally { NativeMemory.AlignedFree(stack); }
+        finally
+        {
+            NativeMemory.AlignedFree(stack);
+        }
     }
 }

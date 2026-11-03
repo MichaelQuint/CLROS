@@ -57,7 +57,10 @@ internal static class NativeAotWebEventOwnedTransportTests
         {
             await NativeAotWebPayload.CaptureObservedEventOwnedSignalRaceAsync(peer.Port, Health, path, deadline.Token);
         }
-        catch (Exception error) when (error is IOException or HttpRequestException) { failed = true; }
+        catch (Exception error) when (error is IOException or HttpRequestException)
+        {
+            failed = true;
+        }
         HostCheck.True(failed);
         var trace = Wire(path);
         HostCheck.Equal("signalrace-partial", trace.Purpose);
@@ -81,7 +84,10 @@ internal static class NativeAotWebEventOwnedTransportTests
         {
             await NativeAotWebPayload.CaptureObservedEventOwnedSignalRaceAsync(peer.Port, Health, path, canceled.Token);
         }
-        catch (OperationCanceledException) { refused = true; }
+        catch (OperationCanceledException)
+        {
+            refused = true;
+        }
         HostCheck.True(refused);
         var trace = Wire(path);
         HostCheck.True(trace.Purpose == "signalrace-partial" && trace.Connections.Count == 0 && trace.Operations.Count == 0 && trace.RawBytes == 0);
@@ -119,7 +125,10 @@ internal static class NativeAotWebEventOwnedTransportTests
         {
             action();
         }
-        catch (Exception error) when (error is ToolFailure or InvalidDataException) { failure = error; }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
+        {
+            failure = error;
+        }
         HostCheck.True(failure is not null);
         if (reason is not null)
         {

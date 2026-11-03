@@ -1,4 +1,5 @@
 namespace OS.Kernel.Memory;
+
 public static unsafe class BootPageAllocatorMutator
 {
     public const bool PerformsLiveAllocation = false;

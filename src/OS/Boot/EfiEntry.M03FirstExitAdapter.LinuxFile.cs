@@ -56,22 +56,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M16_002_PROBE
 
         private struct LinuxFile
@@ -86,27 +70,7 @@ public static unsafe partial class EfiEntry
             internal void* SetInfo, Flush;
         }
 
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 #endif

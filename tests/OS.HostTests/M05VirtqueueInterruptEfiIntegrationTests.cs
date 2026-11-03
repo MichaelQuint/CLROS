@@ -66,6 +66,9 @@ internal static unsafe class M05VirtqueueInterruptEfiIntegrationTests
                 (5,0,0),(5,0,1000001),(5,1,999999),(5,2,2),(5,3,4),(6,0,4094),(6,1,0x820000),(6,2,4094),(6,3,0x820000),
                 (7,0,0x8002),(7,1,0),(7,2,0),(7,3,0)], Check);
         }
-        finally { File.Delete(path); }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }

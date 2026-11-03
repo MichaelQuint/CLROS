@@ -15,6 +15,5 @@ internal static unsafe partial class NativeAotModuleRegistrationProbe
         internal fixed ulong Words[512];
     }
 
-
 }
 #endif

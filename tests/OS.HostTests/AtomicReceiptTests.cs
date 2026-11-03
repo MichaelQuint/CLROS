@@ -44,7 +44,10 @@ internal static class AtomicReceiptTests
             // The temporary file remains writer-owned until publication. Reading
             // it here races the write on Windows; only the target is public.
         }
-        finally { reader.Dispose(); }
+        finally
+        {
+            reader.Dispose();
+        }
         await replacement.WaitAsync(TimeSpan.FromSeconds(5));
         HostCheck.Equal("next", Phase(path));
         HostCheck.True(!File.Exists(path + ".tmp"));
@@ -72,7 +75,10 @@ internal static class AtomicReceiptTests
                     complete = true
                 });
             }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException && (error.HResult & 0xffff) is 5 or 32 or 33) { rejected = true; }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException && (error.HResult & 0xffff) is 5 or 32 or 33)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, "persistent receipt denial must remain a failure");
             HostCheck.True(elapsed.Elapsed >= AtomicReceipt.SharingRetryTimeout && elapsed.Elapsed < TimeSpan.FromSeconds(5));
             HostCheck.Equal("previous", Phase(path));

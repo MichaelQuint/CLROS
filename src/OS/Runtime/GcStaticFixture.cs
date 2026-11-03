@@ -28,10 +28,6 @@ internal static class GcStaticFixture
     internal static ref object Address() => ref s_value;
 }
 
-
-
-
-
 #pragma warning disable CS0649 // Written through bounded sequential POD slots.
 
 #pragma warning restore CS0649

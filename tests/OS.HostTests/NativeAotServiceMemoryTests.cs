@@ -90,7 +90,10 @@ internal static class NativeAotServiceMemoryTests
         {
             _ = QemuTranscripts.InspectNativeAotServiceMemoryForTests(Encoding.UTF8.GetBytes(raw), 67108864, lifecycle);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
     private static string ChangeSnapshot(string raw, int ordinal, Func<string, string> change)

@@ -21,7 +21,10 @@ internal static class QemuMemoryOptionsTests
             {
                 _ = QemuSmokeOptions.Parse("-MemoryMiB=" + value);
             }
-            catch (Exception error) when (error is FormatException or OverflowException) { refused = true; }
+            catch (Exception error) when (error is FormatException or OverflowException)
+            {
+                refused = true;
+            }
             HostCheck.True(refused, "invalid integer RAM value " + value);
         }
         foreach (var options in new[] { QemuSmokeOptions.Parse("-MemoryMiB=0"), new QemuSmokeOptions { MemoryMiB = -1 } })
@@ -31,7 +34,10 @@ internal static class QemuMemoryOptionsTests
             {
                 _ = QemuProfiles.Create(options);
             }
-            catch (ToolFailure error) { reason = error.Reason; }
+            catch (ToolFailure error)
+            {
+                reason = error.Reason;
+            }
             HostCheck.Equal("qemu_memory_mib_out_of_range", reason);
         }
     }

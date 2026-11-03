@@ -169,7 +169,10 @@ internal static unsafe class LinuxSignalIrqProofFixtureTests
         {
             _ = Fixture.PackageVariant(input);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 
 namespace OS.Runtime;
 
-
 internal static unsafe partial class RhpNewFastAllocation
 {
 
@@ -13,10 +12,6 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         internal fixed ulong Words[128];
     }
-
-
-
-
 
 #pragma warning disable CS0649 // Written through bounded sequential POD slots.
 

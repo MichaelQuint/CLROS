@@ -6749,11 +6749,6 @@ public static unsafe partial class EfiEntry
     private static byte s_m01InstructionPublicationInitialized;
     private static byte s_m01InstructionPublicationEpochMask;
 
-
-
-
-
-
 #else
 #endif
 #if M04_RHP_NEW_FAST_PROBE

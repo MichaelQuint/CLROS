@@ -99,11 +99,20 @@ internal static unsafe partial class RhpNewFastAllocation
                 {
                     NestedThrower(value);
                 }
-                finally { NestedCleanupEntered(value, ref stamp, 1); }
+                finally
+                {
+                    NestedCleanupEntered(value, ref stamp, 1);
+                }
             }
-            finally { NestedCleanupEntered(value, ref stamp, 2); }
+            finally
+            {
+                NestedCleanupEntered(value, ref stamp, 2);
+            }
         }
-        catch (SimpleCatchSibling wrong) { NestedUnexpectedCatch(wrong); }
+        catch (SimpleCatchSibling wrong)
+        {
+            NestedUnexpectedCatch(wrong);
+        }
         catch (SimpleCatchBase caught)
         {
             NestedCatchEntered(caught, stamp);

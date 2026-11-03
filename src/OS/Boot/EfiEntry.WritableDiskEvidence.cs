@@ -63,7 +63,6 @@ public static unsafe partial class EfiEntry
             return written;
         }
 
-
 #if M16_027_TIMING_PROBE
         // The complete owner/evidence/mapping admission finishes BEFORE the
         // measured turn. Only the already admitted HPET register is sampled;

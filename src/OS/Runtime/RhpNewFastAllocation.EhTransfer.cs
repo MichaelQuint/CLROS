@@ -18,11 +18,6 @@ internal static unsafe partial class RhpNewFastAllocation
 
 #pragma warning restore CS0649
 
-
-
-
-
-
 }
 #endif
 #if SINGLE_FINALLY_CORE_TEST

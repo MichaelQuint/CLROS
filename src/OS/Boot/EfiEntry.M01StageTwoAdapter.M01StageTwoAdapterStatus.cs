@@ -54,9 +54,6 @@ public static unsafe partial class EfiEntry
     private static partial class M01StageTwoAdapter
     {
 
-
-
-
         private enum M01StageTwoAdapterStatus : ulong
         {
             Success = 0,

@@ -66,10 +66,17 @@ internal static class NativeAotThreadPoolSmokeTests
             {
                 NativeAotThreadingGuest.ValidateThreadPoolFile(path);
             }
-            catch (System.Text.DecoderFallbackException) { rejected = true; }
+            catch (System.Text.DecoderFallbackException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
-        finally { File.Delete(path); Directory.Delete(directory); }
+        finally
+        {
+            File.Delete(path);
+            Directory.Delete(directory);
+        }
     }
 
     [HostTest("nativeaot.threadpool managed Windows choreography executes owned tasks cancellation timer drain and invalid arguments")]
@@ -108,7 +115,10 @@ internal static class NativeAotThreadPoolSmokeTests
         {
             NativeAotThreadingGuest.ValidateThreadPoolOutput(text);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

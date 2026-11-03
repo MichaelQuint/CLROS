@@ -34,7 +34,11 @@ internal static unsafe partial class CheckedReferenceCoreProgram
             action();
             Console.WriteLine("TEST_PASS reference.core " + name);
         }
-        catch (Exception e) { Console.WriteLine("TEST_FAIL reference.core " + name + " " + e); throw; }
+        catch (Exception e)
+        {
+            Console.WriteLine("TEST_FAIL reference.core " + name + " " + e);
+            throw;
+        }
     }
     private static void Need(bool value, string reason)
     {

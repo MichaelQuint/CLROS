@@ -13,7 +13,10 @@ internal static unsafe class NativeAotSocketContainmentPackageTests
         {
             action();
         }
-        catch (Exception error) when (error is InvalidDataException or ToolFailure) { observed = error.Message; }
+        catch (Exception error) when (error is InvalidDataException or ToolFailure)
+        {
+            observed = error.Message;
+        }
         HostCheck.True(observed?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + observed);
     }
 
@@ -44,7 +47,10 @@ internal static unsafe class NativeAotSocketContainmentPackageTests
             File.Delete(extra);
             NativeAotSocketContainmentPackage.RequireCurrentSources(temporary);
         }
-        finally { Directory.Delete(temporary, recursive: true); }
+        finally
+        {
+            Directory.Delete(temporary, recursive: true);
+        }
     }
 
     [HostTest("containment package policy retains finite resources original digest explicit IRQ and one passive bind")]
@@ -73,6 +79,9 @@ internal static unsafe class NativeAotSocketContainmentPackageTests
             Reject(() => NativeAotSocketContainmentPackage.Create(root, temporary), "publication_identity");
             HostCheck.True(Directory.GetFiles(temporary).SequenceEqual(new[] { receipt }));
         }
-        finally { Directory.Delete(temporary, recursive: true); }
+        finally
+        {
+            Directory.Delete(temporary, recursive: true);
+        }
     }
 }

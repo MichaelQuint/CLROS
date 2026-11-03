@@ -106,7 +106,10 @@ internal static unsafe class M06PackageReadEfiIntegrationTests
                 Reject(() => QemuTranscripts.AssertM06PackageReadImage(serial, image, variant));
             }
         }
-        finally { Directory.Delete(dir, true); }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
     }
 
     // Independently assembled bounded host fixture; this is no guest evidence.
@@ -196,7 +199,10 @@ internal static unsafe class M06PackageReadEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid package profile or evidence must be rejected");
     }
 }

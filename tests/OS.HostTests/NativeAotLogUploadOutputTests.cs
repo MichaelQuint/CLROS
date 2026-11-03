@@ -26,7 +26,10 @@ internal static class NativeAotLogUploadOutputTests
         {
             action();
         }
-        catch (ToolFailure error) { failure = error.Message; }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure is not null && (reason is null || failure.Contains(reason, StringComparison.Ordinal)),
             "expected rejection=" + reason + " actual=" + failure);
     }
@@ -55,7 +58,10 @@ internal static class NativeAotLogUploadOutputTests
             {
                 ((IList<int>)capture.WriteLengths)[0] = 1;
             }
-            catch (NotSupportedException) { immutable = true; }
+            catch (NotSupportedException)
+            {
+                immutable = true;
+            }
             HostCheck.True(immutable);
         }
     }
@@ -127,7 +133,10 @@ internal static class NativeAotLogUploadOutputTests
             {
                 _ = NativeAotLogUploadOutput.Read(broken, "verify");
             }
-            catch (DecoderFallbackException) { rejected = true; }
+            catch (DecoderFallbackException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }

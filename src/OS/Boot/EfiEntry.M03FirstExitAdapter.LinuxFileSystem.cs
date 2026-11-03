@@ -56,22 +56,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M16_002_PROBE
 
         private struct LinuxFileSystem
@@ -79,27 +63,7 @@ public static unsafe partial class EfiEntry
             internal ulong Revision; internal delegate* unmanaged<LinuxFileSystem*, LinuxFile**, ulong> OpenVolume;
         }
 
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 #endif

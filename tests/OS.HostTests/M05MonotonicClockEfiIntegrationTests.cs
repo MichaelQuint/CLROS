@@ -97,7 +97,10 @@ internal static unsafe class M05MonotonicClockEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid profile or evidence must be rejected");
     }
 }

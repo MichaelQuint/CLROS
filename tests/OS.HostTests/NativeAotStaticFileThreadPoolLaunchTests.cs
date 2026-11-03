@@ -163,7 +163,10 @@ internal static unsafe class NativeAotStaticFileThreadPoolLaunchTests
                 for (uint i = 0; i < 4096; i++)
                     HostCheck.True(allocation[i] == 0xa5 && allocation[4096 + bytes + i] == 0xa5);
             }
-            finally { NativeMemory.AlignedFree(allocation); }
+            finally
+            {
+                NativeMemory.AlignedFree(allocation);
+            }
         }
     }
 

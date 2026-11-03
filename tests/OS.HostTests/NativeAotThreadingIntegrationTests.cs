@@ -93,7 +93,10 @@ internal static class NativeAotThreadingIntegrationTests
             using FileStream exclusivePackage = new(package, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             using FileStream exclusiveDump = new(dump, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     [HostTest("nativeaot.threading dry run preserves signal profile command construction without prepared execution authority")]
@@ -130,7 +133,10 @@ internal static class NativeAotThreadingIntegrationTests
         {
             QemuTranscripts.ValidateRun(root, options, plan, new(0, "", "", false, false, false, TimeSpan.Zero), TextWriter.Null);
         }
-        catch (ToolFailure error) { rejected = error.Reason == "threading_prepared_program_required"; }
+        catch (ToolFailure error)
+        {
+            rejected = error.Reason == "threading_prepared_program_required";
+        }
         HostCheck.True(rejected);
         foreach (string name in new[] { "QemuSmoke.cs", "QemuTranscripts.Run.cs", "QemuTranscripts.M03.cs" })
             HostCheck.True(!File.ReadAllText(Path.Combine(root, "tools/OS.Tooling", name)).Contains("InspectNativeAotThreadingProtocolForTests", StringComparison.Ordinal));

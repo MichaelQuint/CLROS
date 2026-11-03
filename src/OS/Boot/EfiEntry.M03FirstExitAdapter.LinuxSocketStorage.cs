@@ -16,9 +16,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
-
-
         // Image-resident ownership outlives every borrowed callback, including a
         // rejected native transfer. Never reuse or free this storage after fault.
         private struct LinuxSocketStorage
@@ -51,40 +48,6 @@ public static unsafe partial class EfiEntry
             internal fixed byte Buffers[((int)LinuxSocketReceive + (int)LinuxSocketSend) * (int)LinuxSocketConnections];
             internal fixed byte Input[1536], Output[1536];
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 }

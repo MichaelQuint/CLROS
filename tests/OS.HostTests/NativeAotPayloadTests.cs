@@ -130,7 +130,10 @@ internal static class NativeAotPayloadTests
             CapturePackages(assets);
             throw new InvalidOperationException("invalid package closure accepted");
         }
-        catch (InvalidDataException error) { HostCheck.Equal(reason, error.Message); }
+        catch (InvalidDataException error)
+        {
+            HostCheck.Equal(reason, error.Message);
+        }
     }
 
     [HostTest("nativeaot.payload archives warm managed and future-dated native caches after same-time source edits")]
@@ -193,7 +196,10 @@ internal static class NativeAotPayloadTests
                 HostCheck.Equal("outside", File.ReadAllText(Path.Combine(target, "sentinel")));
                 HostCheck.True(!Directory.Exists(Path.Combine(destination, "retained-build-cache")));
             }
-            finally { Directory.Delete(link); }
+            finally
+            {
+                Directory.Delete(link);
+            }
             NativeAotPayload.ArchiveBuildCache(root, app, destination);
             HostCheck.True(!Directory.Exists(bin));
             HostCheck.True(!Directory.Exists(obj));
@@ -227,8 +233,14 @@ internal static class NativeAotPayloadTests
             action();
             throw new InvalidOperationException("unsafe build cache accepted");
         }
-        catch (InvalidDataException error) { HostCheck.Equal(reason, error.Message); }
-        catch (ToolFailure error) { HostCheck.Equal(reason, error.Reason); }
+        catch (InvalidDataException error)
+        {
+            HostCheck.Equal(reason, error.Message);
+        }
+        catch (ToolFailure error)
+        {
+            HostCheck.Equal(reason, error.Reason);
+        }
     }
 
     // Independent ELF byte vector: one RX load, one RW load and optional TLS.
@@ -295,7 +307,11 @@ internal static class NativeAotPayloadTests
         Mutate(bytes, b => W32(b, 48, 1));
         Mutate(bytes, b => W32(b, 176, 3)); // PT_INTERP
         Mutate(bytes, b => W32(b, 176, 2)); // PT_DYNAMIC
-        Mutate(bytes, b => { W32(b, 176, 0x6474e551); W32(b, 180, 7); });
+        Mutate(bytes, b =>
+{
+    W32(b, 176, 0x6474e551);
+    W32(b, 180, 7);
+});
     }
 
     [HostTest("nativeaot.payload checks file memory alignment W^X overlap and file-backed entry")]
@@ -340,7 +356,11 @@ internal static class NativeAotPayloadTests
         Mutate(bytes, b => W64(b, 184, 1025));
         Mutate(bytes, b => W64(b, 216, 1025));
         Mutate(bytes, b => W64(b, 208, 65));
-        Mutate(bytes, b => { W32(b, 120, 7); W32(b, 124, 4); });
+        Mutate(bytes, b =>
+{
+    W32(b, 120, 7);
+    W32(b, 124, 4);
+});
     }
 
     [HostTest("nativeaot.payload CLI rejects malformed inputs and wrong builder without false success")]
@@ -371,7 +391,9 @@ internal static class NativeAotPayloadTests
             NativeAotPayload.Inspect(bytes);
             throw new InvalidOperationException("malformed ELF accepted");
         }
-        catch (InvalidDataException) { }
+        catch (InvalidDataException)
+        {
+        }
         HostCheck.True(bytes.SequenceEqual(original));
     }
     private static void Row(byte[] b, int at, uint type, uint flags, ulong offset, ulong address, ulong file, ulong memory, ulong align)

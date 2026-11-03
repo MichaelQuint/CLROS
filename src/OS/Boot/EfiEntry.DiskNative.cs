@@ -28,9 +28,6 @@ public static unsafe partial class EfiEntry
 #endif
         private const ulong NativeDiskEpoch = 0x4d31365f30323301;
 
-
-
-
         private static NativeDiskOwner s_nativeDisk;
 
         // One4KiB device DMA page; everything after it is ordinary supervisor

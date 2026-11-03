@@ -61,7 +61,10 @@ public static class SocketPolicyFixture
             socket.Bind(new IPEndPoint(address, port));
             return 0;
         }
-        catch (SocketException failure) { return (int)failure.SocketErrorCode; }
+        catch (SocketException failure)
+        {
+            return (int)failure.SocketErrorCode;
+        }
     }
 
     private static int DuplicateBindError()
@@ -75,7 +78,10 @@ public static class SocketPolicyFixture
             duplicate.Bind(new IPEndPoint(IPAddress.Any, 8080));
             return 0;
         }
-        catch (SocketException failure) { return (int)failure.SocketErrorCode; }
+        catch (SocketException failure)
+        {
+            return (int)failure.SocketErrorCode;
+        }
     }
 
     private static int CapacityError(out int opened)
@@ -90,7 +96,10 @@ public static class SocketPolicyFixture
                 {
                     held[opened] = Create();
                 }
-                catch (SocketException failure) { return (int)failure.SocketErrorCode; }
+                catch (SocketException failure)
+                {
+                    return (int)failure.SocketErrorCode;
+                }
             }
             return 0;
         }

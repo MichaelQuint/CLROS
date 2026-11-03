@@ -8,7 +8,9 @@ namespace OS.Runtime;
 internal class DispatchReceiverB : DispatchOwnerBase, IDispatchConsumer<DispatchArgumentDerived>,
     IDispatchProducer<DispatchArgumentBase>, IDispatchNoise
 {
-    internal DispatchReceiverB(ulong value) : base(value) { }
+    internal DispatchReceiverB(ulong value) : base(value)
+    {
+    }
     [MethodImpl(MethodImplOptions.NoInlining)]
     public override ulong Virtual(ulong a, ulong b, ulong c, ulong d) => seed + 300 + a + 3 * b + 5 * c + 7 * d;
     [MethodImpl(MethodImplOptions.NoInlining)]

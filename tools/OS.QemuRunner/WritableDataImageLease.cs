@@ -104,7 +104,11 @@ public sealed class WritableDataImageLease : IDisposable
         {
             throw new ArgumentException("writable_data_open_failed type=" + error.GetType().Name, error);
         }
-        finally { working?.Dispose(); boot?.Dispose(); }
+        finally
+        {
+            working?.Dispose();
+            boot?.Dispose();
+        }
     }
 
     /// <summary>Reject reparse/symlink ancestors for selected runtime inputs
@@ -178,7 +182,10 @@ public sealed class WritableDataImageLease : IDisposable
         {
             working.Dispose();
         }
-        finally { boot.Dispose(); }
+        finally
+        {
+            boot.Dispose();
+        }
     }
 
     private bool OriginalChildJoined() => child is not null && childHandle is not null &&
@@ -202,7 +209,10 @@ public sealed class WritableDataImageLease : IDisposable
             stream.Position = 0;
             return Convert.ToHexString(SHA256.HashData(stream));
         }
-        finally { stream.Position = position; }
+        finally
+        {
+            stream.Position = position;
+        }
     }
 
     private static bool RawCompatible(FileStream stream)
@@ -229,7 +239,10 @@ public sealed class WritableDataImageLease : IDisposable
             {
                 attributes = File.GetAttributes(current);
             }
-            catch (Exception error) when (allowMissing && error is FileNotFoundException or DirectoryNotFoundException) { return; }
+            catch (Exception error) when (allowMissing && error is FileNotFoundException or DirectoryNotFoundException)
+            {
+                return;
+            }
             Need((attributes & FileAttributes.ReparsePoint) == 0, "reparse_path");
         }
     }

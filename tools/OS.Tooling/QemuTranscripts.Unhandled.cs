@@ -18,7 +18,11 @@ public static partial class QemuTranscripts
         {
             AssertManagedHeapText(text, includeGcStatics: true, includeUnhandled: true);
         }
-        catch (ToolFailure) { prerequisites = ""; return -1; }
+        catch (ToolFailure)
+        {
+            prerequisites = "";
+            return -1;
+        }
         return 1;
     }
 

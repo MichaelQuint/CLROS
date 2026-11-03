@@ -124,7 +124,10 @@ internal static unsafe class LinuxRuntimeLifetimeTests
                 HostCheck.Equal(0U, m.Read32(ChildTid));
             }
         }
-        finally { NativeMemory.AlignedFree(signals); }
+        finally
+        {
+            NativeMemory.AlignedFree(signals);
+        }
     }
 
     // Model only the owner's already-captured syscall image. Real scheduling,

@@ -22,7 +22,11 @@ internal static class LinuxHelloIntegrationTests
         string root = HostToolProcess.FindRepositoryRoot();
         int children = 0;
         using StringWriter output = new();
-        int code = QemuSmoke.RunAsync(root, options, output, (_, _) => { children++; throw new InvalidOperationException("unexpected child"); }).GetAwaiter().GetResult();
+        int code = QemuSmoke.RunAsync(root, options, output, (_, _) =>
+{
+    children++;
+    throw new InvalidOperationException("unexpected child");
+}).GetAwaiter().GetResult();
         HostCheck.True(code != 0 && children == 0 && output.ToString().Contains("hello_profile_requires_m16_009", StringComparison.Ordinal));
     }
 
@@ -44,7 +48,11 @@ internal static class LinuxHelloIntegrationTests
                     options.SerialLog = dump;
                 int children = 0;
                 using StringWriter output = new();
-                int code = QemuSmoke.RunAsync(root, options, output, (_, _) => { children++; throw new InvalidOperationException("unexpected child"); }).GetAwaiter().GetResult();
+                int code = QemuSmoke.RunAsync(root, options, output, (_, _) =>
+{
+    children++;
+    throw new InvalidOperationException("unexpected child");
+}).GetAwaiter().GetResult();
                 HostCheck.True(code != 0 && children == 0 && output.ToString().Contains(alias ? "hello_disassembly_output_alias" : "hello_package_identity", StringComparison.Ordinal));
                 HostCheck.Equal("headers only", File.ReadAllText(dump));
                 // Both retained read locks must have been released on failure.
@@ -52,7 +60,10 @@ internal static class LinuxHelloIntegrationTests
                 using FileStream exclusiveDump = new(dump, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             }
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     [HostTest("nativeaot.hello full caller requires sealed preparation and preserves mechanical parent and runner paths")]
@@ -67,7 +78,10 @@ internal static class LinuxHelloIntegrationTests
         {
             QemuTranscripts.ValidateRun(root, options, plan, new(0, "", "", false, false, false, TimeSpan.Zero), output);
         }
-        catch (ToolFailure error) { rejected = error.Reason == "hello_prepared_program_required"; }
+        catch (ToolFailure error)
+        {
+            rejected = error.Reason == "hello_prepared_program_required";
+        }
         HostCheck.True(rejected);
         // The model seam is deliberately absent from every production caller.
         foreach (string path in new[] { "QemuSmoke.cs", "QemuTranscripts.Run.cs", "QemuTranscripts.M03.cs" })

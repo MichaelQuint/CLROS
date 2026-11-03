@@ -42,21 +42,30 @@ internal static class NativeAotLogUploadCaptureTests
         {
             ((IDictionary<string, ulong>)report.Calls[0].Values)["nr"] = 99;
         }
-        catch (NotSupportedException) { denied = true; }
+        catch (NotSupportedException)
+        {
+            denied = true;
+        }
         HostCheck.True(denied);
         denied = false;
         try
         {
             ((IList<Q.NativeAotLogUploadWaitAttempt>)report.Operations[0].Attempts).Clear();
         }
-        catch (NotSupportedException) { denied = true; }
+        catch (NotSupportedException)
+        {
+            denied = true;
+        }
         HostCheck.True(denied);
         denied = false;
         try
         {
             ((IList<Q.WritableDiskRow>)report.ResidualRows).Clear();
         }
-        catch (NotSupportedException) { denied = true; }
+        catch (NotSupportedException)
+        {
+            denied = true;
+        }
         HostCheck.True(denied);
     }
 

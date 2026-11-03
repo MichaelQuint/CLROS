@@ -20,18 +20,12 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
 #if M10_018_TIMING_PROBE
         private enum NativeDiskPollCause : uint
         {
             SyscallClock, SyscallOther, Supervisor, Idle
         }
 #endif
-
-
-
-
-
 
     }
 }

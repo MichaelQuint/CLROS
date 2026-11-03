@@ -120,7 +120,10 @@ internal static class NativeAotThreadingOutputTests
                 {
                     list[0] = 1;
                 }
-                catch (NotSupportedException) { rejected = true; }
+                catch (NotSupportedException)
+                {
+                    rejected = true;
+                }
                 HostCheck.True(rejected);
             }
             Array.Fill(raw, (byte)0);
@@ -214,8 +217,14 @@ internal static class NativeAotThreadingOutputTests
         {
             _ = NativeAotThreadingOutput.Read(application, raw);
         }
-        catch (ToolFailure) { rejected = true; }
-        catch (DecoderFallbackException) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
+        catch (DecoderFallbackException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "strict raw threading output admission");
     }
 }

@@ -42,7 +42,11 @@ internal static class NativeAotWebVectorTests
                 await socket.ConnectAsync(context.DnsEndPoint, token);
                 return new NetworkStream(socket, ownsSocket: true);
             }
-            catch { socket.Dispose(); throw; }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
         }
         };
         using var client = new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1:" + port), Timeout = Timeout.InfiniteTimeSpan };
@@ -57,7 +61,10 @@ internal static class NativeAotWebVectorTests
                     health.EnsureSuccessStatusCode();
                     break;
                 }
-                catch (HttpRequestException) { await Task.Delay(25, deadline.Token); }
+                catch (HttpRequestException)
+                {
+                    await Task.Delay(25, deadline.Token);
+                }
             }
             for (int repetition = 0; repetition < 2; repetition++)
             {

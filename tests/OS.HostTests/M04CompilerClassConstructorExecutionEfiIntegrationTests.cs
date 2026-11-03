@@ -32,7 +32,10 @@ internal static class M04CompilerClassConstructorExecutionEfiIntegrationTests
             {
                 _ = OS.Tooling.EfiOptions.Parse(selected.Select(name => "--Enable" + name + "Probe").ToArray(), build).Profile();
             }
-            catch (OS.Tooling.ToolFailure failure) { reason = failure.Reason; }
+            catch (OS.Tooling.ToolFailure failure)
+            {
+                reason = failure.Reason;
+            }
             Need(reason == "m04_filter_profile_conflict", "filtered catch excludes the original constructor leaf");
         }
         var source = HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(

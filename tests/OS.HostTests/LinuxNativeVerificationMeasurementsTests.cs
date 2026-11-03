@@ -98,7 +98,10 @@ internal static class LinuxNativeVerificationMeasurementsTests
             {
                 _ = NativeAotDiskTimingPeer.InspectVerificationMetrics(invalid, phase);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, invalid);
         }
     }

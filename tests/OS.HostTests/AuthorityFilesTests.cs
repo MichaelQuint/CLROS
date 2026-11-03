@@ -18,7 +18,11 @@ internal static class AuthorityFilesTests
         {
             action();
         }
-        catch (ToolFailure error) { HostCheck.Equal(reason, error.Reason); return; }
+        catch (ToolFailure error)
+        {
+            HostCheck.Equal(reason, error.Reason);
+            return;
+        }
         throw new InvalidOperationException("expected rejection " + reason);
     }
 
@@ -45,7 +49,10 @@ internal static class AuthorityFilesTests
             {
                 Reject(() => AuthorityFiles.RequirePlainPath(root, Path.Combine(junction, "leaf"), "fixture_reparse"), "fixture_reparse");
             }
-            finally { Directory.Delete(junction); }
+            finally
+            {
+                Directory.Delete(junction);
+            }
             // A file symlink may require local privilege; the junction above always exercises reparse rejection.
             string link = Path.Combine(root, "file-link");
             try
@@ -55,10 +62,19 @@ internal static class AuthorityFilesTests
                 {
                     Reject(() => AuthorityFiles.RequirePlainPath(root, link, "fixture_reparse"), "fixture_reparse");
                 }
-                finally { File.Delete(link); }
+                finally
+                {
+                    File.Delete(link);
+                }
             }
-            catch (UnauthorizedAccessException) { Console.WriteLine("PATH_HELPER_SYMLINK_UNAVAILABLE privilege"); }
-            catch (IOException error) when ((error.HResult & 0xffff) == 1314) { Console.WriteLine("PATH_HELPER_SYMLINK_UNAVAILABLE privilege"); }
+            catch (UnauthorizedAccessException)
+            {
+                Console.WriteLine("PATH_HELPER_SYMLINK_UNAVAILABLE privilege");
+            }
+            catch (IOException error) when ((error.HResult & 0xffff) == 1314)
+            {
+                Console.WriteLine("PATH_HELPER_SYMLINK_UNAVAILABLE privilege");
+            }
             if (OperatingSystem.IsWindows())
             {
                 string restricted = Path.Combine(root, "restricted");
@@ -76,7 +92,10 @@ internal static class AuthorityFilesTests
                         info.SetAccessControl(denied);
                         changed = true;
                     }
-                    catch (UnauthorizedAccessException) { Console.WriteLine("PATH_HELPER_ACL_UNAVAILABLE privilege"); }
+                    catch (UnauthorizedAccessException)
+                    {
+                        Console.WriteLine("PATH_HELPER_ACL_UNAVAILABLE privilege");
+                    }
                     if (changed)
                     {
                         bool attributesDenied = false;
@@ -84,19 +103,29 @@ internal static class AuthorityFilesTests
                         {
                             File.GetAttributes(restricted);
                         }
-                        catch (UnauthorizedAccessException) { attributesDenied = true; }
+                        catch (UnauthorizedAccessException)
+                        {
+                            attributesDenied = true;
+                        }
                         if (attributesDenied)
                             Reject(() => AuthorityFiles.RequirePlainPath(root, restricted, "fixture_reparse"), "fixture_reparse");
                         else
                             Console.WriteLine("PATH_HELPER_ACL_UNAVAILABLE attributes_remain_readable");
                     }
                 }
-                finally { if (changed) info.SetAccessControl(original); }
+                finally
+                {
+                    if (changed)
+                        info.SetAccessControl(original);
+                }
             }
             Console.WriteLine("PATH_HELPER_PROBE_PASS implementation=CSharp literal_hidden_normalized_root_containment_missing_file_parent_junction=pass");
             return true;
         }
-        finally { File.SetAttributes(file, FileAttributes.Normal); }
+        finally
+        {
+            File.SetAttributes(file, FileAttributes.Normal);
+        }
     }
 
     [HostTest("authority reader preserves Windows sharing and detects Unix mutation and replacement")]
@@ -115,12 +144,18 @@ internal static class AuthorityFilesTests
                 {
                     using var forbidden = File.OpenWrite(path);
                 }
-                catch (IOException) { writeRejected = true; }
+                catch (IOException)
+                {
+                    writeRejected = true;
+                }
                 try
                 {
                     File.Delete(path);
                 }
-                catch (IOException) { deleteRejected = true; }
+                catch (IOException)
+                {
+                    deleteRejected = true;
+                }
                 HostCheck.True(writeRejected && deleteRejected);
                 files.VerifyUnchanged();
             }
@@ -136,7 +171,10 @@ internal static class AuthorityFilesTests
                 {
                     Reject(() => mutable.ReadBytes(original.Length, "read"), "authority_input_changed");
                 }
-                finally { File.WriteAllBytes(snapshot, original); }
+                finally
+                {
+                    File.WriteAllBytes(snapshot, original);
+                }
                 files.VerifyUnchanged();
                 File.Delete(path);
                 File.WriteAllBytes(path, [1, 2, 3]);

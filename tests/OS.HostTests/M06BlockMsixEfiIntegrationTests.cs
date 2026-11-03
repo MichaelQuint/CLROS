@@ -116,7 +116,10 @@ internal static unsafe class M06BlockMsixEfiIntegrationTests
                 }
             }
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     private static void Reject(Action action)
@@ -126,7 +129,10 @@ internal static unsafe class M06BlockMsixEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

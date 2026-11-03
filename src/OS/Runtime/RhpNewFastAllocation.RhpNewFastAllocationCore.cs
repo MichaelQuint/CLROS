@@ -466,16 +466,6 @@ internal static unsafe partial class RhpNewFastAllocationCore
 }
 #if NOSTDLIB_EFI && M04_RHP_NEW_FAST_PROBE
 
-
-
-
-
-
-
-
-
-
-
 #pragma warning disable 649
 
 #pragma warning restore 649

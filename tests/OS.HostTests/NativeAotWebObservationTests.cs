@@ -20,7 +20,10 @@ internal static class NativeAotWebObservationTests
         {
             action();
         }
-        catch (Exception e) when (e is ToolFailure or DecoderFallbackException) { rejected = true; }
+        catch (Exception e) when (e is ToolFailure or DecoderFallbackException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
     private static string Call(int ordinal, int number, int fd, int result) =>

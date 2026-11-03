@@ -56,22 +56,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #if M16_002_PROBE
         // UEFI 2.11 sections 13.4/13.5. These interfaces are stack-local and
         // consumed/closed before the final memory-map and ExitBootServices window.
@@ -80,27 +64,7 @@ public static unsafe partial class EfiEntry
             internal uint Revision; internal void* Parent; internal EfiSystemTable* Table; internal void* Device;
         }
 
-
-
-
-
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 #endif

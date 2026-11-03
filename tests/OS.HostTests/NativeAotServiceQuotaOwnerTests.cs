@@ -40,7 +40,10 @@ internal static class NativeAotServiceQuotaOwnerTests
             {
                 _ = await owner;
             }
-            catch (ToolFailure error) { refusal = error.Reason; }
+            catch (ToolFailure error)
+            {
+                refusal = error.Reason;
+            }
             HostCheck.True(runnerEnded);
             HostCheck.Equal("quota_peer_owner_peer_failed", refusal ?? "accepted");
             HostCheck.Equal("", File.ReadAllText(paths.Peer));
@@ -57,7 +60,9 @@ internal static class NativeAotServiceQuotaOwnerTests
                 {
                     _ = await owner;
                 }
-                catch { }
+                catch
+                {
+                }
         }
     }
 
@@ -85,15 +90,23 @@ internal static class NativeAotServiceQuotaOwnerTests
                     served = true;
                     await Task.Delay(Timeout.Infinite, token);
                 }
-                catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-                finally { runnerJoined = true; }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                }
+                finally
+                {
+                    runnerJoined = true;
+                }
                 return Runner(1) with
                 {
                     Cancelled = token.IsCancellationRequested
                 };
             }, limit.Token);
         }
-        catch (ToolFailure error) { refusal = error.Reason; }
+        catch (ToolFailure error)
+        {
+            refusal = error.Reason;
+        }
         HostCheck.True(served && runnerJoined);
         HostCheck.Equal("quota_peer_owner_peer_failed", refusal ?? "accepted");
         HostCheck.True(File.ReadAllText(paths.Peer + ".stderr.log").Contains("quota_peer_startup_health", StringComparison.Ordinal));
@@ -102,9 +115,16 @@ internal static class NativeAotServiceQuotaOwnerTests
         refusal = null;
         try
         {
-            _ = await NativeAotServiceQuotaPeer.RunOwnedAsync(paths.Root, paths.Peer, paths.Serial, (_, _) => { starts++; return Task.FromResult(Runner(22)); }, limit.Token);
+            _ = await NativeAotServiceQuotaPeer.RunOwnedAsync(paths.Root, paths.Peer, paths.Serial, (_, _) =>
+{
+    starts++;
+    return Task.FromResult(Runner(22));
+}, limit.Token);
         }
-        catch (ToolFailure error) { refusal = error.Reason; }
+        catch (ToolFailure error)
+        {
+            refusal = error.Reason;
+        }
         HostCheck.Equal("quota_peer_owner_log_not_fresh", refusal ?? "accepted");
         HostCheck.Equal(1, starts);
     }
@@ -129,8 +149,13 @@ internal static class NativeAotServiceQuotaOwnerTests
                 requested.SetResult();
                 await Task.Delay(Timeout.Infinite, token);
             }
-            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-            finally { runnerJoined = true; }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+            }
+            finally
+            {
+                runnerJoined = true;
+            }
             return Runner(1) with
             {
                 Cancelled = token.IsCancellationRequested
@@ -144,11 +169,24 @@ internal static class NativeAotServiceQuotaOwnerTests
             {
                 _ = await owner;
             }
-            catch (OperationCanceledException) when (caller.IsCancellationRequested) { cancelled = true; }
+            catch (OperationCanceledException) when (caller.IsCancellationRequested)
+            {
+                cancelled = true;
+            }
             HostCheck.True(cancelled && runnerJoined && owner.IsCompleted);
             RequireClosedLogs(paths.Peer);
         }
-        finally { caller.Cancel(); try { _ = await owner; } catch { } }
+        finally
+        {
+            caller.Cancel();
+            try
+            {
+                _ = await owner;
+            }
+            catch
+            {
+            }
+        }
     }
 
     [HostTest("quota owner rejects ordinary runner exit while joining actual peer response wait")]
@@ -171,8 +209,15 @@ internal static class NativeAotServiceQuotaOwnerTests
                 return Runner(0);
             }, limit.Token);
         }
-        catch (ToolFailure error) { refusal = error.Reason; }
-        finally { client?.Dispose(); listener?.Stop(); }
+        catch (ToolFailure error)
+        {
+            refusal = error.Reason;
+        }
+        finally
+        {
+            client?.Dispose();
+            listener?.Stop();
+        }
         HostCheck.Equal("quota_peer_owner_runner_disposition", refusal ?? "accepted");
         RequireClosedLogs(paths.Peer);
     }
@@ -223,7 +268,10 @@ internal static class NativeAotServiceQuotaOwnerTests
                 _ = await owner;
                 accepted = true;
             }
-            catch (ToolFailure error) { refusal = error.Reason; }
+            catch (ToolFailure error)
+            {
+                refusal = error.Reason;
+            }
             HostCheck.True(!accepted && runnerEnded && owner.IsCompleted);
             HostCheck.Equal("quota_peer_owner_peer_failed", refusal ?? "accepted");
             HostCheck.Equal("", File.ReadAllText(paths.Peer));
@@ -260,7 +308,9 @@ internal static class NativeAotServiceQuotaOwnerTests
                 {
                     _ = await owner;
                 }
-                catch { }
+                catch
+                {
+                }
         }
     }
 
@@ -283,7 +333,10 @@ internal static class NativeAotServiceQuotaOwnerTests
             {
                 _ = NativeAotServiceQuotaPeer.InspectWireReceiptForTests(bad);
             }
-            catch (ToolFailure error) { rejected = error.Reason == "quota_peer_owner_wire_process_receipt"; }
+            catch (ToolFailure error)
+            {
+                rejected = error.Reason == "quota_peer_owner_wire_process_receipt";
+            }
             HostCheck.True(rejected);
         }
     }

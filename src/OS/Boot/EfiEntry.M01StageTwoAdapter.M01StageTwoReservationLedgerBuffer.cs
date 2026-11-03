@@ -54,9 +54,6 @@ public static unsafe partial class EfiEntry
     private static partial class M01StageTwoAdapter
     {
 
-
-
-
         private struct M01StageTwoReservationLedgerBuffer
         {
             public OS.Kernel.Memory.BootReservedRange Range0;

@@ -56,7 +56,12 @@ internal sealed class WhpxLaunchSession : IDisposable
                 ["CLROS_WHPX_OWNER_SHA256"] = ownerSha
             };
         }
-        catch { ownership?.Dispose(); rawWriter.Dispose(); throw; }
+        catch
+        {
+            ownership?.Dispose();
+            rawWriter.Dispose();
+            throw;
+        }
     }
 
     public static WhpxLaunchSession? Create(string root, string serial, string qemu, string accelerator)
@@ -76,7 +81,11 @@ internal sealed class WhpxLaunchSession : IDisposable
             }
             return new(root, Path.GetFullPath(serial, root), qemu, input);
         }
-        catch { input.Dispose(); throw; }
+        catch
+        {
+            input.Dispose();
+            throw;
+        }
     }
 
     public ProcessRequest Prepare(ProcessRequest request)

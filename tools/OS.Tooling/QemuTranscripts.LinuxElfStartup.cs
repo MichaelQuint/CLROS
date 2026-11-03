@@ -100,7 +100,10 @@ public static partial class QemuTranscripts
                     "m16_004_stack_geometry");
             }
         }
-        finally { NativeMemory.AlignedFree(buffer); }
+        finally
+        {
+            NativeMemory.AlignedFree(buffer);
+        }
         var tables = ReadRecord(tail[3], "M16_004_TABLES", "root:dec", "used:dec", "leaves:dec", "ranges:dec");
         ulong loadPages = 0;
         for (uint i = 0; i < image.LoadCount; i++)

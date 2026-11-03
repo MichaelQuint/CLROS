@@ -70,7 +70,10 @@ internal static unsafe partial class DiskStaticExecutionPolicyTests
             {
                 _ = QemuProfiles.Create(QemuSmokeOptions.Parse([.. args, .. suffix]));
             }
-            catch (ToolFailure) { denied = true; }
+            catch (ToolFailure)
+            {
+                denied = true;
+            }
             HostCheck.True(denied, string.Join(' ', suffix));
         }
         args[0] = "-EnableM10018Probe";
@@ -209,7 +212,10 @@ internal static unsafe partial class DiskStaticExecutionPolicyTests
         {
             _ = NativeAotThreadingOutput.ReadWeb(raw);
         }
-        catch (ToolFailure) { denied = true; }
+        catch (ToolFailure)
+        {
+            denied = true;
+        }
         HostCheck.True(denied);
         HostCheck.Equal("x", NativeAotThreadingOutput.ReadWeb(raw, diskStaticFull: true).Stdout);
         HostCheck.True((ulong)DiskStaticExecutionPolicy.MaximumCalls * LinuxDescriptorServices.MaximumIo <= uint.MaxValue);
@@ -259,7 +265,10 @@ internal static unsafe partial class DiskStaticExecutionPolicyTests
             {
                 _ = QemuTranscripts.InspectDiskStaticBodyReadValues(99, 0, 18000, 1, prior, 100, 18100, r, w);
             }
-            catch (ToolFailure) { denied = true; }
+            catch (ToolFailure)
+            {
+                denied = true;
+            }
             HostCheck.True(denied, "body join mutation" + variant);
         }
     }
@@ -279,7 +288,10 @@ internal static unsafe partial class DiskStaticExecutionPolicyTests
         {
             _ = QemuTranscripts.InspectDiskStaticBodyReadValues(99, 0, 8192, 1, -1, 100, 8292, reads, writes);
         }
-        catch (ToolFailure) { denied = true; }
+        catch (ToolFailure)
+        {
+            denied = true;
+        }
         HostCheck.True(denied, "earlier identical inode reads remain ambiguous without an authenticated phase boundary");
         var joined = QemuTranscripts.InspectDiskStaticBodyReadValues(99, 0, 8192, 1, 90, 100, 8292, reads, writes);
         HostCheck.Equal(1, joined.Count);
@@ -290,7 +302,10 @@ internal static unsafe partial class DiskStaticExecutionPolicyTests
         {
             _ = QemuTranscripts.InspectDiskStaticBodyReadValues(99, 0, 8192, 1, 90, 100, 8292, [.. reads, R(5, 3, 101, 111)], writes);
         }
-        catch (ToolFailure) { denied = true; }
+        catch (ToolFailure)
+        {
+            denied = true;
+        }
         HostCheck.True(denied, "indistinguishable reads within the same phase still fail closed");
     }
 

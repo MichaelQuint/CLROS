@@ -33,7 +33,11 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
                 scalar = CanRetain(f.Mount, f.Input.Epoch, (ulong)f.Output, 128);
                 ended = OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing);
             }
-            finally { if (OS.Kernel.Diagnostics.WritableStorageTiming.IsActive) OS.Kernel.Diagnostics.WritableStorageTiming.Cancel(&timing); }
+            finally
+            {
+                if (OS.Kernel.Diagnostics.WritableStorageTiming.IsActive)
+                    OS.Kernel.Diagnostics.WritableStorageTiming.Cancel(&timing);
+            }
             HostCheck.True(scalar && ended && timing.AuditCalls == 9 && timing.OutsideDeviceCalls == 126);
             foreach (int count in new[] { 1, 25, 177 })
             {
@@ -52,7 +56,11 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
                     batch = CanRetainRanges(f.Mount, f.Input.Epoch, pairs);
                     ended = OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing);
                 }
-                finally { if (OS.Kernel.Diagnostics.WritableStorageTiming.IsActive) OS.Kernel.Diagnostics.WritableStorageTiming.Cancel(&timing); }
+                finally
+                {
+                    if (OS.Kernel.Diagnostics.WritableStorageTiming.IsActive)
+                        OS.Kernel.Diagnostics.WritableStorageTiming.Cancel(&timing);
+                }
                 HostCheck.True(batch && ended && timing.AuditCalls == 6 && timing.OutsideDeviceCalls == 84);
             }
         });
@@ -77,7 +85,10 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
                     HostCheck.True(!CanRetainRanges(f.Mount, f.Input.Epoch, [0, 0, ulong.MaxValue, 0]));
                 });
             }
-            finally { BlockAdmission(ref *f.Block).Observation = original; }
+            finally
+            {
+                BlockAdmission(ref *f.Block).Observation = original;
+            }
             RetainedEquivalent(f, valid, true);
         }
         var admission = MountAdmission(ref *f.Mount);
@@ -97,7 +108,10 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
                     HostCheck.True(!CanRetainRanges(f.Mount, f.Input.Epoch, [0, 0]));
                 });
             }
-            finally { MountAdmission(ref *f.Mount) = admission; }
+            finally
+            {
+                MountAdmission(ref *f.Mount) = admission;
+            }
         }
         C.RequestToken request = default;
         HostCheck.Equal(C.Status.Pending, C.BeginFlush(f.Engine, &request));
@@ -169,7 +183,10 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
                 phase = 4;
                 RejectOwner();
             }
-            finally { phase = savedPhase; }
+            finally
+            {
+                phase = savedPhase;
+            }
             ref P.Admission port = ref PortAdmission(ref *f.Port);
             ulong portEpoch = port.Epoch;
             try
@@ -177,7 +194,10 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
                 port.Epoch++;
                 RejectOwner();
             }
-            finally { port.Epoch = portEpoch; }
+            finally
+            {
+                port.Epoch = portEpoch;
+            }
             ref C.Admission engine = ref EngineAdmission(ref *f.Engine);
             ulong engineEpoch = engine.Epoch;
             try
@@ -185,7 +205,10 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
                 engine.Epoch++;
                 RejectOwner();
             }
-            finally { engine.Epoch = engineEpoch; }
+            finally
+            {
+                engine.Epoch = engineEpoch;
+            }
             ref B.Admission block = ref BlockAdmission(ref *f.Block);
             ulong deviceEpoch = block.Epoch;
             try
@@ -193,7 +216,10 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
                 block.Epoch++;
                 RejectOwner();
             }
-            finally { block.Epoch = deviceEpoch; }
+            finally
+            {
+                block.Epoch = deviceEpoch;
+            }
             ref ulong currentPoolEpoch = ref PoolEpoch(ref *f.Device.Pool);
             ulong poolEpoch = currentPoolEpoch;
             try
@@ -201,28 +227,40 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
                 currentPoolEpoch++;
                 RejectOwner();
             }
-            finally { currentPoolEpoch = poolEpoch; }
+            finally
+            {
+                currentPoolEpoch = poolEpoch;
+            }
             B.Observation* observation = block.Observation;
             try
             {
                 block.Observation = (B.Observation*)f.Operations[0].Storage.Range;
                 RejectOwner();
             }
-            finally { block.Observation = observation; }
+            finally
+            {
+                block.Observation = observation;
+            }
             byte* path = f.Operations[0].Storage.Path;
             try
             {
                 f.Operations[0].Storage.Path = (byte*)(ulong.MaxValue - 7);
                 RejectOwner();
             }
-            finally { f.Operations[0].Storage.Path = path; }
+            finally
+            {
+                f.Operations[0].Storage.Path = path;
+            }
             byte* cache = f.Input.Cache[0].Data;
             try
             {
                 f.Input.Cache[0].Data = f.Operations[0].Storage.Path;
                 RejectOwner();
             }
-            finally { f.Input.Cache[0].Data = cache; }
+            finally
+            {
+                f.Input.Cache[0].Data = cache;
+            }
             RetainedEquivalent(f, valid, true);
         });
         HostCheck.Equal(P.Status.Success, P.Stop(f.Port));
@@ -238,7 +276,11 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
             HostCheck.Equal(Fs.Status.Success, Fs.Stop(f.Mount));
             RejectOwner();
         }
-        finally { PortAdmission(ref *f.Port) = original; NativeMemory.Free(replacement); }
+        finally
+        {
+            PortAdmission(ref *f.Port) = original;
+            NativeMemory.Free(replacement);
+        }
     });
 
     [HostTest("borrowed retained range batch stays structural through actual pending held dirty flush cancelled and stopped owners", HostLane.Native)]
@@ -596,7 +638,10 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
             HostCheck.Equal(Fs.Status.DeviceFailed, Fs.CopyRead(f.Mount, read, output, &bytes));
             HostCheck.True(bytes == 55 && output.AsSpan().IndexOfAnyExcept((byte)0xea) < 0 && f.Device.Hardware->Calls == calls);
         }
-        finally { *slot = original; }
+        finally
+        {
+            *slot = original;
+        }
         HostCheck.Equal(Fs.Status.Success, Fs.CopyRead(f.Mount, read, output, &bytes));
         HostCheck.Equal(7U, bytes);
     });
@@ -651,7 +696,11 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
             HostCheck.Equal(Fs.Status.Success, Fs.Stop(f.Mount));
             HostCheck.True(f.Mount->IsRetired && new ReadOnlySpan<byte>(replacement, 4096).IndexOfAnyExcept((byte)0) < 0 && f.Block->Running);
         }
-        finally { input = original; NativeMemory.AlignedFree(replacement); }
+        finally
+        {
+            input = original;
+            NativeMemory.AlignedFree(replacement);
+        }
     });
 
     [HostTest("borrowed local close releases only unreferenced handle metadata through actual writer dirty OUT FLUSH and held Ready", HostLane.Native)]
@@ -748,7 +797,10 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
             port.Epoch++;
             HostCheck.Equal(Fs.Status.DeviceFailed, Fs.Close(f.Mount, file.File));
         }
-        finally { port.Epoch = epoch; }
+        finally
+        {
+            port.Epoch = epoch;
+        }
         ref B.Admission block = ref BlockAdmission(ref *f.Block);
         B.Observation* observation = block.Observation;
         try
@@ -756,7 +808,10 @@ internal static unsafe partial class ReadOnlyWebRootWritableBlockTests
             block.Observation = (B.Observation*)f.Input.Files;
             HostCheck.Equal(Fs.Status.DeviceFailed, Fs.Close(f.Mount, file.File));
         }
-        finally { block.Observation = observation; }
+        finally
+        {
+            block.Observation = observation;
+        }
         HostCheck.True(original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Input.Files + index, sizeof(Fs.FileHandle))));
         f.RunEngine();
         C.Result result = default;

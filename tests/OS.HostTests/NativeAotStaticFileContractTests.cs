@@ -15,7 +15,10 @@ internal static class NativeAotStaticFileContractTests
             {
                 StaticFileApplication.SelectProfile(invalid);
             }
-            catch (ArgumentException) { rejected = true; }
+            catch (ArgumentException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }

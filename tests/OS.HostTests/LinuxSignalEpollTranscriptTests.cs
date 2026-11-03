@@ -43,7 +43,10 @@ internal static class LinuxSignalEpollTranscriptTests
         {
             QemuTranscripts.InspectSignalEpollForTests(rows, F.CreatePackage(F.StolenWaitVariant), 0x200000, 0x100000);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
@@ -88,7 +91,10 @@ internal static class LinuxSignalEpollTranscriptTests
         {
             QemuTranscripts.InspectSignalEpollForTests(rows, F.CreatePackage(F.EpollStolenWaitVariant), 0x300000, 0x100000);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
@@ -217,7 +223,10 @@ internal static class LinuxSignalEpollTranscriptTests
         {
             Inspect(rows);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

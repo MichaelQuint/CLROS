@@ -54,27 +54,10 @@ public static unsafe partial class EfiEntry
     private static partial class M01StageThreeAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         private unsafe struct M01StageThreeSemanticBuffer
         {
             public fixed ulong Values[48];
         }
-
 
     }
 #endif

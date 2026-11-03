@@ -131,7 +131,11 @@ internal sealed class NativeAotSocketFixturePublisher(string Application, string
                 _ = NativeAotSocketPackage.Create(root, recipe, asynchronous: true);
                 succeeded = true;
             }
-            catch (Exception error) { failure = error is ToolFailure ? error.Message : error.GetType().Name; throw; }
+            catch (Exception error)
+            {
+                failure = error is ToolFailure ? error.Message : error.GetType().Name;
+                throw;
+            }
             finally
             {
                 await File.WriteAllTextAsync(Path.Combine(destination, "commands.json"), JsonSerializer.Serialize(commands));

@@ -91,7 +91,10 @@ internal static unsafe class M04X64UnwindMetadataEfiIntegrationTests
             {
                 QemuTranscripts.AssertM04X64UnwindMetadataTranscript(lines, image, module, registration);
             }
-            catch (ToolFailure) when (!expected) { accepted = false; }
+            catch (ToolFailure) when (!expected)
+            {
+                accepted = false;
+            }
             Need(accepted == expected, "unwind admission control " + controls++);
         }
         Check(good, true);
@@ -134,7 +137,10 @@ internal static unsafe class M04X64UnwindMetadataEfiIntegrationTests
             {
                 QemuTranscripts.AssertM04X64UnwindMetadataSelection(claim, false);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             Need(rejected, "unselected child admitted " + claim);
         }
         Console.WriteLine("TRANSCRIPT_CONTROLS unwind cases=" + controls);

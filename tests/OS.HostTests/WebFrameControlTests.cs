@@ -17,7 +17,10 @@ internal static class WebFrameControlTests
             {
                 using var invalid = new WebFrameControl(TimeSpan.FromMinutes(service ? 18 : 5) + TimeSpan.FromTicks(1), continuingService: service);
             }
-            catch (ArgumentOutOfRangeException) { rejected = true; }
+            catch (ArgumentOutOfRangeException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -95,14 +98,20 @@ internal static class WebFrameControlTests
         {
             gate.SelectDeadlineClient(50001);
         }
-        catch (InvalidOperationException) { repeat = true; }
+        catch (InvalidOperationException)
+        {
+            repeat = true;
+        }
         HostCheck.True(repeat);
         repeat = false;
         try
         {
             _ = gate.InjectRejectedFrameAsync();
         }
-        catch (InvalidOperationException) { repeat = true; }
+        catch (InvalidOperationException)
+        {
+            repeat = true;
+        }
         HostCheck.True(repeat);
         HostCheck.True(gate.Arguments[^1].Contains("netdev=n0,queue=tx,indev=clroswebin,outdev=clroswebout", StringComparison.Ordinal));
         HostCheck.True(gate.Stop());
@@ -126,7 +135,9 @@ internal static class WebFrameControlTests
         {
             await gate.Completion.WaitAsync(TimeSpan.FromSeconds(3));
         }
-        catch (InvalidDataException) { }
+        catch (InvalidDataException)
+        {
+        }
         HostCheck.True(gate.Completion.IsFaulted);
         HostCheck.True(gate.Stop());
     }
@@ -149,7 +160,9 @@ internal static class WebFrameControlTests
                 {
                     await gate.Completion.WaitAsync(TimeSpan.FromSeconds(3));
                 }
-                catch (EndOfStreamException) { }
+                catch (EndOfStreamException)
+                {
+                }
             var result = gate.Finish();
             HostCheck.True(result.Stopped);
             HostCheck.Equal(expected, result.Healthy);
@@ -204,12 +217,18 @@ internal static class WebFrameControlTests
             {
                 action();
             }
-            catch (Exception error) when (error is ArgumentException or InvalidOperationException) { refused = true; }
+            catch (Exception error) when (error is ArgumentException or InvalidOperationException)
+            {
+                refused = true;
+            }
             HostCheck.True(refused);
         }
         using (var legacy = new WebFrameControl(TimeSpan.FromSeconds(10)))
             Refuse(() => legacy.InjectServiceFrameAsync(Frame(50000, 0x10), "x"));
-        Refuse(() => { using var invalid = new WebFrameControl(TimeSpan.FromSeconds(1081), continuingService: true); });
+        Refuse(() =>
+{
+    using var invalid = new WebFrameControl(TimeSpan.FromSeconds(1081), continuingService: true);
+});
         using (var maximum = new WebFrameControl(TimeSpan.FromSeconds(1080), continuingService: true))
             HostCheck.True(maximum.Stop());
         using var gate = new WebFrameControl(TimeSpan.FromSeconds(10), continuingService: true);
@@ -229,7 +248,10 @@ internal static class WebFrameControlTests
         {
             await pending;
         }
-        catch (OperationCanceledException) { cancelled = true; }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
         HostCheck.True(cancelled && gate.Completion.IsCompletedSuccessfully);
         Refuse(() => gate.InjectServiceFrameAsync(Frame(50000, 0x10), "retired"));
     }

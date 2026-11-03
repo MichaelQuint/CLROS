@@ -165,8 +165,21 @@ internal static class NativeAotWebEventOwnedOwnerTests
                     _ = await gate;
                     throw new InvalidOperationException("failed capture must not send DONE");
                 }
-                catch (Exception error) when (error is IOException or InvalidDataException or OperationCanceledException) { gateRefused = true; }
-                finally { try { _ = await gate; } catch (Exception error) when (error is IOException or InvalidDataException or OperationCanceledException) { } joined = true; }
+                catch (Exception error) when (error is IOException or InvalidDataException or OperationCanceledException)
+                {
+                    gateRefused = true;
+                }
+                finally
+                {
+                    try
+                    {
+                        _ = await gate;
+                    }
+                    catch (Exception error) when (error is IOException or InvalidDataException or OperationCanceledException)
+                    {
+                    }
+                    joined = true;
+                }
                 return new(1, "synthetic-event-runner-failure", "", false, false, token.IsCancellationRequested, TimeSpan.Zero);
             }, caller.Token);
             await peer.RequestObserved.WaitAsync(limit.Token);
@@ -186,7 +199,18 @@ internal static class NativeAotWebEventOwnedOwnerTests
             HostCheck.True(wire.Purpose == "signalrace-partial" && wire.Connections.Count > 0 && wire.Connections.All(c => c.DisposedTicks > 0));
             NativeAotWebPayload.ValidateSignalRaceTransport(File.ReadAllText(path + ".attempts.json"), File.ReadAllText(path), File.ReadAllBytes(path + ".wire.json"), peer.Endpoint, "OS_MINIMAL_API_OK");
         }
-        finally { caller.Cancel(); if (owner is not null) try { _ = await owner.WaitAsync(TimeSpan.FromSeconds(10)); } catch when (owner.IsCompleted) { } }
+        finally
+        {
+            caller.Cancel();
+            if (owner is not null)
+                try
+                {
+                    _ = await owner.WaitAsync(TimeSpan.FromSeconds(10));
+                }
+                catch when (owner.IsCompleted)
+                {
+                }
+        }
     }
     private static bool ContainsCancellation(Exception error) => error is OperationCanceledException || error is AggregateException aggregate && aggregate.InnerExceptions.Any(ContainsCancellation);
     private static void Closed(string path, bool onlyLogs = false)
@@ -202,7 +226,10 @@ internal static class NativeAotWebEventOwnedOwnerTests
         {
             await action();
         }
-        catch (Exception error) when (error is ToolFailure or IOException or HttpRequestException or InvalidDataException or ArgumentException or OperationCanceledException or AggregateException) { return error; }
+        catch (Exception error) when (error is ToolFailure or IOException or HttpRequestException or InvalidDataException or ArgumentException or OperationCanceledException or AggregateException)
+        {
+            return error;
+        }
         throw new InvalidOperationException("Expected owner refusal.");
     }
 }

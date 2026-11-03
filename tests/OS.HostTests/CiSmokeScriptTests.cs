@@ -240,6 +240,9 @@ internal static class CiSmokeScriptTests
             action();
             return false;
         }
-        catch (ArgumentException) { return true; }
+        catch (ArgumentException)
+        {
+            return true;
+        }
     }
 }

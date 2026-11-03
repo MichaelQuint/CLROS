@@ -73,7 +73,7 @@ public static partial class EfiContracts
     public const string CanonicalProjectSha256 = "6fc3426d4e758ead419a1ed5c3e0585d3d1c74beb532b058bf75ac4f990d3310";
     // Review the selected M16-027 writable-owner sources and entry boundary.
     // Historical artifacts retain their original project and source identities.
-    public const string EfiEntrySourceSha256 = "80d3c3dc48b4568595263679c069991cc0f3dd5a484dac8c2ae29f4bc5dc4e44";
+    public const string EfiEntrySourceSha256 = "69179d61fbef4ad59d748b72fd7e803005a2703b2c3f4ac02b807612d0f3d8db";
     public const string Ud2TransitionSourceSha256 = "00d5a00b54e7177de59408fbbd7f87ae899f74859da8276aa286b56178db7817";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "1a8f2c942c54cc029fad17968d267208f23fc9b5002d4339335f96155b8a5e65";

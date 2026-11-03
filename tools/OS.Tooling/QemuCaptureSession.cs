@@ -153,7 +153,10 @@ public sealed class QemuCaptureSession : IDisposable
             {
                 bytes = Convert.FromBase64String(values[name + "Base64"]);
             }
-            catch (FormatException) { throw new ToolFailure("observation_pod_base64_invalid"); }
+            catch (FormatException)
+            {
+                throw new ToolFailure("observation_pod_base64_invalid");
+            }
             Need(bytes.Length == length, "observation_pod_length_invalid");
             Need(Convert.ToHexString(SHA256.HashData(bytes)) == values[name + "Sha256"], "observation_pod_hash_mismatch");
             return bytes;

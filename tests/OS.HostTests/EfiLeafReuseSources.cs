@@ -100,7 +100,10 @@ internal sealed class EfiLeafReuseSources(CSharpSourceCatalog catalog)
                 IsMethod(call.TargetMethod, Decoder, "TryDecode")
                 || IsMethod(call.TargetMethod, "OS.Boot.PhysicalAddress", "TryGetRawValueForHardwareRegisterBoundary"));
         }
-        catch (InvalidOperationException) { return false; }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     internal bool ReadOrder()
@@ -172,7 +175,10 @@ internal sealed class EfiLeafReuseSources(CSharpSourceCatalog catalog)
                 && call.Syntax.SpanStart < secondReads[0].SpanStart && secondReads[0].SpanStart < guard.Syntax.SpanStart
                 && guard.Syntax.SpanStart < secondContext.SpanStart && secondContext.SpanStart < fallback.Syntax.SpanStart;
         }
-        catch (InvalidOperationException) { return false; }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     private bool IsMethod(IMethodSymbol method, string owner, string name) => method.Name == name

@@ -81,12 +81,18 @@ internal static class NativeAotServiceQuotaHostPrefixTests
         {
             ((IList<QemuTranscripts.ServiceQuotaHostConnection>)result.Connections)[0] = result.Connections[2];
         }
-        catch (NotSupportedException) { list = true; }
+        catch (NotSupportedException)
+        {
+            list = true;
+        }
         try
         {
             ((IList<QemuTranscripts.ServiceQuotaHostRange>)first.Reads.Operations)[0] = default;
         }
-        catch (NotSupportedException) { ranges = true; }
+        catch (NotSupportedException)
+        {
+            ranges = true;
+        }
         HostCheck.True(list && ranges);
         var zeroOps = fixture.Operations.ToArray();
         zeroOps[7] = zeroOps[7] with
@@ -122,9 +128,13 @@ internal static class NativeAotServiceQuotaHostPrefixTests
             r=>r["connections"]![1]!["id"]=1,
             r=>r["operations"]![7]!["offset"]=4,r=>r["operations"]![7]!["transferred"]=0,
             r=>r["operations"]![8]!["dataBase64"]="QQ==",
-            r=>{r["rawBytes"]=13;r["operations"]!.AsArray().Add(JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(new{
+            r=>
+{
+r["rawBytes"]=13;
+r["operations"]!.AsArray().Add(JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(new{
                 id=10,connectionId=1,direction="write",offset=3,requested=1,transferred=1,
-                startedTicks=20,endedTicks=21,outcome="complete",dataBase64="eA==",exchangeId=0})));}})
+                startedTicks=20,endedTicks=21,outcome="complete",dataBase64="eA==",exchangeId=0})));
+}})
         {
             var root = JsonNode.Parse(Json(Fixture()))!.AsObject();
             change(root);
@@ -139,7 +149,10 @@ internal static class NativeAotServiceQuotaHostPrefixTests
         {
             action();
         }
-        catch (Exception error) when (error is ToolFailure or InvalidDataException) { rejected = true; }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

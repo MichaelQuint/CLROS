@@ -20,7 +20,10 @@ internal static class LinuxHelloTranscriptTests
         {
             _ = QemuTranscripts.InspectLinuxHelloProtocolForTests(overlap, Elf(), r => r == 0x400202, r => r == 0x400202, 0x2000, 0x300000);
         }
-        catch (ToolFailure failure) { rejected = failure.Reason == "hello_roots_pool_alias"; }
+        catch (ToolFailure failure)
+        {
+            rejected = failure.Reason == "hello_roots_pool_alias";
+        }
         HostCheck.True(rejected);
     }
 
@@ -231,7 +234,10 @@ internal static class LinuxHelloTranscriptTests
         {
             Inspect(rows, instruction, syscall);
         }
-        catch (ToolFailure failure) { rejected = reason is null || failure.Reason == reason; }
+        catch (ToolFailure failure)
+        {
+            rejected = reason is null || failure.Reason == reason;
+        }
         HostCheck.True(rejected, "hello synthetic mutation accepted or wrong rejection");
     }
 

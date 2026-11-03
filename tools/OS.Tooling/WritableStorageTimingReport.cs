@@ -94,7 +94,10 @@ public sealed class WritableStorageTimingReport
             Need(RawReads == checked(4UL + 2UL * checked(AuditCalls + PairCalls + PumpCalls)), "raw_reads");
             Need(OutsideDeviceCalls <= checked(14UL * AuditCalls), "outside_device_calls");
         }
-        catch (OverflowException) { throw new ToolFailure("writable_timing_accounting_overflow"); }
+        catch (OverflowException)
+        {
+            throw new ToolFailure("writable_timing_accounting_overflow");
+        }
         if (EngineCalls == 0)
             Need(EngineOwner == 0 && BeforePhase == 0 && BeforeStep == 0 && BeforeWork == 0 && !BeforeIo &&
                 AfterPhase == 0 && AfterStep == 0 && AfterWork == 0 && !AfterIo, "engine_absent");

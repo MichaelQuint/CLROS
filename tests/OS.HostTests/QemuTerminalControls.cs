@@ -17,7 +17,10 @@ internal static class QemuTerminalControls
         {
             action();
         }
-        catch (OS.Tooling.ToolFailure) { rejected = true; }
+        catch (OS.Tooling.ToolFailure)
+        {
+            rejected = true;
+        }
         if (!rejected)
             throw new InvalidOperationException(reason);
     }

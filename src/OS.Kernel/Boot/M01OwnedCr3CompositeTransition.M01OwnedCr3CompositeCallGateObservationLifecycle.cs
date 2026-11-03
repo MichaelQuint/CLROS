@@ -1,4 +1,5 @@
 namespace OS.Boot;
+
 public enum M01OwnedCr3CompositeCallGateObservationLifecycle : byte
 {
     Uninitialized = 0,

@@ -18,14 +18,6 @@ public static unsafe partial class EfiEntry
             internal bool HasPath;
         }
 
-
-
-
-
-
-
-
-
     }
 }
 #endif

@@ -78,7 +78,10 @@ internal static class NativeAotThreadPoolStressTests
             {
                 NativeAotThreadPoolStressGuest.ValidateFile(path);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
             File.WriteAllBytes(path, [0xc0, 0xaf]);
             rejected = false;
@@ -86,7 +89,10 @@ internal static class NativeAotThreadPoolStressTests
             {
                 NativeAotThreadPoolStressGuest.ValidateFile(path);
             }
-            catch (DecoderFallbackException) { rejected = true; }
+            catch (DecoderFallbackException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
             File.WriteAllBytes(path, new byte[4097]);
             rejected = false;
@@ -94,11 +100,17 @@ internal static class NativeAotThreadPoolStressTests
             {
                 NativeAotThreadPoolStressGuest.ValidateFile(path);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
             using FileStream exclusive = new(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     [HostTest("nativeaot.tp-stress managed Windows execution completes three real work cancellation publication and timer-drain rounds")]
@@ -148,7 +160,10 @@ internal static class NativeAotThreadPoolStressTests
         {
             NativeAotThreadingProgram.Read(HostToolProcess.FindRepositoryRoot(), "NativeAotThreadPoolStress", "absent.pkg", "absent.dump");
         }
-        catch (ArgumentException error) { rejected = error.Message.Contains("threading_package_app", StringComparison.Ordinal); }
+        catch (ArgumentException error)
+        {
+            rejected = error.Message.Contains("threading_package_app", StringComparison.Ordinal);
+        }
         HostCheck.True(rejected);
     }
     private static void Reject(string text)
@@ -158,7 +173,10 @@ internal static class NativeAotThreadPoolStressTests
         {
             NativeAotThreadPoolStressGuest.ValidateOutput(text);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

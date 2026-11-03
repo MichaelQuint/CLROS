@@ -76,7 +76,10 @@ internal static class NormalFinallyEfiIntegrationTests
                 {
                     _ = EfiOptions.Parse([.. Flags.Where(name => name != missing).Select(name => "--Enable" + name + "Probe")], build).Profile();
                 }
-                catch (ToolFailure) { failed = true; }
+                catch (ToolFailure)
+                {
+                    failed = true;
+                }
                 HostCheck.True(failed == (missing != "M04NormalFinally"), "exact prerequisite " + missing);
             }
             foreach (string conflict in new[] { "M04SimpleThrowCatch", "M04SingleFinallyCatch", "M04Rethrow", "M04NestedFinallyCatch", "M04UnhandledException", "M04FrameDispatch", "M04EhCatalog", "M04ConstructorFailure", "M04FilteredCatch", "M04SeededCollectorChurn" })
@@ -86,7 +89,10 @@ internal static class NormalFinallyEfiIntegrationTests
                 {
                     _ = EfiOptions.Parse([.. Arguments, "--Enable" + conflict + "Probe"], build).Profile();
                 }
-                catch (ToolFailure) { failed = true; }
+                catch (ToolFailure)
+                {
+                    failed = true;
+                }
                 HostCheck.True(failed, "profile collision " + conflict);
             }
         }
@@ -162,7 +168,10 @@ internal static class NormalFinallyEfiIntegrationTests
             {
                 EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact", artifact, .. Arguments], false));
             }
-            catch (ToolFailure failure) { actual = failure.Reason; }
+            catch (ToolFailure failure)
+            {
+                actual = failure.Reason;
+            }
             HostCheck.True(actual == expected, "expected=" + expected + " actual=" + actual);
             controls++;
         }
@@ -185,7 +194,11 @@ internal static class NormalFinallyEfiIntegrationTests
                 File.WriteAllText(evidencePath, evidence.ToJsonString());
                 Verify(reason);
             }
-            finally { File.WriteAllBytes(artifact, pe); File.WriteAllText(evidencePath, evidenceText); }
+            finally
+            {
+                File.WriteAllBytes(artifact, pe);
+                File.WriteAllText(evidencePath, evidenceText);
+            }
         }
         Verify(null);
         int catalog = Offset("CLROS_Eh_Contributions", 32), getters = Offset("CLROS_Eh_CatalogStart", 16), bridge = Offset("RhpThrowEx", 1032),
@@ -224,7 +237,10 @@ internal static class NormalFinallyEfiIntegrationTests
                 File.WriteAllBytes(path, bad);
                 Verify(prefix == "normalFinally" ? "normal_finally_object_identity_mismatch" : "eh_catalog_input_identity");
             }
-            finally { File.WriteAllBytes(path, saved); }
+            finally
+            {
+                File.WriteAllBytes(path, saved);
+            }
         }
         // Alter both the original code and PE consistently while preserving
         // source and valid method extents. The ABI fingerprint must still reject.
@@ -247,7 +263,13 @@ internal static class NormalFinallyEfiIntegrationTests
                 File.WriteAllText(evidencePath, evidence.ToJsonString());
                 Verify("normal_finally_method_bytes_mismatch");
             }
-            finally { File.WriteAllBytes(original, coff); File.WriteAllBytes(linked, coff); File.WriteAllBytes(artifact, pe); File.WriteAllText(evidencePath, evidenceText); }
+            finally
+            {
+                File.WriteAllBytes(original, coff);
+                File.WriteAllBytes(linked, coff);
+                File.WriteAllBytes(artifact, pe);
+                File.WriteAllText(evidencePath, evidenceText);
+            }
         }
         Verify(null);
         File.WriteAllText(log + ".controls", "native rejection checks=" + controls + "; exact original bytes restored and reverified; no guest proof.\n");

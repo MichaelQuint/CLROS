@@ -113,7 +113,10 @@ internal static class NativeAotServiceQuotaStartupTests
                         NativeAotServiceQuotaPeer.SerializeWireReport(trace)));
                 });
             }
-            catch (ToolFailure error) { refusal = error.Reason; }
+            catch (ToolFailure error)
+            {
+                refusal = error.Reason;
+            }
             await serving.WaitAsync(deadline.Token);
         }
         finally
@@ -124,9 +127,15 @@ internal static class NativeAotServiceQuotaStartupTests
             {
                 await serving.WaitAsync(TimeSpan.FromSeconds(5));
             }
-            catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
-            catch (SocketException) when (stop.IsCancellationRequested) { }
-            catch (ObjectDisposedException) when (stop.IsCancellationRequested) { }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested)
+            {
+            }
+            catch (SocketException) when (stop.IsCancellationRequested)
+            {
+            }
+            catch (ObjectDisposedException) when (stop.IsCancellationRequested)
+            {
+            }
         }
         HostCheck.Equal("quota_peer_initial_lifecycle", refusal ?? "accepted");
         HostCheck.True(served == 3 && callbacks == 1 && snapshot is { Purpose: "quota-partial" });
@@ -226,7 +235,10 @@ internal static class NativeAotServiceQuotaStartupTests
                 {
                     _ = NativeAotServiceQuotaPeer.PressureErrorKindForTests(item.Error);
                 }
-                catch (ToolFailure error) when (error.Reason == "quota_peer_pressure_error_kind") { refused = true; }
+                catch (ToolFailure error) when (error.Reason == "quota_peer_pressure_error_kind")
+                {
+                    refused = true;
+                }
                 HostCheck.True(refused);
             }
         }

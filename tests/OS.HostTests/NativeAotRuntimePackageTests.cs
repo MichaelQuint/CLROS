@@ -49,7 +49,10 @@ internal static unsafe class NativeAotRuntimePackageTests
             }
             Reject(() => NativeAotRuntimePackage.RequireCurrentSources(root, "../NativeAotHello"), "runtime_package_app");
         }
-        finally { Directory.Delete(temporary, true); }
+        finally
+        {
+            Directory.Delete(temporary, true);
+        }
     }
     [HostTest("nativeaot.runtime-package policies bind distinct ELF digests sixteen bounded slots and explicit IRQs without widening focused selectors")]
     private static void Policy()
@@ -117,7 +120,10 @@ internal static unsafe class NativeAotRuntimePackageTests
             var cli = HostToolProcess.RunTool("linux", "runtime-package", "NativeAotSuspensionSmoke", directory, output);
             HostCheck.True(cli.ExitCode != 0 && !cli.Output.Contains("TEST_PASS linux.runtime-package", StringComparison.Ordinal));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
     private static void Reject(Action action, string reason)
     {
@@ -126,7 +132,10 @@ internal static unsafe class NativeAotRuntimePackageTests
         {
             action();
         }
-        catch (Exception error) when (error is ArgumentException or InvalidDataException or IOException or ToolFailure) { failure = error.Message; }
+        catch (Exception error) when (error is ArgumentException or InvalidDataException or IOException or ToolFailure)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + failure);
     }
 }

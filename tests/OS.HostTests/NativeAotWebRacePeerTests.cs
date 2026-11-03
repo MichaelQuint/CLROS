@@ -54,7 +54,11 @@ internal static class NativeAotWebRacePeerTests
             }
             int starts = 0;
             _ = await Refused(() => NativeAotWebRacePeer.RunOwnedAsync(paths.Root, 20080, "health", report, summary,
-                (_, _) => { starts++; throw new InvalidOperationException("must not start"); }));
+                (_, _) =>
+{
+    starts++;
+    throw new InvalidOperationException("must not start");
+}));
             HostCheck.Equal(0, starts);
             HostCheck.True(!File.Exists(paths.Report + ".runner.log"));
             foreach (string retained in new[] { paths.Report, paths.Report + ".wire.json", paths.Summary }.Where(File.Exists))
@@ -70,7 +74,11 @@ internal static class NativeAotWebRacePeerTests
             var paths = Paths();
             int starts = 0;
             _ = await Refused(() => NativeAotWebRacePeer.RunOwnedAsync(paths.Root, value.Item1, value.Item2, paths.Report, paths.Summary,
-                (_, _) => { starts++; throw new InvalidOperationException("must not start"); }));
+                (_, _) =>
+{
+    starts++;
+    throw new InvalidOperationException("must not start");
+}));
             HostCheck.Equal(0, starts);
             HostCheck.True(!File.Exists(paths.Report + ".runner.log"));
         }
@@ -120,7 +128,10 @@ internal static class NativeAotWebRacePeerTests
                     {
                         _ = await gate;
                     }
-                    catch (Exception error) when (error is IOException or OperationCanceledException) { pipeFailed = true; }
+                    catch (Exception error) when (error is IOException or OperationCanceledException)
+                    {
+                        pipeFailed = true;
+                    }
                 }
                 finally
                 {
@@ -128,7 +139,9 @@ internal static class NativeAotWebRacePeerTests
                     {
                         _ = await gate;
                     }
-                    catch (Exception error) when (error is IOException or OperationCanceledException) { }
+                    catch (Exception error) when (error is IOException or OperationCanceledException)
+                    {
+                    }
                     joined = true;
                 }
                 return new(1, "synthetic-failed-race-runner", "", false, false, token.IsCancellationRequested, TimeSpan.Zero);
@@ -158,7 +171,9 @@ internal static class NativeAotWebRacePeerTests
                 {
                     _ = await owner;
                 }
-                catch { }
+                catch
+                {
+                }
         }
     }
 
@@ -246,7 +261,10 @@ internal static class NativeAotWebRacePeerTests
         {
             await operation();
         }
-        catch (Exception error) when (error is ToolFailure or IOException or InvalidDataException or ArgumentException or OperationCanceledException or AggregateException) { return error; }
+        catch (Exception error) when (error is ToolFailure or IOException or InvalidDataException or ArgumentException or OperationCanceledException or AggregateException)
+        {
+            return error;
+        }
         throw new InvalidOperationException("Expected refusal.");
     }
     private static async Task<string> Headers(Stream stream, CancellationToken token)

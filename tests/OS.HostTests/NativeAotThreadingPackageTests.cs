@@ -49,7 +49,10 @@ internal static unsafe class NativeAotThreadingPackageTests
             }
             Reject(() => NativeAotThreadingPackage.RequireCurrentSources(root, "../NativeAotHello"), "threading_package_app");
         }
-        finally { Directory.Delete(temporary, recursive: true); }
+        finally
+        {
+            Directory.Delete(temporary, recursive: true);
+        }
     }
 
     [HostTest("nativeaot.threading-package manifests preserve exact qualified digests bounded slots and explicit user IRQs")]
@@ -117,7 +120,10 @@ internal static unsafe class NativeAotThreadingPackageTests
             var result = HostToolProcess.RunTool("linux", "threading-package", "NativeAotThreadPoolSmoke", evidence, Path.Combine(directory, "second.pkg"));
             HostCheck.True(result.ExitCode != 0 && !result.Output.Contains("TEST_PASS linux.threading-package", StringComparison.Ordinal) && !File.Exists(Path.Combine(directory, "second.pkg")));
         }
-        finally { Directory.Delete(directory, recursive: true); }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static void Reject(Action action, string reason)
@@ -127,7 +133,10 @@ internal static unsafe class NativeAotThreadingPackageTests
         {
             action();
         }
-        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure) { failure = error.Message; }
+        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + failure);
     }
 }

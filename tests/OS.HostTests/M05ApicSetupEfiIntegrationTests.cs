@@ -51,7 +51,10 @@ internal static unsafe class M05ApicSetupEfiIntegrationTests
                 (1,0,0xfee00800),(1,1,0x200),(1,2,0x50016),(1,2,0x70014),(1,3,0x180011),(1,3,0x170012),(1,3,0x170021),(1,3,0x180020),(1,3,0x170120),
                 (2,0,5),(2,1,23),(2,2,0),(2,3,24),(3,0,0),(3,1,0xff),(3,2,0x202),(3,3,uint.MaxValue)], Check);
         }
-        finally { File.Delete(path); }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     internal static string[] Capture()
@@ -99,7 +102,10 @@ internal static unsafe class M05ApicSetupEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid interrupt profile or evidence must be rejected");
     }
 }

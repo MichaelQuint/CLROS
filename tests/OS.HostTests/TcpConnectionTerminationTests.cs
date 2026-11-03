@@ -328,7 +328,10 @@ internal static unsafe class TcpConnectionTerminationTests
             HostCheck.Equal(Rx.Status.Success, Rx.ReleaseClosed(rx));
             HostCheck.Equal(Tcb.OwnershipStatus.Success, Tcb.ReleaseOwned(f.Table, handle));
         }
-        finally { NativeMemory.AlignedFree(memory); }
+        finally
+        {
+            NativeMemory.AlignedFree(memory);
+        }
     }
 
     [HostTest("net.tcp.termination warmed duplicate FIN and copied ACK dispatch allocates no managed bytes", HostLane.Fast, 12)]
@@ -423,7 +426,10 @@ internal static unsafe class TcpConnectionTerminationTests
                 Wire.Packet(uint.MaxValue, ReadOnlySpan<byte>.Empty, ack: 700, flags: 0x10, window: 32),
                 new Span<TcpListenerBacklogEntry>(backlog, 1), out _, out _));
         }
-        finally { NativeMemory.AlignedFree(backlog); }
+        finally
+        {
+            NativeMemory.AlignedFree(backlog);
+        }
         var info = new TcpEstablishedStreamIpv4FramePlannerInfo(new MacAddress(2, 0, 0, 0, 0, 1), new MacAddress(0x52, 0x55, 0x0a, 0, 2, 2),
             new Ipv4Address(10, 0, 2, 15), new Ipv4Address(10, 0, 2, 2), 1460, 32, 51, 0x272);
         HostCheck.Equal(Rx.Status.Success, Rx.Initialize(f.Receiver, f.Table, f.Handle, f.ReceiveBuffer, 32, info, io.Context, io.Send));

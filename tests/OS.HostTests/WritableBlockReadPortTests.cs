@@ -115,7 +115,10 @@ internal static unsafe partial class WritableBlockReadPortTests
             PortInput(ref *f.State).Device = (B.State*)ulong.MaxValue;
             HostCheck.True(!CanRetainRanges(f.State, f.Input.Epoch, valid) && !CanRetainRanges(f.State, f.Input.Epoch, [0, 0]));
         }
-        finally { PortInput(ref *f.State) = port; }
+        finally
+        {
+            PortInput(ref *f.State) = port;
+        }
     }
 
     [HostTest("borrowed port range batch keeps actual pending held cancelled and stopped read ownership structural")]
@@ -219,7 +222,11 @@ internal static unsafe partial class WritableBlockReadPortTests
                 value = CanRetainRanges(f.State, f.Input.Epoch, pairs);
                 ended = OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing);
             }
-            finally { if (OS.Kernel.Diagnostics.WritableStorageTiming.IsActive) OS.Kernel.Diagnostics.WritableStorageTiming.Cancel(&timing); }
+            finally
+            {
+                if (OS.Kernel.Diagnostics.WritableStorageTiming.IsActive)
+                    OS.Kernel.Diagnostics.WritableStorageTiming.Cancel(&timing);
+            }
             HostCheck.True(value && ended && timing.AuditCalls == 3 && timing.OutsideDeviceCalls == 42);
         }
     }
@@ -747,7 +754,10 @@ internal static unsafe partial class WritableBlockReadPortTests
             HostCheck.True(!CanRetain(copy, f.Input.Epoch, (ulong)f.Bytes, 512));
             HostCheck.Equal(P.Status.InvalidState, P.Stop(copy));
         }
-        finally { NativeMemory.Free(copy); }
+        finally
+        {
+            NativeMemory.Free(copy);
+        }
         HostCheck.True(!CanRetain(f.State, f.Input.Epoch + 1, (ulong)f.Bytes, 512));
         ulong* generation = (ulong*)((byte*)f.State + Offset<P.State>("Generation"));
         *generation = ulong.MaxValue;

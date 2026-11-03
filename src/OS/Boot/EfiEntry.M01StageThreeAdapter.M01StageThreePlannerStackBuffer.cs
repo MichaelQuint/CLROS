@@ -54,28 +54,11 @@ public static unsafe partial class EfiEntry
     private static partial class M01StageThreeAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         private unsafe struct M01StageThreePlannerStackBuffer
         {
             public fixed ulong Values[
                 PlannerStackUlongCount];
         }
-
 
     }
 #endif

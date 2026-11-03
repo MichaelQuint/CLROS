@@ -87,7 +87,10 @@ public static partial class NativeAotServiceQuotaPeer
             RequireReport(result);
             return result;
         }
-        catch (JsonException error) { throw new InvalidDataException("quota_peer_report_json", error); }
+        catch (JsonException error)
+        {
+            throw new InvalidDataException("quota_peer_report_json", error);
+        }
     }
 
     private static Observation CopyReport(Observation value)

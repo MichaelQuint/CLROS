@@ -59,7 +59,11 @@ public static partial class QemuTranscripts
                     Unique(document.RootElement);
                     return document;
                 }
-                catch { document.Dispose(); throw; }
+                catch
+                {
+                    document.Dispose();
+                    throw;
+                }
             }
             static string Text(JsonElement value, string name) => value.GetProperty(name).GetString() ?? "";
             static bool Same(JsonElement a, JsonElement b) => JsonSerializer.Serialize(a) == JsonSerializer.Serialize(b);
@@ -201,6 +205,10 @@ public static partial class QemuTranscripts
             }, new JsonSerializerOptions { WriteIndented = true });
             output.Flush(true);
         }
-        finally { foreach (var lease in leases) lease.Dispose(); }
+        finally
+        {
+            foreach (var lease in leases)
+                lease.Dispose();
+        }
     }
 }

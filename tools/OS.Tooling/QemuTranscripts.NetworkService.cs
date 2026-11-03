@@ -173,7 +173,10 @@ public static partial class QemuTranscripts
                 {
                     ContinuingTcpScenario.Validate(frame, expected, peerMac);
                 }
-                catch (InvalidDataException) { Need(false, "m07_tcp_capture_wire"); }
+                catch (InvalidDataException)
+                {
+                    Need(false, "m07_tcp_capture_wire");
+                }
                 if (expected.Tag.Length != 0)
                     times.Add(expected.Tag, timestamp);
                 continue;

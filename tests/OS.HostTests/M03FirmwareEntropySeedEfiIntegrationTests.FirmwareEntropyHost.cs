@@ -397,7 +397,10 @@ internal static unsafe class FirmwareEntropyHost
             Console.WriteLine("TEST_PASS m03.entropy.host.tests");
             return 0;
         }
-        finally { NativeMemory.AlignedFree(memory); }
+        finally
+        {
+            NativeMemory.AlignedFree(memory);
+        }
     }
 }
 #else

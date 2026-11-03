@@ -77,7 +77,10 @@ internal static unsafe class M06VirtioBlockReadEfiIntegrationTests
             Reject(() => Check(lines[..^1]));
             Check(lines);
         }
-        finally { File.Delete(path); }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [HostTest("m06.read.efi compares the guest sector receipt with actual disk bytes and capacity")]
@@ -111,7 +114,10 @@ internal static unsafe class M06VirtioBlockReadEfiIntegrationTests
             File.WriteAllLines(serial, lines);
             Reject(() => QemuTranscripts.AssertM06VirtioBlockReadImage(serial, image));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     internal static string[] Capture()
@@ -140,7 +146,10 @@ internal static unsafe class M06VirtioBlockReadEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid block read evidence must be rejected");
     }
 }

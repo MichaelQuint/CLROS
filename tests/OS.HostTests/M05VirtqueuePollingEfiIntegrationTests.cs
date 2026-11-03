@@ -68,7 +68,10 @@ internal static unsafe class M05VirtqueuePollingEfiIntegrationTests
             Reject(() => Check([.. lines, "extra"]));
             Reject(() => Check(lines[..^1]));
         }
-        finally { File.Delete(path); }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     internal static string[] Capture()
@@ -94,7 +97,10 @@ internal static unsafe class M05VirtqueuePollingEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid queue profile or evidence must be rejected");
     }
 }

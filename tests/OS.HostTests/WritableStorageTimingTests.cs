@@ -39,7 +39,10 @@ public static unsafe class WritableStorageTimingTests
             HostCheck.True(s.OuterTicks == 140 && s.RawReads == 12 && s.AdjacentReadTicks == 0 && s.Phase == 2 && !s.Failed);
             HostCheck.True(s.AuditOutsideEnclosingTicks == 0 && s.UnattributedTicks == 40);
         }
-        finally { T.Cancel(&s); }
+        finally
+        {
+            T.Cancel(&s);
+        }
     }
 
     [HostTest("writable timing preserves bounded modular 32 bit counter wrap")]
@@ -57,7 +60,10 @@ public static unsafe class WritableStorageTimingTests
             HostCheck.True(T.End(&s));
             HostCheck.True(s.AuditTicks == 13 && s.OuterTicks == 15 && s.Width == 32);
         }
-        finally { T.Cancel(&s); }
+        finally
+        {
+            T.Cancel(&s);
+        }
     }
 
     [HostTest("writable timing rejects ambiguous or backwards deltas without wrapping totals")]
@@ -75,7 +81,10 @@ public static unsafe class WritableStorageTimingTests
                 T.Leave(stamp);
                 HostCheck.True(s.Failed && s.AuditTicks == 0 && !T.End(&s));
             }
-            finally { T.Cancel(&s); }
+            finally
+            {
+                T.Cancel(&s);
+            }
         }
     }
 
@@ -96,7 +105,10 @@ public static unsafe class WritableStorageTimingTests
             raw = 20;
             HostCheck.True(T.End(&s));
         }
-        finally { T.Cancel(&s); }
+        finally
+        {
+            T.Cancel(&s);
+        }
         HostCheck.True(!T.Begin(&s, (ulong)&raw, 64));
     }
 
@@ -135,7 +147,10 @@ public static unsafe class WritableStorageTimingTests
             HostCheck.True(T.End(&s));
             HostCheck.True(s.PairTicks == 10 && s.OuterTicks == 20);
         }
-        finally { T.Cancel(&s); }
+        finally
+        {
+            T.Cancel(&s);
+        }
     }
 
     [HostTest("writable timing incomplete and recursive hooks invalidate the whole report")]
@@ -156,7 +171,10 @@ public static unsafe class WritableStorageTimingTests
             raw = 20;
             HostCheck.True(!T.End(&s) && s.Failed && s.Phase == 2);
         }
-        finally { T.Cancel(&s); }
+        finally
+        {
+            T.Cancel(&s);
+        }
     }
 
     [HostTest("writable timing count and accumulated tick overflow poison rather than truncate evidence")]
@@ -178,7 +196,10 @@ public static unsafe class WritableStorageTimingTests
             T.Leave(stamp);
             HostCheck.True(s.Failed && s.AuditTicks == ulong.MaxValue - 2 && !T.End(&s));
         }
-        finally { T.Cancel(&s); }
+        finally
+        {
+            T.Cancel(&s);
+        }
     }
 
     [HostTest("writable timing engine progress counts real entries and copies first and final state")]
@@ -200,7 +221,10 @@ public static unsafe class WritableStorageTimingTests
             HostCheck.True(s.FirstEnginePhase == 2 && s.FirstEngineStep == 3 && s.FirstEngineWork == 100 && s.FirstEngineIo);
             HostCheck.True(s.LastEnginePhase == 3 && s.LastEngineStep == 5 && s.LastEngineWork == 102 && !s.LastEngineIo);
         }
-        finally { T.Cancel(&s); }
+        finally
+        {
+            T.Cancel(&s);
+        }
     }
 
     [HostTest("writable timing mixed engine or unmatched engine leave invalidates copied progress")]
@@ -219,7 +243,10 @@ public static unsafe class WritableStorageTimingTests
             T.EngineProgress(8192, 2, 4, 1, false, false);
             HostCheck.True(s.Failed && !T.End(&s));
         }
-        finally { T.Cancel(&s); }
+        finally
+        {
+            T.Cancel(&s);
+        }
     }
 
     [HostTest("writable timing old completed scope cannot close a later hook in the same turn")]
@@ -243,7 +270,10 @@ public static unsafe class WritableStorageTimingTests
             HostCheck.True(T.End(&s));
             HostCheck.True(s.PairCalls == 2 && s.PairTicks == 20 && s.OuterTicks == 40);
         }
-        finally { T.Cancel(&s); }
+        finally
+        {
+            T.Cancel(&s);
+        }
     }
 
     [HostTest("writable timing rejects overlapping enclosing buckets rather than double counting audits")]
@@ -262,7 +292,10 @@ public static unsafe class WritableStorageTimingTests
                 T.Leave(outer);
                 HostCheck.True(s.Failed && !T.End(&s) && s.UnattributedTicks == 0);
             }
-            finally { T.Cancel(&s); }
+            finally
+            {
+                T.Cancel(&s);
+            }
         }
     }
 }

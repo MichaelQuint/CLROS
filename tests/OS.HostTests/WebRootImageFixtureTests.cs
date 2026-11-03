@@ -202,7 +202,10 @@ internal static class WebRootImageFixtureTests
         {
             action();
         }
-        catch (ToolFailure failure) { rejected = expected is null || failure.Reason == expected; }
+        catch (ToolFailure failure)
+        {
+            rejected = expected is null || failure.Reason == expected;
+        }
         HostCheck.True(rejected, expected ?? "expected explicit image rejection");
     }
     internal static void WithImage(Action<string, string, string, string> action)
@@ -247,7 +250,10 @@ internal static class WebRootImageFixtureTests
                 File.WriteAllBytes(path, bytes);
             }
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static string FileHash(string path)

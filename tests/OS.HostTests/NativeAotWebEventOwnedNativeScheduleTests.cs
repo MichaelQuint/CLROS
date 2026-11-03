@@ -33,7 +33,10 @@ internal static class NativeAotWebEventOwnedNativeScheduleTests
         {
             action();
         }
-        catch (Exception error) when (error is InvalidDataException or JsonException) { reason = error.Message; }
+        catch (Exception error) when (error is InvalidDataException or JsonException)
+        {
+            reason = error.Message;
+        }
         HostCheck.True(reason is not null);
         if (expected is not null)
             HostCheck.Equal(expected, reason);
@@ -182,7 +185,10 @@ internal static class NativeAotWebEventOwnedNativeScheduleTests
                 {
                     _ = Activator.CreateInstance(type, BindingFlags.Instance | BindingFlags.NonPublic, null, [process, "unused", directory, eventOwned], null);
                 }
-                catch (TargetInvocationException error) { failure = error.InnerException; }
+                catch (TargetInvocationException error)
+                {
+                    failure = error.InnerException;
+                }
                 HostCheck.True(failure is InvalidDataException && failure.Message.Contains("signalrace_schedule_platform", StringComparison.Ordinal) && !Directory.Exists(directory));
             }
         }

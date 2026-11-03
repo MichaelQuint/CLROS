@@ -93,11 +93,18 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
                     HostCheck.True(!rejected.Succeeded && rejected.Reason == "forbidden_active_source" &&
                         rejected.Detail.Contains(source, StringComparison.Ordinal), source + ":" + rejected.Reason);
                 }
-                finally { File.WriteAllBytes(path, original); }
+                finally
+                {
+                    File.WriteAllBytes(path, original);
+                }
             }
             HostCheck.True(EfiProjectAdmission.InspectStatic(copy).Succeeded);
         }
-        finally { if (Directory.Exists(copy)) Directory.Delete(copy, true); }
+        finally
+        {
+            if (Directory.Exists(copy))
+                Directory.Delete(copy, true);
+        }
     }
 
     [HostTest("m06.bdev.efi transcript binds original storage receipts and rejects malformed contract evidence")]
@@ -154,7 +161,10 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
             Reject(() => Check(lines[..^1]));
             Check(lines);
         }
-        finally { File.Delete(path); }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [HostTest("m06.bdev.efi associates LBA0 with actual disk geometry bytes and independent protective MBR parsing")]
@@ -219,7 +229,10 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
             Receipt();
             Check();
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     internal static string[] Capture()
@@ -247,7 +260,10 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid live block profile or evidence must be rejected");
     }
 }

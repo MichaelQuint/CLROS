@@ -72,7 +72,10 @@ internal static class NativeAotThreadingProgramTests
             var result = HostToolProcess.RunTool("linux", "threading-program", "NativeAotThreadPoolSmoke", Path.Combine(directory, "absent"), dump);
             HostCheck.True(result.ExitCode != 0 && !result.Output.Contains("TEST_PASS linux.threading-program", StringComparison.Ordinal));
         }
-        finally { Directory.Delete(directory, recursive: true); }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
     private static void Reject(Action action, string reason)
     {
@@ -81,7 +84,10 @@ internal static class NativeAotThreadingProgramTests
         {
             action();
         }
-        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure) { failure = error.Message; }
+        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + failure);
     }
 }

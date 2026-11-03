@@ -49,7 +49,10 @@ internal static unsafe class M07VirtioNetEfiIntegrationTests
             var stale = HostToolProcess.RunTool(["qemu", "smoke", "--DryRun", "--BuildEfi", "--SerialLog", serial, .. Flags]);
             HostCheck.True(stale.ExitCode != 0 && (stale.Output + stale.Error).Contains("fresh file path", StringComparison.Ordinal));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     [HostTest("m07.net.efi validates every child row and preserves strict parent replay", HostLane.Fast, 2)]
@@ -97,7 +100,10 @@ internal static unsafe class M07VirtioNetEfiIntegrationTests
             }
             Reject(() => QemuTranscripts.AssertM07VirtioNetRecords(lines[..^1]));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
     private static void Reject(Action action)
     {
@@ -106,7 +112,10 @@ internal static unsafe class M07VirtioNetEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

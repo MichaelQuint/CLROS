@@ -26,7 +26,10 @@ internal static class NativeAotStaticFileProgramTests
             {
                 NativeAotStaticFileProgram.Create("missing-root", NativeAotStaticFilePackage.Create(elf, staged), dump, staged);
             }
-            catch (InvalidDataException e) { rejected = e.Message == "static_package_identity"; }
+            catch (InvalidDataException e)
+            {
+                rejected = e.Message == "static_package_identity";
+            }
             HostCheck.True(rejected);
         }
     }
@@ -63,7 +66,10 @@ internal static class NativeAotStaticFileProgramTests
             {
                 Hold(root, files);
             }
-            catch (InvalidDataException e) { rejected = e.Message == "static_source_identity global.json"; }
+            catch (InvalidDataException e)
+            {
+                rejected = e.Message == "static_source_identity global.json";
+            }
             HostCheck.True(rejected);
         }
         finally

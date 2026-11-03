@@ -87,10 +87,16 @@ internal static unsafe class NativeAotWebImageTests
                     HostCheck.Equal(0L, owner.Call(3, fd));
                     HostCheck.True(LinuxDescriptorServices.End(owner.State));
                 }
-                finally { owner.Admission = original; }
+                finally
+                {
+                    owner.Admission = original;
+                }
             }
         }
-        finally { NativeMemory.AlignedFree(stack); }
+        finally
+        {
+            NativeMemory.AlignedFree(stack);
+        }
         string Text(ulong address)
         {
             HostCheck.True(address >= start && address < start + view.Manifest.StackBytes);
@@ -124,7 +130,10 @@ internal static unsafe class NativeAotWebImageTests
             {
                 NativeAotWebPackage.Create(elf, "{}"u8, Encoding.ASCII.GetBytes(item.Text));
             }
-            catch (InvalidDataException error) { failure = error.Message; }
+            catch (InvalidDataException error)
+            {
+                failure = error.Message;
+            }
             HostCheck.Equal("web_package_admission " + item.Status, failure!);
         }
         foreach (int length in new[] { 0, 4097 })
@@ -134,7 +143,10 @@ internal static unsafe class NativeAotWebImageTests
             {
                 NativeAotWebPackage.Create(elf, "{}"u8, new byte[length]);
             }
-            catch (InvalidDataException error) { failure = error.Message; }
+            catch (InvalidDataException error)
+            {
+                failure = error.Message;
+            }
             HostCheck.Equal("web_package_input_length", failure!);
         }
     }
@@ -174,7 +186,10 @@ internal static unsafe class NativeAotWebImageTests
                 HostCheck.True(!File.Exists(destination));
             }
         }
-        finally { Directory.Delete(root, recursive: true); }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     [HostTest("nativeaot.web image stages exact ELF manifest and immutable config bytes")]
@@ -244,7 +259,10 @@ internal static unsafe class NativeAotWebImageTests
             {
                 NativeAotWebPackage.Create(elf, config);
             }
-            catch (Exception error) when (error is InvalidDataException or System.Text.Json.JsonException) { rejected = true; }
+            catch (Exception error) when (error is InvalidDataException or System.Text.Json.JsonException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }

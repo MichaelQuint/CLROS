@@ -54,29 +54,12 @@ public static unsafe partial class EfiEntry
     private static partial class M01StageThreeAdapter
     {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         private struct M01StageThreeAllocationRecordBuffer
         {
             public BootMemoryRegionRecord Record0;
             public BootMemoryRegionRecord Record1;
             public BootMemoryRegionRecord Record2;
         }
-
 
     }
 #endif

@@ -20,7 +20,10 @@ internal static class NativeAotWebEventOwnedControllerTests
         {
             action();
         }
-        catch (Exception error) when (error is InvalidDataException or JsonException or ArgumentException) { refused = true; }
+        catch (Exception error) when (error is InvalidDataException or JsonException or ArgumentException)
+        {
+            refused = true;
+        }
         HostCheck.True(refused);
     }
     private static async Task RejectAsync(Func<Task> action, string? reason = null)
@@ -30,7 +33,10 @@ internal static class NativeAotWebEventOwnedControllerTests
         {
             await action();
         }
-        catch (Exception error) when (error is InvalidDataException or OperationCanceledException or ArgumentException) { failure = error; }
+        catch (Exception error) when (error is InvalidDataException or OperationCanceledException or ArgumentException)
+        {
+            failure = error;
+        }
         HostCheck.True(failure is not null);
         if (reason is not null)
             HostCheck.Equal(reason, failure!.Message);
@@ -75,7 +81,10 @@ internal static class NativeAotWebEventOwnedControllerTests
         {
             _ = QemuTranscripts.InspectNativeAotWebSignalRaceRolesForTests([], attempts, json, Endpoint, Health, new(0, 0, 0, []), replay);
         }
-        catch (ToolFailure error) { reason = error.Reason; }
+        catch (ToolFailure error)
+        {
+            reason = error.Reason;
+        }
         HostCheck.Equal("web_race_roles_event_contract_pending", reason);
     }
 
@@ -157,7 +166,10 @@ internal static class NativeAotWebEventOwnedControllerTests
             {
                 _ = NativeAotWebPayload.ValidateSignalRaceEvidence(legacy.ToJsonString(), Endpoint, Health);
             }
-            catch (InvalidDataException error) { reason = error.Message; }
+            catch (InvalidDataException error)
+            {
+                reason = error.Message;
+            }
             HostCheck.Equal("web_churn_status_invariant", reason);
         }
     }

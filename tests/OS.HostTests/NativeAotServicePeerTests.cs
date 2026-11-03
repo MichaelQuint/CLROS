@@ -178,12 +178,20 @@ internal static class NativeAotServicePeerTests
                     client.Close();
                     await Task.Delay(Timeout.Infinite, token);
                 }
-                catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-                finally { stopped = true; }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                }
+                finally
+                {
+                    stopped = true;
+                }
                 return new ProcessResult(1, "synthetic-runner", "", false, false, false, TimeSpan.Zero);
             }, deadline.Token);
         }
-        catch (ToolFailure error) { failure = error.Reason; }
+        catch (ToolFailure error)
+        {
+            failure = error.Reason;
+        }
         HostCheck.True(served && stopped);
         HostCheck.Equal("service_peer_or_runner_failed", failure ?? "accepted");
         HostCheck.True(File.Exists(log) && File.ReadAllText(log).Length == 0 &&
@@ -191,9 +199,16 @@ internal static class NativeAotServicePeerTests
         bool fresh = false;
         try
         {
-            _ = await NativeAotServicePeer.RunAsync(root, log, serial, (_, _) => { starts++; throw new InvalidOperationException(); }, deadline.Token);
+            _ = await NativeAotServicePeer.RunAsync(root, log, serial, (_, _) =>
+{
+    starts++;
+    throw new InvalidOperationException();
+}, deadline.Token);
         }
-        catch (IOException) { fresh = true; }
+        catch (IOException)
+        {
+            fresh = true;
+        }
         HostCheck.True(fresh);
         HostCheck.Equal(1, starts);
     }
@@ -233,7 +248,17 @@ internal static class NativeAotServicePeerTests
                 HostCheck.Equal(TimeSpan.Zero, result.DateUtc.Offset);
                 HostCheck.Equal(0, await clientFin);
             }
-            finally { deadline.Cancel(); try { _ = await pending; } catch (Exception) when (pending.IsCompleted) { } }
+            finally
+            {
+                deadline.Cancel();
+                try
+                {
+                    _ = await pending;
+                }
+                catch (Exception) when (pending.IsCompleted)
+                {
+                }
+            }
         }
     }
 
@@ -262,7 +287,10 @@ internal static class NativeAotServicePeerTests
             {
                 _ = await ExchangeResponseAsync(Encoding.ASCII.GetBytes(response));
             }
-            catch (ToolFailure) { refused = true; }
+            catch (ToolFailure)
+            {
+                refused = true;
+            }
             HostCheck.True(refused);
         }
         string chunked = Encoding.ASCII.GetString(ChunkedResponse("ok"u8.ToArray()));
@@ -277,7 +305,10 @@ internal static class NativeAotServicePeerTests
             {
                 _ = await ExchangeResponseAsync(Encoding.ASCII.GetBytes(response));
             }
-            catch (ToolFailure) { refused = true; }
+            catch (ToolFailure)
+            {
+                refused = true;
+            }
             HostCheck.True(refused);
         }
     }
@@ -306,10 +337,23 @@ internal static class NativeAotServicePeerTests
             {
                 _ = await pending;
             }
-            catch (OperationCanceledException) { refused = true; }
+            catch (OperationCanceledException)
+            {
+                refused = true;
+            }
             HostCheck.True(refused && pending.IsCompleted);
         }
-        finally { cancel.Cancel(); try { _ = await pending; } catch (Exception) when (pending.IsCompleted) { } }
+        finally
+        {
+            cancel.Cancel();
+            try
+            {
+                _ = await pending;
+            }
+            catch (Exception) when (pending.IsCompleted)
+            {
+            }
+        }
     }
 
     private static byte[] Response(byte[] body, string status = "200 OK") => [..Encoding.ASCII.GetBytes("HTTP/1.1 " + status +
@@ -348,15 +392,29 @@ internal static class NativeAotServicePeerTests
             {
                 await stream.WriteAsync(response, deadline.Token);
             }
-            catch (Exception error) when (error is IOException or SocketException) { }
+            catch (Exception error) when (error is IOException or SocketException)
+            {
+            }
             try
             {
                 client.Client.Shutdown(SocketShutdown.Send);
             }
-            catch (SocketException error) when (error.SocketErrorCode is SocketError.NotConnected or SocketError.ConnectionReset or SocketError.Shutdown) { }
+            catch (SocketException error) when (error.SocketErrorCode is SocketError.NotConnected or SocketError.ConnectionReset or SocketError.Shutdown)
+            {
+            }
             return await pending;
         }
-        finally { deadline.Cancel(); try { _ = await pending; } catch (Exception) when (pending.IsCompleted) { } }
+        finally
+        {
+            deadline.Cancel();
+            try
+            {
+                _ = await pending;
+            }
+            catch (Exception) when (pending.IsCompleted)
+            {
+            }
+        }
     }
 
     private static void Shift(JsonObject report, long milliseconds)
@@ -450,7 +508,10 @@ internal static class NativeAotServicePeerTests
         {
             _ = NativeAotServicePeer.InspectOutput(text, lifecycle);
         }
-        catch (Exception error) when (error is ToolFailure or InvalidDataException) { rejected = true; }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

@@ -144,7 +144,10 @@ internal static partial class WhpxPrelaunchTests
         {
             using var other = new FileStream(raw, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
         }
-        catch (IOException) { protectedFile = true; }
+        catch (IOException)
+        {
+            protectedFile = true;
+        }
         HostCheck.True(protectedFile, "surviving original writer still denies a second writer");
         bool refused = false;
         try
@@ -154,7 +157,10 @@ internal static partial class WhpxPrelaunchTests
                 StandardErrorHandle = writer
             });
         }
-        catch (ArgumentException error) { refused = error.Message == "process_external_stderr_requires_live_handle_and_retained_windows_job"; }
+        catch (ArgumentException error)
+        {
+            refused = error.Message == "process_external_stderr_requires_live_handle_and_retained_windows_job";
+        }
         HostCheck.True(refused, "external handle cannot release ownership on a bounded but unconfirmed join");
     }
 
@@ -190,7 +196,10 @@ internal static partial class WhpxPrelaunchTests
         {
             File.WriteAllBytes(raw, []);
         }
-        catch (IOException) { protectedFile = true; }
+        catch (IOException)
+        {
+            protectedFile = true;
+        }
         HostCheck.True(protectedFile, "original lease must survive the complete cancelled process-tree join");
         HostCheck.Equal("whpx_prelaunch_seal_changed", Seal([], Encoding.ASCII.GetBytes(ReadSharedText(raw))));
     }
@@ -327,7 +336,9 @@ internal static partial class WhpxPrelaunchTests
                 validate.Invoke(null, [root, serial, Executable, key, ownerHash, original, mutation == "quota" ? 1 : 65536]);
                 accepted = true;
             }
-            catch (TargetInvocationException error) when (!expected && error.InnerException is ToolFailure or IOException or System.Text.Json.JsonException) { }
+            catch (TargetInvocationException error) when (!expected && error.InnerException is ToolFailure or IOException or System.Text.Json.JsonException)
+            {
+            }
             HostCheck.Equal(expected, accepted, "copied joined-file control " + mutation);
             HostCheck.Equal(expected, File.Exists(Path.Combine(directory, "outer-final.json")), "only accepted copied controls emit a final file");
         }
@@ -362,7 +373,10 @@ internal static partial class WhpxPrelaunchTests
         {
             type.GetMethod("VerifyJoined")!.Invoke(owner, [rejected, 65536]);
         }
-        catch (TargetInvocationException error) when (error.InnerException is IOException or ToolFailure) { failed = true; }
+        catch (TargetInvocationException error) when (error.InnerException is IOException or ToolFailure)
+        {
+            failed = true;
+        }
         HostCheck.True(failed && !File.Exists(serial + ".whpx-prelaunch/outer-final.json"));
         HostCheck.Equal(rejected.StandardOutput, File.ReadAllText(serial + ".whpx-prelaunch/stdout.original.log"));
         using var facts = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(serial + ".whpx-prelaunch/process.original.json"));

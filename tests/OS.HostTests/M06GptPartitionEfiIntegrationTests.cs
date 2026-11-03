@@ -90,7 +90,10 @@ internal static unsafe class M06GptPartitionEfiIntegrationTests
                 File.WriteAllText(path, fault ? M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(reordered) : M06VirtioBlockQueueSetupEfiIntegrationTests.BlockFrame(reordered));
                 Reject(Check);
             }
-            finally { File.Delete(path); }
+            finally
+            {
+                File.Delete(path);
+            }
         }
     }
 
@@ -144,7 +147,10 @@ internal static unsafe class M06GptPartitionEfiIntegrationTests
                 }
             }
         }
-        finally { Directory.Delete(dir, true); }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
     }
 
     internal static (string[] Lines, byte[] Disk) Capture(bool fault)
@@ -195,7 +201,10 @@ internal static unsafe class M06GptPartitionEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid GPT profile or evidence must be rejected");
     }
 }

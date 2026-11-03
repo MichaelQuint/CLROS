@@ -184,7 +184,10 @@ internal static class NativeAotWebChurnTests
         {
             NativeAotWebPayload.ValidateChurnEvidence(value, endpoint, health);
         }
-        catch (Exception failure) when (failure is InvalidDataException or JsonException) { refused = true; }
+        catch (Exception failure) when (failure is InvalidDataException or JsonException)
+        {
+            refused = true;
+        }
         HostCheck.True(refused);
     }
 }

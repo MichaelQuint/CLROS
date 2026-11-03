@@ -7,6 +7,7 @@ using OS.Std.Hash;
 using OS.Kernel.Compatibility.LinuxX64;
 #endif
 namespace OS.Boot;
+
 public struct FirstExitFaultContext
 {
     // 0 empty, 1 ready, 2 entered by native stub, 3 reported, 4 refused/failed.

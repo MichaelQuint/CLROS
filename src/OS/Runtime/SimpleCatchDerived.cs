@@ -7,18 +7,14 @@ namespace OS.Runtime;
 
 internal sealed class SimpleCatchDerived : SimpleCatchBase
 {
-    internal SimpleCatchDerived(ulong payload) : base(payload) { }
+    internal SimpleCatchDerived(ulong payload) : base(payload)
+    {
+    }
 }
-
 
 #pragma warning disable CS0649
 
 #pragma warning restore CS0649
-
-
-
-
-
 
 #endif
 #if SINGLE_FINALLY_CORE_TEST

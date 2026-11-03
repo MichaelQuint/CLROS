@@ -23,7 +23,10 @@ internal static unsafe class LinuxUserInterruptTests
             HostCheck.True(!o.Thread.Service->EnableSignals(Key, 2, rejected));
             HostCheck.True(LinuxSignalServices.End(rejected, 1234, 2));
         }
-        finally { NativeMemory.AlignedFree(rejected); }
+        finally
+        {
+            NativeMemory.AlignedFree(rejected);
+        }
         HostCheck.True(o.Thread.Service->EnableSignals(Key, 2, o.State));
         o.Running();
     }
@@ -180,7 +183,10 @@ internal static unsafe class LinuxUserInterruptTests
             HostCheck.True(!Transition.CaptureInterruptUserImage(data, Transition.DataBytes, &result, Transition.UserImageBytes, 0xffbf, disabled));
             HostCheck.True(!Transition.CaptureFaultUserImage(data, Transition.DataBytes, &result, Transition.UserImageBytes, 0xffbf, true));
         }
-        finally { NativeMemory.AlignedFree(data); }
+        finally
+        {
+            NativeMemory.AlignedFree(data);
+        }
     }
 
     [HostTest("linux.user-irq cloned generation queues delivery across a real table yield without syscall accounting and sigreturn preserves IF")]
@@ -265,6 +271,10 @@ internal static unsafe class LinuxUserInterruptTests
             plan.UserInterrupts = false;
             HostCheck.True(!Transition.Emit(code, 4096, plan));
         }
-        finally { NativeMemory.AlignedFree(code); NativeMemory.AlignedFree(fault); }
+        finally
+        {
+            NativeMemory.AlignedFree(code);
+            NativeMemory.AlignedFree(fault);
+        }
     }
 }

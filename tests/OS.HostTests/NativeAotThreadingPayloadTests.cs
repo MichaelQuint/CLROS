@@ -20,7 +20,10 @@ internal static class NativeAotThreadingPayloadTests
             {
                 ((IList<string>)args)[0] = "restore";
             }
-            catch (NotSupportedException) { immutable = true; }
+            catch (NotSupportedException)
+            {
+                immutable = true;
+            }
             HostCheck.True(immutable);
         }
         foreach (string app in new[] { "NativeAotHello", "NativeAotRuntimeSmoke", "MinimalApiSmoke", "../NativeAotSuspensionSmoke", "nativeaotsuspensionsmoke" })
@@ -55,7 +58,10 @@ internal static class NativeAotThreadingPayloadTests
             Reject(() => NativeAotThreadingPayload.ArchiveBuildCache(root, app, fresh));
             HostCheck.Equal("not-directory", File.ReadAllText(Path.Combine(appRoot, "bin")));
         }
-        finally { Directory.Delete(root, true); }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
     }
 
     [HostTest("nativeaot.threading per-thread trace inventory binds exact files and rejects incomplete fatal malformed or substituted traces")]
@@ -86,7 +92,10 @@ internal static class NativeAotThreadingPayloadTests
             File.WriteAllText(bad, valid);
             Reject(() => NativeAotThreadingPayload.ReadTraceInventory(root, app));
         }
-        finally { Directory.Delete(root, true); }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
     }
 
     [HostTest("nativeaot.threading qualifier rejects unsupported host and malformed command without creating output or emitting success")]
@@ -111,7 +120,10 @@ internal static class NativeAotThreadingPayloadTests
         {
             action();
         }
-        catch (Exception error) when (error is InvalidDataException or ToolFailure or System.Text.DecoderFallbackException) { rejected = true; }
+        catch (Exception error) when (error is InvalidDataException or ToolFailure or System.Text.DecoderFallbackException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

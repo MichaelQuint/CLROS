@@ -118,7 +118,10 @@ internal static class NativeAotWebSignalRaceScheduleEvidenceTests
         {
             action();
         }
-        catch (Exception error) when (error is InvalidDataException or JsonException) { reason = error.Message; }
+        catch (Exception error) when (error is InvalidDataException or JsonException)
+        {
+            reason = error.Message;
+        }
         HostCheck.True(reason is not null);
         if (expected is not null)
             HostCheck.Equal(expected, reason);

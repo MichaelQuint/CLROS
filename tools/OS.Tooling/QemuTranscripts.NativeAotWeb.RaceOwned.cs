@@ -93,6 +93,9 @@ public static partial class QemuTranscripts
             verifyCurrentInputs();
             return 0;
         }
-        finally { Verify(); }
+        finally
+        {
+            Verify();
+        }
     }
 }

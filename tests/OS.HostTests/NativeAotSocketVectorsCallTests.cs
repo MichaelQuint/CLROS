@@ -76,7 +76,10 @@ internal static class NativeAotSocketVectorsCallTests
             {
                 _ = QemuTranscripts.InspectNativeAotSocketPolicyCallsForTests(PolicyCalls(change));
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, change);
         }
     }
@@ -188,7 +191,10 @@ internal static class NativeAotSocketVectorsCallTests
             {
                 _ = QemuTranscripts.InspectNativeAotSocketVectorsCallsForTests(Calls(change));
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, change);
         }
         bool incomplete = false;
@@ -196,7 +202,10 @@ internal static class NativeAotSocketVectorsCallTests
         {
             _ = QemuTranscripts.InspectNativeAotSocketVectorsCallsForTests(Calls()[..^1]);
         }
-        catch (ToolFailure) { incomplete = true; }
+        catch (ToolFailure)
+        {
+            incomplete = true;
+        }
         HostCheck.True(incomplete);
     }
 }

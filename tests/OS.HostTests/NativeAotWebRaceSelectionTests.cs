@@ -27,7 +27,10 @@ internal static class NativeAotWebRaceSelectionTests
         {
             action();
         }
-        catch (ToolFailure error) { reason = error.Reason; }
+        catch (ToolFailure error)
+        {
+            reason = error.Reason;
+        }
         HostCheck.Equal(expected, reason);
     }
 
@@ -49,7 +52,10 @@ internal static class NativeAotWebRaceSelectionTests
             {
                 _ = QemuSmokeOptions.Parse("--web-signal-race=" + value);
             }
-            catch (ArgumentException error) { reason = error.Message; }
+            catch (ArgumentException error)
+            {
+                reason = error.Message;
+            }
             HostCheck.Equal("qemu_invalid_boolean WebSignalRace", reason);
         }
     }
@@ -183,7 +189,11 @@ internal static class NativeAotWebRaceSelectionTests
                     if (stale is not null)
                         HostCheck.True(File.ReadAllBytes(stale).SequenceEqual(retained));
                 }
-                finally { if (stale is not null) File.Delete(stale); }
+                finally
+                {
+                    if (stale is not null)
+                        File.Delete(stale);
+                }
             }
             await Check((options, report) => options.SummaryLog = report);
             // Even a missing input must not alias a future report pathname.
@@ -194,7 +204,10 @@ internal static class NativeAotWebRaceSelectionTests
             foreach (string suffix in new[] { "", ".attempts.json", ".wire.json", ".runner.log", ".runner.stderr.log" })
                 await Check(staleSuffix: suffix);
         }
-        finally { Directory.Delete(folder); }
+        finally
+        {
+            Directory.Delete(folder);
+        }
     }
 
     [HostTest("web event-owned option has independent strict grammar and cannot conflict with legacy race profile")]
@@ -213,7 +226,10 @@ internal static class NativeAotWebRaceSelectionTests
             {
                 _ = QemuSmokeOptions.Parse("--web-event-owned-signal-race=" + value);
             }
-            catch (ArgumentException error) { reason = error.Message; }
+            catch (ArgumentException error)
+            {
+                reason = error.Message;
+            }
             HostCheck.Equal("qemu_invalid_boolean WebEventOwnedSignalRace", reason);
         }
         string? duplicate = null;
@@ -221,7 +237,10 @@ internal static class NativeAotWebRaceSelectionTests
         {
             _ = QemuSmokeOptions.Parse("--web-event-owned-signal-race", "--web-event-owned-signal-race=false");
         }
-        catch (ArgumentException error) { duplicate = error.Message; }
+        catch (ArgumentException error)
+        {
+            duplicate = error.Message;
+        }
         HostCheck.Equal("qemu_duplicate_option WebEventOwnedSignalRace", duplicate);
         Reject(() => QemuProfiles.Create(Options(race: true, eventOwned: true)), "web_race_profile_conflict");
         var wrong = Options(eventOwned: true);
@@ -265,7 +284,11 @@ internal static class NativeAotWebRaceSelectionTests
         starts = 0;
         using (var output = new StringWriter())
         {
-            code = await QemuSmoke.RunAsync(root, options, output, (_, _) => { starts++; throw new InvalidOperationException("must not start"); });
+            code = await QemuSmoke.RunAsync(root, options, output, (_, _) =>
+{
+    starts++;
+    throw new InvalidOperationException("must not start");
+});
             HostCheck.True(code == 1 && starts == 0 && !Directory.Exists(folder) && !output.ToString().Contains("TEST_PASS qemu.smoke.web", StringComparison.Ordinal));
         }
         Directory.CreateDirectory(folder);
@@ -275,10 +298,18 @@ internal static class NativeAotWebRaceSelectionTests
         try
         {
             using var output = new StringWriter();
-            code = await QemuSmoke.RunAsync(root, options, output, (_, _) => { starts++; throw new InvalidOperationException("must not start"); });
+            code = await QemuSmoke.RunAsync(root, options, output, (_, _) =>
+{
+    starts++;
+    throw new InvalidOperationException("must not start");
+});
             HostCheck.True(code == 1 && starts == 0 && File.ReadAllBytes(wire).SequenceEqual(retained) && Directory.GetFiles(folder).Length == 1);
             HostCheck.True(output.ToString().Contains("TEST_FAIL qemu.smoke web_race_output_not_fresh_or_aliased", StringComparison.Ordinal));
         }
-        finally { File.Delete(wire); Directory.Delete(folder); }
+        finally
+        {
+            File.Delete(wire);
+            Directory.Delete(folder);
+        }
     }
 }

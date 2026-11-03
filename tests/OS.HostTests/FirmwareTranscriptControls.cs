@@ -24,7 +24,10 @@ internal sealed class FirmwareTranscriptControls(string directory, Action<string
         {
             validate(Path);
         }
-        catch (ToolFailure) when (!expected) { accepted = false; }
+        catch (ToolFailure) when (!expected)
+        {
+            accepted = false;
+        }
         if (accepted != expected)
             throw new InvalidOperationException("transcript case " + Cases + " expected=" + expected);
         Cases++;
@@ -35,7 +38,10 @@ internal sealed class FirmwareTranscriptControls(string directory, Action<string
         {
             action();
         }
-        catch (ToolFailure) { return; }
+        catch (ToolFailure)
+        {
+            return;
+        }
         throw new InvalidOperationException("expected rejection " + reason);
     }
 }

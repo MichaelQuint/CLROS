@@ -88,20 +88,44 @@ internal static unsafe class KestrelSignalProbeTests
             KestrelSignalProbeAbi.Supported);
         if (KestrelSignalProbeAbi.Supported)
             return;
-        Refused(() => { _ = KestrelSignalProbeAbi.ReadAction(); });
+        Refused(() =>
+{
+    _ = KestrelSignalProbeAbi.ReadAction();
+});
         Refused(() => KestrelSignalProbeAbi.SetAction(default));
-        Refused(() => { _ = KestrelSignalProbeAbi.ReadMask(); });
+        Refused(() =>
+{
+    _ = KestrelSignalProbeAbi.ReadMask();
+});
         Refused(() => KestrelSignalProbeAbi.SetMask(0));
-        Refused(() => { _ = KestrelSignalProbeAbi.ReadAltStack(); });
-        Refused(() => { _ = KestrelSignalProbeAbi.GetPid(); });
-        Refused(() => { _ = KestrelSignalProbeAbi.GetTid(); });
+        Refused(() =>
+{
+    _ = KestrelSignalProbeAbi.ReadAltStack();
+});
+        Refused(() =>
+{
+    _ = KestrelSignalProbeAbi.GetPid();
+});
+        Refused(() =>
+{
+    _ = KestrelSignalProbeAbi.GetTid();
+});
         Refused(() => KestrelSignalProbeAbi.CreatePipe(out _, out _));
-        Refused(() => { _ = KestrelSignalProbeAbi.CreateEpoll(); });
+        Refused(() =>
+{
+    _ = KestrelSignalProbeAbi.CreateEpoll();
+});
         Refused(() => KestrelSignalProbeAbi.AddRead(3, 4, 5));
-        Refused(() => { _ = KestrelSignalProbeAbi.Wait(3, 0); });
+        Refused(() =>
+{
+    _ = KestrelSignalProbeAbi.Wait(3, 0);
+});
         Refused(() => KestrelSignalProbeAbi.WriteWake(4));
         Refused(() => KestrelSignalProbeAbi.WriteByte(4, 0x6b));
-        Refused(() => { _ = KestrelSignalProbeAbi.ReadByte(3); });
+        Refused(() =>
+{
+    _ = KestrelSignalProbeAbi.ReadByte(3);
+});
         Refused(() => KestrelSignalProbeAbi.Close(4));
         Refused(() => KestrelSignalProbeAbi.SendSignal(1, 2));
         Refused(KestrelSignalProbeAbi.YieldBeforeRace);
@@ -116,7 +140,10 @@ internal static unsafe class KestrelSignalProbeTests
         {
             action();
         }
-        catch (PlatformNotSupportedException) { rejected = true; }
+        catch (PlatformNotSupportedException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

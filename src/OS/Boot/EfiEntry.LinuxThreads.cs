@@ -26,8 +26,6 @@ public static unsafe partial class EfiEntry
 
         private const uint LinuxNativeWorkers = NativeProgram.MaximumWorkers, LinuxNativeFutexes = 16;
 
-
-
         private static LinuxNativeControl* LinuxNativeOwner(void* context)
         {
 #if M16_027_PROBE

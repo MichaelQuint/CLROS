@@ -26,14 +26,23 @@ internal static class WebRaceRendezvousTests
             HostCheck.Equal(new WebRaceRendezvous.Report(Port, Pid, Hashes), await runner);
             await Reject(() => producer.CompleteAsync(Hashes, limit.Token));
         }
-        finally { limit.Cancel(); await Join(runner); await Join(ready); }
+        finally
+        {
+            limit.Cancel();
+            await Join(runner);
+            await Join(ready);
+        }
     }
 
     [HostTest("web race rendezvous validates strict names bounds and handshake order before IPC")]
     private static async Task Inputs()
     {
         foreach (string name in new[] { "", "clros-web-race-", "clros-web-race-" + new string('A', 32), "clros-web-race-" + new string('a', 33), "../clros-web-race-" + new string('a', 32), null! })
-            await Reject(() => { WebRaceRendezvous.ValidatePipeName(name); return Task.CompletedTask; });
+            await Reject(() =>
+{
+    WebRaceRendezvous.ValidatePipeName(name);
+    return Task.CompletedTask;
+});
         string valid = Name();
         WebRaceRendezvous.ValidatePipeName(valid);
         foreach (var input in new[] { (0, Pid, TimeSpan.FromSeconds(1)), (Port, 0, TimeSpan.FromSeconds(1)), (Port, Pid, TimeSpan.Zero), (Port, Pid, TimeSpan.FromSeconds(46)) })
@@ -63,7 +72,12 @@ internal static class WebRaceRendezvousTests
                 await Reject(() => runner);
                 HostCheck.True(runner.IsCompleted);
             }
-            finally { limit.Cancel(); server.Dispose(); await Join(runner); }
+            finally
+            {
+                limit.Cancel();
+                server.Dispose();
+                await Join(runner);
+            }
         }
     }
 
@@ -86,7 +100,12 @@ internal static class WebRaceRendezvousTests
                 await Reject(() => waiting);
                 HostCheck.True(waiting.IsCompleted);
             }
-            finally { limit.Cancel(); client.Dispose(); await Join(waiting); }
+            finally
+            {
+                limit.Cancel();
+                client.Dispose();
+                await Join(waiting);
+            }
         }
     }
 
@@ -120,7 +139,12 @@ internal static class WebRaceRendezvousTests
                 await Reject(() => read);
                 HostCheck.True(read.IsCompleted);
             }
-            finally { cancel.Cancel(); await Join(read); await Join(ready); }
+            finally
+            {
+                cancel.Cancel();
+                await Join(read);
+                await Join(ready);
+            }
         }
     }
 
@@ -144,15 +168,25 @@ internal static class WebRaceRendezvousTests
             {
                 _ = await runner;
             }
-            catch (Exception error) { observed = error; }
+            catch (Exception error)
+            {
+                observed = error;
+            }
             HostCheck.True(ReferenceEquals(original, observed) && runner.IsCompleted);
             try
             {
                 HostCheck.Equal(0, await server.ReadAsync(new byte[1], limit.Token));
             }
-            catch (IOException) { }
+            catch (IOException)
+            {
+            }
         }
-        finally { limit.Cancel(); server.Dispose(); await Join(runner); }
+        finally
+        {
+            limit.Cancel();
+            server.Dispose();
+            await Join(runner);
+        }
     }
 
     [HostTest("web event-owned rendezvous binds v3 mode and raw tokens without changing legacy serialized reports")]
@@ -166,7 +200,11 @@ internal static class WebRaceRendezvousTests
             int budgetCalls = 0;
             var ready = producer.WaitForReadyAsync(Port, limit.Token);
             var runner = WebRaceRendezvous.WaitEventOwnedInRunnerAsync(producer.PipeName, Port, Pid, TimeSpan.FromSeconds(165),
-                () => { Interlocked.Increment(ref budgetCalls); return TimeSpan.FromSeconds(170); }, cancellation: limit.Token);
+                () =>
+{
+    Interlocked.Increment(ref budgetCalls);
+    return TimeSpan.FromSeconds(170);
+}, cancellation: limit.Token);
             try
             {
                 HostCheck.Equal(new WebRaceRendezvous.Ready(Port, Pid, true), await ready);
@@ -177,7 +215,12 @@ internal static class WebRaceRendezvousTests
                 HostCheck.True(budgetCalls >= 2);
                 HostCheck.True(JsonSerializer.Serialize(report).Contains("\"EventOwned\":true", StringComparison.Ordinal));
             }
-            finally { limit.Cancel(); await Join(runner); await Join(ready); }
+            finally
+            {
+                limit.Cancel();
+                await Join(runner);
+                await Join(ready);
+            }
         }
         string legacy = JsonSerializer.Serialize(new WebRaceRendezvous.Report(Port, Pid, Hashes));
         HostCheck.Equal($"{{\"Port\":{Port},\"QemuProcessId\":{Pid},\"Digests\":{{\"SelectedSha256\":\"{Hashes.SelectedSha256}\",\"AttemptsSha256\":\"{Hashes.AttemptsSha256}\",\"WireSha256\":\"{Hashes.WireSha256}\"}}}}", legacy);
@@ -192,7 +235,12 @@ internal static class WebRaceRendezvousTests
             await server.WriteAsync(Encoding.ASCII.GetBytes($"DONE_V3 {Hashes.SelectedSha256} {Hashes.AttemptsSha256} {Hashes.WireSha256}\r\n"), rawLimit.Token);
             HostCheck.True((await raw).EventOwned);
         }
-        finally { rawLimit.Cancel(); server.Dispose(); await Join(raw); }
+        finally
+        {
+            rawLimit.Cancel();
+            server.Dispose();
+            await Join(raw);
+        }
     }
 
     [HostTest("web event-owned pipe rejects cross profiles duration overflow and insufficient absolute budget before READY")]
@@ -201,8 +249,16 @@ internal static class WebRaceRendezvousTests
         string name = EventName();
         WebRaceRendezvous.ValidateEventOwnedPipeName(name);
         foreach (string invalid in new[] { Name(), "clros-web-race-v3-" + new string('A', 32), name + "0", null! })
-            await Reject(() => { WebRaceRendezvous.ValidateEventOwnedPipeName(invalid); return Task.CompletedTask; });
-        await Reject(() => { WebRaceRendezvous.ValidatePipeName(name); return Task.CompletedTask; });
+            await Reject(() =>
+{
+    WebRaceRendezvous.ValidateEventOwnedPipeName(invalid);
+    return Task.CompletedTask;
+});
+        await Reject(() =>
+{
+    WebRaceRendezvous.ValidatePipeName(name);
+    return Task.CompletedTask;
+});
         await Reject(() => WebRaceRendezvous.WaitInRunnerAsync(name, Port, Pid, TimeSpan.FromSeconds(1)));
         await Reject(() => WebRaceRendezvous.WaitEventOwnedInRunnerAsync(Name(), Port, Pid, TimeSpan.FromSeconds(1), () => TimeSpan.FromSeconds(165)));
         foreach (var duration in new[] { TimeSpan.Zero, TimeSpan.FromSeconds(165).Add(TimeSpan.FromTicks(1)) })
@@ -213,7 +269,10 @@ internal static class WebRaceRendezvousTests
         {
             await WebRaceRendezvous.WaitEventOwnedInRunnerAsync(name, Port, Pid, TimeSpan.FromSeconds(1), () => TimeSpan.FromSeconds(165) - TimeSpan.FromTicks(1));
         }
-        catch (InvalidDataException error) { entry = error; }
+        catch (InvalidDataException error)
+        {
+            entry = error;
+        }
         HostCheck.Equal("web_race_insufficient_absolute_budget", entry?.Message);
         using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         using var server = Server(name);
@@ -228,16 +287,26 @@ internal static class WebRaceRendezvousTests
             {
                 await runner;
             }
-            catch (InvalidDataException error) { afterConnect = error; }
+            catch (InvalidDataException error)
+            {
+                afterConnect = error;
+            }
             HostCheck.Equal("web_race_insufficient_absolute_budget", afterConnect?.Message);
             HostCheck.True(calls >= 2 && runner.IsCompleted);
             try
             {
                 HostCheck.Equal(0, await server.ReadAsync(new byte[1], limit.Token));
             }
-            catch (IOException) { }
+            catch (IOException)
+            {
+            }
         }
-        finally { limit.Cancel(); server.Dispose(); await Join(runner); }
+        finally
+        {
+            limit.Cancel();
+            server.Dispose();
+            await Join(runner);
+        }
     }
 
     [HostTest("web event-owned rendezvous refuses legacy frames and joins canceled or unhealthy actual pipe operations")]
@@ -261,7 +330,13 @@ internal static class WebRaceRendezvousTests
                 await Reject(() => runner);
                 HostCheck.True(runner.IsCompleted);
             }
-            finally { stop.Cancel(); await producer.DisposeAsync(); await Join(runner); await Join(ready); }
+            finally
+            {
+                stop.Cancel();
+                await producer.DisposeAsync();
+                await Join(runner);
+                await Join(ready);
+            }
         }
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         string name = EventName();
@@ -275,7 +350,12 @@ internal static class WebRaceRendezvousTests
             await Reject(() => reading);
             HostCheck.True(reading.IsCompleted);
         }
-        finally { deadline.Cancel(); server.Dispose(); await Join(reading); }
+        finally
+        {
+            deadline.Cancel();
+            server.Dispose();
+            await Join(reading);
+        }
         using var last = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await using var eventProducer = WebRaceRendezvous.CreateEventOwnedProducer();
         var waiting = eventProducer.WaitForReadyAsync(Port, last.Token);
@@ -287,7 +367,12 @@ internal static class WebRaceRendezvousTests
             await Reject(() => waiting);
             HostCheck.True(waiting.IsCompleted);
         }
-        finally { last.Cancel(); client.Dispose(); await Join(waiting); }
+        finally
+        {
+            last.Cancel();
+            client.Dispose();
+            await Join(waiting);
+        }
     }
 
     private static string EventName() => "clros-web-race-v3-" + Guid.NewGuid().ToString("N");
@@ -314,7 +399,10 @@ internal static class WebRaceRendezvousTests
         {
             await action();
         }
-        catch (Exception error) when (error is ArgumentException or InvalidOperationException or InvalidDataException or IOException or OperationCanceledException) { rejected = true; }
+        catch (Exception error) when (error is ArgumentException or InvalidOperationException or InvalidDataException or IOException or OperationCanceledException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
     private static async Task Join(Task task)
@@ -323,6 +411,8 @@ internal static class WebRaceRendezvousTests
         {
             await task.WaitAsync(TimeSpan.FromSeconds(10));
         }
-        catch when (task.IsCompleted) { }
+        catch when (task.IsCompleted)
+        {
+        }
     }
 }

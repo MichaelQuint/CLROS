@@ -165,7 +165,10 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
             {
                 OS.Tooling.QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true, ownedPanic: control, normalBoot: normal);
             }
-            catch (OS.Tooling.ToolFailure) { accepted = false; }
+            catch (OS.Tooling.ToolFailure)
+            {
+                accepted = false;
+            }
             Need(accepted == expected, "whole transcript case=" + (cases - 1) + " expected=" + expected);
         }
         Check(positive, false, true);

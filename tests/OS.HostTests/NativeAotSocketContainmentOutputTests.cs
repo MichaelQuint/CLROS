@@ -65,7 +65,10 @@ internal static class NativeAotSocketContainmentOutputTests
         {
             _ = NativeAotSocketContainmentOutput.Read(text);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

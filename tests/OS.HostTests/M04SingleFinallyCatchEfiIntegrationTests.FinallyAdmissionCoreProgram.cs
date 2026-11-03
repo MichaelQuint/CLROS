@@ -27,7 +27,11 @@ internal static unsafe class FinallyAdmissionCoreProgram
             test();
             Console.WriteLine("TEST_PASS finally.admission " + name);
         }
-        catch (Exception ex) { Console.WriteLine("TEST_FAIL finally.admission " + name + " " + ex); throw; }
+        catch (Exception ex)
+        {
+            Console.WriteLine("TEST_FAIL finally.admission " + name + " " + ex);
+            throw;
+        }
     }
     private static void Contexts()
     {

@@ -116,7 +116,10 @@ internal static class EfiDispatchTranscriptControls
             {
                 QemuTranscripts.AssertM04InterfaceDispatchSelection(claim, false);
             }
-            catch (ToolFailure) { accepted = false; }
+            catch (ToolFailure)
+            {
+                accepted = false;
+            }
             HostCheck.True(!accepted, "unselected dispatch claim");
             QemuTranscripts.AssertM04InterfaceDispatchSelection(claim, true);
         }

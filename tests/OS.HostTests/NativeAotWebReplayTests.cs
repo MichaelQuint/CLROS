@@ -137,7 +137,10 @@ internal static class NativeAotWebReplayTests
         {
             action();
         }
-        catch (ToolFailure) { failed = true; }
+        catch (ToolFailure)
+        {
+            failed = true;
+        }
         HostCheck.True(failed);
     }
 
@@ -148,7 +151,10 @@ internal static class NativeAotWebReplayTests
         {
             action();
         }
-        catch (ToolFailure error) { reason = error.Reason; }
+        catch (ToolFailure error)
+        {
+            reason = error.Reason;
+        }
         HostCheck.Equal("threading_monotonic_clock", reason);
     }
 
@@ -256,9 +262,18 @@ internal static class NativeAotWebReplayTests
             v=>v.Call(1,1,[9,0x500800,1]),v=>v.Call(1,1,[8,1,1]),v=>v.Call(0,0,[7,1,1]),
             v=>v.Call(1,1,[8,0x500800,2]),v=>v.Call(1,4097,[8,0x500800,4097]),
             v=>v.Call(17,0,[7,0x500800,1,0]),v=>v.Call(72,0,[7,2,1]),
-            v=>{v.Call(3,0,[7]);v.Call(3,0,[8]);v.Call(1,1,[8,0x500800,1]);}];
+            v=>
+{
+v.Call(3,0,[7]);
+v.Call(3,0,[8]);
+v.Call(1,1,[8,0x500800,1]);
+}];
         foreach (var corrupt in invalid)
-            Reject(() => Inspect(Vector(probe: v => { v.Call(293, 0, [0x500500, 0x80800]); corrupt(v); })));
+            Reject(() => Inspect(Vector(probe: v =>
+{
+    v.Call(293, 0, [0x500500, 0x80800]);
+    corrupt(v);
+})));
     }
 
     [HostTest("web nonblocking probe pipe refuses fabricated EOF EAGAIN and partial atomic writes")]

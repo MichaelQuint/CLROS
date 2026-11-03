@@ -74,7 +74,10 @@ internal static class NativeAotWebSignalRaceDateTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
@@ -102,7 +105,10 @@ internal static class NativeAotWebSignalRaceDateTests
         {
             ((IList<Q.ServiceQuotaHttpPacketRange>)checkedDates.Responses[0].Ranges).Clear();
         }
-        catch (NotSupportedException) { immutable = true; }
+        catch (NotSupportedException)
+        {
+            immutable = true;
+        }
         HostCheck.True(immutable);
     }
 
@@ -148,7 +154,10 @@ internal static class NativeAotWebSignalRaceDateTests
         {
             ((IList<Q.ServiceQuotaHttpPacketRange>)report.Responses[0].Ranges).Clear();
         }
-        catch (NotSupportedException) { immutable = true; }
+        catch (NotSupportedException)
+        {
+            immutable = true;
+        }
         HostCheck.True(immutable);
     }
 

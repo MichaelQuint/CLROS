@@ -139,7 +139,10 @@ internal static partial class ThunkControls
             {
                 CheckObject(bad);
             }
-            catch (InvalidOperationException) { failed = true; }
+            catch (InvalidOperationException)
+            {
+                failed = true;
+            }
             Need(failed, "object-mutation-" + p);
             mutations++;
         }

@@ -25,7 +25,12 @@ internal static class EhCatalogEfiIntegrationTests
                 {
                     _ = EfiOptions.Parse(args, build).Profile();
                 }
-                catch (ToolFailure e) { failed = true; if (missing == "M04FrameDispatch") HostCheck.True(e.Reason == "m04_eh_catalog_requires_frame_dispatch", e.Reason); }
+                catch (ToolFailure e)
+                {
+                    failed = true;
+                    if (missing == "M04FrameDispatch")
+                        HostCheck.True(e.Reason == "m04_eh_catalog_requires_frame_dispatch", e.Reason);
+                }
                 HostCheck.True(failed == (missing != "M04EhCatalog"), "dependency " + missing);
             }
             foreach (string collision in new[] { "M04SimpleThrowCatch", "M04SingleFinallyCatch", "M04Rethrow", "M04NestedFinallyCatch", "M04UnhandledException", "M04FilteredCatch", "M04ConstructorFailure", "M04SeededCollectorChurn" })
@@ -35,7 +40,10 @@ internal static class EhCatalogEfiIntegrationTests
                 {
                     _ = EfiOptions.Parse([.. Arguments, "--Enable" + collision + "Probe"], build).Profile();
                 }
-                catch (ToolFailure) { failed = true; }
+                catch (ToolFailure)
+                {
+                    failed = true;
+                }
                 HostCheck.True(failed, "collision " + collision);
             }
         }
@@ -86,7 +94,10 @@ internal static class EhCatalogEfiIntegrationTests
             {
                 EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact", artifact, .. Arguments], false));
             }
-            catch (ToolFailure error) { failure = error.Reason; }
+            catch (ToolFailure error)
+            {
+                failure = error.Reason;
+            }
             HostCheck.True(failure == expected, "expected=" + expected + " actual=" + failure);
         }
         int Offset(string name, int size)
@@ -113,7 +124,11 @@ internal static class EhCatalogEfiIntegrationTests
                 File.WriteAllText(evidencePath, evidence.ToJsonString());
                 Verify(reason);
             }
-            finally { File.WriteAllBytes(artifact, pe); File.WriteAllText(evidencePath, evidenceText); }
+            finally
+            {
+                File.WriteAllBytes(artifact, pe);
+                File.WriteAllText(evidencePath, evidenceText);
+            }
         }
         var originalEvidence = System.Text.Json.Nodes.JsonNode.Parse(evidenceText)!;
         foreach (string prefix in new[] { "ehCatalog", "ehCatalogIlc", "ehCatalogMap" })
@@ -127,7 +142,10 @@ internal static class EhCatalogEfiIntegrationTests
                 File.WriteAllBytes(sidecar, changed);
                 Verify("eh_catalog_input_identity");
             }
-            finally { File.WriteAllBytes(sidecar, bytes); }
+            finally
+            {
+                File.WriteAllBytes(sidecar, bytes);
+            }
         }
         foreach (string prefix in new[] { "ehCatalog", "ehCatalogIlc" })
         {
@@ -146,7 +164,12 @@ internal static class EhCatalogEfiIntegrationTests
                 File.WriteAllText(evidencePath, evidence.ToJsonString());
                 Verify(prefix == "ehCatalog" ? "eh_catalog_recomputed_object_mismatch" : "eh_catalog_original_code_join");
             }
-            finally { File.WriteAllBytes(sidecar, bytes); File.WriteAllBytes(linked, bytes); File.WriteAllText(evidencePath, evidenceText); }
+            finally
+            {
+                File.WriteAllBytes(sidecar, bytes);
+                File.WriteAllBytes(linked, bytes);
+                File.WriteAllText(evidencePath, evidenceText);
+            }
         }
         Verify();
         File.WriteAllText(log + ".controls", "16 rehashed linked payload/getter controls, three sidecar mutations, paired/rehashed catalog and original-code controls rejected; originals restored and reverified. This does not prove guest execution.\n");

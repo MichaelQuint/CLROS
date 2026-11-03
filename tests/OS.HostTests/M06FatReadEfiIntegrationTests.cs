@@ -80,7 +80,10 @@ internal static unsafe class M06FatReadEfiIntegrationTests
             File.WriteAllText(path, M06VirtioBlockQueueSetupEfiIntegrationTests.BlockFrame(reordered));
             Reject(Check);
         }
-        finally { File.Delete(path); }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [HostTest("m06.fat.efi binds every sector directory chain mirror and known file to image bytes")]
@@ -128,7 +131,10 @@ internal static unsafe class M06FatReadEfiIntegrationTests
             }
             Check();
         }
-        finally { Directory.Delete(dir, true); }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
     }
 
     internal static (string[] Lines, byte[] Disk) Capture()
@@ -206,7 +212,10 @@ internal static unsafe class M06FatReadEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid FAT profile or evidence must be rejected");
     }
 }

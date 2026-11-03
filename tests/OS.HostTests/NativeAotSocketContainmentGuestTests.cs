@@ -78,7 +78,10 @@ internal static class NativeAotSocketContainmentGuestTests
             {
                 _ = NativeAotSocketGuest.Read(mode, raw);
             }
-            catch (Exception error) when (error is ToolFailure or InvalidDataException) { rejected = true; }
+            catch (Exception error) when (error is ToolFailure or InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -101,7 +104,10 @@ internal static class NativeAotSocketContainmentGuestTests
         {
             _ = NativeAotSocketContainmentGuest.Read(raw);
         }
-        catch (Exception error) when (error is ToolFailure or DecoderFallbackException) { rejected = true; }
+        catch (Exception error) when (error is ToolFailure or DecoderFallbackException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

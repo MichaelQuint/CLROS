@@ -129,6 +129,9 @@ internal static class LinuxSignalEpollSelectionTests
             action();
             throw new InvalidOperationException("accepted " + reason);
         }
-        catch (ToolFailure failure) { HostCheck.True(failure.Message.Contains(reason, StringComparison.Ordinal)); }
+        catch (ToolFailure failure)
+        {
+            HostCheck.True(failure.Message.Contains(reason, StringComparison.Ordinal));
+        }
     }
 }

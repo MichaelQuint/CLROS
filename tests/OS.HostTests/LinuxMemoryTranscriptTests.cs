@@ -213,6 +213,9 @@ internal static class LinuxMemoryTranscriptTests
             action();
             return false;
         }
-        catch (ToolFailure) { return true; }
+        catch (ToolFailure)
+        {
+            return true;
+        }
     }
 }

@@ -188,6 +188,9 @@ public static partial class QemuTranscripts
                 return plan.StackPointer;
             }
         }
-        finally { NativeMemory.AlignedFree(output); }
+        finally
+        {
+            NativeMemory.AlignedFree(output);
+        }
     }
 }

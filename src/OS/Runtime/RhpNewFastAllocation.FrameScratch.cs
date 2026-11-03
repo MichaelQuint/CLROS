@@ -8,7 +8,6 @@ namespace OS.Runtime;
 internal static unsafe partial class RhpNewFastAllocation
 {
 
-
     // Fixed caller-owned scratch avoids placing eight 256-byte cleanup records
     // beneath an already large authenticated selector frame. Phase3 serializes
     // this one-shot diagnostic; no callback may re-enter selection.
@@ -23,14 +22,6 @@ internal static unsafe partial class RhpNewFastAllocation
         internal fixed ulong Words[256];
     }
 #endif
-
-
-
-
-
-
-
-
 
 }
 #endif

@@ -35,7 +35,11 @@ internal static unsafe partial class StringCoreTestProgram
             test();
             Console.WriteLine("TEST_PASS string.core " + name);
         }
-        catch (Exception e) { Console.WriteLine("TEST_FAIL string.core " + name + " " + e); throw; }
+        catch (Exception e)
+        {
+            Console.WriteLine("TEST_FAIL string.core " + name + " " + e);
+            throw;
+        }
     }
     private static void Need(bool value, string message)
     {

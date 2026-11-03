@@ -30,7 +30,10 @@ internal static class NativeAotStaticFileNetworkTests
             _ = QemuTranscripts.InspectNativeAotStaticFileNetworkForTests(rows);
             throw new InvalidOperationException("accepted invalid " + reason);
         }
-        catch (ToolFailure error) { HostCheck.True(error.Message.Contains(reason, StringComparison.Ordinal), error.Message); }
+        catch (ToolFailure error)
+        {
+            HostCheck.True(error.Message.Contains(reason, StringComparison.Ordinal), error.Message);
+        }
     }
     [HostTest("finite static network accepts three passive-close lifetimes with complete original NIC cleanup")]
     private static void Complete()

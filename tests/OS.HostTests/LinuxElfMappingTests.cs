@@ -103,7 +103,10 @@ internal static unsafe class LinuxElfMappingTests
             }
             HostCheck.True(source.AsSpan().SequenceEqual(original));
         }
-        finally { NativeMemory.AlignedFree(backing); }
+        finally
+        {
+            NativeMemory.AlignedFree(backing);
+        }
     }
 
     [HostTest("m16-004 invalid ELF short misaligned aliased backing rejects before writes and explicit rollback clears span", HostLane.Fast, 1)]
@@ -139,6 +142,9 @@ internal static unsafe class LinuxElfMappingTests
                 HostCheck.Equal((byte)0, backing[i]);
             HostCheck.True(!LinuxElfMapping.Clear(null, Span) && !LinuxElfMapping.Clear(backing, 0));
         }
-        finally { NativeMemory.AlignedFree(backing); }
+        finally
+        {
+            NativeMemory.AlignedFree(backing);
+        }
     }
 }

@@ -20,7 +20,13 @@ internal static class Program
             Console.WriteLine("TEST_PASS host.tests");
             return 0;
         }
-        catch (Exception e) { Console.WriteLine("TEST_FAIL " + group + " " + e.Message); Console.WriteLine("TEST_FAIL host.tests failures=1"); Console.Error.WriteLine(e); return 1; }
+        catch (Exception e)
+        {
+            Console.WriteLine("TEST_FAIL " + group + " " + e.Message);
+            Console.WriteLine("TEST_FAIL host.tests failures=1");
+            Console.Error.WriteLine(e);
+            return 1;
+        }
     }
 }
 #else

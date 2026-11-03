@@ -45,7 +45,10 @@ internal static class NativeAotRuntimeIntegrationTests
                 {
                     EfiOptions.Parse(["-" + NativeAotRuntimeSelection.Flag(app), "-" + parent + "=false"], true).Profile();
                 }
-                catch (ToolFailure) { rejected = true; }
+                catch (ToolFailure)
+                {
+                    rejected = true;
+                }
                 HostCheck.True(rejected, "explicit disabled parent " + parent);
             }
         }
@@ -93,7 +96,10 @@ internal static class NativeAotRuntimeIntegrationTests
             QemuTranscripts.ValidateRun(HostToolProcess.FindRepositoryRoot(), options, plan,
             new(0, "", "", false, false, false, TimeSpan.Zero), TextWriter.Null);
         }
-        catch (ToolFailure error) { rejected = error.Reason == "runtime_prepared_program_required"; }
+        catch (ToolFailure error)
+        {
+            rejected = error.Reason == "runtime_prepared_program_required";
+        }
         HostCheck.True(rejected);
         foreach (string owner in new[] { "NativeAotSuspensionStress", "NativeAotThreadPoolStress" })
             Reject(Options(owner, "-LinuxThreadingApplication", app), "runtime_profile_application");
@@ -154,7 +160,10 @@ internal static class NativeAotRuntimeIntegrationTests
             {
                 QemuTranscripts.ValidateRun(root, options, plan, new(0, "", "", false, false, false, TimeSpan.Zero), TextWriter.Null);
             }
-            catch (ToolFailure error) { rejected = error.Reason == "runtime_prepared_program_required"; }
+            catch (ToolFailure error)
+            {
+                rejected = error.Reason == "runtime_prepared_program_required";
+            }
             HostCheck.True(rejected);
         }
         foreach (string name in new[] { "QemuSmoke.cs", "QemuTranscripts.Run.cs", "QemuTranscripts.M03.cs" })
@@ -193,7 +202,12 @@ internal static class NativeAotRuntimeIntegrationTests
                 HostCheck.Equal((long)bytes.Length, p.Length);
             }
         }
-        finally { File.Delete(package); File.Delete(dump); Directory.Delete(directory); }
+        finally
+        {
+            File.Delete(package);
+            File.Delete(dump);
+            Directory.Delete(directory);
+        }
     }
 
     private static void Reject(QemuSmokeOptions options, string reason, bool dryRun = true)

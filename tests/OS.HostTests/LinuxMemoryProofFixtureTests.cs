@@ -46,7 +46,10 @@ internal static unsafe class LinuxMemoryProofFixtureTests
         {
             _ = LinuxMemoryProofFixture.CreateElf("Hello");
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 

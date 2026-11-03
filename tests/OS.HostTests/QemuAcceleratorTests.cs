@@ -15,7 +15,10 @@ internal static class QemuAcceleratorTests
             {
                 _ = QemuSmokeOptions.Parse("-Accelerator=" + value);
             }
-            catch (ArgumentException error) { refused = error.Message == "qemu_accelerator_invalid"; }
+            catch (ArgumentException error)
+            {
+                refused = error.Message == "qemu_accelerator_invalid";
+            }
             HostCheck.True(refused, "invalid accelerator " + value);
         }
         bool duplicate = false;
@@ -23,7 +26,10 @@ internal static class QemuAcceleratorTests
         {
             _ = QemuSmokeOptions.Parse("-Accelerator=whpx", "-Accelerator=tcg");
         }
-        catch (ArgumentException error) { duplicate = error.Message == "qemu_duplicate_option Accelerator"; }
+        catch (ArgumentException error)
+        {
+            duplicate = error.Message == "qemu_duplicate_option Accelerator";
+        }
         HostCheck.True(duplicate);
     }
 
@@ -159,7 +165,11 @@ internal static class QemuAcceleratorTests
             Reject(() => QemuCaptureSession.Create(root, "missing", "raw", "serial", "summary", 15, false, "whpx:tcg"),
                 "capture_accelerator_invalid");
         }
-        finally { if (Directory.Exists(temporary)) Directory.Delete(temporary, recursive: true); }
+        finally
+        {
+            if (Directory.Exists(temporary))
+                Directory.Delete(temporary, recursive: true);
+        }
     }
 
     private static void Reject(Action action, string reason)
@@ -169,8 +179,14 @@ internal static class QemuAcceleratorTests
         {
             action();
         }
-        catch (InvalidOperationException error) { actual = error.Message; }
-        catch (ToolFailure error) { actual = error.Reason; }
+        catch (InvalidOperationException error)
+        {
+            actual = error.Message;
+        }
+        catch (ToolFailure error)
+        {
+            actual = error.Reason;
+        }
         HostCheck.Equal(reason, actual);
     }
 

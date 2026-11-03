@@ -76,7 +76,10 @@ internal static class ReadOnlyDiskProfileTests
         {
             _ = QemuProfiles.Create(QemuSmokeOptions.Parse(arguments));
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 

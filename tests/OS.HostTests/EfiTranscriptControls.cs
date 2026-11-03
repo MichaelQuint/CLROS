@@ -25,7 +25,10 @@ internal sealed class EfiTranscriptControls
         {
             validate(path);
         }
-        catch (OS.Tooling.ToolFailure) when (!accept) { accepted = false; }
+        catch (OS.Tooling.ToolFailure) when (!accept)
+        {
+            accepted = false;
+        }
         if (accepted != accept)
             throw new InvalidOperationException("transcript control " + reason + " expected=" + accept);
         count++;
@@ -56,7 +59,10 @@ internal sealed class EfiTranscriptControls
             {
                 OS.Tooling.QemuTranscripts.AssertM04ManagedHeapRunnerResult(Records(exit));
             }
-            catch (OS.Tooling.ToolFailure) { accepted = false; }
+            catch (OS.Tooling.ToolFailure)
+            {
+                accepted = false;
+            }
             HostCheck.True(!accepted, "invalid runner exit: " + exit);
         }
     }

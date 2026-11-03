@@ -126,7 +126,11 @@ internal static class NativeAotServiceQuotaStreamPairTests
         {
             action();
         }
-        catch (ToolFailure error) { HostCheck.Equal(reason, error.Reason); return; }
+        catch (ToolFailure error)
+        {
+            HostCheck.Equal(reason, error.Reason);
+            return;
+        }
         throw new InvalidOperationException("expected rejection " + reason);
     }
 }

@@ -98,6 +98,9 @@ internal static unsafe class LiveDeviceExistingIReadOnlyBlockDeviceContractTests
                 f.Check();
             }
         }
-        finally { NativeMemory.AlignedFree(memory); }
+        finally
+        {
+            NativeMemory.AlignedFree(memory);
+        }
     }
 }

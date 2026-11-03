@@ -71,7 +71,10 @@ internal static class NativeAotStaticFileEvidenceTests
             Reject(() => NativeAotStaticFileContract.ValidateNativeInputs(inventory));
             Reject(() => NativeAotStaticFileContract.ValidateNativeInputs(new Dictionary<string, string>()));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     [HostTest("static reference shutdown requires signal exit marker and endpoint refusal")]
@@ -109,7 +112,10 @@ internal static class NativeAotStaticFileEvidenceTests
                 {
                     BlazorStaticFileAssets.Prepare(root, source, overlap);
                 }
-                catch (InvalidDataException error) { overlapRejected = error.Message == "blazor_source_destination_overlap"; }
+                catch (InvalidDataException error)
+                {
+                    overlapRejected = error.Message == "blazor_source_destination_overlap";
+                }
                 HostCheck.True(overlapRejected);
                 HostCheck.True(Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal).SequenceEqual(originalTree));
             }
@@ -125,7 +131,10 @@ internal static class NativeAotStaticFileEvidenceTests
             HostCheck.True(!Directory.Exists(Path.Combine(root, "outside")));
             HostCheck.True(File.ReadAllBytes(Path.Combine(source, "_framework", "runtime.wasm")).AsSpan().SequenceEqual(wasm));
         }
-        finally { Directory.Delete(root, true); }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
     }
 
     private static void WithEvidence(Action<string, WebRootImageFixture.Snapshot, Observation[]> action)
@@ -178,7 +187,10 @@ internal static class NativeAotStaticFileEvidenceTests
             };
             action(directory, assets, rows.ToArray());
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static void Reject(Action action)
@@ -188,10 +200,22 @@ internal static class NativeAotStaticFileEvidenceTests
         {
             action();
         }
-        catch (InvalidDataException) { rejected = true; }
-        catch (InvalidOperationException) { rejected = true; }
-        catch (FileNotFoundException) { rejected = true; }
-        catch (ToolFailure) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
+        catch (InvalidOperationException)
+        {
+            rejected = true;
+        }
+        catch (FileNotFoundException)
+        {
+            rejected = true;
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

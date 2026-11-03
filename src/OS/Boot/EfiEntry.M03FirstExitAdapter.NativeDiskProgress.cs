@@ -20,16 +20,10 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
         private enum NativeDiskProgress : byte
         {
             Rejected, Pending, Ready
         }
-
-
-
-
-
 
     }
 }

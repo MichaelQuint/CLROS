@@ -90,7 +90,10 @@ internal static class NativeAotServiceQuotaComponentTests
         {
             ((IList<QemuTranscripts.ServiceQuotaStackLease>)result.StackLeases)[0] = default;
         }
-        catch (NotSupportedException) { immutable = true; }
+        catch (NotSupportedException)
+        {
+            immutable = true;
+        }
         HostCheck.True(immutable);
     }
 
@@ -161,7 +164,10 @@ internal static class NativeAotServiceQuotaComponentTests
             {
                 QemuTranscripts.InspectNativeAotServiceQuotaSocketIoForTests(bad, census.FreshLifetimes);
             }
-            catch (ToolFailure) { refused = true; }
+            catch (ToolFailure)
+            {
+                refused = true;
+            }
             HostCheck.True(refused);
         }
     }
@@ -181,7 +187,10 @@ internal static class NativeAotServiceQuotaComponentTests
         {
             QemuTranscripts.InspectNativeAotServiceQuotaComponentsForTests(rows);
         }
-        catch (ToolFailure) { refused = true; }
+        catch (ToolFailure)
+        {
+            refused = true;
+        }
         HostCheck.True(refused);
     }
 }

@@ -58,7 +58,10 @@ internal static class NativeAotSocketVectorsPublisherTests
             File.Delete(policy);
             NativeAotSocketVectorsPublisher.RequireCurrentSources(temporary);
         }
-        finally { Directory.Delete(temporary, recursive: true); }
+        finally
+        {
+            Directory.Delete(temporary, recursive: true);
+        }
     }
 
     [HostTest("socket vectors publication rejects arguments and unsupported hosts without creating output")]
@@ -85,7 +88,10 @@ internal static class NativeAotSocketVectorsPublisherTests
         {
             action();
         }
-        catch (ToolFailure) { failed = true; }
+        catch (ToolFailure)
+        {
+            failed = true;
+        }
         HostCheck.True(failed);
     }
 }

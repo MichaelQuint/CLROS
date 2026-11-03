@@ -16,8 +16,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
-
         // Borrowed observations only. A release is reported after the original
         // handle becomes stale and its network slot disappears or is reused.
         private struct LinuxSocketLifetime
@@ -31,41 +29,6 @@ public static unsafe partial class EfiEntry
             internal ulong AppSent, AppReceived;
 #endif
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 }

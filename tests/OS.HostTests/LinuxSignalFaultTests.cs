@@ -226,6 +226,10 @@ internal static unsafe class LinuxSignalFaultTests
                 HostCheck.True(new ReadOnlySpan<byte>(image, 4096).IndexOfAnyExcept((byte)0xa5) < 0);
             }
         }
-        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(image); }
+        finally
+        {
+            NativeMemory.AlignedFree(data);
+            NativeMemory.AlignedFree(image);
+        }
     }
 }

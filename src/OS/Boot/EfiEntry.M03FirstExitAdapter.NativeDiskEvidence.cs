@@ -21,7 +21,6 @@ public static unsafe partial class EfiEntry
             internal bool Enabled, Failed;
         }
 
-
     }
 }
 #pragma warning restore 649

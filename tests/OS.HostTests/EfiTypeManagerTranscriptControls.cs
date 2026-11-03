@@ -96,7 +96,10 @@ internal static class EfiTypeManagerTranscriptControls
             {
                 QemuTranscripts.AssertStandardRunnerResult(root, options, plan, records);
             }
-            catch (ToolFailure) when (!expected) { accepted = false; }
+            catch (ToolFailure) when (!expected)
+            {
+                accepted = false;
+            }
             HostCheck.Equal(expected, accepted, "type manager runner control " + count++);
         }
         Save(text);

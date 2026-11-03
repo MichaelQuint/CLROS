@@ -110,7 +110,10 @@ internal static unsafe class LinuxSyscallProofFixtureTests
                 {
                     _ = QemuTranscripts.ValidateLinuxSyscallNegativeTail([.. parents, .. bad], changedPackage, variant);
                 }
-                catch (ToolFailure) { rejected = true; }
+                catch (ToolFailure)
+                {
+                    rejected = true;
+                }
                 HostCheck.True(rejected, variant + " negative mutation " + mutation);
             }
         }

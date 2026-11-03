@@ -124,7 +124,10 @@ internal static class M04UnhandledExceptionEfiIntegrationTests
             {
                 EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact", artifact, .. UnhandledExceptionTranscriptTests.Arguments], false));
             }
-            catch (ToolFailure e) { failure = e.Reason; }
+            catch (ToolFailure e)
+            {
+                failure = e.Reason;
+            }
             HostCheck.True(failure == expected, "native expected=" + expected + " actual=" + failure);
         }
         Verify();
@@ -148,7 +151,11 @@ internal static class M04UnhandledExceptionEfiIntegrationTests
                 File.WriteAllText(evidencePath, evidence.ToJsonString());
                 Verify(reason);
             }
-            finally { File.WriteAllBytes(artifact, original); File.WriteAllText(evidencePath, originalEvidence); }
+            finally
+            {
+                File.WriteAllBytes(artifact, original);
+                File.WriteAllText(evidencePath, originalEvidence);
+            }
         }
         string sidecar = artifact + ".catch.obj";
         byte[] objectBytes = File.ReadAllBytes(sidecar);
@@ -159,7 +166,10 @@ internal static class M04UnhandledExceptionEfiIntegrationTests
             File.WriteAllBytes(sidecar, changed);
             Verify("unhandled_object_identity_mismatch");
         }
-        finally { File.WriteAllBytes(sidecar, objectBytes); }
+        finally
+        {
+            File.WriteAllBytes(sidecar, objectBytes);
+        }
         Verify();
         File.WriteAllText(log + ".controls", "fresh publication; eleven rehashed PE mutations and one object mutation rejected; originals restored and reverified\n");
     }

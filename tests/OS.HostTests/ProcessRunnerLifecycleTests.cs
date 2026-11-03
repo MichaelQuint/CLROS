@@ -118,7 +118,10 @@ internal static class ProcessRunnerLifecycleTests
                 OutputReceived = (_, _) => throw new InvalidOperationException("controlled_stream_callback_failure")
             }).GetAwaiter().GetResult();
         }
-        catch (InvalidOperationException error) when (error.Message == "controlled_stream_callback_failure") { rejected = true; }
+        catch (InvalidOperationException error) when (error.Message == "controlled_stream_callback_failure")
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "callback failure cannot become success");
         Reaped(sentinel);
     }
@@ -239,7 +242,11 @@ internal static class ProcessRunnerLifecycleTests
                 Interlocked.Increment(ref extractions);
                 return result;
             }
-            finally { lease.Dispose(); Interlocked.Exchange(ref released, 1); }
+            finally
+            {
+                lease.Dispose();
+                Interlocked.Exchange(ref released, 1);
+            }
         }
 
         Task<ProcessResult> owner = OwnedCall();
@@ -295,7 +302,10 @@ internal static class ProcessRunnerLifecycleTests
             {
                 using var write = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             }
-            catch (IOException) { denied = true; }
+            catch (IOException)
+            {
+                denied = true;
+            }
             HostCheck.True(denied, "original image lease remains held");
         }
     }

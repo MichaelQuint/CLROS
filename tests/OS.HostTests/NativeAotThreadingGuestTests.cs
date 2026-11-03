@@ -59,10 +59,17 @@ internal static class NativeAotThreadingGuestTests
             {
                 NativeAotThreadingGuest.ValidateSuspensionFile(path);
             }
-            catch (System.Text.DecoderFallbackException) { rejected = true; }
+            catch (System.Text.DecoderFallbackException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
-        finally { File.Delete(path); Directory.Delete(directory); }
+        finally
+        {
+            File.Delete(path);
+            Directory.Delete(directory);
+        }
     }
 
     private static void Reject(string text)
@@ -73,7 +80,10 @@ internal static class NativeAotThreadingGuestTests
         {
             NativeAotThreadingGuest.ValidateSuspensionOutput(text);
         }
-        catch (ToolFailure error) { rejected = error.Message.StartsWith("nativeaot_suspension_", StringComparison.Ordinal); }
+        catch (ToolFailure error)
+        {
+            rejected = error.Message.StartsWith("nativeaot_suspension_", StringComparison.Ordinal);
+        }
         HostCheck.True(rejected, text);
     }
 }

@@ -170,7 +170,10 @@ internal static class PackageImageFixtureTests
         {
             PackageImageFixture.Apply(path, efi, variant);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && FileHash(path) == before);
     }
     private static void WithFreshImage(Action<string, string, FatImageFixtureReceipt> action)
@@ -198,7 +201,10 @@ internal static class PackageImageFixtureTests
             HostCheck.True(process.ExitCode == 0 && text.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal), text);
             action(path, efi, FatImageFixture.Apply(path, efi));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static string FileHash(string path)

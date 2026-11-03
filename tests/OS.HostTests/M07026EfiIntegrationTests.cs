@@ -61,7 +61,10 @@ internal static unsafe class M07026EfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { return; }
+        catch (ToolFailure)
+        {
+            return;
+        }
         throw new InvalidOperationException("m07_026_invalid_profile_accepted");
     }
 

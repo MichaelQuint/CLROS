@@ -180,7 +180,10 @@ public sealed class ContinuingNetworkPeer : IDisposable
         {
             return Completion.Wait(TimeSpan.FromSeconds(2));
         }
-        catch (AggregateException) { return Completion.IsCompleted; }
+        catch (AggregateException)
+        {
+            return Completion.IsCompleted;
+        }
     }
 
     /// <summary>Releases all host resources; idempotent. The runner calls Stop and checks its result first.</summary>

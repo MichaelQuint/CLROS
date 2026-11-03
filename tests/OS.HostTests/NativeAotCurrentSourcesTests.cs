@@ -135,7 +135,10 @@ internal static class NativeAotCurrentSourcesTests
                             {
                                 held.VerifyUnchanged();
                             }
-                            catch (ToolFailure error) when (error.Reason == "authority_input_changed") { detected = true; }
+                            catch (ToolFailure error) when (error.Reason == "authority_input_changed")
+                            {
+                                detected = true;
+                            }
                             HostCheck.True(detected, scenario.Name + " held " + relative);
                             File.WriteAllBytes(path, bytes);
                         }

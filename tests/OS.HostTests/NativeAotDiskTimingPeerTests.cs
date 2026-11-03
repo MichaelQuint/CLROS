@@ -24,7 +24,10 @@ internal static partial class NativeAotDiskTimingPeerTests
             {
                 NativeAotDiskTimingPeer.InspectStatusJson(Encoding.UTF8.GetBytes(body), "application/json");
             }
-            catch (ToolFailure failure) { refused = failure.Reason == "disk_timing_json_response"; }
+            catch (ToolFailure failure)
+            {
+                refused = failure.Reason == "disk_timing_json_response";
+            }
             HostCheck.True(refused, body);
         }
         foreach (string? mediaType in new string?[] { null, "text/plain", "application/octet-stream" })
@@ -34,7 +37,10 @@ internal static partial class NativeAotDiskTimingPeerTests
             {
                 NativeAotDiskTimingPeer.InspectStatusJson(Encoding.UTF8.GetBytes(StatusJson), mediaType);
             }
-            catch (ToolFailure failure) { refused = failure.Reason == "disk_timing_json_response"; }
+            catch (ToolFailure failure)
+            {
+                refused = failure.Reason == "disk_timing_json_response";
+            }
             HostCheck.True(refused);
         }
     }
@@ -271,7 +277,10 @@ internal static partial class NativeAotDiskTimingPeerTests
             {
                 _ = NativeAotDiskTimingPeer.InspectDriverMetrics(bad, dispatch);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, bad);
         }
         bool missingParent = false;
@@ -279,7 +288,10 @@ internal static partial class NativeAotDiskTimingPeerTests
         {
             _ = NativeAotDiskTimingPeer.InspectDriverMetrics(Driver, new Dictionary<string, ulong>());
         }
-        catch (ToolFailure) { missingParent = true; }
+        catch (ToolFailure)
+        {
+            missingParent = true;
+        }
         HostCheck.True(missingParent);
     }
 
@@ -317,7 +329,10 @@ internal static partial class NativeAotDiskTimingPeerTests
             {
                 _ = NativeAotDiskTimingPeer.InspectDispatchMetrics(bad, polls);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, bad);
         }
     }
@@ -335,7 +350,10 @@ internal static partial class NativeAotDiskTimingPeerTests
             {
                 _ = NativeAotDiskTimingPeer.PeerTimeoutSeconds(timeout);
             }
-            catch (ToolFailure) { denied = true; }
+            catch (ToolFailure)
+            {
+                denied = true;
+            }
             HostCheck.True(denied);
         }
         HostCheck.Equal(32UL, NativeAotDiskTimingPeer.InspectMetrics("unrelated\n" + Metrics)["steps"]);
@@ -353,7 +371,10 @@ internal static partial class NativeAotDiskTimingPeerTests
             {
                 _ = NativeAotDiskTimingPeer.InspectMetrics(bad);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, bad);
         }
     }
@@ -384,7 +405,10 @@ internal static partial class NativeAotDiskTimingPeerTests
             {
                 _ = NativeAotDiskTimingPeer.InspectMetrics(original);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, "original v2/v3/v4 producers remain distinct from the v5 cause partition");
         }
     }
@@ -426,7 +450,10 @@ internal static partial class NativeAotDiskTimingPeerTests
             {
                 _ = NativeAotDiskTimingPeer.InspectMetrics(bad);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, bad);
         }
     }
@@ -452,7 +479,10 @@ internal static partial class NativeAotDiskTimingPeerTests
             {
                 _ = NativeAotDiskTimingPeer.InspectMetrics(bad);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -504,12 +534,22 @@ internal static partial class NativeAotDiskTimingPeerTests
                 bool denied = false;
                 try
                 {
-                    _ = await NativeAotDiskTimingPeer.RunAsync(root, serial, (_, _) => { starts++; throw new InvalidOperationException(); }, inventory, 600, deadline.Token);
+                    _ = await NativeAotDiskTimingPeer.RunAsync(root, serial, (_, _) =>
+{
+    starts++;
+    throw new InvalidOperationException();
+}, inventory, 600, deadline.Token);
                 }
-                catch (ToolFailure error) { denied = error.Reason == "disk_timing_fresh_artifacts"; }
+                catch (ToolFailure error)
+                {
+                    denied = error.Reason == "disk_timing_fresh_artifacts";
+                }
                 HostCheck.True(denied && starts == 0);
             }
-            catch (ToolFailure error) { failure = error; }
+            catch (ToolFailure error)
+            {
+                failure = error;
+            }
             catch (OperationCanceledException) when (mode == "body-timeout" && !deadline.IsCancellationRequested)
             {
                 bodyTimedOut = true;
@@ -664,7 +704,11 @@ internal static partial class NativeAotDiskTimingPeerTests
                         TerminationConfirmed = mode != "unconfirmed"
                     };
                 }
-                finally { exited = true; listener.Stop(); }
+                finally
+                {
+                    exited = true;
+                    listener.Stop();
+                }
             }
         }
     });

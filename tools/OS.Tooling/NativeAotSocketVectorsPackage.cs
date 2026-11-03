@@ -133,7 +133,11 @@ public static class NativeAotSocketVectorsPackage
             Output();
             File.Move(temporary, destination, overwrite: false);
         }
-        finally { if (owns) File.Delete(temporary); }
+        finally
+        {
+            if (owns)
+                File.Delete(temporary);
+        }
         return Hash(bytes);
     }
 

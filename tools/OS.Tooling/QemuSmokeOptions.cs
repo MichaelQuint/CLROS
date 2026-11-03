@@ -55,7 +55,10 @@ public sealed class QemuSmokeOptions
     /// <summary>Explicit healthy Full018 HTTP/browser diagnostic. Null retains
     /// ordinary qualification;0 through10 selects the number of warm sequences
     /// after one first sequence without extending guest resources or deadlines.</summary>
-    public int? HttpBenchmarkWarmSequences { get; set; }
+    public int? HttpBenchmarkWarmSequences
+    {
+        get; set;
+    }
     public int StartupTimeoutSeconds { get; set; } = 30;
     public bool DryRun
     {

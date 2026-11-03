@@ -65,7 +65,10 @@ internal static class Program
                     Insert(connection, locked, 3);
                     using var competitor = new SqliteConnection(connectionString);
                     competitor.Open();
-                    int busy = Error(() => { using var rejected = competitor.BeginTransaction(deferred: false); }, 5);
+                    int busy = Error(() =>
+{
+    using var rejected = competitor.BeginTransaction(deferred: false);
+}, 5);
                     locked.Rollback();
                     Require(Scalar(connection, "SELECT count(*) FROM sample") == "1", "lock_count");
                     Console.WriteLine("SQLITE_LOCK busy=" + busy + " rows=1");
@@ -138,7 +141,11 @@ internal static class Program
             Console.WriteLine("TEST_PASS m10.020.verify");
             return 0;
         }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL m10.020.verify " + error.GetType().Name + " " + error.Message.ReplaceLineEndings(" ")); return 1; }
+        catch (Exception error)
+        {
+            Console.WriteLine("TEST_FAIL m10.020.verify " + error.GetType().Name + " " + error.Message.ReplaceLineEndings(" "));
+            return 1;
+        }
     }
 
     // Separate process-kill contract candidate. The ordinary mode above keeps
@@ -230,7 +237,11 @@ internal static class Program
             Console.WriteLine("TEST_PASS " + marker);
             return 0;
         }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL " + marker + " " + error.GetType().Name + " " + error.Message.ReplaceLineEndings(" ")); return 1; }
+        catch (Exception error)
+        {
+            Console.WriteLine("TEST_FAIL " + marker + " " + error.GetType().Name + " " + error.Message.ReplaceLineEndings(" "));
+            return 1;
+        }
     }
 
     private static byte[] RecoveryPayload(int id, bool changed) => Enumerable.Range(0, 4096).Select(i => (byte)((id * 13 + i * 17 + (i >> 8)) ^ (changed ? 0x5a : 0))).ToArray();
@@ -272,7 +283,11 @@ internal static class Program
         {
             action();
         }
-        catch (SqliteException error) { Require(error.SqliteErrorCode == expected, "error_code"); return error.SqliteErrorCode; }
+        catch (SqliteException error)
+        {
+            Require(error.SqliteErrorCode == expected, "error_code");
+            return error.SqliteErrorCode;
+        }
         throw new InvalidOperationException("expected_sqlite_failure");
     }
     private static void Require(bool condition, string reason)

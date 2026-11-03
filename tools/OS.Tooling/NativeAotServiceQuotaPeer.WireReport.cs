@@ -143,7 +143,10 @@ public static partial class NativeAotServiceQuotaPeer
             RequireWire(result, signalRace);
             return result;
         }
-        catch (JsonException error) { throw new InvalidDataException("quota_wire_json", error); }
+        catch (JsonException error)
+        {
+            throw new InvalidDataException("quota_wire_json", error);
+        }
     }
 
     private static int WireInt(JsonElement value, string name, int minimum, int maximum)
@@ -190,7 +193,10 @@ public static partial class NativeAotServiceQuotaPeer
         {
             result = Convert.FromBase64String(text);
         }
-        catch (FormatException error) { throw new InvalidDataException("quota_wire_base64", error); }
+        catch (FormatException error)
+        {
+            throw new InvalidDataException("quota_wire_base64", error);
+        }
         WireNeed(result.Length <= maximum && Convert.ToBase64String(result) == text, "data_canonical");
         return result;
     }

@@ -36,7 +36,10 @@ public static partial class DoneSteps
                 writer.Write($"# Step {next} - Reserved\n\n## Summary\n\n## Why\n\n## Files changed\n\n## Tests run\n\n## Evidence\n\n## Failures\n\n## Deferred work\n\n## Evidence boundary\n");
                 return "done/" + name;
             }
-            catch (IOException) when (File.Exists(path)) { next = checked(next + 1); }
+            catch (IOException) when (File.Exists(path))
+            {
+                next = checked(next + 1);
+            }
         }
     }
 }

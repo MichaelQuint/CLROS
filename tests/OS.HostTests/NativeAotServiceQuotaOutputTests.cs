@@ -135,7 +135,12 @@ internal static class NativeAotServiceQuotaOutputTests
         {
             _ = QemuTranscripts.InspectNativeAotServiceQuotaOutputForTests(stdout, stderr);
         }
-        catch (ToolFailure error) { if (reason is not null) HostCheck.Equal(reason, error.Reason); rejected = true; }
+        catch (ToolFailure error)
+        {
+            if (reason is not null)
+                HostCheck.Equal(reason, error.Reason);
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

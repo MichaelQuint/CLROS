@@ -35,7 +35,10 @@ internal static class WritableStorageTimingReportTests
         {
             _ = WritableStorageTimingReport.Read(row);
         }
-        catch (ToolFailure error) { failure = error.Message; }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure is not null && (reason is null || failure.Contains(reason, StringComparison.Ordinal)),
             "expected=" + reason + " actual=" + failure);
     }
@@ -226,7 +229,10 @@ internal static class WritableStorageTimingReportTests
         {
             ((IDictionary<string, ulong>)report.Values)["valid"] = 0;
         }
-        catch (NotSupportedException) { rejected = true; }
+        catch (NotSupportedException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && report.Valid);
         HostCheck.True(!report.GrantsTimingAuthority && !report.GrantsExecutionOrProcessAuthority &&
             !report.GrantsMappingOrDeviceAuthority && !report.GrantsSourceSchedulerGuestOrPersistenceAuthority);

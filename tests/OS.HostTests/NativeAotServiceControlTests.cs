@@ -65,7 +65,10 @@ internal static class NativeAotServiceControlTests
             {
                 _ = Inspect(changed, JsonSerializer.Serialize(copied), JsonSerializer.Serialize(frames));
             }
-            catch (ToolFailure error) { reason = error.Reason; }
+            catch (ToolFailure error)
+            {
+                reason = error.Reason;
+            }
             HostCheck.Equal("service_control_isolation", reason ?? "accepted");
         }
     }
@@ -152,7 +155,10 @@ internal static class NativeAotServiceControlTests
         {
             action();
         }
-        catch (Exception error) when (error is ToolFailure or InvalidDataException) { refused = true; }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
+        {
+            refused = true;
+        }
         HostCheck.True(refused);
     }
 }

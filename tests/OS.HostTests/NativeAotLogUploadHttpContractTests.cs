@@ -98,7 +98,10 @@ internal static class NativeAotLogUploadHttpContractTests
         {
             await F.RunManagedReferenceAsync(root, output, new CancellationToken(canceled: true));
         }
-        catch (OperationCanceledException) { cancelled = true; }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
         using var receipt = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(output, "receipt.json")));
         using var commands = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(output, "commands.json")));
         HostCheck.True(cancelled && !receipt.RootElement.GetProperty("Complete").GetBoolean() &&
@@ -241,7 +244,10 @@ internal static class NativeAotLogUploadHttpContractTests
         {
             ((IList<string>)plan.Arguments)[0] = "changed";
         }
-        catch (NotSupportedException) { readOnly = true; }
+        catch (NotSupportedException)
+        {
+            readOnly = true;
+        }
         HostCheck.True(readOnly);
         var first = plan.PrepareStartInfo("/root/work");
         first.ArgumentList.Clear();
@@ -313,7 +319,10 @@ internal static class NativeAotLogUploadHttpContractTests
         {
             ((IList<F.LinuxToolValue>)facts).Clear();
         }
-        catch (NotSupportedException) { readOnly = true; }
+        catch (NotSupportedException)
+        {
+            readOnly = true;
+        }
         HostCheck.True(readOnly);
     }
 
@@ -437,7 +446,10 @@ internal static class NativeAotLogUploadHttpContractTests
                 {
                     File.WriteAllBytes(path, [.. original, 4]);
                 }
-                catch (IOException) { denied = true; }
+                catch (IOException)
+                {
+                    denied = true;
+                }
                 if (denied)
                 {
                     HostCheck.True(OperatingSystem.IsWindows());
@@ -450,7 +462,10 @@ internal static class NativeAotLogUploadHttpContractTests
                     {
                         outer.VerifyUnchanged();
                     }
-                    catch (ToolFailure error) when (error.Reason == "authority_input_changed") { rejected = true; }
+                    catch (ToolFailure error) when (error.Reason == "authority_input_changed")
+                    {
+                        rejected = true;
+                    }
                     HostCheck.True(rejected);
                 }
             }
@@ -465,7 +480,10 @@ internal static class NativeAotLogUploadHttpContractTests
                 {
                     File.Move(path, old);
                 }
-                catch (IOException) { denied = true; }
+                catch (IOException)
+                {
+                    denied = true;
+                }
                 if (denied)
                 {
                     HostCheck.True(OperatingSystem.IsWindows());
@@ -479,7 +497,10 @@ internal static class NativeAotLogUploadHttpContractTests
                     {
                         held.VerifyUnchanged();
                     }
-                    catch (ToolFailure error) when (error.Reason == "authority_input_changed") { rejected = true; }
+                    catch (ToolFailure error) when (error.Reason == "authority_input_changed")
+                    {
+                        rejected = true;
+                    }
                     HostCheck.True(rejected);
                 }
             }
@@ -519,7 +540,10 @@ internal static class NativeAotLogUploadHttpContractTests
                 {
                     File.Move(path, old);
                 }
-                catch (IOException) { denied = true; }
+                catch (IOException)
+                {
+                    denied = true;
+                }
                 if (denied)
                 {
                     HostCheck.True(OperatingSystem.IsWindows());
@@ -534,12 +558,18 @@ internal static class NativeAotLogUploadHttpContractTests
                     {
                         held.VerifyUnchanged();
                     }
-                    catch (ToolFailure error) when (error.Reason == "authority_input_changed") { rejected = true; }
+                    catch (ToolFailure error) when (error.Reason == "authority_input_changed")
+                    {
+                        rejected = true;
+                    }
                     HostCheck.True(rejected);
                 }
             }
         }
-        finally { Directory.Delete(folder, true); }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
     }
 
     [HostTest("HTTP Linux copied publication values reject foreign failed duplicate redirected and mismatched identities without granting authority")]
@@ -634,7 +664,10 @@ internal static class NativeAotLogUploadHttpContractTests
         {
             using var reference = await F.RunLinuxReferenceAsync(root, root, output, TextWriter.Null);
         }
-        catch (ToolFailure error) when (error.Reason == "log_upload_http_linux_builder_required") { rejected = true; }
+        catch (ToolFailure error) when (error.Reason == "log_upload_http_linux_builder_required")
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && !Path.Exists(output));
     }
 
@@ -690,7 +723,10 @@ internal static class NativeAotLogUploadHttpContractTests
         {
             action();
         }
-        catch (ToolFailure error) when (error.Reason == "log_upload_http_" + reason) { rejected = true; }
+        catch (ToolFailure error) when (error.Reason == "log_upload_http_" + reason)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
     private static void RejectAny(Action action)
@@ -700,7 +736,10 @@ internal static class NativeAotLogUploadHttpContractTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

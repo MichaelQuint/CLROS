@@ -19,7 +19,10 @@ internal static class NativeAotStaticFileRunnerTests
             action();
             throw new InvalidOperationException("accepted invalid " + reason);
         }
-        catch (ToolFailure error) { HostCheck.True(error.Message.Contains(reason, StringComparison.Ordinal), error.Message); }
+        catch (ToolFailure error)
+        {
+            HostCheck.True(error.Message.Contains(reason, StringComparison.Ordinal), error.Message);
+        }
     }
     [HostTest("static child receipt requires original invocation lifetime and explicit owned termination")]
     private static void Child()

@@ -84,7 +84,10 @@ internal static class NativeAotSocketVectorsProfileTests
         {
             action();
         }
-        catch (ToolFailure) { return; }
+        catch (ToolFailure)
+        {
+            return;
+        }
         throw new InvalidOperationException("vector_profile_invalid_accepted");
     }
 }

@@ -44,7 +44,10 @@ internal static unsafe class LinuxSocketEfiProfileTests
             {
                 _ = QemuProfiles.Create(QemuSmokeOptions.Parse(["--BuildEfi", "--" + leaf]));
             }
-            catch (ToolFailure failure) { reason = failure.Reason; }
+            catch (ToolFailure failure)
+            {
+                reason = failure.Reason;
+            }
             HostCheck.Equal("socket_disassembly_required", reason);
         }
     }
@@ -108,7 +111,10 @@ internal static unsafe class LinuxSocketEfiProfileTests
         {
             action();
         }
-        catch (ToolFailure) { return; }
+        catch (ToolFailure)
+        {
+            return;
+        }
         throw new InvalidOperationException("socket_efi_invalid_profile_accepted");
     }
 }

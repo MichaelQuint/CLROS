@@ -35,7 +35,10 @@ internal static class NativeAotWebSignalReplayTests
         {
             action();
         }
-        catch (ToolFailure) { failed = true; }
+        catch (ToolFailure)
+        {
+            failed = true;
+        }
         HostCheck.True(failed);
     }
 
@@ -116,10 +119,26 @@ internal static class NativeAotWebSignalReplayTests
     private static void ScopeAndRequests()
     {
         Reject(() => NativeAotWebReplayTests.InspectProbe(v => v.Call(234, 0, [1, 1, 12])));
-        Reject(() => NativeAotWebReplayTests.InspectProbe(v => { Register(v); v.Call(234, 0, [1, 1, 10]); }));
-        Reject(() => NativeAotWebReplayTests.InspectProbe(v => { Register(v); v.Call(234, 0, [1, 99, 12]); }));
-        Reject(() => NativeAotWebReplayTests.InspectProbe(v => { Register(v); v.Call(234, 0, [2, 1, 12]); }));
-        var ordinary = NativeAotSocketProtocolTests.Vector(policyPrefix: v => { Register(v); v.Call(234, 0, [1, 1, 12]); });
+        Reject(() => NativeAotWebReplayTests.InspectProbe(v =>
+{
+    Register(v);
+    v.Call(234, 0, [1, 1, 10]);
+}));
+        Reject(() => NativeAotWebReplayTests.InspectProbe(v =>
+{
+    Register(v);
+    v.Call(234, 0, [1, 99, 12]);
+}));
+        Reject(() => NativeAotWebReplayTests.InspectProbe(v =>
+{
+    Register(v);
+    v.Call(234, 0, [2, 1, 12]);
+}));
+        var ordinary = NativeAotSocketProtocolTests.Vector(policyPrefix: v =>
+{
+    Register(v);
+    v.Call(234, 0, [1, 1, 12]);
+});
         Reject(() => QemuTranscripts.InspectNativeAotSocketProtocolForTests(false, NativeAotThreadingTranscriptTests.Elf(),
             Encoding.UTF8.GetBytes(string.Join("\r\n", ordinary.Rows) + "\r\n"),
             address => address == 0x400200 || address == 0x400202, address => address == 0x400202, 8192, 12288));
@@ -128,9 +147,23 @@ internal static class NativeAotWebSignalReplayTests
     [HostTest("web signal12 frame entry rejects missing pending wrong geometry masked delivery and orphan returns")]
     private static void FrameRefusals()
     {
-        Reject(() => NativeAotWebReplayTests.InspectProbe(v => { Register(v); Enter(v, Usr2); }));
-        Reject(() => NativeAotWebReplayTests.InspectProbe(v => { Register(v); v.Call(234, 0, [1, 1, 12]); Enter(v, Usr2, Frame - 16); }));
-        Reject(() => NativeAotWebReplayTests.InspectProbe(v => { Register(v); v.Call(234, 0, [1, 1, 12]); Enter(v, 0); }));
+        Reject(() => NativeAotWebReplayTests.InspectProbe(v =>
+{
+    Register(v);
+    Enter(v, Usr2);
+}));
+        Reject(() => NativeAotWebReplayTests.InspectProbe(v =>
+{
+    Register(v);
+    v.Call(234, 0, [1, 1, 12]);
+    Enter(v, Usr2, Frame - 16);
+}));
+        Reject(() => NativeAotWebReplayTests.InspectProbe(v =>
+{
+    Register(v);
+    v.Call(234, 0, [1, 1, 12]);
+    Enter(v, 0);
+}));
         Reject(() => NativeAotWebReplayTests.InspectProbe(v =>
         {
             Register(v);

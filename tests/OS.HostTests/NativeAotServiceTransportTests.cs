@@ -48,7 +48,10 @@ internal static class NativeAotServiceTransportTests
         {
             QemuTranscripts.InspectNativeAotServiceTransportForTests(rows);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 

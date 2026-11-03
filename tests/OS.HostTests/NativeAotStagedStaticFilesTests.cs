@@ -78,7 +78,10 @@ internal static class NativeAotStagedStaticFilesTests
         {
             NativeAotStaticFilePackage.Create(new byte[64], true);
         }
-        catch (InvalidDataException) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 

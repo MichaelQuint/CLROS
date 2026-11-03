@@ -77,7 +77,10 @@ internal static unsafe class M05PciEfiIntegrationTests
             File.WriteAllText(path, M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(whole));
             Reject(() => QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true, pciEnumeration: true));
         }
-        finally { File.Delete(path); }
+        finally
+        {
+            File.Delete(path);
+        }
     }
     private static void Reject(Action action)
     {
@@ -86,7 +89,10 @@ internal static unsafe class M05PciEfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid profile or evidence must be rejected");
     }
 }

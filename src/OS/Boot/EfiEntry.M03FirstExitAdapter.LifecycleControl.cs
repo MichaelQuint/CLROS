@@ -46,11 +46,6 @@ public static unsafe partial class EfiEntry
 #endif
         }
 
-
-
-
-
-
     }
 }
 #endif

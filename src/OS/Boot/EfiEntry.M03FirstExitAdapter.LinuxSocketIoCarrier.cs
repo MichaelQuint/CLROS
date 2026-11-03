@@ -16,10 +16,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
-
-
-
 #if M16_027_PROBE
         // The whole direct IO carrier is separate from transport metadata and
         // the user-copy carrier. Original Boot/NIC and all opaque referents
@@ -33,39 +29,6 @@ public static unsafe partial class EfiEntry
         }
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 }

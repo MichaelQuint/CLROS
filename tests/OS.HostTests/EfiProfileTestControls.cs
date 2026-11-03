@@ -624,7 +624,10 @@ internal static partial class EfiProfileTestControls
                 action();
                 return null;
             }
-            catch (ToolFailure failure) { return failure.Reason; }
+            catch (ToolFailure failure)
+            {
+                return failure.Reason;
+            }
         }
         var cases = new List<(string[] Flags, string? Expected)>();
         foreach (string control in new[] { "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe" })
@@ -769,7 +772,10 @@ internal static partial class EfiProfileTestControls
         {
             _ = EfiOptions.Parse(args, build).Profile();
         }
-        catch (ToolFailure error) { return error.Message.Contains(reason, StringComparison.Ordinal); }
+        catch (ToolFailure error)
+        {
+            return error.Message.Contains(reason, StringComparison.Ordinal);
+        }
         return false;
     }
 
@@ -818,7 +824,10 @@ internal static partial class EfiProfileTestControls
             {
                 QemuProfiles.Create(QemuSmokeOptions.Parse(rejected));
             }
-            catch (ToolFailure) { accepted = false; }
+            catch (ToolFailure)
+            {
+                accepted = false;
+            }
             HostCheck.True(!accepted, "profile needs fresh built image");
         }
         return true;

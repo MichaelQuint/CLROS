@@ -49,7 +49,10 @@ internal static class M04NestedFinallyCatchEfiIntegrationTests
             {
                 _ = EfiOptions.Parse(args, build).Profile();
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, "invalid nested profile admitted");
         }
     }
@@ -133,7 +136,10 @@ internal static class M04NestedFinallyCatchEfiIntegrationTests
             {
                 QemuTranscripts.AssertM04ManagedHeapPageRangeTranscript(path, includeGcStatics: true, includeNestedFinally: true);
             }
-            catch (ToolFailure) { accepted = false; }
+            catch (ToolFailure)
+            {
+                accepted = false;
+            }
             HostCheck.True(accepted == pass, name);
         }
         Check("valid", lines, true);
@@ -161,7 +167,10 @@ internal static class M04NestedFinallyCatchEfiIntegrationTests
         {
             QemuTranscripts.ValidateUnselectedRecords("CLROS_M04_NESTED_FINALLY_READY", QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run"])));
         }
-        catch (ToolFailure) { unselected = true; }
+        catch (ToolFailure)
+        {
+            unselected = true;
+        }
         HostCheck.True(unselected);
     }
 
@@ -191,7 +200,10 @@ internal static class M04NestedFinallyCatchEfiIntegrationTests
             {
                 EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact", artifact, .. Arguments(Flags)], false));
             }
-            catch (ToolFailure e) { failure = e.Reason; }
+            catch (ToolFailure e)
+            {
+                failure = e.Reason;
+            }
             HostCheck.True(failure == expected, "native expected=" + expected + " actual=" + failure);
         }
         Verify();
@@ -210,7 +222,11 @@ internal static class M04NestedFinallyCatchEfiIntegrationTests
                 File.WriteAllText(evidencePath, evidence.ToJsonString());
                 Verify(reason);
             }
-            finally { File.WriteAllBytes(artifact, original); File.WriteAllText(evidencePath, originalEvidence); }
+            finally
+            {
+                File.WriteAllBytes(artifact, original);
+                File.WriteAllText(evidencePath, originalEvidence);
+            }
         }
         string sidecar = artifact + ".nested-finally.obj";
         byte[] objectBytes = File.ReadAllBytes(sidecar);
@@ -221,7 +237,10 @@ internal static class M04NestedFinallyCatchEfiIntegrationTests
             File.WriteAllBytes(sidecar, bad);
             Verify("nested_finally_object_identity_mismatch");
         }
-        finally { File.WriteAllBytes(sidecar, objectBytes); }
+        finally
+        {
+            File.WriteAllBytes(sidecar, objectBytes);
+        }
         Verify();
         File.WriteAllText(log + ".controls", "fresh publication; six rehashed PE mutations and one object mutation rejected; original inputs restored and reverified\n");
     }

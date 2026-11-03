@@ -74,7 +74,10 @@ internal static class NativeAotSocketProgramTests
             var result = HostToolProcess.RunTool("linux", "socket-program", "sync", Path.Combine(directory, "absent"), dump);
             HostCheck.True(result.ExitCode != 0 && !result.Output.Contains("TEST_PASS linux.socket-program", StringComparison.Ordinal));
         }
-        finally { Directory.Delete(directory, recursive: true); }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static void Reject(Action action, string reason)
@@ -84,7 +87,10 @@ internal static class NativeAotSocketProgramTests
         {
             action();
         }
-        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure) { failure = error.Message; }
+        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + failure);
     }
 }

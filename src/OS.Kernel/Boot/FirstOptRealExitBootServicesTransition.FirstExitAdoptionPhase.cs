@@ -7,6 +7,7 @@ using OS.Std.Hash;
 using OS.Kernel.Compatibility.LinuxX64;
 #endif
 namespace OS.Boot;
+
 public enum FirstExitAdoptionPhase : uint
 {
     Empty,

@@ -112,12 +112,18 @@ internal static class NativeAotServiceQuotaHttpPrefixTests
                 State = "forged"
             };
         }
-        catch (NotSupportedException) { list = true; }
+        catch (NotSupportedException)
+        {
+            list = true;
+        }
         try
         {
             ((IDictionary<string, string>)message.Headers)["Content-Length"] = "9";
         }
-        catch (NotSupportedException) { headers = true; }
+        catch (NotSupportedException)
+        {
+            headers = true;
+        }
         HostCheck.True(list && headers);
     }
 
@@ -130,7 +136,10 @@ internal static class NativeAotServiceQuotaHttpPrefixTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

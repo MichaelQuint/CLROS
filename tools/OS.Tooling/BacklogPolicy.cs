@@ -128,7 +128,10 @@ public static class BacklogPolicy
             }
             return null;
         }
-        finally { visiting.Remove(key); }
+        finally
+        {
+            visiting.Remove(key);
+        }
     }
 
     public static void AssertClosureAllowed(JsonObject issue, IReadOnlyDictionary<string, JsonObject> manifest, BacklogRemoteState remote, bool pending)

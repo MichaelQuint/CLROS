@@ -29,7 +29,10 @@ internal static class NativeAotWebProfileTests
             {
                 action();
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         foreach (string parent in new[] { "M16012", "M16011", "M16009", "M16007", "M16004", "M07026", "M05ApicSetup" })
@@ -72,7 +75,10 @@ internal static class NativeAotWebProfileTests
             {
                 QemuProfiles.Create(invalid);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         var converted = Options();
@@ -82,7 +88,10 @@ internal static class NativeAotWebProfileTests
         {
             QemuProfiles.Create(converted);
         }
-        catch (ToolFailure e) { rawRequired = e.Reason == "web_raw_image_required"; }
+        catch (ToolFailure e)
+        {
+            rawRequired = e.Reason == "web_raw_image_required";
+        }
         HostCheck.True(rawRequired);
     }
 }

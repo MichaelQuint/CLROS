@@ -48,7 +48,9 @@ internal static class ContinuingNetworkRunnerTranscriptControls
                 HostCheck.Equal(0, QemuTranscripts.ValidateRun(root, options, plan, result, TextWriter.Null));
                 HostCheck.True(accepted, "forged complete runner output accepted");
             }
-            catch (ToolFailure) when (!accepted) { }
+            catch (ToolFailure) when (!accepted)
+            {
+            }
         }
         Check(runner, true);
         Check(runner[2..], false);

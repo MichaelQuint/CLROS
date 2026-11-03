@@ -175,7 +175,10 @@ internal static class M04FrameDispatchEfiIntegrationTests
             {
                 EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact", artifact, .. Arguments(Flags)], false));
             }
-            catch (ToolFailure e) { failure = e.Reason; }
+            catch (ToolFailure e)
+            {
+                failure = e.Reason;
+            }
             HostCheck.True(failure == expected, "native expected=" + expected + " actual=" + failure);
         }
         Verify();
@@ -226,7 +229,11 @@ internal static class M04FrameDispatchEfiIntegrationTests
                 File.WriteAllText(evidencePath, evidence.ToJsonString());
                 Verify(reason);
             }
-            finally { File.WriteAllBytes(artifact, original); File.WriteAllText(evidencePath, originalEvidence); }
+            finally
+            {
+                File.WriteAllBytes(artifact, original);
+                File.WriteAllText(evidencePath, originalEvidence);
+            }
         }
         string sidecar = artifact + ".frames.obj";
         byte[] objectBytes = File.ReadAllBytes(sidecar);
@@ -237,7 +244,10 @@ internal static class M04FrameDispatchEfiIntegrationTests
             File.WriteAllBytes(sidecar, changed);
             Verify("frames_object_identity_mismatch");
         }
-        finally { File.WriteAllBytes(sidecar, objectBytes); }
+        finally
+        {
+            File.WriteAllBytes(sidecar, objectBytes);
+        }
         Verify();
         File.WriteAllText(log + ".controls", "fresh publication; " + controls.Count +
             " rehashed PE controls (six logical unwind contributions, shared records allowed) and one object mutation rejected; originals restored and reverified\n");
@@ -251,7 +261,10 @@ internal static class M04FrameDispatchEfiIntegrationTests
         {
             _ = EfiOptions.Parse(arguments, build).Profile();
         }
-        catch (ToolFailure failure) { reason = failure.Reason; }
+        catch (ToolFailure failure)
+        {
+            reason = failure.Reason;
+        }
         HostCheck.True(reason is not null && (expected is null || reason == expected), "profile rejection expected=" + expected + " actual=" + reason);
     }
     private static void ExactBytes(byte[] bytes, Func<byte[]?, bool> admits)

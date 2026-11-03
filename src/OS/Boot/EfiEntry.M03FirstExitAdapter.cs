@@ -115,7 +115,6 @@ public static unsafe partial class EfiEntry
         private const ulong DiagnosticStackBudget = 32 * 1024;
 #endif
 
-
         private static Storage s_storage;
 
         // Reuse the existing no-CRT EFI convention: NativeAOT reads this

@@ -54,7 +54,10 @@ internal static class NativeAotServiceSelectionTests
             {
                 _ = QemuSmokeOptions.Parse("--service-quota-failure=" + value);
             }
-            catch (ArgumentException error) { actual = error.Message; }
+            catch (ArgumentException error)
+            {
+                actual = error.Message;
+            }
             HostCheck.Equal("qemu_invalid_boolean ServiceQuotaFailure", actual ?? "accepted");
         }
     }
@@ -149,7 +152,12 @@ internal static class NativeAotServiceSelectionTests
                     !output.ToString().Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal));
             }
         }
-        finally { File.Delete(package); File.Delete(dump); Directory.Delete(folder); }
+        finally
+        {
+            File.Delete(package);
+            File.Delete(dump);
+            Directory.Delete(folder);
+        }
     }
 
     [HostTest("service quota selection rejects lifecycle normal other profiles and substitute applications")]
@@ -256,7 +264,10 @@ internal static class NativeAotServiceSelectionTests
         {
             action();
         }
-        catch (ToolFailure error) { actual = error.Reason; }
+        catch (ToolFailure error)
+        {
+            actual = error.Reason;
+        }
         HostCheck.Equal(expected, actual ?? "accepted");
     }
 }

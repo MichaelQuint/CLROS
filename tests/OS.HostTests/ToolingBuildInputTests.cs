@@ -78,7 +78,10 @@ internal static class ToolingBuildInputTests
             {
                 Check(malformed, root);
             }
-            catch (InvalidOperationException) { rejected = true; }
+            catch (InvalidOperationException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, "malformed manifest rejected");
         }
         string repository = HostToolProcess.FindRepositoryRoot();
@@ -122,7 +125,10 @@ internal static class ToolingBuildInputTests
             {
                 Check(Captured(paths.Item1, paths.Item2, paths.Item3), root);
             }
-            catch (InvalidOperationException) { rejected = true; }
+            catch (InvalidOperationException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, "captured path must be absolute, contained and traversal-free: " + paths.Item2);
         }
     }

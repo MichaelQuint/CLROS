@@ -216,7 +216,10 @@ internal static class NativeAotSocketProtocolTests
         {
             Inspect(rows, asynchronous);
         }
-        catch (ToolFailure error) { actual = error.Message; }
+        catch (ToolFailure error)
+        {
+            actual = error.Message;
+        }
         HostCheck.True(actual?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + actual);
     }
 

@@ -78,7 +78,10 @@ internal static class SocketContainmentRunnerTests
         {
             _ = QemuTranscripts.ValidateRun(HostToolProcess.FindRepositoryRoot(), options, plan, result, TextWriter.Null);
         }
-        catch (ToolFailure error) { reason = error.Reason; }
+        catch (ToolFailure error)
+        {
+            reason = error.Reason;
+        }
         HostCheck.Equal("socket_containment_prepared_program_required", reason);
     }
     private static void Reject(Action action)
@@ -87,7 +90,10 @@ internal static class SocketContainmentRunnerTests
         {
             action();
         }
-        catch (ToolFailure) { return; }
+        catch (ToolFailure)
+        {
+            return;
+        }
         throw new InvalidOperationException("containment_invalid_selection_accepted");
     }
 }

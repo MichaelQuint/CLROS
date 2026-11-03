@@ -58,7 +58,10 @@ internal static class NativeAotServicePublisherTests
             {
                 Reject(() => NativeAotServicePublisher.RequireCurrentSources(temporary), "socket_service_publish_app_inventory");
             }
-            finally { File.Move(heldSource, quotaSource); }
+            finally
+            {
+                File.Move(heldSource, quotaSource);
+            }
             NativeAotServicePublisher.RequireCurrentSources(temporary);
             string extra = Path.Combine(app, "Extra.cs");
             File.WriteAllText(extra, "class Extra {}");
@@ -70,7 +73,10 @@ internal static class NativeAotServicePublisherTests
             File.Delete(policy);
             NativeAotServicePublisher.RequireCurrentSources(temporary);
         }
-        finally { Directory.Delete(temporary, recursive: true); }
+        finally
+        {
+            Directory.Delete(temporary, recursive: true);
+        }
     }
 
     [HostTest("service publisher rejects invalid arguments and unsupported host before output creation")]
@@ -97,7 +103,12 @@ internal static class NativeAotServicePublisherTests
         {
             action();
         }
-        catch (ToolFailure error) { failed = true; if (reason is not null) HostCheck.Equal(reason, error.Reason); }
+        catch (ToolFailure error)
+        {
+            failed = true;
+            if (reason is not null)
+                HostCheck.Equal(reason, error.Reason);
+        }
         HostCheck.True(failed);
     }
 }

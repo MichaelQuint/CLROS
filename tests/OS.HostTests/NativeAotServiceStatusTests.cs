@@ -87,7 +87,10 @@ internal static class NativeAotServiceStatusTests
         {
             _ = ServiceStatus.Parse([0xff]);
         }
-        catch (InvalidDataException) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
@@ -147,7 +150,10 @@ internal static class NativeAotServiceStatusTests
         {
             _ = Read(body);
         }
-        catch (InvalidDataException) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
     private static void RejectProgress(ServiceStatus current, ServiceStatus prior)
@@ -157,7 +163,10 @@ internal static class NativeAotServiceStatusTests
         {
             current.RequireProgressFrom(prior);
         }
-        catch (InvalidDataException) { rejected = true; }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

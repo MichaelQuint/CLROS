@@ -24,7 +24,6 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
 
-
         private static bool RunKernelThreads(void* context)
         {
             Storage* state = (Storage*)context;

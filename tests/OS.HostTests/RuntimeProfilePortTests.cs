@@ -121,7 +121,10 @@ internal static class RuntimeProfilePortTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "unsupported profile or evidence must be rejected");
     }
 }

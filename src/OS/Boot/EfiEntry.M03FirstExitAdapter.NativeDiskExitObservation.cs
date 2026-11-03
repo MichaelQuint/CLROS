@@ -30,7 +30,6 @@ public static unsafe partial class EfiEntry
             internal bool SlotActive;
         }
 
-
     }
 }
 #pragma warning restore 649

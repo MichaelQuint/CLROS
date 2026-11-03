@@ -416,7 +416,10 @@ internal static unsafe partial class M16008EfiIntegrationTests
         {
             action();
         }
-        catch (ToolFailure failure) { reason = failure.Reason; }
+        catch (ToolFailure failure)
+        {
+            reason = failure.Reason;
+        }
         HostCheck.True(reason is not null && (expected is null || reason == expected));
     }
 }

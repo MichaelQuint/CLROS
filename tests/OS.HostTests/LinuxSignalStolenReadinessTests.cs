@@ -31,7 +31,10 @@ internal static class LinuxSignalStolenReadinessTests
         {
             F.PackageVariant(altered);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 

@@ -78,7 +78,10 @@ internal sealed class StandardFirmwareRunnerControls
         {
             QemuTranscripts.AssertStandardRunnerResult(root, options, plan, lines);
         }
-        catch (ToolFailure) when (!expected) { accepted = false; }
+        catch (ToolFailure) when (!expected)
+        {
+            accepted = false;
+        }
         if (accepted != expected)
             throw new InvalidOperationException("runner case " + Cases + " expected=" + expected);
         Cases++;

@@ -7,7 +7,9 @@ namespace OS.Runtime;
 
 internal sealed class NormalCatchSibling : SimpleCatchBase
 {
-    internal NormalCatchSibling(ulong payload) : base(payload) { }
+    internal NormalCatchSibling(ulong payload) : base(payload)
+    {
+    }
 }
 
 #endif

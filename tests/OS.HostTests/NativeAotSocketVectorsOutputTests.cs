@@ -22,7 +22,10 @@ internal static class NativeAotSocketVectorsOutputTests
             {
                 _ = NativeAotSocketVectorsOutput.Read(value, requirePolicy: true);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         Invalid(Output());
@@ -120,14 +123,20 @@ internal static class NativeAotSocketVectorsOutputTests
         {
             _ = NativeAotThreadingOutput.Read("NativeAotSocketSmoke", bytes);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
         rejected = false;
         try
         {
             _ = NativeAotThreadingOutput.Read("NativeAotSocketVectors", bytes.AsSpan(0, bytes.Length - 1));
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
@@ -138,7 +147,10 @@ internal static class NativeAotSocketVectorsOutputTests
         {
             _ = NativeAotSocketVectorsOutput.Read(text);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

@@ -39,7 +39,10 @@ internal static class EhCatalogTranscriptTests
             {
                 QemuTranscripts.AssertM04ManagedHeapPageRangeTranscript(path, includeGcStatics: true, includeFrameDispatch: true, includeEhCatalog: catalog);
             }
-            catch (ToolFailure) { accepted = false; }
+            catch (ToolFailure)
+            {
+                accepted = false;
+            }
             HostCheck.True(accepted == pass, name);
         }
         Check("valid", Text(lines), true);

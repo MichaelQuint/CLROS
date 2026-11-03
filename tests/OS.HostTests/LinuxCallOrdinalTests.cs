@@ -57,7 +57,10 @@ internal static class LinuxCallOrdinalTests
             {
                 list[0] = default;
             }
-            catch (NotSupportedException) { denied = true; }
+            catch (NotSupportedException)
+            {
+                denied = true;
+            }
             HostCheck.True(denied);
         }
         // Old consumer compatibility never supplies a missing witness to the new reader.
@@ -94,7 +97,10 @@ internal static class LinuxCallOrdinalTests
         {
             QemuTranscripts.ReadLinuxCallWaits(rows);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
     [HostTest("linux call return observations require actual frame shape canonical restored envelope and immutable generation binding")]
@@ -118,7 +124,10 @@ internal static class LinuxCallOrdinalTests
             {
                 QemuTranscripts.ReadLinuxCallReturns([prefix + changed]);
             }
-            catch (ToolFailure) { rejected = true; }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         var nested = QemuTranscripts.ReadLinuxCallReturns([prefix + suffix.Replace("signalDepth=0 signalFrame=0", "signalDepth=1 signalFrame=4104", StringComparison.Ordinal)]);
@@ -131,7 +140,10 @@ internal static class LinuxCallOrdinalTests
         {
             QemuTranscripts.ValidateLinuxCallOrdinals(rows);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
@@ -164,7 +176,10 @@ internal static class LinuxCallOrdinalTests
             {
                 list[0] = default;
             }
-            catch (NotSupportedException) { denied = true; }
+            catch (NotSupportedException)
+            {
+                denied = true;
+            }
             HostCheck.True(denied);
         }
     }
@@ -218,7 +233,10 @@ internal static class LinuxCallOrdinalTests
             {
                 waits[0] = default;
             }
-            catch (NotSupportedException) { denied = true; }
+            catch (NotSupportedException)
+            {
+                denied = true;
+            }
             HostCheck.True(denied);
         }
         if (parsed.Returns is IList<QemuTranscripts.LinuxCallReturnObservation> returns)
@@ -228,7 +246,10 @@ internal static class LinuxCallOrdinalTests
             {
                 returns[0] = default;
             }
-            catch (NotSupportedException) { denied = true; }
+            catch (NotSupportedException)
+            {
+                denied = true;
+            }
             HostCheck.True(denied);
         }
     }
@@ -317,7 +338,10 @@ internal static class LinuxCallOrdinalTests
         {
             action();
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

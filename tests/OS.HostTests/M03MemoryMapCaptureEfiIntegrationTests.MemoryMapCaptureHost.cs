@@ -124,7 +124,11 @@ internal static unsafe class MemoryMapCaptureHost
             body();
             Console.WriteLine("TEST_PASS m03.capture.host " + name);
         }
-        catch (Exception e) { Console.WriteLine("TEST_FAIL m03.capture.host " + name + " " + e); throw; }
+        catch (Exception e)
+        {
+            Console.WriteLine("TEST_FAIL m03.capture.host " + name + " " + e);
+            throw;
+        }
     }
     private static int Main()
     {
@@ -194,7 +198,10 @@ internal static unsafe class MemoryMapCaptureHost
                         Need(!Read(result) && Value("MismatchBytes") == 1 && Value("ComparedBytes") == 160 && Value("FirstMismatch") == (ulong)index, "actual readback detects byte " + index);
                     }
                 }
-                finally { NativeMemory.Free(guard); }
+                finally
+                {
+                    NativeMemory.Free(guard);
+                }
                 Reset();
                 Need(TryCapture(), "fresh handoff");
                 var snapshot = (EfiMemoryMapSnapshot)typeof(EfiEntry).GetField("s_memoryMapSnapshot", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
@@ -231,13 +238,21 @@ internal static unsafe class MemoryMapCaptureHost
                         Need(variant < 2 ? status == 0 && Value("FinalSizeSlot") == (ulong)final : status == 0x8000000000000015 && s_maps == 1, "bounded final slot case " + variant);
                     }
                 }
-                finally { NativeMemory.Free(guard); NativeMemory.Free(slots); }
+                finally
+                {
+                    NativeMemory.Free(guard);
+                    NativeMemory.Free(slots);
+                }
                 Console.WriteLine("M03_CAPTURE_POD observation=488 guarded=131104 payloadOffset=16 capacity=131072 bootServices=328 distinctCaptureSizeSlots=true");
             });
             Console.WriteLine("TEST_PASS m03.capture.host.tests");
             return 0;
         }
-        finally { NativeMemory.Free(s_services); NativeMemory.AlignedFree(s_pool); }
+        finally
+        {
+            NativeMemory.Free(s_services);
+            NativeMemory.AlignedFree(s_pool);
+        }
     }
 }
 #else

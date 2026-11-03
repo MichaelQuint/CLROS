@@ -64,7 +64,9 @@ internal static class QemuTestControl
                     {
                         _ = await stream.ReadAsync(request);
                     }
-                    catch (IOException) { }
+                    catch (IOException)
+                    {
+                    }
                     byte[] body = Convert.FromBase64String(args[4]);
                     string phrase = args[3] switch
                     {

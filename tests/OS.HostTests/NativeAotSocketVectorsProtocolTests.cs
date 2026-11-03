@@ -121,7 +121,10 @@ internal static class NativeAotSocketVectorsProtocolTests
         {
             _ = Inspect(rows);
         }
-        catch (ToolFailure) { rejected = true; }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, reason);
     }
 }

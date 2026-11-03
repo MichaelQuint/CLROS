@@ -125,7 +125,10 @@ internal static unsafe partial class ContinuingFat32BootstrapTests
             HostCheck.True(f.Device.State->Submitted == 38 && memory.State->IsMounted);
             C.Stop(memory.State);
         }
-        finally { Directory.Delete(folder, true); }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
     }
 
     [HostTest("continuing bootstrap rejects bad MBR primary header and array CRC without backup fallback or output")]
@@ -177,12 +180,24 @@ internal static unsafe partial class ContinuingFat32BootstrapTests
     {
         for (int kind = 0; kind < 3; kind++)
         {
-            using var f = new Fixture(image => { if (kind == 0) W16(image, First * 512 + 40, 1); if (kind == 1) W16(image, First * 512 + 42, 1); if (kind == 2) W32(image, First * 512 + 32, Last - First + 2); });
+            using var f = new Fixture(image =>
+{
+    if (kind == 0)
+        W16(image, First * 512 + 40, 1);
+    if (kind == 1)
+        W16(image, First * 512 + 42, 1);
+    if (kind == 2)
+        W32(image, First * 512 + 32, Last - First + 2);
+});
             f.Start();
             HostCheck.Equal(K.Status.InvalidVolume, f.Run());
             HostCheck.Equal(35U, f.State->SubmittedReads);
         }
-        using var accepted = new Fixture(image => { image[(Sectors - 1) * 512] = 0xff; image[(Fat0 + FatSectors) * 512 + 200] = 0x91; });
+        using var accepted = new Fixture(image =>
+{
+    image[(Sectors - 1) * 512] = 0xff;
+    image[(Fat0 + FatSectors) * 512 + 200] = 0x91;
+});
         accepted.Start();
         HostCheck.Equal(K.Status.Ready, accepted.Run());
         HostCheck.True(accepted.Copy().Volume.Succeeded);
@@ -311,7 +326,10 @@ internal static unsafe partial class ContinuingFat32BootstrapTests
                 HostCheck.True(result.Owner == 0 && !result.Volume.Succeeded);
                 HostCheck.Equal(K.Status.Busy, K.Stop(f.State));
             }
-            finally { *lease = originalLease; }
+            finally
+            {
+                *lease = originalLease;
+            }
             HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State));
             HostCheck.Equal(K.Status.Success, K.Stop(f.State));
         }
@@ -498,7 +516,10 @@ internal static unsafe partial class ContinuingFat32BootstrapTests
                 HostCheck.Equal(K.Status.InvalidStorage, K.CopyResult(f.State, f.Input.Epoch, &result));
             }
         }
-        finally { input->Observation = observation; }
+        finally
+        {
+            input->Observation = observation;
+        }
         HostCheck.True(new ReadOnlySpan<byte>(f.State, sizeof(K.State)).SequenceEqual(state));
         K.Result copied = default;
         HostCheck.Equal(K.Status.StaleEpoch, K.CopyResult(f.State, f.Input.Epoch + 1, &copied));

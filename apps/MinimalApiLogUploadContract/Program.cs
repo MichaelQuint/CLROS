@@ -53,7 +53,11 @@ internal static class Program
             void FailAfterResponse(HttpContext context)
             {
                 Interlocked.Exchange(ref phase, 4);
-                context.Response.OnCompleted(() => { app.Lifetime.StopApplication(); return Task.CompletedTask; });
+                context.Response.OnCompleted(() =>
+{
+    app.Lifetime.StopApplication();
+    return Task.CompletedTask;
+});
             }
             app.MapGet("/healthz", (RequestDelegate)(async context =>
             {
@@ -137,7 +141,11 @@ internal static class Program
                     if (context.RequestAborted.IsCancellationRequested)
                         app.Lifetime.StopApplication();
                 }
-                finally { if (Volatile.Read(ref phase) == 1) Interlocked.Exchange(ref phase, 0); }
+                finally
+                {
+                    if (Volatile.Read(ref phase) == 1)
+                        Interlocked.Exchange(ref phase, 0);
+                }
             }));
             app.MapGet("/log", (RequestDelegate)(async context =>
             {
@@ -155,7 +163,12 @@ internal static class Program
                     context.Response.ContentLength = bytes.Length;
                     await context.Response.Body.WriteAsync(bytes, context.RequestAborted);
                 }
-                catch (Exception) { FailAfterResponse(context); if (!context.Response.HasStarted) context.Response.StatusCode = 500; }
+                catch (Exception)
+                {
+                    FailAfterResponse(context);
+                    if (!context.Response.HasStarted)
+                        context.Response.StatusCode = 500;
+                }
             }));
             app.MapGet("/upload", (RequestDelegate)(async context =>
             {
@@ -171,10 +184,20 @@ internal static class Program
                     byte[] bytes = Read(upload, accepted);
                     context.Response.ContentType = "application/octet-stream";
                     context.Response.ContentLength = bytes.Length;
-                    context.Response.OnCompleted(() => { Interlocked.Exchange(ref delivered, 2); app.Lifetime.StopApplication(); return Task.CompletedTask; });
+                    context.Response.OnCompleted(() =>
+{
+    Interlocked.Exchange(ref delivered, 2);
+    app.Lifetime.StopApplication();
+    return Task.CompletedTask;
+});
                     await context.Response.Body.WriteAsync(bytes, context.RequestAborted);
                 }
-                catch (Exception) { FailAfterResponse(context); if (!context.Response.HasStarted) context.Response.StatusCode = 500; }
+                catch (Exception)
+                {
+                    FailAfterResponse(context);
+                    if (!context.Response.HasStarted)
+                        context.Response.StatusCode = 500;
+                }
             }));
             app.Lifetime.ApplicationStarted.Register(() => Console.WriteLine("LOG_UPLOAD_HTTP_READY startupLogBytes=330 uploadBytes=0"));
             await app.RunAsync();
@@ -182,7 +205,11 @@ internal static class Program
             Console.WriteLine("TEST_PASS m10.027.http");
             return 0;
         }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL m10.027.http " + error.GetType().Name); return 1; }
+        catch (Exception error)
+        {
+            Console.WriteLine("TEST_FAIL m10.027.http " + error.GetType().Name);
+            return 1;
+        }
     }
 
     private static async Task Text(HttpContext context, int status, string text)

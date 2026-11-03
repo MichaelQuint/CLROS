@@ -6914,7 +6914,6 @@ public static unsafe partial class EfiEntry
                 | ((ulong)source[7] << 56);
         }
 
-
     }
 #endif
 }

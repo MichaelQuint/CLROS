@@ -19,6 +19,5 @@ internal static unsafe partial class NativeAotModuleRegistrationProbe
         internal ulong Failure;
     }
 
-
 }
 #endif

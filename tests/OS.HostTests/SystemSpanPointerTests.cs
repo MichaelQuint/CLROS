@@ -44,7 +44,10 @@ internal static unsafe class SystemSpanPointerTests
         {
             _ = new OS.Std.NoRuntime.Span<byte>(null, -1);
         }
-        catch (ArgumentOutOfRangeException) { rejected = true; }
+        catch (ArgumentOutOfRangeException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
         byte* data = stackalloc byte[4];
         for (int i = 0; i < 32; i++)

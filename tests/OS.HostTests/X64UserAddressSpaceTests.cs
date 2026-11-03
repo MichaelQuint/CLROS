@@ -186,7 +186,10 @@ internal static unsafe class X64UserAddressSpaceTests
                     HostCheck.True(new ReadOnlySpan<ulong>(tables, (int)pages * 512).IndexOfAnyExcept(0UL) < 0);
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     // Retained scalar admission rule, independent of the production index orders.
@@ -288,7 +291,10 @@ internal static unsafe class X64UserAddressSpaceTests
             }
             CheckScalarAudit(ranges, tables, conditions, result, true);
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("batched leaf audit preserves range ends PT boundaries holes and implicit table-arena leaves")]
@@ -330,7 +336,10 @@ internal static unsafe class X64UserAddressSpaceTests
             }
             CheckScalarAudit(ranges, tables, conditions, result, true);
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("batched leaf audit matches scalar exact leaf counts for short tails and adjacent unequal mappings")]
@@ -361,7 +370,10 @@ internal static unsafe class X64UserAddressSpaceTests
                 CheckScalarAudit(ranges, tables, conditions, wrong, false);
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     private static void CheckScalarAudit(X64UserMappingRange[] ranges, ulong* tables,
@@ -534,7 +546,10 @@ internal static unsafe class X64UserAddressSpaceTests
                 HostCheck.True(!X64UserAddressSpace.Build(values, 5, tables, Root, Pages, narrow).Succeeded);
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("m16-006 high user leaves cross PDPT boundaries while physical and supervisor bounds remain low", HostLane.Fast, 3)]
@@ -570,7 +585,10 @@ internal static unsafe class X64UserAddressSpaceTests
                 HostCheck.True(!X64UserAddressSpace.TryReadLeaf(tables, 0x100000000, Pages, 0x400000, out _));
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("m16-004 independent user supervisor NX page encodings and absent guards", HostLane.Fast, 0)]
@@ -600,7 +618,10 @@ internal static unsafe class X64UserAddressSpaceTests
                 HostCheck.True(!X64UserAddressSpace.TryReadLeaf(tables, Root, Pages, X64UserAddressSpace.UserEnd, out _));
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("m16-004 malformed overlap W-X table exhaustion dirty arena reject before writes", HostLane.Fast, 1)]
@@ -655,7 +676,10 @@ internal static unsafe class X64UserAddressSpaceTests
             HostCheck.True(X64UserAddressSpace.Clear(tables, Pages));
             HostCheck.True(new ReadOnlySpan<ulong>(tables, (int)Pages * 512).IndexOfAnyExcept(0UL) == -1);
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("whole-root audit checks every lane of unused table boundary and interior groups without mutation or stale success")]
@@ -714,13 +738,19 @@ internal static unsafe class X64UserAddressSpaceTests
                                     HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(tables, before.Length)));
                                     HostCheck.True(originalRanges.AsSpan().SequenceEqual(MemoryMarshal.AsBytes(ranges.AsSpan())));
                                 }
-                                finally { *changed = 0; }
+                                finally
+                                {
+                                    *changed = 0;
+                                }
                                 HostCheck.True(original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(tables, original.Length)));
                                 HostCheck.True(X64UserAddressSpace.Audit(r, (uint)ranges.Length, tables, Root, tablePages, conditions, result));
                             }
                 }
             }
-            finally { NativeMemory.AlignedFree(tables); }
+            finally
+            {
+                NativeMemory.AlignedFree(tables);
+            }
         }
     }
 
@@ -776,7 +806,10 @@ internal static unsafe class X64UserAddressSpaceTests
                 HostCheck.True(X64UserAddressSpace.Audit(r, 5, tables, Root, tablePages, conditions, result));
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("m16-006 contiguous leaf encoding preserves selected PAT cache bits independently of A-D", HostLane.Fast, 5)]
@@ -808,7 +841,10 @@ internal static unsafe class X64UserAddressSpaceTests
                 }
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("m16-004 whole-root audit rejects forged permissions aliases cycles extra leaves and unused tables", HostLane.Fast, 2)]
@@ -844,6 +880,9 @@ internal static unsafe class X64UserAddressSpaceTests
                 }
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 }

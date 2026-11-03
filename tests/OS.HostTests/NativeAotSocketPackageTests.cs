@@ -43,7 +43,10 @@ internal static unsafe class NativeAotSocketPackageTests
             File.WriteAllText(Path.Combine(temporary, "unrelated-kernel.cs"), "independent edit");
             NativeAotSocketPackage.RequireCurrentSources(temporary);
         }
-        finally { Directory.Delete(temporary, recursive: true); }
+        finally
+        {
+            Directory.Delete(temporary, recursive: true);
+        }
     }
 
     [HostTest("socket package modes bind one original ELF explicit IRQs and the manifest endpoint")]
@@ -110,7 +113,10 @@ internal static unsafe class NativeAotSocketPackageTests
             var result = HostToolProcess.RunTool("linux", "socket-package", "invalid", evidence, Path.Combine(directory, "other.pkg"));
             HostCheck.True(result.ExitCode != 0 && !result.Output.Contains("TEST_PASS linux.socket-package", StringComparison.Ordinal) && !File.Exists(Path.Combine(directory, "other.pkg")));
         }
-        finally { Directory.Delete(directory, recursive: true); }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static void Reject(Action action, string reason)
@@ -120,7 +126,10 @@ internal static unsafe class NativeAotSocketPackageTests
         {
             action();
         }
-        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure) { failure = error.Message; }
+        catch (Exception error) when (error is InvalidDataException or ArgumentException or ToolFailure)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + failure);
     }
 }

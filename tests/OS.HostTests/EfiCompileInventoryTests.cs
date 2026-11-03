@@ -63,7 +63,10 @@ internal static class EfiCompileInventoryTests
                 {
                     EfiMsbuild.VerifyEvaluation(Snapshot(items, profile), expected);
                 }
-                catch (ToolFailure failure) { actual = failure.Reason; }
+                catch (ToolFailure failure)
+                {
+                    actual = failure.Reason;
+                }
                 HostCheck.Equal(reason, actual);
             }
         }
@@ -88,7 +91,10 @@ internal static class EfiCompileInventoryTests
                     {
                         EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), other), Snapshot(DeclaredItems(requested), requested));
                     }
-                    catch (ToolFailure failure) { actual = failure.Reason; }
+                    catch (ToolFailure failure)
+                    {
+                        actual = failure.Reason;
+                    }
                     HostCheck.Equal("post_restore_evidence_property_mismatch", actual);
                     continue;
                 }
@@ -98,7 +104,10 @@ internal static class EfiCompileInventoryTests
                 {
                     EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), requested), Snapshot(DeclaredItems(requested), requested));
                 }
-                catch (ToolFailure failure) { actual = failure.Reason; }
+                catch (ToolFailure failure)
+                {
+                    actual = failure.Reason;
+                }
                 HostCheck.Equal(DeclaredItems(other).Length == DeclaredItems(requested).Length
                     ? "post_restore_evidence_hash_mismatch" : "post_restore_evidence_count_mismatch", actual);
             }

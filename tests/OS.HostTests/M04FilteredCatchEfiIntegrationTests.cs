@@ -119,7 +119,10 @@ internal static class M04FilteredCatchEfiIntegrationTests
             {
                 EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact", artifact, .. Arguments(Flags)], false));
             }
-            catch (ToolFailure rejected) { failure = rejected.Reason; }
+            catch (ToolFailure rejected)
+            {
+                failure = rejected.Reason;
+            }
             HostCheck.True(failure == expected, "expected=" + expected + " actual=" + failure);
         }
         Verify(null);
@@ -176,7 +179,11 @@ internal static class M04FilteredCatchEfiIntegrationTests
                 File.WriteAllText(evidencePath, evidence.ToJsonString());
                 Verify(reason);
             }
-            finally { File.WriteAllBytes(artifact, original); File.WriteAllText(evidencePath, originalEvidence); }
+            finally
+            {
+                File.WriteAllBytes(artifact, original);
+                File.WriteAllText(evidencePath, originalEvidence);
+            }
         }
         foreach (var side in new[] { (".filter-catch.obj", "filters_object_identity_mismatch"), (".filter-invoke.obj", "filter_invoke_object_identity_mismatch") })
         {
@@ -189,7 +196,10 @@ internal static class M04FilteredCatchEfiIntegrationTests
                 File.WriteAllBytes(path, changed);
                 Verify(side.Item2);
             }
-            finally { File.WriteAllBytes(path, bytes); }
+            finally
+            {
+                File.WriteAllBytes(path, bytes);
+            }
         }
         Verify(null);
         File.WriteAllText(log + ".controls", controls.Count + " rehashed PE controls and two original object mutations rejected; originals restored. No guest/transfer acceptance.\n");
@@ -204,7 +214,10 @@ internal static class M04FilteredCatchEfiIntegrationTests
         {
             _ = EfiOptions.Parse(args, build).Profile();
         }
-        catch (ToolFailure rejected) { failure = rejected.Reason; }
+        catch (ToolFailure rejected)
+        {
+            failure = rejected.Reason;
+        }
         HostCheck.True(failure == reason, "expected=" + reason + " actual=" + failure);
     }
     private static void Check(byte[] bytes, Func<byte[]?, bool> accept)

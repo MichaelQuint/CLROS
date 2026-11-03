@@ -195,6 +195,9 @@ internal static unsafe class LinuxSignalIrqTranscriptTests
                 return plan.StackPointer;
             }
         }
-        finally { NativeMemory.AlignedFree(s); }
+        finally
+        {
+            NativeMemory.AlignedFree(s);
+        }
     }
 }

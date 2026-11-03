@@ -19,7 +19,10 @@ public static partial class QemuTranscripts
         {
             return StrictUtf8.GetString(bytes);
         }
-        catch (DecoderFallbackException) { throw new ToolFailure("transcript_malformed_utf8"); }
+        catch (DecoderFallbackException)
+        {
+            throw new ToolFailure("transcript_malformed_utf8");
+        }
     }
     internal static readonly Regex Controls = new(@"[\x00-\x1f\x7f-\uffff]", RegexOptions.CultureInvariant);
     internal static void Need(bool value, string reason)
