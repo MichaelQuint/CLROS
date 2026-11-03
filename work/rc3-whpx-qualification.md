@@ -20,6 +20,14 @@ focused checks pass. Production improvement and all final gates remain required.
 publication and bounded native checks. Complete native admission must precede
 its original boots. Production improvement and final qualification stay open.
 
+[Step1735](../done/step1735.md) supplies the conservative stack failure/repair,
+complete conditional admission and six initial plus twelve quiet interleaved
+originals. Quiet WHPX64KiB median improves10.8%, every candidate below baseline
+minimum; TCG pairs remain mixed. Full evidence/limits/assertions and all input
+guards remain. Keep the candidate for continued qualification. This first-sequence
+comparison does not satisfy the ten-warm/full-asset/concurrent/Blazor requirement
+or final frozen unfiltered Full and29/24/7 matrix below.
+
 ## November 1 combined-refactor authorization
 
 The user approved implementation of one combined RC3, code-quality and measured

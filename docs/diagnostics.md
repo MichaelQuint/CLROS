@@ -1,9 +1,20 @@
 # Diagnostics
 
+[Step1735](../done/step1735.md) repairs the FIFO candidate's conservative stack
+failure and completes its conditional native review. The helper retains full
+lowercase sector hex, ordering, checked I/O, bounded polls, fallback and explicit
+failure. Twelve quiet paired originals show WHPX 64 KiB median 12751→11372ms
+(10.8% lower), with all three candidates below the baseline minimum. TCG transfer
+pairs remain mixed. Guest evidence-flush medians fall 27.9% WHPX/14.4% TCG; these
+overlapping wall regions are not CPU accounting. WHPX JSON remains about5.16s.
+The candidate continues toward qualification; warm/full-file/concurrent/browser
+and final production acceptance remain open. Step1735 preserves the initial-six
+observer limitation, rejected candidate A and every failed processing attempt.
+
 [Step1734](../done/step1734.md) adds an internal full-hex FIFO writer with bounded
 polling, byte fallback and explicit terminal NMI takeover semantics. Fourteen
 modeled UART cases pass; actual EFI publication and bounded native comparison
-pass. Complete stack/data/metadata admission and performance boots remain pending.
+pass. Step1735 supplies the subsequent repair, complete admission and measurements.
 
 [Step1733](../done/step1733.md) preserves six full-evidence serial-copy trial
 boots. All 30 response bodies and packet joins pass, but median range latency

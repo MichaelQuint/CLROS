@@ -9,6 +9,12 @@ canonical documents below. It grants no additional accepted capability.
 trial and the reviewed 22-file storage formatting integration. All127 affected
 checks pass; production performance repair and final combined qualification stay open.
 
+[Step1735](../done/step1735.md) records the FIFO stack repair, complete conditional
+native review and six initial plus twelve quiet original boots. Diagnostics owns
+the serial semantics and attribution; storage owns actual image/sector joins;
+host requirements owns quiet-host execution and remaining qualification limits.
+WHPX range median improves 10.8%; TCG remains inconclusive. Final acceptance is open.
+
 [Step1685](../done/step1685.md) is the latest migration checkpoint: e0252d3a's
 7,483-check full, sixteen strict compiler originals and the bounded host panic
 prefix repair. Remaining final host/native/guest/browser gates stay open.

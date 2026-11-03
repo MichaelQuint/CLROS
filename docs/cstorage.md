@@ -1,5 +1,15 @@
 # Storage
 
+[Step1735](../done/step1735.md) measures bounded full-byte COM1 FIFO output after
+its stack repair and conditional native review. All12 quiet originals retain145
+reads and241 copied sectors each:47 directory,66 FAT and128 payload sectors.
+Independent actual GPT/FAT/directory/PE decoding and all6372 disk rows/2892 copied
+sectors pass, including the actual changed EFI/package/CoreLib geometry. WHPX
+64 KiB network median falls10.8%; TCG pairs remain mixed. Evidence-flush wall
+medians fall27.9%/14.4%, without suppressing sector bytes or increasing resources.
+No FAT32/block algorithm change is accepted; directory-FAT retention remains
+unapplied. Full-asset, warm, concurrent, browser and final qualification stay open.
+
 [Step1733](../done/step1733.md) integrates reviewed formatting for 22 disk-service
 files with exact EFI admission hash updates. The r128 graph and 127 affected
 checks pass, unchanged inputs and zero reuse. Six separately captured trial

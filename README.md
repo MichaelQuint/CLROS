@@ -4,9 +4,15 @@
 
 <h1 align="center">CLROS</h1>
 
-[Step1734](done/step1734.md) integrates a full-byte COM1 FIFO candidate. Host
-checks, actual EFI publication and bounded native inspection pass; complete native
-admission and guest measurements remain pending. No production speedup is accepted.
+[Step1735](done/step1735.md) completes the stack-safe full-byte COM1 FIFO
+candidate's native review and controlled measurements. Twelve quiet interleaved
+boots pass all 60 responses. WHPX's 64 KiB median falls 12.751→11.372 seconds
+(10.8%); TCG transfer pairs remain mixed. Evidence-flush spans fall on both
+backends. The candidate continues toward final qualification; full-file, warm,
+concurrent, browser and final combined acceptance remain open.
+
+[Step1734](done/step1734.md) records the initial FIFO candidate, whose later
+conservative stack failure and bounded repair are preserved in step1735.
 
 [Step1733](done/step1733.md) rejects and reverts the serial-backend copy trial:
 six functional boots pass, but neither backend shows repeatable improvement.

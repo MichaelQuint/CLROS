@@ -1,5 +1,15 @@
 # Repository Audit
 
+[Step1735](../done/step1735.md) records the three-path FIFO stack repair, r132
+graph/27 focused checks and complete conditional native attribution. Candidate A
+exceeds conservative diagnostic policy and never activates; B retains all own
+witnesses with a48-byte positive charge, current diagnostic margin64/IRQ8bytes.
+Exact metadata spans, whole code/data/xdata/layout and source-role conditions
+remain explicit. Twelve quiet paired boots pass60 bodies/PCAP responses and
+6372 full-byte disk rows; WHPX range improves10.8%, TCG remains inconclusive.
+All5853 frozen inputs/31 producers remain unchanged through closing review.
+No final Full/browser/production or combined-refactor acceptance follows.
+
 [Step1733](../done/step1733.md) integrates token/order-preserving 22-file storage
 formatting and exact22 EFI pins, with r128 build/127 focused checks/repo/contracts
 passing. A separately source-bound six-boot serial-copy trial gives no repeatable

@@ -1,5 +1,16 @@
 # Host Requirements
 
+[Step1735](../done/step1735.md) binds r132's complete graph and27 focused checks,
+complete conditional native review, six initial originals and twelve quiet
+interleaved originals. Independent rehashes match all5853 source inputs,31
+producers and72 owner runtime files. During the quiet series both developers
+stop local parsing/hashing/build/format work until the joined completion notice;
+this is an attestation, not CPU telemetry. Existing600s runner/480s peer/180s
+streamed request/30s startup bounds and all correctness assertions remain.
+WHPX 64 KiB median improves10.8%; TCG pairs remain mixed. The retained r125
+baseline is not r132 kernel acceptance. Final frozen unfiltered Full, extended
+warm/full-file/concurrent/browser and29/24/7 qualification remain required.
+
 [Step1733](../done/step1733.md) passes 127 focused checks after the reviewed
 storage formatting integration. Its earlier six serial-copy trial boots retain
 the exact reviewed r127 producers and unchanged runner/peer/body limits; they
