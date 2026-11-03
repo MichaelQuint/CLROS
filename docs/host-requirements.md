@@ -1,12 +1,34 @@
 # Host Requirements
 
+[Step1733](../done/step1733.md) passes 127 focused checks after the reviewed
+storage formatting integration. Its earlier six serial-copy trial boots retain
+the exact reviewed r127 producers and unchanged runner/peer/body limits; they
+show no repeatable benefit, and the candidate is reverted. These first sequences
+do not replace final frozen Full or extended warm/browser qualification.
+
+[Step1732](../done/step1732.md) completes actual native review and18 original
+diagnostic boots across Original/Trace/Summary and WHPX/TCG. The isolated owner
+pins RC3 with roll-forward disabled, validates exact owner/native/package/assets/
+tool identities and imports held canonical assets into a fresh local checkout
+path. All90 HTTP bodies/packet responses and child guards pass. Existing600s
+runner/480s peer/180s body limits remain. These first sequences do not renew
+unfiltered Full, ten-warm/full-asset/concurrent/browser or production acceptance.
+
 [Step1730](../done/step1730.md) qualifies the host wiring of explicit
 EnableM10018EvidenceTraceProbe/EnableM10018EvidenceSummaryProbe controls and the
 ordered diagnostic image reader with 69 focused checks. Both selections require
 the original timing chain and remain off by default. Summary is diagnostic only;
 independent terminal protocol and actual native review still precede activation.
 
-The current disk diagnostic observer uses v10 host receipts; [step1728](../done/step1728.md)
+The current disk diagnostic observer uses v11 host receipts; [step1731](../done/step1731.md)
+binds the explicit Original/Trace/Summary selection, private checked image snapshot
+and complete native-boundary inspection before and after the original runner joins.
+All 72 focused checks pass; three EFI publications pass structural verification.
+Step1732 binds native review and diagnostic originals for these exact images;
+any changed image still requires its own pre-activation review. Summary remains
+diagnostic-only and cannot supply ordinary full byte-evidence acceptance.
+
+[Step1728](../done/step1728.md)
 separates body receipt from output-file writing/durable flushing and fixes the
 inherited ResponseHeadersRead timeout gap. A positive explicit request budget may
 shorten the existing 180-second ceiling. Cancellation is cooperative, includes

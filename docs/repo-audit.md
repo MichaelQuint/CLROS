@@ -1,5 +1,26 @@
 # Repository Audit
 
+[Step1733](../done/step1733.md) integrates token/order-preserving 22-file storage
+formatting and exact22 EFI pins, with r128 build/127 focused checks/repo/contracts
+passing. A separately source-bound six-boot serial-copy trial gives no repeatable
+improvement and is reverted. Current formatting still needs native and final
+whole-candidate qualification; historical trial native approval is not reused.
+
+[Step1732](../done/step1732.md) rebinds the current diagnostic native objects,
+complete code/xdata/data and three exact unconsumed metadata spans, retaining all
+own-Timing conditions and current stack budgets. Eighteen original diagnostic
+boots/90 responses pass with independent raw body/packet/disk/ownership readback.
+The controlled output contrast identifies a file-serving instrumentation cost;
+it changes no first-party C#, public ABI or resource budget and grants no final
+Full/browser or production optimization acceptance. Current goal remains active.
+
+[Step1731](../done/step1731.md) passes 72 fresh focused checks on r125, unchanged
+inputs and zero reuse, with independent source/producer/raw-body readback. Native
+BEGIN/END snapshots and a mode-bound complete consumer are integrated. Oversized
+file descriptor/generation witnesses found in an unapplied draft now reject at
+the existing kernel limits. All three selected EFI publications pass structural
+verification; exact native safety review and guest execution remain pending.
+
 [Step1730](../done/step1730.md) passes 69 fresh focused checks across seven groups
 on the r124 graph, unchanged inputs and zero reuse. Explicit default-off disk
 trace/summary flags, project guards/pins and the ordered diagnostic image reader

@@ -3,6 +3,7 @@ namespace OS.Tooling;
 public static partial class EfiContracts
 {
     public static IReadOnlyList<string> ReviewedSourceIncludes { get; } = Array.AsReadOnly<string>([
+        "..\\OS.Kernel\\Diagnostics\\OwnedCom1HexWriter.cs",
         "..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.cs",
         "..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.Bucket.cs",
         "..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.State.cs",

@@ -1,5 +1,13 @@
 # QEMU
 
+[Step1732](../done/step1732.md) records18 current-source diagnostic originals,
+three boots per output mode/backend. All90 HTTP responses and raw disk/packet/
+ownership joins pass. WHPX Trace/Summary64KiB range medians12532/9688ms show a
+22.7% instrumentation reduction; TCG10062/9516ms overlap at n3. Summary omits
+sector hex and cannot replace full-byte acceptance. JSON remains slow. Guest
+wall spans overlap and are not CPU measurements. Production repair, ten-warm,
+full/concurrent/browser, matched Alpine and final qualification remain pending.
+
 ## Explicit accelerator selection (development)
 
 M04-026/#813 adds `qemu smoke -Accelerator whpx|tcg` and runner
@@ -74,6 +82,16 @@ body receipt is 12.484s/10.419s; separate local durable flush is 1.798ms/1.741ms
 There are no warm sequences and no current-source kernel publication. Host body
 receipt includes client streaming/memory work. Raw stamps, distributions, serial,
 PCAP, bodies and original owners are retained; these are diagnostic measurements.
+
+[Step1731](../done/step1731.md) completes the mode-bound v11 observer: independently
+emitted native BEGIN/END counters, every ordered diagnostic row, actual image CRC
+and the final file/completion after timing freeze must join. Original/Trace/Summary
+selection is shared by both normal and retained-image owners. New image snapshots
+are checked before a child starts; late records can revoke provisional success.
+All 72 focused checks and three real EFI publication/structural verifications pass.
+At step1731 actual stack/layout/metadata review remained pending; step1732 binds
+that review and the original diagnostic boots for these exact images. Changed
+images still require their own review before launch.
 
 [Step1730](../done/step1730.md) adds explicit default-off
 `-EnableM10018EvidenceTraceProbe` and `-EnableM10018EvidenceSummaryProbe` selections.

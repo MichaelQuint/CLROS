@@ -3,6 +3,7 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        ["..\\OS.Kernel\\Diagnostics\\OwnedCom1HexWriter.cs"] = "reviewed_exclusive_com1_complete_hex_fifo_writer",
         ["..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.cs"] = "reviewed_m16_027_bounded_raw_counter_timing_source_identity",
         ["..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.Bucket.cs"] = "reviewed_m16_027_bounded_raw_counter_timing_source_identity",
         ["..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.State.cs"] = "reviewed_m16_027_bounded_raw_counter_timing_source_identity",

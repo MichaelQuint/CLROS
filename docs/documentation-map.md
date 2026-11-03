@@ -5,6 +5,10 @@ The active M04-026/#813 execution and acceptance contract is
 work record; build/host/QEMU/completion guidance remains in the existing
 canonical documents below. It grants no additional accepted capability.
 
+[Step1733](../done/step1733.md) records the rejected and reverted serial-copy
+trial and the reviewed 22-file storage formatting integration. All127 affected
+checks pass; production performance repair and final combined qualification stay open.
+
 [Step1685](../done/step1685.md) is the latest migration checkpoint: e0252d3a's
 7,483-check full, sixteen strict compiler originals and the bounded host panic
 prefix repair. Remaining final host/native/guest/browser gates stay open.

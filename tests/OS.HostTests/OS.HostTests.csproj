@@ -33,6 +33,7 @@
 		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbe.Actor.cs" Link="AppFixtures\KestrelSignalProbe.Actor.cs" />
 		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalRaceState.cs" Link="AppFixtures\KestrelSignalRaceState.cs" />
 		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalRaceState.Snapshot.cs" Link="AppFixtures\KestrelSignalRaceState.Snapshot.cs" />
+		<Compile Include="..\..\src\OS.Kernel\Diagnostics\OwnedCom1HexWriter.cs" Link="CoreDiagnostics\OwnedCom1HexWriter.cs" />
 		<Compile Include="..\..\src\OS\Boot\EfiEntry.cs" Link="EfiAdapters\EfiEntry.cs" />
 		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageOneAdapter.cs" Link="EfiAdapters\EfiEntry.M01StageOneAdapter.cs" />
 		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageTwoAdapter.cs" Link="EfiAdapters\EfiEntry.M01StageTwoAdapter.cs" />

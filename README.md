@@ -4,6 +4,22 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1734](done/step1734.md) integrates a full-byte COM1 FIFO candidate. Host
+checks, actual EFI publication and bounded native inspection pass; complete native
+admission and guest measurements remain pending. No production speedup is accepted.
+
+[Step1733](done/step1733.md) rejects and reverts the serial-backend copy trial:
+six functional boots pass, but neither backend shows repeatable improvement.
+The reviewed 22-file storage formatting batch passes 127 focused checks and
+repository/contracts checks. Production repair and final qualification remain open.
+
+[Step1732](done/step1732.md) completes current-image native review and 18 diagnostic
+boots with 90 verified HTTP responses. A controlled Trace/Summary comparison
+reduces WHPX 64 KiB range median 12532→9688 ms (22.7%); TCG shows 5.4% with overlapping
+samples. Full sector hex is a confirmed instrumentation cost. Summary remains a
+diagnostic, and production repair, full/warm/concurrent/browser and final combined
+refactor qualification/delivery remain pending.
+
 <p align="center">
   <strong>A C#-first NativeAOT operating system for minimal cloud workloads.</strong>
 </p>
@@ -18,9 +34,15 @@ and tool paths follow evaluated compiler inputs, bound declarations and the
 selected build graph. The [fresh complete Fast diagnostic](done/step1727.md)
 passes 6,424 checks across 876 groups, unchanged inputs and zero reuse. All thirty
 groups that failed in the earlier complete diagnostic now pass.
+[The complete diagnostic path](done/step1731.md) passes 72 focused checks,
+including image ownership and late-record rejection. Ordinary Timing, Trace and
+Summary publish verified EFI artifacts. Step1732 now binds their native review
+and original diagnostic boots; production optimization and final qualification
+remain pending.
 [Diagnostic disk controls and image checks](done/step1730.md) pass 69 focused
 checks. Trace/summary modes remain default off and require independent terminal
-protocol and native review before launch; no OS speedup is established.
+protocol and native review before launch. Step1732 supplies those controls for
+the recorded images; the reduced-output experiment is not a production repair.
 [Performance observation tooling](done/step1728.md) now separates complete body
 receipt from host writing/flushing and enforces the existing 180-second streamed
 request budget. Its 24 final focused checks pass.

@@ -1,5 +1,16 @@
 # Diagnostics
 
+[Step1734](../done/step1734.md) adds an internal full-hex FIFO writer with bounded
+polling, byte fallback and explicit terminal NMI takeover semantics. Fourteen
+modeled UART cases pass; actual EFI publication and bounded native comparison
+pass. Complete stack/data/metadata admission and performance boots remain pending.
+
+[Step1733](../done/step1733.md) preserves six full-evidence serial-copy trial
+boots. All 30 response bodies and packet joins pass, but median range latency
+changes +0.243% WHPX/+4.258% TCG with overlapping sample ranges. The candidate is
+rejected and reverted. Step1732's measured serial-output cost remains; a production
+repair must preserve complete evidence and show repeatable improvement.
+
 [Step1688](../done/step1688.md) reproduces the RC3 timing-image slowdown across
 three fresh WHPX and three fresh TCG boots. Median JSON/64 KiB range times are
 5.156/12.417 seconds on WHPX and 6.821/10.445 seconds on TCG. These first-sequence

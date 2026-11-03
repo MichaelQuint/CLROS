@@ -1,5 +1,25 @@
 # RC3 and WHPX qualification contract
 
+## Current diagnostic attribution checkpoint
+
+[Step1732](../done/step1732.md) completes the current-image native Timing review
+and 18 source-bound diagnostic boots: three per Original/Trace/Summary mode and
+WHPX/TCG backend. All 90 HTTP responses and raw disk/packet/owner guards pass.
+Trace-to-Summary WHPX 64 KiB median falls 22.7%; TCG falls 5.4% with overlapping
+samples. These are first sequences; HEAD may warm metadata. Guest wall regions
+are not CPU measurements. Summary cannot replace full-byte acceptance. Production
+optimization and final Full/browser/matrix acceptance remain pending. Continue
+the approved combined goal with the phase contract and remaining gates below.
+
+[Step1733](../done/step1733.md) rejects the serial-copy candidate after six
+functional boots with no repeatable benefit, restores its source/pin and
+integrates the reviewed 22-file storage formatting batch. The r128 graph and127
+focused checks pass. Production improvement and all final gates remain required.
+
+[Step1734](../done/step1734.md) records the full-evidence FIFO candidate's host,
+publication and bounded native checks. Complete native admission must precede
+its original boots. Production improvement and final qualification stay open.
+
 ## November 1 combined-refactor authorization
 
 The user approved implementation of one combined RC3, code-quality and measured
@@ -54,10 +74,14 @@ Canonical issue key: M04-026. The phase stops after verified merge and recovery;
 4. Complete one short JSON/exact independently hashed 64KiB range/final-health/
    owned-stop original on WHPX and identical-image TCG diagnostic. No new full
    host run is required before this diagnostic. Timing is diagnostic only.
-   The existing Timing owner supplies a new v8 five-response sequence:
+   The Timing owner supplies the five-response sequence, with v11 host receipts
+   and explicit mode/image controls described in step1731:
    GET /api/status (exact DTO values/JSON media type), GET /healthz,
    HEAD CoreLib.wasm, GET CoreLib.wasm bytes0-65535, GET /healthz, followed by
-   deliberate runner cancellation, confirmed join and endpoint refusal. Keep
+   deliberate runner cancellation, confirmed join and endpoint refusal. Original
+   evidence remains the default. Explicit Trace/Summary additionally require the
+   complete independent BEGIN/END/image-record/final-file consumer; Summary is
+   diagnostic only and cannot substitute for ordinary full byte evidence. Keep
    runner600s/peer480s, body180s and existing cleanup limits. Publish/review
    the actual selected Timing EFI before activation; Full-only native approval
    cannot substitute. Old v7 originals remain unchanged. This diagnostic grants

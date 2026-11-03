@@ -1,5 +1,27 @@
 # Storage
 
+[Step1733](../done/step1733.md) integrates reviewed formatting for 22 disk-service
+files with exact EFI admission hash updates. The r128 graph and 127 affected
+checks pass, unchanged inputs and zero reuse. Six separately captured trial
+boots retain 113 metadata/128 payload sectors each; the unsuccessful serial-copy
+candidate is reverted. No storage algorithm or budget changes are accepted here.
+
+[Step1732](../done/step1732.md) completes current-image native review and18 fresh
+diagnostic boots (three per output mode/backend), with90 verified HTTP responses
+and9558 source/image/packet-bound disk rows. Full sector hex contributes to the
+instrumented delay: WHPX Trace/Summary64KiB range medians12532/9688ms (22.7%
+lower); TCG10062/9516ms (5.4%, overlapping samples). Each first sequence reads
+113 metadata and128 payload sectors. Summary remains diagnostic only. Production
+repair, warm/full-asset/concurrent/browser and final qualification remain pending.
+
+[Step1731](../done/step1731.md) adds real gated BEGIN/END counter snapshots and
+the complete host consumer, including no-ready-read/no-pending-read checks and
+the final file/completion after freeze. All 72 focused checks pass. Original,
+Trace and Summary EFI publications pass structural verification with separately
+preserved objects/maps. At step1731 stack/layout/metadata admission and VM
+execution remained pending; step1732 records their diagnostic-only completion
+for these exact images. Production repair and full acceptance remain pending.
+
 [Step1730](../done/step1730.md) integrates explicit diagnostic trace/summary
 selections and a shared ordered image-CRC reader. All 69 focused graph checks
 pass. Both modes retain record reservation/order/commit/failure checks; summary

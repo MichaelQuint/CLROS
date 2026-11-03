@@ -7,6 +7,7 @@ public static partial class EfiContracts
     public static IReadOnlyDictionary<string, string> SourceIdentities { get; } =
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        ["..\\OS.Kernel\\Diagnostics\\OwnedCom1HexWriter.cs"] = "6add723d61059aaba364f24dfc532692606e83bdcdb6d379a25c35bcf373690d",
         ["..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.cs"] = "c23bb7eeb9946d9af3b081679d00134bf251177897626d837dad5b21f6591d56",
         ["..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.Bucket.cs"] = "fa834d1ec9874082653867ba08f174e0e5940c8b28bc86a6589a4e793bdccc6f",
         ["..\\OS.Kernel\\Diagnostics\\WritableStorageTiming.State.cs"] = "c9f9a3427eb4af5b534dc295e488628c5dae085a25e9809264e9d7482d186081",
@@ -141,7 +142,7 @@ public static partial class EfiContracts
         ["..\\OS.Kernel\\Storage\\ContinuingReadOnlyBlockService.ReadToken.cs"] = "7cfe24bc44b3b817aa6c2b753807fd4c58d57d2734f9b8edf19eaa5aea29c49a",
         ["..\\OS.Kernel\\Storage\\ContinuingReadOnlyBlockService.State.cs"] = "807366188fdf5fa50fe3d318f073c6de9671bd4e8979a64d42be70aca6a3db35",
         ["..\\OS.Kernel\\Storage\\ContinuingReadOnlyBlockService.Status.cs"] = "97c6784fafee53715a438ca644c0f3e43157e2b2ee40daebe10fd5297f20d99c",
-        ["Boot\\EfiEntry.DiskEvidence.cs"] = "50691a1cc176fc0acafa52c4eea14fb5c6bc0128df65a9a310363d5c490882ac",
+        ["Boot\\EfiEntry.DiskEvidence.cs"] = "50d9ab96122d63e9eb109357598ebace48e8804a0015b07468b74d5b269776d4",
         ["Boot\\EfiEntry.M03FirstExitAdapter.NativeDiskExitObservation.cs"] = "c703b53c9762629d725d2bfa43016cc9df53e5a2e7cd3257e2540d00967846b4",
         ["Boot\\EfiEntry.M03FirstExitAdapter.NativeDiskRecord.cs"] = "a524535ecab2064fba29de4ce0d23f526040c4f536ce11e6a2483bf07e1616d6",
         ["Boot\\EfiEntry.M03FirstExitAdapter.NativeDiskEvidence.cs"] = "2eedcc2a25b7e085f52b97578801a7794b954156f4e2126a7b39d6ed8fc93ed5",

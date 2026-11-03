@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "6eb18d43632c23f82d10b6396fe4dd02f9e4d356a21b600ad4e814370ce39b6c";
-    public const string CanonicalProjectSha256 = "e6ad29ae91a6f7b7d5cdd3bae4ff5ed617922ed7d8f6098454ba73ef0bab9ca1";
+    public const string ProjectSourceSha256 = "3b761b042ba89c37fbb53d92394df3c480489c0bcf7f38f2ec120fca6a3cce55";
+    public const string CanonicalProjectSha256 = "e5eb21a4bc648ab7a731a8ce8be76fa29d5cce90d9d060d72e73cfe5120b3ab9";
     // Review the selected M16-027 writable-owner sources and entry boundary.
     // Historical artifacts retain their original project and source identities.
     public const string EfiEntrySourceSha256 = "815ea15bd1db7e4bf4ebfdc99ec7cc2c4aedbc5ccf9da3dd9677ac4663556c7d";
@@ -264,6 +264,7 @@ public static partial class EfiContracts
         "..\\OS.Kernel\\Diagnostics\\Com1OwnedPortIoConfigurationStatus.cs|Diagnostics\\Com1OwnedPortIoConfigurationStatus.cs",
         "..\\OS.Kernel\\Diagnostics\\Com1OwnedPortIoConfigurationResult.cs|Diagnostics\\Com1OwnedPortIoConfigurationResult.cs",
         "..\\OS.Kernel\\Diagnostics\\Com1OwnedPortIoBackend.cs|Diagnostics\\Com1OwnedPortIoBackend.cs",
+        "..\\OS.Kernel\\Diagnostics\\OwnedCom1HexWriter.cs|Diagnostics\\OwnedCom1HexWriter.cs",
         "..\\OS.Kernel\\Diagnostics\\Com1OwnedPortIoByteBackend.cs|Diagnostics\\Com1OwnedPortIoByteBackend.cs",
         "..\\OS.Kernel\\Diagnostics\\OwnedCom1ReadyWriterStatus.cs|Diagnostics\\OwnedCom1ReadyWriterStatus.cs",
         "..\\OS.Kernel\\Diagnostics\\OwnedCom1ReadyWriterResult.cs|Diagnostics\\OwnedCom1ReadyWriterResult.cs",

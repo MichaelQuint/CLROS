@@ -584,11 +584,9 @@ public static unsafe partial class EfiEntry
 #if !CLROS_DISK_EVIDENCE_SUMMARY
                 if (!LinuxText(state, " data="))
                     return false;
-                const string hex = "0123456789abcdef";
-                for (uint i = 0; i < 512; i++)
-                    if (!LinuxByte(state, (byte)hex[record->Bytes[i] >> 4]) ||
-                        !LinuxByte(state, (byte)hex[record->Bytes[i] & 15]))
-                        return false;
+                if (!OS.Kernel.Diagnostics.OwnedCom1HexWriter.Write(
+                    in state->Arena.Fault->Backend, record->Bytes, 512))
+                    return false;
 #endif
             }
             return LinuxText(state, "\r\n");
