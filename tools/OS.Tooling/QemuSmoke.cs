@@ -647,9 +647,9 @@ public static class QemuSmoke
                         }
                         diskStaticPeer = await NativeAotDiskStaticPeer.RunAsync(root, options.SerialLog, RunSocketRunner, cancellation, inventory,
                             async (port, directory, token) =>
-{
-    diskBrowser = await NativeAotDiskStaticBrowser.RunAsync(root, port, directory, inventory, token);
-}, diskTruncated);
+                        {
+                            diskBrowser = await NativeAotDiskStaticBrowser.RunAsync(root, port, directory, inventory, token);
+                        }, diskTruncated);
                     }
                     else
                         diskStaticPeer = await NativeAotDiskStaticPeer.RunAsync(root, options.SerialLog, RunSocketRunner, cancellation);
@@ -892,20 +892,20 @@ public static class QemuSmoke
                 int result = QemuTranscripts.InspectOwnedWebRace(root, options, plan, webProgram, webRacePeer, runner,
                     new(webForwardPort, qemu, ovmf, webStarted, webCompleted), webInputs, webPackageInput, webDisassemblyInput, webImageInput, webEfiInput, output,
                     () =>
-{
-    if (capture is not null)
-    {
-        capture.Validate();
-        output.WriteLine("TEST_PASS m01.026.raw-observations");
-    }
-},
+                {
+                    if (capture is not null)
+                    {
+                        capture.Validate();
+                        output.WriteLine("TEST_PASS m01.026.raw-observations");
+                    }
+                },
                     () =>
-{
-    NativeAotWebProgram.HoldSources(root, webInputs);
-    webInputs.VerifyUnchanged();
-    webNative.VerifyHeldInputs();
-    cancellation.ThrowIfCancellationRequested();
-});
+                {
+                    NativeAotWebProgram.HoldSources(root, webInputs);
+                    webInputs.VerifyUnchanged();
+                    webNative.VerifyHeldInputs();
+                    cancellation.ThrowIfCancellationRequested();
+                });
                 cancellation.ThrowIfCancellationRequested();
                 if (result == 0)
                     output.WriteLine("TEST_PASS qemu.smoke.web-race");

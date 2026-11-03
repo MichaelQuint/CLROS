@@ -11,10 +11,10 @@ internal static class NativeAotWebProbeEpollTests
     }
     private static QemuTranscripts.WebReplayReport Run(Action<NativeAotThreadingTranscriptTests.Vector> action) =>
         NativeAotWebReplayTests.InspectProbe(v =>
-{
-    Setup(v);
-    action(v);
-});
+    {
+        Setup(v);
+        action(v);
+    });
     private static void Reject(Action action, string? expected = null)
     {
         string? reason = null;
@@ -74,10 +74,10 @@ internal static class NativeAotWebProbeEpollTests
         }).SocketAccepts);
         Reject(() => Run(v => v.Call(232, 1, [9, Buffer, 1, 0])), "socket_epoll_immediate");
         Reject(() => Run(v =>
-{
-    v.Call(1, 2, [8, Buffer, 2]);
-    v.Call(232, 2, [9, Buffer, 2, 0]);
-}), "socket_epoll_immediate");
+        {
+            v.Call(1, 2, [8, Buffer, 2]);
+            v.Call(232, 2, [9, Buffer, 2, 0]);
+        }), "socket_epoll_immediate");
     }
 
     [HostTest("web probe pipe epoll close and descriptor reuse cannot revive an old watch")]
@@ -99,19 +99,19 @@ internal static class NativeAotWebProbeEpollTests
             Close(v);
         }).SocketAccepts);
         Reject(() => Run(v =>
-{
-    v.Call(3, 0, [7]);
-    v.Call(2, 7, [0x500200, 0, 0]);
-    v.Call(232, 1, [9, Buffer, 1, 0]);
-}), "socket_epoll_immediate");
+        {
+            v.Call(3, 0, [7]);
+            v.Call(2, 7, [0x500200, 0, 0]);
+            v.Call(232, 1, [9, Buffer, 1, 0]);
+        }), "socket_epoll_immediate");
         Reject(() => Run(v =>
-{
-    v.Call(3, 0, [7]);
-    v.Call(3, 0, [8]);
-    v.Call(293, 0, [0x500500, 0x80800]);
-    v.Call(1, 1, [8, Buffer, 1]);
-    v.Call(232, 1, [9, Buffer, 1, 0]);
-}), "socket_epoll_immediate");
+        {
+            v.Call(3, 0, [7]);
+            v.Call(3, 0, [8]);
+            v.Call(293, 0, [0x500500, 0x80800]);
+            v.Call(1, 1, [8, Buffer, 1]);
+            v.Call(232, 1, [9, Buffer, 1, 0]);
+        }), "socket_epoll_immediate");
     }
 
     [HostTest("web mixed epoll preserves opaque socket bounds without granting empty pipe readiness")]
@@ -124,10 +124,10 @@ internal static class NativeAotWebProbeEpollTests
             Close(v);
         }).SocketAccepts);
         Reject(() => Run(v =>
-{
-    v.Call(233, 0, [9, 1, 6, 0x500300]);
-    v.Call(232, 2, [9, Buffer, 2, 0]);
-}), "socket_epoll_immediate");
+        {
+            v.Call(233, 0, [9, 1, 6, 0x500300]);
+            v.Call(232, 2, [9, Buffer, 2, 0]);
+        }), "socket_epoll_immediate");
     }
 
     private static QemuTranscripts.WebReplayReport Stolen(bool write = true, bool consume = true, bool repark = true) => Run(v =>

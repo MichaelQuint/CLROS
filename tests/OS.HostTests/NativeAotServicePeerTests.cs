@@ -200,10 +200,10 @@ internal static class NativeAotServicePeerTests
         try
         {
             _ = await NativeAotServicePeer.RunAsync(root, log, serial, (_, _) =>
-{
-    starts++;
-    throw new InvalidOperationException();
-}, deadline.Token);
+            {
+                starts++;
+                throw new InvalidOperationException();
+            }, deadline.Token);
         }
         catch (IOException)
         {

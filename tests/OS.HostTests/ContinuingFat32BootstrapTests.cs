@@ -181,23 +181,23 @@ internal static unsafe partial class ContinuingFat32BootstrapTests
         for (int kind = 0; kind < 3; kind++)
         {
             using var f = new Fixture(image =>
-{
-    if (kind == 0)
-        W16(image, First * 512 + 40, 1);
-    if (kind == 1)
-        W16(image, First * 512 + 42, 1);
-    if (kind == 2)
-        W32(image, First * 512 + 32, Last - First + 2);
-});
+            {
+                if (kind == 0)
+                    W16(image, First * 512 + 40, 1);
+                if (kind == 1)
+                    W16(image, First * 512 + 42, 1);
+                if (kind == 2)
+                    W32(image, First * 512 + 32, Last - First + 2);
+            });
             f.Start();
             HostCheck.Equal(K.Status.InvalidVolume, f.Run());
             HostCheck.Equal(35U, f.State->SubmittedReads);
         }
         using var accepted = new Fixture(image =>
-{
-    image[(Sectors - 1) * 512] = 0xff;
-    image[(Fat0 + FatSectors) * 512 + 200] = 0x91;
-});
+        {
+            image[(Sectors - 1) * 512] = 0xff;
+            image[(Fat0 + FatSectors) * 512 + 200] = 0x91;
+        });
         accepted.Start();
         HostCheck.Equal(K.Status.Ready, accepted.Run());
         HostCheck.True(accepted.Copy().Volume.Succeeded);

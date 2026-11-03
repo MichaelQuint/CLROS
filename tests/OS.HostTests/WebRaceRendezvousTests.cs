@@ -39,10 +39,10 @@ internal static class WebRaceRendezvousTests
     {
         foreach (string name in new[] { "", "clros-web-race-", "clros-web-race-" + new string('A', 32), "clros-web-race-" + new string('a', 33), "../clros-web-race-" + new string('a', 32), null! })
             await Reject(() =>
-{
-    WebRaceRendezvous.ValidatePipeName(name);
-    return Task.CompletedTask;
-});
+            {
+                WebRaceRendezvous.ValidatePipeName(name);
+                return Task.CompletedTask;
+            });
         string valid = Name();
         WebRaceRendezvous.ValidatePipeName(valid);
         foreach (var input in new[] { (0, Pid, TimeSpan.FromSeconds(1)), (Port, 0, TimeSpan.FromSeconds(1)), (Port, Pid, TimeSpan.Zero), (Port, Pid, TimeSpan.FromSeconds(46)) })
@@ -201,10 +201,10 @@ internal static class WebRaceRendezvousTests
             var ready = producer.WaitForReadyAsync(Port, limit.Token);
             var runner = WebRaceRendezvous.WaitEventOwnedInRunnerAsync(producer.PipeName, Port, Pid, TimeSpan.FromSeconds(165),
                 () =>
-{
-    Interlocked.Increment(ref budgetCalls);
-    return TimeSpan.FromSeconds(170);
-}, cancellation: limit.Token);
+            {
+                Interlocked.Increment(ref budgetCalls);
+                return TimeSpan.FromSeconds(170);
+            }, cancellation: limit.Token);
             try
             {
                 HostCheck.Equal(new WebRaceRendezvous.Ready(Port, Pid, true), await ready);
@@ -250,15 +250,15 @@ internal static class WebRaceRendezvousTests
         WebRaceRendezvous.ValidateEventOwnedPipeName(name);
         foreach (string invalid in new[] { Name(), "clros-web-race-v3-" + new string('A', 32), name + "0", null! })
             await Reject(() =>
-{
-    WebRaceRendezvous.ValidateEventOwnedPipeName(invalid);
-    return Task.CompletedTask;
-});
+            {
+                WebRaceRendezvous.ValidateEventOwnedPipeName(invalid);
+                return Task.CompletedTask;
+            });
         await Reject(() =>
-{
-    WebRaceRendezvous.ValidatePipeName(name);
-    return Task.CompletedTask;
-});
+        {
+            WebRaceRendezvous.ValidatePipeName(name);
+            return Task.CompletedTask;
+        });
         await Reject(() => WebRaceRendezvous.WaitInRunnerAsync(name, Port, Pid, TimeSpan.FromSeconds(1)));
         await Reject(() => WebRaceRendezvous.WaitEventOwnedInRunnerAsync(Name(), Port, Pid, TimeSpan.FromSeconds(1), () => TimeSpan.FromSeconds(165)));
         foreach (var duration in new[] { TimeSpan.Zero, TimeSpan.FromSeconds(165).Add(TimeSpan.FromTicks(1)) })

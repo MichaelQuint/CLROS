@@ -55,10 +55,10 @@ internal static class ContinuingServiceProfileTests
         int children = 0;
         using var output = new StringWriter();
         int result = await QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output, (_, _) =>
-{
-    children++;
-    throw new InvalidOperationException("Unexpected lifecycle child.");
-});
+        {
+            children++;
+            throw new InvalidOperationException("Unexpected lifecycle child.");
+        });
         HostCheck.Equal(1, result);
         HostCheck.Equal(0, children);
         HostCheck.True(output.ToString().Contains("TEST_FAIL qemu.smoke", StringComparison.Ordinal) &&

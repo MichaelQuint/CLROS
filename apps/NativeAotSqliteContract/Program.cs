@@ -66,9 +66,9 @@ internal static class Program
                     using var competitor = new SqliteConnection(connectionString);
                     competitor.Open();
                     int busy = Error(() =>
-{
-    using var rejected = competitor.BeginTransaction(deferred: false);
-}, 5);
+                    {
+                        using var rejected = competitor.BeginTransaction(deferred: false);
+                    }, 5);
                     locked.Rollback();
                     Require(Scalar(connection, "SELECT count(*) FROM sample") == "1", "lock_count");
                     Console.WriteLine("SQLITE_LOCK busy=" + busy + " rows=1");

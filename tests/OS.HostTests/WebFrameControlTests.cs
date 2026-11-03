@@ -226,9 +226,9 @@ internal static class WebFrameControlTests
         using (var legacy = new WebFrameControl(TimeSpan.FromSeconds(10)))
             Refuse(() => legacy.InjectServiceFrameAsync(Frame(50000, 0x10), "x"));
         Refuse(() =>
-{
-    using var invalid = new WebFrameControl(TimeSpan.FromSeconds(1081), continuingService: true);
-});
+        {
+            using var invalid = new WebFrameControl(TimeSpan.FromSeconds(1081), continuingService: true);
+        });
         using (var maximum = new WebFrameControl(TimeSpan.FromSeconds(1080), continuingService: true))
             HostCheck.True(maximum.Stop());
         using var gate = new WebFrameControl(TimeSpan.FromSeconds(10), continuingService: true);

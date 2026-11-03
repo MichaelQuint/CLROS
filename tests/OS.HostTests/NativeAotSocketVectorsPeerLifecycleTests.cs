@@ -44,10 +44,10 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
         try
         {
             _ = await NativeAotSocketVectorsPeer.RunAsync(root, log, serial, (_, _) =>
-{
-    starts++;
-    return Task.FromResult(expected);
-}, deadline.Token);
+            {
+                starts++;
+                return Task.FromResult(expected);
+            }, deadline.Token);
         }
         catch (IOException)
         {
@@ -56,10 +56,10 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
         HostCheck.True(fresh && starts == 0);
         File.AppendAllText(log, "extra\n");
         Reject(() =>
-{
-    using var files = new AuthorityFiles();
-    Verify(result, files);
-}, "socket_vectors_peer_log_identity");
+        {
+            using var files = new AuthorityFiles();
+            Verify(result, files);
+        }, "socket_vectors_peer_log_identity");
     }
 
     [HostTest("vector peer orchestration retains an empty log when runner exits before accept readiness")]

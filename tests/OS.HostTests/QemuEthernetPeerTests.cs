@@ -106,9 +106,9 @@ internal static class QemuEthernetPeerTests
             BinaryPrimitives.WriteUInt32BigEndian(header, length);
             await remote.GetStream().WriteAsync(header);
             await Reject<InvalidDataException>(async () =>
-{
-    await receive;
-});
+            {
+                await receive;
+            });
             HostCheck.Equal(0L, peer.FramesRead);
             await Reject<IOException>(() => peer.ReadFrameAsync(new byte[1514]).AsTask());
             await Reject<IOException>(() => peer.WriteFrameAsync(new byte[14]).AsTask());
@@ -129,9 +129,9 @@ internal static class QemuEthernetPeerTests
             await remote.GetStream().WriteAsync(Packet(Frame(14, 0x92)).AsMemory(0, count));
             remote.Client.Shutdown(SocketShutdown.Send);
             await Reject<EndOfStreamException>(async () =>
-{
-    await receive;
-});
+            {
+                await receive;
+            });
             HostCheck.Equal(0L, peer.FramesRead);
             await Reject<IOException>(() => peer.WriteFrameAsync(new byte[14]).AsTask());
         }
@@ -158,9 +158,9 @@ internal static class QemuEthernetPeerTests
             await remote.GetStream().WriteAsync(new byte[] { 0, 0 });
             cancel.Cancel();
             await Reject<OperationCanceledException>(async () =>
-{
-    await receive;
-});
+            {
+                await receive;
+            });
             HostCheck.Equal(0L, peer.FramesRead);
             await Reject<IOException>(() => peer.ReadFrameAsync(new byte[1514]).AsTask());
         }
@@ -200,9 +200,9 @@ internal static class QemuEthernetPeerTests
             peer.Dispose();
             peer.Dispose();
             await Closed(async () =>
-{
-    await receive;
-});
+            {
+                await receive;
+            });
             await Reject<ObjectDisposedException>(() => peer.ReadFrameAsync(buffer).AsTask());
         }
         using (var peer = NewPeer())

@@ -55,10 +55,10 @@ internal static class NativeAotWebRacePeerTests
             int starts = 0;
             _ = await Refused(() => NativeAotWebRacePeer.RunOwnedAsync(paths.Root, 20080, "health", report, summary,
                 (_, _) =>
-{
-    starts++;
-    throw new InvalidOperationException("must not start");
-}));
+            {
+                starts++;
+                throw new InvalidOperationException("must not start");
+            }));
             HostCheck.Equal(0, starts);
             HostCheck.True(!File.Exists(paths.Report + ".runner.log"));
             foreach (string retained in new[] { paths.Report, paths.Report + ".wire.json", paths.Summary }.Where(File.Exists))
@@ -75,10 +75,10 @@ internal static class NativeAotWebRacePeerTests
             int starts = 0;
             _ = await Refused(() => NativeAotWebRacePeer.RunOwnedAsync(paths.Root, value.Item1, value.Item2, paths.Report, paths.Summary,
                 (_, _) =>
-{
-    starts++;
-    throw new InvalidOperationException("must not start");
-}));
+            {
+                starts++;
+                throw new InvalidOperationException("must not start");
+            }));
             HostCheck.Equal(0, starts);
             HostCheck.True(!File.Exists(paths.Report + ".runner.log"));
         }

@@ -108,10 +108,10 @@ internal static class LibvirtSmokeTests
             bool called = false;
             int exit = LibvirtSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output,
                 _ =>
-{
-    called = true;
-    throw new InvalidOperationException("must not invoke");
-}).GetAwaiter().GetResult();
+            {
+                called = true;
+                throw new InvalidOperationException("must not invoke");
+            }).GetAwaiter().GetResult();
             HostCheck.True(exit != 0 && !called);
         }
     }

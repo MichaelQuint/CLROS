@@ -47,8 +47,8 @@ internal static class NativeAotWebEventOwnedReplayTests
         copy[0] = default;
         HostCheck.Equal("initial-wait", current.Steps[0].Kind);
         Reject(() => NativeAotWebReplayTests.InspectProbe(_ =>
-{
-}, eventOwned: true), "web_race_event_selection");
+        {
+        }, eventOwned: true), "web_race_event_selection");
     }
 
     [HostTest("web event-owned dedicated delegates require generation-bound native exits and reaps while owner and callback stay live")]

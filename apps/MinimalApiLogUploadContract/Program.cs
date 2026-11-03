@@ -54,10 +54,10 @@ internal static class Program
             {
                 Interlocked.Exchange(ref phase, 4);
                 context.Response.OnCompleted(() =>
-{
-    app.Lifetime.StopApplication();
-    return Task.CompletedTask;
-});
+                {
+                    app.Lifetime.StopApplication();
+                    return Task.CompletedTask;
+                });
             }
             app.MapGet("/healthz", (RequestDelegate)(async context =>
             {
@@ -185,11 +185,11 @@ internal static class Program
                     context.Response.ContentType = "application/octet-stream";
                     context.Response.ContentLength = bytes.Length;
                     context.Response.OnCompleted(() =>
-{
-    Interlocked.Exchange(ref delivered, 2);
-    app.Lifetime.StopApplication();
-    return Task.CompletedTask;
-});
+                    {
+                        Interlocked.Exchange(ref delivered, 2);
+                        app.Lifetime.StopApplication();
+                        return Task.CompletedTask;
+                    });
                     await context.Response.Body.WriteAsync(bytes, context.RequestAborted);
                 }
                 catch (Exception)

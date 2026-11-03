@@ -598,30 +598,30 @@ internal static unsafe class CombinedWebDataImageFixtureTests
         byte[] raw = File.ReadAllBytes(path);
         Mutant(folder, raw, x => x[512 + 16] ^= 1, "combined_image_gpt_header");
         Mutant(folder, raw, x =>
-{
-    x[x.Length - 512 + 56] ^= 1;
-    HeaderCrc(x, x.Length - 512);
-}, "combined_image_gpt_header");
+        {
+            x[x.Length - 512 + 56] ^= 1;
+            HeaderCrc(x, x.Length - 512);
+        }, "combined_image_gpt_header");
         Mutant(folder, raw, x =>
-{
-    W64(x, 1024 + 128 + 32, 131038);
-    ArraysCrc(x);
-}, "combined_image_gpt_array");
+        {
+            W64(x, 1024 + 128 + 32, 131038);
+            ArraysCrc(x);
+        }, "combined_image_gpt_array");
         Mutant(folder, raw, x =>
-{
-    x.AsSpan(1024 + 16, 16).CopyTo(x.AsSpan(1024 + 128 + 16, 16));
-    ArraysCrc(x);
-}, "combined_image_gpt_array");
+        {
+            x.AsSpan(1024 + 16, 16).CopyTo(x.AsSpan(1024 + 128 + 16, 16));
+            ArraysCrc(x);
+        }, "combined_image_gpt_array");
         Mutant(folder, raw, x =>
-{
-    W64(x, 1024 + 128 + 48, 1UL << 60);
-    ArraysCrc(x);
-}, "combined_image_partitions");
+        {
+            W64(x, 1024 + 128 + 48, 1UL << 60);
+            ArraysCrc(x);
+        }, "combined_image_partitions");
         Mutant(folder, raw, x =>
-{
-    W64(x, 1024 + 128 + 40, 260061);
-    ArraysCrc(x);
-}, "combined_image_partitions");
+        {
+            W64(x, 1024 + 128 + 40, 260061);
+            ArraysCrc(x);
+        }, "combined_image_partitions");
         Mutant(folder, raw, x =>
         {
             x.AsSpan(1024 + 128, 128).CopyTo(x.AsSpan(1024 + 256, 128));
@@ -637,10 +637,10 @@ internal static unsafe class CombinedWebDataImageFixtureTests
     {
         byte[] raw = File.ReadAllBytes(path);
         Mutant(folder, raw, x =>
-{
-    W32(x, 131072 * 512 + 28, 2048);
-    W32(x, (131072 + 6) * 512 + 28, 2048);
-}, "writable_image_bpb");
+        {
+            W32(x, 131072 * 512 + 28, 2048);
+            W32(x, (131072 + 6) * 512 + 28, 2048);
+        }, "writable_image_bpb");
         Mutant(folder, raw, x => x[(131072 + 6) * 512 + 71] ^= 1, "writable_image_boot_backup");
         Mutant(folder, raw, x => x[(131104 + 993) * 512 + 5 * 4] ^= 1, "writable_image_fat_mirror");
         Mutant(folder, raw, x => x[(131072 + 7) * 512 + 488] ^= 1, "writable_image_fsinfo_backup");

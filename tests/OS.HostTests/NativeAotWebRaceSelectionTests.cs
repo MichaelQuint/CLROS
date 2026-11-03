@@ -285,10 +285,10 @@ internal static class NativeAotWebRaceSelectionTests
         using (var output = new StringWriter())
         {
             code = await QemuSmoke.RunAsync(root, options, output, (_, _) =>
-{
-    starts++;
-    throw new InvalidOperationException("must not start");
-});
+            {
+                starts++;
+                throw new InvalidOperationException("must not start");
+            });
             HostCheck.True(code == 1 && starts == 0 && !Directory.Exists(folder) && !output.ToString().Contains("TEST_PASS qemu.smoke.web", StringComparison.Ordinal));
         }
         Directory.CreateDirectory(folder);
@@ -299,10 +299,10 @@ internal static class NativeAotWebRaceSelectionTests
         {
             using var output = new StringWriter();
             code = await QemuSmoke.RunAsync(root, options, output, (_, _) =>
-{
-    starts++;
-    throw new InvalidOperationException("must not start");
-});
+            {
+                starts++;
+                throw new InvalidOperationException("must not start");
+            });
             HostCheck.True(code == 1 && starts == 0 && File.ReadAllBytes(wire).SequenceEqual(retained) && Directory.GetFiles(folder).Length == 1);
             HostCheck.True(output.ToString().Contains("TEST_FAIL qemu.smoke web_race_output_not_fresh_or_aliased", StringComparison.Ordinal));
         }

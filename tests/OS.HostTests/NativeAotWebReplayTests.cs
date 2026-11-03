@@ -263,17 +263,17 @@ internal static class NativeAotWebReplayTests
             v=>v.Call(1,1,[8,0x500800,2]),v=>v.Call(1,4097,[8,0x500800,4097]),
             v=>v.Call(17,0,[7,0x500800,1,0]),v=>v.Call(72,0,[7,2,1]),
             v=>
-{
-v.Call(3,0,[7]);
-v.Call(3,0,[8]);
-v.Call(1,1,[8,0x500800,1]);
-}];
+        {
+            v.Call(3, 0, [7]);
+            v.Call(3, 0, [8]);
+            v.Call(1, 1, [8, 0x500800, 1]);
+        }];
         foreach (var corrupt in invalid)
             Reject(() => Inspect(Vector(probe: v =>
-{
-    v.Call(293, 0, [0x500500, 0x80800]);
-    corrupt(v);
-})));
+            {
+                v.Call(293, 0, [0x500500, 0x80800]);
+                corrupt(v);
+            })));
     }
 
     [HostTest("web nonblocking probe pipe refuses fabricated EOF EAGAIN and partial atomic writes")]
@@ -281,10 +281,10 @@ v.Call(1,1,[8,0x500800,1]);
     {
         foreach (long result in new long[] { 0, 1, -32 })
             Reject(() => Inspect(Vector(probe: v =>
-        {
-            v.Call(293, 0, [0x500500, 0x80800]);
-            v.Call(0, result, [7, 0x500800, 1]);
-        })));
+            {
+                v.Call(293, 0, [0x500500, 0x80800]);
+                v.Call(0, result, [7, 0x500800, 1]);
+            })));
         Reject(() => Inspect(Vector(probe: v =>
         {
             v.Call(293, 0, [0x500500, 0x80800]);
@@ -292,11 +292,11 @@ v.Call(1,1,[8,0x500800,1]);
         })));
         foreach (long result in new long[] { 0, 1, 2 })
             Reject(() => Inspect(Vector(probe: v =>
-        {
-            v.Call(293, 0, [0x500500, 0x80800]);
-            v.Call(1, 4095, [8, 0x500800, 4095]);
-            v.Call(1, result, [8, 0x500800, 2]);
-        })));
+            {
+                v.Call(293, 0, [0x500500, 0x80800]);
+                v.Call(1, 4095, [8, 0x500800, 4095]);
+                v.Call(1, result, [8, 0x500800, 2]);
+            })));
         Reject(() => Inspect(Vector(probe: v =>
         {
             v.Call(293, 0, [0x500500, 0x80800]);

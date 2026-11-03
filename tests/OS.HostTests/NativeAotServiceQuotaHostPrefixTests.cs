@@ -129,12 +129,10 @@ internal static class NativeAotServiceQuotaHostPrefixTests
             r=>r["operations"]![7]!["offset"]=4,r=>r["operations"]![7]!["transferred"]=0,
             r=>r["operations"]![8]!["dataBase64"]="QQ==",
             r=>
-{
-r["rawBytes"]=13;
-r["operations"]!.AsArray().Add(JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(new{
-                id=10,connectionId=1,direction="write",offset=3,requested=1,transferred=1,
-                startedTicks=20,endedTicks=21,outcome="complete",dataBase64="eA==",exchangeId=0})));
-}})
+        {
+            r["rawBytes"] = 13;
+            r["operations"]!.AsArray().Add(JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(new { id = 10, connectionId = 1, direction = "write", offset = 3, requested = 1, transferred = 1, startedTicks = 20, endedTicks = 21, outcome = "complete", dataBase64 = "eA==", exchangeId = 0 })));
+        }})
         {
             var root = JsonNode.Parse(Json(Fixture()))!.AsObject();
             change(root);

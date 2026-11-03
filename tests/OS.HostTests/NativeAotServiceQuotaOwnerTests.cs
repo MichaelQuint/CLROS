@@ -116,10 +116,10 @@ internal static class NativeAotServiceQuotaOwnerTests
         try
         {
             _ = await NativeAotServiceQuotaPeer.RunOwnedAsync(paths.Root, paths.Peer, paths.Serial, (_, _) =>
-{
-    starts++;
-    return Task.FromResult(Runner(22));
-}, limit.Token);
+            {
+                starts++;
+                return Task.FromResult(Runner(22));
+            }, limit.Token);
         }
         catch (ToolFailure error)
         {

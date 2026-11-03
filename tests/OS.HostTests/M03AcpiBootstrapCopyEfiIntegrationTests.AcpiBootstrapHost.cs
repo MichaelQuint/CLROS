@@ -195,68 +195,68 @@ internal static unsafe class AcpiBootstrapHost
         try
         {
             Run("five copies ACPI1 XSDT fallback and retained parity", () =>
-{
-    Parity(0, false);
-    Parity(2, true);
-    Parity(2, false);
-    Map(10);
-});
+            {
+                Parity(0, false);
+                Parity(2, true);
+                Parity(2, false);
+                Map(10);
+            });
             Run("envelope selection and missing corrupt earlier table rejection", () =>
             {
                 Reject(() => s_source[0] ^= 1);
                 Reject(() =>
-{
-    new Span<byte>(s_source + 9, 6).Clear();
-    Checksum(s_source, 20, 8);
-    Checksum(s_source, 48, 32);
-});
+                {
+                    new Span<byte>(s_source + 9, 6).Clear();
+                    Checksum(s_source, 20, 8);
+                    Checksum(s_source, 48, 32);
+                });
                 Reject(() => s_source[8] ^= 1);
                 Reject(() =>
-{
-    s_source[15] = 1;
-    Checksum(s_source, 20, 8);
-});
+                {
+                    s_source[15] = 1;
+                    Checksum(s_source, 20, 8);
+                });
                 Reject(() => Put32(s_source + 20, 4097));
                 Reject(() => s_source[32] ^= 1);
                 Reject(() =>
-{
-    s_source[4096] ^= 1;
-    Checksum(s_source + 4096, 60, 9);
-});
+                {
+                    s_source[4096] ^= 1;
+                    Checksum(s_source + 4096, 60, 9);
+                });
                 Reject(() => Put32(s_source + 4100, 65537));
                 Reject(() => s_source[4105] ^= 1);
                 Reject(() =>
-{
-    Put64(s_source + 4132, 0);
-    Checksum(s_source + 4096, 60, 9);
-});
+                {
+                    Put64(s_source + 4132, 0);
+                    Checksum(s_source + 4096, 60, 9);
+                });
                 Reject(() =>
-{
-    Put64(s_source + 4148, (ulong)(s_source + 16384));
-    Checksum(s_source + 4096, 60, 9);
-});
+                {
+                    Put64(s_source + 4148, (ulong)(s_source + 16384));
+                    Checksum(s_source + 4096, 60, 9);
+                });
                 Reject(() =>
-{
-    Put64(s_source + 4148, (ulong)(s_source + 16390));
-    Checksum(s_source + 4096, 60, 9);
-});
+                {
+                    Put64(s_source + 4148, (ulong)(s_source + 16390));
+                    Checksum(s_source + 4096, 60, 9);
+                });
                 Reject(() => Sdt(s_source + 24576, "SSDT", 56));
                 Reject(() =>
-{
-    Sdt(s_source + 16384, "SSDT", 52);
-    s_source[16393] ^= 1;
-});
+                {
+                    Sdt(s_source + 16384, "SSDT", 52);
+                    s_source[16393] ^= 1;
+                });
                 Reject(() =>
-{
-    s_source[8192 + 36] = 1;
-    Checksum(s_source + 8192, 60, 9);
-});
+                {
+                    s_source[8192 + 36] = 1;
+                    Checksum(s_source + 8192, 60, 9);
+                });
                 Reject(() =>
-{
-    s_source[8192 + 54] = 2;
-    s_source[8192 + 55] = 1;
-    Checksum(s_source + 8192, 60, 9);
-});
+                {
+                    s_source[8192 + 54] = 2;
+                    s_source[8192 + 55] = 1;
+                    Checksum(s_source + 8192, 60, 9);
+                });
                 Reject(() => Map(7));
                 Reject(() => Map(count: 0));
                 Reject(() => Map(count: 4097));

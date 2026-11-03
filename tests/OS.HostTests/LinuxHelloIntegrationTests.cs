@@ -23,10 +23,10 @@ internal static class LinuxHelloIntegrationTests
         int children = 0;
         using StringWriter output = new();
         int code = QemuSmoke.RunAsync(root, options, output, (_, _) =>
-{
-    children++;
-    throw new InvalidOperationException("unexpected child");
-}).GetAwaiter().GetResult();
+        {
+            children++;
+            throw new InvalidOperationException("unexpected child");
+        }).GetAwaiter().GetResult();
         HostCheck.True(code != 0 && children == 0 && output.ToString().Contains("hello_profile_requires_m16_009", StringComparison.Ordinal));
     }
 
@@ -49,10 +49,10 @@ internal static class LinuxHelloIntegrationTests
                 int children = 0;
                 using StringWriter output = new();
                 int code = QemuSmoke.RunAsync(root, options, output, (_, _) =>
-{
-    children++;
-    throw new InvalidOperationException("unexpected child");
-}).GetAwaiter().GetResult();
+                {
+                    children++;
+                    throw new InvalidOperationException("unexpected child");
+                }).GetAwaiter().GetResult();
                 HostCheck.True(code != 0 && children == 0 && output.ToString().Contains(alias ? "hello_disassembly_output_alias" : "hello_package_identity", StringComparison.Ordinal));
                 HostCheck.Equal("headers only", File.ReadAllText(dump));
                 // Both retained read locks must have been released on failure.

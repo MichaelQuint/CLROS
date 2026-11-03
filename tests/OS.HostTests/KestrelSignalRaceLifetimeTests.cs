@@ -131,10 +131,10 @@ internal static class KestrelSignalRaceLifetimeTests
             using var release = new ManualResetEventSlim();
             using var entered = new ManualResetEventSlim();
             var thread = new Thread(() =>
-{
-    entered.Set();
-    release.Wait();
-})
+            {
+                entered.Set();
+                release.Wait();
+            })
             {
                 IsBackground = true
             };

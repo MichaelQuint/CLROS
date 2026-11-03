@@ -308,10 +308,10 @@ internal static class NativeAotPayloadTests
         Mutate(bytes, b => W32(b, 176, 3)); // PT_INTERP
         Mutate(bytes, b => W32(b, 176, 2)); // PT_DYNAMIC
         Mutate(bytes, b =>
-{
-    W32(b, 176, 0x6474e551);
-    W32(b, 180, 7);
-});
+        {
+            W32(b, 176, 0x6474e551);
+            W32(b, 180, 7);
+        });
     }
 
     [HostTest("nativeaot.payload checks file memory alignment W^X overlap and file-backed entry")]
@@ -357,10 +357,10 @@ internal static class NativeAotPayloadTests
         Mutate(bytes, b => W64(b, 216, 1025));
         Mutate(bytes, b => W64(b, 208, 65));
         Mutate(bytes, b =>
-{
-    W32(b, 120, 7);
-    W32(b, 124, 4);
-});
+        {
+            W32(b, 120, 7);
+            W32(b, 124, 4);
+        });
     }
 
     [HostTest("nativeaot.payload CLI rejects malformed inputs and wrong builder without false success")]

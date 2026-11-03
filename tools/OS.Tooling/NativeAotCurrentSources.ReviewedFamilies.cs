@@ -264,7 +264,7 @@ internal static partial class NativeAotCurrentSources
         // Reviewed full-file formatting; retained original anchors remain authoritative.
         ["apps/MinimalApiLogUploadContract/Program.cs"] = ("1B10C6E6578E104845074BF716BD7D34F52F36FB1F3B47481C24FDB653ACE043", ":Program",
         [
-            ("apps/MinimalApiLogUploadContract/Program.cs", "A45E505E6E3728011F69BA138F375CD2DCE1D5CE99A4AE144FB871316273EA84"),
+            ("apps/MinimalApiLogUploadContract/Program.cs", "C4E10C22698069BC9DD2FF5B422C9AA6883F901EB0FE594F8F537170505B936B"),
         ]),
         ["apps/MinimalApiService/ServiceQuotaExercise.cs"] = ("31C19556890F5C100D83A63F462ACCF3F87374642F9B43FCE9075B73D66B2867", ":ServiceQuotaExercise",
         [
@@ -284,7 +284,7 @@ internal static partial class NativeAotCurrentSources
         ]),
         ["apps/NativeAotSqliteContract/Program.cs"] = ("29A852A3322D6919F909FFEDCD73279CDF5BDC084890DEF40EDDCC0367DCC45A", ":Program",
         [
-            ("apps/NativeAotSqliteContract/Program.cs", "74FF7D1D521B5B3EB00ACFD753FC407C6A8FC6AC34D027B68697F224BB74FEA9"),
+            ("apps/NativeAotSqliteContract/Program.cs", "B262C96F81E520F1EF4C75BF950F1619880D28FDDC8934D8DFB0FC3F927478BF"),
         ]),
         ["tools/OS.Tooling/NativeAotRuntimeMatrixGuest.cs"] = ("15264115F5D1826A172258D8A18A16DB3FDA9300652F85760C444AC9E0D3451E", "OS.Tooling:NativeAotRuntimeMatrixGuest",
         [

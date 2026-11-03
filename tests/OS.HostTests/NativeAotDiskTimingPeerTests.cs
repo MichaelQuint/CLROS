@@ -535,10 +535,10 @@ internal static partial class NativeAotDiskTimingPeerTests
                 try
                 {
                     _ = await NativeAotDiskTimingPeer.RunAsync(root, serial, (_, _) =>
-{
-    starts++;
-    throw new InvalidOperationException();
-}, inventory, 600, deadline.Token);
+                    {
+                        starts++;
+                        throw new InvalidOperationException();
+                    }, inventory, 600, deadline.Token);
                 }
                 catch (ToolFailure error)
                 {
