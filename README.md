@@ -4,6 +4,11 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1742](done/step1742.md) closes executable statement-layout gaps with a
+host syntax rule and reviewed whitespace/pin refresh. The complete solution
+builds and62 fresh focused checks plus repo/contracts/diff pass. Remaining host
+correctness, responsibility, performance/native/browser and final gates stay open.
+
 [Step1741](done/step1741.md) completes twelve fresh paired Timing Short boots
 and sixty exact responses after renewed QMP/native provenance. JSON/HEAD medians
 improve, initial WHPX health regresses, and range distributions overlap. Full

@@ -1,5 +1,11 @@
 # Storage
 
+[Step1742](../done/step1742.md) completes all52 adjacent storage responsibility
+rows with per-method invariants, retaining cohesive state machines and independent
+oracles.37 storage-selected files have reviewed mechanical whitespace changes.
+Source/admission guards pass; no new native/guest result. Host streamed-body
+deadline and receipt-failure repairs remain separate pending behavioral work.
+
 [Step1741](../done/step1741.md) independently verifies all twelve new Short
 originals: 145 physical transactions, 531 rows and 241 sectors per boot, with
 exact GPT/FAT/image/packet/body/counter joins. Text-FIFO timing remains mixed;

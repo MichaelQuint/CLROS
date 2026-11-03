@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1742](../done/step1742.md) owns the statement-layout rule, mechanical
+proof/pin refresh and62 focused checks. Repository audit owns enforcement scope;
+EFI guidance retains emitted-artifact requirements. The storage review completes
+its52 adjacent large-method rows and prepares separate host correctness repairs.
+
 [Step1741](../done/step1741.md) records fresh QMP/native provenance, all twelve
 paired Short originals, exact raw joins and mixed per-request distributions.
 Diagnostics owns timing/tradeoff scope; host/EFI guides own unchanged execution

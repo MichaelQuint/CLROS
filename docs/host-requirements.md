@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1742](../done/step1742.md) rebuilds the complete graph and passes62 fresh
+focused checks with unchanged inputs/zero reuse. The compiled repository checker
+closes all remaining layout findings. Filtered and synthetic Native-lane controls
+retain host-only scope; final unfiltered Full is still mandatory.
+
 [Step1741](../done/step1741.md) completes twelve new Short boots through the
 current retained-QMP runner, four preflights and exact current input guards.
 The prior warning does not recur in six WHPX boots; its cause is still unproven.

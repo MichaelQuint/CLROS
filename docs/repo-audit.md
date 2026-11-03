@@ -1,5 +1,11 @@
 # Repository Audit
 
+[Step1742](../done/step1742.md) adds host-only CLROSSTYLE004 for separate-line
+blocks/statements/control bodies, retaining concise expression helpers and
+unbraced guards.413 mechanical files and80 current pins are independently
+reviewed;48 historical anchors remain. The full graph and62 fresh focused checks
+pass; repo now has zero style findings. No EFI analyzer or native equivalence.
+
 [Step1741](../done/step1741.md) retains r154 source/producers through twelve
 new Short originals and independent closing hash checks. Artifact-only observer
 repairs preserve failed originals and fresh-path guards. Remaining responsibility

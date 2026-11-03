@@ -1,5 +1,11 @@
 # RC3 and WHPX qualification contract
 
+[Step1742](../done/step1742.md) closes statement-layout drift and refreshes
+current source pins, with full graph/62 fresh focused/repo/contracts/diff success.
+It grants no native/guest acceptance; every final emitted-artifact and29/24/7
+requirement below remains. Finish bounded host correctness and responsibility
+work before freezing the final qualification candidate.
+
 [Step1741](../done/step1741.md) renews QMP/native provenance and completes a
 fresh twelve-boot paired Timing Short series, sixty responses and exact raw
 joins. JSON/HEAD improve but initial WHPX health regresses and range overlaps;

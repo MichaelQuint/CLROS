@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1742](../done/step1742.md) refreshes80 current source pins after token-
+preserving layout changes and retains all historical/object/byte pins. Source
+admission and source guards pass. Actual emitted objects/maps/stack/metadata/EFI
+still need renewal; source-only equivalence cannot carry old numeric margins.
+
 [Step1741](../done/step1741.md) closes fresh r154 Timing provenance: EFI, native
 object/maps/responses/serializer match C exactly; managed 72-byte identity changes
 are fully attributed. All 46 copied leaves, 556 Release leaves and 3,977 source
