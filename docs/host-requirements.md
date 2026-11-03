@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1746](../done/step1746.md) passes31 focused markers,30 selected cases,
+zero reuse and unchanged inputs after removing the rejected inlining experiment.
+The repaired original semantic matrix passes all seventeen mutations; its earlier
+entire Native fixture remains failed. The complete solution build has four
+existing NoStdLib equality warnings and zero errors. Final unfiltered Full remains.
+
 [Step1745](../done/step1745.md) verifies the stopped HTTP diagnostic's capture
 contract independently of natural completion. After successful observations it
 deliberately cancels/joins the runner and checks endpoint refusal; bounded serial

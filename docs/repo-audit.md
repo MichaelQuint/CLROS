@@ -1,5 +1,12 @@
 # Repository Audit
 
+[Step1746](../done/step1746.md) makes semantic negative mutations follow the
+checker's unique declared input within an independently named owner family.
+All seventeen mutation vectors/order, rejection expectations and exact raw
+restoration remain; moved/ambiguous/missing/escaping owners have controls.
+The rejected compiler hint/admission/test preparation is restored byte-exact.
+Fresh r171 build/focused31/repo/contracts/diff pass; no final acceptance transfers.
+
 [Step1745](../done/step1745.md) extracts the benchmark capture policy into an
 associated QemuSmoke partial and adds two discovered controls. Identical test
 bytes reproduce the absent-natural-summary failure, then pass with the bounded

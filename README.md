@@ -4,6 +4,11 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1746](done/step1746.md) removes stale filenames from the seventeen-case
+semantic fixture and passes31 fresh focused checks after restoration. A separate
+COM1 inlining trial completes twelve functional boots but fails its speed criteria;
+the hint is rejected and removed. Responsibility and final qualification remain.
+
 [Step1745](done/step1745.md) renews own-Full native proof and records an intact
 TCG HTTP/browser observation. WHPX still exceeds the180-second full-body limit.
 A stopped-diagnostic capture mismatch is reproduced and repaired with53 passing

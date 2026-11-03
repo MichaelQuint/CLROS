@@ -1,5 +1,12 @@
 # RC3 and WHPX qualification contract
 
+[Step1746](../done/step1746.md) lands dynamic ownership for the seventeen
+semantic negative vectors and rejects/restores a separately measured inlining
+trial. All twelve Short raw gates pass; both speed criteria fail. Fresh r171
+focused31/repo/contracts/diff pass without replacing the earlier entire-fixture
+failure. Continue responsibility and causal performance work; final frozen
+unfiltered Full/29/24/7, matched populations and browser gates remain mandatory.
+
 [Step1745](../done/step1745.md) renews own-Full native proof and records two
 unchanged-bound diagnostics. WHPX remains incomplete; TCG HTTP/browser delivery
 is observed, with deliberate host stop followed by an erroneous summary capture

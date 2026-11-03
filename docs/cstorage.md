@@ -1,5 +1,12 @@
 # Storage
 
+[Step1746](../done/step1746.md) independently reproduces all twelve trial raw
+gates:1,740 transactions,6,372 rows,2,892 copied sectors and sixty exact responses.
+Media/GPT/FAT chains, copies, packet bodies, counters and input/child joins pass.
+The compiler hint still fails its performance criteria and is removed; these
+Short observations grant no complete-asset/browser/natural-cleanup acceptance.
+Separate storage-poll time from the inclusive native-driver nonpoll envelope.
+
 [Step1745](../done/step1745.md) binds fresh own-Full objects/metadata/witnesses
 before matched first WHPX/TCG observations. WHPX's incomplete1687552-byte body
 and TCG's complete HTTP/browser bodies exactly join PCAP and GPT/FAT32 sectors.

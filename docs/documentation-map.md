@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1746](../done/step1746.md) owns the dynamic semantic-fixture repair and
+rejected twelve-boot inlining trial. Host/repo explain independent negative
+expectations; diagnostics/storage record distributions and raw joins; EFI keeps
+trial emitted proof separate from restored source. Final gates remain open.
+
 [Step1745](../done/step1745.md) owns fresh own-Full emitted proof,613 concrete
 launch holds, failed WHPX and functionally complete TCG observations, and the
 stopped-summary host repair. Diagnostics/storage own exact raw joins and limits;

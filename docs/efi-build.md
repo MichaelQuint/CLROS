@@ -1,5 +1,12 @@
 # EFI Build
 
+[Step1746](../done/step1746.md) inspects actual own-Timing code, all124 data
+nodes and twenty stack witnesses for a getter-inlining trial, then rejects its
+measured performance. The getter and exact experiment-only admission entries
+are restored from r166 bytes. Trial zero-debit calculations and conditional
+metadata findings remain evidence for that candidate; they do not renew the
+restored/final image or transfer Full/Timing margins. Preserve both publications.
+
 [Step1745](../done/step1745.md) renews actual own-Full FF65CCA9 native evidence:
 2068 complete method/compiler-fragment joins,124 exact canonical data nodes and
 all20 own-Full witness calculations. Text adds zero positive stack charge; retain

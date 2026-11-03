@@ -1,5 +1,12 @@
 # Diagnostics
 
+[Step1746](../done/step1746.md) rejects the checked-COM1 getter inlining trial
+after twelve fixed paired Short boots and sixty exact responses. WHPX range
+median improves only0.837%; TCG regresses13.148%, with other request regressions.
+Both unchanged criteria fail. Remove the hint, retain every raw sample/native
+receipt and earlier serial repair. Host flush stays separate; inclusive driver
+nonpoll counters establish neither exclusive CPU cost nor a scheduler cause.
+
 [Step1745](../done/step1745.md) records source-matched own-Full diagnostics.
 WHPX fails the unchanged180-second complete-body deadline with1687552/2009369
 bytes; host cancellation/join passes and the captured disk/packet prefix is exact.
