@@ -1,5 +1,12 @@
 # RC3 and WHPX qualification contract
 
+[Step1739](../done/step1739.md) records r148 cleanup and conditional current
+Timing/Full native reviews, plus twelve separate local commits through c3b118f3.
+The first actual Full018 warm=0 diagnostic fails the unchanged180-second full-asset
+request deadline after1,490,944/2,009,369 bytes. Children join and after-guards pass;
+browser/normal cleanup remain unqualified. Continue attribution and bounded
+repairs. No final gate below is satisfied by this development checkpoint.
+
 [Step1738](../done/step1738.md) passes the host-only explicit HTTP benchmark
 owner and semantic timeout checks: 68 fresh checks, unchanged inputs, zero reuse,
 with independent 5,874-input/31-producer readback. Actual quota fit and guest/

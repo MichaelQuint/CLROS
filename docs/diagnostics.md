@@ -1,5 +1,14 @@
 # Diagnostics
 
+[Step1739](../done/step1739.md) preserves the first current Full018 benchmark
+failure:1,490,944/2,009,369 full-asset bytes at the unchanged180-second request
+deadline, after complete JSON/health/HEAD/64KiB responses. Owner cancellation,
+termination/join and input after-guards complete; browser/summary/endpoint-refusal
+success are absent. The9,985,179-byte serial and PCAP originals remain sealed.
+No retransmission/zero-window or copied-sector corruption is observed. Admission
+spans include readiness and synchronous evidence; logical scheduler and flush-time
+clocks must not be treated as pure CPU/device latencies. Attribution continues.
+
 [Step1738](../done/step1738.md) wires the first/warm HTTP observer into an
 explicit owned Full018 diagnostic. Partial failures retain body prefixes and
 joined runner disposition. Request and secondary receipt errors are both kept.

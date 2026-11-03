@@ -1,5 +1,12 @@
 # Storage
 
+[Step1739](../done/step1739.md) preserves the failed first full-asset original.
+All3213 captured copied sectors match the actual image;909 physical reads include
+768 four-sector payload transactions, so existing2048-byte batching works.
+The full response remains partial at its180-second bound. Synchronous diagnostics
+are under investigation; neither this failure nor conditional native review
+qualifies browser, a storage speedup, writes or a larger workload/resource budget.
+
 [Step1738](../done/step1738.md) reviews the explicit warm/full/concurrent HTTP
 owner against unchanged storage/device/call/serial/lifetime limits. No guest
 quota fit or FAT performance is inferred. The diagnostic uses existing final

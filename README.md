@@ -4,6 +4,11 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1739](done/step1739.md) records the cleanup/native checkpoint and twelve
+separate local refactor commits. The first full-asset diagnostic fails at the
+unchanged180-second body deadline after1,490,944 of2,009,369 bytes; all children
+join. Measured repairs, browser and final combined qualification remain pending.
+
 [Step1738](done/step1738.md) adds an explicit owner for first/warm HTTP and
 browser diagnostics, preserving existing resources and cleanup boundaries.
 All 68 focused host checks pass. Actual guest quota fit, extended performance,

@@ -1,5 +1,13 @@
 # Repository Audit
 
+[Step1739](../done/step1739.md) records twelve separate local commits through
+c3b118f3, with exact final-tree parity across7545 Git files and resolved case
+aliases. r148 passes the graph,13 fresh style/admission checks and repo/contracts.
+The Roslyn host rule now rejects universally inert conditional groups after
+supported-profile intersection;474 cleaned files preserve active syntax and
+effectful directives. All67 no-stdlib exclusion keys remain, with eight meaningful
+guards across seven owners. These source/host proofs do not renew final acceptance.
+
 [Step1738](../done/step1738.md) passes the r143 graph, repo/contracts/diff and
 68 fresh checks. Independent review matches 5,874 archived/live inputs and
 31 producers, plus all 14 source paths. Timeout guards follow bound constants

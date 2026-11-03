@@ -1,5 +1,12 @@
 # Host Requirements
 
+[Step1739](../done/step1739.md) runs the first actual warm=0 Full018 HTTP
+diagnostic through a guarded C# owner and fresh matching EFI rebuild. The first
+full asset exceeds the existing180-second header/body bound; cancellation and
+runner termination/join complete, with all after-guards passing. The first four
+requests complete; browser and normal guest cleanup are not qualified. Keep
+existing budgets. r148's graph and13 focused checks are not final unfiltered Full.
+
 [Step1738](../done/step1738.md) adds `-HttpBenchmarkWarmSequences 0..10` for a
 healthy, untimed Full018 diagnostic only. Null retains ordinary qualification.
 The first sequence precedes the selected warm sequences, then the existing

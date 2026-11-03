@@ -1,5 +1,13 @@
 # EFI Build
 
+[Step1739](../done/step1739.md) binds actual r148 Timing/Full publications and
+independent whole-object/data/layout review to their own profile parents. Timing
+EFI remains byte-exact to its FIFO parent; Full has separately attributed code,
+metadata/unwind and placement changes. Lifetime, mapping, alias, IRQ and stack
+premises remain mandatory. Fresh launch rebuild matches reviewed Full410B9166.
+Its subsequent full-asset diagnostic times out; conditional admission is not
+browser or final matrix acceptance. Preserve every prior failure and native seal.
+
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
 The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.

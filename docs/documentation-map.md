@@ -1,5 +1,11 @@
 # Documentation Map
 
+[Step1739](../done/step1739.md) records the r148 cleanup, conditional native
+review, twelve local commits and first failed full-asset diagnostic. Repository
+audit owns type/conditional/pin proofs; EFI build owns current native limits;
+diagnostics/storage own partial transfer and attribution boundaries. Final
+host/matrix/browser qualification and delivery remain pending.
+
 [Step1738](../done/step1738.md) records the explicit HTTP benchmark owner and
 68 passing host checks. Host requirements owns selection and lifetime limits;
 diagnostics owns first/warm observations and failure preservation; storage owns
