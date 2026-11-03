@@ -385,6 +385,12 @@ internal static partial class EfiProfileTestControls
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected, bool ordinarySmoke = false)
     {
+        bool evidenceTrace = selected.Contains("EnableM10018EvidenceTraceProbe");
+        bool evidenceSummary = selected.Contains("EnableM10018EvidenceSummaryProbe");
+        if (evidenceTrace && evidenceSummary)
+            return "disk_evidence_mode_conflict";
+        if (evidenceTrace || evidenceSummary)
+            selected = [.. selected, "EnableM10018TimingProbe"];
         if (selected.Contains("EnableM16027TimingProbe"))
             selected = [.. selected, "EnableM16027Probe"];
         if (selected.Contains("EnableM16027Probe"))
@@ -439,7 +445,7 @@ internal static partial class EfiProfileTestControls
                 "EnableM05VirtioNegotiationProbe", "EnableM05VirtqueuePollingProbe", "EnableM07VirtioNetProbe",
                 "EnableM07ArpReceiveProbe", "EnableM16002Probe", "EnableM16003Probe"];
             string[] descendants = ["EnableM05ApicSetupProbe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe",
-                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
+                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM10018EvidenceTraceProbe", "EnableM10018EvidenceSummaryProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
             if (selected.Any(name => name != "EnableM07026Probe" && !parents.Contains(name) && !(sockets && descendants.Contains(name))))
                 return "m07_026_profile_conflict";
             // The socket leaf supplies the entire declared network/runtime chain.
@@ -581,6 +587,33 @@ internal static partial class EfiProfileTestControls
         }
     }
 
+    [HostTest("efi.profile independent evidence expectations retain consumer rejection precedence")]
+    private static void EvidenceModeRejectionExpectations()
+    {
+        const string trace = "EnableM10018EvidenceTraceProbe", summary = "EnableM10018EvidenceSummaryProbe";
+        var cases = new List<(string[] Flags, string? Expected)>
+        {
+            ([], null),
+            ([trace, summary], "disk_evidence_mode_conflict"),
+            ([trace, summary, "EnableM16027TimingProbe"], "disk_evidence_mode_conflict"),
+            ([trace, summary, "EnableM10017Probe"], "disk_evidence_mode_conflict")
+        };
+        foreach (string mode in new[] { trace, summary })
+        {
+            cases.Add(([mode], null));
+            cases.Add(([mode, "EnableM07026Probe"], null));
+            foreach (string writable in new[] { "EnableM16027Probe", "EnableM16027TimingProbe" })
+                cases.Add(([mode, writable], "writable_disk_mechanical_profile_conflict"));
+            cases.Add(([mode, "EnableM10017Probe"], "disk_read_profile_conflict"));
+            cases.Add(([mode, "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"], "disk_read_profile_conflict"));
+            foreach (string consumer in new[] { "EnableM03FirmwareEntropySeedProbe", "EnableM03TypedExitBootServicesCallProbe", "EnableM04CheckedReferenceBarrierProbe" })
+                cases.Add(([mode, consumer], "m07_026_profile_conflict"));
+        }
+        foreach (var item in cases)
+            foreach (bool ordinarySmoke in new[] { false, true })
+                HostCheck.Equal(item.Expected, MissingParentReason(item.Flags, ordinarySmoke));
+    }
+
     [HostTest("efi.profile UTC fault descendants preserve command-specific rejection precedence")]
     private static void UtcFaultRejectionPrecedence()
     {
@@ -635,7 +668,7 @@ internal static partial class EfiProfileTestControls
         string[] parents = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
             "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
         string[] allowed = [.. parents, "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe",
-            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
+            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM10018EvidenceTraceProbe", "EnableM10018EvidenceSummaryProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
         foreach (bool build in new[] { true, false })
         {
             foreach (string[] args in new string[][]
@@ -656,6 +689,20 @@ internal static partial class EfiProfileTestControls
                 HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + parent + ":false"],
                     parent == "EnableM16002Probe" ? "m16_004_explicit_false_prerequisite" : "m16_002_explicit_false_prerequisite"),
                     "startup explicit false: " + parent);
+            foreach (string mode in new[] { "EnableM10018EvidenceTraceProbe", "EnableM10018EvidenceSummaryProbe" })
+            {
+                var profile = EfiOptions.Parse(["--EnableM16004Probe", "--" + mode], build).Profile();
+                HostCheck.Equal("Diagnostic", profile.BootPolicy);
+                HostCheck.True(parents.All(profile.IsEnabled) && profile.IsEnabled("M16004") && profile.IsEnabled(mode));
+                string opposite = mode == "EnableM10018EvidenceTraceProbe"
+                    ? "EnableM10018EvidenceSummaryProbe" : "EnableM10018EvidenceTraceProbe";
+                HostCheck.True(!profile.IsEnabled(opposite));
+                foreach (string required in new[] { "M10018Timing", "M10018Full", "M10018", "M16025", "M16023", "M16024", "M16012", "M10004", "M16003" })
+                    HostCheck.True(profile.IsEnabled(required), "startup evidence prerequisite: " + required);
+                HostCheck.True(ServiceProfileRejected(build,
+                    ["--EnableM16004Probe", "--" + mode, "--EnableM10018TimingProbe:false"],
+                    "disk_evidence_explicit_false_prerequisite"));
+            }
             foreach (string conflict in EfiContracts.DiagnosticProbes.Except(allowed))
                 HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + conflict],
                     conflict switch

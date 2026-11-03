@@ -65,11 +65,15 @@ internal static partial class M02DoubleFaultIstEfiIntegrationTests
             ("while (true) { }", "services->FreePages(c,3);"),
             ("if (s_state != 0)", "if (s_state == 0)")
         })
+        {
+            string original = runSyntax.ToString();
+            var target = HostSourceMutation.Find(original, mutation.Item1, new(0, original.Length), requireUnique: true);
+            string changed = original[..target.Start] + mutation.Item2 + original[target.End..];
             Require(!DoubleFaultFlow((Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax)
-                Microsoft.CodeAnalysis.CSharp.SyntaxFactory.ParseMemberDeclaration(runSyntax.ToString()
-                    .Replace(mutation.Item1, mutation.Item2, StringComparison.Ordinal),
+                Microsoft.CodeAnalysis.CSharp.SyntaxFactory.ParseMemberDeclaration(changed,
                     options: (Microsoft.CodeAnalysis.CSharp.CSharpParseOptions)runSyntax.SyntaxTree.Options)!),
                 "terminal flow mutation " + mutation.Item1);
+        }
         string prepare = HostSourceText.Active(DoubleFaultMethod(catalog, "Prepare", Microsoft.CodeAnalysis.SpecialType.System_Boolean));
         int cursor = 0;
         foreach (string operation in new[]

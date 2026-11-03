@@ -82,7 +82,8 @@ internal static unsafe class M09004EfiIntegrationTests
     [HostTest("m09.004 materializer firewall requires exact retained pool owner gate and failure arm", HostLane.Fast, 7)]
     private static void MaterializerFirewall()
     {
-        var source = new EfiAllocatorOwnershipSources(EfiOptions.Parse(["--EnableM09004Probe"], false).Profile()).Sources;
+        var snapshot = new EfiAllocatorOwnershipSources(EfiOptions.Parse(["--EnableM09004Probe"], false).Profile());
+        var source = snapshot.Sources;
         var admitted = source;
         HostCheck.True(EfiProfileTestControls.RemoveOwnedCooperativeMaterializer(admitted, out admitted, out string reason), reason);
         HostCheck.True(!Contains(admitted, "BootPageAllocatorStateMaterializer", StringComparison.Ordinal));
@@ -93,7 +94,7 @@ internal static unsafe class M09004EfiIntegrationTests
             Replace(source, "new(0, 0, pool, pool + 32 * Page, 32, 32 * Page, -1)", "new(0, 0, pool, pool + 31 * Page, 31, 31 * Page, -1)", StringComparison.Ordinal),
             Replace(source, "ulong pool = state->CooperativePool;", "ulong pool = state->CooperativePool + Page;", StringComparison.Ordinal),
             Replace(source, "if (!BootPageAllocatorStateMaterializer.Materialize", "if (BootPageAllocatorStateMaterializer.Materialize", StringComparison.Ordinal),
-            Replace(source, "{ _ = CooperativeMarker(state, 3); return false; }", "{ _ = CooperativeMarker(state, 3); return true; }", StringComparison.Ordinal),
+            snapshot.ChangeCooperativeMaterializerFailureReturn(),
             Replace(source, "private static bool RunCooperativeSwitch(void* context)", "private static bool UnreviewedCooperativeSwitch(void* context)", StringComparison.Ordinal),
             Replace(source, "#if M09_004_PROBE", "#if M09_004_PROBE || M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE", StringComparison.Ordinal),
             Replace(source, "RunOwnedCooperativeSwitch(state->OwnedPhase == 2", "RunOwnedCooperativeSwitch(true", StringComparison.Ordinal),
@@ -131,6 +132,9 @@ internal static unsafe class M09004EfiIntegrationTests
             element.Attribute("Text")?.Value == "realtime_rejection_requires_web_profile").Attribute("Condition")!.Value;
         HostCheck.Equal("('$(EnableM16019UnavailableProbe)' == 'true' or '$(EnableM16019InvalidProbe)' == 'true') and '$(EnableM10004Probe)' != 'true'", realtimeParent);
         foreach (var expected in new (string Name, string Condition)[]{
+            ("disk_evidence_mode_conflict","'$(EnableM10018EvidenceTraceProbe)' == 'true' and '$(EnableM10018EvidenceSummaryProbe)' == 'true'"),
+            ("disk_evidence_timing_profile_required","('$(EnableM10018EvidenceTraceProbe)' == 'true' or '$(EnableM10018EvidenceSummaryProbe)' == 'true') and ('$(EnableM10018TimingProbe)' != 'true' or '$(EnableM10018FullProbe)' != 'true' or '$(EnableM10018Probe)' != 'true' or '$(EnableM16025Probe)' != 'true')"),
+            ("disk_timing_parent_required","'$(EnableM10018TimingProbe)' == 'true' and '$(EnableM10018FullProbe)' != 'true'"),
             ("disk_static_full_parent_required","'$(EnableM10018FullProbe)' == 'true' and '$(EnableM10018Probe)' != 'true'"),
             ("disk_static_prerequisite_missing","'$(EnableM10018Probe)' == 'true' and ('$(EnableM16025Probe)' != 'true' or '$(EnableM10004Probe)' != 'true')"),
             ("disk_read_prerequisite_missing","'$(EnableM16025Probe)' == 'true' and ('$(EnableM16023Probe)' != 'true' or '$(EnableM16024Probe)' != 'true' or '$(EnableM16012Probe)' != 'true')"),
@@ -139,7 +143,7 @@ internal static unsafe class M09004EfiIntegrationTests
         string ExclusionName(string name) => name switch
         {
             "EnableM16013Probe" or "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" => "EnableM16012Probe",
-            "EnableM16014Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" => "EnableM10004Probe",
+            "EnableM16014Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM10018EvidenceTraceProbe" or "EnableM10018EvidenceSummaryProbe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" => "EnableM10004Probe",
             _ => name
         };
         string[] declared = project.Descendants("PropertyGroup").SelectMany(group => group.Elements()).Select(element => element.Name.LocalName)

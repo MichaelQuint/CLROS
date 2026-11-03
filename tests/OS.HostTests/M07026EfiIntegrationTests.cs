@@ -26,8 +26,19 @@ internal static unsafe class M07026EfiIntegrationTests
             foreach (var parent in profile.Flags.Where(x => x.Value && x.Key != "EnableM07026Probe"))
                 Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--" + parent.Key, "false"], build).Profile());
             foreach (string extra in EfiContracts.DiagnosticProbes.Except(profile.Flags.Where(x => x.Value).Select(x => x.Key))
-                .Except(["EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"]))
+                .Except(["EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM10018EvidenceTraceProbe", "EnableM10018EvidenceSummaryProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"]))
                 Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--" + extra], build).Profile());
+            foreach (string mode in new[] { "EnableM10018EvidenceTraceProbe", "EnableM10018EvidenceSummaryProbe" })
+            {
+                var evidence = EfiOptions.Parse(["--EnableM07026Probe", "--" + mode], build).Profile();
+                HostCheck.Equal("Diagnostic", evidence.BootPolicy);
+                HostCheck.True(evidence.IsEnabled("M07026") && profile.Flags.Where(x => x.Value).All(x => evidence.IsEnabled(x.Key)) && evidence.IsEnabled(mode));
+                string opposite = mode == "EnableM10018EvidenceTraceProbe"
+                    ? "EnableM10018EvidenceSummaryProbe" : "EnableM10018EvidenceTraceProbe";
+                HostCheck.True(!evidence.IsEnabled(opposite));
+                foreach (string required in new[] { "M10018Timing", "M10018Full", "M10018", "M16025", "M16023", "M16024", "M16012", "M10004", "M16003" })
+                    HostCheck.True(evidence.IsEnabled(required), "evidence prerequisite: " + required);
+            }
             Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--BootPolicy", "VerifiedExit"], build).Profile());
         }
         var options = QemuSmokeOptions.Parse("--BuildEfi", "--EnableM07026Probe", "--RequireMarker", "CLROS_M07_026_READY");

@@ -116,6 +116,21 @@ internal sealed class EfiAllocatorOwnershipSources
         return result.Reverse().ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
     }
 
+    internal IReadOnlyDictionary<string, string> ChangeCooperativeMaterializerFailureReturn()
+    {
+        var method = catalog.Method(Owner, "RunCooperativeSwitch");
+        var materializer = catalog.Compilation.GetTypeByMetadataName("OS.Kernel.Memory.BootPageAllocatorStateMaterializer");
+        var invocation = (InvocationExpressionSyntax)catalog.MethodInvocations(method)
+            .Single(call => call.TargetMethod.Name == "Materialize"
+                && SymbolEqualityComparer.Default.Equals(call.TargetMethod.ContainingType, materializer)).Syntax;
+        var branch = invocation.Ancestors().OfType<IfStatementSyntax>().First();
+        var expected = SyntaxFactory.ParseStatement("{ _ = CooperativeMarker(state, 3); return false; }");
+        if (branch.Statement is not BlockSyntax block || !SyntaxFactory.AreEquivalent(block, expected))
+            throw new InvalidOperationException("allocator_control_materializer_failure_arm");
+        var returned = block.Statements.OfType<ReturnStatementSyntax>().Single();
+        return Replace(returned, returned.WithExpression(SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)));
+    }
+
     private InvocationExpressionSyntax Call(string caller, string target)
     {
         var owner = catalog.Type(Owner);

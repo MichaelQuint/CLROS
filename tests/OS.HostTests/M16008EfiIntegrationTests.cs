@@ -70,8 +70,19 @@ internal static unsafe partial class M16008EfiIntegrationTests
             foreach (string parent in parents)
                 Reject(() => EfiOptions.Parse(["--" + flag, "--" + parent + ":false"], build).Profile());
             foreach (string conflict in EfiContracts.DiagnosticProbes.Where(n => n != flag &&
-                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
+                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM10018EvidenceTraceProbe" or "EnableM10018EvidenceSummaryProbe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
                 Reject(() => EfiOptions.Parse(["--" + flag, "--" + conflict], build).Profile());
+            foreach (string mode in new[] { "EnableM10018EvidenceTraceProbe", "EnableM10018EvidenceSummaryProbe" })
+            {
+                var evidence = EfiOptions.Parse(["--" + flag, "--" + mode], build).Profile();
+                HostCheck.Equal("Diagnostic", evidence.BootPolicy);
+                HostCheck.True(evidence.IsEnabled(flag) && parents.All(evidence.IsEnabled) && profile.Flags.Where(x => x.Value).All(x => evidence.IsEnabled(x.Key)) && evidence.IsEnabled(mode));
+                string opposite = mode == "EnableM10018EvidenceTraceProbe"
+                    ? "EnableM10018EvidenceSummaryProbe" : "EnableM10018EvidenceTraceProbe";
+                HostCheck.True(!evidence.IsEnabled(opposite));
+                foreach (string required in new[] { "M10018Timing", "M10018Full", "M10018", "M16025", "M16023", "M16024", "M16012", "M10004", "M16003" })
+                    HostCheck.True(evidence.IsEnabled(required), "evidence prerequisite: " + required);
+            }
             Reject(() => EfiOptions.Parse(["--BootPolicy", "VerifiedExit", "--" + flag], build).Profile());
             var source = HostSourceCatalog.Efi(profile);
             _ = source.Type("OS.Kernel.Threading.WaitAddress");
