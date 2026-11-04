@@ -67,16 +67,41 @@ internal static partial class HostTestRunner
     internal static string Owner(MethodInfo method) => method.DeclaringType?.FullName
         ?? throw new InvalidOperationException("fixture_owner_missing");
 
-    internal static FixtureGroup[] GroupByLane(Fixture[] fixtures) => fixtures.GroupBy(fixture => Owner(fixture.Method)).SelectMany(owner => owner.GroupBy(fixture => fixture.Lane).Select(lane => new FixtureGroup(owner.Key + (owner.Select(fixture => fixture.Lane).Distinct().Count() > 1 ? "." + lane.Key : ""), lane.Key, lane.ToArray()))).ToArray();
-    internal static Fixture[] Discover() => typeof(HostTestRunner).Assembly.GetTypes().SelectMany(type => type.GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic).SelectMany(method =>
+    internal static FixtureGroup[] GroupByLane(Fixture[] fixtures)
+    {
+        List<FixtureGroup> groups = [];
+        foreach (var owner in fixtures.GroupBy(fixture => Owner(fixture.Method)))
+        {
+            var lanes = owner.GroupBy(fixture => fixture.Lane).ToArray();
+            foreach (var lane in lanes)
+            {
+                string id = owner.Key + (lanes.Length > 1 ? "." + lane.Key : "");
+                groups.Add(new(id, lane.Key, lane.ToArray()));
+            }
+        }
+
+        return groups.ToArray();
+    }
+
+    internal static Fixture[] Discover()
     {
         List<Fixture> cases = [];
-        if (method.GetCustomAttribute<HostFixtureAttribute>() is { } fixture)
-            cases.Add(new(Owner(method) + "." + method.Name, fixture.Lane, method));
-        foreach (var test in method.GetCustomAttributes<HostTestAttribute>())
-            cases.Add(new(Owner(method) + "." + method.Name + "/" + test.Order, test.Lane, method, test.Name, test.Order));
-        return cases;
-    })).OrderBy(f => Owner(f.Method), StringComparer.Ordinal).ThenBy(f => f.Order).ThenBy(f => f.Id, StringComparer.Ordinal).ToArray();
+        foreach (Type type in typeof(HostTestRunner).Assembly.GetTypes())
+        {
+            foreach (MethodInfo method in type.GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                if (method.GetCustomAttribute<HostFixtureAttribute>() is { } fixture)
+                    cases.Add(new(Owner(method) + "." + method.Name, fixture.Lane, method));
+                foreach (var test in method.GetCustomAttributes<HostTestAttribute>())
+                    cases.Add(new(Owner(method) + "." + method.Name + "/" + test.Order, test.Lane, method, test.Name, test.Order));
+            }
+        }
+
+        return cases.OrderBy(fixture => Owner(fixture.Method), StringComparer.Ordinal)
+            .ThenBy(fixture => fixture.Order)
+            .ThenBy(fixture => fixture.Id, StringComparer.Ordinal)
+            .ToArray();
+    }
     public static async Task<int> RunAsync(string[] args)
     {
         if (args.Length > 0 && args[0] == "--qemu-control")
