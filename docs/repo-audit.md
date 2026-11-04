@@ -1,5 +1,13 @@
 # Repository Audit
 
+[Step1750](../done/step1750.md) separates complete managed/Linux HTTP reference
+owners into associated partials, with exact member/parent reconstruction and
+independent ownership review. The complete build and 41 focused checks pass,
+including the real Windows managed owner. Storage's 12 retained paths are fully
+integrated; all 89 baseline paths match its raw admitted archive, including 53
+line-ending-only differences. No original is rewritten or discarded. Final
+unfiltered Full/native/guest/performance/browser and delivery gates remain.
+
 [Step1749](../done/step1749.md) expands the nineteen-arm QEMU terminal choice
 into ordered local returns, preserving exact expressions, lazy evaluation and
 whole-file reconstruction. The complete build and 40 focused policy/style

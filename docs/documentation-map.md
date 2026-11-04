@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1750](../done/step1750.md) records platform owner partials, 41 focused
+checks and complete retained storage/baseline worktree accounting. Repo audit
+owns source equivalence; host requirements distinguishes real managed execution.
+
 [Step1749](../done/step1749.md) records the ordered terminal-selector cleanup,
 complete storage-method responsibility review, 40 focused checks and the
 preserved canonical Gitea transport failure. Repo audit owns this host-only scope.

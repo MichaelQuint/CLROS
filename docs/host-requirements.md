@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1750](../done/step1750.md) builds the complete r191 graph and passes 41
+focused checks after byte-exact platform-owner moves. Its Native-labelled case
+executes real Windows Kestrel/FileStream sessions and joins their children;
+Linux launch is rejected on this host. The selected full lane still reports
+host.tests.focused and supplies no unfiltered Full or CLROS write acceptance.
+
 [Step1748](../done/step1748.md) passes172 focused Fast checks at r186, two
 synthetic Native-labelled cancellation checks at r187 and fresh r188 complete
 build/repo/contracts/diff. Quiet QEMU execution requires an explicit client owner
