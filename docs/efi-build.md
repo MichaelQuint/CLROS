@@ -1,5 +1,13 @@
 # EFI Build
 
+[Step1757](../done/step1757.md) records current Timing+Summary method relocation
+and frame facts, including timer growth that prevents blind reuse of the own
+Timing IRQ allowance. A source-reviewed pre-EOI extraction passes 40 host checks
+and native publication, but its handler shrinks only16 bytes while adding an80-byte
+helper. The trial is rejected and original source/admission bytes restored.
+Actual own-route stack review remains required; no capacity, admission rule or
+historical Full margin changes.
+
 [Step1752](../done/step1752.md) binds filtered-catch offset constants to the
 already hash-verified managed compiler input, preserving exact UInt32 field
 signatures and independent native call/continuation geometry. A fresh image,

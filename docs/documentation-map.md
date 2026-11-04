@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1757](../done/step1757.md) records a rejected stopped-deadline extraction,
+40 focused controls and measured native frames. EFI build owns the restored
+source-admission and emitted-code boundary; the evidence step preserves the trial,
+reader/preflight failures and still-required own Timing qualification.
+
 [Step1756](../done/step1756.md) records the final-output evidence release fix,
 two ownership controls, timeout consolidation and 51 focused checks. Host
 requirements owns execution and receipt-phase boundaries; repo audit owns the
