@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1776](../done/step1776.md) owns the bounded decimal trial, host controls and
+actual native inspection. EFI build retains pending current proof transport;
+host requirements preserves failed originals and qualification boundaries.
+
 [Step1775](../done/step1775.md) owns independent Short observation, raw serial/
 decimal census and the separate host-model hypothesis. EFI and host guides keep
 production/native/performance qualification separate from operation counts.

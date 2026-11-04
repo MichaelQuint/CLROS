@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1776](../done/step1776.md) implements an unaccepted exact-byte decimal FIFO
+trial and inspects its actual2100-method image. Existing frames do not grow;
+five new methods and four changed shapes still require complete current transport.
+No candidate guest or inherited-margin substitution is authorized by these facts.
+
 [Step1775](../done/step1775.md) independently corroborates both Short originals
 and identifies the next decimal-output hypothesis. Production/native bytes remain
 unchanged; a host poll-count model grants no native stack or performance acceptance.

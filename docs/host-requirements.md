@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1776](../done/step1776.md) records guarded writer33/admission6/source1 focused
+checks and the decimal trial's native facts. Preserve the input-drift, stale-pin
+and canonicalization failures. Host/native compilation is not guest speed or
+final Full/browser acceptance; current proof transport remains pending.
+
 [Step1775](../done/step1775.md) retains142 independent original-value checks and
 an artifact-only decimal model. Exact output/poll counts are not checked-backend
 timing, native safety, matched guest populations or final qualification.
