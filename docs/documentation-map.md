@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1778](../done/step1778.md) owns the sealed rejected contrast, restored-state
+validation and runtime inventory formatting. EFI/host guides preserve diagnostic
+limits and final qualification requirements.
+
 [Step1777](../done/step1777.md) owns current decimal transport/admission and the
 stopped WHPX paired original. EFI and host guides retain strict backend failure
 handling and distinguish separate TCG diagnostics from final qualification.

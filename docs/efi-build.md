@@ -1,5 +1,9 @@
 # EFI Build
 
+[Step1778](../done/step1778.md) seals the decimal trial's rejection and restored
+baseline. Exact TCG functional evidence supplies no retained optimization; the
+failed WHPX cohort stays stopped. Host inventory formatting changes no native API.
+
 [Step1777](../done/step1777.md) completes conditional current decimal-trial proof
 transport and protected preflight. The first paired WHPX baseline fails strict
 post-seal stderr before HTTP; its population stops. Separate TCG isolation does

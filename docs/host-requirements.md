@@ -1,5 +1,9 @@
 # Host Requirements
 
+[Step1778](../done/step1778.md) records restored admission and independent raw
+contrast checks. Runtime source/producer inventory expressions are expanded with
+exact non-whitespace equivalence; final full-host/guest/browser gates remain open.
+
 [Step1777](../done/step1777.md) preserves the original WHPX GLib handle failure,
 joined runner and zero-HTTP evidence. Strict stderr/600/480/180 rules stay exact;
 separate TCG isolation and static transport cannot become a completed population.
