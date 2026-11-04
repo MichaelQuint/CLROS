@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1748](../done/step1748.md) records timer/cache repairs and the matched quiet
+HTTP pair. Diagnostics owns results/attribution, storage owns backing/coverage,
+EFI owns current emission/stack conditions, and host requirements owns explicit
+client/join boundaries. Final Full/matrix/population/browser gates stay open.
+
 [Step1747](../done/step1747.md) closes the six-operation ToolCommand extraction.
 Repo audit owns its body/router equivalence and guarded host checks; existing
 subsystem/native/guest/performance qualification boundaries remain unchanged.

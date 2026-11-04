@@ -1,5 +1,15 @@
 # EFI Build
 
+[Step1748](../done/step1748.md) binds actual own quiet baseline/fixed PE images
+4DE3017B/90630314, complete methods/xdata/data/metadata and current storage
+90/91-page layouts before two serialized WHPX observations. All20 complete
+own-Full stack witnesses retain positive charges plus a conservative1,048-byte
+debit, without shrink credit or transferred Timing margins. Live BSP/IF0/MMIO,
+mapping/alias/provider/lifetime premises remain. EnableM10018ServingBenchmarkProbe
+defaults false, requires Full and excludes diagnostic/writable conflicts; it is
+a separate reduced-tracing observation profile. Conditional native review and
+correct full GETs do not renew final Full/browser/natural-cleanup qualification.
+
 [Step1746](../done/step1746.md) inspects actual own-Timing code, all124 data
 nodes and twenty stack witnesses for a getter-inlining trial, then rejects its
 measured performance. The getter and exact experiment-only admission entries

@@ -1,5 +1,16 @@
 # Diagnostics
 
+[Step1748](../done/step1748.md) measures the combined timer/cache candidate in
+the same quiet profile as its baseline: first/repeat complete2,009,369-byte GETs
+167.378596/167.518250→7.200736/7.134948 seconds, all exact hashes. TTFB changes
+3.986658/4.757678→0.522179/0.244205 seconds. Mean speedup23.3611x is an initial
+one-boot/image observation, not a population estimate or independent attribution
+to timer, cache or serial output. Post-curl flush is separately2.28–7.55ms;
+curl total still includes its file writes. Detailed hot-path traces are compiled
+out only in the explicit default-off benchmark profile, equally for both images.
+Real app output, checks/counters and raw READY/END/FAIL remain. All clients and
+VMs join with deliberate host stop; ordinary Full/browser/cleanup remain open.
+
 [Step1746](../done/step1746.md) rejects the checked-COM1 getter inlining trial
 after twelve fixed paired Short boots and sixty exact responses. WHPX range
 median improves only0.837%; TCG regresses13.148%, with other request regressions.

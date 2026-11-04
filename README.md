@@ -4,6 +4,11 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1748](done/step1748.md) repairs pending-aware timer stop and directory-cache
+coverage. A matched quiet WHPX full-file observation improves167.45→7.17 seconds
+on average, with all four2,009,369-byte bodies hash-correct. This one-boot/image
+development pair uses deliberate joined host stop; final qualification remains.
+
 [Step1747](done/step1747.md) extracts six complete inspection operations from
 the CLI router, with exact body/routing review and24 fresh focused checks. Seven
 guarded negative CLI controls pass. Timer-handoff and final qualification remain.

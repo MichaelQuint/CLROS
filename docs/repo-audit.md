@@ -1,5 +1,13 @@
 # Repository Audit
 
+[Step1748](../done/step1748.md) updates current source/profile admission alongside
+timer/cache and explicit quiet benchmark changes, preserving historical anchors.
+The isolated baseline differs from all5,914 r188 sources in exactly five reviewed
+timer/cache files. Current31 producers and all sources remain hash-identical
+after both quiet runs, before this docs overlay. r188 build/repo/contracts/diff
+pass; focused host and conditional emitted reviews remain separate from final
+unfiltered Full and source-matched qualification. Failed originals are retained.
+
 [Step1747](../done/step1747.md) moves six cohesive inspection bodies into
 ToolCommand associated partials. Exact whole-router reconstruction preserves
 argument priority, held-input lifetime and outer error handling. r173 graph,

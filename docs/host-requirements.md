@@ -1,5 +1,15 @@
 # Host Requirements
 
+[Step1748](../done/step1748.md) passes172 focused Fast checks at r186, two
+synthetic Native-labelled cancellation checks at r187 and fresh r188 complete
+build/repo/contracts/diff. Quiet QEMU execution requires an explicit client owner
+before publication, preserves the original typed runner/source/image authorities,
+and reports only joined observation inputs. Two actual curl GETs per image use
+unchanged850-second limits and1700-second shared bound. Both owners return0,
+all clients/VMs join and endpoints refuse after deliberate stop; no natural Full
+cleanup is claimed. The rejected curl child-policy framework and failures remain
+archived; no process ownership/census guard is weakened. Final Full remains.
+
 [Step1746](../done/step1746.md) passes31 focused markers,30 selected cases,
 zero reuse and unchanged inputs after removing the rejected inlining experiment.
 The repaired original semantic matrix passes all seventeen mutations; its earlier

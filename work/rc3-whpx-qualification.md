@@ -1,5 +1,12 @@
 # RC3 and WHPX qualification contract
 
+[Step1748](../done/step1748.md) repairs timer quiescence/directory coverage and
+records a matched quiet WHPX full-file pair:167.45→7.17 seconds mean, all four
+complete bodies exact. One boot/image, combined attribution and deliberate joined
+host stop are explicit. Own native/stack/source/client authorities precede both
+launches; focused checks pass. Final frozen unfiltered Full/29/24/7, matched
+populations and browser/natural-cleanup qualification remain mandatory.
+
 [Step1746](../done/step1746.md) lands dynamic ownership for the seventeen
 semantic negative vectors and rejects/restores a separately measured inlining
 trial. All twelve Short raw gates pass; both speed criteria fail. Fresh r171

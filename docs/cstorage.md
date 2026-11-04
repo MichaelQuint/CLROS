@@ -1,5 +1,15 @@
 # Storage
 
+[Step1748](../done/step1748.md) increases immutable-directory coverage to12 slots;
+Full/Timing backing becomes91 pages, Short remains5 slots, ceiling256 unchanged.
+Bounds, aliases, full parsing, completed-only publication and stale/cancel/fault
+semantics retain focused controls. The host model removes seven warm directory
+reads per lookup; it is separate from actual guest attribution. Own emitted
+storage is372,528 bytes/208 slack versus baseline368,608/32 slack, with complete
+data/layout checks. The quiet matched full-file pair improves167.45→7.17s mean
+for timer/cache together; one boot/image and deliberate stop do not qualify
+population throughput, browser or natural cleanup. Raw bodies all match.
+
 [Step1746](../done/step1746.md) independently reproduces all twelve trial raw
 gates:1,740 transactions,6,372 rows,2,892 copied sectors and sixty exact responses.
 Media/GPT/FAT chains, copies, packet bodies, counters and input/child joins pass.
