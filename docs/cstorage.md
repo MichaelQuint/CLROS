@@ -1,5 +1,12 @@
 # Storage
 
+[Step1754](../done/step1754.md) observes long post-ACK gaps at8KiB entity
+boundaries in the original quiet full-file captures. The fixed pair spends
+4.87/5.02s in those intervals, versus1.77/1.79s in other usable intervals.
+Source's8192-byte disk completion ceiling matches the pattern but supplies no
+packet-to-disk causal join. Measure pump/completion/copy, validation and dispatch
+before another repair; no storage safety check, budget or acceptance changes.
+
 [Step1748](../done/step1748.md) increases immutable-directory coverage to12 slots;
 Full/Timing backing becomes91 pages, Short remains5 slots, ceiling256 unchanged.
 Bounds, aliases, full parsing, completed-only publication and stale/cancel/fault

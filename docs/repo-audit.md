@@ -1,5 +1,11 @@
 # Repository Audit
 
+[Step1754](../done/step1754.md) adds documentation/evidence only. Its original
+wire diagnostic uses the unchanged strict decoders and source-bound r205 tooling;
+raw capture/serial files and failed parent checks remain. Independent review
+matches all saved distribution/join values. No production policy is changed to
+turn this diagnostic into qualification.
+
 [Step1753](../done/step1753.md) introduces four associated QemuTranscripts
 reporting partials and a separate test partial. Every DTO remains in its own file;
 the existing strict decoder is reused through an optional private observer.

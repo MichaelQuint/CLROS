@@ -1,5 +1,12 @@
 # Host Requirements
 
+[Step1754](../done/step1754.md) runs the isolated source/binary-bound C# reader
+over the preserved original PCAPs. Both value inspections succeed and52 guarded
+inputs match afterward. Prefix-only framing and borrowed ARP values remain
+explicitly unqualified as full parents; strict parent failures are retained.
+No VM/client is launched and no host/PCAP clocks are mixed. The three preparation
+builds and corrected warning-free executed probe remain individually identified.
+
 [Step1753](../done/step1753.md) passes31 focused host packet/style checks with
 unchanged5935/31 inputs/producers. File cadence reporting uses the existing
 explicit64MiB capture/24MiB aggregate stream policy; ordinary defaults stay.

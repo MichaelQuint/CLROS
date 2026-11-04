@@ -1,5 +1,11 @@
 # Networking
 
+[Step1754](../done/step1754.md) reconstructs four original2,009,369-byte bodies
+without payload retransmission. Data-to-ACK p95 is50-111us, while most observed
+delay lies after the covering ACK and before the next captured payload. Original
+record/time witnesses and separate client clocks remain. This narrows the next
+measurement; it does not identify driver, scheduler, validation or storage cost.
+
 [Step1753](../done/step1753.md) adds a host reporting entry for literal file GETs
 without requiring a quiet capture to satisfy an unrelated service-close recipe.
 It reuses strict wire/HTTP parsing, preserves every existing guard/default, and

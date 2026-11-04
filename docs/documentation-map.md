@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1754](../done/step1754.md) owns original quiet-capture evaluation, retained
+parent failures and the8KiB boundary correlation. Diagnostics owns timings and
+remaining attribution, networking the packet scope, host requirements the
+isolated reader/guard boundaries, and repo audit the unchanged production policy.
+
 [Step1753](../done/step1753.md) records bounded file-wire reporting and31 focused
 checks. Diagnostics owns cadence units and incomplete observations, networking
 the unchanged strict parser/close boundaries, host requirements the explicit

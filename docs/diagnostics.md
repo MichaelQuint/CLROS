@@ -1,12 +1,21 @@
 # Diagnostics
 
+[Step1754](../done/step1754.md) evaluates both original quiet captures unchanged.
+All four complete file bodies hash-match;528 distribution fields and5888
+payload/ACK/next-send joins independently agree. ACK-to-next p95 falls from
+818.5/822.5ms to20.8/21.5ms; fixed8KiB entity-boundary gaps account for4.87/5.02s.
+This locates refill work for controlled measurement, without assigning a kernel
+cause. Both strict parent failures remain; borrowed values and prefix framing do
+not grant parent/Full/browser acceptance. One boot/image and two sequences remain
+a diagnostic, with no new population or isolated-cause result.
+
 [Step1753](../done/step1753.md) adds bounded host file-wire cadence values through
 the existing strict PCAP/TCP parser. Request/entity first appearances, cumulative
 ACK coverage, retransmissions and literal next progress sends retain original
 record IDs and microsecond times; missing or negative intervals stay explicit.
 Short/holey entities have no full hash/span. EOF and FIN/reset observations grant
-no cleanup authority. The31 focused synthetic/regression checks pass; evaluating
-preserved originals and attributing remaining transfer costs are still pending.
+no cleanup authority. The31 focused synthetic/regression checks pass. Step1754
+records the subsequent original-capture evaluation; cause attribution remains.
 
 [Step1748](../done/step1748.md) measures the combined timer/cache candidate in
 the same quiet profile as its baseline: first/repeat complete2,009,369-byte GETs
