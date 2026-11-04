@@ -4,6 +4,8 @@
 archives561 output leaves and inspects2095 methods. CompleteIo shrinks32bytes,
 all frames remain unchanged and2094other method comparisons have no unexplained
 change. Current delta/data/metadata/phase review precedes any guest activation.
+Its bounded native peer finds no code defect; changed18-byte GCInfo content retains
+a separate semantic/consumer condition and does not gain equivalence from length.
 
 [Step1778](../done/step1778.md) seals the decimal trial's rejection and restored
 baseline. Exact TCG functional evidence supplies no retained optimization; the
