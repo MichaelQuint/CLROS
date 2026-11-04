@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1770](../done/step1770.md) retains conditional role projections and independently
+checked section/payload byte coverage. Obligation-set and instruction-partition
+repairs preserve canonical results with actual old-accept/new-reject controls.
+The separate input-role candidate and census repair await review; no fresh Full
+or guest result follows from the artifact-only host readers.
+
 [Step1769](../done/step1769.md) records the attributed-reader controls and independent
 293-method/298-mask recomputation. A separate empty-alternatives repair preserves
 canonical rows with an actual old-accept/new-reject control. Host-only numerical

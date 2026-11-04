@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1770](../done/step1770.md) independently verifies the remaining caller stack
+roles and current section-byte/payload census. Complete physical bounds remain
+open. Exact input-only specialization is prepared separately; output and observer
+graphs retain their scopes. All old charges and current live/image gates remain.
+
 [Step1769](../done/step1769.md) independently verifies an active-path IRQ charge
 allocation: all historical10144 bytes remain, Verify96 is represented in its
 authenticated slot, and Handler32 stays on its active branch. Conditional IRQ

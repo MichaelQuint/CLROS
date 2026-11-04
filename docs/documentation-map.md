@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1770](../done/step1770.md) owns physical caller-role and current section/payload
+review. EFI build preserves all-role/charge and live requirements; host requirements
+records reader controls/repairs and the separate conditional input-role candidate.
+No overall native/guest/performance qualification transfers from these readers.
+
 [Step1769](../done/step1769.md) owns explicit IRQ charge allocation and its
 independent numerical review. EFI build records the conditional margin;
 host requirements distinguishes reader controls/repair from native admission.
