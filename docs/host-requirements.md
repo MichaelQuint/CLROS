@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1762](../done/step1762.md) records bounded independent user-memory review
+and nonexecuting clock/startup candidates. Four compiled clock-record layouts
+pass; unsupported sender layout and an incorrect candidate-site label remain
+with their separate corrected follow-ups. No new Full/native/guest result.
+
 [Step1761](../done/step1761.md) records independent physical/guard inspection,
 fresh conditional callback calculations and an explicit-selection compiled-layout
 probe. Three altered selections reject without output. These nonexecuting host

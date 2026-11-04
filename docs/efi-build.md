@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1762](../done/step1762.md) independently corroborates selected page/thread-
+copy contracts and their static factory/consumer tuples. Startup output remains
+a distinct target. Clock/startup/observer candidates retain field propagation,
+tagged-call, raw-byte and live requirements; no whole-root or image admission.
+
 [Step1761](../done/step1761.md) binds the mutation guard's static native tuple
 and conditional1112-byte callee expression. Physical review distinguishes
 rejected-Prepare callback prefix168 from rejected-Start120; original witness

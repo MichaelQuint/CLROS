@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1762](../done/step1762.md) owns selected user-memory provider review and
+clock/startup candidate evidence. EFI build retains actual-target/physical/live
+requirements; host requirements distinguishes successful probes and preserved
+failures. Final native/guest/performance qualification remains open.
+
 [Step1761](../done/step1761.md) owns physical-phase review, the rejected-Prepare
 frontier and conditional guard/page/copy components. EFI build retains original
 witness and live native requirements; host requirements records parser controls
