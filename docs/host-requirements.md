@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1771](../done/step1771.md) corroborates the input/census repair and exact
+close-selector integration. Recursive witnesses match43 finite results; scoped
+altered-input controls pass. Fresh phase/timer/compiler-policy candidates remain
+conditional and unadmitted. No new unfiltered Full or guest qualification.
+
 [Step1770](../done/step1770.md) retains conditional role projections and independently
 checked section/payload byte coverage. Obligation-set and instruction-partition
 repairs preserve canonical results with actual old-accept/new-reject controls.

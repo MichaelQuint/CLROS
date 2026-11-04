@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1771](../done/step1771.md) independently confirms input-only768 and teardown's
+Number3 close role. A fresh conservative20-witness phase candidate retains all
+historical charges and extra probe allowance under unchanged compiled capacities.
+Timer/physical/probe/live/metadata admission remains open; no guest grant follows.
+
 [Step1770](../done/step1770.md) independently verifies the remaining caller stack
 roles and current section-byte/payload census. Complete physical bounds remain
 open. Exact input-only specialization is prepared separately; output and observer

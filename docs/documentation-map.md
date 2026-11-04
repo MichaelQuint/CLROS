@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1771](../done/step1771.md) owns exact input/close-role integration and its
+independent review. EFI build records pending complete phase/live admission;
+host requirements separates artifact-reader controls from final qualification.
+
 [Step1770](../done/step1770.md) owns physical caller-role and current section/payload
 review. EFI build preserves all-role/charge and live requirements; host requirements
 records reader controls/repairs and the separate conditional input-role candidate.
