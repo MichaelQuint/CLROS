@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1767](../done/step1767.md) owns guarded-call/outer-prefix review, the host
+checker correction and isolated owner-copy measurements. EFI build retains
+physical/live requirements; host requirements distinguishes the host probe
+from native/guest and final performance qualification.
+
 [Step1766](../done/step1766.md) owns storage provider alternatives, independent
 finite arithmetic and later network/core byte candidates. EFI build records
 remaining physical/live requirements; host requirements records controls and

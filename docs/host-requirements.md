@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1767](../done/step1767.md) records guarded-call controls, the old-accept/
+fixed-reject push/pop checker control and six unchanged canonical byte rows.
+An isolated three-process owner-copy comparison is managed-host evidence only.
+Kernel/native/guest qualification and the exact frozen full graph remain open.
+
 [Step1766](../done/step1766.md) records explicit-alternatives evaluator controls,
 independent offline recomputation and inert raw-helper disassembly/CFG checks.
 Unknown candidates propagate null bounds. Preserved failed probe builds and a

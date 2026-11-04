@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1767](../done/step1767.md) independently checks conditional tagged-call
+declarations and current outer4144/4152/4760/7592 prefixes. Four call variables
+and all physical/live admission remain. A separate owner-copy host candidate
+awaits review/native measurement; the kernel and frozen EFI are unchanged.
+
 [Step1766](../done/step1766.md) retains multiple provider alternatives and
 independently verifies the merged storage/PCI/virtio-init arithmetic. Later
 network/core candidates narrow the remaining call variables to22. Tagged calls,
