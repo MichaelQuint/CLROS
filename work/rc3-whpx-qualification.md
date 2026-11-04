@@ -1,5 +1,11 @@
 # RC3 and WHPX qualification contract
 
+[Step1785](../done/step1785.md) preserves the complete failed Full (996 groups,
+unchanged inputs, zero reuse) and repairs six affected fixture groups with259
+fresh focused passes. Runtime code is unchanged; remaining final qualification
+and PR814 delivery take priority over preserved follow-up refactors.
+
+
 [Step1783](../done/step1783.md) records the fresh909ef13d Full fast-phase failure
 and unchanged-input/zero-reuse join. Two stale current producer mappings are
 repaired; 52 focused checks and expanded contract audit pass. Freeze/rebuild before

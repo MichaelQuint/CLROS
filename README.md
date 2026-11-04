@@ -4,6 +4,12 @@
 
 <h1 align="center">CLROS</h1>
 
+
+[Step1785](done/step1785.md) preserves the complete failed Full (996 groups,
+unchanged inputs, zero reuse) and repairs six affected fixture groups with259
+fresh focused passes. Runtime code is unchanged; remaining final qualification
+and PR814 delivery take priority over preserved follow-up refactors.
+
 [Step1783](done/step1783.md) repairs two stale producer-source mappings exposed
 by fresh Full and adds an early reviewed-source contract audit. All 52 focused
 checks pass. The failed Full is preserved; final combined qualification remains.

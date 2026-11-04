@@ -1,5 +1,11 @@
 # Repository Audit
 
+[Step1785](../done/step1785.md) preserves the complete failed Full (996 groups,
+unchanged inputs, zero reuse) and repairs six affected fixture groups with259
+fresh focused passes. Runtime code is unchanged; remaining final qualification
+and PR814 delivery take priority over preserved follow-up refactors.
+
+
 [Step1783](../done/step1783.md) extends CLI contracts check to all registered
 reviewed current-source hashes and existing split-producer ownership. Historical
 anchors remain explicit; no hash is approved automatically. Two stale mappings

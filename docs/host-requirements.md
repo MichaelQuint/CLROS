@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1785](../done/step1785.md) preserves the complete failed Full (996 groups,
+unchanged inputs, zero reuse) and repairs six affected fixture groups with259
+fresh focused passes. Runtime code is unchanged; remaining final qualification
+and PR814 delivery take priority over preserved follow-up refactors.
+
+
 [Step1783](../done/step1783.md) preserves fresh Full909ef13d: 883 fast groups,
 five failed groups/ten checks from two stale producer mappings, unchanged inputs
 and zero reuse; native work is blocked. The reviewed mapping repair and early
