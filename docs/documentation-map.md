@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1749](../done/step1749.md) records the ordered terminal-selector cleanup,
+complete storage-method responsibility review, 40 focused checks and the
+preserved canonical Gitea transport failure. Repo audit owns this host-only scope.
+
 [Step1748](../done/step1748.md) records timer/cache repairs and the matched quiet
 HTTP pair. Diagnostics owns results/attribution, storage owns backing/coverage,
 EFI owns current emission/stack conditions, and host requirements owns explicit

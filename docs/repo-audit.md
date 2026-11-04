@@ -1,5 +1,12 @@
 # Repository Audit
 
+[Step1749](../done/step1749.md) expands the nineteen-arm QEMU terminal choice
+into ordered local returns, preserving exact expressions, lazy evaluation and
+whole-file reconstruction. The complete build and 40 focused policy/style
+checks pass. Independent storage responsibility review keeps CompleteIo's shared
+ownership transition cohesive. Canonical Gitea transport currently prevents
+push/readback; local commits and raw failures remain preserved. Final gates stay.
+
 [Step1748](../done/step1748.md) updates current source/profile admission alongside
 timer/cache and explicit quiet benchmark changes, preserving historical anchors.
 The isolated baseline differs from all5,914 r188 sources in exactly five reviewed
