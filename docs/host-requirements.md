@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1774](../done/step1774.md) rebuilds the protected diagnostic owner, renews its
+negative controls and passes expanded preflight with4781 held authorities. Both
+unchanged600/480/180 Short originals pass. These do not renew unfiltered Full or
+the final29/24/7/browser matrix, and deliberate host stop is not natural cleanup.
+
 [Step1773](../done/step1773.md) adds exact selected fixed-buffer metadata checks,
 four input controls and three malformed metadata-only controls. Current disk-owner
 and arena geometry is source/compiler/native-bound; no target executes, and final

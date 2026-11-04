@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1774](../done/step1774.md) completes conditional current F9A3 Summary Timing
+integration and two original Short diagnostics on WHPX/identical-image TCG.
+All live owner/provider/ABI/mapping/probe/lifetime conditions remain binding;
+full byte evidence, browser/natural cleanup and final qualification stay separate.
+
 [Step1773](../done/step1773.md) seals the slot/outer and narrow metadata applicability
 review. Complete compiled disk-owner/fixed-buffer and arena derivation joins current
 native allocation sizes. Physical/provider/backing/lifetime integration remains

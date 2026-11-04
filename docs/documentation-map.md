@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1774](../done/step1774.md) owns current conditional native integration,
+protected-owner preflight and two backend Short originals. EFI build preserves
+live conditions; host requirements distinguishes diagnostics from final gates.
+
 [Step1773](../done/step1773.md) owns the sealed narrow metadata ruling and complete
 disk-owner/arena derivation. EFI build preserves remaining conditional admission;
 host requirements separates metadata-only controls from final qualification.
