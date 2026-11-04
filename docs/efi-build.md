@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1773](../done/step1773.md) seals the slot/outer and narrow metadata applicability
+review. Complete compiled disk-owner/fixed-buffer and arena derivation joins current
+native allocation sizes. Physical/provider/backing/lifetime integration remains
+separate; no launch or general metadata/noGC waiver follows.
+
 [Step1772](../done/step1772.md) preserves exact historical charge names and carries
 the outer tagged-probe predicate explicitly. Current source/PDB/COFF metadata
 joins distinguish live and inactive profile witnesses. Full current admission

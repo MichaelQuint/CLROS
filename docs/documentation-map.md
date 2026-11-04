@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1773](../done/step1773.md) owns the sealed narrow metadata ruling and complete
+disk-owner/arena derivation. EFI build preserves remaining conditional admission;
+host requirements separates metadata-only controls from final qualification.
+
 [Step1772](../done/step1772.md) owns exact slot/outer-frontier repairs and current
 metadata-source provenance preparation. EFI build retains admission conditions;
 host requirements distinguishes native/compiler, host-tooling and archive scopes.

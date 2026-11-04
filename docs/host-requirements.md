@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1773](../done/step1773.md) adds exact selected fixed-buffer metadata checks,
+four input controls and three malformed metadata-only controls. Current disk-owner
+and arena geometry is source/compiler/native-bound; no target executes, and final
+unfiltered Full and source-matched guest/browser qualification remain mandatory.
+
 [Step1772](../done/step1772.md) retains actual compensated-charge rejection controls
 and selected source/PDB provenance. Actual native source closure3994 is distinct
 from the3712 host-tooling input readback. Protected archive materialization is
