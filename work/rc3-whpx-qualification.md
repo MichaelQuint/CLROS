@@ -1,5 +1,12 @@
 # RC3 and WHPX qualification contract
 
+[Step1756](../done/step1756.md) repairs host-side result ownership and prepares
+a current Timing+Summary EFI. Compilation and canonical structural verification
+pass; own emitted code/data/stack and lifetime review remain prerequisites to
+one controlled Short diagnostic. The failed artifact-owner verifier transport
+is preserved separately. No historical stack margin, Full/browser acceptance or
+final source-frozen gate transfers to this image.
+
 [Step1748](../done/step1748.md) repairs timer quiescence/directory coverage and
 records a matched quiet WHPX full-file pair:167.45→7.17 seconds mean, all four
 complete bodies exact. One boot/image, combined attribution and deliberate joined

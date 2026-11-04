@@ -1,5 +1,11 @@
 # Documentation Map
 
+[Step1756](../done/step1756.md) records the final-output evidence release fix,
+two ownership controls, timeout consolidation and 51 focused checks. Host
+requirements owns execution and receipt-phase boundaries; repo audit owns the
+concrete handoff. The phase contract retains current Timing+Summary native review
+and every final qualification gate.
+
 [Step1755](../done/step1755.md) records complete Linux producer partials, exact
 member/parent reconstruction and80 focused checks. Repo audit owns organization
 and unchanged failure boundaries; host requirements records actual execution

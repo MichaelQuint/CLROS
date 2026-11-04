@@ -1,5 +1,14 @@
 # Repository Audit
 
+[Step1756](../done/step1756.md) fixes retained evidence ownership when final
+Linux result output throws. The concrete internal handoff operation is used by
+the producer and two real-handle controls; public contracts and receipt schema
+stay unchanged. A separate commit consolidates the existing QEMU timeout formula.
+Build, 51 focused checks and repo/contracts/diff pass. The earlier phase-success
+receipt can still precede a failed final handoff; no receipt-only admission was
+found in the bounded consumer review. Current Timing+Summary native publication
+and structural verification are preparation for its own safety review.
+
 [Step1755](../done/step1755.md) separates complete Linux log/upload and SQLite
 publication owners into associated partials. Exact members and raw parent
 reconstruction preserve imports, fields/initializers and failure semantics.

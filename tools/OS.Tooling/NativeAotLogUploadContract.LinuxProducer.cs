@@ -365,14 +365,32 @@ public static partial class NativeAotLogUploadContract
             AuthorityFiles.RequireDistinct(artifacts);
             held.VerifyUnchanged();
             var result = new LinuxReference(destination, image!, write!, verify!, writeTrace!, verifyTrace!, held, artifacts);
+            // PublishLinuxReference takes ownership, including failed final output.
             transferred = true;
-            output.WriteLine("TEST_PASS " + marker);
-            return result;
+            return PublishLinuxReference(result, output, marker);
         }
         finally
         {
             if (!transferred)
                 held.Dispose();
+        }
+    }
+
+    /// <summary>Finish the host-side Linux result handoff after producer checks.
+    /// Takes ownership of result on entry. Successful final output returns the
+    /// same result with its retained handles for caller disposal; failed output
+    /// disposes it before rethrowing. Receipt and qualification state is unchanged.</summary>
+    internal static LinuxReference PublishLinuxReference(LinuxReference result, TextWriter output, string marker)
+    {
+        try
+        {
+            output.WriteLine("TEST_PASS " + marker);
+            return result;
+        }
+        catch
+        {
+            result.Dispose();
+            throw;
         }
     }
 

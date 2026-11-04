@@ -1,5 +1,18 @@
 # Host Requirements
 
+[Step1756](../done/step1756.md) passes 51 fresh focused checks with unchanged
+5,942 inputs and 31 producers. Two controls exercise the production Linux result
+handoff with real retained evidence: final-output failure releases ownership;
+success retains it until caller disposal. The existing Windows producer runs,
+but these controls do not execute a Linux producer.
+
+The console Linux receipt's `Succeeded` records completion of native publication,
+write and verify phases. Later identity checks, result handoff or final CLI output
+can still fail. Require the returned `LinuxReference` and successful invocation
+evidence; the receipt alone is not admission. This separate late-receipt boundary
+remains unchanged. Current Timing+Summary publication and canonical structural
+verification pass; its own native safety review and guest execution remain pending.
+
 [Step1755](../done/step1755.md) passes80 fresh focused checks after whole-member
 Linux producer organization, with unchanged5939/31 inputs/producers. Existing
 Windows managed-producer and SQLite recovery processes execute within their
