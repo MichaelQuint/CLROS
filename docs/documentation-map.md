@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1765](../done/step1765.md) owns independent compiled-owner joins and the
+enum-shape probe correction. EFI build retains physical/live/current-image
+requirements; host requirements records actual altered-metadata control scope.
+Remaining provider and final native/guest/performance qualification stay open.
+
 [Step1764](../done/step1764.md) owns explicit provider evaluation, pool/descriptor
 reviews and compiled owner-prefix evidence. EFI build preserves target/physical/
 live requirements; host requirements records probe controls and unsupported-tail

@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1765](../done/step1765.md) records independent raw compiler-metadata review,
+an actual malformed-enum old-accept/new-reject control and four retained negative
+selection controls. Canonical type/field/prefix rows stay unchanged. The altered
+minimal archive is never a native input; no fresh Full or guest run is claimed.
+
 [Step1764](../done/step1764.md) records a data-driven host contract probe,
 nested/incomplete controls and seven rejecting mutations. Integer enum decoding
 and explicit metadata field prefixes retain unsupported-tail failures, with

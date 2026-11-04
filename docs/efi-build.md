@@ -1,5 +1,11 @@
 # EFI Build
 
+[Step1765](../done/step1765.md) independently matches selected compiled owner
+layouts/prefixes and six consumed native operand windows. A separate host-reader
+enum-shape correction preserves canonical rows and rejects altered metadata.
+Live receiver/alias/backing/lifetime and physical/current-image requirements
+remain; these exact metadata joins do not grant NativeSafety or launch approval.
+
 [Step1764](../done/step1764.md) introduces explicit conditional provider
 evaluation with null bounds for unresolved callers. Pool/descriptor static
 reviews and compiled owner prefixes narrow named frontiers. Pending bindings,
