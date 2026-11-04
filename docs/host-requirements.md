@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1764](../done/step1764.md) records a data-driven host contract probe,
+nested/incomplete controls and seven rejecting mutations. Integer enum decoding
+and explicit metadata field prefixes retain unsupported-tail failures, with
+four negative selections. New reader/binding independent review remains; no
+fresh Full/native/guest qualification is claimed.
+
 [Step1763](../done/step1763.md) records independent clock/startup reviews, host
 emission/readback and raw CFG controls. Privileged fragments never execute.
 Thirty-five descriptor-site candidates and the corrected run-register mapping

@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1764](../done/step1764.md) owns explicit provider evaluation, pool/descriptor
+reviews and compiled owner-prefix evidence. EFI build preserves target/physical/
+live requirements; host requirements records probe controls and unsupported-tail
+limits. All final native/guest/performance qualification gates remain open.
+
 [Step1763](../done/step1763.md) owns clock/startup review and new raw publication
 evidence. EFI build retains exact target/physical/live requirements; host
 requirements records inert byte audits and negative controls. Remaining provider

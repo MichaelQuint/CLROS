@@ -1,5 +1,11 @@
 # EFI Build
 
+[Step1764](../done/step1764.md) introduces explicit conditional provider
+evaluation with null bounds for unresolved callers. Pool/descriptor static
+reviews and compiled owner prefixes narrow named frontiers. Pending bindings,
+tagged/idle paths, physical composition and live current-image proof remain;
+numeric completeness under declarations does not admit a guest launch.
+
 [Step1763](../done/step1763.md) independently corroborates selected clock/startup
 arithmetic and local propagation. Tagged clock paths retain separate obligations.
 Host barrier/publication byte facts and descriptor candidates narrow provider
