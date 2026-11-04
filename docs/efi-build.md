@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1763](../done/step1763.md) independently corroborates selected clock/startup
+arithmetic and local propagation. Tagged clock paths retain separate obligations.
+Host barrier/publication byte facts and descriptor candidates narrow provider
+review; full physical/live/current-image admission still precedes a guest run.
+
 [Step1762](../done/step1762.md) independently corroborates selected page/thread-
 copy contracts and their static factory/consumer tuples. Startup output remains
 a distinct target. Clock/startup/observer candidates retain field propagation,

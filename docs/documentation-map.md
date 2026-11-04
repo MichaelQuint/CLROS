@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1763](../done/step1763.md) owns clock/startup review and new raw publication
+evidence. EFI build retains exact target/physical/live requirements; host
+requirements records inert byte audits and negative controls. Remaining provider
+and final native/guest/performance qualification gates stay open.
+
 [Step1762](../done/step1762.md) owns selected user-memory provider review and
 clock/startup candidate evidence. EFI build retains actual-target/physical/live
 requirements; host requirements distinguishes successful probes and preserved

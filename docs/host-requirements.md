@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1763](../done/step1763.md) records independent clock/startup reviews, host
+emission/readback and raw CFG controls. Privileged fragments never execute.
+Thirty-five descriptor-site candidates and the corrected run-register mapping
+remain unadmitted. These probes do not renew Full/native/guest qualification.
+
 [Step1762](../done/step1762.md) records bounded independent user-memory review
 and nonexecuting clock/startup candidates. Four compiled clock-record layouts
 pass; unsupported sender layout and an incorrect candidate-site label remain
