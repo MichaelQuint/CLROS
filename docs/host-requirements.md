@@ -1,5 +1,9 @@
 # Host Requirements
 
+[Step1779](../done/step1779.md) simplifies dynamic fixture discovery and grouping
+with unchanged identities, lane partition and Fast inventory bytes. The complete
+graph and48 fresh focused checks pass; final full-host/native/guest gates remain.
+
 [Step1778](../done/step1778.md) records restored admission and independent raw
 contrast checks. Runtime source/producer inventory expressions are expanded with
 exact non-whitespace equivalence; final full-host/guest/browser gates remain open.

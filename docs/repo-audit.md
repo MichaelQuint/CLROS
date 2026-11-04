@@ -1,5 +1,10 @@
 # Repository Audit
 
+[Step1779](../done/step1779.md) makes assembly-driven host discovery and lane
+grouping readable without introducing fixture/file/count lists. Byte-identical
+Fast listing, the dynamic Full partition and48 focused controls retain their own
+host-only evidence; broad responsibility and final qualification remain pending.
+
 [Step1756](../done/step1756.md) fixes retained evidence ownership when final
 Linux result output throws. The concrete internal handoff operation is used by
 the producer and two real-handle controls; public contracts and receipt schema

@@ -1,5 +1,8 @@
 # Documentation Map
 
+[Step1779](../done/step1779.md) owns dynamic runner discovery/grouping cleanup and
+its focused validation. Host requirements and repository audit retain final gates.
+
 [Step1778](../done/step1778.md) owns the sealed rejected contrast, restored-state
 validation and runtime inventory formatting. EFI/host guides preserve diagnostic
 limits and final qualification requirements.
