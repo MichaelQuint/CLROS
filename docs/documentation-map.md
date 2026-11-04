@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1768](../done/step1768.md) owns both rejected readonly-copy native trials and
+exact source/PE restoration. EFI build records the remaining physical/charge
+requirements; host requirements retains focused checks and publication scope.
+
 [Step1767](../done/step1767.md) owns guarded-call/outer-prefix review, the host
 checker correction and isolated owner-copy measurements. EFI build retains
 physical/live requirements; host requirements distinguishes the host probe

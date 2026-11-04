@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1768](../done/step1768.md) rejects two private readonly-copy trials after
+actual native envelopes grow despite smaller helpers. Original source/pin are
+restored byte-exact; canonical publication reproduces the exact F9A3 baseline PE.
+Retained charge attribution and full current physical/live admission remain.
+
 [Step1767](../done/step1767.md) independently checks conditional tagged-call
 declarations and current outer4144/4152/4760/7592 prefixes. Four call variables
 and all physical/live admission remain. A separate owner-copy host candidate

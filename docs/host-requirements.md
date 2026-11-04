@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1768](../done/step1768.md) records50 fresh focused checks per native trial,
+successful canonical publications/verifiers and rejected stack-growth results.
+The r216 restored graph builds cleanly. Trial producers/originals are preserved;
+no new unfiltered Full or guest result is claimed.
+
 [Step1767](../done/step1767.md) records guarded-call controls, the old-accept/
 fixed-reject push/pop checker control and six unchanged canonical byte rows.
 An isolated three-process owner-copy comparison is managed-host evidence only.
