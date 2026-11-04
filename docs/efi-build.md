@@ -1,5 +1,12 @@
 # EFI Build
 
+[Step1758](../done/step1758.md) reconstructs current Timing IRQ instruction and
+prefix facts from the preserved image, including explicit decimal recursion,
+table and provider obligations. Ten host-emitted raw stubs pass byte/stack
+inspection and nine parser controls pass. The candidate bound remains conditional
+on exact native emitter, field, generated-entry, terminal and backing joins;
+neither host emission nor a local frame result admits a guest launch.
+
 [Step1757](../done/step1757.md) records current Timing+Summary method relocation
 and frame facts, including timer growth that prevents blind reuse of the own
 Timing IRQ allowance. A source-reviewed pre-EOI extraction passes 40 host checks

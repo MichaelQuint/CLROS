@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1758](../done/step1758.md) uses artifact-only C# automation and the pinned
+host disassembler for current method/provider inspection. Ten raw provider stubs
+are emitted and read-back-checked; their privileged bytes are never executed.
+Nine parser controls exercise rejection and pending-proof categories. These are
+host inspection results, separate from native safety and guest qualification.
+
 [Step1756](../done/step1756.md) passes 51 fresh focused checks with unchanged
 5,942 inputs and 31 producers. Two controls exercise the production Linux result
 handoff with real retained evidence: final-output failure releases ownership;

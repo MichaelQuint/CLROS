@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1758](../done/step1758.md) owns current IRQ path reconstruction and raw
+provider-byte inspection. EFI build retains the unresolved native-safety joins;
+host requirements records nonexecuting host scope and parser controls. No final
+qualification gate closes from the conditional candidate arithmetic.
+
 [Step1757](../done/step1757.md) records a rejected stopped-deadline extraction,
 40 focused controls and measured native frames. EFI build owns the restored
 source-admission and emitted-code boundary; the evidence step preserves the trial,
