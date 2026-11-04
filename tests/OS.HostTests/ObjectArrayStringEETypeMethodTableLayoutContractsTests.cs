@@ -331,10 +331,16 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
                 public sealed class CompilerGeneratedAttribute : System.Attribute { }
             }
             """, new UTF8Encoding(false));
-        string production = System.Security.SecurityElement.Escape(Path.Combine(root, "src", "OS.Kernel", "Runtime",
-            "ObjectArrayStringEETypeMethodTableLayoutContracts.cs"))!;
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        Type[] owners = [typeof(Layout), typeof(NativeAotLayoutProfile), typeof(NativeAotLayoutShape),
+            typeof(NativeAotLayoutStatus), typeof(NativeAotMethodTablePrefix), typeof(NativeAotLayoutResult)];
+        string production = string.Join("\n", owners.SelectMany(owner => catalog.TypeSources(owner.FullName!))
+            .DistinctBy(document => document.Path).Select(document =>
+                "<Compile Include=\"" + System.Security.SecurityElement.Escape(document.Path) + "\" />"));
         string methodImpl = System.Security.SecurityElement.Escape(Path.Combine(root, "src", "OS", "Runtime",
             "MethodImplAttribute.cs"))!;
+        string methodImplOptions = System.Security.SecurityElement.Escape(Path.Combine(root, "src", "OS", "Runtime",
+            "MethodImplAttribute.MethodImplOptions.cs"))!;
         File.WriteAllText(Path.Combine(directory, "Compile.csproj"), $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
@@ -361,7 +367,8 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
               <ItemGroup>
                 <Compile Include="Shim.cs" />
                 <Compile Include="{{methodImpl}}" Link="MethodImplAttribute.cs" />
-                <Compile Include="{{production}}" Link="Layout.cs" />
+                <Compile Include="{{methodImplOptions}}" Link="MethodImplOptions.cs" />
+                {{production}}
               </ItemGroup>
               <Target Name="RemoveFrameworkReferences" BeforeTargets="BeforeCompile"
                       AfterTargets="FindReferenceAssembliesForReferences">

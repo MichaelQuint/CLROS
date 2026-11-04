@@ -1046,7 +1046,10 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                 "Owned production source is missing: " + sourcePath + ".");
         }
 
-        string source = File.ReadAllText(sourcePath);
+        string source = HostSourceText.Documents(
+            HostSourceCatalog.Project("src/OS.Std.NoRuntime.Shared/OS.Std.NoRuntime.Shared.csproj"),
+            "OS.Std.Memory.SpanOverlapMemoryCastUnsafeWidthConformanceVectors",
+            "OS.Std.Memory.SpanMemoryConformanceResult");
 
         string[] forbidden =
         [
@@ -1249,13 +1252,11 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                 """,
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
-            string productionPath = Path.Combine(
-                root,
-                "std",
-                "no-runtime",
-                "shared",
-                "Memory",
-                "SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs");
+            var catalog = HostSourceCatalog.Project("src/OS.Std.NoRuntime.Shared/OS.Std.NoRuntime.Shared.csproj");
+            string production = string.Join("\n", catalog.DependencySources(
+                "OS.Std.Memory.SpanOverlapMemoryCastUnsafeWidthConformanceVectors")
+                .Where(document => !document.IsGenerated)
+                .Select(document => "<Compile Include=\"" + EscapeXml(document.Path) + "\" />"));
             string project =
                 """
                 <Project Sdk="Microsoft.NET.Sdk">
@@ -1287,7 +1288,7 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                   </PropertyGroup>
                   <ItemGroup>
                     <Compile Include="NoStdLibShim.cs" />
-                    <Compile Include="__PRODUCTION__" Link="SpanMemory.cs" />
+                    __PRODUCTION__
                     <Compile Include="Probe.cs" />
                   </ItemGroup>
                   <Target Name="CustomizeReferences"
@@ -1302,7 +1303,7 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                 """
                 .Replace(
                     "__PRODUCTION__",
-                    EscapeXml(productionPath),
+                    production,
                     StringComparison.Ordinal);
             string projectPath = Path.Combine(
                 workspace,

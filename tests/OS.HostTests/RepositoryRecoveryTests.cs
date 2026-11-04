@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 internal static class RepositoryRecoveryTests
 {
@@ -92,11 +94,30 @@ internal static class RepositoryRecoveryTests
 
     private static bool ValidateSharedLocatorGroup(string root, string[] names)
     {
-        string testRoot = Path.Combine(root, "tests", "OS.HostTests");
+        var catalog = HostSourceCatalog.Project("tests/OS.HostTests/OS.HostTests.csproj");
         foreach (string name in names)
         {
-            string text = File.ReadAllText(Path.Combine(testRoot, name));
-            if (!text.Contains("HostToolProcess.FindRepositoryRoot()", StringComparison.Ordinal))
+            string owner = Path.GetFileNameWithoutExtension(name);
+            string text = HostSourceText.Documents(catalog, owner);
+            var pending = new Queue<IMethodSymbol>(catalog.Type(owner).GetMembers().OfType<IMethodSymbol>());
+            var seen = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+            bool locatesRoot = false;
+            while (pending.TryDequeue(out var method))
+            {
+                if (!seen.Add(method))
+                    continue;
+                if (method.ContainingType.Name == nameof(HostToolProcess)
+                    && method.Name == nameof(HostToolProcess.FindRepositoryRoot))
+                {
+                    locatesRoot = true;
+                    break;
+                }
+                foreach (var declaration in method.DeclaringSyntaxReferences)
+                    if (declaration.GetSyntax() is MethodDeclarationSyntax body)
+                        foreach (var call in catalog.MethodInvocations(body))
+                            pending.Enqueue(call.TargetMethod);
+            }
+            if (!locatesRoot)
             {
                 return false;
             }

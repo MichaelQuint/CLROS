@@ -1623,7 +1623,11 @@ internal static partial class QemuRunnerTests
     private static bool TestM01RawObservationWrapperIsFailClosed()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(Path.Combine(root, "tools", "OS.QemuCapture", "Program.cs"));
+        string captureRoot = Path.Combine(root, "tools", "OS.QemuCapture") + Path.DirectorySeparatorChar;
+        string source = string.Join("\n", OS.Tooling.ToolingBuildInputs.SourceInputs(root)
+            .Where(path => path.StartsWith(captureRoot, StringComparison.OrdinalIgnoreCase)
+                && Path.GetExtension(path) == ".cs")
+            .Select(File.ReadAllText));
         string[] events = ExtractM01FatalQmpEvents(source);
         string[] required = ["RESET", "SHUTDOWN", "WATCHDOG", "GUEST_PANICKED", "POWERDOWN", "RESUME"];
         return required.All(events.Contains) && source.Contains("qmp.StopAndRequirePaused();", StringComparison.Ordinal) && source.Contains("qmp.Pmemsave(", StringComparison.Ordinal) && source.Contains("capture_scratch_not_empty_after_scan", StringComparison.Ordinal) && source.Contains("capture_scratch_delete_failed", StringComparison.Ordinal) && source.Contains("terminalReleaseAuthorized", StringComparison.Ordinal);
@@ -2941,7 +2945,8 @@ internal static partial class QemuRunnerTests
             else if (behavior == "timeout")
                 PanicCheck(capture.Result.ExitCode == 4 && summary.Contains("FAIL_REASON timeout"), "hard timeout remains a failure", capture.Result.Output);
             else
-                PanicCheck(summary.Any(x => x == "FAIL_REASON bytes_after_expected_panic" || x == "FAIL_REASON serial_log_reset" || x == "FAIL_REASON unexpected_vector_panic_capture_rejected"), "append/reset/truncation must reject whether observed before or after candidate classification", capture.Result.Output);
+                PanicCheck(summary.Any(x => x == "FAIL_REASON bytes_after_expected_panic" || x == "FAIL_REASON serial_log_reset" || x == "FAIL_REASON unexpected_vector_panic_capture_rejected"
+                    || behavior == "truncate" && x == "FAIL_REASON serial_log_short_read"), "append/reset/truncation must reject whether observed before or after candidate classification", capture.Result.Output);
         }
 
         return true;

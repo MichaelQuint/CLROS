@@ -401,7 +401,8 @@ internal static unsafe partial class X64PagingModePreflightStubPlanTests
     {
         string root = FindRepositoryRoot();
         string productionPath = Path.Combine(root, "src", "OS.Kernel", "Memory", "X64PagingModePreflightStubPlan.cs");
-        string addressPath = Path.Combine(root, "src", "OS.Kernel", "Boot", "TypedPhysicalVirtualDeviceAddressPODWrappers.cs");
+        string addressPath = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj")
+            .TypeSources(typeof(PhysicalAddress).FullName!).Single().Path;
         if (!File.Exists(productionPath) || !File.Exists(addressPath))
         {
             return false;

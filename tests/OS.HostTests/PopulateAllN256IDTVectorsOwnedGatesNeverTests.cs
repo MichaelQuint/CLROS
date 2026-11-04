@@ -744,9 +744,12 @@ internal static unsafe class PopulateAllN256IDTVectorsOwnedGatesNeverTests
     private static bool TestSourceBoundary()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(Path.Combine(
-            repositoryRoot,
-            @"src\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs"));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        string source = HostSourceText.Documents(catalog,
+            typeof(PopulateAllN256IDTVectorsOwnedGatesNever).FullName!,
+            typeof(OwnedIdtGateTableOperation).FullName!,
+            typeof(OwnedIdtGateTableStatus).FullName!,
+            typeof(OwnedIdtGateTableResult).FullName!);
         string pointerCore = RemoveNoStdLibHostBlocks(source);
         string[] forbidden =
         [
