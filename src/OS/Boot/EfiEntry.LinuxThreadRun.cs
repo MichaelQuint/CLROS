@@ -386,8 +386,10 @@ public static unsafe partial class EfiEntry
             {
 #if M16_009_PROBE
                 c->TimingValid = 0;
+#if !M10_018_SERVING_BENCHMARK
                 if (c->Budget.RequiresClock && LinuxNativeTimingRead(c, &c->TimingStart))
                     c->TimingValid = 1;
+#endif
 #endif
                 // ReapExited checks the independent code snapshot before any mutation.
                 if (!LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !CooperativeAuditPool(c->State, true))
@@ -658,7 +660,7 @@ public static unsafe partial class EfiEntry
             if (c->Threads.ConfirmSupervisor(c->Key, 2, LinuxNativeRsp(c)) != KernelThreadTable.Status.Ok)
                 return false;
             c->Selected = 0;
-#if M16_009_PROBE
+#if M16_009_PROBE && !M10_018_SERVING_BENCHMARK
             LinuxNativeTimingFinish(c);
 #endif
             if (!LinuxText(c->State, "M16_008_SUPERVISOR identity=") || !LinuxNumber(c->State, next.Identity.Value) ||
@@ -667,7 +669,7 @@ public static unsafe partial class EfiEntry
                 !LinuxText(c->State, " ready=") || !LinuxNumber(c->State, c->Threads.ReadyCount) ||
                 !LinuxText(c->State, " active=") || !LinuxNumber(c->State, c->Process.ActiveThreads) || !LinuxText(c->State, "\r\n"))
                 c->Failed = 1;
-#if M16_009_PROBE
+#if M16_009_PROBE && !M10_018_SERVING_BENCHMARK
             if (!LinuxNativeTimingWrite(c, next.Identity.Value))
                 c->Failed = 1;
 #endif

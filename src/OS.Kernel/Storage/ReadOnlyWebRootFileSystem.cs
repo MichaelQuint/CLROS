@@ -20,7 +20,7 @@ public static unsafe partial class ReadOnlyWebRootFileSystem
 {
     public const uint PathBytes = 256, MaximumRangeBytes = 65536, MaximumClusters = 4096;
     public const uint MaximumSlots = 8, MaximumCacheSlots = 8;
-    public const uint MaximumImmutableDirectoryCacheSlots = 5;
+    public const uint MaximumImmutableDirectoryCacheSlots = 12;
     public const uint MaximumImmutableFileChainCacheSlots = 2;
     /// <summary>Maximum cached cluster visits in one selected open-chain turn.
     /// Each visit may scan at most4096 prior clusters. Stop at the first real
@@ -83,7 +83,7 @@ public static unsafe partial class ReadOnlyWebRootFileSystem
         return Initialize(m, a);
     }
 
-    /// <summary>Exact contiguous ordinary-RAM backing for1..5 protected directory
+    /// <summary>Exact contiguous ordinary-RAM backing for1..12 protected directory
     /// sectors. Zero means an unsupported slot count or record size; no memory is accessed.</summary>
     public static uint ImmutableDirectoryCacheBytes(uint slots) =>
         slots is 0 or > MaximumImmutableDirectoryCacheSlots || sizeof(ImmutableDirectoryRecord) != 48 ? 0 : slots * (48 + 512);

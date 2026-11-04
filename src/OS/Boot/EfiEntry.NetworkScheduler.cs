@@ -370,7 +370,12 @@ public static unsafe partial class EfiEntry
         {
             NetworkSchedulerControl* c = (NetworkSchedulerControl*)context;
             if (c != null && c->State != null)
+            {
+#if M10_018_SERVING_BENCHMARK
+                _ = ServingBenchmarkStatus(c->State, "CLROS_HTTP_BENCH_FAIL\r\n");
+#endif
                 _ = LinuxText(c->State, "TEST_FAIL m07-026 scheduler terminal\r\n");
+            }
             while (true)
             {
             }

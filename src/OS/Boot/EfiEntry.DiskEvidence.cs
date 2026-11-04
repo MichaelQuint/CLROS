@@ -415,9 +415,11 @@ public static unsafe partial class EfiEntry
             {
                 NativeDiskRecord* record = &evidence->A + evidence->Count + chunk;
                 record->Observation = *observation;
+#if !M10_018_SERVING_BENCHMARK
                 if (copy)
                     for (uint i = 0; i < 512; i++)
                         record->Bytes[i] = bytes[chunk * 512 + i];
+#endif
             }
             evidence->Count += slots;
             evidence->Total += slots;
@@ -511,19 +513,24 @@ public static unsafe partial class EfiEntry
                             evidence->Failed = true;
                             return false;
                         }
-                    if (value.Kind == Block.ObservationKind.CopyReady && o->Device.Copied != value.Sequence ||
-                        !ReadNetworkTime(state, out ulong now))
+                    if (value.Kind == Block.ObservationKind.CopyReady && o->Device.Copied != value.Sequence
+#if !M10_018_SERVING_BENCHMARK
+                        || !ReadNetworkTime(state, out ulong now)
+#endif
+                        )
                     {
                         evidence->Failed = true;
                         return false;
                     }
                     for (uint chunk = 0; chunk < slots; chunk++)
                     {
+#if !M10_018_SERVING_BENCHMARK
                         if (!WriteNativeDiskRecord(state, record + chunk, now, chunk))
                         {
                             evidence->Failed = true;
                             return false;
                         }
+#endif
                         record[chunk] = default;
                     }
                     if (value.Kind == Block.ObservationKind.CopyReady)

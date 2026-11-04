@@ -340,6 +340,9 @@ public static unsafe partial class EfiEntry
         // no guessed restoration, detach, reclaim or successful exit is reported.
         private static bool LinuxWebRetainFailure(Storage* state, LinuxNativeControl* c, uint stage)
         {
+#if M10_018_SERVING_BENCHMARK
+            _ = ServingBenchmarkStatus(state, "CLROS_HTTP_BENCH_FAIL\r\n");
+#endif
             _ = LinuxText(state, "TEST_FAIL m10.004 retained_owner stage=") && LinuxNumber(state, stage) &&
                 LinuxText(state, " active=") && LinuxNumber(state, c == null ? 0UL : c->Process.ActiveThreads) &&
                 LinuxText(state, " current=") && LinuxNumber(state, c == null ? 0UL : c->Threads.Current.Value) &&

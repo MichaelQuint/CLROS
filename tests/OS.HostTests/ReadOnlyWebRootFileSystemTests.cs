@@ -297,7 +297,9 @@ internal static unsafe partial class ReadOnlyWebRootFileSystemTests
         HostCheck.Equal(0U, Fs.ImmutableDirectoryCacheBytes(0));
         HostCheck.Equal(560U, Fs.ImmutableDirectoryCacheBytes(1));
         HostCheck.Equal(2800U, Fs.ImmutableDirectoryCacheBytes(5));
-        HostCheck.Equal(0U, Fs.ImmutableDirectoryCacheBytes(6));
+        HostCheck.Equal(3360U, Fs.ImmutableDirectoryCacheBytes(6));
+        HostCheck.Equal(6720U, Fs.ImmutableDirectoryCacheBytes(12));
+        HostCheck.Equal(0U, Fs.ImmutableDirectoryCacheBytes(13));
         HostCheck.Equal(0U, Fs.ImmutableDirectoryCacheBytes(uint.MaxValue));
         Type record = typeof(Fs).GetNestedType("ImmutableDirectoryRecord", System.Reflection.BindingFlags.NonPublic)!;
         HostCheck.Equal(48, Marshal.SizeOf(record));

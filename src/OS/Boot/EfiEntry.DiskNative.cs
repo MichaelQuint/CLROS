@@ -20,7 +20,9 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
         private const uint NativeDiskSlots = 8, NativeDiskCaches = 4;
-#if M10_018_PROBE
+#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
+        private const uint NativeDiskDirectoryCaches = 12;
+#elif M10_018_PROBE
         private const uint NativeDiskDirectoryCaches = 5;
 #endif
 #if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
@@ -94,15 +96,16 @@ public static unsafe partial class EfiEntry
                 o->Requests = requests;
             }
 #if M10_018_PROBE
-            // Separate immutable-media cache backing fits the existing arena's
-            // tail; the four paired FAT caches and operation buffers stay owned.
+            // Full/Timing retain the observed twelve-sector directory working
+            // set. Their backing adds one arena page within the256-page limit;
+            // Short retains five slots. FAT caches and operation buffers stay owned.
             var directoryCache = (byte*)NativeDiskTake(ref cursor, Fs.ImmutableDirectoryCacheBytes(NativeDiskDirectoryCaches));
             if (o != null)
                 o->DirectoryCache = directoryCache;
 #endif
 #if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
             // Positive chain certificates lease admitted maps; no file data is
-            // cached. Two records must remain inside the existing arena pages.
+            // cached. Two records remain inside the computed arena pages.
             var fileChainCache = (byte*)NativeDiskTake(ref cursor, Fs.ImmutableFileChainCacheBytes(NativeDiskFileChainCaches));
             if (o != null)
                 o->FileChainCache = fileChainCache;

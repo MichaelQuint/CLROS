@@ -181,6 +181,7 @@ public static unsafe partial class EfiEntry
                     !LinuxText(state, " ordinal=") || !LinuxNumber(state, ordinal) ||
                     !LinuxText(state, " nr=") || !LinuxNumber(state, call.Number) || !LinuxText(state, " pathHex="))
                     return false;
+#if !M10_018_SERVING_BENCHMARK
                 for (uint i = 0; i < before->PathBytes; i++)
                 {
                     uint high = (uint)before->Path[i] >> 4, low = (uint)before->Path[i] & 15;
@@ -188,6 +189,7 @@ public static unsafe partial class EfiEntry
                         !LinuxByte(state, (byte)(low < 10 ? '0' + low : 'a' + low - 10)))
                         return false;
                 }
+#endif
                 if (!LinuxText(state, " valueBits=") || !LinuxNumber(state, unchecked((ulong)result.Value)) ||
                     !LinuxText(state, " kind=") || !LinuxNumber(state, kind) || !LinuxText(state, " view=") || !LinuxNumber(state, view) ||
                     !LinuxText(state, " inode=") || !LinuxNumber(state, inode) || !LinuxText(state, " bytes=") || !LinuxNumber(state, bytes) ||
@@ -339,6 +341,10 @@ public static unsafe partial class EfiEntry
                     !LinuxText(c->State, " nanos=") || !LinuxNumber(c->State, now) ||
                     !LinuxText(c->State, " http=external cleanup=pending\r\n"))
                     return false;
+#if M10_018_SERVING_BENCHMARK
+                if (!ServingBenchmarkStatus(c->State, "CLROS_HTTP_BENCH_READY\r\n"))
+                    return false;
+#endif
             }
             if (listenerClosing)
             {

@@ -704,7 +704,7 @@ view.WaitSource == 4 ? c->Process.CompleteDiskWait(c->Key, 2) :
             if (c == null || frame != (LinuxSyscallFrame*)(state->LinuxSyscallData + X64LinuxUserTransition.FrameOffset) ||
                 c->Selected == 0 || c->Selected > c->Capacity)
                 return 0;
-#if M16_009_PROBE
+#if M16_009_PROBE && !M10_018_SERVING_BENCHMARK
             // Sample only after owner and exact-frame admission. The initial
             // owner validation is outside these optional syscall intervals.
             ulong entered = 0, admitted = 0, dispatched = 0, prepared = 0;
@@ -747,7 +747,7 @@ view.WaitSource == 4 ? c->Process.CompleteDiskWait(c->Key, 2) :
                 unchecked((uint)call.Argument0) == c->StaticListener.Number;
             bool staticListenerLast = staticListenerClosing && LinuxDescriptorServices.IsLastReference(&state->LinuxDescriptors, c->StaticListener);
 #endif
-#if M16_009_PROBE
+#if M16_009_PROBE && !M10_018_SERVING_BENCHMARK
             timing = timing && timingRead(state, &admitted) == 1;
 #endif
 #if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
@@ -779,7 +779,7 @@ view.WaitSource == 4 ? c->Process.CompleteDiskWait(c->Key, 2) :
             if (!LinuxServiceObserveCall(c, index, call, result))
                 return LinuxNativeAbort(c, index);
 #endif
-#if M16_009_PROBE
+#if M16_009_PROBE && !M10_018_SERVING_BENCHMARK
             timing = timing && timingRead(state, &dispatched) == 1;
 #endif
             image->Frame = *frame;
@@ -845,7 +845,7 @@ view.WaitSource == 4 ? c->Process.CompleteDiskWait(c->Key, 2) :
                     return 0;
                 return 2;
             }
-#if M16_009_PROBE
+#if M16_009_PROBE && !M10_018_SERVING_BENCHMARK
             timing = timing && timingRead(state, &prepared) == 1 && entered <= admitted && admitted <= dispatched && dispatched <= prepared;
 #endif
             bool logged = LinuxText(state, "M16_008_CALL identity=") && LinuxNumber(state, c->Threads.Current.Value) &&
@@ -895,7 +895,7 @@ view.WaitSource == 4 ? c->Process.CompleteDiskWait(c->Key, 2) :
                     LinuxText(state, " deadline=") && LinuxNumber(state, expired) &&
                     LinuxText(state, " clock=") && LinuxNumber(state, c->Threads.ObservedTicks) && LinuxText(state, "\r\n");
 #endif
-#if M16_009_PROBE
+#if M16_009_PROBE && !M10_018_SERVING_BENCHMARK
             if (logged && timing)
                 logged = LinuxNativeSyscallTimingWrite(c, call.Number, entered, admitted, dispatched, prepared);
 #endif
@@ -1144,6 +1144,10 @@ c->Slots[index].WaitSource == 5 ? c->Process.CommitWritableDiskWait(c->Key, 2, w
         private static void LinuxNativeTerminal(void* context)
         {
             LinuxNativeControl* c = LinuxNativeControlOwner(context);
+#if M10_018_SERVING_BENCHMARK
+            if (c != null)
+                _ = ServingBenchmarkStatus(c->State, "CLROS_HTTP_BENCH_FAIL\r\n");
+#endif
 #if M16_009_PROBE
             if (c != null)
                 _ = LinuxText(c->State, "TEST_FAIL m16-009 native-transfer\r\n");
@@ -1343,6 +1347,7 @@ c->Slots[index].WaitSource == 5 ? c->Process.CommitWritableDiskWait(c->Key, 2, w
                 !LinuxText(state, " clearTid=") || !LinuxNumber(state, call.Argument3) ||
                 !LinuxText(state, " rip=") || !LinuxNumber(state, call.Rip) || !LinuxText(state, " bytes=112 data="))
                 return false;
+#if !M10_018_SERVING_BENCHMARK
             for (uint i = 0; i < 112; i++)
             {
                 uint high = (uint)data[i] >> 4, low = (uint)data[i] & 15;
@@ -1350,6 +1355,7 @@ c->Slots[index].WaitSource == 5 ? c->Process.CommitWritableDiskWait(c->Key, 2, w
                     !LinuxByte(state, (byte)(low < 10 ? '0' + low : 'a' + low - 10)))
                     return false;
             }
+#endif
             return LinuxText(state, "\r\n");
         }
 

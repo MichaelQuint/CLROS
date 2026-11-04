@@ -114,6 +114,7 @@
 		<EnableM10018EvidenceTraceProbe Condition="'$(EnableM10018EvidenceTraceProbe)' == ''">false</EnableM10018EvidenceTraceProbe>
 		<EnableM10018EvidenceSummaryProbe Condition="'$(EnableM10018EvidenceSummaryProbe)' == ''">false</EnableM10018EvidenceSummaryProbe>
 		<EnableM10018FullProbe Condition="'$(EnableM10018FullProbe)' == ''">false</EnableM10018FullProbe>
+		<EnableM10018ServingBenchmarkProbe Condition="'$(EnableM10018ServingBenchmarkProbe)' == ''">false</EnableM10018ServingBenchmarkProbe>
 		<EnableM10018Probe Condition="'$(EnableM10018Probe)' == ''">false</EnableM10018Probe>
 		<EnableM10004Probe Condition="'$(EnableM10004Probe)' == ''">false</EnableM10004Probe>
 		<EnableM16019UnavailableProbe Condition="'$(EnableM16019UnavailableProbe)' == ''">false</EnableM16019UnavailableProbe>
@@ -455,6 +456,9 @@
 	<PropertyGroup Condition="'$(EnableM10018FullProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M10_018_FULL_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM10018ServingBenchmarkProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M10_018_SERVING_BENCHMARK</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM10018Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M10_018_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -644,7 +648,7 @@
 			'$(EnableM16012Probe)' == 'true' or
 			'$(EnableM16013Probe)' == 'true' or
 			'$(EnableM16014Probe)' == 'true' or
-			'$(EnableM10004Probe)' == 'true' or '$(EnableM10017Probe)' == 'true' or '$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true' or '$(EnableM16025Probe)' == 'true' or '$(EnableM16027Probe)' == 'true' or '$(EnableM16027TimingProbe)' == 'true' or '$(EnableM10018Probe)' == 'true' or '$(EnableM10018FullProbe)' == 'true' or '$(EnableM10018TimingProbe)' == 'true' or
+			'$(EnableM10004Probe)' == 'true' or '$(EnableM10017Probe)' == 'true' or '$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true' or '$(EnableM16025Probe)' == 'true' or '$(EnableM16027Probe)' == 'true' or '$(EnableM16027TimingProbe)' == 'true' or '$(EnableM10018Probe)' == 'true' or '$(EnableM10018FullProbe)' == 'true' or '$(EnableM10018ServingBenchmarkProbe)' == 'true' or '$(EnableM10018TimingProbe)' == 'true' or
 			'$(EnableM10018EvidenceTraceProbe)' == 'true' or
 			'$(EnableM10018EvidenceSummaryProbe)' == 'true' or
 			'$(EnableM16019UnavailableProbe)' == 'true' or
@@ -2312,7 +2316,7 @@
 			'$(EnableM16012Probe)' == 'true' or
 			'$(EnableM16013Probe)' == 'true' or
 			'$(EnableM16014Probe)' == 'true' or
-			'$(EnableM10004Probe)' == 'true' or '$(EnableM10017Probe)' == 'true' or '$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true' or '$(EnableM16025Probe)' == 'true' or '$(EnableM16027Probe)' == 'true' or '$(EnableM16027TimingProbe)' == 'true' or '$(EnableM10018Probe)' == 'true' or '$(EnableM10018FullProbe)' == 'true' or '$(EnableM10018TimingProbe)' == 'true' or
+			'$(EnableM10004Probe)' == 'true' or '$(EnableM10017Probe)' == 'true' or '$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true' or '$(EnableM16025Probe)' == 'true' or '$(EnableM16027Probe)' == 'true' or '$(EnableM16027TimingProbe)' == 'true' or '$(EnableM10018Probe)' == 'true' or '$(EnableM10018FullProbe)' == 'true' or '$(EnableM10018ServingBenchmarkProbe)' == 'true' or '$(EnableM10018TimingProbe)' == 'true' or
 			'$(EnableM10018EvidenceTraceProbe)' == 'true' or
 			'$(EnableM10018EvidenceSummaryProbe)' == 'true' or
 			'$(EnableM16019UnavailableProbe)' == 'true' or
@@ -3496,6 +3500,9 @@
 		<Error Condition="'$(EnableM10018TimingProbe)' == 'true' and '$(EnableM10018FullProbe)' != 'true'" Text="disk_timing_parent_required" />
 		<Error Condition="'$(EnableM10018FullProbe)' != 'true' and '$(EnableM10018FullProbe)' != 'false'" Text="disk_static_full_switch_invalid" />
 		<Error Condition="'$(EnableM10018FullProbe)' == 'true' and '$(EnableM10018Probe)' != 'true'" Text="disk_static_full_parent_required" />
+		<Error Condition="'$(EnableM10018ServingBenchmarkProbe)' != 'true' and '$(EnableM10018ServingBenchmarkProbe)' != 'false'" Text="serving_benchmark_switch_invalid" />
+		<Error Condition="'$(EnableM10018ServingBenchmarkProbe)' == 'true' and '$(EnableM10018FullProbe)' != 'true'" Text="serving_benchmark_full_required" />
+		<Error Condition="'$(EnableM10018ServingBenchmarkProbe)' == 'true' and ('$(EnableM10018TimingProbe)' == 'true' or '$(EnableM10018EvidenceTraceProbe)' == 'true' or '$(EnableM10018EvidenceSummaryProbe)' == 'true')" Text="serving_benchmark_trace_conflict" />
 		<Error Condition="'$(EnableM10018Probe)' != 'true' and '$(EnableM10018Probe)' != 'false'" Text="disk_probe_switch_invalid" />
 		<Error Condition="'$(EnableM16025Probe)' == 'true' and ('$(EnableM16023Probe)' != 'true' or '$(EnableM16024Probe)' != 'true' or '$(EnableM16012Probe)' != 'true')" Text="disk_read_prerequisite_missing" />
 		<Error Condition="('$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true') and '$(EnableM16025Probe)' != 'true'" Text="disk_read_requires_combined_profile" />

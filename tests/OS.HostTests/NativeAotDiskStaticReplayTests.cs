@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Tooling;
 
-internal static class NativeAotDiskStaticReplayTests
+internal static partial class NativeAotDiskStaticReplayTests
 {
     private const ulong Ready = 1000, Requested = Ready + LinuxStaticFileObservation.RequestDelayNanoseconds, Exited = Requested + 100;
     private static void WithInventory(Action<WebRootDiskInventory.Inspection, byte[]> action) => WebRootImageFixtureTests.WithImage((root, dir, image, source) =>

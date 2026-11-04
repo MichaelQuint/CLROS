@@ -288,7 +288,7 @@ internal static partial class NativeAotDiskStaticCaptureTests
         const ulong user = 0x100000, kernel = 0x101000, dma = 0x200000, prior = 0x300000, nicBar = 0x400000, diskBar = 0x500000, owner = 0x900000, pool = 0x1000000, arena = 0x2000000;
         var parent = new QemuTranscripts.WebParentReport(1, user, kernel, 10_000_000, 100_000_000, dma, 90, 99, 1, default!);
         NativeDiskReadObservations.Observation[] io = [new(NativeDiskReadObservations.Kind.Submitted, owner, 1, 1, 4096, 1, 0, 1, 0, 100, ""), new(NativeDiskReadObservations.Kind.CompletionValidated, owner, 1, 1, 4096, 1, 512, 1, 1, 200, "")];
-        void Read(ulong changedBar = diskBar, ulong changedOwner = owner, ulong pages = 90, IReadOnlyList<NativeDiskReadObservations.Observation>? observations = null) => QemuTranscripts.InspectDiskStaticLiveBoundaryValues(parent, pool, prior, nicBar, arena, pages, changedBar, changedOwner, 100, 200, observations ?? io);
+        void Read(ulong changedBar = diskBar, ulong changedOwner = owner, ulong pages = 90, IReadOnlyList<NativeDiskReadObservations.Observation>? observations = null, bool full = false) => QemuTranscripts.InspectDiskStaticLiveBoundaryValues(parent, pool, prior, nicBar, arena, pages, changedBar, changedOwner, 100, 200, observations ?? io, fullDirectoryCoverage: full);
         void Reject(Action action)
         {
             bool rejected = false;
@@ -305,6 +305,9 @@ internal static partial class NativeAotDiskStaticCaptureTests
         }
 
         Read();
+        Read(pages: 91, full: true);
+        Reject(() => Read(pages: 90, full: true));
+        Reject(() => Read(pages: 92, full: true));
         foreach (ulong alias in new[]
         {
             nicBar,

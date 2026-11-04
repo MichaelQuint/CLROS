@@ -143,7 +143,7 @@ internal static unsafe class M09004EfiIntegrationTests
         string ExclusionName(string name) => name switch
         {
             "EnableM16013Probe" or "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" => "EnableM16012Probe",
-            "EnableM16014Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM10018EvidenceTraceProbe" or "EnableM10018EvidenceSummaryProbe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" => "EnableM10004Probe",
+            "EnableM16014Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM10018EvidenceTraceProbe" or "EnableM10018EvidenceSummaryProbe" or "EnableM10018ServingBenchmarkProbe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" => "EnableM10004Probe",
             _ => name
         };
         string[] declared = project.Descendants("PropertyGroup").SelectMany(group => group.Elements()).Select(element => element.Name.LocalName)

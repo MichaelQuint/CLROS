@@ -4,9 +4,17 @@ namespace OS.Tooling;
 
 public static partial class QemuSmoke
 {
+    /// <summary>
+    /// Prepare and retain original workload inputs and the typed runner lease.
+    /// An explicit quiet-serving observer owns its clients, finite lifetime,
+    /// cancellation and complete runner join. Its return checks inputs only;
+    /// quiet observations do not qualify ordinary Full evidence or cleanup.
+    /// </summary>
     public static async Task<int> RunAsync(string root, QemuSmokeOptions options, TextWriter output,
         Func<string, IReadOnlyList<string>, Task<ProcessResult>>? invoke = null, CancellationToken cancellation = default,
-        Func<ProcessRequest, CancellationToken, Task<ProcessResult>>? invokeRunner = null)
+        Func<ProcessRequest, CancellationToken, Task<ProcessResult>>? invokeRunner = null,
+        Func<Func<int, CancellationToken, Task<ProcessResult>>, WebRootDiskInventory.Inspection,
+            CancellationToken, Task<ProcessResult>>? observeQuietServing = null)
     {
         root = Path.GetFullPath(root);
         bool customInvoke = invoke is not null;
@@ -110,6 +118,8 @@ public static partial class QemuSmoke
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
+            if (plan.IsEnabled("EnableM10018ServingBenchmarkProbe") && !options.DryRun && observeQuietServing is null)
+                throw new ToolFailure("quiet_serving_requires_explicit_client_owner");
             // Each admitted race has its own complete original consumer. Never
             // run another variant through the positive59-call consumer.
             if (options.HasDiskRaceSelection && options.LinuxDiskRaceVariant is not ("Progress" or "CloseReuse" or "ExitPending") && !options.DryRun)
@@ -588,6 +598,21 @@ public static partial class QemuSmoke
                         if (diskImageInput is null || diskImageReceipt is null)
                             throw new ToolFailure("disk_full_image_owner_required");
                         var inventory = diskTruncated?.Baseline ?? WebRootDiskInventory.Inspect(diskImageInput.Path, diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_full_browser_image"), diskImageReceipt);
+                        if (plan.IsEnabled("EnableM10018ServingBenchmarkProbe"))
+                        {
+                            if (diskTruncated is not null || options.HttpBenchmarkWarmSequences is not null)
+                                throw new ToolFailure("quiet_serving_requires_separate_full_get_observation");
+                            var observed = await observeQuietServing!(RunSocketRunner, inventory, cancellation);
+                            if (!observed.Cancelled || !observed.TerminationConfirmed || observed.TimedOut
+                                || observed.OutputLimitExceeded || observed.FailureReason.Length != 0)
+                                throw new ToolFailure("quiet_serving_runner_join_required");
+                            VerifyDiskDiagnosticInputs();
+                            using AuthorityFiles captures = new();
+                            _ = HoldHttpBenchmarkCaptures(root, options, captures);
+                            captures.VerifyUnchanged();
+                            output.WriteLine("TEST_PASS qemu.smoke.quiet-serving-inputs runner_joined=true full_and_cleanup_qualified=false");
+                            return 0;
+                        }
                         if (options.HttpBenchmarkWarmSequences is int warmSequences)
                         {
                             var observed = await NativeAotHttpBenchmarkPeer.RunAsync(root, options.SerialLog,

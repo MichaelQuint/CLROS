@@ -387,6 +387,12 @@ internal static partial class EfiProfileTestControls
     {
         bool evidenceTrace = selected.Contains("EnableM10018EvidenceTraceProbe");
         bool evidenceSummary = selected.Contains("EnableM10018EvidenceSummaryProbe");
+        if (selected.Contains("EnableM10018ServingBenchmarkProbe"))
+        {
+            if (evidenceTrace || evidenceSummary || selected.Contains("EnableM10018TimingProbe"))
+                return "serving_benchmark_trace_conflict";
+            selected = [.. selected, "EnableM10018FullProbe"];
+        }
         if (evidenceTrace && evidenceSummary)
             return "disk_evidence_mode_conflict";
         if (evidenceTrace || evidenceSummary)
@@ -445,7 +451,7 @@ internal static partial class EfiProfileTestControls
                 "EnableM05VirtioNegotiationProbe", "EnableM05VirtqueuePollingProbe", "EnableM07VirtioNetProbe",
                 "EnableM07ArpReceiveProbe", "EnableM16002Probe", "EnableM16003Probe"];
             string[] descendants = ["EnableM05ApicSetupProbe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe",
-                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM10018EvidenceTraceProbe", "EnableM10018EvidenceSummaryProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
+                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM10018EvidenceTraceProbe", "EnableM10018EvidenceSummaryProbe", "EnableM10018ServingBenchmarkProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
             if (selected.Any(name => name != "EnableM07026Probe" && !parents.Contains(name) && !(sockets && descendants.Contains(name))))
                 return "m07_026_profile_conflict";
             // The socket leaf supplies the entire declared network/runtime chain.
@@ -591,12 +597,21 @@ internal static partial class EfiProfileTestControls
     private static void EvidenceModeRejectionExpectations()
     {
         const string trace = "EnableM10018EvidenceTraceProbe", summary = "EnableM10018EvidenceSummaryProbe";
+        const string benchmark = "EnableM10018ServingBenchmarkProbe";
         var cases = new List<(string[] Flags, string? Expected)>
         {
             ([], null),
             ([trace, summary], "disk_evidence_mode_conflict"),
             ([trace, summary, "EnableM16027TimingProbe"], "disk_evidence_mode_conflict"),
-            ([trace, summary, "EnableM10017Probe"], "disk_evidence_mode_conflict")
+            ([trace, summary, "EnableM10017Probe"], "disk_evidence_mode_conflict"),
+            ([benchmark], null),
+            ([benchmark, "EnableM07026Probe"], null),
+            ([benchmark, "EnableM10018TimingProbe"], "serving_benchmark_trace_conflict"),
+            ([benchmark, trace], "serving_benchmark_trace_conflict"),
+            ([benchmark, summary], "serving_benchmark_trace_conflict"),
+            ([benchmark, trace, summary], "serving_benchmark_trace_conflict"),
+            ([benchmark, "EnableM16027Probe"], "writable_disk_mechanical_profile_conflict"),
+            ([benchmark, "EnableM16027TimingProbe"], "writable_disk_mechanical_profile_conflict")
         };
         foreach (string mode in new[] { trace, summary })
         {
@@ -671,7 +686,7 @@ internal static partial class EfiProfileTestControls
         string[] parents = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
             "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
         string[] allowed = [.. parents, "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe",
-            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM10018EvidenceTraceProbe", "EnableM10018EvidenceSummaryProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
+            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM10018EvidenceTraceProbe", "EnableM10018EvidenceSummaryProbe", "EnableM10018ServingBenchmarkProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
         foreach (bool build in new[] { true, false })
         {
             foreach (string[] args in new string[][]

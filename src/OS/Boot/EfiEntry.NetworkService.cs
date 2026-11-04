@@ -61,7 +61,23 @@ public static unsafe partial class EfiEntry
             return true;
         }
 
+#if M10_018_SERVING_BENCHMARK
+        // Explicit finite serving benchmark only, separate from Full transcript
+        // acceptance. Keep the application output and all service/cleanup checks.
+        private static bool ServingBenchmarkStatus(Storage* state, string text) =>
+            state != null && state->Arena.Fault != null && OwnedCom1TextWriter.Write(in state->Arena.Fault->Backend, text);
+
         private static bool RunOwnedNetworkService(void* context)
+        {
+            bool result = RunOwnedNetworkServiceBenchmarkCore(context);
+            bool reported = ServingBenchmarkStatus((Storage*)context,
+                result ? "CLROS_HTTP_BENCH_END\r\n" : "CLROS_HTTP_BENCH_FAIL\r\n");
+            return result && reported;
+        }
+        private static bool RunOwnedNetworkServiceBenchmarkCore(void* context)
+#else
+        private static bool RunOwnedNetworkService(void* context)
+#endif
         {
             Storage* state = (Storage*)context;
             if (state == null || state->NetworkPhase != 0 || state->ArpPhase != 3 ||

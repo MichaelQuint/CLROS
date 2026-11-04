@@ -483,6 +483,7 @@ public static partial class QemuTranscripts
             "M16_008_RESUME" => "identity valueBits status".Split(' '),
             "M16_008_SUPERVISOR" => "identity action transfers ready active".Split(' '),
             "M16_009_DRAIN" => "identity epoch nanos".Split(' '),
+            "M16_009_CANCEL" => "identity epoch nanos".Split(' '),
             "M16_009_IRQ" => "identity epoch nanos rip rsp flags fs gs valueBits".Split(' '),
             "M16_008_TIMING" => "identity epoch start arm capture ready periodFs".Split(' '),
             _ => throw new ToolFailure("web_fragment_record")

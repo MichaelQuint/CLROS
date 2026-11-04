@@ -3021,7 +3021,11 @@ public static unsafe partial class EfiEntry
 #endif
         private static bool LinuxText(Storage* state, string text)
         {
-#if M10_018_PROBE
+#if M10_018_SERVING_BENCHMARK
+            // Explicit benchmark-only trace suppression. Real application
+            // stdout/stderr still uses LinuxByte; status uses the raw writer.
+            return true;
+#elif M10_018_PROBE
             return OwnedCom1TextWriter.Write(in state->Arena.Fault->Backend, text);
 #else
             for (int i = 0; i < text.Length; i++)
@@ -3032,15 +3036,23 @@ public static unsafe partial class EfiEntry
         }
         private static bool LinuxNumber(Storage* state, uint n)
         {
+#if M10_018_SERVING_BENCHMARK
+            return true;
+#else
             if (n >= 10 && !LinuxNumber(state, n / 10))
                 return false;
             return LinuxByte(state, (byte)('0' + n % 10));
+#endif
         }
         private static bool LinuxNumber(Storage* state, ulong n)
         {
+#if M10_018_SERVING_BENCHMARK
+            return true;
+#else
             if (n >= 10 && !LinuxNumber(state, n / 10))
                 return false;
             return LinuxByte(state, (byte)('0' + n % 10));
+#endif
         }
         private static bool LinuxByte(Storage* state, byte b)
         {

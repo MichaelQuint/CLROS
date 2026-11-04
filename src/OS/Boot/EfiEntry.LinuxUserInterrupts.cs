@@ -31,6 +31,7 @@ public static unsafe partial class EfiEntry
             *(ulong*)(c->State->Arena.Descriptors->Tss + 60) = c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page;
             if (!LinuxNativeTimerInstalled(c))
                 return false;
+#if !M10_018_SERVING_BENCHMARK
             if (c->TimingValid == 1)
             {
                 if (LinuxNativeTimingRead(c, &c->TimingArm))
@@ -38,6 +39,7 @@ public static unsafe partial class EfiEntry
                 else
                     c->TimingValid = 0;
             }
+#endif
             return c->Timer.Arm(c->Key, 2, true) == SchedulerTimer.Status.Ok;
         }
 
@@ -102,6 +104,7 @@ public static unsafe partial class EfiEntry
             if (*(ulong*)(data + X64LinuxUserTransition.CaptureStackOffset) !=
                 state->CooperativePool + NativeProgram.IrqTopPage * Page - 56)
                 return LinuxNativeUserInterruptRejected(state, 2);
+#if !M10_018_SERVING_BENCHMARK
             if (c->TimingValid == 3)
             {
                 if (LinuxNativeTimingRead(c, &c->TimingCapture))
@@ -109,6 +112,7 @@ public static unsafe partial class EfiEntry
                 else
                     c->TimingValid = 0;
             }
+#endif
             if (!LinuxNativeUserGates(c, true))
                 return LinuxNativeUserInterruptRejected(state, 3);
             if (!LinuxNativeVerify(c))
@@ -211,6 +215,8 @@ public static unsafe partial class EfiEntry
         // Called on the owned native switch stack after gateway restoration,
         // before Park/Exit/Yield. Leave a pending E1 deliverable and acknowledge
         // it at this exact STI/HLT/CLI checkpoint; Restore never discards IRR.
+        // Full/Timing may cancel an authenticated quiet one-shot instead of
+        // sleeping through its remainder. Cancellation is not an IRQ or tick.
         private static bool LinuxNativeStopUserTimer(LinuxNativeControl* c, uint index)
         {
             if (!LinuxNativeUserWorker(c, index) || c->UserDrain != 0 || !LinuxNativeTimerInstalled(c))
@@ -219,6 +225,19 @@ public static unsafe partial class EfiEntry
                 return c->UserAcknowledged == 0 && c->UserPreempted == 0 && !c->Timer.IsPrepared && c->TimerDeadlines.IsEmpty;
             if (c->UserTimer != index + 1 || c->UserAcknowledged > 1)
                 return false;
+#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
+            bool cancelled = false;
+            if (c->Timer.IsArmed)
+            {
+                if (c->UserAcknowledged != 0 || c->UserPreempted != 0)
+                    return false;
+                var stopped = c->Timer.Restore(c->Key, 2);
+                if (stopped == SchedulerTimer.Status.Ok)
+                    cancelled = true;
+                else if (stopped != SchedulerTimer.Status.PendingInterrupt || !c->Timer.IsArmed)
+                    return false;
+            }
+#endif
             if (c->Timer.IsArmed)
             {
                 if (c->UserAcknowledged != 0)
@@ -242,6 +261,12 @@ public static unsafe partial class EfiEntry
             }
             if (!c->TimerDeadlines.IsEmpty || c->TimerDeadlines.ObservedTicks != c->Epoch || !LinuxNativeTimerInstalled(c))
                 return false;
+#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
+            if (cancelled && !(LinuxText(c->State, "M16_009_CANCEL identity=") && LinuxNumber(c->State, c->Threads.Current.Value) &&
+                LinuxText(c->State, " epoch=") && LinuxNumber(c->State, c->Epoch) &&
+                LinuxText(c->State, " nanos=") && LinuxNumber(c->State, c->Threads.ObservedTicks) && LinuxText(c->State, "\r\n")))
+                return false;
+#endif
             c->UserTimer = c->UserAcknowledged = 0;
             return true;
         }

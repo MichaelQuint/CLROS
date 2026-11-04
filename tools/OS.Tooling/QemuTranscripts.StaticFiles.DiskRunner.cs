@@ -69,7 +69,7 @@ public static partial class QemuTranscripts
         foreach (string row in rows.Where(r => r.StartsWith("M16_008_TIMING ", StringComparison.Ordinal) || r.StartsWith("M16_008_SYSCALL_TIME ", StringComparison.Ordinal)))
             Need(row.EndsWith(" periodFs=" + parent.Period.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal), "disk_static_timing_period");
         var bound = ReadRecord(rows.Single(r => r.StartsWith("M16_008_BOUND ", StringComparison.Ordinal))[..^" timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack".Length], "M16_008_BOUND", "root:dec", "pool:dec", "workers:dec", "code:dec", "metadata:dec", "userImage:dec");
-        InspectDiskStaticLiveBoundaryValues(parent, bound["pool"], PrefixRow(rows, "M07_ARP 2", 4)[0], PrefixRow(rows, "M07_ARP 0", 4)[3], disk["arena"], disk["pages"], disk["bar"], disk["owner"], disk["clock"], envelope.End["end"], sectors.Device.Rows);
+        InspectDiskStaticLiveBoundaryValues(parent, bound["pool"], PrefixRow(rows, "M07_ARP 2", 4)[0], PrefixRow(rows, "M07_ARP 0", 4)[3], disk["arena"], disk["pages"], disk["bar"], disk["owner"], disk["clock"], envelope.End["end"], sectors.Device.Rows, fullDirectoryCoverage: full);
         var budget = ReadRecord(rows.Single(r => r.StartsWith("M16_008_BUDGET ", StringComparison.Ordinal)), "M16_008_BUDGET", "started:dec", "epochs:dec", "steps:dec", "nanos:dec");
         var budgetEnd = ReadRecord(rows.Single(r => r.StartsWith("M16_008_BUDGET_END ", StringComparison.Ordinal)), "M16_008_BUDGET_END", "nanos:dec");
         Need(budget["started"] >= disk["clock"] && budgetEnd["nanos"] <= envelope.End["end"], "disk_static_budget_lifetime");
@@ -152,9 +152,11 @@ public static partial class QemuTranscripts
     /// or IO outside the parent/device lifetime. This grants no native, process
     /// or original execution authority; the original owner supplies those joins.</summary>
 
-    public static unsafe void InspectDiskStaticLiveBoundaryValues(WebParentReport parent, ulong pool, ulong priorNicDma, ulong nicBar, ulong arena, ulong pages, ulong diskBar, ulong owner, ulong boundClock, ulong endClock, IReadOnlyList<NativeDiskReadObservations.Observation> io)
+    public static unsafe void InspectDiskStaticLiveBoundaryValues(WebParentReport parent, ulong pool, ulong priorNicDma, ulong nicBar, ulong arena, ulong pages, ulong diskBar, ulong owner, ulong boundClock, ulong endClock, IReadOnlyList<NativeDiskReadObservations.Observation> io, bool fullDirectoryCoverage = false)
     {
-        Need(pages == 90 && owner >= 4096 && owner <= 0x100000000UL - (ulong)sizeof(Block.State), "disk_static_measured_layout");
+        // The original owner still supplies the independent emitted-layout join;
+        // this report-only check cannot grant native authority from page counts.
+        Need(pages == (fullDirectoryCoverage ? 91UL : 90UL) && owner >= 4096 && owner <= 0x100000000UL - (ulong)sizeof(Block.State), "disk_static_measured_layout");
         DistinctExtents([(parent.UserRoot, 4096), (parent.KernelRoot, 4096), (parent.Dma, 32768), (pool, WebThreadPoolPages * 4096UL), (priorNicDma, 8192), (nicBar, 16384), (arena, pages * 4096), (diskBar, 16384), (owner, (ulong)sizeof(Block.State))], "disk_static_live_extents");
         Need(boundClock >= parent.PeerEnd && endClock >= boundClock && io.Count > 0 && io.All(row => row.Clock >= boundClock && row.Clock <= endClock), "disk_static_io_lifetime");
     }

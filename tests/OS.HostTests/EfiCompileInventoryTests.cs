@@ -200,7 +200,8 @@ internal static class EfiCompileInventoryTests
         EfiOptions.Parse(["--EnableM16027TimingProbe"], true).Profile(),
         EfiOptions.Parse(["--EnableM10018Probe"], true).Profile(),
         EfiOptions.Parse(["--EnableM10018FullProbe"], true).Profile(),
-        EfiOptions.Parse(["--EnableM10018TimingProbe"], true).Profile()
+        EfiOptions.Parse(["--EnableM10018TimingProbe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM10018ServingBenchmarkProbe"], true).Profile()
     ];
 
     // Actual MSBuild evaluation supplies ordered items and Link metadata. The

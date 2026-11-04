@@ -29,7 +29,7 @@ public static partial class EfiContracts
                 [@"Boot\EfiEntry.EfiSerialIoProtocol.cs"] = "ab06c41ea9c092d6f179ba88d456e4570ab7d9d67a76a56fd5ca73caba2d3965",
                 [@"Boot\EfiEntry.EfiConsoleCharacter.cs"] = "a90654196a499124a72be98b4d7609ae05c2066c679fe6f7091b07e97d594932",
                 [@"Boot\EfiEntry.M04ManagedHeapAdapter.cs"] = "942cc3e0f9ac1885efaed552c451f150e82ae73d4120e84086a075452a1abda2",
-                [@"Boot\EfiEntry.M03FirstExitAdapter.cs"] = "da3d5467de82926cc154e3fbf2775815a7649b15dae6bb07aadfd42a6d7a1682",
+                [@"Boot\EfiEntry.M03FirstExitAdapter.cs"] = "ee75de1d2154450565db0fe6cfe5fd768936aefb070cc642f34ddc0162ed18c5",
                 [@"Boot\EfiEntry.M03FirstExitAdapter.Storage.cs"] = "a5ceea2e5c3eed3ab9777d289c92b19659b273cd4daa213201265675523f8ddf",
                 [@"Boot\EfiEntry.FirmwareEntropyReservoir.cs"] = "3f235c74149308d8cec17f7a76a393b89963ebd2b2fb5917248b501ee69c4c59",
                 [@"Boot\EfiEntry.FirmwareEntropyReservoir.State.cs"] = "ab6b5302fe8ca46734865b0dd05a4ec4c546da3ba3b8a84f5a87c899d56b5f74",

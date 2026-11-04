@@ -46,7 +46,7 @@ public static partial class QemuTranscripts
             {
                 "M16_008_SUPERVISOR" => kind == expected && webReturningToSupervisor,
                 "M16_009_IRQ" => network || kind is "M16_008_CALL" or "M16_009_IRQ" or "M16_008_SYSCALL_TIME",
-                "M16_009_DRAIN" => network || kind is "M16_009_DRAIN" or "M16_008_SYSCALL_TIME",
+                "M16_009_DRAIN" => network || kind is "M16_009_DRAIN" or "M16_008_SYSCALL_TIME" || diskStaticFull && kind == "M16_009_CANCEL",
                 "dispatch_or_idle" => network || ready.Count > 0 && kind is "M16_008_CALL" or "M16_009_IRQ" or "M16_008_RESUME",
                 _ => kind == expected
             };

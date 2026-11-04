@@ -111,7 +111,7 @@ internal static class SocketContainmentProfileTests
         var forbidden = EfiContracts.DiagnosticProbes.Where(x => !expected.Contains(x))
             .Select(x => x switch
             {
-                "EnableM16014Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM10018EvidenceTraceProbe" or "EnableM10018EvidenceSummaryProbe" => "EnableM10004Probe",
+                "EnableM16014Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM10018EvidenceTraceProbe" or "EnableM10018EvidenceSummaryProbe" or "EnableM10018ServingBenchmarkProbe" => "EnableM10004Probe",
                 "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" => "EnableM16012Probe",
                 _ => x
             }).ToHashSet(StringComparer.Ordinal);

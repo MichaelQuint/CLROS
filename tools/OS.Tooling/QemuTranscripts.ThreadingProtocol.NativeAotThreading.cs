@@ -334,10 +334,22 @@ public static partial class QemuTranscripts
                             Need(exiting && action == 4 && t.NormalExit, "threading_exit_tail_irq_exit");
                         else
                         {
-                            var drain = Row("M16_009_DRAIN", "identity:dec", "epoch:dec", "nanos:dec");
-                            Need(drain["identity"] == t.Identity && (!stopping || drain["nanos"] == clock), "threading_drain_binding");
-                            Epoch(drain);
-                            drains++;
+                            if (Starts("M16_009_CANCEL "))
+                            {
+                                Need(diskStaticFull, "threading_timer_cancel_profile");
+                                var cancelled = Row("M16_009_CANCEL", "identity:dec", "epoch:dec", "nanos:dec");
+                                Need(cancelled["identity"] == t.Identity && cancelled["epoch"] == (ulong)epochs &&
+                                    cancelled["nanos"] >= budget.StartedNanoseconds && (!stopping || cancelled["nanos"] == clock),
+                                    "threading_timer_cancel_binding");
+                                Clock(cancelled["nanos"]);
+                            }
+                            else
+                            {
+                                var drain = Row("M16_009_DRAIN", "identity:dec", "epoch:dec", "nanos:dec");
+                                Need(drain["identity"] == t.Identity && (!stopping || drain["nanos"] == clock), "threading_drain_binding");
+                                Epoch(drain);
+                                drains++;
+                            }
                             if (action == 6 || !exiting && t.Completion.HasValue)
                                 Enqueue(t);
                             t.Parking = false;
