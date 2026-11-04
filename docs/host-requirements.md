@@ -1,5 +1,13 @@
 # Host Requirements
 
+[Step1759](../done/step1759.md) extends nonexecuting host artifact inspection.
+Independent code/layout/stack reviews remain distinct from native safety. Five
+terminal/provider input mutations and one altered-table control reject without
+output; strengthened tools preserve their original conditional arithmetic and
+code classifications. The named-data reader distinguishes114 nonempty joins
+from ten empty nodes, actual COFF bytes from XML producer hashes and literal
+GCInfo suffixes from semantic runtime proof. No guest or fresh Full run occurs.
+
 [Step1758](../done/step1758.md) uses artifact-only C# automation and the pinned
 host disassembler for current method/provider inspection. Ten raw provider stubs
 are emitted and read-back-checked; their privileged bytes are never executed.

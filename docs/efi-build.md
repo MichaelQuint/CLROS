@@ -1,5 +1,14 @@
 # EFI Build
 
+[Step1759](../done/step1759.md) binds eight compiled callback offsets and
+independently checks the current2,082-method instruction cohort and complete
+owning xdata. Three cache-capacity literals, nine changed fragments, four added
+methods and three positive8-byte helper-call charges remain explicit. Terminal
+and table-input repairs pass altered-input controls. The124-node data inventory
+and exact compiler-fragment suffixes retain separate metadata/coverage review;
+all current own-role/provider/backing/lifetime and stack obligations precede VM
+admission. No old Full margin or source-only equivalence closes that gate.
+
 [Step1758](../done/step1758.md) reconstructs current Timing IRQ instruction and
 prefix facts from the preserved image, including explicit decimal recursion,
 table and provider obligations. Ten host-emitted raw stubs pass byte/stack

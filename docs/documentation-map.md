@@ -1,5 +1,11 @@
 # Documentation Map
 
+[Step1759](../done/step1759.md) owns current Timing layout/code/fragment checks,
+storage helper-call costs and strengthened inspection inputs. EFI build retains
+the remaining current-image admission conditions; host requirements records
+actual nonexecuting scope and altered-input controls. Metadata/coverage, all own
+stack roles and final guest/performance qualification remain open.
+
 [Step1758](../done/step1758.md) owns current IRQ path reconstruction and raw
 provider-byte inspection. EFI build retains the unresolved native-safety joins;
 host requirements records nonexecuting host scope and parser controls. No final
