@@ -141,7 +141,50 @@ public static class QemuProfiles
             Original("m16_002", false, true, true);
             foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" })
                 Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
-            string terminal = writableDisk ? "CLROS_M16_027_READY" : diskStatic ? "CLROS_M10_018_READY" : diskFiles ? "CLROS_M16_025_READY" : quota ? OS.Tools.QemuRunner.ServiceQuotaCapture.Terminal : staticFiles ? "CLROS_M10_017_READY" : signalEpoll || service ? "CLROS_M16_012_READY" : vectors ? "CLROS_M16_013_READY" : web ? "CLROS_M10_004_READY" : containment ? "CLROS_M07_027_READY" : sockets ? NativeAotSocketSelection.Terminal(Enabled("M16012")).Ready : Enabled("M07026") ? "CLROS_M07_026_READY" : runtimeApp.Length != 0 ? NativeAotRuntimeSelection.Markers(runtimeApp).Ready : Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
+            string SelectTerminal()
+            {
+                if (writableDisk)
+                    return "CLROS_M16_027_READY";
+                if (diskStatic)
+                    return "CLROS_M10_018_READY";
+                if (diskFiles)
+                    return "CLROS_M16_025_READY";
+                if (quota)
+                    return OS.Tools.QemuRunner.ServiceQuotaCapture.Terminal;
+                if (staticFiles)
+                    return "CLROS_M10_017_READY";
+                if (signalEpoll || service)
+                    return "CLROS_M16_012_READY";
+                if (vectors)
+                    return "CLROS_M16_013_READY";
+                if (web)
+                    return "CLROS_M10_004_READY";
+                if (containment)
+                    return "CLROS_M07_027_READY";
+                if (sockets)
+                    return NativeAotSocketSelection.Terminal(Enabled("M16012")).Ready;
+                if (Enabled("M07026"))
+                    return "CLROS_M07_026_READY";
+                if (runtimeApp.Length != 0)
+                    return NativeAotRuntimeSelection.Markers(runtimeApp).Ready;
+                if (Enabled("M16009"))
+                    return "CLROS_M16_009_READY";
+                if (Enabled("M16008"))
+                    return "CLROS_M16_008_READY";
+                if (Enabled("M16007"))
+                    return "CLROS_M16_007_READY";
+                if (Enabled("M16006"))
+                    return "CLROS_M16_006_READY";
+                if (Enabled("M16005"))
+                    return "CLROS_M16_005_READY";
+                if (Enabled("M16003"))
+                    return "CLROS_M16_003_READY";
+                if (Enabled("M16004"))
+                    return "CLROS_M16_004_READY";
+                return "CLROS_M16_002_READY";
+            }
+
+            string terminal = SelectTerminal();
             Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == terminal || web && (x is "CLROS_M10_005_READY" or "CLROS_M10_006_READY")), "m16_002_marker_override");
             Require(!Enabled("M16003") || options.LinuxElfImageVariant == "Intact", "m16_003_requires_intact_package");
             Require(!Enabled("M16004") || options.LinuxElfImageVariant == "Intact", "m16_004_requires_intact_package");
