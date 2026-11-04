@@ -172,11 +172,25 @@ public static partial class NativeAotRuntimePayload
         EfiBuildFiles.InitializeDirectory(destination, "runtime_output_path");
         using FileStream ownership = new(Path.Combine(destination, "qualification.lock"), FileMode.CreateNew, FileAccess.Write, FileShare.None);
         Need(ToolingBuildInputs.Validate(root).Count == 0, "tooling_inputs_changed");
-        string[] SourcePaths() => Applications.SelectMany(app => Directory.EnumerateFiles(Path.Combine(root, "apps", app), "*", SearchOption.AllDirectories)).Where(path => !Path.GetRelativePath(root, path).Split(Path.DirectorySeparatorChar).Any(p => p is "bin" or "obj" or "artifacts")).Concat(ToolingBuildInputs.SourceInputs(root)).Concat(new[] { "NuGet.Config", "nuget.config" }.Select(p => Path.Combine(root, p)).Where(File.Exists)).Select(p => Path.GetRelativePath(root, p).Replace('\\', '/')).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        string[] SourcePaths() => Applications
+            .SelectMany(app => Directory.EnumerateFiles(Path.Combine(root, "apps", app), "*", SearchOption.AllDirectories))
+            .Where(path => !Path.GetRelativePath(root, path).Split(Path.DirectorySeparatorChar)
+                .Any(p => p is "bin" or "obj" or "artifacts"))
+            .Concat(ToolingBuildInputs.SourceInputs(root))
+            .Concat(new[] { "NuGet.Config", "nuget.config" }.Select(p => Path.Combine(root, p)).Where(File.Exists))
+            .Select(p => Path.GetRelativePath(root, p).Replace('\\', '/'))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
         string[] paths = SourcePaths();
         Dictionary<string, string> sources = paths.ToDictionary(p => p, p => Hash(Path.Combine(root, p)), StringComparer.Ordinal);
         string producerDirectory = Path.GetDirectoryName(typeof(NativeAotRuntimePayload).Assembly.Location)!;
-        string[] ProducerPaths() => Directory.EnumerateFiles(producerDirectory).Where(p => p.EndsWith(".dll", StringComparison.Ordinal) || p.EndsWith(".deps.json", StringComparison.Ordinal) || p.EndsWith(".runtimeconfig.json", StringComparison.Ordinal)).Order(StringComparer.Ordinal).ToArray();
+        string[] ProducerPaths() => Directory.EnumerateFiles(producerDirectory)
+            .Where(p => p.EndsWith(".dll", StringComparison.Ordinal)
+                || p.EndsWith(".deps.json", StringComparison.Ordinal)
+                || p.EndsWith(".runtimeconfig.json", StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
         string[] producerPaths = ProducerPaths();
         Need(new[] { "OS.Tooling.dll", "OS.Tooling.deps.json", "OS.Tooling.runtimeconfig.json" }.All(name => producerPaths.Contains(Path.Combine(producerDirectory, name), StringComparer.Ordinal)), "producer_inventory");
         Dictionary<string, string> producer = producerPaths.ToDictionary(p => p, p => Hash(p), StringComparer.Ordinal);
