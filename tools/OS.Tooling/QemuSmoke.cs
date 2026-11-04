@@ -54,10 +54,8 @@ public static partial class QemuSmoke
         invoke ??= (name, args) => ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, name), .. args], root)
         {
             RetainOwnershipUntilJoined = name == "OS.QemuRunner" && options.WritableDiskFixture.Length != 0,
-            Timeout = name == "OS.QemuRunner" && options.WritableDiskFixture.Length != 0
-            ? TimeSpan.FromSeconds(options.TimeoutSeconds + QemuCaptureSession.RunnerCaptureAllowanceSeconds + 30)
-            : name == "OS.QemuRunner" && (NativeAotRuntimeSelection.Application(options.Flags).Length != 0 || NativeAotSocketSelection.Application(options.Flags).Length != 0 || NativeAotSocketContainmentSelection.Selected(options.Flags) || NativeAotSocketVectorsSelection.Selected(options.Flags) || NativeAotWebSelection.Application(options.Flags).Length != 0 || NativeAotStaticFileSelection.Application(options.Flags).Length != 0)
-            ? TimeSpan.FromSeconds(options.TimeoutSeconds + 60) : TimeSpan.FromMinutes(name == "OS.Tooling" ? 30 : 10),
+            Timeout = name == "OS.QemuRunner" ? DefaultRunnerTimeout()
+                : TimeSpan.FromMinutes(name == "OS.Tooling" ? 30 : 10),
             OutputCharacterLimit = 16 * 1024 * 1024
         }, cancellation);
         async Task<ProcessResult> Run(string name, IReadOnlyList<string> args)
