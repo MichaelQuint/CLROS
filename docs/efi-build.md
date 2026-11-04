@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1769](../done/step1769.md) independently verifies an active-path IRQ charge
+allocation: all historical10144 bytes remain, Verify96 is represented in its
+authenticated slot, and Handler32 stays on its active branch. Conditional IRQ
+maximum16376 retains8 bytes of margin; complete physical/live admission remains.
+
 [Step1768](../done/step1768.md) rejects two private readonly-copy trials after
 actual native envelopes grow despite smaller helpers. Original source/pin are
 restored byte-exact; canonical publication reproduces the exact F9A3 baseline PE.

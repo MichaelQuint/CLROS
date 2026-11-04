@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1769](../done/step1769.md) records the attributed-reader controls and independent
+293-method/298-mask recomputation. A separate empty-alternatives repair preserves
+canonical rows with an actual old-accept/new-reject control. Host-only numerical
+inspection supplies no unfiltered Full, guest or overall native-safety result.
+
 [Step1768](../done/step1768.md) records50 fresh focused checks per native trial,
 successful canonical publications/verifiers and rejected stack-growth results.
 The r216 restored graph builds cleanly. Trial producers/originals are preserved;

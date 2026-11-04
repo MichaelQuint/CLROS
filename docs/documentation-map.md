@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1769](../done/step1769.md) owns explicit IRQ charge allocation and its
+independent numerical review. EFI build records the conditional margin;
+host requirements distinguishes reader controls/repair from native admission.
+
 [Step1768](../done/step1768.md) owns both rejected readonly-copy native trials and
 exact source/PE restoration. EFI build records the remaining physical/charge
 requirements; host requirements retains focused checks and publication scope.
