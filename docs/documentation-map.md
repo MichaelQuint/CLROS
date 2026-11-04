@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1777](../done/step1777.md) owns current decimal transport/admission and the
+stopped WHPX paired original. EFI and host guides retain strict backend failure
+handling and distinguish separate TCG diagnostics from final qualification.
+
 [Step1776](../done/step1776.md) owns the bounded decimal trial, host controls and
 actual native inspection. EFI build retains pending current proof transport;
 host requirements preserves failed originals and qualification boundaries.

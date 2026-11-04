@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1777](../done/step1777.md) preserves the original WHPX GLib handle failure,
+joined runner and zero-HTTP evidence. Strict stderr/600/480/180 rules stay exact;
+separate TCG isolation and static transport cannot become a completed population.
+The functionally passing decimal candidate is slower in its isolated contrast;
+the owned production trial is restored and its failed/positive originals retained.
+
 [Step1776](../done/step1776.md) records guarded writer33/admission6/source1 focused
 checks and the decimal trial's native facts. Preserve the input-drift, stale-pin
 and canonicalization failures. Host/native compilation is not guest speed or

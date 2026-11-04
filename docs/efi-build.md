@@ -1,5 +1,11 @@
 # EFI Build
 
+[Step1777](../done/step1777.md) completes conditional current decimal-trial proof
+transport and protected preflight. The first paired WHPX baseline fails strict
+post-seal stderr before HTTP; its population stops. Separate TCG isolation does
+not repair the backend failure. Its slower candidate is rejected and source is
+restored; no optimization/Full/browser acceptance follows.
+
 [Step1776](../done/step1776.md) implements an unaccepted exact-byte decimal FIFO
 trial and inspects its actual2100-method image. Existing frames do not grow;
 five new methods and four changed shapes still require complete current transport.
