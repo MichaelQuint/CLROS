@@ -1,5 +1,9 @@
 # Host Requirements
 
+[Step1781](../done/step1781.md) integrates one storage common-tail cleanup and
+passes58 fresh guarded checks. The complete graph builds; actual native facts
+retain their separate conditional review and do not renew Full/guest acceptance.
+
 [Step1780](../done/step1780.md) separates explicit fault-injection commands into
 an associated runner partial. Exact bodies, unchanged listing, complete graph and
 49 focused checks pass; final unfiltered Full/native/guest gates remain pending.

@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1781](../done/step1781.md) publishes the current storage-completion candidate,
+archives561 output leaves and inspects2095 methods. CompleteIo shrinks32bytes,
+all frames remain unchanged and2094other method comparisons have no unexplained
+change. Current delta/data/metadata/phase review precedes any guest activation.
+
 [Step1778](../done/step1778.md) seals the decimal trial's rejection and restored
 baseline. Exact TCG functional evidence supplies no retained optimization; the
 failed WHPX cohort stays stopped. Host inventory formatting changes no native API.

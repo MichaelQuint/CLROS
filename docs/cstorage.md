@@ -1,5 +1,10 @@
 # Storage
 
+[Step1781](../done/step1781.md) shares successful DataIo completion updates within
+the existing filesystem owner. All52 filesystem/six admission checks pass. The
+actual changed method shrinks32bytes with unchanged frame; bounded native review
+and final guest qualification remain. No performance improvement is claimed.
+
 [Step1754](../done/step1754.md) observes long post-ACK gaps at8KiB entity
 boundaries in the original quiet full-file captures. The fixed pair spends
 4.87/5.02s in those intervals, versus1.77/1.79s in other usable intervals.

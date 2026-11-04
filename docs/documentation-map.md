@@ -1,5 +1,8 @@
 # Documentation Map
 
+[Step1781](../done/step1781.md) owns storage common-tail integration,58 focused
+checks and current emitted facts. Storage/host/EFI guides keep review limits.
+
 [Step1780](../done/step1780.md) owns the exact host control extraction and49
 fresh focused checks. Host and repository guides preserve final qualification.
 
