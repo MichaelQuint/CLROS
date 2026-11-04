@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1761](../done/step1761.md) owns physical-phase review, the rejected-Prepare
+frontier and conditional guard/page/copy components. EFI build retains original
+witness and live native requirements; host requirements records parser controls
+and nonexecuting scope. Final native/guest/performance qualification stays open.
+
 [Step1760](../done/step1760.md) owns complete current prefix facts, probe controls,
 conditional callback expressions and the Storage.Memory.Code prefix. EFI build
 retains physical composition/numerical-anchor and current-image prerequisites;

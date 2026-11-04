@@ -1,5 +1,11 @@
 # EFI Build
 
+[Step1761](../done/step1761.md) binds the mutation guard's static native tuple
+and conditional1112-byte callee expression. Physical review distinguishes
+rejected-Prepare callback prefix168 from rejected-Start120; original witness
+coverage remains open. Fresh page/copy components and compiled access offsets
+narrow provider work without transferring old bounds or admitting this image.
+
 [Step1760](../done/step1760.md) extends the current prefix inventory to all
 2,095 methods, with explicit fixed/external probe obligations and independent
 raw-byte review. Fifteen logical expressions match their own-parent expressions;

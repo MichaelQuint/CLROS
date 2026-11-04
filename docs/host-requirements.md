@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1761](../done/step1761.md) records independent physical/guard inspection,
+fresh conditional callback calculations and an explicit-selection compiled-layout
+probe. Three altered selections reject without output. These nonexecuting host
+results preserve all live ABI/backing/lifetime and native qualification gates;
+no new Full or guest result is claimed.
+
 [Step1760](../done/step1760.md) passes fifteen parser controls and six fresh
 altered-input controls on the latest symbolic reader. The independent comparison
 retains244 unknown callback variables per image; equal expressions are not a
