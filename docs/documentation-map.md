@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1772](../done/step1772.md) owns exact slot/outer-frontier repairs and current
+metadata-source provenance preparation. EFI build retains admission conditions;
+host requirements distinguishes native/compiler, host-tooling and archive scopes.
+
 [Step1771](../done/step1771.md) owns exact input/close-role integration and its
 independent review. EFI build records pending complete phase/live admission;
 host requirements separates artifact-reader controls from final qualification.

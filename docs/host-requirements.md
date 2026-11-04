@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1772](../done/step1772.md) retains actual compensated-charge rejection controls
+and selected source/PDB provenance. Actual native source closure3994 is distinct
+from the3712 host-tooling input readback. Protected archive materialization is
+neither a new publication nor qualification; original failures remain preserved.
+
 [Step1771](../done/step1771.md) corroborates the input/census repair and exact
 close-selector integration. Recursive witnesses match43 finite results; scoped
 altered-input controls pass. Fresh phase/timer/compiler-policy candidates remain

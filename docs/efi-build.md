@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1772](../done/step1772.md) preserves exact historical charge names and carries
+the outer tagged-probe predicate explicitly. Current source/PDB/COFF metadata
+joins distinguish live and inactive profile witnesses. Full current admission
+remains separate; the page reserve does not authenticate a callback target.
+
 [Step1771](../done/step1771.md) independently confirms input-only768 and teardown's
 Number3 close role. A fresh conservative20-witness phase candidate retains all
 historical charges and extra probe allowance under unchanged compiled capacities.
