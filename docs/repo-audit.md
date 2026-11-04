@@ -1,5 +1,11 @@
 # Repository Audit
 
+[Step1755](../done/step1755.md) separates complete Linux log/upload and SQLite
+publication owners into associated partials. Exact members and raw parent
+reconstruction preserve imports, fields/initializers and failure semantics.
+Build,80 focused checks and repo/contracts/diff pass. The two recorded late
+handoff findings remain separate; no deferred capability is activated.
+
 [Step1754](../done/step1754.md) adds documentation/evidence only. Its original
 wire diagnostic uses the unchanged strict decoders and source-bound r205 tooling;
 raw capture/serial files and failed parent checks remain. Independent review

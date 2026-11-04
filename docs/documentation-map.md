@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1755](../done/step1755.md) records complete Linux producer partials, exact
+member/parent reconstruction and80 focused checks. Repo audit owns organization
+and unchanged failure boundaries; host requirements records actual execution
+scope and the still-deferred capability boundary.
+
 [Step1754](../done/step1754.md) owns original quiet-capture evaluation, retained
 parent failures and the8KiB boundary correlation. Diagnostics owns timings and
 remaining attribution, networking the packet scope, host requirements the

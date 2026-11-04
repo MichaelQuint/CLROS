@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1755](../done/step1755.md) passes80 fresh focused checks after whole-member
+Linux producer organization, with unchanged5939/31 inputs/producers. Existing
+Windows managed-producer and SQLite recovery processes execute within their
+unchanged limits. This is not Linux publication, CLROS write or guest SQLite
+qualification; public contracts and ownership/failure behavior are unchanged.
+
 [Step1754](../done/step1754.md) runs the isolated source/binary-bound C# reader
 over the preserved original PCAPs. Both value inspections succeed and52 guarded
 inputs match afterward. Prefix-only framing and borrowed ARP values remain
