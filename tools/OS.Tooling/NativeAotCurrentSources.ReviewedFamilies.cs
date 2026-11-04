@@ -19,7 +19,7 @@ internal static partial class NativeAotCurrentSources
         ]),
         ["tools/OS.Tooling/NativeAotRuntimePayload.cs"] = ("4E04A469F05111A9A54180D845601C5C04F29D5ED55624225AADD649A3AA1AC7", "OS.Tooling:NativeAotRuntimePayload",
         [
-            ("tools/OS.Tooling/NativeAotRuntimePayload.cs", "032571814190B3ECFCB881397F7EB813DEED7726F1FC5C64FE17B1ED44634B29"),
+            ("tools/OS.Tooling/NativeAotRuntimePayload.cs", "EB07C94DA4AEA65B5E6D8BD5B3A2301191CCA59CCC7D46A73B8D2D8F25795BD6"),
             ("tools/OS.Tooling/NativeAotRuntimePayload.Command.cs", "603465DB24140BE6A2A43FB06F704B8441FD5322EE69FEEECBFB94FE30F1C83A"),
             ("tools/OS.Tooling/NativeAotRuntimePayload.App.cs", "8CD3B6E2F149B28765CD4FACD1F8AE460707D8316D7582E8CE8C37FDD4916257"),
             ("tools/OS.Tooling/NativeAotRuntimePayload.TraceInventory.cs", "D1C4BE96C3789017C8F0FE9A4B667AF54510D88C4283DEA233948FFB23C6A5FC"),
@@ -191,7 +191,8 @@ internal static partial class NativeAotCurrentSources
         ]),
         ["tools/OS.Tooling/NativeAotSqliteContract.cs"] = ("50ADE64A1AF557B57C9FBE44B773CBA9A92D9A6A1FC9268C7E109041254B9844", "OS.Tooling:NativeAotSqliteContract",
         [
-            ("tools/OS.Tooling/NativeAotSqliteContract.cs", "C1ED311F8D383F848E90C9E1D400711321A275C285B320D5361F8FF629C11C38"),
+            ("tools/OS.Tooling/NativeAotSqliteContract.cs", "2EB8439890E62E62AE1715D1794D5A401FE60FEABBDE798D74A390E45323F06A"),
+            ("tools/OS.Tooling/NativeAotSqliteContract.LinuxProducer.cs", "15E2092A54341025BBE74DC796A9108C444EE4A4F65FD44555F0E68FB03725FE"),
             ("tools/OS.Tooling/NativeAotSqliteContract.ClrosPackageValues.cs", "4A27730141DEF2C12EC386AAF0F75F76EA4CFD9A945F1E01496214BD72FB5264"),
             ("tools/OS.Tooling/NativeAotSqliteContract.Package.cs", "1E41B7BE327D41A88FAD7731D41A29DEBB2BAC2148D72E5BBB750AF22052E740"),
             ("tools/OS.Tooling/NativeAotSqliteContract.Dependencies.cs", "5DACD8960B2738DCDC74272923ECC2009F7D121156664B0492E739414E5CFA70"),

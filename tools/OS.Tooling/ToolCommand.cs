@@ -357,7 +357,9 @@ public static partial class ToolCommand
             if (args is ["contracts", "check"])
             {
                 Console.WriteLine("TEST_START contracts.audit");
-                var failures = ContractAudit.Inspect(Repository.FindRoot());
+                string root = Repository.FindRoot();
+                IReadOnlyList<ContractMismatch> failures =
+                    [.. ContractAudit.Inspect(root), .. NativeAotCurrentSources.InspectReviewedSources(root)];
                 foreach (var failure in failures)
                     Console.WriteLine($"CONTRACT_MISMATCH {failure.Contract} expected={failure.Expected} actual={failure.Actual}");
                 Console.WriteLine(failures.Count == 0 ? "TEST_PASS contracts.audit" : $"TEST_FAIL contracts.audit failures={failures.Count}");
