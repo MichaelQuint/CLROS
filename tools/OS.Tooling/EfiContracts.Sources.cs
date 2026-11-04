@@ -133,7 +133,7 @@ public static partial class EfiContracts
             ["..\\OS.Kernel\\Storage\\ReadOnlyWebRootFileSystem.OpenResult.cs"] = "88ec7bf1dc3e408137a6a18f0831898d9875ad7dc623355888c0c252ea8c2e2f",
             ["..\\OS.Kernel\\Storage\\ReadOnlyWebRootFileSystem.Operation.cs"] = "f1fd27cd1e9ac7988c3aab501fac7bed87c8ba6d63622ba90b368bdcbb069d47",
             ["..\\OS.Kernel\\Storage\\ReadOnlyWebRootFileSystem.OperationToken.cs"] = "6f3489d775c83b607ec55bddc5ae5ee08a31d2b2696ebd7637a630d64a7856a2",
-            ["..\\OS.Kernel\\Storage\\ReadOnlyWebRootFileSystem.Read.cs"] = "8911f1cd367bb00e6bd9b939a3a3490ce91aa917711a6442602ba4b6a363b414",
+            ["..\\OS.Kernel\\Storage\\ReadOnlyWebRootFileSystem.Read.cs"] = "98a019a3b3b9e7511981819b43920207820151c59a23b806f7092aeffbe3d9ae",
             ["..\\OS.Kernel\\Storage\\ReadOnlyWebRootFileSystem.Scratch.cs"] = "eec686ddd7d626291edc70e62ad0134151b7bffea70d8ae3d27cf45bc83c285e",
             ["..\\OS.Kernel\\Storage\\ReadOnlyWebRootFileSystem.Status.cs"] = "46701c67aaaf7dc7e7a18280d338183e02e00998fe1ca05571b9b1c3587ffca5",
             ["..\\OS.Kernel\\Storage\\ContinuingReadOnlyBlockService.Admission.cs"] = "1b7e85c37f9e9b82a7ed09e96840c00c478ba119a02bec5c5f258bbdb910a33e",
