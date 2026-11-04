@@ -1,5 +1,9 @@
 # Host Requirements
 
+[Step1780](../done/step1780.md) separates explicit fault-injection commands into
+an associated runner partial. Exact bodies, unchanged listing, complete graph and
+49 focused checks pass; final unfiltered Full/native/guest gates remain pending.
+
 [Step1779](../done/step1779.md) simplifies dynamic fixture discovery and grouping
 with unchanged identities, lane partition and Fast inventory bytes. The complete
 graph and48 fresh focused checks pass; final full-host/native/guest gates remain.

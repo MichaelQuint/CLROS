@@ -1,5 +1,8 @@
 # Documentation Map
 
+[Step1780](../done/step1780.md) owns the exact host control extraction and49
+fresh focused checks. Host and repository guides preserve final qualification.
+
 [Step1779](../done/step1779.md) owns dynamic runner discovery/grouping cleanup and
 its focused validation. Host requirements and repository audit retain final gates.
 

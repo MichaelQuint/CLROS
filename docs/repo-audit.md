@@ -1,5 +1,9 @@
 # Repository Audit
 
+[Step1780](../done/step1780.md) removes explicit worker-control implementation
+from normal runner orchestration with exact body preservation. The compiler-owned
+inventory follows its new partial;49 current focused checks pass.
+
 [Step1779](../done/step1779.md) makes assembly-driven host discovery and lane
 grouping readable without introducing fixture/file/count lists. Byte-identical
 Fast listing, the dynamic Full partition and48 focused controls retain their own
