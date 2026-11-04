@@ -1,5 +1,12 @@
 # Host Requirements
 
+[Step1760](../done/step1760.md) passes fifteen parser controls and six fresh
+altered-input controls on the latest symbolic reader. The independent comparison
+retains244 unknown callback variables per image; equal expressions are not a
+physical stack bound. All-method probing models keep their full transient and
+external R11/ABI/backing conditions. Prefix metadata and data-span reporting stay
+nonexecuting host inspection; no new Full or guest qualification is claimed.
+
 [Step1759](../done/step1759.md) extends nonexecuting host artifact inspection.
 Independent code/layout/stack reviews remain distinct from native safety. Five
 terminal/provider input mutations and one altered-table control reject without

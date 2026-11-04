@@ -1,5 +1,11 @@
 # Documentation Map
 
+[Step1760](../done/step1760.md) owns complete current prefix facts, probe controls,
+conditional callback expressions and the Storage.Memory.Code prefix. EFI build
+retains physical composition/numerical-anchor and current-image prerequisites;
+host requirements records actual control scope. Equal logical expressions do
+not close native, guest, performance or final qualification gates.
+
 [Step1759](../done/step1759.md) owns current Timing layout/code/fragment checks,
 storage helper-call costs and strengthened inspection inputs. EFI build retains
 the remaining current-image admission conditions; host requirements records

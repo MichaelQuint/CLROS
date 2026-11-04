@@ -1,5 +1,13 @@
 # EFI Build
 
+[Step1760](../done/step1760.md) extends the current prefix inventory to all
+2,095 methods, with explicit fixed/external probe obligations and independent
+raw-byte review. Fifteen logical expressions match their own-parent expressions;
+the actual32-byte timer increase stays represented. Provider contracts, physical
+domain/phase composition and a matching numerical anchor still precede any old
+bound transfer. The compiled Storage.Memory.Code prefix/constant matches the
+factory operands; live code/receiver/backing and whole-image conditions remain.
+
 [Step1759](../done/step1759.md) binds eight compiled callback offsets and
 independently checks the current2,082-method instruction cohort and complete
 owning xdata. Three cache-capacity literals, nine changed fragments, four added
