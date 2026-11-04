@@ -201,22 +201,17 @@ public static unsafe partial class ReadOnlyWebRootFileSystem
         }
         if (action != DataIo)
             return Fail(m, o, Status.InvalidState);
-        if (direct)
+        uint count = requestedBytes;
+        if (!direct)
         {
-            o->Filled += requestedBytes;
-            if (o->Filled == o->Wanted)
-            {
-                o->Phase = ReadyPhase;
-                return Status.Ready;
-            }
-            return Status.Pending;
+            uint skip = (uint)((o->Offset + o->Filled) & 511);
+            count = 512 - skip;
+            if (count > o->Wanted - o->Filled)
+                count = o->Wanted - o->Filled;
+            for (uint i = 0; i < count; i++)
+                o->Storage.Range[o->Filled + i] = o->Storage.Sector[skip + i];
         }
-        uint skip = (uint)((o->Offset + o->Filled) & 511);
-        uint count = 512 - skip;
-        if (count > o->Wanted - o->Filled)
-            count = o->Wanted - o->Filled;
-        for (uint i = 0; i < count; i++)
-            o->Storage.Range[o->Filled + i] = o->Storage.Sector[skip + i];
+
         o->Filled += count;
         if (o->Filled == o->Wanted)
         {
