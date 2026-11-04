@@ -7,6 +7,22 @@ public static partial class EfiContracts
     public const string AcpiBootstrapHostOracleSha256 = "2afb2b08c511ac8a25ce3f8818e7730961ab3f53c032ca6b846e0bb634624ae8";
     public const string FirmwareEntropyHostOracleSha256 = "b76fef791119978524f7e159f99d26087d48bd33f292abcb5422b6fe7c4000bc";
 
+    // Complete token-equivalent descendants of the immutable ACPI witness,
+    // compared with and without NOSTDLIB_EFI. Host checks retain exact UTF-8
+    // LF/CRLF document bytes; native admission remains independent.
+    internal static IReadOnlyDictionary<string, IReadOnlyList<string>> AcpiBootstrapHostOracleTypes
+    {
+        get;
+    } =
+        new System.Collections.ObjectModel.ReadOnlyDictionary<string, IReadOnlyList<string>>(
+            new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
+            {
+                ["OS.Boot.AcpiBootstrapCopyStatus"] = Array.AsReadOnly<string>(["7b7c9ad5ef6e7c0f7e26c45a0c375dc64ce8729a388696dda3b6c0dde3fd04ae"]),
+                ["OS.Boot.AcpiOwnedTableDescriptor"] = Array.AsReadOnly<string>(["f5bde96aab49a7f28b0fe50a8514e6ba21d41df3009b968035f6b1fa3d7cb8c9"]),
+                ["OS.Boot.AcpiBootstrapCopyResult"] = Array.AsReadOnly<string>(["9c68c23ff002ff5238b95e7b0fee074f56d758f0a39b4b87bdc5dc6298d4a109"]),
+                ["OS.Boot.RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap"] = Array.AsReadOnly<string>(["7f3dcd4ae6c7aea617d2242f88fc83a0ec75ad3aeee6c3ebc52f2dbc77766e7b"])
+            });
+
     // Reviewed descendants of the immutable raw entropy oracle above.
     // The host consumer binds logical types, checks complete source-text pins,
     // then admits only UTF-8/no-BOM LF or CRLF bytes for each pinned document.

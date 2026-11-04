@@ -98,7 +98,7 @@ internal static partial class M03AcpiBootstrapCopyEfiIntegrationTests
         var symbol = project.Descendants("DefineConstants").Single(x => x.Value.Contains("ACPI_PHYSICAL_DISCOVERY_PROBE", StringComparison.Ordinal));
         Need(string.Equals((string?)symbol.Parent?.Attribute("Condition"), "'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'", StringComparison.Ordinal), "existing symbol requires explicit true");
         Need(project.Descendants("DefineConstants").Count(x => x.Value.Contains("ACPI_PHYSICAL_DISCOVERY_PROBE", StringComparison.Ordinal)) == 1, "one existing symbol");
-        Need(string.Equals(Hash(Path.Combine(root, "src/OS.Kernel/Boot/RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap.cs")), OS.Tooling.EfiContracts.AcpiBootstrapHostOracleSha256, StringComparison.OrdinalIgnoreCase), "frozen host oracle");
+        Need(AcpiHostOracleMatches(HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj")), "frozen host oracle family");
         string source = File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.cs"));
         string core = source[source.IndexOf("    private static bool WriteAcpiPhysicalDiscoveryProbe(", StringComparison.Ordinal)..source.IndexOf("    private static bool TryParseMcfgSegments(", StringComparison.Ordinal)];
         foreach (string forbidden in new[]

@@ -1,5 +1,12 @@
 # EFI Build
 
+[Step1751](../done/step1751.md) retains the immutable ACPI host-oracle pin and
+proves all four current declaration/import streams against it under default and
+NOSTDLIB_EFI before adding exact per-type UTF-8 LF/CRLF witnesses. Source controls
+and fresh default/enabled ACPI artifact builds pass. This host-oracle adaptation
+does not change EFI compile membership or renew the final29-context/native/guest
+matrix; source equivalence supplies no emitted stack or metadata waiver.
+
 [Step1748](../done/step1748.md) binds actual own quiet baseline/fixed PE images
 4DE3017B/90630314, complete methods/xdata/data/metadata and current storage
 90/91-page layouts before two serialized WHPX observations. All20 complete

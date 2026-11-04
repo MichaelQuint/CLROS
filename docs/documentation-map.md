@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1751](../done/step1751.md) owns the stopped Full originals, dynamic probe
+repairs, Kestrel producer-interference diagnosis and55 fresh focused checks.
+Repo audit owns source/guard preservation; host requirements owns publication
+isolation and incomplete-run boundaries; EFI build owns ACPI witness limits.
+
 [Step1750](../done/step1750.md) records platform owner partials, 41 focused
 checks and complete retained storage/baseline worktree accounting. Repo audit
 owns source equivalence; host requirements distinguishes real managed execution.

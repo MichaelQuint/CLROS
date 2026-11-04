@@ -1,5 +1,13 @@
 # Host Requirements
 
+[Step1751](../done/step1751.md) preserves the stopped original unfiltered Full
+as incomplete failed evidence (951group receipts/12failed groups/zero reuse).
+All observed process identities join and frozen5919/31 inputs match before edits.
+The repaired r194 graph passes55 focused checks with unchanged5922/31 inputs.
+Publishing the managed Kestrel fixture now isolates all artifacts: its prior
+UseAppHost=false publish deleted the shared apphost and correctly failed the
+input guard. A fresh final unfiltered Full remains mandatory; no guard is relaxed.
+
 [Step1750](../done/step1750.md) builds the complete r191 graph and passes 41
 focused checks after byte-exact platform-owner moves. Its Native-labelled case
 executes real Windows Kestrel/FileStream sessions and joins their children;

@@ -1,5 +1,12 @@
 # Repository Audit
 
+[Step1751](../done/step1751.md) repairs dynamic host probe inputs, preserves
+the stopped failed Full, and passes55 fresh focused checks plus repo/contracts.
+Child controls use discovered conditional fixture parts and verified generator
+outputs; UD2 keeps all original safety predicates. ACPI witnesses have an exact
+two-profile declaration proof against the immutable original. No broad Full or
+guest acceptance transfers; remaining physical-source assumptions stay open.
+
 [Step1750](../done/step1750.md) separates complete managed/Linux HTTP reference
 owners into associated partials, with exact member/parent reconstruction and
 independent ownership review. The complete build and 41 focused checks pass,

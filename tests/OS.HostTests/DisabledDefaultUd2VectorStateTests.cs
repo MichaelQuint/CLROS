@@ -1,3 +1,5 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -296,30 +298,21 @@ internal static class DisabledDefaultUd2VectorStateTests
 
     private static bool TestAuthoritativeProbeGate()
     {
-        string source = File.ReadAllText(Path.Combine(
-                HostToolProcess.FindRepositoryRoot(),
-                @"src\OS.Kernel\Diagnostics\DisabledDefaultUd2VectorState.cs"))
-            .Replace("\r\n", "\n", StringComparison.Ordinal);
-
-        return source.Contains(
-                "public const bool EnabledByDefault =\n" +
-                "        Probes.EnableInvalidOpcodePanicProbe;",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "if (EnabledByDefault || request.EnabledByDefault)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "if (!request.IsInitialized ||\n" +
-                "            EnabledByDefault ||\n" +
-                "            request.EnabledByDefault ||",
-                StringComparison.Ordinal)
-            && CountOccurrences(
-                source,
-                "if (EnabledByDefault || request.EnabledByDefault)") == 1
-            && CountOccurrences(
-                source,
-                "EnabledByDefault ||\n" +
-                "            request.EnabledByDefault ||") == 1;
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        string owner = typeof(DisabledDefaultUd2VectorState).FullName!;
+        var field = (IFieldSymbol)catalog.Type(owner).GetMembers(nameof(DisabledDefaultUd2VectorState.EnabledByDefault)).Single();
+        var authority = catalog.Type(typeof(Probes).FullName!).GetMembers(nameof(Probes.EnableInvalidOpcodePanicProbe)).Single();
+        var declaration = (VariableDeclaratorSyntax)field.DeclaringSyntaxReferences.Single().GetSyntax();
+        var initializer = declaration.Initializer?.Value;
+        if (initializer is null || !SymbolEqualityComparer.Default.Equals(
+            catalog.Compilation.GetSemanticModel(initializer.SyntaxTree).GetSymbolInfo(initializer).Symbol, authority))
+            return false;
+        string source = HostSourceText.Documents(catalog, owner);
+        return HostSourceText.Contains(source, "public const bool EnabledByDefault = Probes.EnableInvalidOpcodePanicProbe;")
+            && HostSourceText.Contains(source, "if (EnabledByDefault || request.EnabledByDefault)")
+            && HostSourceText.Contains(source, "if (!request.IsInitialized || EnabledByDefault || request.EnabledByDefault ||")
+            && HostSourceText.Count(source, "if (EnabledByDefault || request.EnabledByDefault)") == 1
+            && HostSourceText.Count(source, "EnabledByDefault || request.EnabledByDefault ||") == 1;
     }
 
     private static bool TestPrerequisiteAttestations()
@@ -659,102 +652,71 @@ internal static class DisabledDefaultUd2VectorStateTests
 
     private static bool TestNoStdLibAuthorityFactoring()
     {
-        string diagnostics = Path.Combine(
-            HostToolProcess.FindRepositoryRoot(),
-            @"src\OS.Kernel\Diagnostics");
-        string probes = File.ReadAllText(
-            Path.Combine(diagnostics, "Probes.cs"));
-        string probeAuthority = File.ReadAllText(
-            Path.Combine(diagnostics, "InvalidOpcodeProbeAuthority.cs"));
-        string vectors = File.ReadAllText(
-            Path.Combine(diagnostics, "FaultVectorInfo.cs"));
-        string vectorAuthority = File.ReadAllText(
-            Path.Combine(diagnostics, "InvalidOpcodeVectorAuthority.cs"));
-        string panicFormatter = File.ReadAllText(
-            Path.Combine(diagnostics, "PanicFormatter.cs"));
-        string cpuFaultFrame = File.ReadAllText(
-            Path.Combine(diagnostics, "CpuFaultFrame.cs"));
-
-        int probeDefinitionCount = 0;
-        int vectorDefinitionCount = 0;
-        int frameDefinitionCount = 0;
-        string[] sources = Directory.GetFiles(diagnostics, "*.cs");
-        for (int index = 0; index < sources.Length; index++)
-        {
-            string source = File.ReadAllText(sources[index]);
-            probeDefinitionCount += CountOccurrences(
-                source,
-                "public const bool EnableInvalidOpcodePanicProbe");
-            vectorDefinitionCount += CountOccurrences(
-                source,
-                "public const byte InvalidOpcode = 6;");
-            frameDefinitionCount += CountOccurrences(
-                source,
-                "public readonly struct CpuFaultFrame");
-        }
-
-        string[] frameProperties =
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        var flag = (IFieldSymbol)catalog.Type(typeof(Probes).FullName!)
+            .GetMembers(nameof(Probes.EnableInvalidOpcodePanicProbe)).Single();
+        var vector = (IFieldSymbol)catalog.Type(typeof(FaultVectorCatalog).FullName!)
+            .GetMembers(nameof(FaultVectorCatalog.InvalidOpcode)).Single();
+        var frame = catalog.Type(typeof(CpuFaultFrame).FullName!);
+        var properties = frame.GetMembers().OfType<IPropertySymbol>().Where(property => !property.IsStatic).ToArray();
+        string[] expected =
         [
-            "public int Vector { get; }",
-            "public bool HasErrorCode { get; }",
-            "public ulong ErrorCode { get; }",
-            "public ulong Rip { get; }",
-            "public ulong Rsp { get; }",
-            "public ulong Rbp { get; }",
-            "public ulong Rflags { get; }",
-            "public ulong Cr2 { get; }",
-            "public ulong Cr3 { get; }",
-            "public ulong Rax { get; }",
-            "public ulong Rbx { get; }",
-            "public ulong Rcx { get; }",
-            "public ulong Rdx { get; }",
-            "public ulong Rsi { get; }",
-            "public ulong Rdi { get; }",
-            "public ulong R8 { get; }",
-            "public ulong R9 { get; }",
-            "public ulong R10 { get; }",
-            "public ulong R11 { get; }",
-            "public ulong R12 { get; }",
-            "public ulong R13 { get; }",
-            "public ulong R14 { get; }",
-            "public ulong R15 { get; }"
+            "Vector", "HasErrorCode", "ErrorCode", "Rip", "Rsp", "Rbp", "Rflags", "Cr2", "Cr3",
+            "Rax", "Rbx", "Rcx", "Rdx", "Rsi", "Rdi", "R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15"
         ];
-        for (int index = 0; index < frameProperties.Length; index++)
+        if (!properties.Select(property => property.Name).SequenceEqual(expected, StringComparer.Ordinal))
+            return false;
+        for (int index = 0; index < properties.Length; index++)
         {
-            if (CountOccurrences(cpuFaultFrame, frameProperties[index]) != 1)
-            {
+            var property = properties[index];
+            SpecialType expectedType = index == 0 ? SpecialType.System_Int32
+                : index == 1 ? SpecialType.System_Boolean : SpecialType.System_UInt64;
+            if (property.Type.SpecialType != expectedType || property.DeclaredAccessibility != Accessibility.Public
+                || property.GetMethod?.DeclaredAccessibility != Accessibility.Public || property.SetMethod is not null)
                 return false;
-            }
         }
-
-        return probes.Contains("public static partial class Probes",
-                StringComparison.Ordinal)
-            && !probes.Contains(
-                "public const bool EnableInvalidOpcodePanicProbe",
-                StringComparison.Ordinal)
-            && probeAuthority.Contains(
-                "public const bool EnableInvalidOpcodePanicProbe = false;",
-                StringComparison.Ordinal)
-            && vectors.Contains(
-                "public static partial class FaultVectorCatalog",
-                StringComparison.Ordinal)
-            && !vectors.Contains(
-                "public const byte InvalidOpcode = 6;",
-                StringComparison.Ordinal)
-            && vectorAuthority.Contains(
-                "public const byte InvalidOpcode = 6;",
-                StringComparison.Ordinal)
-            && !panicFormatter.Contains(
-                "public readonly struct CpuFaultFrame",
-                StringComparison.Ordinal)
-            && frameProperties.Length ==
-                DisabledDefaultUd2VectorState.CpuFaultFrameFieldCount
-            && probeDefinitionCount == 1
-            && vectorDefinitionCount == 1
-            && frameDefinitionCount == 1
-            && NoStdLibAuthoritySourceIsSafe(probeAuthority)
-            && NoStdLibAuthoritySourceIsSafe(vectorAuthority)
-            && NoStdLibAuthoritySourceIsSafe(cpuFaultFrame);
+        string diagnostics = Path.Combine(HostToolProcess.FindRepositoryRoot(), "src", "OS.Kernel", "Diagnostics");
+        string[] rawSources = Directory.GetFiles(diagnostics, "*.cs").Select(File.ReadAllText).ToArray();
+        if (rawSources.Sum(source => CountOccurrences(source, "public const bool EnableInvalidOpcodePanicProbe")) != 1
+            || rawSources.Sum(source => CountOccurrences(source, "public const byte InvalidOpcode = 6;")) != 1
+            || rawSources.Sum(source => CountOccurrences(source, "public readonly struct CpuFaultFrame")) != 1)
+            return false;
+        var flagDeclaration = (VariableDeclaratorSyntax)flag.DeclaringSyntaxReferences.Single().GetSyntax();
+        var vectorDeclaration = (VariableDeclaratorSyntax)vector.DeclaringSyntaxReferences.Single().GetSyntax();
+        var frameDeclaration = frame.DeclaringSyntaxReferences.Single().GetSyntax();
+        string frameSource = catalog.Document(frameDeclaration).Text;
+        for (int index = 0; index < expected.Length; index++)
+        {
+            string type = index == 0 ? "int" : index == 1 ? "bool" : "ulong";
+            if (HostSourceText.Count(frameSource, "public " + type + " " + expected[index] + " { get; }") != 1)
+                return false;
+            if (properties[index].DeclaringSyntaxReferences.Single().GetSyntax()
+                is not PropertyDeclarationSyntax { ExpressionBody: null, AccessorList.Accessors.Count: 1 } property)
+                return false;
+            var getter = property.AccessorList!.Accessors[0];
+            if (getter.Body is not null || getter.ExpressionBody is not null || getter.SemicolonToken.IsMissing
+                || getter.AttributeLists.Count != 0 || getter.Modifiers.Count != 0)
+                return false;
+        }
+        // Authorities remain dedicated partial declarations, independently of
+        // their filenames. Duplicate members fail source-catalog construction.
+        return flag is { IsConst: true, DeclaredAccessibility: Accessibility.Public, ConstantValue: false }
+            && flag.Type.SpecialType == SpecialType.System_Boolean
+            && vector is { IsConst: true, DeclaredAccessibility: Accessibility.Public }
+            && vector.ConstantValue is byte vectorValue && vectorValue == 6
+            && vector.Type.SpecialType == SpecialType.System_Byte
+            && flagDeclaration.Parent?.Parent?.Parent is TypeDeclarationSyntax { Members.Count: 1 } flagOwner
+            && HostSourceText.Contains(flagOwner.ToString(), "public static partial class Probes")
+            && vectorDeclaration.Parent?.Parent?.Parent is TypeDeclarationSyntax { Members.Count: 1 } vectorOwner
+            && HostSourceText.Contains(vectorOwner.ToString(), "public static partial class FaultVectorCatalog")
+            && frame is { TypeKind: TypeKind.Struct, IsReadOnly: true, DeclaredAccessibility: Accessibility.Public }
+            && !frame.IsRefLikeType
+            && !HostSourceText.Documents(catalog, typeof(PanicFormatter).FullName!)
+                .Contains("public readonly struct CpuFaultFrame", StringComparison.Ordinal)
+            && expected.Length == DisabledDefaultUd2VectorState.CpuFaultFrameFieldCount
+            && NoStdLibAuthoritySourceIsSafe(catalog.Document(flagDeclaration).Text)
+            && NoStdLibAuthoritySourceIsSafe(catalog.Document(vectorDeclaration).Text)
+            && NoStdLibAuthoritySourceIsSafe(catalog.Document(frameDeclaration).Text);
     }
 
     private static bool NoStdLibAuthoritySourceIsSafe(string source)

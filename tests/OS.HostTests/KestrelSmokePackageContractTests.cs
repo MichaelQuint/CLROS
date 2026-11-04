@@ -1,3 +1,5 @@
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
@@ -103,7 +105,10 @@ internal static partial class KestrelSmokePackageContractTests
         }
 
         Directory.CreateDirectory(publishDirectory);
-        ProcessResult publishResult = RunDotnet(repositoryRoot, "publish", projectPath, "--configuration", "Debug", "--framework", "net11.0", "--self-contained", "false", "-p:UseAppHost=false", "/p:OSWorkloadProfile=" + WorkloadProfile.SingleMinimalApiName, "--output", publishDirectory, "--nologo");
+        ProcessResult publishResult = RunDotnet(repositoryRoot, "publish", projectPath,
+            "--configuration", "Debug", "--framework", "net11.0", "--self-contained", "false",
+            "-p:UseAppHost=false", "/p:OSWorkloadProfile=" + WorkloadProfile.SingleMinimalApiName,
+            "--artifacts-path", Path.Combine(tempRoot, "build-artifacts"), "--output", publishDirectory, "--nologo");
         if (publishResult.ExitCode != 0)
         {
             Console.WriteLine("TEST_FAIL_DETAIL kestrel.smoke_app.publish exit=" + publishResult.ExitCode);
@@ -142,9 +147,33 @@ internal static partial class KestrelSmokePackageContractTests
         valid &= ContainsOrReport(program, "app.MapGet(\"/\",", programPath);
         valid &= ContainsOrReport(program, "app.MapGet(\"/healthz\",", programPath);
         valid &= ContainsOrReport(program, "app.MapGet(\"/config\",", programPath);
-        valid &= ContainsOrReport(program, "JsonSerializerContext", programPath);
+        valid &= ValidateSerializerContext(HostToolProcess.FindRepositoryRoot());
         valid &= ContainsOrReport(program, "KestrelSmokeJsonContext.Default", programPath);
         valid &= ValidateMinimalApiSmokeAppSettings(appSettingsPath);
+        return valid;
+    }
+
+    private static bool ValidateSerializerContext(string root)
+    {
+        string assembly = HostToolProcess.GetBuiltToolPath(root, "MinimalApiSmoke");
+        using var stream = File.OpenRead(assembly);
+        using var pe = new PEReader(stream);
+        var metadata = pe.GetMetadataReader();
+        var contexts = metadata.TypeDefinitions.Select(metadata.GetTypeDefinition)
+            .Where(type => metadata.GetString(type.Name) == "KestrelSmokeJsonContext"
+                && metadata.GetString(type.Namespace).Length == 0 && type.GetDeclaringType().IsNil).ToArray();
+        bool valid = false;
+        if (contexts.Length == 1 && contexts[0].BaseType.Kind == HandleKind.TypeReference)
+        {
+            var parent = metadata.GetTypeReference((TypeReferenceHandle)contexts[0].BaseType);
+            valid = metadata.GetString(parent.Namespace) == "System.Text.Json.Serialization"
+                && metadata.GetString(parent.Name) == "JsonSerializerContext"
+                && parent.ResolutionScope.Kind == HandleKind.AssemblyReference
+                && metadata.GetString(metadata.GetAssemblyReference((AssemblyReferenceHandle)parent.ResolutionScope).Name)
+                    == "System.Text.Json";
+        }
+        if (!valid)
+            Console.WriteLine("TEST_FAIL_DETAIL kestrel.smoke_app.source serializer context base mismatch");
         return valid;
     }
 

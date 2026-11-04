@@ -279,8 +279,14 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
                 }
             }
             """, new UTF8Encoding(false));
-        string production = System.Security.SecurityElement.Escape(Path.Combine(root, "std",
-            "no-runtime", "shared", "Numerics", "IndependentArithmeticShiftCastN64BitDivisionRemainder.cs"))!;
+        var catalog = HostSourceCatalog.Project("src/OS.Std.NoRuntime.Shared/OS.Std.NoRuntime.Shared.csproj");
+        string sharedRoot = Path.Combine(root, "std", "no-runtime", "shared");
+        var sources = catalog.DependencySources(typeof(Catalog).FullName!).Where(source => !source.IsGenerated).ToArray();
+        foreach (var source in sources)
+            _ = OS.Tooling.EfiEvidence.RelativePath(sharedRoot, source.Path, "arithmetic_probe_source_layer");
+        string production = string.Join(Environment.NewLine, sources.Select(source =>
+            new System.Xml.Linq.XElement("Compile", new System.Xml.Linq.XAttribute("Include", source.Path))
+                .ToString(System.Xml.Linq.SaveOptions.DisableFormatting)));
         File.WriteAllText(Path.Combine(directory, "Compile.csproj"), $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
@@ -305,7 +311,7 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
               </PropertyGroup>
               <ItemGroup>
                 <Compile Include="Shim.cs" />
-                <Compile Include="{{production}}" Link="Arithmetic.cs" />
+                {{production}}
               </ItemGroup>
               <Target Name="RemoveFrameworkReferences" BeforeTargets="BeforeCompile"
                       AfterTargets="FindReferenceAssembliesForReferences">
