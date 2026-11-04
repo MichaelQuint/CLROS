@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1766](../done/step1766.md) records explicit-alternatives evaluator controls,
+independent offline recomputation and inert raw-helper disassembly/CFG checks.
+Unknown candidates propagate null bounds. Preserved failed probe builds and a
+corrected native clock binding remain distinguishable from the later candidates.
+No new complete HostTests graph, Full or guest result is claimed.
+
 [Step1765](../done/step1765.md) records independent raw compiler-metadata review,
 an actual malformed-enum old-accept/new-reject control and four retained negative
 selection controls. Canonical type/field/prefix rows stay unchanged. The altered

@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1766](../done/step1766.md) owns storage provider alternatives, independent
+finite arithmetic and later network/core byte candidates. EFI build records
+remaining physical/live requirements; host requirements records controls and
+preserved corrections. Final native/guest/performance qualification stays open.
+
 [Step1765](../done/step1765.md) owns independent compiled-owner joins and the
 enum-shape probe correction. EFI build retains physical/live/current-image
 requirements; host requirements records actual altered-metadata control scope.

@@ -1,5 +1,11 @@
 # EFI Build
 
+[Step1766](../done/step1766.md) retains multiple provider alternatives and
+independently verifies the merged storage/PCI/virtio-init arithmetic. Later
+network/core candidates narrow the remaining call variables to22. Tagged calls,
+generated driver/idle phases and all current physical/live/ABI requirements
+remain; numerical completeness under declarations is not launch admission.
+
 [Step1765](../done/step1765.md) independently matches selected compiled owner
 layouts/prefixes and six consumed native operand windows. A separate host-reader
 enum-shape correction preserves canonical rows and rejects altered metadata.
