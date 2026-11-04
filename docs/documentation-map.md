@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1753](../done/step1753.md) records bounded file-wire reporting and31 focused
+checks. Diagnostics owns cadence units and incomplete observations, networking
+the unchanged strict parser/close boundaries, host requirements the explicit
+reporting budgets, and repo audit the associated-file organization.
+
 [Step1752](../done/step1752.md) owns dynamic leaf/dependency and clean-checkout
 repairs, preserved raw firewalls,80 focused checks and the actual filtered-catch
 artifact original. Repo audit owns type/source placement, host requirements the

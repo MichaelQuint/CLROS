@@ -42,13 +42,14 @@ public static partial class QemuTranscripts
 
     private static void ServiceWireClose(ServiceWireFlow flow, bool serverFirst = true) => Need(flow.ClientReady && flow.ResetRecord == 0 && flow.ClientSeen == flow.RequestExtent && flow.ServerSeen == flow.ResponseExtent && flow.ClientFin && flow.ServerFin && flow.ClientFinAcked && flow.ServerFinAcked && flow.ServerFinFirst == serverFirst, "service_wire_close");
     private static ServiceHttpPacketInspection ServiceWireInspection(ServiceWireCapture capture, int lifecycleConnections = 0) => new(capture.Flows.Count, capture.TcpRecords, capture.Flows.Sum(flow => flow.RequestExtent), capture.Flows.Sum(flow => flow.ResponseExtent), capture.Flows.Count(flow => flow.ServerFinFirst), capture.Flows.Count(flow => flow.ClientFinAcked && flow.ServerFinAcked), capture.QuietSyns, capture.Flows.Count(flow => flow.ResetRecord != 0), lifecycleConnections);
-    private static ServiceWireCapture ServiceWirePackets(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp, IReadOnlyList<uint> ports, bool concurrent, bool lifecycle = false, Action<ServiceWireByteRange>? observe = null, bool quotaStreams = false, IReadOnlySet<int>? delegatedWebRecords = null, bool diskStaticFull = false)
+    private static ServiceWireCapture ServiceWirePackets(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp, IReadOnlyList<uint> ports, bool concurrent, bool lifecycle = false, Action<ServiceWireByteRange>? observe = null, bool quotaStreams = false, IReadOnlySet<int>? delegatedWebRecords = null, bool diskStaticFull = false, Action<ServiceControlPacket>? observeEstablished = null)
     {
         Need(!diskStaticFull || concurrent && lifecycle && quotaStreams && delegatedWebRecords is null, "disk_full_wire_mode");
         int streamMaximum = diskStaticFull ? DiskStaticCapturePolicy.StreamBytes : QuotaPacketMaximumExtent;
         if (ports is null)
             throw new ToolFailure("service_wire_ports");
         Need(ports.Count is > 0 and <= 512 && ports.Distinct().Count() == ports.Count && ports.All(port => port is > 0 and <= 65535), "service_wire_ports");
+        IReadOnlyList<int>? observationPorts = observeEstablished is null ? null : ports.Select(port => checked((int)port)).ToArray();
         Need(delegatedWebRecords is null || quotaStreams && concurrent && lifecycle && delegatedWebRecords.Count > 0, "web_race_wire_delegation");
         _ = QemuEthernetCapture.Inspect(bytes, anchor, diskStaticFull);
         int offset = 24, stage = 0, prefixEnd = 0, resolution = 0, tcpRecords = 0, quietSyns = 0, record = 0;
@@ -258,6 +259,16 @@ public static partial class QemuTranscripts
                         flow.ClientFinRecord = record;
                     flow.ClientFin = true;
                 }
+            }
+
+            // Observe only after every established-packet guard, including
+            // retransmitted byte equality and FIN sequence validation, succeeds.
+            // Ordinary callers allocate/copy/decode nothing for this observer.
+            if (observeEstablished is not null)
+            {
+                var selected = ServiceSelectedPacket(frame.ToArray(), arp.PeerMac, observationPorts!, record, now);
+                Need(selected is not null, "service_wire_observer_packet");
+                observeEstablished(selected!);
             }
         }
 

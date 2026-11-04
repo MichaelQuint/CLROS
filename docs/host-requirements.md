@@ -1,5 +1,12 @@
 # Host Requirements
 
+[Step1753](../done/step1753.md) passes31 focused host packet/style checks with
+unchanged5935/31 inputs/producers. File cadence reporting uses the existing
+explicit64MiB capture/24MiB aggregate stream policy; ordinary defaults stay.
+At most32 ports/targets and262144 packet/range rows are retained. It owns no VM,
+client or deadline. Source and parser-module identity remain separate from
+original capture, full parent, runner and guest qualification.
+
 [Step1752](../done/step1752.md) records nine fresh focused selections passing80
 checks, zero reuse and unchanged5929/31 inputs/producers. Native-labelled identity
 and metadata cases perform managed compilation; the filtered-catch case also

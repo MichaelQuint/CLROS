@@ -1,5 +1,13 @@
 # Diagnostics
 
+[Step1753](../done/step1753.md) adds bounded host file-wire cadence values through
+the existing strict PCAP/TCP parser. Request/entity first appearances, cumulative
+ACK coverage, retransmissions and literal next progress sends retain original
+record IDs and microsecond times; missing or negative intervals stay explicit.
+Short/holey entities have no full hash/span. EOF and FIN/reset observations grant
+no cleanup authority. The31 focused synthetic/regression checks pass; evaluating
+preserved originals and attributing remaining transfer costs are still pending.
+
 [Step1748](../done/step1748.md) measures the combined timer/cache candidate in
 the same quiet profile as its baseline: first/repeat complete2,009,369-byte GETs
 167.378596/167.518250→7.200736/7.134948 seconds, all exact hashes. TTFB changes

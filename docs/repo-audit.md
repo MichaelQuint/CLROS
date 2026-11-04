@@ -1,5 +1,11 @@
 # Repository Audit
 
+[Step1753](../done/step1753.md) introduces four associated QemuTranscripts
+reporting partials and a separate test partial. Every DTO remains in its own file;
+the existing strict decoder is reused through an optional private observer.
+Build,31 focused checks, repo/contracts and diff checks pass. No kernel/ABI,
+accepted profile or ordinary parser budget changes occur.
+
 [Step1752](../done/step1752.md) replaces additional physical-file assumptions
 with compiler-owned families and EFI-matched dependency closures. Clean generator
 checkouts follow evaluated Compile inputs; raw inactive-branch firewalls remain.
