@@ -1,5 +1,10 @@
 # RC3 and WHPX qualification contract
 
+[Step1783](../done/step1783.md) records the fresh909ef13d Full fast-phase failure
+and unchanged-input/zero-reuse join. Two stale current producer mappings are
+repaired; 52 focused checks and expanded contract audit pass. Freeze/rebuild before
+another unfiltered Full; no acceptance transfers from that failed original.
+
 [Step1781](../done/step1781.md) integrates the storage completion common tail,
 passes58 focused checks and records current emitted facts. Bounded native review
 finds no changed-code defect; the changed18-byte GCInfo record retains a separate

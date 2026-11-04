@@ -1,5 +1,10 @@
 # Repository Audit
 
+[Step1783](../done/step1783.md) extends CLI contracts check to all registered
+reviewed current-source hashes and existing split-producer ownership. Historical
+anchors remain explicit; no hash is approved automatically. Two stale mappings
+found by fresh Full are repaired with 52 passing focused controls; Full stays open.
+
 [Step1780](../done/step1780.md) removes explicit worker-control implementation
 from normal runner orchestration with exact body preservation. The compiler-owned
 inventory follows its new partial;49 current focused checks pass.

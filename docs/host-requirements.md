@@ -1,5 +1,10 @@
 # Host Requirements
 
+[Step1783](../done/step1783.md) preserves fresh Full909ef13d: 883 fast groups,
+five failed groups/ten checks from two stale producer mappings, unchanged inputs
+and zero reuse; native work is blocked. The reviewed mapping repair and early
+contracts audit pass 52 focused checks. A new frozen unfiltered Full is required.
+
 [Step1781](../done/step1781.md) integrates one storage common-tail cleanup and
 passes58 fresh guarded checks. The complete graph builds; actual native facts
 retain their separate conditional review and do not renew Full/guest acceptance.

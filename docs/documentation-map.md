@@ -1,5 +1,8 @@
 # Documentation Map
 
+[Step1783](../done/step1783.md) owns the fresh failed Full, reviewed producer-map
+repair and expanded early contract audit. Host/repository guides retain final gates.
+
 [Step1781](../done/step1781.md) owns storage common-tail integration,58 focused
 checks and current emitted facts. Storage/host/EFI guides keep review limits.
 

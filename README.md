@@ -4,6 +4,10 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1783](done/step1783.md) repairs two stale producer-source mappings exposed
+by fresh Full and adds an early reviewed-source contract audit. All 52 focused
+checks pass. The failed Full is preserved; final combined qualification remains.
+
 [Step1748](done/step1748.md) repairs pending-aware timer stop and directory-cache
 coverage. A matched quiet WHPX full-file observation improves167.45→7.17 seconds
 on average, with all four2,009,369-byte bodies hash-correct. This one-boot/image
