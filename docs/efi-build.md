@@ -1,5 +1,9 @@
 # EFI Build
 
+[Step1775](../done/step1775.md) independently corroborates both Short originals
+and identifies the next decimal-output hypothesis. Production/native bytes remain
+unchanged; a host poll-count model grants no native stack or performance acceptance.
+
 [Step1774](../done/step1774.md) completes conditional current F9A3 Summary Timing
 integration and two original Short diagnostics on WHPX/identical-image TCG.
 All live owner/provider/ABI/mapping/probe/lifetime conditions remain binding;

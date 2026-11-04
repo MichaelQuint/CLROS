@@ -1,5 +1,9 @@
 # Host Requirements
 
+[Step1775](../done/step1775.md) retains142 independent original-value checks and
+an artifact-only decimal model. Exact output/poll counts are not checked-backend
+timing, native safety, matched guest populations or final qualification.
+
 [Step1774](../done/step1774.md) rebuilds the protected diagnostic owner, renews its
 negative controls and passes expanded preflight with4781 held authorities. Both
 unchanged600/480/180 Short originals pass. These do not renew unfiltered Full or

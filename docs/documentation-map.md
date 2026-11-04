@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1775](../done/step1775.md) owns independent Short observation, raw serial/
+decimal census and the separate host-model hypothesis. EFI and host guides keep
+production/native/performance qualification separate from operation counts.
+
 [Step1774](../done/step1774.md) owns current conditional native integration,
 protected-owner preflight and two backend Short originals. EFI build preserves
 live conditions; host requirements distinguishes diagnostics from final gates.
