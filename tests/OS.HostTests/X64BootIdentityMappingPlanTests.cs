@@ -760,34 +760,31 @@ internal static partial class X64BootIdentityMappingPlanTests
     private static bool TestSourceAndNoStdLibBoundary()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        string boot = Path.Combine(root, "src", "OS.Kernel", "Boot");
-        string memory = Path.Combine(root, "src", "OS.Kernel", "Memory");
-        string addressPath = Path.Combine(boot, "TypedPhysicalVirtualDeviceAddressPODWrappers.cs");
-        string protectionPath = Path.Combine(memory, "PageProtection.cs");
-        string cachePath = Path.Combine(memory, "PageCachePolicy.cs");
-        string entryPath = Path.Combine(memory, "X64PageTableEntry.cs");
-        string planPath = Path.Combine(boot, "X64BootIdentityMappingPlan.cs");
-        string[] paths = [addressPath, protectionPath, cachePath, entryPath, planPath];
-        if (paths.Any(path => !File.Exists(path)))
-        {
-            return false;
-        }
-
-        string core = RemoveComments(File.ReadAllText(planPath));
+        var kernel = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        Type[] owners = [typeof(X64BootIdentityMappingPlan), typeof(X64BootIdentityMappingPurpose),
+            typeof(X64BootIdentityMappingStatus), typeof(X64BootIdentityMappingRequirement),
+            typeof(X64BootIdentityMappingRange), typeof(X64BootIdentityMappingPlanResult)];
+        string core = RemoveComments(HostSourceText.Documents(kernel, owners.Select(type => type.FullName!).ToArray()));
         string[] forbiddenFragments = ["using System;", "System.FlagsAttribute", "[Flags", "Span<", "ReadOnlySpan<", "stackalloc", "throw ", "try {", "catch ", "finally", "typeof(", "dynamic ", "EfiEntry", "BootSequence", "RuntimeExport", "ulong.MaxValue"];
-        if (forbiddenFragments.Any(fragment => core.Contains(fragment, StringComparison.Ordinal)) || Regex.IsMatch(core, @"\b(string|String|object|Object)\b", RegexOptions.CultureInvariant) || !core.Contains("~0UL", StringComparison.Ordinal) || !core.Contains("static unsafe class X64BootIdentityMappingPlan", StringComparison.Ordinal) || !core.Contains("X64BootIdentityMappingRequirement* source", StringComparison.Ordinal) || !core.Contains("X64BootIdentityMappingRange* destination", StringComparison.Ordinal) || !core.Contains("sourceCapacity", StringComparison.Ordinal) || !core.Contains("destinationCapacity", StringComparison.Ordinal) || !core.Contains("availableTablePageCapacity", StringComparison.Ordinal) || !core.Contains("sizeof(X64BootIdentityMappingRequirement)", StringComparison.Ordinal) || !core.Contains("sizeof(X64BootIdentityMappingRange)", StringComparison.Ordinal))
+        if (forbiddenFragments.Any(fragment => core.Contains(fragment, StringComparison.Ordinal)) || Regex.IsMatch(core, @"\b(string|String|object|Object)\b", RegexOptions.CultureInvariant) || !core.Contains("~0UL", StringComparison.Ordinal) || !Regex.IsMatch(core, @"\bstatic\s+unsafe\s+(?:partial\s+)?class\s+X64BootIdentityMappingPlan\b", RegexOptions.CultureInvariant) || !core.Contains("X64BootIdentityMappingRequirement* source", StringComparison.Ordinal) || !core.Contains("X64BootIdentityMappingRange* destination", StringComparison.Ordinal) || !core.Contains("sourceCapacity", StringComparison.Ordinal) || !core.Contains("destinationCapacity", StringComparison.Ordinal) || !core.Contains("availableTablePageCapacity", StringComparison.Ordinal) || !core.Contains("sizeof(X64BootIdentityMappingRequirement)", StringComparison.Ordinal) || !core.Contains("sizeof(X64BootIdentityMappingRange)", StringComparison.Ordinal))
         {
             return false;
         }
 
         string[] productionFiles = Directory.EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories).Where(path => !HasDirectorySegment(path, "bin") && !HasDirectorySegment(path, "obj")).ToArray();
         string[] planDeclarations = productionFiles.Where(path => Regex.IsMatch(RemoveComments(File.ReadAllText(path)), @"\bclass\s+X64BootIdentityMappingPlan\b", RegexOptions.CultureInvariant)).ToArray();
-        if (planDeclarations.Length != 1 || !Path.GetFullPath(planDeclarations[0]).Equals(Path.GetFullPath(planPath), StringComparison.OrdinalIgnoreCase))
+        var planner = kernel.Type(typeof(X64BootIdentityMappingPlan).FullName!);
+        var declaredPaths = planner.DeclaringSyntaxReferences.Select(reference => reference.SyntaxTree.FilePath)
+            .ToHashSet(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        if (!planner.IsStatic || !declaredPaths.SetEquals(planDeclarations.Select(Path.GetFullPath)))
         {
             return false;
         }
 
-        NoStdLibBuildResult build = BuildNoStdLibClosure(root, addressPath, protectionPath, cachePath, entryPath, planPath);
+        var efi = HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(["--BootPolicy", "Diagnostic"], true).Profile());
+        var sources = HostNoStdlibSdkSources.Select(root, kernel, efi, typeof(X64BootIdentityMappingPlan), owners,
+            "identity_plan", includeRuntime: false);
+        NoStdLibBuildResult build = BuildNoStdLibClosure(root, sources);
         if (build.TimedOut || build.ExitCode != 0 || !HasZeroAssemblyReferences(build.AssemblyBytes))
         {
             Console.WriteLine("M01_012_NOSTDLIB_DIAGNOSTIC " + NormalizeOutput(build.Output));
@@ -1217,7 +1214,10 @@ internal static partial class X64BootIdentityMappingPlanTests
             }
 
             bool efiEntry = false;
-            bool minimalRuntime = false;
+            HashSet<string> runtime = new(OS.Tooling.EfiContracts.SourceAdmissionReasons
+                .Where(pair => pair.Value == "reviewed_minimal_runtime_source_identity")
+                .Select(pair => Path.GetFullPath(pair.Key, Path.Combine(repositoryRoot, "src", "OS"))), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> foundRuntime = new(StringComparer.OrdinalIgnoreCase);
             HashSet<string> required = new(requiredPaths.Select(Path.GetFullPath), StringComparer.OrdinalIgnoreCase);
             HashSet<string> foundRequired = new(StringComparer.OrdinalIgnoreCase);
             foreach (JsonElement item in compile.EnumerateArray())
@@ -1232,7 +1232,8 @@ internal static partial class X64BootIdentityMappingPlanTests
 
                 string canonicalPath = Path.GetFullPath(fullPath);
                 efiEntry |= fullPath.EndsWith(Path.Combine("Boot", "EfiEntry.cs"), StringComparison.OrdinalIgnoreCase);
-                minimalRuntime |= fullPath.EndsWith(Path.Combine("Runtime", "MinimalRuntime.cs"), StringComparison.OrdinalIgnoreCase);
+                if (runtime.Contains(canonicalPath))
+                    foundRuntime.Add(canonicalPath);
                 if (required.Contains(canonicalPath))
                     foundRequired.Add(canonicalPath);
                 foreach (string forbiddenPath in forbiddenPaths)
@@ -1245,6 +1246,7 @@ internal static partial class X64BootIdentityMappingPlanTests
                 }
             }
 
+            bool minimalRuntime = runtime.Count > 0 && foundRuntime.SetEquals(runtime);
             if (!efiEntry || !minimalRuntime || foundRequired.Count != required.Count)
             {
                 Console.WriteLine("M01_012_EFI_EVAL_DIAGNOSTIC profile=" + workloadProfile + " anchors=" + efiEntry + "," + minimalRuntime);
@@ -1260,7 +1262,7 @@ internal static partial class X64BootIdentityMappingPlanTests
         }
     }
 
-    private static NoStdLibBuildResult BuildNoStdLibClosure(string repositoryRoot, string addressPath, string protectionPath, string cachePath, string entryPath, string planPath)
+    private static NoStdLibBuildResult BuildNoStdLibClosure(string repositoryRoot, IReadOnlyList<OS.Tooling.CSharpSourceDocument> sources)
     {
         string workspace = Path.Combine(Path.GetTempPath(), "clros-m01-012-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(workspace);
@@ -1414,32 +1416,7 @@ internal static partial class X64BootIdentityMappingPlanTests
                   </PropertyGroup>
                   <ItemGroup>
                     <Compile Include="NoStdLibShim.cs" />
-                    <Compile Include="__ADDRESS__/AddressValueStatus.cs" Link="Boot/AddressValueStatus.cs" />
-                <Compile Include="__ADDRESS__/PhysicalAddress.cs" Link="Boot/PhysicalAddress.cs" />
-                <Compile Include="__ADDRESS__/VirtualAddress.cs" Link="Boot/VirtualAddress.cs" />
-                <Compile Include="__ADDRESS__/DeviceAddress.cs" Link="Boot/DeviceAddress.cs" />
-                <Compile Include="__ADDRESS__/AddressValueOperations.cs" Link="Boot/AddressValueOperations.cs" />
-                    <Compile Include="__PROTECTION__" Link="Memory\PageProtection.cs" />
-                    <Compile Include="__CACHE__" Link="Memory\PageCachePolicy.cs" />
-                    <Compile Include="__ENTRY__/X64PageTableEntry.X64PageTableLevel.cs" Link="Memory/X64PageTableEntry.X64PageTableLevel.cs" />
-                <Compile Include="__ENTRY__/X64PageTableEntry.X64PageTableEntryKind.cs" Link="Memory/X64PageTableEntry.X64PageTableEntryKind.cs" />
-                <Compile Include="__ENTRY__/X64PageTableEntry.X64HardwareStatePolicy.cs" Link="Memory/X64PageTableEntry.X64HardwareStatePolicy.cs" />
-                <Compile Include="__ENTRY__/X64PageTableEntry.X64PageTableEntryStatus.cs" Link="Memory/X64PageTableEntry.X64PageTableEntryStatus.cs" />
-                <Compile Include="__ENTRY__/X64PageTableEntry.X64PatMappingToken.cs" Link="Memory/X64PageTableEntry.X64PatMappingToken.cs" />
-                <Compile Include="__ENTRY__/X64PageTableEntry.X64PageTableEncodingPreconditions.cs" Link="Memory/X64PageTableEntry.X64PageTableEncodingPreconditions.cs" />
-                <Compile Include="__ENTRY__/X64PageTableEntry.X64PageTableEntryRequest.cs" Link="Memory/X64PageTableEntry.X64PageTableEntryRequest.cs" />
-                <Compile Include="__ENTRY__/X64PageTableEntry.X64PageTableEntryResult.cs" Link="Memory/X64PageTableEntry.X64PageTableEntryResult.cs" />
-                <Compile Include="__ENTRY__/X64PageTableEntry.X64PageTableEntryBatchResult.cs" Link="Memory/X64PageTableEntry.X64PageTableEntryBatchResult.cs" />
-                <Compile Include="__ENTRY__/X64PageTableEntry.cs" Link="Memory/X64PageTableEntry.cs" />
-                    <Compile Include="__PLAN__/X64BootIdentityMappingPlan.X64BootIdentityMappingPurpose.cs" Link="Boot/X64BootIdentityMappingPlan.X64BootIdentityMappingPurpose.cs" />
-                <Compile Include="__PLAN__/X64BootIdentityMappingPlan.X64BootIdentityMappingStatus.cs" Link="Boot/X64BootIdentityMappingPlan.X64BootIdentityMappingStatus.cs" />
-                <Compile Include="__PLAN__/X64BootIdentityMappingPlan.X64BootIdentityMappingRequirement.cs" Link="Boot/X64BootIdentityMappingPlan.X64BootIdentityMappingRequirement.cs" />
-                <Compile Include="__PLAN__/X64BootIdentityMappingPlan.X64BootIdentityMappingRange.cs" Link="Boot/X64BootIdentityMappingPlan.X64BootIdentityMappingRange.cs" />
-                <Compile Include="__PLAN__/X64BootIdentityMappingPlan.X64BootIdentityMappingPlanResult.cs" Link="Boot/X64BootIdentityMappingPlan.X64BootIdentityMappingPlanResult.cs" />
-                <Compile Include="__PLAN__/X64BootIdentityMappingPlan.cs" Link="Boot/X64BootIdentityMappingPlan.cs" />
-                <Compile Include="__PLAN__/X64BootIdentityMappingPlan.RequirementView.cs" Link="Boot/X64BootIdentityMappingPlan.RequirementView.cs" />
-                <Compile Include="__PLAN__/X64BootIdentityMappingPlan.MergedRange.cs" Link="Boot/X64BootIdentityMappingPlan.MergedRange.cs" />
-                <Compile Include="__PLAN__/X64BootIdentityMappingPlan.PlannerState.cs" Link="Boot/X64BootIdentityMappingPlan.PlannerState.cs" />
+                    __SOURCES__
                     <Compile Include="Probe.cs" />
                   </ItemGroup>
                   <Target Name="CustomizeReferences"
@@ -1451,7 +1428,8 @@ internal static partial class X64BootIdentityMappingPlanTests
                     </ItemGroup>
                   </Target>
                 </Project>
-                """.Replace("__ADDRESS__", EscapeXml(Path.GetDirectoryName(addressPath)!), StringComparison.Ordinal).Replace("__PROTECTION__", EscapeXml(protectionPath), StringComparison.Ordinal).Replace("__CACHE__", EscapeXml(cachePath), StringComparison.Ordinal).Replace("__ENTRY__", EscapeXml(Path.GetDirectoryName(entryPath)!), StringComparison.Ordinal).Replace("__PLAN__", EscapeXml(Path.GetDirectoryName(planPath)!), StringComparison.Ordinal);
+                """.Replace("__SOURCES__", string.Join(Environment.NewLine, sources.Select(document =>
+                    "<Compile Include=\"" + EscapeXml(document.Path) + "\" />")), StringComparison.Ordinal);
             string projectPath = Path.Combine(workspace, "M01.012.NoStdLib.csproj");
             File.WriteAllText(projectPath, project, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             ProcessStartInfo start = DotnetStart(workspace);

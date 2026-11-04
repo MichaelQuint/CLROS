@@ -3,17 +3,18 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Tooling;
 
-/// <summary>Builds bounded host SDK inputs with the complete reviewed minimal
-/// runtime shim. Fixtures supply their root, permitted runtime owners and assembly
-/// identity. Kernel inputs must match actual EFI bytes; unrelated runtime services
-/// reject. This source/managed-compilation check does not qualify native execution.</summary>
+/// <summary>Builds bounded host SDK inputs from EFI-matched kernel dependencies.
+/// Fixtures supply their root and explicitly permitted additional owners. Include
+/// the complete reviewed minimal runtime by default; a fixture retaining its own
+/// original shim can request kernel inputs alone. Unrelated services reject.
+/// This source/managed-compilation check does not qualify native execution.</summary>
 internal static class HostNoStdlibSdkSources
 {
     private static void RequireKernelLayer(CSharpSourceCatalog catalog, CSharpSourceDocument document,
-        bool requireType, Type[] permittedRuntimeOwners, string diagnosticPrefix)
+        bool requireType, Type[] permittedAdditionalOwners, string diagnosticPrefix)
     {
         var model = catalog.Compilation.GetSemanticModel(document.Syntax);
-        var permittedRuntime = permittedRuntimeOwners.Select(type => type.FullName!).ToHashSet(StringComparer.Ordinal);
+        var permittedAdditional = permittedAdditionalOwners.Select(type => type.FullName!).ToHashSet(StringComparer.Ordinal);
         var declarations = document.Syntax.GetRoot().DescendantNodes()
             .Where(node => node is BaseTypeDeclarationSyntax or DelegateDeclarationSyntax).ToArray();
         if (requireType && declarations.Length == 0)
@@ -24,14 +25,14 @@ internal static class HostNoStdlibSdkSources
             while (type.ContainingType is not null)
                 type = type.ContainingType;
             string space = type.ContainingNamespace.ToDisplayString();
-            if (space is not ("OS.Boot" or "OS.Kernel.Memory") && !permittedRuntime.Contains(type.ToDisplayString())
+            if (space is not ("OS.Boot" or "OS.Kernel.Memory") && !permittedAdditional.Contains(type.ToDisplayString())
                 || type.Name is "BootSequence" or "EfiEntry" or "Probes")
                 throw new InvalidOperationException(diagnosticPrefix + "_dependency_layer " + type.ToDisplayString());
         }
     }
 
     internal static CSharpSourceDocument[] Select(string root, CSharpSourceCatalog kernel, CSharpSourceCatalog efi,
-        Type rootType, Type[] permittedRuntimeOwners, string diagnosticPrefix)
+        Type rootType, Type[] permittedAdditionalOwners, string diagnosticPrefix, bool includeRuntime = true)
     {
         string kernelRoot = Path.GetFullPath(Path.Combine(root, "src", "OS.Kernel"));
         string objectRoot = Path.Combine(kernelRoot, "obj") + Path.DirectorySeparatorChar;
@@ -50,14 +51,22 @@ internal static class HostNoStdlibSdkSources
             var admitted = efi.Documents.SingleOrDefault(value => value.Path.Equals(document.Path, StringComparison.OrdinalIgnoreCase));
             if (admitted is null || admitted.Sha256 != document.Sha256)
                 throw new InvalidOperationException(diagnosticPrefix + "_efi_source_join " + document.Path);
-            RequireKernelLayer(kernel, document, true, permittedRuntimeOwners, diagnosticPrefix);
-            RequireKernelLayer(efi, admitted, false, permittedRuntimeOwners, diagnosticPrefix);
+            RequireKernelLayer(kernel, document, true, permittedAdditionalOwners, diagnosticPrefix);
+            RequireKernelLayer(efi, admitted, false, permittedAdditionalOwners, diagnosticPrefix);
             selected.Add(admitted.Path);
         }
 
         if (selected.Count == 0)
             throw new InvalidOperationException(diagnosticPrefix + "_kernel_empty");
 
+        if (includeRuntime)
+            selected.UnionWith(Runtime(root, efi, diagnosticPrefix).Select(document => document.Path));
+        return efi.Documents.Where(document => selected.Contains(document.Path)).ToArray();
+    }
+
+    internal static CSharpSourceDocument[] Runtime(string root, CSharpSourceCatalog efi, string diagnosticPrefix)
+    {
+        var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         // Preserve the fixture's complete reviewed runtime shim. Compiler
         // dependency discovery must not silently replace it with a smaller shim.
         string efiRoot = Path.Combine(root, "src", "OS");

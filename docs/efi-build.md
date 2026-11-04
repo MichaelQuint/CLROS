@@ -1,5 +1,13 @@
 # EFI Build
 
+[Step1752](../done/step1752.md) binds filtered-catch offset constants to the
+already hash-verified managed compiler input, preserving exact UInt32 field
+signatures and independent native call/continuation geometry. A fresh image,
+map, bridge objects and rehashed mutation controls pass and are archived.
+Arithmetic/layout leaf inputs follow exact EFI bytes and active tokens; their
+metadata checks retain NoInlining and zero assembly references. This does not
+renew the complete compiler matrix, emitted stack margins or guest acceptance.
+
 [Step1751](../done/step1751.md) retains the immutable ACPI host-oracle pin and
 proves all four current declaration/import streams against it under default and
 NOSTDLIB_EFI before adding exact per-type UTF-8 LF/CRLF witnesses. Source controls

@@ -1,5 +1,13 @@
 # Host Requirements
 
+[Step1752](../done/step1752.md) records nine fresh focused selections passing80
+checks, zero reuse and unchanged5929/31 inputs/producers. Native-labelled identity
+and metadata cases perform managed compilation; the filtered-catch case also
+builds an actual NativeAOT EFI image and tests rehashed mutations. These scopes
+remain distinct. Clean-checkout RunBounded children retain raw output/status;
+its bootstrap build and exceptional unconfirmed-child limits remain documented.
+No deadline, resource bound or input guard was relaxed.
+
 [Step1751](../done/step1751.md) preserves the stopped original unfiltered Full
 as incomplete failed evidence (951group receipts/12failed groups/zero reuse).
 All observed process identities join and frozen5919/31 inputs match before edits.

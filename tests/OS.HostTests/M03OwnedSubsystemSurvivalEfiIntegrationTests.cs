@@ -65,16 +65,21 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
         Need(OS.Tooling.EfiContracts.SourceClosureExplicitPaths.All(closure.Contains), "publisher and verifier bind explicit build authorities");
         foreach (string name in OS.Tooling.EfiContracts.CompileItems.Select(item => item.Split('|')[0]))
             Need(closure.Contains(Path.GetRelativePath(root, Path.GetFullPath(name, Path.Combine(root, "src/OS"))).Replace('\\', '/')), "original compile authority " + name);
-        string entry = Read("src/OS/Boot/EfiEntry.cs");
-        int start = entry.IndexOf("private static bool ReportOwnedSubsystems", StringComparison.Ordinal);
-        int end = entry.IndexOf("private static bool OwnedFailure", start, StringComparison.Ordinal);
-        string operation = entry[start..end];
+        var source = HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(
+            ["--EnableM01LoadedImageStackProbe", "--EnableM01LiveAllocatorProbe", "--EnableAcpiPhysicalDiscoveryProbe",
+             "--EnableM03FirstRealExitBootServicesProbe", "--EnableM03OwnedSubsystemSurvivalProbe",
+             "--EnableM03OwnedSubsystemPanicProbe"], true).Profile());
+        string operation = System.Text.RegularExpressions.Regex.Replace(source.Method(
+            "OS.Boot.EfiEntry+M03FirstExitAdapter", "ReportOwnedSubsystems").ToFullString(),
+            @"\s+", string.Empty, System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         Need(!operation.Contains("FirstExitPostExitDiagnostics.Report", StringComparison.Ordinal) &&
-            operation.Split("BootSequence.RunOwnedSubsystemAllocatorRoundTrip", StringSplitOptions.None).Length == 2,
+            System.Text.RegularExpressions.Regex.Matches(operation, "BootSequence\\.RunOwnedSubsystemAllocatorRoundTrip").Count == 1,
             "allocator wrapper is the sole original diagnostic invocation");
-        Need(operation.Contains("ReadBackAcpiBootstrap(workspace, copied->Bytes", StringComparison.Ordinal) &&
+        Need(operation.Contains("ReadBackAcpiBootstrap(workspace,copied->Bytes", StringComparison.Ordinal) &&
             operation.Contains("ReadOwnedGuard((ulong*)state->PanicGuard)", StringComparison.Ordinal), "original readback and actual C# guard load");
-        Need(Read("tools/OS.QemuRunner/Program.cs").Contains("--expect-owned-subsystem-panic", StringComparison.Ordinal), "explicit terminal-control mode");
+        string runnerOptions = HostSourceText.Documents(HostSourceCatalog.Project(
+            "tools/OS.QemuRunner/OS.QemuRunner.csproj"), "RunnerOptions");
+        Need(runnerOptions.Contains("--expect-owned-subsystem-panic", StringComparison.Ordinal), "explicit terminal-control mode");
     }
 
     private const string Firmware = "G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg==";

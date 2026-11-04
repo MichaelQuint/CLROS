@@ -20,6 +20,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
     private EfiPeImage image = null!;
     private string artifactPath = "", mapPath = "", responsePath = "", evidencePath = "", map = "", response = "", linkedSerializer = "", configuration = "", extensions = "", packages = "", runtimePack = "", sdk = "", dotnet = "";
     private string[] responseTokens = [];
+    private (uint Return, uint Continuation)? filteredCatchOffsets;
     private AuthorityFile artifact = null!, mapFile = null!, responseFile = null!, evidenceFile = null!, serializer = null!, serializerLinked = null!;
     private string Text(string name) => String(evidence[name], "link_evidence_property_invalid");
     private long Number(string name) => Integer(evidence[name], name);
@@ -265,7 +266,10 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         Require(SamePath(managed, expected), "managed_assembly_path_not_canonical");
         var managedFile = Open(managed, "managed_assembly", MaximumFileBytes, output: true, root: Root);
         Require(managedFile.Sha256 == Text("managedAssemblySha256"), "managed_assembly_identity_mismatch");
-        VerifyManagedPe(managedFile.ReadBytes(MaximumFileBytes, "managed_assembly_read_failed"));
+        byte[] managedBytes = managedFile.ReadBytes(MaximumFileBytes, "managed_assembly_read_failed");
+        VerifyManagedPe(managedBytes);
+        if (profile.IsEnabled("M04FilteredCatch"))
+            filteredCatchOffsets = ReadFilteredCatchOffsets(managedBytes);
     }
 
     private static void VerifyManagedPe(byte[] bytes)

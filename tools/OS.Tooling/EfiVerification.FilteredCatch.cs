@@ -1,4 +1,7 @@
 using System.Buffers.Binary;
+using System.Reflection;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 using static OS.Tooling.EfiPeImage;
 
 namespace OS.Tooling;
@@ -57,10 +60,9 @@ internal sealed partial class EfiVerification
             Require(EfiVerify.TestFilteredCatchCode(compiled, part), "filters_method_bytes_mismatch", shape.Name);
             if (part == 1)
             {
-                string source = File.ReadAllText(Path.Combine(Root, "src/OS/Runtime/FilteredCatchProbe.cs"));
-                var offsets = System.Text.RegularExpressions.Regex.Matches(source, @"private const uint FilterReturnOffset = ([0-9]+), FilterContinuationOffset = ([0-9]+);");
-                Require(offsets.Count == 1, "filters_offset_source_shape");
-                Require(EfiVerify.TestFilteredCatchOffsets(compiled, uint.Parse(offsets[0].Groups[1].Value), uint.Parse(offsets[0].Groups[2].Value)), "filters_compiled_return_offsets");
+                Require(filteredCatchOffsets.HasValue, "filters_offset_metadata_fields_missing");
+                var offsets = filteredCatchOffsets!.Value;
+                Require(EfiVerify.TestFilteredCatchOffsets(compiled, offsets.Return, offsets.Continuation), "filters_compiled_return_offsets");
             }
 
             foreach (var field in shape.Fields)
@@ -87,5 +89,53 @@ internal sealed partial class EfiVerification
 
         ulong exported = Address("RhTypeCast_IsInstanceOfClass", "OS.obj", "filters"), managed = Address("OS_System_Runtime_TypeCast__IsInstanceOfClass", "OS.obj", "filters");
         Require(exported == managed, "filters_class_predicate_export_alias");
+    }
+
+    // The caller has already bounded and hash-verified these compiler-input
+    // bytes. No module is loaded; reader ownership ends before returning scalars.
+    private static (uint Return, uint Continuation) ReadFilteredCatchOffsets(byte[] bytes)
+    {
+        using var stream = new MemoryStream(bytes, writable: false);
+        using var pe = new PEReader(stream);
+        Require(pe.HasMetadata, "filters_offset_metadata_missing");
+        var metadata = pe.GetMetadataReader();
+        var owners = metadata.TypeDefinitions.Select(metadata.GetTypeDefinition)
+            .Where(type => type.GetDeclaringType().IsNil
+                && metadata.GetString(type.Namespace) == "OS.Runtime"
+                && metadata.GetString(type.Name) == "RhpNewFastAllocation").ToArray();
+        Require(owners.Length == 1, "filters_offset_metadata_owner");
+        uint? returnOffset = null, continuationOffset = null;
+        foreach (var handle in owners[0].GetFields())
+        {
+            var field = metadata.GetFieldDefinition(handle);
+            string name = metadata.GetString(field.Name);
+            if (name is not ("FilterReturnOffset" or "FilterContinuationOffset"))
+                continue;
+            Require(field.Attributes == (FieldAttributes.Private | FieldAttributes.Static | FieldAttributes.Literal | FieldAttributes.HasDefault),
+                "filters_offset_metadata_field");
+            var signature = metadata.GetBlobReader(field.Signature);
+            Require(signature.ReadSignatureHeader().RawValue == (byte)SignatureKind.Field
+                && signature.ReadSignatureTypeCode() == SignatureTypeCode.UInt32 && signature.RemainingBytes == 0,
+                "filters_offset_metadata_signature");
+            var constantHandle = field.GetDefaultValue();
+            Require(!constantHandle.IsNil, "filters_offset_metadata_constant_missing");
+            var constant = metadata.GetConstant(constantHandle);
+            Require(constant.TypeCode == ConstantTypeCode.UInt32, "filters_offset_metadata_constant_type");
+            var value = metadata.GetBlobReader(constant.Value);
+            Require(value.RemainingBytes == sizeof(uint), "filters_offset_metadata_constant_size");
+            uint number = value.ReadUInt32();
+            if (name == "FilterReturnOffset")
+            {
+                Require(!returnOffset.HasValue, "filters_offset_metadata_duplicate");
+                returnOffset = number;
+            }
+            else
+            {
+                Require(!continuationOffset.HasValue, "filters_offset_metadata_duplicate");
+                continuationOffset = number;
+            }
+        }
+        Require(returnOffset.HasValue && continuationOffset.HasValue, "filters_offset_metadata_fields_missing");
+        return (returnOffset!.Value, continuationOffset!.Value);
     }
 }

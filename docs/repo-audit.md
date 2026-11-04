@@ -1,5 +1,12 @@
 # Repository Audit
 
+[Step1752](../done/step1752.md) replaces additional physical-file assumptions
+with compiler-owned families and EFI-matched dependency closures. Clean generator
+checkouts follow evaluated Compile inputs; raw inactive-branch firewalls remain.
+The r201 build and80 focused checks pass with unchanged5929/31 archived inputs
+and producers. Earlier r199 clean/address results remain separate. The stopped
+Full remains failed/incomplete; final unfiltered qualification is still required.
+
 [Step1751](../done/step1751.md) repairs dynamic host probe inputs, preserves
 the stopped failed Full, and passes55 fresh focused checks plus repo/contracts.
 Child controls use discovered conditional fixture parts and verified generator

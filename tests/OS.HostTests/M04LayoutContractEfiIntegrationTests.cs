@@ -110,7 +110,7 @@ internal static partial class M04LayoutContractEfiIntegrationTests
                 <RuntimeMetadataVersion>v4.0.30319</RuntimeMetadataVersion>
               </PropertyGroup>
               <ItemGroup>
-            """ + Compile(root, Leaf) + Compile(root, "src/OS/Runtime/MinimalRuntime.cs") + Compile(root, "src/OS/Runtime/MethodImplAttribute.cs") + "</ItemGroup></Project>");
+            """ + CompileLeaf(root, includeRuntime: true) + "</ItemGroup></Project>");
         ScriptResult build = Process(root, "dotnet", "build", project, "-c", "Release", "--nologo", "-m:1");
         Require(build.ExitCode == 0, build.Output);
         using FileStream file = File.OpenRead(Path.Combine(directory, "bin/Release/net11.0/Metadata.dll"));
@@ -144,7 +144,7 @@ internal static partial class M04LayoutContractEfiIntegrationTests
             <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
             <ImplicitUsings>enable</ImplicitUsings><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
             </PropertyGroup><ItemGroup><Compile Include="Program.cs"/>
-            """ + Compile(root, Leaf) + "</ItemGroup></Project>");
+            """ + CompileLeaf(root, includeRuntime: false) + "</ItemGroup></Project>");
         string fields = """
                 private struct EfiSimpleTextOutputProtocol { }
                 private struct EfiSerialIoProtocol { }

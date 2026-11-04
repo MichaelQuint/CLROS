@@ -4,7 +4,7 @@ using OS.Boot;
 using OS.Kernel.Diagnostics;
 using OS.Tooling;
 
-internal static class M04FilteredCatchEfiIntegrationTests
+internal static partial class M04FilteredCatchEfiIntegrationTests
 {
     private const string Flag = "EnableM04FilteredCatchProbe", Symbol = "M04_FILTERED_CATCH_PROBE";
     private static readonly string[] Flags = [.. RuntimeProfilePortTests.RethrowFlags[..^1], "M04FilteredCatch"];

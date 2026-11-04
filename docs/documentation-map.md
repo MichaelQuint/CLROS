@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1752](../done/step1752.md) owns dynamic leaf/dependency and clean-checkout
+repairs, preserved raw firewalls,80 focused checks and the actual filtered-catch
+artifact original. Repo audit owns type/source placement, host requirements the
+execution and child-retention limits, and EFI build the managed-metadata join.
+
 [Step1751](../done/step1751.md) owns the stopped Full originals, dynamic probe
 repairs, Kestrel producer-interference diagnosis and55 fresh focused checks.
 Repo audit owns source/guard preservation; host requirements owns publication

@@ -216,7 +216,9 @@ internal static partial class TypedPhysicalVirtualDeviceAddressPODWrappersTests
 
     private static bool TestNoRuntimeSourceSurface()
     {
-        string source = File.ReadAllText(GetProductionSourcePath());
+        string source = HostSourceText.Documents(HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"),
+            typeof(AddressValueStatus).FullName!, typeof(PhysicalAddress).FullName!, typeof(VirtualAddress).FullName!,
+            typeof(DeviceAddress).FullName!, "OS.Boot.AddressValueOperations");
         string sourceWithoutComments = RemoveLineComments(source);
         string[] forbiddenFragments = ["using ", "using System", "System.", "System::", "throw ", "catch ", "finally ", "Reflection", "Activator", "Array.", "\\u", "\\U", "stackalloc", "typeof"];
         foreach (string fragment in forbiddenFragments)

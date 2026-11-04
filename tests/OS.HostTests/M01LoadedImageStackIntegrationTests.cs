@@ -1045,8 +1045,10 @@ internal static unsafe partial class M01LoadedImageStackIntegrationTests
     private static bool TestSourceAndApiFirewalls()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string sourcePath = IntegrationSourcePath(repositoryRoot);
-        string source = File.ReadAllText(sourcePath);
+        Type[] podTypes = [typeof(M01StageOneAllocationEvidence), typeof(M01StageOneMapLedgerEvidence), typeof(M01LoadedImageVirtualMappingEvidence), typeof(M01StageOneAddressMappingEvidence), typeof(M01LoadedImageStackStaticState), typeof(M01LoadedImageStackTransferTarget), typeof(M01LoadedImageStackStaticPreparationResult), typeof(M01LoadedImageStackStaticTransitionResult), typeof(M01LoadedImageStackEvidence), typeof(M01LoadedImageStackIntegrationResult)];
+        var kernel = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        string source = HostSourceText.Documents(kernel,
+            [typeof(M01LoadedImageStackIntegration).FullName!, .. podTypes.Select(type => type.FullName!)]);
         string stripped = RemoveComments(source);
         string[] forbiddenPatterns = [@"\busing\b", @"\bSystem\.", @"\bthrow\b", @"\btry\b", @"\bcatch\b", @"\bfinally\b", @"\btypeof\b", @"\bReflection\b", @"\bActivator\b", @"\bdynamic\b", @"\bdelegate\b", @"\binterface\b", @"\brecord\s+(class|struct)\b", @"\bstring\b", @"\bobject\b", @"\bSpan\s*<", @"\bReadOnlySpan\s*<", @"\bList\s*<", @"\bDictionary\s*<", @"\bstackalloc\b", @"\bfixed\b", @"\bRuntimeImport\b", @"\bRuntimeExport\b", @"\bDllImport\b", @"\bLibraryImport\b", @"\bNativeLibrary\b", @"\bUnmanagedCallersOnly\b", @"\bMarshal\b", @"\bUnsafe\b", @"\bNativeMemory\b", @"\bEfiEntry\b", @"\bBootSequence\b", @"\bProbes\b", @"\bConsole\b", @"\bThread\b", @"\bTask\b", @"\bGC\.", @"\bGetMemoryMap\b", @"\bExitBootServices\b", @"\bBootServices\b", @"\bUefiMemoryType\b", @"\bConOut\b", @"\bSerialIo\b", @"\bFreePages\b", @"\bOpenProtocol\b", @"\bHandleProtocol\b", @"\binvlpg\b", @"\bCR3\b"];
         foreach (string pattern in forbiddenPatterns)
@@ -1057,7 +1059,8 @@ internal static unsafe partial class M01LoadedImageStackIntegrationTests
             }
         }
 
-        if (!HasExactHostConveniencePreprocessorBoundary(stripped))
+        if (!HasExactHostConveniencePreprocessorBoundary(RemoveComments(HostSourceText.Documents(
+            kernel, typeof(M01LoadedImageStackIntegration).FullName!))))
         {
             return SourceFailure("nostdlib-host-convenience-boundary");
         }
@@ -1067,7 +1070,6 @@ internal static unsafe partial class M01LoadedImageStackIntegrationTests
             return SourceFailure("required-contract");
         }
 
-        Type[] podTypes = [typeof(M01StageOneAllocationEvidence), typeof(M01StageOneMapLedgerEvidence), typeof(M01LoadedImageVirtualMappingEvidence), typeof(M01StageOneAddressMappingEvidence), typeof(M01LoadedImageStackStaticState), typeof(M01LoadedImageStackTransferTarget), typeof(M01LoadedImageStackStaticPreparationResult), typeof(M01LoadedImageStackStaticTransitionResult), typeof(M01LoadedImageStackEvidence), typeof(M01LoadedImageStackIntegrationResult)];
         foreach (Type type in podTypes)
         {
             if (!type.IsValueType)
@@ -1107,35 +1109,7 @@ internal static unsafe partial class M01LoadedImageStackIntegrationTests
             return SourceFailure("efi-project-linkage");
         }
 
-        string efiEntry = File.ReadAllText(Path.Combine(repositoryRoot, "src", "OS", "Boot", "EfiEntry.cs"));
-        const string probeStart = "#if (M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT)";
-        const string probeElse = "#else";
-        const string probeEnd = "#endif";
-        int probeStartIndex = efiEntry.IndexOf(probeStart, StringComparison.Ordinal);
-        int probeElseIndex = probeStartIndex < 0 ? -1 : efiEntry.IndexOf(probeElse, probeStartIndex + probeStart.Length, StringComparison.Ordinal);
-        int probeEndIndex = probeElseIndex < 0 ? -1 : efiEntry.IndexOf(probeEnd, probeElseIndex + probeElse.Length, StringComparison.Ordinal);
-        int duplicateProbeIndex = probeStartIndex < 0 ? -1 : efiEntry.IndexOf(probeStart, probeStartIndex + probeStart.Length, StringComparison.Ordinal);
-        if (probeStartIndex < 0 || probeElseIndex < 0 || probeEndIndex < 0 || duplicateProbeIndex >= 0)
-        {
-            return SourceFailure("efi-entry-probe-boundary");
-        }
-
-        string probeImplementation = efiEntry[probeStartIndex..probeElseIndex];
-        string defaultImplementation = efiEntry[probeElseIndex..(probeEndIndex + probeEnd.Length)];
-        string outsideProbe = string.Concat(efiEntry.AsSpan(0, probeStartIndex), efiEntry.AsSpan(probeEndIndex + probeEnd.Length));
-        string compactProbe = Regex.Replace(probeImplementation, @"\s+", string.Empty, RegexOptions.CultureInvariant);
-        string compactDefault = Regex.Replace(defaultImplementation, @"\s+", string.Empty, RegexOptions.CultureInvariant);
-        string compactOutside = Regex.Replace(outsideProbe, @"\s+", string.Empty, RegexOptions.CultureInvariant);
-        string[] requiredProbeCalls = ["M01LoadedImageStackIntegration.PrepareFromStaticScratch(", "RecordTransferFromStaticState", "ObserveContinuationRspFromStaticState", "ReportUnexpectedReturnFromStaticState"];
-        foreach (string requiredProbeCall in requiredProbeCalls)
-        {
-            if (!compactProbe.Contains(requiredProbeCall, StringComparison.Ordinal) || compactOutside.Contains(requiredProbeCall, StringComparison.Ordinal) || compactDefault.Contains(requiredProbeCall, StringComparison.Ordinal))
-            {
-                return SourceFailure("efi-entry-probe-call=" + requiredProbeCall);
-            }
-        }
-
-        if (compactProbe.Contains("M01LoadedImageStackIntegration.Prepare(", StringComparison.Ordinal) || compactProbe.Contains("M01LoadedImageStackIntegration.PrepareWithStubByteMode(", StringComparison.Ordinal) || !defaultImplementation.Contains("return false;", StringComparison.Ordinal) || efiEntry.Contains("RunM01LoadedImageStackIntegration", StringComparison.Ordinal) || efiEntry.Contains("RecordTransfer(", StringComparison.Ordinal) || efiEntry.Contains("ObserveContinuationRsp(", StringComparison.Ordinal))
+        if (!HasProfileBoundEfiCoordinatorCalls())
         {
             return SourceFailure("efi-entry-linkage");
         }

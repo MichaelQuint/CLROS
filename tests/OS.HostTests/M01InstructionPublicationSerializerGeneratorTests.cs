@@ -20,6 +20,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
     private static readonly byte[] ExpectedUnwind = [0x01, 0x01, 0x01, 0x00, 0x01, 0x30, 0x00, 0x00];
     private static readonly byte[] ExpectedStringTable = BuildExpectedStringTable();
     private static string? _boundedProcessHelperPath;
+    private static string? _processEvidenceRoot;
     [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
@@ -51,6 +52,8 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         Require(File.Exists(Path.Combine(projectRoot, "Program.cs")), "tool-program-missing");
         Require(File.Exists(Path.Combine(projectRoot, "Amd64CoffWriter.cs")), "tool-writer-missing");
         Require(File.Exists(Path.Combine(projectRoot, "InstructionPublicationSerializerGenerator.cs")), "tool-generator-missing");
+        _processEvidenceRoot = Path.Combine(repositoryRoot, "artifacts", "m01-033-originals", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_processEvidenceRoot);
         string temporaryRoot = Path.Combine(Path.GetTempPath(), "clros-m01-033-" + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture));
         try
         {
@@ -585,12 +588,28 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         CopyFile(repositoryRoot, checkoutRoot, "global.json");
         CopyFile(repositoryRoot, checkoutRoot, "Directory.Build.props");
         CopyFile(Path.Combine(repositoryRoot, "tools"), toolsRoot, "Directory.Build.props");
-        string[] sourceFiles = [ToolProjectName + ".csproj", "Program.cs", "Amd64CoffWriter.cs", "CheckedReferenceBarrierThunkGenerator.cs", "InterfaceDispatchThunkGenerator.cs", "ExceptionHandlingThunkGenerator.cs", "ExceptionFilterThunkGenerator.cs", "NormalFinallyThunkGenerator.cs", "EhContributionCatalogGenerator.cs", "InstructionPublicationSerializerGenerator.cs"];
+        CopyFile(sourceProjectRoot, destinationProjectRoot, ToolProjectName + ".csproj");
+        ProcessStartInfo query = NewDotnetStartInfo(repositoryRoot);
+        foreach (string argument in new[] { "msbuild", Path.Combine(sourceProjectRoot, ToolProjectName + ".csproj"),
+            "-nologo", "-noAutoResponse", "-getItem:Compile", "-property:Configuration=Release" })
+            query.ArgumentList.Add(argument);
+        ProcessResult evaluation = RunBounded(query, 30_000);
+        Require(!evaluation.TimedOut && evaluation.ExitCode == 0 && !evaluation.StandardOutputOverflow
+            && !evaluation.StandardErrorOverflow && !evaluation.StandardOutputIncomplete
+            && !evaluation.StandardErrorIncomplete && string.IsNullOrWhiteSpace(evaluation.StandardError),
+            "clean-checkout-source-evaluation-failed");
+        using var compile = System.Text.Json.JsonDocument.Parse(evaluation.StandardOutput);
+        string[] sourceFiles = compile.RootElement.GetProperty("Items").GetProperty("Compile").EnumerateArray()
+            .Select(item => item.GetProperty("FullPath").GetString()!).Select(path =>
+                OS.Tooling.EfiEvidence.RelativePath(sourceProjectRoot, path, "clean_checkout_source_outside_leaf")).ToArray();
+        Require(sourceFiles.Length > 0, "clean-checkout-source-empty");
         foreach (string sourceFile in sourceFiles)
         {
             string source = Path.Combine(sourceProjectRoot, sourceFile);
             string destination = Path.Combine(destinationProjectRoot, sourceFile);
             Require(File.Exists(source), "clean-checkout-source-missing");
+            OS.Tooling.AuthorityFiles.RequirePlainPath(repositoryRoot, source, "clean_checkout_source_link");
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             File.Copy(source, destination, overwrite: false);
         }
 
@@ -1704,6 +1723,21 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         }
         finally
         {
+            // Retain the original bounded streams/status after the owned helper
+            // has joined. A retention failure leaves its temporary capture intact.
+            string evidence = Path.Combine(_processEvidenceRoot ?? throw new M01TestFailureException("process-evidence-owner-missing"),
+                Path.GetFileName(resultRoot));
+            Directory.CreateDirectory(evidence);
+            foreach (string captured in Directory.GetFiles(resultRoot))
+                File.Copy(captured, Path.Combine(evidence, Path.GetFileName(captured)), overwrite: false);
+            File.WriteAllText(Path.Combine(evidence, "command.json"), System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Executable = start.FileName,
+                Arguments = start.ArgumentList.ToArray(),
+                WorkingDirectory = start.WorkingDirectory,
+                TimeoutMilliseconds = timeoutMilliseconds,
+                MaximumBytesPerStream = maximumBytesPerStream
+            }), new UTF8Encoding(false));
             DeleteTemporaryTree(resultRoot);
         }
     }
