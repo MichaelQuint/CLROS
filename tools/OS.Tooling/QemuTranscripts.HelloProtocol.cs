@@ -65,6 +65,7 @@ public static partial class QemuTranscripts
                 bool ending = false, exiting = stopping;
                 if (!stopping)
                 {
+                    t.Entered = true;
                     if (t.Pending != 0)
                     {
                         Need(t.Pending == 1 && t.ReadyCompletion, "hello_no_unwon_resume");
@@ -114,8 +115,9 @@ public static partial class QemuTranscripts
                     }
                 }
 
-                // Cancelled blocked children never enter user mode or acquire a
-                // new timer; no invented RESUME, syscall, IRQ or DRAIN is allowed.
+                // Cancelled blocked or unentered ready children do not enter
+                // user mode or acquire a new timer. No invented RESUME,
+                // syscall, IRQ or DRAIN is allowed.
                 if (exiting)
                 {
                     var exit = Row("M16_008_EXIT", "identity:dec", "clearTidResult:dec");
@@ -394,7 +396,11 @@ public static partial class QemuTranscripts
 
                     )
                     {
-                        Need(!ready.Contains(id), "hello_cancel_parked");
+                        if (ready.Contains(id))
+                        {
+                            Need(id == 3 && threads[id] is { Entered: false, Calls: 0, Pending: 0, MaskSet: false }, "hello_cancel_ready");
+                            continue;
+                        }
                         ready.Enqueue(id);
                     }
 
@@ -443,11 +449,17 @@ public static partial class QemuTranscripts
         {
             // Uncontended user-space mutex acquisition/release emits no futex
             // pair. Child creation need not give the signal child a timeslice
-            // before stdout. Both actual child masks/waits remain mandatory
-            // before exit_group can cancel them and begin off-stack cleanup.
+            // before stdout or exit_group. A child which entered user mode
+            // still needs its actual mask/wait. A signal child still queued
+            // from clone may be cancelled without ever entering user mode;
+            // preserve its ready position ahead of newly cancelled waiters.
             Need(clones == 2 && files.Count == 0 && pipeRead == 3 && pipeWrite == 4 && stackGuardProbe && entropy && barrierRegistered && signalInstalls.SetEquals(new ulong[] { 2, 3, 8, 11, 13, 18, 35 }), "hello_runtime_startup");
             if (children)
-                Need(threads[2] is { Pending: 1, MaskSet: true } finalizer && finalizer.StartupWake == mainWait && threads[3] is { Pending: 2, MaskSet: true }, "hello_runtime_children_and_startup");
+            {
+                bool signalParked = threads[3] is { Pending: 2, MaskSet: true };
+                bool signalUnentered = threads[3] is { Entered: false, Calls: 0, Pending: 0, MaskSet: false } && ready.Count == 1 && ready.Peek() == 3;
+                Need(threads[2] is { Pending: 1, MaskSet: true } finalizer && finalizer.StartupWake == mainWait && (signalParked || signalUnentered), "hello_runtime_children_and_startup");
+            }
         }
 
         private void BorrowFree(ulong start, ulong bytes)

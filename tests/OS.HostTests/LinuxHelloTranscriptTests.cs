@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using OS.Tooling;
 
-internal static class LinuxHelloTranscriptTests
+internal static partial class LinuxHelloTranscriptTests
 {
     [HostTest("nativeaot.hello complete pool envelope rejects old geometry physical overflow and late pool root overlap")]
     private static void PoolEnvelope()
@@ -55,7 +55,10 @@ internal static class LinuxHelloTranscriptTests
             Reject(rows.Where(r => !r.Contains("identity=4294967299 nr=14 ", StringComparison.Ordinal)).ToArray());
             Reject(rows.Where(r => !r.Contains("identity=4294967299 nr=0 ", StringComparison.Ordinal)).ToArray());
         }
-        Reject(Build(earlyWrites: 3, prematureExit: true), reason: "hello_runtime_children_and_startup");
+        // This vector continues user IRQs/calls after exit_group instead of
+        // performing direct cancellation; it remains invalid even when the
+        // signal child had not yet entered user mode at that exit.
+        Reject(Build(earlyWrites: 3, prematureExit: true));
     }
 
     [HostTest("nativeaot.hello optional syscall timings require the actual complete call and ordered raw samples")]

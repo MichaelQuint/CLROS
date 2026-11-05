@@ -10,7 +10,7 @@ public static partial class QemuTranscripts
         internal readonly ulong Bottom = bottom, Top = top;
         internal ulong Fs = fs, WaitAddress;
         internal int Calls, Pending; // 1 futex, 2 signal-pipe read.
-        internal bool ReadyCompletion, Reaped, StartupWake, MaskSet;
+        internal bool ReadyCompletion, Reaped, StartupWake, MaskSet, Entered;
         internal ulong Identity => 0x100000000UL + (uint)Tid;
     }
 }
