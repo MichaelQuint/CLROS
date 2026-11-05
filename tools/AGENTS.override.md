@@ -100,4 +100,11 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
 ```
 
+For replay changes, preserve the raw runner output and original file identities.
+Reconstruct the same input that the live validator received. In particular, the
+WHPX launch owner verifies its two launch records before projecting the output
+passed to the guest validator. Use the original request's literal paths where the
+validator compares transcript text. Record replay results separately from fresh
+guest executions.
+
 For image builder changes, add deterministic output tests before relying on QEMU.

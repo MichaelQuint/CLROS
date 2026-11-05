@@ -4,6 +4,110 @@
 
 <h1 align="center">CLROS</h1>
 
+CLROS serves the pinned NativeAOT Minimal API and actual Standalone Blazor WebAssembly client from read-only FAT32. Three healthy A/B/A boots across two disk variants, the typed corrupt-file control and three M16 lifecycle originals pass their recorded checks. PR812's recorded unfiltered full-host run passes 7,464 checks with zero reuse; see [Step1672](done/step1672.md) for exact source profiles, evidence and preserved failures. Writes, persistent logs/uploads, SQLite and [#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified and paused.
+
+The goal is a **small, fully functioning OS that continuously hosts supported
+applications**. The first integrated workload combines a NativeAOT Minimal API,
+a Blazor Static WebAssembly frontend calling its API endpoints, and persistent
+SQLite data through `Microsoft.Data.Sqlite`, including restart and recovery.
+Finite guest tests verify progress toward that system; they are not the final
+service model. The planned public GitHub update and live cloud demo app will
+showcase the working OS after the corresponding capabilities are qualified.
+
+**The pinned Hello and bounded .NET runtime workloads already run inside CLROS.
+Real Kestrel also serves external HTTP in qualified finite guest profiles.**
+The complete local single-app Gate 14 remains open; CLROS is not cloud-ready or
+production-ready.
+
+## Accepted baseline on October 23, 2026
+
+[PR #790](http://192.168.4.35:3000/admin/CLROS/pulls/790) is merged to master at
+`82656076`. The live tracker confirms #748, #225 and the finite #737 integration
+closed, following the fourteen predecessor closures reviewed in
+[step1481](done/step1481.md).
+
+| Capability | Accepted scope |
+| --- | --- |
+| Boot and firmware exit | Ordinary `VerifiedExit` leaves boot services, checks owned subsystems and halts. [Step1094](done/step1094.md). Application probes are explicit, default-off profiles. |
+| .NET 11 applications | Pinned Hello, focused GC/ThreadPool, RuntimeSmoke and RuntimeMatrix execute in single-vCPU QEMU/OVMF guests. [Step1307](done/step1307.md). |
+| TCP and Linux sockets/epoll | Finite retained NIC/TCP lifetimes and unchanged upstream synchronous/asynchronous socket fixtures. [Step1332](done/step1332.md), [step1351](done/step1351.md). |
+| Kestrel health/configuration/logging | Exact external HTTP entities, startup, vectors, endpoint policy and finite UTC/Date behavior. [Step1380](done/step1380.md), [step1389](done/step1389.md), [step1405](done/step1405.md), [step1419](done/step1419.md). |
+| Repeated service and memory controls | Original v1 lifetime and dedicated memory-fault restoration controls; corrected awaited host-runner qualification. [Step1479](done/step1479.md), [step1481](done/step1481.md). |
+| Quota termination and async churn | Original signal-race Smoke, quota at 256/512 MiB, positive configured V2 and 20 ancestor profiles. [Step1556](done/step1556.md). |
+
+The unfiltered full-host run for that baseline at `28a79996` passes **6,258 checks
+across 847 fixtures (753 Fast, 94 Native)**, with unchanged inputs and zero reuse.
+This is retained acceptance evidence, not a test run of this documentation update.
+Original Smoke (`32c14ccd`) and quota/V2 (`20e665ad`) keep their own source,
+native and producer identities. Failed originals remain failed.
+
+Quota proves offending-workload exit 99 and cleanup after physical denial;
+V2 separately completes managed cancellations and drains 59 lifetimes; Smoke
+proves continuous cancelled churn with the directed-signal/readiness race.
+The **36 MiB dynamic pool is shared**; the 16 MiB GC limit and declared 20 MiB
+native headroom are not independently enforced partitions.
+
+Only Gate 2 passes. [Completion gates](docs/completion-gates.md)
+and the [Kestrel ledger](docs/kestrel.md) define the exact accepted boundaries.
+Historical .NET 10 receipts retain their original toolchains; the pinned .NET 11
+migration is recorded in [step1225](done/step1225.md).
+
+## NativeAOT-first architecture
+
+The selected route uses the existing **`linux-musl-x64`** target and a controlled
+static publish recipe. CLROS implements the required Linux x64 application
+syscalls in C#; pinned upstream NativeAOT runtime, musl and native payload
+libraries stay with the application. Application GC and exception handling remain
+upstream responsibilities. A Linux RID alone does not make an executable
+freestanding or prove CLROS compatibility. Step1225 qualifies the .NET 11 publish
+recipe and records native dependencies and observed runtime/ABI requirements;
+the guest profiles above qualify only their measured CLROS service subsets.
+
+First-party kernel, shared library and app source committed here is C#.
+`src/OS` retains an explicit no-stdlib NativeAOT EFI build. Upstream native
+components may be built externally and packaged with applications; reference
+repositories are not imported into the first-party build. The stable `OSHost_*`
+ABI remains separate from Linux register, errno and descriptor semantics.
+
+CLROS is designed as a single-workload appliance with no guest shell, terminal,
+SSH or command-execution administration endpoint. Core OS services must remain
+reusable by the Linux adapter and the future custom PE path. Compatibility grows
+only for the supported .NET workload contract; general Linux or Windows coverage
+is not a product goal. See the [core/adapter contract](docs/architecture.md#core-services-and-application-adapters).
+
+The initial guest target is x86-64 QEMU/OVMF with one vCPU, an immutable application
+package and one configured HTTP endpoint. CoreCLR/framework-dependent hosting,
+SMP and cloud-provider qualification follow the first working NativeAOT service.
+The [workload profiles and roadmap](docs/workload-profiles.md) are canonical;
+[architecture](docs/architecture.md) and [PAL](docs/pal.md) explain the boundaries.
+
+Keep kernel C# deliberately restricted: new kernel GC, exception or runtime
+features need a demonstrated product requirement. Preserve upstream guest
+runtime behavior and reusable OS services beneath the Linux adapter. Automate
+compiler-dependent checks so normal supported app deployment needs no manual
+disassembly or per-app kernel changes. Judge progress by complete guest static-file,
+persistent-upload, SQLite-recovery and isolation scenarios alongside focused tests.
+These are [development guardrails](AGENTS.md#evidence-and-failure-handling)
+and [acceptance targets](docs/workload-profiles.md#product-scenarios-and-verification),
+not additional capabilities claimed by this documentation update.
+
+## Current implementation batch
+
+<details>
+<summary>Development progress and retained evidence</summary>
+
+<!-- Keep development updates here, below the project introduction. -->
+
+**PR814 qualification.** The candidate at `3f95496e` passed the 7,786-check full
+host suite, all 29 compiler contexts, 23 of 24 ancestor/quota contexts and five
+of seven disk/lifecycle cases. Disk A2 completed all 120 HTTP responses and
+49 browser responses with a Ready DOM and natural guest cleanup. The remaining
+originals are Smoke, Disk B and Truncated A. See the
+[qualification record](work/rc3-whpx-qualification.md#candidate-results) for
+the benchmark population and the evidence attached to each scope.
+
+Earlier development checkpoints follow in reverse chronological order.
+
 [Step1787](done/step1787.md) records source35b's successful Full (7,784 checks,
 zero reuse) and29compiler contexts, then preserves the failed Hello ancestor
 original. Host-only repair6b0f56a8 passes67focused checks and retained production
@@ -193,99 +297,6 @@ proof. All29 compiler native preparations are reviewed; final guest acceptance
 remains pending. Earlier acceptance retains its original RC2 source,
 packages and backend.
 
-CLROS serves the pinned NativeAOT Minimal API and actual Standalone Blazor WebAssembly client from read-only FAT32. Three healthy A/B/A boots across two disk variants, the typed corrupt-file control and three M16 lifecycle originals pass their recorded checks. PR812's recorded unfiltered full-host run passes 7,464 checks with zero reuse; see [Step1672](done/step1672.md) for exact source profiles, evidence and preserved failures. Writes, persistent logs/uploads, SQLite and [#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified and paused.
-
-The goal is a **small, fully functioning OS that continuously hosts supported
-applications**. The first integrated workload combines a NativeAOT Minimal API,
-a Blazor Static WebAssembly frontend calling its API endpoints, and persistent
-SQLite data through `Microsoft.Data.Sqlite`, including restart and recovery.
-Finite guest tests verify progress toward that system; they are not the final
-service model. The planned public GitHub update and live cloud demo app will
-showcase the working OS after the corresponding capabilities are qualified.
-
-**The pinned Hello and bounded .NET runtime workloads already run inside CLROS.
-Real Kestrel also serves external HTTP in qualified finite guest profiles.**
-The complete local single-app Gate 14 remains open; CLROS is not cloud-ready or
-production-ready.
-
-## Current status — October 23, 2026
-
-[PR #790](http://192.168.4.35:3000/admin/CLROS/pulls/790) is merged to master at
-`82656076`. The live tracker confirms #748, #225 and the finite #737 integration
-closed, following the fourteen predecessor closures reviewed in
-[step1481](done/step1481.md).
-
-| Capability | Accepted scope |
-| --- | --- |
-| Boot and firmware exit | Ordinary `VerifiedExit` leaves boot services, checks owned subsystems and halts. [Step1094](done/step1094.md). Application probes are explicit, default-off profiles. |
-| .NET 11 applications | Pinned Hello, focused GC/ThreadPool, RuntimeSmoke and RuntimeMatrix execute in single-vCPU QEMU/OVMF guests. [Step1307](done/step1307.md). |
-| TCP and Linux sockets/epoll | Finite retained NIC/TCP lifetimes and unchanged upstream synchronous/asynchronous socket fixtures. [Step1332](done/step1332.md), [step1351](done/step1351.md). |
-| Kestrel health/configuration/logging | Exact external HTTP entities, startup, vectors, endpoint policy and finite UTC/Date behavior. [Step1380](done/step1380.md), [step1389](done/step1389.md), [step1405](done/step1405.md), [step1419](done/step1419.md). |
-| Repeated service and memory controls | Original v1 lifetime and dedicated memory-fault restoration controls; corrected awaited host-runner qualification. [Step1479](done/step1479.md), [step1481](done/step1481.md). |
-| Quota termination and async churn | Original signal-race Smoke, quota at 256/512 MiB, positive configured V2 and 20 ancestor profiles. [Step1556](done/step1556.md). |
-
-The latest accepted unfiltered full-host run at `28a79996` passes **6,258 checks
-across 847 fixtures (753 Fast, 94 Native)**, with unchanged inputs and zero reuse.
-This is retained acceptance evidence, not a test run of this documentation update.
-Original Smoke (`32c14ccd`) and quota/V2 (`20e665ad`) keep their own source,
-native and producer identities. Failed originals remain failed.
-
-Quota proves offending-workload exit 99 and cleanup after physical denial;
-V2 separately completes managed cancellations and drains 59 lifetimes; Smoke
-proves continuous cancelled churn with the directed-signal/readiness race.
-The **36 MiB dynamic pool is shared**; the 16 MiB GC limit and declared 20 MiB
-native headroom are not independently enforced partitions.
-
-Only Gate 2 passes. [Completion gates](docs/completion-gates.md)
-and the [Kestrel ledger](docs/kestrel.md) define the exact accepted boundaries.
-Historical .NET 10 receipts retain their original toolchains; the pinned .NET 11
-migration is recorded in [step1225](done/step1225.md).
-
-## NativeAOT-first architecture
-
-The selected route uses the existing **`linux-musl-x64`** target and a controlled
-static publish recipe. CLROS implements the required Linux x64 application
-syscalls in C#; pinned upstream NativeAOT runtime, musl and native payload
-libraries stay with the application. Application GC and exception handling remain
-upstream responsibilities. A Linux RID alone does not make an executable
-freestanding or prove CLROS compatibility. Step1225 qualifies the .NET 11 publish
-recipe and records native dependencies and observed runtime/ABI requirements;
-the guest profiles above qualify only their measured CLROS service subsets.
-
-First-party kernel, shared library and app source committed here is C#.
-`src/OS` retains an explicit no-stdlib NativeAOT EFI build. Upstream native
-components may be built externally and packaged with applications; reference
-repositories are not imported into the first-party build. The stable `OSHost_*`
-ABI remains separate from Linux register, errno and descriptor semantics.
-
-CLROS is designed as a single-workload appliance with no guest shell, terminal,
-SSH or command-execution administration endpoint. Core OS services must remain
-reusable by the Linux adapter and the future custom PE path. Compatibility grows
-only for the supported .NET workload contract; general Linux or Windows coverage
-is not a product goal. See the [core/adapter contract](docs/architecture.md#core-services-and-application-adapters).
-
-The initial guest target is x86-64 QEMU/OVMF with one vCPU, an immutable application
-package and one configured HTTP endpoint. CoreCLR/framework-dependent hosting,
-SMP and cloud-provider qualification follow the first working NativeAOT service.
-The [workload profiles and roadmap](docs/workload-profiles.md) are canonical;
-[architecture](docs/architecture.md) and [PAL](docs/pal.md) explain the boundaries.
-
-Keep kernel C# deliberately restricted: new kernel GC, exception or runtime
-features need a demonstrated product requirement. Preserve upstream guest
-runtime behavior and reusable OS services beneath the Linux adapter. Automate
-compiler-dependent checks so normal supported app deployment needs no manual
-disassembly or per-app kernel changes. Judge progress by complete guest static-file,
-persistent-upload, SQLite-recovery and isolation scenarios alongside focused tests.
-These are [development guardrails](AGENTS.md#runtime-and-qualification-guardrails)
-and [acceptance targets](docs/workload-profiles.md#product-scenarios-and-verification),
-not additional capabilities claimed by this documentation update.
-
-## Current implementation batch
-
-<details>
-<summary>Development progress and retained evidence</summary>
-
-<!-- Keep development updates here, below the project introduction. -->
 [Step1661](done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
 The qualified read scope is finite and source/profile-specific; [Step1672](done/step1672.md) records the original recipes, native bounds, host checks and preserved failures. [Issue #774 evidence](http://192.168.4.35:3000/admin/CLROS/issues/774) includes the accepted [Disk A screenshot, asset225](http://192.168.4.35:3000/attachments/ed475222-7a55-45aa-ad07-9539d0582423) and [Disk B screenshot, asset226](http://192.168.4.35:3000/attachments/b738584c-8d95-41b4-afa4-654f2fbb02e5). The screenshots retain their a1ee original scope. This does not qualify writable storage, SQLite, sustained service or wider Gate14.

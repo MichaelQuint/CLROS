@@ -1,5 +1,7 @@
 # QEMU
 
+For PR814, record the QEMU runner exit, guest completion and host verification separately. The current Smoke run encountered a QEMU/GLib invalid-handle warning before web readiness. An external browser binary change also invalidated a Truncated A run after the Ready DOM and 49 browser responses. Preserve both originals. Hold the selected browser executable read-only from selection through verification on the replacement run. See the [candidate results](../work/rc3-whpx-qualification.md#candidate-results).
+
 [Step1732](../done/step1732.md) records18 current-source diagnostic originals,
 three boots per output mode/backend. All90 HTTP responses and raw disk/packet/
 ownership joins pass. WHPX Trace/Summary64KiB range medians12532/9688ms show a

@@ -1,5 +1,25 @@
 # RC3 and WHPX qualification contract
 
+## Candidate results
+
+The qualification source is `3f95496e`. Use that commit when citing these
+results. The original failures and their subsequent repairs are recorded in
+[step1786](../done/step1786.md) and [step1787](../done/step1787.md).
+
+| Check | Evidence on this candidate |
+| --- | --- |
+| Host | Unfiltered Full passed 7,786 checks in 996 fixture groups with zero reuse. Source, inputs and all 48 producer binaries passed readback. |
+| Compiler and application | All 29 compiler contexts passed their expected outcome, including the expected unhandled panic. Eight Linux-native application cases passed their own scope. |
+| Ancestors and quota | 23 of 24 contexts passed. The remaining Smoke original encountered a QEMU/GLib invalid-handle warning before web readiness. |
+| Disk, browser and lifecycle | Disk A1, Disk A2 and the three M16 lifecycle cases passed. Disk B and Truncated A still require accepted originals. Truncated A reached the Ready DOM and captured 49 browser responses before the Edge executable changed during the run. |
+| Matched performance | Two CLROS WHPX benchmark boots completed. The second matched Alpine WHPX boot passed its 88 HTTP samples, then recorded a refused browser connection. The remaining populations and final comparison are pending. |
+
+The quiet timer/cache pair in [step1748](../done/step1748.md) compared the same
+2,009,369-byte file at 167.45 and 7.17 seconds mean transfer time. Each image
+had one boot and two requests. The final performance report requires the
+matched populations described below. See [PR814](http://192.168.4.35:3000/admin/CLROS/pulls/814)
+for the source-specific seals and subsequent updates.
+
 [Step1787](../done/step1787.md) records source35b's accepted Full/compiler29,
 then the failed Hello ancestor host inspection. Repair6b0f56a8 is host-only;
 67focused passes and retained production re-analysis preserve the failed

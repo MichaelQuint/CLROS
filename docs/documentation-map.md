@@ -1,5 +1,10 @@
 # Documentation Map
 
+For build, evidence and status entry points, see the [documentation index](README.md).
+The [PR814 qualification record](../work/rc3-whpx-qualification.md#candidate-results)
+tracks the RC3 candidate. The step entries below retain the results at their
+original commits.
+
 [Step1787](../done/step1787.md) joins source35b's accepted Full/compiler29 evidence,
 the failed Hello ancestor original and the scoped ready-child cancellation
 repair. Its67focused checks and retained re-analysis do not qualify the repaired

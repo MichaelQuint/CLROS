@@ -43,14 +43,13 @@ through Linux syscall frames or force internal calls across the hosted PAL ABI.
 
 ## Scope and ownership
 
-The November1 approved scope combines M04-026/#813 and PR814 with the C#
-code-quality refactor and measured file-serving performance repairs. The primary
-execution chat is `01a19907-2a86-7ef0-98f5-59142a70e49e`; development uses
-`codex/refactor-combined-r01` from d47f8558, preserving the original
-`codex/rc3-whpx-qualification` producer checkout and receipts. Exactly one storage
-subagent owns its isolated source/test lane. The [phase contract](work/rc3-whpx-qualification.md)
-defines final qualification. The broader write/SQLite/sustained-service and
-provider milestones remain deferred.
+PR814 covers M04-026/#813, the C# refactor and measured file-serving repairs.
+The development owner runs the compiler, native and VM checks and reviews the
+original evidence. The documentation owner prepares the README, agent guides,
+subsystem updates and release record in a separate checkout. Coordinate the
+integration window before changing any input to a running qualification.
+The [phase contract](work/rc3-whpx-qualification.md) defines the required
+results and the point at which to merge and verify canonical `master`.
 
 Inspect branch, dirty/untracked files, worktrees and live ownership before edits.
 Use the explicitly assigned producer checkout; `C:/Projects/CLROS` is not proof
@@ -58,10 +57,10 @@ that its current branch is the active qualification source. Preserve unrelated
 work and all declared freezes. Do not reset or discard another owner's changes.
 
 Use exactly one storage implementation subagent when parallel work is authorized.
-Other delegated roles must stay within the user's authorization; assigned review
-roles stay read-only. The primary owns shared integration, docs, tracker and serialized
-build/full-host/native/guest lanes. Follow current path claims and leases; a
-historical instruction to keep agents busy does not revoke a current freeze.
+Follow the current path assignments and leases. The development owner handles
+shared integration, tracker updates and serialized build and guest runs. Coordinate
+documentation commits with that owner so evidence retains its tested source and
+producer identities.
 
 Choose one small dependency-compatible slice. Follow exact dependency keys,
 owned/forbidden paths and collision lanes from the current canonical issue plus
@@ -152,7 +151,12 @@ and docs; update every affected statement, canonical record, parent checklist an
 Gitea summary/comment. Commit, push, review and merge verified scoped work, read
 back remote/master parity, and continue the authorized goal.
 
-The October27 human phase boundary overrides automatic continuation: finish the current first-ten batch (#770/#771/#773/#774 remain), including qualification, documentation/tracker/evidence, commit/push/review/merge, remote/master readback and safe workspace cleanup. Then pause the broader development goal and stop helper work before any next phase. Preserve unique changes, ignored evidence, failed originals and already-started future preparation recoverably; do not delete them to manufacture a clean workspace.
+PR812 closed the first-ten read phase at [step1672](done/step1672.md). For PR814,
+finish the agreed checks, reconcile the published evidence and tracker, review
+and merge the intended commits, then verify them and the final documentation on
+canonical `master`. Follow the phase contract for recoverable cleanup and the
+development pause. The PROD/DEV project split and system stats have a separate
+[milestone](http://192.168.4.35:3000/admin/CLROS/milestone/21).
 
 Stage only intended files. Never use `git reset --hard` or discard unrelated
 changes. Preserve needed ignored evidence separately before any approved worktree

@@ -1,5 +1,7 @@
 # Repository Audit
 
+PR814's [candidate results](../work/rc3-whpx-qualification.md#candidate-results) identify the source tested by each host, compiler, guest and benchmark run. Use that record for current status. The steps below preserve the results and failures from their respective commits.
+
 [Step1787](../done/step1787.md) binds the source35b Full/compiler29 originals and
 the subsequent failed Hello original. Host-only6b0f56a8 preserves genuine entry,
 ready-queue cancellation order and off-stack reaps, with67focused passes and

@@ -1,5 +1,7 @@
 # Host Requirements
 
+The RC3 host suite passed 7,786 checks on `3f95496e` with the rebuilt, frozen toolchain. A host-only validator fix is tested against its affected cases and the retained original before the final unfiltered run. See the [candidate results](../work/rc3-whpx-qualification.md#candidate-results) for the matching guest evidence.
+
 [Step1787](../done/step1787.md) preserves source35b's7,784-check Full and29compiler
 originals, plus the later failed Hello host inspection. Repair6b0f56a8 admits
 only the observed unentered-ready-child cancellation while retaining entered

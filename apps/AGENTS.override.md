@@ -21,6 +21,11 @@ inherit those accepted scopes. Check `docs/kestrel.md` and
 `docs/completion-gates.md` before claiming a profile; complete Gate14 and
 arbitrary hosted .NET support remain open.
 
+The finite FAT32 Minimal API and standalone Blazor read workload is qualified at
+[step1672](../done/step1672.md). For an RC3 application, check the source and
+scope in the [PR814 candidate results](../work/rc3-whpx-qualification.md#candidate-results).
+Keep Linux reference runs, guest execution and browser acceptance distinct.
+
 ## Project Rules
 
 Use:

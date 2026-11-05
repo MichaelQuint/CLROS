@@ -1,5 +1,7 @@
 # App Model
 
+PR812 qualified a finite Minimal API and standalone Blazor read workload served from FAT32. PR814 qualifies the RC3 version of that workload and its shutdown behavior. See [step1672](../done/step1672.md) for the released scope and the [candidate results](../work/rc3-whpx-qualification.md#candidate-results) for the current source.
+
 [Step1787](../done/step1787.md) models Hello exit_group cancelling a newly cloned
 signal child before its first user entry. The queued child retains its position
 ahead of a newly cancelled blocked finalizer; no mask, pipe wait, resume or timer

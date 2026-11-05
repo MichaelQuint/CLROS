@@ -26,7 +26,11 @@ Successful selection determines the final marker:
 
 Completed-run failures use the same selection scope as success, for example
 `TEST_FAIL host.tests.focused failures=<count>` for a filtered run. A focused
-or resumed subset must not be reported as a fresh full-host acceptance run.
+or resumed selection records its own scope. During a repair, reproduce the failed
+case and exercise the affected consumers. For a transcript change, replay the
+sealed original with the repaired validator and preserve the original outcome.
+Run the unfiltered Full lane on the stable candidate specified by the phase
+contract. Record the tested commit and producer identities with each result.
 
 Keep names stable because scripts and future CI will parse them.
 
