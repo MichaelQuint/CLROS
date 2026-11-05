@@ -1,5 +1,14 @@
 # RC3 and WHPX qualification contract
 
+[Step1787](../done/step1787.md) records source35b's accepted Full/compiler29,
+then the failed Hello ancestor host inspection. Repair6b0f56a8 is host-only;
+67focused passes and retained production re-analysis preserve the failed
+original and do not renew final source qualification. Freeze/rebuild the repaired
+candidate and complete the same29/24/7/Linux/browser/performance/delivery scope.
+Unentered ready-child cancellation is distinct from missing evidence for a child
+which entered user mode; original FIFO, generations, reaps, budgets and cleanup
+assertions remain. Do not shorten TIME_WAIT or other original test intervals.
+
 [Step1786](../done/step1786.md) preserves the first DiskA1 original as failed at
 the host supervisor replay invariant. Repair 61d71bef passes 1,044 focused checks
 across 180 groups and complete copied-value row/parent/sector re-analysis; it

@@ -1,5 +1,12 @@
 # EFI Build
 
+[Step1787](../done/step1787.md) records source35b's own reviewed native tuples,
+29successful compiler originals and the failed Hello ancestor inspection.
+Host-only6b0f56a8 repairs its ready-child cancellation model; kernel/guest bytes,
+resources and deadlines are unchanged. Scoped parent finite conditions remain
+mandatory; own direct frames are not copied whole-path margins or repaired-source
+guest acceptance. Renew final source-matched qualification before delivery.
+
 [Step1786](../done/step1786.md) preserves the first exact-tuple-joined Full DiskA1
 original: HTTP/browser observations and guest cleanup complete, but outer replay
 fails. The host-only repair changes no EFI source; its 1,044 focused checks and
@@ -630,7 +637,10 @@ Fresh final-source matrix repetitions and shared acceptance remain required.
 ThreadPool-stress captures. A Hello run at `27dd0cf` prints its unchanged output
 and completes three-thread cleanup, but the old consumer rejects a signal child
 whose first timeslice follows early stdout. Parent startup checks remain at every
-write; both actual child masks/waits are now required before `exit_group`.
+write; that historical consumer required both child masks/waits before
+`exit_group`. Step1787 later distinguishes the unentered ready signal child:
+entered children retain their mask/wait requirements, while direct cancellation
+preserves the existing ready order and invents no child execution.
 Twenty-three focused checks and complete offline revalidation pass. This is a
 host ordering correction; repeated strict Hello and remaining batch gates stay
 pending, with the original failed capture preserved.

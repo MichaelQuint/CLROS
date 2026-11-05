@@ -1,5 +1,12 @@
 # Diagnostics
 
+[Step1787](../done/step1787.md) preserves a Hello original whose guest/runner pass
+but host model rejects an unentered ready signal child at exit_group. The scoped
+repair permits no invented user entry/resume/IRQ/drain, preserves ready-before-
+newly-cancelled-waiter FIFO and requires exact generation/scrub/cleanup. Entered
+children still require their genuine mask/wait.67focused checks and retained
+production re-analysis pass; the failed original remains failed.
+
 [Step1754](../done/step1754.md) evaluates both original quiet captures unchanged.
 All four complete file bodies hash-match;528 distribution fields and5888
 payload/ACK/next-send joins independently agree. ACK-to-next p95 falls from
@@ -392,9 +399,12 @@ retains its post-reap evidence; ThreadPool stress retains deadline evidence.
 
 [Step1302](../done/step1302.md) corrects Hello's child ordering: exact parent
 initialization/clone/descriptor/signal-install checks remain at each stdout
-write, while both real child masks/waits and finalizer handoff must complete
-before `exit_group`. One, two or three stdout rows may precede the signal
-child's first timeslice. Missing child mask/wait and premature exit reject.
+write. Its historical consumer required both child masks/waits and finalizer
+handoff before `exit_group`. One, two or three stdout rows may precede the signal
+child's first timeslice. Step1787 retains genuine mask/wait requirements for
+entered children, and separately validates direct cancellation when signal3 has
+never entered and is still queued. Missing entered-child waits, invented late
+execution, wrong FIFO or premature continuations remain rejected.
 No kernel scheduler or original payload changes follow from this host check.
 
 [Step1285](../done/step1285.md) admits the exact original RuntimeSmoke under

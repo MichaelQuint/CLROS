@@ -4,6 +4,13 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1787](done/step1787.md) records source35b's successful Full (7,784 checks,
+zero reuse) and29compiler contexts, then preserves the failed Hello ancestor
+original. Host-only repair6b0f56a8 passes67focused checks and retained production
+re-analysis for cancellation of an unentered ready child. Those earlier Full and
+matrix receipts do not automatically qualify the repaired candidate; final
+source-matched qualification, disk/browser, performance and PR814 delivery remain.
+
 [Step1786](done/step1786.md) preserves the first DiskA1 original: HTTP/browser
 observations pass, but outer replay fails. Host-only repair 61d71bef passes 1,044
 focused checks across 180 groups and complete copied-value replay/sector checks.

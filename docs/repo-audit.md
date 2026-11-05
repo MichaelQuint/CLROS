@@ -1,5 +1,11 @@
 # Repository Audit
 
+[Step1787](../done/step1787.md) binds the source35b Full/compiler29 originals and
+the subsequent failed Hello original. Host-only6b0f56a8 preserves genuine entry,
+ready-queue cancellation order and off-stack reaps, with67focused passes and
+retained production re-analysis. Current-source final qualification remains;
+earlier producer/source receipts are not automatically carried forward.
+
 [Step1786](../done/step1786.md) owns the host replay clock repair and independent
 red/green/copied-value evidence. The new cases are discovered automatically; no
 runner inventory/count list changes. Repository/style/contracts checks pass.

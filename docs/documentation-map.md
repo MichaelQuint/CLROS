@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1787](../done/step1787.md) joins source35b's accepted Full/compiler29 evidence,
+the failed Hello ancestor original and the scoped ready-child cancellation
+repair. Its67focused checks and retained re-analysis do not qualify the repaired
+source; final Full/matrix/disk/browser/performance and delivery remain required.
+
 [Step1786](../done/step1786.md) records the failed DiskA1 original, independently
 checked HTTP/browser bodies, bounded host deadline-model repair and 1,044 focused
 passes. Host/EFI/phase guides preserve the original failure and remaining final

@@ -1,5 +1,11 @@
 # Host Requirements
 
+[Step1787](../done/step1787.md) preserves source35b's7,784-check Full and29compiler
+originals, plus the later failed Hello host inspection. Repair6b0f56a8 admits
+only the observed unentered-ready-child cancellation while retaining entered
+child waits, FIFO and cleanup checks.67focused passes and copied-value production
+re-analysis are not fresh Full or matrix acceptance for the repaired source.
+
 [Step1786](../done/step1786.md) separates wait-registration clock observation from
 actual deadline advancement in host replay. The isolated selection of 180 groups
 and 1,044 checks passes with unchanged inputs and zero reuse. Complete retained
