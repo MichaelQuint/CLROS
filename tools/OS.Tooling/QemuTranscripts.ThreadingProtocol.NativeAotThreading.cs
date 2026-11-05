@@ -516,7 +516,13 @@ public static partial class QemuTranscripts
         // readiness completion stays intact until Prepare actually reparks it.
         private void InterruptPendingWait(RuntimeThread t)
         {
-            if (t.Exiting || t.WaitSource == 0 || t.Completion.HasValue || PendingSignal(t) == 0)
+            if (t.Exiting || t.WaitSource == 0 || PendingSignal(t) == 0)
+                return;
+            // InterruptWait advances the real deadline queue before inspecting
+            // the existing winner, even for an untimed futex registration.
+            if (t.WaitSource == 1 || t.WaitSource == 3 && t.Deadline != 0)
+                AdvanceClock(clock);
+            if (t.Completion.HasValue)
                 return;
             if (t.WaitSource == 3)
                 t.EpollWinner = 5;
@@ -552,6 +558,13 @@ public static partial class QemuTranscripts
                 ServiceClock(now, ref budget);
             else if (now != 0)
                 Need(budget.Observe(now), "runtime_budget_clock");
+        }
+
+        // BeginWait records a fresh table clock without advancing other waits.
+        // Expire them only at a replayed owner of KernelThreadTable.Advance.
+        private void AdvanceClock(ulong now)
+        {
+            Clock(now);
             foreach (var t in history.Where(t => !t.Reaped && t.WaitSource is 1 or 3 && t.Completion is null && t.Deadline != 0 && t.Deadline <= now).OrderBy(t => t.Deadline).ThenBy(t => t.WaitOrder))
             {
                 if (t.WaitSource == 3)
@@ -570,7 +583,7 @@ public static partial class QemuTranscripts
         private void Epoch(Dictionary<string, ulong> row)
         {
             Need(++epochs <= budget.MaximumEpochs && row["epoch"] == (ulong)epochs && row["nanos"] >= budget.StartedNanoseconds, "threading_epoch");
-            Clock(row["nanos"]);
+            AdvanceClock(row["nanos"]);
         }
 
         private int Wake(ulong address, uint mode, uint count, uint bits, bool explicitWake = false)

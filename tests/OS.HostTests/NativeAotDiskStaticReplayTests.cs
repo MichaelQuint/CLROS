@@ -25,7 +25,8 @@ internal static partial class NativeAotDiskStaticReplayTests
     // Independent synthetic scheduler vectors. They do not execute a native
     // app or construct original image, runner, packet or acceptance authority.
     private static List<string> Vector(WebRootDiskInventory.Inspection inventory, byte[] image, bool repark = false, bool shortPrefix = false,
-        bool full = false, WebRootDiskInventory.VerifiedTruncated? truncated = null, int combinedOutputBytes = 0, bool idlePoll = false, bool trailingStats = false, bool intactTrailingStat = false)
+        bool full = false, WebRootDiskInventory.VerifiedTruncated? truncated = null, int combinedOutputBytes = 0, bool idlePoll = false, bool trailingStats = false, bool intactTrailingStat = false,
+        bool registrationClockCrossing = false)
     {
         var file = inventory.Find(WebRootDiskInventory.Root + "/index.html")!;
         ulong requested = full ? Ready + DiskStaticExecutionPolicy.RequestDelayNanoseconds : Requested, exited = full ? requested + 100 : Exited;
@@ -104,13 +105,34 @@ internal static partial class NativeAotDiskStaticReplayTests
         var second = v.Clone(3, 3);
         v.Irq(2000, 3, 3);
         v.Select(first);
-        v.Wait(0x500208);
+        v.Wait(0x500208, registrationClockCrossing ? 2015UL : 0);
         v.Drain(2010);
         v.Supervisor(3, 2, 3);
         v.Select(second);
+        if (registrationClockCrossing)
+            v.Clock = 2020;
         v.Wait(0x50020c);
-        v.Drain(2020);
+        if (registrationClockCrossing)
+            CancelTimer();
+        else
+            v.Drain(2020);
         v.Supervisor(3, 1, 3);
+        if (registrationClockCrossing)
+        {
+            // Wait registration has crossed the first wait's deadline without
+            // advancing the deadline queue. Only the post-Advance poll expires it.
+            HostCheck.True(full);
+            v.Rows.Add("M16_012_POLL identity=0 clock=2020 ready=1 idle=0");
+            v.Rows.Add("M16_012_POLL identity=0 clock=2021 ready=2 idle=0");
+            v.Clock = 2021;
+            v.Select(v.Main);
+            v.Irq(2030, 2, 3);
+            v.Select(first);
+            v.Resume(-110);
+            v.Wait(0x500208);
+            CancelTimer();
+            v.Supervisor(3, 1, 3);
+        }
         v.Select(v.Main);
         v.Call(288, 7, [6, 0x500700, 0x500780, 0x80000]);
         v.Call(45, 1, [7, 0x500800, 1, 0, 0, 0]);
@@ -204,6 +226,7 @@ internal static partial class NativeAotDiskStaticReplayTests
         }
         void Path(ulong number, long value) => v.Rows.Add($"M10_018_PATH identity={v.Main.Id} ordinal={v.Main.Ordinal} nr={number} pathHex={Convert.ToHexString(Encoding.ASCII.GetBytes(file.Path))} valueBits={unchecked((ulong)value)} kind=5 view=4294967295 inode={file.Inode} bytes={file.Bytes} mode=33060");
         void File(ulong number, ulong before, ulong after) => v.Rows.Add($"M10_018_FILE identity={v.Main.Id} ordinal={v.Main.Ordinal + (number is 3 or 5 ? 1UL : 0)} nr={number} fd=7 generation=1 kind=5 view=4294967295 inode={file.Inode} bytes={file.Bytes} position={before} afterPosition={after}");
+        void CancelTimer() => v.Rows.Add($"M16_009_CANCEL identity={v.Current.Id} epoch={v.Epoch} nanos={v.Clock}");
         void Complete(long result, uint prefix)
         {
             v.Rows.Add($"M16_025_COMPLETE identity={v.Main.Id} sequence={v.Main.Sequence} request={request} outputBytes={prefix} completion=1 valueBits={unchecked((ulong)result)} clock={v.Clock}");

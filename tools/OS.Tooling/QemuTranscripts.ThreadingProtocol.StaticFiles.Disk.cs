@@ -159,7 +159,12 @@ public static partial class QemuTranscripts
             }
             else
                 Need(pending.Request == row["request"], "disk_static_request_change");
-            Clock(row["clock"]);
+            // A physical completion follows the real poll's deadline advance,
+            // including idle turns whose ordinary poll pair is coalesced.
+            if (row["completion"] == 1)
+                AdvanceClock(row["clock"]);
+            else
+                Clock(row["clock"]);
             if (row["completion"] == 1)
             {
                 Need(thread.Completion is null && pending.Winner == 0, "disk_static_wake_winner");

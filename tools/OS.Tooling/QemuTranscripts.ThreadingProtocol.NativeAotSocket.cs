@@ -45,6 +45,7 @@ public static partial class QemuTranscripts
             if (!socket)
                 return;
             bool beforeAdvancePoll = false;
+            bool beforeClockAdvance = true;
             // An empty supervisor may enter an unobserved idle poll before its
             // next receipt. Establish scope before consuming any candidate pair.
             bool diskPollBatch = allowDiskPollBatch && (!supervisor || ready.Count != 0);
@@ -74,7 +75,14 @@ public static partial class QemuTranscripts
                         socketIdleAllowed = false;
                     }
 
-                    Clock(observed.Clock);
+                    // Ordinary returns retain their mandatory acknowledged drain.
+                    // Full can cancel a quiet timer, so its first poll only
+                    // observes a registration clock and its second advances it.
+                    if (!diskStaticFull || observed.Idle || !beforeClockAdvance)
+                        AdvanceClock(observed.Clock);
+                    else
+                        Clock(observed.Clock);
+                    beforeClockAdvance = observed.Idle || !beforeClockAdvance;
                     Need(observed.Ready == (uint)ready.Count, "socket_poll_ready");
                     if (supervisor && !observed.Idle)
                         socketIdleAllowed = ready.Count == 0;
@@ -96,6 +104,7 @@ public static partial class QemuTranscripts
 
                 SocketWake(observed);
             }
+            Need(!diskStaticFull || beforeClockAdvance, "socket_poll_advance_pair");
         }
 
         private void SocketWake(NativeAotSocketGuest.Readiness observed, List<RuntimeThread>? deferred = null)
@@ -104,7 +113,10 @@ public static partial class QemuTranscripts
             Need(t is not null && t.WaitSource == 3 && t.LastSequence == observed.Sequence && t.Epoll is not null && !t.EpollObserved && observed.State == (t.Parking ? 3U : 1U), "socket_wake_lifetime");
             // Prior syscall wakes are serialized before a later native clock
             // advance. A known deadline/signal winner cannot be replaced.
-            Clock(observed.Clock);
+            if (observed.Completion is 1 or 2)
+                AdvanceClock(observed.Clock);
+            else
+                Clock(observed.Clock);
             if (observed.Completion == 1)
             {
                 Need(t!.Completion is null && t.EpollEligible, "socket_wake_eligibility");
@@ -248,7 +260,10 @@ public static partial class QemuTranscripts
             }
 
             var value = socketObservations[position++];
-            Clock(value.Clock);
+            if (t.Deadline != 0)
+                AdvanceClock(value.Clock);
+            else
+                Clock(value.Clock);
             Need(value.PreviousSequence == t.LastSequence || value.Sequence == t.LastSequence, "socket_prepare_sequence");
             if (value.Kind == NativeAotSocketGuest.ObservationKind.Repark)
             {
