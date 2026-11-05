@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1786](../done/step1786.md) records the failed DiskA1 original, independently
+checked HTTP/browser bodies, bounded host deadline-model repair and 1,044 focused
+passes. Host/EFI/phase guides preserve the original failure and remaining final
+qualification.
+
 [Step1785](../done/step1785.md) preserves the complete failed Full (996 groups,
 unchanged inputs, zero reuse) and repairs six affected fixture groups with259
 fresh focused passes. Runtime code is unchanged; remaining final qualification

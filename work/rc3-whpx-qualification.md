@@ -1,5 +1,13 @@
 # RC3 and WHPX qualification contract
 
+[Step1786](../done/step1786.md) preserves the first DiskA1 original as failed at
+the host supervisor replay invariant. Repair 61d71bef passes 1,044 focused checks
+across 180 groups and complete copied-value row/parent/sector re-analysis; it
+changes no kernel/app/profile/budget. Original source 1eb Full/29/23 and eight
+Linux-native app receipts remain evidence for those sources, not automatic
+acceptance of the repair. Smoke, seven fresh disk contexts with healthy-A1
+dependency, current CLROS populations and every final gate below remain mandatory.
+
 [Step1785](../done/step1785.md) preserves the complete failed Full (996 groups,
 unchanged inputs, zero reuse) and repairs six affected fixture groups with259
 fresh focused passes. Runtime code is unchanged; remaining final qualification

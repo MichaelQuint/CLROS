@@ -1,5 +1,11 @@
 # Repository Audit
 
+[Step1786](../done/step1786.md) owns the host replay clock repair and independent
+red/green/copied-value evidence. The new cases are discovered automatically; no
+runner inventory/count list changes. Repository/style/contracts checks pass.
+Preserve the original frozen producer capsule, failed original and isolated
+evidence; filtered checks and re-analysis do not grant final acceptance.
+
 [Step1785](../done/step1785.md) preserves the complete failed Full (996 groups,
 unchanged inputs, zero reuse) and repairs six affected fixture groups with259
 fresh focused passes. Runtime code is unchanged; remaining final qualification

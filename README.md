@@ -4,6 +4,12 @@
 
 <h1 align="center">CLROS</h1>
 
+[Step1786](done/step1786.md) preserves the first DiskA1 original: HTTP/browser
+observations pass, but outer replay fails. Host-only repair 61d71bef passes 1,044
+focused checks across 180 groups and complete copied-value replay/sector checks.
+Final source-frozen Full/matrix, Smoke, fresh disk/browser and performance
+qualification remain open.
+
 
 [Step1785](done/step1785.md) preserves the complete failed Full (996 groups,
 unchanged inputs, zero reuse) and repairs six affected fixture groups with259

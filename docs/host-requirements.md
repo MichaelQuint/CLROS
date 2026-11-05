@@ -1,5 +1,12 @@
 # Host Requirements
 
+[Step1786](../done/step1786.md) separates wait-registration clock observation from
+actual deadline advancement in host replay. The isolated selection of 180 groups
+and 1,044 checks passes with unchanged inputs and zero reuse. Complete retained
+row/parent/sector re-analysis is diagnostic. Source 1eb Full/29/23 receipts keep
+their recorded scope. Renew final frozen qualification; the failed A1 original
+and healthy-A1 dependency remain open.
+
 [Step1785](../done/step1785.md) preserves the complete failed Full (996 groups,
 unchanged inputs, zero reuse) and repairs six affected fixture groups with259
 fresh focused passes. Runtime code is unchanged; remaining final qualification

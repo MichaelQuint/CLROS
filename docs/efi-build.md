@@ -1,5 +1,11 @@
 # EFI Build
 
+[Step1786](../done/step1786.md) preserves the first exact-tuple-joined Full DiskA1
+original: HTTP/browser observations and guest cleanup complete, but outer replay
+fails. The host-only repair changes no EFI source; its 1,044 focused checks and
+copied-value re-analysis grant no new emitted/native/guest authority. Renew actual
+source/profile/tuple joins and final qualification without copying historical margins.
+
 [Step1781](../done/step1781.md) publishes the current storage-completion candidate,
 archives561 output leaves and inspects2095 methods. CompleteIo shrinks32bytes,
 all frames remain unchanged and2094other method comparisons have no unexplained
