@@ -611,8 +611,8 @@ Historical Step1635 diagnostic checkpoint: a generated-driver child span partiti
 The active pins are SDK `11.0.100-rc.3.26522.148` and runtime/ILC/ILLink
 `11.0.0-rc.3.26522.148`, with C#14, `net11.0`, prerelease admission and no
 roll-forward. [#813](http://192.168.4.35:3000/admin/CLROS/issues/813) and the
-[execution contract](../work/rc3-whpx-qualification.md) define the unfinished
-native/guest/full-host renewal. Historical RC2 read qualification in step1672
+[qualification record](../work/rc3-whpx-qualification.md#candidate-results) track the
+completed and outstanding checks on the RC3 candidate. Historical RC2 read qualification in step1672
 retains its actual source, producer, package and backend identities.
 
 [Step1678](../done/step1678.md) binds the freshly qualified RC3 Linux candidates,
