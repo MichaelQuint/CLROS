@@ -20,12 +20,31 @@ review.
 All 29 compiler guest contexts passed their expected outcome on the same frozen
 candidate. The original owner exited with zero and joined. Independent review
 verified 1,539 raw files, 203 recorded commands and all 48 frozen producers,
-including pristine-image and bounded NvVars checks. The current compiler receipt
-is `artifacts/refactor-r01/compiler-matrix-compat-owner-r01/current-compiler29-review-r01.json`,
-SHA-256 `2D1E1EECA7A27E3BD87973BD4FEBF6449FBCD4B40FF7F1F5B2590D5375E4AD88`,
-in the producer checkout. Ancestor/quota, disk/browser and matched performance
-qualification remain pending for this host recipe; this compiler result does not
-accept the final matrix.
+including pristine-image and bounded NvVars checks. The sealed compiler receipt
+is `artifacts/refactor-r01/compiler-compat-acceptance-r01.json`,
+SHA-256 `829ABD366646A4E86082585901D25CA667D22453659721979B7974A0BFFF0B4A`,
+in the producer checkout. Its 29 contexts comprise 28 positive outcomes and one
+expected panic.
+
+The 24 ancestor/quota contexts are also accepted on this candidate: 21 positive
+or quota contexts, including Smoke and the two exact quota terminals, and three
+strict memory-negative contexts using their dedicated observer. Independent
+review verified 1,262 original files, 168 joined commands, all 48 frozen producers,
+native tuples before boot, original limits and fault restoration. The sealed
+receipt is `artifacts/refactor-r01/ancestor-compat-acceptance-r01.json`,
+SHA-256 `EFDC65A1EEEFE851365A9A8A3DB691C97986DA12101374BEE397667D0A035714`.
+Its seal is `D956E9FEE55104C32DC62C405ADC2AA04365B856B54A6C905A5537F96C1D6E64`.
+
+The initial ancestor controller exited with 1 at an intentional pre-entry guard
+before a memory-negative guest could use the wrong observer. Its 16 completed
+positive originals were retained; the remaining eight contexts completed through
+the correct routes. The path-spelling and PID-reuse readback rejections remain
+recorded with the controller split. No completed guest was rerun, and the initial
+controller exit remains distinct from the accepted individual guest results.
+
+Disk/lifecycle, browser and matched performance qualification remain pending for
+this host recipe. These accepted compiler and ancestor results do not accept the
+final matrix.
 
 ### Retained results on the earlier host recipe
 
