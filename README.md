@@ -102,8 +102,10 @@ not additional capabilities claimed by this documentation update.
 Full host suite with unchanged inputs and zero reuse. It includes the scoped
 Windows/WHPX compatibility repair in [step1788](done/step1788.md). All 29 compiler
 guest contexts and all 24 ancestor/quota contexts passed their expected outcome
-and independent review, with sealed evidence on the same candidate. Disk/browser
-and matched performance qualification remain pending for this host recipe.
+and independent review, with sealed evidence on the same candidate. Disk A1 is
+also accepted with 120 HTTP and 49 browser responses and guest cleanup. Six
+disk/lifecycle cases and matched performance qualification remain pending for
+this host recipe.
 The earlier `3f95496e` results retain their separate evidence. See the
 [qualification record](work/rc3-whpx-qualification.md#candidate-results) for
 the current results and each original scope.

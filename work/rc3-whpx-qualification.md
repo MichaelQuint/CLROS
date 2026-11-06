@@ -42,9 +42,32 @@ the correct routes. The path-spelling and PID-reuse readback rejections remain
 recorded with the controller split. No completed guest was rerun, and the initial
 controller exit remains distinct from the accepted individual guest results.
 
-Disk/lifecycle, browser and matched performance qualification remain pending for
-this host recipe. These accepted compiler and ancestor results do not accept the
-final matrix.
+The current Disk A1 original is accepted and sealed. It completed 120 HTTP and
+49 browser responses with 16,062,936 verified body bytes, Blazor readiness,
+screenshot inspection and the independent copied-value protocol check. Its
+original owner exited with zero; source, browser and frozen producers remained
+unchanged. Guest application and kernel cleanup completed before the runner
+terminated native QEMU, as recorded in the original receipts.
+
+The A1 acceptance receipt is
+`artifacts/refactor-r01/disk-read-DiskA1-acceptance-compat-r01.json`,
+SHA-256 `B3B2FA338FF5ADD174D6D44FE61DC1FF1520A700B87011A6F1527C7AAFFCB96A`.
+Its independent review and original seal were read back against the receipt.
+This Full018 result covers its finite consumer scope; conditional native
+premises remain mandatory.
+
+| Disk/lifecycle case on `2e81ee3a` | Current host recipe |
+| --- | --- |
+| Disk A1 | Accepted, including HTTP, browser and guest cleanup. |
+| Disk B | Pending. |
+| Disk A2 | Pending. |
+| Truncated A | Pending. |
+| Mechanical59 | Pending. |
+| ExitPending | Pending. |
+| CloseReuse | Pending. |
+
+The remaining disk/lifecycle cases and matched performance qualification remain
+pending. The final matrix is not yet accepted.
 
 ### Retained results on the earlier host recipe
 
