@@ -19,6 +19,12 @@ in the producer checkout (SHA-256 `1915E8FA7AA698E607B71E0F0ABD8D45FE935CCD7759E
 The replacement held the Edge binary read-only through completion, passed the
 independent disk replay and exited with code 0.
 
+Three bounded Disk B controls with virtio host `ioeventfd` disabled completed
+their declared 20-second observation without another GLib warning. They ended
+by deliberate cancellation. The [host compatibility record](../docs/qemu.md#windows-virtio-notifier-controls)
+preserves the unchanged guest image, altered diagnostic recipe and remaining
+Smoke/Disk B qualification boundary.
+
 The quiet timer/cache pair in [step1748](../done/step1748.md) compared the same
 2,009,369-byte file at 167.45 and 7.17 seconds mean transfer time. Each image
 had one boot and two requests. The final performance report requires the

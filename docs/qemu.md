@@ -1,6 +1,13 @@
 # QEMU
 
-For PR814, record the QEMU runner exit, guest completion and host verification separately. The current Smoke run encountered a QEMU/GLib invalid-handle warning before web readiness. An external browser binary change also invalidated a Truncated A run after the Ready DOM and 49 browser responses. Preserve both originals. Hold the selected browser executable read-only from selection through verification on the replacement run. See the [candidate results](../work/rc3-whpx-qualification.md#candidate-results).
+For PR814, record the QEMU runner exit, guest completion and host verification
+separately. Smoke and Disk B encountered a QEMU/GLib invalid-handle warning
+before web readiness. The bounded host compatibility controls are recorded
+[below](#windows-virtio-notifier-controls). An external browser binary change
+also invalidated a Truncated A run after the Ready DOM and 49 browser responses.
+Its replacement held the selected executable read-only through verification and
+passed. Preserve the failed originals alongside the
+[candidate results](../work/rc3-whpx-qualification.md#candidate-results).
 
 [Step1732](../done/step1732.md) records18 current-source diagnostic originals,
 three boots per output mode/backend. All90 HTTP responses and raw disk/packet/
@@ -9,6 +16,28 @@ ownership joins pass. WHPX Trace/Summary64KiB range medians12532/9688ms show a
 sector hex and cannot replace full-byte acceptance. JSON remains slow. Guest
 wall spans overlap and are not CPU measurements. Production repair, ten-warm,
 full/concurrent/browser, matched Alpine and final qualification remain pending.
+
+## Windows virtio notifier controls
+
+On candidate `3f95496e`, three independent, bounded Disk B diagnostic boots
+disabled `ioeventfd` on the existing `virtio-net-pci`, `virtio-blk-pci` and
+`virtio-rng-pci` devices. Each kept the same guest EFI
+`BD52966BE2F14C100021967003F359E69782D7B1256300B52D85E4AD2FDBAE72`.
+The production launch recipe was unchanged during these controls.
+
+All three reached their declared 20-second post-resume stop and joined their
+owned processes. Each retained exactly the same 96-byte native stderr prefix
+(SHA-256 `769B67A801E48EC3D94BE5C306160B56C732676A6EFFE2026EEDC0416FC0B788`),
+with no added GLib warning. The runner recorded cancellation and exit `-1`.
+The diagnostic owner recorded exit `1` and `Qualified=false`, preserving the
+lack of natural guest completion.
+
+The original command changes, stop records and joined-file seals are retained
+under `artifacts/refactor-r01/ioeventfd-causal-original-r01` through `r03` in
+the producer checkout. These observations support a scoped Windows/QEMU
+compatibility repair. Full guest acceptance, long-run reliability and a measured
+performance effect remain unproven by this control. Retain the exact host recipe
+in qualification and benchmark records when the setting changes.
 
 ## Explicit accelerator selection (development)
 
