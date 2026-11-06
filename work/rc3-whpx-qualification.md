@@ -15,8 +15,17 @@ The accepted host review is
 in the producer checkout, SHA-256
 `2C05A550EDADB6D07828A493EA31182AD9E67B2C6A9999F92D5116AB084BFC2A`.
 It binds the original results, producer freeze, terminal seal and independent
-review. Compiler guest execution has started. The complete guest/browser and
-matched performance matrix remains pending for this host recipe.
+review.
+
+All 29 compiler guest contexts passed their expected outcome on the same frozen
+candidate. The original owner exited with zero and joined. Independent review
+verified 1,539 raw files, 203 recorded commands and all 48 frozen producers,
+including pristine-image and bounded NvVars checks. The current compiler receipt
+is `artifacts/refactor-r01/compiler-matrix-compat-owner-r01/current-compiler29-review-r01.json`,
+SHA-256 `2D1E1EECA7A27E3BD87973BD4FEBF6449FBCD4B40FF7F1F5B2590D5375E4AD88`,
+in the producer checkout. Ancestor/quota, disk/browser and matched performance
+qualification remain pending for this host recipe; this compiler result does not
+accept the final matrix.
 
 ### Retained results on the earlier host recipe
 
