@@ -118,7 +118,7 @@ host body-file writes and flushes are recorded separately.
 | Alpine / TCG | 85.614 ms | 86.611 ms | 89.823 ms |
 
 These are retained HTTP observations, not a final production-performance
-acceptance claim. All three CLROS browser checks passed. Alpine browser boots
+acceptance claim. All three CLROS WHPX browser checks passed. Alpine WHPX browser boots
 1 and 3 passed; boot 2 retained two `ERR_CONNECTION_REFUSED` asset requests
 followed by the outer Python client's 150-second timeout. The owner found those
 GETs absent from the guest packet capture, with other browser connections
@@ -134,10 +134,13 @@ the frozen guest nor its qualification results. The original failed attempt
 remains separate.
 
 The replacement TCG HTTP report is incomplete: 71 completed samples followed
-by a failed health-after request at ordinal 71 / sequence 8. The owner traced
-the stop to the unchanged 1,800-second guest shutdown, before ten warm sequences
-and the browser phase could finish. The completed first asset took 94,391.805 ms;
-that single observation is not a complete TCG population or a browser result.
+by a failed health-after request at ordinal 71 / sequence 8. The observed
+application shutdown is consistent with the unchanged 1,800-second guest
+shutdown policy. Quiet output omits the timer-request and cleanup witnesses,
+and the generic `BENCH_FAIL` marker cannot isolate the failed invariant. This
+original remains failed; it does not prove timer-only causation or qualified
+guest cleanup. The completed first asset took 94,391.805 ms; that single
+observation is not a complete TCG population or a browser result.
 Further TCG execution and the final matrix disposition await the human's
 decision between retaining the deadline with explicitly censored results,
 extending only the benchmark guest window, or further performance work.
@@ -158,6 +161,30 @@ checkout:
 | `alpine-compat2e-r02/alpine-tcg-256M-population-boot02-r01/http/benchmark.json` | `C100D83A37B32166000300C803E0158546A732E889BBC1CF6D35035454D83DC2` |
 | `alpine-compat2e-r02/alpine-tcg-256M-population-boot03-r01/http/benchmark.json` | `4C41F5295F5208F946DE08606DB0A282FC418B778632C53901EC3BFD771C2E8E` |
 | `matched-current2e-tcg-boot01-r02/requests/benchmark.json` | `B58F2ABBDFFE2088E1CF21AD93AE365876ADAE8D68A69B1590F8EFC6EE2133B9` |
+
+The independent completed-population report rehashes all 792 response bodies
+across those nine complete HTTP populations (404,360,352 bytes). It reports
+`CompleteHttpMatrix=false`; the failed CLROS TCG original is excluded from that
+complete-population set. Its separate partial audit rehashes all 72 captured
+bodies, including the empty failed response, and reports 71 complete, one failed
+and 16 unattempted samples. Its observed warm asset median is 93,017.925 ms
+across eight warm samples, explicitly short of the planned ten.
+
+- Completed-population report: `population-report-compat-r01/complete-output-r01/report.json`,
+  SHA-256 `B1DB6290333860AC02B5E0059EAFE9CFAF28321A7AA3C06907434ECB7AE73903`.
+- Partial report: `partial-population-report-compat-r01/output-r01/partial-report.json`,
+  SHA-256 `C8F93E96C53584988A4DEC5937372F5DB5B622CDFF42A2F743710ADCBA5362E7`.
+
+The independent read-only storage review parsed the GPT/FAT32 image without the
+repository parser and compared all 18 successful full bodies and nine ranges
+with its bytes. No returned-byte corruption or storage-specific fault was
+established. That review preserves the failed marker and its inference limits;
+it grants no cleanup or completed TCG qualification.
+
+The already-qualified source was fast-forwarded to draft PR814's existing head
+branch. Canonical Git and PR readback both matched `2e81ee3a`; the PR remained
+draft/open/unmerged. This backup does not approve the pending TCG scope decision
+or final merge.
 
 ### Retained results on the earlier host recipe
 
