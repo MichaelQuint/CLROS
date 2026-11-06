@@ -234,9 +234,29 @@ The report and all raw samples are retained at
 `disk-audit-release-timing-host-r01/report-r01.json`, SHA-256
 `3DDD8D645F7D4D067EFE3E74EF12A223A68DC9299C4525945578D353D557FE32`.
 
-The prototype exists only under ignored artifacts. Source remains frozen at
-`2e81ee3a`; no new native or guest performance result is claimed. Host JIT cost
-and synthetic occurrence counts cannot establish guest latency improvement or
+The runtime candidate and a public-boundary regression are now prepared in the
+isolated `codex/refactor-audit-candidate-r01` checkout at `ff96e2bb`. The complete
+HostTests dependency graph builds without warnings/errors. Six guarded focused
+selections pass 148 checks across seven fixture groups, with unchanged inputs
+and zero reuse; repository style and contracts pass. The source pin for the
+changed disk file was renewed; explicit EFI links, fields and public APIs stay
+unchanged. Current qualification and PR814 still retain `2e81ee3a`.
+
+Strict diagnostic Serving publication passed on the pinned compiler/linker,
+with the raw native tuple captured before another publish. The actual COFF/PE
+join covers 2,065 methods and 2,066 runtime records. All 2,064 common frames
+match the retained source2e image; the new private helper has a 64-byte frame
+including return. Two common-method call targets change to that helper. Five
+metadata/data nodes and the added helper GCInfo fragment require current review;
+no historical numeric stack margin or general metadata/noGC admission transfers.
+The current affected disk paths are outside the inspector's 275-method IRQ
+prefix cohort; those paths require their own phase/provider/interrupt proof.
+This is diagnostic emission evidence, not native timing or guest acceptance.
+Candidate-local facts: `audit-candidate-native-r01/primary-emission-facts-r01.json`,
+SHA-256 `775418C06302CB59FBD34C0467B965B65989906CEE1AAFD37FE456ED8131279B`.
+
+The candidate remains separate from the qualified branch. Host JIT cost and
+synthetic occurrence counts cannot establish guest latency improvement or
 justify removing validation across callbacks. The explicit TCG scope decision
 and final performance disposition remain open.
 
