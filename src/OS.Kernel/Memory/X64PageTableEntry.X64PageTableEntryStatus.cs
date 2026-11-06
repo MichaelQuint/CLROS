@@ -1,0 +1,56 @@
+namespace OS.Kernel.Memory;
+/// <summary>
+/// Stable status contract for x64 page-table entry validation and encoding.
+/// Values are append-only.
+/// </summary>
+
+public enum X64PageTableEntryStatus : byte
+{
+    Uninitialized = 0,
+    Success = 1,
+    RequestNotInitialized = 2,
+    InvalidLevel = 3,
+    InvalidEntryKind = 4,
+    InvalidUnmappedEntry = 5,
+    InvalidTablePointer = 6,
+    InvalidProtection = 7,
+    WritableExecutableRejected = 8,
+    InvalidCachePolicy = 9,
+    CachePolicyNotSupported = 10,
+    PatMappingNotInitialized = 11,
+    InvalidPatEntry = 12,
+    PatIndexOutOfRange = 13,
+    PatMemoryTypeMismatch = 14,
+    PreconditionsNotInitialized = 15,
+    NxeNotEnabled = 16,
+    WriteProtectNotEnabled = 17,
+    FiveLevelPagingNotSupported = 18,
+    UnsupportedPhysicalAddressWidth = 19,
+    InvalidPhysicalAddress = 20,
+    MisalignedPhysicalAddress = 21,
+    PhysicalAddressOutsideWidth = 22,
+    NonCanonicalUnmappedEntry = 23,
+    UnsupportedEntryBits = 24,
+    InvalidLargePage = 25,
+    DirtyBitOnTablePointer = 26,
+    NonCanonicalTablePointer = 27,
+    InvalidBatchCount = 28,
+    TooManyEntries = 29,
+    SourceCapacityTooSmall = 30,
+    DestinationCapacityTooSmall = 31,
+    CapacityExceedsLimit = 32,
+    MissingSource = 33,
+    MissingDestination = 34,
+    MisalignedSource = 35,
+    MisalignedDestination = 36,
+    SourceSpanOverflow = 37,
+    DestinationSpanOverflow = 38,
+    SourceDestinationOverlap = 39,
+    ContractLayoutMismatch = 40,
+    InvalidPatMappingState = 41,
+    InvalidPreconditionState = 42,
+    OneGiBPagesNotSupported = 43,
+    InvalidRequestState = 44,
+    InvalidHardwareStatePolicy = 45,
+    ExistingEntryNotLeaf = 46
+}

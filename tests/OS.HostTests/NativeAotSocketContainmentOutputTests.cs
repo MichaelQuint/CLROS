@@ -17,9 +17,12 @@ internal static class NativeAotSocketContainmentOutputTests
         foreach (string text in new[] { Output, Output.Replace("\n", "\r\n", StringComparison.Ordinal) })
         {
             var value = NativeAotSocketContainmentOutput.Read(text);
-            HostCheck.Equal(32768UL, value.Queued); HostCheck.Equal(63005UL, value.TimeoutMilliseconds);
-            HostCheck.Equal(5UL, value.WorkerBefore); HostCheck.Equal(260UL, value.WorkerAtTimeout);
-            HostCheck.Equal(291UL, value.Worker); HostCheck.Equal(70500UL, value.ElapsedMilliseconds);
+            HostCheck.Equal(32768UL, value.Queued);
+            HostCheck.Equal(63005UL, value.TimeoutMilliseconds);
+            HostCheck.Equal(5UL, value.WorkerBefore);
+            HostCheck.Equal(260UL, value.WorkerAtTimeout);
+            HostCheck.Equal(291UL, value.Worker);
+            HostCheck.Equal(70500UL, value.ElapsedMilliseconds);
             HostCheck.Equal(2, value.Peers.Count);
             HostCheck.True(((IList<NativeAotSocketContainmentOutput.Healthy>)value.Peers).IsReadOnly);
         }
@@ -51,13 +54,21 @@ internal static class NativeAotSocketContainmentOutputTests
             Output.Replace("worker=289", "worker=-1", StringComparison.Ordinal), Output.Replace("worker=289", "worker=18446744073709551616", StringComparison.Ordinal),
             Output.Replace("worker=289", "worker=2147483648", StringComparison.Ordinal), Output.Replace("port=8080", "port=8081", StringComparison.Ordinal),
             Output.Replace(" timedout=1", " timedout=1 extra=0", StringComparison.Ordinal), Output.Replace(" worker_timeout", "\r worker_timeout", StringComparison.Ordinal),
-            Output.Replace("SOCKET_CONTAINMENT_TIMEOUT", "SOCKET_CONTAINMENT_HEALTHY", StringComparison.Ordinal) }) Reject(text);
+            Output.Replace("SOCKET_CONTAINMENT_TIMEOUT", "SOCKET_CONTAINMENT_HEALTHY", StringComparison.Ordinal) })
+            Reject(text);
     }
 
     private static void Reject(string text)
     {
         bool rejected = false;
-        try { _ = NativeAotSocketContainmentOutput.Read(text); } catch (ToolFailure) { rejected = true; }
+        try
+        {
+            _ = NativeAotSocketContainmentOutput.Read(text);
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

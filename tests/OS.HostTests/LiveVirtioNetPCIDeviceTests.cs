@@ -29,15 +29,39 @@ internal static unsafe class LiveVirtioNetPCIDeviceTests
             VirtioNetBindingStatus expected;
             switch (fault)
             {
-                case 0: Write(bytes, 0, 0x10421af4); expected = VirtioNetBindingStatus.WrongIdentity; break;
-                case 1: Write(bytes, 0, 0x1041ffff); expected = VirtioNetBindingStatus.AbsentDevice; break;
-                case 2: bytes[14] = 1; expected = VirtioNetBindingStatus.UnsupportedHeader; break;
-                case 3: bytes[0xa1] = 0x40; expected = VirtioNetBindingStatus.InvalidCapabilities; break;
-                case 4: bytes[0x81] = 0; expected = VirtioNetBindingStatus.MissingCapabilities; break;
-                case 5: bytes[0x63] = 6; expected = VirtioNetBindingStatus.MissingCapabilities; break;
-                case 6: expected = VirtioNetBindingStatus.InvalidSnapshot; break;
-                case 7: expected = VirtioNetBindingStatus.InvalidBdf; break;
-                default: expected = VirtioNetBindingStatus.InvalidSnapshot; break;
+                case 0:
+                    Write(bytes, 0, 0x10421af4);
+                    expected = VirtioNetBindingStatus.WrongIdentity;
+                    break;
+                case 1:
+                    Write(bytes, 0, 0x1041ffff);
+                    expected = VirtioNetBindingStatus.AbsentDevice;
+                    break;
+                case 2:
+                    bytes[14] = 1;
+                    expected = VirtioNetBindingStatus.UnsupportedHeader;
+                    break;
+                case 3:
+                    bytes[0xa1] = 0x40;
+                    expected = VirtioNetBindingStatus.InvalidCapabilities;
+                    break;
+                case 4:
+                    bytes[0x81] = 0;
+                    expected = VirtioNetBindingStatus.MissingCapabilities;
+                    break;
+                case 5:
+                    bytes[0x63] = 6;
+                    expected = VirtioNetBindingStatus.MissingCapabilities;
+                    break;
+                case 6:
+                    expected = VirtioNetBindingStatus.InvalidSnapshot;
+                    break;
+                case 7:
+                    expected = VirtioNetBindingStatus.InvalidBdf;
+                    break;
+                default:
+                    expected = VirtioNetBindingStatus.InvalidSnapshot;
+                    break;
             }
             byte[] original = (byte[])bytes.Clone();
             fixed (byte* p = bytes)
@@ -54,14 +78,25 @@ internal static unsafe class LiveVirtioNetPCIDeviceTests
 
     internal static byte[] Snapshot()
     {
-        byte[] b = new byte[256]; Write(b, 0, 0x10411af4); Write(b, 4, 0x00100407); b[0x34] = 0x40;
-        Capability(0x40, 0x60, 1, 0, 56); Capability(0x60, 0x80, 2, 0x3000, 2);
-        Write(b, 0x70, 4); Capability(0x80, 0xa0, 3, 0x1000, 1); Capability(0xa0, 0, 4, 0x2000, 6);
+        byte[] b = new byte[256];
+        Write(b, 0, 0x10411af4);
+        Write(b, 4, 0x00100407);
+        b[0x34] = 0x40;
+        Capability(0x40, 0x60, 1, 0, 56);
+        Capability(0x60, 0x80, 2, 0x3000, 2);
+        Write(b, 0x70, 4);
+        Capability(0x80, 0xa0, 3, 0x1000, 1);
+        Capability(0xa0, 0, 4, 0x2000, 6);
         return b;
         void Capability(int at, byte next, byte type, uint offset, uint length)
         {
-            b[at] = 9; b[at + 1] = next; b[at + 2] = type == 2 ? (byte)20 : (byte)16;
-            b[at + 3] = type; b[at + 4] = 4; Write(b, at + 8, offset); Write(b, at + 12, length);
+            b[at] = 9;
+            b[at + 1] = next;
+            b[at + 2] = type == 2 ? (byte)20 : (byte)16;
+            b[at + 3] = type;
+            b[at + 4] = 4;
+            Write(b, at + 8, offset);
+            Write(b, at + 12, length);
         }
     }
     private static void Write(byte[] b, int offset, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(b.AsSpan(offset), value);

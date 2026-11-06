@@ -11,11 +11,20 @@ public readonly struct BlockDeviceInfo
         CapacityBytes = capacityBytes;
     }
 
-    public uint BlockSize { get; }
+    public uint BlockSize
+    {
+        get;
+    }
 
-    public ulong BlockCount { get; }
+    public ulong BlockCount
+    {
+        get;
+    }
 
-    public ulong CapacityBytes { get; }
+    public ulong CapacityBytes
+    {
+        get;
+    }
 
     public static BlockDeviceInfoResult Create(uint blockSize, ulong blockCount)
     {

@@ -2,84 +2,16 @@ using OS.Std;
 
 namespace OS.Std.Text;
 
-public enum AsciiDecimalFormatStatus
-{
-    Success = 0,
-    DestinationTooSmall = 1
-}
-
-public readonly struct AsciiDecimalFormatResult
-{
-    private AsciiDecimalFormatResult(
-        bool isInitialized,
-        AsciiDecimalFormatStatus status,
-        int destinationLength,
-        int bytesWritten,
-        int requiredBytes)
-    {
-        IsInitialized = isInitialized;
-        Status = status;
-        DestinationLength = destinationLength;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-    }
-
-    public bool IsInitialized { get; }
-
-    public AsciiDecimalFormatStatus Status { get; }
-
-    public int DestinationLength { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == AsciiDecimalFormatStatus.Success &&
-        RequiredBytes > 0 &&
-        BytesWritten == RequiredBytes &&
-        RequiredBytes <= DestinationLength;
-
-    public static AsciiDecimalFormatResult Success(int destinationLength, int bytesWritten)
-    {
-        return new AsciiDecimalFormatResult(
-            true,
-            AsciiDecimalFormatStatus.Success,
-            destinationLength,
-            bytesWritten,
-            bytesWritten);
-    }
-
-    public static AsciiDecimalFormatResult Fail(
-        AsciiDecimalFormatStatus status,
-        int destinationLength,
-        int requiredBytes)
-    {
-        return new AsciiDecimalFormatResult(
-            true,
-            status,
-            destinationLength,
-            0,
-            requiredBytes);
-    }
-}
-
 public static class AsciiDecimalFormatter
 {
     private const byte Zero = (byte)'0';
-
     public const CompatibilityStatus Status = CompatibilityStatus.Partial;
-
     public static AsciiDecimalFormatResult FormatUInt32(Span<byte> destination, uint value)
     {
         int requiredBytes = CountUInt32Digits(value);
         if (destination.Length < requiredBytes)
         {
-            return AsciiDecimalFormatResult.Fail(
-                AsciiDecimalFormatStatus.DestinationTooSmall,
-                destination.Length,
-                requiredBytes);
+            return AsciiDecimalFormatResult.Fail(AsciiDecimalFormatStatus.DestinationTooSmall, destination.Length, requiredBytes);
         }
 
         WriteUInt32(destination.Slice(0, requiredBytes), value);
@@ -91,10 +23,7 @@ public static class AsciiDecimalFormatter
         int requiredBytes = CountUInt64Digits(value);
         if (destination.Length < requiredBytes)
         {
-            return AsciiDecimalFormatResult.Fail(
-                AsciiDecimalFormatStatus.DestinationTooSmall,
-                destination.Length,
-                requiredBytes);
+            return AsciiDecimalFormatResult.Fail(AsciiDecimalFormatStatus.DestinationTooSmall, destination.Length, requiredBytes);
         }
 
         WriteUInt64(destination.Slice(0, requiredBytes), value);
@@ -104,16 +33,11 @@ public static class AsciiDecimalFormatter
     public static AsciiDecimalFormatResult FormatInt32(Span<byte> destination, int value)
     {
         bool isNegative = value < 0;
-        uint magnitude = isNegative
-            ? (uint)(-(long)value)
-            : (uint)value;
+        uint magnitude = isNegative ? (uint)(-(long)value) : (uint)value;
         int requiredBytes = CountInt32Digits(value);
         if (destination.Length < requiredBytes)
         {
-            return AsciiDecimalFormatResult.Fail(
-                AsciiDecimalFormatStatus.DestinationTooSmall,
-                destination.Length,
-                requiredBytes);
+            return AsciiDecimalFormatResult.Fail(AsciiDecimalFormatStatus.DestinationTooSmall, destination.Length, requiredBytes);
         }
 
         Span<byte> digits = destination.Slice(0, requiredBytes);
@@ -133,16 +57,11 @@ public static class AsciiDecimalFormatter
     public static AsciiDecimalFormatResult FormatInt64(Span<byte> destination, long value)
     {
         bool isNegative = value < 0;
-        ulong magnitude = isNegative
-            ? (ulong)(-(value + 1L)) + 1UL
-            : (ulong)value;
+        ulong magnitude = isNegative ? (ulong)(-(value + 1L)) + 1UL : (ulong)value;
         int requiredBytes = CountInt64Digits(value);
         if (destination.Length < requiredBytes)
         {
-            return AsciiDecimalFormatResult.Fail(
-                AsciiDecimalFormatStatus.DestinationTooSmall,
-                destination.Length,
-                requiredBytes);
+            return AsciiDecimalFormatResult.Fail(AsciiDecimalFormatStatus.DestinationTooSmall, destination.Length, requiredBytes);
         }
 
         Span<byte> digits = destination.Slice(0, requiredBytes);
@@ -186,20 +105,14 @@ public static class AsciiDecimalFormatter
     public static int CountInt32Digits(int value)
     {
         bool isNegative = value < 0;
-        uint magnitude = isNegative
-            ? (uint)(-(long)value)
-            : (uint)value;
-
+        uint magnitude = isNegative ? (uint)(-(long)value) : (uint)value;
         return CountUInt32Digits(magnitude) + (isNegative ? 1 : 0);
     }
 
     public static int CountInt64Digits(long value)
     {
         bool isNegative = value < 0;
-        ulong magnitude = isNegative
-            ? (ulong)(-(value + 1L)) + 1UL
-            : (ulong)value;
-
+        ulong magnitude = isNegative ? (ulong)(-(value + 1L)) + 1UL : (ulong)value;
         return CountUInt64Digits(magnitude) + (isNegative ? 1 : 0);
     }
 

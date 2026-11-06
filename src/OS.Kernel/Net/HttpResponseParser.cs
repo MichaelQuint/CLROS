@@ -2,125 +2,12 @@ using OS.Std.Text;
 
 namespace OS.Net;
 
-public enum HttpResponseParseStatus
-{
-    Success = 0,
-    BufferTooSmall = 1,
-    MissingStatusLineTerminator = 2,
-    InvalidProtocol = 3,
-    InvalidStatusCode = 4,
-    MissingHeaderTerminator = 5,
-    InvalidHeader = 6,
-    InvalidContentLength = 7,
-    BodyTooShort = 8,
-    UnsupportedTransferEncoding = 9,
-    MissingContentLength = 10,
-    DuplicateContentLength = 11
-}
-
-public readonly struct HttpResponseParseResult
-{
-    private HttpResponseParseResult(
-        HttpResponseParseStatus status,
-        byte protocolMajor,
-        byte protocolMinor,
-        ushort statusCode,
-        int reasonOffset,
-        int reasonLength,
-        int headerLength,
-        bool hasContentLength,
-        int contentLength,
-        bool connectionClose,
-        int bodyOffset,
-        int bodyLength)
-    {
-        IsInitialized = true;
-        Status = status;
-        ProtocolMajor = protocolMajor;
-        ProtocolMinor = protocolMinor;
-        StatusCode = statusCode;
-        ReasonOffset = reasonOffset;
-        ReasonLength = reasonLength;
-        HeaderLength = headerLength;
-        HasContentLength = hasContentLength;
-        ContentLength = contentLength;
-        ConnectionClose = connectionClose;
-        BodyOffset = bodyOffset;
-        BodyLength = bodyLength;
-    }
-
-    public HttpResponseParseStatus Status { get; }
-
-    public bool IsInitialized { get; }
-
-    public bool Succeeded => IsInitialized && Status == HttpResponseParseStatus.Success;
-
-    public byte ProtocolMajor { get; }
-
-    public byte ProtocolMinor { get; }
-
-    public ushort StatusCode { get; }
-
-    public int ReasonOffset { get; }
-
-    public int ReasonLength { get; }
-
-    public int HeaderLength { get; }
-
-    public bool HasContentLength { get; }
-
-    public int ContentLength { get; }
-
-    public bool ConnectionClose { get; }
-
-    public int BodyOffset { get; }
-
-    public int BodyLength { get; }
-
-    public static HttpResponseParseResult Success(
-        byte protocolMajor,
-        byte protocolMinor,
-        ushort statusCode,
-        int reasonOffset,
-        int reasonLength,
-        int headerLength,
-        bool hasContentLength,
-        int contentLength,
-        bool connectionClose,
-        int bodyOffset,
-        int bodyLength)
-    {
-        return new HttpResponseParseResult(
-            HttpResponseParseStatus.Success,
-            protocolMajor,
-            protocolMinor,
-            statusCode,
-            reasonOffset,
-            reasonLength,
-            headerLength,
-            hasContentLength,
-            contentLength,
-            connectionClose,
-            bodyOffset,
-            bodyLength);
-    }
-
-    public static HttpResponseParseResult Fail(HttpResponseParseStatus status)
-    {
-        return new HttpResponseParseResult(status, 0, 0, 0, 0, 0, 0, false, 0, false, 0, 0);
-    }
-}
-
 public static class HttpResponseParser
 {
     public const int MinimumStatusLineLength = 12;
-
-    public static HttpResponseParseStatus TryParse(
-        ReadOnlySpan<byte> response,
-        out HttpResponseParseResult result)
+    public static HttpResponseParseStatus TryParse(ReadOnlySpan<byte> response, out HttpResponseParseResult result)
     {
         result = default;
-
         if (response.Length < MinimumStatusLineLength)
         {
             result = HttpResponseParseResult.Fail(HttpResponseParseStatus.BufferTooSmall);
@@ -134,15 +21,7 @@ public static class HttpResponseParser
             return result.Status;
         }
 
-        if (!TryParseStatusLine(
-            response,
-            statusLineEnd,
-            out byte major,
-            out byte minor,
-            out ushort statusCode,
-            out int reasonOffset,
-            out int reasonLength,
-            out HttpResponseParseStatus statusLineStatus))
+        if (!TryParseStatusLine(response, statusLineEnd, out byte major, out byte minor, out ushort statusCode, out int reasonOffset, out int reasonLength, out HttpResponseParseStatus statusLineStatus))
         {
             result = HttpResponseParseResult.Fail(statusLineStatus);
             return result.Status;
@@ -158,13 +37,7 @@ public static class HttpResponseParser
         bool hasContentLength = false;
         int contentLength = 0;
         bool connectionClose = false;
-        HttpResponseParseStatus headerStatus = ParseHeaders(
-            response,
-            statusLineEnd + 2,
-            headerTerminator,
-            ref hasContentLength,
-            ref contentLength,
-            ref connectionClose);
+        HttpResponseParseStatus headerStatus = ParseHeaders(response, statusLineEnd + 2, headerTerminator, ref hasContentLength, ref contentLength, ref connectionClose);
         if (headerStatus != HttpResponseParseStatus.Success)
         {
             result = HttpResponseParseResult.Fail(headerStatus);
@@ -186,30 +59,11 @@ public static class HttpResponseParser
             return result.Status;
         }
 
-        result = HttpResponseParseResult.Success(
-            major,
-            minor,
-            statusCode,
-            reasonOffset,
-            reasonLength,
-            bodyOffset,
-            hasContentLength,
-            contentLength,
-            connectionClose,
-            bodyOffset,
-            bodyLength);
+        result = HttpResponseParseResult.Success(major, minor, statusCode, reasonOffset, reasonLength, bodyOffset, hasContentLength, contentLength, connectionClose, bodyOffset, bodyLength);
         return result.Status;
     }
 
-    private static bool TryParseStatusLine(
-        ReadOnlySpan<byte> response,
-        int statusLineEnd,
-        out byte major,
-        out byte minor,
-        out ushort statusCode,
-        out int reasonOffset,
-        out int reasonLength,
-        out HttpResponseParseStatus status)
+    private static bool TryParseStatusLine(ReadOnlySpan<byte> response, int statusLineEnd, out byte major, out byte minor, out ushort statusCode, out int reasonOffset, out int reasonLength, out HttpResponseParseStatus status)
     {
         major = 0;
         minor = 0;
@@ -217,21 +71,13 @@ public static class HttpResponseParser
         reasonOffset = 0;
         reasonLength = 0;
         status = HttpResponseParseStatus.Success;
-
-        if (statusLineEnd < MinimumStatusLineLength - 2 ||
-            !OS.Std.MemoryExtensions.StartsWith(response, "HTTP/"u8) ||
-            !OS.Std.Ascii.IsDigit(response[5]) ||
-            response[6] != (byte)'.' ||
-            !OS.Std.Ascii.IsDigit(response[7]) ||
-            response[8] != (byte)' ')
+        if (statusLineEnd < MinimumStatusLineLength - 2 || !OS.Std.MemoryExtensions.StartsWith(response, "HTTP/"u8) || !OS.Std.Ascii.IsDigit(response[5]) || response[6] != (byte)'.' || !OS.Std.Ascii.IsDigit(response[7]) || response[8] != (byte)' ')
         {
             status = HttpResponseParseStatus.InvalidProtocol;
             return false;
         }
 
-        if (!OS.Std.Ascii.IsDigit(response[9]) ||
-            !OS.Std.Ascii.IsDigit(response[10]) ||
-            !OS.Std.Ascii.IsDigit(response[11]))
+        if (!OS.Std.Ascii.IsDigit(response[9]) || !OS.Std.Ascii.IsDigit(response[10]) || !OS.Std.Ascii.IsDigit(response[11]))
         {
             status = HttpResponseParseStatus.InvalidStatusCode;
             return false;
@@ -239,10 +85,7 @@ public static class HttpResponseParser
 
         major = (byte)(response[5] - (byte)'0');
         minor = (byte)(response[7] - (byte)'0');
-        statusCode = (ushort)(((response[9] - (byte)'0') * 100) +
-            ((response[10] - (byte)'0') * 10) +
-            (response[11] - (byte)'0'));
-
+        statusCode = (ushort)(((response[9] - (byte)'0') * 100) + ((response[10] - (byte)'0') * 10) + (response[11] - (byte)'0'));
         if (statusLineEnd > 12)
         {
             if (response[12] != (byte)' ')
@@ -263,13 +106,7 @@ public static class HttpResponseParser
         return true;
     }
 
-    private static HttpResponseParseStatus ParseHeaders(
-        ReadOnlySpan<byte> response,
-        int headersStart,
-        int headersEnd,
-        ref bool hasContentLength,
-        ref int contentLength,
-        ref bool connectionClose)
+    private static HttpResponseParseStatus ParseHeaders(ReadOnlySpan<byte> response, int headersStart, int headersEnd, ref bool hasContentLength, ref int contentLength, ref bool connectionClose)
     {
         int offset = headersStart;
         while (offset < headersEnd)
@@ -318,8 +155,7 @@ public static class HttpResponseParser
             {
                 connectionClose = AsciiString.EqualsIgnoreCase(value, "close"u8);
             }
-            else if (AsciiString.EqualsIgnoreCase(name, "Transfer-Encoding"u8) &&
-                !AsciiString.EqualsIgnoreCase(value, "identity"u8))
+            else if (AsciiString.EqualsIgnoreCase(name, "Transfer-Encoding"u8) && !AsciiString.EqualsIgnoreCase(value, "identity"u8))
             {
                 return HttpResponseParseStatus.UnsupportedTransferEncoding;
             }
@@ -346,21 +182,29 @@ public static class HttpResponseParser
 
     private static int IndexOfHeaderTerminator(ReadOnlySpan<byte> bytes, int start)
     {
-        ReadOnlySpan<byte> terminator = stackalloc byte[] { (byte)'\r', (byte)'\n', (byte)'\r', (byte)'\n' };
+        ReadOnlySpan<byte> terminator = stackalloc byte[]
+        {
+            (byte)'\r',
+            (byte)'\n',
+            (byte)'\r',
+            (byte)'\n'
+        };
         return IndexOfBytes(bytes, start, terminator);
     }
 
     private static int IndexOfCrlf(ReadOnlySpan<byte> bytes, int start)
     {
-        ReadOnlySpan<byte> crlf = stackalloc byte[] { (byte)'\r', (byte)'\n' };
+        ReadOnlySpan<byte> crlf = stackalloc byte[]
+        {
+            (byte)'\r',
+            (byte)'\n'
+        };
         return IndexOfBytes(bytes, start, crlf);
     }
 
     private static int IndexOfByte(ReadOnlySpan<byte> bytes, int start, int endExclusive, byte value)
     {
-        if ((uint)start > (uint)bytes.Length ||
-            endExclusive < start ||
-            endExclusive > bytes.Length)
+        if ((uint)start > (uint)bytes.Length || endExclusive < start || endExclusive > bytes.Length)
         {
             return -1;
         }

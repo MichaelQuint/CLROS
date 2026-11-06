@@ -2,12 +2,18 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Text;
 
-internal static class NativeAotWebStartupTests
+internal static partial class NativeAotWebStartupTests
 {
     [HostTest("m10.006 real managed app constructor failures emit failure before build or bind")]
     private static void ConstructorFailures()
     {
-        foreach (string stage in new[] { "CCTOR", "CTOR" })
+        foreach (string stage in new[]
+        {
+            "CCTOR",
+            "CTOR"
+        }
+
+        )
         {
             // Load the actual app into a fresh context so a failed type initializer
             // cannot contaminate the other case. Failure occurs before Kestrel starts.
@@ -20,8 +26,14 @@ internal static class NativeAotWebStartupTests
                 Assembly app = context.LoadFromAssemblyPath(Path.Combine(AppContext.BaseDirectory, "MinimalApiSmoke.dll"));
                 MethodInfo entry = app.EntryPoint ?? throw new InvalidDataException("app entry missing");
                 Console.SetError(writer);
-                try { entry.Invoke(null, [Array.Empty<string>()]); }
-                catch (TargetInvocationException exception) { failure = exception.InnerException; }
+                try
+                {
+                    entry.Invoke(null, [Array.Empty<string>()]);
+                }
+                catch (TargetInvocationException exception)
+                {
+                    failure = exception.InnerException;
+                }
             }
             finally
             {
@@ -36,23 +48,6 @@ internal static class NativeAotWebStartupTests
             HostCheck.True(observed.EndsWith("CLROS_APP_FAIL minimal.api.smoke\n", StringComparison.Ordinal), stage);
             HostCheck.Equal(false, observed.Contains("CLROS_APP_BUILT", StringComparison.Ordinal));
             HostCheck.Equal(false, observed.Contains("Now listening", StringComparison.Ordinal));
-        }
-    }
-
-    private sealed class ConstructorFailureWriter(string rejectedLine) : TextWriter
-    {
-        public override Encoding Encoding => Encoding.UTF8;
-        internal StringBuilder Output { get; } = new();
-        internal int Failures { get; private set; }
-
-        public override void WriteLine(string? value)
-        {
-            if (value == rejectedLine)
-            {
-                Failures++;
-                throw new IOException("controlled constructor logging failure");
-            }
-            Output.Append(value).Append('\n');
         }
     }
 }

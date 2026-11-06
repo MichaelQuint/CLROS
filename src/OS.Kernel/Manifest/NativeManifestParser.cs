@@ -3,91 +3,13 @@ using OS.Std.Text;
 
 namespace OS.Manifest;
 
-public enum NativeManifestParseStatus
-{
-    Success = 0,
-    EmptyInput,
-    InputTooLarge,
-    NonAsciiOrControlCharacter,
-    MalformedLine,
-    UnknownKey,
-    DuplicateKey,
-    MissingFormat,
-    UnsupportedFormat,
-    MissingVersion,
-    UnsupportedVersion,
-    MissingAppName,
-    AppNameTooLong,
-    MissingAppPath,
-    AppPathTooLong,
-    MissingArgs,
-    ArgsTooLong,
-    MissingAppKind,
-    UnsupportedAppKind,
-    MissingRuntimeKind,
-    UnsupportedRuntimeKind,
-    MissingNetworkMode,
-    InvalidNetworkMode,
-    MissingLogMode,
-    InvalidLogMode,
-    EnvironmentKeyTooLong,
-    EnvironmentValueTooLong,
-    InvalidEnvironmentKey,
-    TooManyEnvironmentFields,
-    DuplicateEnvironmentKey,
-    InvalidListenEndpoint,
-    ListenRequiresNetwork
-}
-
-public readonly struct NativeManifestParseResult
-{
-    private NativeManifestParseResult(
-        NativeManifestParseStatus status,
-        bool isInitialized,
-        NativeManifest manifest,
-        int errorOffset)
-    {
-        Status = status;
-        IsInitialized = isInitialized;
-        Manifest = manifest;
-        ErrorOffset = errorOffset;
-    }
-
-    public NativeManifestParseStatus Status { get; }
-
-    public bool IsInitialized { get; }
-
-    public NativeManifest Manifest { get; }
-
-    public int ErrorOffset { get; }
-
-    public bool Succeeded => IsInitialized && Status == NativeManifestParseStatus.Success;
-
-    public static NativeManifestParseResult Success(NativeManifest manifest)
-    {
-        return new NativeManifestParseResult(
-            NativeManifestParseStatus.Success,
-            isInitialized: true,
-            manifest,
-            -1);
-    }
-
-    public static NativeManifestParseResult Fail(NativeManifestParseStatus status, int errorOffset)
-    {
-        return new NativeManifestParseResult(
-            status,
-            isInitialized: true,
-            default,
-            errorOffset);
-    }
-}
-
 public static class NativeManifestParser
 {
     // Explicit v1 entry point keeps all legacy v0 consumers/rejections unchanged.
     public static unsafe LinuxElfManifest ParseLinuxElf(ReadOnlySpan<byte> source)
     {
-        fixed (byte* bytes = source) return LinuxElfPackage.ParseManifest(bytes, (uint)source.Length);
+        fixed (byte* bytes = source)
+            return LinuxElfPackage.ParseManifest(bytes, (uint)source.Length);
     }
 
     public const int MaximumInputLength = 4096;
@@ -98,7 +20,6 @@ public static class NativeManifestParser
     public const int MaximumEnvironmentKeyLength = 64;
     public const int MaximumEnvironmentValueLength = 256;
     public const int MaximumListenHostLength = 64;
-
     private const uint FormatSeen = 1u << 0;
     private const uint VersionSeen = 1u << 1;
     private const uint AppNameSeen = 1u << 2;
@@ -109,7 +30,6 @@ public static class NativeManifestParser
     private const uint AppKindSeen = 1u << 7;
     private const uint RuntimeKindSeen = 1u << 8;
     private const uint ListenSeen = 1u << 9;
-
     public static NativeManifestParseResult Parse(ReadOnlySpan<byte> source)
     {
         if (source.Length == 0)
@@ -132,14 +52,11 @@ public static class NativeManifestParser
         NativeManifestLogMode logMode = NativeManifestLogMode.None;
         NativeManifestEnvironmentBlock environment = default;
         NativeManifestListenEndpoint listenEndpoint = default;
-
         Span<AsciiTokenRange> lineTokens = stackalloc AsciiTokenRange[source.Length + 1];
         AsciiTokenSplitResult lineSplit = AsciiTokenSplitter.Split(source, (byte)'\n', lineTokens);
         if (!lineSplit.Succeeded)
         {
-            return NativeManifestParseResult.Fail(
-                MapTokenSplitFailure(lineSplit, NativeManifestParseStatus.MalformedLine),
-                GetTokenSplitErrorOffset(lineSplit, 0));
+            return NativeManifestParseResult.Fail(MapTokenSplitFailure(lineSplit, NativeManifestParseStatus.MalformedLine), GetTokenSplitErrorOffset(lineSplit, 0));
         }
 
         for (int lineTokenIndex = 0; lineTokenIndex < lineSplit.TokenCount; lineTokenIndex++)
@@ -152,31 +69,13 @@ public static class NativeManifestParser
 
             int lineStart = lineToken.Start;
             int lineLength = lineToken.Length;
-            NativeManifestParseStatus lineStatus = NormalizeAndValidateLine(
-                source,
-                lineStart,
-                ref lineLength,
-                out int errorOffset);
+            NativeManifestParseStatus lineStatus = NormalizeAndValidateLine(source, lineStart, ref lineLength, out int errorOffset);
             if (lineStatus != NativeManifestParseStatus.Success)
             {
                 return NativeManifestParseResult.Fail(lineStatus, errorOffset);
             }
 
-            NativeManifestParseStatus parseStatus = ParseLine(
-                source,
-                lineStart,
-                lineLength,
-                ref seen,
-                ref appName,
-                ref appPath,
-                ref args,
-                ref appKind,
-                ref runtimeKind,
-                ref networkMode,
-                ref logMode,
-                ref environment,
-                ref listenEndpoint,
-                out errorOffset);
+            NativeManifestParseStatus parseStatus = ParseLine(source, lineStart, lineLength, ref seen, ref appName, ref appPath, ref args, ref appKind, ref runtimeKind, ref networkMode, ref logMode, ref environment, ref listenEndpoint, out errorOffset);
             if (parseStatus != NativeManifestParseStatus.Success)
             {
                 return NativeManifestParseResult.Fail(parseStatus, errorOffset);
@@ -195,28 +94,13 @@ public static class NativeManifestParser
             return NativeManifestParseResult.Fail(listenStatus, source.Length);
         }
 
-        NativeManifest manifest = new NativeManifest(
-            NativeManifest.Version0,
-            appName,
-            appPath,
-            args,
-            appKind,
-            runtimeKind,
-            networkMode,
-            logMode,
-            environment,
-            listenEndpoint);
+        NativeManifest manifest = new NativeManifest(NativeManifest.Version0, appName, appPath, args, appKind, runtimeKind, networkMode, logMode, environment, listenEndpoint);
         return NativeManifestParseResult.Success(manifest);
     }
 
-    private static NativeManifestParseStatus NormalizeAndValidateLine(
-        ReadOnlySpan<byte> source,
-        int lineStart,
-        ref int lineLength,
-        out int errorOffset)
+    private static NativeManifestParseStatus NormalizeAndValidateLine(ReadOnlySpan<byte> source, int lineStart, ref int lineLength, out int errorOffset)
     {
         errorOffset = -1;
-
         if (lineLength > 0 && source[lineStart + lineLength - 1] == (byte)'\r')
         {
             int delimiterOffset = lineStart + lineLength;
@@ -251,21 +135,7 @@ public static class NativeManifestParser
         return NativeManifestParseStatus.Success;
     }
 
-    private static NativeManifestParseStatus ParseLine(
-        ReadOnlySpan<byte> source,
-        int lineOffset,
-        int lineLength,
-        ref uint seen,
-        ref NativeManifestField appName,
-        ref NativeManifestField appPath,
-        ref NativeManifestField args,
-        ref NativeManifestAppKind appKind,
-        ref NativeManifestRuntimeKind runtimeKind,
-        ref NativeManifestNetworkMode networkMode,
-        ref NativeManifestLogMode logMode,
-        ref NativeManifestEnvironmentBlock environment,
-        ref NativeManifestListenEndpoint listenEndpoint,
-        out int errorOffset)
+    private static NativeManifestParseStatus ParseLine(ReadOnlySpan<byte> source, int lineOffset, int lineLength, ref uint seen, ref NativeManifestField appName, ref NativeManifestField appPath, ref NativeManifestField args, ref NativeManifestAppKind appKind, ref NativeManifestRuntimeKind runtimeKind, ref NativeManifestNetworkMode networkMode, ref NativeManifestLogMode logMode, ref NativeManifestEnvironmentBlock environment, ref NativeManifestListenEndpoint listenEndpoint, out int errorOffset)
     {
         errorOffset = lineOffset;
         if (lineLength == 0)
@@ -273,14 +143,7 @@ public static class NativeManifestParser
             return NativeManifestParseStatus.MalformedLine;
         }
 
-        NativeManifestParseStatus splitStatus = TrySplitKeyValue(
-            source,
-            lineOffset,
-            lineLength,
-            out AsciiTokenRange keyRange,
-            out int valueOffset,
-            out int valueLength,
-            out errorOffset);
+        NativeManifestParseStatus splitStatus = TrySplitKeyValue(source, lineOffset, lineLength, out AsciiTokenRange keyRange, out int valueOffset, out int valueLength, out errorOffset);
         if (splitStatus != NativeManifestParseStatus.Success)
         {
             return splitStatus;
@@ -288,17 +151,9 @@ public static class NativeManifestParser
 
         ReadOnlySpan<byte> key = source.Slice(keyRange.Start, keyRange.Length);
         ReadOnlySpan<byte> value = source.Slice(valueOffset, valueLength);
-
         if (OS.Std.MemoryExtensions.StartsWith(key, "env."u8))
         {
-            return ParseEnvironment(
-                source,
-                key.Slice(4),
-                lineOffset + 4,
-                value,
-                valueOffset,
-                ref environment,
-                out errorOffset);
+            return ParseEnvironment(source, key.Slice(4), lineOffset + 4, value, valueOffset, ref environment, out errorOffset);
         }
 
         if (AsciiString.Equals(key, "format"u8))
@@ -313,30 +168,12 @@ public static class NativeManifestParser
 
         if (AsciiString.Equals(key, "app.name"u8))
         {
-            return ParseRequiredField(
-                value,
-                valueOffset,
-                AppNameSeen,
-                NativeManifestParseStatus.MissingAppName,
-                NativeManifestParseStatus.AppNameTooLong,
-                MaximumAppNameLength,
-                ref seen,
-                ref appName,
-                out errorOffset);
+            return ParseRequiredField(value, valueOffset, AppNameSeen, NativeManifestParseStatus.MissingAppName, NativeManifestParseStatus.AppNameTooLong, MaximumAppNameLength, ref seen, ref appName, out errorOffset);
         }
 
         if (AsciiString.Equals(key, "app.path"u8))
         {
-            return ParseRequiredField(
-                value,
-                valueOffset,
-                AppPathSeen,
-                NativeManifestParseStatus.MissingAppPath,
-                NativeManifestParseStatus.AppPathTooLong,
-                MaximumAppPathLength,
-                ref seen,
-                ref appPath,
-                out errorOffset);
+            return ParseRequiredField(value, valueOffset, AppPathSeen, NativeManifestParseStatus.MissingAppPath, NativeManifestParseStatus.AppPathTooLong, MaximumAppPathLength, ref seen, ref appPath, out errorOffset);
         }
 
         if (AsciiString.Equals(key, "args"u8))
@@ -414,14 +251,7 @@ public static class NativeManifestParser
 
         if (AsciiString.Equals(key, "listen"u8))
         {
-            return ParseListenEndpoint(
-                source,
-                valueOffset,
-                valueLength,
-                lineOffset,
-                ref seen,
-                ref listenEndpoint,
-                out errorOffset);
+            return ParseListenEndpoint(source, valueOffset, valueLength, lineOffset, ref seen, ref listenEndpoint, out errorOffset);
         }
 
         if (AsciiString.Equals(key, "log"u8))
@@ -445,14 +275,7 @@ public static class NativeManifestParser
         return NativeManifestParseStatus.UnknownKey;
     }
 
-    private static NativeManifestParseStatus ParseListenEndpoint(
-        ReadOnlySpan<byte> source,
-        int valueOffset,
-        int valueLength,
-        int lineOffset,
-        ref uint seen,
-        ref NativeManifestListenEndpoint listenEndpoint,
-        out int errorOffset)
+    private static NativeManifestParseStatus ParseListenEndpoint(ReadOnlySpan<byte> source, int valueOffset, int valueLength, int lineOffset, ref uint seen, ref NativeManifestListenEndpoint listenEndpoint, out int errorOffset)
     {
         errorOffset = valueOffset;
         if (HasSeen(seen, ListenSeen))
@@ -462,12 +285,7 @@ public static class NativeManifestParser
         }
 
         Span<AsciiTokenRange> endpointTokens = stackalloc AsciiTokenRange[3];
-        AsciiTokenSplitResult endpointSplit = AsciiTokenSplitter.SplitRange(
-            source,
-            valueOffset,
-            valueLength,
-            (byte)':',
-            endpointTokens);
+        AsciiTokenSplitResult endpointSplit = AsciiTokenSplitter.SplitRange(source, valueOffset, valueLength, (byte)':', endpointTokens);
         if (!endpointSplit.Succeeded || endpointSplit.TokenCount != 2)
         {
             return NativeManifestParseStatus.InvalidListenEndpoint;
@@ -482,21 +300,12 @@ public static class NativeManifestParser
             return NativeManifestParseStatus.InvalidListenEndpoint;
         }
 
-        listenEndpoint = new NativeManifestListenEndpoint(
-            new NativeManifestField(hostRange.Start, hostRange.Length),
-            portNumber);
+        listenEndpoint = new NativeManifestListenEndpoint(new NativeManifestField(hostRange.Start, hostRange.Length), portNumber);
         seen |= ListenSeen;
         return NativeManifestParseStatus.Success;
     }
 
-    private static NativeManifestParseStatus ParseEnvironment(
-        ReadOnlySpan<byte> source,
-        ReadOnlySpan<byte> key,
-        int keyOffset,
-        ReadOnlySpan<byte> value,
-        int valueOffset,
-        ref NativeManifestEnvironmentBlock environment,
-        out int errorOffset)
+    private static NativeManifestParseStatus ParseEnvironment(ReadOnlySpan<byte> source, ReadOnlySpan<byte> key, int keyOffset, ReadOnlySpan<byte> value, int valueOffset, ref NativeManifestEnvironmentBlock environment, out int errorOffset)
     {
         errorOffset = keyOffset;
         if (!IsValidEnvironmentKey(key))
@@ -518,17 +327,13 @@ public static class NativeManifestParser
         for (int index = 0; index < environment.Count; index++)
         {
             NativeManifestEnvironmentEntry existing = environment.GetAt(index);
-            if (existing.TryGetKey(source, out ReadOnlySpan<byte> existingKey)
-                && OS.Std.MemoryExtensions.SequenceEqual(existingKey, key))
+            if (existing.TryGetKey(source, out ReadOnlySpan<byte> existingKey) && OS.Std.MemoryExtensions.SequenceEqual(existingKey, key))
             {
                 return NativeManifestParseStatus.DuplicateEnvironmentKey;
             }
         }
 
-        if (!environment.TryAdd(
-            new NativeManifestEnvironmentEntry(
-                new NativeManifestField(keyOffset, key.Length),
-                new NativeManifestField(valueOffset, value.Length))))
+        if (!environment.TryAdd(new NativeManifestEnvironmentEntry(new NativeManifestField(keyOffset, key.Length), new NativeManifestField(valueOffset, value.Length))))
         {
             return NativeManifestParseStatus.TooManyEnvironmentFields;
         }
@@ -536,11 +341,7 @@ public static class NativeManifestParser
         return NativeManifestParseStatus.Success;
     }
 
-    private static NativeManifestParseStatus ParseFormat(
-        ReadOnlySpan<byte> value,
-        int valueOffset,
-        ref uint seen,
-        out int errorOffset)
+    private static NativeManifestParseStatus ParseFormat(ReadOnlySpan<byte> value, int valueOffset, ref uint seen, out int errorOffset)
     {
         errorOffset = valueOffset;
         if (HasSeen(seen, FormatSeen))
@@ -557,11 +358,7 @@ public static class NativeManifestParser
         return NativeManifestParseStatus.Success;
     }
 
-    private static NativeManifestParseStatus ParseVersion(
-        ReadOnlySpan<byte> value,
-        int valueOffset,
-        ref uint seen,
-        out int errorOffset)
+    private static NativeManifestParseStatus ParseVersion(ReadOnlySpan<byte> value, int valueOffset, ref uint seen, out int errorOffset)
     {
         errorOffset = valueOffset;
         if (HasSeen(seen, VersionSeen))
@@ -578,16 +375,7 @@ public static class NativeManifestParser
         return NativeManifestParseStatus.Success;
     }
 
-    private static NativeManifestParseStatus ParseRequiredField(
-        ReadOnlySpan<byte> value,
-        int valueOffset,
-        uint seenFlag,
-        NativeManifestParseStatus missingStatus,
-        NativeManifestParseStatus tooLongStatus,
-        int maximumLength,
-        ref uint seen,
-        ref NativeManifestField field,
-        out int errorOffset)
+    private static NativeManifestParseStatus ParseRequiredField(ReadOnlySpan<byte> value, int valueOffset, uint seenFlag, NativeManifestParseStatus missingStatus, NativeManifestParseStatus tooLongStatus, int maximumLength, ref uint seen, ref NativeManifestField field, out int errorOffset)
     {
         errorOffset = valueOffset;
         if (HasSeen(seen, seenFlag))
@@ -650,9 +438,7 @@ public static class NativeManifestParser
         return NativeManifestParseStatus.Success;
     }
 
-    private static NativeManifestParseStatus ValidateListenEndpoint(
-        uint seen,
-        NativeManifestNetworkMode networkMode)
+    private static NativeManifestParseStatus ValidateListenEndpoint(uint seen, NativeManifestNetworkMode networkMode)
     {
         if (HasSeen(seen, ListenSeen) && networkMode == NativeManifestNetworkMode.None)
         {
@@ -731,7 +517,6 @@ public static class NativeManifestParser
     private static bool TryParseListenPort(ReadOnlySpan<byte> value, out ushort port)
     {
         port = 0;
-
         AsciiUInt32ParseResult result = AsciiDecimalParser.ParseUInt32(value);
         if (!result.Succeeded || result.Value == 0 || result.Value > ushort.MaxValue)
         {
@@ -789,39 +574,18 @@ public static class NativeManifestParser
         return (seen & flag) != 0;
     }
 
-    private static bool IsTrailingLineDelimiterToken(
-        ReadOnlySpan<byte> source,
-        AsciiTokenRange token,
-        int tokenIndex,
-        int tokenCount)
+    private static bool IsTrailingLineDelimiterToken(ReadOnlySpan<byte> source, AsciiTokenRange token, int tokenIndex, int tokenCount)
     {
-        return tokenIndex == tokenCount - 1 &&
-            token.Length == 0 &&
-            token.Start == source.Length &&
-            source.Length > 0 &&
-            source[source.Length - 1] == (byte)'\n';
+        return tokenIndex == tokenCount - 1 && token.Length == 0 && token.Start == source.Length && source.Length > 0 && source[source.Length - 1] == (byte)'\n';
     }
 
-    private static NativeManifestParseStatus TrySplitKeyValue(
-        ReadOnlySpan<byte> source,
-        int lineOffset,
-        int lineLength,
-        out AsciiTokenRange keyRange,
-        out int valueOffset,
-        out int valueLength,
-        out int errorOffset)
+    private static NativeManifestParseStatus TrySplitKeyValue(ReadOnlySpan<byte> source, int lineOffset, int lineLength, out AsciiTokenRange keyRange, out int valueOffset, out int valueLength, out int errorOffset)
     {
         keyRange = default;
         valueOffset = 0;
         valueLength = 0;
         errorOffset = lineOffset;
-
-        AsciiKeyValueSplitResult keyValueSplit = AsciiKeyValueSplitter.SplitRange(
-            source,
-            lineOffset,
-            lineLength,
-            (byte)'=');
-
+        AsciiKeyValueSplitResult keyValueSplit = AsciiKeyValueSplitter.SplitRange(source, lineOffset, lineLength, (byte)'=');
         if (!keyValueSplit.Succeeded)
         {
             errorOffset = GetTokenSplitErrorOffset(keyValueSplit, lineOffset);
@@ -834,36 +598,24 @@ public static class NativeManifestParser
         return NativeManifestParseStatus.Success;
     }
 
-    private static NativeManifestParseStatus MapTokenSplitFailure(
-        AsciiTokenSplitResult result,
-        NativeManifestParseStatus fallbackStatus)
+    private static NativeManifestParseStatus MapTokenSplitFailure(AsciiTokenSplitResult result, NativeManifestParseStatus fallbackStatus)
     {
-        return result.Status == AsciiTokenSplitStatus.NonAsciiInput
-            ? NativeManifestParseStatus.NonAsciiOrControlCharacter
-            : fallbackStatus;
+        return result.Status == AsciiTokenSplitStatus.NonAsciiInput ? NativeManifestParseStatus.NonAsciiOrControlCharacter : fallbackStatus;
     }
 
-    private static NativeManifestParseStatus MapTokenSplitFailure(
-        AsciiKeyValueSplitResult result,
-        NativeManifestParseStatus fallbackStatus)
+    private static NativeManifestParseStatus MapTokenSplitFailure(AsciiKeyValueSplitResult result, NativeManifestParseStatus fallbackStatus)
     {
-        return result.Status == AsciiKeyValueSplitStatus.NonAsciiInput
-            ? NativeManifestParseStatus.NonAsciiOrControlCharacter
-            : fallbackStatus;
+        return result.Status == AsciiKeyValueSplitStatus.NonAsciiInput ? NativeManifestParseStatus.NonAsciiOrControlCharacter : fallbackStatus;
     }
 
     private static int GetTokenSplitErrorOffset(AsciiTokenSplitResult result, int fallbackOffset)
     {
-        return result.InvalidInputIndex >= 0
-            ? result.InvalidInputIndex
-            : fallbackOffset;
+        return result.InvalidInputIndex >= 0 ? result.InvalidInputIndex : fallbackOffset;
     }
 
     private static int GetTokenSplitErrorOffset(AsciiKeyValueSplitResult result, int fallbackOffset)
     {
-        return result.InvalidInputIndex >= 0
-            ? result.InvalidInputIndex
-            : fallbackOffset;
+        return result.InvalidInputIndex >= 0 ? result.InvalidInputIndex : fallbackOffset;
     }
 
     private static bool IsValidEnvironmentKey(ReadOnlySpan<byte> key)

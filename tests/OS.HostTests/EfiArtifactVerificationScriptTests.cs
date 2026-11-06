@@ -9,7 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
 
-internal static class EfiArtifactVerificationScriptTests
+internal static partial class EfiArtifactVerificationScriptTests
 {
     private const int PeOffset = 0x80;
     private const int OptionalHeaderOffset = PeOffset + 24;
@@ -32,58 +32,26 @@ internal static class EfiArtifactVerificationScriptTests
     private const int MaximumRuntimeFunctionRecords = EfiContracts.MaximumRuntimeFunctionRecords;
     private const int MaximumLinkResponseTokens = 4096;
     private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
-    private const string SerializerSymbol =
-        "CLROS_X64_SerializeInstructionPublication";
-    private const string ToolDirectoryBuildPropsPath =
-        "tools/Directory.Build.props";
-    private const string SerializerBytesSha256 =
-        OS.Tooling.EfiContracts.SerializerBytesSha256;
-    private const string SerializerObjectSha256 =
-        OS.Tooling.EfiContracts.SerializerObjectSha256;
-    private const string SerializerObjectBase64 =
-        "ZIYDAAAAAADSAAAAAgAAAAAAAAAvNAAAAAAAAAAAAAAAAAAAFAAAAIwAAAAAAAAAAAAAAAAAAAAgAFBgLzE4AAAAAAAAAAAAAAAAAAgAAACgAAAAAAAAAAAAAAAAAAAAQAAwQC8zMwAAAAAAAAAAAAAAAAAMAAAAqAAAALQAAAAAAAAAAwAAAEAAMEBTuAAAAAC5AAAAAA+iuENMUlNbwwEBAQABMAAAAAAAABQAAAAAAAAAAAAAAAAAAAADAAQAAAAAAAAAAwAIAAAAAQAAAAMAAAAAADAAAAAAAAAAAQAgAAIAAAAAABIAAAAAAAAAAgAAAAMAWgAAAC50ZXh0JGNscm9zc20ALnhkYXRhJGNscm9zc20ALnBkYXRhJGNscm9zc20AQ0xST1NfWDY0X1NlcmlhbGl6ZUluc3RydWN0aW9uUHVibGljYXRpb24A";
-    private const string EmptySha256 =
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-    private const string AnalyzerClosureSha256 =
-        "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
+    private const string SerializerSymbol = "CLROS_X64_SerializeInstructionPublication";
+    private const string ToolDirectoryBuildPropsPath = "tools/Directory.Build.props";
+    private const string SerializerBytesSha256 = OS.Tooling.EfiContracts.SerializerBytesSha256;
+    private const string SerializerObjectSha256 = OS.Tooling.EfiContracts.SerializerObjectSha256;
+    private const string SerializerObjectBase64 = "ZIYDAAAAAADSAAAAAgAAAAAAAAAvNAAAAAAAAAAAAAAAAAAAFAAAAIwAAAAAAAAAAAAAAAAAAAAgAFBgLzE4AAAAAAAAAAAAAAAAAAgAAACgAAAAAAAAAAAAAAAAAAAAQAAwQC8zMwAAAAAAAAAAAAAAAAAMAAAAqAAAALQAAAAAAAAAAwAAAEAAMEBTuAAAAAC5AAAAAA+iuENMUlNbwwEBAQABMAAAAAAAABQAAAAAAAAAAAAAAAAAAAADAAQAAAAAAAAAAwAIAAAAAQAAAAMAAAAAADAAAAAAAAAAAQAgAAIAAAAAABIAAAAAAAAAAgAAAAMAWgAAAC50ZXh0JGNscm9zc20ALnhkYXRhJGNscm9zc20ALnBkYXRhJGNscm9zc20AQ0xST1NfWDY0X1NlcmlhbGl6ZUluc3RydWN0aW9uUHVibGljYXRpb24A";
+    private const string EmptySha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    private const string AnalyzerClosureSha256 = "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
     private static readonly object SchemaThreeFixtureLock = new();
-    private static readonly string SchemaThreeFixtureRepositoryRoot =
-        Path.Combine(
-            Path.GetTempPath(),
-            "clros-efi-schema3-repository-" +
-                Guid.NewGuid().ToString("N"));
+    private static readonly string SchemaThreeFixtureRepositoryRoot = Path.Combine(Path.GetTempPath(), "clros-efi-schema3-repository-" + Guid.NewGuid().ToString("N"));
     private static string? cachedDotnetHostPath;
     private static string? cachedDotnetSdkVersion;
     private static SchemaThreeFixture? cachedSchemaThreeFixture;
-
-    private static readonly byte[] ExpectedSerializerBytes =
-    [
-        0x53,
-        0xB8, 0x00, 0x00, 0x00, 0x00,
-        0xB9, 0x00, 0x00, 0x00, 0x00,
-        0x0F, 0xA2,
-        0xB8, 0x43, 0x4C, 0x52, 0x53,
-        0x5B,
-        0xC3
-    ];
-
-    private static readonly byte[] ExpectedUnwindBytes =
-    [
-        0x01, 0x01, 0x01, 0x00,
-        0x01, 0x30, 0x00, 0x00
-    ];
-
+    private static readonly byte[] ExpectedSerializerBytes = [0x53, 0xB8, 0x00, 0x00, 0x00, 0x00, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x0F, 0xA2, 0xB8, 0x43, 0x4C, 0x52, 0x53, 0x5B, 0xC3];
+    private static readonly byte[] ExpectedUnwindBytes = [0x01, 0x01, 0x01, 0x00, 0x01, 0x30, 0x00, 0x00];
     private static readonly RestoreArchiveDescriptor[] ExpectedRestoreArchives = OS.Tooling.EfiContracts.RestoreArchives.Select(a => new RestoreArchiveDescriptor(a.Id, a.Version, a.FileName, a.Sha256)).ToArray();
-
     private static readonly PackageDescriptor[] ExpectedPackages = OS.Tooling.EfiContracts.ConsumedPackageTrees.Select(p => new PackageDescriptor(p.Id, p.Version, p.RootKind, p.ContentHashSha512, p.FileCount, p.TotalBytes, p.AggregateSha256)).ToArray();
-
     private static readonly string[] PackageBuildClosurePaths = OS.Tooling.EfiContracts.PackageBuildClosure.Select(p => p.Path).ToArray();
-
     private static readonly string[] ActivePackageImportEdges = OS.Tooling.EfiContracts.ActivePackageImportEdges.ToArray();
-
     private static readonly string[] PackageTaskBindings = OS.Tooling.EfiContracts.PackageTaskBindings.ToArray();
-
     [HostTest("EFI verifier fixture profile properties cover the current project", HostLane.Fast)]
     private static void FixtureProfileProperties()
     {
@@ -91,15 +59,11 @@ internal static class EfiArtifactVerificationScriptTests
         var fixture = BuildPostRestoreEvaluationFixture(root, root, root, root);
         var properties = (Dictionary<string, string>)fixture["properties"]!;
         var project = System.Xml.Linq.XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
-        string[] declared = project.Descendants().Where(element => element.Name.LocalName.StartsWith("Enable", StringComparison.Ordinal) && element.Name.LocalName.EndsWith("Probe", StringComparison.Ordinal))
-            .Select(element => element.Name.LocalName)
-            // These legacy optional properties are inherited instead of declared with defaults.
-            .Concat(OS.Tooling.EfiContracts.InheritedDiagnosticProbes)
-            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        string[] declared = project.Descendants().Where(element => element.Name.LocalName.StartsWith("Enable", StringComparison.Ordinal) && element.Name.LocalName.EndsWith("Probe", StringComparison.Ordinal)).Select(element => element.Name.LocalName)// These legacy optional properties are inherited instead of declared with defaults.
+        .Concat(OS.Tooling.EfiContracts.InheritedDiagnosticProbes).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         HostCheck.True(declared.SequenceEqual(properties.Keys.Where(name => name.StartsWith("Enable", StringComparison.Ordinal) && name.EndsWith("Probe", StringComparison.Ordinal)).Order(StringComparer.Ordinal)));
         HostCheck.True(declared.All(name => properties[name] == "false"), "fixture default probe isolation");
-        string[] expectedCompileItems = EfiProjectAdmission.ExpectedCompileItems(
-            EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()));
+        string[] expectedCompileItems = EfiProjectAdmission.ExpectedCompileItems(EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()));
         HostCheck.Equal(expectedCompileItems.Length, (int)fixture["compileCount"]!);
         HostCheck.Equal(EfiEvidence.HashLines(expectedCompileItems), (string)fixture["compileSha256"]!);
         HostCheck.Equal("Diagnostic", properties["ClrosBootPolicy"]);
@@ -109,101 +73,32 @@ internal static class EfiArtifactVerificationScriptTests
     internal static void Run()
     {
         int failures = 0;
-        string tempRoot = Path.Combine(
-            Path.GetTempPath(),
-            "clros-efi-artifact-verifier-tests-" + Guid.NewGuid().ToString("N"));
-
+        string tempRoot = Path.Combine(Path.GetTempPath(), "clros-efi-artifact-verifier-tests-" + Guid.NewGuid().ToString("N"));
         try
         {
             Directory.CreateDirectory(tempRoot);
-            Run(
-                "efi artifact verifier enforces exact SDK identity",
-                () => TestSdkExactVersion(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier preserves literal path and reparse admission",
-                () => TestReparsePathHelper(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier accepts linked serializer PE, map, object, and unwind evidence",
-                () => TestValidArtifactPasses(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier implies the M02-013 owned-COM1 chain from one switch",
-                () => TestM02Ud2VectorStateSingleSwitchImplication(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects missing and truncated inputs",
-                () => TestMissingAndTruncatedArtifactsFail(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects non-x64 and non-PE32+ headers",
-                () => TestMachineAndFormatFailures(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects non-EFI and zero entrypoint headers",
-                () => TestSubsystemAndEntrypointFailures(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects non-executable and virtual-only entrypoints",
-                () => TestEntrypointSectionFailures(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects ordinary runtime import directories",
-                () => TestImportDirectoriesFail(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects missing EfiMain source contract",
-                () => TestEfiMainContractFailure(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects a synthetic RET-only entrypoint",
-                () => TestTrivialEntrypointFails(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects overflowing and out-of-image PE ranges",
-                () => TestPeLayoutBoundaryFailures(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects malformed exception-directory contracts",
-                () => TestExceptionDirectoryFailures(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects invalid runtime-function tables",
-                () => TestRuntimeFunctionFailures(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects mutable, misaligned, and non-file-backed serializer text",
-                () => TestSerializerTextFailures(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects malformed or mutable serializer unwind data",
-                () => TestSerializerUnwindFailures(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects missing, duplicate, and fallback serializer link bindings",
-                () => TestSerializerLinkAssociationFailures(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects missing, stale, and malformed schema-three evidence",
-                () => TestLinkEvidenceFailures(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier rejects unauthorized restore and package authority",
-                () => TestSchemaThreeAuthorityFailures(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier pins project and entry source authority",
-                () => TestPinnedRepositoryContractPaths(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier isolates bounded external evaluation",
-                () => TestBoundedExternalEvaluationRunner(tempRoot),
-                ref failures);
-            Run(
-                "efi artifact verifier bounds response and runtime parsing",
-                () => TestParserCapacityBounds(tempRoot),
-                ref failures);
+            Run("efi artifact verifier enforces exact SDK identity", () => TestSdkExactVersion(tempRoot), ref failures);
+            Run("efi artifact verifier preserves literal path and reparse admission", () => TestReparsePathHelper(tempRoot), ref failures);
+            Run("efi artifact verifier accepts linked serializer PE, map, object, and unwind evidence", () => TestValidArtifactPasses(tempRoot), ref failures);
+            Run("efi artifact verifier implies the M02-013 owned-COM1 chain from one switch", () => TestM02Ud2VectorStateSingleSwitchImplication(tempRoot), ref failures);
+            Run("efi artifact verifier rejects missing and truncated inputs", () => TestMissingAndTruncatedArtifactsFail(tempRoot), ref failures);
+            Run("efi artifact verifier rejects non-x64 and non-PE32+ headers", () => TestMachineAndFormatFailures(tempRoot), ref failures);
+            Run("efi artifact verifier rejects non-EFI and zero entrypoint headers", () => TestSubsystemAndEntrypointFailures(tempRoot), ref failures);
+            Run("efi artifact verifier rejects non-executable and virtual-only entrypoints", () => TestEntrypointSectionFailures(tempRoot), ref failures);
+            Run("efi artifact verifier rejects ordinary runtime import directories", () => TestImportDirectoriesFail(tempRoot), ref failures);
+            Run("efi artifact verifier rejects missing EfiMain source contract", () => TestEfiMainContractFailure(tempRoot), ref failures);
+            Run("efi artifact verifier rejects a synthetic RET-only entrypoint", () => TestTrivialEntrypointFails(tempRoot), ref failures);
+            Run("efi artifact verifier rejects overflowing and out-of-image PE ranges", () => TestPeLayoutBoundaryFailures(tempRoot), ref failures);
+            Run("efi artifact verifier rejects malformed exception-directory contracts", () => TestExceptionDirectoryFailures(tempRoot), ref failures);
+            Run("efi artifact verifier rejects invalid runtime-function tables", () => TestRuntimeFunctionFailures(tempRoot), ref failures);
+            Run("efi artifact verifier rejects mutable, misaligned, and non-file-backed serializer text", () => TestSerializerTextFailures(tempRoot), ref failures);
+            Run("efi artifact verifier rejects malformed or mutable serializer unwind data", () => TestSerializerUnwindFailures(tempRoot), ref failures);
+            Run("efi artifact verifier rejects missing, duplicate, and fallback serializer link bindings", () => TestSerializerLinkAssociationFailures(tempRoot), ref failures);
+            Run("efi artifact verifier rejects missing, stale, and malformed schema-three evidence", () => TestLinkEvidenceFailures(tempRoot), ref failures);
+            Run("efi artifact verifier rejects unauthorized restore and package authority", () => TestSchemaThreeAuthorityFailures(tempRoot), ref failures);
+            Run("efi artifact verifier pins project and entry source authority", () => TestPinnedRepositoryContractPaths(tempRoot), ref failures);
+            Run("efi artifact verifier isolates bounded external evaluation", () => TestBoundedExternalEvaluationRunner(tempRoot), ref failures);
+            Run("efi artifact verifier bounds response and runtime parsing", () => TestParserCapacityBounds(tempRoot), ref failures);
         }
         finally
         {
@@ -218,19 +113,18 @@ internal static class EfiArtifactVerificationScriptTests
             {
                 // Cleanup failure must not conceal verifier contract results.
             }
+
             DeleteSchemaThreeFixture();
         }
 
         if (failures != 0)
         {
-            throw new InvalidOperationException(
-                "EFI artifact verification script tests failed: " + failures);
+            throw new InvalidOperationException("EFI artifact verification script tests failed: " + failures);
         }
     }
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-
         HostCheck.Run("" + name, test, ref failures);
     }
 
@@ -238,54 +132,8 @@ internal static class EfiArtifactVerificationScriptTests
     {
         string artifact = WriteFixture(tempRoot, "valid artifact with spaces", CreateValidPe());
         LinkEvidencePaths paths = WriteLinkEvidence(artifact);
-        ProcessResult result = RunVerifier(
-            artifact,
-            serializerObjectPath: paths.ObjectPath);
-
-        bool passed = result.ExitCode == 0
-            && !result.TimedOut
-            && result.Output.Contains(
-                "TEST_START efi.artifact.verify",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "EFI_ARTIFACT_PE format=PE32+ machine=0x8664 subsystem=10 entryRva=0x00001000 entrySection=.text",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "EFI_ARTIFACT_IMPORTS import=absent bound-import=absent iat=absent delay-import=absent",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "EFI_ARTIFACT_ENTRY_CONTRACT symbol=EfiMain managedSymbol=OS_OS_Boot_EfiEntry__EfiMain association=same-build-linker-map rva=0x00001000",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "EFI_ARTIFACT_EXCEPTION_DIRECTORY section=.pdata rva=0x00002000 size=12 records=1",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "EFI_ARTIFACT_RUNTIME_SCAN records=1 distinctUnwind=1 elapsedMs=",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "maximumRecords=" + MaximumRuntimeFunctionRecords.ToString(CultureInfo.InvariantCulture),
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "EFI_ARTIFACT_SERIALIZER symbol=CLROS_X64_SerializeInstructionPublication section=.text rva=0x00001100 size=20 unwindRva=0x00003000 sha256=" +
-                SerializerBytesSha256,
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "expectedCookie=0x53524c43",
-                StringComparison.Ordinal)
-            && !result.Output.Contains(
-                " cookie=0x53524c43",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "EFI_ARTIFACT_SERIALIZER_OBJECT path=",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "bytes=336 sha256=" + SerializerObjectSha256,
-                StringComparison.Ordinal)
-            && result.Output.Contains("EFI_ARTIFACT_LINK_MAP path=", StringComparison.Ordinal)
-            && result.Output.Contains("EFI_ARTIFACT_LINK_RESPONSE path=", StringComparison.Ordinal)
-            && result.Output.Contains("EFI_ARTIFACT_SHA256 ", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal)
-            && !result.Output.Contains("TEST_FAIL efi.artifact.verify", StringComparison.Ordinal);
+        ProcessResult result = RunVerifier(artifact, serializerObjectPath: paths.ObjectPath);
+        bool passed = result.ExitCode == 0 && !result.TimedOut && result.Output.Contains("TEST_START efi.artifact.verify", StringComparison.Ordinal) && result.Output.Contains("EFI_ARTIFACT_PE format=PE32+ machine=0x8664 subsystem=10 entryRva=0x00001000 entrySection=.text", StringComparison.Ordinal) && result.Output.Contains("EFI_ARTIFACT_IMPORTS import=absent bound-import=absent iat=absent delay-import=absent", StringComparison.Ordinal) && result.Output.Contains("EFI_ARTIFACT_ENTRY_CONTRACT symbol=EfiMain managedSymbol=OS_OS_Boot_EfiEntry__EfiMain association=same-build-linker-map rva=0x00001000", StringComparison.Ordinal) && result.Output.Contains("EFI_ARTIFACT_EXCEPTION_DIRECTORY section=.pdata rva=0x00002000 size=12 records=1", StringComparison.Ordinal) && result.Output.Contains("EFI_ARTIFACT_RUNTIME_SCAN records=1 distinctUnwind=1 elapsedMs=", StringComparison.Ordinal) && result.Output.Contains("maximumRecords=" + MaximumRuntimeFunctionRecords.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal) && result.Output.Contains("EFI_ARTIFACT_SERIALIZER symbol=CLROS_X64_SerializeInstructionPublication section=.text rva=0x00001100 size=20 unwindRva=0x00003000 sha256=" + SerializerBytesSha256, StringComparison.Ordinal) && result.Output.Contains("expectedCookie=0x53524c43", StringComparison.Ordinal) && !result.Output.Contains(" cookie=0x53524c43", StringComparison.Ordinal) && result.Output.Contains("EFI_ARTIFACT_SERIALIZER_OBJECT path=", StringComparison.Ordinal) && result.Output.Contains("bytes=336 sha256=" + SerializerObjectSha256, StringComparison.Ordinal) && result.Output.Contains("EFI_ARTIFACT_LINK_MAP path=", StringComparison.Ordinal) && result.Output.Contains("EFI_ARTIFACT_LINK_RESPONSE path=", StringComparison.Ordinal) && result.Output.Contains("EFI_ARTIFACT_SHA256 ", StringComparison.Ordinal) && result.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal) && !result.Output.Contains("TEST_FAIL efi.artifact.verify", StringComparison.Ordinal);
         if (!passed)
         {
             WriteFixtureDiagnostic("valid", result);
@@ -294,19 +142,13 @@ internal static class EfiArtifactVerificationScriptTests
         return passed;
     }
 
-    internal static bool TestM02Ud2VectorStateSingleSwitchImplication(
-        string tempRoot)
+    internal static bool TestM02Ud2VectorStateSingleSwitchImplication(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "m02 ud2 vector state artifact",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "m02 ud2 vector state artifact", CreateValidPe());
         LinkEvidencePaths paths = WriteLinkEvidence(artifact);
         string evidencePath = artifact + ".link.json";
-        JsonObject evidence = JsonNode.Parse(File.ReadAllText(evidencePath))!
-            .AsObject();
-        JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!
-            .AsObject();
+        JsonObject evidence = JsonNode.Parse(File.ReadAllText(evidencePath))!.AsObject();
+        JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
         properties["EnableM02OwnedCom1ReadyProbe"] = "true";
         properties["EnableM02PanicSafeOwnedCom1Probe"] = "true";
         properties["EnableM02Ud2VectorStateProbe"] = "true";
@@ -316,71 +158,16 @@ internal static class EfiArtifactVerificationScriptTests
         properties["EnableM02SafeStubProbe"] = "true";
         properties["EnableM02CheckedPortIoBindingProbe"] = "true";
         properties["EnableM02Com1OwnedPortIoProbe"] = "true";
-        File.WriteAllText(
-            evidencePath,
-            evidence.ToJsonString(new JsonSerializerOptions
-            {
-                WriteIndented = true
-            }));
-
-        ProcessResult enabled = RunVerifier(
-            artifact,
-            serializerObjectPath: paths.ObjectPath,
-            additionalArguments: ["-EnableM02Ud2VectorStateProbe"]);
-        ProcessResult ownedX64GdtConflict = RunVerifier(
-            artifact,
-            serializerObjectPath: paths.ObjectPath,
-            additionalArguments:
-            [
-                "-EnableM02Ud2VectorStateProbe",
-                "-EnableM02OwnedX64GdtEncodingProbe"
-            ]);
-        ProcessResult guardedIstConflict = RunVerifier(
-            artifact,
-            serializerObjectPath: paths.ObjectPath,
-            additionalArguments:
-            [
-                "-EnableM02Ud2VectorStateProbe",
-                "-EnableM02GuardedIstStackAllocationProbe"
-            ]);
-        ProcessResult m04Conflict = RunVerifier(
-            artifact,
-            serializerObjectPath: paths.ObjectPath,
-            additionalArguments:
-            [
-                "-EnableM02Ud2VectorStateProbe",
-                "-EnableM04IndependentEndianConformanceProbe",
-                "-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"
-            ]);
+        File.WriteAllText(evidencePath, evidence.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+        ProcessResult enabled = RunVerifier(artifact, serializerObjectPath: paths.ObjectPath, additionalArguments: ["-EnableM02Ud2VectorStateProbe"]);
+        ProcessResult ownedX64GdtConflict = RunVerifier(artifact, serializerObjectPath: paths.ObjectPath, additionalArguments: ["-EnableM02Ud2VectorStateProbe", "-EnableM02OwnedX64GdtEncodingProbe"]);
+        ProcessResult guardedIstConflict = RunVerifier(artifact, serializerObjectPath: paths.ObjectPath, additionalArguments: ["-EnableM02Ud2VectorStateProbe", "-EnableM02GuardedIstStackAllocationProbe"]);
+        ProcessResult m04Conflict = RunVerifier(artifact, serializerObjectPath: paths.ObjectPath, additionalArguments: ["-EnableM02Ud2VectorStateProbe", "-EnableM04IndependentEndianConformanceProbe", "-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"]);
         ProcessResult explicitFalse = RunVerifier(artifact, additionalArguments: ["-EnableM02Ud2VectorStateProbe", "-EnableM01LoadedImageStackProbe:false"]);
-
-        bool passed = enabled.ExitCode == 0
-            && enabled.Output.Contains(
-                "EFI_ARTIFACT_M02_UD2_VECTOR_STATE_IMPLICATION status=ok m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true ownedCom1Ready=true panicSafeOwnedCom1=true",
-                StringComparison.Ordinal)
-            && enabled.Output.Contains(
-                "TEST_PASS efi.artifact.verify",
-                StringComparison.Ordinal)
-            && FailedWith(
-                ownedX64GdtConflict,
-                "m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe")
-            && FailedWith(
-                guardedIstConflict,
-                "m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe")
-            && m04Conflict.ExitCode != 0
-            && m04Conflict.Output.Contains(
-                "m04_span_memory_conformance_forbids_m02_ud2_vector_state",
-                StringComparison.Ordinal)
-            && FailedWith(explicitFalse,
-                "m02_ud2_vector_state_probe_explicit_false_prerequisite");
+        bool passed = enabled.ExitCode == 0 && enabled.Output.Contains("EFI_ARTIFACT_M02_UD2_VECTOR_STATE_IMPLICATION status=ok m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true ownedCom1Ready=true panicSafeOwnedCom1=true", StringComparison.Ordinal) && enabled.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal) && FailedWith(ownedX64GdtConflict, "m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe") && FailedWith(guardedIstConflict, "m02_ud2_vector_state_probe_forbids_guarded_ist_stack_allocation_probe") && m04Conflict.ExitCode != 0 && m04Conflict.Output.Contains("m04_span_memory_conformance_forbids_m02_ud2_vector_state", StringComparison.Ordinal) && FailedWith(explicitFalse, "m02_ud2_vector_state_probe_explicit_false_prerequisite");
         if (!passed)
         {
-            Console.WriteLine(
-                "M02-013 artifact implication outputs:\n"
-                + enabled.Output
-                + ownedX64GdtConflict.Output
-                + guardedIstConflict.Output
-                + m04Conflict.Output);
+            Console.WriteLine("M02-013 artifact implication outputs:\n" + enabled.Output + ownedX64GdtConflict.Output + guardedIstConflict.Output + m04Conflict.Output);
         }
 
         return passed;
@@ -390,120 +177,75 @@ internal static class EfiArtifactVerificationScriptTests
     {
         string missing = Path.Combine(tempRoot, "missing", "BOOTX64.EFI");
         ProcessResult missingResult = RunVerifier(missing);
-
         string empty = WriteFixture(tempRoot, "empty", []);
         ProcessResult emptyResult = RunPeFixtureVerifier(empty);
-
         string truncated = WriteFixture(tempRoot, "truncated", [0x4d, 0x5a]);
         ProcessResult truncatedResult = RunPeFixtureVerifier(truncated);
-
-        return FailedWith(missingResult, "missing_artifact")
-            && FailedWith(emptyResult, "empty_artifact")
-            && FailedWith(truncatedResult, "truncated_dos_header");
+        return FailedWith(missingResult, "missing_artifact") && FailedWith(emptyResult, "empty_artifact") && FailedWith(truncatedResult, "truncated_dos_header");
     }
 
     private static bool TestMachineAndFormatFailures(string tempRoot)
     {
         byte[] wrongMachine = CreateValidPe();
         WriteUInt16(wrongMachine, PeOffset + 4, 0x014c);
-        ProcessResult machineResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "wrong-machine", wrongMachine));
-
+        ProcessResult machineResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "wrong-machine", wrongMachine));
         byte[] pe32 = CreateValidPe();
         WriteUInt16(pe32, OptionalHeaderOffset, 0x010b);
-        ProcessResult formatResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "wrong-format", pe32));
-
-        return FailedWith(machineResult, "machine_not_x64")
-            && machineResult.Output.Contains("actual=0x014c", StringComparison.Ordinal)
-            && FailedWith(formatResult, "format_not_pe32_plus")
-            && formatResult.Output.Contains("actual=0x010b", StringComparison.Ordinal);
+        ProcessResult formatResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "wrong-format", pe32));
+        return FailedWith(machineResult, "machine_not_x64") && machineResult.Output.Contains("actual=0x014c", StringComparison.Ordinal) && FailedWith(formatResult, "format_not_pe32_plus") && formatResult.Output.Contains("actual=0x010b", StringComparison.Ordinal);
     }
 
     private static bool TestSubsystemAndEntrypointFailures(string tempRoot)
     {
         byte[] wrongSubsystem = CreateValidPe();
         WriteUInt16(wrongSubsystem, OptionalHeaderOffset + 68, 3);
-        ProcessResult subsystemResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "wrong-subsystem", wrongSubsystem));
-
+        ProcessResult subsystemResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "wrong-subsystem", wrongSubsystem));
         byte[] zeroEntrypoint = CreateValidPe();
         WriteUInt32(zeroEntrypoint, OptionalHeaderOffset + 16, 0);
-        ProcessResult entrypointResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "zero-entrypoint", zeroEntrypoint));
-
+        ProcessResult entrypointResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "zero-entrypoint", zeroEntrypoint));
         byte[] zeroImage = CreateValidPe();
         WriteUInt32(zeroImage, OptionalHeaderOffset + 56, 0);
-        ProcessResult imageResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "zero-size-of-image", zeroImage));
-
-        return FailedWith(subsystemResult, "subsystem_not_efi_application")
-            && FailedWith(entrypointResult, "entrypoint_zero")
-            && FailedWith(imageResult, "size_of_image_zero");
+        ProcessResult imageResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "zero-size-of-image", zeroImage));
+        return FailedWith(subsystemResult, "subsystem_not_efi_application") && FailedWith(entrypointResult, "entrypoint_zero") && FailedWith(imageResult, "size_of_image_zero");
     }
 
     private static bool TestEntrypointSectionFailures(string tempRoot)
     {
         byte[] notExecutable = CreateValidPe();
         WriteUInt32(notExecutable, TextSectionHeaderOffset + 36, 0x40000020);
-        ProcessResult executableResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "non-executable-entry", notExecutable));
-
+        ProcessResult executableResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "non-executable-entry", notExecutable));
         byte[] virtualOnly = CreateValidPe();
         WriteUInt32(virtualOnly, OptionalHeaderOffset + 16, 0x1200);
         WriteUInt32(virtualOnly, TextSectionHeaderOffset + 8, 0x300);
-        ProcessResult fileBackedResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "virtual-only-entry", virtualOnly));
-
-        return FailedWith(executableResult, "entrypoint_section_not_executable")
-            && FailedWith(fileBackedResult, "entrypoint_not_file_backed");
+        ProcessResult fileBackedResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "virtual-only-entry", virtualOnly));
+        return FailedWith(executableResult, "entrypoint_section_not_executable") && FailedWith(fileBackedResult, "entrypoint_not_file_backed");
     }
 
     private static bool TestImportDirectoriesFail(string tempRoot)
     {
         byte[] importTable = CreateValidPe();
         WriteDataDirectory(importTable, 1, 0x1180, 20);
-        ProcessResult importResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "ordinary-import", importTable));
-
+        ProcessResult importResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "ordinary-import", importTable));
         byte[] delayImport = CreateValidPe();
         WriteDataDirectory(delayImport, 13, 0x11a0, 32);
-        ProcessResult delayResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "delay-import", delayImport));
-
+        ProcessResult delayResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "delay-import", delayImport));
         byte[] malformedImport = CreateValidPe();
         WriteDataDirectory(malformedImport, 1, 0x1180, 0);
-        ProcessResult malformedResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "malformed-import", malformedImport));
-
-        return FailedWith(importResult, "ordinary_runtime_imports_present")
-            && importResult.Output.Contains("directory=import", StringComparison.Ordinal)
-            && FailedWith(delayResult, "ordinary_runtime_imports_present")
-            && delayResult.Output.Contains("directory=delay-import", StringComparison.Ordinal)
-            && FailedWith(malformedResult, "malformed_import_directory");
+        ProcessResult malformedResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "malformed-import", malformedImport));
+        return FailedWith(importResult, "ordinary_runtime_imports_present") && importResult.Output.Contains("directory=import", StringComparison.Ordinal) && FailedWith(delayResult, "ordinary_runtime_imports_present") && delayResult.Output.Contains("directory=delay-import", StringComparison.Ordinal) && FailedWith(malformedResult, "malformed_import_directory");
     }
 
     private static bool TestEfiMainContractFailure(string tempRoot)
     {
         string artifact = WriteFixture(tempRoot, "contract-artifact", CreateValidPe());
         WriteLinkEvidence(artifact);
-        SchemaThreeFixture fixture = cachedSchemaThreeFixture
-            ?? throw new InvalidOperationException(
-                "Schema-three fixture was not initialized.");
-        string sourcePath = Path.Combine(
-            fixture.RepositoryRoot,
-            "src",
-            "OS",
-            "Boot",
-            "EfiEntry.cs");
+        SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+        string sourcePath = Path.Combine(fixture.RepositoryRoot, "src", "OS", "Boot", "EfiEntry.cs");
         byte[] originalSource = File.ReadAllBytes(sourcePath);
         ProcessResult result;
         try
         {
-            File.WriteAllText(
-                sourcePath,
-                "internal static class NoEfiMain { }",
-                new UTF8Encoding(false));
+            File.WriteAllText(sourcePath, "internal static class NoEfiMain { }", new UTF8Encoding(false));
             result = RunVerifier(artifact);
         }
         finally
@@ -511,10 +253,7 @@ internal static class EfiArtifactVerificationScriptTests
             File.WriteAllBytes(sourcePath, originalSource);
         }
 
-        return FailedWith(result, "efimain_source_contract_missing")
-            && !result.Output.Contains(
-                "EFI_ARTIFACT_SERIALIZER",
-                StringComparison.Ordinal);
+        return FailedWith(result, "efimain_source_contract_missing") && !result.Output.Contains("EFI_ARTIFACT_SERIALIZER", StringComparison.Ordinal);
     }
 
     private static bool TestTrivialEntrypointFails(string tempRoot)
@@ -522,1159 +261,354 @@ internal static class EfiArtifactVerificationScriptTests
         byte[] trivial = CreateValidPe();
         trivial[TextRawOffset] = 0xc3;
         string artifact = WriteFixture(tempRoot, "ret-only-entrypoint", trivial);
-
         ProcessResult result = RunPeFixtureVerifier(artifact);
-        return FailedWith(result, "entrypoint_trivial_stub")
-            && result.Output.Contains("byte=0xc3", StringComparison.Ordinal)
-            && !result.Output.Contains(
-                "EFI_ARTIFACT_ENTRY_CONTRACT",
-                StringComparison.Ordinal);
+        return FailedWith(result, "entrypoint_trivial_stub") && result.Output.Contains("byte=0xc3", StringComparison.Ordinal) && !result.Output.Contains("EFI_ARTIFACT_ENTRY_CONTRACT", StringComparison.Ordinal);
     }
 
     private static bool TestPeLayoutBoundaryFailures(string tempRoot)
     {
         byte[] oversizedPeOffset = CreateValidPe();
         WriteUInt32(oversizedPeOffset, 0x3c, uint.MaxValue);
-        ProcessResult oversizedPeOffsetResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "pe-offset-overflow", oversizedPeOffset));
-
+        ProcessResult oversizedPeOffsetResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "pe-offset-overflow", oversizedPeOffset));
         byte[] undersizedHeaders = CreateValidPe();
         WriteUInt32(undersizedHeaders, OptionalHeaderOffset + 60, 0x180);
-        ProcessResult undersizedHeadersResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "section-table-outside-headers", undersizedHeaders));
-
+        ProcessResult undersizedHeadersResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "section-table-outside-headers", undersizedHeaders));
         byte[] rawHeaderOverlap = CreateValidPe();
         WriteUInt32(rawHeaderOverlap, TextSectionHeaderOffset + 20, 0x100);
-        ProcessResult rawHeaderOverlapResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "section-raw-header-overlap", rawHeaderOverlap));
-
+        ProcessResult rawHeaderOverlapResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "section-raw-header-overlap", rawHeaderOverlap));
         byte[] rawOffsetOverflow = CreateValidPe();
         WriteUInt32(rawOffsetOverflow, TextSectionHeaderOffset + 20, uint.MaxValue);
-        ProcessResult rawOffsetOverflowResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "section-raw-offset-overflow", rawOffsetOverflow));
-
+        ProcessResult rawOffsetOverflowResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "section-raw-offset-overflow", rawOffsetOverflow));
         byte[] virtualOverflow = CreateValidPe();
-        WriteUInt32(
-            virtualOverflow,
-            TextSectionHeaderOffset + 12,
-            0xfffffff0);
-        ProcessResult virtualOverflowResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "section-virtual-overflow", virtualOverflow));
-
+        WriteUInt32(virtualOverflow, TextSectionHeaderOffset + 12, 0xfffffff0);
+        ProcessResult virtualOverflowResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "section-virtual-overflow", virtualOverflow));
         byte[] sectionOutOfImage = CreateValidPe();
-        WriteUInt32(
-            sectionOutOfImage,
-            XdataSectionHeaderOffset + 12,
-            0x4000);
-        ProcessResult sectionOutOfImageResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "section-out-of-image", sectionOutOfImage));
-
+        WriteUInt32(sectionOutOfImage, XdataSectionHeaderOffset + 12, 0x4000);
+        ProcessResult sectionOutOfImageResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "section-out-of-image", sectionOutOfImage));
         byte[] imageBaseOverflow = CreateValidPe();
-        WriteUInt64(
-            imageBaseOverflow,
-            OptionalHeaderOffset + 24,
-            ulong.MaxValue - 0x100);
-        ProcessResult imageBaseOverflowResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "image-base-overflow", imageBaseOverflow));
-
+        WriteUInt64(imageBaseOverflow, OptionalHeaderOffset + 24, ulong.MaxValue - 0x100);
+        ProcessResult imageBaseOverflowResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "image-base-overflow", imageBaseOverflow));
         byte[] rawOnlyEntrypoint = CreateValidPe();
-        WriteUInt32(
-            rawOnlyEntrypoint,
-            OptionalHeaderOffset + 16,
-            TextRva + 0x180);
-        WriteUInt32(
-            rawOnlyEntrypoint,
-            TextSectionHeaderOffset + 8,
-            0x100);
-        ProcessResult rawOnlyEntrypointResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "entrypoint-raw-only", rawOnlyEntrypoint));
-
+        WriteUInt32(rawOnlyEntrypoint, OptionalHeaderOffset + 16, TextRva + 0x180);
+        WriteUInt32(rawOnlyEntrypoint, TextSectionHeaderOffset + 8, 0x100);
+        ProcessResult rawOnlyEntrypointResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "entrypoint-raw-only", rawOnlyEntrypoint));
         byte[] exceptionOutOfImage = CreateValidPe();
         WriteDataDirectory(exceptionOutOfImage, 3, 0x3ffc, 12);
-        ProcessResult exceptionOutOfImageResult = RunPeFixtureVerifier(
-            WriteFixture(tempRoot, "exception-directory-out-of-image", exceptionOutOfImage));
-
-        return FailedWith(oversizedPeOffsetResult, "truncated_pe_header")
-            && FailedWith(
-                undersizedHeadersResult,
-                "section_table_outside_headers")
-            && FailedWith(
-                rawHeaderOverlapResult,
-                "section_raw_range_overlaps_headers")
-            && FailedWith(
-                rawOffsetOverflowResult,
-                "section_raw_data_out_of_range")
-            && FailedWith(
-                virtualOverflowResult,
-                "section_virtual_range_overflow")
-            && FailedWith(
-                sectionOutOfImageResult,
-                "section_virtual_range_out_of_image")
-            && FailedWith(
-                imageBaseOverflowResult,
-                "image_virtual_range_overflow")
-            && FailedWith(
-                rawOnlyEntrypointResult,
-                "entrypoint_outside_sections")
-            && FailedWith(
-                exceptionOutOfImageResult,
-                "exception_directory_out_of_image");
+        ProcessResult exceptionOutOfImageResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "exception-directory-out-of-image", exceptionOutOfImage));
+        return FailedWith(oversizedPeOffsetResult, "truncated_pe_header") && FailedWith(undersizedHeadersResult, "section_table_outside_headers") && FailedWith(rawHeaderOverlapResult, "section_raw_range_overlaps_headers") && FailedWith(rawOffsetOverflowResult, "section_raw_data_out_of_range") && FailedWith(virtualOverflowResult, "section_virtual_range_overflow") && FailedWith(sectionOutOfImageResult, "section_virtual_range_out_of_image") && FailedWith(imageBaseOverflowResult, "image_virtual_range_overflow") && FailedWith(rawOnlyEntrypointResult, "entrypoint_outside_sections") && FailedWith(exceptionOutOfImageResult, "exception_directory_out_of_image");
     }
 
     private static bool TestExceptionDirectoryFailures(string tempRoot)
     {
         byte[] missingEntry = CreateValidPe();
         WriteUInt32(missingEntry, OptionalHeaderOffset + 108, 3);
-        ProcessResult missingResult = RunFixtureWithEvidence(
-            tempRoot,
-            "exception-directory-missing",
-            missingEntry);
-
+        ProcessResult missingResult = RunFixtureWithEvidence(tempRoot, "exception-directory-missing", missingEntry);
         byte[] zeroRva = CreateValidPe();
         WriteDataDirectory(zeroRva, 3, 0, 12);
-        ProcessResult zeroResult = RunFixtureWithEvidence(
-            tempRoot,
-            "exception-directory-zero",
-            zeroRva);
-
+        ProcessResult zeroResult = RunFixtureWithEvidence(tempRoot, "exception-directory-zero", zeroRva);
         byte[] zeroSize = CreateValidPe();
         WriteDataDirectory(zeroSize, 3, PdataRva, 0);
-        ProcessResult zeroSizeResult = RunFixtureWithEvidence(
-            tempRoot,
-            "exception-directory-zero-size",
-            zeroSize);
-
+        ProcessResult zeroSizeResult = RunFixtureWithEvidence(tempRoot, "exception-directory-zero-size", zeroSize);
         byte[] misaligned = CreateValidPe();
         WriteDataDirectory(misaligned, 3, PdataRva + 2, 12);
-        ProcessResult misalignedResult = RunFixtureWithEvidence(
-            tempRoot,
-            "exception-directory-misaligned",
-            misaligned);
-
+        ProcessResult misalignedResult = RunFixtureWithEvidence(tempRoot, "exception-directory-misaligned", misaligned);
         byte[] nonDivisible = CreateValidPe();
         WriteDataDirectory(nonDivisible, 3, PdataRva, 13);
-        ProcessResult nonDivisibleResult = RunFixtureWithEvidence(
-            tempRoot,
-            "exception-directory-nondivisible",
-            nonDivisible);
-
+        ProcessResult nonDivisibleResult = RunFixtureWithEvidence(tempRoot, "exception-directory-nondivisible", nonDivisible);
         byte[] excessiveRecords = CreateValidPe();
-        WriteDataDirectory(
-            excessiveRecords,
-            3,
-            PdataRva,
-            checked((uint)(MaximumRuntimeFunctionRecords + 1) * 12u));
-        ProcessResult excessiveRecordsResult = RunFixtureWithEvidence(
-            tempRoot,
-            "exception-directory-record-capacity",
-            excessiveRecords);
-
+        WriteDataDirectory(excessiveRecords, 3, PdataRva, checked((uint)(MaximumRuntimeFunctionRecords + 1) * 12u));
+        ProcessResult excessiveRecordsResult = RunFixtureWithEvidence(tempRoot, "exception-directory-record-capacity", excessiveRecords);
         byte[] crossSection = CreateValidPe();
         WriteDataDirectory(crossSection, 3, PdataRva + 0x1fc, 12);
-        ProcessResult crossSectionResult = RunFixtureWithEvidence(
-            tempRoot,
-            "exception-directory-cross-section",
-            crossSection);
-
+        ProcessResult crossSectionResult = RunFixtureWithEvidence(tempRoot, "exception-directory-cross-section", crossSection);
         byte[] outsideVirtualPdata = CreateValidPe();
         WriteUInt32(outsideVirtualPdata, PdataSectionHeaderOffset + 8, 8);
-        ProcessResult outsideVirtualPdataResult = RunFixtureWithEvidence(
-            tempRoot,
-            "exception-directory-raw-only",
-            outsideVirtualPdata);
-
+        ProcessResult outsideVirtualPdataResult = RunFixtureWithEvidence(tempRoot, "exception-directory-raw-only", outsideVirtualPdata);
         byte[] virtualOverlap = CreateValidPe();
-        WriteUInt32(
-            virtualOverlap,
-            XdataSectionHeaderOffset + 12,
-            PdataRva + 0x100);
-        ProcessResult virtualOverlapResult = RunFixtureWithEvidence(
-            tempRoot,
-            "section-virtual-overlap",
-            virtualOverlap);
-
+        WriteUInt32(virtualOverlap, XdataSectionHeaderOffset + 12, PdataRva + 0x100);
+        ProcessResult virtualOverlapResult = RunFixtureWithEvidence(tempRoot, "section-virtual-overlap", virtualOverlap);
         byte[] rawOverlap = CreateValidPe();
-        WriteUInt32(
-            rawOverlap,
-            XdataSectionHeaderOffset + 20,
-            PdataRawOffset + 0x100);
-        ProcessResult rawOverlapResult = RunFixtureWithEvidence(
-            tempRoot,
-            "section-raw-overlap",
-            rawOverlap);
-
+        WriteUInt32(rawOverlap, XdataSectionHeaderOffset + 20, PdataRawOffset + 0x100);
+        ProcessResult rawOverlapResult = RunFixtureWithEvidence(tempRoot, "section-raw-overlap", rawOverlap);
         byte[] writablePdata = CreateValidPe();
         WriteUInt32(writablePdata, PdataSectionHeaderOffset + 36, 0xc0000040);
-        ProcessResult writableResult = RunFixtureWithEvidence(
-            tempRoot,
-            "exception-directory-writable",
-            writablePdata);
-
+        ProcessResult writableResult = RunFixtureWithEvidence(tempRoot, "exception-directory-writable", writablePdata);
         byte[] executablePdata = CreateValidPe();
         WriteUInt32(executablePdata, PdataSectionHeaderOffset + 36, 0x60000040);
-        ProcessResult executableResult = RunFixtureWithEvidence(
-            tempRoot,
-            "exception-directory-executable",
-            executablePdata);
-
+        ProcessResult executableResult = RunFixtureWithEvidence(tempRoot, "exception-directory-executable", executablePdata);
         byte[] discardablePdata = CreateValidPe();
         WriteUInt32(discardablePdata, PdataSectionHeaderOffset + 36, 0x42000040);
-        ProcessResult discardableResult = RunFixtureWithEvidence(
-            tempRoot,
-            "exception-directory-discardable",
-            discardablePdata);
-
-        return FailedWith(missingResult, "exception_directory_missing")
-            && FailedWith(zeroResult, "exception_directory_zero")
-            && FailedWith(zeroSizeResult, "exception_directory_zero")
-            && FailedWith(misalignedResult, "exception_directory_rva_misaligned")
-            && FailedWith(
-                nonDivisibleResult,
-                "exception_directory_size_not_record_aligned")
-            && FailedWith(
-                excessiveRecordsResult,
-                "exception_directory_record_count_out_of_range")
-            && FailedWith(crossSectionResult, "exception_directory_not_file_backed")
-            && FailedWith(
-                outsideVirtualPdataResult,
-                "exception_directory_not_file_backed")
-            && FailedWith(virtualOverlapResult, "section_virtual_ranges_overlap")
-            && FailedWith(rawOverlapResult, "section_raw_ranges_overlap")
-            && FailedWith(
-                writableResult,
-                "exception_directory_section_characteristics_invalid")
-            && FailedWith(
-                executableResult,
-                "exception_directory_section_characteristics_invalid")
-            && FailedWith(
-                discardableResult,
-                "exception_directory_section_characteristics_invalid");
+        ProcessResult discardableResult = RunFixtureWithEvidence(tempRoot, "exception-directory-discardable", discardablePdata);
+        return FailedWith(missingResult, "exception_directory_missing") && FailedWith(zeroResult, "exception_directory_zero") && FailedWith(zeroSizeResult, "exception_directory_zero") && FailedWith(misalignedResult, "exception_directory_rva_misaligned") && FailedWith(nonDivisibleResult, "exception_directory_size_not_record_aligned") && FailedWith(excessiveRecordsResult, "exception_directory_record_count_out_of_range") && FailedWith(crossSectionResult, "exception_directory_not_file_backed") && FailedWith(outsideVirtualPdataResult, "exception_directory_not_file_backed") && FailedWith(virtualOverlapResult, "section_virtual_ranges_overlap") && FailedWith(rawOverlapResult, "section_raw_ranges_overlap") && FailedWith(writableResult, "exception_directory_section_characteristics_invalid") && FailedWith(executableResult, "exception_directory_section_characteristics_invalid") && FailedWith(discardableResult, "exception_directory_section_characteristics_invalid");
     }
 
     private static bool TestRuntimeFunctionFailures(string tempRoot)
     {
         byte[] emptyRange = CreateValidPe();
         WriteRuntimeFunction(emptyRange, 0, SerializerRva, SerializerRva, XdataRva);
-        ProcessResult emptyResult = RunFixtureWithEvidence(
-            tempRoot,
-            "runtime-empty-range",
-            emptyRange);
-
+        ProcessResult emptyResult = RunFixtureWithEvidence(tempRoot, "runtime-empty-range", emptyRange);
         byte[] outOfImage = CreateValidPe();
         WriteRuntimeFunction(outOfImage, 0, SerializerRva, 0x5000, XdataRva);
-        ProcessResult outOfImageResult = RunFixtureWithEvidence(
-            tempRoot,
-            "runtime-range-out-of-image",
-            outOfImage);
-
+        ProcessResult outOfImageResult = RunFixtureWithEvidence(tempRoot, "runtime-range-out-of-image", outOfImage);
         byte[] zeroUnwind = CreateValidPe();
         WriteRuntimeFunction(zeroUnwind, 0, SerializerRva, SerializerEndRva, 0);
-        ProcessResult zeroUnwindResult = RunFixtureWithEvidence(
-            tempRoot,
-            "runtime-zero-unwind",
-            zeroUnwind);
-
+        ProcessResult zeroUnwindResult = RunFixtureWithEvidence(tempRoot, "runtime-zero-unwind", zeroUnwind);
         byte[] misalignedUnwind = CreateValidPe();
-        WriteRuntimeFunction(
-            misalignedUnwind,
-            0,
-            SerializerRva,
-            SerializerEndRva,
-            XdataRva + 1);
-        ProcessResult misalignedUnwindResult = RunFixtureWithEvidence(
-            tempRoot,
-            "runtime-misaligned-unwind",
-            misalignedUnwind);
-
+        WriteRuntimeFunction(misalignedUnwind, 0, SerializerRva, SerializerEndRva, XdataRva + 1);
+        ProcessResult misalignedUnwindResult = RunFixtureWithEvidence(tempRoot, "runtime-misaligned-unwind", misalignedUnwind);
         byte[] outOfImageUnwind = CreateValidPe();
-        WriteRuntimeFunction(
-            outOfImageUnwind,
-            0,
-            SerializerRva,
-            SerializerEndRva,
-            0x5000);
-        ProcessResult outOfImageUnwindResult = RunFixtureWithEvidence(
-            tempRoot,
-            "runtime-unwind-out-of-image",
-            outOfImageUnwind);
-
+        WriteRuntimeFunction(outOfImageUnwind, 0, SerializerRva, SerializerEndRva, 0x5000);
+        ProcessResult outOfImageUnwindResult = RunFixtureWithEvidence(tempRoot, "runtime-unwind-out-of-image", outOfImageUnwind);
         byte[] missingSerializer = CreateValidPe();
         WriteRuntimeFunction(missingSerializer, 0, 0x1200, 0x1210, XdataRva);
-        ProcessResult missingSerializerResult = RunFixtureWithEvidence(
-            tempRoot,
-            "runtime-serializer-missing",
-            missingSerializer);
-
+        ProcessResult missingSerializerResult = RunFixtureWithEvidence(tempRoot, "runtime-serializer-missing", missingSerializer);
         byte[] wrongEnd = CreateValidPe();
         WriteRuntimeFunction(wrongEnd, 0, SerializerRva, SerializerEndRva + 4, XdataRva);
-        ProcessResult wrongEndResult = RunFixtureWithEvidence(
-            tempRoot,
-            "runtime-serializer-wrong-end",
-            wrongEnd);
-
+        ProcessResult wrongEndResult = RunFixtureWithEvidence(tempRoot, "runtime-serializer-wrong-end", wrongEnd);
         byte[] duplicate = CreateValidPe();
         WriteDataDirectory(duplicate, 3, PdataRva, 24);
-        WriteRuntimeFunction(
-            duplicate,
-            1,
-            SerializerRva,
-            SerializerEndRva,
-            XdataRva);
-        ProcessResult duplicateResult = RunFixtureWithEvidence(
-            tempRoot,
-            "runtime-duplicate",
-            duplicate);
-
+        WriteRuntimeFunction(duplicate, 1, SerializerRva, SerializerEndRva, XdataRva);
+        ProcessResult duplicateResult = RunFixtureWithEvidence(tempRoot, "runtime-duplicate", duplicate);
         byte[] unsorted = CreateValidPe();
         WriteDataDirectory(unsorted, 3, PdataRva, 24);
         WriteRuntimeFunction(unsorted, 0, 0x1200, 0x1210, XdataRva + 0x10);
-        WriteRuntimeFunction(
-            unsorted,
-            1,
-            SerializerRva,
-            SerializerEndRva,
-            XdataRva);
+        WriteRuntimeFunction(unsorted, 1, SerializerRva, SerializerEndRva, XdataRva);
         WriteMinimalUnwind(unsorted, XdataRva + 0x10);
-        ProcessResult unsortedResult = RunFixtureWithEvidence(
-            tempRoot,
-            "runtime-unsorted",
-            unsorted);
-
+        ProcessResult unsortedResult = RunFixtureWithEvidence(tempRoot, "runtime-unsorted", unsorted);
         byte[] overlapping = CreateValidPe();
         WriteDataDirectory(overlapping, 3, PdataRva, 24);
         WriteRuntimeFunction(overlapping, 1, SerializerRva + 0x10, 0x1120, XdataRva + 0x10);
         WriteMinimalUnwind(overlapping, XdataRva + 0x10);
-        ProcessResult overlapResult = RunFixtureWithEvidence(
-            tempRoot,
-            "runtime-overlap",
-            overlapping);
-
-        return FailedWith(emptyResult, "runtime_function_range_invalid")
-            && FailedWith(outOfImageResult, "runtime_function_range_out_of_image")
-            && FailedWith(zeroUnwindResult, "runtime_function_unwind_zero")
-            && FailedWith(
-                misalignedUnwindResult,
-                "runtime_function_unwind_misaligned")
-            && FailedWith(
-                outOfImageUnwindResult,
-                "runtime_function_unwind_out_of_image")
-            && FailedWith(
-                missingSerializerResult,
-                "serializer_runtime_function_missing")
-            && FailedWith(
-                wrongEndResult,
-                "serializer_runtime_function_range_mismatch")
-            && FailedWith(duplicateResult, "runtime_function_duplicate")
-            && FailedWith(
-                unsortedResult,
-                "runtime_function_not_strictly_sorted")
-            && FailedWith(overlapResult, "runtime_function_overlap");
+        ProcessResult overlapResult = RunFixtureWithEvidence(tempRoot, "runtime-overlap", overlapping);
+        return FailedWith(emptyResult, "runtime_function_range_invalid") && FailedWith(outOfImageResult, "runtime_function_range_out_of_image") && FailedWith(zeroUnwindResult, "runtime_function_unwind_zero") && FailedWith(misalignedUnwindResult, "runtime_function_unwind_misaligned") && FailedWith(outOfImageUnwindResult, "runtime_function_unwind_out_of_image") && FailedWith(missingSerializerResult, "serializer_runtime_function_missing") && FailedWith(wrongEndResult, "serializer_runtime_function_range_mismatch") && FailedWith(duplicateResult, "runtime_function_duplicate") && FailedWith(unsortedResult, "runtime_function_not_strictly_sorted") && FailedWith(overlapResult, "runtime_function_overlap");
     }
 
     private static bool TestSerializerTextFailures(string tempRoot)
     {
         byte[] mutated = CreateValidPe();
         mutated[GetSerializerFileOffset(SerializerRva) + 6] ^= 0x01;
-        ProcessResult mutationResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-byte-mutated",
-            mutated);
-
+        ProcessResult mutationResult = RunFixtureWithEvidence(tempRoot, "serializer-byte-mutated", mutated);
         byte[] writable = CreateValidPe();
         WriteUInt32(writable, TextSectionHeaderOffset + 36, 0xe0000020);
-        ProcessResult writableResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-text-writable",
-            writable);
-
+        ProcessResult writableResult = RunFixtureWithEvidence(tempRoot, "serializer-text-writable", writable);
         byte[] nonExecutable = CreateValidPe();
         WriteUInt32(nonExecutable, TextSectionHeaderOffset + 36, 0x40000020);
-        ProcessResult nonExecutableResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-text-nonexecutable",
-            nonExecutable);
-
+        ProcessResult nonExecutableResult = RunFixtureWithEvidence(tempRoot, "serializer-text-nonexecutable", nonExecutable);
         byte[] discardable = CreateValidPe();
         WriteUInt32(discardable, TextSectionHeaderOffset + 36, 0x62000020);
-        ProcessResult discardableResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-text-discardable",
-            discardable);
-
+        ProcessResult discardableResult = RunFixtureWithEvidence(tempRoot, "serializer-text-discardable", discardable);
         byte[] virtualOnly = CreateValidPe();
         WriteUInt32(virtualOnly, TextSectionHeaderOffset + 16, 0x110);
-        ProcessResult virtualOnlyResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-text-virtual-only",
-            virtualOnly);
-
+        ProcessResult virtualOnlyResult = RunFixtureWithEvidence(tempRoot, "serializer-text-virtual-only", virtualOnly);
         byte[] outsideVirtualText = CreateValidPe();
         WriteUInt32(outsideVirtualText, TextSectionHeaderOffset + 8, 0x110);
-        ProcessResult outsideVirtualTextResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-text-raw-only",
-            outsideVirtualText);
-
+        ProcessResult outsideVirtualTextResult = RunFixtureWithEvidence(tempRoot, "serializer-text-raw-only", outsideVirtualText);
         uint misalignedRva = SerializerRva + 1;
         byte[] misaligned = CreateValidPe(misalignedRva);
-        ProcessResult misalignedResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-text-misaligned",
-            misaligned,
-            new LinkEvidenceOptions { SerializerRva = misalignedRva });
-
-        ProcessResult mapOutOfImageResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-map-rva-out-of-image",
-            CreateValidPe(),
-            new LinkEvidenceOptions { SerializerRva = 0x5000 });
-
-        return FailedWith(mutationResult, "serializer_bytes_mismatch")
-            && FailedWith(
-                writableResult,
-                "serializer_section_characteristics_invalid")
-            && FailedWith(
-                nonExecutableResult,
-                "entrypoint_section_not_executable")
-            && FailedWith(
-                discardableResult,
-                "serializer_section_characteristics_invalid")
-            && FailedWith(virtualOnlyResult, "serializer_not_file_backed")
-            && FailedWith(outsideVirtualTextResult, "serializer_not_file_backed")
-            && FailedWith(misalignedResult, "serializer_rva_misaligned")
-            && FailedWith(mapOutOfImageResult, "serializer_rva_out_of_image");
+        ProcessResult misalignedResult = RunFixtureWithEvidence(tempRoot, "serializer-text-misaligned", misaligned, new LinkEvidenceOptions { SerializerRva = misalignedRva });
+        ProcessResult mapOutOfImageResult = RunFixtureWithEvidence(tempRoot, "serializer-map-rva-out-of-image", CreateValidPe(), new LinkEvidenceOptions { SerializerRva = 0x5000 });
+        return FailedWith(mutationResult, "serializer_bytes_mismatch") && FailedWith(writableResult, "serializer_section_characteristics_invalid") && FailedWith(nonExecutableResult, "entrypoint_section_not_executable") && FailedWith(discardableResult, "serializer_section_characteristics_invalid") && FailedWith(virtualOnlyResult, "serializer_not_file_backed") && FailedWith(outsideVirtualTextResult, "serializer_not_file_backed") && FailedWith(misalignedResult, "serializer_rva_misaligned") && FailedWith(mapOutOfImageResult, "serializer_rva_out_of_image");
     }
 
     private static bool TestSerializerUnwindFailures(string tempRoot)
     {
         byte[] mutatedOpcode = CreateValidPe();
         mutatedOpcode[XdataRawOffset + 5] ^= 0x01;
-        ProcessResult opcodeResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-unwind-opcode-mutated",
-            mutatedOpcode);
-
+        ProcessResult opcodeResult = RunFixtureWithEvidence(tempRoot, "serializer-unwind-opcode-mutated", mutatedOpcode);
         byte[] mutatedCount = CreateValidPe();
         mutatedCount[XdataRawOffset + 2] = 2;
-        ProcessResult countResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-unwind-count-mutated",
-            mutatedCount);
-
+        ProcessResult countResult = RunFixtureWithEvidence(tempRoot, "serializer-unwind-count-mutated", mutatedCount);
         byte[] wrongVersion = CreateValidPe();
         wrongVersion[XdataRawOffset] = 2;
-        ProcessResult versionResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-unwind-version",
-            wrongVersion);
-
+        ProcessResult versionResult = RunFixtureWithEvidence(tempRoot, "serializer-unwind-version", wrongVersion);
         byte[] wrongPrologLength = CreateValidPe();
         wrongPrologLength[XdataRawOffset + 1] = 2;
-        ProcessResult prologLengthResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-unwind-prolog-length",
-            wrongPrologLength);
-
+        ProcessResult prologLengthResult = RunFixtureWithEvidence(tempRoot, "serializer-unwind-prolog-length", wrongPrologLength);
         byte[] wrongSavedRegister = CreateValidPe();
         wrongSavedRegister[XdataRawOffset + 5] = 0x40;
-        ProcessResult savedRegisterResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-unwind-saved-register",
-            wrongSavedRegister);
-
+        ProcessResult savedRegisterResult = RunFixtureWithEvidence(tempRoot, "serializer-unwind-saved-register", wrongSavedRegister);
         byte[] writable = CreateValidPe();
         WriteUInt32(writable, XdataSectionHeaderOffset + 36, 0xc0000040);
-        ProcessResult writableResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-unwind-writable",
-            writable);
-
+        ProcessResult writableResult = RunFixtureWithEvidence(tempRoot, "serializer-unwind-writable", writable);
         byte[] executable = CreateValidPe();
         WriteUInt32(executable, XdataSectionHeaderOffset + 36, 0x60000040);
-        ProcessResult executableResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-unwind-executable",
-            executable);
-
+        ProcessResult executableResult = RunFixtureWithEvidence(tempRoot, "serializer-unwind-executable", executable);
         byte[] discardable = CreateValidPe();
         WriteUInt32(discardable, XdataSectionHeaderOffset + 36, 0x42000040);
-        ProcessResult discardableResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-unwind-discardable",
-            discardable);
-
+        ProcessResult discardableResult = RunFixtureWithEvidence(tempRoot, "serializer-unwind-discardable", discardable);
         byte[] truncated = CreateValidPe();
         WriteUInt32(truncated, XdataSectionHeaderOffset + 16, 4);
-        ProcessResult truncatedResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-unwind-truncated",
-            truncated);
-
+        ProcessResult truncatedResult = RunFixtureWithEvidence(tempRoot, "serializer-unwind-truncated", truncated);
         byte[] outsideVirtualXdata = CreateValidPe();
         WriteUInt32(outsideVirtualXdata, XdataSectionHeaderOffset + 8, 4);
-        ProcessResult outsideVirtualXdataResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-unwind-raw-only",
-            outsideVirtualXdata);
-
+        ProcessResult outsideVirtualXdataResult = RunFixtureWithEvidence(tempRoot, "serializer-unwind-raw-only", outsideVirtualXdata);
         byte[] aliased = CreateValidPe();
         WriteDataDirectory(aliased, 3, PdataRva, 24);
         WriteRuntimeFunction(aliased, 1, 0x1200, 0x1210, XdataRva);
-        ProcessResult aliasResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-unwind-aliased",
-            aliased);
-
-        return FailedWith(opcodeResult, "serializer_unwind_bytes_mismatch")
-            && FailedWith(countResult, "serializer_unwind_bytes_mismatch")
-            && FailedWith(versionResult, "runtime_function_unwind_header_invalid")
-            && FailedWith(
-                prologLengthResult,
-                "serializer_unwind_bytes_mismatch")
-            && FailedWith(
-                savedRegisterResult,
-                "serializer_unwind_bytes_mismatch")
-            && FailedWith(
-                writableResult,
-                "runtime_function_unwind_section_characteristics_invalid")
-            && FailedWith(
-                executableResult,
-                "runtime_function_unwind_section_characteristics_invalid")
-            && FailedWith(
-                discardableResult,
-                "runtime_function_unwind_section_characteristics_invalid")
-            && FailedWith(
-                truncatedResult,
-                "runtime_function_unwind_not_file_backed")
-            && FailedWith(
-                outsideVirtualXdataResult,
-                "runtime_function_unwind_not_file_backed")
-            && FailedWith(aliasResult, "serializer_unwind_aliased");
+        ProcessResult aliasResult = RunFixtureWithEvidence(tempRoot, "serializer-unwind-aliased", aliased);
+        return FailedWith(opcodeResult, "serializer_unwind_bytes_mismatch") && FailedWith(countResult, "serializer_unwind_bytes_mismatch") && FailedWith(versionResult, "runtime_function_unwind_header_invalid") && FailedWith(prologLengthResult, "serializer_unwind_bytes_mismatch") && FailedWith(savedRegisterResult, "serializer_unwind_bytes_mismatch") && FailedWith(writableResult, "runtime_function_unwind_section_characteristics_invalid") && FailedWith(executableResult, "runtime_function_unwind_section_characteristics_invalid") && FailedWith(discardableResult, "runtime_function_unwind_section_characteristics_invalid") && FailedWith(truncatedResult, "runtime_function_unwind_not_file_backed") && FailedWith(outsideVirtualXdataResult, "runtime_function_unwind_not_file_backed") && FailedWith(aliasResult, "serializer_unwind_aliased");
     }
 
     private static bool TestSerializerLinkAssociationFailures(string tempRoot)
     {
-        ProcessResult missingSymbolResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-map-symbol-missing",
-            CreateValidPe(),
-            new LinkEvidenceOptions { SerializerSymbolCopies = 0 });
-
-        ProcessResult duplicateSymbolResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-map-symbol-duplicate",
-            CreateValidPe(),
-            new LinkEvidenceOptions { SerializerSymbolCopies = 2 });
-
-        ProcessResult wrongOwnerResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-map-owner-wrong",
-            CreateValidPe(),
-            new LinkEvidenceOptions { MapOwner = "fallback.obj" });
-
-        ProcessResult missingIncludeResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-include-missing",
-            CreateValidPe(),
-            new LinkEvidenceOptions { ForceIncludeCopies = 0 });
-
-        ProcessResult duplicateIncludeResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-include-duplicate",
-            CreateValidPe(),
-            new LinkEvidenceOptions { ForceIncludeCopies = 2 });
-
-        ProcessResult missingObjectResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-response-object-missing",
-            CreateValidPe(),
-            new LinkEvidenceOptions { ObjectTokenCopies = 0 });
-
-        ProcessResult duplicateObjectResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-response-object-duplicate",
-            CreateValidPe(),
-            new LinkEvidenceOptions { ObjectTokenCopies = 2 });
-
-        ProcessResult missingMapResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-response-map-missing",
-            CreateValidPe(),
-            new LinkEvidenceOptions { MapOptionCopies = 0 });
-
-        ProcessResult duplicateMapResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-response-map-duplicate",
-            CreateValidPe(),
-            new LinkEvidenceOptions { MapOptionCopies = 2 });
-
-        ProcessResult wrongMapResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-response-map-wrong",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                MapPathOverride = Path.Combine(tempRoot, "wrong", "OS.link.map")
-            });
-
-        ProcessResult missingMapInfoResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-response-mapinfo-missing",
-            CreateValidPe(),
-            new LinkEvidenceOptions { MapInfoCopies = 0 });
-
-        ProcessResult duplicateMapInfoResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-response-mapinfo-duplicate",
-            CreateValidPe(),
-            new LinkEvidenceOptions { MapInfoCopies = 2 });
-
-        ProcessResult defaultLibraryResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-default-library",
-            CreateValidPe(),
-            new LinkEvidenceOptions { AdditionalResponse = "/DEFAULTLIB:kernel32.lib" });
-
-        ProcessResult fallbackResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-fallback-binding",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse =
-                    "/ALTERNATENAME:CLROS_X64_SerializeInstructionPublication=fallback"
-            });
-
-        ProcessResult mixedCaseDuplicateIncludeResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-mixed-case-duplicate-include",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse =
-                    "/include:CLROS_X64_SerializeInstructionPublication"
-            });
-
-        ProcessResult mixedCaseConflictingEntryResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-mixed-case-conflicting-entry",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse = "/entry:WrongEntry"
-            });
-
-        ProcessResult nestedResponseResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-nested-response",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse = "@nested.rsp"
-            });
-
-        ProcessResult forcePolicyControlResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-force-policy-control",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse = "/NOLOGO"
-            });
-
-        ProcessResult bareForceResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-force-bare",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse = "/fOrCe"
-            });
-
-        ProcessResult forceUnresolvedResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-force-unresolved",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse = "/FoRcE:UnReSoLvEd"
-            });
-
-        ProcessResult forceMultipleResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-force-multiple",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse = "/FORCE:MULTIPLE"
-            });
-
-        ProcessResult dashForceResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-dash-force",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse = "-FORCE:UNRESOLVED"
-            });
-
-        ProcessResult dashDefaultLibraryResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-dash-default-library",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse = "-DEFAULTLIB:kernel32.lib"
-            });
-
-        ProcessResult dashAlternateNameResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-dash-alternatename",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse =
-                    "-ALTERNATENAME:CLROS_X64_SerializeInstructionPublication=fallback"
-            });
-
-        ProcessResult mixedCaseBreproControlResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-brepro-mixed-case-control",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                BreproToken = "/bRePrO"
-            });
-
-        ProcessResult missingBreproResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-brepro-missing",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                BreproCopies = 0
-            });
-
-        ProcessResult duplicateBreproResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-brepro-duplicate",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                BreproCopies = 2
-            });
-
-        ProcessResult malformedBreproResult = RunFixtureWithEvidence(
-            tempRoot,
-            "serializer-brepro-malformed",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                BreproToken = "/BREPRO:INVALID"
-            });
-
-        return PassedVerifier(forcePolicyControlResult)
-            && PassedVerifier(mixedCaseBreproControlResult)
-            && FailedWith(bareForceResult, "force_linkage_forbidden")
-            && FailedWith(forceUnresolvedResult, "force_linkage_forbidden")
-            && FailedWith(forceMultipleResult, "force_linkage_forbidden")
-            && FailedWith(
-                dashForceResult,
-                "noncanonical_link_option_prefix")
-            && FailedWith(
-                dashDefaultLibraryResult,
-                "noncanonical_link_option_prefix")
-            && FailedWith(
-                dashAlternateNameResult,
-                "noncanonical_link_option_prefix")
-            && FailedWith(
-                missingBreproResult,
-                "brepro_link_response_contract_invalid")
-            && FailedWith(
-                duplicateBreproResult,
-                "brepro_link_response_contract_invalid")
-            && FailedWith(
-                malformedBreproResult,
-                "brepro_link_response_contract_invalid")
-            && FailedWith(
-                missingSymbolResult,
-                "serializer_linker_map_contract_missing")
-            && FailedWith(
-                duplicateSymbolResult,
-                "serializer_linker_map_contract_missing")
-            && FailedWith(
-                wrongOwnerResult,
-                "serializer_linker_map_object_mismatch")
-            && FailedWith(
-                missingIncludeResult,
-                "serializer_force_include_contract_missing")
-            && FailedWith(
-                duplicateIncludeResult,
-                "serializer_force_include_contract_missing")
-            && FailedWith(
-                missingObjectResult,
-                "serializer_object_link_response_contract_missing")
-            && FailedWith(
-                duplicateObjectResult,
-                "serializer_object_link_response_contract_missing")
-            && FailedWith(
-                missingMapResult,
-                "serializer_link_map_response_contract_missing")
-            && FailedWith(
-                duplicateMapResult,
-                "serializer_link_map_response_contract_missing")
-            && FailedWith(
-                wrongMapResult,
-                "serializer_link_map_path_mismatch")
-            && FailedWith(
-                missingMapInfoResult,
-                "serializer_link_mapinfo_contract_missing")
-            && FailedWith(
-                duplicateMapInfoResult,
-                "serializer_link_mapinfo_contract_missing")
-            && FailedWith(defaultLibraryResult, "default_library_linkage_present")
-            && FailedWith(fallbackResult, "serializer_fallback_linkage_present")
-            && FailedWith(
-                mixedCaseDuplicateIncludeResult,
-                "serializer_force_include_contract_missing")
-            && FailedWith(
-                mixedCaseConflictingEntryResult,
-                "efimain_link_response_contract_missing")
-            && FailedWith(
-                nestedResponseResult,
-                "nested_link_response_file_forbidden");
+        ProcessResult missingSymbolResult = RunFixtureWithEvidence(tempRoot, "serializer-map-symbol-missing", CreateValidPe(), new LinkEvidenceOptions { SerializerSymbolCopies = 0 });
+        ProcessResult duplicateSymbolResult = RunFixtureWithEvidence(tempRoot, "serializer-map-symbol-duplicate", CreateValidPe(), new LinkEvidenceOptions { SerializerSymbolCopies = 2 });
+        ProcessResult wrongOwnerResult = RunFixtureWithEvidence(tempRoot, "serializer-map-owner-wrong", CreateValidPe(), new LinkEvidenceOptions { MapOwner = "fallback.obj" });
+        ProcessResult missingIncludeResult = RunFixtureWithEvidence(tempRoot, "serializer-include-missing", CreateValidPe(), new LinkEvidenceOptions { ForceIncludeCopies = 0 });
+        ProcessResult duplicateIncludeResult = RunFixtureWithEvidence(tempRoot, "serializer-include-duplicate", CreateValidPe(), new LinkEvidenceOptions { ForceIncludeCopies = 2 });
+        ProcessResult missingObjectResult = RunFixtureWithEvidence(tempRoot, "serializer-response-object-missing", CreateValidPe(), new LinkEvidenceOptions { ObjectTokenCopies = 0 });
+        ProcessResult duplicateObjectResult = RunFixtureWithEvidence(tempRoot, "serializer-response-object-duplicate", CreateValidPe(), new LinkEvidenceOptions { ObjectTokenCopies = 2 });
+        ProcessResult missingMapResult = RunFixtureWithEvidence(tempRoot, "serializer-response-map-missing", CreateValidPe(), new LinkEvidenceOptions { MapOptionCopies = 0 });
+        ProcessResult duplicateMapResult = RunFixtureWithEvidence(tempRoot, "serializer-response-map-duplicate", CreateValidPe(), new LinkEvidenceOptions { MapOptionCopies = 2 });
+        ProcessResult wrongMapResult = RunFixtureWithEvidence(tempRoot, "serializer-response-map-wrong", CreateValidPe(), new LinkEvidenceOptions { MapPathOverride = Path.Combine(tempRoot, "wrong", "OS.link.map") });
+        ProcessResult missingMapInfoResult = RunFixtureWithEvidence(tempRoot, "serializer-response-mapinfo-missing", CreateValidPe(), new LinkEvidenceOptions { MapInfoCopies = 0 });
+        ProcessResult duplicateMapInfoResult = RunFixtureWithEvidence(tempRoot, "serializer-response-mapinfo-duplicate", CreateValidPe(), new LinkEvidenceOptions { MapInfoCopies = 2 });
+        ProcessResult defaultLibraryResult = RunFixtureWithEvidence(tempRoot, "serializer-default-library", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "/DEFAULTLIB:kernel32.lib" });
+        ProcessResult fallbackResult = RunFixtureWithEvidence(tempRoot, "serializer-fallback-binding", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "/ALTERNATENAME:CLROS_X64_SerializeInstructionPublication=fallback" });
+        ProcessResult mixedCaseDuplicateIncludeResult = RunFixtureWithEvidence(tempRoot, "serializer-mixed-case-duplicate-include", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "/include:CLROS_X64_SerializeInstructionPublication" });
+        ProcessResult mixedCaseConflictingEntryResult = RunFixtureWithEvidence(tempRoot, "serializer-mixed-case-conflicting-entry", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "/entry:WrongEntry" });
+        ProcessResult nestedResponseResult = RunFixtureWithEvidence(tempRoot, "serializer-nested-response", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "@nested.rsp" });
+        ProcessResult forcePolicyControlResult = RunFixtureWithEvidence(tempRoot, "serializer-force-policy-control", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "/NOLOGO" });
+        ProcessResult bareForceResult = RunFixtureWithEvidence(tempRoot, "serializer-force-bare", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "/fOrCe" });
+        ProcessResult forceUnresolvedResult = RunFixtureWithEvidence(tempRoot, "serializer-force-unresolved", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "/FoRcE:UnReSoLvEd" });
+        ProcessResult forceMultipleResult = RunFixtureWithEvidence(tempRoot, "serializer-force-multiple", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "/FORCE:MULTIPLE" });
+        ProcessResult dashForceResult = RunFixtureWithEvidence(tempRoot, "serializer-dash-force", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "-FORCE:UNRESOLVED" });
+        ProcessResult dashDefaultLibraryResult = RunFixtureWithEvidence(tempRoot, "serializer-dash-default-library", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "-DEFAULTLIB:kernel32.lib" });
+        ProcessResult dashAlternateNameResult = RunFixtureWithEvidence(tempRoot, "serializer-dash-alternatename", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = "-ALTERNATENAME:CLROS_X64_SerializeInstructionPublication=fallback" });
+        ProcessResult mixedCaseBreproControlResult = RunFixtureWithEvidence(tempRoot, "serializer-brepro-mixed-case-control", CreateValidPe(), new LinkEvidenceOptions { BreproToken = "/bRePrO" });
+        ProcessResult missingBreproResult = RunFixtureWithEvidence(tempRoot, "serializer-brepro-missing", CreateValidPe(), new LinkEvidenceOptions { BreproCopies = 0 });
+        ProcessResult duplicateBreproResult = RunFixtureWithEvidence(tempRoot, "serializer-brepro-duplicate", CreateValidPe(), new LinkEvidenceOptions { BreproCopies = 2 });
+        ProcessResult malformedBreproResult = RunFixtureWithEvidence(tempRoot, "serializer-brepro-malformed", CreateValidPe(), new LinkEvidenceOptions { BreproToken = "/BREPRO:INVALID" });
+        return PassedVerifier(forcePolicyControlResult) && PassedVerifier(mixedCaseBreproControlResult) && FailedWith(bareForceResult, "force_linkage_forbidden") && FailedWith(forceUnresolvedResult, "force_linkage_forbidden") && FailedWith(forceMultipleResult, "force_linkage_forbidden") && FailedWith(dashForceResult, "noncanonical_link_option_prefix") && FailedWith(dashDefaultLibraryResult, "noncanonical_link_option_prefix") && FailedWith(dashAlternateNameResult, "noncanonical_link_option_prefix") && FailedWith(missingBreproResult, "brepro_link_response_contract_invalid") && FailedWith(duplicateBreproResult, "brepro_link_response_contract_invalid") && FailedWith(malformedBreproResult, "brepro_link_response_contract_invalid") && FailedWith(missingSymbolResult, "serializer_linker_map_contract_missing") && FailedWith(duplicateSymbolResult, "serializer_linker_map_contract_missing") && FailedWith(wrongOwnerResult, "serializer_linker_map_object_mismatch") && FailedWith(missingIncludeResult, "serializer_force_include_contract_missing") && FailedWith(duplicateIncludeResult, "serializer_force_include_contract_missing") && FailedWith(missingObjectResult, "serializer_object_link_response_contract_missing") && FailedWith(duplicateObjectResult, "serializer_object_link_response_contract_missing") && FailedWith(missingMapResult, "serializer_link_map_response_contract_missing") && FailedWith(duplicateMapResult, "serializer_link_map_response_contract_missing") && FailedWith(wrongMapResult, "serializer_link_map_path_mismatch") && FailedWith(missingMapInfoResult, "serializer_link_mapinfo_contract_missing") && FailedWith(duplicateMapInfoResult, "serializer_link_mapinfo_contract_missing") && FailedWith(defaultLibraryResult, "default_library_linkage_present") && FailedWith(fallbackResult, "serializer_fallback_linkage_present") && FailedWith(mixedCaseDuplicateIncludeResult, "serializer_force_include_contract_missing") && FailedWith(mixedCaseConflictingEntryResult, "efimain_link_response_contract_missing") && FailedWith(nestedResponseResult, "nested_link_response_file_forbidden");
     }
 
     private static bool TestLinkEvidenceFailures(string tempRoot)
     {
-        string missingArtifact = WriteFixture(
-            tempRoot,
-            "missing-link-evidence",
-            CreateValidPe());
+        string missingArtifact = WriteFixture(tempRoot, "missing-link-evidence", CreateValidPe());
         ProcessResult missingResult = RunVerifier(missingArtifact);
-
-        string staleArtifact = WriteFixture(
-            tempRoot,
-            "stale-link-evidence",
-            CreateValidPe());
+        string staleArtifact = WriteFixture(tempRoot, "stale-link-evidence", CreateValidPe());
         LinkEvidencePaths stalePaths = WriteLinkEvidence(staleArtifact);
         File.AppendAllText(stalePaths.MapPath, "\r\nstale", new UTF8Encoding(false));
         ProcessResult staleResult = RunVerifier(staleArtifact);
-
-        ProcessResult entryMismatchResult = RunFixtureWithEvidence(
-            tempRoot,
-            "entrypoint-map-mismatch",
-            CreateValidPe(),
-            new LinkEvidenceOptions { MappedEntryRva = EntryPointRva + 0x100 });
-
-        string schemaArtifact = WriteFixture(
-            tempRoot,
-            "schema-version-two",
-            CreateValidPe());
+        ProcessResult entryMismatchResult = RunFixtureWithEvidence(tempRoot, "entrypoint-map-mismatch", CreateValidPe(), new LinkEvidenceOptions { MappedEntryRva = EntryPointRva + 0x100 });
+        string schemaArtifact = WriteFixture(tempRoot, "schema-version-two", CreateValidPe());
         LinkEvidencePaths schemaPaths = WriteLinkEvidence(schemaArtifact);
         MutateEvidence(schemaPaths.EvidencePath, evidence => evidence["schemaVersion"] = 2);
         ProcessResult schemaResult = RunVerifier(schemaArtifact);
-
-        string cookieArtifact = WriteFixture(
-            tempRoot,
-            "serializer-cookie-wrong",
-            CreateValidPe());
+        string cookieArtifact = WriteFixture(tempRoot, "serializer-cookie-wrong", CreateValidPe());
         LinkEvidencePaths cookiePaths = WriteLinkEvidence(cookieArtifact);
-        MutateEvidence(
-            cookiePaths.EvidencePath,
-            evidence => evidence["serializerExpectedSuccessCookie"] = 0);
+        MutateEvidence(cookiePaths.EvidencePath, evidence => evidence["serializerExpectedSuccessCookie"] = 0);
         ProcessResult cookieResult = RunVerifier(cookieArtifact);
-
-        string missingPropertyArtifact = WriteFixture(
-            tempRoot,
-            "serializer-property-missing",
-            CreateValidPe());
+        string missingPropertyArtifact = WriteFixture(tempRoot, "serializer-property-missing", CreateValidPe());
         LinkEvidencePaths missingPropertyPaths = WriteLinkEvidence(missingPropertyArtifact);
-        MutateEvidence(
-            missingPropertyPaths.EvidencePath,
-            evidence => evidence.Remove("serializerTargetsSha256"));
+        MutateEvidence(missingPropertyPaths.EvidencePath, evidence => evidence.Remove("serializerTargetsSha256"));
         ProcessResult missingPropertyResult = RunVerifier(missingPropertyArtifact);
-
-        string sourceHashArtifact = WriteFixture(
-            tempRoot,
-            "serializer-source-hash",
-            CreateValidPe());
+        string sourceHashArtifact = WriteFixture(tempRoot, "serializer-source-hash", CreateValidPe());
         LinkEvidencePaths sourceHashPaths = WriteLinkEvidence(sourceHashArtifact);
-        MutateEvidence(
-            sourceHashPaths.EvidencePath,
-            evidence => evidence["serializerGeneratorProgramSha256"] = new string('0', 64));
+        MutateEvidence(sourceHashPaths.EvidencePath, evidence => evidence["serializerGeneratorProgramSha256"] = new string('0', 64));
         ProcessResult sourceHashResult = RunVerifier(sourceHashArtifact);
-
-        string closureInputArtifact = WriteFixture(
-            tempRoot,
-            "source-closure-input-mutated",
-            CreateValidPe());
+        string closureInputArtifact = WriteFixture(tempRoot, "source-closure-input-mutated", CreateValidPe());
         LinkEvidencePaths closureInputPaths = WriteLinkEvidence(closureInputArtifact);
-        MutateEvidence(
-            closureInputPaths.EvidencePath,
-            CorruptFirstSourceClosureInput);
+        MutateEvidence(closureInputPaths.EvidencePath, CorruptFirstSourceClosureInput);
         ProcessResult closureInputResult = RunVerifier(closureInputArtifact);
-
-        string missingToolPropsArtifact = WriteFixture(
-            tempRoot,
-            "source-closure-tools-directory-build-props-missing",
-            CreateValidPe());
-        LinkEvidencePaths missingToolPropsPaths = WriteLinkEvidence(
-            missingToolPropsArtifact);
-        MutateEvidence(
-            missingToolPropsPaths.EvidencePath,
-            evidence => RemoveSourceClosureInput(
-                evidence,
-                ToolDirectoryBuildPropsPath));
-        ProcessResult missingToolPropsResult = RunVerifier(
-            missingToolPropsArtifact);
-
-        string missingGlobalJsonArtifact = WriteFixture(
-            tempRoot,
-            "source-closure-global-json-missing",
-            CreateValidPe());
-        LinkEvidencePaths missingGlobalJsonPaths = WriteLinkEvidence(
-            missingGlobalJsonArtifact);
-        MutateEvidence(
-            missingGlobalJsonPaths.EvidencePath,
-            evidence => RemoveSourceClosureInput(evidence, "global.json"));
-        ProcessResult missingGlobalJsonResult = RunVerifier(
-            missingGlobalJsonArtifact);
-
-        string missingVerifierSourceArtifact = WriteFixture(
-            tempRoot,
-            "source-closure-verifier-script-missing",
-            CreateValidPe());
-        LinkEvidencePaths missingVerifierSourcePaths = WriteLinkEvidence(
-            missingVerifierSourceArtifact);
-        MutateEvidence(
-            missingVerifierSourcePaths.EvidencePath,
-            evidence => RemoveSourceClosureInput(
-                evidence,
-                "tools/OS.Tooling/EfiVerify.cs"));
-        ProcessResult missingVerifierSourceResult = RunVerifier(
-            missingVerifierSourceArtifact);
-
-        string solutionHashArtifact = WriteFixture(
-            tempRoot,
-            "solution-hash-wrong",
-            CreateValidPe());
+        string missingToolPropsArtifact = WriteFixture(tempRoot, "source-closure-tools-directory-build-props-missing", CreateValidPe());
+        LinkEvidencePaths missingToolPropsPaths = WriteLinkEvidence(missingToolPropsArtifact);
+        MutateEvidence(missingToolPropsPaths.EvidencePath, evidence => RemoveSourceClosureInput(evidence, ToolDirectoryBuildPropsPath));
+        ProcessResult missingToolPropsResult = RunVerifier(missingToolPropsArtifact);
+        string missingGlobalJsonArtifact = WriteFixture(tempRoot, "source-closure-global-json-missing", CreateValidPe());
+        LinkEvidencePaths missingGlobalJsonPaths = WriteLinkEvidence(missingGlobalJsonArtifact);
+        MutateEvidence(missingGlobalJsonPaths.EvidencePath, evidence => RemoveSourceClosureInput(evidence, "global.json"));
+        ProcessResult missingGlobalJsonResult = RunVerifier(missingGlobalJsonArtifact);
+        string missingVerifierSourceArtifact = WriteFixture(tempRoot, "source-closure-verifier-script-missing", CreateValidPe());
+        LinkEvidencePaths missingVerifierSourcePaths = WriteLinkEvidence(missingVerifierSourceArtifact);
+        MutateEvidence(missingVerifierSourcePaths.EvidencePath, evidence => RemoveSourceClosureInput(evidence, "tools/OS.Tooling/EfiVerify.cs"));
+        ProcessResult missingVerifierSourceResult = RunVerifier(missingVerifierSourceArtifact);
+        string solutionHashArtifact = WriteFixture(tempRoot, "solution-hash-wrong", CreateValidPe());
         LinkEvidencePaths solutionHashPaths = WriteLinkEvidence(solutionHashArtifact);
-        MutateEvidence(
-            solutionHashPaths.EvidencePath,
-            evidence => evidence["solutionSha256"] = new string('0', 64));
+        MutateEvidence(solutionHashPaths.EvidencePath, evidence => evidence["solutionSha256"] = new string('0', 64));
         ProcessResult solutionHashResult = RunVerifier(solutionHashArtifact);
-
-        string malformedNumberArtifact = WriteFixture(
-            tempRoot,
-            "serializer-object-size-malformed",
-            CreateValidPe());
+        string malformedNumberArtifact = WriteFixture(tempRoot, "serializer-object-size-malformed", CreateValidPe());
         LinkEvidencePaths malformedNumberPaths = WriteLinkEvidence(malformedNumberArtifact);
-        MutateEvidence(
-            malformedNumberPaths.EvidencePath,
-            evidence => evidence["serializerObjectBytes"] = "not-a-number");
+        MutateEvidence(malformedNumberPaths.EvidencePath, evidence => evidence["serializerObjectBytes"] = "not-a-number");
         ProcessResult malformedNumberResult = RunVerifier(malformedNumberArtifact);
-
-        string mutatedObjectArtifact = WriteFixture(
-            tempRoot,
-            "serializer-object-mutated",
-            CreateValidPe());
+        string mutatedObjectArtifact = WriteFixture(tempRoot, "serializer-object-mutated", CreateValidPe());
         LinkEvidencePaths mutatedObjectPaths = WriteLinkEvidence(mutatedObjectArtifact);
         byte[] mutatedObject = File.ReadAllBytes(mutatedObjectPaths.ObjectPath);
         mutatedObject[0] ^= 0x01;
         File.WriteAllBytes(mutatedObjectPaths.ObjectPath, mutatedObject);
         ProcessResult mutatedObjectResult = RunVerifier(mutatedObjectArtifact);
-
-        string mutatedLinkedObjectArtifact = WriteFixture(
-            tempRoot,
-            "serializer-linked-object-mutated",
-            CreateValidPe());
-        LinkEvidencePaths mutatedLinkedObjectPaths = WriteLinkEvidence(
-            mutatedLinkedObjectArtifact);
-        byte[] mutatedLinkedObject = File.ReadAllBytes(
-            mutatedLinkedObjectPaths.LinkedObjectPath);
+        string mutatedLinkedObjectArtifact = WriteFixture(tempRoot, "serializer-linked-object-mutated", CreateValidPe());
+        LinkEvidencePaths mutatedLinkedObjectPaths = WriteLinkEvidence(mutatedLinkedObjectArtifact);
+        byte[] mutatedLinkedObject = File.ReadAllBytes(mutatedLinkedObjectPaths.LinkedObjectPath);
         mutatedLinkedObject[0] ^= 0x01;
-        File.WriteAllBytes(
-            mutatedLinkedObjectPaths.LinkedObjectPath,
-            mutatedLinkedObject);
-        ProcessResult mutatedLinkedObjectResult = RunVerifier(
-            mutatedLinkedObjectArtifact);
-
-        string aliasedObjectArtifact = WriteFixture(
-            tempRoot,
-            "serializer-linked-preserved-alias",
-            CreateValidPe());
-        LinkEvidencePaths aliasedObjectPaths = WriteLinkEvidence(
-            aliasedObjectArtifact);
-        MutateEvidence(
-            aliasedObjectPaths.EvidencePath,
-            evidence =>
-                evidence["serializerLinkedObjectPath"] = aliasedObjectPaths.ObjectPath);
+        File.WriteAllBytes(mutatedLinkedObjectPaths.LinkedObjectPath, mutatedLinkedObject);
+        ProcessResult mutatedLinkedObjectResult = RunVerifier(mutatedLinkedObjectArtifact);
+        string aliasedObjectArtifact = WriteFixture(tempRoot, "serializer-linked-preserved-alias", CreateValidPe());
+        LinkEvidencePaths aliasedObjectPaths = WriteLinkEvidence(aliasedObjectArtifact);
+        MutateEvidence(aliasedObjectPaths.EvidencePath, evidence => evidence["serializerLinkedObjectPath"] = aliasedObjectPaths.ObjectPath);
         ProcessResult aliasedObjectResult = RunVerifier(aliasedObjectArtifact);
-
-        string mutatedLinkedMapArtifact = WriteFixture(
-            tempRoot,
-            "serializer-linked-map-mutated",
-            CreateValidPe());
-        LinkEvidencePaths mutatedLinkedMapPaths = WriteLinkEvidence(
-            mutatedLinkedMapArtifact);
-        File.AppendAllText(
-            mutatedLinkedMapPaths.LinkedMapPath,
-            "\r\nmutated",
-            new UTF8Encoding(false));
-        ProcessResult mutatedLinkedMapResult = RunVerifier(
-            mutatedLinkedMapArtifact);
-
-        string explicitMismatchArtifact = WriteFixture(
-            tempRoot,
-            "serializer-object-explicit-mismatch",
-            CreateValidPe());
+        string mutatedLinkedMapArtifact = WriteFixture(tempRoot, "serializer-linked-map-mutated", CreateValidPe());
+        LinkEvidencePaths mutatedLinkedMapPaths = WriteLinkEvidence(mutatedLinkedMapArtifact);
+        File.AppendAllText(mutatedLinkedMapPaths.LinkedMapPath, "\r\nmutated", new UTF8Encoding(false));
+        ProcessResult mutatedLinkedMapResult = RunVerifier(mutatedLinkedMapArtifact);
+        string explicitMismatchArtifact = WriteFixture(tempRoot, "serializer-object-explicit-mismatch", CreateValidPe());
         LinkEvidencePaths explicitMismatchPaths = WriteLinkEvidence(explicitMismatchArtifact);
-        string alternateObject = Path.Combine(
-            Path.GetDirectoryName(explicitMismatchArtifact)!,
-            "alternate.obj");
+        string alternateObject = Path.Combine(Path.GetDirectoryName(explicitMismatchArtifact)!, "alternate.obj");
         File.Copy(explicitMismatchPaths.ObjectPath, alternateObject);
-        ProcessResult explicitMismatchResult = RunVerifier(
-            explicitMismatchArtifact,
-            serializerObjectPath: alternateObject);
-
-        string nonSiblingArtifact = WriteFixture(
-            tempRoot,
-            "serializer-object-not-sibling",
-            CreateValidPe());
+        ProcessResult explicitMismatchResult = RunVerifier(explicitMismatchArtifact, serializerObjectPath: alternateObject);
+        string nonSiblingArtifact = WriteFixture(tempRoot, "serializer-object-not-sibling", CreateValidPe());
         LinkEvidencePaths nonSiblingPaths = WriteLinkEvidence(nonSiblingArtifact);
-        string nonSiblingObject = Path.Combine(
-            Path.GetDirectoryName(nonSiblingArtifact)!,
-            "not-the-artifact-sibling.obj");
+        string nonSiblingObject = Path.Combine(Path.GetDirectoryName(nonSiblingArtifact)!, "not-the-artifact-sibling.obj");
         File.Copy(nonSiblingPaths.ObjectPath, nonSiblingObject);
-        MutateEvidence(
-            nonSiblingPaths.EvidencePath,
-            evidence => evidence["serializerObjectPath"] = nonSiblingObject);
+        MutateEvidence(nonSiblingPaths.EvidencePath, evidence => evidence["serializerObjectPath"] = nonSiblingObject);
         ProcessResult nonSiblingResult = RunVerifier(nonSiblingArtifact);
-
-        string missingDotnetPropertyArtifact = WriteFixture(
-            tempRoot,
-            "dotnet-host-property-missing",
-            CreateValidPe());
-        LinkEvidencePaths missingDotnetPropertyPaths = WriteLinkEvidence(
-            missingDotnetPropertyArtifact);
-        MutateEvidence(
-            missingDotnetPropertyPaths.EvidencePath,
-            evidence => evidence.Remove("dotnetHostPath"));
-        ProcessResult missingDotnetPropertyResult = RunVerifier(
-            missingDotnetPropertyArtifact);
-
-        string dotnetHashArtifact = WriteFixture(
-            tempRoot,
-            "dotnet-host-hash-wrong",
-            CreateValidPe());
+        string missingDotnetPropertyArtifact = WriteFixture(tempRoot, "dotnet-host-property-missing", CreateValidPe());
+        LinkEvidencePaths missingDotnetPropertyPaths = WriteLinkEvidence(missingDotnetPropertyArtifact);
+        MutateEvidence(missingDotnetPropertyPaths.EvidencePath, evidence => evidence.Remove("dotnetHostPath"));
+        ProcessResult missingDotnetPropertyResult = RunVerifier(missingDotnetPropertyArtifact);
+        string dotnetHashArtifact = WriteFixture(tempRoot, "dotnet-host-hash-wrong", CreateValidPe());
         LinkEvidencePaths dotnetHashPaths = WriteLinkEvidence(dotnetHashArtifact);
-        MutateEvidence(
-            dotnetHashPaths.EvidencePath,
-            evidence => evidence["dotnetHostSha256"] = new string('0', 64));
+        MutateEvidence(dotnetHashPaths.EvidencePath, evidence => evidence["dotnetHostSha256"] = new string('0', 64));
         ProcessResult dotnetHashResult = RunVerifier(dotnetHashArtifact);
-
-        string windowsSdkHashArtifact = WriteFixture(
-            tempRoot,
-            "windows-sdk-hash-wrong",
-            CreateValidPe());
-        LinkEvidencePaths windowsSdkHashPaths = WriteLinkEvidence(
-            windowsSdkHashArtifact);
-        MutateEvidence(
-            windowsSdkHashPaths.EvidencePath,
-            evidence =>
-                evidence["windowsSdkLibrarySha256"] = new string('0', 64));
-        ProcessResult windowsSdkHashResult = RunVerifier(
-            windowsSdkHashArtifact);
-
-        string ilCompilerVersionArtifact = WriteFixture(
-            tempRoot,
-            "ilcompiler-version-wrong",
-            CreateValidPe());
-        LinkEvidencePaths ilCompilerVersionPaths = WriteLinkEvidence(
-            ilCompilerVersionArtifact);
-        MutateEvidence(
-            ilCompilerVersionPaths.EvidencePath,
-            evidence => evidence["ilCompilerFileVersion"] = "0.0.0.0");
-        ProcessResult ilCompilerVersionResult = RunVerifier(
-            ilCompilerVersionArtifact);
-
-        string runtimeListHashArtifact = WriteFixture(
-            tempRoot,
-            "runtime-list-hash-wrong",
-            CreateValidPe());
-        LinkEvidencePaths runtimeListHashPaths = WriteLinkEvidence(
-            runtimeListHashArtifact);
-        MutateEvidence(
-            runtimeListHashPaths.EvidencePath,
-            evidence => evidence["runtimeListSha256"] = new string('0', 64));
-        ProcessResult runtimeListHashResult = RunVerifier(
-            runtimeListHashArtifact);
-
-        string generatedUtcArtifact = WriteFixture(
-            tempRoot,
-            "generated-utc-malformed",
-            CreateValidPe());
-        LinkEvidencePaths generatedUtcPaths = WriteLinkEvidence(
-            generatedUtcArtifact);
-        MutateEvidence(
-            generatedUtcPaths.EvidencePath,
-            evidence => evidence["generatedUtc"] = "not-a-timestamp");
+        string windowsSdkHashArtifact = WriteFixture(tempRoot, "windows-sdk-hash-wrong", CreateValidPe());
+        LinkEvidencePaths windowsSdkHashPaths = WriteLinkEvidence(windowsSdkHashArtifact);
+        MutateEvidence(windowsSdkHashPaths.EvidencePath, evidence => evidence["windowsSdkLibrarySha256"] = new string('0', 64));
+        ProcessResult windowsSdkHashResult = RunVerifier(windowsSdkHashArtifact);
+        string ilCompilerVersionArtifact = WriteFixture(tempRoot, "ilcompiler-version-wrong", CreateValidPe());
+        LinkEvidencePaths ilCompilerVersionPaths = WriteLinkEvidence(ilCompilerVersionArtifact);
+        MutateEvidence(ilCompilerVersionPaths.EvidencePath, evidence => evidence["ilCompilerFileVersion"] = "0.0.0.0");
+        ProcessResult ilCompilerVersionResult = RunVerifier(ilCompilerVersionArtifact);
+        string runtimeListHashArtifact = WriteFixture(tempRoot, "runtime-list-hash-wrong", CreateValidPe());
+        LinkEvidencePaths runtimeListHashPaths = WriteLinkEvidence(runtimeListHashArtifact);
+        MutateEvidence(runtimeListHashPaths.EvidencePath, evidence => evidence["runtimeListSha256"] = new string('0', 64));
+        ProcessResult runtimeListHashResult = RunVerifier(runtimeListHashArtifact);
+        string generatedUtcArtifact = WriteFixture(tempRoot, "generated-utc-malformed", CreateValidPe());
+        LinkEvidencePaths generatedUtcPaths = WriteLinkEvidence(generatedUtcArtifact);
+        MutateEvidence(generatedUtcPaths.EvidencePath, evidence => evidence["generatedUtc"] = "not-a-timestamp");
         ProcessResult generatedUtcResult = RunVerifier(generatedUtcArtifact);
-
-        string configurationArtifact = WriteFixture(
-            tempRoot,
-            "configuration-path-traversal",
-            CreateValidPe());
-        LinkEvidencePaths configurationPaths = WriteLinkEvidence(
-            configurationArtifact);
-        MutateEvidence(
-            configurationPaths.EvidencePath,
-            evidence => evidence["configuration"] = "..\\outside");
+        string configurationArtifact = WriteFixture(tempRoot, "configuration-path-traversal", CreateValidPe());
+        LinkEvidencePaths configurationPaths = WriteLinkEvidence(configurationArtifact);
+        MutateEvidence(configurationPaths.EvidencePath, evidence => evidence["configuration"] = "..\\outside");
         ProcessResult configurationResult = RunVerifier(configurationArtifact);
-
-        string nonCanonicalManagedArtifact = WriteFixture(
-            tempRoot,
-            "managed-assembly-noncanonical",
-            CreateValidPe());
-        LinkEvidencePaths nonCanonicalManagedPaths = WriteLinkEvidence(
-            nonCanonicalManagedArtifact);
-        string alternateManagedAssembly = Path.Combine(
-            Path.GetDirectoryName(nonCanonicalManagedArtifact)!,
-            "alternate-managed.dll");
-        File.Copy(
-            nonCanonicalManagedPaths.ManagedAssemblyPath,
-            alternateManagedAssembly,
-            overwrite: true);
-        MutateEvidence(
-            nonCanonicalManagedPaths.EvidencePath,
-            evidence =>
-            {
-                evidence["managedAssemblyPath"] = alternateManagedAssembly;
-                evidence["managedAssemblySha256"] =
-                    GetSha256(alternateManagedAssembly);
-            });
-        ProcessResult nonCanonicalManagedResult = RunVerifier(
-            nonCanonicalManagedArtifact);
-
-        string legacyManagedArtifact = WriteFixture(
-            tempRoot,
-            "managed-assembly-legacy-bin",
-            CreateValidPe());
+        string nonCanonicalManagedArtifact = WriteFixture(tempRoot, "managed-assembly-noncanonical", CreateValidPe());
+        LinkEvidencePaths nonCanonicalManagedPaths = WriteLinkEvidence(nonCanonicalManagedArtifact);
+        string alternateManagedAssembly = Path.Combine(Path.GetDirectoryName(nonCanonicalManagedArtifact)!, "alternate-managed.dll");
+        File.Copy(nonCanonicalManagedPaths.ManagedAssemblyPath, alternateManagedAssembly, overwrite: true);
+        MutateEvidence(nonCanonicalManagedPaths.EvidencePath, evidence =>
+        {
+            evidence["managedAssemblyPath"] = alternateManagedAssembly;
+            evidence["managedAssemblySha256"] = GetSha256(alternateManagedAssembly);
+        });
+        ProcessResult nonCanonicalManagedResult = RunVerifier(nonCanonicalManagedArtifact);
+        string legacyManagedArtifact = WriteFixture(tempRoot, "managed-assembly-legacy-bin", CreateValidPe());
         LinkEvidencePaths legacyManagedPaths = WriteLinkEvidence(legacyManagedArtifact);
-        string legacyManagedAssembly = Path.Combine(
-            SchemaThreeFixtureRepositoryRoot,
-            "src/OS/bin",
-            ManagedFixtureConfiguration,
-            "net11.0/win-x64/OS.dll");
+        string legacyManagedAssembly = Path.Combine(SchemaThreeFixtureRepositoryRoot, "src/OS/bin", ManagedFixtureConfiguration, "net11.0/win-x64/OS.dll");
         Directory.CreateDirectory(Path.GetDirectoryName(legacyManagedAssembly)!);
         File.Copy(legacyManagedPaths.ManagedAssemblyPath, legacyManagedAssembly);
         ProcessResult legacyManagedResult;
         try
         {
-            MutateEvidence(
-                legacyManagedPaths.EvidencePath,
-                evidence => evidence["managedAssemblyPath"] = legacyManagedAssembly);
+            MutateEvidence(legacyManagedPaths.EvidencePath, evidence => evidence["managedAssemblyPath"] = legacyManagedAssembly);
             // Identical bytes and hash at the old location still are not the ILC input.
             legacyManagedResult = RunVerifier(legacyManagedArtifact);
         }
@@ -1683,97 +617,44 @@ internal static class EfiArtifactVerificationScriptTests
             File.Delete(legacyManagedAssembly);
         }
 
-        string malformedManagedArtifact = WriteFixture(
-            tempRoot,
-            "managed-assembly-malformed",
-            CreateValidPe());
-        LinkEvidencePaths malformedManagedPaths = WriteLinkEvidence(
-            malformedManagedArtifact);
-        byte[] originalManagedAssembly = File.ReadAllBytes(
-            malformedManagedPaths.ManagedAssemblyPath);
+        string malformedManagedArtifact = WriteFixture(tempRoot, "managed-assembly-malformed", CreateValidPe());
+        LinkEvidencePaths malformedManagedPaths = WriteLinkEvidence(malformedManagedArtifact);
+        byte[] originalManagedAssembly = File.ReadAllBytes(malformedManagedPaths.ManagedAssemblyPath);
         ProcessResult malformedManagedResult;
         try
         {
-            File.WriteAllBytes(
-                malformedManagedPaths.ManagedAssemblyPath,
-                Encoding.ASCII.GetBytes("not a managed PE"));
-            MutateEvidence(
-                malformedManagedPaths.EvidencePath,
-                evidence => evidence["managedAssemblySha256"] =
-                    GetSha256(malformedManagedPaths.ManagedAssemblyPath));
+            File.WriteAllBytes(malformedManagedPaths.ManagedAssemblyPath, Encoding.ASCII.GetBytes("not a managed PE"));
+            MutateEvidence(malformedManagedPaths.EvidencePath, evidence => evidence["managedAssemblySha256"] = GetSha256(malformedManagedPaths.ManagedAssemblyPath));
             malformedManagedResult = RunVerifier(malformedManagedArtifact);
         }
         finally
         {
-            File.WriteAllBytes(
-                malformedManagedPaths.ManagedAssemblyPath,
-                originalManagedAssembly);
+            File.WriteAllBytes(malformedManagedPaths.ManagedAssemblyPath, originalManagedAssembly);
         }
 
-        string missingRestorePropertyArtifact = WriteFixture(
-            tempRoot,
-            "restore-closure-property-missing",
-            CreateValidPe());
-        LinkEvidencePaths missingRestorePropertyPaths = WriteLinkEvidence(
-            missingRestorePropertyArtifact);
-        MutateEvidence(
-            missingRestorePropertyPaths.EvidencePath,
-            evidence => evidence.Remove("restoreClosureSha256"));
-        ProcessResult missingRestorePropertyResult = RunVerifier(
-            missingRestorePropertyArtifact);
-
-        string restoreInputHashArtifact = WriteFixture(
-            tempRoot,
-            "restore-closure-input-hash-wrong",
-            CreateValidPe());
-        LinkEvidencePaths restoreInputHashPaths = WriteLinkEvidence(
-            restoreInputHashArtifact);
-        MutateEvidence(
-            restoreInputHashPaths.EvidencePath,
-            CorruptFirstRestoreClosureInput);
-        ProcessResult restoreInputHashResult = RunVerifier(
-            restoreInputHashArtifact);
-
-        string projectAssetsPathArtifact = WriteFixture(
-            tempRoot,
-            "project-assets-path-noncanonical",
-            CreateValidPe());
-        LinkEvidencePaths projectAssetsPathPaths = WriteLinkEvidence(
-            projectAssetsPathArtifact);
-        string alternateProjectAssetsPath = Path.Combine(
-            Path.GetDirectoryName(projectAssetsPathArtifact)!,
-            "alternate-project.assets.json");
-        File.WriteAllText(
-            alternateProjectAssetsPath,
-            "{\"fixture\":\"alternate\"}",
-            new UTF8Encoding(false));
-        MutateEvidence(
-            projectAssetsPathPaths.EvidencePath,
-            evidence =>
-            {
-                evidence["projectAssetsPath"] = alternateProjectAssetsPath;
-                evidence["projectAssetsSha256"] =
-                    GetSha256(alternateProjectAssetsPath);
-            });
-        ProcessResult projectAssetsPathResult = RunVerifier(
-            projectAssetsPathArtifact);
-
-        string restoreExtraEntryArtifact = WriteFixture(
-            tempRoot,
-            "restore-closure-extra-entry",
-            CreateValidPe());
-        LinkEvidencePaths restoreExtraEntryPaths = WriteLinkEvidence(
-            restoreExtraEntryArtifact);
-        SchemaThreeFixture restoreExtraFixture = cachedSchemaThreeFixture
-            ?? throw new InvalidOperationException(
-                "Schema-three fixture was not initialized.");
-        string restoreExtraEntryPath = Path.Combine(
-            restoreExtraFixture.ProjectExtensionsPath,
-            "injected.targets");
-        File.WriteAllText(
-            restoreExtraEntryPath,
-            "<Project />",
-            new UTF8Encoding(false));
+        string missingRestorePropertyArtifact = WriteFixture(tempRoot, "restore-closure-property-missing", CreateValidPe());
+        LinkEvidencePaths missingRestorePropertyPaths = WriteLinkEvidence(missingRestorePropertyArtifact);
+        MutateEvidence(missingRestorePropertyPaths.EvidencePath, evidence => evidence.Remove("restoreClosureSha256"));
+        ProcessResult missingRestorePropertyResult = RunVerifier(missingRestorePropertyArtifact);
+        string restoreInputHashArtifact = WriteFixture(tempRoot, "restore-closure-input-hash-wrong", CreateValidPe());
+        LinkEvidencePaths restoreInputHashPaths = WriteLinkEvidence(restoreInputHashArtifact);
+        MutateEvidence(restoreInputHashPaths.EvidencePath, CorruptFirstRestoreClosureInput);
+        ProcessResult restoreInputHashResult = RunVerifier(restoreInputHashArtifact);
+        string projectAssetsPathArtifact = WriteFixture(tempRoot, "project-assets-path-noncanonical", CreateValidPe());
+        LinkEvidencePaths projectAssetsPathPaths = WriteLinkEvidence(projectAssetsPathArtifact);
+        string alternateProjectAssetsPath = Path.Combine(Path.GetDirectoryName(projectAssetsPathArtifact)!, "alternate-project.assets.json");
+        File.WriteAllText(alternateProjectAssetsPath, "{\"fixture\":\"alternate\"}", new UTF8Encoding(false));
+        MutateEvidence(projectAssetsPathPaths.EvidencePath, evidence =>
+        {
+            evidence["projectAssetsPath"] = alternateProjectAssetsPath;
+            evidence["projectAssetsSha256"] = GetSha256(alternateProjectAssetsPath);
+        });
+        ProcessResult projectAssetsPathResult = RunVerifier(projectAssetsPathArtifact);
+        string restoreExtraEntryArtifact = WriteFixture(tempRoot, "restore-closure-extra-entry", CreateValidPe());
+        LinkEvidencePaths restoreExtraEntryPaths = WriteLinkEvidence(restoreExtraEntryArtifact);
+        SchemaThreeFixture restoreExtraFixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+        string restoreExtraEntryPath = Path.Combine(restoreExtraFixture.ProjectExtensionsPath, "injected.targets");
+        File.WriteAllText(restoreExtraEntryPath, "<Project />", new UTF8Encoding(false));
         ProcessResult restoreExtraEntryResult;
         try
         {
@@ -1784,10 +665,7 @@ internal static class EfiArtifactVerificationScriptTests
             File.Delete(restoreExtraEntryPath);
         }
 
-        string missingAssemblyArtifact = WriteFixture(
-            tempRoot,
-            "managed-assembly-missing",
-            CreateValidPe());
+        string missingAssemblyArtifact = WriteFixture(tempRoot, "managed-assembly-missing", CreateValidPe());
         LinkEvidencePaths missingAssemblyPaths = WriteLinkEvidence(missingAssemblyArtifact);
         File.Copy(missingAssemblyPaths.ManagedAssemblyPath, legacyManagedAssembly);
         ProcessResult missingAssemblyResult;
@@ -1802,569 +680,207 @@ internal static class EfiArtifactVerificationScriptTests
             File.Delete(legacyManagedAssembly);
         }
 
-        return FailedWith(missingResult, "missing_linker_map")
-            && FailedWith(staleResult, "link_evidence_hash_mismatch")
-            && FailedWith(entryMismatchResult, "efimain_entrypoint_mismatch")
-            && FailedWith(schemaResult, "link_evidence_contract_invalid")
-            && FailedWith(cookieResult, "link_evidence_contract_invalid")
-            && FailedWith(
-                missingPropertyResult,
-                "link_evidence_property_missing")
-            && missingPropertyResult.Output.Contains(
-                "property=serializerTargetsSha256",
-                StringComparison.Ordinal)
-            && FailedWith(sourceHashResult, "serializer_source_hash_mismatch")
-            && FailedWith(
-                closureInputResult,
-                "source_closure_input_hash_mismatch")
-            && FailedWith(
-                missingToolPropsResult,
-                "source_closure_input_count_mismatch")
-            && FailedWith(
-                missingGlobalJsonResult,
-                "source_closure_input_count_mismatch")
-            && FailedWith(
-                missingVerifierSourceResult,
-                "source_closure_input_count_mismatch")
-            && FailedWith(solutionHashResult, "link_evidence_hash_mismatch")
-            && FailedWith(
-                malformedNumberResult,
-                "link_evidence_number_malformed")
-            && FailedWith(
-                mutatedObjectResult,
-                "serializer_object_identity_mismatch")
-            && FailedWith(
-                mutatedLinkedObjectResult,
-                "serializer_linked_object_identity_mismatch")
-            && FailedWith(
-                aliasedObjectResult,
-                "serializer_linked_and_preserved_object_paths_alias")
-            && FailedWith(
-                mutatedLinkedMapResult,
-                "serializer_link_map_identity_mismatch")
-            && FailedWith(
-                explicitMismatchResult,
-                "serializer_object_path_mismatch")
-            && FailedWith(
-                nonSiblingResult,
-                "serializer_object_not_artifact_sibling")
-            && FailedWith(
-                missingDotnetPropertyResult,
-                "link_evidence_property_missing")
-            && FailedWith(
-                dotnetHashResult,
-                "dotnet_host_identity_mismatch")
-            && FailedWith(
-                windowsSdkHashResult,
-                "windows_sdk_identity_mismatch")
-            && FailedWith(
-                ilCompilerVersionResult,
-                "ilcompiler_version_mismatch")
-            && FailedWith(
-                runtimeListHashResult,
-                "nativeaot_runtime_list_identity_mismatch")
-            && FailedWith(generatedUtcResult, "generated_utc_invalid")
-            && FailedWith(configurationResult, "configuration_invalid")
-            && FailedWith(
-                nonCanonicalManagedResult,
-                "managed_assembly_path_not_canonical")
-            && FailedWith(
-                legacyManagedResult,
-                "managed_assembly_path_not_canonical")
-            && FailedWith(
-                malformedManagedResult,
-                "managed_pe_dos_header_truncated")
-            && FailedWith(
-                missingRestorePropertyResult,
-                "link_evidence_property_missing")
-            && missingRestorePropertyResult.Output.Contains(
-                "property=restoreClosureSha256",
-                StringComparison.Ordinal)
-            && FailedWith(
-                restoreInputHashResult,
-                "restore_closure_input_hash_mismatch")
-            && FailedWith(
-                projectAssetsPathResult,
-                "project_assets_path_not_canonical")
-            && FailedWith(
-                restoreExtraEntryResult,
-                "restore_closure_entry_count_mismatch")
-            && FailedWith(missingAssemblyResult, "managed_assembly_missing");
+        return FailedWith(missingResult, "missing_linker_map") && FailedWith(staleResult, "link_evidence_hash_mismatch") && FailedWith(entryMismatchResult, "efimain_entrypoint_mismatch") && FailedWith(schemaResult, "link_evidence_contract_invalid") && FailedWith(cookieResult, "link_evidence_contract_invalid") && FailedWith(missingPropertyResult, "link_evidence_property_missing") && missingPropertyResult.Output.Contains("property=serializerTargetsSha256", StringComparison.Ordinal) && FailedWith(sourceHashResult, "serializer_source_hash_mismatch") && FailedWith(closureInputResult, "source_closure_input_hash_mismatch") && FailedWith(missingToolPropsResult, "source_closure_input_count_mismatch") && FailedWith(missingGlobalJsonResult, "source_closure_input_count_mismatch") && FailedWith(missingVerifierSourceResult, "source_closure_input_count_mismatch") && FailedWith(solutionHashResult, "link_evidence_hash_mismatch") && FailedWith(malformedNumberResult, "link_evidence_number_malformed") && FailedWith(mutatedObjectResult, "serializer_object_identity_mismatch") && FailedWith(mutatedLinkedObjectResult, "serializer_linked_object_identity_mismatch") && FailedWith(aliasedObjectResult, "serializer_linked_and_preserved_object_paths_alias") && FailedWith(mutatedLinkedMapResult, "serializer_link_map_identity_mismatch") && FailedWith(explicitMismatchResult, "serializer_object_path_mismatch") && FailedWith(nonSiblingResult, "serializer_object_not_artifact_sibling") && FailedWith(missingDotnetPropertyResult, "link_evidence_property_missing") && FailedWith(dotnetHashResult, "dotnet_host_identity_mismatch") && FailedWith(windowsSdkHashResult, "windows_sdk_identity_mismatch") && FailedWith(ilCompilerVersionResult, "ilcompiler_version_mismatch") && FailedWith(runtimeListHashResult, "nativeaot_runtime_list_identity_mismatch") && FailedWith(generatedUtcResult, "generated_utc_invalid") && FailedWith(configurationResult, "configuration_invalid") && FailedWith(nonCanonicalManagedResult, "managed_assembly_path_not_canonical") && FailedWith(legacyManagedResult, "managed_assembly_path_not_canonical") && FailedWith(malformedManagedResult, "managed_pe_dos_header_truncated") && FailedWith(missingRestorePropertyResult, "link_evidence_property_missing") && missingRestorePropertyResult.Output.Contains("property=restoreClosureSha256", StringComparison.Ordinal) && FailedWith(restoreInputHashResult, "restore_closure_input_hash_mismatch") && FailedWith(projectAssetsPathResult, "project_assets_path_not_canonical") && FailedWith(restoreExtraEntryResult, "restore_closure_entry_count_mismatch") && FailedWith(missingAssemblyResult, "managed_assembly_missing");
     }
 
     private static bool TestSchemaThreeAuthorityFailures(string tempRoot)
     {
         bool passed = true;
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "schema-three-property-null",
-            evidence => evidence["packageRootPath"] = null,
-            "package_root_path_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "schema-three-property-empty",
-            evidence => evidence["restoreArchiveSourceRootPath"] = "",
-            "restore_archive_source_root_path_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "schema-three-property-extra",
-            evidence => evidence["unexpectedAuthority"] = "forbidden",
-            "link_evidence_property_set_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "restore-archive-count",
-            evidence => GetEvidenceArray(
-                evidence,
-                "restoreArchiveInputs").RemoveAt(0),
-            "restore_archive_input_count_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "restore-archive-order",
-            evidence => SwapArrayEntries(
-                GetEvidenceArray(evidence, "restoreArchiveInputs"),
-                0,
-                1),
-            "restore_archive_input_set_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "restore-archive-case",
-            evidence =>
-            {
-                JsonObject first = GetEvidenceArray(
-                    evidence,
-                    "restoreArchiveInputs")[0]!.AsObject();
-                first["path"] = first["path"]!
-                    .GetValue<string>()
-                    .ToUpperInvariant();
-            },
-            "restore_archive_input_set_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "restore-archive-duplicate",
-            evidence =>
-            {
-                JsonArray inputs = GetEvidenceArray(
-                    evidence,
-                    "restoreArchiveInputs");
-                inputs[1] = inputs[0]!.DeepClone();
-            },
-            "restore_archive_input_set_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "restore-archive-hash",
-            evidence =>
-            {
-                JsonObject first = GetEvidenceArray(
-                    evidence,
-                    "restoreArchiveInputs")[0]!.AsObject();
-                first["sha256"] = new string('0', 64);
-            },
-            "restore_archive_input_hash_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "pinned-restore-source-count",
-            evidence => GetEvidenceArray(
-                evidence,
-                "pinnedRestoreSourceInputs").RemoveAt(0),
-            "pinned_restore_source_input_count_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "pinned-restore-source-order",
-            evidence => SwapArrayEntries(
-                GetEvidenceArray(evidence, "pinnedRestoreSourceInputs"),
-                0,
-                1),
-            "pinned_restore_source_input_set_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "pinned-restore-source-path",
-            evidence =>
-            {
-                JsonObject first = GetEvidenceArray(
-                    evidence,
-                    "pinnedRestoreSourceInputs")[0]!.AsObject();
-                first["path"] = first["path"]!
-                    .GetValue<string>()
-                    .ToUpperInvariant();
-            },
-            "pinned_restore_source_input_set_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "pinned-restore-source-hash",
-            evidence =>
-            {
-                JsonObject first = GetEvidenceArray(
-                    evidence,
-                    "pinnedRestoreSourceInputs")[0]!.AsObject();
-                first["sha256"] = new string('0', 64);
-            },
-            "pinned_restore_source_input_hash_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "generated-restore-order",
-            evidence => SwapArrayEntries(
-                GetEvidenceArray(evidence, "restoreClosureInputs"),
-                0,
-                1),
-            "restore_closure_input_set_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "restore-closure-path-traversal",
-            evidence =>
-            {
-                JsonObject first = GetEvidenceArray(
-                    evidence,
-                    "restoreClosureInputs")[0]!.AsObject();
-                first["path"] = "../outside";
-            },
-            "restore_closure_input_set_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "schema-three-property-null", evidence => evidence["packageRootPath"] = null, "package_root_path_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "schema-three-property-empty", evidence => evidence["restoreArchiveSourceRootPath"] = "", "restore_archive_source_root_path_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "schema-three-property-extra", evidence => evidence["unexpectedAuthority"] = "forbidden", "link_evidence_property_set_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "restore-archive-count", evidence => GetEvidenceArray(evidence, "restoreArchiveInputs").RemoveAt(0), "restore_archive_input_count_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "restore-archive-order", evidence => SwapArrayEntries(GetEvidenceArray(evidence, "restoreArchiveInputs"), 0, 1), "restore_archive_input_set_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "restore-archive-case", evidence =>
+        {
+            JsonObject first = GetEvidenceArray(evidence, "restoreArchiveInputs")[0]!.AsObject();
+            first["path"] = first["path"]!.GetValue<string>().ToUpperInvariant();
+        }, "restore_archive_input_set_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "restore-archive-duplicate", evidence =>
+        {
+            JsonArray inputs = GetEvidenceArray(evidence, "restoreArchiveInputs");
+            inputs[1] = inputs[0]!.DeepClone();
+        }, "restore_archive_input_set_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "restore-archive-hash", evidence =>
+        {
+            JsonObject first = GetEvidenceArray(evidence, "restoreArchiveInputs")[0]!.AsObject();
+            first["sha256"] = new string('0', 64);
+        }, "restore_archive_input_hash_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "pinned-restore-source-count", evidence => GetEvidenceArray(evidence, "pinnedRestoreSourceInputs").RemoveAt(0), "pinned_restore_source_input_count_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "pinned-restore-source-order", evidence => SwapArrayEntries(GetEvidenceArray(evidence, "pinnedRestoreSourceInputs"), 0, 1), "pinned_restore_source_input_set_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "pinned-restore-source-path", evidence =>
+        {
+            JsonObject first = GetEvidenceArray(evidence, "pinnedRestoreSourceInputs")[0]!.AsObject();
+            first["path"] = first["path"]!.GetValue<string>().ToUpperInvariant();
+        }, "pinned_restore_source_input_set_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "pinned-restore-source-hash", evidence =>
+        {
+            JsonObject first = GetEvidenceArray(evidence, "pinnedRestoreSourceInputs")[0]!.AsObject();
+            first["sha256"] = new string('0', 64);
+        }, "pinned_restore_source_input_hash_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "generated-restore-order", evidence => SwapArrayEntries(GetEvidenceArray(evidence, "restoreClosureInputs"), 0, 1), "restore_closure_input_set_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "restore-closure-path-traversal", evidence =>
+        {
+            JsonObject first = GetEvidenceArray(evidence, "restoreClosureInputs")[0]!.AsObject();
+            first["path"] = "../outside";
+        }, "restore_closure_input_set_mismatch");
         passed &= TestPinnedRestoreArchiveMutation(tempRoot);
         passed &= TestGeneratedRestoreExecutableSurfaceMutation(tempRoot);
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "package-count",
-            evidence => GetEvidenceArray(evidence, "packages").RemoveAt(0),
-            "package_evidence_count_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "package-order",
-            evidence => SwapArrayEntries(
-                GetEvidenceArray(evidence, "packages"),
-                0,
-                1),
-            "package_evidence_identity_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "package-duplicate",
-            evidence =>
-            {
-                JsonArray packages = GetEvidenceArray(evidence, "packages");
-                packages[1] = packages[0]!.DeepClone();
-            },
-            "package_evidence_identity_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "package-id-case",
-            evidence =>
-            {
-                JsonObject first = GetEvidenceArray(
-                    evidence,
-                    "packages")[0]!.AsObject();
-                first["id"] = first["id"]!
-                    .GetValue<string>()
-                    .ToUpperInvariant();
-            },
-            "package_evidence_identity_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "package-root",
-            evidence =>
-            {
-                JsonObject first = GetEvidenceArray(
-                    evidence,
-                    "packages")[0]!.AsObject();
-                first["rootPath"] = Path.GetTempPath();
-            },
-            "package_evidence_root_path_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "package-version",
-            evidence =>
-            {
-                JsonObject first = GetEvidenceArray(
-                    evidence,
-                    "packages")[0]!.AsObject();
-                first["version"] = "10.0.999";
-            },
-            "package_evidence_identity_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "package-tree-hash",
-            evidence =>
-            {
-                JsonObject first = GetEvidenceArray(
-                    evidence,
-                    "packages")[0]!.AsObject();
-                first["aggregateSha256"] = new string('0', 64);
-            },
-            "package_tree_contract_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "package-metadata-hash",
-            evidence =>
-            {
-                JsonObject first = GetEvidenceArray(
-                    evidence,
-                    "packages")[0]!.AsObject();
-                first["metadataSha256"] = new string('0', 64);
-            },
-            "package_metadata_hash_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "package-count", evidence => GetEvidenceArray(evidence, "packages").RemoveAt(0), "package_evidence_count_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "package-order", evidence => SwapArrayEntries(GetEvidenceArray(evidence, "packages"), 0, 1), "package_evidence_identity_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "package-duplicate", evidence =>
+        {
+            JsonArray packages = GetEvidenceArray(evidence, "packages");
+            packages[1] = packages[0]!.DeepClone();
+        }, "package_evidence_identity_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "package-id-case", evidence =>
+        {
+            JsonObject first = GetEvidenceArray(evidence, "packages")[0]!.AsObject();
+            first["id"] = first["id"]!.GetValue<string>().ToUpperInvariant();
+        }, "package_evidence_identity_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "package-root", evidence =>
+        {
+            JsonObject first = GetEvidenceArray(evidence, "packages")[0]!.AsObject();
+            first["rootPath"] = Path.GetTempPath();
+        }, "package_evidence_root_path_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "package-version", evidence =>
+        {
+            JsonObject first = GetEvidenceArray(evidence, "packages")[0]!.AsObject();
+            first["version"] = "10.0.999";
+        }, "package_evidence_identity_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "package-tree-hash", evidence =>
+        {
+            JsonObject first = GetEvidenceArray(evidence, "packages")[0]!.AsObject();
+            first["aggregateSha256"] = new string('0', 64);
+        }, "package_tree_contract_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "package-metadata-hash", evidence =>
+        {
+            JsonObject first = GetEvidenceArray(evidence, "packages")[0]!.AsObject();
+            first["metadataSha256"] = new string('0', 64);
+        }, "package_metadata_hash_mismatch");
         passed &= TestPackageMetadataMutation(tempRoot);
         passed &= TestPackageFileMutation(tempRoot);
         passed &= TestExtraPackageVersion(tempRoot);
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "package-build-input",
-            evidence =>
-            {
-                JsonObject first = GetEvidenceArray(
-                    evidence,
-                    "packageBuildClosureInputs")[0]!.AsObject();
-                first["sha256"] = new string('0', 64);
-            },
-            "package_build_closure_input_hash_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "active-package-import-graph",
-            evidence =>
-            {
-                JsonArray edges = GetEvidenceArray(
-                    evidence,
-                    "activePackageImportEdges");
-                edges[0] = "sdk|outside.targets";
-            },
-            "active_package_import_edges_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "package-task-binding",
-            evidence =>
-            {
-                JsonArray bindings = GetEvidenceArray(
-                    evidence,
-                    "packageTaskBindings");
-                bindings[0] = "ComputeManagedAssemblies|outside.dll";
-            },
-            "package_task_bindings_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-evaluation",
-            evidence =>
-            {
-                JsonObject evaluation = evidence[
-                    "postRestoreEvaluation"]!.AsObject();
-                evaluation["compileCount"] = 43;
-            },
-            "post_restore_evidence_count_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m02-owned-com1-property-missing",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties.Remove("EnableM02OwnedCom1ReadyProbe");
-            },
-            "post_restore_evidence_property_set_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m02-owned-com1-property-enabled-without-switch",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties["EnableM02OwnedCom1ReadyProbe"] = "true";
-            },
-            "post_restore_evidence_property_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m02-panic-safe-owned-com1-property-missing",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties.Remove("EnableM02PanicSafeOwnedCom1Probe");
-            },
-            "post_restore_evidence_property_set_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m02-panic-safe-owned-com1-property-enabled-without-switch",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties["EnableM02PanicSafeOwnedCom1Probe"] = "true";
-            },
-            "post_restore_evidence_property_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m02-owned-x64-gdt-property-missing",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties.Remove("EnableM02OwnedX64GdtEncodingProbe");
-            },
-            "post_restore_evidence_property_set_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m02-owned-x64-gdt-property-enabled-without-switch",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties["EnableM02OwnedX64GdtEncodingProbe"] = "true";
-            },
-            "post_restore_evidence_property_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m02-idtr-continued-execution-property-missing",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties.Remove("EnableM02IdtrContinuedExecutionProbe");
-            },
-            "post_restore_evidence_property_set_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m02-idtr-continued-execution-property-enabled-without-switch",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties["EnableM02IdtrContinuedExecutionProbe"] = "true";
-            },
-            "post_restore_evidence_property_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m02-ud2-vector-state-property-missing",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties.Remove("EnableM02Ud2VectorStateProbe");
-            },
-            "post_restore_evidence_property_set_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m02-ud2-vector-state-property-enabled-without-switch",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties["EnableM02Ud2VectorStateProbe"] = "true";
-            },
-            "post_restore_evidence_property_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m04-property-missing",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties.Remove("EnableM04IndependentEndianConformanceProbe");
-            },
-            "post_restore_evidence_property_set_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m04-property-enabled-without-switch",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties["EnableM04IndependentEndianConformanceProbe"] = "true";
-            },
-            "post_restore_evidence_property_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m04-span-memory-property-missing",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties.Remove(
-                    "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe");
-            },
-            "post_restore_evidence_property_set_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-m04-span-memory-property-enabled-without-switch",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties[
-                    "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"] =
-                    "true";
-            },
-            "post_restore_evidence_property_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-sdk-path",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties["MSBuildSDKsPath"] = Path.GetTempPath();
-            },
-            "post_restore_evidence_property_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-wildcard-enabled",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties[
-                    "ImportByWildcardBeforeMicrosoftCommonProps"] = "true";
-            },
-            "post_restore_evidence_property_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "post-restore-shared-compilation-enabled",
-            evidence =>
-            {
-                JsonObject properties = evidence[
-                    "postRestoreEvaluation"]!["properties"]!.AsObject();
-                properties["UseSharedCompilation"] = "true";
-            },
-            "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "package-build-input", evidence =>
+        {
+            JsonObject first = GetEvidenceArray(evidence, "packageBuildClosureInputs")[0]!.AsObject();
+            first["sha256"] = new string('0', 64);
+        }, "package_build_closure_input_hash_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "active-package-import-graph", evidence =>
+        {
+            JsonArray edges = GetEvidenceArray(evidence, "activePackageImportEdges");
+            edges[0] = "sdk|outside.targets";
+        }, "active_package_import_edges_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "package-task-binding", evidence =>
+        {
+            JsonArray bindings = GetEvidenceArray(evidence, "packageTaskBindings");
+            bindings[0] = "ComputeManagedAssemblies|outside.dll";
+        }, "package_task_bindings_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-evaluation", evidence =>
+        {
+            JsonObject evaluation = evidence["postRestoreEvaluation"]!.AsObject();
+            evaluation["compileCount"] = 43;
+        }, "post_restore_evidence_count_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m02-owned-com1-property-missing", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties.Remove("EnableM02OwnedCom1ReadyProbe");
+        }, "post_restore_evidence_property_set_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m02-owned-com1-property-enabled-without-switch", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties["EnableM02OwnedCom1ReadyProbe"] = "true";
+        }, "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m02-panic-safe-owned-com1-property-missing", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties.Remove("EnableM02PanicSafeOwnedCom1Probe");
+        }, "post_restore_evidence_property_set_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m02-panic-safe-owned-com1-property-enabled-without-switch", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties["EnableM02PanicSafeOwnedCom1Probe"] = "true";
+        }, "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m02-owned-x64-gdt-property-missing", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties.Remove("EnableM02OwnedX64GdtEncodingProbe");
+        }, "post_restore_evidence_property_set_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m02-owned-x64-gdt-property-enabled-without-switch", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties["EnableM02OwnedX64GdtEncodingProbe"] = "true";
+        }, "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m02-idtr-continued-execution-property-missing", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties.Remove("EnableM02IdtrContinuedExecutionProbe");
+        }, "post_restore_evidence_property_set_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m02-idtr-continued-execution-property-enabled-without-switch", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties["EnableM02IdtrContinuedExecutionProbe"] = "true";
+        }, "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m02-ud2-vector-state-property-missing", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties.Remove("EnableM02Ud2VectorStateProbe");
+        }, "post_restore_evidence_property_set_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m02-ud2-vector-state-property-enabled-without-switch", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties["EnableM02Ud2VectorStateProbe"] = "true";
+        }, "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m04-property-missing", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties.Remove("EnableM04IndependentEndianConformanceProbe");
+        }, "post_restore_evidence_property_set_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m04-property-enabled-without-switch", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties["EnableM04IndependentEndianConformanceProbe"] = "true";
+        }, "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m04-span-memory-property-missing", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties.Remove("EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe");
+        }, "post_restore_evidence_property_set_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-m04-span-memory-property-enabled-without-switch", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties["EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"] = "true";
+        }, "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-sdk-path", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties["MSBuildSDKsPath"] = Path.GetTempPath();
+        }, "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-wildcard-enabled", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties["ImportByWildcardBeforeMicrosoftCommonProps"] = "true";
+        }, "post_restore_evidence_property_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "post-restore-shared-compilation-enabled", evidence =>
+        {
+            JsonObject properties = evidence["postRestoreEvaluation"]!["properties"]!.AsObject();
+            properties["UseSharedCompilation"] = "true";
+        }, "post_restore_evidence_property_mismatch");
         passed &= TestPresentUserExtensionsDirectory(tempRoot);
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "canonical-isolated-ilc",
-            evidence =>
-            {
-                SchemaThreeFixture fixture = cachedSchemaThreeFixture
-                    ?? throw new InvalidOperationException(
-                        "Schema-three fixture was not initialized.");
-                evidence["ilCompilerPath"] = fixture.IlcBuildTasksPath;
-            },
-            "ilcompiler_identity_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "retired-runtime-package-version",
-            evidence => evidence["nativeAotRuntimePackVersion"] = "10.0.8",
-            "nativeaot_runtime_pack_identity_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "canonical-runtime-path",
-            evidence =>
-            {
-                SchemaThreeFixture fixture = cachedSchemaThreeFixture
-                    ?? throw new InvalidOperationException(
-                        "Schema-three fixture was not initialized.");
-                evidence["nativeAotRuntimePackPath"] = Path.Combine(
-                    fixture.PackageRootPath,
-                    "microsoft.netcore.app.runtime.nativeaot.win-x64",
-                    EfiContracts.NativePackageVersion);
-            },
-            "package_evidence_root_path_mismatch");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "external-package-root",
-            evidence => evidence["packageRootPath"] = Path.GetTempPath(),
-            "package_root_contract_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "configuration-dot",
-            evidence => evidence["configuration"] = ".",
-            "configuration_invalid");
-        passed &= EvidenceMutationFails(
-            tempRoot,
-            "configuration-dot-dot",
-            evidence => evidence["configuration"] = "..",
-            "configuration_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "canonical-isolated-ilc", evidence =>
+        {
+            SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+            evidence["ilCompilerPath"] = fixture.IlcBuildTasksPath;
+        }, "ilcompiler_identity_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "retired-runtime-package-version", evidence => evidence["nativeAotRuntimePackVersion"] = "10.0.8", "nativeaot_runtime_pack_identity_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "canonical-runtime-path", evidence =>
+        {
+            SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+            evidence["nativeAotRuntimePackPath"] = Path.Combine(fixture.PackageRootPath, "microsoft.netcore.app.runtime.nativeaot.win-x64", EfiContracts.NativePackageVersion);
+        }, "package_evidence_root_path_mismatch");
+        passed &= EvidenceMutationFails(tempRoot, "external-package-root", evidence => evidence["packageRootPath"] = Path.GetTempPath(), "package_root_contract_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "configuration-dot", evidence => evidence["configuration"] = ".", "configuration_invalid");
+        passed &= EvidenceMutationFails(tempRoot, "configuration-dot-dot", evidence => evidence["configuration"] = "..", "configuration_invalid");
         passed &= TestAuthorityOutputHardlink(tempRoot);
         passed &= TryTestAuthorityArtifactReparsePoint(tempRoot);
         passed &= TryTestAuthorityMapReparsePoint(tempRoot);
@@ -2377,46 +893,17 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestPinnedRepositoryContractPaths(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "pinned-project-entry-authority",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "pinned-project-entry-authority", CreateValidPe());
         WriteLinkEvidence(artifact);
-        SchemaThreeFixture fixture = cachedSchemaThreeFixture
-            ?? throw new InvalidOperationException(
-                "Schema-three fixture was not initialized.");
-        string canonicalProjectPath = Path.Combine(
-            fixture.RepositoryRoot,
-            "src",
-            "OS",
-            "OS.csproj");
-        string canonicalEntryPath = Path.Combine(
-            fixture.RepositoryRoot,
-            "src",
-            "OS",
-            "Boot",
-            "EfiEntry.cs");
-        string alternateRoot = Path.Combine(
-            fixture.RepositoryRoot,
-            "src",
-            "OS",
-            "alternate-authority");
+        SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+        string canonicalProjectPath = Path.Combine(fixture.RepositoryRoot, "src", "OS", "OS.csproj");
+        string canonicalEntryPath = Path.Combine(fixture.RepositoryRoot, "src", "OS", "Boot", "EfiEntry.cs");
+        string alternateRoot = Path.Combine(fixture.RepositoryRoot, "src", "OS", "alternate-authority");
         Directory.CreateDirectory(alternateRoot);
-        string alternateProjectPath = Path.Combine(
-            alternateRoot,
-            "OS.csproj");
-        string alternateEntryPath = Path.Combine(
-            alternateRoot,
-            "EfiEntry.cs");
-        File.Copy(
-            canonicalProjectPath,
-            alternateProjectPath,
-            overwrite: true);
-        File.Copy(
-            canonicalEntryPath,
-            alternateEntryPath,
-            overwrite: true);
-
+        string alternateProjectPath = Path.Combine(alternateRoot, "OS.csproj");
+        string alternateEntryPath = Path.Combine(alternateRoot, "EfiEntry.cs");
+        File.Copy(canonicalProjectPath, alternateProjectPath, overwrite: true);
+        File.Copy(canonicalEntryPath, alternateEntryPath, overwrite: true);
         ProcessResult alternateProjectResult;
         ProcessResult alternateEntryResult;
         ProcessResult traversedAbsoluteProjectResult;
@@ -2425,91 +912,33 @@ internal static class EfiArtifactVerificationScriptTests
         ProcessResult traversedRelativeEntryResult;
         try
         {
-            alternateProjectResult = RunVerifier(
-                artifact,
-                projectPath: alternateProjectPath);
-            alternateEntryResult = RunVerifier(
-                artifact,
-                entrySourcePath: alternateEntryPath);
-            traversedAbsoluteProjectResult = RunVerifier(
-                artifact,
-                projectPath: Path.Combine(
-                    fixture.RepositoryRoot,
-                    "src",
-                    "OS",
-                    "..",
-                    "OS",
-                    "OS.csproj"));
-            traversedRelativeProjectResult = RunVerifier(
-                artifact,
-                projectPath: "src/OS/../OS/OS.csproj");
-            traversedAbsoluteEntryResult = RunVerifier(
-                artifact,
-                entrySourcePath: Path.Combine(
-                    fixture.RepositoryRoot,
-                    "src",
-                    "OS",
-                    "Boot",
-                    "..",
-                    "Boot",
-                    "EfiEntry.cs"));
-            traversedRelativeEntryResult = RunVerifier(
-                artifact,
-                entrySourcePath: "src/OS/Boot/../Boot/EfiEntry.cs");
+            alternateProjectResult = RunVerifier(artifact, projectPath: alternateProjectPath);
+            alternateEntryResult = RunVerifier(artifact, entrySourcePath: alternateEntryPath);
+            traversedAbsoluteProjectResult = RunVerifier(artifact, projectPath: Path.Combine(fixture.RepositoryRoot, "src", "OS", "..", "OS", "OS.csproj"));
+            traversedRelativeProjectResult = RunVerifier(artifact, projectPath: "src/OS/../OS/OS.csproj");
+            traversedAbsoluteEntryResult = RunVerifier(artifact, entrySourcePath: Path.Combine(fixture.RepositoryRoot, "src", "OS", "Boot", "..", "Boot", "EfiEntry.cs"));
+            traversedRelativeEntryResult = RunVerifier(artifact, entrySourcePath: "src/OS/Boot/../Boot/EfiEntry.cs");
         }
         finally
         {
             Directory.Delete(alternateRoot, recursive: true);
         }
 
-        return FailedWith(
-                alternateProjectResult,
-                "project_path_not_canonical_repository_contract")
-            && FailedWith(
-                alternateEntryResult,
-                "entry_source_path_not_canonical_repository_contract")
-            && FailedWith(
-                traversedAbsoluteProjectResult,
-                "project_path_not_canonical_repository_contract")
-            && FailedWith(
-                traversedRelativeProjectResult,
-                "project_path_not_canonical_repository_contract")
-            && FailedWith(
-                traversedAbsoluteEntryResult,
-                "entry_source_path_not_canonical_repository_contract")
-            && FailedWith(
-                traversedRelativeEntryResult,
-                "entry_source_path_not_canonical_repository_contract")
-            && TryTestPinnedProjectHardlink(
-                artifact,
-                fixture,
-                canonicalProjectPath);
+        return FailedWith(alternateProjectResult, "project_path_not_canonical_repository_contract") && FailedWith(alternateEntryResult, "entry_source_path_not_canonical_repository_contract") && FailedWith(traversedAbsoluteProjectResult, "project_path_not_canonical_repository_contract") && FailedWith(traversedRelativeProjectResult, "project_path_not_canonical_repository_contract") && FailedWith(traversedAbsoluteEntryResult, "entry_source_path_not_canonical_repository_contract") && FailedWith(traversedRelativeEntryResult, "entry_source_path_not_canonical_repository_contract") && TryTestPinnedProjectHardlink(artifact, fixture, canonicalProjectPath);
     }
 
-    private static bool TryTestPinnedProjectHardlink(
-        string artifact,
-        SchemaThreeFixture fixture,
-        string canonicalProjectPath)
+    private static bool TryTestPinnedProjectHardlink(string artifact, SchemaThreeFixture fixture, string canonicalProjectPath)
     {
-        string aliasPath = Path.Combine(
-            fixture.RepositoryRoot,
-            "src",
-            "OS",
-            "project-authority-alias.csproj");
+        string aliasPath = Path.Combine(fixture.RepositoryRoot, "src", "OS", "project-authority-alias.csproj");
         if (!CreateHardLink(aliasPath, canonicalProjectPath, IntPtr.Zero))
         {
-            Console.WriteLine(
-                "EFI_ARTIFACT_PROJECT_HARDLINK_TEST skipped=win32-" +
-                Marshal.GetLastWin32Error().ToString(
-                    CultureInfo.InvariantCulture));
+            Console.WriteLine("EFI_ARTIFACT_PROJECT_HARDLINK_TEST skipped=win32-" + Marshal.GetLastWin32Error().ToString(CultureInfo.InvariantCulture));
             return true;
         }
 
         try
         {
-            return FailedWith(
-                RunVerifier(artifact),
-                "authority_output_hardlink_invalid");
+            return FailedWith(RunVerifier(artifact), "authority_output_hardlink_invalid");
         }
         finally
         {
@@ -2522,16 +951,9 @@ internal static class EfiArtifactVerificationScriptTests
         return NativeToolingTests.VerifyJobRunner(Path.Combine(tempRoot, "bounded-runner-probe"));
     }
 
-    private static bool EvidenceMutationFails(
-        string tempRoot,
-        string name,
-        Action<JsonObject> mutation,
-        string expectedReason)
+    private static bool EvidenceMutationFails(string tempRoot, string name, Action<JsonObject> mutation, string expectedReason)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            name,
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, name, CreateValidPe());
         LinkEvidencePaths paths = WriteLinkEvidence(artifact);
         MutateEvidence(paths.EvidencePath, mutation);
         return FailedWith(RunVerifier(artifact), expectedReason);
@@ -2539,26 +961,15 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestPinnedRestoreArchiveMutation(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "pinned-restore-archive-mutation",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "pinned-restore-archive-mutation", CreateValidPe());
         LinkEvidencePaths paths = WriteLinkEvidence(artifact);
-        SchemaThreeFixture fixture = cachedSchemaThreeFixture
-            ?? throw new InvalidOperationException(
-                "Schema-three fixture was not initialized.");
-        string archivePath = Path.Combine(
-            fixture.PinnedRestoreSourcePath,
-            ExpectedRestoreArchives[0].FileName);
+        SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+        string archivePath = Path.Combine(fixture.PinnedRestoreSourcePath, ExpectedRestoreArchives[0].FileName);
         long originalLength = new FileInfo(archivePath).Length;
         ProcessResult result;
         try
         {
-            using (var stream = new FileStream(
-                archivePath,
-                FileMode.Append,
-                FileAccess.Write,
-                FileShare.None))
+            using (var stream = new FileStream(archivePath, FileMode.Append, FileAccess.Write, FileShare.None))
             {
                 stream.WriteByte(0);
             }
@@ -2567,54 +978,25 @@ internal static class EfiArtifactVerificationScriptTests
         }
         finally
         {
-            using var stream = new FileStream(
-                archivePath,
-                FileMode.Open,
-                FileAccess.Write,
-                FileShare.None);
+            using var stream = new FileStream(archivePath, FileMode.Open, FileAccess.Write, FileShare.None);
             stream.SetLength(originalLength);
         }
 
         return FailedWith(result, "pinned_restore_source_input_hash_mismatch");
     }
 
-    private static bool TestGeneratedRestoreExecutableSurfaceMutation(
-        string tempRoot)
+    private static bool TestGeneratedRestoreExecutableSurfaceMutation(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "generated-restore-using-task",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "generated-restore-using-task", CreateValidPe());
         LinkEvidencePaths paths = WriteLinkEvidence(artifact);
-        SchemaThreeFixture fixture = cachedSchemaThreeFixture
-            ?? throw new InvalidOperationException(
-                "Schema-three fixture was not initialized.");
-        string targetsPath = Path.Combine(
-            fixture.ProjectExtensionsPath,
-            "OS.csproj.nuget.g.targets");
+        SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+        string targetsPath = Path.Combine(fixture.ProjectExtensionsPath, "OS.csproj.nuget.g.targets");
         byte[] originalBytes = File.ReadAllBytes(targetsPath);
         ProcessResult result;
         try
         {
-            File.WriteAllText(
-                targetsPath,
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
-                "<Project ToolsVersion=\"14.0\" " +
-                "xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">" +
-                "<UsingTask TaskName=\"Injected\" AssemblyFile=\"outside.dll\" />" +
-                "</Project>",
-                new UTF8Encoding(false));
-            MutateEvidence(
-                paths.EvidencePath,
-                evidence => RefreshClosureInputAndAggregate(
-                    evidence,
-                    "restoreClosureInputs",
-                    "restoreClosureSha256",
-                    Path.GetRelativePath(
-                            fixture.RepositoryRoot,
-                            targetsPath)
-                        .Replace('\\', '/'),
-                    targetsPath));
+            File.WriteAllText(targetsPath, "<?xml version=\"1.0\" encoding=\"utf-8\"?>" + "<Project ToolsVersion=\"14.0\" " + "xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">" + "<UsingTask TaskName=\"Injected\" AssemblyFile=\"outside.dll\" />" + "</Project>", new UTF8Encoding(false));
+            MutateEvidence(paths.EvidencePath, evidence => RefreshClosureInputAndAggregate(evidence, "restoreClosureInputs", "restoreClosureSha256", Path.GetRelativePath(fixture.RepositoryRoot, targetsPath).Replace('\\', '/'), targetsPath));
             result = RunVerifier(artifact);
         }
         finally
@@ -2627,30 +1009,17 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestPackageMetadataMutation(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "package-metadata-source-mutation",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "package-metadata-source-mutation", CreateValidPe());
         WriteLinkEvidence(artifact);
-        SchemaThreeFixture fixture = cachedSchemaThreeFixture
-            ?? throw new InvalidOperationException(
-                "Schema-three fixture was not initialized.");
-        string metadataPath = Path.Combine(
-            fixture.PackageRootPath,
-            "microsoft.dotnet.ilcompiler",
-            EfiContracts.NativePackageVersion,
-            ".nupkg.metadata");
+        SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+        string metadataPath = Path.Combine(fixture.PackageRootPath, "microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion, ".nupkg.metadata");
         byte[] originalBytes = File.ReadAllBytes(metadataPath);
         ProcessResult result;
         try
         {
-            JsonObject metadata = JsonNode.Parse(
-                    File.ReadAllText(metadataPath))!.AsObject();
+            JsonObject metadata = JsonNode.Parse(File.ReadAllText(metadataPath))!.AsObject();
             metadata["source"] = Path.GetTempPath();
-            File.WriteAllText(
-                metadataPath,
-                metadata.ToJsonString(),
-                new UTF8Encoding(false));
+            File.WriteAllText(metadataPath, metadata.ToJsonString(), new UTF8Encoding(false));
             result = RunVerifier(artifact);
         }
         finally
@@ -2663,17 +1032,10 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestPresentUserExtensionsDirectory(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "post-restore-user-extensions-present",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "post-restore-user-extensions-present", CreateValidPe());
         WriteLinkEvidence(artifact);
-        SchemaThreeFixture fixture = cachedSchemaThreeFixture
-            ?? throw new InvalidOperationException(
-                "Schema-three fixture was not initialized.");
-        string userExtensionsPath = Path.Combine(
-            fixture.ProjectExtensionsPath,
-            "disabled-user-extensions");
+        SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+        string userExtensionsPath = Path.Combine(fixture.ProjectExtensionsPath, "disabled-user-extensions");
         Directory.CreateDirectory(userExtensionsPath);
         ProcessResult result;
         try
@@ -2685,23 +1047,38 @@ internal static class EfiArtifactVerificationScriptTests
             Directory.Delete(userExtensionsPath, recursive: false);
         }
 
-        return FailedWith(
-            result,
-            "post_restore_user_extensions_path_present");
+        return FailedWith(result, "post_restore_user_extensions_path_present");
     }
 
     private static bool TestSdkExactVersion(string tempRoot)
     {
-        const string approved = "11.0.100-rc.2.26504.105";
+        const string approved = "11.0.100-rc.3.26522.148";
         HostCheck.True(OS.Tooling.EfiVerify.TestSdkExactVersion(approved, approved));
-        foreach (string version in new[] { "", "10.0.401", "11.0.100", "11.0.101", "11.0.100-rc.1.26504.105", "11.0.100-rc.2.26504.104", "11.0.100-rc.2.26504.106", "11.0.100-RC.2.26504.105", approved + "+extra", "invalid" })
+        foreach (string version in new[]
+        {
+            "",
+            "10.0.401",
+            "11.0.100",
+            "11.0.101",
+            "11.0.100-rc.1.26504.105",
+            "11.0.100-rc.2.26504.105",
+            "11.0.100-rc.3.26522.147",
+            "11.0.100-rc.3.26522.149",
+            "11.0.100-RC.3.26522.148",
+            approved + "+extra",
+            "invalid"
+        }
+
+        )
         {
             HostCheck.True(!OS.Tooling.EfiVerify.TestSdkExactVersion(version, approved));
             HostCheck.True(!OS.Tooling.EfiVerify.TestSdkExactVersion(approved, version));
             HostCheck.True(!OS.Tooling.EfiVerify.TestSdkExactVersion(version, version));
         }
+
         return true;
     }
+
     private static bool TestReparsePathHelper(string tempRoot)
     {
         return AuthorityFilesTests.ValidatePathWalk(Path.Combine(tempRoot, "path-helper-probe"));
@@ -2709,21 +1086,12 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestAuthorityOutputHardlink(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "authority-output-hardlink",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "authority-output-hardlink", CreateValidPe());
         WriteLinkEvidence(artifact);
         string aliasPath = artifact + ".unexpected-hardlink";
-        if (!CreateHardLink(
-                aliasPath,
-                artifact,
-                IntPtr.Zero))
+        if (!CreateHardLink(aliasPath, artifact, IntPtr.Zero))
         {
-            throw new InvalidOperationException(
-                "Fixture hardlink creation failed with Win32 error " +
-                Marshal.GetLastWin32Error().ToString(
-                    CultureInfo.InvariantCulture));
+            throw new InvalidOperationException("Fixture hardlink creation failed with Win32 error " + Marshal.GetLastWin32Error().ToString(CultureInfo.InvariantCulture));
         }
 
         ProcessResult result;
@@ -2741,65 +1109,33 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TryTestAuthorityArtifactReparsePoint(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "authority-artifact-reparse-point",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "authority-artifact-reparse-point", CreateValidPe());
         WriteLinkEvidence(artifact);
-        return TryReplaceFileWithSymbolicLinkAndVerify(
-            artifact,
-            artifact,
-            "artifact_reparse_point",
-            "artifact");
+        return TryReplaceFileWithSymbolicLinkAndVerify(artifact, artifact, "artifact_reparse_point", "artifact");
     }
 
     private static bool TryTestAuthorityMapReparsePoint(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "authority-map-reparse-point",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "authority-map-reparse-point", CreateValidPe());
         LinkEvidencePaths paths = WriteLinkEvidence(artifact);
-        return TryReplaceFileWithSymbolicLinkAndVerify(
-            paths.MapPath,
-            artifact,
-            "linker_map_reparse_point",
-            "linker-map");
+        return TryReplaceFileWithSymbolicLinkAndVerify(paths.MapPath, artifact, "linker_map_reparse_point", "linker-map");
     }
 
     private static bool TryTestAuthorityResponseReparsePoint(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "authority-response-reparse-point",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "authority-response-reparse-point", CreateValidPe());
         LinkEvidencePaths paths = WriteLinkEvidence(artifact);
-        return TryReplaceFileWithSymbolicLinkAndVerify(
-            paths.ResponsePath,
-            artifact,
-            "link_response_reparse_point",
-            "link-response");
+        return TryReplaceFileWithSymbolicLinkAndVerify(paths.ResponsePath, artifact, "link_response_reparse_point", "link-response");
     }
 
     private static bool TryTestAuthorityEvidenceReparsePoint(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "authority-evidence-reparse-point",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "authority-evidence-reparse-point", CreateValidPe());
         LinkEvidencePaths paths = WriteLinkEvidence(artifact);
-        return TryReplaceFileWithSymbolicLinkAndVerify(
-            paths.EvidencePath,
-            artifact,
-            "link_evidence_reparse_point",
-            "link-evidence");
+        return TryReplaceFileWithSymbolicLinkAndVerify(paths.EvidencePath, artifact, "link_evidence_reparse_point", "link-evidence");
     }
 
-    private static bool TryReplaceFileWithSymbolicLinkAndVerify(
-        string authorityPath,
-        string artifactPath,
-        string expectedReason,
-        string surface)
+    private static bool TryReplaceFileWithSymbolicLinkAndVerify(string authorityPath, string artifactPath, string expectedReason, string surface)
     {
         string backingPath = authorityPath + ".backing";
         File.Move(authorityPath, backingPath);
@@ -2811,22 +1147,13 @@ internal static class EfiArtifactVerificationScriptTests
                 File.CreateSymbolicLink(authorityPath, backingPath);
                 linkCreated = true;
             }
-            catch (Exception ex) when (
-                ex is UnauthorizedAccessException ||
-                ex is PlatformNotSupportedException ||
-                ex is IOException)
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is PlatformNotSupportedException || ex is IOException)
             {
-                Console.WriteLine(
-                    "EFI_ARTIFACT_REPARSE_TEST skipped=" +
-                    ex.GetType().Name +
-                    " surface=" +
-                    surface);
+                Console.WriteLine("EFI_ARTIFACT_REPARSE_TEST skipped=" + ex.GetType().Name + " surface=" + surface);
                 return true;
             }
 
-            return FailedWith(
-                RunVerifier(artifactPath),
-                expectedReason);
+            return FailedWith(RunVerifier(artifactPath), expectedReason);
         }
         finally
         {
@@ -2837,29 +1164,17 @@ internal static class EfiArtifactVerificationScriptTests
 
             if (File.Exists(backingPath))
             {
-                File.Move(
-                    backingPath,
-                    authorityPath,
-                    overwrite: true);
+                File.Move(backingPath, authorityPath, overwrite: true);
             }
         }
     }
 
     private static bool TryTestSourceClosureReparsePoint(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "source-closure-reparse-point",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "source-closure-reparse-point", CreateValidPe());
         WriteLinkEvidence(artifact);
-        SchemaThreeFixture fixture = cachedSchemaThreeFixture
-            ?? throw new InvalidOperationException(
-                "Schema-three fixture was not initialized.");
-        string sourcePath = Path.Combine(
-            fixture.RepositoryRoot,
-            "tools",
-            "OS.X64TextSerializerGenerator",
-            "Program.cs");
+        SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+        string sourcePath = Path.Combine(fixture.RepositoryRoot, "tools", "OS.X64TextSerializerGenerator", "Program.cs");
         string backingPath = sourcePath + ".backing";
         File.Move(sourcePath, backingPath);
         bool linkCreated = false;
@@ -2870,20 +1185,13 @@ internal static class EfiArtifactVerificationScriptTests
                 File.CreateSymbolicLink(sourcePath, backingPath);
                 linkCreated = true;
             }
-            catch (Exception ex) when (
-                ex is UnauthorizedAccessException ||
-                ex is PlatformNotSupportedException ||
-                ex is IOException)
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is PlatformNotSupportedException || ex is IOException)
             {
-                Console.WriteLine(
-                    "EFI_ARTIFACT_REPARSE_TEST skipped=" +
-                    ex.GetType().Name);
+                Console.WriteLine("EFI_ARTIFACT_REPARSE_TEST skipped=" + ex.GetType().Name);
                 return true;
             }
 
-            return FailedWith(
-                RunVerifier(artifact),
-                "source_closure_reparse_point");
+            return FailedWith(RunVerifier(artifact), "source_closure_reparse_point");
         }
         finally
         {
@@ -2894,39 +1202,22 @@ internal static class EfiArtifactVerificationScriptTests
 
             if (File.Exists(backingPath))
             {
-                File.Move(
-                    backingPath,
-                    sourcePath,
-                    overwrite: true);
+                File.Move(backingPath, sourcePath, overwrite: true);
             }
         }
     }
 
     private static bool TestPackageFileMutation(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "package-tree-file-mutation",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "package-tree-file-mutation", CreateValidPe());
         WriteLinkEvidence(artifact);
-        SchemaThreeFixture fixture = cachedSchemaThreeFixture
-            ?? throw new InvalidOperationException(
-                "Schema-three fixture was not initialized.");
-        string targetPath = Path.Combine(
-            fixture.PackageRootPath,
-            "microsoft.dotnet.ilcompiler",
-            EfiContracts.NativePackageVersion,
-            "build",
-            "Microsoft.DotNet.ILCompiler.props");
+        SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+        string targetPath = Path.Combine(fixture.PackageRootPath, "microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion, "build", "Microsoft.DotNet.ILCompiler.props");
         long originalLength = new FileInfo(targetPath).Length;
         ProcessResult result;
         try
         {
-            using (var stream = new FileStream(
-                targetPath,
-                FileMode.Append,
-                FileAccess.Write,
-                FileShare.None))
+            using (var stream = new FileStream(targetPath, FileMode.Append, FileAccess.Write, FileShare.None))
             {
                 stream.WriteByte(0);
             }
@@ -2935,11 +1226,7 @@ internal static class EfiArtifactVerificationScriptTests
         }
         finally
         {
-            using var stream = new FileStream(
-                targetPath,
-                FileMode.Open,
-                FileAccess.Write,
-                FileShare.None);
+            using var stream = new FileStream(targetPath, FileMode.Open, FileAccess.Write, FileShare.None);
             stream.SetLength(originalLength);
         }
 
@@ -2948,18 +1235,10 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestExtraPackageVersion(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "package-version-extra",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "package-version-extra", CreateValidPe());
         WriteLinkEvidence(artifact);
-        SchemaThreeFixture fixture = cachedSchemaThreeFixture
-            ?? throw new InvalidOperationException(
-                "Schema-three fixture was not initialized.");
-        string extraVersionPath = Path.Combine(
-            fixture.PackageRootPath,
-            "microsoft.dotnet.ilcompiler",
-            "10.0.999");
+        SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+        string extraVersionPath = Path.Combine(fixture.PackageRootPath, "microsoft.dotnet.ilcompiler", "10.0.999");
         Directory.CreateDirectory(extraVersionPath);
         ProcessResult result;
         try
@@ -2976,22 +1255,11 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TryTestPackageReparsePoint(string tempRoot)
     {
-        string artifact = WriteFixture(
-            tempRoot,
-            "package-tree-reparse-point",
-            CreateValidPe());
+        string artifact = WriteFixture(tempRoot, "package-tree-reparse-point", CreateValidPe());
         WriteLinkEvidence(artifact);
-        SchemaThreeFixture fixture = cachedSchemaThreeFixture
-            ?? throw new InvalidOperationException(
-                "Schema-three fixture was not initialized.");
-        string linkPath = Path.Combine(
-            fixture.PackageRootPath,
-            "microsoft.dotnet.ilcompiler",
-            EfiContracts.NativePackageVersion,
-            "fixture-reparse");
-        string targetPath = Path.Combine(
-            Path.GetDirectoryName(artifact)!,
-            "reparse-target");
+        SchemaThreeFixture fixture = cachedSchemaThreeFixture ?? throw new InvalidOperationException("Schema-three fixture was not initialized.");
+        string linkPath = Path.Combine(fixture.PackageRootPath, "microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion, "fixture-reparse");
+        string targetPath = Path.Combine(Path.GetDirectoryName(artifact)!, "reparse-target");
         Directory.CreateDirectory(targetPath);
         try
         {
@@ -2999,25 +1267,17 @@ internal static class EfiArtifactVerificationScriptTests
             {
                 Directory.CreateSymbolicLink(linkPath, targetPath);
             }
-            catch (Exception ex) when (
-                ex is UnauthorizedAccessException ||
-                ex is PlatformNotSupportedException ||
-                ex is IOException)
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is PlatformNotSupportedException || ex is IOException)
             {
-                Console.WriteLine(
-                    "EFI_ARTIFACT_REPARSE_TEST skipped=" +
-                    ex.GetType().Name);
+                Console.WriteLine("EFI_ARTIFACT_REPARSE_TEST skipped=" + ex.GetType().Name);
                 return true;
             }
 
-            return FailedWith(
-                RunVerifier(artifact),
-                "package_tree_reparse_point");
+            return FailedWith(RunVerifier(artifact), "package_tree_reparse_point");
         }
         finally
         {
-            if (Directory.Exists(linkPath) ||
-                File.Exists(linkPath))
+            if (Directory.Exists(linkPath) || File.Exists(linkPath))
             {
                 Directory.Delete(linkPath, recursive: false);
             }
@@ -3029,48 +1289,28 @@ internal static class EfiArtifactVerificationScriptTests
         }
     }
 
-    private static JsonArray GetEvidenceArray(
-        JsonObject evidence,
-        string propertyName)
+    private static JsonArray GetEvidenceArray(JsonObject evidence, string propertyName)
     {
-        return evidence[propertyName]?.AsArray()
-            ?? throw new InvalidOperationException(
-                "Fixture evidence array did not parse: " + propertyName);
+        return evidence[propertyName]?.AsArray() ?? throw new InvalidOperationException("Fixture evidence array did not parse: " + propertyName);
     }
 
-    private static void SwapArrayEntries(
-        JsonArray array,
-        int firstIndex,
-        int secondIndex)
+    private static void SwapArrayEntries(JsonArray array, int firstIndex, int secondIndex)
     {
-        JsonNode first = array[firstIndex]?.DeepClone()
-            ?? throw new InvalidOperationException(
-                "Fixture array entry was null.");
-        JsonNode second = array[secondIndex]?.DeepClone()
-            ?? throw new InvalidOperationException(
-                "Fixture array entry was null.");
+        JsonNode first = array[firstIndex]?.DeepClone() ?? throw new InvalidOperationException("Fixture array entry was null.");
+        JsonNode second = array[secondIndex]?.DeepClone() ?? throw new InvalidOperationException("Fixture array entry was null.");
         array[firstIndex] = second;
         array[secondIndex] = first;
     }
 
-    private static void RefreshClosureInputAndAggregate(
-        JsonObject evidence,
-        string inputsProperty,
-        string aggregateProperty,
-        string relativePath,
-        string fullPath)
+    private static void RefreshClosureInputAndAggregate(JsonObject evidence, string inputsProperty, string aggregateProperty, string relativePath, string fullPath)
     {
         JsonArray inputs = GetEvidenceArray(evidence, inputsProperty);
         bool found = false;
         var aggregate = new StringBuilder();
         foreach (JsonNode? node in inputs)
         {
-            JsonObject input = node?.AsObject()
-                ?? throw new InvalidOperationException(
-                    "Fixture closure input did not parse.");
-            string path = input["path"]?.GetValue<string>()
-                ?? throw new InvalidOperationException(
-                    "Fixture closure path did not parse.");
+            JsonObject input = node?.AsObject() ?? throw new InvalidOperationException("Fixture closure input did not parse.");
+            string path = input["path"]?.GetValue<string>() ?? throw new InvalidOperationException("Fixture closure path did not parse.");
             if (string.Equals(path, relativePath, StringComparison.Ordinal))
             {
                 input["sha256"] = GetSha256(fullPath);
@@ -3085,216 +1325,78 @@ internal static class EfiArtifactVerificationScriptTests
 
         if (!found)
         {
-            throw new InvalidOperationException(
-                "Fixture closure path was not found: " + relativePath);
+            throw new InvalidOperationException("Fixture closure path was not found: " + relativePath);
         }
 
-        evidence[aggregateProperty] = GetSha256(
-            Encoding.UTF8.GetBytes(aggregate.ToString()));
+        evidence[aggregateProperty] = GetSha256(Encoding.UTF8.GetBytes(aggregate.ToString()));
     }
 
     private static bool TestParserCapacityBounds(string tempRoot)
     {
-        const long maximumVerifierProcessSafetyMilliseconds =
-            VerifierFixtureProcessTimeoutMilliseconds;
+        const long maximumVerifierProcessSafetyMilliseconds = VerifierFixtureProcessTimeoutMilliseconds;
         const long maximumLinkResponseTokenScanElapsedMilliseconds = 1_000;
         const long maximumRuntimeScanElapsedMilliseconds = 1_000;
-
-        string atCapacityResponse = string.Join(
-            "\r\n",
-            Enumerable.Range(0, MaximumLinkResponseTokens - 7)
-                .Select(index => "relative-object-" + index + ".obj"));
-        ProcessResult responseAtCapacityResult = RunFixtureWithEvidence(
-            tempRoot,
-            "response-token-at-capacity",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse = atCapacityResponse
-            });
-
-        string overCapacityResponse = string.Join(
-            "\r\n",
-            Enumerable.Range(0, MaximumLinkResponseTokens - 6)
-                .Select(index => "/NOOP" + index));
-        ProcessResult responseOverCapacityResult = RunFixtureWithEvidence(
-            tempRoot,
-            "response-token-over-capacity",
-            CreateValidPe(),
-            new LinkEvidenceOptions
-            {
-                AdditionalResponse = overCapacityResponse
-            });
-
-        ProcessResult runtimeAtCapacityResult = RunFixtureWithEvidence(
-            tempRoot,
-            "runtime-function-distinct-unwind-at-capacity",
-            CreateRuntimeCapacityPe(MaximumRuntimeFunctionRecords));
-
+        string atCapacityResponse = string.Join("\r\n", Enumerable.Range(0, MaximumLinkResponseTokens - 7).Select(index => "relative-object-" + index + ".obj"));
+        ProcessResult responseAtCapacityResult = RunFixtureWithEvidence(tempRoot, "response-token-at-capacity", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = atCapacityResponse });
+        string overCapacityResponse = string.Join("\r\n", Enumerable.Range(0, MaximumLinkResponseTokens - 6).Select(index => "/NOOP" + index));
+        ProcessResult responseOverCapacityResult = RunFixtureWithEvidence(tempRoot, "response-token-over-capacity", CreateValidPe(), new LinkEvidenceOptions { AdditionalResponse = overCapacityResponse });
+        ProcessResult runtimeAtCapacityResult = RunFixtureWithEvidence(tempRoot, "runtime-function-distinct-unwind-at-capacity", CreateRuntimeCapacityPe(MaximumRuntimeFunctionRecords));
         // The original short timing producer crossed the old host-only bound.
         // Exercise the complete distinct-unwind row scan, not just its header.
-        ProcessResult timingRegressionResult = RunFixtureWithEvidence(tempRoot,
-            "runtime-function-timing-regression-2055", CreateRuntimeCapacityPe(2055));
-
+        ProcessResult timingRegressionResult = RunFixtureWithEvidence(tempRoot, "runtime-function-timing-regression-2055", CreateRuntimeCapacityPe(2055));
         byte[] runtimeOverCapacity = CreateValidPe();
-        WriteDataDirectory(
-            runtimeOverCapacity,
-            3,
-            PdataRva,
-            checked((uint)(MaximumRuntimeFunctionRecords + 1) * 12u));
-        ProcessResult runtimeOverCapacityResult = RunPeFixtureVerifier(
-            WriteFixture(
-                tempRoot,
-                "runtime-function-over-capacity",
-                runtimeOverCapacity));
-
+        WriteDataDirectory(runtimeOverCapacity, 3, PdataRva, checked((uint)(MaximumRuntimeFunctionRecords + 1) * 12u));
+        ProcessResult runtimeOverCapacityResult = RunPeFixtureVerifier(WriteFixture(tempRoot, "runtime-function-over-capacity", runtimeOverCapacity));
         bool responseAtCapacityPassed = PassedVerifier(responseAtCapacityResult);
-        bool responseAtCapacityBounded = CompletedWithin(
-            "response-token-at-capacity",
-            responseAtCapacityResult,
-            maximumVerifierProcessSafetyMilliseconds);
-        System.Text.RegularExpressions.MatchCollection responseTokenScanMatches =
-            System.Text.RegularExpressions.Regex.Matches(
-                responseAtCapacityResult.Output,
-                @"^EFI_ARTIFACT_LINK_RESPONSE_SCAN tokens=4096 elapsedMs=([0-9]+) maximumTokens=4096\r?$",
-                System.Text.RegularExpressions.RegexOptions.CultureInvariant |
-                    System.Text.RegularExpressions.RegexOptions.Multiline);
-        bool responseAtCapacityModeledTokenScan =
-            responseTokenScanMatches.Count == 1;
-        System.Text.RegularExpressions.Match responseTokenScanMatch =
-            responseAtCapacityModeledTokenScan
-                ? responseTokenScanMatches[0]
-                : System.Text.RegularExpressions.Match.Empty;
+        bool responseAtCapacityBounded = CompletedWithin("response-token-at-capacity", responseAtCapacityResult, maximumVerifierProcessSafetyMilliseconds);
+        System.Text.RegularExpressions.MatchCollection responseTokenScanMatches = System.Text.RegularExpressions.Regex.Matches(responseAtCapacityResult.Output, @"^EFI_ARTIFACT_LINK_RESPONSE_SCAN tokens=4096 elapsedMs=([0-9]+) maximumTokens=4096\r?$", System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.Multiline);
+        bool responseAtCapacityModeledTokenScan = responseTokenScanMatches.Count == 1;
+        System.Text.RegularExpressions.Match responseTokenScanMatch = responseAtCapacityModeledTokenScan ? responseTokenScanMatches[0] : System.Text.RegularExpressions.Match.Empty;
         if (!responseAtCapacityModeledTokenScan)
         {
-            WriteFixtureDiagnostic(
-                "response-token-scan-marker-missing",
-                responseAtCapacityResult);
+            WriteFixtureDiagnostic("response-token-scan-marker-missing", responseAtCapacityResult);
         }
+
         long responseTokenScanElapsedMilliseconds = long.MaxValue;
-        bool responseTokenScanParsed = responseAtCapacityModeledTokenScan &&
-            long.TryParse(
-                responseTokenScanMatch.Groups[1].Value,
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out responseTokenScanElapsedMilliseconds);
-        bool responseTokenScanBounded = responseTokenScanParsed &&
-            responseTokenScanElapsedMilliseconds <=
-                maximumLinkResponseTokenScanElapsedMilliseconds;
+        bool responseTokenScanParsed = responseAtCapacityModeledTokenScan && long.TryParse(responseTokenScanMatch.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out responseTokenScanElapsedMilliseconds);
+        bool responseTokenScanBounded = responseTokenScanParsed && responseTokenScanElapsedMilliseconds <= maximumLinkResponseTokenScanElapsedMilliseconds;
         if (!responseTokenScanBounded)
         {
-            WriteFixtureDiagnostic(
-                "response-token-scan-maximum-elapsed-" +
-                    maximumLinkResponseTokenScanElapsedMilliseconds,
-                responseAtCapacityResult);
+            WriteFixtureDiagnostic("response-token-scan-maximum-elapsed-" + maximumLinkResponseTokenScanElapsedMilliseconds, responseAtCapacityResult);
         }
-        bool responseOverCapacityFailed = FailedWith(
-            responseOverCapacityResult,
-            "link_response_token_count_out_of_range");
-        bool responseOverCapacityBounded = CompletedWithin(
-            "response-token-over-capacity",
-            responseOverCapacityResult,
-            maximumVerifierProcessSafetyMilliseconds);
+
+        bool responseOverCapacityFailed = FailedWith(responseOverCapacityResult, "link_response_token_count_out_of_range");
+        bool responseOverCapacityBounded = CompletedWithin("response-token-over-capacity", responseOverCapacityResult, maximumVerifierProcessSafetyMilliseconds);
         bool runtimeAtCapacityPassed = PassedVerifier(runtimeAtCapacityResult);
-        System.Text.RegularExpressions.MatchCollection runtimeScanMatches =
-            System.Text.RegularExpressions.Regex.Matches(
-                runtimeAtCapacityResult.Output,
-                @"^EFI_ARTIFACT_RUNTIME_SCAN records=" + MaximumRuntimeFunctionRecords +
-                    " distinctUnwind=" + MaximumRuntimeFunctionRecords + @" elapsedMs=([0-9]+) maximumRecords=" +
-                    MaximumRuntimeFunctionRecords + @"\r?$",
-                System.Text.RegularExpressions.RegexOptions.CultureInvariant |
-                    System.Text.RegularExpressions.RegexOptions.Multiline);
-        bool runtimeAtCapacityModeledDistinctUnwind =
-            runtimeScanMatches.Count == 1;
-        System.Text.RegularExpressions.Match runtimeScanMatch =
-            runtimeAtCapacityModeledDistinctUnwind
-                ? runtimeScanMatches[0]
-                : System.Text.RegularExpressions.Match.Empty;
+        System.Text.RegularExpressions.MatchCollection runtimeScanMatches = System.Text.RegularExpressions.Regex.Matches(runtimeAtCapacityResult.Output, @"^EFI_ARTIFACT_RUNTIME_SCAN records=" + MaximumRuntimeFunctionRecords + " distinctUnwind=" + MaximumRuntimeFunctionRecords + @" elapsedMs=([0-9]+) maximumRecords=" + MaximumRuntimeFunctionRecords + @"\r?$", System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.Multiline);
+        bool runtimeAtCapacityModeledDistinctUnwind = runtimeScanMatches.Count == 1;
+        System.Text.RegularExpressions.Match runtimeScanMatch = runtimeAtCapacityModeledDistinctUnwind ? runtimeScanMatches[0] : System.Text.RegularExpressions.Match.Empty;
         if (!runtimeAtCapacityModeledDistinctUnwind)
         {
-            WriteFixtureDiagnostic(
-                "runtime-function-distinct-unwind-marker-missing",
-                runtimeAtCapacityResult);
+            WriteFixtureDiagnostic("runtime-function-distinct-unwind-marker-missing", runtimeAtCapacityResult);
         }
+
         long runtimeScanElapsedMilliseconds = long.MaxValue;
-        bool runtimeScanParsed = runtimeAtCapacityModeledDistinctUnwind &&
-            long.TryParse(
-                runtimeScanMatch.Groups[1].Value,
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out runtimeScanElapsedMilliseconds);
-        bool runtimeScanBounded = runtimeScanParsed &&
-            runtimeScanElapsedMilliseconds <=
-                maximumRuntimeScanElapsedMilliseconds;
+        bool runtimeScanParsed = runtimeAtCapacityModeledDistinctUnwind && long.TryParse(runtimeScanMatch.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out runtimeScanElapsedMilliseconds);
+        bool runtimeScanBounded = runtimeScanParsed && runtimeScanElapsedMilliseconds <= maximumRuntimeScanElapsedMilliseconds;
         if (!runtimeScanBounded)
         {
-            WriteFixtureDiagnostic(
-                "runtime-function-scan-maximum-elapsed-" +
-                    maximumRuntimeScanElapsedMilliseconds,
-                runtimeAtCapacityResult);
+            WriteFixtureDiagnostic("runtime-function-scan-maximum-elapsed-" + maximumRuntimeScanElapsedMilliseconds, runtimeAtCapacityResult);
         }
-        bool runtimeAtCapacityBounded = CompletedWithin(
-            "runtime-function-distinct-unwind-at-capacity",
-            runtimeAtCapacityResult,
-            maximumVerifierProcessSafetyMilliseconds);
-        Console.WriteLine(
-            "EFI_ARTIFACT_PERFORMANCE responseTokens=" +
-            MaximumLinkResponseTokens +
-            " responseScanElapsedMs=" +
-            (responseAtCapacityModeledTokenScan
-                ? responseTokenScanMatch.Groups[1].Value
-                : "missing") +
-            " distinctUnwindRecords=" +
-            MaximumRuntimeFunctionRecords +
-            " processElapsedMs=" +
-            runtimeAtCapacityResult.ElapsedMilliseconds +
-            " scanElapsedMs=" +
-            (runtimeAtCapacityModeledDistinctUnwind
-                ? runtimeScanMatch.Groups[1].Value
-                : "missing") +
-            " processSafetyBudgetMs=" +
-            maximumVerifierProcessSafetyMilliseconds +
-            " responseScanBudgetMs=" +
-            maximumLinkResponseTokenScanElapsedMilliseconds +
-            " runtimeScanBudgetMs=" +
-            maximumRuntimeScanElapsedMilliseconds);
-        bool runtimeOverCapacityFailed = FailedWith(
-            runtimeOverCapacityResult,
-            "exception_directory_record_count_out_of_range");
-        bool runtimeOverCapacityBounded = CompletedWithin(
-            "runtime-function-over-capacity",
-            runtimeOverCapacityResult,
-            maximumVerifierProcessSafetyMilliseconds);
 
-        return responseAtCapacityPassed
-            && responseAtCapacityBounded
-            && responseAtCapacityModeledTokenScan
-            && responseTokenScanBounded
-            && responseOverCapacityFailed
-            && responseOverCapacityBounded
-            && runtimeAtCapacityPassed
-            && runtimeAtCapacityModeledDistinctUnwind
-            && runtimeScanBounded
-            && runtimeAtCapacityBounded
-            && PassedVerifier(timingRegressionResult)
-            && timingRegressionResult.Output.Contains("EFI_ARTIFACT_RUNTIME_SCAN records=2055 distinctUnwind=2055 elapsedMs=",StringComparison.Ordinal)
-            && CompletedWithin("runtime-function-timing-regression-2055",timingRegressionResult,maximumVerifierProcessSafetyMilliseconds)
-            && runtimeOverCapacityFailed
-            && runtimeOverCapacityBounded;
+        bool runtimeAtCapacityBounded = CompletedWithin("runtime-function-distinct-unwind-at-capacity", runtimeAtCapacityResult, maximumVerifierProcessSafetyMilliseconds);
+        Console.WriteLine("EFI_ARTIFACT_PERFORMANCE responseTokens=" + MaximumLinkResponseTokens + " responseScanElapsedMs=" + (responseAtCapacityModeledTokenScan ? responseTokenScanMatch.Groups[1].Value : "missing") + " distinctUnwindRecords=" + MaximumRuntimeFunctionRecords + " processElapsedMs=" + runtimeAtCapacityResult.ElapsedMilliseconds + " scanElapsedMs=" + (runtimeAtCapacityModeledDistinctUnwind ? runtimeScanMatch.Groups[1].Value : "missing") + " processSafetyBudgetMs=" + maximumVerifierProcessSafetyMilliseconds + " responseScanBudgetMs=" + maximumLinkResponseTokenScanElapsedMilliseconds + " runtimeScanBudgetMs=" + maximumRuntimeScanElapsedMilliseconds);
+        bool runtimeOverCapacityFailed = FailedWith(runtimeOverCapacityResult, "exception_directory_record_count_out_of_range");
+        bool runtimeOverCapacityBounded = CompletedWithin("runtime-function-over-capacity", runtimeOverCapacityResult, maximumVerifierProcessSafetyMilliseconds);
+        return responseAtCapacityPassed && responseAtCapacityBounded && responseAtCapacityModeledTokenScan && responseTokenScanBounded && responseOverCapacityFailed && responseOverCapacityBounded && runtimeAtCapacityPassed && runtimeAtCapacityModeledDistinctUnwind && runtimeScanBounded && runtimeAtCapacityBounded && PassedVerifier(timingRegressionResult) && timingRegressionResult.Output.Contains("EFI_ARTIFACT_RUNTIME_SCAN records=2055 distinctUnwind=2055 elapsedMs=", StringComparison.Ordinal) && CompletedWithin("runtime-function-timing-regression-2055", timingRegressionResult, maximumVerifierProcessSafetyMilliseconds) && runtimeOverCapacityFailed && runtimeOverCapacityBounded;
     }
 
-    private static bool CompletedWithin(
-        string context,
-        ProcessResult result,
-        long maximumElapsedMilliseconds)
+    private static bool CompletedWithin(string context, ProcessResult result, long maximumElapsedMilliseconds)
     {
-        bool completedWithin =
-            result.ElapsedMilliseconds <= maximumElapsedMilliseconds;
+        bool completedWithin = result.ElapsedMilliseconds <= maximumElapsedMilliseconds;
         if (!completedWithin)
         {
-            WriteFixtureDiagnostic(
-                context + "-maximum-elapsed-" + maximumElapsedMilliseconds,
-                result);
+            WriteFixtureDiagnostic(context + "-maximum-elapsed-" + maximumElapsedMilliseconds, result);
         }
 
         return completedWithin;
@@ -3302,14 +1404,7 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool PassedVerifier(ProcessResult result)
     {
-        bool passed = !result.TimedOut
-            && result.ExitCode == 0
-            && result.Output.Contains(
-                "TEST_PASS efi.artifact.verify",
-                StringComparison.Ordinal)
-            && !result.Output.Contains(
-                "TEST_FAIL efi.artifact.verify",
-                StringComparison.Ordinal);
+        bool passed = !result.TimedOut && result.ExitCode == 0 && result.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal) && !result.Output.Contains("TEST_FAIL efi.artifact.verify", StringComparison.Ordinal);
         if (!passed)
         {
             WriteFixtureDiagnostic("expected-pass", result);
@@ -3318,11 +1413,7 @@ internal static class EfiArtifactVerificationScriptTests
         return passed;
     }
 
-    private static ProcessResult RunFixtureWithEvidence(
-        string tempRoot,
-        string name,
-        byte[] bytes,
-        LinkEvidenceOptions? options = null)
+    private static ProcessResult RunFixtureWithEvidence(string tempRoot, string name, byte[] bytes, LinkEvidenceOptions? options = null)
     {
         string artifact = WriteFixture(tempRoot, name, bytes);
         WriteLinkEvidence(artifact, options);
@@ -3331,14 +1422,7 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool FailedWith(ProcessResult result, string reason)
     {
-        bool matched = !result.TimedOut
-            && result.ExitCode == 1
-            && result.Output.Contains(
-                "TEST_FAIL efi.artifact.verify " + reason,
-                StringComparison.Ordinal)
-            && !result.Output.Contains(
-                "TEST_PASS efi.artifact.verify",
-                StringComparison.Ordinal);
+        bool matched = !result.TimedOut && result.ExitCode == 1 && result.Output.Contains("TEST_FAIL efi.artifact.verify " + reason, StringComparison.Ordinal) && !result.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal);
         if (!matched)
         {
             WriteFixtureDiagnostic("expected-" + reason, result);
@@ -3349,23 +1433,8 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static void WriteFixtureDiagnostic(string context, ProcessResult result)
     {
-        string output = result.Output
-            .Replace("\r\n", " | ", StringComparison.Ordinal)
-            .Replace('\r', ' ')
-            .Replace('\n', ' ')
-            .Trim();
-        Console.WriteLine(
-            "EFI_ARTIFACT_FIXTURE_DIAGNOSTIC context=" +
-            context +
-            " exit=" +
-            result.ExitCode +
-            " timeout=" +
-            result.TimedOut +
-            " elapsedMs=" +
-            result.ElapsedMilliseconds +
-            " output=\"" +
-            output.Replace("\"", "'", StringComparison.Ordinal) +
-            "\"");
+        string output = result.Output.Replace("\r\n", " | ", StringComparison.Ordinal).Replace('\r', ' ').Replace('\n', ' ').Trim();
+        Console.WriteLine("EFI_ARTIFACT_FIXTURE_DIAGNOSTIC context=" + context + " exit=" + result.ExitCode + " timeout=" + result.TimedOut + " elapsedMs=" + result.ElapsedMilliseconds + " output=\"" + output.Replace("\"", "'", StringComparison.Ordinal) + "\"");
     }
 
     internal static string WriteFixture(string tempRoot, string name, byte[] bytes)
@@ -3380,11 +1449,9 @@ internal static class EfiArtifactVerificationScriptTests
     internal static byte[] CreateValidPe(uint serializerRva = SerializerRva)
     {
         byte[] bytes = new byte[0x800];
-
         bytes[0] = (byte)'M';
         bytes[1] = (byte)'Z';
         WriteUInt32(bytes, 0x3c, PeOffset);
-
         bytes[PeOffset] = (byte)'P';
         bytes[PeOffset + 1] = (byte)'E';
         WriteUInt16(bytes, PeOffset + 4, 0x8664);
@@ -3392,7 +1459,6 @@ internal static class EfiArtifactVerificationScriptTests
         WriteUInt32(bytes, PeOffset + 8, CoffTimestamp);
         WriteUInt16(bytes, PeOffset + 20, 0xf0);
         WriteUInt16(bytes, PeOffset + 22, 0x0022);
-
         WriteUInt16(bytes, OptionalHeaderOffset, 0x020b);
         WriteUInt32(bytes, OptionalHeaderOffset + 16, EntryPointRva);
         WriteUInt32(bytes, OptionalHeaderOffset + 20, TextRva);
@@ -3404,49 +1470,16 @@ internal static class EfiArtifactVerificationScriptTests
         WriteUInt16(bytes, OptionalHeaderOffset + 68, 10);
         WriteUInt32(bytes, OptionalHeaderOffset + 108, 16);
         WriteDataDirectory(bytes, 3, PdataRva, 12);
-
-        WriteSection(
-            bytes,
-            TextSectionHeaderOffset,
-            ".text",
-            virtualSize: 0x200,
-            virtualAddress: TextRva,
-            rawSize: 0x200,
-            rawOffset: TextRawOffset,
-            characteristics: 0x60000020);
-        WriteSection(
-            bytes,
-            PdataSectionHeaderOffset,
-            ".pdata",
-            virtualSize: 0x200,
-            virtualAddress: PdataRva,
-            rawSize: 0x200,
-            rawOffset: PdataRawOffset,
-            characteristics: 0x40000040);
-        WriteSection(
-            bytes,
-            XdataSectionHeaderOffset,
-            ".xdata",
-            virtualSize: 0x200,
-            virtualAddress: XdataRva,
-            rawSize: 0x200,
-            rawOffset: XdataRawOffset,
-            characteristics: 0x40000040);
-
+        WriteSection(bytes, TextSectionHeaderOffset, ".text", virtualSize: 0x200, virtualAddress: TextRva, rawSize: 0x200, rawOffset: TextRawOffset, characteristics: 0x60000020);
+        WriteSection(bytes, PdataSectionHeaderOffset, ".pdata", virtualSize: 0x200, virtualAddress: PdataRva, rawSize: 0x200, rawOffset: PdataRawOffset, characteristics: 0x40000040);
+        WriteSection(bytes, XdataSectionHeaderOffset, ".xdata", virtualSize: 0x200, virtualAddress: XdataRva, rawSize: 0x200, rawOffset: XdataRawOffset, characteristics: 0x40000040);
         bytes[TextRawOffset] = 0x48;
         bytes[TextRawOffset + 1] = 0x31;
         bytes[TextRawOffset + 2] = 0xc0;
         bytes[TextRawOffset + 3] = 0xc3;
         ExpectedSerializerBytes.CopyTo(bytes, GetSerializerFileOffset(serializerRva));
-
-        WriteRuntimeFunction(
-            bytes,
-            0,
-            serializerRva,
-            serializerRva + (uint)ExpectedSerializerBytes.Length,
-            XdataRva);
+        WriteRuntimeFunction(bytes, 0, serializerRva, serializerRva + (uint)ExpectedSerializerBytes.Length, XdataRva);
         ExpectedUnwindBytes.CopyTo(bytes, XdataRawOffset);
-
         return bytes;
     }
 
@@ -3460,21 +1493,14 @@ internal static class EfiArtifactVerificationScriptTests
         const uint capacityPdataRva = 0x3000;
         int capacityPdataRawOffset = PdataRawOffset;
         int capacityPdataBytes = checked(recordCount * 12);
-        int capacityXdataRawOffset = checked(
-            capacityPdataRawOffset + capacityPdataBytes);
+        int capacityXdataRawOffset = checked(capacityPdataRawOffset + capacityPdataBytes);
         int capacityXdataBytes = checked(recordCount * 8);
-        uint capacityXdataRva = checked(
-            capacityPdataRva + (uint)capacityPdataBytes);
-        uint capacitySizeOfImage = checked(
-            (capacityXdataRva + (uint)capacityXdataBytes + 0xfffu) &
-            ~0xfffu);
-        byte[] bytes = new byte[
-            checked(capacityXdataRawOffset + capacityXdataBytes)];
-
+        uint capacityXdataRva = checked(capacityPdataRva + (uint)capacityPdataBytes);
+        uint capacitySizeOfImage = checked((capacityXdataRva + (uint)capacityXdataBytes + 0xfffu) & ~0xfffu);
+        byte[] bytes = new byte[checked(capacityXdataRawOffset + capacityXdataBytes)];
         bytes[0] = (byte)'M';
         bytes[1] = (byte)'Z';
         WriteUInt32(bytes, 0x3c, PeOffset);
-
         bytes[PeOffset] = (byte)'P';
         bytes[PeOffset + 1] = (byte)'E';
         WriteUInt16(bytes, PeOffset + 4, 0x8664);
@@ -3482,7 +1508,6 @@ internal static class EfiArtifactVerificationScriptTests
         WriteUInt32(bytes, PeOffset + 8, CoffTimestamp);
         WriteUInt16(bytes, PeOffset + 20, 0xf0);
         WriteUInt16(bytes, PeOffset + 22, 0x0022);
-
         WriteUInt16(bytes, OptionalHeaderOffset, 0x020b);
         WriteUInt32(bytes, OptionalHeaderOffset + 16, EntryPointRva);
         WriteUInt32(bytes, OptionalHeaderOffset + 20, TextRva);
@@ -3493,48 +1518,15 @@ internal static class EfiArtifactVerificationScriptTests
         WriteUInt32(bytes, OptionalHeaderOffset + 60, 0x200);
         WriteUInt16(bytes, OptionalHeaderOffset + 68, 10);
         WriteUInt32(bytes, OptionalHeaderOffset + 108, 16);
-        WriteDataDirectory(
-            bytes,
-            3,
-            capacityPdataRva,
-            checked((uint)capacityPdataBytes));
-
-        WriteSection(
-            bytes,
-            TextSectionHeaderOffset,
-            ".text",
-            virtualSize: 0x200,
-            virtualAddress: TextRva,
-            rawSize: 0x200,
-            rawOffset: TextRawOffset,
-            characteristics: 0x60000020);
-        WriteSection(
-            bytes,
-            PdataSectionHeaderOffset,
-            ".pdata",
-            virtualSize: checked((uint)capacityPdataBytes),
-            virtualAddress: capacityPdataRva,
-            rawSize: checked((uint)capacityPdataBytes),
-            rawOffset: checked((uint)capacityPdataRawOffset),
-            characteristics: 0x40000040);
-        WriteSection(
-            bytes,
-            XdataSectionHeaderOffset,
-            ".xdata",
-            virtualSize: checked((uint)capacityXdataBytes),
-            virtualAddress: capacityXdataRva,
-            rawSize: checked((uint)capacityXdataBytes),
-            rawOffset: checked((uint)capacityXdataRawOffset),
-            characteristics: 0x40000040);
-
+        WriteDataDirectory(bytes, 3, capacityPdataRva, checked((uint)capacityPdataBytes));
+        WriteSection(bytes, TextSectionHeaderOffset, ".text", virtualSize: 0x200, virtualAddress: TextRva, rawSize: 0x200, rawOffset: TextRawOffset, characteristics: 0x60000020);
+        WriteSection(bytes, PdataSectionHeaderOffset, ".pdata", virtualSize: checked((uint)capacityPdataBytes), virtualAddress: capacityPdataRva, rawSize: checked((uint)capacityPdataBytes), rawOffset: checked((uint)capacityPdataRawOffset), characteristics: 0x40000040);
+        WriteSection(bytes, XdataSectionHeaderOffset, ".xdata", virtualSize: checked((uint)capacityXdataBytes), virtualAddress: capacityXdataRva, rawSize: checked((uint)capacityXdataBytes), rawOffset: checked((uint)capacityXdataRawOffset), characteristics: 0x40000040);
         bytes[TextRawOffset] = 0x48;
         bytes[TextRawOffset + 1] = 0x31;
         bytes[TextRawOffset + 2] = 0xc0;
         bytes[TextRawOffset + 3] = 0xc3;
-        ExpectedSerializerBytes.CopyTo(
-            bytes,
-            GetSerializerFileOffset(SerializerRva));
-
+        ExpectedSerializerBytes.CopyTo(bytes, GetSerializerFileOffset(SerializerRva));
         uint cursor = TextRva;
         bool serializerWritten = false;
         for (int index = 0; index < recordCount; index++)
@@ -3550,16 +1542,13 @@ internal static class EfiArtifactVerificationScriptTests
             {
                 end = checked(cursor + 1);
             }
-            uint unwind = checked(capacityXdataRva + ((uint)index * 8u));
 
-            int recordOffset = checked(
-                capacityPdataRawOffset + (index * 12));
+            uint unwind = checked(capacityXdataRva + ((uint)index * 8u));
+            int recordOffset = checked(capacityPdataRawOffset + (index * 12));
             WriteUInt32(bytes, recordOffset, begin);
             WriteUInt32(bytes, recordOffset + 4, end);
             WriteUInt32(bytes, recordOffset + 8, unwind);
-
-            int unwindOffset = checked(
-                capacityXdataRawOffset + (index * 8));
+            int unwindOffset = checked(capacityXdataRawOffset + (index * 8));
             if (begin == SerializerRva)
             {
                 ExpectedUnwindBytes.CopyTo(bytes, unwindOffset);
@@ -3571,10 +1560,10 @@ internal static class EfiArtifactVerificationScriptTests
 
             cursor = end;
         }
+
         if (!serializerWritten)
         {
-            throw new InvalidOperationException(
-                "Capacity fixture did not contain the serializer range.");
+            throw new InvalidOperationException("Capacity fixture did not contain the serializer range.");
         }
 
         return bytes;
@@ -3585,15 +1574,7 @@ internal static class EfiArtifactVerificationScriptTests
         return checked(TextRawOffset + (int)(serializerRva - TextRva));
     }
 
-    private static void WriteSection(
-        byte[] bytes,
-        int offset,
-        string name,
-        uint virtualSize,
-        uint virtualAddress,
-        uint rawSize,
-        uint rawOffset,
-        uint characteristics)
+    private static void WriteSection(byte[] bytes, int offset, string name, uint virtualSize, uint virtualAddress, uint rawSize, uint rawOffset, uint characteristics)
     {
         byte[] encodedName = new byte[8];
         Encoding.ASCII.GetBytes(name).CopyTo(encodedName, 0);
@@ -3605,23 +1586,14 @@ internal static class EfiArtifactVerificationScriptTests
         WriteUInt32(bytes, offset + 36, characteristics);
     }
 
-    private static void WriteDataDirectory(
-        byte[] bytes,
-        int index,
-        uint rva,
-        uint size)
+    private static void WriteDataDirectory(byte[] bytes, int index, uint rva, uint size)
     {
         int offset = OptionalHeaderOffset + 112 + (index * 8);
         WriteUInt32(bytes, offset, rva);
         WriteUInt32(bytes, offset + 4, size);
     }
 
-    private static void WriteRuntimeFunction(
-        byte[] bytes,
-        int index,
-        uint begin,
-        uint end,
-        uint unwind)
+    private static void WriteRuntimeFunction(byte[] bytes, int index, uint begin, uint end, uint unwind)
     {
         int offset = PdataRawOffset + (index * 12);
         WriteUInt32(bytes, offset, begin);
@@ -3638,103 +1610,47 @@ internal static class EfiArtifactVerificationScriptTests
         bytes[offset + 3] = 0x00;
     }
 
-    internal static LinkEvidencePaths WriteLinkEvidence(
-        string artifactPath,
-        LinkEvidenceOptions? options = null)
+    internal static LinkEvidencePaths WriteLinkEvidence(string artifactPath, LinkEvidenceOptions? options = null)
     {
         options ??= new LinkEvidenceOptions();
-
         string sourceRepositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string sourceProjectPath = Path.Combine(
-            sourceRepositoryRoot,
-            "src",
-            "OS",
-            "OS.csproj");
+        string sourceProjectPath = Path.Combine(sourceRepositoryRoot, "src", "OS", "OS.csproj");
         string dotnetHostPath = ResolveDotnetHostPath();
         string dotnetSdkVersion = ResolveDotnetSdkVersion(dotnetHostPath);
-        SchemaThreeFixture schemaFixture = EnsureSchemaThreeFixture(
-            sourceRepositoryRoot,
-            sourceProjectPath,
-            dotnetHostPath,
-            dotnetSdkVersion);
+        SchemaThreeFixture schemaFixture = EnsureSchemaThreeFixture(sourceRepositoryRoot, sourceProjectPath, dotnetHostPath, dotnetSdkVersion);
         string repositoryRoot = schemaFixture.RepositoryRoot;
-        string projectPath = Path.Combine(
-            repositoryRoot,
-            "src",
-            "OS",
-            "OS.csproj");
-        string entrySourcePath = Path.Combine(
-            repositoryRoot,
-            "src",
-            "OS",
-            "Boot",
-            "EfiEntry.cs");
+        string projectPath = Path.Combine(repositoryRoot, "src", "OS", "OS.csproj");
+        string entrySourcePath = Path.Combine(repositoryRoot, "src", "OS", "Boot", "EfiEntry.cs");
         string mapPath = artifactPath + ".link.map";
         string responsePath = artifactPath + ".link.rsp";
         string evidencePath = artifactPath + ".link.json";
-        string linkerPath = Path.Combine(
-            Path.GetDirectoryName(artifactPath)!,
-            "trusted-fixture-link.exe");
-        string objectPath = Path.Combine(
-            Path.GetDirectoryName(artifactPath)!,
-            Path.GetFileName(artifactPath) + ".serializer.obj");
-        string linkedObjectDirectory = Path.Combine(
-            repositoryRoot,
-            "src",
-            "OS",
-            "obj",
-            "artifact-verifier-fixtures",
-            GetSha256(
-                Encoding.UTF8.GetBytes(Path.GetFullPath(artifactPath)))
-                .Substring(0, 16));
+        string linkerPath = Path.Combine(Path.GetDirectoryName(artifactPath)!, "trusted-fixture-link.exe");
+        string objectPath = Path.Combine(Path.GetDirectoryName(artifactPath)!, Path.GetFileName(artifactPath) + ".serializer.obj");
+        string linkedObjectDirectory = Path.Combine(repositoryRoot, "src", "OS", "obj", "artifact-verifier-fixtures", GetSha256(Encoding.UTF8.GetBytes(Path.GetFullPath(artifactPath))).Substring(0, 16));
         Directory.CreateDirectory(linkedObjectDirectory);
-        string linkedObjectPath = Path.Combine(
-            linkedObjectDirectory,
-            "instruction publication serializer.obj");
+        string linkedObjectPath = Path.Combine(linkedObjectDirectory, "instruction publication serializer.obj");
         string managedAssemblyPath = EnsureManagedAssemblyFixture(repositoryRoot);
         string fixtureExecutableSource = dotnetHostPath;
         string windowsSdkVersion = "10.0.99999.0";
-        string windowsSdkLibraryPath = Path.Combine(
-            Path.GetDirectoryName(artifactPath)!,
-            "Windows Kits",
-            "10",
-            "Lib",
-            windowsSdkVersion,
-            "um",
-            "x64",
-            "kernel32.Lib");
+        string windowsSdkLibraryPath = Path.Combine(Path.GetDirectoryName(artifactPath)!, "Windows Kits", "10", "Lib", windowsSdkVersion, "um", "x64", "kernel32.Lib");
         Directory.CreateDirectory(Path.GetDirectoryName(windowsSdkLibraryPath)!);
-        File.WriteAllBytes(
-            windowsSdkLibraryPath,
-            Encoding.ASCII.GetBytes("fixture Windows SDK library"));
+        File.WriteAllBytes(windowsSdkLibraryPath, Encoding.ASCII.GetBytes("fixture Windows SDK library"));
         string ilCompilerPackageVersion = EfiContracts.NativePackageVersion;
         string ilCompilerPath = schemaFixture.IlCompilerPath;
-        string ilCompilerFileVersion =
-            FileVersionInfo.GetVersionInfo(ilCompilerPath).FileVersion
-            ?? throw new InvalidOperationException(
-                "Fixture ILCompiler file version is unavailable.");
+        string ilCompilerFileVersion = FileVersionInfo.GetVersionInfo(ilCompilerPath).FileVersion ?? throw new InvalidOperationException("Fixture ILCompiler file version is unavailable.");
         string nativeAotRuntimePackVersion = EfiContracts.NativePackageVersion;
         string nativeAotRuntimePackPath = schemaFixture.NativeAotRuntimePackPath;
-        string runtimeListPath = Path.Combine(
-            nativeAotRuntimePackPath,
-            "data",
-            "RuntimeList.xml");
-
+        string runtimeListPath = Path.Combine(nativeAotRuntimePackPath, "data", "RuntimeList.xml");
         File.Copy(fixtureExecutableSource, linkerPath, overwrite: true);
-        string linkerVersion =
-            FileVersionInfo.GetVersionInfo(linkerPath).FileVersion
-            ?? throw new InvalidOperationException(
-                "Fixture linker file version is unavailable.");
+        string linkerVersion = FileVersionInfo.GetVersionInfo(linkerPath).FileVersion ?? throw new InvalidOperationException("Fixture linker file version is unavailable.");
         byte[] objectBytes = Convert.FromBase64String(SerializerObjectBase64);
-        if (objectBytes.Length != 336 ||
-            GetSha256(objectBytes) != SerializerObjectSha256)
+        if (objectBytes.Length != 336 || GetSha256(objectBytes) != SerializerObjectSha256)
         {
             throw new InvalidOperationException("Embedded serializer object is invalid.");
         }
 
         File.WriteAllBytes(objectPath, objectBytes);
         File.WriteAllBytes(linkedObjectPath, objectBytes);
-
         ulong mappedVirtualAddress = ImageBase + options.MappedEntryRva;
         uint mapSegmentOffset = options.MappedEntryRva - EntryPointRva;
         var mapLines = new List<string>
@@ -3745,24 +1661,17 @@ internal static class EfiArtifactVerificationScriptTests
             $" 0001:{mapSegmentOffset:x8} EfiMain {mappedVirtualAddress:x16} OS.obj",
             $" 0001:{mapSegmentOffset:x8} OS_OS_Boot_EfiEntry__EfiMain {mappedVirtualAddress:x16} OS.obj",
         };
-
         string owner = options.MapOwner ?? Path.GetFileName(linkedObjectPath);
         for (int copy = 0; copy < options.SerializerSymbolCopies; copy++)
         {
-            mapLines.Add(
-                $" 0001:{options.SerializerRva - TextRva:x8} {SerializerSymbol} " +
-                $"{ImageBase + options.SerializerRva:x16} f {owner}");
+            mapLines.Add($" 0001:{options.SerializerRva - TextRva:x8} {SerializerSymbol} " + $"{ImageBase + options.SerializerRva:x16} f {owner}");
         }
 
         mapLines.Add($" entry point at 0001:{mapSegmentOffset:x8}");
         mapLines.Add(string.Empty);
-        File.WriteAllText(
-            mapPath,
-            string.Join("\r\n", mapLines),
-            new UTF8Encoding(false));
+        File.WriteAllText(mapPath, string.Join("\r\n", mapLines), new UTF8Encoding(false));
         string linkedMapPath = Path.Combine(linkedObjectDirectory, "OS.link.map");
         File.Copy(mapPath, linkedMapPath, overwrite: true);
-
         var responseLines = new List<string>
         {
             "/ENTRY:EfiMain",
@@ -3772,40 +1681,37 @@ internal static class EfiArtifactVerificationScriptTests
         {
             responseLines.Add(options.BreproToken);
         }
+
         for (int copy = 0; copy < options.ForceIncludeCopies; copy++)
         {
             responseLines.Add("/INCLUDE:" + SerializerSymbol);
         }
+
         for (int copy = 0; copy < options.ObjectTokenCopies; copy++)
         {
             responseLines.Add("\"" + linkedObjectPath + "\"");
         }
+
         string responseMapPath = options.MapPathOverride ?? linkedMapPath;
         for (int copy = 0; copy < options.MapOptionCopies; copy++)
         {
             responseLines.Add("/MAP:\"" + responseMapPath + "\"");
         }
+
         for (int copy = 0; copy < options.MapInfoCopies; copy++)
         {
             responseLines.Add("/MAPINFO:EXPORTS");
         }
+
         if (!string.IsNullOrWhiteSpace(options.AdditionalResponse))
         {
             responseLines.Add(options.AdditionalResponse);
         }
-        responseLines.Add(string.Empty);
-        File.WriteAllText(
-            responsePath,
-            string.Join("\r\n", responseLines),
-            new UTF8Encoding(false));
 
-        string toolRoot = Path.Combine(
-            repositoryRoot,
-            "tools",
-            "OS.X64TextSerializerGenerator");
-        SourceClosureFixture sourceClosure = BuildSourceClosureFixture(
-            repositoryRoot,
-            projectPath);
+        responseLines.Add(string.Empty);
+        File.WriteAllText(responsePath, string.Join("\r\n", responseLines), new UTF8Encoding(false));
+        string toolRoot = Path.Combine(repositoryRoot, "tools", "OS.X64TextSerializerGenerator");
+        SourceClosureFixture sourceClosure = BuildSourceClosureFixture(repositoryRoot, projectPath);
         var evidence = new Dictionary<string, object?>
         {
             ["schemaVersion"] = 3,
@@ -3818,24 +1724,17 @@ internal static class EfiArtifactVerificationScriptTests
             ["linkResponseSha256"] = GetSha256(responsePath),
             ["sourceProjectSha256"] = GetSha256(projectPath),
             ["entrySourceSha256"] = GetSha256(entrySourcePath),
-            ["solutionSha256"] = GetSha256(
-                Path.Combine(repositoryRoot, "CLROS.slnx")),
+            ["solutionSha256"] = GetSha256(Path.Combine(repositoryRoot, "CLROS.slnx")),
             ["sourceClosureSha256"] = sourceClosure.Sha256,
             ["sourceClosureInputs"] = sourceClosure.Inputs,
             ["restoreClosureSha256"] = schemaFixture.RestoreClosure.Sha256,
             ["restoreClosureInputs"] = schemaFixture.RestoreClosure.Inputs,
-            ["restoreArchiveSourceRootPath"] =
-                schemaFixture.RestoreArchiveSourceRootPath,
-            ["restoreArchiveClosureSha256"] =
-                schemaFixture.RestoreArchiveClosure.Sha256,
-            ["restoreArchiveInputs"] =
-                schemaFixture.RestoreArchiveClosure.Inputs,
-            ["pinnedRestoreSourcePath"] =
-                schemaFixture.PinnedRestoreSourcePath,
-            ["pinnedRestoreSourceSha256"] =
-                schemaFixture.PinnedRestoreSourceClosure.Sha256,
-            ["pinnedRestoreSourceInputs"] =
-                schemaFixture.PinnedRestoreSourceClosure.Inputs,
+            ["restoreArchiveSourceRootPath"] = schemaFixture.RestoreArchiveSourceRootPath,
+            ["restoreArchiveClosureSha256"] = schemaFixture.RestoreArchiveClosure.Sha256,
+            ["restoreArchiveInputs"] = schemaFixture.RestoreArchiveClosure.Inputs,
+            ["pinnedRestoreSourcePath"] = schemaFixture.PinnedRestoreSourcePath,
+            ["pinnedRestoreSourceSha256"] = schemaFixture.PinnedRestoreSourceClosure.Sha256,
+            ["pinnedRestoreSourceInputs"] = schemaFixture.PinnedRestoreSourceClosure.Inputs,
             ["restoreImportProjectExtensionProps"] = false,
             ["restoreImportProjectExtensionTargets"] = false,
             ["restoreExcludeRestorePackageImports"] = true,
@@ -3847,23 +1746,15 @@ internal static class EfiArtifactVerificationScriptTests
             ["projectAssetsSha256"] = GetSha256(schemaFixture.ProjectAssetsPath),
             ["packageRootPath"] = schemaFixture.PackageRootPath,
             ["packageRootKind"] = "isolated",
-            ["packageClosureSha256"] =
-                schemaFixture.PackageClosureSha256,
+            ["packageClosureSha256"] = schemaFixture.PackageClosureSha256,
             ["packages"] = schemaFixture.Packages,
-            ["packageBuildClosureSha256"] =
-                schemaFixture.PackageBuildClosure.Sha256,
-            ["packageBuildClosureInputs"] =
-                schemaFixture.PackageBuildClosure.Inputs,
-            ["activePackageImportEdges"] =
-                schemaFixture.ActivePackageImportEdges,
-            ["activePackageImportGraphSha256"] =
-                schemaFixture.ActivePackageImportGraphSha256,
-            ["packageTaskBindings"] =
-                schemaFixture.PackageTaskBindings,
-            ["packageTaskBindingsSha256"] =
-                schemaFixture.PackageTaskBindingsSha256,
-            ["postRestoreEvaluation"] =
-                schemaFixture.PostRestoreEvaluation,
+            ["packageBuildClosureSha256"] = schemaFixture.PackageBuildClosure.Sha256,
+            ["packageBuildClosureInputs"] = schemaFixture.PackageBuildClosure.Inputs,
+            ["activePackageImportEdges"] = schemaFixture.ActivePackageImportEdges,
+            ["activePackageImportGraphSha256"] = schemaFixture.ActivePackageImportGraphSha256,
+            ["packageTaskBindings"] = schemaFixture.PackageTaskBindings,
+            ["packageTaskBindingsSha256"] = schemaFixture.PackageTaskBindingsSha256,
+            ["postRestoreEvaluation"] = schemaFixture.PostRestoreEvaluation,
             ["entryPointSymbol"] = "EfiMain",
             ["managedEntrySymbol"] = "OS_OS_Boot_EfiEntry__EfiMain",
             ["linkerPath"] = linkerPath,
@@ -3875,43 +1766,14 @@ internal static class EfiArtifactVerificationScriptTests
             ["serializerLinkedObjectPath"] = linkedObjectPath,
             ["serializerObjectBytes"] = objectBytes.Length,
             ["serializerObjectSha256"] = GetSha256(objectPath),
-            ["serializerTargetsSha256"] = GetSha256(
-                Path.Combine(
-                    toolRoot,
-                    "OS.X64TextSerializerGenerator.targets")),
-            ["serializerGeneratorProjectSha256"] = GetSha256(
-                Path.Combine(
-                    toolRoot,
-                    "OS.X64TextSerializerGenerator.csproj")),
-            ["serializerGeneratorProgramSha256"] = GetSha256(
-                Path.Combine(toolRoot, "Program.cs")),
-            ["serializerGeneratorWriterSha256"] = GetSha256(
-                Path.Combine(toolRoot, "Amd64CoffWriter.cs")),
-            ["serializerGeneratorSourceSha256"] = GetSha256(
-                Path.Combine(
-                    toolRoot,
-                    "InstructionPublicationSerializerGenerator.cs")),
-            ["instructionPublicationSourceSha256"] = GetSha256(
-                Path.Combine(
-                    repositoryRoot,
-                    "src",
-                    "OS",
-                    "Boot",
-                    "X64InstructionPublication.cs")),
-            ["runtimeImportAttributeSourceSha256"] = GetSha256(
-                Path.Combine(
-                    repositoryRoot,
-                    "src",
-                    "OS",
-                    "Runtime",
-                    "RuntimeImportAttribute.cs")),
-            ["methodImplAttributeSourceSha256"] = GetSha256(
-                Path.Combine(
-                    repositoryRoot,
-                    "src",
-                    "OS",
-                    "Runtime",
-                    "MethodImplAttribute.cs")),
+            ["serializerTargetsSha256"] = GetSha256(Path.Combine(toolRoot, "OS.X64TextSerializerGenerator.targets")),
+            ["serializerGeneratorProjectSha256"] = GetSha256(Path.Combine(toolRoot, "OS.X64TextSerializerGenerator.csproj")),
+            ["serializerGeneratorProgramSha256"] = GetSha256(Path.Combine(toolRoot, "Program.cs")),
+            ["serializerGeneratorWriterSha256"] = GetSha256(Path.Combine(toolRoot, "Amd64CoffWriter.cs")),
+            ["serializerGeneratorSourceSha256"] = GetSha256(Path.Combine(toolRoot, "InstructionPublicationSerializerGenerator.cs")),
+            ["instructionPublicationSourceSha256"] = GetSha256(Path.Combine(repositoryRoot, "src", "OS", "Boot", "X64InstructionPublication.cs")),
+            ["runtimeImportAttributeSourceSha256"] = GetSha256(Path.Combine(repositoryRoot, "src", "OS", "Runtime", "RuntimeImportAttribute.cs")),
+            ["methodImplAttributeSourceSha256"] = GetSha256(Path.Combine(repositoryRoot, "src", "OS", "Runtime", "MethodImplAttribute.cs")),
             ["managedAssemblyPath"] = managedAssemblyPath,
             ["managedAssemblySha256"] = GetSha256(managedAssemblyPath),
             ["dotnetHostPath"] = dotnetHostPath,
@@ -3921,77 +1783,48 @@ internal static class EfiArtifactVerificationScriptTests
             ["windowsSdkVersion"] = windowsSdkVersion,
             ["windowsSdkLibrarySha256"] = GetSha256(windowsSdkLibraryPath),
             ["ilCompilerPath"] = ilCompilerPath,
-            ["ilCompilerDiscoverySourcePath"] =
-                schemaFixture.IlCompilerDiscoverySourcePath,
+            ["ilCompilerDiscoverySourcePath"] = schemaFixture.IlCompilerDiscoverySourcePath,
             ["ilCompilerPackageVersion"] = ilCompilerPackageVersion,
             ["ilCompilerFileVersion"] = ilCompilerFileVersion,
             ["ilCompilerSha256"] = GetSha256(ilCompilerPath),
             ["nativeAotRuntimePackPath"] = nativeAotRuntimePackPath,
             ["nativeAotRuntimePackVersion"] = nativeAotRuntimePackVersion,
-            ["nativeAotRuntimePackSha256"] =
-                schemaFixture.NativeAotRuntimePackSha256,
-            ["nativeAotRuntimePackFileCount"] =
-                schemaFixture.NativeAotRuntimePackFileCount,
-            ["nativeAotRuntimePackBytes"] =
-                schemaFixture.NativeAotRuntimePackBytes,
-            ["ilCompilerTargetsPath"] =
-                schemaFixture.IlCompilerTargetsPath,
+            ["nativeAotRuntimePackSha256"] = schemaFixture.NativeAotRuntimePackSha256,
+            ["nativeAotRuntimePackFileCount"] = schemaFixture.NativeAotRuntimePackFileCount,
+            ["nativeAotRuntimePackBytes"] = schemaFixture.NativeAotRuntimePackBytes,
+            ["ilCompilerTargetsPath"] = schemaFixture.IlCompilerTargetsPath,
             ["ilLinkTargetsPath"] = schemaFixture.IlLinkTargetsPath,
-            ["ilLinkTasksAssemblyPath"] =
-                schemaFixture.IlLinkTasksAssemblyPath,
+            ["ilLinkTasksAssemblyPath"] = schemaFixture.IlLinkTasksAssemblyPath,
             ["ilcBuildTasksPath"] = schemaFixture.IlcBuildTasksPath,
-            ["ilcHostPackagePath"] =
-                schemaFixture.IlcHostPackagePath,
+            ["ilcHostPackagePath"] = schemaFixture.IlcHostPackagePath,
             ["ilcToolsPath"] = schemaFixture.IlcToolsPath,
             ["ilcFrameworkPath"] = schemaFixture.IlcFrameworkPath,
-            ["ilcFrameworkNativePath"] =
-                schemaFixture.IlcFrameworkNativePath,
+            ["ilcFrameworkNativePath"] = schemaFixture.IlcFrameworkNativePath,
             ["ilcSdkPath"] = schemaFixture.IlcSdkPath,
             ["ilcMibcPath"] = schemaFixture.IlcMibcPath,
             ["languageTargetsPath"] = schemaFixture.LanguageTargetsPath,
             ["csharpTargetsPath"] = schemaFixture.CSharpTargetsPath,
             ["commonTargetsPath"] = schemaFixture.CommonTargetsPath,
             ["runtimeListSha256"] = GetSha256(runtimeListPath),
-            ["generatedUtc"] = DateTimeOffset.UtcNow.ToString(
-                "O",
-                CultureInfo.InvariantCulture)
+            ["generatedUtc"] = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture)
         };
-        File.WriteAllText(
-            evidencePath,
-            JsonSerializer.Serialize(evidence),
-            new UTF8Encoding(false));
-
-        return new LinkEvidencePaths(
-            mapPath,
-            responsePath,
-            evidencePath,
-            objectPath,
-            linkedObjectPath,
-            linkedMapPath,
-            managedAssemblyPath);
+        File.WriteAllText(evidencePath, JsonSerializer.Serialize(evidence), new UTF8Encoding(false));
+        return new LinkEvidencePaths(mapPath, responsePath, evidencePath, objectPath, linkedObjectPath, linkedMapPath, managedAssemblyPath);
     }
 
     private static string EnsureManagedAssemblyFixture(string repositoryRoot)
     {
-        string managedAssemblyPath = Path.Combine(
-            repositoryRoot,
-            EfiContracts.ManagedAssemblyRelativePath(ManagedFixtureConfiguration));
+        string managedAssemblyPath = Path.Combine(repositoryRoot, EfiContracts.ManagedAssemblyRelativePath(ManagedFixtureConfiguration));
         Directory.CreateDirectory(Path.GetDirectoryName(managedAssemblyPath)!);
         if (!File.Exists(managedAssemblyPath))
         {
-            File.Copy(
-                typeof(EfiArtifactVerificationScriptTests).Assembly.Location,
-                managedAssemblyPath);
+            File.Copy(typeof(EfiArtifactVerificationScriptTests).Assembly.Location, managedAssemblyPath);
         }
 
         return managedAssemblyPath;
     }
 
-    private static SchemaThreeFixture EnsureSchemaThreeFixture(
-        string sourceRepositoryRoot,
-        string sourceProjectPath,
-        string dotnetHostPath,
-        string dotnetSdkVersion)
+    private static SchemaThreeFixture EnsureSchemaThreeFixture(string sourceRepositoryRoot, string sourceProjectPath, string dotnetHostPath, string dotnetSdkVersion)
     {
         lock (SchemaThreeFixtureLock)
         {
@@ -4000,228 +1833,71 @@ internal static class EfiArtifactVerificationScriptTests
                 return cachedSchemaThreeFixture;
             }
 
-            string repositoryRoot = Path.GetFullPath(
-                SchemaThreeFixtureRepositoryRoot);
+            string repositoryRoot = Path.GetFullPath(SchemaThreeFixtureRepositoryRoot);
             if (Directory.Exists(repositoryRoot))
             {
                 Directory.Delete(repositoryRoot, recursive: true);
             }
 
-            CopySchemaThreeFixtureRepository(
-                sourceRepositoryRoot,
-                sourceProjectPath,
-                repositoryRoot);
-            string projectPath = Path.Combine(
-                repositoryRoot,
-                "src",
-                "OS",
-                "OS.csproj");
-            string configurationRoot = Path.Combine(
-                repositoryRoot,
-                "src",
-                "OS",
-                "obj",
-                ManagedFixtureConfiguration);
+            CopySchemaThreeFixtureRepository(sourceRepositoryRoot, sourceProjectPath, repositoryRoot);
+            string projectPath = Path.Combine(repositoryRoot, "src", "OS", "OS.csproj");
+            string configurationRoot = Path.Combine(repositoryRoot, "src", "OS", "obj", ManagedFixtureConfiguration);
             if (Directory.Exists(configurationRoot))
             {
                 Directory.Delete(configurationRoot, recursive: true);
             }
 
-            string managedIntermediatePath = Path.Combine(
-                configurationRoot,
-                "net11.0",
-                "win-x64");
-            string projectExtensionsPath = Path.Combine(
-                managedIntermediatePath,
-                "nuget");
-            string pinnedRestoreSourcePath = Path.Combine(
-                managedIntermediatePath,
-                "restore-source");
-            string packageRootPath = Path.Combine(
-                managedIntermediatePath,
-                "packages");
+            string managedIntermediatePath = Path.Combine(configurationRoot, "net11.0", "win-x64");
+            string projectExtensionsPath = Path.Combine(managedIntermediatePath, "nuget");
+            string pinnedRestoreSourcePath = Path.Combine(managedIntermediatePath, "restore-source");
+            string packageRootPath = Path.Combine(managedIntermediatePath, "packages");
             Directory.CreateDirectory(pinnedRestoreSourcePath);
-
             string globalPackageRoot = ResolveGlobalPackageRoot();
             foreach (RestoreArchiveDescriptor archive in ExpectedRestoreArchives)
             {
-                string sourcePath = Path.Combine(
-                    globalPackageRoot,
-                    archive.Id,
-                    archive.Version,
-                    archive.FileName);
-                if (!File.Exists(sourcePath) ||
-                    !string.Equals(
-                        GetSha256(sourcePath),
-                        archive.Sha256,
-                        StringComparison.Ordinal))
+                string sourcePath = Path.Combine(globalPackageRoot, archive.Id, archive.Version, archive.FileName);
+                if (!File.Exists(sourcePath) || !string.Equals(GetSha256(sourcePath), archive.Sha256, StringComparison.Ordinal))
                 {
-                    throw new InvalidOperationException(
-                        "Pinned restore archive is unavailable or changed: " +
-                        archive.Id +
-                        "/" +
-                        archive.Version);
+                    throw new InvalidOperationException("Pinned restore archive is unavailable or changed: " + archive.Id + "/" + archive.Version);
                 }
 
-                File.Copy(
-                    sourcePath,
-                    Path.Combine(pinnedRestoreSourcePath, archive.FileName),
-                    overwrite: false);
+                File.Copy(sourcePath, Path.Combine(pinnedRestoreSourcePath, archive.FileName), overwrite: false);
             }
 
-            string restoreConfigPath = Path.Combine(
-                pinnedRestoreSourcePath,
-                "NuGet.Config");
-            string escapedRestoreSource = System.Security.SecurityElement.Escape(
-                pinnedRestoreSourcePath)
-                ?? throw new InvalidOperationException(
-                    "Pinned restore source path could not be XML-escaped.");
-            string restoreConfig =
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
-                "<configuration>\r\n" +
-                "  <packageSources>\r\n" +
-                "    <clear />\r\n" +
-                "    <add key=\"CLROS_PINNED\" value=\"" +
-                escapedRestoreSource +
-                "\" />\r\n" +
-                "  </packageSources>\r\n" +
-                "  <fallbackPackageFolders>\r\n" +
-                "    <clear />\r\n" +
-                "  </fallbackPackageFolders>\r\n" +
-                "  <auditSources>\r\n" +
-                "    <clear />\r\n" +
-                "  </auditSources>\r\n" +
-                "</configuration>\r\n";
-            File.WriteAllText(
-                restoreConfigPath,
-                restoreConfig,
-                new UTF8Encoding(false));
-
-            RunCanonicalFixtureRestore(
-                repositoryRoot,
-                projectPath,
-                dotnetHostPath,
-                dotnetSdkVersion,
-                restoreConfigPath,
-                projectExtensionsPath,
-                packageRootPath);
-
-            string projectAssetsPath = Path.Combine(
-                projectExtensionsPath,
-                "project.assets.json");
-            string nativeAotRuntimePackPath = Path.Combine(
-                globalPackageRoot,
-                "microsoft.netcore.app.runtime.nativeaot.win-x64",
-                EfiContracts.NativePackageVersion);
-            string ilCompilerPath = Path.Combine(
-                packageRootPath,
-                "runtime.win-x64.microsoft.dotnet.ilcompiler",
-                EfiContracts.NativePackageVersion,
-                "tools",
-                "ilc.exe");
-            string ilCompilerDiscoverySourcePath = Path.Combine(
-                globalPackageRoot,
-                "runtime.win-x64.microsoft.dotnet.ilcompiler",
-                EfiContracts.NativePackageVersion,
-                "tools",
-                "ilc.exe");
-            string ilCompilerBuildPackageRoot = Path.Combine(
-                packageRootPath,
-                "microsoft.dotnet.ilcompiler",
-                EfiContracts.NativePackageVersion);
-            string ilLinkPackageRoot = Path.Combine(
-                packageRootPath,
-                "microsoft.net.illink.tasks",
-                EfiContracts.NativePackageVersion);
-            string ilCompilerHostPackageRoot = Path.Combine(
-                packageRootPath,
-                "runtime.win-x64.microsoft.dotnet.ilcompiler",
-                EfiContracts.NativePackageVersion);
-            string dotnetSdkDirectory = Path.Combine(
-                Path.GetDirectoryName(dotnetHostPath)!,
-                "sdk",
-                dotnetSdkVersion);
-            string trailingSeparator =
-                Path.DirectorySeparatorChar.ToString(CultureInfo.InvariantCulture);
-
-            SourceClosureFixture restoreClosure = BuildExactFileClosure(
-                repositoryRoot,
-                [
-                    Path.Combine(
-                        projectExtensionsPath,
-                        "OS.csproj.nuget.dgspec.json"),
-                    Path.Combine(
-                        projectExtensionsPath,
-                        "OS.csproj.nuget.g.props"),
-                    Path.Combine(
-                        projectExtensionsPath,
-                        "OS.csproj.nuget.g.targets"),
-                    projectAssetsPath,
-                    Path.Combine(
-                        projectExtensionsPath,
-                        "project.nuget.cache")
-                ]);
-            SourceClosureFixture pinnedRestoreSourceClosure =
-                BuildExactFileClosure(
-                    repositoryRoot,
-                    Directory.EnumerateFiles(
-                            pinnedRestoreSourcePath,
-                            "*",
-                            SearchOption.TopDirectoryOnly)
-                        .ToArray());
-            SourceClosureFixture restoreArchiveClosure =
-                BuildRootRelativeFileClosure(
-                    globalPackageRoot,
-                    ExpectedRestoreArchives
-                        .Select(archive => Path.Combine(
-                            globalPackageRoot,
-                            archive.Id,
-                            archive.Version,
-                            archive.FileName))
-                        .ToArray(),
-                    sortByPath: false);
-
-            var packageEvidence = new Dictionary<string, object?>[
-                ExpectedPackages.Length];
+            string restoreConfigPath = Path.Combine(pinnedRestoreSourcePath, "NuGet.Config");
+            string escapedRestoreSource = System.Security.SecurityElement.Escape(pinnedRestoreSourcePath) ?? throw new InvalidOperationException("Pinned restore source path could not be XML-escaped.");
+            string restoreConfig = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" + "<configuration>\r\n" + "  <packageSources>\r\n" + "    <clear />\r\n" + "    <add key=\"CLROS_PINNED\" value=\"" + escapedRestoreSource + "\" />\r\n" + "  </packageSources>\r\n" + "  <fallbackPackageFolders>\r\n" + "    <clear />\r\n" + "  </fallbackPackageFolders>\r\n" + "  <auditSources>\r\n" + "    <clear />\r\n" + "  </auditSources>\r\n" + "</configuration>\r\n";
+            File.WriteAllText(restoreConfigPath, restoreConfig, new UTF8Encoding(false));
+            RunCanonicalFixtureRestore(repositoryRoot, projectPath, dotnetHostPath, dotnetSdkVersion, restoreConfigPath, projectExtensionsPath, packageRootPath);
+            string projectAssetsPath = Path.Combine(projectExtensionsPath, "project.assets.json");
+            string nativeAotRuntimePackPath = Path.Combine(globalPackageRoot, "microsoft.netcore.app.runtime.nativeaot.win-x64", EfiContracts.NativePackageVersion);
+            string ilCompilerPath = Path.Combine(packageRootPath, "runtime.win-x64.microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion, "tools", "ilc.exe");
+            string ilCompilerDiscoverySourcePath = Path.Combine(globalPackageRoot, "runtime.win-x64.microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion, "tools", "ilc.exe");
+            string ilCompilerBuildPackageRoot = Path.Combine(packageRootPath, "microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion);
+            string ilLinkPackageRoot = Path.Combine(packageRootPath, "microsoft.net.illink.tasks", EfiContracts.NativePackageVersion);
+            string ilCompilerHostPackageRoot = Path.Combine(packageRootPath, "runtime.win-x64.microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion);
+            string dotnetSdkDirectory = Path.Combine(Path.GetDirectoryName(dotnetHostPath)!, "sdk", dotnetSdkVersion);
+            string trailingSeparator = Path.DirectorySeparatorChar.ToString(CultureInfo.InvariantCulture);
+            SourceClosureFixture restoreClosure = BuildExactFileClosure(repositoryRoot, [Path.Combine(projectExtensionsPath, "OS.csproj.nuget.dgspec.json"), Path.Combine(projectExtensionsPath, "OS.csproj.nuget.g.props"), Path.Combine(projectExtensionsPath, "OS.csproj.nuget.g.targets"), projectAssetsPath, Path.Combine(projectExtensionsPath, "project.nuget.cache")]);
+            SourceClosureFixture pinnedRestoreSourceClosure = BuildExactFileClosure(repositoryRoot, Directory.EnumerateFiles(pinnedRestoreSourcePath, "*", SearchOption.TopDirectoryOnly).ToArray());
+            SourceClosureFixture restoreArchiveClosure = BuildRootRelativeFileClosure(globalPackageRoot, ExpectedRestoreArchives.Select(archive => Path.Combine(globalPackageRoot, archive.Id, archive.Version, archive.FileName)).ToArray(), sortByPath: false);
+            var packageEvidence = new Dictionary<string, object?>[ExpectedPackages.Length];
             var packageClosure = new StringBuilder();
             PackageTreeFixture? runtimePackage = null;
             for (int index = 0; index < ExpectedPackages.Length; index++)
             {
                 PackageDescriptor package = ExpectedPackages[index];
-                string packageRoot = string.Equals(
-                    package.RootKind,
-                    "runtime",
-                    StringComparison.Ordinal)
-                    ? nativeAotRuntimePackPath
-                    : Path.Combine(
-                        packageRootPath,
-                        package.Id,
-                        package.Version);
+                string packageRoot = string.Equals(package.RootKind, "runtime", StringComparison.Ordinal) ? nativeAotRuntimePackPath : Path.Combine(packageRootPath, package.Id, package.Version);
                 PackageTreeFixture tree = BuildPackageTreeFixture(packageRoot);
-                if (tree.FileCount != package.FileCount ||
-                    tree.TotalBytes != package.TotalBytes ||
-                    !string.Equals(
-                        tree.AggregateSha256,
-                        package.AggregateSha256,
-                        StringComparison.Ordinal))
+                if (tree.FileCount != package.FileCount || tree.TotalBytes != package.TotalBytes || !string.Equals(tree.AggregateSha256, package.AggregateSha256, StringComparison.Ordinal))
                 {
-                    throw new InvalidOperationException(
-                        "Canonical package tree changed: " +
-                        package.Id +
-                        "/" +
-                        package.Version);
+                    throw new InvalidOperationException("Canonical package tree changed: " + package.Id + "/" + package.Version);
                 }
 
-                string metadataPath = Path.Combine(
-                    packageRoot,
-                    ".nupkg.metadata");
+                string metadataPath = Path.Combine(packageRoot, ".nupkg.metadata");
                 if (!File.Exists(metadataPath))
                 {
-                    throw new InvalidOperationException(
-                        "Canonical package metadata is missing: " +
-                        package.Id +
-                        "/" +
-                        package.Version);
+                    throw new InvalidOperationException("Canonical package metadata is missing: " + package.Id + "/" + package.Version);
                 }
 
                 packageEvidence[index] = new Dictionary<string, object?>
@@ -4245,349 +1921,110 @@ internal static class EfiArtifactVerificationScriptTests
                 packageClosure.Append('|');
                 packageClosure.Append(tree.AggregateSha256);
                 packageClosure.Append('\n');
-                if (string.Equals(
-                    package.RootKind,
-                    "runtime",
-                    StringComparison.Ordinal))
+                if (string.Equals(package.RootKind, "runtime", StringComparison.Ordinal))
                 {
                     runtimePackage = tree;
                 }
             }
 
-            SourceClosureFixture packageBuildClosure =
-                BuildRootRelativeFileClosure(
-                    packageRootPath,
-                    PackageBuildClosurePaths
-                        .Select(relativePath => Path.Combine(
-                            packageRootPath,
-                            relativePath.Replace(
-                                '/',
-                                Path.DirectorySeparatorChar)))
-                        .ToArray(),
-                    sortByPath: false);
-            Dictionary<string, object?> postRestoreEvaluation =
-                BuildPostRestoreEvaluationFixture(
-                    packageRootPath,
-                    nativeAotRuntimePackPath,
-                    dotnetSdkDirectory,
-                    projectExtensionsPath);
-            PackageTreeFixture runtime = runtimePackage
-                ?? throw new InvalidOperationException(
-                    "Runtime package evidence was not materialized.");
-
-            cachedSchemaThreeFixture = new SchemaThreeFixture(
-                RepositoryRoot: repositoryRoot,
-                ProjectExtensionsPath: projectExtensionsPath,
-                ProjectAssetsPath: projectAssetsPath,
-                PinnedRestoreSourcePath: pinnedRestoreSourcePath,
-                PackageRootPath: packageRootPath,
-                RestoreArchiveSourceRootPath: globalPackageRoot,
-                RestoreClosure: restoreClosure,
-                PinnedRestoreSourceClosure: pinnedRestoreSourceClosure,
-                RestoreArchiveClosure: restoreArchiveClosure,
-                PackageClosureSha256: GetSha256(
-                    Encoding.UTF8.GetBytes(packageClosure.ToString())),
-                Packages: packageEvidence,
-                PackageBuildClosure: packageBuildClosure,
-                ActivePackageImportEdges: ActivePackageImportEdges,
-                ActivePackageImportGraphSha256: GetSequenceSha256(
-                    ActivePackageImportEdges),
-                PackageTaskBindings: PackageTaskBindings,
-                PackageTaskBindingsSha256: GetSequenceSha256(
-                    PackageTaskBindings),
-                PostRestoreEvaluation: postRestoreEvaluation,
-                IlCompilerPath: ilCompilerPath,
-                IlCompilerDiscoverySourcePath:
-                    ilCompilerDiscoverySourcePath,
-                NativeAotRuntimePackPath: nativeAotRuntimePackPath,
-                NativeAotRuntimePackSha256: runtime.AggregateSha256,
-                NativeAotRuntimePackFileCount: runtime.FileCount,
-                NativeAotRuntimePackBytes: runtime.TotalBytes,
-                IlCompilerTargetsPath: Path.Combine(
-                    ilCompilerBuildPackageRoot,
-                    "build",
-                    "Microsoft.DotNet.ILCompiler.SingleEntry.targets"),
-                IlLinkTargetsPath: Path.Combine(
-                    ilLinkPackageRoot,
-                    "build",
-                    "Microsoft.NET.ILLink.targets"),
-                IlLinkTasksAssemblyPath: Path.Combine(
-                    ilLinkPackageRoot,
-                    "tools",
-                    "net",
-                    "ILLink.Tasks.dll"),
-                IlcBuildTasksPath: Path.Combine(
-                    ilCompilerBuildPackageRoot,
-                    "tools",
-                    "netstandard",
-                    "ILCompiler.Build.Tasks.dll"),
-                IlcHostPackagePath: ilCompilerHostPackageRoot,
-                IlcToolsPath: Path.Combine(
-                    ilCompilerHostPackageRoot,
-                    "tools") + trailingSeparator,
-                IlcFrameworkPath: Path.Combine(
-                    nativeAotRuntimePackPath,
-                    "runtimes",
-                    "win-x64",
-                    "lib") + trailingSeparator,
-                IlcFrameworkNativePath: Path.Combine(
-                    nativeAotRuntimePackPath,
-                    "runtimes",
-                    "win-x64",
-                    "native") + trailingSeparator,
-                IlcSdkPath: Path.Combine(
-                    nativeAotRuntimePackPath,
-                    "runtimes",
-                    "win-x64",
-                    "native") + trailingSeparator,
-                IlcMibcPath: Path.Combine(
-                    nativeAotRuntimePackPath,
-                    "mibc") + trailingSeparator,
-                LanguageTargetsPath: Path.Combine(
-                    dotnetSdkDirectory,
-                    "Microsoft.CSharp.targets"),
-                CSharpTargetsPath: Path.Combine(
-                    dotnetSdkDirectory,
-                    "Microsoft.CSharp.CurrentVersion.targets"),
-                CommonTargetsPath: Path.Combine(
-                    dotnetSdkDirectory,
-                    "Microsoft.Common.CurrentVersion.targets"));
+            SourceClosureFixture packageBuildClosure = BuildRootRelativeFileClosure(packageRootPath, PackageBuildClosurePaths.Select(relativePath => Path.Combine(packageRootPath, relativePath.Replace('/', Path.DirectorySeparatorChar))).ToArray(), sortByPath: false);
+            Dictionary<string, object?> postRestoreEvaluation = BuildPostRestoreEvaluationFixture(packageRootPath, nativeAotRuntimePackPath, dotnetSdkDirectory, projectExtensionsPath);
+            PackageTreeFixture runtime = runtimePackage ?? throw new InvalidOperationException("Runtime package evidence was not materialized.");
+            cachedSchemaThreeFixture = new SchemaThreeFixture(RepositoryRoot: repositoryRoot, ProjectExtensionsPath: projectExtensionsPath, ProjectAssetsPath: projectAssetsPath, PinnedRestoreSourcePath: pinnedRestoreSourcePath, PackageRootPath: packageRootPath, RestoreArchiveSourceRootPath: globalPackageRoot, RestoreClosure: restoreClosure, PinnedRestoreSourceClosure: pinnedRestoreSourceClosure, RestoreArchiveClosure: restoreArchiveClosure, PackageClosureSha256: GetSha256(Encoding.UTF8.GetBytes(packageClosure.ToString())), Packages: packageEvidence, PackageBuildClosure: packageBuildClosure, ActivePackageImportEdges: ActivePackageImportEdges, ActivePackageImportGraphSha256: GetSequenceSha256(ActivePackageImportEdges), PackageTaskBindings: PackageTaskBindings, PackageTaskBindingsSha256: GetSequenceSha256(PackageTaskBindings), PostRestoreEvaluation: postRestoreEvaluation, IlCompilerPath: ilCompilerPath, IlCompilerDiscoverySourcePath: ilCompilerDiscoverySourcePath, NativeAotRuntimePackPath: nativeAotRuntimePackPath, NativeAotRuntimePackSha256: runtime.AggregateSha256, NativeAotRuntimePackFileCount: runtime.FileCount, NativeAotRuntimePackBytes: runtime.TotalBytes, IlCompilerTargetsPath: Path.Combine(ilCompilerBuildPackageRoot, "build", "Microsoft.DotNet.ILCompiler.SingleEntry.targets"), IlLinkTargetsPath: Path.Combine(ilLinkPackageRoot, "build", "Microsoft.NET.ILLink.targets"), IlLinkTasksAssemblyPath: Path.Combine(ilLinkPackageRoot, "tools", "net", "ILLink.Tasks.dll"), IlcBuildTasksPath: Path.Combine(ilCompilerBuildPackageRoot, "tools", "netstandard", "ILCompiler.Build.Tasks.dll"), IlcHostPackagePath: ilCompilerHostPackageRoot, IlcToolsPath: Path.Combine(ilCompilerHostPackageRoot, "tools") + trailingSeparator, IlcFrameworkPath: Path.Combine(nativeAotRuntimePackPath, "runtimes", "win-x64", "lib") + trailingSeparator, IlcFrameworkNativePath: Path.Combine(nativeAotRuntimePackPath, "runtimes", "win-x64", "native") + trailingSeparator, IlcSdkPath: Path.Combine(nativeAotRuntimePackPath, "runtimes", "win-x64", "native") + trailingSeparator, IlcMibcPath: Path.Combine(nativeAotRuntimePackPath, "mibc") + trailingSeparator, LanguageTargetsPath: Path.Combine(dotnetSdkDirectory, "Microsoft.CSharp.targets"), CSharpTargetsPath: Path.Combine(dotnetSdkDirectory, "Microsoft.CSharp.CurrentVersion.targets"), CommonTargetsPath: Path.Combine(dotnetSdkDirectory, "Microsoft.Common.CurrentVersion.targets"));
             return cachedSchemaThreeFixture;
         }
     }
 
-    private static void CopySchemaThreeFixtureRepository(
-        string sourceRepositoryRoot,
-        string sourceProjectPath,
-        string destinationRepositoryRoot)
+    private static void CopySchemaThreeFixtureRepository(string sourceRepositoryRoot, string sourceProjectPath, string destinationRepositoryRoot)
     {
-        string normalizedSourceRoot = Path.TrimEndingDirectorySeparator(
-            Path.GetFullPath(sourceRepositoryRoot));
-        string sourcePrefix =
-            normalizedSourceRoot + Path.DirectorySeparatorChar;
-        string sourceProjectDirectory = Path.GetDirectoryName(
-            sourceProjectPath)!;
-        var sourcePaths = new HashSet<string>(
-            StringComparer.OrdinalIgnoreCase);
+        string normalizedSourceRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceRepositoryRoot));
+        string sourcePrefix = normalizedSourceRoot + Path.DirectorySeparatorChar;
+        string sourceProjectDirectory = Path.GetDirectoryName(sourceProjectPath)!;
+        var sourcePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         XDocument project = XDocument.Load(sourceProjectPath);
         foreach (XElement compile in project.Descendants("Compile"))
         {
-            string include = compile.Attribute("Include")?.Value
-                ?? throw new InvalidOperationException(
-                    "Fixture project compile input has no Include.");
-            sourcePaths.Add(
-                Path.GetFullPath(
-                    Path.Combine(sourceProjectDirectory, include)));
+            string include = compile.Attribute("Include")?.Value ?? throw new InvalidOperationException("Fixture project compile input has no Include.");
+            sourcePaths.Add(Path.GetFullPath(Path.Combine(sourceProjectDirectory, include)));
         }
 
         string[] explicitRelativePaths = OS.Tooling.EfiEvidence.SourceClosurePaths(normalizedSourceRoot).ToArray();
         foreach (string relativePath in explicitRelativePaths)
         {
-            sourcePaths.Add(
-                Path.GetFullPath(
-                    Path.Combine(normalizedSourceRoot, relativePath)));
+            sourcePaths.Add(Path.GetFullPath(Path.Combine(normalizedSourceRoot, relativePath)));
         }
 
         foreach (string sourcePath in sourcePaths)
         {
-            if (!sourcePath.StartsWith(
-                    sourcePrefix,
-                    StringComparison.OrdinalIgnoreCase) ||
-                !File.Exists(sourcePath))
+            if (!sourcePath.StartsWith(sourcePrefix, StringComparison.OrdinalIgnoreCase) || !File.Exists(sourcePath))
             {
-                throw new InvalidOperationException(
-                    "Schema-three fixture source is unavailable or external: " +
-                    sourcePath);
+                throw new InvalidOperationException("Schema-three fixture source is unavailable or external: " + sourcePath);
             }
 
-            string relativePath = Path.GetRelativePath(
-                normalizedSourceRoot,
-                sourcePath);
-            string destinationPath = Path.Combine(
-                destinationRepositoryRoot,
-                relativePath);
-            Directory.CreateDirectory(
-                Path.GetDirectoryName(destinationPath)!);
+            string relativePath = Path.GetRelativePath(normalizedSourceRoot, sourcePath);
+            string destinationPath = Path.Combine(destinationRepositoryRoot, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
             File.Copy(sourcePath, destinationPath, overwrite: false);
         }
     }
 
-    private static void RunCanonicalFixtureRestore(
-        string repositoryRoot,
-        string projectPath,
-        string dotnetHostPath,
-        string dotnetSdkVersion,
-        string restoreConfigPath,
-        string projectExtensionsPath,
-        string packageRootPath)
+    private static void RunCanonicalFixtureRestore(string repositoryRoot, string projectPath, string dotnetHostPath, string dotnetSdkVersion, string restoreConfigPath, string projectExtensionsPath, string packageRootPath)
     {
-        string canonicalPropsPath = Path.Combine(
-            repositoryRoot,
-            "Directory.Build.props");
-        string canonicalTargetsPath = Path.Combine(
-            repositoryRoot,
-            "Directory.Build.targets");
-        string dotnetSdkDirectory = Path.Combine(
-            Path.GetDirectoryName(dotnetHostPath)!,
-            "sdk",
-            dotnetSdkVersion);
-        string disabledUserExtensionsPath = Path.Combine(
-            projectExtensionsPath,
-            "disabled-user-extensions");
-        if (Directory.Exists(disabledUserExtensionsPath) ||
-            File.Exists(disabledUserExtensionsPath))
+        string canonicalPropsPath = Path.Combine(repositoryRoot, "Directory.Build.props");
+        string canonicalTargetsPath = Path.Combine(repositoryRoot, "Directory.Build.targets");
+        string dotnetSdkDirectory = Path.Combine(Path.GetDirectoryName(dotnetHostPath)!, "sdk", dotnetSdkVersion);
+        string disabledUserExtensionsPath = Path.Combine(projectExtensionsPath, "disabled-user-extensions");
+        if (Directory.Exists(disabledUserExtensionsPath) || File.Exists(disabledUserExtensionsPath))
         {
-            throw new InvalidOperationException(
-                "Fixture user-extension quarantine path must be absent.");
+            throw new InvalidOperationException("Fixture user-extension quarantine path must be absent.");
         }
 
-        string projectExtensionsArgument =
-            projectExtensionsPath.Replace('\\', '/').TrimEnd('/') + "/";
-        string projectAssetsArgument = Path.Combine(
-            projectExtensionsPath,
-            "project.assets.json").Replace('\\', '/');
-        string[] arguments =
-        [
-            "restore",
-            projectPath,
-            "-noAutoResponse",
-            "-r",
-            "win-x64",
-            "--nologo",
-            "--force",
-            "--no-cache",
-            "-nodeReuse:false",
-            "--configfile",
-            restoreConfigPath,
-            "--packages",
-            packageRootPath,
-            "-p:Configuration=" + ManagedFixtureConfiguration,
-            "-p:DirectoryBuildPropsPath=" + canonicalPropsPath,
-            "-p:DirectoryBuildTargetsPath=" + canonicalTargetsPath,
-            "-p:ImportDirectoryBuildProps=true",
-            "-p:ImportDirectoryBuildTargets=true",
-            "-p:CustomBeforeMicrosoftCommonProps=",
-            "-p:CustomAfterMicrosoftCommonProps=",
-            "-p:CustomBeforeDirectoryBuildProps=",
-            "-p:CustomAfterDirectoryBuildProps=",
-            "-p:CustomBeforeDirectoryBuildTargets=",
-            "-p:CustomAfterDirectoryBuildTargets=",
-            "-p:CustomBeforeMicrosoftCommonTargets=",
-            "-p:CustomAfterMicrosoftCommonTargets=",
-            "-p:CustomBeforeMicrosoftCSharpTargets=",
-            "-p:CustomAfterMicrosoftCSharpTargets=",
-            "-p:CustomBeforeMicrosoftCommonCrossTargetingTargets=",
-            "-p:CustomAfterMicrosoftCommonCrossTargetingTargets=",
-            "-p:BeforeMicrosoftNETSdkTargets=",
-            "-p:AfterMicrosoftNETSdkTargets=",
-            "-p:MSBuildSDKsPath=" +
-                Path.Combine(dotnetSdkDirectory, "Sdks"),
-            "-p:MSBuildExtensionsPath=" +
-                dotnetSdkDirectory +
-                Path.DirectorySeparatorChar,
-            "-p:MSBuildUserExtensionsPath=" +
-                disabledUserExtensionsPath,
-            "-p:UseSharedCompilation=false",
-            "-p:ImportByWildcardBeforeMicrosoftCommonProps=false",
-            "-p:ImportByWildcardAfterMicrosoftCommonProps=false",
-            "-p:ImportUserLocationsByWildcardBeforeMicrosoftCommonProps=false",
-            "-p:ImportUserLocationsByWildcardAfterMicrosoftCommonProps=false",
-            "-p:ImportByWildcardBeforeMicrosoftCommonTargets=false",
-            "-p:ImportByWildcardAfterMicrosoftCommonTargets=false",
-            "-p:ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets=false",
-            "-p:ImportUserLocationsByWildcardAfterMicrosoftCommonTargets=false",
-            "-p:ImportByWildcardBeforeMicrosoftCSharpTargets=false",
-            "-p:ImportByWildcardAfterMicrosoftCSharpTargets=false",
-            "-p:ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets=false",
-            "-p:ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets=false",
-            "-p:ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets=false",
-            "-p:ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets=false",
-            "-p:RestoreForceEvaluate=true",
-            "-p:RestoreUseCustomAfterTargets=false",
-            "-p:RestoreIgnoreFailedSources=false",
-            "-p:MSBuildProjectExtensionsPath=" +
-                projectExtensionsArgument,
-            "-p:RestoreOutputPath=" + projectExtensionsArgument,
-            "-p:ProjectAssetsFile=" + projectAssetsArgument,
-            "-p:RestorePackagesPath=" + packageRootPath,
-            "-p:NuGetPackageRoot=" + packageRootPath,
-            "-p:ImportProjectExtensionProps=false",
-            "-p:ImportProjectExtensionTargets=false",
-            "-p:ExcludeRestorePackageImports=true"
-        ];
-        ProcessResult result = RunBoundedProcess(
-            dotnetHostPath,
-            arguments,
-            timeoutMilliseconds: 120_000);
+        string projectExtensionsArgument = projectExtensionsPath.Replace('\\', '/').TrimEnd('/') + "/";
+        string projectAssetsArgument = Path.Combine(projectExtensionsPath, "project.assets.json").Replace('\\', '/');
+        string[] arguments = ["restore", projectPath, "-noAutoResponse", "-r", "win-x64", "--nologo", "--force", "--no-cache", "-nodeReuse:false", "--configfile", restoreConfigPath, "--packages", packageRootPath, "-p:Configuration=" + ManagedFixtureConfiguration, "-p:DirectoryBuildPropsPath=" + canonicalPropsPath, "-p:DirectoryBuildTargetsPath=" + canonicalTargetsPath, "-p:ImportDirectoryBuildProps=true", "-p:ImportDirectoryBuildTargets=true", "-p:CustomBeforeMicrosoftCommonProps=", "-p:CustomAfterMicrosoftCommonProps=", "-p:CustomBeforeDirectoryBuildProps=", "-p:CustomAfterDirectoryBuildProps=", "-p:CustomBeforeDirectoryBuildTargets=", "-p:CustomAfterDirectoryBuildTargets=", "-p:CustomBeforeMicrosoftCommonTargets=", "-p:CustomAfterMicrosoftCommonTargets=", "-p:CustomBeforeMicrosoftCSharpTargets=", "-p:CustomAfterMicrosoftCSharpTargets=", "-p:CustomBeforeMicrosoftCommonCrossTargetingTargets=", "-p:CustomAfterMicrosoftCommonCrossTargetingTargets=", "-p:BeforeMicrosoftNETSdkTargets=", "-p:AfterMicrosoftNETSdkTargets=", "-p:MSBuildSDKsPath=" + Path.Combine(dotnetSdkDirectory, "Sdks"), "-p:MSBuildExtensionsPath=" + dotnetSdkDirectory + Path.DirectorySeparatorChar, "-p:MSBuildUserExtensionsPath=" + disabledUserExtensionsPath, "-p:UseSharedCompilation=false", "-p:ImportByWildcardBeforeMicrosoftCommonProps=false", "-p:ImportByWildcardAfterMicrosoftCommonProps=false", "-p:ImportUserLocationsByWildcardBeforeMicrosoftCommonProps=false", "-p:ImportUserLocationsByWildcardAfterMicrosoftCommonProps=false", "-p:ImportByWildcardBeforeMicrosoftCommonTargets=false", "-p:ImportByWildcardAfterMicrosoftCommonTargets=false", "-p:ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets=false", "-p:ImportUserLocationsByWildcardAfterMicrosoftCommonTargets=false", "-p:ImportByWildcardBeforeMicrosoftCSharpTargets=false", "-p:ImportByWildcardAfterMicrosoftCSharpTargets=false", "-p:ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets=false", "-p:ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets=false", "-p:ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets=false", "-p:ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets=false", "-p:RestoreForceEvaluate=true", "-p:RestoreUseCustomAfterTargets=false", "-p:RestoreIgnoreFailedSources=false", "-p:MSBuildProjectExtensionsPath=" + projectExtensionsArgument, "-p:RestoreOutputPath=" + projectExtensionsArgument, "-p:ProjectAssetsFile=" + projectAssetsArgument, "-p:RestorePackagesPath=" + packageRootPath, "-p:NuGetPackageRoot=" + packageRootPath, "-p:ImportProjectExtensionProps=false", "-p:ImportProjectExtensionTargets=false", "-p:ExcludeRestorePackageImports=true"];
+        ProcessResult result = RunBoundedProcess(dotnetHostPath, arguments, timeoutMilliseconds: 120_000);
         if (result.TimedOut || result.ExitCode != 0)
         {
-            throw new InvalidOperationException(
-                "Canonical isolated fixture restore failed: " +
-                result.Output.Replace(
-                    Environment.NewLine,
-                    " ",
-                    StringComparison.Ordinal));
+            throw new InvalidOperationException("Canonical isolated fixture restore failed: " + result.Output.Replace(Environment.NewLine, " ", StringComparison.Ordinal));
         }
     }
 
     private static string ResolveGlobalPackageRoot()
     {
-        string? configuredRoot = Environment.GetEnvironmentVariable(
-            "NUGET_PACKAGES");
+        string? configuredRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
         if (!string.IsNullOrWhiteSpace(configuredRoot))
         {
             return Path.GetFullPath(configuredRoot);
         }
 
-        return Path.GetFullPath(
-            Path.Combine(
-                Environment.GetFolderPath(
-                    Environment.SpecialFolder.UserProfile),
-                ".nuget",
-                "packages"));
+        return Path.GetFullPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages"));
     }
 
-    private static SourceClosureFixture BuildExactFileClosure(
-        string repositoryRoot,
-        string[] fullPaths)
+    private static SourceClosureFixture BuildExactFileClosure(string repositoryRoot, string[] fullPaths)
     {
         return BuildRootRelativeFileClosure(repositoryRoot, fullPaths);
     }
 
-    private static SourceClosureFixture BuildRootRelativeFileClosure(
-        string rootPath,
-        string[] fullPaths,
-        bool sortByPath = true)
+    private static SourceClosureFixture BuildRootRelativeFileClosure(string rootPath, string[] fullPaths, bool sortByPath = true)
     {
-        string normalizedRoot = Path.TrimEndingDirectorySeparator(
-            Path.GetFullPath(rootPath));
+        string normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
         string rootPrefix = normalizedRoot + Path.DirectorySeparatorChar;
-        IEnumerable<Dictionary<string, string>> inputSequence = fullPaths
-            .Select(Path.GetFullPath)
-            .Select(fullPath =>
+        IEnumerable<Dictionary<string, string>> inputSequence = fullPaths.Select(Path.GetFullPath).Select(fullPath =>
+        {
+            if (!fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
             {
-                if (!fullPath.StartsWith(
-                        rootPrefix,
-                        StringComparison.OrdinalIgnoreCase) ||
-                    !File.Exists(fullPath))
-                {
-                    throw new InvalidOperationException(
-                        "Fixture closure input is not a file under its root: " +
-                        fullPath);
-                }
+                throw new InvalidOperationException("Fixture closure input is not a file under its root: " + fullPath);
+            }
 
-                return new Dictionary<string, string>
-                {
-                    ["path"] = Path.GetRelativePath(normalizedRoot, fullPath)
-                        .Replace('\\', '/'),
-                    ["sha256"] = GetSha256(fullPath)
-                };
-            });
+            return new Dictionary<string, string>
+            {
+                ["path"] = Path.GetRelativePath(normalizedRoot, fullPath).Replace('\\', '/'),
+                ["sha256"] = GetSha256(fullPath)
+            };
+        });
         if (sortByPath)
         {
-            inputSequence = inputSequence.OrderBy(
-                input => input["path"],
-                StringComparer.Ordinal);
+            inputSequence = inputSequence.OrderBy(input => input["path"], StringComparer.Ordinal);
         }
 
         Dictionary<string, string>[] inputs = inputSequence.ToArray();
@@ -4600,37 +2037,18 @@ internal static class EfiArtifactVerificationScriptTests
             aggregate.Append('\n');
         }
 
-        return new SourceClosureFixture(
-            GetSha256(Encoding.UTF8.GetBytes(aggregate.ToString())),
-            inputs);
+        return new SourceClosureFixture(GetSha256(Encoding.UTF8.GetBytes(aggregate.ToString())), inputs);
     }
 
-    private static PackageTreeFixture BuildPackageTreeFixture(
-        string packageRootPath)
+    private static PackageTreeFixture BuildPackageTreeFixture(string packageRootPath)
     {
-        string normalizedRoot = Path.TrimEndingDirectorySeparator(
-            Path.GetFullPath(packageRootPath));
+        string normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(packageRootPath));
         string rootPrefix = normalizedRoot + Path.DirectorySeparatorChar;
-        PackageInputFixture[] inputs = Directory
-            .EnumerateFiles(
-                normalizedRoot,
-                "*",
-                SearchOption.AllDirectories)
-            .Where(path => !string.Equals(
-                Path.GetFileName(path),
-                ".nupkg.metadata",
-                StringComparison.Ordinal))
-            .Select(path =>
-            {
-                string fullPath = Path.GetFullPath(path);
-                return new PackageInputFixture(
-                    Path: fullPath.Substring(rootPrefix.Length)
-                        .Replace('\\', '/'),
-                    Bytes: new FileInfo(fullPath).Length,
-                    Sha256: GetSha256(fullPath));
-            })
-            .OrderBy(input => input.Path, StringComparer.Ordinal)
-            .ToArray();
+        PackageInputFixture[] inputs = Directory.EnumerateFiles(normalizedRoot, "*", SearchOption.AllDirectories).Where(path => !string.Equals(Path.GetFileName(path), ".nupkg.metadata", StringComparison.Ordinal)).Select(path =>
+        {
+            string fullPath = Path.GetFullPath(path);
+            return new PackageInputFixture(Path: fullPath.Substring(rootPrefix.Length).Replace('\\', '/'), Bytes: new FileInfo(fullPath).Length, Sha256: GetSha256(fullPath));
+        }).OrderBy(input => input.Path, StringComparer.Ordinal).ToArray();
         var aggregate = new StringBuilder();
         long totalBytes = 0;
         var serializedInputs = new Dictionary<string, object?>[inputs.Length];
@@ -4640,8 +2058,7 @@ internal static class EfiArtifactVerificationScriptTests
             totalBytes = checked(totalBytes + input.Bytes);
             aggregate.Append(input.Path);
             aggregate.Append('|');
-            aggregate.Append(
-                input.Bytes.ToString(CultureInfo.InvariantCulture));
+            aggregate.Append(input.Bytes.ToString(CultureInfo.InvariantCulture));
             aggregate.Append('|');
             aggregate.Append(input.Sha256);
             aggregate.Append('\n');
@@ -4653,35 +2070,15 @@ internal static class EfiArtifactVerificationScriptTests
             };
         }
 
-        return new PackageTreeFixture(
-            FileCount: inputs.Length,
-            TotalBytes: totalBytes,
-            AggregateSha256: GetSha256(
-                Encoding.UTF8.GetBytes(aggregate.ToString())),
-            Inputs: serializedInputs);
+        return new PackageTreeFixture(FileCount: inputs.Length, TotalBytes: totalBytes, AggregateSha256: GetSha256(Encoding.UTF8.GetBytes(aggregate.ToString())), Inputs: serializedInputs);
     }
 
-    private static Dictionary<string, object?>
-        BuildPostRestoreEvaluationFixture(
-            string packageRootPath,
-            string nativeAotRuntimePackPath,
-            string dotnetSdkDirectory,
-            string projectExtensionsPath)
+    private static Dictionary<string, object?> BuildPostRestoreEvaluationFixture(string packageRootPath, string nativeAotRuntimePackPath, string dotnetSdkDirectory, string projectExtensionsPath)
     {
-        string ilCompilerBuildPackageRoot = Path.Combine(
-            packageRootPath,
-            "microsoft.dotnet.ilcompiler",
-            EfiContracts.NativePackageVersion);
-        string ilCompilerHostPackageRoot = Path.Combine(
-            packageRootPath,
-            "runtime.win-x64.microsoft.dotnet.ilcompiler",
-            EfiContracts.NativePackageVersion);
-        string ilLinkPackageRoot = Path.Combine(
-            packageRootPath,
-            "microsoft.net.illink.tasks",
-            EfiContracts.NativePackageVersion);
-        string trailingSeparator =
-            Path.DirectorySeparatorChar.ToString(CultureInfo.InvariantCulture);
+        string ilCompilerBuildPackageRoot = Path.Combine(packageRootPath, "microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion);
+        string ilCompilerHostPackageRoot = Path.Combine(packageRootPath, "runtime.win-x64.microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion);
+        string ilLinkPackageRoot = Path.Combine(packageRootPath, "microsoft.net.illink.tasks", EfiContracts.NativePackageVersion);
+        string trailingSeparator = Path.DirectorySeparatorChar.ToString(CultureInfo.InvariantCulture);
         var properties = new Dictionary<string, string>
         {
             ["ClrosBootPolicy"] = "Diagnostic",
@@ -4695,49 +2092,19 @@ internal static class EfiArtifactVerificationScriptTests
             ["ImportProjectExtensionProps"] = "false",
             ["ImportProjectExtensionTargets"] = "false",
             ["ExcludeRestorePackageImports"] = "true",
-            ["ILCompilerTargetsPath"] = Path.Combine(
-                ilCompilerBuildPackageRoot,
-                "build",
-                "Microsoft.DotNet.ILCompiler.SingleEntry.targets"),
-            ["ILLinkTargetsPath"] = Path.Combine(
-                ilLinkPackageRoot,
-                "build",
-                "Microsoft.NET.ILLink.targets"),
-            ["ILLinkTasksAssembly"] = Path.Combine(
-                ilLinkPackageRoot,
-                "tools",
-                "net",
-                "ILLink.Tasks.dll"),
-            ["IlcBuildTasksPath"] = Path.Combine(
-                ilCompilerBuildPackageRoot,
-                "tools",
-                "netstandard",
-                "ILCompiler.Build.Tasks.dll"),
+            ["ILCompilerTargetsPath"] = Path.Combine(ilCompilerBuildPackageRoot, "build", "Microsoft.DotNet.ILCompiler.SingleEntry.targets"),
+            ["ILLinkTargetsPath"] = Path.Combine(ilLinkPackageRoot, "build", "Microsoft.NET.ILLink.targets"),
+            ["ILLinkTasksAssembly"] = Path.Combine(ilLinkPackageRoot, "tools", "net", "ILLink.Tasks.dll"),
+            ["IlcBuildTasksPath"] = Path.Combine(ilCompilerBuildPackageRoot, "tools", "netstandard", "ILCompiler.Build.Tasks.dll"),
             ["IlcHostPackagePath"] = ilCompilerHostPackageRoot,
             ["ClrosIlcHostPackagePath"] = ilCompilerHostPackageRoot,
-            ["IlcToolsPath"] = Path.Combine(
-                ilCompilerHostPackageRoot,
-                "tools") + trailingSeparator,
+            ["IlcToolsPath"] = Path.Combine(ilCompilerHostPackageRoot, "tools") + trailingSeparator,
             ["RuntimePackagePath"] = nativeAotRuntimePackPath,
             ["ClrosRuntimePackagePath"] = nativeAotRuntimePackPath,
-            ["IlcFrameworkPath"] = Path.Combine(
-                nativeAotRuntimePackPath,
-                "runtimes",
-                "win-x64",
-                "lib") + trailingSeparator,
-            ["IlcFrameworkNativePath"] = Path.Combine(
-                nativeAotRuntimePackPath,
-                "runtimes",
-                "win-x64",
-                "native") + trailingSeparator,
-            ["IlcSdkPath"] = Path.Combine(
-                nativeAotRuntimePackPath,
-                "runtimes",
-                "win-x64",
-                "native") + trailingSeparator,
-            ["IlcMibcPath"] = Path.Combine(
-                nativeAotRuntimePackPath,
-                "mibc") + trailingSeparator,
+            ["IlcFrameworkPath"] = Path.Combine(nativeAotRuntimePackPath, "runtimes", "win-x64", "lib") + trailingSeparator,
+            ["IlcFrameworkNativePath"] = Path.Combine(nativeAotRuntimePackPath, "runtimes", "win-x64", "native") + trailingSeparator,
+            ["IlcSdkPath"] = Path.Combine(nativeAotRuntimePackPath, "runtimes", "win-x64", "native") + trailingSeparator,
+            ["IlcMibcPath"] = Path.Combine(nativeAotRuntimePackPath, "mibc") + trailingSeparator,
             ["RunILLink"] = "false",
             ["NativeCompilationDuringPublish"] = "true",
             ["IlcMultiModule"] = "false",
@@ -4746,55 +2113,35 @@ internal static class EfiArtifactVerificationScriptTests
             ["PublishAotUsingRuntimePack"] = "false",
             ["IlcPgoOptimize"] = "false",
             ["ImportRuntimeIlcPackageTargetDependsOn"] = "",
-            ["IlcSetupPropertiesDependsOn"] =
-                "ImportRuntimeIlcPackageTarget",
+            ["IlcSetupPropertiesDependsOn"] = "ImportRuntimeIlcPackageTarget",
             ["IlcDynamicBuildPropertyDependencies"] = "SetupProperties",
             ["ImportNuGetBuildTasksPackTargetsFromSdk"] = "false",
             ["NuGetBuildTasksPackTargets"] = "",
-            ["LanguageTargets"] = Path.Combine(
-                dotnetSdkDirectory,
-                "Microsoft.CSharp.targets"),
-            ["CSharpTargetsPath"] = Path.Combine(
-                dotnetSdkDirectory,
-                "Microsoft.CSharp.CurrentVersion.targets"),
-            ["CommonTargetsPath"] = Path.Combine(
-                dotnetSdkDirectory,
-                "Microsoft.Common.CurrentVersion.targets"),
-            ["MSBuildSDKsPath"] = Path.Combine(
-                dotnetSdkDirectory,
-                "Sdks"),
-            ["MSBuildExtensionsPath"] =
-                dotnetSdkDirectory + trailingSeparator,
-            ["MSBuildUserExtensionsPath"] = Path.Combine(
-                projectExtensionsPath,
-                "disabled-user-extensions"),
+            ["LanguageTargets"] = Path.Combine(dotnetSdkDirectory, "Microsoft.CSharp.targets"),
+            ["CSharpTargetsPath"] = Path.Combine(dotnetSdkDirectory, "Microsoft.CSharp.CurrentVersion.targets"),
+            ["CommonTargetsPath"] = Path.Combine(dotnetSdkDirectory, "Microsoft.Common.CurrentVersion.targets"),
+            ["MSBuildSDKsPath"] = Path.Combine(dotnetSdkDirectory, "Sdks"),
+            ["MSBuildExtensionsPath"] = dotnetSdkDirectory + trailingSeparator,
+            ["MSBuildUserExtensionsPath"] = Path.Combine(projectExtensionsPath, "disabled-user-extensions"),
             ["UseSharedCompilation"] = "false",
             ["ImportByWildcardBeforeMicrosoftCommonProps"] = "false",
             ["ImportByWildcardAfterMicrosoftCommonProps"] = "false",
-            ["ImportUserLocationsByWildcardBeforeMicrosoftCommonProps"] =
-                "false",
-            ["ImportUserLocationsByWildcardAfterMicrosoftCommonProps"] =
-                "false",
+            ["ImportUserLocationsByWildcardBeforeMicrosoftCommonProps"] = "false",
+            ["ImportUserLocationsByWildcardAfterMicrosoftCommonProps"] = "false",
             ["ImportByWildcardBeforeMicrosoftCommonTargets"] = "false",
             ["ImportByWildcardAfterMicrosoftCommonTargets"] = "false",
-            ["ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets"] =
-                "false",
-            ["ImportUserLocationsByWildcardAfterMicrosoftCommonTargets"] =
-                "false",
+            ["ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets"] = "false",
+            ["ImportUserLocationsByWildcardAfterMicrosoftCommonTargets"] = "false",
             ["ImportByWildcardBeforeMicrosoftCSharpTargets"] = "false",
             ["ImportByWildcardAfterMicrosoftCSharpTargets"] = "false",
-            ["ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets"] =
-                "false",
-            ["ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets"] =
-                "false",
-            ["ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets"] =
-                "false",
-            ["ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets"] =
-                "false"
+            ["ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets"] = "false",
+            ["ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets"] = "false",
+            ["ImportByWildcardBeforeMicrosoftCommonCrossTargetingTargets"] = "false",
+            ["ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets"] = "false"
         };
-        foreach (string probe in EfiContracts.DiagnosticProbes) properties.Add(probe, "false");
-        string[] expectedCompileItems = EfiProjectAdmission.ExpectedCompileItems(
-            EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()));
+        foreach (string probe in EfiContracts.DiagnosticProbes)
+            properties.Add(probe, "false");
+        string[] expectedCompileItems = EfiProjectAdmission.ExpectedCompileItems(EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()));
         return new Dictionary<string, object?>
         {
             ["compileCount"] = expectedCompileItems.Length,
@@ -4811,8 +2158,7 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static string GetSequenceSha256(string[] values)
     {
-        return GetSha256(
-            Encoding.UTF8.GetBytes(string.Join('\n', values) + "\n"));
+        return GetSha256(Encoding.UTF8.GetBytes(string.Join('\n', values) + "\n"));
     }
 
     private static void DeleteSchemaThreeFixture()
@@ -4820,17 +2166,9 @@ internal static class EfiArtifactVerificationScriptTests
         try
         {
             cachedSchemaThreeFixture = null;
-            string fixtureRoot = Path.GetFullPath(
-                SchemaThreeFixtureRepositoryRoot);
-            string temporaryRoot = Path.TrimEndingDirectorySeparator(
-                Path.GetFullPath(Path.GetTempPath()));
-            if (!string.Equals(
-                    Path.GetDirectoryName(fixtureRoot),
-                    temporaryRoot,
-                    StringComparison.OrdinalIgnoreCase) ||
-                !Path.GetFileName(fixtureRoot).StartsWith(
-                    "clros-efi-schema3-repository-",
-                    StringComparison.Ordinal))
+            string fixtureRoot = Path.GetFullPath(SchemaThreeFixtureRepositoryRoot);
+            string temporaryRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath()));
+            if (!string.Equals(Path.GetDirectoryName(fixtureRoot), temporaryRoot, StringComparison.OrdinalIgnoreCase) || !Path.GetFileName(fixtureRoot).StartsWith("clros-efi-schema3-repository-", StringComparison.Ordinal))
             {
                 return;
             }
@@ -4894,9 +2232,7 @@ internal static class EfiArtifactVerificationScriptTests
             CreateNoWindow = true
         };
         start.ArgumentList.Add("--version");
-        using Process process = Process.Start(start)
-            ?? throw new InvalidOperationException(
-                "Failed to query the dotnet SDK version.");
+        using Process process = Process.Start(start) ?? throw new InvalidOperationException("Failed to query the dotnet SDK version.");
         Task<string> output = process.StandardOutput.ReadToEndAsync();
         Task<string> error = process.StandardError.ReadToEndAsync();
         if (!process.WaitForExit(15_000))
@@ -4909,53 +2245,39 @@ internal static class EfiArtifactVerificationScriptTests
             {
                 // The timeout remains authoritative.
             }
+
             process.WaitForExit();
             throw new TimeoutException("dotnet --version timed out.");
         }
 
         Task.WaitAll(output, error);
         string version = output.Result.Trim();
-        if (process.ExitCode != 0 ||
-            !System.Text.RegularExpressions.Regex.IsMatch(
-                version,
-                "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"))
+        if (process.ExitCode != 0 || !System.Text.RegularExpressions.Regex.IsMatch(version, "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"))
         {
-            throw new InvalidOperationException(
-                "dotnet --version failed: " + error.Result.Trim());
+            throw new InvalidOperationException("dotnet --version failed: " + error.Result.Trim());
         }
 
         cachedDotnetSdkVersion = version;
         return cachedDotnetSdkVersion;
     }
 
-    private static SourceClosureFixture BuildSourceClosureFixture(
-        string repositoryRoot,
-        string projectPath)
+    private static SourceClosureFixture BuildSourceClosureFixture(string repositoryRoot, string projectPath)
     {
-        string normalizedRoot = Path.TrimEndingDirectorySeparator(
-            Path.GetFullPath(repositoryRoot));
+        string normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(repositoryRoot));
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string[] explicitPaths = OS.Tooling.EfiEvidence.SourceClosurePaths(normalizedRoot).ToArray();
         foreach (string relativePath in explicitPaths)
         {
-            AddSourceClosurePath(
-                paths,
-                normalizedRoot,
-                Path.GetFullPath(Path.Combine(normalizedRoot, relativePath)));
+            AddSourceClosurePath(paths, normalizedRoot, Path.GetFullPath(Path.Combine(normalizedRoot, relativePath)));
         }
 
-        string[] orderedPaths = paths
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+        string[] orderedPaths = paths.Order(StringComparer.Ordinal).ToArray();
         var inputs = new Dictionary<string, string>[orderedPaths.Length];
         var aggregate = new StringBuilder();
         for (int index = 0; index < orderedPaths.Length; index++)
         {
             string relativePath = orderedPaths[index];
-            string fullPath = Path.GetFullPath(
-                Path.Combine(
-                    normalizedRoot,
-                    relativePath.Replace('/', Path.DirectorySeparatorChar)));
+            string fullPath = Path.GetFullPath(Path.Combine(normalizedRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
             string sha256 = GetSha256(fullPath);
             inputs[index] = new Dictionary<string, string>(StringComparer.Ordinal)
             {
@@ -4968,98 +2290,65 @@ internal static class EfiArtifactVerificationScriptTests
             aggregate.Append('\n');
         }
 
-        string aggregateSha256 = GetSha256(
-            Encoding.UTF8.GetBytes(aggregate.ToString()));
+        string aggregateSha256 = GetSha256(Encoding.UTF8.GetBytes(aggregate.ToString()));
         return new SourceClosureFixture(aggregateSha256, inputs);
     }
 
-    private static void AddSourceClosurePath(
-        HashSet<string> paths,
-        string repositoryRoot,
-        string fullPath)
+    private static void AddSourceClosurePath(HashSet<string> paths, string repositoryRoot, string fullPath)
     {
         string rootPrefix = repositoryRoot + Path.DirectorySeparatorChar;
         if (!fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException(
-                "Fixture source-closure path escaped the repository.");
+            throw new InvalidOperationException("Fixture source-closure path escaped the repository.");
         }
 
-        string relativePath = Path.GetRelativePath(repositoryRoot, fullPath)
-            .Replace('\\', '/');
+        string relativePath = Path.GetRelativePath(repositoryRoot, fullPath).Replace('\\', '/');
         if (!paths.Add(relativePath))
         {
-            throw new InvalidOperationException(
-                "Fixture source-closure path is duplicated: " + relativePath);
+            throw new InvalidOperationException("Fixture source-closure path is duplicated: " + relativePath);
         }
     }
 
-    private static void MutateEvidence(
-        string evidencePath,
-        Action<JsonObject> mutation)
+    private static void MutateEvidence(string evidencePath, Action<JsonObject> mutation)
     {
-        JsonObject evidence = JsonNode.Parse(File.ReadAllText(evidencePath))?.AsObject()
-            ?? throw new InvalidOperationException("Fixture evidence did not parse.");
+        JsonObject evidence = JsonNode.Parse(File.ReadAllText(evidencePath))?.AsObject() ?? throw new InvalidOperationException("Fixture evidence did not parse.");
         mutation(evidence);
-        File.WriteAllText(
-            evidencePath,
-            evidence.ToJsonString(),
-            new UTF8Encoding(false));
+        File.WriteAllText(evidencePath, evidence.ToJsonString(), new UTF8Encoding(false));
     }
 
     private static void CorruptFirstSourceClosureInput(JsonObject evidence)
     {
-        JsonArray inputs = evidence["sourceClosureInputs"]?.AsArray()
-            ?? throw new InvalidOperationException(
-                "Fixture sourceClosureInputs did not parse.");
+        JsonArray inputs = evidence["sourceClosureInputs"]?.AsArray() ?? throw new InvalidOperationException("Fixture sourceClosureInputs did not parse.");
         if (inputs.Count == 0)
         {
-            throw new InvalidOperationException(
-                "Fixture sourceClosureInputs was empty.");
+            throw new InvalidOperationException("Fixture sourceClosureInputs was empty.");
         }
 
-        JsonObject first = inputs[0]?.AsObject()
-            ?? throw new InvalidOperationException(
-                "Fixture source-closure entry did not parse.");
+        JsonObject first = inputs[0]?.AsObject() ?? throw new InvalidOperationException("Fixture source-closure entry did not parse.");
         first["sha256"] = new string('0', 64);
-
         UpdateSourceClosureAggregate(evidence, inputs);
     }
 
     private static void CorruptFirstRestoreClosureInput(JsonObject evidence)
     {
-        JsonArray inputs = evidence["restoreClosureInputs"]?.AsArray()
-            ?? throw new InvalidOperationException(
-                "Fixture restoreClosureInputs did not parse.");
+        JsonArray inputs = evidence["restoreClosureInputs"]?.AsArray() ?? throw new InvalidOperationException("Fixture restoreClosureInputs did not parse.");
         if (inputs.Count == 0)
         {
-            throw new InvalidOperationException(
-                "Fixture restoreClosureInputs was empty.");
+            throw new InvalidOperationException("Fixture restoreClosureInputs was empty.");
         }
 
-        JsonObject first = inputs[0]?.AsObject()
-            ?? throw new InvalidOperationException(
-                "Fixture restore-closure entry did not parse.");
+        JsonObject first = inputs[0]?.AsObject() ?? throw new InvalidOperationException("Fixture restore-closure entry did not parse.");
         first["sha256"] = new string('0', 64);
     }
 
-    private static void RemoveSourceClosureInput(
-        JsonObject evidence,
-        string relativePath)
+    private static void RemoveSourceClosureInput(JsonObject evidence, string relativePath)
     {
-        JsonArray inputs = evidence["sourceClosureInputs"]?.AsArray()
-            ?? throw new InvalidOperationException(
-                "Fixture sourceClosureInputs did not parse.");
+        JsonArray inputs = evidence["sourceClosureInputs"]?.AsArray() ?? throw new InvalidOperationException("Fixture sourceClosureInputs did not parse.");
         int matchIndex = -1;
         for (int index = 0; index < inputs.Count; index++)
         {
-            JsonObject input = inputs[index]?.AsObject()
-                ?? throw new InvalidOperationException(
-                    "Fixture source-closure entry did not parse.");
-            if (string.Equals(
-                    input["path"]?.GetValue<string>(),
-                    relativePath,
-                    StringComparison.Ordinal))
+            JsonObject input = inputs[index]?.AsObject() ?? throw new InvalidOperationException("Fixture source-closure entry did not parse.");
+            if (string.Equals(input["path"]?.GetValue<string>(), relativePath, StringComparison.Ordinal))
             {
                 matchIndex = index;
                 break;
@@ -5068,32 +2357,26 @@ internal static class EfiArtifactVerificationScriptTests
 
         if (matchIndex < 0)
         {
-            throw new InvalidOperationException(
-                "Fixture source-closure entry was not found: " + relativePath);
+            throw new InvalidOperationException("Fixture source-closure entry was not found: " + relativePath);
         }
 
         inputs.RemoveAt(matchIndex);
         UpdateSourceClosureAggregate(evidence, inputs);
     }
 
-    private static void UpdateSourceClosureAggregate(
-        JsonObject evidence,
-        JsonArray inputs)
+    private static void UpdateSourceClosureAggregate(JsonObject evidence, JsonArray inputs)
     {
         var aggregate = new StringBuilder();
         foreach (JsonNode? node in inputs)
         {
-            JsonObject input = node?.AsObject()
-                ?? throw new InvalidOperationException(
-                    "Fixture source-closure entry did not parse.");
+            JsonObject input = node?.AsObject() ?? throw new InvalidOperationException("Fixture source-closure entry did not parse.");
             aggregate.Append(input["path"]?.GetValue<string>());
             aggregate.Append('|');
             aggregate.Append(input["sha256"]?.GetValue<string>());
             aggregate.Append('\n');
         }
 
-        evidence["sourceClosureSha256"] = GetSha256(
-            Encoding.UTF8.GetBytes(aggregate.ToString()));
+        evidence["sourceClosureSha256"] = GetSha256(Encoding.UTF8.GetBytes(aggregate.ToString()));
     }
 
     private static string GetSha256(string path)
@@ -5106,17 +2389,9 @@ internal static class EfiArtifactVerificationScriptTests
         return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     }
 
-    [DllImport(
-        "kernel32.dll",
-        EntryPoint = "CreateHardLinkW",
-        CharSet = CharSet.Unicode,
-        SetLastError = true)]
+    [DllImport("kernel32.dll", EntryPoint = "CreateHardLinkW", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool CreateHardLink(
-        string fileName,
-        string existingFileName,
-        IntPtr securityAttributes);
-
+    private static extern bool CreateHardLink(string fileName, string existingFileName, IntPtr securityAttributes);
     private static void WriteUInt16(byte[] bytes, int offset, ushort value)
     {
         bytes[offset] = (byte)value;
@@ -5139,10 +2414,7 @@ internal static class EfiArtifactVerificationScriptTests
         }
     }
 
-    private static ProcessResult RunBoundedProcess(
-        string fileName,
-        IEnumerable<string> arguments,
-        int timeoutMilliseconds)
+    private static ProcessResult RunBoundedProcess(string fileName, IEnumerable<string> arguments, int timeoutMilliseconds)
     {
         var start = new ProcessStartInfo
         {
@@ -5160,9 +2432,7 @@ internal static class EfiArtifactVerificationScriptTests
         }
 
         var stopwatch = Stopwatch.StartNew();
-        using Process process = Process.Start(start)
-            ?? throw new InvalidOperationException(
-                "Failed to start fixture process: " + fileName);
+        using Process process = Process.Start(start) ?? throw new InvalidOperationException("Failed to start fixture process: " + fileName);
         Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
         Task<string> standardError = process.StandardError.ReadToEndAsync();
         bool completed = process.WaitForExit(timeoutMilliseconds);
@@ -5182,11 +2452,7 @@ internal static class EfiArtifactVerificationScriptTests
 
         Task.WaitAll(standardOutput, standardError);
         stopwatch.Stop();
-        return new ProcessResult(
-            completed ? process.ExitCode : -1,
-            standardOutput.Result + standardError.Result,
-            timedOut: !completed,
-            elapsedMilliseconds: stopwatch.ElapsedMilliseconds);
+        return new ProcessResult(completed ? process.ExitCode : -1, standardOutput.Result + standardError.Result, timedOut: !completed, elapsedMilliseconds: stopwatch.ElapsedMilliseconds);
     }
 
     private static ProcessResult RunPeFixtureVerifier(string artifactPath)
@@ -5195,20 +2461,18 @@ internal static class EfiArtifactVerificationScriptTests
         return RunVerifier(artifactPath);
     }
 
-    internal static ProcessResult RunVerifier(
-        string artifactPath,
-        string? projectPath = null,
-        string? entrySourcePath = null,
-        string? serializerObjectPath = null,
-        string[]? additionalArguments = null)
+    internal static ProcessResult RunVerifier(string artifactPath, string? projectPath = null, string? entrySourcePath = null, string? serializerObjectPath = null, string[]? additionalArguments = null)
     {
-        string root = File.Exists(artifactPath + ".link.json") && cachedSchemaThreeFixture is not null
-            ? cachedSchemaThreeFixture.RepositoryRoot : HostToolProcess.FindRepositoryRoot();
+        string root = File.Exists(artifactPath + ".link.json") && cachedSchemaThreeFixture is not null ? cachedSchemaThreeFixture.RepositoryRoot : HostToolProcess.FindRepositoryRoot();
         List<string> args = ["--root", root, "--boot-policy", "Diagnostic", "--efi-artifact", artifactPath];
-        if (projectPath is not null) args.AddRange(["--project-path", projectPath]);
-        if (entrySourcePath is not null) args.AddRange(["--entry-source-path", entrySourcePath]);
-        if (serializerObjectPath is not null) args.AddRange(["--serializer-object-path", serializerObjectPath]);
-        if (additionalArguments is not null) args.AddRange(additionalArguments);
+        if (projectPath is not null)
+            args.AddRange(["--project-path", projectPath]);
+        if (entrySourcePath is not null)
+            args.AddRange(["--entry-source-path", entrySourcePath]);
+        if (serializerObjectPath is not null)
+            args.AddRange(["--serializer-object-path", serializerObjectPath]);
+        if (additionalArguments is not null)
+            args.AddRange(additionalArguments);
         var output = new StringBuilder("TEST_START efi.artifact.verify\n");
         var stopwatch = Stopwatch.StartNew();
         try
@@ -5228,122 +2492,4 @@ internal static class EfiArtifactVerificationScriptTests
             return new ProcessResult(1, output.ToString(), timedOut: false, elapsedMilliseconds: stopwatch.ElapsedMilliseconds);
         }
     }
-    internal sealed class LinkEvidenceOptions
-    {
-        public uint MappedEntryRva { get; init; } = EntryPointRva;
-
-        public uint SerializerRva { get; init; } = EfiArtifactVerificationScriptTests.SerializerRva;
-
-        public int SerializerSymbolCopies { get; init; } = 1;
-
-        public string? MapOwner { get; init; }
-
-        public int ForceIncludeCopies { get; init; } = 1;
-
-        public int BreproCopies { get; init; } = 1;
-
-        public string BreproToken { get; init; } = "/BREPRO";
-
-        public int ObjectTokenCopies { get; init; } = 1;
-
-        public int MapOptionCopies { get; init; } = 1;
-
-        public int MapInfoCopies { get; init; } = 1;
-
-        public string? MapPathOverride { get; init; }
-
-        public string? AdditionalResponse { get; init; }
-    }
-
-    internal readonly struct ProcessResult(
-        int exitCode,
-        string output,
-        bool timedOut,
-        long elapsedMilliseconds)
-    {
-        public int ExitCode { get; } = exitCode;
-
-        public string Output { get; } = output;
-
-        public bool TimedOut { get; } = timedOut;
-
-        public long ElapsedMilliseconds { get; } = elapsedMilliseconds;
-    }
-
-    internal readonly record struct LinkEvidencePaths(
-        string MapPath,
-        string ResponsePath,
-        string EvidencePath,
-        string ObjectPath,
-        string LinkedObjectPath,
-        string LinkedMapPath,
-        string ManagedAssemblyPath);
-
-    private readonly record struct SourceClosureFixture(
-        string Sha256,
-        Dictionary<string, string>[] Inputs);
-
-    private sealed record SchemaThreeFixture(
-        string RepositoryRoot,
-        string ProjectExtensionsPath,
-        string ProjectAssetsPath,
-        string PinnedRestoreSourcePath,
-        string PackageRootPath,
-        string RestoreArchiveSourceRootPath,
-        SourceClosureFixture RestoreClosure,
-        SourceClosureFixture PinnedRestoreSourceClosure,
-        SourceClosureFixture RestoreArchiveClosure,
-        string PackageClosureSha256,
-        Dictionary<string, object?>[] Packages,
-        SourceClosureFixture PackageBuildClosure,
-        string[] ActivePackageImportEdges,
-        string ActivePackageImportGraphSha256,
-        string[] PackageTaskBindings,
-        string PackageTaskBindingsSha256,
-        Dictionary<string, object?> PostRestoreEvaluation,
-        string IlCompilerPath,
-        string IlCompilerDiscoverySourcePath,
-        string NativeAotRuntimePackPath,
-        string NativeAotRuntimePackSha256,
-        int NativeAotRuntimePackFileCount,
-        long NativeAotRuntimePackBytes,
-        string IlCompilerTargetsPath,
-        string IlLinkTargetsPath,
-        string IlLinkTasksAssemblyPath,
-        string IlcBuildTasksPath,
-        string IlcHostPackagePath,
-        string IlcToolsPath,
-        string IlcFrameworkPath,
-        string IlcFrameworkNativePath,
-        string IlcSdkPath,
-        string IlcMibcPath,
-        string LanguageTargetsPath,
-        string CSharpTargetsPath,
-        string CommonTargetsPath);
-
-    private readonly record struct RestoreArchiveDescriptor(
-        string Id,
-        string Version,
-        string FileName,
-        string Sha256);
-
-    private readonly record struct PackageDescriptor(
-        string Id,
-        string Version,
-        string RootKind,
-        string ContentHashSha512,
-        int FileCount,
-        long TotalBytes,
-        string AggregateSha256);
-
-    private readonly record struct PackageInputFixture(
-        string Path,
-        long Bytes,
-        string Sha256);
-
-    private readonly record struct PackageTreeFixture(
-        int FileCount,
-        long TotalBytes,
-        string AggregateSha256,
-        Dictionary<string, object?>[] Inputs);
 }

@@ -11,14 +11,25 @@ internal static class NativeAotSocketVectorsOutputTests
     [HostTest("m10-008 vector stdout requires four exact policy negatives before healthy peer progress")]
     private static void Policy()
     {
-        string start="TEST_START nativeaot.socket.vectors\n";
-        string text=Output().Replace(start,start+PolicyRows,StringComparison.Ordinal);
-        HostCheck.True(NativeAotSocketVectorsOutput.Read(text,requirePolicy:true).Policy);
+        string start = "TEST_START nativeaot.socket.vectors\n";
+        string text = Output().Replace(start, start + PolicyRows, StringComparison.Ordinal);
+        HostCheck.True(NativeAotSocketVectorsOutput.Read(text, requirePolicy: true).Policy);
         HostCheck.True(!NativeAotSocketVectorsOutput.Read(Output()).Policy);
         void Invalid(string value)
-        { bool rejected=false;try{_ = NativeAotSocketVectorsOutput.Read(value,requirePolicy:true);}catch(ToolFailure){rejected=true;}HostCheck.True(rejected); }
+        {
+            bool rejected = false;
+            try
+            {
+                _ = NativeAotSocketVectorsOutput.Read(value, requirePolicy: true);
+            }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
+            HostCheck.True(rejected);
+        }
         Invalid(Output());
-        foreach(var change in new (string From,string To)[]{
+        foreach (var change in new (string From, string To)[]{
             ("case=0 address=0 port=8081","case=0 address=0 port=8080"),
             ("address=167772674","address=167772687"),
             ("socket_error=10048","socket_error=10013"),
@@ -27,9 +38,9 @@ internal static class NativeAotSocketVectorsOutputTests
             ("socket_error=10024","socket_error=10055"),
             ("case=1 ","case=2 "),
             ("SOCKET_VECTOR_POLICY case=0 address=0 port=8081 socket_error=10013\n","")})
-            Invalid(text.Replace(change.From,change.To,StringComparison.Ordinal));
-        Invalid(text+PolicyRows);
-        Invalid(text.Replace("APP_EXIT nativeaot.socket.vectors 0","APP_EXIT nativeaot.socket.vectors 1",StringComparison.Ordinal));
+            Invalid(text.Replace(change.From, change.To, StringComparison.Ordinal));
+        Invalid(text + PolicyRows);
+        Invalid(text.Replace("APP_EXIT nativeaot.socket.vectors 0", "APP_EXIT nativeaot.socket.vectors 1", StringComparison.Ordinal));
     }
 
     internal static string Output()
@@ -38,14 +49,17 @@ internal static class NativeAotSocketVectorsOutputTests
             "SOCKET_VECTOR_LISTEN port=8080 connections=4 deadline_ms=30000 max_operations=100000"];
         for (int i = 0; i < 4; i++)
         {
-            if (i == 0) rows.Add("SOCKET_VECTOR_RECEIVE index=0 bytes=3 total=3 remaining=61");
+            if (i == 0)
+                rows.Add("SOCKET_VECTOR_RECEIVE index=0 bytes=3 total=3 remaining=61");
             rows.Add($"SOCKET_VECTOR_RECEIVE index={i} bytes={(i == 0 ? 61 : 64)} total=64 remaining=0");
             rows.Add($"SOCKET_VECTOR_REQUEST index={i} bytes=64");
-            if (i == 2) rows.Add("SOCKET_VECTOR_PENDING index=2 pending=1");
+            if (i == 2)
+                rows.Add("SOCKET_VECTOR_PENDING index=2 pending=1");
             rows.Add($"SOCKET_VECTOR_CONNECTION index={i} received=64 sent={(i == 0 ? 524288 : i == 3 ? 64 : 0)} accept_blocked=0 receive_calls={(i == 0 ? 4 : 2)} receive_partial={(i == 0 ? 1 : 0)} receive_blocked={(i == 0 ? 1 : 0)} send_calls={(i == 0 ? 66 : i == 3 ? 1 : 0)} send_partial={(i == 0 ? 56 : 0)} send_blocked={(i == 0 ? 2 : 0)} reset={(i == 1 ? 1 : 0)} pending={(i == 2 ? 1 : 0)} aborted={(i == 2 ? 1 : 0)}");
         }
         rows.Add("TEST_PASS nativeaot.socket.vectors connections=4 received=256 sent=524352 reset=1 pending=1 aborted=1");
-        rows.Add("APP_EXIT nativeaot.socket.vectors 0"); return string.Join('\n', rows) + "\n";
+        rows.Add("APP_EXIT nativeaot.socket.vectors 0");
+        return string.Join('\n', rows) + "\n";
     }
 
     [HostTest("m16-013 vector stdout joins partial progress reset disposal and immutable counters")]
@@ -54,7 +68,8 @@ internal static class NativeAotSocketVectorsOutputTests
         foreach (string text in new[] { Output(), Output().Replace("\n", "\r\n", StringComparison.Ordinal) })
         {
             var result = NativeAotSocketVectorsOutput.Read(text);
-            HostCheck.Equal(4, result.Connections.Count); HostCheck.Equal(1u, result.Connections[0].ReceivePartial);
+            HostCheck.Equal(4, result.Connections.Count);
+            HostCheck.Equal(1u, result.Connections[0].ReceivePartial);
             HostCheck.Equal(56u, result.Connections[0].SendPartial);
             HostCheck.True(((IList<NativeAotSocketVectorsOutput.Connection>)result.Connections).IsReadOnly);
         }
@@ -78,7 +93,8 @@ internal static class NativeAotSocketVectorsOutputTests
         Reject(output.Replace("accept_blocked=0 receive_calls=4", "accept_blocked=99986 receive_calls=4", StringComparison.Ordinal));
         foreach (string text in new[] { "", output.TrimEnd('\n'), output + "\n", output + "TEST_PASS invented\n",
             output.Replace("SOCKET_VECTOR_PENDING index=2 pending=1\n", "", StringComparison.Ordinal),
-            output.Replace(" index=3 ", " index=4294967296 ", StringComparison.Ordinal), output.Replace("\n", "\r", StringComparison.Ordinal) }) Reject(text);
+            output.Replace(" index=3 ", " index=4294967296 ", StringComparison.Ordinal), output.Replace("\n", "\r", StringComparison.Ordinal) })
+            Reject(text);
     }
 
     [HostTest("m16-013 vector raw output preserves framing beyond4KiB without widening other apps")]
@@ -88,28 +104,53 @@ internal static class NativeAotSocketVectorsOutputTests
             $"SOCKET_VECTOR_RECEIVE index=0 bytes=1 total={i} remaining={64 - i}")) + "\n";
         string output = Output().Replace("SOCKET_VECTOR_RECEIVE index=0 bytes=3 total=3 remaining=61\nSOCKET_VECTOR_RECEIVE index=0 bytes=61 total=64 remaining=0\n", progress, StringComparison.Ordinal)
             .Replace("receive_calls=4 receive_partial=1", "receive_calls=66 receive_partial=63", StringComparison.Ordinal);
-        byte[] payload = Encoding.UTF8.GetBytes(output); HostCheck.True(payload.Length > 4096);
+        byte[] payload = Encoding.UTF8.GetBytes(output);
+        HostCheck.True(payload.Length > 4096);
         using MemoryStream raw = new();
         for (int at = 0; at < payload.Length; at += 257)
         {
             int count = Math.Min(257, payload.Length - at);
             raw.Write(Encoding.ASCII.GetBytes($"M16_005_WRITE fd=1 bytes={count} data="));
-            raw.Write(payload, at, count); raw.Write("\r\n"u8);
+            raw.Write(payload, at, count);
+            raw.Write("\r\n"u8);
         }
         byte[] bytes = raw.ToArray(), before = (byte[])bytes.Clone();
         var result = NativeAotThreadingOutput.Read("NativeAotSocketVectors", bytes);
-        HostCheck.Equal(output, result.Stdout); HostCheck.True(bytes.AsSpan().SequenceEqual(before));
+        HostCheck.Equal(output, result.Stdout);
+        HostCheck.True(bytes.AsSpan().SequenceEqual(before));
         bool rejected = false;
-        try { _ = NativeAotThreadingOutput.Read("NativeAotSocketSmoke", bytes); } catch (ToolFailure) { rejected = true; }
+        try
+        {
+            _ = NativeAotThreadingOutput.Read("NativeAotSocketSmoke", bytes);
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
         rejected = false;
-        try { _ = NativeAotThreadingOutput.Read("NativeAotSocketVectors", bytes.AsSpan(0, bytes.Length - 1)); } catch (ToolFailure) { rejected = true; }
+        try
+        {
+            _ = NativeAotThreadingOutput.Read("NativeAotSocketVectors", bytes.AsSpan(0, bytes.Length - 1));
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
     private static void Reject(string text)
     {
-        bool rejected = false; try { _ = NativeAotSocketVectorsOutput.Read(text); } catch (ToolFailure) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            _ = NativeAotSocketVectorsOutput.Read(text);
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

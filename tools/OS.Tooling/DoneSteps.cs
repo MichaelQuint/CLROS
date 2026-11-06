@@ -12,7 +12,8 @@ public static partial class DoneSteps
     public static string Allocate(string root, bool reserve)
     {
         string directory = Path.Combine(Path.GetFullPath(root), "done");
-        if (!Directory.Exists(directory)) throw new DirectoryNotFoundException("done_directory_missing");
+        if (!Directory.Exists(directory))
+            throw new DirectoryNotFoundException("done_directory_missing");
         int maximum = Directory.EnumerateFiles(directory, "step*.md")
             .Select(path => StepName().Match(Path.GetFileName(path)))
             .Where(match => match.Success)
@@ -22,9 +23,11 @@ public static partial class DoneSteps
         while (true)
         {
             string name = "step" + next.ToString("000", CultureInfo.InvariantCulture) + ".md";
-            if (!reserve) return "done/" + name;
+            if (!reserve)
+                return "done/" + name;
             string path = Path.Combine(directory, name);
-            if (Directory.Exists(path)) throw new IOException("target_exists path=done/" + name);
+            if (Directory.Exists(path))
+                throw new IOException("target_exists path=done/" + name);
             try
             {
                 // CreateNew makes reservations atomic; never overwrite another agent's evidence.
@@ -33,7 +36,10 @@ public static partial class DoneSteps
                 writer.Write($"# Step {next} - Reserved\n\n## Summary\n\n## Why\n\n## Files changed\n\n## Tests run\n\n## Evidence\n\n## Failures\n\n## Deferred work\n\n## Evidence boundary\n");
                 return "done/" + name;
             }
-            catch (IOException) when (File.Exists(path)) { next = checked(next + 1); }
+            catch (IOException) when (File.Exists(path))
+            {
+                next = checked(next + 1);
+            }
         }
     }
 }

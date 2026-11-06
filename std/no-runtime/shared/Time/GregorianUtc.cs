@@ -13,13 +13,16 @@ public static class GregorianUtc
     {
         seconds = 0;
         if (year is < 1 or > 9999 || month is < 1 or > 12 ||
-            hour > 23 || minute > 59 || second > 59) return false;
+            hour > 23 || minute > 59 || second > 59)
+            return false;
         bool leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
-        if (day == 0 || day > MonthDays(month, leap)) return false;
+        if (day == 0 || day > MonthDays(month, leap))
+            return false;
         long previousYears = year - 1;
         long days = previousYears * 365 + previousYears / 4 - previousYears / 100 +
             previousYears / 400 - 719162 + day - 1;
-        for (uint preceding = 1; preceding < month; preceding++) days += MonthDays(preceding, leap);
+        for (uint preceding = 1; preceding < month; preceding++)
+            days += MonthDays(preceding, leap);
         seconds = days * 86400 + hour * 3600L + minute * 60L + second;
         return true;
     }

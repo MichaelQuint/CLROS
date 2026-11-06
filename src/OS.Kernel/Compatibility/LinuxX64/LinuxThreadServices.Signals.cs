@@ -20,15 +20,20 @@ public unsafe partial struct LinuxThreadServices
     {
         if (!Access(key, flags) || _failed || _stopping || _signals == null ||
             _owner.Threads->Current.IsValid || _owner.Threads->HandoffPending ||
-            !Lookup(flags, retainedGeneration, out uint index)) return false;
+            !Lookup(flags, retainedGeneration, out uint index))
+            return false;
         Slot* target = _owner.Slots + index;
         var state = _owner.Threads->Inspect(_owner.ThreadKey, flags, retainedGeneration);
         if (target->Exiting != 0 || state.State is not (KernelThreadTable.State.Ready or
             KernelThreadTable.State.Waiting or KernelThreadTable.State.Pending) ||
-            !LinuxSignalServices.RequestTermination(_signals, _self, retainedGeneration, target->Mask)) return false;
+            !LinuxSignalServices.RequestTermination(_signals, _self, retainedGeneration, target->Mask))
+            return false;
         if (target->Wait.IsValid && !target->Mask.Contains(15) && !LinuxSignalServices.Ignored(_signals, 15) &&
             !InterruptWait(flags, target))
-        { _failed = true; return false; }
+        {
+            _failed = true;
+            return false;
+        }
         return true;
     }
 
@@ -47,7 +52,7 @@ public unsafe partial struct LinuxThreadServices
             return LinuxSignalServices.Delivery.Rejected;
         Slot* slot = _owner.Slots + index;
         if (slot->Exiting != 0 || slot->Wait.IsValid || HasDescriptorOperation(slot) || slot->RestartMode != 0 ||
-            !X64LinuxUserTransition.ValidateFaultUserImage(&slot->Image, X64LinuxUserTransition.UserImageBytes, _owner.ObservedMxcsrMask,_owner.User.UserInterrupts))
+            !X64LinuxUserTransition.ValidateFaultUserImage(&slot->Image, X64LinuxUserTransition.UserImageBytes, _owner.ObservedMxcsrMask, _owner.User.UserInterrupts))
             return LinuxSignalServices.Delivery.Rejected;
         // Linux hides outside-user page-table presence in the saved error code.
         // Keep the native diagnostic's raw hardware error separately.
@@ -56,7 +61,8 @@ public unsafe partial struct LinuxThreadServices
             LinuxSignalServices.Deliver(_signals, _self, slot->Kernel, 11, code, _owner.ProcessId,
                 &slot->Image, _owner.ObservedMxcsrMask, ref slot->Mask, address, savedError, trap, hardwareFault: true);
         if (result is LinuxSignalServices.Delivery.Terminate or LinuxSignalServices.Delivery.BadFrame)
-            if (!Shutdown(key, flags, 139)) return LinuxSignalServices.Delivery.Rejected;
+            if (!Shutdown(key, flags, 139))
+                return LinuxSignalServices.Delivery.Rejected;
         return result;
     }
 
@@ -75,7 +81,8 @@ public unsafe partial struct LinuxThreadServices
         var delivery = DeliverPendingSignals(key, flags);
         if (delivery is LinuxSignalServices.Delivery.None or LinuxSignalServices.Delivery.Delivered)
         {
-            if (!CurrentImage(key, flags, out image)) return new(LinuxSyscallAction.Rejected);
+            if (!CurrentImage(key, flags, out image))
+                return new(LinuxSyscallAction.Rejected);
             return new(LinuxSyscallAction.RestoreUser, image->Value);
         }
         if (delivery is LinuxSignalServices.Delivery.Terminate or LinuxSignalServices.Delivery.BadFrame &&
@@ -98,19 +105,33 @@ public unsafe partial struct LinuxThreadServices
         if (!Access(key, flags) || _failed || _stopping || _signals == null || !Current(flags, out uint index))
             return LinuxSignalServices.Delivery.Rejected;
         Slot* slot = _owner.Slots + index;
-        if (slot->Exiting != 0 || slot->Wait.IsValid || HasDescriptorOperation(slot)) return LinuxSignalServices.Delivery.Rejected;
+        if (slot->Exiting != 0 || slot->Wait.IsValid || HasDescriptorOperation(slot))
+            return LinuxSignalServices.Delivery.Rejected;
         for (uint attempt = 0; attempt < 31 + LinuxSignalServices.RealtimeQueueCapacity; attempt++)
         {
             long pending = LinuxSignalServices.Next(_signals, _self, slot->Kernel, slot->Mask, out uint signal);
-            if (pending < 0) { _failed = true; return LinuxSignalServices.Delivery.Rejected; }
-            if (pending == 0) return FinishUncaughtRestart(key, flags, slot);
+            if (pending < 0)
+            {
+                _failed = true;
+                return LinuxSignalServices.Delivery.Rejected;
+            }
+            if (pending == 0)
+                return FinishUncaughtRestart(key, flags, slot);
             if (!LinuxSignalServices.PendingCode(_signals, _self, slot->Kernel, signal, out int code))
-            { _failed = true; return LinuxSignalServices.Delivery.Rejected; }
+            {
+                _failed = true;
+                return LinuxSignalServices.Delivery.Rejected;
+            }
             var result = DeliverSignal(key, flags, signal, code);
-            if (result is LinuxSignalServices.Delivery.Rejected or LinuxSignalServices.Delivery.Masked or LinuxSignalServices.Delivery.Unsupported) return result;
+            if (result is LinuxSignalServices.Delivery.Rejected or LinuxSignalServices.Delivery.Masked or LinuxSignalServices.Delivery.Unsupported)
+                return result;
             if (!LinuxSignalServices.Consume(_signals, _self, slot->Kernel, signal))
-            { _failed = true; return LinuxSignalServices.Delivery.Rejected; }
-            if (result != LinuxSignalServices.Delivery.Ignored) return result;
+            {
+                _failed = true;
+                return LinuxSignalServices.Delivery.Rejected;
+            }
+            if (result != LinuxSignalServices.Delivery.Ignored)
+                return result;
         }
         return FinishUncaughtRestart(key, flags, slot);
     }
@@ -128,25 +149,42 @@ public unsafe partial struct LinuxThreadServices
 
     private long Tgkill(ulong key, ulong flags, LinuxSyscallFrame frame)
     {
-        if (_signals == null) return Unsupported;
+        if (_signals == null)
+            return Unsupported;
         int group = unchecked((int)frame.Argument0), tid = unchecked((int)frame.Argument1), signal = unchecked((int)frame.Argument2);
-        if (group <= 0 || tid <= 0) return Invalid;
-        if ((uint)group != _owner.ProcessId) return -3;
+        if (group <= 0 || tid <= 0)
+            return Invalid;
+        if ((uint)group != _owner.ProcessId)
+            return -3;
         for (uint i = 0; i < _owner.Capacity; i++)
         {
             Slot* target = _owner.Slots + i;
-            if (target->Tid != (uint)tid) continue;
-            if (!Lookup(flags, target->Kernel, out uint actual) || actual != i) { _failed = true; return Io; }
-            if (signal is < 0 or > 64) return Invalid;
-            if (signal == 0) return 0;
-            if (signal == 9) return Shutdown(key, flags, 137) ? 0 : Io;
-            if (target->Exiting != 0) return 0; // Linux exiting-task race, no pending lifetime acquired.
+            if (target->Tid != (uint)tid)
+                continue;
+            if (!Lookup(flags, target->Kernel, out uint actual) || actual != i)
+            {
+                _failed = true;
+                return Io;
+            }
+            if (signal is < 0 or > 64)
+                return Invalid;
+            if (signal == 0)
+                return 0;
+            if (signal == 9)
+                return Shutdown(key, flags, 137) ? 0 : Io;
+            if (target->Exiting != 0)
+                return 0; // Linux exiting-task race, no pending lifetime acquired.
             bool ignored = LinuxSignalServices.Ignored(_signals, (uint)signal);
-            if (!target->Mask.Contains((uint)signal) && LinuxSignalServices.JobControl(_signals, (uint)signal)) return Unsupported;
+            if (!target->Mask.Contains((uint)signal) && LinuxSignalServices.JobControl(_signals, (uint)signal))
+                return Unsupported;
             long queued = LinuxSignalServices.Queue(_signals, _self, target->Kernel, (uint)signal, target->Mask);
-            if (queued != 0) return queued;
+            if (queued != 0)
+                return queued;
             if (target->Wait.IsValid && !target->Mask.Contains((uint)signal) && !ignored && !InterruptWait(flags, target))
-            { _failed = true; return Io; }
+            {
+                _failed = true;
+                return Io;
+            }
             return 0;
         }
         return -3;
@@ -166,33 +204,44 @@ public unsafe partial struct LinuxThreadServices
         if (!Access(key, flags) || _failed || _stopping || _signals == null || !Current(flags, out uint index))
             return LinuxSignalServices.Delivery.Rejected;
         Slot* slot = _owner.Slots + index;
-        if (slot->Exiting != 0 || slot->Wait.IsValid || HasDescriptorOperation(slot)) return LinuxSignalServices.Delivery.Rejected;
-        ulong priorRip = slot->Image.Frame.Rip; long priorValue = slot->Image.Value;
+        if (slot->Exiting != 0 || slot->Wait.IsValid || HasDescriptorOperation(slot))
+            return LinuxSignalServices.Delivery.Rejected;
+        ulong priorRip = slot->Image.Frame.Rip;
+        long priorValue = slot->Image.Value;
         bool rewind = signal is >= 1 and <= 64 && !slot->Mask.Contains(signal) && slot->RestartMode == 1 &&
             LinuxSignalServices.RestartHandler(_signals, signal);
         if (rewind && !Rewind(slot, slot->WaitCall.Number))
-        { return Shutdown(key, flags, 139) ? LinuxSignalServices.Delivery.BadFrame : LinuxSignalServices.Delivery.Rejected; }
+        {
+            return Shutdown(key, flags, 139) ? LinuxSignalServices.Delivery.BadFrame : LinuxSignalServices.Delivery.Rejected;
+        }
         var result = LinuxSignalServices.Deliver(_signals, _self, slot->Kernel, signal, code, _owner.ProcessId,
             &slot->Image, _owner.ObservedMxcsrMask, ref slot->Mask, faultAddress, error, trap);
-        if (result == LinuxSignalServices.Delivery.Delivered && slot->RestartMode is 1 or 2) ClearWaitRestartDecision(slot);
+        if (result == LinuxSignalServices.Delivery.Delivered && slot->RestartMode is 1 or 2)
+            ClearWaitRestartDecision(slot);
         else if (rewind && result is LinuxSignalServices.Delivery.Rejected or LinuxSignalServices.Delivery.Masked or LinuxSignalServices.Delivery.Unsupported)
-        { slot->Image.Frame.Rip = priorRip; slot->Image.Value = priorValue; }
+        {
+            slot->Image.Frame.Rip = priorRip;
+            slot->Image.Value = priorValue;
+        }
         if (result is LinuxSignalServices.Delivery.BadFrame or LinuxSignalServices.Delivery.Terminate)
         {
             uint reason = result == LinuxSignalServices.Delivery.BadFrame ? 11U : signal;
-            if (!Shutdown(key, flags, 128 + reason)) return LinuxSignalServices.Delivery.Rejected;
+            if (!Shutdown(key, flags, 128 + reason))
+                return LinuxSignalServices.Delivery.Rejected;
         }
         return result;
     }
 
     private LinuxSyscallResult SignalReturn(ulong key, ulong flags, Slot* slot, ref LinuxSyscallFrame frame)
     {
-        if (_signals == null) return new(LinuxSyscallAction.Return, Unsupported);
+        if (_signals == null)
+            return new(LinuxSyscallAction.Return, Unsupported);
         // The native owner has captured all current GPR/FX bytes before dispatch.
         slot->Image.Frame = frame;
         if (!LinuxSignalServices.Return(_signals, _self, slot->Kernel, &slot->Image, _owner.ObservedMxcsrMask, ref slot->Mask))
         {
-            if (!Shutdown(key, flags, 139)) return new(LinuxSyscallAction.Rejected);
+            if (!Shutdown(key, flags, 139))
+                return new(LinuxSyscallAction.Rejected);
             return new(LinuxSyscallAction.Terminate, exitCode: 139);
         }
         frame = slot->Image.Frame;

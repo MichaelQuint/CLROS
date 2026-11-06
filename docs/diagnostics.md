@@ -1,8 +1,148 @@
 # Diagnostics
 
+[Step1787](../done/step1787.md) preserves a Hello original whose guest/runner pass
+but host model rejects an unentered ready signal child at exit_group. The scoped
+repair permits no invented user entry/resume/IRQ/drain, preserves ready-before-
+newly-cancelled-waiter FIFO and requires exact generation/scrub/cleanup. Entered
+children still require their genuine mask/wait.67focused checks and retained
+production re-analysis pass; the failed original remains failed.
+
+[Step1754](../done/step1754.md) evaluates both original quiet captures unchanged.
+All four complete file bodies hash-match;528 distribution fields and5888
+payload/ACK/next-send joins independently agree. ACK-to-next p95 falls from
+818.5/822.5ms to20.8/21.5ms; fixed8KiB entity-boundary gaps account for4.87/5.02s.
+This locates refill work for controlled measurement, without assigning a kernel
+cause. Both strict parent failures remain; borrowed values and prefix framing do
+not grant parent/Full/browser acceptance. One boot/image and two sequences remain
+a diagnostic, with no new population or isolated-cause result.
+
+[Step1753](../done/step1753.md) adds bounded host file-wire cadence values through
+the existing strict PCAP/TCP parser. Request/entity first appearances, cumulative
+ACK coverage, retransmissions and literal next progress sends retain original
+record IDs and microsecond times; missing or negative intervals stay explicit.
+Short/holey entities have no full hash/span. EOF and FIN/reset observations grant
+no cleanup authority. The31 focused synthetic/regression checks pass. Step1754
+records the subsequent original-capture evaluation; cause attribution remains.
+
+[Step1748](../done/step1748.md) measures the combined timer/cache candidate in
+the same quiet profile as its baseline: first/repeat complete2,009,369-byte GETs
+167.378596/167.518250→7.200736/7.134948 seconds, all exact hashes. TTFB changes
+3.986658/4.757678→0.522179/0.244205 seconds. Mean speedup23.3611x is an initial
+one-boot/image observation, not a population estimate or independent attribution
+to timer, cache or serial output. Post-curl flush is separately2.28–7.55ms;
+curl total still includes its file writes. Detailed hot-path traces are compiled
+out only in the explicit default-off benchmark profile, equally for both images.
+Real app output, checks/counters and raw READY/END/FAIL remain. All clients and
+VMs join with deliberate host stop; ordinary Full/browser/cleanup remain open.
+
+[Step1746](../done/step1746.md) rejects the checked-COM1 getter inlining trial
+after twelve fixed paired Short boots and sixty exact responses. WHPX range
+median improves only0.837%; TCG regresses13.148%, with other request regressions.
+Both unchanged criteria fail. Remove the hint, retain every raw sample/native
+receipt and earlier serial repair. Host flush stays separate; inclusive driver
+nonpoll counters establish neither exclusive CPU cost nor a scheduler cause.
+
+[Step1745](../done/step1745.md) records source-matched own-Full diagnostics.
+WHPX fails the unchanged180-second complete-body deadline with1687552/2009369
+bytes; host cancellation/join passes and the captured disk/packet prefix is exact.
+TCG completes8 HTTP assertions and49 browser exchanges with the expected ready
+DOM, then the outer capture contract wrongly requires a natural summary from its
+deliberately cancelled runner. Preserve outer exit1. The host-only repair passes
+53 executions/52 distinct cases and explicitly reports naturalSummaryExpected=false;
+ordinary Full gates remain. TCG full163.131s/concurrent159.147s are single network
+samples, separate from host body writes/flushes, not a distribution or CPU cause.
+
+[Step1743](../done/step1743.md) preserves request errors if the independent HTTP
+receipt fails: ordered original/receipt aggregation retains the first invariant.
+A real invalid-file collision demonstrates the original masking failure before
+the Peer-only fix; raw failed and passing controls remain. Real60-second body
+timeouts retain outer cancellation/join boundaries. No guest/native result.
+
+[Step1741](../done/step1741.md) completes three fresh boots per native variant
+and backend. All sixty responses and raw joins pass. JSON/HEAD medians improve;
+initial WHPX health worsens in all three pairs, and range distributions overlap.
+Keep raw samples, overlapping timing-region limits and the excluded observer
+casing failure. Full/warm/concurrent/browser and final qualification remain.
+
+[Step1740](../done/step1740.md) preserves every literal-text/decimal/sector byte
+while testing FIFO strings. Stack-rejected A/B never launch; C passes conditional
+Timing review and one five-response functional Short. Two WHPX pairs pass, then
+the third baseline fails strict post-seal invalid-handle stderr before storage/
+HTTP. No TCG series or repeatable gain is accepted. Keep the failed original,
+guards and deadlines; a separate QMP lifetime repair requires fresh originals.
+
+[Step1739](../done/step1739.md) preserves the first current Full018 benchmark
+failure:1,490,944/2,009,369 full-asset bytes at the unchanged180-second request
+deadline, after complete JSON/health/HEAD/64KiB responses. Owner cancellation,
+termination/join and input after-guards complete; browser/summary/endpoint-refusal
+success are absent. The9,985,179-byte serial and PCAP originals remain sealed.
+No retransmission/zero-window or copied-sector corruption is observed. Admission
+spans include readiness and synchronous evidence; logical scheduler and flush-time
+clocks must not be treated as pure CPU/device latencies. Attribution continues.
+
+[Step1738](../done/step1738.md) wires the first/warm HTTP observer into an
+explicit owned Full018 diagnostic. Partial failures retain body prefixes and
+joined runner disposition. Request and secondary receipt errors are both kept.
+The original Serial/PCAP/summary requirement uses final reader bounds; step1745
+corrects the deliberately stopped benchmark to hold serial/PCAP and declare a
+natural summary not expected. Ordinary Full retains its summary requirement.
+Reader bounds do not claim a total-PCAP writer quota or full traffic acceptance.
+All 68 host checks pass. The inherited browser secondary-IO masking finding,
+actual guest quota fit and extended measurements remain pending.
+
+[Step1737](../done/step1737.md) preserves complete Fast r02/r03 and later host
+integration failures. A read-only compiler query rewrites an output-map resource;
+the repair preserves resources and exact guards. Complete r03 records6456 checks
+with12 failures across11 groups; final failures=11 is a fixture count. The7936-
+byte allocation observation remains unexplained despite zero isolated/focused
+samples; no warmup or assertion changes follow. r140 passes57 affected markers
+with unchanged inputs/zero reuse. No new VM/browser/performance result occurs.
+
+[Step1736](../done/step1736.md) adds explicit C# HTTP observation for JSON/health,
+HEAD,64KiB range, complete inventory asset and concurrent asset/JSON. It preserves
+exact body/metadata assertions and separates headers, complete body receipt,
+host-file writing and durable flush. First and ten-warm groups retain raw samples
+and descriptive distributions. Failed bodies retain bounded original prefixes:
+Bytes counts actual network reads, CapturedBytes counts saved bytes, BodyComplete
+requires EOF, and Complete also requires validation. Cancellation joins both
+concurrent requests before sealing.49 focused host checks pass; actual extended
+guest and browser observations remain pending. Existing qualification peers and
+their receipt formats remain unchanged.
+
+[Step1735](../done/step1735.md) repairs the FIFO candidate's conservative stack
+failure and completes its conditional native review. The helper retains full
+lowercase sector hex, ordering, checked I/O, bounded polls, fallback and explicit
+failure. Twelve quiet paired originals show WHPX 64 KiB median 12751→11372ms
+(10.8% lower), with all three candidates below the baseline minimum. TCG transfer
+pairs remain mixed. Guest evidence-flush medians fall 27.9% WHPX/14.4% TCG; these
+overlapping wall regions are not CPU accounting. WHPX JSON remains about5.16s.
+The candidate continues toward qualification; warm/full-file/concurrent/browser
+and final production acceptance remain open. Step1735 preserves the initial-six
+observer limitation, rejected candidate A and every failed processing attempt.
+
+[Step1734](../done/step1734.md) adds an internal full-hex FIFO writer with bounded
+polling, byte fallback and explicit terminal NMI takeover semantics. Fourteen
+modeled UART cases pass; actual EFI publication and bounded native comparison
+pass. Step1735 supplies the subsequent repair, complete admission and measurements.
+
+[Step1733](../done/step1733.md) preserves six full-evidence serial-copy trial
+boots. All 30 response bodies and packet joins pass, but median range latency
+changes +0.243% WHPX/+4.258% TCG with overlapping sample ranges. The candidate is
+rejected and reverted. Step1732's measured serial-output cost remains; a production
+repair must preserve complete evidence and show repeatable improvement.
+
+[Step1688](../done/step1688.md) reproduces the RC3 timing-image slowdown across
+three fresh WHPX and three fresh TCG boots. Median JSON/64 KiB range times are
+5.156/12.417 seconds on WHPX and 6.821/10.445 seconds on TCG. These first-sequence
+measurements include host body-file flushing and use the unchanged retained
+image; they do not qualify refactored source, full transfers or browser startup.
+The current investigation preserves the original checks and distinguishes code
+verification from other mapping/descriptor checks inside mixed dispatch spans.
+The full warm/matched-Alpine/control matrix and attributed fixes remain pending.
+
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
-The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the original 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
 
 BUDGET_END is clock telemetry, not an expiry marker. Retain the rejected call and duplicate ordinal as failed evidence; no replay or invented generation is authorized.
 
@@ -259,9 +399,12 @@ retains its post-reap evidence; ThreadPool stress retains deadline evidence.
 
 [Step1302](../done/step1302.md) corrects Hello's child ordering: exact parent
 initialization/clone/descriptor/signal-install checks remain at each stdout
-write, while both real child masks/waits and finalizer handoff must complete
-before `exit_group`. One, two or three stdout rows may precede the signal
-child's first timeslice. Missing child mask/wait and premature exit reject.
+write. Its historical consumer required both child masks/waits and finalizer
+handoff before `exit_group`. One, two or three stdout rows may precede the signal
+child's first timeslice. Step1787 retains genuine mask/wait requirements for
+entered children, and separately validates direct cancellation when signal3 has
+never entered and is still queued. Missing entered-child waits, invented late
+execution, wrong FIFO or premature continuations remain rejected.
 No kernel scheduler or original payload changes follow from this host check.
 
 [Step1285](../done/step1285.md) admits the exact original RuntimeSmoke under

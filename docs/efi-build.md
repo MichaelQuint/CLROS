@@ -1,8 +1,230 @@
 # EFI Build
 
+Current PR814 qualification is tracked in the
+[candidate results](../work/rc3-whpx-qualification.md#candidate-results).
+Historical results below retain their original source, runtime, backend and
+launch settings.
+
+[Step1787](../done/step1787.md) records source35b's own reviewed native tuples,
+29successful compiler originals and the failed Hello ancestor inspection.
+Host-only6b0f56a8 repairs its ready-child cancellation model; kernel/guest bytes,
+resources and deadlines are unchanged. Scoped parent finite conditions remain
+mandatory; own direct frames are not copied whole-path margins or repaired-source
+guest acceptance. Renew final source-matched qualification before delivery.
+
+[Step1786](../done/step1786.md) preserves the first exact-tuple-joined Full DiskA1
+original: HTTP/browser observations and guest cleanup complete, but outer replay
+fails. The host-only repair changes no EFI source; its 1,044 focused checks and
+copied-value re-analysis grant no new emitted/native/guest authority. Renew actual
+source/profile/tuple joins and final qualification without copying historical margins.
+
+[Step1781](../done/step1781.md) publishes the current storage-completion candidate,
+archives561 output leaves and inspects2095 methods. CompleteIo shrinks32bytes,
+all frames remain unchanged and2094other method comparisons have no unexplained
+change. Current delta/data/metadata/phase review precedes any guest activation.
+Its bounded native peer finds no code defect; changed18-byte GCInfo content retains
+a separate semantic/consumer condition and does not gain equivalence from length.
+
+[Step1778](../done/step1778.md) seals the decimal trial's rejection and restored
+baseline. Exact TCG functional evidence supplies no retained optimization; the
+failed WHPX cohort stays stopped. Host inventory formatting changes no native API.
+
+[Step1777](../done/step1777.md) completes conditional current decimal-trial proof
+transport and protected preflight. The first paired WHPX baseline fails strict
+post-seal stderr before HTTP; its population stops. Separate TCG isolation does
+not repair the backend failure. Its slower candidate is rejected and source is
+restored; no optimization/Full/browser acceptance follows.
+
+[Step1776](../done/step1776.md) implements an unaccepted exact-byte decimal FIFO
+trial and inspects its actual2100-method image. Existing frames do not grow;
+five new methods and four changed shapes still require complete current transport.
+No candidate guest or inherited-margin substitution is authorized by these facts.
+
+[Step1775](../done/step1775.md) independently corroborates both Short originals
+and identifies the next decimal-output hypothesis. Production/native bytes remain
+unchanged; a host poll-count model grants no native stack or performance acceptance.
+
+[Step1774](../done/step1774.md) completes conditional current F9A3 Summary Timing
+integration and two original Short diagnostics on WHPX/identical-image TCG.
+All live owner/provider/ABI/mapping/probe/lifetime conditions remain binding;
+full byte evidence, browser/natural cleanup and final qualification stay separate.
+
+[Step1773](../done/step1773.md) seals the slot/outer and narrow metadata applicability
+review. Complete compiled disk-owner/fixed-buffer and arena derivation joins current
+native allocation sizes. Physical/provider/backing/lifetime integration remains
+separate; no launch or general metadata/noGC waiver follows.
+
+[Step1772](../done/step1772.md) preserves exact historical charge names and carries
+the outer tagged-probe predicate explicitly. Current source/PDB/COFF metadata
+joins distinguish live and inactive profile witnesses. Full current admission
+remains separate; the page reserve does not authenticate a callback target.
+
+[Step1771](../done/step1771.md) independently confirms input-only768 and teardown's
+Number3 close role. A fresh conservative20-witness phase candidate retains all
+historical charges and extra probe allowance under unchanged compiled capacities.
+Timer/physical/probe/live/metadata admission remains open; no guest grant follows.
+
+[Step1770](../done/step1770.md) independently verifies the remaining caller stack
+roles and current section-byte/payload census. Complete physical bounds remain
+open. Exact input-only specialization is prepared separately; output and observer
+graphs retain their scopes. All old charges and current live/image gates remain.
+
+[Step1769](../done/step1769.md) independently verifies an active-path IRQ charge
+allocation: all historical10144 bytes remain, Verify96 is represented in its
+authenticated slot, and Handler32 stays on its active branch. Conditional IRQ
+maximum16376 retains8 bytes of margin; complete physical/live admission remains.
+
+[Step1768](../done/step1768.md) rejects two private readonly-copy trials after
+actual native envelopes grow despite smaller helpers. Original source/pin are
+restored byte-exact; canonical publication reproduces the exact F9A3 baseline PE.
+Retained charge attribution and full current physical/live admission remain.
+
+[Step1767](../done/step1767.md) independently checks conditional tagged-call
+declarations and current outer4144/4152/4760/7592 prefixes. Four call variables
+and all physical/live admission remain. A separate owner-copy host candidate
+awaits review/native measurement; the kernel and frozen EFI are unchanged.
+
+[Step1766](../done/step1766.md) retains multiple provider alternatives and
+independently verifies the merged storage/PCI/virtio-init arithmetic. Later
+network/core candidates narrow the remaining call variables to22. Tagged calls,
+generated driver/idle phases and all current physical/live/ABI requirements
+remain; numerical completeness under declarations is not launch admission.
+
+[Step1765](../done/step1765.md) independently matches selected compiled owner
+layouts/prefixes and six consumed native operand windows. A separate host-reader
+enum-shape correction preserves canonical rows and rejects altered metadata.
+Live receiver/alias/backing/lifetime and physical/current-image requirements
+remain; these exact metadata joins do not grant NativeSafety or launch approval.
+
+[Step1764](../done/step1764.md) introduces explicit conditional provider
+evaluation with null bounds for unresolved callers. Pool/descriptor static
+reviews and compiled owner prefixes narrow named frontiers. Pending bindings,
+tagged/idle paths, physical composition and live current-image proof remain;
+numeric completeness under declarations does not admit a guest launch.
+
+[Step1763](../done/step1763.md) independently corroborates selected clock/startup
+arithmetic and local propagation. Tagged clock paths retain separate obligations.
+Host barrier/publication byte facts and descriptor candidates narrow provider
+review; full physical/live/current-image admission still precedes a guest run.
+
+[Step1762](../done/step1762.md) independently corroborates selected page/thread-
+copy contracts and their static factory/consumer tuples. Startup output remains
+a distinct target. Clock/startup/observer candidates retain field propagation,
+tagged-call, raw-byte and live requirements; no whole-root or image admission.
+
+[Step1761](../done/step1761.md) binds the mutation guard's static native tuple
+and conditional1112-byte callee expression. Physical review distinguishes
+rejected-Prepare callback prefix168 from rejected-Start120; original witness
+coverage remains open. Fresh page/copy components and compiled access offsets
+narrow provider work without transferring old bounds or admitting this image.
+
+[Step1760](../done/step1760.md) extends the current prefix inventory to all
+2,095 methods, with explicit fixed/external probe obligations and independent
+raw-byte review. Fifteen logical expressions match their own-parent expressions;
+the actual32-byte timer increase stays represented. Provider contracts, physical
+domain/phase composition and a matching numerical anchor still precede any old
+bound transfer. The compiled Storage.Memory.Code prefix/constant matches the
+factory operands; live code/receiver/backing and whole-image conditions remain.
+
+[Step1759](../done/step1759.md) binds eight compiled callback offsets and
+independently checks the current2,082-method instruction cohort and complete
+owning xdata. Three cache-capacity literals, nine changed fragments, four added
+methods and three positive8-byte helper-call charges remain explicit. Terminal
+and table-input repairs pass altered-input controls. The124-node data inventory
+and exact compiler-fragment suffixes retain separate metadata/coverage review;
+all current own-role/provider/backing/lifetime and stack obligations precede VM
+admission. No old Full margin or source-only equivalence closes that gate.
+
+[Step1758](../done/step1758.md) reconstructs current Timing IRQ instruction and
+prefix facts from the preserved image, including explicit decimal recursion,
+table and provider obligations. Ten host-emitted raw stubs pass byte/stack
+inspection and nine parser controls pass. The candidate bound remains conditional
+on exact native emitter, field, generated-entry, terminal and backing joins;
+neither host emission nor a local frame result admits a guest launch.
+
+[Step1757](../done/step1757.md) records current Timing+Summary method relocation
+and frame facts, including timer growth that prevents blind reuse of the own
+Timing IRQ allowance. A source-reviewed pre-EOI extraction passes 40 host checks
+and native publication, but its handler shrinks only16 bytes while adding an80-byte
+helper. The trial is rejected and original source/admission bytes restored.
+Actual own-route stack review remains required; no capacity, admission rule or
+historical Full margin changes.
+
+[Step1752](../done/step1752.md) binds filtered-catch offset constants to the
+already hash-verified managed compiler input, preserving exact UInt32 field
+signatures and independent native call/continuation geometry. A fresh image,
+map, bridge objects and rehashed mutation controls pass and are archived.
+Arithmetic/layout leaf inputs follow exact EFI bytes and active tokens; their
+metadata checks retain NoInlining and zero assembly references. This does not
+renew the complete compiler matrix, emitted stack margins or guest acceptance.
+
+[Step1751](../done/step1751.md) retains the immutable ACPI host-oracle pin and
+proves all four current declaration/import streams against it under default and
+NOSTDLIB_EFI before adding exact per-type UTF-8 LF/CRLF witnesses. Source controls
+and fresh default/enabled ACPI artifact builds pass. This host-oracle adaptation
+does not change EFI compile membership or renew the final29-context/native/guest
+matrix; source equivalence supplies no emitted stack or metadata waiver.
+
+[Step1748](../done/step1748.md) binds actual own quiet baseline/fixed PE images
+4DE3017B/90630314, complete methods/xdata/data/metadata and current storage
+90/91-page layouts before two serialized WHPX observations. All20 complete
+own-Full stack witnesses retain positive charges plus a conservative1,048-byte
+debit, without shrink credit or transferred Timing margins. Live BSP/IF0/MMIO,
+mapping/alias/provider/lifetime premises remain. EnableM10018ServingBenchmarkProbe
+defaults false, requires Full and excludes diagnostic/writable conflicts; it is
+a separate reduced-tracing observation profile. Conditional native review and
+correct full GETs do not renew final Full/browser/natural-cleanup qualification.
+
+[Step1746](../done/step1746.md) inspects actual own-Timing code, all124 data
+nodes and twenty stack witnesses for a getter-inlining trial, then rejects its
+measured performance. The getter and exact experiment-only admission entries
+are restored from r166 bytes. Trial zero-debit calculations and conditional
+metadata findings remain evidence for that candidate; they do not renew the
+restored/final image or transfer Full/Timing margins. Preserve both publications.
+
+[Step1745](../done/step1745.md) renews actual own-Full FF65CCA9 native evidence:
+2068 complete method/compiler-fragment joins,124 exact canonical data nodes and
+all20 own-Full witness calculations. Text adds zero positive stack charge; retain
+Hex48 on every Full path, including IRQ, with no Timing exclusion/shrink credit.
+The actual loaded image grows4096 bytes; live size/mapping/provider/CPU/IF/stack
+and all nested conditions remain. Both executed publications match reviewed bytes.
+Observed TCG rendering and host-only capture repairs do not renew final acceptance.
+
+[Step1744](../done/step1744.md) refreshes only two current app source-output
+hashes after reviewed lambda whitespace changes; kernel/std/EFI source links,
+historical anchors and native pins remain exact. Host source/admission success
+does not renew objects/maps/stack/metadata/EFI or transfer r154 numeric margins.
+Fresh own-Full publication and actual emitted review precede guest activation.
+
+[Step1742](../done/step1742.md) refreshes80 current source pins after token-
+preserving layout changes and retains all historical/object/byte pins. Source
+admission and source guards pass. Actual emitted objects/maps/stack/metadata/EFI
+still need renewal; source-only equivalence cannot carry old numeric margins.
+
+[Step1741](../done/step1741.md) closes fresh r154 Timing provenance: EFI, native
+object/maps/responses/serializer match C exactly; managed 72-byte identity changes
+are fully attributed. All 46 copied leaves, 556 Release leaves and 3,977 source
+closure entries join. Keep every own-Timing runtime/stack/provider premise;
+twelve Short boots do not grant Full/browser or cross-profile admission.
+
+[Step1740](../done/step1740.md) binds candidate C's actual inlined text loop to
+its own Timing parent, complete code/data/metadata/PE and 131-method/20-witness
+reviews. Text adds zero positive debit; original IRQ/supervisor margins and
+conditions remain. A/B exceed conservative bounds and never launch. Subsequent
+host lifetime/doc changes require fresh provenance, even if native image bytes
+remain equal. No Full or final matrix qualification is inferred.
+
+[Step1739](../done/step1739.md) binds actual r148 Timing/Full publications and
+independent whole-object/data/layout review to their own profile parents. Timing
+EFI remains byte-exact to its FIFO parent; Full has separately attributed code,
+metadata/unwind and placement changes. Lifetime, mapping, alias, IRQ and stack
+premises remain mandatory. Fresh launch rebuild matches reviewed Full410B9166.
+Its subsequent full-asset diagnostic times out; conditional admission is not
+browser or final matrix acceptance. Preserve every prior failure and native seal.
+
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
-The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and its original 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
 
 Retained native publication and source/private-producer snapshots belong to8d754c49; cc44 and d982 remain explicit ancestors. Current full-host evidence belongs to2c2. Publication, host fixtures and original guests retain separate authority.
 
@@ -420,7 +642,10 @@ Fresh final-source matrix repetitions and shared acceptance remain required.
 ThreadPool-stress captures. A Hello run at `27dd0cf` prints its unchanged output
 and completes three-thread cleanup, but the old consumer rejects a signal child
 whose first timeslice follows early stdout. Parent startup checks remain at every
-write; both actual child masks/waits are now required before `exit_group`.
+write; that historical consumer required both child masks/waits before
+`exit_group`. Step1787 later distinguishes the unentered ready signal child:
+entered children retain their mask/wait requirements, while direct cancellation
+preserves the existing ready order and invents no child execution.
 Twenty-three focused checks and complete offline revalidation pass. This is a
 host ordering correction; repeated strict Hello and remaining batch gates stay
 pending, with the original failed capture preserved.

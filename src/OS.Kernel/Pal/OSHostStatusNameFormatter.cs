@@ -14,10 +14,7 @@ public static class OSHostStatusNameFormatter
 
         if (destination.Length < name.Length)
         {
-            return new OSHostStatusNameFormatResult(
-                OSHostStatus.BufferTooSmall,
-                bytesWritten: 0,
-                requiredBytes: (uint)name.Length);
+            return new OSHostStatusNameFormatResult(OSHostStatus.BufferTooSmall, bytesWritten: 0, requiredBytes: (uint)name.Length);
         }
 
         AsciiTextBuilderResult builderResult = AsciiTextBuilder.AppendBytes(destination, 0, name);
@@ -26,10 +23,7 @@ public static class OSHostStatusNameFormatter
             return OSHostStatusNameFormatResult.FromStatus(OSHostStatus.InvalidArgument);
         }
 
-        return new OSHostStatusNameFormatResult(
-            OSHostStatus.Ok,
-            bytesWritten: (uint)builderResult.BytesWritten,
-            requiredBytes: (uint)name.Length);
+        return new OSHostStatusNameFormatResult(OSHostStatus.Ok, bytesWritten: (uint)builderResult.BytesWritten, requiredBytes: (uint)name.Length);
     }
 
     public static OSHostStatusNameFormatResult QueryRequiredBytes(OSHostStatus status)
@@ -40,10 +34,7 @@ public static class OSHostStatusNameFormatter
             return OSHostStatusNameFormatResult.FromStatus(OSHostStatus.InvalidArgument);
         }
 
-        return new OSHostStatusNameFormatResult(
-            OSHostStatus.Ok,
-            bytesWritten: 0,
-            requiredBytes: (uint)name.Length);
+        return new OSHostStatusNameFormatResult(OSHostStatus.Ok, bytesWritten: 0, requiredBytes: (uint)name.Length);
     }
 
     private static ReadOnlySpan<byte> GetCanonicalName(OSHostStatus status)
@@ -72,42 +63,5 @@ public static class OSHostStatusNameFormatter
             OSHostStatus.Closed => "OSHOST_STATUS_CLOSED"u8,
             _ => ReadOnlySpan<byte>.Empty
         };
-    }
-}
-
-public readonly struct OSHostStatusNameFormatResult
-{
-    private const uint InitializedFlag = 1;
-
-    public readonly OSHostStatus Status;
-
-    public readonly uint BytesWritten;
-
-    public readonly uint RequiredBytes;
-
-    public readonly uint Flags;
-
-    public OSHostStatusNameFormatResult(
-        OSHostStatus status,
-        uint bytesWritten,
-        uint requiredBytes,
-        uint flags = InitializedFlag)
-    {
-        Status = status;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-        Flags = flags;
-    }
-
-    public bool IsInitialized => (Flags & InitializedFlag) != 0;
-
-    public bool Succeeded => IsInitialized
-        && Status == OSHostStatus.Ok
-        && RequiredBytes != 0
-        && BytesWritten == RequiredBytes;
-
-    public static OSHostStatusNameFormatResult FromStatus(OSHostStatus status)
-    {
-        return new OSHostStatusNameFormatResult(status, bytesWritten: 0, requiredBytes: 0);
     }
 }

@@ -18,14 +18,20 @@ internal static class NativeAotServicePackageTests
     private static void RoundTrip()
     {
         byte[] elf = Image(), package = NativeAotServicePackage.Create(elf);
-        byte[] held = package.ToArray(); var description = NativeAotServicePackage.Describe(package);
+        byte[] held = package.ToArray();
+        var description = NativeAotServicePackage.Describe(package);
         HostCheck.Equal(Convert.ToHexString(SHA256.HashData(elf)), description.ElfSha256);
-        HostCheck.Equal(5U, description.Arguments); HostCheck.Equal(2U, description.Environment);
+        HostCheck.Equal(5U, description.Arguments);
+        HostCheck.Equal(2U, description.Environment);
         HostCheck.Equal((uint)Encoding.ASCII.GetByteCount("{\"CLROS_SERVICE_CONTRACT\":\"v1\"}"), description.SettingsBytes);
-        var view = LinuxElfPackage.Validate(package); HostCheck.True(view.Succeeded);
-        HostCheck.Equal(67_108_864U, view.Manifest.MemoryBytes); HostCheck.Equal(1_572_864U, view.Manifest.StackBytes);
-        HostCheck.Equal(16U, view.Manifest.Threads); HostCheck.Equal(16U, view.Manifest.Descriptors);
-        HostCheck.Equal(0U, view.Manifest.Ipv4); HostCheck.Equal(8080U, view.Manifest.Port);
+        var view = LinuxElfPackage.Validate(package);
+        HostCheck.True(view.Succeeded);
+        HostCheck.Equal(67_108_864U, view.Manifest.MemoryBytes);
+        HostCheck.Equal(1_572_864U, view.Manifest.StackBytes);
+        HostCheck.Equal(16U, view.Manifest.Threads);
+        HostCheck.Equal(16U, view.Manifest.Descriptors);
+        HostCheck.Equal(0U, view.Manifest.Ipv4);
+        HostCheck.Equal(8080U, view.Manifest.Port);
         string manifest = Encoding.ASCII.GetString(package.AsSpan((int)view.ManifestOffset, (int)view.ManifestBytes));
         HostCheck.True(manifest.Contains("app.path=apps/MinimalApiService\nargs=--clros-service=v1 --urls=http://0.0.0.0:8080 --contentRoot /app/apps\n", StringComparison.Ordinal));
         HostCheck.True(held.AsSpan().SequenceEqual(package));
@@ -38,7 +44,14 @@ internal static class NativeAotServicePackageTests
         HostCheck.Equal(NativeAotServicePackage.Describe(original).ElfSha256, NativeAotServicePackage.Describe(lifecycle, lifecycle: true).ElfSha256);
         Reject(lifecycle);
         bool rejected = false;
-        try { _ = NativeAotServicePackage.Describe(original, lifecycle: true); } catch (InvalidDataException) { rejected = true; }
+        try
+        {
+            _ = NativeAotServicePackage.Describe(original, lifecycle: true);
+        }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && !original.AsSpan().SequenceEqual(lifecycle));
         var view = LinuxElfPackage.Validate(lifecycle);
         byte[] manifest = lifecycle.AsSpan((int)view.ManifestOffset, (int)view.ManifestBytes).ToArray();
@@ -49,7 +62,8 @@ internal static class NativeAotServicePackageTests
         fixed (byte* p = manifest)
         {
             var budget = LinuxAppConfiguration.ReadGcBudget(p, (uint)manifest.Length, view.Manifest, 8192, 16 * 1024 * 1024, 16 * 1024 * 1024, true);
-            HostCheck.True(budget.Succeeded); HostCheck.Equal(NativeAotServicePackage.LifecycleGcLimitBytes, budget.GcLimitBytes);
+            HostCheck.True(budget.Succeeded);
+            HostCheck.Equal(NativeAotServicePackage.LifecycleGcLimitBytes, budget.GcLimitBytes);
         }
         foreach (byte[] changed in new[]
         {
@@ -60,7 +74,14 @@ internal static class NativeAotServicePackageTests
         })
         {
             rejected = false;
-            try { _ = NativeAotServicePackage.Describe(changed, lifecycle: true); } catch (InvalidDataException) { rejected = true; }
+            try
+            {
+                _ = NativeAotServicePackage.Describe(changed, lifecycle: true);
+            }
+            catch (InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -90,9 +111,14 @@ internal static class NativeAotServicePackageTests
         byte[] manifest = original.AsSpan((int)view.ManifestOffset, (int)view.ManifestBytes).ToArray();
         foreach (string settings in new[] { "{}", "{\"CLROS_SERVICE_CONTRACT\":\"v2\"}", "{\"CLROS_SERVICE_CONTRACT\":\"v1\",\"other\":true}" })
             Reject(NativeAotWebPackage.Create(elf, Encoding.ASCII.GetBytes(settings), manifest));
-        byte[] changed = original.ToArray(); changed[(int)view.PayloadOffset + 100] ^= 1; Reject(changed);
-        changed = original.ToArray(); changed[^1] ^= 1; Reject(changed);
-        Reject(original.AsSpan(0, original.Length - 1).ToArray()); Reject([]);
+        byte[] changed = original.ToArray();
+        changed[(int)view.PayloadOffset + 100] ^= 1;
+        Reject(changed);
+        changed = original.ToArray();
+        changed[^1] ^= 1;
+        Reject(changed);
+        Reject(original.AsSpan(0, original.Length - 1).ToArray());
+        Reject([]);
     }
 
     [HostTest("service quota package seals explicit termination and rejects crossed positive contracts")]
@@ -100,7 +126,8 @@ internal static class NativeAotServicePackageTests
     {
         byte[] elf = Image(), quota = NativeAotServicePackage.Create(elf, NativeAotServiceContract.QuotaFailure);
         var description = NativeAotServicePackage.Describe(quota, NativeAotServiceContract.QuotaFailure);
-        HostCheck.Equal(4U, description.Environment); HostCheck.Equal(5U, description.Arguments);
+        HostCheck.Equal(4U, description.Environment);
+        HostCheck.Equal(5U, description.Arguments);
         var view = LinuxElfPackage.Validate(quota);
         byte[] manifest = quota.AsSpan((int)view.ManifestOffset, (int)view.ManifestBytes).ToArray();
         string text = Encoding.ASCII.GetString(manifest);
@@ -144,25 +171,53 @@ internal static class NativeAotServicePackageTests
         foreach (var contract in new[] { (NativeAotServiceContract)0, (NativeAotServiceContract)4, (NativeAotServiceContract)(-1) })
         {
             bool rejected = false;
-            try { _ = NativeAotServicePackage.Create(elf, contract); } catch (ArgumentOutOfRangeException) { rejected = true; }
+            try
+            {
+                _ = NativeAotServicePackage.Create(elf, contract);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
             rejected = false;
-            try { _ = NativeAotServicePackage.Describe(package, contract); } catch (ArgumentOutOfRangeException) { rejected = true; }
+            try
+            {
+                _ = NativeAotServicePackage.Describe(package, contract);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
 
     private static void RejectContract(byte[] package, NativeAotServiceContract contract)
     {
-        bool rejected = false; try { _ = NativeAotServicePackage.Describe(package, contract); }
-        catch (InvalidDataException) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            _ = NativeAotServicePackage.Describe(package, contract);
+        }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "noncanonical service contract accepted");
     }
 
     private static void Reject(byte[] package)
     {
-        bool rejected = false; try { _ = NativeAotServicePackage.Describe(package); }
-        catch (InvalidDataException) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            _ = NativeAotServicePackage.Describe(package);
+        }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "noncanonical service envelope accepted");
     }
 }

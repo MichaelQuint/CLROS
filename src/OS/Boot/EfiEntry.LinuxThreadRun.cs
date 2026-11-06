@@ -20,7 +20,9 @@ public static unsafe partial class EfiEntry
         // borrow retains the entire reservation; no cleanup success is inferred.
         private static bool RunLinuxNativeOwner(Storage* state)
         {
-            fixed (Storage* retained = &s_storage) if (state != retained) return false;
+            fixed (Storage* retained = &s_storage)
+                if (state != retained)
+                    return false;
 #if M16_014_PROBE
             bool serviceGcConfigured = state->LinuxServices.GcBudget.Succeeded;
 #endif
@@ -28,9 +30,11 @@ public static unsafe partial class EfiEntry
                 state->LinuxMemoryPhase != 4 || state->LinuxDescriptorPhase != 4 || state->ApicPhase != 2 ||
                 !state->LinuxSyscallPlan.ResumeUser || state->LinuxView.Manifest.Threads == 0 ||
                 state->LinuxView.Manifest.Threads > LinuxNativeWorkers || !CooperativeAuditOriginalMappings(state) ||
-                !CooperativeAuditPool(state, false)) return false;
+                !CooperativeAuditPool(state, false))
+                return false;
 #if M16_027_PROBE
-            if (!RunNativeWritableDiskBootstrap(state)) return false;
+            if (!RunNativeWritableDiskBootstrap(state))
+                return false;
 #elif M16_025_PROBE
             if (!RunNativeDiskBootstrap(state))
             {
@@ -39,7 +43,8 @@ public static unsafe partial class EfiEntry
             }
 #endif
             ulong* originals = stackalloc ulong[(int)CooperativePoolPages];
-            for (uint i = 0; i < CooperativePoolPages; i++) originals[i] = 0;
+            for (uint i = 0; i < CooperativePoolPages; i++)
+                originals[i] = 0;
             LinuxNativeControl* c = null;
             bool prepared = LinuxNativePrepare(state,
                 (ulong)(delegate* unmanaged<void*, X64TimerInterrupt.Frame*, byte>)&LinuxNativeInterrupt, out c);
@@ -49,7 +54,8 @@ public static unsafe partial class EfiEntry
                 published = CooperativeSetPoolMappings(state, originals, true, out captured) && CooperativeAuditPool(state, true);
                 if (published)
                 {
-                    c->Published = 1; state->CooperativePhase = 2;
+                    c->Published = 1;
+                    state->CooperativePhase = 2;
                     ulong prior = ((delegate* unmanaged<ulong>)(state->CooperativePool + NativeProgram.IrqSaveDisable))();
                     if ((prior & 0x602) == 2 && LinuxNativeBind(c) && LinuxNativeInstallTimer(c))
                     {
@@ -61,21 +67,30 @@ public static unsafe partial class EfiEntry
                             !LinuxText(state, " userImage=") || !LinuxNumber(state, X64LinuxUserTransition.UserImageBytes) ||
                             !LinuxText(state, c->User.UserInterrupts ?
                                 " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack\r\n" :
-                                " timer=idle-only clock=hpet-nanoseconds reuse=off-stack\r\n")) c->Failed = 1;
+                                " timer=idle-only clock=hpet-nanoseconds reuse=off-stack\r\n"))
+                            c->Failed = 1;
 #if M16_014_PROBE
                         if (!(LinuxText(state, "TEST_START m16.014\r\nM16_014_POLICY started=") && LinuxNumber(state, c->Budget.StartedNanoseconds) &&
                             LinuxText(state, " callsPerTurn=") && LinuxNumber(state, LinuxSyscallGateway.MaximumThreadCalls) &&
                             LinuxText(state, " progressNanos=") && LinuxNumber(state, LinuxThreadExecutionBudget.ServiceProgressNanoseconds) &&
-                            LinuxText(state, " elapsedLimit=none counters=reject-overflow workers=individual cancellation=owned\r\n"))) c->Failed = 1;
+                            LinuxText(state, " elapsedLimit=none counters=reject-overflow workers=individual cancellation=owned\r\n")))
+                            c->Failed = 1;
 #else
                         if (c->Budget.RequiresClock && !(LinuxText(state, "M16_008_BUDGET started=") && LinuxNumber(state, c->Budget.StartedNanoseconds) &&
                             LinuxText(state, " epochs=") && LinuxNumber(state, c->Budget.MaximumEpochs) &&
                             LinuxText(state, " steps=") && LinuxNumber(state, c->Budget.MaximumSteps) &&
-                            LinuxText(state, " nanos=") && LinuxNumber(state, c->Budget.ElapsedLimitNanoseconds) && LinuxText(state, "\r\n"))) c->Failed = 1;
+                            LinuxText(state, " nanos=") && LinuxNumber(state, c->Budget.ElapsedLimitNanoseconds) && LinuxText(state, "\r\n")))
+                            c->Failed = 1;
 #endif
                         var plan = state->LinuxSyscallPlan;
-                        LinuxSyscallFrame initial = new() { Rip = plan.UserRip, Rsp = plan.UserRsp,
-                            Rflags = c->User.UserInterrupts ? 0x202UL : 2UL, FsBase = plan.UserFs, GsBase = plan.UserGs };
+                        LinuxSyscallFrame initial = new()
+                        {
+                            Rip = plan.UserRip,
+                            Rsp = plan.UserRsp,
+                            Rflags = c->User.UserInterrupts ? 0x202UL : 2UL,
+                            FsBase = plan.UserFs,
+                            GsBase = plan.UserGs
+                        };
                         if (c->Failed == 0 && plan.ResumeUser && X64LinuxUserTransition.InitializeUserImage(c->Initial,
                             X64LinuxUserTransition.UserImageBytes, initial, c->Plan.Owner.ObservedMxcsrMask, c->User) &&
                             c->Process.Start(c->Key, 2, c->Initial, X64LinuxUserTransition.UserImageBytes, default, out var first) > 0 &&
@@ -92,9 +107,11 @@ public static unsafe partial class EfiEntry
                                 LinuxText(state, " requestNanos=") && LinuxNumber(state, DiskStaticExecutionPolicy.RequestDelayNanoseconds) &&
                                 LinuxText(state, " graceNanos=") && LinuxNumber(state, DiskStaticExecutionPolicy.GraceNanoseconds) &&
                                 LinuxText(state, " runtimeNanos=") && LinuxNumber(state, DiskStaticExecutionPolicy.RuntimeNanoseconds) &&
-                                LinuxText(state, " renewal=none\r\n"))) return LinuxNativeCleanupRejected(state, 12);
+                                LinuxText(state, " renewal=none\r\n")))
+                                return LinuxNativeCleanupRejected(state, 12);
 #endif
-                            c->Phase = 3; ran = LinuxNativeRun(c);
+                            c->Phase = 3;
+                            ran = LinuxNativeRun(c);
                         }
                     }
                 }
@@ -109,7 +126,8 @@ public static unsafe partial class EfiEntry
             // transfer with Current/Handoff retained never authorizes a guess.
             bool hardware = !published || LinuxNativeRestoreTimer(c);
             bool empty = c == null || c->Process.ActiveThreads == 0 && !c->Threads.Current.IsValid && !c->Threads.HandoffPending;
-            if (!hardware || !empty) return LinuxNativeCleanupRejected(state, 1);
+            if (!hardware || !empty)
+                return LinuxNativeCleanupRejected(state, 1);
             uint reaped = c == null ? 0 : c->Reaped, transfers = c == null ? 0 : c->Transfers;
             ulong epochs = c == null ? 0 : c->Epoch;
             bool runtimeBudget = c != null && c->Budget.RequiresClock;
@@ -130,63 +148,85 @@ public static unsafe partial class EfiEntry
             bool staticCompleted = staticApp.GracefulExit && state->LinuxSyscallExitCode == 0;
 #endif
 #if M16_027_PROBE
-            if (!QuiesceNativeWritableDisk(state, c)) return LinuxNativeCleanupRejected(state, 14);
+            if (!QuiesceNativeWritableDisk(state, c))
+                return LinuxNativeCleanupRejected(state, 14);
 #elif M16_025_PROBE
             ulong diskStarted = c == null ? 0 : c->Budget.StartedNanoseconds;
-            if (!RetireNativeDiskAttachment(state, c) || !ObserveNativeDiskExitSentinel(state, c)) return LinuxNativeCleanupRejected(state, 13);
+            if (!RetireNativeDiskAttachment(state, c) || !ObserveNativeDiskExitSentinel(state, c))
+                return LinuxNativeCleanupRejected(state, 13);
 #endif
 #if M16_027_PROBE
             bool released = !published || LinuxNativeRelease(c, LinuxNativeRsp(c));
             bool releaseSampled = SampleNativeWritableDisk(state);
-            if (!released || !releaseSampled) return LinuxNativeCleanupRejected(state, 2);
+            if (!released || !releaseSampled)
+                return LinuxNativeCleanupRejected(state, 2);
 #else
-            if (published && !LinuxNativeRelease(c, LinuxNativeRsp(c))) return LinuxNativeCleanupRejected(state, 2);
+            if (published && !LinuxNativeRelease(c, LinuxNativeRsp(c)))
+                return LinuxNativeCleanupRejected(state, 2);
 #endif
 #if M16_025_PROBE && !M16_027_PROBE
-            if (!ObserveNativeDiskExitReleased(state, c)) return LinuxNativeCleanupRejected(state, 13);
+            if (!ObserveNativeDiskExitReleased(state, c))
+                return LinuxNativeCleanupRejected(state, 13);
 #endif
-            if (published && !LinuxNativeBeginTeardown(state, c)) return LinuxNativeCleanupRejected(state, 3);
+            if (published && !LinuxNativeBeginTeardown(state, c))
+                return LinuxNativeCleanupRejected(state, 3);
             if (state->LinuxDescriptorPhase == 4)
             {
 #if CLROS_LINUX_SOCKETS
-                if (!DrainLinuxSocketNetwork(state, !ran || failed)) return LinuxNativeCleanupRejected(state, 11);
+                if (!DrainLinuxSocketNetwork(state, !ran || failed))
+                    return LinuxNativeCleanupRejected(state, 11);
 #endif
 #if M16_027_PROBE
                 bool descriptorAudit = LinuxDescriptorServices.Audit(&state->LinuxDescriptors);
                 bool auditSampled = SampleNativeWritableDisk(state);
-                if (!descriptorAudit || !auditSampled) return LinuxNativeCleanupRejected(state, 4);
+                if (!descriptorAudit || !auditSampled)
+                    return LinuxNativeCleanupRejected(state, 4);
                 bool descriptorEnd = LinuxDescriptorServices.End(&state->LinuxDescriptors);
                 bool endSampled = SampleNativeWritableDisk(state);
-                if (!descriptorEnd || !endSampled || !LinuxDescriptorReleaseChecked(state)) return LinuxNativeCleanupRejected(state, 4);
+                if (!descriptorEnd || !endSampled || !LinuxDescriptorReleaseChecked(state))
+                    return LinuxNativeCleanupRejected(state, 4);
 #else
                 if (!LinuxDescriptorServices.Audit(&state->LinuxDescriptors) || !LinuxDescriptorServices.End(&state->LinuxDescriptors) ||
-                    !LinuxDescriptorReleaseChecked(state)) return LinuxNativeCleanupRejected(state, 4);
+                    !LinuxDescriptorReleaseChecked(state))
+                    return LinuxNativeCleanupRejected(state, 4);
 #endif
                 state->LinuxDescriptorPhase = 6;
             }
 #if M16_027_PROBE
-            if (!RetireNativeWritableDiskAttachment(state, c)) return LinuxNativeCleanupRejected(state, 14);
+            if (!RetireNativeWritableDiskAttachment(state, c))
+                return LinuxNativeCleanupRejected(state, 14);
 #endif
-            if (!LinuxNativeClearUserMemory(state)) return LinuxNativeCleanupRejected(state, 5);
+            if (!LinuxNativeClearUserMemory(state))
+                return LinuxNativeCleanupRejected(state, 5);
 #if M16_025_PROBE && !M16_027_PROBE
-            if (!ObserveNativeDiskExitMemoryRestored(state)) return LinuxNativeCleanupRejected(state, 13);
+            if (!ObserveNativeDiskExitMemoryRestored(state))
+                return LinuxNativeCleanupRejected(state, 13);
 #endif
-            if (captured ? !CooperativeSetPoolMappings(state, originals, false, out _) : !CooperativeAuditPool(state, false)) return LinuxNativeCleanupRejected(state, 6);
-            if (!CooperativeAuditOriginalMappings(state) || !CooperativeAuditPool(state, false)) return LinuxNativeCleanupRejected(state, 7);
-            for (ulong i = 0; i < CooperativePoolPages * Page; i++) ((byte*)state->CooperativePool)[i] = 0;
-            for (ulong i = 0; i < CooperativePoolPages * Page; i++) if (((byte*)state->CooperativePool)[i] != 0) return LinuxNativeCleanupRejected(state, 8);
-            if (!ClearLinuxRandom(state)) return LinuxNativeCleanupRejected(state, 9);
-            if (!LinuxMemoryServices.Audit(&state->LinuxMemory) || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return LinuxNativeCleanupRejected(state, 10);
+            if (captured ? !CooperativeSetPoolMappings(state, originals, false, out _) : !CooperativeAuditPool(state, false))
+                return LinuxNativeCleanupRejected(state, 6);
+            if (!CooperativeAuditOriginalMappings(state) || !CooperativeAuditPool(state, false))
+                return LinuxNativeCleanupRejected(state, 7);
+            for (ulong i = 0; i < CooperativePoolPages * Page; i++)
+                ((byte*)state->CooperativePool)[i] = 0;
+            for (ulong i = 0; i < CooperativePoolPages * Page; i++)
+                if (((byte*)state->CooperativePool)[i] != 0)
+                    return LinuxNativeCleanupRejected(state, 8);
+            if (!ClearLinuxRandom(state))
+                return LinuxNativeCleanupRejected(state, 9);
+            if (!LinuxMemoryServices.Audit(&state->LinuxMemory) || !FirstExitOwnedArena.ValidateCanaries(state->Arena))
+                return LinuxNativeCleanupRejected(state, 10);
             state->CooperativePhase = state->LinuxSyscallPhase = state->LinuxMemoryPhase = 6;
 #if M16_025_PROBE && !M16_027_PROBE
-            if (!ObserveNativeDiskExitCleanupEnd(state, diskStarted)) return LinuxNativeCleanupRejected(state, 13);
+            if (!ObserveNativeDiskExitCleanupEnd(state, diskStarted))
+                return LinuxNativeCleanupRejected(state, 13);
 #endif
 #if M16_014_PROBE
             if (serviceGcConfigured && (!LinuxText(state, "M16_016_MEMORY poolPages=") ||
                 !LinuxNumber(state, LinuxMemoryPoolPages(state)) ||
                 !LinuxText(state, " peakPages=") || !LinuxNumber(state, state->LinuxMemory.PeakBackedPages) ||
                 !LinuxText(state, " endPages=") || !LinuxNumber(state, state->LinuxMemory.BackedPages) ||
-                !LinuxText(state, "\r\n"))) return false;
+                !LinuxText(state, "\r\n")))
+                return false;
 #endif
             bool logged = (!runtimeBudget || LinuxText(state, "M16_008_BUDGET_END nanos=") && LinuxNumber(state, observedNanos) && LinuxText(state, "\r\n")) &&
                 LinuxText(state, "M16_008_OWNER_END reaped=") && LinuxNumber(state, reaped) &&
@@ -212,7 +252,8 @@ public static unsafe partial class EfiEntry
                 !LinuxText(state, " exited=") || !LinuxNumber(state, staticApp.ExitedNanoseconds) ||
                 !LinuxText(state, " reaped=") || !LinuxNumber(state, reaped) ||
                 !LinuxText(state, success ? " app=exit0 process=drained timer=restored descriptors=closed mappings=restored pool=scrubbed nic=pending\r\n" :
-                    " app=failed cleanup=unqualified\r\n")) return false;
+                    " app=failed cleanup=unqualified\r\n"))
+                return false;
 #endif
 #if M16_014_PROBE
             success = success && serviceStopped && serviceCalls > LinuxSyscallGateway.MaximumThreadCalls &&
@@ -224,7 +265,8 @@ public static unsafe partial class EfiEntry
                 !LinuxText(state, " reaped=") || !LinuxNumber(state, reaped) ||
                 !LinuxText(state, " process=drained mappings=restored pool=scrubbed random=zero reservation=retained\r\n") ||
                 !LinuxText(state, quotaStopped ? "M16_016_QUOTA_PROCESS_FAILURE exit=99 cause=physical-backing\r\n" :
-                    success ? "TEST_PASS m16.014\r\n" : "TEST_FAIL m16.014 process-or-policy\r\n")) return false;
+                    success ? "TEST_PASS m16.014\r\n" : "TEST_FAIL m16.014 process-or-policy\r\n"))
+                return false;
             if (quotaStopped)
             {
                 if (success || !logged || state->LinuxQuota != LinuxQuotaDisposition.Terminating ||
@@ -251,11 +293,14 @@ public static unsafe partial class EfiEntry
                 state->LinuxMemory.HasMutationGuard ||
                 *(ulong*)(state->LinuxSyscallData + X64LinuxUserTransition.PhaseOffset) != 2 ||
                 *(ulong*)(state->Arena.Descriptors->Tss + 4) != state->Arena.StackTop ||
-                *(ulong*)(state->Arena.Descriptors->Tss + 60) != 0) return false;
+                *(ulong*)(state->Arena.Descriptors->Tss + 60) != 0)
+                return false;
 #if M16_009_PROBE
-            if (c->UserTimer != 0 || c->UserDrain != 0 || c->UserAcknowledged != 0 || c->UserPreempted != 0) return false;
+            if (c->UserTimer != 0 || c->UserDrain != 0 || c->UserAcknowledged != 0 || c->UserPreempted != 0)
+                return false;
 #endif
-            state->CooperativePhase = 5; return true;
+            state->CooperativePhase = 5;
+            return true;
         }
 
         private static bool LinuxNativeCleanupRejected(Storage* state, uint stage)
@@ -271,25 +316,31 @@ public static unsafe partial class EfiEntry
         // Any failed admission/audit withholds the terminal cleanup witness.
         private static bool LinuxNativeClearUserMemory(Storage* state)
         {
-            fixed (Storage* retained = &s_storage) if (state != retained) return false;
+            fixed (Storage* retained = &s_storage)
+                if (state != retained)
+                    return false;
             if (state->LinuxSyscallPhase != 4 || state->LinuxMemoryPhase != 4 || state->LinuxDescriptorPhase != 6 ||
-                state->LinuxMemory.HasMutationGuard || !LinuxMemoryServices.Audit(&state->LinuxMemory)) return false;
+                state->LinuxMemory.HasMutationGuard || !LinuxMemoryServices.Audit(&state->LinuxMemory))
+                return false;
             var readRoot = (delegate* unmanaged<ulong>)(state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset +
                 X64LinuxElfReadBackBridge.ReadCr3Offset);
             if (state->LinuxDispatchRoot == 0 || readRoot() != state->LinuxDispatchRoot ||
-                state->LinuxDispatchRoot == state->LinuxMemory.Root.Root) return false;
+                state->LinuxDispatchRoot == state->LinuxMemory.Root.Root)
+                return false;
             ulong imageBytes = state->LinuxImagePlan.ImageBytes, stackBytes = state->LinuxInitialStack.StackBytes;
             ulong total = state->LinuxImagePages * Page, poolBytes = LinuxMemoryPoolPages(state) * Page;
             if (state->LinuxImagePages == 0 || state->LinuxImagePages > 4096 || imageBytes == 0 ||
                 (imageBytes & (Page - 1)) != 0 || imageBytes >= total || stackBytes != total - imageBytes ||
                 stackBytes != state->LinuxView.Manifest.StackBytes || state->LinuxImageBacking < Page ||
                 state->LinuxImageBacking > 0x100000000UL - total || state->LinuxMemoryPool < Page ||
-                state->LinuxMemoryPool > 0x100000000UL - poolBytes) return false;
+                state->LinuxMemoryPool > 0x100000000UL - poolBytes)
+                return false;
             // Bind the scrub pointer to the audited static user-stack mapping,
             // rather than trusting only the independently retained image extent.
             var memory = state->LinuxMemory.Memory;
             if ((ulong)memory.Pool != state->LinuxMemoryPool || memory.PoolPhysical != state->LinuxMemoryPool ||
-                memory.PoolPages != LinuxMemoryPoolPages(state)) return false;
+                memory.PoolPages != LinuxMemoryPoolPages(state))
+                return false;
             bool stackOwned = false;
             for (uint i = 0; i < memory.StaticCount; i++)
             {
@@ -299,19 +350,26 @@ public static unsafe partial class EfiEntry
                     range.Protection == (PageProtection.Read | PageProtection.Write) && range.Cache == PageCachePolicy.WriteBack)
                     stackOwned = true;
             }
-            if (!stackOwned) return false;
+            if (!stackOwned)
+                return false;
             if (LinuxMemoryServices.Unmap(&state->LinuxMemory, LinuxMemoryServices.DynamicStart,
                 LinuxSyscallGateway.UserEnd - LinuxMemoryServices.DynamicStart) != 0 ||
                 LinuxMemoryServices.RestoreImageProtections(&state->LinuxMemory) != 0 || state->LinuxMemory.HasImageProtections ||
                 state->LinuxMemory.ReservedBytes != 0 || state->LinuxMemory.BackedPages != 0 ||
                 !LinuxMemoryServices.Audit(&state->LinuxMemory) ||
                 !X64UserAddressSpace.Audit(memory.StaticRanges, memory.StaticCount, memory.Tables,
-                    memory.RootPhysical, memory.TablePages, memory.Conditions, state->LinuxMemory.Root)) return false;
+                    memory.RootPhysical, memory.TablePages, memory.Conditions, state->LinuxMemory.Root))
+                return false;
             state->LinuxUserRoot = state->LinuxMemory.Root;
             byte* stack = (byte*)(state->LinuxImageBacking + imageBytes);
-            for (ulong i = 0; i < stackBytes; i++) stack[i] = 0;
-            for (ulong i = 0; i < stackBytes; i++) if (stack[i] != 0) return false;
-            for (ulong i = 0; i < poolBytes; i++) if (((byte*)state->LinuxMemoryPool)[i] != 0) return false;
+            for (ulong i = 0; i < stackBytes; i++)
+                stack[i] = 0;
+            for (ulong i = 0; i < stackBytes; i++)
+                if (stack[i] != 0)
+                    return false;
+            for (ulong i = 0; i < poolBytes; i++)
+                if (((byte*)state->LinuxMemoryPool)[i] != 0)
+                    return false;
             return true;
         }
 
@@ -328,11 +386,16 @@ public static unsafe partial class EfiEntry
             {
 #if M16_009_PROBE
                 c->TimingValid = 0;
-                if (c->Budget.RequiresClock && LinuxNativeTimingRead(c, &c->TimingStart)) c->TimingValid = 1;
+#if !M10_018_SERVING_BENCHMARK
+                if (c->Budget.RequiresClock && LinuxNativeTimingRead(c, &c->TimingStart))
+                    c->TimingValid = 1;
+#endif
 #endif
                 // ReapExited checks the independent code snapshot before any mutation.
-                if (!LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !CooperativeAuditPool(c->State, true)) return false;
-                if (!LinuxNativeReapExited(c)) return false;
+                if (!LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !CooperativeAuditPool(c->State, true))
+                    return false;
+                if (!LinuxNativeReapExited(c))
+                    return false;
                 if (c->Process.ActiveThreads == 0)
                 {
 #if M16_014_PROBE
@@ -342,14 +405,19 @@ public static unsafe partial class EfiEntry
                     {
                         if (!LinuxQuotaPolicy(c->State) || c->Failed != 1 || c->Stopping != 1 || c->Process.Failed ||
                             c->ServiceShutdown != 0 || !c->Budget.CancellationRequested ||
-                            clock(c->State, &finished) != 1 || finished < c->Budget.ObservedNanoseconds) return false;
-                        c->ServiceFinished = finished; return false;
+                            clock(c->State, &finished) != 1 || finished < c->Budget.ObservedNanoseconds)
+                            return false;
+                        c->ServiceFinished = finished;
+                        return false;
                     }
                     if (c->Failed != 0 || c->Process.Failed || c->ServiceReady != 1 || c->ServiceShutdown != 1 ||
-                        !c->Budget.CancellationRequested || clock(c->State, &finished) != 1 || finished < c->Budget.ObservedNanoseconds) return false;
-                    c->ServiceFinished = finished; return true;
+                        !c->Budget.CancellationRequested || clock(c->State, &finished) != 1 || finished < c->Budget.ObservedNanoseconds)
+                        return false;
+                    c->ServiceFinished = finished;
+                    return true;
 #elif M10_017_PROBE || M10_018_PROBE
-                    ulong finished = 0; delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
+                    ulong finished = 0;
+                    delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
                     return c->Failed == 0 && !c->Process.Failed && c->StaticApp.GracefulExit &&
                         c->State->LinuxSyscallExitCode == 0 && clock(c->State, &finished) == 1 && c->Budget.Observe(finished);
 #elif M10_004_PROBE
@@ -374,23 +442,29 @@ public static unsafe partial class EfiEntry
 #if M16_014_PROBE
                     bool progress = clockRead && LinuxServiceObserveWorkers(c, now);
                     if ((!progress || !c->Budget.Continue(now, c->Epoch, step)) &&
-                        !LinuxNativeStop(c, !clockRead ? 6U : !progress ? 7U : 1U, step, now, clockRead)) return false;
+                        !LinuxNativeStop(c, !clockRead ? 6U : !progress ? 7U : 1U, step, now, clockRead))
+                        return false;
 #elif M10_017_PROBE || M10_018_PROBE
                     if ((!clockRead || !c->Budget.Continue(now, c->Epoch, step) || !LinuxStaticSupervisor(c, now)) &&
-                        !LinuxNativeStop(c, clockRead ? 8U : 6U, step, now, clockRead)) return false;
+                        !LinuxNativeStop(c, clockRead ? 8U : 6U, step, now, clockRead))
+                        return false;
 #elif M10_004_PROBE
-                    if (!clockRead || !c->Budget.Continue(now, c->Epoch, step)) return false;
+                    if (!clockRead || !c->Budget.Continue(now, c->Epoch, step))
+                        return false;
 #else
                     if ((!clockRead || !c->Budget.Continue(now, c->Epoch, step)) &&
-                        !LinuxNativeStop(c, clockRead ? 1U : 6U, step, now, c->Budget.RequiresClock && clockRead)) return false;
+                        !LinuxNativeStop(c, clockRead ? 1U : 6U, step, now, c->Budget.RequiresClock && clockRead))
+                        return false;
 #endif
                 }
 #if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
                 if (c->Stopping != 0 || c->Failed != 0 || c->Process.Failed || c->State->LinuxSyscallFaults != 0 ||
-                    c->State->LinuxSyscallFailed != 0) return false;
+                    c->State->LinuxSyscallFailed != 0)
+                    return false;
 #else
                 if ((c->Failed != 0 || c->Process.Failed || c->State->LinuxSyscallFaults != 0 || c->State->LinuxSyscallFailed != 0) &&
-                    !LinuxNativeStop(c, 2, step)) return false;
+                    !LinuxNativeStop(c, 2, step))
+                    return false;
 #endif
 #if CLROS_LINUX_SOCKETS
                 if (c->Stopping == 0 && !PollLinuxSocketNetwork(c
@@ -402,35 +476,44 @@ public static unsafe partial class EfiEntry
 #if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
                     return false;
 #else
-                    if (!LinuxNativeStop(c, 2, step)) return false;
+                    if (!LinuxNativeStop(c, 2, step))
+                        return false;
 #endif
                 }
 #endif
-                if (c->Threads.Flush(c->Key, 2) != KernelThreadTable.Status.Ok) return false;
+                if (c->Threads.Flush(c->Key, 2) != KernelThreadTable.Status.Ok)
+                    return false;
                 if (c->Threads.ReadyCount != 0)
-                { if (!
+                {
+                    if (!
 #if M10_018_TIMING_PROBE
                     LinuxNativeMeasuredDispatch
 #else
                     LinuxNativeDispatch
 #endif
-                    (c)) return false; }
+                    (c))
+                        return false;
+                }
 #if CLROS_LINUX_SOCKETS
                 else if (c->Stopping == 0)
                 {
 #if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
-                    if (!IdleLinuxSocketNetwork(c)) return false;
+                    if (!IdleLinuxSocketNetwork(c))
+                        return false;
 #else
-                    if (!IdleLinuxSocketNetwork(c) && !LinuxNativeStop(c, 3, step)) return false;
+                    if (!IdleLinuxSocketNetwork(c) && !LinuxNativeStop(c, 3, step))
+                        return false;
 #endif
                 }
 #else
                 else if (c->Threads.DeadlineCount != 0 && c->Stopping == 0)
                 {
-                    if (!LinuxNativeWaitOne(c) && (!LinuxNativeRestoreTimer(c) || !LinuxNativeStop(c, 3, step))) return false;
+                    if (!LinuxNativeWaitOne(c) && (!LinuxNativeRestoreTimer(c) || !LinuxNativeStop(c, 3, step)))
+                        return false;
                 }
 #endif
-                else if (!LinuxNativeStop(c, 4, step)) return false;
+                else if (!LinuxNativeStop(c, 4, step))
+                    return false;
             }
 #if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
             return false; // Counter ceiling reached; the outer owner retains everything.
@@ -438,18 +521,22 @@ public static unsafe partial class EfiEntry
             // The bounded driver itself has made no native transfer here.
             // Cancellation still needs actual continuations, so use a separate
             // finite drain budget rather than freeing still-live resources.
-            if (!LinuxNativeStop(c, 5, c->Budget.MaximumSteps)) return false;
+            if (!LinuxNativeStop(c, 5, c->Budget.MaximumSteps))
+                return false;
             for (uint step = 0; step < LinuxNativeWorkers * 3; step++)
             {
-                if (!LinuxNativeReapExited(c)) return false;
-                if (c->Process.ActiveThreads == 0) return false;
+                if (!LinuxNativeReapExited(c))
+                    return false;
+                if (c->Process.ActiveThreads == 0)
+                    return false;
                 if (c->Threads.Flush(c->Key, 2) != KernelThreadTable.Status.Ok || c->Threads.ReadyCount == 0 || !
 #if M10_018_TIMING_PROBE
                     LinuxNativeMeasuredDispatch
 #else
                     LinuxNativeDispatch
 #endif
-                    (c)) return false;
+                    (c))
+                    return false;
             }
             return false;
 #endif
@@ -475,7 +562,8 @@ public static unsafe partial class EfiEntry
                 LinuxText(c->State, " processFailed=") && LinuxNumber(c->State, c->Process.Failed ? 1UL : 0UL) &&
                 LinuxText(c->State, " faults=") && LinuxNumber(c->State, c->State->LinuxSyscallFaults) &&
                 LinuxText(c->State, " syscallFailed=") && LinuxNumber(c->State, c->State->LinuxSyscallFailed) && LinuxText(c->State, "\r\n");
-            c->Failed = c->Stopping = 1; c->State->LinuxSyscallExitCode = 99;
+            c->Failed = c->Stopping = 1;
+            c->State->LinuxSyscallExitCode = 99;
             bool stopped = !c->Threads.Current.IsValid && !c->Threads.HandoffPending && c->Process.Shutdown(c->Key, 2, 99);
             return logged && stopped;
         }
@@ -488,20 +576,24 @@ public static unsafe partial class EfiEntry
         {
             fixed (NativeDiskOwner* disk = &s_nativeDisk)
             {
-                if (disk->Boot != c->State) return false;
+                if (disk->Boot != c->State)
+                    return false;
                 if (disk->TimingPhase == 2)
                     return disk->TimingDispatch.IsComplete && !disk->TimingDispatch.IsPhysicalDispatchActive &&
                         disk->TimingDriver.IsComplete && !disk->TimingDriver.IsPhysicalDispatchActive && LinuxNativeDispatch(c, 0);
                 if (!ReadNetworkTime(c->State, out ulong began) ||
-                    !disk->TimingDispatch.BeginDispatch(began, disk->TimingNetworkTotal, out ulong sequence)) return false;
+                    !disk->TimingDispatch.BeginDispatch(began, disk->TimingNetworkTotal, out ulong sequence))
+                    return false;
                 bool returned = LinuxNativeDispatch(c, sequence);
                 // A later bookkeeping fault fails the original owner even if
                 // an immutable phase-complete line has already been printed.
                 if (!ReadNetworkTime(c->State, out ulong ended) ||
-                    !disk->TimingDispatch.EndDispatch(sequence, ended, disk->TimingNetworkTotal)) return false;
+                    !disk->TimingDispatch.EndDispatch(sequence, ended, disk->TimingNetworkTotal))
+                    return false;
                 if (returned && disk->TimingPhase == 2 &&
                     (!LinuxText(c->State, "M10_018_SELECTED_END version=1 lastSequence=") ||
-                     !LinuxNumber(c->State, sequence) || !LinuxText(c->State, "\r\n"))) return false;
+                     !LinuxNumber(c->State, sequence) || !LinuxText(c->State, "\r\n")))
+                    return false;
                 return returned;
             }
         }
@@ -514,15 +606,18 @@ public static unsafe partial class EfiEntry
         {
             fixed (NativeDiskOwner* disk = &s_nativeDisk)
             {
-                if (disk->Boot != c->State) return false;
+                if (disk->Boot != c->State)
+                    return false;
                 if (disk->TimingPhase == 2)
                     return disk->TimingDriver.IsComplete && !disk->TimingDriver.IsPhysicalDispatchActive &&
                         ((delegate* unmanaged<uint>)(c->State->CooperativePool + index * NativeProgram.DriverStride))() == 1;
                 if (!disk->TimingDispatch.IsPhysicalDispatchActive || !ReadNetworkTime(c->State, out ulong began) ||
-                    !disk->TimingDriver.BeginDispatch(began, disk->TimingNetworkTotal, out ulong sequence)) return false;
+                    !disk->TimingDriver.BeginDispatch(began, disk->TimingNetworkTotal, out ulong sequence))
+                    return false;
                 bool returned = ((delegate* unmanaged<uint>)(c->State->CooperativePool + index * NativeProgram.DriverStride))() == 1;
                 if (!disk->TimingDispatch.IsPhysicalDispatchActive || !ReadNetworkTime(c->State, out ulong ended) ||
-                    !disk->TimingDriver.EndDispatch(sequence, ended, disk->TimingNetworkTotal)) return false;
+                    !disk->TimingDriver.EndDispatch(sequence, ended, disk->TimingNetworkTotal))
+                    return false;
                 return returned;
             }
         }
@@ -535,16 +630,19 @@ public static unsafe partial class EfiEntry
 #endif
         {
             if (c->Selected != 0 || !LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !LinuxNativeSavedCode(c) ||
-                !CooperativeAuditPool(c->State, true) || c->Timer.IsPrepared) return false;
+                !CooperativeAuditPool(c->State, true) || c->Timer.IsPrepared)
+                return false;
             var next = c->Threads.Dispatch(c->Key, 2);
             uint index = (uint)next.Identity.Value - 1;
             if (!next.Succeeded || next.State != KernelThreadTable.State.Running || index >= c->Capacity ||
-                next.Identity.Value != c->Plan.Bindings[index].Context.Identity) return false;
+                next.Identity.Value != c->Plan.Bindings[index].Context.Identity)
+                return false;
 #if M10_018_TIMING_PROBE
             ulong selected = 0, selectionEpoch = 0;
             if (sequence != 0)
             {
-                if (c->Threads.Current.Value != next.Identity.Value || !LinuxNativeTimingRead(c, &selected)) return false;
+                if (c->Threads.Current.Value != next.Identity.Value || !LinuxNativeTimingRead(c, &selected))
+                    return false;
                 selectionEpoch = c->Epoch;
             }
 #endif
@@ -555,25 +653,32 @@ public static unsafe partial class EfiEntry
             bool returned = ((delegate* unmanaged<uint>)(c->State->CooperativePool + index * NativeProgram.DriverStride))() == 1;
 #endif
             if (!returned || !CooperativeEqualContexts(c->Plan.Supervisor.Context, c->Plan.Witness) || !LinuxNativeObserve(c) ||
-                !LinuxNativeVerify(c) || !LinuxNativeSavedCode(c) || !CooperativeAuditPool(c->State, true)) return false;
+                !LinuxNativeVerify(c) || !LinuxNativeSavedCode(c) || !CooperativeAuditPool(c->State, true))
+                return false;
             // Confirm even a staged failure, after actual return/restoration;
             // its cancellation/exit resources still require off-stack cleanup.
-            if (c->Threads.ConfirmSupervisor(c->Key, 2, LinuxNativeRsp(c)) != KernelThreadTable.Status.Ok) return false;
+            if (c->Threads.ConfirmSupervisor(c->Key, 2, LinuxNativeRsp(c)) != KernelThreadTable.Status.Ok)
+                return false;
             c->Selected = 0;
-#if M16_009_PROBE
+#if M16_009_PROBE && !M10_018_SERVING_BENCHMARK
             LinuxNativeTimingFinish(c);
 #endif
             if (!LinuxText(c->State, "M16_008_SUPERVISOR identity=") || !LinuxNumber(c->State, next.Identity.Value) ||
                 !LinuxText(c->State, " action=") || !LinuxNumber(c->State, c->Actions[index]) ||
                 !LinuxText(c->State, " transfers=") || !LinuxNumber(c->State, c->Transfers) ||
                 !LinuxText(c->State, " ready=") || !LinuxNumber(c->State, c->Threads.ReadyCount) ||
-                !LinuxText(c->State, " active=") || !LinuxNumber(c->State, c->Process.ActiveThreads) || !LinuxText(c->State, "\r\n")) c->Failed = 1;
-#if M16_009_PROBE
-            if (!LinuxNativeTimingWrite(c, next.Identity.Value)) c->Failed = 1;
+                !LinuxText(c->State, " active=") || !LinuxNumber(c->State, c->Process.ActiveThreads) || !LinuxText(c->State, "\r\n"))
+                c->Failed = 1;
+#if M16_009_PROBE && !M10_018_SERVING_BENCHMARK
+            if (!LinuxNativeTimingWrite(c, next.Identity.Value))
+                c->Failed = 1;
 #endif
 #if M10_018_TIMING_PROBE
             if (sequence != 0 && !LinuxNativeSelectionWrite(c, sequence, next.Identity.Value, selectionEpoch, selected))
-            { c->Failed = 1; return false; }
+            {
+                c->Failed = 1;
+                return false;
+            }
 #endif
             return !c->Threads.Current.IsValid && !c->Threads.HandoffPending;
         }
@@ -605,7 +710,10 @@ public static unsafe partial class EfiEntry
         {
             if (c->TimingValid != 7 || !LinuxNativeTimingRead(c, &c->TimingReady) ||
                 c->TimingStart > c->TimingArm || c->TimingArm > c->TimingCapture || c->TimingCapture > c->TimingReady)
-            { c->TimingValid = 0; return; }
+            {
+                c->TimingValid = 0;
+                return;
+            }
             c->TimingValid = 15;
         }
 
@@ -621,13 +729,18 @@ public static unsafe partial class EfiEntry
 
         private static bool LinuxNativeSavedCode(LinuxNativeControl* c)
         {
-            if (c->CodeCopy == null) return false;
+            if (c->CodeCopy == null)
+                return false;
             // Supervisor-only: both aligned buffers remain live for the declared
             // extent under the caller's ownership. Compare anew without writes.
             byte* code = (byte*)c->State->CooperativePool;
             uint i = 0, wordEnd = (uint)NativeProgram.Bytes & ~7u;
-            for (; i < wordEnd; i += 8) if (*(ulong*)(code + i) != *(ulong*)(c->CodeCopy + i)) return false;
-            for (; i < NativeProgram.Bytes; i++) if (code[i] != c->CodeCopy[i]) return false;
+            for (; i < wordEnd; i += 8)
+                if (*(ulong*)(code + i) != *(ulong*)(c->CodeCopy + i))
+                    return false;
+            for (; i < NativeProgram.Bytes; i++)
+                if (code[i] != c->CodeCopy[i])
+                    return false;
             return true;
         }
 
@@ -638,7 +751,8 @@ public static unsafe partial class EfiEntry
         private static bool LinuxNativeReapExited(LinuxNativeControl* c)
         {
             if (c->Selected != 0 || c->Timer.IsPrepared || c->Threads.Current.IsValid || c->Threads.HandoffPending ||
-                !LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !LinuxNativeSavedCode(c)) return false;
+                !LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !LinuxNativeSavedCode(c))
+                return false;
             for (uint index = 0; index < c->Capacity; index++)
             {
                 var old = c->Plan.Bindings[index].Context;
@@ -647,36 +761,57 @@ public static unsafe partial class EfiEntry
                 {
                     // Only this exact prepared vacant generation may be skipped.
                     if (c->KernelSlots[index].State != KernelThreadTable.State.Empty ||
-                        c->KernelSlots[index].Generation != old.Identity >> 32 || c->Slots[index].Tid != 0 || c->Slots[index].Kernel.IsValid) return false;
+                        c->KernelSlots[index].Generation != old.Identity >> 32 || c->Slots[index].Tid != 0 || c->Slots[index].Kernel.IsValid)
+                        return false;
                     continue;
                 }
-                if (!state.Succeeded) return false;
-                if (state.State != KernelThreadTable.State.Exited) continue;
+                if (!state.Succeeded)
+                    return false;
+                if (state.State != KernelThreadTable.State.Exited)
+                    continue;
                 if (!c->Process.Reap(c->Key, 2, new(old.Identity), LinuxNativeRsp(c), out var released) ||
                     released.Context != old.Context || released.ContextBytes != old.ContextBytes ||
-                    released.StackGuardStart != old.StackGuardStart || released.StackBytes != old.StackBytes) return false;
-                for (uint i = 0; i < released.ContextBytes; i++) if (((byte*)released.Context)[i] != 0) return false;
-                for (ulong i = Page; i < released.StackBytes - Page; i++) if (((byte*)released.StackGuardStart)[i] != 0) return false;
-                for (uint i = 0; i < sizeof(LinuxThreadServices.Slot); i++) if (((byte*)(c->Slots + index))[i] != 0) return false;
+                    released.StackGuardStart != old.StackGuardStart || released.StackBytes != old.StackBytes)
+                    return false;
+                for (uint i = 0; i < released.ContextBytes; i++)
+                    if (((byte*)released.Context)[i] != 0)
+                        return false;
+                for (ulong i = Page; i < released.StackBytes - Page; i++)
+                    if (((byte*)released.StackGuardStart)[i] != 0)
+                        return false;
+                for (uint i = 0; i < sizeof(LinuxThreadServices.Slot); i++)
+                    if (((byte*)(c->Slots + index))[i] != 0)
+                        return false;
                 if (!LinuxNativeSavedCode(c) || !CooperativeAuditPool(c->State, true) ||
                     c->KernelSlots[index].State != KernelThreadTable.State.Empty || c->KernelSlots[index].Generation == 0 ||
-                    c->KernelSlots[index].Generation != (old.Identity >> 32) + 1) return false;
+                    c->KernelSlots[index].Generation != (old.Identity >> 32) + 1)
+                    return false;
                 ulong identity = ((ulong)c->KernelSlots[index].Generation << 32) | (index + 1UL);
-                old.Identity = old.CurrentIdentity = identity; old.Kind = NativeSwitch.ResumeKind.Entry;
+                old.Identity = old.CurrentIdentity = identity;
+                old.Kind = NativeSwitch.ResumeKind.Entry;
                 old.ResumeRip = c->State->CooperativePool + NativeProgram.Entries + index * NativeProgram.WorkerStride;
                 if (NativeContext.Initialize(old.Context, old.ContextBytes, old.ResumeRip,
-                    old.StackGuardStart + old.StackBytes - Page - 40, c->Plan.Owner.ObservedMxcsrMask) != NativeContext.Status.Ok) return false;
+                    old.StackGuardStart + old.StackBytes - Page - 40, c->Plan.Owner.ObservedMxcsrMask) != NativeContext.Status.Ok)
+                    return false;
                 c->Plan.Bindings[index].Context = c->Plan.Bindings[index].Entry.Initial = old;
-                c->Gates[index] = default; c->Actions[index] = c->Entered[index] = 0;
+                c->Gates[index] = default;
+                c->Actions[index] = c->Entered[index] = 0;
 #if M16_014_PROBE
-                if (!c->Budget.ForgetWorker(index)) return false;
+                if (!c->Budget.ForgetWorker(index))
+                    return false;
 #endif
-                if (!LinuxNativeObserve(c) || !LinuxNativeRewriteEntry(c, index)) return false;
-                c->Workers[index] = new() { Initial = old, Entry = c->Plan.Bindings[index].Entry.Entry };
+                if (!LinuxNativeObserve(c) || !LinuxNativeRewriteEntry(c, index))
+                    return false;
+                c->Workers[index] = new()
+                {
+                    Initial = old,
+                    Entry = c->Plan.Bindings[index].Entry.Entry
+                };
                 c->Reaped++;
                 if (!LinuxText(c->State, "M16_008_REAP old=") || !LinuxNumber(c->State, state.Identity.Value) ||
                     !LinuxText(c->State, " next=") || !LinuxNumber(c->State, identity) ||
-                    !LinuxText(c->State, " context=zero stack=zero slot=zero\r\n")) c->Failed = 1;
+                    !LinuxText(c->State, " context=zero stack=zero slot=zero\r\n"))
+                    c->Failed = 1;
             }
             return LinuxNativeVerify(c) && LinuxNativeSavedCode(c);
         }
@@ -691,11 +826,13 @@ public static unsafe partial class EfiEntry
             if (index >= c->Capacity || c->Selected != 0 || c->Timer.IsPrepared || c->Threads.Current.IsValid || c->Threads.HandoffPending ||
                 !LinuxNativeObserve(c) || !LinuxNativeSavedCode(c) || !CooperativeAuditPool(state, true) ||
                 !CooperativeFindLeaf(state, state->CooperativePool +
-                    ((NativeProgram.Entries + index * NativeProgram.WorkerStride) & ~(Page - 1)), out ulong* leaf)) return false;
+                    ((NativeProgram.Entries + index * NativeProgram.WorkerStride) & ~(Page - 1)), out ulong* leaf))
+                return false;
             ulong original = *leaf;
             var writable = X64PageTableEntry.TryReencodeLeafProtection(X64PageTableLevel.Pte, original, PageProtection.Read | PageProtection.Write,
                 X64HardwareStatePolicy.Preserve, state->Memory.Tables.Preconditions);
-            if (!writable.Succeeded) return false;
+            if (!writable.Succeeded)
+                return false;
             var update = (delegate* unmanaged<ulong*, ulong, ulong, ulong, uint>)(state->Memory.Code + FirstExitCodeBundle.CooperativePublishOffset);
             bool writeReady = update(leaf, *leaf, writable.Entry.RawValue, (ulong)state->Memory.Entries) == 1 &&
                 (*leaf & ~0x60UL) == (writable.Entry.RawValue & ~0x60UL);
@@ -703,10 +840,13 @@ public static unsafe partial class EfiEntry
             bool emitted = writeReady && KernelThreadEntry.Emit((byte*)state->CooperativePool + offset, KernelThreadEntry.Bytes, c->Plan.Bindings[index].Entry);
             bool restored = update(leaf, *leaf, original, (ulong)state->Memory.Entries) == 1 &&
                 (*leaf & ~0x60UL) == (original & ~0x60UL) && CooperativeAuditPool(state, true);
-            if (!emitted || !restored || !LinuxNativeVerify(c)) return false;
+            if (!emitted || !restored || !LinuxNativeVerify(c))
+                return false;
             for (uint i = 0; i < NativeProgram.Bytes; i++)
-                if ((i < offset || i >= offset + KernelThreadEntry.Bytes) && ((byte*)state->CooperativePool)[i] != c->CodeCopy[i]) return false;
-            for (uint i = offset; i < offset + KernelThreadEntry.Bytes; i++) c->CodeCopy[i] = ((byte*)state->CooperativePool)[i];
+                if ((i < offset || i >= offset + KernelThreadEntry.Bytes) && ((byte*)state->CooperativePool)[i] != c->CodeCopy[i])
+                    return false;
+            for (uint i = offset; i < offset + KernelThreadEntry.Bytes; i++)
+                c->CodeCopy[i] = ((byte*)state->CooperativePool)[i];
             return LinuxNativeSavedCode(c);
         }
     }

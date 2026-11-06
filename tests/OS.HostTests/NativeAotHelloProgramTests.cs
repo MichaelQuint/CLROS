@@ -19,9 +19,18 @@ internal static class NativeAotHelloProgramTests
         vector.Write(Encoding.ASCII.GetBytes("CLROS_HELLO_INSTRUCTIONS_V1\n"));
         using (BinaryWriter writer = new(vector, Encoding.ASCII, leaveOpen: true))
         {
-            writer.Write(0x400200UL); writer.Write((byte)5); writer.Write(new byte[] { 0xb8, 0x0f, 0x05, 0, 0 }); writer.Write((byte)0);
-            writer.Write(0x400205UL); writer.Write((byte)2); writer.Write(new byte[] { 0x0f, 0x05 }); writer.Write((byte)1);
-            writer.Write(0x400207UL); writer.Write((byte)1); writer.Write((byte)0xc3); writer.Write((byte)0);
+            writer.Write(0x400200UL);
+            writer.Write((byte)5);
+            writer.Write(new byte[] { 0xb8, 0x0f, 0x05, 0, 0 });
+            writer.Write((byte)0);
+            writer.Write(0x400205UL);
+            writer.Write((byte)2);
+            writer.Write(new byte[] { 0x0f, 0x05 });
+            writer.Write((byte)1);
+            writer.Write(0x400207UL);
+            writer.Write((byte)1);
+            writer.Write((byte)0xc3);
+            writer.Write((byte)0);
         }
         HostCheck.Equal(Convert.ToHexString(SHA256.HashData(vector.ToArray())), report.Sha256);
         string formatted = "different/path/Hello: file format elf64-x86-64\nDisassembly of section .text:\n" +
@@ -78,17 +87,22 @@ internal static class NativeAotHelloProgramTests
         try
         {
             string package = Path.Combine(directory, "package"), dump = Path.Combine(directory, "dump");
-            File.WriteAllBytes(package, [1]); File.WriteAllBytes(dump, [0xff]);
+            File.WriteAllBytes(package, [1]);
+            File.WriteAllBytes(dump, [0xff]);
             Reject(() => NativeAotHelloProgram.Read(root, package, dump), "hello_instruction_utf8");
             var result = HostToolProcess.RunTool("linux", "hello-program", package, dump);
             HostCheck.True(result.ExitCode != 0 && result.Error.Contains("TEST_FAIL tooling", StringComparison.Ordinal) &&
                 !result.Output.Contains("TEST_PASS linux.hello-program", StringComparison.Ordinal));
             File.WriteAllBytes(dump, []);
             Reject(() => NativeAotHelloProgram.Read(root, package, dump), "hello_instruction_file_size");
-            using (FileStream file = new(dump, FileMode.Create)) file.SetLength(20 * 1024 * 1024 + 1);
+            using (FileStream file = new(dump, FileMode.Create))
+                file.SetLength(20 * 1024 * 1024 + 1);
             Reject(() => NativeAotHelloProgram.Read(root, package, dump), "hello_instruction_file_size");
         }
-        finally { Directory.Delete(directory, recursive: true); }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static byte[] Elf()
@@ -101,8 +115,14 @@ internal static class NativeAotHelloProgramTests
     private static void Reject(Action action, string reason)
     {
         bool rejected = false;
-        try { action(); }
-        catch (InvalidDataException error) { rejected = error.Message == reason; }
+        try
+        {
+            action();
+        }
+        catch (InvalidDataException error)
+        {
+            rejected = error.Message == reason;
+        }
         HostCheck.True(rejected, reason);
     }
 }

@@ -31,9 +31,18 @@ internal static class LibvirtSmokeTests
     {
         string directory = Scratch();
         using StringWriter output = new();
-        var options = new LibvirtSmokeOptions { PlanLifecycle = true, AllowRealLibvirtLifecycle = true,
-            TimeoutSeconds = 45, Network = "default", DiskFormat = "qcow2", DomainXml = Path.Combine(directory, "domain.xml"),
-            LifecyclePlan = Path.Combine(directory, "plan.log"), RequireMarkers = ["CUSTOM_PASS"], ForbidMarkers = ["CUSTOM_FAIL"] };
+        var options = new LibvirtSmokeOptions
+        {
+            PlanLifecycle = true,
+            AllowRealLibvirtLifecycle = true,
+            TimeoutSeconds = 45,
+            Network = "default",
+            DiskFormat = "qcow2",
+            DomainXml = Path.Combine(directory, "domain.xml"),
+            LifecyclePlan = Path.Combine(directory, "plan.log"),
+            RequireMarkers = ["CUSTOM_PASS"],
+            ForbidMarkers = ["CUSTOM_FAIL"]
+        };
         HostCheck.Equal(0, LibvirtSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output).GetAwaiter().GetResult());
         string plan = File.ReadAllText(options.LifecyclePlan);
         HostCheck.True(plan.Contains("LIBVIRT_LIFECYCLE_REAL_RUN_IMPLEMENTED false", StringComparison.Ordinal));
@@ -45,9 +54,15 @@ internal static class LibvirtSmokeTests
     private static void Serial()
     {
         string directory = Scratch();
-        var options = new LibvirtSmokeOptions { CheckSerialOnly = true, SerialLog = Path.Combine(directory, "serial.log"),
-            SummaryLog = Path.Combine(directory, "summary.log"), DomainXml = Path.Combine(directory, "absent.xml"),
-            RequireMarkers = ["OS_SMOKE_PASS"], ForbidMarkers = ["OS_SMOKE_FAIL"] };
+        var options = new LibvirtSmokeOptions
+        {
+            CheckSerialOnly = true,
+            SerialLog = Path.Combine(directory, "serial.log"),
+            SummaryLog = Path.Combine(directory, "summary.log"),
+            DomainXml = Path.Combine(directory, "absent.xml"),
+            RequireMarkers = ["OS_SMOKE_PASS"],
+            ForbidMarkers = ["OS_SMOKE_FAIL"]
+        };
         File.WriteAllText(options.SerialLog, "OS_SMOKE_PASS\r\n");
         using StringWriter output = new();
         HostCheck.Equal(0, LibvirtSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output).GetAwaiter().GetResult());
@@ -60,8 +75,12 @@ internal static class LibvirtSmokeTests
     private static void Guards()
     {
         string root = HostToolProcess.FindRepositoryRoot(), directory = Scratch();
-        var options = new LibvirtSmokeOptions { Image = Path.Combine(directory, "image.raw"),
-            DomainXml = Path.Combine(directory, "domain.xml"), Virsh = Path.Combine(directory, "missing.exe") };
+        var options = new LibvirtSmokeOptions
+        {
+            Image = Path.Combine(directory, "image.raw"),
+            DomainXml = Path.Combine(directory, "domain.xml"),
+            Virsh = Path.Combine(directory, "missing.exe")
+        };
         File.WriteAllBytes(options.Image, [1, 2, 3, 4]);
         using StringWriter missing = new();
         HostCheck.Equal(0, LibvirtSmoke.RunAsync(root, options, missing).GetAwaiter().GetResult());
@@ -72,7 +91,10 @@ internal static class LibvirtSmokeTests
         HostCheck.Equal(0, LibvirtSmoke.RunAsync(root, options, guarded).GetAwaiter().GetResult());
         HostCheck.True(guarded.ToString().Contains("real_lifecycle_requires_opt_in", StringComparison.Ordinal));
         using StringWriter optedIn = new();
-        HostCheck.Equal(2, LibvirtSmoke.RunAsync(root, options with { AllowRealLibvirtLifecycle = true }, optedIn).GetAwaiter().GetResult());
+        HostCheck.Equal(2, LibvirtSmoke.RunAsync(root, options with
+        {
+            AllowRealLibvirtLifecycle = true
+        }, optedIn).GetAwaiter().GetResult());
         HostCheck.True(optedIn.ToString().Contains("real_run_not_implemented", StringComparison.Ordinal));
     }
 
@@ -85,7 +107,11 @@ internal static class LibvirtSmokeTests
             using StringWriter output = new();
             bool called = false;
             int exit = LibvirtSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output,
-                _ => { called = true; throw new InvalidOperationException("must not invoke"); }).GetAwaiter().GetResult();
+                _ =>
+            {
+                called = true;
+                throw new InvalidOperationException("must not invoke");
+            }).GetAwaiter().GetResult();
             HostCheck.True(exit != 0 && !called);
         }
     }
@@ -114,7 +140,14 @@ internal static class LibvirtSmokeTests
         foreach (var args in new[] { new[] { "--image" }, new[] { "--unknown" } })
         {
             bool rejected = false;
-            try { LibvirtSmokeOptions.Parse(args); } catch (ArgumentException) { rejected = true; }
+            try
+            {
+                LibvirtSmokeOptions.Parse(args);
+            }
+            catch (ArgumentException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }

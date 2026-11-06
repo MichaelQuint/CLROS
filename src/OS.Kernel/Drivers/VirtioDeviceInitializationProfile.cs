@@ -1,159 +1,33 @@
 namespace OS.Drivers;
 
-public enum VirtioDeviceInitializationProfileStatus
-{
-    Success = 0,
-    UnknownDeviceKind = 1,
-    InitializationPlanFailed = 2
-}
-
-public readonly struct VirtioDeviceInitializationProfileResult
-{
-    private VirtioDeviceInitializationProfileResult(
-        VirtioDeviceInitializationProfileStatus status,
-        VirtioPciDeviceKind deviceKind,
-        ulong deviceFeatures,
-        ulong requiredFeatures,
-        ulong optionalFeatures,
-        ushort availableQueueCount,
-        ushort requiredQueueCount,
-        bool hasInitializationPlan,
-        VirtioDeviceInitializationPlanResult initializationPlan,
-        bool isInitialized)
-    {
-        Status = status;
-        DeviceKind = deviceKind;
-        DeviceFeatures = deviceFeatures;
-        RequiredFeatures = requiredFeatures;
-        OptionalFeatures = optionalFeatures;
-        AvailableQueueCount = availableQueueCount;
-        RequiredQueueCount = requiredQueueCount;
-        HasInitializationPlan = hasInitializationPlan;
-        InitializationPlan = initializationPlan;
-        IsInitialized = isInitialized;
-    }
-
-    public VirtioDeviceInitializationProfileStatus Status { get; }
-
-    public VirtioPciDeviceKind DeviceKind { get; }
-
-    public ulong DeviceFeatures { get; }
-
-    public ulong RequiredFeatures { get; }
-
-    public ulong OptionalFeatures { get; }
-
-    public ushort AvailableQueueCount { get; }
-
-    public ushort RequiredQueueCount { get; }
-
-    public bool HasInitializationPlan { get; }
-
-    public VirtioDeviceInitializationPlanResult InitializationPlan { get; }
-
-    public bool IsInitialized { get; }
-
-    public bool Succeeded => IsInitialized && Status == VirtioDeviceInitializationProfileStatus.Success;
-
-    internal static VirtioDeviceInitializationProfileResult Create(
-        VirtioDeviceInitializationProfileStatus status,
-        VirtioPciDeviceKind deviceKind,
-        ulong deviceFeatures,
-        ulong requiredFeatures,
-        ulong optionalFeatures,
-        ushort availableQueueCount,
-        ushort requiredQueueCount,
-        bool hasInitializationPlan,
-        VirtioDeviceInitializationPlanResult initializationPlan)
-    {
-        return new VirtioDeviceInitializationProfileResult(
-            status,
-            deviceKind,
-            deviceFeatures,
-            requiredFeatures,
-            optionalFeatures,
-            availableQueueCount,
-            requiredQueueCount,
-            hasInitializationPlan,
-            initializationPlan,
-            isInitialized: true);
-    }
-}
-
 public static class VirtioDeviceInitializationProfile
 {
     public const ulong NoRequiredFeatureMask = 0;
-
     public const ushort BlockRequiredQueueCount = 1;
     public const ushort NetworkRequiredQueueCount = 2;
-
     public const ulong BlockRequiredFeatureMask = NoRequiredFeatureMask;
     public const int BlockReadOnlyFeatureBit = 5;
     public const ulong BlockReadOnlyFeatureMask = 1UL << BlockReadOnlyFeatureBit;
     public const ulong BlockOptionalFeatureMask = BlockReadOnlyFeatureMask;
-
     public const ulong NetworkRequiredFeatureMask = NoRequiredFeatureMask;
     public const int NetworkMacFeatureBit = 5;
     public const int NetworkStatusFeatureBit = 16;
     public const ulong NetworkMacFeatureMask = 1UL << NetworkMacFeatureBit;
     public const ulong NetworkStatusFeatureMask = 1UL << NetworkStatusFeatureBit;
-    public const ulong NetworkOptionalFeatureMask =
-        NetworkMacFeatureMask | NetworkStatusFeatureMask;
-
-    public static VirtioDeviceInitializationProfileResult Create(
-        VirtioPciDeviceKind deviceKind,
-        ulong deviceFeatures,
-        ushort availableQueueCount,
-        bool featuresOkAccepted)
+    public const ulong NetworkOptionalFeatureMask = NetworkMacFeatureMask | NetworkStatusFeatureMask;
+    public static VirtioDeviceInitializationProfileResult Create(VirtioPciDeviceKind deviceKind, ulong deviceFeatures, ushort availableQueueCount, bool featuresOkAccepted)
     {
-        if (!TryGetProfile(
-                deviceKind,
-                out ulong requiredFeatures,
-                out ulong optionalFeatures,
-                out ushort requiredQueueCount))
+        if (!TryGetProfile(deviceKind, out ulong requiredFeatures, out ulong optionalFeatures, out ushort requiredQueueCount))
         {
-            return VirtioDeviceInitializationProfileResult.Create(
-                VirtioDeviceInitializationProfileStatus.UnknownDeviceKind,
-                deviceKind,
-                deviceFeatures,
-                requiredFeatures: 0,
-                optionalFeatures: 0,
-                availableQueueCount,
-                requiredQueueCount: 0,
-                hasInitializationPlan: false,
-                default);
+            return VirtioDeviceInitializationProfileResult.Create(VirtioDeviceInitializationProfileStatus.UnknownDeviceKind, deviceKind, deviceFeatures, requiredFeatures: 0, optionalFeatures: 0, availableQueueCount, requiredQueueCount: 0, hasInitializationPlan: false, default);
         }
 
-        VirtioDeviceInitializationPlanResult initializationPlan =
-            VirtioDeviceInitializationPlan.Create(
-                deviceFeatures,
-                requiredFeatures,
-                optionalFeatures,
-                availableQueueCount,
-                requiredQueueCount,
-                featuresOkAccepted);
-
-        VirtioDeviceInitializationProfileStatus status = initializationPlan.Succeeded
-            ? VirtioDeviceInitializationProfileStatus.Success
-            : VirtioDeviceInitializationProfileStatus.InitializationPlanFailed;
-
-        return VirtioDeviceInitializationProfileResult.Create(
-            status,
-            deviceKind,
-            deviceFeatures,
-            requiredFeatures,
-            optionalFeatures,
-            availableQueueCount,
-            requiredQueueCount,
-            hasInitializationPlan: true,
-            initializationPlan);
+        VirtioDeviceInitializationPlanResult initializationPlan = VirtioDeviceInitializationPlan.Create(deviceFeatures, requiredFeatures, optionalFeatures, availableQueueCount, requiredQueueCount, featuresOkAccepted);
+        VirtioDeviceInitializationProfileStatus status = initializationPlan.Succeeded ? VirtioDeviceInitializationProfileStatus.Success : VirtioDeviceInitializationProfileStatus.InitializationPlanFailed;
+        return VirtioDeviceInitializationProfileResult.Create(status, deviceKind, deviceFeatures, requiredFeatures, optionalFeatures, availableQueueCount, requiredQueueCount, hasInitializationPlan: true, initializationPlan);
     }
 
-    private static bool TryGetProfile(
-        VirtioPciDeviceKind deviceKind,
-        out ulong requiredFeatures,
-        out ulong optionalFeatures,
-        out ushort requiredQueueCount)
+    private static bool TryGetProfile(VirtioPciDeviceKind deviceKind, out ulong requiredFeatures, out ulong optionalFeatures, out ushort requiredQueueCount)
     {
         switch (deviceKind)
         {
@@ -162,13 +36,11 @@ public static class VirtioDeviceInitializationProfile
                 optionalFeatures = BlockOptionalFeatureMask;
                 requiredQueueCount = BlockRequiredQueueCount;
                 return true;
-
             case VirtioPciDeviceKind.Network:
                 requiredFeatures = NetworkRequiredFeatureMask;
                 optionalFeatures = NetworkOptionalFeatureMask;
                 requiredQueueCount = NetworkRequiredQueueCount;
                 return true;
-
             default:
                 requiredFeatures = 0;
                 optionalFeatures = 0;

@@ -35,7 +35,8 @@ internal static class NativeAotThreadingGuestTests
             Valid.Replace("NATIVEAOT_SUSPENSION_JOINED", "NATIVEAOT_SUSPENSION_UNJOINED", StringComparison.Ordinal),
             string.Join('\n', Valid.Split('\n').Where(row => !row.Contains("epoch=2", StringComparison.Ordinal))) + "\n",
             Valid + "TEST_FAIL nativeaot.suspension late_failure\n", Valid + "\n", "", new string('x', 4097)
-        }) Reject(invalid);
+        })
+            Reject(invalid);
     }
 
     [HostTest("nativeaot.suspension capture CLI rejects incomplete and malformed UTF8 without success")]
@@ -54,19 +55,35 @@ internal static class NativeAotThreadingGuestTests
             HostCheck.True(result.ExitCode != 0 && !result.Output.Contains("TEST_PASS nativeaot.suspension-output", StringComparison.Ordinal));
             File.WriteAllBytes(path, [0xc0, 0xaf]);
             bool rejected = false;
-            try { NativeAotThreadingGuest.ValidateSuspensionFile(path); }
-            catch (System.Text.DecoderFallbackException) { rejected = true; }
+            try
+            {
+                NativeAotThreadingGuest.ValidateSuspensionFile(path);
+            }
+            catch (System.Text.DecoderFallbackException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
-        finally { File.Delete(path); Directory.Delete(directory); }
+        finally
+        {
+            File.Delete(path);
+            Directory.Delete(directory);
+        }
     }
 
     private static void Reject(string text)
     {
         NativeAotThreadingGuest.ValidateSuspensionOutput(Valid);
         bool rejected = false;
-        try { NativeAotThreadingGuest.ValidateSuspensionOutput(text); }
-        catch (ToolFailure error) { rejected = error.Message.StartsWith("nativeaot_suspension_", StringComparison.Ordinal); }
+        try
+        {
+            NativeAotThreadingGuest.ValidateSuspensionOutput(text);
+        }
+        catch (ToolFailure error)
+        {
+            rejected = error.Message.StartsWith("nativeaot_suspension_", StringComparison.Ordinal);
+        }
         HostCheck.True(rejected, text);
     }
 }

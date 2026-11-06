@@ -16,11 +16,20 @@ public readonly struct MemoryRegionResult
         _message = message;
     }
 
-    public bool Succeeded { get; }
+    public bool Succeeded
+    {
+        get;
+    }
 
-    public MemoryMapInfoStatus Status { get; }
+    public MemoryMapInfoStatus Status
+    {
+        get;
+    }
 
-    public MemoryRegion Region { get; }
+    public MemoryRegion Region
+    {
+        get;
+    }
 
     public string Message => _message ?? string.Empty;
 

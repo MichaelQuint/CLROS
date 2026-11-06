@@ -62,7 +62,8 @@ internal sealed class ServiceQuotaExercise
                 int collectionsAfter = GC.CollectionCount(GC.MaxGeneration);
                 if (retained <= 4 && collectionsAfter <= collectionsBefore)
                     throw new InvalidOperationException("CLROS_QUOTA_GC_PROGRESS");
-                if (retained <= 4) Interlocked.Add(ref gcCollections, collectionsAfter - collectionsBefore);
+                if (retained <= 4)
+                    Interlocked.Add(ref gcCollections, collectionsAfter - collectionsBefore);
                 Interlocked.Exchange(ref retainedBytes, retained * (long)ChunkBytes);
                 Console.Error.WriteLine(string.Create(CultureInfo.InvariantCulture,
                     $"CLROS_SERVICE_QUOTA_RETAINED index={retained - 1} retainedBytes={retained * (long)ChunkBytes} collectionsBefore={collectionsBefore} collectionsAfter={collectionsAfter} gcCommitted={GC.GetGCMemoryInfo().TotalCommittedBytes}"));
@@ -76,8 +77,13 @@ internal sealed class ServiceQuotaExercise
             long remainingBytes = 0;
             for (int i = 0; i < retained; i++)
             {
-                if (UnmapNative(held[i], ChunkBytes) != 0) { released = false; remainingBytes += ChunkBytes; }
-                else held[i] = 0;
+                if (UnmapNative(held[i], ChunkBytes) != 0)
+                {
+                    released = false;
+                    remainingBytes += ChunkBytes;
+                }
+                else
+                    held[i] = 0;
             }
             Interlocked.Exchange(ref retainedBytes, remainingBytes);
             Volatile.Write(ref started, 2);

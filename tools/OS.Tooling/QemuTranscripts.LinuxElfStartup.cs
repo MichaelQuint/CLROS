@@ -7,7 +7,10 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
-    public static IReadOnlyList<string> M16LinuxStartupMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M16LinuxStartupMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
         ["TEST_START m16-004", "M16_004_IMAGE", "M16_004_STACK", "M16_004_TABLES", "M16_004_READBACK", "CLROS_M16_004_READY", "TEST_PASS m16-004"]);
 
     /// <summary>Inspect copied startup rows against the exact input package.
@@ -17,41 +20,52 @@ public static partial class QemuTranscripts
     /// execution, original-capture or persistence authority. Progress and CloseReuse select
     /// their exact canonical two-worker packages; neither grants a race
     /// consumer or original-run admission.</summary>
-    public static string[] ValidateLinuxStartupTail(string[] lines, byte[] package, bool diskFiles = false,bool diskStatic=false,
-        bool diskExitPending=false,bool writableDisk=false,bool logUpload=false,NativeAotLogUploadProgram? logUploadProgram=null,
-        bool diskProgress=false,bool diskCloseReuse=false)
+    public static string[] ValidateLinuxStartupTail(string[] lines, byte[] package, bool diskFiles = false, bool diskStatic = false,
+        bool diskExitPending = false, bool writableDisk = false, bool logUpload = false, NativeAotLogUploadProgram? logUploadProgram = null,
+        bool diskProgress = false, bool diskCloseReuse = false)
     {
         Need((!diskProgress || diskFiles && !diskStatic && !diskExitPending && !writableDisk && !logUpload && logUploadProgram is null && !diskCloseReuse) &&
             (!diskCloseReuse || diskFiles && !diskStatic && !diskExitPending && !writableDisk && !logUpload && logUploadProgram is null && !diskProgress) &&
-            (logUploadProgram is null || diskFiles && writableDisk && logUpload && !diskStatic && !diskExitPending),"m16_004_disk_selection");
-        var preparedPackage=logUploadProgram is null?null:NativeAotLogUploadContract.InspectClrosPackage(package,logUploadProgram.Phase);
-        return ValidateLinuxStartupTailSelected(lines,package,diskFiles,diskStatic,diskExitPending,writableDisk,logUpload,preparedPackage,diskProgress,diskCloseReuse);
+            (logUploadProgram is null || diskFiles && writableDisk && logUpload && !diskStatic && !diskExitPending), "m16_004_disk_selection");
+        var preparedPackage = logUploadProgram is null ? null : NativeAotLogUploadContract.InspectClrosPackage(package, logUploadProgram.Phase);
+        return ValidateLinuxStartupTailSelected(lines, package, diskFiles, diskStatic, diskExitPending, writableDisk, logUpload, preparedPackage, diskProgress, diskCloseReuse);
     }
 
     // Copied-value core permits portable package/geometry controls without
     // constructing a prepared public program. Only the public wrapper selects
     // a BCL phase through an actual prepared lookup and fixed package identity.
-    internal static unsafe string[] ValidateLinuxStartupTailCore(string[] lines,byte[] package,bool diskFiles,bool diskStatic,
-        bool diskExitPending,bool writableDisk,bool logUpload,NativeAotLogUploadContract.ClrosPackageValues? bclPackage)
-        => ValidateLinuxStartupTailSelected(lines,package,diskFiles,diskStatic,diskExitPending,writableDisk,logUpload,bclPackage,false,false);
+    internal static unsafe string[] ValidateLinuxStartupTailCore(string[] lines, byte[] package, bool diskFiles, bool diskStatic,
+        bool diskExitPending, bool writableDisk, bool logUpload, NativeAotLogUploadContract.ClrosPackageValues? bclPackage)
+        => ValidateLinuxStartupTailSelected(lines, package, diskFiles, diskStatic, diskExitPending, writableDisk, logUpload, bclPackage, false, false);
 
-    private static unsafe string[] ValidateLinuxStartupTailSelected(string[] lines,byte[] package,bool diskFiles,bool diskStatic,
-        bool diskExitPending,bool writableDisk,bool logUpload,NativeAotLogUploadContract.ClrosPackageValues? bclPackage,bool diskProgress,bool diskCloseReuse)
+    private static unsafe string[] ValidateLinuxStartupTailSelected(string[] lines, byte[] package, bool diskFiles, bool diskStatic,
+        bool diskExitPending, bool writableDisk, bool logUpload, NativeAotLogUploadContract.ClrosPackageValues? bclPackage, bool diskProgress, bool diskCloseReuse)
     {
         Need((!diskFiles || !diskStatic) && (!diskExitPending || diskFiles && !diskStatic) &&
             (!writableDisk || diskFiles && !diskStatic && !diskExitPending) && (!logUpload || writableDisk) &&
             (bclPackage is null || diskFiles && writableDisk && logUpload && !diskStatic && !diskExitPending) &&
             (!diskProgress || diskFiles && !diskStatic && !diskExitPending && !writableDisk && !logUpload && bclPackage is null && !diskCloseReuse) &&
-            (!diskCloseReuse || diskFiles && !diskStatic && !diskExitPending && !writableDisk && !logUpload && bclPackage is null && !diskProgress),"m16_004_disk_selection");
-        if(bclPackage is not null)
-            Need(bclPackage.Phase is "write" or "verify" && bclPackage.PackageBytes==package.Length &&
-                bclPackage.PackageSha256==Convert.ToHexString(SHA256.HashData(package)),"m16_004_log_upload_package");
-        else if(writableDisk) { if(logUpload)LinuxWritableDiskProofFixture.RequireLogUploadPackage(package);else LinuxWritableDiskProofFixture.RequirePackage(package); }
-        else if (diskExitPending) Need(LinuxDiskRaceProofFixture.PackageVariant(package)=="ExitPending","m16_004_disk_exit_package");
-        else if (diskProgress) Need(LinuxDiskRaceProofFixture.PackageVariant(package)=="Progress","m16_004_disk_progress_package");
-        else if (diskCloseReuse) Need(LinuxDiskRaceProofFixture.PackageVariant(package)=="CloseReuse","m16_004_disk_close_reuse_package");
-        else if (diskFiles) LinuxDiskFileProofFixture.RequirePackage(package);
-        if (diskStatic) NativeAotStaticFileProgram.RequirePackage(package,false);
+            (!diskCloseReuse || diskFiles && !diskStatic && !diskExitPending && !writableDisk && !logUpload && bclPackage is null && !diskProgress), "m16_004_disk_selection");
+        if (bclPackage is not null)
+            Need(bclPackage.Phase is "write" or "verify" && bclPackage.PackageBytes == package.Length &&
+                bclPackage.PackageSha256 == Convert.ToHexString(SHA256.HashData(package)), "m16_004_log_upload_package");
+        else if (writableDisk)
+        {
+            if (logUpload)
+                LinuxWritableDiskProofFixture.RequireLogUploadPackage(package);
+            else
+                LinuxWritableDiskProofFixture.RequirePackage(package);
+        }
+        else if (diskExitPending)
+            Need(LinuxDiskRaceProofFixture.PackageVariant(package) == "ExitPending", "m16_004_disk_exit_package");
+        else if (diskProgress)
+            Need(LinuxDiskRaceProofFixture.PackageVariant(package) == "Progress", "m16_004_disk_progress_package");
+        else if (diskCloseReuse)
+            Need(LinuxDiskRaceProofFixture.PackageVariant(package) == "CloseReuse", "m16_004_disk_close_reuse_package");
+        else if (diskFiles)
+            LinuxDiskFileProofFixture.RequirePackage(package);
+        if (diskStatic)
+            NativeAotStaticFileProgram.RequirePackage(package, false);
         Need(lines.Length == QemuContracts.M03OwnedSubsystemMarkers.Count + 14, "m16_004_record_count");
         string[] tail = lines[^7..];
         Need(tail[0] == "TEST_START m16-004" && tail[5] == "CLROS_M16_004_READY" && tail[6] == "TEST_PASS m16-004", "m16_004_tail_identity");
@@ -70,7 +84,9 @@ public static partial class QemuTranscripts
         var stack = ReadRecord(tail[2][..^stackSuffix.Length], "M16_004_STACK", "start:dec", "bytes:dec", "sp:dec", "argc:dec", "envc:dec", "random:dec");
         // Sentinel entropy computes deterministic offsets only. It is not a
         // replay of guest entropy or evidence that firmware supplied randomness.
-        byte* seed = stackalloc byte[32]; for (uint i = 0; i < 32; i++) seed[i] = 1;
+        byte* seed = stackalloc byte[32];
+        for (uint i = 0; i < 32; i++)
+            seed[i] = 1;
         byte* buffer = (byte*)NativeMemory.AlignedAlloc(view.Manifest.StackBytes, 4096);
         try
         {
@@ -84,17 +100,22 @@ public static partial class QemuTranscripts
                     "m16_004_stack_geometry");
             }
         }
-        finally { NativeMemory.AlignedFree(buffer); }
+        finally
+        {
+            NativeMemory.AlignedFree(buffer);
+        }
         var tables = ReadRecord(tail[3], "M16_004_TABLES", "root:dec", "used:dec", "leaves:dec", "ranges:dec");
         ulong loadPages = 0;
         for (uint i = 0; i < image.LoadCount; i++)
         {
-            uint row = i * 5; ulong address = image.Loads[row], memory = image.Loads[row + 3];
+            uint row = i * 5;
+            ulong address = image.Loads[row], memory = image.Loads[row + 3];
             loadPages += (((address + memory + 4095) & ~4095UL) - (address & ~4095UL)) / 4096;
         }
-        if(bclPackage is not null)
-            Need(image.LoadCount==4 && image.TlsFileBytes==24 && image.TlsMemoryBytes==264 && tables["ranges"]==67,"m16_004_table_geometry");
-        else InspectLinuxStartupRangeValues(tables["ranges"],image.LoadCount,diskFiles,diskStatic,writableDisk);
+        if (bclPackage is not null)
+            Need(image.LoadCount == 4 && image.TlsFileBytes == 24 && image.TlsMemoryBytes == 264 && tables["ranges"] == 67, "m16_004_table_geometry");
+        else
+            InspectLinuxStartupRangeValues(tables["ranges"], image.LoadCount, diskFiles, diskStatic, writableDisk);
         Need(tables["root"] is >= 4096 and < 0x100000000 && tables["root"] % 4096 == 0 &&
             tables["used"] is >= 4 and <= 128 && tables["ranges"] >= image.LoadCount + 2 &&
             tables["leaves"] >= loadPages + view.Manifest.StackBytes / 4096 + 128 && tables["leaves"] <= 32768 &&
@@ -111,9 +132,9 @@ public static partial class QemuTranscripts
     /// geometry has four ELF loads plus63 retained ranges; mechanical disk keeps
     /// its exact65 and ordinary callers keep64. Original package admission and
     /// all other parent/table/native checks remain the enclosing owner's duty.</summary>
-    public static void InspectLinuxStartupRangeValues(ulong ranges,uint loads,bool diskFiles=false,bool diskStatic=false,bool writableDisk=false)
+    public static void InspectLinuxStartupRangeValues(ulong ranges, uint loads, bool diskFiles = false, bool diskStatic = false, bool writableDisk = false)
     {
-        Need((!diskFiles || !diskStatic) && (!writableDisk || diskFiles && !diskStatic),"m16_004_disk_selection");
-        Need(writableDisk?loads==2 && ranges==65:diskStatic?loads==4 && ranges==63UL+loads:diskFiles?ranges==65:ranges<=64,"m16_004_table_geometry");
+        Need((!diskFiles || !diskStatic) && (!writableDisk || diskFiles && !diskStatic), "m16_004_disk_selection");
+        Need(writableDisk ? loads == 2 && ranges == 65 : diskStatic ? loads == 4 && ranges == 63UL + loads : diskFiles ? ranges == 65 : ranges <= 64, "m16_004_table_geometry");
     }
 }

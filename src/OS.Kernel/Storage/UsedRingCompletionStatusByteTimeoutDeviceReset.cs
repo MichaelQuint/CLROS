@@ -21,20 +21,30 @@ public static unsafe class UsedRingCompletionStatusByteTimeoutDeviceReset
         {
             r.Polls++;
             var status = SubmitPollSectorRequest.CheckStatus(common.VirtualStart, 15, a);
-            if (status != VirtioBlkReadStatus.Success) return status;
-            if (a.Read16(a.Context, used + 2, &index) != 1) return VirtioBlkReadStatus.ReadFailed;
+            if (status != VirtioBlkReadStatus.Success)
+                return status;
+            if (a.Read16(a.Context, used + 2, &index) != 1)
+                return VirtioBlkReadStatus.ReadFailed;
             r.UsedIndex = index;
-            if (index == 0) continue;
-            if (index != 1) return VirtioBlkReadStatus.InvalidCompletion;
-            if (!SubmitPollSectorRequest.Fence(a, ref r)) return VirtioBlkReadStatus.OrderingFailed;
+            if (index == 0)
+                continue;
+            if (index != 1)
+                return VirtioBlkReadStatus.InvalidCompletion;
+            if (!SubmitPollSectorRequest.Fence(a, ref r))
+                return VirtioBlkReadStatus.OrderingFailed;
             if (a.Read32(a.Context, used + 4, &id) != 1 || a.Read32(a.Context, used + 8, &length) != 1 ||
                 a.Read8(a.Context, cpu + VirtioBlkDmaLayout.StatusOffset, &deviceStatus) != 1)
                 return VirtioBlkReadStatus.ReadFailed;
-            r.UsedId = id; r.UsedLength = length; r.DeviceStatus = deviceStatus;
+            r.UsedId = id;
+            r.UsedLength = length;
+            r.DeviceStatus = deviceStatus;
             status = Validate(index, id, length, deviceStatus);
-            if (status != VirtioBlkReadStatus.Success) return status;
-            if (a.Read8(a.Context, common.VirtualStart + 21, &generation) != 1) return VirtioBlkReadStatus.ReadFailed;
-            if (generation != r.Generation) return VirtioBlkReadStatus.ConfigurationChanged;
+            if (status != VirtioBlkReadStatus.Success)
+                return status;
+            if (a.Read8(a.Context, common.VirtualStart + 21, &generation) != 1)
+                return VirtioBlkReadStatus.ReadFailed;
+            if (generation != r.Generation)
+                return VirtioBlkReadStatus.ConfigurationChanged;
             return SubmitPollSectorRequest.CheckStatus(common.VirtualStart, 15, a);
         }
         return VirtioBlkReadStatus.Timeout;
@@ -49,11 +59,15 @@ public static unsafe class UsedRingCompletionStatusByteTimeoutDeviceReset
     /// requested data byte and the status byte. Legacy callers still select1.</summary>
     public static VirtioBlkReadStatus Validate(ushort usedIndex, uint id, uint length, byte status, uint sectors)
     {
-        if (sectors is 0 or > VirtioBlkDmaLayout.MaximumReadSectors) return VirtioBlkReadStatus.InvalidCompletion;
+        if (sectors is 0 or > VirtioBlkDmaLayout.MaximumReadSectors)
+            return VirtioBlkReadStatus.InvalidCompletion;
         uint expected = sectors * VirtioBlkDmaLayout.DataBytes + 1;
-        if (usedIndex != 1 || id != 0 || length == 0 || length > expected) return VirtioBlkReadStatus.InvalidCompletion;
-        if (status == 1) return VirtioBlkReadStatus.DeviceIoError;
-        if (status == 2) return VirtioBlkReadStatus.UnsupportedRequest;
+        if (usedIndex != 1 || id != 0 || length == 0 || length > expected)
+            return VirtioBlkReadStatus.InvalidCompletion;
+        if (status == 1)
+            return VirtioBlkReadStatus.DeviceIoError;
+        if (status == 2)
+            return VirtioBlkReadStatus.UnsupportedRequest;
         return status == 0 && length == expected ? VirtioBlkReadStatus.Success : VirtioBlkReadStatus.InvalidCompletion;
     }
 }

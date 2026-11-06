@@ -12,8 +12,11 @@ internal static unsafe class PollingCompletionMSIXRemovingPollingRecoveryPathTes
         MsixInterruptContext c;
         Prepare(&c);
         HostCheck.True(Select(&c) == BlockCompletionRoute.PollingRecovery);
-        c.Count = 1; c.BeforeEoiIsr = 1; c.Iterations = 1;
-        c.InterruptedFlags = 0x202; c.InterruptedRip = Code + X64MsixInterrupt.InterruptStart;
+        c.Count = 1;
+        c.BeforeEoiIsr = 1;
+        c.Iterations = 1;
+        c.InterruptedFlags = 0x202;
+        c.InterruptedRip = Code + X64MsixInterrupt.InterruptStart;
         HostCheck.True(Select(&c, returned: 1) == BlockCompletionRoute.Interrupt);
         c.InterruptedRip = Code + X64MsixInterrupt.InterruptEnd;
         HostCheck.True(Select(&c, returned: 1) == BlockCompletionRoute.Interrupt);
@@ -34,9 +37,11 @@ internal static unsafe class PollingCompletionMSIXRemovingPollingRecoveryPathTes
             ((ulong*)&c)[field] ^= field is 4 or 5 ? 0x200UL : 1UL;
             HostCheck.True(Select(&c) == BlockCompletionRoute.InvalidWait, field.ToString());
         }
-        Prepare(&c); c.Iterations = 0;
+        Prepare(&c);
+        c.Iterations = 0;
         HostCheck.True(Select(&c) == BlockCompletionRoute.InvalidWait);
-        Prepare(&c); c.Iterations = Limit - 1;
+        Prepare(&c);
+        c.Iterations = Limit - 1;
         HostCheck.True(Select(&c) == BlockCompletionRoute.InvalidWait);
         Prepare(&c);
         HostCheck.True(Select(&c, returned: 1) == BlockCompletionRoute.InvalidWait);
@@ -49,7 +54,8 @@ internal static unsafe class PollingCompletionMSIXRemovingPollingRecoveryPathTes
     [HostTest("m06.msix rejects invalid wait storage limits and retained address ranges")]
     private static void Bounds()
     {
-        MsixInterruptContext c; Prepare(&c);
+        MsixInterruptContext c;
+        Prepare(&c);
         HostCheck.True(Select(null) == BlockCompletionRoute.InvalidWait);
         HostCheck.True(Select((MsixInterruptContext*)((byte*)&c + 1)) == BlockCompletionRoute.InvalidWait);
         HostCheck.True(Select((MsixInterruptContext*)(~0UL - 7)) == BlockCompletionRoute.InvalidWait);
@@ -61,7 +67,8 @@ internal static unsafe class PollingCompletionMSIXRemovingPollingRecoveryPathTes
         HostCheck.True(PollingCompletionMSIXRemovingPollingRecoveryPath.Select(&c, Code, Original, Temporary, Apic + 1, Limit, 0, true) == BlockCompletionRoute.InvalidWait);
         foreach (uint boundary in new[] { 1u, X64MsixInterrupt.MaximumIterations })
         {
-            Prepare(&c); c.Iterations = boundary;
+            Prepare(&c);
+            c.Iterations = boundary;
             HostCheck.True(PollingCompletionMSIXRemovingPollingRecoveryPath.Select(&c, Code, Original, Temporary, Apic, boundary, 0, true) == BlockCompletionRoute.PollingRecovery);
         }
     }
@@ -71,13 +78,20 @@ internal static unsafe class PollingCompletionMSIXRemovingPollingRecoveryPathTes
 
     private static void Prepare(MsixInterruptContext* c)
     {
-        *c = default; c->EoiAddress = Apic + 0xb0; c->EntryFlags = c->ExitFlags = 2; c->Iterations = Limit;
-        Idtr(c->OriginalIdtr, Original); Idtr(c->TemporaryIdtr, Temporary); Idtr(c->RestoredIdtr, Original);
+        *c = default;
+        c->EoiAddress = Apic + 0xb0;
+        c->EntryFlags = c->ExitFlags = 2;
+        c->Iterations = Limit;
+        Idtr(c->OriginalIdtr, Original);
+        Idtr(c->TemporaryIdtr, Temporary);
+        Idtr(c->RestoredIdtr, Original);
     }
 
     private static void Idtr(byte* bytes, ulong address)
     {
-        bytes[0] = 0xff; bytes[1] = 0x0f;
-        for (int i = 0; i < 8; i++) bytes[i + 2] = (byte)(address >> (i * 8));
+        bytes[0] = 0xff;
+        bytes[1] = 0x0f;
+        for (int i = 0; i < 8; i++)
+            bytes[i + 2] = (byte)(address >> (i * 8));
     }
 }

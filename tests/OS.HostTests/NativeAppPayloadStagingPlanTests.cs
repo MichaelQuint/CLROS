@@ -134,19 +134,9 @@ internal static class NativeAppPayloadStagingPlanTests
     [HostTest("appmodel payload staging uses shared buffer operations", HostLane.Fast, 5)]
     private static bool TestUsesSharedBufferOperations()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(Path.Combine(
-            repositoryRoot,
-            "src",
-            "OS.Kernel",
-            "Runtime",
-            "NativeAppPayloadStagingPlan.cs"));
-
-        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
-            && source.Contains("BufferOperations.MemoryCopy(source, destination)", StringComparison.Ordinal)
-            && source.Contains("if (!copy.Succeeded)", StringComparison.Ordinal)
-            && source.Contains("NativeAppPayloadStagingStatus.DestinationTooSmall", StringComparison.Ordinal)
-            && !source.Contains(".CopyTo(destination)", StringComparison.Ordinal));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        return HostCheck.Result(StorageBufferCopySourceGuard.Check(catalog, typeof(NativeAppPayloadStagingPlanner).FullName!,
+            nameof(NativeAppPayloadStagingPlanner.CopyExecutableToStaging), typeof(NativeAppPayloadStagingStatus).FullName!));
     }
 
     private static NativeAppPayloadMappingPlanResult CreateMappingPlan()

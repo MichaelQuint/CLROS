@@ -1,5 +1,176 @@
 # QEMU
 
+For PR814, record the QEMU runner exit, guest completion and host verification
+separately. Smoke and Disk B encountered a QEMU/GLib invalid-handle warning
+before web readiness. The bounded host compatibility controls are recorded
+[below](#windows-virtio-notifier-compatibility). An external browser binary change
+also invalidated a Truncated A run after the Ready DOM and 49 browser responses.
+Its replacement held the selected executable read-only through verification and
+passed. Preserve the failed originals alongside the
+[candidate results](../work/rc3-whpx-qualification.md#candidate-results).
+
+[Step1732](../done/step1732.md) records18 current-source diagnostic originals,
+three boots per output mode/backend. All90 HTTP responses and raw disk/packet/
+ownership joins pass. WHPX Trace/Summary64KiB range medians12532/9688ms show a
+22.7% instrumentation reduction; TCG10062/9516ms overlap at n3. Summary omits
+sector hex and cannot replace full-byte acceptance. JSON remains slow. Guest
+wall spans overlap and are not CPU measurements. Production repair, ten-warm,
+full/concurrent/browser, matched Alpine and final qualification remain pending.
+
+## Windows virtio notifier compatibility
+
+The PR814 host repair applies `ioeventfd=off` automatically to existing
+`virtio-net-pci`, `virtio-blk-pci` and `virtio-rng-pci` arguments when the
+Windows launcher selects WHPX and authenticates QEMU executable SHA-256
+`47D57A6072E0BB3BD98F87926EB129EB1736DFE818C67B3B81EF7CE4EDD0B3CD`.
+It uses the existing `q35,accel=whpx,kernel-irqchip=on` admission path. There is
+no additional CLROS command-line switch. Other QEMU executable hashes and TCG
+keep their existing device arguments.
+
+The policy preserves an existing single `ioeventfd=off` setting. Conflicting,
+empty or duplicate values on those devices fail before argument mutation.
+A trailing `-device` without its value also fails. The guest image, vCPU,
+memory, deadlines, device layout, QMP ownership and native stderr validation
+remain governed by their existing checks. The actual device arguments belong
+in each launch record and in performance comparisons.
+
+This repair is qualified on runtime `2e81ee3a` for the finite PR814 scopes in
+the [qualification record](../work/rc3-whpx-qualification.md#candidate-results).
+The extended CLROS TCG benchmark remains incomplete under the unchanged
+30-minute guest limit; the human approved reporting that limitation at closeout.
+The controls below explain its selection and retain their original outcomes.
+
+### Bounded notifier controls
+
+On candidate `3f95496e`, three independent, bounded Disk B diagnostic boots
+disabled `ioeventfd` on the existing `virtio-net-pci`, `virtio-blk-pci` and
+`virtio-rng-pci` devices. Each kept the same guest EFI
+`BD52966BE2F14C100021967003F359E69782D7B1256300B52D85E4AD2FDBAE72`.
+The production launch recipe was unchanged during these controls.
+
+All three reached their declared 20-second post-resume stop and joined their
+owned processes. Each retained exactly the same 96-byte native stderr prefix
+(SHA-256 `769B67A801E48EC3D94BE5C306160B56C732676A6EFFE2026EEDC0416FC0B788`),
+with no added GLib warning. The runner recorded cancellation and exit `-1`.
+The diagnostic owner recorded exit `1` and `Qualified=false`, preserving the
+lack of natural guest completion.
+
+The original command changes, stop records and joined-file seals are retained
+under `artifacts/refactor-r01/ioeventfd-causal-original-r01` through `r03` in
+the producer checkout. These observations support a scoped Windows/QEMU
+compatibility repair. Full guest acceptance, long-run reliability and a measured
+performance effect remain unproven by this control. Retain the exact host recipe
+in qualification and benchmark records when the setting changes.
+
+## Explicit accelerator selection (development)
+
+M04-026/#813 adds `qemu smoke -Accelerator whpx|tcg` and runner
+`--accelerator whpx|tcg`. Windows defaults to WHPX; other hosts default to TCG.
+The command selects exactly one backend, with no silent fallback. A missing
+Windows Hypervisor Platform capability fails explicitly before guest startup.
+Dry-run and summary output record `QEMU_ACCELERATOR` and `QEMU_MACHINE`;
+Nehalem and existing single-vCPU/resource contracts remain unchanged.
+WHPX selects exactly `q35,accel=whpx,kernel-irqchip=on`; TCG selects
+exactly `q35,accel=tcg`. Capture admission rejects other controller settings,
+extra accelerator selectors and fallback lists. The software-controller candidate
+in [step1681](../done/step1681.md) failed the next workload's unchanged TPR
+readback (writeD0/read0); it is not qualified. Disabling the legacy PIC did not
+remove the initialization warning.
+
+For the inspected Windows QEMU binary SHA256
+`47D57A6072E0BB3BD98F87926EB129EB1736DFE818C67B3B81EF7CE4EDD0B3CD`
+only, the host launcher starts paused under `-S`, authenticates prelaunch/reset
+registers and one CPU over an owned outbound QMP connection, then seals zero or
+one exact `Ignoring request for interrupt vector 0` warning before a single
+acknowledged `cont`. The initializer's origin remains unknown. This empirical
+policy supplies no harmlessness or guest-execution inference.
+
+The surviving launch owner holds a synchronous stderr file handle through the
+retained Windows job join. Runner/Capture/QEMU inherit that same file; it contains
+shared launcher/QEMU written stderr. Independent read handles never seek the
+writer. Original bounded stdout anchors the actual child PID/start and the
+seal/resume/QMP digests before Runner can be cancelled. Finalization requires
+those exact anchors, original file identities and unchanged raw prefix. Every
+unknown, repeated or post-seal stderr byte fails, including an identical later
+warning. Missing proof fails. Raw bytes and original stdout/process facts are
+preserved even on rejection. Normal stderr pipes remain in use for other binaries
+and TCG; explicit unavailable WHPX never falls back. File admission bounds do not
+claim a physical disk-write quota or a hard-kill flush of QEMU userspace buffers.
+
+[Step1682](../done/step1682.md) records the host-policy repairs and failed originals;
+[step1681](../done/step1681.md) retains the raw-serial ownership incident and the
+previous7,474-check RC3 full. [Step1685](../done/step1685.md) records a later
+7,483-check full at e0252d3a and sixteen strict compiler originals. Its expected-
+unhandled original reached the intended terminal but the Tooling panic consumer
+still expected the legacy eighteen-row body without the backend pair. The repair
+uses the same exact prefix validator as other consumers; panic body, summary,
+exit19, quiet drain, byte/hash and terminal criteria remain. Saved-capture
+re-analysis passes without changing its failed outer exit1. A fresh expected-
+unhandled original, final host renewal and the remaining matrix are required under
+[the phase contract](../work/rc3-whpx-qualification.md).
+
+The current short disk observer emits a separate v10 receipt and five responses:
+status JSON, health, actual CoreLib HEAD, an independently checked 64KiB range,
+and final health. It retains the existing Timing selection, metrics checks,
+runner/peer limits and owned cancellation/join/refusal. JSON has three
+unique DTO fields with the exact fixture values and `application/json` media
+type. [Step1728](../done/step1728.md) records separate monotonic ticks after
+headers, complete body receipt, file writing, durable flushing and the original
+Finished boundary. BodyReceived includes this client's reading/memory work;
+Finished continues to include host output I/O. This is not guest-only CPU time.
+
+The default 180-second request budget now reaches streamed body reads through a
+linked cancellation token. Explicit host BenchmarkOptions may shorten it. Peer
+and runner limits remain unchanged; synchronous Flush(true) cannot be interrupted
+by that token. Failure retains incomplete request phase/bytes and joined runner
+disposition. The existing exception type does not uniquely attribute cancellation
+origin. Host loopback tests cover the repaired body timeout; no new guest sample
+has been produced by this tooling step. Historical v7/v8 originals and the
+intermediate v9 observations retain their original schemas and boundaries.
+These diagnostics do not supply full-workload, browser or ordinary cleanup acceptance.
+
+[Step1729](../done/step1729.md) completes six v10 observations of the same retained
+image, alternating WHPX/TCG for three rounds. All five response hashes, metrics,
+intentional runner cancellation/join/refusal and input guards pass. Median 64KiB
+body receipt is 12.484s/10.419s; separate local durable flush is 1.798ms/1.741ms.
+There are no warm sequences and no current-source kernel publication. Host body
+receipt includes client streaming/memory work. Raw stamps, distributions, serial,
+PCAP, bodies and original owners are retained; these are diagnostic measurements.
+
+[Step1731](../done/step1731.md) completes the mode-bound v11 observer: independently
+emitted native BEGIN/END counters, every ordered diagnostic row, actual image CRC
+and the final file/completion after timing freeze must join. Original/Trace/Summary
+selection is shared by both normal and retained-image owners. New image snapshots
+are checked before a child starts; late records can revoke provisional success.
+All 72 focused checks and three real EFI publication/structural verifications pass.
+At step1731 actual stack/layout/metadata review remained pending; step1732 binds
+that review and the original diagnostic boots for these exact images. Changed
+images still require their own review before launch.
+
+[Step1730](../done/step1730.md) adds explicit default-off
+`-EnableM10018EvidenceTraceProbe` and `-EnableM10018EvidenceSummaryProbe` selections.
+They are mutually exclusive and imply the existing timing chain; explicit false
+parents reject. Host planning retains resources and deadlines. The diagnostic
+writer/ordered image reader pass focused checks, but independent native terminal
+snapshots and their complete consumer are pending. Do not launch either profile
+until exact native output is reviewed. Summary cannot supply ordinary full-byte,
+browser or cleanup acceptance, and no performance improvement is established.
+
+[Step1676](../done/step1676.md) preserves the first RC3 WHPX guest failure and
+its paused-state diagnosis. The owned timer interrupt reached its drain, but
+the observed live SS16 failed the existing strict NULL-SS callback contract.
+The entry now validates saved CS8/SS16, leaves live SS0 unchanged and normalizes
+only live SS16 before the callback. Unknown selectors fail closed; the saved
+frame, IRET, EOI, timers, stack sizes and downstream checks remain unchanged.
+Fresh native review retains the Timing bounds. Historical originals remain in
+[step1677](../done/step1677.md). [Step1683](../done/step1683.md) renews the v8 pair
+with current producers: identical image bytes and five matching response hashes,
+independently checked64KiB, final health and owned cancellation/join/refusal.
+The WHPX original additionally verifies the same96-byte prelaunch raw prefix
+and original stdout anchors after its actual retained job joins. Runner lifetimes
+38.895s/48.082s are diagnostic observations, without an end-to-end speedup claim. Full-host
+and final migration/read/browser qualification remain required.
+
 [Step1669](../done/step1669.md) preserves fresh f508 A1 as failed at host `disk_parent_counters`, despite120 completed HTTP responses,49 successful browser exchanges, ready Blazor/API values and guest cleanup markers. The first independent partial diagnostic joins12396 physical requests/35690 payload sectors/2014 windows/120 wire responses; OriginalAccepted=false. Filesystem `fsReads` counts submitted sectors, while device counters count requests. Full now requires exact `fsReads == bootstrapCompleted-34 + Sum(Submitted.Bytes/512)` using the same validated device/END/BOUND/replay identities;34 is the reviewed MBR/GPT prefix outside the filesystem. The sector inspection precedes both parent checks. Ordinary single-sector, ExitPending and CloseReuse checks remain required. All83 focused checks pass; one changed production diagnostic passes57386 calls/2014 windows/60482 IO rows/4237 metadata copies and the actual shared parent envelope/finalcounter join, with five input pins unchanged. The real ELF/index predicates remain mandatory; no synthetic callback, original acceptance, independent reader/PCAP replay or whole-postprocessor authority is added. Native8d and every guest/output/time/package bound remain unchanged. Fresh complete qualification is pending.
 
 [Step1668](../done/step1668.md) preserves source5057 A1 as failed at `threading_protocol_input`, despite120 HTTP responses,49 browser exchanges, ready Blazor/API values and guest cleanup markers. The protocol constructor now shares the existing Full128KiB aggregate policy; ordinary limits remain unchanged. The existing no-VM `qemu inspect-disk-static-values <package> <raw-image> <complete-instruction-index> <serial> --full` diagnostic uses real prepared ELF/index predicates, image inventory and captured roots, with scalar-only Full output. Its first failure exposes slot-ordered wake receipts being mistaken for native enqueue order. The repair reconstructs disk-before-descriptor readiness only within an explicitly enabled normal post-Advance poll batch, preserving original receipt validation and prior FIFO/deadline/signal/Parking winners. Prepare/repark and entry-time empty-supervisor observations retain their existing rules; an unobserved idle turn cannot borrow normal-poll authority. Before the final idle-boundary tightening,74 focused checks pass; afterward19 affected checks, including the changed-clock idle countercase, pass. The changed real-input diagnostic then passes57495 calls,2014 read windows,60200 I/O rows and4143 physical metadata copies with unchanged five-input pins. It grants no original acceptance, independent reader/PCAP replay or whole postprocessor authority. Fresh complete qualification remains required.
@@ -18,13 +189,13 @@ Full018 has a3,600-second browser ceiling using its owned token, separate from t
 
 Full host collection retains128MiB raw serial,256MiB summary and131,072 combined decoded stdout/stderr bytes; ordinary decoded output remains65,536 bytes. The per-write8,192-byte and4,096-write bounds and all guest quotas remain unchanged. Full-only observation and parser corrections grant no new guest resource budget.
 
-The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the original 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
 
 [Step1672](../done/step1672.md) retains prior timeouts, CallLimit/duplicate-ordinal failures, host-observer failures and their exact source/native scopes. Healthy A/B/A, the typed corrupt-file and three M16 lifecycle originals remain distinct. Mechanical59/ExitPending/CloseReuse retain180 seconds, default256MiB, invoke:null and nine controls; Full originals retain21 controls each.
 
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
-The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the original 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
 
 Original recipes retain their recorded default RAM, invocation mode, output/resource bounds, first strict reader rules and healthy-A1 successor gate. The explicit timing and Full-only host observation changes are recorded in [Step1672](../done/step1672.md); guest quotas are unchanged.
 
@@ -2412,7 +2583,8 @@ double-fault recovery nor universal triple-fault prevention.
   execution evidence.
 - A non-dry-run owned-paging selection uses the already-built .NET 11
   `OS.QemuCapture` proxy with private per-run paths. The proxy preserves the real QEMU path, accepts
-  only the runner's audited 256 MiB q35/TCG/headless argument shape, rejects
+  only the runner's audited 256 MiB q35/headless argument shape with the
+  explicitly bound TCG or WHPX backend, rejects alternate accelerator arguments,
   caller-supplied monitor/QMP channels, and opens a private loopback QMP
   channel. The normal `OS.QemuRunner` remains the public marker/timeout
   authority.
@@ -2988,7 +3160,8 @@ If `-OvmfCode` is omitted, the runner checks `OS_OVMF_CODE`, `OVMF_CODE`, `QEMU_
 
 ## Unsupported Behavior
 
-- WHPX/KVM acceleration selection is not implemented; QEMU uses TCG.
+- KVM selection is not implemented. Explicit WHPX/TCG selection is implemented;
+  actual accelerated CLROS execution requires its own recorded qualification.
 - ISO launch paths are not implemented in `tools/OS.QemuRunner`.
 - libvirt real boot is not implemented.
 - Ordinary `VerifiedExit` leaves firmware boot services and completes the accepted

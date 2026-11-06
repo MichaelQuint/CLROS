@@ -4,24 +4,11 @@ using System.Diagnostics;
 // process owner must separately qualify the producer and executing platform.
 // Drained below means only this app's awaited work and disposed timer; it never
 // claims that runtime ThreadPool workers have stopped or released their stacks.
-internal static class Program
+internal static partial class Program
 {
     private const int TimeoutSeconds = 20, WorkItems = 4, PublishedValue = 43;
-    [ThreadStatic] private static bool s_publishing;
-
-    private sealed class ContinuationState
-    {
-        internal int Before, Race, After, Count, PublicationInline;
-    }
-
-    private sealed class TimerState(long before)
-    {
-        internal readonly long Before = before;
-        internal readonly TaskCompletionSource<long> Fired = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal int Callbacks, Stale, Disposed;
-        internal Exception? Failure;
-    }
-
+    [ThreadStatic]
+    private static bool s_publishing;
     private static int Main(string[] args)
     {
         Console.WriteLine("TEST_START nativeaot.threadpool");
@@ -30,6 +17,7 @@ internal static class Program
             Console.WriteLine("TEST_FAIL nativeaot.threadpool invalid_arguments");
             return 1;
         }
+
         try
         {
             RunAsync().GetAwaiter().GetResult();
@@ -69,14 +57,17 @@ internal static class Program
                 return (Square: square, Worker: Environment.CurrentManagedThreadId);
             });
         }
+
         var results = await Task.WhenAll(tasks).WaitAsync(Remaining(stage)).ConfigureAwait(false);
         HashSet<int> workers = [];
         int checksum = 0;
         for (int i = 0; i < results.Length; i++)
         {
             Require(results[i].Square == (i + 1) * (i + 1) && results[i].Worker > 0, "work_result");
-            checksum += results[i].Square; workers.Add(results[i].Worker);
+            checksum += results[i].Square;
+            workers.Add(results[i].Worker);
         }
+
         Require(completed == WorkItems && checksum == 30 && workers.Count is >= 1 and <= WorkItems, "work_inventory");
         Console.WriteLine(FormattableString.Invariant($"NATIVEAOT_THREADPOOL_WORK tasks={tasks.Length} completed={completed} checksum={checksum} workers={workers.Count} threadPool=true"));
         return completed;
@@ -100,8 +91,14 @@ internal static class Program
         {
             Require(Thread.CurrentThread.IsThreadPoolThread, "publication_threadpool");
             s_publishing = true;
-            try { source.SetResult(PublishedValue); }
-            finally { s_publishing = false; }
+            try
+            {
+                source.SetResult(PublishedValue);
+            }
+            finally
+            {
+                s_publishing = false;
+            }
         }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
         Require(!source.Task.IsCompleted && !before.IsCompleted && !race.IsCompleted && !publisher.IsCompleted, "continuations_staged");
         gate.SetResult(true);
@@ -111,15 +108,15 @@ internal static class Program
         // worker so that even that permitted inline case has ThreadPool context.
         Task after = Task.Run(async () => await Attach(source.Task, state, 2).ConfigureAwait(false));
         await after.WaitAsync(Remaining(stage)).ConfigureAwait(false);
-        Require(state.Before == 1 && state.Race == 1 && state.After == 1 && state.Count == 3 && state.PublicationInline == 0,
-            "continuation_inventory");
+        Require(state.Before == 1 && state.Race == 1 && state.After == 1 && state.Count == 3 && state.PublicationInline == 0, "continuation_inventory");
         Console.WriteLine(FormattableString.Invariant($"NATIVEAOT_THREADPOOL_CONTINUATIONS before={state.Before} race={state.Race} after={state.After} count={state.Count} value={source.Task.Result} publicationInline={state.PublicationInline}"));
         return state.Count;
     }
 
     private static Task Attach(Task<int> source, ContinuationState state, int position) => source.ContinueWith(task =>
     {
-        if (s_publishing) Interlocked.Increment(ref state.PublicationInline);
+        if (s_publishing)
+            Interlocked.Increment(ref state.PublicationInline);
         Require(!s_publishing && Thread.CurrentThread.IsThreadPoolThread, "continuation_publication_context");
         Require(task.IsCompletedSuccessfully && task.Result == PublishedValue, "continuation_value");
         int count = position switch
@@ -131,7 +128,6 @@ internal static class Program
         Require(count == 1, "continuation_duplicate");
         Interlocked.Increment(ref state.Count);
     }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-
     private static async Task CancellationAsync()
     {
         long stage = Stopwatch.GetTimestamp();
@@ -141,16 +137,21 @@ internal static class Program
             canceled.Cancel();
             Task work = Task.Run(() => Interlocked.Increment(ref callbacks), canceled.Token);
             Task delay = Task.Delay(TimeSpan.FromMilliseconds(50), canceled.Token);
-            await ExpectCanceled(work, canceled.Token, stage).ConfigureAwait(false); before++;
-            await ExpectCanceled(delay, canceled.Token, stage).ConfigureAwait(false); before++;
+            await ExpectCanceled(work, canceled.Token, stage).ConfigureAwait(false);
+            before++;
+            await ExpectCanceled(delay, canceled.Token, stage).ConfigureAwait(false);
+            before++;
         }
+
         using (CancellationTokenSource live = new())
         {
             Task delay = Task.Delay(TimeSpan.FromSeconds(10), live.Token);
             Require(!delay.IsCompleted && !live.IsCancellationRequested, "cancellation_live_delay");
             live.Cancel();
-            await ExpectCanceled(delay, live.Token, stage).ConfigureAwait(false); during++;
+            await ExpectCanceled(delay, live.Token, stage).ConfigureAwait(false);
+            during++;
         }
+
         Require(before == 2 && during == 1 && callbacks == 0, "cancellation_inventory");
         Console.WriteLine(FormattableString.Invariant($"NATIVEAOT_THREADPOOL_CANCELLATION before={before} during={during} callbacks={callbacks}"));
     }
@@ -158,8 +159,16 @@ internal static class Program
     private static async Task ExpectCanceled(Task task, CancellationToken token, long stage)
     {
         bool observed = false;
-        try { await task.WaitAsync(Remaining(stage)).ConfigureAwait(false); }
-        catch (OperationCanceledException error) { Require(error.CancellationToken == token, "cancellation_token"); observed = true; }
+        try
+        {
+            await task.WaitAsync(Remaining(stage)).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException error)
+        {
+            Require(error.CancellationToken == token, "cancellation_token");
+            observed = true;
+        }
+
         Require(observed && task.IsCanceled, "cancellation_final_state");
     }
 
@@ -187,8 +196,7 @@ internal static class Program
             long observation = Stopwatch.GetTimestamp();
             await Task.Delay(TimeSpan.FromMilliseconds(50)).WaitAsync(Remaining(stage)).ConfigureAwait(false);
             RequireElapsed(observation, Stopwatch.GetTimestamp(), "timer_drain_observation");
-            Require(observation >= fired && Volatile.Read(ref state.Failure) is null &&
-                Volatile.Read(ref state.Callbacks) == 1 && Volatile.Read(ref state.Stale) == 0, "timer_drained");
+            Require(observation >= fired && Volatile.Read(ref state.Failure) is null && Volatile.Read(ref state.Callbacks) == 1 && Volatile.Read(ref state.Stale) == 0, "timer_drained");
             Console.WriteLine(FormattableString.Invariant($"NATIVEAOT_THREADPOOL_TIMER dueMs=50 before={state.Before} fired={fired} frequency={Stopwatch.Frequency} callbacks={state.Callbacks} stale={state.Stale} disposed=true"));
             return (state.Callbacks, state.Stale);
         }
@@ -207,7 +215,8 @@ internal static class Program
         int count = Interlocked.Increment(ref state.Callbacks);
         try
         {
-            if (Volatile.Read(ref state.Disposed) != 0) Interlocked.Increment(ref state.Stale);
+            if (Volatile.Read(ref state.Disposed) != 0)
+                Interlocked.Increment(ref state.Stale);
             Require(count == 1 && Volatile.Read(ref state.Stale) == 0 && Thread.CurrentThread.IsThreadPoolThread, "timer_callback_context");
             long fired = Stopwatch.GetTimestamp();
             RequireElapsed(state.Before, fired, "timer_elapsed");
@@ -227,12 +236,10 @@ internal static class Program
         return remaining;
     }
 
-    private static void RequireElapsed(long before, long after, string reason) =>
-        Require(Stopwatch.Frequency > 0 && before >= 0 && after >= before &&
-            Stopwatch.GetElapsedTime(before, after) >= TimeSpan.FromMilliseconds(25), reason);
-
+    private static void RequireElapsed(long before, long after, string reason) => Require(Stopwatch.Frequency > 0 && before >= 0 && after >= before && Stopwatch.GetElapsedTime(before, after) >= TimeSpan.FromMilliseconds(25), reason);
     private static void Require(bool condition, string reason)
     {
-        if (!condition) throw new InvalidOperationException(reason);
+        if (!condition)
+            throw new InvalidOperationException(reason);
     }
 }

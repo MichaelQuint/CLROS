@@ -1,8 +1,281 @@
 # Documentation Map
 
+For build, evidence and status entry points, see the [documentation index](README.md).
+The [PR814 qualification record](../work/rc3-whpx-qualification.md#candidate-results)
+tracks the qualified `2e81ee3a` runtime and the approved incomplete-TCG
+closeout. The later `72784936` optimization and isolated decoder work remain
+outside the release. The step entries below retain the results at their
+original commits.
+
+[Step1790](../done/step1790.md) records the approved PR814 closeout from
+qualified runtime `2e81ee3a`, incomplete TCG reporting, scoped review and
+recoverable preservation of the excluded development tails.
+
+[Step1789](../done/step1789.md) records the isolated adjacent disk-audit candidate,
+its guarded host checks, separate host timing screen and current conditional
+native inspection. It preserves observer failures and the remaining integration,
+Full/matrix/guest/browser/performance gates.
+
+[Step1787](../done/step1787.md) joins source35b's accepted Full/compiler29 evidence,
+the failed Hello ancestor original and the scoped ready-child cancellation
+repair. Its67focused checks and retained re-analysis do not qualify the repaired
+source; final Full/matrix/disk/browser/performance and delivery remain required.
+
+[Step1786](../done/step1786.md) records the failed DiskA1 original, independently
+checked HTTP/browser bodies, bounded host deadline-model repair and 1,044 focused
+passes. Host/EFI/phase guides preserve the original failure and remaining final
+qualification.
+
+[Step1785](../done/step1785.md) preserves the complete failed Full (996 groups,
+unchanged inputs, zero reuse) and repairs six affected fixture groups with259
+fresh focused passes. Runtime code is unchanged; remaining final qualification
+and PR814 delivery take priority over preserved follow-up refactors.
+
+
+[Step1783](../done/step1783.md) owns the fresh failed Full, reviewed producer-map
+repair and expanded early contract audit. Host/repository guides retain final gates.
+
+[Step1781](../done/step1781.md) owns storage common-tail integration,58 focused
+checks and current emitted facts. Storage/host/EFI guides keep review limits.
+
+[Step1780](../done/step1780.md) owns the exact host control extraction and49
+fresh focused checks. Host and repository guides preserve final qualification.
+
+[Step1779](../done/step1779.md) owns dynamic runner discovery/grouping cleanup and
+its focused validation. Host requirements and repository audit retain final gates.
+
+[Step1778](../done/step1778.md) owns the sealed rejected contrast, restored-state
+validation and runtime inventory formatting. EFI/host guides preserve diagnostic
+limits and final qualification requirements.
+
+[Step1777](../done/step1777.md) owns current decimal transport/admission and the
+stopped WHPX paired original. EFI and host guides retain strict backend failure
+handling and distinguish separate TCG diagnostics from final qualification.
+
+[Step1776](../done/step1776.md) owns the bounded decimal trial, host controls and
+actual native inspection. EFI build retains pending current proof transport;
+host requirements preserves failed originals and qualification boundaries.
+
+[Step1775](../done/step1775.md) owns independent Short observation, raw serial/
+decimal census and the separate host-model hypothesis. EFI and host guides keep
+production/native/performance qualification separate from operation counts.
+
+[Step1774](../done/step1774.md) owns current conditional native integration,
+protected-owner preflight and two backend Short originals. EFI build preserves
+live conditions; host requirements distinguishes diagnostics from final gates.
+
+[Step1773](../done/step1773.md) owns the sealed narrow metadata ruling and complete
+disk-owner/arena derivation. EFI build preserves remaining conditional admission;
+host requirements separates metadata-only controls from final qualification.
+
+[Step1772](../done/step1772.md) owns exact slot/outer-frontier repairs and current
+metadata-source provenance preparation. EFI build retains admission conditions;
+host requirements distinguishes native/compiler, host-tooling and archive scopes.
+
+[Step1771](../done/step1771.md) owns exact input/close-role integration and its
+independent review. EFI build records pending complete phase/live admission;
+host requirements separates artifact-reader controls from final qualification.
+
+[Step1770](../done/step1770.md) owns physical caller-role and current section/payload
+review. EFI build preserves all-role/charge and live requirements; host requirements
+records reader controls/repairs and the separate conditional input-role candidate.
+No overall native/guest/performance qualification transfers from these readers.
+
+[Step1769](../done/step1769.md) owns explicit IRQ charge allocation and its
+independent numerical review. EFI build records the conditional margin;
+host requirements distinguishes reader controls/repair from native admission.
+
+[Step1768](../done/step1768.md) owns both rejected readonly-copy native trials and
+exact source/PE restoration. EFI build records the remaining physical/charge
+requirements; host requirements retains focused checks and publication scope.
+
+[Step1767](../done/step1767.md) owns guarded-call/outer-prefix review, the host
+checker correction and isolated owner-copy measurements. EFI build retains
+physical/live requirements; host requirements distinguishes the host probe
+from native/guest and final performance qualification.
+
+[Step1766](../done/step1766.md) owns storage provider alternatives, independent
+finite arithmetic and later network/core byte candidates. EFI build records
+remaining physical/live requirements; host requirements records controls and
+preserved corrections. Final native/guest/performance qualification stays open.
+
+[Step1765](../done/step1765.md) owns independent compiled-owner joins and the
+enum-shape probe correction. EFI build retains physical/live/current-image
+requirements; host requirements records actual altered-metadata control scope.
+Remaining provider and final native/guest/performance qualification stay open.
+
+[Step1764](../done/step1764.md) owns explicit provider evaluation, pool/descriptor
+reviews and compiled owner-prefix evidence. EFI build preserves target/physical/
+live requirements; host requirements records probe controls and unsupported-tail
+limits. All final native/guest/performance qualification gates remain open.
+
+[Step1763](../done/step1763.md) owns clock/startup review and new raw publication
+evidence. EFI build retains exact target/physical/live requirements; host
+requirements records inert byte audits and negative controls. Remaining provider
+and final native/guest/performance qualification gates stay open.
+
+[Step1762](../done/step1762.md) owns selected user-memory provider review and
+clock/startup candidate evidence. EFI build retains actual-target/physical/live
+requirements; host requirements distinguishes successful probes and preserved
+failures. Final native/guest/performance qualification remains open.
+
+[Step1761](../done/step1761.md) owns physical-phase review, the rejected-Prepare
+frontier and conditional guard/page/copy components. EFI build retains original
+witness and live native requirements; host requirements records parser controls
+and nonexecuting scope. Final native/guest/performance qualification stays open.
+
+[Step1760](../done/step1760.md) owns complete current prefix facts, probe controls,
+conditional callback expressions and the Storage.Memory.Code prefix. EFI build
+retains physical composition/numerical-anchor and current-image prerequisites;
+host requirements records actual control scope. Equal logical expressions do
+not close native, guest, performance or final qualification gates.
+
+[Step1759](../done/step1759.md) owns current Timing layout/code/fragment checks,
+storage helper-call costs and strengthened inspection inputs. EFI build retains
+the remaining current-image admission conditions; host requirements records
+actual nonexecuting scope and altered-input controls. Metadata/coverage, all own
+stack roles and final guest/performance qualification remain open.
+
+[Step1758](../done/step1758.md) owns current IRQ path reconstruction and raw
+provider-byte inspection. EFI build retains the unresolved native-safety joins;
+host requirements records nonexecuting host scope and parser controls. No final
+qualification gate closes from the conditional candidate arithmetic.
+
+[Step1757](../done/step1757.md) records a rejected stopped-deadline extraction,
+40 focused controls and measured native frames. EFI build owns the restored
+source-admission and emitted-code boundary; the evidence step preserves the trial,
+reader/preflight failures and still-required own Timing qualification.
+
+[Step1756](../done/step1756.md) records the final-output evidence release fix,
+two ownership controls, timeout consolidation and 51 focused checks. Host
+requirements owns execution and receipt-phase boundaries; repo audit owns the
+concrete handoff. The phase contract retains current Timing+Summary native review
+and every final qualification gate.
+
+[Step1755](../done/step1755.md) records complete Linux producer partials, exact
+member/parent reconstruction and80 focused checks. Repo audit owns organization
+and unchanged failure boundaries; host requirements records actual execution
+scope and the still-deferred capability boundary.
+
+[Step1754](../done/step1754.md) owns original quiet-capture evaluation, retained
+parent failures and the8KiB boundary correlation. Diagnostics owns timings and
+remaining attribution, networking the packet scope, host requirements the
+isolated reader/guard boundaries, and repo audit the unchanged production policy.
+
+[Step1753](../done/step1753.md) records bounded file-wire reporting and31 focused
+checks. Diagnostics owns cadence units and incomplete observations, networking
+the unchanged strict parser/close boundaries, host requirements the explicit
+reporting budgets, and repo audit the associated-file organization.
+
+[Step1752](../done/step1752.md) owns dynamic leaf/dependency and clean-checkout
+repairs, preserved raw firewalls,80 focused checks and the actual filtered-catch
+artifact original. Repo audit owns type/source placement, host requirements the
+execution and child-retention limits, and EFI build the managed-metadata join.
+
+[Step1751](../done/step1751.md) owns the stopped Full originals, dynamic probe
+repairs, Kestrel producer-interference diagnosis and55 fresh focused checks.
+Repo audit owns source/guard preservation; host requirements owns publication
+isolation and incomplete-run boundaries; EFI build owns ACPI witness limits.
+
+[Step1750](../done/step1750.md) records platform owner partials, 41 focused
+checks and complete retained storage/baseline worktree accounting. Repo audit
+owns source equivalence; host requirements distinguishes real managed execution.
+
+[Step1749](../done/step1749.md) records the ordered terminal-selector cleanup,
+complete storage-method responsibility review, 40 focused checks and the
+preserved canonical Gitea transport failure. Repo audit owns this host-only scope.
+
+[Step1748](../done/step1748.md) records timer/cache repairs and the matched quiet
+HTTP pair. Diagnostics owns results/attribution, storage owns backing/coverage,
+EFI owns current emission/stack conditions, and host requirements owns explicit
+client/join boundaries. Final Full/matrix/population/browser gates stay open.
+
+[Step1747](../done/step1747.md) closes the six-operation ToolCommand extraction.
+Repo audit owns its body/router equivalence and guarded host checks; existing
+subsystem/native/guest/performance qualification boundaries remain unchanged.
+
+[Step1746](../done/step1746.md) owns the dynamic semantic-fixture repair and
+rejected twelve-boot inlining trial. Host/repo explain independent negative
+expectations; diagnostics/storage record distributions and raw joins; EFI keeps
+trial emitted proof separate from restored source. Final gates remain open.
+
+[Step1745](../done/step1745.md) owns fresh own-Full emitted proof,613 concrete
+launch holds, failed WHPX and functionally complete TCG observations, and the
+stopped-summary host repair. Diagnostics/storage own exact raw joins and limits;
+EFI owns conditional margins/metadata; host/repo own red/green and source epochs.
+Neither original outer failure becomes a normal Full qualification result.
+
+[Step1744](../done/step1744.md) owns lambda containment, the reviewed29-file
+whitespace packet/two current pins, retained valid styles and66 focused checks.
+Repository audit owns the rule's limits; EFI guidance keeps renewed native proof
+mandatory. Primary responsibility review and extended/final gates remain open.
+
+[Step1743](../done/step1743.md) owns the host HTTP deadline and receipt-error
+repairs, real timer and preserved red/green originals. Diagnostics/storage guides
+retain source/result boundaries. Remaining lambda indentation and qualification
+work stays distinct from these managed host controls.
+
+[Step1742](../done/step1742.md) owns the statement-layout rule, mechanical
+proof/pin refresh and62 focused checks. Repository audit owns enforcement scope;
+EFI guidance retains emitted-artifact requirements. The storage review completes
+its52 adjacent large-method rows and prepares separate host correctness repairs.
+
+[Step1741](../done/step1741.md) records fresh QMP/native provenance, all twelve
+paired Short originals, exact raw joins and mixed per-request distributions.
+Diagnostics owns timing/tradeoff scope; host/EFI guides own unchanged execution
+conditions; storage owns sector/media joins. Extended and final gates remain.
+
+[Step1740](../done/step1740.md) records conditional literal-text native review,
+one functional Short, the incomplete paired series and the host QMP lifetime
+repair. Diagnostics owns raw observations and failure boundaries; host/EFI guides
+own renewed provenance and execution conditions; storage owns media/counter joins.
+No complete performance distribution or final qualification is claimed.
+
+[Step1739](../done/step1739.md) records the r148 cleanup, conditional native
+review, twelve local commits and first failed full-asset diagnostic. Repository
+audit owns type/conditional/pin proofs; EFI build owns current native limits;
+diagnostics/storage own partial transfer and attribution boundaries. Final
+host/matrix/browser qualification and delivery remain pending.
+
+[Step1738](../done/step1738.md) records the explicit HTTP benchmark owner and
+68 passing host checks. Host requirements owns selection and lifetime limits;
+diagnostics owns first/warm observations and failure preservation; storage owns
+unchanged quota/capture boundaries and the reviewed commit partition.
+
+[Step1737](../done/step1737.md) records complete remaining formatting, host
+inspection extractions and guarded compiler-resource/EFI policy repairs. Repo
+audit owns source/type/pin proofs; host requirements owns current build/fixture
+boundaries; diagnostics preserves all failed originals and unresolved allocation.
+The57-marker r140 focused pass does not renew Full/native/guest/browser gates.
+
+[Step1736](../done/step1736.md) records the explicit C# HTTP observation API and
+21-file NVMe formatting batch. Host requirements owns invocation/ownership limits;
+diagnostics owns request/body-file timing and partial-failure interpretation;
+storage owns source-equivalence and no-live-NVMe boundaries.49 focused checks
+pass. Extended actual guest/browser and final qualification remain open.
+
+The active M04-026/#813 execution and acceptance contract is
+[RC3 and WHPX qualification](../work/rc3-whpx-qualification.md). It is a bounded
+work record; build/host/QEMU/completion guidance remains in the existing
+canonical documents below. It grants no additional accepted capability.
+
+[Step1733](../done/step1733.md) records the rejected and reverted serial-copy
+trial and the reviewed 22-file storage formatting integration. All127 affected
+checks pass; production performance repair and final combined qualification stay open.
+
+[Step1735](../done/step1735.md) records the FIFO stack repair, complete conditional
+native review and six initial plus twelve quiet original boots. Diagnostics owns
+the serial semantics and attribution; storage owns actual image/sector joins;
+host requirements owns quiet-host execution and remaining qualification limits.
+WHPX range median improves 10.8%; TCG remains inconclusive. Final acceptance is open.
+
+[Step1685](../done/step1685.md) is the latest migration checkpoint: e0252d3a's
+7,483-check full, sixteen strict compiler originals and the bounded host panic
+prefix repair. Remaining final host/native/guest/browser gates stay open.
+
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
-The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the original 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
 
 The inventory comprises48 first-party non-done documents/guides and one separately classified reference guide. The earlier48-entry inventory omitted first-party work/PAL/pal-design.md and included the reference guide; PAL design is unaffected. Immutable done steps retain the evidence history.
 

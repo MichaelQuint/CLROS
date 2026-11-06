@@ -20,8 +20,8 @@ public sealed class StaticFileProcessEvidence
     /// No process is launched, queried or retained by formatting.</summary>
     public IReadOnlyList<string> Summary()
     {
-        string Bit(bool value)=>value?"true":"false";
-        string Number(long? value)=>value?.ToString(CultureInfo.InvariantCulture)??"none";
+        string Bit(bool value) => value ? "true" : "false";
+        string Number(long? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "none";
         return Array.AsReadOnly(new[]{
             "STATIC_CHILD_ID "+Number(ProcessId),
             "STATIC_CHILD_START_UTC "+(StartUtc??"none"),

@@ -18,22 +18,37 @@ internal static class NativeAotStaticFileEvidenceTests
             rows[0] with { BodyFile = "../outside.body" }, rows[0] with { BodyBytes = rows[0].BodyBytes + 1 }
         })
         {
-            var copy = rows.ToArray(); copy[0] = changed;
+            var copy = rows.ToArray();
+            copy[0] = changed;
             Reject(() => NativeAotStaticFileContract.ValidateHttp(directory, assets, copy));
         }
         var wrongRange = rows.ToArray();
         int index = Array.FindIndex(wrongRange, x => x.Status == 206);
-        wrongRange[index] = wrongRange[index] with { ContentRange = "bytes 511-1032/2048" };
+        wrongRange[index] = wrongRange[index] with
+        {
+            ContentRange = "bytes 511-1032/2048"
+        };
         Reject(() => NativeAotStaticFileContract.ValidateHttp(directory, assets, wrongRange));
         var wrongType = rows.ToArray();
         index = Array.FindIndex(wrongType, x => x.Path == "/app.wasm" && x.Status == 200);
-        wrongType[index] = wrongType[index] with { ContentType = "text/plain" };
+        wrongType[index] = wrongType[index] with
+        {
+            ContentType = "text/plain"
+        };
         Reject(() => NativeAotStaticFileContract.ValidateHttp(directory, assets, wrongType));
         var serialized = rows.ToArray();
         index = Array.FindIndex(serialized, x => x.Concurrent);
-        serialized[index] = serialized[index] with { Started = 100, Finished = 110 };
+        serialized[index] = serialized[index] with
+        {
+            Started = 100,
+            Finished = 110
+        };
         Reject(() => NativeAotStaticFileContract.ValidateHttp(directory, assets, serialized));
-        var duplicate = rows.ToArray(); duplicate[1] = duplicate[1] with { BodyFile = duplicate[0].BodyFile };
+        var duplicate = rows.ToArray();
+        duplicate[1] = duplicate[1] with
+        {
+            BodyFile = duplicate[0].BodyFile
+        };
         Reject(() => NativeAotStaticFileContract.ValidateHttp(directory, assets, duplicate));
         File.WriteAllText(Path.Combine(directory, rows[0].BodyFile), "stale body");
         Reject(() => NativeAotStaticFileContract.ValidateHttp(directory, assets, rows));
@@ -56,7 +71,10 @@ internal static class NativeAotStaticFileEvidenceTests
             Reject(() => NativeAotStaticFileContract.ValidateNativeInputs(inventory));
             Reject(() => NativeAotStaticFileContract.ValidateNativeInputs(new Dictionary<string, string>()));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     [HostTest("static reference shutdown requires signal exit marker and endpoint refusal")]
@@ -90,8 +108,14 @@ internal static class NativeAotStaticFileEvidenceTests
                 Path.Combine(source, "_framework", ".."), Path.Combine(source, "prepared"), Path.GetDirectoryName(source)! })
             {
                 bool overlapRejected = false;
-                try { BlazorStaticFileAssets.Prepare(root, source, overlap); }
-                catch (InvalidDataException error) { overlapRejected = error.Message == "blazor_source_destination_overlap"; }
+                try
+                {
+                    BlazorStaticFileAssets.Prepare(root, source, overlap);
+                }
+                catch (InvalidDataException error)
+                {
+                    overlapRejected = error.Message == "blazor_source_destination_overlap";
+                }
                 HostCheck.True(overlapRejected);
                 HostCheck.True(Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal).SequenceEqual(originalTree));
             }
@@ -107,7 +131,10 @@ internal static class NativeAotStaticFileEvidenceTests
             HostCheck.True(!Directory.Exists(Path.Combine(root, "outside")));
             HostCheck.True(File.ReadAllBytes(Path.Combine(source, "_framework", "runtime.wasm")).AsSpan().SequenceEqual(wasm));
         }
-        finally { Directory.Delete(root, true); }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
     }
 
     private static void WithEvidence(Action<string, WebRootImageFixture.Snapshot, Observation[]> action)
@@ -140,23 +167,55 @@ internal static class NativeAotStaticFileEvidenceTests
             Row("GET", "/app.wasm", 200, wasm, "application/wasm");
             Row("GET", "/app.wasm", 206, wasm.AsSpan(510, 522).ToArray(), "application/wasm", 522, "bytes 510-1031/2048");
             Row("GET", "/app.wasm", 416, [], range: "bytes */2048");
-            Row("GET", "/", 304, []); Row("GET", "/", 304, []);
-            Row("GET", "/.clros-missing", 404, []); Row("POST", "/index.html", 404, []);
+            Row("GET", "/", 304, []);
+            Row("GET", "/", 304, []);
+            Row("GET", "/.clros-missing", 404, []);
+            Row("POST", "/index.html", 404, []);
             Row("GET", "/app.wasm", 200, wasm, "application/wasm");
-            rows[^1] = rows[^1] with { Concurrent = true, Started = 10, Finished = 30 };
+            rows[^1] = rows[^1] with
+            {
+                Concurrent = true,
+                Started = 10,
+                Finished = 30
+            };
             Row("GET", "/app.wasm", 200, wasm, "application/wasm");
-            rows[^1] = rows[^1] with { Concurrent = true, Started = 20, Finished = 40 };
+            rows[^1] = rows[^1] with
+            {
+                Concurrent = true,
+                Started = 20,
+                Finished = 40
+            };
             action(directory, assets, rows.ToArray());
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static void Reject(Action action)
     {
         bool rejected = false;
-        try { action(); } catch (InvalidDataException) { rejected = true; } catch (InvalidOperationException) { rejected = true; }
-        catch (FileNotFoundException) { rejected = true; }
-        catch (ToolFailure) { rejected = true; }
+        try
+        {
+            action();
+        }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
+        catch (InvalidOperationException)
+        {
+            rejected = true;
+        }
+        catch (FileNotFoundException)
+        {
+            rejected = true;
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

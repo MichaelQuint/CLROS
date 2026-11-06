@@ -2,52 +2,6 @@ using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
 
-public enum IdtGateDescriptorStatus
-{
-    Ok = 0,
-    InvalidVector = 1,
-    InvalidIstIndex = 2,
-    InvalidSelector = 3,
-    InvalidGateType = 4,
-    NullHandlerAddress = 5,
-    InvalidDescriptorPrivilegeLevel = 6
-}
-
-public enum IdtGateType : byte
-{
-    InterruptGate = 0x0e,
-    TrapGate = 0x0f
-}
-
-public readonly struct IdtGateDescriptorResult
-{
-    private IdtGateDescriptorResult(
-        bool succeeded,
-        IdtGateDescriptorStatus status,
-        IdtGateDescriptor descriptor)
-    {
-        Succeeded = succeeded;
-        Status = status;
-        Descriptor = descriptor;
-    }
-
-    public bool Succeeded { get; }
-
-    public IdtGateDescriptorStatus Status { get; }
-
-    public IdtGateDescriptor Descriptor { get; }
-
-    public static IdtGateDescriptorResult Success(IdtGateDescriptor descriptor)
-    {
-        return new IdtGateDescriptorResult(true, IdtGateDescriptorStatus.Ok, descriptor);
-    }
-
-    public static IdtGateDescriptorResult Fail(IdtGateDescriptorStatus status)
-    {
-        return new IdtGateDescriptorResult(false, status, default);
-    }
-}
-
 public readonly struct IdtGateDescriptor
 {
     public const int EncodedLength = 16;
@@ -57,17 +11,7 @@ public readonly struct IdtGateDescriptor
     public const int MaximumIstIndex = 7;
     public const int MinimumDescriptorPrivilegeLevel = 0;
     public const int MaximumDescriptorPrivilegeLevel = 3;
-
-    private IdtGateDescriptor(
-        int vector,
-        ushort offsetLow,
-        ushort codeSelector,
-        byte istIndex,
-        IdtGateType gateType,
-        byte descriptorPrivilegeLevel,
-        bool present,
-        ushort offsetMiddle,
-        uint offsetHigh)
+    private IdtGateDescriptor(int vector, ushort offsetLow, ushort codeSelector, byte istIndex, IdtGateType gateType, byte descriptorPrivilegeLevel, bool present, ushort offsetMiddle, uint offsetHigh)
     {
         Vector = vector;
         OffsetLow = offsetLow;
@@ -80,27 +24,58 @@ public readonly struct IdtGateDescriptor
         OffsetHigh = offsetHigh;
     }
 
-    public int Vector { get; }
+    public int Vector
+    {
+        get;
+    }
+    public ushort OffsetLow
+    {
+        get;
+    }
+    public ushort CodeSelector
+    {
+        get;
+    }
+    public byte IstIndex
+    {
+        get;
+    }
+    public IdtGateType GateType
+    {
+        get;
+    }
+    public byte DescriptorPrivilegeLevel
+    {
+        get;
+    }
+    public bool Present
+    {
+        get;
+    }
+    public ushort OffsetMiddle
+    {
+        get;
+    }
+    public uint OffsetHigh
+    {
+        get;
+    }
 
-    public ushort OffsetLow { get; }
+    public uint Reserved
+    {
+        get
+        {
+            return 0;
+        }
+    }
 
-    public ushort CodeSelector { get; }
-
-    public byte IstIndex { get; }
-
-    public IdtGateType GateType { get; }
-
-    public byte DescriptorPrivilegeLevel { get; }
-
-    public bool Present { get; }
-
-    public ushort OffsetMiddle { get; }
-
-    public uint OffsetHigh { get; }
-
-    public uint Reserved { get { return 0; } }
-
-    public byte IstByte { get { return IstIndex; } }
+    public byte IstByte
+    {
+        get
+        {
+            return IstIndex;
+        }
+    }
 
     public byte TypeAttributes
     {
@@ -108,7 +83,6 @@ public readonly struct IdtGateDescriptor
         {
             byte attributes = (byte)((DescriptorPrivilegeLevel & 0x03) << 5);
             attributes |= (byte)GateType;
-
             if (Present)
             {
                 attributes |= 0x80;
@@ -122,55 +96,23 @@ public readonly struct IdtGateDescriptor
     {
         get
         {
-            return OffsetLow
-                | ((ulong)OffsetMiddle << 16)
-                | ((ulong)OffsetHigh << 32);
+            return OffsetLow | ((ulong)OffsetMiddle << 16) | ((ulong)OffsetHigh << 32);
         }
     }
 
-    public static IdtGateDescriptorResult Create(
-        int vector,
-        ulong handlerAddress,
-        ushort codeSelector,
-        byte istIndex,
-        IdtGateType gateType,
-        byte descriptorPrivilegeLevel,
-        bool present)
+    public static IdtGateDescriptorResult Create(int vector, ulong handlerAddress, ushort codeSelector, byte istIndex, IdtGateType gateType, byte descriptorPrivilegeLevel, bool present)
     {
-        IdtGateDescriptorStatus status = Validate(
-            vector,
-            handlerAddress,
-            codeSelector,
-            istIndex,
-            gateType,
-            descriptorPrivilegeLevel);
-
+        IdtGateDescriptorStatus status = Validate(vector, handlerAddress, codeSelector, istIndex, gateType, descriptorPrivilegeLevel);
         if (status != IdtGateDescriptorStatus.Ok)
         {
             return IdtGateDescriptorResult.Fail(status);
         }
 
-        IdtGateDescriptor descriptor = new IdtGateDescriptor(
-            vector,
-            (ushort)handlerAddress,
-            codeSelector,
-            istIndex,
-            gateType,
-            descriptorPrivilegeLevel,
-            present,
-            (ushort)(handlerAddress >> 16),
-            (uint)(handlerAddress >> 32));
-
+        IdtGateDescriptor descriptor = new IdtGateDescriptor(vector, (ushort)handlerAddress, codeSelector, istIndex, gateType, descriptorPrivilegeLevel, present, (ushort)(handlerAddress >> 16), (uint)(handlerAddress >> 32));
         return IdtGateDescriptorResult.Success(descriptor);
     }
 
-    public static IdtGateDescriptorStatus Validate(
-        int vector,
-        ulong handlerAddress,
-        ushort codeSelector,
-        byte istIndex,
-        IdtGateType gateType,
-        byte descriptorPrivilegeLevel)
+    public static IdtGateDescriptorStatus Validate(int vector, ulong handlerAddress, ushort codeSelector, byte istIndex, IdtGateType gateType, byte descriptorPrivilegeLevel)
     {
         if (vector < MinimumVector || vector > MaximumVector)
         {
@@ -219,13 +161,11 @@ public readonly struct IdtGateDescriptor
         EndianPrimitives.WriteUInt16LittleEndian(destination.Slice(6, sizeof(ushort)), OffsetMiddle);
         EndianPrimitives.WriteUInt32LittleEndian(destination.Slice(8, sizeof(uint)), OffsetHigh);
         EndianPrimitives.WriteUInt32LittleEndian(destination.Slice(12, sizeof(uint)), Reserved);
-
         return true;
     }
 
     private static bool IsValidGateType(IdtGateType gateType)
     {
-        return gateType == IdtGateType.InterruptGate
-            || gateType == IdtGateType.TrapGate;
+        return gateType == IdtGateType.InterruptGate || gateType == IdtGateType.TrapGate;
     }
 }

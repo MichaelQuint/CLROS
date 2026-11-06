@@ -17,11 +17,14 @@ internal static class NativeAotRuntimeIntegrationTests
         HostCheck.True(Apps.All(app => !EfiProfile.Create(null, new Dictionary<string, bool>()).IsEnabled(NativeAotRuntimeSelection.Flag(app))));
         foreach (string app in Apps)
         {
-            var options = Options(app, "-DryRun"); var plan = QemuProfiles.Create(options);
-            HostCheck.Equal(app, options.LinuxThreadingApplication); HostCheck.Equal("Diagnostic", plan.BootPolicy);
+            var options = Options(app, "-DryRun");
+            var plan = QemuProfiles.Create(options);
+            HostCheck.Equal(app, options.LinuxThreadingApplication);
+            HostCheck.Equal("Diagnostic", plan.BootPolicy);
             foreach (string flag in new[] { "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe",
                 "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM05ApicSetupProbe",
-                "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe" }) HostCheck.True(plan.IsEnabled(flag));
+                "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe" })
+                HostCheck.True(plan.IsEnabled(flag));
             var m = NativeAotRuntimeSelection.Markers(app);
             foreach (string marker in new[] { m.Start, m.Ready, m.Pass })
                 HostCheck.True(plan.Required.Contains(marker) && plan.Unique.Contains(marker));
@@ -38,12 +41,20 @@ internal static class NativeAotRuntimeIntegrationTests
             foreach (string parent in parents)
             {
                 bool rejected = false;
-                try { EfiOptions.Parse(["-" + NativeAotRuntimeSelection.Flag(app), "-" + parent + "=false"], true).Profile(); }
-                catch (ToolFailure) { rejected = true; }
+                try
+                {
+                    EfiOptions.Parse(["-" + NativeAotRuntimeSelection.Flag(app), "-" + parent + "=false"], true).Profile();
+                }
+                catch (ToolFailure)
+                {
+                    rejected = true;
+                }
                 HostCheck.True(rejected, "explicit disabled parent " + parent);
             }
         }
-        var old = QemuSmokeOptions.Parse("-BuildEfi", "-EnableM16009Probe"); QemuProfiles.Create(old); HostCheck.Equal(30, old.TimeoutSeconds);
+        var old = QemuSmokeOptions.Parse("-BuildEfi", "-EnableM16009Probe");
+        QemuProfiles.Create(old);
+        HostCheck.Equal(30, old.TimeoutSeconds);
     }
 
     [HostTest("nativeaot.runtime dry run forwards exact outer markers and selected timeout without claiming prepared execution")]
@@ -51,16 +62,20 @@ internal static class NativeAotRuntimeIntegrationTests
     {
         foreach (string app in Apps)
         {
-            var options = Options(app, "-DryRun"); int children = 0;
+            var options = Options(app, "-DryRun");
+            int children = 0;
             int code = QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, TextWriter.Null, (name, args) =>
             {
-                children++; HostCheck.Equal("OS.QemuRunner", name);
+                children++;
+                HostCheck.Equal("OS.QemuRunner", name);
                 HostCheck.True(args.Contains("--dry-run") && args.Contains(NativeAotRuntimeSelection.Markers(app).Pass));
-                var list = args.ToList(); int at = list.IndexOf("--timeout");
+                var list = args.ToList();
+                int at = list.IndexOf("--timeout");
                 HostCheck.True(at >= 0 && list[at + 1] == "600");
                 return Task.FromResult(new ProcessResult(0, "", "", false, false, false, TimeSpan.Zero));
             }).GetAwaiter().GetResult();
-            HostCheck.Equal(0, code); HostCheck.Equal(1, children);
+            HostCheck.Equal(0, code);
+            HostCheck.Equal(1, children);
         }
     }
 
@@ -76,9 +91,15 @@ internal static class NativeAotRuntimeIntegrationTests
         HostCheck.True(plan.Required.Contains("TEST_START m16-010") && plan.Unique.Contains("TEST_PASS m16-010"));
         HostCheck.Equal(600, options.TimeoutSeconds);
         bool rejected = false;
-        try { QemuTranscripts.ValidateRun(HostToolProcess.FindRepositoryRoot(), options, plan,
-            new(0, "", "", false, false, false, TimeSpan.Zero), TextWriter.Null); }
-        catch (ToolFailure error) { rejected = error.Reason == "runtime_prepared_program_required"; }
+        try
+        {
+            QemuTranscripts.ValidateRun(HostToolProcess.FindRepositoryRoot(), options, plan,
+            new(0, "", "", false, false, false, TimeSpan.Zero), TextWriter.Null);
+        }
+        catch (ToolFailure error)
+        {
+            rejected = error.Reason == "runtime_prepared_program_required";
+        }
         HostCheck.True(rejected);
         foreach (string owner in new[] { "NativeAotSuspensionStress", "NativeAotThreadPoolStress" })
             Reject(Options(owner, "-LinuxThreadingApplication", app), "runtime_profile_application");
@@ -88,11 +109,13 @@ internal static class NativeAotRuntimeIntegrationTests
         int children = 0;
         int code = QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, TextWriter.Null, (name, args) =>
         {
-            children++; HostCheck.Equal("OS.QemuRunner", name);
+            children++;
+            HostCheck.Equal("OS.QemuRunner", name);
             HostCheck.True(args.Contains("--dry-run") && args.Contains("TEST_PASS m16-010"));
             return Task.FromResult(new ProcessResult(0, "", "", false, false, false, TimeSpan.Zero));
         }).GetAwaiter().GetResult();
-        HostCheck.Equal(0, code); HostCheck.Equal(1, children);
+        HostCheck.Equal(0, code);
+        HostCheck.Equal(1, children);
     }
 
     [HostTest("nativeaot.runtime invalid selections disabled prerequisites and timeouts fail before any child")]
@@ -110,7 +133,8 @@ internal static class NativeAotRuntimeIntegrationTests
             foreach (int timeout in new[] { 60, 900 })
             {
                 var options = Options(app, "-TimeoutSeconds", timeout.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                QemuProfiles.Create(options); HostCheck.Equal(timeout, options.TimeoutSeconds);
+                QemuProfiles.Create(options);
+                HostCheck.Equal(timeout, options.TimeoutSeconds);
             }
             foreach (string other in Apps.Where(other => other != app))
             {
@@ -129,9 +153,17 @@ internal static class NativeAotRuntimeIntegrationTests
         string root = HostToolProcess.FindRepositoryRoot();
         foreach (string app in Apps)
         {
-            var options = Options(app); var plan = QemuProfiles.Create(options); bool rejected = false;
-            try { QemuTranscripts.ValidateRun(root, options, plan, new(0, "", "", false, false, false, TimeSpan.Zero), TextWriter.Null); }
-            catch (ToolFailure error) { rejected = error.Reason == "runtime_prepared_program_required"; }
+            var options = Options(app);
+            var plan = QemuProfiles.Create(options);
+            bool rejected = false;
+            try
+            {
+                QemuTranscripts.ValidateRun(root, options, plan, new(0, "", "", false, false, false, TimeSpan.Zero), TextWriter.Null);
+            }
+            catch (ToolFailure error)
+            {
+                rejected = error.Reason == "runtime_prepared_program_required";
+            }
             HostCheck.True(rejected);
         }
         foreach (string name in new[] { "QemuSmoke.cs", "QemuTranscripts.Run.cs", "QemuTranscripts.M03.cs" })
@@ -152,27 +184,44 @@ internal static class NativeAotRuntimeIntegrationTests
         byte[] bytes = LinuxSignalProofFixture.CreatePackage("AlternateStack");
         try
         {
-            File.WriteAllBytes(package, bytes); File.WriteAllText(dump, "headers only");
+            File.WriteAllBytes(package, bytes);
+            File.WriteAllText(dump, "headers only");
             foreach (string app in Apps)
             {
-                var options = Options(app); options.LinuxElfPackage = package; options.LinuxThreadingDisassembly = dump;
+                var options = Options(app);
+                options.LinuxElfPackage = package;
+                options.LinuxThreadingDisassembly = dump;
                 Reject(options, "runtime_package_identity", false);
-                options.Image = dump; Reject(options, "threading_input_output_alias", false);
-                options.Image = "artifacts/images/os.raw"; options.LinuxThreadingDisassembly = package;
+                options.Image = dump;
+                Reject(options, "threading_input_output_alias", false);
+                options.Image = "artifacts/images/os.raw";
+                options.LinuxThreadingDisassembly = package;
                 Reject(options, "threading_input_alias", false);
                 using var p = new FileStream(package, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 using var d = new FileStream(dump, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 HostCheck.Equal((long)bytes.Length, p.Length);
             }
         }
-        finally { File.Delete(package); File.Delete(dump); Directory.Delete(directory); }
+        finally
+        {
+            File.Delete(package);
+            File.Delete(dump);
+            Directory.Delete(directory);
+        }
     }
 
     private static void Reject(QemuSmokeOptions options, string reason, bool dryRun = true)
     {
-        int children = 0; using StringWriter output = new(); options.DryRun = dryRun;
+        int children = 0;
+        using StringWriter output = new();
+        options.DryRun = dryRun;
         int result = QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output, (_, _) =>
-        { children++; return Task.FromResult(new ProcessResult(0, "", "", false, false, false, TimeSpan.Zero)); }).GetAwaiter().GetResult();
-        HostCheck.True(result != 0); HostCheck.Equal(0, children); HostCheck.True(output.ToString().Contains(reason, StringComparison.Ordinal), reason + " actual=" + output);
+        {
+            children++;
+            return Task.FromResult(new ProcessResult(0, "", "", false, false, false, TimeSpan.Zero));
+        }).GetAwaiter().GetResult();
+        HostCheck.True(result != 0);
+        HostCheck.Equal(0, children);
+        HostCheck.True(output.ToString().Contains(reason, StringComparison.Ordinal), reason + " actual=" + output);
     }
 }

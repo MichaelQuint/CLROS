@@ -2,375 +2,60 @@ using OS.Manifest;
 
 namespace OS.Kernel.Runtime;
 
-[Flags]
-public enum NativeAppExecutableMemoryProtection : byte
-{
-    None = 0,
-    Read = 1,
-    Write = 2,
-    Execute = 4
-}
-
-public enum NativeAppExecutableMemoryPlanStatus
-{
-    Success = 0,
-    MappingPlanFailed = 1,
-    InvalidPayloadMappingPlan = 2,
-    ZeroExecutableContent = 3,
-    InvalidPageSize = 4,
-    InvalidAlignment = 5,
-    AlignmentGreaterThanPageSize = 6,
-    UnalignedExecutableOffset = 7,
-    AccidentalWritableExecutable = 8,
-    UnsafeProtectionState = 9,
-    InvalidEntryOffset = 10,
-    RangeOverflow = 11
-}
-
-public readonly struct NativeAppExecutableMemoryPlanResult
-{
-    private NativeAppExecutableMemoryPlanResult(
-        NativeAppExecutableMemoryPlanStatus status,
-        NativeAppPayloadMappingPlanStatus payloadMappingStatus,
-        NativeAppLaunchDescriptorStatus descriptorStatus,
-        NativeAppPayloadHeaderStatus payloadHeaderStatus,
-        bool isInitialized,
-        uint pageSize,
-        uint executableAlignment,
-        ulong requiredWritableStagingBytes,
-        ulong executableBytes,
-        ulong executableMapOffsetInPackage,
-        ulong executableMapByteLength,
-        ulong executableMapEndOffsetInPackage,
-        ulong executableContentOffsetInMapping,
-        ulong entryOffsetInExecutableContent,
-        ulong entryOffsetInExecutableMapping,
-        NativeAppExecutableMemoryProtection writableStagingProtection,
-        NativeAppExecutableMemoryProtection executableProtection,
-        NativeAppExecutableMemoryProtection finalProtection)
-    {
-        Status = status;
-        PayloadMappingStatus = payloadMappingStatus;
-        DescriptorStatus = descriptorStatus;
-        PayloadHeaderStatus = payloadHeaderStatus;
-        IsInitialized = isInitialized;
-        PageSize = pageSize;
-        ExecutableAlignment = executableAlignment;
-        RequiredWritableStagingBytes = requiredWritableStagingBytes;
-        ExecutableBytes = executableBytes;
-        ExecutableMapOffsetInPackage = executableMapOffsetInPackage;
-        ExecutableMapByteLength = executableMapByteLength;
-        ExecutableMapEndOffsetInPackage = executableMapEndOffsetInPackage;
-        ExecutableContentOffsetInMapping = executableContentOffsetInMapping;
-        EntryOffsetInExecutableContent = entryOffsetInExecutableContent;
-        EntryOffsetInExecutableMapping = entryOffsetInExecutableMapping;
-        WritableStagingProtection = writableStagingProtection;
-        ExecutableProtection = executableProtection;
-        FinalProtection = finalProtection;
-    }
-
-    public NativeAppExecutableMemoryPlanStatus Status { get; }
-
-    public NativeAppPayloadMappingPlanStatus PayloadMappingStatus { get; }
-
-    public NativeAppLaunchDescriptorStatus DescriptorStatus { get; }
-
-    public NativeAppPayloadHeaderStatus PayloadHeaderStatus { get; }
-
-    public bool IsInitialized { get; }
-
-    public bool Succeeded => IsInitialized && Status == NativeAppExecutableMemoryPlanStatus.Success;
-
-    public uint PageSize { get; }
-
-    public uint ExecutableAlignment { get; }
-
-    public ulong RequiredWritableStagingBytes { get; }
-
-    public ulong ExecutableBytes { get; }
-
-    public ulong ExecutableMapOffsetInPackage { get; }
-
-    public ulong ExecutableMapByteLength { get; }
-
-    public ulong ExecutableMapEndOffsetInPackage { get; }
-
-    public ulong ExecutableContentOffsetInMapping { get; }
-
-    public ulong EntryOffsetInExecutableContent { get; }
-
-    public ulong EntryOffsetInExecutableMapping { get; }
-
-    public NativeAppExecutableMemoryProtection WritableStagingProtection { get; }
-
-    public NativeAppExecutableMemoryProtection ExecutableProtection { get; }
-
-    public NativeAppExecutableMemoryProtection FinalProtection { get; }
-
-    public static NativeAppExecutableMemoryPlanResult Success(
-        NativeAppPayloadMappingPlanStatus payloadMappingStatus,
-        NativeAppLaunchDescriptorStatus descriptorStatus,
-        NativeAppPayloadHeaderStatus payloadHeaderStatus,
-        uint pageSize,
-        uint executableAlignment,
-        ulong requiredWritableStagingBytes,
-        ulong executableBytes,
-        ulong executableMapOffsetInPackage,
-        ulong executableMapByteLength,
-        ulong executableMapEndOffsetInPackage,
-        ulong executableContentOffsetInMapping,
-        ulong entryOffsetInExecutableContent,
-        ulong entryOffsetInExecutableMapping,
-        NativeAppExecutableMemoryProtection writableStagingProtection,
-        NativeAppExecutableMemoryProtection executableProtection,
-        NativeAppExecutableMemoryProtection finalProtection)
-    {
-        return new NativeAppExecutableMemoryPlanResult(
-            NativeAppExecutableMemoryPlanStatus.Success,
-            payloadMappingStatus,
-            descriptorStatus,
-            payloadHeaderStatus,
-            isInitialized: true,
-            pageSize,
-            executableAlignment,
-            requiredWritableStagingBytes,
-            executableBytes,
-            executableMapOffsetInPackage,
-            executableMapByteLength,
-            executableMapEndOffsetInPackage,
-            executableContentOffsetInMapping,
-            entryOffsetInExecutableContent,
-            entryOffsetInExecutableMapping,
-            writableStagingProtection,
-            executableProtection,
-            finalProtection);
-    }
-
-    public static NativeAppExecutableMemoryPlanResult Fail(
-        NativeAppExecutableMemoryPlanStatus status,
-        NativeAppPayloadMappingPlanStatus payloadMappingStatus,
-        NativeAppLaunchDescriptorStatus descriptorStatus,
-        NativeAppPayloadHeaderStatus payloadHeaderStatus,
-        uint pageSize,
-        uint executableAlignment,
-        NativeAppExecutableMemoryProtection writableStagingProtection,
-        NativeAppExecutableMemoryProtection executableProtection,
-        NativeAppExecutableMemoryProtection finalProtection)
-    {
-        return new NativeAppExecutableMemoryPlanResult(
-            status,
-            payloadMappingStatus,
-            descriptorStatus,
-            payloadHeaderStatus,
-            isInitialized: true,
-            pageSize,
-            executableAlignment,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            writableStagingProtection,
-            executableProtection,
-            finalProtection);
-    }
-}
-
 public static class NativeAppExecutableMemoryPlan
 {
     public const uint MinimumPageSize = 4096;
     public const uint DefaultPageSize = 4096;
     public const uint DefaultExecutableAlignment = 16;
-
-    public static NativeAppExecutableMemoryPlanResult Create(
-        NativeAppPayloadMappingPlanResult payloadMappingPlan,
-        uint pageSize = DefaultPageSize,
-        uint executableAlignment = DefaultExecutableAlignment)
+    public static NativeAppExecutableMemoryPlanResult Create(NativeAppPayloadMappingPlanResult payloadMappingPlan, uint pageSize = DefaultPageSize, uint executableAlignment = DefaultExecutableAlignment)
     {
-        return Create(
-            payloadMappingPlan,
-            pageSize,
-            executableAlignment,
-            NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Write,
-            NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute,
-            NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute);
+        return Create(payloadMappingPlan, pageSize, executableAlignment, NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Write, NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute, NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute);
     }
 
-    public static NativeAppExecutableMemoryPlanResult Create(
-        NativeAppPayloadMappingPlanResult payloadMappingPlan,
-        uint pageSize,
-        uint executableAlignment,
-        NativeAppExecutableMemoryProtection writableStagingProtection,
-        NativeAppExecutableMemoryProtection executableProtection,
-        NativeAppExecutableMemoryProtection finalProtection)
+    public static NativeAppExecutableMemoryPlanResult Create(NativeAppPayloadMappingPlanResult payloadMappingPlan, uint pageSize, uint executableAlignment, NativeAppExecutableMemoryProtection writableStagingProtection, NativeAppExecutableMemoryProtection executableProtection, NativeAppExecutableMemoryProtection finalProtection)
     {
         if (!payloadMappingPlan.Succeeded)
         {
-            return NativeAppExecutableMemoryPlanResult.Fail(
-                NativeAppExecutableMemoryPlanStatus.MappingPlanFailed,
-                payloadMappingPlan.Status,
-                payloadMappingPlan.DescriptorStatus,
-                payloadMappingPlan.PayloadHeaderStatus,
-                pageSize,
-                executableAlignment,
-                writableStagingProtection,
-                executableProtection,
-                finalProtection);
+            return NativeAppExecutableMemoryPlanResult.Fail(NativeAppExecutableMemoryPlanStatus.MappingPlanFailed, payloadMappingPlan.Status, payloadMappingPlan.DescriptorStatus, payloadMappingPlan.PayloadHeaderStatus, pageSize, executableAlignment, writableStagingProtection, executableProtection, finalProtection);
         }
 
-        return Create(
-            payloadMappingPlan.Plan,
-            payloadMappingPlan.Status,
-            payloadMappingPlan.DescriptorStatus,
-            payloadMappingPlan.PayloadHeaderStatus,
-            pageSize,
-            executableAlignment,
-            writableStagingProtection,
-            executableProtection,
-            finalProtection);
+        return Create(payloadMappingPlan.Plan, payloadMappingPlan.Status, payloadMappingPlan.DescriptorStatus, payloadMappingPlan.PayloadHeaderStatus, pageSize, executableAlignment, writableStagingProtection, executableProtection, finalProtection);
     }
 
-    public static NativeAppExecutableMemoryPlanResult Create(
-        NativeAppPayloadMappingPlan payloadMappingPlan,
-        uint pageSize = DefaultPageSize,
-        uint executableAlignment = DefaultExecutableAlignment)
+    public static NativeAppExecutableMemoryPlanResult Create(NativeAppPayloadMappingPlan payloadMappingPlan, uint pageSize = DefaultPageSize, uint executableAlignment = DefaultExecutableAlignment)
     {
-        return Create(
-            payloadMappingPlan,
-            NativeAppPayloadMappingPlanStatus.Success,
-            NativeAppLaunchDescriptorStatus.Success,
-            NativeAppPayloadHeaderStatus.Success,
-            pageSize,
-            executableAlignment,
-            NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Write,
-            NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute,
-            NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute);
+        return Create(payloadMappingPlan, NativeAppPayloadMappingPlanStatus.Success, NativeAppLaunchDescriptorStatus.Success, NativeAppPayloadHeaderStatus.Success, pageSize, executableAlignment, NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Write, NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute, NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute);
     }
 
-    public static NativeAppExecutableMemoryPlanResult Create(
-        NativeAppPayloadMappingPlan payloadMappingPlan,
-        uint pageSize,
-        uint executableAlignment,
-        NativeAppExecutableMemoryProtection writableStagingProtection,
-        NativeAppExecutableMemoryProtection executableProtection,
-        NativeAppExecutableMemoryProtection finalProtection)
+    public static NativeAppExecutableMemoryPlanResult Create(NativeAppPayloadMappingPlan payloadMappingPlan, uint pageSize, uint executableAlignment, NativeAppExecutableMemoryProtection writableStagingProtection, NativeAppExecutableMemoryProtection executableProtection, NativeAppExecutableMemoryProtection finalProtection)
     {
-        return Create(
-            payloadMappingPlan,
-            NativeAppPayloadMappingPlanStatus.Success,
-            NativeAppLaunchDescriptorStatus.Success,
-            NativeAppPayloadHeaderStatus.Success,
-            pageSize,
-            executableAlignment,
-            writableStagingProtection,
-            executableProtection,
-            finalProtection);
+        return Create(payloadMappingPlan, NativeAppPayloadMappingPlanStatus.Success, NativeAppLaunchDescriptorStatus.Success, NativeAppPayloadHeaderStatus.Success, pageSize, executableAlignment, writableStagingProtection, executableProtection, finalProtection);
     }
 
-    private static NativeAppExecutableMemoryPlanResult Create(
-        NativeAppPayloadMappingPlan payloadMappingPlan,
-        NativeAppPayloadMappingPlanStatus payloadMappingStatus,
-        NativeAppLaunchDescriptorStatus descriptorStatus,
-        NativeAppPayloadHeaderStatus payloadHeaderStatus,
-        uint pageSize,
-        uint executableAlignment,
-        NativeAppExecutableMemoryProtection writableStagingProtection,
-        NativeAppExecutableMemoryProtection executableProtection,
-        NativeAppExecutableMemoryProtection finalProtection)
+    private static NativeAppExecutableMemoryPlanResult Create(NativeAppPayloadMappingPlan payloadMappingPlan, NativeAppPayloadMappingPlanStatus payloadMappingStatus, NativeAppLaunchDescriptorStatus descriptorStatus, NativeAppPayloadHeaderStatus payloadHeaderStatus, uint pageSize, uint executableAlignment, NativeAppExecutableMemoryProtection writableStagingProtection, NativeAppExecutableMemoryProtection executableProtection, NativeAppExecutableMemoryProtection finalProtection)
     {
-        NativeAppExecutableMemoryPlanStatus status = Validate(
-            payloadMappingPlan,
-            pageSize,
-            executableAlignment,
-            writableStagingProtection,
-            executableProtection,
-            finalProtection);
+        NativeAppExecutableMemoryPlanStatus status = Validate(payloadMappingPlan, pageSize, executableAlignment, writableStagingProtection, executableProtection, finalProtection);
         if (status != NativeAppExecutableMemoryPlanStatus.Success)
         {
-            return NativeAppExecutableMemoryPlanResult.Fail(
-                status,
-                payloadMappingStatus,
-                descriptorStatus,
-                payloadHeaderStatus,
-                pageSize,
-                executableAlignment,
-                writableStagingProtection,
-                executableProtection,
-                finalProtection);
+            return NativeAppExecutableMemoryPlanResult.Fail(status, payloadMappingStatus, descriptorStatus, payloadHeaderStatus, pageSize, executableAlignment, writableStagingProtection, executableProtection, finalProtection);
         }
 
-        ulong executableMapOffsetInPackage = AlignDown(
-            payloadMappingPlan.ExecutableOffsetInPackage,
-            pageSize);
-        ulong executableContentOffsetInMapping =
-            payloadMappingPlan.ExecutableOffsetInPackage - executableMapOffsetInPackage;
-
-        if (!TryAdd(
-                executableContentOffsetInMapping,
-                payloadMappingPlan.ExecutableLength,
-                out ulong unalignedMapByteLength) ||
-            !TryAlignUp(unalignedMapByteLength, pageSize, out ulong executableMapByteLength) ||
-            !TryAdd(executableMapOffsetInPackage, executableMapByteLength, out ulong executableMapEndOffsetInPackage) ||
-            !TryAdd(
-                executableContentOffsetInMapping,
-                payloadMappingPlan.EntryOffsetInExecutable,
-                out ulong entryOffsetInExecutableMapping))
+        ulong executableMapOffsetInPackage = AlignDown(payloadMappingPlan.ExecutableOffsetInPackage, pageSize);
+        ulong executableContentOffsetInMapping = payloadMappingPlan.ExecutableOffsetInPackage - executableMapOffsetInPackage;
+        if (!TryAdd(executableContentOffsetInMapping, payloadMappingPlan.ExecutableLength, out ulong unalignedMapByteLength) || !TryAlignUp(unalignedMapByteLength, pageSize, out ulong executableMapByteLength) || !TryAdd(executableMapOffsetInPackage, executableMapByteLength, out ulong executableMapEndOffsetInPackage) || !TryAdd(executableContentOffsetInMapping, payloadMappingPlan.EntryOffsetInExecutable, out ulong entryOffsetInExecutableMapping))
         {
-            return NativeAppExecutableMemoryPlanResult.Fail(
-                NativeAppExecutableMemoryPlanStatus.RangeOverflow,
-                payloadMappingStatus,
-                descriptorStatus,
-                payloadHeaderStatus,
-                pageSize,
-                executableAlignment,
-                writableStagingProtection,
-                executableProtection,
-                finalProtection);
+            return NativeAppExecutableMemoryPlanResult.Fail(NativeAppExecutableMemoryPlanStatus.RangeOverflow, payloadMappingStatus, descriptorStatus, payloadHeaderStatus, pageSize, executableAlignment, writableStagingProtection, executableProtection, finalProtection);
         }
 
         if (entryOffsetInExecutableMapping >= executableMapByteLength)
         {
-            return NativeAppExecutableMemoryPlanResult.Fail(
-                NativeAppExecutableMemoryPlanStatus.InvalidEntryOffset,
-                payloadMappingStatus,
-                descriptorStatus,
-                payloadHeaderStatus,
-                pageSize,
-                executableAlignment,
-                writableStagingProtection,
-                executableProtection,
-                finalProtection);
+            return NativeAppExecutableMemoryPlanResult.Fail(NativeAppExecutableMemoryPlanStatus.InvalidEntryOffset, payloadMappingStatus, descriptorStatus, payloadHeaderStatus, pageSize, executableAlignment, writableStagingProtection, executableProtection, finalProtection);
         }
 
-        return NativeAppExecutableMemoryPlanResult.Success(
-            payloadMappingStatus,
-            descriptorStatus,
-            payloadHeaderStatus,
-            pageSize,
-            executableAlignment,
-            executableMapByteLength,
-            payloadMappingPlan.ExecutableLength,
-            executableMapOffsetInPackage,
-            executableMapByteLength,
-            executableMapEndOffsetInPackage,
-            executableContentOffsetInMapping,
-            payloadMappingPlan.EntryOffsetInExecutable,
-            entryOffsetInExecutableMapping,
-            writableStagingProtection,
-            executableProtection,
-            finalProtection);
+        return NativeAppExecutableMemoryPlanResult.Success(payloadMappingStatus, descriptorStatus, payloadHeaderStatus, pageSize, executableAlignment, executableMapByteLength, payloadMappingPlan.ExecutableLength, executableMapOffsetInPackage, executableMapByteLength, executableMapEndOffsetInPackage, executableContentOffsetInMapping, payloadMappingPlan.EntryOffsetInExecutable, entryOffsetInExecutableMapping, writableStagingProtection, executableProtection, finalProtection);
     }
 
-    public static NativeAppExecutableMemoryPlanStatus Validate(
-        NativeAppPayloadMappingPlan payloadMappingPlan,
-        uint pageSize,
-        uint executableAlignment,
-        NativeAppExecutableMemoryProtection writableStagingProtection,
-        NativeAppExecutableMemoryProtection executableProtection,
-        NativeAppExecutableMemoryProtection finalProtection)
+    public static NativeAppExecutableMemoryPlanStatus Validate(NativeAppPayloadMappingPlan payloadMappingPlan, uint pageSize, uint executableAlignment, NativeAppExecutableMemoryProtection writableStagingProtection, NativeAppExecutableMemoryProtection executableProtection, NativeAppExecutableMemoryProtection finalProtection)
     {
         if (!HasValidMappingShape(payloadMappingPlan))
         {
@@ -407,17 +92,12 @@ public static class NativeAppExecutableMemoryPlan
             return NativeAppExecutableMemoryPlanStatus.UnalignedExecutableOffset;
         }
 
-        if (IsWritableExecutable(writableStagingProtection) ||
-            IsWritableExecutable(executableProtection) ||
-            IsWritableExecutable(finalProtection))
+        if (IsWritableExecutable(writableStagingProtection) || IsWritableExecutable(executableProtection) || IsWritableExecutable(finalProtection))
         {
             return NativeAppExecutableMemoryPlanStatus.AccidentalWritableExecutable;
         }
 
-        if (!IsSafeWriteThenExecutePolicy(
-                writableStagingProtection,
-                executableProtection,
-                finalProtection))
+        if (!IsSafeWriteThenExecutePolicy(writableStagingProtection, executableProtection, finalProtection))
         {
             return NativeAppExecutableMemoryPlanStatus.UnsafeProtectionState;
         }
@@ -427,46 +107,27 @@ public static class NativeAppExecutableMemoryPlan
 
     public static bool IsWritableExecutable(NativeAppExecutableMemoryProtection protection)
     {
-        return (protection & NativeAppExecutableMemoryProtection.Write) != 0
-            && (protection & NativeAppExecutableMemoryProtection.Execute) != 0;
+        return (protection & NativeAppExecutableMemoryProtection.Write) != 0 && (protection & NativeAppExecutableMemoryProtection.Execute) != 0;
     }
 
     private static bool HasValidMappingShape(NativeAppPayloadMappingPlan payloadMappingPlan)
     {
-        if (payloadMappingPlan.PayloadLength == 0 ||
-            payloadMappingPlan.HeaderLength == 0 ||
-            payloadMappingPlan.ExecutableOffsetInPayload < payloadMappingPlan.HeaderLength ||
-            payloadMappingPlan.ExecutableOffsetInPayload > payloadMappingPlan.PayloadLength ||
-            payloadMappingPlan.EntryOffsetInPayload < payloadMappingPlan.ExecutableOffsetInPayload ||
-            payloadMappingPlan.EntryOffsetInExecutable !=
-                payloadMappingPlan.EntryOffsetInPayload - payloadMappingPlan.ExecutableOffsetInPayload)
+        if (payloadMappingPlan.PayloadLength == 0 || payloadMappingPlan.HeaderLength == 0 || payloadMappingPlan.ExecutableOffsetInPayload < payloadMappingPlan.HeaderLength || payloadMappingPlan.ExecutableOffsetInPayload > payloadMappingPlan.PayloadLength || payloadMappingPlan.EntryOffsetInPayload < payloadMappingPlan.ExecutableOffsetInPayload || payloadMappingPlan.EntryOffsetInExecutable != payloadMappingPlan.EntryOffsetInPayload - payloadMappingPlan.ExecutableOffsetInPayload)
         {
             return false;
         }
 
-        if (!TryAdd(
-                payloadMappingPlan.ExecutableOffsetInPayload,
-                payloadMappingPlan.ExecutableLength,
-                out ulong executableEndInPayload) ||
-            executableEndInPayload != payloadMappingPlan.PayloadLength)
+        if (!TryAdd(payloadMappingPlan.ExecutableOffsetInPayload, payloadMappingPlan.ExecutableLength, out ulong executableEndInPayload) || executableEndInPayload != payloadMappingPlan.PayloadLength)
         {
             return false;
         }
 
-        if (!TryAdd(
-                payloadMappingPlan.PayloadOffsetInPackage,
-                payloadMappingPlan.ExecutableOffsetInPayload,
-                out ulong expectedExecutableOffsetInPackage) ||
-            expectedExecutableOffsetInPackage != payloadMappingPlan.ExecutableOffsetInPackage)
+        if (!TryAdd(payloadMappingPlan.PayloadOffsetInPackage, payloadMappingPlan.ExecutableOffsetInPayload, out ulong expectedExecutableOffsetInPackage) || expectedExecutableOffsetInPackage != payloadMappingPlan.ExecutableOffsetInPackage)
         {
             return false;
         }
 
-        if (!TryAdd(
-                payloadMappingPlan.PayloadOffsetInPackage,
-                payloadMappingPlan.EntryOffsetInPayload,
-                out ulong expectedEntryOffsetInPackage) ||
-            expectedEntryOffsetInPackage != payloadMappingPlan.EntryOffsetInPackage)
+        if (!TryAdd(payloadMappingPlan.PayloadOffsetInPackage, payloadMappingPlan.EntryOffsetInPayload, out ulong expectedEntryOffsetInPackage) || expectedEntryOffsetInPackage != payloadMappingPlan.EntryOffsetInPackage)
         {
             return false;
         }
@@ -474,20 +135,9 @@ public static class NativeAppExecutableMemoryPlan
         return true;
     }
 
-    private static bool IsSafeWriteThenExecutePolicy(
-        NativeAppExecutableMemoryProtection writableStagingProtection,
-        NativeAppExecutableMemoryProtection executableProtection,
-        NativeAppExecutableMemoryProtection finalProtection)
+    private static bool IsSafeWriteThenExecutePolicy(NativeAppExecutableMemoryProtection writableStagingProtection, NativeAppExecutableMemoryProtection executableProtection, NativeAppExecutableMemoryProtection finalProtection)
     {
-        return writableStagingProtection != NativeAppExecutableMemoryProtection.None
-            && executableProtection != NativeAppExecutableMemoryProtection.None
-            && finalProtection != NativeAppExecutableMemoryProtection.None
-            && (writableStagingProtection & NativeAppExecutableMemoryProtection.Write) != 0
-            && (writableStagingProtection & NativeAppExecutableMemoryProtection.Execute) == 0
-            && (executableProtection & NativeAppExecutableMemoryProtection.Execute) != 0
-            && (executableProtection & NativeAppExecutableMemoryProtection.Write) == 0
-            && (finalProtection & NativeAppExecutableMemoryProtection.Execute) != 0
-            && (finalProtection & NativeAppExecutableMemoryProtection.Write) == 0;
+        return writableStagingProtection != NativeAppExecutableMemoryProtection.None && executableProtection != NativeAppExecutableMemoryProtection.None && finalProtection != NativeAppExecutableMemoryProtection.None && (writableStagingProtection & NativeAppExecutableMemoryProtection.Write) != 0 && (writableStagingProtection & NativeAppExecutableMemoryProtection.Execute) == 0 && (executableProtection & NativeAppExecutableMemoryProtection.Execute) != 0 && (executableProtection & NativeAppExecutableMemoryProtection.Write) == 0 && (finalProtection & NativeAppExecutableMemoryProtection.Execute) != 0 && (finalProtection & NativeAppExecutableMemoryProtection.Write) == 0;
     }
 
     private static bool IsPowerOfTwo(uint value)

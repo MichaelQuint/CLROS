@@ -21,13 +21,22 @@ internal static class HostResumeTests
             origin = entry!.Origin;
             HostCheck.True(!checkpoint.TryReuse("passed", "changed", out _));
             HostCheck.True(!checkpoint.TryReuse("passed", "fresh:identity", out _));
-            checkpoint.Finish("failed", "identity", result with { ExitCode = 1 });
+            checkpoint.Finish("failed", "identity", result with
+            {
+                ExitCode = 1
+            });
             checkpoint.Start("interrupted");
             HostCheck.True(!checkpoint.TryReuse("failed", "identity", out _));
             HostCheck.True(!checkpoint.TryReuse("interrupted", "identity", out _));
             bool locked = false;
-            try { using var second = new HostRunCheckpoint(root, directory, true); }
-            catch (IOException) { locked = true; }
+            try
+            {
+                using var second = new HostRunCheckpoint(root, directory, true);
+            }
+            catch (IOException)
+            {
+                locked = true;
+            }
             HostCheck.True(locked, "simultaneous resume must refuse the active receipt");
         }
         using (var checkpoint = new HostRunCheckpoint(root, directory, true))
@@ -40,8 +49,14 @@ internal static class HostResumeTests
         using (var worker = File.Open(Path.Combine(directory, "active.worker.lock"), FileMode.OpenOrCreate, FileAccess.Read, FileShare.Read))
         {
             bool locked = false;
-            try { using var checkpoint = new HostRunCheckpoint(root, directory, true); }
-            catch (IOException) { locked = true; }
+            try
+            {
+                using var checkpoint = new HostRunCheckpoint(root, directory, true);
+            }
+            catch (IOException)
+            {
+                locked = true;
+            }
             HostCheck.True(locked, "surviving worker must prevent resume");
         }
     }
@@ -72,17 +87,20 @@ internal static class HostResumeTests
         var extensionBefore = new HostTestFingerprint(sources, "production-a").For("First", "all");
         sources["Extensions"] = "static class Checks { public static bool Valid(this int value) => false; }";
         HostCheck.True(extensionBefore != new HostTestFingerprint(sources, "production-a").For("First", "all"));
-        HostCheck.True(HostTestFingerprint.AffectsAllFixtures("global /* comment */ using System;"));
-        HostCheck.True(HostTestFingerprint.AffectsAllFixtures("#if DEBUG\nglobal using Chosen = System.Int32;\n#endif", ["DEBUG"]));
-        HostCheck.True(HostTestFingerprint.AffectsAllFixtures("[assembly: System.CLSCompliant(true)]"));
-        HostCheck.True(HostTestFingerprint.AffectsAllFixtures("static class Extensions { extension(int value) { public bool Valid() => true; } }"));
+        foreach (string global in new[] { "global /* comment */ using System;", "[assembly: System.CLSCompliant(true)]" })
+        {
+            string prior = new HostTestFingerprint(sources, "production-a").For("Sibling", "all");
+            sources["Global.cs"] = global;
+            HostCheck.True(prior != new HostTestFingerprint(sources, "production-a").For("Sibling", "all"));
+            sources.Remove("Global.cs");
+        }
     }
 
     [HostTest("runner resumes a focused selection without replaying passing checks")]
     private static void ResumeCommand()
     {
         string directory = Scratch();
-        var first = Run("--filter", "BootInfoTests", "--results", directory);
+        var first = Run("--filter", nameof(HostResumeControlTests), "--results", directory);
         HostCheck.True(first.Succeeded, first.StandardError + first.StandardOutput);
         using var initial = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, "results.json")));
         string id = initial.RootElement.GetProperty("Results")[0].GetProperty("Id").GetString()!;
@@ -117,7 +135,10 @@ internal static class HostResumeTests
         var outputs = HostNativeResumePolicy.Outputs(HostToolProcess.FindRepositoryRoot(), owned, result).ToArray();
         HostCheck.Equal(12, outputs.Length); // Five exported files and one producer log per variant.
         HostCheck.True(outputs.All(path => path.Contains("12345", StringComparison.Ordinal)));
-        HostCheck.Equal(0, HostNativeResumePolicy.Outputs("unused", owned, result with { ExitCode = 1 }).Count());
+        HostCheck.Equal(0, HostNativeResumePolicy.Outputs("unused", owned, result with
+        {
+            ExitCode = 1
+        }).Count());
     }
 
     [HostTest("runner refuses an interrupted pass with changed post-fixture inputs")]
@@ -135,7 +156,12 @@ internal static class HostResumeTests
             File.WriteAllText(log, "TEST_START control\nTEST_PASS control\n");
             File.WriteAllText(source, "B");
             var result = new HostTestRunner.FixtureResult("changed", "Fast", 0, false, 1, log, 1, 1, 0, null);
-            if (!HostTestFingerprint.FilesMatch(files)) result = result with { ExitCode = 1, Error = "inputs_changed_during_fixture" };
+            if (!HostTestFingerprint.FilesMatch(files))
+                result = result with
+                {
+                    ExitCode = 1,
+                    Error = "inputs_changed_during_fixture"
+                };
             checkpoint.Finish("changed", "A", result);
             // No whole-run completion occurs before disposal/interruption.
         }
@@ -158,7 +184,11 @@ internal static class HostResumeTests
             string late = checkpoint.Start("late");
             File.WriteAllText(late, "TEST_START control\nTEST_PASS control\n");
             checkpoint.InvalidateRun();
-            checkpoint.Finish("late", "identity", result with { Id = "late", Log = late });
+            checkpoint.Finish("late", "identity", result with
+            {
+                Id = "late",
+                Log = late
+            });
             HostCheck.True(!checkpoint.TryReuse("before", "identity", out _) && !checkpoint.TryReuse("late", "identity", out _));
         }
         using var resumed = new HostRunCheckpoint(root, directory, true);
@@ -199,15 +229,40 @@ internal static class HostResumeTests
         var initialized = ProcessRunner.RunAsync(new("git", ["init", "--quiet", directory], directory)).GetAwaiter().GetResult();
         HostCheck.True(initialized.Succeeded, initialized.StandardError);
         var recorded = HostBuildInputs.SourceInputs(directory).ToDictionary(Path.GetFullPath, _ => "unused", StringComparer.OrdinalIgnoreCase);
-        HostCheck.True(HostTestFingerprint.InventoryRecorded(directory, recorded));
+        HostCheck.True(HostTestFingerprint.InventoryRecorded(directory, recorded, []));
         foreach (string name in new[] { "src/Added.cs", "done/step-new.md" })
         {
             string added = Path.Combine(directory, name);
             File.WriteAllText(added, "new input");
-            HostCheck.True(!HostTestFingerprint.InventoryRecorded(directory, recorded), name);
+            HostCheck.True(!HostTestFingerprint.InventoryRecorded(directory, recorded, []), name);
             File.Delete(added);
-            HostCheck.True(HostTestFingerprint.InventoryRecorded(directory, recorded));
+            HostCheck.True(HostTestFingerprint.InventoryRecorded(directory, recorded, []));
         }
+        string ignore = Path.Combine(directory, ".gitignore");
+        File.WriteAllText(ignore, "bin/\n");
+        recorded[ignore] = HostRunCheckpoint.HashFile(ignore);
+        string output = Path.Combine(directory, "bin", "selected-output");
+        Directory.CreateDirectory(output);
+        string sidecar = Path.Combine(output, "tool.pdb");
+        File.WriteAllText(sidecar, "initial sidecar");
+        var original = HostProjectOutputs.FilesInDirectories(directory, [output])
+            .ToDictionary(path => path, HostRunCheckpoint.HashFile, StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in original)
+            recorded[pair.Key] = pair.Value;
+        bool Inventory() => HostTestFingerprint.InventoryRecorded(directory, recorded,
+            HostProjectOutputs.FilesInDirectories(directory, [output]));
+        HostCheck.True(Inventory());
+        string addedRuntime = Path.Combine(output, "native-dependency.so");
+        File.WriteAllText(addedRuntime, "added ignored runtime file");
+        HostCheck.True(!Inventory(), "ignored output membership changed");
+        File.Delete(addedRuntime);
+        HostCheck.True(Inventory());
+        var outputStamps = new Dictionary<string, HostTestFingerprint.FileStamp>(StringComparer.OrdinalIgnoreCase);
+        HostCheck.True(HostTestFingerprint.StampedFilesMatch(original, outputStamps));
+        File.WriteAllText(sidecar, "changed sidecar");
+        HostCheck.True(!HostTestFingerprint.StampedFilesMatch(original, outputStamps));
+        File.Delete(sidecar);
+        HostCheck.True(!HostTestFingerprint.StampedFilesMatch(original, outputStamps));
     }
 
     [HostTest("runner exact input hashes reject a binary replacement with preserved file stamps")]
@@ -248,5 +303,7 @@ internal static class HostResumeTests
     private static string Scratch() => Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts", "host-resume-controls", Guid.NewGuid().ToString("N"));
     private static ProcessResult Run(params string[] args) => ProcessRunner.RunAsync(new("dotnet",
         [typeof(HostResumeTests).Assembly.Location, .. args], HostToolProcess.FindRepositoryRoot())
-        { Timeout = TimeSpan.FromSeconds(60) }).GetAwaiter().GetResult();
+    {
+        Timeout = TimeSpan.FromSeconds(60)
+    }).GetAwaiter().GetResult();
 }

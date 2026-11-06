@@ -9,7 +9,7 @@ using System.Text;
 using System.Xml.Linq;
 using OS.Tools.QemuRunner;
 
-internal static class M04ArithmeticConformanceEfiIntegrationTests
+internal static partial class M04ArithmeticConformanceEfiIntegrationTests
 {
     private const string Flag = "EnableM04ArithmeticConformanceProbe";
     private const string SpanFlag = "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe";
@@ -22,57 +22,67 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
     // Reviewed source identity uses UTF-8 text with only CRLF normalized to LF.
     // EFI artifact and same-build source-authority hashes remain raw byte hashes.
     private static readonly string LeafSourceHash = OS.Tooling.EfiContracts.SourceIdentities[@"..\..\std\no-runtime\shared\Numerics\IndependentArithmeticShiftCastN64BitDivisionRemainder.cs"];
-
-
-
-
-
     [HostTest("m04.004.efi frozen leaf and explicit default-off closure", HostLane.Fast, 0)]
     private static void TestProject()
     {
         string root = Root();
         XDocument project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
-        string[] keys = project.Descendants("Compile").Select(item =>
-            item.Attribute("Include")!.Value + "|" + (item.Attribute("Link")?.Value ?? "")).ToArray();
-        Require(keys.Length == OS.Tooling.EfiContracts.CompileItems.Count && Hash(Encoding.UTF8.GetBytes(string.Join('\n', keys) + "\n")) == CompileHash,
-            "reviewed explicit compile inventory");
+        string[] keys = project.Descendants("Compile").Select(item => item.Attribute("Include")!.Value + "|" + (item.Attribute("Link")?.Value ?? "")).ToArray();
+        Require(keys.Length == OS.Tooling.EfiContracts.CompileItems.Count && Hash(Encoding.UTF8.GetBytes(string.Join('\n', keys) + "\n")) == CompileHash, "reviewed explicit compile inventory");
         Require(SourceIdentityHash(File.ReadAllText(Path.Combine(root, Leaf))) == LeafSourceHash, "reviewed production source identity");
         HostCheck.Registered(typeof(IndependentArithmeticShiftCastN64BitDivisionRemainderTests));
         XElement[] defaults = project.Descendants(Flag).ToArray();
-        Require(defaults.Length == 1 && defaults[0].Value == "false" &&
-            defaults[0].Attribute("Condition")?.Value == "'$(" + Flag + ")' == ''", "one false default");
-        XElement symbol = project.Descendants("PropertyGroup").Single(group =>
-            group.Attribute("Condition")?.Value == "'$(" + Flag + ")' == 'true'");
+        Require(defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(" + Flag + ")' == ''", "one false default");
+        XElement symbol = project.Descendants("PropertyGroup").Single(group => group.Attribute("Condition")?.Value == "'$(" + Flag + ")' == 'true'");
         Require(symbol.Elements().Single().Value == "$(DefineConstants);" + Symbol, "exact symbol");
         foreach ((string dependency, string relation) in new[]
         {
-            (SpanFlag, "!="), ("EnableM02OwnedGdtTssTerminalProbe", "=="), ("EnableM02Ud2VectorStateProbe", "==")
-        })
+            (SpanFlag, "!="),
+            ("EnableM02OwnedGdtTssTerminalProbe", "=="),
+            ("EnableM02Ud2VectorStateProbe", "==")
+        }
+
+        )
         {
             string condition = "'$(" + Flag + ")' == 'true' and '$(" + dependency + ")' " + relation + " 'true'";
-            Require(project.Descendants("Error").Count(error => error.Attribute("Condition")?.Value == condition) == 1,
-                "project dependency " + dependency);
+            Require(project.Descendants("Error").Count(error => error.Attribute("Condition")?.Value == condition) == 1, "project dependency " + dependency);
         }
-        foreach (bool build in new[] { true, false })
+
+        foreach (bool build in new[]
+        {
+            true,
+            false
+        }
+
+        )
         {
             var profile = OS.Tooling.EfiOptions.Parse(["--" + EndianFlag, "--" + SpanFlag, "--" + Flag], build).Profile();
-            foreach (string flag in new[] { EndianFlag, SpanFlag, Flag }) Require(profile.IsEnabled(flag), "explicit selected profile " + flag);
+            foreach (string flag in new[]
+            {
+                EndianFlag,
+                SpanFlag,
+                Flag
+            }
+
+            )
+                Require(profile.IsEnabled(flag), "explicit selected profile " + flag);
         }
     }
 
     [HostTest("m04.004.efi source identity accepts line endings and rejects content changes", HostLane.Fast, 1)]
     private static void TestSourceIdentity()
     {
-        foreach ((string relative, string expected) in new[] { (Leaf, LeafSourceHash) })
+        foreach ((string relative, string expected) in new[]
+        {
+            (Leaf, LeafSourceHash)
+        }
+
+        )
         {
             string lf = File.ReadAllText(Path.Combine(Root(), relative)).Replace("\r\n", "\n", StringComparison.Ordinal);
             string crlf = lf.Replace("\n", "\r\n", StringComparison.Ordinal);
-            Require(SourceIdentityHash(lf) == expected && SourceIdentityHash(crlf) == expected,
-                "LF/CRLF preserve reviewed source identity: " + relative);
-            Require(SourceIdentityHash(lf + " ") != expected &&
-                SourceIdentityHash(lf + "// changed content\n") != expected &&
-                SourceIdentityHash(lf + "\r") != expected,
-                "spaces, content and lone carriage returns remain significant: " + relative);
+            Require(SourceIdentityHash(lf) == expected && SourceIdentityHash(crlf) == expected, "LF/CRLF preserve reviewed source identity: " + relative);
+            Require(SourceIdentityHash(lf + " ") != expected && SourceIdentityHash(lf + "// changed content\n") != expected && SourceIdentityHash(lf + "\r") != expected, "spaces, content and lone carriage returns remain significant: " + relative);
         }
     }
 
@@ -95,16 +105,14 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
                 <RuntimeMetadataVersion>v4.0.30319</RuntimeMetadataVersion>
               </PropertyGroup>
               <ItemGroup>
-            """ + Compile(root, Leaf) + Compile(root, "src/OS/Runtime/MinimalRuntime.cs") +
-            Compile(root, "src/OS/Runtime/MethodImplAttribute.cs") + "</ItemGroup></Project>");
+            """ + CompileLeaf(root, includeRuntime: true) + "</ItemGroup></Project>");
         ScriptResult build = Process(root, "dotnet", "build", project, "-c", "Release", "--nologo", "-m:1");
         Require(build.ExitCode == 0, build.Output);
         using FileStream file = File.OpenRead(Path.Combine(directory, "bin/Release/net11.0/Metadata.dll"));
         using PEReader pe = new(file);
         MetadataReader metadata = pe.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count == 0, "no managed assembly references");
-        MethodDefinition evaluate = metadata.MethodDefinitions.Select(metadata.GetMethodDefinition)
-            .Single(method => metadata.GetString(method.Name) == "Evaluate");
+        MethodDefinition evaluate = metadata.MethodDefinitions.Select(metadata.GetMethodDefinition).Single(method => metadata.GetString(method.Name) == "Evaluate");
         Require((evaluate.ImplAttributes & MethodImplAttributes.NoInlining) != 0, "NoInlining retained in IL metadata");
     }
 
@@ -118,8 +126,7 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
         int invocation = source.IndexOf(call, previous, StringComparison.Ordinal);
         int map = source.IndexOf("TryCaptureUefiMemoryMap(systemTable)", invocation, StringComparison.Ordinal);
         Require(previous >= 0 && invocation > previous && map > invocation, "pre-map call order");
-        Require(source.Contains("#if " + Symbol + "\n        if (!" + call + ")\n        {\n            return;\n        }\n#endif",
-            StringComparison.Ordinal), "failure suppresses subsequent boot markers");
+        Require(source.Contains("#if " + Symbol + "\n        if (!" + call + ")\n        {\n            return;\n        }\n#endif", StringComparison.Ordinal), "failure suppresses subsequent boot markers");
         int start = source.IndexOf("    private static bool WriteM04ArithmeticConformanceProbe(", StringComparison.Ordinal);
         int end = source.IndexOf("#endif", start, StringComparison.Ordinal);
         string adapter = source[start..end];
@@ -132,7 +139,7 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
                 <LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
                 <ImplicitUsings>enable</ImplicitUsings><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
               </PropertyGroup><ItemGroup><Compile Include="Program.cs"/>
-            """ + Compile(root, Leaf) + "</ItemGroup></Project>");
+            """ + CompileLeaf(root, includeRuntime: false) + "</ItemGroup></Project>");
         // Compile the actual adapter body and marker writers. Only the catalog
         // call is injectable, so each result gate is exercised without firmware.
         File.WriteAllText(Path.Combine(directory, "Program.cs"), """
@@ -181,21 +188,21 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
         string[] ordered = Markers(profile.Output, "ORDERED_MARKERS ");
         string[] unique = Markers(profile.Output, "UNIQUE_MARKERS ");
         string[] forbidden = Markers(profile.Output, "FORBIDDEN_MARKERS ");
-        Require(required.Length == 17 && ordered.Length == 5 && unique.Length == 3 && forbidden.Length == 5,
-            "17/5/3/5 enabled profile");
-        Require(ordered[0] == "EFI_CONSOLE_READY" && ordered[1].StartsWith("CLROS_M04_002_READY ", StringComparison.Ordinal) &&
-            ordered[2].StartsWith("CLROS_M04_003_READY ", StringComparison.Ordinal) && ordered[3] == Ready &&
-            ordered[4] == "UEFI_MEMORY_MAP_READY" && unique.SequenceEqual(ordered[1..4]) && forbidden.Contains(Failed), "exact order and uniqueness");
+        Require(required.Length == 17 && ordered.Length == 5 && unique.Length == 3 && forbidden.Length == 5, "17/5/3/5 enabled profile");
+        Require(ordered[0] == "EFI_CONSOLE_READY" && ordered[1].StartsWith("CLROS_M04_002_READY ", StringComparison.Ordinal) && ordered[2].StartsWith("CLROS_M04_003_READY ", StringComparison.Ordinal) && ordered[3] == Ready && ordered[4] == "UEFI_MEMORY_MAP_READY" && unique.SequenceEqual(ordered[1..4]) && forbidden.Contains(Failed), "exact order and uniqueness");
         foreach ((string[] arguments, int count) in new[]
         {
-            (Array.Empty<string>(), 12), (new[] { "-BuildEfi", "-" + EndianFlag }, 15),
+            (Array.Empty<string>(), 12),
+            (new[] { "-BuildEfi", "-" + EndianFlag }, 15),
             (new[] { "-BuildEfi", "-" + EndianFlag, "-" + SpanFlag }, 16)
-        })
+        }
+
+        )
         {
             ScriptResult baseline = Qemu(root, arguments);
-            Require(baseline.ExitCode == 0 && Markers(baseline.Output, "REQUIRED_MARKERS ").Length == count &&
-                !Markers(baseline.Output, "REQUIRED_MARKERS ").Contains(Ready), "unchanged older profile " + count);
+            Require(baseline.ExitCode == 0 && Markers(baseline.Output, "REQUIRED_MARKERS ").Length == count && !Markers(baseline.Output, "REQUIRED_MARKERS ").Contains(Ready), "unchanged older profile " + count);
         }
+
         foreach ((string[] arguments, string reason) in new[]
         {
             (new[] { "-BuildEfi", "-" + Flag }, "m04_arithmetic_conformance_requires_span_memory_conformance"),
@@ -204,14 +211,16 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
             (enabled.Concat(new[] { "-SkipImageBuild" }).ToArray(), "qemu_profile_forbids_skip_image_build"),
             (enabled.Concat(new[] { "-EnableM02OwnedGdtTssTerminalProbe" }).ToArray(), "m04_arithmetic_conformance_forbids_owned_gdt_tss_terminal"),
             (enabled.Concat(new[] { "-EnableM02Ud2VectorStateProbe" }).ToArray(), "m04_arithmetic_conformance_forbids_m02_ud2_vector_state")
-        })
+        }
+
+        )
         {
             ScriptResult rejected = Qemu(root, arguments);
             Require(rejected.ExitCode != 0 && rejected.Output.Contains("TEST_FAIL qemu.smoke " + reason, StringComparison.Ordinal), rejected.Output);
         }
+
         ScriptResult combined = Qemu(root, [.. enabled, "-EnableM02NormalizedInterruptFramePageProbe"]);
         Require(combined.ExitCode == 0 && Markers(combined.Output, "ORDERED_MARKERS ").Contains(Ready), "returning M02 combination");
-
         string stream = string.Join('\n', ordered.Concat(required.Where(marker => !ordered.Contains(marker) && marker != "OS_SMOKE_PASS"))) + "\nOS_SMOKE_PASS\n";
         SerialMarkerCompletionResult Evaluate(string input)
         {
@@ -221,14 +230,21 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
                 machine.Feed(bytes.AsSpan(offset, Math.Min(7, bytes.Length - offset)));
             return machine.Complete();
         }
+
         Require(Evaluate(stream).Passed, "controlled success");
         foreach (string replacement in new[]
         {
-            "", Ready.Replace("vectors=57", "vectors=56", StringComparison.Ordinal),
+            "",
+            Ready.Replace("vectors=57", "vectors=56", StringComparison.Ordinal),
             Ready.Replace("45FDFA24DD72EA28", "45FDFA24DD72EA29", StringComparison.Ordinal),
             Ready.Replace("hostConformance=false guestIntegrated=true", "hostConformance=true guestIntegrated=false", StringComparison.Ordinal),
-            "prefix" + Ready, Ready + "suffix", Ready.Insert(30, "\0"), Ready[..^1]
-        })
+            "prefix" + Ready,
+            Ready + "suffix",
+            Ready.Insert(30, "\0"),
+            Ready[..^1]
+        }
+
+        )
             Require(!Evaluate(stream.Replace(Ready, replacement, StringComparison.Ordinal)).Passed, "reject altered/partial/noisy guest record");
         Require(!Evaluate(stream.Replace(Ready, Ready + "\n" + Ready, StringComparison.Ordinal)).Passed, "duplicate");
         Require(!Evaluate(stream.Replace(ordered[2] + "\n" + Ready, Ready + "\n" + ordered[2], StringComparison.Ordinal)).Passed, "wrong order");
@@ -239,22 +255,28 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
     [HostTest("m04.004.efi build and verifier reject missing and conflicting prerequisites", HostLane.Fast, 4)]
     private static void TestBuildAndVerifierArguments()
     {
-        foreach (bool build in new[] { true, false })
+        foreach (bool build in new[]
+        {
+            true,
+            false
+        }
+
+        )
             foreach ((string[] arguments, string reason) in new[]
             {
-        (new[] { "--" + Flag }, "m04_arithmetic_conformance_requires_span_memory_conformance"),
-        (new[] { "--" + Flag, "--" + SpanFlag, "--" + EndianFlag, "--EnableM02OwnedGdtTssTerminalProbe" }, "m04_arithmetic_conformance_forbids_owned_gdt_tss_terminal"),
-        (new[] { "--" + Flag, "--" + SpanFlag, "--" + EndianFlag, "--EnableM02Ud2VectorStateProbe" }, "m04_arithmetic_conformance_forbids_m02_ud2_vector_state")
-    })
+                (new[] { "--" + Flag }, "m04_arithmetic_conformance_requires_span_memory_conformance"),
+                (new[] { "--" + Flag, "--" + SpanFlag, "--" + EndianFlag, "--EnableM02OwnedGdtTssTerminalProbe" }, "m04_arithmetic_conformance_forbids_owned_gdt_tss_terminal"),
+                (new[] { "--" + Flag, "--" + SpanFlag, "--" + EndianFlag, "--EnableM02Ud2VectorStateProbe" }, "m04_arithmetic_conformance_forbids_m02_ud2_vector_state")
+            }
+
+            )
             {
                 var result = HostToolProcess.ValidateEfiProfile(build, arguments);
                 Require(result.ExitCode != 0 && result.Output.Contains(reason, StringComparison.Ordinal), result.Output);
             }
     }
 
-    private static string Compile(string root, string relative) =>
-        "<Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, relative)) + "\"/>";
-
+    private static string Compile(string root, string relative) => "<Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, relative)) + "\"/>";
     private static ScriptResult Qemu(string root, params string[] arguments)
     {
         var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. arguments]);
@@ -271,7 +293,8 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
-        foreach (string argument in arguments) start.ArgumentList.Add(argument);
+        foreach (string argument in arguments)
+            start.ArgumentList.Add(argument);
         using System.Diagnostics.Process process = System.Diagnostics.Process.Start(start)!;
         Task<string> output = process.StandardOutput.ReadToEndAsync();
         Task<string> error = process.StandardError.ReadToEndAsync();
@@ -280,6 +303,7 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
             process.Kill(entireProcessTree: true);
             throw new TimeoutException(executable + " exceeded 120 seconds");
         }
+
         Task.WaitAll(output, error);
         return new(process.ExitCode, output.Result + error.Result);
     }
@@ -300,13 +324,16 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
     private static string Root()
     {
         for (DirectoryInfo? current = new(Environment.CurrentDirectory); current is not null; current = current.Parent)
-            if (File.Exists(Path.Combine(current.FullName, "CLROS.slnx"))) return current.FullName;
+            if (File.Exists(Path.Combine(current.FullName, "CLROS.slnx")))
+                return current.FullName;
         throw new DirectoryNotFoundException("CLROS repository root");
     }
 
-    private static string SourceIdentityHash(string text) =>
-        Hash(Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n", StringComparison.Ordinal)));
+    private static string SourceIdentityHash(string text) => Hash(Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n", StringComparison.Ordinal)));
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-    private static void Require(bool accepted, string reason) { if (!accepted) throw new InvalidOperationException(reason); }
-    private readonly record struct ScriptResult(int ExitCode, string Output);
+    private static void Require(bool accepted, string reason)
+    {
+        if (!accepted)
+            throw new InvalidOperationException(reason);
+    }
 }

@@ -24,19 +24,29 @@ internal static class NativeAotServiceMemoryTests
         ulong ordinal = 0, current = nativeBacked - 24 * 256;
         void Output(string value)
         {
-            foreach (string part in segmented ? value.Chunk(7).Select(c => new string(c)) : new[] { value }) text.Append(Frame(part));
+            foreach (string part in segmented ? value.Chunk(7).Select(c => new string(c)) : new[] { value })
+                text.Append(Frame(part));
         }
         void Observe(ulong nr, ulong backed, ulong result, ulong a0 = 0, ulong bytes = 1048576,
             ulong protection = 3, ulong flags = 34, ulong rip = 4198402)
-        { current = backed; text.Append(Snapshot(nr, current)); text.Append(Call(++ordinal, nr, result, a0, bytes, protection, flags, rip: rip)); }
+        {
+            current = backed;
+            text.Append(Snapshot(nr, current));
+            text.Append(Call(++ordinal, nr, result, a0, bytes, protection, flags, rip: rip));
+        }
         void Pressure()
         {
             ulong[] addresses = new ulong[24];
             for (int i = 0; i < addresses.Length; i++)
-            { addresses[i] = 0x200000000UL + (ulong)i * 1048576; Observe(9, current + 256, addresses[i]); }
+            {
+                addresses[i] = 0x200000000UL + (ulong)i * 1048576;
+                Observe(9, current + 256, addresses[i]);
+            }
             Observe(9, current, NoMemory);
-            foreach (ulong address in addresses) Observe(11, current - 256, 0, address);
-            Observe(9, current + 256, addresses[0]); Observe(11, current - 256, 0, addresses[0]);
+            foreach (ulong address in addresses)
+                Observe(11, current - 256, 0, address);
+            Observe(9, current + 256, addresses[0]);
+            Observe(11, current - 256, 0, addresses[0]);
         }
         Observe(12, current, 0, bytes: 0);
         if (gcArena)
@@ -46,7 +56,8 @@ internal static class NativeAotServiceMemoryTests
             Observe(28, current, 0, 0x100186000, 83886080, protection: 16, rip: 0x470581);
         }
         Output("CLROS_APP_ENTRY minimal.api.service\nCLROS_APP_BUILT minimal.api.service\nCLROS_NOTE é\nCLROS_SERVICE_GC_BEGIN " + Gc);
-        Pressure(); Output("CLROS_SERVICE_NATIVE_BEGIN " + Native);
+        Pressure();
+        Output("CLROS_SERVICE_NATIVE_BEGIN " + Native);
         Output("CLROS_SERVICE_LISTEN contract=v2 endpoint=0.0.0.0:8080\n");
         ulong baseline = current;
         if (ordinary > baseline)
@@ -63,7 +74,8 @@ internal static class NativeAotServiceMemoryTests
             }
         }
         Output(Drain + "CLROS_SERVICE_GC_END " + Gc);
-        Pressure(); Output("CLROS_SERVICE_NATIVE_END " + Native);
+        Pressure();
+        Output("CLROS_SERVICE_NATIVE_END " + Native);
         Output("CLROS_SERVICE_APP_END calls=4097 randomRequests=1 randomBytes=8192 iterations=1 elapsedMillis=300001 worker=joined\n");
         text.Append($"M16_016_MEMORY poolPages=9216 peakPages={Math.Max(nativeBacked, ordinary)} endPages=0\r\n");
         text.Append("M16_008_OWNER_END reaped=18 transfers=64 irqs=1 exit=0 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained\r\n");
@@ -74,13 +86,20 @@ internal static class NativeAotServiceMemoryTests
     private static void Reject(string raw, bool lifecycle = true)
     {
         bool rejected = false;
-        try { _ = QemuTranscripts.InspectNativeAotServiceMemoryForTests(Encoding.UTF8.GetBytes(raw), 67108864, lifecycle); }
-        catch (ToolFailure) { rejected = true; }
+        try
+        {
+            _ = QemuTranscripts.InspectNativeAotServiceMemoryForTests(Encoding.UTF8.GetBytes(raw), 67108864, lifecycle);
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
     private static string ChangeSnapshot(string raw, int ordinal, Func<string, string> change)
     {
-        string[] rows = raw.Split("\r\n", StringSplitOptions.None); int found = 0;
+        string[] rows = raw.Split("\r\n", StringSplitOptions.None);
+        int found = 0;
         for (int i = 0; i < rows.Length; i++)
             if (rows[i].StartsWith("M16_014_MEMORY ", StringComparison.Ordinal) && found++ == ordinal)
             {
@@ -95,13 +114,19 @@ internal static class NativeAotServiceMemoryTests
     {
         foreach (bool segmented in new[] { false, true })
         {
-            string raw = Raw(segmented); byte[] bytes = Encoding.UTF8.GetBytes(raw), original = bytes.ToArray();
+            string raw = Raw(segmented);
+            byte[] bytes = Encoding.UTF8.GetBytes(raw), original = bytes.ToArray();
             var value = QemuTranscripts.InspectNativeAotServiceMemoryForTests(bytes, 67108864, true)!.Value;
-            HostCheck.Equal(105, value.OperationSnapshots); HostCheck.Equal(12288000UL, value.OrdinaryPeakBackedBytes);
-            HostCheck.Equal(8UL, value.MaximumRegionCount); HostCheck.Equal(2, value.NativePhysicalShortfalls);
-            HostCheck.Equal(0, value.NativeUnclassifiedFailures); HostCheck.Equal(29065216UL, value.ConservativePoolBytes);
-            HostCheck.Equal(45842432UL, value.ConservativeEntitlementBytes); HostCheck.True(value.ConservativeHeadroomFits);
-            HostCheck.True(bytes.AsSpan().SequenceEqual(original)); Array.Fill(bytes, (byte)0);
+            HostCheck.Equal(105, value.OperationSnapshots);
+            HostCheck.Equal(12288000UL, value.OrdinaryPeakBackedBytes);
+            HostCheck.Equal(8UL, value.MaximumRegionCount);
+            HostCheck.Equal(2, value.NativePhysicalShortfalls);
+            HostCheck.Equal(0, value.NativeUnclassifiedFailures);
+            HostCheck.Equal(29065216UL, value.ConservativePoolBytes);
+            HostCheck.Equal(45842432UL, value.ConservativeEntitlementBytes);
+            HostCheck.True(value.ConservativeHeadroomFits);
+            HostCheck.True(bytes.AsSpan().SequenceEqual(original));
+            Array.Fill(bytes, (byte)0);
             HostCheck.Equal(12288000UL, value.OrdinaryPeakBackedBytes);
         }
         HostCheck.Equal(11796480UL, Read(Raw(ordinary: 0)).OrdinaryPeakBackedBytes);
@@ -111,10 +136,13 @@ internal static class NativeAotServiceMemoryTests
     [HostTest("service memory distinguishes unclassified native ENOMEM and reports conservative bounds without granting headroom")]
     private static void Bounds()
     {
-        var unknown = Read(Raw(nativeBacked: 7900)); HostCheck.Equal(0, unknown.NativePhysicalShortfalls);
+        var unknown = Read(Raw(nativeBacked: 7900));
+        HostCheck.Equal(0, unknown.NativePhysicalShortfalls);
         HostCheck.Equal(2, unknown.NativeUnclassifiedFailures);
-        var exceeded = Read(Raw(ordinary: 6000)); HostCheck.True(!exceeded.ConservativeHeadroomFits);
-        HostCheck.True(!exceeded.NativeReserveFits); HostCheck.Equal(41353216UL, exceeded.ConservativePoolBytes);
+        var exceeded = Read(Raw(ordinary: 6000));
+        HostCheck.True(!exceeded.ConservativeHeadroomFits);
+        HostCheck.True(!exceeded.NativeReserveFits);
+        HostCheck.Equal(41353216UL, exceeded.ConservativePoolBytes);
     }
 
     [HostTest("service memory subtracts only dedicated still-owned GC backing while retaining a conservative native reserve bound")]
@@ -123,13 +151,17 @@ internal static class NativeAotServiceMemoryTests
         foreach (bool segmented in new[] { false, true })
         {
             var value = Read(Raw(segmented, gcArena: true));
-            HostCheck.Equal(108, value.OperationSnapshots); HostCheck.Equal(12288000UL, value.OrdinaryPeakBackedBytes);
-            HostCheck.Equal(11796480UL, value.OrdinaryNonGcUpperBoundBytes); HostCheck.Equal(28573696UL, value.ConservativePoolBytes);
+            HostCheck.Equal(108, value.OperationSnapshots);
+            HostCheck.Equal(12288000UL, value.OrdinaryPeakBackedBytes);
+            HostCheck.Equal(11796480UL, value.OrdinaryNonGcUpperBoundBytes);
+            HostCheck.Equal(28573696UL, value.ConservativePoolBytes);
             HostCheck.Equal(45350912UL, value.ConservativeEntitlementBytes);
             HostCheck.True(value.NativeReserveFits && value.ConservativeHeadroomFits && value.GcArena.HasValue);
-            HostCheck.Equal(491520UL, value.GcArena!.Value.PeakBackedBytes); HostCheck.Equal(0UL, value.GcArena.Value.LastBackedBytes);
+            HostCheck.Equal(491520UL, value.GcArena!.Value.PeakBackedBytes);
+            HostCheck.Equal(0UL, value.GcArena.Value.LastBackedBytes);
         }
-        var unknown = Read(Raw()); HostCheck.True(unknown.GcArena is null);
+        var unknown = Read(Raw());
+        HostCheck.True(unknown.GcArena is null);
         HostCheck.Equal(unknown.OrdinaryPeakBackedBytes, unknown.OrdinaryNonGcUpperBoundBytes);
     }
 
@@ -161,7 +193,8 @@ internal static class NativeAotServiceMemoryTests
     [HostTest("service memory rejects forged channels while v1 retains only legacy failed-call observations")]
     private static void ChannelsAndLegacy()
     {
-        foreach (uint channel in new[] { 1U, 2U }) Reject(Raw() + Frame(Snapshot(9, 2880), channel));
+        foreach (uint channel in new[] { 1U, 2U })
+            Reject(Raw() + Frame(Snapshot(9, 2880), channel));
         string failed = Snapshot(9, 8000, 8192) + Call(1, 9, NoMemory);
         HostCheck.True(QemuTranscripts.InspectNativeAotServiceMemoryForTests(Encoding.UTF8.GetBytes(failed), 0) is null);
         Reject(Snapshot(9, 8000, 8192) + Call(1, 9, 0x100000000), false);

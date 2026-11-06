@@ -2,7 +2,10 @@ namespace OS.Kernel.Platform;
 
 public sealed class FirmwareServicesGuard : IPlatformFirmware
 {
-    public FirmwareServicesMode Mode { get; private set; }
+    public FirmwareServicesMode Mode
+    {
+        get; private set;
+    }
 
     public FirmwareCallResult RequireBootServices(string operation)
     {

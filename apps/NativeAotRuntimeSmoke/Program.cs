@@ -5,16 +5,25 @@ try
     var original = new InvalidOperationException("nativeaot.runtime.original");
     try
     {
-        try { throw original; }
-        catch (InvalidOperationException) { throw; }
-        finally { cleanups++; }
+        try
+        {
+            throw original;
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        finally
+        {
+            cleanups++;
+        }
     }
     catch (InvalidOperationException caught)
     {
         Require(ReferenceEquals(original, caught) && cleanups == 1, "exception_identity");
     }
-    Console.WriteLine("NATIVEAOT_RUNTIME_EH_OK");
 
+    Console.WriteLine("NATIVEAOT_RUNTIME_EH_OK");
     using var started = new ManualResetEventSlim();
     using var release = new ManualResetEventSlim();
     Exception? threadFailure = null;
@@ -26,14 +35,22 @@ try
             Require(ThreadLocalState.Value == 0, "tls_initial_value");
             ThreadLocalState.Value = 29;
             byte[] rooted = new byte[4 * 1024 * 1024];
-            rooted[0] = 37; rooted[^1] = 41;
+            rooted[0] = 37;
+            rooted[^1] = 41;
             started.Set();
             Require(release.Wait(TimeSpan.FromSeconds(60)), "thread_release_timeout");
             Require(ThreadLocalState.Value == 29 && rooted[0] == 37 && rooted[^1] == 41, "thread_gc_roots");
             GC.KeepAlive(rooted);
         }
-        catch (Exception error) { threadFailure = error; started.Set(); }
-    }) { IsBackground = true };
+        catch (Exception error)
+        {
+            threadFailure = error;
+            started.Set();
+        }
+    })
+    {
+        IsBackground = true
+    };
     thread.Start();
     try
     {
@@ -47,12 +64,16 @@ try
             Require(bytes[i] == i + 1, "main_gc_roots");
             GC.KeepAlive(bytes);
         }
+
         Require(ThreadLocalState.Value == 17, "tls_separation");
     }
-    finally { release.Set(); }
+    finally
+    {
+        release.Set();
+    }
+
     Require(thread.Join(TimeSpan.FromSeconds(60)) && threadFailure is null, "thread_completion");
     Console.WriteLine("NATIVEAOT_RUNTIME_GC_THREADS_TLS_OK");
-
     int result = await Task.Run(() => 43);
     Require(result == 43, "threadpool_task");
     var tick = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -70,10 +91,6 @@ catch (Exception error)
 
 static void Require(bool condition, string reason)
 {
-    if (!condition) throw new InvalidOperationException(reason);
-}
-
-internal static class ThreadLocalState
-{
-    [ThreadStatic] internal static int Value;
+    if (!condition)
+        throw new InvalidOperationException(reason);
 }

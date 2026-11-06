@@ -2,183 +2,59 @@ namespace OS.Net;
 
 using OS.Std.Text;
 
-public enum Ipv4NeighborRoutePlanDiagnosticFormatStatus
-{
-    Success = 0,
-    InvalidResult = 1,
-    DestinationTooSmall = 2
-}
-
-public readonly struct Ipv4NeighborRoutePlanDiagnosticFormatResult
-{
-    private const uint InitializedFlag = 1;
-
-    public Ipv4NeighborRoutePlanDiagnosticFormatResult(
-        Ipv4NeighborRoutePlanDiagnosticFormatStatus status,
-        Ipv4NeighborRoutePlanStatus routeStatus,
-        int bytesWritten,
-        int requiredBytes,
-        int availableBytes,
-        uint flags = InitializedFlag)
-    {
-        Status = status;
-        RouteStatus = routeStatus;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-        AvailableBytes = availableBytes;
-        Flags = flags;
-    }
-
-    public Ipv4NeighborRoutePlanDiagnosticFormatStatus Status { get; }
-
-    public Ipv4NeighborRoutePlanStatus RouteStatus { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public int AvailableBytes { get; }
-
-    public uint Flags { get; }
-
-    public bool IsInitialized => (Flags & InitializedFlag) != 0;
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success &&
-        RequiredBytes > 0 &&
-        BytesWritten == RequiredBytes &&
-        RequiredBytes <= AvailableBytes;
-
-    public static Ipv4NeighborRoutePlanDiagnosticFormatResult Fail(
-        Ipv4NeighborRoutePlanDiagnosticFormatStatus status,
-        Ipv4NeighborRoutePlanStatus routeStatus,
-        int requiredBytes,
-        int availableBytes)
-    {
-        return new Ipv4NeighborRoutePlanDiagnosticFormatResult(
-            status,
-            routeStatus,
-            bytesWritten: 0,
-            requiredBytes,
-            availableBytes);
-    }
-}
-
 public static class Ipv4NeighborRoutePlanDiagnosticFormatter
 {
     private const int MacAddressTextLength = 17;
-
-    public static Ipv4NeighborRoutePlanDiagnosticFormatResult FormatResult(
-        in Ipv4NeighborRoutePlanResult result,
-        Span<byte> destination)
+    public static Ipv4NeighborRoutePlanDiagnosticFormatResult FormatResult(in Ipv4NeighborRoutePlanResult result, Span<byte> destination)
     {
         Ipv4NeighborRoutePlanDiagnosticFormatStatus validationStatus = Validate(in result);
         if (validationStatus != Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success)
         {
-            return Ipv4NeighborRoutePlanDiagnosticFormatResult.Fail(
-                validationStatus,
-                result.Status,
-                requiredBytes: 0,
-                destination.Length);
+            return Ipv4NeighborRoutePlanDiagnosticFormatResult.Fail(validationStatus, result.Status, requiredBytes: 0, destination.Length);
         }
 
         int requiredBytes = GetRequiredBytes(in result);
         if (destination.Length < requiredBytes)
         {
-            return Ipv4NeighborRoutePlanDiagnosticFormatResult.Fail(
-                Ipv4NeighborRoutePlanDiagnosticFormatStatus.DestinationTooSmall,
-                result.Status,
-                requiredBytes,
-                destination.Length);
+            return Ipv4NeighborRoutePlanDiagnosticFormatResult.Fail(Ipv4NeighborRoutePlanDiagnosticFormatStatus.DestinationTooSmall, result.Status, requiredBytes, destination.Length);
         }
 
         int offset = 0;
-        if (!TryAppendBytes("IPV4_NEIGHBOR_ROUTE status="u8, destination, ref offset) ||
-            !TryAppendBytes(GetRouteStatusName(result.Status), destination, ref offset) ||
-            !TryAppendBytes(" action="u8, destination, ref offset) ||
-            !TryAppendBytes(GetActionName(result.Action), destination, ref offset) ||
-            !TryAppendBytes(" cache="u8, destination, ref offset) ||
-            !TryAppendBytes(GetCacheStatusName(result.CacheStatus), destination, ref offset) ||
-            !TryAppendBytes(" arp="u8, destination, ref offset) ||
-            !TryAppendBytes(GetArpStatusName(result.ArpStatus), destination, ref offset) ||
-            !TryAppendBytes(" packet="u8, destination, ref offset) ||
-            !TryAppendBytes(GetPacketStatusName(result.PacketStatus), destination, ref offset) ||
-            !TryAppendBytes(" bytes="u8, destination, ref offset) ||
-            !TryAppendInt32Decimal(result.BytesWritten, destination, ref offset) ||
-            !TryAppendBytes(" cacheCount="u8, destination, ref offset) ||
-            !TryAppendInt32Decimal(result.CacheCount, destination, ref offset) ||
-            !TryAppendBytes(" cacheCapacity="u8, destination, ref offset) ||
-            !TryAppendInt32Decimal(result.CacheCapacity, destination, ref offset))
+        if (!TryAppendBytes("IPV4_NEIGHBOR_ROUTE status="u8, destination, ref offset) || !TryAppendBytes(GetRouteStatusName(result.Status), destination, ref offset) || !TryAppendBytes(" action="u8, destination, ref offset) || !TryAppendBytes(GetActionName(result.Action), destination, ref offset) || !TryAppendBytes(" cache="u8, destination, ref offset) || !TryAppendBytes(GetCacheStatusName(result.CacheStatus), destination, ref offset) || !TryAppendBytes(" arp="u8, destination, ref offset) || !TryAppendBytes(GetArpStatusName(result.ArpStatus), destination, ref offset) || !TryAppendBytes(" packet="u8, destination, ref offset) || !TryAppendBytes(GetPacketStatusName(result.PacketStatus), destination, ref offset) || !TryAppendBytes(" bytes="u8, destination, ref offset) || !TryAppendInt32Decimal(result.BytesWritten, destination, ref offset) || !TryAppendBytes(" cacheCount="u8, destination, ref offset) || !TryAppendInt32Decimal(result.CacheCount, destination, ref offset) || !TryAppendBytes(" cacheCapacity="u8, destination, ref offset) || !TryAppendInt32Decimal(result.CacheCapacity, destination, ref offset))
         {
-            return Ipv4NeighborRoutePlanDiagnosticFormatResult.Fail(
-                Ipv4NeighborRoutePlanDiagnosticFormatStatus.DestinationTooSmall,
-                result.Status,
-                requiredBytes,
-                destination.Length);
+            return Ipv4NeighborRoutePlanDiagnosticFormatResult.Fail(Ipv4NeighborRoutePlanDiagnosticFormatStatus.DestinationTooSmall, result.Status, requiredBytes, destination.Length);
         }
 
         if (result.Action == Ipv4NeighborRoutePlanAction.UseCachedMac)
         {
-            if (!TryAppendBytes(" targetMac="u8, destination, ref offset) ||
-                !TryAppendMacAddress(result.TargetMac, destination, ref offset))
+            if (!TryAppendBytes(" targetMac="u8, destination, ref offset) || !TryAppendMacAddress(result.TargetMac, destination, ref offset))
             {
-                return Ipv4NeighborRoutePlanDiagnosticFormatResult.Fail(
-                    Ipv4NeighborRoutePlanDiagnosticFormatStatus.DestinationTooSmall,
-                    result.Status,
-                    requiredBytes,
-                    destination.Length);
+                return Ipv4NeighborRoutePlanDiagnosticFormatResult.Fail(Ipv4NeighborRoutePlanDiagnosticFormatStatus.DestinationTooSmall, result.Status, requiredBytes, destination.Length);
             }
         }
 
-        return new Ipv4NeighborRoutePlanDiagnosticFormatResult(
-            Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success,
-            result.Status,
-            bytesWritten: offset,
-            requiredBytes,
-            availableBytes: destination.Length);
+        return new Ipv4NeighborRoutePlanDiagnosticFormatResult(Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success, result.Status, bytesWritten: offset, requiredBytes, availableBytes: destination.Length);
     }
 
-    public static Ipv4NeighborRoutePlanDiagnosticFormatResult QueryRequiredBytes(
-        in Ipv4NeighborRoutePlanResult result)
+    public static Ipv4NeighborRoutePlanDiagnosticFormatResult QueryRequiredBytes(in Ipv4NeighborRoutePlanResult result)
     {
         Ipv4NeighborRoutePlanDiagnosticFormatStatus validationStatus = Validate(in result);
         if (validationStatus != Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success)
         {
-            return Ipv4NeighborRoutePlanDiagnosticFormatResult.Fail(
-                validationStatus,
-                result.Status,
-                requiredBytes: 0,
-                availableBytes: 0);
+            return Ipv4NeighborRoutePlanDiagnosticFormatResult.Fail(validationStatus, result.Status, requiredBytes: 0, availableBytes: 0);
         }
 
-        return new Ipv4NeighborRoutePlanDiagnosticFormatResult(
-            Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success,
-            result.Status,
-            bytesWritten: 0,
-            requiredBytes: GetRequiredBytes(in result),
-            availableBytes: 0);
+        return new Ipv4NeighborRoutePlanDiagnosticFormatResult(Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success, result.Status, bytesWritten: 0, requiredBytes: GetRequiredBytes(in result), availableBytes: 0);
     }
 
-    private static Ipv4NeighborRoutePlanDiagnosticFormatStatus Validate(
-        in Ipv4NeighborRoutePlanResult result)
+    private static Ipv4NeighborRoutePlanDiagnosticFormatStatus Validate(in Ipv4NeighborRoutePlanResult result)
     {
-        if (!result.IsInitialized ||
-            !IsKnownRouteStatus(result.Status) ||
-            !IsKnownAction(result.Action) ||
-            !IsKnownCacheStatus(result.CacheStatus) ||
-            !IsKnownArpStatus(result.ArpStatus) ||
-            !IsKnownPacketStatus(result.PacketStatus) ||
-            result.BytesWritten < 0 ||
-            result.CacheCount < 0 ||
-            result.CacheCapacity < 0 ||
-            result.CacheCount > result.CacheCapacity)
+        if (!result.IsInitialized || !IsKnownRouteStatus(result.Status) || !IsKnownAction(result.Action) || !IsKnownCacheStatus(result.CacheStatus) || !IsKnownArpStatus(result.ArpStatus) || !IsKnownPacketStatus(result.PacketStatus) || result.BytesWritten < 0 || result.CacheCount < 0 || result.CacheCapacity < 0 || result.CacheCount > result.CacheCapacity)
         {
             return Ipv4NeighborRoutePlanDiagnosticFormatStatus.InvalidResult;
         }
 
-        if (result.Action == Ipv4NeighborRoutePlanAction.UseCachedMac &&
-            (result.TargetMac.IsZero || result.TargetMac.IsBroadcast))
+        if (result.Action == Ipv4NeighborRoutePlanAction.UseCachedMac && (result.TargetMac.IsZero || result.TargetMac.IsBroadcast))
         {
             return Ipv4NeighborRoutePlanDiagnosticFormatStatus.InvalidResult;
         }
@@ -188,23 +64,7 @@ public static class Ipv4NeighborRoutePlanDiagnosticFormatter
 
     private static int GetRequiredBytes(in Ipv4NeighborRoutePlanResult result)
     {
-        int required = "IPV4_NEIGHBOR_ROUTE status="u8.Length
-            + GetRouteStatusName(result.Status).Length
-            + " action="u8.Length
-            + GetActionName(result.Action).Length
-            + " cache="u8.Length
-            + GetCacheStatusName(result.CacheStatus).Length
-            + " arp="u8.Length
-            + GetArpStatusName(result.ArpStatus).Length
-            + " packet="u8.Length
-            + GetPacketStatusName(result.PacketStatus).Length
-            + " bytes="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.BytesWritten)
-            + " cacheCount="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.CacheCount)
-            + " cacheCapacity="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.CacheCapacity);
-
+        int required = "IPV4_NEIGHBOR_ROUTE status="u8.Length + GetRouteStatusName(result.Status).Length + " action="u8.Length + GetActionName(result.Action).Length + " cache="u8.Length + GetCacheStatusName(result.CacheStatus).Length + " arp="u8.Length + GetArpStatusName(result.ArpStatus).Length + " packet="u8.Length + GetPacketStatusName(result.PacketStatus).Length + " bytes="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.BytesWritten) + " cacheCount="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.CacheCount) + " cacheCapacity="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.CacheCapacity);
         if (result.Action == Ipv4NeighborRoutePlanAction.UseCachedMac)
         {
             required += " targetMac="u8.Length + MacAddressTextLength;
@@ -215,32 +75,27 @@ public static class Ipv4NeighborRoutePlanDiagnosticFormatter
 
     private static bool IsKnownRouteStatus(Ipv4NeighborRoutePlanStatus status)
     {
-        return status >= Ipv4NeighborRoutePlanStatus.Success &&
-            status <= Ipv4NeighborRoutePlanStatus.RequestWriteFailed;
+        return status >= Ipv4NeighborRoutePlanStatus.Success && status <= Ipv4NeighborRoutePlanStatus.RequestWriteFailed;
     }
 
     private static bool IsKnownAction(Ipv4NeighborRoutePlanAction action)
     {
-        return action >= Ipv4NeighborRoutePlanAction.None &&
-            action <= Ipv4NeighborRoutePlanAction.SendArpRequest;
+        return action >= Ipv4NeighborRoutePlanAction.None && action <= Ipv4NeighborRoutePlanAction.SendArpRequest;
     }
 
     private static bool IsKnownCacheStatus(ArpNeighborCacheStatus status)
     {
-        return status >= ArpNeighborCacheStatus.Success &&
-            status <= ArpNeighborCacheStatus.InvalidTick;
+        return status >= ArpNeighborCacheStatus.Success && status <= ArpNeighborCacheStatus.InvalidTick;
     }
 
     private static bool IsKnownArpStatus(ArpNeighborResolutionStatus status)
     {
-        return status >= ArpNeighborResolutionStatus.Success &&
-            status <= ArpNeighborResolutionStatus.Timeout;
+        return status >= ArpNeighborResolutionStatus.Success && status <= ArpNeighborResolutionStatus.Timeout;
     }
 
     private static bool IsKnownPacketStatus(PacketParseStatus status)
     {
-        return status >= PacketParseStatus.Success &&
-            status <= PacketParseStatus.UnsupportedIcmpCode;
+        return status >= PacketParseStatus.Success && status <= PacketParseStatus.UnsupportedIcmpCode;
     }
 
     private static ReadOnlySpan<byte> GetRouteStatusName(Ipv4NeighborRoutePlanStatus status)
@@ -328,10 +183,7 @@ public static class Ipv4NeighborRoutePlanDiagnosticFormatter
         };
     }
 
-    private static bool TryAppendBytes(
-        ReadOnlySpan<byte> value,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryAppendBytes(ReadOnlySpan<byte> value, Span<byte> destination, ref int offset)
     {
         AsciiTextBuilderResult result = AsciiTextBuilder.AppendBytes(destination, offset, value);
         if (!result.Succeeded)
@@ -345,8 +197,7 @@ public static class Ipv4NeighborRoutePlanDiagnosticFormatter
 
     private static bool TryAppendInt32Decimal(int value, Span<byte> destination, ref int offset)
     {
-        AsciiTextBuilderResult result =
-            AsciiTextBuilder.AppendInt64Decimal(destination, offset, value);
+        AsciiTextBuilderResult result = AsciiTextBuilder.AppendInt64Decimal(destination, offset, value);
         if (!result.Succeeded)
         {
             return false;
@@ -356,22 +207,9 @@ public static class Ipv4NeighborRoutePlanDiagnosticFormatter
         return true;
     }
 
-    private static bool TryAppendMacAddress(
-        MacAddress macAddress,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryAppendMacAddress(MacAddress macAddress, Span<byte> destination, ref int offset)
     {
-        return TryAppendHexByte(macAddress.Octet0, destination, ref offset) &&
-            TryAppendColon(destination, ref offset) &&
-            TryAppendHexByte(macAddress.Octet1, destination, ref offset) &&
-            TryAppendColon(destination, ref offset) &&
-            TryAppendHexByte(macAddress.Octet2, destination, ref offset) &&
-            TryAppendColon(destination, ref offset) &&
-            TryAppendHexByte(macAddress.Octet3, destination, ref offset) &&
-            TryAppendColon(destination, ref offset) &&
-            TryAppendHexByte(macAddress.Octet4, destination, ref offset) &&
-            TryAppendColon(destination, ref offset) &&
-            TryAppendHexByte(macAddress.Octet5, destination, ref offset);
+        return TryAppendHexByte(macAddress.Octet0, destination, ref offset) && TryAppendColon(destination, ref offset) && TryAppendHexByte(macAddress.Octet1, destination, ref offset) && TryAppendColon(destination, ref offset) && TryAppendHexByte(macAddress.Octet2, destination, ref offset) && TryAppendColon(destination, ref offset) && TryAppendHexByte(macAddress.Octet3, destination, ref offset) && TryAppendColon(destination, ref offset) && TryAppendHexByte(macAddress.Octet4, destination, ref offset) && TryAppendColon(destination, ref offset) && TryAppendHexByte(macAddress.Octet5, destination, ref offset);
     }
 
     private static bool TryAppendColon(Span<byte> destination, ref int offset)
@@ -388,15 +226,13 @@ public static class Ipv4NeighborRoutePlanDiagnosticFormatter
 
     private static bool TryAppendHexByte(byte value, Span<byte> destination, ref int offset)
     {
-        AsciiTextBuilderResult high =
-            AsciiTextBuilder.AppendByte(destination, offset, ToUpperHexNibble((byte)(value >> 4)));
+        AsciiTextBuilderResult high = AsciiTextBuilder.AppendByte(destination, offset, ToUpperHexNibble((byte)(value >> 4)));
         if (!high.Succeeded)
         {
             return false;
         }
 
-        AsciiTextBuilderResult low =
-            AsciiTextBuilder.AppendByte(destination, high.NextOffset, ToUpperHexNibble((byte)(value & 0x0F)));
+        AsciiTextBuilderResult low = AsciiTextBuilder.AppendByte(destination, high.NextOffset, ToUpperHexNibble((byte)(value & 0x0F)));
         if (!low.Succeeded)
         {
             return false;
@@ -408,8 +244,6 @@ public static class Ipv4NeighborRoutePlanDiagnosticFormatter
 
     private static byte ToUpperHexNibble(byte value)
     {
-        return value < 10
-            ? (byte)('0' + value)
-            : (byte)('A' + (value - 10));
+        return value < 10 ? (byte)('0' + value) : (byte)('A' + (value - 10));
     }
 }

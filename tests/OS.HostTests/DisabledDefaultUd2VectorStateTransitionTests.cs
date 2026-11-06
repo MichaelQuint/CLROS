@@ -983,13 +983,33 @@ internal static unsafe class DisabledDefaultUd2VectorStateTransitionTests
             repositoryRoot, @"src\OS.Kernel\Diagnostics");
         string[] productionFiles =
         [
-            "InvalidOpcodeProbeAuthority.cs",
-            "InvalidOpcodeVectorAuthority.cs",
+            "InvalidOpcodeProbeAuthority.Probes.cs",
+            "FaultVectorCatalog.cs",
             "CpuFaultFrame.cs",
-            "DisabledDefaultUd2VectorState.cs",
-            "OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs",
-            "PopulateAllN256IDTVectorsOwnedGatesNever.cs",
-            "DisabledDefaultUd2VectorStateTransition.cs"
+            "DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateStatus.cs",
+                "DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorField.cs",
+                "DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateOperation.cs",
+                "DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateRequest.cs",
+                "DisabledDefaultUd2VectorState.DisabledDefaultUd2VectorStateResult.cs",
+                "DisabledDefaultUd2VectorState.cs",
+            "OwnedGDTTSSGeneratedAuditedCSharpStubBytes.OwnedGdtTssTerminalStubStatus.cs",
+                "OwnedGDTTSSGeneratedAuditedCSharpStubBytes.OwnedGdtTssTerminalContext.cs",
+                "OwnedGDTTSSGeneratedAuditedCSharpStubBytes.OwnedGdtTssTerminalStubResult.cs",
+                "OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs",
+            "PopulateAllN256IDTVectorsOwnedGatesNever.OwnedIdtGateTableOperation.cs",
+                "PopulateAllN256IDTVectorsOwnedGatesNever.OwnedIdtGateTableStatus.cs",
+                "PopulateAllN256IDTVectorsOwnedGatesNever.OwnedIdtGateTableResult.cs",
+                "PopulateAllN256IDTVectorsOwnedGatesNever.cs",
+            "DisabledDefaultUd2VectorStateTransition.DisabledDefaultUd2VectorStateTransitionOperation.cs",
+                "DisabledDefaultUd2VectorStateTransition.DisabledDefaultUd2VectorStateTransitionStatus.cs",
+                "DisabledDefaultUd2VectorStateTransition.DisabledDefaultUd2VectorStateTransitionContext.cs",
+                "DisabledDefaultUd2VectorStateTransition.DisabledDefaultUd2VectorStateTransitionResult.cs",
+                "DisabledDefaultUd2VectorStateTransition.DisabledDefaultUd2VectorStatePreTerminalStage.cs",
+                "DisabledDefaultUd2VectorStateTransition.DisabledDefaultUd2VectorStatePreTerminalStatus.cs",
+                "DisabledDefaultUd2VectorStateTransition.DisabledDefaultUd2VectorStatePreTerminalResult.cs",
+                "DisabledDefaultUd2VectorStateTransition.DisabledDefaultUd2VectorStatePreTerminalContract.cs",
+                "DisabledDefaultUd2VectorStateTransition.cs",
+                "DisabledDefaultUd2VectorStateTransition.StreamBuilder.cs"
         ];
         for (int index = 0; index < productionFiles.Length; index++)
         {

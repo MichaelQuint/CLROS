@@ -27,16 +27,20 @@ internal static class NativeAotSocketContainmentGuestTests
         "M16_012_POLL identity=0 clock=71000000000 ready=0 idle=1"];
     private static byte[] Raw(string[]? records = null, string stdout = Output, bool split = false)
     {
-        byte[] payload = Encoding.UTF8.GetBytes(stdout); using MemoryStream raw = new();
+        byte[] payload = Encoding.UTF8.GetBytes(stdout);
+        using MemoryStream raw = new();
         raw.Write("TEST_START m16-009\r\n"u8);
         raw.Write(Encoding.ASCII.GetBytes(string.Join("\r\n", records ?? Rows()) + "\r\n"));
         int offset = 0;
         foreach (int length in split ? new[] { 1, 19, payload.Length - 20 } : new[] { payload.Length })
         {
             raw.Write(Encoding.ASCII.GetBytes("M16_005_WRITE fd=1 bytes=" + length.ToString(CultureInfo.InvariantCulture) + " data="));
-            raw.Write(payload.AsSpan(offset, length)); raw.Write("\r\n"u8); offset += length;
+            raw.Write(payload.AsSpan(offset, length));
+            raw.Write("\r\n"u8);
+            offset += length;
         }
-        raw.Write("CLROS_M16_009_READY\r\nTEST_PASS m16-009\r\n"u8); return raw.ToArray();
+        raw.Write("CLROS_M16_009_READY\r\nTEST_PASS m16-009\r\n"u8);
+        return raw.ToArray();
     }
 
     [HostTest("containment guest decodes exact segmented stdout common readiness and transport values")]
@@ -46,10 +50,13 @@ internal static class NativeAotSocketContainmentGuestTests
         {
             byte[] raw = Raw(split: split), original = (byte[])raw.Clone();
             var value = NativeAotSocketContainmentGuest.Read(raw);
-            HostCheck.True(raw.SequenceEqual(original)); HostCheck.Equal(Output, value.Scheduling.Output.Stdout);
+            HostCheck.True(raw.SequenceEqual(original));
+            HostCheck.Equal(Output, value.Scheduling.Output.Stdout);
             HostCheck.Equal(split ? 3 : 1, value.Scheduling.Output.WriteLengths.Count);
-            HostCheck.Equal(2, value.Scheduling.Readiness.Count); HostCheck.Equal(0, value.Scheduling.PendingWaits);
-            HostCheck.Equal(3, value.Transport.Lifetimes.Count); HostCheck.Equal(291UL, value.Application.Worker);
+            HostCheck.Equal(2, value.Scheduling.Readiness.Count);
+            HostCheck.Equal(0, value.Scheduling.PendingWaits);
+            HostCheck.Equal(3, value.Transport.Lifetimes.Count);
+            HostCheck.Equal(291UL, value.Application.Worker);
             HostCheck.Equal(35_000_000_000UL, value.Transport.DropClock);
             HostCheck.True(((IList<QemuTranscripts.SocketContainmentLifetime>)value.Transport.Lifetimes).IsReadOnly);
         }
@@ -60,14 +67,21 @@ internal static class NativeAotSocketContainmentGuestTests
     {
         Reject(Raw(stdout: Output.Replace("worker_before=5", "worker_before=260", StringComparison.Ordinal)));
         Reject(Raw(stdout: NativeAotSocketPayloadTests.FixtureOutput(true)));
-        byte[] raw = Raw(); string text = Encoding.UTF8.GetString(raw);
+        byte[] raw = Raw();
+        string text = Encoding.UTF8.GetString(raw);
         Reject(Encoding.UTF8.GetBytes(text.Replace("M16_005_WRITE fd=1", "M16_005_WRITE fd=2", StringComparison.Ordinal)));
         Reject(Encoding.UTF8.GetBytes(text.Replace(" data=TEST_START", " data=\ufffdEST_START", StringComparison.Ordinal)));
         foreach (bool mode in new[] { false, true })
         {
             bool rejected = false;
-            try { _ = NativeAotSocketGuest.Read(mode, raw); }
-            catch (Exception error) when (error is ToolFailure or InvalidDataException) { rejected = true; }
+            try
+            {
+                _ = NativeAotSocketGuest.Read(mode, raw);
+            }
+            catch (Exception error) when (error is ToolFailure or InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -86,8 +100,14 @@ internal static class NativeAotSocketContainmentGuestTests
     private static void Reject(byte[] raw)
     {
         bool rejected = false;
-        try { _ = NativeAotSocketContainmentGuest.Read(raw); }
-        catch (Exception error) when (error is ToolFailure or DecoderFallbackException) { rejected = true; }
+        try
+        {
+            _ = NativeAotSocketContainmentGuest.Read(raw);
+        }
+        catch (Exception error) when (error is ToolFailure or DecoderFallbackException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

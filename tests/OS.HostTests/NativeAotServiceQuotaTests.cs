@@ -34,9 +34,12 @@ internal static class NativeAotServiceQuotaTests
     {
         string[] rows = Rows(), held = rows.ToArray();
         var value = QemuTranscripts.InspectNativeAotServiceQuotaForTests(rows);
-        HostCheck.Equal(4294967297UL, value.Identity); HostCheck.Equal(1UL, value.Ordinal);
-        HostCheck.Equal(9000UL, value.BackedPages); HostCheck.Equal(9216UL, value.PoolPages);
-        HostCheck.Equal(1UL, value.Reaped); HostCheck.True(rows.SequenceEqual(held));
+        HostCheck.Equal(4294967297UL, value.Identity);
+        HostCheck.Equal(1UL, value.Ordinal);
+        HostCheck.Equal(9000UL, value.BackedPages);
+        HostCheck.Equal(9216UL, value.PoolPages);
+        HostCheck.Equal(1UL, value.Reaped);
+        HostCheck.True(rows.SequenceEqual(held));
     }
 
     [HostTest("service quota leaf rejects crossed denial counters sufficient backing and malformed physical topology")]
@@ -53,9 +56,15 @@ internal static class NativeAotServiceQuotaTests
             (1, "a1=1048576", "a1=4096"), (1, "valueBits=18446744073709551604", "valueBits=0"),
             (2, "ordinal=1", "ordinal=2"), (2, "backed=9000", "backed=8999"),
             (2, "exit=99", "exit=0"), (2, "cause=physical-backing", "cause=errno") })
-        { string[] rows = Rows(); rows[change.Item1] = rows[change.Item1].Replace(change.Item2, change.Item3, StringComparison.Ordinal); Reject(rows); }
-        string[] enough = Rows(); enough[0] = enough[0].Replace("backed=9000 free=216", "backed=8960 free=256", StringComparison.Ordinal);
-        enough[2] = enough[2].Replace("backed=9000", "backed=8960", StringComparison.Ordinal); Reject(enough);
+        {
+            string[] rows = Rows();
+            rows[change.Item1] = rows[change.Item1].Replace(change.Item2, change.Item3, StringComparison.Ordinal);
+            Reject(rows);
+        }
+        string[] enough = Rows();
+        enough[0] = enough[0].Replace("backed=9000 free=216", "backed=8960 free=256", StringComparison.Ordinal);
+        enough[2] = enough[2].Replace("backed=9000", "backed=8960", StringComparison.Ordinal);
+        Reject(enough);
     }
 
     [HostTest("service quota leaf rejects missing duplicated reordered and nonfinal teardown witnesses")]
@@ -64,30 +73,59 @@ internal static class NativeAotServiceQuotaTests
         for (int i = 0; i < Rows().Length; i++)
         {
             // SUPERVISOR remains the complete protocol replay's responsibility.
-            if (i == 4) continue;
-            var rows = Rows().ToList(); rows.RemoveAt(i); Reject(rows.ToArray());
+            if (i == 4)
+                continue;
+            var rows = Rows().ToList();
+            rows.RemoveAt(i);
+            Reject(rows.ToArray());
         }
         foreach (int index in new[] { 0, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 19, 20 })
-        { var rows = Rows().ToList(); rows.Insert(index, rows[index]); Reject(rows.ToArray()); }
+        {
+            var rows = Rows().ToList();
+            rows.Insert(index, rows[index]);
+            Reject(rows.ToArray());
+        }
         foreach (var change in new[] {
             (5, "next=8589934593", "next=8589934594"), (7, "endPages=0", "endPages=1"),
             (8, "nanos=150", "nanos=201"), (9, "exit=99", "exit=0"), (9, "userBacked=0", "userBacked=1"),
             (10, "reaped=1", "reaped=2"), (13, "root=true", "root=false"),
             (17, "b=0", "b=1"), (18, "b=100", "b=99"), (19, "dma=zero", "dma=live") })
-        { string[] rows = Rows(); rows[change.Item1] = rows[change.Item1].Replace(change.Item2, change.Item3, StringComparison.Ordinal); Reject(rows); }
+        {
+            string[] rows = Rows();
+            rows[change.Item1] = rows[change.Item1].Replace(change.Item2, change.Item3, StringComparison.Ordinal);
+            Reject(rows);
+        }
         foreach (string extra in new[] { Rows()[1], "TEST_PASS m16-012", "OS_SMOKE_PASS", "TEST_FAIL m16.014", "M16_016_QUOTA_RESTORE forged=true" })
-        { var rows = Rows().ToList(); rows.Insert(19, extra); Reject(rows.ToArray()); }
-        Reject([..Rows(), "M16_008_CALL forged=1"]);
-        Reject(["M16_016_QUOTA_FORGED accepted=true", ..Rows()]);
-        var earlyExit = Rows().ToList(); string moved = earlyExit[3]; earlyExit.RemoveAt(3); earlyExit.Insert(0, moved); Reject(earlyExit.ToArray());
-        var lateExit = Rows().ToList(); lateExit.Insert(7, "M16_008_EXIT identity=4294967298 clearTidResult=0"); Reject(lateExit.ToArray());
-        Reject([]); Reject([null!]);
+        {
+            var rows = Rows().ToList();
+            rows.Insert(19, extra);
+            Reject(rows.ToArray());
+        }
+        Reject([.. Rows(), "M16_008_CALL forged=1"]);
+        Reject(["M16_016_QUOTA_FORGED accepted=true", .. Rows()]);
+        var earlyExit = Rows().ToList();
+        string moved = earlyExit[3];
+        earlyExit.RemoveAt(3);
+        earlyExit.Insert(0, moved);
+        Reject(earlyExit.ToArray());
+        var lateExit = Rows().ToList();
+        lateExit.Insert(7, "M16_008_EXIT identity=4294967298 clearTidResult=0");
+        Reject(lateExit.ToArray());
+        Reject([]);
+        Reject([null!]);
     }
 
     private static void Reject(string[] rows)
     {
         bool rejected = false;
-        try { _ = QemuTranscripts.InspectNativeAotServiceQuotaForTests(rows); } catch (ToolFailure) { rejected = true; }
+        try
+        {
+            _ = QemuTranscripts.InspectNativeAotServiceQuotaForTests(rows);
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid quota leaf accepted");
     }
 }

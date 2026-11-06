@@ -2,22 +2,6 @@ using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
 
-public sealed record RepositoryCheckResult(IReadOnlyList<string> NamingFailures, IReadOnlyList<string> SourceFailures)
-{
-    public bool Succeeded => NamingFailures.Count == 0 && SourceFailures.Count == 0;
-    public void WriteTo(TextWriter output)
-    {
-        Write("naming.guard", NamingFailures);
-        Write("source.firewall", SourceFailures);
-        void Write(string group, IReadOnlyList<string> failures)
-        {
-            output.WriteLine("TEST_START " + group);
-            if (failures.Count == 0) output.WriteLine("TEST_PASS " + group);
-            else foreach (string failure in failures) output.WriteLine("TEST_FAIL " + group + " " + failure);
-        }
-    }
-}
-
 public static class RepositoryChecks
 {
     private static readonly HashSet<string> Excluded = new(StringComparer.OrdinalIgnoreCase)
@@ -41,7 +25,8 @@ public static class RepositoryChecks
     public static RepositoryCheckResult Check(string root, Action<string>? directoryVisited = null)
     {
         root = Path.GetFullPath(root);
-        if (!Directory.Exists(root)) throw new DirectoryNotFoundException(root);
+        if (!Directory.Exists(root))
+            throw new DirectoryNotFoundException(root);
         List<string> naming = [], source = [];
         foreach (string file in Enumerate(root, directoryVisited))
         {
@@ -70,9 +55,14 @@ public static class RepositoryChecks
                 }
             }
         }
-        if (!File.Exists(Path.Combine(root, Repository.SolutionName))) source.Add(Repository.SolutionName + ": required_solution_missing");
-        if (File.Exists(Path.Combine(root, "OS.slnx"))) source.Add("OS.slnx: legacy_solution_sentinel_present");
-        return new(naming, source);
+        if (!File.Exists(Path.Combine(root, Repository.SolutionName)))
+            source.Add(Repository.SolutionName + ": required_solution_missing");
+        if (File.Exists(Path.Combine(root, "OS.slnx")))
+            source.Add("OS.slnx: legacy_solution_sentinel_present");
+        return new(naming, source)
+        {
+            StyleFailures = RepositoryCodeStyle.Check(root).Select(value => value.ToString()).ToArray()
+        };
     }
 
     public static IEnumerable<string> Enumerate(string root, Action<string>? directoryVisited = null)
@@ -84,12 +74,16 @@ public static class RepositoryChecks
             directoryVisited?.Invoke(directory);
             foreach (string path in Directory.EnumerateFileSystemEntries(directory).Order(StringComparer.Ordinal))
             {
-                if (Excluded.Contains(Path.GetFileName(path))) continue;
+                if (Excluded.Contains(Path.GetFileName(path)))
+                    continue;
                 FileAttributes attributes = File.GetAttributes(path);
                 // Retain the previous provider's visibility and never descend through links.
-                if ((attributes & (FileAttributes.Hidden | FileAttributes.System | FileAttributes.ReparsePoint)) != 0) continue;
-                if ((attributes & FileAttributes.Directory) != 0) pending.Push(path);
-                else yield return path;
+                if ((attributes & (FileAttributes.Hidden | FileAttributes.System | FileAttributes.ReparsePoint)) != 0)
+                    continue;
+                if ((attributes & FileAttributes.Directory) != 0)
+                    pending.Push(path);
+                else
+                    yield return path;
             }
         }
     }

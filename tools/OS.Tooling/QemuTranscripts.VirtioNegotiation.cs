@@ -9,8 +9,10 @@ public static partial class QemuTranscripts
         for (int i = QemuContracts.M05PciEnumerationMarkers.Count; i < lines.Count; i++)
         {
             string expected = QemuContracts.M05VirtioNegotiationMarkers[i];
-            if (expected.StartsWith("M05_VIRTIO ", StringComparison.Ordinal)) rows.Add(ReadHexRecord(lines[i], expected, 4));
-            else Need(lines[i] == expected, "m05_virtio_marker_order");
+            if (expected.StartsWith("M05_VIRTIO ", StringComparison.Ordinal))
+                rows.Add(ReadHexRecord(lines[i], expected, 4));
+            else
+                Need(lines[i] == expected, "m05_virtio_marker_order");
         }
         ulong start = rows[0][2];
         Need(rows[0][0] == 0x600 && rows[0][1] == 0x10411af4 && rows[0][3] == 4 &&

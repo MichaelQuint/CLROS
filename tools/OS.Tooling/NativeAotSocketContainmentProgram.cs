@@ -9,9 +9,15 @@ namespace OS.Tooling;
 public sealed class NativeAotSocketContainmentProgram
 {
     private readonly NativeAotInstructionIndex index;
-    internal string SourceRoot { get; }
+    internal string SourceRoot
+    {
+        get;
+    }
     private NativeAotSocketContainmentProgram(string root, NativeAotInstructionIndex index)
-    { SourceRoot = Path.GetFullPath(root); this.index = index; }
+    {
+        SourceRoot = Path.GetFullPath(root);
+        this.index = index;
+    }
     /// <summary>Value-only reviewed index identity.</summary>
     public NativeAotSocketProgram.Inspection Metadata => new(index.Report.InstructionCount, index.Report.SyscallCount, index.Report.Sha256);
     /// <summary>Accept only original decoded starts, excluding operands/gaps.</summary>
@@ -35,7 +41,8 @@ public sealed class NativeAotSocketContainmentProgram
         if (parsed.Report != new NativeAotInstructionIndex.Inspection(299_687, 179,
             "D4BEA07F33B58D9BDDCB0E82E0B2D468517BD6B98B29768D89B94331BE5B602F") || !parsed.SyscallContinuationsValid)
             throw new InvalidDataException("socket_containment_instruction_identity");
-        NativeAotSocketContainmentPackage.RequireCurrentSources(root); return new(root, parsed);
+        NativeAotSocketContainmentPackage.RequireCurrentSources(root);
+        return new(root, parsed);
     }
 
     /// <summary>Read bounded distinct single-link original inputs under
@@ -44,14 +51,16 @@ public sealed class NativeAotSocketContainmentProgram
     /// changing inputs reject before a sealed program is returned.</summary>
     public static NativeAotSocketContainmentProgram Read(string root, string packagePath, string disassemblyPath)
     {
-        packagePath=Path.GetFullPath(packagePath);disassemblyPath=Path.GetFullPath(disassemblyPath);
-        using AuthorityFiles files=new();
-        var package=files.Open(Path.GetDirectoryName(packagePath)!,packagePath,"containment package","socket_containment_package",
-            NativeAotSocketContainmentPackage.ElfBytes+4096,singleLink:true);
-        var dump=files.Open(Path.GetDirectoryName(disassemblyPath)!,disassemblyPath,"containment disassembly","socket_containment_disassembly",32*1024*1024,singleLink:true);
-        AuthorityFiles.RequireDistinct(package,dump);
-        var program=Create(root,package.ReadBytes(NativeAotSocketContainmentPackage.ElfBytes+4096,"socket_containment_package"),
-            dump.ReadUtf8(32*1024*1024,"socket_containment_disassembly"));
-        files.VerifyUnchanged();return program;
+        packagePath = Path.GetFullPath(packagePath);
+        disassemblyPath = Path.GetFullPath(disassemblyPath);
+        using AuthorityFiles files = new();
+        var package = files.Open(Path.GetDirectoryName(packagePath)!, packagePath, "containment package", "socket_containment_package",
+            NativeAotSocketContainmentPackage.ElfBytes + 4096, singleLink: true);
+        var dump = files.Open(Path.GetDirectoryName(disassemblyPath)!, disassemblyPath, "containment disassembly", "socket_containment_disassembly", 32 * 1024 * 1024, singleLink: true);
+        AuthorityFiles.RequireDistinct(package, dump);
+        var program = Create(root, package.ReadBytes(NativeAotSocketContainmentPackage.ElfBytes + 4096, "socket_containment_package"),
+            dump.ReadUtf8(32 * 1024 * 1024, "socket_containment_disassembly"));
+        files.VerifyUnchanged();
+        return program;
     }
 }

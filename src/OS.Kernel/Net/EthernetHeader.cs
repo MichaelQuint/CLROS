@@ -15,11 +15,20 @@ public readonly struct EthernetHeader
         EtherType = etherType;
     }
 
-    public MacAddress Destination { get; }
+    public MacAddress Destination
+    {
+        get;
+    }
 
-    public MacAddress Source { get; }
+    public MacAddress Source
+    {
+        get;
+    }
 
-    public ushort EtherType { get; }
+    public ushort EtherType
+    {
+        get;
+    }
 
     public static PacketParseStatus TryParse(
         ReadOnlySpan<byte> frame,

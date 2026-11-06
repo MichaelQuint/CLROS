@@ -14,7 +14,8 @@ internal static unsafe class M05PciEfiIntegrationTests
         foreach (bool build in new[] { true, false })
         {
             HostCheck.True(EfiOptions.Parse(flags, build).Profile().IsEnabled("M05PciEnumeration"));
-            foreach (string required in flags[..^1]) Reject(() => EfiOptions.Parse(flags.Where(f => f != required).ToArray(), build).Profile());
+            foreach (string required in flags[..^1])
+                Reject(() => EfiOptions.Parse(flags.Where(f => f != required).ToArray(), build).Profile());
             foreach (string conflict in new[] { "M05PhysicalMapping", "M05OwnedAcpiSelection", "M05MonotonicClock", "M03OwnedSubsystemPanic", "M03FirmwareAdapterRevocation" })
                 Reject(() => EfiOptions.Parse([.. flags, "--Enable" + conflict + "Probe"], build).Profile());
             Reject(() => EfiOptions.Parse([.. flags, "--BootPolicy", "VerifiedExit"], build).Profile());
@@ -24,7 +25,11 @@ internal static unsafe class M05PciEfiIntegrationTests
         Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", .. flags])));
         Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", "--SkipImageBuild", .. flags])));
     }
-    private static bool Execute(void* context) { (*(int*)context)++; return true; }
+    private static bool Execute(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
 
     [HostTest("m05.pci.efi records bind aperture header scan and malformed controls")]
     private static void Transcript()
@@ -37,7 +42,8 @@ internal static unsafe class M05PciEfiIntegrationTests
             [0xe0800000, 0x29c08086, 0, 0x06000000], [1, 1, 1, 4096],
             [8, 46, 0x02081f07, 0], [8, 46, 1, 0], [10, 1, 2, 0],
             [0x12348086, 0x02081f02, 4, 2], [9, 8, 7, 1]];
-        for (int i = 0; i < 9; i++) lines[start + offsets[i]] = Row(i, rows[i]);
+        for (int i = 0; i < 9; i++)
+            lines[start + offsets[i]] = Row(i, rows[i]);
         QemuTranscripts.AssertM05PciEnumerationRecords(lines);
         foreach ((int stage, int column, ulong value) in new (int, int, ulong)[]
         {
@@ -48,10 +54,14 @@ internal static unsafe class M05PciEfiIntegrationTests
             (7, 1, 0x02082000), (7, 2, 49), (7, 3, 1), (8, 0, 1), (8, 3, 0)
         })
         {
-            string[] changed = [.. lines]; ulong[] values = [.. rows[stage]]; values[column] = value;
-            changed[start + offsets[stage]] = Row(stage, values); Reject(() => QemuTranscripts.AssertM05PciEnumerationRecords(changed));
+            string[] changed = [.. lines];
+            ulong[] values = [.. rows[stage]];
+            values[column] = value;
+            changed[start + offsets[stage]] = Row(stage, values);
+            Reject(() => QemuTranscripts.AssertM05PciEnumerationRecords(changed));
         }
-        string[] swapped = [.. lines]; (swapped[start + 3], swapped[start + 4]) = (swapped[start + 4], swapped[start + 3]);
+        string[] swapped = [.. lines];
+        (swapped[start + 3], swapped[start + 4]) = (swapped[start + 4], swapped[start + 3]);
         Reject(() => QemuTranscripts.AssertM05PciEnumerationRecords(swapped));
         Reject(() => QemuTranscripts.AssertM05PciEnumerationRecords([.. lines, "extra"]));
         // Exercise the complete parser, not only the PCI suffix. The shared M03
@@ -67,11 +77,22 @@ internal static unsafe class M05PciEfiIntegrationTests
             File.WriteAllText(path, M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(whole));
             Reject(() => QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true, pciEnumeration: true));
         }
-        finally { File.Delete(path); }
+        finally
+        {
+            File.Delete(path);
+        }
     }
     private static void Reject(Action action)
     {
-        bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid profile or evidence must be rejected");
     }
 }

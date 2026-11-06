@@ -27,7 +27,8 @@ internal static class NativeAotStagedStaticPeerTests
             string path = Path.Combine(evidence, asset.Path.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             byte[] bytes = (byte[])asset.Bytes.Clone();
-            if (changeBody && asset.Path == "wwwroot/site.css") bytes[0] ^= 1;
+            if (changeBody && asset.Path == "wwwroot/site.css")
+                bytes[0] ^= 1;
             await File.WriteAllBytesAsync(path, bytes);
             File.SetLastWriteTimeUtc(path, new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         }
@@ -35,7 +36,8 @@ internal static class NativeAotStagedStaticPeerTests
         async Task<ProcessResult> Host(int port, CancellationToken token)
         {
             var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { ContentRootPath = evidence, WebRootPath = webroot });
-            builder.Logging.ClearProviders(); builder.WebHost.UseUrls("http://127.0.0.1:" + port);
+            builder.Logging.ClearProviders();
+            builder.WebHost.UseUrls("http://127.0.0.1:" + port);
             await using var app = builder.Build();
             StaticFileApplication.Configure(app);
             app.MapGet("/healthz", () => TypedResults.Text("OS_MINIMAL_API_OK", "text/plain"));
@@ -45,14 +47,16 @@ internal static class NativeAotStagedStaticPeerTests
             {
                 await app.StartAsync(token);
                 await File.WriteAllTextAsync(serial, "M10_017_LISTENING synthetic-host-only\r\n", token);
-                while (!File.Exists(Path.Combine(destination, "http.json"))) await Task.Delay(20, token);
+                while (!File.Exists(Path.Combine(destination, "http.json")))
+                    await Task.Delay(20, token);
                 await Task.Delay(100, token);
                 return new(0, "synthetic-host-only", "", false, false, false, TimeSpan.Zero);
             }
             finally
             {
                 using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                await app.StopAsync(stop.Token); joined = true;
+                await app.StopAsync(stop.Token);
+                joined = true;
             }
         }
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(40));

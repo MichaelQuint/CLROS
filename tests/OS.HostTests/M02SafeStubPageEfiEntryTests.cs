@@ -1,3 +1,4 @@
+using Microsoft.CodeAnalysis;
 using OS.Tooling;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -7,7 +8,7 @@ using System.Xml.Linq;
 using OS.Kernel.Diagnostics;
 using OS.Kernel.Memory;
 
-internal static unsafe class M02SafeStubPageEfiEntryTests
+internal static unsafe partial class M02SafeStubPageEfiEntryTests
 {
     private const string TestName = "m02.017";
     private const string ExpectedSha256 =
@@ -92,139 +93,37 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
     [HostTest("m02.017 EFI marker writer and cross-stage order are exact", HostLane.Fast, 1)]
     private static bool TestEfiMarkerWriterAndOrder()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"));
-        string[] reconstructed = ExtractM02WriterMarkers(source);
-        if (!reconstructed.SequenceEqual(
-                M02SuccessMarkers,
-                StringComparer.Ordinal))
-        {
-            return false;
-        }
-
-        int stageThreeRecaptured = source.IndexOf(
-            "WriteSuccessLine(console, serial, bootServices, 4);",
-            StringComparison.Ordinal);
-        int gateMaterialized = source.IndexOf(
-            "if (!s_gateMaterialization.IsMaterialized)",
-            stageThreeRecaptured,
-            StringComparison.Ordinal);
-        int prepareCall = source.IndexOf(
-            "if (!PrepareM02SafeStubPage(",
-            gateMaterialized,
-            StringComparison.Ordinal);
-        int gateReadback = source.IndexOf(
-            "gateMaterialization =",
-            prepareCall,
-            StringComparison.Ordinal);
-        int preCr3 = source.IndexOf(
-            "WriteSuccessLine(console, serial, bootServices, 8);",
-            gateReadback,
-            StringComparison.Ordinal);
-        int transfer = source.IndexOf(
-            "transfer(",
-            preCr3,
-            StringComparison.Ordinal);
-        int observedAuditGuard = source.IndexOf(
-            "if (!s_gateAudit.IsObservedAudit)",
-            transfer,
-            StringComparison.Ordinal);
-        int postReturnLoop = source.IndexOf(
-            "for (int lineIndex = 9;",
-            observedAuditGuard,
-            StringComparison.Ordinal);
-        int writerCall = source.IndexOf(
-            "WriteSuccessLine(",
-            postReturnLoop,
-            StringComparison.Ordinal);
-
-        int prepareMethod = source.IndexOf(
-            "private static bool PrepareM02SafeStubPage(",
-            writerCall,
-            StringComparison.Ordinal);
-        int originalProbeReadback = source.IndexOf(
-            "ValidateOriginalProtectionProbeBeforeM02(",
-            prepareMethod,
-            StringComparison.Ordinal);
-        int start = source.IndexOf(
-            "WriteM02SuccessLine(console, serial, 0);",
-            originalProbeReadback,
-            StringComparison.Ordinal);
-        int materialize = source.IndexOf(
-            "M02SafeStubPageIntegration.Materialize(",
-            start,
-            StringComparison.Ordinal);
-        int materializedMarker = source.IndexOf(
-            "WriteM02SuccessLine(console, serial, 1);",
-            materialize,
-            StringComparison.Ordinal);
-        int readback = source.IndexOf(
-            "M02SafeStubPageIntegration.ValidateReadback(",
-            materializedMarker,
-            StringComparison.Ordinal);
-        int readbackMarker = source.IndexOf(
-            "WriteM02SuccessLine(console, serial, 2);",
-            readback,
-            StringComparison.Ordinal);
-        int finalization = source.IndexOf(
-            "M02SafeStubPageIntegration.AuditFinalization(",
-            readbackMarker,
-            StringComparison.Ordinal);
-
-        int writer = source.IndexOf(
-            "private static void WriteSuccessLine(",
-            finalization,
-            StringComparison.Ordinal);
-        int executionGuard = source.IndexOf(
-            "if (lineIndex == 9)",
-            writer,
-            StringComparison.Ordinal);
-        int executionAudit = source.IndexOf(
-            "M02SafeStubPageIntegration.AuditExecution(",
-            executionGuard,
-            StringComparison.Ordinal);
-        int lastThreeGuard = source.IndexOf(
-            "if (lineIndex == 18)",
-            executionAudit,
-            StringComparison.Ordinal);
-        int safeMarker = source.IndexOf(
-            "WriteM02SuccessLine(console, serial, 3);",
-            lastThreeGuard,
-            StringComparison.Ordinal);
-        int readyMarker = source.IndexOf(
-            "WriteM02SuccessLine(console, serial, 4);",
-            safeMarker,
-            StringComparison.Ordinal);
-        int passMarker = source.IndexOf(
-            "WriteM02SuccessLine(console, serial, 5);",
-            readyMarker,
-            StringComparison.Ordinal);
-
-        return stageThreeRecaptured >= 0
-            && stageThreeRecaptured < gateMaterialized
-            && gateMaterialized < prepareCall
-            && prepareCall < gateReadback
-            && gateReadback < preCr3
-            && preCr3 < transfer
-            && transfer < observedAuditGuard
-            && observedAuditGuard < postReturnLoop
-            && postReturnLoop < writerCall
-            && writerCall < prepareMethod
-            && prepareMethod < originalProbeReadback
-            && originalProbeReadback < start
-            && start < materialize
-            && materialize < materializedMarker
-            && materializedMarker < readback
-            && readback < readbackMarker
-            && readbackMarker < finalization
-            && finalization < writer
-            && writer < executionGuard
-            && executionGuard < executionAudit
-            && executionAudit < lastThreeGuard
-            && lastThreeGuard < safeMarker
-            && safeMarker < readyMarker
-            && readyMarker < passMarker;
+        var source = SafeStubSources();
+        string run = HostSourceText.Active(SafeStubCaller(source));
+        string prepare = HostSourceText.Active(SafeStubMethod(source, "PrepareM02SafeStubPage", SpecialType.System_Boolean));
+        string writer = HostSourceText.Active(SafeStubMethod(source, "WriteSuccessLine", SpecialType.System_Void));
+        string marker = SafeStubMethod(source, "WriteM02SuccessLine", SpecialType.System_Void).ToString();
+        return ExtractM02WriterMarkers(marker).SequenceEqual(M02SuccessMarkers, StringComparer.Ordinal)
+            && SafeStubOrder(run,
+                "WriteSuccessLine(console, serial, bootServices, 4);",
+                "if (!s_gateMaterialization.IsMaterialized)",
+                "if (!PrepareM02SafeStubPage(",
+                "gateMaterialization =",
+                "WriteSuccessLine(console, serial, bootServices, 8);",
+                "transfer(",
+                "if (!s_gateAudit.IsObservedAudit)",
+                "for (int lineIndex = 9;",
+                "WriteSuccessLine(")
+            && SafeStubOrder(prepare,
+                "ValidateOriginalProtectionProbeBeforeM02(",
+                "WriteM02SuccessLine(console, serial, 0);",
+                "M02SafeStubPageIntegration.Materialize(",
+                "WriteM02SuccessLine(console, serial, 1);",
+                "M02SafeStubPageIntegration.ValidateReadback(",
+                "WriteM02SuccessLine(console, serial, 2);",
+                "M02SafeStubPageIntegration.AuditFinalization(")
+            && SafeStubOrder(writer,
+                "if (lineIndex == 9)",
+                "M02SafeStubPageIntegration.AuditExecution(",
+                "if (lineIndex == 18)",
+                "WriteM02SuccessLine(console, serial, 3);",
+                "WriteM02SuccessLine(console, serial, 4);",
+                "WriteM02SuccessLine(console, serial, 5);");
     }
 
     [HostTest("m02.017 project and build selector are fail closed", HostLane.Fast, 2)]
@@ -260,6 +159,15 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 StringComparison.Ordinal))
             .ToArray();
 
+        var sources = SafeStubSources();
+        foreach (string owner in new[]
+        {
+            "OS.Kernel.Diagnostics.PortIoOperationPlan",
+            "OS.Kernel.Diagnostics.PortIoStubPlan",
+            "OS.Kernel.Diagnostics.ExistingIn8Out8StubBytesRWPagesFinalize",
+            "OS.Boot.M02SafeStubPageIntegration"
+        })
+            _ = sources.TypeSources(owner);
         return defaults.Length == 1
             && defaults[0].Value == "false"
             && defaults[0].Attribute("Condition")?.Value
@@ -269,7 +177,6 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             && symbols.Length == 1
             && symbols[0].Elements("DefineConstants").Single().Value
                 == "$(DefineConstants);M02_SAFE_STUB_PROBE"
-            && errorConditions.Length == 16
             && errorConditions.Contains(
                 "'$(EnableM02SafeStubProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'",
                 StringComparer.Ordinal)
@@ -312,38 +219,22 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             && errorConditions.Any(value => value.Contains(
                 "EnableM01OwnedPagingProbe",
                 StringComparison.Ordinal))
-            && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
-                @"..\OS.Kernel\Diagnostics\PortIoOperationPlan.cs",
-                @"Diagnostics\PortIoOperationPlan.cs")
-            && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
-                @"..\OS.Kernel\Diagnostics\PortIoStubPlan.cs",
-                @"Diagnostics\PortIoStubPlan.cs")
-            && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
-                @"..\OS.Kernel\Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs",
-                @"Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs")
-            && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
-                @"Boot\M02SafeStubPageIntegration.cs",
-                string.Empty);
+            && ContractAudit.Inspect(root).Count == 0;
     }
 
     [HostTest("m02.017 QEMU profiles are immutable and match the guest", HostLane.Fast, 3)]
     private static bool TestQemuProfiles() => EfiProfileTestControls.Returning("M02SafeStub",
-        QemuContracts.M02SafeStubRequiredMarkers,QemuContracts.M02SafeStubForbiddenMarkers,
-        M02SuccessMarkers[4],M02ForbiddenMarkers[0]);
+        QemuContracts.M02SafeStubRequiredMarkers, QemuContracts.M02SafeStubForbiddenMarkers,
+        M02SuccessMarkers[4], M02ForbiddenMarkers[0]);
 
     [HostTest("m02.017 integration source keeps one safe no-firmware invocation", HostLane.Fast, 4)]
     private static bool TestIntegrationSourceBoundary()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string helper = File.ReadAllText(
-            Path.Combine(
-                root,
-                "src",
-                "OS",
-                "Boot",
-                "M02SafeStubPageIntegration.cs"));
-        string efiEntry = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"));
+        var sources = SafeStubSources();
+        string helper = HostSourceText.Documents(sources,
+            "OS.Boot.M02SafeStubPageIntegration", "OS.Boot.M02SafeStubPageIntegrationResult",
+            "OS.Boot.M02SafeStubPageIntegrationPhase", "OS.Boot.M02SafeStubPageIntegrationStatus");
+        string efiEntry = HostSourceText.Documents(sources, "OS.Boot.EfiEntry");
 
         return helper.Contains(
                 "public const ulong StructureSize = 96;",
@@ -462,21 +353,8 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
         return hash;
     }
 
-    private static string[] ExtractM02WriterMarkers(string source)
+    private static string[] ExtractM02WriterMarkers(string method)
     {
-        int methodStart = source.IndexOf(
-            "private static void WriteM02SuccessLine(",
-            StringComparison.Ordinal);
-        int methodEnd = source.IndexOf(
-            "#endif",
-            methodStart,
-            StringComparison.Ordinal);
-        if (methodStart < 0 || methodEnd <= methodStart)
-        {
-            return [];
-        }
-
-        string method = source[methodStart..methodEnd];
         string[] markers = new string[M02SuccessMarkers.Length];
         for (int lineIndex = 0; lineIndex < markers.Length; lineIndex++)
         {

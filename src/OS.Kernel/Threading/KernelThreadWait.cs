@@ -10,5 +10,9 @@ public readonly struct KernelThreadWait
     public readonly OSHostHandle Thread;
     public readonly ulong Sequence;
     public bool IsValid => Thread.IsValid && Sequence != 0;
-    internal KernelThreadWait(OSHostHandle thread, ulong sequence) { Thread = thread; Sequence = sequence; }
+    internal KernelThreadWait(OSHostHandle thread, ulong sequence)
+    {
+        Thread = thread;
+        Sequence = sequence;
+    }
 }

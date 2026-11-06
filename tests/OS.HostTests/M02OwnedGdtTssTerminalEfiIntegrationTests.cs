@@ -1,3 +1,6 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Tooling;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -6,377 +9,294 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
-internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
+internal static partial class M02OwnedGdtTssTerminalEfiIntegrationTests
 {
-    private static readonly string[] TerminalArguments = ["-EnableM01LoadedImageStackProbe","-EnableM01LiveAllocatorProbe","-EnableM01OwnedPagingProbe","-EnableM02SafeStubProbe","-EnableM02CheckedPortIoBindingProbe","-EnableM02Com1OwnedPortIoProbe","-EnableM02OwnedCom1ReadyProbe","-EnableM02PanicSafeOwnedCom1Probe","-EnableM02OwnedX64GdtEncodingProbe","-EnableM02GuardedIstStackAllocationProbe","-EnableM02OwnedGdtTssTerminalProbe"];
+    private static readonly string[] TerminalArguments = ["-EnableM01LoadedImageStackProbe", "-EnableM01LiveAllocatorProbe", "-EnableM01OwnedPagingProbe", "-EnableM02SafeStubProbe", "-EnableM02CheckedPortIoBindingProbe", "-EnableM02Com1OwnedPortIoProbe", "-EnableM02OwnedCom1ReadyProbe", "-EnableM02PanicSafeOwnedCom1Probe", "-EnableM02OwnedX64GdtEncodingProbe", "-EnableM02GuardedIstStackAllocationProbe", "-EnableM02OwnedGdtTssTerminalProbe"];
     private const string TestName = "m02.009.efi.integration";
     private static readonly string ReadyMarker = QemuContracts.M02OwnedGdtTssTerminalReadyMarker[0];
-    private static readonly string CompileClosureSha256 =
-        OS.Tooling.EfiContracts.CompileInventorySha256;
-    private const string ProjectFileSha256 =
-        OS.Tooling.EfiContracts.ProjectSourceSha256;
-    private const string CanonicalProjectShapeSha256 =
-        OS.Tooling.EfiContracts.CanonicalProjectSha256;
-
+    private static readonly string CompileClosureSha256 = OS.Tooling.EfiContracts.CompileInventorySha256;
+    private const string ProjectFileSha256 = OS.Tooling.EfiContracts.ProjectSourceSha256;
+    private const string CanonicalProjectShapeSha256 = OS.Tooling.EfiContracts.CanonicalProjectSha256;
     [HostTest("m02.009 compile closure flag dependency and tool propagation are exact", HostLane.Fast, 0)]
     private static bool TestCompileClosureAndTooling()
     {
         string root = HostToolProcess.FindRepositoryRoot();
         string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");
         XDocument project = XDocument.Load(projectPath);
-        XElement[] compileItems = project.Descendants("Compile").ToArray();
-        string[] compileKeys = compileItems
-            .Select(item =>
-                (item.Attribute("Include")?.Value ?? string.Empty) + "|" +
-                (item.Attribute("Link")?.Value ?? string.Empty))
-            .ToArray();
-        string compileHash = Convert.ToHexString(
-                SHA256.HashData(
-                    Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n")))
-            .ToLowerInvariant();
-        string projectHash = Convert.ToHexString(
-                SHA256.HashData(Encoding.UTF8.GetBytes(File.ReadAllText(projectPath).Replace("\r\n", "\n", StringComparison.Ordinal))))
-            .ToLowerInvariant();
+        var catalog = TerminalSources();
+        foreach (string owner in new[] {
+            "OS.Kernel.Diagnostics.GuardedISTStacksDoubleFaultPageFaultNMI",
+            "OS.Kernel.Diagnostics.OwnedGDTTSSGeneratedAuditedCSharpStubBytes",
+            "OS.Kernel.Diagnostics.NormalizeErrorCodeNonErrorCodeInterruptFrame",
+            "OS.Std.Binary.IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMosa" })
+            _ = catalog.TypeSources(owner);
+        XElement[] defaults = project.Descendants("EnableM02OwnedGdtTssTerminalProbe").Where(element => element.Parent?.Name.LocalName == "PropertyGroup").ToArray();
+        XElement[] symbolGroups = project.Descendants("PropertyGroup").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'").ToArray();
+        XElement[] dependencyErrors = project.Descendants("Error").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and " + "'$(EnableM02GuardedIstStackAllocationProbe)' != 'true'").ToArray();
+        return ContractAudit.Inspect(root).Count == 0
 
-        const string GuardedIstKey =
-            @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
-        const string TerminalKey =
-            @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
-        const string NormalizedInterruptFrameKey =
-            @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
-        const string EndianKey =
-            @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
-        int guardedIndex = Array.IndexOf(compileKeys, GuardedIstKey);
-        int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
-        int normalizedInterruptFrameIndex =
-            Array.IndexOf(compileKeys, NormalizedInterruptFrameKey);
-        int endianIndex = Array.IndexOf(compileKeys, EndianKey);
-
-        XElement[] defaults = project
-            .Descendants("EnableM02OwnedGdtTssTerminalProbe")
-            .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
-            .ToArray();
-        XElement[] symbolGroups = project
-            .Descendants("PropertyGroup")
-            .Where(element =>
-                element.Attribute("Condition")?.Value ==
-                    "'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'")
-            .ToArray();
-        XElement[] dependencyErrors = project
-            .Descendants("Error")
-            .Where(element =>
-                element.Attribute("Condition")?.Value ==
-                    "'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' and " +
-                    "'$(EnableM02GuardedIstStackAllocationProbe)' != 'true'")
-            .ToArray();
-
-        return compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count
-            && compileHash == CompileClosureSha256
-            && projectHash == ProjectFileSha256
-            && guardedIndex >= 0
-            && terminalIndex == guardedIndex + 1
-            && normalizedInterruptFrameIndex == terminalIndex + 1
-            && endianIndex == normalizedInterruptFrameIndex + 17
-            && compileKeys.Count(key => key == TerminalKey) == 1
             && defaults.Length == 1
+
             && defaults[0].Value == "false"
-            && defaults[0].Attribute("Condition")?.Value ==
-                "'$(EnableM02OwnedGdtTssTerminalProbe)' == ''"
+
+            && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02OwnedGdtTssTerminalProbe)' == ''"
+
             && symbolGroups.Length == 1
-            && symbolGroups[0].Elements("DefineConstants").Single().Value ==
-                "$(DefineConstants);M02_OWNED_GDT_TSS_TERMINAL_PROBE"
+
+            && symbolGroups[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_OWNED_GDT_TSS_TERMINAL_PROBE"
+
             && dependencyErrors.Length == 1
-            && dependencyErrors[0].Attribute("Text")?.Value ==
-                "EnableM02OwnedGdtTssTerminalProbe requires " +
-                "EnableM02GuardedIstStackAllocationProbe=true."
-            && EfiOptions.Parse(TerminalArguments,true).Profile().IsEnabled("EnableM02OwnedGdtTssTerminalProbe")
-            && EfiOptions.Parse(TerminalArguments,false).Profile().IsEnabled("EnableM02OwnedGdtTssTerminalProbe");
+
+            && dependencyErrors[0].Attribute("Text")?.Value == "EnableM02OwnedGdtTssTerminalProbe requires " + "EnableM02GuardedIstStackAllocationProbe=true."
+
+            && EfiOptions.Parse(TerminalArguments, true).Profile().IsEnabled("EnableM02OwnedGdtTssTerminalProbe")
+
+            && EfiOptions.Parse(TerminalArguments, false).Profile().IsEnabled("EnableM02OwnedGdtTssTerminalProbe");
     }
 
     [HostTest("m02.009 prepares two typed pages and cleans data before code", HostLane.Native, 1)]
     private static bool TestPreparationAndCleanup()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
-        string preparation = ExtractBlock(
-            source,
-            "private static bool PrepareM02OwnedGdtTssTerminalProbe(",
-            "private static bool IsExactM02OwnedGdtTssTerminalPreparation(");
-        string exactGate = ExtractBlock(
-            source,
-            "private static bool IsExactM02OwnedGdtTssTerminalPreparation(",
-            "private static bool ValidateM02OwnedGdtTssTerminalResources()");
-        string cleanup = ExtractBlock(
-            source,
-            "private static bool FailM02OwnedGdtTssTerminalBeforeEntry(",
-            "private static void WriteM02OwnedGdtTssTerminalFirmwareLine(");
-        string cleanupPlan = ExtractBlock(
-            source,
-            "private static byte GetM02OwnedGdtTssTerminalCleanupPlan(",
-            "private static bool FailM02OwnedGdtTssTerminalBeforeEntry(");
-        string efiMain = ExtractBlock(
-            source,
-            "private static long EfiMain(",
-            "private static void Main()");
+        var catalog = TerminalSources();
+        string source = HostSourceText.Declarations(catalog, "OS.Boot.EfiEntry");
+        string preparation = TerminalMethod(catalog, "OS.Boot.EfiEntry", "PrepareM02OwnedGdtTssTerminalProbe", SpecialType.System_Boolean).ToString();
+        string exactGate = TerminalMethod(catalog, "OS.Boot.EfiEntry", "IsExactM02OwnedGdtTssTerminalPreparation", SpecialType.System_Boolean).ToString();
+        string cleanup = TerminalMethod(catalog, "OS.Boot.EfiEntry", "FailM02OwnedGdtTssTerminalBeforeEntry", SpecialType.System_Boolean).ToString();
+        var cleanupSyntax = TerminalMethod(catalog, "OS.Boot.EfiEntry", "GetM02OwnedGdtTssTerminalCleanupPlan", SpecialType.System_Byte);
+        string cleanupPlan = cleanupSyntax.ToString();
+        string efiMain = HostSourceText.Active(TerminalMethod(catalog, "OS.Boot.EfiEntry", "EfiMain", SpecialType.System_Int64));
+        int codeAllocation = HostSourceText.IndexOf(preparation, "M02OwnedGdtTssTerminalEfiLoaderCode");
+        int dataAllocation = HostSourceText.IndexOf(preparation, "M02OwnedGdtTssTerminalEfiLoaderData");
+        int zeroing = HostSourceText.IndexOf(preparation, "codePage[offset] = 0;");
+        int contextAtOffsetZero = HostSourceText.IndexOf(preparation, "(OS.Kernel.Diagnostics.OwnedGdtTssTerminalContext*)dataAddress");
+        int prepareContext = HostSourceText.IndexOf(preparation, ".PrepareContext(");
+        int emit = HostSourceText.IndexOf(preparation, ".Emit(");
+        int validate = HostSourceText.IndexOf(preparation, ".ValidateReadBack(");
+        int saveCode = HostSourceText.IndexOf(preparation, "s_m02OwnedGdtTssTerminalCodeAddress = codeAddress;");
+        int saveData = HostSourceText.IndexOf(preparation, "s_m02OwnedGdtTssTerminalDataAddress = dataAddress;");
+        int resolveConsole = HostSourceText.IndexOf(efiMain, "GetFirmwareConsole(systemTable)");
+        int resolveSerial = HostSourceText.IndexOf(efiMain, "GetFirmwareSerial(systemTable)");
+        int prepareBeforeMarkers = HostSourceText.IndexOf(efiMain, "PrepareM02OwnedGdtTssTerminalProbe(");
+        int normalMarkers = HostSourceText.IndexOf(efiMain, "WriteBootMarkers(");
+        int dataCleanup = HostSourceText.IndexOf(cleanup, "dataAddress, M02OwnedGdtTssTerminalPageCount");
+        int codeCleanup = HostSourceText.IndexOf(cleanup, "codeAddress, M02OwnedGdtTssTerminalPageCount");
+        string distinctCodeCleanupGate = "if (codeAllocated && (!dataAllocated || codeAddress != dataAddress))";
+        var gate = cleanupSyntax.DescendantNodes().OfType<IfStatementSyntax>().Single(node =>
+            HostSourceText.Contains(HostSourceText.Active(node), distinctCodeCleanupGate));
+        string aliasedCodeCleanupMutation = cleanupSyntax.ReplaceNode(gate.Condition,
+            SyntaxFactory.IdentifierName("codeAllocated")).ToString();
+        int distinctCodeCleanup = HostSourceText.IndexOf(cleanupPlan, distinctCodeCleanupGate);
+        return HostSourceText.Contains(source, "private const uint M02OwnedGdtTssTerminalEfiLoaderCode = 1;")
 
-        int codeAllocation = preparation.IndexOf(
-            "M02OwnedGdtTssTerminalEfiLoaderCode",
-            StringComparison.Ordinal);
-        int dataAllocation = preparation.IndexOf(
-            "M02OwnedGdtTssTerminalEfiLoaderData",
-            StringComparison.Ordinal);
-        int zeroing = preparation.IndexOf(
-            "codePage[offset] = 0;",
-            StringComparison.Ordinal);
-        int contextAtOffsetZero = preparation.IndexOf(
-            "(OS.Kernel.Diagnostics.OwnedGdtTssTerminalContext*)dataAddress",
-            StringComparison.Ordinal);
-        int prepareContext = preparation.IndexOf(
-            ".PrepareContext(",
-            StringComparison.Ordinal);
-        int emit = preparation.IndexOf(".Emit(", StringComparison.Ordinal);
-        int validate = preparation.IndexOf(
-            ".ValidateReadBack(",
-            StringComparison.Ordinal);
-        int saveCode = preparation.IndexOf(
-            "s_m02OwnedGdtTssTerminalCodeAddress = codeAddress;",
-            StringComparison.Ordinal);
-        int saveData = preparation.IndexOf(
-            "s_m02OwnedGdtTssTerminalDataAddress = dataAddress;",
-            StringComparison.Ordinal);
+            && HostSourceText.Contains(source, "private const uint M02OwnedGdtTssTerminalEfiLoaderData = 2;")
 
-        int resolveConsole = efiMain.IndexOf(
-            "GetFirmwareConsole(systemTable)",
-            StringComparison.Ordinal);
-        int resolveSerial = efiMain.IndexOf(
-            "GetFirmwareSerial(systemTable)",
-            StringComparison.Ordinal);
-        int prepareBeforeMarkers = efiMain.IndexOf(
-            "PrepareM02OwnedGdtTssTerminalProbe(",
-            StringComparison.Ordinal);
-        int normalMarkers = efiMain.IndexOf(
-            "WriteBootMarkers(",
-            StringComparison.Ordinal);
+            && HostSourceText.Contains(source, "private const ulong M02OwnedGdtTssTerminalPageSize = 4096;")
 
-        int dataCleanup = cleanup.IndexOf(
-            "dataAddress,\n                    M02OwnedGdtTssTerminalPageCount",
-            StringComparison.Ordinal);
-        int codeCleanup = cleanup.IndexOf(
-            "codeAddress,\n                    M02OwnedGdtTssTerminalPageCount",
-            StringComparison.Ordinal);
-        string distinctCodeCleanupGate =
-            "if (codeAllocated &&\n" +
-            "            (!dataAllocated || codeAddress != dataAddress))";
-        string aliasedCodeCleanupMutation = cleanupPlan.Replace(
-            distinctCodeCleanupGate,
-            "if (codeAllocated)",
-            StringComparison.Ordinal);
-        int distinctCodeCleanup = cleanupPlan.IndexOf(
-            distinctCodeCleanupGate,
-            StringComparison.Ordinal);
+            && HostSourceText.Contains(source, "private const ulong M02OwnedGdtTssTerminalPageCount = 1;")
 
-        return source.Contains(
-                "private const uint M02OwnedGdtTssTerminalEfiLoaderCode = 1;",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "private const uint M02OwnedGdtTssTerminalEfiLoaderData = 2;",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "private const ulong M02OwnedGdtTssTerminalPageSize = 4096;",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "private const ulong M02OwnedGdtTssTerminalPageCount = 1;",
-                StringComparison.Ordinal)
-            && CountOccurrences(
-                preparation,
-                "bootServices->AllocatePages(") == 2
+            && CountOccurrences(preparation, "bootServices->AllocatePages(") == 2
+
             && codeAllocation >= 0
+
             && dataAllocation > codeAllocation
-            && preparation.Contains(
-                "M02OwnedGdtTssTerminalPagesOverlap(codeAddress, dataAddress)",
-                StringComparison.Ordinal)
-            && preparation.Contains(
-                "IsValidM02OwnedGdtTssTerminalPage(codeAddress)",
-                StringComparison.Ordinal)
-            && preparation.Contains(
-                "IsValidM02OwnedGdtTssTerminalPage(dataAddress)",
-                StringComparison.Ordinal)
+
+            && HostSourceText.Contains(preparation, "M02OwnedGdtTssTerminalPagesOverlap(codeAddress, dataAddress)")
+
+            && HostSourceText.Contains(preparation, "IsValidM02OwnedGdtTssTerminalPage(codeAddress)")
+
+            && HostSourceText.Contains(preparation, "IsValidM02OwnedGdtTssTerminalPage(dataAddress)")
+
             && zeroing > dataAllocation
+
             && contextAtOffsetZero > zeroing
+
             && prepareContext > contextAtOffsetZero
+
             && emit > prepareContext
+
             && validate > emit
+
             && saveCode > validate
+
             && saveData > saveCode
-            && preparation.Contains(
-                ".StubByteCount) ||",
-                StringComparison.Ordinal)
-            && preparation.Contains(
-                ".ContextByteCount))",
-                StringComparison.Ordinal)
-            && exactGate.Contains(".ContextByteCount == 168", StringComparison.Ordinal)
-            && exactGate.Contains(".StubByteCount == 2987", StringComparison.Ordinal)
-            && exactGate.Contains(
-                ".StubFnv1A64 == 0xc9c0_4dee_967d_640aUL",
-                StringComparison.Ordinal)
-            && exactGate.Contains(
-                "emitted.ContextFingerprint == prepared.ContextFingerprint",
-                StringComparison.Ordinal)
-            && exactGate.Contains(
-                "validated.ContextFingerprint == prepared.ContextFingerprint",
-                StringComparison.Ordinal)
+
+            && HostSourceText.Contains(preparation, ".StubByteCount) ||")
+
+            && HostSourceText.Contains(preparation, ".ContextByteCount))")
+
+            && HostSourceText.Contains(exactGate, ".ContextByteCount == 168")
+
+            && HostSourceText.Contains(exactGate, ".StubByteCount == 2987")
+
+            && HostSourceText.Contains(exactGate, ".StubFnv1A64 == 0xc9c0_4dee_967d_640aUL")
+
+            && HostSourceText.Contains(exactGate, "emitted.ContextFingerprint == prepared.ContextFingerprint")
+
+            && HostSourceText.Contains(exactGate, "validated.ContextFingerprint == prepared.ContextFingerprint")
+
             && ExecuteCleanupPlanHarness(cleanupPlan)
-            && cleanupPlan.Contains("if (dataAllocated)", StringComparison.Ordinal)
-            && cleanupPlan.Contains("plan |= 1;", StringComparison.Ordinal)
-            && cleanupPlan.Contains("plan |= 2;", StringComparison.Ordinal)
-            && cleanupPlan.Contains("return plan;", StringComparison.Ordinal)
+
+            && HostSourceText.Contains(cleanupPlan, "if (dataAllocated)")
+
+            && HostSourceText.Contains(cleanupPlan, "plan |= 1;")
+
+            && HostSourceText.Contains(cleanupPlan, "plan |= 2;")
+
+            && HostSourceText.Contains(cleanupPlan, "return plan;")
+
             && CountOccurrences(cleanup, "bootServices->FreePages(") == 2
-            && cleanupPlan.Contains(distinctCodeCleanupGate, StringComparison.Ordinal)
+
+            && HostSourceText.Contains(cleanupPlan, distinctCodeCleanupGate)
+
             && aliasedCodeCleanupMutation != cleanupPlan
-            && !aliasedCodeCleanupMutation.Contains(
-                distinctCodeCleanupGate,
-                StringComparison.Ordinal)
+
+            && !HostSourceText.Contains(aliasedCodeCleanupMutation, distinctCodeCleanupGate)
+
             && distinctCodeCleanup >= 0
+
             && dataCleanup >= 0
+
             && codeCleanup > dataCleanup
-            && cleanup.Contains("if ((cleanupPlan & 1) != 0)", StringComparison.Ordinal)
-            && cleanup.Contains("if ((cleanupPlan & 2) != 0)", StringComparison.Ordinal)
-            && cleanup.Contains(
-                "if (bootServices != null && bootServices->FreePages != null)",
-                StringComparison.Ordinal)
-            && cleanup.Contains(
-                "_ = bootServices->FreePages(",
-                StringComparison.Ordinal)
-            && cleanup.IndexOf(
-                "s_m02OwnedGdtTssTerminalCodeAddress = 0;",
-                StringComparison.Ordinal) > codeCleanup
-            && cleanup.IndexOf(
-                "s_m02OwnedGdtTssTerminalDataAddress = 0;",
-                StringComparison.Ordinal) > codeCleanup
-            && cleanup.IndexOf(
-                "s_m02OwnedGdtTssTerminalState = M02OwnedGdtTssTerminalFailedState;",
-                StringComparison.Ordinal) > codeCleanup
-            && cleanup.Contains("return false;", StringComparison.Ordinal)
+
+            && HostSourceText.Contains(cleanup, "if ((cleanupPlan & 1) != 0)")
+
+            && HostSourceText.Contains(cleanup, "if ((cleanupPlan & 2) != 0)")
+
+            && HostSourceText.Contains(cleanup, "if (bootServices != null && bootServices->FreePages != null)")
+
+            && HostSourceText.Contains(cleanup, "_ = bootServices->FreePages(")
+
+            && HostSourceText.IndexOf(cleanup, "s_m02OwnedGdtTssTerminalCodeAddress = 0;") > codeCleanup
+
+            && HostSourceText.IndexOf(cleanup, "s_m02OwnedGdtTssTerminalDataAddress = 0;") > codeCleanup
+
+            && HostSourceText.IndexOf(cleanup, "s_m02OwnedGdtTssTerminalState = M02OwnedGdtTssTerminalFailedState;") > codeCleanup
+
+            && HostSourceText.Contains(cleanup, "return false;")
+
             && !cleanup.Contains("return true;", StringComparison.Ordinal)
-            && cleanup.IndexOf(
-                "M02OwnedGdtTssTerminalPreEntryFailureLine",
-                StringComparison.Ordinal) > codeCleanup
+
+            && HostSourceText.IndexOf(cleanup, "M02OwnedGdtTssTerminalPreEntryFailureLine") > codeCleanup
+
             && resolveConsole >= 0
+
             && resolveSerial > resolveConsole
+
             && prepareBeforeMarkers > resolveSerial
+
             && normalMarkers > prepareBeforeMarkers;
     }
 
     [HostTest("m02.009 starts after OS smoke and enters the terminal stub directly", HostLane.Fast, 2)]
     private static bool TestTerminalEntryOrderAndMarkers()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
-        string directWriter = ExtractBlock(
-            source,
-            "private static bool TryWriteM02OwnedGdtTssTerminalDirectLine(",
-            "#endif\n\n        // NativeAOT emits GS-cookie");
-
-        string terminalEntry = ExtractBlock(
-            source,
-            "private static void EnterM02OwnedGdtTssTerminalProbe(",
-            "private static bool FailM02OwnedGdtTssTerminalBeforeEntry(");
-        int plan = source.IndexOf(
-            "EfiEntry.WriteBootSequencePlan(\n                    s_console,",
-            StringComparison.Ordinal);
-        int enter = IndexOfAfter(
-            source,
-            "EfiEntry.EnterM02OwnedGdtTssTerminalProbe(",
-            plan);
-        int validate = terminalEntry.IndexOf(
-            "ValidateM02OwnedGdtTssTerminalResources()",
-            StringComparison.Ordinal);
-        int start = terminalEntry.IndexOf(
-            ".TryWriteM02OwnedGdtTssTerminalStartLine()",
-            StringComparison.Ordinal);
-        int serialize = terminalEntry.IndexOf(
-            "X64InstructionPublication.Serialize()",
-            StringComparison.Ordinal);
-        int functionPointer = terminalEntry.IndexOf(
-            "delegate* unmanaged<",
-            StringComparison.Ordinal);
-        int invoke = terminalEntry.IndexOf(
-            "terminalEntry(\n",
-            StringComparison.Ordinal);
-        int unexpectedReturn = terminalEntry.IndexOf(
-            ".TryWriteM02OwnedGdtTssTerminalUnexpectedReturnLine()",
-            StringComparison.Ordinal);
-        int finalSpin = terminalEntry.LastIndexOf(
-            "SpinM02OwnedGdtTssTerminalProbe();",
-            StringComparison.Ordinal);
-        string postInvocation = invoke >= 0
-            ? terminalEntry[invoke..]
-            : string.Empty;
-
-        string startMarker = ExtractTerminalMarker(
-            source,
-            "M02OwnedGdtTssTerminalStartLine");
-        string preEntryMarker = ExtractTerminalMarker(
-            source,
-            "M02OwnedGdtTssTerminalPreEntryFailureLine");
-        string unexpectedMarker = ExtractTerminalMarker(
-            source,
-            "M02OwnedGdtTssTerminalUnexpectedReturnLine");
-
+        var catalog = TerminalSources();
+        string directWriter = TerminalMethod(catalog, "OS.Boot.EfiEntry+M01StageThreeAdapter",
+            "TryWriteM02OwnedGdtTssTerminalDirectLine", SpecialType.System_Boolean).ToString();
+        var terminalSyntax = TerminalMethod(catalog, "OS.Boot.EfiEntry",
+            "EnterM02OwnedGdtTssTerminalProbe", SpecialType.System_Void);
+        string terminalEntry = terminalSyntax.ToString();
+        var caller = TerminalCaller(catalog);
+        string callerBody = HostSourceText.Active(caller);
+        int plan = HostSourceText.IndexOf(callerBody, "EfiEntry.WriteBootSequencePlan(s_console,");
+        int enter = HostSourceText.IndexOf(callerBody, "EfiEntry.EnterM02OwnedGdtTssTerminalProbe(", plan);
+        string markerMethod = TerminalMethod(catalog, "OS.Boot.EfiEntry",
+            "TryGetM02OwnedGdtTssTerminalLineByte", SpecialType.System_Boolean).ToString();
+        int validate = HostSourceText.IndexOf(terminalEntry, "ValidateM02OwnedGdtTssTerminalResources()");
+        int start = HostSourceText.IndexOf(terminalEntry, ".TryWriteM02OwnedGdtTssTerminalStartLine()");
+        int serialize = HostSourceText.IndexOf(terminalEntry, "X64InstructionPublication.Serialize()");
+        int functionPointer = HostSourceText.IndexOf(terminalEntry, "delegate* unmanaged<");
+        int invoke = HostSourceText.IndexOf(terminalEntry, "terminalEntry(");
+        int unexpectedReturn = HostSourceText.IndexOf(terminalEntry, ".TryWriteM02OwnedGdtTssTerminalUnexpectedReturnLine()");
+        int finalSpin = LastTerminalToken(terminalEntry, "SpinM02OwnedGdtTssTerminalProbe();");
+        var invocation = terminalSyntax.DescendantNodes().OfType<InvocationExpressionSyntax>()
+            .Single(node => node.Expression is IdentifierNameSyntax identifier && identifier.Identifier.ValueText == "terminalEntry");
+        string postInvocation = terminalEntry[(invocation.SpanStart - terminalSyntax.SpanStart)..]
+            + "\n" + TerminalMethod(catalog, "OS.Boot.EfiEntry",
+                "GetM02OwnedGdtTssTerminalCleanupPlan", SpecialType.System_Byte).ToString();
+        // The old raw slice also included the following UD2 writer. Retain
+        // that exclusion using its own active compiler profile and raw body.
+        var ud2 = HostSourceCatalog.Efi(EfiOptions.Parse(["--EnableM02Ud2VectorStateProbe"], true).Profile());
+        var followingWriter = ud2.Method("OS.Boot.EfiEntry+M01StageThreeAdapter", "TryWriteM02Ud2VectorStateStartLine");
+        _ = ud2.MethodInvocations(followingWriter);
+        string transportExclusions = directWriter + "\n" + followingWriter.ToString();
+        string startMarker = ExtractTerminalMarker(markerMethod, "M02OwnedGdtTssTerminalStartLine");
+        string preEntryMarker = ExtractTerminalMarker(markerMethod, "M02OwnedGdtTssTerminalPreEntryFailureLine");
+        string unexpectedMarker = ExtractTerminalMarker(markerMethod, "M02OwnedGdtTssTerminalUnexpectedReturnLine");
         return plan >= 0
+
             && enter > plan
+
             && validate >= 0
+
             && start > validate
+
             && serialize > start
+
             && functionPointer > serialize
+
             && invoke > functionPointer
+
             && unexpectedReturn > invoke
+
             && finalSpin > unexpectedReturn
-            && terminalEntry.Contains(
-                "OS.Kernel.Diagnostics.OwnedGdtTssTerminalContext*,\n            void>",
-                StringComparison.Ordinal)
-            && terminalEntry.Contains(
-                "s_m02OwnedGdtTssTerminalDataAddress);",
-                StringComparison.Ordinal)
-            && directWriter.Contains(
-                "s_m02CheckedPortIoBinding.Binding",
-                StringComparison.Ordinal)
-            && directWriter.Contains(
-                "Com1OwnedPortIoBackend backend",
-                StringComparison.Ordinal)
-            && directWriter.Contains("poll < 128", StringComparison.Ordinal)
-            && directWriter.Contains(".LineStatusRegisterPort", StringComparison.Ordinal)
-            && directWriter.Contains(".DataRegisterPort", StringComparison.Ordinal)
-            && directWriter.Contains("backend.ReadByte(", StringComparison.Ordinal)
-            && directWriter.Contains("backend.WriteByte(", StringComparison.Ordinal)
-            && !directWriter.Contains("Write(console", StringComparison.Ordinal)
+
+            && HostSourceText.Contains(terminalEntry, "OS.Kernel.Diagnostics.OwnedGdtTssTerminalContext*, void>")
+
+            && HostSourceText.Contains(terminalEntry, "s_m02OwnedGdtTssTerminalDataAddress);")
+
+            && HostSourceText.Contains(directWriter, "s_m02CheckedPortIoBinding.Binding")
+
+            && HostSourceText.Contains(directWriter, "Com1OwnedPortIoBackend backend")
+
+            && HostSourceText.Contains(directWriter, "poll < 128")
+
+            && HostSourceText.Contains(directWriter, ".LineStatusRegisterPort")
+
+            && HostSourceText.Contains(directWriter, ".DataRegisterPort")
+
+            && HostSourceText.Contains(directWriter, "backend.ReadByte(")
+
+            && HostSourceText.Contains(directWriter, "backend.WriteByte(")
+
+            && !transportExclusions.Contains("Write(console", StringComparison.Ordinal)
+
             && !postInvocation.Contains("bootServices->", StringComparison.Ordinal)
+
             && !postInvocation.Contains("Write(console", StringComparison.Ordinal)
+
             && !postInvocation.Contains("WriteCrLf(", StringComparison.Ordinal)
+
             && startMarker == "TEST_START m02.009"
+
             && preEntryMarker == "M02_OWNED_GDT_TSS_PREENTRY_FAILED"
+
             && unexpectedMarker == "M02_OWNED_GDT_TSS_UNEXPECTED_RETURN";
     }
 
     [HostTest("m02.009 QEMU profile is cumulative terminal and fail closed", HostLane.Fast, 3)]
     private static bool TestQemuProfileAndNegativeArguments()
     {
-        var plan=QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run","--build-efi",..TerminalArguments]));
-        HostCheck.True(plan.Required.SequenceEqual(QemuContracts.M02OwnedGdtTssTerminalRequiredMarkers),"complete terminal required inventory");
-        HostCheck.True(plan.Required.SequenceEqual(plan.Ordered)&&plan.Required.SequenceEqual(plan.Unique),"complete ordered unique chain");
-        HostCheck.True(plan.Forbidden.SequenceEqual(QemuContracts.M02OwnedGdtTssTerminalForbiddenMarkers),"complete terminal forbidden inventory");
-        HostCheck.True(plan.ReplaceDefaultRequiredMarkers,"terminal plan replaces ordinary return markers");
-        string[][] invalid = [["--dry-run","-EnableM02OwnedGdtTssTerminalProbe"], ["--dry-run",..TerminalArguments], ["--dry-run","--build-efi","-EnableM02GuardedIstStackAllocationProbe","-EnableM02OwnedGdtTssTerminalProbe"], ["--dry-run","--build-efi",..TerminalArguments,"--skip-image-build"], ["--dry-run","--build-efi",..TerminalArguments,"--m01-raw-observation-log","blocked.log"]];
-        foreach(string[] arguments in invalid)QemuTerminalControls.AssertRejected(()=>QemuProfiles.Create(QemuSmokeOptions.Parse(arguments)),"invalid terminal selection");
-        var implicitPlan=QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run","--build-efi",..TerminalArguments.Skip(3)]));
-        HostCheck.True(implicitPlan.Flags.Where(p=>p.Value).Select(p=>p.Key).Order().SequenceEqual(plan.Flags.Where(p=>p.Value).Select(p=>p.Key).Order()),"owned COM1 chain activates original M01 prerequisites");
-        foreach(string flag in TerminalArguments.Take(3))QemuTerminalControls.AssertRejected(()=>QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run","--build-efi",..TerminalArguments.Skip(3),flag+"=false"])),"explicit false prerequisite");
-        IReadOnlyList<string>? runnerArguments=null;
-        int result=QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(),QemuSmokeOptions.Parse(["--dry-run","--build-efi",..TerminalArguments]),TextWriter.Null,
-            (name,args)=>{HostCheck.True(name=="OS.QemuRunner");runnerArguments=args;return Task.FromResult(new OS.Tooling.ProcessResult(0,"","",false,false,false,TimeSpan.Zero));}).GetAwaiter().GetResult();
-        HostCheck.True(result==0&&runnerArguments is not null&&runnerArguments.Contains("--replace-default-required-markers"),"typed runner argument reaches actual invocation");
+        var plan = QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run", "--build-efi", .. TerminalArguments]));
+        HostCheck.True(plan.Required.SequenceEqual(QemuContracts.M02OwnedGdtTssTerminalRequiredMarkers), "complete terminal required inventory");
+        HostCheck.True(plan.Required.SequenceEqual(plan.Ordered) && plan.Required.SequenceEqual(plan.Unique), "complete ordered unique chain");
+        HostCheck.True(plan.Forbidden.SequenceEqual(QemuContracts.M02OwnedGdtTssTerminalForbiddenMarkers), "complete terminal forbidden inventory");
+        HostCheck.True(plan.ReplaceDefaultRequiredMarkers, "terminal plan replaces ordinary return markers");
+        string[][] invalid = [["--dry-run", "-EnableM02OwnedGdtTssTerminalProbe"], ["--dry-run", .. TerminalArguments], ["--dry-run", "--build-efi", "-EnableM02GuardedIstStackAllocationProbe", "-EnableM02OwnedGdtTssTerminalProbe"], ["--dry-run", "--build-efi", .. TerminalArguments, "--skip-image-build"], ["--dry-run", "--build-efi", .. TerminalArguments, "--m01-raw-observation-log", "blocked.log"]];
+        foreach (string[] arguments in invalid)
+            QemuTerminalControls.AssertRejected(() => QemuProfiles.Create(QemuSmokeOptions.Parse(arguments)), "invalid terminal selection");
+        var implicitPlan = QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run", "--build-efi", .. TerminalArguments.Skip(3)]));
+        HostCheck.True(implicitPlan.Flags.Where(p => p.Value).Select(p => p.Key).Order().SequenceEqual(plan.Flags.Where(p => p.Value).Select(p => p.Key).Order()), "owned COM1 chain activates original M01 prerequisites");
+        foreach (string flag in TerminalArguments.Take(3))
+            QemuTerminalControls.AssertRejected(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run", "--build-efi", .. TerminalArguments.Skip(3), flag + "=false"])), "explicit false prerequisite");
+        IReadOnlyList<string>? runnerArguments = null;
+        int result = QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), QemuSmokeOptions.Parse(["--dry-run", "--build-efi", .. TerminalArguments]), TextWriter.Null, (name, args) =>
+        {
+            HostCheck.True(name == "OS.QemuRunner");
+            runnerArguments = args;
+            return Task.FromResult(new OS.Tooling.ProcessResult(0, "", "", false, false, false, TimeSpan.Zero));
+        }).GetAwaiter().GetResult();
+        HostCheck.True(result == 0 && runnerArguments is not null && runnerArguments.Contains("--replace-default-required-markers"), "typed runner argument reaches actual invocation");
         return true;
     }
 
@@ -384,139 +304,50 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
     private static bool TestQemuRunnerTerminalTranscripts()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        string[] cumulativeFlags =
-        [
-            "-DryRun",
-            "-BuildEfi",
-            "-EnableM02SafeStubProbe",
-            "-EnableM02CheckedPortIoBindingProbe",
-            "-EnableM02Com1OwnedPortIoProbe",
-            "-EnableM02OwnedCom1ReadyProbe",
-            "-EnableM02PanicSafeOwnedCom1Probe",
-            "-EnableM02OwnedX64GdtEncodingProbe",
-            "-EnableM02GuardedIstStackAllocationProbe",
-            "-EnableM02OwnedGdtTssTerminalProbe"
-        ];
+        string[] cumulativeFlags = ["-DryRun", "-BuildEfi", "-EnableM02SafeStubProbe", "-EnableM02CheckedPortIoBindingProbe", "-EnableM02Com1OwnedPortIoProbe", "-EnableM02OwnedCom1ReadyProbe", "-EnableM02PanicSafeOwnedCom1Probe", "-EnableM02OwnedX64GdtEncodingProbe", "-EnableM02GuardedIstStackAllocationProbe", "-EnableM02OwnedGdtTssTerminalProbe"];
         ProcessResult profile = RunQemu(cumulativeFlags);
-        string[] requiredMarkers = ExtractMarkerList(
-            profile.Output,
-            "REQUIRED_MARKERS ");
-        string[] orderedMarkers = ExtractMarkerList(
-            profile.Output,
-            "ORDERED_MARKERS ");
-        string[] uniqueMarkers = ExtractMarkerList(
-            profile.Output,
-            "UNIQUE_MARKERS ");
-        string[] forbiddenMarkers = ExtractMarkerList(
-            profile.Output,
-            "FORBIDDEN_MARKERS ");
+        string[] requiredMarkers = ExtractMarkerList(profile.Output, "REQUIRED_MARKERS ");
+        string[] orderedMarkers = ExtractMarkerList(profile.Output, "ORDERED_MARKERS ");
+        string[] uniqueMarkers = ExtractMarkerList(profile.Output, "UNIQUE_MARKERS ");
+        string[] forbiddenMarkers = ExtractMarkerList(profile.Output, "FORBIDDEN_MARKERS ");
         if (profile.ExitCode != 0
-            || requiredMarkers.Length != 59
-            || orderedMarkers.Length != 59
-            || uniqueMarkers.Length != 59
-            || forbiddenMarkers.Length != 43)
+            || !requiredMarkers.SequenceEqual(QemuContracts.M02OwnedGdtTssTerminalRequiredMarkers)
+            || !orderedMarkers.SequenceEqual(QemuContracts.M02OwnedGdtTssTerminalRequiredMarkers)
+            || !uniqueMarkers.SequenceEqual(QemuContracts.M02OwnedGdtTssTerminalRequiredMarkers)
+            || !forbiddenMarkers.Order(StringComparer.Ordinal).SequenceEqual(
+                QemuContracts.M02OwnedGdtTssTerminalForbiddenMarkers.Order(StringComparer.Ordinal)))
         {
             return false;
         }
 
-        string tempRoot = Path.Combine(
-            Path.GetTempPath(),
-            "clros-m02-009-runner-" + Guid.NewGuid().ToString("N"));
+        string tempRoot = Path.Combine(Path.GetTempPath(), "clros-m02-009-runner-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
         try
         {
-            string invalidOptionImage = Path.Combine(
-                tempRoot,
-                "invalid-option-order.raw");
+            string invalidOptionImage = Path.Combine(tempRoot, "invalid-option-order.raw");
             File.WriteAllText(invalidOptionImage, string.Empty);
-            ProcessResult lateReplacement = RunQemuRunner(
-                "--dry-run",
-                "--image",
-                invalidOptionImage,
-                "--require-marker",
-                "OS_BOOT_OK",
-                "--replace-default-required-markers");
-            ProcessResult duplicateReplacement = RunQemuRunner(
-                "--dry-run",
-                "--image",
-                invalidOptionImage,
-                "--replace-default-required-markers",
-                "--replace-default-required-markers");
-            if (lateReplacement.ExitCode != 1
-                || !lateReplacement.Output.Contains(
-                    "--replace-default-required-markers must precede marker arguments.",
-                    StringComparison.Ordinal)
-                || duplicateReplacement.ExitCode != 1
-                || !duplicateReplacement.Output.Contains(
-                    "--replace-default-required-markers may be specified only once.",
-                    StringComparison.Ordinal))
+            ProcessResult lateReplacement = RunQemuRunner("--dry-run", "--image", invalidOptionImage, "--require-marker", "OS_BOOT_OK", "--replace-default-required-markers");
+            ProcessResult duplicateReplacement = RunQemuRunner("--dry-run", "--image", invalidOptionImage, "--replace-default-required-markers", "--replace-default-required-markers");
+            if (lateReplacement.ExitCode != 1 || !lateReplacement.Output.Contains("--replace-default-required-markers must precede marker arguments.", StringComparison.Ordinal) || duplicateReplacement.ExitCode != 1 || !duplicateReplacement.Output.Contains("--replace-default-required-markers may be specified only once.", StringComparison.Ordinal))
             {
                 return false;
             }
 
-            string persistentSuccess = CreateM02FakeQemuScript(
-                tempRoot,
-                requiredMarkers,
-                persistent: true);
-            ProcessResult success = RunM02TerminalQemu(
-                tempRoot,
-                "success",
-                persistentSuccess,
-                requiredMarkers,
-                orderedMarkers,
-                uniqueMarkers,
-                forbiddenMarkers,
-                timeoutSeconds: 5,
-                out string successSummary);
-            if (success.ExitCode != 0
-                || !success.Output.Contains(
-                    "SERIAL_MARKER_STREAM status=Passed terminal=Success",
-                    StringComparison.Ordinal)
-                || !success.Output.Contains(
-                    "QEMU_PROCESS_RESULT disposition=runner-terminated",
-                    StringComparison.Ordinal)
-                || !success.Output.Contains(
-                    "TEST_PASS qemu.smoke",
-                    StringComparison.Ordinal)
-                || !SummaryHasCleanSuccess(successSummary))
+            string persistentSuccess = CreateM02FakeQemuScript(tempRoot, requiredMarkers, persistent: true);
+            ProcessResult success = RunM02TerminalQemu(tempRoot, "success", persistentSuccess, requiredMarkers, orderedMarkers, uniqueMarkers, forbiddenMarkers, timeoutSeconds: 5, out string successSummary);
+            if (success.ExitCode != 0 || !success.Output.Contains("SERIAL_MARKER_STREAM status=Passed terminal=Success", StringComparison.Ordinal) || !success.Output.Contains("QEMU_PROCESS_RESULT disposition=runner-terminated", StringComparison.Ordinal) || !success.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal) || !SummaryHasCleanSuccess(successSummary))
             {
                 return false;
             }
 
-            string spontaneousSuccess = CreateM02FakeQemuScript(
-                tempRoot,
-                requiredMarkers,
-                persistent: false);
-            ProcessResult spontaneous = RunM02TerminalQemu(
-                tempRoot,
-                "spontaneous-success",
-                spontaneousSuccess,
-                requiredMarkers,
-                orderedMarkers,
-                uniqueMarkers,
-                forbiddenMarkers,
-                timeoutSeconds: 5,
-                out string spontaneousSummary);
-            if (spontaneous.ExitCode != 18
-                || !spontaneous.Output.Contains(
-                    "TEST_FAIL qemu.smoke qemu_reboot_or_shutdown",
-                    StringComparison.Ordinal)
-                || !spontaneousSummary.Contains(
-                    "FAIL_REASON qemu_reboot_or_shutdown",
-                    StringComparison.Ordinal)
-                || spontaneous.Output.Contains(
-                    "TEST_PASS qemu.smoke",
-                    StringComparison.Ordinal))
+            string spontaneousSuccess = CreateM02FakeQemuScript(tempRoot, requiredMarkers, persistent: false);
+            ProcessResult spontaneous = RunM02TerminalQemu(tempRoot, "spontaneous-success", spontaneousSuccess, requiredMarkers, orderedMarkers, uniqueMarkers, forbiddenMarkers, timeoutSeconds: 5, out string spontaneousSummary);
+            if (spontaneous.ExitCode != 18 || !spontaneous.Output.Contains("TEST_FAIL qemu.smoke qemu_reboot_or_shutdown", StringComparison.Ordinal) || !spontaneousSummary.Contains("FAIL_REASON qemu_reboot_or_shutdown", StringComparison.Ordinal) || spontaneous.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal))
             {
                 return false;
             }
 
-            string[] terminalMarkers =
-            [
-                "TEST_START m02.009",
-                ReadyMarker,
-                "TEST_PASS m02.009"
-            ];
+            string[] terminalMarkers = ["TEST_START m02.009", ReadyMarker, "TEST_PASS m02.009"];
             foreach (string missingMarker in terminalMarkers)
             {
                 List<string> missingLines = [.. requiredMarkers];
@@ -525,31 +356,9 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                     return false;
                 }
 
-                string missingQemu = CreateM02FakeQemuScript(
-                    tempRoot,
-                    missingLines,
-                    persistent: false);
-                ProcessResult missing = RunM02TerminalQemu(
-                    tempRoot,
-                    "missing-" + SanitizeFileName(missingMarker),
-                    missingQemu,
-                    requiredMarkers,
-                    orderedMarkers,
-                    uniqueMarkers,
-                    forbiddenMarkers,
-                    timeoutSeconds: 5,
-                    out string missingSummary);
-                if (missing.ExitCode != 5
-                    || !missing.Output.Contains(
-                        "TEST_FAIL qemu.smoke missing_marker",
-                        StringComparison.Ordinal)
-                    || !missingSummary.Contains(missingMarker, StringComparison.Ordinal)
-                    || !missingSummary.Contains(
-                        "FAIL_REASON missing_marker",
-                        StringComparison.Ordinal)
-                    || missing.Output.Contains(
-                        "TEST_PASS qemu.smoke",
-                        StringComparison.Ordinal))
+                string missingQemu = CreateM02FakeQemuScript(tempRoot, missingLines, persistent: false);
+                ProcessResult missing = RunM02TerminalQemu(tempRoot, "missing-" + SanitizeFileName(missingMarker), missingQemu, requiredMarkers, orderedMarkers, uniqueMarkers, forbiddenMarkers, timeoutSeconds: 5, out string missingSummary);
+                if (missing.ExitCode != 5 || !missing.Output.Contains("TEST_FAIL qemu.smoke missing_marker", StringComparison.Ordinal) || !missingSummary.Contains(missingMarker, StringComparison.Ordinal) || !missingSummary.Contains("FAIL_REASON missing_marker", StringComparison.Ordinal) || missing.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal))
                 {
                     return false;
                 }
@@ -560,33 +369,9 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                 List<string> duplicateLines = [.. requiredMarkers];
                 int duplicateIndex = duplicateLines.IndexOf(duplicateMarker);
                 duplicateLines.Insert(duplicateIndex + 1, duplicateMarker);
-                string duplicateQemu = CreateM02FakeQemuScript(
-                    tempRoot,
-                    duplicateLines,
-                    persistent: true);
-                ProcessResult duplicate = RunM02TerminalQemu(
-                    tempRoot,
-                    "duplicate-" + SanitizeFileName(duplicateMarker),
-                    duplicateQemu,
-                    requiredMarkers,
-                    orderedMarkers,
-                    uniqueMarkers,
-                    forbiddenMarkers,
-                    timeoutSeconds: 5,
-                    out string duplicateSummary);
-                if (duplicate.ExitCode != 17
-                    || !duplicate.Output.Contains(
-                        "TEST_FAIL qemu.smoke duplicate_unique_marker",
-                        StringComparison.Ordinal)
-                    || !duplicateSummary.Contains(
-                        "FAIL_REASON duplicate_unique_marker",
-                        StringComparison.Ordinal)
-                    || !duplicateSummary.Contains(
-                        duplicateMarker,
-                        StringComparison.Ordinal)
-                    || duplicate.Output.Contains(
-                        "TEST_PASS qemu.smoke",
-                        StringComparison.Ordinal))
+                string duplicateQemu = CreateM02FakeQemuScript(tempRoot, duplicateLines, persistent: true);
+                ProcessResult duplicate = RunM02TerminalQemu(tempRoot, "duplicate-" + SanitizeFileName(duplicateMarker), duplicateQemu, requiredMarkers, orderedMarkers, uniqueMarkers, forbiddenMarkers, timeoutSeconds: 5, out string duplicateSummary);
+                if (duplicate.ExitCode != 17 || !duplicate.Output.Contains("TEST_FAIL qemu.smoke duplicate_unique_marker", StringComparison.Ordinal) || !duplicateSummary.Contains("FAIL_REASON duplicate_unique_marker", StringComparison.Ordinal) || !duplicateSummary.Contains(duplicateMarker, StringComparison.Ordinal) || duplicate.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal))
                 {
                     return false;
                 }
@@ -595,72 +380,23 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             List<string> reorderedLines = [.. requiredMarkers];
             int readyIndex = reorderedLines.IndexOf(ReadyMarker);
             int passIndex = reorderedLines.IndexOf("TEST_PASS m02.009");
-            (reorderedLines[readyIndex], reorderedLines[passIndex]) =
-                (reorderedLines[passIndex], reorderedLines[readyIndex]);
-            string reorderedQemu = CreateM02FakeQemuScript(
-                tempRoot,
-                reorderedLines,
-                persistent: true);
-            ProcessResult reordered = RunM02TerminalQemu(
-                tempRoot,
-                "reordered-ready-pass",
-                reorderedQemu,
-                requiredMarkers,
-                orderedMarkers,
-                uniqueMarkers,
-                forbiddenMarkers,
-                timeoutSeconds: 5,
-                out string reorderedSummary);
-            if (reordered.ExitCode != 10
-                || !reordered.Output.Contains(
-                    "TEST_FAIL qemu.smoke out_of_order_marker",
-                    StringComparison.Ordinal)
-                || !reorderedSummary.Contains(
-                    "FAIL_REASON out_of_order_marker",
-                    StringComparison.Ordinal)
-                || reordered.Output.Contains(
-                    "TEST_PASS qemu.smoke",
-                    StringComparison.Ordinal))
+            (reorderedLines[readyIndex], reorderedLines[passIndex]) = (reorderedLines[passIndex], reorderedLines[readyIndex]);
+            string reorderedQemu = CreateM02FakeQemuScript(tempRoot, reorderedLines, persistent: true);
+            ProcessResult reordered = RunM02TerminalQemu(tempRoot, "reordered-ready-pass", reorderedQemu, requiredMarkers, orderedMarkers, uniqueMarkers, forbiddenMarkers, timeoutSeconds: 5, out string reorderedSummary);
+            if (reordered.ExitCode != 10 || !reordered.Output.Contains("TEST_FAIL qemu.smoke out_of_order_marker", StringComparison.Ordinal) || !reorderedSummary.Contains("FAIL_REASON out_of_order_marker", StringComparison.Ordinal) || reordered.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal))
             {
                 return false;
             }
 
-            string[] terminalFailures =
-            [
-                "M02_OWNED_GDT_TSS_PREENTRY_FAILED",
-                "M02_OWNED_GDT_TSS_VERIFY_FAILED",
-                "M02_OWNED_GDT_TSS_UNEXPECTED_RETURN"
-            ];
+            string[] terminalFailures = ["M02_OWNED_GDT_TSS_PREENTRY_FAILED", "M02_OWNED_GDT_TSS_VERIFY_FAILED", "M02_OWNED_GDT_TSS_UNEXPECTED_RETURN"];
             foreach (string failureMarker in terminalFailures)
             {
                 List<string> failedLines = [.. requiredMarkers];
                 int terminalStartIndex = failedLines.IndexOf("TEST_START m02.009");
                 failedLines.Insert(terminalStartIndex + 1, failureMarker);
-                string failedQemu = CreateM02FakeQemuScript(
-                    tempRoot,
-                    failedLines,
-                    persistent: true);
-                ProcessResult failed = RunM02TerminalQemu(
-                    tempRoot,
-                    "forbidden-" + SanitizeFileName(failureMarker),
-                    failedQemu,
-                    requiredMarkers,
-                    orderedMarkers,
-                    uniqueMarkers,
-                    forbiddenMarkers,
-                    timeoutSeconds: 5,
-                    out string failedSummary);
-                if (failed.ExitCode != 8
-                    || !failed.Output.Contains(
-                        "TEST_FAIL qemu.smoke forbidden_marker",
-                        StringComparison.Ordinal)
-                    || !failedSummary.Contains(failureMarker, StringComparison.Ordinal)
-                    || !failedSummary.Contains(
-                        "FAIL_REASON forbidden_marker",
-                        StringComparison.Ordinal)
-                    || failed.Output.Contains(
-                        "TEST_PASS qemu.smoke",
-                        StringComparison.Ordinal))
+                string failedQemu = CreateM02FakeQemuScript(tempRoot, failedLines, persistent: true);
+                ProcessResult failed = RunM02TerminalQemu(tempRoot, "forbidden-" + SanitizeFileName(failureMarker), failedQemu, requiredMarkers, orderedMarkers, uniqueMarkers, forbiddenMarkers, timeoutSeconds: 5, out string failedSummary);
+                if (failed.ExitCode != 8 || !failed.Output.Contains("TEST_FAIL qemu.smoke forbidden_marker", StringComparison.Ordinal) || !failedSummary.Contains(failureMarker, StringComparison.Ordinal) || !failedSummary.Contains("FAIL_REASON forbidden_marker", StringComparison.Ordinal) || failed.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal))
                 {
                     return false;
                 }
@@ -676,34 +412,9 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                 }
             }
 
-            string incompleteQemu = CreateM02FakeQemuScript(
-                tempRoot,
-                incompleteLines,
-                persistent: true);
-            ProcessResult incomplete = RunM02TerminalQemu(
-                tempRoot,
-                "incomplete-timeout",
-                incompleteQemu,
-                requiredMarkers,
-                orderedMarkers,
-                uniqueMarkers,
-                forbiddenMarkers,
-                timeoutSeconds: 1,
-                out string incompleteSummary);
-            return incomplete.ExitCode == 4
-                && incomplete.Output.Contains(
-                    "TEST_FAIL qemu.smoke timeout",
-                    StringComparison.Ordinal)
-                && incompleteSummary.Contains(
-                    "FAIL_REASON timeout",
-                    StringComparison.Ordinal)
-                && incompleteSummary.Contains(ReadyMarker, StringComparison.Ordinal)
-                && incompleteSummary.Contains(
-                    "TEST_PASS m02.009",
-                    StringComparison.Ordinal)
-                && !incomplete.Output.Contains(
-                    "TEST_PASS qemu.smoke",
-                    StringComparison.Ordinal);
+            string incompleteQemu = CreateM02FakeQemuScript(tempRoot, incompleteLines, persistent: true);
+            ProcessResult incomplete = RunM02TerminalQemu(tempRoot, "incomplete-timeout", incompleteQemu, requiredMarkers, orderedMarkers, uniqueMarkers, forbiddenMarkers, timeoutSeconds: 1, out string incompleteSummary);
+            return incomplete.ExitCode == 4 && incomplete.Output.Contains("TEST_FAIL qemu.smoke timeout", StringComparison.Ordinal) && incompleteSummary.Contains("FAIL_REASON timeout", StringComparison.Ordinal) && incompleteSummary.Contains(ReadyMarker, StringComparison.Ordinal) && incompleteSummary.Contains("TEST_PASS m02.009", StringComparison.Ordinal) && !incomplete.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal);
         }
         finally
         {
@@ -715,39 +426,11 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
     private static bool TestDocumentationBoundary()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        string efiBuild = File.ReadAllText(
-            Path.Combine(root, "docs", "efi-build.md"));
-        string qemu = File.ReadAllText(
-            Path.Combine(root, "docs", "qemu.md"));
+        string efiBuild = File.ReadAllText(Path.Combine(root, "docs", "efi-build.md"));
+        string qemu = File.ReadAllText(Path.Combine(root, "docs", "qemu.md"));
         string readme = File.ReadAllText(Path.Combine(root, "README.md"));
-        string diagnostics = Regex.Replace(
-            ExtractBlock(
-                File.ReadAllText(Path.Combine(root, "docs", "diagnostics.md")),
-                "M02-009 host tests",
-                "M02-010 host tests"),
-            @"\s+", " ", RegexOptions.CultureInvariant);
-
-        return efiBuild.Contains(
-                "EnableM02OwnedGdtTssTerminalProbe",
-                StringComparison.Ordinal)
-            && efiBuild.Contains("EfiLoaderCode", StringComparison.Ordinal)
-            && efiBuild.Contains("EfiLoaderData", StringComparison.Ordinal)
-            && efiBuild.Contains("M02_OWNED_GDT_TSS_PREENTRY_FAILED", StringComparison.Ordinal)
-            && efiBuild.Contains("pre-`ExitBootServices`", StringComparison.Ordinal)
-            && efiBuild.Contains("does not prove W^X", StringComparison.OrdinalIgnoreCase)
-            && qemu.Contains(ReadyMarker, StringComparison.Ordinal)
-            && qemu.Contains("59 required", StringComparison.OrdinalIgnoreCase)
-            && qemu.Contains("43 forbidden", StringComparison.OrdinalIgnoreCase)
-            && qemu.Contains("runner-terminated", StringComparison.Ordinal)
-            && qemu.Contains("raw-observation shim", StringComparison.OrdinalIgnoreCase)
-            && diagnostics.Contains(
-                "accepted source-bound QEMU/OVMF profile recorded in `done/step918.md`",
-                StringComparison.Ordinal)
-            && diagnostics.Contains(
-                "This is bounded pre-`ExitBootServices` evidence only.",
-                StringComparison.Ordinal)
-            && readme.Contains("(docs/efi-build.md)", StringComparison.Ordinal)
-            && readme.Contains("(docs/qemu.md)", StringComparison.Ordinal);
+        string diagnostics = Regex.Replace(ExtractBlock(File.ReadAllText(Path.Combine(root, "docs", "diagnostics.md")), "M02-009 host tests", "M02-010 host tests"), @"\s+", " ", RegexOptions.CultureInvariant);
+        return efiBuild.Contains("EnableM02OwnedGdtTssTerminalProbe", StringComparison.Ordinal) && efiBuild.Contains("EfiLoaderCode", StringComparison.Ordinal) && efiBuild.Contains("EfiLoaderData", StringComparison.Ordinal) && efiBuild.Contains("M02_OWNED_GDT_TSS_PREENTRY_FAILED", StringComparison.Ordinal) && efiBuild.Contains("pre-`ExitBootServices`", StringComparison.Ordinal) && efiBuild.Contains("does not prove W^X", StringComparison.OrdinalIgnoreCase) && qemu.Contains(ReadyMarker, StringComparison.Ordinal) && qemu.Contains("59 required", StringComparison.OrdinalIgnoreCase) && qemu.Contains("43 forbidden", StringComparison.OrdinalIgnoreCase) && qemu.Contains("runner-terminated", StringComparison.Ordinal) && qemu.Contains("raw-observation shim", StringComparison.OrdinalIgnoreCase) && diagnostics.Contains("accepted source-bound QEMU/OVMF profile recorded in `done/step918.md`", StringComparison.Ordinal) && diagnostics.Contains("This is bounded pre-`ExitBootServices` evidence only.", StringComparison.Ordinal) && readme.Contains("(docs/efi-build.md)", StringComparison.Ordinal) && readme.Contains("(docs/qemu.md)", StringComparison.Ordinal);
     }
 
     private static bool ExecuteCleanupPlanHarness(string cleanupPlan)
@@ -757,15 +440,11 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             return false;
         }
 
-        string tempRoot = Path.Combine(
-            Path.GetTempPath(),
-            "clros-m02-009-cleanup-" + Guid.NewGuid().ToString("N"));
+        string tempRoot = Path.Combine(Path.GetTempPath(), "clros-m02-009-cleanup-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
         string projectPath = Path.Combine(tempRoot, "CleanupHarness.csproj");
         string programPath = Path.Combine(tempRoot, "Program.cs");
-        File.WriteAllText(
-            projectPath,
-            """
+        File.WriteAllText(projectPath, """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <OutputType>Exe</OutputType>
@@ -775,11 +454,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
               </PropertyGroup>
             </Project>
             """);
-        string programSource =
-            "using System;\nusing System.Collections.Generic;\n" +
-            "internal static class Program\n{\n" +
-            cleanupPlan +
-            """
+        string programSource = "using System;\nusing System.Collections.Generic;\n" + "internal static class Program\n{\n" + cleanupPlan + """
 
                 private sealed class FakeBootServices
                 {
@@ -970,7 +645,6 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             }
             """;
         File.WriteAllText(programPath, programSource);
-
         try
         {
             ProcessStartInfo start = new("dotnet")
@@ -987,9 +661,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             start.ArgumentList.Add("--configuration");
             start.ArgumentList.Add("Release");
             start.ArgumentList.Add("--nologo");
-            using Process process = Process.Start(start) ??
-                throw new InvalidOperationException(
-                    "Could not start the cleanup-plan harness.");
+            using Process process = Process.Start(start) ?? throw new InvalidOperationException("Could not start the cleanup-plan harness.");
             Task<string> stdout = process.StandardOutput.ReadToEndAsync();
             Task<string> stderr = process.StandardError.ReadToEndAsync();
             if (!process.WaitForExit(60_000))
@@ -999,14 +671,10 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                 return false;
             }
 
-            string output = stdout.GetAwaiter().GetResult() +
-                stderr.GetAwaiter().GetResult();
-            if (process.ExitCode != 0 ||
-                !output.Contains("CLEANUP_HARNESS_PASS", StringComparison.Ordinal))
+            string output = stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult();
+            if (process.ExitCode != 0 || !output.Contains("CLEANUP_HARNESS_PASS", StringComparison.Ordinal))
             {
-                Console.WriteLine(
-                    "M02_009_CLEANUP_HARNESS_DIAGNOSTIC " +
-                    EscapeDiagnostic(output));
+                Console.WriteLine("M02_009_CLEANUP_HARNESS_DIAGNOSTIC " + EscapeDiagnostic(output));
                 return false;
             }
 
@@ -1020,52 +688,24 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
 
     private static bool SummaryHasCleanSuccess(string summary)
     {
-        return summary.Contains("QEMU_SMOKE_STATUS pass", StringComparison.Ordinal)
-            && summary.Contains("MISSING_MARKERS none", StringComparison.Ordinal)
-            && summary.Contains("OUT_OF_ORDER_MARKERS none", StringComparison.Ordinal)
-            && summary.Contains("DUPLICATE_UNIQUE_MARKERS none", StringComparison.Ordinal)
-            && summary.Contains("FORBIDDEN_MARKER_HIT none", StringComparison.Ordinal)
-            && summary.Contains("FAIL_REASON none", StringComparison.Ordinal);
+        return summary.Contains("QEMU_SMOKE_STATUS pass", StringComparison.Ordinal) && summary.Contains("MISSING_MARKERS none", StringComparison.Ordinal) && summary.Contains("OUT_OF_ORDER_MARKERS none", StringComparison.Ordinal) && summary.Contains("DUPLICATE_UNIQUE_MARKERS none", StringComparison.Ordinal) && summary.Contains("FORBIDDEN_MARKER_HIT none", StringComparison.Ordinal) && summary.Contains("FAIL_REASON none", StringComparison.Ordinal);
     }
 
-    private static string CreateM02FakeQemuScript(
-        string tempRoot,
-        IReadOnlyList<string> serialLines,
-        bool persistent)
+    private static string CreateM02FakeQemuScript(string tempRoot, IReadOnlyList<string> serialLines, bool persistent)
     {
-        string path = Path.Combine(
-            tempRoot,
-            "fake-qemu-" + Guid.NewGuid().ToString("N") + ".cmd");
-        List<string> script =
-        [
-            "@echo off",
-            "set \"serial=\"",
-            ":scan",
-            "if \"%~1\"==\"\" goto write",
-            "if not \"%~1\"==\"-serial\" goto next",
-            "shift",
-            "set \"serial=%~1\"",
-            ":next",
-            "shift",
-            "goto scan",
-            ":write",
-            "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
-            "if \"%serial%\"==\"\" exit /b 12"
-        ];
+        string path = Path.Combine(tempRoot, "fake-qemu-" + Guid.NewGuid().ToString("N") + ".cmd");
+        List<string> script = ["@echo off", "set \"serial=\"", ":scan", "if \"%~1\"==\"\" goto write", "if not \"%~1\"==\"-serial\" goto next", "shift", "set \"serial=%~1\"", ":next", "shift", "goto scan", ":write", "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"", "if \"%serial%\"==\"\" exit /b 12"];
         bool firstLine = true;
         foreach (string serialLine in serialLines)
         {
-            script.Add(
-                (firstLine ? ">" : ">>") +
-                " \"%serial%\" echo " + serialLine);
+            script.Add((firstLine ? ">" : ">>") + " \"%serial%\" echo " + serialLine);
             firstLine = false;
         }
 
         if (persistent)
         {
             script.Add(":hold");
-            script.Add(
-                QemuTestControl.Command("sleep","30000"));
+            script.Add(QemuTestControl.Command("sleep", "30000"));
             script.Add("goto hold");
         }
         else
@@ -1077,56 +717,34 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
         return path;
     }
 
-    private static ProcessResult RunM02TerminalQemu(
-        string tempRoot,
-        string scenario,
-        string qemuPath,
-        IReadOnlyList<string> requiredMarkers,
-        IReadOnlyList<string> orderedMarkers,
-        IReadOnlyList<string> uniqueMarkers,
-        IReadOnlyList<string> forbiddenMarkers,
-        int timeoutSeconds,
-        out string summary)
+    private static ProcessResult RunM02TerminalQemu(string tempRoot, string scenario, string qemuPath, IReadOnlyList<string> requiredMarkers, IReadOnlyList<string> orderedMarkers, IReadOnlyList<string> uniqueMarkers, IReadOnlyList<string> forbiddenMarkers, int timeoutSeconds, out string summary)
     {
-        string suffix = SanitizeFileName(scenario) + "-" +
-            Guid.NewGuid().ToString("N");
+        string suffix = SanitizeFileName(scenario) + "-" + Guid.NewGuid().ToString("N");
         string imagePath = Path.Combine(tempRoot, suffix + ".raw");
         string ovmfPath = Path.Combine(tempRoot, suffix + "-OVMF_CODE.fd");
         string serialLog = Path.Combine(tempRoot, suffix + "-serial.log");
         string summaryLog = Path.Combine(tempRoot, suffix + "-summary.log");
         File.WriteAllText(imagePath, string.Empty);
         File.WriteAllText(ovmfPath, string.Empty);
-        List<string> arguments =
-        [
-            "--qemu",
-            qemuPath,
-            "--ovmf-code",
-            ovmfPath,
-            "--image",
-            imagePath,
-            "--serial-log",
-            serialLog,
-            "--summary-log",
-            summaryLog,
-            "--timeout",
-            timeoutSeconds.ToString(),
-            "--replace-default-required-markers"
-        ];
+        List<string> arguments = ["--qemu", qemuPath, "--ovmf-code", ovmfPath, "--image", imagePath, "--serial-log", serialLog, "--summary-log", summaryLog, "--timeout", timeoutSeconds.ToString(), "--replace-default-required-markers"];
         foreach (string marker in requiredMarkers)
         {
             arguments.Add("--require-marker");
             arguments.Add(marker);
         }
+
         foreach (string marker in orderedMarkers)
         {
             arguments.Add("--require-ordered-marker");
             arguments.Add(marker);
         }
+
         foreach (string marker in uniqueMarkers)
         {
             arguments.Add("--require-unique-marker");
             arguments.Add(marker);
         }
+
         foreach (string marker in forbiddenMarkers)
         {
             arguments.Add("--forbid-marker");
@@ -1134,9 +752,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
         }
 
         ProcessResult result = RunQemuRunner(arguments.ToArray());
-        summary = File.Exists(summaryLog)
-            ? File.ReadAllText(summaryLog)
-            : string.Empty;
+        summary = File.Exists(summaryLog) ? File.ReadAllText(summaryLog) : string.Empty;
         return result;
     }
 
@@ -1146,34 +762,26 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
         string toolPath = HostToolProcess.GetBuiltToolPath(root, "OS.QemuRunner");
         if (!File.Exists(toolPath))
         {
-            return new ProcessResult(
-                -1,
-                "qemu runner tool not found: " + toolPath);
+            return new ProcessResult(-1, "qemu runner tool not found: " + toolPath);
         }
 
-        ProcessStartInfo start = HostToolProcess.CreateDotnetToolStartInfo(
-            root,
-            "OS.QemuRunner");
+        ProcessStartInfo start = HostToolProcess.CreateDotnetToolStartInfo(root, "OS.QemuRunner");
         foreach (string argument in arguments)
         {
             start.ArgumentList.Add(argument);
         }
 
-        using Process process = Process.Start(start) ??
-            throw new InvalidOperationException("Could not start OS.QemuRunner.");
+        using Process process = Process.Start(start) ?? throw new InvalidOperationException("Could not start OS.QemuRunner.");
         Task<string> stdout = process.StandardOutput.ReadToEndAsync();
         Task<string> stderr = process.StandardError.ReadToEndAsync();
         if (!process.WaitForExit(30_000))
         {
             process.Kill(entireProcessTree: true);
             process.WaitForExit(5_000);
-            throw new TimeoutException(
-                "OS.QemuRunner did not exit within 30 seconds.");
+            throw new TimeoutException("OS.QemuRunner did not exit within 30 seconds.");
         }
 
-        return new ProcessResult(
-            process.ExitCode,
-            stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult());
+        return new ProcessResult(process.ExitCode, stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult());
     }
 
     private static string SanitizeFileName(string value)
@@ -1193,86 +801,48 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
 
     private static string EscapeDiagnostic(string value)
     {
-        return value
-            .Replace("\\", "\\\\", StringComparison.Ordinal)
-            .Replace("\r", "\\r", StringComparison.Ordinal)
-            .Replace("\n", "\\n", StringComparison.Ordinal);
+        return value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\r", "\\r", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal);
     }
 
-    private static string ExtractBlock(
-        string source,
-        string startToken,
-        string endToken)
+    private static string ExtractBlock(string source, string startToken, string endToken)
     {
         int start = source.IndexOf(startToken, StringComparison.Ordinal);
-        int end = start < 0
-            ? -1
-            : source.IndexOf(endToken, start + startToken.Length, StringComparison.Ordinal);
-        return start >= 0 && end > start
-            ? source[start..end]
-            : string.Empty;
+        int end = start < 0 ? -1 : source.IndexOf(endToken, start + startToken.Length, StringComparison.Ordinal);
+        return start >= 0 && end > start ? source[start..end] : string.Empty;
     }
 
-    private static string ExtractTerminalMarker(
-        string source,
-        string lineKind)
+    private static string ExtractTerminalMarker(string markerMethod, string lineKind)
     {
-        string markerMethod = ExtractBlock(
-            source,
-            "private static bool TryGetM02OwnedGdtTssTerminalLineByte(",
-            "private static void SpinM02OwnedGdtTssTerminalProbe()");
-        string prefixBlock = ExtractBlock(
-            markerMethod,
-            "if (index >= 0 && index < 18)",
-            "if (lineKind == M02OwnedGdtTssTerminalPreEntryFailureLine)");
+        string prefixBlock = ExtractBlock(markerMethod, "if (index >= 0 && index < 18)", "if (lineKind == M02OwnedGdtTssTerminalPreEntryFailureLine)");
         string prefix = ExtractCharacters(prefixBlock);
-
         if (lineKind == "M02OwnedGdtTssTerminalStartLine")
         {
-            string startBlock = ExtractBlock(
-                markerMethod,
-                "if (lineKind == M02OwnedGdtTssTerminalStartLine)",
-                "if (index >= 0 && index < 18)");
+            string startBlock = ExtractBlock(markerMethod, "if (lineKind == M02OwnedGdtTssTerminalStartLine)", "if (index >= 0 && index < 18)");
             return ExtractCharacters(startBlock);
         }
 
-        string suffixEnd = lineKind ==
-                "M02OwnedGdtTssTerminalPreEntryFailureLine"
-            ? "if (lineKind == M02OwnedGdtTssTerminalUnexpectedReturnLine)"
-            : "value = 0;";
-        string suffixBlock = ExtractBlock(
-            markerMethod,
-            "if (lineKind == " + lineKind + ")",
-            suffixEnd);
+        string suffixEnd = lineKind == "M02OwnedGdtTssTerminalPreEntryFailureLine" ? "if (lineKind == M02OwnedGdtTssTerminalUnexpectedReturnLine)" : "value = 0;";
+        string suffixBlock = ExtractBlock(markerMethod, "if (lineKind == " + lineKind + ")", suffixEnd);
         return prefix + ExtractCharacters(suffixBlock);
     }
 
     private static string ExtractCharacters(string source)
     {
-        MatchCollection characters = Regex.Matches(
-            source,
-            @"\(byte\)'(?<value>.)'",
-            RegexOptions.CultureInvariant);
-        return string.Concat(
-            characters
-                .Cast<Match>()
-                .Select(match => match.Groups["value"].Value));
+        MatchCollection characters = Regex.Matches(source, @"\(byte\)'(?<value>.)'", RegexOptions.CultureInvariant);
+        return string.Concat(characters.Cast<Match>().Select(match => match.Groups["value"].Value));
     }
 
     private static ProcessResult RunQemu(params string[] arguments)
     {
-        var result=HostToolProcess.RunTool(["qemu","smoke","--boot-policy","Diagnostic",..arguments]);
-        return new ProcessResult(result.ExitCode,result.Output+result.Error);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", .. arguments]);
+        return new ProcessResult(result.ExitCode, result.Output + result.Error);
     }
 
     private static int CountOccurrences(string source, string value)
     {
         int count = 0;
         int index = 0;
-        while ((index = source.IndexOf(
-                   value,
-                   index,
-                   StringComparison.Ordinal)) >= 0)
+        while ((index = source.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
         {
             count++;
             index += value.Length;
@@ -1292,21 +862,13 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             }
 
             string values = line[prefix.Length..];
-            return string.Equals(values, "none", StringComparison.Ordinal)
-                ? []
-                : values.Split(
-                    ';',
-                    StringSplitOptions.RemoveEmptyEntries |
-                    StringSplitOptions.TrimEntries);
+            return string.Equals(values, "none", StringComparison.Ordinal) ? [] : values.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
 
         return [];
     }
 
-    private static int IndexOfAfter(
-        string source,
-        string value,
-        int startIndex)
+    private static int IndexOfAfter(string source, string value, int startIndex)
     {
         if (startIndex < 0 || startIndex > source.Length)
         {
@@ -1315,6 +877,4 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
 
         return source.IndexOf(value, startIndex, StringComparison.Ordinal);
     }
-
-    private readonly record struct ProcessResult(int ExitCode, string Output);
 }

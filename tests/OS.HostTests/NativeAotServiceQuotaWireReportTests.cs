@@ -15,18 +15,38 @@ internal static class NativeAotServiceQuotaWireReportTests
     [HostTest("quota wire report copies immutable raw values and permits explicit empty failed prefix")]
     private static void Copies()
     {
-        var original = Fixture(); var operations = original.Operations.ToArray(); original = original with { Operations = operations };
+        var original = Fixture();
+        var operations = original.Operations.ToArray();
+        original = original with
+        {
+            Operations = operations
+        };
         string json = NativeAotServiceQuotaPeer.SerializeWireReport(original);
-        byte[] bytes = Encoding.UTF8.GetBytes(json); var copy = NativeAotServiceQuotaPeer.InspectWireReport(bytes);
-        operations[0] = operations[0] with { DataBase64 = "eHh4" }; bytes.AsSpan().Clear();
+        byte[] bytes = Encoding.UTF8.GetBytes(json);
+        var copy = NativeAotServiceQuotaPeer.InspectWireReport(bytes);
+        operations[0] = operations[0] with
+        {
+            DataBase64 = "eHh4"
+        };
+        bytes.AsSpan().Clear();
         HostCheck.Equal(json, NativeAotServiceQuotaPeer.SerializeWireReport(copy));
         bool immutable = false;
-        try { ((IList<NativeAotServiceQuotaPeer.WireOperation>)copy.Operations)[0] = operations[0]; }
-        catch (NotSupportedException) { immutable = true; }
+        try
+        {
+            ((IList<NativeAotServiceQuotaPeer.WireOperation>)copy.Operations)[0] = operations[0];
+        }
+        catch (NotSupportedException)
+        {
+            immutable = true;
+        }
         HostCheck.True(immutable);
-        var partial = original with { Purpose = "quota-partial", RawBytes = 0,
+        var partial = original with
+        {
+            Purpose = "quota-partial",
+            RawBytes = 0,
             Connections = Array.Empty<NativeAotServiceQuotaPeer.WireConnection>(),
-            Operations = Array.Empty<NativeAotServiceQuotaPeer.WireOperation>() };
+            Operations = Array.Empty<NativeAotServiceQuotaPeer.WireOperation>()
+        };
         HostCheck.Equal(0, Inspect(JsonNode.Parse(NativeAotServiceQuotaPeer.SerializeWireReport(partial))!.AsObject()).Operations.Count);
     }
 
@@ -39,13 +59,22 @@ internal static class NativeAotServiceQuotaWireReportTests
             text.Replace("\"port\":8080", "\"port\":8080,\"\\u0070ort\":8080", StringComparison.Ordinal) })
             Reject(() => NativeAotServiceQuotaPeer.InspectWireReport(Encoding.UTF8.GetBytes(bad)));
         foreach (string key in Root().Select(p => p.Key).ToArray())
-        { var root = Root(); root.Remove(key); Reject(() => Inspect(root)); }
+        {
+            var root = Root();
+            root.Remove(key);
+            Reject(() => Inspect(root));
+        }
         foreach (Action<JsonObject> change in new Action<JsonObject>[] {
             r => r["extra"] = 1, r => r["schema"] = "other", r => r["tickUnit"] = "milliseconds",
             r => r["port"] = "8080", r => r["rawBytes"] = 5, r => r["snapshotTicks"] = 9,
             r => Connection(r)["id"] = 2, r => Connection(r)["remotePort"] = 8081,
             r => Connection(r)["localAddress"] = "::1", r => Connection(r)["disposedTicks"] = 0,
-            r => { var c = Connection(r).DeepClone().AsObject(); c["id"] = 2; r["connections"]!.AsArray().Add(c); },
+            r =>
+        {
+            var c = Connection(r).DeepClone().AsObject();
+            c["id"] = 2;
+            r["connections"]!.AsArray().Add(c);
+        },
             r => Operation(r)["id"] = 2, r => Operation(r)["connectionId"] = 2,
             r => Operation(r)["direction"] = "send", r => Operation(r)["offset"] = 1,
             r => Operation(r)["startedTicks"] = 0, r => Operation(r)["endedTicks"] = 1,
@@ -53,19 +82,42 @@ internal static class NativeAotServiceQuotaWireReportTests
             r => Operation(r)["outcome"] = "pending", r => Operation(r)["exchangeId"] = 1,
             r => Operation(r)["dataBase64"] = "YWJj ", r => Operation(r)["dataBase64"] = "!",
             r => Operation(r).Remove("offset"), r => Operation(r)["extra"] = 1 })
-        { var root = Root(); change(root); Reject(() => Inspect(root)); }
+        {
+            var root = Root();
+            change(root);
+            Reject(() => Inspect(root));
+        }
     }
 
     [HostTest("quota wire failed write preserves attempted bytes unknown count and rejects later writes")]
     private static void UnknownWrite()
     {
-        var trace = Fixture(); var operations = trace.Operations.ToArray();
-        operations[0] = operations[0] with { Outcome = "failed", Transferred = -1 };
-        trace = trace with { Operations = operations };
+        var trace = Fixture();
+        var operations = trace.Operations.ToArray();
+        operations[0] = operations[0] with
+        {
+            Outcome = "failed",
+            Transferred = -1
+        };
+        trace = trace with
+        {
+            Operations = operations
+        };
         var copy = NativeAotServiceQuotaPeer.InspectWireReport(Encoding.UTF8.GetBytes(NativeAotServiceQuotaPeer.SerializeWireReport(trace)));
         HostCheck.True(copy.Operations[0].Transferred == -1 && copy.Operations[0].DataBase64 == "YWJj" && copy.RawBytes == 6);
-        trace = trace with { RawBytes = 9, Operations = operations.Append(operations[0] with {
-            Id = 3, Offset = 0, StartedTicks = 6, EndedTicks = 7, Outcome = "complete", Transferred = 3 }).ToArray() };
+        trace = trace with
+        {
+            RawBytes = 9,
+            Operations = operations.Append(operations[0] with
+            {
+                Id = 3,
+                Offset = 0,
+                StartedTicks = 6,
+                EndedTicks = 7,
+                Outcome = "complete",
+                Transferred = 3
+            }).ToArray()
+        };
         Reject(() => NativeAotServiceQuotaPeer.SerializeWireReport(trace));
     }
 
@@ -82,20 +134,27 @@ internal static class NativeAotServiceQuotaWireReportTests
         }
         Reject(() => NativeAotServiceQuotaPeer.SerializeWireReport(AtEnd("quota-partial", quotaMaximum + 1)));
         var lateQuota = JsonNode.Parse(NativeAotServiceQuotaPeer.SerializeWireReport(AtEnd("quota-partial", quotaMaximum)))!.AsObject();
-        lateQuota["snapshotTicks"] = quotaMaximum + 1; Reject(() => Inspect(lateQuota));
+        lateQuota["snapshotTicks"] = quotaMaximum + 1;
+        Reject(() => Inspect(lateQuota));
         string control = NativeAotServiceQuotaPeer.SerializeWireReport(AtEnd("stream-control", controlMaximum));
         HostCheck.Equal(controlMaximum, NativeAotServiceQuotaPeer.InspectWireReport(Encoding.UTF8.GetBytes(control)).SnapshotTicks);
         Reject(() => NativeAotServiceQuotaPeer.SerializeWireReport(AtEnd("stream-control", controlMaximum + 1)));
-        var lateControl = JsonNode.Parse(control)!.AsObject(); lateControl["snapshotTicks"] = controlMaximum + 1;
+        var lateControl = JsonNode.Parse(control)!.AsObject();
+        lateControl["snapshotTicks"] = controlMaximum + 1;
         Reject(() => Inspect(lateControl));
     }
 
     private static NativeAotServiceQuotaPeer.WireTrace AtEnd(string purpose, long end)
     {
-        var original = Fixture(); long shift = end - original.SnapshotTicks;
-        return original with { Purpose = purpose, SnapshotTicks = end,
+        var original = Fixture();
+        long shift = end - original.SnapshotTicks;
+        return original with
+        {
+            Purpose = purpose,
+            SnapshotTicks = end,
             Connections = original.Connections.Select(c => c with { ConnectedTicks = c.ConnectedTicks + shift, DisposedTicks = c.DisposedTicks + shift }).ToArray(),
-            Operations = original.Operations.Select(o => o with { StartedTicks = o.StartedTicks + shift, EndedTicks = o.EndedTicks + shift }).ToArray() };
+            Operations = original.Operations.Select(o => o with { StartedTicks = o.StartedTicks + shift, EndedTicks = o.EndedTicks + shift }).ToArray()
+        };
     }
 
     private static JsonObject Root() => JsonNode.Parse(NativeAotServiceQuotaPeer.SerializeWireReport(Fixture()))!.AsObject();
@@ -106,7 +165,14 @@ internal static class NativeAotServiceQuotaWireReportTests
     private static void Reject(Action action)
     {
         bool rejected = false;
-        try { action(); } catch (Exception error) when (error is ToolFailure or InvalidDataException) { rejected = true; }
+        try
+        {
+            action();
+        }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

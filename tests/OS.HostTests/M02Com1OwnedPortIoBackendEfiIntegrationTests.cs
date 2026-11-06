@@ -1,7 +1,4 @@
 using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using OS.Kernel.Diagnostics;
 
@@ -12,9 +9,6 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
         OS.Tooling.QemuContracts.Record085;
     private const string FailureMarker =
         OS.Tooling.QemuContracts.Record084;
-    private static readonly string CompileClosureSha256 =
-        OS.Tooling.EfiContracts.CompileInventorySha256;
-
     [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
@@ -59,199 +53,88 @@ internal static class M02Com1OwnedPortIoBackendEfiIntegrationTests
     }
 
     private static bool TestCompileClosureAndSwitch()
-{
-    string root = HostToolProcess.FindRepositoryRoot();
-    XDocument project = XDocument.Load(Path.Combine(root, "src", "OS", "OS.csproj"));
-    XElement[] compileItems = project.Descendants("Compile").ToArray();
-    string[] compileKeys = compileItems.Select(item => (item.Attribute("Include")?.Value ?? string.Empty) + "|" + (item.Attribute("Link")?.Value ?? string.Empty)).ToArray();
-    string compileText = string.Join("\n", compileKeys) + "\n";
-    string compileHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(compileText))).ToLowerInvariant();
-    int checkedBinder = Array.IndexOf(compileKeys, @"..\OS.Kernel\Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs|Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs");
-    int backend = Array.IndexOf(compileKeys, @"..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs");
-    int checkedHelper = Array.IndexOf(compileKeys, @"Boot\M02CheckedPortIoFunctionPointerIntegration.cs|");
-    int com1Helper = Array.IndexOf(compileKeys, @"Boot\M02Com1OwnedPortIoBackendIntegration.cs|");
-    XElement[] defaults = project.Descendants("EnableM02Com1OwnedPortIoProbe").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02Com1OwnedPortIoProbe)' == ''").ToArray();
-    XElement[] ud2ProfileOverrides = project.Descendants("PropertyGroup").Where(group => group.Attribute("Condition")?.Value == "'$(EnableM02Ud2VectorStateProbe)' == 'true'").SelectMany(group => group.Elements("EnableM02Com1OwnedPortIoProbe")).ToArray();
-    XElement[] symbols = project.Descendants("PropertyGroup").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02Com1OwnedPortIoProbe)' == 'true'").ToArray();
-    string[] dependencyConditions = project.Descendants("Error").Select(element => element.Attribute("Condition")?.Value ?? string.Empty).Where(value => value.StartsWith("'$(EnableM02Com1OwnedPortIoProbe)' == 'true'", StringComparison.Ordinal)).ToArray();
-    return (compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count && compileHash == CompileClosureSha256 && checkedBinder >= 0 && backend == checkedBinder + 1 && checkedHelper >= 0 && com1Helper == checkedHelper + 1 && compileKeys.Count(key => key.Contains("COM1OwnedPortIOBackend.cs", StringComparison.Ordinal)) == 1 && compileKeys.Count(key => key.Contains("M02Com1OwnedPortIoBackendIntegration.cs", StringComparison.Ordinal)) == 1 && defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02Com1OwnedPortIoProbe)' == ''" && ud2ProfileOverrides.Length == 1 && ud2ProfileOverrides[0].Value == "true" && symbols.Length == 1 && symbols[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_COM1_OWNED_PORT_IO_PROBE" && dependencyConditions.Length == 14 && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'", StringComparer.Ordinal)) && OS.Tooling.ContractAudit.Inspect(root).Count == 0;
-}
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        XDocument project = XDocument.Load(Path.Combine(root, "src", "OS", "OS.csproj"));
+        var catalog = Source();
+        foreach (string type in new[] { "OS.Kernel.Diagnostics.InvokeIn8Out8CheckedUnmanagedFunctionPointers",
+        "OS.Kernel.Diagnostics.Com1OwnedPortIoBackend", "OS.Boot.M02CheckedPortIoFunctionPointerIntegration",
+        "OS.Boot.M02Com1OwnedPortIoBackendIntegration" })
+            _ = catalog.Type(type);
+        XElement[] defaults = project.Descendants("EnableM02Com1OwnedPortIoProbe").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02Com1OwnedPortIoProbe)' == ''").ToArray();
+        XElement[] ud2ProfileOverrides = project.Descendants("PropertyGroup").Where(group => group.Attribute("Condition")?.Value == "'$(EnableM02Ud2VectorStateProbe)' == 'true'").SelectMany(group => group.Elements("EnableM02Com1OwnedPortIoProbe")).ToArray();
+        XElement[] symbols = project.Descendants("PropertyGroup").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02Com1OwnedPortIoProbe)' == 'true'").ToArray();
+        string[] dependencyConditions = project.Descendants("Error").Select(element => element.Attribute("Condition")?.Value ?? string.Empty).Where(value => value.StartsWith("'$(EnableM02Com1OwnedPortIoProbe)' == 'true'", StringComparison.Ordinal)).ToArray();
+        return (defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02Com1OwnedPortIoProbe)' == ''" && ud2ProfileOverrides.Length == 1 && ud2ProfileOverrides[0].Value == "true" && symbols.Length == 1 && symbols[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_COM1_OWNED_PORT_IO_PROBE" && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'", StringComparer.Ordinal)) && OS.Tooling.ContractAudit.Inspect(root).Count == 0;
+    }
 
     private static bool TestIntegrationSourceBoundary()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string checkedHelper = File.ReadAllText(
-            Path.Combine(
-                root,
-                "src",
-                "OS",
-                "Boot",
-                "M02CheckedPortIoFunctionPointerIntegration.cs"));
-        string integration = File.ReadAllText(
-            Path.Combine(
-                root,
-                "src",
-                "OS",
-                "Boot",
-                "M02Com1OwnedPortIoBackendIntegration.cs"));
-
-        return checkedHelper.Contains(
-                "Binding => _binding;",
-                StringComparison.Ordinal)
-            && checkedHelper.Contains("_binding.Succeeded", StringComparison.Ordinal)
-            && integration.Contains(
-                "public readonly struct M02Com1OwnedPortIoBackendIntegrationResult",
-                StringComparison.Ordinal)
-            && integration.Contains(
-                "new(checkedBinding.Binding);",
-                StringComparison.Ordinal)
-            && CountOccurrences(integration, "backend.ConfigureDefault();") == 1
-            && integration.Contains(
-                "public const bool GuestIn8 = false;",
-                StringComparison.Ordinal)
-            && integration.Contains(
-                "public const bool MarkerTransportUsesUefiSerial = true;",
-                StringComparison.Ordinal)
-            && integration.Contains(
-                "public const bool PostExitBootServices = false;",
-                StringComparison.Ordinal)
-            && !integration.Contains(".ReadByte(", StringComparison.Ordinal)
-            && !integration.Contains(".InvokeIn8(", StringComparison.Ordinal)
-            && !integration.Contains(".InvokeOut8(", StringComparison.Ordinal)
-            && !integration.Contains("throw ", StringComparison.Ordinal)
-            && !integration.Contains("string ", StringComparison.Ordinal)
-            && !integration.Contains("object ", StringComparison.Ordinal)
-            && !integration.Contains("delegate", StringComparison.Ordinal)
-            && !integration.Contains("[]", StringComparison.Ordinal)
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                Com1OwnedPortIoBackend>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                Com1OwnedPortIoConfigurationResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                Com1OwnedPortIoOperationResult>();
+        var source = Source();
+        const string binder = "OS.Boot.M02CheckedPortIoFunctionPointerIntegration";
+        const string backend = "OS.Boot.M02Com1OwnedPortIoBackendIntegration";
+        string checkedHelper = HostSourceText.Declarations(source, binder, binder + "Result", binder + "Status");
+        string[] owners = [backend, backend + "Result", backend + "Status"];
+        string integration = HostSourceText.Declarations(source, owners);
+        string raw = HostSourceText.Documents(source, owners);
+        return HostSourceText.Contains(checkedHelper, "Binding => _binding;")
+            && HostSourceText.Contains(checkedHelper, "_binding.Succeeded")
+            && source.Type("OS.Boot.M02Com1OwnedPortIoBackendIntegrationResult") is
+            {
+                TypeKind: Microsoft.CodeAnalysis.TypeKind.Struct,
+                IsReadOnly: true, IsRecord: false, DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public
+            }
+            && HostSourceText.Contains(integration, "new(checkedBinding.Binding);")
+            && HostSourceText.Count(integration, "backend.ConfigureDefault();") == 1
+            && HostSourceText.Contains(integration, "public const bool GuestIn8 = false;")
+            && HostSourceText.Contains(integration, "public const bool MarkerTransportUsesUefiSerial = true;")
+            && HostSourceText.Contains(integration, "public const bool PostExitBootServices = false;")
+            && !raw.Contains(".ReadByte(", StringComparison.Ordinal) && !raw.Contains(".InvokeIn8(", StringComparison.Ordinal)
+            && !raw.Contains(".InvokeOut8(", StringComparison.Ordinal) && !raw.Contains("throw ", StringComparison.Ordinal)
+            && !raw.Contains("string ", StringComparison.Ordinal) && !raw.Contains("object ", StringComparison.Ordinal)
+            && !raw.Contains("delegate", StringComparison.Ordinal) && !raw.Contains("[]", StringComparison.Ordinal)
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<Com1OwnedPortIoBackend>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<Com1OwnedPortIoConfigurationResult>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<Com1OwnedPortIoOperationResult>();
     }
 
     private static bool TestMarkerOwnershipAndOrder()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
-        string reconstructedReady = ExtractAsciiMarker(
-            source,
-            "private static void WriteM02Com1OwnedPortIoSuccessLine(");
-        string reconstructedFailure = ExtractAsciiMarker(
-            source,
-            "private static void WriteM02Com1OwnedPortIoFailureLine(");
-
-        int executionAudit = source.IndexOf(
-            "if (!s_m02ExecutionAudit.Succeeded)",
-            StringComparison.Ordinal);
-        int checkedBinding = IndexOfAfter(
-            source,
-            "M02CheckedPortIoFunctionPointerIntegration.Bind(",
-            executionAudit,
-            StringComparison.Ordinal);
-        int checkedGuard = IndexOfAfter(
-            source,
-            "if (!s_m02CheckedPortIoBinding.Succeeded)",
-            checkedBinding,
-            StringComparison.Ordinal);
-        int configuration = IndexOfAfter(
-            source,
-            "M02Com1OwnedPortIoBackendIntegration.Configure(",
-            checkedGuard,
-            StringComparison.Ordinal);
-        int configurationGuard = IndexOfAfter(
-            source,
-            "if (!com1Configuration.Succeeded)",
-            configuration,
-            StringComparison.Ordinal);
-        int checkedReady = IndexOfAfter(
-            source,
-            "WriteM02CheckedPortIoBindingSuccessLine(",
-            configurationGuard,
-            StringComparison.Ordinal);
-        int com1Ready = IndexOfAfter(
-            source,
-            "WriteM02Com1OwnedPortIoSuccessLine(",
-            checkedReady,
-            StringComparison.Ordinal);
-
-        return reconstructedReady == ReadyMarker
-            && reconstructedFailure == FailureMarker
-            && executionAudit >= 0
-            && checkedBinding > executionAudit
-            && checkedGuard > checkedBinding
-            && configuration > checkedGuard
-            && configurationGuard > configuration
-            && checkedReady > configurationGuard
-            && com1Ready > checkedReady
-            && CountOccurrences(
-                source,
-                "M02Com1OwnedPortIoBackendIntegration.Configure(") == 1
-            && CountOccurrences(
-                source,
-                "WriteM02Com1OwnedPortIoSuccessLine(") == 2
-            && CountOccurrences(
-                source,
-                "WriteM02Com1OwnedPortIoFailureLine(") == 2
-            && CountOccurrences(source, ReadyMarker) == 0
-            && CountOccurrences(source, FailureMarker) == 0;
+        var source = Source();
+        string run = HostSourceText.Active(source.Method(Adapter, "WriteSuccessLine"));
+        string raw = HostSourceText.Documents(source, "OS.Boot.EfiEntry");
+        int audit = HostSourceText.IndexOf(run, "if (!s_m02ExecutionAudit.Succeeded)");
+        int binding = HostSourceText.IndexOf(run, "M02CheckedPortIoFunctionPointerIntegration.Bind(", audit);
+        int bindingGuard = HostSourceText.IndexOf(run, "if (!s_m02CheckedPortIoBinding.Succeeded)", binding);
+        int configuration = HostSourceText.IndexOf(run, "M02Com1OwnedPortIoBackendIntegration.Configure(", bindingGuard);
+        int configurationGuard = HostSourceText.IndexOf(run, "if (!com1Configuration.Succeeded)", configuration);
+        int checkedReady = HostSourceText.IndexOf(run, "WriteM02CheckedPortIoBindingSuccessLine(", configurationGuard);
+        int com1Ready = HostSourceText.IndexOf(run, "WriteM02Com1OwnedPortIoSuccessLine(", checkedReady);
+        HostCheck.Equal(1, Calls(source, "OS.Boot.M02Com1OwnedPortIoBackendIntegration", "Configure"));
+        HostCheck.Equal(1, Calls(source, Adapter, "WriteM02Com1OwnedPortIoSuccessLine"));
+        HostCheck.Equal(1, Calls(source, Adapter, "WriteM02Com1OwnedPortIoFailureLine"));
+        return Marker(source, "WriteM02Com1OwnedPortIoSuccessLine") == ReadyMarker
+            && Marker(source, "WriteM02Com1OwnedPortIoFailureLine") == FailureMarker
+            && audit >= 0 && binding > audit && bindingGuard > binding && configuration > bindingGuard
+            && configurationGuard > configuration && checkedReady > configurationGuard && com1Ready > checkedReady
+            && !raw.Contains(ReadyMarker, StringComparison.Ordinal) && !raw.Contains(FailureMarker, StringComparison.Ordinal);
     }
 
     private static bool TestQemuProfileSource() => EfiProfileTestControls.Returning("M02Com1OwnedPortIo", OS.Tooling.QemuContracts.M02Com1OwnedPortIoRequiredMarkers, OS.Tooling.QemuContracts.M02Com1OwnedPortIoForbiddenMarkers, ReadyMarker, FailureMarker);
 
-    private static string ExtractAsciiMarker(string source, string methodToken)
+    private const string Adapter = "OS.Boot.EfiEntry+M01StageThreeAdapter";
+
+    private static OS.Tooling.CSharpSourceCatalog Source() => HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(
+        EfiProfileTestControls.ReturningArguments("M02Com1OwnedPortIo"), true).Profile());
+
+    private static string Marker(OS.Tooling.CSharpSourceCatalog source, string method) =>
+        HostSourceText.ByteCharacters(source, Adapter, method);
+
+    private static int Calls(OS.Tooling.CSharpSourceCatalog source, string owner, string method)
     {
-        int start = source.IndexOf(methodToken, StringComparison.Ordinal);
-        int end = start < 0
-            ? -1
-            : source.IndexOf(
-                "        private static ",
-                start + methodToken.Length,
-                StringComparison.Ordinal);
-        if (start < 0 || end <= start)
-        {
-            return string.Empty;
-        }
-
-        MatchCollection characters = Regex.Matches(
-            source[start..end],
-            @"\(byte\)'(?<value>.)'",
-            RegexOptions.CultureInvariant);
-        return string.Concat(
-            characters
-                .Cast<Match>()
-                .Select(match => match.Groups["value"].Value));
-    }
-
-    private static int CountOccurrences(string source, string value)
-    {
-        int count = 0;
-        int index = 0;
-        while ((index = source.IndexOf(
-                   value,
-                   index,
-                   StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            index += value.Length;
-        }
-
-        return count;
-    }
-
-    private static int IndexOfAfter(
-        string source,
-        string value,
-        int startIndex,
-        StringComparison comparison)
-    {
-        if (startIndex < 0 || startIndex > source.Length)
-        {
-            return -1;
-        }
-
-        return source.IndexOf(value, startIndex, comparison);
+        var declaration = source.Method(owner, method);
+        var symbol = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetDeclaredSymbol(
+            source.Compilation.GetSemanticModel(declaration.SyntaxTree), declaration)!;
+        return HostSourceOperations.CallsTo(source, symbol).Length;
     }
 }

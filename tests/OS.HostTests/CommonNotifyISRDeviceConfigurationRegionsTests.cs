@@ -11,7 +11,8 @@ internal static unsafe class CommonNotifyISRDeviceConfigurationRegionsTests
 
     private static void Bars(PciSizedBar* bars)
     {
-        for (int i = 0; i < 6; i++) bars[i] = default;
+        for (int i = 0; i < 6; i++)
+            bars[i] = default;
         HostCheck.Equal(PciBarProbeStatus.Success, BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(
             0x0000000c, 0xc0, 0xffffc00c, 0xffffffff, 4, out bars[4]));
     }
@@ -19,7 +20,8 @@ internal static unsafe class CommonNotifyISRDeviceConfigurationRegionsTests
     [HostTest("virtio.block.regions admits complete capacity field without widening network contract")]
     private static void BlockCapacityExtent()
     {
-        PciSizedBar* bars = stackalloc PciSizedBar[6]; Bars(bars);
+        PciSizedBar* bars = stackalloc PciSizedBar[6];
+        Bars(bars);
         VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
         var caps = Capabilities();
         HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.PlanBlock(caps, bars, 6, regions, 4));
@@ -28,19 +30,22 @@ internal static unsafe class CommonNotifyISRDeviceConfigurationRegionsTests
         HostCheck.Equal(1U, regions[3].Bytes);
         foreach (uint bytes in new uint[] { 1, 7 })
         {
-            for (int i = 0; i < 4; i++) regions[i] = default;
+            for (int i = 0; i < 4; i++)
+                regions[i] = default;
             var shortCaps = VirtioPciCapabilitySet.Create(caps.CommonConfiguration, caps.NotifyConfiguration, caps.IsrStatus,
                 new(VirtioPciCapabilityType.DeviceConfiguration, 4, 0x2000, bytes, 0));
             HostCheck.Equal(VirtioRegionStatus.InvalidCapability,
                 CommonNotifyISRDeviceConfigurationRegions.PlanBlock(shortCaps, bars, 6, regions, 4));
-            for (int i = 0; i < 4; i++) HostCheck.True(!regions[i].IsValid);
+            for (int i = 0; i < 4; i++)
+                HostCheck.True(!regions[i].IsValid);
         }
     }
 
     [HostTest("virtio.regions retains high physical BAR and distinct virtual binding", HostLane.Fast, 0)]
     private static bool HighAddressAndDistinctMapping()
     {
-        PciSizedBar* bars = stackalloc PciSizedBar[6]; Bars(bars);
+        PciSizedBar* bars = stackalloc PciSizedBar[6];
+        Bars(bars);
         VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
         HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.Plan(Capabilities(), bars, 6, regions, 4));
         ulong[] offsets = [0, 0x3000, 0x1000, 0x2000];
@@ -63,9 +68,11 @@ internal static unsafe class CommonNotifyISRDeviceConfigurationRegionsTests
     private static bool InvalidPlans()
     {
         HostCheck.True(default(VirtioRegionStatus) != VirtioRegionStatus.Success);
-        PciSizedBar* bars = stackalloc PciSizedBar[6]; Bars(bars);
+        PciSizedBar* bars = stackalloc PciSizedBar[6];
+        Bars(bars);
         VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
-        for (int i = 0; i < 4; i++) regions[i] = default;
+        for (int i = 0; i < 4; i++)
+            regions[i] = default;
         HostCheck.Equal(VirtioRegionStatus.InvalidStorage, CommonNotifyISRDeviceConfigurationRegions.Plan(Capabilities(), null, 6, regions, 4));
         HostCheck.Equal(VirtioRegionStatus.InvalidStorage, CommonNotifyISRDeviceConfigurationRegions.Plan(Capabilities(), bars, 5, regions, 4));
         HostCheck.Equal(VirtioRegionStatus.InvalidStorage, CommonNotifyISRDeviceConfigurationRegions.Plan(Capabilities(), bars, 6, regions, 3));
@@ -79,40 +86,79 @@ internal static unsafe class CommonNotifyISRDeviceConfigurationRegionsTests
         HostCheck.Equal(PciBarProbeStatus.Success, BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(
             0xc001, 0, 0xffffc001, 0, 4, out bars[4]));
         HostCheck.Equal(VirtioRegionStatus.InvalidBar, CommonNotifyISRDeviceConfigurationRegions.Plan(Capabilities(), bars, 6, regions, 4));
-        for (int i = 0; i < 4; i++) HostCheck.True(!regions[i].IsValid);
+        for (int i = 0; i < 4; i++)
+            HostCheck.True(!regions[i].IsValid);
         return true;
     }
 
     [HostTest("virtio.regions original map excludes ram duplicate and malformed MMIO extents", HostLane.Fast, 2)]
     private static bool MemoryAuthority()
     {
-        PciSizedBar* bars = stackalloc PciSizedBar[6]; Bars(bars);
+        PciSizedBar* bars = stackalloc PciSizedBar[6];
+        Bars(bars);
         VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
         HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.Plan(Capabilities(), bars, 6, regions, 4));
-        ulong* rows = stackalloc ulong[10]; new Span<ulong>(rows, 10).Clear();
-        rows[0] = 7; rows[1] = 0; rows[3] = 256; rows[5] = 11; rows[6] = 0xc000000000; rows[8] = 4;
-        OS.Boot.FirmwareMemoryMapRecord map = new() { BufferAddress = (ulong)rows, BufferSize = 80, MapSize = 80,
-            DescriptorSize = 40, DescriptorCount = 2, DescriptorVersion = 1, Flags = 1 };
-        for (int i = 0; i < 4; i++) HostCheck.True(CommonNotifyISRDeviceConfigurationRegions.Admit(regions[i], map));
+        ulong* rows = stackalloc ulong[10];
+        new Span<ulong>(rows, 10).Clear();
+        rows[0] = 7;
+        rows[1] = 0;
+        rows[3] = 256;
+        rows[5] = 11;
+        rows[6] = 0xc000000000;
+        rows[8] = 4;
+        OS.Boot.FirmwareMemoryMapRecord map = new()
+        {
+            BufferAddress = (ulong)rows,
+            BufferSize = 80,
+            MapSize = 80,
+            DescriptorSize = 40,
+            DescriptorCount = 2,
+            DescriptorVersion = 1,
+            Flags = 1
+        };
+        for (int i = 0; i < 4; i++)
+            HostCheck.True(CommonNotifyISRDeviceConfigurationRegions.Admit(regions[i], map));
         foreach (ulong type in new ulong[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, uint.MaxValue })
-        { rows[5] = type; HostCheck.True(!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map)); }
-        rows[5] = 0; HostCheck.True(CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
-        rows[8] = ulong.MaxValue; HostCheck.True(!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
-        rows[8] = 4; rows[6]++; HostCheck.True(!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
-        rows[6] = 0xd000000000; HostCheck.True(CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
-        rows[0] = 11; rows[1] = rows[6] = 0xc000000000; rows[3] = 4;
+        {
+            rows[5] = type;
+            HostCheck.True(!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
+        }
+        rows[5] = 0;
+        HostCheck.True(CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
+        rows[8] = ulong.MaxValue;
         HostCheck.True(!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
-        map.Flags = 0; HostCheck.True(!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
+        rows[8] = 4;
+        rows[6]++;
+        HostCheck.True(!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
+        rows[6] = 0xd000000000;
+        HostCheck.True(CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
+        rows[0] = 11;
+        rows[1] = rows[6] = 0xc000000000;
+        rows[3] = 4;
+        HostCheck.True(!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
+        map.Flags = 0;
+        HostCheck.True(!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[0], map));
         return true;
     }
 
     [HostTest("mmio.pages admission rejects malformed bounds and partial original descriptors", HostLane.Fast, 5)]
     private static void MmioPages()
     {
-        ulong* rows = stackalloc ulong[5]; new Span<ulong>(rows, 5).Clear();
-        rows[0] = 11; rows[1] = 0xfee00000; rows[3] = 1;
-        OS.Boot.FirmwareMemoryMapRecord map = new() { BufferAddress = (ulong)rows, BufferSize = 40, MapSize = 40,
-            DescriptorSize = 40, DescriptorCount = 1, DescriptorVersion = 1, Flags = 1 };
+        ulong* rows = stackalloc ulong[5];
+        new Span<ulong>(rows, 5).Clear();
+        rows[0] = 11;
+        rows[1] = 0xfee00000;
+        rows[3] = 1;
+        OS.Boot.FirmwareMemoryMapRecord map = new()
+        {
+            BufferAddress = (ulong)rows,
+            BufferSize = 40,
+            MapSize = 40,
+            DescriptorSize = 40,
+            DescriptorCount = 1,
+            DescriptorVersion = 1,
+            Flags = 1
+        };
         bool Admit(ulong address, ulong pages) => CommonNotifyISRDeviceConfigurationRegions.AdmitMmioPages(address, pages, map);
         HostCheck.True(Admit(0xfee00000, 1));
         HostCheck.True(Admit(0xfec00000, 1)); // A hole still requires separate ACPI/PCI authority.
@@ -120,15 +166,19 @@ internal static unsafe class CommonNotifyISRDeviceConfigurationRegionsTests
         HostCheck.True(!Admit(0xfedff000, 2));
         foreach (ulong address in new ulong[] { 0, 0xff000, 0xfee00001, 0x800000000000, ulong.MaxValue - 4095 })
             HostCheck.True(!Admit(address, 1));
-        foreach (ulong pages in new ulong[] { 0, 17, ulong.MaxValue }) HostCheck.True(!Admit(0xfee00000, pages));
-        rows[0] = 7; HostCheck.True(!Admit(0xfee00000, 1));
-        map.Flags = 0; HostCheck.True(!Admit(0xfec00000, 1));
+        foreach (ulong pages in new ulong[] { 0, 17, ulong.MaxValue })
+            HostCheck.True(!Admit(0xfee00000, pages));
+        rows[0] = 7;
+        HostCheck.True(!Admit(0xfee00000, 1));
+        map.Flags = 0;
+        HostCheck.True(!Admit(0xfec00000, 1));
     }
 
     [HostTest("virtqueue.regions expanded notification binding validates full address policy", HostLane.Fast, 4)]
     private static void NotificationPageBounds()
     {
-        PciSizedBar* bars = stackalloc PciSizedBar[6]; Bars(bars);
+        PciSizedBar* bars = stackalloc PciSizedBar[6];
+        Bars(bars);
         VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
         HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.Plan(Capabilities(), bars, 6, regions, 4));
         foreach (uint bytes in new uint[] { 0, 1, 4097, uint.MaxValue })
@@ -158,7 +208,8 @@ internal static unsafe class CommonNotifyISRDeviceConfigurationRegionsTests
     [HostTest("virtio.regions binding rejects default unaligned overflow and preserves offset", HostLane.Fast, 3)]
     private static bool BindingBounds()
     {
-        PciSizedBar* bars = stackalloc PciSizedBar[6]; Bars(bars);
+        PciSizedBar* bars = stackalloc PciSizedBar[6];
+        Bars(bars);
         VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
         HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.Plan(
             Capabilities(commonLength: 56, commonOffset: 4), bars, 6, regions, 4));

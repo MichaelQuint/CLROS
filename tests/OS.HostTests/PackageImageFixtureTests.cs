@@ -20,7 +20,8 @@ internal static class PackageImageFixtureTests
         int Cluster(uint cluster) => checked(data + (int)(cluster - 2) * 512);
         uint osCluster = EntryCluster(before, data + 32);
         int os = Cluster(osCluster), empty = os;
-        while (before[empty] != 0) empty += 32;
+        while (before[empty] != 0)
+            empty += 32;
 
         foreach (string variant in new[] { "Intact", "ManifestVersion", "PackageChecksum", "PackageHeader", "PackageTruncated", "PackageLoop" })
         {
@@ -48,8 +49,10 @@ internal static class PackageImageFixtureTests
             byte[] manifest = Encoding.ASCII.GetBytes(variant == "ManifestVersion" ?
                 NativeManifestDiskTests.Valid.Replace("version=0", "version=1", StringComparison.Ordinal) : NativeManifestDiskTests.Valid);
             byte[] package = APPPKGDiskTests.Package();
-            if (variant == "PackageChecksum") package[131] ^= 1;
-            if (variant == "PackageHeader") package[0] = (byte)'X';
+            if (variant == "PackageChecksum")
+                package[131] ^= 1;
+            if (variant == "PackageHeader")
+                package[0] = (byte)'X';
             HostCheck.True(after.AsSpan(manifestData, 104).SequenceEqual(manifest) &&
                 after.AsSpan(packageData, 132).SequenceEqual(package) &&
                 after.AsSpan(manifestData + 104, 408).IndexOfAnyExcept((byte)0) < 0 &&
@@ -74,7 +77,8 @@ internal static class PackageImageFixtureTests
             List<(int Start, int Bytes)> writes = [(empty, 64), (manifestData, 512), (packageData, 512),
                 (info + 488, 8), (boot + 7 * 512 + 488, 8)];
             foreach (uint cluster in new[] { receipt.ManifestCluster, receipt.PackageCluster })
-                foreach (int copy in new[] { 0, fatBytes }) writes.Add((checked(fat + copy + (int)cluster * 4), 4));
+                foreach (int copy in new[] { 0, fatBytes })
+                    writes.Add((checked(fat + copy + (int)cluster * 4), 4));
             int cursor = 0;
             foreach (var write in writes.OrderBy(write => write.Start))
             {
@@ -95,36 +99,53 @@ internal static class PackageImageFixtureTests
         int data = fat + 2 * fatBytes, backupHeader = original.Length - 512;
         uint osCluster = EntryCluster(original, data + 32);
         int os = checked(data + (int)(osCluster - 2) * 512), empty = os;
-        while (original[empty] != 0) empty += 32;
+        while (original[empty] != 0)
+            empty += 32;
         foreach (int offset in new[] { 512 + 16, backupHeader + 16, boot + 13, fat + fatBytes + 8,
             boot + 512 + 488, checked(data + (int)(ancestor.FileFirst - 2) * 512) })
         {
-            byte[] changed = (byte[])original.Clone(); changed[offset] ^= 1;
-            File.WriteAllBytes(path, changed); RejectUnchanged(path, efi, "Intact");
+            byte[] changed = (byte[])original.Clone();
+            changed[offset] ^= 1;
+            File.WriteAllBytes(path, changed);
+            RejectUnchanged(path, efi, "Intact");
         }
-        byte[] guidMismatch = (byte[])original.Clone(); guidMismatch[backupHeader + 56] ^= 1;
+        byte[] guidMismatch = (byte[])original.Clone();
+        guidMismatch[backupHeader + 56] ^= 1;
         BinaryPrimitives.WriteUInt32LittleEndian(guidMismatch.AsSpan(backupHeader + 16), 0);
         BinaryPrimitives.WriteUInt32LittleEndian(guidMismatch.AsSpan(backupHeader + 16), Crc32.Compute(guidMismatch.AsSpan(backupHeader, 92)));
-        File.WriteAllBytes(path, guidMismatch); RejectUnchanged(path, efi, "Intact");
+        File.WriteAllBytes(path, guidMismatch);
+        RejectUnchanged(path, efi, "Intact");
         byte[] chainedDirectory = (byte[])original.Clone();
         foreach (int copy in new[] { 0, fatBytes })
             BinaryPrimitives.WriteUInt32LittleEndian(chainedDirectory.AsSpan(checked(fat + copy + (int)osCluster * 4)), osCluster);
-        File.WriteAllBytes(path, chainedDirectory); RejectUnchanged(path, efi, "Intact");
+        File.WriteAllBytes(path, chainedDirectory);
+        RejectUnchanged(path, efi, "Intact");
         byte[] fullDirectory = (byte[])original.Clone();
-        for (int entry = empty; entry < os + 512; entry += 32) fullDirectory[entry] = 0xe5;
-        File.WriteAllBytes(path, fullDirectory); RejectUnchanged(path, efi, "Intact");
+        for (int entry = empty; entry < os + 512; entry += 32)
+            fullDirectory[entry] = 0xe5;
+        File.WriteAllBytes(path, fullDirectory);
+        RejectUnchanged(path, efi, "Intact");
         foreach (string alias in new[] { "APP     PKG", "NATIVE  MAN", "app     pkg" })
         {
-            byte[] duplicate = (byte[])original.Clone(); Encoding.ASCII.GetBytes(alias).CopyTo(duplicate, empty); duplicate[empty + 11] = 0x20;
-            File.WriteAllBytes(path, duplicate); RejectUnchanged(path, efi, "Intact");
+            byte[] duplicate = (byte[])original.Clone();
+            Encoding.ASCII.GetBytes(alias).CopyTo(duplicate, empty);
+            duplicate[empty + 11] = 0x20;
+            File.WriteAllBytes(path, duplicate);
+            RejectUnchanged(path, efi, "Intact");
         }
-        File.WriteAllBytes(path, original); RejectUnchanged(path, efi, "Unknown");
-        byte[] wrongEfi = File.ReadAllBytes(efi); wrongEfi[0] ^= 1; File.WriteAllBytes(efi, wrongEfi);
+        File.WriteAllBytes(path, original);
+        RejectUnchanged(path, efi, "Unknown");
+        byte[] wrongEfi = File.ReadAllBytes(efi);
+        wrongEfi[0] ^= 1;
+        File.WriteAllBytes(efi, wrongEfi);
         RejectUnchanged(path, efi, "Intact");
-        wrongEfi[0] ^= 1; File.WriteAllBytes(efi, wrongEfi);
+        wrongEfi[0] ^= 1;
+        File.WriteAllBytes(efi, wrongEfi);
         byte[] withoutFatFixture = (byte[])original.Clone();
-        foreach (int copy in new[] { 0, fatBytes }) BinaryPrimitives.WriteUInt32LittleEndian(withoutFatFixture.AsSpan(fat + copy + 8), 0x0fffffff);
-        File.WriteAllBytes(path, withoutFatFixture); RejectUnchanged(path, efi, "Intact");
+        foreach (int copy in new[] { 0, fatBytes })
+            BinaryPrimitives.WriteUInt32LittleEndian(withoutFatFixture.AsSpan(fat + copy + 8), 0x0fffffff);
+        File.WriteAllBytes(path, withoutFatFixture);
+        RejectUnchanged(path, efi, "Intact");
     });
 
     [HostTest("package.image_fixture independent byte vectors match reviewed finite metadata")]
@@ -143,8 +164,16 @@ internal static class PackageImageFixtureTests
 
     private static void RejectUnchanged(string path, string efi, string variant)
     {
-        string before = FileHash(path); bool rejected = false;
-        try { PackageImageFixture.Apply(path, efi, variant); } catch (ToolFailure) { rejected = true; }
+        string before = FileHash(path);
+        bool rejected = false;
+        try
+        {
+            PackageImageFixture.Apply(path, efi, variant);
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && FileHash(path) == before);
     }
     private static void WithFreshImage(Action<string, string, FatImageFixtureReceipt> action)
@@ -157,19 +186,32 @@ internal static class PackageImageFixtureTests
         {
             File.WriteAllBytes(efi, Enumerable.Range(0, 1537).Select(i => (byte)(i % 251)).ToArray());
             var start = HostToolProcess.CreateDotnetToolStartInfo(root, "OS.ImageBuilder");
-            foreach (string arg in new[] { "create-raw", "--efi", efi, "--output", path, "--image-size-mib", "64" }) start.ArgumentList.Add(arg);
+            foreach (string arg in new[] { "create-raw", "--efi", efi, "--output", path, "--image-size-mib", "64" })
+                start.ArgumentList.Add(arg);
             using var process = Process.Start(start)!;
-            var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
             if (!process.WaitForExit(30000))
-            { process.Kill(true); process.WaitForExit(5000); throw new InvalidOperationException("image builder timed out"); }
+            {
+                process.Kill(true);
+                process.WaitForExit(5000);
+                throw new InvalidOperationException("image builder timed out");
+            }
             string text = output.GetAwaiter().GetResult() + error.GetAwaiter().GetResult();
             HostCheck.True(process.ExitCode == 0 && text.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal), text);
             action(path, efi, FatImageFixture.Apply(path, efi));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
-    private static string FileHash(string path) { using var file = File.OpenRead(path); return Convert.ToHexString(SHA256.HashData(file)); }
+    private static string FileHash(string path)
+    {
+        using var file = File.OpenRead(path);
+        return Convert.ToHexString(SHA256.HashData(file));
+    }
     private static ushort U16(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(offset));
     private static uint U32(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset));
     private static ulong U64(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(offset));

@@ -30,23 +30,50 @@ public readonly struct TcpHeader
         UrgentPointer = urgentPointer;
     }
 
-    public ushort SourcePort { get; }
+    public ushort SourcePort
+    {
+        get;
+    }
 
-    public ushort DestinationPort { get; }
+    public ushort DestinationPort
+    {
+        get;
+    }
 
-    public uint SequenceNumber { get; }
+    public uint SequenceNumber
+    {
+        get;
+    }
 
-    public uint AcknowledgementNumber { get; }
+    public uint AcknowledgementNumber
+    {
+        get;
+    }
 
-    public byte HeaderLength { get; }
+    public byte HeaderLength
+    {
+        get;
+    }
 
-    public byte Flags { get; }
+    public byte Flags
+    {
+        get;
+    }
 
-    public ushort WindowSize { get; }
+    public ushort WindowSize
+    {
+        get;
+    }
 
-    public ushort Checksum { get; }
+    public ushort Checksum
+    {
+        get;
+    }
 
-    public ushort UrgentPointer { get; }
+    public ushort UrgentPointer
+    {
+        get;
+    }
 
     /// <summary>Read a validated SYN's bounded option bytes. Absent MSS uses
     /// IPv4's default536. Ignore unknown length-bearing options; reject malformed,
@@ -55,26 +82,38 @@ public readonly struct TcpHeader
     public static PacketParseStatus TryReadMaximumSegmentSize(ReadOnlySpan<byte> options, out ushort maximumSegmentSize)
     {
         maximumSegmentSize = 0;
-        if (options.Length > MaxHeaderLength - MinHeaderLength || (options.Length & 3) != 0) return PacketParseStatus.InvalidLength;
-        ushort candidate = 536; bool found = false;
+        if (options.Length > MaxHeaderLength - MinHeaderLength || (options.Length & 3) != 0)
+            return PacketParseStatus.InvalidLength;
+        ushort candidate = 536;
+        bool found = false;
         for (int i = 0; i < options.Length;)
         {
             byte kind = options[i];
-            if (kind == 0) break;
-            if (kind == 1) { i++; continue; }
-            if (i + 1 >= options.Length) return PacketParseStatus.InvalidLength;
+            if (kind == 0)
+                break;
+            if (kind == 1)
+            {
+                i++;
+                continue;
+            }
+            if (i + 1 >= options.Length)
+                return PacketParseStatus.InvalidLength;
             int length = options[i + 1];
-            if (length < 2 || length > options.Length - i) return PacketParseStatus.InvalidLength;
+            if (length < 2 || length > options.Length - i)
+                return PacketParseStatus.InvalidLength;
             if (kind == 2)
             {
-                if (found || length != 4) return PacketParseStatus.InvalidLength;
+                if (found || length != 4)
+                    return PacketParseStatus.InvalidLength;
                 candidate = (ushort)((options[i + 2] << 8) | options[i + 3]);
-                if (candidate == 0) return PacketParseStatus.InvalidLength;
+                if (candidate == 0)
+                    return PacketParseStatus.InvalidLength;
                 found = true;
             }
             i += length;
         }
-        maximumSegmentSize = candidate; return PacketParseStatus.Success;
+        maximumSegmentSize = candidate;
+        return PacketParseStatus.Success;
     }
 
     public static PacketParseStatus TryParse(

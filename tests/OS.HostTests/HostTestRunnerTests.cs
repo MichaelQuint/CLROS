@@ -2,34 +2,35 @@ using System.Text.Json;
 using System.Xml.Linq;
 using OS.Tooling;
 
-internal static class HostTestRunnerTests
+internal static partial class HostTestRunnerTests
 {
     [HostTest("runner preserves the original synchronous fixture exception and throwing frame")]
     private static void SynchronousThrowFrame()
     {
-        var method = typeof(HostTestRunnerTests).GetMethod(nameof(SynchronousThrowControl),
-            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
-        try { _ = HostTestRunner.Invoke(method); }
+        var method = typeof(HostTestRunnerTests).GetMethod(nameof(SynchronousThrowControl), System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        try
+        {
+            _ = HostTestRunner.Invoke(method);
+        }
         catch (InvalidOperationException error) when (ReferenceEquals(error, SynchronousFailure))
         {
             HostCheck.True(error.StackTrace?.Contains(nameof(SynchronousThrowControl), StringComparison.Ordinal) == true);
             return;
         }
+
         throw new InvalidOperationException("fixture_exception_not_preserved");
     }
 
     private static readonly InvalidOperationException SynchronousFailure = new("original_fixture_failure");
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static void SynchronousThrowControl() => throw SynchronousFailure;
-
     [HostTest("runner waits for asynchronous false failure and success before reporting their actual results")]
     private static void AsyncWorkerResults()
     {
         var result = Control("async-failures");
         HostCheck.Equal(1, result.ExitCode, result.StandardOutput + result.StandardError);
         HostCheck.True(result.StandardOutput.Contains("TEST_FAIL control.async.false", StringComparison.Ordinal));
-        HostCheck.True(result.StandardOutput.Contains("TEST_FAIL control.async.throw", StringComparison.Ordinal) &&
-            result.StandardOutput.Contains("async_control_failure", StringComparison.Ordinal));
+        HostCheck.True(result.StandardOutput.Contains("TEST_FAIL control.async.throw", StringComparison.Ordinal) && result.StandardOutput.Contains("async_control_failure", StringComparison.Ordinal));
         int joined = result.StandardOutput.IndexOf("ASYNC_CONTROL_AFTER joined=true", StringComparison.Ordinal);
         int passed = result.StandardOutput.IndexOf("TEST_PASS control.async.after", StringComparison.Ordinal);
         HostCheck.True(joined >= 0 && passed > joined);
@@ -38,68 +39,94 @@ internal static class HostTestRunnerTests
     [HostTest("runner joins Task and ValueTask results propagates asynchronous errors and rejects unowned async void")]
     private static void AsyncReturnKinds()
     {
-        bool Invoke(string name) => HostTestRunner.Invoke(typeof(AsyncSamples).GetMethod(name,
-            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!);
-        foreach (string name in new[] { "TaskPass", "TaskResultPass", "ValuePass", "ValueResultPass", "SourcePass" })
-        { AsyncSamples.Completed = false; HostCheck.True(Invoke(name) && AsyncSamples.Completed); }
+        bool Invoke(string name) => HostTestRunner.Invoke(typeof(AsyncSamples).GetMethod(name, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!);
+        foreach (string name in new[]
+        {
+            "TaskPass",
+            "TaskResultPass",
+            "ValuePass",
+            "ValueResultPass",
+            "SourcePass"
+        }
+
+        )
+        {
+            AsyncSamples.Completed = false;
+            HostCheck.True(Invoke(name) && AsyncSamples.Completed);
+        }
+
         HostCheck.True(!Invoke("TaskFalse") && !Invoke("ValueFalse") && !Invoke("SourceFalse") && !Invoke("SyncFalse"));
-        foreach (string name in new[] { "TaskFault", "ValueFault" })
+        foreach (string name in new[]
+        {
+            "TaskFault",
+            "ValueFault"
+        }
+
+        )
         {
             bool fault = false;
-            try { _ = Invoke(name); } catch (InvalidOperationException error) when (error.Message == "joined_async_failure") { fault = true; }
+            try
+            {
+                _ = Invoke(name);
+            }
+            catch (InvalidOperationException error) when (error.Message == "joined_async_failure")
+            {
+                fault = true;
+            }
+
             HostCheck.True(fault);
         }
-        foreach (string name in new[] { "NullTask", "NullResult" })
+
+        foreach (string name in new[]
+        {
+            "NullTask",
+            "NullResult"
+        }
+
+        )
         {
             bool rejected = false;
-            try { _ = Invoke(name); } catch (InvalidOperationException error) when (error.Message.StartsWith("null_fixture_task", StringComparison.Ordinal)) { rejected = true; }
+            try
+            {
+                _ = Invoke(name);
+            }
+            catch (InvalidOperationException error) when (error.Message.StartsWith("null_fixture_task", StringComparison.Ordinal))
+            {
+                rejected = true;
+            }
+
             HostCheck.True(rejected);
         }
-        foreach (string name in new[] { "AsyncVoid", "Unsupported", "UnsupportedTask", "UnsupportedValueTask" })
+
+        foreach (string name in new[]
         {
-            AsyncSamples.Completed = false; bool rejected = false;
-            try { _ = Invoke(name); } catch (InvalidOperationException error) when (error.Message.StartsWith("unsupported_fixture_return", StringComparison.Ordinal)) { rejected = true; }
+            "AsyncVoid",
+            "Unsupported",
+            "UnsupportedTask",
+            "UnsupportedValueTask"
+        }
+
+        )
+        {
+            AsyncSamples.Completed = false;
+            bool rejected = false;
+            try
+            {
+                _ = Invoke(name);
+            }
+            catch (InvalidOperationException error) when (error.Message.StartsWith("unsupported_fixture_return", StringComparison.Ordinal))
+            {
+                rejected = true;
+            }
+
             HostCheck.True(rejected && !AsyncSamples.Completed);
         }
-    }
-
-    private static class AsyncSamples
-    {
-        internal static bool Completed;
-        private sealed class Source : System.Threading.Tasks.Sources.IValueTaskSource, System.Threading.Tasks.Sources.IValueTaskSource<bool>
-        {
-            private System.Threading.Tasks.Sources.ManualResetValueTaskSourceCore<bool> core = new() { RunContinuationsAsynchronously = true };
-            internal short Token => core.Version;
-            internal Source() => ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(10); Completed = true; core.SetResult(false); });
-            public System.Threading.Tasks.Sources.ValueTaskSourceStatus GetStatus(short token) => core.GetStatus(token);
-            public void OnCompleted(Action<object?> continuation, object? state, short token, System.Threading.Tasks.Sources.ValueTaskSourceOnCompletedFlags flags) => core.OnCompleted(continuation, state, token, flags);
-            public bool GetResult(short token) => core.GetResult(token);
-            void System.Threading.Tasks.Sources.IValueTaskSource.GetResult(short token) { _ = core.GetResult(token); }
-        }
-        private static ValueTask SourcePass() { var source = new Source(); return new(source, source.Token); }
-        private static ValueTask<bool> SourceFalse() { var source = new Source(); return new(source, source.Token); }
-        private static async Task TaskPass() { await Task.Yield(); Completed = true; }
-        private static async Task<bool> TaskResultPass() { await Task.Yield(); Completed = true; return true; }
-        private static async ValueTask ValuePass() { await Task.Yield(); Completed = true; }
-        private static async ValueTask<bool> ValueResultPass() { await Task.Yield(); Completed = true; return true; }
-        private static async Task<bool> TaskFalse() { await Task.Yield(); return false; }
-        private static async ValueTask<bool> ValueFalse() { await Task.Yield(); return false; }
-        private static bool SyncFalse() => false;
-        private static async Task TaskFault() { await Task.Yield(); throw new InvalidOperationException("joined_async_failure"); }
-        private static async ValueTask ValueFault() { await Task.Yield(); throw new InvalidOperationException("joined_async_failure"); }
-        private static Task NullTask() => null!;
-        private static Task<bool> NullResult() => null!;
-        private static async void AsyncVoid() { await Task.Yield(); Completed = true; }
-        private static int Unsupported() { Completed = true; return 1; }
-        private static Task<int> UnsupportedTask() { Completed = true; return Task.FromResult(1); }
-        private static ValueTask<int> UnsupportedValueTask() { Completed = true; return new(1); }
     }
 
     [HostTest("runner filters standard library cases without running sibling cases")]
     private static void StandardLibraryCaseFiltering()
     {
-        Type[] owners = [typeof(StdArrayHelpersTests), typeof(StdAsciiByteTests), typeof(StdAsciiTests),
-            typeof(StdMathTests), typeof(StdNativeIntTests), typeof(StdEndianPrimitivesTests), typeof(StdMemoryExtensionsTests)];
+        Type[] owners = [typeof(StdArrayHelpersTests), typeof(StdAsciiByteTests), typeof(StdAsciiTests), typeof(StdMathTests), typeof(StdNativeIntTests), typeof(StdEndianPrimitivesTests), typeof(StdMemoryExtensionsTests)];
         foreach (Type owner in owners)
         {
             var fixture = HostTestRunner.Discover().Single(item => item.Method.DeclaringType == owner);
@@ -111,8 +138,7 @@ internal static class HostTestRunnerTests
                 Console.SetOut(output);
                 HostCheck.Filter = null;
                 fixture.Method.Invoke(null, null);
-                string[] cases = output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
-                    .Where(line => line.StartsWith("TEST_START ", StringComparison.Ordinal)).Select(line => line["TEST_START ".Length..]).ToArray();
+                string[] cases = output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Where(line => line.StartsWith("TEST_START ", StringComparison.Ordinal)).Select(line => line["TEST_START ".Length..]).ToArray();
                 HostCheck.True(cases.Length != 0, owner.Name);
                 output.GetStringBuilder().Clear();
                 HostCheck.Filter = cases[^1];
@@ -138,23 +164,7 @@ internal static class HostTestRunnerTests
     [HostTest("runner applies case filters to every legacy leaf wrapper")]
     private static void LegacyCaseFiltering()
     {
-        Type[] wrappers =
-        [
-            typeof(DisabledDefaultUd2VectorStateTests),
-            typeof(DisabledDefaultUd2VectorStateTransitionTests),
-            typeof(ExistingIn8Out8StubBytesRWPagesFinalizeTests),
-            typeof(IDTRContinuedExecutionTests),
-            typeof(NormalizeErrorCodeNonErrorCodeInterruptFrameTests),
-            typeof(OwnedGDTTSSGeneratedAuditedCSharpStubBytesTests),
-            typeof(PageZeroMappingPolicyTests),
-            typeof(PopulateAllN256IDTVectorsOwnedGatesNeverTests),
-            typeof(SerialMarkerStateMachineTests),
-            typeof(X64Cr3LoadStubPlanTests),
-            typeof(X64InvlpgStubPlanTests),
-            typeof(X64PageMapTests),
-            typeof(X64PagingModePreflightStubPlanTests),
-            typeof(X64ProtectionProbeStubPlanTests)
-        ];
+        Type[] wrappers = [typeof(DisabledDefaultUd2VectorStateTests), typeof(DisabledDefaultUd2VectorStateTransitionTests), typeof(ExistingIn8Out8StubBytesRWPagesFinalizeTests), typeof(IDTRContinuedExecutionTests), typeof(NormalizeErrorCodeNonErrorCodeInterruptFrameTests), typeof(OwnedGDTTSSGeneratedAuditedCSharpStubBytesTests), typeof(PageZeroMappingPolicyTests), typeof(PopulateAllN256IDTVectorsOwnedGatesNeverTests), typeof(SerialMarkerStateMachineTests), typeof(X64Cr3LoadStubPlanTests), typeof(X64InvlpgStubPlanTests), typeof(X64PageMapTests), typeof(X64PagingModePreflightStubPlanTests), typeof(X64ProtectionProbeStubPlanTests)];
         foreach (Type owner in wrappers)
         {
             var wrapper = owner.GetMethod("RunCase", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
@@ -162,7 +172,11 @@ internal static class HostTestRunnerTests
             TextWriter originalOutput = Console.Out;
             using StringWriter output = new();
             int invoked = 0, before = HostCheck.Executed;
-            object[] arguments = ["selected control", (Func<bool>)(() => { invoked++; return true; }), 0];
+            object[] arguments = ["selected control", (Func<bool>)(() =>
+            {
+                invoked++;
+                return true;
+            }), 0];
             string selectedOutput, omittedOutput;
             try
             {
@@ -181,6 +195,7 @@ internal static class HostTestRunnerTests
                 HostCheck.Filter = originalFilter;
                 Console.SetOut(originalOutput);
             }
+
             HostCheck.Equal(1, invoked);
             HostCheck.Equal(before + 1, HostCheck.Executed);
             HostCheck.Equal(0, (int)arguments[2]);
@@ -200,15 +215,12 @@ internal static class HostTestRunnerTests
         const string selectedCase = "aggregate coordinator and marker ownership";
         var selected = Run(["--worker", fixture, "--case", selectedCase]);
         HostCheck.True(selected.Succeeded, selected.StandardOutput + selected.StandardError);
-        string[] leafStarts = selected.StandardOutput.Split('\n')
-            .Where(line => line.StartsWith("TEST_START m01.013.", StringComparison.Ordinal) && line.IndexOf(' ', "TEST_START m01.013.".Length) >= 0).ToArray();
+        string[] leafStarts = selected.StandardOutput.Split('\n').Where(line => line.StartsWith("TEST_START m01.013.", StringComparison.Ordinal) && line.IndexOf(' ', "TEST_START m01.013.".Length) >= 0).ToArray();
         HostCheck.Equal("TEST_START m01.013.01.load " + selectedCase, leafStarts.Single().TrimEnd());
-
         var omitted = Run(["--worker", fixture, "--case", "___unmatched_control___"]);
         HostCheck.Equal(1, omitted.ExitCode);
         HostCheck.True(omitted.StandardOutput.Contains("case_filter_matched_no_tests", StringComparison.Ordinal));
-        HostCheck.True(!omitted.StandardOutput.Split('\n').Any(line =>
-            line.StartsWith("TEST_START m01.013.", StringComparison.Ordinal) && line.IndexOf(' ', "TEST_START m01.013.".Length) >= 0));
+        HostCheck.True(!omitted.StandardOutput.Split('\n').Any(line => line.StartsWith("TEST_START m01.013.", StringComparison.Ordinal) && line.IndexOf(' ', "TEST_START m01.013.".Length) >= 0));
     }
 
     [HostTest("runner preserves unique aggregate registration and undiscovered coordinators")]
@@ -216,24 +228,32 @@ internal static class HostTestRunnerTests
     {
         HostCheck.SingleFixture(typeof(DiagnosticsTests), nameof(DiagnosticsTests.RunAll));
         HostCheck.SingleFixture(typeof(M01OwnedCr3CompositeTransitionTests), nameof(M01OwnedCr3CompositeTransitionTests.RunAll));
-        HostCheck.SingleFixture(typeof(X64Cr3LoadStubPlanTests), nameof(X64Cr3LoadStubPlanTests.RunAllM01013),
-            typeof(X64PagingModePreflightStubPlanTests), typeof(X64ReversibleCr3TransitionStubPlanTests));
+        HostCheck.SingleFixture(typeof(X64Cr3LoadStubPlanTests), nameof(X64Cr3LoadStubPlanTests.RunAllM01013), typeof(X64PagingModePreflightStubPlanTests), typeof(X64ReversibleCr3TransitionStubPlanTests));
         foreach (Action invalid in new Action[]
         {
             () => HostCheck.SingleFixture(typeof(DiagnosticsTests), "missing aggregate"),
             () => HostCheck.SingleFixture(typeof(X64PagingModePreflightStubPlanTests), "unregistered coordinator"),
             () => HostCheck.SingleFixture(typeof(DiagnosticsTests), nameof(DiagnosticsTests.RunAll), typeof(M01OwnedCr3CompositeTransitionTests))
-        })
+        }
+
+        )
         {
             bool rejected = false;
-            try { invalid(); } catch (InvalidOperationException) { rejected = true; }
+            try
+            {
+                invalid();
+            }
+            catch (InvalidOperationException)
+            {
+                rejected = true;
+            }
+
             HostCheck.True(rejected, "invalid compiled registration must be rejected");
         }
     }
 
     [HostTest("runner cancels later native work and drains active workers when cleanup is unconfirmed")]
     private static void UnconfirmedTermination() => UnconfirmedTerminationAsync().GetAwaiter().GetResult();
-
     private static async Task UnconfirmedTerminationAsync()
     {
         using CancellationTokenSource scheduling = new();
@@ -242,18 +262,24 @@ internal static class HostTestRunnerTests
         TaskCompletionSource releaseOther = new(TaskCreationOptions.RunContinuationsAsynchronously);
         int started = 0, drained = 0;
         var confirmedFailure = new ProcessResult(-1, "", "", false, false, false, TimeSpan.Zero)
-            { FailureReason = "CaptureFailed controlled" };
+        {
+            FailureReason = "CaptureFailed controlled"
+        };
         HostCheck.Equal("CaptureFailed controlled", HostTestRunner.WorkerProcessFailure(confirmedFailure, scheduling));
         HostCheck.True(!scheduling.IsCancellationRequested, "ordinary confirmed failures remain independent");
         using var registration = scheduling.Token.Register(() => cancellationObserved.TrySetResult());
         Task run = HostWorkerScheduler.RunAsync(new[] { 0, 1, 2, 3 }, item => item == 2, 2, async (_, item) =>
         {
-            if (Interlocked.Increment(ref started) == 2) bothStarted.TrySetResult();
+            if (Interlocked.Increment(ref started) == 2)
+                bothStarted.TrySetResult();
             await bothStarted.Task;
             if (item == 0)
             {
                 string? reason = HostTestRunner.WorkerProcessFailure(confirmedFailure with
-                    { TerminationConfirmed = false, FailureReason = "TerminationUnconfirmed controlled" }, scheduling);
+                {
+                    TerminationConfirmed = false,
+                    FailureReason = "TerminationUnconfirmed controlled"
+                }, scheduling);
                 HostCheck.Equal("termination_unconfirmed TerminationUnconfirmed controlled", reason);
             }
             else
@@ -273,7 +299,6 @@ internal static class HostTestRunnerTests
 
     [HostTest("runner drains active workers after a scheduler callback fails")]
     private static void SchedulingFailure() => SchedulingFailureAsync().GetAwaiter().GetResult();
-
     private static async Task SchedulingFailureAsync()
     {
         TaskCompletionSource bothStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -283,25 +308,43 @@ internal static class HostTestRunnerTests
         Task run = HostWorkerScheduler.RunAsync(new[] { 0, 1, 2 }, _ => false, 2, (_, item) =>
         {
             Task worker = Worker(item);
-            if (item == 0) firstWorker = worker;
+            if (item == 0)
+                firstWorker = worker;
             return worker;
         });
         async Task Worker(int item)
         {
-            if (Interlocked.Increment(ref started) == 2) bothStarted.SetResult();
+            if (Interlocked.Increment(ref started) == 2)
+                bothStarted.SetResult();
             await bothStarted.Task;
-            if (item == 0) throw new IOException("controlled receipt failure");
+            if (item == 0)
+                throw new IOException("controlled receipt failure");
             await releaseSecond.Task;
             Interlocked.Increment(ref finished);
         }
+
         // Observe the actual fault before releasing the sibling. A signal just
         // before throw lets that sibling finish first and legitimately admit #3.
-        try { await firstWorker!.WaitAsync(TimeSpan.FromSeconds(10)); throw new InvalidOperationException("worker did not fail"); }
-        catch (IOException error) when (error.Message == "controlled receipt failure") { }
+        try
+        {
+            await firstWorker!.WaitAsync(TimeSpan.FromSeconds(10));
+            throw new InvalidOperationException("worker did not fail");
+        }
+        catch (IOException error) when (error.Message == "controlled receipt failure")
+        {
+        }
+
         HostCheck.True(!run.IsCompleted, "scheduler must retain ownership of the second worker");
         releaseSecond.SetResult();
-        try { await run; throw new InvalidOperationException("scheduler swallowed the failure"); }
-        catch (IOException error) when (error.Message == "controlled receipt failure") { }
+        try
+        {
+            await run;
+            throw new InvalidOperationException("scheduler swallowed the failure");
+        }
+        catch (IOException error) when (error.Message == "controlled receipt failure")
+        {
+        }
+
         HostCheck.Equal(2, started);
         HostCheck.Equal(1, finished);
     }
@@ -310,8 +353,7 @@ internal static class HostTestRunnerTests
     private static void EmbeddedSourceInventory()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        using Stream stream = typeof(HostBuildInputs).Assembly.GetManifestResourceStream("host-test-inputs.txt")
-            ?? throw new InvalidOperationException("build input manifest missing");
+        using Stream stream = typeof(HostBuildInputs).Assembly.GetManifestResourceStream("host-test-inputs.txt") ?? throw new InvalidOperationException("build input manifest missing");
         using StreamReader reader = new(stream);
         HashSet<string> paths = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         while (reader.ReadLine() is { } line)
@@ -322,16 +364,25 @@ internal static class HostTestRunnerTests
             paths.Add(path);
             string relative = Path.GetRelativePath(root, path).Replace('\\', '/');
             bool generated = relative.Split('/').Any(part => part is "obj" or "bin" or "artifacts");
-            if (!generated) continue;
+            if (!generated)
+                continue;
             // Reference DLLs and this project's actual generated Compile inputs
             // remain build dependencies. Other projects' caches are not sources.
-            bool compilerInput = relative.StartsWith("tests/OS.HostTests/obj/", StringComparison.Ordinal)
-                && Path.GetExtension(path) == ".cs";
+            bool compilerInput = relative.StartsWith("tests/OS.HostTests/obj/", StringComparison.Ordinal) && Path.GetExtension(path) == ".cs";
             HostCheck.True(compilerInput || Path.GetExtension(path).Equals(".dll", StringComparison.OrdinalIgnoreCase), path);
         }
+
         foreach (string path in HostBuildInputs.SourceInputs(root))
             HostCheck.True(paths.Contains(Path.GetFullPath(path)), "source omitted: " + path);
-        foreach (string name in new[] { "Program.cs", "MinimalApiSmoke.csproj", "appsettings.json", "appsettings.Development.json" })
+        foreach (string name in new[]
+        {
+            "Program.cs",
+            "MinimalApiSmoke.csproj",
+            "appsettings.json",
+            "appsettings.Development.json"
+        }
+
+        )
             HostCheck.True(paths.Contains(Path.Combine(root, "apps", "MinimalApiSmoke", name)), name);
     }
 
@@ -339,22 +390,43 @@ internal static class HostTestRunnerTests
     private static void LinkedSourceInput()
     {
         string root = Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts", "host-linked-input", Guid.NewGuid().ToString("N"));
-        foreach (string directory in new[] { "src", "std", "tools", "tests", "apps", "scripts", "target" }) Directory.CreateDirectory(Path.Combine(root, directory));
+        foreach (string directory in new[]
+        {
+            "src",
+            "std",
+            "tools",
+            "tests",
+            "apps",
+            "scripts",
+            "target"
+        }
+
+        )
+            Directory.CreateDirectory(Path.Combine(root, directory));
         string link = Path.Combine(root, "tests", "linked");
         File.WriteAllText(Path.Combine(root, "target", "Added.cs"), "// source behind a newly introduced link");
         TestJunction.Create(link, Path.Combine(root, "target"));
         try
         {
-            try { _ = HostBuildInputs.SourceInputs(root).ToArray(); throw new InvalidOperationException("linked source escaped inventory"); }
-            catch (InvalidOperationException error) when (error.Message.StartsWith("build_input_reparse_point ", StringComparison.Ordinal)) { }
+            try
+            {
+                _ = HostBuildInputs.SourceInputs(root).ToArray();
+                throw new InvalidOperationException("linked source escaped inventory");
+            }
+            catch (InvalidOperationException error) when (error.Message.StartsWith("build_input_reparse_point ", StringComparison.Ordinal))
+            {
+            }
         }
-        finally { Directory.Delete(link); }
+        finally
+        {
+            Directory.Delete(link);
+        }
+
         HostCheck.True(File.Exists(Path.Combine(root, "target", "Added.cs")), "link cleanup preserves its target");
     }
 
     [HostTest("runner schedules isolated workers with bounded concurrency and exclusive native barriers")]
     private static void Scheduling() => SchedulingAsync().GetAwaiter().GetResult();
-
     private static async Task SchedulingAsync()
     {
         TaskCompletionSource firstStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -366,16 +438,22 @@ internal static class HostTestRunnerTests
         {
             int count = Interlocked.Increment(ref active);
             peak = Math.Max(peak, count);
-            lock (entered) entered.Add(i);
-            if (i == 0) firstStarted.SetResult();
-            if (i == 1) secondStarted.SetResult();
-            if (i < 2) await release.Task;
-            if (i == 2) HostCheck.Equal(1, count);
+            lock (entered)
+                entered.Add(i);
+            if (i == 0)
+                firstStarted.SetResult();
+            if (i == 1)
+                secondStarted.SetResult();
+            if (i < 2)
+                await release.Task;
+            if (i == 2)
+                HostCheck.Equal(1, count);
             Interlocked.Decrement(ref active);
         });
         await Task.WhenAll(firstStarted.Task, secondStarted.Task).WaitAsync(TimeSpan.FromSeconds(10));
         HostCheck.Equal(2, active);
-        lock (entered) HostCheck.True(entered.SequenceEqual(new[] { 0, 1 }));
+        lock (entered)
+            HostCheck.True(entered.SequenceEqual(new[] { 0, 1 }));
         release.SetResult();
         await run.WaitAsync(TimeSpan.FromSeconds(10));
         HostCheck.Equal(2, peak);
@@ -399,16 +477,25 @@ internal static class HostTestRunnerTests
 
     [HostTest("runner input changes cancel failed fresh and reused fixtures before another native launch")]
     private static void ChangedFixtureInputs() => ChangedFixtureInputsAsync().GetAwaiter().GetResult();
-
     private static async Task ChangedFixtureInputsAsync()
     {
         string directory = Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts", "host-input-controls", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         string source = Path.Combine(directory, "input.cs");
-        foreach (var variant in new (bool Failed, bool Fresh, bool Reused)[] { (true, true, false), (false, true, false), (false, false, true) })
+        foreach (var variant in new (bool Failed, bool Fresh, bool Reused)[]
+        {
+            (true, true, false),
+            (false, true, false),
+            (false, false, true)
+        }
+
+        )
         {
             File.WriteAllText(source, "original");
-            var files = new Dictionary<string, string> { [source] = HostRunCheckpoint.HashFile(source) };
+            var files = new Dictionary<string, string>
+            {
+                [source] = HostRunCheckpoint.HashFile(source)
+            };
             using CancellationTokenSource cancellation = new();
             int launched = 0, invalidated = 0;
             var guard = new HostRunInputGuard(() => HostTestFingerprint.FilesMatch(files), cancellation, _ => invalidated++);
@@ -419,8 +506,7 @@ internal static class HostTestRunnerTests
                 {
                     launched++;
                     File.WriteAllText(source, "modified");
-                    return Task.FromResult(new HostTestRunner.FixtureResult("native-" + item, "Native", variant.Failed ? 1 : 0,
-                        false, 0, "unused", 1, variant.Failed ? 0 : 1, variant.Failed ? 1 : 0, null) { Reused = variant.Reused });
+                    return Task.FromResult(new HostTestRunner.FixtureResult("native-" + item, "Native", variant.Failed ? 1 : 0, false, 0, "unused", 1, variant.Failed ? 0 : 1, variant.Failed ? 1 : 0, null) { Reused = variant.Reused });
                 }, result => !HostRunCheckpoint.Passed(result) || variant.Fresh || HostTestFingerprint.FilesMatch(files));
             }, () => true, cancellation.Token);
             HostCheck.True(!complete && cancellation.IsCancellationRequested);
@@ -436,7 +522,6 @@ internal static class HostTestRunnerTests
 
     [HostTest("runner unchanged inputs preserve ordinary native failure continuation")]
     private static void OrdinaryNativeFailure() => OrdinaryNativeFailureAsync().GetAwaiter().GetResult();
-
     private static async Task OrdinaryNativeFailureAsync()
     {
         using CancellationTokenSource cancellation = new();
@@ -458,7 +543,13 @@ internal static class HostTestRunnerTests
     [HostTest("runner input change before launch prevents both execution and cache reuse")]
     private static void ChangedBeforeLaunch()
     {
-        foreach (bool reused in new[] { false, true })
+        foreach (bool reused in new[]
+        {
+            false,
+            true
+        }
+
+        )
         {
             using CancellationTokenSource cancellation = new();
             int entered = 0, invalidated = 0;
@@ -480,17 +571,20 @@ internal static class HostTestRunnerTests
     {
         using CancellationTokenSource cancellation = new();
         int exactChecks = 0;
-        var guard = new HostRunInputGuard(() => true, cancellation, _ => { });
-        var result = HostTestRunner.RunWithInputChecks("exact", guard,
-            () => Task.FromResult(new HostTestRunner.FixtureResult("exact", "Fast", 0, false, 0, "unused", 1, 1, 0, null)),
-            _ => { exactChecks++; return false; }).GetAwaiter().GetResult();
+        var guard = new HostRunInputGuard(() => true, cancellation, _ =>
+        {
+        });
+        var result = HostTestRunner.RunWithInputChecks("exact", guard, () => Task.FromResult(new HostTestRunner.FixtureResult("exact", "Fast", 0, false, 0, "unused", 1, 1, 0, null)), _ =>
+        {
+            exactChecks++;
+            return false;
+        }).GetAwaiter().GetResult();
         HostCheck.True(cancellation.IsCancellationRequested && result!.ExitCode == 1);
         HostCheck.Equal(1, exactChecks);
     }
 
     [HostTest("runner input cancellation drains active workers before releasing the native barrier")]
     private static void InputCancellationDrain() => InputCancellationDrainAsync().GetAwaiter().GetResult();
-
     private static async Task InputCancellationDrainAsync()
     {
         using CancellationTokenSource cancellation = new();
@@ -499,15 +593,25 @@ internal static class HostTestRunnerTests
         TaskCompletionSource releaseOther = new(TaskCreationOptions.RunContinuationsAsynchronously);
         using var registration = cancellation.Token.Register(() => cancelled.TrySetResult());
         int started = 0, drained = 0, changed = 0;
-        var guard = new HostRunInputGuard(() => Volatile.Read(ref changed) == 0, cancellation, _ => { });
+        var guard = new HostRunInputGuard(() => Volatile.Read(ref changed) == 0, cancellation, _ =>
+        {
+        });
         Task run = HostWorkerScheduler.RunAsync(new[] { 0, 1, 2 }, item => item == 2, 2, async (_, item) =>
         {
             await HostTestRunner.RunWithInputChecks("worker-" + item, guard, async () =>
             {
-                if (Interlocked.Increment(ref started) == 2) bothStarted.TrySetResult();
+                if (Interlocked.Increment(ref started) == 2)
+                    bothStarted.TrySetResult();
                 await bothStarted.Task;
-                if (item == 0) Interlocked.Exchange(ref changed, 1);
-                else { await cancelled.Task; await releaseOther.Task; Interlocked.Increment(ref drained); }
+                if (item == 0)
+                    Interlocked.Exchange(ref changed, 1);
+                else
+                {
+                    await cancelled.Task;
+                    await releaseOther.Task;
+                    Interlocked.Increment(ref drained);
+                }
+
                 return new("worker-" + item, "Fast", 1, false, 0, "unused", 1, 0, 1, "controlled_failure");
             });
         }, cancellation.Token);
@@ -522,7 +626,14 @@ internal static class HostTestRunnerTests
     [HostTest("runner rejects invalid parallel worker counts")]
     private static void InvalidJobs()
     {
-        foreach (string value in new[] { "0", "65", "-1" })
+        foreach (string value in new[]
+        {
+            "0",
+            "65",
+            "-1"
+        }
+
+        )
         {
             var result = Run(["--jobs", value, "--list"]);
             HostCheck.Equal(1, result.ExitCode);
@@ -579,11 +690,14 @@ internal static class HostTestRunnerTests
     {
         using CancellationTokenSource cancellation = new();
         var streamed = new System.Text.StringBuilder();
-        var result = ProcessRunner.RunAsync(new("dotnet",
-            [typeof(HostTestRunnerTests).Assembly.Location, "--runner-control", "wait-after-output"], HostToolProcess.FindRepositoryRoot())
+        var result = ProcessRunner.RunAsync(new("dotnet", [typeof(HostTestRunnerTests).Assembly.Location, "--runner-control", "wait-after-output"], HostToolProcess.FindRepositoryRoot())
         {
             Timeout = TimeSpan.FromSeconds(15),
-            OutputReceived = (text, _) => { streamed.Append(text); cancellation.Cancel(); }
+            OutputReceived = (text, _) =>
+        {
+            streamed.Append(text);
+            cancellation.Cancel();
+        }
         }, cancellation.Token).GetAwaiter().GetResult();
         HostCheck.True(result.Cancelled && !result.TimedOut && !result.Succeeded);
         HostCheck.Equal("control-ready", streamed.ToString().Trim());
@@ -668,28 +782,43 @@ internal static class HostTestRunnerTests
     {
         var fixtures = HostTestRunner.Discover();
         var groups = HostTestRunner.GroupByLane(fixtures);
-        HostCheck.True(groups.SelectMany(group => group.Fixtures).Select(fixture => fixture.Id).Order(StringComparer.Ordinal)
-            .SequenceEqual(fixtures.Select(fixture => fixture.Id).Order(StringComparer.Ordinal)));
+        HostCheck.True(groups.SelectMany(group => group.Fixtures).Select(fixture => fixture.Id).Order(StringComparer.Ordinal).SequenceEqual(fixtures.Select(fixture => fixture.Id).Order(StringComparer.Ordinal)));
         HostCheck.Equal(groups.Length, groups.Select(group => group.Id).Distinct(StringComparer.Ordinal).Count());
         HostCheck.True(groups.All(group => group.Fixtures.All(fixture => fixture.Lane == group.Lane)));
-        var mixed = fixtures.GroupBy(fixture => fixture.Method.DeclaringType!.Name)
-            .Where(owner => owner.Select(fixture => fixture.Lane).Distinct().Count() == 2).ToArray();
+        var mixed = fixtures.GroupBy(fixture => fixture.Method.DeclaringType!).Where(owner => owner.Select(fixture => fixture.Lane).Distinct().Count() == 2).ToArray();
         HostCheck.True(mixed.Length > 0, "exercise actual mixed fixtures");
         foreach (var owner in mixed)
-            foreach (HostLane lane in new[] { HostLane.Fast, HostLane.Native })
-                HostCheck.True(groups.Any(group => group.Id == owner.Key + "." + lane && group.Lane == lane));
+            foreach (HostLane lane in new[]
+            {
+                HostLane.Fast,
+                HostLane.Native
+            }
+
+            )
+                HostCheck.True(groups.Any(group => group.Id == owner.Key.FullName + "." + lane && group.Lane == lane));
         var fast = HostTestRunner.GroupByLane(fixtures.Where(fixture => fixture.Lane == HostLane.Fast).ToArray());
-        HostCheck.True(fast.All(group => group.Id == group.Fixtures[0].Method.DeclaringType!.Name), "single-lane checkpoint identities stay stable");
+        HostCheck.True(fast.All(group => group.Id == group.Fixtures[0].Method.DeclaringType!.FullName), "single-lane checkpoint identities retain their complete declaring type");
     }
 
     [HostTest("runner phase gate collects all fast failures before allowing native work")]
     private static void PhaseGate() => PhaseGateAsync().GetAwaiter().GetResult();
-
     private static async Task PhaseGateAsync()
     {
         // Native items deliberately precede fast items in the input plan.
-        var items = new[] { (Id: 0, Native: true), (Id: 1, Native: false), (Id: 2, Native: true), (Id: 3, Native: false) };
-        foreach (bool failFast in new[] { true, false })
+        var items = new[]
+        {
+            (Id: 0, Native: true),
+            (Id: 1, Native: false),
+            (Id: 2, Native: true),
+            (Id: 3, Native: false)
+        };
+        foreach (bool failFast in new[]
+        {
+            true,
+            false
+        }
+
+        )
         {
             int fastCompleted = 0, failures = 0, nativeCompleted = 0, nativeActive = 0;
             bool complete = await HostWorkerScheduler.RunPhasesAsync(items, item => item.Native, 2, async item =>
@@ -705,7 +834,8 @@ internal static class HostTestRunnerTests
                 else
                 {
                     await Task.Yield();
-                    if (failFast) Interlocked.Increment(ref failures);
+                    if (failFast)
+                        Interlocked.Increment(ref failures);
                     Interlocked.Increment(ref fastCompleted);
                 }
             }, () => failures == 0);
@@ -717,8 +847,5 @@ internal static class HostTestRunnerTests
     }
 
     private static ProcessResult Control(string name, params string[] arguments) => Run(["--runner-control", name, .. arguments]);
-
-    private static ProcessResult Run(string[] arguments, TimeSpan? timeout = null, int limit = 64 * 1024) =>
-        ProcessRunner.RunAsync(new("dotnet", [typeof(HostTestRunnerTests).Assembly.Location, .. arguments], HostToolProcess.FindRepositoryRoot())
-        { Timeout = timeout ?? TimeSpan.FromSeconds(15), OutputCharacterLimit = limit }).GetAwaiter().GetResult();
+    private static ProcessResult Run(string[] arguments, TimeSpan? timeout = null, int limit = 64 * 1024) => ProcessRunner.RunAsync(new("dotnet", [typeof(HostTestRunnerTests).Assembly.Location, .. arguments], HostToolProcess.FindRepositoryRoot()) { Timeout = timeout ?? TimeSpan.FromSeconds(15), OutputCharacterLimit = limit }).GetAwaiter().GetResult();
 }

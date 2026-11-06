@@ -1,0 +1,27 @@
+#if M07_026_PROBE
+using OS.Drivers;
+using OS.Kernel.Memory;
+using OS.Net;
+using NetDevice = OS.Drivers.ContinuingVirtioNetDevice;
+using TcpTx = OS.Net.TcpSendWindow;
+using TcpRx = OS.Net.TcpReceiveWindow;
+using TcpPending = OS.Net.TcpPassiveConnection;
+
+namespace OS.Boot;
+
+public static unsafe partial class EfiEntry
+{
+    private static partial class M03FirstExitAdapter
+    {
+        private struct NetworkTcpSlot
+        {
+            internal TcpPending.State Pending;
+            internal TcpRx.Owner Receiver;
+            internal TcpTx.Owner Sender;
+            internal fixed byte ReceiveBytes[8];
+            internal fixed byte SendBytes[8];
+        }
+
+    }
+}
+#endif

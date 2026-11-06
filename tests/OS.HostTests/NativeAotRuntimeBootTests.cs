@@ -16,14 +16,19 @@ internal static unsafe class NativeAotRuntimeBootTests
         HostCheck.True(Probes.TryGetProbe(59, out var parent) && parent.Name == nameof(Probes.EnableM16009Probe));
         foreach (var entry in expected)
         {
-            HostCheck.Equal(entry.Item2, entry.Item1.Group); HostCheck.Equal(entry.Item3, entry.Item1.Name);
+            HostCheck.Equal(entry.Item2, entry.Item1.Group);
+            HostCheck.Equal(entry.Item3, entry.Item1.Name);
             HostCheck.True(!entry.Item1.EnabledByDefault && entry.Item1.Risk == ProbeRisk.Destructive && entry.Item1.Description.Length != 0);
             int matches = 0;
             for (int index = 0; index < Probes.ProbeCatalogCount; index++)
             {
                 HostCheck.True(Probes.TryGetProbe(index, out var definition));
                 if (definition.Name == entry.Item3)
-                { matches++; HostCheck.Equal(entry.Item2, definition.Group); HostCheck.True(!definition.EnabledByDefault); }
+                {
+                    matches++;
+                    HostCheck.Equal(entry.Item2, definition.Group);
+                    HostCheck.True(!definition.EnabledByDefault);
+                }
             }
             HostCheck.Equal(1, matches);
         }
@@ -53,5 +58,10 @@ internal static unsafe class NativeAotRuntimeBootTests
             2 => BootSequence.RunOwnedNativeAotRuntime(startup, stopped, revoked, apic, context, callback),
             _ => false
         };
-    private static bool Record(void* context) { if (context != null) (*(int*)context)++; return true; }
+    private static bool Record(void* context)
+    {
+        if (context != null)
+            (*(int*)context)++;
+        return true;
+    }
 }

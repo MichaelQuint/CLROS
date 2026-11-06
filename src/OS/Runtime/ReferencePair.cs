@@ -1,0 +1,17 @@
+using OS.Kernel.Runtime;
+
+namespace OS.Runtime;
+#pragma warning disable CS0649 // Assigned by the enabled profile and mapped core tests.
+
+#pragma warning restore CS0649
+#if NOSTDLIB_EFI && M04_RHP_NEW_FAST_PROBE && M04_CHECKED_REFERENCE_BARRIER_PROBE
+
+#pragma warning disable CS0649
+
+internal struct ReferencePair
+{
+    internal object First; internal ulong Tag; internal object Last;
+}
+
+#pragma warning restore CS0649
+#endif

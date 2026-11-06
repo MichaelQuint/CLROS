@@ -25,9 +25,18 @@ internal static unsafe class M05MonotonicClockEfiIntegrationTests
         HostCheck.True(new ReadOnlySpan<byte>(code + 16, 11).SequenceEqual(Convert.FromHexString("F30F1EFA89D24C890411C3")));
         HostCheck.True(new ReadOnlySpan<byte>(code + 32, 28).SequenceEqual(Convert.FromHexString("F30F1EFA5389C889D10FA241890041895804418948084189500C5BC3")));
         HostCheck.True(new ReadOnlySpan<byte>(code + 64, 20).SequenceEqual(Convert.FromHexString("F30F1EFA0FAEE80F3148C1E2204809D00FAEE8C3")));
-        for (int i = 0; i < 96; i++) { code[i] ^= 1; HostCheck.True(!X64OwnedClockAccess.Validate(code, 96)); code[i] ^= 1; }
+        for (int i = 0; i < 96; i++)
+        {
+            code[i] ^= 1;
+            HostCheck.True(!X64OwnedClockAccess.Validate(code, 96));
+            code[i] ^= 1;
+        }
     }
-    private static bool Execute(void* context) { (*(int*)context)++; return true; }
+    private static bool Execute(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
 
     [HostTest("m05.003.efi profile guards and fresh capture")]
     private static void Profile()
@@ -62,7 +71,8 @@ internal static unsafe class M05MonotonicClockEfiIntegrationTests
         lines[start + 2] = Row(1, 1, 10000000, 1, 1);
         lines[start + 3] = Row(2, 123, 456, 0, 0);
         lines[start + 4] = Row(3, 2, 5, 1, 1);
-        lines[^2] = "CLROS_M05_003_READY"; lines[^1] = "TEST_PASS m05.003";
+        lines[^2] = "CLROS_M05_003_READY";
+        lines[^1] = "TEST_PASS m05.003";
         QemuTranscripts.AssertM05MonotonicClockRecords(lines);
         foreach ((int stage, ulong[] values) in new (int, ulong[])[]
         {
@@ -74,14 +84,23 @@ internal static unsafe class M05MonotonicClockEfiIntegrationTests
             (2, [123, 456, 1, 0]), (3, [2, 5, 0, 1]), (3, [2, 5, 1, 0])
         })
         {
-            string[] changed = [.. lines]; changed[start + 1 + stage] = Row(stage, values);
+            string[] changed = [.. lines];
+            changed[start + 1 + stage] = Row(stage, values);
             Reject(() => QemuTranscripts.AssertM05MonotonicClockRecords(changed));
         }
         Reject(() => QemuTranscripts.AssertM05MonotonicClockRecords([.. lines, "extra"]));
     }
     private static void Reject(Action action)
     {
-        bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "invalid profile or evidence must be rejected");
     }
 }

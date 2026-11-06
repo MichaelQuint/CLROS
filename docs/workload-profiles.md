@@ -1,8 +1,13 @@
 # Workload Profiles ADR
 
+Current PR814 qualification is tracked in the
+[candidate results](../work/rc3-whpx-qualification.md#candidate-results).
+Historical results below retain their original source, runtime, backend and
+launch settings.
+
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
-The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and its original 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
 
 The canonical dependency graph and existing issue criteria are unchanged; read qualification does not start a write/upload/SQLite phase.
 
@@ -624,9 +629,11 @@ blocker and review a changed strategy before speculative compatibility work.
 Linux-host success is not CLROS guest evidence. Never implement successful
 no-op threads, mappings, protection or entropy.
 
-The active guest payload policy is .NET 11 RC2: SDK
-`11.0.100-rc.2.26504.105`, runtime/ILC/ILLink
-`11.0.0-rc.2.26504.105`, `net11.0`, and C#14. The qualification command
+The active guest payload policy is .NET 11 RC3: SDK
+`11.0.100-rc.3.26522.148`, runtime/ILC/ILLink
+`11.0.0-rc.3.26522.148`, `net11.0`, and C#14. Fresh qualification is tracked by
+[#813](http://192.168.4.35:3000/admin/CLROS/issues/813); historical RC2 packages
+and guests retain their separate identities. The qualification command
 `dotnet run --project tools/OS.Tooling -- nativeaot payload qualify --output <fresh-directory>`
 requires that exact SDK on Linux musl, publishes all three apps with explicit
 runtime and target-framework pins, and rejects missing or mismatched restored
@@ -635,7 +642,7 @@ ordinary assets libraries and downloaded runtime packs, including their static
 archives; NuGet's `downloadDependencies` cannot be omitted from that inventory.
 Microsoft publishes the matching Linux musl SDK
 and checksum in the [official .NET11 release metadata](https://builds.dotnet.microsoft.com/dotnet/release-metadata/11.0/releases.json).
-[Step1225](../done/step1225.md) records the fresh Linux r04 qualification:
+[Step1225](../done/step1225.md) records the historical RC2 Linux r04 qualification:
 all three .NET 11 static payloads publish without warnings and pass dependency
 inspection, runtime exercise and HTTP/configuration/shutdown checks. Produced
 managed/native inputs and package closure are retained by hash, with the six

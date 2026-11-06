@@ -18,15 +18,33 @@ public readonly struct GptPartitionEntry
         Name = name;
     }
 
-    public Guid PartitionTypeGuid { get; }
+    public Guid PartitionTypeGuid
+    {
+        get;
+    }
 
-    public Guid UniquePartitionGuid { get; }
+    public Guid UniquePartitionGuid
+    {
+        get;
+    }
 
-    public ulong FirstLba { get; }
+    public ulong FirstLba
+    {
+        get;
+    }
 
-    public ulong LastLba { get; }
+    public ulong LastLba
+    {
+        get;
+    }
 
-    public ulong Attributes { get; }
+    public ulong Attributes
+    {
+        get;
+    }
 
-    public string Name { get; }
+    public string Name
+    {
+        get;
+    }
 }

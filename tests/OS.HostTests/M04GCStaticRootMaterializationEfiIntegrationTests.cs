@@ -17,7 +17,10 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
     ];
 
     private static void Need(bool value, string reason)
-    { if (!value) throw new InvalidOperationException(reason); }
+    {
+        if (!value)
+            throw new InvalidOperationException(reason);
+    }
     private static string Root => HostToolProcess.FindRepositoryRoot();
     private static string Scratch(string name)
     {
@@ -32,15 +35,22 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
         var project = XDocument.Load(Path.Combine(Root, "src/OS/OS.csproj"));
         var defaults = project.Descendants(Flag).ToArray();
         Need(defaults.Length == 1 && defaults[0].Value == "false", "one disabled profile default");
-        string authority = File.ReadAllText(Path.Combine(Root, "src/OS.Kernel/Diagnostics/GCStaticRootMaterializationProbeAuthority.cs"));
-        Need(authority.Contains("EnableGCStaticRootMaterializationProbe = false;", StringComparison.Ordinal), "disabled compile-time authority");
+        var source = HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(
+            Chain.Append(Flag).Select(flag => "--" + flag).ToArray(), true).Profile());
+        Need(source.Type("OS.Kernel.Diagnostics.Probes")
+            .GetMembers("EnableGCStaticRootMaterializationProbe").Single() is Microsoft.CodeAnalysis.IFieldSymbol
+        {
+            IsStatic: true, IsConst: true, ConstantValue: false,
+            Type.SpecialType: Microsoft.CodeAnalysis.SpecialType.System_Boolean,
+            DeclaredAccessibility: Microsoft.CodeAnalysis.Accessibility.Public
+        }, "disabled compile-time authority");
         var conditions = project.Descendants("Error").Select(x => (string)x.Attribute("Condition")!).ToArray();
         foreach (string prerequisite in Chain)
             Need(conditions.Count(x => x == "'$(" + Flag + ")' == 'true' and '$(" + prerequisite + ")' != 'true'") == 1, "explicit prerequisite " + prerequisite);
         string[] flags = Regex.Matches(project.ToString(), @"\$\((Enable\w+Probe)\)")
             .Select(x => x.Groups[1].Value).Distinct(StringComparer.Ordinal).ToArray();
         Need(flags.Length == OS.Tooling.EfiContracts.DiagnosticProbes.Count, "complete actual profile vector");
-        Need(conditions.Contains("'$(EnableM04SeededCollectorChurnProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'"),"churn inherits GC prerequisites and conflicts");
+        Need(conditions.Contains("'$(EnableM04SeededCollectorChurnProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'"), "churn inherits GC prerequisites and conflicts");
         Need(conditions.Count(x => x == "'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "constructors inherit GC prerequisites and conflicts");
         Need(conditions.Count(x => x == "'$(EnableM04InterfaceDispatchProbe)' == 'true' and '$(EnableM04ClassConstructorExecutionProbe)' != 'true'") == 1, "dispatch inherits constructor and GC prerequisites and conflicts");
         Need(conditions.Count(x => x == "'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04SeededCollectorChurnProbe)' == 'true'") == 1, "constructor and churn children are exclusive");
@@ -51,13 +61,13 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
         Need(project.Descendants("Error").Count(x => x.Attribute("Condition")?.Value == "'$(EnableM04SimpleThrowCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "simple catch inherits exact GC prerequisites and conflicts");
         Need(project.Descendants("Error").Count(x => x.Attribute("Condition")?.Value == "'$(EnableM04SingleFinallyCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "single finally inherits exact GC prerequisites and conflicts");
         Need(conditions.Count(x => x == "'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' and '$(" + Flag + ")' == 'true'") == 1, "incoming original TypeManager conflict");
-        Need(conditions.Count(x=>x=="'$(EnableM04NestedFinallyCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'")==1,"nested finally inherits exact GC prerequisites and conflicts");
-        Need(conditions.Count(x=>x=="'$(EnableM04UnhandledExceptionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'")==1,"unhandled exception inherits exact GC prerequisites and conflicts");
-        Need(conditions.Count(x=>x=="'$(EnableM04FrameDispatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'")==1,"frame dispatch inherits exact GC prerequisites and conflicts");
-        Need(conditions.Count(x=>x=="'$(EnableM04ConstructorFailureProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'")==1,"constructor failure inherits exact GC prerequisites and conflicts");
-        Need(conditions.Count(x=>x=="'$(EnableM04FilteredCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'")==1,"filtered catch inherits exact GC prerequisites and conflicts");
-        Need(conditions.Count(x=>x=="'$(EnableM04NormalFinallyProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'")==1,"normal finally inherits exact GC prerequisite and conflicts");
-        Need(conditions.Count(x=>x=="'$(EnableM04EhCatalogProbe)' == 'true' and '$(EnableM04FrameDispatchProbe)' != 'true'")==1,"catalog inherits exact frame prerequisites and conflicts");
+        Need(conditions.Count(x => x == "'$(EnableM04NestedFinallyCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "nested finally inherits exact GC prerequisites and conflicts");
+        Need(conditions.Count(x => x == "'$(EnableM04UnhandledExceptionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "unhandled exception inherits exact GC prerequisites and conflicts");
+        Need(conditions.Count(x => x == "'$(EnableM04FrameDispatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "frame dispatch inherits exact GC prerequisites and conflicts");
+        Need(conditions.Count(x => x == "'$(EnableM04ConstructorFailureProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "constructor failure inherits exact GC prerequisites and conflicts");
+        Need(conditions.Count(x => x == "'$(EnableM04FilteredCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "filtered catch inherits exact GC prerequisites and conflicts");
+        Need(conditions.Count(x => x == "'$(EnableM04NormalFinallyProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "normal finally inherits exact GC prerequisite and conflicts");
+        Need(conditions.Count(x => x == "'$(EnableM04EhCatalogProbe)' == 'true' and '$(EnableM04FrameDispatchProbe)' != 'true'") == 1, "catalog inherits exact frame prerequisites and conflicts");
         foreach (string other in flags.Except(Chain.Append(Flag).Append("EnableM04SeededCollectorChurnProbe").Append("EnableM04ClassConstructorExecutionProbe").Append("EnableM04InterfaceDispatchProbe").Append("EnableM04SimpleThrowCatchProbe").Append("EnableM04SingleFinallyCatchProbe").Append("EnableM04RethrowProbe").Append("EnableM04NestedFinallyCatchProbe").Append("EnableM04UnhandledExceptionProbe").Append("EnableM04FrameDispatchProbe").Append("EnableM04ConstructorFailureProbe").Append("EnableM04FilteredCatchProbe").Append("EnableM04EhCatalogProbe").Append("EnableM04NormalFinallyProbe"), StringComparer.Ordinal))
         {
             string profile = OS.Tooling.EfiContracts.FirstExitDependentProbes.Contains(other) ? "EnableM03FirstRealExitBootServicesProbe"
@@ -66,52 +76,58 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
                 ? "'$(" + profile + ")' == 'true' and '$(" + Flag + ")' == 'true'"
                 : "'$(" + Flag + ")' == 'true' and '$(" + profile + ")' == 'true'")) == 1, "conflict " + other);
         }
-        string[] compile = project.Descendants("Compile").Select(x => (string)x.Attribute("Include")!).ToArray();
-        Need(compile.Length == OS.Tooling.EfiContracts.CompileItems.Count && compile.Distinct(StringComparer.Ordinal).Count() == OS.Tooling.EfiContracts.CompileItems.Count, "unique complete closure");
-        foreach (string file in new[] { @"..\OS.Kernel\Runtime\GCStaticRootsMalformedMetadata.cs", @"Runtime\GCStaticRootMaterializationProbe.cs", @"..\OS.Kernel\Runtime\BoundedNonMovingCollectorExplicitRootEnumeration.cs", @"..\OS.Kernel\Diagnostics\GCStaticRootMaterializationProbeAuthority.cs" })
-            Need(compile.Contains(file, StringComparer.Ordinal), "compiled source " + file);
+        foreach (string owner in new[]
+        {
+            "OS.Kernel.Runtime.GCStaticRootsMalformedMetadata",
+            "OS.Runtime.RhpNewFastAllocation",
+            "OS.Kernel.Runtime.BoundedNonMovingCollectorExplicitRootEnumeration",
+            "OS.Kernel.Diagnostics.Probes"
+        })
+            _ = source.Type(owner);
+        _ = source.Method("OS.Runtime.RhpNewFastAllocation", "RunGcStatics");
     }
 
     private static (int Exit, string Output, string Error) InvokeTool(string directory, params string[] args)
-{
-    Directory.CreateDirectory(directory);
-    var result = HostToolProcess.RunTool(args);
-    File.WriteAllText(Path.Combine(directory, "stdout.log"), result.Output);
-    File.WriteAllText(Path.Combine(directory, "stderr.log"), result.Error);
-    return (result.ExitCode, result.Output + result.Error, "");
-}
+    {
+        Directory.CreateDirectory(directory);
+        var result = HostToolProcess.RunTool(args);
+        File.WriteAllText(Path.Combine(directory, "stdout.log"), result.Output);
+        File.WriteAllText(Path.Combine(directory, "stderr.log"), result.Error);
+        return (result.ExitCode, result.Output + result.Error, "");
+    }
 
     [HostTest("m04.012.efi strict transcript and GC numeric rejection controls", HostLane.Fast, 1)]
-private static void Transcript()
-{
-    var controls = new EfiTranscriptControls(Scratch("transcript"), path => OS.Tooling.QemuTranscripts.AssertM04ManagedHeapPageRangeTranscript(path, includeGcStatics: true));
-    string[] lines = Lines;
-    string good = EfiTranscriptControls.Text(lines);
-    controls.Check(good, true, "accepted original vector");
-    int first = Array.FindIndex(lines, x => x.StartsWith("M04_GC_ROOT ", StringComparison.Ordinal));
-    int ready = Array.IndexOf(lines, "CLROS_M04_013_READY");
-    controls.Structure(lines, first, ready - first);
-    var fields = new[] { (first, 2), (first, 4), (first + 1, 2), (first + 1, 3), (first + 1, 4) }
-        .Concat(Enumerable.Range(first + 2, ready - first - 2).SelectMany(row => Enumerable.Range(2, 4).Select(column => (row, column))));
-    foreach ((int row, int column) in fields)
+    private static void Transcript()
     {
-        string[] bad = [..lines], words = bad[row].Split(' ');
-        words[column] = "0xFFFFFFFFFFFFFFFF"; bad[row] = string.Join(' ', words);
-        controls.Check(bad, false, "numeric " + row + ":" + column);
+        var controls = new EfiTranscriptControls(Scratch("transcript"), path => OS.Tooling.QemuTranscripts.AssertM04ManagedHeapPageRangeTranscript(path, includeGcStatics: true));
+        string[] lines = Lines;
+        string good = EfiTranscriptControls.Text(lines);
+        controls.Check(good, true, "accepted original vector");
+        int first = Array.FindIndex(lines, x => x.StartsWith("M04_GC_ROOT ", StringComparison.Ordinal));
+        int ready = Array.IndexOf(lines, "CLROS_M04_013_READY");
+        controls.Structure(lines, first, ready - first);
+        var fields = new[] { (first, 2), (first, 4), (first + 1, 2), (first + 1, 3), (first + 1, 4) }
+            .Concat(Enumerable.Range(first + 2, ready - first - 2).SelectMany(row => Enumerable.Range(2, 4).Select(column => (row, column))));
+        foreach ((int row, int column) in fields)
+        {
+            string[] bad = [.. lines], words = bad[row].Split(' ');
+            words[column] = "0xFFFFFFFFFFFFFFFF";
+            bad[row] = string.Join(' ', words);
+            controls.Check(bad, false, "numeric " + row + ":" + column);
+        }
+        foreach ((string before, string after) in new[] { ("CLROS_M04_013_READY", "CLROS_M04_013_NOT_READY"), ("M04_GC_ROOT 6", "M04_GC_ROOT 255"), ("M04_GC_ROOT 5", "M04_GC_ROOT 2") })
+            controls.Check(good.Replace(before, after, StringComparison.Ordinal), false, "stage " + before);
+        controls.Check(good + "TEST_FAIL hidden\r\n", false, "late failure");
+        controls.Check(good + "suffix\r\n", false, "late text");
+        controls.Check(good.Replace("\r\n", "\n", StringComparison.Ordinal), false, "LF framing");
+        controls.Complete("gc.static.transcript");
     }
-    foreach ((string before, string after) in new[] { ("CLROS_M04_013_READY", "CLROS_M04_013_NOT_READY"), ("M04_GC_ROOT 6", "M04_GC_ROOT 255"), ("M04_GC_ROOT 5", "M04_GC_ROOT 2") })
-        controls.Check(good.Replace(before, after, StringComparison.Ordinal), false, "stage " + before);
-    controls.Check(good + "TEST_FAIL hidden\r\n", false, "late failure");
-    controls.Check(good + "suffix\r\n", false, "late text");
-    controls.Check(good.Replace("\r\n", "\n", StringComparison.Ordinal), false, "LF framing");
-    controls.Complete("gc.static.transcript");
-}
 
     [HostTest("m04.012.efi actual profile marker stream and isolation", HostLane.Fast, 2)]
     private static void Profile()
     {
         string directory = Scratch("profile");
-        var enabled = InvokeTool(directory, ["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..Chain.Append(Flag).Select(x => "-" + x)]);
+        var enabled = InvokeTool(directory, ["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", .. Chain.Append(Flag).Select(x => "-" + x)]);
         Need(enabled.Exit == 0 && enabled.Error.Length == 0, enabled.Output + enabled.Error);
         string[] Markers(string key) => enabled.Output.Split('\n').Single(x => x.StartsWith(key, StringComparison.Ordinal))[key.Length..].TrimEnd('\r').Split(';', StringSplitOptions.RemoveEmptyEntries);
         string[] required = Markers("REQUIRED_MARKERS "), forbidden = Markers("FORBIDDEN_MARKERS "), ordered = Markers("ORDERED_MARKERS "), unique = Markers("UNIQUE_MARKERS ");
@@ -127,14 +143,15 @@ private static void Transcript()
         {
             Need(!Stream(Lines.Where((_, i) => i != index).ToArray()).Passed, "missing GC stage");
             Need(Stream(Lines.Take(index + 1).Concat(Lines.Skip(index)).ToArray()).DuplicateUniqueOccurrenceCount == 1, "duplicate GC stage");
-            string[] swapped = [..Lines]; (swapped[index], swapped[index - 1]) = (swapped[index - 1], swapped[index]);
+            string[] swapped = [.. Lines];
+            (swapped[index], swapped[index - 1]) = (swapped[index - 1], swapped[index]);
             Need(Stream(swapped).OutOfOrderOccurrenceCount > 0, "early GC stage");
         }
         var baseline = InvokeTool(Path.Combine(directory, "default"), "qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun");
         Need(baseline.Exit == 0 && !baseline.Output.Split('\n').Where(x => x.StartsWith("ORDERED_MARKERS ", StringComparison.Ordinal)).Any(x => x.Contains("M04_GC_ROOT", StringComparison.Ordinal)), "default marker isolation");
-        var missing = InvokeTool(Path.Combine(directory, "missing"), ["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", "-" + Flag, ..Chain.SkipLast(1).Select(x => "-" + x)]);
+        var missing = InvokeTool(Path.Combine(directory, "missing"), ["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", "-" + Flag, .. Chain.SkipLast(1).Select(x => "-" + x)]);
         Need(missing.Exit != 0 && missing.Output.Contains("m04_gc_static_profile_invalid property=EnableM04RhpNewFastProbe", StringComparison.Ordinal), "incomplete chain refused");
-        var collision = InvokeTool(Path.Combine(directory, "conflict"), ["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", "-EnableM04CheckedReferenceBarrierProbe", ..Chain.Append(Flag).Select(x => "-" + x)]);
+        var collision = InvokeTool(Path.Combine(directory, "conflict"), ["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", "-EnableM04CheckedReferenceBarrierProbe", .. Chain.Append(Flag).Select(x => "-" + x)]);
         Need(collision.Exit != 0 && collision.Output.Contains("m04_gc_static_profile_conflict property=EnableM04CheckedReferenceBarrierProbe", StringComparison.Ordinal), "overlapping allocator role refused");
     }
 
@@ -146,7 +163,7 @@ private static void Transcript()
         CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
         CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=F03FF59D36F39ECD pointerWidth=8 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
         CLROS_M04_004_READY vectors=57 fingerprint=45FDFA24DD72EA28 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
-        CLROS_M04_005_READY profile=ilc11.0.0-rc.2.26504.105-win-x64-le checks=19 shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
+        CLROS_M04_005_READY profile=ilc11.0.0-rc.3.26522.148-win-x64-le checks=19 shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail
         UEFI_MEMORY_MAP_READY
         UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 102
         UEFI_MEMORY_MAP_OWNED
@@ -212,6 +229,5 @@ private static void Transcript()
         TEST_PASS boot.sequence
         OS_SMOKE_PASS
         """;
-
 
 }

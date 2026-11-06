@@ -1,6 +1,8 @@
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using OS.Pal;
 
 internal static class PalStatusCategoryTests
@@ -122,15 +124,22 @@ internal static class PalStatusCategoryTests
     [HostTest("pal.status_categories uses shared ascii text builder", HostLane.Fast, 6)]
     private static bool TestUsesSharedAsciiTextBuilder()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Pal", "OSHostStatusCategory.cs"));
-
-        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiTextBuilder.AppendBytes(destination, 0, name)",
-                StringComparison.Ordinal)
-            && !source.Contains("name.CopyTo(destination)", StringComparison.Ordinal));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        string owner = typeof(OSHostStatusCategoryFormatter).FullName!;
+        var method = catalog.Method(owner, nameof(OSHostStatusCategoryFormatter.FormatCategory));
+        var model = catalog.Compilation.GetSemanticModel(method.SyntaxTree);
+        var declaration = (Microsoft.CodeAnalysis.IMethodSymbol)model.GetDeclaredSymbol(method)!;
+        var calls = HostSourceOperations.Calls(catalog, method, typeof(OS.Std.Text.AsciiTextBuilder),
+            nameof(OS.Std.Text.AsciiTextBuilder.AppendBytes));
+        return HostCheck.Result(calls.Length == 1
+            && HostSourceOperations.IsParameter(HostSourceOperations.Argument(calls[0], 0), declaration.Parameters[1])
+            && HostSourceOperations.Constant(model, HostSourceOperations.Argument(calls[0], 1).Syntax, 0)
+            && HostSourceOperations.LocalInitializer(model, HostSourceOperations.Argument(calls[0], 2)) is Microsoft.CodeAnalysis.Operations.IInvocationOperation name
+            && name.TargetMethod.Name == "GetCanonicalName"
+            && Microsoft.CodeAnalysis.SymbolEqualityComparer.Default.Equals(name.TargetMethod.ContainingType, catalog.Type(owner))
+            && HostSourceOperations.IsParameter(HostSourceOperations.Argument(name, 0), declaration.Parameters[0])
+            && !method.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>()
+                .Any(call => catalog.Invocation(call).Name == "CopyTo"));
     }
 
     private static (OSHostStatus Status, OSHostStatusCategory Category)[] ExpectedCategories()

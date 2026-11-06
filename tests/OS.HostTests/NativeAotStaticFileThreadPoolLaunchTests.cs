@@ -42,14 +42,16 @@ internal static unsafe class NativeAotStaticFileThreadPoolLaunchTests
             {
                 for (int i = 0; i < bytes.Length; i++)
                 {
-                    byte saved = bytes[i]; bytes[i] = (byte)'!';
+                    byte saved = bytes[i];
+                    bytes[i] = (byte)'!';
                     HostCheck.True(!LinuxAppConfiguration.IsThreadPoolWorkerLimitKey(key, (uint)bytes.Length));
                     bytes[i] = saved;
                 }
                 HostCheck.True(LinuxAppConfiguration.IsThreadPoolWorkerLimitKey(key, (uint)bytes.Length));
             }
         }
-        foreach (string name in UnsupportedNames()) HostCheck.True(!Recognized(name));
+        foreach (string name in UnsupportedNames())
+            HostCheck.True(!Recognized(name));
         // This remains a valid generic uppercase environment name. It is not
         // the runtime's exact mixed-case key and is not the canonical policy.
         HostCheck.True(!Recognized("DOTNET_THREADPOOL_FORCEMINWORKERTHREADS"));
@@ -95,8 +97,10 @@ internal static unsafe class NativeAotStaticFileThreadPoolLaunchTests
         HostCheck.True(EnvironmentValues(disk).SequenceEqual([.. previous, Minimum + "=2", Maximum + "=4"]));
         foreach (byte[] package in new[] { staged, disk })
         {
-            var view = LinuxElfPackage.Validate(package); HostCheck.True(view.Succeeded);
-            HostCheck.Equal(16u, view.Manifest.Threads); HostCheck.Equal(32u, view.Manifest.Descriptors);
+            var view = LinuxElfPackage.Validate(package);
+            HostCheck.True(view.Succeeded);
+            HostCheck.Equal(16u, view.Manifest.Threads);
+            HostCheck.Equal(32u, view.Manifest.Descriptors);
             HostCheck.True(package.AsSpan((int)view.PayloadOffset, (int)view.PayloadBytes).SequenceEqual(elf));
             HostCheck.True(package.AsSpan().SequenceEqual(NativeAotStaticFilePackage.Create(elf, ReferenceEquals(package, staged))));
         }
@@ -111,7 +115,8 @@ internal static unsafe class NativeAotStaticFileThreadPoolLaunchTests
         foreach (bool staged in new[] { false, true })
         {
             byte[] package = NativeAotStaticFilePackage.Create(elf, staged), manifest = ManifestBytes(package);
-            var view = LinuxElfPackage.Validate(package); HostCheck.True(view.Succeeded);
+            var view = LinuxElfPackage.Validate(package);
+            HostCheck.True(view.Succeeded);
             uint bytes = view.Manifest.StackBytes;
             ulong start = 0x70000000UL - bytes;
             byte* allocation = (byte*)NativeMemory.AlignedAlloc(bytes + 8192u, 4096);
@@ -135,16 +140,19 @@ internal static unsafe class NativeAotStaticFileThreadPoolLaunchTests
                         ulong address = frame[plan.ArgumentCount + 2 + i];
                         HostCheck.True(address >= start && address < start + bytes);
                         var text = new ReadOnlySpan<byte>(stack + address - start, checked((int)(start + bytes - address)));
-                        int nul = text.IndexOf((byte)0); HostCheck.True(nul >= 0);
+                        int nul = text.IndexOf((byte)0);
+                        HostCheck.True(nul >= 0);
                         actual[i] = Encoding.ASCII.GetString(text[..nul]);
                     }
                     HostCheck.Equal(0UL, frame[plan.ArgumentCount + 2 + plan.EnvironmentCount]);
                     HostCheck.True(actual.SequenceEqual(expected));
                     if (!staged)
                     {
-                        int index = Array.IndexOf(actual, Minimum + "=2"); HostCheck.True(index >= 0);
+                        int index = Array.IndexOf(actual, Minimum + "=2");
+                        HostCheck.True(index >= 0);
                         byte* value = stack + frame[plan.ArgumentCount + 2 + (uint)index] - start + Minimum.Length + 1;
-                        byte saved = *value; *value = (byte)'3';
+                        byte saved = *value;
+                        *value = (byte)'3';
                         HostCheck.True(!LinuxElfStartup.ValidateReadBack(m, (uint)manifest.Length, e, (uint)elf.Length,
                             random, (uint)entropy.Length, stack, bytes, start, 0x078bfbff, plan));
                         *value = saved;
@@ -155,7 +163,10 @@ internal static unsafe class NativeAotStaticFileThreadPoolLaunchTests
                 for (uint i = 0; i < 4096; i++)
                     HostCheck.True(allocation[i] == 0xa5 && allocation[4096 + bytes + i] == 0xa5);
             }
-            finally { NativeMemory.AlignedFree(allocation); }
+            finally
+            {
+                NativeMemory.AlignedFree(allocation);
+            }
         }
     }
 
@@ -170,25 +181,30 @@ internal static unsafe class NativeAotStaticFileThreadPoolLaunchTests
     private static bool Recognized(string name)
     {
         byte[] bytes = Encoding.ASCII.GetBytes(name);
-        fixed (byte* p = bytes) return LinuxAppConfiguration.IsThreadPoolWorkerLimitKey(p, (uint)bytes.Length);
+        fixed (byte* p = bytes)
+            return LinuxAppConfiguration.IsThreadPoolWorkerLimitKey(p, (uint)bytes.Length);
     }
     private static LinuxElfManifest Parse(string text) => NativeManifestParser.ParseLinuxElf(Encoding.ASCII.GetBytes(text));
     private static byte[] Elf()
     {
-        byte[] package = LinuxElfPackageTests.CapturePackage(); var view = LinuxElfPackage.Validate(package);
+        byte[] package = LinuxElfPackageTests.CapturePackage();
+        var view = LinuxElfPackage.Validate(package);
         HostCheck.True(view.Succeeded);
         return package.AsSpan((int)view.PayloadOffset, (int)view.PayloadBytes).ToArray();
     }
     private static byte[] ManifestBytes(byte[] package)
     {
-        var view = LinuxElfPackage.Validate(package); HostCheck.True(view.Succeeded);
+        var view = LinuxElfPackage.Validate(package);
+        HostCheck.True(view.Succeeded);
         return package.AsSpan((int)view.ManifestOffset, (int)view.ManifestBytes).ToArray();
     }
     private static string ManifestText(byte[] package) => Encoding.ASCII.GetString(ManifestBytes(package));
     private static string[] EnvironmentValues(byte[] package)
     {
-        var view = LinuxElfPackage.Validate(package); HostCheck.True(view.Succeeded);
-        var manifest = view.Manifest; string[] result = new string[manifest.EnvironmentCount];
+        var view = LinuxElfPackage.Validate(package);
+        HostCheck.True(view.Succeeded);
+        var manifest = view.Manifest;
+        string[] result = new string[manifest.EnvironmentCount];
         for (uint i = 0; i < manifest.EnvironmentCount; i++)
         {
             uint row = i * 4;

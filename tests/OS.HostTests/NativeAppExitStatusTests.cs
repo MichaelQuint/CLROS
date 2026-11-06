@@ -3,7 +3,7 @@ using System.Text;
 using OS.Kernel.Runtime;
 using OS.Pal;
 
-internal static class NativeAppExitStatusTests
+internal static partial class NativeAppExitStatusTests
 {
 
     [HostTest("appmodel.exit status formats success marker", HostLane.Fast, 0)]
@@ -199,72 +199,6 @@ internal static class NativeAppExitStatusTests
             && addrNotAvailable.Record.Status == OSHostStatus.AddressNotAvailable
             && addressNotAvailable.Succeeded
             && addressNotAvailable.Record.Status == OSHostStatus.AddressNotAvailable);
-    }
-
-    [HostTest("appmodel.exit status parser uses shared memory helpers", HostLane.Fast, 7)]
-    private static bool TestParserUsesSharedMemoryHelpers()
-    {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Runtime", "NativeAppExitStatus.cs"));
-
-        return HostCheck.Result(source.Contains(
-                "OS.Std.MemoryExtensions.StartsWith(line, AppExitMarker)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.StartsWith(line, AppExitCodePrefix)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.StartsWith(statusField, AppExitStatusPrefix)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(token, \"OSHOST_STATUS_OK\"u8)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(token, \"OSHOST_STATUS_ADDR_IN_USE\"u8)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(token, \"OSHOST_STATUS_ADDRESS_IN_USE\"u8)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(token, \"OSHOST_STATUS_ADDR_NOT_AVAILABLE\"u8)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "OS.Std.MemoryExtensions.SequenceEqual(token, \"OSHOST_STATUS_ADDRESS_NOT_AVAILABLE\"u8)",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "private static bool StartsWith(ReadOnlySpan<byte>",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "private static bool EqualsBytes(ReadOnlySpan<byte>",
-                StringComparison.Ordinal));
-    }
-
-    [HostTest("appmodel.exit status formatter uses shared ascii text builder", HostLane.Fast, 8)]
-    private static bool TestFormatterUsesSharedAsciiTextBuilder()
-    {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "src", "OS.Kernel", "Runtime", "NativeAppExitStatus.cs"));
-
-        return HostCheck.Result(source.Contains(
-                "AsciiDecimalFormatter.CountInt32Digits(record.ExitCode)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiTextBuilder.AppendChars(destination, offset, value)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value)",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "private static int CountDecimalDigits",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "private static void WriteDecimal",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "destination[cursor--] = (byte)('0' +",
-                StringComparison.Ordinal));
     }
 
     [HostTest("appmodel.exit status create default result is not success", HostLane.Fast, 9)]

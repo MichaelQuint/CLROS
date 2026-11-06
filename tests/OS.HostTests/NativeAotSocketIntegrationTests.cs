@@ -7,82 +7,131 @@ using OS.Tooling;
 
 internal static class NativeAotSocketIntegrationTests
 {
-    private const string Peer="TEST_START nativeaot.socket.peer\n"+
-        "SOCKET_PEER_CONNECTION index=0 sent=20 received=65536 close=eof\n"+
-        "SOCKET_PEER_CONNECTION index=1 sent=1 close=reset\n"+
-        "SOCKET_PEER_CONNECTION index=2 sent=20 received=18 close=eof\n"+
+    private const string Peer = "TEST_START nativeaot.socket.peer\n" +
+        "SOCKET_PEER_CONNECTION index=0 sent=20 received=65536 close=eof\n" +
+        "SOCKET_PEER_CONNECTION index=1 sent=1 close=reset\n" +
+        "SOCKET_PEER_CONNECTION index=2 sent=20 received=18 close=eof\n" +
         "SOCKET_PEER_CONNECTION index=3 sent=20 received=18 close=eof\nTEST_PASS nativeaot.socket.peer\n";
-    private static void Reject(Action action,string reason)
+    private static void Reject(Action action, string reason)
     {
-        string? failure=null;try{action();}catch(ToolFailure error){failure=error.Message;}
-        HostCheck.True(failure?.Contains(reason,StringComparison.Ordinal)==true,reason+" actual="+failure);
+        string? failure = null;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
+        HostCheck.True(failure?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + failure);
     }
     [HostTest("socket selection preserves the exact sync async application and rejects broader runtime substitution")]
     private static void Selection()
     {
-        Dictionary<string,bool> flags=[];HostCheck.Equal("",NativeAotSocketSelection.Application(flags));
-        flags["EnableM16011Probe"]=true;HostCheck.Equal("NativeAotSocketSmoke",NativeAotSocketSelection.Application(flags));
-        Reject(()=>NativeAotSocketSelection.Application(flags,"NativeAotSocketSmokeAsync"),"socket_profile_application");
-        flags["EnableM16012Probe"]=true;HostCheck.Equal("NativeAotSocketSmokeAsync",NativeAotSocketSelection.Application(flags));
-        foreach(string name in new[]{"M16010","M09011","M09012"})
-        {flags["Enable"+name+"Probe"]=true;Reject(()=>NativeAotSocketSelection.Application(flags),"socket_runtime_conflict");flags.Remove("Enable"+name+"Probe");}
+        Dictionary<string, bool> flags = [];
+        HostCheck.Equal("", NativeAotSocketSelection.Application(flags));
+        flags["EnableM16011Probe"] = true;
+        HostCheck.Equal("NativeAotSocketSmoke", NativeAotSocketSelection.Application(flags));
+        Reject(() => NativeAotSocketSelection.Application(flags, "NativeAotSocketSmokeAsync"), "socket_profile_application");
+        flags["EnableM16012Probe"] = true;
+        HostCheck.Equal("NativeAotSocketSmokeAsync", NativeAotSocketSelection.Application(flags));
+        foreach (string name in new[] { "M16010", "M09011", "M09012" })
+        {
+            flags["Enable" + name + "Probe"] = true;
+            Reject(() => NativeAotSocketSelection.Application(flags), "socket_runtime_conflict");
+            flags.Remove("Enable" + name + "Probe");
+        }
     }
     [HostTest("socket peer output requires all original literal bytes and EOF reset results")]
     private static void Output()
     {
-        NativeAotSocketPeer.InspectOutput(Peer);NativeAotSocketPeer.InspectOutput(Peer.Replace("\n","\r\n",StringComparison.Ordinal));
-        foreach(string text in new[]{Peer.Replace("65536","65535",StringComparison.Ordinal),Peer.Replace("close=reset","close=eof",StringComparison.Ordinal),
+        NativeAotSocketPeer.InspectOutput(Peer);
+        NativeAotSocketPeer.InspectOutput(Peer.Replace("\n", "\r\n", StringComparison.Ordinal));
+        foreach (string text in new[]{Peer.Replace("65536","65535",StringComparison.Ordinal),Peer.Replace("close=reset","close=eof",StringComparison.Ordinal),
             Peer+"extra\n",Peer.Replace("index=3","index=2",StringComparison.Ordinal),Peer.TrimEnd('\n')})
-            Reject(()=>NativeAotSocketPeer.InspectOutput(text),"socket_peer_output");
+            Reject(() => NativeAotSocketPeer.InspectOutput(text), "socket_peer_output");
     }
 
     // This is a host stub with no sealed program/NIC/firmware evidence. It tests
     // the actual separate peer child and owned process/log lifecycle only.
-    private static Task<ProcessResult> Stub(int port,CancellationToken token)=>StubCore(port,token,null);
-    private static async Task<ProcessResult> StubCore(int port,CancellationToken token,string? receiveGateSerial)
+    private static Task<ProcessResult> Stub(int port, CancellationToken token) => StubCore(port, token, null);
+    private static async Task<ProcessResult> StubCore(int port, CancellationToken token, string? receiveGateSerial)
     {
-        using TcpListener listener=new(IPAddress.Loopback,port);listener.Start();
-        for(int index=0;index<4;index++)
+        using TcpListener listener = new(IPAddress.Loopback, port);
+        listener.Start();
+        for (int index = 0; index < 4; index++)
         {
-            using Socket client=await listener.AcceptSocketAsync(token);byte[] expected=index==1?[0x52]:"CLROS_SOCKET_REQUEST"u8.ToArray();
-            if(index==0 && receiveGateSerial is not null)
-            {HostCheck.Equal(0,client.Available);await File.WriteAllTextAsync(receiveGateSerial,PendingReceive,token);}
-            byte[] request=new byte[expected.Length];int read=0;
-            while(read<request.Length)
-            {int count=await client.ReceiveAsync(request.AsMemory(read),SocketFlags.None,token);HostCheck.True(count>0);read+=count;}
-            HostCheck.True(request.AsSpan().SequenceEqual(expected));
-            if(index==1)
+            using Socket client = await listener.AcceptSocketAsync(token);
+            byte[] expected = index == 1 ? [0x52] : "CLROS_SOCKET_REQUEST"u8.ToArray();
+            if (index == 0 && receiveGateSerial is not null)
             {
-                try{HostCheck.Equal(0,await client.ReceiveAsync(new byte[1],SocketFlags.None,token));}
-                catch(SocketException error)when(error.SocketErrorCode==SocketError.ConnectionReset){}
+                HostCheck.Equal(0, client.Available);
+                await File.WriteAllTextAsync(receiveGateSerial, PendingReceive, token);
+            }
+            byte[] request = new byte[expected.Length];
+            int read = 0;
+            while (read < request.Length)
+            {
+                int count = await client.ReceiveAsync(request.AsMemory(read), SocketFlags.None, token);
+                HostCheck.True(count > 0);
+                read += count;
+            }
+            HostCheck.True(request.AsSpan().SequenceEqual(expected));
+            if (index == 1)
+            {
+                try
+                {
+                    HostCheck.Equal(0, await client.ReceiveAsync(new byte[1], SocketFlags.None, token));
+                }
+                catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionReset)
+                {
+                }
                 continue;
             }
-            if(index>=2)HostCheck.Equal(0,await client.ReceiveAsync(new byte[1],SocketFlags.None,token));
-            byte[] payload=index==0?Enumerable.Range(0,65536).Select(i=>(byte)(i%251)).ToArray():"CLROS_SOCKET_REPLY"u8.ToArray();
-            int sent=0;while(sent<payload.Length){int count=await client.SendAsync(payload.AsMemory(sent),SocketFlags.None,token);HostCheck.True(count>0);sent+=count;}
+            if (index >= 2)
+                HostCheck.Equal(0, await client.ReceiveAsync(new byte[1], SocketFlags.None, token));
+            byte[] payload = index == 0 ? Enumerable.Range(0, 65536).Select(i => (byte)(i % 251)).ToArray() : "CLROS_SOCKET_REPLY"u8.ToArray();
+            int sent = 0;
+            while (sent < payload.Length)
+            {
+                int count = await client.SendAsync(payload.AsMemory(sent), SocketFlags.None, token);
+                HostCheck.True(count > 0);
+                sent += count;
+            }
             client.Shutdown(SocketShutdown.Send);
         }
-        return new(0,"","",false,false,false,TimeSpan.Zero);
+        return new(0, "", "", false, false, false, TimeSpan.Zero);
     }
     [HostTest("socket orchestration owns the unchanged separate peer and preserves its fresh exact output")]
-    private static void OwnedPeer()=>OwnedPeerCore().GetAwaiter().GetResult();
+    private static void OwnedPeer() => OwnedPeerCore().GetAwaiter().GetResult();
     private static async Task OwnedPeerCore()
     {
-        string root=HostToolProcess.FindRepositoryRoot();string log=Path.Combine(root,"artifacts","tests","socket-peer-"+Guid.NewGuid().ToString("N"),"peer.log");
-        var result=await NativeAotSocketPeer.RunAsync(root,log,Stub);
-        HostCheck.True(result.Port is >0 and <=65535 && result.Runner.Succeeded);
-        byte[] raw=File.ReadAllBytes(log);HostCheck.Equal(Peer,Encoding.UTF8.GetString(raw).Replace("\r\n","\n",StringComparison.Ordinal));
-        HostCheck.Equal(Convert.ToHexString(SHA256.HashData(raw)),result.Sha256);
-        bool rejected=false;try{_=await NativeAotSocketPeer.RunAsync(root,log,Stub);}catch(IOException){rejected=true;}HostCheck.True(rejected);
+        string root = HostToolProcess.FindRepositoryRoot();
+        string log = Path.Combine(root, "artifacts", "tests", "socket-peer-" + Guid.NewGuid().ToString("N"), "peer.log");
+        var result = await NativeAotSocketPeer.RunAsync(root, log, Stub);
+        HostCheck.True(result.Port is > 0 and <= 65535 && result.Runner.Succeeded);
+        byte[] raw = File.ReadAllBytes(log);
+        HostCheck.Equal(Peer, Encoding.UTF8.GetString(raw).Replace("\r\n", "\n", StringComparison.Ordinal));
+        HostCheck.Equal(Convert.ToHexString(SHA256.HashData(raw)), result.Sha256);
+        bool rejected = false;
+        try
+        {
+            _ = await NativeAotSocketPeer.RunAsync(root, log, Stub);
+        }
+        catch (IOException)
+        {
+            rejected = true;
+        }
+        HostCheck.True(rejected);
     }
-    private const string PendingReceive="M16_008_CALL identity=4294967302 nr=288 a0=6 a1=0 valueBits=7 action=1 status=1 ordinal=11\r\n"+
-        "M16_008_CALL identity=4294967302 nr=45 a0=7 a1=0 valueBits=18446744073709551605 action=1 status=1 ordinal=12\r\n"+
+    private const string PendingReceive = "M16_008_CALL identity=4294967302 nr=288 a0=6 a1=0 valueBits=7 action=1 status=1 ordinal=11\r\n" +
+        "M16_008_CALL identity=4294967302 nr=45 a0=7 a1=0 valueBits=18446744073709551605 action=1 status=1 ordinal=12\r\n" +
         "M16_008_SUPERVISOR identity=4294967302 action=3 transfers=1 ready=0 active=1\r\n";
     [HostTest("async peer stimulus waits for EAGAIN on the accepted fd and that caller parking")]
     private static void PendingReceiveGate()
     {
         HostCheck.True(NativeAotSocketPeer.HasPendingReceive(PendingReceive));
-        foreach(string text in new[]{PendingReceive.Replace("nr=45 a0=7","nr=45 a0=8",StringComparison.Ordinal),
+        foreach (string text in new[]{PendingReceive.Replace("nr=45 a0=7","nr=45 a0=8",StringComparison.Ordinal),
             PendingReceive.Replace("18446744073709551605","0",StringComparison.Ordinal),
             PendingReceive.Replace("SUPERVISOR identity=4294967302","SUPERVISOR identity=4294967303",StringComparison.Ordinal),
             PendingReceive.Replace("action=3 transfers","action=1 transfers",StringComparison.Ordinal),
@@ -91,79 +140,105 @@ internal static class NativeAotSocketIntegrationTests
             HostCheck.True(!NativeAotSocketPeer.HasPendingReceive(text));
     }
     [HostTest("owned async peer sends no request before its receive gate and preserves all literal streams")]
-    private static void GatedPeer()=>GatedPeerCore().GetAwaiter().GetResult();
+    private static void GatedPeer() => GatedPeerCore().GetAwaiter().GetResult();
     private static async Task GatedPeerCore()
     {
-        string root=HostToolProcess.FindRepositoryRoot(),directory=Path.Combine(root,"artifacts","tests","socket-peer-"+Guid.NewGuid().ToString("N"));
-        string serial=Path.Combine(directory,"guest.serial.log"),log=Path.Combine(directory,"peer.log");
-        var result=await NativeAotSocketPeer.RunAsync(root,log,(port,token)=>StubCore(port,token,serial),receiveGateSerial:serial);
+        string root = HostToolProcess.FindRepositoryRoot(), directory = Path.Combine(root, "artifacts", "tests", "socket-peer-" + Guid.NewGuid().ToString("N"));
+        string serial = Path.Combine(directory, "guest.serial.log"), log = Path.Combine(directory, "peer.log");
+        var result = await NativeAotSocketPeer.RunAsync(root, log, (port, token) => StubCore(port, token, serial), receiveGateSerial: serial);
         HostCheck.True(result.Runner.Succeeded);
         NativeAotSocketPeer.InspectOutput(File.ReadAllText(log));
     }
     [HostTest("runner failure cancels and awaits an async peer still waiting for its receive gate")]
-    private static void FailedGatedPeer()=>FailedGatedPeerCore().GetAwaiter().GetResult();
+    private static void FailedGatedPeer() => FailedGatedPeerCore().GetAwaiter().GetResult();
     private static async Task FailedGatedPeerCore()
     {
-        string root=HostToolProcess.FindRepositoryRoot(),directory=Path.Combine(root,"artifacts","tests","socket-peer-"+Guid.NewGuid().ToString("N"));
-        string log=Path.Combine(directory,"peer.log"),serial=Path.Combine(directory,"guest.serial.log");string? failure=null;
+        string root = HostToolProcess.FindRepositoryRoot(), directory = Path.Combine(root, "artifacts", "tests", "socket-peer-" + Guid.NewGuid().ToString("N"));
+        string log = Path.Combine(directory, "peer.log"), serial = Path.Combine(directory, "guest.serial.log");
+        string? failure = null;
         try
         {
-            _=await NativeAotSocketPeer.RunAsync(root,log,async(port,token)=>
+            _ = await NativeAotSocketPeer.RunAsync(root, log, async (port, token) =>
             {
-                using TcpListener listener=new(IPAddress.Loopback,port);listener.Start();
-                using Socket client=await listener.AcceptSocketAsync(token);HostCheck.Equal(0,client.Available);
-                return new ProcessResult(2,"","",false,false,false,TimeSpan.Zero);
-            },receiveGateSerial:serial);
+                using TcpListener listener = new(IPAddress.Loopback, port);
+                listener.Start();
+                using Socket client = await listener.AcceptSocketAsync(token);
+                HostCheck.Equal(0, client.Available);
+                return new ProcessResult(2, "", "", false, false, false, TimeSpan.Zero);
+            }, receiveGateSerial: serial);
         }
-        catch(ToolFailure error){failure=error.Message;}
-        HostCheck.True(failure?.StartsWith("socket_peer_",StringComparison.Ordinal)==true);HostCheck.True(File.Exists(log));
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
+        HostCheck.True(failure?.StartsWith("socket_peer_", StringComparison.Ordinal) == true);
+        HostCheck.True(File.Exists(log));
         HostCheck.True(!File.Exists(serial));
     }
     [HostTest("socket orchestration cancels and awaits its owned peer when the runner fails")]
-    private static void FailedRunner()=>FailedRunnerCore().GetAwaiter().GetResult();
+    private static void FailedRunner() => FailedRunnerCore().GetAwaiter().GetResult();
     private static async Task FailedRunnerCore()
     {
-        string root=HostToolProcess.FindRepositoryRoot();string log=Path.Combine(root,"artifacts","tests","socket-peer-"+Guid.NewGuid().ToString("N"),"failed.log");
-        string? failure=null;
-        try{_=await NativeAotSocketPeer.RunAsync(root,log,(_,_)=>Task.FromResult(new ProcessResult(2,"","",false,false,false,TimeSpan.Zero)));}
-        catch(ToolFailure error){failure=error.Message;}
-        HostCheck.True(failure?.StartsWith("socket_peer_",StringComparison.Ordinal)==true);HostCheck.True(File.Exists(log));
-        string early=log+".early";failure=null;
-        try{_=await NativeAotSocketPeer.RunAsync(root,early,(_,_)=>Task.FromResult(new ProcessResult(2,"","",false,false,false,TimeSpan.Zero)),
-            beforePeer:token=>Task.Delay(Timeout.Infinite,token));}
-        catch(ToolFailure error){failure=error.Message;}
-        HostCheck.True(failure?.StartsWith("socket_runner_exited_before_peer exit=2 terminationConfirmed=True",StringComparison.Ordinal)==true);
-        HostCheck.True(File.Exists(early)&&new FileInfo(early).Length==0);
+        string root = HostToolProcess.FindRepositoryRoot();
+        string log = Path.Combine(root, "artifacts", "tests", "socket-peer-" + Guid.NewGuid().ToString("N"), "failed.log");
+        string? failure = null;
+        try
+        {
+            _ = await NativeAotSocketPeer.RunAsync(root, log, (_, _) => Task.FromResult(new ProcessResult(2, "", "", false, false, false, TimeSpan.Zero)));
+        }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
+        HostCheck.True(failure?.StartsWith("socket_peer_", StringComparison.Ordinal) == true);
+        HostCheck.True(File.Exists(log));
+        string early = log + ".early";
+        failure = null;
+        try
+        {
+            _ = await NativeAotSocketPeer.RunAsync(root, early, (_, _) => Task.FromResult(new ProcessResult(2, "", "", false, false, false, TimeSpan.Zero)),
+            beforePeer: token => Task.Delay(Timeout.Infinite, token));
+        }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
+        HostCheck.True(failure?.StartsWith("socket_runner_exited_before_peer exit=2 terminationConfirmed=True", StringComparison.Ordinal) == true);
+        HostCheck.True(File.Exists(early) && new FileInfo(early).Length == 0);
     }
 
     private static List<string> Transport()
     {
-        List<string> rows=[];
-        string Fields(int i,ulong clock,ulong deadline=0,ulong duration=0)=>$"slot={i} owner=4096 epoch=1 generation=1 index={i} local=167772687 localPort=8080 remote=167772674 remotePort={40000+i} clock={clock} deadline={deadline} duration={duration}";
-        for(int i=0;i<4;i++)rows.Add("M16_011_SLOT event=0 "+Fields(i,(uint)i+1));
-        rows.Add("M16_011_TIMEWAIT "+Fields(0,5,240000000005,240000000000)+" drain=0");
-        for(int i=1;i<4;i++)rows.Add("M16_011_SLOT event=1 "+Fields(i,(uint)i+5));
-        rows.Add("M16_011_TIMEWAIT "+Fields(0,9,240000000005,240000000000)+" drain=1");
-        rows.Add("M16_011_SLOT event=1 "+Fields(0,240000000005,240000000005,240000000000));return rows;
+        List<string> rows = [];
+        string Fields(int i, ulong clock, ulong deadline = 0, ulong duration = 0) => $"slot={i} owner=4096 epoch=1 generation=1 index={i} local=167772687 localPort=8080 remote=167772674 remotePort={40000 + i} clock={clock} deadline={deadline} duration={duration}";
+        for (int i = 0; i < 4; i++)
+            rows.Add("M16_011_SLOT event=0 " + Fields(i, (uint)i + 1));
+        rows.Add("M16_011_TIMEWAIT " + Fields(0, 5, 240000000005, 240000000000) + " drain=0");
+        for (int i = 1; i < 4; i++)
+            rows.Add("M16_011_SLOT event=1 " + Fields(i, (uint)i + 5));
+        rows.Add("M16_011_TIMEWAIT " + Fields(0, 9, 240000000005, 240000000000) + " drain=1");
+        rows.Add("M16_011_SLOT event=1 " + Fields(0, 240000000005, 240000000005, 240000000000));
+        return rows;
     }
     [HostTest("socket transport joins original tuple generations and full actual TIME WAIT before release")]
     private static void Lifetimes()
     {
-        var rows=Transport();var report=QemuTranscripts.InspectSocketTransportForTests(rows.ToArray());
-        HostCheck.True(report.Fresh==4&&report.Retired==4&&report.TimeWaitLifetimes==1&&report.MaximumDeadline==240000000005);
-        Reject(()=>QemuTranscripts.InspectSocketTransportForTests(rows.Select(row=>row.Replace("clock=240000000005","clock=240000000004",StringComparison.Ordinal)).ToArray()),"socket_transport_retire");
-        Reject(()=>QemuTranscripts.InspectSocketTransportForTests(rows.Where(row=>!row.StartsWith("M16_011_TIMEWAIT",StringComparison.Ordinal)).ToArray()),"socket_transport_retire");
-        Reject(()=>QemuTranscripts.InspectSocketTransportForTests(rows.Select(row=>row.Contains("event=1 slot=1",StringComparison.Ordinal)?row.Replace("generation=1","generation=2",StringComparison.Ordinal):row).ToArray()),"socket_transport_generation");
-        Reject(()=>QemuTranscripts.InspectSocketTransportForTests(rows[..^1].ToArray()),"socket_transport_complete");
+        var rows = Transport();
+        var report = QemuTranscripts.InspectSocketTransportForTests(rows.ToArray());
+        HostCheck.True(report.Fresh == 4 && report.Retired == 4 && report.TimeWaitLifetimes == 1 && report.MaximumDeadline == 240000000005);
+        Reject(() => QemuTranscripts.InspectSocketTransportForTests(rows.Select(row => row.Replace("clock=240000000005", "clock=240000000004", StringComparison.Ordinal)).ToArray()), "socket_transport_retire");
+        Reject(() => QemuTranscripts.InspectSocketTransportForTests(rows.Where(row => !row.StartsWith("M16_011_TIMEWAIT", StringComparison.Ordinal)).ToArray()), "socket_transport_retire");
+        Reject(() => QemuTranscripts.InspectSocketTransportForTests(rows.Select(row => row.Contains("event=1 slot=1", StringComparison.Ordinal) ? row.Replace("generation=1", "generation=2", StringComparison.Ordinal) : row).ToArray()), "socket_transport_generation");
+        Reject(() => QemuTranscripts.InspectSocketTransportForTests(rows[..^1].ToArray()), "socket_transport_complete");
     }
 
     // The existing independent PCI/APIC and NIC/ARP vectors are composed here.
     // Placeholder startup and leaf rows deliberately grant no app authority.
-    internal static string[] Envelope(bool asynchronous,bool vectors=false)
+    internal static string[] Envelope(bool asynchronous, bool vectors = false)
     {
-        string[] nic=M07ArpReceiveEfiIntegrationTests.Capture(),apic=M05ApicSetupEfiIntegrationTests.Capture();
-        ulong[] Parent(string prefix)=>nic.Single(row=>row.StartsWith(prefix+" ",StringComparison.Ordinal)).Split(' ')[2..].Select(v=>Convert.ToUInt64(v[2..],16)).ToArray();
-        ulong[] allocator=Parent("M07_ARP A"),binding=Parent("M07_ARP 0");
+        string[] nic = M07ArpReceiveEfiIntegrationTests.Capture(), apic = M05ApicSetupEfiIntegrationTests.Capture();
+        ulong[] Parent(string prefix) => nic.Single(row => row.StartsWith(prefix + " ", StringComparison.Ordinal)).Split(' ')[2..].Select(v => Convert.ToUInt64(v[2..], 16)).ToArray();
+        ulong[] allocator = Parent("M07_ARP A"), binding = Parent("M07_ARP 0");
         return [..apic.Take(QemuContracts.M03OwnedSubsystemMarkers.Count),
             ..Enumerable.Repeat("startup/package/service validated separately",7+7+17),
             ..apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count),..nic.Skip(QemuContracts.M05PciEnumerationMarkers.Count),
@@ -181,108 +256,178 @@ internal static class NativeAotSocketIntegrationTests
     [HostTest("socket wrapper joins original APIC NIC cleanup DMA and transport observations in both modes")]
     private static void Parents()
     {
-        foreach(bool asynchronous in new[]{false,true})
+        foreach (bool asynchronous in new[] { false, true })
         {
-            string[] rows=Envelope(asynchronous);HostCheck.Equal(4,QemuTranscripts.InspectSocketNetworkForTests(rows,asynchronous).Retired);
-            foreach((string old,string replacement,string reason) in new[]{
+            string[] rows = Envelope(asynchronous);
+            HostCheck.Equal(4, QemuTranscripts.InspectSocketNetworkForTests(rows, asynchronous).Retired);
+            foreach ((string old, string replacement, string reason) in new[]{
                 ("stage=4 a=11","stage=4 a=10","socket_nic_cleanup"),
                 ("stage=5 a=8 b=0","stage=5 a=8 b=1","socket_nic_cleanup"),
                 ("end=240000000005 maxDeadline","end=240000000004 maxDeadline","socket_network_accounting"),
                 ("end=0","end=2","socket_peer_parent"),
                 ("buffers=scrubbed","buffers=retained","socket_network_cleanup")})
-                Reject(()=>QemuTranscripts.InspectSocketNetworkForTests(rows.Select(row=>row.Replace(old,replacement,StringComparison.Ordinal)).ToArray(),asynchronous),reason);
-            Reject(()=>QemuTranscripts.InspectSocketNetworkForTests([..rows,"extra"],asynchronous),"socket_parent_extra_record");
-            Reject(()=>QemuTranscripts.InspectSocketNetworkForTests(rows,!asynchronous),"socket_parent_");
+                Reject(() => QemuTranscripts.InspectSocketNetworkForTests(rows.Select(row => row.Replace(old, replacement, StringComparison.Ordinal)).ToArray(), asynchronous), reason);
+            Reject(() => QemuTranscripts.InspectSocketNetworkForTests([.. rows, "extra"], asynchronous), "socket_parent_extra_record");
+            Reject(() => QemuTranscripts.InspectSocketNetworkForTests(rows, !asynchronous), "socket_parent_");
         }
     }
 
     private static ushort Checksum(ReadOnlySpan<byte> bytes)
     {
-        uint sum=0;for(int i=0;i<bytes.Length;i+=2)sum+=(uint)bytes[i]*256+(i+1<bytes.Length?bytes[i+1]:0U);
-        while(sum>65535)sum=(sum&65535)+(sum>>16);return (ushort)~sum;
+        uint sum = 0;
+        for (int i = 0; i < bytes.Length; i += 2)
+            sum += (uint)bytes[i] * 256 + (i + 1 < bytes.Length ? bytes[i + 1] : 0U);
+        while (sum > 65535)
+            sum = (sum & 65535) + (sum >> 16);
+        return (ushort)~sum;
     }
-    internal static byte[] Tcp(bool outgoing,ushort port,uint sequence,uint ack,byte flags,ReadOnlySpan<byte> payload)
+    internal static byte[] Tcp(bool outgoing, ushort port, uint sequence, uint ack, byte flags, ReadOnlySpan<byte> payload)
     {
-        byte[] frame=new byte[54+payload.Length];
-        Convert.FromHexString(outgoing?"52550A0002020200000000010800":"02000000000152550A0002020800").CopyTo(frame,0);
-        Span<byte> ip=frame.AsSpan(14),tcp=frame.AsSpan(34);ip[0]=0x45;ip[8]=64;ip[9]=6;
-        BinaryPrimitives.WriteUInt16BigEndian(ip[2..],checked((ushort)(40+payload.Length)));
-        BinaryPrimitives.WriteUInt32BigEndian(ip[12..],outgoing?0x0a00020fU:0x0a000202U);
-        BinaryPrimitives.WriteUInt32BigEndian(ip[16..],outgoing?0x0a000202U:0x0a00020fU);
-        BinaryPrimitives.WriteUInt16BigEndian(ip[10..],Checksum(ip[..20]));
-        BinaryPrimitives.WriteUInt16BigEndian(tcp,outgoing?(ushort)8080:port);BinaryPrimitives.WriteUInt16BigEndian(tcp[2..],outgoing?port:(ushort)8080);
-        BinaryPrimitives.WriteUInt32BigEndian(tcp[4..],sequence);BinaryPrimitives.WriteUInt32BigEndian(tcp[8..],ack);
-        tcp[12]=0x50;tcp[13]=flags;tcp[14]=tcp[15]=255;payload.CopyTo(tcp[20..]);
-        byte[] pseudo=new byte[12+tcp.Length];ip.Slice(12,8).CopyTo(pseudo);pseudo[9]=6;
-        BinaryPrimitives.WriteUInt16BigEndian(pseudo.AsSpan(10),checked((ushort)tcp.Length));tcp.CopyTo(pseudo.AsSpan(12));
-        BinaryPrimitives.WriteUInt16BigEndian(tcp[16..],Checksum(pseudo));return frame;
+        byte[] frame = new byte[54 + payload.Length];
+        Convert.FromHexString(outgoing ? "52550A0002020200000000010800" : "02000000000152550A0002020800").CopyTo(frame, 0);
+        Span<byte> ip = frame.AsSpan(14), tcp = frame.AsSpan(34);
+        ip[0] = 0x45;
+        ip[8] = 64;
+        ip[9] = 6;
+        BinaryPrimitives.WriteUInt16BigEndian(ip[2..], checked((ushort)(40 + payload.Length)));
+        BinaryPrimitives.WriteUInt32BigEndian(ip[12..], outgoing ? 0x0a00020fU : 0x0a000202U);
+        BinaryPrimitives.WriteUInt32BigEndian(ip[16..], outgoing ? 0x0a000202U : 0x0a00020fU);
+        BinaryPrimitives.WriteUInt16BigEndian(ip[10..], Checksum(ip[..20]));
+        BinaryPrimitives.WriteUInt16BigEndian(tcp, outgoing ? (ushort)8080 : port);
+        BinaryPrimitives.WriteUInt16BigEndian(tcp[2..], outgoing ? port : (ushort)8080);
+        BinaryPrimitives.WriteUInt32BigEndian(tcp[4..], sequence);
+        BinaryPrimitives.WriteUInt32BigEndian(tcp[8..], ack);
+        tcp[12] = 0x50;
+        tcp[13] = flags;
+        tcp[14] = tcp[15] = 255;
+        payload.CopyTo(tcp[20..]);
+        byte[] pseudo = new byte[12 + tcp.Length];
+        ip.Slice(12, 8).CopyTo(pseudo);
+        pseudo[9] = 6;
+        BinaryPrimitives.WriteUInt16BigEndian(pseudo.AsSpan(10), checked((ushort)tcp.Length));
+        tcp.CopyTo(pseudo.AsSpan(12));
+        BinaryPrimitives.WriteUInt16BigEndian(tcp[16..], Checksum(pseudo));
+        return frame;
     }
     internal static byte[] Capture(IEnumerable<byte[]> frames)
     {
-        using MemoryStream bytes=new();bytes.Write(Convert.FromHexString("D4C3B2A10200040000000000000000000000010001000000"));
-        using BinaryWriter writer=new(bytes,Encoding.UTF8,true);uint time=0;
-        foreach(byte[] frame in frames){writer.Write(1U);writer.Write(time++);writer.Write((uint)frame.Length);writer.Write((uint)frame.Length);writer.Write(frame);}
-        writer.Flush();return bytes.ToArray();
+        using MemoryStream bytes = new();
+        bytes.Write(Convert.FromHexString("D4C3B2A10200040000000000000000000000010001000000"));
+        using BinaryWriter writer = new(bytes, Encoding.UTF8, true);
+        uint time = 0;
+        foreach (byte[] frame in frames)
+        {
+            writer.Write(1U);
+            writer.Write(time++);
+            writer.Write((uint)frame.Length);
+            writer.Write((uint)frame.Length);
+            writer.Write(frame);
+        }
+        writer.Flush();
+        return bytes.ToArray();
     }
     // Independent QEMU usernet reference frame retained from the original r12
     // capture. This background packet grants no guest IPv6 capability.
-    private static byte[] RouterAdvertisement()=>Convert.FromHexString(
+    private static byte[] RouterAdvertisement() => Convert.FromHexString(
         "33330000000152560000000286DD6000000000383AFFFE800000000000000000000000000002FF0200000000000000000000000000018600155E4000070800000000000000000101525600000002030440C0000151800000384000000000FEC00000000000000000000000000000");
-    internal static (List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp) Packets(bool vectors=false)
+    internal static (List<byte[]> Frames, uint Anchor, QemuArpReceiveReceipt Arp) Packets(bool vectors = false)
     {
-        byte[] anchor=new byte[60],warmup=new byte[60];Convert.FromHexString("02000000000202000000000188B5").CopyTo(anchor,0);anchor.CopyTo(warmup,0);
-        "CLROS-M07"u8.CopyTo(anchor.AsSpan(14));byte[] request=EthernetFrameItExistingClassifierTests.Request.ToArray();
-        byte[] reply=EthernetFrameItExistingClassifierTests.Reply().AsSpan(12,42).ToArray();
-        uint Crc(byte[] data)=>OS.Std.Hash.Crc32.Compute(data);
-        List<byte[]> frames=[RouterAdvertisement(),RouterAdvertisement(),warmup,anchor,request,reply,request,reply];
-        for(int index=0;index<4;index++)
+        byte[] anchor = new byte[60], warmup = new byte[60];
+        Convert.FromHexString("02000000000202000000000188B5").CopyTo(anchor, 0);
+        anchor.CopyTo(warmup, 0);
+        "CLROS-M07"u8.CopyTo(anchor.AsSpan(14));
+        byte[] request = EthernetFrameItExistingClassifierTests.Request.ToArray();
+        byte[] reply = EthernetFrameItExistingClassifierTests.Reply().AsSpan(12, 42).ToArray();
+        uint Crc(byte[] data) => OS.Std.Hash.Crc32.Compute(data);
+        List<byte[]> frames = [RouterAdvertisement(), RouterAdvertisement(), warmup, anchor, request, reply, request, reply];
+        for (int index = 0; index < 4; index++)
         {
-            ushort port=(ushort)(40000+index);uint client=(uint)(1000+index*100000),server=(uint)(9000+index*100000);
-            void Add(bool outgoing,uint seq,uint ack,byte flags,ReadOnlySpan<byte> payload=default)=>frames.Add(Tcp(outgoing,port,seq,ack,flags,payload));
-            Add(false,client,0,2);Add(true,server,client+1,0x12);client++;server++;Add(false,client,server,0x10);
-            byte[] sent=vectors?Enumerable.Range(0,64).Select(i=>(byte)((index*37+i*11)%251)).ToArray():index==1?[0x52]:"CLROS_SOCKET_REQUEST"u8.ToArray();
-            Add(false,client,server,0x18,sent);client+=(uint)sent.Length;Add(true,server,client,0x10);
-            if(index==1){Add(false,client,server,0x14);continue;}
-            if(vectors?index is 0 or 3:index>=2){Add(false,client,server,0x11);client++;Add(true,server,client,0x10);}
-            byte[] payload=vectors&&index==2?[]:index==0?Enumerable.Range(0,vectors?524288:65536).Select(i=>(byte)(i%251)).ToArray():vectors?Enumerable.Range(0,64).Select(i=>(byte)(i%251)).ToArray():"CLROS_SOCKET_REPLY"u8.ToArray();
-            for(int offset=0;offset<payload.Length;)
+            ushort port = (ushort)(40000 + index);
+            uint client = (uint)(1000 + index * 100000), server = (uint)(9000 + index * 100000);
+            void Add(bool outgoing, uint seq, uint ack, byte flags, ReadOnlySpan<byte> payload = default) => frames.Add(Tcp(outgoing, port, seq, ack, flags, payload));
+            Add(false, client, 0, 2);
+            Add(true, server, client + 1, 0x12);
+            client++;
+            server++;
+            Add(false, client, server, 0x10);
+            byte[] sent = vectors ? Enumerable.Range(0, 64).Select(i => (byte)((index * 37 + i * 11) % 251)).ToArray() : index == 1 ? [0x52] : "CLROS_SOCKET_REQUEST"u8.ToArray();
+            Add(false, client, server, 0x18, sent);
+            client += (uint)sent.Length;
+            Add(true, server, client, 0x10);
+            if (index == 1)
             {
-                int count=Math.Min(1024,payload.Length-offset);Add(true,server,client,0x18,payload.AsSpan(offset,count));server+=(uint)count;offset+=count;Add(false,client,server,0x10);
+                Add(false, client, server, 0x14);
+                continue;
             }
-            Add(true,server,client,0x11);server++;
-            if(vectors?index==2:index==0){Add(false,client,server,0x11);client++;Add(true,server,client,0x10);}
-            else Add(false,client,server,0x10);
+            if (vectors ? index is 0 or 3 : index >= 2)
+            {
+                Add(false, client, server, 0x11);
+                client++;
+                Add(true, server, client, 0x10);
+            }
+            byte[] payload = vectors && index == 2 ? [] : index == 0 ? Enumerable.Range(0, vectors ? 524288 : 65536).Select(i => (byte)(i % 251)).ToArray() : vectors ? Enumerable.Range(0, 64).Select(i => (byte)(i % 251)).ToArray() : "CLROS_SOCKET_REPLY"u8.ToArray();
+            for (int offset = 0; offset < payload.Length;)
+            {
+                int count = Math.Min(1024, payload.Length - offset);
+                Add(true, server, client, 0x18, payload.AsSpan(offset, count));
+                server += (uint)count;
+                offset += count;
+                Add(false, client, server, 0x10);
+            }
+            Add(true, server, client, 0x11);
+            server++;
+            if (vectors ? index == 2 : index == 0)
+            {
+                Add(false, client, server, 0x11);
+                client++;
+                Add(true, server, client, 0x10);
+            }
+            else
+                Add(false, client, server, 0x10);
         }
-        frames.Add(RouterAdvertisement());return(frames,Crc(anchor),new(Crc(reply),42,Crc(request),0x52550a000202));
+        frames.Add(RouterAdvertisement());
+        return (frames, Crc(anchor), new(Crc(reply), 42, Crc(request), 0x52550a000202));
     }
     [HostTest("socket packet proof checks literal stream bytes retransmissions reset and both acknowledged FIN directions")]
     private static void Wire()
     {
-        var fixture=Packets();var report=QemuTranscripts.InspectSocketPacketsForTests(Capture(fixture.Frames),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]);
-        HostCheck.True(report.Connections==4&&report.Received==61&&report.Sent==65572&&report.Resets==1&&report.ClientFins==3&&report.ServerFins==3&&report.PumpIgnored==1);
-        var duplicate=fixture.Frames.ToList();int payload=duplicate.FindIndex(frame=>frame.Length>1000);duplicate.Insert(payload+1,duplicate[payload]);
-        HostCheck.Equal(65572,QemuTranscripts.InspectSocketPacketsForTests(Capture(duplicate),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]).Sent);
-        var corrupt=fixture.Frames.Select(frame=>(byte[])frame.Clone()).ToList();corrupt[payload][54]^=1;
-        Reject(()=>QemuTranscripts.InspectSocketPacketsForTests(Capture(corrupt),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]),"socket_wire_tcp_checksum");
-        var hole=fixture.Frames.ToList();(hole[payload],hole[payload+2])=(hole[payload+2],hole[payload]);
-        Reject(()=>QemuTranscripts.InspectSocketPacketsForTests(Capture(hole),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]),"socket_wire_acknowledgement");
-        foreach((byte old,byte flags,string reason) in new[]{((byte)0x12,(byte)0x13,"socket_wire_syn_ack"),((byte)0x14,(byte)0x15,"socket_wire_reset")})
+        var fixture = Packets();
+        var report = QemuTranscripts.InspectSocketPacketsForTests(Capture(fixture.Frames), fixture.Anchor, fixture.Arp, [40000, 40001, 40002, 40003]);
+        HostCheck.True(report.Connections == 4 && report.Received == 61 && report.Sent == 65572 && report.Resets == 1 && report.ClientFins == 3 && report.ServerFins == 3 && report.PumpIgnored == 1);
+        var duplicate = fixture.Frames.ToList();
+        int payload = duplicate.FindIndex(frame => frame.Length > 1000);
+        duplicate.Insert(payload + 1, duplicate[payload]);
+        HostCheck.Equal(65572, QemuTranscripts.InspectSocketPacketsForTests(Capture(duplicate), fixture.Anchor, fixture.Arp, [40000, 40001, 40002, 40003]).Sent);
+        var corrupt = fixture.Frames.Select(frame => (byte[])frame.Clone()).ToList();
+        corrupt[payload][54] ^= 1;
+        Reject(() => QemuTranscripts.InspectSocketPacketsForTests(Capture(corrupt), fixture.Anchor, fixture.Arp, [40000, 40001, 40002, 40003]), "socket_wire_tcp_checksum");
+        var hole = fixture.Frames.ToList();
+        (hole[payload], hole[payload + 2]) = (hole[payload + 2], hole[payload]);
+        Reject(() => QemuTranscripts.InspectSocketPacketsForTests(Capture(hole), fixture.Anchor, fixture.Arp, [40000, 40001, 40002, 40003]), "socket_wire_acknowledgement");
+        foreach ((byte old, byte flags, string reason) in new[] { ((byte)0x12, (byte)0x13, "socket_wire_syn_ack"), ((byte)0x14, (byte)0x15, "socket_wire_reset") })
         {
-            var changed=fixture.Frames.ToList();int at=changed.FindIndex(frame=>frame.Length>=54&&frame[47]==old);byte[] original=changed[at];
-            bool outgoing=original[6]==2;ushort port=BinaryPrimitives.ReadUInt16BigEndian(original.AsSpan(outgoing?36:34));
-            changed[at]=Tcp(outgoing,port,BinaryPrimitives.ReadUInt32BigEndian(original.AsSpan(38)),
-                BinaryPrimitives.ReadUInt32BigEndian(original.AsSpan(42)),flags,original.AsSpan(54));
-            Reject(()=>QemuTranscripts.InspectSocketPacketsForTests(Capture(changed),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]),reason);
+            var changed = fixture.Frames.ToList();
+            int at = changed.FindIndex(frame => frame.Length >= 54 && frame[47] == old);
+            byte[] original = changed[at];
+            bool outgoing = original[6] == 2;
+            ushort port = BinaryPrimitives.ReadUInt16BigEndian(original.AsSpan(outgoing ? 36 : 34));
+            changed[at] = Tcp(outgoing, port, BinaryPrimitives.ReadUInt32BigEndian(original.AsSpan(38)),
+                BinaryPrimitives.ReadUInt32BigEndian(original.AsSpan(42)), flags, original.AsSpan(54));
+            Reject(() => QemuTranscripts.InspectSocketPacketsForTests(Capture(changed), fixture.Anchor, fixture.Arp, [40000, 40001, 40002, 40003]), reason);
         }
-        var foreignArp=fixture.Frames.Select(frame=>(byte[])frame.Clone()).ToList();
-        int resolution=foreignArp.FindLastIndex(frame=>frame.Length>=42&&frame[12]==8&&frame[13]==6&&frame[21]==2);foreignArp[resolution][32]^=1;
-        Reject(()=>QemuTranscripts.InspectSocketPacketsForTests(Capture(foreignArp),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]),"socket_wire_arp_envelope");
-        var badV6=fixture.Frames.Select(frame=>(byte[])frame.Clone()).ToList();badV6[^1][56]^=1;
-        Reject(()=>QemuTranscripts.InspectSocketPacketsForTests(Capture(badV6),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]),"socket_wire_ignored_ipv6_checksum");
-        var badParent=fixture.Frames.ToList();badParent.RemoveAt(badParent.FindIndex(frame=>frame.Length>=42&&frame[12]==8&&frame[13]==6));
-        Reject(()=>QemuTranscripts.InspectSocketPacketsForTests(Capture(badParent),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]),"socket_wire_parent_arp");
-        var missing=fixture.Frames.ToList();missing.RemoveAt(missing.FindLastIndex(frame=>frame.Length>=54&&frame[12]==8&&frame[13]==0&&frame[23]==6));
-        Reject(()=>QemuTranscripts.InspectSocketPacketsForTests(Capture(missing),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]),"socket_wire_complete");
-        Reject(()=>QemuTranscripts.InspectSocketPacketsForTests(Capture(fixture.Frames),fixture.Anchor,fixture.Arp,[40001,40000,40002,40003]),"socket_wire_original_tuple");
+        var foreignArp = fixture.Frames.Select(frame => (byte[])frame.Clone()).ToList();
+        int resolution = foreignArp.FindLastIndex(frame => frame.Length >= 42 && frame[12] == 8 && frame[13] == 6 && frame[21] == 2);
+        foreignArp[resolution][32] ^= 1;
+        Reject(() => QemuTranscripts.InspectSocketPacketsForTests(Capture(foreignArp), fixture.Anchor, fixture.Arp, [40000, 40001, 40002, 40003]), "socket_wire_arp_envelope");
+        var badV6 = fixture.Frames.Select(frame => (byte[])frame.Clone()).ToList();
+        badV6[^1][56] ^= 1;
+        Reject(() => QemuTranscripts.InspectSocketPacketsForTests(Capture(badV6), fixture.Anchor, fixture.Arp, [40000, 40001, 40002, 40003]), "socket_wire_ignored_ipv6_checksum");
+        var badParent = fixture.Frames.ToList();
+        badParent.RemoveAt(badParent.FindIndex(frame => frame.Length >= 42 && frame[12] == 8 && frame[13] == 6));
+        Reject(() => QemuTranscripts.InspectSocketPacketsForTests(Capture(badParent), fixture.Anchor, fixture.Arp, [40000, 40001, 40002, 40003]), "socket_wire_parent_arp");
+        var missing = fixture.Frames.ToList();
+        missing.RemoveAt(missing.FindLastIndex(frame => frame.Length >= 54 && frame[12] == 8 && frame[13] == 0 && frame[23] == 6));
+        Reject(() => QemuTranscripts.InspectSocketPacketsForTests(Capture(missing), fixture.Anchor, fixture.Arp, [40000, 40001, 40002, 40003]), "socket_wire_complete");
+        Reject(() => QemuTranscripts.InspectSocketPacketsForTests(Capture(fixture.Frames), fixture.Anchor, fixture.Arp, [40001, 40000, 40002, 40003]), "socket_wire_original_tuple");
     }
 }

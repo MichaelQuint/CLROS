@@ -4,7 +4,10 @@ namespace OS.Tooling;
 public sealed class EfiProfile
 {
     private readonly Dictionary<string, bool> flags;
-    public string BootPolicy { get; }
+    public string BootPolicy
+    {
+        get;
+    }
     public IReadOnlyDictionary<string, bool> Flags => flags;
     public bool IsEnabled(string name) => flags.TryGetValue(Full(name), out bool enabled) && enabled;
     private static string Full(string name) => name.StartsWith("Enable", StringComparison.Ordinal) ? name : "Enable" + name + "Probe";
@@ -12,8 +15,12 @@ public sealed class EfiProfile
         "M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival", "M05PciEnumeration", "M05VirtioNegotiation",
         "M05VirtqueuePolling", "M07VirtioNet", "M07ArpReceive", "M16002", "M16003"];
     private static readonly string[] SocketNetworkExtensions = ["M05ApicSetup", "M16004", "M16005", "M16006", "M16007",
-        "M16008", "M16009", "M16011", "M16012", "M16013", "M16014", "M10004", "M10017", "M16023", "M16024", "M16025", "M16027", "M16027Timing", "M10018", "M10018Full", "M10018Timing", "M16019Unavailable", "M16019Invalid"];
-    private EfiProfile(string bootPolicy, Dictionary<string, bool> flags) { BootPolicy = bootPolicy; this.flags = flags; }
+        "M16008", "M16009", "M16011", "M16012", "M16013", "M16014", "M10004", "M10017", "M16023", "M16024", "M16025", "M16027", "M16027Timing", "M10018", "M10018Full", "M10018Timing", "M10018EvidenceTrace", "M10018EvidenceSummary", "M10018ServingBenchmark", "M16019Unavailable", "M16019Invalid"];
+    private EfiProfile(string bootPolicy, Dictionary<string, bool> flags)
+    {
+        BootPolicy = bootPolicy;
+        this.flags = flags;
+    }
     public IEnumerable<string> CommandArguments() => new[] { "--boot-policy", BootPolicy }.Concat(flags.Where(p => p.Value).Select(p => "--" + p.Key));
 
     public static EfiProfile Create(string? bootPolicy, IReadOnlyDictionary<string, bool> explicitlySelected, Action<string>? emit = null)
@@ -21,8 +28,27 @@ public sealed class EfiProfile
         Dictionary<string, bool> flags = EfiContracts.DiagnosticProbes.ToDictionary(p => p, _ => false, StringComparer.Ordinal);
         foreach (var pair in explicitlySelected)
         {
-            if (!flags.ContainsKey(pair.Key)) throw new ToolFailure("diagnostic_probe_unknown", "property=" + pair.Key);
+            if (!flags.ContainsKey(pair.Key))
+                throw new ToolFailure("diagnostic_probe_unknown", "property=" + pair.Key);
             flags[pair.Key] = pair.Value;
+        }
+        bool evidenceTrace = flags["EnableM10018EvidenceTraceProbe"];
+        bool evidenceSummary = flags["EnableM10018EvidenceSummaryProbe"];
+        if (flags["EnableM10018ServingBenchmarkProbe"])
+        {
+            if (evidenceTrace || evidenceSummary || flags["EnableM10018TimingProbe"])
+                throw new ToolFailure("serving_benchmark_trace_conflict");
+            if (explicitlySelected.TryGetValue("EnableM10018FullProbe", out bool parent) && !parent)
+                throw new ToolFailure("serving_benchmark_explicit_false_prerequisite");
+            flags["EnableM10018FullProbe"] = true;
+        }
+        if (evidenceTrace && evidenceSummary)
+            throw new ToolFailure("disk_evidence_mode_conflict");
+        if (evidenceTrace || evidenceSummary)
+        {
+            if (explicitlySelected.TryGetValue("EnableM10018TimingProbe", out bool timing) && !timing)
+                throw new ToolFailure("disk_evidence_explicit_false_prerequisite");
+            flags["EnableM10018TimingProbe"] = true;
         }
         if (flags["EnableM16027TimingProbe"])
         {
@@ -33,7 +59,8 @@ public sealed class EfiProfile
         if (flags["EnableM16027Probe"])
         {
             foreach (string conflict in new[] { "EnableM10004Probe", "EnableM10017Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe" })
-                if (flags[conflict]) throw new ToolFailure("writable_disk_mechanical_profile_conflict", conflict);
+                if (flags[conflict])
+                    throw new ToolFailure("writable_disk_mechanical_profile_conflict", conflict);
             if (explicitlySelected.TryGetValue("EnableM16025Probe", out bool parent) && !parent)
                 throw new ToolFailure("writable_disk_explicit_false_prerequisite");
             flags["EnableM16025Probe"] = true;
@@ -62,7 +89,8 @@ public sealed class EfiProfile
         if (flags["EnableM16025Probe"])
         {
             foreach (string conflict in new[] { "M10017", "M16014", "M16013", "M07027", "M07028", "M09011", "M09012", "M16010", "M16019Unavailable", "M16019Invalid" })
-                if (flags[Full(conflict)]) throw new ToolFailure("disk_read_profile_conflict", conflict);
+                if (flags[Full(conflict)])
+                    throw new ToolFailure("disk_read_profile_conflict", conflict);
             foreach (string required in new[] { "EnableM16023Probe", "EnableM16024Probe", "EnableM16012Probe" })
             {
                 if (explicitlySelected.TryGetValue(required, out bool selected) && !selected)
@@ -88,21 +116,22 @@ public sealed class EfiProfile
                 throw new ToolFailure("m16_014_explicit_false_prerequisite", "EnableM10004Probe");
             flags["EnableM10004Probe"] = true;
         }
-        if(flags["EnableM16019UnavailableProbe"] || flags["EnableM16019InvalidProbe"])
+        if (flags["EnableM16019UnavailableProbe"] || flags["EnableM16019InvalidProbe"])
         {
-            if(flags["EnableM16019UnavailableProbe"] && flags["EnableM16019InvalidProbe"])
+            if (flags["EnableM16019UnavailableProbe"] && flags["EnableM16019InvalidProbe"])
                 throw new ToolFailure("realtime_rejection_controls_conflict");
-            if(explicitlySelected.TryGetValue("EnableM10004Probe",out bool web) && !web)
+            if (explicitlySelected.TryGetValue("EnableM10004Probe", out bool web) && !web)
                 throw new ToolFailure("realtime_rejection_requires_web_profile");
-            flags["EnableM10004Probe"]=true;
+            flags["EnableM10004Probe"] = true;
         }
-        if(flags["EnableM16013Probe"])
+        if (flags["EnableM16013Probe"])
         {
-            foreach(string conflict in new[]{"M07027","M07028","M10004","M09011","M09012","M16010"})
-                if(flags[Full(conflict)])throw new ToolFailure("socket_vectors_profile_conflict",conflict);
-            if(explicitlySelected.TryGetValue("EnableM16012Probe",out bool parent) && !parent)
-                throw new ToolFailure("m16_013_explicit_false_prerequisite","EnableM16012Probe");
-            flags["EnableM16012Probe"]=true;
+            foreach (string conflict in new[] { "M07027", "M07028", "M10004", "M09011", "M09012", "M16010" })
+                if (flags[Full(conflict)])
+                    throw new ToolFailure("socket_vectors_profile_conflict", conflict);
+            if (explicitlySelected.TryGetValue("EnableM16012Probe", out bool parent) && !parent)
+                throw new ToolFailure("m16_013_explicit_false_prerequisite", "EnableM16012Probe");
+            flags["EnableM16012Probe"] = true;
         }
         bool containment = flags["EnableM07027Probe"] || flags["EnableM07028Probe"];
         if (containment)
@@ -113,8 +142,9 @@ public sealed class EfiProfile
                     throw new ToolFailure("socket_containment_explicit_false_prerequisite", parent);
                 flags[parent] = true;
             }
-            foreach(string conflict in new[]{"EnableM16012Probe","EnableM10004Probe"})
-                if(flags[conflict])throw new ToolFailure("socket_containment_profile_conflict",conflict);
+            foreach (string conflict in new[] { "EnableM16012Probe", "EnableM10004Probe" })
+                if (flags[conflict])
+                    throw new ToolFailure("socket_containment_profile_conflict", conflict);
         }
         if (flags["EnableM10004Probe"])
         {
@@ -280,36 +310,51 @@ public sealed class EfiProfile
             string[] required = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
             foreach (string name in required)
             {
-                if (explicitlySelected.TryGetValue(name, out bool enabled) && !enabled) throw new ToolFailure("m16_002_explicit_false_prerequisite", name);
+                if (explicitlySelected.TryGetValue(name, out bool enabled) && !enabled)
+                    throw new ToolFailure("m16_002_explicit_false_prerequisite", name);
                 flags[name] = true;
             }
             foreach (var flag in flags)
                 if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && flag.Key != "EnableM16005Probe" && flag.Key != "EnableM16006Probe" && flag.Key != "EnableM16007Probe" &&
                     !(flags["EnableM16008Probe"] && flag.Key is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe") &&
                     !(flags["EnableM16011Probe"] && flag.Key is "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe") &&
-                    !(flags["EnableM16025Probe"] && flag.Key is "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe") &&
+                    !(flags["EnableM16025Probe"] && flag.Key is "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM10018EvidenceTraceProbe" or "EnableM10018EvidenceSummaryProbe" or "EnableM10018ServingBenchmarkProbe") &&
                     !(flags["EnableM10004Probe"] && flag.Key is "EnableM10017Probe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe") &&
                     !(containment && flag.Key is "EnableM07027Probe" or "EnableM07028Probe") &&
                     !(flags["EnableM07026Probe"] && (flag.Key == "EnableM07026Probe" || NetworkPrerequisites.Select(Full).Contains(flag.Key))) && !required.Contains(flag.Key))
                     throw new ToolFailure("m16_002_profile_conflict", flag.Key);
         }
         bool diagnostic = flags.Values.Any(v => v);
-        if (string.IsNullOrEmpty(bootPolicy)) bootPolicy = diagnostic ? "Diagnostic" : "VerifiedExit";
-        if (!bootPolicy.Equals("VerifiedExit", StringComparison.OrdinalIgnoreCase) && !bootPolicy.Equals("Diagnostic", StringComparison.OrdinalIgnoreCase)) throw new ToolFailure("clros_boot_policy_invalid");
+        if (string.IsNullOrEmpty(bootPolicy))
+            bootPolicy = diagnostic ? "Diagnostic" : "VerifiedExit";
+        if (!bootPolicy.Equals("VerifiedExit", StringComparison.OrdinalIgnoreCase) && !bootPolicy.Equals("Diagnostic", StringComparison.OrdinalIgnoreCase))
+            throw new ToolFailure("clros_boot_policy_invalid");
         bootPolicy = bootPolicy.Equals("VerifiedExit", StringComparison.OrdinalIgnoreCase) ? "VerifiedExit" : "Diagnostic";
-        if (bootPolicy == "VerifiedExit" && diagnostic) throw new ToolFailure("clros_boot_policy_probe_conflict");
+        if (bootPolicy == "VerifiedExit" && diagnostic)
+            throw new ToolFailure("clros_boot_policy_probe_conflict");
         EfiProfile profile = new(bootPolicy, flags);
         profile.Validate(explicitlySelected, emit);
         _ = NativeAotServiceSelection.Application(flags);
         return profile;
     }
 
-    private void Need(string trigger, string requirement, string reason) { if (IsEnabled(trigger) && !IsEnabled(requirement)) throw new ToolFailure(reason); }
-    private void Conflict(string trigger, string conflict, string reason) { if (IsEnabled(trigger) && IsEnabled(conflict)) throw new ToolFailure(reason); }
+    private void Need(string trigger, string requirement, string reason)
+    {
+        if (IsEnabled(trigger) && !IsEnabled(requirement))
+            throw new ToolFailure(reason);
+    }
+    private void Conflict(string trigger, string conflict, string reason)
+    {
+        if (IsEnabled(trigger) && IsEnabled(conflict))
+            throw new ToolFailure(reason);
+    }
     private void Set(string trigger, string[] names, bool required, string reason)
     {
-        if (!IsEnabled(trigger)) return;
-        foreach (string name in names) if (IsEnabled(name) != required) throw new ToolFailure(reason, "property=" + Full(name));
+        if (!IsEnabled(trigger))
+            return;
+        foreach (string name in names)
+            if (IsEnabled(name) != required)
+                throw new ToolFailure(reason, "property=" + Full(name));
     }
     private static readonly string[] HeapChain = ["M01LoadedImageStack", "M01LiveAllocator", "M04IndependentEndianConformance", "M04SpanOverlapMemoryCastUnsafeWidthConformance", "M04ArithmeticConformance", "M04LayoutContract", "M04ManagedHeapPageRange", "M04RhpNewFast"];
     private static readonly string[] FaultChain = ["M01LoadedImageStack", "M01LiveAllocator", "M01OwnedPaging", "M02SafeStub", "M02CheckedPortIoBinding", "M02Com1OwnedPortIo", "M02OwnedCom1Ready", "M02PanicSafeOwnedCom1"];
@@ -342,14 +387,16 @@ public sealed class EfiProfile
         Set("M06VirtioBlockRead", ["M06VirtioBlockQueueSetup"], true, "m06_block_read_requires_queue");
         Set("M06VirtioBlockQueueSetup", ["M05PciEnumeration"], true, "m06_block_queue_requires_pci");
         Set("M06VirtioBlockQueueSetup", ["M05BarDma", "M05VirtioNegotiation", "M05VirtqueuePolling", "M05VirtqueueInterrupt"], false, "m06_block_queue_profile_conflict");
-        if (!IsEnabled("M06BlockMsix")) Conflict("M06VirtioBlockQueueSetup", "M05ApicSetup", "m06_block_queue_profile_conflict");
+        if (!IsEnabled("M06BlockMsix"))
+            Conflict("M06VirtioBlockQueueSetup", "M05ApicSetup", "m06_block_queue_profile_conflict");
         Set("M05BarDma", ["M05PciEnumeration"], true, "m05_bar_dma_requires_pci");
         Set("M05ApicSetup", ["M05PciEnumeration"], true, "m05_apic_requires_pci");
         Set("M05ApicSetup", ["M05BarDma"], false, "m05_apic_profile_conflict");
         if (!IsEnabled("M16011"))
         {
             Set("M05ApicSetup", ["M05VirtqueuePolling"], false, "m05_apic_profile_conflict");
-            if (IsEnabled("M05ApicSetup")) Need("M05VirtioNegotiation", "M05VirtqueueInterrupt", "m05_apic_negotiation_requires_interrupt");
+            if (IsEnabled("M05ApicSetup"))
+                Need("M05VirtioNegotiation", "M05VirtqueueInterrupt", "m05_apic_negotiation_requires_interrupt");
         }
         Set("M05VirtqueueInterrupt", ["M05ApicSetup", "M05VirtioNegotiation"], true, "m05_virtqueue_interrupt_requires_apic_negotiation");
         Conflict("M05VirtqueueInterrupt", "M05VirtqueuePolling", "m05_virtqueue_interrupt_polling_conflict");
@@ -399,7 +446,8 @@ public sealed class EfiProfile
         Allocation("M04StringAllocation", "m04_string", ["M04StringAllocationBeforeBind", "M04StringAllocationExhaustion", "M04StringAllocationInvalidLength"], [.. HeapChain, "M04SzArrayAllocation"], [.. HeapForbidden, "M04RhpNewFastBeforeBindFailure", "M04RhpNewFastExhaustionFailure", "M04SzArrayAllocationBeforeBind", "M04SzArrayAllocationExhaustion"], ref reason);
         Allocation("M04SzArrayAllocation", "m04_sz_array", ["M04SzArrayAllocationBeforeBind", "M04SzArrayAllocationExhaustion"], ["M04RhpNewFast", .. HeapChain.Take(7)], [.. HeapForbidden, "M04RhpNewFastBeforeBindFailure", "M04RhpNewFastExhaustionFailure"], ref reason);
         Allocation("M04RhpNewFast", "m04_rhp_new_fast", ["M04RhpNewFastBeforeBindFailure", "M04RhpNewFastExhaustionFailure"], [.. HeapChain.Take(7)], HeapForbidden, ref reason);
-        if (reason.Length != 0) throw new ToolFailure(reason);
+        if (reason.Length != 0)
+            throw new ToolFailure(reason);
         Set("M04ManagedHeapPageRange", [.. HeapChain.Take(6)], true, "m04_managed_heap_page_range_requires_explicit_chain");
         Set("M04ManagedHeapPageRange", [.. HeapForbidden.Except(["M02PageFaultCr2ErrorCode", "M02DoubleFaultIst", "M02UnexpectedVectorPanic"])], false, "m04_managed_heap_page_range_forbids_optional_profiles");
         Set("M04LayoutContract", ["M04ArithmeticConformance", "M04SpanOverlapMemoryCastUnsafeWidthConformance", "M04IndependentEndianConformance"], true, "m04_layout_contract_requires_explicit_m04_chain");
@@ -415,10 +463,12 @@ public sealed class EfiProfile
         Set("M02UnexpectedVectorPanic", [.. DescriptorProfiles, "M02Ud2VectorState", "M02PageFaultCr2ErrorCode", "M02DoubleFaultIst", .. HeapChain.Skip(2), .. AllocationProfiles, .. OptionalFirmware], false, "m02_unexpected_vector_panic_profile_conflict");
         foreach ((string trigger, string prefix) in new[] { ("M02Ud2VectorState", "m02_ud2_vector_state"), ("M02PageFaultCr2ErrorCode", "m02_page_fault_cr2_error_code"), ("M02DoubleFaultIst", "m02_double_fault_ist"), ("M02UnexpectedVectorPanic", "m02_unexpected_vector_panic") })
         {
-            if (!IsEnabled(trigger)) continue;
+            if (!IsEnabled(trigger))
+                continue;
             foreach (string prerequisite in FaultChain)
             {
-                if (explicitlySelected.TryGetValue(Full(prerequisite), out bool value) && !value) throw new ToolFailure(prefix + "_probe_explicit_false_prerequisite", "property=" + Full(prerequisite));
+                if (explicitlySelected.TryGetValue(Full(prerequisite), out bool value) && !value)
+                    throw new ToolFailure(prefix + "_probe_explicit_false_prerequisite", "property=" + Full(prerequisite));
                 flags[Full(prerequisite)] = true;
             }
             emit?.Invoke("EFI_PROFILE_" + prefix.ToUpperInvariant() + "_IMPLICATION status=ok m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true ownedCom1Ready=true panicSafeOwnedCom1=true");
@@ -426,22 +476,33 @@ public sealed class EfiProfile
         Conflict("M02NormalizedInterruptFramePage", "M02OwnedGdtTssTerminal", "m02_normalized_interrupt_frame_page_probe_forbids_owned_gdt_tss_terminal");
         Conflict("M02OwnedIdtGatePopulation", "M02OwnedGdtTssTerminal", "m02_owned_idt_gate_population_probe_forbids_owned_gdt_tss_terminal");
         Conflict("M02OwnedIdtGatePopulation", "M02NormalizedInterruptFramePage", "m02_owned_idt_gate_population_probe_forbids_normalized_interrupt_frame_page_probe");
-        foreach ((string other, string suffix) in new[] { ("M02OwnedGdtTssTerminal", "owned_gdt_tss_terminal"), ("M02NormalizedInterruptFramePage", "normalized_interrupt_frame_page_probe"), ("M02OwnedIdtGatePopulation", "owned_idt_gate_population_probe") }) Conflict("M02IdtrContinuedExecution", other, "m02_idtr_continued_execution_probe_forbids_" + suffix);
-        foreach ((string other, string suffix) in new[] { ("M02OwnedX64GdtEncoding", "owned_x64_gdt_encoding_probe"), ("M02GuardedIstStackAllocation", "guarded_ist_stack_allocation_probe"), ("M02OwnedGdtTssTerminal", "owned_gdt_tss_terminal"), ("M02NormalizedInterruptFramePage", "normalized_interrupt_frame_page_probe"), ("M02OwnedIdtGatePopulation", "owned_idt_gate_population_probe"), ("M02IdtrContinuedExecution", "idtr_continued_execution_probe") }) Conflict("M02Ud2VectorState", other, "m02_ud2_vector_state_probe_forbids_" + suffix);
+        foreach ((string other, string suffix) in new[] { ("M02OwnedGdtTssTerminal", "owned_gdt_tss_terminal"), ("M02NormalizedInterruptFramePage", "normalized_interrupt_frame_page_probe"), ("M02OwnedIdtGatePopulation", "owned_idt_gate_population_probe") })
+            Conflict("M02IdtrContinuedExecution", other, "m02_idtr_continued_execution_probe_forbids_" + suffix);
+        foreach ((string other, string suffix) in new[] { ("M02OwnedX64GdtEncoding", "owned_x64_gdt_encoding_probe"), ("M02GuardedIstStackAllocation", "guarded_ist_stack_allocation_probe"), ("M02OwnedGdtTssTerminal", "owned_gdt_tss_terminal"), ("M02NormalizedInterruptFramePage", "normalized_interrupt_frame_page_probe"), ("M02OwnedIdtGatePopulation", "owned_idt_gate_population_probe"), ("M02IdtrContinuedExecution", "idtr_continued_execution_probe") })
+            Conflict("M02Ud2VectorState", other, "m02_ud2_vector_state_probe_forbids_" + suffix);
         Need("M01LiveAllocator", "M01LoadedImageStack", "m01_live_allocator_requires_loaded_image_stack");
         Need("M01OwnedPaging", "M01LiveAllocator", "m01_owned_paging_requires_live_allocator");
         foreach ((string trigger, string prerequisite, string reasonCode) in new[] {
             ("M02SafeStub", "M01LoadedImageStack", "m02_safe_stub_requires_loaded_image_stack"), ("M02SafeStub", "M01LiveAllocator", "m02_safe_stub_requires_live_allocator"), ("M02SafeStub", "M01OwnedPaging", "m02_safe_stub_requires_owned_paging"),
             ("M02CheckedPortIoBinding", "M02SafeStub", "m02_checked_binding_requires_safe_stub"), ("M02Com1OwnedPortIo", "M02CheckedPortIoBinding", "m02_com1_owned_port_io_requires_checked_binding"), ("M02OwnedCom1Ready", "M02Com1OwnedPortIo", "m02_owned_com1_ready_requires_com1_owned_port_io"), ("M02PanicSafeOwnedCom1", "M02OwnedCom1Ready", "m02_panic_safe_owned_com1_requires_owned_com1_ready"),
-            ("M02OwnedX64GdtEncoding", "M02PanicSafeOwnedCom1", "m02_owned_x64_gdt_encoding_requires_panic_safe_owned_com1"), ("M02GuardedIstStackAllocation", "M02OwnedX64GdtEncoding", "m02_guarded_ist_stack_allocation_requires_owned_x64_gdt_encoding"), ("M02OwnedGdtTssTerminal", "M02GuardedIstStackAllocation", "m02_owned_gdt_tss_terminal_requires_guarded_ist_stack_allocation") }) Need(trigger, prerequisite, reasonCode);
+            ("M02OwnedX64GdtEncoding", "M02PanicSafeOwnedCom1", "m02_owned_x64_gdt_encoding_requires_panic_safe_owned_com1"), ("M02GuardedIstStackAllocation", "M02OwnedX64GdtEncoding", "m02_guarded_ist_stack_allocation_requires_owned_x64_gdt_encoding"), ("M02OwnedGdtTssTerminal", "M02GuardedIstStackAllocation", "m02_owned_gdt_tss_terminal_requires_guarded_ist_stack_allocation") })
+            Need(trigger, prerequisite, reasonCode);
     }
 
     private void Allocation(string main, string prefix, string[] negatives, string[] required, string[] forbidden, ref string reason)
     {
         int selected = negatives.Count(IsEnabled);
-        if (selected != 0 && !IsEnabled(main)) reason = prefix + "_negative_requires_main";
-        if (selected > 1) reason = prefix + "_negative_conflict";
-        if (IsEnabled(main)) foreach (string name in required) if (!IsEnabled(name)) reason = prefix + "_requires_explicit_chain_" + Full(name);
-        if (IsEnabled(main) || selected != 0) foreach (string name in forbidden) if (IsEnabled(name)) reason = prefix + "_conflicting_profile_" + Full(name);
+        if (selected != 0 && !IsEnabled(main))
+            reason = prefix + "_negative_requires_main";
+        if (selected > 1)
+            reason = prefix + "_negative_conflict";
+        if (IsEnabled(main))
+            foreach (string name in required)
+                if (!IsEnabled(name))
+                    reason = prefix + "_requires_explicit_chain_" + Full(name);
+        if (IsEnabled(main) || selected != 0)
+            foreach (string name in forbidden)
+                if (IsEnabled(name))
+                    reason = prefix + "_conflicting_profile_" + Full(name);
     }
 }

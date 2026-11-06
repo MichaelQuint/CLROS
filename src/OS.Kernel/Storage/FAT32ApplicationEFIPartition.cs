@@ -3,17 +3,6 @@ using OS.Std.Binary;
 
 namespace OS.Storage;
 
-public enum LiveEfiPartitionStatus : byte { Uninitialized, Success, InvalidTable, Missing, Ambiguous }
-
-public struct LiveEfiPartitionResult
-{
-    public LiveEfiPartitionStatus Status;
-    public LiveGptStatus TableStatus;
-    public uint EntryIndex;
-    public ulong FirstLba, LastLba, BlockCount, ByteOffset, Attributes;
-    public readonly bool Succeeded => Status == LiveEfiPartitionStatus.Success && TableStatus == LiveGptStatus.Success;
-}
-
 /// <summary>Locate exactly one EFI System Partition in a validated bounded GPT.
 /// The caller retains exclusive ownership of the bytes throughout this call.
 /// Names and attributes are opaque; location does not establish FAT/BPB validity.</summary>
@@ -28,7 +17,10 @@ public static unsafe class FAT32ApplicationEFIPartition
         LiveEfiPartitionResult result = default;
         result.TableStatus = PrimaryGPTIndependentlyBoundsCRC.ValidateArray(header, entries, out _);
         if (result.TableStatus != LiveGptStatus.Success)
-        { result.Status = LiveEfiPartitionStatus.InvalidTable; return result; }
+        {
+            result.Status = LiveEfiPartitionStatus.InvalidTable;
+            return result;
+        }
         uint found = 0, selected = 0;
         fixed (byte* bytes = entries)
         {
@@ -37,10 +29,16 @@ public static unsafe class FAT32ApplicationEFIPartition
                 byte* entry = bytes + i * PrimaryGPTIndependentlyBoundsCRC.EntrySize;
                 if (EndianPrimitives.ReadUInt64LittleEndian(entry) == EfiTypeLow &&
                     EndianPrimitives.ReadUInt64LittleEndian(entry + 8) == EfiTypeHigh)
-                { selected = i; found++; }
+                {
+                    selected = i;
+                    found++;
+                }
             }
             if (found != 1)
-            { result.Status = found == 0 ? LiveEfiPartitionStatus.Missing : LiveEfiPartitionStatus.Ambiguous; return result; }
+            {
+                result.Status = found == 0 ? LiveEfiPartitionStatus.Missing : LiveEfiPartitionStatus.Ambiguous;
+                return result;
+            }
             byte* partition = bytes + selected * PrimaryGPTIndependentlyBoundsCRC.EntrySize;
             result.EntryIndex = selected;
             result.FirstLba = EndianPrimitives.ReadUInt64LittleEndian(partition + 32);

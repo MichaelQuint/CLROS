@@ -5,12 +5,12 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertM03AcpiBootstrapTranscript(string path, bool firstRealExit = false, bool firmwareRevocation = false,
-        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false, bool linuxThreads = false, bool linuxSignals = false, NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null, bool networkService = false,NativeAotSocketProgram? socketProgram=null,NativeAotSocketContainmentProgram? containmentProgram=null,string containmentPeerLine="",NativeAotSocketVectorsProgram? vectorsProgram=null,bool signalEpollRace=false)
+        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false, bool linuxThreads = false, bool linuxSignals = false, NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null, bool networkService = false, NativeAotSocketProgram? socketProgram = null, NativeAotSocketContainmentProgram? containmentProgram = null, string containmentPeerLine = "", NativeAotSocketVectorsProgram? vectorsProgram = null, bool signalEpollRace = false)
     {
-        bool socket=signalEpollRace||socketProgram is not null||containmentProgram is not null||vectorsProgram is not null;
-        Need(!signalEpollRace||socketProgram is null&&containmentProgram is null&&vectorsProgram is null,"signal_epoll_parent_selection_conflict");
-        Need(!socket || networkService&&linuxThreads&&linuxSignals&&linuxDescriptors&&linuxMemory&&linuxSyscalls&&linuxStartup&&workloadServiceLoop&&
-            apicSetup&&virtioNegotiation&&virtqueuePolling&&virtioNet&&arpReceive&&!virtqueueInterrupt&&helloProgram is null&&threadingProgram is null&&runtimeProgram is null,"socket_parent_profile");
+        bool socket = signalEpollRace || socketProgram is not null || containmentProgram is not null || vectorsProgram is not null;
+        Need(!signalEpollRace || socketProgram is null && containmentProgram is null && vectorsProgram is null, "signal_epoll_parent_selection_conflict");
+        Need(!socket || networkService && linuxThreads && linuxSignals && linuxDescriptors && linuxMemory && linuxSyscalls && linuxStartup && workloadServiceLoop &&
+            apicSetup && virtioNegotiation && virtqueuePolling && virtioNet && arpReceive && !virtqueueInterrupt && helloProgram is null && threadingProgram is null && runtimeProgram is null, "socket_parent_profile");
         Need(!cooperativeSwitch || !kernelThreads && !waitAddress && !privateTls && firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation &&
             !physicalMapping && !ownedAcpiSelection && !monotonicClock && !pciEnumeration && !barDma &&
             !virtioNegotiation && !virtqueuePolling && !apicSetup && !virtqueueInterrupt && !virtioBlockQueueSetup &&
@@ -68,32 +68,41 @@ public static partial class QemuTranscripts
         Need(!negativeSyscall || linuxSyscalls && linuxSyscallNegativeVariant is "PrivilegedFault" or "KernelReadFault" or "InvalidRsp" or "ReturnToData",
             "m16_005_negative_profile");
         string terminal = threadWait ? privateTls ? "CLROS_M09_010_READY\r\n" : "CLROS_M09_009_READY\r\n" : kernelThreads ? "CLROS_M09_006_READY\r\n" : schedulerTimer ? "CLROS_M09_005_READY\r\n" : cooperativeSwitch ? "TEST_PASS m09.004\r\n" : linuxDescriptors ? "TEST_PASS m16-007\r\n" : linuxMemory ? "TEST_PASS m16-006\r\n" : linuxSyscalls ? "TEST_PASS m16-005\r\n" : workloadServiceLoop ? "TEST_PASS m16-003\r\n" : linuxStartup ? "TEST_PASS m16-004\r\n" : linuxElfPackagePath.Length != 0 ? "TEST_PASS m16-002\r\n" : arpReceive ? "TEST_PASS m07.009\r\n" : virtioNet ? "TEST_PASS m07.005\r\n" : blockMsix ? "TEST_PASS m06.019\r\n" : packageRead ? "TEST_PASS m06.018\r\n" : fatRead ? "TEST_PASS m06.014\r\n" : gptPartition ? "TEST_PASS m06.011\r\n" : liveBlockContract ? "TEST_PASS m06.008\r\n" : virtioBlockRead ? "TEST_PASS m06.006\r\n" : virtioBlockQueueSetup ? "TEST_PASS m06.004\r\n" : virtqueueInterrupt ? "TEST_PASS m05.021\r\n" : apicSetup ? "TEST_PASS m05.020\r\n" : virtqueuePolling ? "TEST_PASS m05.019\r\n" : virtioNegotiation ? "TEST_PASS m05.015\r\n" : barDma ? "TEST_PASS m05.011\r\n" : pciEnumeration ? "TEST_PASS m05.007\r\n" : monotonicClock ? "TEST_PASS m05.003\r\n" : ownedAcpiSelection ? "TEST_PASS m05.002\r\n" : physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
-        if (linuxThreads) terminal = linuxSignals ? "TEST_PASS m16-009\r\n" : "TEST_PASS m16-008\r\n";
-        if (runtimeProgram is not null) terminal = NativeAotRuntimeSelection.Markers(runtimeProgram.Application).Pass + "\r\n";
-        if (negativeMemory) terminal = "TEST_FAIL m16-006 user-boundary-terminated status=1\r\n";
-        if (negativeSyscall) terminal = "TEST_FAIL m16-005 user-boundary-terminated status=" +
+        if (linuxThreads)
+            terminal = linuxSignals ? "TEST_PASS m16-009\r\n" : "TEST_PASS m16-008\r\n";
+        if (runtimeProgram is not null)
+            terminal = NativeAotRuntimeSelection.Markers(runtimeProgram.Application).Pass + "\r\n";
+        if (negativeMemory)
+            terminal = "TEST_FAIL m16-006 user-boundary-terminated status=1\r\n";
+        if (negativeSyscall)
+            terminal = "TEST_FAIL m16-005 user-boundary-terminated status=" +
             (linuxSyscallNegativeVariant is "PrivilegedFault" or "KernelReadFault" ? 1 : 5) + "\r\n";
         Need(helloProgram is null || linuxSignals, "hello_requires_signal_profile");
-        Need(threadingProgram is null || linuxSignals,"threading_requires_signal_profile");
-        Need(helloProgram is null || threadingProgram is null,"threading_hello_conflict");
+        Need(threadingProgram is null || linuxSignals, "threading_requires_signal_profile");
+        Need(helloProgram is null || threadingProgram is null, "threading_hello_conflict");
         Need(runtimeProgram is null || linuxSignals && helloProgram is null && threadingProgram is null, "runtime_profile_invalid");
-        if (networkService) terminal = "TEST_PASS m07-026\r\n";
-        if(socket)terminal=signalEpollRace?"TEST_PASS m16-012\r\n":vectorsProgram is not null?"TEST_PASS m16-013\r\n":containmentProgram is not null?"TEST_PASS m07.027\r\n":NativeAotSocketSelection.Terminal(socketProgram!.Asynchronous).Pass+"\r\n";
-        string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault, helloProgram, threadingProgram, runtimeProgram, linuxThreads,socketProgram,containmentProgram,vectorsProgram);
+        if (networkService)
+            terminal = "TEST_PASS m07-026\r\n";
+        if (socket)
+            terminal = signalEpollRace ? "TEST_PASS m16-012\r\n" : vectorsProgram is not null ? "TEST_PASS m16-013\r\n" : containmentProgram is not null ? "TEST_PASS m07.027\r\n" : NativeAotSocketSelection.Terminal(socketProgram!.Asynchronous).Pass + "\r\n";
+        string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault, helloProgram, threadingProgram, runtimeProgram, linuxThreads, socketProgram, containmentProgram, vectorsProgram);
         Need(!linuxStartup || linuxElfPackagePath.Length != 0 && firstRealExit && ownedSurvival && !normalBoot && !firmwareRevocation, "m16_004_profile_invalid");
         Need(!linuxSyscalls || linuxStartup && workloadServiceLoop, "m16_005_profile_invalid");
-        if(socket)
+        if (socket)
         {
-            var combined=signalEpollRace?ValidateSignalEpollNetworkTail(lines,File.ReadAllBytes(linuxElfPackagePath)):vectorsProgram is not null?
-                ValidateSocketVectorsNetworkTail(lines,File.ReadAllBytes(path),File.ReadAllBytes(linuxElfPackagePath),vectorsProgram):
-                containmentProgram is not null?
-                ValidateSocketContainmentNetworkTail(lines,File.ReadAllBytes(path),File.ReadAllBytes(linuxElfPackagePath),containmentProgram):
-                ValidateSocketNetworkTail(lines,File.ReadAllBytes(path),File.ReadAllBytes(linuxElfPackagePath),socketProgram!);
-            if(containmentProgram is not null)AssertSocketContainmentCapture(path+".pcap",combined.Proof,ReadSocketContainmentPeerResult(containmentPeerLine));
-            else AssertSocketCapture(path+".pcap",combined.Proof,vectorsProgram is not null,mechanical:signalEpollRace);
-            lines=combined.Parent;
-            networkService=linuxThreads=linuxSignals=linuxDescriptors=linuxMemory=linuxSyscalls=linuxStartup=workloadServiceLoop=false;
-            virtioNegotiation=virtqueuePolling=virtioNet=arpReceive=false;linuxElfPackagePath="";
+            var combined = signalEpollRace ? ValidateSignalEpollNetworkTail(lines, File.ReadAllBytes(linuxElfPackagePath)) : vectorsProgram is not null ?
+                ValidateSocketVectorsNetworkTail(lines, File.ReadAllBytes(path), File.ReadAllBytes(linuxElfPackagePath), vectorsProgram) :
+                containmentProgram is not null ?
+                ValidateSocketContainmentNetworkTail(lines, File.ReadAllBytes(path), File.ReadAllBytes(linuxElfPackagePath), containmentProgram) :
+                ValidateSocketNetworkTail(lines, File.ReadAllBytes(path), File.ReadAllBytes(linuxElfPackagePath), socketProgram!);
+            if (containmentProgram is not null)
+                AssertSocketContainmentCapture(path + ".pcap", combined.Proof, ReadSocketContainmentPeerResult(containmentPeerLine));
+            else
+                AssertSocketCapture(path + ".pcap", combined.Proof, vectorsProgram is not null, mechanical: signalEpollRace);
+            lines = combined.Parent;
+            networkService = linuxThreads = linuxSignals = linuxDescriptors = linuxMemory = linuxSyscalls = linuxStartup = workloadServiceLoop = false;
+            virtioNegotiation = virtqueuePolling = virtioNet = arpReceive = false;
+            linuxElfPackagePath = "";
         }
         if (networkService)
         {
@@ -104,7 +113,8 @@ public static partial class QemuTranscripts
             string[] parents = ValidateServiceLoopTail(lines[..end]);
             parents = ValidateLinuxElfTail(parents, File.ReadAllBytes(linuxElfPackagePath));
             lines = [.. parents, .. lines[end..]];
-            workloadServiceLoop = false; linuxElfPackagePath = "";
+            workloadServiceLoop = false;
+            linuxElfPackagePath = "";
         }
         if (linuxThreads)
         {
@@ -125,21 +135,22 @@ public static partial class QemuTranscripts
             string readback = lines[QemuContracts.M03OwnedSubsystemMarkers.Count + 7 + 4];
             Need(readback.EndsWith(restoredSuffix, StringComparison.Ordinal), "m16_008_parent_readback");
             var kernel = ReadRecord(readback[..^restoredSuffix.Length], "M16_004_READBACK", "old:dec");
-            if(runtimeProgram is not null)
+            if (runtimeProgram is not null)
             {
-                byte[] raw=File.ReadAllBytes(path);
-                const string clockSuffix=" source=owned-hpet";
-                string clockLine=lines.Single(l=>l.StartsWith("M16_003_CLOCK ",StringComparison.Ordinal));
-                Need(clockLine.EndsWith(clockSuffix,StringComparison.Ordinal),"m16_003_clock_source");
-                var parentClock=ReadRecord(clockLine[..^clockSuffix.Length],"M16_003_CLOCK","frequency:dec","period:dec","recoveries:dec");
-                ValidateNativeAotRuntimeTail(runtimeProgram.SourceRoot,package,runtimeProgram,
-                    RuntimeRawLeaf(runtimeProgram.Application,raw),tables["root"],kernel["old"],parentClock["frequency"]);
+                byte[] raw = File.ReadAllBytes(path);
+                const string clockSuffix = " source=owned-hpet";
+                string clockLine = lines.Single(l => l.StartsWith("M16_003_CLOCK ", StringComparison.Ordinal));
+                Need(clockLine.EndsWith(clockSuffix, StringComparison.Ordinal), "m16_003_clock_source");
+                var parentClock = ReadRecord(clockLine[..^clockSuffix.Length], "M16_003_CLOCK", "frequency:dec", "period:dec", "recoveries:dec");
+                ValidateNativeAotRuntimeTail(runtimeProgram.SourceRoot, package, runtimeProgram,
+                    RuntimeRawLeaf(runtimeProgram.Application, raw), tables["root"], kernel["old"], parentClock["frequency"]);
             }
-            else if(threadingProgram is not null)
+            else if (threadingProgram is not null)
             {
-                byte[] raw=File.ReadAllBytes(path);int rawStart=raw.AsSpan().IndexOf("TEST_START m16-009\r\n"u8);
-                Need(rawStart>=0,"threading_raw_leaf");
-                ValidateNativeAotThreadingTail(threadingProgram.SourceRoot,package,threadingProgram,raw.AsSpan(rawStart),tables["root"],kernel["old"]);
+                byte[] raw = File.ReadAllBytes(path);
+                int rawStart = raw.AsSpan().IndexOf("TEST_START m16-009\r\n"u8);
+                Need(rawStart >= 0, "threading_raw_leaf");
+                ValidateNativeAotThreadingTail(threadingProgram.SourceRoot, package, threadingProgram, raw.AsSpan(rawStart), tables["root"], kernel["old"]);
             }
             else if (helloProgram is not null)
             {
@@ -148,8 +159,10 @@ public static partial class QemuTranscripts
                 Need(rawStart >= 0, "hello_raw_leaf");
                 ValidateLinuxHelloTail(helloProgram.SourceRoot, lines[start..], package, helloProgram, raw.AsSpan(rawStart), tables["root"], kernel["old"]);
             }
-            else if (linuxSignals) ValidateLinuxSignalTail(lines[start..], package, tables["root"], kernel["old"]);
-            else ValidateLinuxThreadTail(lines[start..], package, tables["root"], kernel["old"]);
+            else if (linuxSignals)
+                ValidateLinuxSignalTail(lines[start..], package, tables["root"], kernel["old"]);
+            else
+                ValidateLinuxThreadTail(lines[start..], package, tables["root"], kernel["old"]);
             string[] parents = ValidateServiceLoopTail(lines[..parentsEnd], true);
             parents = ValidateLinuxStartupTail(parents, package);
             parents = ValidateLinuxElfTail(parents, package);
@@ -157,20 +170,30 @@ public static partial class QemuTranscripts
             // separately checked Linux startup/service records are removed.
             lines = [.. parents, .. lines[parentsEnd..start]];
         }
-        else if (threadWait) lines = ValidateThreadWaitTail(lines, privateTls);
-        else if (kernelThreads) lines = ValidateKernelThreadTail(lines);
-        else if (schedulerTimer) lines = ValidateSchedulerTimerTail(lines);
-        else if (cooperativeSwitch) lines = ValidateCooperativeTail(lines);
-        else if (linuxDescriptors) lines = ValidateLinuxDescriptorTail(lines, File.ReadAllBytes(linuxElfPackagePath));
-        else if (linuxMemory) lines = negativeMemory
+        else if (threadWait)
+            lines = ValidateThreadWaitTail(lines, privateTls);
+        else if (kernelThreads)
+            lines = ValidateKernelThreadTail(lines);
+        else if (schedulerTimer)
+            lines = ValidateSchedulerTimerTail(lines);
+        else if (cooperativeSwitch)
+            lines = ValidateCooperativeTail(lines);
+        else if (linuxDescriptors)
+            lines = ValidateLinuxDescriptorTail(lines, File.ReadAllBytes(linuxElfPackagePath));
+        else if (linuxMemory)
+            lines = negativeMemory
             ? ValidateLinuxMemoryNegativeTail(lines, File.ReadAllBytes(linuxElfPackagePath), linuxMemoryNegativeVariant)
             : ValidateLinuxMemoryTail(lines, File.ReadAllBytes(linuxElfPackagePath));
-        else if (linuxSyscalls) lines = negativeSyscall
+        else if (linuxSyscalls)
+            lines = negativeSyscall
             ? ValidateLinuxSyscallNegativeTail(lines, File.ReadAllBytes(linuxElfPackagePath), linuxSyscallNegativeVariant)
             : ValidateLinuxSyscallTail(lines);
-        if (!linuxThreads && workloadServiceLoop) lines = ValidateServiceLoopTail(lines, linuxStartup);
-        if (!linuxThreads && linuxStartup) lines = ValidateLinuxStartupTail(lines, File.ReadAllBytes(linuxElfPackagePath));
-        if (!linuxThreads && linuxElfPackagePath.Length != 0) lines = ValidateLinuxElfTail(lines, File.ReadAllBytes(linuxElfPackagePath));
+        if (!linuxThreads && workloadServiceLoop)
+            lines = ValidateServiceLoopTail(lines, linuxStartup);
+        if (!linuxThreads && linuxStartup)
+            lines = ValidateLinuxStartupTail(lines, File.ReadAllBytes(linuxElfPackagePath));
+        if (!linuxThreads && linuxElfPackagePath.Length != 0)
+            lines = ValidateLinuxElfTail(lines, File.ReadAllBytes(linuxElfPackagePath));
         Need(!arpReceive || virtioNet && !normalBoot, "m07_arp_receive_profile_invalid");
         if (arpReceive)
         {
@@ -196,37 +219,65 @@ public static partial class QemuTranscripts
             firstRealExit ? QemuContracts.M03FirstExitRequiredMarkers : QemuContracts.M03AcpiBootstrapRequiredMarkers;
         int ownedStart = normalBoot ? 63 : 66;
         int[] varying = [3, 9, 10, 19, 20, 21, 22, 23, 24, .. ownedSurvival ? Enumerable.Range(ownedStart, ownedPanic ? 11 : 10) : [], .. physicalMapping ? Enumerable.Range(77, 7) : [], .. ownedAcpiSelection || monotonicClock ? Enumerable.Range(77, 4) : [], .. pciEnumeration ? new[] { 77, 78, 82, 83, 87, 88, 89, 93, 94 } : []];
-        if (ownedPanic) expected = [.. expected, lines[^1]];
-        if (barDma) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_BAR_DMA ", StringComparison.Ordinal)).Select(x => x.i)];
-        if (virtioNegotiation) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_VIRTIO ", StringComparison.Ordinal)).Select(x => x.i)];
-        if (apicSetup) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_APIC ", StringComparison.Ordinal)).Select(x => x.i)];
-        if (virtqueueInterrupt) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_IRQ ", StringComparison.Ordinal)).Select(x => x.i)];
-        if (virtqueuePolling || virtqueueInterrupt) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_QUEUE ", StringComparison.Ordinal)).Select(x => x.i)];
-        if (virtioBlockQueueSetup) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_BLK ", StringComparison.Ordinal)).Select(x => x.i)];
-        if (virtioBlockRead) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_READ ", StringComparison.Ordinal)).Select(x => x.i)];
-        if (liveBlockContract) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_BDEV ", StringComparison.Ordinal)).Select(x => x.i)];
-        if (fatRead) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_FAT ", StringComparison.Ordinal)).Select(x => x.i)];
-        if (packageRead) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_PKG ", StringComparison.Ordinal)).Select(x => x.i)];
-        if (gptPartition) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_GPT ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (ownedPanic)
+            expected = [.. expected, lines[^1]];
+        if (barDma)
+            varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_BAR_DMA ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (virtioNegotiation)
+            varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_VIRTIO ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (apicSetup)
+            varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_APIC ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (virtqueueInterrupt)
+            varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_IRQ ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (virtqueuePolling || virtqueueInterrupt)
+            varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_QUEUE ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (virtioBlockQueueSetup)
+            varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_BLK ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (virtioBlockRead)
+            varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_READ ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (liveBlockContract)
+            varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_BDEV ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (fatRead)
+            varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_FAT ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (packageRead)
+            varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_PKG ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (gptPartition)
+            varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_GPT ", StringComparison.Ordinal)).Select(x => x.i)];
         ExactInventory(lines, expected, varying);
         ValidateAllocator(lines);
         var rows = AssertCopiedAcpiRecords(lines);
-        if (ownedSurvival) AssertM03OwnedSubsystemRecords(physicalMapping || ownedAcpiSelection || monotonicClock || pciEnumeration ? lines[..76] : lines, rows, ownedPanic, normalBoot);
-        if (physicalMapping) AssertM05PhysicalMappingRecords(lines);
-        if (ownedAcpiSelection) AssertM05OwnedAcpiSelectionRecords(lines);
-        if (pciEnumeration) AssertM05PciEnumerationRecords(barDma || virtioNegotiation || apicSetup || virtioBlockQueueSetup ? lines[..QemuContracts.M05PciEnumerationMarkers.Count] : lines);
-        if (barDma) AssertM05BarDmaRecords(lines);
-        if (virtqueueInterrupt) AssertM05VirtqueueInterruptRecords(lines);
-        else if (apicSetup) AssertM05ApicSetupRecords(lines);
-        if (virtioNegotiation && !virtqueueInterrupt) AssertM05VirtioNegotiationRecords(virtqueuePolling ? lines[..QemuContracts.M05VirtioNegotiationMarkers.Count] : lines);
-        if (virtqueuePolling) AssertM05VirtqueuePollingRecords(lines);
-        if (virtioBlockQueueSetup) AssertM06VirtioBlockQueueSetupRecords(virtioBlockRead ? lines[..QemuContracts.M06VirtioBlockQueueSetupMarkers.Count] : lines);
-        if (virtioBlockRead) AssertM06VirtioBlockReadRecords(liveBlockContract ? lines[..QemuContracts.M06VirtioBlockReadMarkers.Count] : lines);
-        if (liveBlockContract) AssertM06LiveBlockContractRecords(gptPartition ? lines[..QemuContracts.M06LiveBlockContractMarkers.Count] : lines);
-        if (gptPartition) AssertM06GptPartitionRecords(fatRead ? lines[..QemuContracts.M06GptPartitionMarkers().Count] : lines, primaryHeaderFault);
-        if (fatRead) AssertM06FatReadRecords(packageRead ? lines[..QemuContracts.M06FatReadMarkers().Count] : lines);
-        if (packageRead) AssertM06PackageReadRecords(lines, packageVariant);
-        if (monotonicClock) AssertM05MonotonicClockRecords(lines);
+        if (ownedSurvival)
+            AssertM03OwnedSubsystemRecords(physicalMapping || ownedAcpiSelection || monotonicClock || pciEnumeration ? lines[..76] : lines, rows, ownedPanic, normalBoot);
+        if (physicalMapping)
+            AssertM05PhysicalMappingRecords(lines);
+        if (ownedAcpiSelection)
+            AssertM05OwnedAcpiSelectionRecords(lines);
+        if (pciEnumeration)
+            AssertM05PciEnumerationRecords(barDma || virtioNegotiation || apicSetup || virtioBlockQueueSetup ? lines[..QemuContracts.M05PciEnumerationMarkers.Count] : lines);
+        if (barDma)
+            AssertM05BarDmaRecords(lines);
+        if (virtqueueInterrupt)
+            AssertM05VirtqueueInterruptRecords(lines);
+        else if (apicSetup)
+            AssertM05ApicSetupRecords(lines);
+        if (virtioNegotiation && !virtqueueInterrupt)
+            AssertM05VirtioNegotiationRecords(virtqueuePolling ? lines[..QemuContracts.M05VirtioNegotiationMarkers.Count] : lines);
+        if (virtqueuePolling)
+            AssertM05VirtqueuePollingRecords(lines);
+        if (virtioBlockQueueSetup)
+            AssertM06VirtioBlockQueueSetupRecords(virtioBlockRead ? lines[..QemuContracts.M06VirtioBlockQueueSetupMarkers.Count] : lines);
+        if (virtioBlockRead)
+            AssertM06VirtioBlockReadRecords(liveBlockContract ? lines[..QemuContracts.M06VirtioBlockReadMarkers.Count] : lines);
+        if (liveBlockContract)
+            AssertM06LiveBlockContractRecords(gptPartition ? lines[..QemuContracts.M06LiveBlockContractMarkers.Count] : lines);
+        if (gptPartition)
+            AssertM06GptPartitionRecords(fatRead ? lines[..QemuContracts.M06GptPartitionMarkers().Count] : lines, primaryHeaderFault);
+        if (fatRead)
+            AssertM06FatReadRecords(packageRead ? lines[..QemuContracts.M06FatReadMarkers().Count] : lines);
+        if (packageRead)
+            AssertM06PackageReadRecords(lines, packageVariant);
+        if (monotonicClock)
+            AssertM05MonotonicClockRecords(lines);
     }
 
     // Shared copied-table checks over borrowed observations; firmware and
@@ -237,7 +288,8 @@ public static partial class QemuTranscripts
         var rows = new List<Dictionary<string, ulong>>();
         var physical = new List<(decimal Start, decimal End)>();
         var indices = new HashSet<ulong>();
-        decimal total = 0, ownerBase = 0; ulong pointerCount = 0;
+        decimal total = 0, ownerBase = 0;
+        ulong pointerCount = 0;
         for (int i = 0; i < roles.Length; i++)
         {
             var r = ReadRecord(lines[19 + i], "CLROS_M03_002_TABLE role=" + roles[i], "physical:dec", "owned:dec", "offset:dec", "length:dec", "signature:dec", "rootIndex:dec", "compared:dec", "mismatches:dec");
@@ -253,8 +305,10 @@ public static partial class QemuTranscripts
             Need(lo >= ownerBase + 266256 || ownerBase - 16 >= hi, "m03_acpi_source_destination_alias");
             Need(physical.All(p => lo >= p.End || p.Start >= hi), "m03_acpi_source_alias");
             physical.Add((lo, hi));
-            if (i < 2) Need(r["rootIndex"] == ulong.MaxValue, "m03_acpi_root_index_sentinel");
-            if (i == 0) Need(r["signature"] == 0x2052545020445352 && (r["length"] == 20 || r["length"] >= 36), "m03_acpi_rsdp_envelope");
+            if (i < 2)
+                Need(r["rootIndex"] == ulong.MaxValue, "m03_acpi_root_index_sentinel");
+            if (i == 0)
+                Need(r["signature"] == 0x2052545020445352 && (r["length"] == 20 || r["length"] >= 36), "m03_acpi_rsdp_envelope");
             else if (i == 1)
             {
                 ulong stride = r["signature"] == 0x54445358 ? 8UL : r["signature"] == 0x54445352 ? 4UL : 0;
@@ -267,9 +321,11 @@ public static partial class QemuTranscripts
             {
                 ulong[] signatures = [0x4746434D, 0x43495041, 0x54455048];
                 Need(r["signature"] == signatures[i - 2] && r["rootIndex"] < pointerCount && indices.Add(r["rootIndex"]), "m03_acpi_selected_association");
-                if (i == 2) Need(r["length"] >= 60 && (r["length"] - 44) % 16 == 0 && (r["length"] - 44) / 16 <= 16, "m03_acpi_mcfg_length");
+                if (i == 2)
+                    Need(r["length"] >= 60 && (r["length"] - 44) % 16 == 0 && (r["length"] - 44) / 16 <= 16, "m03_acpi_mcfg_length");
             }
-            total += r["length"]; rows.Add(r);
+            total += r["length"];
+            rows.Add(r);
         }
         var retained = ReadRecord(lines[24], "CLROS_M03_002_RETAIN", "total:dec", "descriptors:dec", "guards:dec", "tail:dec", "mismatches:dec");
         Need(total <= 266240 && retained["total"] == total && retained["descriptors"] == 5 && retained["guards"] == 32 &&
@@ -288,11 +344,13 @@ public static partial class QemuTranscripts
         ulong[] a = rows[0], d = rows[6];
         Need(a[0] != 0 && a[0] % 8 == 0 && (decimal)a[0] + 312 < limit && a[2] != 0 && a[2] % 4096 == 0 &&
             (decimal)a[2] + 8192 < limit && a[1] == a[2] && a[3] == 2 && a[4] == 2 && a[5] == 8192 && a[6] == 0 && a[7] == 0, "m03_owned_allocator");
-        ulong workspace = rows[1][0], copied = rows[1][1]; decimal offset = 0;
+        ulong workspace = rows[1][0], copied = rows[1][1];
+        decimal offset = 0;
         Need(workspace != 0 && workspace % 8 == 0 && workspace < limit && copied >= 16 && (copied - 16) % 8 == 0 && (decimal)copied + 266256 < limit, "m03_owned_acpi_owner");
         for (int i = 0; i < 5; i++)
         {
-            ulong[] r = rows[i + 1]; var previous = acpiRows[i];
+            ulong[] r = rows[i + 1];
+            var previous = acpiRows[i];
             Need(r[0] == workspace && r[1] == copied && r[2] == previous["physical"] && r[3] == offset && r[3] == previous["offset"] &&
                 copied + offset == previous["owned"] && r[4] == previous["length"] && r[5] == previous["signature"] && r[6] == previous["rootIndex"] &&
                 r[7] == r[4] && r[7] == previous["compared"] && previous["mismatches"] == 0, "m03_owned_acpi_association_" + i);
@@ -302,7 +360,8 @@ public static partial class QemuTranscripts
             d[2] != 0 && d[2] % 4096 == 0 && (decimal)d[2] + 12288 < limit && d[3] == d[0] + 4096 && d[4] == d[0] + 8192 && d[5] == d[0] + 12288 && d[6] == 24 &&
             d[7] > d[0] + 90120 && d[7] < d[0] + 352240 && d[7] % 16 == 8, "m03_owned_descriptors");
         DistinctExtents([(a[0], 312), (copied - 16, 266272), (a[2], 8192), (d[0], 430080), (d[1], 225280), (d[2], 12288)], "m03_owned");
-        if (!panic) return;
+        if (!panic)
+            return;
         ulong[] arm = rows[7], entered = rows[8];
         Need(arm[0] == d[0] + 86016 && arm[1] == d[1] && arm[2] == d[0] + 1024 && arm[3] == d[2] && arm[4] == d[0] &&
             arm[5] == d[0] + 90120 && arm[6] == d[0] + 352240 && arm[7] == d[0] + 401392 && entered[0] == arm[0] && entered[1] == arm[1] && entered[2] == arm[2] &&
@@ -325,7 +384,8 @@ public static partial class QemuTranscripts
             expected[15] = "M03_ENTROPY_ACQUIRE status=0 calls=1 requested=32";
             expected[16] = "M03_ENTROPY_RETAIN bytes=32 scratchCleared=32 guards=64 tails=64 published=1";
         }
-        ExactInventory(lines, expected, 3, 9, 10); ValidateAllocator(lines);
+        ExactInventory(lines, expected, 3, 9, 10);
+        ValidateAllocator(lines);
     }
 
     public static void AssertM03TypedExitBootServicesTranscript(string path)

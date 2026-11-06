@@ -281,19 +281,9 @@ internal static class PalPackageFileTests
     [HostTest("pal.package file table read uses shared buffer operations", HostLane.Fast, 8)]
     private static bool TestReadUsesSharedBufferOperations()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(Path.Combine(
-            repositoryRoot,
-            "src",
-            "OS.Kernel",
-            "Pal",
-            "OSHostPackageFileTable.cs"));
-
-        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
-            && source.Contains("BufferOperations.MemoryCopy(source, destination)", StringComparison.Ordinal)
-            && source.Contains("if (!copy.Succeeded)", StringComparison.Ordinal)
-            && source.Contains("OSHostStatus.BufferTooSmall", StringComparison.Ordinal)
-            && !source.Contains(".CopyTo(destination)", StringComparison.Ordinal));
+        return HostCheck.Result(StorageBufferCopySourceGuard.Check(
+            HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"), typeof(OSHostPackageFileTable).FullName!,
+            "ReadAt", typeof(OSHostStatus).FullName!, nameof(OSHostStatus.BufferTooSmall)));
     }
 
     private static byte[] CreateValidPackage()

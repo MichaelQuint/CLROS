@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
@@ -15,14 +16,101 @@
 
 	<ItemGroup>
 		<Compile Include="..\..\apps\MinimalApiService\ServiceLifecycleExercise.cs" Link="AppFixtures\ServiceLifecycleExercise.cs" />
+		<Compile Include="..\..\apps\MinimalApiService\ServiceLifecycleExercise.EchoResult.cs" Link="AppFixtures\ServiceLifecycleExercise.EchoResult.cs" />
+		<Compile Include="..\..\apps\MinimalApiService\ServiceLifecycleExercise.GcPressure.cs" Link="AppFixtures\ServiceLifecycleExercise.GcPressure.cs" />
 		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelChurnExercise.cs" Link="AppFixtures\KestrelChurnExercise.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelChurnExercise.Snapshot.cs" Link="AppFixtures\KestrelChurnExercise.Snapshot.cs" />
 		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbeAbi.cs" Link="AppFixtures\KestrelSignalProbeAbi.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbeAbi.KernelAction.cs" Link="AppFixtures\KestrelSignalProbeAbi.KernelAction.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbeAbi.AltStack.cs" Link="AppFixtures\KestrelSignalProbeAbi.AltStack.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbeAbi.EpollEvent.cs" Link="AppFixtures\KestrelSignalProbeAbi.EpollEvent.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbeAbi.Result.cs" Link="AppFixtures\KestrelSignalProbeAbi.Result.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbeAbi.WaitResult.cs" Link="AppFixtures\KestrelSignalProbeAbi.WaitResult.cs" />
 		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbe.cs" Link="AppFixtures\KestrelSignalProbe.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbe.EventLifetime.cs" Link="AppFixtures\KestrelSignalProbe.EventLifetime.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbe.CallbackState.cs" Link="AppFixtures\KestrelSignalProbe.CallbackState.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbe.Waiter.cs" Link="AppFixtures\KestrelSignalProbe.Waiter.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbe.Actor.cs" Link="AppFixtures\KestrelSignalProbe.Actor.cs" />
 		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalRaceState.cs" Link="AppFixtures\KestrelSignalRaceState.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalRaceState.Snapshot.cs" Link="AppFixtures\KestrelSignalRaceState.Snapshot.cs" />
+		<Compile Include="..\..\src\OS.Kernel\Diagnostics\OwnedCom1HexWriter.cs" Link="CoreDiagnostics\OwnedCom1HexWriter.cs" />
+		<Compile Include="..\..\src\OS.Kernel\Diagnostics\OwnedCom1TextWriter.cs" Link="CoreDiagnostics\OwnedCom1TextWriter.cs" />
 		<Compile Include="..\..\src\OS\Boot\EfiEntry.cs" Link="EfiAdapters\EfiEntry.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageOneAdapter.cs" Link="EfiAdapters\EfiEntry.M01StageOneAdapter.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageTwoAdapter.cs" Link="EfiAdapters\EfiEntry.M01StageTwoAdapter.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.EfiTableHeader.cs" Link="EfiAdapters\EfiEntry.EfiTableHeader.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.EfiSimpleTextOutputProtocol.cs" Link="EfiAdapters\EfiEntry.EfiSimpleTextOutputProtocol.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.EfiBootServices.cs" Link="EfiAdapters\EfiEntry.EfiBootServices.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.EfiSystemTable.cs" Link="EfiAdapters\EfiEntry.EfiSystemTable.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.EfiMemoryMapSnapshot.cs" Link="EfiAdapters\EfiEntry.EfiMemoryMapSnapshot.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.OwnedMemoryMapBuffer.cs" Link="EfiAdapters\EfiEntry.OwnedMemoryMapBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.OwnedMemoryRegionBuffer.cs" Link="EfiAdapters\EfiEntry.OwnedMemoryRegionBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.BootPageAllocatorNodeBuffer.cs" Link="EfiAdapters\EfiEntry.BootPageAllocatorNodeBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.EfiBootPageAllocatorReadinessStatus.cs" Link="EfiAdapters\EfiEntry.EfiBootPageAllocatorReadinessStatus.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.EfiBootPageAllocatorReadinessResult.cs" Link="EfiAdapters\EfiEntry.EfiBootPageAllocatorReadinessResult.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.EfiGuid.cs" Link="EfiAdapters\EfiEntry.EfiGuid.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.EfiSerialIoProtocol.cs" Link="EfiAdapters\EfiEntry.EfiSerialIoProtocol.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.EfiConsoleCharacter.cs" Link="EfiAdapters\EfiEntry.EfiConsoleCharacter.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M04ManagedHeapAdapter.cs" Link="EfiAdapters\EfiEntry.M04ManagedHeapAdapter.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M03FirstExitAdapter.cs" Link="EfiAdapters\EfiEntry.M03FirstExitAdapter.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M03FirstExitAdapter.Storage.cs" Link="EfiAdapters\EfiEntry.M03FirstExitAdapter.Storage.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.FirmwareEntropyReservoir.cs" Link="EfiAdapters\EfiEntry.FirmwareEntropyReservoir.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.FirmwareEntropyReservoir.State.cs" Link="EfiAdapters\EfiEntry.FirmwareEntropyReservoir.State.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.FirmwareEntropyCapture.cs" Link="EfiAdapters\EfiEntry.FirmwareEntropyCapture.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.FirmwareEntropyCapture.Buffer.cs" Link="EfiAdapters\EfiEntry.FirmwareEntropyCapture.Buffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.FirmwareEntropyCapture.Protocol.cs" Link="EfiAdapters\EfiEntry.FirmwareEntropyCapture.Protocol.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.FirmwareEntropyCapture.State.cs" Link="EfiAdapters\EfiEntry.FirmwareEntropyCapture.State.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageOneAdapter.M01StageOneAdapterStatus.cs" Link="EfiAdapters\EfiEntry.M01StageOneAdapter.M01StageOneAdapterStatus.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageOneAdapter.EfiLoadedImageProtocol.cs" Link="EfiAdapters\EfiEntry.M01StageOneAdapter.EfiLoadedImageProtocol.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageOneAdapter.M01StageOneMemoryMapBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageOneAdapter.M01StageOneMemoryMapBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageOneAdapter.M01StageOneAllocationRecordBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageOneAdapter.M01StageOneAllocationRecordBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageOneAdapter.M01StageOneReservationLedgerBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageOneAdapter.M01StageOneReservationLedgerBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageTwoAdapter.M01StageTwoAdapterStatus.cs" Link="EfiAdapters\EfiEntry.M01StageTwoAdapter.M01StageTwoAdapterStatus.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageTwoAdapter.M01StageTwoReservationLedgerBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageTwoAdapter.M01StageTwoReservationLedgerBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.AcpiBootstrapWorkspace.cs" Link="EfiAdapters\EfiEntry.AcpiBootstrapWorkspace.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.AcpiBootstrapOwnedBuffer.cs" Link="EfiAdapters\EfiEntry.AcpiBootstrapOwnedBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M02UnexpectedVectorPanicAdapter.cs" Link="EfiAdapters\EfiEntry.M02UnexpectedVectorPanicAdapter.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M02UnexpectedVectorPanicAdapter.Authority.cs" Link="EfiAdapters\EfiEntry.M02UnexpectedVectorPanicAdapter.Authority.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M03FirstExitAdapter.CooperativeControl.cs" Link="EfiAdapters\EfiEntry.M03FirstExitAdapter.CooperativeControl.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M03FirstExitAdapter.TimerControl.cs" Link="EfiAdapters\EfiEntry.M03FirstExitAdapter.TimerControl.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M03FirstExitAdapter.LinuxLoadedImage.cs" Link="EfiAdapters\EfiEntry.M03FirstExitAdapter.LinuxLoadedImage.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M03FirstExitAdapter.LinuxFileSystem.cs" Link="EfiAdapters\EfiEntry.M03FirstExitAdapter.LinuxFileSystem.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M03FirstExitAdapter.LinuxFile.cs" Link="EfiAdapters\EfiEntry.M03FirstExitAdapter.LinuxFile.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M03FirstExitAdapter.AdapterHandles.cs" Link="EfiAdapters\EfiEntry.M03FirstExitAdapter.AdapterHandles.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.TypedExitBootServicesCallProbe.cs" Link="EfiAdapters\EfiEntry.TypedExitBootServicesCallProbe.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.TypedExitBootServicesCallProbe.Observation.cs" Link="EfiAdapters\EfiEntry.TypedExitBootServicesCallProbe.Observation.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.TypedExitBootServicesCallProbe.Storage.cs" Link="EfiAdapters\EfiEntry.TypedExitBootServicesCallProbe.Storage.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.TypedExitBootServicesCallProbe.Snapshot.cs" Link="EfiAdapters\EfiEntry.TypedExitBootServicesCallProbe.Snapshot.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.FinalMapRetryProbe.cs" Link="EfiAdapters\EfiEntry.FinalMapRetryProbe.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.FinalMapRetryProbe.Attempt.cs" Link="EfiAdapters\EfiEntry.FinalMapRetryProbe.Attempt.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.FinalMapRetryProbe.Case.cs" Link="EfiAdapters\EfiEntry.FinalMapRetryProbe.Case.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.FinalMapRetryProbe.Snapshot.cs" Link="EfiAdapters\EfiEntry.FinalMapRetryProbe.Snapshot.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreeAdapterStatus.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreeAdapterStatus.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreeAllocationRecordBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreeAllocationRecordBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreeReservationLedgerBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreeReservationLedgerBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreeFixedRequirementBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreeFixedRequirementBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreeRequirementBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreeRequirementBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreeRangeBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreeRangeBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreePageImageBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreePageImageBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreePageEntryBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreePageEntryBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreeBindingBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreeBindingBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreeSemanticBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreeSemanticBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreeStateSnapshotBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreeStateSnapshotBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreePlannerStackBuffer.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreePlannerStackBuffer.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M01StageThreePreparationCallContext.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M01StageThreePreparationCallContext.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M01StageThreeAdapter.M02OwnedX64GdtEncodingStackWorkspace.cs" Link="EfiAdapters\EfiEntry.M01StageThreeAdapter.M02OwnedX64GdtEncodingStackWorkspace.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M02PageFaultAdapter.cs" Link="EfiAdapters\EfiEntry.M02PageFaultAdapter.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M02DoubleFaultIstAdapter.cs" Link="EfiAdapters\EfiEntry.M02DoubleFaultIstAdapter.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M02IdtrContinuedExecutionStackWorkspace.cs" Link="EfiAdapters\EfiEntry.M02IdtrContinuedExecutionStackWorkspace.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M03MemoryMapCaptureObserver.cs" Link="EfiAdapters\EfiEntry.M03MemoryMapCaptureObserver.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.M03MemoryMapCaptureObserver.Observation.cs" Link="EfiAdapters\EfiEntry.M03MemoryMapCaptureObserver.Observation.cs" />
 		<Compile Include="..\..\src\OS\Boot\EfiConsoleAdapter.cs" Link="EfiAdapters\EfiConsoleAdapter.cs" />
 		<Compile Include="..\..\src\OS\Runtime\NativeAotModuleRegistrationProbe.cs" Link="EfiAdapters\NativeAotModuleRegistrationProbe.cs" />
-		<Compile Include="..\..\src\OS\Runtime\ExceptionRethrowProbe.cs" Link="EfiAdapters\ExceptionRethrowProbe.cs" />
+		<Compile Include="..\..\src\OS\Runtime\NativeAotModuleRegistrationProbe.Buffer.cs" Link="EfiAdapters\NativeAotModuleRegistrationProbe.Buffer.cs" />
+		<Compile Include="..\..\src\OS\Runtime\NativeAotModuleRegistrationProbe.Observation.cs" Link="EfiAdapters\NativeAotModuleRegistrationProbe.Observation.cs" />
+		<Compile Include="..\..\src\OS\Runtime\RethrowAdmission.cs" Link="EfiAdapters\RethrowAdmission.cs" />
+		<Compile Include="..\..\src\OS\Runtime\ExceptionRethrowProbe.RhpNewFastAllocation.cs" Link="EfiAdapters\ExceptionRethrowProbe.RhpNewFastAllocation.cs" />
 		<ProjectReference Include="..\..\tools\OS.Tooling\OS.Tooling.csproj" />
 		<ProjectReference Include="..\..\src\OS.Kernel\OS.Kernel.csproj" />
 		<ProjectReference Include="..\..\src\OS.Std.NoRuntime.Shared\OS.Std.NoRuntime.Shared.csproj" />
@@ -48,13 +136,13 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="CaptureHostTestBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveReferences;GenerateGlobalUsings;GenerateTargetFrameworkMonikerAttribute;GenerateAssemblyInfo">
+  <Target Name="CaptureHostTestBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="CaptureHostProjectOutputs;ResolveReferences;GenerateGlobalUsings;GenerateTargetFrameworkMonikerAttribute;GenerateAssemblyInfo">
     <PropertyGroup>
       <!-- Normalize before globbing: parent segments can prevent generated-tree exclusions from matching. -->
       <_HostTestSourceRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\'))</_HostTestSourceRoot>
     </PropertyGroup>
     <ItemGroup>
-      <_HostTestInput Include="@(Compile);@(ReferencePath);$(MSBuildProjectFullPath);$(MSBuildThisFileDirectory)..\..\global.json;$(MSBuildThisFileDirectory)..\..\CLROS.slnx;$(MSBuildThisFileDirectory)..\..\Directory.Build.props;$(MSBuildThisFileDirectory)..\..\Directory.Build.targets;$(MSBuildThisFileDirectory)..\..\.gitea\backlog\clros-issues.json" />
+      <_HostTestInput Include="@(Compile);@(ReferencePath);$(MSBuildProjectFullPath);$(MSBuildThisFileDirectory)..\..\global.json;$(MSBuildThisFileDirectory)..\..\CLROS.slnx;$(MSBuildThisFileDirectory)..\..\Directory.Build.props;$(MSBuildThisFileDirectory)..\..\Directory.Build.targets;$(MSBuildThisFileDirectory)..\..\.editorconfig;$(MSBuildThisFileDirectory)..\..\.gitea\backlog\clros-issues.json" />
       <_HostTestInput Include="$(_HostTestSourceRoot)apps\**\*.cs;$(_HostTestSourceRoot)apps\**\*.csproj;$(_HostTestSourceRoot)apps\**\*.props;$(_HostTestSourceRoot)apps\**\*.targets;$(_HostTestSourceRoot)apps\**\*.json"
         Exclude="$(_HostTestSourceRoot)**\obj\**\*;$(_HostTestSourceRoot)**\bin\**\*;$(_HostTestSourceRoot)**\artifacts\**\*" />
       <_HostTestInput Include="$(_HostTestSourceRoot)src\**\*.cs;$(_HostTestSourceRoot)src\**\*.csproj;$(_HostTestSourceRoot)std\**\*.cs;$(_HostTestSourceRoot)std\**\*.csproj;$(_HostTestSourceRoot)tools\**\*.cs;$(_HostTestSourceRoot)tools\**\*.csproj;$(_HostTestSourceRoot)tests\**\*.cs;$(_HostTestSourceRoot)tests\**\*.csproj"
@@ -78,4 +166,7 @@
     </ItemGroup>
   </Target>
 
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="../../tools/OS.CompilerReceipts/HostProjectOutputs.targets" Condition="'$(_ClrosHostProjectOutputsImported)' != 'true'" />
+  <Import Project="../../tools/OS.CompilerReceipts/HostCompilationReceipts.targets" />
 </Project>

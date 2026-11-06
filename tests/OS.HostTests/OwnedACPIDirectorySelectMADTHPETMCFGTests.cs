@@ -91,16 +91,48 @@ internal static unsafe class OwnedACPIDirectorySelectMADTHPETMCFGTests
     {
         (string Name, Action<byte[], ulong[]> Change)[] cases =
         [
-            ("RSDP signature", (b, r) => { b[0] = 0; FixRsdp(b, (int)r[2]); }),
+            ("RSDP signature", (b, r) =>
+        {
+            b[0] = 0;
+            FixRsdp(b, (int)r[2]);
+        }),
             ("RSDP checksum", (b, _) => b[8]++),
             ("extended RSDP checksum", (b, _) => b[32]++),
-            ("reserved revision", (b, r) => { b[15] = 1; FixRsdp(b, (int)r[2]); }),
-            ("legacy RSDP with extended length", (b, r) => { b[15] = 0; FixRsdp(b, (int)r[2]); }),
-            ("zero OEM ID", (b, r) => { b.AsSpan(9, 6).Clear(); FixRsdp(b, (int)r[2]); }),
-            ("declared RSDP length", (b, r) => { EndianPrimitives.WriteUInt32LittleEndian(b.AsSpan(20), 35); FixRsdp(b, (int)r[2]); }),
-            ("root physical association", (b, r) => { EndianPrimitives.WriteUInt64LittleEndian(b.AsSpan(24), 0x9000); FixRsdp(b, (int)r[2]); }),
-            ("SDT signature", (b, r) => { b[(int)r[16]] = 0; FixTable(b, r, 2); }),
-            ("SDT declared length", (b, r) => { EndianPrimitives.WriteUInt32LittleEndian(b.AsSpan((int)r[22] + 4), uint.MaxValue); FixTable(b, r, 3); }),
+            ("reserved revision", (b, r) =>
+        {
+            b[15] = 1;
+            FixRsdp(b, (int)r[2]);
+        }),
+            ("legacy RSDP with extended length", (b, r) =>
+        {
+            b[15] = 0;
+            FixRsdp(b, (int)r[2]);
+        }),
+            ("zero OEM ID", (b, r) =>
+        {
+            b.AsSpan(9, 6).Clear();
+            FixRsdp(b, (int)r[2]);
+        }),
+            ("declared RSDP length", (b, r) =>
+        {
+            EndianPrimitives.WriteUInt32LittleEndian(b.AsSpan(20), 35);
+            FixRsdp(b, (int)r[2]);
+        }),
+            ("root physical association", (b, r) =>
+        {
+            EndianPrimitives.WriteUInt64LittleEndian(b.AsSpan(24), 0x9000);
+            FixRsdp(b, (int)r[2]);
+        }),
+            ("SDT signature", (b, r) =>
+        {
+            b[(int)r[16]] = 0;
+            FixTable(b, r, 2);
+        }),
+            ("SDT declared length", (b, r) =>
+        {
+            EndianPrimitives.WriteUInt32LittleEndian(b.AsSpan((int)r[22] + 4), uint.MaxValue);
+            FixTable(b, r, 3);
+        }),
             ("SDT checksum", (b, r) => b[(int)r[28] + 9]++),
             ("duplicate root pointer", (b, r) => ChangePointer(b, r, 3, 0x5000)),
             ("null root pointer", (b, r) => ChangePointer(b, r, 3, 0)),
@@ -177,9 +209,12 @@ internal static unsafe class OwnedACPIDirectorySelectMADTHPETMCFGTests
         for (int role = 0; role < 5; role++)
         {
             int row = role * 6;
-            rows[row] = addresses[role]; rows[row + 1] = signatures[role];
-            rows[row + 2] = (ulong)lengths[role]; rows[row + 3] = indices[role];
-            rows[row + 4] = (ulong)offset; rows[row + 5] = (ulong)lengths[role];
+            rows[row] = addresses[role];
+            rows[row + 1] = signatures[role];
+            rows[row + 2] = (ulong)lengths[role];
+            rows[row + 3] = indices[role];
+            rows[row + 4] = (ulong)offset;
+            rows[row + 5] = (ulong)lengths[role];
             if (role > 0)
             {
                 EndianPrimitives.WriteUInt32LittleEndian(owned.AsSpan(offset), (uint)signatures[role]);
@@ -201,11 +236,14 @@ internal static unsafe class OwnedACPIDirectorySelectMADTHPETMCFGTests
         {
             ulong address = i == 0 ? 0x3000UL : i == 1 ? 0x4000UL : i == 2 ? 0x5000UL : 0x6000UL + (ulong)(i - 3) * 4096;
             Span<byte> slot = owned.AsSpan(rsdpLength + 36 + i * width);
-            if (xsdt) EndianPrimitives.WriteUInt64LittleEndian(slot, address);
-            else EndianPrimitives.WriteUInt32LittleEndian(slot, (uint)address);
+            if (xsdt)
+                EndianPrimitives.WriteUInt64LittleEndian(slot, address);
+            else
+                EndianPrimitives.WriteUInt32LittleEndian(slot, (uint)address);
         }
         FixRsdp(owned, rsdpLength);
-        for (int role = 1; role < 5; role++) FixTable(owned, rows, role);
+        for (int role = 1; role < 5; role++)
+            FixTable(owned, rows, role);
         return (owned, rows);
     }
 
@@ -221,14 +259,16 @@ internal static unsafe class OwnedACPIDirectorySelectMADTHPETMCFGTests
     private static void FixRsdp(byte[] bytes, int length)
     {
         FixChecksum(bytes.AsSpan(0, 20), 8);
-        if (length >= 36) FixChecksum(bytes.AsSpan(0, length), 32);
+        if (length >= 36)
+            FixChecksum(bytes.AsSpan(0, length), 32);
     }
 
     private static void FixChecksum(Span<byte> bytes, int checksumIndex)
     {
         bytes[checksumIndex] = 0;
         int sum = 0;
-        foreach (byte value in bytes) sum += value;
+        foreach (byte value in bytes)
+            sum += value;
         bytes[checksumIndex] = unchecked((byte)-sum);
     }
 }

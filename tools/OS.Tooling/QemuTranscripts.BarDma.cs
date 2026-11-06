@@ -10,8 +10,10 @@ public static partial class QemuTranscripts
         for (int i = start; i < lines.Count; i++)
         {
             string expected = QemuContracts.M05BarDmaMarkers[i];
-            if (expected.StartsWith("M05_BAR_DMA ", StringComparison.Ordinal)) rows.Add(ReadHexRecord(lines[i], expected, 4));
-            else Need(lines[i] == expected, "m05_bar_dma_marker_order");
+            if (expected.StartsWith("M05_BAR_DMA ", StringComparison.Ordinal))
+                rows.Add(ReadHexRecord(lines[i], expected, 4));
+            else
+                Need(lines[i] == expected, "m05_bar_dma_marker_order");
         }
         ulong[] window = ReadHexRecord(lines[77], "M05_PCI 0", 4), owner = ReadHexRecord(lines[67], "M03_OWNED 0", 8);
         Need(window[0] == window[1] && window[2] == 0x100000 && window[3] == 0, "m05_bar_dma_bus");

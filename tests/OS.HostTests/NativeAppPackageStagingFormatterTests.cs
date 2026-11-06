@@ -134,33 +134,16 @@ internal static class NativeAppPackageStagingFormatterTests
     [HostTest("appmodel package staging formatter uses shared ascii text builder", HostLane.Fast, 5)]
     private static bool TestUsesSharedAsciiTextBuilder()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(
-                repositoryRoot,
-                "src",
-                "OS.Kernel",
-                "Runtime",
-                "NativeAppPackageStagingReadinessFormatter.cs"));
-
-        return HostCheck.Result(source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(readiness.AppBinaryFileIndex)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiTextBuilder.AppendBytes(destination, offset, source)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value)",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "private static int CountUnsignedDigits",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "private static void WriteUnsigned",
-                StringComparison.Ordinal)
-            && !source.Contains(
-                "destination[cursor--] = (byte)('0' +",
-                StringComparison.Ordinal));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        string owner = typeof(NativeAppPackageStagingReadinessFormatter).FullName!;
+        string[] counters = ["AppBinaryFileIndex", "PackageFileBytesStaged", "PayloadOffsetInPackage", "ExecutableOffsetInPackage",
+            "PayloadExecutableBytesStaged", "RequiredWritableStagingBytes", "RequiredStackBytes", "EntryOffsetInPackage"];
+        return HostCheck.Result(catalog.Type(owner).GetMembers("CountUnsignedDigits").Length == 0
+            && catalog.Type(owner).GetMembers("WriteUnsigned").Length == 0
+            && HostFormatterSourceGuard.CountFields(catalog, owner, "CountNotReadyMarkerBytes",
+                counters.Select(field => (field, "CountUInt64Digits")).ToArray())
+            && HostFormatterSourceGuard.Append(catalog, owner, "TryWrite", "AppendBytes", tryStyle: true)
+            && HostFormatterSourceGuard.Append(catalog, owner, "TryWriteUnsigned", "AppendUInt64Decimal", tryStyle: true));
     }
 
     private static NativeAppPackageStagingReadinessResult CreatePayloadStagingFailure()

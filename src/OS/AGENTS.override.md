@@ -61,7 +61,7 @@ First establish that a supported kernel operation needs the emitted helper.
 Prefer rewriting the triggering code into the existing restricted subset when
 that meets the requirement. A compiler/linker error alone does not justify new
 kernel GC, EH or general runtime behavior; follow the root
-[runtime guardrails](../../AGENTS.md#runtime-and-qualification-guardrails).
+[runtime and qualification rules](../../AGENTS.md#evidence-and-failure-handling).
 
 1. Capture the exact `dotnet publish` or linker failure.
 2. Check whether the helper belongs in `std/no-runtime/shared` instead.

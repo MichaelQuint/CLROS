@@ -4,13 +4,11 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
-internal static unsafe class ThreadContextSwitchBytesTests
+internal static unsafe partial class ThreadContextSwitchBytesTests
 {
     private const int BufferBytes = 64;
     private const ulong Value = 0x8877665544332211UL;
-    private static ReadOnlySpan<byte> Encoding =>
-        [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
-         0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
+    private static ReadOnlySpan<byte> Encoding => [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88];
 
     [HostTest("thread.context-switch.bytes.count8-every-alignment-and-mismatch-lane")]
     private static void Count8EveryAlignmentAndMismatchLane()
@@ -26,11 +24,11 @@ internal static unsafe class ThreadContextSwitchBytesTests
             {
                 data[offset + lane] ^= 0x80;
                 byte[] mismatch = new ReadOnlySpan<byte>(data, BufferBytes).ToArray();
-                Check(method, data, offset, offset + 8, true, true, 8, offset + 8, false,
-                    "mismatch offset/lane " + offset + "/" + lane);
+                Check(method, data, offset, offset + 8, true, true, 8, offset + 8, false, "mismatch offset/lane " + offset + "/" + lane);
                 Unchanged(data, mismatch);
                 data[offset + lane] ^= 0x80;
             }
+
             Unchanged(data, original);
         }
     }
@@ -44,18 +42,16 @@ internal static unsafe class ThreadContextSwitchBytesTests
         {
             const uint position = 12;
             byte[] original = Seed(data, position, Encoding[..(int)remaining]);
-            Check(method, data, position, position + remaining, true, true, 8, position + 8, false,
-                "compare remaining " + remaining);
+            Check(method, data, position, position + remaining, true, true, 8, position + 8, false, "compare remaining " + remaining);
             Unchanged(data, original);
-
             // Emission still writes the admitted prefix before latching failure;
             // the bytes after the limit are independent canaries.
             original = Seed(data, position, ReadOnlySpan<byte>.Empty);
             Encoding[..(int)remaining].CopyTo(original.AsSpan((int)position));
-            Check(method, data, position, position + remaining, false, true, 8, position + 8, false,
-                "emit remaining " + remaining);
+            Check(method, data, position, position + remaining, false, true, 8, position + 8, false, "emit remaining " + remaining);
             Unchanged(data, original);
         }
+
         byte[] past = Seed(data, 0, ReadOnlySpan<byte>.Empty);
         Check(method, data, 12, 7, true, true, 8, 20, false, "position beyond limit");
         Unchanged(data, past);
@@ -73,6 +69,7 @@ internal static unsafe class ThreadContextSwitchBytesTests
             Check(method, null, 12, 7, compare, true, 8, 20, false, "null beyond limit");
             Check(method, null, 3, 11, compare, false, 8, 11, false, "null invalid latch");
         }
+
         byte* data = stackalloc byte[BufferBytes];
         byte[] expected = Seed(data, 0, ReadOnlySpan<byte>.Empty);
         Encoding[..8].CopyTo(expected.AsSpan(5));
@@ -89,7 +86,8 @@ internal static unsafe class ThreadContextSwitchBytesTests
         // masking for the existing count16 loop rather than inventing zero fill.
         for (int count = 0; count <= 16; count++)
         {
-            if (count == 8) continue;
+            if (count == 8)
+                continue;
             uint end = 3 + (uint)count;
             byte[] original = Seed(data, 3, Encoding[..count]);
             Check(method, data, 3, end, true, true, count, end, true, "compare count " + count);
@@ -101,6 +99,7 @@ internal static unsafe class ThreadContextSwitchBytesTests
                 Check(method, data, 3, end, true, true, count, end, false, "mismatch count " + count);
                 Unchanged(data, mismatch);
             }
+
             byte[] expected = Seed(data, 0, ReadOnlySpan<byte>.Empty);
             Encoding[..count].CopyTo(expected.AsSpan(3));
             Check(method, data, 3, end, false, true, count, end, true, "emit count " + count);
@@ -119,7 +118,6 @@ internal static unsafe class ThreadContextSwitchBytesTests
         method.Apply((nint)data, position, 19, true, valid, Value, 8, out position, out valid);
         HostCheck.True(position == 19 && !valid, "next equal word cannot clear invalid latch");
         Unchanged(data, original);
-
         data[3] ^= 0x80;
         method.Apply((nint)data, 3, 19, true, true, Value, 8, out position, out valid);
         HostCheck.True(position == 11 && !valid, "mismatch latches failure");
@@ -127,7 +125,6 @@ internal static unsafe class ThreadContextSwitchBytesTests
         method.Apply((nint)data, position, 19, true, valid, Value, 8, out position, out valid);
         HostCheck.True(position == 19 && !valid, "later comparison still advances after mismatch");
         Unchanged(data, original);
-
         byte[] expected = Seed(data, 0, ReadOnlySpan<byte>.Empty);
         Encoding[..8].CopyTo(expected.AsSpan(3));
         Check(method, data, 3, 11, false, false, 8, 11, false, "invalid emission still writes and advances");
@@ -141,36 +138,24 @@ internal static unsafe class ThreadContextSwitchBytesTests
         return new ReadOnlySpan<byte>(data, BufferBytes).ToArray();
     }
 
-    private static void Unchanged(byte* data, ReadOnlySpan<byte> expected) =>
-        HostCheck.True(new ReadOnlySpan<byte>(data, BufferBytes).SequenceEqual(expected), "exact bytes and canaries");
-
-    private static void Check(CompiledMethod method, byte* data, uint position, uint limit, bool compare,
-        bool valid, int count, uint expectedPosition, bool expectedValid, string reason)
+    private static void Unchanged(byte* data, ReadOnlySpan<byte> expected) => HostCheck.True(new ReadOnlySpan<byte>(data, BufferBytes).SequenceEqual(expected), "exact bytes and canaries");
+    private static void Check(CompiledMethod method, byte* data, uint position, uint limit, bool compare, bool valid, int count, uint expectedPosition, bool expectedValid, string reason)
     {
         method.Apply((nint)data, position, limit, compare, valid, Value, count, out uint actualPosition, out bool actualValid);
         HostCheck.True(actualPosition == expectedPosition && actualValid == expectedValid, reason);
     }
 
-    private delegate void ApplyBytes(nint output, uint position, uint limit, bool compare, bool valid,
-        ulong value, int count, out uint finalPosition, out bool finalValid);
-
     private static CompiledMethod Compile()
     {
-        HostCheck.True(BitConverter.IsLittleEndian && RuntimeInformation.ProcessArchitecture == Architecture.X64,
-            "production word contract is little-endian x64 ordinary memory");
-        string path = Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS.Kernel/Threading/ThreadContextSwitch.cs");
+        HostCheck.True(BitConverter.IsLittleEndian && RuntimeInformation.ProcessArchitecture == Architecture.X64, "production word contract is little-endian x64 ordinary memory");
+        string path = Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS.Kernel/Threading/ThreadContextSwitch.StubWriter.cs");
         var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(path), new CSharpParseOptions(LanguageVersion.CSharp14));
-        var writer = tree.GetRoot().DescendantNodes().OfType<StructDeclarationSyntax>()
-            .Single(s => s.Identifier.ValueText == "StubWriter");
+        var writer = tree.GetRoot().DescendantNodes().OfType<StructDeclarationSyntax>().Single(s => s.Identifier.ValueText == "StubWriter");
         var method = writer.Members.OfType<MethodDeclarationSyntax>().Single(m => m.Identifier.ValueText == "Bytes");
-        HostCheck.True(method.ReturnType.ToString() == "void" && method.ParameterList.Parameters.Count == 2 &&
-            method.ParameterList.Parameters[0].Type!.ToString() == "ulong" &&
-            method.ParameterList.Parameters[1].Type!.ToString() == "int", "actual production signature");
+        HostCheck.True(method.ReturnType.ToString() == "void" && method.ParameterList.Parameters.Count == 2 && method.ParameterList.Parameters[0].Type!.ToString() == "ulong" && method.ParameterList.Parameters[1].Type!.ToString() == "int", "actual production signature");
         string[] names = ["_output", "_limit", "_compare", "_valid", "_position"];
-        var fields = writer.Members.OfType<FieldDeclarationSyntax>()
-            .Where(f => f.Declaration.Variables.Any(v => names.Contains(v.Identifier.ValueText))).ToArray();
-        HostCheck.True(new HashSet<string>(fields.SelectMany(f => f.Declaration.Variables)
-            .Select(v => v.Identifier.ValueText)).SetEquals(names), "only the five actual method fields");
+        var fields = writer.Members.OfType<FieldDeclarationSyntax>().Where(f => f.Declaration.Variables.Any(v => names.Contains(v.Identifier.ValueText))).ToArray();
+        HostCheck.True(new HashSet<string>(fields.SelectMany(f => f.Declaration.Variables).Select(v => v.Identifier.ValueText)).SetEquals(names), "only the five actual method fields");
         // Compile the production method and field declarations unchanged. The
         // fixture supplies initial state and raw observations, not an algorithm.
         string source = $$"""
@@ -194,11 +179,7 @@ internal static unsafe class ThreadContextSwitchBytesTests
                 }
             }
             """;
-        var compilation = CSharpCompilation.Create("ThreadContextSwitchBytes",
-            [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp14))],
-            [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
-                optimizationLevel: OptimizationLevel.Release, allowUnsafe: true));
+        var compilation = CSharpCompilation.Create("ThreadContextSwitchBytes", [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp14))], [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)], new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release, allowUnsafe: true));
         using var image = new MemoryStream();
         var emitted = compilation.Emit(image);
         HostCheck.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));
@@ -214,13 +195,5 @@ internal static unsafe class ThreadContextSwitchBytesTests
             context.Unload();
             throw;
         }
-    }
-
-    private sealed class CompiledMethod(AssemblyLoadContext context, ApplyBytes apply) : IDisposable
-    {
-        internal void Apply(nint output, uint position, uint limit, bool compare, bool valid,
-            ulong value, int count, out uint finalPosition, out bool finalValid) =>
-            apply(output, position, limit, compare, valid, value, count, out finalPosition, out finalValid);
-        public void Dispose() => context.Unload();
     }
 }

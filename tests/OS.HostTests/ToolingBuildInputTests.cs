@@ -20,15 +20,18 @@ internal static class ToolingBuildInputTests
     private static void Mutations()
     {
         string root = NewRoot(), source = Path.Combine(root, "tools", "Example", "Program.cs"), config = Path.Combine(root, "global.json");
-        File.WriteAllText(source, "class Example {}\n"); File.WriteAllText(config, "{}\n");
+        File.WriteAllText(source, "class Example {}\n");
+        File.WriteAllText(config, "{}\n");
         string manifest = Manifest(root, source, config);
         HostCheck.Equal(0, Check(manifest, root).Count);
         File.WriteAllText(source, "class Changed {}\n");
         HostCheck.True(Check(manifest, root).Single().StartsWith("stale_build_input ", StringComparison.Ordinal), "changed raw source");
-        File.WriteAllText(source, "class Example {}\n"); File.Delete(config);
+        File.WriteAllText(source, "class Example {}\n");
+        File.Delete(config);
         HostCheck.True(Check(manifest, root).Single().StartsWith("missing_build_input ", StringComparison.Ordinal), "missing global config");
         File.WriteAllText(config, "{}\n");
-        string nested = Path.Combine(root, "tools", "Example", "Nested"); Directory.CreateDirectory(nested);
+        string nested = Path.Combine(root, "tools", "Example", "Nested");
+        Directory.CreateDirectory(nested);
         File.WriteAllText(Path.Combine(nested, "Added.cs"), "class Added {}\n");
         HostCheck.True(Check(manifest, root).Single().StartsWith("unrecorded_build_input ", StringComparison.Ordinal), "new nested source");
     }
@@ -38,12 +41,20 @@ internal static class ToolingBuildInputTests
     {
         string original = NewRoot(), relocated = NewRoot();
         foreach (string root in new[] { original, relocated })
-        { File.WriteAllText(Path.Combine(root, "tools", "Example", "Program.cs"), "class Example {}\r\n"); File.WriteAllText(Path.Combine(root, "global.json"), "{}\n"); }
+        {
+            File.WriteAllText(Path.Combine(root, "tools", "Example", "Program.cs"), "class Example {}\r\n");
+            File.WriteAllText(Path.Combine(root, "global.json"), "{}\n");
+        }
         string manifest = Manifest(original, Path.Combine(original, "tools", "Example", "Program.cs"), Path.Combine(original, "global.json"));
         File.WriteAllText(Path.Combine(original, "tools", "Example", "Program.cs"), "the original location is no longer authoritative");
-        Directory.CreateDirectory(Path.Combine(relocated, "docs")); File.WriteAllText(Path.Combine(relocated, "docs", "changed.md"), "new docs");
+        Directory.CreateDirectory(Path.Combine(relocated, "docs"));
+        File.WriteAllText(Path.Combine(relocated, "docs", "changed.md"), "new docs");
         foreach (string ignored in new[] { "bin", "obj", "artifacts" })
-        { string path = Path.Combine(relocated, "tools", "Example", ignored); Directory.CreateDirectory(path); File.WriteAllText(Path.Combine(path, "Generated.cs"), "generated"); }
+        {
+            string path = Path.Combine(relocated, "tools", "Example", ignored);
+            Directory.CreateDirectory(path);
+            File.WriteAllText(Path.Combine(path, "Generated.cs"), "generated");
+        }
         HostCheck.Equal(0, Check(manifest, relocated).Count);
         File.WriteAllText(Path.Combine(relocated, "tools", "Example", "Program.cs"), "class Example {}\n");
         HostCheck.True(Check(manifest, relocated).Single().StartsWith("stale_build_input ", StringComparison.Ordinal), "freshness preserves exact raw line endings");
@@ -53,7 +64,8 @@ internal static class ToolingBuildInputTests
     private static void ManifestShape()
     {
         string root = NewRoot(), source = Path.Combine(root, "tools", "Example", "Program.cs"), config = Path.Combine(root, "global.json");
-        File.WriteAllText(source, "class Example {}\n"); File.WriteAllText(config, "{}\n");
+        File.WriteAllText(source, "class Example {}\n");
+        File.WriteAllText(config, "{}\n");
         string manifest = Manifest(root, source, config);
         foreach (string malformed in new[] { manifest.Replace("CLROS_BUILD_INPUTS_V1", "UNKNOWN", StringComparison.Ordinal),
             manifest.Replace("GLOB|tools/**/*.cs", "GLOB|../*.cs", StringComparison.Ordinal),
@@ -62,7 +74,14 @@ internal static class ToolingBuildInputTests
             manifest + "FILE|" + Path.Combine(Path.GetDirectoryName(root)!, "outside.cs") + "|" + Hash(source) + "\n" })
         {
             bool rejected = false;
-            try { Check(malformed, root); } catch (InvalidOperationException) { rejected = true; }
+            try
+            {
+                Check(malformed, root);
+            }
+            catch (InvalidOperationException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, "malformed manifest rejected");
         }
         string repository = HostToolProcess.FindRepositoryRoot();
@@ -78,7 +97,8 @@ internal static class ToolingBuildInputTests
     private static void PortablePaths()
     {
         string root = NewRoot(), source = Path.Combine(root, "tools", "Example", "Program.cs"), config = Path.Combine(root, "global.json");
-        File.WriteAllText(source, "class Portable {}\r\n"); File.WriteAllText(config, "{}\n");
+        File.WriteAllText(source, "class Portable {}\r\n");
+        File.WriteAllText(config, "{}\n");
         string Captured(string capturedRoot, string capturedSource, string capturedConfig) =>
             "CLROS_BUILD_INPUTS_V1\nROOT|" + capturedRoot + "\nGLOB|tools/**/*.cs\nGLOB|global.json\nFILE|" + capturedSource + "|" + Hash(source) + "\nFILE|" + capturedConfig + "|" + Hash(config) + "\n";
         foreach (var paths in new[] {
@@ -101,7 +121,14 @@ internal static class ToolingBuildInputTests
             ("/clros/frozen/../frozen", "/clros/frozen/tools/Example/Program.cs", "/clros/frozen/global.json") })
         {
             bool rejected = false;
-            try { Check(Captured(paths.Item1, paths.Item2, paths.Item3), root); } catch (InvalidOperationException) { rejected = true; }
+            try
+            {
+                Check(Captured(paths.Item1, paths.Item2, paths.Item3), root);
+            }
+            catch (InvalidOperationException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, "captured path must be absolute, contained and traversal-free: " + paths.Item2);
         }
     }

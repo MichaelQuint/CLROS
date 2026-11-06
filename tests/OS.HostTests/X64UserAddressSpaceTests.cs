@@ -38,7 +38,8 @@ internal static unsafe class X64UserAddressSpaceTests
                 var random = new Random(seed);
                 for (int i = count - 1; i > 0; i--)
                 {
-                    int j = random.Next(i + 1); (ranges[i], ranges[j]) = (ranges[j], ranges[i]);
+                    int j = random.Next(i + 1);
+                    (ranges[i], ranges[j]) = (ranges[j], ranges[i]);
                 }
                 CheckAdmission(ranges, X64UserAddressSpaceStatus.Ready);
             }
@@ -55,19 +56,22 @@ internal static unsafe class X64UserAddressSpaceTests
             Mapping(0x40001000, 0x2100000), Mapping(0x41000000, 0x2001000),
             Mapping(0x3ffff000, 0x2100000, 5), Mapping(0x41000000, 0x1fff000, 5),
             Mapping(0x40007000, 0x2100000, 2), Mapping(0x41000000, 0x2007000, 2)
-        }) CheckAdmission([.. prefix, candidate], X64UserAddressSpaceStatus.OverlappingRanges);
+        })
+            CheckAdmission([.. prefix, candidate], X64UserAddressSpaceStatus.OverlappingRanges);
         CheckAdmission([.. prefix, Mapping(0x40003000, 0x2003000, 5)], X64UserAddressSpaceStatus.Ready);
         foreach (var candidate in new[]
         {
             Mapping(Root, 0x2100000), Mapping(Root + 4096, 0x2100000),
             Mapping(0x41000000, Root), Mapping(0x41000000, Root + 4096),
             Mapping(Root - 4096, 0x2100000, Pages + 2), Mapping(0x41000000, Root - 4096, Pages + 2)
-        }) CheckAdmission([candidate], X64UserAddressSpaceStatus.OverlappingRanges);
+        })
+            CheckAdmission([candidate], X64UserAddressSpaceStatus.OverlappingRanges);
         foreach (var candidate in new[]
         {
             Mapping(Root - 4096, 0x2100000), Mapping(Root + Pages * 4096, 0x2100000),
             Mapping(0x41000000, Root - 4096), Mapping(0x41000000, Root + Pages * 4096)
-        }) CheckAdmission([candidate], X64UserAddressSpaceStatus.Ready);
+        })
+            CheckAdmission([candidate], X64UserAddressSpaceStatus.Ready);
     }
 
     [HostTest("ordered admission retains input validation encoding overlap leaf and final arena error precedence")]
@@ -76,7 +80,8 @@ internal static unsafe class X64UserAddressSpaceTests
         var first = Mapping(0x40000000, 0x2000000);
         var invalid = Mapping(0x41000000, 0x2100000, 0);
         CheckAdmission([first, first, invalid], X64UserAddressSpaceStatus.OverlappingRanges);
-        var encoding = first; encoding.Protection |= PageProtection.Execute;
+        var encoding = first;
+        encoding.Protection |= PageProtection.Execute;
         CheckAdmission([first, encoding, invalid], X64UserAddressSpaceStatus.InvalidEncoding);
         encoding.Pages = 0;
         CheckAdmission([first, encoding], X64UserAddressSpaceStatus.InvalidRange);
@@ -147,7 +152,14 @@ internal static unsafe class X64UserAddressSpaceTests
     }
 
     private static X64UserMappingRange Mapping(ulong va, ulong pa, ulong pages = 1) => new()
-    { VirtualStart = va, PhysicalStart = pa, Pages = pages, Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack, User = true };
+    {
+        VirtualStart = va,
+        PhysicalStart = pa,
+        Pages = pages,
+        Protection = PageProtection.Read | PageProtection.Write,
+        Cache = PageCachePolicy.WriteBack,
+        User = true
+    };
 
     private static void CheckAdmission(X64UserMappingRange[] ranges, X64UserAddressSpaceStatus expected, uint pages = Pages)
     {
@@ -166,13 +178,18 @@ internal static unsafe class X64UserAddressSpaceTests
                 HostCheck.True(original.AsSpan().SequenceEqual(MemoryMarshal.AsBytes(ranges.AsSpan())));
                 if (actual.Succeeded)
                 {
-                    HostCheck.Equal(required, actual.UsedTables); HostCheck.Equal(leaves, actual.LeafPages);
+                    HostCheck.Equal(required, actual.UsedTables);
+                    HostCheck.Equal(leaves, actual.LeafPages);
                     HostCheck.True(X64UserAddressSpace.Audit(values, (uint)ranges.Length, tables, Root, pages, conditions, actual));
                 }
-                else HostCheck.True(new ReadOnlySpan<ulong>(tables, (int)pages * 512).IndexOfAnyExcept(0UL) < 0);
+                else
+                    HostCheck.True(new ReadOnlySpan<ulong>(tables, (int)pages * 512).IndexOfAnyExcept(0UL) < 0);
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     // Retained scalar admission rule, independent of the production index orders.
@@ -180,19 +197,28 @@ internal static unsafe class X64UserAddressSpaceTests
     private static X64UserAddressSpaceStatus ScalarAdmission(X64UserMappingRange* ranges, uint count, ulong* tables,
         uint pages, X64PageTableEncodingPreconditions conditions, out uint required, out ulong leaves)
     {
-        required = 0; leaves = 0;
+        required = 0;
+        leaves = 0;
         if (ranges == null || ((ulong)ranges & 7) != 0 || count == 0 || count > X64UserAddressSpace.MaximumRanges ||
             (ulong)ranges > ~0UL - count * (ulong)sizeof(X64UserMappingRange) || tables == null || ((ulong)tables & 4095) != 0 ||
             pages < 4 || pages > X64UserAddressSpace.MaximumTables || Root < 4096 || (Root & 4095) != 0 || Root > X64UserAddressSpace.PhysicalEnd - pages * 4096UL ||
             (ulong)tables > ~0UL - pages * 4096UL || conditions.Validate() != X64PageTableEntryStatus.Success)
             return X64UserAddressSpaceStatus.InvalidInput;
         static bool Overlaps(ulong a, ulong aBytes, ulong b, ulong bBytes) => a < b + bBytes && b < a + aBytes;
-        if (Overlaps((ulong)ranges, count * (ulong)sizeof(X64UserMappingRange), (ulong)tables, pages * 4096UL)) return X64UserAddressSpaceStatus.OverlappingRanges;
-        bool[] slots = new bool[32768], directories = new bool[64]; required = 2;
+        if (Overlaps((ulong)ranges, count * (ulong)sizeof(X64UserMappingRange), (ulong)tables, pages * 4096UL))
+            return X64UserAddressSpaceStatus.OverlappingRanges;
+        bool[] slots = new bool[32768], directories = new bool[64];
+        required = 2;
         for (uint i = 0; i <= count; i++)
         {
-            var range = i == count ? new X64UserMappingRange { VirtualStart = Root, PhysicalStart = Root, Pages = pages,
-                Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack } : ranges[i];
+            var range = i == count ? new X64UserMappingRange
+            {
+                VirtualStart = Root,
+                PhysicalStart = Root,
+                Pages = pages,
+                Protection = PageProtection.Read | PageProtection.Write,
+                Cache = PageCachePolicy.WriteBack
+            } : ranges[i];
             bool highDevice = range.PhysicalStart >= X64UserAddressSpace.PhysicalEnd && !range.User && range.Pages == 1 &&
                 range.VirtualStart == range.PhysicalStart && range.Cache == PageCachePolicy.Uncached &&
                 (range.Protection == PageProtection.Read || range.Protection == (PageProtection.Read | PageProtection.Write));
@@ -200,7 +226,8 @@ internal static unsafe class X64UserAddressSpaceTests
             if (range.Pages == 0 || range.Pages > 32768 || range.VirtualStart < 4096 || range.PhysicalStart < 4096 ||
                 ((range.VirtualStart | range.PhysicalStart) & 4095) != 0 || range.VirtualStart > X64UserAddressSpace.UserEnd - range.Pages * 4096 ||
                 (!range.User && !highDevice && range.VirtualStart > X64UserAddressSpace.PhysicalEnd - range.Pages * 4096) ||
-                range.PhysicalStart > physicalLimit - range.Pages * 4096) return X64UserAddressSpaceStatus.InvalidRange;
+                range.PhysicalStart > physicalLimit - range.Pages * 4096)
+                return X64UserAddressSpaceStatus.InvalidRange;
             foreach (ulong page in new[] { 0UL, range.Pages - 1 })
             {
                 if (PhysicalAddress.TryCreateFromHardwareRegisterBoundary(range.PhysicalStart + page * 4096, out var address) != AddressValueStatus.Success ||
@@ -212,12 +239,21 @@ internal static unsafe class X64UserAddressSpaceTests
                     Overlaps(range.PhysicalStart, range.Pages * 4096, ranges[j].PhysicalStart, ranges[j].Pages * 4096))
                     return X64UserAddressSpaceStatus.OverlappingRanges;
             leaves += range.Pages;
-            if (leaves > 32768) return X64UserAddressSpaceStatus.InvalidRange;
+            if (leaves > 32768)
+                return X64UserAddressSpaceStatus.InvalidRange;
             uint first = (uint)(range.VirtualStart >> 21), last = (uint)((range.VirtualStart + range.Pages * 4096 - 1) >> 21);
             for (uint slot = first; slot <= last; slot++)
             {
-                if (!slots[slot]) { slots[slot] = true; required++; }
-                if (!directories[slot / 512]) { directories[slot / 512] = true; required++; }
+                if (!slots[slot])
+                {
+                    slots[slot] = true;
+                    required++;
+                }
+                if (!directories[slot / 512])
+                {
+                    directories[slot / 512] = true;
+                    required++;
+                }
             }
         }
         return required <= pages ? X64UserAddressSpaceStatus.Ready : X64UserAddressSpaceStatus.InsufficientTables;
@@ -226,69 +262,91 @@ internal static unsafe class X64UserAddressSpaceTests
     [HostTest("batched leaf audit matches scalar audit for every lane corruption zero and allowed accessed-dirty bits")]
     private static void AuditLeafLanes()
     {
-        var ranges = new[] { Mapping(0x3ffff000, 0x3000000, 20) }; var conditions = Conditions();
+        var ranges = new[] { Mapping(0x3ffff000, 0x3000000, 20) };
+        var conditions = Conditions();
         ulong* tables = (ulong*)NativeMemory.AlignedAlloc(Pages * 4096, 4096);
         try
         {
             new Span<ulong>(tables, (int)Pages * 512).Clear();
             X64UserAddressSpaceResult result;
-            fixed (X64UserMappingRange* r = ranges) result = X64UserAddressSpace.Build(r, 1, tables, Root, Pages, conditions);
+            fixed (X64UserMappingRange* r = ranges)
+                result = X64UserAddressSpace.Build(r, 1, tables, Root, Pages, conditions);
             HostCheck.True(result.Succeeded);
             for (uint lane = 0; lane < 8; lane++)
             {
-                ulong* leaf = Leaf(tables, 0x40000000 + lane * 4096); ulong saved = *leaf;
+                ulong* leaf = Leaf(tables, 0x40000000 + lane * 4096);
+                ulong saved = *leaf;
                 foreach (ulong mask in new ulong[] { 0, 1, 2, 4, 0x80, 0x1000, 1UL << 63 })
                 {
                     *leaf = mask == 0 ? 0 : saved ^ mask;
-                    CheckScalarAudit(ranges, tables, conditions, result, false); *leaf = saved;
+                    CheckScalarAudit(ranges, tables, conditions, result, false);
+                    *leaf = saved;
                 }
                 foreach (ulong bits in new ulong[] { 0x20, 0x40, 0x60 })
                 {
                     *leaf = saved | bits;
-                    CheckScalarAudit(ranges, tables, conditions, result, true); *leaf = saved;
+                    CheckScalarAudit(ranges, tables, conditions, result, true);
+                    *leaf = saved;
                 }
             }
             CheckScalarAudit(ranges, tables, conditions, result, true);
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("batched leaf audit preserves range ends PT boundaries holes and implicit table-arena leaves")]
     private static void AuditLeafBoundaries()
     {
-        var readOnly = Mapping(0x600000, 0x6000000, 3); readOnly.Protection = PageProtection.Read;
+        var readOnly = Mapping(0x600000, 0x6000000, 3);
+        readOnly.Protection = PageProtection.Read;
         X64UserMappingRange[] ranges = [Mapping(0x80008000, 0x5008000, 9), Mapping(0x3ffff000, 0x4000000, 20),
             Mapping(0x402000, 0x3000000, 17), readOnly, Mapping(0x603000, 0x7000000, 9), Mapping(0x80000000, 0x5000000, 7)];
-        var conditions = Conditions(); ulong* tables = (ulong*)NativeMemory.AlignedAlloc(Pages * 4096, 4096);
+        var conditions = Conditions();
+        ulong* tables = (ulong*)NativeMemory.AlignedAlloc(Pages * 4096, 4096);
         try
         {
             new Span<ulong>(tables, (int)Pages * 512).Clear();
             X64UserAddressSpaceResult result;
-            fixed (X64UserMappingRange* r = ranges) result = X64UserAddressSpace.Build(r, (uint)ranges.Length, tables, Root, Pages, conditions);
-            HostCheck.True(result.Succeeded); CheckScalarAudit(ranges, tables, conditions, result, true);
+            fixed (X64UserMappingRange* r = ranges)
+                result = X64UserAddressSpace.Build(r, (uint)ranges.Length, tables, Root, Pages, conditions);
+            HostCheck.True(result.Succeeded);
+            CheckScalarAudit(ranges, tables, conditions, result, true);
             // Both sides of a PT/PDPT boundary, short range tails and the final
             // implicit arena must remain complete. Adjacent ranges differ in backing/protection.
             foreach (ulong va in new ulong[] { 0x3ffff000, 0x40000000, 0x40007000, 0x40008000, 0x40012000,
                 0x412000, 0x602000, 0x603000, 0x80006000, 0x80010000, Root, Root + (Pages - 1) * 4096 })
             {
-                ulong* leaf = Leaf(tables, va); ulong saved = *leaf; HostCheck.True(saved != 0); *leaf = 0;
-                CheckScalarAudit(ranges, tables, conditions, result, false); *leaf = saved;
+                ulong* leaf = Leaf(tables, va);
+                ulong saved = *leaf;
+                HostCheck.True(saved != 0);
+                *leaf = 0;
+                CheckScalarAudit(ranges, tables, conditions, result, false);
+                *leaf = saved;
             }
             foreach (ulong va in new ulong[] { 0x401000, 0x413000, 0x80007000, 0x80011000 })
             {
-                ulong* hole = Leaf(tables, va); HostCheck.Equal(0UL, *hole);
+                ulong* hole = Leaf(tables, va);
+                HostCheck.Equal(0UL, *hole);
                 *hole = *Leaf(tables, 0x402000);
-                CheckScalarAudit(ranges, tables, conditions, result, false); *hole = 0;
+                CheckScalarAudit(ranges, tables, conditions, result, false);
+                *hole = 0;
             }
             CheckScalarAudit(ranges, tables, conditions, result, true);
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("batched leaf audit matches scalar exact leaf counts for short tails and adjacent unequal mappings")]
     private static void AuditLeafCounts()
     {
-        var conditions = Conditions(); ulong* tables = (ulong*)NativeMemory.AlignedAlloc(Pages * 4096, 4096);
+        var conditions = Conditions();
+        ulong* tables = (ulong*)NativeMemory.AlignedAlloc(Pages * 4096, 4096);
         try
         {
             foreach (uint count in new uint[] { 1, 7, 8, 9, 15, 16, 17 })
@@ -296,15 +354,26 @@ internal static unsafe class X64UserAddressSpaceTests
                 X64UserMappingRange[] ranges = [Mapping(0x600000 + count * 4096, 0x4000000, 9), Mapping(0x600000, 0x3000000, count)];
                 new Span<ulong>(tables, (int)Pages * 512).Clear();
                 X64UserAddressSpaceResult result;
-                fixed (X64UserMappingRange* r = ranges) result = X64UserAddressSpace.Build(r, 2, tables, Root, Pages, conditions);
-                HostCheck.True(result.Succeeded); HostCheck.Equal((ulong)count + 9 + Pages, result.LeafPages);
+                fixed (X64UserMappingRange* r = ranges)
+                    result = X64UserAddressSpace.Build(r, 2, tables, Root, Pages, conditions);
+                HostCheck.True(result.Succeeded);
+                HostCheck.Equal((ulong)count + 9 + Pages, result.LeafPages);
                 CheckScalarAudit(ranges, tables, conditions, result, true);
-                var wrong = result; wrong.LeafPages--; CheckScalarAudit(ranges, tables, conditions, wrong, false);
-                wrong = result; wrong.LeafPages++; CheckScalarAudit(ranges, tables, conditions, wrong, false);
-                wrong = result; wrong.UsedTables++; CheckScalarAudit(ranges, tables, conditions, wrong, false);
+                var wrong = result;
+                wrong.LeafPages--;
+                CheckScalarAudit(ranges, tables, conditions, wrong, false);
+                wrong = result;
+                wrong.LeafPages++;
+                CheckScalarAudit(ranges, tables, conditions, wrong, false);
+                wrong = result;
+                wrong.UsedTables++;
+                CheckScalarAudit(ranges, tables, conditions, wrong, false);
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     private static void CheckScalarAudit(X64UserMappingRange[] ranges, ulong* tables,
@@ -328,109 +397,166 @@ internal static unsafe class X64UserAddressSpaceTests
         X64PageTableEncodingPreconditions conditions, X64UserAddressSpaceResult result)
     {
         if (ScalarAdmission(ranges, count, tables, Pages, conditions, out uint required, out ulong expectedLeaves) != X64UserAddressSpaceStatus.Ready ||
-            !result.Succeeded || result.Root != Root || result.UsedTables != required || result.LeafPages != expectedLeaves) return false;
-        bool[] seen = new bool[X64UserAddressSpace.MaximumTables]; seen[0] = true;
-        uint seenTables = 1; ulong leaves = 0, rangeStart = 0, rangeBytes = 0, rangeEntry = 0;
+            !result.Succeeded || result.Root != Root || result.UsedTables != required || result.LeafPages != expectedLeaves)
+            return false;
+        bool[] seen = new bool[X64UserAddressSpace.MaximumTables];
+        seen[0] = true;
+        uint seenTables = 1;
+        ulong leaves = 0, rangeStart = 0, rangeBytes = 0, rangeEntry = 0;
         for (uint ri = 0; ri < 512; ri++)
         {
-            if (ri != 0) { if (tables[ri] != 0) return false; continue; }
-            if (!ScalarChild(tables[ri], X64PageTableLevel.Pml4e, conditions, seen, ref seenTables, out uint pdpt)) return false;
+            if (ri != 0)
+            {
+                if (tables[ri] != 0)
+                    return false;
+                continue;
+            }
+            if (!ScalarChild(tables[ri], X64PageTableLevel.Pml4e, conditions, seen, ref seenTables, out uint pdpt))
+                return false;
             for (uint pi = 0; pi < 512; pi++)
             {
-                ulong entry = tables[pdpt * 512 + pi]; if (entry == 0) continue;
-                if (pi >= X64UserAddressSpace.UserEnd >> 30 || !ScalarChild(entry, X64PageTableLevel.Pdpte, conditions, seen, ref seenTables, out uint pd)) return false;
+                ulong entry = tables[pdpt * 512 + pi];
+                if (entry == 0)
+                    continue;
+                if (pi >= X64UserAddressSpace.UserEnd >> 30 || !ScalarChild(entry, X64PageTableLevel.Pdpte, conditions, seen, ref seenTables, out uint pd))
+                    return false;
                 for (uint di = 0; di < 512; di++)
                 {
-                    entry = tables[pd * 512 + di]; if (entry == 0) continue;
-                    if (!ScalarChild(entry, X64PageTableLevel.Pde, conditions, seen, ref seenTables, out uint pt)) return false;
+                    entry = tables[pd * 512 + di];
+                    if (entry == 0)
+                        continue;
+                    if (!ScalarChild(entry, X64PageTableLevel.Pde, conditions, seen, ref seenTables, out uint pt))
+                        return false;
                     for (uint ti = 0; ti < 512; ti++)
                     {
-                        ulong leaf = tables[pt * 512 + ti]; if (leaf == 0) continue;
+                        ulong leaf = tables[pt * 512 + ti];
+                        if (leaf == 0)
+                            continue;
                         ulong va = ((ulong)pi << 30) | ((ulong)di << 21) | ((ulong)ti << 12);
                         if (va < rangeStart || va - rangeStart >= rangeBytes)
                         {
                             bool matched = false;
                             for (uint r = 0; r <= count; r++)
                             {
-                                var range = r == count ? new X64UserMappingRange { VirtualStart = Root, PhysicalStart = Root, Pages = Pages,
-                                    Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack } : ranges[r];
-                                if (va < range.VirtualStart || va - range.VirtualStart >= range.Pages * 4096) continue;
-                                if (PhysicalAddress.TryCreateFromHardwareRegisterBoundary(range.PhysicalStart, out var address) != AddressValueStatus.Success) return false;
+                                var range = r == count ? new X64UserMappingRange
+                                {
+                                    VirtualStart = Root,
+                                    PhysicalStart = Root,
+                                    Pages = Pages,
+                                    Protection = PageProtection.Read | PageProtection.Write,
+                                    Cache = PageCachePolicy.WriteBack
+                                } : ranges[r];
+                                if (va < range.VirtualStart || va - range.VirtualStart >= range.Pages * 4096)
+                                    continue;
+                                if (PhysicalAddress.TryCreateFromHardwareRegisterBoundary(range.PhysicalStart, out var address) != AddressValueStatus.Success)
+                                    return false;
                                 var encoded = X64PageTableEntry.TryEncode(new(X64PageTableLevel.Pte, X64PageTableEntryKind.Leaf, address, range.Protection, range.Cache), conditions);
-                                if (!encoded.Succeeded) return false;
+                                if (!encoded.Succeeded)
+                                    return false;
                                 rangeEntry = encoded.Entry.RawValue | (range.User ? 4UL : 0UL);
-                                rangeStart = range.VirtualStart; rangeBytes = range.Pages * 4096; matched = true; break;
+                                rangeStart = range.VirtualStart;
+                                rangeBytes = range.Pages * 4096;
+                                matched = true;
+                                break;
                             }
-                            if (!matched) return false;
+                            if (!matched)
+                                return false;
                         }
-                        if ((leaf & ~0x60UL) != rangeEntry + (va - rangeStart)) return false;
+                        if ((leaf & ~0x60UL) != rangeEntry + (va - rangeStart))
+                            return false;
                         leaves++;
                     }
                 }
             }
         }
-        if (seenTables != required || leaves != expectedLeaves) return false;
+        if (seenTables != required || leaves != expectedLeaves)
+            return false;
         for (uint page = 1; page < Pages; page++)
             if (!seen[page])
-                for (uint word = 0; word < 512; word++) if (tables[page * 512 + word] != 0) return false;
+                for (uint word = 0; word < 512; word++)
+                    if (tables[page * 512 + word] != 0)
+                        return false;
         return true;
     }
 
     private static bool ScalarChild(ulong raw, X64PageTableLevel level, X64PageTableEncodingPreconditions conditions,
         bool[] seen, ref uint count, out uint child)
     {
-        child = 0; ulong addressValue = raw & 0x000ffffffffff000;
-        if (addressValue <= Root || addressValue - Root >= Pages * 4096) return false;
+        child = 0;
+        ulong addressValue = raw & 0x000ffffffffff000;
+        if (addressValue <= Root || addressValue - Root >= Pages * 4096)
+            return false;
         child = (uint)((addressValue - Root) / 4096);
-        if (seen[child] || PhysicalAddress.TryCreateFromHardwareRegisterBoundary(addressValue, out var address) != AddressValueStatus.Success) return false;
+        if (seen[child] || PhysicalAddress.TryCreateFromHardwareRegisterBoundary(addressValue, out var address) != AddressValueStatus.Success)
+            return false;
         var encoded = X64PageTableEntry.TryEncode(new(level, X64PageTableEntryKind.TablePointer, address, PageProtection.None, PageCachePolicy.WriteBack), conditions);
-        if (!encoded.Succeeded || (raw & ~0x20UL) != (encoded.Entry.RawValue | 4UL)) return false;
-        seen[child] = true; count++; return true;
+        if (!encoded.Succeeded || (raw & ~0x20UL) != (encoded.Entry.RawValue | 4UL))
+            return false;
+        seen[child] = true;
+        count++;
+        return true;
     }
 
     [HostTest("socket roots retain high identity UC device leaves while user RAM and tables remain low", HostLane.Fast, 3)]
     private static void HighDevice()
     {
-        const ulong device=0x800004000;
-        X64UserMappingRange mmio=new(){VirtualStart=device,PhysicalStart=device,Pages=1,
-            Protection=PageProtection.Read|PageProtection.Write,Cache=PageCachePolicy.Uncached};
-        X64UserMappingRange[] ranges=[..Ranges(),mmio];
-        ulong* tables=(ulong*)NativeMemory.AlignedAlloc(Pages*4096,4096);
+        const ulong device = 0x800004000;
+        X64UserMappingRange mmio = new()
+        {
+            VirtualStart = device,
+            PhysicalStart = device,
+            Pages = 1,
+            Protection = PageProtection.Read | PageProtection.Write,
+            Cache = PageCachePolicy.Uncached
+        };
+        X64UserMappingRange[] ranges = [.. Ranges(), mmio];
+        ulong* tables = (ulong*)NativeMemory.AlignedAlloc(Pages * 4096, 4096);
         try
         {
-            new Span<ulong>(tables,(int)Pages*512).Clear();
-            fixed(X64UserMappingRange* values=ranges)
+            new Span<ulong>(tables, (int)Pages * 512).Clear();
+            fixed (X64UserMappingRange* values = ranges)
             {
-                var built=X64UserAddressSpace.Build(values,5,tables,Root,Pages,Conditions());
-                HostCheck.True(built.Succeeded&&X64UserAddressSpace.Audit(values,5,tables,Root,Pages,Conditions(),built));
-                ulong entry=*Leaf(tables,device);
-                HostCheck.True((entry&4)==0&&(entry&(1UL<<63))!=0&&(entry&0x000ffffffffff000)==device);
-                foreach(int variant in Enumerable.Range(0,6))
+                var built = X64UserAddressSpace.Build(values, 5, tables, Root, Pages, Conditions());
+                HostCheck.True(built.Succeeded && X64UserAddressSpace.Audit(values, 5, tables, Root, Pages, Conditions(), built));
+                ulong entry = *Leaf(tables, device);
+                HostCheck.True((entry & 4) == 0 && (entry & (1UL << 63)) != 0 && (entry & 0x000ffffffffff000) == device);
+                foreach (int variant in Enumerable.Range(0, 6))
                 {
-                    new Span<ulong>(tables,(int)Pages*512).Clear();ranges[4]=mmio;
-                    if(variant==0)ranges[4].User=true;
-                    if(variant==1)ranges[4].Protection|=PageProtection.Execute;
-                    if(variant==2)ranges[4].Cache=PageCachePolicy.WriteBack;
-                    if(variant==3)ranges[4].VirtualStart+=4096;
-                    if(variant==4)ranges[4].Pages=2;
-                    if(variant==5)ranges[4].VirtualStart=ranges[4].PhysicalStart=X64UserAddressSpace.UserEnd;
-                    HostCheck.Equal(X64UserAddressSpaceStatus.InvalidRange,X64UserAddressSpace.Build(values,5,tables,Root,Pages,Conditions()).Status);
-                    HostCheck.True(new ReadOnlySpan<ulong>(tables,(int)Pages*512).IndexOfAnyExcept(0UL)<0);
+                    new Span<ulong>(tables, (int)Pages * 512).Clear();
+                    ranges[4] = mmio;
+                    if (variant == 0)
+                        ranges[4].User = true;
+                    if (variant == 1)
+                        ranges[4].Protection |= PageProtection.Execute;
+                    if (variant == 2)
+                        ranges[4].Cache = PageCachePolicy.WriteBack;
+                    if (variant == 3)
+                        ranges[4].VirtualStart += 4096;
+                    if (variant == 4)
+                        ranges[4].Pages = 2;
+                    if (variant == 5)
+                        ranges[4].VirtualStart = ranges[4].PhysicalStart = X64UserAddressSpace.UserEnd;
+                    HostCheck.Equal(X64UserAddressSpaceStatus.InvalidRange, X64UserAddressSpace.Build(values, 5, tables, Root, Pages, Conditions()).Status);
+                    HostCheck.True(new ReadOnlySpan<ulong>(tables, (int)Pages * 512).IndexOfAnyExcept(0UL) < 0);
                 }
-                ranges[4]=mmio;
-                HostCheck.Equal(X64UserAddressSpaceStatus.InvalidInput,X64UserAddressSpace.Build(values,5,tables,0x100000000,Pages,Conditions()).Status);
-                HostCheck.Equal(X64PageTableEntryStatus.Success,X64PatMappingToken.TryCreate(0x0007040600070406,0,3,255,out var pat));
-                var narrow=X64PageTableEncodingPreconditions.CreateObserved(32,true,true,false,false,pat);
-                HostCheck.True(!X64UserAddressSpace.Build(values,5,tables,Root,Pages,narrow).Succeeded);
+                ranges[4] = mmio;
+                HostCheck.Equal(X64UserAddressSpaceStatus.InvalidInput, X64UserAddressSpace.Build(values, 5, tables, 0x100000000, Pages, Conditions()).Status);
+                HostCheck.Equal(X64PageTableEntryStatus.Success, X64PatMappingToken.TryCreate(0x0007040600070406, 0, 3, 255, out var pat));
+                var narrow = X64PageTableEncodingPreconditions.CreateObserved(32, true, true, false, false, pat);
+                HostCheck.True(!X64UserAddressSpace.Build(values, 5, tables, Root, Pages, narrow).Succeeded);
             }
         }
-        finally{NativeMemory.AlignedFree(tables);}
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("m16-006 high user leaves cross PDPT boundaries while physical and supervisor bounds remain low", HostLane.Fast, 3)]
     private static void HighAddresses()
     {
-        var ranges = Ranges(); var conditions = Conditions();
+        var ranges = Ranges();
+        var conditions = Conditions();
         ranges[2].VirtualStart = 0x13ffff000; // Last page in PDPT[4], then PDPT[5].
         ranges[3].VirtualStart = X64UserAddressSpace.UserEnd - 4096;
         ulong* tables = (ulong*)NativeMemory.AlignedAlloc(Pages * 4096, 4096);
@@ -453,18 +579,23 @@ internal static unsafe class X64UserAddressSpaceTests
                 new Span<ulong>(tables, (int)Pages * 512).Clear();
                 ranges[2].User = false;
                 HostCheck.Equal(X64UserAddressSpaceStatus.InvalidRange, X64UserAddressSpace.Build(r, 4, tables, Root, Pages, conditions).Status);
-                ranges[2].User = true; ranges[2].PhysicalStart = 0x100000000;
+                ranges[2].User = true;
+                ranges[2].PhysicalStart = 0x100000000;
                 HostCheck.Equal(X64UserAddressSpaceStatus.InvalidRange, X64UserAddressSpace.Build(r, 4, tables, Root, Pages, conditions).Status);
                 HostCheck.True(!X64UserAddressSpace.TryReadLeaf(tables, 0x100000000, Pages, 0x400000, out _));
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("m16-004 independent user supervisor NX page encodings and absent guards", HostLane.Fast, 0)]
     private static void Encodings()
     {
-        var ranges = Ranges(); var conditions = Conditions();
+        var ranges = Ranges();
+        var conditions = Conditions();
         ulong* tables = (ulong*)NativeMemory.AlignedAlloc(Pages * 4096, 4096);
         try
         {
@@ -487,7 +618,10 @@ internal static unsafe class X64UserAddressSpaceTests
                 HostCheck.True(!X64UserAddressSpace.TryReadLeaf(tables, Root, Pages, X64UserAddressSpace.UserEnd, out _));
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("m16-004 malformed overlap W-X table exhaustion dirty arena reject before writes", HostLane.Fast, 1)]
@@ -499,16 +633,37 @@ internal static unsafe class X64UserAddressSpaceTests
         {
             for (int variant = 0; variant < 8; variant++)
             {
-                var ranges = Ranges(); new Span<ulong>(tables, (int)Pages * 512).Clear();
+                var ranges = Ranges();
+                new Span<ulong>(tables, (int)Pages * 512).Clear();
                 X64UserAddressSpaceStatus expected = X64UserAddressSpaceStatus.InvalidRange;
-                if (variant == 0) ranges[2].Pages = 0;
-                if (variant == 1) ranges[2].VirtualStart++;
-                if (variant == 2) ranges[2].PhysicalStart = 0xfffff000;
-                if (variant == 3) { ranges[2].PhysicalStart = ranges[0].PhysicalStart; expected = X64UserAddressSpaceStatus.OverlappingRanges; }
-                if (variant == 4) { ranges[2].VirtualStart = Root; expected = X64UserAddressSpaceStatus.OverlappingRanges; }
-                if (variant == 5) { ranges[2].Protection |= PageProtection.Write; expected = X64UserAddressSpaceStatus.InvalidEncoding; }
-                if (variant == 6) expected = X64UserAddressSpaceStatus.InsufficientTables;
-                if (variant == 7) { tables[0] = 0xa5; expected = X64UserAddressSpaceStatus.DirtyTables; }
+                if (variant == 0)
+                    ranges[2].Pages = 0;
+                if (variant == 1)
+                    ranges[2].VirtualStart++;
+                if (variant == 2)
+                    ranges[2].PhysicalStart = 0xfffff000;
+                if (variant == 3)
+                {
+                    ranges[2].PhysicalStart = ranges[0].PhysicalStart;
+                    expected = X64UserAddressSpaceStatus.OverlappingRanges;
+                }
+                if (variant == 4)
+                {
+                    ranges[2].VirtualStart = Root;
+                    expected = X64UserAddressSpaceStatus.OverlappingRanges;
+                }
+                if (variant == 5)
+                {
+                    ranges[2].Protection |= PageProtection.Write;
+                    expected = X64UserAddressSpaceStatus.InvalidEncoding;
+                }
+                if (variant == 6)
+                    expected = X64UserAddressSpaceStatus.InsufficientTables;
+                if (variant == 7)
+                {
+                    tables[0] = 0xa5;
+                    expected = X64UserAddressSpaceStatus.DirtyTables;
+                }
                 fixed (X64UserMappingRange* r = ranges)
                 {
                     var result = X64UserAddressSpace.Build(r, 4, tables, Root, variant == 6 ? 4U : Pages, conditions);
@@ -521,7 +676,10 @@ internal static unsafe class X64UserAddressSpaceTests
             HostCheck.True(X64UserAddressSpace.Clear(tables, Pages));
             HostCheck.True(new ReadOnlySpan<ulong>(tables, (int)Pages * 512).IndexOfAnyExcept(0UL) == -1);
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("whole-root audit checks every lane of unused table boundary and interior groups without mutation or stale success")]
@@ -529,7 +687,8 @@ internal static unsafe class X64UserAddressSpaceTests
     {
         foreach (uint tablePages in new[] { Pages, X64UserAddressSpace.MaximumTables })
         {
-            var ranges = Ranges(); var conditions = Conditions();
+            var ranges = Ranges();
+            var conditions = Conditions();
             ulong* tables = (ulong*)NativeMemory.AlignedAlloc(tablePages * 4096, 4096);
             try
             {
@@ -540,17 +699,23 @@ internal static unsafe class X64UserAddressSpaceTests
                     HostCheck.True(result.Succeeded && X64UserAddressSpace.Audit(r, (uint)ranges.Length, tables, Root, tablePages, conditions, result));
                     // Derive unused pages from the actual graph, never from a
                     // presumed suffix beginning at the reported table count.
-                    HashSet<uint> reachable = [0]; Queue<(uint Page, int Level)> pending = new(); pending.Enqueue((0, 3));
+                    HashSet<uint> reachable = [0];
+                    Queue<(uint Page, int Level)> pending = new();
+                    pending.Enqueue((0, 3));
                     while (pending.TryDequeue(out var current))
                     {
-                        if (current.Level == 0) continue;
+                        if (current.Level == 0)
+                            continue;
                         for (uint i = 0; i < 512; i++)
                         {
-                            ulong entry = tables[current.Page * 512 + i]; if (entry == 0) continue;
+                            ulong entry = tables[current.Page * 512 + i];
+                            if (entry == 0)
+                                continue;
                             ulong physical = entry & 0x000ffffffffff000;
                             HostCheck.True(physical >= Root && physical - Root < tablePages * 4096UL);
                             uint child = (uint)((physical - Root) / 4096);
-                            HostCheck.True(reachable.Add(child)); pending.Enqueue((child, current.Level - 1));
+                            HostCheck.True(reachable.Add(child));
+                            pending.Enqueue((child, current.Level - 1));
                         }
                     }
                     HostCheck.Equal(result.UsedTables, (uint)reachable.Count);
@@ -563,7 +728,9 @@ internal static unsafe class X64UserAddressSpaceTests
                         foreach (int word in words)
                             foreach (ulong value in new ulong[] { 1, 0x60, 1UL << 63 })
                             {
-                                ulong* changed = tables + page * 512 + word; HostCheck.Equal(0UL, *changed); *changed = value;
+                                ulong* changed = tables + page * 512 + word;
+                                HostCheck.Equal(0UL, *changed);
+                                *changed = value;
                                 byte[] before = new ReadOnlySpan<byte>(tables, (int)tablePages * 4096).ToArray();
                                 try
                                 {
@@ -571,87 +738,120 @@ internal static unsafe class X64UserAddressSpaceTests
                                     HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(tables, before.Length)));
                                     HostCheck.True(originalRanges.AsSpan().SequenceEqual(MemoryMarshal.AsBytes(ranges.AsSpan())));
                                 }
-                                finally { *changed = 0; }
+                                finally
+                                {
+                                    *changed = 0;
+                                }
                                 HostCheck.True(original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(tables, original.Length)));
                                 HostCheck.True(X64UserAddressSpace.Audit(r, (uint)ranges.Length, tables, Root, tablePages, conditions, result));
                             }
                 }
             }
-            finally { NativeMemory.AlignedFree(tables); }
+            finally
+            {
+                NativeMemory.AlignedFree(tables);
+            }
         }
     }
 
     [HostTest("m16-006 audit checks every leaf across unsorted long ranges and the physical limit without retaining stale encodings", HostLane.Fast, 4)]
     private static void LongRangeAudit()
     {
-        const uint tablePages=32, leafPages=520;const ulong high=0x23ffff000;
-        var basic=Ranges();var conditions=Conditions();
-        X64UserMappingRange large=new(){VirtualStart=high,PhysicalStart=X64UserAddressSpace.PhysicalEnd-leafPages*4096UL,
-            Pages=leafPages,Protection=PageProtection.Read|PageProtection.Write,Cache=PageCachePolicy.WriteBack,User=true};
-        X64UserMappingRange[] ranges=[basic[3],large,basic[1],basic[2],basic[0]];
-        ulong* tables=(ulong*)NativeMemory.AlignedAlloc(tablePages*4096,4096);
+        const uint tablePages = 32, leafPages = 520;
+        const ulong high = 0x23ffff000;
+        var basic = Ranges();
+        var conditions = Conditions();
+        X64UserMappingRange large = new()
+        {
+            VirtualStart = high,
+            PhysicalStart = X64UserAddressSpace.PhysicalEnd - leafPages * 4096UL,
+            Pages = leafPages,
+            Protection = PageProtection.Read | PageProtection.Write,
+            Cache = PageCachePolicy.WriteBack,
+            User = true
+        };
+        X64UserMappingRange[] ranges = [basic[3], large, basic[1], basic[2], basic[0]];
+        ulong* tables = (ulong*)NativeMemory.AlignedAlloc(tablePages * 4096, 4096);
         try
         {
-            new Span<ulong>(tables,(int)tablePages*512).Clear();
-            fixed(X64UserMappingRange* r=ranges)
+            new Span<ulong>(tables, (int)tablePages * 512).Clear();
+            fixed (X64UserMappingRange* r = ranges)
             {
-                var result=X64UserAddressSpace.Build(r,5,tables,Root,tablePages,conditions);
+                var result = X64UserAddressSpace.Build(r, 5, tables, Root, tablePages, conditions);
                 HostCheck.True(result.Succeeded);
-                HostCheck.Equal(0x80000000fffff007UL,*Leaf(tables,high+(leafPages-1)*4096UL));
-                *Leaf(tables,high+511*4096UL)|=0x60;
-                HostCheck.True(X64UserAddressSpace.Audit(r,5,tables,Root,tablePages,conditions,result));
-                byte[] original=new ReadOnlySpan<byte>(tables,(int)tablePages*4096).ToArray();
-                foreach(uint page in new uint[]{0,1,255,256,511,519})
-                    foreach(ulong mask in new ulong[]{4,0x1000,0x8000000000000000})
+                HostCheck.Equal(0x80000000fffff007UL, *Leaf(tables, high + (leafPages - 1) * 4096UL));
+                *Leaf(tables, high + 511 * 4096UL) |= 0x60;
+                HostCheck.True(X64UserAddressSpace.Audit(r, 5, tables, Root, tablePages, conditions, result));
+                byte[] original = new ReadOnlySpan<byte>(tables, (int)tablePages * 4096).ToArray();
+                foreach (uint page in new uint[] { 0, 1, 255, 256, 511, 519 })
+                    foreach (ulong mask in new ulong[] { 4, 0x1000, 0x8000000000000000 })
                     {
-                        ulong* leaf=Leaf(tables,high+page*4096UL);ulong saved=*leaf;*leaf^=mask;ulong changed=*leaf;
-                        HostCheck.True(!X64UserAddressSpace.Audit(r,5,tables,Root,tablePages,conditions,result));
-                        HostCheck.Equal(changed,*leaf);*leaf=saved;
+                        ulong* leaf = Leaf(tables, high + page * 4096UL);
+                        ulong saved = *leaf;
+                        *leaf ^= mask;
+                        ulong changed = *leaf;
+                        HostCheck.True(!X64UserAddressSpace.Audit(r, 5, tables, Root, tablePages, conditions, result));
+                        HostCheck.Equal(changed, *leaf);
+                        *leaf = saved;
                     }
-                ulong* extra=Leaf(tables,high+leafPages*4096UL);*extra=*Leaf(tables,high);
-                HostCheck.True(!X64UserAddressSpace.Audit(r,5,tables,Root,tablePages,conditions,result));*extra=0;
-                HostCheck.True(original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(tables,(int)tablePages*4096)));
+                ulong* extra = Leaf(tables, high + leafPages * 4096UL);
+                *extra = *Leaf(tables, high);
+                HostCheck.True(!X64UserAddressSpace.Audit(r, 5, tables, Root, tablePages, conditions, result));
+                *extra = 0;
+                HostCheck.True(original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(tables, (int)tablePages * 4096)));
                 // A later call must derive its encoding from the current ranges.
-                r[1].Protection=PageProtection.Read;
-                HostCheck.True(!X64UserAddressSpace.Audit(r,5,tables,Root,tablePages,conditions,result));
-                r[1].Protection=PageProtection.Read|PageProtection.Write;
-                HostCheck.True(X64UserAddressSpace.Audit(r,5,tables,Root,tablePages,conditions,result));
+                r[1].Protection = PageProtection.Read;
+                HostCheck.True(!X64UserAddressSpace.Audit(r, 5, tables, Root, tablePages, conditions, result));
+                r[1].Protection = PageProtection.Read | PageProtection.Write;
+                HostCheck.True(X64UserAddressSpace.Audit(r, 5, tables, Root, tablePages, conditions, result));
             }
         }
-        finally{NativeMemory.AlignedFree(tables);}
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("m16-006 contiguous leaf encoding preserves selected PAT cache bits independently of A-D", HostLane.Fast, 5)]
     private static void RangeCacheBits()
     {
-        HostCheck.Equal(X64PageTableEntryStatus.Success,X64PatMappingToken.TryCreate(0x0107040600070406,0,3,7,out var pat));
-        var conditions=X64PageTableEncodingPreconditions.CreateObserved(48,true,true,false,false,pat);
-        PageCachePolicy[] policies=[PageCachePolicy.WriteBack,PageCachePolicy.Uncached,PageCachePolicy.WriteCombining];
-        ulong[] cacheBits=[0,0x18,0x98];
-        ulong* tables=(ulong*)NativeMemory.AlignedAlloc(Pages*4096,4096);
+        HostCheck.Equal(X64PageTableEntryStatus.Success, X64PatMappingToken.TryCreate(0x0107040600070406, 0, 3, 7, out var pat));
+        var conditions = X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat);
+        PageCachePolicy[] policies = [PageCachePolicy.WriteBack, PageCachePolicy.Uncached, PageCachePolicy.WriteCombining];
+        ulong[] cacheBits = [0, 0x18, 0x98];
+        ulong* tables = (ulong*)NativeMemory.AlignedAlloc(Pages * 4096, 4096);
         try
         {
-            for(int i=0;i<policies.Length;i++)
+            for (int i = 0; i < policies.Length; i++)
             {
-                var ranges=Ranges();ranges[2].Protection=PageProtection.Read|PageProtection.Write;ranges[2].Cache=policies[i];
-                new Span<ulong>(tables,(int)Pages*512).Clear();
-                fixed(X64UserMappingRange* r=ranges)
+                var ranges = Ranges();
+                ranges[2].Protection = PageProtection.Read | PageProtection.Write;
+                ranges[2].Cache = policies[i];
+                new Span<ulong>(tables, (int)Pages * 512).Clear();
+                fixed (X64UserMappingRange* r = ranges)
                 {
-                    var result=X64UserAddressSpace.Build(r,4,tables,Root,Pages,conditions);HostCheck.True(result.Succeeded);
-                    HostCheck.Equal(0x8000000000300007UL|cacheBits[i],*Leaf(tables,0x400000));
-                    HostCheck.Equal(0x8000000000301007UL|cacheBits[i],*Leaf(tables,0x401000));
-                    *Leaf(tables,0x401000)|=0x60;HostCheck.True(X64UserAddressSpace.Audit(r,4,tables,Root,Pages,conditions,result));
-                    *Leaf(tables,0x401000)^=0x80;HostCheck.True(!X64UserAddressSpace.Audit(r,4,tables,Root,Pages,conditions,result));
+                    var result = X64UserAddressSpace.Build(r, 4, tables, Root, Pages, conditions);
+                    HostCheck.True(result.Succeeded);
+                    HostCheck.Equal(0x8000000000300007UL | cacheBits[i], *Leaf(tables, 0x400000));
+                    HostCheck.Equal(0x8000000000301007UL | cacheBits[i], *Leaf(tables, 0x401000));
+                    *Leaf(tables, 0x401000) |= 0x60;
+                    HostCheck.True(X64UserAddressSpace.Audit(r, 4, tables, Root, Pages, conditions, result));
+                    *Leaf(tables, 0x401000) ^= 0x80;
+                    HostCheck.True(!X64UserAddressSpace.Audit(r, 4, tables, Root, Pages, conditions, result));
                 }
             }
         }
-        finally{NativeMemory.AlignedFree(tables);}
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 
     [HostTest("m16-004 whole-root audit rejects forged permissions aliases cycles extra leaves and unused tables", HostLane.Fast, 2)]
     private static void AuditMutations()
     {
-        var ranges = Ranges(); var conditions = Conditions();
+        var ranges = Ranges();
+        var conditions = Conditions();
         ulong* tables = (ulong*)NativeMemory.AlignedAlloc(Pages * 4096, 4096);
         try
         {
@@ -662,17 +862,27 @@ internal static unsafe class X64UserAddressSpaceTests
                     new Span<ulong>(tables, (int)Pages * 512).Clear();
                     var result = X64UserAddressSpace.Build(r, 4, tables, Root, Pages, conditions);
                     HostCheck.True(result.Succeeded);
-                    if (variant == 0) *Leaf(tables, 0x400000) &= ~4UL;
-                    if (variant == 1) *Leaf(tables, 0x100000) |= 4;
-                    if (variant == 2) *Leaf(tables, 0x6ffff000) &= ~0x8000000000000000UL;
-                    if (variant == 3) *Leaf(tables, 0x400000) |= 2;
-                    if (variant == 4) *Leaf(tables, 0x402000) = 0x300005;
-                    if (variant == 5) tables[0] = Root | 7;
-                    if (variant == 6) tables[(Pages - 1) * 512] = 1;
+                    if (variant == 0)
+                        *Leaf(tables, 0x400000) &= ~4UL;
+                    if (variant == 1)
+                        *Leaf(tables, 0x100000) |= 4;
+                    if (variant == 2)
+                        *Leaf(tables, 0x6ffff000) &= ~0x8000000000000000UL;
+                    if (variant == 3)
+                        *Leaf(tables, 0x400000) |= 2;
+                    if (variant == 4)
+                        *Leaf(tables, 0x402000) = 0x300005;
+                    if (variant == 5)
+                        tables[0] = Root | 7;
+                    if (variant == 6)
+                        tables[(Pages - 1) * 512] = 1;
                     HostCheck.True(!X64UserAddressSpace.Audit(r, 4, tables, Root, Pages, conditions, result));
                 }
             }
         }
-        finally { NativeMemory.AlignedFree(tables); }
+        finally
+        {
+            NativeMemory.AlignedFree(tables);
+        }
     }
 }

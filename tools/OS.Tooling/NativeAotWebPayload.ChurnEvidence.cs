@@ -24,14 +24,17 @@ public static partial class NativeAotWebPayload
             ChurnString(root.GetProperty("endpoint"), 64) == expectedEndpoint, "schema_endpoint");
         JsonElement samples = root.GetProperty("samples");
         ChurnNeed(samples.ValueKind == JsonValueKind.Array && samples.GetArrayLength() == 42, "samples");
-        int position = 0; ulong[]? previous = null;
+        int position = 0;
+        ulong[]? previous = null;
         JsonElement Row(string kind, int cycle, string caseName, int status)
         {
-            ChurnNeed(position < 42, "sequence"); JsonElement row = samples[position++];
+            ChurnNeed(position < 42, "sequence");
+            JsonElement row = samples[position++];
             ChurnKeys(row, "kind", "cycle", "case", "status", "body");
             ChurnNeed(ChurnString(row.GetProperty("kind"), 32) == kind && ChurnInt(row.GetProperty("cycle")) == cycle &&
                 ChurnString(row.GetProperty("case"), 32) == caseName && ChurnInt(row.GetProperty("status")) == status, "sequence");
-            _ = ChurnString(row.GetProperty("body"), 2048); return row;
+            _ = ChurnString(row.GetProperty("body"), 2048);
+            return row;
         }
         void Body(string kind, int cycle, int status, string body, string caseName = "") =>
             ChurnNeed(ChurnString(Row(kind, cycle, caseName, status).GetProperty("body"), 2048) == body, "body");
@@ -41,9 +44,12 @@ public static partial class NativeAotWebPayload
             ChurnNeed(value[0] == active && value[1] == waiting && value[3] == started && value[4] == completed && value[5] == canceled,
                 "lifetime");
             if (previous is not null)
-                foreach (int field in new[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 12 }) ChurnNeed(value[field] >= previous[field], "monotonic");
-            if (kind == "baseline") ChurnNeed(value.All(n => n == 0), "baseline");
-            if (kind == "final") ChurnNeed(previous is not null && value.SequenceEqual(previous), "final_progress");
+                foreach (int field in new[] { 2, 3, 4, 5, 6, 7, 8, 9, 10, 12 })
+                    ChurnNeed(value[field] >= previous[field], "monotonic");
+            if (kind == "baseline")
+                ChurnNeed(value.All(n => n == 0), "baseline");
+            if (kind == "final")
+                ChurnNeed(previous is not null && value.SequenceEqual(previous), "final_progress");
             previous = value;
         }
         Status("baseline", -1, 0, 0, 0, 0, 0);
@@ -58,7 +64,8 @@ public static partial class NativeAotWebPayload
             Status("cancel-ready", cycle, started, count, count, 1, 1);
             Body("cancel", cycle, 0, "");
             Status("cancel-drained", cycle, started, count, count + 1, 0, 0);
-            foreach (int field in new[] { 8, 9, 10 }) ChurnNeed(previous![field] - beforeCancel[field] <= 8, "cancel_progress");
+            foreach (int field in new[] { 8, 9, 10 })
+                ChurnNeed(previous![field] - beforeCancel[field] <= 8, "cancel_progress");
             ulong[] beforeComplete = previous!;
             Status("complete-pending", cycle, started + 1, count, count + 1, 1, 1);
             Body("complete-health", cycle, 200, expectedHealthBody);
@@ -66,7 +73,8 @@ public static partial class NativeAotWebPayload
             Body("complete", cycle, 200, "CLROS_CHURN_OK iterations=8 bytes=65536 timers=8 workers=8 collections=8");
             Body("complete-health-after", cycle, 200, expectedHealthBody);
             Status("complete-drained", cycle, started + 1, count + 1, count + 1, 0, 0);
-            foreach (int field in new[] { 8, 9, 10 }) ChurnNeed(previous![field] - beforeComplete[field] == 8, "complete_progress");
+            foreach (int field in new[] { 8, 9, 10 })
+                ChurnNeed(previous![field] - beforeComplete[field] == 8, "complete_progress");
         }
         Status("final", -1, 6, 3, 3, 0, 0);
         ChurnNeed(position == 42 && previous is not null && previous[8] is >= 24 and <= 48 &&
@@ -75,14 +83,17 @@ public static partial class NativeAotWebPayload
 
     private static readonly string[] ChurnStatusKeys = ["active", "waiting", "peakActive", "started", "completed", "canceled",
         "failed", "rejected", "timers", "workers", "collections", "heldBytes", "peakHeldBytes"];
-    private static ulong[] ChurnStatus(string body,bool continuous=false)
+    private static ulong[] ChurnStatus(string body, bool continuous = false)
     {
-        const string prefix = "CLROS_CHURN_STATUS "; ChurnNeed(body.StartsWith(prefix, StringComparison.Ordinal), "status_prefix");
-        string[] fields = body[prefix.Length..].Split(' '); ChurnNeed(fields.Length == ChurnStatusKeys.Length, "status_fields");
+        const string prefix = "CLROS_CHURN_STATUS ";
+        ChurnNeed(body.StartsWith(prefix, StringComparison.Ordinal), "status_prefix");
+        string[] fields = body[prefix.Length..].Split(' ');
+        ChurnNeed(fields.Length == ChurnStatusKeys.Length, "status_fields");
         ulong[] value = new ulong[fields.Length];
         for (int i = 0; i < fields.Length; i++)
         {
-            string key = ChurnStatusKeys[i] + "="; ChurnNeed(fields[i].StartsWith(key, StringComparison.Ordinal), "status_key");
+            string key = ChurnStatusKeys[i] + "=";
+            ChurnNeed(fields[i].StartsWith(key, StringComparison.Ordinal), "status_key");
             string number = fields[i][key.Length..];
             ChurnNeed(number.Length is > 0 and <= 20 && (number.Length == 1 || number[0] != '0') &&
                 number.All(c => c is >= '0' and <= '9') && ulong.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out value[i]), "status_number");
@@ -104,14 +115,20 @@ public static partial class NativeAotWebPayload
     }
     private static string ChurnString(JsonElement value, int maximum)
     {
-        ChurnNeed(value.ValueKind == JsonValueKind.String, "string"); string text = value.GetString()!;
-        ChurnNeed(text.Length <= maximum, "string_bound"); return text;
+        ChurnNeed(value.ValueKind == JsonValueKind.String, "string");
+        string text = value.GetString()!;
+        ChurnNeed(text.Length <= maximum, "string_bound");
+        return text;
     }
     private static int ChurnInt(JsonElement value)
     {
         ChurnNeed(value.ValueKind == JsonValueKind.Number, "integer");
-        ChurnNeed(value.TryGetInt32(out int number) && value.GetRawText() == number.ToString(CultureInfo.InvariantCulture), "integer"); return number;
+        ChurnNeed(value.TryGetInt32(out int number) && value.GetRawText() == number.ToString(CultureInfo.InvariantCulture), "integer");
+        return number;
     }
     private static void ChurnNeed(bool condition, string reason)
-    { if (!condition) throw new InvalidDataException("web_churn_" + reason); }
+    {
+        if (!condition)
+            throw new InvalidDataException("web_churn_" + reason);
+    }
 }

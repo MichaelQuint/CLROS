@@ -12,19 +12,25 @@ internal static unsafe class LinuxAppStartupTests
     private static void OrderedFragments()
     {
         var value = new LinuxAppStartupObservation();
-        HostCheck.Equal(false, value.StartupComplete); HostCheck.Equal(false, value.SuccessfulBind);
-        HostCheck.Equal(0U, value.ObservedStages); HostCheck.Equal(0UL, value.WriterIdentity);
+        HostCheck.Equal(false, value.StartupComplete);
+        HostCheck.Equal(false, value.SuccessfulBind);
+        HostCheck.Equal(0U, value.ObservedStages);
+        HostCheck.Equal(0UL, value.WriterIdentity);
         byte[] bytes = Encoding.ASCII.GetBytes(Prefix);
         fixed (byte* source = bytes)
         {
             for (int i = 0; i < bytes.Length;)
             {
                 int count = Math.Min(1 + i % 7, bytes.Length - i);
-                HostCheck.True(value.Observe(Writer, source + i, (uint)count)); i += count;
+                HostCheck.True(value.Observe(Writer, source + i, (uint)count));
+                i += count;
             }
-            HostCheck.True(value.StartupComplete); HostCheck.Equal(false, value.SuccessfulBind);
-            HostCheck.Equal(4U, value.ObservedStages); HostCheck.Equal(Writer, value.WriterIdentity);
-            HostCheck.True(value.RecordBind(Binder, true)); HostCheck.True(value.SuccessfulBind);
+            HostCheck.True(value.StartupComplete);
+            HostCheck.Equal(false, value.SuccessfulBind);
+            HostCheck.Equal(4U, value.ObservedStages);
+            HostCheck.Equal(Writer, value.WriterIdentity);
+            HostCheck.True(value.RecordBind(Binder, true));
+            HostCheck.True(value.SuccessfulBind);
             HostCheck.Equal(Binder, value.BindIdentity);
             // Logging after startup may come from other owned writers.
             HostCheck.True(value.Observe(Binder + 1, source, 1));
@@ -41,9 +47,12 @@ internal static unsafe class LinuxAppStartupTests
         {
             byte[] bytes = Encoding.ASCII.GetBytes(text);
             var value = new LinuxAppStartupObservation();
-            fixed (byte* source = bytes) value.Observe(Writer, source, (uint)bytes.Length);
-            HostCheck.Equal(false, value.StartupComplete); HostCheck.Equal(false, value.RecordBind(Binder, true));
-            HostCheck.True(value.Failed); HostCheck.Equal(false, value.SuccessfulBind);
+            fixed (byte* source = bytes)
+                value.Observe(Writer, source, (uint)bytes.Length);
+            HostCheck.Equal(false, value.StartupComplete);
+            HostCheck.Equal(false, value.RecordBind(Binder, true));
+            HostCheck.True(value.Failed);
+            HostCheck.Equal(false, value.SuccessfulBind);
             HostCheck.Equal(false, Feed(ref value));
         }
     }
@@ -58,31 +67,52 @@ internal static unsafe class LinuxAppStartupTests
             bool accepted;
             switch (mutation)
             {
-                case 0: accepted = value.Observe(0, &one, 1); break;
-                case 1: accepted = value.Observe(Writer, null, 1); break;
-                case 2: accepted = value.Observe(Writer, &one, 0); break;
-                case 3: accepted = value.Observe(Writer, &one, 8193); break;
+                case 0:
+                    accepted = value.Observe(0, &one, 1);
+                    break;
+                case 1:
+                    accepted = value.Observe(Writer, null, 1);
+                    break;
+                case 2:
+                    accepted = value.Observe(Writer, &one, 0);
+                    break;
+                case 3:
+                    accepted = value.Observe(Writer, &one, 8193);
+                    break;
                 case 4:
                     HostCheck.True(value.Observe(Writer, &one, 1));
-                    accepted = value.Observe(Binder, &one, 1); break;
-                case 5: accepted = value.RecordBind(Binder, true); break;
-                case 6: HostCheck.True(Feed(ref value)); accepted = value.RecordBind(Binder, false); break;
+                    accepted = value.Observe(Binder, &one, 1);
+                    break;
+                case 5:
+                    accepted = value.RecordBind(Binder, true);
+                    break;
+                case 6:
+                    HostCheck.True(Feed(ref value));
+                    accepted = value.RecordBind(Binder, false);
+                    break;
                 default:
-                    HostCheck.True(Feed(ref value)); HostCheck.True(value.RecordBind(Binder, true));
-                    accepted = value.RecordBind(Binder, true); break;
+                    HostCheck.True(Feed(ref value));
+                    HostCheck.True(value.RecordBind(Binder, true));
+                    accepted = value.RecordBind(Binder, true);
+                    break;
             }
-            HostCheck.Equal(false, accepted); HostCheck.True(value.Failed);
-            HostCheck.Equal(false, Feed(ref value)); HostCheck.Equal(false, value.StartupComplete);
+            HostCheck.Equal(false, accepted);
+            HostCheck.True(value.Failed);
+            HostCheck.Equal(false, Feed(ref value));
+            HostCheck.Equal(false, value.StartupComplete);
             HostCheck.Equal(false, value.SuccessfulBind);
         }
-        var zeroBinder = new LinuxAppStartupObservation(); HostCheck.True(Feed(ref zeroBinder));
-        HostCheck.Equal(false, zeroBinder.RecordBind(0, true)); HostCheck.True(zeroBinder.Failed);
+        var zeroBinder = new LinuxAppStartupObservation();
+        HostCheck.True(Feed(ref zeroBinder));
+        HostCheck.Equal(false, zeroBinder.RecordBind(0, true));
+        HostCheck.True(zeroBinder.Failed);
     }
 
     [HostTest("m10.006 startup observation and bind allocate no managed memory")]
     private static void AllocationBoundary()
     {
-        var warm = new LinuxAppStartupObservation(); HostCheck.True(Feed(ref warm));
+        var warm = new LinuxAppStartupObservation();
+        HostCheck.True(Feed(ref warm));
         byte[] bytes = Encoding.ASCII.GetBytes(Prefix);
         bool accepted = true;
         long before = GC.GetAllocatedBytesForCurrentThread();
@@ -93,13 +123,15 @@ internal static unsafe class LinuxAppStartupTests
                 accepted &= value.Observe(Writer, source, (uint)bytes.Length) && value.RecordBind(Binder, true) && value.SuccessfulBind;
             }
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        HostCheck.True(accepted); HostCheck.Equal(0L, allocated);
+        HostCheck.True(accepted);
+        HostCheck.Equal(0L, allocated);
     }
 
     private static bool Feed(ref LinuxAppStartupObservation value)
     {
         byte[] bytes = Encoding.ASCII.GetBytes(Prefix);
-        fixed (byte* source = bytes) return value.Observe(Writer, source, (uint)bytes.Length);
+        fixed (byte* source = bytes)
+            return value.Observe(Writer, source, (uint)bytes.Length);
     }
 
     [HostTest("m10.006 raw startup joins framed stderr writev bind and live observations")]
@@ -107,8 +139,10 @@ internal static unsafe class LinuxAppStartupTests
     {
         byte[] raw = StartupRaw("none"), before = (byte[])raw.Clone();
         var value = QemuTranscripts.InspectNativeAotWebStartupForTests(raw);
-        HostCheck.Equal(Writer, value.WriterIdentity); HostCheck.Equal(Binder, value.BindIdentity);
-        HostCheck.Equal(2, value.StartupWriteRecords); HostCheck.True(raw.AsSpan().SequenceEqual(before));
+        HostCheck.Equal(Writer, value.WriterIdentity);
+        HostCheck.Equal(Binder, value.BindIdentity);
+        HostCheck.Equal(2, value.StartupWriteRecords);
+        HostCheck.True(raw.AsSpan().SequenceEqual(before));
     }
 
     [HostTest("m10.006 raw startup rejects missing forged foreign early failed and repeated observations")]
@@ -118,8 +152,14 @@ internal static unsafe class LinuxAppStartupTests
             "duplicate_bind", "missing_ready", "failure", "short_write", "wrong_bind_fd", "wrong_listen_fd", "stages", "early_marker", "orphan" })
         {
             bool rejected = false;
-            try { QemuTranscripts.InspectNativeAotWebStartupForTests(StartupRaw(mutation)); }
-            catch (ToolFailure) { rejected = true; }
+            try
+            {
+                QemuTranscripts.InspectNativeAotWebStartupForTests(StartupRaw(mutation));
+            }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, mutation);
         }
     }
@@ -134,21 +174,30 @@ internal static unsafe class LinuxAppStartupTests
             Call(Binder, mutation == "foreign_writer" ? 2 : 1, 49, 6, mutation == "failed_bind" ? -98 : 0);
         string first = Prefix[..10], rest = Prefix[10..];
         string text = "TEST_START m10.004\r\nTEST_START m16-009\r\nTEST_START m10.006\r\n";
-        if (mutation == "early_marker") text += startup;
+        if (mutation == "early_marker")
+            text += startup;
         text += Frame(first) + Call(Writer, 1, 1, 2, first.Length, first.Length);
-        if (mutation == "early_bind") text += bind;
-        if (mutation != "missing") text += Frame(rest);
-        if (mutation != "early_marker") text += startup;
+        if (mutation == "early_bind")
+            text += bind;
+        if (mutation != "missing")
+            text += Frame(rest);
+        if (mutation != "early_marker")
+            text += startup;
         text += Call(mutation == "foreign_writer" ? Binder : Writer, mutation == "foreign_writer" ? 1 : 2,
             20, 2, rest.Length - (mutation == "short_write" ? 1 : 0));
-        if (mutation != "early_bind") text += bind;
-        if (mutation == "duplicate_bind") text += Call(Binder, 2, 49, 6, 0);
+        if (mutation != "early_bind")
+            text += bind;
+        if (mutation == "duplicate_bind")
+            text += Call(Binder, 2, 49, 6, 0);
         text += $"M10_004_LISTEN fd={(mutation == "wrong_listen_fd" ? 7 : 6)} address=0 port=8080 owner=live\r\n" +
             "CLROS_M10_004_READY\r\nTEST_PASS m10.004\r\n";
-        if (mutation != "missing_ready") text += "CLROS_M10_006_READY\r\n";
+        if (mutation != "missing_ready")
+            text += "CLROS_M10_006_READY\r\n";
         text += "TEST_PASS m10.006\r\n";
-        if (mutation == "failure") text += "TEST_FAIL m10.006 startup-observation\r\n";
-        if (mutation == "orphan") text += Frame("x");
+        if (mutation == "failure")
+            text += "TEST_FAIL m10.006 startup-observation\r\n";
+        if (mutation == "orphan")
+            text += Frame("x");
         return Encoding.ASCII.GetBytes(text);
     }
 }

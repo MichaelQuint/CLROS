@@ -7,7 +7,7 @@ using OS.Std.Binary;
 using OS.Std.Hash;
 using OS.Storage;
 
-internal static class StorageVirtioBlockPackageReadPreflightTests
+internal static partial class StorageVirtioBlockPackageReadPreflightTests
 {
     private const ushort QueueSize = 8;
     private const ulong HeaderPhysicalAddress = 0x0010_0000UL;
@@ -390,45 +390,15 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
     [HostTest("storage virtio block package file staging formatter uses shared ascii text builder", HostLane.Fast, 9)]
     private static bool TestPackageFileStagingFormatterUsesSharedAsciiTextBuilder()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(
-                repositoryRoot,
-                "src",
-                "OS.Kernel",
-                "Storage",
-                "VirtioBlockPackageFileStagingPreflightDiagnosticFormatter.cs"));
-
-        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiTextBuilder.AppendBytes(destination, offset, value)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.ReadSessionByteCount)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.PackageBytesRead)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.PackageFileBytesStaged)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.StagingDestinationBytesAvailable)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.PackageStaging.FileLength)",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "AsciiDecimalFormatter.CountUInt64Digits(preflight.PackageStaging.RequiredBytes)",
-                StringComparison.Ordinal)
-            && !source.Contains("private static int GetUInt64DecimalByteCount", StringComparison.Ordinal)
-            && !source.Contains("private static void AppendUInt64(", StringComparison.Ordinal)
-            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal)
-            && !source.Contains("destination[offset + index] = (byte)('0' +", StringComparison.Ordinal)
-            && !source.Contains("value /= 10;", StringComparison.Ordinal));
+        return HostCheck.Result(HostFormatterSourceGuard.Check(
+            HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"),
+            typeof(VirtioBlockPackageFileStagingPreflightDiagnosticFormatter).FullName!,
+            [nameof(VirtioBlockPackageFileStagingPreflightResult.ReadSessionByteCount),
+                nameof(VirtioBlockPackageFileStagingPreflightResult.PackageBytesRead),
+                nameof(VirtioBlockPackageFileStagingPreflightResult.PackageFileBytesStaged),
+                nameof(VirtioBlockPackageFileStagingPreflightResult.StagingDestinationBytesAvailable),
+                nameof(VirtioBlockPackageFileStagingPreflightResult.PackageStaging) + "." + nameof(OsPackageFileStagingResult.FileLength),
+                nameof(VirtioBlockPackageFileStagingPreflightResult.PackageStaging) + "." + nameof(OsPackageFileStagingResult.RequiredBytes)]));
     }
 
     [HostTest("boot.sequence package file staging preflight ready", HostLane.Fast, 10)]
@@ -1149,57 +1119,4 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
         EndianPrimitives.WriteUInt64LittleEndian(image.AsSpan(offset, 8), value);
     }
 
-    private sealed class MemoryBlockDevice : IReadOnlyBlockDevice
-    {
-        private MemoryBlockDevice(BlockDeviceInfo info, byte[] image)
-        {
-            Info = info;
-            Image = image;
-        }
-
-        public BlockDeviceInfo Info { get; }
-
-        private byte[] Image { get; }
-
-        public static MemoryBlockDevice FromImage(byte[] image, uint blockSize)
-        {
-            BlockDeviceInfoResult info = BlockDeviceInfo.Create(blockSize, (ulong)image.Length / blockSize);
-            if (!info.Succeeded)
-            {
-                throw new InvalidOperationException("Invalid test image geometry: " + info.Status);
-            }
-
-            return new MemoryBlockDevice(info.Info, image);
-        }
-
-        public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
-        {
-            BlockReadResult result = BlockDeviceRead.Validate(Info, firstBlock, blockCount, destination);
-            if (!result.Succeeded)
-            {
-                return result;
-            }
-
-            int offset = checked((int)(firstBlock * Info.BlockSize));
-            Image.AsSpan(offset, checked((int)result.BytesRead)).CopyTo(destination);
-            return result;
-        }
-    }
-
-    private sealed class SequenceTestSerialSink : ISerialSink
-    {
-        private readonly List<string> _lines = new List<string>();
-
-        public int Count => _lines.Count;
-
-        public void WriteLine(string line)
-        {
-            _lines.Add(line);
-        }
-
-        public string LineAt(int index)
-        {
-            return _lines[index];
-        }
-    }
 }

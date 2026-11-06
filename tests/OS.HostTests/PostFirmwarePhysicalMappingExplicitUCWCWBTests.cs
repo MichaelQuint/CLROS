@@ -47,7 +47,8 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
             {
                 ulong expected = Base + (ulong)i * 4096;
                 expected |= Nx | 0x63;
-                if (i is 3 or 4) expected |= cacheBits;
+                if (i is 3 or 4)
+                    expected |= cacheBits;
                 Require(entries[i + 1] == expected, "child " + i);
             }
             Require(entries[0] == Sentinel && entries[513] == Sentinel, "buffer bounds");
@@ -78,7 +79,8 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
     private static void RejectionIsAtomic()
     {
         ulong* entries = stackalloc ulong[512];
-        for (int i = 0; i < 512; i++) entries[i] = Sentinel;
+        for (int i = 0; i < 512; i++)
+            entries[i] = Sentinel;
         ulong pde = Base | Nx | 0x83;
         foreach ((ulong start, ulong length) in new[]
         {
@@ -171,7 +173,8 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
         entries[512] = Table + 8192 | 3;
         entries[1025] = Base | Nx | 0xE3;
         entries[1028] = Table + 12288 | 3;
-        for (int i = 0; i < 5; i++) entries[1536 + i] = Table + (ulong)i * 4096 | Nx | 3;
+        for (int i = 0; i < 5; i++)
+            entries[1536 + i] = Table + (ulong)i * 4096 | Nx | 3;
         return entries;
     }
 
@@ -187,7 +190,8 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
             Require(result.IsPrepared && result.ParentEntryIndex == 1025
                 && result.ChildTablePageIndex == 4 && result.OriginalPde == before[1025]
                 && result.ReplacementPde == (Table + 16384 | 0x23), "prepared ownership indices");
-            for (int i = 0; i < 2048; i++) Require(entries[i] == before[i], "reachable entry changed");
+            for (int i = 0; i < 2048; i++)
+                Require(entries[i] == before[i], "reachable entry changed");
             for (int i = 0; i < 512; i++)
                 Require(entries[2048 + i] == (Base + (ulong)i * 4096 | Nx | (i == 1 ? 0x7BUL : 0x63UL)),
                     "split leaf " + i);
@@ -249,7 +253,8 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
         straddling[512] = 0x800003;
         straddling[1027] = 0x600083 | Nx;
         straddling[1028] = 0x801003;
-        for (int i = 0; i < 3; i++) straddling[1536 + i] = 0x800000 + (ulong)i * 4096 | Nx | 3;
+        for (int i = 0; i < 3; i++)
+            straddling[1536 + i] = 0x800000 + (ulong)i * 4096 | Nx | 3;
         ulong[] original = (ulong[])straddling.Clone();
         fixed (ulong* image = straddling)
         {
@@ -269,10 +274,12 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
     private static void NativeEmission()
     {
         byte* code = stackalloc byte[1024];
-        for (int i = 0; i < 1024; i++) code[i] = 0xA5;
+        for (int i = 0; i < 1024; i++)
+            code[i] = 0xA5;
         Require(!X64PhysicalMappingPublication.Emit(code + 1, X64PhysicalMappingPublication.RequiredBytes - 1)
             && !X64PhysicalMappingPublication.Emit(null, 1024), "publication capacity");
-        for (int i = 0; i < 1024; i++) Require(code[i] == 0xA5, "failed emission wrote storage");
+        for (int i = 0; i < 1024; i++)
+            Require(code[i] == 0xA5, "failed emission wrote storage");
         Require(X64PhysicalMappingPublication.Emit(code + 1, X64PhysicalMappingPublication.RequiredBytes)
             && X64PhysicalMappingPublication.ValidateReadBack(code + 1, X64PhysicalMappingPublication.RequiredBytes),
             "publication bytes");
@@ -346,7 +353,8 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
         Require(PostFirmwarePhysicalMappingExplicitUCWCWB.ValidateWriteBackMtrrRange(Address(Base), 4096,
             48, cr0, 0, enabled | 6, false, null, null, 0) == PhysicalMappingPreparationStatus.Prepared,
             "default WB with no variable ranges");
-        bases[0] = Base | 6; bases[1] = Base + 0x200000 | 6;
+        bases[0] = Base | 6;
+        bases[1] = Base + 0x200000 | 6;
         masks[0] = masks[1] = (addressMask & ~0x1FFFFFUL) | enabled;
         Require(Mtrr(bases, masks, 0x400000) == PhysicalMappingPreparationStatus.Prepared,
             "adjacent WB union over default UC");
@@ -404,11 +412,13 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
     {
         Require(!result.IsPrepared && result.ReplacementPde == 0 && result.Status == expected,
             "rejection expected=" + expected + " actual=" + result.Status);
-        for (int i = 0; i < 512; i++) Require(entries[i] == Sentinel, "failure wrote child " + i);
+        for (int i = 0; i < 512; i++)
+            Require(entries[i] == Sentinel, "failure wrote child " + i);
     }
 
     private static void Require(bool condition, string reason)
     {
-        if (!condition) throw new InvalidOperationException(reason);
+        if (!condition)
+            throw new InvalidOperationException(reason);
     }
 }

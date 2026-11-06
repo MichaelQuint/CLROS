@@ -14,7 +14,11 @@ internal static class QemuProcessAuthorityTests
         File.WriteAllBytes(local, []);
         try
         {
-            for (int i = 0; i < names.Length; i++) { File.WriteAllBytes(candidates[i], []); Environment.SetEnvironmentVariable(names[i], candidates[i]); }
+            for (int i = 0; i < names.Length; i++)
+            {
+                File.WriteAllBytes(candidates[i], []);
+                Environment.SetEnvironmentVariable(names[i], candidates[i]);
+            }
             HostCheck.Equal(local, QemuSmoke.ResolveOvmf(local, qemu));
             HostCheck.Equal<string?>(null, QemuSmoke.ResolveOvmf(Path.Combine(root, "absent.fd"), qemu));
             for (int i = 0; i < names.Length; i++)
@@ -24,7 +28,11 @@ internal static class QemuProcessAuthorityTests
             }
             HostCheck.Equal(local, QemuSmoke.ResolveOvmf(null, qemu));
         }
-        finally { for (int i = 0; i < names.Length; i++) Environment.SetEnvironmentVariable(names[i], original[i]); }
+        finally
+        {
+            for (int i = 0; i < names.Length; i++)
+                Environment.SetEnvironmentVariable(names[i], original[i]);
+        }
     }
 
     [HostTest("qemu refuses incomplete process authority before ordinary or expected panic classification")]
@@ -56,8 +64,14 @@ internal static class QemuProcessAuthorityTests
                 {
                     var plan = QemuProfiles.Create(options);
                     bool rejected = false;
-                    try { QemuTranscripts.ValidateRun(root, options, plan, result, TextWriter.Null); }
-                    catch (ToolFailure error) when (error.Reason == "qemu_runner_incomplete") { rejected = true; }
+                    try
+                    {
+                        QemuTranscripts.ValidateRun(root, options, plan, result, TextWriter.Null);
+                    }
+                    catch (ToolFailure error) when (error.Reason == "qemu_runner_incomplete")
+                    {
+                        rejected = true;
+                    }
                     HostCheck.True(rejected, "incomplete process status cannot reach a guest transcript");
                 }
             }

@@ -33,7 +33,10 @@ public sealed class ContinuingNetworkPeer : IDisposable
     }
 
     public string NetdevArgument => transport.NetdevArgument;
-    public Task Completion { get; }
+    public Task Completion
+    {
+        get;
+    }
     public int ArpReplies => Volatile.Read(ref arpReplies);
     public int EchoReplies => Volatile.Read(ref echoReplies);
     public int TcpPackets => Volatile.Read(ref tcpPackets);
@@ -50,16 +53,21 @@ public sealed class ContinuingNetworkPeer : IDisposable
         {
             int length = await transport.ReadFrameAsync(input, stop.Token).ConfigureAwait(false);
             int reply = BuildReply(input.AsSpan(0, length), output, out int sequence);
-            if (reply == 0) continue;
-            if (sequence >= 0 && sequence != EchoReplies) throw new InvalidDataException("Unexpected echo sequence.");
+            if (reply == 0)
+                continue;
+            if (sequence >= 0 && sequence != EchoReplies)
+                throw new InvalidDataException("Unexpected echo sequence.");
             await transport.WriteFrameAsync(output.AsMemory(0, reply), stop.Token).ConfigureAwait(false);
-            if (sequence < 0) Interlocked.Increment(ref arpReplies);
+            if (sequence < 0)
+                Interlocked.Increment(ref arpReplies);
             else
             {
                 if (Interlocked.Increment(ref echoReplies) == 12)
                 {
-                    if (ArpReplies != 21) throw new InvalidDataException("Unexpected original/continuing ARP request count.");
-                    if (runTcp) await RunTcpAsync(input, output).ConfigureAwait(false);
+                    if (ArpReplies != 21)
+                        throw new InvalidDataException("Unexpected original/continuing ARP request count.");
+                    if (runTcp)
+                        await RunTcpAsync(input, output).ConfigureAwait(false);
                     return;
                 }
             }
@@ -72,7 +80,8 @@ public sealed class ContinuingNetworkPeer : IDisposable
         await tcpReady.Task.WaitAsync(TimeSpan.FromSeconds(10), stop.Token).ConfigureAwait(false);
         foreach (var packet in ContinuingTcpScenario.Packets)
         {
-            if (packet.DelayMilliseconds != 0) await Task.Delay(packet.DelayMilliseconds, stop.Token).ConfigureAwait(false);
+            if (packet.DelayMilliseconds != 0)
+                await Task.Delay(packet.DelayMilliseconds, stop.Token).ConfigureAwait(false);
             if (packet.FromGuest)
             {
                 using var deadline = CancellationTokenSource.CreateLinkedTokenSource(stop.Token);
@@ -80,7 +89,8 @@ public sealed class ContinuingNetworkPeer : IDisposable
                 int length = await transport.ReadFrameAsync(input, deadline.Token).ConfigureAwait(false);
                 ContinuingTcpScenario.Validate(input.AsSpan(0, length), packet, 0x020000000002);
             }
-            else await transport.WriteFrameAsync(ContinuingTcpScenario.Write(packet, 0x020000000002), stop.Token).ConfigureAwait(false);
+            else
+                await transport.WriteFrameAsync(ContinuingTcpScenario.Write(packet, 0x020000000002), stop.Token).ConfigureAwait(false);
             Interlocked.Increment(ref tcpPackets);
         }
         // The real guest keeps B's table generation for 2MSL while other cases run.
@@ -89,7 +99,8 @@ public sealed class ContinuingNetworkPeer : IDisposable
         finalDeadline.CancelAfter(TimeSpan.FromSeconds(260));
         int finalLength = await transport.ReadFrameAsync(input, finalDeadline.Token).ConfigureAwait(false);
         int reply = BuildReply(input.AsSpan(0, finalLength), output, out int sequence, final: true);
-        if (reply == 0 || sequence != 0) throw new InvalidDataException("Missing final TCP cleanup echo.");
+        if (reply == 0 || sequence != 0)
+            throw new InvalidDataException("Missing final TCP cleanup echo.");
         await transport.WriteFrameAsync(output.AsMemory(0, reply), stop.Token).ConfigureAwait(false);
     }
 
@@ -97,10 +108,13 @@ public sealed class ContinuingNetworkPeer : IDisposable
     {
         sequence = -1;
         ushort type = BinaryPrimitives.ReadUInt16BigEndian(input[12..]);
-        if (type != 0x0806 && type != 0x0800) return 0;
-        if (!input.Slice(6, 6).SequenceEqual(GuestMac)) throw new InvalidDataException("Unexpected fixture source MAC.");
+        if (type != 0x0806 && type != 0x0800)
+            return 0;
+        if (!input.Slice(6, 6).SequenceEqual(GuestMac))
+            throw new InvalidDataException("Unexpected fixture source MAC.");
         output.Clear();
-        GuestMac.CopyTo(output); PeerMac.CopyTo(output[6..]);
+        GuestMac.CopyTo(output);
+        PeerMac.CopyTo(output[6..]);
         BinaryPrimitives.WriteUInt16BigEndian(output[12..], type);
         if (type == 0x0806)
         {
@@ -111,24 +125,31 @@ public sealed class ContinuingNetworkPeer : IDisposable
                 throw new InvalidDataException("Invalid fixture ARP request.");
             input.Slice(14, 28).CopyTo(output[14..]);
             BinaryPrimitives.WriteUInt16BigEndian(output[20..], 2);
-            PeerMac.CopyTo(output[22..]); PeerIp.CopyTo(output[28..]);
-            GuestMac.CopyTo(output[32..]); GuestIp.CopyTo(output[38..]);
+            PeerMac.CopyTo(output[22..]);
+            PeerIp.CopyTo(output[28..]);
+            GuestMac.CopyTo(output[32..]);
+            GuestIp.CopyTo(output[38..]);
             return 60;
         }
-        if (input.Length < 34) throw new InvalidDataException("Truncated fixture IPv4 header.");
-        if (input[23] != 1) return 0;
+        if (input.Length < 34)
+            throw new InvalidDataException("Truncated fixture IPv4 header.");
+        if (input[23] != 1)
+            return 0;
         int total = BinaryPrimitives.ReadUInt16BigEndian(input[16..]);
         if (input[14] != 0x45 || total < 28 || total > input.Length - 14 ||
             (BinaryPrimitives.ReadUInt16BigEndian(input[20..]) & 0xbfff) != 0 ||
             !input.Slice(0, 6).SequenceEqual(PeerMac) || !input.Slice(26, 4).SequenceEqual(GuestIp) ||
             !input.Slice(30, 4).SequenceEqual(PeerIp) || Checksum(input.Slice(14, 20)) != 0 ||
-            Checksum(input.Slice(34, total - 20)) != 0) throw new InvalidDataException("Invalid fixture IPv4/ICMP packet.");
+            Checksum(input.Slice(34, total - 20)) != 0)
+            throw new InvalidDataException("Invalid fixture IPv4/ICMP packet.");
         ReadOnlySpan<byte> echo = input.Slice(34, total - 20);
         if (echo[0] != 8 || echo[1] != 0 || BinaryPrimitives.ReadUInt16BigEndian(echo[4..]) != (final ? 227 : 226) ||
-            !echo[8..].SequenceEqual(final ? ClosedTag : EchoTag)) throw new InvalidDataException("Unexpected fixture echo.");
+            !echo[8..].SequenceEqual(final ? ClosedTag : EchoTag))
+            throw new InvalidDataException("Unexpected fixture echo.");
         sequence = BinaryPrimitives.ReadUInt16BigEndian(echo[6..]);
         input.Slice(14, total).CopyTo(output[14..]);
-        PeerIp.CopyTo(output[26..]); GuestIp.CopyTo(output[30..]);
+        PeerIp.CopyTo(output[26..]);
+        GuestIp.CopyTo(output[30..]);
         output[24] = output[25] = 0;
         BinaryPrimitives.WriteUInt16BigEndian(output[24..], Checksum(output.Slice(14, 20)));
         output[34] = output[36] = output[37] = 0;
@@ -141,7 +162,8 @@ public sealed class ContinuingNetworkPeer : IDisposable
         uint sum = 0;
         for (int i = 0; i < bytes.Length; i += 2)
             sum += (uint)((bytes[i] << 8) | (i + 1 < bytes.Length ? bytes[i + 1] : 0));
-        while (sum > 65535) sum = (sum & 65535) + (sum >> 16);
+        while (sum > 65535)
+            sum = (sum & 65535) + (sum >> 16);
         return (ushort)~sum;
     }
 
@@ -149,15 +171,28 @@ public sealed class ContinuingNetworkPeer : IDisposable
     /// True means joined; Completion still records cancellation or protocol failure. Call serially.</summary>
     public bool Stop()
     {
-        if (!disposed) { stop.Cancel(); transport.Dispose(); }
-        try { return Completion.Wait(TimeSpan.FromSeconds(2)); }
-        catch (AggregateException) { return Completion.IsCompleted; }
+        if (!disposed)
+        {
+            stop.Cancel();
+            transport.Dispose();
+        }
+        try
+        {
+            return Completion.Wait(TimeSpan.FromSeconds(2));
+        }
+        catch (AggregateException)
+        {
+            return Completion.IsCompleted;
+        }
     }
 
     /// <summary>Releases all host resources; idempotent. The runner calls Stop and checks its result first.</summary>
     public void Dispose()
     {
-        if (disposed) return;
-        _ = Stop(); disposed = true; stop.Dispose();
+        if (disposed)
+            return;
+        _ = Stop();
+        disposed = true;
+        stop.Dispose();
     }
 }

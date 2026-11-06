@@ -9,9 +9,15 @@ namespace OS.Tooling;
 public sealed class NativeAotSocketVectorsProgram
 {
     private readonly NativeAotInstructionIndex index;
-    internal string SourceRoot { get; }
+    internal string SourceRoot
+    {
+        get;
+    }
     private NativeAotSocketVectorsProgram(string root, NativeAotInstructionIndex index)
-    { SourceRoot = Path.GetFullPath(root); this.index = index; }
+    {
+        SourceRoot = Path.GetFullPath(root);
+        this.index = index;
+    }
     /// <summary>Value-only reviewed index identity.</summary>
     public NativeAotSocketProgram.Inspection Metadata => new(index.Report.InstructionCount, index.Report.SyscallCount, index.Report.Sha256);
     /// <summary>Accept only original decoded starts, excluding operands/gaps.</summary>
@@ -35,7 +41,8 @@ public sealed class NativeAotSocketVectorsProgram
         if (parsed.Report != new NativeAotInstructionIndex.Inspection(350_241, 186,
             "12CD4B3227A27A20065C1BE9B1F2AB78C6C5C1C15A0A1D0197280E68E6A44C3B") || !parsed.SyscallContinuationsValid)
             throw new InvalidDataException("socket_vectors_instruction_identity");
-        NativeAotSocketVectorsPackage.RequireCurrentSources(root); return new(root, parsed);
+        NativeAotSocketVectorsPackage.RequireCurrentSources(root);
+        return new(root, parsed);
     }
 
     /// <summary>Read bounded distinct single-link original inputs under
@@ -44,14 +51,16 @@ public sealed class NativeAotSocketVectorsProgram
     /// changing inputs reject before a sealed program is returned.</summary>
     public static NativeAotSocketVectorsProgram Read(string root, string packagePath, string disassemblyPath)
     {
-        packagePath=Path.GetFullPath(packagePath);disassemblyPath=Path.GetFullPath(disassemblyPath);
-        using AuthorityFiles files=new();
-        var package=files.Open(Path.GetDirectoryName(packagePath)!,packagePath,"vectors package","socket_vectors_package",
-            NativeAotSocketVectorsPackage.ElfBytes+4096,singleLink:true);
-        var dump=files.Open(Path.GetDirectoryName(disassemblyPath)!,disassemblyPath,"vectors disassembly","socket_vectors_disassembly",32*1024*1024,singleLink:true);
-        AuthorityFiles.RequireDistinct(package,dump);
-        var program=Create(root,package.ReadBytes(NativeAotSocketVectorsPackage.ElfBytes+4096,"socket_vectors_package"),
-            dump.ReadUtf8(32*1024*1024,"socket_vectors_disassembly"));
-        files.VerifyUnchanged();return program;
+        packagePath = Path.GetFullPath(packagePath);
+        disassemblyPath = Path.GetFullPath(disassemblyPath);
+        using AuthorityFiles files = new();
+        var package = files.Open(Path.GetDirectoryName(packagePath)!, packagePath, "vectors package", "socket_vectors_package",
+            NativeAotSocketVectorsPackage.ElfBytes + 4096, singleLink: true);
+        var dump = files.Open(Path.GetDirectoryName(disassemblyPath)!, disassemblyPath, "vectors disassembly", "socket_vectors_disassembly", 32 * 1024 * 1024, singleLink: true);
+        AuthorityFiles.RequireDistinct(package, dump);
+        var program = Create(root, package.ReadBytes(NativeAotSocketVectorsPackage.ElfBytes + 4096, "socket_vectors_package"),
+            dump.ReadUtf8(32 * 1024 * 1024, "socket_vectors_disassembly"));
+        files.VerifyUnchanged();
+        return program;
     }
 }

@@ -1,18 +1,5 @@
 namespace OS.Storage;
 
-public enum VirtioBlockReadTransactionPlanStatus
-{
-    Success = 0,
-    InvalidSectorGeometry = 1,
-    InvalidSectorRange = 2,
-    DataByteCountOverflow = 3,
-    DestinationTooSmall = 4,
-    QueueTooSmall = 5,
-    RequestHeaderDestinationTooSmall = 6,
-    StatusDestinationTooSmall = 7,
-    RequestPlanFailed = 8
-}
-
 public readonly struct VirtioBlockReadTransactionPlan
 {
     public const uint RequiredSectorSizeBytes = VirtioBlockRequestPlan.SectorSizeBytes;
@@ -41,21 +28,45 @@ public readonly struct VirtioBlockReadTransactionPlan
         RequestPlan = requestPlan;
     }
 
-    public uint SectorSizeBytes { get; }
+    public uint SectorSizeBytes
+    {
+        get;
+    }
 
-    public ulong DeviceSectorCount { get; }
+    public ulong DeviceSectorCount
+    {
+        get;
+    }
 
-    public ulong FirstSector { get; }
+    public ulong FirstSector
+    {
+        get;
+    }
 
-    public uint SectorCount { get; }
+    public uint SectorCount
+    {
+        get;
+    }
 
-    public ulong LastSectorInclusive { get; }
+    public ulong LastSectorInclusive
+    {
+        get;
+    }
 
-    public uint DataByteCount { get; }
+    public uint DataByteCount
+    {
+        get;
+    }
 
-    public ushort QueueSize { get; }
+    public ushort QueueSize
+    {
+        get;
+    }
 
-    public VirtioBlockRequestPlan RequestPlan { get; }
+    public VirtioBlockRequestPlan RequestPlan
+    {
+        get;
+    }
 
     public static VirtioBlockReadTransactionPlanResult Create(
         uint sectorSizeBytes,
@@ -147,58 +158,5 @@ public readonly struct VirtioBlockReadTransactionPlan
             (uint)dataByteCount,
             queueSize,
             requestPlan.Plan));
-    }
-}
-
-public readonly struct VirtioBlockReadTransactionPlanResult
-{
-    private VirtioBlockReadTransactionPlanResult(
-        VirtioBlockReadTransactionPlanStatus status,
-        VirtioBlockRequestPlanStatus requestPlanStatus,
-        VirtioBlockReadTransactionPlan plan)
-    {
-        IsInitialized = true;
-        Status = status;
-        RequestPlanStatus = requestPlanStatus;
-        Plan = plan;
-    }
-
-    public bool IsInitialized { get; }
-
-    public VirtioBlockReadTransactionPlanStatus Status { get; }
-
-    public VirtioBlockRequestPlanStatus RequestPlanStatus { get; }
-
-    public VirtioBlockReadTransactionPlan Plan { get; }
-
-    public bool Succeeded => IsInitialized &&
-        Status == VirtioBlockReadTransactionPlanStatus.Success;
-
-    public static VirtioBlockReadTransactionPlanResult Success(
-        VirtioBlockReadTransactionPlan plan)
-    {
-        return new VirtioBlockReadTransactionPlanResult(
-            VirtioBlockReadTransactionPlanStatus.Success,
-            VirtioBlockRequestPlanStatus.Success,
-            plan);
-    }
-
-    public static VirtioBlockReadTransactionPlanResult Fail(
-        VirtioBlockReadTransactionPlanStatus status)
-    {
-        return new VirtioBlockReadTransactionPlanResult(
-            status,
-            VirtioBlockRequestPlanStatus.Success,
-            default);
-    }
-
-    public static VirtioBlockReadTransactionPlanResult Fail(
-        VirtioBlockReadTransactionPlanStatus status,
-        VirtioBlockRequestPlanStatus requestPlanStatus)
-    {
-        return new VirtioBlockReadTransactionPlanResult(
-            status,
-            requestPlanStatus,
-            default);
     }
 }

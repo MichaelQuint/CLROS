@@ -534,7 +534,8 @@ internal static class TcpPassiveIpv4FramePlannerTests
     [HostTest("net.tcp.passive.ipv4 pending reply writer preserves state and short output", HostLane.Fast, 9)]
     private static void PendingReplyWriter()
     {
-        var planner = CreatePlanner(); byte[] output = PoisonedFrame(TcpPassiveIpv4FramePlanner.HeaderBytes);
+        var planner = CreatePlanner();
+        byte[] output = PoisonedFrame(TcpPassiveIpv4FramePlanner.HeaderBytes);
         byte[] original = output.ToArray();
         HostCheck.Equal(TcpPassiveIpv4FramePlanStatus.InvalidState, planner.WritePendingSynAckFrame(output, out _));
         HostCheck.True(output.AsSpan().SequenceEqual(original));
@@ -544,7 +545,8 @@ internal static class TcpPassiveIpv4FramePlannerTests
         HostCheck.True(output.AsSpan().SequenceEqual(original));
         HostCheck.Equal(TcpPassiveOpenHandshakeState.SynReceived, planner.State);
         HostCheck.Equal(TcpPassiveIpv4FramePlanStatus.Success, planner.WritePendingSynAckFrame(output, out var reply));
-        HostCheck.True(reply.Succeeded); HostCheck.Equal(ServerInitialSequence + 1, planner.LocalNextSequenceNumber);
+        HostCheck.True(reply.Succeeded);
+        HostCheck.Equal(ServerInitialSequence + 1, planner.LocalNextSequenceNumber);
         HostCheck.Equal(ClientInitialSequence + 1, planner.RemoteNextSequenceNumber);
         byte[] ack = CreateClientSynFrame(RemoteMac(), LocalMac(), RemoteAddress(), LocalAddress(),
             RemotePort, LocalPort, ClientInitialSequence + 1, ServerInitialSequence + 1, TcpPassiveOpenHandshake.FlagAck);

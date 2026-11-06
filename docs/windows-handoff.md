@@ -1,8 +1,18 @@
 # Windows development-machine handoff
 
+For PR814, select the exact RC3 SDK from [global.json](../global.json) and
+verify the runtime, MSVC, Windows SDK, QEMU and OVMF inputs in the
+[host guide](host-requirements.md#current-rc3-toolchain-qualification). Check
+the [qualification record](../work/rc3-whpx-qualification.md#candidate-results)
+and the active worktree before resuming a run. After a host or Codex restart,
+check the owned process and its terminal evidence before starting a
+replacement. Preserve the original logs and any completed results.
+
+## October 25 recovery record
+
 The October 25 host crash interrupted the first Step1624 full run at902/918
 recorded fixtures. It has no final full result. The intentional Visual Studio
-RC3 update is preserved; the current phase uses the separately restored exact
+RC3 update is preserved; that qualification used the separately restored exact
 RC2 SDK and both required RC2 runtimes. Select the parent/child environment in
 [host requirements](host-requirements.md#current-phase-sdk-selection-after-the-october-25-restart)
 before builds, tooling or tests. Restored-toolchain full r03 passes7311 checks
@@ -12,8 +22,8 @@ unfiltered full r04 now passes7318 checks/918 fixtures, unchanged/zero reuse.
 Current28b6b454 adds the exact host-only epoll shutdown parser repair; four
 focused controls pass. All14 selected final-source original recipes now pass
 their own complete consumers and guards. Final Root full r02 passes 7,319 checks with unchanged inputs and zero reuse.
-Closing review, tracker reconciliation and merge remain required before merge. RC3 migration follows
-the current integration merges.
+The handoff at the time called for closing review, tracker reconciliation and
+merge before starting the RC3 migration.
 
 [Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 

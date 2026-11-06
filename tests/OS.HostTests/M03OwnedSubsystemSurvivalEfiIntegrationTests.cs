@@ -23,11 +23,14 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
     }
     private static void Group(string name, Action test)
     {
-string marker = "m03.010.integration." + name;
+        string marker = "m03.010.integration." + name;
         HostCheck.Run("" + marker, test);
     }
     private static void Need(bool value, string message)
-    { if (!value) throw new InvalidOperationException(message); }
+    {
+        if (!value)
+            throw new InvalidOperationException(message);
+    }
     private static string Read(string path) => File.ReadAllText(Path.Combine(root, path));
 
     private static void Profile()
@@ -47,31 +50,36 @@ string marker = "m03.010.integration." + name;
             .Select(m => m.Groups[1].Value).Distinct(StringComparer.Ordinal).Count();
         Need(vectorCount == OS.Tooling.EfiContracts.DiagnosticProbes.Count && flags.All(e => e.Value == "false"), "reviewed diagnostic inventory and literal disabled defaults");
         Need(project.Descendants("Compile").Count() == OS.Tooling.EfiContracts.CompileItems.Count, "actual explicit 122-file compile closure including the normal policy");
-    foreach (string flag in new[] { "EnableM03OwnedSubsystemSurvivalProbe", "EnableM03OwnedSubsystemPanicProbe" })
-    {
-        Need(flags.Single(e => e.Name.LocalName == flag).Value == "false", "literal child default " + flag);
-        string[] chain = ["--EnableM01LoadedImageStackProbe", "--EnableM01LiveAllocatorProbe", "--EnableAcpiPhysicalDiscoveryProbe",
+        foreach (string flag in new[] { "EnableM03OwnedSubsystemSurvivalProbe", "EnableM03OwnedSubsystemPanicProbe" })
+        {
+            Need(flags.Single(e => e.Name.LocalName == flag).Value == "false", "literal child default " + flag);
+            string[] chain = ["--EnableM01LoadedImageStackProbe", "--EnableM01LiveAllocatorProbe", "--EnableAcpiPhysicalDiscoveryProbe",
             "--EnableM03FirstRealExitBootServicesProbe", "--EnableM03OwnedSubsystemSurvivalProbe"];
-        string[] selected = flag.EndsWith("PanicProbe", StringComparison.Ordinal) ? [..chain, "--" + flag] : chain;
-        foreach (bool build in new[] { true, false })
-            Need(OS.Tooling.EfiOptions.Parse(selected, build).Profile().IsEnabled(flag), "parsed and propagated EFI child " + flag);
-        Need(OS.Tooling.QemuProfiles.Create(OS.Tooling.QemuSmokeOptions.Parse(["--dry-run", "--build-efi", ..selected])).Flags[flag], "parsed and propagated guest child " + flag);
-    }
-    var closure = OS.Tooling.EfiEvidence.SourceClosurePaths(root);
-    Need(closure.Distinct(StringComparer.OrdinalIgnoreCase).Count() == closure.Count, "source closure has no duplicate identities");
-    Need(OS.Tooling.EfiContracts.SourceClosureExplicitPaths.All(closure.Contains), "publisher and verifier bind explicit build authorities");
-    foreach (string name in OS.Tooling.EfiContracts.CompileItems.Select(item => item.Split('|')[0]))
-        Need(closure.Contains(Path.GetRelativePath(root, Path.GetFullPath(name, Path.Combine(root, "src/OS"))).Replace('\\', '/')), "original compile authority " + name);
-        string entry = Read("src/OS/Boot/EfiEntry.cs");
-        int start = entry.IndexOf("private static bool ReportOwnedSubsystems", StringComparison.Ordinal);
-        int end = entry.IndexOf("private static bool OwnedFailure", start, StringComparison.Ordinal);
-        string operation = entry[start..end];
+            string[] selected = flag.EndsWith("PanicProbe", StringComparison.Ordinal) ? [.. chain, "--" + flag] : chain;
+            foreach (bool build in new[] { true, false })
+                Need(OS.Tooling.EfiOptions.Parse(selected, build).Profile().IsEnabled(flag), "parsed and propagated EFI child " + flag);
+            Need(OS.Tooling.QemuProfiles.Create(OS.Tooling.QemuSmokeOptions.Parse(["--dry-run", "--build-efi", .. selected])).Flags[flag], "parsed and propagated guest child " + flag);
+        }
+        var closure = OS.Tooling.EfiEvidence.SourceClosurePaths(root);
+        Need(closure.Distinct(StringComparer.OrdinalIgnoreCase).Count() == closure.Count, "source closure has no duplicate identities");
+        Need(OS.Tooling.EfiContracts.SourceClosureExplicitPaths.All(closure.Contains), "publisher and verifier bind explicit build authorities");
+        foreach (string name in OS.Tooling.EfiContracts.CompileItems.Select(item => item.Split('|')[0]))
+            Need(closure.Contains(Path.GetRelativePath(root, Path.GetFullPath(name, Path.Combine(root, "src/OS"))).Replace('\\', '/')), "original compile authority " + name);
+        var source = HostSourceCatalog.Efi(OS.Tooling.EfiOptions.Parse(
+            ["--EnableM01LoadedImageStackProbe", "--EnableM01LiveAllocatorProbe", "--EnableAcpiPhysicalDiscoveryProbe",
+             "--EnableM03FirstRealExitBootServicesProbe", "--EnableM03OwnedSubsystemSurvivalProbe",
+             "--EnableM03OwnedSubsystemPanicProbe"], true).Profile());
+        string operation = System.Text.RegularExpressions.Regex.Replace(source.Method(
+            "OS.Boot.EfiEntry+M03FirstExitAdapter", "ReportOwnedSubsystems").ToFullString(),
+            @"\s+", string.Empty, System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         Need(!operation.Contains("FirstExitPostExitDiagnostics.Report", StringComparison.Ordinal) &&
-            operation.Split("BootSequence.RunOwnedSubsystemAllocatorRoundTrip", StringSplitOptions.None).Length == 2,
+            System.Text.RegularExpressions.Regex.Matches(operation, "BootSequence\\.RunOwnedSubsystemAllocatorRoundTrip").Count == 1,
             "allocator wrapper is the sole original diagnostic invocation");
-        Need(operation.Contains("ReadBackAcpiBootstrap(workspace, copied->Bytes", StringComparison.Ordinal) &&
+        Need(operation.Contains("ReadBackAcpiBootstrap(workspace,copied->Bytes", StringComparison.Ordinal) &&
             operation.Contains("ReadOwnedGuard((ulong*)state->PanicGuard)", StringComparison.Ordinal), "original readback and actual C# guard load");
-        Need(Read("tools/OS.QemuRunner/Program.cs").Contains("--expect-owned-subsystem-panic", StringComparison.Ordinal), "explicit terminal-control mode");
+        string runnerOptions = HostSourceText.Documents(HostSourceCatalog.Project(
+            "tools/OS.QemuRunner/OS.QemuRunner.csproj"), "RunnerOptions");
+        Need(runnerOptions.Contains("--expect-owned-subsystem-panic", StringComparison.Ordinal), "explicit terminal-control mode");
     }
 
     private const string Firmware = "G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg==";
@@ -81,7 +89,7 @@ string marker = "m03.010.integration." + name;
     {
         // Independent synthetic original-parent transcript, with distinct static,
         // copied, allocator, table, code and arena owners. This is not guest proof.
-        List<string> lines = [..Parent.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(s => s.TrimEnd('\r'))];
+        List<string> lines = [.. Parent.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(s => s.TrimEnd('\r'))];
         ulong[] physical = [805306368, 805310464, 805314560, 805318656, 805322752];
         ulong[] lengths = [36, 60, 60, 44, 56];
         ulong[] signatures = [2329016660419433298, 1413763928, 1195787085, 1128878145, 1413828680];
@@ -96,19 +104,26 @@ string marker = "m03.010.integration." + name;
         }
         const ulong arena = 0x60000000, tables = 0x61000000, code = 0x62000000;
         lines.Add(Row(6, arena, tables, code, arena + 4096, arena + 8192, arena + 12288, 24, arena + 300008));
-        if (!panic) { lines.Add("CLROS_M03_010_READY"); lines.Add("TEST_PASS m03.010"); return [..lines]; }
+        if (!panic)
+        {
+            lines.Add("CLROS_M03_010_READY");
+            lines.Add("TEST_PASS m03.010");
+            return [.. lines];
+        }
         lines.Add(Row(7, arena + 86016, tables, arena + 1024, code, arena, arena + 90120, arena + 352240, arena + 401392));
         lines.Add(Row(8, arena + 86016, tables, arena + 1024, arena + 401000, arena + 385032, arena + 401392, 14, 0));
         string fault = "OS_SMOKE_FAIL subsystem=boot reason=exit-fault vector=14 errorCodePresent=true errorCode=0x0000000000000000";
         string[] names = ["rip", "rsp", "rbp", "rflags", "cr2", "cr3", "rax", "rbx", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"];
         ulong[] values = [0x70001000, arena + 300000, 0, 2, arena + 86016, tables, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
-        for (int i = 0; i < names.Length; i++) fault += " " + names[i] + "=0x" + values[i].ToString("X16");
+        for (int i = 0; i < names.Length; i++)
+            fault += " " + names[i] + "=0x" + values[i].ToString("X16");
         lines.Add(fault);
-        return [..lines];
+        return [.. lines];
     }
     private static void PanicCapture()
     {
-        string[] lines = Capture(true); string text = Frame(lines);
+        string[] lines = Capture(true);
+        string text = Frame(lines);
         Need(lines.Length == 77 && text.Count(c => c == '\n') == 79, "77 application rows / 79 newline observations include firmware preamble");
         Need(OwnedSubsystemPanicCapture.Evaluate(text, out string prefix) == 1 && prefix.Split("\r\n").Length == 77 &&
             !prefix.Contains("OS_SMOKE_FAIL", StringComparison.Ordinal), "finite prerequisite prefix plus exact terminal control");
@@ -124,7 +139,8 @@ string marker = "m03.010.integration." + name;
             (76, "cr3=0x0000000061000000", "cr3=0x0000000061001000"),
             (76, "rflags=0x0000000000000002", "rflags=0x0000000000000202") })
         {
-            string[] bad = (string[])lines.Clone(); Need(bad[change.Item1].Contains(change.Item2), "mutation target exists");
+            string[] bad = (string[])lines.Clone();
+            Need(bad[change.Item1].Contains(change.Item2), "mutation target exists");
             bad[change.Item1] = bad[change.Item1].Replace(change.Item2, change.Item3);
             Need(OwnedSubsystemPanicCapture.Evaluate(Frame(bad), out _) == -1, "reject association mutation row " + change.Item1);
         }
@@ -141,59 +157,69 @@ string marker = "m03.010.integration." + name;
         File.WriteAllText(Path.Combine(scratch, "normal.log"), Frame(normal), new UTF8Encoding(false));
     }
     private static void WholeTranscript()
-{
-    string positive = File.ReadAllText(Path.Combine(scratch, "positive.log"));
-    string panic = File.ReadAllText(Path.Combine(scratch, "panic.log"));
-    int cases = 0;
-    void Check(string text, bool control, bool expected, bool normal = false)
     {
-        string path = Path.Combine(scratch, "case-" + cases++ + ".log");
-        File.WriteAllText(path, text, new UTF8Encoding(false));
-        bool accepted = true;
-        try { OS.Tooling.QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true, ownedPanic: control, normalBoot: normal); }
-        catch (OS.Tooling.ToolFailure) { accepted = false; }
-        Need(accepted == expected, "whole transcript case=" + (cases - 1) + " expected=" + expected);
-    }
-    Check(positive, false, true);
-    Check(panic, true, true);
-    Check(positive.Replace("0x0000000041000000", "0x0000000040000000", StringComparison.Ordinal), false, false);
-    Check(positive.Replace("0x0000000030000000", "0x0000000030000001", StringComparison.Ordinal), false, false);
-    Check(positive.Replace("BOOT_MEMORY_REGION_COUNT 4", "BOOT_MEMORY_REGION_COUNT 5", StringComparison.Ordinal), false, false);
-    Check(positive.Replace("mismatches=0", "mismatches=1", StringComparison.Ordinal), false, false);
-    Check(positive.Replace("CLROS_M03_010_READY", "CLROS_M03_010_READY extra=1", StringComparison.Ordinal), false, false);
-    Check(panic.Replace("M03_OWNED 8", "M03_OWNED 7", StringComparison.Ordinal), true, false);
-    Check(panic.Replace("cr2=0x0000000060015000", "cr2=0x0000000060015008", StringComparison.Ordinal), true, false);
-    Check(panic + "TEST_PASS m03.010\r\n", true, false);
-    Check(panic.Replace("\r\n", "\n", StringComparison.Ordinal), true, false);
-    Check("X" + panic[1..], true, false);
-    int ownedCases = cases;
-    string normal = File.ReadAllText(Path.Combine(scratch, "normal.log"));
-    Check(normal, false, true, true);
-    Check(positive, false, false, true);
-    Check(normal, false, false);
-    Check(normal, true, false, true);
-    int prefixBytes = Convert.FromBase64String(Firmware).Length;
-    string prefix = normal[..prefixBytes];
-    string[] rows = normal[prefixBytes..].Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-    Need(rows.Length == OS.Tooling.QemuContracts.M03NormalVerifiedExitMarkers.Count, "complete normal inventory");
-    for (int i = 0; i < rows.Length; i++)
-    {
-        Check(prefix + string.Join("\r\n", rows.Where((_, index) => index != i)) + "\r\n", false, false, true);
-        Check(prefix + string.Join("\r\n", rows.Take(i).Concat([rows[i]]).Concat(rows.Skip(i))) + "\r\n", false, false, true);
-        if (i + 1 < rows.Length)
+        string positive = File.ReadAllText(Path.Combine(scratch, "positive.log"));
+        string panic = File.ReadAllText(Path.Combine(scratch, "panic.log"));
+        int cases = 0;
+        void Check(string text, bool control, bool expected, bool normal = false)
         {
-            string[] swapped = (string[])rows.Clone();
-            (swapped[i], swapped[i + 1]) = (swapped[i + 1], swapped[i]);
-            Check(prefix + string.Join("\r\n", swapped) + "\r\n", false, false, true);
+            string path = Path.Combine(scratch, "case-" + cases++ + ".log");
+            File.WriteAllText(path, text, new UTF8Encoding(false));
+            bool accepted = true;
+            try
+            {
+                OS.Tooling.QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true, ownedPanic: control, normalBoot: normal);
+            }
+            catch (OS.Tooling.ToolFailure)
+            {
+                accepted = false;
+            }
+            Need(accepted == expected, "whole transcript case=" + (cases - 1) + " expected=" + expected);
         }
-    }
-    foreach (string bad in new[] { normal.Replace("\r\n", "\n", StringComparison.Ordinal), normal[..^1], normal + "EXTRA\r\n",
+        Check(positive, false, true);
+        Check(panic, true, true);
+        Check(positive.Replace("0x0000000041000000", "0x0000000040000000", StringComparison.Ordinal), false, false);
+        Check(positive.Replace("0x0000000030000000", "0x0000000030000001", StringComparison.Ordinal), false, false);
+        Check(positive.Replace("BOOT_MEMORY_REGION_COUNT 4", "BOOT_MEMORY_REGION_COUNT 5", StringComparison.Ordinal), false, false);
+        Check(positive.Replace("mismatches=0", "mismatches=1", StringComparison.Ordinal), false, false);
+        Check(positive.Replace("CLROS_M03_010_READY", "CLROS_M03_010_READY extra=1", StringComparison.Ordinal), false, false);
+        Check(panic.Replace("M03_OWNED 8", "M03_OWNED 7", StringComparison.Ordinal), true, false);
+        Check(panic.Replace("cr2=0x0000000060015000", "cr2=0x0000000060015008", StringComparison.Ordinal), true, false);
+        Check(panic + "TEST_PASS m03.010\r\n", true, false);
+        Check(panic.Replace("\r\n", "\n", StringComparison.Ordinal), true, false);
+        Check("X" + panic[1..], true, false);
+        int ownedCases = cases;
+        string normal = File.ReadAllText(Path.Combine(scratch, "normal.log"));
+        Check(normal, false, true, true);
+        Check(positive, false, false, true);
+        Check(normal, false, false);
+        Check(normal, true, false, true);
+        int prefixBytes = Convert.FromBase64String(Firmware).Length;
+        string prefix = normal[..prefixBytes];
+        string[] rows = normal[prefixBytes..].Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        Need(rows.Length == OS.Tooling.QemuContracts.M03NormalVerifiedExitMarkers.Count, "complete normal inventory");
+        for (int i = 0; i < rows.Length; i++)
+        {
+            Check(prefix + string.Join("\r\n", rows.Where((_, index) => index != i)) + "\r\n", false, false, true);
+            Check(prefix + string.Join("\r\n", rows.Take(i).Concat([rows[i]]).Concat(rows.Skip(i))) + "\r\n", false, false, true);
+            if (i + 1 < rows.Length)
+            {
+                string[] swapped = (string[])rows.Clone();
+                (swapped[i], swapped[i + 1]) = (swapped[i + 1], swapped[i]);
+                Check(prefix + string.Join("\r\n", swapped) + "\r\n", false, false, true);
+            }
+        }
+        foreach (string bad in new[] { normal.Replace("\r\n", "\n", StringComparison.Ordinal), normal[..^1], normal + "EXTRA\r\n",
         normal.Replace("0x0000000041000000", "0x0000000040000000", StringComparison.Ordinal), normal.Replace("M03_OWNED 0", "M03_OWNED 1", StringComparison.Ordinal),
         normal.Replace("mismatches=0", "mismatches=1", StringComparison.Ordinal), normal.Replace("OS_BOOT_OK", "OS_SMOKE_FAIL", StringComparison.Ordinal),
-        normal.Replace("CLROS_M03_011_READY", "CLROS_M03_011_READY extra=1", StringComparison.Ordinal) }) Check(bad, false, false, true);
-    File.WriteAllText(Path.Combine(scratch, "parser-controls.json"), JsonSerializer.Serialize(new { OwnedControls = ownedCases, NormalControls = cases - ownedCases }));
-}
-
+        normal.Replace("CLROS_M03_011_READY", "CLROS_M03_011_READY extra=1", StringComparison.Ordinal) })
+            Check(bad, false, false, true);
+        File.WriteAllText(Path.Combine(scratch, "parser-controls.json"), JsonSerializer.Serialize(new
+        {
+            OwnedControls = ownedCases,
+            NormalControls = cases - ownedCases
+        }));
+    }
 
     private const string Parent = """
         TEST_START efi.main

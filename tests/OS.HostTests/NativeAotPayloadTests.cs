@@ -94,13 +94,19 @@ internal static class NativeAotPayloadTests
             {
                 ["libraries"] = packageRows,
                 ["packageFolders"] = new JsonObject { [root] = new JsonObject() },
-                ["project"] = new JsonObject { ["frameworks"] = new JsonObject
+                ["project"] = new JsonObject
                 {
-                    [NativeAotPayload.TargetFramework] = new JsonObject { ["downloadDependencies"] = new JsonArray
+                    ["frameworks"] = new JsonObject
+                    {
+                        [NativeAotPayload.TargetFramework] = new JsonObject
+                        {
+                            ["downloadDependencies"] = new JsonArray
                     {
                         new JsonObject { ["name"] = runtime, ["version"] = $"[{NativeAotPayload.RuntimeVersion}, {NativeAotPayload.RuntimeVersion}]" }
-                    } }
-                } }
+                    }
+                        }
+                    }
+                }
             };
             check(assets, archive);
         }
@@ -119,8 +125,15 @@ internal static class NativeAotPayloadTests
     }
     private static void RejectPackages(JsonObject assets, string reason)
     {
-        try { CapturePackages(assets); throw new InvalidOperationException("invalid package closure accepted"); }
-        catch (InvalidDataException error) { HostCheck.Equal(reason, error.Message); }
+        try
+        {
+            CapturePackages(assets);
+            throw new InvalidOperationException("invalid package closure accepted");
+        }
+        catch (InvalidDataException error)
+        {
+            HostCheck.Equal(reason, error.Message);
+        }
     }
 
     [HostTest("nativeaot.payload archives warm managed and future-dated native caches after same-time source edits")]
@@ -135,14 +148,16 @@ internal static class NativeAotPayloadTests
             File.SetLastWriteTimeUtc(source, timestamp);
             string bin = Path.Combine(root, "apps", app, "bin");
             string obj = Path.Combine(root, "apps", app, "obj");
-            Directory.CreateDirectory(bin); Directory.CreateDirectory(Path.Combine(obj, "native"));
+            Directory.CreateDirectory(bin);
+            Directory.CreateDirectory(Path.Combine(obj, "native"));
             File.WriteAllBytes(Path.Combine(bin, app + ".dll"), [1, 2, 3]);
             File.WriteAllBytes(Path.Combine(obj, "native", app + ".o"), [4, 5, 6]);
             DateTime future = DateTime.UtcNow.AddYears(5);
             File.SetLastWriteTimeUtc(Path.Combine(obj, "native", app + ".o"), future);
             using var lease = NativeAotPayload.OpenQualificationLease(root);
             NativeAotPayload.ArchiveBuildCache(root, app, destination);
-            HostCheck.True(!Directory.Exists(bin)); HostCheck.True(!Directory.Exists(obj));
+            HostCheck.True(!Directory.Exists(bin));
+            HostCheck.True(!Directory.Exists(obj));
             string archive = Path.Combine(destination, "retained-build-cache", app);
             HostCheck.True(File.ReadAllBytes(Path.Combine(archive, "bin", app + ".dll")).SequenceEqual(new byte[] { 1, 2, 3 }));
             HostCheck.True(File.ReadAllBytes(Path.Combine(archive, "obj", "native", app + ".o")).SequenceEqual(new byte[] { 4, 5, 6 }));
@@ -162,14 +177,18 @@ internal static class NativeAotPayloadTests
                 RejectCache(() => NativeAotPayload.OpenQualificationLease(root).Dispose(), "native_qualification_busy");
             using var nextLease = NativeAotPayload.OpenQualificationLease(root);
             string appRoot = Path.Combine(root, "apps", app), bin = Path.Combine(appRoot, "bin"), obj = Path.Combine(appRoot, "obj");
-            Directory.CreateDirectory(bin); Directory.CreateDirectory(obj);
+            Directory.CreateDirectory(bin);
+            Directory.CreateDirectory(obj);
             File.WriteAllText(Path.Combine(bin, "sentinel"), "retained");
             RejectCache(() => NativeAotPayload.ArchiveBuildCache(root, "../outside", destination), "native_payload_app");
             RejectCache(() => NativeAotPayload.ArchiveBuildCache(root, app, obj), "native_cache_output_overlap");
             string target = Path.Combine(root, "outside"), link = Path.Combine(obj, "redirect");
-            Directory.CreateDirectory(target); File.WriteAllText(Path.Combine(target, "sentinel"), "outside");
-            if (OperatingSystem.IsWindows()) TestJunction.Create(link, target);
-            else Directory.CreateSymbolicLink(link, target);
+            Directory.CreateDirectory(target);
+            File.WriteAllText(Path.Combine(target, "sentinel"), "outside");
+            if (OperatingSystem.IsWindows())
+                TestJunction.Create(link, target);
+            else
+                Directory.CreateSymbolicLink(link, target);
             try
             {
                 RejectCache(() => NativeAotPayload.ArchiveBuildCache(root, app, destination), "native_cache_reparse_point");
@@ -177,9 +196,13 @@ internal static class NativeAotPayloadTests
                 HostCheck.Equal("outside", File.ReadAllText(Path.Combine(target, "sentinel")));
                 HostCheck.True(!Directory.Exists(Path.Combine(destination, "retained-build-cache")));
             }
-            finally { Directory.Delete(link); }
+            finally
+            {
+                Directory.Delete(link);
+            }
             NativeAotPayload.ArchiveBuildCache(root, app, destination);
-            HostCheck.True(!Directory.Exists(bin)); HostCheck.True(!Directory.Exists(obj));
+            HostCheck.True(!Directory.Exists(bin));
+            HostCheck.True(!Directory.Exists(obj));
         });
     }
 
@@ -188,41 +211,66 @@ internal static class NativeAotPayloadTests
         string root = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "clros-nativeaot-build-" + Guid.NewGuid().ToString("N")));
         const string app = "MinimalApiSmoke";
         string destination = Path.Combine(root, "artifacts", "qualification");
-        Directory.CreateDirectory(Path.Combine(root, "apps", app)); Directory.CreateDirectory(destination);
-        try { check(root, app, destination); }
+        Directory.CreateDirectory(Path.Combine(root, "apps", app));
+        Directory.CreateDirectory(destination);
+        try
+        {
+            check(root, app, destination);
+        }
         finally
         {
             string temporaryRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath())) + Path.DirectorySeparatorChar;
-            if (!root.StartsWith(temporaryRoot, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("temporary_root_escape");
+            if (!root.StartsWith(temporaryRoot, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("temporary_root_escape");
             Directory.Delete(root, recursive: true);
         }
     }
 
     private static void RejectCache(Action action, string reason)
     {
-        try { action(); throw new InvalidOperationException("unsafe build cache accepted"); }
-        catch (InvalidDataException error) { HostCheck.Equal(reason, error.Message); }
-        catch (ToolFailure error) { HostCheck.Equal(reason, error.Reason); }
+        try
+        {
+            action();
+            throw new InvalidOperationException("unsafe build cache accepted");
+        }
+        catch (InvalidDataException error)
+        {
+            HostCheck.Equal(reason, error.Message);
+        }
+        catch (ToolFailure error)
+        {
+            HostCheck.Equal(reason, error.Reason);
+        }
     }
 
     // Independent ELF byte vector: one RX load, one RW load and optional TLS.
     private static byte[] Image(bool tls = true)
     {
         byte[] bytes = new byte[4096];
-        "\u007fELF"u8.CopyTo(bytes); bytes[4] = 2; bytes[5] = 1; bytes[6] = 1;
-        W16(bytes, 16, 2); W16(bytes, 18, 62); W32(bytes, 20, 1);
-        W64(bytes, 24, 0x400200); W64(bytes, 32, 64);
-        W16(bytes, 52, 64); W16(bytes, 54, 56); W16(bytes, 56, (ushort)(tls ? 3 : 2));
+        "\u007fELF"u8.CopyTo(bytes);
+        bytes[4] = 2;
+        bytes[5] = 1;
+        bytes[6] = 1;
+        W16(bytes, 16, 2);
+        W16(bytes, 18, 62);
+        W32(bytes, 20, 1);
+        W64(bytes, 24, 0x400200);
+        W64(bytes, 32, 64);
+        W16(bytes, 52, 64);
+        W16(bytes, 54, 56);
+        W16(bytes, 56, (ushort)(tls ? 3 : 2));
         Row(bytes, 64, 1, 5, 0, 0x400000, 1024, 1024, 4096);
         Row(bytes, 120, 1, 6, 1024, 0x401400, 512, 1024, 4096);
-        if (tls) Row(bytes, 176, 7, 4, 1024, 0x401400, 16, 64, 16);
+        if (tls)
+            Row(bytes, 176, 7, 4, 1024, 0x401400, 16, 64, 16);
         return bytes;
     }
 
     [HostTest("nativeaot.payload static ELF loads entry TLS and input preservation")]
     private static void StaticImage()
     {
-        byte[] image = Image(); byte[] original = image.ToArray();
+        byte[] image = Image();
+        byte[] original = image.ToArray();
         var inspected = NativeAotPayload.Inspect(image);
         HostCheck.Equal(0x400200UL, inspected.Entry);
         HostCheck.Equal(3, inspected.ProgramHeaderCount);
@@ -238,7 +286,8 @@ internal static class NativeAotPayloadTests
     private static void Truncation()
     {
         byte[] bytes = Image();
-        for (int length = 0; length < 232; length++) Reject(bytes[..length]);
+        for (int length = 0; length < 232; length++)
+            Reject(bytes[..length]);
         Mutate(bytes, b => W64(b, 32, ulong.MaxValue));
         Mutate(bytes, b => W64(b, 32, 63));
         Mutate(bytes, b => W16(b, 56, 129));
@@ -250,14 +299,19 @@ internal static class NativeAotPayloadTests
     private static void Unsupported()
     {
         byte[] bytes = Image();
-        foreach (int index in new[] { 0, 4, 5, 6, 7, 8, 9, 15 }) Mutate(bytes, b => b[index] = 0xff);
+        foreach (int index in new[] { 0, 4, 5, 6, 7, 8, 9, 15 })
+            Mutate(bytes, b => b[index] = 0xff);
         Mutate(bytes, b => W16(b, 16, 3)); // ET_DYN/PIE
         Mutate(bytes, b => W16(b, 18, 183)); // AArch64
         Mutate(bytes, b => W32(b, 20, 2));
         Mutate(bytes, b => W32(b, 48, 1));
         Mutate(bytes, b => W32(b, 176, 3)); // PT_INTERP
         Mutate(bytes, b => W32(b, 176, 2)); // PT_DYNAMIC
-        Mutate(bytes, b => { W32(b, 176, 0x6474e551); W32(b, 180, 7); });
+        Mutate(bytes, b =>
+        {
+            W32(b, 176, 0x6474e551);
+            W32(b, 180, 7);
+        });
     }
 
     [HostTest("nativeaot.payload checks file memory alignment W^X overlap and file-backed entry")]
@@ -280,12 +334,17 @@ internal static class NativeAotPayloadTests
         Mutate(bytes, b => W64(b, 24, 0x401400));
         Mutate(bytes, b => W64(b, 24, 0x400400));
         Mutate(bytes, b => W64(b, 96, 0));
-        byte[] zeroAlignment = Image(); W64(zeroAlignment, 112, 0);
+        byte[] zeroAlignment = Image();
+        W64(zeroAlignment, 112, 0);
         HostCheck.Equal(0UL, NativeAotPayload.Inspect(zeroAlignment).Loads[0].Alignment);
         byte[] pageOverlap = Image(false);
-        W64(pageOverlap, 128, 2048); W64(pageOverlap, 136, 0x400800); W64(pageOverlap, 168, 1);
+        W64(pageOverlap, 128, 2048);
+        W64(pageOverlap, 136, 0x400800);
+        W64(pageOverlap, 168, 1);
         Reject(pageOverlap); // Disjoint byte intervals still share an RX/RW page.
-        byte[] incongruent = Image(false); W64(incongruent, 168, 1); W64(incongruent, 136, 0x401401);
+        byte[] incongruent = Image(false);
+        W64(incongruent, 168, 1);
+        W64(incongruent, 136, 0x401401);
         Reject(incongruent); // p_align=1 does not relax page-offset congruence.
     }
 
@@ -297,7 +356,11 @@ internal static class NativeAotPayloadTests
         Mutate(bytes, b => W64(b, 184, 1025));
         Mutate(bytes, b => W64(b, 216, 1025));
         Mutate(bytes, b => W64(b, 208, 65));
-        Mutate(bytes, b => { W32(b, 120, 7); W32(b, 124, 4); });
+        Mutate(bytes, b =>
+        {
+            W32(b, 120, 7);
+            W32(b, 124, 4);
+        });
     }
 
     [HostTest("nativeaot.payload CLI rejects malformed inputs and wrong builder without false success")]
@@ -316,19 +379,32 @@ internal static class NativeAotPayloadTests
 
     private static void Mutate(byte[] source, Action<byte[]> edit)
     {
-        byte[] bytes = source.ToArray(); edit(bytes); Reject(bytes);
+        byte[] bytes = source.ToArray();
+        edit(bytes);
+        Reject(bytes);
     }
     private static void Reject(byte[] bytes)
     {
         byte[] original = bytes.ToArray();
-        try { NativeAotPayload.Inspect(bytes); throw new InvalidOperationException("malformed ELF accepted"); }
-        catch (InvalidDataException) { }
+        try
+        {
+            NativeAotPayload.Inspect(bytes);
+            throw new InvalidOperationException("malformed ELF accepted");
+        }
+        catch (InvalidDataException)
+        {
+        }
         HostCheck.True(bytes.SequenceEqual(original));
     }
     private static void Row(byte[] b, int at, uint type, uint flags, ulong offset, ulong address, ulong file, ulong memory, ulong align)
     {
-        W32(b, at, type); W32(b, at + 4, flags); W64(b, at + 8, offset); W64(b, at + 16, address);
-        W64(b, at + 32, file); W64(b, at + 40, memory); W64(b, at + 48, align);
+        W32(b, at, type);
+        W32(b, at + 4, flags);
+        W64(b, at + 8, offset);
+        W64(b, at + 16, address);
+        W64(b, at + 32, file);
+        W64(b, at + 40, memory);
+        W64(b, at + 48, align);
     }
     private static void W16(byte[] b, int at, ushort value) => BinaryPrimitives.WriteUInt16LittleEndian(b.AsSpan(at), value);
     private static void W32(byte[] b, int at, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(b.AsSpan(at), value);

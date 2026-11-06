@@ -24,22 +24,31 @@ internal static class NativeAotServiceStartupReplayTests
         {
             byte[] raw = Encoding.UTF8.GetBytes(GcRaw(segmented)), before = raw.ToArray();
             var report = QemuTranscripts.InspectNativeAotServiceGcForTests(raw, 67108864, lifecycle: true);
-            HostCheck.True(report.HasValue); var value = report!.Value;
-            HostCheck.Equal(16777216UL, value.GcLimitBytes); HostCheck.Equal(20971520UL, value.NativeReserveBytes);
-            HostCheck.Equal(16777216UL, value.StaticBytes); HostCheck.Equal(37748736UL, value.PoolBytes);
-            HostCheck.Equal(67108864UL, value.EntitlementBytes); HostCheck.Equal(30920UL, value.Begin.BaselineHeapBytes);
+            HostCheck.True(report.HasValue);
+            var value = report!.Value;
+            HostCheck.Equal(16777216UL, value.GcLimitBytes);
+            HostCheck.Equal(20971520UL, value.NativeReserveBytes);
+            HostCheck.Equal(16777216UL, value.StaticBytes);
+            HostCheck.Equal(37748736UL, value.PoolBytes);
+            HostCheck.Equal(67108864UL, value.EntitlementBytes);
+            HostCheck.Equal(30920UL, value.Begin.BaselineHeapBytes);
             HostCheck.Equal(20971520UL, value.PeakBackedBytes);
             HostCheck.Equal(4194304UL, value.NativeBegin.RetainedBytes);
             HostCheck.Equal(4194304UL, value.NativeEnd.GcCommittedBytes);
-            HostCheck.Equal(2097152UL, value.End.LiveBytes); HostCheck.Equal(4165632UL, value.End.LiveCommittedBytes);
-            HostCheck.Equal(12582912UL, value.Begin.PressureBytes); HostCheck.Equal(12615680UL, value.Begin.PressureHeapBytes);
-            HostCheck.Equal(14680064UL, value.End.PressureCommittedBytes); HostCheck.Equal(3UL, value.End.PressureCollections);
+            HostCheck.Equal(2097152UL, value.End.LiveBytes);
+            HostCheck.Equal(4165632UL, value.End.LiveCommittedBytes);
+            HostCheck.Equal(12582912UL, value.Begin.PressureBytes);
+            HostCheck.Equal(12615680UL, value.Begin.PressureHeapBytes);
+            HostCheck.Equal(14680064UL, value.End.PressureCommittedBytes);
+            HostCheck.Equal(3UL, value.End.PressureCollections);
             HostCheck.Equal(LifecycleEnd["CLROS_SERVICE_LIFECYCLE_END ".Length..^1], value.TerminalStatus);
-            HostCheck.True(raw.AsSpan().SequenceEqual(before)); Array.Fill(raw, (byte)0);
+            HostCheck.True(raw.AsSpan().SequenceEqual(before));
+            Array.Fill(raw, (byte)0);
             HostCheck.Equal(2129504UL, value.Begin.LiveHeapBytes);
         }
         HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(Raw()), 0) is null);
-        RejectGc(GcRaw(), lifecycle: false); RejectGc(Raw() + GcBudget, lifecycle: false);
+        RejectGc(GcRaw(), lifecycle: false);
+        RejectGc(Raw() + GcBudget, lifecycle: false);
         RejectGc(Raw() + Frame("CLROS_SERVICE_GC_REJECT runtime\n"), lifecycle: false);
     }
 
@@ -59,13 +68,16 @@ internal static class NativeAotServiceStartupReplayTests
             NativeBegin.Replace("errno=12", "errno=22", StringComparison.Ordinal),
             NativeBegin.Replace("releasedBytes=4194304", "releasedBytes=3145728", StringComparison.Ordinal),
             NativeBegin.Replace("recoveredBytes=1048576", "recoveredBytes=0", StringComparison.Ordinal),
-            NativeBegin.Replace("\n", " extra=1\n", StringComparison.Ordinal) }) RejectGc(GcRaw(nativeBegin: native));
+            NativeBegin.Replace("\n", " extra=1\n", StringComparison.Ordinal) })
+            RejectGc(GcRaw(nativeBegin: native));
         string nativeEnd = NativeBegin.Replace("NATIVE_BEGIN", "NATIVE_END", StringComparison.Ordinal);
-        RejectGc(GcRaw(nativeEnd: "")); RejectGc(GcRaw(nativeEnd: nativeEnd + nativeEnd));
+        RejectGc(GcRaw(nativeEnd: ""));
+        RejectGc(GcRaw(nativeEnd: nativeEnd + nativeEnd));
         RejectGc(GcRaw(nativeBegin: NativeBegin.Replace("retainedBytes=4194304", "retainedBytes=17825792", StringComparison.Ordinal)
             .Replace("releasedBytes=4194304", "releasedBytes=17825792", StringComparison.Ordinal)));
         RejectGc(GcRaw(prefix: Prefix + NativeBegin, nativeBegin: ""));
-        RejectGc(GcRaw() + Frame(NativeBegin, 1)); RejectGc(GcRaw() + NativeBegin);
+        RejectGc(GcRaw() + Frame(NativeBegin, 1));
+        RejectGc(GcRaw() + NativeBegin);
         RejectGc(Raw() + Frame(NativeBegin), lifecycle: false);
         foreach (string retained in new[] { "1048576", "16777216" })
             HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(nativeBegin:
@@ -76,31 +88,35 @@ internal static class NativeAotServiceStartupReplayTests
     [HostTest("service GC memory peak rejects missing duplicate misplaced understated nonzero-end and wrong-channel records")]
     private static void GcMemoryControls()
     {
-        foreach(string memory in new[]{"",GcMemory+GcMemory,
+        foreach (string memory in new[]{"",GcMemory+GcMemory,
             GcMemory.Replace("poolPages=9216","poolPages=4096",StringComparison.Ordinal),
             GcMemory.Replace("peakPages=5120","peakPages=0",StringComparison.Ordinal),
             GcMemory.Replace("peakPages=5120","peakPages=9217",StringComparison.Ordinal),
             GcMemory.Replace("peakPages=5120","peakPages=3583",StringComparison.Ordinal),
             GcMemory.Replace("peakPages=5120","peakPages=05120",StringComparison.Ordinal),
             GcMemory.Replace("endPages=0","endPages=1",StringComparison.Ordinal),
-            GcMemory.Replace("\r\n"," extra=1\r\n",StringComparison.Ordinal)})RejectGc(GcRaw(memory:memory));
-        foreach(string peak in new[]{"3584","9216"})
-            HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(memory:GcMemory.Replace("5120",peak,StringComparison.Ordinal))),67108864,true).HasValue);
-        HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(memory:GcMemory+"M16_008_BUDGET_END nanos=300000000001\r\n")),67108864,true).HasValue);
-        RejectGc(GcMemory+GcRaw(memory:""));RejectGc(GcRaw(memory:Frame(GcMemory)));
-        RejectGc(GcRaw(memory:Frame(GcMemory,1)));RejectGc(Raw()+GcMemory,lifecycle:false);
-        RejectGc(GcRaw(memory:"")+GcMemory);RejectGc(GcRaw().Replace(GcOwner,"",StringComparison.Ordinal));
-        RejectGc(GcRaw(memory:GcMemory+"UNRELATED_RECORD\r\n"));
+            GcMemory.Replace("\r\n"," extra=1\r\n",StringComparison.Ordinal)})
+            RejectGc(GcRaw(memory: memory));
+        foreach (string peak in new[] { "3584", "9216" })
+            HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(memory: GcMemory.Replace("5120", peak, StringComparison.Ordinal))), 67108864, true).HasValue);
+        HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(memory: GcMemory + "M16_008_BUDGET_END nanos=300000000001\r\n")), 67108864, true).HasValue);
+        RejectGc(GcMemory + GcRaw(memory: ""));
+        RejectGc(GcRaw(memory: Frame(GcMemory)));
+        RejectGc(GcRaw(memory: Frame(GcMemory, 1)));
+        RejectGc(Raw() + GcMemory, lifecycle: false);
+        RejectGc(GcRaw(memory: "") + GcMemory);
+        RejectGc(GcRaw().Replace(GcOwner, "", StringComparison.Ordinal));
+        RejectGc(GcRaw(memory: GcMemory + "UNRELATED_RECORD\r\n"));
     }
 
     [HostTest("service v2 GC pressure requires bounded retained bytes actual collections and exhaustion before recovery")]
     private static void GcPressureControls()
     {
-        foreach(string begin in new[]{
+        foreach (string begin in new[]{
             GcBegin.Replace("pressureBytes=12582912", "pressureBytes=1048576", StringComparison.Ordinal),
             GcBegin.Replace("pressureBytes=12582912 pressureHeap=12615680 pressureCommitted=14680064", "pressureBytes=15728640 pressureHeap=15761408 pressureCommitted=16777216", StringComparison.Ordinal)})
-            HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(begin:begin)),67108864,true).HasValue);
-        foreach(string begin in new[]{
+            HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(begin: begin)), 67108864, true).HasValue);
+        foreach (string begin in new[]{
             GcBegin.Replace("pressureBytes=12582912", "pressureBytes=0", StringComparison.Ordinal),
             GcBegin.Replace("pressureBytes=12582912", "pressureBytes=12582913", StringComparison.Ordinal),
             GcBegin.Replace("pressureBytes=12582912", "pressureBytes=16777216", StringComparison.Ordinal),
@@ -112,7 +128,8 @@ internal static class NativeAotServiceStartupReplayTests
             GcBegin.Replace("pressureCollections=3", "pressureCollections=03", StringComparison.Ordinal),
             GcBegin.Replace(" oom=1", "", StringComparison.Ordinal),
             GcBegin.Replace("oom=1", "oom=0", StringComparison.Ordinal),
-            GcBegin.Replace("oom=1", "oom=2", StringComparison.Ordinal)})RejectGc(GcRaw(begin:begin));
+            GcBegin.Replace("oom=1", "oom=2", StringComparison.Ordinal)})
+            RejectGc(GcRaw(begin: begin));
     }
 
     [HostTest("service v2 GC parser rejects substituted unaligned overflowing missing duplicate and misplaced budgets")]
@@ -128,8 +145,10 @@ internal static class NativeAotServiceStartupReplayTests
             GcBudget.Replace("static=16777216", "static=18446744073709547520", StringComparison.Ordinal),
             GcBudget.Replace("entitlement=67108864", "entitlement=67112960", StringComparison.Ordinal),
             GcBudget.Replace("gc=16777216", "gc=016777216", StringComparison.Ordinal),
-            GcBudget.Replace("\r\n", " extra=1\r\n", StringComparison.Ordinal) }) RejectGc(GcRaw(budget: budget));
-        RejectGc(GcRaw(), entitlement: 67108865); RejectGc(GcRaw(), entitlement: 33554432);
+            GcBudget.Replace("\r\n", " extra=1\r\n", StringComparison.Ordinal) })
+            RejectGc(GcRaw(budget: budget));
+        RejectGc(GcRaw(), entitlement: 67108865);
+        RejectGc(GcRaw(), entitlement: 33554432);
         RejectGc(GcRaw(budget: GcBudget.Replace("entitlement=67108864", "entitlement=100663296", StringComparison.Ordinal)), entitlement: 100663296);
         RejectGc(GcRaw(budget: "") + GcBudget);
         RejectGc(GcRaw(budget: Frame(GcBudget)));
@@ -147,7 +166,8 @@ internal static class NativeAotServiceStartupReplayTests
             GcBegin.Replace("liveCommitted=4165632", "liveCommitted=2129503", StringComparison.Ordinal),
             GcBegin.Replace("liveCommitted=4165632", "liveCommitted=16777217", StringComparison.Ordinal),
             GcBegin.Replace("limit=16777216", "limit=18446744073709551616", StringComparison.Ordinal),
-            GcBegin.Replace("\n", " extra=1\n", StringComparison.Ordinal) }) RejectGc(GcRaw(begin: begin));
+            GcBegin.Replace("\n", " extra=1\n", StringComparison.Ordinal) })
+            RejectGc(GcRaw(begin: begin));
         string end = GcBegin.Replace("GC_BEGIN", "GC_END", StringComparison.Ordinal);
         foreach (string tail in new[] { LifecycleEnd + ApplicationEnd, LifecycleEnd + end + end + ApplicationEnd,
             end + LifecycleEnd + ApplicationEnd, LifecycleEnd + ApplicationEnd + end,
@@ -155,7 +175,8 @@ internal static class NativeAotServiceStartupReplayTests
             LifecycleEnd + end.Replace("liveBytes=2097152", "liveBytes=0", StringComparison.Ordinal) + ApplicationEnd })
             RejectGc(GcRaw(tail: tail));
         RejectGc(GcRaw(prefix: GcBegin + Prefix, begin: ""));
-        RejectGc(GcRaw() + Frame(GcBegin, 1)); RejectGc(GcRaw() + end);
+        RejectGc(GcRaw() + Frame(GcBegin, 1));
+        RejectGc(GcRaw() + end);
     }
 
     [HostTest("service v2 startup requires explicit mode and exact copied fd2 listening with three environment entries")]
@@ -165,9 +186,11 @@ internal static class NativeAotServiceStartupReplayTests
         {
             string raw = Raw(segmented, prefix: Prefix + GcBegin, lifecycle: true, entryMemory: EntryMemory);
             var report = Read(raw, lifecycle: true);
-            HostCheck.Equal(Writer, report.WriterIdentity); HostCheck.Equal(6, report.ListenerDescriptor);
+            HostCheck.Equal(Writer, report.WriterIdentity);
+            HostCheck.Equal(6, report.ListenerDescriptor);
             HostCheck.Equal((uint)Encoding.UTF8.GetByteCount(NativeAotServicePackage.LifecycleSettingsJson), report.SettingsBytes);
-            Reject(raw); Reject(Raw(segmented), lifecycle: true);
+            Reject(raw);
+            Reject(Raw(segmented), lifecycle: true);
         }
     }
 
@@ -198,11 +221,15 @@ internal static class NativeAotServiceStartupReplayTests
         {
             byte[] raw = Encoding.UTF8.GetBytes(Raw(segmented)), before = raw.ToArray();
             var report = QemuTranscripts.InspectNativeAotServiceStartupForTests(raw);
-            HostCheck.Equal(Writer, report.WriterIdentity); HostCheck.Equal(6, report.ListenerDescriptor);
+            HostCheck.Equal(Writer, report.WriterIdentity);
+            HostCheck.Equal(6, report.ListenerDescriptor);
             HostCheck.Equal((uint)Encoding.UTF8.GetByteCount(NativeAotServicePackage.SettingsJson), report.SettingsBytes);
-            HostCheck.Equal(3, report.SettingsDescriptor); HostCheck.Equal(Writer, report.SettingsIdentity);
-            HostCheck.Equal(3UL, report.SettingsOrdinal); HostCheck.True(raw.AsSpan().SequenceEqual(before));
-            Array.Fill(raw, (byte)0); HostCheck.Equal(Writer, report.WriterIdentity);
+            HostCheck.Equal(3, report.SettingsDescriptor);
+            HostCheck.Equal(Writer, report.SettingsIdentity);
+            HostCheck.Equal(3UL, report.SettingsOrdinal);
+            HostCheck.True(raw.AsSpan().SequenceEqual(before));
+            Array.Fill(raw, (byte)0);
+            HostCheck.Equal(Writer, report.WriterIdentity);
         }
     }
 
@@ -267,7 +294,8 @@ internal static class NativeAotServiceStartupReplayTests
             ("M16_014_LIVE ", "active=2", "active=0"), ("M16_014_LIVE ", "clock=60", "clock=59"),
             ("M16_014_LIVE ", "clock=60", "clock=71")
         };
-        foreach (var change in changes) Reject(Change(raw, change.Row, row => row.Replace(change.Before, change.After, StringComparison.Ordinal)));
+        foreach (var change in changes)
+            Reject(Change(raw, change.Row, row => row.Replace(change.Before, change.After, StringComparison.Ordinal)));
         uint settings = (uint)Encoding.UTF8.GetByteCount(NativeAotServicePackage.SettingsJson);
         foreach (string marker in new[] { "M16_014_ENTER ", "M16_014_CONFIG ", "M16_014_LIVE " })
             Reject(Change(raw, marker, row => row.Replace((marker == "M16_014_CONFIG " ? "bytes=" : "configBytes=") + settings,
@@ -322,8 +350,14 @@ internal static class NativeAotServiceStartupReplayTests
     private static void RejectGc(string raw, ulong entitlement = 67108864, bool lifecycle = true)
     {
         bool rejected = false;
-        try { _ = QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(raw), entitlement, lifecycle); }
-        catch (ToolFailure) { rejected = true; }
+        try
+        {
+            _ = QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(raw), entitlement, lifecycle);
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
     private const string EntryMemory = "M16_014_MEMORY nr=12 regions=0 regionLimit=256 backed=0 pool=9216 reserved=0\r\n";
@@ -337,7 +371,8 @@ internal static class NativeAotServiceStartupReplayTests
             var value = QemuTranscripts.InspectNativeAotServiceStartupForTests(Encoding.UTF8.GetBytes(raw), NativeAotServiceContract.QuotaFailure);
             HostCheck.Equal(Writer, value.WriterIdentity);
             HostCheck.Equal((uint)Encoding.UTF8.GetByteCount(NativeAotServicePackage.QuotaSettingsJson), value.SettingsBytes);
-            Reject(raw); Reject(raw, lifecycle: true);
+            Reject(raw);
+            Reject(raw, lifecycle: true);
         }
     }
 
@@ -353,8 +388,14 @@ internal static class NativeAotServiceStartupReplayTests
             valid.Replace(topology, topology.Replace("backed=0", "backed=1", StringComparison.Ordinal), StringComparison.Ordinal) })
         {
             bool rejected = false;
-            try { _ = QemuTranscripts.InspectNativeAotServiceStartupForTests(Encoding.UTF8.GetBytes(raw), NativeAotServiceContract.QuotaFailure); }
-            catch (ToolFailure) { rejected = true; }
+            try
+            {
+                _ = QemuTranscripts.InspectNativeAotServiceStartupForTests(Encoding.UTF8.GetBytes(raw), NativeAotServiceContract.QuotaFailure);
+            }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
     }
@@ -368,35 +409,45 @@ internal static class NativeAotServiceStartupReplayTests
             entryMemory ??= EntryMemory;
             entryMemory += $"M16_016_TOPOLOGY identity={Writer} ordinal=1 nr=12 pool=9216 backed=0 free=9216 freeRuns=1 largestFreeRun=9216 regions=0 regionLimit=256 tables=4 tableLimit=128\r\n";
         }
-        prefix ??= Prefix; int last = prefix.LastIndexOf("CLROS_APP_BUILT", StringComparison.Ordinal);
+        prefix ??= Prefix;
+        int last = prefix.LastIndexOf("CLROS_APP_BUILT", StringComparison.Ordinal);
         string beforeBuilt = prefix[..last], built = prefix[last..];
         uint settings = (uint)Encoding.UTF8.GetByteCount(quotaFailure ? NativeAotServicePackage.QuotaSettingsJson :
             lifecycle ? NativeAotServicePackage.LifecycleSettingsJson : NativeAotServicePackage.SettingsJson);
         int environmentCount = quotaFailure ? 4 : lifecycle ? 3 : 2;
-        if (lifecycle && listening == Listening) listening = Listening.Replace("contract=v1", quotaFailure ? "contract=v3-quota" : "contract=v2", StringComparison.Ordinal);
+        if (lifecycle && listening == Listening)
+            listening = Listening.Replace("contract=v1", quotaFailure ? "contract=v3-quota" : "contract=v2", StringComparison.Ordinal);
         List<string> rows = ["TEST_START m16.014\r\n", "TEST_START m16.014.startup\r\n",
             $"M16_014_ENTER identity={Writer} rip=4198402 argc=5 envc={environmentCount} configBytes={settings}\r\n"];
-        Dictionary<ulong, ulong> ordinals = []; ulong clock = 0;
+        Dictionary<ulong, ulong> ordinals = [];
+        ulong clock = 0;
         void Call(ulong identity, ulong nr, ulong fd, ulong count, ulong value)
         {
-            ordinals.TryGetValue(identity, out ulong ordinal); ordinals[identity] = ++ordinal; clock += 10;
+            ordinals.TryGetValue(identity, out ulong ordinal);
+            ordinals[identity] = ++ordinal;
+            clock += 10;
             rows.Add($"M16_008_CALL identity={identity} nr={nr} a0={fd} a1=4096 a2={count} a3=0 a4=0 a5=0 rip=4198402 rsp=1879048184 flags=514 fs=0 gs=0 clock={clock} valueBits={value} action=1 status=1 ordinal={ordinal}" +
                 $" waitSource=0 waitDeadline=0 waitSequence=0 signalDepth=0 signalFrame=0 blockedSignals=0 returnRip=4198402 returnRsp=1879048184 returnFlags=514 returnFs=0 returnGs=0 returnValueBits={value}\r\n");
         }
         void Write(ulong identity, string text, string metadata = "", uint channel = 2)
         {
             string[] parts = segmented ? [text[..1], text[1..9], text[9..17], text[17..]] : [text];
-            foreach (string part in parts) rows.Add(Frame(part, channel));
-            rows.Add(metadata); Call(identity, segmented ? 20UL : 1UL, channel, segmented ? (ulong)parts.Length : (ulong)text.Length, (ulong)text.Length);
+            foreach (string part in parts)
+                rows.Add(Frame(part, channel));
+            rows.Add(metadata);
+            Call(identity, segmented ? 20UL : 1UL, channel, segmented ? (ulong)parts.Length : (ulong)text.Length, (ulong)text.Length);
         }
-        if (entryMemory is not null) rows.Add(entryMemory);
+        if (entryMemory is not null)
+            rows.Add(entryMemory);
         Call(Writer, 12, 0, 0, 0);
         Write(Writer, beforeBuilt);
         rows.Add($"M16_014_CONFIG fd=3 bytes={settings} source=immutable-package copied=user\r\n");
         Call(Writer, 17, 3, 4096, settings);
         Write(Writer, built, $"M16_014_STARTUP writer={Writer} stages=4\r\n");
-        rows.Add($"M16_014_BIND identity={Binder} fd=6\r\n"); Call(Binder, 49, 6, 16, 0);
-        rows.Add("M16_014_LISTEN fd=6 address=0 port=8080 owner=live\r\n"); Call(Binder, 50, 6, 512, 0);
+        rows.Add($"M16_014_BIND identity={Binder} fd=6\r\n");
+        Call(Binder, 49, 6, 16, 0);
+        rows.Add("M16_014_LISTEN fd=6 address=0 port=8080 owner=live\r\n");
+        Call(Binder, 50, 6, 512, 0);
         string live = $"M16_014_LIVE argc=5 envc={environmentCount} configBytes={settings} bindFd=6 stdoutBytes={(listenChannel == 1 ? listening.Length : 0)} stderrBytes={prefix.Length + (listenChannel == 2 ? listening.Length : 0)} active=2 clock={clock} owner=retained externalHttp=required\r\n" +
             "CLROS_M16_014_LISTENING\r\nTEST_PASS m16.014.startup\r\n";
         Write(Binder, listening, live, listenChannel);
@@ -406,12 +457,27 @@ internal static class NativeAotServiceStartupReplayTests
         ChangeWhere(raw, row => row.StartsWith(prefix, StringComparison.Ordinal), change);
     private static string ChangeWhere(string raw, Func<string, bool> select, Func<string, string> change)
     {
-        string[] rows = raw.Split("\r\n"); int at = Array.FindIndex(rows, row => select(row));
-        HostCheck.True(at >= 0); string before = rows[at]; rows[at] = change(before); HostCheck.True(rows[at] != before);
+        string[] rows = raw.Split("\r\n");
+        int at = Array.FindIndex(rows, row => select(row));
+        HostCheck.True(at >= 0);
+        string before = rows[at];
+        rows[at] = change(before);
+        HostCheck.True(rows[at] != before);
         return string.Join("\r\n", rows);
     }
     private static QemuTranscripts.ServiceStartupInspection Read(string raw, bool lifecycle = false) =>
         QemuTranscripts.InspectNativeAotServiceStartupForTests(Encoding.UTF8.GetBytes(raw), lifecycle);
     private static void Reject(string raw, bool lifecycle = false)
-    { bool rejected = false; try { _ = Read(raw, lifecycle); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
+    {
+        bool rejected = false;
+        try
+        {
+            _ = Read(raw, lifecycle);
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
+        HostCheck.True(rejected);
+    }
 }

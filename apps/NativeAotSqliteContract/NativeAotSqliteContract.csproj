@@ -7,15 +7,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>true</InvariantGlobalization>
     <IsAotCompatible>true</IsAotCompatible>
-    <RuntimeFrameworkVersion>11.0.0-rc.2.26504.105</RuntimeFrameworkVersion>
+    <RuntimeFrameworkVersion>11.0.0-rc.3.26522.148</RuntimeFrameworkVersion>
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <EventSourceSupport>false</EventSourceSupport>
     <EnableDiagnostics>false</EnableDiagnostics>
     <DebuggerSupport>false</DebuggerSupport>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="[11.0.0-rc.2.26504.105]" />
-    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="[11.0.0-rc.2.26504.105]" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="[11.0.0-rc.3.26522.148]" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="[11.0.0-rc.3.26522.148]" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="[3.0.5]" />
     <PackageReference Include="SQLitePCLRaw.config.e_sqlite3" Version="[3.0.5]" />
     <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="[3.0.5]" />

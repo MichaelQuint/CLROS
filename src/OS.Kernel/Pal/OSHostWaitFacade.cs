@@ -2,44 +2,16 @@ using System.Runtime.InteropServices;
 
 namespace OS.Pal;
 
-[StructLayout(LayoutKind.Sequential)]
-public readonly struct OSHostEventCreateOptions
-{
-    public readonly uint Kind;
-
-    public readonly uint InitiallySignaled;
-
-    public readonly uint Flags;
-
-    public readonly uint Reserved;
-
-    public OSHostEventCreateOptions(
-        uint kind,
-        uint initiallySignaled,
-        uint flags,
-        uint reserved)
-    {
-        Kind = kind;
-        InitiallySignaled = initiallySignaled;
-        Flags = flags;
-        Reserved = reserved;
-    }
-}
-
 public sealed class OSHostWaitFacade
 {
     private const ulong WaitableHandleByteLength = 8;
-
     private readonly OSHostWaitTable? table;
-
     public OSHostWaitFacade(OSHostWaitTable? table)
     {
         this.table = table;
     }
 
-    public unsafe OSHostStatus EventCreate(
-        OSHostEventCreateOptions options,
-        OSHostHandle* waitable)
+    public unsafe OSHostStatus EventCreate(OSHostEventCreateOptions options, OSHostHandle* waitable)
     {
         if (waitable is null)
         {
@@ -47,17 +19,12 @@ public sealed class OSHostWaitFacade
         }
 
         *waitable = default;
-        if (!TryGetTable(out OSHostWaitTable activeTable) ||
-            options.Flags != 0 ||
-            options.Reserved != 0 ||
-            options.InitiallySignaled > 1)
+        if (!TryGetTable(out OSHostWaitTable activeTable) || options.Flags != 0 || options.Reserved != 0 || options.InitiallySignaled > 1)
         {
             return OSHostStatus.InvalidArgument;
         }
 
-        OSHostEventCreateResult create = activeTable.CreateEvent(
-            (OSHostWaitableKind)options.Kind,
-            options.InitiallySignaled != 0);
+        OSHostEventCreateResult create = activeTable.CreateEvent((OSHostWaitableKind)options.Kind, options.InitiallySignaled != 0);
         if (!create.Succeeded)
         {
             return create.Status;
@@ -69,28 +36,20 @@ public sealed class OSHostWaitFacade
 
     public OSHostStatus EventSet(OSHostHandle waitable)
     {
-        return TryGetTable(out OSHostWaitTable activeTable)
-            ? activeTable.Set(waitable)
-            : OSHostStatus.InvalidArgument;
+        return TryGetTable(out OSHostWaitTable activeTable) ? activeTable.Set(waitable) : OSHostStatus.InvalidArgument;
     }
 
     public OSHostStatus EventReset(OSHostHandle waitable)
     {
-        return TryGetTable(out OSHostWaitTable activeTable)
-            ? activeTable.Reset(waitable)
-            : OSHostStatus.InvalidArgument;
+        return TryGetTable(out OSHostWaitTable activeTable) ? activeTable.Reset(waitable) : OSHostStatus.InvalidArgument;
     }
 
     public OSHostStatus EventClose(OSHostHandle waitable)
     {
-        return TryGetTable(out OSHostWaitTable activeTable)
-            ? activeTable.Close(waitable)
-            : OSHostStatus.InvalidArgument;
+        return TryGetTable(out OSHostWaitTable activeTable) ? activeTable.Close(waitable) : OSHostStatus.InvalidArgument;
     }
 
-    public unsafe OSHostStatus WaitOne(
-        OSHostWaitOneRequest request,
-        OSHostWaitResult* result)
+    public unsafe OSHostStatus WaitOne(OSHostWaitOneRequest request, OSHostWaitResult* result)
     {
         if (result is null)
         {
@@ -108,10 +67,7 @@ public sealed class OSHostWaitFacade
         return StatusFrom(wait);
     }
 
-    public unsafe OSHostStatus WaitMany(
-        OSHostWaitManyRequest request,
-        ReadOnlySpan<OSHostHandle> waitables,
-        OSHostWaitResult* result)
+    public unsafe OSHostStatus WaitMany(OSHostWaitManyRequest request, ReadOnlySpan<OSHostHandle> waitables, OSHostWaitResult* result)
     {
         if (result is null)
         {
@@ -131,20 +87,14 @@ public sealed class OSHostWaitFacade
             return requestStatus;
         }
 
-        OSHostWaitResult wait = activeTable.WaitMany(
-            waitables,
-            request.Timeout,
-            request.Flags);
+        OSHostWaitResult wait = activeTable.WaitMany(waitables, request.Timeout, request.Flags);
         *result = wait;
         return StatusFrom(wait);
     }
 
-    private static OSHostStatus ValidateWaitManyRequest(
-        OSHostWaitManyRequest request,
-        int waitableCount)
+    private static OSHostStatus ValidateWaitManyRequest(OSHostWaitManyRequest request, int waitableCount)
     {
-        if (request.Reserved != 0 ||
-            request.Waitables.Length % WaitableHandleByteLength != 0)
+        if (request.Reserved != 0 || request.Waitables.Length % WaitableHandleByteLength != 0)
         {
             return OSHostStatus.InvalidArgument;
         }
@@ -165,19 +115,12 @@ public sealed class OSHostWaitFacade
 
     private static OSHostWaitResult Result(OSHostStatus status)
     {
-        return new OSHostWaitResult(
-            OSHostWaitConstants.ResultKindNone,
-            signaledIndex: 0,
-            (int)status,
-            flags: 0,
-            signaledHandle: default);
+        return new OSHostWaitResult(OSHostWaitConstants.ResultKindNone, signaledIndex: 0, (int)status, flags: 0, signaledHandle: default);
     }
 
     private static OSHostStatus StatusFrom(OSHostWaitResult result)
     {
-        return result.StatusCode is >= (int)OSHostStatus.Ok and <= (int)OSHostStatus.Closed
-            ? (OSHostStatus)result.StatusCode
-            : OSHostStatus.InternalError;
+        return result.StatusCode is >= (int)OSHostStatus.Ok and <= (int)OSHostStatus.Closed ? (OSHostStatus)result.StatusCode : OSHostStatus.InternalError;
     }
 
     private bool TryGetTable(out OSHostWaitTable activeTable)

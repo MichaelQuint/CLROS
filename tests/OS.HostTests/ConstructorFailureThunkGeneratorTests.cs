@@ -4,7 +4,11 @@ using System.Security.Cryptography;
 
 internal static class ConstructorFailureThunkGeneratorTests
 {
-    private static void Need(bool value, string why) { if (!value) throw new InvalidOperationException(why); }
+    private static void Need(bool value, string why)
+    {
+        if (!value)
+            throw new InvalidOperationException(why);
+    }
     private static T Read<T>(object value, string property) => (T)value.GetType().GetProperty(property)!.GetValue(value)!;
 
     [HostFixture(HostLane.Native)]
@@ -34,7 +38,8 @@ internal static class ConstructorFailureThunkGeneratorTests
                 "CLROS_CctorFailure_InvokeClauses", "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__CtorFailureInvoke",
                 "CLROS_CctorFailure_OuterClauses", "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__CtorFailureOuter"];
             Need(symbols.Length == names.Length, "closed symbol inventory");
-            for (int i = 0; i < names.Length; i++) Need(Read<string>(symbols.GetValue(i)!, "Name") == names[i], "symbol " + i);
+            for (int i = 0; i < names.Length; i++)
+                Need(Read<string>(symbols.GetValue(i)!, "Name") == names[i], "symbol " + i);
             Need(Read<string>(section, "Name") == ".text" && Read<uint>(section, "Characteristics") == 0x60500020,
                 "read-only executable contribution");
             Array relocations = Read<Array>(section, "Relocations");
@@ -50,7 +55,7 @@ internal static class ConstructorFailureThunkGeneratorTests
             byte[] leaf = [0x48, 0x8D, 0x05, 0, 0, 0, 0, 0xC3];
             Need(Read<uint>(symbols.GetValue(3)!, "Value") == 1024 && Read<uint>(symbols.GetValue(5)!, "Value") == 1040 &&
                 code.AsSpan(1024, 8).SequenceEqual(leaf) && code.AsSpan(1040, 8).SequenceEqual(leaf) &&
-                code.AsSpan(1032, 8).SequenceEqual(new byte[] {0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90}), "separate aligned getters");
+                code.AsSpan(1032, 8).SequenceEqual(new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 }), "separate aligned getters");
             // Independent instruction interpreter verifies genuine capture,
             // restored GP/XMM state, catch-produced state and all rejection exits.
             // Selector phase, rooted wrapper identity and abandoned first-bridge

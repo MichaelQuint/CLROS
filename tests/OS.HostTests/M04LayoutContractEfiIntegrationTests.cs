@@ -9,7 +9,7 @@ using System.Text;
 using System.Xml.Linq;
 using OS.Tools.QemuRunner;
 
-internal static class M04LayoutContractEfiIntegrationTests
+internal static partial class M04LayoutContractEfiIntegrationTests
 {
     private const string Flag = "EnableM04LayoutContractProbe";
     private const string ArithmeticFlag = "EnableM04ArithmeticConformanceProbe";
@@ -23,57 +23,70 @@ internal static class M04LayoutContractEfiIntegrationTests
     // Reviewed source identity uses UTF-8 text with only CRLF normalized to LF.
     // EFI artifact and same-build source-authority hashes remain raw byte hashes.
     private static readonly string LeafSourceHash = OS.Tooling.EfiContracts.SourceIdentities[@"..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs"];
-
-
-
-
-
     [HostTest("m04.005.efi frozen leaf and explicit default-off closure", HostLane.Fast, 0)]
     private static void TestProject()
     {
         string root = Root();
         XDocument project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
-        string[] keys = project.Descendants("Compile").Select(item =>
-            item.Attribute("Include")!.Value + "|" + (item.Attribute("Link")?.Value ?? "")).ToArray();
-        Require(keys.Length == OS.Tooling.EfiContracts.CompileItems.Count && Hash(Encoding.UTF8.GetBytes(string.Join('\n', keys) + "\n")) == CompileHash,
-            "reviewed explicit compile inventory");
+        string[] keys = project.Descendants("Compile").Select(item => item.Attribute("Include")!.Value + "|" + (item.Attribute("Link")?.Value ?? "")).ToArray();
+        Require(keys.Length == OS.Tooling.EfiContracts.CompileItems.Count && Hash(Encoding.UTF8.GetBytes(string.Join('\n', keys) + "\n")) == CompileHash, "reviewed explicit compile inventory");
         Require(SourceIdentityHash(File.ReadAllText(Path.Combine(root, Leaf))) == LeafSourceHash, "reviewed production source identity");
         HostCheck.Registered(typeof(ObjectArrayStringEETypeMethodTableLayoutContractsTests));
         XElement[] defaults = project.Descendants(Flag).ToArray();
-        Require(defaults.Length == 1 && defaults[0].Value == "false" &&
-            defaults[0].Attribute("Condition")?.Value == "'$(" + Flag + ")' == ''", "one false default");
-        XElement symbol = project.Descendants("PropertyGroup").Single(group =>
-            group.Attribute("Condition")?.Value == "'$(" + Flag + ")' == 'true'");
+        Require(defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(" + Flag + ")' == ''", "one false default");
+        XElement symbol = project.Descendants("PropertyGroup").Single(group => group.Attribute("Condition")?.Value == "'$(" + Flag + ")' == 'true'");
         Require(symbol.Elements().Single().Value == "$(DefineConstants);" + Symbol, "exact symbol");
         foreach ((string dependency, string relation) in new[]
         {
-            (ArithmeticFlag, "!="), (SpanFlag, "!="), (EndianFlag, "!="), ("EnableM02OwnedGdtTssTerminalProbe", "=="), ("EnableM02Ud2VectorStateProbe", "==")
-        })
+            (ArithmeticFlag, "!="),
+            (SpanFlag, "!="),
+            (EndianFlag, "!="),
+            ("EnableM02OwnedGdtTssTerminalProbe", "=="),
+            ("EnableM02Ud2VectorStateProbe", "==")
+        }
+
+        )
         {
             string condition = "'$(" + Flag + ")' == 'true' and '$(" + dependency + ")' " + relation + " 'true'";
-            Require(project.Descendants("Error").Count(error => error.Attribute("Condition")?.Value == condition) == 1,
-                "project dependency " + dependency);
+            Require(project.Descendants("Error").Count(error => error.Attribute("Condition")?.Value == condition) == 1, "project dependency " + dependency);
         }
-        foreach (bool build in new[] { true, false })
+
+        foreach (bool build in new[]
+        {
+            true,
+            false
+        }
+
+        )
         {
             var profile = OS.Tooling.EfiOptions.Parse(["--" + EndianFlag, "--" + SpanFlag, "--" + ArithmeticFlag, "--" + Flag], build).Profile();
-            foreach (string flag in new[] { EndianFlag, SpanFlag, ArithmeticFlag, Flag }) Require(profile.IsEnabled(flag), "explicit selected profile " + flag);
+            foreach (string flag in new[]
+            {
+                EndianFlag,
+                SpanFlag,
+                ArithmeticFlag,
+                Flag
+            }
+
+            )
+                Require(profile.IsEnabled(flag), "explicit selected profile " + flag);
         }
     }
 
     [HostTest("m04.005.efi source identity accepts line endings and rejects content changes", HostLane.Fast, 1)]
     private static void TestSourceIdentity()
     {
-        foreach ((string relative, string expected) in new[] { (Leaf, LeafSourceHash) })
+        foreach ((string relative, string expected) in new[]
+        {
+            (Leaf, LeafSourceHash)
+        }
+
+        )
         {
             string lf = File.ReadAllText(Path.Combine(Root(), relative)).Replace("\r\n", "\n", StringComparison.Ordinal);
             string crlf = lf.Replace("\n", "\r\n", StringComparison.Ordinal);
-            Require(SourceIdentityHash(lf) == expected && SourceIdentityHash(crlf) == expected,
-                "LF/CRLF preserve reviewed source identity: " + relative);
-            Require(SourceIdentityHash(lf + " ") != expected &&
-                SourceIdentityHash(lf + "// changed content\n") != expected &&
-                SourceIdentityHash(lf + "\r") != expected,
-                "spaces, content and lone carriage returns remain significant: " + relative);
+            Require(SourceIdentityHash(lf) == expected && SourceIdentityHash(crlf) == expected, "LF/CRLF preserve reviewed source identity: " + relative);
+            Require(SourceIdentityHash(lf + " ") != expected && SourceIdentityHash(lf + "// changed content\n") != expected && SourceIdentityHash(lf + "\r") != expected, "spaces, content and lone carriage returns remain significant: " + relative);
         }
     }
 
@@ -97,16 +110,14 @@ internal static class M04LayoutContractEfiIntegrationTests
                 <RuntimeMetadataVersion>v4.0.30319</RuntimeMetadataVersion>
               </PropertyGroup>
               <ItemGroup>
-            """ + Compile(root, Leaf) + Compile(root, "src/OS/Runtime/MinimalRuntime.cs") +
-            Compile(root, "src/OS/Runtime/MethodImplAttribute.cs") + "</ItemGroup></Project>");
+            """ + CompileLeaf(root, includeRuntime: true) + "</ItemGroup></Project>");
         ScriptResult build = Process(root, "dotnet", "build", project, "-c", "Release", "--nologo", "-m:1");
         Require(build.ExitCode == 0, build.Output);
         using FileStream file = File.OpenRead(Path.Combine(directory, "bin/Release/net11.0/Metadata.dll"));
         using PEReader pe = new(file);
         MetadataReader metadata = pe.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count == 0, "no managed assembly references");
-        MethodDefinition evaluate = metadata.MethodDefinitions.Select(metadata.GetMethodDefinition)
-            .Single(method => metadata.GetString(method.Name) == "Evaluate");
+        MethodDefinition evaluate = metadata.MethodDefinitions.Select(metadata.GetMethodDefinition).Single(method => metadata.GetString(method.Name) == "Evaluate");
         Require((evaluate.ImplAttributes & MethodImplAttributes.NoInlining) != 0, "NoInlining retained in IL metadata");
     }
 
@@ -133,7 +144,7 @@ internal static class M04LayoutContractEfiIntegrationTests
             <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
             <ImplicitUsings>enable</ImplicitUsings><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
             </PropertyGroup><ItemGroup><Compile Include="Program.cs"/>
-            """ + Compile(root, Leaf) + "</ItemGroup></Project>");
+            """ + CompileLeaf(root, includeRuntime: false) + "</ItemGroup></Project>");
         string fields = """
                 private struct EfiSimpleTextOutputProtocol { }
                 private struct EfiSerialIoProtocol { }
@@ -141,8 +152,7 @@ internal static class M04LayoutContractEfiIntegrationTests
                 private static void Write(EfiSimpleTextOutputProtocol* c, EfiSerialIoProtocol* s, byte value) => Output.Append((char)value);
                 private static void WriteCrLf(EfiSimpleTextOutputProtocol* c, EfiSerialIoProtocol* s) => Output.Append("\r\n");
             """;
-        string program = "using OS.Kernel.Runtime;\nunsafe static class Actual {\n" + fields + adapter +
-            "public static bool Run() => WriteM04LayoutContractProbe(null,null) && Output.ToString() == \"" + Ready + "\\r\\n\";\n}\n";
+        string program = "using OS.Kernel.Runtime;\nunsafe static class Actual {\n" + fields + adapter + "public static bool Run() => WriteM04LayoutContractProbe(null,null) && Output.ToString() == \"" + Ready + "\\r\\n\";\n}\n";
         program += "unsafe static class Controlled {\n" + fields + """
                 private static int Calls, FaultAt, Field;
                 private static NativeAotLayoutResult ReadResult(NativeAotLayoutProfile profile,
@@ -178,8 +188,7 @@ internal static class M04LayoutContractEfiIntegrationTests
                 {
                     EfiSimpleTextOutputProtocol* console = null;
                     EfiSerialIoProtocol* serial = null;
-            """ + "\n" + guard + "\nOutput.Append(\"UEFI_MEMORY_MAP_READY\\r\\nOS_BOOT_OK\\r\\nOS_SMOKE_PASS\\r\\n\");\n}\n" +
-            adapter.Replace(evaluator, "ReadResult(", StringComparison.Ordinal) + "\n}\n" + """
+            """ + "\n" + guard + "\nOutput.Append(\"UEFI_MEMORY_MAP_READY\\r\\nOS_BOOT_OK\\r\\nOS_SMOKE_PASS\\r\\n\");\n}\n" + adapter.Replace(evaluator, "ReadResult(", StringComparison.Ordinal) + "\n}\n" + """
             static class Program
             {
                 static int Main()
@@ -197,7 +206,6 @@ internal static class M04LayoutContractEfiIntegrationTests
     }
 
     private static string[] EnabledArguments() => ["-BuildEfi", "-" + EndianFlag, "-" + SpanFlag, "-" + ArithmeticFlag, "-" + Flag];
-
     [HostTest("m04.005.efi profile propagation and sibling preservation", HostLane.Fast, 5)]
     private static void TestProfiles()
     {
@@ -208,36 +216,64 @@ internal static class M04LayoutContractEfiIntegrationTests
         string[] ordered = Markers(profile.Output, "ORDERED_MARKERS ");
         string[] unique = Markers(profile.Output, "UNIQUE_MARKERS ");
         string[] forbidden = Markers(profile.Output, "FORBIDDEN_MARKERS ");
-        Require(required.Length == 18 && ordered.Length == 6 && unique.Length == 4 && forbidden.Length == 6,
-            "18/6/4/6 profile " + profile.Output);
-        Require(ordered[0] == "EFI_CONSOLE_READY" && ordered[1].StartsWith("CLROS_M04_002_READY ", StringComparison.Ordinal) &&
-            ordered[2].StartsWith("CLROS_M04_003_READY ", StringComparison.Ordinal) && ordered[3].StartsWith("CLROS_M04_004_READY ", StringComparison.Ordinal) &&
-            ordered[4] == Ready && ordered[5] == "UEFI_MEMORY_MAP_READY" && unique.SequenceEqual(ordered[1..5]) &&
-            forbidden.Contains(Failed) && forbidden.Contains("TEST_FAIL") && forbidden.Contains("OS_SMOKE_FAIL"), "exact profile lists");
+        Require(required.Length == 18 && ordered.Length == 6 && unique.Length == 4 && forbidden.Length == 6, "18/6/4/6 profile " + profile.Output);
+        Require(ordered[0] == "EFI_CONSOLE_READY" && ordered[1].StartsWith("CLROS_M04_002_READY ", StringComparison.Ordinal) && ordered[2].StartsWith("CLROS_M04_003_READY ", StringComparison.Ordinal) && ordered[3].StartsWith("CLROS_M04_004_READY ", StringComparison.Ordinal) && ordered[4] == Ready && ordered[5] == "UEFI_MEMORY_MAP_READY" && unique.SequenceEqual(ordered[1..5]) && forbidden.Contains(Failed) && forbidden.Contains("TEST_FAIL") && forbidden.Contains("OS_SMOKE_FAIL"), "exact profile lists");
         foreach ((string[] arguments, int count) in new[]
         {
-            (Array.Empty<string>(), 12), (new[] { "-BuildEfi", "-" + EndianFlag }, 15),
+            (Array.Empty<string>(), 12),
+            (new[] { "-BuildEfi", "-" + EndianFlag }, 15),
             (new[] { "-BuildEfi", "-" + EndianFlag, "-" + SpanFlag }, 16),
             (new[] { "-BuildEfi", "-" + EndianFlag, "-" + SpanFlag, "-" + ArithmeticFlag }, 17)
-        })
+        }
+
+        )
         {
             ScriptResult baseline = Qemu(root, arguments);
-            Require(baseline.ExitCode == 0 && Markers(baseline.Output, "REQUIRED_MARKERS ").Length == count &&
-                !Markers(baseline.Output, "REQUIRED_MARKERS ").Contains(Ready), "unchanged sibling profile " + count);
+            Require(baseline.ExitCode == 0 && Markers(baseline.Output, "REQUIRED_MARKERS ").Length == count && !Markers(baseline.Output, "REQUIRED_MARKERS ").Contains(Ready), "unchanged sibling profile " + count);
         }
+
         ScriptResult returning = Qemu(root, [.. EnabledArguments(), "-EnableM02NormalizedInterruptFramePageProbe"]);
-        Require(returning.ExitCode == 0 && Markers(returning.Output, "REQUIRED_MARKERS ").Contains(Ready) &&
-            Markers(returning.Output, "REQUIRED_MARKERS ").Any(m => m.StartsWith("CLROS_M02_010_READY ", StringComparison.Ordinal)), "returning M02 combination " + returning.Output);
-        foreach (string missing in new[] { "-BuildEfi", "-" + EndianFlag, "-" + SpanFlag, "-" + ArithmeticFlag })
+        Require(returning.ExitCode == 0 && Markers(returning.Output, "REQUIRED_MARKERS ").Contains(Ready) && Markers(returning.Output, "REQUIRED_MARKERS ").Any(m => m.StartsWith("CLROS_M02_010_READY ", StringComparison.Ordinal)), "returning M02 combination " + returning.Output);
+        foreach (string missing in new[]
+        {
+            "-BuildEfi",
+            "-" + EndianFlag,
+            "-" + SpanFlag,
+            "-" + ArithmeticFlag
+        }
+
+        )
             Require(Qemu(root, EnabledArguments().Where(x => x != missing).ToArray()).ExitCode != 0, "reject missing " + missing);
-        foreach (string disabled in new[] { "-" + EndianFlag, "-" + SpanFlag, "-" + ArithmeticFlag })
+        foreach (string disabled in new[]
+        {
+            "-" + EndianFlag,
+            "-" + SpanFlag,
+            "-" + ArithmeticFlag
+        }
+
+        )
         {
             ScriptResult explicitFalse = Qemu(root, EnabledArguments().Select(x => x == disabled ? x + ":false" : x).ToArray());
             Require(explicitFalse.ExitCode != 0 && explicitFalse.Output.Contains("m04_layout_contract_requires_explicit_m04_chain", StringComparison.Ordinal), explicitFalse.Output);
         }
-        foreach (string extra in new[] { "-SkipImageBuild", "-EnableM02OwnedGdtTssTerminalProbe", "-EnableM02Ud2VectorStateProbe" })
+
+        foreach (string extra in new[]
+        {
+            "-SkipImageBuild",
+            "-EnableM02OwnedGdtTssTerminalProbe",
+            "-EnableM02Ud2VectorStateProbe"
+        }
+
+        )
             Require(Qemu(root, [.. EnabledArguments(), extra]).ExitCode != 0, "reject conflicting " + extra);
-        foreach (string argument in new[] { "-RequireMarker", "-RequireOrderedMarker", "-RequireUniqueMarker" })
+        foreach (string argument in new[]
+        {
+            "-RequireMarker",
+            "-RequireOrderedMarker",
+            "-RequireUniqueMarker"
+        }
+
+        )
             Require(Qemu(root, argument, Ready).ExitCode != 0, "marker requires typed profile " + argument);
     }
 
@@ -245,17 +281,43 @@ internal static class M04LayoutContractEfiIntegrationTests
     private static void TestBuildAndVerifierArguments()
     {
         string[] switches = EnabledArguments()[1..];
-        foreach (bool build in new[] { true, false })
+        foreach (bool build in new[]
         {
-            foreach (string missing in new[] { "-" + EndianFlag, "-" + SpanFlag, "-" + ArithmeticFlag })
+            true,
+            false
+        }
+
+        )
+        {
+            foreach (string missing in new[]
             {
-                foreach (string[] arguments in new[] { switches.Where(x => x != missing).ToArray(), switches.Select(x => x == missing ? x + ":false" : x).ToArray() })
+                "-" + EndianFlag,
+                "-" + SpanFlag,
+                "-" + ArithmeticFlag
+            }
+
+            )
+            {
+                foreach (string[] arguments in new[]
+                {
+                    switches.Where(x => x != missing).ToArray(),
+                    switches.Select(x => x == missing ? x + ":false" : x).ToArray()
+                }
+
+                )
                 {
                     var result = HostToolProcess.ValidateEfiProfile(build, arguments);
                     Require(result.ExitCode != 0 && result.Output.Contains("m04_layout_contract_requires_explicit_m04_chain", StringComparison.Ordinal), result.Output);
                 }
             }
-            foreach (string terminal in new[] { "-EnableM02OwnedGdtTssTerminalProbe", "-EnableM02Ud2VectorStateProbe" })
+
+            foreach (string terminal in new[]
+            {
+                "-EnableM02OwnedGdtTssTerminalProbe",
+                "-EnableM02Ud2VectorStateProbe"
+            }
+
+            )
             {
                 var result = HostToolProcess.ValidateEfiProfile(build, [.. switches, terminal]);
                 Require(result.ExitCode != 0 && result.Output.Contains("m04_layout_contract_forbids_", StringComparison.Ordinal), result.Output);
@@ -279,9 +341,21 @@ internal static class M04LayoutContractEfiIntegrationTests
         cases.Add((firmware, true));
         foreach (string record in chain[1..5])
         {
-            foreach (string changed in new[] { "", "prefix" + record, " " + record, record + " ", record + " diagnostic",
-                record + "suffix", record + "\t", record[..^1], record.ToLowerInvariant(),
-                record.Replace("hostConformance=false guestIntegrated=true", "hostConformance=true guestIntegrated=false", StringComparison.Ordinal) })
+            foreach (string changed in new[]
+            {
+                "",
+                "prefix" + record,
+                " " + record,
+                record + " ",
+                record + " diagnostic",
+                record + "suffix",
+                record + "\t",
+                record[..^1],
+                record.ToLowerInvariant(),
+                record.Replace("hostConformance=false guestIntegrated=true", "hostConformance=true guestIntegrated=false", StringComparison.Ordinal)
+            }
+
+            )
                 cases.Add((good.Replace(record, changed, StringComparison.Ordinal), false));
             for (int control = 0; control <= 32; control++)
                 cases.Add((good.Replace(record, record.Insert(7, ((char)control).ToString()), StringComparison.Ordinal), false));
@@ -290,34 +364,64 @@ internal static class M04LayoutContractEfiIntegrationTests
             cases.Add((good + record + "\n", false));
             cases.Add((record + "\n" + good, false));
         }
-        foreach (string token in new[] { "checks=19", "profile=ilc11.0.0-rc.2.26504.105-win-x64-le", "shapes=3", "prefixBytes=24", "gate4=Fail" })
+
+        foreach (string token in new[]
+        {
+            "checks=19",
+            "profile=ilc11.0.0-rc.3.26522.148-win-x64-le",
+            "shapes=3",
+            "prefixBytes=24",
+            "gate4=Fail"
+        }
+
+        )
             cases.Add((good.Replace(token, token + "x", StringComparison.Ordinal), false));
         cases.Add((good.Replace(chain[2] + "\n" + chain[3], chain[3] + "\n" + chain[2], StringComparison.Ordinal), false));
         cases.Add((good.Replace("OS_SMOKE_PASS\n", "OS_SMOKE_PASS", StringComparison.Ordinal), false));
-        foreach (string bad in new[] { Failed, "TEST_FAIL m04.005 late", "OS_SMOKE_FAIL", "CLROS_M04_005_REA",
-            "CLROS_M04_999_READY", "prefix" + Ready + " suffix", Ready.Insert(7, "\0"), "M04_UNKNOWN_RECORD" })
+        foreach (string bad in new[]
+        {
+            Failed,
+            "TEST_FAIL m04.005 late",
+            "OS_SMOKE_FAIL",
+            "CLROS_M04_005_REA",
+            "CLROS_M04_999_READY",
+            "prefix" + Ready + " suffix",
+            Ready.Insert(7, "\0"),
+            "M04_UNKNOWN_RECORD"
+        }
+
+        )
         {
             cases.Add((bad + "\n" + good, false));
             cases.Add((good + bad + "\n", false));
             cases.Add((firmware + "\n" + bad + "\n", false));
         }
+
         cases.Add((good + "OS_SMOKE_PASS\n", false));
         cases.Add((good + "BOOT_PHASE\tcorrupt\n", false));
         cases.Add(("\uFEFF" + good, false));
         cases.Add((good.Replace(Ready, Ready.Insert(7, "\uFEFF"), StringComparison.Ordinal), false));
         var files = cases.Select((c, i) => new { Path = Path.Combine(directory, i + ".log"), c.Accept }).ToArray();
-        for (int i = 0; i < cases.Count; i++) File.WriteAllText(files[i].Path, cases[i].Text, new UTF8Encoding(false));
+        for (int i = 0; i < cases.Count; i++)
+            File.WriteAllText(files[i].Path, cases[i].Text, new UTF8Encoding(false));
         foreach (var item in files)
         {
             bool accepted = true;
-            try { OS.Tooling.QemuTranscripts.AssertM04LayoutContractTranscript(item.Path); }
-            catch (OS.Tooling.ToolFailure) { accepted = false; }
+            try
+            {
+                OS.Tooling.QemuTranscripts.AssertM04LayoutContractTranscript(item.Path);
+            }
+            catch (OS.Tooling.ToolFailure)
+            {
+                accepted = false;
+            }
+
             Require(accepted == item.Accept, "strict whole-line transcript " + item.Path);
         }
     }
+
     [HostTest("m04.005.efi frozen kernel source admission rejects mutations", HostLane.Fast, 7)]
     private static void TestSourceFirewall() => EfiSourceAdmissionTests.ReviewedIdentity();
-
     private static string Between(string text, string first, string next)
     {
         int start = text.IndexOf(first, StringComparison.Ordinal);
@@ -325,125 +429,8 @@ internal static class M04LayoutContractEfiIntegrationTests
         return text[start..text.IndexOf(next, start, StringComparison.Ordinal)];
     }
 
-    private const string PriorOvmfTranscript =
-        "G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNo" +
-        "G1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNp" +
-        "Um9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVG" +
-        "SSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4" +
-        "MCkNClRFU1RfU1RBUlQgZWZpLm1haW4NCkVGSV9DT05TT0xFX1JFQURZDQpDTFJPU19NMDRfMDAyX1JFQURZIHJlYWRWZWN0b3Jz" +
-        "PTI1IHJldmVyc2VWZWN0b3JzPTcgYnl0ZVNlcmllcz01IHVpbnQxNlNlcmllcz03IGZpbmdlcnByaW50PUU4MUU0NDUxRThEOTk5" +
-        "RjYgcmVmZXJlbmNlRmlsZXNSZXF1aXJlZD1mYWxzZSBob3N0Q29uZm9ybWFuY2U9ZmFsc2UgZ3Vlc3RJbnRlZ3JhdGVkPXRydWUg" +
-        "Z2F0ZTQ9RmFpbA0KQ0xST1NfTTA0XzAwM19SRUFEWSB2ZWN0b3JzPTE2IHNwYW5WZWN0b3JzPTQgb3ZlcmxhcFZlY3RvcnM9NSBt" +
-        "ZW1vcnlDYXN0VmVjdG9ycz0zIHVuc2FmZVdpZHRoVmVjdG9ycz00IGZpbmdlcnByaW50PUYwM0ZGNTlEMzZGMzlFQ0QgcG9pbnRl" +
-        "cldpZHRoPTggcmVmZXJlbmNlRmlsZXNSZXF1aXJlZD1mYWxzZSBob3N0Q29uZm9ybWFuY2U9ZmFsc2UgZ3Vlc3RJbnRlZ3JhdGVk" +
-        "PXRydWUgZ2F0ZTQ9RmFpbA0KQ0xST1NfTTA0XzAwNF9SRUFEWSB2ZWN0b3JzPTU3IGZpbmdlcnByaW50PTQ1RkRGQTI0REQ3MkVB" +
-        "MjggcmVmZXJlbmNlRmlsZXNSZXF1aXJlZD1mYWxzZSBob3N0Q29uZm9ybWFuY2U9ZmFsc2UgZ3Vlc3RJbnRlZ3JhdGVkPXRydWUg" +
-        "Z2F0ZTQ9RmFpbA0KVUVGSV9NRU1PUllfTUFQX1JFQURZDQpVRUZJX01FTU9SWV9NQVBfREVTQ1JJUFRPUl9DT1VOVCAxMDINClVF" +
-        "RklfTUVNT1JZX01BUF9PV05FRA0KQk9PVF9IQU5ET0ZGX1JFQURZDQpVRUZJX01FTU9SWV9NQVBfTk9STUFMSVpFRA0KQk9PVF9N" +
-        "RU1PUllfTUFQX0FDQ0VQVEVEDQpCT09UX01FTU9SWV9SRUdJT05TX1JFQURZDQpCT09UX01FTU9SWV9SRUdJT05fQ09VTlQgMTAy" +
-        "DQpCT09UX1BBR0VfQUxMT0NBVE9SX1JFQURZIHN0YXR1cz1SZWFkeSByZWdpb25zPTEwMiBjb252ZW50aW9uYWxQYWdlcz01MjIz" +
-        "NiBjb252ZW50aW9uYWxCeXRlcz0yMTM5NTg2NTYgZnJlZU5vZGVzPTkgZnJlZVBhZ2VzPTUyMjM2IGZyZWVCeXRlcz0yMTM5NTg2" +
-        "NTYgcGFnZVNpemU9NDA5NiBzdGF0dXNDb2RlPTANCkJPT1RfQUNQSV9SU0RQX0hBTkRPRkZfUkVBRFkNClVFRklfQUNQSV9SU0RQ" +
-        "X1JFQURZDQpURVNUX1NUQVJUIGJvb3Quc2VxdWVuY2UNCkJPT1RfUEhBU0UgUGhhc2VBLkF1ZGl0IFNUQVJUDQpCT09UX1BIQVNF" +
-        "IFBoYXNlQS5BdWRpdCBQQVNTDQpCT09UX1BIQVNFIFBoYXNlQS5EaWFnbm9zdGljcyBTVEFSVA0KQk9PVF9QSEFTRSBQaGFzZUEu" +
-        "RGlhZ25vc3RpY3MgUEFTUw0KT1NfQk9PVF9PSw0KVEVTVF9QQVNTIGJvb3Quc2VxdWVuY2UNCk9TX1NNT0tFX1BBU1MNCkJkc0R4" +
-        "ZTogbG9hZGluZyBCb290MDAwMCAiVWlBcHAiIGZyb20gRnYoN0NCOEJEQzktRjhFQi00RjM0LUFBRUEtM0VFNEFGNjUxNkExKS9G" +
-        "dkZpbGUoNDYyQ0FBMjEtNzYxNC00NTAzLTgzNkUtOEFCNkY0NjYyMzMxKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMCAiVWlB" +
-        "cHAiIGZyb20gRnYoN0NCOEJEQzktRjhFQi00RjM0LUFBRUEtM0VFNEFGNjUxNkExKS9GdkZpbGUoNDYyQ0FBMjEtNzYxNC00NTAz" +
-        "LTgzNkUtOEFCNkY0NjYyMzMxKQ0KG1syShtbMDE7MDFIG1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzBtG1szMG0bWzQw" +
-        "bRtbMDE7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAbWzAyOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swMzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDQ7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzA1OzAxSCAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNjswMUgg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgIBtbMDc7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAbWzA4OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swOTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTA7MDFIICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzExOzAxSCAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxMjsw" +
-        "MUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgIBtbMTM7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAbWzE0OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTY7MDFIICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE3OzAxSCAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sx" +
-        "ODswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgIBtbMTk7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAbWzIwOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjI7MDFIICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIzOzAxSCAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "G1syNDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgIBtbMjU7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDE7MDFIG1swbRtbMzRtG1s0N20bWzAxOzAxSCAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swMjswMUgg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgIBtbMDM7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAbWzA0OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDY7MDFIICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzAxOzAxSBtbMDI7MDJIU3Rh" +
-        "bmRhcmQgUEMgKFEzNSArIElDSDksIDIwMDkpG1swMzswMkhwYy1xMzUtMTEuMRtbMDM7NTRIMi4wMCBHSHobWzA0OzAySGVkazIt" +
-        "c3RhYmxlMjAyNDA4LXByZWJ1aWx0LnFlbXUub3JnG1swNDs1NEgyNTYgTUIgUkFNG1swNTswMkgbWzA1OzU0SBtbMDY7MDJIG1sw" +
-        "Njs1NEgbWzBtG1szN20bWzQwbRtbMjE7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIyOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMzswMUggICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjQ7MDFIICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIx" +
-        "OzAxSBtbMG0bWzMwbRtbNDBtG1syNTs1M0ggIBtbMjU7NTRIICAbWzI1OzU1SCAgG1syNTs1NkggIBtbMjU7NTdIICAbWzI1OzU4" +
-        "SCAgG1syNTs1OUggIBtbMjU7NjBIICAbWzI1OzYxSCAgG1syNTs2MkggIBtbMjU7NjNIICAbWzI1OzY0SCAgG1syNTs2NUggIBtb" +
-        "MjU7NjZIICAbWzI1OzY3SCAgG1syNTs2OEggIBtbMjU7NjlIICAbWzI1OzcwSCAgG1syNTs3MUggIBtbMjU7NzJIICAbWzI1Ozcz" +
-        "SCAgG1swbRtbMzBtG1s0N20bWzA3OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swODswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDk7MDFIICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzEwOzAxSCAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxMTsw" +
-        "MUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgIBtbMTI7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAbWzEzOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTU7MDFIICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE2OzAxSCAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sx" +
-        "NzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgIBtbMTg7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAbWzE5OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDc7MDFIG1swNzswMUggICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMG0b" +
-        "WzM3bRtbNDBtG1swODszMUg8U3RhbmRhcmQgRW5nbGlzaD4bWzBtG1szMG0bWzQ3bRtbMDg7NDlIICAgICAgICAgG1swODswMUgg" +
-        "ICAbWzA4OzA0SFNlbGVjdCBMYW5ndWFnZSAgICAgICAgICAgIBtbMG0bWzM0bRtbNDdtG1swOTswMUggICAbWzA5OzA0SCAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMG0bWzMwbRtbNDdtG1sxMDswMUggICAb" +
-        "WzEwOzAySOKWuhtbMTA7MDRIRGV2aWNlIE1hbmFnZXIgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sx" +
-        "MTswMUggICAbWzExOzAySOKWuhtbMTE7MDRIQm9vdCBNYW5hZ2VyICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgG1sxMjswMUggICAbWzEyOzAySOKWuhtbMTI7MDRIQm9vdCBNYWludGVuYW5jZSBNYW5hZ2VyICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgG1swbRtbMzRtG1s0N20bWzEzOzAxSCAgIBtbMTM7MDRIICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swbRtbMzBtG1s0N20bWzE0OzAxSCAgIBtbMTQ7MDRIQ29udGludWUgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNTswMUggICAbWzE1OzA0SFJlc2V0ICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTY7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAbWzE4OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgIBtbMTk7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sy" +
-        "MDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgIBtbMG0bWzM3bRtbNDBtG1syMzswMkggG1syMjswMkggG1syMjs1M0ggICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "G1syMjsyN0ggICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjM7NTNIICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMzsw" +
-        "M0jihpHihpM9TW92ZSBIaWdobGlnaHQgICAgICAgG1syMjswM0ggICAgICAgICAgICAgICAgICAgICAgICAbWzIzOzI3SDxFbnRl" +
-        "cj49U2VsZWN0IEVudHJ5ICAgICAgG1swbRtbMzRtG1s0N20bWzA4OzU4SFRoaXMgaXMgdGhlIG9wdGlvbiAgICAgG1swOTs1OEhv" +
-        "bmUgYWRqdXN0cyB0byBjaGFuZ2UgIBtbMTA7NThIdGhlIGxhbmd1YWdlIGZvciB0aGUgICAbWzExOzU4SGN1cnJlbnQgc3lzdGVt" +
-        "ICAgICAgICAgG1sxMjs1OEggICAgICAgICAgICAgICAgICAgICAgIBtbMTM7NThIICAgICAgICAgICAgICAgICAgICAgICAbWzE0" +
-        "OzU4SCAgICAgICAgICAgICAgICAgICAgICAgG1sxNTs1OEggICAgICAgICAgICAgICAgICAgICAgIBtbMTY7NThIICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAbWzE3OzU4SCAgICAgICAgICAgICAgICAgICAgICAgG1sxODs1OEggICAgICAgICAgICAgICAgICAgICAg" +
-        "IBtbMTk7NThIICAgICAgICAgICAgICAgICAgICAgICAbWzE5OzgwSA==";
-
-    private static string Compile(string root, string relative) =>
-        "<Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, relative)) + "\"/>";
-
+    private const string PriorOvmfTranscript = "G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNo" + "G1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNp" + "Um9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVG" + "SSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4" + "MCkNClRFU1RfU1RBUlQgZWZpLm1haW4NCkVGSV9DT05TT0xFX1JFQURZDQpDTFJPU19NMDRfMDAyX1JFQURZIHJlYWRWZWN0b3Jz" + "PTI1IHJldmVyc2VWZWN0b3JzPTcgYnl0ZVNlcmllcz01IHVpbnQxNlNlcmllcz03IGZpbmdlcnByaW50PUU4MUU0NDUxRThEOTk5" + "RjYgcmVmZXJlbmNlRmlsZXNSZXF1aXJlZD1mYWxzZSBob3N0Q29uZm9ybWFuY2U9ZmFsc2UgZ3Vlc3RJbnRlZ3JhdGVkPXRydWUg" + "Z2F0ZTQ9RmFpbA0KQ0xST1NfTTA0XzAwM19SRUFEWSB2ZWN0b3JzPTE2IHNwYW5WZWN0b3JzPTQgb3ZlcmxhcFZlY3RvcnM9NSBt" + "ZW1vcnlDYXN0VmVjdG9ycz0zIHVuc2FmZVdpZHRoVmVjdG9ycz00IGZpbmdlcnByaW50PUYwM0ZGNTlEMzZGMzlFQ0QgcG9pbnRl" + "cldpZHRoPTggcmVmZXJlbmNlRmlsZXNSZXF1aXJlZD1mYWxzZSBob3N0Q29uZm9ybWFuY2U9ZmFsc2UgZ3Vlc3RJbnRlZ3JhdGVk" + "PXRydWUgZ2F0ZTQ9RmFpbA0KQ0xST1NfTTA0XzAwNF9SRUFEWSB2ZWN0b3JzPTU3IGZpbmdlcnByaW50PTQ1RkRGQTI0REQ3MkVB" + "MjggcmVmZXJlbmNlRmlsZXNSZXF1aXJlZD1mYWxzZSBob3N0Q29uZm9ybWFuY2U9ZmFsc2UgZ3Vlc3RJbnRlZ3JhdGVkPXRydWUg" + "Z2F0ZTQ9RmFpbA0KVUVGSV9NRU1PUllfTUFQX1JFQURZDQpVRUZJX01FTU9SWV9NQVBfREVTQ1JJUFRPUl9DT1VOVCAxMDINClVF" + "RklfTUVNT1JZX01BUF9PV05FRA0KQk9PVF9IQU5ET0ZGX1JFQURZDQpVRUZJX01FTU9SWV9NQVBfTk9STUFMSVpFRA0KQk9PVF9N" + "RU1PUllfTUFQX0FDQ0VQVEVEDQpCT09UX01FTU9SWV9SRUdJT05TX1JFQURZDQpCT09UX01FTU9SWV9SRUdJT05fQ09VTlQgMTAy" + "DQpCT09UX1BBR0VfQUxMT0NBVE9SX1JFQURZIHN0YXR1cz1SZWFkeSByZWdpb25zPTEwMiBjb252ZW50aW9uYWxQYWdlcz01MjIz" + "NiBjb252ZW50aW9uYWxCeXRlcz0yMTM5NTg2NTYgZnJlZU5vZGVzPTkgZnJlZVBhZ2VzPTUyMjM2IGZyZWVCeXRlcz0yMTM5NTg2" + "NTYgcGFnZVNpemU9NDA5NiBzdGF0dXNDb2RlPTANCkJPT1RfQUNQSV9SU0RQX0hBTkRPRkZfUkVBRFkNClVFRklfQUNQSV9SU0RQ" + "X1JFQURZDQpURVNUX1NUQVJUIGJvb3Quc2VxdWVuY2UNCkJPT1RfUEhBU0UgUGhhc2VBLkF1ZGl0IFNUQVJUDQpCT09UX1BIQVNF" + "IFBoYXNlQS5BdWRpdCBQQVNTDQpCT09UX1BIQVNFIFBoYXNlQS5EaWFnbm9zdGljcyBTVEFSVA0KQk9PVF9QSEFTRSBQaGFzZUEu" + "RGlhZ25vc3RpY3MgUEFTUw0KT1NfQk9PVF9PSw0KVEVTVF9QQVNTIGJvb3Quc2VxdWVuY2UNCk9TX1NNT0tFX1BBU1MNCkJkc0R4" + "ZTogbG9hZGluZyBCb290MDAwMCAiVWlBcHAiIGZyb20gRnYoN0NCOEJEQzktRjhFQi00RjM0LUFBRUEtM0VFNEFGNjUxNkExKS9G" + "dkZpbGUoNDYyQ0FBMjEtNzYxNC00NTAzLTgzNkUtOEFCNkY0NjYyMzMxKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMCAiVWlB" + "cHAiIGZyb20gRnYoN0NCOEJEQzktRjhFQi00RjM0LUFBRUEtM0VFNEFGNjUxNkExKS9GdkZpbGUoNDYyQ0FBMjEtNzYxNC00NTAz" + "LTgzNkUtOEFCNkY0NjYyMzMxKQ0KG1syShtbMDE7MDFIG1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzBtG1szMG0bWzQw" + "bRtbMDE7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAbWzAyOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swMzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDQ7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzA1OzAxSCAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNjswMUgg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgIBtbMDc7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAbWzA4OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swOTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTA7MDFIICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzExOzAxSCAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxMjsw" + "MUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgIBtbMTM7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAbWzE0OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTY7MDFIICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE3OzAxSCAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sx" + "ODswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgIBtbMTk7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAbWzIwOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjI7MDFIICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIzOzAxSCAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "G1syNDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgIBtbMjU7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDE7MDFIG1swbRtbMzRtG1s0N20bWzAxOzAxSCAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swMjswMUgg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgIBtbMDM7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAbWzA0OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDY7MDFIICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzAxOzAxSBtbMDI7MDJIU3Rh" + "bmRhcmQgUEMgKFEzNSArIElDSDksIDIwMDkpG1swMzswMkhwYy1xMzUtMTEuMRtbMDM7NTRIMi4wMCBHSHobWzA0OzAySGVkazIt" + "c3RhYmxlMjAyNDA4LXByZWJ1aWx0LnFlbXUub3JnG1swNDs1NEgyNTYgTUIgUkFNG1swNTswMkgbWzA1OzU0SBtbMDY7MDJIG1sw" + "Njs1NEgbWzBtG1szN20bWzQwbRtbMjE7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIyOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMzswMUggICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjQ7MDFIICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIx" + "OzAxSBtbMG0bWzMwbRtbNDBtG1syNTs1M0ggIBtbMjU7NTRIICAbWzI1OzU1SCAgG1syNTs1NkggIBtbMjU7NTdIICAbWzI1OzU4" + "SCAgG1syNTs1OUggIBtbMjU7NjBIICAbWzI1OzYxSCAgG1syNTs2MkggIBtbMjU7NjNIICAbWzI1OzY0SCAgG1syNTs2NUggIBtb" + "MjU7NjZIICAbWzI1OzY3SCAgG1syNTs2OEggIBtbMjU7NjlIICAbWzI1OzcwSCAgG1syNTs3MUggIBtbMjU7NzJIICAbWzI1Ozcz" + "SCAgG1swbRtbMzBtG1s0N20bWzA3OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swODswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDk7MDFIICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzEwOzAxSCAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxMTsw" + "MUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgIBtbMTI7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAbWzEzOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTU7MDFIICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE2OzAxSCAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sx" + "NzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgIBtbMTg7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAbWzE5OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDc7MDFIG1swNzswMUggICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMG0b" + "WzM3bRtbNDBtG1swODszMUg8U3RhbmRhcmQgRW5nbGlzaD4bWzBtG1szMG0bWzQ3bRtbMDg7NDlIICAgICAgICAgG1swODswMUgg" + "ICAbWzA4OzA0SFNlbGVjdCBMYW5ndWFnZSAgICAgICAgICAgIBtbMG0bWzM0bRtbNDdtG1swOTswMUggICAbWzA5OzA0SCAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMG0bWzMwbRtbNDdtG1sxMDswMUggICAb" + "WzEwOzAySOKWuhtbMTA7MDRIRGV2aWNlIE1hbmFnZXIgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sx" + "MTswMUggICAbWzExOzAySOKWuhtbMTE7MDRIQm9vdCBNYW5hZ2VyICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgG1sxMjswMUggICAbWzEyOzAySOKWuhtbMTI7MDRIQm9vdCBNYWludGVuYW5jZSBNYW5hZ2VyICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgG1swbRtbMzRtG1s0N20bWzEzOzAxSCAgIBtbMTM7MDRIICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swbRtbMzBtG1s0N20bWzE0OzAxSCAgIBtbMTQ7MDRIQ29udGludWUgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNTswMUggICAbWzE1OzA0SFJlc2V0ICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTY7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgICAgICAgICAbWzE4OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgIBtbMTk7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sy" + "MDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" + "ICAgICAgICAgIBtbMG0bWzM3bRtbNDBtG1syMzswMkggG1syMjswMkggG1syMjs1M0ggICAgICAgICAgICAgICAgICAgICAgICAg" + "G1syMjsyN0ggICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjM7NTNIICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMzsw" + "M0jihpHihpM9TW92ZSBIaWdobGlnaHQgICAgICAgG1syMjswM0ggICAgICAgICAgICAgICAgICAgICAgICAbWzIzOzI3SDxFbnRl" + "cj49U2VsZWN0IEVudHJ5ICAgICAgG1swbRtbMzRtG1s0N20bWzA4OzU4SFRoaXMgaXMgdGhlIG9wdGlvbiAgICAgG1swOTs1OEhv" + "bmUgYWRqdXN0cyB0byBjaGFuZ2UgIBtbMTA7NThIdGhlIGxhbmd1YWdlIGZvciB0aGUgICAbWzExOzU4SGN1cnJlbnQgc3lzdGVt" + "ICAgICAgICAgG1sxMjs1OEggICAgICAgICAgICAgICAgICAgICAgIBtbMTM7NThIICAgICAgICAgICAgICAgICAgICAgICAbWzE0" + "OzU4SCAgICAgICAgICAgICAgICAgICAgICAgG1sxNTs1OEggICAgICAgICAgICAgICAgICAgICAgIBtbMTY7NThIICAgICAgICAg" + "ICAgICAgICAgICAgICAbWzE3OzU4SCAgICAgICAgICAgICAgICAgICAgICAgG1sxODs1OEggICAgICAgICAgICAgICAgICAgICAg" + "IBtbMTk7NThIICAgICAgICAgICAgICAgICAgICAgICAbWzE5OzgwSA==";
+    private static string Compile(string root, string relative) => "<Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, relative)) + "\"/>";
     private static ScriptResult Qemu(string root, params string[] arguments)
     {
         var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. arguments]);
@@ -460,7 +447,8 @@ internal static class M04LayoutContractEfiIntegrationTests
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
-        foreach (string argument in arguments) start.ArgumentList.Add(argument);
+        foreach (string argument in arguments)
+            start.ArgumentList.Add(argument);
         using System.Diagnostics.Process process = System.Diagnostics.Process.Start(start)!;
         Task<string> output = process.StandardOutput.ReadToEndAsync();
         Task<string> error = process.StandardError.ReadToEndAsync();
@@ -469,6 +457,7 @@ internal static class M04LayoutContractEfiIntegrationTests
             process.Kill(entireProcessTree: true);
             throw new TimeoutException(executable + " exceeded 120 seconds");
         }
+
         Task.WaitAll(output, error);
         return new(process.ExitCode, output.Result + error.Result);
     }
@@ -489,13 +478,16 @@ internal static class M04LayoutContractEfiIntegrationTests
     private static string Root()
     {
         for (DirectoryInfo? current = new(Environment.CurrentDirectory); current is not null; current = current.Parent)
-            if (File.Exists(Path.Combine(current.FullName, "CLROS.slnx"))) return current.FullName;
+            if (File.Exists(Path.Combine(current.FullName, "CLROS.slnx")))
+                return current.FullName;
         throw new DirectoryNotFoundException("CLROS repository root");
     }
 
-    private static string SourceIdentityHash(string text) =>
-        Hash(Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n", StringComparison.Ordinal)));
+    private static string SourceIdentityHash(string text) => Hash(Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n", StringComparison.Ordinal)));
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-    private static void Require(bool accepted, string reason) { if (!accepted) throw new InvalidOperationException(reason); }
-    private readonly record struct ScriptResult(int ExitCode, string Output);
+    private static void Require(bool accepted, string reason)
+    {
+        if (!accepted)
+            throw new InvalidOperationException(reason);
+    }
 }

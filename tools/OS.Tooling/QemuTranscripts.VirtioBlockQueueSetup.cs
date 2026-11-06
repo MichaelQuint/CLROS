@@ -9,7 +9,8 @@ public static partial class QemuTranscripts
         for (int i = start; i < lines.Count; i++)
         {
             string expected = QemuContracts.M06VirtioBlockQueueSetupMarkers[i];
-            if (!expected.StartsWith("M06_BLK ", StringComparison.Ordinal)) Need(lines[i] == expected, "m06_block_marker_order");
+            if (!expected.StartsWith("M06_BLK ", StringComparison.Ordinal))
+                Need(lines[i] == expected, "m06_block_marker_order");
         }
         ulong[] Row(int offset, string stage) => ReadHexRecord(lines[start + offset], "M06_BLK " + stage, 4);
         ulong[] binding = Row(1, "0"), quiescence = Row(2, "1"), mapping = Row(3, "2");

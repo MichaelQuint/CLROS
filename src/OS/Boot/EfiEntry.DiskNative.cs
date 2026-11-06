@@ -20,68 +20,27 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
         private const uint NativeDiskSlots = 8, NativeDiskCaches = 4;
-#if M10_018_PROBE
+#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
+        private const uint NativeDiskDirectoryCaches = 12;
+#elif M10_018_PROBE
         private const uint NativeDiskDirectoryCaches = 5;
 #endif
 #if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
         private const uint NativeDiskFileChainCaches = 2;
 #endif
         private const ulong NativeDiskEpoch = 0x4d31365f30323301;
-        private enum NativeDiskProgress : byte { Rejected, Pending, Ready }
-#if M10_018_TIMING_PROBE
-        private enum NativeDiskPollCause : uint { SyscallClock, SyscallOther, Supervisor, Idle }
-#endif
-        private struct NativeDiskOwner
-        {
-            internal Storage* Boot;
-            internal Block.State Device;
-            internal DmaBufferPool Pool;
-            internal DmaBufferSlot DmaSlot;
-            internal Fs.Mount Mount;
-            internal LinuxDescriptorServices.DiskState Descriptors;
-            internal NativeDiskEvidence Evidence;
-            internal NativeDiskExitObservation ExitObservation;
-#if M10_018_TIMING_PROBE
-            internal LinuxThreadServices.DiskPumpMeasurements TimingPump;
-            internal LinuxThreadServices.DiskDispatchMeasurements TimingDispatch;
-            internal LinuxThreadServices.DiskDispatchMeasurements TimingDriver;
-            internal LinuxThreadServices.DiskVerificationMeasurements TimingVerification;
-            internal ulong TimingPreNetwork, TimingPostNetwork, TimingPostReadiness, TimingPostWaitRecord, TimingNetworkCalls, TimingReadBytes;
-            internal ulong TimingReadinessRefresh, TimingReadinessWaitScan;
-            internal ulong TimingNetworkTotal, TimingDiskRound;
-            internal fixed ulong TimingCauseCalls[4], TimingCauseTotal[4], TimingCausePre[4], TimingCauseDisk[4], TimingCausePost[4];
-            internal byte TimingPhase; //0 unarmed,1 counting after listen,2 frozen before the single dump.
-#endif
-            internal Fs.Operation* Operations;
-            internal Fs.FileHandle* Files;
-            internal Fs.CacheSlot* Cache;
-#if M10_018_PROBE
-            internal byte* DirectoryCache;
-#endif
-#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
-            internal byte* FileChainCache;
-#endif
-            internal LinuxDescriptorServices.DiskBinding* Bindings;
-            internal LinuxDescriptorServices.DiskRequest* Requests;
-            internal byte* Sector;
-            internal byte* Entries;
-            internal VirtioMappedRegion Common, Notify, Configuration;
-            internal MsixCapability Msix;
-            internal ulong Arena, ArenaPages, Bar, Capacity, BootstrapDeadline, BootstrapCompleted, BootstrapCopied;
-            internal uint Command, NotifyMultiplier, ArraySector;
-            internal byte Phase; //1 firmware backing,2 starting,3 MBR,4 header,5 array,6 mounting,7 ready,8 fault,9 retired.
-            internal bool IoActive;
-            internal Block.ReadToken Io;
-            internal LiveGptHeaderResult Header;
-            internal LiveEfiPartitionResult Partition;
-        }
+
         private static NativeDiskOwner s_nativeDisk;
 
         // One4KiB device DMA page; everything after it is ordinary supervisor
         // backing. Sizes follow real sizeof,8 operations/files,4 paired caches,
         // 4096-cluster maps and8192-byte per-completion ranges. No file preload.
         private static ulong NativeDiskTake(ref ulong cursor, ulong bytes)
-        { ulong start = (cursor + 15) & ~15UL; cursor = start + bytes; return start; }
+        {
+            ulong start = (cursor + 15) & ~15UL;
+            cursor = start + bytes;
+            return start;
+        }
         private static ulong NativeDiskLayout(NativeDiskOwner* o, ulong start)
         {
             ulong cursor = start + Page;
@@ -99,29 +58,57 @@ public static unsafe partial class EfiEntry
                 var name = (ushort*)NativeDiskTake(ref cursor, 520);
                 var history = (uint*)NativeDiskTake(ref cursor, Fs.MaximumClusters * 4UL);
                 var range = (byte*)NativeDiskTake(ref cursor, LinuxDescriptorServices.DiskCompletionBytes);
-                if (o != null) operations[i].Storage = new() { Path = path, Sector = io, Name = name, History = history,
-                    HistoryCapacity = Fs.MaximumClusters, Range = range, RangeCapacity = LinuxDescriptorServices.DiskCompletionBytes };
+                if (o != null)
+                    operations[i].Storage = new()
+                    {
+                        Path = path,
+                        Sector = io,
+                        Name = name,
+                        History = history,
+                        HistoryCapacity = Fs.MaximumClusters,
+                        Range = range,
+                        RangeCapacity = LinuxDescriptorServices.DiskCompletionBytes
+                    };
             }
             for (uint i = 0; i < NativeDiskSlots; i++)
             {
                 var map = (uint*)NativeDiskTake(ref cursor, Fs.MaximumClusters * 4UL);
-                if (o != null) { files[i].Clusters = map; files[i].ClusterCapacity = Fs.MaximumClusters; }
+                if (o != null)
+                {
+                    files[i].Clusters = map;
+                    files[i].ClusterCapacity = Fs.MaximumClusters;
+                }
             }
             for (uint i = 0; i < NativeDiskCaches; i++)
-            { var data = (byte*)NativeDiskTake(ref cursor, 512); if (o != null) cache[i].Data = data; }
+            {
+                var data = (byte*)NativeDiskTake(ref cursor, 512);
+                if (o != null)
+                    cache[i].Data = data;
+            }
             if (o != null)
-            { o->Sector = sector; o->Entries = entries; o->Operations = operations; o->Files = files; o->Cache = cache; o->Bindings = bindings; o->Requests = requests; }
+            {
+                o->Sector = sector;
+                o->Entries = entries;
+                o->Operations = operations;
+                o->Files = files;
+                o->Cache = cache;
+                o->Bindings = bindings;
+                o->Requests = requests;
+            }
 #if M10_018_PROBE
-            // Separate immutable-media cache backing fits the existing arena's
-            // tail; the four paired FAT caches and operation buffers stay owned.
+            // Full/Timing retain the observed twelve-sector directory working
+            // set. Their backing adds one arena page within the256-page limit;
+            // Short retains five slots. FAT caches and operation buffers stay owned.
             var directoryCache = (byte*)NativeDiskTake(ref cursor, Fs.ImmutableDirectoryCacheBytes(NativeDiskDirectoryCaches));
-            if (o != null) o->DirectoryCache = directoryCache;
+            if (o != null)
+                o->DirectoryCache = directoryCache;
 #endif
 #if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
             // Positive chain certificates lease admitted maps; no file data is
-            // cached. Two records must remain inside the existing arena pages.
+            // cached. Two records remain inside the computed arena pages.
             var fileChainCache = (byte*)NativeDiskTake(ref cursor, Fs.ImmutableFileChainCacheBytes(NativeDiskFileChainCaches));
-            if (o != null) o->FileChainCache = fileChainCache;
+            if (o != null)
+                o->FileChainCache = fileChainCache;
 #endif
             return cursor - start;
         }
@@ -135,30 +122,45 @@ public static unsafe partial class EfiEntry
         {
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
-                if (o->Phase != 0 || state == null || state->Phase != 2 || state->SystemTable == null) return false;
+                if (o->Phase != 0 || state == null || state->Phase != 2 || state->SystemTable == null)
+                    return false;
                 if (!M01StageOneAdapter.TryGetOriginalTypeManagerImage(out var imageCapture, out var imageMapping) ||
                     !M01StageTwoAdapter.TryGetOriginalExitAllocator(out _, out var allocator) ||
-                    imageCapture.Range.ImageBase.TryGetRawValueForUefiBoundary(out ulong image) != AddressValueStatus.Success) return false;
+                    imageCapture.Range.ImageBase.TryGetRawValueForUefiBoundary(out ulong image) != AddressValueStatus.Success)
+                    return false;
                 SeparatePageFaultMappingRange* imageRanges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
                 if (!FirstExitImageMappings.WriteRanges(imageCapture, imageMapping, imageRanges, FirstExitRetainedMappings.MaximumRanges, out ulong imageCount) ||
-                    !FirstExitImageMappings.Contains(imageRanges, imageCount, (ulong)o, (ulong)sizeof(NativeDiskOwner), PageProtection.Read | PageProtection.Write)) return false;
+                    !FirstExitImageMappings.Contains(imageRanges, imageCount, (ulong)o, (ulong)sizeof(NativeDiskOwner), PageProtection.Read | PageProtection.Write))
+                    return false;
                 uint* words = stackalloc uint[64];
-                if (!ReadNativeDiskFixture(state, words, out var binding)) return false;
-                PciSizedBar* bars = stackalloc PciSizedBar[6]; for (uint i = 0; i < 6; i++) bars[i] = default;
+                if (!ReadNativeDiskFixture(state, words, out var binding))
+                    return false;
+                PciSizedBar* bars = stackalloc PciSizedBar[6];
+                for (uint i = 0; i < 6; i++)
+                    bars[i] = default;
                 VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
                 if ((words[8] & 15) != 12 || BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(words[8], words[9],
                         0xffffc00c, 0xffffffff, 4, out bars[4]) != PciBarProbeStatus.Success ||
-                    CommonNotifyISRDeviceConfigurationRegions.PlanBlock(binding.Capabilities, bars, 6, regions, 4) != VirtioRegionStatus.Success) return false;
-                for (uint i = 0; i < 4; i++) if (!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[i], s_bootHandoff.MemoryMap)) return false;
+                    CommonNotifyISRDeviceConfigurationRegions.PlanBlock(binding.Capabilities, bars, 6, regions, 4) != VirtioRegionStatus.Success)
+                    return false;
+                for (uint i = 0; i < 4; i++)
+                    if (!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[i], s_bootHandoff.MemoryMap))
+                        return false;
                 ulong used = NativeDiskLayout(null, 0), pages = (used + 4095) / Page, candidate = 0xffffffff;
                 var services = state->SystemTable->BootServices;
                 if (services == null || services->AllocatePages == null || pages == 0 || pages > 256 ||
-                    services->AllocatePages(1, 2, pages, &candidate) != 0) return false;
+                    services->AllocatePages(1, 2, pages, &candidate) != 0)
+                    return false;
                 // A successful allocation is retained even if later admission
                 // rejects. Never erase this receipt or infer firmware cleanup.
-                o->Boot = state; o->Arena = candidate; o->ArenaPages = pages; o->Bar = bars[4].Base; o->Phase = 1;
+                o->Boot = state;
+                o->Arena = candidate;
+                o->ArenaPages = pages;
+                o->Bar = bars[4].Base;
+                o->Phase = 1;
                 if (candidate < Page || (candidate & 4095) != 0 || candidate > 0x100000000UL - pages * Page ||
-                    !Disjoint(candidate, pages * Page, o->Bar, 0x4000)) return false;
+                    !Disjoint(candidate, pages * Page, o->Bar, 0x4000))
+                    return false;
                 ulong* starts = stackalloc ulong[13] { image, allocator.Start, state->NetworkArena, state->CooperativePool,
                     state->LinuxPackage, state->LinuxImageBacking, state->LinuxUserTables, state->LinuxSyscallCode,
                     state->LinuxSyscallData, state->LinuxMemoryPool, state->LinuxMemoryCandidate, state->LinuxDescriptorArena, (ulong)o };
@@ -167,8 +169,11 @@ public static unsafe partial class EfiEntry
                     X64UserAddressSpace.MaximumTables * Page, Page, X64LinuxUserTransition.DataBytes,
                     LinuxMemoryPoolPages(state) * Page, X64UserAddressSpace.MaximumTables * Page,
                     LinuxDescriptorPages * Page, (ulong)sizeof(NativeDiskOwner) };
-                for (uint i = 0; i < 13; i++) if (lengths[i] != 0 && !Disjoint(candidate, pages * Page, starts[i], lengths[i])) return false;
-                for (ulong i = 0; i < pages * Page; i++) ((byte*)candidate)[i] = 0;
+                for (uint i = 0; i < 13; i++)
+                    if (lengths[i] != 0 && !Disjoint(candidate, pages * Page, starts[i], lengths[i]))
+                        return false;
+                for (ulong i = 0; i < pages * Page; i++)
+                    ((byte*)candidate)[i] = 0;
                 return NativeDiskLayout(o, candidate) == used;
             }
         }
@@ -177,11 +182,13 @@ public static unsafe partial class EfiEntry
         {
             binding = default;
             if (state->PciWindow.FirstBus != 0 || state->PciWindow.LastBus != 0 ||
-                !BoundedPCIConfigurationSpaceInterface.TryOpen(state->PciWindow, null, &ReadVirtioSnapshotWord, out var access)) return false;
+                !BoundedPCIConfigurationSpaceInterface.TryOpen(state->PciWindow, null, &ReadVirtioSnapshotWord, out var access))
+                return false;
             var snapshot = ECAMPageVendorDeviceHeader.ReadSnapshot(ref access, 0, 7, 0, words, 64);
             BoundedPCIConfigurationSpaceInterface.Revoke(ref access);
             if (snapshot != BoundedPciStatus.Success || (words[1] & 2) == 0 ||
-                LiveVirtioBlkPCIDevice.Parse((byte*)words, 256, 0, 7, 0, out binding) != VirtioBlkBindingStatus.Success) return false;
+                LiveVirtioBlkPCIDevice.Parse((byte*)words, 256, 0, 7, 0, out binding) != VirtioBlkBindingStatus.Success)
+                return false;
             var c = binding.Capabilities;
             return VirtioFixtureCapability(c.CommonConfiguration, 0) && VirtioFixtureCapability(c.NotifyConfiguration, 0x3000) &&
                 VirtioFixtureCapability(c.IsrStatus, 0x1000) && VirtioFixtureCapability(c.DeviceConfiguration, 0x2000);
@@ -192,49 +199,78 @@ public static unsafe partial class EfiEntry
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
                 if (o->Boot != state || o->Phase != 1 || state->OwnedPhase != 2 || state->PciPhase != 8 || state->NetworkPhase != 2 ||
-                    !AuditNativeDiskMappings(state)) return false;
+                    !AuditNativeDiskMappings(state))
+                    return false;
                 byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;
                 byte* fence = state->Memory.Code + FirstExitCodeBundle.QueueFenceOffset;
-                if (!X64PciBarAccess.Validate(code, X64PciBarAccess.Bytes) || !X64VirtqueueMemoryFence.Validate(fence, X64VirtqueueMemoryFence.Bytes)) return false;
+                if (!X64PciBarAccess.Validate(code, X64PciBarAccess.Bytes) || !X64VirtqueueMemoryFence.Validate(fence, X64VirtqueueMemoryFence.Bytes))
+                    return false;
                 var read32 = (delegate* unmanaged<void*, ulong, uint*, byte>)code;
                 var write32 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 16);
                 var write16 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 32);
                 uint* words = stackalloc uint[64];
                 if (!ReadNativeDiskFixture(state, words, out var binding) || (((ulong)words[9] << 32) | (words[8] & ~15u)) != o->Bar ||
                     MSIMSIXSetupInterruptDrivenVirtqueueCompletion.Discover((byte*)words, 256, out o->Msix) != MsixStatus.Success ||
-                    (o->Msix.Control & 0x8000) != 0) return false;
-                o->Command = (uint)((binding.OriginalCommand & 0xfffb) | 0x400); o->Phase = 2;
-                if (SetNativeDiskBusMaster(o, false) != 1 || !ResetVirtio(o->Bar)) return false;
+                    (o->Msix.Control & 0x8000) != 0)
+                    return false;
+                o->Command = (uint)((binding.OriginalCommand & 0xfffb) | 0x400);
+                o->Phase = 2;
+                if (SetNativeDiskBusMaster(o, false) != 1 || !ResetVirtio(o->Bar))
+                    return false;
                 PciSizedBar* bars = stackalloc PciSizedBar[6];
                 var probe = N32BitN64BitBARsWhileAlwaysRestoring.Probe(state->PciWindow, 0, 7, 0, null, read32, write32, write16, bars, 6);
                 if (!probe.Succeeded || bars[4].Kind != PciSizedBarKind.Memory64 || bars[4].Base != o->Bar || bars[4].Bytes != 0x4000 ||
-                    bars[5].Kind != PciSizedBarKind.UpperHalf) return false;
-                var caps = binding.Capabilities; VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
+                    bars[5].Kind != PciSizedBarKind.UpperHalf)
+                    return false;
+                var caps = binding.Capabilities;
+                VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
                 if (CommonNotifyISRDeviceConfigurationRegions.PlanBlock(caps, bars, 6, regions, 4) != VirtioRegionStatus.Success ||
                     CommonNotifyISRDeviceConfigurationRegions.Bind(regions[0], o->Bar, out o->Common) != VirtioRegionStatus.Success ||
                     CommonNotifyISRDeviceConfigurationRegions.BindNotificationPage(regions[1], caps.NotifyConfiguration.Length,
                         o->Bar + 0x3000, out o->Notify) != VirtioRegionStatus.Success ||
-                    CommonNotifyISRDeviceConfigurationRegions.Bind(regions[3], o->Bar + 0x2000, out o->Configuration) != VirtioRegionStatus.Success) return false;
+                    CommonNotifyISRDeviceConfigurationRegions.Bind(regions[3], o->Bar + 0x2000, out o->Configuration) != VirtioRegionStatus.Success)
+                    return false;
                 o->NotifyMultiplier = caps.NotifyConfiguration.NotifyOffsetMultiplier;
                 var negotiated = MinimalVirtioBlkFeatureSet.Negotiate(o->Common, 1024, null, read32, write32, &ReadVirtioStatus, &WriteVirtioStatus);
                 if (!negotiated.Succeeded || negotiated.Selected != (BoundedVirtioFeatures.Version1 | BoundedVirtioFeatures.BlockReadOnly) ||
                     !NativeDiskCapacity(o, read32, out o->Capacity) ||
                     DmaAddressWindow.TryCreate(o->Arena, o->Arena, o->Arena, Page, 32, out var window) != DmaAddressStatus.Success ||
-                    PageAlignedDmaBuffers.TryInitialize(&o->Pool, window, &o->DmaSlot, 1, NativeDiskEpoch) != DmaBufferStatus.Success) return false;
+                    PageAlignedDmaBuffers.TryInitialize(&o->Pool, window, &o->DmaSlot, 1, NativeDiskEpoch) != DmaBufferStatus.Success)
+                    return false;
                 VirtioBlkReadAccess access = new();
-                access.Queue.Context = o; access.Queue.Read8 = &ReadVirtioStatus; access.Queue.Write8 = &WriteVirtioStatus;
-                access.Queue.Read16 = &ReadQueueWord; access.Queue.Write16 = write16; access.Queue.Read32 = read32; access.Queue.Write32 = write32;
-                access.Queue.Fence = (delegate* unmanaged<void*, byte>)fence; access.Queue.BusMasterOff = &NativeDiskBusMasterOff;
+                access.Queue.Context = o;
+                access.Queue.Read8 = &ReadVirtioStatus;
+                access.Queue.Write8 = &WriteVirtioStatus;
+                access.Queue.Read16 = &ReadQueueWord;
+                access.Queue.Write16 = write16;
+                access.Queue.Read32 = read32;
+                access.Queue.Write32 = write32;
+                access.Queue.Fence = (delegate* unmanaged<void*, byte>)fence;
+                access.Queue.BusMasterOff = &NativeDiskBusMasterOff;
                 access.BusMasterOn = &NativeDiskBusMasterOn;
-                var a = new Block.Admission { Common = o->Common, Notify = o->Notify, Device = o->Configuration,
-                    NotifyMultiplier = o->NotifyMultiplier, ResetLimit = 1024, Pool = &o->Pool, Epoch = NativeDiskEpoch,
-                    NegotiatedFeatures = negotiated.Selected, ExpectedCapacity = o->Capacity, CompletionTimeoutNanos = 2_000_000_000,
-                    Access = access, Clock = new() { Context = o, Read = &NativeDiskClock },
-                    Observation = new() { Context = o, Observe = &ObserveNativeDisk } };
+                var a = new Block.Admission
+                {
+                    Common = o->Common,
+                    Notify = o->Notify,
+                    Device = o->Configuration,
+                    NotifyMultiplier = o->NotifyMultiplier,
+                    ResetLimit = 1024,
+                    Pool = &o->Pool,
+                    Epoch = NativeDiskEpoch,
+                    NegotiatedFeatures = negotiated.Selected,
+                    ExpectedCapacity = o->Capacity,
+                    CompletionTimeoutNanos = 2_000_000_000,
+                    Access = access,
+                    Clock = new() { Context = o, Read = &NativeDiskClock },
+                    Observation = new() { Context = o, Observe = &ObserveNativeDisk }
+                };
                 if (Block.Start(&o->Device, a) != Block.Status.Success || !ReadNetworkTime(state, out ulong now) ||
                     now > (ulong)long.MaxValue - 30_000_000_000 ||
-                    !LinuxText(state, "TEST_START m16.023\r\nTEST_START m16.024\r\nTEST_START m16.025\r\n")) return false;
-                o->BootstrapDeadline = now + 30_000_000_000; o->Phase = 3; return true;
+                    !LinuxText(state, "TEST_START m16.023\r\nTEST_START m16.024\r\nTEST_START m16.025\r\n"))
+                    return false;
+                o->BootstrapDeadline = now + 30_000_000_000;
+                o->Phase = 3;
+                return true;
             }
         }
 
@@ -245,49 +281,79 @@ public static unsafe partial class EfiEntry
         {
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
-                if (o->Boot != state || o->Phase < 3 || o->Phase > 7) return NativeDiskProgress.Rejected;
-                if (o->Phase == 7) return NativeDiskProgress.Ready;
-                if (!ReadNetworkTime(state, out ulong now) || now >= o->BootstrapDeadline) return NativeDiskFail(o);
+                if (o->Boot != state || o->Phase < 3 || o->Phase > 7)
+                    return NativeDiskProgress.Rejected;
+                if (o->Phase == 7)
+                    return NativeDiskProgress.Ready;
+                if (!ReadNetworkTime(state, out ulong now) || now >= o->BootstrapDeadline)
+                    return NativeDiskFail(o);
                 if (o->Phase == 6)
                 {
                     var progress = Fs.PumpMount(&o->Mount);
-                    if (progress == Fs.Status.Ready) { o->Phase = 7; return NativeDiskProgress.Ready; }
+                    if (progress == Fs.Status.Ready)
+                    {
+                        o->Phase = 7;
+                        return NativeDiskProgress.Ready;
+                    }
                     return progress is Fs.Status.Pending or Fs.Status.Busy ? NativeDiskProgress.Pending : NativeDiskFail(o);
                 }
                 if (!o->IoActive)
                 {
                     ulong lba = o->Phase == 3 ? 0 : o->Phase == 4 ? 1 : o->Header.EntryLba + o->ArraySector;
-                    if (Block.Submit(&o->Device, lba, &o->Io) != Block.Status.Success) return NativeDiskFail(o);
-                    o->IoActive = true; return NativeDiskProgress.Pending;
+                    if (Block.Submit(&o->Device, lba, &o->Io) != Block.Status.Success)
+                        return NativeDiskFail(o);
+                    o->IoActive = true;
+                    return NativeDiskProgress.Pending;
                 }
-                Block.Completion completion = default; var status = Block.Poll(&o->Device, &completion);
-                if (status == Block.Status.Pending) return NativeDiskProgress.Pending;
+                Block.Completion completion = default;
+                var status = Block.Poll(&o->Device, &completion);
+                if (status == Block.Status.Pending)
+                    return NativeDiskProgress.Pending;
                 if (status != Block.Status.Ready || completion.Bytes != 512 ||
-                    Block.Copy(&o->Device, o->Io, new Span<byte>(o->Sector, 512)) != Block.Status.Success) return NativeDiskFail(o);
-                o->IoActive = false; o->Io = default;
+                    Block.Copy(&o->Device, o->Io, new Span<byte>(o->Sector, 512)) != Block.Status.Success)
+                    return NativeDiskFail(o);
+                o->IoActive = false;
+                o->Io = default;
                 if (o->Phase == 3)
                 {
-                    if (!LBAN0Guest.Validate(new Span<byte>(o->Sector, 512), o->Capacity, BlockReadResult.Success(1, 512)).Succeeded) return NativeDiskFail(o);
+                    if (!LBAN0Guest.Validate(new Span<byte>(o->Sector, 512), o->Capacity, BlockReadResult.Success(1, 512)).Succeeded)
+                        return NativeDiskFail(o);
                     o->Phase = 4;
                 }
                 else if (o->Phase == 4)
                 {
                     o->Header = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(new Span<byte>(o->Sector, 512), o->Capacity, BlockReadResult.Success(1, 512));
-                    if (!o->Header.Succeeded) return NativeDiskFail(o); // New fixture scope: fail-closed primary only; no silent fallback claim.
+                    if (!o->Header.Succeeded)
+                        return NativeDiskFail(o); // New fixture scope: fail-closed primary only; no silent fallback claim.
                     o->Phase = 5;
                 }
                 else
                 {
-                    for (uint i = 0; i < 512; i++) o->Entries[o->ArraySector * 512 + i] = o->Sector[i];
-                    if (++o->ArraySector != PrimaryGPTIndependentlyBoundsCRC.ArraySectors) return NativeDiskProgress.Pending;
+                    for (uint i = 0; i < 512; i++)
+                        o->Entries[o->ArraySector * 512 + i] = o->Sector[i];
+                    if (++o->ArraySector != PrimaryGPTIndependentlyBoundsCRC.ArraySectors)
+                        return NativeDiskProgress.Pending;
                     o->Partition = FAT32ApplicationEFIPartition.Select(o->Header, new Span<byte>(o->Entries, PrimaryGPTIndependentlyBoundsCRC.ArrayBytes));
-                    if (!o->Partition.Succeeded) return NativeDiskFail(o);
-                    var a = new Fs.Admission { Device = &o->Device, Epoch = NativeDiskEpoch, PartitionFirst = o->Partition.FirstLba,
-                        PartitionLast = o->Partition.LastLba, Operations = o->Operations, Files = o->Files, Cache = o->Cache,
-                        OperationCount = NativeDiskSlots, FileCount = NativeDiskSlots, CacheCount = NativeDiskCaches, DirectoryEntryBudget = 4096 };
+                    if (!o->Partition.Succeeded)
+                        return NativeDiskFail(o);
+                    var a = new Fs.Admission
+                    {
+                        Device = &o->Device,
+                        Epoch = NativeDiskEpoch,
+                        PartitionFirst = o->Partition.FirstLba,
+                        PartitionLast = o->Partition.LastLba,
+                        Operations = o->Operations,
+                        Files = o->Files,
+                        Cache = o->Cache,
+                        OperationCount = NativeDiskSlots,
+                        FileCount = NativeDiskSlots,
+                        CacheCount = NativeDiskCaches,
+                        DirectoryEntryBudget = 4096
+                    };
                     uint dataSectors = OS.Kernel.Diagnostics.Probes.EnableM10018FullProbe ||
                         OS.Kernel.Diagnostics.Probes.EnableM10018TimingProbe ? 4U : 1U;
-                    if (Fs.Start(&o->Mount, a, dataSectors) != Fs.Status.Pending) return NativeDiskFail(o);
+                    if (Fs.Start(&o->Mount, a, dataSectors) != Fs.Status.Pending)
+                        return NativeDiskFail(o);
 #if M10_018_PROBE
                     // This frozen fixture has no writer. Configure before mount
                     // I/O; only ordinary mounted lookups may publish sectors.
@@ -310,7 +376,8 @@ public static unsafe partial class EfiEntry
         private static NativeDiskProgress NativeDiskFail(NativeDiskOwner* o)
         {
             _ = WriteNativeDiskRejection(o->Boot, 7, o); // Retain the failing parser phase before quarantine.
-            o->Phase = 8; return NativeDiskProgress.Rejected;
+            o->Phase = 8;
+            return NativeDiskProgress.Rejected;
         }
 
         // Attach before EnablePipes/EnableFutex so their disjoint-extent checks
@@ -319,11 +386,20 @@ public static unsafe partial class EfiEntry
         {
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
-                if (o->Boot != state || o->Phase != 7 || !o->Mount.Ready || !o->Device.Running) return false;
-                o->BootstrapCompleted = o->Device.Completed; o->BootstrapCopied = o->Device.Copied;
+                if (o->Boot != state || o->Phase != 7 || !o->Mount.Ready || !o->Device.Running)
+                    return false;
+                o->BootstrapCompleted = o->Device.Completed;
+                o->BootstrapCopied = o->Device.Copied;
                 bool attached = LinuxDescriptorServices.AttachDisk(&state->LinuxDescriptors, &o->Descriptors,
-                    new() { Mount = &o->Mount, Bindings = o->Bindings, Requests = o->Requests, Epoch = NativeDiskEpoch,
-                        FirmwareExited = true, SingleOwnerValidated = true });
+                    new()
+                    {
+                        Mount = &o->Mount,
+                        Bindings = o->Bindings,
+                        Requests = o->Requests,
+                        Epoch = NativeDiskEpoch,
+                        FirmwareExited = true,
+                        SingleOwnerValidated = true
+                    });
 #if M10_018_PROBE
                 return attached && WriteNativeDiskBinding(state, o); // The web child arms at actual listen readiness.
 #else
@@ -353,14 +429,21 @@ public static unsafe partial class EfiEntry
         {
             fixed (NativeDiskOwner* o = &s_nativeDisk)
             {
-                if (o->Boot != state || o->Phase == 0) return false;
-                if (o->Phase == 9) return true;
-                if (!ObserveNativeDiskExitBeforeStop(o)) return false;
+                if (o->Boot != state || o->Phase == 0)
+                    return false;
+                if (o->Phase == 9)
+                    return true;
+                if (!ObserveNativeDiskExitBeforeStop(o))
+                    return false;
                 var stopped = o->Device.RequiresCleanup ? Block.Stop(&o->Device) : Block.Status.Success;
-                if (stopped != Block.Status.Success || !o->Device.Retired || !ObserveNativeDiskExitStopped(o, stopped)) return false;
-                if (o->Mount.RequiresCleanup && Fs.Stop(&o->Mount) != Fs.Status.Success) return false;
-                if (o->Pool.AllocatedMask != 0) return false;
-                o->Phase = 9; return true;
+                if (stopped != Block.Status.Success || !o->Device.Retired || !ObserveNativeDiskExitStopped(o, stopped))
+                    return false;
+                if (o->Mount.RequiresCleanup && Fs.Stop(&o->Mount) != Fs.Status.Success)
+                    return false;
+                if (o->Pool.AllocatedMask != 0)
+                    return false;
+                o->Phase = 9;
+                return true;
             }
         }
 
@@ -396,31 +479,48 @@ public static unsafe partial class EfiEntry
             capacity = 0;
             for (uint i = 0; i < 16; i++)
             {
-                byte before = *(byte*)(o->Common.VirtualStart + 21); uint low = 0, high = 0;
-                if (read(null, o->Configuration.VirtualStart, &low) != 1 || read(null, o->Configuration.VirtualStart + 4, &high) != 1) return false;
-                byte after = *(byte*)(o->Common.VirtualStart + 21); if (before != after) continue;
-                capacity = ((ulong)high << 32) | low; return capacity >= 68 && capacity <= (ulong)long.MaxValue / 512;
+                byte before = *(byte*)(o->Common.VirtualStart + 21);
+                uint low = 0, high = 0;
+                if (read(null, o->Configuration.VirtualStart, &low) != 1 || read(null, o->Configuration.VirtualStart + 4, &high) != 1)
+                    return false;
+                byte after = *(byte*)(o->Common.VirtualStart + 21);
+                if (before != after)
+                    continue;
+                capacity = ((ulong)high << 32) | low;
+                return capacity >= 68 && capacity <= (ulong)long.MaxValue / 512;
             }
             return false;
         }
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte NativeDiskClock(void* context, ulong* time)
-        { var o = (NativeDiskOwner*)context; if (time == null || !ReadNetworkTime(o->Boot, out ulong now)) return 0; *time = now; return 1; }
+        {
+            var o = (NativeDiskOwner*)context;
+            if (time == null || !ReadNetworkTime(o->Boot, out ulong now))
+                return 0;
+            *time = now;
+            return 1;
+        }
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte NativeDiskQuantumFlush(void* context)
-        { var o = (NativeDiskOwner*)context; return o != null && o->Boot != null && FlushNativeDiskEvidence(o->Boot) ? (byte)1 : (byte)0; }
+        {
+            var o = (NativeDiskOwner*)context;
+            return o != null && o->Boot != null && FlushNativeDiskEvidence(o->Boot) ? (byte)1 : (byte)0;
+        }
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte NativeDiskBusMasterOn(void* context) => SetNativeDiskBusMaster((NativeDiskOwner*)context, true);
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte NativeDiskBusMasterOff(void* context) => SetNativeDiskBusMaster((NativeDiskOwner*)context, false);
         private static byte SetNativeDiskBusMaster(NativeDiskOwner* o, bool enabled)
         {
-            if (o == null || o->Boot == null || o->Phase < 2 || (o->Command & 0x406) != 0x402 || !o->Msix.IsValid) return 0;
+            if (o == null || o->Boot == null || o->Phase < 2 || (o->Command & 0x406) != 0x402 || !o->Msix.IsValid)
+                return 0;
             byte* code = o->Boot->Memory.Code + FirstExitCodeBundle.PciBarOffset;
-            if (!X64PciBarAccess.Validate(code, X64PciBarAccess.Bytes)) return 0;
+            if (!X64PciBarAccess.Validate(code, X64PciBarAccess.Bytes))
+                return 0;
             var read = (delegate* unmanaged<void*, ulong, uint*, byte>)code;
             var write = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 32);
-            ulong configuration = o->Boot->PciWindow.Start + 0x38000; uint control = 0, command = 0, wanted = enabled ? o->Command | 4 : o->Command;
+            ulong configuration = o->Boot->PciWindow.Start + 0x38000;
+            uint control = 0, command = 0, wanted = enabled ? o->Command | 4 : o->Command;
             return read(null, configuration + o->Msix.CapabilityOffset, &control) == 1 && (control >> 16) == o->Msix.Control &&
                 (control & 0x80000000) == 0 && write(null, configuration + 4, wanted) == 1 &&
                 read(null, configuration + 4, &command) == 1 && (command & 0xffff) == wanted ? (byte)1 : (byte)0;
@@ -432,7 +532,8 @@ public static unsafe partial class EfiEntry
             fixed (NativeDiskOwner* o = &s_nativeDisk)
                 if (o->Boot != state || state->Memory.References.NativeDiskArenaStart != o->Arena ||
                     state->Memory.References.NativeDiskArenaPages != o->ArenaPages || state->Memory.References.NativeDiskBarStart != o->Bar ||
-                    (NativeDiskLayout(null, 0) + Page - 1) / Page != o->ArenaPages) return false;
+                    (NativeDiskLayout(null, 0) + Page - 1) / Page != o->ArenaPages)
+                    return false;
             SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
             return FirstExitRetainedMappings.WriteInstalledRanges(ref state->Arena, state->Memory.Code, state->Memory.Capture,
                     state->Memory.Mapping, state->Memory.References, state->Memory.Allocator, state->Memory.Tables, ranges,

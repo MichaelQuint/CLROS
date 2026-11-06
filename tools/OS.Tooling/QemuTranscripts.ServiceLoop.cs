@@ -2,7 +2,10 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
-    public static IReadOnlyList<string> M16ServiceLoopMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M16ServiceLoopMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
         ["TEST_START m16-003", "M16_003_CLOCK",
          .. Enumerable.Range(1, 4).Select(i => "M16_003_ITERATION index=" + i + " "),
          .. Enumerable.Range(0, 8).Select(i => "M16_003_FIRMWARE_DENIED index=" + i + " "),

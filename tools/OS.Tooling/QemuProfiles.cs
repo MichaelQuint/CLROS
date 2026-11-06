@@ -9,15 +9,20 @@ public static class QemuProfiles
     private static string[] Merge(params IEnumerable<string>[] values) => values.SelectMany(x => x)
         .Select(x => x.Trim()).Where(x => x.Length != 0).Distinct(StringComparer.Ordinal).ToArray();
     private static string[] Markers(IEnumerable<string> values) => SmokeContracts.SplitMarkers(values).Distinct(StringComparer.Ordinal).ToArray();
-    private static void Require(bool condition, string reason) { if (!condition) throw new ToolFailure(reason); }
+    private static void Require(bool condition, string reason)
+    {
+        if (!condition)
+            throw new ToolFailure(reason);
+    }
     public static QemuSmokePlan Create(QemuSmokeOptions options, Action<string>? emit = null)
     {
+        Require(options.Accelerator is "whpx" or "tcg", "qemu_accelerator_invalid");
         SmokeContracts.ValidateWorkload(options.WorkloadProfile);
         Require(options.DiskFormat is "raw" or "qcow2", "qemu.smoke.invalid_args disk_format=" + options.DiskFormat);
         Require(options.MemoryMiB is null or > 0, "qemu_memory_mib_out_of_range");
         Dictionary<string, bool> flags = new(options.Flags, StringComparer.Ordinal);
         bool Selected(string name) => flags.TryGetValue("Enable" + name + "Probe", out bool selected) && selected;
-        Require(!Selected("M16019Unavailable") && !Selected("M16019Invalid"),"realtime_rejection_requires_separate_capture");
+        Require(!Selected("M16019Unavailable") && !Selected("M16019Invalid"), "realtime_rejection_requires_separate_capture");
         if (new[] { "M02OwnedGdtTssTerminal", "M02Ud2VectorState", "M02GuardedIstStackAllocation", "M02OwnedX64GdtEncoding", "M02PanicSafeOwnedCom1", "M02OwnedCom1Ready" }.Any(Selected)
             && new[] { "M02Com1OwnedPortIo", "M02CheckedPortIoBinding", "M02SafeStub" }.All(Selected))
         {
@@ -29,45 +34,55 @@ public static class QemuProfiles
             emit?.Invoke("QEMU_SCRIPT_M02_OWNED_COM1_READY_PREREQUISITES m01LoadedImageStack=true m01LiveAllocator=true m01OwnedPaging=true");
         }
         EfiProfile profile = EfiProfile.Create(options.BootPolicy, flags, emit);
-        bool diskFiles=NativeAotDiskSelection.Bind(options,profile.Flags);
-        bool writableDisk=NativeAotDiskSelection.WritableSelected(profile.Flags);
-        bool diskStatic=NativeAotDiskSelection.StaticSelected(profile.Flags);
-        bool diskStaticFull=NativeAotDiskSelection.FullStaticSelected(profile.Flags);
-        bool signalEpoll=LinuxSignalEpollSelection.Bind(options,profile.Flags);
-        bool service=NativeAotServiceSelection.Bind(options,profile.Flags);
-        bool quota=service&&NativeAotServiceSelection.Contract(options,profile.Flags)==NativeAotServiceContract.QuotaFailure;
+        bool diskFiles = NativeAotDiskSelection.Bind(options, profile.Flags);
+        bool writableDisk = NativeAotDiskSelection.WritableSelected(profile.Flags);
+        bool diskStatic = NativeAotDiskSelection.StaticSelected(profile.Flags);
+        bool diskStaticFull = NativeAotDiskSelection.FullStaticSelected(profile.Flags);
+        Require(options.HttpBenchmarkWarmSequences is null or >= 0 and <= 10, "http_benchmark_warm_sequences");
+        Require(options.HttpBenchmarkWarmSequences is null || diskStaticFull
+            && !NativeAotDiskSelection.TimingSelected(profile.Flags) && options.WebRootFault == "None",
+            "http_benchmark_requires_healthy_full_profile");
+        bool signalEpoll = LinuxSignalEpollSelection.Bind(options, profile.Flags);
+        bool service = NativeAotServiceSelection.Bind(options, profile.Flags);
+        bool quota = service && NativeAotServiceSelection.Contract(options, profile.Flags) == NativeAotServiceContract.QuotaFailure;
         // The socket union binds its original package/index and independent
         // peer, packet, transport and firmware evidence in the full runner.
-        bool vectors=NativeAotSocketVectorsSelection.Bind(options,profile.Flags);
-        bool containment=NativeAotSocketContainmentSelection.Bind(options,profile.Flags);
-        bool staticFiles=NativeAotStaticFileSelection.Bind(options,profile.Flags);
-        bool web=NativeAotWebSelection.Bind(options,profile.Flags);
-        bool sockets=!signalEpoll&&!service&&!vectors&&!containment&&!web&&!staticFiles&&!diskFiles&&NativeAotSocketSelection.Bind(options,profile.Flags);
-        if(!signalEpoll&&!service&&!sockets&&!vectors&&!containment&&!web&&!staticFiles&&!diskFiles)NativeAotRuntimeSelection.Bind(options, profile.Flags);
-        string runtimeApp = signalEpoll||service||sockets||vectors||containment||web||staticFiles||diskFiles?"":NativeAotRuntimeSelection.Application(profile.Flags, options.LinuxThreadingApplication);
-        if(signalEpoll&&!options.Explicit.Contains("TimeoutSeconds"))options.TimeoutSeconds=90;
+        bool vectors = NativeAotSocketVectorsSelection.Bind(options, profile.Flags);
+        bool containment = NativeAotSocketContainmentSelection.Bind(options, profile.Flags);
+        bool staticFiles = NativeAotStaticFileSelection.Bind(options, profile.Flags);
+        bool web = NativeAotWebSelection.Bind(options, profile.Flags);
+        bool sockets = !signalEpoll && !service && !vectors && !containment && !web && !staticFiles && !diskFiles && NativeAotSocketSelection.Bind(options, profile.Flags);
+        if (!signalEpoll && !service && !sockets && !vectors && !containment && !web && !staticFiles && !diskFiles)
+            NativeAotRuntimeSelection.Bind(options, profile.Flags);
+        string runtimeApp = signalEpoll || service || sockets || vectors || containment || web || staticFiles || diskFiles ? "" : NativeAotRuntimeSelection.Application(profile.Flags, options.LinuxThreadingApplication);
+        if (signalEpoll && !options.Explicit.Contains("TimeoutSeconds"))
+            options.TimeoutSeconds = 90;
         int serviceMaximumSeconds = service && options.ServiceLifecycle ? 1080 : 900;
-        if(service && !options.Explicit.Contains("TimeoutSeconds"))options.TimeoutSeconds=serviceMaximumSeconds;
-        if(containment && !options.Explicit.Contains("TimeoutSeconds"))options.TimeoutSeconds=180;
-        if ((sockets||vectors||staticFiles||runtimeApp.Length != 0) && !options.Explicit.Contains("TimeoutSeconds") && options.TimeoutSeconds == 30)
+        if (service && !options.Explicit.Contains("TimeoutSeconds"))
+            options.TimeoutSeconds = serviceMaximumSeconds;
+        if (containment && !options.Explicit.Contains("TimeoutSeconds"))
+            options.TimeoutSeconds = 180;
+        if ((sockets || vectors || staticFiles || runtimeApp.Length != 0) && !options.Explicit.Contains("TimeoutSeconds") && options.TimeoutSeconds == 30)
             options.TimeoutSeconds = 600;
-        Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (diskStaticFull ? DiskStaticCapturePolicy.MaximumTimeoutSeconds : service ? serviceMaximumSeconds : sockets||vectors||staticFiles||runtimeApp.Length != 0 ? 900 : 300), "qemu_timeout_out_of_range");
-        Require(!staticFiles || diskStaticFull || options.TimeoutSeconds>=600 && options.TimeoutSeconds<=900-QemuCaptureSession.RunnerCaptureAllowanceSeconds,
+        Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (diskStaticFull ? DiskStaticCapturePolicy.MaximumTimeoutSeconds : service ? serviceMaximumSeconds : sockets || vectors || staticFiles || runtimeApp.Length != 0 ? 900 : 300), "qemu_timeout_out_of_range");
+        Require(!staticFiles || diskStaticFull || options.TimeoutSeconds >= 600 && options.TimeoutSeconds <= 900 - QemuCaptureSession.RunnerCaptureAllowanceSeconds,
             "static_files_timeout_must_cover_shutdown_transport_and_capture_drain");
-        Require(!service || options.TimeoutSeconds >=780 && options.TimeoutSeconds <=serviceMaximumSeconds,"service_timeout_must_cover_quiet_runtime_and_transport_drain");
-        Require(!service || options.FirmwareRngSource=="virtio","service_virtio_rng_required");
-        Require(!(sockets||vectors)||options.TimeoutSeconds>=600,"socket_timeout_must_cover_runtime_and_transport_drain");
-        Require(!containment||options.TimeoutSeconds>=120 && options.TimeoutSeconds<=295-QemuCaptureSession.RunnerCaptureAllowanceSeconds,
+        Require(!service || options.TimeoutSeconds >= 780 && options.TimeoutSeconds <= serviceMaximumSeconds, "service_timeout_must_cover_quiet_runtime_and_transport_drain");
+        Require(!service || options.FirmwareRngSource == "virtio", "service_virtio_rng_required");
+        Require(!(sockets || vectors) || options.TimeoutSeconds >= 600, "socket_timeout_must_cover_runtime_and_transport_drain");
+        Require(!containment || options.TimeoutSeconds >= 120 && options.TimeoutSeconds <= 295 - QemuCaptureSession.RunnerCaptureAllowanceSeconds,
             "socket_containment_timeout_out_of_range");
-        if(web)
+        if (web)
         {
-            if(!options.Explicit.Contains("TimeoutSeconds"))options.TimeoutSeconds=240;
-            Require(options.TimeoutSeconds is >=30 and <=285,"web_timeout_must_fit_owned_runtime_budget");
+            if (!options.Explicit.Contains("TimeoutSeconds"))
+                options.TimeoutSeconds = 240;
+            Require(options.TimeoutSeconds is >= 30 and <= 285, "web_timeout_must_fit_owned_runtime_budget");
         }
         bool Enabled(string name) => profile.IsEnabled("Enable" + name + "Probe");
-        if (Enabled("M07026")&&!signalEpoll&&!service&&!sockets&&!vectors&&!containment&&!web&&!staticFiles&&!diskFiles)
+        if (Enabled("M07026") && !signalEpoll && !service && !sockets && !vectors && !containment && !web && !staticFiles && !diskFiles)
         {
-            if (!options.Explicit.Contains("TimeoutSeconds")) options.TimeoutSeconds = 285;
+            if (!options.Explicit.Contains("TimeoutSeconds"))
+                options.TimeoutSeconds = 285;
             Require(options.TimeoutSeconds is >= 260 and <= 295, "m07_026_timeout_must_cover_real_time_wait");
         }
         bool normal = profile.BootPolicy == "VerifiedExit";
@@ -83,11 +98,15 @@ public static class QemuProfiles
         {
             Require(original && (!forbidRawParameter || !options.Explicit.Contains("M01RawObservationLog")), reason + (reason is "m03_normal" or "m03_first_exit" ? "_requires_original_capture" : reason == "m04_gc_static" ? "_requires_fresh_build" : "_requires_build_and_original_capture"));
             if (forbidMarkers)
-                foreach (string key in overrides) Require(!options.Explicit.Contains(key), reason + "_forbids_override parameter=" + key);
-            if (forbidPresets) Require(options.MarkerPreset.Count == 0, reason + "_forbids_override parameter=MarkerPreset");
+                foreach (string key in overrides)
+                    Require(!options.Explicit.Contains(key), reason + "_forbids_override parameter=" + key);
+            if (forbidPresets)
+                Require(options.MarkerPreset.Count == 0, reason + "_forbids_override parameter=MarkerPreset");
         }
-        if (normal) Original("m03_normal", true, true, true);
-        if (firstExit && !Enabled("M16002") && !Enabled("M09004") && !Enabled("M09005") && !Enabled("M09006") && !Enabled("M09009") && !Enabled("M09010")) Original("m03_first_exit", true, true, true);
+        if (normal)
+            Original("m03_normal", true, true, true);
+        if (firstExit && !Enabled("M16002") && !Enabled("M09004") && !Enabled("M09005") && !Enabled("M09006") && !Enabled("M09009") && !Enabled("M09010"))
+            Original("m03_first_exit", true, true, true);
         foreach (string id in new[] { "009", "010" })
             if (Enabled("M09" + id))
             {
@@ -120,8 +139,52 @@ public static class QemuProfiles
         if (Enabled("M16002"))
         {
             Original("m16_002", false, true, true);
-            foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" }) Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
-            string terminal = writableDisk?"CLROS_M16_027_READY":diskStatic?"CLROS_M10_018_READY":diskFiles?"CLROS_M16_025_READY":quota?OS.Tools.QemuRunner.ServiceQuotaCapture.Terminal:staticFiles?"CLROS_M10_017_READY":signalEpoll||service?"CLROS_M16_012_READY":vectors?"CLROS_M16_013_READY":web?"CLROS_M10_004_READY":containment?"CLROS_M07_027_READY":sockets?NativeAotSocketSelection.Terminal(Enabled("M16012")).Ready:Enabled("M07026") ? "CLROS_M07_026_READY" : runtimeApp.Length != 0 ? NativeAotRuntimeSelection.Markers(runtimeApp).Ready : Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
+            foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" })
+                Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
+            string SelectTerminal()
+            {
+                if (writableDisk)
+                    return "CLROS_M16_027_READY";
+                if (diskStatic)
+                    return "CLROS_M10_018_READY";
+                if (diskFiles)
+                    return "CLROS_M16_025_READY";
+                if (quota)
+                    return OS.Tools.QemuRunner.ServiceQuotaCapture.Terminal;
+                if (staticFiles)
+                    return "CLROS_M10_017_READY";
+                if (signalEpoll || service)
+                    return "CLROS_M16_012_READY";
+                if (vectors)
+                    return "CLROS_M16_013_READY";
+                if (web)
+                    return "CLROS_M10_004_READY";
+                if (containment)
+                    return "CLROS_M07_027_READY";
+                if (sockets)
+                    return NativeAotSocketSelection.Terminal(Enabled("M16012")).Ready;
+                if (Enabled("M07026"))
+                    return "CLROS_M07_026_READY";
+                if (runtimeApp.Length != 0)
+                    return NativeAotRuntimeSelection.Markers(runtimeApp).Ready;
+                if (Enabled("M16009"))
+                    return "CLROS_M16_009_READY";
+                if (Enabled("M16008"))
+                    return "CLROS_M16_008_READY";
+                if (Enabled("M16007"))
+                    return "CLROS_M16_007_READY";
+                if (Enabled("M16006"))
+                    return "CLROS_M16_006_READY";
+                if (Enabled("M16005"))
+                    return "CLROS_M16_005_READY";
+                if (Enabled("M16003"))
+                    return "CLROS_M16_003_READY";
+                if (Enabled("M16004"))
+                    return "CLROS_M16_004_READY";
+                return "CLROS_M16_002_READY";
+            }
+
+            string terminal = SelectTerminal();
             Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == terminal || web && (x is "CLROS_M10_005_READY" or "CLROS_M10_006_READY")), "m16_002_marker_override");
             Require(!Enabled("M16003") || options.LinuxElfImageVariant == "Intact", "m16_003_requires_intact_package");
             Require(!Enabled("M16004") || options.LinuxElfImageVariant == "Intact", "m16_004_requires_intact_package");
@@ -130,16 +193,27 @@ public static class QemuProfiles
         {
             ("M03TypedExitBootServicesCall", "m03_typed_ebs"), ("M04TypeManagerModuleRegistration", "m04_type_manager"),
             ("M03FirmwareEntropySeed", "m03_firmware_entropy")
-        }) if (Enabled(item.Flag)) Original(item.Reason, true, true, item.Flag != "M03FirmwareEntropySeed");
-        if (Enabled("M03MemoryMapCapture")) Original("m03_memory_map_capture");
-        if (Enabled("M04CheckedReferenceBarrier")) Original("m04_checked_reference");
-        if (Enabled("M04GcStaticRootMaterialization")) Original("m04_gc_static");
-        if (Enabled("M04FrameDispatch")) Original("m04_frames",true,true,true);
-        if (Enabled("M04NormalFinally")) Original("m04_normal_finally",true,true,true);
-        if (Enabled("M04ConstructorFailure")) Original("m04_ctor_failure",true,true,true);
-        if (Enabled("M04FilteredCatch")) Original("m04_filters",true,true,true);
-        if (Enabled("M04UnhandledException")) Original("m04_unhandled",true,true,true);
-        if (Enabled("M04ManagedHeapPageRange")) Original("m04_managed_heap_page_range");
+        })
+            if (Enabled(item.Flag))
+                Original(item.Reason, true, true, item.Flag != "M03FirmwareEntropySeed");
+        if (Enabled("M03MemoryMapCapture"))
+            Original("m03_memory_map_capture");
+        if (Enabled("M04CheckedReferenceBarrier"))
+            Original("m04_checked_reference");
+        if (Enabled("M04GcStaticRootMaterialization"))
+            Original("m04_gc_static");
+        if (Enabled("M04FrameDispatch"))
+            Original("m04_frames", true, true, true);
+        if (Enabled("M04NormalFinally"))
+            Original("m04_normal_finally", true, true, true);
+        if (Enabled("M04ConstructorFailure"))
+            Original("m04_ctor_failure", true, true, true);
+        if (Enabled("M04FilteredCatch"))
+            Original("m04_filters", true, true, true);
+        if (Enabled("M04UnhandledException"))
+            Original("m04_unhandled", true, true, true);
+        if (Enabled("M04ManagedHeapPageRange"))
+            Original("m04_managed_heap_page_range");
         foreach (var flag in profile.Flags.Where(p => p.Value && (p.Key.StartsWith("EnableM01", StringComparison.Ordinal) ||
             p.Key.StartsWith("EnableM02", StringComparison.Ordinal) || p.Key.StartsWith("EnableM04", StringComparison.Ordinal))))
         {
@@ -150,13 +224,16 @@ public static class QemuProfiles
         bool terminalProfile = Enabled("M02OwnedGdtTssTerminal") || Enabled("M02Ud2VectorState") || Enabled("M02PageFaultCr2ErrorCode") || Enabled("M02DoubleFaultIst") || Enabled("M02UnexpectedVectorPanic") || Enabled("M04UnhandledException");
         Require(options.M01RawObservationLog.Length == 0 || !terminalProfile, "m01_raw_observation_log_forbidden_terminal_profile");
         Require(!options.Explicit.Contains("FirmwareRngSource") || Enabled("M03FirmwareEntropySeed") || Enabled("M16004"), "firmware_rng_source_requires_entropy_profile");
-        if (Enabled("M03FirmwareEntropySeed")) Require(options.FirmwareRngSource is "virtio" or "missing", "m03_firmware_entropy_requires_exact_source");
+        if (Enabled("M03FirmwareEntropySeed"))
+            Require(options.FirmwareRngSource is "virtio" or "missing", "m03_firmware_entropy_requires_exact_source");
         if (Enabled("M16004"))
         {
-            if (!options.Explicit.Contains("FirmwareRngSource")) options.FirmwareRngSource = "virtio";
+            if (!options.Explicit.Contains("FirmwareRngSource"))
+                options.FirmwareRngSource = "virtio";
             Require(options.FirmwareRngSource is "virtio" or "missing", "m16_004_requires_exact_entropy_source");
         }
-        if (Enabled("M02UnexpectedVectorPanic")) Require(options.MarkerPreset.Count == 0, "m02_unexpected_vector_panic_forbids_marker_preset");
+        if (Enabled("M02UnexpectedVectorPanic"))
+            Require(options.MarkerPreset.Count == 0, "m02_unexpected_vector_panic_forbids_marker_preset");
         if (Enabled("AcpiPhysicalDiscovery") && !firstExit)
         {
             Original("m03_acpi", true);
@@ -171,9 +248,12 @@ public static class QemuProfiles
             or "PackageTruncated" or "PackageLoop", "package_image_variant_invalid");
         Require(options.PackageImageVariant == "Intact" || Enabled("M06PackageRead"), "package_image_variant_requires_profile");
         Require(!Enabled("M06BlockMsix") || options.PackageImageVariant == "Intact", "m06_block_msix_requires_intact_package");
-        if (Enabled("M06BlockMsix")) Original("m06_block_msix", true, true, true);
-        if (Enabled("M07VirtioNet") && !Enabled("M07026")) Original("m07_virtio_net", true, true, true);
-        if (Enabled("M07ArpReceive") && !Enabled("M07026")) Original("m07_arp_receive", true, true, true);
+        if (Enabled("M06BlockMsix"))
+            Original("m06_block_msix", true, true, true);
+        if (Enabled("M07VirtioNet") && !Enabled("M07026"))
+            Original("m07_virtio_net", true, true, true);
+        if (Enabled("M07ArpReceive") && !Enabled("M07026"))
+            Original("m07_arp_receive", true, true, true);
         string[] required = Markers(options.RequireMarker), ordered = Markers(options.RequireOrderedMarker), unique = Markers(options.RequireUniqueMarker), forbidden = Markers(options.ForbidMarker);
         string[] custom = [.. required, .. ordered, .. unique];
         foreach (var rule in Ownership)
@@ -182,41 +262,48 @@ public static class QemuProfiles
         void Select(IReadOnlyList<string> records, IEnumerable<string> failures, bool replace = false, IReadOnlyList<string>? once = null)
         {
             required = replace ? Merge(records) : Merge(required, records);
-            ordered = Merge(records); unique = Merge(once ?? records); forbidden = Merge(forbidden, failures);
+            ordered = Merge(records);
+            unique = Merge(once ?? records);
+            forbidden = Merge(forbidden, failures);
         }
-        if (normal) { Select(QemuContracts.M03NormalVerifiedExitMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true); }
-        else if(quota)
+        if (normal)
+        {
+            Select(QemuContracts.M03NormalVerifiedExitMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        }
+        else if (quota)
         {
             // Only the already shared startup prefix precedes this negative
             // leaf. The full quota replay owns interleaving and authority;
             // capture requirements do not substitute graceful positive tails.
-            string[] records=[..QemuTranscripts.SocketMarkers(true).TakeWhile(x=>x!="TEST_START m16-011"),
+            string[] records = [..QemuTranscripts.SocketMarkers(true).TakeWhile(x=>x!="TEST_START m16-011"),
                 "TEST_START m16-011","TEST_START m16-012",..QemuTranscripts.M16LinuxSignalMarkers.Take(3),"M16_011_BOUND ",
                 "M16_016_QUOTA_ABORT ","M16_016_QUOTA_SOCKETS ","M11_012_END ","M07_033_END ",
                 "M16_016_MEMORY ","M16_008_BUDGET_END ","M16_008_OWNER_END ","M16_014_END ",
                 OS.Tools.QemuRunner.ServiceQuotaCapture.ProcessFailure,"M16_016_QUOTA_NATIVE ","M16_016_QUOTA_RESTORE ",
                 "M16_011_WIRE ","M16_011_END ","M07_026_ROW stage=4 ","M07_026_ROW stage=5 ","M07_026_ROW stage=6 ",
                 "M16_016_QUOTA_CLEANUP ",OS.Tools.QemuRunner.ServiceQuotaCapture.Terminal];
-            Select(records,Merge(["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8","M16_002_STAGE_REJECTED",
-                "TEST_START m16-008","CLROS_M16_008_READY","TEST_PASS m16-008"],OS.Tools.QemuRunner.ServiceQuotaCapture.ForbiddenSuccessMarkers
-                    .Where(marker=>marker!=OS.Tools.QemuRunner.ServiceQuotaCapture.EarlyBootSmokePass)),true);
-            string[] startup=["TEST_START m16.014","M16_014_POLICY ","M16_016_BUDGET ","TEST_START m16.014.startup",
+            Select(records, Merge(["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8","M16_002_STAGE_REJECTED",
+                "TEST_START m16-008","CLROS_M16_008_READY","TEST_PASS m16-008"], OS.Tools.QemuRunner.ServiceQuotaCapture.ForbiddenSuccessMarkers
+                    .Where(marker => marker != OS.Tools.QemuRunner.ServiceQuotaCapture.EarlyBootSmokePass)), true);
+            string[] startup = ["TEST_START m16.014","M16_014_POLICY ","M16_016_BUDGET ","TEST_START m16.014.startup",
                 "M16_014_ENTER ","M16_014_LIVE ","CLROS_M16_014_LISTENING","TEST_PASS m16.014.startup"];
-            required=Merge(required,startup);unique=Merge(unique,startup);
+            required = Merge(required, startup);
+            unique = Merge(unique, startup);
         }
-        else if(service)
+        else if (service)
         {
-            string[] repeated=["M16_008_CALL","M16_008_SUPERVISOR","M16_008_EXIT","M16_008_REAP"];
-            var records=QemuTranscripts.SocketMarkers(true);
-            Select(records,["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8","M16_002_STAGE_REJECTED",
-                "TEST_START m16-008","CLROS_M16_008_READY","TEST_PASS m16-008"],true,records.Where(x=>!repeated.Contains(x,StringComparer.Ordinal)).ToArray());
-            ordered=Merge(records.Where(x=>!repeated.Contains(x,StringComparer.Ordinal)));
+            string[] repeated = ["M16_008_CALL", "M16_008_SUPERVISOR", "M16_008_EXIT", "M16_008_REAP"];
+            var records = QemuTranscripts.SocketMarkers(true);
+            Select(records, ["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8","M16_002_STAGE_REJECTED",
+                "TEST_START m16-008","CLROS_M16_008_READY","TEST_PASS m16-008"], true, records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray());
+            ordered = Merge(records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)));
             // The full replay owns metadata interleaving; these terminal and
             // policy witnesses must nevertheless occur exactly once.
-            string[] serviceRows=["TEST_START m16.014","M16_014_POLICY ","M16_014_PROGRESS ","M07_030_END ","M11_012_END ","M07_033_END ","M16_014_END ","TEST_PASS m16.014"];
-            required=Merge(required,serviceRows);unique=Merge(unique,serviceRows);
+            string[] serviceRows = ["TEST_START m16.014", "M16_014_POLICY ", "M16_014_PROGRESS ", "M07_030_END ", "M11_012_END ", "M07_033_END ", "M16_014_END ", "TEST_PASS m16.014"];
+            required = Merge(required, serviceRows);
+            unique = Merge(unique, serviceRows);
         }
-        else if(writableDisk)
+        else if (writableDisk)
         {
             string[] prefix = QemuTranscripts.SocketMarkers(true).TakeWhile(x => x != "TEST_START m16-011").ToArray();
             string[] tail = ["M16_027_STOP ", "M16_027_END ", "CLROS_M16_027_READY", "TEST_PASS m16.027",
@@ -233,7 +320,7 @@ public static class QemuProfiles
                 records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray());
             ordered = Merge(prefix, tail);
         }
-        else if(diskFiles && !diskStatic)
+        else if (diskFiles && !diskStatic)
         {
             string[] prefix = QemuTranscripts.SocketMarkers(true).TakeWhile(x => x != "TEST_START m16-011").ToArray();
             string[] tail = ["M16_025_END ", "CLROS_M16_023_READY", "TEST_PASS m16.023", "CLROS_M16_024_READY", "TEST_PASS m16.024",
@@ -247,49 +334,50 @@ public static class QemuProfiles
             Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M16_002_STAGE_REJECTED", "M16_008_STOP "], true,
                 records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray());
             ordered = Merge(prefix, tail);
-            if(options.LinuxDiskRaceVariant=="ExitPending")
+            if (options.LinuxDiskRaceVariant == "ExitPending")
             {
-                required=Merge(required,["M16_025_EXIT_CLEANUP_END "]);
-                unique=Merge(unique,["M16_025_EXIT_CLEANUP_END "]);
+                required = Merge(required, ["M16_025_EXIT_CLEANUP_END "]);
+                unique = Merge(unique, ["M16_025_EXIT_CLEANUP_END "]);
             }
         }
-        else if(diskStatic)
+        else if (diskStatic)
         {
             string[] prefix = QemuTranscripts.SocketMarkers(true).TakeWhile(x => x != "TEST_START m16-011").ToArray();
             string[] tail = ["M16_025_END ", "CLROS_M16_023_READY", "TEST_PASS m16.023", "CLROS_M16_024_READY", "TEST_PASS m16.024", "CLROS_M16_025_READY", "TEST_PASS m16.025", "M10_018_CLEANUP ", "CLROS_M10_018_READY", "TEST_PASS m10.018", "CLROS_M07_026_READY", "TEST_PASS m07-026", "CLROS_M16_011_READY", "TEST_PASS m16-011", "CLROS_M16_012_READY", "TEST_PASS m16-012"];
-            string[] records = [..prefix, "TEST_START m16-011", "TEST_START m16-012", "TEST_START m10.018", "M16_023_BOUND ", "M10_018_DISK_READY ", "M16_023_IO ", "M16_025_COMPLETE ", "M10_018_LISTENING ", "M10_018_TERMINATE ", "M10_018_APP_EXIT ", "M10_018_OWNER_END ", ..tail];
-            if(diskStaticFull)records=[..records,"M10_018_POLICY profile=DiskStaticFullV1 "];
+            string[] records = [.. prefix, "TEST_START m16-011", "TEST_START m16-012", "TEST_START m10.018", "M16_023_BOUND ", "M10_018_DISK_READY ", "M16_023_IO ", "M16_025_COMPLETE ", "M10_018_LISTENING ", "M10_018_TERMINATE ", "M10_018_APP_EXIT ", "M10_018_OWNER_END ", .. tail];
+            if (diskStaticFull)
+                records = [.. records, "M10_018_POLICY profile=DiskStaticFullV1 "];
             Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M16_002_STAGE_REJECTED", "M16_008_STOP ", "CLROS_M10_017_READY", "CLROS_M10_004_READY"], true, records.Where(x => x is not ("M16_023_IO " or "M16_025_COMPLETE ")).ToArray());
             ordered = Merge(prefix, tail);
         }
-        else if(staticFiles)
+        else if (staticFiles)
         {
-            string[] repeated=["M16_008_CALL","M16_008_SUPERVISOR","M16_008_EXIT","M16_008_REAP"];
-            string[] records=[..QemuTranscripts.SocketMarkers(true),"TEST_START m10.017","M10_017_LISTENING ",
+            string[] repeated = ["M16_008_CALL", "M16_008_SUPERVISOR", "M16_008_EXIT", "M16_008_REAP"];
+            string[] records = [..QemuTranscripts.SocketMarkers(true),"TEST_START m10.017","M10_017_LISTENING ",
                 "M10_017_TERMINATE ","M10_017_APP_EXIT ","M10_017_OWNER_END ","M10_017_CLEANUP ","CLROS_M10_017_READY","TEST_PASS m10.017"];
-            Select(records,["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8",
-                "M16_002_STAGE_REJECTED","M16_008_STOP ","CLROS_M10_004_READY","TEST_START m16.014"],true,
-                records.Where(x=>!repeated.Contains(x,StringComparer.Ordinal)).ToArray());
+            Select(records, ["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8",
+                "M16_002_STAGE_REJECTED","M16_008_STOP ","CLROS_M10_004_READY","TEST_START m16.014"], true,
+                records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray());
             // Native owners interleave static lifecycle rows with the existing
             // socket/thread tail. Each sequence is checked by the complete reader.
-            ordered=Merge(QemuTranscripts.SocketMarkers(true).Where(x=>!repeated.Contains(x,StringComparer.Ordinal)));
+            ordered = Merge(QemuTranscripts.SocketMarkers(true).Where(x => !repeated.Contains(x, StringComparer.Ordinal)));
         }
-        else if(web)
+        else if (web)
         {
-            Select(QemuTranscripts.WebMarkers(),["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8",
-                "M16_002_STAGE_REJECTED","M16_008_OWNER_END","M16_009_RESTORE","CLROS_M16_009_READY","M16_011_END","CLROS_M07_026_READY"],true);
+            Select(QemuTranscripts.WebMarkers(), ["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8",
+                "M16_002_STAGE_REJECTED","M16_008_OWNER_END","M16_009_RESTORE","CLROS_M16_009_READY","M16_011_END","CLROS_M07_026_READY"], true);
         }
-        else if(signalEpoll||sockets||vectors||containment)
+        else if (signalEpoll || sockets || vectors || containment)
         {
-            string[] repeated=["M16_008_CALL","M16_008_SUPERVISOR","M16_008_EXIT","M16_008_REAP"];
-            var records=containment?QemuTranscripts.SocketContainmentMarkers():QemuTranscripts.SocketMarkers(Enabled("M16012"),vectors);
-            Select(records,["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8","M16_002_STAGE_REJECTED",
-                "TEST_START m16-008","CLROS_M16_008_READY","TEST_PASS m16-008"],true,records.Where(x=>!repeated.Contains(x,StringComparer.Ordinal)).ToArray());
-            ordered=Merge(records.Where(x=>!repeated.Contains(x,StringComparer.Ordinal)));
-            if(containment)
+            string[] repeated = ["M16_008_CALL", "M16_008_SUPERVISOR", "M16_008_EXIT", "M16_008_REAP"];
+            var records = containment ? QemuTranscripts.SocketContainmentMarkers() : QemuTranscripts.SocketMarkers(Enabled("M16012"), vectors);
+            Select(records, ["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8","M16_002_STAGE_REJECTED",
+                "TEST_START m16-008","CLROS_M16_008_READY","TEST_PASS m16-008"], true, records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray());
+            ordered = Merge(records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)));
+            if (containment)
             {
-                required=Merge(required,["M07_028_DROP","M07_027_TIMEOUT"]);
-                unique=Merge(unique,["M07_028_DROP","M07_027_TIMEOUT"]);
+                required = Merge(required, ["M07_028_DROP", "M07_027_TIMEOUT"]);
+                unique = Merge(unique, ["M07_028_DROP", "M07_027_TIMEOUT"]);
             }
         }
         else if (Enabled("M16009"))
@@ -341,25 +429,44 @@ public static class QemuProfiles
             Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8", "M09_005_REJECT"], true,
                 records.Where(x => x != "M09_005_TICK").ToArray());
         }
-        else if (Enabled("M05PhysicalMapping")) Select(QemuContracts.M05PhysicalMappingMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M05OwnedAcpiSelection")) Select(QemuContracts.M05OwnedAcpiSelectionMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M05MonotonicClock")) Select(QemuContracts.M05MonotonicClockMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M07026")) Select(QemuTranscripts.M07026Markers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M07ArpReceive")) Select(QemuContracts.M07ArpReceiveMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M07VirtioNet")) Select(QemuContracts.M07VirtioNetMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M06BlockMsix")) Select(QemuContracts.M06BlockMsixMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M06PackageRead")) Select(QemuContracts.M06PackageReadMarkers(options.PackageImageVariant), ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M06FatRead")) Select(QemuContracts.M06FatReadMarkers(), ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M06GptPartition")) Select(QemuContracts.M06GptPartitionMarkers(options.GptImageVariant == "PrimaryHeaderCrcFault"), ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M06LiveBlockContract")) Select(QemuContracts.M06LiveBlockContractMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M06VirtioBlockRead")) Select(QemuContracts.M06VirtioBlockReadMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M06VirtioBlockQueueSetup")) Select(QemuContracts.M06VirtioBlockQueueSetupMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M05VirtqueueInterrupt")) Select(QemuContracts.M05VirtqueueInterruptMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M05ApicSetup")) Select(QemuContracts.M05ApicSetupMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M05VirtqueuePolling")) Select(QemuContracts.M05VirtqueuePollingMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M05VirtioNegotiation")) Select(QemuContracts.M05VirtioNegotiationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M05BarDma")) Select(QemuContracts.M05BarDmaMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
-        else if (Enabled("M05PciEnumeration")) Select(QemuContracts.M05PciEnumerationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M05PhysicalMapping"))
+            Select(QemuContracts.M05PhysicalMappingMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M05OwnedAcpiSelection"))
+            Select(QemuContracts.M05OwnedAcpiSelectionMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M05MonotonicClock"))
+            Select(QemuContracts.M05MonotonicClockMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M07026"))
+            Select(QemuTranscripts.M07026Markers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M07ArpReceive"))
+            Select(QemuContracts.M07ArpReceiveMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M07VirtioNet"))
+            Select(QemuContracts.M07VirtioNetMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M06BlockMsix"))
+            Select(QemuContracts.M06BlockMsixMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M06PackageRead"))
+            Select(QemuContracts.M06PackageReadMarkers(options.PackageImageVariant), ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M06FatRead"))
+            Select(QemuContracts.M06FatReadMarkers(), ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M06GptPartition"))
+            Select(QemuContracts.M06GptPartitionMarkers(options.GptImageVariant == "PrimaryHeaderCrcFault"), ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M06LiveBlockContract"))
+            Select(QemuContracts.M06LiveBlockContractMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M06VirtioBlockRead"))
+            Select(QemuContracts.M06VirtioBlockReadMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M06VirtioBlockQueueSetup"))
+            Select(QemuContracts.M06VirtioBlockQueueSetupMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M05VirtqueueInterrupt"))
+            Select(QemuContracts.M05VirtqueueInterruptMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M05ApicSetup"))
+            Select(QemuContracts.M05ApicSetupMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M05VirtqueuePolling"))
+            Select(QemuContracts.M05VirtqueuePollingMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M05VirtioNegotiation"))
+            Select(QemuContracts.M05VirtioNegotiationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M05BarDma"))
+            Select(QemuContracts.M05BarDmaMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M05PciEnumeration"))
+            Select(QemuContracts.M05PciEnumerationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M09004"))
         {
             string[] records = [.. QemuContracts.M03OwnedSubsystemMarkers, .. QemuTranscripts.M09CooperativeMarkers];
@@ -372,38 +479,71 @@ public static class QemuProfiles
             Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8", "M16_002_STAGE_REJECTED"], true,
                 records.Where(x => x is not "M16_005_CALL" and not "M16_005_WRITE").ToArray());
         }
-        else if (owned) { Select(ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers : QemuContracts.M03OwnedSubsystemMarkers,
-            ownedPanic ? ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "CLROS_M03_010_READY", "TEST_PASS m03.010"] : ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true); }
-        else if (Enabled("M03FirmwareAdapterRevocation")) Select(QemuContracts.M03RevocationRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL"], true);
-        else if (firstExit) Select(QemuContracts.M03FirstExitRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL"], true);
-        else if (Enabled("AcpiPhysicalDiscovery")) Select(QemuContracts.M03AcpiBootstrapRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL"]);
-        else if (Enabled("M03TypedExitBootServicesCall")) Select(QemuContracts.M03TypedExitBootServicesRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "UEFI_EBS_CALLED", "UEFI_BOOT_SERVICES_EXITED"]);
-        else if (Enabled("M04SingleFinallyCatch")) Select(QemuContracts.M04SingleFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
-        else if (Enabled("M04Rethrow")) Select(QemuContracts.M04RethrowRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
-        else if (Enabled("M04EhCatalog")) Select(QemuContracts.M04EhCatalogRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
-        else if (Enabled("M04NormalFinally")) Select(QemuContracts.M04NormalFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
-        else if (Enabled("M04FrameDispatch")) Select(QemuContracts.M04FrameDispatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
-        else if (Enabled("M04ConstructorFailure")) Select(QemuContracts.M04ConstructorFailureRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
-        else if (Enabled("M04FilteredCatch")) Select(QemuContracts.M04FilteredCatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
-        else if (Enabled("M04UnhandledException")) Select(QemuContracts.M04UnhandledRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
-        else if (Enabled("M04NestedFinallyCatch")) Select(QemuContracts.M04NestedFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
-        else if (Enabled("M04SimpleThrowCatch")) Select(QemuContracts.M04SimpleCatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
-        else if (Enabled("M04InterfaceDispatch")) Select(QemuContracts.M04DispatchRequiredMarkers, Merge(QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, ["M04_GC_ROOT 2", "M04_GC_ROOT 255", "M04_COLLECT 255", "M04_CCTOR 255", "M04_DISPATCH 255", "TEST_FAIL", "OS_SMOKE_FAIL"]), true);
-        else if (Enabled("M04ClassConstructorExecution")) Select(QemuContracts.M04CctorRequiredMarkers, Merge(QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, ["M04_GC_ROOT 2", "M04_GC_ROOT 255", "M04_COLLECT 255", "M04_CCTOR 255", "TEST_FAIL", "OS_SMOKE_FAIL"]), true);
-        else if (Enabled("M04SeededCollectorChurn")) Select(QemuContracts.M04SeededChurnRequiredMarkers, Merge(QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, ["M04_GC_ROOT 2", "M04_GC_ROOT 255", "M04_COLLECT 255", "M04_CHURN 255", "TEST_FAIL", "OS_SMOKE_FAIL"]));
-        else if (Enabled("M04GcStaticRootMaterialization")) Select(QemuContracts.M04GcStaticRootRequiredMarkers, Merge(QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, ["M04_GC_ROOT 2", "M04_GC_ROOT 255", "TEST_FAIL", "OS_SMOKE_FAIL"]));
-        else if (Enabled("M04X64UnwindMetadata")) Select(QemuContracts.M04X64UnwindMetadataRequiredMarkers, ["TEST_FAIL", "OS_SMOKE_FAIL"], true);
-        else if (Enabled("M04TypeManagerModuleRegistration")) Select(QemuContracts.M04TypeManagerRequiredMarkers, ["TEST_FAIL", "OS_SMOKE_FAIL"]);
-        else if (Enabled("M03FirmwareEntropySeed")) Select(QemuContracts.M03FirmwareEntropyRequiredMarkers, ["TEST_FAIL", "OS_SMOKE_FAIL"]);
-        else if (Enabled("M03MemoryMapCapture")) Select(QemuContracts.M03MemoryMapCaptureRequiredMarkers, ["TEST_FAIL", "OS_SMOKE_FAIL", "M03_CAPTURE_FAILURE"]);
-        else if (Enabled("M04CheckedReferenceBarrier")) Select(QemuContracts.M04CheckedReferenceBarrierRequiredMarkers, QemuContracts.M04CheckedReferenceBarrierForbiddenMarkers);
-        else if (Enabled("M04StringAllocation")) Select(QemuContracts.M04StringAllocationRequiredMarkers, QemuContracts.M04StringAllocationForbiddenMarkers);
-        else if (Enabled("M04SzArrayAllocation")) Select(QemuContracts.M04SzArrayAllocationRequiredMarkers, QemuContracts.M04SzArrayAllocationForbiddenMarkers);
-        else if (Enabled("M04RhpNewFast")) Select(QemuContracts.M04RhpNewFastRequiredMarkers, QemuContracts.M04RhpNewFastForbiddenMarkers);
-        else if (Enabled("M04ManagedHeapPageRange")) Select(QemuContracts.M04ManagedHeapPageRangeRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers);
-        else if (Enabled("M04LayoutContract")) Select(QemuContracts.M04LayoutContractRequiredMarkers, QemuContracts.M04LayoutContractForbiddenMarkers, once: QemuContracts.M04LayoutContractUniqueMarkers);
-        else if (Enabled("M04ArithmeticConformance")) Select(QemuContracts.M04ArithmeticConformanceRequiredMarkers, QemuContracts.M04ArithmeticConformanceForbiddenMarkers, once: QemuContracts.M04ArithmeticConformanceUniqueMarkers);
-        else if (Enabled("M04SpanOverlapMemoryCastUnsafeWidthConformance")) Select(QemuContracts.M04SpanMemoryConformanceRequiredMarkers, QemuContracts.M04SpanMemoryConformanceForbiddenMarkers, once: QemuContracts.M04SpanMemoryConformanceUniqueMarkers);
+        else if (owned)
+        {
+            Select(ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers : QemuContracts.M03OwnedSubsystemMarkers,
+            ownedPanic ? ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "CLROS_M03_010_READY", "TEST_PASS m03.010"] : ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        }
+        else if (Enabled("M03FirmwareAdapterRevocation"))
+            Select(QemuContracts.M03RevocationRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL"], true);
+        else if (firstExit)
+            Select(QemuContracts.M03FirstExitRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL"], true);
+        else if (Enabled("AcpiPhysicalDiscovery"))
+            Select(QemuContracts.M03AcpiBootstrapRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL"]);
+        else if (Enabled("M03TypedExitBootServicesCall"))
+            Select(QemuContracts.M03TypedExitBootServicesRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "UEFI_EBS_CALLED", "UEFI_BOOT_SERVICES_EXITED"]);
+        else if (Enabled("M04SingleFinallyCatch"))
+            Select(QemuContracts.M04SingleFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04Rethrow"))
+            Select(QemuContracts.M04RethrowRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04EhCatalog"))
+            Select(QemuContracts.M04EhCatalogRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04NormalFinally"))
+            Select(QemuContracts.M04NormalFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04FrameDispatch"))
+            Select(QemuContracts.M04FrameDispatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04ConstructorFailure"))
+            Select(QemuContracts.M04ConstructorFailureRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04FilteredCatch"))
+            Select(QemuContracts.M04FilteredCatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04UnhandledException"))
+            Select(QemuContracts.M04UnhandledRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04NestedFinallyCatch"))
+            Select(QemuContracts.M04NestedFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04SimpleThrowCatch"))
+            Select(QemuContracts.M04SimpleCatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04InterfaceDispatch"))
+            Select(QemuContracts.M04DispatchRequiredMarkers, Merge(QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, ["M04_GC_ROOT 2", "M04_GC_ROOT 255", "M04_COLLECT 255", "M04_CCTOR 255", "M04_DISPATCH 255", "TEST_FAIL", "OS_SMOKE_FAIL"]), true);
+        else if (Enabled("M04ClassConstructorExecution"))
+            Select(QemuContracts.M04CctorRequiredMarkers, Merge(QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, ["M04_GC_ROOT 2", "M04_GC_ROOT 255", "M04_COLLECT 255", "M04_CCTOR 255", "TEST_FAIL", "OS_SMOKE_FAIL"]), true);
+        else if (Enabled("M04SeededCollectorChurn"))
+            Select(QemuContracts.M04SeededChurnRequiredMarkers, Merge(QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, ["M04_GC_ROOT 2", "M04_GC_ROOT 255", "M04_COLLECT 255", "M04_CHURN 255", "TEST_FAIL", "OS_SMOKE_FAIL"]));
+        else if (Enabled("M04GcStaticRootMaterialization"))
+            Select(QemuContracts.M04GcStaticRootRequiredMarkers, Merge(QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, ["M04_GC_ROOT 2", "M04_GC_ROOT 255", "TEST_FAIL", "OS_SMOKE_FAIL"]));
+        else if (Enabled("M04X64UnwindMetadata"))
+            Select(QemuContracts.M04X64UnwindMetadataRequiredMarkers, ["TEST_FAIL", "OS_SMOKE_FAIL"], true);
+        else if (Enabled("M04TypeManagerModuleRegistration"))
+            Select(QemuContracts.M04TypeManagerRequiredMarkers, ["TEST_FAIL", "OS_SMOKE_FAIL"]);
+        else if (Enabled("M03FirmwareEntropySeed"))
+            Select(QemuContracts.M03FirmwareEntropyRequiredMarkers, ["TEST_FAIL", "OS_SMOKE_FAIL"]);
+        else if (Enabled("M03MemoryMapCapture"))
+            Select(QemuContracts.M03MemoryMapCaptureRequiredMarkers, ["TEST_FAIL", "OS_SMOKE_FAIL", "M03_CAPTURE_FAILURE"]);
+        else if (Enabled("M04CheckedReferenceBarrier"))
+            Select(QemuContracts.M04CheckedReferenceBarrierRequiredMarkers, QemuContracts.M04CheckedReferenceBarrierForbiddenMarkers);
+        else if (Enabled("M04StringAllocation"))
+            Select(QemuContracts.M04StringAllocationRequiredMarkers, QemuContracts.M04StringAllocationForbiddenMarkers);
+        else if (Enabled("M04SzArrayAllocation"))
+            Select(QemuContracts.M04SzArrayAllocationRequiredMarkers, QemuContracts.M04SzArrayAllocationForbiddenMarkers);
+        else if (Enabled("M04RhpNewFast"))
+            Select(QemuContracts.M04RhpNewFastRequiredMarkers, QemuContracts.M04RhpNewFastForbiddenMarkers);
+        else if (Enabled("M04ManagedHeapPageRange"))
+            Select(QemuContracts.M04ManagedHeapPageRangeRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers);
+        else if (Enabled("M04LayoutContract"))
+            Select(QemuContracts.M04LayoutContractRequiredMarkers, QemuContracts.M04LayoutContractForbiddenMarkers, once: QemuContracts.M04LayoutContractUniqueMarkers);
+        else if (Enabled("M04ArithmeticConformance"))
+            Select(QemuContracts.M04ArithmeticConformanceRequiredMarkers, QemuContracts.M04ArithmeticConformanceForbiddenMarkers, once: QemuContracts.M04ArithmeticConformanceUniqueMarkers);
+        else if (Enabled("M04SpanOverlapMemoryCastUnsafeWidthConformance"))
+            Select(QemuContracts.M04SpanMemoryConformanceRequiredMarkers, QemuContracts.M04SpanMemoryConformanceForbiddenMarkers, once: QemuContracts.M04SpanMemoryConformanceUniqueMarkers);
         else if (Enabled("M04IndependentEndianConformance"))
         {
             required = Merge(required, QemuContracts.M04IndependentEndianConformanceRequiredMarkers);
@@ -413,8 +553,10 @@ public static class QemuProfiles
         }
         void Add(IReadOnlyList<string> records, IReadOnlyList<string> failures, IReadOnlyList<string>? once = null, IReadOnlyList<string>? sequence = null)
         {
-            required = Merge(required, records); ordered = Merge(ordered, sequence ?? records);
-            unique = Merge(unique, once ?? records); forbidden = Merge(forbidden, failures);
+            required = Merge(required, records);
+            ordered = Merge(ordered, sequence ?? records);
+            unique = Merge(unique, once ?? records);
+            forbidden = Merge(forbidden, failures);
         }
         if (Enabled("M02NormalizedInterruptFramePage"))
         {
@@ -432,23 +574,41 @@ public static class QemuProfiles
             ordered = ordered.Where(m => m != "UEFI_MEMORY_MAP_READY").ToArray();
             Add(QemuContracts.M02IdtrContinuedExecutionRequiredMarkers, QemuContracts.M02IdtrContinuedExecutionForbiddenMarkers, QemuContracts.M02IdtrContinuedExecutionUniqueMarkers, QemuContracts.M02IdtrContinuedExecutionOrderedMarkers);
         }
-        if (Enabled("M02OwnedGdtTssTerminal")) { required = [.. QemuContracts.M02OwnedGdtTssTerminalRequiredMarkers]; ordered = required; unique = required; forbidden = [.. QemuContracts.M02OwnedGdtTssTerminalForbiddenMarkers]; }
-        else if (Enabled("M02GuardedIstStackAllocation")) Add(QemuContracts.M02GuardedIstStackAllocationRequiredMarkers, QemuContracts.M02GuardedIstStackAllocationForbiddenMarkers);
-        else if (Enabled("M02OwnedX64GdtEncoding")) Add(QemuContracts.M02OwnedX64GdtEncodingRequiredMarkers, QemuContracts.M02OwnedX64GdtEncodingForbiddenMarkers);
-        else if (Enabled("M02PanicSafeOwnedCom1")) Add(QemuContracts.M02PanicSafeOwnedCom1RequiredMarkers, QemuContracts.M02PanicSafeOwnedCom1ForbiddenMarkers);
-        else if (Enabled("M02OwnedCom1Ready")) Add(QemuContracts.M02OwnedCom1ReadyRequiredMarkers, QemuContracts.M02OwnedCom1ReadyForbiddenMarkers);
-        else if (Enabled("M02Com1OwnedPortIo")) Add(QemuContracts.M02Com1OwnedPortIoRequiredMarkers, QemuContracts.M02Com1OwnedPortIoForbiddenMarkers);
-        else if (Enabled("M02CheckedPortIoBinding")) Add(QemuContracts.M02CheckedPortIoBindingRequiredMarkers, QemuContracts.M02CheckedPortIoBindingForbiddenMarkers);
-        else if (Enabled("M02SafeStub")) Add(QemuContracts.M02SafeStubRequiredMarkers, QemuContracts.M02SafeStubForbiddenMarkers);
+        if (Enabled("M02OwnedGdtTssTerminal"))
+        {
+            required = [.. QemuContracts.M02OwnedGdtTssTerminalRequiredMarkers];
+            ordered = required;
+            unique = required;
+            forbidden = [.. QemuContracts.M02OwnedGdtTssTerminalForbiddenMarkers];
+        }
+        else if (Enabled("M02GuardedIstStackAllocation"))
+            Add(QemuContracts.M02GuardedIstStackAllocationRequiredMarkers, QemuContracts.M02GuardedIstStackAllocationForbiddenMarkers);
+        else if (Enabled("M02OwnedX64GdtEncoding"))
+            Add(QemuContracts.M02OwnedX64GdtEncodingRequiredMarkers, QemuContracts.M02OwnedX64GdtEncodingForbiddenMarkers);
+        else if (Enabled("M02PanicSafeOwnedCom1"))
+            Add(QemuContracts.M02PanicSafeOwnedCom1RequiredMarkers, QemuContracts.M02PanicSafeOwnedCom1ForbiddenMarkers);
+        else if (Enabled("M02OwnedCom1Ready"))
+            Add(QemuContracts.M02OwnedCom1ReadyRequiredMarkers, QemuContracts.M02OwnedCom1ReadyForbiddenMarkers);
+        else if (Enabled("M02Com1OwnedPortIo"))
+            Add(QemuContracts.M02Com1OwnedPortIoRequiredMarkers, QemuContracts.M02Com1OwnedPortIoForbiddenMarkers);
+        else if (Enabled("M02CheckedPortIoBinding"))
+            Add(QemuContracts.M02CheckedPortIoBindingRequiredMarkers, QemuContracts.M02CheckedPortIoBindingForbiddenMarkers);
+        else if (Enabled("M02SafeStub"))
+            Add(QemuContracts.M02SafeStubRequiredMarkers, QemuContracts.M02SafeStubForbiddenMarkers);
         if (Enabled("M02Ud2VectorState") || Enabled("M02PageFaultCr2ErrorCode") || Enabled("M02DoubleFaultIst") || Enabled("M02UnexpectedVectorPanic"))
         {
             ordered = ordered.Where(x => x is not ("OS_BOOT_OK" or "TEST_PASS boot.sequence" or "OS_SMOKE_PASS")).ToArray();
-            if (Enabled("M02Ud2VectorState")) Add(QemuContracts.M02Ud2VectorStateRequiredMarkers, QemuContracts.M02Ud2VectorStateForbiddenMarkers);
-            if (Enabled("M02PageFaultCr2ErrorCode")) Add(QemuContracts.M02PageFaultCr2ErrorCodeRequiredMarkers, QemuContracts.M02PageFaultCr2ErrorCodeForbiddenMarkers);
-            if (Enabled("M02DoubleFaultIst")) Add(QemuContracts.M02DoubleFaultIstRequiredMarkers, QemuContracts.M02DoubleFaultIstForbiddenMarkers);
-            if (Enabled("M02UnexpectedVectorPanic")) Add(["OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "M02_UNEXPECTED_STATE"], []);
+            if (Enabled("M02Ud2VectorState"))
+                Add(QemuContracts.M02Ud2VectorStateRequiredMarkers, QemuContracts.M02Ud2VectorStateForbiddenMarkers);
+            if (Enabled("M02PageFaultCr2ErrorCode"))
+                Add(QemuContracts.M02PageFaultCr2ErrorCodeRequiredMarkers, QemuContracts.M02PageFaultCr2ErrorCodeForbiddenMarkers);
+            if (Enabled("M02DoubleFaultIst"))
+                Add(QemuContracts.M02DoubleFaultIstRequiredMarkers, QemuContracts.M02DoubleFaultIstForbiddenMarkers);
+            if (Enabled("M02UnexpectedVectorPanic"))
+                Add(["OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "M02_UNEXPECTED_STATE"], []);
         }
-        if (options.RequireNativeAppMarkers) required = Merge(required, QemuContracts.nativeAppRequiredMarkers);
+        if (options.RequireNativeAppMarkers)
+            required = Merge(required, QemuContracts.nativeAppRequiredMarkers);
         Require(required.Length != 0, "qemu_required_markers_empty");
         string[] presets = Markers(options.MarkerPreset).Select(OS.Tools.QemuRunner.SmokeMarkerPreset.Normalize).Distinct(StringComparer.Ordinal).ToArray();
         return new(profile.BootPolicy, profile.Flags, Array.AsReadOnly(required), Array.AsReadOnly(ordered), Array.AsReadOnly(unique),

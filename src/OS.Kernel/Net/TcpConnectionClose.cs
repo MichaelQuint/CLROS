@@ -1,100 +1,5 @@
 namespace OS.Net;
 
-public enum TcpConnectionCloseState
-{
-    Established = 0,
-    FinWait1 = 1,
-    FinWait2 = 2,
-    CloseWait = 3,
-    LastAck = 4,
-    TimeWait = 5,
-    Closed = 6,
-    Reset = 7,
-    Closing = 8
-}
-
-public enum TcpConnectionCloseStatus
-{
-    Success = 0,
-    InvalidState = 1,
-    BufferTooSmall = 2,
-    SegmentWriteFailed = 3,
-    SegmentParseFailed = 4,
-    UnexpectedPorts = 5,
-    InvalidFlags = 6,
-    WrongAcknowledgementNumber = 7,
-    WrongSequenceNumber = 8,
-    UnexpectedPayload = 9
-}
-
-public readonly struct TcpConnectionCloseTransitionResult
-{
-    private TcpConnectionCloseTransitionResult(
-        TcpConnectionCloseStatus status,
-        TcpConnectionCloseState state,
-        PacketParseStatus packetStatus,
-        int bytesWritten,
-        uint localNextSequenceNumber,
-        uint remoteNextSequenceNumber)
-    {
-        IsInitialized = true;
-        Status = status;
-        State = state;
-        PacketStatus = packetStatus;
-        BytesWritten = bytesWritten;
-        LocalNextSequenceNumber = localNextSequenceNumber;
-        RemoteNextSequenceNumber = remoteNextSequenceNumber;
-    }
-
-    public TcpConnectionCloseStatus Status { get; }
-
-    public bool IsInitialized { get; }
-
-    public bool Succeeded => IsInitialized && Status == TcpConnectionCloseStatus.Success;
-
-    public TcpConnectionCloseState State { get; }
-
-    public PacketParseStatus PacketStatus { get; }
-
-    public int BytesWritten { get; }
-
-    public uint LocalNextSequenceNumber { get; }
-
-    public uint RemoteNextSequenceNumber { get; }
-
-    public static TcpConnectionCloseTransitionResult Success(
-        TcpConnectionCloseState state,
-        PacketParseStatus packetStatus,
-        int bytesWritten,
-        uint localNextSequenceNumber,
-        uint remoteNextSequenceNumber)
-    {
-        return new TcpConnectionCloseTransitionResult(
-            TcpConnectionCloseStatus.Success,
-            state,
-            packetStatus,
-            bytesWritten,
-            localNextSequenceNumber,
-            remoteNextSequenceNumber);
-    }
-
-    public static TcpConnectionCloseTransitionResult Fail(
-        TcpConnectionCloseStatus status,
-        TcpConnectionCloseState state,
-        PacketParseStatus packetStatus,
-        uint localNextSequenceNumber,
-        uint remoteNextSequenceNumber)
-    {
-        return new TcpConnectionCloseTransitionResult(
-            status,
-            state,
-            packetStatus,
-            bytesWritten: 0,
-            localNextSequenceNumber,
-            remoteNextSequenceNumber);
-    }
-}
-
 public struct TcpConnectionClose
 {
     public const byte FlagFin = 0x01;
@@ -105,14 +10,8 @@ public struct TcpConnectionClose
     public const byte FlagUrg = 0x20;
     public const byte FlagEce = 0x40;
     public const byte FlagCwr = 0x80;
-
     private const byte ResetAllowedFlags = FlagRst | FlagAck;
-
-    private TcpConnectionClose(
-        ushort localPort,
-        ushort remotePort,
-        uint localNextSequenceNumber,
-        uint remoteNextSequenceNumber)
+    private TcpConnectionClose(ushort localPort, ushort remotePort, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
     {
         LocalPort = localPort;
         RemotePort = remotePort;
@@ -121,36 +20,34 @@ public struct TcpConnectionClose
         State = TcpConnectionCloseState.Established;
     }
 
-    public TcpConnectionCloseState State { get; private set; }
-
-    public ushort LocalPort { get; }
-
-    public ushort RemotePort { get; }
-
-    public uint LocalNextSequenceNumber { get; private set; }
-
-    public uint RemoteNextSequenceNumber { get; private set; }
-
+    public TcpConnectionCloseState State
+    {
+        get; private set;
+    }
+    public ushort LocalPort
+    {
+        get;
+    }
+    public ushort RemotePort
+    {
+        get;
+    }
+    public uint LocalNextSequenceNumber
+    {
+        get; private set;
+    }
+    public uint RemoteNextSequenceNumber
+    {
+        get; private set;
+    }
     public uint AcknowledgementNumber => RemoteNextSequenceNumber;
 
-    public static TcpConnectionClose CreateEstablished(
-        ushort localPort,
-        ushort remotePort,
-        uint localNextSequenceNumber,
-        uint remoteNextSequenceNumber)
+    public static TcpConnectionClose CreateEstablished(ushort localPort, ushort remotePort, uint localNextSequenceNumber, uint remoteNextSequenceNumber)
     {
-        return new TcpConnectionClose(
-            localPort,
-            remotePort,
-            localNextSequenceNumber,
-            remoteNextSequenceNumber);
+        return new TcpConnectionClose(localPort, remotePort, localNextSequenceNumber, remoteNextSequenceNumber);
     }
 
-    public TcpConnectionCloseStatus TryWriteActiveFinAck(
-        Span<byte> segment,
-        ushort windowSize,
-        ushort checksum,
-        out TcpConnectionCloseTransitionResult result)
+    public TcpConnectionCloseStatus TryWriteActiveFinAck(Span<byte> segment, ushort windowSize, ushort checksum, out TcpConnectionCloseTransitionResult result)
     {
         if (State != TcpConnectionCloseState.Established)
         {
@@ -158,12 +55,7 @@ public struct TcpConnectionClose
             return result.Status;
         }
 
-        PacketParseStatus writeStatus = TryWriteLocalSegment(
-            segment,
-            FlagFin | FlagAck,
-            windowSize,
-            checksum,
-            out int bytesWritten);
+        PacketParseStatus writeStatus = TryWriteLocalSegment(segment, FlagFin | FlagAck, windowSize, checksum, out int bytesWritten);
         if (writeStatus != PacketParseStatus.Success)
         {
             TcpConnectionCloseStatus status = MapWriteStatus(writeStatus);
@@ -173,18 +65,11 @@ public struct TcpConnectionClose
 
         LocalNextSequenceNumber = AddSequence(LocalNextSequenceNumber, 1);
         State = TcpConnectionCloseState.FinWait1;
-        result = TcpConnectionCloseTransitionResult.Success(
-            State,
-            writeStatus,
-            bytesWritten,
-            LocalNextSequenceNumber,
-            RemoteNextSequenceNumber);
+        result = TcpConnectionCloseTransitionResult.Success(State, writeStatus, bytesWritten, LocalNextSequenceNumber, RemoteNextSequenceNumber);
         return result.Status;
     }
 
-    public TcpConnectionCloseStatus ReceiveActiveFinAcknowledgement(
-        ReadOnlySpan<byte> segment,
-        out TcpConnectionCloseTransitionResult result)
+    public TcpConnectionCloseStatus ReceiveActiveFinAcknowledgement(ReadOnlySpan<byte> segment, out TcpConnectionCloseTransitionResult result)
     {
         if (State != TcpConnectionCloseState.FinWait1 && State != TcpConnectionCloseState.Closing)
         {
@@ -192,12 +77,7 @@ public struct TcpConnectionClose
             return result.Status;
         }
 
-        TcpConnectionCloseStatus status = ValidateRemoteControlSegment(
-            segment,
-            FlagAck,
-            LocalNextSequenceNumber,
-            RemoteNextSequenceNumber,
-            out PacketParseStatus packetStatus);
+        TcpConnectionCloseStatus status = ValidateRemoteControlSegment(segment, FlagAck, LocalNextSequenceNumber, RemoteNextSequenceNumber, out PacketParseStatus packetStatus);
         if (status != TcpConnectionCloseStatus.Success)
         {
             result = CreateFailure(status, packetStatus);
@@ -205,12 +85,7 @@ public struct TcpConnectionClose
         }
 
         State = State == TcpConnectionCloseState.Closing ? TcpConnectionCloseState.TimeWait : TcpConnectionCloseState.FinWait2;
-        result = TcpConnectionCloseTransitionResult.Success(
-            State,
-            packetStatus,
-            bytesWritten: 0,
-            LocalNextSequenceNumber,
-            RemoteNextSequenceNumber);
+        result = TcpConnectionCloseTransitionResult.Success(State, packetStatus, bytesWritten: 0, LocalNextSequenceNumber, RemoteNextSequenceNumber);
         return result.Status;
     }
 
@@ -220,12 +95,8 @@ public struct TcpConnectionClose
     /// bytes and commits this value only after actual TX admission. Short output
     /// or invalid controls preserve sequence/state; payload/checksum/clock and
     /// retained connection ownership belong to the live adapter.</summary>
-    public TcpConnectionCloseStatus ReceiveActiveFinAckAndWriteAck(
-        ReadOnlySpan<byte> inboundSegment,
-        Span<byte> outboundSegment,
-        ushort windowSize,
-        ushort checksum,
-        out TcpConnectionCloseTransitionResult result)
+
+    public TcpConnectionCloseStatus ReceiveActiveFinAckAndWriteAck(ReadOnlySpan<byte> inboundSegment, Span<byte> outboundSegment, ushort windowSize, ushort checksum, out TcpConnectionCloseTransitionResult result)
     {
         if (State != TcpConnectionCloseState.FinWait2 && State != TcpConnectionCloseState.FinWait1)
         {
@@ -239,26 +110,22 @@ public struct TcpConnectionClose
         {
             var parse = TcpHeader.TryParse(inboundSegment, out var header, out _, out _);
             if (parse != PacketParseStatus.Success)
-            { result = CreateFailure(TcpConnectionCloseStatus.SegmentParseFailed, parse); return result.Status; }
+            {
+                result = CreateFailure(TcpConnectionCloseStatus.SegmentParseFailed, parse);
+                return result.Status;
+            }
+
             if (header.AcknowledgementNumber == unchecked(LocalNextSequenceNumber - 1))
-            { expectedAcknowledgement = header.AcknowledgementNumber; target = TcpConnectionCloseState.Closing; }
+            {
+                expectedAcknowledgement = header.AcknowledgementNumber;
+                target = TcpConnectionCloseState.Closing;
+            }
         }
-        return ReceiveFinAckAndWriteAck(
-            inboundSegment,
-            outboundSegment,
-            target,
-            expectedAcknowledgement,
-            windowSize,
-            checksum,
-            out result);
+
+        return ReceiveFinAckAndWriteAck(inboundSegment, outboundSegment, target, expectedAcknowledgement, windowSize, checksum, out result);
     }
 
-    public TcpConnectionCloseStatus ReceivePassiveFinAckAndWriteAck(
-        ReadOnlySpan<byte> inboundSegment,
-        Span<byte> outboundSegment,
-        ushort windowSize,
-        ushort checksum,
-        out TcpConnectionCloseTransitionResult result)
+    public TcpConnectionCloseStatus ReceivePassiveFinAckAndWriteAck(ReadOnlySpan<byte> inboundSegment, Span<byte> outboundSegment, ushort windowSize, ushort checksum, out TcpConnectionCloseTransitionResult result)
     {
         if (State != TcpConnectionCloseState.Established)
         {
@@ -266,21 +133,10 @@ public struct TcpConnectionClose
             return result.Status;
         }
 
-        return ReceiveFinAckAndWriteAck(
-            inboundSegment,
-            outboundSegment,
-            TcpConnectionCloseState.CloseWait,
-            LocalNextSequenceNumber,
-            windowSize,
-            checksum,
-            out result);
+        return ReceiveFinAckAndWriteAck(inboundSegment, outboundSegment, TcpConnectionCloseState.CloseWait, LocalNextSequenceNumber, windowSize, checksum, out result);
     }
 
-    public TcpConnectionCloseStatus TryWritePassiveFinAck(
-        Span<byte> segment,
-        ushort windowSize,
-        ushort checksum,
-        out TcpConnectionCloseTransitionResult result)
+    public TcpConnectionCloseStatus TryWritePassiveFinAck(Span<byte> segment, ushort windowSize, ushort checksum, out TcpConnectionCloseTransitionResult result)
     {
         if (State != TcpConnectionCloseState.CloseWait)
         {
@@ -288,12 +144,7 @@ public struct TcpConnectionClose
             return result.Status;
         }
 
-        PacketParseStatus writeStatus = TryWriteLocalSegment(
-            segment,
-            FlagFin | FlagAck,
-            windowSize,
-            checksum,
-            out int bytesWritten);
+        PacketParseStatus writeStatus = TryWriteLocalSegment(segment, FlagFin | FlagAck, windowSize, checksum, out int bytesWritten);
         if (writeStatus != PacketParseStatus.Success)
         {
             TcpConnectionCloseStatus status = MapWriteStatus(writeStatus);
@@ -303,18 +154,11 @@ public struct TcpConnectionClose
 
         LocalNextSequenceNumber = AddSequence(LocalNextSequenceNumber, 1);
         State = TcpConnectionCloseState.LastAck;
-        result = TcpConnectionCloseTransitionResult.Success(
-            State,
-            writeStatus,
-            bytesWritten,
-            LocalNextSequenceNumber,
-            RemoteNextSequenceNumber);
+        result = TcpConnectionCloseTransitionResult.Success(State, writeStatus, bytesWritten, LocalNextSequenceNumber, RemoteNextSequenceNumber);
         return result.Status;
     }
 
-    public TcpConnectionCloseStatus ReceivePassiveFinAcknowledgement(
-        ReadOnlySpan<byte> segment,
-        out TcpConnectionCloseTransitionResult result)
+    public TcpConnectionCloseStatus ReceivePassiveFinAcknowledgement(ReadOnlySpan<byte> segment, out TcpConnectionCloseTransitionResult result)
     {
         if (State != TcpConnectionCloseState.LastAck)
         {
@@ -322,12 +166,7 @@ public struct TcpConnectionClose
             return result.Status;
         }
 
-        TcpConnectionCloseStatus status = ValidateRemoteControlSegment(
-            segment,
-            FlagAck,
-            LocalNextSequenceNumber,
-            RemoteNextSequenceNumber,
-            out PacketParseStatus packetStatus);
+        TcpConnectionCloseStatus status = ValidateRemoteControlSegment(segment, FlagAck, LocalNextSequenceNumber, RemoteNextSequenceNumber, out PacketParseStatus packetStatus);
         if (status != TcpConnectionCloseStatus.Success)
         {
             result = CreateFailure(status, packetStatus);
@@ -335,18 +174,11 @@ public struct TcpConnectionClose
         }
 
         State = TcpConnectionCloseState.Closed;
-        result = TcpConnectionCloseTransitionResult.Success(
-            State,
-            packetStatus,
-            bytesWritten: 0,
-            LocalNextSequenceNumber,
-            RemoteNextSequenceNumber);
+        result = TcpConnectionCloseTransitionResult.Success(State, packetStatus, bytesWritten: 0, LocalNextSequenceNumber, RemoteNextSequenceNumber);
         return result.Status;
     }
 
-    public TcpConnectionCloseStatus ReceiveReset(
-        ReadOnlySpan<byte> segment,
-        out TcpConnectionCloseTransitionResult result)
+    public TcpConnectionCloseStatus ReceiveReset(ReadOnlySpan<byte> segment, out TcpConnectionCloseTransitionResult result)
     {
         if (State == TcpConnectionCloseState.Closed || State == TcpConnectionCloseState.Reset)
         {
@@ -354,23 +186,14 @@ public struct TcpConnectionClose
             return result.Status;
         }
 
-        PacketParseStatus parseStatus = TcpHeader.TryParse(
-            segment,
-            out TcpHeader header,
-            out ReadOnlySpan<byte> _,
-            out ReadOnlySpan<byte> payload);
+        PacketParseStatus parseStatus = TcpHeader.TryParse(segment, out TcpHeader header, out ReadOnlySpan<byte> _, out ReadOnlySpan<byte> payload);
         if (parseStatus != PacketParseStatus.Success)
         {
             result = CreateFailure(TcpConnectionCloseStatus.SegmentParseFailed, parseStatus);
             return result.Status;
         }
 
-        TcpConnectionCloseStatus validationStatus = ValidateRemoteHeader(
-            header,
-            ResetAllowedFlags,
-            LocalNextSequenceNumber,
-            RemoteNextSequenceNumber,
-            requireExactFlags: false);
+        TcpConnectionCloseStatus validationStatus = ValidateRemoteHeader(header, ResetAllowedFlags, LocalNextSequenceNumber, RemoteNextSequenceNumber, requireExactFlags: false);
         if (validationStatus != TcpConnectionCloseStatus.Success)
         {
             result = CreateFailure(validationStatus, parseStatus);
@@ -384,12 +207,7 @@ public struct TcpConnectionClose
         }
 
         State = TcpConnectionCloseState.Reset;
-        result = TcpConnectionCloseTransitionResult.Success(
-            State,
-            parseStatus,
-            bytesWritten: 0,
-            LocalNextSequenceNumber,
-            RemoteNextSequenceNumber);
+        result = TcpConnectionCloseTransitionResult.Success(State, parseStatus, bytesWritten: 0, LocalNextSequenceNumber, RemoteNextSequenceNumber);
         return result.Status;
     }
 
@@ -400,63 +218,72 @@ public struct TcpConnectionClose
     /// byte codec owns no clock, TX lease, checksum validation or reclamation.
     /// Invalid state/ports/flags/sequence/ACK/payload or short output preserves
     /// state and sequences. Apply this staged value only after copied TX.</summary>
-    public TcpConnectionCloseStatus ReceiveRepeatedFinAndWriteAck(ReadOnlySpan<byte> inboundSegment,
-        Span<byte> outboundSegment, ushort windowSize, ushort checksum,
-        out TcpConnectionCloseTransitionResult result)
+
+    public TcpConnectionCloseStatus ReceiveRepeatedFinAndWriteAck(ReadOnlySpan<byte> inboundSegment, Span<byte> outboundSegment, ushort windowSize, ushort checksum, out TcpConnectionCloseTransitionResult result)
     {
-        if (State is not (TcpConnectionCloseState.CloseWait or TcpConnectionCloseState.LastAck or
-            TcpConnectionCloseState.Closing or TcpConnectionCloseState.TimeWait))
-        { result = CreateFailure(TcpConnectionCloseStatus.InvalidState, PacketParseStatus.Success); return result.Status; }
+        if (State is not (TcpConnectionCloseState.CloseWait or TcpConnectionCloseState.LastAck or TcpConnectionCloseState.Closing or TcpConnectionCloseState.TimeWait))
+        {
+            result = CreateFailure(TcpConnectionCloseStatus.InvalidState, PacketParseStatus.Success);
+            return result.Status;
+        }
+
         var parse = TcpHeader.TryParse(inboundSegment, out var header, out _, out _);
         if (parse != PacketParseStatus.Success)
-        { result = CreateFailure(TcpConnectionCloseStatus.SegmentParseFailed, parse); return result.Status; }
+        {
+            result = CreateFailure(TcpConnectionCloseStatus.SegmentParseFailed, parse);
+            return result.Status;
+        }
+
         uint expectedAck = LocalNextSequenceNumber;
-        if ((State is TcpConnectionCloseState.LastAck or TcpConnectionCloseState.Closing or TcpConnectionCloseState.TimeWait) &&
-            header.AcknowledgementNumber == unchecked(LocalNextSequenceNumber - 1)) expectedAck = header.AcknowledgementNumber;
-        var status = ValidateRemoteControlSegment(inboundSegment, FlagFin | FlagAck,
-            expectedAck, unchecked(RemoteNextSequenceNumber - 1), out parse);
+        if ((State is TcpConnectionCloseState.LastAck or TcpConnectionCloseState.Closing or TcpConnectionCloseState.TimeWait) && header.AcknowledgementNumber == unchecked(LocalNextSequenceNumber - 1))
+            expectedAck = header.AcknowledgementNumber;
+        var status = ValidateRemoteControlSegment(inboundSegment, FlagFin | FlagAck, expectedAck, unchecked(RemoteNextSequenceNumber - 1), out parse);
         if (status != TcpConnectionCloseStatus.Success)
-        { result = CreateFailure(status, parse); return result.Status; }
+        {
+            result = CreateFailure(status, parse);
+            return result.Status;
+        }
+
         parse = TryWriteLocalSegment(outboundSegment, FlagAck, windowSize, checksum, out int written);
         if (parse != PacketParseStatus.Success)
-        { result = CreateFailure(MapWriteStatus(parse), parse); return result.Status; }
+        {
+            result = CreateFailure(MapWriteStatus(parse), parse);
+            return result.Status;
+        }
+
         if (header.AcknowledgementNumber == LocalNextSequenceNumber)
         {
-            if (State == TcpConnectionCloseState.Closing) State = TcpConnectionCloseState.TimeWait;
-            else if (State == TcpConnectionCloseState.LastAck) State = TcpConnectionCloseState.Closed;
+            if (State == TcpConnectionCloseState.Closing)
+                State = TcpConnectionCloseState.TimeWait;
+            else if (State == TcpConnectionCloseState.LastAck)
+                State = TcpConnectionCloseState.Closed;
         }
-        result = TcpConnectionCloseTransitionResult.Success(State, parse, written,
-            LocalNextSequenceNumber, RemoteNextSequenceNumber); return result.Status;
+
+        result = TcpConnectionCloseTransitionResult.Success(State, parse, written, LocalNextSequenceNumber, RemoteNextSequenceNumber);
+        return result.Status;
     }
 
     /// <summary>Complete the nominal TimeWait state after the exclusive live
     /// owner has proved its actual 2MSL deadline, including duplicate-FIN restarts.
     /// No elapsed time, external queue release or table reclamation is certified
     /// here. Other states fail unchanged; sequences remain the completed pair.</summary>
+
     public TcpConnectionCloseStatus CompleteTimeWait(out TcpConnectionCloseTransitionResult result)
     {
         if (State != TcpConnectionCloseState.TimeWait)
-        { result = CreateFailure(TcpConnectionCloseStatus.InvalidState, PacketParseStatus.Success); return result.Status; }
+        {
+            result = CreateFailure(TcpConnectionCloseStatus.InvalidState, PacketParseStatus.Success);
+            return result.Status;
+        }
+
         State = TcpConnectionCloseState.Closed;
-        result = TcpConnectionCloseTransitionResult.Success(State, PacketParseStatus.Success, 0,
-            LocalNextSequenceNumber, RemoteNextSequenceNumber); return result.Status;
+        result = TcpConnectionCloseTransitionResult.Success(State, PacketParseStatus.Success, 0, LocalNextSequenceNumber, RemoteNextSequenceNumber);
+        return result.Status;
     }
 
-    private TcpConnectionCloseStatus ReceiveFinAckAndWriteAck(
-        ReadOnlySpan<byte> inboundSegment,
-        Span<byte> outboundSegment,
-        TcpConnectionCloseState targetState,
-        uint expectedAcknowledgement,
-        ushort windowSize,
-        ushort checksum,
-        out TcpConnectionCloseTransitionResult result)
+    private TcpConnectionCloseStatus ReceiveFinAckAndWriteAck(ReadOnlySpan<byte> inboundSegment, Span<byte> outboundSegment, TcpConnectionCloseState targetState, uint expectedAcknowledgement, ushort windowSize, ushort checksum, out TcpConnectionCloseTransitionResult result)
     {
-        TcpConnectionCloseStatus inboundStatus = ValidateRemoteControlSegment(
-            inboundSegment,
-            FlagFin | FlagAck,
-            expectedAcknowledgement,
-            RemoteNextSequenceNumber,
-            out PacketParseStatus packetStatus);
+        TcpConnectionCloseStatus inboundStatus = ValidateRemoteControlSegment(inboundSegment, FlagFin | FlagAck, expectedAcknowledgement, RemoteNextSequenceNumber, out PacketParseStatus packetStatus);
         if (inboundStatus != TcpConnectionCloseStatus.Success)
         {
             result = CreateFailure(inboundStatus, packetStatus);
@@ -464,19 +291,7 @@ public struct TcpConnectionClose
         }
 
         uint nextRemoteSequenceNumber = AddSequence(RemoteNextSequenceNumber, 1);
-        PacketParseStatus writeStatus = TcpHeader.TryWrite(
-            outboundSegment,
-            LocalPort,
-            RemotePort,
-            LocalNextSequenceNumber,
-            nextRemoteSequenceNumber,
-            FlagAck,
-            windowSize,
-            checksum,
-            urgentPointer: 0,
-            ReadOnlySpan<byte>.Empty,
-            ReadOnlySpan<byte>.Empty,
-            out int bytesWritten);
+        PacketParseStatus writeStatus = TcpHeader.TryWrite(outboundSegment, LocalPort, RemotePort, LocalNextSequenceNumber, nextRemoteSequenceNumber, FlagAck, windowSize, checksum, urgentPointer: 0, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty, out int bytesWritten);
         if (writeStatus != PacketParseStatus.Success)
         {
             TcpConnectionCloseStatus status = MapWriteStatus(writeStatus);
@@ -486,54 +301,28 @@ public struct TcpConnectionClose
 
         RemoteNextSequenceNumber = nextRemoteSequenceNumber;
         State = targetState;
-        result = TcpConnectionCloseTransitionResult.Success(
-            State,
-            writeStatus,
-            bytesWritten,
-            LocalNextSequenceNumber,
-            RemoteNextSequenceNumber);
+        result = TcpConnectionCloseTransitionResult.Success(State, writeStatus, bytesWritten, LocalNextSequenceNumber, RemoteNextSequenceNumber);
         return result.Status;
     }
 
-    private TcpConnectionCloseStatus ValidateRemoteControlSegment(
-        ReadOnlySpan<byte> segment,
-        byte expectedFlags,
-        uint expectedAcknowledgementNumber,
-        uint expectedSequenceNumber,
-        out PacketParseStatus packetStatus)
+    private TcpConnectionCloseStatus ValidateRemoteControlSegment(ReadOnlySpan<byte> segment, byte expectedFlags, uint expectedAcknowledgementNumber, uint expectedSequenceNumber, out PacketParseStatus packetStatus)
     {
-        packetStatus = TcpHeader.TryParse(
-            segment,
-            out TcpHeader header,
-            out ReadOnlySpan<byte> _,
-            out ReadOnlySpan<byte> payload);
+        packetStatus = TcpHeader.TryParse(segment, out TcpHeader header, out ReadOnlySpan<byte> _, out ReadOnlySpan<byte> payload);
         if (packetStatus != PacketParseStatus.Success)
         {
             return TcpConnectionCloseStatus.SegmentParseFailed;
         }
 
-        TcpConnectionCloseStatus headerStatus = ValidateRemoteHeader(
-            header,
-            expectedFlags,
-            expectedAcknowledgementNumber,
-            expectedSequenceNumber,
-            requireExactFlags: true);
+        TcpConnectionCloseStatus headerStatus = ValidateRemoteHeader(header, expectedFlags, expectedAcknowledgementNumber, expectedSequenceNumber, requireExactFlags: true);
         if (headerStatus != TcpConnectionCloseStatus.Success)
         {
             return headerStatus;
         }
 
-        return payload.Length == 0
-            ? TcpConnectionCloseStatus.Success
-            : TcpConnectionCloseStatus.UnexpectedPayload;
+        return payload.Length == 0 ? TcpConnectionCloseStatus.Success : TcpConnectionCloseStatus.UnexpectedPayload;
     }
 
-    private TcpConnectionCloseStatus ValidateRemoteHeader(
-        TcpHeader header,
-        byte expectedFlags,
-        uint expectedAcknowledgementNumber,
-        uint expectedSequenceNumber,
-        bool requireExactFlags)
+    private TcpConnectionCloseStatus ValidateRemoteHeader(TcpHeader header, byte expectedFlags, uint expectedAcknowledgementNumber, uint expectedSequenceNumber, bool requireExactFlags)
     {
         if (header.SourcePort != RemotePort || header.DestinationPort != LocalPort)
         {
@@ -557,8 +346,7 @@ public struct TcpConnectionClose
             return TcpConnectionCloseStatus.WrongSequenceNumber;
         }
 
-        if ((header.Flags & FlagAck) != 0
-            && header.AcknowledgementNumber != expectedAcknowledgementNumber)
+        if ((header.Flags & FlagAck) != 0 && header.AcknowledgementNumber != expectedAcknowledgementNumber)
         {
             return TcpConnectionCloseStatus.WrongAcknowledgementNumber;
         }
@@ -566,45 +354,19 @@ public struct TcpConnectionClose
         return TcpConnectionCloseStatus.Success;
     }
 
-    private PacketParseStatus TryWriteLocalSegment(
-        Span<byte> segment,
-        byte flags,
-        ushort windowSize,
-        ushort checksum,
-        out int bytesWritten)
+    private PacketParseStatus TryWriteLocalSegment(Span<byte> segment, byte flags, ushort windowSize, ushort checksum, out int bytesWritten)
     {
-        return TcpHeader.TryWrite(
-            segment,
-            LocalPort,
-            RemotePort,
-            LocalNextSequenceNumber,
-            RemoteNextSequenceNumber,
-            flags,
-            windowSize,
-            checksum,
-            urgentPointer: 0,
-            ReadOnlySpan<byte>.Empty,
-            ReadOnlySpan<byte>.Empty,
-            out bytesWritten);
+        return TcpHeader.TryWrite(segment, LocalPort, RemotePort, LocalNextSequenceNumber, RemoteNextSequenceNumber, flags, windowSize, checksum, urgentPointer: 0, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty, out bytesWritten);
     }
 
-    private TcpConnectionCloseTransitionResult CreateFailure(
-        TcpConnectionCloseStatus status,
-        PacketParseStatus packetStatus)
+    private TcpConnectionCloseTransitionResult CreateFailure(TcpConnectionCloseStatus status, PacketParseStatus packetStatus)
     {
-        return TcpConnectionCloseTransitionResult.Fail(
-            status,
-            State,
-            packetStatus,
-            LocalNextSequenceNumber,
-            RemoteNextSequenceNumber);
+        return TcpConnectionCloseTransitionResult.Fail(status, State, packetStatus, LocalNextSequenceNumber, RemoteNextSequenceNumber);
     }
 
     private static TcpConnectionCloseStatus MapWriteStatus(PacketParseStatus status)
     {
-        return status == PacketParseStatus.BufferTooSmall
-            ? TcpConnectionCloseStatus.BufferTooSmall
-            : TcpConnectionCloseStatus.SegmentWriteFailed;
+        return status == PacketParseStatus.BufferTooSmall ? TcpConnectionCloseStatus.BufferTooSmall : TcpConnectionCloseStatus.SegmentWriteFailed;
     }
 
     private static uint AddSequence(uint sequenceNumber, int bytes)

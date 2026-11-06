@@ -13,13 +13,22 @@ internal static class NativeAotSocketMessageTests
     [HostTest("m16-013 value-only message reader joins owned immutable vectors to current call")]
     private static void Joined()
     {
-        string[] rows = [Message, First, Second, Call()]; var before = (string[])rows.Clone();
-        var values = NativeAotSocketMessages.Read(rows); HostCheck.Equal(1, values.Count);
-        var value = values[0]; HostCheck.Equal(0, value.RecordIndex); HostCheck.Equal(3, value.CallRecordIndex);
-        HostCheck.Equal(Identity, value.Identity); HostCheck.Equal(1UL, value.Ordinal); HostCheck.Equal(46UL, value.Number);
-        HostCheck.Equal(6U, value.Descriptor); HostCheck.Equal(2U, value.Generation); HostCheck.Equal(5U, value.Total);
+        string[] rows = [Message, First, Second, Call()];
+        var before = (string[])rows.Clone();
+        var values = NativeAotSocketMessages.Read(rows);
+        HostCheck.Equal(1, values.Count);
+        var value = values[0];
+        HostCheck.Equal(0, value.RecordIndex);
+        HostCheck.Equal(3, value.CallRecordIndex);
+        HostCheck.Equal(Identity, value.Identity);
+        HostCheck.Equal(1UL, value.Ordinal);
+        HostCheck.Equal(46UL, value.Number);
+        HostCheck.Equal(6U, value.Descriptor);
+        HostCheck.Equal(2U, value.Generation);
+        HostCheck.Equal(5U, value.Total);
         HostCheck.Equal(new NativeAotSocketMessages.Vector(20480, 3), value.Vectors[1]);
-        HostCheck.True(rows.SequenceEqual(before)); rows[1] = "changed";
+        HostCheck.True(rows.SequenceEqual(before));
+        rows[1] = "changed";
         HostCheck.Equal(new NativeAotSocketMessages.Vector(16384, 2), value.Vectors[0]);
         HostCheck.Equal(0, NativeAotSocketMessages.Read([Call()]).Count); // Complete consumer requires message use.
     }
@@ -31,10 +40,15 @@ internal static class NativeAotSocketMessageTests
         {
             string[] rows = new string[count + 2];
             rows[0] = $"M16_013_MESSAGE identity={Identity} ordinal=1 nr=46 fd=6 generation=2 header=8192 flags=16384 table=12288 vectors={count} total={count * bytes}";
-            for (int i = 0; i < count; i++) rows[i + 1] = $"M16_013_VECTOR identity={Identity} ordinal=1 index={i} address=32768 bytes={bytes}";
-            rows[^1] = Call(); var original = rows.ToArray(); var message = NativeAotSocketMessages.Read(rows).Single();
-            HostCheck.Equal((uint)(count * bytes), message.Total); HostCheck.Equal(count, message.Vectors.Count);
-            HostCheck.True(rows.SequenceEqual(original)); rows[1] = "changed";
+            for (int i = 0; i < count; i++)
+                rows[i + 1] = $"M16_013_VECTOR identity={Identity} ordinal=1 index={i} address=32768 bytes={bytes}";
+            rows[^1] = Call();
+            var original = rows.ToArray();
+            var message = NativeAotSocketMessages.Read(rows).Single();
+            HostCheck.Equal((uint)(count * bytes), message.Total);
+            HostCheck.Equal(count, message.Vectors.Count);
+            HostCheck.True(rows.SequenceEqual(original));
+            rows[1] = "changed";
             HostCheck.Equal(new NativeAotSocketMessages.Vector(32768, (ulong)bytes), message.Vectors[0]);
         }
     }
@@ -63,7 +77,15 @@ internal static class NativeAotSocketMessageTests
             [Message, First, Second, Call(), "M16_013_UNKNOWN value=0"]
         })
         {
-            bool rejected = false; try { NativeAotSocketMessages.Read(rows); } catch (ToolFailure) { rejected = true; }
+            bool rejected = false;
+            try
+            {
+                NativeAotSocketMessages.Read(rows);
+            }
+            catch (ToolFailure)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected, string.Join(" | ", rows));
         }
     }

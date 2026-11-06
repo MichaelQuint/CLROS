@@ -24,13 +24,22 @@ public readonly struct BootInfo
         Capabilities = capabilities;
     }
 
-    public BootMode Mode { get; }
+    public BootMode Mode
+    {
+        get;
+    }
 
     public string FirmwareVendor => _firmwareVendor ?? UnknownFirmwareVendor;
 
-    public uint FirmwareRevision { get; }
+    public uint FirmwareRevision
+    {
+        get;
+    }
 
-    public BootCapabilities Capabilities { get; }
+    public BootCapabilities Capabilities
+    {
+        get;
+    }
 
     public static BootInfo Unknown => new BootInfo(
         BootMode.Unknown,

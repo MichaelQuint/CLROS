@@ -18,7 +18,11 @@ public unsafe struct LinuxAppStartupObservation
     private bool failed, bound;
     private readonly bool service;
 
-    private LinuxAppStartupObservation(bool service) { this = default; this.service = service; }
+    private LinuxAppStartupObservation(bool service)
+    {
+        this = default;
+        this.service = service;
+    }
 
     /// <summary>Create an empty observer for the exact service startup identity.
     /// No application selection, source identity or execution is authorized.</summary>
@@ -48,12 +52,22 @@ public unsafe struct LinuxAppStartupObservation
     /// </summary>
     public bool Observe(ulong currentIdentity, byte* source, uint bytes)
     {
-        if (failed) return false;
+        if (failed)
+            return false;
         if (currentIdentity == 0 || source == null || bytes == 0 || bytes > 8192)
-        { failed = true; return false; }
-        if (stages == 4) return true;
-        if (writer == 0) writer = currentIdentity;
-        if (writer != currentIdentity) { failed = true; return false; }
+        {
+            failed = true;
+            return false;
+        }
+        if (stages == 4)
+            return true;
+        if (writer == 0)
+            writer = currentIdentity;
+        if (writer != currentIdentity)
+        {
+            failed = true;
+            return false;
+        }
         for (uint i = 0; i < bytes; i++)
         {
             string expected = service ? stages switch
@@ -69,11 +83,16 @@ public unsafe struct LinuxAppStartupObservation
                 2 => "CLROS_APP_CTOR minimal.api.smoke\n",
                 _ => "CLROS_APP_BUILT minimal.api.smoke\n"
             };
-            if (source[i] != expected[(int)position]) { failed = true; return false; }
+            if (source[i] != expected[(int)position])
+            {
+                failed = true;
+                return false;
+            }
             if (++position == expected.Length)
             {
                 position = 0;
-                if (++stages == 4) return true;
+                if (++stages == 4)
+                    return true;
             }
         }
         return true;
@@ -88,7 +107,12 @@ public unsafe struct LinuxAppStartupObservation
     public bool RecordBind(ulong currentIdentity, bool succeeded)
     {
         if (failed || currentIdentity == 0 || !StartupComplete || bound || !succeeded)
-        { failed = true; return false; }
-        bindWriter = currentIdentity; bound = true; return true;
+        {
+            failed = true;
+            return false;
+        }
+        bindWriter = currentIdentity;
+        bound = true;
+        return true;
     }
 }

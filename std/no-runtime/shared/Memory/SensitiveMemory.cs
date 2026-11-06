@@ -12,9 +12,11 @@ public static unsafe class SensitiveMemory
     [MethodImpl(MethodImplOptions.NoInlining | (MethodImplOptions)0x40)]
     public static bool Clear(void* address, uint bytes)
     {
-        if (bytes != 0 && (address == null || (ulong)address > ulong.MaxValue - bytes)) return false;
+        if (bytes != 0 && (address == null || (ulong)address > ulong.MaxValue - bytes))
+            return false;
         byte* target = (byte*)address;
-        for (uint i = 0; i < bytes; i++) target[i] = 0;
+        for (uint i = 0; i < bytes; i++)
+            target[i] = 0;
         return true;
     }
 }

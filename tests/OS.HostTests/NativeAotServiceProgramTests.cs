@@ -6,24 +6,36 @@ internal static class NativeAotServiceProgramTests
 {
     private static byte[] Image()
     {
-        byte[] package = LinuxElfPackageTests.CapturePackage(); var view = LinuxElfPackage.Validate(package);
+        byte[] package = LinuxElfPackageTests.CapturePackage();
+        var view = LinuxElfPackage.Validate(package);
         byte[] elf = package.AsSpan((int)view.PayloadOffset, (int)view.PayloadBytes).ToArray();
-        elf[512] = 0x0f; elf[513] = 0x05; elf[514] = 0xc3; return elf;
+        elf[512] = 0x0f;
+        elf[513] = 0x05;
+        elf[514] = 0xc3;
+        return elf;
     }
 
     [HostTest("nativeaot.service offline exact row report cannot authorize synthetic service ELF")]
     private static void Offline()
     {
-        byte[] elf = Image(); const string dump = "400200: 0f 05\tsyscall\n400202: c3\tretq\n";
+        byte[] elf = Image();
+        const string dump = "400200: 0f 05\tsyscall\n400202: c3\tretq\n";
         var report = NativeAotServiceProgram.Inspect(elf, dump);
-        HostCheck.Equal(2, report.InstructionCount); HostCheck.Equal(1, report.SyscallCount);
+        HostCheck.Equal(2, report.InstructionCount);
+        HostCheck.Equal(1, report.SyscallCount);
         HostCheck.Equal(64, report.Sha256.Length);
         string root = Path.Combine(Path.GetTempPath(), "clros-nonexistent-service-" + Guid.NewGuid().ToString("N"));
         foreach (var contract in new[] { NativeAotServiceContract.V1, NativeAotServiceContract.V2, NativeAotServiceContract.QuotaFailure })
         {
             bool rejected = false;
-            try { NativeAotServiceProgram.Create(root, NativeAotServicePackage.Create(elf, contract), dump, contract); }
-            catch (InvalidDataException error) { rejected = error.Message == "service_package_identity"; }
+            try
+            {
+                NativeAotServiceProgram.Create(root, NativeAotServicePackage.Create(elf, contract), dump, contract);
+            }
+            catch (InvalidDataException error)
+            {
+                rejected = error.Message == "service_package_identity";
+            }
             HostCheck.True(rejected);
         }
     }
@@ -37,13 +49,26 @@ internal static class NativeAotServiceProgramTests
             "400200: 0f 05\tsyscall\n400200: 0f 05\tsyscall\n", "400200: 0f 05\t<unknown>\n" })
         {
             bool rejected = false;
-            try { NativeAotServiceProgram.Inspect(elf, dump); } catch (InvalidDataException) { rejected = true; }
+            try
+            {
+                NativeAotServiceProgram.Inspect(elf, dump);
+            }
+            catch (InvalidDataException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(68), 4);
         bool dataRejected = false;
-        try { NativeAotServiceProgram.Inspect(elf, "400200: 0f 05\tsyscall\n"); }
-        catch (InvalidDataException) { dataRejected = true; }
+        try
+        {
+            NativeAotServiceProgram.Inspect(elf, "400200: 0f 05\tsyscall\n");
+        }
+        catch (InvalidDataException)
+        {
+            dataRejected = true;
+        }
         HostCheck.True(dataRejected);
     }
 }

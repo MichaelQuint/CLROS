@@ -1,0 +1,34 @@
+#if M07_026_PROBE
+using OS.Drivers;
+using OS.Kernel.Memory;
+using OS.Net;
+using NetDevice = OS.Drivers.ContinuingVirtioNetDevice;
+using TcpTx = OS.Net.TcpSendWindow;
+using TcpRx = OS.Net.TcpReceiveWindow;
+using TcpPending = OS.Net.TcpPassiveConnection;
+
+namespace OS.Boot;
+
+public static unsafe partial class EfiEntry
+{
+    private static partial class M03FirstExitAdapter
+    {
+
+        // The single BSP dispatcher retains these image-backed owners even after
+        // failure. No callback context, table generation or byte buffer is on its stack.
+        private struct NetworkTcpStorage
+        {
+            internal Storage* Boot;
+            internal NetDevice.State* Device;
+            internal TcpConnectionTable.Owner Table;
+            internal NetworkTcpSlot A, B, C, D, E;
+            internal fixed ulong TableBytes[32];
+            internal fixed ulong BacklogBytes[16];
+            internal MacAddress Peer;
+            internal uint Failed;
+            internal ulong CopiedFrames, IncomingFrames, Controls;
+        }
+
+    }
+}
+#endif

@@ -7,17 +7,19 @@ internal static class KestrelVectorExercise
 {
     internal static async Task WriteAsync(HttpContext context)
     {
-        const int segmentBytes=16384,segments=3;
-        context.Response.ContentType="application/octet-stream";
-        context.Response.ContentLength=segmentBytes*segments;
-        for(int segment=0;segment<segments;segment++)
+        const int segmentBytes = 16384, segments = 3;
+        context.Response.ContentType = "application/octet-stream";
+        context.Response.ContentLength = segmentBytes * segments;
+        for (int segment = 0; segment < segments; segment++)
         {
-            Memory<byte> block=context.Response.BodyWriter.GetMemory(segmentBytes)[..segmentBytes];
-            for(int index=0;index<block.Length;index++)block.Span[index]=(byte)((segment*segmentBytes+index)%251);
+            Memory<byte> block = context.Response.BodyWriter.GetMemory(segmentBytes)[..segmentBytes];
+            for (int index = 0; index < block.Length; index++)
+                block.Span[index] = (byte)((segment * segmentBytes + index) % 251);
             context.Response.BodyWriter.Advance(segmentBytes);
         }
-        var flushed=await context.Response.BodyWriter.FlushAsync(context.RequestAborted);
-        if(flushed.IsCanceled)throw new OperationCanceledException(context.RequestAborted);
+        var flushed = await context.Response.BodyWriter.FlushAsync(context.RequestAborted);
+        if (flushed.IsCanceled)
+            throw new OperationCanceledException(context.RequestAborted);
         Console.Error.WriteLine("CLROS_VECTOR_STAGED bytes=49152 blocks=3");
     }
 }

@@ -7,21 +7,40 @@ internal static class NativeAotServiceQuotaPeerReportTests
     [HostTest("quota peer report round trips immutable copied values without execution authority")]
     private static void Complete()
     {
-        var fixture = Fixture(); var samples = fixture.Samples.ToArray(); fixture = fixture with { Samples = samples };
-        string text = NativeAotServiceQuotaPeer.SerializeReport(fixture); byte[] bytes = Encoding.UTF8.GetBytes(text);
+        var fixture = Fixture();
+        var samples = fixture.Samples.ToArray();
+        fixture = fixture with
+        {
+            Samples = samples
+        };
+        string text = NativeAotServiceQuotaPeer.SerializeReport(fixture);
+        byte[] bytes = Encoding.UTF8.GetBytes(text);
         var result = NativeAotServiceQuotaPeer.InspectReport(bytes);
         HostCheck.Equal(text, NativeAotServiceQuotaPeer.SerializeReport(result));
         HostCheck.True(result.Port == 8080 && result.ConnectionLimit == 4 && result.Samples.Count == 18 &&
             result.RetainedBytes == 2UL * 1048576 && result.GcCollections == 2 && result.WorkerCallsBefore == 102 && result.WorkerCallsAfter == 103);
-        bytes.AsSpan().Clear(); samples[0] = samples[0] with { Body = "mutated" };
+        bytes.AsSpan().Clear();
+        samples[0] = samples[0] with
+        {
+            Body = "mutated"
+        };
         HostCheck.Equal(text, NativeAotServiceQuotaPeer.SerializeReport(result));
         bool immutable = false;
-        try { ((IList<NativeAotServiceQuotaPeer.Sample>)result.Samples)[0] = default; }
-        catch (NotSupportedException) { immutable = true; }
+        try
+        {
+            ((IList<NativeAotServiceQuotaPeer.Sample>)result.Samples)[0] = default;
+        }
+        catch (NotSupportedException)
+        {
+            immutable = true;
+        }
         HostCheck.True(immutable);
-        var late = Root(); Row(late, 17)["elapsedTicks"] = 20;
+        var late = Root();
+        Row(late, 17)["elapsedTicks"] = 20;
         HostCheck.True(Inspect(late).Samples[17].ElapsedTicks > Inspect(late).PressureAbortedTicks);
-        var unchanged = Root(); Row(unchanged, 17)["elapsedTicks"] = 17; Row(unchanged, 17)["body"] = Row(unchanged, 16)["body"]!.GetValue<string>();
+        var unchanged = Root();
+        Row(unchanged, 17)["elapsedTicks"] = 17;
+        Row(unchanged, 17)["body"] = Row(unchanged, 16)["body"]!.GetValue<string>();
         HostCheck.Equal(17L, Inspect(unchanged).Samples[17].ElapsedTicks);
     }
 
@@ -37,9 +56,17 @@ internal static class NativeAotServiceQuotaPeerReportTests
             Reject(() => NativeAotServiceQuotaPeer.InspectReport(Encoding.UTF8.GetBytes(bad)));
         Reject(() => NativeAotServiceQuotaPeer.InspectReport(new byte[] { 0xff }));
         foreach (string field in Root().Select(field => field.Key).ToArray())
-        { var root = Root(); root.Remove(field); Reject(root); }
+        {
+            var root = Root();
+            root.Remove(field);
+            Reject(root);
+        }
         foreach (string field in new[] { "name", "elapsedTicks", "body" })
-        { var root = Root(); Row(root, 0).Remove(field); Reject(root); }
+        {
+            var root = Root();
+            Row(root, 0).Remove(field);
+            Reject(root);
+        }
         foreach (Action<JsonObject> change in new Action<JsonObject>[] {
             r => r["extra"] = 1, r => Row(r, 0)["extra"] = 1, r => r["schema"] = "other", r => r["tickUnit"] = "milliseconds",
             r => r["port"] = "8080", r => r["port"] = -1, r => r["port"] = 65536, r => r["port"] = 8080.5,
@@ -49,7 +76,11 @@ internal static class NativeAotServiceQuotaPeerReportTests
             r => Row(r, 1)["name"] = "health.startup", r => Row(r, 0)["body"] = new string('x', 8193),
             r => Row(r, 0)["body"] = "CLROS_SERVICE_HEALTH_OK\n", r => Row(r, 0)["body"] = "\u0100",
             r => Row(r, 0)["elapsedTicks"] = 0, r => Row(r, 17)["elapsedTicks"] = 9_000_000_001L })
-        { var root = Root(); change(root); Reject(root); }
+        {
+            var root = Root();
+            change(root);
+            Reject(root);
+        }
     }
 
     [HostTest("quota peer report rejoins pressure health worker held and retained GC overlap witnesses")]
@@ -79,7 +110,11 @@ internal static class NativeAotServiceQuotaPeerReportTests
             r => Row(r, 12)["body"] = Worker(1, 7, 102, 33, 4097, 4, 300).Replace("\"failure\":0", "\"failure\":1", StringComparison.Ordinal),
             r => Row(r, 14)["body"] = Worker(1, 8, 103, 33, 4097, 5, 400),
             r => Row(r, 14)["body"] = Worker(1, 7, 102, 33, 4097, 5, 400) })
-        { var root = Root(); change(root); Reject(root); }
+        {
+            var root = Root();
+            change(root);
+            Reject(root);
+        }
     }
 
     [HostTest("quota peer serializer refuses invalid source values before emitting a report")]
@@ -106,20 +141,33 @@ internal static class NativeAotServiceQuotaPeerReportTests
         }
         Reject(() => NativeAotServiceQuotaPeer.SerializeReport(AtEnd(maximum + 1)));
         var lateSample = JsonNode.Parse(NativeAotServiceQuotaPeer.SerializeReport(AtEnd(maximum)))!.AsObject();
-        Row(lateSample, 17)["elapsedTicks"] = maximum + 1; Reject(lateSample);
+        Row(lateSample, 17)["elapsedTicks"] = maximum + 1;
+        Reject(lateSample);
         var lateAbort = JsonNode.Parse(NativeAotServiceQuotaPeer.SerializeReport(AtEnd(maximum)))!.AsObject();
-        lateAbort["pressureAbortedTicks"] = maximum + 1; Reject(lateAbort);
+        lateAbort["pressureAbortedTicks"] = maximum + 1;
+        Reject(lateAbort);
     }
 
     private static NativeAotServiceQuotaPeer.Observation AtEnd(long end)
     {
-        var original = Fixture(); long shift = end - original.PressureAbortedTicks;
+        var original = Fixture();
+        long shift = end - original.PressureAbortedTicks;
         var samples = original.Samples.Select(s => s with { ElapsedTicks = s.ElapsedTicks + shift }).ToArray();
-        samples[^1] = samples[^1] with { ElapsedTicks = end };
-        return original with { HeldTicks = original.HeldTicks + shift, PressureStartedTicks = original.PressureStartedTicks + shift,
-            RetainedTicks = original.RetainedTicks + shift, HealthyTicks = original.HealthyTicks + shift,
-            WorkerProgressTicks = original.WorkerProgressTicks + shift, OverlapTicks = original.OverlapTicks + shift,
-            PressureAbortedTicks = end, Samples = samples };
+        samples[^1] = samples[^1] with
+        {
+            ElapsedTicks = end
+        };
+        return original with
+        {
+            HeldTicks = original.HeldTicks + shift,
+            PressureStartedTicks = original.PressureStartedTicks + shift,
+            RetainedTicks = original.RetainedTicks + shift,
+            HealthyTicks = original.HealthyTicks + shift,
+            WorkerProgressTicks = original.WorkerProgressTicks + shift,
+            OverlapTicks = original.OverlapTicks + shift,
+            PressureAbortedTicks = end,
+            Samples = samples
+        };
     }
 
     private static NativeAotServiceQuotaPeer.Observation Fixture()
@@ -139,16 +187,33 @@ internal static class NativeAotServiceQuotaPeerReportTests
         $"CLROS_LIFECYCLE_STATUS active={active} waiting={waiting} waits={waits} canceled=0 echoes=0 streams=0 rejected=0 read={read} written=0");
     private static string Quota(int phase, int attempts, long bytes, int gc) => FormattableString.Invariant(
         $"CLROS_QUOTA_STATUS phase={phase} attempts={attempts} retainedBytes={bytes} gcCollections={gc}");
-    private static string Worker(int phase, int id, long calls, long requests, long bytes, long iterations, long ms) => new JsonObject {
-        ["contract"] = "clros.service.v1", ["phase"] = phase, ["failure"] = 0, ["managedWorkerId"] = id, ["calls"] = calls,
-        ["randomRequests"] = requests, ["randomBytes"] = bytes, ["iterations"] = iterations, ["elapsedMilliseconds"] = ms }.ToJsonString();
+    private static string Worker(int phase, int id, long calls, long requests, long bytes, long iterations, long ms) => new JsonObject
+    {
+        ["contract"] = "clros.service.v1",
+        ["phase"] = phase,
+        ["failure"] = 0,
+        ["managedWorkerId"] = id,
+        ["calls"] = calls,
+        ["randomRequests"] = requests,
+        ["randomBytes"] = bytes,
+        ["iterations"] = iterations,
+        ["elapsedMilliseconds"] = ms
+    }.ToJsonString();
     private static JsonObject Root() => JsonNode.Parse(NativeAotServiceQuotaPeer.SerializeReport(Fixture()))!.AsObject();
     private static JsonObject Row(JsonObject root, int index) => root["samples"]!.AsArray()[index]!.AsObject();
     private static NativeAotServiceQuotaPeer.Observation Inspect(JsonObject root) => NativeAotServiceQuotaPeer.InspectReport(Encoding.UTF8.GetBytes(root.ToJsonString()));
     private static void Reject(JsonObject root) => Reject(() => Inspect(root));
     private static void Reject(Action action)
     {
-        bool refused = false; try { action(); } catch (Exception error) when (error is ToolFailure or InvalidDataException) { refused = true; }
+        bool refused = false;
+        try
+        {
+            action();
+        }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException)
+        {
+            refused = true;
+        }
         HostCheck.True(refused);
     }
 }

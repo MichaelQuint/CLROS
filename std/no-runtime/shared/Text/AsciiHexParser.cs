@@ -2,127 +2,6 @@ using OS.Std;
 
 namespace OS.Std.Text;
 
-public enum AsciiHexParseStatus
-{
-    Success = 0,
-    Empty = 1,
-    PrefixOnly = 2,
-    NonHexDigit = 3,
-    Overflow = 4
-}
-
-public readonly struct AsciiHexUInt32ParseResult
-{
-    private AsciiHexUInt32ParseResult(
-        bool isInitialized,
-        AsciiHexParseStatus status,
-        uint value,
-        int bytesConsumed,
-        int invalidInputIndex)
-    {
-        IsInitialized = isInitialized;
-        Status = status;
-        Value = value;
-        BytesConsumed = bytesConsumed;
-        InvalidInputIndex = invalidInputIndex;
-    }
-
-    public bool IsInitialized { get; }
-
-    public AsciiHexParseStatus Status { get; }
-
-    public uint Value { get; }
-
-    public int BytesConsumed { get; }
-
-    public int InvalidInputIndex { get; }
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == AsciiHexParseStatus.Success &&
-        BytesConsumed > 0 &&
-        InvalidInputIndex < 0;
-
-    public static AsciiHexUInt32ParseResult Success(uint value, int bytesConsumed)
-    {
-        return new AsciiHexUInt32ParseResult(
-            true,
-            AsciiHexParseStatus.Success,
-            value,
-            bytesConsumed,
-            -1);
-    }
-
-    public static AsciiHexUInt32ParseResult Fail(
-        AsciiHexParseStatus status,
-        int bytesConsumed,
-        int invalidInputIndex)
-    {
-        return new AsciiHexUInt32ParseResult(
-            true,
-            status,
-            0,
-            bytesConsumed,
-            invalidInputIndex);
-    }
-}
-
-public readonly struct AsciiHexUInt64ParseResult
-{
-    private AsciiHexUInt64ParseResult(
-        bool isInitialized,
-        AsciiHexParseStatus status,
-        ulong value,
-        int bytesConsumed,
-        int invalidInputIndex)
-    {
-        IsInitialized = isInitialized;
-        Status = status;
-        Value = value;
-        BytesConsumed = bytesConsumed;
-        InvalidInputIndex = invalidInputIndex;
-    }
-
-    public bool IsInitialized { get; }
-
-    public AsciiHexParseStatus Status { get; }
-
-    public ulong Value { get; }
-
-    public int BytesConsumed { get; }
-
-    public int InvalidInputIndex { get; }
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == AsciiHexParseStatus.Success &&
-        BytesConsumed > 0 &&
-        InvalidInputIndex < 0;
-
-    public static AsciiHexUInt64ParseResult Success(ulong value, int bytesConsumed)
-    {
-        return new AsciiHexUInt64ParseResult(
-            true,
-            AsciiHexParseStatus.Success,
-            value,
-            bytesConsumed,
-            -1);
-    }
-
-    public static AsciiHexUInt64ParseResult Fail(
-        AsciiHexParseStatus status,
-        int bytesConsumed,
-        int invalidInputIndex)
-    {
-        return new AsciiHexUInt64ParseResult(
-            true,
-            status,
-            0,
-            bytesConsumed,
-            invalidInputIndex);
-    }
-}
-
 public static partial class AsciiHexParser
 {
     private const byte Zero = (byte)'0';
@@ -135,9 +14,7 @@ public static partial class AsciiHexParser
     private const uint UInt32MaxMod16 = uint.MaxValue & 0xFU;
     private const ulong UInt64MaxDiv16 = ulong.MaxValue >> 4;
     private const ulong UInt64MaxMod16 = ulong.MaxValue & 0xFUL;
-
     public const CompatibilityStatus Status = CompatibilityStatus.Partial;
-
     public static AsciiHexUInt32ParseResult ParseUInt32(ReadOnlySpan<byte> source)
     {
         int digitStart = GetDigitStart(source);
@@ -148,10 +25,7 @@ public static partial class AsciiHexParser
 
         if (digitStart == source.Length)
         {
-            return AsciiHexUInt32ParseResult.Fail(
-                AsciiHexParseStatus.PrefixOnly,
-                source.Length,
-                -1);
+            return AsciiHexUInt32ParseResult.Fail(AsciiHexParseStatus.PrefixOnly, source.Length, -1);
         }
 
         uint value = 0;
@@ -159,19 +33,12 @@ public static partial class AsciiHexParser
         {
             if (!TryGetHexValue(source[index], out byte digit))
             {
-                return AsciiHexUInt32ParseResult.Fail(
-                    AsciiHexParseStatus.NonHexDigit,
-                    index,
-                    index);
+                return AsciiHexUInt32ParseResult.Fail(AsciiHexParseStatus.NonHexDigit, index, index);
             }
 
-            if (value > UInt32MaxDiv16 ||
-                (value == UInt32MaxDiv16 && digit > UInt32MaxMod16))
+            if (value > UInt32MaxDiv16 || (value == UInt32MaxDiv16 && digit > UInt32MaxMod16))
             {
-                return AsciiHexUInt32ParseResult.Fail(
-                    AsciiHexParseStatus.Overflow,
-                    index,
-                    index);
+                return AsciiHexUInt32ParseResult.Fail(AsciiHexParseStatus.Overflow, index, index);
             }
 
             value = (value << 4) | digit;
@@ -190,10 +57,7 @@ public static partial class AsciiHexParser
 
         if (digitStart == source.Length)
         {
-            return AsciiHexUInt64ParseResult.Fail(
-                AsciiHexParseStatus.PrefixOnly,
-                source.Length,
-                -1);
+            return AsciiHexUInt64ParseResult.Fail(AsciiHexParseStatus.PrefixOnly, source.Length, -1);
         }
 
         ulong value = 0;
@@ -201,19 +65,12 @@ public static partial class AsciiHexParser
         {
             if (!TryGetHexValue(source[index], out byte digit))
             {
-                return AsciiHexUInt64ParseResult.Fail(
-                    AsciiHexParseStatus.NonHexDigit,
-                    index,
-                    index);
+                return AsciiHexUInt64ParseResult.Fail(AsciiHexParseStatus.NonHexDigit, index, index);
             }
 
-            if (value > UInt64MaxDiv16 ||
-                (value == UInt64MaxDiv16 && digit > UInt64MaxMod16))
+            if (value > UInt64MaxDiv16 || (value == UInt64MaxDiv16 && digit > UInt64MaxMod16))
             {
-                return AsciiHexUInt64ParseResult.Fail(
-                    AsciiHexParseStatus.Overflow,
-                    index,
-                    index);
+                return AsciiHexUInt64ParseResult.Fail(AsciiHexParseStatus.Overflow, index, index);
             }
 
             value = (value << 4) | digit;
@@ -243,9 +100,7 @@ public static partial class AsciiHexParser
             return -1;
         }
 
-        if (source.Length >= 2 &&
-            source[0] == PrefixZero &&
-            (source[1] == PrefixLowerX || source[1] == PrefixUpperX))
+        if (source.Length >= 2 && source[0] == PrefixZero && (source[1] == PrefixLowerX || source[1] == PrefixUpperX))
         {
             return 2;
         }

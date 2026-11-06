@@ -2,166 +2,12 @@ using OS.Std.Text;
 
 namespace OS.Net;
 
-public enum HttpRequestParseStatus
-{
-    Success = 0,
-    BufferTooSmall = 1,
-    MissingRequestLineTerminator = 2,
-    UnsupportedMethod = 3,
-    InvalidRequestTarget = 4,
-    InvalidProtocol = 5,
-    MissingHeaderTerminator = 6,
-    InvalidHeader = 7,
-    InvalidContentLength = 8,
-    BodyTooShort = 9,
-    UnsupportedTransferEncoding = 10,
-    DuplicateContentLength = 11
-}
-
-public enum HttpRequestMethod
-{
-    Unknown = 0,
-    Get = 1,
-    Head = 2,
-    Post = 3
-}
-
-public readonly struct HttpRequestParseResult
-{
-    private HttpRequestParseResult(
-        HttpRequestParseStatus status,
-        HttpRequestMethod method,
-        int targetOffset,
-        int targetLength,
-        byte protocolMajor,
-        byte protocolMinor,
-        int headerLength,
-        bool hasHost,
-        int hostOffset,
-        int hostLength,
-        bool hasContentLength,
-        int contentLength,
-        bool connectionClose,
-        int bodyOffset,
-        int bodyLength)
-    {
-        IsInitialized = true;
-        Status = status;
-        Method = method;
-        TargetOffset = targetOffset;
-        TargetLength = targetLength;
-        ProtocolMajor = protocolMajor;
-        ProtocolMinor = protocolMinor;
-        HeaderLength = headerLength;
-        HasHost = hasHost;
-        HostOffset = hostOffset;
-        HostLength = hostLength;
-        HasContentLength = hasContentLength;
-        ContentLength = contentLength;
-        ConnectionClose = connectionClose;
-        BodyOffset = bodyOffset;
-        BodyLength = bodyLength;
-    }
-
-    public HttpRequestParseStatus Status { get; }
-
-    public bool IsInitialized { get; }
-
-    public bool Succeeded => IsInitialized && Status == HttpRequestParseStatus.Success;
-
-    public HttpRequestMethod Method { get; }
-
-    public int TargetOffset { get; }
-
-    public int TargetLength { get; }
-
-    public byte ProtocolMajor { get; }
-
-    public byte ProtocolMinor { get; }
-
-    public int HeaderLength { get; }
-
-    public bool HasHost { get; }
-
-    public int HostOffset { get; }
-
-    public int HostLength { get; }
-
-    public bool HasContentLength { get; }
-
-    public int ContentLength { get; }
-
-    public bool ConnectionClose { get; }
-
-    public int BodyOffset { get; }
-
-    public int BodyLength { get; }
-
-    public static HttpRequestParseResult Success(
-        HttpRequestMethod method,
-        int targetOffset,
-        int targetLength,
-        byte protocolMajor,
-        byte protocolMinor,
-        int headerLength,
-        bool hasHost,
-        int hostOffset,
-        int hostLength,
-        bool hasContentLength,
-        int contentLength,
-        bool connectionClose,
-        int bodyOffset,
-        int bodyLength)
-    {
-        return new HttpRequestParseResult(
-            HttpRequestParseStatus.Success,
-            method,
-            targetOffset,
-            targetLength,
-            protocolMajor,
-            protocolMinor,
-            headerLength,
-            hasHost,
-            hostOffset,
-            hostLength,
-            hasContentLength,
-            contentLength,
-            connectionClose,
-            bodyOffset,
-            bodyLength);
-    }
-
-    public static HttpRequestParseResult Fail(HttpRequestParseStatus status)
-    {
-        return new HttpRequestParseResult(
-            status,
-            HttpRequestMethod.Unknown,
-            0,
-            0,
-            0,
-            0,
-            0,
-            false,
-            0,
-            0,
-            false,
-            0,
-            false,
-            0,
-            0);
-    }
-}
-
 public static class HttpRequestParser
 {
     public const int MinimumRequestLineLength = 16;
-
-    public static HttpRequestParseStatus TryParse(
-        ReadOnlySpan<byte> request,
-        out HttpRequestParseResult result)
+    public static HttpRequestParseStatus TryParse(ReadOnlySpan<byte> request, out HttpRequestParseResult result)
     {
         result = default;
-
         if (request.Length < MinimumRequestLineLength)
         {
             result = HttpRequestParseResult.Fail(HttpRequestParseStatus.BufferTooSmall);
@@ -175,15 +21,7 @@ public static class HttpRequestParser
             return result.Status;
         }
 
-        if (!TryParseRequestLine(
-            request,
-            requestLineEnd,
-            out HttpRequestMethod method,
-            out int targetOffset,
-            out int targetLength,
-            out byte major,
-            out byte minor,
-            out HttpRequestParseStatus requestLineStatus))
+        if (!TryParseRequestLine(request, requestLineEnd, out HttpRequestMethod method, out int targetOffset, out int targetLength, out byte major, out byte minor, out HttpRequestParseStatus requestLineStatus))
         {
             result = HttpRequestParseResult.Fail(requestLineStatus);
             return result.Status;
@@ -202,16 +40,7 @@ public static class HttpRequestParser
         bool hasContentLength = false;
         int contentLength = 0;
         bool connectionClose = false;
-        HttpRequestParseStatus headerStatus = ParseHeaders(
-            request,
-            requestLineEnd + 2,
-            headerTerminator,
-            ref hasHost,
-            ref hostOffset,
-            ref hostLength,
-            ref hasContentLength,
-            ref contentLength,
-            ref connectionClose);
+        HttpRequestParseStatus headerStatus = ParseHeaders(request, requestLineEnd + 2, headerTerminator, ref hasHost, ref hostOffset, ref hostLength, ref hasContentLength, ref contentLength, ref connectionClose);
         if (headerStatus != HttpRequestParseStatus.Success)
         {
             result = HttpRequestParseResult.Fail(headerStatus);
@@ -227,33 +56,11 @@ public static class HttpRequestParser
             return result.Status;
         }
 
-        result = HttpRequestParseResult.Success(
-            method,
-            targetOffset,
-            targetLength,
-            major,
-            minor,
-            bodyOffset,
-            hasHost,
-            hostOffset,
-            hostLength,
-            hasContentLength,
-            contentLength,
-            connectionClose,
-            bodyOffset,
-            bodyLength);
+        result = HttpRequestParseResult.Success(method, targetOffset, targetLength, major, minor, bodyOffset, hasHost, hostOffset, hostLength, hasContentLength, contentLength, connectionClose, bodyOffset, bodyLength);
         return result.Status;
     }
 
-    private static bool TryParseRequestLine(
-        ReadOnlySpan<byte> request,
-        int requestLineEnd,
-        out HttpRequestMethod method,
-        out int targetOffset,
-        out int targetLength,
-        out byte major,
-        out byte minor,
-        out HttpRequestParseStatus status)
+    private static bool TryParseRequestLine(ReadOnlySpan<byte> request, int requestLineEnd, out HttpRequestMethod method, out int targetOffset, out int targetLength, out byte major, out byte minor, out HttpRequestParseStatus status)
     {
         method = HttpRequestMethod.Unknown;
         targetOffset = 0;
@@ -261,7 +68,6 @@ public static class HttpRequestParser
         major = 0;
         minor = 0;
         status = HttpRequestParseStatus.Success;
-
         int firstSpace = IndexOfByte(request, 0, requestLineEnd, (byte)' ');
         if (firstSpace <= 0)
         {
@@ -292,11 +98,7 @@ public static class HttpRequestParser
         }
 
         ReadOnlySpan<byte> protocol = request.Slice(secondSpace + 1, requestLineEnd - secondSpace - 1);
-        if (protocol.Length != 8 ||
-            !OS.Std.MemoryExtensions.StartsWith(protocol, "HTTP/"u8) ||
-            !OS.Std.Ascii.IsDigit(protocol[5]) ||
-            protocol[6] != (byte)'.' ||
-            !OS.Std.Ascii.IsDigit(protocol[7]))
+        if (protocol.Length != 8 || !OS.Std.MemoryExtensions.StartsWith(protocol, "HTTP/"u8) || !OS.Std.Ascii.IsDigit(protocol[5]) || protocol[6] != (byte)'.' || !OS.Std.Ascii.IsDigit(protocol[7]))
         {
             status = HttpRequestParseStatus.InvalidProtocol;
             return false;
@@ -307,16 +109,7 @@ public static class HttpRequestParser
         return true;
     }
 
-    private static HttpRequestParseStatus ParseHeaders(
-        ReadOnlySpan<byte> request,
-        int headersStart,
-        int headersEnd,
-        ref bool hasHost,
-        ref int hostOffset,
-        ref int hostLength,
-        ref bool hasContentLength,
-        ref int contentLength,
-        ref bool connectionClose)
+    private static HttpRequestParseStatus ParseHeaders(ReadOnlySpan<byte> request, int headersStart, int headersEnd, ref bool hasHost, ref int hostOffset, ref int hostLength, ref bool hasContentLength, ref int contentLength, ref bool connectionClose)
     {
         int offset = headersStart;
         while (offset < headersEnd)
@@ -377,8 +170,7 @@ public static class HttpRequestParser
             {
                 connectionClose = AsciiString.EqualsIgnoreCase(semanticValue, "close"u8);
             }
-            else if (AsciiString.EqualsIgnoreCase(name, "Transfer-Encoding"u8) &&
-                !AsciiString.EqualsIgnoreCase(semanticValue, "identity"u8))
+            else if (AsciiString.EqualsIgnoreCase(name, "Transfer-Encoding"u8) && !AsciiString.EqualsIgnoreCase(semanticValue, "identity"u8))
             {
                 return HttpRequestParseStatus.UnsupportedTransferEncoding;
             }
@@ -476,9 +268,7 @@ public static class HttpRequestParser
 
     private static int IndexOfByte(ReadOnlySpan<byte> bytes, int start, int endExclusive, byte value)
     {
-        if ((uint)start > (uint)bytes.Length ||
-            (uint)endExclusive > (uint)bytes.Length ||
-            start > endExclusive)
+        if ((uint)start > (uint)bytes.Length || (uint)endExclusive > (uint)bytes.Length || start > endExclusive)
         {
             return -1;
         }

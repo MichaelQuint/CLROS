@@ -26,23 +26,47 @@ public readonly struct MemoryRegion
         PhysicalEndExclusive = physicalEndExclusive;
     }
 
-    public MemoryRegionType Type { get; }
+    public MemoryRegionType Type
+    {
+        get;
+    }
 
-    public UefiMemoryType UefiType { get; }
+    public UefiMemoryType UefiType
+    {
+        get;
+    }
 
     public uint UefiTypeValue => (uint)UefiType;
 
-    public ulong PhysicalStart { get; }
+    public ulong PhysicalStart
+    {
+        get;
+    }
 
-    public ulong VirtualStart { get; }
+    public ulong VirtualStart
+    {
+        get;
+    }
 
-    public ulong PageCount { get; }
+    public ulong PageCount
+    {
+        get;
+    }
 
-    public ulong Attribute { get; }
+    public ulong Attribute
+    {
+        get;
+    }
 
-    public ulong ByteLength { get; }
+    public ulong ByteLength
+    {
+        get;
+    }
 
-    public ulong PhysicalEndExclusive { get; }
+    public ulong PhysicalEndExclusive
+    {
+        get;
+    }
 
     public bool HasVirtualAddress => VirtualStart != 0;
 

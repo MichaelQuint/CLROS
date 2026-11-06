@@ -6,18 +6,16 @@ using System.Text.Json;
 using OS.Manifest;
 using OS.Storage;
 
-internal static class ImageBuilderTests
+internal static partial class ImageBuilderTests
 {
     private const int SectorSize = 512;
     private const ulong PartitionStartLba = 2048;
-
     [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         int failures = 0;
         string tempRoot = Path.Combine(Path.GetTempPath(), "os-imagebuilder-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
-
         try
         {
             KestrelPublishedImageFixture? publishedKestrelImageFixture = null;
@@ -114,7 +112,6 @@ internal static class ImageBuilderTests
 
     private static void Run(string name, ref int failures, Func<bool> test)
     {
-
         HostCheck.Run("" + name, test, ref failures);
     }
 
@@ -123,37 +120,15 @@ internal static class ImageBuilderTests
         string efiPath = Path.Combine(tempRoot, "PLANBOOT.EFI");
         string imagePath = Path.Combine(tempRoot, "planned.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--output", imagePath, "--image-size-mib", "64");
         if (result.ExitCode != 0)
         {
             PrintToolFailure(result);
             return false;
         }
 
-        bool hasExpectedMarkers = result.Output.Contains("TEST_START imagebuilder.plan", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal)
-            && result.Output.Contains("IMAGE_PLAN ", StringComparison.Ordinal)
-            && result.Output.Contains("IMAGE_PLAN_NO_WRITE " + imagePath, StringComparison.Ordinal);
-
-        bool hasExpectedEntries = result.Output.Contains("\"kind\":\"efi-system-partition\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"kind\":\"efi-boot-file\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"guestPath\":\"\\\\EFI\\\\BOOT\\\\BOOTX64.EFI\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"kind\":\"fat32-os-directory\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"kind\":\"manifest-file\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"guestPath\":\"\\\\OS\\\\MANIFEST.JSON\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"kind\":\"app-package-placeholder\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"guestPath\":\"\\\\OS\\\\APP.PKG\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"writesSuppressed\":true", StringComparison.Ordinal);
-
+        bool hasExpectedMarkers = result.Output.Contains("TEST_START imagebuilder.plan", StringComparison.Ordinal) && result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal) && result.Output.Contains("IMAGE_PLAN ", StringComparison.Ordinal) && result.Output.Contains("IMAGE_PLAN_NO_WRITE " + imagePath, StringComparison.Ordinal);
+        bool hasExpectedEntries = result.Output.Contains("\"kind\":\"efi-system-partition\"", StringComparison.Ordinal) && result.Output.Contains("\"kind\":\"efi-boot-file\"", StringComparison.Ordinal) && result.Output.Contains("\"guestPath\":\"\\\\EFI\\\\BOOT\\\\BOOTX64.EFI\"", StringComparison.Ordinal) && result.Output.Contains("\"kind\":\"fat32-os-directory\"", StringComparison.Ordinal) && result.Output.Contains("\"kind\":\"manifest-file\"", StringComparison.Ordinal) && result.Output.Contains("\"guestPath\":\"\\\\OS\\\\MANIFEST.JSON\"", StringComparison.Ordinal) && result.Output.Contains("\"kind\":\"app-package-placeholder\"", StringComparison.Ordinal) && result.Output.Contains("\"guestPath\":\"\\\\OS\\\\APP.PKG\"", StringComparison.Ordinal) && result.Output.Contains("\"writesSuppressed\":true", StringComparison.Ordinal);
         if (!hasExpectedMarkers || !hasExpectedEntries || File.Exists(imagePath))
         {
             PrintToolFailure(result);
@@ -169,26 +144,14 @@ internal static class ImageBuilderTests
         string efiPath = Path.Combine(tempRoot, "PLANBOOT-PROFILE.EFI");
         string imagePath = Path.Combine(tempRoot, "planned-profile.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--output", imagePath, "--image-size-mib", "64");
         if (result.ExitCode != 0)
         {
             PrintToolFailure(result);
             return false;
         }
 
-        return result.Output.Contains("WORKLOAD_PROFILE SingleMinimalApi", StringComparison.Ordinal)
-            && result.Output.Contains("\"workloadProfile\":\"SingleMinimalApi\"", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal)
-            && !File.Exists(imagePath);
+        return result.Output.Contains("WORKLOAD_PROFILE SingleMinimalApi", StringComparison.Ordinal) && result.Output.Contains("\"workloadProfile\":\"SingleMinimalApi\"", StringComparison.Ordinal) && result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal) && !File.Exists(imagePath);
     }
 
     private static bool TestPlanRawPropagatesMultiWorkloadProfile(string tempRoot)
@@ -196,28 +159,14 @@ internal static class ImageBuilderTests
         string efiPath = Path.Combine(tempRoot, "PLANBOOT-MULTI-PROFILE.EFI");
         string imagePath = Path.Combine(tempRoot, "planned-multi-profile.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64",
-            "--workload-profile",
-            "MultiMinimalApi");
-
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--output", imagePath, "--image-size-mib", "64", "--workload-profile", "MultiMinimalApi");
         if (result.ExitCode != 0)
         {
             PrintToolFailure(result);
             return false;
         }
 
-        return result.Output.Contains("WORKLOAD_PROFILE MultiMinimalApi", StringComparison.Ordinal)
-            && result.Output.Contains("\"workloadProfile\":\"MultiMinimalApi\"", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal)
-            && !File.Exists(imagePath);
+        return result.Output.Contains("WORKLOAD_PROFILE MultiMinimalApi", StringComparison.Ordinal) && result.Output.Contains("\"workloadProfile\":\"MultiMinimalApi\"", StringComparison.Ordinal) && result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal) && !File.Exists(imagePath);
     }
 
     private static bool TestPlanRawRejectsInvalidWorkloadProfile(string tempRoot)
@@ -225,20 +174,8 @@ internal static class ImageBuilderTests
         string efiPath = Path.Combine(tempRoot, "PLANBOOT-BAD-PROFILE.EFI");
         string imagePath = Path.Combine(tempRoot, "planned-bad-profile.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--output",
-            imagePath,
-            "--workload-profile",
-            "BadProfile");
-
-        return result.ExitCode == 2
-            && result.Output.Contains("TEST_FAIL imagebuilder.plan invalid_args", StringComparison.Ordinal)
-            && result.Output.Contains("Invalid workload profile 'BadProfile'", StringComparison.Ordinal)
-            && !File.Exists(imagePath);
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--output", imagePath, "--workload-profile", "BadProfile");
+        return result.ExitCode == 2 && result.Output.Contains("TEST_FAIL imagebuilder.plan invalid_args", StringComparison.Ordinal) && result.Output.Contains("Invalid workload profile 'BadProfile'", StringComparison.Ordinal) && !File.Exists(imagePath);
     }
 
     private static bool TestPlanRawWithManifestDoesNotWrite(string tempRoot)
@@ -249,18 +186,7 @@ internal static class ImageBuilderTests
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         byte[] manifestBytes = CreateManifestBytes();
         File.WriteAllBytes(manifestPath, manifestBytes);
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--manifest", manifestPath, "--output", imagePath, "--image-size-mib", "64");
         if (result.ExitCode != 0)
         {
             PrintToolFailure(result);
@@ -268,13 +194,7 @@ internal static class ImageBuilderTests
         }
 
         string escapedManifestPath = manifestPath.Replace("\\", "\\\\", StringComparison.Ordinal);
-        bool hasManifestEntry = result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal)
-            && result.Output.Contains("\"kind\":\"manifest-file\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"guestPath\":\"\\\\OS\\\\MANIFEST.JSON\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"sourcePath\":\"" + escapedManifestPath + "\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"bytes\":" + manifestBytes.Length, StringComparison.Ordinal)
-            && !result.Output.Contains("\"kind\":\"manifest-placeholder\"", StringComparison.Ordinal);
-
+        bool hasManifestEntry = result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal) && result.Output.Contains("\"kind\":\"manifest-file\"", StringComparison.Ordinal) && result.Output.Contains("\"guestPath\":\"\\\\OS\\\\MANIFEST.JSON\"", StringComparison.Ordinal) && result.Output.Contains("\"sourcePath\":\"" + escapedManifestPath + "\"", StringComparison.Ordinal) && result.Output.Contains("\"bytes\":" + manifestBytes.Length, StringComparison.Ordinal) && !result.Output.Contains("\"kind\":\"manifest-placeholder\"", StringComparison.Ordinal);
         if (!hasManifestEntry || File.Exists(imagePath))
         {
             PrintToolFailure(result);
@@ -293,18 +213,7 @@ internal static class ImageBuilderTests
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         byte[] packageBytes = CreatePackageBytes();
         File.WriteAllBytes(packagePath, packageBytes);
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--package",
-            packagePath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--package", packagePath, "--output", imagePath, "--image-size-mib", "64");
         if (result.ExitCode != 0)
         {
             PrintToolFailure(result);
@@ -312,16 +221,7 @@ internal static class ImageBuilderTests
         }
 
         string escapedPackagePath = packagePath.Replace("\\", "\\\\", StringComparison.Ordinal);
-        bool hasPackageEntry = result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal)
-            && result.Output.Contains("\"kind\":\"fat32-os-directory\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"kind\":\"manifest-file\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"kind\":\"app-package-file\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"guestPath\":\"\\\\OS\\\\APP.PKG\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"sourcePath\":\"" + escapedPackagePath + "\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"bytes\":" + packageBytes.Length, StringComparison.Ordinal)
-            && !result.Output.Contains("\"kind\":\"manifest-placeholder\"", StringComparison.Ordinal)
-            && !result.Output.Contains("\"kind\":\"app-package-placeholder\"", StringComparison.Ordinal);
-
+        bool hasPackageEntry = result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal) && result.Output.Contains("\"kind\":\"fat32-os-directory\"", StringComparison.Ordinal) && result.Output.Contains("\"kind\":\"manifest-file\"", StringComparison.Ordinal) && result.Output.Contains("\"kind\":\"app-package-file\"", StringComparison.Ordinal) && result.Output.Contains("\"guestPath\":\"\\\\OS\\\\APP.PKG\"", StringComparison.Ordinal) && result.Output.Contains("\"sourcePath\":\"" + escapedPackagePath + "\"", StringComparison.Ordinal) && result.Output.Contains("\"bytes\":" + packageBytes.Length, StringComparison.Ordinal) && !result.Output.Contains("\"kind\":\"manifest-placeholder\"", StringComparison.Ordinal) && !result.Output.Contains("\"kind\":\"app-package-placeholder\"", StringComparison.Ordinal);
         if (!hasPackageEntry || File.Exists(imagePath))
         {
             PrintToolFailure(result);
@@ -338,20 +238,8 @@ internal static class ImageBuilderTests
         string imagePath = Path.Combine(tempRoot, "os.raw");
         byte[] efiBytes = CreateEfiBytes();
         File.WriteAllBytes(efiPath, efiBytes);
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal)
-            || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal)
-            || !File.Exists(imagePath))
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--output", imagePath, "--image-size-mib", "64");
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal) || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal) || !File.Exists(imagePath))
         {
             PrintToolFailure(result);
             return false;
@@ -364,10 +252,7 @@ internal static class ImageBuilderTests
             return false;
         }
 
-        return HasProtectiveMbr(image)
-            && HasPrimaryAndBackupGpt(image)
-            && HasFat32EspBootSector(image)
-            && ContainsBootFile(image, efiBytes);
+        return HasProtectiveMbr(image) && HasPrimaryAndBackupGpt(image) && HasFat32EspBootSector(image) && ContainsBootFile(image, efiBytes);
     }
 
     private static bool TestFatCapacity(string tempRoot, int sizeMiB)
@@ -379,9 +264,7 @@ internal static class ImageBuilderTests
         File.WriteAllBytes(prefix + ".efi", efi);
         File.WriteAllBytes(prefix + ".json", manifest);
         File.WriteAllBytes(prefix + ".pkg", package);
-        string[] options = ["--efi", prefix + ".efi", "--manifest", prefix + ".json",
-            "--package", prefix + ".pkg", "--output", prefix + ".raw",
-            "--image-size-mib", sizeMiB.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+        string[] options = ["--efi", prefix + ".efi", "--manifest", prefix + ".json", "--package", prefix + ".pkg", "--output", prefix + ".raw", "--image-size-mib", sizeMiB.ToString(System.Globalization.CultureInfo.InvariantCulture)];
         ToolResult plan = RunImageBuilder(["plan-raw", .. options]);
         ToolResult create = RunImageBuilder(["create-raw", .. options]);
         if (plan.ExitCode != 0 || create.ExitCode != 0)
@@ -417,38 +300,35 @@ internal static class ImageBuilderTests
         int fatOffset = checked(bootOffset + (int)(reserved * bytesPerSector));
         int fatBytes = checked((int)(fatSectors * bytesPerSector));
         ReadOnlySpan<byte> fat = image.AsSpan(fatOffset, fatBytes);
-        if (!bpb.SequenceEqual(image.AsSpan(bootOffset + backupBoot * SectorSize, SectorSize))
-            || !fsInfo.SequenceEqual(image.AsSpan(bootOffset + (backupBoot + fsInfoSector) * SectorSize, SectorSize))
-            || !fat.SequenceEqual(image.AsSpan(fatOffset + fatBytes, fatBytes))
-            || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo) != 0x41615252
-            || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[484..]) != 0x61417272
-            || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[508..]) != 0xAA550000)
+        if (!bpb.SequenceEqual(image.AsSpan(bootOffset + backupBoot * SectorSize, SectorSize)) || !fsInfo.SequenceEqual(image.AsSpan(bootOffset + (backupBoot + fsInfoSector) * SectorSize, SectorSize)) || !fat.SequenceEqual(image.AsSpan(fatOffset + fatBytes, fatBytes)) || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo) != 0x41615252 || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[484..]) != 0x61417272 || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[508..]) != 0xAA550000)
             return false;
-
         ulong allocated = 0;
         ulong firstFree = 0;
         for (ulong cluster = 2; cluster < clusters + 2; cluster++)
         {
             uint value = BinaryPrimitives.ReadUInt32LittleEndian(fat[checked((int)cluster * 4)..]) & 0x0FFFFFFF;
-            if (value != 0) allocated++;
-            else if (firstFree == 0) firstFree = cluster;
+            if (value != 0)
+                allocated++;
+            else if (firstFree == 0)
+                firstFree = cluster;
         }
-        ulong plannedAllocated = 0;
-        foreach (string kind in new[] { "fat32-root-directory", "fat32-efi-directory", "fat32-boot-directory",
-            "efi-boot-file", "fat32-os-directory", "manifest-file", "app-package-file" })
-            plannedAllocated += entries[kind].GetProperty("sectors").GetUInt64() / sectorsPerCluster;
-        if (BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[488..]) != clusters - allocated
-            || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[492..]) != firstFree
-            || allocated != plannedAllocated
-            || entries["efi-system-partition"].GetProperty("sectors").GetUInt64() != totalSectors
-            || entries["fat32-fat-primary"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved
-            || entries["fat32-fat-primary"].GetProperty("sectors").GetUInt64() != fatSectors
-            || entries["fat32-fat-backup"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved + fatSectors
-            || entries["fat32-fat-backup"].GetProperty("sectors").GetUInt64() != fatSectors
-            || entries["fat32-root-directory"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved + fatCount * fatSectors
-            || !ContainsBootFile(image, efi) || !ContainsManifestFile(image, manifest) || !ContainsPackageFile(image, package))
-            return false;
 
+        ulong plannedAllocated = 0;
+        foreach (string kind in new[]
+        {
+            "fat32-root-directory",
+            "fat32-efi-directory",
+            "fat32-boot-directory",
+            "efi-boot-file",
+            "fat32-os-directory",
+            "manifest-file",
+            "app-package-file"
+        }
+
+        )
+            plannedAllocated += entries[kind].GetProperty("sectors").GetUInt64() / sectorsPerCluster;
+        if (BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[488..]) != clusters - allocated || BinaryPrimitives.ReadUInt32LittleEndian(fsInfo[492..]) != firstFree || allocated != plannedAllocated || entries["efi-system-partition"].GetProperty("sectors").GetUInt64() != totalSectors || entries["fat32-fat-primary"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved || entries["fat32-fat-primary"].GetProperty("sectors").GetUInt64() != fatSectors || entries["fat32-fat-backup"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved + fatSectors || entries["fat32-fat-backup"].GetProperty("sectors").GetUInt64() != fatSectors || entries["fat32-root-directory"].GetProperty("lba").GetUInt64() != PartitionStartLba + reserved + fatCount * fatSectors || !ContainsBootFile(image, efi) || !ContainsManifestFile(image, manifest) || !ContainsPackageFile(image, package))
+            return false;
         // The second build uses the same inputs and must preserve every image byte.
         create = RunImageBuilder(["create-raw", .. options]);
         if (create.ExitCode != 0)
@@ -456,6 +336,7 @@ internal static class ImageBuilderTests
             PrintToolFailure(create);
             return false;
         }
+
         using FileStream rebuilt = File.OpenRead(prefix + ".raw");
         return SHA256.HashData(image).AsSpan().SequenceEqual(SHA256.HashData(rebuilt));
     }
@@ -464,16 +345,31 @@ internal static class ImageBuilderTests
     {
         string efiPath = Path.Combine(tempRoot, "fat-plan.efi");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-        foreach (int sizeMiB in new[] { 64, 65, 66, 67, 127, 128, 129, 1024, 32768, 131073, 133153 })
+        foreach (int sizeMiB in new[]
+        {
+            64,
+            65,
+            66,
+            67,
+            127,
+            128,
+            129,
+            1024,
+            32768,
+            131073,
+            133153
+        }
+
+        )
         {
             string imagePath = Path.Combine(tempRoot, "fat-plan-" + sizeMiB + ".raw");
-            ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--output", imagePath,
-                "--image-size-mib", sizeMiB.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--output", imagePath, "--image-size-mib", sizeMiB.ToString(System.Globalization.CultureInfo.InvariantCulture));
             if (result.ExitCode != 0 || File.Exists(imagePath))
             {
                 PrintToolFailure(result);
                 return false;
             }
+
             Dictionary<string, JsonElement> entries = ReadPlanEntries(result.Output);
             ulong partitionSectors = entries["efi-system-partition"].GetProperty("sectors").GetUInt64();
             ulong reserved = entries["fat32-reserved"].GetProperty("sectors").GetUInt64();
@@ -482,36 +378,50 @@ internal static class ImageBuilderTests
             ulong dataStart = entries["fat32-root-directory"].GetProperty("lba").GetUInt64();
             // Independent geometry from the public plan, using the fixed 512-byte/one-sector-cluster format.
             ulong clusters = partitionSectors - reserved - firstFat - secondFat;
-            if (partitionSectors != (ulong)sizeMiB * 2048 - PartitionStartLba - 33
-                || firstFat != secondFat || firstFat * SectorSize / 4 < clusters + 2
-                || clusters + 1 >= 0x0FFFFFF7
-                || (sizeMiB == 133153 && (clusters != 268434367 || clusters + 1 != 0x0FFFFBC0))
-                || dataStart != PartitionStartLba + reserved + firstFat + secondFat)
+            if (partitionSectors != (ulong)sizeMiB * 2048 - PartitionStartLba - 33 || firstFat != secondFat || firstFat * SectorSize / 4 < clusters + 2 || clusters + 1 >= 0x0FFFFFF7 || (sizeMiB == 133153 && (clusters != 268434367 || clusters + 1 != 0x0FFFFBC0)) || dataStart != PartitionStartLba + reserved + firstFat + secondFat)
             {
                 Console.WriteLine($"FAT plan mismatch: imageMiB={sizeMiB} fatSectors={firstFat} dataClusters={clusters}");
                 return false;
             }
         }
 
-        foreach (string rejectedSize in new[] { "63", "0", "-1", "2147483648", "133154", "2097151", "2097152", "2097153", "2097154", "2147483647" })
+        foreach (string rejectedSize in new[]
+        {
+            "63",
+            "0",
+            "-1",
+            "2147483648",
+            "133154",
+            "2097151",
+            "2097152",
+            "2097153",
+            "2097154",
+            "2147483647"
+        }
+
+        )
         {
             bool tooLarge = rejectedSize is "133154" or "2097151" or "2097152" or "2097153" or "2097154" or "2147483647";
             string reason = tooLarge ? "image_too_large" : "invalid_args";
-            foreach (string command in new[] { "plan-raw", "create-raw" })
+            foreach (string command in new[]
+            {
+                "plan-raw",
+                "create-raw"
+            }
+
+            )
             {
                 string imagePath = Path.Combine(tempRoot, "fat-" + command + "-rejected-" + rejectedSize + ".raw");
-                ToolResult result = RunImageBuilder(command, "--efi", efiPath, "--output", imagePath,
-                    "--image-size-mib", rejectedSize);
+                ToolResult result = RunImageBuilder(command, "--efi", efiPath, "--output", imagePath, "--image-size-mib", rejectedSize);
                 string marker = command == "plan-raw" ? "imagebuilder.plan" : "imagebuilder.raw";
-                if (result.ExitCode != (tooLarge ? 5 : 2)
-                    || !result.Output.Contains("TEST_FAIL " + marker + " " + reason, StringComparison.Ordinal)
-                    || File.Exists(imagePath))
+                if (result.ExitCode != (tooLarge ? 5 : 2) || !result.Output.Contains("TEST_FAIL " + marker + " " + reason, StringComparison.Ordinal) || File.Exists(imagePath))
                 {
                     PrintToolFailure(result);
                     return false;
                 }
             }
         }
+
         return true;
     }
 
@@ -521,11 +431,13 @@ internal static class ImageBuilderTests
         foreach (string line in output.Split('\n'))
         {
             const string prefix = "IMAGE_PLAN_ENTRY ";
-            if (!line.StartsWith(prefix, StringComparison.Ordinal)) continue;
+            if (!line.StartsWith(prefix, StringComparison.Ordinal))
+                continue;
             using JsonDocument document = JsonDocument.Parse(line[prefix.Length..]);
             JsonElement entry = document.RootElement;
             entries.Add(entry.GetProperty("kind").GetString()!, entry.Clone());
         }
+
         return entries;
     }
 
@@ -534,19 +446,8 @@ internal static class ImageBuilderTests
         string efiPath = Path.Combine(tempRoot, "BOOTX64-GPT-PARSER.EFI");
         string imagePath = Path.Combine(tempRoot, "os-gpt-parser.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal)
-            || !File.Exists(imagePath))
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--output", imagePath, "--image-size-mib", "64");
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal) || !File.Exists(imagePath))
         {
             PrintToolFailure(result);
             return false;
@@ -580,23 +481,8 @@ internal static class ImageBuilderTests
         ReadOnlySpan<byte> primaryHeader = image.AsSpan(primaryHeaderOffset, SectorSize);
         ReadOnlySpan<byte> entrySectorsBytes = image.AsSpan(entryOffset, entryLength);
         Span<GptPartitionDescriptor> descriptors = stackalloc GptPartitionDescriptor[4];
-
-        GptPartitionTableParseResult parse = GptPartitionTableParser.ParsePrimary(
-            primaryHeader,
-            entrySectorsBytes,
-            blockCount,
-            SectorSize,
-            descriptors);
-
-        if (!parse.Succeeded
-            || parse.Status != GptPartitionTableStatus.Success
-            || parse.Header.CurrentLba != GptPartitionTableParser.PrimaryHeaderLba
-            || parse.Header.LastUsableLba != blockCount - 34
-            || parse.Header.PartitionEntryLba != entryLba
-            || parse.PartitionsWritten != 1
-            || parse.EmptyEntriesSkipped != entryCount - 1
-            || parse.PartitionEntryBytesRequired != entryBytes
-            || parse.PartitionEntrySectorsRequired != entrySectors)
+        GptPartitionTableParseResult parse = GptPartitionTableParser.ParsePrimary(primaryHeader, entrySectorsBytes, blockCount, SectorSize, descriptors);
+        if (!parse.Succeeded || parse.Status != GptPartitionTableStatus.Success || parse.Header.CurrentLba != GptPartitionTableParser.PrimaryHeaderLba || parse.Header.LastUsableLba != blockCount - 34 || parse.Header.PartitionEntryLba != entryLba || parse.PartitionsWritten != 1 || parse.EmptyEntriesSkipped != entryCount - 1 || parse.PartitionEntryBytesRequired != entryBytes || parse.PartitionEntrySectorsRequired != entrySectors)
         {
             Console.WriteLine("GPT parser status=" + parse.Status);
             Console.WriteLine("GPT partitions written=" + parse.PartitionsWritten);
@@ -608,16 +494,7 @@ internal static class ImageBuilderTests
         ulong expectedLastLba = blockCount - 34;
         ulong expectedPartitionBlocks = expectedLastLba - PartitionStartLba + 1;
         GptPartitionDescriptor esp = descriptors[0];
-
-        return esp.EntryIndex == 0
-            && esp.EntryByteOffset == 0
-            && esp.PartitionTypeGuid == efiSystemPartitionType
-            && esp.FirstLba == PartitionStartLba
-            && esp.LastLba == expectedLastLba
-            && expectedPartitionBlocks == blockCount - PartitionStartLba - 33
-            && esp.NameIsNullTerminated
-            && esp.NameUtf16CodeUnitLength == "EFI System".Length
-            && PartitionDescriptorNameEquals(entrySectorsBytes, esp, "EFI System");
+        return esp.EntryIndex == 0 && esp.EntryByteOffset == 0 && esp.PartitionTypeGuid == efiSystemPartitionType && esp.FirstLba == PartitionStartLba && esp.LastLba == expectedLastLba && expectedPartitionBlocks == blockCount - PartitionStartLba - 33 && esp.NameIsNullTerminated && esp.NameUtf16CodeUnitLength == "EFI System".Length && PartitionDescriptorNameEquals(entrySectorsBytes, esp, "EFI System");
     }
 
     private static bool TestBackupGptParserReadback(string tempRoot)
@@ -625,19 +502,8 @@ internal static class ImageBuilderTests
         string efiPath = Path.Combine(tempRoot, "BOOTX64-GPT-BACKUP-PARSER.EFI");
         string imagePath = Path.Combine(tempRoot, "os-gpt-backup-parser.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal)
-            || !File.Exists(imagePath))
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--output", imagePath, "--image-size-mib", "64");
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal) || !File.Exists(imagePath))
         {
             PrintToolFailure(result);
             return false;
@@ -671,26 +537,8 @@ internal static class ImageBuilderTests
         ReadOnlySpan<byte> backupHeader = image.AsSpan(backupHeaderOffset, SectorSize);
         ReadOnlySpan<byte> entrySectorsBytes = image.AsSpan(entryOffset, entryLength);
         Span<GptPartitionDescriptor> descriptors = stackalloc GptPartitionDescriptor[4];
-
-        GptPartitionTableParseResult parse = GptPartitionTableParser.ParseBackup(
-            backupHeader,
-            entrySectorsBytes,
-            blockCount,
-            SectorSize,
-            descriptors);
-
-        if (!parse.Succeeded
-            || parse.Status != GptPartitionTableStatus.Success
-            || parse.CrcStatus != GptPartitionTableCrcStatus.Validated
-            || parse.Header.CurrentLba != blockCount - 1
-            || parse.Header.BackupLba != GptPartitionTableParser.PrimaryHeaderLba
-            || parse.Header.LastUsableLba != blockCount - 34
-            || parse.Header.PartitionEntryLba != entryLba
-            || entryLba != (blockCount - 1) - entrySectors
-            || parse.PartitionsWritten != 1
-            || parse.EmptyEntriesSkipped != entryCount - 1
-            || parse.PartitionEntryBytesRequired != entryBytes
-            || parse.PartitionEntrySectorsRequired != entrySectors)
+        GptPartitionTableParseResult parse = GptPartitionTableParser.ParseBackup(backupHeader, entrySectorsBytes, blockCount, SectorSize, descriptors);
+        if (!parse.Succeeded || parse.Status != GptPartitionTableStatus.Success || parse.CrcStatus != GptPartitionTableCrcStatus.Validated || parse.Header.CurrentLba != blockCount - 1 || parse.Header.BackupLba != GptPartitionTableParser.PrimaryHeaderLba || parse.Header.LastUsableLba != blockCount - 34 || parse.Header.PartitionEntryLba != entryLba || entryLba != (blockCount - 1) - entrySectors || parse.PartitionsWritten != 1 || parse.EmptyEntriesSkipped != entryCount - 1 || parse.PartitionEntryBytesRequired != entryBytes || parse.PartitionEntrySectorsRequired != entrySectors)
         {
             Console.WriteLine("Backup GPT parser status=" + parse.Status);
             Console.WriteLine("Backup GPT partitions written=" + parse.PartitionsWritten);
@@ -701,15 +549,7 @@ internal static class ImageBuilderTests
         Guid efiSystemPartitionType = new("c12a7328-f81f-11d2-ba4b-00a0c93ec93b");
         ulong expectedLastLba = blockCount - 34;
         GptPartitionDescriptor esp = descriptors[0];
-
-        return esp.EntryIndex == 0
-            && esp.EntryByteOffset == 0
-            && esp.PartitionTypeGuid == efiSystemPartitionType
-            && esp.FirstLba == PartitionStartLba
-            && esp.LastLba == expectedLastLba
-            && esp.NameIsNullTerminated
-            && esp.NameUtf16CodeUnitLength == "EFI System".Length
-            && PartitionDescriptorNameEquals(entrySectorsBytes, esp, "EFI System");
+        return esp.EntryIndex == 0 && esp.EntryByteOffset == 0 && esp.PartitionTypeGuid == efiSystemPartitionType && esp.FirstLba == PartitionStartLba && esp.LastLba == expectedLastLba && esp.NameIsNullTerminated && esp.NameUtf16CodeUnitLength == "EFI System".Length && PartitionDescriptorNameEquals(entrySectorsBytes, esp, "EFI System");
     }
 
     private static bool TestGeneratedManifestCanBeLoaded(string tempRoot)
@@ -717,19 +557,8 @@ internal static class ImageBuilderTests
         string efiPath = Path.Combine(tempRoot, "BOOTX64-DEFAULT-MANIFEST.EFI");
         string imagePath = Path.Combine(tempRoot, "os-default-manifest.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal)
-            || !File.Exists(imagePath))
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--output", imagePath, "--image-size-mib", "64");
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal) || !File.Exists(imagePath))
         {
             PrintToolFailure(result);
             return false;
@@ -737,20 +566,8 @@ internal static class ImageBuilderTests
 
         byte[] image = File.ReadAllBytes(imagePath);
         byte[] buffer = new byte[NativeManifestParser.MaximumInputLength];
-        NativeManifestLoadResult load = NativeManifestLoader.LoadFromPrimaryGptEsp(
-            MemoryBlockDevice.FromImage(image, (uint)SectorSize),
-            buffer);
-
-        return load.Succeeded
-            && load.Status == NativeManifestLoadStatus.Success
-            && load.GptStatus == GptStatus.Success
-            && load.Fat32Status == Fat32Status.Success
-            && load.ManifestStatus == NativeManifestParseStatus.Success
-            && FieldEquals(buffer, load.Manifest.AppName, "os.default")
-            && FieldEquals(buffer, load.Manifest.AppPath, "apps/hello.bin")
-            && FieldEquals(buffer, load.Manifest.Args, string.Empty)
-            && load.Manifest.NetworkMode == NativeManifestNetworkMode.None
-            && load.Manifest.LogMode == NativeManifestLogMode.Serial;
+        NativeManifestLoadResult load = NativeManifestLoader.LoadFromPrimaryGptEsp(MemoryBlockDevice.FromImage(image, (uint)SectorSize), buffer);
+        return load.Succeeded && load.Status == NativeManifestLoadStatus.Success && load.GptStatus == GptStatus.Success && load.Fat32Status == Fat32Status.Success && load.ManifestStatus == NativeManifestParseStatus.Success && FieldEquals(buffer, load.Manifest.AppName, "os.default") && FieldEquals(buffer, load.Manifest.AppPath, "apps/hello.bin") && FieldEquals(buffer, load.Manifest.Args, string.Empty) && load.Manifest.NetworkMode == NativeManifestNetworkMode.None && load.Manifest.LogMode == NativeManifestLogMode.Serial;
     }
 
     private static bool TestCreateRawEspWithManifest(string tempRoot)
@@ -762,29 +579,15 @@ internal static class ImageBuilderTests
         byte[] manifestBytes = CreateManifestBytes();
         File.WriteAllBytes(efiPath, efiBytes);
         File.WriteAllBytes(manifestPath, manifestBytes);
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal)
-            || !File.Exists(imagePath))
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--manifest", manifestPath, "--output", imagePath, "--image-size-mib", "64");
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal) || !File.Exists(imagePath))
         {
             PrintToolFailure(result);
             return false;
         }
 
         byte[] image = File.ReadAllBytes(imagePath);
-        return ContainsBootFile(image, efiBytes)
-            && ContainsManifestFile(image, manifestBytes);
+        return ContainsBootFile(image, efiBytes) && ContainsManifestFile(image, manifestBytes);
     }
 
     private static bool TestCreateRawEspWithManifestAndPackage(string tempRoot)
@@ -799,32 +602,15 @@ internal static class ImageBuilderTests
         File.WriteAllBytes(efiPath, efiBytes);
         File.WriteAllBytes(manifestPath, manifestBytes);
         File.WriteAllBytes(packagePath, packageBytes);
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--package",
-            packagePath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal)
-            || !File.Exists(imagePath))
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--manifest", manifestPath, "--package", packagePath, "--output", imagePath, "--image-size-mib", "64");
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal) || !File.Exists(imagePath))
         {
             PrintToolFailure(result);
             return false;
         }
 
         byte[] image = File.ReadAllBytes(imagePath);
-        return ContainsBootFile(image, efiBytes)
-            && ContainsManifestFile(image, manifestBytes)
-            && ContainsPackageFile(image, packageBytes);
+        return ContainsBootFile(image, efiBytes) && ContainsManifestFile(image, manifestBytes) && ContainsPackageFile(image, packageBytes);
     }
 
     private static bool TestPackageFileIsPlacedInGeneratedEsp(string tempRoot)
@@ -837,23 +623,8 @@ internal static class ImageBuilderTests
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         File.WriteAllBytes(manifestPath, CreateManifestBytes());
         File.WriteAllBytes(packagePath, packageBytes);
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--package",
-            packagePath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal)
-            || !File.Exists(imagePath))
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--manifest", manifestPath, "--package", packagePath, "--output", imagePath, "--image-size-mib", "64");
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal) || !File.Exists(imagePath))
         {
             PrintToolFailure(result);
             return false;
@@ -873,23 +644,8 @@ internal static class ImageBuilderTests
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         File.WriteAllBytes(manifestPath, CreateManifestBytes());
         File.WriteAllBytes(packagePath, packageBytes);
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--package",
-            packagePath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal)
-            || !File.Exists(imagePath))
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--manifest", manifestPath, "--package", packagePath, "--output", imagePath, "--image-size-mib", "64");
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal) || !File.Exists(imagePath))
         {
             PrintToolFailure(result);
             return false;
@@ -897,30 +653,14 @@ internal static class ImageBuilderTests
 
         byte[] image = File.ReadAllBytes(imagePath);
         byte[] packageBuffer = new byte[packageBytes.Length];
-        OsPackageLoadResult load = OsPackageLoader.LoadFromPrimaryGptEsp(
-            MemoryBlockDevice.FromImage(image, (uint)SectorSize),
-            packageBuffer);
-        if (!load.Succeeded
-            || load.Status != OsPackageLoadStatus.Success
-            || load.GptStatus != GptStatus.Success
-            || load.Fat32Status != Fat32Status.Success
-            || load.PackageStatus != OsPackageStatus.Success
-            || load.PackageHeader.FileCount != 1
-            || load.BytesRead != packageBytes.Length)
+        OsPackageLoadResult load = OsPackageLoader.LoadFromPrimaryGptEsp(MemoryBlockDevice.FromImage(image, (uint)SectorSize), packageBuffer);
+        if (!load.Succeeded || load.Status != OsPackageLoadStatus.Success || load.GptStatus != GptStatus.Success || load.Fat32Status != Fat32Status.Success || load.PackageStatus != OsPackageStatus.Success || load.PackageHeader.FileCount != 1 || load.BytesRead != packageBytes.Length)
         {
             return false;
         }
 
-        OsPackageFileContentResult content = OsPackageParser.GetFileContent(
-            packageBuffer.AsSpan(0, checked((int)load.BytesRead)),
-            "bin/app.dll"u8);
-
-        return content.Succeeded
-            && content.Content.Length == 4
-            && content.Content[0] == 0xCA
-            && content.Content[1] == 0xFE
-            && content.Content[2] == 0xBA
-            && content.Content[3] == 0xBE;
+        OsPackageFileContentResult content = OsPackageParser.GetFileContent(packageBuffer.AsSpan(0, checked((int)load.BytesRead)), "bin/app.dll"u8);
+        return content.Succeeded && content.Content.Length == 4 && content.Content[0] == 0xCA && content.Content[1] == 0xFE && content.Content[2] == 0xBA && content.Content[3] == 0xBE;
     }
 
     private static bool TestBuildPackageFromDirectory(string tempRoot)
@@ -931,23 +671,18 @@ internal static class ImageBuilderTests
         string packagePath = Path.Combine(tempRoot, "built-package.pkg");
         Directory.CreateDirectory(binDirectory);
         Directory.CreateDirectory(configDirectory);
-        byte[] appBytes = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+        byte[] appBytes = new byte[]
+        {
+            0x01,
+            0x02,
+            0x03,
+            0x04
+        };
         byte[] configBytes = System.Text.Encoding.ASCII.GetBytes("mode=test\n");
         File.WriteAllBytes(Path.Combine(configDirectory, "app.txt"), configBytes);
         File.WriteAllBytes(Path.Combine(binDirectory, "app.dll"), appBytes);
-
-        ToolResult result = RunImageBuilder(
-            "build-package",
-            "--input",
-            inputRoot,
-            "--output",
-            packagePath);
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_START imagebuilder.package", StringComparison.Ordinal)
-            || !result.Output.Contains("TEST_PASS imagebuilder.package", StringComparison.Ordinal)
-            || !result.Output.Contains("PACKAGE_FILE_COUNT 2", StringComparison.Ordinal)
-            || !File.Exists(packagePath))
+        ToolResult result = RunImageBuilder("build-package", "--input", inputRoot, "--output", packagePath);
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_START imagebuilder.package", StringComparison.Ordinal) || !result.Output.Contains("TEST_PASS imagebuilder.package", StringComparison.Ordinal) || !result.Output.Contains("PACKAGE_FILE_COUNT 2", StringComparison.Ordinal) || !File.Exists(packagePath))
         {
             PrintToolFailure(result);
             return false;
@@ -962,10 +697,7 @@ internal static class ImageBuilderTests
 
         OsPackageFileContentResult app = OsPackageParser.GetFileContent(package, "bin/app.dll"u8);
         OsPackageFileContentResult config = OsPackageParser.GetFileContent(package, "config/app.txt"u8);
-        return app.Succeeded
-            && config.Succeeded
-            && app.Content.SequenceEqual(appBytes)
-            && config.Content.SequenceEqual(configBytes);
+        return app.Succeeded && config.Succeeded && app.Content.SequenceEqual(appBytes) && config.Content.SequenceEqual(configBytes);
     }
 
     private static bool TestBuildPackageDeterministically(string tempRoot)
@@ -977,24 +709,9 @@ internal static class ImageBuilderTests
         File.WriteAllBytes(Path.Combine(inputRoot, "a", "first.bin"), new byte[] { 0x01, 0x02, 0x03 });
         string firstPackagePath = Path.Combine(tempRoot, "first-deterministic.pkg");
         string secondPackagePath = Path.Combine(tempRoot, "second-deterministic.pkg");
-
-        ToolResult first = RunImageBuilder(
-            "build-package",
-            "--input",
-            inputRoot,
-            "--output",
-            firstPackagePath);
-        ToolResult second = RunImageBuilder(
-            "build-package",
-            "--input",
-            inputRoot,
-            "--output",
-            secondPackagePath);
-
-        if (first.ExitCode != 0
-            || second.ExitCode != 0
-            || !first.Output.Contains("TEST_PASS imagebuilder.package", StringComparison.Ordinal)
-            || !second.Output.Contains("TEST_PASS imagebuilder.package", StringComparison.Ordinal))
+        ToolResult first = RunImageBuilder("build-package", "--input", inputRoot, "--output", firstPackagePath);
+        ToolResult second = RunImageBuilder("build-package", "--input", inputRoot, "--output", secondPackagePath);
+        if (first.ExitCode != 0 || second.ExitCode != 0 || !first.Output.Contains("TEST_PASS imagebuilder.package", StringComparison.Ordinal) || !second.Output.Contains("TEST_PASS imagebuilder.package", StringComparison.Ordinal))
         {
             PrintToolFailure(first);
             PrintToolFailure(second);
@@ -1003,8 +720,7 @@ internal static class ImageBuilderTests
 
         byte[] firstBytes = File.ReadAllBytes(firstPackagePath);
         byte[] secondBytes = File.ReadAllBytes(secondPackagePath);
-        return firstBytes.SequenceEqual(secondBytes)
-            && OsPackageParser.Parse(firstBytes).Succeeded;
+        return firstBytes.SequenceEqual(secondBytes) && OsPackageParser.Parse(firstBytes).Succeeded;
     }
 
     private static bool TestBuildPackageRejectsUnsafeInput(string tempRoot)
@@ -1014,39 +730,23 @@ internal static class ImageBuilderTests
         string unsafePath = Path.Combine(inputRoot, "nonascii-" + (char)0x00E9 + ".txt");
         string packagePath = Path.Combine(tempRoot, "unsafe.pkg");
         File.WriteAllBytes(unsafePath, new byte[] { 0x01 });
-
-        ToolResult result = RunImageBuilder(
-            "build-package",
-            "--input",
-            inputRoot,
-            "--output",
-            packagePath);
-
-        return result.ExitCode == 18
-            && result.Output.Contains("TEST_START imagebuilder.package", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.package package_input_unsafe_path", StringComparison.Ordinal)
-            && !File.Exists(packagePath);
+        ToolResult result = RunImageBuilder("build-package", "--input", inputRoot, "--output", packagePath);
+        return result.ExitCode == 18 && result.Output.Contains("TEST_START imagebuilder.package", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.package package_input_unsafe_path", StringComparison.Ordinal) && !File.Exists(packagePath);
     }
 
     private static bool TestBuildNativePayloadWritesHeader(string tempRoot)
     {
         string inputPath = Path.Combine(tempRoot, "native-input.bin");
         string outputPath = Path.Combine(tempRoot, "native-payload.bin");
-        byte[] appBytes = new byte[] { 0xC3, 0x90, 0xCC };
+        byte[] appBytes = new byte[]
+        {
+            0xC3,
+            0x90,
+            0xCC
+        };
         File.WriteAllBytes(inputPath, appBytes);
-
-        ToolResult result = RunImageBuilder(
-            "build-native-payload",
-            "--input",
-            inputPath,
-            "--output",
-            outputPath);
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_START imagebuilder.native-payload", StringComparison.Ordinal)
-            || !result.Output.Contains("TEST_PASS imagebuilder.native-payload", StringComparison.Ordinal)
-            || !result.Output.Contains("NATIVE_PAYLOAD_ENTRY_OFFSET 32", StringComparison.Ordinal)
-            || !File.Exists(outputPath))
+        ToolResult result = RunImageBuilder("build-native-payload", "--input", inputPath, "--output", outputPath);
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_START imagebuilder.native-payload", StringComparison.Ordinal) || !result.Output.Contains("TEST_PASS imagebuilder.native-payload", StringComparison.Ordinal) || !result.Output.Contains("NATIVE_PAYLOAD_ENTRY_OFFSET 32", StringComparison.Ordinal) || !File.Exists(outputPath))
         {
             PrintToolFailure(result);
             return false;
@@ -1054,29 +754,23 @@ internal static class ImageBuilderTests
 
         byte[] payload = File.ReadAllBytes(outputPath);
         NativeAppPayloadHeaderResult header = NativeAppPayloadHeader.Parse(payload);
-        return payload.Length == NativeAppPayloadHeader.HeaderSize + appBytes.Length
-            && header.Succeeded
-            && header.Header.Version == NativeAppPayloadHeader.SupportedVersion
-            && header.Header.HeaderSizeValue == NativeAppPayloadHeader.HeaderSize
-            && header.Header.Flags == 0
-            && header.Header.EntryOffset == NativeAppPayloadHeader.HeaderSize
-            && ReadUInt64(payload, 24) == 0;
+        return payload.Length == NativeAppPayloadHeader.HeaderSize + appBytes.Length && header.Succeeded && header.Header.Version == NativeAppPayloadHeader.SupportedVersion && header.Header.HeaderSizeValue == NativeAppPayloadHeader.HeaderSize && header.Header.Flags == 0 && header.Header.EntryOffset == NativeAppPayloadHeader.HeaderSize && ReadUInt64(payload, 24) == 0;
     }
 
     private static bool TestBuildNativePayloadPreservesAppBytes(string tempRoot)
     {
         string inputPath = Path.Combine(tempRoot, "native-preserve-input.bin");
         string outputPath = Path.Combine(tempRoot, "native-preserve-payload.bin");
-        byte[] appBytes = new byte[] { 0x00, 0x7F, 0x80, 0xFE, 0xFF };
+        byte[] appBytes = new byte[]
+        {
+            0x00,
+            0x7F,
+            0x80,
+            0xFE,
+            0xFF
+        };
         File.WriteAllBytes(inputPath, appBytes);
-
-        ToolResult result = RunImageBuilder(
-            "build-native-payload",
-            "--input",
-            inputPath,
-            "--output",
-            outputPath);
-
+        ToolResult result = RunImageBuilder("build-native-payload", "--input", inputPath, "--output", outputPath);
         if (result.ExitCode != 0 || !File.Exists(outputPath))
         {
             PrintToolFailure(result);
@@ -1091,18 +785,8 @@ internal static class ImageBuilderTests
     {
         string inputPath = Path.Combine(tempRoot, "missing-native-input.bin");
         string outputPath = Path.Combine(tempRoot, "missing-native-output.bin");
-
-        ToolResult result = RunImageBuilder(
-            "build-native-payload",
-            "--input",
-            inputPath,
-            "--output",
-            outputPath);
-
-        return result.ExitCode == 21
-            && result.Output.Contains("TEST_START imagebuilder.native-payload", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.native-payload native_payload_input_not_found", StringComparison.Ordinal)
-            && !File.Exists(outputPath);
+        ToolResult result = RunImageBuilder("build-native-payload", "--input", inputPath, "--output", outputPath);
+        return result.ExitCode == 21 && result.Output.Contains("TEST_START imagebuilder.native-payload", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.native-payload native_payload_input_not_found", StringComparison.Ordinal) && !File.Exists(outputPath);
     }
 
     private static bool TestBuildNativePayloadRejectsEmptyInput(string tempRoot)
@@ -1110,18 +794,8 @@ internal static class ImageBuilderTests
         string inputPath = Path.Combine(tempRoot, "empty-native-input.bin");
         string outputPath = Path.Combine(tempRoot, "empty-native-output.bin");
         File.WriteAllBytes(inputPath, Array.Empty<byte>());
-
-        ToolResult result = RunImageBuilder(
-            "build-native-payload",
-            "--input",
-            inputPath,
-            "--output",
-            outputPath);
-
-        return result.ExitCode == 22
-            && result.Output.Contains("TEST_START imagebuilder.native-payload", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.native-payload native_payload_input_empty", StringComparison.Ordinal)
-            && !File.Exists(outputPath);
+        ToolResult result = RunImageBuilder("build-native-payload", "--input", inputPath, "--output", outputPath);
+        return result.ExitCode == 22 && result.Output.Contains("TEST_START imagebuilder.native-payload", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.native-payload native_payload_input_empty", StringComparison.Ordinal) && !File.Exists(outputPath);
     }
 
     private static bool TestValidatePackageAcceptsManifestAppPayload(string tempRoot)
@@ -1130,21 +804,8 @@ internal static class ImageBuilderTests
         string packagePath = Path.Combine(tempRoot, "validate-package.pkg");
         File.WriteAllBytes(manifestPath, CreateManifestBytes());
         File.WriteAllBytes(packagePath, CreateNativePayloadPackageBytes("apps/hello.bin", validPayloadHeader: true));
-
-        ToolResult result = RunImageBuilder(
-            "validate-package",
-            "--manifest",
-            manifestPath,
-            "--package",
-            packagePath);
-
-        bool hasExpectedOutput = result.ExitCode == 0
-            && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal)
-            && result.Output.Contains("PACKAGE_APP_PATH apps/hello.bin", StringComparison.Ordinal)
-            && result.Output.Contains("PACKAGE_APP_BYTES 40", StringComparison.Ordinal)
-            && result.Output.Contains("PACKAGE_APP_ENTRY_OFFSET 32", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_PASS imagebuilder.package-validation", StringComparison.Ordinal);
-
+        ToolResult result = RunImageBuilder("validate-package", "--manifest", manifestPath, "--package", packagePath);
+        bool hasExpectedOutput = result.ExitCode == 0 && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal) && result.Output.Contains("PACKAGE_APP_PATH apps/hello.bin", StringComparison.Ordinal) && result.Output.Contains("PACKAGE_APP_BYTES 40", StringComparison.Ordinal) && result.Output.Contains("PACKAGE_APP_ENTRY_OFFSET 32", StringComparison.Ordinal) && result.Output.Contains("TEST_PASS imagebuilder.package-validation", StringComparison.Ordinal);
         if (!hasExpectedOutput)
         {
             PrintToolFailure(result);
@@ -1159,17 +820,8 @@ internal static class ImageBuilderTests
         string manifestPath = Path.Combine(tempRoot, "missing-validate-manifest.txt");
         string packagePath = Path.Combine(tempRoot, "missing-manifest-package.pkg");
         File.WriteAllBytes(packagePath, CreateNativePayloadPackageBytes("apps/hello.bin", validPayloadHeader: true));
-
-        ToolResult result = RunImageBuilder(
-            "validate-package",
-            "--manifest",
-            manifestPath,
-            "--package",
-            packagePath);
-
-        return result.ExitCode == 8
-            && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.package-validation manifest_not_found", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("validate-package", "--manifest", manifestPath, "--package", packagePath);
+        return result.ExitCode == 8 && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.package-validation manifest_not_found", StringComparison.Ordinal);
     }
 
     private static bool TestValidatePackageRejectsMalformedManifest(string tempRoot)
@@ -1178,17 +830,8 @@ internal static class ImageBuilderTests
         string packagePath = Path.Combine(tempRoot, "malformed-manifest-package.pkg");
         File.WriteAllBytes(manifestPath, System.Text.Encoding.ASCII.GetBytes("format=os-native-manifest\n"));
         File.WriteAllBytes(packagePath, CreateNativePayloadPackageBytes("apps/hello.bin", validPayloadHeader: true));
-
-        ToolResult result = RunImageBuilder(
-            "validate-package",
-            "--manifest",
-            manifestPath,
-            "--package",
-            packagePath);
-
-        return result.ExitCode == 23
-            && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.package-validation manifest_malformed", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("validate-package", "--manifest", manifestPath, "--package", packagePath);
+        return result.ExitCode == 23 && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.package-validation manifest_malformed", StringComparison.Ordinal);
     }
 
     private static bool TestValidatePackageRejectsMissingPackage(string tempRoot)
@@ -1196,17 +839,8 @@ internal static class ImageBuilderTests
         string manifestPath = Path.Combine(tempRoot, "missing-package-manifest.txt");
         string packagePath = Path.Combine(tempRoot, "missing-validate-package.pkg");
         File.WriteAllBytes(manifestPath, CreateManifestBytes());
-
-        ToolResult result = RunImageBuilder(
-            "validate-package",
-            "--manifest",
-            manifestPath,
-            "--package",
-            packagePath);
-
-        return result.ExitCode == 11
-            && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.package-validation package_not_found", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("validate-package", "--manifest", manifestPath, "--package", packagePath);
+        return result.ExitCode == 11 && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.package-validation package_not_found", StringComparison.Ordinal);
     }
 
     private static bool TestValidatePackageRejectsMissingAppFile(string tempRoot)
@@ -1215,17 +849,8 @@ internal static class ImageBuilderTests
         string packagePath = Path.Combine(tempRoot, "missing-app-package.pkg");
         File.WriteAllBytes(manifestPath, CreateManifestBytes());
         File.WriteAllBytes(packagePath, CreateNativePayloadPackageBytes("apps/other.bin", validPayloadHeader: true));
-
-        ToolResult result = RunImageBuilder(
-            "validate-package",
-            "--manifest",
-            manifestPath,
-            "--package",
-            packagePath);
-
-        return result.ExitCode == 26
-            && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.package-validation package_app_file_missing", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("validate-package", "--manifest", manifestPath, "--package", packagePath);
+        return result.ExitCode == 26 && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.package-validation package_app_file_missing", StringComparison.Ordinal);
     }
 
     private static bool TestValidatePackageRejectsInvalidPayloadHeader(string tempRoot)
@@ -1234,17 +859,8 @@ internal static class ImageBuilderTests
         string packagePath = Path.Combine(tempRoot, "invalid-payload-package.pkg");
         File.WriteAllBytes(manifestPath, CreateManifestBytes());
         File.WriteAllBytes(packagePath, CreateNativePayloadPackageBytes("apps/hello.bin", validPayloadHeader: false));
-
-        ToolResult result = RunImageBuilder(
-            "validate-package",
-            "--manifest",
-            manifestPath,
-            "--package",
-            packagePath);
-
-        return result.ExitCode == 27
-            && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.package-validation package_app_payload_invalid", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("validate-package", "--manifest", manifestPath, "--package", packagePath);
+        return result.ExitCode == 27 && result.Output.Contains("TEST_START imagebuilder.package-validation", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.package-validation package_app_payload_invalid", StringComparison.Ordinal);
     }
 
     private static bool TestBuildNativeAppPackageBuildsValidatedPackage(string tempRoot)
@@ -1252,26 +868,17 @@ internal static class ImageBuilderTests
         string manifestPath = Path.Combine(tempRoot, "native-app-package-manifest.txt");
         string inputPath = Path.Combine(tempRoot, "native-app-package-input.bin");
         string packagePath = Path.Combine(tempRoot, "native-app-package.pkg");
-        byte[] appBytes = new byte[] { 0xC3, 0x90, 0xCC, 0x7F };
+        byte[] appBytes = new byte[]
+        {
+            0xC3,
+            0x90,
+            0xCC,
+            0x7F
+        };
         File.WriteAllBytes(manifestPath, CreateManifestBytes());
         File.WriteAllBytes(inputPath, appBytes);
-
-        ToolResult result = RunImageBuilder(
-            "build-native-app-package",
-            "--manifest",
-            manifestPath,
-            "--input",
-            inputPath,
-            "--output",
-            packagePath);
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_START imagebuilder.native-app-package", StringComparison.Ordinal)
-            || !result.Output.Contains("NATIVE_APP_PACKAGE_PATH apps/hello.bin", StringComparison.Ordinal)
-            || !result.Output.Contains("NATIVE_APP_PACKAGE_RAW_APP_BYTES " + appBytes.Length, StringComparison.Ordinal)
-            || !result.Output.Contains("NATIVE_APP_PACKAGE_ENTRY_OFFSET 32", StringComparison.Ordinal)
-            || !result.Output.Contains("TEST_PASS imagebuilder.native-app-package", StringComparison.Ordinal)
-            || !File.Exists(packagePath))
+        ToolResult result = RunImageBuilder("build-native-app-package", "--manifest", manifestPath, "--input", inputPath, "--output", packagePath);
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_START imagebuilder.native-app-package", StringComparison.Ordinal) || !result.Output.Contains("NATIVE_APP_PACKAGE_PATH apps/hello.bin", StringComparison.Ordinal) || !result.Output.Contains("NATIVE_APP_PACKAGE_RAW_APP_BYTES " + appBytes.Length, StringComparison.Ordinal) || !result.Output.Contains("NATIVE_APP_PACKAGE_ENTRY_OFFSET 32", StringComparison.Ordinal) || !result.Output.Contains("TEST_PASS imagebuilder.native-app-package", StringComparison.Ordinal) || !File.Exists(packagePath))
         {
             PrintToolFailure(result);
             return false;
@@ -1286,14 +893,8 @@ internal static class ImageBuilderTests
 
         byte[] appPath = System.Text.Encoding.ASCII.GetBytes("apps/hello.bin");
         OsPackageFileContentResult content = OsPackageParser.GetFileContent(package, appPath);
-        NativeAppPayloadHeaderResult header = content.Succeeded
-            ? NativeAppPayloadHeader.Parse(content.Content)
-            : NativeAppPayloadHeaderResult.Fail(NativeAppPayloadHeaderStatus.PayloadTooSmall);
-
-        return content.Succeeded
-            && header.Succeeded
-            && content.Content.Length == NativeAppPayloadHeader.HeaderSize + appBytes.Length
-            && content.Content.Slice(NativeAppPayloadHeader.HeaderSize).SequenceEqual(appBytes);
+        NativeAppPayloadHeaderResult header = content.Succeeded ? NativeAppPayloadHeader.Parse(content.Content) : NativeAppPayloadHeaderResult.Fail(NativeAppPayloadHeaderStatus.PayloadTooSmall);
+        return content.Succeeded && header.Succeeded && content.Content.Length == NativeAppPayloadHeader.HeaderSize + appBytes.Length && content.Content.Slice(NativeAppPayloadHeader.HeaderSize).SequenceEqual(appBytes);
     }
 
     private static bool TestBuildNativeAppPackagePreservesManifestAppPath(string tempRoot)
@@ -1302,22 +903,16 @@ internal static class ImageBuilderTests
         string manifestPath = Path.Combine(tempRoot, "native-app-package-custom-manifest.txt");
         string inputPath = Path.Combine(tempRoot, "native-app-package-custom-input.bin");
         string packagePath = Path.Combine(tempRoot, "native-app-package-custom.pkg");
-        byte[] appBytes = new byte[] { 0x01, 0x02, 0x03 };
+        byte[] appBytes = new byte[]
+        {
+            0x01,
+            0x02,
+            0x03
+        };
         File.WriteAllBytes(manifestPath, CreateManifestBytesForAppPath(manifestAppPath));
         File.WriteAllBytes(inputPath, appBytes);
-
-        ToolResult result = RunImageBuilder(
-            "build-native-app-package",
-            "--manifest",
-            manifestPath,
-            "--input",
-            inputPath,
-            "--output",
-            packagePath);
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("NATIVE_APP_PACKAGE_PATH " + manifestAppPath, StringComparison.Ordinal)
-            || !File.Exists(packagePath))
+        ToolResult result = RunImageBuilder("build-native-app-package", "--manifest", manifestPath, "--input", inputPath, "--output", packagePath);
+        if (result.ExitCode != 0 || !result.Output.Contains("NATIVE_APP_PACKAGE_PATH " + manifestAppPath, StringComparison.Ordinal) || !File.Exists(packagePath))
         {
             PrintToolFailure(result);
             return false;
@@ -1327,12 +922,7 @@ internal static class ImageBuilderTests
         byte[] manifestPathBytes = System.Text.Encoding.ASCII.GetBytes(manifestAppPath);
         OsPackageFileContentResult selectedContent = OsPackageParser.GetFileContent(package, manifestPathBytes);
         OsPackageFileContentResult defaultContent = OsPackageParser.GetFileContent(package, "apps/hello.bin"u8);
-
-        return selectedContent.Succeeded
-            && selectedContent.Content.Length == NativeAppPayloadHeader.HeaderSize + appBytes.Length
-            && selectedContent.Content.Slice(NativeAppPayloadHeader.HeaderSize).SequenceEqual(appBytes)
-            && !defaultContent.Succeeded
-            && defaultContent.Status == OsPackageStatus.MissingFile;
+        return selectedContent.Succeeded && selectedContent.Content.Length == NativeAppPayloadHeader.HeaderSize + appBytes.Length && selectedContent.Content.Slice(NativeAppPayloadHeader.HeaderSize).SequenceEqual(appBytes) && !defaultContent.Succeeded && defaultContent.Status == OsPackageStatus.MissingFile;
     }
 
     private static bool TestBuildNativeAppPackageRejectsMalformedManifest(string tempRoot)
@@ -1342,20 +932,8 @@ internal static class ImageBuilderTests
         string packagePath = Path.Combine(tempRoot, "native-app-package-malformed.pkg");
         File.WriteAllBytes(manifestPath, System.Text.Encoding.ASCII.GetBytes("format=os-native-manifest\n"));
         File.WriteAllBytes(inputPath, new byte[] { 0xC3 });
-
-        ToolResult result = RunImageBuilder(
-            "build-native-app-package",
-            "--manifest",
-            manifestPath,
-            "--input",
-            inputPath,
-            "--output",
-            packagePath);
-
-        return result.ExitCode == 23
-            && result.Output.Contains("TEST_START imagebuilder.native-app-package", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.native-app-package manifest_malformed", StringComparison.Ordinal)
-            && !File.Exists(packagePath);
+        ToolResult result = RunImageBuilder("build-native-app-package", "--manifest", manifestPath, "--input", inputPath, "--output", packagePath);
+        return result.ExitCode == 23 && result.Output.Contains("TEST_START imagebuilder.native-app-package", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.native-app-package manifest_malformed", StringComparison.Ordinal) && !File.Exists(packagePath);
     }
 
     private static bool TestBuildNativeAppPackageRejectsEmptyAppInput(string tempRoot)
@@ -1365,20 +943,8 @@ internal static class ImageBuilderTests
         string packagePath = Path.Combine(tempRoot, "native-app-package-empty-input.pkg");
         File.WriteAllBytes(manifestPath, CreateManifestBytes());
         File.WriteAllBytes(inputPath, Array.Empty<byte>());
-
-        ToolResult result = RunImageBuilder(
-            "build-native-app-package",
-            "--manifest",
-            manifestPath,
-            "--input",
-            inputPath,
-            "--output",
-            packagePath);
-
-        return result.ExitCode == 22
-            && result.Output.Contains("TEST_START imagebuilder.native-app-package", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.native-app-package native_payload_input_empty", StringComparison.Ordinal)
-            && !File.Exists(packagePath);
+        ToolResult result = RunImageBuilder("build-native-app-package", "--manifest", manifestPath, "--input", inputPath, "--output", packagePath);
+        return result.ExitCode == 22 && result.Output.Contains("TEST_START imagebuilder.native-app-package", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.native-app-package native_payload_input_empty", StringComparison.Ordinal) && !File.Exists(packagePath);
     }
 
     private static bool TestBuildNativeAppImageCreatesRawImageWithPackage(string tempRoot)
@@ -1390,29 +956,19 @@ internal static class ImageBuilderTests
         string packagePath = Path.GetFullPath(imagePath) + ".app.pkg";
         byte[] efiBytes = CreateEfiBytes();
         byte[] manifestBytes = CreateManifestBytes();
-        byte[] appBytes = new byte[] { 0xC3, 0x90, 0xCC, 0x7F, 0x01 };
+        byte[] appBytes = new byte[]
+        {
+            0xC3,
+            0x90,
+            0xCC,
+            0x7F,
+            0x01
+        };
         File.WriteAllBytes(efiPath, efiBytes);
         File.WriteAllBytes(manifestPath, manifestBytes);
         File.WriteAllBytes(inputPath, appBytes);
-
-        ToolResult result = RunImageBuilder(
-            "build-native-app-image",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--input",
-            inputPath,
-            "--output",
-            imagePath);
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_START imagebuilder.native-app-image", StringComparison.Ordinal)
-            || !result.Output.Contains("NATIVE_APP_IMAGE_PACKAGE_PATH " + packagePath, StringComparison.Ordinal)
-            || !result.Output.Contains("NATIVE_APP_IMAGE_RAW_PATH " + imagePath, StringComparison.Ordinal)
-            || !result.Output.Contains("TEST_PASS imagebuilder.native-app-image", StringComparison.Ordinal)
-            || !File.Exists(packagePath)
-            || !File.Exists(imagePath))
+        ToolResult result = RunImageBuilder("build-native-app-image", "--efi", efiPath, "--manifest", manifestPath, "--input", inputPath, "--output", imagePath);
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_START imagebuilder.native-app-image", StringComparison.Ordinal) || !result.Output.Contains("NATIVE_APP_IMAGE_PACKAGE_PATH " + packagePath, StringComparison.Ordinal) || !result.Output.Contains("NATIVE_APP_IMAGE_RAW_PATH " + imagePath, StringComparison.Ordinal) || !result.Output.Contains("TEST_PASS imagebuilder.native-app-image", StringComparison.Ordinal) || !File.Exists(packagePath) || !File.Exists(imagePath))
         {
             PrintToolFailure(result);
             return false;
@@ -1426,21 +982,14 @@ internal static class ImageBuilderTests
         }
 
         OsPackageFileContentResult content = OsPackageParser.GetFileContent(package, "apps/hello.bin"u8);
-        NativeAppPayloadHeaderResult header = content.Succeeded
-            ? NativeAppPayloadHeader.Parse(content.Content)
-            : NativeAppPayloadHeaderResult.Fail(NativeAppPayloadHeaderStatus.PayloadTooSmall);
-        if (!content.Succeeded
-            || !header.Succeeded
-            || content.Content.Length != NativeAppPayloadHeader.HeaderSize + appBytes.Length
-            || !content.Content.Slice(NativeAppPayloadHeader.HeaderSize).SequenceEqual(appBytes))
+        NativeAppPayloadHeaderResult header = content.Succeeded ? NativeAppPayloadHeader.Parse(content.Content) : NativeAppPayloadHeaderResult.Fail(NativeAppPayloadHeaderStatus.PayloadTooSmall);
+        if (!content.Succeeded || !header.Succeeded || content.Content.Length != NativeAppPayloadHeader.HeaderSize + appBytes.Length || !content.Content.Slice(NativeAppPayloadHeader.HeaderSize).SequenceEqual(appBytes))
         {
             return false;
         }
 
         byte[] image = File.ReadAllBytes(imagePath);
-        return ContainsBootFile(image, efiBytes)
-            && ContainsManifestFile(image, manifestBytes)
-            && ContainsPackageFile(image, package);
+        return ContainsBootFile(image, efiBytes) && ContainsManifestFile(image, manifestBytes) && ContainsPackageFile(image, package);
     }
 
     private static bool TestBuildNativeAppImageRejectsMissingEfi(string tempRoot)
@@ -1451,23 +1000,8 @@ internal static class ImageBuilderTests
         string packagePath = Path.GetFullPath(imagePath) + ".app.pkg";
         File.WriteAllBytes(manifestPath, CreateManifestBytes());
         File.WriteAllBytes(inputPath, new byte[] { 0xC3 });
-
-        ToolResult result = RunImageBuilder(
-            "build-native-app-image",
-            "--efi",
-            Path.Combine(tempRoot, "missing-native-app-image.efi"),
-            "--manifest",
-            manifestPath,
-            "--input",
-            inputPath,
-            "--output",
-            imagePath);
-
-        return result.ExitCode == 3
-            && result.Output.Contains("TEST_START imagebuilder.native-app-image", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.native-app-image efi_not_found", StringComparison.Ordinal)
-            && !File.Exists(packagePath)
-            && !File.Exists(imagePath);
+        ToolResult result = RunImageBuilder("build-native-app-image", "--efi", Path.Combine(tempRoot, "missing-native-app-image.efi"), "--manifest", manifestPath, "--input", inputPath, "--output", imagePath);
+        return result.ExitCode == 3 && result.Output.Contains("TEST_START imagebuilder.native-app-image", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.native-app-image efi_not_found", StringComparison.Ordinal) && !File.Exists(packagePath) && !File.Exists(imagePath);
     }
 
     private static bool TestBuildNativeAppImageRejectsMalformedManifest(string tempRoot)
@@ -1480,23 +1014,8 @@ internal static class ImageBuilderTests
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         File.WriteAllBytes(manifestPath, System.Text.Encoding.ASCII.GetBytes("format=os-native-manifest\n"));
         File.WriteAllBytes(inputPath, new byte[] { 0xC3 });
-
-        ToolResult result = RunImageBuilder(
-            "build-native-app-image",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--input",
-            inputPath,
-            "--output",
-            imagePath);
-
-        return result.ExitCode == 23
-            && result.Output.Contains("TEST_START imagebuilder.native-app-image", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.native-app-image manifest_malformed", StringComparison.Ordinal)
-            && !File.Exists(packagePath)
-            && !File.Exists(imagePath);
+        ToolResult result = RunImageBuilder("build-native-app-image", "--efi", efiPath, "--manifest", manifestPath, "--input", inputPath, "--output", imagePath);
+        return result.ExitCode == 23 && result.Output.Contains("TEST_START imagebuilder.native-app-image", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.native-app-image manifest_malformed", StringComparison.Ordinal) && !File.Exists(packagePath) && !File.Exists(imagePath);
     }
 
     private static bool TestKestrelPackageStagesFiles(string tempRoot)
@@ -1508,26 +1027,8 @@ internal static class ImageBuilderTests
         byte[] manifestBytes = CreateKestrelManifestBytes();
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         File.WriteAllBytes(manifestPath, manifestBytes);
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--kestrel-package",
-            packageRoot,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
-        if (result.ExitCode != 0
-            || !result.Output.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal)
-            || !result.Output.Contains("WORKLOAD_PROFILE SingleMinimalApi", StringComparison.Ordinal)
-            || !result.Output.Contains("KESTREL_PACKAGE_CONTRACT kestrel.smoke.package.v0", StringComparison.Ordinal)
-            || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal)
-            || !File.Exists(imagePath))
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--manifest", manifestPath, "--kestrel-package", packageRoot, "--output", imagePath, "--image-size-mib", "64");
+        if (result.ExitCode != 0 || !result.Output.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal) || !result.Output.Contains("WORKLOAD_PROFILE SingleMinimalApi", StringComparison.Ordinal) || !result.Output.Contains("KESTREL_PACKAGE_CONTRACT kestrel.smoke.package.v0", StringComparison.Ordinal) || !result.Output.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal) || !File.Exists(imagePath))
         {
             PrintToolFailure(result);
             return false;
@@ -1535,30 +1036,16 @@ internal static class ImageBuilderTests
 
         byte[] image = File.ReadAllBytes(imagePath);
         byte[] packageBuffer = new byte[64 * 1024];
-        OsPackageLoadResult load = OsPackageLoader.LoadFromPrimaryGptEsp(
-            MemoryBlockDevice.FromImage(image, (uint)SectorSize),
-            packageBuffer);
-        if (!load.Succeeded
-            || load.Status != OsPackageLoadStatus.Success
-            || load.PackageStatus != OsPackageStatus.Success
-            || load.PackageHeader.FileCount != 4)
+        OsPackageLoadResult load = OsPackageLoader.LoadFromPrimaryGptEsp(MemoryBlockDevice.FromImage(image, (uint)SectorSize), packageBuffer);
+        if (!load.Succeeded || load.Status != OsPackageLoadStatus.Success || load.PackageStatus != OsPackageStatus.Success || load.PackageHeader.FileCount != 4)
         {
             return false;
         }
 
         ReadOnlySpan<byte> package = packageBuffer.AsSpan(0, checked((int)load.BytesRead));
-        OsPackageFileContentResult app = OsPackageParser.GetFileContent(
-            package,
-            "apps/minimal-api/MinimalApiSmoke.dll"u8);
-        OsPackageFileContentResult config = OsPackageParser.GetFileContent(
-            package,
-            "apps/minimal-api/appsettings.json"u8);
-
-        return ContainsManifestFile(image, manifestBytes)
-            && app.Succeeded
-            && config.Succeeded
-            && SpanEqualsAscii(app.Content, "fixture:apps/minimal-api/MinimalApiSmoke.dll")
-            && SpanEqualsAscii(config.Content, "fixture:apps/minimal-api/appsettings.json");
+        OsPackageFileContentResult app = OsPackageParser.GetFileContent(package, "apps/minimal-api/MinimalApiSmoke.dll"u8);
+        OsPackageFileContentResult config = OsPackageParser.GetFileContent(package, "apps/minimal-api/appsettings.json"u8);
+        return ContainsManifestFile(image, manifestBytes) && app.Succeeded && config.Succeeded && SpanEqualsAscii(app.Content, "fixture:apps/minimal-api/MinimalApiSmoke.dll") && SpanEqualsAscii(config.Content, "fixture:apps/minimal-api/appsettings.json");
     }
 
     private static bool TestKestrelPackageRejectsInvalidContract(string tempRoot)
@@ -1569,25 +1056,8 @@ internal static class ImageBuilderTests
         string imagePath = Path.Combine(tempRoot, "kestrel-invalid.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         File.WriteAllBytes(manifestPath, CreateKestrelManifestWithoutExpectedBodyBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--kestrel-package",
-            packageRoot,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
-        return result.ExitCode == 30
-            && !File.Exists(imagePath)
-            && result.Output.Contains("TEST_START imagebuilder.plan", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.plan kestrel_package_missing_expected_env", StringComparison.Ordinal)
-            && result.Output.Contains("OS_SMOKE_EXPECTED_BODY", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--manifest", manifestPath, "--kestrel-package", packageRoot, "--output", imagePath, "--image-size-mib", "64");
+        return result.ExitCode == 30 && !File.Exists(imagePath) && result.Output.Contains("TEST_START imagebuilder.plan", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.plan kestrel_package_missing_expected_env", StringComparison.Ordinal) && result.Output.Contains("OS_SMOKE_EXPECTED_BODY", StringComparison.Ordinal);
     }
 
     private static bool TestKestrelPackageRecordsSingleProfile(string tempRoot)
@@ -1598,22 +1068,7 @@ internal static class ImageBuilderTests
         string imagePath = Path.Combine(tempRoot, "kestrel-plan.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         File.WriteAllBytes(manifestPath, CreateKestrelManifestBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--kestrel-package",
-            packageRoot,
-            "--workload-profile",
-            "SingleMinimalApi",
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--manifest", manifestPath, "--kestrel-package", packageRoot, "--workload-profile", "SingleMinimalApi", "--output", imagePath, "--image-size-mib", "64");
         if (result.ExitCode != 0)
         {
             PrintToolFailure(result);
@@ -1621,13 +1076,7 @@ internal static class ImageBuilderTests
         }
 
         string escapedPackageRoot = packageRoot.Replace("\\", "\\\\", StringComparison.Ordinal);
-        return !File.Exists(imagePath)
-            && result.Output.Contains("WORKLOAD_PROFILE SingleMinimalApi", StringComparison.Ordinal)
-            && result.Output.Contains("KESTREL_PACKAGE_CONTRACT kestrel.smoke.package.v0", StringComparison.Ordinal)
-            && result.Output.Contains("\"kind\":\"app-package-file\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"guestPath\":\"\\\\OS\\\\APP.PKG\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"sourcePath\":\"" + escapedPackageRoot + "\"", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal);
+        return !File.Exists(imagePath) && result.Output.Contains("WORKLOAD_PROFILE SingleMinimalApi", StringComparison.Ordinal) && result.Output.Contains("KESTREL_PACKAGE_CONTRACT kestrel.smoke.package.v0", StringComparison.Ordinal) && result.Output.Contains("\"kind\":\"app-package-file\"", StringComparison.Ordinal) && result.Output.Contains("\"guestPath\":\"\\\\OS\\\\APP.PKG\"", StringComparison.Ordinal) && result.Output.Contains("\"sourcePath\":\"" + escapedPackageRoot + "\"", StringComparison.Ordinal) && result.Output.Contains("TEST_PASS imagebuilder.plan", StringComparison.Ordinal);
     }
 
     private static bool TestKestrelPackageRejectsMultiProfile(string tempRoot)
@@ -1638,40 +1087,14 @@ internal static class ImageBuilderTests
         string imagePath = Path.Combine(tempRoot, "kestrel-multi.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         File.WriteAllBytes(manifestPath, CreateKestrelManifestBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--kestrel-package",
-            packageRoot,
-            "--workload-profile",
-            "MultiMinimalApi",
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
-        return result.ExitCode == 30
-            && !File.Exists(imagePath)
-            && result.Output.Contains("WORKLOAD_PROFILE MultiMinimalApi", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.plan kestrel_package_unsupported_profile", StringComparison.Ordinal)
-            && result.Output.Contains("SingleMinimalApi only", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--manifest", manifestPath, "--kestrel-package", packageRoot, "--workload-profile", "MultiMinimalApi", "--output", imagePath, "--image-size-mib", "64");
+        return result.ExitCode == 30 && !File.Exists(imagePath) && result.Output.Contains("WORKLOAD_PROFILE MultiMinimalApi", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.plan kestrel_package_unsupported_profile", StringComparison.Ordinal) && result.Output.Contains("SingleMinimalApi only", StringComparison.Ordinal);
     }
 
     private static bool TestKestrelPackageStagesPublishedPackage(KestrelPublishedImageFixture fixture)
     {
-        bool scriptMarkers = fixture.PublishOutput.Contains("TEST_PASS kestrel.smoke_app publishes package", StringComparison.Ordinal)
-            && fixture.PublishOutput.Contains("WORKLOAD_PROFILE SingleMinimalApi", StringComparison.Ordinal)
-            && fixture.PublishOutput.Contains("TEST_PASS kestrel.smoke_app validates package contract", StringComparison.Ordinal)
-            && OutputHasLine(fixture.PublishOutput, "TEST_PASS kestrel.smoke_app");
-        bool imageMarkers = fixture.ImageBuilderOutput.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal)
-            && fixture.ImageBuilderOutput.Contains("WORKLOAD_PROFILE SingleMinimalApi", StringComparison.Ordinal)
-            && fixture.ImageBuilderOutput.Contains("KESTREL_PACKAGE_CONTRACT kestrel.smoke.package.v0", StringComparison.Ordinal)
-            && fixture.ImageBuilderOutput.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal);
-
+        bool scriptMarkers = fixture.PublishOutput.Contains("TEST_PASS kestrel.smoke_app publishes package", StringComparison.Ordinal) && fixture.PublishOutput.Contains("WORKLOAD_PROFILE SingleMinimalApi", StringComparison.Ordinal) && fixture.PublishOutput.Contains("TEST_PASS kestrel.smoke_app validates package contract", StringComparison.Ordinal) && OutputHasLine(fixture.PublishOutput, "TEST_PASS kestrel.smoke_app");
+        bool imageMarkers = fixture.ImageBuilderOutput.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal) && fixture.ImageBuilderOutput.Contains("WORKLOAD_PROFILE SingleMinimalApi", StringComparison.Ordinal) && fixture.ImageBuilderOutput.Contains("KESTREL_PACKAGE_CONTRACT kestrel.smoke.package.v0", StringComparison.Ordinal) && fixture.ImageBuilderOutput.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal);
         if (!scriptMarkers || !imageMarkers || !File.Exists(fixture.ImagePath) || !fixture.PackageLoadSucceeded)
         {
             Console.WriteLine("Publish output=" + fixture.PublishOutput.Replace(Environment.NewLine, "\\n", StringComparison.Ordinal));
@@ -1694,32 +1117,12 @@ internal static class ImageBuilderTests
             return false;
         }
 
-        return PackageFileEqualsPublishedFile(
-                fixture.PackageBytes,
-                fixture.PackageRootPath,
-                "apps/minimal-api/MinimalApiSmoke.dll")
-            && PackageFileEqualsPublishedFile(
-                fixture.PackageBytes,
-                fixture.PackageRootPath,
-                "apps/minimal-api/MinimalApiSmoke.deps.json")
-            && PackageFileEqualsPublishedFile(
-                fixture.PackageBytes,
-                fixture.PackageRootPath,
-                "apps/minimal-api/MinimalApiSmoke.runtimeconfig.json")
-            && PackageFileEqualsPublishedFile(
-                fixture.PackageBytes,
-                fixture.PackageRootPath,
-                "apps/minimal-api/appsettings.json")
-            && PackageFileContainsAscii(
-                fixture.PackageBytes,
-                "apps/minimal-api/appsettings.json",
-                "OS_SMOKE_EXPECTED_BODY");
+        return PackageFileEqualsPublishedFile(fixture.PackageBytes, fixture.PackageRootPath, "apps/minimal-api/MinimalApiSmoke.dll") && PackageFileEqualsPublishedFile(fixture.PackageBytes, fixture.PackageRootPath, "apps/minimal-api/MinimalApiSmoke.deps.json") && PackageFileEqualsPublishedFile(fixture.PackageBytes, fixture.PackageRootPath, "apps/minimal-api/MinimalApiSmoke.runtimeconfig.json") && PackageFileEqualsPublishedFile(fixture.PackageBytes, fixture.PackageRootPath, "apps/minimal-api/appsettings.json") && PackageFileContainsAscii(fixture.PackageBytes, "apps/minimal-api/appsettings.json", "OS_SMOKE_EXPECTED_BODY");
     }
 
     private static bool TestKestrelPackageReadbackPreservesManifestJson(KestrelPublishedImageFixture fixture)
     {
-        return fixture.ManifestReadbackSucceeded
-            && fixture.ManifestBytesFromImage.SequenceEqual(fixture.ManifestBytesFromPublish);
+        return fixture.ManifestReadbackSucceeded && fixture.ManifestBytesFromImage.SequenceEqual(fixture.ManifestBytesFromPublish);
     }
 
     private static KestrelPublishedImageFixture CreatePublishedKestrelImageFixture(string tempRoot)
@@ -1729,77 +1132,33 @@ internal static class ImageBuilderTests
         string manifestPath = Path.Combine(outputRoot, "package.json");
         string efiPath = Path.Combine(tempRoot, "BOOTX64-KESTREL-PUBLISHED.EFI");
         string imagePath = Path.Combine(tempRoot, "kestrel-published.raw");
-
         ToolResult publish = RunKestrelPublish(outputRoot);
         if (publish.ExitCode != 0)
         {
-            return KestrelPublishedImageFixture.CreateFailed(
-                publish.Output,
-                imageBuilderOutput: string.Empty,
-                imagePath,
-                packageRoot);
+            return KestrelPublishedImageFixture.CreateFailed(publish.Output, imageBuilderOutput: string.Empty, imagePath, packageRoot);
         }
 
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-        ToolResult imageBuilder = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--kestrel-package",
-            packageRoot,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "64");
-
+        ToolResult imageBuilder = RunImageBuilder("create-raw", "--efi", efiPath, "--manifest", manifestPath, "--kestrel-package", packageRoot, "--output", imagePath, "--image-size-mib", "64");
         if (imageBuilder.ExitCode != 0 || !File.Exists(imagePath))
         {
-            return KestrelPublishedImageFixture.CreateFailed(
-                publish.Output,
-                imageBuilder.Output,
-                imagePath,
-                packageRoot);
+            return KestrelPublishedImageFixture.CreateFailed(publish.Output, imageBuilder.Output, imagePath, packageRoot);
         }
 
         byte[] image = File.ReadAllBytes(imagePath);
-        byte[] manifestBytesFromPublish = File.Exists(manifestPath)
-            ? File.ReadAllBytes(manifestPath)
-            : Array.Empty<byte>();
-        bool manifestReadbackSucceeded = TryReadOsFileFromEspImage(
-            image,
-            "MANIFEST.JSON",
-            out byte[] manifestBytesFromImage);
-
+        byte[] manifestBytesFromPublish = File.Exists(manifestPath) ? File.ReadAllBytes(manifestPath) : Array.Empty<byte>();
+        bool manifestReadbackSucceeded = TryReadOsFileFromEspImage(image, "MANIFEST.JSON", out byte[] manifestBytesFromImage);
         byte[] packageBuffer = new byte[16 * 1024 * 1024];
-        OsPackageLoadResult packageLoad = OsPackageLoader.LoadFromPrimaryGptEsp(
-            MemoryBlockDevice.FromImage(image, (uint)SectorSize),
-            packageBuffer);
-        byte[] packageBytes = packageLoad.Succeeded
-            ? packageBuffer.AsSpan(0, checked((int)packageLoad.BytesRead)).ToArray()
-            : Array.Empty<byte>();
-
-        return new KestrelPublishedImageFixture(
-            publish.Output,
-            imageBuilder.Output,
-            imagePath,
-            packageRoot,
-            manifestBytesFromPublish,
-            manifestBytesFromImage,
-            manifestReadbackSucceeded,
-            packageBytes,
-            packageLoad.Succeeded,
-            packageLoad.Status.ToString(),
-            packageLoad.PackageStatus.ToString());
+        OsPackageLoadResult packageLoad = OsPackageLoader.LoadFromPrimaryGptEsp(MemoryBlockDevice.FromImage(image, (uint)SectorSize), packageBuffer);
+        byte[] packageBytes = packageLoad.Succeeded ? packageBuffer.AsSpan(0, checked((int)packageLoad.BytesRead)).ToArray() : Array.Empty<byte>();
+        return new KestrelPublishedImageFixture(publish.Output, imageBuilder.Output, imagePath, packageRoot, manifestBytesFromPublish, manifestBytesFromImage, manifestReadbackSucceeded, packageBytes, packageLoad.Succeeded, packageLoad.Status.ToString(), packageLoad.PackageStatus.ToString());
     }
 
     private static ToolResult RunKestrelPublish(string outputRoot)
-{
-    var result = HostToolProcess.RunTool("kestrel", "package", "--output-root", outputRoot,
-        "--workload-profile", "SingleMinimalApi", "--skip-negative-validation");
-    return new(result.ExitCode, result.Output + result.Error);
-}
+    {
+        var result = HostToolProcess.RunTool("kestrel", "package", "--output-root", outputRoot, "--workload-profile", "SingleMinimalApi", "--skip-negative-validation");
+        return new(result.ExitCode, result.Output + result.Error);
+    }
 
     private static bool PackageFileEqualsPublishedFile(byte[] packageBytes, string packageRoot, string packagePath)
     {
@@ -1810,9 +1169,7 @@ internal static class ImageBuilderTests
             return false;
         }
 
-        OsPackageFileContentResult content = OsPackageParser.GetFileContent(
-            packageBytes,
-            System.Text.Encoding.ASCII.GetBytes(packagePath));
+        OsPackageFileContentResult content = OsPackageParser.GetFileContent(packageBytes, System.Text.Encoding.ASCII.GetBytes(packagePath));
         if (!content.Succeeded)
         {
             Console.WriteLine("Package file missing: " + packagePath + " status=" + content.Status);
@@ -1832,9 +1189,7 @@ internal static class ImageBuilderTests
 
     private static bool PackageFileContainsAscii(byte[] packageBytes, string packagePath, string expected)
     {
-        OsPackageFileContentResult content = OsPackageParser.GetFileContent(
-            packageBytes,
-            System.Text.Encoding.ASCII.GetBytes(packagePath));
+        OsPackageFileContentResult content = OsPackageParser.GetFileContent(packageBytes, System.Text.Encoding.ASCII.GetBytes(packagePath));
         return content.Succeeded && ContainsAscii(content.Content, expected);
     }
 
@@ -1852,14 +1207,12 @@ internal static class ImageBuilderTests
     private static bool TryReadOsFileFromEspImage(byte[] image, string fileName, out byte[] content)
     {
         content = Array.Empty<byte>();
-
         try
         {
             int bootSector = checked((int)PartitionStartLba) * SectorSize;
             uint fatSectors = ReadUInt32(image, bootSector + 36);
             ulong fatOffset = (PartitionStartLba + 32) * SectorSize;
             ulong dataOffset = (PartitionStartLba + 32 + 2UL * fatSectors) * SectorSize;
-
             ReadOnlySpan<byte> root = Cluster(image, dataOffset, 2);
             DirectoryEntry os = FindEntryByName(root, "OS");
             if (!os.IsDirectory)
@@ -1927,17 +1280,8 @@ internal static class ImageBuilderTests
     private static bool TestMissingEfi(string tempRoot)
     {
         string imagePath = Path.Combine(tempRoot, "missing.raw");
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            Path.Combine(tempRoot, "does-not-exist.efi"),
-            "--output",
-            imagePath);
-
-        return result.ExitCode == 3
-            && result.Output.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.raw efi_not_found", StringComparison.Ordinal)
-            && !File.Exists(imagePath);
+        ToolResult result = RunImageBuilder("create-raw", "--efi", Path.Combine(tempRoot, "does-not-exist.efi"), "--output", imagePath);
+        return result.ExitCode == 3 && result.Output.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.raw efi_not_found", StringComparison.Ordinal) && !File.Exists(imagePath);
     }
 
     private static bool TestMissingManifest(string tempRoot)
@@ -1945,20 +1289,8 @@ internal static class ImageBuilderTests
         string efiPath = Path.Combine(tempRoot, "BOOTX64-MISSING-MANIFEST.EFI");
         string imagePath = Path.Combine(tempRoot, "missing-manifest.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            Path.Combine(tempRoot, "missing-manifest.json"),
-            "--output",
-            imagePath);
-
-        return result.ExitCode == 8
-            && result.Output.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.raw manifest_not_found", StringComparison.Ordinal)
-            && !File.Exists(imagePath);
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--manifest", Path.Combine(tempRoot, "missing-manifest.json"), "--output", imagePath);
+        return result.ExitCode == 8 && result.Output.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.raw manifest_not_found", StringComparison.Ordinal) && !File.Exists(imagePath);
     }
 
     private static bool TestEmptyManifest(string tempRoot)
@@ -1968,19 +1300,8 @@ internal static class ImageBuilderTests
         string imagePath = Path.Combine(tempRoot, "empty-manifest.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         File.WriteAllBytes(manifestPath, Array.Empty<byte>());
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--output",
-            imagePath);
-
-        return result.ExitCode == 9
-            && result.Output.Contains("TEST_FAIL imagebuilder.raw manifest_empty", StringComparison.Ordinal)
-            && !File.Exists(imagePath);
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--manifest", manifestPath, "--output", imagePath);
+        return result.ExitCode == 9 && result.Output.Contains("TEST_FAIL imagebuilder.raw manifest_empty", StringComparison.Ordinal) && !File.Exists(imagePath);
     }
 
     private static bool TestOversizedManifest(string tempRoot)
@@ -1990,20 +1311,8 @@ internal static class ImageBuilderTests
         string imagePath = Path.Combine(tempRoot, "oversized-manifest.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         File.WriteAllBytes(manifestPath, new byte[64 * 1024 + 1]);
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--manifest",
-            manifestPath,
-            "--output",
-            imagePath);
-
-        return result.ExitCode == 10
-            && result.Output.Contains("TEST_START imagebuilder.plan", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.plan manifest_too_large", StringComparison.Ordinal)
-            && !File.Exists(imagePath);
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--manifest", manifestPath, "--output", imagePath);
+        return result.ExitCode == 10 && result.Output.Contains("TEST_START imagebuilder.plan", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.plan manifest_too_large", StringComparison.Ordinal) && !File.Exists(imagePath);
     }
 
     private static bool TestMissingPackage(string tempRoot)
@@ -2011,20 +1320,8 @@ internal static class ImageBuilderTests
         string efiPath = Path.Combine(tempRoot, "BOOTX64-MISSING-PACKAGE.EFI");
         string imagePath = Path.Combine(tempRoot, "missing-package.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--package",
-            Path.Combine(tempRoot, "missing-app.pkg"),
-            "--output",
-            imagePath);
-
-        return result.ExitCode == 11
-            && result.Output.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.raw package_not_found", StringComparison.Ordinal)
-            && !File.Exists(imagePath);
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--package", Path.Combine(tempRoot, "missing-app.pkg"), "--output", imagePath);
+        return result.ExitCode == 11 && result.Output.Contains("TEST_START imagebuilder.raw", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.raw package_not_found", StringComparison.Ordinal) && !File.Exists(imagePath);
     }
 
     private static bool TestEmptyPackage(string tempRoot)
@@ -2034,19 +1331,8 @@ internal static class ImageBuilderTests
         string imagePath = Path.Combine(tempRoot, "empty-package.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         File.WriteAllBytes(packagePath, Array.Empty<byte>());
-
-        ToolResult result = RunImageBuilder(
-            "create-raw",
-            "--efi",
-            efiPath,
-            "--package",
-            packagePath,
-            "--output",
-            imagePath);
-
-        return result.ExitCode == 12
-            && result.Output.Contains("TEST_FAIL imagebuilder.raw package_empty", StringComparison.Ordinal)
-            && !File.Exists(imagePath);
+        ToolResult result = RunImageBuilder("create-raw", "--efi", efiPath, "--package", packagePath, "--output", imagePath);
+        return result.ExitCode == 12 && result.Output.Contains("TEST_FAIL imagebuilder.raw package_empty", StringComparison.Ordinal) && !File.Exists(imagePath);
     }
 
     private static bool TestOversizedPackage(string tempRoot)
@@ -2056,20 +1342,8 @@ internal static class ImageBuilderTests
         string imagePath = Path.Combine(tempRoot, "oversized-package.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
         File.WriteAllBytes(packagePath, new byte[16 * 1024 * 1024 + 1]);
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--package",
-            packagePath,
-            "--output",
-            imagePath);
-
-        return result.ExitCode == 13
-            && result.Output.Contains("TEST_START imagebuilder.plan", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.plan package_too_large", StringComparison.Ordinal)
-            && !File.Exists(imagePath);
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--package", packagePath, "--output", imagePath);
+        return result.ExitCode == 13 && result.Output.Contains("TEST_START imagebuilder.plan", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.plan package_too_large", StringComparison.Ordinal) && !File.Exists(imagePath);
     }
 
     private static bool TestOversizedRawImageSize(string tempRoot)
@@ -2077,20 +1351,8 @@ internal static class ImageBuilderTests
         string efiPath = Path.Combine(tempRoot, "BOOTX64-OVERSIZED-IMAGE.EFI");
         string imagePath = Path.Combine(tempRoot, "oversized-image.raw");
         File.WriteAllBytes(efiPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-raw",
-            "--efi",
-            efiPath,
-            "--output",
-            imagePath,
-            "--image-size-mib",
-            "2097154");
-
-        return result.ExitCode == 5
-            && result.Output.Contains("TEST_START imagebuilder.plan", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.plan image_too_large", StringComparison.Ordinal)
-            && !File.Exists(imagePath);
+        ToolResult result = RunImageBuilder("plan-raw", "--efi", efiPath, "--output", imagePath, "--image-size-mib", "2097154");
+        return result.ExitCode == 5 && result.Output.Contains("TEST_START imagebuilder.plan", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.plan image_too_large", StringComparison.Ordinal) && !File.Exists(imagePath);
     }
 
     private static bool TestConvertQcow2DryRunWithoutQemuImg(string tempRoot)
@@ -2099,27 +1361,8 @@ internal static class ImageBuilderTests
         string outputPath = Path.Combine(tempRoot, "qcow2-output.qcow2");
         string qemuImgPath = Path.Combine(tempRoot, "missing-qemu-img.exe");
         File.WriteAllBytes(inputPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "convert-qcow2",
-            "--input",
-            inputPath,
-            "--output",
-            outputPath,
-            "--qemu-img",
-            qemuImgPath,
-            "--dry-run");
-
-        bool hasExpectedMarkers = result.ExitCode == 0
-            && result.Output.Contains("TEST_START imagebuilder.qcow2", StringComparison.Ordinal)
-            && result.Output.Contains("QEMU_IMG_DISCOVERY source=explicit", StringComparison.Ordinal)
-            && result.Output.Contains("requested=" + qemuImgPath, StringComparison.Ordinal)
-            && result.Output.Contains("resolved=<not-found> available=false", StringComparison.Ordinal)
-            && result.Output.Contains("QCOW2_COMMAND", StringComparison.Ordinal)
-            && result.Output.Contains(" convert -f raw -O qcow2 ", StringComparison.Ordinal)
-            && result.Output.Contains("QCOW2_NO_WRITE " + outputPath, StringComparison.Ordinal)
-            && result.Output.Contains("TEST_PASS imagebuilder.qcow2", StringComparison.Ordinal);
-
+        ToolResult result = RunImageBuilder("convert-qcow2", "--input", inputPath, "--output", outputPath, "--qemu-img", qemuImgPath, "--dry-run");
+        bool hasExpectedMarkers = result.ExitCode == 0 && result.Output.Contains("TEST_START imagebuilder.qcow2", StringComparison.Ordinal) && result.Output.Contains("QEMU_IMG_DISCOVERY source=explicit", StringComparison.Ordinal) && result.Output.Contains("requested=" + qemuImgPath, StringComparison.Ordinal) && result.Output.Contains("resolved=<not-found> available=false", StringComparison.Ordinal) && result.Output.Contains("QCOW2_COMMAND", StringComparison.Ordinal) && result.Output.Contains(" convert -f raw -O qcow2 ", StringComparison.Ordinal) && result.Output.Contains("QCOW2_NO_WRITE " + outputPath, StringComparison.Ordinal) && result.Output.Contains("TEST_PASS imagebuilder.qcow2", StringComparison.Ordinal);
         if (!hasExpectedMarkers || File.Exists(outputPath))
         {
             PrintToolFailure(result);
@@ -2134,19 +1377,8 @@ internal static class ImageBuilderTests
     {
         string inputPath = Path.Combine(tempRoot, "missing-qcow2-input.raw");
         string outputPath = Path.Combine(tempRoot, "missing-qcow2-output.qcow2");
-
-        ToolResult result = RunImageBuilder(
-            "convert-qcow2",
-            "--input",
-            inputPath,
-            "--output",
-            outputPath,
-            "--dry-run");
-
-        return result.ExitCode == 11
-            && result.Output.Contains("TEST_START imagebuilder.qcow2", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.qcow2 input_not_found", StringComparison.Ordinal)
-            && !File.Exists(outputPath);
+        ToolResult result = RunImageBuilder("convert-qcow2", "--input", inputPath, "--output", outputPath, "--dry-run");
+        return result.ExitCode == 11 && result.Output.Contains("TEST_START imagebuilder.qcow2", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.qcow2 input_not_found", StringComparison.Ordinal) && !File.Exists(outputPath);
     }
 
     private static bool TestConvertQcow2EmptyInput(string tempRoot)
@@ -2154,19 +1386,8 @@ internal static class ImageBuilderTests
         string inputPath = Path.Combine(tempRoot, "empty-qcow2-input.raw");
         string outputPath = Path.Combine(tempRoot, "empty-qcow2-output.qcow2");
         File.WriteAllBytes(inputPath, Array.Empty<byte>());
-
-        ToolResult result = RunImageBuilder(
-            "convert-qcow2",
-            "--input",
-            inputPath,
-            "--output",
-            outputPath,
-            "--dry-run");
-
-        return result.ExitCode == 12
-            && result.Output.Contains("TEST_START imagebuilder.qcow2", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.qcow2 input_empty", StringComparison.Ordinal)
-            && !File.Exists(outputPath);
+        ToolResult result = RunImageBuilder("convert-qcow2", "--input", inputPath, "--output", outputPath, "--dry-run");
+        return result.ExitCode == 12 && result.Output.Contains("TEST_START imagebuilder.qcow2", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.qcow2 input_empty", StringComparison.Ordinal) && !File.Exists(outputPath);
     }
 
     private static bool TestConvertQcow2MissingQemuImgRealMode(string tempRoot)
@@ -2175,22 +1396,8 @@ internal static class ImageBuilderTests
         string outputPath = Path.Combine(tempRoot, "real-qcow2-output.qcow2");
         string qemuImgPath = Path.Combine(tempRoot, "missing-real-qemu-img.exe");
         File.WriteAllBytes(inputPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "convert-qcow2",
-            "--input",
-            inputPath,
-            "--output",
-            outputPath,
-            "--qemu-img",
-            qemuImgPath);
-
-        return result.ExitCode == 14
-            && result.Output.Contains("TEST_START imagebuilder.qcow2", StringComparison.Ordinal)
-            && result.Output.Contains("QEMU_IMG_DISCOVERY source=explicit", StringComparison.Ordinal)
-            && result.Output.Contains("resolved=<not-found> available=false", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.qcow2 qemu_img_not_found", StringComparison.Ordinal)
-            && !File.Exists(outputPath);
+        ToolResult result = RunImageBuilder("convert-qcow2", "--input", inputPath, "--output", outputPath, "--qemu-img", qemuImgPath);
+        return result.ExitCode == 14 && result.Output.Contains("TEST_START imagebuilder.qcow2", StringComparison.Ordinal) && result.Output.Contains("QEMU_IMG_DISCOVERY source=explicit", StringComparison.Ordinal) && result.Output.Contains("resolved=<not-found> available=false", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.qcow2 qemu_img_not_found", StringComparison.Ordinal) && !File.Exists(outputPath);
     }
 
     private static bool TestConvertAzureVhdDryRunAligned(string tempRoot)
@@ -2199,25 +1406,8 @@ internal static class ImageBuilderTests
         string outputPath = Path.Combine(tempRoot, "azure-output.vhd");
         string qemuImgPath = Path.Combine(tempRoot, "missing-qemu-img.exe");
         File.WriteAllBytes(inputPath, new byte[1024 * 1024]);
-
-        ToolResult result = RunImageBuilder(
-            "convert-azure-vhd",
-            "--input",
-            inputPath,
-            "--output",
-            outputPath,
-            "--qemu-img",
-            qemuImgPath,
-            "--dry-run");
-
-        bool hasExpectedMarkers = result.ExitCode == 0
-            && result.Output.Contains("TEST_START imagebuilder.azure-vhd", StringComparison.Ordinal)
-            && result.Output.Contains("QEMU_IMG_DISCOVERY source=explicit", StringComparison.Ordinal)
-            && result.Output.Contains("AZURE_VHD_COMMAND", StringComparison.Ordinal)
-            && result.Output.Contains(" convert -f raw -o subformat=fixed,force_size -O vpc ", StringComparison.Ordinal)
-            && result.Output.Contains("AZURE_VHD_NO_WRITE " + outputPath, StringComparison.Ordinal)
-            && result.Output.Contains("TEST_PASS imagebuilder.azure-vhd", StringComparison.Ordinal);
-
+        ToolResult result = RunImageBuilder("convert-azure-vhd", "--input", inputPath, "--output", outputPath, "--qemu-img", qemuImgPath, "--dry-run");
+        bool hasExpectedMarkers = result.ExitCode == 0 && result.Output.Contains("TEST_START imagebuilder.azure-vhd", StringComparison.Ordinal) && result.Output.Contains("QEMU_IMG_DISCOVERY source=explicit", StringComparison.Ordinal) && result.Output.Contains("AZURE_VHD_COMMAND", StringComparison.Ordinal) && result.Output.Contains(" convert -f raw -o subformat=fixed,force_size -O vpc ", StringComparison.Ordinal) && result.Output.Contains("AZURE_VHD_NO_WRITE " + outputPath, StringComparison.Ordinal) && result.Output.Contains("TEST_PASS imagebuilder.azure-vhd", StringComparison.Ordinal);
         if (!hasExpectedMarkers || File.Exists(outputPath))
         {
             PrintToolFailure(result);
@@ -2233,61 +1423,16 @@ internal static class ImageBuilderTests
         string inputPath = Path.Combine(tempRoot, "azure-unaligned.raw");
         string outputPath = Path.Combine(tempRoot, "azure-unaligned.vhd");
         File.WriteAllBytes(inputPath, new byte[1024 * 1024 + 1]);
-
-        ToolResult result = RunImageBuilder(
-            "convert-azure-vhd",
-            "--input",
-            inputPath,
-            "--output",
-            outputPath,
-            "--dry-run");
-
-        return result.ExitCode == 30
-            && result.Output.Contains("TEST_START imagebuilder.azure-vhd", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.azure-vhd azure_vhd_unaligned_size", StringComparison.Ordinal)
-            && !File.Exists(outputPath);
+        ToolResult result = RunImageBuilder("convert-azure-vhd", "--input", inputPath, "--output", outputPath, "--dry-run");
+        return result.ExitCode == 30 && result.Output.Contains("TEST_START imagebuilder.azure-vhd", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.azure-vhd azure_vhd_unaligned_size", StringComparison.Ordinal) && !File.Exists(outputPath);
     }
 
     private static bool TestPlanAwsAmiDryRun(string tempRoot)
     {
         string inputPath = Path.Combine(tempRoot, "aws-ami-input.raw");
         File.WriteAllBytes(inputPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-aws-ami",
-            "--input",
-            inputPath,
-            "--format",
-            "raw",
-            "--architecture",
-            "x86_64",
-            "--virtualization",
-            "hvm",
-            "--root-device",
-            "ebs",
-            "--boot-mode",
-            "uefi",
-            "--ena-support",
-            "true",
-            "--region",
-            "us-east-1",
-            "--bucket",
-            "os-image-import",
-            "--vmimport-role",
-            "vmimport",
-            "--dry-run");
-
-        bool hasExpectedMarkers = result.ExitCode == 0
-            && result.Output.Contains("TEST_START imagebuilder.aws-ami", StringComparison.Ordinal)
-            && result.Output.Contains("AWS_AMI_PLAN ", StringComparison.Ordinal)
-            && result.Output.Contains("\"Architecture\":\"x86_64\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"VirtualizationType\":\"hvm\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"RootDeviceType\":\"ebs\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"BootMode\":\"uefi\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"EnaSupport\":true", StringComparison.Ordinal)
-            && result.Output.Contains("AWS_AMI_IMPORT_DRY_RUN format=raw architecture=x86_64 virtualization=hvm rootDevice=ebs bootMode=uefi enaSupport=true", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_PASS imagebuilder.aws-ami", StringComparison.Ordinal);
-
+        ToolResult result = RunImageBuilder("plan-aws-ami", "--input", inputPath, "--format", "raw", "--architecture", "x86_64", "--virtualization", "hvm", "--root-device", "ebs", "--boot-mode", "uefi", "--ena-support", "true", "--region", "us-east-1", "--bucket", "os-image-import", "--vmimport-role", "vmimport", "--dry-run");
+        bool hasExpectedMarkers = result.ExitCode == 0 && result.Output.Contains("TEST_START imagebuilder.aws-ami", StringComparison.Ordinal) && result.Output.Contains("AWS_AMI_PLAN ", StringComparison.Ordinal) && result.Output.Contains("\"Architecture\":\"x86_64\"", StringComparison.Ordinal) && result.Output.Contains("\"VirtualizationType\":\"hvm\"", StringComparison.Ordinal) && result.Output.Contains("\"RootDeviceType\":\"ebs\"", StringComparison.Ordinal) && result.Output.Contains("\"BootMode\":\"uefi\"", StringComparison.Ordinal) && result.Output.Contains("\"EnaSupport\":true", StringComparison.Ordinal) && result.Output.Contains("AWS_AMI_IMPORT_DRY_RUN format=raw architecture=x86_64 virtualization=hvm rootDevice=ebs bootMode=uefi enaSupport=true", StringComparison.Ordinal) && result.Output.Contains("TEST_PASS imagebuilder.aws-ami", StringComparison.Ordinal);
         if (!hasExpectedMarkers)
         {
             PrintToolFailure(result);
@@ -2301,82 +1446,42 @@ internal static class ImageBuilderTests
     {
         string inputPath = Path.Combine(tempRoot, "aws-ami-nonhvm.raw");
         File.WriteAllBytes(inputPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-aws-ami",
-            "--input",
-            inputPath,
-            "--virtualization",
-            "paravirtual",
-            "--dry-run");
-
-        return result.ExitCode == 32
-            && result.Output.Contains("TEST_START imagebuilder.aws-ami", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.aws-ami aws_ami_virtualization_not_hvm", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("plan-aws-ami", "--input", inputPath, "--virtualization", "paravirtual", "--dry-run");
+        return result.ExitCode == 32 && result.Output.Contains("TEST_START imagebuilder.aws-ami", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.aws-ami aws_ami_virtualization_not_hvm", StringComparison.Ordinal);
     }
 
     private static bool TestPlanAwsAmiRejectsArm64(string tempRoot)
     {
         string inputPath = Path.Combine(tempRoot, "aws-ami-arm64.raw");
         File.WriteAllBytes(inputPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-aws-ami",
-            "--input",
-            inputPath,
-            "--architecture",
-            "arm64",
-            "--dry-run");
-
-        return result.ExitCode == 31
-            && result.Output.Contains("TEST_START imagebuilder.aws-ami", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.aws-ami aws_ami_unsupported_architecture", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("plan-aws-ami", "--input", inputPath, "--architecture", "arm64", "--dry-run");
+        return result.ExitCode == 31 && result.Output.Contains("TEST_START imagebuilder.aws-ami", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.aws-ami aws_ami_unsupported_architecture", StringComparison.Ordinal);
     }
 
     private static bool TestPlanAwsAmiRejectsLegacyBootMode(string tempRoot)
     {
         string inputPath = Path.Combine(tempRoot, "aws-ami-legacy.raw");
         File.WriteAllBytes(inputPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "plan-aws-ami",
-            "--input",
-            inputPath,
-            "--boot-mode",
-            "legacy-bios",
-            "--dry-run");
-
-        return result.ExitCode == 37
-            && result.Output.Contains("TEST_START imagebuilder.aws-ami", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.aws-ami aws_ami_boot_mode_mismatch", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("plan-aws-ami", "--input", inputPath, "--boot-mode", "legacy-bios", "--dry-run");
+        return result.ExitCode == 37 && result.Output.Contains("TEST_START imagebuilder.aws-ami", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.aws-ami aws_ami_boot_mode_mismatch", StringComparison.Ordinal);
     }
 
     private static bool TestDescribeImageEmitsSizeAndSha256(string tempRoot)
     {
         string inputPath = Path.Combine(tempRoot, "metadata-input.raw");
-        byte[] imageBytes = new byte[] { 0x4f, 0x53, 0x00, 0x10, 0x20, 0xff };
+        byte[] imageBytes = new byte[]
+        {
+            0x4f,
+            0x53,
+            0x00,
+            0x10,
+            0x20,
+            0xff
+        };
         File.WriteAllBytes(inputPath, imageBytes);
         string expectedSha256 = Convert.ToHexString(SHA256.HashData(imageBytes)).ToLowerInvariant();
-
-        ToolResult result = RunImageBuilder(
-            "describe-image",
-            "--input",
-            inputPath,
-            "--format",
-            "raw");
-
-        bool hasExpectedMarkers = result.ExitCode == 0
-            && result.Output.Contains("TEST_START imagebuilder.image-metadata", StringComparison.Ordinal)
-            && result.Output.Contains("IMAGE_METADATA ", StringComparison.Ordinal)
-            && result.Output.Contains("\"Format\":\"raw\"", StringComparison.Ordinal)
-            && result.Output.Contains("\"Bytes\":" + imageBytes.Length, StringComparison.Ordinal)
-            && result.Output.Contains("\"Sha256\":\"" + expectedSha256 + "\"", StringComparison.Ordinal)
-            && result.Output.Contains("IMAGE_METADATA_PATH " + inputPath, StringComparison.Ordinal)
-            && result.Output.Contains("IMAGE_METADATA_FORMAT raw", StringComparison.Ordinal)
-            && result.Output.Contains("IMAGE_METADATA_BYTES " + imageBytes.Length, StringComparison.Ordinal)
-            && result.Output.Contains("IMAGE_METADATA_SHA256 " + expectedSha256, StringComparison.Ordinal)
-            && result.Output.Contains("TEST_PASS imagebuilder.image-metadata", StringComparison.Ordinal);
-
+        ToolResult result = RunImageBuilder("describe-image", "--input", inputPath, "--format", "raw");
+        bool hasExpectedMarkers = result.ExitCode == 0 && result.Output.Contains("TEST_START imagebuilder.image-metadata", StringComparison.Ordinal) && result.Output.Contains("IMAGE_METADATA ", StringComparison.Ordinal) && result.Output.Contains("\"Format\":\"raw\"", StringComparison.Ordinal) && result.Output.Contains("\"Bytes\":" + imageBytes.Length, StringComparison.Ordinal) && result.Output.Contains("\"Sha256\":\"" + expectedSha256 + "\"", StringComparison.Ordinal) && result.Output.Contains("IMAGE_METADATA_PATH " + inputPath, StringComparison.Ordinal) && result.Output.Contains("IMAGE_METADATA_FORMAT raw", StringComparison.Ordinal) && result.Output.Contains("IMAGE_METADATA_BYTES " + imageBytes.Length, StringComparison.Ordinal) && result.Output.Contains("IMAGE_METADATA_SHA256 " + expectedSha256, StringComparison.Ordinal) && result.Output.Contains("TEST_PASS imagebuilder.image-metadata", StringComparison.Ordinal);
         if (!hasExpectedMarkers)
         {
             PrintToolFailure(result);
@@ -2390,42 +1495,21 @@ internal static class ImageBuilderTests
     {
         string inputPath = Path.Combine(tempRoot, "metadata-empty.raw");
         File.WriteAllBytes(inputPath, Array.Empty<byte>());
-
-        ToolResult result = RunImageBuilder(
-            "describe-image",
-            "--input",
-            inputPath,
-            "--format",
-            "raw");
-
-        return result.ExitCode == 12
-            && result.Output.Contains("TEST_START imagebuilder.image-metadata", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.image-metadata input_empty", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("describe-image", "--input", inputPath, "--format", "raw");
+        return result.ExitCode == 12 && result.Output.Contains("TEST_START imagebuilder.image-metadata", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.image-metadata input_empty", StringComparison.Ordinal);
     }
 
     private static bool TestDescribeImageRejectsUnsupportedFormat(string tempRoot)
     {
         string inputPath = Path.Combine(tempRoot, "metadata-input.unsupported");
         File.WriteAllBytes(inputPath, CreateEfiBytes());
-
-        ToolResult result = RunImageBuilder(
-            "describe-image",
-            "--input",
-            inputPath,
-            "--format",
-            "bad-format");
-
-        return result.ExitCode == 38
-            && result.Output.Contains("TEST_START imagebuilder.image-metadata", StringComparison.Ordinal)
-            && result.Output.Contains("TEST_FAIL imagebuilder.image-metadata image_metadata_unsupported_format", StringComparison.Ordinal);
+        ToolResult result = RunImageBuilder("describe-image", "--input", inputPath, "--format", "bad-format");
+        return result.ExitCode == 38 && result.Output.Contains("TEST_START imagebuilder.image-metadata", StringComparison.Ordinal) && result.Output.Contains("TEST_FAIL imagebuilder.image-metadata image_metadata_unsupported_format", StringComparison.Ordinal);
     }
 
     private static bool HasProtectiveMbr(byte[] image)
     {
-        return image[446 + 4] == 0xEE
-            && ReadUInt32(image, 446 + 8) == 1
-            && image[510] == 0x55
-            && image[511] == 0xAA;
+        return image[446 + 4] == 0xEE && ReadUInt32(image, 446 + 8) == 1 && image[510] == 0x55 && image[511] == 0xAA;
     }
 
     private static bool HasPrimaryAndBackupGpt(byte[] image)
@@ -2433,31 +1517,16 @@ internal static class ImageBuilderTests
         int primaryHeader = SectorSize;
         int backupHeader = image.Length - SectorSize;
         int firstEntry = SectorSize * 2;
-
         Guid efiSystemPartitionType = new Guid("c12a7328-f81f-11d2-ba4b-00a0c93ec93b");
         Guid typeGuid = ReadGuid(image, firstEntry);
         string partitionName = ReadUtf16(image, firstEntry + 56, 72);
-
-        return HasAscii(image, primaryHeader, "EFI PART")
-            && HasAscii(image, backupHeader, "EFI PART")
-            && typeGuid == efiSystemPartitionType
-            && ReadUInt64(image, firstEntry + 32) == PartitionStartLba
-            && partitionName == "EFI System";
+        return HasAscii(image, primaryHeader, "EFI PART") && HasAscii(image, backupHeader, "EFI PART") && typeGuid == efiSystemPartitionType && ReadUInt64(image, firstEntry + 32) == PartitionStartLba && partitionName == "EFI System";
     }
 
     private static bool HasFat32EspBootSector(byte[] image)
     {
         int bootSector = checked((int)PartitionStartLba) * SectorSize;
-
-        return image[bootSector + 510] == 0x55
-            && image[bootSector + 511] == 0xAA
-            && ReadUInt16(image, bootSector + 11) == SectorSize
-            && image[bootSector + 13] == 1
-            && ReadUInt16(image, bootSector + 14) == 32
-            && image[bootSector + 16] == 2
-            && ReadUInt32(image, bootSector + 28) == PartitionStartLba
-            && ReadUInt32(image, bootSector + 44) == 2
-            && HasAscii(image, bootSector + 82, "FAT32");
+        return image[bootSector + 510] == 0x55 && image[bootSector + 511] == 0xAA && ReadUInt16(image, bootSector + 11) == SectorSize && image[bootSector + 13] == 1 && ReadUInt16(image, bootSector + 14) == 32 && image[bootSector + 16] == 2 && ReadUInt32(image, bootSector + 28) == PartitionStartLba && ReadUInt32(image, bootSector + 44) == 2 && HasAscii(image, bootSector + 82, "FAT32");
     }
 
     private static bool ContainsBootFile(byte[] image, byte[] expected)
@@ -2466,7 +1535,6 @@ internal static class ImageBuilderTests
         uint fatSectors = ReadUInt32(image, bootSector + 36);
         ulong fatOffset = (PartitionStartLba + 32) * SectorSize;
         ulong dataOffset = (PartitionStartLba + 32 + 2UL * fatSectors) * SectorSize;
-
         ReadOnlySpan<byte> root = Cluster(image, dataOffset, 2);
         DirectoryEntry efi = FindEntry(root, "EFI        ");
         if (!efi.IsDirectory || efi.FirstCluster != 3)
@@ -2498,7 +1566,6 @@ internal static class ImageBuilderTests
         uint fatSectors = ReadUInt32(image, bootSector + 36);
         ulong fatOffset = (PartitionStartLba + 32) * SectorSize;
         ulong dataOffset = (PartitionStartLba + 32 + 2UL * fatSectors) * SectorSize;
-
         ReadOnlySpan<byte> root = Cluster(image, dataOffset, 2);
         DirectoryEntry os = FindEntryByName(root, "OS");
         if (!os.IsDirectory)
@@ -2523,7 +1590,6 @@ internal static class ImageBuilderTests
         uint fatSectors = ReadUInt32(image, bootSector + 36);
         ulong fatOffset = (PartitionStartLba + 32) * SectorSize;
         ulong dataOffset = (PartitionStartLba + 32 + 2UL * fatSectors) * SectorSize;
-
         ReadOnlySpan<byte> root = Cluster(image, dataOffset, 2);
         DirectoryEntry os = FindEntryByName(root, "OS");
         if (!os.IsDirectory)
@@ -2542,21 +1608,14 @@ internal static class ImageBuilderTests
         return actual.SequenceEqual(expected);
     }
 
-    private static bool PartitionDescriptorNameEquals(
-        ReadOnlySpan<byte> partitionEntrySectors,
-        GptPartitionDescriptor descriptor,
-        string expectedName)
+    private static bool PartitionDescriptorNameEquals(ReadOnlySpan<byte> partitionEntrySectors, GptPartitionDescriptor descriptor, string expectedName)
     {
-        if (descriptor.NameUtf16CodeUnitLength != expectedName.Length
-            || descriptor.NameByteOffset < 0
-            || descriptor.NameByteOffset + descriptor.NameByteLength > partitionEntrySectors.Length)
+        if (descriptor.NameUtf16CodeUnitLength != expectedName.Length || descriptor.NameByteOffset < 0 || descriptor.NameByteOffset + descriptor.NameByteLength > partitionEntrySectors.Length)
         {
             return false;
         }
 
-        ReadOnlySpan<byte> nameBytes = partitionEntrySectors.Slice(
-            descriptor.NameByteOffset,
-            descriptor.NameUtf16CodeUnitLength * sizeof(ushort));
+        ReadOnlySpan<byte> nameBytes = partitionEntrySectors.Slice(descriptor.NameByteOffset, descriptor.NameUtf16CodeUnitLength * sizeof(ushort));
         string actualName = System.Text.Encoding.Unicode.GetString(nameBytes);
         return string.Equals(actualName, expectedName, StringComparison.Ordinal);
     }
@@ -2566,7 +1625,6 @@ internal static class ImageBuilderTests
         byte[] result = new byte[length];
         int written = 0;
         int cluster = firstCluster;
-
         while (cluster < 0x0FFFFFF8 && written < result.Length)
         {
             ReadOnlySpan<byte> clusterBytes = Cluster(image, dataOffset, cluster);
@@ -2605,7 +1663,6 @@ internal static class ImageBuilderTests
     private static DirectoryEntry FindEntryByName(ReadOnlySpan<byte> directory, string expectedName)
     {
         string? pendingLongName = null;
-
         for (int offset = 0; offset < directory.Length; offset += 32)
         {
             if (directory[offset] == 0)
@@ -2623,7 +1680,6 @@ internal static class ImageBuilderTests
 
             string actualName = pendingLongName ?? ReadShortName(directory.Slice(offset, 11));
             pendingLongName = null;
-
             if (string.Equals(actualName, expectedName, StringComparison.OrdinalIgnoreCase))
             {
                 int high = ReadUInt16(directory, offset + 20);
@@ -2755,7 +1811,6 @@ internal static class ImageBuilderTests
         process.StartInfo.RedirectStandardOutput = true;
         process.StartInfo.RedirectStandardError = true;
         process.StartInfo.ArgumentList.Add(toolPath);
-
         foreach (string arg in args)
         {
             process.StartInfo.ArgumentList.Add(arg);
@@ -2764,7 +1819,6 @@ internal static class ImageBuilderTests
         process.Start();
         Task<string> stdout = process.StandardOutput.ReadToEndAsync();
         Task<string> stderr = process.StandardError.ReadToEndAsync();
-
         if (!process.WaitForExit(30000))
         {
             try
@@ -2787,14 +1841,7 @@ internal static class ImageBuilderTests
     {
         string configuration = GetCurrentBuildConfiguration();
         string targetFramework = GetCurrentTargetFramework();
-        return Path.Combine(
-            repositoryRoot,
-            "tools",
-            "OS.ImageBuilder",
-            "bin",
-            configuration,
-            targetFramework,
-            "OS.ImageBuilder.dll");
+        return Path.Combine(repositoryRoot, "tools", "OS.ImageBuilder", "bin", configuration, targetFramework, "OS.ImageBuilder.dll");
     }
 
     private static string GetCurrentBuildConfiguration()
@@ -2837,20 +1884,12 @@ internal static class ImageBuilderTests
 
     private static byte[] CreateManifestBytesForAppPath(string appPath)
     {
-        return System.Text.Encoding.ASCII.GetBytes(
-            "format=os-native-manifest\n" +
-            "version=0\n" +
-            "app.name=manifest.test\n" +
-            "app.path=" + appPath + "\n" +
-            "args=--from-image-builder-test\n" +
-            "network=dhcp\n" +
-            "log=serial\n");
+        return System.Text.Encoding.ASCII.GetBytes("format=os-native-manifest\n" + "version=0\n" + "app.name=manifest.test\n" + "app.path=" + appPath + "\n" + "args=--from-image-builder-test\n" + "network=dhcp\n" + "log=serial\n");
     }
 
     private static byte[] CreateKestrelManifestBytes()
     {
-        return System.Text.Encoding.ASCII.GetBytes(
-            """
+        return System.Text.Encoding.ASCII.GetBytes("""
 {
   "schemaVersion": 0,
   "app": {
@@ -2881,8 +1920,7 @@ internal static class ImageBuilderTests
 
     private static byte[] CreateKestrelManifestWithoutExpectedBodyBytes()
     {
-        return System.Text.Encoding.ASCII.GetBytes(
-            """
+        return System.Text.Encoding.ASCII.GetBytes("""
 {
   "schemaVersion": 0,
   "app": {
@@ -2957,7 +1995,6 @@ internal static class ImageBuilderTests
         const string path = "bin/app.dll";
         const int contentOffset = pathOffset + 11;
         const int contentLength = 4;
-
         byte[] package = new byte[contentOffset + contentLength];
         WriteAscii(package, 0, "OSPKGv0");
         package[7] = 0;
@@ -2991,7 +2028,6 @@ internal static class ImageBuilderTests
         int pathOffset = tableOffset + tableLength;
         int contentOffset = pathOffset + appPath.Length;
         byte[] package = new byte[contentOffset + payloadLength];
-
         WriteAscii(package, 0, "OSPKGv0");
         package[7] = 0;
         WriteUInt16(package, 8, OsPackageParser.SupportedVersion);
@@ -3009,7 +2045,6 @@ internal static class ImageBuilderTests
         WriteUInt64(package, tableOffset + 16, payloadLength);
         WriteUInt64(package, tableOffset + 24, 0);
         WriteAscii(package, pathOffset, appPath);
-
         package[contentOffset] = validPayloadHeader ? (byte)'O' : (byte)'X';
         package[contentOffset + 1] = (byte)'S';
         package[contentOffset + 2] = (byte)'A';
@@ -3106,142 +2141,5 @@ internal static class ImageBuilderTests
     private static ulong ReadUInt64(byte[] bytes, int offset)
     {
         return BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(offset, 8));
-    }
-
-    private readonly struct DirectoryEntry
-    {
-        public DirectoryEntry(bool isDirectory, int firstCluster, int fileSize)
-        {
-            IsDirectory = isDirectory;
-            FirstCluster = firstCluster;
-            FileSize = fileSize;
-        }
-
-        public bool IsDirectory { get; }
-
-        public int FirstCluster { get; }
-
-        public int FileSize { get; }
-    }
-
-    private sealed class MemoryBlockDevice : IReadOnlyBlockDevice
-    {
-        private MemoryBlockDevice(BlockDeviceInfo info, byte[] image)
-        {
-            Info = info;
-            Image = image;
-        }
-
-        public BlockDeviceInfo Info { get; }
-
-        private byte[] Image { get; }
-
-        public static MemoryBlockDevice FromImage(byte[] image, uint blockSize)
-        {
-            BlockDeviceInfoResult info = BlockDeviceInfo.Create(blockSize, (ulong)image.Length / blockSize);
-            if (!info.Succeeded)
-            {
-                throw new InvalidOperationException("Invalid test image geometry: " + info.Status);
-            }
-
-            return new MemoryBlockDevice(info.Info, image);
-        }
-
-        public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
-        {
-            BlockReadResult result = BlockDeviceRead.Validate(Info, firstBlock, blockCount, destination);
-            if (!result.Succeeded)
-            {
-                return result;
-            }
-
-            int offset = checked((int)(firstBlock * Info.BlockSize));
-            Image.AsSpan(offset, checked((int)result.BytesRead)).CopyTo(destination);
-            return result;
-        }
-    }
-
-    private sealed class KestrelPublishedImageFixture
-    {
-        public KestrelPublishedImageFixture(
-            string publishOutput,
-            string imageBuilderOutput,
-            string imagePath,
-            string packageRootPath,
-            byte[] manifestBytesFromPublish,
-            byte[] manifestBytesFromImage,
-            bool manifestReadbackSucceeded,
-            byte[] packageBytes,
-            bool packageLoadSucceeded,
-            string packageLoadStatus,
-            string packageStatus)
-        {
-            PublishOutput = publishOutput;
-            ImageBuilderOutput = imageBuilderOutput;
-            ImagePath = imagePath;
-            PackageRootPath = packageRootPath;
-            ManifestBytesFromPublish = manifestBytesFromPublish;
-            ManifestBytesFromImage = manifestBytesFromImage;
-            ManifestReadbackSucceeded = manifestReadbackSucceeded;
-            PackageBytes = packageBytes;
-            PackageLoadSucceeded = packageLoadSucceeded;
-            PackageLoadStatus = packageLoadStatus;
-            PackageStatus = packageStatus;
-        }
-
-        public string PublishOutput { get; }
-
-        public string ImageBuilderOutput { get; }
-
-        public string ImagePath { get; }
-
-        public string PackageRootPath { get; }
-
-        public byte[] ManifestBytesFromPublish { get; }
-
-        public byte[] ManifestBytesFromImage { get; }
-
-        public bool ManifestReadbackSucceeded { get; }
-
-        public byte[] PackageBytes { get; }
-
-        public bool PackageLoadSucceeded { get; }
-
-        public string PackageLoadStatus { get; }
-
-        public string PackageStatus { get; }
-
-        public static KestrelPublishedImageFixture CreateFailed(
-            string publishOutput,
-            string imageBuilderOutput,
-            string imagePath,
-            string packageRootPath)
-        {
-            return new KestrelPublishedImageFixture(
-                publishOutput,
-                imageBuilderOutput,
-                imagePath,
-                packageRootPath,
-                Array.Empty<byte>(),
-                Array.Empty<byte>(),
-                manifestReadbackSucceeded: false,
-                Array.Empty<byte>(),
-                packageLoadSucceeded: false,
-                packageLoadStatus: "not-run",
-                packageStatus: "not-run");
-        }
-    }
-
-    private readonly struct ToolResult
-    {
-        public ToolResult(int exitCode, string output)
-        {
-            ExitCode = exitCode;
-            Output = output;
-        }
-
-        public int ExitCode { get; }
-
-        public string Output { get; }
     }
 }

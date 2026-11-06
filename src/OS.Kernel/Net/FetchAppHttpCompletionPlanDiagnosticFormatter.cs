@@ -2,101 +2,20 @@ using OS.Std.Text;
 
 namespace OS.Net;
 
-public enum FetchAppHttpCompletionPlanDiagnosticFormatStatus
-{
-    Success = 0,
-    InvalidResult = 1,
-    DestinationTooSmall = 2
-}
-
-public readonly struct FetchAppHttpCompletionPlanDiagnosticFormatResult
-{
-    private const uint InitializedFlag = 1;
-
-    public FetchAppHttpCompletionPlanDiagnosticFormatResult(
-        FetchAppHttpCompletionPlanDiagnosticFormatStatus status,
-        FetchAppHttpCompletionPlanStatus completionStatus,
-        HttpTcpClientGetPlanStatus httpPlanStatus,
-        int bytesWritten,
-        int requiredBytes,
-        int availableBytes,
-        uint flags = InitializedFlag)
-    {
-        Status = status;
-        CompletionStatus = completionStatus;
-        HttpPlanStatus = httpPlanStatus;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-        AvailableBytes = availableBytes;
-        Flags = flags;
-    }
-
-    public FetchAppHttpCompletionPlanDiagnosticFormatStatus Status { get; }
-
-    public FetchAppHttpCompletionPlanStatus CompletionStatus { get; }
-
-    public HttpTcpClientGetPlanStatus HttpPlanStatus { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public int AvailableBytes { get; }
-
-    public uint Flags { get; }
-
-    public bool IsInitialized => (Flags & InitializedFlag) != 0;
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == FetchAppHttpCompletionPlanDiagnosticFormatStatus.Success &&
-        RequiredBytes > 0 &&
-        BytesWritten == RequiredBytes &&
-        RequiredBytes <= AvailableBytes;
-
-    public static FetchAppHttpCompletionPlanDiagnosticFormatResult Fail(
-        FetchAppHttpCompletionPlanDiagnosticFormatStatus status,
-        FetchAppHttpCompletionPlanStatus completionStatus,
-        HttpTcpClientGetPlanStatus httpPlanStatus,
-        int requiredBytes,
-        int availableBytes)
-    {
-        return new FetchAppHttpCompletionPlanDiagnosticFormatResult(
-            status,
-            completionStatus,
-            httpPlanStatus,
-            bytesWritten: 0,
-            requiredBytes,
-            availableBytes);
-    }
-}
-
 public static class FetchAppHttpCompletionPlanDiagnosticFormatter
 {
-    public static FetchAppHttpCompletionPlanDiagnosticFormatResult FormatResult(
-        in FetchAppHttpCompletionPlanResult result,
-        Span<byte> destination)
+    public static FetchAppHttpCompletionPlanDiagnosticFormatResult FormatResult(in FetchAppHttpCompletionPlanResult result, Span<byte> destination)
     {
         FetchAppHttpCompletionPlanDiagnosticFormatStatus validationStatus = Validate(in result);
         if (validationStatus != FetchAppHttpCompletionPlanDiagnosticFormatStatus.Success)
         {
-            return FetchAppHttpCompletionPlanDiagnosticFormatResult.Fail(
-                validationStatus,
-                result.Status,
-                result.HttpPlanStatus,
-                requiredBytes: 0,
-                destination.Length);
+            return FetchAppHttpCompletionPlanDiagnosticFormatResult.Fail(validationStatus, result.Status, result.HttpPlanStatus, requiredBytes: 0, destination.Length);
         }
 
         int requiredBytes = GetRequiredBytes(in result);
         if (destination.Length < requiredBytes)
         {
-            return FetchAppHttpCompletionPlanDiagnosticFormatResult.Fail(
-                FetchAppHttpCompletionPlanDiagnosticFormatStatus.DestinationTooSmall,
-                result.Status,
-                result.HttpPlanStatus,
-                requiredBytes,
-                destination.Length);
+            return FetchAppHttpCompletionPlanDiagnosticFormatResult.Fail(FetchAppHttpCompletionPlanDiagnosticFormatStatus.DestinationTooSmall, result.Status, result.HttpPlanStatus, requiredBytes, destination.Length);
         }
 
         int offset = 0;
@@ -118,49 +37,23 @@ public static class FetchAppHttpCompletionPlanDiagnosticFormatter
         AppendInt64(result.ExpectedMarkerLength, destination, ref offset);
         Append(" matchOffset="u8, destination, ref offset);
         AppendInt64(result.MatchOffset, destination, ref offset);
-
-        return new FetchAppHttpCompletionPlanDiagnosticFormatResult(
-            FetchAppHttpCompletionPlanDiagnosticFormatStatus.Success,
-            result.Status,
-            result.HttpPlanStatus,
-            bytesWritten: offset,
-            requiredBytes,
-            availableBytes: destination.Length);
+        return new FetchAppHttpCompletionPlanDiagnosticFormatResult(FetchAppHttpCompletionPlanDiagnosticFormatStatus.Success, result.Status, result.HttpPlanStatus, bytesWritten: offset, requiredBytes, availableBytes: destination.Length);
     }
 
-    public static FetchAppHttpCompletionPlanDiagnosticFormatResult QueryRequiredBytes(
-        in FetchAppHttpCompletionPlanResult result)
+    public static FetchAppHttpCompletionPlanDiagnosticFormatResult QueryRequiredBytes(in FetchAppHttpCompletionPlanResult result)
     {
         FetchAppHttpCompletionPlanDiagnosticFormatStatus validationStatus = Validate(in result);
         if (validationStatus != FetchAppHttpCompletionPlanDiagnosticFormatStatus.Success)
         {
-            return FetchAppHttpCompletionPlanDiagnosticFormatResult.Fail(
-                validationStatus,
-                result.Status,
-                result.HttpPlanStatus,
-                requiredBytes: 0,
-                availableBytes: 0);
+            return FetchAppHttpCompletionPlanDiagnosticFormatResult.Fail(validationStatus, result.Status, result.HttpPlanStatus, requiredBytes: 0, availableBytes: 0);
         }
 
-        return new FetchAppHttpCompletionPlanDiagnosticFormatResult(
-            FetchAppHttpCompletionPlanDiagnosticFormatStatus.Success,
-            result.Status,
-            result.HttpPlanStatus,
-            bytesWritten: 0,
-            requiredBytes: GetRequiredBytes(in result),
-            availableBytes: 0);
+        return new FetchAppHttpCompletionPlanDiagnosticFormatResult(FetchAppHttpCompletionPlanDiagnosticFormatStatus.Success, result.Status, result.HttpPlanStatus, bytesWritten: 0, requiredBytes: GetRequiredBytes(in result), availableBytes: 0);
     }
 
-    private static FetchAppHttpCompletionPlanDiagnosticFormatStatus Validate(
-        in FetchAppHttpCompletionPlanResult result)
+    private static FetchAppHttpCompletionPlanDiagnosticFormatStatus Validate(in FetchAppHttpCompletionPlanResult result)
     {
-        if (!result.IsInitialized ||
-            !IsKnownCompletionStatus(result.Status) ||
-            !IsKnownHttpPlanStatus(result.HttpPlanStatus) ||
-            result.ResponseBytesRead < 0 ||
-            result.BodyOffset < 0 ||
-            result.BodyLength < 0 ||
-            result.ExpectedMarkerLength < 0)
+        if (!result.IsInitialized || !IsKnownCompletionStatus(result.Status) || !IsKnownHttpPlanStatus(result.HttpPlanStatus) || result.ResponseBytesRead < 0 || result.BodyOffset < 0 || result.BodyLength < 0 || result.ExpectedMarkerLength < 0)
         {
             return FetchAppHttpCompletionPlanDiagnosticFormatStatus.InvalidResult;
         }
@@ -182,36 +75,17 @@ public static class FetchAppHttpCompletionPlanDiagnosticFormatter
 
     private static int GetRequiredBytes(in FetchAppHttpCompletionPlanResult result)
     {
-        return "FETCH_HTTP_COMPLETION status="u8.Length
-            + GetCompletionStatusName(result.Status).Length
-            + " httpPlan="u8.Length
-            + GetHttpPlanStatusName(result.HttpPlanStatus).Length
-            + " httpStatus="u8.Length
-            + GetUInt64DecimalByteCount(result.HttpStatusCode)
-            + " expectedHttpStatus="u8.Length
-            + GetUInt64DecimalByteCount(result.ExpectedHttpStatusCode)
-            + " responseBytes="u8.Length
-            + GetInt64DecimalByteCount(result.ResponseBytesRead)
-            + " bodyOffset="u8.Length
-            + GetInt64DecimalByteCount(result.BodyOffset)
-            + " bodyBytes="u8.Length
-            + GetInt64DecimalByteCount(result.BodyLength)
-            + " expectedMarkerBytes="u8.Length
-            + GetInt64DecimalByteCount(result.ExpectedMarkerLength)
-            + " matchOffset="u8.Length
-            + GetInt64DecimalByteCount(result.MatchOffset);
+        return "FETCH_HTTP_COMPLETION status="u8.Length + GetCompletionStatusName(result.Status).Length + " httpPlan="u8.Length + GetHttpPlanStatusName(result.HttpPlanStatus).Length + " httpStatus="u8.Length + GetUInt64DecimalByteCount(result.HttpStatusCode) + " expectedHttpStatus="u8.Length + GetUInt64DecimalByteCount(result.ExpectedHttpStatusCode) + " responseBytes="u8.Length + GetInt64DecimalByteCount(result.ResponseBytesRead) + " bodyOffset="u8.Length + GetInt64DecimalByteCount(result.BodyOffset) + " bodyBytes="u8.Length + GetInt64DecimalByteCount(result.BodyLength) + " expectedMarkerBytes="u8.Length + GetInt64DecimalByteCount(result.ExpectedMarkerLength) + " matchOffset="u8.Length + GetInt64DecimalByteCount(result.MatchOffset);
     }
 
     private static bool IsKnownCompletionStatus(FetchAppHttpCompletionPlanStatus status)
     {
-        return status >= FetchAppHttpCompletionPlanStatus.Success &&
-            status <= FetchAppHttpCompletionPlanStatus.ResponseBufferTooSmall;
+        return status >= FetchAppHttpCompletionPlanStatus.Success && status <= FetchAppHttpCompletionPlanStatus.ResponseBufferTooSmall;
     }
 
     private static bool IsKnownHttpPlanStatus(HttpTcpClientGetPlanStatus status)
     {
-        return status >= HttpTcpClientGetPlanStatus.Success &&
-            status <= HttpTcpClientGetPlanStatus.HttpResponseFailed;
+        return status >= HttpTcpClientGetPlanStatus.Success && status <= HttpTcpClientGetPlanStatus.HttpResponseFailed;
     }
 
     private static ReadOnlySpan<byte> GetCompletionStatusName(FetchAppHttpCompletionPlanStatus status)

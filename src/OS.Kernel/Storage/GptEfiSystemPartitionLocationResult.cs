@@ -25,29 +25,59 @@ public readonly struct GptEfiSystemPartitionLocationResult
         PartitionByteLength = partitionByteLength;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public GptStatus Status { get; }
+    public GptStatus Status
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockStatus { get; }
+    public BlockDeviceStatus BlockStatus
+    {
+        get;
+    }
 
-    public GptHeader Header { get; }
+    public GptHeader Header
+    {
+        get;
+    }
 
-    public GptPartitionEntry Partition { get; }
+    public GptPartitionEntry Partition
+    {
+        get;
+    }
 
-    public uint PartitionEntryIndex { get; }
+    public uint PartitionEntryIndex
+    {
+        get;
+    }
 
-    public uint BlockSizeBytes { get; }
+    public uint BlockSizeBytes
+    {
+        get;
+    }
 
     public ulong PartitionStartLba => Partition.FirstLba;
 
     public ulong PartitionLastLba => Partition.LastLba;
 
-    public ulong PartitionBlockCount { get; }
+    public ulong PartitionBlockCount
+    {
+        get;
+    }
 
-    public ulong PartitionByteOffset { get; }
+    public ulong PartitionByteOffset
+    {
+        get;
+    }
 
-    public ulong PartitionByteLength { get; }
+    public ulong PartitionByteLength
+    {
+        get;
+    }
 
     public bool Succeeded => IsInitialized && Status == GptStatus.Success;
 

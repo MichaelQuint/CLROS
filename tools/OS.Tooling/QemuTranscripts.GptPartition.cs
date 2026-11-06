@@ -47,14 +47,20 @@ public static partial class QemuTranscripts
         byte[] Read(ulong lba, int bytes)
         {
             Need(bytes > 0 && lba < capacity && (ulong)bytes <= (capacity - lba) * 512, "m06_gpt_disk_range");
-            byte[] data = new byte[bytes]; disk.Position = checked((long)lba * 512); disk.ReadExactly(data); return data;
+            byte[] data = new byte[bytes];
+            disk.Position = checked((long)lba * 512);
+            disk.ReadExactly(data);
+            return data;
         }
         uint U32(byte[] b, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(b.AsSpan(offset));
         ulong U64(byte[] b, int offset) => BinaryPrimitives.ReadUInt64LittleEndian(b.AsSpan(offset));
         uint HeaderCrc(byte[] header)
         {
-            uint size = U32(header, 12); Need(size is >= 92 and <= 512, "m06_gpt_disk_header_size");
-            byte[] copy = (byte[])header.Clone(); copy.AsSpan(16, 4).Clear(); return Crc32.Compute(copy.AsSpan(0, (int)size));
+            uint size = U32(header, 12);
+            Need(size is >= 92 and <= 512, "m06_gpt_disk_header_size");
+            byte[] copy = (byte[])header.Clone();
+            copy.AsSpan(16, 4).Clear();
+            return Crc32.Compute(copy.AsSpan(0, (int)size));
         }
         byte[] primary = Read(1, 512);
         uint computed = HeaderCrc(primary);
@@ -66,16 +72,24 @@ public static partial class QemuTranscripts
             U64(selected, 24) == current && U64(selected, 32) == (primaryHeaderFault ? 1UL : capacity - 1) &&
             (U64(selected, 56) | U64(selected, 64)) != 0 && U32(selected, 80) == 128 && U32(selected, 84) == 128 &&
             U32(selected, 16) == HeaderCrc(selected), "m06_gpt_disk_selected_header");
-        ulong entryLba = U64(selected, 72); byte[] entries = Read(entryLba, 16384); uint arrayCrc = Crc32.Compute(entries);
+        ulong entryLba = U64(selected, 72);
+        byte[] entries = Read(entryLba, 16384);
+        uint arrayCrc = Crc32.Compute(entries);
         Need(arrayCrc == U32(selected, 88) && Row(4).SequenceEqual(new ulong[] { current, entryLba, U64(selected, 40), U64(selected, 48) }), "m06_gpt_disk_array");
-        if (primaryHeaderFault) Need(Row(2).SequenceEqual(new ulong[] { 1, U32(selected, 16), HeaderCrc(selected), arrayCrc }), "m06_gpt_disk_backup");
-        else Need(Row(1)[1] == arrayCrc, "m06_gpt_disk_primary_array");
+        if (primaryHeaderFault)
+            Need(Row(2).SequenceEqual(new ulong[] { 1, U32(selected, 16), HeaderCrc(selected), arrayCrc }), "m06_gpt_disk_backup");
+        else
+            Need(Row(1)[1] == arrayCrc, "m06_gpt_disk_primary_array");
         int found = -1;
         for (int i = 0; i < 128; i++)
             if (new Guid(entries.AsSpan(i * 128, 16)) == new Guid("c12a7328-f81f-11d2-ba4b-00a0c93ec93b"))
-            { Need(found == -1, "m06_gpt_disk_ambiguous_partition"); found = i; }
+            {
+                Need(found == -1, "m06_gpt_disk_ambiguous_partition");
+                found = i;
+            }
         Need(found >= 0, "m06_gpt_disk_missing_partition");
-        int offset = found * 128; ulong first = U64(entries, offset + 32), last = U64(entries, offset + 40);
+        int offset = found * 128;
+        ulong first = U64(entries, offset + 32), last = U64(entries, offset + 40);
         Need(first <= last && first >= U64(selected, 40) && last <= U64(selected, 48) &&
             Row(5).SequenceEqual(new ulong[] { (ulong)found, first, last, last - first + 1 }) &&
             Row(6)[0] == first * 512 && Row(6)[1] == U64(entries, offset + 48), "m06_gpt_disk_partition");
@@ -88,12 +102,15 @@ public static partial class QemuTranscripts
         {
             using var boot = File.OpenRead(imagePath + ".boot.raw");
             Need(boot.Length == disk.Length, "m06_gpt_boot_image_length");
-            disk.Position = 0; byte[] intact = new byte[65536], damaged = new byte[65536];
-            long position = 0; int differences = 0;
+            disk.Position = 0;
+            byte[] intact = new byte[65536], damaged = new byte[65536];
+            long position = 0;
+            int differences = 0;
             while (position < disk.Length)
             {
                 int count = (int)Math.Min(intact.Length, disk.Length - position);
-                boot.ReadExactly(intact.AsSpan(0, count)); disk.ReadExactly(damaged.AsSpan(0, count));
+                boot.ReadExactly(intact.AsSpan(0, count));
+                disk.ReadExactly(damaged.AsSpan(0, count));
                 for (int i = 0; i < count; i++)
                     if (intact[i] != damaged[i])
                     {

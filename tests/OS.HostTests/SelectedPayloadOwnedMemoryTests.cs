@@ -295,7 +295,8 @@ internal static unsafe class SelectedPayloadOwnedMemoryTests
         "OSAPPv0\0"u8.CopyTo(package.AsSpan(PayloadOffset));
         BinaryPrimitives.WriteUInt16LittleEndian(package.AsSpan(PayloadOffset + 10), 32);
         BinaryPrimitives.WriteUInt64LittleEndian(package.AsSpan(PayloadOffset + 16), 36);
-        for (int index = 0; index < 8; index++) package[PayloadOffset + 32 + index] = (byte)(0xA0 + index);
+        for (int index = 0; index < 8; index++)
+            package[PayloadOffset + 32 + index] = (byte)(0xA0 + index);
         package[PayloadOffset + 36] = 0xC3;
         return package;
     }
@@ -309,7 +310,9 @@ internal static unsafe class SelectedPayloadOwnedMemoryTests
 
     private static bool AllBytesEqual(ReadOnlySpan<byte> bytes, byte expected)
     {
-        foreach (byte value in bytes) if (value != expected) return false;
+        foreach (byte value in bytes)
+            if (value != expected)
+                return false;
         return true;
     }
 
@@ -322,13 +325,15 @@ internal static unsafe class SelectedPayloadOwnedMemoryTests
         foreach (byte value in bytes)
         {
             uint reflected = 0;
-            for (int bit = 0; bit < 8; bit++) reflected = (reflected << 1) | (uint)((value >> bit) & 1);
+            for (int bit = 0; bit < 8; bit++)
+                reflected = (reflected << 1) | (uint)((value >> bit) & 1);
             crc ^= reflected << 24;
             for (int bit = 0; bit < 8; bit++)
                 crc = (crc << 1) ^ ((crc & 0x80000000) != 0 ? 0x04C11DB7u : 0u);
         }
         uint reversed = 0;
-        for (int bit = 0; bit < 32; bit++) reversed = (reversed << 1) | ((crc >> bit) & 1);
+        for (int bit = 0; bit < 32; bit++)
+            reversed = (reversed << 1) | ((crc >> bit) & 1);
         return reversed ^ uint.MaxValue;
     }
 }

@@ -674,7 +674,7 @@ internal static unsafe class PopulateAllN256IDTVectorsOwnedGatesNeverTests
                 @"src\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs");
             string project = NoStdLibProjectSource.Replace(
                 "__PRODUCTION_SOURCE__",
-                EscapeXml(productionSource),
+                EscapeXml(Path.GetDirectoryName(productionSource)!),
                 StringComparison.Ordinal);
             File.WriteAllText(
                 Path.Combine(workspace, "M02.011.NoStdLib.csproj"),
@@ -744,9 +744,12 @@ internal static unsafe class PopulateAllN256IDTVectorsOwnedGatesNeverTests
     private static bool TestSourceBoundary()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(Path.Combine(
-            repositoryRoot,
-            @"src\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs"));
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        string source = HostSourceText.Documents(catalog,
+            typeof(PopulateAllN256IDTVectorsOwnedGatesNever).FullName!,
+            typeof(OwnedIdtGateTableOperation).FullName!,
+            typeof(OwnedIdtGateTableStatus).FullName!,
+            typeof(OwnedIdtGateTableResult).FullName!);
         string pointerCore = RemoveNoStdLibHostBlocks(source);
         string[] forbidden =
         [
@@ -1184,8 +1187,10 @@ internal static unsafe class PopulateAllN256IDTVectorsOwnedGatesNeverTests
           </PropertyGroup>
           <ItemGroup>
             <Compile Include="NoStdLibShim.cs" />
-            <Compile Include="__PRODUCTION_SOURCE__"
-                     Link="Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs" />
+            <Compile Include="__PRODUCTION_SOURCE__/PopulateAllN256IDTVectorsOwnedGatesNever.OwnedIdtGateTableOperation.cs" Link="Diagnostics/PopulateAllN256IDTVectorsOwnedGatesNever.OwnedIdtGateTableOperation.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/PopulateAllN256IDTVectorsOwnedGatesNever.OwnedIdtGateTableStatus.cs" Link="Diagnostics/PopulateAllN256IDTVectorsOwnedGatesNever.OwnedIdtGateTableStatus.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/PopulateAllN256IDTVectorsOwnedGatesNever.OwnedIdtGateTableResult.cs" Link="Diagnostics/PopulateAllN256IDTVectorsOwnedGatesNever.OwnedIdtGateTableResult.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/PopulateAllN256IDTVectorsOwnedGatesNever.cs" Link="Diagnostics/PopulateAllN256IDTVectorsOwnedGatesNever.cs" />
           </ItemGroup>
           <Target Name="CustomizeReferences"
                   BeforeTargets="BeforeCompile"

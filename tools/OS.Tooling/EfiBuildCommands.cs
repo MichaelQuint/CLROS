@@ -5,9 +5,15 @@ public sealed record EfiBuildCommands(string Executable, string WorkingDirectory
     IReadOnlyDictionary<string, string?> Environment, int TimeoutSeconds, int MaximumOutputCharacters)
 {
     public const bool TerminateDescendantsAfterRootExit = true;
-    public static IReadOnlyDictionary<string, string?> ProcessEnvironment { get; } =
+    public static IReadOnlyDictionary<string, string?> ProcessEnvironment
+    {
+        get;
+    } =
         new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-        { ["MSBUILDDISABLENODEREUSE"] = "1", ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0" }.AsReadOnly();
+        {
+            ["MSBUILDDISABLENODEREUSE"] = "1",
+            ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0"
+        }.AsReadOnly();
     public IReadOnlyList<string> ProbeMarkers { get; init; } = [];
     public static EfiBuildCommands Create(EfiOptions options, EfiPreflightResult preflight)
     {
@@ -19,8 +25,10 @@ public sealed record EfiBuildCommands(string Executable, string WorkingDirectory
         var canonical = EfiMsbuild.CanonicalPaths(packages, preflight.NativeAotRuntimePackPath, preflight.DotnetSdkDirectory);
         Dictionary<string, string?> environment = new(ProcessEnvironment, StringComparer.OrdinalIgnoreCase)
         {
-            ["LINK"] = null, ["_LINK_"] = null,
-            ["MSBuildSDKsPath"] = isolation["MSBuildSDKsPath"], ["MSBuildExtensionsPath"] = isolation["MSBuildExtensionsPath"],
+            ["LINK"] = null,
+            ["_LINK_"] = null,
+            ["MSBuildSDKsPath"] = isolation["MSBuildSDKsPath"],
+            ["MSBuildExtensionsPath"] = isolation["MSBuildExtensionsPath"],
             ["MSBuildUserExtensionsPath"] = isolation["MSBuildUserExtensionsPath"]
         };
         List<string> common = ["-p:ClrosBootPolicy=" + preflight.Profile.BootPolicy, "-p:RestoreOutputPath=" + extensions.Replace('\\', '/') + "/"];
@@ -30,7 +38,8 @@ public sealed record EfiBuildCommands(string Executable, string WorkingDirectory
         restore.AddRange(common);
         List<string> publish = ["publish", project, "-noAutoResponse", "-nodeReuse:false", "-c", configuration, "-r", "win-x64", "--nologo", "--no-restore",
             "-p:CppLinker=" + preflight.LinkerPath, "-p:IlcGenerateMapFile=true", "-p:NoIncremental=true"];
-        publish.AddRange(common); publish.AddRange(EfiMsbuild.NativeProperties(canonical).Select(pair => "-p:" + pair.Key + "=" + pair.Value));
+        publish.AddRange(common);
+        publish.AddRange(EfiMsbuild.NativeProperties(canonical).Select(pair => "-p:" + pair.Key + "=" + pair.Value));
         publish.AddRange(preflight.Profile.Flags.Select(pair => "-p:" + pair.Key + "=" + (pair.Value ? "true" : "false")));
         return new(preflight.DotnetHostPath, root, restore.AsReadOnly(), publish.AsReadOnly(), environment.AsReadOnly(), EfiBuildPolicy.BuildTimeout(options), EfiBuildPolicy.OutputLimit(options))
         {

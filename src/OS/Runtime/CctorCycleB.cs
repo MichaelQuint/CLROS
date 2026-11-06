@@ -1,0 +1,21 @@
+#if NOSTDLIB_EFI && M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE
+using OS.Boot;
+using OS.Kernel.Runtime;
+using System.Runtime.CompilerServices;
+
+namespace OS.Runtime;
+
+internal static class CctorCycleB
+{
+    private static ulong s_value;
+    static CctorCycleB()
+    {
+        RhpNewFastAllocation.CctorEntered(4);
+        ulong partial = CctorCycleA.Read();
+        RhpNewFastAllocation.CctorPartial(1, partial);
+        s_value = partial + 1;
+    }
+    [MethodImpl(MethodImplOptions.NoInlining)] internal static ulong Read() => s_value;
+}
+
+#endif

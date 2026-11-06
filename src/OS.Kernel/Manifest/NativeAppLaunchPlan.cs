@@ -2,136 +2,9 @@ using OS.Boot;
 
 namespace OS.Manifest;
 
-[Flags]
-public enum NativeAppLaunchRuntimeCapabilities
-{
-    None = 0,
-    PackageStorage = 1,
-    Network = 2
-}
-
-public enum NativeAppLaunchStatus
-{
-    Success = 0,
-    UnsupportedManifestVersion,
-    MissingAppName,
-    MissingAppPath,
-    MissingArguments,
-    InvalidAppNameField,
-    InvalidAppPathField,
-    InvalidArgumentsField,
-    AppPathNotPackageRelative,
-    ArgumentsTooLong,
-    UnsupportedAppKind,
-    UnsupportedRuntimeKind,
-    UnsupportedNetworkMode,
-    UnsupportedLogMode,
-    InvalidListenEndpoint,
-    ListenRequiresNetwork,
-    MissingBootCapabilities,
-    UnknownBootCapabilities,
-    MissingRuntimeCapabilities
-}
-
-public enum NativeAppStorageRequirement
-{
-    None = 0,
-    PackageFile = 1
-}
-
-public readonly struct NativeAppLaunchPlanResult
-{
-    private NativeAppLaunchPlanResult(
-        NativeAppLaunchStatus status,
-        bool isInitialized,
-        NativeAppLaunchPlan plan,
-        BootCapabilities requiredBootCapabilities,
-        BootCapabilities missingBootCapabilities,
-        BootCapabilities unknownBootCapabilities,
-        NativeAppLaunchRuntimeCapabilities requiredRuntimeCapabilities,
-        NativeAppLaunchRuntimeCapabilities missingRuntimeCapabilities)
-    {
-        Status = status;
-        IsInitialized = isInitialized;
-        Plan = plan;
-        RequiredBootCapabilities = requiredBootCapabilities;
-        MissingBootCapabilities = missingBootCapabilities;
-        UnknownBootCapabilities = unknownBootCapabilities;
-        RequiredRuntimeCapabilities = requiredRuntimeCapabilities;
-        MissingRuntimeCapabilities = missingRuntimeCapabilities;
-    }
-
-    public NativeAppLaunchStatus Status { get; }
-
-    public bool IsInitialized { get; }
-
-    public NativeAppLaunchPlan Plan { get; }
-
-    public BootCapabilities RequiredBootCapabilities { get; }
-
-    public BootCapabilities MissingBootCapabilities { get; }
-
-    public BootCapabilities UnknownBootCapabilities { get; }
-
-    public NativeAppLaunchRuntimeCapabilities RequiredRuntimeCapabilities { get; }
-
-    public NativeAppLaunchRuntimeCapabilities MissingRuntimeCapabilities { get; }
-
-    public bool Succeeded => IsInitialized && Status == NativeAppLaunchStatus.Success;
-
-    public static NativeAppLaunchPlanResult Success(
-        NativeAppLaunchPlan plan,
-        BootCapabilities requiredBootCapabilities,
-        NativeAppLaunchRuntimeCapabilities requiredRuntimeCapabilities)
-    {
-        return new NativeAppLaunchPlanResult(
-            NativeAppLaunchStatus.Success,
-            isInitialized: true,
-            plan,
-            requiredBootCapabilities,
-            BootCapabilities.None,
-            BootCapabilities.None,
-            requiredRuntimeCapabilities,
-            NativeAppLaunchRuntimeCapabilities.None);
-    }
-
-    public static NativeAppLaunchPlanResult Fail(
-        NativeAppLaunchStatus status,
-        BootCapabilities requiredBootCapabilities,
-        BootCapabilities missingBootCapabilities,
-        BootCapabilities unknownBootCapabilities,
-        NativeAppLaunchRuntimeCapabilities requiredRuntimeCapabilities,
-        NativeAppLaunchRuntimeCapabilities missingRuntimeCapabilities)
-    {
-        return new NativeAppLaunchPlanResult(
-            status,
-            isInitialized: true,
-            default,
-            requiredBootCapabilities,
-            missingBootCapabilities,
-            unknownBootCapabilities,
-            requiredRuntimeCapabilities,
-            missingRuntimeCapabilities);
-    }
-}
-
 public readonly struct NativeAppLaunchPlan
 {
-    private NativeAppLaunchPlan(
-        byte manifestVersion,
-        NativeManifestField appName,
-        NativeManifestField appPath,
-        NativeManifestField arguments,
-        int argumentByteLength,
-        NativeManifestAppKind appKind,
-        NativeManifestRuntimeKind runtimeKind,
-        NativeManifestNetworkMode requestedNetworkMode,
-        NativeManifestLogMode logMode,
-        NativeManifestListenEndpoint listenEndpoint,
-        NativeManifestEnvironmentBlock environment,
-        NativeAppStorageRequirement storageRequirement,
-        BootCapabilities requiredBootCapabilities,
-        NativeAppLaunchRuntimeCapabilities requiredRuntimeCapabilities)
+    private NativeAppLaunchPlan(byte manifestVersion, NativeManifestField appName, NativeManifestField appPath, NativeManifestField arguments, int argumentByteLength, NativeManifestAppKind appKind, NativeManifestRuntimeKind runtimeKind, NativeManifestNetworkMode requestedNetworkMode, NativeManifestLogMode logMode, NativeManifestListenEndpoint listenEndpoint, NativeManifestEnvironmentBlock environment, NativeAppStorageRequirement storageRequirement, BootCapabilities requiredBootCapabilities, NativeAppLaunchRuntimeCapabilities requiredRuntimeCapabilities)
     {
         ManifestVersion = manifestVersion;
         AppName = appName;
@@ -149,44 +22,67 @@ public readonly struct NativeAppLaunchPlan
         RequiredRuntimeCapabilities = requiredRuntimeCapabilities;
     }
 
-    public byte ManifestVersion { get; }
-
-    public NativeManifestField AppName { get; }
-
-    public NativeManifestField AppPath { get; }
-
-    public NativeManifestField Arguments { get; }
-
-    public int ArgumentByteLength { get; }
-
-    public NativeManifestEnvironmentBlock Environment { get; }
-
+    public byte ManifestVersion
+    {
+        get;
+    }
+    public NativeManifestField AppName
+    {
+        get;
+    }
+    public NativeManifestField AppPath
+    {
+        get;
+    }
+    public NativeManifestField Arguments
+    {
+        get;
+    }
+    public int ArgumentByteLength
+    {
+        get;
+    }
+    public NativeManifestEnvironmentBlock Environment
+    {
+        get;
+    }
     public int EnvironmentCount => Environment.Count;
-
-    public NativeManifestAppKind AppKind { get; }
-
-    public NativeManifestRuntimeKind RuntimeKind { get; }
-
-    public NativeManifestNetworkMode RequestedNetworkMode { get; }
-
-    public NativeManifestLogMode LogMode { get; }
-
-    public NativeManifestListenEndpoint ListenEndpoint { get; }
-
+    public NativeManifestAppKind AppKind
+    {
+        get;
+    }
+    public NativeManifestRuntimeKind RuntimeKind
+    {
+        get;
+    }
+    public NativeManifestNetworkMode RequestedNetworkMode
+    {
+        get;
+    }
+    public NativeManifestLogMode LogMode
+    {
+        get;
+    }
+    public NativeManifestListenEndpoint ListenEndpoint
+    {
+        get;
+    }
     public bool HasListenEndpoint => ListenEndpoint.IsPresent;
-
-    public NativeAppStorageRequirement StorageRequirement { get; }
-
+    public NativeAppStorageRequirement StorageRequirement
+    {
+        get;
+    }
     public bool RequiresPackageStorage => StorageRequirement == NativeAppStorageRequirement.PackageFile;
-
-    public bool RequiresNetwork =>
-        RequestedNetworkMode != NativeManifestNetworkMode.None || ListenEndpoint.IsPresent;
-
+    public bool RequiresNetwork => RequestedNetworkMode != NativeManifestNetworkMode.None || ListenEndpoint.IsPresent;
     public ushort ListenPort => ListenEndpoint.Port;
-
-    public BootCapabilities RequiredBootCapabilities { get; }
-
-    public NativeAppLaunchRuntimeCapabilities RequiredRuntimeCapabilities { get; }
+    public BootCapabilities RequiredBootCapabilities
+    {
+        get;
+    }
+    public NativeAppLaunchRuntimeCapabilities RequiredRuntimeCapabilities
+    {
+        get;
+    }
 
     public bool TryGetAppName(ReadOnlySpan<byte> manifestSource, out ReadOnlySpan<byte> value)
     {
@@ -213,11 +109,7 @@ public readonly struct NativeAppLaunchPlan
         return ListenEndpoint.TryGetHost(manifestSource, out value);
     }
 
-    public static NativeAppLaunchPlanResult Create(
-        ReadOnlySpan<byte> manifestSource,
-        NativeManifest manifest,
-        BootInfo bootInfo,
-        NativeAppLaunchRuntimeCapabilities availableRuntimeCapabilities)
+    public static NativeAppLaunchPlanResult Create(ReadOnlySpan<byte> manifestSource, NativeManifest manifest, BootInfo bootInfo, NativeAppLaunchRuntimeCapabilities availableRuntimeCapabilities)
     {
         if (manifest.Version != NativeManifest.Version0)
         {
@@ -296,9 +188,7 @@ public readonly struct NativeAppLaunchPlan
 
         if (manifest.ListenEndpoint.IsPresent)
         {
-            if (!manifest.ListenEndpoint.TryGetHost(manifestSource, out ReadOnlySpan<byte> listenHost)
-                || !IsValidListenHost(listenHost)
-                || manifest.ListenEndpoint.Port == 0)
+            if (!manifest.ListenEndpoint.TryGetHost(manifestSource, out ReadOnlySpan<byte> listenHost) || !IsValidListenHost(listenHost) || manifest.ListenEndpoint.Port == 0)
             {
                 return FailWithoutRequirements(NativeAppLaunchStatus.InvalidListenEndpoint);
             }
@@ -311,67 +201,26 @@ public readonly struct NativeAppLaunchPlan
 
         BootCapabilities requiredBootCapabilities = RequiredBootCapabilitiesFor(manifest);
         NativeAppLaunchRuntimeCapabilities requiredRuntimeCapabilities = RequiredRuntimeCapabilitiesFor(manifest);
-
         BootCapabilityResult bootCapabilityResult = bootInfo.RequireCapability(requiredBootCapabilities);
         if (!bootCapabilityResult.Succeeded)
         {
-            NativeAppLaunchStatus status = bootCapabilityResult.UnknownCapabilities == BootCapabilities.None
-                ? NativeAppLaunchStatus.MissingBootCapabilities
-                : NativeAppLaunchStatus.UnknownBootCapabilities;
-
-            return NativeAppLaunchPlanResult.Fail(
-                status,
-                requiredBootCapabilities,
-                bootCapabilityResult.MissingCapabilities,
-                bootCapabilityResult.UnknownCapabilities,
-                requiredRuntimeCapabilities,
-                NativeAppLaunchRuntimeCapabilities.None);
+            NativeAppLaunchStatus status = bootCapabilityResult.UnknownCapabilities == BootCapabilities.None ? NativeAppLaunchStatus.MissingBootCapabilities : NativeAppLaunchStatus.UnknownBootCapabilities;
+            return NativeAppLaunchPlanResult.Fail(status, requiredBootCapabilities, bootCapabilityResult.MissingCapabilities, bootCapabilityResult.UnknownCapabilities, requiredRuntimeCapabilities, NativeAppLaunchRuntimeCapabilities.None);
         }
 
-        NativeAppLaunchRuntimeCapabilities missingRuntimeCapabilities =
-            requiredRuntimeCapabilities & ~availableRuntimeCapabilities;
+        NativeAppLaunchRuntimeCapabilities missingRuntimeCapabilities = requiredRuntimeCapabilities & ~availableRuntimeCapabilities;
         if (missingRuntimeCapabilities != NativeAppLaunchRuntimeCapabilities.None)
         {
-            return NativeAppLaunchPlanResult.Fail(
-                NativeAppLaunchStatus.MissingRuntimeCapabilities,
-                requiredBootCapabilities,
-                BootCapabilities.None,
-                BootCapabilities.None,
-                requiredRuntimeCapabilities,
-                missingRuntimeCapabilities);
+            return NativeAppLaunchPlanResult.Fail(NativeAppLaunchStatus.MissingRuntimeCapabilities, requiredBootCapabilities, BootCapabilities.None, BootCapabilities.None, requiredRuntimeCapabilities, missingRuntimeCapabilities);
         }
 
-        NativeAppLaunchPlan plan = new NativeAppLaunchPlan(
-            manifest.Version,
-            manifest.AppName,
-            manifest.AppPath,
-            manifest.Args,
-            arguments.Length,
-            manifest.AppKind,
-            manifest.RuntimeKind,
-            manifest.NetworkMode,
-            manifest.LogMode,
-            manifest.ListenEndpoint,
-            manifest.Environment,
-            NativeAppStorageRequirement.PackageFile,
-            requiredBootCapabilities,
-            requiredRuntimeCapabilities);
-
-        return NativeAppLaunchPlanResult.Success(
-            plan,
-            requiredBootCapabilities,
-            requiredRuntimeCapabilities);
+        NativeAppLaunchPlan plan = new NativeAppLaunchPlan(manifest.Version, manifest.AppName, manifest.AppPath, manifest.Args, arguments.Length, manifest.AppKind, manifest.RuntimeKind, manifest.NetworkMode, manifest.LogMode, manifest.ListenEndpoint, manifest.Environment, NativeAppStorageRequirement.PackageFile, requiredBootCapabilities, requiredRuntimeCapabilities);
+        return NativeAppLaunchPlanResult.Success(plan, requiredBootCapabilities, requiredRuntimeCapabilities);
     }
 
     private static NativeAppLaunchPlanResult FailWithoutRequirements(NativeAppLaunchStatus status)
     {
-        return NativeAppLaunchPlanResult.Fail(
-            status,
-            BootCapabilities.None,
-            BootCapabilities.None,
-            BootCapabilities.None,
-            NativeAppLaunchRuntimeCapabilities.None,
-            NativeAppLaunchRuntimeCapabilities.None);
+        return NativeAppLaunchPlanResult.Fail(status, BootCapabilities.None, BootCapabilities.None, BootCapabilities.None, NativeAppLaunchRuntimeCapabilities.None, NativeAppLaunchRuntimeCapabilities.None);
     }
 
     private static BootCapabilities RequiredBootCapabilitiesFor(NativeManifest manifest)
@@ -398,14 +247,12 @@ public readonly struct NativeAppLaunchPlan
 
     private static bool IsSupportedNetworkMode(NativeManifestNetworkMode networkMode)
     {
-        return networkMode == NativeManifestNetworkMode.None
-            || networkMode == NativeManifestNetworkMode.Dhcp;
+        return networkMode == NativeManifestNetworkMode.None || networkMode == NativeManifestNetworkMode.Dhcp;
     }
 
     private static bool IsSupportedLogMode(NativeManifestLogMode logMode)
     {
-        return logMode == NativeManifestLogMode.None
-            || logMode == NativeManifestLogMode.Serial;
+        return logMode == NativeManifestLogMode.None || logMode == NativeManifestLogMode.Serial;
     }
 
     private static bool IsPackageRelativePath(ReadOnlySpan<byte> path)
@@ -442,8 +289,7 @@ public readonly struct NativeAppLaunchPlan
 
     private static bool IsDotSegment(ReadOnlySpan<byte> segment)
     {
-        return OS.Std.MemoryExtensions.SequenceEqual(segment, "."u8)
-            || OS.Std.MemoryExtensions.SequenceEqual(segment, ".."u8);
+        return OS.Std.MemoryExtensions.SequenceEqual(segment, "."u8) || OS.Std.MemoryExtensions.SequenceEqual(segment, ".."u8);
     }
 
     private static bool IsValidListenHost(ReadOnlySpan<byte> host)

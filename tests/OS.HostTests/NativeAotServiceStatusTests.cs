@@ -7,11 +7,16 @@ internal static class NativeAotServiceStatusTests
     private static void Schema()
     {
         var idle = Read(Json(phase: 0, worker: 0));
-        HostCheck.Equal("clros.service.v1", idle.Contract); HostCheck.Equal(0, idle.Phase);
-        HostCheck.Equal(0, idle.Failure); HostCheck.Equal(0, idle.ManagedWorkerId);
-        HostCheck.Equal(0L, idle.Calls); HostCheck.Equal(0L, idle.RandomRequests);
-        HostCheck.Equal(0L, idle.RandomBytes); HostCheck.Equal(0L, idle.Iterations);
-        HostCheck.Equal(0L, idle.ElapsedMilliseconds); HostCheck.True(!idle.ApplicationStoppedWitness);
+        HostCheck.Equal("clros.service.v1", idle.Contract);
+        HostCheck.Equal(0, idle.Phase);
+        HostCheck.Equal(0, idle.Failure);
+        HostCheck.Equal(0, idle.ManagedWorkerId);
+        HostCheck.Equal(0L, idle.Calls);
+        HostCheck.Equal(0L, idle.RandomRequests);
+        HostCheck.Equal(0L, idle.RandomBytes);
+        HostCheck.Equal(0L, idle.Iterations);
+        HostCheck.Equal(0L, idle.ElapsedMilliseconds);
+        HostCheck.True(!idle.ApplicationStoppedWitness);
         // Separately sampled counters are deliberately not required to agree.
         string stopped = Json(phase: 4, calls: 4097, bytes: 4097, iterations: 1, elapsed: 300001);
         HostCheck.True(Read(stopped).ApplicationStoppedWitness);
@@ -24,12 +29,16 @@ internal static class NativeAotServiceStatusTests
             Json(phase: 4, calls: 4097, bytes: 4096, iterations: 1, elapsed: 300001),
             Json(phase: 4, calls: 4097, bytes: 4097, iterations: 0, elapsed: 300001),
             Json(phase: 4, calls: 4097, bytes: 4097, iterations: 1, elapsed: 300000)
-        }) HostCheck.True(!Read(body).ApplicationStoppedWitness);
+        })
+            HostCheck.True(!Read(body).ApplicationStoppedWitness);
         var maximum = Read(Json(phase: 4, failure: int.MaxValue, worker: int.MaxValue, calls: long.MaxValue,
             requests: long.MaxValue, bytes: long.MaxValue, iterations: long.MaxValue, elapsed: long.MaxValue));
-        HostCheck.Equal(int.MaxValue, maximum.Failure); HostCheck.Equal(int.MaxValue, maximum.ManagedWorkerId);
-        HostCheck.Equal(long.MaxValue, maximum.Calls); HostCheck.Equal(long.MaxValue, maximum.RandomRequests);
-        HostCheck.Equal(long.MaxValue, maximum.RandomBytes); HostCheck.Equal(long.MaxValue, maximum.Iterations);
+        HostCheck.Equal(int.MaxValue, maximum.Failure);
+        HostCheck.Equal(int.MaxValue, maximum.ManagedWorkerId);
+        HostCheck.Equal(long.MaxValue, maximum.Calls);
+        HostCheck.Equal(long.MaxValue, maximum.RandomRequests);
+        HostCheck.Equal(long.MaxValue, maximum.RandomBytes);
+        HostCheck.Equal(long.MaxValue, maximum.Iterations);
         HostCheck.Equal(long.MaxValue, maximum.ElapsedMilliseconds);
         HostCheck.True(Read(stopped + new string(' ', 8192 - Encoding.UTF8.GetByteCount(stopped))).ApplicationStoppedWitness);
         HostCheck.True(Read(stopped.Replace("\"contract\":\"clros.service.v1\",", "", StringComparison.Ordinal)
@@ -61,18 +70,27 @@ internal static class NativeAotServiceStatusTests
             Json(phase: -1), Json(phase: 5), Json(failure: -1), Json(worker: -1), Json(calls: -1),
             Json(requests: -1), Json(bytes: -1), Json(iterations: -1), Json(elapsed: -1),
             good + new string(' ', 8193 - Encoding.UTF8.GetByteCount(good))
-        }) Reject(body);
+        })
+            Reject(body);
         string[] fields = ["\"contract\":\"clros.service.v1\"", "\"phase\":1", "\"failure\":0",
             "\"managedWorkerId\":7", "\"calls\":1", "\"randomRequests\":0", "\"randomBytes\":0",
             "\"iterations\":0", "\"elapsedMilliseconds\":0"];
         foreach (string field in fields)
         {
             string missing = good.Replace(field + ",", "", StringComparison.Ordinal);
-            if (missing == good) missing = good.Replace("," + field, "", StringComparison.Ordinal);
+            if (missing == good)
+                missing = good.Replace("," + field, "", StringComparison.Ordinal);
             Reject(missing);
         }
         bool rejected = false;
-        try { _ = ServiceStatus.Parse([0xff]); } catch (InvalidDataException) { rejected = true; }
+        try
+        {
+            _ = ServiceStatus.Parse([0xff]);
+        }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 
@@ -92,9 +110,11 @@ internal static class NativeAotServiceStatusTests
             Json(calls: 100, requests: 10, bytes: 799, iterations: 25, elapsed: 20),
             Json(calls: 100, requests: 10, bytes: 800, iterations: 24, elapsed: 20),
             Json(calls: 100, requests: 10, bytes: 800, iterations: 25, elapsed: 19)
-        }) RejectProgress(Read(body), prior);
+        })
+            RejectProgress(Read(body), prior);
         var stopped = Read(Json(phase: 4, calls: 100, requests: 10, bytes: 800, iterations: 25, elapsed: 20));
-        stopped.RequireProgressFrom(prior); stopped.RequireProgressFrom(stopped);
+        stopped.RequireProgressFrom(prior);
+        stopped.RequireProgressFrom(stopped);
         RejectProgress(prior, stopped);
         RejectProgress(stopped, Read(Json(phase: 3)));
         RejectProgress(stopped, Read(Json(failure: 1)));
@@ -104,13 +124,17 @@ internal static class NativeAotServiceStatusTests
     private static void Startup()
     {
         var idle = Read(Json(phase: 0, worker: 0));
-        var starting = Read(Json(worker: 0, elapsed: 1)); starting.RequireProgressFrom(idle);
-        var running = Read(Json(calls: 1, elapsed: 2)); running.RequireProgressFrom(starting);
-        var observed = Read(Json(calls: 1, requests: 1, elapsed: 3)); observed.RequireProgressFrom(running);
+        var starting = Read(Json(worker: 0, elapsed: 1));
+        starting.RequireProgressFrom(idle);
+        var running = Read(Json(calls: 1, elapsed: 2));
+        running.RequireProgressFrom(starting);
+        var observed = Read(Json(calls: 1, requests: 1, elapsed: 3));
+        observed.RequireProgressFrom(running);
         var stopping = Read(Json(phase: 2, calls: 2, requests: 1, bytes: 8192, elapsed: 4));
         stopping.RequireProgressFrom(observed);
         var stopped = Read(Json(phase: 4, calls: 2, requests: 1, bytes: 8192, elapsed: 5));
-        stopped.RequireProgressFrom(stopping); stopped.RequireProgressFrom(idle);
+        stopped.RequireProgressFrom(stopping);
+        stopped.RequireProgressFrom(idle);
         RejectProgress(Read(Json(phase: 4, worker: 8, calls: 2, requests: 1, bytes: 8192, elapsed: 5)), stopped);
         HostCheck.True(!stopped.ApplicationStoppedWitness);
     }
@@ -121,12 +145,28 @@ internal static class NativeAotServiceStatusTests
     private static ServiceStatus Read(string body) => ServiceStatus.Parse(Encoding.UTF8.GetBytes(body));
     private static void Reject(string body)
     {
-        bool rejected = false; try { _ = Read(body); } catch (InvalidDataException) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            _ = Read(body);
+        }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
     private static void RejectProgress(ServiceStatus current, ServiceStatus prior)
     {
-        bool rejected = false; try { current.RequireProgressFrom(prior); } catch (InvalidDataException) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            current.RequireProgressFrom(prior);
+        }
+        catch (InvalidDataException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

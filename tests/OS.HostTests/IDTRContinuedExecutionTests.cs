@@ -868,7 +868,7 @@ internal static unsafe class IDTRContinuedExecutionTests
                 Path.Combine(workspace, "M02.012.NoStdLib.csproj"),
                 NoStdLibProjectSource.Replace(
                     "__PRODUCTION_SOURCE__",
-                    EscapeXml(productionSource),
+                    EscapeXml(Path.GetDirectoryName(productionSource)!),
                     StringComparison.Ordinal),
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
@@ -1373,8 +1373,12 @@ internal static unsafe class IDTRContinuedExecutionTests
           </PropertyGroup>
           <ItemGroup>
             <Compile Include="NoStdLibShim.cs" />
-            <Compile Include="__PRODUCTION_SOURCE__"
-                     Link="Diagnostics\IDTRContinuedExecution.cs" />
+            <Compile Include="__PRODUCTION_SOURCE__/IDTRContinuedExecution.IDTRContinuedExecutionOperation.cs" Link="Diagnostics/IDTRContinuedExecution.IDTRContinuedExecutionOperation.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/IDTRContinuedExecution.IDTRContinuedExecutionStatus.cs" Link="Diagnostics/IDTRContinuedExecution.IDTRContinuedExecutionStatus.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/IDTRContinuedExecution.IDTRContinuedExecutionContext.cs" Link="Diagnostics/IDTRContinuedExecution.IDTRContinuedExecutionContext.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/IDTRContinuedExecution.IDTRContinuedExecutionPlanResult.cs" Link="Diagnostics/IDTRContinuedExecution.IDTRContinuedExecutionPlanResult.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/IDTRContinuedExecution.IDTRContinuedExecutionAuditResult.cs" Link="Diagnostics/IDTRContinuedExecution.IDTRContinuedExecutionAuditResult.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/IDTRContinuedExecution.cs" Link="Diagnostics/IDTRContinuedExecution.cs" />
           </ItemGroup>
           <Target Name="CustomizeReferences"
                   BeforeTargets="BeforeCompile"

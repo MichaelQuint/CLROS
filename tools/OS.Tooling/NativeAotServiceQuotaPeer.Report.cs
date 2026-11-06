@@ -20,17 +20,32 @@ public static partial class NativeAotServiceQuotaPeer
     /// values throw. This adds no child, HTTP, packet, Completion or guest authority.</summary>
     public static string SerializeReport(Observation observation)
     {
-        var value = CopyReport(observation); RequireReport(value);
-        string text = JsonSerializer.Serialize(new {
-            schema = ReportSchema, tickUnit = ReportTickUnit, port = value.Port, connectionLimit = value.ConnectionLimit,
-            heldTicks = value.HeldTicks, pressureStartedTicks = value.PressureStartedTicks, retainedTicks = value.RetainedTicks,
-            healthyTicks = value.HealthyTicks, workerProgressTicks = value.WorkerProgressTicks, overlapTicks = value.OverlapTicks,
-            pressureAbortedTicks = value.PressureAbortedTicks, pressureError = value.PressureError,
-            retainedBytes = value.RetainedBytes, gcCollections = value.GcCollections,
-            workerCallsBefore = value.WorkerCallsBefore, workerCallsAfter = value.WorkerCallsAfter,
-            workerIterationsBefore = value.WorkerIterationsBefore, workerIterationsAfter = value.WorkerIterationsAfter,
-            samples = value.Samples.Select(sample => new { name = sample.Name, elapsedTicks = sample.ElapsedTicks, body = sample.Body }) });
-        Need(Encoding.UTF8.GetByteCount(text) <= ReportMaximumBytes, "report_bytes"); return text;
+        var value = CopyReport(observation);
+        RequireReport(value);
+        string text = JsonSerializer.Serialize(new
+        {
+            schema = ReportSchema,
+            tickUnit = ReportTickUnit,
+            port = value.Port,
+            connectionLimit = value.ConnectionLimit,
+            heldTicks = value.HeldTicks,
+            pressureStartedTicks = value.PressureStartedTicks,
+            retainedTicks = value.RetainedTicks,
+            healthyTicks = value.HealthyTicks,
+            workerProgressTicks = value.WorkerProgressTicks,
+            overlapTicks = value.OverlapTicks,
+            pressureAbortedTicks = value.PressureAbortedTicks,
+            pressureError = value.PressureError,
+            retainedBytes = value.RetainedBytes,
+            gcCollections = value.GcCollections,
+            workerCallsBefore = value.WorkerCallsBefore,
+            workerCallsAfter = value.WorkerCallsAfter,
+            workerIterationsBefore = value.WorkerIterationsBefore,
+            workerIterationsAfter = value.WorkerIterationsAfter,
+            samples = value.Samples.Select(sample => new { name = sample.Name, elapsedTicks = sample.ElapsedTicks, body = sample.Body })
+        });
+        Need(Encoding.UTF8.GetByteCount(text) <= ReportMaximumBytes, "report_bytes");
+        return text;
     }
 
     /// <summary>Inspect one borrowed UTF-8 report of at most65536 bytes with
@@ -54,7 +69,8 @@ public static partial class NativeAotServiceQuotaPeer
             Need(ReportString(root, "schema") == ReportSchema && ReportString(root, "tickUnit") == ReportTickUnit, "report_schema");
             var rows = root.GetProperty("samples");
             Need(rows.ValueKind == JsonValueKind.Array && rows.GetArrayLength() == ReportSampleNames.Length, "report_samples");
-            var samples = new Sample[ReportSampleNames.Length]; int i = 0;
+            var samples = new Sample[ReportSampleNames.Length];
+            int i = 0;
             foreach (var row in rows.EnumerateArray())
             {
                 ReportFields(row, "name", "elapsedTicks", "body");
@@ -68,17 +84,25 @@ public static partial class NativeAotServiceQuotaPeer
                 ReportUnsigned(root, "retainedBytes"), ReportUnsigned(root, "gcCollections"), ReportLong(root, "workerCallsBefore"),
                 ReportLong(root, "workerCallsAfter"), ReportLong(root, "workerIterationsBefore"), ReportLong(root, "workerIterationsAfter"),
                 Array.AsReadOnly(samples));
-            RequireReport(result); return result;
+            RequireReport(result);
+            return result;
         }
-        catch (JsonException error) { throw new InvalidDataException("quota_peer_report_json", error); }
+        catch (JsonException error)
+        {
+            throw new InvalidDataException("quota_peer_report_json", error);
+        }
     }
 
     private static Observation CopyReport(Observation value)
     {
         Need(value is not null && value.Samples is not null && value.Samples.Count == ReportSampleNames.Length, "report_samples");
         var samples = new Sample[ReportSampleNames.Length];
-        for (int i = 0; i < samples.Length; i++) samples[i] = value!.Samples![i];
-        return value! with { Samples = Array.AsReadOnly(samples) };
+        for (int i = 0; i < samples.Length; i++)
+            samples[i] = value!.Samples![i];
+        return value! with
+        {
+            Samples = Array.AsReadOnly(samples)
+        };
     }
 
     private static void RequireReport(Observation value)
@@ -86,7 +110,8 @@ public static partial class NativeAotServiceQuotaPeer
         const long maximumTicks = (long)MaximumPeerSeconds * TimeSpan.TicksPerSecond;
         Need(value.Port is >= 1 and <= 65535 && value.ConnectionLimit == 4 &&
             value.PressureError is "ConnectionError" or "ResponseEnded", "report_connection_values");
-        var samples = value.Samples; long previous = 0;
+        var samples = value.Samples;
+        long previous = 0;
         for (int i = 0; i < ReportSampleNames.Length; i++)
         {
             var sample = samples[i];
@@ -104,7 +129,8 @@ public static partial class NativeAotServiceQuotaPeer
             samples[7].Body == "CLROS_SERVICE_STARTED", "report_health_start");
         Need(ReadLifecycle(samples[1].Body).Values.All(v => v == 0) && HeldStatus(ReadLifecycle(samples[5].Body), false) &&
             HeldStatus(ReadLifecycle(samples[6].Body), true) && HeldStatus(ReadLifecycle(samples[15].Body), true), "report_held");
-        string headers = samples[4].Body; Need(headers.EndsWith("\r\n\r\n", StringComparison.Ordinal), "report_cancel_headers");
+        string headers = samples[4].Body;
+        Need(headers.EndsWith("\r\n\r\n", StringComparison.Ordinal), "report_cancel_headers");
         var head = NativeAotServicePeer.ResponseHead(Encoding.ASCII.GetBytes(headers[..^4]));
         Need(head.Status == 200 && head.Length is 0 or -1, "report_cancel_headers");
 
@@ -112,10 +138,12 @@ public static partial class NativeAotServiceQuotaPeer
         QuotaStatus prior = default;
         foreach (int at in new[] { 11, 16, 17 })
         {
-            var quota = ReadQuota(samples[at].Body); Progress(quota, prior);
+            var quota = ReadQuota(samples[at].Body);
+            Progress(quota, prior);
             Need(quota.Phase == 1 && quota.RetainedBytes >= ChunkBytes && quota.Attempts >= quota.RetainedBytes / ChunkBytes &&
                 quota.GcCollections >= Math.Min(quota.RetainedBytes / ChunkBytes, 4UL), "report_quota_overlap");
-            if (at == 16) Need(value.RetainedBytes == quota.RetainedBytes && value.GcCollections == quota.GcCollections, "report_quota_join");
+            if (at == 16)
+                Need(value.RetainedBytes == quota.RetainedBytes && value.GcCollections == quota.GcCollections, "report_quota_join");
             prior = quota;
         }
         ServiceStatus worker = ServiceStatus.Parse(Encoding.ASCII.GetBytes(samples[3].Body));
@@ -123,33 +151,46 @@ public static partial class NativeAotServiceQuotaPeer
             worker.RandomBytes == 0 && worker.Iterations == 0 && worker.ElapsedMilliseconds == 0, "report_worker_initial");
         foreach (int at in new[] { 8, 9, 12, 14 })
         {
-            var next = ServiceStatus.Parse(Encoding.ASCII.GetBytes(samples[at].Body)); next.RequireProgressFrom(worker);
+            var next = ServiceStatus.Parse(Encoding.ASCII.GetBytes(samples[at].Body));
+            next.RequireProgressFrom(worker);
             Need(next.Phase == 1 && next.Failure == 0 && next.ManagedWorkerId > 0 && next.Calls > 0 && next.Iterations > 0 &&
                 next.RandomRequests > 32 && next.RandomBytes > 4096, "report_worker_running");
-            if (at is 9 or 14) Need(next.Calls > worker.Calls && next.Iterations > worker.Iterations, "report_worker_progress");
-            if (at == 12) Need(value.WorkerCallsBefore == next.Calls && value.WorkerIterationsBefore == next.Iterations, "report_worker_join");
-            if (at == 14) Need(value.WorkerCallsAfter == next.Calls && value.WorkerIterationsAfter == next.Iterations, "report_worker_join");
+            if (at is 9 or 14)
+                Need(next.Calls > worker.Calls && next.Iterations > worker.Iterations, "report_worker_progress");
+            if (at == 12)
+                Need(value.WorkerCallsBefore == next.Calls && value.WorkerIterationsBefore == next.Iterations, "report_worker_join");
+            if (at == 14)
+                Need(value.WorkerCallsAfter == next.Calls && value.WorkerIterationsAfter == next.Iterations, "report_worker_join");
             worker = next;
         }
     }
 
     private static void ReportFields(JsonElement value, params string[] fields)
     {
-        Need(value.ValueKind == JsonValueKind.Object, "report_fields"); var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var field in value.EnumerateObject()) Need(fields.Contains(field.Name, StringComparer.Ordinal) && seen.Add(field.Name), "report_fields");
+        Need(value.ValueKind == JsonValueKind.Object, "report_fields");
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var field in value.EnumerateObject())
+            Need(fields.Contains(field.Name, StringComparer.Ordinal) && seen.Add(field.Name), "report_fields");
         Need(seen.Count == fields.Length, "report_fields");
     }
     private static string ReportString(JsonElement value, string name)
     {
-        var field = value.GetProperty(name); Need(field.ValueKind == JsonValueKind.String, "report_string"); return field.GetString()!;
+        var field = value.GetProperty(name);
+        Need(field.ValueKind == JsonValueKind.String, "report_string");
+        return field.GetString()!;
     }
     private static long ReportLong(JsonElement value, string name)
     {
-        var field = value.GetProperty(name); Need(field.ValueKind == JsonValueKind.Number && field.TryGetInt64(out _), "report_integer");
-        long number = field.GetInt64(); Need(number >= 0, "report_integer"); return number;
+        var field = value.GetProperty(name);
+        Need(field.ValueKind == JsonValueKind.Number && field.TryGetInt64(out _), "report_integer");
+        long number = field.GetInt64();
+        Need(number >= 0, "report_integer");
+        return number;
     }
     private static ulong ReportUnsigned(JsonElement value, string name)
     {
-        var field = value.GetProperty(name); Need(field.ValueKind == JsonValueKind.Number && field.TryGetUInt64(out _), "report_integer"); return field.GetUInt64();
+        var field = value.GetProperty(name);
+        Need(field.ValueKind == JsonValueKind.Number && field.TryGetUInt64(out _), "report_integer");
+        return field.GetUInt64();
     }
 }

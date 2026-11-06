@@ -18,16 +18,27 @@ internal static class WritableStorageTimingReportTests
 
     private static string Set(string row, string name, string value)
     {
-        string marker = " " + name + "="; int start = row.IndexOf(marker, StringComparison.Ordinal);
+        string marker = " " + name + "=";
+        int start = row.IndexOf(marker, StringComparison.Ordinal);
         HostCheck.True(start >= 0, "test vector field missing " + name);
-        start += marker.Length; int end = row.IndexOf(' ', start); if (end < 0) end = row.Length;
+        start += marker.Length;
+        int end = row.IndexOf(' ', start);
+        if (end < 0)
+            end = row.Length;
         return row[..start] + value + row[end..];
     }
     private static string Set(string row, string name, ulong value) => Set(row, name, value.ToString(CultureInfo.InvariantCulture));
     private static void Reject(string row, string? reason = null)
     {
         string? failure = null;
-        try { _ = WritableStorageTimingReport.Read(row); } catch (ToolFailure error) { failure = error.Message; }
+        try
+        {
+            _ = WritableStorageTimingReport.Read(row);
+        }
+        catch (ToolFailure error)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure is not null && (reason is null || failure.Contains(reason, StringComparison.Ordinal)),
             "expected=" + reason + " actual=" + failure);
     }
@@ -37,17 +48,36 @@ internal static class WritableStorageTimingReportTests
     {
         foreach (uint width in new uint[] { 32, 64 })
         {
-            string row = Set(Complete, "width", width); var report = WritableStorageTimingReport.Read(row);
-            HostCheck.Equal(row, report.RawRow); HostCheck.Equal(width, report.Width); HostCheck.True(report.Valid);
-            HostCheck.Equal(10000000UL, report.Frequency); HostCheck.Equal(1000UL, report.OuterTicks);
-            HostCheck.Equal(2UL, report.AuditCalls); HostCheck.Equal(300UL, report.AuditTicks); HostCheck.Equal(28UL, report.OutsideDeviceCalls);
-            HostCheck.Equal(1UL, report.PairCalls); HostCheck.Equal(400UL, report.PairTicks); HostCheck.Equal(100UL, report.PairAuditTicks);
-            HostCheck.Equal(1UL, report.PumpCalls); HostCheck.Equal(200UL, report.PumpTicks); HostCheck.Equal(50UL, report.PumpAuditTicks);
-            HostCheck.Equal(1UL, report.EngineCalls); HostCheck.Equal(4096UL, report.EngineOwner);
-            HostCheck.Equal(2U, report.BeforePhase); HostCheck.Equal(1U, report.BeforeStep); HostCheck.Equal(5U, report.BeforeWork); HostCheck.True(report.BeforeIo);
-            HostCheck.Equal(3U, report.AfterPhase); HostCheck.Equal(2U, report.AfterStep); HostCheck.Equal(6U, report.AfterWork); HostCheck.True(!report.AfterIo);
-            HostCheck.Equal(12UL, report.RawReads); HostCheck.Equal(3UL, report.AdjacentReadTicks);
-            HostCheck.Equal(150UL, report.AuditOutsideTicks); HostCheck.Equal(250UL, report.UnattributedTicks);
+            string row = Set(Complete, "width", width);
+            var report = WritableStorageTimingReport.Read(row);
+            HostCheck.Equal(row, report.RawRow);
+            HostCheck.Equal(width, report.Width);
+            HostCheck.True(report.Valid);
+            HostCheck.Equal(10000000UL, report.Frequency);
+            HostCheck.Equal(1000UL, report.OuterTicks);
+            HostCheck.Equal(2UL, report.AuditCalls);
+            HostCheck.Equal(300UL, report.AuditTicks);
+            HostCheck.Equal(28UL, report.OutsideDeviceCalls);
+            HostCheck.Equal(1UL, report.PairCalls);
+            HostCheck.Equal(400UL, report.PairTicks);
+            HostCheck.Equal(100UL, report.PairAuditTicks);
+            HostCheck.Equal(1UL, report.PumpCalls);
+            HostCheck.Equal(200UL, report.PumpTicks);
+            HostCheck.Equal(50UL, report.PumpAuditTicks);
+            HostCheck.Equal(1UL, report.EngineCalls);
+            HostCheck.Equal(4096UL, report.EngineOwner);
+            HostCheck.Equal(2U, report.BeforePhase);
+            HostCheck.Equal(1U, report.BeforeStep);
+            HostCheck.Equal(5U, report.BeforeWork);
+            HostCheck.True(report.BeforeIo);
+            HostCheck.Equal(3U, report.AfterPhase);
+            HostCheck.Equal(2U, report.AfterStep);
+            HostCheck.Equal(6U, report.AfterWork);
+            HostCheck.True(!report.AfterIo);
+            HostCheck.Equal(12UL, report.RawReads);
+            HostCheck.Equal(3UL, report.AdjacentReadTicks);
+            HostCheck.Equal(150UL, report.AuditOutsideTicks);
+            HostCheck.Equal(250UL, report.UnattributedTicks);
         }
     }
 
@@ -57,15 +87,19 @@ internal static class WritableStorageTimingReportTests
         foreach (string row in new[] { Empty, Set(Empty, "adjacentReadTicks", ulong.MaxValue) })
         {
             var report = WritableStorageTimingReport.Read(row);
-            HostCheck.True(report.Valid); HostCheck.Equal(0UL, report.OuterTicks); HostCheck.Equal(4UL, report.RawReads);
-            HostCheck.Equal(0UL, report.EngineCalls); HostCheck.Equal(0UL, report.EngineOwner);
+            HostCheck.True(report.Valid);
+            HostCheck.Equal(0UL, report.OuterTicks);
+            HostCheck.Equal(4UL, report.RawReads);
+            HostCheck.Equal(0UL, report.EngineCalls);
+            HostCheck.Equal(0UL, report.EngineOwner);
             HostCheck.Equal(row.EndsWith("adjacentReadTicks=0 auditOutside=0 unattributed=0", StringComparison.Ordinal) ? 0UL : ulong.MaxValue,
                 report.AdjacentReadTicks);
         }
         string outside = Set(Set(Set(Empty, "outer", 75), "auditCalls", 1), "auditTicks", 50);
         outside = Set(Set(Set(outside, "rawReads", 6), "auditOutside", 50), "unattributed", 25);
         var copied = WritableStorageTimingReport.Read(outside);
-        HostCheck.Equal(50UL, copied.AuditOutsideTicks); HostCheck.Equal(25UL, copied.UnattributedTicks);
+        HostCheck.Equal(50UL, copied.AuditOutsideTicks);
+        HostCheck.Equal(25UL, copied.UnattributedTicks);
     }
 
     [HostTest("writable timing invalid diagnostics retain partial overflowing accounting and progress without upgrading validity")]
@@ -77,10 +111,14 @@ internal static class WritableStorageTimingReportTests
             row = Set(row, field, ulong.MaxValue);
         row = Set(Set(row, "engineCalls", 0), "engineOwner", ulong.MaxValue);
         var partial = WritableStorageTimingReport.Read(row);
-        HostCheck.True(!partial.Valid); HostCheck.Equal(row, partial.RawRow);
-        HostCheck.Equal(ulong.MaxValue, partial.AuditCalls); HostCheck.Equal(ulong.MaxValue, partial.RawReads);
-        HostCheck.Equal(ulong.MaxValue, partial.EngineOwner); HostCheck.Equal(0UL, partial.EngineCalls);
-        HostCheck.True(partial.BeforeIo); HostCheck.Equal(6U, partial.AfterWork);
+        HostCheck.True(!partial.Valid);
+        HostCheck.Equal(row, partial.RawRow);
+        HostCheck.Equal(ulong.MaxValue, partial.AuditCalls);
+        HostCheck.Equal(ulong.MaxValue, partial.RawReads);
+        HostCheck.Equal(ulong.MaxValue, partial.EngineOwner);
+        HostCheck.Equal(0UL, partial.EngineCalls);
+        HostCheck.True(partial.BeforeIo);
+        HostCheck.Equal(6U, partial.AfterWork);
         Reject(Set(row, "valid", 1));
         HostCheck.True(!WritableStorageTimingReport.Read(Set(Set(Empty, "valid", 0), "engineCalls", 1)).Valid);
     }
@@ -93,7 +131,8 @@ internal static class WritableStorageTimingReportTests
             Complete.Replace(" frequency=10000000", "", StringComparison.Ordinal), Complete + " width=32",
             Complete.Replace("width=32 frequency=10000000", "frequency=10000000 width=32", StringComparison.Ordinal),
             Complete.Replace(" width=", "  width=", StringComparison.Ordinal), Complete.Replace(" width=", "\twidth=", StringComparison.Ordinal),
-            Complete.Replace("beforeIo=1", "beforeIo=true", StringComparison.Ordinal), Complete + "\0" }) Reject(malformed);
+            Complete.Replace("beforeIo=1", "beforeIo=true", StringComparison.Ordinal), Complete + "\0" })
+            Reject(malformed);
         foreach (string malformed in new[] { "00", "01", "+1", "-1", "1 ", " 1", "1\t", "1.0", "0x1", "١", "１", "1_000", "18446744073709551616" })
             Reject(Set(Complete, "rawReads", malformed));
         Reject(null!, "row_size");
@@ -105,10 +144,14 @@ internal static class WritableStorageTimingReportTests
     {
         foreach (string row in new[] { Complete, Set(Complete, "valid", 0) })
         {
-            foreach (ulong width in new ulong[] { 0, 31, 33, 63, 65, uint.MaxValue, (ulong)uint.MaxValue + 1 }) Reject(Set(row, "width", width), "geometry");
+            foreach (ulong width in new ulong[] { 0, 31, 33, 63, 65, uint.MaxValue, (ulong)uint.MaxValue + 1 })
+                Reject(Set(row, "width", width), "geometry");
             Reject(Set(row, "frequency", 0), "geometry");
             foreach (string boolean in new[] { "valid", "beforeIo", "afterIo" })
-            { Reject(Set(row, boolean, 2), "boolean"); Reject(Set(row, boolean, ulong.MaxValue), "boolean"); }
+            {
+                Reject(Set(row, boolean, 2), "boolean");
+                Reject(Set(row, boolean, ulong.MaxValue), "boolean");
+            }
             foreach (string progress in new[] { "beforePhase", "beforeStep", "beforeWork", "afterPhase", "afterStep", "afterWork" })
             {
                 HostCheck.Equal((ulong)uint.MaxValue, WritableStorageTimingReport.Read(Set(row, progress, uint.MaxValue)).Values[progress]);
@@ -133,7 +176,8 @@ internal static class WritableStorageTimingReportTests
     [HostTest("writable timing validates sample and OutsideDevice counts without inferring engine execution")]
     private static void Counts()
     {
-        foreach (ulong reads in new ulong[] { 0, 4, 11, 13 }) Reject(Set(Complete, "rawReads", reads), "raw_reads");
+        foreach (ulong reads in new ulong[] { 0, 4, 11, 13 })
+            Reject(Set(Complete, "rawReads", reads), "raw_reads");
         Reject(Set(Complete, "outsideDeviceCalls", 29), "outside_device_calls");
         HostCheck.Equal(0UL, WritableStorageTimingReport.Read(Set(Complete, "outsideDeviceCalls", 0)).OutsideDeviceCalls);
         foreach (string field in new[] { "auditCalls", "pairCalls", "pumpCalls" })
@@ -173,11 +217,22 @@ internal static class WritableStorageTimingReportTests
     [HostTest("writable timing values are immutable copies and grant no timing execution or device authority")]
     private static void CopiedValues()
     {
-        char[] input = Complete.ToCharArray(); string row = new(input);
-        var report = WritableStorageTimingReport.Read(row); Array.Fill(input, 'x'); row = "changed";
-        HostCheck.Equal(Complete, report.RawRow); HostCheck.Equal(27, report.Values.Count);
+        char[] input = Complete.ToCharArray();
+        string row = new(input);
+        var report = WritableStorageTimingReport.Read(row);
+        Array.Fill(input, 'x');
+        row = "changed";
+        HostCheck.Equal(Complete, report.RawRow);
+        HostCheck.Equal(27, report.Values.Count);
         bool rejected = false;
-        try { ((IDictionary<string, ulong>)report.Values)["valid"] = 0; } catch (NotSupportedException) { rejected = true; }
+        try
+        {
+            ((IDictionary<string, ulong>)report.Values)["valid"] = 0;
+        }
+        catch (NotSupportedException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && report.Valid);
         HostCheck.True(!report.GrantsTimingAuthority && !report.GrantsExecutionOrProcessAuthority &&
             !report.GrantsMappingOrDeviceAuthority && !report.GrantsSourceSchedulerGuestOrPersistenceAuthority);

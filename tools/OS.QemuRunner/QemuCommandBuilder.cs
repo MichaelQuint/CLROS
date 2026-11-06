@@ -12,7 +12,7 @@ internal static class QemuCommandBuilder
         List<string> arguments =
         [
             "-machine",
-            "q35,accel=tcg",
+            OS.Tooling.QemuContracts.MachineArgument(options.Accelerator),
             "-m",
             options.Memory,
             "-no-reboot",
@@ -25,7 +25,8 @@ internal static class QemuCommandBuilder
         // The finite web fixture may resolve EFI_UNSPECIFIED_TIMEZONE only
         // under this declared UTC RTC contract. Retain these arguments in the
         // runner receipt; arbitrary firmware/local-time configurations differ.
-        if (options.ContinuingWeb || options.FiniteStaticFiles) arguments.AddRange(["-rtc", "base=utc,clock=host"]);
+        if (options.ContinuingWeb || options.FiniteStaticFiles)
+            arguments.AddRange(["-rtc", "base=utc,clock=host"]);
 
         if (!string.IsNullOrWhiteSpace(ovmfCodePath))
         {
@@ -72,7 +73,8 @@ internal static class QemuCommandBuilder
         // Backend TX is SLIRP -> guest. Put the redirector before the dump so
         // reinjected TX (including the diagnostic VLAN) reaches the guest-side
         // capture. Guest RX traverses the list in reverse and bypasses TX.
-        if (webFrameArguments is not null && !options.ContinuingWeb && !options.ContinuingService) throw new InvalidOperationException("Frame filter requires continuing web or service.");
+        if (webFrameArguments is not null && !options.ContinuingWeb && !options.ContinuingService)
+            throw new InvalidOperationException("Frame filter requires continuing web or service.");
         if (options.ContinuingWeb || options.ContinuingService)
             arguments.AddRange(webFrameArguments ?? new[] { "-chardev", "socket,id=clroswebout,host=127.0.0.1,port=<ephemeral-out>",
                 "-chardev", "socket,id=clroswebin,host=127.0.0.1,port=<ephemeral-in>",

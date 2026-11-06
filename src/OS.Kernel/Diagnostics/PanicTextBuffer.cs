@@ -2,20 +2,12 @@ using OS.Std.Text;
 
 namespace OS.Kernel.Diagnostics;
 
-public enum PanicTextBufferStatus
-{
-    Ok = 0,
-    Overflow = 1,
-    InvalidAscii = 2
-}
-
 public ref struct PanicTextBuffer
 {
     private Span<byte> _destination;
     private int _written;
     private PanicTextBufferStatus _status;
     private bool _isInitialized;
-
     public PanicTextBuffer(Span<byte> destination)
     {
         _destination = destination;
@@ -25,21 +17,13 @@ public ref struct PanicTextBuffer
     }
 
     public bool IsInitialized => _isInitialized;
-
     public int Capacity => _destination.Length;
-
     public int Written => _written;
-
     public int Remaining => _destination.Length - _written;
-
     public PanicTextBufferStatus Status => _status;
-
     public bool Succeeded => _isInitialized && _status == PanicTextBufferStatus.Ok;
-
     public bool Overflowed => _status == PanicTextBufferStatus.Overflow;
-
     public bool Truncated => _status == PanicTextBufferStatus.Overflow;
-
     public ReadOnlySpan<byte> WrittenSpan => _destination.Slice(0, _written);
 
     public PanicTextBufferStatus WriteAscii(ReadOnlySpan<char> value)
@@ -121,8 +105,7 @@ public ref struct PanicTextBuffer
             return _status;
         }
 
-        AsciiTextBuilderResult result =
-            AsciiTextBuilder.AppendUInt64Decimal(_destination, _written, value);
+        AsciiTextBuilderResult result = AsciiTextBuilder.AppendUInt64Decimal(_destination, _written, value);
         return ApplyTextBuilderResult(result);
     }
 
@@ -133,12 +116,7 @@ public ref struct PanicTextBuffer
             return _status;
         }
 
-        AsciiTextBuilderResult result = AsciiTextBuilder.AppendUInt64Hex(
-            _destination,
-            _written,
-            value,
-            minimumDigits: 16,
-            includePrefix: true);
+        AsciiTextBuilderResult result = AsciiTextBuilder.AppendUInt64Hex(_destination, _written, value, minimumDigits: 16, includePrefix: true);
         return ApplyTextBuilderResult(result);
     }
 
@@ -158,10 +136,7 @@ public ref struct PanicTextBuffer
         return _status;
     }
 
-    public PanicTextBufferStatus WriteFaultSummary(
-        ReadOnlySpan<char> subsystem,
-        ReadOnlySpan<char> reason,
-        in CpuFaultFrame frame)
+    public PanicTextBufferStatus WriteFaultSummary(ReadOnlySpan<char> subsystem, ReadOnlySpan<char> reason, in CpuFaultFrame frame)
     {
         WriteAscii(SerialSmokeMarkers.OsSmokeFail);
         WriteTextField("subsystem", subsystem);
@@ -190,7 +165,6 @@ public ref struct PanicTextBuffer
         WriteHexField("r14", frame.R14);
         WriteHexField("r15", frame.R15);
         WriteCrLf();
-
         return _status;
     }
 

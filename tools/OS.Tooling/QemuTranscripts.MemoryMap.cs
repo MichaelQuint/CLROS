@@ -22,7 +22,8 @@ public static partial class QemuTranscripts
         {
             decimal end = (decimal)start + length;
             Need(start != 0 && length != 0 && end <= ulong.MaxValue, "m03_capture_extent");
-            Need(extents.All(x => start >= x.End || x.Start >= end), "m03_capture_alias"); extents.Add((start, end));
+            Need(extents.All(x => start >= x.End || x.Start >= end), "m03_capture_alias");
+            extents.Add((start, end));
         }
         Need(q["calls"] == 1 && q["order"] == 1 && q["inputBytes"] == 0 && q["buffer"] == 0 && q["status"] == 0x8000000000000005 && q["required"] != 0 && q["stride"] != 0 && q["version"] <= uint.MaxValue &&
             (decimal)q["required"] + 8 * (decimal)q["stride"] <= ulong.MaxValue && (decimal)q["required"] + 8 * (decimal)q["stride"] == p["bytes"] && p["calls"] == 1 && p["order"] == 2 && p["type"] == 2 && p["status"] == 0 && p["admitted"] == 1, "m03_capture_query_allocation");
@@ -36,17 +37,25 @@ public static partial class QemuTranscripts
     public static void AssertM04LayoutContractTranscript(string path)
     {
         string[] expected = [.. QemuContracts.M04LayoutContractRequiredMarkers, "OS_SMOKE_PASS"];
-        string[] lines = DecodeUtf8(File.ReadAllBytes(path)).Split('\n'); int next = 0;
+        string[] lines = DecodeUtf8(File.ReadAllBytes(path)).Split('\n');
+        int next = 0;
         for (int i = 0; i < lines.Length; i++)
         {
-            bool complete = i < lines.Length - 1; string line = lines[i];
-            if (complete && line.EndsWith('\r')) line = line[..^1];
+            bool complete = i < lines.Length - 1;
+            string line = lines[i];
+            if (complete && line.EndsWith('\r'))
+                line = line[..^1];
             string candidate = Classify(line);
             Need(!QemuContracts.M04LayoutContractForbiddenMarkers.Any(f => candidate.Contains(f.Replace(" ", "", StringComparison.Ordinal), StringComparison.OrdinalIgnoreCase)), "m04_layout_contract_failure_record");
             bool owned = candidate.Contains("CLROS_M04", StringComparison.OrdinalIgnoreCase) || candidate.Contains("M04_", StringComparison.OrdinalIgnoreCase) ||
                 new[] { "EFI_CONSOLE_READY", "UEFI_MEMORY_MAP_READY", "OS_SMOKE_PASS" }.Any(b => candidate.Contains(b, StringComparison.OrdinalIgnoreCase));
-            if (Controls.IsMatch(line)) Need(!new[] { "CLROS_", "M01_", "M02_", "M04_", "TEST_", "OS_", "EFI_", "UEFI_", "BOOT_" }.Any(p => candidate.Contains(p, StringComparison.OrdinalIgnoreCase)), "m04_layout_contract_control_in_record");
-            if (owned) { Need(complete && next < expected.Length && line == expected[next], "m04_layout_contract_exact_sequence_invalid"); next++; }
+            if (Controls.IsMatch(line))
+                Need(!new[] { "CLROS_", "M01_", "M02_", "M04_", "TEST_", "OS_", "EFI_", "UEFI_", "BOOT_" }.Any(p => candidate.Contains(p, StringComparison.OrdinalIgnoreCase)), "m04_layout_contract_control_in_record");
+            if (owned)
+            {
+                Need(complete && next < expected.Length && line == expected[next], "m04_layout_contract_exact_sequence_invalid");
+                next++;
+            }
         }
         Need(next == expected.Length, "m04_layout_contract_exact_sequence_incomplete");
     }

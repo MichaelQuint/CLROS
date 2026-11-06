@@ -23,13 +23,17 @@ internal static unsafe class APPPKGDiskTests
         "OSAPPv0\0"u8.CopyTo(bytes.AsSpan(96));
         BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(106), 32);
         BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(112), 32);
-        bytes[128] = 0x31; bytes[129] = 0xc0; bytes[130] = 0xc3; bytes[131] = 0x90;
+        bytes[128] = 0x31;
+        bytes[129] = 0xc0;
+        bytes[130] = 0xc3;
+        bytes[131] = 0x90;
         return bytes;
     }
     [HostTest("m06.package validates bounded OSPKGv0 metadata against existing host parser")]
     private static void ValidCase()
     {
-        var bytes = Package(); var result = APPPKGDisk.Validate(bytes, Path, Crc32.Compute(bytes));
+        var bytes = Package();
+        var result = APPPKGDisk.Validate(bytes, Path, Crc32.Compute(bytes));
         var host = OsPackageParser.FindFile(bytes, Path);
         HostCheck.True(result.Succeeded && host.Succeeded && !default(LivePackageResult).Succeeded);
         HostCheck.Equal(1, (int)result.FileCount);
@@ -58,10 +62,14 @@ internal static unsafe class APPPKGDiskTests
         foreach (var c in cases)
         {
             byte[] bytes = Package();
-            if (c.Width == 1) bytes[c.Offset] = (byte)c.Value;
-            if (c.Width == 2) BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(c.Offset), (ushort)c.Value);
-            if (c.Width == 4) BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(c.Offset), (uint)c.Value);
-            if (c.Width == 8) BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(c.Offset), c.Value);
+            if (c.Width == 1)
+                bytes[c.Offset] = (byte)c.Value;
+            if (c.Width == 2)
+                BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(c.Offset), (ushort)c.Value);
+            if (c.Width == 4)
+                BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(c.Offset), (uint)c.Value);
+            if (c.Width == 8)
+                BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(c.Offset), c.Value);
             var result = APPPKGDisk.Validate(bytes, Path, Crc32.Compute(bytes));
             HostCheck.Equal(c.Status, result.Status);
             HostCheck.True(!result.Succeeded && result.ContentOffset == 0 && result.ContentLength == 0);
@@ -78,7 +86,8 @@ internal static unsafe class APPPKGDiskTests
     private static void Multiple()
     {
         // Two complete metadata entries with independent path/content regions.
-        byte[] bytes = new byte[176]; Package().AsSpan(0, 32).CopyTo(bytes);
+        byte[] bytes = new byte[176];
+        Package().AsSpan(0, 32).CopyTo(bytes);
         BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(12), 2);
         BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(20), 64);
         void Entry(int pos, uint po, ulong co)
@@ -88,8 +97,12 @@ internal static unsafe class APPPKGDiskTests
             BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(pos + 8), co);
             BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(pos + 16), 1);
         }
-        Entry(32, 96, 128); Entry(64, 112, 144);
-        bytes[96] = (byte)'a'; bytes[112] = (byte)'b'; bytes[128] = (byte)'x'; bytes[144] = (byte)'y';
+        Entry(32, 96, 128);
+        Entry(64, 112, 144);
+        bytes[96] = (byte)'a';
+        bytes[112] = (byte)'b';
+        bytes[128] = (byte)'x';
+        bytes[144] = (byte)'y';
         HostCheck.True(APPPKGDisk.Validate(bytes, "a"u8.ToArray(), Crc32.Compute(bytes)).Succeeded);
         bytes[112] = (byte)'a';
         HostCheck.Equal(LivePackageStatus.DuplicatePath, APPPKGDisk.Validate(bytes, "a"u8.ToArray(), 0).Status);
@@ -99,8 +112,10 @@ internal static unsafe class APPPKGDiskTests
             (72, 128UL, 8, LivePackageStatus.Overlap) })
         {
             byte[] changed = (byte[])bytes.Clone();
-            if (c.Item3 == 4) BinaryPrimitives.WriteUInt32LittleEndian(changed.AsSpan(c.Item1), (uint)c.Item2);
-            else BinaryPrimitives.WriteUInt64LittleEndian(changed.AsSpan(c.Item1), c.Item2);
+            if (c.Item3 == 4)
+                BinaryPrimitives.WriteUInt32LittleEndian(changed.AsSpan(c.Item1), (uint)c.Item2);
+            else
+                BinaryPrimitives.WriteUInt64LittleEndian(changed.AsSpan(c.Item1), c.Item2);
             HostCheck.Equal(c.Item4, APPPKGDisk.Validate(changed, "a"u8.ToArray(), Crc32.Compute(changed)).Status);
         }
     }

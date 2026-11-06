@@ -11,8 +11,11 @@ public static class WebVectorResponse
     /// <summary>Require exactly Length bytes with byte i equal to i%251.</summary>
     public static bool Matches(ReadOnlySpan<byte> body)
     {
-        if (body.Length != Length) return false;
-        for (int i = 0; i < body.Length; i++) if (body[i] != (byte)(i % 251)) return false;
+        if (body.Length != Length)
+            return false;
+        for (int i = 0; i < body.Length; i++)
+            if (body[i] != (byte)(i % 251))
+                return false;
         return true;
     }
 }

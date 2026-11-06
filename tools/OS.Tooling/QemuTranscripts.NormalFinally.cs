@@ -15,10 +15,20 @@ public static partial class QemuTranscripts
         var module = ReadHexRecord(gcLines[1], "M04_GC_ROOT 1", 4);
         var stack = ReadHexRecord(gcLines[2], "M04_GC_ROOT 7", 4);
         var canaries = ReadHexRecord(gcLines[7], "M04_GC_ROOT 8", 4);
-        var bind = rows[0]; var obj = rows[1]; var entered = rows[3]; var rejected = rows[4];
-        var own = rows[5]; var parent = rows[6]; var bounds = rows[7]; var selected = rows[8];
-        var caught = rows[9]; var resume = rows[10]; var continued = rows[11]; var witness = rows[12];
-        var check = rows[13]; var released = rows[14];
+        var bind = rows[0];
+        var obj = rows[1];
+        var entered = rows[3];
+        var rejected = rows[4];
+        var own = rows[5];
+        var parent = rows[6];
+        var bounds = rows[7];
+        var selected = rows[8];
+        var caught = rows[9];
+        var resume = rows[10];
+        var continued = rows[11];
+        var witness = rows[12];
+        var check = rows[13];
+        var released = rows[14];
         decimal imageEnd = (decimal)image[0] + image[1], method = bounds[0];
         bool ImageRange(ulong at, ulong size) => at >= image[0] && size > 0 && (decimal)at + size <= imageEnd;
         Need(bind[0] == module[3] && bind[1] % 8 == 0 && ImageRange(bind[1], 65536) &&

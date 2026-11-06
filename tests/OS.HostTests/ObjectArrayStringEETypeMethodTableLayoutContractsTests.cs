@@ -10,7 +10,7 @@ using Layout = OS.Kernel.Runtime.ObjectArrayStringEETypeMethodTableLayoutContrac
 
 internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
 {
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian;
 
     [HostFixture(HostLane.Native)]
     internal static void Run()
@@ -31,7 +31,7 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
     private static void CheckIdentityAndConstants()
     {
         Require(Layout.ILCompilerVersion == OS.Tooling.EfiContracts.NativePackageVersion &&
-            Layout.RuntimeSourceCommit == "820230c386db5b0106c5430b3e5aee92a7826bf5", "pinned source identity");
+            Layout.RuntimeSourceCommit == "5254d8bcf59917edc1e1abc33bdf2442b77b1c70", "pinned source identity");
         XDocument project = XDocument.Load(Path.Combine(FindRoot(), "src", "OS", "OS.csproj"));
         foreach (string package in new[] { "Microsoft.DotNet.ILCompiler", "runtime.win-x64.Microsoft.DotNet.ILCompiler" })
         {
@@ -105,12 +105,18 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
             Require(prefix.Flags == expectedFlags[i] && prefix.BaseSize == (i == 4 ? 22U : 24U), "literal flag variant");
             NativeAotLayoutResult result = Layout.Evaluate(Profile, prefix, 0, 24);
             Require(result.Status == expectedStatuses[i], "literal flag status");
-            if (i == 0) CheckResult(result, NativeAotLayoutShape.FixedObject, 0, false, -1, 8, 24, 24);
-            if (i == 1) CheckResult(result, NativeAotLayoutShape.FixedObject, 0, true, -1, 8, 24, 24);
-            if (i == 2) CheckResult(result, NativeAotLayoutShape.SzArray, 3, false, 8, 16, 24, 24);
-            if (i == 3) CheckResult(result, NativeAotLayoutShape.SzArray, 8, true, 8, 16, 24, 24);
-            if (i == 4) CheckResult(result, NativeAotLayoutShape.String, 2, false, 8, 12, 22, 24);
-            if (i >= 5) CheckFailure(result, expectedStatuses[i]);
+            if (i == 0)
+                CheckResult(result, NativeAotLayoutShape.FixedObject, 0, false, -1, 8, 24, 24);
+            if (i == 1)
+                CheckResult(result, NativeAotLayoutShape.FixedObject, 0, true, -1, 8, 24, 24);
+            if (i == 2)
+                CheckResult(result, NativeAotLayoutShape.SzArray, 3, false, 8, 16, 24, 24);
+            if (i == 3)
+                CheckResult(result, NativeAotLayoutShape.SzArray, 8, true, 8, 16, 24, 24);
+            if (i == 4)
+                CheckResult(result, NativeAotLayoutShape.String, 2, false, 8, 12, 22, 24);
+            if (i >= 5)
+                CheckFailure(result, expectedStatuses[i]);
         }
 
         byte[] text = [0, 0, 0, 0, 0, 0, 0, 0, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11,
@@ -179,7 +185,7 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
     private static void CheckRejectionsAndFlags()
     {
         CheckFailure(default, NativeAotLayoutStatus.Uninitialized);
-        foreach (NativeAotLayoutProfile profile in new[] { (NativeAotLayoutProfile)0, NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, (NativeAotLayoutProfile)255 })
+        foreach (NativeAotLayoutProfile profile in new[] { (NativeAotLayoutProfile)0, NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, (NativeAotLayoutProfile)255 })
             CheckFailure(Layout.Evaluate(profile, Prefix(0x50200000, 0), -1, 0), NativeAotLayoutStatus.UnsupportedProfile);
         CheckFailure(Layout.Evaluate(Profile, default, 0, 0), NativeAotLayoutStatus.UnsupportedShape);
         foreach (uint size in new uint[] { 0, 8, 16, 23, 25, uint.MaxValue })
@@ -226,8 +232,10 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
             else
                 CheckFailure(fixedResult, (low & 0xE800) != 0 ? NativeAotLayoutStatus.InvalidFlags : NativeAotLayoutStatus.UnsupportedTypeFeatures);
             NativeAotLayoutResult arrayResult = Evaluate(0xE0020000 | low, 24, 0);
-            if (low == 0) CheckFailure(arrayResult, NativeAotLayoutStatus.InvalidComponentSize);
-            else CheckResult(arrayResult, NativeAotLayoutShape.SzArray, (ushort)low, false, 8, 16, 24, 24);
+            if (low == 0)
+                CheckFailure(arrayResult, NativeAotLayoutStatus.InvalidComponentSize);
+            else
+                CheckResult(arrayResult, NativeAotLayoutShape.SzArray, (ushort)low, false, 8, 16, 24, 24);
         }
 
         // Precedence uses single-cause coverage above, then these multi-error cases.
@@ -251,9 +259,11 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
         Require(!RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotMethodTablePrefix>() &&
             !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotLayoutResult>(), "reference-free PODs");
         bool passed = true;
-        for (int i = 0; i < 10000; i++) passed &= AllocationIteration(i);
+        for (int i = 0; i < 10000; i++)
+            passed &= AllocationIteration(i);
         long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < 10000; i++) passed &= AllocationIteration(i);
+        for (int i = 0; i < 10000; i++)
+            passed &= AllocationIteration(i);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Require(passed && allocated == 0, "zero allocated bytes across 40000 warmed evaluations");
     }
@@ -321,10 +331,16 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
                 public sealed class CompilerGeneratedAttribute : System.Attribute { }
             }
             """, new UTF8Encoding(false));
-        string production = System.Security.SecurityElement.Escape(Path.Combine(root, "src", "OS.Kernel", "Runtime",
-            "ObjectArrayStringEETypeMethodTableLayoutContracts.cs"))!;
+        var catalog = HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj");
+        Type[] owners = [typeof(Layout), typeof(NativeAotLayoutProfile), typeof(NativeAotLayoutShape),
+            typeof(NativeAotLayoutStatus), typeof(NativeAotMethodTablePrefix), typeof(NativeAotLayoutResult)];
+        string production = string.Join("\n", owners.SelectMany(owner => catalog.TypeSources(owner.FullName!))
+            .DistinctBy(document => document.Path).Select(document =>
+                "<Compile Include=\"" + System.Security.SecurityElement.Escape(document.Path) + "\" />"));
         string methodImpl = System.Security.SecurityElement.Escape(Path.Combine(root, "src", "OS", "Runtime",
             "MethodImplAttribute.cs"))!;
+        string methodImplOptions = System.Security.SecurityElement.Escape(Path.Combine(root, "src", "OS", "Runtime",
+            "MethodImplAttribute.MethodImplOptions.cs"))!;
         File.WriteAllText(Path.Combine(directory, "Compile.csproj"), $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
@@ -351,7 +367,8 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
               <ItemGroup>
                 <Compile Include="Shim.cs" />
                 <Compile Include="{{methodImpl}}" Link="MethodImplAttribute.cs" />
-                <Compile Include="{{production}}" Link="Layout.cs" />
+                <Compile Include="{{methodImplOptions}}" Link="MethodImplOptions.cs" />
+                {{production}}
               </ItemGroup>
               <Target Name="RemoveFrameworkReferences" BeforeTargets="BeforeCompile"
                       AfterTargets="FindReferenceAssembliesForReferences">
@@ -364,8 +381,11 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
             """, new UTF8Encoding(false));
         ProcessStartInfo start = new("dotnet")
         {
-            WorkingDirectory = directory, UseShellExecute = false, CreateNoWindow = true,
-            RedirectStandardOutput = true, RedirectStandardError = true
+            WorkingDirectory = directory,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
         foreach (string arg in new[] { "build", "Compile.csproj", "--nologo", "-m:1", "-c", "Release" })
             start.ArgumentList.Add(arg);
@@ -373,7 +393,11 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
         Task<string> stdout = process.StandardOutput.ReadToEndAsync();
         Task<string> stderr = process.StandardError.ReadToEndAsync();
         bool exited = process.WaitForExit(90000);
-        if (!exited) { process.Kill(entireProcessTree: true); process.WaitForExit(); }
+        if (!exited)
+        {
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit();
+        }
         Task.WaitAll(stdout, stderr);
         File.WriteAllText(Path.Combine(directory, "build.stdout.log"), stdout.Result);
         File.WriteAllText(Path.Combine(directory, "build.stderr.log"), stderr.Result);
@@ -393,7 +417,8 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
         DirectoryInfo? current = new(AppContext.BaseDirectory);
         while (current is not null)
         {
-            if (File.Exists(Path.Combine(current.FullName, "CLROS.slnx"))) return current.FullName;
+            if (File.Exists(Path.Combine(current.FullName, "CLROS.slnx")))
+                return current.FullName;
             current = current.Parent;
         }
         throw new InvalidOperationException("CLROS root not found");
@@ -401,6 +426,7 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
 
     private static void Require(bool condition, string reason)
     {
-        if (!condition) throw new InvalidOperationException(reason);
+        if (!condition)
+            throw new InvalidOperationException(reason);
     }
 }

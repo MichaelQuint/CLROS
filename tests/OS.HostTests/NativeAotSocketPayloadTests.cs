@@ -15,8 +15,10 @@ internal static class NativeAotSocketPayloadTests
     private static void ObservedOutput()
     {
         var observed = NativeAotSocketPayload.ValidateOutput(Output.Replace("\n", "\r\n", StringComparison.Ordinal));
-        HostCheck.Equal(61, observed.Received); HostCheck.Equal(65572, observed.Sent);
-        HostCheck.Equal(3, observed.PartialSends); HostCheck.Equal(6, observed.BlockedSends);
+        HostCheck.Equal(61, observed.Received);
+        HostCheck.Equal(65572, observed.Sent);
+        HostCheck.Equal(3, observed.PartialSends);
+        HostCheck.Equal(6, observed.BlockedSends);
     }
 
     [HostTest("nativeaot.socket output rejects missing failure stale order and contradictory counts")]
@@ -41,7 +43,7 @@ internal static class NativeAotSocketPayloadTests
             "-p:PublishAot=true", "-p:StaticExecutable=true", "-p:PositionIndependentExecutable=false",
             "-p:InvariantGlobalization=true", "-p:ServerGarbageCollection=false", "-p:EventSourceSupport=false",
             "-p:EnableDiagnostics=false", "-p:DebuggerSupport=false",
-            "-p:RuntimeFrameworkVersion=11.0.0-rc.2.26504.105", "-p:TargetLatestRuntimePatch=false",
+            "-p:RuntimeFrameworkVersion=11.0.0-rc.3.26522.148", "-p:TargetLatestRuntimePatch=false",
             "-p:UseSharedCompilation=false", "-nr:false"];
         static string Json(string[] values) => JsonSerializer.Serialize(new[] { new { executable = "dotnet", arguments = values } });
         string[] actual = NativeAotSocketPayload.PublishArguments(Json(args), destination);
@@ -72,9 +74,12 @@ internal static class NativeAotSocketPayloadTests
     private static void AsyncObservedOutput()
     {
         var observed = NativeAotSocketPayload.ValidateAsyncOutput(AsyncOutput());
-        HostCheck.Equal(61, observed.Received); HostCheck.Equal(65572, observed.Sent);
-        HostCheck.Equal(4, observed.PendingAccepts); HostCheck.Equal(8, observed.PendingReceives);
-        HostCheck.Equal(6, observed.PendingSends); HostCheck.Equal(3, observed.PartialSends);
+        HostCheck.Equal(61, observed.Received);
+        HostCheck.Equal(65572, observed.Sent);
+        HostCheck.Equal(4, observed.PendingAccepts);
+        HostCheck.Equal(8, observed.PendingReceives);
+        HostCheck.Equal(6, observed.PendingSends);
+        HostCheck.Equal(3, observed.PartialSends);
     }
 
     [HostTest("nativeaot.socket async output rejects sync traces missing terminal wakes and contradictory counters")]
@@ -94,8 +99,14 @@ internal static class NativeAotSocketPayloadTests
     private static void Reject(Action action)
     {
         bool rejected = false;
-        try { action(); } catch (Exception error) when (error is InvalidDataException or InvalidOperationException or OverflowException)
-        { rejected = true; }
+        try
+        {
+            action();
+        }
+        catch (Exception error) when (error is InvalidDataException or InvalidOperationException or OverflowException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

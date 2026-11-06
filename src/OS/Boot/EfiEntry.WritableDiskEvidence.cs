@@ -14,13 +14,15 @@ public static unsafe partial class EfiEntry
             OS.Kernel.Compatibility.LinuxX64.LinuxSyscallResult result)
         {
             var slot = c->Slots + index;
-            if (result.Action != OS.Kernel.Compatibility.LinuxX64.LinuxSyscallAction.Blocked || slot->WaitSource != 5) return true;
+            if (result.Action != OS.Kernel.Compatibility.LinuxX64.LinuxSyscallAction.Blocked || slot->WaitSource != 5)
+                return true;
             var disk = c->State->LinuxDescriptors.WritableDisk;
             if (disk == null || !NativeWritableControl(c->State, c) || !slot->Wait.IsValid ||
                 !slot->WritableDiskOperation.IsActive || slot->WritableDiskOperation.Owner != (ulong)disk ||
                 slot->WritableDiskOperation.Epoch != disk->Epoch || slot->WritableDiskOperation.Generation != disk->Request.Generation ||
                 disk->Request.Phase == 0 || disk->Request.Worker.Value != slot->Kernel.Value ||
-                slot->WaitCall.Number != call.Number || slot->WaitCall.Rip != call.Rip) return false;
+                slot->WaitCall.Number != call.Number || slot->WaitCall.Rip != call.Rip)
+                return false;
             var request = &disk->Request;
             Storage* state = c->State;
             bool written = LinuxText(state, "M16_027_BEGIN identity=") && LinuxNumber(state, slot->Kernel.Value) &&
@@ -51,28 +53,14 @@ public static unsafe partial class EfiEntry
             {
                 fixed (NativeWritableOwner* o = &s_nativeWritable)
                 {
-                    if (o->Boot != state || o->Phase != 6 || o->Evidence == null) return false;
-                    if (o->Evidence->TimingPhase == 0) o->Evidence->TimingPhase = 1;
+                    if (o->Boot != state || o->Phase != 6 || o->Evidence == null)
+                        return false;
+                    if (o->Evidence->TimingPhase == 0)
+                        o->Evidence->TimingPhase = 1;
                 }
             }
 #endif
             return written;
-        }
-        // Retained ordinary RAM, separate from B's exclusive observation slot.
-        // Root samples before and immediately after EVERY possible B-touching
-        // dispatch/commit/complete/readiness/cancel/exit/detach/end call. No
-        // aggregation across two publications and no callback inside B.
-        private struct NativeWritableEvidence
-        {
-            internal B.Observation Last, Current;
-            internal ulong Rows, LastClock;
-            internal B.Status LastBlockFailure;
-            internal ulong StateSubmitted, StateCompleted, StateSubmittedBytes, StateCompletedBytes, StateFlushedBytes;
-            internal bool Failed, HeaderCopied, HadState, LastBound, LastRunning, LastRetired, LastDirty, LastRetry;
-#if M16_027_TIMING_PROBE
-            internal byte TimingPhase; //0 unarmed,1 first source5 BEGIN,2 measuring,3 report emitted.
-            internal OS.Kernel.Diagnostics.WritableStorageTiming.State Timing;
-#endif
         }
 
 #if M16_027_TIMING_PROBE
@@ -82,22 +70,30 @@ public static unsafe partial class EfiEntry
         private static bool BeginNativeWritableTiming(NativeWritableOwner* o, LinuxNativeControl* c, out bool started)
         {
             started = false;
-            if (o->Boot != c->State || o->Phase != 6 || o->Evidence == null) return true;
-            if (o->Evidence->TimingPhase != 1) return true;
-            if (!NativeWritableControl(c->State, c) || !NativeWritableShape(o)) return false;
+            if (o->Boot != c->State || o->Phase != 6 || o->Evidence == null)
+                return true;
+            if (o->Evidence->TimingPhase != 1)
+                return true;
+            if (!NativeWritableControl(c->State, c) || !NativeWritableShape(o))
+                return false;
             Storage* s = c->State;
             if (s->Clock.Source != OS.Kernel.Platform.OwnedClockSource.Hpet ||
                 s->Clock.Status != OS.Kernel.Platform.OwnedClockStatus.Ready || s->Clock.CounterWidth is not (32 or 64) ||
                 s->Clock.FrequencyHz == 0 || s->HpetDescription.Address != s->Memory.References.HpetDevicePage ||
                 s->HpetDescription.Address > ulong.MaxValue - 0xf0 ||
-                !OS.Kernel.Diagnostics.WritableStorageTiming.Begin(&o->Evidence->Timing, s->HpetDescription.Address + 0xf0, s->Clock.CounterWidth)) return false;
-            o->Evidence->TimingPhase = 2; started = true; return true;
+                !OS.Kernel.Diagnostics.WritableStorageTiming.Begin(&o->Evidence->Timing, s->HpetDescription.Address + 0xf0, s->Clock.CounterWidth))
+                return false;
+            o->Evidence->TimingPhase = 2;
+            started = true;
+            return true;
         }
 
         private static bool EmitNativeWritableTiming(NativeWritableOwner* o, bool valid)
         {
-            if (o->Evidence->TimingPhase != 2) return false;
-            var r = &o->Evidence->Timing; Storage* s = o->Boot;
+            if (o->Evidence->TimingPhase != 2)
+                return false;
+            var r = &o->Evidence->Timing;
+            Storage* s = o->Boot;
             bool written = LinuxText(s, "M16_027_TIMING") &&
                 NativeWritableTimingValue(s, " width=", r->Width) &&
                 NativeWritableTimingValue(s, " frequency=", s->Clock.FrequencyHz) &&
@@ -126,7 +122,8 @@ public static unsafe partial class EfiEntry
                 NativeWritableTimingValue(s, " adjacentReadTicks=", r->AdjacentReadTicks) &&
                 NativeWritableTimingValue(s, " auditOutside=", r->AuditOutsideEnclosingTicks) &&
                 NativeWritableTimingValue(s, " unattributed=", r->UnattributedTicks) && LinuxText(s, "\r\n");
-            if (written) o->Evidence->TimingPhase = 3;
+            if (written)
+                o->Evidence->TimingPhase = 3;
             return written;
         }
         private static bool NativeWritableTimingValue(Storage* s, string label, ulong value) =>
@@ -140,16 +137,27 @@ public static unsafe partial class EfiEntry
         {
             fixed (NativeWritableOwner* o = &s_nativeWritable)
             {
-                if (o->Boot != state || !NativeWritableShape(o)) return false;
+                if (o->Boot != state || !NativeWritableShape(o))
+                    return false;
                 NativeWritableEvidence* e = o->Evidence;
-                if (e->Failed) return false;
-                if (!SampleNativeWritableState(o)) { e->Failed = true; return false; }
-                for (uint i = 0; i < sizeof(B.Observation); i++) ((byte*)(&e->Current))[i] = ((byte*)o->Observation)[i];
-                B.Observation* current = &e->Current; B.Observation* prior = &e->Last;
+                if (e->Failed)
+                    return false;
+                if (!SampleNativeWritableState(o))
+                {
+                    e->Failed = true;
+                    return false;
+                }
+                for (uint i = 0; i < sizeof(B.Observation); i++)
+                    ((byte*)(&e->Current))[i] = ((byte*)o->Observation)[i];
+                B.Observation* current = &e->Current;
+                B.Observation* prior = &e->Last;
                 if (current->Flags == B.ObservationFlags.None)
                 {
                     if (current->Request.Generation != 0 || o->Device->Submitted != 0 || prior->Request.Generation != 0)
-                    { e->Failed = true; return false; }
+                    {
+                        e->Failed = true;
+                        return false;
+                    }
                     return true;
                 }
                 bool published = (current->Flags & B.ObservationFlags.Published) != 0;
@@ -193,24 +201,47 @@ public static unsafe partial class EfiEntry
                             current->CompletedCount == prior->CompletedCount && current->CompletedBytes == prior->CompletedBytes &&
                             current->FlushAcknowledgedBytes == prior->FlushAcknowledgedBytes;
                     if (prior->PayloadBytes == 512)
-                        for (uint i = 0; i < 512; i++) valid &= current->Data[i] == prior->Data[i];
+                        for (uint i = 0; i < 512; i++)
+                            valid &= current->Data[i] == prior->Data[i];
                 }
                 if (current->PayloadBytes == 0)
-                    for (uint i = 0; i < 512; i++) valid &= current->Data[i] == 0;
-                if (!valid) { e->Failed = true; return false; }
+                    for (uint i = 0; i < 512; i++)
+                        valid &= current->Data[i] == 0;
+                if (!valid)
+                {
+                    e->Failed = true;
+                    return false;
+                }
                 bool changed = false;
-                for (uint i = 0; i < sizeof(B.Observation); i++) if (((byte*)current)[i] != ((byte*)prior)[i]) { changed = true; break; }
-                if (!changed) return true;
+                for (uint i = 0; i < sizeof(B.Observation); i++)
+                    if (((byte*)current)[i] != ((byte*)prior)[i])
+                    {
+                        changed = true;
+                        break;
+                    }
+                if (!changed)
+                    return true;
                 if (e->Rows >= 16384 || !ReadNetworkTime(state, out ulong now) || now < e->LastClock)
-                { e->Failed = true; return false; }
+                {
+                    e->Failed = true;
+                    return false;
+                }
                 if (copied && current->Sector == 1 && o->Phase == 3 && !e->HeaderCopied)
                 {
-                    for (uint i = 0; i < 512; i++) o->Header[i] = current->Data[i];
+                    for (uint i = 0; i < 512; i++)
+                        o->Header[i] = current->Data[i];
                     e->HeaderCopied = true;
                 }
-                if (!WriteNativeWritableObservation(o, current, now)) { e->Failed = true; return false; }
-                for (uint i = 0; i < sizeof(B.Observation); i++) ((byte*)prior)[i] = ((byte*)current)[i];
-                e->LastClock = now; e->Rows++; return true;
+                if (!WriteNativeWritableObservation(o, current, now))
+                {
+                    e->Failed = true;
+                    return false;
+                }
+                for (uint i = 0; i < sizeof(B.Observation); i++)
+                    ((byte*)prior)[i] = ((byte*)current)[i];
+                e->LastClock = now;
+                e->Rows++;
+                return true;
             }
         }
 
@@ -219,11 +250,13 @@ public static unsafe partial class EfiEntry
         // stopped dirty owner; never label it as an observed device completion.
         private static bool SampleNativeWritableState(NativeWritableOwner* o)
         {
-            B.State* b = o->Device; NativeWritableEvidence* e = o->Evidence;
+            B.State* b = o->Device;
+            NativeWritableEvidence* e = o->Evidence;
             bool bound = b->Self == (ulong)b;
             if (e->HadState && e->LastBound == bound && e->LastBlockFailure == b->LastFailure && e->LastRunning == b->Running && e->LastRetired == b->Retired &&
                 e->LastDirty == b->Dirty && e->LastRetry == b->RetryRequired && e->StateSubmitted == b->Submitted && e->StateCompleted == b->Completed &&
-                e->StateSubmittedBytes == b->SubmittedBytes && e->StateCompletedBytes == b->CompletedBytes && e->StateFlushedBytes == b->DurableBytes) return true;
+                e->StateSubmittedBytes == b->SubmittedBytes && e->StateCompletedBytes == b->CompletedBytes && e->StateFlushedBytes == b->DurableBytes)
+                return true;
             if (e->Rows >= 16384 || !ReadNetworkTime(o->Boot, out ulong now) || now < e->LastClock ||
                 !LinuxText(o->Boot, "M16_027_STATE owner=") || !LinuxNumber(o->Boot, (ulong)b) ||
                 !LinuxText(o->Boot, " epoch=") || !LinuxNumber(o->Boot, NativeWritableEpoch) ||
@@ -238,11 +271,23 @@ public static unsafe partial class EfiEntry
                 !LinuxText(o->Boot, " submittedBytes=") || !LinuxNumber(o->Boot, b->SubmittedBytes) ||
                 !LinuxText(o->Boot, " completedBytes=") || !LinuxNumber(o->Boot, b->CompletedBytes) ||
                 !LinuxText(o->Boot, " flushAcknowledgedBytes=") || !LinuxNumber(o->Boot, b->DurableBytes) ||
-                !LinuxText(o->Boot, " clock=") || !LinuxNumber(o->Boot, now) || !LinuxText(o->Boot, "\r\n")) return false;
-            e->HadState = true; e->LastBound = bound; e->LastBlockFailure = b->LastFailure; e->LastRunning = b->Running; e->LastRetired = b->Retired;
-            e->LastDirty = b->Dirty; e->LastRetry = b->RetryRequired; e->StateSubmitted = b->Submitted; e->StateCompleted = b->Completed;
-            e->StateSubmittedBytes = b->SubmittedBytes; e->StateCompletedBytes = b->CompletedBytes; e->StateFlushedBytes = b->DurableBytes;
-            e->LastClock = now; e->Rows++; return true;
+                !LinuxText(o->Boot, " clock=") || !LinuxNumber(o->Boot, now) || !LinuxText(o->Boot, "\r\n"))
+                return false;
+            e->HadState = true;
+            e->LastBound = bound;
+            e->LastBlockFailure = b->LastFailure;
+            e->LastRunning = b->Running;
+            e->LastRetired = b->Retired;
+            e->LastDirty = b->Dirty;
+            e->LastRetry = b->RetryRequired;
+            e->StateSubmitted = b->Submitted;
+            e->StateCompleted = b->Completed;
+            e->StateSubmittedBytes = b->SubmittedBytes;
+            e->StateCompletedBytes = b->CompletedBytes;
+            e->StateFlushedBytes = b->DurableBytes;
+            e->LastClock = now;
+            e->Rows++;
+            return true;
         }
 
         private static bool WriteNativeWritableObservation(NativeWritableOwner* o, B.Observation* row, ulong now)
@@ -266,13 +311,16 @@ public static unsafe partial class EfiEntry
                 !LinuxText(s, " consumed=") || !LinuxNumber(s, row->ConsumedIndex) ||
                 !LinuxText(s, " completionBytes=") || !LinuxNumber(s, row->CompletionBytes) ||
                 !LinuxText(s, " payloadBytes=") || !LinuxNumber(s, row->PayloadBytes) ||
-                !LinuxText(s, " clock=") || !LinuxNumber(s, now)) return false;
+                !LinuxText(s, " clock=") || !LinuxNumber(s, now))
+                return false;
             if (row->PayloadBytes == 512)
             {
-                if (!LinuxText(s, " data=")) return false;
+                if (!LinuxText(s, " data="))
+                    return false;
                 const string hex = "0123456789abcdef";
                 for (uint i = 0; i < 512; i++)
-                    if (!LinuxByte(s, (byte)hex[row->Data[i] >> 4]) || !LinuxByte(s, (byte)hex[row->Data[i] & 15])) return false;
+                    if (!LinuxByte(s, (byte)hex[row->Data[i] >> 4]) || !LinuxByte(s, (byte)hex[row->Data[i] & 15]))
+                        return false;
             }
             return LinuxText(s, "\r\n");
         }

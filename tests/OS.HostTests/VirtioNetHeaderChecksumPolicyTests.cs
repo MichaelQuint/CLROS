@@ -7,9 +7,14 @@ internal static class VirtioNetHeaderChecksumPolicyTests
     {
         // Independent modern header + Ethernet ARP vector; legacy offset 10
         // would read a different EtherType and must not classify this as ARP.
-        byte[] frame = new byte[54]; frame[10] = 1;
-        frame[12] = 2; frame[17] = 1; frame[18] = 0x52; frame[23] = 2;
-        frame[24] = 8; frame[25] = 6;
+        byte[] frame = new byte[54];
+        frame[10] = 1;
+        frame[12] = 2;
+        frame[17] = 1;
+        frame[18] = 0x52;
+        frame[23] = 2;
+        frame[24] = 8;
+        frame[25] = 6;
         const ulong accepted = VirtioNetHeaderChecksumPolicy.AcceptedFeatures;
         HostCheck.Equal(0x100008000UL, accepted);
         var r = VirtioNetHeaderChecksumPolicy.Validate(accepted, frame);
@@ -23,11 +28,13 @@ internal static class VirtioNetHeaderChecksumPolicyTests
             HostCheck.True(!VirtioNetHeaderChecksumPolicy.Validate(accepted, frame.AsSpan(0, length)).Succeeded);
         foreach (int offset in new[] { 0, 1, 2, 4, 6, 8, 10, 11 })
         {
-            byte old = frame[offset]; frame[offset] = offset == 10 ? (byte)0 : (byte)1;
+            byte old = frame[offset];
+            frame[offset] = offset == 10 ? (byte)0 : (byte)1;
             var bad = VirtioNetHeaderChecksumPolicy.Validate(accepted, frame);
             HostCheck.Equal(VirtioNetHeaderChecksumPolicyStatus.HeaderRejected, bad.Status);
             HostCheck.True(!VirtioNetReceiveFrameClassifier.ClassifyModern(frame).Succeeded);
-            if (offset >= 10) HostCheck.Equal(VirtioNetHeaderStatus.UnsupportedReceiveBufferCount, bad.Frame.Status);
+            if (offset >= 10)
+                HostCheck.Equal(VirtioNetHeaderStatus.UnsupportedReceiveBufferCount, bad.Frame.Status);
             frame[offset] = old;
         }
         frame[0] = 2;

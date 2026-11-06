@@ -1,8 +1,203 @@
 # Storage
 
+Current PR814 qualification is tracked in the
+[candidate results](../work/rc3-whpx-qualification.md#candidate-results).
+Historical results below retain their original source, runtime, backend and
+launch settings.
+
+[Step1781](../done/step1781.md) shares successful DataIo completion updates within
+the existing filesystem owner. All52 filesystem/six admission checks pass. The
+actual changed method shrinks32bytes with unchanged frame; bounded native review
+and final guest qualification remain. No performance improvement is claimed.
+
+[Step1754](../done/step1754.md) observes long post-ACK gaps at8KiB entity
+boundaries in the original quiet full-file captures. The fixed pair spends
+4.87/5.02s in those intervals, versus1.77/1.79s in other usable intervals.
+Source's8192-byte disk completion ceiling matches the pattern but supplies no
+packet-to-disk causal join. Measure pump/completion/copy, validation and dispatch
+before another repair; no storage safety check, budget or acceptance changes.
+
+[Step1748](../done/step1748.md) increases immutable-directory coverage to12 slots;
+Full/Timing backing becomes91 pages, Short remains5 slots, ceiling256 unchanged.
+Bounds, aliases, full parsing, completed-only publication and stale/cancel/fault
+semantics retain focused controls. The host model removes seven warm directory
+reads per lookup; it is separate from actual guest attribution. Own emitted
+storage is372,528 bytes/208 slack versus baseline368,608/32 slack, with complete
+data/layout checks. The quiet matched full-file pair improves167.45→7.17s mean
+for timer/cache together; one boot/image and deliberate stop do not qualify
+population throughput, browser or natural cleanup. Raw bodies all match.
+
+[Step1746](../done/step1746.md) independently reproduces all twelve trial raw
+gates:1,740 transactions,6,372 rows,2,892 copied sectors and sixty exact responses.
+Media/GPT/FAT chains, copies, packet bodies, counters and input/child joins pass.
+The compiler hint still fails its performance criteria and is removed; these
+Short observations grant no complete-asset/browser/natural-cleanup acceptance.
+Separate storage-poll time from the inclusive native-driver nonpoll envelope.
+
+[Step1745](../done/step1745.md) binds fresh own-Full objects/metadata/witnesses
+before matched first WHPX/TCG observations. WHPX's incomplete1687552-byte body
+and TCG's complete HTTP/browser bodies exactly join PCAP and GPT/FAT32 sectors.
+No captured corruption follows. TCG's outer failure is an absent natural summary
+after deliberate host stop; the benchmark-only capture repair retains bounded
+serial/PCAP and ordinary Full summary/cleanup requirements. Single observations
+do not establish population throughput or a physical device/scheduler cause.
+
+[Step1744](../done/step1744.md) independently checks the exact lambda packet,
+two current app pins and66 passing host controls against all current/archived
+sources and producers. Storage implementation and resources stay unchanged.
+This host integration does not renew live block/storage or native qualification.
+
+[Step1743](../done/step1743.md) repairs two host storage-peer correctness gaps:
+request deadlines cover streamed bodies, and a receipt I/O failure preserves
+the original request exception. Captured60-second expiry and actual file-collision
+red/green originals keep bytes/flags/join/refusal assertions. No filesystem,
+block-driver, resource, Linux ABI or guest acceptance change follows.
+
+[Step1742](../done/step1742.md) completes all52 adjacent storage responsibility
+rows with per-method invariants, retaining cohesive state machines and independent
+oracles.37 storage-selected files have reviewed mechanical whitespace changes.
+Source/admission guards pass; no new native/guest result. Host streamed-body
+deadline and receipt-failure repairs remain separate pending behavioral work.
+
+[Step1741](../done/step1741.md) independently verifies all twelve new Short
+originals: 145 physical transactions, 531 rows and 241 sectors per boot, with
+exact GPT/FAT/image/packet/body/counter joins. Text-FIFO timing remains mixed;
+range overlap and the initial WHPX health regression prevent a universal gain
+claim. No full-asset, natural-cleanup or browser acceptance follows.
+
+[Step1740](../done/step1740.md) verifies 145 physical transactions/531 rows/241
+copied sectors and all five HTTP bodies for the functional C original and each
+of four completed paired originals. All raw media and packet joins pass. The
+next baseline fails before storage/HTTP at a strict QEMU stderr guard; no storage
+defect or repeatable gain is established. Four-sector reads and all existing
+device/serial/call/memory bounds remain. Full/warm/browser and writes stay open.
+
+[Step1739](../done/step1739.md) preserves the failed first full-asset original.
+All3213 captured copied sectors match the actual image;909 physical reads include
+768 four-sector payload transactions, so existing2048-byte batching works.
+The full response remains partial at its180-second bound. Synchronous diagnostics
+are under investigation; neither this failure nor conditional native review
+qualifies browser, a storage speedup, writes or a larger workload/resource budget.
+
+[Step1738](../done/step1738.md) reviews the explicit warm/full/concurrent HTTP
+owner against unchanged storage/device/call/serial/lifetime limits. No guest
+quota fit or FAT performance is inferred. The original diagnostic required final
+128 MiB serial, 64 MiB PCAP and 256 MiB summary bounds and skipped the ordinary
+24 MiB stream acceptance consumer. Step1745 corrects only the stopped diagnostic
+to require serial/PCAP; ordinary Full retains its summary requirement/bound.
+Its flags deny full qualification. The
+source-only commit partition separates 22 formatter files from nine FIFO paths,
+with a reviewed shared-map resolution and exact r132 non-doc composition.
+
+[Step1737](../done/step1737.md) completes the remaining formatting and extracts
+host committed-sector indexing without changing stage joins, ownership, failure
+reasons or bounds. Eight synthetic Native-labelled storage-window checks and21
+read-observation checks pass on r139; the subsequent project-pin repair has its
+own r140 source/producer/const validation. These are host controls, not live block/
+FAT/native/guest evidence. Existing measured FIFO and deferred storage boundaries
+stay; no new storage algorithm, budget or performance claim is introduced.
+
+[Step1736](../done/step1736.md) integrates21 token/order/layout-source-preserving
+NVMe formatting files after guarding all22 original/candidate rows. The filesystem
+control is byte-identical; changed NVMe files have no explicit EFI links/pins.
+The graph and49 affected/shared checks pass with unchanged inputs and zero reuse.
+This is host/source evidence, with no live NVMe, native or performance acceptance.
+
+[Step1735](../done/step1735.md) measures bounded full-byte COM1 FIFO output after
+its stack repair and conditional native review. All12 quiet originals retain145
+reads and241 copied sectors each:47 directory,66 FAT and128 payload sectors.
+Independent actual GPT/FAT/directory/PE decoding and all6372 disk rows/2892 copied
+sectors pass, including the actual changed EFI/package/CoreLib geometry. WHPX
+64 KiB network median falls10.8%; TCG pairs remain mixed. Evidence-flush wall
+medians fall27.9%/14.4%, without suppressing sector bytes or increasing resources.
+No FAT32/block algorithm change is accepted; directory-FAT retention remains
+unapplied. Full-asset, warm, concurrent, browser and final qualification stay open.
+
+[Step1733](../done/step1733.md) integrates reviewed formatting for 22 disk-service
+files with exact EFI admission hash updates. The r128 graph and 127 affected
+checks pass, unchanged inputs and zero reuse. Six separately captured trial
+boots retain 113 metadata/128 payload sectors each; the unsuccessful serial-copy
+candidate is reverted. No storage algorithm or budget changes are accepted here.
+
+[Step1732](../done/step1732.md) completes current-image native review and18 fresh
+diagnostic boots (three per output mode/backend), with90 verified HTTP responses
+and9558 source/image/packet-bound disk rows. Full sector hex contributes to the
+instrumented delay: WHPX Trace/Summary64KiB range medians12532/9688ms (22.7%
+lower); TCG10062/9516ms (5.4%, overlapping samples). Each first sequence reads
+113 metadata and128 payload sectors. Summary remains diagnostic only. Production
+repair, warm/full-asset/concurrent/browser and final qualification remain pending.
+
+[Step1731](../done/step1731.md) adds real gated BEGIN/END counter snapshots and
+the complete host consumer, including no-ready-read/no-pending-read checks and
+the final file/completion after freeze. All 72 focused checks pass. Original,
+Trace and Summary EFI publications pass structural verification with separately
+preserved objects/maps. At step1731 stack/layout/metadata admission and VM
+execution remained pending; step1732 records their diagnostic-only completion
+for these exact images. Production repair and full acceptance remain pending.
+
+[Step1730](../done/step1730.md) integrates explicit diagnostic trace/summary
+selections and a shared ordered image-CRC reader. All 69 focused graph checks
+pass. Both modes retain record reservation/order/commit/failure checks; summary
+omits payload hex and cannot replace ordinary full byte evidence. Independent
+native start/end counters, their complete consumer and exact native review remain
+required before launch. No storage speedup is claimed.
+
+[Step1729](../done/step1729.md) repeats three first sequences per backend with
+unchanged retained guest/image and the v10 observer. Median 64KiB network-body
+completion is 12.484s WHPX/10.419s TCG, while local durable body-file flush is
+1.798ms/1.741ms. Local flushing does not explain that gap. Guest evidence-flush
+regions remain 3.98-4.09s WHPX/0.90-0.92s TCG; those include checks, formatting and
+serial work across requests. They are not isolated UART or device service times.
+No source change, optimization, warm/full-asset or new qualification follows.
+
+[Step1728](../done/step1728.md) improves host timing observations before controlled
+storage/serial experiments: network-body completion is distinct from host file
+writing/flushing, and the original 180-second budget now covers streamed reads.
+The final 24 focused checks include a real loopback stall after one received byte
+and joined failure cleanup. Storage algorithms, guest code, guest serial evidence bytes and
+resource bounds are unchanged. No serial/FAT32 speedup is established.
+
+[Step1706](../done/step1706.md) expands the writable-disk wait, cancellation and
+completion formatting without token or algorithm changes. Independent
+conditional-source and one-pin checks pass, alongside 76 existing writable-disk
+host checks and EFI source admission. This does not qualify guest writes,
+SQLite execution or performance.
+
+[Step1705](../done/step1705.md) formats the EFI disk bootstrap, native device,
+evidence writer and six helper facets. Independent execution verifies identical
+tokens, syntax shape, member order, comments and directives across all 576
+conditional projections; exactly nine corresponding source pins change.
+The r67 build and 59 focused checks pass, unchanged inputs and zero reuse.
+Tracing, storage algorithms and budgets are unchanged; this is not native,
+guest or performance qualification.
+
+[Step1702](../done/step1702.md) accounts for all six retained diagnostic boots'
+145 requests/241 sectors: 47 directory reads, 66 mirrored FAT reads and 32
+four-sector payload reads. Six path operations include two failed trailing-slash
+stats; the 64 KiB range is only part of a 2,009,369-byte asset. The five-slot cache
+already reaches the full-scan read lower bound for these directories. Earlier
+ENOTDIR rejection predicts shifted work, not fewer requests, and changes error
+precedence. Exact-path certificate lifetime remains unproven. No cache/budget or
+runtime change, measured speedup or fresh guest acceptance follows from this
+analysis; controlled synchronous-evidence A/B remains first.
+
+[Step1696](../done/step1696.md) records whitespace cleanup of 164 storage files,
+independent token/shape checks across all 2,648 storage syntax projections and
+passing focused regression selections from the compiled test inventory. The
+74 changed EFI source pins match those exact formatted bytes. This changes no
+algorithm or budget and makes no native, guest or performance acceptance claim.
+
+[Step1694](../done/step1694.md) records the current refactor's FileChains and
+Directories partial extraction and 61 passing focused host checks. Method
+tokens, field order and explicit EFI admission were independently checked;
+native and guest qualification remain pending. Six retained diagnostic boots
+each contain 145 post-readiness block requests/241 sectors. Their I/O row clocks
+are sampled when evidence is flushed, not at physical completion; they cannot
+attribute device latency. No performance improvement is claimed for this move.
+
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
-The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and its original 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
 
 Directory and successful-chain reuse retain their immutable-media, backing-lifetime, invalidation and fresh-data-read contracts; no storage error or capacity check is relaxed.
 
@@ -12,7 +207,7 @@ Directory and successful-chain reuse retain their immutable-media, backing-lifet
 
 The read-only mount can opt into one caller-owned contiguous cache through ImmutableDirectoryCacheBytes and EnableImmutableDirectoryCache. Configure it after Start returns Pending and before any mount I/O. The caller must keep both the serialized mount and its media immutable until Stop retires ownership. Borrowed writable ports reject this option; ordinary callers and mechanical disk profiles remain disabled by default.
 
-One to five protected slots use a record of six 64-bit words and 512 bytes of raw sector data each. The backing API checks the actual record size is 48 bytes; no layout attributes or extra runtime types are required. The web profiles use 2,800 bytes in the existing 90-page arena tail, preserving all four paired FAT caches and every operation buffer. The whole backing is admitted and excluded as one extent, including through Linux descriptor ownership. No allocation or larger extent inventory is introduced.
+One to twelve protected slots use a record of six 64-bit words and 512 bytes of raw sector data each. The backing API checks the actual record size is 48 bytes; no layout attributes or extra runtime types are required. Since [step1748](../done/step1748.md), Full/Timing web profiles use twelve slots (6,720 bytes) in their 91-page arena; Short retains five slots (2,800 bytes). All four paired FAT caches, every operation buffer and the 256-page ceiling remain. The whole backing is admitted and excluded as one extent, including through Linux descriptor ownership. No allocation or larger extent inventory is introduced.
 
 Only actually requested ordinary mounted directory reads may fill a slot, after successful device completion and Block.Copy. No cache record is reserved during I/O. After the original cancellation gate, a free slot receives the actual successful completion LBA and copied bytes; Ready is written last. Publication occurs last; once full, the cache retains its first sectors without eviction and other requests use the original read path. Hits copy the exact sector into the requesting operation and retain VFAT parsing, ambiguity checks, traversal budgets, FAT validation and cursor history. Cold errors keep their normal status; cancellation cannot publish an unfinished fill, and fault/stop/stale lifetimes revoke reuse. A suppressed read cannot observe a hypothetical new device error or an unsampled external media mutation. This is an explicit immutable-media cache contract.
 

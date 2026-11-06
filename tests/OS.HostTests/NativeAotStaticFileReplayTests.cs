@@ -17,7 +17,8 @@ internal static class NativeAotStaticFileReplayTests
         bool ready = false, bool capacity = false, bool ioStates = false, bool idlePrefix = false)
     {
         var v = new NativeAotThreadingTranscriptTests.Vector(false).Start();
-        for (int i = 0; i < v.Rows.Count; i++) v.Rows[i] = v.Rows[i]
+        for (int i = 0; i < v.Rows.Count; i++)
+            v.Rows[i] = v.Rows[i]
             .Replace("entropyBytes=32", "entropyBytes=4096", StringComparison.Ordinal)
             .Replace("descriptors=16", "descriptors=32", StringComparison.Ordinal)
             .Replace("packageBytes=1320176", "packageBytes=" + StagedElfBytes, StringComparison.Ordinal)
@@ -26,12 +27,15 @@ internal static class NativeAotStaticFileReplayTests
         v.Rows.Insert(3, "M16_011_BOUND connections=16 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
         int budget = v.Rows.FindIndex(row => row.StartsWith("M16_008_BUDGET ", StringComparison.Ordinal));
         v.Rows.Insert(budget + 1, "TEST_START m10.017");
-        v.Call(13, 0, [15, 0x500400, 0, 8]); Write(v, 2, Entry);
+        v.Call(13, 0, [15, 0x500400, 0, 8]);
+        Write(v, 2, Entry);
         if (capacity)
         {
-            for (int fd = 5; fd < 32; fd++) File(v, 2, fd, (uint)fd, 1, 5, 261, 1, 0, 0, "/app/wwwroot/one.bin", [0x500200, 0x80100, 0]);
+            for (int fd = 5; fd < 32; fd++)
+                File(v, 2, fd, (uint)fd, 1, 5, 261, 1, 0, 0, "/app/wwwroot/one.bin", [0x500200, 0x80100, 0]);
             Path(v, 2, -24, "/app/wwwroot/one.bin", 0, uint.MaxValue, 0, 0, 0, [0x500200, 0x80100, 0]);
-            for (int fd = 5; fd < 32; fd++) File(v, 3, 0, (uint)fd, 1, 5, 261, 1, 0, 0, args: [(uint)fd]);
+            for (int fd = 5; fd < 32; fd++)
+                File(v, 3, 0, (uint)fd, 1, 5, 261, 1, 0, 0, args: [(uint)fd]);
         }
         else
         {
@@ -53,27 +57,50 @@ internal static class NativeAotStaticFileReplayTests
         Path(v, 89, 1, "/proc/self", 4, uint.MaxValue, 0, 1, 0, [0x500200, 0x500800, 8]);
         Path(v, 89, 8, "/proc/self/exe", 4, uint.MaxValue, 0, 8, 0, [0x500200, 0x500800, 8]);
         Path(v, 4, -2, "/app/wwwroot/missing.bin", 0, uint.MaxValue, 0, 0, 0, [0x500200, 0x500800]);
-        v.Call(291, 5, [0x80000]); v.Call(41, 6, [2, 0x80001, 6]);
+        v.Call(291, 5, [0x80000]);
+        v.Call(41, 6, [2, 0x80001, 6]);
         v.Call(49, 0, [6, 0x500200, 16]);
         v.Rows.Add($"M10_017_LISTENING main={v.Main.Id} writer={v.Current.Id} fd=6 nanos={Ready} http=external cleanup=pending");
-        v.Call(50, 0, [6, 512]); v.Call(233, 0, [5, 1, 6, 0x500300]);
-        var first = v.Clone(2, 2); var second = v.Clone(3, 3);
-        v.Irq(10, 3, 3); v.Select(first); v.Wait(0x500208); v.Drain(20); v.Supervisor(3, 2, 3);
-        v.Select(second); v.Wait(0x50020c); v.Drain(30); v.Supervisor(3, 1, 3); v.Select(v.Main);
+        v.Call(50, 0, [6, 512]);
+        v.Call(233, 0, [5, 1, 6, 0x500300]);
+        var first = v.Clone(2, 2);
+        var second = v.Clone(3, 3);
+        v.Irq(10, 3, 3);
+        v.Select(first);
+        v.Wait(0x500208);
+        v.Drain(20);
+        v.Supervisor(3, 2, 3);
+        v.Select(second);
+        v.Wait(0x50020c);
+        v.Drain(30);
+        v.Supervisor(3, 1, 3);
+        v.Select(v.Main);
         for (int i = 0; i < 3; i++)
         {
             v.Call(288, 7, [6, 0x500700, 0x500780, 0x80000]);
-            v.Call(45, 1, [7, 0x500800, 1, 0, 0, 0]); v.Call(44, 1, [7, 0x500000, 1, 0, 0, 0]);
+            v.Call(45, 1, [7, 0x500800, 1, 0, 0, 0]);
+            v.Call(44, 1, [7, 0x500000, 1, 0, 0, 0]);
             if (ioStates)
             {
                 v.Call(45, i == 1 ? -104 : 0, [7, 0x500800, 1, 0, 0, 0]);
-                if (i != 1) v.Call(48, 0, [7, 2]);
+                if (i != 1)
+                    v.Call(48, 0, [7, 2]);
             }
             v.Call(3, 0, [7]);
         }
-        if (masked) { v.Main.Mask = 1UL << 14; v.Call(14, 0, [2, 0x500400, 0, 8]); }
-        if (ready) v.Irq(40, 1, 3);
-        else { v.Wait(0x500204, deadline ? 100_000_000_000UL : 0); v.Drain(40); v.Supervisor(3, 0, 3); }
+        if (masked)
+        {
+            v.Main.Mask = 1UL << 14;
+            v.Call(14, 0, [2, 0x500400, 0, 8]);
+        }
+        if (ready)
+            v.Irq(40, 1, 3);
+        else
+        {
+            v.Wait(0x500204, deadline ? 100_000_000_000UL : 0);
+            v.Drain(40);
+            v.Supervisor(3, 0, 3);
+        }
         ulong tableClock = ready || masked ? v.Clock : Requested;
         if (idlePrefix)
         {
@@ -81,22 +108,43 @@ internal static class NativeAotStaticFileReplayTests
             v.Rows.Add($"M16_012_POLL identity=0 clock={Requested - 1} ready=0 idle=1");
         }
         v.Rows.Add($"M10_017_TERMINATE main={v.Main.Id} signal=15 origin=128 nanos={Requested} tableClock={tableClock} owner=supervisor completion=pending");
-        if (ready || masked) v.Rows.Add($"M16_012_POLL identity=0 clock={Requested} ready=1 idle=0");
+        if (ready || masked)
+            v.Rows.Add($"M16_012_POLL identity=0 clock={Requested} ready=1 idle=0");
         v.Clock = Requested;
         long interrupted = ready ? 0 : deadline ? -110 : -4;
-        if (!ready) v.Resume(interrupted);
-        if (masked) { v.Main.Mask = 0; v.Call(14, 0, [2, 0x500400, 0, 8]); }
+        if (!ready)
+            v.Resume(interrupted);
+        if (masked)
+        {
+            v.Main.Mask = 0;
+            v.Call(14, 0, [2, 0x500400, 0, 8]);
+        }
         ulong savedRsp = v.Main.Rsp, fp = (savedRsp - 128 - 512) & ~63UL, frame = ((fp - 440) & ~15UL) - 8;
-        v.Main.Frame = frame; v.Main.Depth = 1; v.Main.Mask = 1UL << 14; v.Main.Rsp = frame - 64;
-        v.Call(186, 1); v.Call(1, 1, [4, 0x500400, 1]);
-        v.Main.Rsp = frame + 8; v.Main.Frame = v.Main.Depth = v.Main.Mask = 0;
-        v.Call(15, interrupted, action: 5, returnedRsp: savedRsp); v.Main.Rsp = savedRsp;
-        v.Call(3, 0, [6]); Write(v, 1, "info: synthetic static fixture\n"); Write(v, 2, End);
+        v.Main.Frame = frame;
+        v.Main.Depth = 1;
+        v.Main.Mask = 1UL << 14;
+        v.Main.Rsp = frame - 64;
+        v.Call(186, 1);
+        v.Call(1, 1, [4, 0x500400, 1]);
+        v.Main.Rsp = frame + 8;
+        v.Main.Frame = v.Main.Depth = v.Main.Mask = 0;
+        v.Call(15, interrupted, action: 5, returnedRsp: savedRsp);
+        v.Main.Rsp = savedRsp;
+        v.Call(3, 0, [6]);
+        Write(v, 1, "info: synthetic static fixture\n");
+        Write(v, 2, End);
         v.Rows.Add($"M10_017_APP_EXIT main={v.Main.Id} nanos={Exited} exit=0 cleanup=pending");
-        v.Call(231, 0, [0], 2); v.Drain(Requested); v.Exit(2, 2, 3);
-        v.Select(first); v.Exit(4, 1, 2); v.Select(second); v.Exit(4, 0, 1);
-        for (int fd = 0; fd <= 5; fd++) v.Rows.Add($"M16_011_CLOSE fd={fd} valueBits=0");
-        v.Clock = Exited; v.End(3);
+        v.Call(231, 0, [0], 2);
+        v.Drain(Requested);
+        v.Exit(2, 2, 3);
+        v.Select(first);
+        v.Exit(4, 1, 2);
+        v.Select(second);
+        v.Exit(4, 0, 1);
+        for (int fd = 0; fd <= 5; fd++)
+            v.Rows.Add($"M16_011_CLOSE fd={fd} valueBits=0");
+        v.Clock = Exited;
+        v.End(3);
         int owner = v.Rows.FindIndex(row => row.StartsWith("M16_008_OWNER_END ", StringComparison.Ordinal));
         v.Rows.Insert(owner + 1, $"M10_017_OWNER_END main={v.Main.Id} ready={Ready} requested={Requested} exited={Exited} reaped=3 app=exit0 process=drained timer=restored descriptors=closed mappings=restored pool=scrubbed nic=pending");
         return v;
@@ -105,7 +153,8 @@ internal static class NativeAotStaticFileReplayTests
     private static void Write(NativeAotThreadingTranscriptTests.Vector v, uint channel, string value)
     {
         int length = Encoding.UTF8.GetByteCount(value);
-        v.Rows.Add($"M16_005_WRITE fd={channel} bytes={length} data={value}"); v.Call(1, length, [channel, 0x500400, (uint)length]);
+        v.Rows.Add($"M16_005_WRITE fd={channel} bytes={length} data={value}");
+        v.Call(1, length, [channel, 0x500400, (uint)length]);
     }
     private static void Path(NativeAotThreadingTranscriptTests.Vector v, ulong nr, long returned, string path,
         ulong kind, ulong view, ulong inode, ulong bytes, ulong mode, ulong[] args)
@@ -118,8 +167,10 @@ internal static class NativeAotStaticFileReplayTests
     {
         const ulong kind = 1;
         v.Rows.Add($"M10_017_FILE identity={v.Current.Id} ordinal={v.Current.Ordinal + 1} nr={nr} fd={fd} generation={generation} kind={kind} view={view} inode={inode} bytes={bytes} position={position} afterPosition={after}");
-        if (path is not null) Path(v, nr, returned, path, kind, view, inode, bytes, 0x8124, args!);
-        else v.Call(nr, returned, args);
+        if (path is not null)
+            Path(v, nr, returned, path, kind, view, inode, bytes, 0x8124, args!);
+        else
+            v.Call(nr, returned, args);
     }
     private static QemuTranscripts.StaticFileReplayReport Inspect(IEnumerable<string> rows) =>
         QemuTranscripts.InspectNativeAotStaticFileProtocolForTests(NativeAotThreadingTranscriptTests.Elf(),
@@ -127,14 +178,24 @@ internal static class NativeAotStaticFileReplayTests
             address => address == 0x400202, 8192, 12288);
     private static void Reject(IEnumerable<string> rows, string? reason = null)
     {
-        string? actual = null; try { Inspect(rows); } catch (ToolFailure failure) { actual = failure.Reason; }
+        string? actual = null;
+        try
+        {
+            Inspect(rows);
+        }
+        catch (ToolFailure failure)
+        {
+            actual = failure.Reason;
+        }
         HostCheck.True(actual is not null && (reason is null || actual.Contains(reason, StringComparison.Ordinal)), "static replay accepted mutation or wrong failure: " + actual);
     }
     private static string[] Change(IEnumerable<string> rows, string selector, string field, ulong value)
     {
-        string[] result = rows.ToArray(); int at = Array.FindIndex(result, row => row.Contains(selector, StringComparison.Ordinal));
+        string[] result = rows.ToArray();
+        int at = Array.FindIndex(result, row => row.Contains(selector, StringComparison.Ordinal));
         HostCheck.True(at >= 0, "static replay mutation selector");
-        result[at] = Regex.Replace(result[at], @"\b" + field + "=[0-9]+", field + "=" + value.ToString(CultureInfo.InvariantCulture)); return result;
+        result[at] = Regex.Replace(result[at], @"\b" + field + "=[0-9]+", field + "=" + value.ToString(CultureInfo.InvariantCulture));
+        return result;
     }
 
     [HostTest("static replay joins actual owner termination handler sigreturn exit and three complete reaps")]
@@ -143,22 +204,34 @@ internal static class NativeAotStaticFileReplayTests
         foreach (var vector in new[] { Vector(), Vector(ready: true), Vector(deadline: true), Vector(deadline: true, masked: true), Vector(idlePrefix: true) })
         {
             var report = Inspect(vector.Rows);
-            HostCheck.Equal(3, report.Protocol.Reaped); HostCheck.Equal(1, report.Signal15Returns);
-            HostCheck.Equal(Ready, report.ReadyNanoseconds); HostCheck.Equal(Requested, report.RequestedNanoseconds);
-            HostCheck.Equal(Exited, report.ExitedNanoseconds); HostCheck.Equal(7, report.PathObservations);
+            HostCheck.Equal(3, report.Protocol.Reaped);
+            HostCheck.Equal(1, report.Signal15Returns);
+            HostCheck.Equal(Ready, report.ReadyNanoseconds);
+            HostCheck.Equal(Requested, report.RequestedNanoseconds);
+            HostCheck.Equal(Exited, report.ExitedNanoseconds);
+            HostCheck.Equal(7, report.PathObservations);
             HostCheck.Equal(10, report.FileObservations);
             HostCheck.Equal(3, report.Connections.Count);
             for (int i = 0; i < report.Connections.Count; i++)
             {
-                var connection = report.Connections[i]; HostCheck.Equal(i, connection.Connection);
-                HostCheck.Equal(1UL, connection.Sent); HostCheck.Equal(1UL, connection.Received);
-                HostCheck.Equal(0, connection.Reset); HostCheck.Equal(0, connection.Eof);
+                var connection = report.Connections[i];
+                HostCheck.Equal(i, connection.Connection);
+                HostCheck.Equal(1UL, connection.Sent);
+                HostCheck.Equal(1UL, connection.Received);
+                HostCheck.Equal(0, connection.Reset);
+                HostCheck.Equal(0, connection.Eof);
                 HostCheck.True(!connection.WriteClosed && !connection.ReadClosed);
             }
             HostCheck.True(report.Connections is not QemuTranscripts.StaticFileSocketIo[]);
             bool denied = false;
-            try { ((IList<QemuTranscripts.StaticFileSocketIo>)report.Connections)[0] = default; }
-            catch (NotSupportedException) { denied = true; }
+            try
+            {
+                ((IList<QemuTranscripts.StaticFileSocketIo>)report.Connections)[0] = default;
+            }
+            catch (NotSupportedException)
+            {
+                denied = true;
+            }
             HostCheck.True(denied, "copied socket facts must be read only");
         }
         var states = Inspect(Vector(ioStates: true).Rows).Connections;
@@ -169,8 +242,10 @@ internal static class NativeAotStaticFileReplayTests
     [HostTest("static replay admits the explicit32 descriptor bound and proves capacity plus descriptor generation reuse")]
     private static void Capacity()
     {
-        var vector = Vector(capacity: true); var report = Inspect(vector.Rows);
-        HostCheck.Equal(54, report.FileObservations); HostCheck.Equal(34, report.PathObservations);
+        var vector = Vector(capacity: true);
+        var report = Inspect(vector.Rows);
+        HostCheck.Equal(54, report.FileObservations);
+        HostCheck.Equal(34, report.PathObservations);
         Reject(vector.Rows.Select(row => row.Replace("descriptors=32", "descriptors=16", StringComparison.Ordinal)), "threading_order");
         Reject(Change(vector.Rows, "nr=2 fd=31 ", "fd", 32), "static_replay_file_binding");
         Reject(Change(vector.Rows, "nr=3 fd=31 ", "generation", 2), "static_replay_file_generation");
@@ -182,8 +257,10 @@ internal static class NativeAotStaticFileReplayTests
         Reject(rows.Where(row => !row.StartsWith("M10_017_TERMINATE ", StringComparison.Ordinal)));
         foreach ((string field, ulong value) in new[] { ("main", 0x200000001UL), ("signal", 12UL), ("origin", 0UL), ("nanos", Requested - 1), ("tableClock", Requested - 1) })
             Reject(Change(rows, "M10_017_TERMINATE ", field, value), "static_replay_termination");
-        var duplicate = rows.ToList(); int at = duplicate.FindIndex(row => row.StartsWith("M10_017_TERMINATE ", StringComparison.Ordinal));
-        duplicate.Insert(at + 1, duplicate[at]); Reject(duplicate);
+        var duplicate = rows.ToList();
+        int at = duplicate.FindIndex(row => row.StartsWith("M10_017_TERMINATE ", StringComparison.Ordinal));
+        duplicate.Insert(at + 1, duplicate[at]);
+        Reject(duplicate);
         Reject(rows.Where(row => !row.Contains(" nr=13 a0=15 ", StringComparison.Ordinal)));
         var idle = Vector(idlePrefix: true).Rows;
         Reject(idle.Where(row => !row.StartsWith("M10_017_TERMINATE ", StringComparison.Ordinal)), "socket_no_unowned_idle");
@@ -240,10 +317,13 @@ internal static class NativeAotStaticFileReplayTests
     private static void CompleteInputs()
     {
         var rows = Vector().Rows;
-        Reject(rows.Take(rows.Count - 1)); Reject(rows.Concat(["unowned"]));
+        Reject(rows.Take(rows.Count - 1));
+        Reject(rows.Concat(["unowned"]));
         Reject(Change(rows, "M16_008_REAP ", "next", 0x300000001), "threading_reap_generation");
         Reject(Change(rows, "M10_017_PATH ", "mode", 0), "static_replay_path_metadata");
-        var changed = rows.ToArray(); int at = Array.FindIndex(changed, row => row.StartsWith("M10_017_PATH ", StringComparison.Ordinal));
-        changed[at] = Regex.Replace(changed[at], @"pathHex=[0-9A-F]+", "pathHex=" + Convert.ToHexString("/app/../wwwroot/one.bin"u8)); Reject(changed, "static_replay_path_result");
+        var changed = rows.ToArray();
+        int at = Array.FindIndex(changed, row => row.StartsWith("M10_017_PATH ", StringComparison.Ordinal));
+        changed[at] = Regex.Replace(changed[at], @"pathHex=[0-9A-F]+", "pathHex=" + Convert.ToHexString("/app/../wwwroot/one.bin"u8));
+        Reject(changed, "static_replay_path_result");
     }
 }

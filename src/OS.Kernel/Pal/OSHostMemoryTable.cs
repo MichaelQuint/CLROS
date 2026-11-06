@@ -2,98 +2,33 @@ using System.Runtime.InteropServices;
 
 namespace OS.Pal;
 
-public static class OSHostMemoryStateFlags
-{
-    public const ulong Allocated = 1;
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public readonly struct OSHostMemoryAllocationResult
-{
-    public readonly OSHostStatus Status;
-
-    public readonly uint Reserved;
-
-    public readonly OSHostHandle Allocation;
-
-    public readonly OSHostMemoryRange Range;
-
-    public OSHostMemoryAllocationResult(
-        OSHostStatus status,
-        OSHostHandle allocation,
-        OSHostMemoryRange range)
-    {
-        Status = status;
-        Reserved = 0;
-        Allocation = allocation;
-        Range = range;
-    }
-
-    public bool Succeeded =>
-        Status == OSHostStatus.Ok &&
-        Allocation.IsValid &&
-        Range.BaseAddress != 0 &&
-        Range.ByteLength != 0;
-
-    public static OSHostMemoryAllocationResult FromStatus(OSHostStatus status)
-    {
-        return new OSHostMemoryAllocationResult(status, default, default);
-    }
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public readonly struct OSHostMemoryTableEntry
-{
-    public readonly OSHostHandle Allocation;
-
-    public readonly OSHostMemoryRange Range;
-
-    public readonly ulong StateFlags;
-
-    public OSHostMemoryTableEntry(
-        OSHostHandle allocation,
-        OSHostMemoryRange range,
-        ulong stateFlags)
-    {
-        Allocation = allocation;
-        Range = range;
-        StateFlags = stateFlags;
-    }
-}
-
-public sealed class OSHostMemoryTable
+public sealed partial class OSHostMemoryTable
 {
     public const ulong DefaultBaseAddress = 0x400000;
-
     private readonly MemorySlot[] slots;
-
     private readonly ulong capacityBytes;
-
-    public OSHostMemoryTable(
-        ulong pageSizeBytes,
-        ulong baseAddress,
-        ulong pageCapacity,
-        int handleCapacity)
+    public OSHostMemoryTable(ulong pageSizeBytes, ulong baseAddress, ulong pageCapacity, int handleCapacity)
     {
         PageSizeBytes = pageSizeBytes;
         BaseAddress = baseAddress;
         PageCapacity = pageCapacity;
-        capacityBytes = TryMultiply(pageCapacity, pageSizeBytes, out ulong bytes)
-            ? bytes
-            : 0;
-        slots = handleCapacity > 0
-            ? new MemorySlot[handleCapacity]
-            : [];
+        capacityBytes = TryMultiply(pageCapacity, pageSizeBytes, out ulong bytes) ? bytes : 0;
+        slots = handleCapacity > 0 ? new MemorySlot[handleCapacity] : [];
     }
 
-    public ulong PageSizeBytes { get; }
-
-    public ulong BaseAddress { get; }
-
-    public ulong PageCapacity { get; }
-
+    public ulong PageSizeBytes
+    {
+        get;
+    }
+    public ulong BaseAddress
+    {
+        get;
+    }
+    public ulong PageCapacity
+    {
+        get;
+    }
     public ulong ByteCapacity => capacityBytes;
-
     public int HandleCapacity => slots.Length;
 
     public int ActiveCount
@@ -139,12 +74,7 @@ public sealed class OSHostMemoryTable
         }
 
         OSHostPageProtection requestedProtection = (OSHostPageProtection)request.ProtectionFlags;
-        OSHostMemoryProtectionPlanResult protection = OSHostMemoryProtectionPlan.Create(
-            baseAddress,
-            byteLength,
-            OSHostPageProtection.None,
-            requestedProtection,
-            PageSizeBytes);
+        OSHostMemoryProtectionPlanResult protection = OSHostMemoryProtectionPlan.Create(baseAddress, byteLength, OSHostPageProtection.None, requestedProtection, PageSizeBytes);
         if (!protection.Succeeded)
         {
             return OSHostMemoryAllocationResult.FromStatus(protection.HostStatus);
@@ -152,16 +82,8 @@ public sealed class OSHostMemoryTable
 
         uint generation = NextGeneration(slots[slotIndex].Generation);
         OSHostHandle handle = CreateHandle(slotIndex, generation);
-        OSHostMemoryRange range = new(
-            baseAddress,
-            byteLength,
-            request.ProtectionFlags);
-        slots[slotIndex] = MemorySlot.Create(
-            handle,
-            generation,
-            range,
-            requestedProtection);
-
+        OSHostMemoryRange range = new(baseAddress, byteLength, request.ProtectionFlags);
+        slots[slotIndex] = MemorySlot.Create(handle, generation, range, requestedProtection);
         return new OSHostMemoryAllocationResult(OSHostStatus.Ok, handle, range);
     }
 
@@ -197,21 +119,13 @@ public sealed class OSHostMemoryTable
 
         MemorySlot slot = slots[slotIndex];
         OSHostPageProtection requestedProtection = (OSHostPageProtection)range.ProtectionFlags;
-        OSHostMemoryProtectionPlanResult protection = OSHostMemoryProtectionPlan.Create(
-            range.BaseAddress,
-            range.ByteLength,
-            slot.Protection,
-            requestedProtection,
-            PageSizeBytes);
+        OSHostMemoryProtectionPlanResult protection = OSHostMemoryProtectionPlan.Create(range.BaseAddress, range.ByteLength, slot.Protection, requestedProtection, PageSizeBytes);
         if (!protection.Succeeded)
         {
             return protection.HostStatus;
         }
 
-        slots[slotIndex].Range = new OSHostMemoryRange(
-            range.BaseAddress,
-            range.ByteLength,
-            range.ProtectionFlags);
+        slots[slotIndex].Range = new OSHostMemoryRange(range.BaseAddress, range.ByteLength, range.ProtectionFlags);
         slots[slotIndex].Protection = requestedProtection;
         return OSHostStatus.Ok;
     }
@@ -219,7 +133,6 @@ public sealed class OSHostMemoryTable
     public OSHostStatus QueryMemory(ulong address, out OSHostMemoryQueryResult result)
     {
         result = default;
-
         OSHostStatus tableStatus = ValidateTable();
         if (tableStatus != OSHostStatus.Ok)
         {
@@ -241,10 +154,7 @@ public sealed class OSHostMemoryTable
 
             if (Contains(slot.Range.BaseAddress, slot.Range.ByteLength, address))
             {
-                result = new OSHostMemoryQueryResult(
-                    slot.Range,
-                    PageSizeBytes,
-                    OSHostMemoryStateFlags.Allocated);
+                result = new OSHostMemoryQueryResult(slot.Range, PageSizeBytes, OSHostMemoryStateFlags.Allocated);
                 return OSHostStatus.Ok;
             }
         }
@@ -262,21 +172,13 @@ public sealed class OSHostMemoryTable
         }
 
         MemorySlot slot = slots[slotIndex];
-        entry = new OSHostMemoryTableEntry(
-            slot.Allocation,
-            slot.Range,
-            OSHostMemoryStateFlags.Allocated);
+        entry = new OSHostMemoryTableEntry(slot.Allocation, slot.Range, OSHostMemoryStateFlags.Allocated);
         return OSHostStatus.Ok;
     }
 
     private OSHostStatus ValidateTable()
     {
-        if (!IsValidPageSize(PageSizeBytes) ||
-            BaseAddress == 0 ||
-            !IsAligned(BaseAddress, PageSizeBytes) ||
-            PageCapacity == 0 ||
-            capacityBytes == 0 ||
-            !TryAdd(BaseAddress, capacityBytes, out _))
+        if (!IsValidPageSize(PageSizeBytes) || BaseAddress == 0 || !IsAligned(BaseAddress, PageSizeBytes) || PageCapacity == 0 || capacityBytes == 0 || !TryAdd(BaseAddress, capacityBytes, out _))
         {
             return OSHostStatus.InvalidArgument;
         }
@@ -287,48 +189,33 @@ public sealed class OSHostMemoryTable
     private OSHostStatus ValidateRequest(OSHostMemoryRequest request, out ulong byteLength)
     {
         byteLength = 0;
-
-        if (request.PageCount == 0 ||
-            request.AlignmentBytes < PageSizeBytes ||
-            !IsPowerOfTwo(request.AlignmentBytes) ||
-            !IsAligned(request.AlignmentBytes, PageSizeBytes))
+        if (request.PageCount == 0 || request.AlignmentBytes < PageSizeBytes || !IsPowerOfTwo(request.AlignmentBytes) || !IsAligned(request.AlignmentBytes, PageSizeBytes))
         {
             return OSHostStatus.InvalidArgument;
         }
 
-        if (!TryMultiply(request.PageCount, PageSizeBytes, out byteLength) ||
-            byteLength == 0)
+        if (!TryMultiply(request.PageCount, PageSizeBytes, out byteLength) || byteLength == 0)
         {
             return OSHostStatus.InvalidArgument;
         }
 
         OSHostPageProtection requestedProtection = (OSHostPageProtection)request.ProtectionFlags;
-        OSHostMemoryProtectionPlanStatus protectionStatus =
-            OSHostMemoryProtectionPlan.ValidateProtectionTransition(
-                OSHostPageProtection.None,
-                requestedProtection);
+        OSHostMemoryProtectionPlanStatus protectionStatus = OSHostMemoryProtectionPlan.ValidateProtectionTransition(OSHostPageProtection.None, requestedProtection);
         return OSHostMemoryProtectionPlan.ToHostStatus(protectionStatus);
     }
 
-    private bool TryFindFreeRange(
-        ulong byteLength,
-        ulong alignmentBytes,
-        out ulong baseAddress)
+    private bool TryFindFreeRange(ulong byteLength, ulong alignmentBytes, out ulong baseAddress)
     {
         baseAddress = 0;
-
-        if (!TryAdd(BaseAddress, capacityBytes, out ulong windowEnd) ||
-            !TryAlignUp(BaseAddress, alignmentBytes, out ulong candidate))
+        if (!TryAdd(BaseAddress, capacityBytes, out ulong windowEnd) || !TryAlignUp(BaseAddress, alignmentBytes, out ulong candidate))
         {
             return false;
         }
 
-        while (TryAdd(candidate, byteLength, out ulong candidateEnd) &&
-               candidateEnd <= windowEnd)
+        while (TryAdd(candidate, byteLength, out ulong candidateEnd) && candidateEnd <= windowEnd)
         {
             bool overlapped = false;
             ulong nextCandidate = 0;
-
             for (int index = 0; index < slots.Length; index++)
             {
                 MemorySlot slot = slots[index];
@@ -344,8 +231,7 @@ public sealed class OSHostMemoryTable
                 }
 
                 overlapped = true;
-                if (!TryAlignUp(slotEnd, alignmentBytes, out nextCandidate) ||
-                    nextCandidate <= candidate)
+                if (!TryAlignUp(slotEnd, alignmentBytes, out nextCandidate) || nextCandidate <= candidate)
                 {
                     return false;
                 }
@@ -402,15 +288,10 @@ public sealed class OSHostMemoryTable
         }
 
         slotIndex = (int)zeroBasedIndex;
-        return slots[slotIndex].InUse && slots[slotIndex].Generation == generation
-            ? OSHostStatus.Ok
-            : OSHostStatus.InvalidArgument;
+        return slots[slotIndex].InUse && slots[slotIndex].Generation == generation ? OSHostStatus.Ok : OSHostStatus.InvalidArgument;
     }
 
-    private OSHostStatus TryFindSlotByExactRange(
-        ulong baseAddress,
-        ulong byteLength,
-        out int slotIndex)
+    private OSHostStatus TryFindSlotByExactRange(ulong baseAddress, ulong byteLength, out int slotIndex)
     {
         if (baseAddress == 0 || byteLength == 0)
         {
@@ -421,9 +302,7 @@ public sealed class OSHostMemoryTable
         for (int index = 0; index < slots.Length; index++)
         {
             MemorySlot slot = slots[index];
-            if (slot.InUse &&
-                slot.Range.BaseAddress == baseAddress &&
-                slot.Range.ByteLength == byteLength)
+            if (slot.InUse && slot.Range.BaseAddress == baseAddress && slot.Range.ByteLength == byteLength)
             {
                 slotIndex = index;
                 return OSHostStatus.Ok;
@@ -447,16 +326,10 @@ public sealed class OSHostMemoryTable
 
     private static bool Contains(ulong baseAddress, ulong byteLength, ulong address)
     {
-        return TryAdd(baseAddress, byteLength, out ulong endAddress) &&
-            address >= baseAddress &&
-            address < endAddress;
+        return TryAdd(baseAddress, byteLength, out ulong endAddress) && address >= baseAddress && address < endAddress;
     }
 
-    private static bool RangesOverlap(
-        ulong firstBase,
-        ulong firstEnd,
-        ulong secondBase,
-        ulong secondEnd)
+    private static bool RangesOverlap(ulong firstBase, ulong firstEnd, ulong secondBase, ulong secondEnd)
     {
         return firstBase < secondEnd && secondBase < firstEnd;
     }
@@ -516,36 +389,5 @@ public sealed class OSHostMemoryTable
 
         value = left * right;
         return true;
-    }
-
-    private struct MemorySlot
-    {
-        public bool InUse;
-
-        public uint Generation;
-
-        public OSHostHandle Allocation;
-
-        public OSHostMemoryRange Range;
-
-        public OSHostPageProtection Protection;
-
-        public ulong EndAddress => Range.BaseAddress + Range.ByteLength;
-
-        public static MemorySlot Create(
-            OSHostHandle allocation,
-            uint generation,
-            OSHostMemoryRange range,
-            OSHostPageProtection protection)
-        {
-            return new MemorySlot
-            {
-                InUse = true,
-                Generation = generation,
-                Allocation = allocation,
-                Range = range,
-                Protection = protection
-            };
-        }
     }
 }

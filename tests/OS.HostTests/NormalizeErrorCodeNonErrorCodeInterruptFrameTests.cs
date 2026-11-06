@@ -602,7 +602,7 @@ internal static unsafe class NormalizeErrorCodeNonErrorCodeInterruptFrameTests
                 @"src\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs");
             string project = NoStdLibProjectSource.Replace(
                 "__PRODUCTION_SOURCE__",
-                EscapeXml(productionSource),
+                EscapeXml(Path.GetDirectoryName(productionSource)!),
                 StringComparison.Ordinal);
             File.WriteAllText(
                 Path.Combine(workspace, "M02.010.NoStdLib.csproj"),
@@ -1121,8 +1121,10 @@ internal static unsafe class NormalizeErrorCodeNonErrorCodeInterruptFrameTests
           </PropertyGroup>
           <ItemGroup>
             <Compile Include="NoStdLibShim.cs" />
-            <Compile Include="__PRODUCTION_SOURCE__"
-                     Link="Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs" />
+            <Compile Include="__PRODUCTION_SOURCE__/NormalizeErrorCodeNonErrorCodeInterruptFrame.NormalizeInterruptFramePageOperation.cs" Link="Diagnostics/NormalizeErrorCodeNonErrorCodeInterruptFrame.NormalizeInterruptFramePageOperation.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/NormalizeErrorCodeNonErrorCodeInterruptFrame.NormalizeInterruptFramePageStatus.cs" Link="Diagnostics/NormalizeErrorCodeNonErrorCodeInterruptFrame.NormalizeInterruptFramePageStatus.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/NormalizeErrorCodeNonErrorCodeInterruptFrame.NormalizeInterruptFramePageResult.cs" Link="Diagnostics/NormalizeErrorCodeNonErrorCodeInterruptFrame.NormalizeInterruptFramePageResult.cs" />
+                <Compile Include="__PRODUCTION_SOURCE__/NormalizeErrorCodeNonErrorCodeInterruptFrame.cs" Link="Diagnostics/NormalizeErrorCodeNonErrorCodeInterruptFrame.cs" />
           </ItemGroup>
           <Target Name="CustomizeReferences"
                   BeforeTargets="BeforeCompile"

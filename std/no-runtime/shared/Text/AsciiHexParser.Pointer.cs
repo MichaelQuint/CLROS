@@ -9,18 +9,22 @@ public static unsafe partial class AsciiHexParser
     public static bool TryParseUInt64(byte* source, uint length, out ulong value)
     {
         value = 0;
-        if (source == null || length == 0 || (ulong)source > ulong.MaxValue - length) return false;
+        if (source == null || length == 0 || (ulong)source > ulong.MaxValue - length)
+            return false;
         uint start = length >= 2 && source[0] == '0' && (source[1] == 'x' || source[1] == 'X') ? 2U : 0U;
-        if (start == length) return false;
+        if (start == length)
+            return false;
         ulong parsed = 0;
         for (uint i = start; i < length; i++)
         {
             byte c = source[i];
             uint digit = c >= '0' && c <= '9' ? (uint)(c - '0') : c >= 'a' && c <= 'f' ? (uint)(c - 'a' + 10) :
                 c >= 'A' && c <= 'F' ? (uint)(c - 'A' + 10) : 16U;
-            if (digit == 16 || parsed > ulong.MaxValue >> 4) return false;
+            if (digit == 16 || parsed > ulong.MaxValue >> 4)
+                return false;
             parsed = (parsed << 4) | digit;
         }
-        value = parsed; return true;
+        value = parsed;
+        return true;
     }
 }

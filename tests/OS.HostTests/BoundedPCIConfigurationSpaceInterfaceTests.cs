@@ -41,14 +41,24 @@ internal static unsafe class BoundedPCIConfigurationSpaceInterfaceTests
     [HostTest("m05.004 native read has exact DWORD ABI and padding")]
     private static void NativeBytes()
     {
-        byte* code = stackalloc byte[18]; new Span<byte>(code, 18).Fill(0xa5);
+        byte* code = stackalloc byte[18];
+        new Span<byte>(code, 18).Fill(0xa5);
         HostCheck.True(!X64PciConfigurationRead.Emit(code + 1, 15) && code[1] == 0xa5);
         HostCheck.True(X64PciConfigurationRead.Emit(code + 1, 16));
         byte[] expected = [0xf3, 0x0f, 0x1e, 0xfa, 0x8b, 0x02, 0xc3, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         HostCheck.True(new ReadOnlySpan<byte>(code + 1, 16).SequenceEqual(expected) && code[0] == 0xa5 && code[17] == 0xa5);
-        for (int i = 0; i < 16; i++) { code[1 + i] ^= 1; HostCheck.True(!X64PciConfigurationRead.Validate(code + 1, 16)); code[1 + i] ^= 1; }
+        for (int i = 0; i < 16; i++)
+        {
+            code[1 + i] ^= 1;
+            HostCheck.True(!X64PciConfigurationRead.Validate(code + 1, 16));
+            code[1 + i] ^= 1;
+        }
     }
 
     [UnmanagedCallersOnly]
-    private static uint Read(void* context, ulong address) { (*(uint*)context)++; return (uint)address; }
+    private static uint Read(void* context, ulong address)
+    {
+        (*(uint*)context)++;
+        return (uint)address;
+    }
 }

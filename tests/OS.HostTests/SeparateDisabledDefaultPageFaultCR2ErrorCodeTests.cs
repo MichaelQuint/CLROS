@@ -242,9 +242,12 @@ internal static class SeparateDisabledDefaultPageFaultCR2ErrorCodeTests
         int successes = 0;
         for (int i = 0; i < 10_000; i++)
         {
-            if (Probe.Plan(request).ReadyDisabled) successes++;
-            if (Probe.AuditSyntheticObservation(request, frame).SyntheticObservationAccepted) successes++;
-            if (!Probe.AuditSyntheticObservation(default, frame).Succeeded) successes++;
+            if (Probe.Plan(request).ReadyDisabled)
+                successes++;
+            if (Probe.AuditSyntheticObservation(request, frame).SyntheticObservationAccepted)
+                successes++;
+            if (!Probe.AuditSyntheticObservation(default, frame).Succeeded)
+                successes++;
         }
         long allocated = GC.GetAllocatedBytesForCurrentThread() - start;
         Require(successes == 30_000 && allocated == 0, "warmed calls must allocate zero bytes");
@@ -345,6 +348,7 @@ internal static class SeparateDisabledDefaultPageFaultCR2ErrorCodeTests
 
     private static void Require(bool condition, string reason)
     {
-        if (!condition) throw new InvalidOperationException(reason);
+        if (!condition)
+            throw new InvalidOperationException(reason);
     }
 }

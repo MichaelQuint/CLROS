@@ -13,7 +13,8 @@ internal static class NativeAotServiceQuotaOutputTests
         for (int index = 0; index <= completed; index++)
         {
             rows.Add($"CLROS_SERVICE_QUOTA_ATTEMPT index={index} retainedBytes={index * 1048576L} gcCommitted=9000000");
-            if (index < completed) rows.Add($"CLROS_SERVICE_QUOTA_RETAINED index={index} retainedBytes={(index + 1) * 1048576L} collectionsBefore={7 + index} collectionsAfter={8 + index} gcCommitted=9000000");
+            if (index < completed)
+                rows.Add($"CLROS_SERVICE_QUOTA_RETAINED index={index} retainedBytes={(index + 1) * 1048576L} collectionsBefore={7 + index} collectionsAfter={8 + index} gcCommitted=9000000");
         }
         return string.Join('\n', rows) + "\n";
     }
@@ -41,8 +42,10 @@ internal static class NativeAotServiceQuotaOutputTests
             valid + "CLROS_SERVICE_QUOTA_SURVIVED retainedBytes=2097152 released=True\n",
             valid + "CLROS_QUOTA_RETURNED errno=12\n", valid + "CLROS_APP_FAIL minimal.api.service\n",
             valid + "CLROS_SERVICE_END worker=joined\n", valid + "TEST_PASS m16-009\n",
-            valid.Replace("CLROS_SERVICE_QUOTA_BEGIN", "CLROS_SERVICE_QUOTA_UNKNOWN", StringComparison.Ordinal) }) Reject("", text);
-        Reject(valid, ""); Reject("CLROS_SERVICE_QUOTA_BEGIN\n", valid);
+            valid.Replace("CLROS_SERVICE_QUOTA_BEGIN", "CLROS_SERVICE_QUOTA_UNKNOWN", StringComparison.Ordinal) })
+            Reject("", text);
+        Reject(valid, "");
+        Reject("CLROS_SERVICE_QUOTA_BEGIN\n", valid);
     }
 
     [HostTest("quota output rejects skipped duplicate reordered accounting and absent GC progress")]
@@ -58,7 +61,8 @@ internal static class NativeAotServiceQuotaOutputTests
             valid.Replace("collectionsBefore=8", "collectionsBefore=4", StringComparison.Ordinal),
             valid.Replace("gcCommitted=9000000", "gcCommitted=16777217", StringComparison.Ordinal),
             valid.Replace("CLROS_APP_CTOR minimal.api.service\n", "", StringComparison.Ordinal),
-            valid + "CLROS_SERVICE_QUOTA_ATTEMPT index=2 retainedBytes=2097152 gcCommitted=9000000\n" }) Reject("", text);
+            valid + "CLROS_SERVICE_QUOTA_ATTEMPT index=2 retainedBytes=2097152 gcCommitted=9000000\n" })
+            Reject("", text);
     }
 
     private static string Warning(string duration = "00:00:01.0036847", string timestamp = "10/22/2026 02:22:03 +00:00") =>
@@ -85,7 +89,8 @@ internal static class NativeAotServiceQuotaOutputTests
             Warning(timestamp: "2026/10/22 02:22:03 +00:00"), Warning(timestamp: "10/22/2026 02:22:03 +01:00"),
             Warning(timestamp: "02/29/2025 02:22:03 +00:00"), Warning(timestamp: "1/22/2026 02:22:03 +00:00"),
             Warning("00:00:00"), Warning("00:00:01"), Warning("-00:00:02"), Warning("00:15:00.0000001"),
-            Warning("00:00:02.0000000"), Warning("0:00:02") }) Reject(warning, stderr);
+            Warning("00:00:02.0000000"), Warning("0:00:02") })
+            Reject(warning, stderr);
         Reject("", actual + stderr);
     }
 
@@ -99,8 +104,16 @@ internal static class NativeAotServiceQuotaOutputTests
         {
             var text = new System.Text.StringBuilder();
             foreach (char c in repeated)
-            { if (c == '\n' && count > 0) { text.Append('\r'); count--; } text.Append(c); }
-            HostCheck.Equal(0, count); return text.ToString();
+            {
+                if (c == '\n' && count > 0)
+                {
+                    text.Append('\r');
+                    count--;
+                }
+                text.Append(c);
+            }
+            HostCheck.Equal(0, count);
+            return text.ToString();
         }
         string exact = CrLf(spare), over = CrLf(spare + 1);
         HostCheck.Equal(65536, exact.Length + stderr.Length);
@@ -118,8 +131,16 @@ internal static class NativeAotServiceQuotaOutputTests
     private static void Reject(string stdout, string stderr, string? reason = null)
     {
         bool rejected = false;
-        try { _ = QemuTranscripts.InspectNativeAotServiceQuotaOutputForTests(stdout, stderr); }
-        catch (ToolFailure error) { if (reason is not null) HostCheck.Equal(reason, error.Reason); rejected = true; }
+        try
+        {
+            _ = QemuTranscripts.InspectNativeAotServiceQuotaOutputForTests(stdout, stderr);
+        }
+        catch (ToolFailure error)
+        {
+            if (reason is not null)
+                HostCheck.Equal(reason, error.Reason);
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

@@ -28,15 +28,27 @@
 
   <ItemGroup>
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorProject)" />
-    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Program.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Amd64CoffWriter.Amd64CoffObjectDefinition.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Amd64CoffWriter.CoffRelocationDefinition.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Amd64CoffWriter.CoffSectionDefinition.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Amd64CoffWriter.CoffSectionLayout.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Amd64CoffWriter.CoffSymbolDefinition.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Amd64CoffWriter.CoffWriteError.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Amd64CoffWriter.CoffWritePlan.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Amd64CoffWriter.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)CheckedReferenceBarrierThunkGenerator.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)EhContributionCatalogGenerator.Contribution.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)EhContributionCatalogGenerator.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)EhContributionCatalogGenerator.Node.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)EhContributionCatalogGenerator.Symbol.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)ExceptionFilterThunkGenerator.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)ExceptionHandlingThunkGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)InstructionPublicationSerializerGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)InterfaceDispatchThunkGenerator.cs" />
-    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)ExceptionHandlingThunkGenerator.cs" />
-    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)ExceptionFilterThunkGenerator.cs" />
-    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)EhContributionCatalogGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)NormalFinallyThunkGenerator.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Program.CliParseResult.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Program.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)Program.OutputWriteResult.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(MSBuildThisFileFullPath)" />
   </ItemGroup>
 
@@ -44,7 +56,7 @@
           BeforeTargets="PrepareForBuild"
           Condition="'$(MSBuildProjectFullPath)' == '$(MSBuildThisFileDirectory)OS.X64TextSerializerGenerator.csproj'">
     <Error
-      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|CheckedReferenceBarrierThunkGenerator.cs|EhContributionCatalogGenerator.cs|ExceptionFilterThunkGenerator.cs|ExceptionHandlingThunkGenerator.cs|InstructionPublicationSerializerGenerator.cs|InterfaceDispatchThunkGenerator.cs|NormalFinallyThunkGenerator.cs|Program.cs'"
+      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.Amd64CoffObjectDefinition.cs|Amd64CoffWriter.CoffRelocationDefinition.cs|Amd64CoffWriter.CoffSectionDefinition.cs|Amd64CoffWriter.CoffSectionLayout.cs|Amd64CoffWriter.CoffSymbolDefinition.cs|Amd64CoffWriter.CoffWriteError.cs|Amd64CoffWriter.CoffWritePlan.cs|Amd64CoffWriter.cs|CheckedReferenceBarrierThunkGenerator.cs|EhContributionCatalogGenerator.Contribution.cs|EhContributionCatalogGenerator.cs|EhContributionCatalogGenerator.Node.cs|EhContributionCatalogGenerator.Symbol.cs|ExceptionFilterThunkGenerator.cs|ExceptionHandlingThunkGenerator.cs|InstructionPublicationSerializerGenerator.cs|InterfaceDispatchThunkGenerator.cs|NormalFinallyThunkGenerator.cs|Program.CliParseResult.cs|Program.cs|Program.OutputWriteResult.cs'"
       Text="CLROS_M01_034_GENERATOR_FAILED compile_closure_mismatch actual=@(Compile-&gt;'%(Identity)', '|')" />
     <Error
       Condition="'@(ProjectReference)' != '' Or '@(Reference)' != '' Or '@(PackageReference)' != ''"

@@ -17,16 +17,20 @@ public static unsafe partial class EfiEntry
             {
                 if (state->CooperativePhase != 0 || state->LinuxDescriptorPhase != 4 || state->LinuxSyscallPhase != 4 ||
                     state->LinuxMemory.HasMutationGuard || network->Boot != state || network->Phase != 2 ||
-                    network->Device == null || !network->Device->Running) return RejectNativeDiskBootstrap(state, 1);
-                if (!StartNativeDisk(state)) return RejectNativeDiskBootstrap(state, 2);
+                    network->Device == null || !network->Device->Running)
+                    return RejectNativeDiskBootstrap(state, 1);
+                if (!StartNativeDisk(state))
+                    return RejectNativeDiskBootstrap(state, 2);
                 // This outer boot driver owns the bounded cooperative lifetime;
                 // each turn services NIC RX/TX/timers then advances one sector,
                 // parser or mount step. Never spin inside Submit/Poll/Copy.
                 for (uint turn = 0; turn < 3_000_000; turn++)
                 {
-                    if (!PumpLinuxSocketFrames(network)) return RejectNativeDiskBootstrap(state, 3);
+                    if (!PumpLinuxSocketFrames(network))
+                        return RejectNativeDiskBootstrap(state, 3);
                     var progress = NativeDiskBootstrapStep(state); // Fresh HPET +30s absolute deadline inside.
-                    if (progress == NativeDiskProgress.Rejected) return RejectNativeDiskBootstrap(state, 4);
+                    if (progress == NativeDiskProgress.Rejected)
+                        return RejectNativeDiskBootstrap(state, 4);
                     if (progress == NativeDiskProgress.Ready)
                         return AttachNativeDiskDescriptors(state) || RejectNativeDiskBootstrap(state, 5);
                 }
@@ -52,7 +56,8 @@ public static unsafe partial class EfiEntry
 
         private static bool RejectNativeDiskBootstrap(Storage* state, uint stage)
         {
-            fixed (NativeDiskOwner* o = &s_nativeDisk) _ = WriteNativeDiskRejection(state, stage, o);
+            fixed (NativeDiskOwner* o = &s_nativeDisk)
+                _ = WriteNativeDiskRejection(state, stage, o);
             return false;
         }
 
@@ -63,16 +68,20 @@ public static unsafe partial class EfiEntry
         {
             if (state == null || c != null && (c->State != state || c->Process.ActiveThreads != 0 ||
                 c->Threads.Current.IsValid || c->Threads.HandoffPending) ||
-                !FlushNativeDiskEvidence(state) || !RetireNativeDisk(state)) return false;
+                !FlushNativeDiskEvidence(state) || !RetireNativeDisk(state))
+                return false;
             // Mount/device ownership starts before Linux metadata publication.
             // A failed prepare may have no control or attached process at all.
-            if (state->LinuxDescriptors.ThreadOwner == 0) return true;
-            if (c == null || state->LinuxDescriptors.ThreadOwner != (ulong)(&c->Process)) return false;
+            if (state->LinuxDescriptors.ThreadOwner == 0)
+                return true;
+            if (c == null || state->LinuxDescriptors.ThreadOwner != (ulong)(&c->Process))
+                return false;
             // Retired FS receipts authorize local scrub only; these turns issue
             // no live reads. Eight records, at most one selected per turn.
             for (uint i = 0; i < LinuxDescriptorServices.DiskSlots; i++)
                 if (LinuxDescriptorServices.PumpDiskOne(&state->LinuxDescriptors, (ulong)(&c->Process)).Progress ==
-                    LinuxDescriptorServices.DiskProgress.Rejected) return false;
+                    LinuxDescriptorServices.DiskProgress.Rejected)
+                    return false;
             return LinuxDescriptorServices.CanDetachThreads(&state->LinuxDescriptors, (ulong)(&c->Process));
         }
     }

@@ -1,0 +1,56 @@
+namespace OS.Kernel.Boot;
+/// <summary>
+/// Stable status contract for the bounded identity-mapping planner. Values
+/// are append-only and the zero-valued default is not success.
+/// </summary>
+
+public enum X64BootIdentityMappingStatus : byte
+{
+    Uninitialized = 0,
+    Success = 1,
+    InvalidSourceCount = 2,
+    TooManySources = 3,
+    SourceCapacityTooSmall = 4,
+    CapacityExceedsLimit = 5,
+    MissingSource = 6,
+    MissingDestination = 7,
+    MisalignedSource = 8,
+    MisalignedDestination = 9,
+    SourceSpanOverflow = 10,
+    DestinationSpanOverflow = 11,
+    SourceDestinationOverlap = 12,
+    ContractLayoutMismatch = 13,
+    InvalidRequirementState = 14,
+    InvalidPurpose = 15,
+    InvalidPhysicalStart = 16,
+    InvalidPhysicalEnd = 17,
+    EmptyOrReversedRange = 18,
+    MisalignedRange = 19,
+    GeometryOverflow = 20,
+    GeometryMismatch = 21,
+    InvalidProtection = 22,
+    WritableExecutableRejected = 23,
+    InvalidCachePolicy = 24,
+    InvalidGuardPolicy = 25,
+    MultipleGuards = 26,
+    MissingGuard = 27,
+    GuardOverlap = 28,
+    MissingRequiredPurpose = 29,
+    PageZeroMappingRejected = 30,
+    NonCanonicalIdentityRange = 31,
+    PhysicalAddressOutsideWidth = 32,
+    IncompatibleProtectionOverlap = 33,
+    IncompatibleCacheOverlap = 34,
+    DestinationCapacityTooSmall = 35,
+    TooManyOutputRanges = 36,
+    UnionPageCountOverflow = 37,
+    UnionByteCountOverflow = 38,
+    TablePageCountOverflow = 39,
+    TableByteCountOverflow = 40,
+    TableCapacityTooSmall = 41,
+    InvalidPreconditions = 42,
+    PageWalkCacheNotWriteBack = 43,
+    LeafEncodingRejected = 44,
+    OutputConstructionFailure = 45,
+    AccountingMismatch = 46
+}

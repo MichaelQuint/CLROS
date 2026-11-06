@@ -1,0 +1,56 @@
+namespace OS.Kernel.Memory;
+/// <summary>
+/// Stable, append-only status values for the reversible CR3 transition byte
+/// plan and its caller-owned execution evidence.
+/// </summary>
+
+public enum X64ReversibleCr3TransitionStubPlanStatus : byte
+{
+    Uninitialized = 0,
+    Success = 1,
+    MissingDestination = 2,
+    DestinationCapacityTooSmall = 3,
+    CapacityExceedsLimit = 4,
+    MisalignedDestination = 5,
+    InvalidEntryAddress = 6,
+    MisalignedEntryAddress = 7,
+    EntryAddressOverflow = 8,
+    InternalEncodingFailure = 9,
+    MissingSource = 10,
+    InvalidSourceCount = 11,
+    TruncatedBytePlan = 12,
+    OversizedBytePlan = 13,
+    SourceCapacityTooSmall = 14,
+    MisalignedSource = 15,
+    SourceSpanOverflow = 16,
+    ByteMismatch = 17,
+    MissingState = 18,
+    InvalidTerminalKind = 19,
+    Timeout = 20,
+    Reset = 21,
+    TripleFault = 22,
+    InvalidRuntimeState = 23,
+    FirmwareCallbackObserved = 24,
+    InvalidOwnedCr3 = 25,
+    InvalidStackRange = 26,
+    InvalidCanary = 27,
+    PcideNotSupported = 28,
+    La57NotSupported = 29,
+    PgeClearReadbackMismatch = 30,
+    OwnedCr3ReadbackMismatch = 31,
+    FirmwareCr3ReadbackMismatch = 32,
+    Cr4RestoreReadbackMismatch = 33,
+    RflagsRestoreReadbackMismatch = 34,
+    InterruptStateMismatch = 35,
+    CanaryBeforeMismatch = 36,
+    CanaryAfterMismatch = 37,
+    RspEscape = 38,
+    RuntimeReportedFailure = 39,
+    CheckpointMismatch = 40,
+    RawCr3BitLoss = 41,
+    RawCr4BitLoss = 42,
+    DefaultRuntimeResult = 43,
+    DestinationSpanOverflow = 44,
+    InvalidFirmwareCr3 = 45,
+    PostRestoreCanaryMismatch = 46
+}

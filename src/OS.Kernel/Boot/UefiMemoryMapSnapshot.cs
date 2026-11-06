@@ -16,11 +16,20 @@ public readonly struct UefiMemoryMapSnapshot
         _descriptorEntries = descriptorEntries;
     }
 
-    public ulong MapKey { get; }
+    public ulong MapKey
+    {
+        get;
+    }
 
-    public ulong DescriptorSize { get; }
+    public ulong DescriptorSize
+    {
+        get;
+    }
 
-    public uint DescriptorVersion { get; }
+    public uint DescriptorVersion
+    {
+        get;
+    }
 
     public int DescriptorCount => _descriptorEntries is null ? 0 : _descriptorEntries.Length;
 

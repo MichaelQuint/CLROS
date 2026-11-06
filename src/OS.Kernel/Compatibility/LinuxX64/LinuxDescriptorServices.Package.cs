@@ -24,19 +24,25 @@ public static unsafe partial class LinuxDescriptorServices
             !Extent(views, capacity * (ulong)sizeof(View)) || !Extent(paths, pathBytes) ||
             Overlap((ulong)package, packageBytes, (ulong)views, capacity * (ulong)sizeof(View)) ||
             Overlap((ulong)package, packageBytes, (ulong)paths, pathBytes) ||
-            Overlap((ulong)views, capacity * (ulong)sizeof(View), (ulong)paths, pathBytes)) return false;
+            Overlap((ulong)views, capacity * (ulong)sizeof(View), (ulong)paths, pathBytes))
+            return false;
 
         var admitted = LinuxElfPackage.Validate(package, packageBytes);
         if (!admitted.Succeeded || admitted.DataFileCount + 1 > capacity ||
-            admitted.Manifest.Path.Length > MaximumPath - 6) return false;
+            admitted.Manifest.Path.Length > MaximumPath - 6)
+            return false;
         LinuxElfPackage.DataFile* files = stackalloc LinuxElfPackage.DataFile[(int)LinuxElfPackage.MaximumDataFiles];
         for (uint i = 0; i < admitted.DataFileCount; i++)
             if (LinuxElfPackage.GetDataFile(package, packageBytes, i, out files[i]) != LinuxElfStatus.Success ||
-                files[i].PathBytes > MaximumPath - 6) return false;
+                files[i].PathBytes > MaximumPath - 6)
+                return false;
         for (uint i = 0; i < capacity; i++)
             if (views[i].Path != null || views[i].PathBytes != 0 || views[i].Data != null ||
-                views[i].Bytes != 0 || views[i].Inode != 0) return false;
-        for (uint i = 0; i < capacity * MaximumPath; i++) if (paths[i] != 0) return false;
+                views[i].Bytes != 0 || views[i].Inode != 0)
+                return false;
+        for (uint i = 0; i < capacity * MaximumPath; i++)
+            if (paths[i] != 0)
+                return false;
 
         WritePackageView(views, paths, package + admitted.ManifestOffset + admitted.Manifest.Path.Offset,
             admitted.Manifest.Path.Length, package + admitted.PayloadOffset, admitted.PayloadBytes, 256);
@@ -57,13 +63,15 @@ public static unsafe partial class LinuxDescriptorServices
     /// </summary>
     public static bool ContainsPackageData(State* state, byte* source, uint bytes)
     {
-        if (bytes == 0 || bytes > MaximumIo || !Extent(source, bytes) || !Audit(state)) return false;
+        if (bytes == 0 || bytes > MaximumIo || !Extent(source, bytes) || !Audit(state))
+            return false;
         ulong start = (ulong)source;
         for (uint i = 0; i < state->Owner.ViewCount; i++)
         {
             View view = state->Owner.Views[i];
             if (start >= (ulong)view.Data && start - (ulong)view.Data <= view.Bytes &&
-                bytes <= view.Bytes - (start - (ulong)view.Data)) return true;
+                bytes <= view.Bytes - (start - (ulong)view.Data))
+                return true;
         }
         return false;
     }
@@ -71,8 +79,20 @@ public static unsafe partial class LinuxDescriptorServices
     private static void WritePackageView(View* view, byte* path, byte* relative, uint length,
         byte* data, uint bytes, ulong inode)
     {
-        path[0] = (byte)'/'; path[1] = (byte)'a'; path[2] = (byte)'p'; path[3] = (byte)'p'; path[4] = (byte)'/';
-        for (uint i = 0; i < length; i++) path[5 + i] = relative[i];
-        *view = new() { Path = path, PathBytes = 5 + length, Data = data, Bytes = bytes, Inode = inode };
+        path[0] = (byte)'/';
+        path[1] = (byte)'a';
+        path[2] = (byte)'p';
+        path[3] = (byte)'p';
+        path[4] = (byte)'/';
+        for (uint i = 0; i < length; i++)
+            path[5 + i] = relative[i];
+        *view = new()
+        {
+            Path = path,
+            PathBytes = 5 + length,
+            Data = data,
+            Bytes = bytes,
+            Inode = inode
+        };
     }
 }

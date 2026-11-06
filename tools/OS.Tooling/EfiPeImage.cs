@@ -4,38 +4,89 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
-
 /// <summary>Bounds-checked, file-backed PE32+ inspection. No image bytes are executed.</summary>
-public sealed class EfiPeImage
+
+public sealed partial class EfiPeImage
 {
-    public sealed record Section(string Name, uint VirtualSize, uint VirtualAddress, uint RawSize, uint RawOffset, uint Characteristics)
+    public byte[] Bytes
     {
-        public ulong MappedSize => Math.Max(VirtualSize, RawSize);
-        public void RequireCode(string reason) => Require((Characteristics & 0x60000020) == 0x60000020 && (Characteristics & 0x82000000) == 0, reason, Name);
-        public void RequireReadOnlyData(string reason) => Require((Characteristics & 0x40000040) == 0x40000040 && (Characteristics & 0xa2000020) == 0, reason, Name);
+        get;
     }
-    public sealed record Backing(Section Section, int Offset, int Size);
-    public sealed record RuntimeFunction(uint Begin, uint End, uint Unwind, int UnwindOffset, int UnwindSize);
-    public byte[] Bytes { get; }
-    public uint Timestamp { get; }
-    public uint EntryPointRva { get; }
-    public ulong ImageBase { get; }
-    public uint SizeOfImage { get; }
-    public string EntrySection { get; }
-    public uint ExceptionRva { get; }
-    public uint ExceptionSize { get; }
+    public uint Timestamp
+    {
+        get;
+    }
+    public uint EntryPointRva
+    {
+        get;
+    }
+    public ulong ImageBase
+    {
+        get;
+    }
+    public uint SizeOfImage
+    {
+        get;
+    }
+    public string EntrySection
+    {
+        get;
+    }
+    public uint ExceptionRva
+    {
+        get;
+    }
+    public uint ExceptionSize
+    {
+        get;
+    }
     public List<Section> Sections { get; } = [];
     public List<RuntimeFunction> RuntimeFunctions { get; } = [];
-    public uint SerializerRva { get; private set; }
-    public uint SerializerUnwindRva { get; private set; }
+    public uint SerializerRva
+    {
+        get; private set;
+    }
+    public uint SerializerUnwindRva
+    {
+        get; private set;
+    }
 
-    public static void Require(bool valid, string reason, string detail = "") { if (!valid) throw new ToolFailure(reason, detail); }
+    public static void Require(bool valid, string reason, string detail = "")
+    {
+        if (!valid)
+            throw new ToolFailure(reason, detail);
+    }
+
     public static void Range(long offset, long count, long length, string reason) => Require(offset >= 0 && count >= 0 && offset <= length && count <= length - offset, reason);
-    public ushort U16(long offset, string reason = "truncated_artifact") { Range(offset, 2, Bytes.Length, reason); return BinaryPrimitives.ReadUInt16LittleEndian(Bytes.AsSpan((int)offset, 2)); }
-    public uint U32(long offset, string reason = "truncated_artifact") { Range(offset, 4, Bytes.Length, reason); return BinaryPrimitives.ReadUInt32LittleEndian(Bytes.AsSpan((int)offset, 4)); }
-    public ulong U64(long offset, string reason = "truncated_artifact") { Range(offset, 8, Bytes.Length, reason); return BinaryPrimitives.ReadUInt64LittleEndian(Bytes.AsSpan((int)offset, 8)); }
-    public byte[] Copy(long offset, int count, string reason) { Range(offset, count, Bytes.Length, reason); return Bytes.AsSpan((int)offset, count).ToArray(); }
-    public static ulong RangeEnd(ulong rva, ulong size, string reason) { Require(size != 0 && rva < 0x100000000 && size <= 0x100000000 - rva, reason); return rva + size; }
+    public ushort U16(long offset, string reason = "truncated_artifact")
+    {
+        Range(offset, 2, Bytes.Length, reason);
+        return BinaryPrimitives.ReadUInt16LittleEndian(Bytes.AsSpan((int)offset, 2));
+    }
+
+    public uint U32(long offset, string reason = "truncated_artifact")
+    {
+        Range(offset, 4, Bytes.Length, reason);
+        return BinaryPrimitives.ReadUInt32LittleEndian(Bytes.AsSpan((int)offset, 4));
+    }
+
+    public ulong U64(long offset, string reason = "truncated_artifact")
+    {
+        Range(offset, 8, Bytes.Length, reason);
+        return BinaryPrimitives.ReadUInt64LittleEndian(Bytes.AsSpan((int)offset, 8));
+    }
+
+    public byte[] Copy(long offset, int count, string reason)
+    {
+        Range(offset, count, Bytes.Length, reason);
+        return Bytes.AsSpan((int)offset, count).ToArray();
+    }
+
+    public static ulong RangeEnd(ulong rva, ulong size, string reason)
+    {
+        Require(size != 0 && rva < 0x100000000 && size <= 0x100000000 - rva, reason);
+        return rva + size;
+    }
 
     public Backing Resolve(ulong rva, ulong size, string missing, string ambiguous)
     {
@@ -44,11 +95,14 @@ public sealed class EfiPeImage
         foreach (Section section in Sections)
         {
             ulong start = section.VirtualAddress;
-            if (section.VirtualSize == 0 || section.RawSize == 0 || start + section.VirtualSize > 0x100000000 || start + section.RawSize > 0x100000000 || rva < start || end > start + section.VirtualSize || end > start + section.RawSize) continue;
+            if (section.VirtualSize == 0 || section.RawSize == 0 || start + section.VirtualSize > 0x100000000 || start + section.RawSize > 0x100000000 || rva < start || end > start + section.VirtualSize || end > start + section.RawSize)
+                continue;
             ulong offset = section.RawOffset + rva - start;
-            if (offset > (ulong)Bytes.Length || size > (ulong)Bytes.Length - offset) continue;
+            if (offset > (ulong)Bytes.Length || size > (ulong)Bytes.Length - offset)
+                continue;
             matches.Add(new(section, checked((int)offset), checked((int)size)));
         }
+
         Require(matches.Count != 0, missing, $"rva=0x{rva:x8} size={size}");
         Require(matches.Count == 1, ambiguous, $"rva=0x{rva:x8} size={size} matches={matches.Count}");
         return matches[0];
@@ -96,13 +150,23 @@ public sealed class EfiPeImage
         Require(ExceptionSize % 12 == 0, "exception_directory_size_not_record_aligned");
         Require(ExceptionSize / 12 <= EfiContracts.MaximumRuntimeFunctionRecords, "exception_directory_record_count_out_of_range");
         Require(RangeEnd(ExceptionRva, ExceptionSize, "exception_directory_range_invalid") <= SizeOfImage, "exception_directory_out_of_image");
-        foreach ((int index, string name) in new[] { (1, "import"), (11, "bound-import"), (12, "iat"), (13, "delay-import") })
+        foreach ((int index, string name) in new[]
         {
-            if (directories <= index) continue;
+            (1, "import"),
+            (11, "bound-import"),
+            (12, "iat"),
+            (13, "delay-import")
+        }
+
+        )
+        {
+            if (directories <= index)
+                continue;
             uint rva = U32(optional + 112 + index * 8), size = U32(optional + 116 + index * 8);
             Require((rva == 0) == (size == 0), "malformed_import_directory", "directory=" + name);
             Require(rva == 0 && size == 0, "ordinary_runtime_imports_present", "directory=" + name);
         }
+
         long table = optional + optionalSize;
         Range(table, count * 40, bytes.Length, "truncated_section_table");
         Require(table <= headers && count * 40 <= headers - table, "section_table_outside_headers");
@@ -115,6 +179,7 @@ public sealed class EfiPeImage
                 Require(section.RawOffset >= headers, "section_raw_range_overlaps_headers", section.Name);
                 Range(section.RawOffset, section.RawSize, bytes.Length, "section_raw_data_out_of_range");
             }
+
             if (section.MappedSize != 0)
             {
                 ulong end = section.VirtualAddress + section.MappedSize;
@@ -122,18 +187,23 @@ public sealed class EfiPeImage
                 Require(section.VirtualAddress >= headers, "section_virtual_range_overlaps_headers", section.Name);
                 Require(end <= SizeOfImage, "section_virtual_range_out_of_image", section.Name);
             }
+
             Sections.Add(section);
         }
-        for (int i = 0; i < Sections.Count; i++) for (int j = i + 1; j < Sections.Count; j++)
-        {
-            Section a = Sections[i], b = Sections[j];
-            Require(!Overlap(a.VirtualAddress, a.MappedSize, b.VirtualAddress, b.MappedSize), "section_virtual_ranges_overlap", $"left={a.Name} right={b.Name}");
-            Require(!Overlap(a.RawOffset, a.RawSize, b.RawOffset, b.RawSize), "section_raw_ranges_overlap", $"left={a.Name} right={b.Name}");
-        }
+
+        for (int i = 0; i < Sections.Count; i++)
+            for (int j = i + 1; j < Sections.Count; j++)
+            {
+                Section a = Sections[i], b = Sections[j];
+                Require(!Overlap(a.VirtualAddress, a.MappedSize, b.VirtualAddress, b.MappedSize), "section_virtual_ranges_overlap", $"left={a.Name} right={b.Name}");
+                Require(!Overlap(a.RawOffset, a.RawSize, b.RawOffset, b.RawSize), "section_raw_ranges_overlap", $"left={a.Name} right={b.Name}");
+            }
+
         Section[] entrySections = Sections.Where(s => s.VirtualSize != 0 && EntryPointRva >= s.VirtualAddress && EntryPointRva < (ulong)s.VirtualAddress + s.VirtualSize).ToArray();
         Require(entrySections.Length != 0, "entrypoint_outside_sections");
         Require(entrySections.Length == 1, "entrypoint_section_ambiguous");
-        Section entry = entrySections[0]; EntrySection = entry.Name;
+        Section entry = entrySections[0];
+        EntrySection = entry.Name;
         Require((entry.Characteristics & 0x20000000) != 0, "entrypoint_section_not_executable");
         ulong delta = EntryPointRva - entry.VirtualAddress, entryOffset = entry.RawOffset + delta;
         Require(delta < entry.RawSize && entryOffset < (ulong)bytes.Length, "entrypoint_not_file_backed");
@@ -144,7 +214,12 @@ public sealed class EfiPeImage
     private static bool Overlap(ulong a, ulong sizeA, ulong b, ulong sizeB) => sizeA != 0 && sizeB != 0 && a < b + sizeB && b < a + sizeA;
     public static MatchCollection Symbols(string map, string name) => Regex.Matches(map, @"(?m)^\s*([0-9A-Fa-f]{4}):([0-9A-Fa-f]{8})\s+" + Regex.Escape(name) + @"\s+([0-9A-Fa-f]{16})\s+(.+?)\s*$", RegexOptions.CultureInvariant);
     public static bool Owner(Match symbol, string owner) => Regex.IsMatch(symbol.Groups[4].Value, @"(?i)(?:^|[\s\\/()])" + Regex.Escape(owner) + @"(?=$|[\s()])", RegexOptions.CultureInvariant);
-    public static ulong Hex(string text, string reason) { Require(ulong.TryParse(text, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out ulong value), reason); return value; }
+    public static ulong Hex(string text, string reason)
+    {
+        Require(ulong.TryParse(text, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out ulong value), reason);
+        return value;
+    }
+
     public ulong SymbolAddress(string map, string name, string owner, string reason)
     {
         MatchCollection bindings = Symbols(map, name);
@@ -165,8 +240,7 @@ public sealed class EfiPeImage
         Require(Owner(serializer[0], serializerObjectLeaf), "serializer_linker_map_object_mismatch");
         ulong baseAddress = Hex(preferred[0].Groups[1].Value, "invalid_map_preferred_base"), mapTimestamp = Hex(timestamp[0].Groups[1].Value, "invalid_map_timestamp");
         ulong nativeAddress = Hex(native[0].Groups[3].Value, "invalid_map_efimain_address"), managedAddress = Hex(managed[0].Groups[3].Value, "invalid_map_managed_entry_address");
-        Require(baseAddress == ImageBase && mapTimestamp == Timestamp && nativeAddress == managedAddress && nativeAddress >= baseAddress && nativeAddress - baseAddress == EntryPointRva &&
-            native[0].Groups[1].Value == entryPoint[0].Groups[1].Value && native[0].Groups[2].Value == entryPoint[0].Groups[2].Value && native[0].Groups[1].Value == managed[0].Groups[1].Value && native[0].Groups[2].Value == managed[0].Groups[2].Value, "efimain_entrypoint_mismatch");
+        Require(baseAddress == ImageBase && mapTimestamp == Timestamp && nativeAddress == managedAddress && nativeAddress >= baseAddress && nativeAddress - baseAddress == EntryPointRva && native[0].Groups[1].Value == entryPoint[0].Groups[1].Value && native[0].Groups[2].Value == entryPoint[0].Groups[2].Value && native[0].Groups[1].Value == managed[0].Groups[1].Value && native[0].Groups[2].Value == managed[0].Groups[2].Value, "efimain_entrypoint_mismatch");
         ulong serializerAddress = Hex(serializer[0].Groups[3].Value, "invalid_map_serializer_address");
         Require(serializerAddress > baseAddress && serializerAddress - baseAddress <= uint.MaxValue, "serializer_map_rva_invalid");
         SerializerRva = (uint)(serializerAddress - baseAddress);
@@ -184,8 +258,10 @@ public sealed class EfiPeImage
             Require(!RuntimeFunctions.Any(f => f.Begin < serializerEnd && f.End > SerializerRva), "serializer_runtime_function_overlap");
             throw new ToolFailure("serializer_runtime_function_missing");
         }
+
         Require(selected.Length == 1, "serializer_runtime_function_ambiguous");
-        var function = selected[0]; SerializerUnwindRva = function.Unwind;
+        var function = selected[0];
+        SerializerUnwindRva = function.Unwind;
         Require(function.End == serializerEnd, "serializer_runtime_function_range_mismatch");
         Require(RuntimeFunctions.Count(f => f.Unwind == function.Unwind) == 1, "serializer_unwind_aliased");
         Require(function.UnwindSize == EfiContracts.SerializerUnwindBytes.Length, "serializer_unwind_size_mismatch");
@@ -213,6 +289,7 @@ public sealed class EfiPeImage
                 Require(begin > prior.Begin, "runtime_function_not_strictly_sorted", "index=" + i);
                 Require(begin >= prior.End, "runtime_function_overlap", "index=" + i);
             }
+
             if (!unwindCache.TryGetValue(unwind, out var cached))
             {
                 var header = Resolve(unwind, 4, "runtime_function_unwind_not_file_backed", "runtime_function_unwind_section_ambiguous");
@@ -221,8 +298,10 @@ public sealed class EfiPeImage
                 Require(version == 1 && (flags & 0x18) == 0 && !((flags & 4) != 0 && (flags & 3) != 0), "runtime_function_unwind_header_invalid", "index=" + i);
                 int size = 4 + ((count + 1) & ~1) * 2 + ((flags & 4) != 0 ? 12 : (flags & 3) != 0 ? 4 : 0);
                 var full = Resolve(unwind, (ulong)size, "runtime_function_unwind_not_file_backed", "runtime_function_unwind_section_ambiguous");
-                cached = (full.Offset, size); unwindCache.Add(unwind, cached);
+                cached = (full.Offset, size);
+                unwindCache.Add(unwind, cached);
             }
+
             RuntimeFunctions.Add(new(begin, end, unwind, cached.Offset, cached.Size));
         }
     }

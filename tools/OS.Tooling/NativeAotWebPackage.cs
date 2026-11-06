@@ -59,7 +59,8 @@ public static class NativeAotWebPackage
             throw new InvalidDataException("web_package_input_length");
         NativeAotPayload.Inspection image = NativeAotPayload.Inspect(elf);
         using JsonDocument json = JsonDocument.Parse(settings.ToArray());
-        if (json.RootElement.ValueKind != JsonValueKind.Object) throw new InvalidDataException("web_package_config_object");
+        if (json.RootElement.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException("web_package_config_object");
         if (useDefaultManifest)
             manifest = Encoding.ASCII.GetBytes("format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\n" +
                 "app.path=apps/MinimalApiSmoke\nargs=--urls http://0.0.0.0:8080\ndigest=" + image.Sha256.ToLowerInvariant() +
@@ -68,21 +69,30 @@ public static class NativeAotWebPackage
         byte[] path = Encoding.ASCII.GetBytes(SettingsPath);
         int recordBytes = checked((int)LinuxElfPackage.DataRecordHeaderBytes + path.Length + settings.Length);
         int length = checked((int)LinuxElfPackage.HeaderBytes + manifest.Length + elf.Length + recordBytes);
-        if (length > LinuxElfPackage.MaximumBytes) throw new InvalidDataException("web_package_length");
+        if (length > LinuxElfPackage.MaximumBytes)
+            throw new InvalidDataException("web_package_length");
         byte[] package = new byte[length];
         BinaryPrimitives.WriteUInt64LittleEndian(package, LinuxElfPackage.Magic);
-        W32(package, 8, 2); W32(package, 12, 2); W32(package, 16, LinuxElfPackage.HeaderBytes);
-        W32(package, 20, (uint)manifest.Length); BinaryPrimitives.WriteUInt64LittleEndian(package.AsSpan(24), (ulong)elf.Length);
-        W32(package, 32, (uint)recordBytes); W32(package, 36, 1);
+        W32(package, 8, 2);
+        W32(package, 12, 2);
+        W32(package, 16, LinuxElfPackage.HeaderBytes);
+        W32(package, 20, (uint)manifest.Length);
+        BinaryPrimitives.WriteUInt64LittleEndian(package.AsSpan(24), (ulong)elf.Length);
+        W32(package, 32, (uint)recordBytes);
+        W32(package, 36, 1);
         manifest.CopyTo(package.AsSpan((int)LinuxElfPackage.HeaderBytes));
         int at = (int)LinuxElfPackage.HeaderBytes + manifest.Length;
-        elf.CopyTo(package.AsSpan(at)); at += elf.Length;
-        W32(package, at, (uint)recordBytes); W32(package, at + 4, (uint)path.Length); W32(package, at + 8, (uint)settings.Length);
+        elf.CopyTo(package.AsSpan(at));
+        at += elf.Length;
+        W32(package, at, (uint)recordBytes);
+        W32(package, at + 4, (uint)path.Length);
+        W32(package, at + 8, (uint)settings.Length);
         SHA256.HashData(settings).CopyTo(package, at + 16);
         path.CopyTo(package, at + (int)LinuxElfPackage.DataRecordHeaderBytes);
         settings.CopyTo(package.AsSpan(at + (int)LinuxElfPackage.DataRecordHeaderBytes + path.Length));
         LinuxElfPackageView view = LinuxElfPackage.Validate(package);
-        if (!view.Succeeded || view.DataFileCount != 1) throw new InvalidDataException("web_package_admission " + view.Status);
+        if (!view.Succeeded || view.DataFileCount != 1)
+            throw new InvalidDataException("web_package_admission " + view.Status);
         return package;
     }
 
@@ -116,8 +126,10 @@ public static class NativeAotWebPackage
     private static string WriteCore(string root, string recipeRoot, string evidence, string destination,
         byte[]? manifest, byte[]? selectedSettings)
     {
-        root = Path.GetFullPath(root); recipeRoot = Path.GetFullPath(recipeRoot);
-        evidence = Path.GetFullPath(evidence); destination = Path.GetFullPath(destination);
+        root = Path.GetFullPath(root);
+        recipeRoot = Path.GetFullPath(recipeRoot);
+        evidence = Path.GetFullPath(evidence);
+        destination = Path.GetFullPath(destination);
         using var lease = NativeAotPayload.OpenQualificationLease(recipeRoot);
         NativeAotWebPayload.ValidateQualification(recipeRoot, evidence);
         if (!destination.StartsWith(Path.Combine(root, "artifacts") + Path.DirectorySeparatorChar,
@@ -126,14 +138,17 @@ public static class NativeAotWebPackage
         string elf = Path.Combine(evidence, "MinimalApiSmoke", "MinimalApiSmoke");
         string settings = Path.Combine(evidence, "MinimalApiSmoke", "appsettings.json");
         if (new FileInfo(elf).Length > LinuxElfPackage.MaximumBytes ||
-            new FileInfo(settings).Length > LinuxElfPackage.MaximumDataBytes) throw new InvalidDataException("web_package_input_length");
+            new FileInfo(settings).Length > LinuxElfPackage.MaximumDataBytes)
+            throw new InvalidDataException("web_package_input_length");
         byte[] package = manifest is null ? Create(File.ReadAllBytes(elf), File.ReadAllBytes(settings)) :
             Create(File.ReadAllBytes(elf), selectedSettings!, manifest);
         EfiBuildFiles.InitializeDirectory(Path.GetDirectoryName(destination)!, "web_package_output_path");
         EfiBuildFiles.RequirePlainOrMissing(root, destination, "web_package_output_path");
-        using (var file = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.Read)) file.Write(package);
+        using (var file = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.Read))
+            file.Write(package);
         string hash = Convert.ToHexString(SHA256.HashData(package));
-        if (NativeAotWebPayload.HashFile(destination) != hash) throw new InvalidDataException("web_package_write_changed");
+        if (NativeAotWebPayload.HashFile(destination) != hash)
+            throw new InvalidDataException("web_package_write_changed");
         return hash;
     }
 

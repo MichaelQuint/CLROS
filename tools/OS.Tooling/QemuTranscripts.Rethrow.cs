@@ -7,18 +7,32 @@ public static partial class QemuTranscripts
         Need(lines.Count == 18 && lines[0] == "TEST_START m04.021.rethrow" && lines[16] == "TEST_PASS m04.021.rethrow" && lines[17] == "CLROS_M04_RETHROW_READY", "m04_rethrow_count");
         int[] stages = [0, 1, 2, 3, 4, 9, 10, 5, 14, 11, 12, 13, 6, 7, 8];
         var rows = stages.Select((stage, i) => (stage, values: ReadHexRecord(lines[i + 1], "M04_RETHROW " + stage, 4))).ToDictionary(p => p.stage, p => p.values);
-        var image = ReadHexRecord(gcLines[0], "M04_GC_ROOT 0", 4); var module = ReadHexRecord(gcLines[1], "M04_GC_ROOT 1", 4);
-        var stack = ReadHexRecord(gcLines[2], "M04_GC_ROOT 7", 4); var canaries = ReadHexRecord(gcLines[7], "M04_GC_ROOT 8", 4);
-        var bind = rows[0]; var obj = rows[1]; var rejected = rows[2]; var frames = rows[3]; var match = rows[4];
-        var cleanup = rows[9]; var validated = rows[10]; var caught = rows[5]; var active = rows[14];
-        var outerFrame = rows[11]; var outerMatch = rows[12]; var outerCatch = rows[13];
-        var resume = rows[6]; var continued = rows[7]; var check = rows[8];
+        var image = ReadHexRecord(gcLines[0], "M04_GC_ROOT 0", 4);
+        var module = ReadHexRecord(gcLines[1], "M04_GC_ROOT 1", 4);
+        var stack = ReadHexRecord(gcLines[2], "M04_GC_ROOT 7", 4);
+        var canaries = ReadHexRecord(gcLines[7], "M04_GC_ROOT 8", 4);
+        var bind = rows[0];
+        var obj = rows[1];
+        var rejected = rows[2];
+        var frames = rows[3];
+        var match = rows[4];
+        var cleanup = rows[9];
+        var validated = rows[10];
+        var caught = rows[5];
+        var active = rows[14];
+        var outerFrame = rows[11];
+        var outerMatch = rows[12];
+        var outerCatch = rows[13];
+        var resume = rows[6];
+        var continued = rows[7];
+        var check = rows[8];
         decimal end = (decimal)image[0] + image[1], inner = (decimal)frames[2] - 25, outer = (decimal)outerFrame[2] - 26;
         Need(bind[0] == module[3] && bind[1] % 8 == 0 && bind[1] >= image[0] && (decimal)bind[1] + 65536 <= end &&
             bind[2] is >= 288 and < 65536 && bind[3] is > 0 and <= 2048 && bind[2] >= 288 + 12 * (decimal)bind[3], "m04_rethrow_snapshot");
         Need(obj[0] % 8 == 0 && obj[0] >= (decimal)heap["retainedStart"] + 8 && (decimal)obj[0] + 16 <= heap["retainedEnd"] &&
             obj[2] == 9 && obj[3] == 3 && obj[1] != match[0] && outerMatch[0] == match[0], "m04_rethrow_original_receipt");
-        foreach (ulong at in new[] { obj[1], match[0] }) Need(at % 8 == 0 && at >= image[0] && (decimal)at + 24 <= end, "m04_rethrow_type_range");
+        foreach (ulong at in new[] { obj[1], match[0] })
+            Need(at % 8 == 0 && at >= image[0] && (decimal)at + 24 <= end, "m04_rethrow_type_range");
         Need((decimal)frames[0] - 9 >= image[0] && (decimal)frames[0] + 1 <= end && inner >= image[0] && inner + 88 <= end &&
             outer >= image[0] && outer + 89 <= end && (inner >= outer + 89 || outer >= inner + 88), "m04_rethrow_code_range");
         Need(rejected[0] == frames[0] && rejected[1] == (frames[0] ^ 1UL) && rejected[2] == frames[1] && rejected[3] == 0, "m04_rethrow_local_admission");

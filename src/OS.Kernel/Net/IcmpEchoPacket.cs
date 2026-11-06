@@ -25,15 +25,30 @@ public readonly struct IcmpEchoPacket
         SequenceNumber = sequenceNumber;
     }
 
-    public byte Type { get; }
+    public byte Type
+    {
+        get;
+    }
 
-    public byte Code { get; }
+    public byte Code
+    {
+        get;
+    }
 
-    public ushort Checksum { get; }
+    public ushort Checksum
+    {
+        get;
+    }
 
-    public ushort Identifier { get; }
+    public ushort Identifier
+    {
+        get;
+    }
 
-    public ushort SequenceNumber { get; }
+    public ushort SequenceNumber
+    {
+        get;
+    }
 
     public bool IsEchoRequest => Type == TypeEchoRequest;
 

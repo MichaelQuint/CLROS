@@ -1,0 +1,22 @@
+using OS.Kernel.Runtime;
+
+namespace OS.Runtime;
+#pragma warning disable CS0649 // Assigned by the enabled profile and mapped core tests.
+
+#pragma warning restore CS0649
+#if NOSTDLIB_EFI && M04_RHP_NEW_FAST_PROBE && M04_CHECKED_REFERENCE_BARRIER_PROBE
+
+#pragma warning disable CS0649
+
+#pragma warning restore CS0649
+#endif
+internal unsafe struct CheckedReferenceState
+{
+    internal ulong CanaryBefore, Self, Access, Bump, Control, Records;
+    internal ulong Armed, Busy, Stage, InitializedSlots, Calls;
+    internal CheckedReferenceGeometry Geometry;
+    internal RhpNewFastHeapAccess FrozenAccess;
+    internal RhpNewFastBumpState FrozenBump;
+    internal RhpAllocationControl FrozenControl;
+    internal ulong CanaryAfter;
+}

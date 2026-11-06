@@ -4,7 +4,10 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
-    public static IReadOnlyList<string> M16LinuxMemoryMarkers { get; } = Array.AsReadOnly<string>(
+    public static IReadOnlyList<string> M16LinuxMemoryMarkers
+    {
+        get;
+    } = Array.AsReadOnly<string>(
         ["TEST_START m16-006", "M16_006_POLICY", "M16_005_ARMED", "M16_005_CALL", "M16_005_WRITE", "M16_005_RESTORE",
          "M16_005_EXIT", "M16_006_MEMORY", "CLROS_M16_006_READY", "TEST_PASS m16-006"]);
 
@@ -77,7 +80,8 @@ public static partial class QemuTranscripts
             (25,0,4096,8192,0,0,-12), (25,0x6ffef000,4096,8192,0,0,-14),
             (11,va,4096,0,0,0,0), (11,va,huge,0,0,0,0), (231,42,0,0,0,0,0)
         ];
-        uint ordinal = 0, barriers = 0, calls = 0, writes = 0; bool pendingWrite = false;
+        uint ordinal = 0, barriers = 0, calls = 0, writes = 0;
+        bool pendingWrite = false;
         byte[] elf = LinuxMemoryProofFixture.CreateElf(fragmented ? "FragmentedBacking" : ownership ? "HeapOwnership" : "Memory");
         ulong[] instructionRips = LinuxMemoryCallRips(elf);
         Need(instructionRips.Length == callCount, "m16_006_instruction_inventory");
@@ -88,7 +92,8 @@ public static partial class QemuTranscripts
             {
                 Need(!pendingWrite && writes++ == 0 && line == "M16_005_WRITE fd=1 bytes=24 data=" + LinuxMemoryProofFixture.Witness,
                     "m16_006_high_copy_witness");
-                pendingWrite = true; continue;
+                pendingWrite = true;
+                continue;
             }
             var row = ReadRecord(line, "M16_005_CALL", "nr:dec", "a0:dec", "a1:dec", "a2:dec", "a3:dec", "a4:dec", "a5:dec",
                 "rip:dec", "rsp:dec", "flags:dec", "valueBits:dec", "action:dec", "status:dec");
@@ -104,17 +109,24 @@ public static partial class QemuTranscripts
                 Need(!ownership && !fragmented && ordinal == 17 && barriers < 3 && row["a0"] == command && row["a1"] == 0 && row["a2"] == 0 &&
                     row["a3"] == 0 && row["a4"] == 0 && row["valueBits"] == (barriers == 0 ? 24UL : 0UL) &&
                     row["action"] == 1 && row["status"] == 1 && !pendingWrite, "m16_006_process_barrier");
-                barriers++; continue;
+                barriers++;
+                continue;
             }
             Need(ordinal < expected.Length, "m16_006_extra_call");
-            var e = expected[ordinal++]; ulong a0 = e.Nr == 25 && e.A0 == 0 ? row["rsp"] & ~4095UL : e.A0;
+            var e = expected[ordinal++];
+            ulong a0 = e.Nr == 25 && e.A0 == 0 ? row["rsp"] & ~4095UL : e.A0;
             Need(row["nr"] == e.Nr && row["a0"] == a0 && row["a1"] == e.A1 && row["a2"] == e.A2 &&
                 row["a3"] == e.A3 && row["a4"] == e.A4 && row["valueBits"] == unchecked((ulong)e.Value), "m16_006_call_binding_" + ordinal + " " + line);
             bool exited = e.Nr == 231;
             Need(row["action"] == (exited ? 2UL : 1UL) && row["status"] == (exited ? 2UL : 1UL) &&
                 (!exited || i == tail.Length - 6), "m16_006_call_lifecycle");
-            if (e.Nr == 1) { Need(pendingWrite, "m16_006_missing_high_copy"); pendingWrite = false; }
-            else Need(!pendingWrite, "m16_006_write_call_order");
+            if (e.Nr == 1)
+            {
+                Need(pendingWrite, "m16_006_missing_high_copy");
+                pendingWrite = false;
+            }
+            else
+                Need(!pendingWrite, "m16_006_write_call_order");
         }
         Need(ordinal == expected.Length && barriers == (ownership || fragmented ? 0U : 3U) && calls == callCount && writes == 1 && !pendingWrite &&
             exit["code"] == 42 && exit["calls"] == calls && exit["writes"] == 1 && exit["bytes"] == 24, "m16_006_accounting");
@@ -140,9 +152,12 @@ public static partial class QemuTranscripts
         int start = Array.IndexOf(lines, "TEST_START m16-006"), count = heap ? 6 : variant == "GuardFault" ? 2 : 1;
         Need(start == QemuContracts.M03OwnedSubsystemMarkers.Count + 7 + 7 + 17 && lines.Length == start + count + 6,
             "m16_006_negative_inventory");
-        string[] tail = lines[start..]; LinuxMemoryPolicy(tail[1]); _ = LinuxSyscallArm(tail[2]);
+        string[] tail = lines[start..];
+        LinuxMemoryPolicy(tail[1]);
+        _ = LinuxSyscallArm(tail[2]);
         Need(tail[^2] == LinuxSyscallRestored && tail[^1] == "TEST_FAIL m16-006 user-boundary-terminated status=1", "m16_006_negative_restoration");
-        byte[] elf = LinuxMemoryProofFixture.CreateElf(variant); ulong[] rips = LinuxMemoryCallRips(elf);
+        byte[] elf = LinuxMemoryProofFixture.CreateElf(variant);
+        ulong[] rips = LinuxMemoryCallRips(elf);
         Need(rips.Length == count, "m16_006_negative_instruction_inventory");
         const ulong va = 0x100000000, h = 0x400000000;
         (ulong Nr, ulong A0, ulong A1, ulong A2, ulong A3, ulong A4, ulong Value)[] expected = heap ?
@@ -151,8 +166,8 @@ public static partial class QemuTranscripts
             (9,h+4096,4096,3,0x32,~0UL,h+4096), (10,h+4096,4096,1,0,0,0),
             (12,h+8192,0,0,0,0,h), (12,0,0,0,0,0,h)
         ] : variant == "GuardFault" ?
-        [(9,0,8234266624,0,0x22,~0UL,va), (10,va+4096,4096,3,0,0,0)] :
-        [(9,0,8234266624,0,0x22,~0UL,va)];
+        [(9, 0, 8234266624, 0, 0x22, ~0UL, va), (10, va + 4096, 4096, 3, 0, 0, 0)] :
+        [(9, 0, 8234266624, 0, 0x22, ~0UL, va)];
         for (int i = 0; i < count; i++)
         {
             var call = ReadRecord(tail[3 + i], "M16_005_CALL", "nr:dec", "a0:dec", "a1:dec", "a2:dec", "a3:dec", "a4:dec", "a5:dec", "rip:dec", "rsp:dec", "flags:dec", "valueBits:dec", "action:dec", "status:dec");
@@ -169,7 +184,7 @@ public static partial class QemuTranscripts
         int instruction = heap ? elf.AsSpan(0x200, 0xd00).LastIndexOf(new byte[] { 0x48, 0x89, 0x10 })
             : elf.AsSpan(0x200, 0xd00).IndexOf(new byte[] { 0x48, 0x8b, 0 });
         Need(instruction >= 0 && fault["rip"] == 0x400200UL + (uint)instruction && fault["vector"] == 14 && fault["error"] == (heap ? 7UL : 4UL) &&
-            fault["cr2"] == (heap ? h+4096 : variant == "GuardFault" ? va : va+4096) && fault["cs"] == 59 &&
+            fault["cr2"] == (heap ? h + 4096 : variant == "GuardFault" ? va : va + 4096) && fault["cs"] == 59 &&
             fault["ss"] == 51 && fault["rsp"] is >= 0x6fff0008 and <= 0x70000000, "m16_006_negative_fault");
         return lines[..start];
     }
@@ -177,16 +192,16 @@ public static partial class QemuTranscripts
     private static void LinuxMemoryPolicy(string line, uint entropy = 32,
         uint expectedPoolPages = LinuxMemoryServices.DefaultPoolPages, bool continuingService = false)
     {
-        Need(continuingService?entropy==0:entropy is 32 or 256 or 4096,"m16_006_entropy_policy");
+        Need(continuingService ? entropy == 0 : entropy is 32 or 256 or 4096, "m16_006_entropy_policy");
         Need(expectedPoolPages is LinuxMemoryServices.DefaultPoolPages or LinuxMemoryServices.ApplicationPoolPages ||
-            continuingService && expectedPoolPages == OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages,"m16_006_backing_policy");
-        string suffix = " poolPages="+expectedPoolPages.ToString(System.Globalization.CultureInfo.InvariantCulture)+
-            " vaEnd=68719476736 reservationQuota=17179869184 entropyBytes="+
-            entropy.ToString(System.Globalization.CultureInfo.InvariantCulture)+" cpus=1 root=inactive-kernel";
+            continuingService && expectedPoolPages == OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages, "m16_006_backing_policy");
+        string suffix = " poolPages=" + expectedPoolPages.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+            " vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=" +
+            entropy.ToString(System.Globalization.CultureInfo.InvariantCulture) + " cpus=1 root=inactive-kernel";
         Need(line.EndsWith(suffix, StringComparison.Ordinal), "m16_006_policy");
         var policy = ReadRecord(line[..^suffix.Length], "M16_006_POLICY", "physical:dec", "available:dec");
-        Need(policy["physical"] <= 0x100000000 && policy["physical"] >= expectedPoolPages*4096UL &&
-            policy["available"] >= expectedPoolPages*4096UL &&
+        Need(policy["physical"] <= 0x100000000 && policy["physical"] >= expectedPoolPages * 4096UL &&
+            policy["available"] >= expectedPoolPages * 4096UL &&
             policy["available"] <= policy["physical"] && (policy["physical"] | policy["available"]) % 4096 == 0, "m16_006_resource_facts");
     }
 
@@ -195,8 +210,13 @@ public static partial class QemuTranscripts
         List<ulong> rips = [];
         for (int i = 0x200; i < 0xf00; i++)
         {
-            if ((elf[i] == 0x48 || elf[i] == 0x49) && elf[i + 1] is >= 0xb8 and <= 0xbf) i += 9;
-            else if (elf[i] == 0x0f && elf[i + 1] == 5) { rips.Add(0x400000UL + (uint)i + 2); i++; }
+            if ((elf[i] == 0x48 || elf[i] == 0x49) && elf[i + 1] is >= 0xb8 and <= 0xbf)
+                i += 9;
+            else if (elf[i] == 0x0f && elf[i + 1] == 5)
+            {
+                rips.Add(0x400000UL + (uint)i + 2);
+                i++;
+            }
         }
         return rips.ToArray();
     }

@@ -1,0 +1,636 @@
+# RC3 and WHPX qualification contract
+
+## Approved closeout scope
+
+On November 6, 2026, the human directed: keep the 30-minute guest limit,
+report TCG as incomplete, finish documentation and review, merge PR814 into
+canonical master, and stop development at a clean boundary.
+
+PR814 therefore closes from the fully qualified runtime `2e81ee3a` with
+documentation and tracker metadata updates. The extended CLROS TCG population
+remains incomplete; its failed originals, unattempted samples and missing
+browser/cleanup qualification remain explicit. The 1,800-second guest limit
+and functional, corruption, ownership and resource checks remain unchanged.
+Further TCG sampling and performance repairs are outside this closeout.
+
+The later adjacent disk-audit optimization `ff96e2bb`, integrated into the
+preserved development branch at `72784936`, is excluded from the release.
+That branch has separate Full, compiler, ancestor and partial disk evidence;
+its incomplete remaining matrix supplies no acceptance for the released source.
+The isolated host decoder extraction is also excluded. Preserve their unique
+commits, working changes and original evidence recoverably, without activating
+either follow-up. After verified merge and cleanup, stop the storage helper,
+pause the broader development goal, and start no next phase.
+
+The immutable [closeout record](../done/step1790.md) binds this release boundary,
+the scoped checks and the separate post-merge tracker/parity readback.
+Earlier prospective instructions and pending-work lists below retain their
+historical evidence scope. This November 6 closeout supersedes instructions to
+continue sampling, optimize further or qualify the excluded development tails.
+
+## Candidate results
+
+The qualified runtime selected for PR814 is `2e81ee3a`. [Step1788](../done/step1788.md) records
+the integrated Windows/WHPX notifier repair and its qualification boundary.
+Fresh unfiltered Full passed 7,789 checks in 996 fixture groups (884 Fast and
+112 Native), with 6,503 selected cases, zero failures and zero reuse. Independent
+readback confirmed all 7,970 captured source inputs, 48 producer binaries and
+eight runtime pairs. Original worker processes joined, and source remained clean
+at the same commit through completion.
+
+The accepted host review is
+`artifacts/refactor-r01/combined-full-compat-r01/accepted-review-r01.json`
+in the producer checkout, SHA-256
+`2C05A550EDADB6D07828A493EA31182AD9E67B2C6A9999F92D5116AB084BFC2A`.
+It binds the original results, producer freeze, terminal seal and independent
+review.
+
+All 29 compiler guest contexts passed their expected outcome on the same frozen
+candidate. The original owner exited with zero and joined. Independent review
+verified 1,539 raw files, 203 recorded commands and all 48 frozen producers,
+including pristine-image and bounded NvVars checks. The sealed compiler receipt
+is `artifacts/refactor-r01/compiler-compat-acceptance-r01.json`,
+SHA-256 `829ABD366646A4E86082585901D25CA667D22453659721979B7974A0BFFF0B4A`,
+in the producer checkout. Its 29 contexts comprise 28 positive outcomes and one
+expected panic.
+
+The 24 ancestor/quota contexts are also accepted on this candidate: 21 positive
+or quota contexts, including Smoke and the two exact quota terminals, and three
+strict memory-negative contexts using their dedicated observer. Independent
+review verified 1,262 original files, 168 joined commands, all 48 frozen producers,
+native tuples before boot, original limits and fault restoration. The sealed
+receipt is `artifacts/refactor-r01/ancestor-compat-acceptance-r01.json`,
+SHA-256 `EFDC65A1EEEFE851365A9A8A3DB691C97986DA12101374BEE397667D0A035714`.
+Its seal is `D956E9FEE55104C32DC62C405ADC2AA04365B856B54A6C905A5537F96C1D6E64`.
+
+The initial ancestor controller exited with 1 at an intentional pre-entry guard
+before a memory-negative guest could use the wrong observer. Its 16 completed
+positive originals were retained; the remaining eight contexts completed through
+the correct routes. The path-spelling and PID-reuse readback rejections remain
+recorded with the controller split. No completed guest was rerun, and the initial
+controller exit remains distinct from the accepted individual guest results.
+
+The current healthy Disk A1/B/A2 originals are accepted and sealed. Each
+completed 120 HTTP and 49 browser responses with 16,062,936 verified body bytes,
+Blazor readiness, screenshot inspection and the independent copied-value protocol
+check. Each original owner exited with zero; source, browser and frozen producers
+remained unchanged. Guest application and kernel cleanup completed before the
+runner terminated native QEMU, as recorded in the original receipts.
+
+The B image differs from A1 by exactly the expected nonce byte. A2 restores every
+image byte to A1, and all 169 A2 response bodies match accepted A1. These image
+comparisons accompany each case's actual guest acceptance.
+
+The acceptance receipts are under `artifacts/refactor-r01/` in the producer
+checkout:
+
+- A1: `disk-read-DiskA1-acceptance-compat-r01.json`,
+  SHA-256 `B3B2FA338FF5ADD174D6D44FE61DC1FF1520A700B87011A6F1527C7AAFFCB96A`.
+- B: `disk-read-DiskB-acceptance-compat-r01.json`,
+  SHA-256 `BD786A57D0D00DE529F87315709EC3C77AA2013988972F21E45709E074E28617`.
+- A2: `disk-read-DiskA2-acceptance-compat-r01.json`,
+  SHA-256 `492A92065C42CAE59F0D07B8D5108340754DEB44FE96DD74E8F2348D14EEDA95`.
+
+Each independent review and original seal was read back against its acceptance
+receipt. The retained B provisional observer failure concerned its HEAD
+empty-body nonce oracle; restricting nonce hash substitution to GET corrected
+the observer on the same captured records, without a guest rerun or source
+change. The earlier `3f95496e` B native failure remains failed. These Full018
+results cover their finite consumer scopes; conditional native premises remain
+mandatory.
+
+Truncated A is also accepted and sealed. It completed 120 HTTP and 49 browser
+responses. GET and HEAD for `/fixture/fragmented.bin` both returned empty 404
+responses. All unrelated response bodies match healthy A1.
+The typed whole-image corruption delta and copied-value protocol checks passed,
+along with Blazor readiness and guest cleanup. The receipt is
+`artifacts/refactor-r01/disk-read-TruncatedA-acceptance-compat-r01.json`,
+SHA-256 `6E4897BD97B142115286B26F1E13A26ECD3D6FEC17CA80E5895568C854FBBC24`.
+
+Mechanical59, ExitPending and CloseReuse are accepted within their finite
+synthetic lifecycle scopes. Their original owners joined with exit zero,
+current native tuples were verified before each guest, and strict stderr,
+original assertions and owned cleanup passed. The combined receipt is
+`artifacts/refactor-r01/disk-read-M16-acceptance-compat-r01.json`,
+SHA-256 `EC3097C69AC2B9286BE0A50E91C856EFF217054C4686487A1846B648E5E1BC7C`.
+The initial M16 audit's copied-hash typo remains recorded; the corrected comparison
+uses the already pinned review manifest. It required no guest rerun or source
+change. These cases do not extend acceptance to general scheduler replay,
+writes or durability.
+
+| Disk/lifecycle case on `2e81ee3a` | Current host recipe |
+| --- | --- |
+| Disk A1 | Accepted, including HTTP, browser and guest cleanup. |
+| Disk B | Accepted, including HTTP, browser and guest cleanup. |
+| Disk A2 | Accepted, including restored A image/bodies, browser and guest cleanup. |
+| Truncated A | Accepted: exact target-only empty GET/HEAD 404, typed corruption checks, browser and guest cleanup. |
+| Mechanical59 | Accepted: 59 calls, 62 sectors and seven read windows. |
+| ExitPending | Accepted: seven calls, zero copied data sectors and the outstanding read retired on reset. |
+| CloseReuse | Accepted: 30 calls, ten requests and one cancellation; scheduler replay remains false. |
+
+All seven disk/lifecycle cases are accepted on the current host recipe. The
+extended matched-performance matrix is explicitly incomplete under the November 6
+closeout disposition. No additional TCG run is required for this release, and no
+failed or unattempted performance/browser result becomes a pass.
+
+### Matched performance observations
+
+The current `2e81ee3a` comparison has three CLROS WHPX boots and three Alpine
+boots per backend (WHPX and TCG), each with one first sequence and ten warm
+sequences: 88 completed, verified HTTP samples per boot. The complete asset is 2,009,369 bytes. The table reports
+**per-boot warm medians**, from request start through complete body receipt;
+host body-file writes and flushes are recorded separately.
+
+| System / backend | Boot 1 | Boot 2 | Boot 3 |
+| --- | ---: | ---: | ---: |
+| CLROS / WHPX | 7,147.246 ms | 7,161.564 ms | 7,166.262 ms |
+| Alpine / WHPX | 41.810 ms | 40.164 ms | 40.494 ms |
+| Alpine / TCG | 85.614 ms | 86.611 ms | 89.823 ms |
+
+These are retained HTTP observations, not a final production-performance
+acceptance claim. All three CLROS WHPX browser checks passed. Alpine WHPX browser boots
+1 and 3 passed; boot 2 retained two `ERR_CONNECTION_REFUSED` asset requests
+followed by the outer Python client's 150-second timeout. The owner found those
+GETs absent from the guest packet capture, with other browser connections
+succeeding; the precise host cause remains unproven. Its browser timing is
+censored, not a passing startup measurement. The failed boot was not retried.
+All three Alpine TCG browser checks passed and their owners joined with exit 0.
+
+The first TCG attempt hit a copied 240-second HTTP-client wrapper limit. Its
+replacement uses the existing 7,200-second absolute parent deadline, reserving
+120 seconds for cleanup, with the 3,600-second browser cap and unchanged
+180-second per-request limit. This artifact-only wrapper repair changes neither
+the frozen guest nor its qualification results. The original failed attempt
+remains separate.
+
+The replacement TCG HTTP report is incomplete: 71 completed samples followed
+by a failed health-after request at ordinal 71 / sequence 8. The observed
+application shutdown is consistent with the unchanged 1,800-second guest
+shutdown policy. Quiet output omits the timer-request and cleanup witnesses,
+and the generic `BENCH_FAIL` marker cannot isolate the failed invariant. This
+original remains failed; it does not prove timer-only causation or qualified
+guest cleanup. The completed first asset took 94,391.805 ms; that single
+observation is not a complete TCG population or a browser result.
+The November 6 human decision retains the 1,800-second limit and accepts
+closing this phase with explicitly incomplete CLROS TCG results. No further
+CLROS TCG boots are required for this closeout. The unattempted samples and
+browser phase remain unqualified, and no failed original is relabeled as
+accepted. This reporting decision does not establish timer-only causation.
+
+The reports are retained under `artifacts/refactor-r01/` in the main owner's
+checkout:
+
+| Report | SHA-256 |
+| --- | --- |
+| `matched-current2e-whpx-boot01-r01/requests/benchmark.json` | `C98ED15D78D9B4212F4868BC170A0AEBBADA74538D39F0C45A4EFAFC2B2651E6` |
+| `matched-current2e-whpx-boot02-r01/requests/benchmark.json` | `D4B51AF5D91E094A205B2FA7C8DA943295FCF609BCAC446A7E29FACFD839DF95` |
+| `matched-current2e-whpx-boot03-r01/requests/benchmark.json` | `A85E0DE8932E8A894868C3B906F7BAD6A2C0146EBD47D7B84773E9AF8E645416` |
+| `alpine-compat2e-r01/alpine-whpx-256M-population-boot01-r01/http/benchmark.json` | `C8A514E7E7FA22F8F2C22EA552F05F6CD7F2B7E6CAAF09F41FBCFCFA849F1D88` |
+| `alpine-compat2e-r01/alpine-whpx-256M-population-boot02-r01/http/benchmark.json` | `BFFAED681AF1F1976468D3E5FE6CB70D2602CEBEF63C007721CDACBBC9491575` |
+| `alpine-compat2e-r01/alpine-whpx-256M-population-boot03-r01/http/benchmark.json` | `D3FAF8B96974EB4AD364502B382BF0533D4C0E195E47A9921336AFECF7781930` |
+| `alpine-compat2e-r02/alpine-tcg-256M-population-boot01-r01/http/benchmark.json` | `316D34D23CC608F2F6B43011E342B22E15A08AACD0A6FF32146347ED59A4F166` |
+| `alpine-compat2e-r02/alpine-tcg-256M-population-boot02-r01/http/benchmark.json` | `C100D83A37B32166000300C803E0158546A732E889BBC1CF6D35035454D83DC2` |
+| `alpine-compat2e-r02/alpine-tcg-256M-population-boot03-r01/http/benchmark.json` | `4C41F5295F5208F946DE08606DB0A282FC418B778632C53901EC3BFD771C2E8E` |
+| `matched-current2e-tcg-boot01-r02/requests/benchmark.json` | `B58F2ABBDFFE2088E1CF21AD93AE365876ADAE8D68A69B1590F8EFC6EE2133B9` |
+
+The independent completed-population report rehashes all 792 response bodies
+across those nine complete HTTP populations (404,360,352 bytes). It reports
+`CompleteHttpMatrix=false`; the failed CLROS TCG original is excluded from that
+complete-population set. Its separate partial audit rehashes all 72 captured
+bodies, including the empty failed response, and reports 71 complete, one failed
+and 16 unattempted samples. Its observed warm asset median is 93,017.925 ms
+across eight warm samples, explicitly short of the planned ten.
+
+- Completed-population report: `population-report-compat-r01/complete-output-r01/report.json`,
+  SHA-256 `B1DB6290333860AC02B5E0059EAFE9CFAF28321A7AA3C06907434ECB7AE73903`.
+- Partial report: `partial-population-report-compat-r01/output-r01/partial-report.json`,
+  SHA-256 `C8F93E96C53584988A4DEC5937372F5DB5B622CDFF42A2F743710ADCBA5362E7`.
+
+The independent read-only storage review parsed the GPT/FAT32 image without the
+repository parser and compared all 18 successful full bodies and nine ranges
+with its bytes. No returned-byte corruption or storage-specific fault was
+established. That review preserves the failed marker and its inference limits;
+it grants no cleanup or completed TCG qualification.
+
+### Deferred read-path investigation (host controls only)
+
+An offline parser examined the preserved full-asset packet captures. Both the
+WHPX and incomplete TCG originals had at most one outstanding body packet and
+no duplicate TCP payload bytes in the parsed transfers. Median peer ACK delay
+was about 0.016 ms for WHPX and 0.042 ms for TCG; median ACK-to-next-data delay
+was about 1.231 ms and 22.152 ms. More than 99% of the summed body-packet spans
+lay after ACK and before the next packet. Four synthetic parser controls passed.
+These intervals use the capture's own clock. They include guest and QEMU work;
+they do not isolate scheduling, validation, disk or NIC cost.
+
+An unchanged host memory-audit control measured median costs of 15.768 us at
+32 table pages and 37.393 us at 128 pages. Corrupting the final unused PTE was
+rejected, and restoration passed. A separate, instrumented host fixture counted
+100 full page-table audit entries during one 8 KiB fragmented-file read. A
+private-body prototype reduced that count to 67 while preserving the exact
+8,192 bytes, 32 pump steps and 16 submitted/completed/copied physical reads.
+The saved calls repeat an adjacent public admission; public entry audits,
+owner/live-fd/generation checks and callback boundaries are retained.
+
+Both variants passed the same 134 existing selected safety cases through the
+preserved fixture bodies and existing `HostCheck.Run`. New controls rejected a
+foreign owner and unused-PTE corruption at each public Pump/Poll/Complete
+boundary without changing I/O counters or output. Restoring the PTE allowed the
+original 8 KiB read to finish with exact bytes. Both host processes joined with
+exit 0. All 2,545 original kernel-source rows and 26 additional input rows
+rehashed unchanged afterward. These are instrumented host hypothesis controls,
+including managed cases labelled Native, rather than a fresh qualification run.
+
+- Input manifest: `qualification-compat-preparation-r01/disk-audit-host-inputs-r01.json`,
+  SHA-256 `D46E1E508FEAF1541482DED16B4D17566B8637A069C0296DE78D8D4839CC737D`.
+- Paired review: `qualification-compat-preparation-r01/disk-audit-paired-host-review-r01.json`,
+  SHA-256 `BC1795B741B7938E58782DAF6B9BFECF4C0E0ED8970065BB22CE5F2A750A5494`.
+
+A separate uninstrumented Release host screen used the original mock fixture,
+prebound driver calls and a fixed ABBA sequence repeated three times. Each of
+12 fresh processes performed four warmups and 16 measured 8 KiB preads at
+offset zero. Every output byte was poisoned before each call; exact payload,
+canaries, one copy callback and unchanged I/O counts were checked afterward.
+Both variants used the same driver, with tiering/PGO disabled. Median of the six
+process medians was 0.4445 ms for original code and 0.3083 ms for the prototype,
+a 30.641% reduction. The three ABBA block reductions were 30.721%, 30.596% and
+30.339%; no GC collection was observed in the measured intervals. All 192
+timed reads and 48 warmups passed. The process is the independent sample unit.
+Empty-call controls are reported separately and were not subtracted.
+
+This is a host JIT result for mock preads. The earlier counted read experiment
+and its instrumented kernels are separate. No guest latency, native codegen,
+zero-allocation/noGC or final performance acceptance follows from this screen.
+The report and all raw samples are retained at
+`disk-audit-release-timing-host-r01/report-r01.json`, SHA-256
+`3DDD8D645F7D4D067EFE3E74EF12A223A68DC9299C4525945578D353D557FE32`.
+
+The excluded runtime candidate and a public-boundary regression were prepared
+in the isolated `codex/refactor-audit-candidate-r01` checkout at `ff96e2bb`.
+Its later integration at `72784936` remains a preserved development branch. The complete
+HostTests dependency graph builds without warnings/errors. Six guarded focused
+selections pass 148 checks across seven fixture groups, with unchanged inputs
+and zero reuse; repository style and contracts pass. The source pin for the
+changed disk file was renewed; explicit EFI links, fields and public APIs stay
+unchanged. Current qualification and PR814 still retain `2e81ee3a`.
+
+Strict diagnostic Serving publication passed on the pinned compiler/linker,
+with the raw native tuple captured before another publish. The actual COFF/PE
+join covers 2,065 methods and 2,066 runtime records. All 2,064 common frames
+match the retained source2e image; the new private helper has a 64-byte frame
+including return. Two common-method call targets change to that helper. Five
+metadata/data nodes and the added helper GCInfo fragment have bounded current
+review in [step1789](../done/step1789.md). Pinned reference readers resolve the
+same Object/String TypeMap identities and the single added stack-map record;
+all common stack-map semantics match. The new GCInfo describes the actual
+byref Token in RBX across `Find`; it adds no kernel GC capability. Current
+affected stack branches are dominated by retained entry audits, without copying
+historical margins. Independent review joins current providers, selected profile,
+package/toolchain bytes and lifetime/resource sources. Actual phase/interrupt,
+mapping, provider and generated-entry conditions remain mandatory. This is
+conditional diagnostic emission evidence, not native timing or guest acceptance.
+Candidate-local facts: `audit-candidate-native-r01/primary-emission-facts-r01.json`,
+SHA-256 `775418C06302CB59FBD34C0467B965B65989906CEE1AAFD37FE456ED8131279B`.
+The additive conditional review is
+`audit-candidate-metadata-r01/conditional-native-review-r01.json`, SHA-256
+`872A9A8B70761A97CF35BB8B76441B5C6E4792C38051AD2942FD310E4521C5BD`.
+
+This candidate remains outside the selected PR814 release. Host JIT cost and
+synthetic occurrence counts cannot establish guest latency improvement or
+justify removing validation across callbacks. Its partial qualification and
+future work remain separate from the approved incomplete-TCG closeout.
+
+The qualified runtime was backed up to PR814's existing head branch.
+Canonical Git and PR readback matched `2e81ee3a` while the PR was still a draft.
+Final documentation, reviewed evidence, tracker reconciliation and the merge
+require their own closing readback; this earlier backup is not merge proof.
+
+### Retained results on the earlier host recipe
+
+The following results retain source `3f95496e` and its recorded launch settings.
+Keep these original receipts when qualifying the changed candidate. The original
+failures and subsequent repairs are recorded in
+[step1786](../done/step1786.md) and [step1787](../done/step1787.md).
+
+| Check | Retained evidence on `3f95496e` |
+| --- | --- |
+| Host | Unfiltered Full passed 7,786 checks in 996 fixture groups with zero reuse. Source, inputs and all 48 producer binaries passed readback. |
+| Compiler and application | All 29 compiler contexts passed their expected outcome, including the expected unhandled panic. Eight Linux-native application cases passed their own scope. |
+| Ancestors and quota | 23 of 24 contexts passed. The remaining Smoke original encountered a QEMU/GLib invalid-handle warning before web readiness. |
+| Disk, browser and lifecycle | Six of seven cases passed. Disk A1, Disk A2, Truncated A and the three M16 lifecycle cases have accepted originals. Truncated A verified 120 HTTP and 49 browser bodies (15,931,827 bytes), the empty 404 responses for the malformed target, and natural cleanup. Its earlier Edge-update failure is preserved. Disk B still requires an accepted original. |
+| Matched performance | Three CLROS WHPX benchmark boots completed their first-plus-ten-warm HTTP sequences and browser checks. Boot 3 used Edge 157, and its browser timings are kept separate from the earlier Edge 156 results. Its outer coordinator failed a process census after the original owner and children had joined. The second Alpine WHPX boot passed its 88 HTTP samples, then recorded a refused browser connection. Seven distinct boots and the final comparison remain. |
+
+The Truncated A acceptance record is `artifacts/refactor-r01/disk-read-TruncatedA-acceptance-r04.json`
+in the producer checkout (SHA-256 `1915E8FA7AA698E607B71E0F0ABD8D45FE935CCD7759E5900E42CCB2C1F82CC8`).
+The replacement held the Edge binary read-only through completion, passed the
+independent disk replay and exited with code 0.
+
+Three bounded Disk B controls with virtio host `ioeventfd` disabled completed
+their declared 20-second observation without another GLib warning. They ended
+by deliberate cancellation. The [host compatibility record](../docs/qemu.md#windows-virtio-notifier-compatibility)
+preserves the unchanged guest image, altered diagnostic recipe and remaining
+Smoke/Disk B qualification boundary.
+
+The quiet timer/cache pair in [step1748](../done/step1748.md) compared the same
+2,009,369-byte file at 167.45 and 7.17 seconds mean transfer time. Each image
+had one boot and two requests. The final performance report requires the
+matched populations described below. See [PR814](http://192.168.4.35:3000/admin/CLROS/pulls/814)
+for the source-specific seals and subsequent updates.
+
+[Step1787](../done/step1787.md) records source35b's accepted Full/compiler29,
+then the failed Hello ancestor host inspection. Repair6b0f56a8 is host-only;
+67focused passes and retained production re-analysis preserve the failed
+original and do not renew final source qualification. Freeze/rebuild the repaired
+candidate and complete the same29/24/7/Linux/browser/performance/delivery scope.
+Unentered ready-child cancellation is distinct from missing evidence for a child
+which entered user mode; original FIFO, generations, reaps, budgets and cleanup
+assertions remain. Do not shorten TIME_WAIT or other original test intervals.
+
+[Step1786](../done/step1786.md) preserves the first DiskA1 original as failed at
+the host supervisor replay invariant. Repair 61d71bef passes 1,044 focused checks
+across 180 groups and complete copied-value row/parent/sector re-analysis; it
+changes no kernel/app/profile/budget. Original source 1eb Full/29/23 and eight
+Linux-native app receipts remain evidence for those sources, not automatic
+acceptance of the repair. Smoke, seven fresh disk contexts with healthy-A1
+dependency, current CLROS populations and every final gate below remain mandatory.
+
+[Step1785](../done/step1785.md) preserves the complete failed Full (996 groups,
+unchanged inputs, zero reuse) and repairs six affected fixture groups with259
+fresh focused passes. Runtime code is unchanged; remaining final qualification
+and PR814 delivery take priority over preserved follow-up refactors.
+
+
+[Step1783](../done/step1783.md) records the fresh909ef13d Full fast-phase failure
+and unchanged-input/zero-reuse join. Two stale current producer mappings are
+repaired; 52 focused checks and expanded contract audit pass. Freeze/rebuild before
+another unfiltered Full; no acceptance transfers from that failed original.
+
+[Step1781](../done/step1781.md) integrates the storage completion common tail,
+passes58 focused checks and records current emitted facts. Bounded native review
+finds no changed-code defect; the changed18-byte GCInfo record retains a separate
+consumer/semantic condition. No new guest or final qualification follows.
+
+[Step1779](../done/step1779.md) and[step1780](../done/step1780.md) simplify dynamic
+runner discovery/grouping and separate explicit worker controls. Their focused
+host checks and unchanged inventory do not replace a frozen unfiltered Full.
+The decimal-output trial stays rejected/restored under[step1778](../done/step1778.md);
+the failed first WHPX baseline remains failed with no completed paired population.
+
+[Step1756](../done/step1756.md) repairs host-side result ownership and prepares
+a current Timing+Summary EFI. Compilation and canonical structural verification
+pass; own emitted code/data/stack and lifetime review remain prerequisites to
+one controlled Short diagnostic. The failed artifact-owner verifier transport
+is preserved separately. No historical stack margin, Full/browser acceptance or
+final source-frozen gate transfers to this image.
+
+[Step1748](../done/step1748.md) repairs timer quiescence/directory coverage and
+records a matched quiet WHPX full-file pair:167.45→7.17 seconds mean, all four
+complete bodies exact. One boot/image, combined attribution and deliberate joined
+host stop are explicit. Own native/stack/source/client authorities precede both
+launches; focused checks pass. Final frozen unfiltered Full/29/24/7, matched
+populations and browser/natural-cleanup qualification remain mandatory.
+
+[Step1746](../done/step1746.md) lands dynamic ownership for the seventeen
+semantic negative vectors and rejects/restores a separately measured inlining
+trial. All twelve Short raw gates pass; both speed criteria fail. Fresh r171
+focused31/repo/contracts/diff pass without replacing the earlier entire-fixture
+failure. Continue responsibility and causal performance work; final frozen
+unfiltered Full/29/24/7, matched populations and browser gates remain mandatory.
+
+[Step1745](../done/step1745.md) renews own-Full native proof and records two
+unchanged-bound diagnostics. WHPX remains incomplete; TCG HTTP/browser delivery
+is observed, with deliberate host stop followed by an erroneous summary capture
+requirement. The host repair passes focused red/green checks; both original outer
+failures stay failed. Final source-matched Full/29/24/7 and performance/browser
+qualification below remain required after the comment/docs/producer refresh.
+
+[Step1743](../done/step1743.md) verifies host body-deadline and receipt-failure
+semantics before further qualification. Retain the real timer, expected red and
+green originals and exact source boundaries. No native/guest/unfiltered full or
+browser acceptance transfers; remaining source quality and all final gates below
+stay mandatory.
+
+[Step1742](../done/step1742.md) closes statement-layout drift and refreshes
+current source pins, with full graph/62 fresh focused/repo/contracts/diff success.
+It grants no native/guest acceptance; every final emitted-artifact and29/24/7
+requirement below remains. Finish bounded host correctness and responsibility
+work before freezing the final qualification candidate.
+
+[Step1741](../done/step1741.md) renews QMP/native provenance and completes a
+fresh twelve-boot paired Timing Short series, sixty responses and exact raw
+joins. JSON/HEAD improve but initial WHPX health regresses and range overlaps;
+no universal gain or causal QMP proof follows. All Full/browser/final frozen
+host and 29/24/7 contexts below remain required. Failed originals stay failed.
+
+[Step1740](../done/step1740.md) passes conditional Timing C native review, one
+functional Short and four paired WHPX originals. The series then stops on a
+baseline post-seal QEMU warning before storage/HTTP; three-pair/TCG acceptance is
+absent. The QMP ownership repair passes 51 focused host checks but needs renewed
+source/native/guest evidence. The cause remains unproven; no guard/budget is
+relaxed and no final gate below is closed.
+
+[Step1739](../done/step1739.md) records r148 cleanup and conditional current
+Timing/Full native reviews, plus twelve separate local commits through c3b118f3.
+The first actual Full018 warm=0 diagnostic fails the unchanged180-second full-asset
+request deadline after1,490,944/2,009,369 bytes. Children join and after-guards pass;
+browser/normal cleanup remain unqualified. Continue attribution and bounded
+repairs. No final gate below is satisfied by this development checkpoint.
+
+[Step1738](../done/step1738.md) passes the host-only explicit HTTP benchmark
+owner and semantic timeout checks: 68 fresh checks, unchanged inputs, zero reuse,
+with independent 5,874-input/31-producer readback. Actual quota fit and guest/
+browser/performance measurements remain pending. The inherited browser error
+masking finding needs bounded follow-up. Reviewable storage/FIFO maps are ready;
+case-correct staging and every final qualification gate below remain required.
+
+[Step1737](../done/step1737.md) completes remaining formatting and host source/
+compiler-resource/EFI policy repairs. The r140 graph and57 fresh check markers
+pass with unchanged5867-input/31-producer boundaries and zero reuse; independent
+metadata/source/result review passes. Preserve r139 mixed128/129 and all original
+failures, including unresolved full-Fast allocation7936. Eight index case aliases,
+responsibility review, real extended benchmark ownership and all final gates
+below remain. No native/guest/browser or combined acceptance is renewed.
+
+[Step1736](../done/step1736.md) adds the host-only explicit first/ten-warm/
+full-asset/concurrent HTTP observation API and21 NVMe formatting files. The r134
+graph/49 focused checks pass. Actual extended guest/browser measurements and
+every final acceptance gate below remain required; API report completion is
+not original-process, native or browser qualification.
+
+## Retained diagnostic attribution checkpoint (before approved closeout)
+
+[Step1732](../done/step1732.md) completes the current-image native Timing review
+and 18 source-bound diagnostic boots: three per Original/Trace/Summary mode and
+WHPX/TCG backend. All 90 HTTP responses and raw disk/packet/owner guards pass.
+Trace-to-Summary WHPX 64 KiB median falls 22.7%; TCG falls 5.4% with overlapping
+samples. These are first sequences; HEAD may warm metadata. Guest wall regions
+are not CPU measurements. Summary cannot replace full-byte acceptance. Production
+optimization and final Full/browser/matrix acceptance remain pending. Continue
+the approved combined goal with the phase contract and remaining gates below.
+
+[Step1733](../done/step1733.md) rejects the serial-copy candidate after six
+functional boots with no repeatable benefit, restores its source/pin and
+integrates the reviewed 22-file storage formatting batch. The r128 graph and127
+focused checks pass. Production improvement and all final gates remain required.
+
+[Step1734](../done/step1734.md) records the full-evidence FIFO candidate's host,
+publication and bounded native checks. Complete native admission must precede
+its original boots. Production improvement and final qualification stay open.
+
+[Step1735](../done/step1735.md) supplies the conservative stack failure/repair,
+complete conditional admission and six initial plus twelve quiet interleaved
+originals. Quiet WHPX64KiB median improves10.8%, every candidate below baseline
+minimum; TCG pairs remain mixed. Full evidence/limits/assertions and all input
+guards remain. Keep the candidate for continued qualification. This first-sequence
+comparison does not satisfy the ten-warm/full-asset/concurrent/Blazor requirement
+or final frozen unfiltered Full and29/24/7 matrix below.
+
+## November 1 combined-refactor authorization
+
+The user approved implementation of one combined RC3, code-quality and measured
+performance candidate. Chat `01a19907-2a86-7ef0-98f5-59142a70e49e` takes over PR814
+and M04-026 integration from d47f8558, with exactly one storage subagent. The
+original RC3 checkout remains a preserved producer/evidence baseline; development
+uses `codex/refactor-combined-r01` and the isolated `codex/refactor-storage-r01`
+lane. Only the primary runs shared builds and native/guest qualification.
+
+Mechanical commits preserve type/API identity, field/initializer order, ownership
+and conditional behavior. Update explicit source closures and independently
+review provenance after moves; do not bulk-accept changed source hashes. The
+root .editorconfig supplies IDE formatting/naming guidance; `repo style check`
+and `repo check` enforce type/file structure in host tooling only. Intermediate
+existing violations are reported, not suppressed to create a passing baseline.
+
+Performance work first preserves original inputs and distinguishes trace cost,
+validation, scheduling/readiness, storage and network delays. The reported
+12.40-second WHPX observation is a 64KiB range from a 2,009,369-byte asset, not a
+complete 2MB transfer. Controlled diagnostics and later source-matched acceptance
+remain distinct. Neither trace suppression nor relaxed deadlines grants success.
+
+Final acceptance remains the full matrix below on the combined stable source.
+Existing full r06/compiler29 originals retain their source-specific scope; the
+later WHPX FullA1 and same-image TCG browser failures remain failed. Preserve
+all unique worktrees and raw evidence. Writes, SQLite, sustained-service and
+provider qualification are outside this extension.
+
+Approved 2026-10-31. Owner: this execution chat, isolated branch
+`codex/rc3-whpx-qualification`, baseline master `a96d47f9` (PR812).
+Canonical issue key: M04-026. The phase stops after verified merge and recovery;
+#791, #775, writes, persistence and SQLite acceptance remain subsequent work.
+
+## Completion and order
+
+1. Verify exact SDK/runtime/ILC/trimmer RC3 packages, MSVC/linker and Linux musl
+   builder, source inventories, outputs and complete sequential stage budgets.
+2. Implement exact RC3/C#14 pins and explicit `-Accelerator whpx|tcg` /
+   `--accelerator whpx|tcg`; Windows WHPX default, otherwise TCG, no fallback.
+   WHPX uses the explicit hardware interrupt controller (`kernel-irqchip=on`).
+   The software-controller candidate failed unchanged APIC readback and remains
+   unaccepted. Exact machine/backend selection is emitted and required by capture
+   admission. For the exact inspected QEMU binary only, authenticate reset-state
+   prelaunch under `-S`, seal zero or one exact initialization-warning line before
+   one acknowledged `cont`, and reject all later stderr bytes after the retained
+   original job joins. Preserve raw bytes, original stdout child/digest anchors
+   and sidecars. Missing/changed proof fails; initializer origin remains unknown.
+   Earlier failed originals remain failed. New source-bound originals must qualify
+   this host policy and backend; no old guest or native margin transfers.
+3. Pass focused affected host checks and reviewed native ABI/instruction/stack/
+   mapping/ownership admission before any RC3 guest.
+4. Complete one short JSON/exact independently hashed 64KiB range/final-health/
+   owned-stop original on WHPX and identical-image TCG diagnostic. No new full
+   host run is required before this diagnostic. Timing is diagnostic only.
+   The Timing owner supplies the five-response sequence, with v11 host receipts
+   and explicit mode/image controls described in step1731:
+   GET /api/status (exact DTO values/JSON media type), GET /healthz,
+   HEAD CoreLib.wasm, GET CoreLib.wasm bytes0-65535, GET /healthz, followed by
+   deliberate runner cancellation, confirmed join and endpoint refusal. Original
+   evidence remains the default. Explicit Trace/Summary additionally require the
+   complete independent BEGIN/END/image-record/final-file consumer; Summary is
+   diagnostic only and cannot substitute for ordinary full byte evidence. Keep
+   runner600s/peer480s, body180s and existing cleanup limits. Publish/review
+   the actual selected Timing EFI before activation; Full-only native approval
+   cannot substitute. Old v7 originals remain unchanged. This diagnostic grants
+   no normal guest shutdown, browser or full-workload acceptance.
+5. Freeze final source/producers, rebuild the complete HostTests graph, and run
+   one unfiltered full lane with unchanged-input guards and zero reuse.
+6. Renew the final matrix below with source-bound RC3 originals and complete
+   native/guest/browser consumers. Deduplicate identical recipes, not coverage.
+7. Update affected existing docs/README, milestone evidence and canonical issue;
+   publish reviewed evidence before closure, scoped tracker preview/apply/readback,
+   commit/push/review/merge and canonical remote master parity. Preserve unique
+   changes and required ignored artifacts before cleanup. Leave primary clean on
+   verified master when ownership permits, record exceptions, stop development,
+   and keep the broader goal paused.
+
+## Required final matrix
+
+- Step1225 compiler-migration contexts: ordinary, module-unwind, dispatch,
+  array-positive, string-positive, gc, constructors, eh-simple, eh-finally,
+  eh-rethrow, eh-nested, eh-frame, eh-catalog, eh-filter,
+  eh-constructor-failure, eh-normal-finally, eh-unhandled (dedicated terminal
+  negative), cooperative, timer-r01/r02/r03, loaded-stack, live-allocator, acpi,
+  first-exit, owned-survival, physical-mapping, pci and apic.
+- Fresh RC3 Linux NativeAOT Hello, runtime and Minimal API publication/audit using
+  the existing `nativeaot payload qualify --output <fresh-directory>` producer;
+  affected current app candidates retain separate exact publish/ELF identities.
+- Step1556 exact owned Smoke, Quota256, Quota512, positive V2/512 and its complete
+  20-profile ancestor inventory, retaining each accepted positive/negative and
+  restoration criterion. The artifact-ledger keys supply each concrete recipe.
+- Step1672 Full018 DiskA1/DiskB/DiskA2/TruncatedA plus M16 Mechanical59,
+  ExitPending and CloseReuse. Actual HTTP/image/sector/browser/cleanup joins,
+  nonce variants and expected corruption semantics remain mandatory.
+
+Historical commands and raw receipts remain read-only. New execution needs new
+current-source bindings and empty outputs; an old source guard must never be
+overridden or made to authenticate a new artifact. Native margins must be
+remeasured; original transcript semantics and resource limits stay intact.
+
+## Commands, inputs and budgets
+
+Use SDK `11.0.100-rc.3.26522.148`, runtime/ILC/trimmer
+`11.0.0-rc.3.26522.148`, C#14 and net11.0. Preflight discovers the explicit x64
+linker with vswhere and records actual path/version/hash before freezing it.
+Do not install from the previously checksum-failed VS component catalog.
+
+Focused builds/tests use `dotnet build CLROS.slnx --nologo -m:1`, the complete
+HostTests project build, and `--filter <affected-fixture> --results <fresh-root>`.
+Native preflight is `dotnet run --project tools/OS.Tooling -- efi build
+--preflight-only`. Dry-run both `qemu smoke -DryRun -Accelerator whpx` and `tcg`.
+Final full is `dotnet run --project tests/OS.HostTests --no-build -- --lane full
+--results artifacts/rc3-whpx-final-host-r01`. Also run repo/contracts/diff checks.
+
+Discover QEMU/OVMF paths; current installed QEMU is 11.1.0. Preserve Nehalem,
+one-vCPU and x87/SSE context contracts. Full018 retains outer7200s/browser3600s,
+runtime6600s/realtime7200s/grace120s and its existing separate HTTP deadline;
+RequestDelay1800s is listener-clock anchored, not a host startup timeout.
+EFI default build300s/verifier60s and existing explicit profile bounds remain.
+Linux payload publishes allow45min per app; other existing stages retain their
+own bounds. An outer owner must cover the sum of sequential stages and cleanup.
+
+## Failure and consultation rules
+
+Classify production/harness/environment/evidence-processing failures before one
+bounded repair. Preserve originals/raw bytes/failures. Auditable re-analysis is
+allowed and is not a new execution. Justify expensive reruns by changed inputs
+or inadequate evidence, reuse applicable reviews, and never weaken checks,
+increase limits to obtain a pass or retry unchanged. Consult expert chat
+`01a16aa9-c50d-7c90-8639-c34a81399caf` only for a specific difficult problem or
+blocker with evidence and a bounded question; execution remains with this owner.
+
+## Initial evidence
+
+Original isolated RC2 tooling graph: build succeeds, zero warnings/errors,
+25.64s. Atomic tooling reservation allocates step1673. No RC3 native/guest,
+full-host, browser, persistence or wider gate acceptance is claimed here.
+
+[Step1674](../done/step1674.md) records the active RC3 source/package admission,
+eight end-to-end accelerator controls,158 affected focused checks, four fresh
+structurally verified native publications and independent raw decoding. Full018
+and M16 emitted PEs match their accepted predecessors; fresh native safety,
+Linux candidates, original guests and final unfiltered full remain required.
+
+[Step1677](../done/step1677.md) completes the early same-image WHPX/TCG diagnostic
+after the bounded timer-entry repair in step1676. [Step1678](../done/step1678.md)
+records the remaining actual RC3 candidate/receipt/package/source/index bindings
+and retained failed originals. Freeze the final source and rebuilt producers
+before the required unfiltered full and final native/guest/browser matrix.

@@ -9,7 +9,8 @@ public static partial class QemuTranscripts
         for (int i = start; i < lines.Count; i++)
         {
             string expected = QemuContracts.M05PciEnumerationMarkers[i];
-            if (!expected.StartsWith("M05_PCI ", StringComparison.Ordinal)) Need(lines[i] == expected, "m05_pci_marker_order");
+            if (!expected.StartsWith("M05_PCI ", StringComparison.Ordinal))
+                Need(lines[i] == expected, "m05_pci_marker_order");
         }
         ulong[] window = ReadHexRecord(lines[start + 1], "M05_PCI 0", 4);
         Need(window[0] >= 0x100000 && (window[0] & 0xfffff) == 0 && window[1] >= window[0] &&

@@ -20,15 +20,30 @@ public readonly struct UefiMemoryMapResult
         _message = message;
     }
 
-    public bool Succeeded { get; }
+    public bool Succeeded
+    {
+        get;
+    }
 
-    public UefiMemoryMapStatus Status { get; }
+    public UefiMemoryMapStatus Status
+    {
+        get;
+    }
 
-    public UefiMemoryMapSnapshot Snapshot { get; }
+    public UefiMemoryMapSnapshot Snapshot
+    {
+        get;
+    }
 
-    public ulong RequiredBufferSize { get; }
+    public ulong RequiredBufferSize
+    {
+        get;
+    }
 
-    public ulong FirmwareStatus { get; }
+    public ulong FirmwareStatus
+    {
+        get;
+    }
 
     public string Message => _message ?? string.Empty;
 

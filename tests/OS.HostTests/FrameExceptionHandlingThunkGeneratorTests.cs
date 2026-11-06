@@ -4,7 +4,11 @@ using System.Security.Cryptography;
 
 internal static class FrameExceptionHandlingThunkGeneratorTests
 {
-    private static void Need(bool value, string why) { if (!value) throw new InvalidOperationException(why); }
+    private static void Need(bool value, string why)
+    {
+        if (!value)
+            throw new InvalidOperationException(why);
+    }
     private static T Read<T>(object value, string property) => (T)value.GetType().GetProperty(property)!.GetValue(value)!;
 
     [HostFixture(HostLane.Native)]
@@ -31,33 +35,40 @@ internal static class FrameExceptionHandlingThunkGeneratorTests
             string[] names = ["RhpThrowEx", "CLROS_Frame_Select", "CLROS_Frame_ValidateContinuation", "CLROS_Frame_CatcherClauses",
                 "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameCatcher", "CLROS_Frame_ValidateCleanup", "CLROS_Frame_MiddleClauses",
                 "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameMiddle"];
-            for (int i = 0; i < names.Length; i++) Need(Read<string>(symbols.GetValue(i)!, "Name") == names[i], "separate symbol " + i);
+            for (int i = 0; i < names.Length; i++)
+                Need(Read<string>(symbols.GetValue(i)!, "Name") == names[i], "separate symbol " + i);
             Need(Read<string>(section, "Name") == ".text" && Read<uint>(section, "Characteristics") == 0x60500020,
                 "read-only executable text");
             uint catcherGetter = Read<uint>(symbols.GetValue(3)!, "Value"), middleGetter = Read<uint>(symbols.GetValue(6)!, "Value");
             Need(catcherGetter % 16 == 0 && middleGetter == catcherGetter + 16 && middleGetter + 8 == code.Length,
                 "two separate aligned original EH contribution getters");
-            byte[] leaf = [0x48,0x8D,0x05,0,0,0,0,0xC3];
-            foreach (uint getter in new[] {catcherGetter,middleGetter})
-                Need(code.AsSpan((int)getter,8).SequenceEqual(leaf), "ordinary exact table getter");
-            Need(code.AsSpan((int)catcherGetter+8,8).SequenceEqual(new byte[] {0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90}),
+            byte[] leaf = [0x48, 0x8D, 0x05, 0, 0, 0, 0, 0xC3];
+            foreach (uint getter in new[] { catcherGetter, middleGetter })
+                Need(code.AsSpan((int)getter, 8).SequenceEqual(leaf), "ordinary exact table getter");
+            Need(code.AsSpan((int)catcherGetter + 8, 8).SequenceEqual(new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 }),
                 "getter padding cannot execute a second getter by fall-through");
             Array relocations = Read<Array>(section, "Relocations");
             Need(relocations.Length == 5, "selector, cleanup validation, catch validation and two original tables");
-            uint[] expectedSymbols = [1,5,2,4,7]; int[] calls = new int[3];
+            uint[] expectedSymbols = [1, 5, 2, 4, 7];
+            int[] calls = new int[3];
             uint previous = 0;
             for (int i = 0; i < relocations.Length; i++)
             {
                 object relocation = relocations.GetValue(i)!;
                 uint offset = Read<uint>(relocation, "Offset");
                 Need(offset > previous && Read<uint>(relocation, "SymbolIndex") == expectedSymbols[i] &&
-                    Read<ushort>(relocation, "Type") == 4 && BinaryPrimitives.ReadInt32LittleEndian(code.AsSpan((int)offset,4)) == 0,
+                    Read<ushort>(relocation, "Type") == 4 && BinaryPrimitives.ReadInt32LittleEndian(code.AsSpan((int)offset, 4)) == 0,
                     "ordered disjoint REL32 " + i);
-                if (i < 3) { Need(code[offset-1] == 0xE8, "ordinary callback"); calls[i] = (int)offset - 1; }
-                else Need(offset == (i == 3 ? catcherGetter : middleGetter) + 3, "table address relocation");
+                if (i < 3)
+                {
+                    Need(code[offset - 1] == 0xE8, "ordinary callback");
+                    calls[i] = (int)offset - 1;
+                }
+                else
+                    Need(offset == (i == 3 ? catcherGetter : middleGetter) + 3, "table address relocation");
                 previous = offset;
             }
-            Need(code.AsSpan(2,7).SequenceEqual(new byte[] {0x48,0x81,0xEC,0x38,4,0,0}), "1080-byte aligned bridge frame");
+            Need(code.AsSpan(2, 7).SequenceEqual(new byte[] { 0x48, 0x81, 0xEC, 0x38, 4, 0, 0 }), "1080-byte aligned bridge frame");
             // Reuse the independent instruction interpreter, with different physical
             // frame registers/vectors and callback clobbers. Every rejected control
             // or callback prevents the next cleanup, catch or continuation transfer.

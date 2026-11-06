@@ -4,16 +4,7 @@
 
 <h1 align="center">CLROS</h1>
 
-<p align="center">
-  <strong>A C#-first NativeAOT operating system for minimal cloud workloads.</strong>
-</p>
-
-CLROS is an experimental C#-first operating system for VM images containing
-configured .NET 11 applications. It uses a restricted Linux x64 compatibility
-layer and statically published NativeAOT applications targeting **`linux-musl-x64`**.
-First-party kernel, shared-library and application source is C# 14.
-
-CLROS serves the pinned NativeAOT Minimal API and actual Standalone Blazor WebAssembly client from read-only FAT32. Three healthy A/B/A boots across two disk variants, the typed corrupt-file control and three M16 lifecycle originals pass their recorded checks. The current unfiltered full-host run passes 7,464 checks with zero reuse; see [Step1672](done/step1672.md) for exact source profiles, evidence and preserved failures. Writes, persistent logs/uploads, SQLite and [#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified and paused.
+CLROS serves the pinned NativeAOT Minimal API and actual Standalone Blazor WebAssembly client from read-only FAT32. Three healthy A/B/A boots across two disk variants, the typed corrupt-file control and three M16 lifecycle originals pass their recorded checks. PR812's recorded unfiltered full-host run passes 7,464 checks with zero reuse; see [Step1672](done/step1672.md) for exact source profiles, evidence and preserved failures. Writes, persistent logs/uploads, SQLite and [#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified and paused.
 
 The goal is a **small, fully functioning OS that continuously hosts supported
 applications**. The first integrated workload combines a NativeAOT Minimal API,
@@ -28,7 +19,7 @@ Real Kestrel also serves external HTTP in qualified finite guest profiles.**
 The complete local single-app Gate 14 remains open; CLROS is not cloud-ready or
 production-ready.
 
-## Current status — October 23, 2026
+## Accepted baseline on October 23, 2026
 
 [PR #790](http://192.168.4.35:3000/admin/CLROS/pulls/790) is merged to master at
 `82656076`. The live tracker confirms #748, #225 and the finite #737 integration
@@ -44,7 +35,7 @@ closed, following the fourteen predecessor closures reviewed in
 | Repeated service and memory controls | Original v1 lifetime and dedicated memory-fault restoration controls; corrected awaited host-runner qualification. [Step1479](done/step1479.md), [step1481](done/step1481.md). |
 | Quota termination and async churn | Original signal-race Smoke, quota at 256/512 MiB, positive configured V2 and 20 ancestor profiles. [Step1556](done/step1556.md). |
 
-The latest accepted unfiltered full-host run at `28a79996` passes **6,258 checks
+The unfiltered full-host run for that baseline at `28a79996` passes **6,258 checks
 across 847 fixtures (753 Fast, 94 Native)**, with unchanged inputs and zero reuse.
 This is retained acceptance evidence, not a test run of this documentation update.
 Original Smoke (`32c14ccd`) and quota/V2 (`20e665ad`) keep their own source,
@@ -96,7 +87,7 @@ runtime behavior and reusable OS services beneath the Linux adapter. Automate
 compiler-dependent checks so normal supported app deployment needs no manual
 disassembly or per-app kernel changes. Judge progress by complete guest static-file,
 persistent-upload, SQLite-recovery and isolation scenarios alongside focused tests.
-These are [development guardrails](AGENTS.md#runtime-and-qualification-guardrails)
+These are [development guardrails](AGENTS.md#evidence-and-failure-handling)
 and [acceptance targets](docs/workload-profiles.md#product-scenarios-and-verification),
 not additional capabilities claimed by this documentation update.
 
@@ -106,6 +97,216 @@ not additional capabilities claimed by this documentation update.
 <summary>Development progress and retained evidence</summary>
 
 <!-- Keep development updates here, below the project introduction. -->
+
+**PR814 qualification.** Frozen candidate `2e81ee3a` passed the 7,789-check
+Full host suite with unchanged inputs and zero reuse. It includes the scoped
+Windows/WHPX compatibility repair in [step1788](done/step1788.md). All 29 compiler
+guest contexts and all 24 ancestor/quota contexts passed their expected outcome
+and independent review, with sealed evidence on the same candidate. All seven
+disk/lifecycle cases are accepted: healthy A1/B/A2, Truncated and the three finite
+synthetic lifecycle cases. The four Full018 runs each completed 120 HTTP and
+49 browser responses with guest cleanup; A2 restores A1's image and response
+bodies. Three matched WHPX boots per system retain completed HTTP observations:
+the per-boot warm medians for the 2,009,369-byte asset are 7.147–7.166 seconds
+for CLROS and 40.164–41.810 milliseconds for Alpine. CLROS TCG remains
+incomplete under the unchanged 30-minute guest limit, as explicitly accepted
+for phase closeout by the human. Failed browser and TCG originals remain failed.
+The later `72784936` optimization and isolated decoder extraction are preserved
+outside this release. See the [qualification record](work/rc3-whpx-qualification.md#approved-closeout-scope)
+for the release boundary, evidence and required clean stop.
+The [closeout record](done/step1790.md) binds the final review and tracker scope.
+
+Earlier development checkpoints follow in reverse chronological order.
+
+[Step1787](done/step1787.md) records source35b's successful Full (7,784 checks,
+zero reuse) and29compiler contexts, then preserves the failed Hello ancestor
+original. Host-only repair6b0f56a8 passes67focused checks and retained production
+re-analysis for cancellation of an unentered ready child. Those earlier Full and
+matrix receipts do not automatically qualify the repaired candidate; final
+source-matched qualification, disk/browser, performance and PR814 delivery remain.
+
+[Step1786](done/step1786.md) preserves the first DiskA1 original: HTTP/browser
+observations pass, but outer replay fails. Host-only repair 61d71bef passes 1,044
+focused checks across 180 groups and complete copied-value replay/sector checks.
+Final source-frozen Full/matrix, Smoke, fresh disk/browser and performance
+qualification remain open.
+
+
+[Step1785](done/step1785.md) preserves the complete failed Full (996 groups,
+unchanged inputs, zero reuse) and repairs six affected fixture groups with259
+fresh focused passes. Runtime code is unchanged; remaining final qualification
+and PR814 delivery take priority over preserved follow-up refactors.
+
+[Step1783](done/step1783.md) repairs two stale producer-source mappings exposed
+by fresh Full and adds an early reviewed-source contract audit. All 52 focused
+checks pass. The failed Full is preserved; final combined qualification remains.
+
+[Step1748](done/step1748.md) repairs pending-aware timer stop and directory-cache
+coverage. A matched quiet WHPX full-file observation improves167.45→7.17 seconds
+on average, with all four2,009,369-byte bodies hash-correct. This one-boot/image
+development pair uses deliberate joined host stop; final qualification remains.
+
+[Step1747](done/step1747.md) extracts six complete inspection operations from
+the CLI router, with exact body/routing review and24 fresh focused checks. Seven
+guarded negative CLI controls pass. Timer-handoff and final qualification remain.
+
+[Step1746](done/step1746.md) removes stale filenames from the seventeen-case
+semantic fixture and passes31 fresh focused checks after restoration. A separate
+COM1 inlining trial completes twelve functional boots but fails its speed criteria;
+the hint is rejected and removed. Responsibility and final qualification remain.
+
+[Step1745](done/step1745.md) renews own-Full native proof and records an intact
+TCG HTTP/browser observation. WHPX still exceeds the180-second full-body limit.
+A stopped-diagnostic capture mismatch is reproduced and repaired with53 passing
+host executions. Preserve both outer failures; final and performance gates remain.
+
+[Step1744](done/step1744.md) repairs lambda block indentation with independently
+verified whitespace equivalence and a host containment rule. The complete
+solution and66 fresh focused checks pass, with zero repository findings.
+Remaining responsibility, Full/native/performance/browser and final gates stay open.
+
+[Step1743](done/step1743.md) verifies unchanged-duration streamed-body deadlines
+and preserves original request errors when HTTP receipt writing also fails. Real
+loopback timer and retained red/green controls pass with source-bound checks.
+Lambda indentation review and final performance/native/browser gates remain open.
+
+[Step1742](done/step1742.md) closes executable statement-layout gaps with a
+host syntax rule and reviewed whitespace/pin refresh. The complete solution
+builds and62 fresh focused checks plus repo/contracts/diff pass. Remaining host
+correctness, responsibility, performance/native/browser and final gates stay open.
+
+[Step1741](done/step1741.md) completes twelve fresh paired Timing Short boots
+and sixty exact responses after renewed QMP/native provenance. JSON/HEAD medians
+improve, initial WHPX health regresses, and range distributions overlap. Full
+asset/browser and final combined qualification remain pending.
+
+[Step1740](done/step1740.md) passes the literal-text FIFO candidate's conditional
+Timing native review and first functional guest. Its paired series stops after
+four passes at a baseline QEMU stderr failure, so repeatable improvement remains
+unaccepted. A bounded QMP lifetime repair passes 51 focused host checks; fresh
+native/guest and final combined qualification remain required.
+
+[Step1739](done/step1739.md) records the cleanup/native checkpoint and twelve
+separate local refactor commits. The first full-asset diagnostic fails at the
+unchanged180-second body deadline after1,490,944 of2,009,369 bytes; all children
+join. Measured repairs, browser and final combined qualification remain pending.
+
+[Step1738](done/step1738.md) adds an explicit owner for first/warm HTTP and
+browser diagnostics, preserving existing resources and cleanup boundaries.
+All 68 focused host checks pass. Actual guest quota fit, extended performance,
+real browser and final combined qualification remain pending.
+
+[Step1737](done/step1737.md) completes the remaining C# formatting pass and repairs
+host compiler-resource discovery, negative mutations and EFI policy identities.
+The r140 graph,57 fresh check markers and repo/contracts checks pass. Final
+unfiltered Full, native/guest/browser qualification and delivery remain pending.
+
+[Step1736](done/step1736.md) adds explicit C# first/warm/full-asset/concurrent
+HTTP observation and integrates 21 NVMe formatting files. The graph and 49 focused
+checks pass; extended guest and browser measurements remain pending.
+
+[Step1735](done/step1735.md) completes the stack-safe full-byte COM1 FIFO
+candidate's native review and controlled measurements. Twelve quiet interleaved
+boots pass all 60 responses. WHPX's 64 KiB median falls 12.751→11.372 seconds
+(10.8%); TCG transfer pairs remain mixed. Evidence-flush spans fall on both
+backends. The candidate continues toward final qualification; full-file, warm,
+concurrent, browser and final combined acceptance remain open.
+
+[Step1734](done/step1734.md) records the initial FIFO candidate, whose later
+conservative stack failure and bounded repair are preserved in step1735.
+
+[Step1733](done/step1733.md) rejects and reverts the serial-backend copy trial:
+six functional boots pass, but neither backend shows repeatable improvement.
+The reviewed 22-file storage formatting batch passes 127 focused checks and
+repository/contracts checks. Production repair and final qualification remain open.
+
+[Step1732](done/step1732.md) completes current-image native review and 18 diagnostic
+boots with 90 verified HTTP responses. A controlled Trace/Summary comparison
+reduces WHPX 64 KiB range median 12532→9688 ms (22.7%); TCG shows 5.4% with overlapping
+samples. Full sector hex is a confirmed instrumentation cost. Summary remains a
+diagnostic, and production repair, full/warm/concurrent/browser and final combined
+refactor qualification/delivery remain pending.
+
+<p align="center">
+  <strong>A C#-first NativeAOT operating system for minimal cloud workloads.</strong>
+</p>
+
+CLROS is an experimental C#-first operating system for VM images containing
+configured .NET 11 applications. It uses a restricted Linux x64 compatibility
+layer and statically published NativeAOT applications targeting **`linux-musl-x64`**.
+First-party kernel, shared-library and application source is C# 14.
+
+The combined RC3/code-quality/performance refactor is in progress. Host checks
+and tool paths follow evaluated compiler inputs, bound declarations and the
+selected build graph. The [fresh complete Fast diagnostic](done/step1727.md)
+passes 6,424 checks across 876 groups, unchanged inputs and zero reuse. All thirty
+groups that failed in the earlier complete diagnostic now pass.
+[The complete diagnostic path](done/step1731.md) passes 72 focused checks,
+including image ownership and late-record rejection. Ordinary Timing, Trace and
+Summary publish verified EFI artifacts. Step1732 now binds their native review
+and original diagnostic boots; production optimization and final qualification
+remain pending.
+[Diagnostic disk controls and image checks](done/step1730.md) pass 69 focused
+checks. Trace/summary modes remain default off and require independent terminal
+protocol and native review before launch. Step1732 supplies those controls for
+the recorded images; the reduced-output experiment is not a production repair.
+[Performance observation tooling](done/step1728.md) now separates complete body
+receipt from host writing/flushing and enforces the existing 180-second streamed
+request budget. Its 24 final focused checks pass.
+[Six retained-image observations](done/step1729.md) measure median 64KiB body
+completion at 12.484s WHPX/10.419s TCG, versus 1.8ms/1.7ms local durable flushing.
+The delay occurs before client body completion; no optimization or current-source
+guest qualification is claimed. The
+[latest focused batch](done/step1726.md) passes 23
+reported checks for paging source discovery and raw-source/guard controls. All 44
+original bypass vectors pass with original and normalized whitespace. Compiler
+identities locate owners; raw inactive text and original safety predicates remain.
+The [instruction batch](done/step1725.md) retains its 97 mutation vectors and
+synthetic selectors. The
+[allocation batch](done/step1724.md) passes 18
+allocation-fixture checks, including all three original managed SDK programs and
+profile rejection cases. Discovery follows compiler declarations across partial
+files while retaining raw negative guards and independent source identities. The
+[panic batch](done/step1723.md) passes ten checks, including both original SDK probes. The
+[earlier SDK batch](done/step1722.md) passes 40 checks with shared bounded SDK
+discovery and actual input counts. Independent
+byte/project identities, ABI values, raw-source exclusions and failure predicates
+remain explicit.
+
+The [earlier complete Fast failure](done/step1711.md) remains preserved with its
+original inputs and thirty failing groups. The new Fast result does not renew
+unfiltered Full, native/guest/browser qualification or establish an OS-performance
+improvement; those remain pending.
+[Current payload source admission](done/step1703.md) follows complete reviewed
+families; its focused selection passes 973 of 974 checks, with one existing EFI
+source-reader failure. [Bound EFI source checks](done/step1704.md) subsequently
+repair that module-registration fixture, EH admission and leaf-reuse discovery;
+15 overlapping focused selections execute 638 passing checks with zero reuse.
+[Signal-profile source discovery](done/step1706.md) also passes the complete
+focused M16009 Fast fixture, retaining independent behavioral expectations.
+Structural moves, source-reader repairs and focused passes do not renew
+the recorded full-host, native or guest qualification. Performance fixes and
+the combined browser qualification remain pending.
+
+The active development toolchain pins SDK `11.0.100-rc.3.26522.148` and
+runtime/ILC/ILLink `11.0.0-rc.3.26522.148`, retaining C#14 and `net11.0`.
+Windows QEMU defaults to explicit WHPX with its hardware interrupt controller;
+`-Accelerator tcg` selects the software CPU backend. The software-controller
+candidate in [step1681](done/step1681.md) failed APIC readback during its next
+guest run. [Step1682](done/step1682.md) records the bounded startup-stderr policy
+and preserved failures. [Step1685](done/step1685.md) records the 7,483-check
+full-host pass at e0252d3a and sixteen strict compiler guests. The expected-unhandled
+guest reached its intended terminal but failed the host reader's legacy inventory.
+The strict backend-prefix repair passes focused controls; a fresh final full and
+the remaining qualification are required. [The RC3/WHPX qualification contract](work/rc3-whpx-qualification.md)
+and [#813](http://192.168.4.35:3000/admin/CLROS/issues/813) track the unfinished
+final native, guest/browser and host renewal. The renewed short RC3 diagnostic passes
+on WHPX and TCG with identical image bytes and five response hashes in
+[step1683](done/step1683.md), including the original-owned prelaunch stderr
+proof. All29 compiler native preparations are reviewed; final guest acceptance
+remains pending. Earlier acceptance retains its original RC2 source,
+packages and backend.
+
 [Step1661](done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
 The qualified read scope is finite and source/profile-specific; [Step1672](done/step1672.md) records the original recipes, native bounds, host checks and preserved failures. [Issue #774 evidence](http://192.168.4.35:3000/admin/CLROS/issues/774) includes the accepted [Disk A screenshot, asset225](http://192.168.4.35:3000/attachments/ed475222-7a55-45aa-ad07-9539d0582423) and [Disk B screenshot, asset226](http://192.168.4.35:3000/attachments/b738584c-8d95-41b4-afa4-654f2fbb02e5). The screenshots retain their a1ee original scope. This does not qualify writable storage, SQLite, sustained service or wider Gate14.

@@ -43,16 +43,30 @@ through Linux syscall frames or force internal calls across the hosted PAL ABI.
 
 ## Scope and ownership
 
+PR814 covers M04-026/#813, the C# refactor and measured file-serving repairs.
+The development owner runs the compiler, native and VM checks and reviews the
+original evidence. The documentation owner prepares the README, agent guides,
+subsystem updates and release record in a separate checkout. Coordinate the
+integration window before changing any input to a running qualification.
+The [phase contract](work/rc3-whpx-qualification.md) defines the required
+results and the point at which to merge and verify canonical `master`.
+The November 6 closeout selects qualified runtime `2e81ee3a` plus
+documentation/metadata updates and reports CLROS TCG as incomplete under the
+unchanged 30-minute guest limit. Preserve the later optimization and decoder
+work outside the release. After verified delivery and recoverable cleanup,
+stop the helper, pause the broader development goal and start no next phase.
+The [closeout record](done/step1790.md) owns the delivery scope and retained work.
+
 Inspect branch, dirty/untracked files, worktrees and live ownership before edits.
 Use the explicitly assigned producer checkout; `C:/Projects/CLROS` is not proof
 that its current branch is the active qualification source. Preserve unrelated
 work and all declared freezes. Do not reset or discard another owner's changes.
 
 Use exactly one storage implementation subagent when parallel work is authorized.
-Other delegated roles must stay within the user's authorization; assigned review
-roles stay read-only. The primary owns shared integration, docs, tracker and serialized
-build/full-host/native/guest lanes. Follow current path claims and leases; a
-historical instruction to keep agents busy does not revoke a current freeze.
+Follow the current path assignments and leases. The development owner handles
+shared integration, tracker updates and serialized build and guest runs. Coordinate
+documentation commits with that owner so evidence retains its tested source and
+producer identities.
 
 Choose one small dependency-compatible slice. Follow exact dependency keys,
 owned/forbidden paths and collision lanes from the current canonical issue plus
@@ -80,7 +94,11 @@ prerequisites; it does not authorize activation or dependency/issue closure.
 - Avoid exceptions, hidden allocations, reflection and dynamic invocation in
   kernel/boot/runtime paths unless the current issue implements and tests that support.
 - Document public/unsafe APIs: purpose, ownership/lifetime, execution context,
-  failure and unsupported behavior. Prefer one main public type per new file.
+  failure and unsupported behavior. Put each type in its own file. Associated
+  helpers use Parent.Child.cs; nested helpers retain their identity and visibility
+  inside partial containing wrappers. Keep fields/initializers in their original
+  order and storage-owning part. Follow root .editorconfig and the host source
+  style check; do not add style analyzers to the freestanding compiler.
 - Preserve accepted profiles, package bytes, ordinary boot, resource bounds and
   default-off behavior. Changes require their own scoped qualification.
 
@@ -137,9 +155,15 @@ commands/producer identities, results, originals/failures, limitations and next
 dependencies. After each 5–10 issue batch, audit README and all first-party guides
 and docs; update every affected statement, canonical record, parent checklist and
 Gitea summary/comment. Commit, push, review and merge verified scoped work, read
-back remote/master parity, and continue the authorized goal.
+back remote/master parity, and continue only the authorized scope. PR814 ends
+at its explicit clean-stop boundary.
 
-The October27 human phase boundary overrides automatic continuation: finish the current first-ten batch (#770/#771/#773/#774 remain), including qualification, documentation/tracker/evidence, commit/push/review/merge, remote/master readback and safe workspace cleanup. Then pause the broader development goal and stop helper work before any next phase. Preserve unique changes, ignored evidence, failed originals and already-started future preparation recoverably; do not delete them to manufacture a clean workspace.
+PR812 closed the first-ten read phase at [step1672](done/step1672.md). For PR814,
+finish the agreed checks, reconcile the published evidence and tracker, review
+and merge the intended commits, then verify them and the final documentation on
+canonical `master`. Follow the phase contract for recoverable cleanup and the
+development pause. The PROD/DEV project split and system stats have a separate
+[milestone](http://192.168.4.35:3000/admin/CLROS/milestone/21).
 
 Stage only intended files. Never use `git reset --hard` or discard unrelated
 changes. Preserve needed ignored evidence separately before any approved worktree

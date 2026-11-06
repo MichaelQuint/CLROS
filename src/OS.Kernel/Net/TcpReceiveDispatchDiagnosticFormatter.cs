@@ -2,93 +2,20 @@ namespace OS.Net;
 
 using OS.Std.Text;
 
-public enum TcpReceiveDispatchDiagnosticFormatStatus
-{
-    Success = 0,
-    InvalidResult = 1,
-    DestinationTooSmall = 2
-}
-
-public readonly struct TcpReceiveDispatchDiagnosticFormatResult
-{
-    private const uint InitializedFlag = 1;
-
-    public TcpReceiveDispatchDiagnosticFormatResult(
-        TcpReceiveDispatchDiagnosticFormatStatus status,
-        TcpReceiveDispatchStatus dispatchStatus,
-        int bytesWritten,
-        int requiredBytes,
-        int availableBytes,
-        uint flags = InitializedFlag)
-    {
-        Status = status;
-        DispatchStatus = dispatchStatus;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-        AvailableBytes = availableBytes;
-        Flags = flags;
-    }
-
-    public TcpReceiveDispatchDiagnosticFormatStatus Status { get; }
-
-    public TcpReceiveDispatchStatus DispatchStatus { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public int AvailableBytes { get; }
-
-    public uint Flags { get; }
-
-    public bool IsInitialized => (Flags & InitializedFlag) != 0;
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == TcpReceiveDispatchDiagnosticFormatStatus.Success &&
-        RequiredBytes > 0 &&
-        BytesWritten == RequiredBytes &&
-        RequiredBytes <= AvailableBytes;
-
-    public static TcpReceiveDispatchDiagnosticFormatResult Fail(
-        TcpReceiveDispatchDiagnosticFormatStatus status,
-        TcpReceiveDispatchStatus dispatchStatus,
-        int requiredBytes,
-        int availableBytes)
-    {
-        return new TcpReceiveDispatchDiagnosticFormatResult(
-            status,
-            dispatchStatus,
-            bytesWritten: 0,
-            requiredBytes,
-            availableBytes);
-    }
-}
-
 public static class TcpReceiveDispatchDiagnosticFormatter
 {
-    public static TcpReceiveDispatchDiagnosticFormatResult FormatResult(
-        in TcpReceiveDispatchResult result,
-        Span<byte> destination)
+    public static TcpReceiveDispatchDiagnosticFormatResult FormatResult(in TcpReceiveDispatchResult result, Span<byte> destination)
     {
         TcpReceiveDispatchDiagnosticFormatStatus validationStatus = Validate(in result);
         if (validationStatus != TcpReceiveDispatchDiagnosticFormatStatus.Success)
         {
-            return TcpReceiveDispatchDiagnosticFormatResult.Fail(
-                validationStatus,
-                result.Status,
-                requiredBytes: 0,
-                destination.Length);
+            return TcpReceiveDispatchDiagnosticFormatResult.Fail(validationStatus, result.Status, requiredBytes: 0, destination.Length);
         }
 
         int requiredBytes = GetRequiredBytes(in result);
         if (destination.Length < requiredBytes)
         {
-            return TcpReceiveDispatchDiagnosticFormatResult.Fail(
-                TcpReceiveDispatchDiagnosticFormatStatus.DestinationTooSmall,
-                result.Status,
-                requiredBytes,
-                destination.Length);
+            return TcpReceiveDispatchDiagnosticFormatResult.Fail(TcpReceiveDispatchDiagnosticFormatStatus.DestinationTooSmall, result.Status, requiredBytes, destination.Length);
         }
 
         int offset = 0;
@@ -120,52 +47,23 @@ public static class TcpReceiveDispatchDiagnosticFormatter
         AppendUInt64Decimal(result.LocalNextSequenceNumber, destination, ref offset);
         AppendBytes(" remoteSeq="u8, destination, ref offset);
         AppendUInt64Decimal(result.RemoteNextSequenceNumber, destination, ref offset);
-
-        return new TcpReceiveDispatchDiagnosticFormatResult(
-            TcpReceiveDispatchDiagnosticFormatStatus.Success,
-            result.Status,
-            bytesWritten: offset,
-            requiredBytes,
-            availableBytes: destination.Length);
+        return new TcpReceiveDispatchDiagnosticFormatResult(TcpReceiveDispatchDiagnosticFormatStatus.Success, result.Status, bytesWritten: offset, requiredBytes, availableBytes: destination.Length);
     }
 
-    public static TcpReceiveDispatchDiagnosticFormatResult QueryRequiredBytes(
-        in TcpReceiveDispatchResult result)
+    public static TcpReceiveDispatchDiagnosticFormatResult QueryRequiredBytes(in TcpReceiveDispatchResult result)
     {
         TcpReceiveDispatchDiagnosticFormatStatus validationStatus = Validate(in result);
         if (validationStatus != TcpReceiveDispatchDiagnosticFormatStatus.Success)
         {
-            return TcpReceiveDispatchDiagnosticFormatResult.Fail(
-                validationStatus,
-                result.Status,
-                requiredBytes: 0,
-                availableBytes: 0);
+            return TcpReceiveDispatchDiagnosticFormatResult.Fail(validationStatus, result.Status, requiredBytes: 0, availableBytes: 0);
         }
 
-        return new TcpReceiveDispatchDiagnosticFormatResult(
-            TcpReceiveDispatchDiagnosticFormatStatus.Success,
-            result.Status,
-            bytesWritten: 0,
-            requiredBytes: GetRequiredBytes(in result),
-            availableBytes: 0);
+        return new TcpReceiveDispatchDiagnosticFormatResult(TcpReceiveDispatchDiagnosticFormatStatus.Success, result.Status, bytesWritten: 0, requiredBytes: GetRequiredBytes(in result), availableBytes: 0);
     }
 
-    private static TcpReceiveDispatchDiagnosticFormatStatus Validate(
-        in TcpReceiveDispatchResult result)
+    private static TcpReceiveDispatchDiagnosticFormatStatus Validate(in TcpReceiveDispatchResult result)
     {
-        if (!result.IsInitialized ||
-            !IsKnownDispatchStatus(result.Status) ||
-            !IsKnownAction(result.Action) ||
-            !IsKnownNetworkStatus(result.NetworkStatus) ||
-            !IsKnownPacketStatus(result.TcpPacketStatus) ||
-            !IsKnownStreamStatus(result.StreamStatus) ||
-            !IsKnownCloseStatus(result.CloseStatus) ||
-            !IsKnownCloseState(result.CloseState) ||
-            !IsKnownChecksumStatus(result.ChecksumStatus) ||
-            result.PayloadBytes < 0 ||
-            result.AckBytesWritten < 0 ||
-            result.TcpSegmentOffset < 0 ||
-            result.TcpSegmentLength < 0)
+        if (!result.IsInitialized || !IsKnownDispatchStatus(result.Status) || !IsKnownAction(result.Action) || !IsKnownNetworkStatus(result.NetworkStatus) || !IsKnownPacketStatus(result.TcpPacketStatus) || !IsKnownStreamStatus(result.StreamStatus) || !IsKnownCloseStatus(result.CloseStatus) || !IsKnownCloseState(result.CloseState) || !IsKnownChecksumStatus(result.ChecksumStatus) || result.PayloadBytes < 0 || result.AckBytesWritten < 0 || result.TcpSegmentOffset < 0 || result.TcpSegmentLength < 0)
         {
             return TcpReceiveDispatchDiagnosticFormatStatus.InvalidResult;
         }
@@ -175,82 +73,47 @@ public static class TcpReceiveDispatchDiagnosticFormatter
 
     private static int GetRequiredBytes(in TcpReceiveDispatchResult result)
     {
-        return "TCP_RX_DISPATCH status="u8.Length
-            + GetDispatchStatusName(result.Status).Length
-            + " action="u8.Length
-            + GetActionName(result.Action).Length
-            + " network="u8.Length
-            + GetNetworkStatusName(result.NetworkStatus).Length
-            + " packet="u8.Length
-            + GetPacketStatusName(result.TcpPacketStatus).Length
-            + " stream="u8.Length
-            + GetStreamStatusName(result.StreamStatus).Length
-            + " close="u8.Length
-            + GetCloseStatusName(result.CloseStatus).Length
-            + " closeState="u8.Length
-            + GetCloseStateName(result.CloseState).Length
-            + " checksum="u8.Length
-            + GetChecksumStatusName(result.ChecksumStatus).Length
-            + " payloadBytes="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.PayloadBytes)
-            + " ackBytes="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.AckBytesWritten)
-            + " tcpSegmentOffset="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.TcpSegmentOffset)
-            + " tcpSegmentBytes="u8.Length
-            + AsciiDecimalFormatter.CountInt32Digits(result.TcpSegmentLength)
-            + " localSeq="u8.Length
-            + AsciiDecimalFormatter.CountUInt32Digits(result.LocalNextSequenceNumber)
-            + " remoteSeq="u8.Length
-            + AsciiDecimalFormatter.CountUInt32Digits(result.RemoteNextSequenceNumber);
+        return "TCP_RX_DISPATCH status="u8.Length + GetDispatchStatusName(result.Status).Length + " action="u8.Length + GetActionName(result.Action).Length + " network="u8.Length + GetNetworkStatusName(result.NetworkStatus).Length + " packet="u8.Length + GetPacketStatusName(result.TcpPacketStatus).Length + " stream="u8.Length + GetStreamStatusName(result.StreamStatus).Length + " close="u8.Length + GetCloseStatusName(result.CloseStatus).Length + " closeState="u8.Length + GetCloseStateName(result.CloseState).Length + " checksum="u8.Length + GetChecksumStatusName(result.ChecksumStatus).Length + " payloadBytes="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.PayloadBytes) + " ackBytes="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.AckBytesWritten) + " tcpSegmentOffset="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.TcpSegmentOffset) + " tcpSegmentBytes="u8.Length + AsciiDecimalFormatter.CountInt32Digits(result.TcpSegmentLength) + " localSeq="u8.Length + AsciiDecimalFormatter.CountUInt32Digits(result.LocalNextSequenceNumber) + " remoteSeq="u8.Length + AsciiDecimalFormatter.CountUInt32Digits(result.RemoteNextSequenceNumber);
     }
 
     private static bool IsKnownDispatchStatus(TcpReceiveDispatchStatus status)
     {
-        return status >= TcpReceiveDispatchStatus.Success &&
-            status <= TcpReceiveDispatchStatus.ControlSegmentRejected;
+        return status >= TcpReceiveDispatchStatus.Success && status <= TcpReceiveDispatchStatus.ControlSegmentRejected;
     }
 
     private static bool IsKnownAction(TcpReceiveDispatchAction action)
     {
-        return action >= TcpReceiveDispatchAction.None &&
-            action <= TcpReceiveDispatchAction.ResetReceived;
+        return action >= TcpReceiveDispatchAction.None && action <= TcpReceiveDispatchAction.ResetReceived;
     }
 
     private static bool IsKnownNetworkStatus(NetworkReceiveDispatchStatus status)
     {
-        return status >= NetworkReceiveDispatchStatus.Success &&
-            status <= NetworkReceiveDispatchStatus.UnsupportedPayload;
+        return status >= NetworkReceiveDispatchStatus.Success && status <= NetworkReceiveDispatchStatus.UnsupportedPayload;
     }
 
     private static bool IsKnownPacketStatus(PacketParseStatus status)
     {
-        return status >= PacketParseStatus.Success &&
-            status <= PacketParseStatus.UnsupportedIcmpCode;
+        return status >= PacketParseStatus.Success && status <= PacketParseStatus.UnsupportedIcmpCode;
     }
 
     private static bool IsKnownStreamStatus(TcpEstablishedStreamStatus status)
     {
-        return status >= TcpEstablishedStreamStatus.Success &&
-            status <= TcpEstablishedStreamStatus.InvalidAcknowledgementNumber;
+        return status >= TcpEstablishedStreamStatus.Success && status <= TcpEstablishedStreamStatus.InvalidAcknowledgementNumber;
     }
 
     private static bool IsKnownCloseStatus(TcpConnectionCloseStatus status)
     {
-        return status >= TcpConnectionCloseStatus.Success &&
-            status <= TcpConnectionCloseStatus.UnexpectedPayload;
+        return status >= TcpConnectionCloseStatus.Success && status <= TcpConnectionCloseStatus.UnexpectedPayload;
     }
 
     private static bool IsKnownCloseState(TcpConnectionCloseState state)
     {
-        return state >= TcpConnectionCloseState.Established &&
-            state <= TcpConnectionCloseState.Reset;
+        return state >= TcpConnectionCloseState.Established && state <= TcpConnectionCloseState.Reset;
     }
 
     private static bool IsKnownChecksumStatus(Ipv4TransportChecksumStatus status)
     {
-        return status >= Ipv4TransportChecksumStatus.Success &&
-            status <= Ipv4TransportChecksumStatus.InvalidLength;
+        return status >= Ipv4TransportChecksumStatus.Success && status <= Ipv4TransportChecksumStatus.InvalidLength;
     }
 
     private static ReadOnlySpan<byte> GetDispatchStatusName(TcpReceiveDispatchStatus status)
@@ -390,32 +253,21 @@ public static class TcpReceiveDispatchDiagnosticFormatter
         };
     }
 
-    private static void AppendBytes(
-        ReadOnlySpan<byte> value,
-        Span<byte> destination,
-        ref int offset)
+    private static void AppendBytes(ReadOnlySpan<byte> value, Span<byte> destination, ref int offset)
     {
         AsciiTextBuilderResult result = AsciiTextBuilder.AppendBytes(destination, offset, value);
         offset = result.NextOffset;
     }
 
-    private static void AppendInt64Decimal(
-        long value,
-        Span<byte> destination,
-        ref int offset)
+    private static void AppendInt64Decimal(long value, Span<byte> destination, ref int offset)
     {
-        AsciiTextBuilderResult result =
-            AsciiTextBuilder.AppendInt64Decimal(destination, offset, value);
+        AsciiTextBuilderResult result = AsciiTextBuilder.AppendInt64Decimal(destination, offset, value);
         offset = result.NextOffset;
     }
 
-    private static void AppendUInt64Decimal(
-        ulong value,
-        Span<byte> destination,
-        ref int offset)
+    private static void AppendUInt64Decimal(ulong value, Span<byte> destination, ref int offset)
     {
-        AsciiTextBuilderResult result =
-            AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value);
+        AsciiTextBuilderResult result = AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value);
         offset = result.NextOffset;
     }
 }

@@ -17,17 +17,35 @@ public readonly struct GptPartitionSelectionResult
         PartitionEntryIndex = partitionEntryIndex;
     }
 
-    public bool IsInitialized { get; }
+    public bool IsInitialized
+    {
+        get;
+    }
 
-    public GptStatus Status { get; }
+    public GptStatus Status
+    {
+        get;
+    }
 
-    public BlockDeviceStatus BlockStatus { get; }
+    public BlockDeviceStatus BlockStatus
+    {
+        get;
+    }
 
-    public GptHeader Header { get; }
+    public GptHeader Header
+    {
+        get;
+    }
 
-    public GptPartitionEntry Partition { get; }
+    public GptPartitionEntry Partition
+    {
+        get;
+    }
 
-    public uint PartitionEntryIndex { get; }
+    public uint PartitionEntryIndex
+    {
+        get;
+    }
 
     public ulong FirstLba => Partition.FirstLba;
 

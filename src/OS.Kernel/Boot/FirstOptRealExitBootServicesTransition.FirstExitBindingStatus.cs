@@ -1,0 +1,26 @@
+using OS.Kernel.Platform;
+using OS.Kernel.Diagnostics;
+using OS.Kernel.Memory;
+using OS.Std.Hash;
+
+#if M16_004_PROBE || M16_005_PROBE
+using OS.Kernel.Compatibility.LinuxX64;
+#endif
+namespace OS.Boot;
+
+public enum FirstExitBindingStatus
+{
+    NotStarted,
+    Ready,
+    Consumed,
+    AlreadyBound,
+    NotReady,
+    FirmwareUnavailable,
+    InvalidStorage,
+    InvalidMap,
+    InvalidTable,
+    WrongBootServicesTable,
+    InvalidFunction,
+    NotFirmwareCode,
+    Changed
+}

@@ -9,394 +9,129 @@ using OS.Kernel.Runtime;
 using OS.Net;
 using OS.Pal;
 using OS.Storage;
-#endif
 
+#endif
 namespace OS.Boot;
 
-#if !NOSTDLIB_EFI
-public enum EarlyDiagnosticsReadinessStatus
-{
-    Ready = 0,
-    SerialBackendNotReady = 1,
-    DescriptorTablesNotReady = 2
-}
-
-public enum ControlledFaultProbeReadinessStatus
-{
-    Ready = 0,
-    EarlyDiagnosticsNotReady = 1,
-    FaultProbePlanNotReady = 2
-}
-
-public enum CpuFaultPanicBootReadinessStatus
-{
-    Ready = 0,
-    PanicReadinessFailed = 1
-}
-
-public enum DiagnosticStubMaterializationReadinessStatus
-{
-    Ready = 0,
-    MaterializerFailed = 1,
-    NoMaterializedPayloadEvidence = 2
-}
-
-public enum BootPageAllocatorReadinessStatus
-{
-    Ready = 0,
-    StateInitializationFailed = 1,
-    StateNotInitialized = 2,
-    NoFreeNodes = 3,
-    NoFreePages = 4
-}
-
-public enum AppSelectionReadinessStatus
-{
-    Ready = 0,
-    ManifestFailed = 1,
-    PackageFailed = 2,
-    LaunchPlanFailed = 3,
-    LaunchDescriptorFailed = 4
-}
-
-public enum AppSelectionPreflightReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    IncompleteReadSession = 2,
-    InvalidBlockDevice = 3,
-    ScratchPlanFailed = 4,
-    SelectionLoadFailed = 5
-}
-
-public enum AppEntryReadinessStatus
-{
-    Ready = 0,
-    AppPackageFailed = 1,
-    AppSelectionFailed = 2,
-    PayloadMappingFailed = 3,
-    ExecutableMemoryFailed = 4,
-    InvocationPlanFailed = 5,
-    StagingPreflightFailed = 6
-}
-
-public enum AppPackageStagingReadinessStatus
-{
-    Ready = 0,
-    StagingReadinessFailed = 1
-}
-
-public enum AppPackageFileStagingPreflightReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    PackagePreflightFailed = 2,
-    PackageOpenFailed = 3,
-    PackageStagingFailed = 4
-}
-
-public enum PalExportCatalogReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    CatalogValidationFailed = 2
-}
-
-public enum NativeAotHeapBootstrapReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    PlanFailed = 2
-}
-
-public enum NativeAotClassConstructorRunnerPreflightReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    PreflightFailed = 2
-}
-
-public enum NativeAotClassConstructorWorkItemReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    PlanFailed = 2
-}
-
-public enum FetchAppHttpCompletionReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    CompletionFailed = 2
-}
-
-public enum FetchAppHttpTcpExchangeReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    ExchangeFailed = 2,
-    DiagnosticFormattingFailure = 3
-}
-
-public enum VirtioNetRxTcpDispatchReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    DispatchFailed = 2,
-    DiagnosticFormattingFailure = 3
-}
-
-public enum HttpStaticTcpResponseReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    ResponsePlanFailed = 2,
-    DiagnosticFormattingFailure = 3
-}
-
-public enum FetchAppHttpRequestEndpointReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    EndpointFailed = 2
-}
-
-public enum NativeManifestFetchAppConfigPreflightReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    PreflightFailed = 2
-}
-
-public enum NativeManifestEnvironmentReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    ParseFailure = 2,
-    SourceRangeInvalid = 3,
-    DiagnosticFormattingFailure = 4
-}
-
-public enum AppExitObserverReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    ObserverFailure = 2
-}
-
-public enum NativeAppArgumentVectorReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    ArgumentVectorFailed = 2
-}
-
-public enum NativeAppArgumentHandoffReadinessStatus
-{
-    Ready = 0,
-    NotInitialized = 1,
-    HandoffFailed = 2
-}
-
-#endif
 public static class BootSequence
 {
-    public static unsafe bool StageLinuxElfPackage(bool firmwareAvailable, void* context, delegate*<void*, bool> stage) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16002Probe && firmwareAvailable && context != null && stage != null && stage(context);
-
-    public static unsafe bool RunOwnedLinuxElfPackage(bool ownedChecksComplete, bool firmwareRevoked,
-        void* context, delegate*<void*, bool> verify) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16002Probe && ownedChecksComplete && firmwareRevoked && context != null && verify != null && verify(context);
-
-    public static bool IsWorkloadServiceLoopEnabled() =>
-        OS.Kernel.Diagnostics.Probes.EnableM16003Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe;
-
+    public static unsafe bool StageLinuxElfPackage(bool firmwareAvailable, void* context, delegate*<void*, bool> stage) => OS.Kernel.Diagnostics.Probes.EnableM16002Probe && firmwareAvailable && context != null && stage != null && stage(context);
+    public static unsafe bool RunOwnedLinuxElfPackage(bool ownedChecksComplete, bool firmwareRevoked, void* context, delegate*<void*, bool> verify) => OS.Kernel.Diagnostics.Probes.EnableM16002Probe && ownedChecksComplete && firmwareRevoked && context != null && verify != null && verify(context);
+    public static bool IsWorkloadServiceLoopEnabled() => OS.Kernel.Diagnostics.Probes.EnableM16003Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe;
     /// <summary>
     /// One explicit owned service boundary after package verification and revoked
     /// firmware authority. The caller retains its context and callback lifetime;
     /// disabled or incomplete admission returns false without invoking the callback.
     /// </summary>
-    public static unsafe bool RunOwnedWorkloadServiceLoop(bool packageReady, bool firmwareRevoked,
-        void* context, delegate*<void*, bool> run) =>
-        IsWorkloadServiceLoopEnabled() && packageReady && firmwareRevoked && context != null && run != null && run(context);
 
+    public static unsafe bool RunOwnedWorkloadServiceLoop(bool packageReady, bool firmwareRevoked, void* context, delegate*<void*, bool> run) => IsWorkloadServiceLoopEnabled() && packageReady && firmwareRevoked && context != null && run != null && run(context);
     /// <summary>Prepare startup only while the staged parent has firmware authority.</summary>
-    public static unsafe bool PrepareLinuxElfStartup(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe &&
-        firmwareAvailable && context != null && prepare != null && prepare(context);
 
+    public static unsafe bool PrepareLinuxElfStartup(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) => OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
     /// <summary>Copy and anchor the finite web fixture's UTC while firmware is
     /// available. The owner retains numeric state only; failure prevents entry.</summary>
-    public static unsafe bool PrepareOwnedRealtime(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        OS.Kernel.Diagnostics.Probes.EnableM10004Probe && firmwareAvailable &&
-        context != null && prepare != null && prepare(context);
 
+    public static unsafe bool PrepareOwnedRealtime(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) => OS.Kernel.Diagnostics.Probes.EnableM10004Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
     /// <summary>Enter only the separately admitted finite static-file profile
     /// through its existing socket/thread/firmware ordering. The caller retains
     /// every owner until real app exit, off-stack reap and explicit cleanup;
     /// this gate establishes no HTTP, disk or lifecycle evidence.</summary>
-    public static unsafe bool RunOwnedStaticFileApplication(bool startupReady, bool serviceStopped, bool firmwareRevoked,
-        bool apicReady, bool networkReady, void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM10017Probe && OS.Kernel.Diagnostics.Probes.EnableM10004Probe &&
-        RunOwnedLinuxSockets(startupReady, serviceStopped, firmwareRevoked, apicReady, networkReady, context, run);
 
+    public static unsafe bool RunOwnedStaticFileApplication(bool startupReady, bool serviceStopped, bool firmwareRevoked, bool apicReady, bool networkReady, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM10017Probe && OS.Kernel.Diagnostics.Probes.EnableM10004Probe && RunOwnedLinuxSockets(startupReady, serviceStopped, firmwareRevoked, apicReady, networkReady, context, run);
     /// <summary>Reserve combined read-only disk backing before firmware exit.
     /// The callback retains all successful allocations, including rejected ones;
     /// this gate establishes neither device readiness nor guest I/O.</summary>
-    public static unsafe bool PrepareOwnedReadOnlyDisk(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16023Probe && OS.Kernel.Diagnostics.Probes.EnableM16024Probe &&
-        OS.Kernel.Diagnostics.Probes.EnableM16025Probe && !OS.Kernel.Diagnostics.Probes.EnableM16027Probe &&
-        firmwareAvailable && context != null && prepare != null && prepare(context);
 
+    public static unsafe bool PrepareOwnedReadOnlyDisk(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) => OS.Kernel.Diagnostics.Probes.EnableM16023Probe && OS.Kernel.Diagnostics.Probes.EnableM16024Probe && OS.Kernel.Diagnostics.Probes.EnableM16025Probe && !OS.Kernel.Diagnostics.Probes.EnableM16027Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
     /// <summary>Reserve the distinct writable owner before firmware exit. The
     /// selected read-only compile parents supply shared mapping/descriptor
     /// contracts; they do not start a second block owner. The callback retains
     /// successful allocations even on rejection. No I/O or fit is implied.</summary>
-    public static unsafe bool PrepareOwnedWritableDisk(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16027Probe && OS.Kernel.Diagnostics.Probes.EnableM16025Probe &&
-        firmwareAvailable && context != null && prepare != null && prepare(context);
 
+    public static unsafe bool PrepareOwnedWritableDisk(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) => OS.Kernel.Diagnostics.Probes.EnableM16027Probe && OS.Kernel.Diagnostics.Probes.EnableM16025Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
     /// <summary>Enter the disk application through the original socket and
     /// firmware order. Prepared backing must belong to this boot; the callback
     /// must complete its cooperative mount before starting any user worker.</summary>
-    public static unsafe bool RunOwnedDiskStaticFileApplication(bool startupReady, bool serviceStopped, bool firmwareRevoked,
-        bool apicReady, bool networkReady, bool diskPrepared, void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM10018Probe && OS.Kernel.Diagnostics.Probes.EnableM16025Probe && diskPrepared &&
-        RunOwnedLinuxSockets(startupReady, serviceStopped, firmwareRevoked, apicReady, networkReady, context, run);
 
+    public static unsafe bool RunOwnedDiskStaticFileApplication(bool startupReady, bool serviceStopped, bool firmwareRevoked, bool apicReady, bool networkReady, bool diskPrepared, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM10018Probe && OS.Kernel.Diagnostics.Probes.EnableM16025Probe && diskPrepared && RunOwnedLinuxSockets(startupReady, serviceStopped, firmwareRevoked, apicReady, networkReady, context, run);
     /// <summary>Run startup only after package verification and firmware revocation.</summary>
-    public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,
-        void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe &&
-        packageReady && firmwareRevoked && context != null && run != null && run(context);
 
+    public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe && packageReady && firmwareRevoked && context != null && run != null && run(context);
     /// <summary>Prepare the user boundary while staged-package and startup firmware authority remain available.</summary>
-    public static unsafe bool PrepareLinuxUserBoundary(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16005Probe && OS.Kernel.Diagnostics.Probes.EnableM16004Probe &&
-        OS.Kernel.Diagnostics.Probes.EnableM16002Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
 
+    public static unsafe bool PrepareLinuxUserBoundary(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) => OS.Kernel.Diagnostics.Probes.EnableM16005Probe && OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
     /// <summary>Run the syscall boundary only after startup, service stop and firmware revocation.</summary>
-    public static unsafe bool RunOwnedLinuxSyscalls(bool startupReady, bool serviceStopped, bool firmwareRevoked,
-        void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16005Probe && OS.Kernel.Diagnostics.Probes.EnableM16004Probe &&
-        OS.Kernel.Diagnostics.Probes.EnableM16003Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe &&
-        startupReady && serviceStopped && firmwareRevoked && context != null && run != null && run(context);
 
+    public static unsafe bool RunOwnedLinuxSyscalls(bool startupReady, bool serviceStopped, bool firmwareRevoked, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM16005Probe && OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16003Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe && startupReady && serviceStopped && firmwareRevoked && context != null && run != null && run(context);
     /// <summary>Prepare memory backing while staged startup still has firmware authority.</summary>
-    public static unsafe bool PrepareLinuxMemory(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16006Probe && OS.Kernel.Diagnostics.Probes.EnableM16005Probe &&
-        firmwareAvailable && context != null && prepare != null && prepare(context);
 
+    public static unsafe bool PrepareLinuxMemory(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) => OS.Kernel.Diagnostics.Probes.EnableM16006Probe && OS.Kernel.Diagnostics.Probes.EnableM16005Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
     /// <summary>Run memory/startup only at the original post-exit syscall boundary.</summary>
-    public static unsafe bool RunOwnedLinuxMemory(bool startupReady, bool serviceStopped, bool firmwareRevoked,
-        void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16006Probe && OS.Kernel.Diagnostics.Probes.EnableM16005Probe &&
-        RunOwnedLinuxSyscalls(startupReady, serviceStopped, firmwareRevoked, context, run);
 
+    public static unsafe bool RunOwnedLinuxMemory(bool startupReady, bool serviceStopped, bool firmwareRevoked, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM16006Probe && OS.Kernel.Diagnostics.Probes.EnableM16005Probe && RunOwnedLinuxSyscalls(startupReady, serviceStopped, firmwareRevoked, context, run);
     /// <summary>Prepare retained descriptor storage before firmware authority
     /// ends; actual descriptor initialization waits for the owned memory root.</summary>
-    public static unsafe bool PrepareLinuxDescriptors(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16007Probe && OS.Kernel.Diagnostics.Probes.EnableM16006Probe &&
-        firmwareAvailable && context != null && prepare != null && prepare(context);
 
+    public static unsafe bool PrepareLinuxDescriptors(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) => OS.Kernel.Diagnostics.Probes.EnableM16007Probe && OS.Kernel.Diagnostics.Probes.EnableM16006Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
     /// <summary>Run the default-off Linux thread owner only after actual APIC
     /// setup, startup, service stop and firmware revocation. The callback owns
     /// native admission, restoration and drained cleanup; false retains its
     /// unresolved resources. This gate creates no worker or interrupt.</summary>
-    public static unsafe bool RunOwnedLinuxThreads(bool startupReady, bool serviceStopped, bool firmwareRevoked,
-        bool apicReady, void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16008Probe && OS.Kernel.Diagnostics.Probes.EnableM16007Probe &&
-        OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe && apicReady &&
-        RunOwnedLinuxMemory(startupReady, serviceStopped, firmwareRevoked, context, run);
 
+    public static unsafe bool RunOwnedLinuxThreads(bool startupReady, bool serviceStopped, bool firmwareRevoked, bool apicReady, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM16008Probe && OS.Kernel.Diagnostics.Probes.EnableM16007Probe && OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe && apicReady && RunOwnedLinuxMemory(startupReady, serviceStopped, firmwareRevoked, context, run);
     /// <summary>Run the default-off signal leaf through the actual thread owner
     /// after all parent admission. The callback retains signal/user/native
     /// ownership until drained restoration; false authorizes no release or user
     /// continuation. This gate creates no signal, worker or execution evidence.</summary>
-    public static unsafe bool RunOwnedLinuxSignals(bool startupReady, bool serviceStopped, bool firmwareRevoked,
-        bool apicReady, void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16009Probe &&
-        RunOwnedLinuxThreads(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
 
+    public static unsafe bool RunOwnedLinuxSignals(bool startupReady, bool serviceStopped, bool firmwareRevoked, bool apicReady, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM16009Probe && RunOwnedLinuxThreads(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
     /// <summary>Run the default-off NativeAOT suspension leaf through the owned
     /// signal boundary. The IRQ-off caller retains the callback/context and all
     /// native resources through restored, drained cleanup. Failed admission
     /// returns false without invoking run; callback failure retains its resources.
     /// This gate grants no execution or acceptance evidence.</summary>
-    public static unsafe bool RunOwnedNativeAotSuspension(bool startupReady, bool serviceStopped, bool firmwareRevoked,
-        bool apicReady, void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM09011Probe &&
-        RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
 
+    public static unsafe bool RunOwnedNativeAotSuspension(bool startupReady, bool serviceStopped, bool firmwareRevoked, bool apicReady, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM09011Probe && RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
     /// <summary>Run the default-off NativeAOT ThreadPool leaf through the owned
     /// signal boundary. The IRQ-off caller retains the callback/context and all
     /// native resources through restored, drained cleanup. Failed admission
     /// returns false without invoking run; callback failure retains its resources.
     /// This gate grants no execution or acceptance evidence.</summary>
-    public static unsafe bool RunOwnedNativeAotThreadPool(bool startupReady, bool serviceStopped, bool firmwareRevoked,
-        bool apicReady, void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM09012Probe &&
-        RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
 
+    public static unsafe bool RunOwnedNativeAotThreadPool(bool startupReady, bool serviceStopped, bool firmwareRevoked, bool apicReady, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM09012Probe && RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
     /// <summary>Run the default-off broader NativeAOT runtime leaf through the
     /// owned signal boundary. The IRQ-off caller retains the callback/context
     /// and all native resources through restored, drained cleanup. Failed admission
     /// returns false without invoking run; callback failure retains its resources.
     /// This gate grants no execution or acceptance evidence.</summary>
-    public static unsafe bool RunOwnedNativeAotRuntime(bool startupReady, bool serviceStopped, bool firmwareRevoked,
-        bool apicReady, void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16010Probe &&
-        RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
 
+    public static unsafe bool RunOwnedNativeAotRuntime(bool startupReady, bool serviceStopped, bool firmwareRevoked, bool apicReady, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM16010Probe && RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
     /// <summary>Reserve the dedicated cooperative diagnostic pool while firmware
     /// authority remains available. The callback owns preparation/failure cleanup;
     /// this ordered default-off phase allocates nothing and returns false on refusal.</summary>
-    public static unsafe bool PrepareCooperativeSwitch(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        (OS.Kernel.Diagnostics.Probes.EnableM09004Probe || OS.Kernel.Diagnostics.Probes.EnableM09005Probe || OS.Kernel.Diagnostics.Probes.EnableM09006Probe ||
-        OS.Kernel.Diagnostics.Probes.EnableM09009Probe || OS.Kernel.Diagnostics.Probes.EnableM09010Probe || OS.Kernel.Diagnostics.Probes.EnableM16008Probe ||
-        OS.Kernel.Diagnostics.Probes.EnableM07026Probe) && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe &&
-        OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe && firmwareAvailable &&
-        context != null && prepare != null && prepare(context);
 
+    public static unsafe bool PrepareCooperativeSwitch(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) => (OS.Kernel.Diagnostics.Probes.EnableM09004Probe || OS.Kernel.Diagnostics.Probes.EnableM09005Probe || OS.Kernel.Diagnostics.Probes.EnableM09006Probe || OS.Kernel.Diagnostics.Probes.EnableM09009Probe || OS.Kernel.Diagnostics.Probes.EnableM09010Probe || OS.Kernel.Diagnostics.Probes.EnableM16008Probe || OS.Kernel.Diagnostics.Probes.EnableM07026Probe) && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe && firmwareAvailable && context != null && prepare != null && prepare(context);
     /// <summary>Execute the bounded cooperative diagnostic only after original
     /// owned subsystem checks and firmware revocation. Its trusted callback must
     /// prove live resource/CPU ownership, restoration and complete cleanup before
     /// success. Failure returns false; no thread, timer or transfer is fabricated.</summary>
-    public static unsafe bool RunOwnedCooperativeSwitch(bool ownedChecksComplete, bool firmwareRevoked,
-        void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM09004Probe && OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe &&
-        OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && firmwareRevoked &&
-        context != null && run != null && run(context);
 
+    public static unsafe bool RunOwnedCooperativeSwitch(bool ownedChecksComplete, bool firmwareRevoked, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM09004Probe && OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && firmwareRevoked && context != null && run != null && run(context);
     /// <summary>Execute the default-off timer fixture after owned survival and
     /// masked APIC setup. The adapter owns complete IDT/IST/capture/ack paths,
     /// disabled-interrupt teardown and retained resource lifetimes on failure.</summary>
-    public static unsafe bool RunOwnedSchedulerTimer(bool ownedChecksComplete, bool apicReady, bool firmwareRevoked,
-        void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM09005Probe && OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe &&
-        OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe &&
-        OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && apicReady && firmwareRevoked &&
-        context != null && run != null && run(context);
 
+    public static unsafe bool RunOwnedSchedulerTimer(bool ownedChecksComplete, bool apicReady, bool firmwareRevoked, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM09005Probe && OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe && OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && apicReady && firmwareRevoked && context != null && run != null && run(context);
     /// <summary>Run the default-off cooperative lifecycle only after owned
     /// survival, APIC setup and firmware revocation. The native owner retains
     /// all worker/supervisor/IRQ resources through transfer and restoration;
     /// refusal returns false and fabricates no lifecycle or cleanup evidence.</summary>
-    public static unsafe bool RunOwnedKernelThreads(bool ownedChecksComplete, bool apicReady, bool firmwareRevoked,
-        void* context, delegate*<void*, bool> run) =>
-        (OS.Kernel.Diagnostics.Probes.EnableM09006Probe || OS.Kernel.Diagnostics.Probes.EnableM09009Probe || OS.Kernel.Diagnostics.Probes.EnableM09010Probe) &&
-        OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe &&
-        OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe &&
-        OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && apicReady && firmwareRevoked &&
-        context != null && run != null && run(context);
 
+    public static unsafe bool RunOwnedKernelThreads(bool ownedChecksComplete, bool apicReady, bool firmwareRevoked, void* context, delegate*<void*, bool> run) => (OS.Kernel.Diagnostics.Probes.EnableM09006Probe || OS.Kernel.Diagnostics.Probes.EnableM09009Probe || OS.Kernel.Diagnostics.Probes.EnableM09010Probe) && OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe && OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && apicReady && firmwareRevoked && context != null && run != null && run(context);
     /// <summary>Run descriptor syscalls only through the original post-exit
     /// memory/user boundary after startup, service stop and revocation.</summary>
-    public static unsafe bool RunOwnedLinuxDescriptors(bool startupReady, bool serviceStopped, bool firmwareRevoked,
-        void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16007Probe && OS.Kernel.Diagnostics.Probes.EnableM16006Probe &&
-        RunOwnedLinuxMemory(startupReady, serviceStopped, firmwareRevoked, context, run);
 
+    public static unsafe bool RunOwnedLinuxDescriptors(bool startupReady, bool serviceStopped, bool firmwareRevoked, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM16007Probe && OS.Kernel.Diagnostics.Probes.EnableM16006Probe && RunOwnedLinuxMemory(startupReady, serviceStopped, firmwareRevoked, context, run);
     /// <summary>Run the default-off socket workload only inside the retained,
     /// active NIC lifetime, after startup/service stop and firmware revocation.
     /// The Linux worker owner retains the cooperative pool; the diagnostic
@@ -404,11 +139,8 @@ public static class BootSequence
     /// retains context/callback through cleanup. Rejected guards return false
     /// without invoking run; callback failure retains its resources. This grants no
     /// network, application or completion acceptance by itself.</summary>
-    public static unsafe bool RunOwnedLinuxSockets(bool startupReady, bool serviceStopped, bool firmwareRevoked,
-        bool apicReady, bool nicReady, void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM16011Probe && OS.Kernel.Diagnostics.Probes.EnableM07026Probe && nicReady &&
-        RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
 
+    public static unsafe bool RunOwnedLinuxSockets(bool startupReady, bool serviceStopped, bool firmwareRevoked, bool apicReady, bool nicReady, void* context, delegate*<void*, bool> run) => OS.Kernel.Diagnostics.Probes.EnableM16011Probe && OS.Kernel.Diagnostics.Probes.EnableM07026Probe && nicReady && RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
     /// <summary>
     /// Terminal boot boundary, after the original M01 allocator and copied
     /// ACPI. The ordinary policy defers success markers until owned post-exit checks.
@@ -416,294 +148,88 @@ public static class BootSequence
     /// this boundary consumes firmware authority before the final map/exit window.
     /// Success transfers directly to owned descriptor/CR3 adoption and cannot return.
     /// </summary>
-    public static unsafe OS.Boot.FirstExitReturn RunFirstRealExitBootServicesTransition(
-        ref OS.Boot.FirstExitOwnedArenaState arena, byte* code)
+
+    public static unsafe OS.Boot.FirstExitReturn RunFirstRealExitBootServicesTransition(ref OS.Boot.FirstExitOwnedArenaState arena, byte* code)
     {
         if (!IsFirstRealExitBootServicesEnabled())
             return OS.Boot.FirstExitReturn.NotStarted;
-        if (!arena.IsReady || code == null ||
-            !OS.Boot.FirstExitOwnedArena.ValidateCanaries(arena))
+        if (!arena.IsReady || code == null || !OS.Boot.FirstExitOwnedArena.ValidateCanaries(arena))
             return OS.Boot.FirstExitReturn.InvalidStorage;
-        if (OS.Boot.FirstExitFirmwareBinding.Consume(ref *arena.Binding,
-                OS.Kernel.Platform.FirmwareServicesMode.BootServicesAvailable,
-                out var getMap, out var exit, out void* handle) != OS.Boot.FirstExitBindingStatus.Consumed)
+        if (OS.Boot.FirstExitFirmwareBinding.Consume(ref *arena.Binding, OS.Kernel.Platform.FirmwareServicesMode.BootServicesAvailable, out var getMap, out var exit, out void* handle) != OS.Boot.FirstExitBindingStatus.Consumed)
             return OS.Boot.FirstExitReturn.FirmwareUnavailable;
-        return OS.Boot.FirstOptRealExitBootServicesTransition.AttemptAndTransfer(ref *arena.Transition,
-            OS.Kernel.Platform.FirmwareServicesMode.BootServicesAvailable, getMap, exit, handle,
-            arena.Map, OS.Boot.FirstExitOwnedArena.MapBytes,
-            (delegate* unmanaged<OS.Boot.FirstExitTransitionState*, void*, void>)
-                (code + OS.Boot.FirstExitCodeBundle.PermanentOffset),
-            arena.Permanent, OS.Boot.FirstExitPermanentCr3Stub.ContextBytes);
+        return OS.Boot.FirstOptRealExitBootServicesTransition.AttemptAndTransfer(ref *arena.Transition, OS.Kernel.Platform.FirmwareServicesMode.BootServicesAvailable, getMap, exit, handle, arena.Map, OS.Boot.FirstExitOwnedArena.MapBytes, (delegate* unmanaged<OS.Boot.FirstExitTransitionState*, void*, void>)(code + OS.Boot.FirstExitCodeBundle.PermanentOffset), arena.Permanent, OS.Boot.FirstExitPermanentCr3Stub.ContextBytes);
     }
 
-    private static bool IsFirstRealExitBootServicesEnabled() =>
-        VerifiedExitPathOptDefaultRepeatedCleanQEMU.Enabled ||
-        OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe;
-
+    private static bool IsFirstRealExitBootServicesEnabled() => VerifiedExitPathOptDefaultRepeatedCleanQEMU.Enabled || OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe;
     /// <summary>After retained module/static publication and before constructor consumers.</summary>
-    public static unsafe OS.Kernel.Runtime.CompilerClassConstructorStatus RunCompilerClassConstructors(
-        byte* storage, ulong capacity) =>
-        OS.Kernel.Diagnostics.Probes.EnableM04ClassConstructorExecutionProbe
-            ? OS.Kernel.Runtime.CompilerClassConstructorExecution.RunEager(storage, capacity)
-            : OS.Kernel.Runtime.CompilerClassConstructorStatus.NotBound;
 
-    public static bool IsFirmwareAdapterRevocationEnabled() =>
-        OS.Kernel.Diagnostics.Probes.EnableM03FirmwareAdapterRevocationProbe;
-
-    public static bool IsSimpleThrowCatchEnabled() =>
-        OS.Kernel.Diagnostics.Probes.EnableM04SimpleThrowCatchProbe;
-
-    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunSimpleThrowCatchUnwind(
-        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
-        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
-        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
-        IsSimpleThrowCatchEnabled()
-            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
-                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
-            : default;
-
-    public static bool IsSingleFinallyCatchEnabled() =>
-        OS.Kernel.Diagnostics.Probes.EnableM04SingleFinallyCatchProbe;
-
-    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunSingleFinallyCatchUnwind(
-        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
-        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
-        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
-        IsSingleFinallyCatchEnabled()
-            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
-                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
-            : default;
-
+    public static unsafe OS.Kernel.Runtime.CompilerClassConstructorStatus RunCompilerClassConstructors(byte* storage, ulong capacity) => OS.Kernel.Diagnostics.Probes.EnableM04ClassConstructorExecutionProbe ? OS.Kernel.Runtime.CompilerClassConstructorExecution.RunEager(storage, capacity) : OS.Kernel.Runtime.CompilerClassConstructorStatus.NotBound;
+    public static bool IsFirmwareAdapterRevocationEnabled() => OS.Kernel.Diagnostics.Probes.EnableM03FirmwareAdapterRevocationProbe;
+    public static bool IsSimpleThrowCatchEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04SimpleThrowCatchProbe;
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunSimpleThrowCatchUnwind(OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping, byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity, byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) => IsSimpleThrowCatchEnabled() ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping, owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input) : default;
+    public static bool IsSingleFinallyCatchEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04SingleFinallyCatchProbe;
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunSingleFinallyCatchUnwind(OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping, byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity, byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) => IsSingleFinallyCatchEnabled() ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping, owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input) : default;
     public static bool IsRethrowEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04RethrowProbe;
-
     public static bool IsNestedFinallyCatchEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04NestedFinallyCatchProbe;
-
-    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunNestedFinallyCatchUnwind(
-        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
-        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
-        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
-        IsNestedFinallyCatchEnabled()
-            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
-                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
-            : default;
-
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunNestedFinallyCatchUnwind(OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping, byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity, byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) => IsNestedFinallyCatchEnabled() ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping, owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input) : default;
     public static bool IsUnhandledExceptionEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04UnhandledExceptionProbe;
-
-    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunUnhandledExceptionUnwind(
-        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
-        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
-        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
-        IsUnhandledExceptionEnabled()
-            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
-                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
-            : default;
-
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunUnhandledExceptionUnwind(OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping, byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity, byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) => IsUnhandledExceptionEnabled() ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping, owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input) : default;
     public static bool IsNormalFinallyEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04NormalFinallyProbe;
-
-    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunNormalFinallyUnwind(
-        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
-        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
-        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
-        IsNormalFinallyEnabled()
-            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
-                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
-            : default;
-
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunNormalFinallyUnwind(OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping, byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity, byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) => IsNormalFinallyEnabled() ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping, owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input) : default;
     public static bool IsFrameDispatchEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04FrameDispatchProbe;
-
-    public static bool IsEhCatalogEnabled() =>
-        IsFrameDispatchEnabled() && OS.Kernel.Diagnostics.Probes.EnableM04EhCatalogProbe;
-
-    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunFrameDispatchUnwind(
-        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
-        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
-        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
-        IsFrameDispatchEnabled()
-            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
-                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
-            : default;
+    public static bool IsEhCatalogEnabled() => IsFrameDispatchEnabled() && OS.Kernel.Diagnostics.Probes.EnableM04EhCatalogProbe;
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunFrameDispatchUnwind(OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping, byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity, byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) => IsFrameDispatchEnabled() ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping, owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input) : default;
     public static bool IsConstructorFailureEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04ConstructorFailureProbe;
-
-    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunConstructorFailureUnwind(
-        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
-        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
-        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
-        IsConstructorFailureEnabled()
-            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
-                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
-            : default;
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunConstructorFailureUnwind(OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping, byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity, byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) => IsConstructorFailureEnabled() ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping, owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input) : default;
     public static bool IsFilteredCatchEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04FilteredCatchProbe;
-
-    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunFilteredCatchUnwind(
-        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
-        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
-        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
-        IsFilteredCatchEnabled()
-            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
-                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
-            : default;
-
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunFilteredCatchUnwind(OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping, byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity, byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) => IsFilteredCatchEnabled() ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping, owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input) : default;
     // Runs only after the original owned diagnostics and allocator/ACPI checks.
     // The adapter authenticates its state and halts on every return.
-    public static unsafe bool RunOwnedAcpiSelection(
-        bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM05OwnedAcpiSelectionProbe &&
-        ownedSubsystemsComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedPciEnumeration(
-        bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM05PciEnumerationProbe &&
-        ownedSubsystemsComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedBarDma(
-        bool pciEnumerationComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM05BarDmaProbe &&
-        pciEnumerationComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedApicSetup(
-        bool pciEnumerationComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe &&
-        pciEnumerationComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedVirtqueueInterrupt(
-        bool apicAndNegotiationComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM05VirtqueueInterruptProbe &&
-        apicAndNegotiationComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedVirtqueuePolling(
-        bool virtioNegotiationComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM05VirtqueuePollingProbe &&
-        virtioNegotiationComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedVirtioNet(
-        bool originalPollingComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM07VirtioNetProbe &&
-        originalPollingComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedArpReceive(
-        bool originalNetComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM07ArpReceiveProbe &&
-        originalNetComplete && context != null && execute != null && execute(context);
-
+    public static unsafe bool RunOwnedAcpiSelection(bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM05OwnedAcpiSelectionProbe && ownedSubsystemsComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedPciEnumeration(bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM05PciEnumerationProbe && ownedSubsystemsComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedBarDma(bool pciEnumerationComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM05BarDmaProbe && pciEnumerationComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedApicSetup(bool pciEnumerationComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe && pciEnumerationComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedVirtqueueInterrupt(bool apicAndNegotiationComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM05VirtqueueInterruptProbe && apicAndNegotiationComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedVirtqueuePolling(bool virtioNegotiationComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM05VirtqueuePollingProbe && virtioNegotiationComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedVirtioNet(bool originalPollingComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM07VirtioNetProbe && originalPollingComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedArpReceive(bool originalNetComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM07ArpReceiveProbe && originalNetComplete && context != null && execute != null && execute(context);
     /// <summary>Prepare the dedicated continuing-network arena before firmware
     /// revocation. The trusted callback records every firmware allocation and
     /// validates its original image/allocator/package disjointness before writes.</summary>
-    public static unsafe bool PrepareNetworkService(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        OS.Kernel.Diagnostics.Probes.EnableM07026Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
 
+    public static unsafe bool PrepareNetworkService(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) => OS.Kernel.Diagnostics.Probes.EnableM07026Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
     /// <summary>Invoke the exclusive continuing network owner only after the
     /// original ARP and live service-loop parents and irreversible firmware
     /// revocation. The callback owns all DMA through verified reset/teardown;
     /// false preserves failure and grants no guest-network acceptance.</summary>
-    public static unsafe bool RunOwnedNetworkService(
-        bool originalArpComplete, bool serviceLoopComplete, bool firmwareRevoked,
-        void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM07026Probe && originalArpComplete &&
-        serviceLoopComplete && firmwareRevoked && context != null && execute != null && execute(context);
 
-    public static unsafe bool RunOwnedVirtioNegotiation(
-        bool pciEnumerationComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM05VirtioNegotiationProbe &&
-        pciEnumerationComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedVirtioBlockQueueSetup(
-        bool pciEnumerationComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM06VirtioBlockQueueSetupProbe &&
-        pciEnumerationComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedVirtioBlockRead(
-        bool blockQueueSetupComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM06VirtioBlockReadProbe &&
-        blockQueueSetupComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedGptPartition(
-        bool liveBlockContractComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM06GptPartitionProbe &&
-        liveBlockContractComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedFatRead(
-        bool gptPartitionComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM06FatReadProbe &&
-        gptPartitionComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedPackageRead(
-        bool fatReadComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM06PackageReadProbe &&
-        fatReadComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedBlockMsix(
-        bool packageAndApicComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM06BlockMsixProbe &&
-        packageAndApicComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedLiveBlockContract(
-        bool blockReadComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM06LiveBlockContractProbe &&
-        blockReadComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunOwnedMonotonicClock(
-        bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM05MonotonicClockProbe &&
-        ownedSubsystemsComplete && context != null && execute != null && execute(context);
-
-    public static unsafe bool RunPostFirmwarePhysicalMapping(
-        bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) =>
-        OS.Kernel.Diagnostics.Probes.EnableM05PhysicalMappingProbe &&
-        ownedSubsystemsComplete && context != null && execute != null && execute(context);
-
-    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunRethrowUnwind(
-        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
-        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
-        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
-        IsRethrowEnabled()
-            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
-                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, capture, mapping,
-                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
-            : default;
-
+    public static unsafe bool RunOwnedNetworkService(bool originalArpComplete, bool serviceLoopComplete, bool firmwareRevoked, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM07026Probe && originalArpComplete && serviceLoopComplete && firmwareRevoked && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedVirtioNegotiation(bool pciEnumerationComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM05VirtioNegotiationProbe && pciEnumerationComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedVirtioBlockQueueSetup(bool pciEnumerationComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM06VirtioBlockQueueSetupProbe && pciEnumerationComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedVirtioBlockRead(bool blockQueueSetupComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM06VirtioBlockReadProbe && blockQueueSetupComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedGptPartition(bool liveBlockContractComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM06GptPartitionProbe && liveBlockContractComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedFatRead(bool gptPartitionComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM06FatReadProbe && gptPartitionComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedPackageRead(bool fatReadComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM06PackageReadProbe && fatReadComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedBlockMsix(bool packageAndApicComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM06BlockMsixProbe && packageAndApicComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedLiveBlockContract(bool blockReadComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM06LiveBlockContractProbe && blockReadComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunOwnedMonotonicClock(bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM05MonotonicClockProbe && ownedSubsystemsComplete && context != null && execute != null && execute(context);
+    public static unsafe bool RunPostFirmwarePhysicalMapping(bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) => OS.Kernel.Diagnostics.Probes.EnableM05PhysicalMappingProbe && ownedSubsystemsComplete && context != null && execute != null && execute(context);
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunRethrowUnwind(OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping, byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity, byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) => IsRethrowEnabled() ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc11_0_0Rc3WinX64LittleEndian, capture, mapping, owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input) : default;
     /// <summary>Look up current-image metadata after binding the original retained module.</summary>
-    public static unsafe OS.Kernel.Runtime.X64UnwindMetadataResult RunX64UnwindMetadata(
-        byte* storage, ulong capacity, ulong instructionPointer) =>
-        OS.Kernel.Diagnostics.Probes.EnableM04X64UnwindMetadataProbe
-            ? OS.Kernel.Runtime.X64PERuntimeFunctionUnwindMetadataHostileInput.Lookup(
-                storage, capacity, instructionPointer)
-            : default;
 
+    public static unsafe OS.Kernel.Runtime.X64UnwindMetadataResult RunX64UnwindMetadata(byte* storage, ulong capacity, ulong instructionPointer) => OS.Kernel.Diagnostics.Probes.EnableM04X64UnwindMetadataProbe ? OS.Kernel.Runtime.X64PERuntimeFunctionUnwindMetadataHostileInput.Lookup(storage, capacity, instructionPointer) : default;
     /// <summary>One original owned allocator operation after real exit; the operation invokes diagnostics once.</summary>
-    public static unsafe OS.Boot.OwnedAllocatorRoundTripStatus RunOwnedSubsystemAllocatorRoundTrip(
-        ref OS.Boot.OwnedAllocatorRoundTripState state, ref OS.Boot.FirstExitDiagnosticState diagnostic,
-        ref OS.Boot.FirstExitOwnedArenaState arena, OS.Boot.FirstExitDiagnosticMemory memory,
-        OS.Boot.M01LiveAllocatorStaticState* owner) =>
-        (VerifiedExitPathOptDefaultRepeatedCleanQEMU.Enabled ||
-            OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe)
-            ? OS.Boot.OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.RunAllocatorRoundTrip(
-                ref state, ref diagnostic, ref arena, memory, owner)
-            : OS.Boot.OwnedAllocatorRoundTripStatus.AdmissionFailed;
 
+    public static unsafe OS.Boot.OwnedAllocatorRoundTripStatus RunOwnedSubsystemAllocatorRoundTrip(ref OS.Boot.OwnedAllocatorRoundTripState state, ref OS.Boot.FirstExitDiagnosticState diagnostic, ref OS.Boot.FirstExitOwnedArenaState arena, OS.Boot.FirstExitDiagnosticMemory memory, OS.Boot.M01LiveAllocatorStaticState* owner) => (VerifiedExitPathOptDefaultRepeatedCleanQEMU.Enabled || OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe) ? OS.Boot.OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.RunAllocatorRoundTrip(ref state, ref diagnostic, ref arena, memory, owner) : OS.Boot.OwnedAllocatorRoundTripStatus.AdmissionFailed;
     /// <summary>Normal success is emitted only by the admitted owned post-exit writer.</summary>
-    public static unsafe bool ReportVerifiedExitCompletion(void* context,
-        delegate*<void*, byte*, uint, bool> write) =>
-        VerifiedExitPathOptDefaultRepeatedCleanQEMU.Enabled &&
-        VerifiedExitPathOptDefaultRepeatedCleanQEMU.WriteCompletion(context, write);
 
+    public static unsafe bool ReportVerifiedExitCompletion(void* context, delegate*<void*, byte*, uint, bool> write) => VerifiedExitPathOptDefaultRepeatedCleanQEMU.Enabled && VerifiedExitPathOptDefaultRepeatedCleanQEMU.WriteCompletion(context, write);
     /// <summary>Resolve only after the retained module, allocator and compiler-cell snapshot are bound.</summary>
-    public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch(
-        byte* storage, ulong capacity, ulong receiver, ulong cell,
-        out OS.Kernel.Runtime.CompilerInterfaceDispatchResolution resolution)
+
+    public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch(byte* storage, ulong capacity, ulong receiver, ulong cell, out OS.Kernel.Runtime.CompilerInterfaceDispatchResolution resolution)
     {
         resolution = default;
-        return OS.Kernel.Diagnostics.Probes.EnableM04InterfaceDispatchProbe
-            ? OS.Kernel.Runtime.CompilerInterfaceDispatch.Resolve(
-                storage, capacity, receiver, cell, out resolution)
-            : OS.Kernel.Runtime.CompilerInterfaceDispatchStatus.NotBound;
+        return OS.Kernel.Diagnostics.Probes.EnableM04InterfaceDispatchProbe ? OS.Kernel.Runtime.CompilerInterfaceDispatch.Resolve(storage, capacity, receiver, cell, out resolution) : OS.Kernel.Runtime.CompilerInterfaceDispatchStatus.NotBound;
     }
 
 #if !NOSTDLIB_EFI
@@ -711,7 +237,6 @@ public static class BootSequence
     private const int FetchAppHttpTcpExchangeDiagnosticMarkerCapacity = 1024;
     private const int VirtioNetRxTcpDispatchDiagnosticMarkerCapacity = 1024;
     private const int HttpStaticTcpResponseDiagnosticMarkerCapacity = 1024;
-
     public const string BootMemoryMapAccepted = "BOOT_MEMORY_MAP_ACCEPTED";
     public const string BootMemoryMapRejectedPrefix = "BOOT_MEMORY_MAP_REJECTED ";
     public const string FaultInfrastructureReady = "FAULT_INFRA_READY";
@@ -740,42 +265,28 @@ public static class BootSequence
     public const string AppPackageNotReadyPrefix = "APP_PACKAGE_NOT_READY ";
     public const string AppPackageStagingReady = "APP_PACKAGE_STAGING_READY";
     public const string AppPackageStagingNotReadyPrefix = "APP_PACKAGE_STAGING_NOT_READY ";
-    public const string AppPackageFileStagingPreflightReadyPrefix =
-        "APP_PACKAGE_FILE_STAGING_PREFLIGHT_READY ";
-    public const string AppPackageFileStagingPreflightNotReadyPrefix =
-        "APP_PACKAGE_FILE_STAGING_PREFLIGHT_NOT_READY ";
+    public const string AppPackageFileStagingPreflightReadyPrefix = "APP_PACKAGE_FILE_STAGING_PREFLIGHT_READY ";
+    public const string AppPackageFileStagingPreflightNotReadyPrefix = "APP_PACKAGE_FILE_STAGING_PREFLIGHT_NOT_READY ";
     public const string PalExportCatalogReadyPrefix = "PAL_EXPORT_CATALOG_READY ";
     public const string PalExportCatalogNotReadyPrefix = "PAL_EXPORT_CATALOG_NOT_READY ";
     public const string NativeAotHeapBootstrapReadyPrefix = "NATIVEAOT_HEAP_BOOTSTRAP_READY ";
     public const string NativeAotHeapBootstrapNotReadyPrefix = "NATIVEAOT_HEAP_BOOTSTRAP_NOT_READY ";
-    public const string NativeAotClassConstructorRunnerPreflightReadyPrefix =
-        "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_READY ";
-    public const string NativeAotClassConstructorRunnerPreflightNotReadyPrefix =
-        "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_NOT_READY ";
-    public const string NativeAotClassConstructorWorkItemReadyPrefix =
-        "NATIVEAOT_CCTOR_WORK_ITEMS_READY ";
-    public const string NativeAotClassConstructorWorkItemNotReadyPrefix =
-        "NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY ";
+    public const string NativeAotClassConstructorRunnerPreflightReadyPrefix = "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_READY ";
+    public const string NativeAotClassConstructorRunnerPreflightNotReadyPrefix = "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_NOT_READY ";
+    public const string NativeAotClassConstructorWorkItemReadyPrefix = "NATIVEAOT_CCTOR_WORK_ITEMS_READY ";
+    public const string NativeAotClassConstructorWorkItemNotReadyPrefix = "NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY ";
     public const string FetchAppHttpRequestEndpointReadyPrefix = "FETCHAPP_HTTP_ENDPOINT_READY ";
-    public const string FetchAppHttpRequestEndpointNotReadyPrefix =
-        "FETCHAPP_HTTP_ENDPOINT_NOT_READY ";
+    public const string FetchAppHttpRequestEndpointNotReadyPrefix = "FETCHAPP_HTTP_ENDPOINT_NOT_READY ";
     public const string FetchAppHttpCompletionReadyPrefix = "FETCH_APP_HTTP_COMPLETION_READY ";
-    public const string FetchAppHttpCompletionNotReadyPrefix =
-        "FETCH_APP_HTTP_COMPLETION_NOT_READY ";
-    public const string FetchAppHttpTcpExchangeReadyPrefix =
-        "FETCH_APP_HTTP_TCP_EXCHANGE_READY ";
-    public const string FetchAppHttpTcpExchangeNotReadyPrefix =
-        "FETCH_APP_HTTP_TCP_EXCHANGE_NOT_READY ";
+    public const string FetchAppHttpCompletionNotReadyPrefix = "FETCH_APP_HTTP_COMPLETION_NOT_READY ";
+    public const string FetchAppHttpTcpExchangeReadyPrefix = "FETCH_APP_HTTP_TCP_EXCHANGE_READY ";
+    public const string FetchAppHttpTcpExchangeNotReadyPrefix = "FETCH_APP_HTTP_TCP_EXCHANGE_NOT_READY ";
     public const string VirtioNetRxTcpDispatchReady = "VIRTIO_NET_RX_TCP_DISPATCH_READY";
-    public const string VirtioNetRxTcpDispatchNotReadyPrefix =
-        "VIRTIO_NET_RX_TCP_DISPATCH_NOT_READY ";
+    public const string VirtioNetRxTcpDispatchNotReadyPrefix = "VIRTIO_NET_RX_TCP_DISPATCH_NOT_READY ";
     public const string HttpStaticTcpResponseReady = "HTTP_STATIC_TCP_RESPONSE_READY";
-    public const string HttpStaticTcpResponseNotReadyPrefix =
-        "HTTP_STATIC_TCP_RESPONSE_NOT_READY ";
-    public const string NativeManifestFetchAppConfigPreflightReadyPrefix =
-        "FETCHAPP_CONFIG_PREFLIGHT_READY ";
-    public const string NativeManifestFetchAppConfigPreflightNotReadyPrefix =
-        "FETCHAPP_CONFIG_PREFLIGHT_NOT_READY ";
+    public const string HttpStaticTcpResponseNotReadyPrefix = "HTTP_STATIC_TCP_RESPONSE_NOT_READY ";
+    public const string NativeManifestFetchAppConfigPreflightReadyPrefix = "FETCHAPP_CONFIG_PREFLIGHT_READY ";
+    public const string NativeManifestFetchAppConfigPreflightNotReadyPrefix = "FETCHAPP_CONFIG_PREFLIGHT_NOT_READY ";
     public const string NativeManifestEnvironmentReadyPrefix = "NATIVE_MANIFEST_ENV_READY ";
     public const string NativeManifestEnvironmentNotReadyPrefix = "NATIVE_MANIFEST_ENV_NOT_READY ";
     public const string AppExitObserverReadyPrefix = "APP_EXIT_OBSERVER_READY ";
@@ -805,29 +316,20 @@ public static class BootSequence
     public const string UefiGoneSimulationStart = "UEFI_GONE_SIM_START";
     public const string UefiGoneSimulationPlatformDenied = "UEFI_GONE_SIM_PLATFORM_DENIED";
     public const string UefiGoneSimulationPass = "UEFI_GONE_SIM_PASS";
-    public const string M01StageOneTestFailurePrefix =
-        "TEST_FAIL m01.stage1 status=";
-    public const string M01StageOneFailurePrefix =
-        "M01_STAGE1_FAIL status=";
-    public const string M01StageTwoTestFailurePrefix =
-        "TEST_FAIL m01.stage2 status=";
-    public const string M01StageTwoFailurePrefix =
-        "M01_STAGE2_FAIL status=";
-    public const string M01StageThreeTestFailurePrefix =
-        "TEST_FAIL m01.stage3 status=";
-    public const string M01StageThreeFailurePrefix =
-        "M01_STAGE3_FAIL status=";
-
+    public const string M01StageOneTestFailurePrefix = "TEST_FAIL m01.stage1 status=";
+    public const string M01StageOneFailurePrefix = "M01_STAGE1_FAIL status=";
+    public const string M01StageTwoTestFailurePrefix = "TEST_FAIL m01.stage2 status=";
+    public const string M01StageTwoFailurePrefix = "M01_STAGE2_FAIL status=";
+    public const string M01StageThreeTestFailurePrefix = "TEST_FAIL m01.stage3 status=";
+    public const string M01StageThreeFailurePrefix = "M01_STAGE3_FAIL status=";
     /// <summary>
     /// Presents already-completed M01 stage-one host evidence through the
     /// frozen byte plan. This helper does not prepare the coordinator, invoke
     /// firmware, or execute the stack-switch target, and the default Run
     /// overloads never call it.
     /// </summary>
-    public static BootResult RunM01LoadedImageStackIntegration(
-        M01LoadedImageStackIntegrationResult integration,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+
+    public static BootResult RunM01LoadedImageStackIntegration(M01LoadedImageStackIntegrationResult integration, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -841,40 +343,17 @@ public static class BootSequence
 
         if (!integration.Succeeded)
         {
-            M01LoadedImageStackStatus failureStatus =
-                integration.Status == M01LoadedImageStackStatus.Success
-                    ? M01LoadedImageStackStatus
-                        .IllegalCoordinatorState
-                    : integration.Status;
-            string failureDetail =
-                failureStatus
-                + " checkpoint="
-                + integration.LastCompletedCheckpoint;
-            Emit(
-                serial,
-                events,
-                CreateM01StageOneSuccessLine(0));
-            Emit(
-                serial,
-                events,
-                M01StageOneTestFailurePrefix + failureDetail);
-            Emit(
-                serial,
-                events,
-                M01StageOneFailurePrefix + failureDetail);
-            return BootResult.Fail(
-                "M01 stage one failed: " + failureDetail);
+            M01LoadedImageStackStatus failureStatus = integration.Status == M01LoadedImageStackStatus.Success ? M01LoadedImageStackStatus.IllegalCoordinatorState : integration.Status;
+            string failureDetail = failureStatus + " checkpoint=" + integration.LastCompletedCheckpoint;
+            Emit(serial, events, CreateM01StageOneSuccessLine(0));
+            Emit(serial, events, M01StageOneTestFailurePrefix + failureDetail);
+            Emit(serial, events, M01StageOneFailurePrefix + failureDetail);
+            return BootResult.Fail("M01 stage one failed: " + failureDetail);
         }
 
-        for (int lineIndex = 0;
-            lineIndex
-                < BootSequencePlan.M01StageOneSuccessLineCount;
-            lineIndex++)
+        for (int lineIndex = 0; lineIndex < BootSequencePlan.M01StageOneSuccessLineCount; lineIndex++)
         {
-            Emit(
-                serial,
-                events,
-                CreateM01StageOneSuccessLine(lineIndex));
+            Emit(serial, events, CreateM01StageOneSuccessLine(lineIndex));
         }
 
         return BootResult.Pass();
@@ -888,10 +367,8 @@ public static class BootSequence
     /// not call firmware, allocate memory, or mutate allocator state, and the
     /// default Run overloads never call it.
     /// </summary>
-    public static BootResult RunM01LiveAllocatorIntegration(
-        M01LiveAllocatorIntegrationResult integration,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+
+    public static BootResult RunM01LiveAllocatorIntegration(M01LiveAllocatorIntegrationResult integration, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -905,39 +382,17 @@ public static class BootSequence
 
         if (!integration.Succeeded)
         {
-            M01LiveAllocatorStatus failureStatus =
-                integration.Status == M01LiveAllocatorStatus.Success
-                    ? M01LiveAllocatorStatus.IllegalCoordinatorState
-                    : integration.Status;
-            string failureDetail =
-                ((byte)failureStatus)
-                + " checkpoint="
-                + (byte)integration.LastCompletedCheckpoint;
-            Emit(
-                serial,
-                events,
-                CreateM01StageTwoSuccessLine(0));
-            Emit(
-                serial,
-                events,
-                M01StageTwoTestFailurePrefix + failureDetail);
-            Emit(
-                serial,
-                events,
-                M01StageTwoFailurePrefix + failureDetail);
-            return BootResult.Fail(
-                "M01 stage two failed: status=" + failureDetail);
+            M01LiveAllocatorStatus failureStatus = integration.Status == M01LiveAllocatorStatus.Success ? M01LiveAllocatorStatus.IllegalCoordinatorState : integration.Status;
+            string failureDetail = ((byte)failureStatus) + " checkpoint=" + (byte)integration.LastCompletedCheckpoint;
+            Emit(serial, events, CreateM01StageTwoSuccessLine(0));
+            Emit(serial, events, M01StageTwoTestFailurePrefix + failureDetail);
+            Emit(serial, events, M01StageTwoFailurePrefix + failureDetail);
+            return BootResult.Fail("M01 stage two failed: status=" + failureDetail);
         }
 
-        for (int lineIndex = 0;
-            lineIndex
-                < BootSequencePlan.M01StageTwoSuccessLineCount;
-            lineIndex++)
+        for (int lineIndex = 0; lineIndex < BootSequencePlan.M01StageTwoSuccessLineCount; lineIndex++)
         {
-            Emit(
-                serial,
-                events,
-                CreateM01StageTwoSuccessLine(lineIndex));
+            Emit(serial, events, CreateM01StageTwoSuccessLine(lineIndex));
         }
 
         return BootResult.Pass();
@@ -953,10 +408,8 @@ public static class BootSequence
     /// interval. This helper does not call firmware or execute privileged
     /// instructions, and the default Run overloads never call it.
     /// </summary>
-    public static BootResult RunM01LivePagingIntegration(
-        M01LivePagingIntegrationResult integration,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+
+    public static BootResult RunM01LivePagingIntegration(M01LivePagingIntegrationResult integration, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -970,39 +423,17 @@ public static class BootSequence
 
         if (!integration.Succeeded)
         {
-            M01LivePagingStatus failureStatus =
-                integration.Status == M01LivePagingStatus.Success
-                    ? M01LivePagingStatus.IllegalCoordinatorState
-                    : integration.Status;
-            string failureDetail =
-                ((byte)failureStatus)
-                + " checkpoint="
-                + (byte)integration.LastCompletedCheckpoint;
-            Emit(
-                serial,
-                events,
-                CreateM01StageThreeSuccessLine(0));
-            Emit(
-                serial,
-                events,
-                M01StageThreeTestFailurePrefix + failureDetail);
-            Emit(
-                serial,
-                events,
-                M01StageThreeFailurePrefix + failureDetail);
-            return BootResult.Fail(
-                "M01 stage three failed: status=" + failureDetail);
+            M01LivePagingStatus failureStatus = integration.Status == M01LivePagingStatus.Success ? M01LivePagingStatus.IllegalCoordinatorState : integration.Status;
+            string failureDetail = ((byte)failureStatus) + " checkpoint=" + (byte)integration.LastCompletedCheckpoint;
+            Emit(serial, events, CreateM01StageThreeSuccessLine(0));
+            Emit(serial, events, M01StageThreeTestFailurePrefix + failureDetail);
+            Emit(serial, events, M01StageThreeFailurePrefix + failureDetail);
+            return BootResult.Fail("M01 stage three failed: status=" + failureDetail);
         }
 
-        for (int lineIndex = 0;
-            lineIndex
-                < BootSequencePlan.M01StageThreeSuccessLineCount;
-            lineIndex++)
+        for (int lineIndex = 0; lineIndex < BootSequencePlan.M01StageThreeSuccessLineCount; lineIndex++)
         {
-            Emit(
-                serial,
-                events,
-                CreateM01StageThreeSuccessLine(lineIndex));
+            Emit(serial, events, CreateM01StageThreeSuccessLine(lineIndex));
         }
 
         return BootResult.Pass();
@@ -1028,7 +459,6 @@ public static class BootSequence
 
         Emit(serial, events, CreatePlanLine(0));
         EmitImplementedPhases(serial, events);
-
         if (IsUefiGoneSimulationProbeEnabled())
         {
             FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -1056,10 +486,7 @@ public static class BootSequence
         return Run(handoffRecord, serial, events);
     }
 
-    public static BootResult Run(
-        BootHandoffRecord handoffRecord,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult Run(BootHandoffRecord handoffRecord, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1072,20 +499,15 @@ public static class BootSequence
         }
 
         Emit(serial, events, CreatePlanLine(0));
-
         BootSequenceHandoffValidationResult handoffValidation = ValidateHandoff(handoffRecord);
         if (!handoffValidation.Succeeded)
         {
-            Emit(
-                serial,
-                events,
-                BootSequenceHandoffValidator.CreateFailMarker(handoffValidation.Status));
+            Emit(serial, events, BootSequenceHandoffValidator.CreateFailMarker(handoffValidation.Status));
             return BootResult.Fail("boot handoff validation failed: " + handoffValidation.Status);
         }
 
         Emit(serial, events, BootSequenceHandoffValidator.ReadyMarker);
         EmitImplementedPhases(serial, events);
-
         if (IsUefiGoneSimulationProbeEnabled())
         {
             FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -1107,20 +529,13 @@ public static class BootSequence
         return BootResult.Pass();
     }
 
-    public static BootResult Run(
-        BootHandoffRecord handoffRecord,
-        EfiMemoryMapSummary normalizedMemoryMap,
-        ISerialSink serial)
+    public static BootResult Run(BootHandoffRecord handoffRecord, EfiMemoryMapSummary normalizedMemoryMap, ISerialSink serial)
     {
         BootEventRingBuffer events = new BootEventRingBuffer();
         return Run(handoffRecord, normalizedMemoryMap, serial, events);
     }
 
-    public static BootResult Run(
-        BootHandoffRecord handoffRecord,
-        EfiMemoryMapSummary normalizedMemoryMap,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult Run(BootHandoffRecord handoffRecord, EfiMemoryMapSummary normalizedMemoryMap, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1133,19 +548,14 @@ public static class BootSequence
         }
 
         Emit(serial, events, CreatePlanLine(0));
-
         BootSequenceHandoffValidationResult handoffValidation = ValidateHandoff(handoffRecord);
         if (!handoffValidation.Succeeded)
         {
-            Emit(
-                serial,
-                events,
-                BootSequenceHandoffValidator.CreateFailMarker(handoffValidation.Status));
+            Emit(serial, events, BootSequenceHandoffValidator.CreateFailMarker(handoffValidation.Status));
             return BootResult.Fail("boot handoff validation failed: " + handoffValidation.Status);
         }
 
         Emit(serial, events, BootSequenceHandoffValidator.ReadyMarker);
-
         BootMemoryMapAcceptanceResult memoryMapAcceptance = AcceptNormalizedMemoryMap(normalizedMemoryMap);
         if (!memoryMapAcceptance.Succeeded)
         {
@@ -1155,7 +565,6 @@ public static class BootSequence
 
         Emit(serial, events, BootMemoryMapAccepted);
         EmitImplementedPhases(serial, events);
-
         if (IsUefiGoneSimulationProbeEnabled())
         {
             FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -1187,10 +596,7 @@ public static class BootSequence
         return BootMemoryMapAcceptance.Validate(summary);
     }
 
-    public static BootResult RunFaultInfrastructureReadiness(
-        FaultInfrastructureReadinessResult readiness,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunFaultInfrastructureReadiness(FaultInfrastructureReadinessResult readiness, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1212,11 +618,7 @@ public static class BootSequence
         return BootResult.Pass();
     }
 
-    public static BootResult RunExitBootServicesTransition(
-        UefiExitBootServicesPlanResult plan,
-        FirmwareServicesGuard firmware,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunExitBootServicesTransition(UefiExitBootServicesPlanResult plan, FirmwareServicesGuard firmware, ISerialSink serial, BootEventRingBuffer events)
     {
         if (firmware is null)
         {
@@ -1249,12 +651,7 @@ public static class BootSequence
         return BootResult.Pass();
     }
 
-    public static BootResult RunExitBootServicesPreflight(
-        SerialDiagnosticsGuardResult postFirmwareDiagnostics,
-        UefiExitBootServicesPlanResult plan,
-        FirmwareServicesGuard firmware,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunExitBootServicesPreflight(SerialDiagnosticsGuardResult postFirmwareDiagnostics, UefiExitBootServicesPlanResult plan, FirmwareServicesGuard firmware, ISerialSink serial, BootEventRingBuffer events)
     {
         if (firmware is null)
         {
@@ -1271,18 +668,10 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        if (!postFirmwareDiagnostics.PostFirmwareDiagnosticsAvailable ||
-            plan.Status != UefiExitBootServicesPlanStatus.Success)
+        if (!postFirmwareDiagnostics.PostFirmwareDiagnosticsAvailable || plan.Status != UefiExitBootServicesPlanStatus.Success)
         {
-            Emit(
-                serial,
-                events,
-                CreateExitBootServicesPreflightBlockedMarker(
-                    postFirmwareDiagnostics.Status,
-                    plan.Status));
-            return BootResult.Fail(
-                "ExitBootServices preflight blocked: diagnostics=" + postFirmwareDiagnostics.Status
-                + " plan=" + plan.Status);
+            Emit(serial, events, CreateExitBootServicesPreflightBlockedMarker(postFirmwareDiagnostics.Status, plan.Status));
+            return BootResult.Fail("ExitBootServices preflight blocked: diagnostics=" + postFirmwareDiagnostics.Status + " plan=" + plan.Status);
         }
 
         FirmwareCallResult exited = firmware.MarkBootServicesExited();
@@ -1295,11 +684,7 @@ public static class BootSequence
         return BootResult.Pass();
     }
 
-    public static BootResult RunEarlyDiagnosticsReadiness(
-        Com1PortIoBackendPlanResult serialBackendReadiness,
-        DescriptorTableInstallReadinessResult descriptorTableReadiness,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunEarlyDiagnosticsReadiness(Com1PortIoBackendPlanResult serialBackendReadiness, DescriptorTableInstallReadinessResult descriptorTableReadiness, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1313,32 +698,21 @@ public static class BootSequence
 
         if (!serialBackendReadiness.Succeeded)
         {
-            Emit(
-                serial,
-                events,
-                CreateEarlyDiagnosticsNotReadyMarker(EarlyDiagnosticsReadinessStatus.SerialBackendNotReady));
-            return BootResult.Fail(
-                "early diagnostics not ready: " + EarlyDiagnosticsReadinessStatus.SerialBackendNotReady);
+            Emit(serial, events, CreateEarlyDiagnosticsNotReadyMarker(EarlyDiagnosticsReadinessStatus.SerialBackendNotReady));
+            return BootResult.Fail("early diagnostics not ready: " + EarlyDiagnosticsReadinessStatus.SerialBackendNotReady);
         }
 
         if (!descriptorTableReadiness.Succeeded)
         {
-            Emit(
-                serial,
-                events,
-                CreateEarlyDiagnosticsNotReadyMarker(EarlyDiagnosticsReadinessStatus.DescriptorTablesNotReady));
-            return BootResult.Fail(
-                "early diagnostics not ready: " + EarlyDiagnosticsReadinessStatus.DescriptorTablesNotReady);
+            Emit(serial, events, CreateEarlyDiagnosticsNotReadyMarker(EarlyDiagnosticsReadinessStatus.DescriptorTablesNotReady));
+            return BootResult.Fail("early diagnostics not ready: " + EarlyDiagnosticsReadinessStatus.DescriptorTablesNotReady);
         }
 
         Emit(serial, events, EarlyDiagnosticsReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunDiagnosticStubMaterializationReadiness(
-        ExecutableStubBundleMaterializerResult materializerResult,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunDiagnosticStubMaterializationReadiness(ExecutableStubBundleMaterializerResult materializerResult, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1352,16 +726,14 @@ public static class BootSequence
 
         if (!materializerResult.Succeeded)
         {
-            DiagnosticStubMaterializationReadinessStatus status =
-                DiagnosticStubMaterializationReadinessStatus.MaterializerFailed;
+            DiagnosticStubMaterializationReadinessStatus status = DiagnosticStubMaterializationReadinessStatus.MaterializerFailed;
             Emit(serial, events, CreateDiagnosticStubsNotMaterializedMarker(status));
             return BootResult.Fail("diagnostic stubs not materialized: " + status);
         }
 
         if (materializerResult.BytesCopied == 0)
         {
-            DiagnosticStubMaterializationReadinessStatus status =
-                DiagnosticStubMaterializationReadinessStatus.NoMaterializedPayloadEvidence;
+            DiagnosticStubMaterializationReadinessStatus status = DiagnosticStubMaterializationReadinessStatus.NoMaterializedPayloadEvidence;
             Emit(serial, events, CreateDiagnosticStubsNotMaterializedMarker(status));
             return BootResult.Fail("diagnostic stubs not materialized: " + status);
         }
@@ -1370,10 +742,7 @@ public static class BootSequence
         return BootResult.Pass();
     }
 
-    public static BootResult RunPostFirmwareDiagnosticsReadiness(
-        SerialDiagnosticsGuardResult diagnosticsReadiness,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunPostFirmwareDiagnosticsReadiness(SerialDiagnosticsGuardResult diagnosticsReadiness, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1395,11 +764,7 @@ public static class BootSequence
         return BootResult.Pass();
     }
 
-    public static BootResult RunControlledFaultProbeReadiness(
-        EarlyDiagnosticsReadinessStatus earlyDiagnosticsStatus,
-        FaultProbeReadinessResult faultProbeReadiness,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunControlledFaultProbeReadiness(EarlyDiagnosticsReadinessStatus earlyDiagnosticsStatus, FaultProbeReadinessResult faultProbeReadiness, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1413,17 +778,14 @@ public static class BootSequence
 
         if (earlyDiagnosticsStatus != EarlyDiagnosticsReadinessStatus.Ready)
         {
-            ControlledFaultProbeReadinessStatus status =
-                ControlledFaultProbeReadinessStatus.EarlyDiagnosticsNotReady;
+            ControlledFaultProbeReadinessStatus status = ControlledFaultProbeReadinessStatus.EarlyDiagnosticsNotReady;
             Emit(serial, events, CreateControlledFaultProbesNotReadyMarker(status));
             return BootResult.Fail("controlled fault probes not ready: " + status);
         }
 
-        if (!faultProbeReadiness.Succeeded ||
-            faultProbeReadiness.Status != FaultProbeReadinessStatus.Ready)
+        if (!faultProbeReadiness.Succeeded || faultProbeReadiness.Status != FaultProbeReadinessStatus.Ready)
         {
-            ControlledFaultProbeReadinessStatus status =
-                ControlledFaultProbeReadinessStatus.FaultProbePlanNotReady;
+            ControlledFaultProbeReadinessStatus status = ControlledFaultProbeReadinessStatus.FaultProbePlanNotReady;
             Emit(serial, events, CreateControlledFaultProbesNotReadyMarker(status));
             return BootResult.Fail("controlled fault probes not ready: " + status);
         }
@@ -1432,10 +794,7 @@ public static class BootSequence
         return BootResult.Pass();
     }
 
-    public static BootResult RunCpuFaultPanicReadiness(
-        CpuFaultPanicReadinessResult readiness,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunCpuFaultPanicReadiness(CpuFaultPanicReadinessResult readiness, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1449,24 +808,16 @@ public static class BootSequence
 
         if (!readiness.Succeeded)
         {
-            CpuFaultPanicBootReadinessStatus status =
-                CpuFaultPanicBootReadinessStatus.PanicReadinessFailed;
+            CpuFaultPanicBootReadinessStatus status = CpuFaultPanicBootReadinessStatus.PanicReadinessFailed;
             Emit(serial, events, CreateCpuFaultPanicNotReadyMarker(status, readiness));
-            return BootResult.Fail(
-                "CPU fault panic not ready: status=" + status
-                + " readiness=" + readiness.Status
-                + " frame=" + readiness.FrameStatus
-                + " reporter=" + readiness.ReporterStatus);
+            return BootResult.Fail("CPU fault panic not ready: status=" + status + " readiness=" + readiness.Status + " frame=" + readiness.FrameStatus + " reporter=" + readiness.ReporterStatus);
         }
 
         Emit(serial, events, CpuFaultPanicReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunDiagnosticsChainReadiness(
-        DiagnosticsChainReadinessResult readiness,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunDiagnosticsChainReadiness(DiagnosticsChainReadinessResult readiness, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1482,23 +833,14 @@ public static class BootSequence
         {
             string marker = CreateDiagnosticsChainNotReadyMarker(readiness);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "diagnostics chain not ready: status=" + readiness.Status
-                + " serial=" + readiness.SerialBackendStatus
-                + " descriptor=" + readiness.DescriptorTableStatus
-                + " probe=" + readiness.FaultProbeStatus
-                + " panic=" + readiness.CpuFaultPanicStatus
-                + " materializer=" + readiness.StubMaterializationStatus);
+            return BootResult.Fail("diagnostics chain not ready: status=" + readiness.Status + " serial=" + readiness.SerialBackendStatus + " descriptor=" + readiness.DescriptorTableStatus + " probe=" + readiness.FaultProbeStatus + " panic=" + readiness.CpuFaultPanicStatus + " materializer=" + readiness.StubMaterializationStatus);
         }
 
         Emit(serial, events, DiagnosticsChainReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunDiagnosticStubInvocationReadiness(
-        DiagnosticStubInvocationReadinessResult readiness,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunDiagnosticStubInvocationReadiness(DiagnosticStubInvocationReadinessResult readiness, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1514,21 +856,14 @@ public static class BootSequence
         {
             string marker = CreateDiagnosticStubInvocationNotReadyMarker(readiness);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "diagnostic stub invocation not ready: status=" + readiness.Status
-                + " pageTransition=" + readiness.PageTransitionStatus
-                + " backend=" + readiness.BackendContractStatus
-                + " bytes=" + readiness.BytesMaterialized);
+            return BootResult.Fail("diagnostic stub invocation not ready: status=" + readiness.Status + " pageTransition=" + readiness.PageTransitionStatus + " backend=" + readiness.BackendContractStatus + " bytes=" + readiness.BytesMaterialized);
         }
 
         Emit(serial, events, DiagnosticStubInvocationReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunBootPageAllocatorReadiness(
-        BootPageAllocatorStateInitResult allocatorState,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunBootPageAllocatorReadiness(BootPageAllocatorStateInitResult allocatorState, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1545,22 +880,14 @@ public static class BootSequence
         {
             string marker = CreateBootPageAllocatorNotReadyMarker(readiness, allocatorState);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "boot page allocator not ready: status=" + readiness
-                + " state=" + allocatorState.Status
-                + " freeList=" + allocatorState.FreeListPlanStatus);
+            return BootResult.Fail("boot page allocator not ready: status=" + readiness + " state=" + allocatorState.Status + " freeList=" + allocatorState.FreeListPlanStatus);
         }
 
         Emit(serial, events, CreateBootPageAllocatorReadyMarker(allocatorState));
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppPackageReadiness(
-        NativeManifestLoadResult manifestLoad,
-        OsPackageParseResult packageParse,
-        NativeAppLaunchPlanResult launchPlan,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppPackageReadiness(NativeManifestLoadResult manifestLoad, OsPackageParseResult packageParse, NativeAppLaunchPlanResult launchPlan, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1574,25 +901,16 @@ public static class BootSequence
 
         if (!manifestLoad.Succeeded || !packageParse.Succeeded || !launchPlan.Succeeded)
         {
-            string marker = CreateAppPackageNotReadyMarker(
-                manifestLoad.Status,
-                packageParse.Status,
-                launchPlan.Status);
+            string marker = CreateAppPackageNotReadyMarker(manifestLoad.Status, packageParse.Status, launchPlan.Status);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app package not ready: manifest=" + manifestLoad.Status
-                + " package=" + packageParse.Status
-                + " launch=" + launchPlan.Status);
+            return BootResult.Fail("app package not ready: manifest=" + manifestLoad.Status + " package=" + packageParse.Status + " launch=" + launchPlan.Status);
         }
 
         Emit(serial, events, AppPackageReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppLaunchDescriptorReadiness(
-        NativeAppLaunchDescriptorResult descriptor,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppLaunchDescriptorReadiness(NativeAppLaunchDescriptorResult descriptor, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1606,27 +924,16 @@ public static class BootSequence
 
         if (!descriptor.Succeeded)
         {
-            string marker = CreateAppLaunchNotReadyMarker(
-                descriptor.Status,
-                descriptor.LaunchStatus,
-                descriptor.PackageFileStatus,
-                descriptor.PackageStatus);
+            string marker = CreateAppLaunchNotReadyMarker(descriptor.Status, descriptor.LaunchStatus, descriptor.PackageFileStatus, descriptor.PackageStatus);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app launch descriptor not ready: status=" + descriptor.Status
-                + " launch=" + descriptor.LaunchStatus
-                + " packageFile=" + descriptor.PackageFileStatus
-                + " package=" + descriptor.PackageStatus);
+            return BootResult.Fail("app launch descriptor not ready: status=" + descriptor.Status + " launch=" + descriptor.LaunchStatus + " packageFile=" + descriptor.PackageFileStatus + " package=" + descriptor.PackageStatus);
         }
 
         Emit(serial, events, AppLaunchReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppPayloadReadiness(
-        NativeAppLaunchDescriptorResult descriptor,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppPayloadReadiness(NativeAppLaunchDescriptorResult descriptor, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1640,23 +947,16 @@ public static class BootSequence
 
         if (!descriptor.Succeeded)
         {
-            string marker = CreateAppPayloadNotReadyMarker(
-                descriptor.Status,
-                descriptor.PayloadHeaderStatus);
+            string marker = CreateAppPayloadNotReadyMarker(descriptor.Status, descriptor.PayloadHeaderStatus);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app payload not ready: descriptor=" + descriptor.Status
-                + " payload=" + descriptor.PayloadHeaderStatus);
+            return BootResult.Fail("app payload not ready: descriptor=" + descriptor.Status + " payload=" + descriptor.PayloadHeaderStatus);
         }
 
         Emit(serial, events, AppPayloadReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppExecutableMappingReadiness(
-        NativeAppPayloadMappingPlanResult mappingPlan,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppExecutableMappingReadiness(NativeAppPayloadMappingPlanResult mappingPlan, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1670,25 +970,16 @@ public static class BootSequence
 
         if (!mappingPlan.Succeeded)
         {
-            string marker = CreateAppExecutableMappingNotReadyMarker(
-                mappingPlan.Status,
-                mappingPlan.DescriptorStatus,
-                mappingPlan.PayloadHeaderStatus);
+            string marker = CreateAppExecutableMappingNotReadyMarker(mappingPlan.Status, mappingPlan.DescriptorStatus, mappingPlan.PayloadHeaderStatus);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app executable mapping not ready: status=" + mappingPlan.Status
-                + " descriptor=" + mappingPlan.DescriptorStatus
-                + " payload=" + mappingPlan.PayloadHeaderStatus);
+            return BootResult.Fail("app executable mapping not ready: status=" + mappingPlan.Status + " descriptor=" + mappingPlan.DescriptorStatus + " payload=" + mappingPlan.PayloadHeaderStatus);
         }
 
         Emit(serial, events, AppExecutableMappingReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppExecutableMemoryReadiness(
-        NativeAppExecutableMemoryPlanResult memoryPlan,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppExecutableMemoryReadiness(NativeAppExecutableMemoryPlanResult memoryPlan, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1702,27 +993,16 @@ public static class BootSequence
 
         if (!memoryPlan.Succeeded)
         {
-            string marker = CreateAppExecutableMemoryNotReadyMarker(
-                memoryPlan.Status,
-                memoryPlan.PayloadMappingStatus,
-                memoryPlan.DescriptorStatus,
-                memoryPlan.PayloadHeaderStatus);
+            string marker = CreateAppExecutableMemoryNotReadyMarker(memoryPlan.Status, memoryPlan.PayloadMappingStatus, memoryPlan.DescriptorStatus, memoryPlan.PayloadHeaderStatus);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app executable memory not ready: status=" + memoryPlan.Status
-                + " mapping=" + memoryPlan.PayloadMappingStatus
-                + " descriptor=" + memoryPlan.DescriptorStatus
-                + " payload=" + memoryPlan.PayloadHeaderStatus);
+            return BootResult.Fail("app executable memory not ready: status=" + memoryPlan.Status + " mapping=" + memoryPlan.PayloadMappingStatus + " descriptor=" + memoryPlan.DescriptorStatus + " payload=" + memoryPlan.PayloadHeaderStatus);
         }
 
         Emit(serial, events, AppExecutableMemoryReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppInvocationReadiness(
-        NativeAppInvocationPlanResult invocationPlan,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppInvocationReadiness(NativeAppInvocationPlanResult invocationPlan, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1736,25 +1016,16 @@ public static class BootSequence
 
         if (!invocationPlan.Succeeded)
         {
-            string marker = CreateAppInvocationNotReadyMarker(
-                invocationPlan.Status,
-                invocationPlan.ExecutableMemoryStatus,
-                invocationPlan.LaunchStatus);
+            string marker = CreateAppInvocationNotReadyMarker(invocationPlan.Status, invocationPlan.ExecutableMemoryStatus, invocationPlan.LaunchStatus);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app invocation not ready: status=" + invocationPlan.Status
-                + " memory=" + invocationPlan.ExecutableMemoryStatus
-                + " launch=" + invocationPlan.LaunchStatus);
+            return BootResult.Fail("app invocation not ready: status=" + invocationPlan.Status + " memory=" + invocationPlan.ExecutableMemoryStatus + " launch=" + invocationPlan.LaunchStatus);
         }
 
         Emit(serial, events, AppInvocationReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppLifecycleReadiness(
-        NativeAppLifecyclePlanResult lifecyclePlan,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppLifecycleReadiness(NativeAppLifecyclePlanResult lifecyclePlan, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1768,32 +1039,16 @@ public static class BootSequence
 
         if (!lifecyclePlan.Succeeded)
         {
-            string marker = CreateAppLifecycleNotReadyMarker(
-                lifecyclePlan.Status,
-                lifecyclePlan.InvocationStatus,
-                lifecyclePlan.LogStatus);
+            string marker = CreateAppLifecycleNotReadyMarker(lifecyclePlan.Status, lifecyclePlan.InvocationStatus, lifecyclePlan.LogStatus);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app lifecycle not ready: status=" + lifecyclePlan.Status
-                + " invocation=" + lifecyclePlan.InvocationStatus
-                + " log=" + lifecyclePlan.LogStatus);
+            return BootResult.Fail("app lifecycle not ready: status=" + lifecyclePlan.Status + " invocation=" + lifecyclePlan.InvocationStatus + " log=" + lifecyclePlan.LogStatus);
         }
 
         Emit(serial, events, AppLifecycleReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppEntryReadiness(
-        NativeManifestLoadResult manifestLoad,
-        OsPackageParseResult packageParse,
-        NativeAppLaunchPlanResult launchPlan,
-        NativeAppLaunchDescriptorResult descriptor,
-        NativeAppEntryStagingPreflightResult stagingPreflight,
-        NativeAppPayloadMappingPlanResult mappingPlan,
-        NativeAppExecutableMemoryPlanResult memoryPlan,
-        NativeAppInvocationPlanResult invocationPlan,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppEntryReadiness(NativeManifestLoadResult manifestLoad, OsPackageParseResult packageParse, NativeAppLaunchPlanResult launchPlan, NativeAppLaunchDescriptorResult descriptor, NativeAppEntryStagingPreflightResult stagingPreflight, NativeAppPayloadMappingPlanResult mappingPlan, NativeAppExecutableMemoryPlanResult memoryPlan, NativeAppInvocationPlanResult invocationPlan, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1805,52 +1060,19 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        AppEntryReadinessStatus entryStatus = GetAppEntryStatus(
-            manifestLoad,
-            packageParse,
-            launchPlan,
-            descriptor,
-            stagingPreflight,
-            mappingPlan,
-            memoryPlan,
-            invocationPlan);
+        AppEntryReadinessStatus entryStatus = GetAppEntryStatus(manifestLoad, packageParse, launchPlan, descriptor, stagingPreflight, mappingPlan, memoryPlan, invocationPlan);
         if (entryStatus != AppEntryReadinessStatus.Ready)
         {
-            string marker = CreateAppEntryNotReadyMarker(
-                entryStatus,
-                manifestLoad.Status,
-                packageParse.Status,
-                launchPlan.Status,
-                descriptor.Status,
-                stagingPreflight.Status,
-                stagingPreflight.PackageFileStagingStatus,
-                stagingPreflight.PayloadStagingStatus,
-                mappingPlan.Status,
-                memoryPlan.Status,
-                invocationPlan.Status);
+            string marker = CreateAppEntryNotReadyMarker(entryStatus, manifestLoad.Status, packageParse.Status, launchPlan.Status, descriptor.Status, stagingPreflight.Status, stagingPreflight.PackageFileStagingStatus, stagingPreflight.PayloadStagingStatus, mappingPlan.Status, memoryPlan.Status, invocationPlan.Status);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app entry not ready: status=" + entryStatus
-                + " manifest=" + manifestLoad.Status
-                + " package=" + packageParse.Status
-                + " launch=" + launchPlan.Status
-                + " descriptor=" + descriptor.Status
-                + " staging=" + stagingPreflight.Status
-                + " packageStaging=" + stagingPreflight.PackageFileStagingStatus
-                + " payloadStaging=" + stagingPreflight.PayloadStagingStatus
-                + " mapping=" + mappingPlan.Status
-                + " memory=" + memoryPlan.Status
-                + " invocation=" + invocationPlan.Status);
+            return BootResult.Fail("app entry not ready: status=" + entryStatus + " manifest=" + manifestLoad.Status + " package=" + packageParse.Status + " launch=" + launchPlan.Status + " descriptor=" + descriptor.Status + " staging=" + stagingPreflight.Status + " packageStaging=" + stagingPreflight.PackageFileStagingStatus + " payloadStaging=" + stagingPreflight.PayloadStagingStatus + " mapping=" + mappingPlan.Status + " memory=" + memoryPlan.Status + " invocation=" + invocationPlan.Status);
         }
 
         Emit(serial, events, AppEntryReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppPackageStagingReadiness(
-        NativeAppPackageStagingReadinessResult readiness,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppPackageStagingReadiness(NativeAppPackageStagingReadinessResult readiness, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1864,26 +1086,16 @@ public static class BootSequence
 
         if (!readiness.Succeeded)
         {
-            AppPackageStagingReadinessStatus status =
-                AppPackageStagingReadinessStatus.StagingReadinessFailed;
+            AppPackageStagingReadinessStatus status = AppPackageStagingReadinessStatus.StagingReadinessFailed;
             Emit(serial, events, CreateAppPackageStagingNotReadyMarker(status, readiness));
-            return BootResult.Fail(
-                "app package staging not ready: status=" + status
-                + " readiness=" + readiness.Status
-                + " manifest=" + readiness.ManifestStatus
-                + " package=" + readiness.PackageStatus
-                + " launch=" + readiness.LaunchStatus
-                + " descriptor=" + readiness.DescriptorStatus);
+            return BootResult.Fail("app package staging not ready: status=" + status + " readiness=" + readiness.Status + " manifest=" + readiness.ManifestStatus + " package=" + readiness.PackageStatus + " launch=" + readiness.LaunchStatus + " descriptor=" + readiness.DescriptorStatus);
         }
 
         Emit(serial, events, AppPackageStagingReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppPackageFileStagingPreflightReadiness(
-        VirtioBlockPackageFileStagingPreflightResult preflight,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppPackageFileStagingPreflightReadiness(VirtioBlockPackageFileStagingPreflightResult preflight, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1895,28 +1107,19 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        AppPackageFileStagingPreflightReadinessStatus readiness =
-            GetAppPackageFileStagingPreflightStatus(preflight);
+        AppPackageFileStagingPreflightReadinessStatus readiness = GetAppPackageFileStagingPreflightStatus(preflight);
         if (readiness != AppPackageFileStagingPreflightReadinessStatus.Ready)
         {
             string marker = CreateAppPackageFileStagingPreflightNotReadyMarker(readiness, preflight);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app package file staging preflight not ready: status=" + readiness
-                + " preflight=" + preflight.Status
-                + " packagePreflight=" + preflight.PackagePreflightStatus
-                + " open=" + preflight.PackageOpenStatus
-                + " staging=" + preflight.PackageStagingStatus);
+            return BootResult.Fail("app package file staging preflight not ready: status=" + readiness + " preflight=" + preflight.Status + " packagePreflight=" + preflight.PackagePreflightStatus + " open=" + preflight.PackageOpenStatus + " staging=" + preflight.PackageStagingStatus);
         }
 
         Emit(serial, events, CreateAppPackageFileStagingPreflightReadyMarker(preflight));
         return BootResult.Pass();
     }
 
-    public static BootResult RunPalExportCatalogReadiness(
-        OSHostExportCatalogValidationResult validation,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunPalExportCatalogReadiness(OSHostExportCatalogValidationResult validation, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1933,22 +1136,14 @@ public static class BootSequence
         {
             string marker = CreatePalExportCatalogNotReadyMarker(readiness, validation);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "pal export catalog not ready: status=" + readiness
-                + " catalog=" + validation.Status
-                + " entryCount=" + validation.EntryCount
-                + " firstFailingIndex=" + validation.EntryIndex
-                + " duplicateIndex=" + validation.DuplicateEntryIndex);
+            return BootResult.Fail("pal export catalog not ready: status=" + readiness + " catalog=" + validation.Status + " entryCount=" + validation.EntryCount + " firstFailingIndex=" + validation.EntryIndex + " duplicateIndex=" + validation.DuplicateEntryIndex);
         }
 
         Emit(serial, events, CreatePalExportCatalogReadyMarker(validation));
         return BootResult.Pass();
     }
 
-    public static BootResult RunNativeAotHeapBootstrapReadiness(
-        NativeAotHeapBootstrapPlanResult plan,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunNativeAotHeapBootstrapReadiness(NativeAotHeapBootstrapPlanResult plan, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1960,28 +1155,19 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        NativeAotHeapBootstrapReadinessStatus readiness =
-            GetNativeAotHeapBootstrapReadinessStatus(plan);
+        NativeAotHeapBootstrapReadinessStatus readiness = GetNativeAotHeapBootstrapReadinessStatus(plan);
         if (readiness != NativeAotHeapBootstrapReadinessStatus.Ready)
         {
             string marker = CreateNativeAotHeapBootstrapNotReadyMarker(readiness, plan);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "nativeaot heap bootstrap not ready: status=" + readiness
-                + " plan=" + plan.Status
-                + " initialized=" + plan.IsInitialized
-                + " requestedHeapPages=" + plan.RequestedHeapPages
-                + " allocatorFreePages=" + plan.AllocatorFreePages);
+            return BootResult.Fail("nativeaot heap bootstrap not ready: status=" + readiness + " plan=" + plan.Status + " initialized=" + plan.IsInitialized + " requestedHeapPages=" + plan.RequestedHeapPages + " allocatorFreePages=" + plan.AllocatorFreePages);
         }
 
         Emit(serial, events, CreateNativeAotHeapBootstrapReadyMarker(plan));
         return BootResult.Pass();
     }
 
-    public static BootResult RunNativeAotClassConstructorRunnerPreflightReadiness(
-        NativeAotClassConstructorRunnerPreflightResult preflight,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunNativeAotClassConstructorRunnerPreflightReadiness(NativeAotClassConstructorRunnerPreflightResult preflight, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -1993,30 +1179,19 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        NativeAotClassConstructorRunnerPreflightReadinessStatus readiness =
-            GetNativeAotClassConstructorRunnerPreflightReadinessStatus(preflight);
+        NativeAotClassConstructorRunnerPreflightReadinessStatus readiness = GetNativeAotClassConstructorRunnerPreflightReadinessStatus(preflight);
         if (readiness != NativeAotClassConstructorRunnerPreflightReadinessStatus.Ready)
         {
-            string marker = CreateNativeAotClassConstructorRunnerPreflightNotReadyMarker(
-                readiness,
-                preflight);
+            string marker = CreateNativeAotClassConstructorRunnerPreflightNotReadyMarker(readiness, preflight);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "nativeaot cctor runner preflight not ready: status=" + readiness
-                + " preflight=" + preflight.Status
-                + " initialized=" + preflight.IsInitialized
-                + " typeCount=" + preflight.TypeCount
-                + " targetMetadataCount=" + preflight.TargetMetadataCount);
+            return BootResult.Fail("nativeaot cctor runner preflight not ready: status=" + readiness + " preflight=" + preflight.Status + " initialized=" + preflight.IsInitialized + " typeCount=" + preflight.TypeCount + " targetMetadataCount=" + preflight.TargetMetadataCount);
         }
 
         Emit(serial, events, CreateNativeAotClassConstructorRunnerPreflightReadyMarker(preflight));
         return BootResult.Pass();
     }
 
-    public static BootResult RunNativeAotClassConstructorWorkItemReadiness(
-        NativeAotClassConstructorWorkItemPlanResult plan,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunNativeAotClassConstructorWorkItemReadiness(NativeAotClassConstructorWorkItemPlanResult plan, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2028,30 +1203,19 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        NativeAotClassConstructorWorkItemReadinessStatus readiness =
-            GetNativeAotClassConstructorWorkItemReadinessStatus(plan);
+        NativeAotClassConstructorWorkItemReadinessStatus readiness = GetNativeAotClassConstructorWorkItemReadinessStatus(plan);
         if (readiness != NativeAotClassConstructorWorkItemReadinessStatus.Ready)
         {
-            string marker = CreateNativeAotClassConstructorWorkItemNotReadyMarker(
-                readiness,
-                plan);
+            string marker = CreateNativeAotClassConstructorWorkItemNotReadyMarker(readiness, plan);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "nativeaot cctor work items not ready: status=" + readiness
-                + " plan=" + plan.Status
-                + " initialized=" + plan.IsInitialized
-                + " preflight=" + plan.PreflightStatus
-                + " plannedCount=" + plan.PlannedCount);
+            return BootResult.Fail("nativeaot cctor work items not ready: status=" + readiness + " plan=" + plan.Status + " initialized=" + plan.IsInitialized + " preflight=" + plan.PreflightStatus + " plannedCount=" + plan.PlannedCount);
         }
 
         Emit(serial, events, CreateNativeAotClassConstructorWorkItemReadyMarker(plan));
         return BootResult.Pass();
     }
 
-    public static BootResult RunFetchAppHttpRequestEndpointReadiness(
-        FetchAppHttpRequestEndpointResult endpoint,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunFetchAppHttpRequestEndpointReadiness(FetchAppHttpRequestEndpointResult endpoint, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2063,27 +1227,19 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        FetchAppHttpRequestEndpointReadinessStatus readiness =
-            GetFetchAppHttpRequestEndpointReadinessStatus(endpoint);
+        FetchAppHttpRequestEndpointReadinessStatus readiness = GetFetchAppHttpRequestEndpointReadinessStatus(endpoint);
         if (readiness != FetchAppHttpRequestEndpointReadinessStatus.Ready)
         {
             string marker = CreateFetchAppHttpRequestEndpointNotReadyMarker(readiness, endpoint);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "fetch app http request endpoint not ready: status=" + readiness
-                + " endpoint=" + endpoint.Status
-                + " initialized=" + endpoint.IsInitialized
-                + " port=" + endpoint.Port);
+            return BootResult.Fail("fetch app http request endpoint not ready: status=" + readiness + " endpoint=" + endpoint.Status + " initialized=" + endpoint.IsInitialized + " port=" + endpoint.Port);
         }
 
         Emit(serial, events, CreateFetchAppHttpRequestEndpointReadyMarker(endpoint));
         return BootResult.Pass();
     }
 
-    public static BootResult RunFetchAppHttpCompletionReadiness(
-        FetchAppHttpCompletionPlanResult completion,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunFetchAppHttpCompletionReadiness(FetchAppHttpCompletionPlanResult completion, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2095,28 +1251,19 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        FetchAppHttpCompletionReadinessStatus readiness =
-            GetFetchAppHttpCompletionReadinessStatus(completion);
+        FetchAppHttpCompletionReadinessStatus readiness = GetFetchAppHttpCompletionReadinessStatus(completion);
         if (readiness != FetchAppHttpCompletionReadinessStatus.Ready)
         {
             string marker = CreateFetchAppHttpCompletionNotReadyMarker(readiness, completion);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "fetch app http completion not ready: status=" + readiness
-                + " completion=" + completion.Status
-                + " httpPlan=" + completion.HttpPlanStatus
-                + " httpStatus=" + completion.HttpStatusCode
-                + " expectedStatus=" + completion.ExpectedHttpStatusCode);
+            return BootResult.Fail("fetch app http completion not ready: status=" + readiness + " completion=" + completion.Status + " httpPlan=" + completion.HttpPlanStatus + " httpStatus=" + completion.HttpStatusCode + " expectedStatus=" + completion.ExpectedHttpStatusCode);
         }
 
         Emit(serial, events, CreateFetchAppHttpCompletionReadyMarker(completion));
         return BootResult.Pass();
     }
 
-    public static BootResult RunFetchAppHttpTcpExchangeReadiness(
-        FetchAppHttpTcpExchangePlanResult exchange,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunFetchAppHttpTcpExchangeReadiness(FetchAppHttpTcpExchangePlanResult exchange, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2128,29 +1275,20 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        FetchAppHttpTcpExchangePlanDiagnosticFormatResult format =
-            TryFormatFetchAppHttpTcpExchangeDiagnostic(exchange, out string diagnosticPayload);
-        FetchAppHttpTcpExchangeReadinessStatus readiness =
-            GetFetchAppHttpTcpExchangeReadinessStatus(exchange, format);
+        FetchAppHttpTcpExchangePlanDiagnosticFormatResult format = TryFormatFetchAppHttpTcpExchangeDiagnostic(exchange, out string diagnosticPayload);
+        FetchAppHttpTcpExchangeReadinessStatus readiness = GetFetchAppHttpTcpExchangeReadinessStatus(exchange, format);
         if (readiness != FetchAppHttpTcpExchangeReadinessStatus.Ready)
         {
             string marker = CreateFetchAppHttpTcpExchangeNotReadyMarker(readiness, exchange, format);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "fetch app http tcp exchange not ready: status=" + readiness
-                + " exchange=" + exchange.Status
-                + " format=" + format.Status
-                + " initialized=" + exchange.IsInitialized);
+            return BootResult.Fail("fetch app http tcp exchange not ready: status=" + readiness + " exchange=" + exchange.Status + " format=" + format.Status + " initialized=" + exchange.IsInitialized);
         }
 
         Emit(serial, events, FetchAppHttpTcpExchangeReadyPrefix + diagnosticPayload);
         return BootResult.Pass();
     }
 
-    public static BootResult RunVirtioNetRxTcpDispatchReadiness(
-        VirtioNetReceiveRegisterWindowTcpDispatchResult dispatch,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunVirtioNetRxTcpDispatchReadiness(VirtioNetReceiveRegisterWindowTcpDispatchResult dispatch, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2162,19 +1300,13 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult format =
-            TryFormatVirtioNetRxTcpDispatchDiagnostic(dispatch, out string diagnosticPayload);
-        VirtioNetRxTcpDispatchReadinessStatus readiness =
-            GetVirtioNetRxTcpDispatchReadinessStatus(dispatch, format);
+        VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult format = TryFormatVirtioNetRxTcpDispatchDiagnostic(dispatch, out string diagnosticPayload);
+        VirtioNetRxTcpDispatchReadinessStatus readiness = GetVirtioNetRxTcpDispatchReadinessStatus(dispatch, format);
         if (readiness != VirtioNetRxTcpDispatchReadinessStatus.Ready)
         {
             string marker = CreateVirtioNetRxTcpDispatchNotReadyMarker(readiness, dispatch, format);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "virtio-net rx tcp dispatch not ready: status=" + readiness
-                + " dispatch=" + dispatch.Status
-                + " format=" + format.Status
-                + " initialized=" + dispatch.IsInitialized);
+            return BootResult.Fail("virtio-net rx tcp dispatch not ready: status=" + readiness + " dispatch=" + dispatch.Status + " format=" + format.Status + " initialized=" + dispatch.IsInitialized);
         }
 
         Emit(serial, events, VirtioNetRxTcpDispatchReady);
@@ -2182,10 +1314,7 @@ public static class BootSequence
         return BootResult.Pass();
     }
 
-    public static BootResult RunHttpStaticTcpResponseReadiness(
-        HttpStaticTcpResponsePlanResult response,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunHttpStaticTcpResponseReadiness(HttpStaticTcpResponsePlanResult response, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2197,19 +1326,13 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        HttpStaticTcpResponsePlanDiagnosticFormatResult format =
-            TryFormatHttpStaticTcpResponseDiagnostic(response, out string diagnosticPayload);
-        HttpStaticTcpResponseReadinessStatus readiness =
-            GetHttpStaticTcpResponseReadinessStatus(response, format);
+        HttpStaticTcpResponsePlanDiagnosticFormatResult format = TryFormatHttpStaticTcpResponseDiagnostic(response, out string diagnosticPayload);
+        HttpStaticTcpResponseReadinessStatus readiness = GetHttpStaticTcpResponseReadinessStatus(response, format);
         if (readiness != HttpStaticTcpResponseReadinessStatus.Ready)
         {
             string marker = CreateHttpStaticTcpResponseNotReadyMarker(readiness, response, format);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "http static tcp response not ready: status=" + readiness
-                + " response=" + response.Status
-                + " format=" + format.Status
-                + " initialized=" + response.IsInitialized);
+            return BootResult.Fail("http static tcp response not ready: status=" + readiness + " response=" + response.Status + " format=" + format.Status + " initialized=" + response.IsInitialized);
         }
 
         Emit(serial, events, diagnosticPayload);
@@ -2217,10 +1340,7 @@ public static class BootSequence
         return BootResult.Pass();
     }
 
-    public static BootResult RunNativeManifestFetchAppConfigPreflightReadiness(
-        NativeManifestFetchAppConfigPreflightResult preflight,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunNativeManifestFetchAppConfigPreflightReadiness(NativeManifestFetchAppConfigPreflightResult preflight, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2232,32 +1352,19 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        NativeManifestFetchAppConfigPreflightReadinessStatus readiness =
-            GetNativeManifestFetchAppConfigPreflightReadinessStatus(preflight);
+        NativeManifestFetchAppConfigPreflightReadinessStatus readiness = GetNativeManifestFetchAppConfigPreflightReadinessStatus(preflight);
         if (readiness != NativeManifestFetchAppConfigPreflightReadinessStatus.Ready)
         {
-            string marker = CreateNativeManifestFetchAppConfigPreflightNotReadyMarker(
-                readiness,
-                preflight);
+            string marker = CreateNativeManifestFetchAppConfigPreflightNotReadyMarker(readiness, preflight);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "fetchapp config preflight not ready: status=" + readiness
-                + " preflight=" + preflight.Status
-                + " initialized=" + preflight.IsInitialized
-                + " manifestLoad=" + preflight.ManifestLoadStatus
-                + " manifestParse=" + preflight.ManifestParseStatus
-                + " expectation=" + preflight.ExpectationStatus);
+            return BootResult.Fail("fetchapp config preflight not ready: status=" + readiness + " preflight=" + preflight.Status + " initialized=" + preflight.IsInitialized + " manifestLoad=" + preflight.ManifestLoadStatus + " manifestParse=" + preflight.ManifestParseStatus + " expectation=" + preflight.ExpectationStatus);
         }
 
         Emit(serial, events, CreateNativeManifestFetchAppConfigPreflightReadyMarker(preflight));
         return BootResult.Pass();
     }
 
-    public static BootResult RunNativeManifestEnvironmentReadiness(
-        NativeManifestParseResult manifest,
-        ReadOnlySpan<byte> source,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunNativeManifestEnvironmentReadiness(NativeManifestParseResult manifest, ReadOnlySpan<byte> source, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2269,32 +1376,20 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        NativeManifestEnvironmentDiagnosticFormatResult format =
-            TryFormatNativeManifestEnvironmentDiagnostic(manifest, source, out string diagnosticPayload);
-        NativeManifestEnvironmentReadinessStatus readiness =
-            GetNativeManifestEnvironmentReadinessStatus(manifest, format);
+        NativeManifestEnvironmentDiagnosticFormatResult format = TryFormatNativeManifestEnvironmentDiagnostic(manifest, source, out string diagnosticPayload);
+        NativeManifestEnvironmentReadinessStatus readiness = GetNativeManifestEnvironmentReadinessStatus(manifest, format);
         if (readiness != NativeManifestEnvironmentReadinessStatus.Ready)
         {
-            string marker = CreateNativeManifestEnvironmentNotReadyMarker(
-                readiness,
-                manifest,
-                format);
+            string marker = CreateNativeManifestEnvironmentNotReadyMarker(readiness, manifest, format);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "native manifest environment not ready: status=" + readiness
-                + " parse=" + manifest.Status
-                + " format=" + format.Status
-                + " initialized=" + manifest.IsInitialized);
+            return BootResult.Fail("native manifest environment not ready: status=" + readiness + " parse=" + manifest.Status + " format=" + format.Status + " initialized=" + manifest.IsInitialized);
         }
 
         Emit(serial, events, NativeManifestEnvironmentReadyPrefix + diagnosticPayload);
         return BootResult.Pass();
     }
 
-    public static BootResult RunNativeAppExitObserverReadiness(
-        NativeAppExitLogObserverResult observer,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunNativeAppExitObserverReadiness(NativeAppExitLogObserverResult observer, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2311,22 +1406,14 @@ public static class BootSequence
         {
             string marker = CreateAppExitObserverNotReadyMarker(readiness, observer);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app exit observer not ready: status=" + readiness
-                + " observer=" + observer.Status
-                + " initialized=" + observer.IsInitialized
-                + " recordsScanned=" + observer.RecordsScanned
-                + " recordIndex=" + observer.RecordIndex);
+            return BootResult.Fail("app exit observer not ready: status=" + readiness + " observer=" + observer.Status + " initialized=" + observer.IsInitialized + " recordsScanned=" + observer.RecordsScanned + " recordIndex=" + observer.RecordIndex);
         }
 
         Emit(serial, events, CreateAppExitObserverReadyMarker(observer));
         return BootResult.Pass();
     }
 
-    public static BootResult RunNativeAppArgumentVectorReadiness(
-        NativeAppArgumentVectorPlanResult argumentVector,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunNativeAppArgumentVectorReadiness(NativeAppArgumentVectorPlanResult argumentVector, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2338,28 +1425,19 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        NativeAppArgumentVectorReadinessStatus readiness =
-            GetNativeAppArgumentVectorReadinessStatus(argumentVector);
+        NativeAppArgumentVectorReadinessStatus readiness = GetNativeAppArgumentVectorReadinessStatus(argumentVector);
         if (readiness != NativeAppArgumentVectorReadinessStatus.Ready)
         {
             string marker = CreateNativeAppArgumentVectorNotReadyMarker(readiness, argumentVector);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "native app argument vector not ready: status=" + readiness
-                + " vector=" + argumentVector.Status
-                + " launch=" + argumentVector.LaunchStatus
-                + " initialized=" + argumentVector.IsInitialized
-                + " argumentCount=" + argumentVector.ArgumentCount);
+            return BootResult.Fail("native app argument vector not ready: status=" + readiness + " vector=" + argumentVector.Status + " launch=" + argumentVector.LaunchStatus + " initialized=" + argumentVector.IsInitialized + " argumentCount=" + argumentVector.ArgumentCount);
         }
 
         Emit(serial, events, CreateNativeAppArgumentVectorReadyMarker(argumentVector));
         return BootResult.Pass();
     }
 
-    public static BootResult RunNativeAppArgumentHandoffReadiness(
-        NativeAppArgumentHandoffPlanResult handoff,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunNativeAppArgumentHandoffReadiness(NativeAppArgumentHandoffPlanResult handoff, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2371,34 +1449,19 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        NativeAppArgumentHandoffReadinessStatus readiness =
-            GetNativeAppArgumentHandoffReadinessStatus(handoff);
+        NativeAppArgumentHandoffReadinessStatus readiness = GetNativeAppArgumentHandoffReadinessStatus(handoff);
         if (readiness != NativeAppArgumentHandoffReadinessStatus.Ready)
         {
             string marker = CreateNativeAppArgumentHandoffNotReadyMarker(readiness, handoff);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "native app argument handoff not ready: status=" + readiness
-                + " handoff=" + handoff.Status
-                + " invocation=" + handoff.InvocationStatus
-                + " argumentVector=" + handoff.ArgumentVectorStatus
-                + " initialized=" + handoff.IsInitialized
-                + " argumentCount=" + handoff.ArgumentCount
-                + " parsedArgumentBytes=" + handoff.ParsedArgumentBytes
-                + " rawArgumentBytes=" + handoff.RawLaunchArgumentByteLength);
+            return BootResult.Fail("native app argument handoff not ready: status=" + readiness + " handoff=" + handoff.Status + " invocation=" + handoff.InvocationStatus + " argumentVector=" + handoff.ArgumentVectorStatus + " initialized=" + handoff.IsInitialized + " argumentCount=" + handoff.ArgumentCount + " parsedArgumentBytes=" + handoff.ParsedArgumentBytes + " rawArgumentBytes=" + handoff.RawLaunchArgumentByteLength);
         }
 
         Emit(serial, events, CreateNativeAppArgumentHandoffReadyMarker(handoff));
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppSelectionReadiness(
-        NativeManifestLoadResult manifestLoad,
-        OsPackageParseResult packageParse,
-        NativeAppLaunchPlanResult launchPlan,
-        NativeAppLaunchDescriptorResult descriptor,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppSelectionReadiness(NativeManifestLoadResult manifestLoad, OsPackageParseResult packageParse, NativeAppLaunchPlanResult launchPlan, NativeAppLaunchDescriptorResult descriptor, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2410,40 +1473,19 @@ public static class BootSequence
             return BootResult.Fail("boot event ring buffer is required");
         }
 
-        AppSelectionReadinessStatus selectionStatus = GetAppSelectionStatus(
-            manifestLoad,
-            packageParse,
-            launchPlan,
-            descriptor);
+        AppSelectionReadinessStatus selectionStatus = GetAppSelectionStatus(manifestLoad, packageParse, launchPlan, descriptor);
         if (selectionStatus != AppSelectionReadinessStatus.Ready)
         {
-            string marker = CreateAppSelectionNotReadyMarker(
-                selectionStatus,
-                manifestLoad.Status,
-                packageParse.Status,
-                launchPlan.Status,
-                descriptor.Status,
-                descriptor.PackageFileStatus,
-                descriptor.PackageStatus);
+            string marker = CreateAppSelectionNotReadyMarker(selectionStatus, manifestLoad.Status, packageParse.Status, launchPlan.Status, descriptor.Status, descriptor.PackageFileStatus, descriptor.PackageStatus);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app selection not ready: status=" + selectionStatus
-                + " manifest=" + manifestLoad.Status
-                + " package=" + packageParse.Status
-                + " launch=" + launchPlan.Status
-                + " descriptor=" + descriptor.Status
-                + " packageFile=" + descriptor.PackageFileStatus
-                + " descriptorPackage=" + descriptor.PackageStatus);
+            return BootResult.Fail("app selection not ready: status=" + selectionStatus + " manifest=" + manifestLoad.Status + " package=" + packageParse.Status + " launch=" + launchPlan.Status + " descriptor=" + descriptor.Status + " packageFile=" + descriptor.PackageFileStatus + " descriptorPackage=" + descriptor.PackageStatus);
         }
 
         Emit(serial, events, AppSelectionReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunAppSelectionPreflightReadiness(
-        VirtioBlockNativeAppSelectionPreflightResult preflight,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunAppSelectionPreflightReadiness(VirtioBlockNativeAppSelectionPreflightResult preflight, ISerialSink serial, BootEventRingBuffer events)
     {
         if (serial is null)
         {
@@ -2460,36 +1502,22 @@ public static class BootSequence
         {
             string marker = CreateAppSelectionPreflightNotReadyMarker(readiness, preflight);
             Emit(serial, events, marker);
-            return BootResult.Fail(
-                "app selection preflight not ready: status=" + readiness
-                + " preflight=" + preflight.Status
-                + " readSession=" + preflight.ReadSessionStatus
-                + " scratch=" + preflight.ScratchPlan.Status
-                + " selection=" + preflight.SelectionLoad.Status);
+            return BootResult.Fail("app selection preflight not ready: status=" + readiness + " preflight=" + preflight.Status + " readSession=" + preflight.ReadSessionStatus + " scratch=" + preflight.ScratchPlan.Status + " selection=" + preflight.SelectionLoad.Status);
         }
 
         Emit(serial, events, AppSelectionPreflightReady);
         return BootResult.Pass();
     }
 
-    public static BootResult RunUefiGoneSimulation(
-        FirmwareServicesGuard firmware,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunUefiGoneSimulation(FirmwareServicesGuard firmware, ISerialSink serial, BootEventRingBuffer events)
     {
         SerialDiagnosticsGuard diagnostics = new SerialDiagnosticsGuard();
         diagnostics.MarkOwnedSerialReady();
-        SerialDiagnosticsGuardResult readiness =
-            diagnostics.RequirePostFirmwareDiagnostics("uefi.gone.simulation.diagnostics");
-
+        SerialDiagnosticsGuardResult readiness = diagnostics.RequirePostFirmwareDiagnostics("uefi.gone.simulation.diagnostics");
         return RunUefiGoneSimulation(firmware, readiness, serial, events);
     }
 
-    public static BootResult RunUefiGoneSimulation(
-        FirmwareServicesGuard firmware,
-        SerialDiagnosticsGuardResult postFirmwareDiagnostics,
-        ISerialSink serial,
-        BootEventRingBuffer events)
+    public static BootResult RunUefiGoneSimulation(FirmwareServicesGuard firmware, SerialDiagnosticsGuardResult postFirmwareDiagnostics, ISerialSink serial, BootEventRingBuffer events)
     {
         if (firmware is null)
         {
@@ -2507,31 +1535,20 @@ public static class BootSequence
         }
 
         Emit(serial, events, UefiGoneSimulationStart);
-
         FirmwareCallResult simulation = firmware.EnterUefiGoneSimulation();
         if (!simulation.Succeeded)
         {
-            return FailUefiGoneSimulation(
-                serial,
-                events,
-                "simulation-denied");
+            return FailUefiGoneSimulation(serial, events, "simulation-denied");
         }
 
         FirmwareCallResult denied = firmware.RequireBootServices("GetMemoryMap");
         if (denied.Succeeded)
         {
-            return FailUefiGoneSimulation(
-                serial,
-                events,
-                "boot-services-allowed-after-uefi-gone");
+            return FailUefiGoneSimulation(serial, events, "boot-services-allowed-after-uefi-gone");
         }
 
         Emit(serial, events, UefiGoneSimulationPlatformDenied);
-
-        BootResult diagnosticsResult = RunPostFirmwareDiagnosticsReadiness(
-            postFirmwareDiagnostics,
-            serial,
-            events);
+        BootResult diagnosticsResult = RunPostFirmwareDiagnosticsReadiness(postFirmwareDiagnostics, serial, events);
         if (!diagnosticsResult.Succeeded)
         {
             return diagnosticsResult;
@@ -2549,103 +1566,67 @@ public static class BootSequence
             return string.Empty;
         }
 
-        return string.Create(
-            lineLength,
-            lineIndex,
-            static (buffer, planLineIndex) =>
+        return string.Create(lineLength, lineIndex, static (buffer, planLineIndex) =>
+        {
+            for (int offset = 0; offset < buffer.Length; offset++)
             {
-                for (int offset = 0; offset < buffer.Length; offset++)
-                {
-                    buffer[offset] = (char)BootSequencePlan.GetLineByte(planLineIndex, offset);
-                }
-            });
+                buffer[offset] = (char)BootSequencePlan.GetLineByte(planLineIndex, offset);
+            }
+        });
     }
 
     public static string CreateM01StageOneSuccessLine(int lineIndex)
     {
-        int lineLength =
-            BootSequencePlan.GetM01StageOneSuccessLineLength(
-                lineIndex);
+        int lineLength = BootSequencePlan.GetM01StageOneSuccessLineLength(lineIndex);
         if (lineLength == 0)
         {
             return string.Empty;
         }
 
-        return string.Create(
-            lineLength,
-            lineIndex,
-            static (buffer, planLineIndex) =>
+        return string.Create(lineLength, lineIndex, static (buffer, planLineIndex) =>
+        {
+            for (int offset = 0; offset < buffer.Length; offset++)
             {
-                for (int offset = 0;
-                    offset < buffer.Length;
-                    offset++)
-                {
-                    buffer[offset] = (char)BootSequencePlan
-                        .GetM01StageOneSuccessLineByte(
-                            planLineIndex,
-                            offset);
-                }
-            });
+                buffer[offset] = (char)BootSequencePlan.GetM01StageOneSuccessLineByte(planLineIndex, offset);
+            }
+        });
     }
 
     public static string CreateM01StageTwoSuccessLine(int lineIndex)
     {
-        int lineLength =
-            BootSequencePlan.GetM01StageTwoSuccessLineLength(
-                lineIndex);
+        int lineLength = BootSequencePlan.GetM01StageTwoSuccessLineLength(lineIndex);
         if (lineLength == 0)
         {
             return string.Empty;
         }
 
-        return string.Create(
-            lineLength,
-            lineIndex,
-            static (buffer, planLineIndex) =>
+        return string.Create(lineLength, lineIndex, static (buffer, planLineIndex) =>
+        {
+            for (int offset = 0; offset < buffer.Length; offset++)
             {
-                for (int offset = 0;
-                    offset < buffer.Length;
-                    offset++)
-                {
-                    buffer[offset] = (char)BootSequencePlan
-                        .GetM01StageTwoSuccessLineByte(
-                            planLineIndex,
-                            offset);
-                }
-            });
+                buffer[offset] = (char)BootSequencePlan.GetM01StageTwoSuccessLineByte(planLineIndex, offset);
+            }
+        });
     }
 
     public static string CreateM01StageThreeSuccessLine(int lineIndex)
     {
-        int lineLength =
-            BootSequencePlan.GetM01StageThreeSuccessLineLength(
-                lineIndex);
+        int lineLength = BootSequencePlan.GetM01StageThreeSuccessLineLength(lineIndex);
         if (lineLength == 0)
         {
             return string.Empty;
         }
 
-        return string.Create(
-            lineLength,
-            lineIndex,
-            static (buffer, planLineIndex) =>
+        return string.Create(lineLength, lineIndex, static (buffer, planLineIndex) =>
+        {
+            for (int offset = 0; offset < buffer.Length; offset++)
             {
-                for (int offset = 0;
-                    offset < buffer.Length;
-                    offset++)
-                {
-                    buffer[offset] = (char)BootSequencePlan
-                        .GetM01StageThreeSuccessLineByte(
-                            planLineIndex,
-                            offset);
-                }
-            });
+                buffer[offset] = (char)BootSequencePlan.GetM01StageThreeSuccessLineByte(planLineIndex, offset);
+            }
+        });
     }
 
-    private static BootResult FailUefiGoneSimulation(
-        ISerialSink serial,
-        BootEventRingBuffer events,
-        string reason)
+    private static BootResult FailUefiGoneSimulation(ISerialSink serial, BootEventRingBuffer events, string reason)
     {
         string line = "UEFI_GONE_SIM_FAIL reason=" + reason;
         Emit(serial, events, line);
@@ -2672,66 +1653,32 @@ public static class BootSequence
         return ControlledFaultProbesNotReadyPrefix + status;
     }
 
-    public static string CreateCpuFaultPanicNotReadyMarker(
-        CpuFaultPanicBootReadinessStatus status,
-        CpuFaultPanicReadinessResult readiness)
+    public static string CreateCpuFaultPanicNotReadyMarker(CpuFaultPanicBootReadinessStatus status, CpuFaultPanicReadinessResult readiness)
     {
-        return CpuFaultPanicNotReadyPrefix
-            + "status=" + status
-            + " initialized=" + (readiness.IsInitialized ? "true" : "false")
-            + " readiness=" + readiness.Status
-            + " frame=" + readiness.FrameStatus
-            + " reporter=" + readiness.ReporterStatus
-            + " vector=" + readiness.Vector
-            + " requiredFrameBytes=" + readiness.RequiredFrameBytes
-            + " formatted=" + readiness.BytesFormatted
-            + " flushed=" + readiness.BytesFlushed;
+        return CpuFaultPanicNotReadyPrefix + "status=" + status + " initialized=" + (readiness.IsInitialized ? "true" : "false") + " readiness=" + readiness.Status + " frame=" + readiness.FrameStatus + " reporter=" + readiness.ReporterStatus + " vector=" + readiness.Vector + " requiredFrameBytes=" + readiness.RequiredFrameBytes + " formatted=" + readiness.BytesFormatted + " flushed=" + readiness.BytesFlushed;
     }
 
-    public static string CreateDiagnosticStubsNotMaterializedMarker(
-        DiagnosticStubMaterializationReadinessStatus status)
+    public static string CreateDiagnosticStubsNotMaterializedMarker(DiagnosticStubMaterializationReadinessStatus status)
     {
         return DiagnosticStubsNotMaterializedPrefix + status;
     }
 
     public static string CreateDiagnosticsChainNotReadyMarker(DiagnosticsChainReadinessResult readiness)
     {
-        return DiagnosticsChainNotReadyPrefix
-            + "status=" + readiness.Status
-            + " initialized=" + (readiness.IsInitialized ? "true" : "false")
-            + " serial=" + readiness.SerialBackendStatus
-            + " descriptor=" + readiness.DescriptorTableStatus
-            + " probe=" + readiness.FaultProbeStatus
-            + " panic=" + readiness.CpuFaultPanicStatus
-            + " materializer=" + readiness.StubMaterializationStatus
-            + " stubBytes=" + readiness.StubMaterializationBytesCopied;
+        return DiagnosticsChainNotReadyPrefix + "status=" + readiness.Status + " initialized=" + (readiness.IsInitialized ? "true" : "false") + " serial=" + readiness.SerialBackendStatus + " descriptor=" + readiness.DescriptorTableStatus + " probe=" + readiness.FaultProbeStatus + " panic=" + readiness.CpuFaultPanicStatus + " materializer=" + readiness.StubMaterializationStatus + " stubBytes=" + readiness.StubMaterializationBytesCopied;
     }
 
-    public static string CreateDiagnosticStubInvocationNotReadyMarker(
-        DiagnosticStubInvocationReadinessResult readiness)
+    public static string CreateDiagnosticStubInvocationNotReadyMarker(DiagnosticStubInvocationReadinessResult readiness)
     {
-        return DiagnosticStubInvocationNotReadyPrefix
-            + "status=" + readiness.Status
-            + " initialized=" + (readiness.IsInitialized ? "true" : "false")
-            + " pageTransition=" + readiness.PageTransitionStatus
-            + " backend=" + readiness.BackendContractStatus
-            + " payloadBase=" + readiness.PayloadBaseAddress
-            + " payloadEnd=" + readiness.PayloadEndAddress
-            + " bytes=" + readiness.BytesMaterialized
-            + " out8=" + readiness.Out8StubAddress
-            + " in8=" + readiness.In8StubAddress;
+        return DiagnosticStubInvocationNotReadyPrefix + "status=" + readiness.Status + " initialized=" + (readiness.IsInitialized ? "true" : "false") + " pageTransition=" + readiness.PageTransitionStatus + " backend=" + readiness.BackendContractStatus + " payloadBase=" + readiness.PayloadBaseAddress + " payloadEnd=" + readiness.PayloadEndAddress + " bytes=" + readiness.BytesMaterialized + " out8=" + readiness.Out8StubAddress + " in8=" + readiness.In8StubAddress;
     }
 
     public static string CreateBootPageAllocatorReadyMarker(BootPageAllocatorStateInitResult allocatorState)
     {
-        return BootPageAllocatorReadyPrefix + CreateBootPageAllocatorMetadata(
-            BootPageAllocatorReadinessStatus.Ready,
-            allocatorState);
+        return BootPageAllocatorReadyPrefix + CreateBootPageAllocatorMetadata(BootPageAllocatorReadinessStatus.Ready, allocatorState);
     }
 
-    public static string CreateBootPageAllocatorNotReadyMarker(
-        BootPageAllocatorReadinessStatus readiness,
-        BootPageAllocatorStateInitResult allocatorState)
+    public static string CreateBootPageAllocatorNotReadyMarker(BootPageAllocatorReadinessStatus readiness, BootPageAllocatorStateInitResult allocatorState)
     {
         return BootPageAllocatorNotReadyPrefix + CreateBootPageAllocatorMetadata(readiness, allocatorState);
     }
@@ -2741,9 +1688,7 @@ public static class BootSequence
         return PostFirmwareDiagnosticsBlockedPrefix + status;
     }
 
-    public static string CreateExitBootServicesPreflightBlockedMarker(
-        SerialDiagnosticsGuardStatus diagnosticsStatus,
-        UefiExitBootServicesPlanStatus planStatus)
+    public static string CreateExitBootServicesPreflightBlockedMarker(SerialDiagnosticsGuardStatus diagnosticsStatus, UefiExitBootServicesPlanStatus planStatus)
     {
         return ExitBootServicesPreflightBlockedPrefix + diagnosticsStatus + " plan=" + planStatus;
     }
@@ -2753,420 +1698,205 @@ public static class BootSequence
         return ExitBootServicesTransitionBlockedPrefix + status;
     }
 
-    public static string CreateAppPackageNotReadyMarker(
-        NativeManifestLoadStatus manifestStatus,
-        OsPackageStatus packageStatus,
-        NativeAppLaunchStatus launchStatus)
+    public static string CreateAppPackageNotReadyMarker(NativeManifestLoadStatus manifestStatus, OsPackageStatus packageStatus, NativeAppLaunchStatus launchStatus)
     {
-        return AppPackageNotReadyPrefix
-            + "manifest=" + manifestStatus
-            + " package=" + packageStatus
-            + " launch=" + launchStatus;
+        return AppPackageNotReadyPrefix + "manifest=" + manifestStatus + " package=" + packageStatus + " launch=" + launchStatus;
     }
 
-    public static string CreateAppPackageStagingNotReadyMarker(
-        AppPackageStagingReadinessStatus status,
-        NativeAppPackageStagingReadinessResult readiness)
+    public static string CreateAppPackageStagingNotReadyMarker(AppPackageStagingReadinessStatus status, NativeAppPackageStagingReadinessResult readiness)
     {
-        return AppPackageStagingNotReadyPrefix
-            + "status=" + status
-            + " initialized=" + (readiness.IsInitialized ? "true" : "false")
-            + " readiness=" + readiness.Status
-            + " manifest=" + readiness.ManifestStatus
-            + " package=" + readiness.PackageStatus
-            + " launch=" + readiness.LaunchStatus
-            + " descriptor=" + readiness.DescriptorStatus
-            + " packageFileStaging=" + readiness.PackageFileStagingStatus
-            + " mapping=" + readiness.PayloadMappingStatus
-            + " payloadStaging=" + readiness.PayloadStagingStatus
-            + " memory=" + readiness.ExecutableMemoryStatus
-            + " invocation=" + readiness.InvocationStatus
-            + " fileIndex=" + readiness.AppBinaryFileIndex
-            + " packageBytes=" + readiness.PackageFileBytesStaged
-            + " payloadOffset=" + readiness.PayloadOffsetInPackage
-            + " executableOffset=" + readiness.ExecutableOffsetInPackage
-            + " executableBytes=" + readiness.PayloadExecutableBytesStaged
-            + " writableStagingBytes=" + readiness.RequiredWritableStagingBytes
-            + " stackBytes=" + readiness.RequiredStackBytes
-            + " entryOffset=" + readiness.EntryOffsetInPackage;
+        return AppPackageStagingNotReadyPrefix + "status=" + status + " initialized=" + (readiness.IsInitialized ? "true" : "false") + " readiness=" + readiness.Status + " manifest=" + readiness.ManifestStatus + " package=" + readiness.PackageStatus + " launch=" + readiness.LaunchStatus + " descriptor=" + readiness.DescriptorStatus + " packageFileStaging=" + readiness.PackageFileStagingStatus + " mapping=" + readiness.PayloadMappingStatus + " payloadStaging=" + readiness.PayloadStagingStatus + " memory=" + readiness.ExecutableMemoryStatus + " invocation=" + readiness.InvocationStatus + " fileIndex=" + readiness.AppBinaryFileIndex + " packageBytes=" + readiness.PackageFileBytesStaged + " payloadOffset=" + readiness.PayloadOffsetInPackage + " executableOffset=" + readiness.ExecutableOffsetInPackage + " executableBytes=" + readiness.PayloadExecutableBytesStaged + " writableStagingBytes=" + readiness.RequiredWritableStagingBytes + " stackBytes=" + readiness.RequiredStackBytes + " entryOffset=" + readiness.EntryOffsetInPackage;
     }
 
-    public static string CreateAppPackageFileStagingPreflightReadyMarker(
-        VirtioBlockPackageFileStagingPreflightResult preflight)
+    public static string CreateAppPackageFileStagingPreflightReadyMarker(VirtioBlockPackageFileStagingPreflightResult preflight)
     {
-        return AppPackageFileStagingPreflightReadyPrefix
-            + CreateAppPackageFileStagingPreflightMetadata(
-                AppPackageFileStagingPreflightReadinessStatus.Ready,
-                preflight);
+        return AppPackageFileStagingPreflightReadyPrefix + CreateAppPackageFileStagingPreflightMetadata(AppPackageFileStagingPreflightReadinessStatus.Ready, preflight);
     }
 
-    public static string CreateAppPackageFileStagingPreflightNotReadyMarker(
-        AppPackageFileStagingPreflightReadinessStatus readiness,
-        VirtioBlockPackageFileStagingPreflightResult preflight)
+    public static string CreateAppPackageFileStagingPreflightNotReadyMarker(AppPackageFileStagingPreflightReadinessStatus readiness, VirtioBlockPackageFileStagingPreflightResult preflight)
     {
-        return AppPackageFileStagingPreflightNotReadyPrefix
-            + CreateAppPackageFileStagingPreflightMetadata(readiness, preflight);
+        return AppPackageFileStagingPreflightNotReadyPrefix + CreateAppPackageFileStagingPreflightMetadata(readiness, preflight);
     }
 
-    public static string CreatePalExportCatalogReadyMarker(
-        OSHostExportCatalogValidationResult validation)
+    public static string CreatePalExportCatalogReadyMarker(OSHostExportCatalogValidationResult validation)
     {
-        return PalExportCatalogReadyPrefix
-            + CreatePalExportCatalogMetadata(PalExportCatalogReadinessStatus.Ready, validation);
+        return PalExportCatalogReadyPrefix + CreatePalExportCatalogMetadata(PalExportCatalogReadinessStatus.Ready, validation);
     }
 
-    public static string CreatePalExportCatalogNotReadyMarker(
-        PalExportCatalogReadinessStatus readiness,
-        OSHostExportCatalogValidationResult validation)
+    public static string CreatePalExportCatalogNotReadyMarker(PalExportCatalogReadinessStatus readiness, OSHostExportCatalogValidationResult validation)
     {
-        return PalExportCatalogNotReadyPrefix
-            + CreatePalExportCatalogMetadata(readiness, validation);
+        return PalExportCatalogNotReadyPrefix + CreatePalExportCatalogMetadata(readiness, validation);
     }
 
-    public static string CreateNativeAotHeapBootstrapReadyMarker(
-        NativeAotHeapBootstrapPlanResult plan)
+    public static string CreateNativeAotHeapBootstrapReadyMarker(NativeAotHeapBootstrapPlanResult plan)
     {
-        return NativeAotHeapBootstrapReadyPrefix
-            + CreateNativeAotHeapBootstrapMetadata(NativeAotHeapBootstrapReadinessStatus.Ready, plan);
+        return NativeAotHeapBootstrapReadyPrefix + CreateNativeAotHeapBootstrapMetadata(NativeAotHeapBootstrapReadinessStatus.Ready, plan);
     }
 
-    public static string CreateNativeAotHeapBootstrapNotReadyMarker(
-        NativeAotHeapBootstrapReadinessStatus readiness,
-        NativeAotHeapBootstrapPlanResult plan)
+    public static string CreateNativeAotHeapBootstrapNotReadyMarker(NativeAotHeapBootstrapReadinessStatus readiness, NativeAotHeapBootstrapPlanResult plan)
     {
-        return NativeAotHeapBootstrapNotReadyPrefix
-            + CreateNativeAotHeapBootstrapMetadata(readiness, plan);
+        return NativeAotHeapBootstrapNotReadyPrefix + CreateNativeAotHeapBootstrapMetadata(readiness, plan);
     }
 
-    public static string CreateNativeAotClassConstructorRunnerPreflightReadyMarker(
-        NativeAotClassConstructorRunnerPreflightResult preflight)
+    public static string CreateNativeAotClassConstructorRunnerPreflightReadyMarker(NativeAotClassConstructorRunnerPreflightResult preflight)
     {
-        return NativeAotClassConstructorRunnerPreflightReadyPrefix
-            + CreateNativeAotClassConstructorRunnerPreflightMetadata(
-                NativeAotClassConstructorRunnerPreflightReadinessStatus.Ready,
-                preflight);
+        return NativeAotClassConstructorRunnerPreflightReadyPrefix + CreateNativeAotClassConstructorRunnerPreflightMetadata(NativeAotClassConstructorRunnerPreflightReadinessStatus.Ready, preflight);
     }
 
-    public static string CreateNativeAotClassConstructorRunnerPreflightNotReadyMarker(
-        NativeAotClassConstructorRunnerPreflightReadinessStatus readiness,
-        NativeAotClassConstructorRunnerPreflightResult preflight)
+    public static string CreateNativeAotClassConstructorRunnerPreflightNotReadyMarker(NativeAotClassConstructorRunnerPreflightReadinessStatus readiness, NativeAotClassConstructorRunnerPreflightResult preflight)
     {
-        return NativeAotClassConstructorRunnerPreflightNotReadyPrefix
-            + CreateNativeAotClassConstructorRunnerPreflightMetadata(readiness, preflight);
+        return NativeAotClassConstructorRunnerPreflightNotReadyPrefix + CreateNativeAotClassConstructorRunnerPreflightMetadata(readiness, preflight);
     }
 
-    public static string CreateNativeAotClassConstructorWorkItemReadyMarker(
-        NativeAotClassConstructorWorkItemPlanResult plan)
+    public static string CreateNativeAotClassConstructorWorkItemReadyMarker(NativeAotClassConstructorWorkItemPlanResult plan)
     {
-        return NativeAotClassConstructorWorkItemReadyPrefix
-            + CreateNativeAotClassConstructorWorkItemMetadata(
-                NativeAotClassConstructorWorkItemReadinessStatus.Ready,
-                plan);
+        return NativeAotClassConstructorWorkItemReadyPrefix + CreateNativeAotClassConstructorWorkItemMetadata(NativeAotClassConstructorWorkItemReadinessStatus.Ready, plan);
     }
 
-    public static string CreateNativeAotClassConstructorWorkItemNotReadyMarker(
-        NativeAotClassConstructorWorkItemReadinessStatus readiness,
-        NativeAotClassConstructorWorkItemPlanResult plan)
+    public static string CreateNativeAotClassConstructorWorkItemNotReadyMarker(NativeAotClassConstructorWorkItemReadinessStatus readiness, NativeAotClassConstructorWorkItemPlanResult plan)
     {
-        return NativeAotClassConstructorWorkItemNotReadyPrefix
-            + CreateNativeAotClassConstructorWorkItemMetadata(readiness, plan);
+        return NativeAotClassConstructorWorkItemNotReadyPrefix + CreateNativeAotClassConstructorWorkItemMetadata(readiness, plan);
     }
 
-    public static string CreateFetchAppHttpRequestEndpointReadyMarker(
-        FetchAppHttpRequestEndpointResult endpoint)
+    public static string CreateFetchAppHttpRequestEndpointReadyMarker(FetchAppHttpRequestEndpointResult endpoint)
     {
-        return FetchAppHttpRequestEndpointReadyPrefix
-            + CreateFetchAppHttpRequestEndpointMetadata(
-                FetchAppHttpRequestEndpointReadinessStatus.Ready,
-                endpoint);
+        return FetchAppHttpRequestEndpointReadyPrefix + CreateFetchAppHttpRequestEndpointMetadata(FetchAppHttpRequestEndpointReadinessStatus.Ready, endpoint);
     }
 
-    public static string CreateFetchAppHttpRequestEndpointNotReadyMarker(
-        FetchAppHttpRequestEndpointReadinessStatus readiness,
-        FetchAppHttpRequestEndpointResult endpoint)
+    public static string CreateFetchAppHttpRequestEndpointNotReadyMarker(FetchAppHttpRequestEndpointReadinessStatus readiness, FetchAppHttpRequestEndpointResult endpoint)
     {
-        return FetchAppHttpRequestEndpointNotReadyPrefix
-            + CreateFetchAppHttpRequestEndpointMetadata(readiness, endpoint);
+        return FetchAppHttpRequestEndpointNotReadyPrefix + CreateFetchAppHttpRequestEndpointMetadata(readiness, endpoint);
     }
 
-    public static string CreateFetchAppHttpCompletionReadyMarker(
-        FetchAppHttpCompletionPlanResult completion)
+    public static string CreateFetchAppHttpCompletionReadyMarker(FetchAppHttpCompletionPlanResult completion)
     {
-        return FetchAppHttpCompletionReadyPrefix
-            + CreateFetchAppHttpCompletionMetadata(
-                FetchAppHttpCompletionReadinessStatus.Ready,
-                completion);
+        return FetchAppHttpCompletionReadyPrefix + CreateFetchAppHttpCompletionMetadata(FetchAppHttpCompletionReadinessStatus.Ready, completion);
     }
 
-    public static string CreateFetchAppHttpCompletionNotReadyMarker(
-        FetchAppHttpCompletionReadinessStatus readiness,
-        FetchAppHttpCompletionPlanResult completion)
+    public static string CreateFetchAppHttpCompletionNotReadyMarker(FetchAppHttpCompletionReadinessStatus readiness, FetchAppHttpCompletionPlanResult completion)
     {
-        return FetchAppHttpCompletionNotReadyPrefix
-            + CreateFetchAppHttpCompletionMetadata(readiness, completion);
+        return FetchAppHttpCompletionNotReadyPrefix + CreateFetchAppHttpCompletionMetadata(readiness, completion);
     }
 
-    public static string CreateFetchAppHttpTcpExchangeReadyMarker(
-        FetchAppHttpTcpExchangePlanResult exchange)
+    public static string CreateFetchAppHttpTcpExchangeReadyMarker(FetchAppHttpTcpExchangePlanResult exchange)
     {
-        FetchAppHttpTcpExchangePlanDiagnosticFormatResult format =
-            TryFormatFetchAppHttpTcpExchangeDiagnostic(exchange, out string diagnosticPayload);
-        FetchAppHttpTcpExchangeReadinessStatus readiness =
-            GetFetchAppHttpTcpExchangeReadinessStatus(exchange, format);
-        return readiness == FetchAppHttpTcpExchangeReadinessStatus.Ready
-            ? FetchAppHttpTcpExchangeReadyPrefix + diagnosticPayload
-            : CreateFetchAppHttpTcpExchangeNotReadyMarker(readiness, exchange, format);
+        FetchAppHttpTcpExchangePlanDiagnosticFormatResult format = TryFormatFetchAppHttpTcpExchangeDiagnostic(exchange, out string diagnosticPayload);
+        FetchAppHttpTcpExchangeReadinessStatus readiness = GetFetchAppHttpTcpExchangeReadinessStatus(exchange, format);
+        return readiness == FetchAppHttpTcpExchangeReadinessStatus.Ready ? FetchAppHttpTcpExchangeReadyPrefix + diagnosticPayload : CreateFetchAppHttpTcpExchangeNotReadyMarker(readiness, exchange, format);
     }
 
-    public static string CreateFetchAppHttpTcpExchangeNotReadyMarker(
-        FetchAppHttpTcpExchangeReadinessStatus readiness,
-        FetchAppHttpTcpExchangePlanResult exchange)
+    public static string CreateFetchAppHttpTcpExchangeNotReadyMarker(FetchAppHttpTcpExchangeReadinessStatus readiness, FetchAppHttpTcpExchangePlanResult exchange)
     {
-        FetchAppHttpTcpExchangePlanDiagnosticFormatResult format =
-            TryFormatFetchAppHttpTcpExchangeDiagnostic(exchange, out _);
+        FetchAppHttpTcpExchangePlanDiagnosticFormatResult format = TryFormatFetchAppHttpTcpExchangeDiagnostic(exchange, out _);
         return CreateFetchAppHttpTcpExchangeNotReadyMarker(readiness, exchange, format);
     }
 
-    public static string CreateFetchAppHttpTcpExchangeNotReadyMarker(
-        FetchAppHttpTcpExchangeReadinessStatus readiness,
-        FetchAppHttpTcpExchangePlanResult exchange,
-        FetchAppHttpTcpExchangePlanDiagnosticFormatResult format)
+    public static string CreateFetchAppHttpTcpExchangeNotReadyMarker(FetchAppHttpTcpExchangeReadinessStatus readiness, FetchAppHttpTcpExchangePlanResult exchange, FetchAppHttpTcpExchangePlanDiagnosticFormatResult format)
     {
-        return FetchAppHttpTcpExchangeNotReadyPrefix
-            + CreateFetchAppHttpTcpExchangeMetadata(readiness, exchange, format);
+        return FetchAppHttpTcpExchangeNotReadyPrefix + CreateFetchAppHttpTcpExchangeMetadata(readiness, exchange, format);
     }
 
-    public static string CreateVirtioNetRxTcpDispatchNotReadyMarker(
-        VirtioNetRxTcpDispatchReadinessStatus readiness,
-        VirtioNetReceiveRegisterWindowTcpDispatchResult dispatch,
-        VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult format)
+    public static string CreateVirtioNetRxTcpDispatchNotReadyMarker(VirtioNetRxTcpDispatchReadinessStatus readiness, VirtioNetReceiveRegisterWindowTcpDispatchResult dispatch, VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult format)
     {
-        return VirtioNetRxTcpDispatchNotReadyPrefix
-            + CreateVirtioNetRxTcpDispatchMetadata(readiness, dispatch, format);
+        return VirtioNetRxTcpDispatchNotReadyPrefix + CreateVirtioNetRxTcpDispatchMetadata(readiness, dispatch, format);
     }
 
-    public static string CreateHttpStaticTcpResponseNotReadyMarker(
-        HttpStaticTcpResponseReadinessStatus readiness,
-        HttpStaticTcpResponsePlanResult response,
-        HttpStaticTcpResponsePlanDiagnosticFormatResult format)
+    public static string CreateHttpStaticTcpResponseNotReadyMarker(HttpStaticTcpResponseReadinessStatus readiness, HttpStaticTcpResponsePlanResult response, HttpStaticTcpResponsePlanDiagnosticFormatResult format)
     {
-        return HttpStaticTcpResponseNotReadyPrefix
-            + CreateHttpStaticTcpResponseMetadata(readiness, response, format);
+        return HttpStaticTcpResponseNotReadyPrefix + CreateHttpStaticTcpResponseMetadata(readiness, response, format);
     }
 
-    public static string CreateNativeManifestFetchAppConfigPreflightReadyMarker(
-        NativeManifestFetchAppConfigPreflightResult preflight)
+    public static string CreateNativeManifestFetchAppConfigPreflightReadyMarker(NativeManifestFetchAppConfigPreflightResult preflight)
     {
-        return NativeManifestFetchAppConfigPreflightReadyPrefix
-            + CreateNativeManifestFetchAppConfigPreflightMetadata(
-                NativeManifestFetchAppConfigPreflightReadinessStatus.Ready,
-                preflight);
+        return NativeManifestFetchAppConfigPreflightReadyPrefix + CreateNativeManifestFetchAppConfigPreflightMetadata(NativeManifestFetchAppConfigPreflightReadinessStatus.Ready, preflight);
     }
 
-    public static string CreateNativeManifestFetchAppConfigPreflightNotReadyMarker(
-        NativeManifestFetchAppConfigPreflightReadinessStatus readiness,
-        NativeManifestFetchAppConfigPreflightResult preflight)
+    public static string CreateNativeManifestFetchAppConfigPreflightNotReadyMarker(NativeManifestFetchAppConfigPreflightReadinessStatus readiness, NativeManifestFetchAppConfigPreflightResult preflight)
     {
-        return NativeManifestFetchAppConfigPreflightNotReadyPrefix
-            + CreateNativeManifestFetchAppConfigPreflightMetadata(readiness, preflight);
+        return NativeManifestFetchAppConfigPreflightNotReadyPrefix + CreateNativeManifestFetchAppConfigPreflightMetadata(readiness, preflight);
     }
 
-    public static string CreateNativeManifestEnvironmentNotReadyMarker(
-        NativeManifestEnvironmentReadinessStatus readiness,
-        NativeManifestParseResult manifest,
-        NativeManifestEnvironmentDiagnosticFormatResult format)
+    public static string CreateNativeManifestEnvironmentNotReadyMarker(NativeManifestEnvironmentReadinessStatus readiness, NativeManifestParseResult manifest, NativeManifestEnvironmentDiagnosticFormatResult format)
     {
-        return NativeManifestEnvironmentNotReadyPrefix
-            + CreateNativeManifestEnvironmentMetadata(readiness, manifest, format);
+        return NativeManifestEnvironmentNotReadyPrefix + CreateNativeManifestEnvironmentMetadata(readiness, manifest, format);
     }
 
     public static string CreateAppExitObserverReadyMarker(NativeAppExitLogObserverResult observer)
     {
-        return AppExitObserverReadyPrefix
-            + CreateAppExitObserverMetadata(AppExitObserverReadinessStatus.Ready, observer);
+        return AppExitObserverReadyPrefix + CreateAppExitObserverMetadata(AppExitObserverReadinessStatus.Ready, observer);
     }
 
-    public static string CreateAppExitObserverNotReadyMarker(
-        AppExitObserverReadinessStatus readiness,
-        NativeAppExitLogObserverResult observer)
+    public static string CreateAppExitObserverNotReadyMarker(AppExitObserverReadinessStatus readiness, NativeAppExitLogObserverResult observer)
     {
-        return AppExitObserverNotReadyPrefix
-            + CreateAppExitObserverMetadata(readiness, observer);
+        return AppExitObserverNotReadyPrefix + CreateAppExitObserverMetadata(readiness, observer);
     }
 
-    public static string CreateNativeAppArgumentVectorReadyMarker(
-        NativeAppArgumentVectorPlanResult argumentVector)
+    public static string CreateNativeAppArgumentVectorReadyMarker(NativeAppArgumentVectorPlanResult argumentVector)
     {
-        return NativeAppArgumentVectorReadyPrefix
-            + CreateNativeAppArgumentVectorMetadata(
-                NativeAppArgumentVectorReadinessStatus.Ready,
-                argumentVector);
+        return NativeAppArgumentVectorReadyPrefix + CreateNativeAppArgumentVectorMetadata(NativeAppArgumentVectorReadinessStatus.Ready, argumentVector);
     }
 
-    public static string CreateNativeAppArgumentVectorNotReadyMarker(
-        NativeAppArgumentVectorReadinessStatus readiness,
-        NativeAppArgumentVectorPlanResult argumentVector)
+    public static string CreateNativeAppArgumentVectorNotReadyMarker(NativeAppArgumentVectorReadinessStatus readiness, NativeAppArgumentVectorPlanResult argumentVector)
     {
-        return NativeAppArgumentVectorNotReadyPrefix
-            + CreateNativeAppArgumentVectorMetadata(readiness, argumentVector);
+        return NativeAppArgumentVectorNotReadyPrefix + CreateNativeAppArgumentVectorMetadata(readiness, argumentVector);
     }
 
-    public static string CreateNativeAppArgumentHandoffReadyMarker(
-        NativeAppArgumentHandoffPlanResult handoff)
+    public static string CreateNativeAppArgumentHandoffReadyMarker(NativeAppArgumentHandoffPlanResult handoff)
     {
-        return NativeAppArgumentHandoffReadyPrefix
-            + CreateNativeAppArgumentHandoffMetadata(
-                NativeAppArgumentHandoffReadinessStatus.Ready,
-                handoff);
+        return NativeAppArgumentHandoffReadyPrefix + CreateNativeAppArgumentHandoffMetadata(NativeAppArgumentHandoffReadinessStatus.Ready, handoff);
     }
 
-    public static string CreateNativeAppArgumentHandoffNotReadyMarker(
-        NativeAppArgumentHandoffReadinessStatus readiness,
-        NativeAppArgumentHandoffPlanResult handoff)
+    public static string CreateNativeAppArgumentHandoffNotReadyMarker(NativeAppArgumentHandoffReadinessStatus readiness, NativeAppArgumentHandoffPlanResult handoff)
     {
-        return NativeAppArgumentHandoffNotReadyPrefix
-            + CreateNativeAppArgumentHandoffMetadata(readiness, handoff);
+        return NativeAppArgumentHandoffNotReadyPrefix + CreateNativeAppArgumentHandoffMetadata(readiness, handoff);
     }
 
-    public static string CreateAppLaunchNotReadyMarker(
-        NativeAppLaunchDescriptorStatus descriptorStatus,
-        NativeAppLaunchStatus launchStatus,
-        OsPackageFileSystemStatus packageFileStatus,
-        OsPackageStatus packageStatus)
+    public static string CreateAppLaunchNotReadyMarker(NativeAppLaunchDescriptorStatus descriptorStatus, NativeAppLaunchStatus launchStatus, OsPackageFileSystemStatus packageFileStatus, OsPackageStatus packageStatus)
     {
-        return AppLaunchNotReadyPrefix
-            + "status=" + descriptorStatus
-            + " launch=" + launchStatus
-            + " packageFile=" + packageFileStatus
-            + " package=" + packageStatus;
+        return AppLaunchNotReadyPrefix + "status=" + descriptorStatus + " launch=" + launchStatus + " packageFile=" + packageFileStatus + " package=" + packageStatus;
     }
 
-    public static string CreateAppPayloadNotReadyMarker(
-        NativeAppLaunchDescriptorStatus descriptorStatus,
-        NativeAppPayloadHeaderStatus payloadHeaderStatus)
+    public static string CreateAppPayloadNotReadyMarker(NativeAppLaunchDescriptorStatus descriptorStatus, NativeAppPayloadHeaderStatus payloadHeaderStatus)
     {
-        return AppPayloadNotReadyPrefix
-            + "descriptor=" + descriptorStatus
-            + " payload=" + payloadHeaderStatus;
+        return AppPayloadNotReadyPrefix + "descriptor=" + descriptorStatus + " payload=" + payloadHeaderStatus;
     }
 
-    public static string CreateAppExecutableMappingNotReadyMarker(
-        NativeAppPayloadMappingPlanStatus mappingStatus,
-        NativeAppLaunchDescriptorStatus descriptorStatus,
-        NativeAppPayloadHeaderStatus payloadHeaderStatus)
+    public static string CreateAppExecutableMappingNotReadyMarker(NativeAppPayloadMappingPlanStatus mappingStatus, NativeAppLaunchDescriptorStatus descriptorStatus, NativeAppPayloadHeaderStatus payloadHeaderStatus)
     {
-        return AppExecutableMappingNotReadyPrefix
-            + "status=" + mappingStatus
-            + " descriptor=" + descriptorStatus
-            + " payload=" + payloadHeaderStatus;
+        return AppExecutableMappingNotReadyPrefix + "status=" + mappingStatus + " descriptor=" + descriptorStatus + " payload=" + payloadHeaderStatus;
     }
 
-    public static string CreateAppExecutableMemoryNotReadyMarker(
-        NativeAppExecutableMemoryPlanStatus status,
-        NativeAppPayloadMappingPlanStatus mappingStatus,
-        NativeAppLaunchDescriptorStatus descriptorStatus,
-        NativeAppPayloadHeaderStatus payloadHeaderStatus)
+    public static string CreateAppExecutableMemoryNotReadyMarker(NativeAppExecutableMemoryPlanStatus status, NativeAppPayloadMappingPlanStatus mappingStatus, NativeAppLaunchDescriptorStatus descriptorStatus, NativeAppPayloadHeaderStatus payloadHeaderStatus)
     {
-        return AppExecutableMemoryNotReadyPrefix
-            + "status=" + status
-            + " mapping=" + mappingStatus
-            + " descriptor=" + descriptorStatus
-            + " payload=" + payloadHeaderStatus;
+        return AppExecutableMemoryNotReadyPrefix + "status=" + status + " mapping=" + mappingStatus + " descriptor=" + descriptorStatus + " payload=" + payloadHeaderStatus;
     }
 
-    public static string CreateAppInvocationNotReadyMarker(
-        NativeAppInvocationPlanStatus status,
-        NativeAppExecutableMemoryPlanStatus executableMemoryStatus,
-        NativeAppLaunchStatus launchStatus)
+    public static string CreateAppInvocationNotReadyMarker(NativeAppInvocationPlanStatus status, NativeAppExecutableMemoryPlanStatus executableMemoryStatus, NativeAppLaunchStatus launchStatus)
     {
-        return AppInvocationNotReadyPrefix
-            + "status=" + status
-            + " memory=" + executableMemoryStatus
-            + " launch=" + launchStatus;
+        return AppInvocationNotReadyPrefix + "status=" + status + " memory=" + executableMemoryStatus + " launch=" + launchStatus;
     }
 
-    public static string CreateAppLifecycleNotReadyMarker(
-        NativeAppLifecyclePlanStatus status,
-        NativeAppInvocationPlanStatus invocationStatus,
-        OSHostStatus logStatus)
+    public static string CreateAppLifecycleNotReadyMarker(NativeAppLifecyclePlanStatus status, NativeAppInvocationPlanStatus invocationStatus, OSHostStatus logStatus)
     {
-        return AppLifecycleNotReadyPrefix
-            + "status=" + status
-            + " invocation=" + invocationStatus
-            + " log=" + logStatus;
+        return AppLifecycleNotReadyPrefix + "status=" + status + " invocation=" + invocationStatus + " log=" + logStatus;
     }
 
-    public static string CreateAppEntryNotReadyMarker(
-        AppEntryReadinessStatus entryStatus,
-        NativeManifestLoadStatus manifestStatus,
-        OsPackageStatus packageStatus,
-        NativeAppLaunchStatus launchStatus,
-        NativeAppLaunchDescriptorStatus descriptorStatus,
-        NativeAppEntryStagingPreflightStatus stagingStatus,
-        OsPackageFileStagingStatus packageFileStagingStatus,
-        NativeAppPayloadStagingStatus payloadStagingStatus,
-        NativeAppPayloadMappingPlanStatus mappingStatus,
-        NativeAppExecutableMemoryPlanStatus memoryStatus,
-        NativeAppInvocationPlanStatus invocationStatus)
+    public static string CreateAppEntryNotReadyMarker(AppEntryReadinessStatus entryStatus, NativeManifestLoadStatus manifestStatus, OsPackageStatus packageStatus, NativeAppLaunchStatus launchStatus, NativeAppLaunchDescriptorStatus descriptorStatus, NativeAppEntryStagingPreflightStatus stagingStatus, OsPackageFileStagingStatus packageFileStagingStatus, NativeAppPayloadStagingStatus payloadStagingStatus, NativeAppPayloadMappingPlanStatus mappingStatus, NativeAppExecutableMemoryPlanStatus memoryStatus, NativeAppInvocationPlanStatus invocationStatus)
     {
-        return AppEntryNotReadyPrefix
-            + "status=" + entryStatus
-            + " manifest=" + manifestStatus
-            + " package=" + packageStatus
-            + " launch=" + launchStatus
-            + " descriptor=" + descriptorStatus
-            + " staging=" + stagingStatus
-            + " packageStaging=" + packageFileStagingStatus
-            + " payloadStaging=" + payloadStagingStatus
-            + " mapping=" + mappingStatus
-            + " memory=" + memoryStatus
-            + " invocation=" + invocationStatus;
+        return AppEntryNotReadyPrefix + "status=" + entryStatus + " manifest=" + manifestStatus + " package=" + packageStatus + " launch=" + launchStatus + " descriptor=" + descriptorStatus + " staging=" + stagingStatus + " packageStaging=" + packageFileStagingStatus + " payloadStaging=" + payloadStagingStatus + " mapping=" + mappingStatus + " memory=" + memoryStatus + " invocation=" + invocationStatus;
     }
 
-    public static string CreateAppSelectionNotReadyMarker(
-        AppSelectionReadinessStatus selectionStatus,
-        NativeManifestLoadStatus manifestStatus,
-        OsPackageStatus packageStatus,
-        NativeAppLaunchStatus launchStatus,
-        NativeAppLaunchDescriptorStatus descriptorStatus,
-        OsPackageFileSystemStatus packageFileStatus,
-        OsPackageStatus descriptorPackageStatus)
+    public static string CreateAppSelectionNotReadyMarker(AppSelectionReadinessStatus selectionStatus, NativeManifestLoadStatus manifestStatus, OsPackageStatus packageStatus, NativeAppLaunchStatus launchStatus, NativeAppLaunchDescriptorStatus descriptorStatus, OsPackageFileSystemStatus packageFileStatus, OsPackageStatus descriptorPackageStatus)
     {
-        return AppSelectionNotReadyPrefix
-            + "status=" + selectionStatus
-            + " manifest=" + manifestStatus
-            + " package=" + packageStatus
-            + " launch=" + launchStatus
-            + " descriptor=" + descriptorStatus
-            + " packageFile=" + packageFileStatus
-            + " descriptorPackage=" + descriptorPackageStatus;
+        return AppSelectionNotReadyPrefix + "status=" + selectionStatus + " manifest=" + manifestStatus + " package=" + packageStatus + " launch=" + launchStatus + " descriptor=" + descriptorStatus + " packageFile=" + packageFileStatus + " descriptorPackage=" + descriptorPackageStatus;
     }
 
-    public static string CreateAppSelectionPreflightNotReadyMarker(
-        AppSelectionPreflightReadinessStatus readiness,
-        VirtioBlockNativeAppSelectionPreflightResult preflight)
+    public static string CreateAppSelectionPreflightNotReadyMarker(AppSelectionPreflightReadinessStatus readiness, VirtioBlockNativeAppSelectionPreflightResult preflight)
     {
-        return AppSelectionPreflightNotReadyPrefix
-            + "status=" + readiness
-            + " initialized=" + (preflight.IsInitialized ? "true" : "false")
-            + " preflight=" + preflight.Status
-            + " readSession=" + preflight.ReadSessionStatus
-            + " pipeline=" + preflight.ReadSessionPipelineStatus
-            + " block=" + preflight.BlockDeviceStatus
-            + " scratch=" + preflight.ScratchPlan.Status
-            + " selection=" + preflight.SelectionLoad.Status
-            + " manifest=" + preflight.SelectionLoad.ManifestLoad.Status
-            + " packageLoad=" + preflight.SelectionLoad.PackageLoad.Status
-            + " package=" + preflight.SelectionLoad.PackageParse.Status
-            + " launch=" + preflight.SelectionLoad.LaunchPlan.Status
-            + " descriptor=" + preflight.SelectionLoad.Descriptor.Status;
+        return AppSelectionPreflightNotReadyPrefix + "status=" + readiness + " initialized=" + (preflight.IsInitialized ? "true" : "false") + " preflight=" + preflight.Status + " readSession=" + preflight.ReadSessionStatus + " pipeline=" + preflight.ReadSessionPipelineStatus + " block=" + preflight.BlockDeviceStatus + " scratch=" + preflight.ScratchPlan.Status + " selection=" + preflight.SelectionLoad.Status + " manifest=" + preflight.SelectionLoad.ManifestLoad.Status + " packageLoad=" + preflight.SelectionLoad.PackageLoad.Status + " package=" + preflight.SelectionLoad.PackageParse.Status + " launch=" + preflight.SelectionLoad.LaunchPlan.Status + " descriptor=" + preflight.SelectionLoad.Descriptor.Status;
     }
 
-    private static AppSelectionReadinessStatus GetAppSelectionStatus(
-        NativeManifestLoadResult manifestLoad,
-        OsPackageParseResult packageParse,
-        NativeAppLaunchPlanResult launchPlan,
-        NativeAppLaunchDescriptorResult descriptor)
+    private static AppSelectionReadinessStatus GetAppSelectionStatus(NativeManifestLoadResult manifestLoad, OsPackageParseResult packageParse, NativeAppLaunchPlanResult launchPlan, NativeAppLaunchDescriptorResult descriptor)
     {
         if (!manifestLoad.Succeeded)
         {
@@ -3183,125 +1913,95 @@ public static class BootSequence
             return AppSelectionReadinessStatus.LaunchPlanFailed;
         }
 
-        return descriptor.Succeeded
-            ? AppSelectionReadinessStatus.Ready
-            : AppSelectionReadinessStatus.LaunchDescriptorFailed;
+        return descriptor.Succeeded ? AppSelectionReadinessStatus.Ready : AppSelectionReadinessStatus.LaunchDescriptorFailed;
     }
 
-    private static AppPackageFileStagingPreflightReadinessStatus GetAppPackageFileStagingPreflightStatus(
-        VirtioBlockPackageFileStagingPreflightResult preflight)
+    private static AppPackageFileStagingPreflightReadinessStatus GetAppPackageFileStagingPreflightStatus(VirtioBlockPackageFileStagingPreflightResult preflight)
     {
         if (!preflight.IsInitialized)
         {
             return AppPackageFileStagingPreflightReadinessStatus.NotInitialized;
         }
 
-        if (!preflight.PackagePreflight.Succeeded ||
-            preflight.Status == VirtioBlockPackageFileStagingPreflightStatus.PackagePreflightFailed)
+        if (!preflight.PackagePreflight.Succeeded || preflight.Status == VirtioBlockPackageFileStagingPreflightStatus.PackagePreflightFailed)
         {
             return AppPackageFileStagingPreflightReadinessStatus.PackagePreflightFailed;
         }
 
-        if (!preflight.PackageOpen.Succeeded ||
-            preflight.Status == VirtioBlockPackageFileStagingPreflightStatus.PackageOpenFailed)
+        if (!preflight.PackageOpen.Succeeded || preflight.Status == VirtioBlockPackageFileStagingPreflightStatus.PackageOpenFailed)
         {
             return AppPackageFileStagingPreflightReadinessStatus.PackageOpenFailed;
         }
 
-        if (!preflight.PackageStaging.Succeeded ||
-            preflight.Status == VirtioBlockPackageFileStagingPreflightStatus.PackageStagingFailed)
+        if (!preflight.PackageStaging.Succeeded || preflight.Status == VirtioBlockPackageFileStagingPreflightStatus.PackageStagingFailed)
         {
             return AppPackageFileStagingPreflightReadinessStatus.PackageStagingFailed;
         }
 
-        return preflight.Succeeded
-            ? AppPackageFileStagingPreflightReadinessStatus.Ready
-            : AppPackageFileStagingPreflightReadinessStatus.PackageStagingFailed;
+        return preflight.Succeeded ? AppPackageFileStagingPreflightReadinessStatus.Ready : AppPackageFileStagingPreflightReadinessStatus.PackageStagingFailed;
     }
 
-    private static PalExportCatalogReadinessStatus GetPalExportCatalogReadinessStatus(
-        OSHostExportCatalogValidationResult validation)
+    private static PalExportCatalogReadinessStatus GetPalExportCatalogReadinessStatus(OSHostExportCatalogValidationResult validation)
     {
         if (!validation.IsInitialized)
         {
             return PalExportCatalogReadinessStatus.NotInitialized;
         }
 
-        return validation.Succeeded
-            ? PalExportCatalogReadinessStatus.Ready
-            : PalExportCatalogReadinessStatus.CatalogValidationFailed;
+        return validation.Succeeded ? PalExportCatalogReadinessStatus.Ready : PalExportCatalogReadinessStatus.CatalogValidationFailed;
     }
 
-    private static NativeAotHeapBootstrapReadinessStatus GetNativeAotHeapBootstrapReadinessStatus(
-        NativeAotHeapBootstrapPlanResult plan)
+    private static NativeAotHeapBootstrapReadinessStatus GetNativeAotHeapBootstrapReadinessStatus(NativeAotHeapBootstrapPlanResult plan)
     {
         if (!plan.IsInitialized)
         {
             return NativeAotHeapBootstrapReadinessStatus.NotInitialized;
         }
 
-        return plan.Succeeded
-            ? NativeAotHeapBootstrapReadinessStatus.Ready
-            : NativeAotHeapBootstrapReadinessStatus.PlanFailed;
+        return plan.Succeeded ? NativeAotHeapBootstrapReadinessStatus.Ready : NativeAotHeapBootstrapReadinessStatus.PlanFailed;
     }
 
-    private static NativeAotClassConstructorRunnerPreflightReadinessStatus
-        GetNativeAotClassConstructorRunnerPreflightReadinessStatus(
-            NativeAotClassConstructorRunnerPreflightResult preflight)
+    private static NativeAotClassConstructorRunnerPreflightReadinessStatus GetNativeAotClassConstructorRunnerPreflightReadinessStatus(NativeAotClassConstructorRunnerPreflightResult preflight)
     {
         if (!preflight.IsInitialized)
         {
             return NativeAotClassConstructorRunnerPreflightReadinessStatus.NotInitialized;
         }
 
-        return preflight.Succeeded
-            ? NativeAotClassConstructorRunnerPreflightReadinessStatus.Ready
-            : NativeAotClassConstructorRunnerPreflightReadinessStatus.PreflightFailed;
+        return preflight.Succeeded ? NativeAotClassConstructorRunnerPreflightReadinessStatus.Ready : NativeAotClassConstructorRunnerPreflightReadinessStatus.PreflightFailed;
     }
 
-    private static NativeAotClassConstructorWorkItemReadinessStatus
-        GetNativeAotClassConstructorWorkItemReadinessStatus(
-            NativeAotClassConstructorWorkItemPlanResult plan)
+    private static NativeAotClassConstructorWorkItemReadinessStatus GetNativeAotClassConstructorWorkItemReadinessStatus(NativeAotClassConstructorWorkItemPlanResult plan)
     {
         if (!plan.IsInitialized)
         {
             return NativeAotClassConstructorWorkItemReadinessStatus.NotInitialized;
         }
 
-        return plan.Succeeded
-            ? NativeAotClassConstructorWorkItemReadinessStatus.Ready
-            : NativeAotClassConstructorWorkItemReadinessStatus.PlanFailed;
+        return plan.Succeeded ? NativeAotClassConstructorWorkItemReadinessStatus.Ready : NativeAotClassConstructorWorkItemReadinessStatus.PlanFailed;
     }
 
-    private static FetchAppHttpRequestEndpointReadinessStatus
-        GetFetchAppHttpRequestEndpointReadinessStatus(FetchAppHttpRequestEndpointResult endpoint)
+    private static FetchAppHttpRequestEndpointReadinessStatus GetFetchAppHttpRequestEndpointReadinessStatus(FetchAppHttpRequestEndpointResult endpoint)
     {
         if (!endpoint.IsInitialized)
         {
             return FetchAppHttpRequestEndpointReadinessStatus.NotInitialized;
         }
 
-        return endpoint.Succeeded
-            ? FetchAppHttpRequestEndpointReadinessStatus.Ready
-            : FetchAppHttpRequestEndpointReadinessStatus.EndpointFailed;
+        return endpoint.Succeeded ? FetchAppHttpRequestEndpointReadinessStatus.Ready : FetchAppHttpRequestEndpointReadinessStatus.EndpointFailed;
     }
 
-    private static FetchAppHttpCompletionReadinessStatus GetFetchAppHttpCompletionReadinessStatus(
-        FetchAppHttpCompletionPlanResult completion)
+    private static FetchAppHttpCompletionReadinessStatus GetFetchAppHttpCompletionReadinessStatus(FetchAppHttpCompletionPlanResult completion)
     {
         if (!completion.IsInitialized)
         {
             return FetchAppHttpCompletionReadinessStatus.NotInitialized;
         }
 
-        return completion.Succeeded
-            ? FetchAppHttpCompletionReadinessStatus.Ready
-            : FetchAppHttpCompletionReadinessStatus.CompletionFailed;
+        return completion.Succeeded ? FetchAppHttpCompletionReadinessStatus.Ready : FetchAppHttpCompletionReadinessStatus.CompletionFailed;
     }
 
-    private static FetchAppHttpTcpExchangeReadinessStatus GetFetchAppHttpTcpExchangeReadinessStatus(
-        FetchAppHttpTcpExchangePlanResult exchange,
-        FetchAppHttpTcpExchangePlanDiagnosticFormatResult format)
+    private static FetchAppHttpTcpExchangeReadinessStatus GetFetchAppHttpTcpExchangeReadinessStatus(FetchAppHttpTcpExchangePlanResult exchange, FetchAppHttpTcpExchangePlanDiagnosticFormatResult format)
     {
         if (!exchange.IsInitialized)
         {
@@ -3313,14 +2013,10 @@ public static class BootSequence
             return FetchAppHttpTcpExchangeReadinessStatus.ExchangeFailed;
         }
 
-        return format.Succeeded
-            ? FetchAppHttpTcpExchangeReadinessStatus.Ready
-            : FetchAppHttpTcpExchangeReadinessStatus.DiagnosticFormattingFailure;
+        return format.Succeeded ? FetchAppHttpTcpExchangeReadinessStatus.Ready : FetchAppHttpTcpExchangeReadinessStatus.DiagnosticFormattingFailure;
     }
 
-    private static VirtioNetRxTcpDispatchReadinessStatus GetVirtioNetRxTcpDispatchReadinessStatus(
-        VirtioNetReceiveRegisterWindowTcpDispatchResult dispatch,
-        VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult format)
+    private static VirtioNetRxTcpDispatchReadinessStatus GetVirtioNetRxTcpDispatchReadinessStatus(VirtioNetReceiveRegisterWindowTcpDispatchResult dispatch, VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult format)
     {
         if (!dispatch.IsInitialized)
         {
@@ -3332,14 +2028,10 @@ public static class BootSequence
             return VirtioNetRxTcpDispatchReadinessStatus.DispatchFailed;
         }
 
-        return format.Succeeded
-            ? VirtioNetRxTcpDispatchReadinessStatus.Ready
-            : VirtioNetRxTcpDispatchReadinessStatus.DiagnosticFormattingFailure;
+        return format.Succeeded ? VirtioNetRxTcpDispatchReadinessStatus.Ready : VirtioNetRxTcpDispatchReadinessStatus.DiagnosticFormattingFailure;
     }
 
-    private static HttpStaticTcpResponseReadinessStatus GetHttpStaticTcpResponseReadinessStatus(
-        HttpStaticTcpResponsePlanResult response,
-        HttpStaticTcpResponsePlanDiagnosticFormatResult format)
+    private static HttpStaticTcpResponseReadinessStatus GetHttpStaticTcpResponseReadinessStatus(HttpStaticTcpResponsePlanResult response, HttpStaticTcpResponsePlanDiagnosticFormatResult format)
     {
         if (!response.IsInitialized)
         {
@@ -3351,28 +2043,20 @@ public static class BootSequence
             return HttpStaticTcpResponseReadinessStatus.ResponsePlanFailed;
         }
 
-        return format.Succeeded
-            ? HttpStaticTcpResponseReadinessStatus.Ready
-            : HttpStaticTcpResponseReadinessStatus.DiagnosticFormattingFailure;
+        return format.Succeeded ? HttpStaticTcpResponseReadinessStatus.Ready : HttpStaticTcpResponseReadinessStatus.DiagnosticFormattingFailure;
     }
 
-    private static NativeManifestFetchAppConfigPreflightReadinessStatus
-        GetNativeManifestFetchAppConfigPreflightReadinessStatus(
-            NativeManifestFetchAppConfigPreflightResult preflight)
+    private static NativeManifestFetchAppConfigPreflightReadinessStatus GetNativeManifestFetchAppConfigPreflightReadinessStatus(NativeManifestFetchAppConfigPreflightResult preflight)
     {
         if (!preflight.IsInitialized)
         {
             return NativeManifestFetchAppConfigPreflightReadinessStatus.NotInitialized;
         }
 
-        return preflight.Succeeded
-            ? NativeManifestFetchAppConfigPreflightReadinessStatus.Ready
-            : NativeManifestFetchAppConfigPreflightReadinessStatus.PreflightFailed;
+        return preflight.Succeeded ? NativeManifestFetchAppConfigPreflightReadinessStatus.Ready : NativeManifestFetchAppConfigPreflightReadinessStatus.PreflightFailed;
     }
 
-    private static NativeManifestEnvironmentReadinessStatus GetNativeManifestEnvironmentReadinessStatus(
-        NativeManifestParseResult manifest,
-        NativeManifestEnvironmentDiagnosticFormatResult format)
+    private static NativeManifestEnvironmentReadinessStatus GetNativeManifestEnvironmentReadinessStatus(NativeManifestParseResult manifest, NativeManifestEnvironmentDiagnosticFormatResult format)
     {
         if (!manifest.IsInitialized)
         {
@@ -3389,52 +2073,40 @@ public static class BootSequence
             return NativeManifestEnvironmentReadinessStatus.SourceRangeInvalid;
         }
 
-        return format.Succeeded
-            ? NativeManifestEnvironmentReadinessStatus.Ready
-            : NativeManifestEnvironmentReadinessStatus.DiagnosticFormattingFailure;
+        return format.Succeeded ? NativeManifestEnvironmentReadinessStatus.Ready : NativeManifestEnvironmentReadinessStatus.DiagnosticFormattingFailure;
     }
 
-    private static AppExitObserverReadinessStatus GetAppExitObserverReadinessStatus(
-        NativeAppExitLogObserverResult observer)
+    private static AppExitObserverReadinessStatus GetAppExitObserverReadinessStatus(NativeAppExitLogObserverResult observer)
     {
         if (!observer.IsInitialized)
         {
             return AppExitObserverReadinessStatus.NotInitialized;
         }
 
-        return observer.Succeeded
-            ? AppExitObserverReadinessStatus.Ready
-            : AppExitObserverReadinessStatus.ObserverFailure;
+        return observer.Succeeded ? AppExitObserverReadinessStatus.Ready : AppExitObserverReadinessStatus.ObserverFailure;
     }
 
-    private static NativeAppArgumentVectorReadinessStatus GetNativeAppArgumentVectorReadinessStatus(
-        NativeAppArgumentVectorPlanResult argumentVector)
+    private static NativeAppArgumentVectorReadinessStatus GetNativeAppArgumentVectorReadinessStatus(NativeAppArgumentVectorPlanResult argumentVector)
     {
         if (!argumentVector.IsInitialized)
         {
             return NativeAppArgumentVectorReadinessStatus.NotInitialized;
         }
 
-        return argumentVector.Succeeded
-            ? NativeAppArgumentVectorReadinessStatus.Ready
-            : NativeAppArgumentVectorReadinessStatus.ArgumentVectorFailed;
+        return argumentVector.Succeeded ? NativeAppArgumentVectorReadinessStatus.Ready : NativeAppArgumentVectorReadinessStatus.ArgumentVectorFailed;
     }
 
-    private static NativeAppArgumentHandoffReadinessStatus GetNativeAppArgumentHandoffReadinessStatus(
-        NativeAppArgumentHandoffPlanResult handoff)
+    private static NativeAppArgumentHandoffReadinessStatus GetNativeAppArgumentHandoffReadinessStatus(NativeAppArgumentHandoffPlanResult handoff)
     {
         if (!handoff.IsInitialized)
         {
             return NativeAppArgumentHandoffReadinessStatus.NotInitialized;
         }
 
-        return handoff.Succeeded
-            ? NativeAppArgumentHandoffReadinessStatus.Ready
-            : NativeAppArgumentHandoffReadinessStatus.HandoffFailed;
+        return handoff.Succeeded ? NativeAppArgumentHandoffReadinessStatus.Ready : NativeAppArgumentHandoffReadinessStatus.HandoffFailed;
     }
 
-    private static AppSelectionPreflightReadinessStatus GetAppSelectionPreflightStatus(
-        VirtioBlockNativeAppSelectionPreflightResult preflight)
+    private static AppSelectionPreflightReadinessStatus GetAppSelectionPreflightStatus(VirtioBlockNativeAppSelectionPreflightResult preflight)
     {
         if (!preflight.IsInitialized)
         {
@@ -3444,34 +2116,17 @@ public static class BootSequence
         return preflight.Status switch
         {
             VirtioBlockNativeAppSelectionPreflightStatus.Success => AppSelectionPreflightReadinessStatus.Ready,
-            VirtioBlockNativeAppSelectionPreflightStatus.IncompleteReadSession =>
-                AppSelectionPreflightReadinessStatus.IncompleteReadSession,
-            VirtioBlockNativeAppSelectionPreflightStatus.InvalidBlockDevice =>
-                AppSelectionPreflightReadinessStatus.InvalidBlockDevice,
-            VirtioBlockNativeAppSelectionPreflightStatus.ScratchPlanFailed =>
-                AppSelectionPreflightReadinessStatus.ScratchPlanFailed,
+            VirtioBlockNativeAppSelectionPreflightStatus.IncompleteReadSession => AppSelectionPreflightReadinessStatus.IncompleteReadSession,
+            VirtioBlockNativeAppSelectionPreflightStatus.InvalidBlockDevice => AppSelectionPreflightReadinessStatus.InvalidBlockDevice,
+            VirtioBlockNativeAppSelectionPreflightStatus.ScratchPlanFailed => AppSelectionPreflightReadinessStatus.ScratchPlanFailed,
             _ => AppSelectionPreflightReadinessStatus.SelectionLoadFailed
         };
     }
 
-    private static AppEntryReadinessStatus GetAppEntryStatus(
-        NativeManifestLoadResult manifestLoad,
-        OsPackageParseResult packageParse,
-        NativeAppLaunchPlanResult launchPlan,
-        NativeAppLaunchDescriptorResult descriptor,
-        NativeAppEntryStagingPreflightResult stagingPreflight,
-        NativeAppPayloadMappingPlanResult mappingPlan,
-        NativeAppExecutableMemoryPlanResult memoryPlan,
-        NativeAppInvocationPlanResult invocationPlan)
+    private static AppEntryReadinessStatus GetAppEntryStatus(NativeManifestLoadResult manifestLoad, OsPackageParseResult packageParse, NativeAppLaunchPlanResult launchPlan, NativeAppLaunchDescriptorResult descriptor, NativeAppEntryStagingPreflightResult stagingPreflight, NativeAppPayloadMappingPlanResult mappingPlan, NativeAppExecutableMemoryPlanResult memoryPlan, NativeAppInvocationPlanResult invocationPlan)
     {
-        AppSelectionReadinessStatus selectionStatus = GetAppSelectionStatus(
-            manifestLoad,
-            packageParse,
-            launchPlan,
-            descriptor);
-        if (selectionStatus == AppSelectionReadinessStatus.ManifestFailed ||
-            selectionStatus == AppSelectionReadinessStatus.PackageFailed ||
-            selectionStatus == AppSelectionReadinessStatus.LaunchPlanFailed)
+        AppSelectionReadinessStatus selectionStatus = GetAppSelectionStatus(manifestLoad, packageParse, launchPlan, descriptor);
+        if (selectionStatus == AppSelectionReadinessStatus.ManifestFailed || selectionStatus == AppSelectionReadinessStatus.PackageFailed || selectionStatus == AppSelectionReadinessStatus.LaunchPlanFailed)
         {
             return AppEntryReadinessStatus.AppPackageFailed;
         }
@@ -3496,16 +2151,12 @@ public static class BootSequence
             return AppEntryReadinessStatus.ExecutableMemoryFailed;
         }
 
-        return invocationPlan.Succeeded
-            ? AppEntryReadinessStatus.Ready
-            : AppEntryReadinessStatus.InvocationPlanFailed;
+        return invocationPlan.Succeeded ? AppEntryReadinessStatus.Ready : AppEntryReadinessStatus.InvocationPlanFailed;
     }
 
-    private static BootPageAllocatorReadinessStatus GetBootPageAllocatorReadinessStatus(
-        BootPageAllocatorStateInitResult allocatorState)
+    private static BootPageAllocatorReadinessStatus GetBootPageAllocatorReadinessStatus(BootPageAllocatorStateInitResult allocatorState)
     {
-        if (allocatorState.Status == BootPageAllocatorStateStatus.Success &&
-            !allocatorState.State.IsInitialized)
+        if (allocatorState.Status == BootPageAllocatorStateStatus.Success && !allocatorState.State.IsInitialized)
         {
             return BootPageAllocatorReadinessStatus.StateNotInitialized;
         }
@@ -3530,399 +2181,102 @@ public static class BootSequence
             return BootPageAllocatorReadinessStatus.NoFreeNodes;
         }
 
-        return allocatorState.State.FreePageCount == 0
-            ? BootPageAllocatorReadinessStatus.NoFreePages
-            : BootPageAllocatorReadinessStatus.Ready;
+        return allocatorState.State.FreePageCount == 0 ? BootPageAllocatorReadinessStatus.NoFreePages : BootPageAllocatorReadinessStatus.Ready;
     }
 
-    private static string CreateBootPageAllocatorMetadata(
-        BootPageAllocatorReadinessStatus readiness,
-        BootPageAllocatorStateInitResult allocatorState)
+    private static string CreateBootPageAllocatorMetadata(BootPageAllocatorReadinessStatus readiness, BootPageAllocatorStateInitResult allocatorState)
     {
-        return "status=" + readiness
-            + " state=" + allocatorState.Status
-            + " freeList=" + allocatorState.FreeListPlanStatus
-            + " requiredNodes=" + allocatorState.RequiredNodeCapacity
-            + " availableNodes=" + allocatorState.AvailableNodeCapacity
-            + " visitedNodes=" + allocatorState.VisitedNodeCount
-            + " invalidNode=" + allocatorState.InvalidNodeIndex
-            + " initialized=" + (allocatorState.State.IsInitialized ? "true" : "false")
-            + " head=" + allocatorState.State.HeadNodeIndex
-            + " freeNodes=" + allocatorState.State.FreeNodeCount
-            + " freePages=" + allocatorState.State.FreePageCount
-            + " freeBytes=" + allocatorState.State.FreeByteCount
-            + " allocatedPages=" + allocatorState.State.AllocatedPageCount
-            + " allocatedBytes=" + allocatorState.State.AllocatedByteCount
-            + " totalFreePages=" + allocatorState.TotalFreePages
-            + " totalFreeBytes=" + allocatorState.TotalFreeBytes
-            + " pageSize=" + allocatorState.PageSize;
+        return "status=" + readiness + " state=" + allocatorState.Status + " freeList=" + allocatorState.FreeListPlanStatus + " requiredNodes=" + allocatorState.RequiredNodeCapacity + " availableNodes=" + allocatorState.AvailableNodeCapacity + " visitedNodes=" + allocatorState.VisitedNodeCount + " invalidNode=" + allocatorState.InvalidNodeIndex + " initialized=" + (allocatorState.State.IsInitialized ? "true" : "false") + " head=" + allocatorState.State.HeadNodeIndex + " freeNodes=" + allocatorState.State.FreeNodeCount + " freePages=" + allocatorState.State.FreePageCount + " freeBytes=" + allocatorState.State.FreeByteCount + " allocatedPages=" + allocatorState.State.AllocatedPageCount + " allocatedBytes=" + allocatorState.State.AllocatedByteCount + " totalFreePages=" + allocatorState.TotalFreePages + " totalFreeBytes=" + allocatorState.TotalFreeBytes + " pageSize=" + allocatorState.PageSize;
     }
 
-    private static string CreateAppPackageFileStagingPreflightMetadata(
-        AppPackageFileStagingPreflightReadinessStatus readiness,
-        VirtioBlockPackageFileStagingPreflightResult preflight)
+    private static string CreateAppPackageFileStagingPreflightMetadata(AppPackageFileStagingPreflightReadinessStatus readiness, VirtioBlockPackageFileStagingPreflightResult preflight)
     {
-        return "status=" + readiness
-            + " initialized=" + (preflight.IsInitialized ? "true" : "false")
-            + " succeeded=" + (preflight.Succeeded ? "true" : "false")
-            + " preflight=" + preflight.Status
-            + " readSession=" + preflight.ReadSessionStatus
-            + " pipeline=" + preflight.ReadSessionPipelineStatus
-            + " packagePreflight=" + preflight.PackagePreflightStatus
-            + " packageLoad=" + preflight.PackagePreflight.PackageLoad.Status
-            + " package=" + preflight.PackagePreflight.PackageLoad.PackageStatus
-            + " open=" + preflight.PackageOpenStatus
-            + " openPackage=" + preflight.PackageOpen.PackageStatus
-            + " staging=" + preflight.PackageStagingStatus
-            + " stagingOpen=" + preflight.PackageStaging.OpenStatus
-            + " stagingPackage=" + preflight.PackageStaging.PackageStatus
-            + " readBytes=" + preflight.ReadSessionByteCount
-            + " sourcePackageLength=" + preflight.PackageBytesRead
-            + " stagedBytes=" + preflight.PackageFileBytesStaged
-            + " destinationCapacity=" + preflight.StagingDestinationBytesAvailable
-            + " packageBufferCapacity=" + preflight.PackagePreflight.PackageBufferBytesAvailable
-            + " stagingRequiredBytes=" + preflight.PackageStaging.RequiredBytes
-            + " fileLength=" + preflight.PackageStaging.FileLength
-            + " sourceOverflow=" + (preflight.PackageStaging.SourceRangeOverflow ? "true" : "false");
+        return "status=" + readiness + " initialized=" + (preflight.IsInitialized ? "true" : "false") + " succeeded=" + (preflight.Succeeded ? "true" : "false") + " preflight=" + preflight.Status + " readSession=" + preflight.ReadSessionStatus + " pipeline=" + preflight.ReadSessionPipelineStatus + " packagePreflight=" + preflight.PackagePreflightStatus + " packageLoad=" + preflight.PackagePreflight.PackageLoad.Status + " package=" + preflight.PackagePreflight.PackageLoad.PackageStatus + " open=" + preflight.PackageOpenStatus + " openPackage=" + preflight.PackageOpen.PackageStatus + " staging=" + preflight.PackageStagingStatus + " stagingOpen=" + preflight.PackageStaging.OpenStatus + " stagingPackage=" + preflight.PackageStaging.PackageStatus + " readBytes=" + preflight.ReadSessionByteCount + " sourcePackageLength=" + preflight.PackageBytesRead + " stagedBytes=" + preflight.PackageFileBytesStaged + " destinationCapacity=" + preflight.StagingDestinationBytesAvailable + " packageBufferCapacity=" + preflight.PackagePreflight.PackageBufferBytesAvailable + " stagingRequiredBytes=" + preflight.PackageStaging.RequiredBytes + " fileLength=" + preflight.PackageStaging.FileLength + " sourceOverflow=" + (preflight.PackageStaging.SourceRangeOverflow ? "true" : "false");
     }
 
-    private static string CreatePalExportCatalogMetadata(
-        PalExportCatalogReadinessStatus readiness,
-        OSHostExportCatalogValidationResult validation)
+    private static string CreatePalExportCatalogMetadata(PalExportCatalogReadinessStatus readiness, OSHostExportCatalogValidationResult validation)
     {
         int firstFailingIndex = validation.HasEntryMetadata ? validation.EntryIndex : -1;
-        int duplicateIndex = validation.HasEntryMetadata && validation.DuplicateEntryIndex >= 0
-            ? validation.DuplicateEntryIndex
-            : -1;
+        int duplicateIndex = validation.HasEntryMetadata && validation.DuplicateEntryIndex >= 0 ? validation.DuplicateEntryIndex : -1;
         string domain = validation.HasEntryMetadata ? validation.Domain.ToString() : "unavailable";
         string signature = validation.HasEntryMetadata ? validation.Signature.ToString() : "unavailable";
-
-        return "status=" + readiness
-            + " initialized=" + (validation.IsInitialized ? "true" : "false")
-            + " catalog=" + validation.Status
-            + " entryCount=" + validation.EntryCount
-            + " firstFailingIndex=" + firstFailingIndex
-            + " duplicateIndex=" + duplicateIndex
-            + " domain=" + domain
-            + " signature=" + signature;
+        return "status=" + readiness + " initialized=" + (validation.IsInitialized ? "true" : "false") + " catalog=" + validation.Status + " entryCount=" + validation.EntryCount + " firstFailingIndex=" + firstFailingIndex + " duplicateIndex=" + duplicateIndex + " domain=" + domain + " signature=" + signature;
     }
 
-    private static string CreateNativeAotHeapBootstrapMetadata(
-        NativeAotHeapBootstrapReadinessStatus readiness,
-        NativeAotHeapBootstrapPlanResult plan)
+    private static string CreateNativeAotHeapBootstrapMetadata(NativeAotHeapBootstrapReadinessStatus readiness, NativeAotHeapBootstrapPlanResult plan)
     {
-        return "status=" + readiness
-            + " initialized=" + (plan.IsInitialized ? "true" : "false")
-            + " plan=" + plan.Status
-            + " pageSize=" + plan.PageSize
-            + " allocatorFreePages=" + plan.AllocatorFreePages
-            + " allocatorFreeBytes=" + plan.AllocatorFreeBytes
-            + " expectedAllocatorFreeBytes=" + plan.ExpectedAllocatorFreeBytes
-            + " requestedHeapPages=" + plan.RequestedHeapPages
-            + " requestedHeapBytes=" + plan.RequestedHeapBytes
-            + " remainingFreePages=" + plan.RemainingFreePages
-            + " remainingFreeBytes=" + plan.RemainingFreeBytes
-            + " objectAlignment=" + plan.ObjectAlignment
-            + " requiresPageAllocatorMutation=" + (plan.RequiresPageAllocatorMutation ? "true" : "false")
-            + " requiresGcRootScanning=" + (plan.RequiresGcRootScanning ? "true" : "false")
-            + " requiresWriteBarriers=" + (plan.RequiresWriteBarriers ? "true" : "false")
-            + " satisfiesObjectAllocationHelpers="
-            + (plan.SatisfiesObjectAllocationHelpers ? "true" : "false");
+        return "status=" + readiness + " initialized=" + (plan.IsInitialized ? "true" : "false") + " plan=" + plan.Status + " pageSize=" + plan.PageSize + " allocatorFreePages=" + plan.AllocatorFreePages + " allocatorFreeBytes=" + plan.AllocatorFreeBytes + " expectedAllocatorFreeBytes=" + plan.ExpectedAllocatorFreeBytes + " requestedHeapPages=" + plan.RequestedHeapPages + " requestedHeapBytes=" + plan.RequestedHeapBytes + " remainingFreePages=" + plan.RemainingFreePages + " remainingFreeBytes=" + plan.RemainingFreeBytes + " objectAlignment=" + plan.ObjectAlignment + " requiresPageAllocatorMutation=" + (plan.RequiresPageAllocatorMutation ? "true" : "false") + " requiresGcRootScanning=" + (plan.RequiresGcRootScanning ? "true" : "false") + " requiresWriteBarriers=" + (plan.RequiresWriteBarriers ? "true" : "false") + " satisfiesObjectAllocationHelpers=" + (plan.SatisfiesObjectAllocationHelpers ? "true" : "false");
     }
 
-    private static string CreateNativeAotClassConstructorRunnerPreflightMetadata(
-        NativeAotClassConstructorRunnerPreflightReadinessStatus readiness,
-        NativeAotClassConstructorRunnerPreflightResult preflight)
+    private static string CreateNativeAotClassConstructorRunnerPreflightMetadata(NativeAotClassConstructorRunnerPreflightReadinessStatus readiness, NativeAotClassConstructorRunnerPreflightResult preflight)
     {
-        return "status=" + readiness
-            + " initialized=" + (preflight.IsInitialized ? "true" : "false")
-            + " preflight=" + preflight.Status
-            + " typeCount=" + preflight.TypeCount
-            + " targetMetadataCount=" + preflight.TargetMetadataCount
-            + " occupiedCount=" + preflight.OccupiedCount
-            + " capacity=" + preflight.Capacity
-            + " firstProblemIndex=" + preflight.FirstProblemIndex
-            + " firstProblemState=" + preflight.FirstProblemState
-            + " firstProblemFailureCode=" + preflight.FirstProblemFailureCode
-            + " executesConstructors="
-            + (NativeAotClassConstructorRunnerPreflight.ExecutesConstructors ? "true" : "false")
-            + " usesReflection="
-            + (NativeAotClassConstructorRunnerPreflight.UsesReflection ? "true" : "false")
-            + " usesExceptionControlFlow="
-            + (NativeAotClassConstructorRunnerPreflight.UsesExceptionControlFlow ? "true" : "false")
-            + " requiresTargetMetadata="
-            + (NativeAotClassConstructorRunnerPreflight.RequiresTargetMetadata ? "true" : "false");
+        return "status=" + readiness + " initialized=" + (preflight.IsInitialized ? "true" : "false") + " preflight=" + preflight.Status + " typeCount=" + preflight.TypeCount + " targetMetadataCount=" + preflight.TargetMetadataCount + " occupiedCount=" + preflight.OccupiedCount + " capacity=" + preflight.Capacity + " firstProblemIndex=" + preflight.FirstProblemIndex + " firstProblemState=" + preflight.FirstProblemState + " firstProblemFailureCode=" + preflight.FirstProblemFailureCode + " executesConstructors=" + (NativeAotClassConstructorRunnerPreflight.ExecutesConstructors ? "true" : "false") + " usesReflection=" + (NativeAotClassConstructorRunnerPreflight.UsesReflection ? "true" : "false") + " usesExceptionControlFlow=" + (NativeAotClassConstructorRunnerPreflight.UsesExceptionControlFlow ? "true" : "false") + " requiresTargetMetadata=" + (NativeAotClassConstructorRunnerPreflight.RequiresTargetMetadata ? "true" : "false");
     }
 
-    private static string CreateNativeAotClassConstructorWorkItemMetadata(
-        NativeAotClassConstructorWorkItemReadinessStatus readiness,
-        NativeAotClassConstructorWorkItemPlanResult plan)
+    private static string CreateNativeAotClassConstructorWorkItemMetadata(NativeAotClassConstructorWorkItemReadinessStatus readiness, NativeAotClassConstructorWorkItemPlanResult plan)
     {
-        return "status=" + readiness
-            + " initialized=" + (plan.IsInitialized ? "true" : "false")
-            + " plan=" + plan.Status
-            + " preflight=" + plan.PreflightStatus
-            + " typeCount=" + plan.TypeCount
-            + " targetMetadataCount=" + plan.TargetMetadataCount
-            + " plannedCount=" + plan.PlannedCount
-            + " skippedInitializedCount=" + plan.SkippedInitializedCount
-            + " requiredWorkItemCapacity=" + plan.RequiredWorkItemCapacity
-            + " availableWorkItemCapacity=" + plan.AvailableWorkItemCapacity
-            + " firstProblemIndex=" + plan.FirstProblemIndex
-            + " firstProblemState=" + plan.FirstProblemState
-            + " firstProblemFailureCode=" + plan.FirstProblemFailureCode
-            + " executesConstructors="
-            + (NativeAotClassConstructorWorkItemPlanner.ExecutesConstructors ? "true" : "false")
-            + " usesReflection="
-            + (NativeAotClassConstructorWorkItemPlanner.UsesReflection ? "true" : "false")
-            + " usesExceptionControlFlow="
-            + (NativeAotClassConstructorWorkItemPlanner.UsesExceptionControlFlow ? "true" : "false")
-            + " usesManagedDelegates="
-            + (NativeAotClassConstructorWorkItemPlanner.UsesManagedDelegates ? "true" : "false")
-            + " discoversMetadata="
-            + (NativeAotClassConstructorWorkItemPlanner.DiscoversMetadata ? "true" : "false");
+        return "status=" + readiness + " initialized=" + (plan.IsInitialized ? "true" : "false") + " plan=" + plan.Status + " preflight=" + plan.PreflightStatus + " typeCount=" + plan.TypeCount + " targetMetadataCount=" + plan.TargetMetadataCount + " plannedCount=" + plan.PlannedCount + " skippedInitializedCount=" + plan.SkippedInitializedCount + " requiredWorkItemCapacity=" + plan.RequiredWorkItemCapacity + " availableWorkItemCapacity=" + plan.AvailableWorkItemCapacity + " firstProblemIndex=" + plan.FirstProblemIndex + " firstProblemState=" + plan.FirstProblemState + " firstProblemFailureCode=" + plan.FirstProblemFailureCode + " executesConstructors=" + (NativeAotClassConstructorWorkItemPlanner.ExecutesConstructors ? "true" : "false") + " usesReflection=" + (NativeAotClassConstructorWorkItemPlanner.UsesReflection ? "true" : "false") + " usesExceptionControlFlow=" + (NativeAotClassConstructorWorkItemPlanner.UsesExceptionControlFlow ? "true" : "false") + " usesManagedDelegates=" + (NativeAotClassConstructorWorkItemPlanner.UsesManagedDelegates ? "true" : "false") + " discoversMetadata=" + (NativeAotClassConstructorWorkItemPlanner.DiscoversMetadata ? "true" : "false");
     }
 
-    private static string CreateFetchAppHttpRequestEndpointMetadata(
-        FetchAppHttpRequestEndpointReadinessStatus readiness,
-        FetchAppHttpRequestEndpointResult endpoint)
+    private static string CreateFetchAppHttpRequestEndpointMetadata(FetchAppHttpRequestEndpointReadinessStatus readiness, FetchAppHttpRequestEndpointResult endpoint)
     {
-        return "status=" + readiness
-            + " initialized=" + (endpoint.IsInitialized ? "true" : "false")
-            + " endpoint=" + endpoint.Status
-            + " port=" + endpoint.Port
-            + " hostBytes=" + endpoint.HostBytesWritten
-            + " pathBytes=" + endpoint.PathBytesWritten
-            + " requiredHostBytes=" + endpoint.RequiredHostBytes
-            + " requiredPathBytes=" + endpoint.RequiredPathBytes
-            + " availableHostBytes=" + endpoint.AvailableHostBytes
-            + " availablePathBytes=" + endpoint.AvailablePathBytes
-            + " configuredUrl=" + (endpoint.HasConfiguredUrl ? "true" : "false")
-            + " configuredHost=" + (endpoint.HasConfiguredHost ? "true" : "false")
-            + " configuredPort=" + (endpoint.HasConfiguredPort ? "true" : "false")
-            + " configuredPath=" + (endpoint.HasConfiguredPath ? "true" : "false");
+        return "status=" + readiness + " initialized=" + (endpoint.IsInitialized ? "true" : "false") + " endpoint=" + endpoint.Status + " port=" + endpoint.Port + " hostBytes=" + endpoint.HostBytesWritten + " pathBytes=" + endpoint.PathBytesWritten + " requiredHostBytes=" + endpoint.RequiredHostBytes + " requiredPathBytes=" + endpoint.RequiredPathBytes + " availableHostBytes=" + endpoint.AvailableHostBytes + " availablePathBytes=" + endpoint.AvailablePathBytes + " configuredUrl=" + (endpoint.HasConfiguredUrl ? "true" : "false") + " configuredHost=" + (endpoint.HasConfiguredHost ? "true" : "false") + " configuredPort=" + (endpoint.HasConfiguredPort ? "true" : "false") + " configuredPath=" + (endpoint.HasConfiguredPath ? "true" : "false");
     }
 
-    private static string CreateFetchAppHttpCompletionMetadata(
-        FetchAppHttpCompletionReadinessStatus readiness,
-        FetchAppHttpCompletionPlanResult completion)
+    private static string CreateFetchAppHttpCompletionMetadata(FetchAppHttpCompletionReadinessStatus readiness, FetchAppHttpCompletionPlanResult completion)
     {
-        return "status=" + readiness
-            + " initialized=" + (completion.IsInitialized ? "true" : "false")
-            + " succeeded=" + (completion.Succeeded ? "true" : "false")
-            + " completion=" + completion.Status
-            + " httpPlan=" + completion.HttpPlanStatus
-            + " httpStatus=" + completion.HttpStatusCode
-            + " expectedStatus=" + completion.ExpectedHttpStatusCode
-            + " responseBytes=" + completion.ResponseBytesRead
-            + " bodyOffset=" + completion.BodyOffset
-            + " bodyLength=" + completion.BodyLength
-            + " markerLength=" + completion.ExpectedMarkerLength
-            + " matchOffset=" + completion.MatchOffset;
+        return "status=" + readiness + " initialized=" + (completion.IsInitialized ? "true" : "false") + " succeeded=" + (completion.Succeeded ? "true" : "false") + " completion=" + completion.Status + " httpPlan=" + completion.HttpPlanStatus + " httpStatus=" + completion.HttpStatusCode + " expectedStatus=" + completion.ExpectedHttpStatusCode + " responseBytes=" + completion.ResponseBytesRead + " bodyOffset=" + completion.BodyOffset + " bodyLength=" + completion.BodyLength + " markerLength=" + completion.ExpectedMarkerLength + " matchOffset=" + completion.MatchOffset;
     }
 
-    private static string CreateFetchAppHttpTcpExchangeMetadata(
-        FetchAppHttpTcpExchangeReadinessStatus readiness,
-        FetchAppHttpTcpExchangePlanResult exchange,
-        FetchAppHttpTcpExchangePlanDiagnosticFormatResult format)
+    private static string CreateFetchAppHttpTcpExchangeMetadata(FetchAppHttpTcpExchangeReadinessStatus readiness, FetchAppHttpTcpExchangePlanResult exchange, FetchAppHttpTcpExchangePlanDiagnosticFormatResult format)
     {
-        return "status=" + readiness
-            + " initialized=" + (exchange.IsInitialized ? "true" : "false")
-            + " succeeded=" + (exchange.Succeeded ? "true" : "false")
-            + " exchange=" + exchange.Status
-            + " format=" + format.Status
-            + " bytesWritten=" + format.BytesWritten
-            + " requiredBytes=" + format.RequiredBytes
-            + " availableBytes=" + format.AvailableBytes
-            + " context=" + exchange.Context.Status
-            + " syn=" + exchange.Syn.Status
-            + " synAck=" + exchange.SynAck.Status
-            + " finalAck=" + exchange.FinalAck.Status
-            + " request=" + exchange.Request.Status
-            + " response=" + exchange.Response.Status
-            + " completion=" + exchange.Completion.Status
-            + " close=" + exchange.Close.Status
-            + " hostBytes=" + exchange.HostBytes
-            + " pathBytes=" + exchange.PathBytes
-            + " expectedHttpStatus=" + exchange.ExpectedHttpStatusCode
-            + " expectedMarkerBytes=" + exchange.ExpectedMarkerLength
-            + " responseBytes=" + exchange.ResponseBytesRead
-            + " closeBytes=" + exchange.CloseFrameBytes;
+        return "status=" + readiness + " initialized=" + (exchange.IsInitialized ? "true" : "false") + " succeeded=" + (exchange.Succeeded ? "true" : "false") + " exchange=" + exchange.Status + " format=" + format.Status + " bytesWritten=" + format.BytesWritten + " requiredBytes=" + format.RequiredBytes + " availableBytes=" + format.AvailableBytes + " context=" + exchange.Context.Status + " syn=" + exchange.Syn.Status + " synAck=" + exchange.SynAck.Status + " finalAck=" + exchange.FinalAck.Status + " request=" + exchange.Request.Status + " response=" + exchange.Response.Status + " completion=" + exchange.Completion.Status + " close=" + exchange.Close.Status + " hostBytes=" + exchange.HostBytes + " pathBytes=" + exchange.PathBytes + " expectedHttpStatus=" + exchange.ExpectedHttpStatusCode + " expectedMarkerBytes=" + exchange.ExpectedMarkerLength + " responseBytes=" + exchange.ResponseBytesRead + " closeBytes=" + exchange.CloseFrameBytes;
     }
 
-    private static string CreateVirtioNetRxTcpDispatchMetadata(
-        VirtioNetRxTcpDispatchReadinessStatus readiness,
-        VirtioNetReceiveRegisterWindowTcpDispatchResult dispatch,
-        VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult format)
+    private static string CreateVirtioNetRxTcpDispatchMetadata(VirtioNetRxTcpDispatchReadinessStatus readiness, VirtioNetReceiveRegisterWindowTcpDispatchResult dispatch, VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult format)
     {
-        return "status=" + readiness
-            + " initialized=" + (dispatch.IsInitialized ? "true" : "false")
-            + " succeeded=" + (dispatch.Succeeded ? "true" : "false")
-            + " dispatch=" + dispatch.Status
-            + " receive=" + dispatch.ReceiveDispatchStatus
-            + " slab=" + dispatch.SlabCompletionStatus
-            + " network=" + dispatch.NetworkDispatchStatus
-            + " tcp=" + dispatch.TcpDispatchStatus
-            + " action=" + dispatch.TcpAction
-            + " format=" + format.Status
-            + " bytesWritten=" + format.BytesWritten
-            + " requiredBytes=" + format.RequiredBytes
-            + " availableBytes=" + format.AvailableBytes
-            + " descriptorHead=" + dispatch.DescriptorHead
-            + " bufferIndex=" + dispatch.BufferIndex
-            + " selectedOffset=" + dispatch.SelectedBufferOffset
-            + " selectedLength=" + dispatch.SelectedBufferLength
-            + " usedBytes=" + dispatch.UsedByteCount
-            + " payloadBytes=" + dispatch.PayloadBytes
-            + " passiveAckBytes=" + dispatch.PassiveAckBytes;
+        return "status=" + readiness + " initialized=" + (dispatch.IsInitialized ? "true" : "false") + " succeeded=" + (dispatch.Succeeded ? "true" : "false") + " dispatch=" + dispatch.Status + " receive=" + dispatch.ReceiveDispatchStatus + " slab=" + dispatch.SlabCompletionStatus + " network=" + dispatch.NetworkDispatchStatus + " tcp=" + dispatch.TcpDispatchStatus + " action=" + dispatch.TcpAction + " format=" + format.Status + " bytesWritten=" + format.BytesWritten + " requiredBytes=" + format.RequiredBytes + " availableBytes=" + format.AvailableBytes + " descriptorHead=" + dispatch.DescriptorHead + " bufferIndex=" + dispatch.BufferIndex + " selectedOffset=" + dispatch.SelectedBufferOffset + " selectedLength=" + dispatch.SelectedBufferLength + " usedBytes=" + dispatch.UsedByteCount + " payloadBytes=" + dispatch.PayloadBytes + " passiveAckBytes=" + dispatch.PassiveAckBytes;
     }
 
-    private static string CreateHttpStaticTcpResponseMetadata(
-        HttpStaticTcpResponseReadinessStatus readiness,
-        HttpStaticTcpResponsePlanResult response,
-        HttpStaticTcpResponsePlanDiagnosticFormatResult format)
+    private static string CreateHttpStaticTcpResponseMetadata(HttpStaticTcpResponseReadinessStatus readiness, HttpStaticTcpResponsePlanResult response, HttpStaticTcpResponsePlanDiagnosticFormatResult format)
     {
-        return "status=" + readiness
-            + " initialized=" + (response.IsInitialized ? "true" : "false")
-            + " succeeded=" + (response.Succeeded ? "true" : "false")
-            + " plan=" + response.Status
-            + " tcp=" + response.TcpDispatchStatus
-            + " action=" + response.TcpAction
-            + " http=" + response.HttpStatus
-            + " request=" + response.RequestStatus
-            + " response=" + response.ResponseStatus
-            + " method=" + response.Method
-            + " format=" + format.Status
-            + " bytesWritten=" + format.BytesWritten
-            + " requiredBytes=" + format.RequiredBytes
-            + " availableBytes=" + format.AvailableBytes
-            + " httpStatus=" + response.HttpStatusCode
-            + " requestPayloadOffset=" + response.RequestPayloadOffset
-            + " requestPayloadBytes=" + response.RequestPayloadLength
-            + " responseBytesWritten=" + response.ResponseBytesWritten
-            + " responseBytesRequired=" + response.ResponseBytesRequired
-            + " responseBodyOffset=" + response.ResponseBodyOffset
-            + " responseBodyBytes=" + response.ResponseBodyLength;
+        return "status=" + readiness + " initialized=" + (response.IsInitialized ? "true" : "false") + " succeeded=" + (response.Succeeded ? "true" : "false") + " plan=" + response.Status + " tcp=" + response.TcpDispatchStatus + " action=" + response.TcpAction + " http=" + response.HttpStatus + " request=" + response.RequestStatus + " response=" + response.ResponseStatus + " method=" + response.Method + " format=" + format.Status + " bytesWritten=" + format.BytesWritten + " requiredBytes=" + format.RequiredBytes + " availableBytes=" + format.AvailableBytes + " httpStatus=" + response.HttpStatusCode + " requestPayloadOffset=" + response.RequestPayloadOffset + " requestPayloadBytes=" + response.RequestPayloadLength + " responseBytesWritten=" + response.ResponseBytesWritten + " responseBytesRequired=" + response.ResponseBytesRequired + " responseBodyOffset=" + response.ResponseBodyOffset + " responseBodyBytes=" + response.ResponseBodyLength;
     }
 
-    private static string CreateNativeManifestFetchAppConfigPreflightMetadata(
-        NativeManifestFetchAppConfigPreflightReadinessStatus readiness,
-        NativeManifestFetchAppConfigPreflightResult preflight)
+    private static string CreateNativeManifestFetchAppConfigPreflightMetadata(NativeManifestFetchAppConfigPreflightReadinessStatus readiness, NativeManifestFetchAppConfigPreflightResult preflight)
     {
-        return "status=" + readiness
-            + " initialized=" + (preflight.IsInitialized ? "true" : "false")
-            + " preflight=" + preflight.Status
-            + " manifestLoad=" + preflight.ManifestLoadStatus
-            + " manifestParse=" + preflight.ManifestParseStatus
-            + " expectation=" + preflight.ExpectationStatus
-            + " expectedStatus=" + preflight.ExpectedHttpStatusCode
-            + " markerLength=" + preflight.ExpectedMarkerLength
-            + " markerBytesWritten=" + preflight.MarkerBytesWritten
-            + " markerRequiredBytes=" + preflight.MarkerRequiredBytes
-            + " usesDefaultMarker=" + (preflight.UsesDefaultMarker ? "true" : "false")
-            + " configuredStatus=" + (preflight.HasConfiguredStatus ? "true" : "false")
-            + " configuredMarker=" + (preflight.HasConfiguredMarker ? "true" : "false")
-            + " manifestBytesRead=" + preflight.ManifestBytesRead;
+        return "status=" + readiness + " initialized=" + (preflight.IsInitialized ? "true" : "false") + " preflight=" + preflight.Status + " manifestLoad=" + preflight.ManifestLoadStatus + " manifestParse=" + preflight.ManifestParseStatus + " expectation=" + preflight.ExpectationStatus + " expectedStatus=" + preflight.ExpectedHttpStatusCode + " markerLength=" + preflight.ExpectedMarkerLength + " markerBytesWritten=" + preflight.MarkerBytesWritten + " markerRequiredBytes=" + preflight.MarkerRequiredBytes + " usesDefaultMarker=" + (preflight.UsesDefaultMarker ? "true" : "false") + " configuredStatus=" + (preflight.HasConfiguredStatus ? "true" : "false") + " configuredMarker=" + (preflight.HasConfiguredMarker ? "true" : "false") + " manifestBytesRead=" + preflight.ManifestBytesRead;
     }
 
-    private static string CreateNativeManifestEnvironmentMetadata(
-        NativeManifestEnvironmentReadinessStatus readiness,
-        NativeManifestParseResult manifest,
-        NativeManifestEnvironmentDiagnosticFormatResult format)
+    private static string CreateNativeManifestEnvironmentMetadata(NativeManifestEnvironmentReadinessStatus readiness, NativeManifestParseResult manifest, NativeManifestEnvironmentDiagnosticFormatResult format)
     {
-        return "status=" + readiness
-            + " initialized=" + (manifest.IsInitialized ? "true" : "false")
-            + " parse=" + manifest.Status
-            + " format=" + format.Status
-            + " environmentCount=" + manifest.Manifest.EnvironmentCount
-            + " errorOffset=" + manifest.ErrorOffset
-            + " bytesWritten=" + format.BytesWritten
-            + " requiredBytes=" + format.RequiredBytes
-            + " availableBytes=" + format.AvailableBytes
-            + " processEnvironmentMaterialized=false"
-            + " hostedDotNetStarted=false"
-            + " kestrelStarted=false";
+        return "status=" + readiness + " initialized=" + (manifest.IsInitialized ? "true" : "false") + " parse=" + manifest.Status + " format=" + format.Status + " environmentCount=" + manifest.Manifest.EnvironmentCount + " errorOffset=" + manifest.ErrorOffset + " bytesWritten=" + format.BytesWritten + " requiredBytes=" + format.RequiredBytes + " availableBytes=" + format.AvailableBytes + " processEnvironmentMaterialized=false" + " hostedDotNetStarted=false" + " kestrelStarted=false";
     }
 
-    private static string CreateAppExitObserverMetadata(
-        AppExitObserverReadinessStatus readiness,
-        NativeAppExitLogObserverResult observer)
+    private static string CreateAppExitObserverMetadata(AppExitObserverReadinessStatus readiness, NativeAppExitLogObserverResult observer)
     {
-        return "status=" + readiness
-            + " initialized=" + (observer.IsInitialized ? "true" : "false")
-            + " succeeded=" + (observer.Succeeded ? "true" : "false")
-            + " observer=" + observer.Status
-            + " recordsScanned=" + observer.RecordsScanned
-            + " recordIndex=" + observer.RecordIndex
-            + " streamId=" + observer.StreamId
-            + " flags=" + observer.Flags
-            + " sequence=" + observer.Sequence
-            + " bytesRead=" + observer.BytesRead
-            + " requiredBytes=" + observer.RequiredBytes
-            + " logStatus=" + observer.LogStatus
-            + " parseAttempted=" + (observer.ParseAttempted ? "true" : "false")
-            + " parseStatus=" + observer.ParseStatus
-            + " exitCode=" + observer.ExitCode
-            + " exitStatus=" + observer.ExitStatus
-            + " launcherFailure=" + (observer.LauncherFailure ? "true" : "false");
+        return "status=" + readiness + " initialized=" + (observer.IsInitialized ? "true" : "false") + " succeeded=" + (observer.Succeeded ? "true" : "false") + " observer=" + observer.Status + " recordsScanned=" + observer.RecordsScanned + " recordIndex=" + observer.RecordIndex + " streamId=" + observer.StreamId + " flags=" + observer.Flags + " sequence=" + observer.Sequence + " bytesRead=" + observer.BytesRead + " requiredBytes=" + observer.RequiredBytes + " logStatus=" + observer.LogStatus + " parseAttempted=" + (observer.ParseAttempted ? "true" : "false") + " parseStatus=" + observer.ParseStatus + " exitCode=" + observer.ExitCode + " exitStatus=" + observer.ExitStatus + " launcherFailure=" + (observer.LauncherFailure ? "true" : "false");
     }
 
-    private static string CreateNativeAppArgumentVectorMetadata(
-        NativeAppArgumentVectorReadinessStatus readiness,
-        NativeAppArgumentVectorPlanResult argumentVector)
+    private static string CreateNativeAppArgumentVectorMetadata(NativeAppArgumentVectorReadinessStatus readiness, NativeAppArgumentVectorPlanResult argumentVector)
     {
-        return "status=" + readiness
-            + " initialized=" + (argumentVector.IsInitialized ? "true" : "false")
-            + " vector=" + argumentVector.Status
-            + " launch=" + argumentVector.LaunchStatus
-            + " argumentCount=" + argumentVector.ArgumentCount
-            + " maxArgumentCount=" + NativeAppArgumentVectorPlanner.MaximumArgumentCount
-            + " maxArgumentLength=" + NativeAppArgumentVectorPlanner.MaximumArgumentLength
-            + " errorOffset=" + argumentVector.ErrorOffset
-            + " executesApp=false"
-            + " startsKestrel=false";
+        return "status=" + readiness + " initialized=" + (argumentVector.IsInitialized ? "true" : "false") + " vector=" + argumentVector.Status + " launch=" + argumentVector.LaunchStatus + " argumentCount=" + argumentVector.ArgumentCount + " maxArgumentCount=" + NativeAppArgumentVectorPlanner.MaximumArgumentCount + " maxArgumentLength=" + NativeAppArgumentVectorPlanner.MaximumArgumentLength + " errorOffset=" + argumentVector.ErrorOffset + " executesApp=false" + " startsKestrel=false";
     }
 
-    private static string CreateNativeAppArgumentHandoffMetadata(
-        NativeAppArgumentHandoffReadinessStatus readiness,
-        NativeAppArgumentHandoffPlanResult handoff)
+    private static string CreateNativeAppArgumentHandoffMetadata(NativeAppArgumentHandoffReadinessStatus readiness, NativeAppArgumentHandoffPlanResult handoff)
     {
-        return "status=" + readiness
-            + " initialized=" + (handoff.IsInitialized ? "true" : "false")
-            + " handoff=" + handoff.Status
-            + " invocation=" + handoff.InvocationStatus
-            + " argumentVector=" + handoff.ArgumentVectorStatus
-            + " argumentCount=" + handoff.ArgumentCount
-            + " argumentBytes=" + handoff.ParsedArgumentBytes
-            + " parsedArgumentBytes=" + handoff.ParsedArgumentBytes
-            + " rawArgumentBytes=" + handoff.RawLaunchArgumentByteLength
-            + " stackBytes=0"
-            + " stackBytesAvailable=false"
-            + " executesApp=" + (handoff.ExecutesApp ? "true" : "false")
-            + " definesFinalAbi=" + (handoff.DefinesFinalAbi ? "true" : "false")
-            + " startsHostedDotNet=false"
-            + " startsKestrel=false";
+        return "status=" + readiness + " initialized=" + (handoff.IsInitialized ? "true" : "false") + " handoff=" + handoff.Status + " invocation=" + handoff.InvocationStatus + " argumentVector=" + handoff.ArgumentVectorStatus + " argumentCount=" + handoff.ArgumentCount + " argumentBytes=" + handoff.ParsedArgumentBytes + " parsedArgumentBytes=" + handoff.ParsedArgumentBytes + " rawArgumentBytes=" + handoff.RawLaunchArgumentByteLength + " stackBytes=0" + " stackBytesAvailable=false" + " executesApp=" + (handoff.ExecutesApp ? "true" : "false") + " definesFinalAbi=" + (handoff.DefinesFinalAbi ? "true" : "false") + " startsHostedDotNet=false" + " startsKestrel=false";
     }
 
-    private static NativeManifestEnvironmentDiagnosticFormatResult
-        TryFormatNativeManifestEnvironmentDiagnostic(
-            NativeManifestParseResult manifest,
-            ReadOnlySpan<byte> source,
-            out string diagnosticPayload)
+    private static NativeManifestEnvironmentDiagnosticFormatResult TryFormatNativeManifestEnvironmentDiagnostic(NativeManifestParseResult manifest, ReadOnlySpan<byte> source, out string diagnosticPayload)
     {
         diagnosticPayload = string.Empty;
-
         if (!manifest.IsInitialized || !manifest.Succeeded)
         {
-            return NativeManifestEnvironmentDiagnosticFormatResult.Fail(
-                NativeManifestEnvironmentDiagnosticFormatStatus.InvalidResult,
-                manifest.Status,
-                requiredBytes: 0,
-                availableBytes: NativeManifestEnvironmentDiagnosticMarkerCapacity);
+            return NativeManifestEnvironmentDiagnosticFormatResult.Fail(NativeManifestEnvironmentDiagnosticFormatStatus.InvalidResult, manifest.Status, requiredBytes: 0, availableBytes: NativeManifestEnvironmentDiagnosticMarkerCapacity);
         }
 
-        NativeManifestEnvironmentDiagnosticFormatResult query =
-            NativeManifestEnvironmentDiagnosticFormatter.QueryRequiredBytes(manifest, source);
+        NativeManifestEnvironmentDiagnosticFormatResult query = NativeManifestEnvironmentDiagnosticFormatter.QueryRequiredBytes(manifest, source);
         if (query.Status != NativeManifestEnvironmentDiagnosticFormatStatus.Success)
         {
             return query;
@@ -3930,19 +2284,11 @@ public static class BootSequence
 
         if (query.RequiredBytes > NativeManifestEnvironmentDiagnosticMarkerCapacity)
         {
-            return NativeManifestEnvironmentDiagnosticFormatResult.Fail(
-                NativeManifestEnvironmentDiagnosticFormatStatus.DestinationTooSmall,
-                manifest.Status,
-                query.RequiredBytes,
-                NativeManifestEnvironmentDiagnosticMarkerCapacity);
+            return NativeManifestEnvironmentDiagnosticFormatResult.Fail(NativeManifestEnvironmentDiagnosticFormatStatus.DestinationTooSmall, manifest.Status, query.RequiredBytes, NativeManifestEnvironmentDiagnosticMarkerCapacity);
         }
 
         Span<byte> marker = stackalloc byte[NativeManifestEnvironmentDiagnosticMarkerCapacity];
-        NativeManifestEnvironmentDiagnosticFormatResult format =
-            NativeManifestEnvironmentDiagnosticFormatter.FormatResult(
-                manifest,
-                source,
-                marker[..query.RequiredBytes]);
+        NativeManifestEnvironmentDiagnosticFormatResult format = NativeManifestEnvironmentDiagnosticFormatter.FormatResult(manifest, source, marker[..query.RequiredBytes]);
         if (!format.Succeeded)
         {
             return format;
@@ -3952,15 +2298,10 @@ public static class BootSequence
         return format;
     }
 
-    private static FetchAppHttpTcpExchangePlanDiagnosticFormatResult
-        TryFormatFetchAppHttpTcpExchangeDiagnostic(
-            FetchAppHttpTcpExchangePlanResult exchange,
-            out string diagnosticPayload)
+    private static FetchAppHttpTcpExchangePlanDiagnosticFormatResult TryFormatFetchAppHttpTcpExchangeDiagnostic(FetchAppHttpTcpExchangePlanResult exchange, out string diagnosticPayload)
     {
         diagnosticPayload = string.Empty;
-
-        FetchAppHttpTcpExchangePlanDiagnosticFormatResult query =
-            FetchAppHttpTcpExchangePlanDiagnosticFormatter.QueryRequiredBytes(exchange);
+        FetchAppHttpTcpExchangePlanDiagnosticFormatResult query = FetchAppHttpTcpExchangePlanDiagnosticFormatter.QueryRequiredBytes(exchange);
         if (query.Status != FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.Success)
         {
             return query;
@@ -3968,18 +2309,11 @@ public static class BootSequence
 
         if (query.RequiredBytes > FetchAppHttpTcpExchangeDiagnosticMarkerCapacity)
         {
-            return FetchAppHttpTcpExchangePlanDiagnosticFormatResult.Fail(
-                FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.DestinationTooSmall,
-                exchange.Status,
-                query.RequiredBytes,
-                FetchAppHttpTcpExchangeDiagnosticMarkerCapacity);
+            return FetchAppHttpTcpExchangePlanDiagnosticFormatResult.Fail(FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.DestinationTooSmall, exchange.Status, query.RequiredBytes, FetchAppHttpTcpExchangeDiagnosticMarkerCapacity);
         }
 
         Span<byte> marker = stackalloc byte[FetchAppHttpTcpExchangeDiagnosticMarkerCapacity];
-        FetchAppHttpTcpExchangePlanDiagnosticFormatResult format =
-            FetchAppHttpTcpExchangePlanDiagnosticFormatter.FormatResult(
-                exchange,
-                marker[..query.RequiredBytes]);
+        FetchAppHttpTcpExchangePlanDiagnosticFormatResult format = FetchAppHttpTcpExchangePlanDiagnosticFormatter.FormatResult(exchange, marker[..query.RequiredBytes]);
         if (!format.Succeeded)
         {
             return format;
@@ -3989,35 +2323,22 @@ public static class BootSequence
         return format;
     }
 
-    private static VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult
-        TryFormatVirtioNetRxTcpDispatchDiagnostic(
-            VirtioNetReceiveRegisterWindowTcpDispatchResult dispatch,
-            out string diagnosticPayload)
+    private static VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult TryFormatVirtioNetRxTcpDispatchDiagnostic(VirtioNetReceiveRegisterWindowTcpDispatchResult dispatch, out string diagnosticPayload)
     {
         diagnosticPayload = string.Empty;
-
-        VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult query =
-            VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatter.QueryRequiredBytes(dispatch);
-        if (query.Status !=
-            VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatStatus.Success)
+        VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult query = VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatter.QueryRequiredBytes(dispatch);
+        if (query.Status != VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatStatus.Success)
         {
             return query;
         }
 
         if (query.RequiredBytes > VirtioNetRxTcpDispatchDiagnosticMarkerCapacity)
         {
-            return VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult.Fail(
-                VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatStatus.DestinationTooSmall,
-                dispatch.Status,
-                query.RequiredBytes,
-                VirtioNetRxTcpDispatchDiagnosticMarkerCapacity);
+            return VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult.Fail(VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatStatus.DestinationTooSmall, dispatch.Status, query.RequiredBytes, VirtioNetRxTcpDispatchDiagnosticMarkerCapacity);
         }
 
         Span<byte> marker = stackalloc byte[VirtioNetRxTcpDispatchDiagnosticMarkerCapacity];
-        VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult format =
-            VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatter.FormatResult(
-                dispatch,
-                marker[..query.RequiredBytes]);
+        VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult format = VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatter.FormatResult(dispatch, marker[..query.RequiredBytes]);
         if (!format.Succeeded)
         {
             return format;
@@ -4027,15 +2348,10 @@ public static class BootSequence
         return format;
     }
 
-    private static HttpStaticTcpResponsePlanDiagnosticFormatResult
-        TryFormatHttpStaticTcpResponseDiagnostic(
-            HttpStaticTcpResponsePlanResult response,
-            out string diagnosticPayload)
+    private static HttpStaticTcpResponsePlanDiagnosticFormatResult TryFormatHttpStaticTcpResponseDiagnostic(HttpStaticTcpResponsePlanResult response, out string diagnosticPayload)
     {
         diagnosticPayload = string.Empty;
-
-        HttpStaticTcpResponsePlanDiagnosticFormatResult query =
-            HttpStaticTcpResponsePlanDiagnosticFormatter.QueryRequiredBytes(response);
+        HttpStaticTcpResponsePlanDiagnosticFormatResult query = HttpStaticTcpResponsePlanDiagnosticFormatter.QueryRequiredBytes(response);
         if (query.Status != HttpStaticTcpResponsePlanDiagnosticFormatStatus.Success)
         {
             return query;
@@ -4043,18 +2359,11 @@ public static class BootSequence
 
         if (query.RequiredBytes > HttpStaticTcpResponseDiagnosticMarkerCapacity)
         {
-            return HttpStaticTcpResponsePlanDiagnosticFormatResult.Fail(
-                HttpStaticTcpResponsePlanDiagnosticFormatStatus.DestinationTooSmall,
-                response.Status,
-                query.RequiredBytes,
-                HttpStaticTcpResponseDiagnosticMarkerCapacity);
+            return HttpStaticTcpResponsePlanDiagnosticFormatResult.Fail(HttpStaticTcpResponsePlanDiagnosticFormatStatus.DestinationTooSmall, response.Status, query.RequiredBytes, HttpStaticTcpResponseDiagnosticMarkerCapacity);
         }
 
         Span<byte> marker = stackalloc byte[HttpStaticTcpResponseDiagnosticMarkerCapacity];
-        HttpStaticTcpResponsePlanDiagnosticFormatResult format =
-            HttpStaticTcpResponsePlanDiagnosticFormatter.FormatResult(
-                response,
-                marker[..query.RequiredBytes]);
+        HttpStaticTcpResponsePlanDiagnosticFormatResult format = HttpStaticTcpResponsePlanDiagnosticFormatter.FormatResult(response, marker[..query.RequiredBytes]);
         if (!format.Succeeded)
         {
             return format;

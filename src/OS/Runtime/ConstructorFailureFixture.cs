@@ -1,0 +1,21 @@
+#if NOSTDLIB_EFI && M04_CONSTRUCTOR_FAILURE_PROBE
+using OS.Boot;
+using OS.Kernel.Runtime;
+using System.Runtime.CompilerServices;
+
+namespace OS.Runtime;
+
+internal static class ConstructorFailureFixture
+{
+    private static ulong s_value;
+    static ConstructorFailureFixture()
+    {
+        RhpNewFastAllocation.ConstructorFailureBodyEntered();
+        s_value = RhpNewFastAllocation.ConstructorFailureSeed();
+        throw RhpNewFastAllocation.ConstructorFailureOriginal();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)] internal static ulong Read() => s_value;
+}
+
+#endif

@@ -28,7 +28,9 @@ internal static class FatImageFixtureTests
             after.AsSpan(info, 512).SequenceEqual(after.AsSpan(boot + 7 * 512, 512)));
         uint clusters = (U32(before, boot + 32) - U16(before, boot + 14) - 2 * U32(before, boot + 36)) / before[boot + 13];
         uint free = 0;
-        for (uint c = 2; c < clusters + 2; c++) if ((U32(before, checked(fat + (int)c * 4)) & 0x0fffffff) == 0) free++;
+        for (uint c = 2; c < clusters + 2; c++)
+            if ((U32(before, checked(fat + (int)c * 4)) & 0x0fffffff) == 0)
+                free++;
         HostCheck.Equal(free - 4, U32(after, info + 488));
         uint nextFree = U32(after, info + 492);
         HostCheck.True(nextFree >= 2 && nextFree < clusters + 2 && Next(nextFree) == 0);
@@ -36,20 +38,23 @@ internal static class FatImageFixtureTests
         int tail = Cluster(receipt.RootExtension);
         int[] physical = [tail + 32, tail, root + 480], wordOffsets = [1, 3, 5, 7, 9, 14, 16, 18, 20, 22, 24, 28, 30];
         byte checksum = 0;
-        foreach (byte b in "LSFIRE~1BIN"u8) checksum = unchecked((byte)((checksum >> 1) + (checksum << 7) + b));
+        foreach (byte b in "LSFIRE~1BIN"u8)
+            checksum = unchecked((byte)((checksum >> 1) + (checksum << 7) + b));
         char[] name = new char[39];
         for (int slot = 0; slot < 3; slot++)
         {
             int entry = physical[slot];
             HostCheck.True(after[entry] == (slot == 2 ? 0x43 : slot + 1) && after[entry + 11] == 15 &&
                 after[entry + 12] == 0 && after[entry + 13] == checksum && U16(after, entry + 26) == 0);
-            for (int i = 0; i < 13; i++) name[slot * 13 + i] = (char)U16(after, entry + wordOffsets[i]);
+            for (int i = 0; i < 13; i++)
+                name[slot * 13 + i] = (char)U16(after, entry + wordOffsets[i]);
         }
         int end = Array.IndexOf(name, '\0');
         HostCheck.True(end == 30 && new string(name, 0, end) == "CLROS Live Storage Fixture.bin" && name[(end + 1)..].All(c => c == '\uffff'));
         HostCheck.True(after.AsSpan(tail + 64, 11).SequenceEqual("LSFIRE~1BIN"u8) && after[tail + 75] == 0x20 &&
             EntryCluster(after, tail + 64) == receipt.FileFirst && U32(after, tail + 92) == 1301 && after[tail + 96] == 0);
-        for (int slot = 2; slot < 15; slot++) HostCheck.Equal((byte)0xe5, after[root + slot * 32]);
+        for (int slot = 2; slot < 15; slot++)
+            HostCheck.Equal((byte)0xe5, after[root + slot * 32]);
         uint[] file = [receipt.FileFirst, receipt.FileSecond, receipt.FileThird];
         for (int i = 0; i < 1536; i++)
         {
@@ -59,10 +64,13 @@ internal static class FatImageFixtureTests
         // Every exception is a precise intended write extent, independently
         // derived from disk geometry. All EFI, GPT and unrelated bytes stay exact.
         List<(int Start, int Bytes)> allowed = [(info + 488, 8), (boot + 7 * 512 + 488, 8), (root + 480, 32)];
-        for (int slot = 2; slot < 15; slot++) allowed.Add((root + slot * 32, 1));
-        foreach (uint c in added) allowed.Add((Cluster(c), 512));
+        for (int slot = 2; slot < 15; slot++)
+            allowed.Add((root + slot * 32, 1));
+        foreach (uint c in added)
+            allowed.Add((Cluster(c), 512));
         foreach (uint c in added.Prepend(2u))
-            foreach (int copy in new[] { 0, fatBytes }) allowed.Add((checked(fat + copy + (int)c * 4), 4));
+            foreach (int copy in new[] { 0, fatBytes })
+                allowed.Add((checked(fat + copy + (int)c * 4), 4));
         int cursor = 0;
         foreach (var range in allowed.OrderBy(r => r.Start))
         {
@@ -70,7 +78,8 @@ internal static class FatImageFixtureTests
             cursor = range.Start + range.Bytes;
         }
         HostCheck.True(before.Length == after.Length && before.AsSpan(cursor).SequenceEqual(after.AsSpan(cursor)));
-        int executable = Cluster(4) + 64; uint current = EntryCluster(before, executable);
+        int executable = Cluster(4) + 64;
+        uint current = EntryCluster(before, executable);
         byte[] expectedEfi = File.ReadAllBytes(efi);
         for (int offset = 0; offset < expectedEfi.Length; offset += 512)
         {
@@ -89,18 +98,34 @@ internal static class FatImageFixtureTests
         int secondFat = boot + (U16(original, boot + 14) + checked((int)U32(original, boot + 36))) * 512;
         foreach (int offset in new[] { boot + 13, secondFat + 8 })
         {
-            original[offset] ^= 2; File.WriteAllBytes(path, original); RejectUnchanged(path, efi); original[offset] ^= 2;
+            original[offset] ^= 2;
+            File.WriteAllBytes(path, original);
+            RejectUnchanged(path, efi);
+            original[offset] ^= 2;
         }
         File.WriteAllBytes(path, original);
-        byte[] expected = File.ReadAllBytes(efi); expected[0] ^= 1; File.WriteAllBytes(efi, expected);
-        RejectUnchanged(path, efi); expected[0] ^= 1; File.WriteAllBytes(efi, expected);
-        FatImageFixture.Apply(path, efi); RejectUnchanged(path, efi);
+        byte[] expected = File.ReadAllBytes(efi);
+        expected[0] ^= 1;
+        File.WriteAllBytes(efi, expected);
+        RejectUnchanged(path, efi);
+        expected[0] ^= 1;
+        File.WriteAllBytes(efi, expected);
+        FatImageFixture.Apply(path, efi);
+        RejectUnchanged(path, efi);
     });
 
     private static void RejectUnchanged(string path, string efi)
     {
-        string before = FileHash(path); bool rejected = false;
-        try { FatImageFixture.Apply(path, efi); } catch (ToolFailure) { rejected = true; }
+        string before = FileHash(path);
+        bool rejected = false;
+        try
+        {
+            FatImageFixture.Apply(path, efi);
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && FileHash(path) == before);
     }
     private static void WithFreshImage(Action<string, string> action)
@@ -113,20 +138,33 @@ internal static class FatImageFixtureTests
         {
             File.WriteAllBytes(efi, Enumerable.Range(0, 1537).Select(i => (byte)(i % 251)).ToArray());
             var start = HostToolProcess.CreateDotnetToolStartInfo(root, "OS.ImageBuilder");
-            foreach (string arg in new[] { "create-raw", "--efi", efi, "--output", path, "--image-size-mib", "64" }) start.ArgumentList.Add(arg);
+            foreach (string arg in new[] { "create-raw", "--efi", efi, "--output", path, "--image-size-mib", "64" })
+                start.ArgumentList.Add(arg);
             using var process = Process.Start(start)!;
-            var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
             if (!process.WaitForExit(30000))
-            { process.Kill(true); process.WaitForExit(5000); throw new InvalidOperationException("image builder timed out"); }
+            {
+                process.Kill(true);
+                process.WaitForExit(5000);
+                throw new InvalidOperationException("image builder timed out");
+            }
             string text = output.GetAwaiter().GetResult() + error.GetAwaiter().GetResult();
             HostCheck.True(process.ExitCode == 0 && text.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal), text);
             HostCheck.Equal(64L * 1024 * 1024, new FileInfo(path).Length);
             action(path, efi);
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
-    private static string FileHash(string path) { using var file = File.OpenRead(path); return Convert.ToHexString(SHA256.HashData(file)); }
+    private static string FileHash(string path)
+    {
+        using var file = File.OpenRead(path);
+        return Convert.ToHexString(SHA256.HashData(file));
+    }
     private static ushort U16(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(offset));
     private static uint U32(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset));
     private static ulong U64(byte[] bytes, int offset) => BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(offset));

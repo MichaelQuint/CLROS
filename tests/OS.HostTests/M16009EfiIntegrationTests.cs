@@ -6,269 +6,230 @@ using OS.Kernel.Diagnostics;
 using OS.Tooling;
 using System.Runtime.Loader;
 
-internal static unsafe class M16009EfiIntegrationTests
+internal static unsafe partial class M16009EfiIntegrationTests
 {
     [HostTest("m16-009 default-off signal leaf inherits all real thread prerequisites and excludes unrelated probes")]
     private static void Profile()
     {
         const string flag = "EnableM16009Probe";
-        HostCheck.True(!Probes.EnableM16009Probe && !Probes.GetM16009Probe().EnabledByDefault && !BootSequence.RunOwnedLinuxSignals(true,true,true,true,null,null));
-        var parent = EfiProfile.Create("Diagnostic",new Dictionary<string,bool> { ["EnableM16008Probe"] = true });
+        HostCheck.True(!Probes.EnableM16009Probe && !Probes.GetM16009Probe().EnabledByDefault && !BootSequence.RunOwnedLinuxSignals(true, true, true, true, null, null));
+        var parent = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16008Probe"] = true });
         string[] parents = parent.Flags.Where(p => p.Value).Select(p => p.Key).ToArray();
-        foreach (bool build in new[] {false,true})
+        foreach (bool build in new[]
         {
-            HostCheck.True(!EfiOptions.Parse([],build).Profile().IsEnabled(flag));
-            var profile = EfiOptions.Parse(["--" + flag],build).Profile();
-            HostCheck.True(profile.BootPolicy == "Diagnostic" && profile.IsEnabled(flag) && parents.All(profile.IsEnabled));
-            HostCheck.Equal(parents.Length + 1,profile.Flags.Count(p => p.Value));
-            var web = EfiOptions.Parse(["--" + flag,"--EnableM10004Probe"],build).Profile();
-            HostCheck.True(web.IsEnabled("EnableM10004Probe") && profile.Flags.Where(p => p.Value).All(p => web.IsEnabled(p.Key)));
-            var vectors = EfiOptions.Parse(["--" + flag,"--EnableM16013Probe"],build).Profile();
-            HostCheck.True(vectors.IsEnabled("EnableM16013Probe") && vectors.IsEnabled("EnableM16012Probe") &&
-                profile.Flags.Where(p => p.Value).All(p => vectors.IsEnabled(p.Key)));
-            Reject(() => EfiOptions.Parse(["--" + flag,"--EnableM16013Probe","--EnableM16012Probe:false"],build).Profile());
-            string[] inherited = EfiProjectAdmission.ExpectedCompileItems(parent), actual = EfiProjectAdmission.ExpectedCompileItems(profile);
-            string[] added = [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs|Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs",
-                @"Boot\EfiEntry.LinuxUserInterrupts.cs|"];
-            HostCheck.True(actual.Except(inherited, StringComparer.Ordinal).SequenceEqual(added, StringComparer.Ordinal) &&
-                actual.Where(item => !added.Contains(item, StringComparer.Ordinal)).SequenceEqual(inherited, StringComparer.Ordinal));
-            foreach (string prerequisite in parents) Reject(() => EfiOptions.Parse(["--" + flag,"--" + prerequisite + ":false"],build).Profile());
-            foreach (string conflict in EfiContracts.DiagnosticProbes.Where(p => p != flag &&
-                p is not ("EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM10017Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(p)))
-                Reject(() => EfiOptions.Parse(["--" + flag,"--" + conflict],build).Profile());
-            Reject(() => EfiOptions.Parse(["--BootPolicy","VerifiedExit","--" + flag],build).Profile());
+            false,
+            true
         }
-        var plan = QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun","--BuildEfi","--EnableM16009Probe"]));
-        HostCheck.True(plan.Required.Contains("CLROS_M16_009_READY") && plan.Required.Contains("M16_009_RESTORE") &&
-            plan.Required.Contains("M16_008_REAP") && !plan.Required.Contains("CLROS_M16_008_READY") && !plan.Required.Contains("M16_005_WRITE"));
+
+        )
+        {
+            HostCheck.True(!EfiOptions.Parse([], build).Profile().IsEnabled(flag));
+            var profile = EfiOptions.Parse(["--" + flag], build).Profile();
+            HostCheck.True(profile.BootPolicy == "Diagnostic" && profile.IsEnabled(flag) && parents.All(profile.IsEnabled));
+            HostCheck.Equal(parents.Length + 1, profile.Flags.Count(p => p.Value));
+            var web = EfiOptions.Parse(["--" + flag, "--EnableM10004Probe"], build).Profile();
+            HostCheck.True(web.IsEnabled("EnableM10004Probe") && profile.Flags.Where(p => p.Value).All(p => web.IsEnabled(p.Key)));
+            var vectors = EfiOptions.Parse(["--" + flag, "--EnableM16013Probe"], build).Profile();
+            HostCheck.True(vectors.IsEnabled("EnableM16013Probe") && vectors.IsEnabled("EnableM16012Probe") && profile.Flags.Where(p => p.Value).All(p => vectors.IsEnabled(p.Key)));
+            Reject(() => EfiOptions.Parse(["--" + flag, "--EnableM16013Probe", "--EnableM16012Probe:false"], build).Profile());
+            string[] inherited = EfiProjectAdmission.ExpectedCompileItems(parent), actual = EfiProjectAdmission.ExpectedCompileItems(profile);
+            string[] added = [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs|Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs", @"Boot\EfiEntry.LinuxUserInterrupts.cs|"];
+            HostCheck.True(actual.Except(inherited, StringComparer.Ordinal).SequenceEqual(added, StringComparer.Ordinal) && actual.Where(item => !added.Contains(item, StringComparer.Ordinal)).SequenceEqual(inherited, StringComparer.Ordinal));
+            foreach (string prerequisite in parents)
+                Reject(() => EfiOptions.Parse(["--" + flag, "--" + prerequisite + ":false"], build).Profile());
+            foreach (string conflict in EfiContracts.DiagnosticProbes.Where(p => p != flag && p is not ("EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM10017Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM10018EvidenceTraceProbe" or "EnableM10018EvidenceSummaryProbe" or "EnableM10018ServingBenchmarkProbe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(p)))
+                Reject(() => EfiOptions.Parse(["--" + flag, "--" + conflict], build).Profile());
+            foreach (string mode in new[] { "EnableM10018EvidenceTraceProbe", "EnableM10018EvidenceSummaryProbe" })
+            {
+                var evidence = EfiOptions.Parse(["--" + flag, "--" + mode], build).Profile();
+                HostCheck.Equal("Diagnostic", evidence.BootPolicy);
+                HostCheck.True(evidence.IsEnabled(flag) && parents.All(evidence.IsEnabled) &&
+                    profile.Flags.Where(x => x.Value).All(x => evidence.IsEnabled(x.Key)) && evidence.IsEnabled(mode));
+                string opposite = mode == "EnableM10018EvidenceTraceProbe"
+                    ? "EnableM10018EvidenceSummaryProbe" : "EnableM10018EvidenceTraceProbe";
+                HostCheck.True(!evidence.IsEnabled(opposite));
+                foreach (string required in new[] { "M10018Timing", "M10018Full", "M10018", "M16025", "M16023", "M16024", "M16012", "M10004", "M16003" })
+                    HostCheck.True(evidence.IsEnabled(required), "evidence prerequisite: " + required);
+            }
+            Reject(() => EfiOptions.Parse(["--BootPolicy", "VerifiedExit", "--" + flag], build).Profile());
+        }
+
+        var plan = QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", "--EnableM16009Probe"]));
+        HostCheck.True(plan.Required.Contains("CLROS_M16_009_READY") && plan.Required.Contains("M16_009_RESTORE") && plan.Required.Contains("M16_008_REAP") && !plan.Required.Contains("CLROS_M16_008_READY") && !plan.Required.Contains("M16_005_WRITE"));
         HostCheck.True(!plan.Ordered.Contains("M16_008_CALL") && !plan.Unique.Contains("M16_008_CALL"));
-        Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun","--BuildEfi","--EnableM16009Probe","--RequireMarker","CLROS_M16_008_READY"])));
-        Reject(() => QemuTranscripts.AssertM03AcpiBootstrapTranscript("missing",linuxSignals:true));
+        Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", "--EnableM16009Probe", "--RequireMarker", "CLROS_M16_008_READY"])));
+        Reject(() => QemuTranscripts.AssertM03AcpiBootstrapTranscript("missing", linuxSignals: true));
     }
 
     [HostTest("m16-009 native leaf follows APIC and composes original parent validators without running the ancestor leaf")]
     private static void BootAttachment()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        var profile = EfiProfile.Create("Diagnostic",new Dictionary<string,bool> { ["EnableM16009Probe"] = true });
-        string[] symbols = profile.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key]).ToArray();
-        var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs")),new CSharpParseOptions(preprocessorSymbols:symbols));
-        HostCheck.True(!tree.GetDiagnostics().Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
-        var calls = tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
-        var leaf = calls.Single(c => c.Expression.ToString() == "BootSequence.RunOwnedLinuxSignals");
-        HostCheck.True(!calls.Any(c => c.Expression.ToString() is "BootSequence.RunOwnedLinuxThreads" or "BootSequence.RunOwnedLinuxDescriptors"));
-        var apic = calls.Single(c => c.Expression.ToString() == "BootSequence.RunOwnedApicSetup");
-        HostCheck.True(apic.SpanStart < leaf.SpanStart && apic.Ancestors().OfType<IfStatementSyntax>().First().Statement is ReturnStatementSyntax);
-        string[] text = tree.GetRoot().DescendantNodes().OfType<LiteralExpressionSyntax>().Where(n => n.IsKind(SyntaxKind.StringLiteralExpression)).Select(n => n.Token.ValueText).ToArray();
-        HostCheck.True(text.Contains("CLROS_M16_009_READY\r\nTEST_PASS m16-009\r\n") && !text.Contains("CLROS_M16_008_READY\r\nTEST_PASS m16-008\r\n"));
-        var validator = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root,"tools/OS.Tooling/QemuTranscripts.M03.cs"))).GetRoot();
-        foreach (string required in new[] {"ValidateLinuxSignalTail","ValidateServiceLoopTail","ValidateLinuxStartupTail","ValidateLinuxElfTail"})
-            HostCheck.True(validator.DescendantNodes().OfType<InvocationExpressionSyntax>().Any(c => c.Expression.ToString() == required));
-    }
-
-    [HostTest("m16-009 pool audit authenticates each call once before all leaf walks and rejects admission bypass")]
-    private static void PoolAuditBoundary()
-    {
-        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs"));
-        HostCheck.Equal(0UL, OS.Kernel.Threading.ThreadContextSwitch.AdmittedFlags & 0x200UL);
-        foreach (string flag in new[] { "EnableM09004Probe", "EnableM16008Probe", "EnableM16009Probe" })
+        var profile = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16009Probe"] = true });
+        HostCheck.True(HostLinuxSignalSourceGuard.Boot(HostSourceCatalog.Efi(profile)), "bound APIC and signal boot attachment");
+        var tooling = HostSourceCatalog.Project("tools/OS.Tooling/OS.Tooling.csproj");
+        string owner = typeof(QemuTranscripts).FullName!;
+        var calls = tooling.MethodInvocations(tooling.Method(owner, nameof(QemuTranscripts.AssertM03AcpiBootstrapTranscript)));
+        foreach (string required in new[]
         {
-            var profile = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { [flag] = true });
-            string[] symbols = profile.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key]).ToArray();
-            var tree = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(preprocessorSymbols: symbols));
-            HostCheck.True(!tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error));
-            var syntax = tree.GetRoot();
-            HostCheck.True(PoolBoundary(syntax), flag);
-            foreach (string caller in new[] { "CooperativeFindLeaf", "CooperativeAuditPool" })
-            {
-                var method = syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(m => m.Identifier.Text == caller);
-                var admission = method.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "CooperativeAdmitPool");
-                var guard = admission.Ancestors().OfType<IfStatementSyntax>().First();
-                HostCheck.True(!PoolBoundary(syntax.RemoveNode(guard, SyntaxRemoveOptions.KeepNoTrivia)!), caller + " must reject missing admission");
-            }
-            var common = syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(m => m.Identifier.Text == "CooperativeAdmitPool");
-            var names = common.DescendantNodes().OfType<InvocationExpressionSyntax>().Select(c => c.Expression.ToString()).ToArray();
-            HostCheck.Equal(1, names.Count(n => n == "FirstExitCodeBundle.ValidateInstalledReadBack"));
-            if (flag == "EnableM16009Probe")
-                foreach (string required in new[] { "LinuxNativeOwner", "LinuxNativeUserWorker", "LinuxNativeUserGates", "LinuxNativeTimerInstalled" })
-                    HostCheck.True(names.Contains(required), required);
+            "ValidateLinuxSignalTail",
+            "ValidateServiceLoopTail",
+            "ValidateLinuxStartupTail",
+            "ValidateLinuxElfTail"
         }
-    }
 
-    [HostTest("m16-009 only authenticated common gateway pool admission opts into syscall SS")]
-    private static void ActiveGateModes()
-    {
-        string root=HostToolProcess.FindRepositoryRoot();
-        var profile=EfiProfile.Create("Diagnostic",new Dictionary<string,bool>{{"EnableM16009Probe",true}});
-        var options=new CSharpParseOptions(preprocessorSymbols:profile.Flags.Where(p=>p.Value).Select(p=>EfiContracts.ProbeSymbols[p.Key]));
-        SyntaxNode common=CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs")),options).GetRoot();
-        SyntaxNode irq=CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.LinuxUserInterrupts.cs")),options).GetRoot();
-        HostCheck.True(Modes(common,irq));
-        var opted=Calls(common,"LinuxNativeUserGates").Single();
-        var argument=opted.ArgumentList.Arguments[2];
-        HostCheck.True(!Modes(common.ReplaceNode(argument,argument.WithExpression(SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression))),irq),"common syscall envelope must be selected");
-        var handler=irq.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(m=>m.Identifier.Text=="LinuxNativeUserInterrupt");
-        var strict=Calls(handler,"LinuxNativeUserGates").Single();
-        HostCheck.True(!Modes(common,irq.ReplaceNode(strict,strict.AddArgumentListArguments(argument))),"direct IRQ must stay strict");
-        var authentication=Calls(common,"X64LinuxUserTransition.ValidateCallback").Single();
-        HostCheck.True(!Modes(common.ReplaceNode(authentication,SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)),irq),"common callback authentication must remain");
-
-        static InvocationExpressionSyntax[] Calls(SyntaxNode node,string name)=>node.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c=>c.Expression.ToString()==name).ToArray();
-        static bool Modes(SyntaxNode common,SyntaxNode irq)
-        {
-            var callers=Calls(common,"LinuxNativeUserGates");
-            if(callers.Length!=1||callers[0].ArgumentList.Arguments.Count!=3)return false;
-            var call=callers[0];var selected=call.ArgumentList.Arguments[2];
-            if(selected.NameColon?.Name.Identifier.Text!="allowSyscall"||!selected.Expression.IsKind(SyntaxKind.TrueLiteralExpression)||
-                call.Parent is not ConditionalExpressionSyntax choice||choice.Condition.ToString()!="gatewayCallback"||choice.WhenTrue!=call||
-                call.Ancestors().OfType<MethodDeclarationSyntax>().First().Identifier.Text!="CooperativeAdmitPool")return false;
-            var authentication=Calls(common,"X64LinuxUserTransition.ValidateCallback");
-            if(authentication.Length!=1||authentication[0].SpanStart>=call.SpanStart||
-                authentication[0].Ancestors().OfType<VariableDeclaratorSyntax>().FirstOrDefault()?.Identifier.Text!="gatewayCallback")return false;
-            var methods=irq.DescendantNodes().OfType<MethodDeclarationSyntax>().ToArray();
-            var handler=methods.Single(m=>m.Identifier.Text=="LinuxNativeUserInterrupt");
-            var direct=Calls(handler,"LinuxNativeUserGates");
-            var gates=methods.Single(m=>m.Identifier.Text=="LinuxNativeUserGates");
-            var predicate=Calls(gates,"X64LinuxUserTransition.ValidateActiveUserGateObservation");
-            return direct.Length==1&&direct[0].ArgumentList.Arguments.Count==2&&
-                direct[0].ArgumentList.Arguments[1].Expression.IsKind(SyntaxKind.TrueLiteralExpression)&&
-                gates.ParameterList.Parameters.Count==3&&gates.ParameterList.Parameters[2].Default?.Value.IsKind(SyntaxKind.FalseLiteralExpression)==true&&
-                predicate.Length==1&&predicate[0].ArgumentList.Arguments.Count==5&&predicate[0].ArgumentList.Arguments[4].Expression.ToString()=="allowSyscall";
-        }
+        )
+            HostCheck.True(calls.Any(call => call.TargetMethod.Name == required
+                && SymbolEqualityComparer.Default.Equals(call.TargetMethod.ContainingType, tooling.Type(owner))), required);
     }
 
     // Native CPU observations cannot run in a host fixture. Check that their
     // rejecting gate dominates both private walk callers; removed gates are
     // independent negatives. Actual code/descriptor/PTE rejection remains in
     // the native owner's existing host contracts and guest qualification.
-    private static bool PoolBoundary(SyntaxNode syntax)
+    [HostTest("m16-009 pool audit authenticates each call once before all leaf walks and rejects admission bypass")]
+    private static void PoolAuditBoundary()
     {
-        var methods = syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().ToArray();
-        if (syntax.DescendantNodes().OfType<InvocationExpressionSyntax>().Count(c => c.Expression.ToString() == "CooperativeWalkPoolLeaf") != 2) return false;
-        foreach (string name in new[] { "CooperativeFindLeaf", "CooperativeAuditPool" })
+        HostCheck.Equal(0UL, OS.Kernel.Threading.ThreadContextSwitch.AdmittedFlags & 0x200UL);
+        foreach (string flag in new[] { "EnableM09004Probe", "EnableM16008Probe", "EnableM16009Probe" })
         {
-            var method = methods.Single(m => m.Identifier.Text == name);
-            var calls = method.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
-            var admission = calls.Where(c => c.Expression.ToString() == "CooperativeAdmitPool").ToArray();
-            var walks = calls.Where(c => c.Expression.ToString() == "CooperativeWalkPoolLeaf").ToArray();
-            if (admission.Length != 1 || walks.Length != 1 ||
-                admission[0].Parent is not PrefixUnaryExpressionSyntax unary || !unary.IsKind(SyntaxKind.LogicalNotExpression) ||
-                unary.Parent is not IfStatementSyntax gate || gate.Condition != unary || gate.Parent != method.Body ||
-                gate.Statement is not ReturnStatementSyntax rejected || rejected.Expression?.IsKind(SyntaxKind.FalseLiteralExpression) != true ||
-                gate.Span.End > walks[0].SpanStart) return false;
-            if (name == "CooperativeFindLeaf")
+            var profile = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { [flag] = true });
+            var sources = new EfiLeafReuseSources(HostSourceCatalog.Efi(profile));
+            HostCheck.True(sources.PoolBoundary(), flag);
+            foreach (string caller in new[] { "CooperativeFindLeaf", "CooperativeAuditPool" })
             {
-                if (walks[0].Parent is not ReturnStatementSyntax) return false;
+                var method = sources.Method(caller);
+                var admission = sources.Calls(method, "CooperativeAdmitPool").Single();
+                var guard = admission.Syntax.Ancestors().OfType<IfStatementSyntax>().First();
+                HostCheck.True(!sources.Replace(method, method.RemoveNode(guard, SyntaxRemoveOptions.KeepNoTrivia)!).PoolBoundary(),
+                    caller + " must reject missing admission");
             }
-            else
-            {
-                var loops = method.DescendantNodes().OfType<ForStatementSyntax>().ToArray();
-                if (loops.Length != 1 || loops[0].Parent != method.Body || !walks[0].Ancestors().Contains(loops[0]) ||
-                    !loops[0].DescendantNodes().OfType<InvocationExpressionSyntax>().Any(c => c.Expression.ToString() == "CooperativeGuardPage") ||
-                    !loops[0].DescendantNodes().OfType<InvocationExpressionSyntax>().Any(c => c.Expression.ToString() == "X64PageTableEntry.TryDecode")) return false;
-            }
+            var common = sources.Method("CooperativeAdmitPool");
+            HostCheck.Equal(1, sources.Calls(common, "OS.Boot.FirstExitCodeBundle", "ValidateInstalledReadBack").Length);
+            if (flag == "EnableM16009Probe")
+                foreach (string required in new[] { "LinuxNativeOwner", "LinuxNativeUserWorker", "LinuxNativeUserGates", "LinuxNativeTimerInstalled" })
+                    HostCheck.True(sources.Calls(common, required).Length != 0, required);
         }
-        var walk = methods.Single(m => m.Identifier.Text == "CooperativeWalkPoolLeaf");
-        return walk.DescendantNodes().OfType<InvocationExpressionSyntax>().All(c =>
-            c.Expression.ToString() is "X64PageTableEntry.TryDecode" or "decoded.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary");
+    }
+    [HostTest("m16-009 only authenticated common gateway pool admission opts into syscall SS")]
+    private static void ActiveGateModes()
+    {
+        var profile = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { { "EnableM16009Probe", true } });
+        HostCheck.True(HostLinuxSignalSourceGuard.Gateway(HostSourceCatalog.Efi(profile)), "bound authenticated gateway and strict IRQ mode");
     }
 
     [HostTest("m16-009 runner rejects foreign packages before build and keeps the canonical input read lock")]
     private static void Preflight()
     {
         string root = HostToolProcess.FindRepositoryRoot(), directory = Directory.CreateTempSubdirectory("clros-signal-runner-").FullName;
-        string path = Path.Combine(directory,"input.pkg");
+        string path = Path.Combine(directory, "input.pkg");
         try
         {
-            int calls = 0; bool locked = false;
-            var options = QemuSmokeOptions.Parse(["--BuildEfi","--EnableM16009Probe","--LinuxElfPackage",path]);
-            foreach (byte[] invalid in new[] {LinuxThreadProofFixture.CreatePackage("Threads"),LinuxSignalProofFixture.CreatePackage("AlternateStack")[..^1]})
+            int calls = 0;
+            bool locked = false;
+            var options = QemuSmokeOptions.Parse(["--BuildEfi", "--EnableM16009Probe", "--LinuxElfPackage", path]);
+            foreach (byte[] invalid in new[]
             {
-                File.WriteAllBytes(path,invalid); using StringWriter output = new();
-                int result = QemuSmoke.RunAsync(root,options,output,(_,_) => { calls++; return Task.FromResult(new ProcessResult(1,"","",false,false,false,TimeSpan.Zero)); }).GetAwaiter().GetResult();
-                HostCheck.True(result == 1 && calls == 0 && output.ToString().Contains("m16_009_package_identity",StringComparison.Ordinal));
+                LinuxThreadProofFixture.CreatePackage("Threads"),
+                LinuxSignalProofFixture.CreatePackage("AlternateStack")[..^1]
             }
-            foreach (string variant in new[] {"AlternateStack","FaultStack","Activation"})
+
+            )
             {
-                File.WriteAllBytes(path,LinuxSignalProofFixture.CreatePackage(variant));
-                int before = calls; locked = false;
-                int stopped = QemuSmoke.RunAsync(root,options,TextWriter.Null,(_,_) =>
+                File.WriteAllBytes(path, invalid);
+                using StringWriter output = new();
+                int result = QemuSmoke.RunAsync(root, options, output, (_, _) =>
                 {
                     calls++;
-                    try { using FileStream write = new(path,FileMode.Open,FileAccess.Write,FileShare.ReadWrite); }
-                    catch (IOException) { locked = true; }
-                    return Task.FromResult(new ProcessResult(1,"TEST_FAIL controlled-build-stop\n","",false,false,false,TimeSpan.Zero));
+                    return Task.FromResult(new ProcessResult(1, "", "", false, false, false, TimeSpan.Zero));
+                }).GetAwaiter().GetResult();
+                HostCheck.True(result == 1 && calls == 0 && output.ToString().Contains("m16_009_package_identity", StringComparison.Ordinal));
+            }
+
+            foreach (string variant in new[]
+            {
+                "AlternateStack",
+                "FaultStack",
+                "Activation"
+            }
+
+            )
+            {
+                File.WriteAllBytes(path, LinuxSignalProofFixture.CreatePackage(variant));
+                int before = calls;
+                locked = false;
+                int stopped = QemuSmoke.RunAsync(root, options, TextWriter.Null, (_, _) =>
+                {
+                    calls++;
+                    try
+                    {
+                        using FileStream write = new(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+                    }
+                    catch (IOException)
+                    {
+                        locked = true;
+                    }
+
+                    return Task.FromResult(new ProcessResult(1, "TEST_FAIL controlled-build-stop\n", "", false, false, false, TimeSpan.Zero));
                 }).GetAwaiter().GetResult();
                 HostCheck.True(stopped == 1 && calls == before + 1 && locked);
             }
-            using FileStream released = new(path,FileMode.Open,FileAccess.Write,FileShare.None);
+
+            using FileStream released = new(path, FileMode.Open, FileAccess.Write, FileShare.None);
         }
-        finally { File.Delete(path); Directory.Delete(directory); }
+        finally
+        {
+            File.Delete(path);
+            Directory.Delete(directory);
+        }
     }
 
     [HostTest("m16-009 leaf reuse unchanged and every hardware A-D change")]
     private static void LeafReuseUnchangedAndHardwareBits()
-    { using var fixture = CompileLeafReuse(); fixture.Run(0); }
+    {
+        using var fixture = CompileLeafReuse();
+        fixture.Run(0);
+    }
 
     [HostTest("m16-009 leaf reuse changed live raw values reject or recover like a fresh decode")]
     private static void LeafReuseChangedRaw()
-    { using var fixture = CompileLeafReuse(); fixture.Run(1); }
+    {
+        using var fixture = CompileLeafReuse();
+        fixture.Run(1);
+    }
 
     [HostTest("m16-009 leaf reuse compares all precondition bytes including PAT and reserved state")]
     private static void LeafReuseCompletePreconditions()
-    { using var fixture = CompileLeafReuse(); fixture.Run(2); }
+    {
+        using var fixture = CompileLeafReuse();
+        fixture.Run(2);
+    }
 
     [HostTest("m16-009 leaf reuse preserves the second read before guard evaluation")]
     private static void LeafReuseGuardReadOrder()
-    { using var fixture = CompileLeafReuse(); fixture.Run(3); }
+    {
+        using var fixture = CompileLeafReuse();
+        fixture.Run(3);
+    }
 
     [HostTest("m16-009 leaf reuse preserves walk rejection and the uncaptured FindLeaf caller")]
     private static void LeafReuseWalkRejectionsAndFindLeaf()
-    { using var fixture = CompileLeafReuse(); fixture.Run(4); }
+    {
+        using var fixture = CompileLeafReuse();
+        fixture.Run(4);
+    }
 
     [HostTest("m16-009 leaf reuse capture and fallback remain within the admitted current read")]
-    private static void LeafReuseSourceOrder()
-    {
-        SyntaxNode syntax = LeafReuseSyntax();
-        var methods = syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().ToArray();
-        var walk = methods.Single(m => m.Identifier.ValueText == "CooperativeWalkPoolLeaf");
-        var audit = methods.Single(m => m.Identifier.ValueText == "CooperativeAuditPool");
-        var find = methods.Single(m => m.Identifier.ValueText == "CooperativeFindLeaf");
-        HostCheck.True(PoolBoundary(syntax));
-        HostCheck.Equal(7, walk.ParameterList.Parameters.Count);
-        HostCheck.True(walk.ParameterList.Parameters.Skip(5).All(p => p.Default?.Value.IsKind(SyntaxKind.NullLiteralExpression) == true));
-        var findWalk = find.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "CooperativeWalkPoolLeaf");
-        HostCheck.Equal(5, findWalk.ArgumentList.Arguments.Count);
-        var firstRaw = walk.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Initializer?.Value.ToString() == "*slot");
-        var firstContext = walk.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Initializer?.Value.ToString() == "memory.Tables.Preconditions");
-        var firstDecode = walk.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "X64PageTableEntry.TryDecode");
-        HostCheck.True(firstRaw.SpanStart < firstContext.SpanStart && firstContext.SpanStart < firstDecode.SpanStart);
-        foreach (string target in new[] { "*leafDecoded", "*leafPreconditions" })
-        {
-            var store = walk.DescendantNodes().OfType<AssignmentExpressionSyntax>().Single(a => a.Left.ToString() == target);
-            HostCheck.True(store.Ancestors().OfType<IfStatementSyntax>().Any(i => i.Condition.ToString() == "level == 1"));
-        }
-        var call = audit.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "CooperativeWalkPoolLeaf");
-        var secondRaw = audit.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Initializer?.Value.ToString() == "*leaf");
-        var guard = audit.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "CooperativeGuardPage");
-        var secondContext = audit.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Initializer?.Value.ToString() == "memory.Tables.Preconditions");
-        var fallback = audit.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "X64PageTableEntry.TryDecode");
-        HostCheck.True(call.SpanStart < secondRaw.SpanStart && secondRaw.SpanStart < guard.SpanStart &&
-            guard.SpanStart < secondContext.SpanStart && secondContext.SpanStart < fallback.SpanStart);
-    }
+    private static void LeafReuseSourceOrder() => HostCheck.True(LeafReuseSources().ReadOrder());
 
-    private static SyntaxNode LeafReuseSyntax()
+    private static EfiLeafReuseSources LeafReuseSources()
     {
         var profile = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16009Probe"] = true });
-        var options = new CSharpParseOptions(LanguageVersion.CSharp14,
-            preprocessorSymbols: profile.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key]));
-        return CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs")), options).GetRoot();
+        return new(HostSourceCatalog.Efi(profile));
     }
-
     private static LeafReuseFixture CompileLeafReuse()
     {
-        SyntaxNode syntax = LeafReuseSyntax();
-        MethodDeclarationSyntax Method(string name) => syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(m => m.Identifier.ValueText == name);
+        var sources = LeafReuseSources();
+        MethodDeclarationSyntax Method(string name) => sources.Method(name);
         string Text(SyntaxNode node) => node.WithoutLeadingTrivia().WithoutTrailingTrivia().ToFullString();
         var walk = Method("CooperativeWalkPoolLeaf");
         var audit = Method("CooperativeAuditPool");
@@ -276,12 +237,11 @@ internal static unsafe class M16009EfiIntegrationTests
         HostCheck.Equal(7, walk.ParameterList.Parameters.Count);
         // The oracle is the actual audit with only its reuse decision removed:
         // execute its existing real-decoder assignment on every non-guard read.
-        var reuse = audit.DescendantNodes().OfType<IfStatementSyntax>().Single(i =>
-            i.Condition.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>().Any(c => c.Expression.ToString() == "CooperativeSameDecodePreconditions"));
+        var reuseCall = sources.Calls(audit, "CooperativeSameDecodePreconditions").Single();
+        var reuse = reuseCall.Syntax.Ancestors().OfType<IfStatementSyntax>().Single(gate => gate.Condition.Span.Contains(reuseCall.Syntax.Span));
         var forced = audit.ReplaceNode(reuse, reuse.Statement).WithIdentifier(SyntaxFactory.Identifier("ForcedDecodeAuditPool"));
-        var constants = syntax.DescendantNodes().OfType<FieldDeclarationSyntax>().Where(f =>
-            f.Declaration.Variables.Any(v => v.Identifier.ValueText is "TablePages" or "CooperativePoolPages")).ToArray();
-        HostCheck.Equal(2, constants.Length);
+        var constants = new[] { "Page", "TablePages", "CooperativePoolPages", "CooperativeCodePages" }.Select(sources.Constant).ToArray();
+
         string source = $$"""
             using System;
             using System.Runtime.InteropServices;
@@ -308,9 +268,7 @@ internal static unsafe class M16009EfiIntegrationTests
                 {{Text(Method("CooperativeSameDecodePreconditions"))}}
                 {{Text(audit)}}
                 {{Text(forced)}}
-                {{Text(guard.WithIdentifier(SyntaxFactory.Identifier("ActualGuardPage"))
-                    .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(guard.ExpressionBody!.Expression.WithoutTrivia()))
-                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))}}
+                {{Text(guard.WithIdentifier(SyntaxFactory.Identifier("ActualGuardPage")).WithExpressionBody(SyntaxFactory.ArrowExpressionClause(guard.ExpressionBody!.Expression.WithoutTrivia())).WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))}}
 
                 // Only CPU admission and the walk-return test boundary are bound.
                 // Every decode below forwards to the real kernel implementation.
@@ -488,12 +446,8 @@ internal static unsafe class M16009EfiIntegrationTests
                 }
             }
             """;
-        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
-            .Concat([typeof(OS.Kernel.Memory.X64PageTableEntry).Assembly.Location, typeof(PhysicalAddress).Assembly.Location])
-            .Distinct(StringComparer.OrdinalIgnoreCase).Select(p => MetadataReference.CreateFromFile(p));
-        var compilation = CSharpCompilation.Create("LeafReuse" + Guid.NewGuid().ToString("N"),
-            [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp14))], references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release, allowUnsafe: true));
+        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Concat([typeof(OS.Kernel.Memory.X64PageTableEntry).Assembly.Location, typeof(PhysicalAddress).Assembly.Location]).Distinct(StringComparer.OrdinalIgnoreCase).Select(p => MetadataReference.CreateFromFile(p));
+        var compilation = CSharpCompilation.Create("LeafReuse" + Guid.NewGuid().ToString("N"), [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp14))], references, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release, allowUnsafe: true));
         using var image = new MemoryStream();
         var emitted = compilation.Emit(image);
         HostCheck.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));
@@ -504,15 +458,25 @@ internal static unsafe class M16009EfiIntegrationTests
             Type fixture = context.LoadFromStream(image).GetType("LeafReuseProductionFixture", throwOnError: true)!;
             return new LeafReuseFixture(context, fixture.GetMethod("Run")!.CreateDelegate<Action<int>>());
         }
-        catch { context.Unload(); throw; }
-    }
-
-    private sealed class LeafReuseFixture(AssemblyLoadContext context, Action<int> run) : IDisposable
-    {
-        internal void Run(int section) => run(section);
-        public void Dispose() => context.Unload();
+        catch
+        {
+            context.Unload();
+            throw;
+        }
     }
 
     private static void Reject(Action action)
-    { bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
+    {
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
+
+        HostCheck.True(rejected);
+    }
 }

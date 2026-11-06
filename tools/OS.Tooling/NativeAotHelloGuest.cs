@@ -7,7 +7,7 @@ using OS.Manifest;
 namespace OS.Tooling;
 
 /// <summary>
-/// Packages only step1225's unchanged r04 Linux NativeAOT Hello. Host-only input
+/// Packages only the freshly qualified RC3 Linux NativeAOT Hello. Host-only input
 /// admission binds the qualified ELF, actual produced DLL/object, qualification
 /// receipts and current relevant source bytes. It grants no execution authority.
 /// Migration evidence is read-only; no builder, compiler or guest is started.
@@ -15,58 +15,62 @@ namespace OS.Tooling;
 public static class NativeAotHelloGuest
 {
     public const int ElfBytes = 1_241_768;
-    public const string ElfSha256 = "E7EBAD7E939BE69131E86AE486549651A8D22D7435E8E20B1375FEA44602C6FE";
-    private const string Qualification = "clros-net11-r02/artifacts/nativeaot-linux-net11-r04/";
-    private const string Produced = "tmp/nativeaot-net11-produced-r04/NativeAotHello/";
+    public const string ElfSha256 = "C4FDCAAF209A50EE68A0D1606A42BD70883F88721628267EB01DE901553F7E9C";
+    private const string Qualification = "artifacts/payload-qualification-r01/";
+    private const string Produced = "apps/NativeAotHello/obj/Release/net11.0/linux-musl-x64/";
 
     // Exact raw bytes, including line endings, from the qualified source inputs.
     private static readonly (string Path, string Hash)[] Sources = [
         ("apps/NativeAotHello/Program.cs", "B41BA4DC930BF9FF7D2A1E38A3965A5E0E1D2F118AA78B0039F9275C522DFBFE"),
         ("apps/NativeAotHello/NativeAotHello.csproj", "D8AFB29D1F4465AD7D3EF3F4A292255DBC5E6975FFD4AD02948E912B1D88564B"),
-        ("global.json", "FD3FDAAE1B349B01D6E6835EC111903F107A2643F3BCE313FAD4DC20180F5FB2"),
+        ("global.json", "BE8663081FD82196AC86E65E9021D58D7C03A13574CE8CD4DC803937FC3BA30E"),
         ("Directory.Build.props", "DF8A0D794DB73060124F5134EB930DCDBF6EE526C2410227F0C668AB6D10C5E5"),
         ("Directory.Build.targets", "85AFD90F9DD0F550B6A3C6AD71D28BF714A8C930158DB872F8DA5D316889931A"),
         ("tools/Directory.Build.props", "44B8268EA6934335DBC79FEF47C1CE1FDEE49393C929C92E322417B14AA321AE"),
-        ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5")
+        ("tools/OS.Tooling/NativeAotPayload.cs", "E3EC6BCE13C70C99F3D7306541D68104876FAF73593325107319719811694D2F")
     ];
     private static readonly (string Path, int Bytes, string Hash)[] Receipts = [
-        (Qualification + "inputs.json", 84246, "2B9A684CA0B2AD02E9F1CB20DCEC221A8164E04B7F8CFC28AC82BF8961114DFD"),
-        (Qualification + "native-inputs.json", 226470, "3930452632E1902C481730E48FF872CC483E79797C3F5010227EB916C33ED736"),
-        (Qualification + "inspection.json", 2054, "0D2DD17BF6A0032AAC2CD07640B12D7CD5D5BE7C7DA83C96152E4CED215C9FBB"),
-        (Qualification + "commands.json", 7489, "0C925772F3AED52CDB1099AAD74E375BDD8E896055832E7CDCF35822CB9E07A7"),
-        (Qualification + "sdk-version.stdout.log", 24, "597BF3D5F7316A145A483A20C4766DAA39C4F1DD7E1908ACA6ADE374AB1B908D"),
-        (Produced + "NativeAotHello.dll", 4096, "1FDB7C397CD1B025FF6AFDA733A86A2BFF7A1C4BBF23FEC6FD1F4B282C91E77C"),
-        (Produced + "NativeAotHello.o", 3967639, "59C458D69A2509B68A292232126675C14674EF1DE989271BDB9E758DCA7BD22B")
+        (Qualification + "inputs.json", 119781, "BC146C016C3807026B088BA9EEE1354062DE14A2D15AE484266B5EB02ED613D3"),
+        (Qualification + "native-inputs.json", 226492, "B18C26D43B18353A6EE7B1E54800D727FE1767F575AC787C0FC7C190EB31237A"),
+        (Qualification + "inspection.json", 2054, "852AC089419F443BA5D0EA7283EE0C1614E5ED603E1FB06DCAA276401DE6336C"),
+        (Qualification + "commands.json", 7696, "84103D126C99FAF612CDD85A2C71E684F589914766EF2AE44E4FC2B19A4A431C"),
+        (Qualification + "sdk-version.stdout.log", 24, "8F311FDA85131EB472C3F117C2C4E441C86AAEB72740D76F44D89FF1E75AE7AE"),
+        (Produced + "NativeAotHello.dll", 4096, "6786392355460964E6097DD849BFBD7E9DD18D82D6008C3BC98F67E468347E31"),
+        (Produced + "native/NativeAotHello.o", 3967639, "E14B88F67A1B6C46E5D3CF6FB9AC81268F967FD4009695C59548EA8A7E05F1C8")
     ];
 
     /// <summary>
     /// Canonical package policy: no arguments or runtime overrides, 64 MiB memory,
     /// 1.5 MiB main stack, four thread slots, sixteen descriptors and explicit user
-    /// IRQs. The ELF remains byte-identical. The required endpoint grants no socket.
+    /// IRQs. The ELF is fixed by the current candidate identity. The required
+    /// endpoint grants no socket.
     /// </summary>
     public const string Manifest = "format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\n" +
         "app.path=apps/NativeAotHello\nargs=\ndigest=" +
-        "e7ebad7e939be69131e86ae486549651a8d22d7435e8e20b1375fea44602c6fe\n" +
+        "c4fdcaaf209a50ee68a0d1606a42bd70883f88721628267eb01de901553f7e9c\n" +
         "memory=67108864\nstack=1572864\nthreads=4\ndescriptors=16\nlisten=127.0.0.1:8080\nenv.CLROS_USER_IRQS=1\n";
 
     /// <summary>
-    /// Checks the seven current app/SDK/build/qualifier inputs against the original
-    /// raw source hashes. Missing, oversized or changed inputs throw; unrelated
+    /// Checks current app/SDK/build/qualifier inputs against reviewed raw source
+    /// hashes, expanding admitted source-only splits. Missing or changed inputs throw; unrelated
     /// kernel/tooling edits do not become claims of whole-repository identity.
     /// </summary>
     public static void RequireCurrentSources(string root)
     {
         root = Path.GetFullPath(root);
-        foreach (var source in Sources)
+        foreach (var source in CurrentSources())
         {
             byte[] bytes = ReadBounded(Path.Combine(root, source.Path), 1024 * 1024);
             Require(Hash(bytes) == source.Hash, "hello_source_identity " + source.Path);
         }
+        NativeAotCurrentSources.RequireToolingOwnership(root, Sources);
     }
 
+    internal static IReadOnlyList<(string Path, string Hash)> CurrentSources() => NativeAotCurrentSources.Expand(Sources).ToArray();
+
     /// <summary>
-    /// Returns a fresh package from the extracted evidence-r04 directory. Exact
-    /// receipts include 708 source and 1042 native input identities, producer
+    /// Returns a fresh package from the extracted RC3 original directory. Exact
+    /// receipts include 998 source and 1042 native input identities, producer
     /// outputs and the SDK/publish configuration. All inputs are read, never run;
     /// missing or mismatched evidence throws before a package can be returned.
     /// </summary>
@@ -89,7 +93,8 @@ public static class NativeAotHelloGuest
         BinaryPrimitives.WriteUInt32LittleEndian(package.AsSpan(16), 64);
         BinaryPrimitives.WriteUInt32LittleEndian(package.AsSpan(20), (uint)manifest.Length);
         BinaryPrimitives.WriteUInt64LittleEndian(package.AsSpan(24), (ulong)elf.Length);
-        manifest.CopyTo(package, 64); elf.CopyTo(package, 64 + manifest.Length);
+        manifest.CopyTo(package, 64);
+        elf.CopyTo(package, 64 + manifest.Length);
         RequirePackage(package);
         RequireCurrentSources(root);
         return package;
@@ -123,7 +128,8 @@ public static class NativeAotHelloGuest
         Require(path.StartsWith(artifacts, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal),
             "hello_output_outside_artifacts");
         RequireOutputParent(path, artifacts.TrimEnd(Path.DirectorySeparatorChar));
-        if (File.Exists(path) || Directory.Exists(path)) throw new IOException("hello_output_exists");
+        if (File.Exists(path) || Directory.Exists(path))
+            throw new IOException("hello_output_exists");
         byte[] package = CreatePackage(root, evidenceRoot);
         string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         bool ownsTemporary = false;
@@ -133,13 +139,18 @@ public static class NativeAotHelloGuest
             using (FileStream stream = new(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 ownsTemporary = true;
-                stream.Write(package); stream.Flush(flushToDisk: true);
+                stream.Write(package);
+                stream.Flush(flushToDisk: true);
             }
             RequireCurrentSources(root);
             RequireOutputParent(path, artifacts.TrimEnd(Path.DirectorySeparatorChar));
             File.Move(temporary, path, overwrite: false);
         }
-        finally { if (ownsTemporary) File.Delete(temporary); }
+        finally
+        {
+            if (ownsTemporary)
+                File.Delete(temporary);
+        }
         return Hash(package);
     }
 
@@ -148,9 +159,11 @@ public static class NativeAotHelloGuest
         StringComparison comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         for (DirectoryInfo? directory = new(Path.GetDirectoryName(path)!); directory is not null; directory = directory.Parent)
         {
-            if (!directory.Exists) throw new DirectoryNotFoundException("hello_output_parent_missing");
+            if (!directory.Exists)
+                throw new DirectoryNotFoundException("hello_output_parent_missing");
             Require((directory.Attributes & FileAttributes.ReparsePoint) == 0, "hello_output_reparse");
-            if (string.Equals(directory.FullName, artifacts, comparison)) return;
+            if (string.Equals(directory.FullName, artifacts, comparison))
+                return;
         }
         throw new InvalidDataException("hello_output_outside_artifacts");
     }
@@ -175,6 +188,7 @@ public static class NativeAotHelloGuest
     private static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static void Require(bool condition, string reason)
     {
-        if (!condition) throw new InvalidDataException(reason);
+        if (!condition)
+            throw new InvalidDataException(reason);
     }
 }

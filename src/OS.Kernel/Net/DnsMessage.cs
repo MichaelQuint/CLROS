@@ -15,19 +15,12 @@ public static class DnsMessage
     public const ushort TruncatedFlag = 0x0200;
     public const ushort ResponseCodeMask = 0x000F;
     public const ushort ResponseCodeNoError = 0;
-
     private const int QuestionTrailerLength = 4;
     private const int ResourceRecordTrailerLength = 10;
     private const int MaxCompressionJumps = 16;
-
-    public static DnsMessageStatus TryWriteQuery(
-        Span<byte> buffer,
-        ushort transactionId,
-        ReadOnlySpan<char> hostName,
-        out int bytesWritten)
+    public static DnsMessageStatus TryWriteQuery(Span<byte> buffer, ushort transactionId, ReadOnlySpan<char> hostName, out int bytesWritten)
     {
         bytesWritten = 0;
-
         DnsMessageStatus nameStatus = TryGetEncodedNameLength(hostName, out int encodedNameLength);
         if (nameStatus != DnsMessageStatus.Success)
         {
@@ -46,7 +39,6 @@ public static class DnsMessage
         EndianPrimitives.WriteUInt16BigEndian(buffer.Slice(6, 2), 0);
         EndianPrimitives.WriteUInt16BigEndian(buffer.Slice(8, 2), 0);
         EndianPrimitives.WriteUInt16BigEndian(buffer.Slice(10, 2), 0);
-
         int offset = HeaderLength;
         DnsMessageStatus writeNameStatus = TryWriteName(buffer, hostName, offset, out int nameBytesWritten);
         if (writeNameStatus != DnsMessageStatus.Success)
@@ -57,18 +49,13 @@ public static class DnsMessage
         offset += nameBytesWritten;
         EndianPrimitives.WriteUInt16BigEndian(buffer.Slice(offset, 2), TypeA);
         EndianPrimitives.WriteUInt16BigEndian(buffer.Slice(offset + 2, 2), ClassIn);
-
         bytesWritten = messageLength;
         return DnsMessageStatus.Success;
     }
 
-    public static DnsMessageStatus TryParseAResponse(
-        ReadOnlySpan<byte> message,
-        ushort expectedTransactionId,
-        out Ipv4Address address)
+    public static DnsMessageStatus TryParseAResponse(ReadOnlySpan<byte> message, ushort expectedTransactionId, out Ipv4Address address)
     {
         address = default;
-
         if (message.Length < HeaderLength)
         {
             return DnsMessageStatus.BufferTooSmall;
@@ -137,7 +124,6 @@ public static class DnsMessage
         }
 
         offset += QuestionTrailerLength;
-
         DnsMessageStatus answerNameStatus = TrySkipName(message, offset, out offset);
         if (answerNameStatus != DnsMessageStatus.Success)
         {
@@ -153,7 +139,6 @@ public static class DnsMessage
         ushort recordClass = EndianPrimitives.ReadUInt16BigEndian(message.Slice(offset + 2, 2));
         ushort dataLength = EndianPrimitives.ReadUInt16BigEndian(message.Slice(offset + 8, 2));
         offset += ResourceRecordTrailerLength;
-
         if (message.Length - offset < dataLength)
         {
             return DnsMessageStatus.TruncatedAnswer;
@@ -201,7 +186,6 @@ public static class DnsMessage
         int labelLength = 0;
         int labelStart = 0;
         int wireLength = 1;
-
         for (int index = 0; index < hostEnd; index++)
         {
             char value = hostName[index];
@@ -250,20 +234,14 @@ public static class DnsMessage
         return DnsMessageStatus.Success;
     }
 
-    private static DnsMessageStatus TryWriteName(
-        Span<byte> buffer,
-        ReadOnlySpan<char> hostName,
-        int offset,
-        out int bytesWritten)
+    private static DnsMessageStatus TryWriteName(Span<byte> buffer, ReadOnlySpan<char> hostName, int offset, out int bytesWritten)
     {
         bytesWritten = 0;
-
         int hostEnd = hostName[^1] == '.' ? hostName.Length - 1 : hostName.Length;
         int cursor = offset;
         int labelLengthOffset = cursor;
         int labelLength = 0;
         cursor++;
-
         for (int index = 0; index < hostEnd; index++)
         {
             char value = hostName[index];
@@ -284,7 +262,6 @@ public static class DnsMessage
         buffer[labelLengthOffset] = (byte)labelLength;
         buffer[cursor] = 0;
         cursor++;
-
         bytesWritten = cursor - offset;
         return DnsMessageStatus.Success;
     }
@@ -302,7 +279,6 @@ public static class DnsMessage
         int expandedLength = 0;
         int jumpCount = 0;
         bool jumped = false;
-
         while (true)
         {
             if ((uint)cursor >= (uint)message.Length)
@@ -315,7 +291,6 @@ public static class DnsMessage
             if (labelKind == 0)
             {
                 cursor++;
-
                 if (length == 0)
                 {
                     expandedLength++;
@@ -428,25 +403,4 @@ public static class DnsMessage
     {
         return OS.Std.Ascii.IsLetterOrDigit(value) || value == (byte)'-';
     }
-}
-
-public enum DnsMessageStatus
-{
-    Success = 0,
-    BufferTooSmall,
-    InvalidLength,
-    InvalidLabel,
-    TransactionIdMismatch,
-    NotResponse,
-    UnsupportedOpcode,
-    TruncatedResponse,
-    ResponseCodeFailure,
-    UnsupportedQuestionCount,
-    NoAnswer,
-    UnsupportedType,
-    UnsupportedClass,
-    TruncatedQuestion,
-    TruncatedAnswer,
-    CompressionPointerLoop,
-    CompressionPointerOutOfRange
 }

@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
@@ -12,6 +13,10 @@
   <ItemGroup>
     <Compile Remove="QemuContracts.cs" />
     <Compile Remove="NativeFile.cs" />
+    <Compile Remove="NativeFile.FileIdentity.cs" />
+    <Compile Remove="NativeFile.FILETIME.cs" />
+    <Compile Remove="NativeFile.BY_HANDLE_FILE_INFORMATION.cs" />
+    <Compile Remove="NativeFile.LinuxStat.cs" />
     <ProjectReference Include="..\OS.LibvirtRunner\OS.LibvirtRunner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\OS.QemuRunner\OS.QemuRunner.csproj" />
     <ProjectReference Include="..\OS.X64TextSerializerGenerator\OS.X64TextSerializerGenerator.csproj" />
@@ -19,15 +24,27 @@
     <ProjectReference Include="..\OS.ImageBuilder\OS.ImageBuilder.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\OS.ManifestTool\OS.ManifestTool.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
+  <!-- Roslyn runs only in this host tool. No analyzer or framework reference
+       is added to the freestanding EFI compilation. -->
+  <Target Name="ResolveToolingRoslynReferences" BeforeTargets="ResolveAssemblyReferences">
+    <PropertyGroup>
+      <ToolingRoslynDirectory>$(RoslynTargetsPath)/bincore</ToolingRoslynDirectory>
+      <ToolingRoslynDirectory Condition="!Exists('$(ToolingRoslynDirectory)/Microsoft.CodeAnalysis.dll')">$(RoslynTargetsPath)/../bincore</ToolingRoslynDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+      <Reference Include="Microsoft.CodeAnalysis" HintPath="$(ToolingRoslynDirectory)/Microsoft.CodeAnalysis.dll" />
+      <Reference Include="Microsoft.CodeAnalysis.CSharp" HintPath="$(ToolingRoslynDirectory)/Microsoft.CodeAnalysis.CSharp.dll" />
+    </ItemGroup>
+  </Target>
   <!-- This inventory is embedded with the hashes. Runtime discovery consumes
        these same patterns, so adding a source never escapes a no-build check. -->
   <PropertyGroup>
     <_ToolingRepositoryRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)..\..'))</_ToolingRepositoryRoot>
-    <_ToolingInputPatterns>tools/**/*.cs;tools/**/*.csproj;tools/**/*.props;tools/**/*.targets;src/OS.Kernel/**/*.cs;src/OS.Kernel/**/*.csproj;src/OS.Kernel/**/*.props;src/OS.Kernel/**/*.targets;src/OS.Std.NoRuntime.Shared/**/*.cs;src/OS.Std.NoRuntime.Shared/**/*.csproj;src/OS.Std.NoRuntime.Shared/**/*.props;src/OS.Std.NoRuntime.Shared/**/*.targets;std/**/*.cs;std/**/*.csproj;std/**/*.props;std/**/*.targets;CLROS.slnx;global.json;Directory.Build.props;Directory.Build.targets</_ToolingInputPatterns>
+    <_ToolingInputPatterns>tools/**/*.cs;tools/**/*.csproj;tools/**/*.props;tools/**/*.targets;src/OS.Kernel/**/*.cs;src/OS.Kernel/**/*.csproj;src/OS.Kernel/**/*.props;src/OS.Kernel/**/*.targets;src/OS.Std.NoRuntime.Shared/**/*.cs;src/OS.Std.NoRuntime.Shared/**/*.csproj;src/OS.Std.NoRuntime.Shared/**/*.props;src/OS.Std.NoRuntime.Shared/**/*.targets;std/**/*.cs;std/**/*.csproj;std/**/*.props;std/**/*.targets;CLROS.slnx;global.json;Directory.Build.props;Directory.Build.targets;.editorconfig</_ToolingInputPatterns>
     <_ToolingAbsolutePatterns>$(_ToolingRepositoryRoot)$(_ToolingInputPatterns.Replace(';', ';$(_ToolingRepositoryRoot)'))</_ToolingAbsolutePatterns>
     <_ToolingManifestPatterns>GLOB|$(_ToolingInputPatterns.Replace(';', ';GLOB|'))</_ToolingManifestPatterns>
   </PropertyGroup>
-  <Target Name="CaptureToolingBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveReferences">
+  <Target Name="CaptureToolingBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="CaptureHostProjectOutputs;ResolveReferences">
     <ItemGroup>
       <_ToolingInput Include="$([MSBuild]::Unescape('$(_ToolingAbsolutePatterns)'))"
         Exclude="$(_ToolingRepositoryRoot)**/bin/**;$(_ToolingRepositoryRoot)**/obj/**;$(_ToolingRepositoryRoot)**/artifacts/**" />
@@ -42,4 +59,7 @@
       <EmbeddedResource Include="$(IntermediateOutputPath)tooling-build-inputs.txt" LogicalName="tooling-build-inputs.txt" />
     </ItemGroup>
   </Target>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="../OS.CompilerReceipts/HostProjectOutputs.targets" Condition="'$(_ClrosHostProjectOutputsImported)' != 'true'" />
+  <Import Project="../OS.CompilerReceipts/HostCompilationReceipts.targets" />
 </Project>

@@ -15,11 +15,14 @@ public static class NativeAotRuntimeSelection
         foreach (string app in new[] { "NativeAotSuspensionStress", "NativeAotThreadPoolStress", "NativeAotRuntimeMatrix" })
             if (flags.TryGetValue(Flag(app), out bool enabled) && enabled)
             {
-                if (result.Length != 0) throw new ToolFailure("runtime_profile_conflict");
+                if (result.Length != 0)
+                    throw new ToolFailure("runtime_profile_conflict");
                 result = app;
             }
-        if (result.Length == 0 || selected is null || selected == result) return result;
-        if (result == "NativeAotRuntimeMatrix" && selected == "NativeAotRuntimeSmoke") return selected;
+        if (result.Length == 0 || selected is null || selected == result)
+            return result;
+        if (result == "NativeAotRuntimeMatrix" && selected == "NativeAotRuntimeSmoke")
+            return selected;
         throw new ToolFailure("runtime_profile_application");
     }
 
@@ -52,11 +55,14 @@ public static class NativeAotRuntimeSelection
                 options.LinuxThreadingApplication = app;
             _ = Application(flags, options.LinuxThreadingApplication);
         }
-        if (!options.HasThreadingSelection) return;
+        if (!options.HasThreadingSelection)
+            return;
         if (app.Length == 0 && options.LinuxThreadingApplication is not ("NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke"))
             throw new ToolFailure("threading_application");
-        if (options.LinuxThreadingDisassembly.Length == 0) throw new ToolFailure("threading_disassembly_required");
-        if (options.LinuxHelloDisassembly.Length != 0) throw new ToolFailure("threading_hello_conflict");
+        if (options.LinuxThreadingDisassembly.Length == 0)
+            throw new ToolFailure("threading_disassembly_required");
+        if (options.LinuxHelloDisassembly.Length != 0)
+            throw new ToolFailure("threading_hello_conflict");
         if (!flags.TryGetValue("EnableM16009Probe", out bool signal) || !signal)
             throw new ToolFailure("threading_profile_requires_m16_009");
     }

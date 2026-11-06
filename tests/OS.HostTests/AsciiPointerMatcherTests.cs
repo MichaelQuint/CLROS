@@ -21,12 +21,14 @@ internal static unsafe class AsciiPointerMatcherTests
         foreach (string path in new[] { "app", "bin/hello.app", new string('a', 255), "bin/a b" })
         {
             byte[] bytes = Encoding.ASCII.GetBytes(path);
-            fixed (byte* p = bytes) HostCheck.True(AsciiPointerMatcher.IsRelativePath(p, (uint)bytes.Length));
+            fixed (byte* p = bytes)
+                HostCheck.True(AsciiPointerMatcher.IsRelativePath(p, (uint)bytes.Length));
         }
         foreach (string path in new[] { "", ".", "..", "bin/../a", "bin/./a", "/a", "a/", "a//b", "C:/a", "a\\b", "a\0b", new string('a', 256) })
         {
             byte[] bytes = Encoding.ASCII.GetBytes(path);
-            fixed (byte* p = bytes) HostCheck.True(!AsciiPointerMatcher.IsRelativePath(p, (uint)bytes.Length));
+            fixed (byte* p = bytes)
+                HostCheck.True(!AsciiPointerMatcher.IsRelativePath(p, (uint)bytes.Length));
         }
         HostCheck.True(!AsciiPointerMatcher.IsRelativePath(null, 1));
         HostCheck.True(!AsciiPointerMatcher.IsRelativePath((byte*)(ulong.MaxValue - 1), 2));

@@ -10,6 +10,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../OS.Tooling/QemuContracts.cs" Link="QemuContracts.cs" />
+    <Compile Include="..\OS.Tooling\NativeFile.FileIdentity.cs" Link="NativeFile.FileIdentity.cs" />
+    <Compile Include="..\OS.Tooling\NativeFile.cs" Link="NativeFile.cs" />
+    <Compile Include="..\OS.Tooling\NativeFile.FILETIME.cs" Link="NativeFile.FILETIME.cs" />
+    <Compile Include="..\OS.Tooling\NativeFile.BY_HANDLE_FILE_INFORMATION.cs" Link="NativeFile.BY_HANDLE_FILE_INFORMATION.cs" />
+    <Compile Include="..\OS.Tooling\NativeFile.LinuxStat.cs" Link="NativeFile.LinuxStat.cs" />
+    <Compile Include="../OS.QemuRunner/WhpxPrelaunch.cs" Link="WhpxPrelaunch.cs" />
+    <Compile Include="../OS.QemuRunner/WhpxPrelaunch.HostNotifiers.cs" Link="WhpxPrelaunch.HostNotifiers.cs" />
+    <Compile Include="../OS.QemuRunner/WhpxPrelaunch.QmpConnection.cs" Link="WhpxPrelaunch.QmpConnection.cs" />
     <Using Include="System" />
     <Using Include="System.Collections.Generic" />
   </ItemGroup>

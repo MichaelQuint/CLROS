@@ -2,79 +2,6 @@ using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
 
-public enum CpuFaultEntryFrameLayoutStatus
-{
-    Ok = 0,
-    BufferTooSmall = 1,
-    UnknownVector = 2,
-    InvalidHasErrorCodeFlag = 3,
-    InconsistentErrorCodeMetadata = 4
-}
-
-public readonly struct CpuFaultEntryFrameLayoutResult
-{
-    private CpuFaultEntryFrameLayoutResult(
-        bool succeeded,
-        CpuFaultEntryFrameLayoutStatus status,
-        CpuFaultFrame frame,
-        ushort codeSegment,
-        ushort stackSegment,
-        int vector,
-        int requiredBytes)
-    {
-        Succeeded = succeeded;
-        Status = status;
-        Frame = frame;
-        CodeSegment = codeSegment;
-        StackSegment = stackSegment;
-        Vector = vector;
-        RequiredBytes = requiredBytes;
-    }
-
-    public bool Succeeded { get; }
-
-    public CpuFaultEntryFrameLayoutStatus Status { get; }
-
-    public CpuFaultFrame Frame { get; }
-
-    public ushort CodeSegment { get; }
-
-    public ushort StackSegment { get; }
-
-    public int Vector { get; }
-
-    public int RequiredBytes { get; }
-
-    public static CpuFaultEntryFrameLayoutResult Success(
-        in CpuFaultFrame frame,
-        ushort codeSegment,
-        ushort stackSegment)
-    {
-        return new CpuFaultEntryFrameLayoutResult(
-            true,
-            CpuFaultEntryFrameLayoutStatus.Ok,
-            frame,
-            codeSegment,
-            stackSegment,
-            frame.Vector,
-            CpuFaultEntryFrameLayout.TotalSize);
-    }
-
-    public static CpuFaultEntryFrameLayoutResult Fail(
-        CpuFaultEntryFrameLayoutStatus status,
-        int vector = 0)
-    {
-        return new CpuFaultEntryFrameLayoutResult(
-            false,
-            status,
-            default,
-            0,
-            0,
-            vector,
-            CpuFaultEntryFrameLayout.TotalSize);
-    }
-}
-
 public static class CpuFaultEntryFrameLayout
 {
     public const int SlotSize = sizeof(ulong);
@@ -87,12 +14,10 @@ public static class CpuFaultEntryFrameLayout
     public const int FlagsOffset = 6 * SlotSize;
     public const int Cr2Offset = 7 * SlotSize;
     public const int Cr3Offset = 8 * SlotSize;
-
     // CS and SS are preserved as 16-bit selectors in full 64-bit slots so this
     // byte layout can map directly to future x64 fault-stub stack slots.
     public const int CsOffset = 9 * SlotSize;
     public const int SsOffset = 10 * SlotSize;
-
     public const int RaxOffset = 11 * SlotSize;
     public const int RbxOffset = 12 * SlotSize;
     public const int RcxOffset = 13 * SlotSize;
@@ -108,31 +33,19 @@ public static class CpuFaultEntryFrameLayout
     public const int R14Offset = 23 * SlotSize;
     public const int R15Offset = 24 * SlotSize;
     public const int TotalSize = 25 * SlotSize;
-
-    public static CpuFaultEntryFrameLayoutResult TryWrite(
-        Span<byte> destination,
-        in CpuFaultFrame frame)
+    public static CpuFaultEntryFrameLayoutResult TryWrite(Span<byte> destination, in CpuFaultFrame frame)
     {
         return TryWrite(destination, frame, codeSegment: 0, stackSegment: 0);
     }
 
-    public static CpuFaultEntryFrameLayoutResult TryWrite(
-        Span<byte> destination,
-        in CpuFaultFrame frame,
-        ushort codeSegment,
-        ushort stackSegment)
+    public static CpuFaultEntryFrameLayoutResult TryWrite(Span<byte> destination, in CpuFaultFrame frame, ushort codeSegment, ushort stackSegment)
     {
         if (destination.Length < TotalSize)
         {
-            return CpuFaultEntryFrameLayoutResult.Fail(
-                CpuFaultEntryFrameLayoutStatus.BufferTooSmall,
-                frame.Vector);
+            return CpuFaultEntryFrameLayoutResult.Fail(CpuFaultEntryFrameLayoutStatus.BufferTooSmall, frame.Vector);
         }
 
-        CpuFaultEntryFrameLayoutStatus status = ValidateFrameMetadata(
-            frame.Vector,
-            frame.HasErrorCode);
-
+        CpuFaultEntryFrameLayoutStatus status = ValidateFrameMetadata(frame.Vector, frame.HasErrorCode);
         if (status != CpuFaultEntryFrameLayoutStatus.Ok)
         {
             return CpuFaultEntryFrameLayoutResult.Fail(status, frame.Vector);
@@ -163,82 +76,41 @@ public static class CpuFaultEntryFrameLayout
         WriteSlot(destination, R13Offset, frame.R13);
         WriteSlot(destination, R14Offset, frame.R14);
         WriteSlot(destination, R15Offset, frame.R15);
-
-        return CpuFaultEntryFrameLayoutResult.Success(
-            frame,
-            codeSegment,
-            stackSegment);
+        return CpuFaultEntryFrameLayoutResult.Success(frame, codeSegment, stackSegment);
     }
 
     public static CpuFaultEntryFrameLayoutResult TryRead(ReadOnlySpan<byte> source)
     {
         if (source.Length < TotalSize)
         {
-            return CpuFaultEntryFrameLayoutResult.Fail(
-                CpuFaultEntryFrameLayoutStatus.BufferTooSmall);
+            return CpuFaultEntryFrameLayoutResult.Fail(CpuFaultEntryFrameLayoutStatus.BufferTooSmall);
         }
 
         ulong vectorValue = ReadSlot(source, VectorOffset);
         if (vectorValue > byte.MaxValue)
         {
-            return CpuFaultEntryFrameLayoutResult.Fail(
-                CpuFaultEntryFrameLayoutStatus.UnknownVector,
-                byte.MaxValue + 1);
+            return CpuFaultEntryFrameLayoutResult.Fail(CpuFaultEntryFrameLayoutStatus.UnknownVector, byte.MaxValue + 1);
         }
 
         int vector = (int)vectorValue;
         ulong hasErrorCodeValue = ReadSlot(source, HasErrorCodeOffset);
         if (hasErrorCodeValue > 1)
         {
-            return CpuFaultEntryFrameLayoutResult.Fail(
-                CpuFaultEntryFrameLayoutStatus.InvalidHasErrorCodeFlag,
-                vector);
+            return CpuFaultEntryFrameLayoutResult.Fail(CpuFaultEntryFrameLayoutStatus.InvalidHasErrorCodeFlag, vector);
         }
 
         bool hasErrorCode = hasErrorCodeValue != 0;
-        CpuFaultEntryFrameLayoutStatus status = ValidateFrameMetadata(
-            vector,
-            hasErrorCode);
-
+        CpuFaultEntryFrameLayoutStatus status = ValidateFrameMetadata(vector, hasErrorCode);
         if (status != CpuFaultEntryFrameLayoutStatus.Ok)
         {
             return CpuFaultEntryFrameLayoutResult.Fail(status, vector);
         }
 
-        CpuFaultFrame frame = new CpuFaultFrame(
-            vector,
-            hasErrorCode,
-            ReadSlot(source, ErrorCodeOffset),
-            ReadSlot(source, InstructionPointerOffset),
-            ReadSlot(source, StackPointerOffset),
-            ReadSlot(source, BasePointerOffset),
-            ReadSlot(source, FlagsOffset),
-            ReadSlot(source, Cr2Offset),
-            ReadSlot(source, Cr3Offset),
-            ReadSlot(source, RaxOffset),
-            ReadSlot(source, RbxOffset),
-            ReadSlot(source, RcxOffset),
-            ReadSlot(source, RdxOffset),
-            ReadSlot(source, RsiOffset),
-            ReadSlot(source, RdiOffset),
-            ReadSlot(source, R8Offset),
-            ReadSlot(source, R9Offset),
-            ReadSlot(source, R10Offset),
-            ReadSlot(source, R11Offset),
-            ReadSlot(source, R12Offset),
-            ReadSlot(source, R13Offset),
-            ReadSlot(source, R14Offset),
-            ReadSlot(source, R15Offset));
-
-        return CpuFaultEntryFrameLayoutResult.Success(
-            frame,
-            (ushort)ReadSlot(source, CsOffset),
-            (ushort)ReadSlot(source, SsOffset));
+        CpuFaultFrame frame = new CpuFaultFrame(vector, hasErrorCode, ReadSlot(source, ErrorCodeOffset), ReadSlot(source, InstructionPointerOffset), ReadSlot(source, StackPointerOffset), ReadSlot(source, BasePointerOffset), ReadSlot(source, FlagsOffset), ReadSlot(source, Cr2Offset), ReadSlot(source, Cr3Offset), ReadSlot(source, RaxOffset), ReadSlot(source, RbxOffset), ReadSlot(source, RcxOffset), ReadSlot(source, RdxOffset), ReadSlot(source, RsiOffset), ReadSlot(source, RdiOffset), ReadSlot(source, R8Offset), ReadSlot(source, R9Offset), ReadSlot(source, R10Offset), ReadSlot(source, R11Offset), ReadSlot(source, R12Offset), ReadSlot(source, R13Offset), ReadSlot(source, R14Offset), ReadSlot(source, R15Offset));
+        return CpuFaultEntryFrameLayoutResult.Success(frame, (ushort)ReadSlot(source, CsOffset), (ushort)ReadSlot(source, SsOffset));
     }
 
-    private static CpuFaultEntryFrameLayoutStatus ValidateFrameMetadata(
-        int vector,
-        bool hasErrorCode)
+    private static CpuFaultEntryFrameLayoutStatus ValidateFrameMetadata(int vector, bool hasErrorCode)
     {
         if (vector < 0 || vector > byte.MaxValue)
         {
@@ -250,9 +122,7 @@ public static class CpuFaultEntryFrameLayout
             return CpuFaultEntryFrameLayoutStatus.UnknownVector;
         }
 
-        return info.PushesErrorCode == hasErrorCode
-            ? CpuFaultEntryFrameLayoutStatus.Ok
-            : CpuFaultEntryFrameLayoutStatus.InconsistentErrorCodeMetadata;
+        return info.PushesErrorCode == hasErrorCode ? CpuFaultEntryFrameLayoutStatus.Ok : CpuFaultEntryFrameLayoutStatus.InconsistentErrorCodeMetadata;
     }
 
     private static ulong ReadSlot(ReadOnlySpan<byte> source, int offset)

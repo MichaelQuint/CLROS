@@ -15,11 +15,21 @@ public static partial class QemuTranscripts
     internal static readonly UTF8Encoding StrictUtf8 = new(false, true);
     internal static string DecodeUtf8(byte[] bytes)
     {
-        try { return StrictUtf8.GetString(bytes); }
-        catch (DecoderFallbackException) { throw new ToolFailure("transcript_malformed_utf8"); }
+        try
+        {
+            return StrictUtf8.GetString(bytes);
+        }
+        catch (DecoderFallbackException)
+        {
+            throw new ToolFailure("transcript_malformed_utf8");
+        }
     }
     internal static readonly Regex Controls = new(@"[\x00-\x1f\x7f-\uffff]", RegexOptions.CultureInvariant);
-    internal static void Need(bool value, string reason) { if (!value) throw new ToolFailure(reason); }
+    internal static void Need(bool value, string reason)
+    {
+        if (!value)
+            throw new ToolFailure(reason);
+    }
     internal static string Classify(string text) => Regex.Replace(text, @"[\x00-\x20\x7f-\uffff]", "");
     internal static ulong Number(string token)
     {
@@ -35,7 +45,13 @@ public static partial class QemuTranscripts
         {
             string[] p = f.Split(':');
             pattern += " " + Regex.Escape(p[0]) + "=" + (p[1] switch
-            { "hex" => "(0x[0-9A-F]{16})", "rawhex" => "([0-9A-F]{16})", "false" => "(false)", "true" => "(true)", _ => "(0|[1-9][0-9]*)" });
+            {
+                "hex" => "(0x[0-9A-F]{16})",
+                "rawhex" => "([0-9A-F]{16})",
+                "false" => "(false)",
+                "true" => "(true)",
+                _ => "(0|[1-9][0-9]*)"
+            });
         }
         Match match = Regex.Match(line, pattern + "\\z", RegexOptions.CultureInvariant);
         Need(match.Success, "transcript_record_shape_" + prefix);
@@ -67,16 +83,16 @@ public static partial class QemuTranscripts
     }
     internal static string[] FirmwareProtocol(string path, string terminal, bool noSuffix, bool allowShortSuffix, string reason, bool blockBoot = false,
         NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null,
-        bool linuxThreads = false,NativeAotSocketProgram? socketProgram=null,NativeAotSocketContainmentProgram? containmentProgram=null,NativeAotSocketVectorsProgram? vectorsProgram=null)
+        bool linuxThreads = false, NativeAotSocketProgram? socketProgram = null, NativeAotSocketContainmentProgram? containmentProgram = null, NativeAotSocketVectorsProgram? vectorsProgram = null)
     {
         byte[] bytes = File.ReadAllBytes(path);
         int prefixBytes = blockBoot ? QemuContracts.BlockFirmwarePrefixBytes : FirmwarePrefixBytes;
         string prefixHash = blockBoot ? QemuContracts.BlockFirmwarePrefixSha256 : FirmwarePrefixSha256;
-        Need(helloProgram is null || threadingProgram is null,"threading_hello_conflict");
-        Need(runtimeProgram is null || helloProgram is null && threadingProgram is null,"runtime_program_conflict");
-        Need(socketProgram is null || helloProgram is null && threadingProgram is null && runtimeProgram is null,"socket_program_conflict");
-        Need(containmentProgram is null || helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null,"socket_containment_program_conflict");
-        Need(vectorsProgram is null || helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null && containmentProgram is null,"socket_vectors_program_conflict");
+        Need(helloProgram is null || threadingProgram is null, "threading_hello_conflict");
+        Need(runtimeProgram is null || helloProgram is null && threadingProgram is null, "runtime_program_conflict");
+        Need(socketProgram is null || helloProgram is null && threadingProgram is null && runtimeProgram is null, "socket_program_conflict");
+        Need(containmentProgram is null || helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null, "socket_containment_program_conflict");
+        Need(vectorsProgram is null || helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null && containmentProgram is null, "socket_vectors_program_conflict");
         // Thread diagnostics include complete call/return/wait images. The
         // declared profile still requires its exact bounded leaf afterward.
         Need(bytes.Length >= prefixBytes && bytes.Length <= (!linuxThreads && helloProgram is null && threadingProgram is null && runtimeProgram is null ? 32768 : 8 * 1024 * 1024), reason + "_raw_extent");
@@ -88,7 +104,8 @@ public static partial class QemuTranscripts
         Need(Convert.ToHexString(SHA256.HashData(bytes.AsSpan(0, prefixBytes))) == prefixHash,
             reason + "_firmware_prefix");
         int suffixLength = bytes.Length - end;
-        if (noSuffix) Need(suffixLength == 0, reason + "_firmware_eof");
+        if (noSuffix)
+            Need(suffixLength == 0, reason + "_firmware_eof");
         else
         {
             string digest = Convert.ToHexString(SHA256.HashData(bytes.AsSpan(end)));
@@ -96,12 +113,18 @@ public static partial class QemuTranscripts
                 allowShortSuffix && suffixLength == 251 && digest == ShortFirmwareSuffixSha256, reason + "_firmware_suffix");
         }
         string owned = text[start..end];
-        if (helloProgram is not null) owned = NormalizeHelloWrites(owned);
-        if (threadingProgram is not null) owned = NormalizeThreadingWrites(owned,threadingProgram.Application);
-        if (runtimeProgram is not null) owned = NormalizeRuntimeWrites(owned,runtimeProgram.Application);
-        if (socketProgram is not null) owned = NormalizeSocketWrites(owned,socketProgram.Asynchronous);
-        if (containmentProgram is not null) owned = NormalizeSocketContainmentWrites(owned);
-        if (vectorsProgram is not null) owned = NormalizeSocketVectorWrites(owned);
+        if (helloProgram is not null)
+            owned = NormalizeHelloWrites(owned);
+        if (threadingProgram is not null)
+            owned = NormalizeThreadingWrites(owned, threadingProgram.Application);
+        if (runtimeProgram is not null)
+            owned = NormalizeRuntimeWrites(owned, runtimeProgram.Application);
+        if (socketProgram is not null)
+            owned = NormalizeSocketWrites(owned, socketProgram.Asynchronous);
+        if (containmentProgram is not null)
+            owned = NormalizeSocketContainmentWrites(owned);
+        if (vectorsProgram is not null)
+            owned = NormalizeSocketVectorWrites(owned);
         Need(!Regex.IsMatch(owned, @"[^\x20-\x7E\r\n]"), reason + "_non_ascii");
         string[] split = owned.Split("\r\n", StringSplitOptions.None);
         Need(split[^1].Length == 0 && split[..^1].All(x => !x.Contains('\r') && !x.Contains('\n')), reason + "_framing");
@@ -112,15 +135,18 @@ public static partial class QemuTranscripts
         Need(lines.Count == expected.Count, "transcript_record_count");
         HashSet<int> exceptions = [.. variable];
         for (int i = 0; i < lines.Count; i++)
-            if (!exceptions.Contains(i)) Need(lines[i] == expected[i], "transcript_exact_record_" + i);
+            if (!exceptions.Contains(i))
+                Need(lines[i] == expected[i], "transcript_exact_record_" + i);
     }
     internal static void ValidateAllocator(IReadOnlyList<string> lines, int descriptor = 3, int regions = 9, int allocator = 10)
     {
         ulong Count(int index, string prefix)
         {
             Match m = Regex.Match(lines[index], "\\A" + Regex.Escape(prefix) + " ([1-9][0-9]*)\\z");
-            Need(m.Success, "transcript_region_shape"); ulong n = Number(m.Groups[1].Value);
-            Need(n <= 4096, "transcript_region_bound"); return n;
+            Need(m.Success, "transcript_region_shape");
+            ulong n = Number(m.Groups[1].Value);
+            Need(n <= 4096, "transcript_region_bound");
+            return n;
         }
         ulong count = Count(descriptor, "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT");
         Need(count == Count(regions, "BOOT_MEMORY_REGION_COUNT"), "transcript_region_association");

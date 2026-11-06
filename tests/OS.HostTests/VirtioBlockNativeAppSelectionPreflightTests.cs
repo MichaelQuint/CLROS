@@ -8,7 +8,7 @@ using OS.Std.Binary;
 using OS.Std.Hash;
 using OS.Storage;
 
-internal static class VirtioBlockNativeAppSelectionPreflightTests
+internal static partial class VirtioBlockNativeAppSelectionPreflightTests
 {
     private const ushort QueueSize = 8;
     private const ulong HeaderPhysicalAddress = 0x0010_0000UL;
@@ -1148,79 +1148,4 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
         EndianPrimitives.WriteUInt32LittleEndian(destination.Slice(offset, sizeof(uint)), value);
     }
 
-    private sealed class SelectionScratch
-    {
-        public SelectionScratch(
-            int manifestBufferLength = (int)NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes,
-            int packageBufferLength = (int)NativeAppSelectionBootScratchPlan.DefaultPackageBufferBytes)
-        {
-            ManifestBuffer = new byte[manifestBufferLength];
-            PackageBuffer = new byte[packageBufferLength];
-        }
-
-        public byte[] PrimaryHeader { get; } = new byte[SectorSize];
-
-        public byte[] PartitionEntries { get; } =
-            new byte[checked((int)(PartitionEntryCount * PartitionEntrySize))];
-
-        public GptPartitionDescriptor[] Partitions { get; } = new GptPartitionDescriptor[2];
-
-        public byte[] ManifestBuffer { get; }
-
-        public byte[] PackageBuffer { get; }
-    }
-
-    private sealed class SequenceTestSerialSink : ISerialSink
-    {
-        private readonly List<string> _lines = new();
-
-        public int Count => _lines.Count;
-
-        public void WriteLine(string line)
-        {
-            _lines.Add(line);
-        }
-
-        public string LineAt(int index)
-        {
-            return _lines[index];
-        }
-    }
-
-    private sealed class MemoryBlockDevice : IReadOnlyBlockDevice
-    {
-        private MemoryBlockDevice(BlockDeviceInfo info, byte[] image)
-        {
-            Info = info;
-            Image = image;
-        }
-
-        public BlockDeviceInfo Info { get; }
-
-        private byte[] Image { get; }
-
-        public static MemoryBlockDevice FromImage(byte[] image, uint blockSize)
-        {
-            BlockDeviceInfoResult info = BlockDeviceInfo.Create(blockSize, (ulong)image.Length / blockSize);
-            if (!info.Succeeded)
-            {
-                throw new InvalidOperationException("Invalid test image geometry: " + info.Status);
-            }
-
-            return new MemoryBlockDevice(info.Info, image);
-        }
-
-        public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
-        {
-            BlockReadResult result = BlockDeviceRead.Validate(Info, firstBlock, blockCount, destination);
-            if (!result.Succeeded)
-            {
-                return result;
-            }
-
-            int offset = checked((int)(firstBlock * Info.BlockSize));
-            Image.AsSpan(offset, checked((int)result.BytesRead)).CopyTo(destination);
-            return result;
-        }
-    }
 }

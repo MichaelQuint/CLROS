@@ -2,54 +2,6 @@ using OS.Std.Binary;
 
 namespace OS.Kernel.Diagnostics;
 
-public enum GdtDescriptorPlanStatus
-{
-    Ok = 0,
-    OutputBufferTooSmall = 1,
-    NullTssBaseAddress = 2,
-    InvalidTssLimit = 3
-}
-
-public readonly struct GdtDescriptorPlanResult
-{
-    private GdtDescriptorPlanResult(
-        bool succeeded,
-        GdtDescriptorPlanStatus status,
-        int bytesWritten,
-        int requiredBytes)
-    {
-        Succeeded = succeeded;
-        Status = status;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-    }
-
-    public bool Succeeded { get; }
-
-    public GdtDescriptorPlanStatus Status { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public static GdtDescriptorPlanResult Success(int bytesWritten)
-    {
-        return new GdtDescriptorPlanResult(
-            true,
-            GdtDescriptorPlanStatus.Ok,
-            bytesWritten,
-            GdtDescriptorPlan.RequiredByteLength);
-    }
-
-    public static GdtDescriptorPlanResult Fail(
-        GdtDescriptorPlanStatus status,
-        int bytesWritten,
-        int requiredBytes = GdtDescriptorPlan.RequiredByteLength)
-    {
-        return new GdtDescriptorPlanResult(false, status, bytesWritten, requiredBytes);
-    }
-}
-
 public static class GdtDescriptorPlan
 {
     public const int SegmentDescriptorLength = 8;
@@ -59,29 +11,21 @@ public static class GdtDescriptorPlan
     public const int KernelDataDescriptorOffset = 16;
     public const int TssDescriptorOffset = 24;
     public const int RequiredByteLength = TssDescriptorOffset + SystemDescriptorLength;
-
     public const ushort NullSelector = 0x0000;
     public const ushort KernelCodeSelector = 0x0008;
     public const ushort KernelDataSelector = 0x0010;
     public const ushort TssSelector = 0x0018;
-
     public const byte KernelCodeAccess = 0x9a;
     public const byte KernelDataAccess = 0x92;
     public const byte AvailableTssAccess = 0x89;
     public const byte LongModeCodeFlags = 0x20;
     public const uint MinimumTssLimit = 103;
     public const uint MaximumTssLimit = 0x000f_ffff;
-
-    public static GdtDescriptorPlanResult WriteKernelGdt(
-        ulong tssBaseAddress,
-        uint tssLimit,
-        Span<byte> destination)
+    public static GdtDescriptorPlanResult WriteKernelGdt(ulong tssBaseAddress, uint tssLimit, Span<byte> destination)
     {
         if (destination.Length < RequiredByteLength)
         {
-            return GdtDescriptorPlanResult.Fail(
-                GdtDescriptorPlanStatus.OutputBufferTooSmall,
-                0);
+            return GdtDescriptorPlanResult.Fail(GdtDescriptorPlanStatus.OutputBufferTooSmall, 0);
         }
 
         GdtDescriptorPlanStatus tssStatus = ValidateTss(tssBaseAddress, tssLimit);
@@ -91,19 +35,9 @@ public static class GdtDescriptorPlan
         }
 
         destination.Slice(0, RequiredByteLength).Clear();
-        WriteLongModeSegmentDescriptor(
-            destination.Slice(KernelCodeDescriptorOffset, SegmentDescriptorLength),
-            KernelCodeAccess,
-            LongModeCodeFlags);
-        WriteLongModeSegmentDescriptor(
-            destination.Slice(KernelDataDescriptorOffset, SegmentDescriptorLength),
-            KernelDataAccess,
-            flags: 0);
-        WriteTssDescriptor(
-            destination.Slice(TssDescriptorOffset, SystemDescriptorLength),
-            tssBaseAddress,
-            tssLimit);
-
+        WriteLongModeSegmentDescriptor(destination.Slice(KernelCodeDescriptorOffset, SegmentDescriptorLength), KernelCodeAccess, LongModeCodeFlags);
+        WriteLongModeSegmentDescriptor(destination.Slice(KernelDataDescriptorOffset, SegmentDescriptorLength), KernelDataAccess, flags: 0);
+        WriteTssDescriptor(destination.Slice(TssDescriptorOffset, SystemDescriptorLength), tssBaseAddress, tssLimit);
         return GdtDescriptorPlanResult.Success(RequiredByteLength);
     }
 
@@ -122,20 +56,14 @@ public static class GdtDescriptorPlan
         return GdtDescriptorPlanStatus.Ok;
     }
 
-    private static void WriteLongModeSegmentDescriptor(
-        Span<byte> destination,
-        byte access,
-        byte flags)
+    private static void WriteLongModeSegmentDescriptor(Span<byte> destination, byte access, byte flags)
     {
         destination.Clear();
         destination[5] = access;
         destination[6] = flags;
     }
 
-    private static void WriteTssDescriptor(
-        Span<byte> destination,
-        ulong baseAddress,
-        uint limit)
+    private static void WriteTssDescriptor(Span<byte> destination, ulong baseAddress, uint limit)
     {
         EndianPrimitives.WriteUInt16LittleEndian(destination.Slice(0, sizeof(ushort)), (ushort)limit);
         destination[2] = (byte)baseAddress;
@@ -144,9 +72,7 @@ public static class GdtDescriptorPlan
         destination[5] = AvailableTssAccess;
         destination[6] = (byte)((limit >> 16) & 0x0f);
         destination[7] = (byte)(baseAddress >> 24);
-        EndianPrimitives.WriteUInt32LittleEndian(
-            destination.Slice(8, sizeof(uint)),
-            (uint)(baseAddress >> 32));
+        EndianPrimitives.WriteUInt32LittleEndian(destination.Slice(8, sizeof(uint)), (uint)(baseAddress >> 32));
         EndianPrimitives.WriteUInt32LittleEndian(destination.Slice(12, sizeof(uint)), 0);
     }
 }

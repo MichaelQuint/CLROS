@@ -1,0 +1,13 @@
+#if NOSTDLIB_EFI && M04_INTERFACE_DISPATCH_PROBE
+using OS.Boot;
+using OS.Kernel.Runtime;
+using System.Runtime.CompilerServices;
+
+namespace OS.Runtime;
+
+internal interface IDispatchPlain
+{
+    ulong Sum(ulong a, ulong b, ulong c, ulong d);
+}
+
+#endif

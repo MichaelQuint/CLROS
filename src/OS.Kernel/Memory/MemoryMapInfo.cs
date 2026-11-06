@@ -28,23 +28,47 @@ public readonly struct MemoryMapInfo
         _regions = regions;
     }
 
-    public ulong MapKey { get; }
+    public ulong MapKey
+    {
+        get;
+    }
 
-    public ulong DescriptorSize { get; }
+    public ulong DescriptorSize
+    {
+        get;
+    }
 
-    public uint DescriptorVersion { get; }
+    public uint DescriptorVersion
+    {
+        get;
+    }
 
-    public int DescriptorCount { get; }
+    public int DescriptorCount
+    {
+        get;
+    }
 
     public int RegionCount => _regions is null ? 0 : _regions.Length;
 
-    public ulong TotalPages { get; }
+    public ulong TotalPages
+    {
+        get;
+    }
 
-    public ulong TotalBytes { get; }
+    public ulong TotalBytes
+    {
+        get;
+    }
 
-    public ulong ConventionalMemoryPages { get; }
+    public ulong ConventionalMemoryPages
+    {
+        get;
+    }
 
-    public ulong ConventionalMemoryBytes { get; }
+    public ulong ConventionalMemoryBytes
+    {
+        get;
+    }
 
     public bool HasRegions => RegionCount != 0;
 

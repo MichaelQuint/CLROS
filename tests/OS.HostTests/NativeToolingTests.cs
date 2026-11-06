@@ -50,7 +50,8 @@ internal static class NativeToolingTests
             new() { ["bad=name"] = "value" }, new() { ["bad\0name"] = "value" },
             new() { [name] = "bad\0value" }, new() { [""] = "value" },
             new(StringComparer.Ordinal) { ["NAME"] = "one", ["name"] = "two" }
-        }) HostCheck.Equal("InvalidEnvironment", BoundedJobProcessRunner.Run(executable, [], directory, 5, 4096, invalid).Status);
+        })
+            HostCheck.Equal("InvalidEnvironment", BoundedJobProcessRunner.Run(executable, [], directory, 5, 4096, invalid).Status);
     }
 
     internal static bool VerifyJobRunner(string directory)
@@ -94,10 +95,17 @@ internal static class NativeToolingTests
             // A parent exit must not orphan a child, an inherited pipe, or a file lock.
             using var reopened = File.Open(sentinel, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
         }
-        int Handles() { using var process = Process.GetCurrentProcess(); return process.HandleCount; }
+        int Handles()
+        {
+            using var process = Process.GetCurrentProcess();
+            return process.HandleCount;
+        }
         int baseline = Handles();
-        for (int i = 0; i < 8; i++) HostCheck.Equal("Success", Control("echo").Status);
-        GC.Collect(); GC.WaitForPendingFinalizers(); Thread.Sleep(200);
+        for (int i = 0; i < 8; i++)
+            HostCheck.Equal("Success", Control("echo").Status);
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        Thread.Sleep(200);
         int final = Handles();
         HostCheck.True(final <= baseline + 4, $"runner handle leak baseline={baseline} final={final}");
         Console.WriteLine($"BOUNDED_RUNNER_PROBE_PASS baselineHandles={baseline} finalHandles={final}");

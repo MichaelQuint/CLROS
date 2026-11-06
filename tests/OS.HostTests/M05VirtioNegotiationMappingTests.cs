@@ -23,7 +23,8 @@ internal static unsafe class M05VirtioNegotiationMappingTests
             ranges[0] = new(0xe0000000, 48, PageProtection.Read, PageCachePolicy.Uncached);
             ranges[1] = new(0xe0030000, 1, Rw, PageCachePolicy.Uncached);
             ranges[2] = new(0xe0031000, 207, PageProtection.Read, PageCachePolicy.Uncached);
-            for (ulong i = 0; i < 4; i++) ranges[3 + i] = new(Bar + i * 4096, 1, Rw, PageCachePolicy.Uncached);
+            for (ulong i = 0; i < 4; i++)
+                ranges[3 + i] = new(Bar + i * 4096, 1, Rw, PageCachePolicy.Uncached);
             HostCheck.True(Image.BuildRetainedImage(request, ranges, 7, 7, pages, Pages, entries, Pages * 512).Succeeded);
             ulong Leaf(ulong address)
             {
@@ -52,11 +53,18 @@ internal static unsafe class M05VirtioNegotiationMappingTests
             foreach (ulong change in new ulong[] { 2, 8, 16, Nx, 0x1000 })
             {
                 ulong index = Leaf(Bar + 0x2000), saved = entries[index];
-                entries[index] ^= change; HostCheck.True(!Audit()); entries[index] = saved;
+                entries[index] ^= change;
+                HostCheck.True(!Audit());
+                entries[index] = saved;
             }
             entries[Leaf(Bar + 0x4000)] = Bar + 0x4000 | Nx | 0x1b;
             HostCheck.True(!Audit());
         }
-        finally { NativeMemory.Free(ranges); NativeMemory.Free(pages); NativeMemory.Free(entries); }
+        finally
+        {
+            NativeMemory.Free(ranges);
+            NativeMemory.Free(pages);
+            NativeMemory.Free(entries);
+        }
     }
 }

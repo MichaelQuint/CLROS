@@ -404,7 +404,7 @@ internal static unsafe class OwnedX64GDTContainingNullN64BitCodeTests
             "src",
             "OS.Kernel",
             "Diagnostics",
-            "OwnedX64GDTContainingNullN64BitCode.cs"));
+            "OwnedX64GdtContainingNullN64BitCode.cs"));
 
         return !encoding.IsInitialized &&
             !encoding.Succeeded &&

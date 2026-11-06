@@ -2,45 +2,9 @@ using System.Runtime.InteropServices;
 
 namespace OS.Pal;
 
-[StructLayout(LayoutKind.Sequential)]
-public readonly struct OSHostTimerPollOutput
-{
-    public readonly ulong FiredCount;
-
-    public readonly ulong NextDueTicks;
-
-    public readonly uint Signaled;
-
-    public readonly uint Reserved;
-
-    public OSHostTimerPollOutput(
-        ulong firedCount,
-        ulong nextDueTicks,
-        uint signaled,
-        uint reserved)
-    {
-        FiredCount = firedCount;
-        NextDueTicks = nextDueTicks;
-        Signaled = signaled;
-        Reserved = reserved;
-    }
-
-    public bool IsSignaled => Signaled != 0;
-
-    public static OSHostTimerPollOutput FromResult(OSHostTimerPollResult result)
-    {
-        return new OSHostTimerPollOutput(
-            result.FiredCount,
-            result.NextDueTicks,
-            result.Signaled ? 1U : 0U,
-            reserved: 0);
-    }
-}
-
 public sealed class OSHostTimerFacade
 {
     private readonly OSHostTimerTable? table;
-
     public OSHostTimerFacade(OSHostTimerTable? table)
     {
         this.table = table;
@@ -77,23 +41,17 @@ public sealed class OSHostTimerFacade
 
     public OSHostStatus TimerArm(OSHostHandle timer, OSHostTimerOptions options)
     {
-        return TryGetTable(out OSHostTimerTable activeTable)
-            ? activeTable.Arm(timer, options)
-            : OSHostStatus.InvalidArgument;
+        return TryGetTable(out OSHostTimerTable activeTable) ? activeTable.Arm(timer, options) : OSHostStatus.InvalidArgument;
     }
 
     public OSHostStatus TimerCancel(OSHostHandle timer)
     {
-        return TryGetTable(out OSHostTimerTable activeTable)
-            ? activeTable.Cancel(timer)
-            : OSHostStatus.InvalidArgument;
+        return TryGetTable(out OSHostTimerTable activeTable) ? activeTable.Cancel(timer) : OSHostStatus.InvalidArgument;
     }
 
     public OSHostStatus TimerClose(OSHostHandle timer)
     {
-        return TryGetTable(out OSHostTimerTable activeTable)
-            ? activeTable.Close(timer)
-            : OSHostStatus.InvalidArgument;
+        return TryGetTable(out OSHostTimerTable activeTable) ? activeTable.Close(timer) : OSHostStatus.InvalidArgument;
     }
 
     public unsafe OSHostStatus TimerPoll(OSHostHandle timer, OSHostTimerPollOutput* output)

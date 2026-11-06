@@ -24,10 +24,13 @@ internal static class NativeAotLogUploadHttpContractTests
         foreach (var row in Responses())
         {
             var fact = F.InspectResponseValues(row.Kind, row.Method, row.Target, row.Status, row.Type, row.Body);
-            string retained = fact.Sha256; if (row.Body.Length != 0) row.Body[0] ^= 1;
+            string retained = fact.Sha256;
+            if (row.Body.Length != 0)
+                row.Body[0] ^= 1;
             HostCheck.True(fact.Sha256 == retained && !fact.GrantsOriginalProcessOrStorageAuthority);
         }
-        F.InspectServerTranscriptValues(Transcript, ""); F.InspectServerTranscriptValues(Transcript.Replace("\n", "\r\n", StringComparison.Ordinal), "");
+        F.InspectServerTranscriptValues(Transcript, "");
+        F.InspectServerTranscriptValues(Transcript.Replace("\n", "\r\n", StringComparison.Ordinal), "");
     }
 
     [HostTest("HTTP log upload response values reject wrong route method status type payload and unbounded bodies")]
@@ -39,7 +42,9 @@ internal static class NativeAotLogUploadHttpContractTests
             Reject(() => F.InspectResponseValues(row.Kind, row.Method, row.Target + "?path=other", row.Status, row.Type, row.Body), "response");
             Reject(() => F.InspectResponseValues(row.Kind, row.Method, row.Target, row.Status + 1, row.Type, row.Body), "response");
             Reject(() => F.InspectResponseValues(row.Kind, row.Method, row.Target, row.Status, "application/json", row.Body), "response");
-            byte[] mutated = row.Body.Length == 0 ? [0x01] : (byte[])row.Body.Clone(); if (row.Body.Length != 0) mutated[^1] ^= 1;
+            byte[] mutated = row.Body.Length == 0 ? [0x01] : (byte[])row.Body.Clone();
+            if (row.Body.Length != 0)
+                mutated[^1] ^= 1;
             Reject(() => F.InspectResponseValues(row.Kind, row.Method, row.Target, row.Status, row.Type, mutated), "response");
         }
         Reject(() => F.InspectResponseValues(F.ResponseKind.Upload, "GET", "/upload", 200, "application/octet-stream", new byte[5127]), "response_capacity");
@@ -59,7 +64,8 @@ internal static class NativeAotLogUploadHttpContractTests
             Transcript.Replace(F.Ready, F.Ready + F.Ready, StringComparison.Ordinal),
             "TEST_PASS m10.027.http\n", Transcript.Replace("\nTEST_PASS", "\nTEST_FAIL x\nTEST_PASS", StringComparison.Ordinal),
             new string('x', F.MaximumTranscriptBytes + 1), new string('\u00e9', F.MaximumTranscriptBytes / 2 + 1)
-        }) Reject(() => F.InspectServerTranscriptValues(mutation, ""), "transcript");
+        })
+            Reject(() => F.InspectServerTranscriptValues(mutation, ""), "transcript");
         Reject(() => F.InspectServerTranscriptValues(Transcript, "warning"), "transcript");
     }
 
@@ -67,8 +73,12 @@ internal static class NativeAotLogUploadHttpContractTests
     private static void FreshOutput()
     {
         string root = HostToolProcess.FindRepositoryRoot(), parent = Path.Combine(root, "artifacts", "log-upload-http-fresh-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(parent); string fresh = Path.Combine(parent, "fresh"); F.RequireFreshOutput(root, fresh); HostCheck.True(!Path.Exists(fresh));
-        Directory.CreateDirectory(fresh); File.WriteAllText(Path.Combine(fresh, "owner.txt"), "original");
+        Directory.CreateDirectory(parent);
+        string fresh = Path.Combine(parent, "fresh");
+        F.RequireFreshOutput(root, fresh);
+        HostCheck.True(!Path.Exists(fresh));
+        Directory.CreateDirectory(fresh);
+        File.WriteAllText(Path.Combine(fresh, "owner.txt"), "original");
         Reject(() => F.RequireFreshOutput(root, fresh), "fresh_output_required");
         Reject(() => F.RequireFreshOutput(root, Path.Combine(root, "not-artifacts-" + Guid.NewGuid().ToString("N"))), "fresh_output_required");
         Reject(() => F.RequireFreshOutput(root, Path.Combine(root, "artifacts", "..", "outside")), "fresh_output_required");
@@ -78,11 +88,20 @@ internal static class NativeAotLogUploadHttpContractTests
     [HostTest("HTTP log upload prelaunch cancellation retains a valid incomplete receipt without launching a child")]
     private static async Task CancelBeforeLaunch()
     {
-        if (!OperatingSystem.IsWindows()) return;
-        string root = HostToolProcess.FindRepositoryRoot(), parent = Path.Combine(root, "artifacts", "log-upload-http-cancel-tests"); Directory.CreateDirectory(parent);
-        string output = Path.Combine(parent, Guid.NewGuid().ToString("N")); bool cancelled = false;
-        try { await F.RunManagedReferenceAsync(root, output, new CancellationToken(canceled: true)); }
-        catch (OperationCanceledException) { cancelled = true; }
+        if (!OperatingSystem.IsWindows())
+            return;
+        string root = HostToolProcess.FindRepositoryRoot(), parent = Path.Combine(root, "artifacts", "log-upload-http-cancel-tests");
+        Directory.CreateDirectory(parent);
+        string output = Path.Combine(parent, Guid.NewGuid().ToString("N"));
+        bool cancelled = false;
+        try
+        {
+            await F.RunManagedReferenceAsync(root, output, new CancellationToken(canceled: true));
+        }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
         using var receipt = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(output, "receipt.json")));
         using var commands = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(output, "commands.json")));
         HostCheck.True(cancelled && !receipt.RootElement.GetProperty("Complete").GetBoolean() &&
@@ -96,34 +115,52 @@ internal static class NativeAotLogUploadHttpContractTests
         string[] original = ["publish", "apps/NativeAotSocketSmoke/NativeAotSocketSmoke.csproj", "-c", "Release", "-f", "net11.0", "-r", "linux-musl-x64",
             "--self-contained", "true", "-o", "original-output", "--nologo", "-p:PublishAot=true", "-p:StaticExecutable=true", "-p:PositionIndependentExecutable=false",
             "-p:InvariantGlobalization=true", "-p:ServerGarbageCollection=false", "-p:EventSourceSupport=false", "-p:EnableDiagnostics=false", "-p:DebuggerSupport=false",
-            "-p:RuntimeFrameworkVersion=11.0.0-rc.2.26504.105", "-p:TargetLatestRuntimePatch=false", "-p:UseSharedCompilation=false", "-nr:false"];
+            "-p:RuntimeFrameworkVersion=11.0.0-rc.3.26522.148", "-p:TargetLatestRuntimePatch=false", "-p:UseSharedCompilation=false", "-nr:false"];
         string Recipe(params string[][] rows) => JsonSerializer.Serialize(rows.Select(arguments => new { executable = "dotnet", arguments }));
         string[] planned = F.PublishArguments(Recipe(original), destination), expected = (string[])original.Clone();
-        expected[1] = "apps/MinimalApiLogUploadContract/MinimalApiLogUploadContract.csproj"; expected[11] = Path.GetFullPath(destination);
+        expected[1] = "apps/MinimalApiLogUploadContract/MinimalApiLogUploadContract.csproj";
+        expected[11] = Path.GetFullPath(destination);
         HostCheck.True(planned.SequenceEqual(expected) && original[1].Contains("NativeAotSocketSmoke", StringComparison.Ordinal));
-        planned[1] = "mutated"; HostCheck.True(F.PublishArguments(Recipe(original), destination).SequenceEqual(expected) && !Path.Exists(destination));
-        foreach (string flag in new[] { "-p:StaticExecutable=true", "-p:PositionIndependentExecutable=false", "-r", "-p:RuntimeFrameworkVersion=11.0.0-rc.2.26504.105" })
+        planned[1] = "mutated";
+        HostCheck.True(F.PublishArguments(Recipe(original), destination).SequenceEqual(expected) && !Path.Exists(destination));
+        foreach (string flag in new[] { "-p:StaticExecutable=true", "-p:PositionIndependentExecutable=false", "-r", "-p:RuntimeFrameworkVersion=11.0.0-rc.3.26522.148" })
         {
-            string[] changed = (string[])original.Clone(); int index = Array.IndexOf(changed, flag); changed[index] += "-changed";
+            string[] changed = (string[])original.Clone();
+            int index = Array.IndexOf(changed, flag);
+            changed[index] += "-changed";
             RejectAny(() => F.PublishArguments(Recipe(changed), destination));
         }
-        RejectAny(() => F.PublishArguments(Recipe(original, original), destination)); RejectAny(() => F.PublishArguments("[]", destination));
+        RejectAny(() => F.PublishArguments(Recipe(original, original), destination));
+        RejectAny(() => F.PublishArguments("[]", destination));
     }
 
     [HostTest("HTTP Linux source admission pins only the two unchanged app files and rejects extra modified or cached publication inputs")]
     private static void LinuxSourcePins()
     {
         string root = HostToolProcess.FindRepositoryRoot(), parent = Path.Combine(root, "artifacts", "http-source-pins-" + Guid.NewGuid().ToString("N"));
-        string app = Path.Combine(parent, "apps", F.Application); Directory.CreateDirectory(app);
-        foreach (string name in new[] { "Program.cs", F.Application + ".csproj" }) File.Copy(Path.Combine(root, "apps", F.Application, name), Path.Combine(app, name));
-        F.RequireCurrentSources(parent, fresh: true); F.RequireCurrentSources(parent);
+        string app = Path.Combine(parent, "apps", F.Application);
+        Directory.CreateDirectory(app);
+        foreach (string name in new[] { "Program.cs", F.Application + ".csproj" })
+            File.Copy(Path.Combine(root, "apps", F.Application, name), Path.Combine(app, name));
+        F.RequireCurrentSources(parent, fresh: true);
+        F.RequireCurrentSources(parent);
         string program = Path.Combine(app, "Program.cs"), saved = File.ReadAllText(program);
-        File.AppendAllText(program, "\n// unreviewed source\n"); RejectAny(() => F.RequireCurrentSources(parent)); File.WriteAllText(program, saved);
+        File.AppendAllText(program, "\n// unreviewed source\n");
+        RejectAny(() => F.RequireCurrentSources(parent));
+        File.WriteAllText(program, saved);
         // Restore exact bytes rather than applying a text/newline projection.
         File.Copy(Path.Combine(root, "apps", F.Application, "Program.cs"), program, overwrite: true);
-        string extra = Path.Combine(app, "Other.cs"); File.WriteAllText(extra, "// unreviewed\n"); RejectAny(() => F.RequireCurrentSources(parent)); File.Delete(extra);
-        string config = Path.Combine(parent, "NuGet.Config"); File.WriteAllText(config, "<configuration/>"); RejectAny(() => F.RequireCurrentSources(parent)); File.Delete(config);
-        Directory.CreateDirectory(Path.Combine(app, "obj")); RejectAny(() => F.RequireCurrentSources(parent, fresh: true)); F.RequireCurrentSources(parent);
+        string extra = Path.Combine(app, "Other.cs");
+        File.WriteAllText(extra, "// unreviewed\n");
+        RejectAny(() => F.RequireCurrentSources(parent));
+        File.Delete(extra);
+        string config = Path.Combine(parent, "NuGet.Config");
+        File.WriteAllText(config, "<configuration/>");
+        RejectAny(() => F.RequireCurrentSources(parent));
+        File.Delete(config);
+        Directory.CreateDirectory(Path.Combine(app, "obj"));
+        RejectAny(() => F.RequireCurrentSources(parent, fresh: true));
+        F.RequireCurrentSources(parent);
     }
 
     [HostTest("HTTP Linux trace argv is literal bounded serve-once and cannot select a remote URL shell or old write phase")]
@@ -131,9 +168,11 @@ internal static class NativeAotLogUploadHttpContractTests
     {
         string[] actual = F.LinuxTraceArguments("/root/http/app", "/root/http/data", "/root/http/write-trace", 18881);
         string[] expected = ["-ff", "-yy", "-ttt", "-s", "256", "-o", "/root/http/write-trace", "/root/http/app", "--serve-once", "--root", "/root/http/data", "--urls", "http://127.0.0.1:18881"];
-        HostCheck.True(actual.SequenceEqual(expected) && !actual.Contains("--write", StringComparer.Ordinal)); actual[8] = "--write";
+        HostCheck.True(actual.SequenceEqual(expected) && !actual.Contains("--write", StringComparer.Ordinal));
+        actual[8] = "--write";
         HostCheck.True(F.LinuxTraceArguments("/root/http/app", "/root/http/data", "/root/http/write-trace", 18881).SequenceEqual(expected));
-        foreach (int port in new[] { -1, 0, 65536 }) Reject(() => F.LinuxTraceArguments("/a", "/b", "/c", port), "linux_port");
+        foreach (int port in new[] { -1, 0, 65536 })
+            Reject(() => F.LinuxTraceArguments("/a", "/b", "/c", port), "linux_port");
         foreach (string path in new[] { "relative", "/", "/a/../b", "/a/./b", "/a//b", "/a/", "/a\\b", "/a\nb", "/a\"b", "/a\u00e9" })
             Reject(() => F.LinuxTraceArguments(path, "/b", "/c", 1), "linux_path");
         RejectAny(() => F.LinuxTraceArguments("/a", "/a", "/c", 1));
@@ -163,20 +202,26 @@ internal static class NativeAotLogUploadHttpContractTests
     [HostTest("HTTP pinned physical BusyBox trace plan preserves literal applet and complete HTTP or verifier argv in prepared process and command records")]
     private static void LinuxPhysicalTracePlan()
     {
-        var tools = PinnedTraceTools(); string recipe = JsonSerializer.Serialize(LinuxRecipe(tools));
+        var tools = PinnedTraceTools();
+        string recipe = JsonSerializer.Serialize(LinuxRecipe(tools));
         foreach (string[] arguments in new[]
         {
             F.LinuxTraceArguments("/root/with spaces/http/app", "/root/with spaces/data", "/root/with spaces/write-trace", 18881),
             NativeAotLogUploadContract.LinuxTraceArguments("/root/console/app", "/root/with spaces/data", "/root/verify-trace", "verify")
         })
         {
-            var plan = F.InspectLinuxTracePlan(recipe, tools, arguments); string[] expected = ["setsid", "/usr/bin/strace", .. arguments];
+            var plan = F.InspectLinuxTracePlan(recipe, tools, arguments);
+            string[] expected = ["setsid", "/usr/bin/strace", .. arguments];
             HostCheck.True(plan.Executable == "/bin/busybox" && plan.Arguments.SequenceEqual(expected) &&
                 plan.Arguments.Count(value => value == "setsid") == 1 && !plan.GrantsOriginalProcessOrToolAuthority);
             var info = plan.PrepareStartInfo("/root/with spaces");
             HostCheck.True(info.FileName == plan.Executable && info.ArgumentList.SequenceEqual(expected) && info.Arguments == "" &&
                 info.WorkingDirectory == "/root/with spaces" && !info.UseShellExecute && info.RedirectStandardOutput && info.RedirectStandardError && info.CreateNoWindow);
-            using var recorded = JsonDocument.Parse(JsonSerializer.Serialize(new { plan.Executable, plan.Arguments }));
+            using var recorded = JsonDocument.Parse(JsonSerializer.Serialize(new
+            {
+                plan.Executable,
+                plan.Arguments
+            }));
             HostCheck.True(recorded.RootElement.GetProperty("Executable").GetString() == info.FileName &&
                 recorded.RootElement.GetProperty("Arguments").EnumerateArray().Select(value => value.GetString()).SequenceEqual(info.ArgumentList));
             HostCheck.True(info.Environment["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] == "1" && info.Environment["DOTNET_ENVIRONMENT"] == "Production");
@@ -186,12 +231,26 @@ internal static class NativeAotLogUploadHttpContractTests
     [HostTest("HTTP trace invocation copies caller argv and role facts and exposes readonly arguments with independent unstarted process configurations")]
     private static void LinuxTracePlanImmutable()
     {
-        var tools = PinnedTraceTools(); string recipe = JsonSerializer.Serialize(LinuxRecipe(tools));
+        var tools = PinnedTraceTools();
+        string recipe = JsonSerializer.Serialize(LinuxRecipe(tools));
         string[] arguments = F.LinuxTraceArguments("/root/app", "/root/data", "/root/trace", 18881);
-        string[] expected = ["setsid", "/usr/bin/strace", .. arguments]; var plan = F.InspectLinuxTracePlan(recipe, tools, arguments);
-        Array.Fill(arguments, "changed"); tools.Clear(); HostCheck.True(plan.Arguments.SequenceEqual(expected));
-        bool readOnly = false; try { ((IList<string>)plan.Arguments)[0] = "changed"; } catch (NotSupportedException) { readOnly = true; }
-        HostCheck.True(readOnly); var first = plan.PrepareStartInfo("/root/work"); first.ArgumentList.Clear();
+        string[] expected = ["setsid", "/usr/bin/strace", .. arguments];
+        var plan = F.InspectLinuxTracePlan(recipe, tools, arguments);
+        Array.Fill(arguments, "changed");
+        tools.Clear();
+        HostCheck.True(plan.Arguments.SequenceEqual(expected));
+        bool readOnly = false;
+        try
+        {
+            ((IList<string>)plan.Arguments)[0] = "changed";
+        }
+        catch (NotSupportedException)
+        {
+            readOnly = true;
+        }
+        HostCheck.True(readOnly);
+        var first = plan.PrepareStartInfo("/root/work");
+        first.ArgumentList.Clear();
         HostCheck.True(plan.Arguments.SequenceEqual(expected) && plan.PrepareStartInfo("/root/work").ArgumentList.SequenceEqual(expected));
     }
 
@@ -203,17 +262,33 @@ internal static class NativeAotLogUploadHttpContractTests
         {
             foreach (string path in new[] { "relative", "/usr/bin/../bin/" + role, "/bin/busybox\0", "/bin/busybox\n", "/other/busybox", "/usr/bin/setsid" })
             {
-                var tools = PinnedTraceTools(); tools[role] = tools[role] with { Path = path };
+                var tools = PinnedTraceTools();
+                tools[role] = tools[role] with
+                {
+                    Path = path
+                };
                 RejectAny(() => F.InspectLinuxTracePlan(JsonSerializer.Serialize(LinuxRecipe(tools)), tools, arguments));
             }
-            var changed = PinnedTraceTools(); changed[role] = changed[role] with { Sha256 = new string('9', 64) };
+            var changed = PinnedTraceTools();
+            changed[role] = changed[role] with
+            {
+                Sha256 = new string('9', 64)
+            };
             Reject(() => F.InspectLinuxTracePlan(JsonSerializer.Serialize(LinuxRecipe(changed)), changed, arguments), "session_provider");
-            var wrongRole = PinnedTraceTools(); string original = JsonSerializer.Serialize(LinuxRecipe(wrongRole)); wrongRole[role] = wrongRole[role] with { Name = "unknown" };
+            var wrongRole = PinnedTraceTools();
+            string original = JsonSerializer.Serialize(LinuxRecipe(wrongRole));
+            wrongRole[role] = wrongRole[role] with
+            {
+                Name = "unknown"
+            };
             Reject(() => F.InspectLinuxTracePlan(original, wrongRole, arguments), "recipe_tool_paths");
-            var mismatch = PinnedTraceTools(); var map = LinuxRecipe(mismatch); map[mismatch[role].Path] = new string('9', 64);
+            var mismatch = PinnedTraceTools();
+            var map = LinuxRecipe(mismatch);
+            map[mismatch[role].Path] = new string('9', 64);
             Reject(() => F.InspectLinuxTracePlan(JsonSerializer.Serialize(map), mismatch, arguments), "recipe_tool_identity");
         }
-        var valid = PinnedTraceTools(); string recipe = JsonSerializer.Serialize(LinuxRecipe(valid));
+        var valid = PinnedTraceTools();
+        string recipe = JsonSerializer.Serialize(LinuxRecipe(valid));
         foreach (string[] bad in new[] { Array.Empty<string>(), new string[33], new[] { "" }, new[] { "bad\0arg" }, new[] { "bad\narg" }, new[] { new string('a', 4097) }, Enumerable.Repeat(new string('a', 4096), 9).ToArray() })
             Reject(() => F.InspectLinuxTracePlan(recipe, valid, bad), "session_arguments");
         var plan = F.InspectLinuxTracePlan(recipe, valid, arguments);
@@ -224,7 +299,8 @@ internal static class NativeAotLogUploadHttpContractTests
     [HostTest("HTTP current tool selection ignores historical filenames and returns only eight exact copied recipe identities without authority")]
     private static void LinuxToolSelection()
     {
-        var tools = LinuxTools(); var native = LinuxRecipe(tools);
+        var tools = LinuxTools();
+        var native = LinuxRecipe(tools);
         native.Add("/clros-async-r05/apps/NativeAotSocketSmoke/obj/original.o", new string('9', 64));
         native.Add("/clros-web-r02/artifacts/original-receipt.json", new string('8', 64));
         native.Add("/.nuget/packages/original/runtime.so", new string('7', 64));
@@ -235,8 +311,19 @@ internal static class NativeAotLogUploadHttpContractTests
         // them from this copied vector changes no current tool fact. The real
         // owner separately authenticates the complete sealed E260 package.
         HostCheck.True(F.InspectLinuxRecipeTools(JsonSerializer.Serialize(LinuxRecipe(tools)), tools).SequenceEqual(facts));
-        native.Clear(); tools.Clear(); HostCheck.True(facts.Count == 8 && facts.Single(tool => tool.Name == "gcc").Path == "/usr/bin/gcc");
-        bool readOnly = false; try { ((IList<F.LinuxToolValue>)facts).Clear(); } catch (NotSupportedException) { readOnly = true; } HostCheck.True(readOnly);
+        native.Clear();
+        tools.Clear();
+        HostCheck.True(facts.Count == 8 && facts.Single(tool => tool.Name == "gcc").Path == "/usr/bin/gcc");
+        bool readOnly = false;
+        try
+        {
+            ((IList<F.LinuxToolValue>)facts).Clear();
+        }
+        catch (NotSupportedException)
+        {
+            readOnly = true;
+        }
+        HostCheck.True(readOnly);
     }
 
     [HostTest("HTTP current tool selection rejects missing hashes exact paths aliases duplicate rows and changed resolved identities without basename fallback")]
@@ -244,35 +331,73 @@ internal static class NativeAotLogUploadHttpContractTests
     {
         foreach (var target in LinuxTools().Values)
         {
-            var tools = LinuxTools(); var native = LinuxRecipe(tools); native.Remove(target.Path);
+            var tools = LinuxTools();
+            var native = LinuxRecipe(tools);
+            native.Remove(target.Path);
             Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools), "recipe_tool_identity");
-            native[target.Path] = new string('9', 64); Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools), "recipe_tool_identity");
-            native = LinuxRecipe(tools); tools[target.Name] = target with { Path = "/same-basename/" + target.Name };
+            native[target.Path] = new string('9', 64);
             Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools), "recipe_tool_identity");
-            tools = LinuxTools(); tools[target.Name] = target with { Sha256 = new string('9', 64) };
+            native = LinuxRecipe(tools);
+            tools[target.Name] = target with
+            {
+                Path = "/same-basename/" + target.Name
+            };
+            Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools), "recipe_tool_identity");
+            tools = LinuxTools();
+            tools[target.Name] = target with
+            {
+                Sha256 = new string('9', 64)
+            };
             Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools), "recipe_tool_identity");
         }
         foreach (string mode in new[] { "missing", "extra", "alias", "name", "noncanonical", "invalidhash" })
         {
-            var tools = LinuxTools(); var native = LinuxRecipe(tools);
+            var tools = LinuxTools();
+            var native = LinuxRecipe(tools);
             switch (mode)
             {
-                case "missing": tools.Remove("dotnet"); break;
-                case "extra": tools.Add("other", new("other", "/usr/bin/other", new string('9', 64))); break;
-                case "alias": tools["gcc"] = tools["gcc"] with { Path = tools["clang"].Path }; break;
-                case "name": tools["gcc"] = tools["gcc"] with { Name = "other" }; break;
-                case "noncanonical": tools["gcc"] = tools["gcc"] with { Path = "/usr/bin/../bin/gcc" }; break;
-                default: tools["gcc"] = tools["gcc"] with { Sha256 = "not-a-hash" }; break;
+                case "missing":
+                    tools.Remove("dotnet");
+                    break;
+                case "extra":
+                    tools.Add("other", new("other", "/usr/bin/other", new string('9', 64)));
+                    break;
+                case "alias":
+                    tools["gcc"] = tools["gcc"] with
+                    {
+                        Path = tools["clang"].Path
+                    };
+                    break;
+                case "name":
+                    tools["gcc"] = tools["gcc"] with
+                    {
+                        Name = "other"
+                    };
+                    break;
+                case "noncanonical":
+                    tools["gcc"] = tools["gcc"] with
+                    {
+                        Path = "/usr/bin/../bin/gcc"
+                    };
+                    break;
+                default:
+                    tools["gcc"] = tools["gcc"] with
+                    {
+                        Sha256 = "not-a-hash"
+                    };
+                    break;
             }
             Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools), "recipe_tool_paths");
         }
-        var valid = LinuxTools(); string json = JsonSerializer.Serialize(LinuxRecipe(valid));
+        var valid = LinuxTools();
+        string json = JsonSerializer.Serialize(LinuxRecipe(valid));
         foreach (char value in new[] { '4', '9' })
         {
             string duplicate = json.Insert(1, "\"/usr/bin/gcc\":\"" + new string(value, 64) + "\",");
             Reject(() => F.InspectLinuxRecipeTools(duplicate, valid), "recipe_native_map");
         }
-        var malformed = LinuxRecipe(valid); malformed["/usr/bin/gcc"] = "bad";
+        var malformed = LinuxRecipe(valid);
+        malformed["/usr/bin/gcc"] = "bad";
         Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(malformed), valid), "recipe_native_map");
         Reject(() => F.InspectLinuxRecipeTools("[]", valid), "recipe_native_map");
     }
@@ -296,30 +421,88 @@ internal static class NativeAotLogUploadHttpContractTests
     private static void LinuxCurrentNativeHolds()
     {
         string root = HostToolProcess.FindRepositoryRoot(), directory = Path.Combine(root, "artifacts", "http-current-native-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory); byte[] original = [0x7f, 0x45, 0x4c, 0x46, 1, 2, 3]; string expected = Convert.ToHexString(SHA256.HashData(original));
+        Directory.CreateDirectory(directory);
+        byte[] original = [0x7f, 0x45, 0x4c, 0x46, 1, 2, 3];
+        string expected = Convert.ToHexString(SHA256.HashData(original));
         File.WriteAllBytes(Path.Combine(directory, "old-archive.a"), original);
         using (AuthorityFiles held = new())
             RejectAny(() => F.RetainCurrentNativeInput(held, Path.Combine(directory, "absent-current.a"), expected));
         foreach (string name in new[] { "current-tool.bin", "current-static.a", "current-fresh-publication.dll" })
         {
-            string path = Path.Combine(directory, name); File.WriteAllBytes(path, [.. original, 0xff]);
-            using (AuthorityFiles changed = new()) Reject(() => F.RetainCurrentNativeInput(changed, path, expected), "native_input_changed");
+            string path = Path.Combine(directory, name);
+            File.WriteAllBytes(path, [.. original, 0xff]);
+            using (AuthorityFiles changed = new())
+                Reject(() => F.RetainCurrentNativeInput(changed, path, expected), "native_input_changed");
             File.WriteAllBytes(path, original);
             using (AuthorityFiles outer = new())
             {
                 var retained = F.RetainCurrentNativeInput(outer, path, expected);
-                using (AuthorityFiles nested = new()) F.RetainCurrentNativeInput(nested, path, expected);
-                HostCheck.True(retained.ReadBytes(64, "fixture").SequenceEqual(original)); outer.VerifyUnchanged();
-                bool denied = false; try { File.WriteAllBytes(path, [.. original, 4]); } catch (IOException) { denied = true; }
-                if (denied) { HostCheck.True(OperatingSystem.IsWindows()); outer.VerifyUnchanged(); }
-                else { bool rejected = false; try { outer.VerifyUnchanged(); } catch (ToolFailure error) when (error.Reason == "authority_input_changed") { rejected = true; } HostCheck.True(rejected); }
+                using (AuthorityFiles nested = new())
+                    F.RetainCurrentNativeInput(nested, path, expected);
+                HostCheck.True(retained.ReadBytes(64, "fixture").SequenceEqual(original));
+                outer.VerifyUnchanged();
+                bool denied = false;
+                try
+                {
+                    File.WriteAllBytes(path, [.. original, 4]);
+                }
+                catch (IOException)
+                {
+                    denied = true;
+                }
+                if (denied)
+                {
+                    HostCheck.True(OperatingSystem.IsWindows());
+                    outer.VerifyUnchanged();
+                }
+                else
+                {
+                    bool rejected = false;
+                    try
+                    {
+                        outer.VerifyUnchanged();
+                    }
+                    catch (ToolFailure error) when (error.Reason == "authority_input_changed")
+                    {
+                        rejected = true;
+                    }
+                    HostCheck.True(rejected);
+                }
             }
-            File.WriteAllBytes(path, original); string replacement = path + ".replacement", old = path + ".old"; File.WriteAllBytes(replacement, original);
+            File.WriteAllBytes(path, original);
+            string replacement = path + ".replacement", old = path + ".old";
+            File.WriteAllBytes(replacement, original);
             using (AuthorityFiles held = new())
             {
-                F.RetainCurrentNativeInput(held, path, expected); bool denied = false; try { File.Move(path, old); } catch (IOException) { denied = true; }
-                if (denied) { HostCheck.True(OperatingSystem.IsWindows()); held.VerifyUnchanged(); }
-                else { File.Move(replacement, path); bool rejected = false; try { held.VerifyUnchanged(); } catch (ToolFailure error) when (error.Reason == "authority_input_changed") { rejected = true; } HostCheck.True(rejected); }
+                F.RetainCurrentNativeInput(held, path, expected);
+                bool denied = false;
+                try
+                {
+                    File.Move(path, old);
+                }
+                catch (IOException)
+                {
+                    denied = true;
+                }
+                if (denied)
+                {
+                    HostCheck.True(OperatingSystem.IsWindows());
+                    held.VerifyUnchanged();
+                }
+                else
+                {
+                    File.Move(replacement, path);
+                    bool rejected = false;
+                    try
+                    {
+                        held.VerifyUnchanged();
+                    }
+                    catch (ToolFailure error) when (error.Reason == "authority_input_changed")
+                    {
+                        rejected = true;
+                    }
+                    HostCheck.True(rejected);
+                }
             }
         }
         using AuthorityFiles invalid = new();
@@ -335,8 +518,12 @@ internal static class NativeAotLogUploadHttpContractTests
         try
         {
             string path = Path.Combine(folder, "generic-empty-input.bin"), replacement = path + ".different", old = path + ".old";
-            using (File.Open(path, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { }
-            using (File.Open(replacement, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { }
+            using (File.Open(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+            }
+            using (File.Open(replacement, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+            }
             string emptyHash = Convert.ToHexString(SHA256.HashData(Array.Empty<byte>()));
             HostCheck.True(new FileInfo(path).Length == 0 && new FileInfo(replacement).Length == 0);
             using (AuthorityFiles defaults = new())
@@ -348,19 +535,41 @@ internal static class NativeAotLogUploadHttpContractTests
                 var input = F.RetainCurrentNativeInput(held, path, emptyHash, allowEmpty: true);
                 HostCheck.True(input.Length == 0 && input.Sha256.Equals(emptyHash, StringComparison.OrdinalIgnoreCase) && input.ReadBytes(1, "empty_fixture").Length == 0);
                 held.VerifyUnchanged();
-                bool denied = false; try { File.Move(path, old); } catch (IOException) { denied = true; }
-                if (denied) { HostCheck.True(OperatingSystem.IsWindows()); held.VerifyUnchanged(); }
+                bool denied = false;
+                try
+                {
+                    File.Move(path, old);
+                }
+                catch (IOException)
+                {
+                    denied = true;
+                }
+                if (denied)
+                {
+                    HostCheck.True(OperatingSystem.IsWindows());
+                    held.VerifyUnchanged();
+                }
                 else
                 {
                     File.Move(replacement, path);
                     HostCheck.True(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))) == emptyHash);
                     bool rejected = false;
-                    try { held.VerifyUnchanged(); } catch (ToolFailure error) when (error.Reason == "authority_input_changed") { rejected = true; }
+                    try
+                    {
+                        held.VerifyUnchanged();
+                    }
+                    catch (ToolFailure error) when (error.Reason == "authority_input_changed")
+                    {
+                        rejected = true;
+                    }
                     HostCheck.True(rejected);
                 }
             }
         }
-        finally { Directory.Delete(folder, true); }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
     }
 
     [HostTest("HTTP Linux copied publication values reject foreign failed duplicate redirected and mismatched identities without granting authority")]
@@ -369,29 +578,57 @@ internal static class NativeAotLogUploadHttpContractTests
         var sources = new Dictionary<string, string> { ["apps/MinimalApiLogUploadContract/Program.cs"] = new('A', 64), ["global.json"] = new('B', 64) };
         JsonObject Receipt() => new()
         {
-            ["schema"] = "clros.nativeaot.socket-log-upload-http.publication.v1", ["sdk"] = NativeAotPayload.SdkVersion, ["runtime"] = NativeAotPayload.RuntimeVersion,
-            ["application"] = F.Application, ["succeeded"] = true, ["failure"] = null, ["appExecuted"] = false, ["guestExecuted"] = false,
-            ["sources"] = JsonSerializer.SerializeToNode(sources), ["native"] = new JsonObject { ["/usr/bin/strace"] = new string('D', 64) },
-            ["outputs"] = new JsonObject { [F.Application + "/" + F.Application] = new string('C', 64) }, ["image"] = new JsonObject { ["Sha256"] = new string('C', 64) }
+            ["schema"] = "clros.nativeaot.socket-log-upload-http.publication.v1",
+            ["sdk"] = NativeAotPayload.SdkVersion,
+            ["runtime"] = NativeAotPayload.RuntimeVersion,
+            ["application"] = F.Application,
+            ["succeeded"] = true,
+            ["failure"] = null,
+            ["appExecuted"] = false,
+            ["guestExecuted"] = false,
+            ["sources"] = JsonSerializer.SerializeToNode(sources),
+            ["native"] = new JsonObject { ["/usr/bin/strace"] = new string('D', 64) },
+            ["outputs"] = new JsonObject { [F.Application + "/" + F.Application] = new string('C', 64) },
+            ["image"] = new JsonObject { ["Sha256"] = new string('C', 64) }
         };
-        var valid = Receipt(); var value = F.InspectLinuxPublicationValues(valid.ToJsonString(), sources);
+        var valid = Receipt();
+        var value = F.InspectLinuxPublicationValues(valid.ToJsonString(), sources);
         HostCheck.True(!value.GrantsOriginalPublicationOrExecutionAuthority && value.Sources == 2 && value.Outputs == 1 && value.NativeInputs == 1);
         foreach ((string field, JsonNode? changed) in new (string, JsonNode?)[]
         {
             ("schema", JsonValue.Create("other")), ("application", JsonValue.Create("MinimalApiStaticFiles")), ("sdk", JsonValue.Create("11.0.100")),
             ("runtime", JsonValue.Create("11.0.0")), ("succeeded", JsonValue.Create(false)), ("failure", JsonValue.Create("failed")),
             ("appExecuted", JsonValue.Create(true)), ("guestExecuted", JsonValue.Create(true))
-        }) { var receipt = Receipt(); receipt[field] = changed; Reject(() => F.InspectLinuxPublicationValues(receipt.ToJsonString(), sources), "publication_policy"); }
-        var mutation = Receipt(); mutation["sources"]!["global.json"] = new string('E', 64); Reject(() => F.InspectLinuxPublicationValues(mutation.ToJsonString(), sources), "publication_sources");
-        mutation = Receipt(); mutation["outputs"] = new JsonObject { ["../escape"] = new string('C', 64) }; Reject(() => F.InspectLinuxPublicationValues(mutation.ToJsonString(), sources), "publication_outputs");
-        mutation = Receipt(); mutation["native"] = new JsonObject { ["relative-tool"] = new string('D', 64) }; Reject(() => F.InspectLinuxPublicationValues(mutation.ToJsonString(), sources), "publication_native");
-        mutation = Receipt(); mutation["image"]!["Sha256"] = new string('F', 64); Reject(() => F.InspectLinuxPublicationValues(mutation.ToJsonString(), sources), "publication_image");
-        mutation = Receipt(); var tooMany = new JsonObject(); for (int i = 0; i <= 512; i++) tooMany["file" + i] = new string('C', 64); mutation["outputs"] = tooMany;
+        })
+        {
+            var receipt = Receipt();
+            receipt[field] = changed;
+            Reject(() => F.InspectLinuxPublicationValues(receipt.ToJsonString(), sources), "publication_policy");
+        }
+        var mutation = Receipt();
+        mutation["sources"]!["global.json"] = new string('E', 64);
+        Reject(() => F.InspectLinuxPublicationValues(mutation.ToJsonString(), sources), "publication_sources");
+        mutation = Receipt();
+        mutation["outputs"] = new JsonObject { ["../escape"] = new string('C', 64) };
         Reject(() => F.InspectLinuxPublicationValues(mutation.ToJsonString(), sources), "publication_outputs");
-        string duplicate = valid.ToJsonString().Insert(1, "\"sdk\":\"forged\","); Reject(() => F.InspectLinuxPublicationValues(duplicate, sources), "publication_policy");
+        mutation = Receipt();
+        mutation["native"] = new JsonObject { ["relative-tool"] = new string('D', 64) };
+        Reject(() => F.InspectLinuxPublicationValues(mutation.ToJsonString(), sources), "publication_native");
+        mutation = Receipt();
+        mutation["image"]!["Sha256"] = new string('F', 64);
+        Reject(() => F.InspectLinuxPublicationValues(mutation.ToJsonString(), sources), "publication_image");
+        mutation = Receipt();
+        var tooMany = new JsonObject();
+        for (int i = 0; i <= 512; i++)
+            tooMany["file" + i] = new string('C', 64);
+        mutation["outputs"] = tooMany;
+        Reject(() => F.InspectLinuxPublicationValues(mutation.ToJsonString(), sources), "publication_outputs");
+        string duplicate = valid.ToJsonString().Insert(1, "\"sdk\":\"forged\",");
+        Reject(() => F.InspectLinuxPublicationValues(duplicate, sources), "publication_policy");
         string duplicateSource = valid.ToJsonString().Replace("\"global.json\":", "\"global.json\":\"" + new string('B', 64) + "\",\"global.json\":", StringComparison.Ordinal);
         Reject(() => F.InspectLinuxPublicationValues(duplicateSource, sources), "publication_sources");
-        sources.Clear(); HostCheck.True(value.Sources == 2 && value.ImageSha256 == new string('C', 64));
+        sources.Clear();
+        HostCheck.True(value.Sources == 2 && value.ImageSha256 == new string('C', 64));
     }
 
     [HostTest("HTTP Linux exact copied execve binds argv while retaining unknown unfinished and resumed raw trace rows")]
@@ -400,8 +637,10 @@ internal static class NativeAotLogUploadHttpContractTests
         const string exec = "1.000001 execve(\"/root/http/app\", [\"/root/http/app\", \"--serve-once\", \"--root\", \"/root/http/data\", \"--urls\", \"http://127.0.0.1:18881\"], 0x123 /* 20 vars */) = 0\n";
         const string tail = "1.000002 unknown_unclassified_row\n1.000003 futex(0x10, FUTEX_WAIT, 0 <unfinished ...>\n1.000004 <... futex resumed>) = 0\n1.000005 exit_group(0) = ?\n1.000006 +++ exited with 0 +++\n";
         string[] args = ["--serve-once", "--root", "/root/http/data", "--urls", "http://127.0.0.1:18881"];
-        var raw = new Dictionary<string, string> { ["write-trace.88"] = exec + tail }; var trace = NativeAotLogUploadContract.InspectTraceValues(raw, "write");
-        F.InspectLinuxExecveValues(trace, "/root/http/app", args); raw.Clear();
+        var raw = new Dictionary<string, string> { ["write-trace.88"] = exec + tail };
+        var trace = NativeAotLogUploadContract.InspectTraceValues(raw, "write");
+        F.InspectLinuxExecveValues(trace, "/root/http/app", args);
+        raw.Clear();
         HostCheck.True(trace.Rows.Count == 6 && trace.UnclassifiedRows == 1 && trace.UnjoinedRows == 2 && !trace.CompleteTraceProjection &&
             trace.Rows.All(row => row.Source == "write-trace.88") && trace.Rows[0].Raw == exec.TrimEnd('\n'));
         foreach (string changed in new[] { exec.Replace("/root/http/app", "/root/other/app", StringComparison.Ordinal), exec.Replace("--serve-once", "--write", StringComparison.Ordinal),
@@ -417,17 +656,26 @@ internal static class NativeAotLogUploadHttpContractTests
     [HostTest("HTTP Linux owner rejects a nonbuilder before source caches outputs or child execution")]
     private static async Task LinuxNoLaunch()
     {
-        if (OperatingSystem.IsLinux()) return;
-        string root = HostToolProcess.FindRepositoryRoot(), output = Path.Combine(root, "artifacts", "http-linux-forbidden-" + Guid.NewGuid().ToString("N")); bool rejected = false;
-        try { using var reference = await F.RunLinuxReferenceAsync(root, root, output, TextWriter.Null); }
-        catch (ToolFailure error) when (error.Reason == "log_upload_http_linux_builder_required") { rejected = true; }
+        if (OperatingSystem.IsLinux())
+            return;
+        string root = HostToolProcess.FindRepositoryRoot(), output = Path.Combine(root, "artifacts", "http-linux-forbidden-" + Guid.NewGuid().ToString("N"));
+        bool rejected = false;
+        try
+        {
+            using var reference = await F.RunLinuxReferenceAsync(root, root, output, TextWriter.Null);
+        }
+        catch (ToolFailure error) when (error.Reason == "log_upload_http_linux_builder_required")
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected && !Path.Exists(output));
     }
 
     [HostTest("HTTP log upload real managed owner joins finite Kestrel FileStream writes failures cancellation and distinct console verification", HostLane.Native)]
     private static async Task ManagedReference()
     {
-        string root = HostToolProcess.FindRepositoryRoot(), parent = Path.Combine(root, "artifacts", "log-upload-http-managed-tests"); Directory.CreateDirectory(parent);
+        string root = HostToolProcess.FindRepositoryRoot(), parent = Path.Combine(root, "artifacts", "log-upload-http-managed-tests");
+        Directory.CreateDirectory(parent);
         string output = Path.Combine(parent, Guid.NewGuid().ToString("N"));
         var value = await F.RunManagedReferenceAsync(root, output);
         HostCheck.True(!value.GrantsLinuxNativeGuestOrPhysicalPersistenceAuthority && value.Files.LogBytes == 660 && value.Files.UploadBytes == 5126 &&
@@ -469,7 +717,29 @@ internal static class NativeAotLogUploadHttpContractTests
         (F.ResponseKind.Upload, "GET", "/upload", 200, "application/octet-stream", NativeAotLogUploadContract.ExpectedUpload())
     ];
     private static void Reject(Action action, string reason)
-    { bool rejected = false; try { action(); } catch (ToolFailure error) when (error.Reason == "log_upload_http_" + reason) { rejected = true; } HostCheck.True(rejected); }
+    {
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure error) when (error.Reason == "log_upload_http_" + reason)
+        {
+            rejected = true;
+        }
+        HostCheck.True(rejected);
+    }
     private static void RejectAny(Action action)
-    { bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
+    {
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
+        HostCheck.True(rejected);
+    }
 }

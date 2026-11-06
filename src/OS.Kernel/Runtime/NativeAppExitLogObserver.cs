@@ -2,232 +2,11 @@ using OS.Pal;
 
 namespace OS.Kernel.Runtime;
 
-public enum NativeAppExitLogObserverStatus
-{
-    Success = 0,
-    NoExitMarker = 1,
-    MalformedExitMarker = 2,
-    InvalidLogTable = 3,
-    InvalidRecord = 4,
-    RecordBufferTooSmall = 5
-}
-
-public readonly struct NativeAppExitLogObserverResult
-{
-    public const uint NoRecordIndex = uint.MaxValue;
-
-    private NativeAppExitLogObserverResult(
-        NativeAppExitLogObserverStatus status,
-        bool isInitialized,
-        int recordsScanned,
-        uint recordIndex,
-        uint streamId,
-        uint flags,
-        uint sequence,
-        uint bytesRead,
-        uint requiredBytes,
-        OSHostStatus logStatus,
-        bool parseAttempted,
-        NativeAppExitParseStatus parseStatus,
-        int exitCode,
-        OSHostStatus exitStatus,
-        bool launcherFailure)
-    {
-        Status = status;
-        IsInitialized = isInitialized;
-        RecordsScanned = recordsScanned;
-        RecordIndex = recordIndex;
-        StreamId = streamId;
-        Flags = flags;
-        Sequence = sequence;
-        BytesRead = bytesRead;
-        RequiredBytes = requiredBytes;
-        LogStatus = logStatus;
-        ParseAttempted = parseAttempted;
-        ParseStatus = parseStatus;
-        ExitCode = exitCode;
-        ExitStatus = exitStatus;
-        LauncherFailure = launcherFailure;
-    }
-
-    public NativeAppExitLogObserverStatus Status { get; }
-
-    public bool IsInitialized { get; }
-
-    public int RecordsScanned { get; }
-
-    public uint RecordIndex { get; }
-
-    public uint StreamId { get; }
-
-    public uint Flags { get; }
-
-    public uint Sequence { get; }
-
-    public uint BytesRead { get; }
-
-    public uint RequiredBytes { get; }
-
-    public OSHostStatus LogStatus { get; }
-
-    public bool ParseAttempted { get; }
-
-    public NativeAppExitParseStatus ParseStatus { get; }
-
-    public int ExitCode { get; }
-
-    public OSHostStatus ExitStatus { get; }
-
-    public bool LauncherFailure { get; }
-
-    public bool Succeeded => IsInitialized && Status == NativeAppExitLogObserverStatus.Success;
-
-    public static NativeAppExitLogObserverResult Success(
-        int recordsScanned,
-        uint recordIndex,
-        OSHostAppLogReadResult read,
-        NativeAppExitParseResult parse)
-    {
-        return new NativeAppExitLogObserverResult(
-            NativeAppExitLogObserverStatus.Success,
-            isInitialized: true,
-            recordsScanned,
-            recordIndex,
-            read.StreamId,
-            read.Flags,
-            read.Sequence,
-            read.BytesCopied,
-            read.RequiredBytes,
-            read.Status,
-            parseAttempted: true,
-            parse.Status,
-            parse.Record.ExitCode,
-            parse.Record.Status,
-            parse.Record.LauncherFailure);
-    }
-
-    public static NativeAppExitLogObserverResult NoExitMarker(int recordsScanned)
-    {
-        return new NativeAppExitLogObserverResult(
-            NativeAppExitLogObserverStatus.NoExitMarker,
-            isInitialized: true,
-            recordsScanned,
-            NoRecordIndex,
-            streamId: 0,
-            flags: 0,
-            sequence: 0,
-            bytesRead: 0,
-            requiredBytes: 0,
-            OSHostStatus.NotFound,
-            parseAttempted: false,
-            NativeAppExitParseStatus.InvalidPrefix,
-            exitCode: 0,
-            OSHostStatus.NotFound,
-            launcherFailure: false);
-    }
-
-    public static NativeAppExitLogObserverResult InvalidLogTable()
-    {
-        return new NativeAppExitLogObserverResult(
-            NativeAppExitLogObserverStatus.InvalidLogTable,
-            isInitialized: true,
-            recordsScanned: 0,
-            NoRecordIndex,
-            streamId: 0,
-            flags: 0,
-            sequence: 0,
-            bytesRead: 0,
-            requiredBytes: 0,
-            OSHostStatus.InvalidArgument,
-            parseAttempted: false,
-            NativeAppExitParseStatus.InvalidPrefix,
-            exitCode: 0,
-            OSHostStatus.InvalidArgument,
-            launcherFailure: false);
-    }
-
-    public static NativeAppExitLogObserverResult FromEntryFailure(
-        int recordsScanned,
-        uint recordIndex,
-        OSHostStatus logStatus)
-    {
-        return new NativeAppExitLogObserverResult(
-            NativeAppExitLogObserverStatus.InvalidRecord,
-            isInitialized: true,
-            recordsScanned,
-            recordIndex,
-            streamId: 0,
-            flags: 0,
-            sequence: 0,
-            bytesRead: 0,
-            requiredBytes: 0,
-            logStatus,
-            parseAttempted: false,
-            NativeAppExitParseStatus.InvalidPrefix,
-            exitCode: 0,
-            logStatus,
-            launcherFailure: false);
-    }
-
-    public static NativeAppExitLogObserverResult FromReadFailure(
-        NativeAppExitLogObserverStatus status,
-        int recordsScanned,
-        uint recordIndex,
-        OSHostAppLogReadResult read)
-    {
-        return new NativeAppExitLogObserverResult(
-            status,
-            isInitialized: true,
-            recordsScanned,
-            recordIndex,
-            read.StreamId,
-            read.Flags,
-            read.Sequence,
-            read.BytesCopied,
-            read.RequiredBytes,
-            read.Status,
-            parseAttempted: false,
-            NativeAppExitParseStatus.InvalidPrefix,
-            exitCode: 0,
-            read.Status,
-            launcherFailure: false);
-    }
-
-    public static NativeAppExitLogObserverResult FromMalformedMarker(
-        int recordsScanned,
-        uint recordIndex,
-        OSHostAppLogReadResult read,
-        NativeAppExitParseResult parse)
-    {
-        return new NativeAppExitLogObserverResult(
-            NativeAppExitLogObserverStatus.MalformedExitMarker,
-            isInitialized: true,
-            recordsScanned,
-            recordIndex,
-            read.StreamId,
-            read.Flags,
-            read.Sequence,
-            read.BytesCopied,
-            read.RequiredBytes,
-            read.Status,
-            parseAttempted: true,
-            parse.Status,
-            exitCode: 0,
-            OSHostStatus.InvalidArgument,
-            launcherFailure: false);
-    }
-}
-
 public static class NativeAppExitLogObserver
 {
-    public static NativeAppExitLogObserverResult Observe(
-        OSHostAppLogTable? logTable,
-        Span<byte> recordBuffer)
+    public static NativeAppExitLogObserverResult Observe(OSHostAppLogTable? logTable, Span<byte> recordBuffer)
     {
-        if (logTable is null ||
-            logTable.Capacity <= 0 ||
-            logTable.Count < 0 ||
-            logTable.Count > logTable.Capacity)
+        if (logTable is null || logTable.Capacity <= 0 || logTable.Count < 0 || logTable.Count > logTable.Capacity)
         {
             return NativeAppExitLogObserverResult.InvalidLogTable();
         }
@@ -237,15 +16,10 @@ public static class NativeAppExitLogObserver
         {
             uint recordIndex = (uint)index;
             int recordsScanned = index + 1;
-            OSHostStatus entryStatus = logTable.TryGetEntry(
-                recordIndex,
-                out OSHostAppLogTableEntry entry);
+            OSHostStatus entryStatus = logTable.TryGetEntry(recordIndex, out OSHostAppLogTableEntry entry);
             if (entryStatus != OSHostStatus.Ok)
             {
-                return NativeAppExitLogObserverResult.FromEntryFailure(
-                    recordsScanned,
-                    recordIndex,
-                    entryStatus);
+                return NativeAppExitLogObserverResult.FromEntryFailure(recordsScanned, recordIndex, entryStatus);
             }
 
             if (!IsMachineReadableStdout(entry))
@@ -256,40 +30,23 @@ public static class NativeAppExitLogObserver
             OSHostAppLogReadResult read = logTable.TryCopyRecord(recordIndex, recordBuffer);
             if (read.Status == OSHostStatus.BufferTooSmall)
             {
-                return NativeAppExitLogObserverResult.FromReadFailure(
-                    NativeAppExitLogObserverStatus.RecordBufferTooSmall,
-                    recordsScanned,
-                    recordIndex,
-                    read);
+                return NativeAppExitLogObserverResult.FromReadFailure(NativeAppExitLogObserverStatus.RecordBufferTooSmall, recordsScanned, recordIndex, read);
             }
 
             if (!read.Succeeded)
             {
-                return NativeAppExitLogObserverResult.FromReadFailure(
-                    NativeAppExitLogObserverStatus.InvalidRecord,
-                    recordsScanned,
-                    recordIndex,
-                    read);
+                return NativeAppExitLogObserverResult.FromReadFailure(NativeAppExitLogObserverStatus.InvalidRecord, recordsScanned, recordIndex, read);
             }
 
-            NativeAppExitParseResult parse =
-                NativeAppExitStatusFormatter.TryParse(recordBuffer[..(int)read.BytesCopied]);
+            NativeAppExitParseResult parse = NativeAppExitStatusFormatter.TryParse(recordBuffer[..(int)read.BytesCopied]);
             if (parse.Succeeded)
             {
-                return NativeAppExitLogObserverResult.Success(
-                    recordsScanned,
-                    recordIndex,
-                    read,
-                    parse);
+                return NativeAppExitLogObserverResult.Success(recordsScanned, recordIndex, read, parse);
             }
 
             if (parse.Status != NativeAppExitParseStatus.InvalidPrefix)
             {
-                return NativeAppExitLogObserverResult.FromMalformedMarker(
-                    recordsScanned,
-                    recordIndex,
-                    read,
-                    parse);
+                return NativeAppExitLogObserverResult.FromMalformedMarker(recordsScanned, recordIndex, read, parse);
             }
         }
 
@@ -298,7 +55,6 @@ public static class NativeAppExitLogObserver
 
     private static bool IsMachineReadableStdout(OSHostAppLogTableEntry entry)
     {
-        return entry.StreamId == OSHostAppLogConstants.StreamStdout &&
-            (entry.Flags & OSHostAppLogConstants.FlagMachineReadable) != 0;
+        return entry.StreamId == OSHostAppLogConstants.StreamStdout && (entry.Flags & OSHostAppLogConstants.FlagMachineReadable) != 0;
     }
 }

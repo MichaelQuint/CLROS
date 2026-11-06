@@ -13,15 +13,27 @@ internal static class QemuEthernetPeerTests
         foreach (TimeSpan duration in new[] { TimeSpan.Zero, TimeSpan.FromMinutes(5) + TimeSpan.FromMilliseconds(1) })
         {
             bool rejected = false;
-            try { using var invalid = new QemuEthernetPeer(duration); }
-            catch (ArgumentOutOfRangeException) { rejected = true; }
+            try
+            {
+                using var invalid = new QemuEthernetPeer(duration);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                rejected = true;
+            }
             HostCheck.True(rejected);
         }
         using (var service = new QemuEthernetPeer(TimeSpan.FromMinutes(18), continuingService: true))
-            HostCheck.True(service.Port is >0 and <=65535);
+            HostCheck.True(service.Port is > 0 and <= 65535);
         bool tooLong = false;
-        try { using var invalid = new QemuEthernetPeer(TimeSpan.FromMinutes(18) + TimeSpan.FromMilliseconds(1), continuingService: true); }
-        catch (ArgumentOutOfRangeException) { tooLong = true; }
+        try
+        {
+            using var invalid = new QemuEthernetPeer(TimeSpan.FromMinutes(18) + TimeSpan.FromMilliseconds(1), continuingService: true);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            tooLong = true;
+        }
         HostCheck.True(tooLong);
         using var peer = NewPeer();
         HostCheck.True(peer.Port is > 0 and <= 65535);
@@ -41,7 +53,8 @@ internal static class QemuEthernetPeerTests
         byte[] wire = new byte[18];
         await remote.GetStream().ReadExactlyAsync(wire);
         HostCheck.True(wire.AsSpan().SequenceEqual(Packet(payload))); // Invalid writes emitted no prefix.
-        HostCheck.Equal(1L, peer.FramesRead); HostCheck.Equal(1L, peer.FramesWritten);
+        HostCheck.Equal(1L, peer.FramesRead);
+        HostCheck.Equal(1L, peer.FramesWritten);
     }
 
     [HostTest("qemu.ethernet-peer fragmented and concatenated frames with duplex output", HostLane.Fast, 1)]
@@ -49,15 +62,18 @@ internal static class QemuEthernetPeerTests
 
     private static async Task FramingAsync()
     {
-        using var peer = NewPeer(); using TcpClient remote = await Connect(peer);
+        using var peer = NewPeer();
+        using TcpClient remote = await Connect(peer);
         NetworkStream stream = remote.GetStream();
         byte[] minimum = Frame(14, 0x83), maximum = Frame(1514, 0x29), buffer = new byte[1514];
         Task<int> receive = peer.ReadFrameAsync(buffer).AsTask();
         byte[] wire = Packet(maximum);
-        for (int i = 0; i < 4; i++) await stream.WriteAsync(wire.AsMemory(i, 1));
+        for (int i = 0; i < 4; i++)
+            await stream.WriteAsync(wire.AsMemory(i, 1));
         await stream.WriteAsync(wire.AsMemory(4, 9));
         await peer.WriteFrameAsync(minimum); // Reading and writing may proceed independently.
-        byte[] reverse = new byte[18]; await stream.ReadExactlyAsync(reverse);
+        byte[] reverse = new byte[18];
+        await stream.ReadExactlyAsync(reverse);
         HostCheck.True(reverse.AsSpan().SequenceEqual(Packet(minimum)));
         await stream.WriteAsync(wire.AsMemory(13));
         HostCheck.Equal(1514, await receive);
@@ -69,9 +85,11 @@ internal static class QemuEthernetPeerTests
         HostCheck.Equal(1514, await peer.ReadFrameAsync(buffer));
         HostCheck.True(buffer.AsSpan().SequenceEqual(maximum));
         await peer.WriteFrameAsync(maximum);
-        reverse = new byte[1518]; await stream.ReadExactlyAsync(reverse);
+        reverse = new byte[1518];
+        await stream.ReadExactlyAsync(reverse);
         HostCheck.True(reverse.AsSpan().SequenceEqual(Packet(maximum)));
-        HostCheck.Equal(3L, peer.FramesRead); HostCheck.Equal(2L, peer.FramesWritten);
+        HostCheck.Equal(3L, peer.FramesRead);
+        HostCheck.Equal(2L, peer.FramesWritten);
     }
 
     [HostTest("qemu.ethernet-peer rejects wire lengths without allocation or resynchronization", HostLane.Fast, 2)]
@@ -81,11 +99,16 @@ internal static class QemuEthernetPeerTests
     {
         foreach (uint length in new uint[] { 0, 13, 1515, uint.MaxValue })
         {
-            using var peer = NewPeer(); using TcpClient remote = await Connect(peer);
+            using var peer = NewPeer();
+            using TcpClient remote = await Connect(peer);
             Task<int> receive = peer.ReadFrameAsync(new byte[1514]).AsTask();
-            byte[] header = new byte[4]; BinaryPrimitives.WriteUInt32BigEndian(header, length);
+            byte[] header = new byte[4];
+            BinaryPrimitives.WriteUInt32BigEndian(header, length);
             await remote.GetStream().WriteAsync(header);
-            await Reject<InvalidDataException>(async () => { await receive; });
+            await Reject<InvalidDataException>(async () =>
+            {
+                await receive;
+            });
             HostCheck.Equal(0L, peer.FramesRead);
             await Reject<IOException>(() => peer.ReadFrameAsync(new byte[1514]).AsTask());
             await Reject<IOException>(() => peer.WriteFrameAsync(new byte[14]).AsTask());
@@ -100,11 +123,15 @@ internal static class QemuEthernetPeerTests
     {
         foreach (int count in new[] { 0, 3, 17 })
         {
-            using var peer = NewPeer(); using TcpClient remote = await Connect(peer);
+            using var peer = NewPeer();
+            using TcpClient remote = await Connect(peer);
             Task<int> receive = peer.ReadFrameAsync(new byte[1514]).AsTask();
             await remote.GetStream().WriteAsync(Packet(Frame(14, 0x92)).AsMemory(0, count));
             remote.Client.Shutdown(SocketShutdown.Send);
-            await Reject<EndOfStreamException>(async () => { await receive; });
+            await Reject<EndOfStreamException>(async () =>
+            {
+                await receive;
+            });
             HostCheck.Equal(0L, peer.FramesRead);
             await Reject<IOException>(() => peer.WriteFrameAsync(new byte[14]).AsTask());
         }
@@ -118,7 +145,8 @@ internal static class QemuEthernetPeerTests
         using (var peer = NewPeer())
         using (var cancel = new CancellationTokenSource())
         {
-            Task accept = peer.AcceptConnectionAsync(cancel.Token); cancel.Cancel();
+            Task accept = peer.AcceptConnectionAsync(cancel.Token);
+            cancel.Cancel();
             await Reject<OperationCanceledException>(() => accept);
             await Reject<IOException>(() => peer.AcceptConnectionAsync());
         }
@@ -127,8 +155,12 @@ internal static class QemuEthernetPeerTests
         using (var cancel = new CancellationTokenSource())
         {
             Task<int> receive = peer.ReadFrameAsync(new byte[1514], cancel.Token).AsTask();
-            await remote.GetStream().WriteAsync(new byte[] { 0, 0 }); cancel.Cancel();
-            await Reject<OperationCanceledException>(async () => { await receive; });
+            await remote.GetStream().WriteAsync(new byte[] { 0, 0 });
+            cancel.Cancel();
+            await Reject<OperationCanceledException>(async () =>
+            {
+                await receive;
+            });
             HostCheck.Equal(0L, peer.FramesRead);
             await Reject<IOException>(() => peer.ReadFrameAsync(new byte[1514]).AsTask());
         }
@@ -158,19 +190,27 @@ internal static class QemuEthernetPeerTests
         using (TcpClient remote = await Connect(peer))
         {
             await Reject<InvalidOperationException>(() => peer.AcceptConnectionAsync());
-            byte[] buffer = new byte[1514]; Task<int> receive = peer.ReadFrameAsync(buffer).AsTask();
+            byte[] buffer = new byte[1514];
+            Task<int> receive = peer.ReadFrameAsync(buffer).AsTask();
             await Reject<InvalidOperationException>(() => peer.ReadFrameAsync(new byte[1514]).AsTask());
             await remote.GetStream().WriteAsync(Packet(Frame(14, 0x57)));
-            HostCheck.Equal(14, await receive); HostCheck.Equal(1L, peer.FramesRead);
-            receive = peer.ReadFrameAsync(buffer).AsTask(); peer.Dispose(); peer.Dispose();
-            await Closed(async () => { await receive; });
+            HostCheck.Equal(14, await receive);
+            HostCheck.Equal(1L, peer.FramesRead);
+            receive = peer.ReadFrameAsync(buffer).AsTask();
+            peer.Dispose();
+            peer.Dispose();
+            await Closed(async () =>
+            {
+                await receive;
+            });
             await Reject<ObjectDisposedException>(() => peer.ReadFrameAsync(buffer).AsTask());
         }
         using (var peer = NewPeer())
         {
             Task accept = peer.AcceptConnectionAsync();
             await Reject<InvalidOperationException>(() => peer.AcceptConnectionAsync());
-            peer.Dispose(); await Closed(() => accept);
+            peer.Dispose();
+            await Closed(() => accept);
         }
     }
 
@@ -187,13 +227,18 @@ internal static class QemuEthernetPeerTests
             await accept;
             return remote;
         }
-        catch { remote.Dispose(); throw; }
+        catch
+        {
+            remote.Dispose();
+            throw;
+        }
     }
 
     private static byte[] Frame(int size, byte seed)
     {
         byte[] bytes = new byte[size];
-        for (int i = 0; i < size; i++) bytes[i] = unchecked((byte)(seed + i * 3));
+        for (int i = 0; i < size; i++)
+            bytes[i] = unchecked((byte)(seed + i * 3));
         return bytes;
     }
 
@@ -201,25 +246,44 @@ internal static class QemuEthernetPeerTests
     {
         byte[] wire = new byte[frame.Length + 4];
         // Independent bytes for lengths 14 and 1514, rather than reusing the production serializer.
-        if (frame.Length == 14) wire[3] = 14;
-        else if (frame.Length == 1514) { wire[2] = 5; wire[3] = 234; }
-        else throw new ArgumentOutOfRangeException(nameof(frame));
-        frame.CopyTo(wire, 4); return wire;
+        if (frame.Length == 14)
+            wire[3] = 14;
+        else if (frame.Length == 1514)
+        {
+            wire[2] = 5;
+            wire[3] = 234;
+        }
+        else
+            throw new ArgumentOutOfRangeException(nameof(frame));
+        frame.CopyTo(wire, 4);
+        return wire;
     }
 
     private static async Task Reject<T>(Func<Task> action) where T : Exception
     {
         bool rejected = false;
-        try { await action().WaitAsync(TimeSpan.FromSeconds(5)); }
-        catch (T) { rejected = true; }
+        try
+        {
+            await action().WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch (T)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "Expected " + typeof(T).Name);
     }
 
     private static async Task Closed(Func<Task> action)
     {
         bool closed = false;
-        try { await action().WaitAsync(TimeSpan.FromSeconds(5)); }
-        catch (Exception error) when (error is IOException or SocketException or ObjectDisposedException) { closed = true; }
+        try
+        {
+            await action().WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch (Exception error) when (error is IOException or SocketException or ObjectDisposedException)
+        {
+            closed = true;
+        }
         HostCheck.True(closed, "Disposal must interrupt pending socket I/O.");
     }
 }

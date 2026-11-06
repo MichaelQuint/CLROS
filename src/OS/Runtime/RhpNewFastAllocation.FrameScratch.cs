@@ -1,0 +1,27 @@
+#if NOSTDLIB_EFI && M04_FRAME_DISPATCH_PROBE
+using OS.Boot;
+using OS.Kernel.Runtime;
+using System.Runtime.CompilerServices;
+
+namespace OS.Runtime;
+
+internal static unsafe partial class RhpNewFastAllocation
+{
+
+    // Fixed caller-owned scratch avoids placing eight 256-byte cleanup records
+    // beneath an already large authenticated selector frame. Phase3 serializes
+    // this one-shot diagnostic; no callback may re-enter selection.
+#if M04_EH_CATALOG_PROBE
+    private struct FrameScratch
+    {
+        internal fixed ulong Words[512];
+    }
+#else
+    private struct FrameScratch
+    {
+        internal fixed ulong Words[256];
+    }
+#endif
+
+}
+#endif

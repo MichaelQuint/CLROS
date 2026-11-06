@@ -23,7 +23,11 @@ internal static unsafe class M07VirtioNetEfiIntegrationTests
         }
         Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse("--RequireMarker", "CLROS_M07_005_READY")));
     }
-    private static bool Execute(void* context) { (*(int*)context)++; return true; }
+    private static bool Execute(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
 
     [HostTest("m07.net.efi hands strict markers and fresh Ethernet capture to the runner", HostLane.Fast, 1)]
     private static void Runner()
@@ -45,7 +49,10 @@ internal static unsafe class M07VirtioNetEfiIntegrationTests
             var stale = HostToolProcess.RunTool(["qemu", "smoke", "--DryRun", "--BuildEfi", "--SerialLog", serial, .. Flags]);
             HostCheck.True(stale.ExitCode != 0 && (stale.Output + stale.Error).Contains("fresh file path", StringComparison.Ordinal));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     [HostTest("m07.net.efi validates every child row and preserves strict parent replay", HostLane.Fast, 2)]
@@ -78,25 +85,37 @@ internal static unsafe class M07VirtioNetEfiIntegrationTests
         {
             string serial = Path.Combine(directory, "serial.log");
             File.WriteAllText(serial, M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(lines));
-            QemuTranscripts.AssertM03AcpiBootstrapTranscript(serial, firstRealExit:true, ownedSurvival:true,
-                pciEnumeration:true, virtioNegotiation:true, virtqueuePolling:true, virtioNet:true);
+            QemuTranscripts.AssertM03AcpiBootstrapTranscript(serial, firstRealExit: true, ownedSurvival: true,
+                pciEnumeration: true, virtioNegotiation: true, virtqueuePolling: true, virtioNet: true);
             for (int stage = 0; stage < rows.Length; stage++)
             {
                 int field = stage is 2 or 3 ? 2 : stage == 10 ? 1 : 0;
                 string[] changed = (string[])lines.Clone();
                 string prefix = "M07_NET " + stage.ToString("X");
                 int index = Array.FindIndex(changed, l => l.StartsWith(prefix + " ", StringComparison.Ordinal));
-                ulong[] values = (ulong[])rows[stage].Clone(); values[field] ^= 1;
+                ulong[] values = (ulong[])rows[stage].Clone();
+                values[field] ^= 1;
                 changed[index] = prefix + string.Concat(values.Select(v => " 0x" + v.ToString("X16")));
                 Reject(() => QemuTranscripts.AssertM07VirtioNetRecords(changed));
             }
             Reject(() => QemuTranscripts.AssertM07VirtioNetRecords(lines[..^1]));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
     private static void Reject(Action action)
     {
-        bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; }
+        bool rejected = false;
+        try
+        {
+            action();
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected);
     }
 }

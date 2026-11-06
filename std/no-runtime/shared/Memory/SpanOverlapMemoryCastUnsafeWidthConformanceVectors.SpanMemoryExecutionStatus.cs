@@ -1,0 +1,19 @@
+namespace OS.Std.Memory;
+
+public enum SpanMemoryExecutionStatus : byte
+{
+    Uninitialized = 0,
+    Success = 1,
+    CatalogValidationFailed = 2,
+    VectorPointerNull = 3,
+    ScratchPointerNull = 4,
+    OutputPointerNull = 5,
+    VectorCountNegative = 6,
+    ScratchCapacityNegative = 7,
+    OutputCapacityNegative = 8,
+    ScratchCapacityTooSmall = 9,
+    OutputCapacityTooSmall = 10,
+    PointerRangeWrap = 11,
+    BufferAlias = 12,
+    VectorExecutionMismatch = 13
+}

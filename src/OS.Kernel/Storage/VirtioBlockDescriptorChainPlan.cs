@@ -2,101 +2,6 @@ using OS.Drivers;
 
 namespace OS.Storage;
 
-public enum VirtioBlockDescriptorChainPlanStatus
-{
-    Success = 0,
-    TransactionPlanFailed = 1,
-    QueuePlanFailed = 2,
-    QueueSizeMismatch = 3,
-    QueueTooSmall = 4,
-    InsufficientDescriptors = 5,
-    DescriptorIndexOutOfRange = 6,
-    DescriptorOffsetOverflow = 7,
-    DescriptorAlignmentInvalid = 8,
-    AvailableRingOffsetOverflow = 9,
-    PhysicalRangeOverflow = 10,
-    WriteRequestRejected = 11
-}
-
-public enum VirtioBlockDescriptorChainRole
-{
-    RequestHeader = 0,
-    DataBuffer = 1,
-    StatusByte = 2
-}
-
-public readonly struct VirtioBlockDescriptorMemoryRange
-{
-    internal VirtioBlockDescriptorMemoryRange(
-        VirtioBlockDescriptorChainRole role,
-        ulong physicalAddress,
-        uint length,
-        ulong endExclusive)
-    {
-        Role = role;
-        PhysicalAddress = physicalAddress;
-        Length = length;
-        EndExclusive = endExclusive;
-    }
-
-    public VirtioBlockDescriptorChainRole Role { get; }
-
-    public ulong PhysicalAddress { get; }
-
-    public uint Length { get; }
-
-    public ulong EndExclusive { get; }
-}
-
-public readonly struct VirtioBlockPublishedDescriptorPlan
-{
-    internal VirtioBlockPublishedDescriptorPlan(
-        VirtioBlockDescriptorChainRole role,
-        ushort descriptorIndex,
-        ulong physicalAddress,
-        uint length,
-        bool hasNext,
-        ushort nextDescriptorIndex,
-        bool deviceWritable,
-        ushort flags,
-        uint descriptorTableOffset,
-        VirtioBlockDescriptorMemoryRange memoryRange)
-    {
-        Role = role;
-        DescriptorIndex = descriptorIndex;
-        PhysicalAddress = physicalAddress;
-        Length = length;
-        HasNext = hasNext;
-        NextDescriptorIndex = nextDescriptorIndex;
-        DeviceWritable = deviceWritable;
-        Flags = flags;
-        DescriptorTableOffset = descriptorTableOffset;
-        MemoryRange = memoryRange;
-    }
-
-    public VirtioBlockDescriptorChainRole Role { get; }
-
-    public ushort DescriptorIndex { get; }
-
-    public ulong PhysicalAddress { get; }
-
-    public uint Length { get; }
-
-    public bool HasNext { get; }
-
-    public ushort NextDescriptorIndex { get; }
-
-    public bool DeviceWritable { get; }
-
-    public bool DeviceReadable => !DeviceWritable;
-
-    public ushort Flags { get; }
-
-    public uint DescriptorTableOffset { get; }
-
-    public VirtioBlockDescriptorMemoryRange MemoryRange { get; }
-}
-
 public readonly struct VirtioBlockDescriptorChainPlan
 {
     public const ushort RequiredDescriptorCount = VirtioBlockRequestPlan.RequiredDescriptorCount;
@@ -129,27 +34,54 @@ public readonly struct VirtioBlockDescriptorChainPlan
         StatusByteDescriptor = statusByteDescriptor;
     }
 
-    public VirtioBlockReadTransactionPlan TransactionPlan { get; }
+    public VirtioBlockReadTransactionPlan TransactionPlan
+    {
+        get;
+    }
 
     public VirtioBlockRequestPlan RequestPlan => TransactionPlan.RequestPlan;
 
-    public VirtqueueSplitRingPlan QueuePlan { get; }
+    public VirtqueueSplitRingPlan QueuePlan
+    {
+        get;
+    }
 
-    public ushort AvailableDescriptorCount { get; }
+    public ushort AvailableDescriptorCount
+    {
+        get;
+    }
 
-    public ushort AvailableRingIndex { get; }
+    public ushort AvailableRingIndex
+    {
+        get;
+    }
 
-    public ushort AvailableRingSlot { get; }
+    public ushort AvailableRingSlot
+    {
+        get;
+    }
 
-    public uint AvailableRingEntryOffset { get; }
+    public uint AvailableRingEntryOffset
+    {
+        get;
+    }
 
     public ushort HeadDescriptorIndex => RequestHeaderDescriptor.DescriptorIndex;
 
-    public VirtioBlockPublishedDescriptorPlan RequestHeaderDescriptor { get; }
+    public VirtioBlockPublishedDescriptorPlan RequestHeaderDescriptor
+    {
+        get;
+    }
 
-    public VirtioBlockPublishedDescriptorPlan DataBufferDescriptor { get; }
+    public VirtioBlockPublishedDescriptorPlan DataBufferDescriptor
+    {
+        get;
+    }
 
-    public VirtioBlockPublishedDescriptorPlan StatusByteDescriptor { get; }
+    public VirtioBlockPublishedDescriptorPlan StatusByteDescriptor
+    {
+        get;
+    }
 
     public static VirtioBlockDescriptorChainPlanResult Create(
         VirtioBlockReadTransactionPlanResult transactionPlan,
@@ -435,66 +367,5 @@ public readonly struct VirtioBlockDescriptorChainPlan
             length,
             physicalAddress + length);
         return true;
-    }
-}
-
-public readonly struct VirtioBlockDescriptorChainPlanResult
-{
-    private VirtioBlockDescriptorChainPlanResult(
-        VirtioBlockDescriptorChainPlanStatus status,
-        VirtioBlockReadTransactionPlanStatus transactionPlanStatus,
-        VirtioBlockRequestPlanStatus requestPlanStatus,
-        VirtqueueSplitRingPlanStatus queuePlanStatus,
-        VirtioBlockDescriptorChainPlan plan)
-    {
-        IsInitialized = true;
-        Status = status;
-        TransactionPlanStatus = transactionPlanStatus;
-        RequestPlanStatus = requestPlanStatus;
-        QueuePlanStatus = queuePlanStatus;
-        Plan = plan;
-    }
-
-    public bool IsInitialized { get; }
-
-    public VirtioBlockDescriptorChainPlanStatus Status { get; }
-
-    public VirtioBlockReadTransactionPlanStatus TransactionPlanStatus { get; }
-
-    public VirtioBlockRequestPlanStatus RequestPlanStatus { get; }
-
-    public VirtqueueSplitRingPlanStatus QueuePlanStatus { get; }
-
-    public VirtioBlockDescriptorChainPlan Plan { get; }
-
-    public bool Succeeded => IsInitialized &&
-        Status == VirtioBlockDescriptorChainPlanStatus.Success;
-
-    public static VirtioBlockDescriptorChainPlanResult Success(
-        VirtioBlockDescriptorChainPlan plan,
-        VirtioBlockReadTransactionPlanStatus transactionPlanStatus,
-        VirtioBlockRequestPlanStatus requestPlanStatus,
-        VirtqueueSplitRingPlanStatus queuePlanStatus)
-    {
-        return new VirtioBlockDescriptorChainPlanResult(
-            VirtioBlockDescriptorChainPlanStatus.Success,
-            transactionPlanStatus,
-            requestPlanStatus,
-            queuePlanStatus,
-            plan);
-    }
-
-    public static VirtioBlockDescriptorChainPlanResult Fail(
-        VirtioBlockDescriptorChainPlanStatus status,
-        VirtioBlockReadTransactionPlanStatus transactionPlanStatus,
-        VirtioBlockRequestPlanStatus requestPlanStatus,
-        VirtqueueSplitRingPlanStatus queuePlanStatus)
-    {
-        return new VirtioBlockDescriptorChainPlanResult(
-            status,
-            transactionPlanStatus,
-            requestPlanStatus,
-            queuePlanStatus,
-            default);
     }
 }

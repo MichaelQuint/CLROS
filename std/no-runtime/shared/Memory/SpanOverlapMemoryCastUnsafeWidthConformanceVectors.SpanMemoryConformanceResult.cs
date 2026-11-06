@@ -1,0 +1,54 @@
+namespace OS.Std.Memory;
+
+public readonly struct SpanMemoryConformanceResult
+{
+    private readonly bool _isInitialized;
+    private SpanMemoryConformanceResult(SpanMemoryConformanceStatus status, int problemIndex, int conflictIndex, int vectorCount, ulong expectedFingerprint, ulong actualFingerprint)
+    {
+        _isInitialized = true;
+        Status = status;
+        ProblemIndex = problemIndex;
+        ConflictIndex = conflictIndex;
+        VectorCount = vectorCount;
+        ExpectedFingerprint = expectedFingerprint;
+        ActualFingerprint = actualFingerprint;
+    }
+
+    public SpanMemoryConformanceStatus Status
+    {
+        get;
+    }
+    public int ProblemIndex
+    {
+        get;
+    }
+    public int ConflictIndex
+    {
+        get;
+    }
+    public int VectorCount
+    {
+        get;
+    }
+    public ulong ExpectedFingerprint
+    {
+        get;
+    }
+    public ulong ActualFingerprint
+    {
+        get;
+    }
+    public bool IsInitialized => _isInitialized;
+    public bool Succeeded => _isInitialized && Status == SpanMemoryConformanceStatus.Success && VectorCount == SpanOverlapMemoryCastUnsafeWidthConformanceVectors.TotalVectorCount && ExpectedFingerprint == ActualFingerprint && ActualFingerprint == SpanOverlapMemoryCastUnsafeWidthConformanceVectors.ExpectedCatalogFingerprint;
+    public bool SatisfiesRuntimeCompletionGate4 => false;
+
+    internal static SpanMemoryConformanceResult Success(int vectorCount, ulong fingerprint)
+    {
+        return new SpanMemoryConformanceResult(SpanMemoryConformanceStatus.Success, problemIndex: -1, conflictIndex: -1, vectorCount, fingerprint, fingerprint);
+    }
+
+    internal static SpanMemoryConformanceResult Failure(SpanMemoryConformanceStatus status, int problemIndex, int conflictIndex, int vectorCount, ulong expectedFingerprint, ulong actualFingerprint)
+    {
+        return new SpanMemoryConformanceResult(status, problemIndex, conflictIndex, vectorCount, expectedFingerprint, actualFingerprint);
+    }
+}

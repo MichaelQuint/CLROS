@@ -22,11 +22,20 @@ internal static class NativeAotRuntimeOutputTests
             HostCheck.True(capture.WriteLengths is not int[]);
             if (capture.WriteLengths is IList<int> list)
             {
-                bool rejected = false; try { list[0] = 1; } catch (NotSupportedException) { rejected = true; }
+                bool rejected = false;
+                try
+                {
+                    list[0] = 1;
+                }
+                catch (NotSupportedException)
+                {
+                    rejected = true;
+                }
                 HostCheck.True(rejected);
             }
             Array.Fill(raw, (byte)0);
-            HostCheck.Equal(app.Text, capture.Stdout); HostCheck.Equal(payload.Length, capture.WriteLengths[0]);
+            HostCheck.Equal(app.Text, capture.Stdout);
+            HostCheck.Equal(payload.Length, capture.WriteLengths[0]);
         }
     }
 
@@ -39,16 +48,21 @@ internal static class NativeAotRuntimeOutputTests
             byte[] payload = Encoding.UTF8.GetBytes(text);
             int carriage = Array.IndexOf(payload, (byte)'\r');
             int[] lengths = [1, carriage, 1, payload.Length - carriage - 2];
-            using MemoryStream raw = new(); StringBuilder normalized = new(); int cursor = 0;
+            using MemoryStream raw = new();
+            StringBuilder normalized = new();
+            int cursor = 0;
             foreach (int length in lengths)
             {
-                byte[] part = payload.AsSpan(cursor, length).ToArray(); cursor += length;
-                raw.Write(Envelope(part)); raw.Write(Encoding.UTF8.GetBytes(Retained));
+                byte[] part = payload.AsSpan(cursor, length).ToArray();
+                cursor += length;
+                raw.Write(Envelope(part));
+                raw.Write(Encoding.UTF8.GetBytes(Retained));
                 normalized.Append(Header(length)).Append(WithoutNewlines(Encoding.UTF8.GetString(part))).Append("\r\n").Append(Retained);
             }
             byte[] bytes = raw.ToArray(), before = (byte[])bytes.Clone();
             var capture = NativeAotThreadingOutput.Read(app.Name, bytes);
-            HostCheck.Equal(text, capture.Stdout); HostCheck.Equal(normalized.ToString(), capture.NormalizedTail);
+            HostCheck.Equal(text, capture.Stdout);
+            HostCheck.Equal(normalized.ToString(), capture.NormalizedTail);
             HostCheck.True(capture.WriteLengths.SequenceEqual(lengths) && bytes.AsSpan().SequenceEqual(before));
         }
     }
@@ -59,7 +73,8 @@ internal static class NativeAotRuntimeOutputTests
         var apps = Vectors();
         for (int index = 0; index < apps.Length; index++)
         {
-            var app = apps[index]; byte[] payload = Encoding.UTF8.GetBytes(app.Text), valid = Envelope(payload);
+            var app = apps[index];
+            byte[] payload = Encoding.UTF8.GetBytes(app.Text), valid = Envelope(payload);
             foreach (string invalid in new[] { "", app.Text[(app.Text.IndexOf('\n') + 1)..],
                 app.Text[..app.Text.LastIndexOf("TEST_PASS", StringComparison.Ordinal)], app.Text + "extra\n",
                 app.Text + "\n", app.Text.Replace("TEST_PASS", "TEST_FAIL", StringComparison.Ordinal),
@@ -77,7 +92,9 @@ internal static class NativeAotRuntimeOutputTests
             Reject(app.Name, Join("M16_009_NOTE embedded=M16_005_WRITE\r\n"u8.ToArray(), valid));
             Reject(app.Name, Join(valid, Envelope("extra\n"u8.ToArray())));
             Reject(app.Name, Join(valid, Envelope(new byte[4096])));
-            byte[] bad = (byte[])payload.Clone(); bad[0] = 0xc0; bad[1] = 0xaf;
+            byte[] bad = (byte[])payload.Clone();
+            bad[0] = 0xc0;
+            bad[1] = 0xaf;
             Reject(app.Name, Envelope(bad));
             Reject(app.Name, Join(new byte[] { 0xc0, 0xaf, 13, 10 }, valid));
         }
@@ -118,13 +135,27 @@ internal static class NativeAotRuntimeOutputTests
     private static string WithoutNewlines(string text) => text.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal);
     private static byte[] Envelope(byte[] bytes) => Join(Encoding.UTF8.GetBytes(Header(bytes.Length)), bytes, new byte[] { 13, 10 });
     private static byte[] Join(params byte[][] parts)
-    { using MemoryStream result = new(); foreach (byte[] part in parts) result.Write(part); return result.ToArray(); }
+    {
+        using MemoryStream result = new();
+        foreach (byte[] part in parts)
+            result.Write(part);
+        return result.ToArray();
+    }
     private static void Reject(string application, byte[] raw)
     {
         bool rejected = false;
-        try { _ = NativeAotThreadingOutput.Read(application, raw); }
-        catch (ToolFailure) { rejected = true; }
-        catch (DecoderFallbackException) { rejected = true; }
+        try
+        {
+            _ = NativeAotThreadingOutput.Read(application, raw);
+        }
+        catch (ToolFailure)
+        {
+            rejected = true;
+        }
+        catch (DecoderFallbackException)
+        {
+            rejected = true;
+        }
         HostCheck.True(rejected, "strict raw runtime output admission");
     }
 }

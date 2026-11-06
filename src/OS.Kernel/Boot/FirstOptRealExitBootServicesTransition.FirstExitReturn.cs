@@ -1,0 +1,20 @@
+using OS.Kernel.Platform;
+using OS.Kernel.Diagnostics;
+using OS.Kernel.Memory;
+using OS.Std.Hash;
+
+#if M16_004_PROBE || M16_005_PROBE
+using OS.Kernel.Compatibility.LinuxX64;
+#endif
+namespace OS.Boot;
+// Every returned value is a refusal/failure. Successful exit never returns.
+public enum FirstExitReturn
+{
+    NotStarted,
+    ReentryRejected,
+    AlreadyConsumed,
+    FirmwareUnavailable,
+    InvalidContinuation,
+    InvalidStorage,
+    ExitNotCompleted
+}

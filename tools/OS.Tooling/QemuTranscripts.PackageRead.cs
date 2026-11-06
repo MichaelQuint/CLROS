@@ -86,7 +86,10 @@ public static partial class QemuTranscripts
         byte[] Read(ulong lba)
         {
             Need(lba < capacity, "m06_package_disk_range");
-            byte[] bytes = new byte[512]; disk.Position = checked((long)lba * 512); disk.ReadExactly(bytes); return bytes;
+            byte[] bytes = new byte[512];
+            disk.Position = checked((long)lba * 512);
+            disk.ReadExactly(bytes);
+            return bytes;
         }
         ulong[] volume = Row(0), root = Row(1), files = Row(2);
         int reads = variant == "ManifestVersion" ? 13 : 16;

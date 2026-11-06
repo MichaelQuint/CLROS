@@ -49,12 +49,18 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
     }
     private static void Check(bool condition, string detail)
     {
-        if (!condition) throw new InvalidOperationException(detail);
+        if (!condition)
+            throw new InvalidOperationException(detail);
     }
     private static void Reset(ulong status = 0)
     {
-        calls = 0; observedHandle = 0; observedKey = 0; returnedStatus = status;
-        active = null; reentry = false; reentryPreserved = false;
+        calls = 0;
+        observedHandle = 0;
+        observedKey = 0;
+        returnedStatus = status;
+        active = null;
+        reentry = false;
+        reentryPreserved = false;
     }
     private static byte[] Bytes(ref TypedExitBootServicesState state) =>
         MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref state, 1)).ToArray();
@@ -67,7 +73,9 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
     [UnmanagedCallersOnly]
     private static ulong Callback(void* handle, ulong key)
     {
-        calls++; observedHandle = (ulong)handle; observedKey = key;
+        calls++;
+        observedHandle = (ulong)handle;
+        observedKey = key;
         if (reentry && active != null)
         {
             TypedExitBootServicesState before = *active;
@@ -94,7 +102,8 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<TypedExitBootServicesResult>(), "POD fields");
         TypedExitBootServicesResult result = default;
         Check(!result.Succeeded && !result.CallIssued && !result.MapKeyRejected, "default result");
-        TypedExitBootServicesState state = default; byte[] before = Bytes(ref state);
+        TypedExitBootServicesState state = default;
+        byte[] before = Bytes(ref state);
         result = Adapter.Attempt(ref state, default, 0);
         Check(result.Status == TypedExitBootServicesStatus.NotPrepared && !result.CallIssued && calls == 0,
             "default available mode does not admit default state");
@@ -104,8 +113,10 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
 
     private static void Admission()
     {
-        Reset(); byte handleByte = 0;
-        TypedExitBootServicesState state = default; byte[] before = Bytes(ref state);
+        Reset();
+        byte handleByte = 0;
+        TypedExitBootServicesState state = default;
+        byte[] before = Bytes(ref state);
         Check(Adapter.Prepare(ref state, default, null, &handleByte) == TypedExitBootServicesStatus.MissingFunctionPointer, "null callback");
         Unchanged(ref state, before);
         Check(Adapter.Prepare(ref state, default, &Callback, null) == TypedExitBootServicesStatus.MissingImageHandle, "null handle");
@@ -121,8 +132,11 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
 
     private static void GuardDenial()
     {
-        Reset(); byte handleByte = 0; TypedExitBootServicesState state = default;
-        Prepare(ref state, &handleByte); byte[] before = Bytes(ref state);
+        Reset();
+        byte handleByte = 0;
+        TypedExitBootServicesState state = default;
+        Prepare(ref state, &handleByte);
+        byte[] before = Bytes(ref state);
         foreach (FirmwareServicesMode mode in new[] { FirmwareServicesMode.UefiGoneSimulated,
             FirmwareServicesMode.BootServicesExited, (FirmwareServicesMode)(-1) })
         {
@@ -139,14 +153,17 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
         // Opaque tokens are only compared by the callback, never dereferenced.
         ulong[] handles = [1, 0x0000000100000001, 0xFEDCBA9876543210];
         ulong[] keys = [0, 1, 0x0000000100000000, 0x8000000000000000, 0xFEDCBA9876543210, ulong.MaxValue];
-        foreach (ulong handle in handles) foreach (ulong key in keys)
-        {
-            Reset(); TypedExitBootServicesState state = default; Prepare(ref state, (void*)handle);
-            TypedExitBootServicesResult result = Adapter.Attempt(ref state, default, key);
-            Check(result.CallIssued && result.Succeeded && calls == 1 && observedHandle == handle && observedKey == key,
-                "exact handle/key forwarding");
-            Check(state.ImageHandle == handle && state.MapKey == key && state.Phase == TypedExitBootServicesPhase.Returned, "retained association");
-        }
+        foreach (ulong handle in handles)
+            foreach (ulong key in keys)
+            {
+                Reset();
+                TypedExitBootServicesState state = default;
+                Prepare(ref state, (void*)handle);
+                TypedExitBootServicesResult result = Adapter.Attempt(ref state, default, key);
+                Check(result.CallIssued && result.Succeeded && calls == 1 && observedHandle == handle && observedKey == key,
+                    "exact handle/key forwarding");
+                Check(state.ImageHandle == handle && state.MapKey == key && state.Phase == TypedExitBootServicesPhase.Returned, "retained association");
+            }
     }
 
     private static void Statuses()
@@ -156,7 +173,9 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
         byte handleByte = 0;
         foreach (ulong status in values)
         {
-            Reset(status); TypedExitBootServicesState state = default; Prepare(ref state, &handleByte);
+            Reset(status);
+            TypedExitBootServicesState state = default;
+            Prepare(ref state, &handleByte);
             TypedExitBootServicesResult result = Adapter.Attempt(ref state, default, 0);
             Check(result.Status == TypedExitBootServicesStatus.Returned && result.CallIssued && calls == 1
                 && result.FirmwareStatus == status && state.FirmwareStatus == status
@@ -169,7 +188,9 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
         byte handleByte = 0;
         foreach (ulong status in new[] { 0UL, 0x8000000000000002UL, ulong.MaxValue })
         {
-            Reset(status); TypedExitBootServicesState state = default; Prepare(ref state, &handleByte);
+            Reset(status);
+            TypedExitBootServicesState state = default;
+            Prepare(ref state, &handleByte);
             byte[] ready = Bytes(ref state);
             Check(Adapter.Prepare(ref state, default, &Callback, &handleByte) == TypedExitBootServicesStatus.AlreadyPrepared, "double prepare");
             Unchanged(ref state, ready);
@@ -186,17 +207,23 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
 
     private static void Reentry()
     {
-        Reset(0xAABBCCDD12345678); byte handleByte = 0; TypedExitBootServicesState state = default;
-        Prepare(ref state, &handleByte); active = &state; reentry = true;
+        Reset(0xAABBCCDD12345678);
+        byte handleByte = 0;
+        TypedExitBootServicesState state = default;
+        Prepare(ref state, &handleByte);
+        active = &state;
+        reentry = true;
         TypedExitBootServicesResult result = Adapter.Attempt(ref state, default, 0x1122334455667788);
-        active = null; reentry = false;
+        active = null;
+        reentry = false;
         Check(reentryPreserved && calls == 1 && result.FirmwareStatus == 0xAABBCCDD12345678
             && state.Phase == TypedExitBootServicesPhase.Returned, "synchronous reentry refused before second callback");
     }
 
     private static void Malformed()
     {
-        Reset(); byte handleByte = 0;
+        Reset();
+        byte handleByte = 0;
         int phase = (int)Marshal.OffsetOf<TypedExitBootServicesState>("PhaseValue");
         int function = (int)Marshal.OffsetOf<TypedExitBootServicesState>("Function");
         int handle = (int)Marshal.OffsetOf<TypedExitBootServicesState>("Handle");
@@ -204,17 +231,21 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
         int status = (int)Marshal.OffsetOf<TypedExitBootServicesState>("ReturnedStatus");
         foreach (int offset in new[] { phase, function, handle, key, status })
         {
-            TypedExitBootServicesState state = default; Prepare(ref state, &handleByte);
+            TypedExitBootServicesState state = default;
+            Prepare(ref state, &handleByte);
             byte* p = (byte*)&state;
-            if (offset == phase) *(uint*)(p + offset) = 99;
-            else *(ulong*)(p + offset) = offset == function || offset == handle ? 0UL : 1UL;
+            if (offset == phase)
+                *(uint*)(p + offset) = 99;
+            else
+                *(ulong*)(p + offset) = offset == function || offset == handle ? 0UL : 1UL;
             byte[] before = Bytes(ref state);
             TypedExitBootServicesStatus expected = offset == function ? TypedExitBootServicesStatus.MissingFunctionPointer
                 : offset == handle ? TypedExitBootServicesStatus.MissingImageHandle : TypedExitBootServicesStatus.InvalidState;
             Check(Adapter.Attempt(ref state, default, 0).Status == expected && calls == 0, "malformed authority");
             Unchanged(ref state, before);
         }
-        TypedExitBootServicesState poison = default; *((byte*)&poison + key) = 1;
+        TypedExitBootServicesState poison = default;
+        *((byte*)&poison + key) = 1;
         byte[] original = Bytes(ref poison);
         Check(Adapter.Prepare(ref poison, default, &Callback, &handleByte) == TypedExitBootServicesStatus.InvalidState, "dirty empty admission");
         Unchanged(ref poison, original);
@@ -225,12 +256,16 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
         byte handleByte = 0;
         foreach (ulong status in new[] { 0UL, 0x8000000000000002UL })
         {
-            Reset(status); FirmwareServicesGuard guard = new(); TypedExitBootServicesState state = default;
+            Reset(status);
+            FirmwareServicesGuard guard = new();
+            TypedExitBootServicesState state = default;
             Check(Adapter.Prepare(ref state, guard.Mode, &Callback, &handleByte) == TypedExitBootServicesStatus.Prepared, "guard available");
             Adapter.Attempt(ref state, guard.Mode, 0);
             Check(guard.Mode == FirmwareServicesMode.BootServicesAvailable, "adapter did not mark global exit");
         }
-        Reset(); FirmwareServicesGuard denied = new(); denied.EnterUefiGoneSimulation();
+        Reset();
+        FirmwareServicesGuard denied = new();
+        denied.EnterUefiGoneSimulation();
         TypedExitBootServicesState unused = default;
         Check(Adapter.Prepare(ref unused, denied.Mode, &Callback, &handleByte) == TypedExitBootServicesStatus.FirmwareServicesUnavailable
             && denied.Mode == FirmwareServicesMode.UefiGoneSimulated && calls == 0, "guard refusal unchanged");
@@ -238,11 +273,14 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
 
     private static void Allocation()
     {
-        Reset(); byte handleByte = 0; bool okay = true;
+        Reset();
+        byte handleByte = 0;
+        bool okay = true;
         for (int i = 0; i < 1024; i++)
         {
             TypedExitBootServicesState warm = default;
-            Adapter.Prepare(ref warm, default, &Callback, &handleByte); Adapter.Attempt(ref warm, default, (ulong)i);
+            Adapter.Prepare(ref warm, default, &Callback, &handleByte);
+            Adapter.Attempt(ref warm, default, (ulong)i);
         }
         long before = GC.GetAllocatedBytesForCurrentThread();
         for (int i = 0; i < 4096; i++)
@@ -261,10 +299,72 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
         string root = HostToolProcess.FindRepositoryRoot();
         string directory = Path.Combine(root, "artifacts", "host-tests", "m03-004-nostdlib-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
-        string[] sources = ["src/OS/Runtime/MinimalRuntime.cs", "src/OS/Runtime/MethodImplAttribute.cs",
-            "src/OS.Kernel/Platform/FirmwareServicesMode.cs", "src/OS.Kernel/Boot/TypedNoStdlibExitBootServicesCallAdapter.cs"];
-        var identities = sources.Select(p => new { Path = p, Bytes = new FileInfo(Path.Combine(root, p)).Length,
-            Sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, p)))) }).ToArray();
+        string[] sources = ["src/OS/Runtime/MethodTable.cs",
+            "src/OS/Runtime/RuntimeFailFast.cs",
+            "src/OS/Runtime/Object.cs",
+            "src/OS/Runtime/Void.cs",
+            "src/OS/Runtime/Boolean.cs",
+            "src/OS/Runtime/Char.cs",
+            "src/OS/Runtime/SByte.cs",
+            "src/OS/Runtime/Byte.cs",
+            "src/OS/Runtime/Int16.cs",
+            "src/OS/Runtime/UInt16.cs",
+            "src/OS/Runtime/Int32.cs",
+            "src/OS/Runtime/UInt32.cs",
+            "src/OS/Runtime/Int64.cs",
+            "src/OS/Runtime/UInt64.cs",
+            "src/OS/Runtime/IntPtr.cs",
+            "src/OS/Runtime/UIntPtr.cs",
+            "src/OS/Runtime/Single.cs",
+            "src/OS/Runtime/Double.cs",
+            "src/OS/Runtime/ValueType.cs",
+            "src/OS/Runtime/Enum.cs",
+            "src/OS/Runtime/Type.cs",
+            "src/OS/Runtime/RuntimeType.cs",
+            "src/OS/Runtime/Array.cs",
+            "src/OS/Runtime/Delegate.cs",
+            "src/OS/Runtime/MulticastDelegate.cs",
+            "src/OS/Runtime/String.cs",
+            "src/OS/Runtime/Attribute.cs",
+            "src/OS/Runtime/Buffer.cs",
+            "src/OS/Runtime/SpanHelpers.cs",
+            "src/OS/Runtime/AttributeTargets.cs",
+            "src/OS/Runtime/AttributeUsageAttribute.cs",
+            "src/OS/Runtime/RuntimeTypeHandle.cs",
+            "src/OS/Runtime/RuntimeMethodHandle.cs",
+            "src/OS/Runtime/RuntimeFieldHandle.cs",
+            "src/OS/Runtime/RuntimeExportAttribute.cs",
+            "src/OS/Runtime/X64StackProbeRuntime.cs",
+            "src/OS/Runtime/TypeCast.cs",
+            "src/OS/Runtime/RuntimeFeature.cs",
+            "src/OS/Runtime/RuntimeHelpers.cs",
+            "src/OS/Runtime/InAttribute.cs",
+            "src/OS/Runtime/UnmanagedType.cs",
+            "src/OS/Runtime/UnmanagedCallersOnlyAttribute.cs",
+            "src/OS/Runtime/IDynamicInterfaceCastable.cs",
+            "src/OS/Runtime/ThrowHelpers.cs",
+            "src/OS/Runtime/StartupCodeHelpers.cs",
+            "src/OS/Runtime/IntrinsicAttribute.cs",
+            "src/OS/Runtime/Unsafe.cs",
+            "src/OS/Runtime/MinimalRuntime.Array.cs",
+            "src/OS/Runtime/Nullable.cs",
+            "src/OS/Runtime/RhpNewFastRuntime.cs",
+            "src/OS/Runtime/DefaultMemberAttribute.cs",
+            "src/OS/Runtime/IndexerNameAttribute.cs",
+            "src/OS/Runtime/Exception.cs",
+            "src/OS/Runtime/RuntimeImports.cs", "src/OS/Runtime/MethodImplAttribute.MethodImplOptions.cs",
+            "src/OS/Runtime/MethodImplAttribute.cs",
+            "src/OS.Kernel/Platform/FirmwareServicesMode.cs", "src/OS.Kernel/Boot/TypedNoStdlibExitBootServicesCallAdapter.TypedExitBootServicesPhase.cs",
+            "src/OS.Kernel/Boot/TypedNoStdlibExitBootServicesCallAdapter.TypedExitBootServicesStatus.cs",
+            "src/OS.Kernel/Boot/TypedNoStdlibExitBootServicesCallAdapter.TypedExitBootServicesState.cs",
+            "src/OS.Kernel/Boot/TypedNoStdlibExitBootServicesCallAdapter.TypedExitBootServicesResult.cs",
+            "src/OS.Kernel/Boot/TypedNoStdlibExitBootServicesCallAdapter.cs"];
+        var identities = sources.Select(p => new
+        {
+            Path = p,
+            Bytes = new FileInfo(Path.Combine(root, p)).Length,
+            Sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, p))))
+        }).ToArray();
         File.WriteAllText(Path.Combine(directory, "inputs.json"), JsonSerializer.Serialize(identities));
         string includes = string.Join(Environment.NewLine, sources.Select(p => "<Compile Include=\"" + System.Security.SecurityElement.Escape(Path.Combine(root, p)) + "\" />"));
         string project = $$"""
@@ -287,19 +387,45 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
             """;
         File.WriteAllText(Path.Combine(directory, "Closure.csproj"), project, new UTF8Encoding(false));
         string[] arguments = ["build", "Closure.csproj", "--nologo", "-m:1", "-c", "Release", "--disable-build-servers"];
-        ProcessStartInfo start = new("dotnet") { WorkingDirectory = directory, UseShellExecute = false,
-            CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (string arg in arguments) start.ArgumentList.Add(arg);
-        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new { Executable = "dotnet", Arguments = arguments, WorkingDirectory = directory, StartedUtc = DateTimeOffset.UtcNow }));
+        ProcessStartInfo start = new("dotnet")
+        {
+            WorkingDirectory = directory,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        foreach (string arg in arguments)
+            start.ArgumentList.Add(arg);
+        File.WriteAllText(Path.Combine(directory, "command.json"), JsonSerializer.Serialize(new
+        {
+            Executable = "dotnet",
+            Arguments = arguments,
+            WorkingDirectory = directory,
+            StartedUtc = DateTimeOffset.UtcNow
+        }));
         using Process child = Process.Start(start) ?? throw new InvalidOperationException("no-stdlib child start");
         Task<string> stdout = child.StandardOutput.ReadToEndAsync(), stderr = child.StandardError.ReadToEndAsync();
-        bool exited = child.WaitForExit(90000); if (!exited) { child.Kill(true); child.WaitForExit(); }
+        bool exited = child.WaitForExit(90000);
+        if (!exited)
+        {
+            child.Kill(true);
+            child.WaitForExit();
+        }
         Task.WaitAll(stdout, stderr);
-        File.WriteAllText(Path.Combine(directory, "stdout.log"), stdout.Result); File.WriteAllText(Path.Combine(directory, "stderr.log"), stderr.Result);
-        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new { Exited = exited, NativeExit = child.ExitCode, EndedUtc = DateTimeOffset.UtcNow }));
+        File.WriteAllText(Path.Combine(directory, "stdout.log"), stdout.Result);
+        File.WriteAllText(Path.Combine(directory, "stderr.log"), stderr.Result);
+        File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new
+        {
+            Exited = exited,
+            NativeExit = child.ExitCode,
+            EndedUtc = DateTimeOffset.UtcNow
+        }));
         Check(exited && child.ExitCode == 0, "actual no-stdlib child: " + directory + " " + stdout.Result + stderr.Result);
         string dll = Path.Combine(directory, "bin", "Release", "net11.0", "M03_004_NoStdLib.dll");
-        using FileStream stream = File.OpenRead(dll); using PEReader pe = new(stream); MetadataReader metadata = pe.GetMetadataReader();
+        using FileStream stream = File.OpenRead(dll);
+        using PEReader pe = new(stream);
+        MetadataReader metadata = pe.GetMetadataReader();
         Check(metadata.AssemblyReferences.Count == 0, "zero AssemblyRefs");
         TypeDefinition type = metadata.TypeDefinitions.Select(metadata.GetTypeDefinition).Single(t => metadata.GetString(t.Name) == nameof(TypedNoStdlibExitBootServicesCallAdapter));
         foreach (string name in new[] { "Prepare", "Attempt" })
@@ -307,9 +433,16 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
             MethodDefinition method = type.GetMethods().Select(metadata.GetMethodDefinition).Single(m => metadata.GetString(m.Name) == name);
             Check(method.RelativeVirtualAddress != 0 && pe.GetMethodBody(method.RelativeVirtualAddress).GetILBytes()!.Length > 0, "actual method " + name);
         }
-        foreach (var row in identities) Check(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, row.Path)))) == row.Sha256, "closure input stable");
-        File.WriteAllText(Path.Combine(directory, "metadata.json"), JsonSerializer.Serialize(new { SourceCount = sources.Length,
-            AssemblyReferences = metadata.AssemblyReferences.Count, Sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dll))), Methods = new[] { "Prepare", "Attempt" }, TargetExecuted = false }));
+        foreach (var row in identities)
+            Check(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, row.Path)))) == row.Sha256, "closure input stable");
+        File.WriteAllText(Path.Combine(directory, "metadata.json"), JsonSerializer.Serialize(new
+        {
+            SourceCount = sources.Length,
+            AssemblyReferences = metadata.AssemblyReferences.Count,
+            Sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dll))),
+            Methods = new[] { "Prepare", "Attempt" },
+            TargetExecuted = false
+        }));
         Console.WriteLine("M03_004_NOSTDLIB inputs=4 assemblyReferences=0 targetExecuted=false path=" + directory);
     }
 }

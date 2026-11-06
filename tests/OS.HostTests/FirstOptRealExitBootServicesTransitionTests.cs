@@ -46,7 +46,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         HostCheck.Run("m03.007.coordinator " + name, action);
     }
     private static void Need(bool value, string reason)
-    { if (!value) throw new InvalidOperationException(reason); }
+    {
+        if (!value)
+            throw new InvalidOperationException(reason);
+    }
 
     private static readonly byte[] FaultOutput = new byte[4096];
     private static int faultOutputBytes, faultPolls;
@@ -57,16 +60,21 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     [UnmanagedCallersOnly]
     private static void FaultOut8(ushort port, byte value)
     {
-        if (port == 0x3fb) faultDivisorLatch = (value & 0x80) != 0;
+        if (port == 0x3fb)
+            faultDivisorLatch = (value & 0x80) != 0;
         if (port == 0x3f8 && !faultDivisorLatch && faultOutputBytes < FaultOutput.Length)
         {
             FaultOutput[faultOutputBytes++] = value;
-            if (faultCorruptCanary != null && faultOutputBytes == faultCorruptAfterBytes) *faultCorruptCanary ^= 1;
+            if (faultCorruptCanary != null && faultOutputBytes == faultCorruptAfterBytes)
+                *faultCorruptCanary ^= 1;
         }
     }
     [UnmanagedCallersOnly]
     private static byte FaultIn8(ushort port)
-    { faultPolls++; return port == 0x3fd && faultTransmitReady && faultOutputBytes < faultTransmitByteLimit ? (byte)0x20 : (byte)0; }
+    {
+        faultPolls++;
+        return port == 0x3fd && faultTransmitReady && faultOutputBytes < faultTransmitByteLimit ? (byte)0x20 : (byte)0;
+    }
 
     private static void TerminalFault()
     {
@@ -86,17 +94,31 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         Need(!FirstExitTerminalFaultStub.Prepare(ref context, default) && context.Phase == 0 &&
             FirstExitTerminalFaultStub.Prepare(ref context, backend) && context.Phase == 1 &&
             !FirstExitTerminalFaultStub.Prepare(ref context, backend), "one-use fault preparation");
-        FirstExitFaultFrame frame = new() { Vector = 14, HasErrorCode = 1, ErrorCode = 2,
-            Rip = 0x12345000, Rsp = 0x87654000, Rflags = 0x202, Rax = 0xaabbccdd };
+        FirstExitFaultFrame frame = new()
+        {
+            Vector = 14,
+            HasErrorCode = 1,
+            ErrorCode = 2,
+            Rip = 0x12345000,
+            Rsp = 0x87654000,
+            Rflags = 0x202,
+            Rax = 0xaabbccdd
+        };
         Need(!FirstExitTerminalFaultStub.Report(&frame, &context, 0x1000, 0x2000), "native entry phase required");
-        context.Phase = 2; faultTransmitReady = true; faultOutputBytes = faultPolls = 0;
+        context.Phase = 2;
+        faultTransmitReady = true;
+        faultOutputBytes = faultPolls = 0;
         Need(FirstExitTerminalFaultStub.Report(&frame, &context, 0x1000, 0x2000) && context.Phase == 3 &&
             Encoding.ASCII.GetString(FaultOutput, 0, faultOutputBytes).Contains("exit-fault", StringComparison.Ordinal), "owned panic report");
         int bytes = faultOutputBytes;
         Need(!FirstExitTerminalFaultStub.Report(&frame, &context, 0x1000, 0x2000) && faultOutputBytes == bytes, "no duplicate report");
-        context.Phase = 2; frame.HasErrorCode = 0; faultOutputBytes = faultPolls = 0;
+        context.Phase = 2;
+        frame.HasErrorCode = 0;
+        faultOutputBytes = faultPolls = 0;
         Need(!FirstExitTerminalFaultStub.Report(&frame, &context, 0, 0) && context.Phase == 4 && faultPolls == 0, "malformed frame refuses before I/O");
-        context.Phase = 2; frame.HasErrorCode = 1; faultTransmitReady = false;
+        context.Phase = 2;
+        frame.HasErrorCode = 1;
+        faultTransmitReady = false;
         Need(!FirstExitTerminalFaultStub.Report(&frame, &context, 0, 0) && context.Phase == 4 &&
             faultPolls == PanicSafeFormattingSerialReportingOwnedCom1.DefaultTransmitReadyPollLimit && faultOutputBytes == 0,
             "serial timeout is bounded and consumed");
@@ -122,24 +144,38 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         try
         {
             new Span<byte>(image, (int)bytes).Clear();
-            *(ushort*)image = 0x5a4d; *(uint*)(image + 60) = 0x80;
+            *(ushort*)image = 0x5a4d;
+            *(uint*)(image + 60) = 0x80;
             byte* pe = image + 0x80;
-            *(uint*)pe = 0x4550; *(ushort*)(pe + 4) = 0x8664;
-            *(ushort*)(pe + 6) = 3; *(ushort*)(pe + 20) = 240; *(ushort*)(pe + 22) = 2;
+            *(uint*)pe = 0x4550;
+            *(ushort*)(pe + 4) = 0x8664;
+            *(ushort*)(pe + 6) = 3;
+            *(ushort*)(pe + 20) = 240;
+            *(ushort*)(pe + 22) = 2;
             byte* optional = pe + 24;
-            *(ushort*)optional = 0x20b; *(uint*)(optional + 16) = 0x1000;
-            *(uint*)(optional + 32) = 4096; *(uint*)(optional + 36) = 512;
-            *(uint*)(optional + 56) = (uint)bytes; *(uint*)(optional + 60) = 512;
-            *(ushort*)(optional + 68) = 10; *(uint*)(optional + 108) = 16;
+            *(ushort*)optional = 0x20b;
+            *(uint*)(optional + 16) = 0x1000;
+            *(uint*)(optional + 32) = 4096;
+            *(uint*)(optional + 36) = 512;
+            *(uint*)(optional + 56) = (uint)bytes;
+            *(uint*)(optional + 60) = 512;
+            *(ushort*)(optional + 68) = 10;
+            *(uint*)(optional + 108) = 16;
             byte* text = optional + 240;
-            *(uint*)(text + 8) = 0x1001; *(uint*)(text + 12) = 0x1000;
-            *(uint*)(text + 16) = 0x1200; *(uint*)(text + 36) = 0x60000020;
+            *(uint*)(text + 8) = 0x1001;
+            *(uint*)(text + 12) = 0x1000;
+            *(uint*)(text + 16) = 0x1200;
+            *(uint*)(text + 36) = 0x60000020;
             byte* data = text + 40;
-            *(uint*)(data + 8) = 0x3000; *(uint*)(data + 12) = 0x4000;
-            *(uint*)(data + 16) = 512; *(uint*)(data + 36) = 0xc0000040;
+            *(uint*)(data + 8) = 0x3000;
+            *(uint*)(data + 12) = 0x4000;
+            *(uint*)(data + 16) = 512;
+            *(uint*)(data + 36) = 0xc0000040;
             byte* readOnly = data + 40;
-            *(uint*)(readOnly + 8) = 0x100; *(uint*)(readOnly + 12) = 0x8000;
-            *(uint*)(readOnly + 16) = 512; *(uint*)(readOnly + 36) = 0x40000040;
+            *(uint*)(readOnly + 8) = 0x100;
+            *(uint*)(readOnly + 12) = 0x8000;
+            *(uint*)(readOnly + 16) = 512;
+            *(uint*)(readOnly + 36) = 0x40000040;
             EfiLoadedImageProtocolObservation observation = EfiLoadedImageProtocolObservation.CaptureFromUefiBoundary(
                 0, 0x1000, 0x2000, (ulong)image, bytes);
             EfiLoadedImageRangeCapturePlan capture = EfiLoadedImageRangeCapturePlan.Create(&observation, 1, 1, 4096);
@@ -165,16 +201,36 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 original.CopyTo(new Span<byte>(image, (int)bytes));
                 switch (fault)
                 {
-                    case 0: *(uint*)(image + 60) = (uint)bytes - 8; break;
-                    case 1: *(ushort*)(pe + 6) = 17; break;
-                    case 2: *(uint*)(optional + 32) = 512; break;
-                    case 3: *(uint*)(text + 36) |= 0x80000000; break;
-                    case 4: *(uint*)(data + 12) = 0x2000; break;
-                    case 5: *(uint*)(data + 8) = (uint)bytes; break;
-                    case 6: *(uint*)(readOnly + 36) = 0; break;
-                    case 7: *(uint*)(optional + 16) = 0x4000; break;
-                    case 8: *(uint*)(optional + 60) = 256; break;
-                    case 9: *(uint*)(readOnly + 12) = 0x8001; break;
+                    case 0:
+                        *(uint*)(image + 60) = (uint)bytes - 8;
+                        break;
+                    case 1:
+                        *(ushort*)(pe + 6) = 17;
+                        break;
+                    case 2:
+                        *(uint*)(optional + 32) = 512;
+                        break;
+                    case 3:
+                        *(uint*)(text + 36) |= 0x80000000;
+                        break;
+                    case 4:
+                        *(uint*)(data + 12) = 0x2000;
+                        break;
+                    case 5:
+                        *(uint*)(data + 8) = (uint)bytes;
+                        break;
+                    case 6:
+                        *(uint*)(readOnly + 36) = 0;
+                        break;
+                    case 7:
+                        *(uint*)(optional + 16) = 0x4000;
+                        break;
+                    case 8:
+                        *(uint*)(optional + 60) = 256;
+                        break;
+                    case 9:
+                        *(uint*)(readOnly + 12) = 0x8001;
+                        break;
                 }
                 Need(!FirstExitImageMappings.WriteRanges(capture, mapping, ranges, 5, out count) && count == 0 &&
                     output.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(ranges, 5 * sizeof(SeparatePageFaultMappingRange))),
@@ -188,7 +244,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(image, (int)bytes)),
                 "capacity, overlap and identity evidence refuse without modifying image");
         }
-        finally { NativeMemory.AlignedFree(image); }
+        finally
+        {
+            NativeMemory.AlignedFree(image);
+        }
     }
 
     private static void VerifyCodeBundle(EfiLoadedImageRangeCapturePlan capture,
@@ -244,7 +303,11 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             arena = default;
             // No generated IN/OUT or privileged transition instruction is executed.
         }
-        finally { NativeMemory.AlignedFree(allocation); NativeMemory.AlignedFree(data); }
+        finally
+        {
+            NativeMemory.AlignedFree(allocation);
+            NativeMemory.AlignedFree(data);
+        }
     }
 
     private static void VerifyCompleteRetainedMappings(ref FirstExitOwnedArenaState arena, byte* code,
@@ -255,11 +318,18 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         Need(allocator != null, "retained allocator backing");
         try
         {
-            FirstExitImageReferences references = new() { EntryCallback = callback + 8,
-                DiagnosticCallback = callback + 16, FaultCallback = callback,
-                AdapterState = imageData, AdapterStateBytes = 512,
-                AllocatorState = imageData + 1024, AllocatorStateBytes = 128,
-                CopiedAcpi = imageData + 4096, CopiedAcpiBytes = 4096 };
+            FirstExitImageReferences references = new()
+            {
+                EntryCallback = callback + 8,
+                DiagnosticCallback = callback + 16,
+                FaultCallback = callback,
+                AdapterState = imageData,
+                AdapterStateBytes = 512,
+                AllocatorState = imageData + 1024,
+                AllocatorStateBytes = 128,
+                CopiedAcpi = imageData + 4096,
+                CopiedAcpiBytes = 4096
+            };
             PhysicalAddress.TryCreateFromHardwareRegisterBoundary(0x100000, out PhysicalAddress root);
             X64PatMappingToken.TryCreate(0x0006_0501_0007_0406, 0, 3, 4, out X64PatMappingToken pat);
             var tables = new SeparatePageFaultPageTableRequest(root, 55,
@@ -272,17 +342,31 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             {
                 var candidate = references;
                 var range = backing;
-                if (failure == 0) candidate.EntryCallback = imageData;
-                if (failure == 1) candidate.AdapterState += 512;
-                if (failure == 2) candidate.CopiedAcpiBytes = 3 * 4096;
-                if (failure == 3) range = new((ulong)code, 2, PageProtection.Read | PageProtection.Write);
-                if (failure == 4) range = new(0x100000, 2, PageProtection.Read | PageProtection.Write);
-                if (failure == 6) candidate.RuntimeSupportCodeBytes = 4096;
-                if (failure >= 7) { candidate.RuntimeSupportCode = 0x500000; candidate.RuntimeSupportCodeBytes = 4096; }
-                if (failure == 7) candidate.RuntimeSupportCodeBytes = 8192;
-                if (failure == 8) candidate.RuntimeSupportCode++;
-                if (failure == 9) candidate.RuntimeSupportCode = imageData;
-                if (failure == 10) candidate.RuntimeSupportCode = 0x100000;
+                if (failure == 0)
+                    candidate.EntryCallback = imageData;
+                if (failure == 1)
+                    candidate.AdapterState += 512;
+                if (failure == 2)
+                    candidate.CopiedAcpiBytes = 3 * 4096;
+                if (failure == 3)
+                    range = new((ulong)code, 2, PageProtection.Read | PageProtection.Write);
+                if (failure == 4)
+                    range = new(0x100000, 2, PageProtection.Read | PageProtection.Write);
+                if (failure == 6)
+                    candidate.RuntimeSupportCodeBytes = 4096;
+                if (failure >= 7)
+                {
+                    candidate.RuntimeSupportCode = 0x500000;
+                    candidate.RuntimeSupportCodeBytes = 4096;
+                }
+                if (failure == 7)
+                    candidate.RuntimeSupportCodeBytes = 8192;
+                if (failure == 8)
+                    candidate.RuntimeSupportCode++;
+                if (failure == 9)
+                    candidate.RuntimeSupportCode = imageData;
+                if (failure == 10)
+                    candidate.RuntimeSupportCode = 0x100000;
                 Need(!FirstExitRetainedMappings.WriteRanges(ref arena, code, capture, mapping, candidate, range, tables,
                     output, failure == 5 ? 1UL : FirstExitRetainedMappings.MaximumRanges, out ulong refused) && refused == 0 &&
                     before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(output, before.Length)), "inventory refuses without writes " + failure);
@@ -305,7 +389,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             VerifyRetainedArenaImage(arena.Storage, output, count, FirstExitRetainedMappings.MaximumRanges, 110);
             VerifyPostExitReport(ref arena, code, capture, mapping, references, backing, output, count);
         }
-        finally { NativeMemory.AlignedFree(allocator); }
+        finally
+        {
+            NativeMemory.AlignedFree(allocator);
+        }
     }
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -314,7 +401,13 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     private static extern bool VirtualFree(void* address, nuint bytes, uint freeType);
     [UnmanagedCallersOnly]
     private static ulong ReportMap(ulong* bytes, void* buffer, ulong* key, ulong* width, uint* version)
-    { *bytes = 40; *key = 1; *width = 40; *version = 1; return 0; }
+    {
+        *bytes = 40;
+        *key = 1;
+        *width = 40;
+        *version = 1;
+        return 0;
+    }
     [UnmanagedCallersOnly]
     private static ulong ReportExit(void* image, ulong key) => key == 1 ? 0UL : 1UL;
 
@@ -326,7 +419,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         // The production reporter requires identity backing below 4 GiB. This
         // Windows-host fixture allocates ordinary RW pages there; it never loads CR3.
         if (!OperatingSystem.IsWindows())
-        { Console.WriteLine("CLROS_M03_007_REPORT_FIXTURE_SKIPPED reason=windows_low_address_allocation"); return; }
+        {
+            Console.WriteLine("CLROS_M03_007_REPORT_FIXTURE_SKIPPED reason=windows_low_address_allocation");
+            return;
+        }
         ulong* entries = null;
         for (uint hint = 0x30000000; hint < 0x60000000 && entries == null; hint += 0x01000000)
             entries = (ulong*)VirtualAlloc((void*)(nuint)hint, 55 * 4096, 0x3000, 4);
@@ -338,10 +434,20 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             Need(55 * sizeof(X64PageTableImagePage) <= 4096, "retained metadata fixture extent");
             PhysicalAddress.TryCreateFromHardwareRegisterBoundary((ulong)entries, out PhysicalAddress root);
             X64PatMappingToken.TryCreate(0x0006_0501_0007_0406, 0, 3, 4, out X64PatMappingToken pat);
-            FirstExitDiagnosticMemory memory = new() { Code = code, Capture = capture, Mapping = mapping,
-                References = references, Allocator = allocator, Tables = new(root, 55,
+            FirstExitDiagnosticMemory memory = new()
+            {
+                Code = code,
+                Capture = capture,
+                Mapping = mapping,
+                References = references,
+                Allocator = allocator,
+                Tables = new(root, 55,
                     X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat)),
-                Pages = pages, PageCapacity = 55, Entries = entries, EntryCapacity = 55 * 512 };
+                Pages = pages,
+                PageCapacity = 55,
+                Entries = entries,
+                EntryCapacity = 55 * 512
+            };
             Need(SeparateDisabledDefaultPageFaultPageTables.BuildRetainedImage(memory.Tables, ranges, count,
                 FirstExitRetainedMappings.MaximumRanges, pages, 55, entries, 55 * 512).Succeeded, "build actual identity-backed supplied tables");
             Need(FirstExitOwnedStackStub.Prepare(ref *arena.StackEntry, 0x100000, 0x668,
@@ -360,15 +466,24 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             *(uint*)arena.Transition = (uint)FirstExitPhase.OwnedContinuation;
             ((uint*)arena.Transition)[1] = (uint)FirmwareServicesMode.BootServicesExited;
             *(uint*)arena.Binding = 2; // model the native adapter's already-consumed binding
-            arena.StackEntry->Phase = 2; arena.StackEntry->ObservedRsp = arena.StackTop - FirstExitOwnedStackStub.CallStackBytes;
+            arena.StackEntry->Phase = 2;
+            arena.StackEntry->ObservedRsp = arena.StackTop - FirstExitOwnedStackStub.CallStackBytes;
             arena.Permanent->Phase = FirstExitAdoptionPhase.OwnedDiagnostic;
-            arena.Permanent->ObservedCr3 = (ulong)entries; arena.Permanent->ObservedCr4 = 0x668 & ~0x80UL;
+            arena.Permanent->ObservedCr3 = (ulong)entries;
+            arena.Permanent->ObservedCr4 = 0x668 & ~0x80UL;
             arena.Permanent->ObservedRsp = arena.StackTop - 4096 - 8;
             FirstExitDescriptorContext* descriptor = arena.Descriptors;
-            descriptor->Gdt[13] |= 1; descriptor->Gdt[21] |= 1; descriptor->Gdt[29] |= 2;
+            descriptor->Gdt[13] |= 1;
+            descriptor->Gdt[21] |= 1;
+            descriptor->Gdt[29] |= 2;
             descriptor->Gdt[descriptor->FirmwareCs + 5] |= 1;
-            for (int i = 0; i < 16; i++) { descriptor->ObservedGdtr[i] = descriptor->Gdtr[i]; descriptor->ObservedIdtr[i] = descriptor->FinalIdtr[i]; }
-            descriptor->ObservedTr = 24; descriptor->ObservedCs = 8;
+            for (int i = 0; i < 16; i++)
+            {
+                descriptor->ObservedGdtr[i] = descriptor->Gdtr[i];
+                descriptor->ObservedIdtr[i] = descriptor->FinalIdtr[i];
+            }
+            descriptor->ObservedTr = 24;
+            descriptor->ObservedCs = 8;
             descriptor->ObservedDs = descriptor->ObservedEs = descriptor->ObservedSs = 16;
             Need(!FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code),
                 "installed observations require the descriptor context consumed by the native stub");
@@ -447,24 +562,52 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 diagnosticsReady + diagnosticsClaim + diagnosticsPass;
             for (int scenario = 0; scenario < 17; scenario++)
             {
-                state = default; faultOutputBytes = faultPolls = 0; faultTransmitReady = true; faultTransmitByteLimit = int.MaxValue;
+                state = default;
+                faultOutputBytes = faultPolls = 0;
+                faultTransmitReady = true;
+                faultTransmitByteLimit = int.MaxValue;
                 FirstExitDiagnosticMemory candidate = memory;
-                if (scenario == 1) arena.Permanent->ObservedCr3 ^= 4096;
-                if (scenario == 2) descriptor->ObservedTr = 16;
-                if (scenario == 3) entries[0] ^= 1;
-                if (scenario == 4) faultTransmitReady = false;
-                if (scenario == 5) faultTransmitByteLimit = firstMarker.Length;
-                if (scenario == 6) candidate.Entries++;
-                if (scenario == 7) descriptor->Gdt[13] ^= 0x10;
-                if (scenario == 8) arena.Permanent->ObservedRsp = arena.StackBottom;
-                if (scenario == 9) { faultCorruptCanary = (byte*)(arena.StackBottom - 8); faultCorruptAfterBytes = firstMarker.Length + secondMarker.Length; }
-                if (scenario == 10) faultTransmitByteLimit = firstMarker.Length + secondMarker.Length;
-                if (scenario == 11) ((uint*)arena.Transition)[1] = (uint)FirmwareServicesMode.BootServicesAvailable;
-                if (scenario == 12) arena.Permanent->Phase = FirstExitAdoptionPhase.Prepared;
-                if (scenario == 13) faultTransmitByteLimit = transitionMarkers.Length;
-                if (scenario == 14) { faultCorruptCanary = (byte*)(arena.StackBottom - 8); faultCorruptAfterBytes = transitionMarkers.Length; }
-                if (scenario == 15) faultTransmitByteLimit = transitionMarkers.Length + readyMarker.Length;
-                if (scenario == 16) { faultCorruptCanary = (byte*)(arena.StackBottom - 8); faultCorruptAfterBytes = transitionMarkers.Length + readyMarker.Length; }
+                if (scenario == 1)
+                    arena.Permanent->ObservedCr3 ^= 4096;
+                if (scenario == 2)
+                    descriptor->ObservedTr = 16;
+                if (scenario == 3)
+                    entries[0] ^= 1;
+                if (scenario == 4)
+                    faultTransmitReady = false;
+                if (scenario == 5)
+                    faultTransmitByteLimit = firstMarker.Length;
+                if (scenario == 6)
+                    candidate.Entries++;
+                if (scenario == 7)
+                    descriptor->Gdt[13] ^= 0x10;
+                if (scenario == 8)
+                    arena.Permanent->ObservedRsp = arena.StackBottom;
+                if (scenario == 9)
+                {
+                    faultCorruptCanary = (byte*)(arena.StackBottom - 8);
+                    faultCorruptAfterBytes = firstMarker.Length + secondMarker.Length;
+                }
+                if (scenario == 10)
+                    faultTransmitByteLimit = firstMarker.Length + secondMarker.Length;
+                if (scenario == 11)
+                    ((uint*)arena.Transition)[1] = (uint)FirmwareServicesMode.BootServicesAvailable;
+                if (scenario == 12)
+                    arena.Permanent->Phase = FirstExitAdoptionPhase.Prepared;
+                if (scenario == 13)
+                    faultTransmitByteLimit = transitionMarkers.Length;
+                if (scenario == 14)
+                {
+                    faultCorruptCanary = (byte*)(arena.StackBottom - 8);
+                    faultCorruptAfterBytes = transitionMarkers.Length;
+                }
+                if (scenario == 15)
+                    faultTransmitByteLimit = transitionMarkers.Length + readyMarker.Length;
+                if (scenario == 16)
+                {
+                    faultCorruptCanary = (byte*)(arena.StackBottom - 8);
+                    faultCorruptAfterBytes = transitionMarkers.Length + readyMarker.Length;
+                }
                 bool passed = FirstExitPostExitDiagnostics.Report(ref state, ref arena, candidate);
                 string observed = Encoding.ASCII.GetString(FaultOutput, 0, faultOutputBytes);
                 string expected = scenario == 0 ? completeMarkers :
@@ -478,14 +621,25 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 int priorBytes = faultOutputBytes, priorPolls = faultPolls;
                 Need(!FirstExitPostExitDiagnostics.Report(ref state, ref arena, candidate) && faultOutputBytes == priorBytes && faultPolls == priorPolls,
                     "every report attempt is consumed");
-                if (scenario == 1) arena.Permanent->ObservedCr3 ^= 4096;
-                if (scenario == 2) descriptor->ObservedTr = 24;
-                if (scenario == 3) entries[0] ^= 1;
-                if (scenario == 7) descriptor->Gdt[13] ^= 0x10;
-                if (scenario == 8) arena.Permanent->ObservedRsp = arena.StackTop - 4096 - 8;
-                if (scenario is 9 or 14 or 16) { *faultCorruptCanary ^= 1; faultCorruptCanary = null; }
-                if (scenario == 11) ((uint*)arena.Transition)[1] = (uint)FirmwareServicesMode.BootServicesExited;
-                if (scenario == 12) arena.Permanent->Phase = FirstExitAdoptionPhase.OwnedDiagnostic;
+                if (scenario == 1)
+                    arena.Permanent->ObservedCr3 ^= 4096;
+                if (scenario == 2)
+                    descriptor->ObservedTr = 24;
+                if (scenario == 3)
+                    entries[0] ^= 1;
+                if (scenario == 7)
+                    descriptor->Gdt[13] ^= 0x10;
+                if (scenario == 8)
+                    arena.Permanent->ObservedRsp = arena.StackTop - 4096 - 8;
+                if (scenario is 9 or 14 or 16)
+                {
+                    *faultCorruptCanary ^= 1;
+                    faultCorruptCanary = null;
+                }
+                if (scenario == 11)
+                    ((uint*)arena.Transition)[1] = (uint)FirmwareServicesMode.BootServicesExited;
+                if (scenario == 12)
+                    arena.Permanent->Phase = FirstExitAdoptionPhase.OwnedDiagnostic;
             }
             int beforeExitSuccess = originalMarkers.Length + diagnosticsStart.Length;
             int beforeDiagnosticsReady = beforeExitSuccess + exitSuccess.Length;
@@ -512,7 +666,9 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             ];
             foreach (var test in tailCases)
             {
-                state = default; faultOutputBytes = faultPolls = 0; faultTransmitReady = true;
+                state = default;
+                faultOutputBytes = faultPolls = 0;
+                faultTransmitReady = true;
                 faultTransmitByteLimit = test.CorruptCanary ? int.MaxValue : test.Bytes;
                 if (test.CorruptCanary)
                 {
@@ -528,12 +684,21 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 int priorBytes = faultOutputBytes, priorPolls = faultPolls;
                 Need(!FirstExitPostExitDiagnostics.Report(ref state, ref arena, memory) &&
                     faultOutputBytes == priorBytes && faultPolls == priorPolls, "consumed diagnostic tail " + test);
-                if (test.CorruptCanary) { *faultCorruptCanary ^= 1; faultCorruptCanary = null; }
+                if (test.CorruptCanary)
+                {
+                    *faultCorruptCanary ^= 1;
+                    faultCorruptCanary = null;
+                }
             }
             Console.WriteLine("CLROS_M03_007_REPORT_HOST_READY identityBacking=true markerBytes=235 guestExecution=false");
             Console.WriteLine("CLROS_M03_009_REPORT_HOST_READY tailCases=13 markerBytes=111 guestExecution=false");
         }
-        finally { faultTransmitByteLimit = int.MaxValue; faultCorruptCanary = null; VirtualFree(entries, 0, 0x8000); }
+        finally
+        {
+            faultTransmitByteLimit = int.MaxValue;
+            faultCorruptCanary = null;
+            VirtualFree(entries, 0, 0x8000);
+        }
     }
 
     private static void OwnedArena()
@@ -573,7 +738,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             int guards = 0;
             for (uint page = 0; page < FirstExitOwnedArena.PageCount; page++)
                 if (FirstExitOwnedArena.IsGuardPage(page))
-                { guards++; Need(!new ReadOnlySpan<byte>(data + page * 4096, 4096).ContainsAnyExcept((byte)0), "reserved guard page remains zero"); }
+                {
+                    guards++;
+                    Need(!new ReadOnlySpan<byte>(data + page * 4096, 4096).ContainsAnyExcept((byte)0), "reserved guard page remains zero");
+                }
             Need(guards == 8, "guard reservations for four stacks; mapping still deferred");
             SeparatePageFaultMappingRange* mapping = stackalloc SeparatePageFaultMappingRange[6];
             mapping[0] = new(0x12345000, 1, PageProtection.Read);
@@ -603,11 +771,18 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             data[22 * 4096] ^= 1;
             foreach (uint offset in new uint[] { 22 * 4096, 86 * 4096 - 16, 88 * 4096, 92 * 4096 - 16,
                 94 * 4096, 98 * 4096 - 16, 100 * 4096, 104 * 4096 - 16 })
-            { data[offset] ^= 1; Need(!FirstExitOwnedArena.ValidateCanaries(state), "each canary is checked"); data[offset] ^= 1; }
+            {
+                data[offset] ^= 1;
+                Need(!FirstExitOwnedArena.ValidateCanaries(state), "each canary is checked");
+                data[offset] ^= 1;
+            }
             Need(FirstExitOwnedArena.ValidateCanaries(state) &&
                 !FirstExitOwnedArena.Materialize(ref state, data, FirstExitOwnedArena.Bytes, 0x100000, 56), "prepared arena cannot be reset");
         }
-        finally { NativeMemory.AlignedFree(allocation); }
+        finally
+        {
+            NativeMemory.AlignedFree(allocation);
+        }
     }
 
     private static void VerifyRetainedArenaImage(byte* data, SeparatePageFaultMappingRange* ranges, ulong rangeCount,
@@ -635,8 +810,13 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 for (int level = 4; level >= 1; level--)
                 {
                     ulong raw = entries[table * 512 + ((address >> (12 + 9 * (level - 1))) & 511)];
-                    if (raw == 0) break;
-                    if (level == 1) { leaf = raw; break; }
+                    if (raw == 0)
+                        break;
+                    if (level == 1)
+                    {
+                        leaf = raw;
+                        break;
+                    }
                     ulong target = raw & 0x000f_ffff_ffff_f000;
                     Need((raw & ~0x000f_ffff_ffff_f000UL) == 3 && target >= root && target - root < tablePages * 4096,
                         "arena oracle follows only owned tables");
@@ -650,8 +830,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                     ulong address = ranges[range].Start + page * 4096;
                     PageProtection protection = ranges[range].Protection;
                     ulong expected = address | 1;
-                    if ((protection & PageProtection.Write) != 0) expected |= 2;
-                    if ((protection & PageProtection.Execute) == 0) expected |= 1UL << 63;
+                    if ((protection & PageProtection.Write) != 0)
+                        expected |= 2;
+                    if ((protection & PageProtection.Execute) == 0)
+                        expected |= 1UL << 63;
                     Need(Leaf(address) == expected, "independent retained range permissions");
                 }
             for (uint page = 0; page < FirstExitOwnedArena.PageCount; page++)
@@ -662,7 +844,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                     "actual arena mapping is exact RW/NX or an absent guard");
             }
         }
-        finally { NativeMemory.AlignedFree(entries); }
+        finally
+        {
+            NativeMemory.AlignedFree(entries);
+        }
     }
 
     private static void OwnedStackEntry()
@@ -713,7 +898,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             Directory.CreateDirectory(path);
             File.WriteAllBytes(Path.Combine(path, "entry.bin"), code);
         }
-        finally { NativeMemory.AlignedFree(memory); }
+        finally
+        {
+            NativeMemory.AlignedFree(memory);
+        }
     }
 
     private static void SealTable(byte* table, int bytes)
@@ -726,19 +914,37 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     {
         new Span<byte>(memory, 3 * 4096).Clear();
         byte* system = memory, boot = memory + 4096, map = memory + 8192;
-        *(ulong*)system = 0x5453595320494249; *(uint*)(system + 8) = 0x20000; *(uint*)(system + 12) = 128;
-        *(ulong*)(system + 96) = (ulong)boot; system[127] = 0x5a;
-        *(ulong*)boot = 0x56524553544f4f42; *(uint*)(boot + 8) = 0x20000; *(uint*)(boot + 12) = 384;
+        *(ulong*)system = 0x5453595320494249;
+        *(uint*)(system + 8) = 0x20000;
+        *(uint*)(system + 12) = 128;
+        *(ulong*)(system + 96) = (ulong)boot;
+        system[127] = 0x5a;
+        *(ulong*)boot = 0x56524553544f4f42;
+        *(uint*)(boot + 8) = 0x20000;
+        *(uint*)(boot + 12) = 384;
         ulong mapEntry = (ulong)(delegate* unmanaged<ulong*, void*, ulong*, ulong*, uint*, ulong>)&Map;
         ulong exitEntry = (ulong)(delegate* unmanaged<void*, ulong, ulong>)&Exit;
-        *(ulong*)(boot + 56) = mapEntry; *(ulong*)(boot + 232) = exitEntry; boot[383] = 0xa5;
-        SealTable(system, 128); SealTable(boot, 384);
+        *(ulong*)(boot + 56) = mapEntry;
+        *(ulong*)(boot + 232) = exitEntry;
+        boot[383] = 0xa5;
+        SealTable(system, 128);
+        SealTable(boot, 384);
         ulong start = Math.Min(mapEntry, exitEntry) & ~4095UL, last = Math.Max(mapEntry, exitEntry);
-        *(uint*)map = 3; *(ulong*)(map + 8) = start; *(ulong*)(map + 24) = (last - start) / 4096 + 1;
+        *(uint*)map = 3;
+        *(ulong*)(map + 8) = start;
+        *(ulong*)(map + 24) = (last - start) / 4096 + 1;
         // UEFI map attributes describe capabilities, not current page permissions.
         *(ulong*)(map + 32) = 0x4000;
-        return new FirmwareMemoryMapRecord { BufferAddress = (ulong)map, BufferSize = 96, MapSize = 48,
-            DescriptorSize = 48, DescriptorVersion = 1, DescriptorCount = 1, Flags = FirmwareMemoryMapRecord.FlagOwnedCopy };
+        return new FirmwareMemoryMapRecord
+        {
+            BufferAddress = (ulong)map,
+            BufferSize = 96,
+            MapSize = 48,
+            DescriptorSize = 48,
+            DescriptorVersion = 1,
+            DescriptorCount = 1,
+            Flags = FirmwareMemoryMapRecord.FlagOwnedCopy
+        };
     }
 
     private static FirstExitBindingStatus BindFirmware(ref FirstExitFirmwareBindingState binding,
@@ -777,58 +983,86 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
 
             foreach (int offset in new[] { 0, 16, 20, 127, 4096, 4096 + 16, 4096 + 20, 4096 + 383 })
             {
-                map = FirmwareFixture(memory); binding = default; memory[offset] ^= 1;
+                map = FirmwareFixture(memory);
+                binding = default;
+                memory[offset] ^= 1;
                 Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidTable && !binding.IsReady,
                     "reject signature/reserved/CRC/full extension corruption");
             }
-            map = FirmwareFixture(memory); binding = default;
+            map = FirmwareFixture(memory);
+            binding = default;
             *(uint*)(memory + 12) = 129;
             Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidTable, "header beyond readable extent");
-            map = FirmwareFixture(memory); *(ulong*)(memory + 96) += 8; SealTable(memory, 128);
+            map = FirmwareFixture(memory);
+            *(ulong*)(memory + 96) += 8;
+            SealTable(memory, 128);
             Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.WrongBootServicesTable, "system table pointer association");
-            map = FirmwareFixture(memory); *(ulong*)(memory + 4096 + 232) = 0; SealTable(memory + 4096, 384);
+            map = FirmwareFixture(memory);
+            *(ulong*)(memory + 4096 + 232) = 0;
+            SealTable(memory + 4096, 384);
             Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidFunction, "null actual exit slot");
-            map = FirmwareFixture(memory); *(uint*)(memory + 8192) = 4;
+            map = FirmwareFixture(memory);
+            *(uint*)(memory + 8192) = 4;
             Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.NotFirmwareCode, "data range cannot attest code");
             map = FirmwareFixture(memory);
             new ReadOnlySpan<byte>(memory + 8192, 48).CopyTo(new Span<byte>(memory + 8192 + 48, 48));
-            map.MapSize = 96; map.DescriptorCount = 2;
+            map.MapSize = 96;
+            map.DescriptorCount = 2;
             Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.NotFirmwareCode, "ambiguous overlapping code ranges");
-            map = FirmwareFixture(memory); *(ulong*)(memory + 8192 + 24) = ulong.MaxValue;
+            map = FirmwareFixture(memory);
+            *(ulong*)(memory + 8192 + 24) = ulong.MaxValue;
             Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidMap, "overflowing map extent");
-            map = FirmwareFixture(memory); map.Flags = 0;
+            map = FirmwareFixture(memory);
+            map.Flags = 0;
             Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidMap, "map must be retained owned copy");
-            map = FirmwareFixture(memory); map.BufferAddress = (ulong)memory;
+            map = FirmwareFixture(memory);
+            map.BufferAddress = (ulong)memory;
             Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.InvalidStorage, "table/map overlap");
 
             map = FirmwareFixture(memory);
             Need(BindFirmware(ref binding, memory, map) == FirstExitBindingStatus.Ready, "fresh binding before mutation");
-            memory[4096 + 383] ^= 1; SealTable(memory + 4096, 384);
+            memory[4096 + 383] ^= 1;
+            SealTable(memory + 4096, 384);
             Need(FirstExitFirmwareBinding.Consume(ref binding, FirmwareServicesMode.BootServicesAvailable,
                 out get, out exit, out handle) == FirstExitBindingStatus.Changed && get == null && exit == null && handle == null &&
                 binding.IsConsumed && binding.RetainedPointersCleared, "changed valid-CRC table consumes without exposing entries");
             Need(maps == oldMaps && exits == oldExits, "binding never invokes firmware or host callbacks");
         }
-        finally { NativeMemory.AlignedFree(memory); }
+        finally
+        {
+            NativeMemory.AlignedFree(memory);
+        }
     }
 
     [UnmanagedCallersOnly]
     private static ulong Map(ulong* bytes, void* buffer, ulong* key, ulong* width, uint* version)
     {
-        maps++; *bytes = 40; *key = (ulong)maps; *width = 40; *version = 1;
+        maps++;
+        *bytes = 40;
+        *key = (ulong)maps;
+        *width = 40;
+        *version = 1;
         if (Transition.AttemptAndTransfer(ref *active, FirmwareServicesMode.BootServicesAvailable,
-            null, null, null, null, 0, null, null, 0) == FirstExitReturn.ReentryRejected) reentries++;
+            null, null, null, null, 0, null, null, 0) == FirstExitReturn.ReentryRejected)
+            reentries++;
         return captureStatus;
     }
     [UnmanagedCallersOnly]
     private static ulong Exit(void* image, ulong key)
-    { exits++; return (ulong)image == 123 && key == (ulong)maps ? exitStatus : ulong.MaxValue; }
+    {
+        exits++;
+        return (ulong)image == 123 && key == (ulong)maps ? exitStatus : ulong.MaxValue;
+    }
     [UnmanagedCallersOnly]
     private static void Continuation(FirstExitTransitionState* state, void* context)
-    { continuations++; }
+    {
+        continuations++;
+    }
 
     [UnmanagedCallersOnly]
-    private static void Diagnostic(FirstExitTransitionState* state, FirstExitPermanentCr3Context* context) { }
+    private static void Diagnostic(FirstExitTransitionState* state, FirstExitPermanentCr3Context* context)
+    {
+    }
 
     private static bool Prepare(ref FirstExitPermanentCr3Context context,
         ulong firmware = 0xF801000, ulong owned = 0x100000, ulong cr4 = 0x668,
@@ -845,7 +1079,11 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             Need(PrepareDescriptors(memory), "prepare actual descriptor buffers");
             PermanentContinuationCore();
         }
-        finally { descriptors = null; NativeMemory.AlignedFree(memory); }
+        finally
+        {
+            descriptors = null;
+            NativeMemory.AlignedFree(memory);
+        }
     }
 
     private static void PermanentContinuationCore()
@@ -868,17 +1106,29 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             context.ObservedCr3 == 0 && context.ObservedCr4 == 0 && context.ObservedRsp == 0, "prepared bounds");
         Need(!Prepare(ref context), "cannot reset prepared context");
         foreach (ulong firmware in new[] { 0UL, 0x18UL, 0x1000_0000_0UL, 0xF801001UL })
-        { context = default; Need(!Prepare(ref context, firmware: firmware) && context.Phase == 0, "invalid firmware root"); }
+        {
+            context = default;
+            Need(!Prepare(ref context, firmware: firmware) && context.Phase == 0, "invalid firmware root");
+        }
         foreach (ulong owned in new[] { 0UL, 0x100001UL, 0xF801000UL, 0x1000_0000_0UL })
-        { context = default; Need(!Prepare(ref context, owned: owned) && context.Phase == 0, "invalid owned root"); }
+        {
+            context = default;
+            Need(!Prepare(ref context, owned: owned) && context.Phase == 0, "invalid owned root");
+        }
         foreach (ulong cr4 in new[] { 0UL, 0x648UL, 0x1668UL, 0x20668UL, 0x800668UL })
-        { context = default; Need(!Prepare(ref context, cr4: cr4) && context.Phase == 0, "unsupported processor mode"); }
+        {
+            context = default;
+            Need(!Prepare(ref context, cr4: cr4) && context.Phase == 0, "unsupported processor mode");
+        }
         foreach (var stack in new[] { (0UL, 0x240000UL, 1UL), (0x200001UL, 0x240000UL, 1UL),
             (0x200008UL, 0x240001UL, 1UL), (0x200008UL, 0x200008UL, 1UL),
             (0x200008UL, 0x240000UL, 0UL), (0x200008UL, 0x240000UL, ulong.MaxValue),
             (0x200008UL, 0x240000UL, 0x3ffb8UL), (0x200008UL, 0x800000000000UL, 1UL) })
-        { context = default; Need(!Prepare(ref context, bottom: stack.Item1, top: stack.Item2, depth: stack.Item3) &&
-            context.Phase == 0, "invalid stack extent or headroom"); }
+        {
+            context = default;
+            Need(!Prepare(ref context, bottom: stack.Item1, top: stack.Item2, depth: stack.Item3) &&
+            context.Phase == 0, "invalid stack extent or headroom");
+        }
         context = default;
         ulong contextAddress = (ulong)&context;
         Need(!Prepare(ref context, bottom: contextAddress, top: contextAddress + 0x10000), "context overlaps live stack");
@@ -926,13 +1176,17 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         new ReadOnlySpan<byte>(scratch + 24, 40).CopyTo(new Span<byte>(gdt, 40));
         new ReadOnlySpan<byte>(scratch + 64, 104).CopyTo(new Span<byte>(tss, 104));
         *(ulong*)(tss + 4) = 0x240000;
-        *(ulong*)(tss + 36) = 0x300000; *(ulong*)(tss + 44) = 0x304000; *(ulong*)(tss + 52) = 0x308000;
+        *(ulong*)(tss + 36) = 0x300000;
+        *(ulong*)(tss + 44) = 0x304000;
+        *(ulong*)(tss + 52) = 0x308000;
         for (int vector = 0; vector < 256; vector++)
         {
             byte* gate = idt + vector * 16;
             uint handler = (uint)(0x100000 + vector * 16);
-            *(ushort*)gate = (ushort)handler; *(ushort*)(gate + 6) = (ushort)(handler >> 16);
-            *(ushort*)(gate + 2) = 8; gate[5] = 0x8e;
+            *(ushort*)gate = (ushort)handler;
+            *(ushort*)(gate + 6) = (ushort)(handler >> 16);
+            *(ushort*)(gate + 2) = 8;
+            gate[5] = 0x8e;
             gate[4] = vector == 2 ? (byte)3 : vector == 8 ? (byte)1 : vector == 14 ? (byte)2 : (byte)0;
         }
     }
@@ -973,13 +1227,17 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 Need(!PrepareDescriptors(memory, selector), "descriptor preparation single use");
             }
             foreach (ushort selector in new ushort[] { 0, 7, 16, 24, 32, 4096, ushort.MaxValue })
-            { ResetDescriptors(memory); Need(!PrepareDescriptors(memory, selector), "invalid/colliding code selector"); }
+            {
+                ResetDescriptors(memory);
+                Need(!PrepareDescriptors(memory, selector), "invalid/colliding code selector");
+            }
             // Each invalid input is rejected before context/bridge/GDT mutation.
             foreach (int offset in new[] { 4096, 4096 + 13, 4096 + 29, 4096 + 40,
                 8192, 8192 + 36, 8192 + 102, 12288 + 2, 12288 + 4, 12288 + 5,
                 12288 + 12, 12288 + 15 * 16 + 11, 16384 })
             {
-                ResetDescriptors(memory); memory[offset] ^= 1;
+                ResetDescriptors(memory);
+                memory[offset] ^= 1;
                 byte[] before = new ReadOnlySpan<byte>(memory, 5 * 4096).ToArray();
                 Need(!PrepareDescriptors(memory) && new ReadOnlySpan<byte>(memory, 5 * 4096).SequenceEqual(before),
                     "refuse invalid descriptor at " + offset + " without mutation");
@@ -994,7 +1252,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                     memory + 12288, shortBuffer == 2 ? 4095UL : 4096UL,
                     memory + 16384, shortBuffer == 3 ? 4095UL : 4096UL, 56), "short descriptor buffer");
         }
-        finally { NativeMemory.AlignedFree(memory); }
+        finally
+        {
+            NativeMemory.AlignedFree(memory);
+        }
     }
 
     private static FirstExitReturn Invoke(ref FirstExitTransitionState state, byte* buffer, void* context)
@@ -1010,7 +1271,8 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     private static void Failures()
     {
         Need(!RuntimeHelpers.IsReferenceOrContainsReferences<FirstExitTransitionState>(), "POD state");
-        byte* buffer = stackalloc byte[128]; ulong context = 1;
+        byte* buffer = stackalloc byte[128];
+        ulong context = 1;
         FirstExitTransitionState state = default;
         Need(Transition.AttemptAndTransfer(ref state, FirmwareServicesMode.BootServicesExited,
             &Map, &Exit, (void*)123, buffer, 128, &Continuation, &context, 8) == FirstExitReturn.FirmwareUnavailable,
@@ -1026,8 +1288,10 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
 
         foreach (var scenario in new[] { (0x8000000000000005UL, 0UL, 0), (0UL, 7UL, 1), (0UL, 0x8000000000000002UL, 2) })
         {
-            state = default; maps = exits = continuations = reentries = 0;
-            captureStatus = scenario.Item1; exitStatus = scenario.Item2;
+            state = default;
+            maps = exits = continuations = reentries = 0;
+            captureStatus = scenario.Item1;
+            exitStatus = scenario.Item2;
             Need(Invoke(ref state, buffer, &context) == FirstExitReturn.ExitNotCompleted, "failed exit returns failure");
             Need(state.Phase == FirstExitPhase.Failed && state.Mode == FirmwareServicesMode.BootServicesAvailable &&
                 !state.Attempt.Succeeded && state.Attempt.ExitCalls == (uint)scenario.Item3 &&
@@ -1059,13 +1323,25 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
 
     private static void Execute(string directory, string name, string[] arguments, string marker)
     {
-        var start = new ProcessStartInfo("dotnet") { WorkingDirectory = directory, UseShellExecute = false,
-            RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
-        foreach (string arg in arguments) start.ArgumentList.Add(arg);
+        var start = new ProcessStartInfo("dotnet")
+        {
+            WorkingDirectory = directory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        foreach (string arg in arguments)
+            start.ArgumentList.Add(arg);
         using var process = Process.Start(start)!;
-        var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
+        var output = process.StandardOutput.ReadToEndAsync();
+        var error = process.StandardError.ReadToEndAsync();
         bool ended = process.WaitForExit(60_000);
-        if (!ended) { process.Kill(true); process.WaitForExit(); }
+        if (!ended)
+        {
+            process.Kill(true);
+            process.WaitForExit();
+        }
         string stdout = output.GetAwaiter().GetResult(), stderr = error.GetAwaiter().GetResult();
         File.WriteAllText(Path.Combine(directory, name + ".stdout.log"), stdout);
         File.WriteAllText(Path.Combine(directory, name + ".stderr.log"), stderr);

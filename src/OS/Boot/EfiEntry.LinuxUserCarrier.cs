@@ -5,15 +5,6 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
-        // The selected native owner retains this separate whole carrier for the
-        // entire boot, including failed cleanup. Its pointees still need their
-        // original mapping, callback, device and process authority checks.
-        private struct LinuxUserCarrier
-        {
-            internal ulong Self;
-            internal Storage* Boot;
-            internal ulong OriginalCooperativePool;
-        }
 
         private static LinuxUserCarrier s_linuxUserCarrier;
 
@@ -26,7 +17,8 @@ public static unsafe partial class EfiEntry
             fixed (Storage* original = &s_storage)
             fixed (LinuxUserCarrier* carrier = &s_linuxUserCarrier)
             {
-                if (state != original || !LinuxUserCarrierPool(state)) return false;
+                if (state != original || !LinuxUserCarrierPool(state))
+                    return false;
                 if (carrier->Self != 0 || carrier->Boot != null || carrier->OriginalCooperativePool != 0)
                     return LinuxUserCarrierMatches(carrier, state);
                 carrier->Boot = state;
@@ -68,7 +60,8 @@ public static unsafe partial class EfiEntry
             fixed (Storage* original = &s_storage)
             fixed (LinuxUserCarrier* carrier = &s_linuxUserCarrier)
             {
-                if (context == original) return original;
+                if (context == original)
+                    return original;
                 return context == carrier && LinuxUserCarrierMatches(carrier, original) ? original : null;
             }
         }

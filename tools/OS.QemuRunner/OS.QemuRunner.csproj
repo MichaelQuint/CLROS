@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
@@ -10,8 +11,14 @@
 
 	<ItemGroup>
 		<Compile Include="..\OS.Tooling\QemuContracts.cs" Link="QemuContracts.cs" />
+		<Compile Include="..\OS.Tooling\NativeFile.FileIdentity.cs" Link="NativeFile.FileIdentity.cs" />
 		<Compile Include="..\OS.Tooling\NativeFile.cs" Link="NativeFile.cs" />
+		<Compile Include="..\OS.Tooling\NativeFile.FILETIME.cs" Link="NativeFile.FILETIME.cs" />
+		<Compile Include="..\OS.Tooling\NativeFile.BY_HANDLE_FILE_INFORMATION.cs" Link="NativeFile.BY_HANDLE_FILE_INFORMATION.cs" />
+		<Compile Include="..\OS.Tooling\NativeFile.LinuxStat.cs" Link="NativeFile.LinuxStat.cs" />
 		<ProjectReference Include="..\..\src\OS.Kernel\OS.Kernel.csproj" />
 	</ItemGroup>
 
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="../OS.CompilerReceipts/HostCompilationReceipts.targets" />
 </Project>

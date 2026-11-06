@@ -28,7 +28,8 @@ internal static class LinuxMemoryTranscriptTests
     [HostTest("m16-006 synthetic memory rows bind all actual fixture instructions results accounting and restoration", HostLane.Fast, 1)]
     private static void Tail()
     {
-        var rows = SyntheticRows(); byte[] package = LinuxMemoryProofFixture.CreatePackage("Memory");
+        var rows = SyntheticRows();
+        byte[] package = LinuxMemoryProofFixture.CreatePackage("Memory");
         HostCheck.Equal(107, QemuTranscripts.ValidateLinuxMemoryTail(rows, package).Length);
         foreach ((string Old, string New) change in new (string, string)[]
         {
@@ -47,7 +48,8 @@ internal static class LinuxMemoryTranscriptTests
         HostCheck.True(Rejected(() => QemuTranscripts.ValidateLinuxMemoryTail([.. rows, "extra"], package)));
         HostCheck.True(Rejected(() => QemuTranscripts.ValidateLinuxMemoryTail(rows[1..], package)));
         HostCheck.True(Rejected(() => QemuTranscripts.ValidateLinuxMemoryTail(rows, LinuxMemoryProofFixture.CreatePackage("GuardFault"))));
-        package[^1] ^= 1; HostCheck.True(Rejected(() => QemuTranscripts.ValidateLinuxMemoryTail(rows, package)));
+        package[^1] ^= 1;
+        HostCheck.True(Rejected(() => QemuTranscripts.ValidateLinuxMemoryTail(rows, package)));
     }
 
     [HostTest("m16-006 controlled fault parser rejects wrong sparse target protection fault frame and fake success", HostLane.Fast, 2)]
@@ -60,11 +62,17 @@ internal static class LinuxMemoryTranscriptTests
             List<ulong> rips = [];
             for (int i = 0x200; i < 0xf00; i++)
             {
-                if ((elf[i] is 0x48 or 0x49) && elf[i + 1] is >= 0xb8 and <= 0xbf) i += 9;
-                else if (elf[i] == 0x0f && elf[i + 1] == 5) { rips.Add(0x400000UL + (uint)i + 2); i++; }
+                if ((elf[i] is 0x48 or 0x49) && elf[i + 1] is >= 0xb8 and <= 0xbf)
+                    i += 9;
+                else if (elf[i] == 0x0f && elf[i + 1] == 5)
+                {
+                    rips.Add(0x400000UL + (uint)i + 2);
+                    i++;
+                }
             }
             rows.Add($"M16_005_CALL nr=9 a0=0 a1=8234266624 a2=0 a3=34 a4=18446744073709551615 a5=0 rip={rips[0]} rsp=1879044096 flags=2 valueBits=4294967296 action=1 status=1");
-            if (variant == "GuardFault") rows.Add($"M16_005_CALL nr=10 a0=4294971392 a1=4096 a2=3 a3=0 a4=0 a5=0 rip={rips[1]} rsp=1879044096 flags=2 valueBits=0 action=1 status=1");
+            if (variant == "GuardFault")
+                rows.Add($"M16_005_CALL nr=10 a0=4294971392 a1=4096 a2=3 a3=0 a4=0 a5=0 rip={rips[1]} rsp=1879044096 flags=2 valueBits=0 action=1 status=1");
             int read = elf.AsSpan(0x200, 0xd00).IndexOf(new byte[] { 0x48, 0x8b, 0 });
             rows.Add($"M16_005_FAULT vector=14 error=4 rip={0x400200UL + (uint)read} rsp=1879044096 cr2={(variant == "GuardFault" ? 4294967296UL : 4294971392UL)} cs=59 ss=51 disposition=terminate");
             rows.AddRange(["M16_005_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true", "TEST_FAIL m16-006 user-boundary-terminated status=1"]);
@@ -85,7 +93,8 @@ internal static class LinuxMemoryTranscriptTests
         foreach (string variant in new[] { "HeapOwnership", "HeapOwnershipFault" })
         {
             bool negative = variant == "HeapOwnershipFault";
-            string[] rows = SyntheticRows(variant); byte[] package = LinuxMemoryProofFixture.CreatePackage(variant);
+            string[] rows = SyntheticRows(variant);
+            byte[] package = LinuxMemoryProofFixture.CreatePackage(variant);
             void Validate(string[] input)
             {
                 HostCheck.Equal(107, negative ? QemuTranscripts.ValidateLinuxMemoryNegativeTail(input, package, variant).Length
@@ -116,7 +125,8 @@ internal static class LinuxMemoryTranscriptTests
             }
             HostCheck.True(Rejected(() => Validate([.. rows, "extra"])));
             HostCheck.True(Rejected(() => Validate(rows[1..])));
-            package[^1] ^= 1; HostCheck.True(Rejected(() => Validate(rows)));
+            package[^1] ^= 1;
+            HostCheck.True(Rejected(() => Validate(rows)));
         }
     }
 
@@ -134,11 +144,12 @@ internal static class LinuxMemoryTranscriptTests
             ("backed=0", "backed=1"), ("ss=true", "ss=false")
         })
         {
-            string[] altered = rows.Select(s=>s.Replace(change.Old, change.New, StringComparison.Ordinal)).ToArray();
-            HostCheck.True(!altered.SequenceEqual(rows) && Rejected(()=>QemuTranscripts.ValidateLinuxMemoryTail(altered, package)));
+            string[] altered = rows.Select(s => s.Replace(change.Old, change.New, StringComparison.Ordinal)).ToArray();
+            HostCheck.True(!altered.SequenceEqual(rows) && Rejected(() => QemuTranscripts.ValidateLinuxMemoryTail(altered, package)));
         }
-        HostCheck.True(Rejected(()=>QemuTranscripts.ValidateLinuxMemoryTail(rows, LinuxMemoryProofFixture.CreatePackage("Memory"))));
-        package[^1] ^= 1; HostCheck.True(Rejected(()=>QemuTranscripts.ValidateLinuxMemoryTail(rows, package)));
+        HostCheck.True(Rejected(() => QemuTranscripts.ValidateLinuxMemoryTail(rows, LinuxMemoryProofFixture.CreatePackage("Memory"))));
+        package[^1] ^= 1;
+        HostCheck.True(Rejected(() => QemuTranscripts.ValidateLinuxMemoryTail(rows, package)));
     }
 
     private static string[] SyntheticRows(string variant = "Memory")
@@ -149,27 +160,31 @@ internal static class LinuxMemoryTranscriptTests
             "M16_005_ARMED root=1048576 cs=59 ss=51 kernelStack=2097152 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null"]);
         bool fragmented = variant == "FragmentedBacking", ownership = variant is "HeapOwnership" or "HeapOwnershipFault", negative = variant == "HeapOwnershipFault";
         long[] values = fragmented ?
-            [4294967296,4294967296,4303355904,4311744512,4320133120,0,0,4328521728,0,0,0,24,17181966336,17179869184,0,4328521728,0,0] :
-            negative ? [4294967296,17179869184,17179873280,0,17179869184,17179869184] : ownership ?
+            [4294967296, 4294967296, 4303355904, 4311744512, 4320133120, 0, 0, 4328521728, 0, 0, 0, 24, 17181966336, 17179869184, 0, 4328521728, 0, 0] :
+            negative ? [4294967296, 17179869184, 17179873280, 0, 17179869184, 17179869184] : ownership ?
             [4294967296,17179869184,17179877376,0,17179873297,17179873280,17179877376,17179869184,
              17179873280,0,17179869184,-17,17179869184,0,17179869184,17179869184,17179869184,24,
              17179873280,17179869184,0,0] :
             [4294967296, 0, 0, 0, 4294971392, 0, 24, 0, -12, -22, -22, -17, -12, 0, 0,
             8, 0, 24, 0, 0, 0, 0, 16, 16, -11, 17179869184, 17179877376, 17179877376, 17179869184, -12, -14, 0, 0, 0];
         byte[] elf = LinuxMemoryProofFixture.CreateElf(variant);
-        ulong[] registers = new ulong[16]; int call = 0;
+        ulong[] registers = new ulong[16];
+        int call = 0;
         for (int offset = 0x200; offset < 0xf00; offset++)
         {
             if ((elf[offset] == 0x48 || elf[offset] == 0x49) && elf[offset + 1] is >= 0xb8 and <= 0xbf)
             {
                 int register = elf[offset + 1] - 0xb8 + (elf[offset] == 0x49 ? 8 : 0);
-                registers[register] = BinaryPrimitives.ReadUInt64LittleEndian(elf.AsSpan(offset + 2)); offset += 9;
+                registers[register] = BinaryPrimitives.ReadUInt64LittleEndian(elf.AsSpan(offset + 2));
+                offset += 9;
             }
             else if (elf[offset] == 0x0f && elf[offset + 1] == 5)
             {
                 ulong number = registers[0];
-                if (number == 25 && call == 29) registers[7] = 0x6ffff000;
-                if (number == 1) rows.Add("M16_005_WRITE fd=1 bytes=24 data=" + LinuxMemoryProofFixture.Witness);
+                if (number == 25 && call == 29)
+                    registers[7] = 0x6ffff000;
+                if (number == 1)
+                    rows.Add("M16_005_WRITE fd=1 bytes=24 data=" + LinuxMemoryProofFixture.Witness);
                 bool exit = number == 231;
                 rows.Add($"M16_005_CALL nr={number} a0={registers[7]} a1={registers[6]} a2={registers[2]} a3={registers[10]} a4={registers[8]} a5={registers[9]} rip={0x400000UL + (uint)offset + 2} rsp=1879044096 flags=2 valueBits={unchecked((ulong)values[call++])} action={(exit ? 2 : 1)} status={(exit ? 2 : 1)}");
                 offset++;
@@ -178,12 +193,14 @@ internal static class LinuxMemoryTranscriptTests
         HostCheck.Equal(values.Length, call);
         if (negative)
         {
-            int store = elf.AsSpan(0x200, 0xd00).LastIndexOf(new byte[] { 0x48,0x89,0x10 });
-            rows.Add($"M16_005_FAULT vector=14 error=7 rip={0x400200UL+(uint)store} rsp=1879044096 cr2=17179873280 cs=59 ss=51 disposition=terminate");
+            int store = elf.AsSpan(0x200, 0xd00).LastIndexOf(new byte[] { 0x48, 0x89, 0x10 });
+            rows.Add($"M16_005_FAULT vector=14 error=7 rip={0x400200UL + (uint)store} rsp=1879044096 cr2=17179873280 cs=59 ss=51 disposition=terminate");
         }
         rows.Add("M16_005_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
-        if (negative) rows.Add("TEST_FAIL m16-006 user-boundary-terminated status=1");
-        else rows.AddRange([$"M16_005_EXIT code=42 calls={call} bytes=24 writes=1",
+        if (negative)
+            rows.Add("TEST_FAIL m16-006 user-boundary-terminated status=1");
+        else
+            rows.AddRange([$"M16_005_EXIT code=42 calls={call} bytes=24 writes=1",
             $"M16_006_MEMORY reserved=2097152 backed=0 tables=12 entropyRemaining={(ownership || fragmented ? 32 : 0)}",
             "CLROS_M16_006_READY", "TEST_PASS m16-006"]);
         return rows.ToArray();
@@ -191,6 +208,14 @@ internal static class LinuxMemoryTranscriptTests
 
     private static bool Rejected(Action action)
     {
-        try { action(); return false; } catch (ToolFailure) { return true; }
+        try
+        {
+            action();
+            return false;
+        }
+        catch (ToolFailure)
+        {
+            return true;
+        }
     }
 }

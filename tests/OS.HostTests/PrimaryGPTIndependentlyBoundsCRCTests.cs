@@ -1,17 +1,23 @@
 using System.Buffers.Binary;
 using OS.Storage;
 
-internal static unsafe class PrimaryGPTIndependentlyBoundsCRCTests
+internal static unsafe partial class PrimaryGPTIndependentlyBoundsCRCTests
 {
     private static readonly BlockReadResult Complete = BlockReadResult.Success(1, 512);
-
     [HostTest("block.gpt.primary reads one sector and validates independent primary backup CRC vectors")]
     private static void ValidCopiesAndRead()
     {
-        var device = new RecordingDevice(); byte[] output = new byte[512];
+        var device = new RecordingDevice();
+        byte[] output = new byte[512];
         var read = PrimaryGPTIndependentlyBoundsCRC.Read(ref device, 1234, output);
         HostCheck.True(read.Succeeded && device.Lba == 1234 && device.Count == 1 && device.Bytes == 512 && output[0] == 0x5a);
-        foreach (bool backup in new[] { false, true })
+        foreach (bool backup in new[]
+        {
+            false,
+            true
+        }
+
+        )
         {
             var (header, entries) = GptTestData.Create(backup);
             byte[] originalHeader = header.ToArray(), originalEntries = entries.ToArray();
@@ -34,13 +40,36 @@ internal static unsafe class PrimaryGPTIndependentlyBoundsCRCTests
     {
         var (header, _) = GptTestData.Create();
         HostCheck.True(!default(LiveGptHeaderResult).Succeeded && default(LiveGptStatus) != LiveGptStatus.Success);
-        foreach (var read in new[] { default(BlockReadResult), BlockReadResult.Fail(BlockDeviceStatus.IoError),
-            BlockReadResult.Success(0, 0), BlockReadResult.Success(1, 511), BlockReadResult.Success(2, 512) })
+        foreach (var read in new[]
+        {
+            default(BlockReadResult),
+            BlockReadResult.Fail(BlockDeviceStatus.IoError),
+            BlockReadResult.Success(0, 0),
+            BlockReadResult.Success(1, 511),
+            BlockReadResult.Success(2, 512)
+        }
+
+        )
             HostCheck.Equal(LiveGptStatus.ReadFailed, PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, read).Status);
-        foreach (int length in new[] { 0, 511, 513 })
+        foreach (int length in new[]
+        {
+            0,
+            511,
+            513
+        }
+
+        )
             HostCheck.Equal(LiveGptStatus.InvalidLength, PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(new byte[length], GptTestData.Capacity, Complete).Status);
         HostCheck.Equal(LiveGptStatus.InvalidLength, PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(new Span<byte>(null, 512), GptTestData.Capacity, Complete).Status);
-        foreach (ulong capacity in new ulong[] { 0, 67, ulong.MaxValue / 512 + 1, ulong.MaxValue })
+        foreach (ulong capacity in new ulong[]
+        {
+            0,
+            67,
+            ulong.MaxValue / 512 + 1,
+            ulong.MaxValue
+        }
+
+        )
             HostCheck.Equal(LiveGptStatus.InvalidCapacity, PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, capacity, Complete).Status);
     }
 
@@ -58,23 +87,41 @@ internal static unsafe class PrimaryGPTIndependentlyBoundsCRCTests
             (h => U64(h, 40, 33), LiveGptStatus.InvalidUsableRange),
             (h => U64(h, 48, GptTestData.Capacity - 33), LiveGptStatus.InvalidUsableRange),
             (h => U64(h, 40, GptTestData.Capacity), LiveGptStatus.InvalidUsableRange),
-            (h => { U64(h, 56, 0); U64(h, 64, 0); }, LiveGptStatus.InvalidDiskGuid),
+            (h =>
+            {
+                U64(h, 56, 0);
+                U64(h, 64, 0);
+            }, LiveGptStatus.InvalidDiskGuid),
             (h => U32(h, 80, 127), LiveGptStatus.UnsupportedArrayLayout),
             (h => U32(h, 80, uint.MaxValue), LiveGptStatus.UnsupportedArrayLayout),
             (h => U32(h, 84, 256), LiveGptStatus.UnsupportedArrayLayout),
             (h => U64(h, 72, 1), LiveGptStatus.InvalidArrayPlacement),
             (h => U64(h, 72, 3), LiveGptStatus.InvalidArrayPlacement),
             (h => U64(h, 72, ulong.MaxValue), LiveGptStatus.InvalidArrayPlacement)
-        })
+        }
+
+        )
         {
-            var (header, _) = GptTestData.Create(); change(header); GptTestData.RehashHeader(header);
+            var (header, _) = GptTestData.Create();
+            change(header);
+            GptTestData.RehashHeader(header);
             byte[] before = header.ToArray();
             HostCheck.Equal(expected, PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete).Status);
             HostCheck.True(header.AsSpan().SequenceEqual(before));
         }
-        foreach (uint size in new uint[] { 0, 91, 513, uint.MaxValue })
+
+        foreach (uint size in new uint[]
         {
-            var (header, _) = GptTestData.Create(); U32(header, 12, size);
+            0,
+            91,
+            513,
+            uint.MaxValue
+        }
+
+        )
+        {
+            var (header, _) = GptTestData.Create();
+            U32(header, 12, size);
             HostCheck.Equal(LiveGptStatus.InvalidHeaderSize, PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete).Status);
         }
     }
@@ -82,25 +129,54 @@ internal static unsafe class PrimaryGPTIndependentlyBoundsCRCTests
     [HostTest("block.gpt.primary accepts bounded header extensions capacity edges and nonadjacent arrays")]
     private static void PlacementBoundaries()
     {
-        foreach (bool backup in new[] { false, true })
+        foreach (bool backup in new[]
+        {
+            false,
+            true
+        }
+
+        )
         {
             var (header, _) = GptTestData.Create(backup);
             HostCheck.Equal(LiveGptStatus.InvalidHeaderPosition, PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete, !backup).Status);
-            U64(header, 40, 35); U64(header, 48, GptTestData.Capacity - 36);
-            U64(header, 72, backup ? GptTestData.Capacity - 34 : 3UL); GptTestData.RehashHeader(header);
+            U64(header, 40, 35);
+            U64(header, 48, GptTestData.Capacity - 36);
+            U64(header, 72, backup ? GptTestData.Capacity - 34 : 3UL);
+            GptTestData.RehashHeader(header);
             HostCheck.True(PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete, backup).Succeeded);
-            U64(header, 72, backup ? GptTestData.Capacity - 32 : 4UL); GptTestData.RehashHeader(header);
+            U64(header, 72, backup ? GptTestData.Capacity - 32 : 4UL);
+            GptTestData.RehashHeader(header);
             HostCheck.Equal(LiveGptStatus.InvalidArrayPlacement, PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete, backup).Status);
         }
-        foreach (ulong capacity in new ulong[] { 68, ulong.MaxValue / 512 })
+
+        foreach (ulong capacity in new ulong[]
         {
-            var (header, _) = GptTestData.Create(); U64(header, 32, capacity - 1); U64(header, 48, capacity - 34);
+            68,
+            ulong.MaxValue / 512
+        }
+
+        )
+        {
+            var (header, _) = GptTestData.Create();
+            U64(header, 32, capacity - 1);
+            U64(header, 48, capacity - 34);
             GptTestData.RehashHeader(header);
             HostCheck.True(PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, capacity, Complete).Succeeded);
         }
-        foreach (uint size in new uint[] { 92, 96, 512 })
+
+        foreach (uint size in new uint[]
         {
-            var (header, _) = GptTestData.Create(); U32(header, 12, size); if (size > 92) header[size - 1] = 0xa5;
+            92,
+            96,
+            512
+        }
+
+        )
+        {
+            var (header, _) = GptTestData.Create();
+            U32(header, 12, size);
+            if (size > 92)
+                header[size - 1] = 0xa5;
             GptTestData.RehashHeader(header);
             HostCheck.True(PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete).Succeeded);
         }
@@ -109,15 +185,26 @@ internal static unsafe class PrimaryGPTIndependentlyBoundsCRCTests
     [HostTest("block.gpt.primary detects header and full array CRC failures without changing inputs")]
     private static void CrcFailures()
     {
-        foreach (int offset in new[] { 16, 56 })
+        foreach (int offset in new[]
         {
-            var (header, _) = GptTestData.Create(); header[offset] ^= 1; byte[] before = header.ToArray();
+            16,
+            56
+        }
+
+        )
+        {
+            var (header, _) = GptTestData.Create();
+            header[offset] ^= 1;
+            byte[] before = header.ToArray();
             var result = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete);
             HostCheck.Equal(LiveGptStatus.HeaderCrcMismatch, result.Status);
             HostCheck.True(result.ExpectedHeaderCrc != result.ComputedHeaderCrc && header.AsSpan().SequenceEqual(before));
         }
-        var (good, entries) = GptTestData.Create(); var h = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(good, GptTestData.Capacity, Complete);
-        entries[^1] = 1; byte[] original = entries.ToArray();
+
+        var (good, entries) = GptTestData.Create();
+        var h = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(good, GptTestData.Capacity, Complete);
+        entries[^1] = 1;
+        byte[] original = entries.ToArray();
         HostCheck.Equal(LiveGptStatus.ArrayCrcMismatch, PrimaryGPTIndependentlyBoundsCRC.ValidateArray(h, entries, out uint actual));
         HostCheck.True(actual != h.ArrayCrc && entries.AsSpan().SequenceEqual(original));
     }
@@ -132,26 +219,47 @@ internal static unsafe class PrimaryGPTIndependentlyBoundsCRCTests
             (a => U64(a, 32, 33), LiveGptStatus.InvalidPartitionExtent),
             (a => U64(a, 40, GptTestData.Capacity - 33), LiveGptStatus.InvalidPartitionExtent),
             (a => U64(a, 32, ulong.MaxValue), LiveGptStatus.InvalidPartitionExtent),
-            (a => { a.AsSpan(0, 128).CopyTo(a.AsSpan(128)); U64(a, 160, 34); U64(a, 168, 100); }, LiveGptStatus.DuplicatePartitionGuid),
-            (a => { a.AsSpan(0, 128).CopyTo(a.AsSpan(128)); U64(a, 144, 99); }, LiveGptStatus.OverlappingPartitions)
-        })
+            (a =>
+            {
+                a.AsSpan(0, 128).CopyTo(a.AsSpan(128));
+                U64(a, 160, 34);
+                U64(a, 168, 100);
+            }, LiveGptStatus.DuplicatePartitionGuid),
+            (a =>
+            {
+                a.AsSpan(0, 128).CopyTo(a.AsSpan(128));
+                U64(a, 144, 99);
+            }, LiveGptStatus.OverlappingPartitions)
+        }
+
+        )
         {
-            var (header, entries) = GptTestData.Create(); change(entries); GptTestData.RehashArray(header, entries);
-            byte[] before = entries.ToArray(); var h = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete);
+            var (header, entries) = GptTestData.Create();
+            change(entries);
+            GptTestData.RehashArray(header, entries);
+            byte[] before = entries.ToArray();
+            var h = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete);
             HostCheck.Equal(expected, PrimaryGPTIndependentlyBoundsCRC.ValidateArray(h, entries, out uint crc));
             HostCheck.True(crc == h.ArrayCrc && entries.AsSpan().SequenceEqual(before));
         }
+
         var (fullHeader, full) = GptTestData.Create();
         for (int i = 0; i < 128; i++)
         {
-            if (i != 0) full.AsSpan(0, 128).CopyTo(full.AsSpan(i * 128));
-            U64(full, i * 128 + 16, (ulong)i + 1); U64(full, i * 128 + 32, (ulong)i + 2048); U64(full, i * 128 + 40, (ulong)i + 2048);
-            full[i * 128 + 48] = 0xff; full[i * 128 + 127] = 0xa5; // Opaque attributes/name bytes.
+            if (i != 0)
+                full.AsSpan(0, 128).CopyTo(full.AsSpan(i * 128));
+            U64(full, i * 128 + 16, (ulong)i + 1);
+            U64(full, i * 128 + 32, (ulong)i + 2048);
+            U64(full, i * 128 + 40, (ulong)i + 2048);
+            full[i * 128 + 48] = 0xff;
+            full[i * 128 + 127] = 0xa5; // Opaque attributes/name bytes.
         }
+
         GptTestData.RehashArray(fullHeader, full);
         var all = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(fullHeader, GptTestData.Capacity, Complete);
         HostCheck.Equal(LiveGptStatus.Success, PrimaryGPTIndependentlyBoundsCRC.ValidateArray(all, full, out _));
-        full.AsSpan().Clear(); GptTestData.RehashArray(fullHeader, full);
+        full.AsSpan().Clear();
+        GptTestData.RehashArray(fullHeader, full);
         var empty = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(fullHeader, GptTestData.Capacity, Complete);
         HostCheck.Equal(LiveGptStatus.Success, PrimaryGPTIndependentlyBoundsCRC.ValidateArray(empty, full, out uint emptyCrc));
         HostCheck.Equal(0xab54d286u, emptyCrc);
@@ -160,17 +268,34 @@ internal static unsafe class PrimaryGPTIndependentlyBoundsCRCTests
     [HostTest("block.gpt.primary rechecks mutable header bounds before validating the exact array")]
     private static void ArrayAdmission()
     {
-        var (header, entries) = GptTestData.Create(); var h = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete);
-        foreach (int length in new[] { 0, 16383, 16385 })
+        var (header, entries) = GptTestData.Create();
+        var h = PrimaryGPTIndependentlyBoundsCRC.ValidateHeader(header, GptTestData.Capacity, Complete);
+        foreach (int length in new[]
+        {
+            0,
+            16383,
+            16385
+        }
+
+        )
         {
             HostCheck.Equal(LiveGptStatus.InvalidLength, PrimaryGPTIndependentlyBoundsCRC.ValidateArray(h, new byte[length], out uint crc));
             HostCheck.Equal(0u, crc);
         }
+
         HostCheck.Equal(LiveGptStatus.InvalidLength, PrimaryGPTIndependentlyBoundsCRC.ValidateArray(h, new Span<byte>(null, 16384), out _));
-        var mutations = new LiveGptHeaderResult[9]; Array.Fill(mutations, h);
-        mutations[0] = default; mutations[1].Capacity = ulong.MaxValue; mutations[2].HeaderSize = 513;
-        mutations[3].CurrentLba = 2; mutations[4].FirstUsableLba = 0; mutations[5].LastUsableLba = ulong.MaxValue;
-        mutations[6].DiskGuidLow = 0; mutations[6].DiskGuidHigh = 0; mutations[7].EntryLba = ulong.MaxValue; mutations[8].ComputedHeaderCrc ^= 1;
+        var mutations = new LiveGptHeaderResult[9];
+        Array.Fill(mutations, h);
+        mutations[0] = default;
+        mutations[1].Capacity = ulong.MaxValue;
+        mutations[2].HeaderSize = 513;
+        mutations[3].CurrentLba = 2;
+        mutations[4].FirstUsableLba = 0;
+        mutations[5].LastUsableLba = ulong.MaxValue;
+        mutations[6].DiskGuidLow = 0;
+        mutations[6].DiskGuidHigh = 0;
+        mutations[7].EntryLba = ulong.MaxValue;
+        mutations[8].ComputedHeaderCrc ^= 1;
         foreach (var forged in mutations)
         {
             HostCheck.Equal(LiveGptStatus.InvalidHeader, PrimaryGPTIndependentlyBoundsCRC.ValidateArray(forged, entries, out uint crc));
@@ -178,40 +303,6 @@ internal static unsafe class PrimaryGPTIndependentlyBoundsCRCTests
         }
     }
 
-    private static void U32(byte[] bytes, int offset, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset), value);
-    private static void U64(byte[] bytes, int offset, ulong value) => BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(offset), value);
-    private struct RecordingDevice : IReadOnlyBlockDevice
-    {
-        public ulong Lba; public uint Count; public int Bytes;
-        public readonly BlockDeviceInfo Info => BlockDeviceInfo.Create(512, GptTestData.Capacity).Info;
-        public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
-        { Lba = firstBlock; Count = blockCount; Bytes = destination.Length; destination[0] = 0x5a; return Complete; }
-    }
-}
-
-internal static class GptTestData
-{
-    internal const ulong Capacity = 131072;
-    internal static (byte[] Header, byte[] Entries) Create(bool backup = false)
-    {
-        byte[] header = new byte[512], entries = new byte[16384];
-        "EFI PART"u8.CopyTo(header); U32(header, 8, 0x10000); U32(header, 12, 92);
-        U64(header, 24, backup ? Capacity - 1 : 1); U64(header, 32, backup ? 1 : Capacity - 1);
-        U64(header, 40, 34); U64(header, 48, Capacity - 34);
-        U64(header, 56, 0x0123456789abcdef); U64(header, 64, 0xfedcba9876543210);
-        U64(header, 72, backup ? Capacity - 33 : 2); U32(header, 80, 128); U32(header, 84, 128);
-        U64(entries, 0, 0x11d2f81fc12a7328); U64(entries, 8, 0x3bc93ec9a0004bba);
-        U64(entries, 16, 0x0102030405060708); U64(entries, 24, 0x1112131415161718);
-        U64(entries, 32, 2048); U64(entries, 40, 131038);
-        RehashArray(header, entries); return (header, entries);
-    }
-    internal static void RehashHeader(byte[] header)
-    {
-        U32(header, 16, 0);
-        U32(header, 16, OS.Std.Hash.Crc32.Compute(header.AsSpan(0, (int)BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(12)))));
-    }
-    internal static void RehashArray(byte[] header, byte[] entries)
-    { U32(header, 88, OS.Std.Hash.Crc32.Compute(entries)); RehashHeader(header); }
     private static void U32(byte[] bytes, int offset, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset), value);
     private static void U64(byte[] bytes, int offset, ulong value) => BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(offset), value);
 }

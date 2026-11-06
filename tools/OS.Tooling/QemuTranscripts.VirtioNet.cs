@@ -15,8 +15,10 @@ public static partial class QemuTranscripts
         for (int i = parentCount; i < lines.Count; i++)
         {
             string expected = QemuContracts.M07VirtioNetMarkers[i];
-            if (expected.StartsWith("M07_NET ", StringComparison.Ordinal)) _ = ReadHexRecord(lines[i], expected, 4);
-            else Need(lines[i] == expected, "m07_net_marker_order");
+            if (expected.StartsWith("M07_NET ", StringComparison.Ordinal))
+                _ = ReadHexRecord(lines[i], expected, 4);
+            else
+                Need(lines[i] == expected, "m07_net_marker_order");
         }
         string[] parent = NormalizeM07VirtioNetRecords(lines);
         AssertM05VirtqueuePollingRecords(parent);

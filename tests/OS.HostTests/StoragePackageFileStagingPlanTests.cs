@@ -226,19 +226,10 @@ internal static class StoragePackageFileStagingPlanTests
     [HostTest("storage.package staging uses shared buffer operations", HostLane.Fast, 6)]
     private static bool TestUsesSharedBufferOperations()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(Path.Combine(
-            repositoryRoot,
-            "src",
-            "OS.Kernel",
-            "Storage",
-            "OsPackageFileStagingPlan.cs"));
-
-        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
-            && source.Contains("BufferOperations.MemoryCopy(source, destination)", StringComparison.Ordinal)
-            && source.Contains("if (!copy.Succeeded)", StringComparison.Ordinal)
-            && source.Contains("OsPackageFileStagingStatus.DestinationTooSmall", StringComparison.Ordinal)
-            && !source.Contains(".CopyTo(destination)", StringComparison.Ordinal));
+        return HostCheck.Result(StorageBufferCopySourceGuard.Check(
+            HostSourceCatalog.Project("src/OS.Kernel/OS.Kernel.csproj"),
+            "OS.Storage.OsPackageFileStagingPlanner", "StageOpenedFile",
+            "OS.Storage.OsPackageFileStagingStatus"));
     }
 
     private static byte[] CreateValidPackage()

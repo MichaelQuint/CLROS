@@ -20,9 +20,15 @@ public static class StaticFileApplication
     {
         var types = new FileExtensionContentTypeProvider(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            [".html"] = "text/html", [".css"] = "text/css", [".js"] = "text/javascript", [".mjs"] = "text/javascript",
-            [".json"] = "application/json", [".txt"] = "text/plain", [".wasm"] = "application/wasm",
-            [".dat"] = "application/octet-stream", [".bin"] = "application/octet-stream"
+            [".html"] = "text/html",
+            [".css"] = "text/css",
+            [".js"] = "text/javascript",
+            [".mjs"] = "text/javascript",
+            [".json"] = "application/json",
+            [".txt"] = "text/plain",
+            [".wasm"] = "application/wasm",
+            [".dat"] = "application/octet-stream",
+            [".bin"] = "application/octet-stream"
         });
         app.UseDefaultFiles();
         app.UseStaticFiles(new StaticFileOptions

@@ -15,7 +15,8 @@ internal static unsafe class M05VirtqueueInterruptEfiIntegrationTests
         foreach (bool build in new[] { false, true })
         {
             HostCheck.True(EfiOptions.Parse(Flags, build).Profile().IsEnabled("M05VirtqueueInterrupt"));
-            foreach (string required in Flags[..^1]) Reject(() => EfiOptions.Parse(Flags.Where(f => f != required).ToArray(), build).Profile());
+            foreach (string required in Flags[..^1])
+                Reject(() => EfiOptions.Parse(Flags.Where(f => f != required).ToArray(), build).Profile());
             Reject(() => EfiOptions.Parse([.. Flags, "--BootPolicy", "VerifiedExit"], build).Profile());
             foreach (string other in new[] { "M05BarDma", "M05VirtqueuePolling", "M05PhysicalMapping", "M05MonotonicClock", "M05OwnedAcpiSelection", "M03OwnedSubsystemPanic", "M03FirmwareAdapterRevocation" })
                 Reject(() => EfiOptions.Parse([.. Flags, "--Enable" + other + "Probe"], build).Profile());
@@ -26,13 +27,18 @@ internal static unsafe class M05VirtqueueInterruptEfiIntegrationTests
         Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", .. Flags])));
         Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", "--SkipImageBuild", .. Flags])));
     }
-    private static bool Execute(void* context) { (*(int*)context)++; return true; }
+    private static bool Execute(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
 
     [HostTest("m05.irq.efi transcript requires handler EOI bounded IF window and restored IDT")]
     private static void Transcript()
     {
         string[] lines = QemuContracts.M05VirtqueueInterruptMarkers.ToArray();
-        string[] apic = M05ApicSetupEfiIntegrationTests.Capture(); apic.CopyTo(lines, 0);
+        string[] apic = M05ApicSetupEfiIntegrationTests.Capture();
+        apic.CopyTo(lines, 0);
         string[] virtio = M05VirtioNegotiationEfiIntegrationTests.Capture();
         virtio[QemuContracts.M05PciEnumerationMarkers.Count..].CopyTo(lines, apic.Length);
         ulong[] owner = lines[67].Split(' ').Skip(2).Select(s => Convert.ToUInt64(s[2..], 16)).ToArray();
@@ -51,7 +57,7 @@ internal static unsafe class M05VirtqueueInterruptEfiIntegrationTests
         try
         {
             Check(lines);
-            Mutations(lines, "M05_QUEUE ", [(5,0,2)], Check);
+            Mutations(lines, "M05_QUEUE ", [(5, 0, 2)], Check);
             Reject(() => QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true,
                 pciEnumeration: true, virtioNegotiation: true, virtqueuePolling: true));
             Mutations(lines, "M05_IRQ ", [(0,0,0),(0,1,0xfe000008),(0,1,0xfe001000),(0,2,0),(0,2,2048),(0,3,0xf8),
@@ -60,6 +66,9 @@ internal static unsafe class M05VirtqueueInterruptEfiIntegrationTests
                 (5,0,0),(5,0,1000001),(5,1,999999),(5,2,2),(5,3,4),(6,0,4094),(6,1,0x820000),(6,2,4094),(6,3,0x820000),
                 (7,0,0x8002),(7,1,0),(7,2,0),(7,3,0)], Check);
         }
-        finally { File.Delete(path); }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }

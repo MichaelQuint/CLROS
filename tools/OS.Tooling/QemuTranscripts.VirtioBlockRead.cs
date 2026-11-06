@@ -11,7 +11,8 @@ public static partial class QemuTranscripts
         for (int i = start; i < lines.Count; i++)
         {
             string expected = QemuContracts.M06VirtioBlockReadMarkers[i];
-            if (!expected.StartsWith("M06_READ ", StringComparison.Ordinal)) Need(lines[i] == expected, "m06_read_marker_order");
+            if (!expected.StartsWith("M06_READ ", StringComparison.Ordinal))
+                Need(lines[i] == expected, "m06_read_marker_order");
         }
         ulong[] Row(int offset, int stage) => ReadHexRecord(lines[start + offset], "M06_READ " + stage, 4);
         ulong[] geometry = Row(1, 0), notification = Row(2, 1), dma = Row(3, 2), used = Row(4, 3), ordering = Row(5, 4), payload = Row(6, 5);
@@ -42,7 +43,9 @@ public static partial class QemuTranscripts
         using var disk = File.OpenRead(imagePath);
         Need(disk.Length >= 1024 && disk.Length % 512 == 0 && (ulong)disk.Length / 512 == geometry[0] &&
             geometry[1] == 1 && geometry[2] == 512 && payload[3] == 512, "m06_read_disk_geometry");
-        Span<byte> sector = stackalloc byte[512]; disk.Position = 512; disk.ReadExactly(sector);
+        Span<byte> sector = stackalloc byte[512];
+        disk.Position = 512;
+        disk.ReadExactly(sector);
         Need(OS.Std.Hash.Crc32.Compute(sector) == payload[0] && BinaryPrimitives.ReadUInt64LittleEndian(sector) == payload[1] &&
             BinaryPrimitives.ReadUInt64LittleEndian(sector[504..]) == payload[2], "m06_read_disk_payload");
     }

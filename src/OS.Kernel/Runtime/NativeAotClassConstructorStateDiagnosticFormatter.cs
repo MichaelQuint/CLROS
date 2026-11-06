@@ -2,166 +2,45 @@ using OS.Std.Text;
 
 namespace OS.Kernel.Runtime;
 
-public enum NativeAotClassConstructorStateDiagnosticFormatStatus
-{
-    Success = 0,
-    InvalidResult = 1,
-    DestinationTooSmall = 2
-}
-
-public readonly struct NativeAotClassConstructorStateDiagnosticFormatResult
-{
-    private const uint InitializedFlag = 1;
-
-    public NativeAotClassConstructorStateDiagnosticFormatResult(
-        NativeAotClassConstructorStateDiagnosticFormatStatus status,
-        NativeAotClassConstructorStateTableStatus tableStatus,
-        int bytesWritten,
-        int requiredBytes,
-        int availableBytes,
-        uint flags = InitializedFlag)
-    {
-        Status = status;
-        TableStatus = tableStatus;
-        BytesWritten = bytesWritten;
-        RequiredBytes = requiredBytes;
-        AvailableBytes = availableBytes;
-        Flags = flags;
-    }
-
-    public NativeAotClassConstructorStateDiagnosticFormatStatus Status { get; }
-
-    public NativeAotClassConstructorStateTableStatus TableStatus { get; }
-
-    public int BytesWritten { get; }
-
-    public int RequiredBytes { get; }
-
-    public int AvailableBytes { get; }
-
-    public uint Flags { get; }
-
-    public bool IsInitialized => (Flags & InitializedFlag) != 0;
-
-    public bool Succeeded =>
-        IsInitialized &&
-        Status == NativeAotClassConstructorStateDiagnosticFormatStatus.Success &&
-        RequiredBytes > 0 &&
-        (BytesWritten == 0 ||
-            (BytesWritten == RequiredBytes &&
-            RequiredBytes <= AvailableBytes));
-
-    public static NativeAotClassConstructorStateDiagnosticFormatResult Fail(
-        NativeAotClassConstructorStateDiagnosticFormatStatus status,
-        NativeAotClassConstructorStateTableStatus tableStatus,
-        int requiredBytes,
-        int availableBytes)
-    {
-        return new NativeAotClassConstructorStateDiagnosticFormatResult(
-            status,
-            tableStatus,
-            bytesWritten: 0,
-            requiredBytes,
-            availableBytes);
-    }
-}
-
 public static class NativeAotClassConstructorStateDiagnosticFormatter
 {
-    public static NativeAotClassConstructorStateDiagnosticFormatResult FormatResult(
-        in NativeAotClassConstructorStateTableResult result,
-        Span<byte> destination)
+    public static NativeAotClassConstructorStateDiagnosticFormatResult FormatResult(in NativeAotClassConstructorStateTableResult result, Span<byte> destination)
     {
         NativeAotClassConstructorStateDiagnosticFormatStatus validation = Validate(in result);
         if (validation != NativeAotClassConstructorStateDiagnosticFormatStatus.Success)
         {
-            return NativeAotClassConstructorStateDiagnosticFormatResult.Fail(
-                validation,
-                result.Status,
-                requiredBytes: 0,
-                destination.Length);
+            return NativeAotClassConstructorStateDiagnosticFormatResult.Fail(validation, result.Status, requiredBytes: 0, destination.Length);
         }
 
         int requiredBytes = GetRequiredBytes(in result);
         if (destination.Length < requiredBytes)
         {
-            return NativeAotClassConstructorStateDiagnosticFormatResult.Fail(
-                NativeAotClassConstructorStateDiagnosticFormatStatus.DestinationTooSmall,
-                result.Status,
-                requiredBytes,
-                destination.Length);
+            return NativeAotClassConstructorStateDiagnosticFormatResult.Fail(NativeAotClassConstructorStateDiagnosticFormatStatus.DestinationTooSmall, result.Status, requiredBytes, destination.Length);
         }
 
         int offset = 0;
-        if (!TryAppendBytes("NATIVEAOT_CCTOR_STATE status="u8, destination, ref offset) ||
-            !TryAppendBytes(GetTableStatusName(result.Status), destination, ref offset) ||
-            !TryAppendBytes(" moduleId="u8, destination, ref offset) ||
-            !TryAppendUInt64Decimal(result.Key.ModuleId, destination, ref offset) ||
-            !TryAppendBytes(" typeId="u8, destination, ref offset) ||
-            !TryAppendUInt64Decimal(result.Key.TypeId, destination, ref offset) ||
-            !TryAppendBytes(" previousState="u8, destination, ref offset) ||
-            !TryAppendBytes(GetStateName(result.PreviousState), destination, ref offset) ||
-            !TryAppendBytes(" state="u8, destination, ref offset) ||
-            !TryAppendBytes(GetStateName(result.State), destination, ref offset) ||
-            !TryAppendBytes(" failureCode="u8, destination, ref offset) ||
-            !TryAppendUInt64Decimal(result.FailureCode, destination, ref offset) ||
-            !TryAppendBytes(" slotIndex="u8, destination, ref offset) ||
-            !TryAppendInt64Decimal(result.SlotIndex, destination, ref offset) ||
-            !TryAppendBytes(" duplicateSlotIndex="u8, destination, ref offset) ||
-            !TryAppendInt64Decimal(result.DuplicateSlotIndex, destination, ref offset) ||
-            !TryAppendBytes(" occupiedCount="u8, destination, ref offset) ||
-            !TryAppendInt64Decimal(result.OccupiedCount, destination, ref offset) ||
-            !TryAppendBytes(" capacity="u8, destination, ref offset) ||
-            !TryAppendInt64Decimal(result.Capacity, destination, ref offset))
+        if (!TryAppendBytes("NATIVEAOT_CCTOR_STATE status="u8, destination, ref offset) || !TryAppendBytes(GetTableStatusName(result.Status), destination, ref offset) || !TryAppendBytes(" moduleId="u8, destination, ref offset) || !TryAppendUInt64Decimal(result.Key.ModuleId, destination, ref offset) || !TryAppendBytes(" typeId="u8, destination, ref offset) || !TryAppendUInt64Decimal(result.Key.TypeId, destination, ref offset) || !TryAppendBytes(" previousState="u8, destination, ref offset) || !TryAppendBytes(GetStateName(result.PreviousState), destination, ref offset) || !TryAppendBytes(" state="u8, destination, ref offset) || !TryAppendBytes(GetStateName(result.State), destination, ref offset) || !TryAppendBytes(" failureCode="u8, destination, ref offset) || !TryAppendUInt64Decimal(result.FailureCode, destination, ref offset) || !TryAppendBytes(" slotIndex="u8, destination, ref offset) || !TryAppendInt64Decimal(result.SlotIndex, destination, ref offset) || !TryAppendBytes(" duplicateSlotIndex="u8, destination, ref offset) || !TryAppendInt64Decimal(result.DuplicateSlotIndex, destination, ref offset) || !TryAppendBytes(" occupiedCount="u8, destination, ref offset) || !TryAppendInt64Decimal(result.OccupiedCount, destination, ref offset) || !TryAppendBytes(" capacity="u8, destination, ref offset) || !TryAppendInt64Decimal(result.Capacity, destination, ref offset))
         {
-            return NativeAotClassConstructorStateDiagnosticFormatResult.Fail(
-                NativeAotClassConstructorStateDiagnosticFormatStatus.DestinationTooSmall,
-                result.Status,
-                requiredBytes,
-                destination.Length);
+            return NativeAotClassConstructorStateDiagnosticFormatResult.Fail(NativeAotClassConstructorStateDiagnosticFormatStatus.DestinationTooSmall, result.Status, requiredBytes, destination.Length);
         }
 
-        return new NativeAotClassConstructorStateDiagnosticFormatResult(
-            NativeAotClassConstructorStateDiagnosticFormatStatus.Success,
-            result.Status,
-            bytesWritten: offset,
-            requiredBytes,
-            availableBytes: destination.Length);
+        return new NativeAotClassConstructorStateDiagnosticFormatResult(NativeAotClassConstructorStateDiagnosticFormatStatus.Success, result.Status, bytesWritten: offset, requiredBytes, availableBytes: destination.Length);
     }
 
-    public static NativeAotClassConstructorStateDiagnosticFormatResult QueryRequiredBytes(
-        in NativeAotClassConstructorStateTableResult result)
+    public static NativeAotClassConstructorStateDiagnosticFormatResult QueryRequiredBytes(in NativeAotClassConstructorStateTableResult result)
     {
         NativeAotClassConstructorStateDiagnosticFormatStatus validation = Validate(in result);
         if (validation != NativeAotClassConstructorStateDiagnosticFormatStatus.Success)
         {
-            return NativeAotClassConstructorStateDiagnosticFormatResult.Fail(
-                validation,
-                result.Status,
-                requiredBytes: 0,
-                availableBytes: 0);
+            return NativeAotClassConstructorStateDiagnosticFormatResult.Fail(validation, result.Status, requiredBytes: 0, availableBytes: 0);
         }
 
-        return new NativeAotClassConstructorStateDiagnosticFormatResult(
-            NativeAotClassConstructorStateDiagnosticFormatStatus.Success,
-            result.Status,
-            bytesWritten: 0,
-            requiredBytes: GetRequiredBytes(in result),
-            availableBytes: 0);
+        return new NativeAotClassConstructorStateDiagnosticFormatResult(NativeAotClassConstructorStateDiagnosticFormatStatus.Success, result.Status, bytesWritten: 0, requiredBytes: GetRequiredBytes(in result), availableBytes: 0);
     }
 
-    private static NativeAotClassConstructorStateDiagnosticFormatStatus Validate(
-        in NativeAotClassConstructorStateTableResult result)
+    private static NativeAotClassConstructorStateDiagnosticFormatStatus Validate(in NativeAotClassConstructorStateTableResult result)
     {
-        if (!result.IsInitialized ||
-            GetTableStatusName(result.Status).Length == 0 ||
-            GetStateName(result.PreviousState).Length == 0 ||
-            GetStateName(result.State).Length == 0 ||
-            result.SlotIndex < -1 ||
-            result.DuplicateSlotIndex < -1 ||
-            result.OccupiedCount < 0 ||
-            result.Capacity < 0 ||
-            result.OccupiedCount > result.Capacity)
+        if (!result.IsInitialized || GetTableStatusName(result.Status).Length == 0 || GetStateName(result.PreviousState).Length == 0 || GetStateName(result.State).Length == 0 || result.SlotIndex < -1 || result.DuplicateSlotIndex < -1 || result.OccupiedCount < 0 || result.Capacity < 0 || result.OccupiedCount > result.Capacity)
         {
             return NativeAotClassConstructorStateDiagnosticFormatStatus.InvalidResult;
         }
@@ -171,30 +50,10 @@ public static class NativeAotClassConstructorStateDiagnosticFormatter
 
     private static int GetRequiredBytes(in NativeAotClassConstructorStateTableResult result)
     {
-        return "NATIVEAOT_CCTOR_STATE status="u8.Length
-            + GetTableStatusName(result.Status).Length
-            + " moduleId="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits(result.Key.ModuleId)
-            + " typeId="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits(result.Key.TypeId)
-            + " previousState="u8.Length
-            + GetStateName(result.PreviousState).Length
-            + " state="u8.Length
-            + GetStateName(result.State).Length
-            + " failureCode="u8.Length
-            + AsciiDecimalFormatter.CountUInt64Digits(result.FailureCode)
-            + " slotIndex="u8.Length
-            + AsciiDecimalFormatter.CountInt64Digits(result.SlotIndex)
-            + " duplicateSlotIndex="u8.Length
-            + AsciiDecimalFormatter.CountInt64Digits(result.DuplicateSlotIndex)
-            + " occupiedCount="u8.Length
-            + AsciiDecimalFormatter.CountInt64Digits(result.OccupiedCount)
-            + " capacity="u8.Length
-            + AsciiDecimalFormatter.CountInt64Digits(result.Capacity);
+        return "NATIVEAOT_CCTOR_STATE status="u8.Length + GetTableStatusName(result.Status).Length + " moduleId="u8.Length + AsciiDecimalFormatter.CountUInt64Digits(result.Key.ModuleId) + " typeId="u8.Length + AsciiDecimalFormatter.CountUInt64Digits(result.Key.TypeId) + " previousState="u8.Length + GetStateName(result.PreviousState).Length + " state="u8.Length + GetStateName(result.State).Length + " failureCode="u8.Length + AsciiDecimalFormatter.CountUInt64Digits(result.FailureCode) + " slotIndex="u8.Length + AsciiDecimalFormatter.CountInt64Digits(result.SlotIndex) + " duplicateSlotIndex="u8.Length + AsciiDecimalFormatter.CountInt64Digits(result.DuplicateSlotIndex) + " occupiedCount="u8.Length + AsciiDecimalFormatter.CountInt64Digits(result.OccupiedCount) + " capacity="u8.Length + AsciiDecimalFormatter.CountInt64Digits(result.Capacity);
     }
 
-    private static ReadOnlySpan<byte> GetTableStatusName(
-        NativeAotClassConstructorStateTableStatus status)
+    private static ReadOnlySpan<byte> GetTableStatusName(NativeAotClassConstructorStateTableStatus status)
     {
         return status switch
         {
@@ -205,11 +64,9 @@ public static class NativeAotClassConstructorStateDiagnosticFormatter
             NativeAotClassConstructorStateTableStatus.CapacityExceeded => "CapacityExceeded"u8,
             NativeAotClassConstructorStateTableStatus.ReentryCycle => "ReentryCycle"u8,
             NativeAotClassConstructorStateTableStatus.PreviouslyFailed => "PreviouslyFailed"u8,
-            NativeAotClassConstructorStateTableStatus.AlreadyInitialized =>
-                "AlreadyInitialized"u8,
+            NativeAotClassConstructorStateTableStatus.AlreadyInitialized => "AlreadyInitialized"u8,
             NativeAotClassConstructorStateTableStatus.NotInitializing => "NotInitializing"u8,
-            NativeAotClassConstructorStateTableStatus.FailureCodeRequired =>
-                "FailureCodeRequired"u8,
+            NativeAotClassConstructorStateTableStatus.FailureCodeRequired => "FailureCodeRequired"u8,
             NativeAotClassConstructorStateTableStatus.InvalidState => "InvalidState"u8,
             _ => ReadOnlySpan<byte>.Empty
         };
@@ -227,10 +84,7 @@ public static class NativeAotClassConstructorStateDiagnosticFormatter
         };
     }
 
-    private static bool TryAppendBytes(
-        ReadOnlySpan<byte> value,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryAppendBytes(ReadOnlySpan<byte> value, Span<byte> destination, ref int offset)
     {
         AsciiTextBuilderResult result = AsciiTextBuilder.AppendBytes(destination, offset, value);
         if (!result.Succeeded)
@@ -242,13 +96,9 @@ public static class NativeAotClassConstructorStateDiagnosticFormatter
         return true;
     }
 
-    private static bool TryAppendInt64Decimal(
-        long value,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryAppendInt64Decimal(long value, Span<byte> destination, ref int offset)
     {
-        AsciiTextBuilderResult result =
-            AsciiTextBuilder.AppendInt64Decimal(destination, offset, value);
+        AsciiTextBuilderResult result = AsciiTextBuilder.AppendInt64Decimal(destination, offset, value);
         if (!result.Succeeded)
         {
             return false;
@@ -258,13 +108,9 @@ public static class NativeAotClassConstructorStateDiagnosticFormatter
         return true;
     }
 
-    private static bool TryAppendUInt64Decimal(
-        ulong value,
-        Span<byte> destination,
-        ref int offset)
+    private static bool TryAppendUInt64Decimal(ulong value, Span<byte> destination, ref int offset)
     {
-        AsciiTextBuilderResult result =
-            AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value);
+        AsciiTextBuilderResult result = AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value);
         if (!result.Succeeded)
         {
             return false;

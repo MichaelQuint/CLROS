@@ -76,6 +76,12 @@ For QEMU/libvirt/image tooling:
 - Preserve dry-run modes for hosts without QEMU/libvirt.
 - Do not assume OVMF paths; discover or accept explicit configuration.
 
+`OS.QemuCapture` source-links the shared `WhpxPrelaunch` implementation from
+`OS.QemuRunner`. Include new partial files in both consumers and build both
+when changing that boundary. Keep the
+[WHPX compatibility policy](../docs/qemu.md#windows-virtio-notifier-compatibility)
+and actual launch receipts consistent with device argument changes.
+
 ## Manifest Rules
 
 Manifest tooling should:
@@ -99,5 +105,12 @@ dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
 ```
+
+For replay changes, preserve the raw runner output and original file identities.
+Reconstruct the same input that the live validator received. In particular, the
+WHPX launch owner verifies its two launch records before projecting the output
+passed to the guest validator. Use the original request's literal paths where the
+validator compares transcript text. Record replay results separately from fresh
+guest executions.
 
 For image builder changes, add deterministic output tests before relying on QEMU.

@@ -1,0 +1,22 @@
+using System.Diagnostics;
+using System.Reflection;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Security;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
+
+#if MEMORY_MAP_CAPTURE_HOST
+using OS.Boot;
+
+#else
+internal static partial class M03MemoryMapCaptureEfiIntegrationTests
+{
+    private sealed record Result(int Code, string Output, string Error, bool TimedOut);
+}
+#endif

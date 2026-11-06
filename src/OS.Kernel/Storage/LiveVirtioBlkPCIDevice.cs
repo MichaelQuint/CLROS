@@ -3,27 +3,6 @@ using OS.Std.Binary;
 
 namespace OS.Storage;
 
-public enum VirtioBlkBindingStatus : byte
-{
-    Uninitialized, Success, InvalidSnapshot, InvalidBdf, ReadFailed, AbsentDevice,
-    WrongIdentity, UnsupportedHeader, InvalidCapabilities, MissingCapabilities,
-    DeviceConfigurationTooShort
-}
-
-public readonly struct VirtioBlkPciBinding
-{
-    public readonly uint Identity;
-    public readonly ushort OriginalCommand;
-    public readonly byte Bus, Device, Function;
-    public readonly VirtioPciCapabilitySet Capabilities;
-    internal VirtioBlkPciBinding(uint identity, ushort command, byte bus, byte device,
-        byte function, VirtioPciCapabilitySet capabilities)
-    {
-        Identity = identity; OriginalCommand = command; Bus = bus; Device = device;
-        Function = function; Capabilities = capabilities;
-    }
-}
-
 /// <summary>
 /// Binds numeric metadata for one modern block device from an exact, stable
 /// caller-owned PCI snapshot. The adapter owns device/configuration lifetime;
@@ -38,11 +17,14 @@ public static unsafe class LiveVirtioBlkPCIDevice
         byte device, byte function, out VirtioBlkPciBinding binding)
     {
         binding = default;
-        if (device > 31 || function > 7) return VirtioBlkBindingStatus.InvalidBdf;
+        if (device > 31 || function > 7)
+            return VirtioBlkBindingStatus.InvalidBdf;
         uint* words = stackalloc uint[64];
         var status = ECAMPageVendorDeviceHeader.ReadSnapshot(ref access, bus, device, function, words, 64);
-        if (status == BoundedPciStatus.AbsentDevice) return VirtioBlkBindingStatus.AbsentDevice;
-        if (status != BoundedPciStatus.Success) return VirtioBlkBindingStatus.ReadFailed;
+        if (status == BoundedPciStatus.AbsentDevice)
+            return VirtioBlkBindingStatus.AbsentDevice;
+        if (status != BoundedPciStatus.Success)
+            return VirtioBlkBindingStatus.ReadFailed;
         return Parse((byte*)words, 256, bus, device, function, out binding);
     }
 
@@ -50,17 +32,24 @@ public static unsafe class LiveVirtioBlkPCIDevice
         byte device, byte function, out VirtioBlkPciBinding binding)
     {
         binding = default;
-        if (device > 31 || function > 7) return VirtioBlkBindingStatus.InvalidBdf;
+        if (device > 31 || function > 7)
+            return VirtioBlkBindingStatus.InvalidBdf;
         if (config == null || bytes != 256 || (ulong)config > ~0UL - 256)
             return VirtioBlkBindingStatus.InvalidSnapshot;
         uint identity = EndianPrimitives.ReadUInt32LittleEndian(config);
-        if ((identity & 0xffff) == 0xffff) return VirtioBlkBindingStatus.AbsentDevice;
-        if (identity != ModernBlockIdentity) return VirtioBlkBindingStatus.WrongIdentity;
-        if ((config[0x0e] & 0x7f) != 0) return VirtioBlkBindingStatus.UnsupportedHeader;
+        if ((identity & 0xffff) == 0xffff)
+            return VirtioBlkBindingStatus.AbsentDevice;
+        if (identity != ModernBlockIdentity)
+            return VirtioBlkBindingStatus.WrongIdentity;
+        if ((config[0x0e] & 0x7f) != 0)
+            return VirtioBlkBindingStatus.UnsupportedHeader;
         var status = ModernVirtioPCICapabilitiesLiveConfigurationSpace.Parse(config, bytes, out var capabilities);
-        if (status == VirtioCapabilityStatus.MissingRequired) return VirtioBlkBindingStatus.MissingCapabilities;
-        if (status != VirtioCapabilityStatus.Success) return VirtioBlkBindingStatus.InvalidCapabilities;
-        if (capabilities.DeviceConfiguration.Length < 8) return VirtioBlkBindingStatus.DeviceConfigurationTooShort;
+        if (status == VirtioCapabilityStatus.MissingRequired)
+            return VirtioBlkBindingStatus.MissingCapabilities;
+        if (status != VirtioCapabilityStatus.Success)
+            return VirtioBlkBindingStatus.InvalidCapabilities;
+        if (capabilities.DeviceConfiguration.Length < 8)
+            return VirtioBlkBindingStatus.DeviceConfigurationTooShort;
         binding = new(identity, (ushort)EndianPrimitives.ReadUInt32LittleEndian(config + 4),
             bus, device, function, capabilities);
         return VirtioBlkBindingStatus.Success;

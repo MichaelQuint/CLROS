@@ -6,6 +6,29 @@ using OS.Tooling;
 
 internal static class EfiCompileInventoryTests
 {
+    [HostTest("EFI serializer admission checks actual ordered generator inputs and complete source closure")]
+    private static void SerializerInventory()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string dotnet = HostTools.FindExecutable(null, "", "dotnet")
+            ?? throw new InvalidOperationException("dotnet host missing");
+        var version = ProcessRunner.RunAsync(new ProcessRequest(dotnet, ["--version"], root)
+        {
+            Timeout = TimeSpan.FromSeconds(30),
+            OutputCharacterLimit = 65536
+        }).GetAwaiter().GetResult();
+        string[] lines = version.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        HostCheck.True(version.Succeeded && EfiPreflight.SdkVersionFailure("ok", lines) == "ok");
+        string sdk = Path.Combine(Path.GetDirectoryName(dotnet)!, "sdk", lines.Single());
+        var admission = EfiProjectAdmission.InspectStatic(root);
+        HostCheck.True(admission.Succeeded, admission.Reason + ":" + admission.Detail);
+        EfiProjectAdmission.Evaluate(root, "Release", EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()), dotnet, sdk);
+        var closure = EfiEvidence.SourceClosurePaths(root);
+        HostCheck.True(closure.Contains(".editorconfig"));
+        foreach (string input in EfiSerializerInputs.BuildInputs)
+            HostCheck.True(closure.Contains("tools/OS.X64TextSerializerGenerator/" + input), input);
+    }
+
     [HostTest("EFI evaluated inventory follows declared off cooperative timer and lifecycle profiles")]
     private static void ProfileInventory()
     {
@@ -36,8 +59,14 @@ internal static class EfiCompileInventoryTests
             void Reject(IEnumerable<string> items, string reason)
             {
                 string? actual = null;
-                try { EfiMsbuild.VerifyEvaluation(Snapshot(items, profile), expected); }
-                catch (ToolFailure failure) { actual = failure.Reason; }
+                try
+                {
+                    EfiMsbuild.VerifyEvaluation(Snapshot(items, profile), expected);
+                }
+                catch (ToolFailure failure)
+                {
+                    actual = failure.Reason;
+                }
                 HostCheck.Equal(reason, actual);
             }
         }
@@ -48,27 +77,40 @@ internal static class EfiCompileInventoryTests
     {
         EfiProfile[] profiles = Profiles();
         foreach (EfiProfile requested in profiles)
-        foreach (EfiProfile other in profiles.Where(profile => !ReferenceEquals(profile, requested)))
-        {
-            string? actual = null;
-            if (DeclaredItems(other).SequenceEqual(DeclaredItems(requested), StringComparer.Ordinal))
+            foreach (EfiProfile other in profiles.Where(profile => !ReferenceEquals(profile, requested)))
             {
-                bool waitPair = requested.IsEnabled("M09009") && other.IsEnabled("M09010") ||
-                    requested.IsEnabled("M09010") && other.IsEnabled("M09009");
-                bool signalPair = requested.IsEnabled("M16009") && other.IsEnabled("M16009");
-                bool diskPair=requested.IsEnabled("M10018") && other.IsEnabled("M10018");
-                HostCheck.True(waitPair || signalPair || diskPair, "only reviewed wait/TLS or signal/runtime leaves share an inventory");
-                try { EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), other), Snapshot(DeclaredItems(requested), requested)); }
-                catch (ToolFailure failure) { actual = failure.Reason; }
-                HostCheck.Equal("post_restore_evidence_property_mismatch", actual);
-                continue;
+                string? actual = null;
+                if (DeclaredItems(other).SequenceEqual(DeclaredItems(requested), StringComparer.Ordinal))
+                {
+                    bool waitPair = requested.IsEnabled("M09009") && other.IsEnabled("M09010") ||
+                        requested.IsEnabled("M09010") && other.IsEnabled("M09009");
+                    bool signalPair = requested.IsEnabled("M16009") && other.IsEnabled("M16009");
+                    bool diskPair = requested.IsEnabled("M10018") && other.IsEnabled("M10018");
+                    HostCheck.True(waitPair || signalPair || diskPair, "only reviewed wait/TLS or signal/runtime leaves share an inventory");
+                    try
+                    {
+                        EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), other), Snapshot(DeclaredItems(requested), requested));
+                    }
+                    catch (ToolFailure failure)
+                    {
+                        actual = failure.Reason;
+                    }
+                    HostCheck.Equal("post_restore_evidence_property_mismatch", actual);
+                    continue;
+                }
+                // Keep requested properties fixed: the compile inventory alone must
+                // reject another profile, even when its metadata claims this one.
+                try
+                {
+                    EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), requested), Snapshot(DeclaredItems(requested), requested));
+                }
+                catch (ToolFailure failure)
+                {
+                    actual = failure.Reason;
+                }
+                HostCheck.Equal(DeclaredItems(other).Length == DeclaredItems(requested).Length
+                    ? "post_restore_evidence_hash_mismatch" : "post_restore_evidence_count_mismatch", actual);
             }
-            // Keep requested properties fixed: the compile inventory alone must
-            // reject another profile, even when its metadata claims this one.
-            try { EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), requested), Snapshot(DeclaredItems(requested), requested)); }
-            catch (ToolFailure failure) { actual = failure.Reason; }
-            HostCheck.Equal("post_restore_evidence_count_mismatch", actual);
-        }
     }
 
     [HostTest("EFI writable leaf admits only its independently declared reviewed source bytes")]
@@ -96,44 +138,45 @@ internal static class EfiCompileInventoryTests
         }
     }
 
-    [HostTest("EFI writable timing adds only the separately reviewed diagnostic helper")]
+    [HostTest("EFI writable timing adds only its complete reviewed diagnostic type family")]
     private static void WritableTimingSource()
-    {
-        EfiProfile plain = EfiOptions.Parse(["--EnableM16027Probe"], true).Profile();
-        EfiProfile timing = EfiOptions.Parse(["--EnableM16027TimingProbe"], true).Profile();
-        const string include = @"..\OS.Kernel\Diagnostics\WritableStorageTiming.cs";
-        string[] additions = EfiProjectAdmission.ExpectedCompileItems(timing)
-            .Except(EfiProjectAdmission.ExpectedCompileItems(plain), StringComparer.Ordinal).ToArray();
-        HostCheck.True(additions.SequenceEqual(new[] { include + @"|Diagnostics\WritableStorageTiming.cs" }, StringComparer.Ordinal));
-        string source = File.ReadAllText(Path.GetFullPath(include, Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS")));
-        HostCheck.True(EfiContracts.ReviewedSourceIncludes.Contains(include, StringComparer.Ordinal));
-        HostCheck.True(EfiSourceAdmission.Inspect(source, include).Succeeded);
-        HostCheck.True(!EfiSourceAdmission.Inspect(source + "\n// changed timing source\n", include).Succeeded);
-    }
+        => TimingSources("EnableM16027Probe", "EnableM16027TimingProbe", "OS.Kernel.Diagnostics.WritableStorageTiming");
 
-    [HostTest("EFI read timing includes its complete-verification model only in the timing profile")]
+    [HostTest("EFI read timing includes its complete verification model only in the timing profile")]
     private static void ReadTimingSource()
-    {
-        const string include = @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs";
-        const string item = include + @"|Compatibility\LinuxX64\LinuxThreadServices.VerificationMeasurements.cs";
-        EfiProfile full = EfiOptions.Parse(["--EnableM10018FullProbe"], true).Profile();
-        EfiProfile timing = EfiOptions.Parse(["--EnableM10018TimingProbe"], true).Profile();
-        string[] additions = EfiProjectAdmission.ExpectedCompileItems(timing)
-            .Except(EfiProjectAdmission.ExpectedCompileItems(full), StringComparer.Ordinal).ToArray();
-        HostCheck.True(additions.SequenceEqual(new[] { item }, StringComparer.Ordinal));
-        foreach (EfiProfile profile in Profiles())
-            HostCheck.Equal(profile.IsEnabled("EnableM10018TimingProbe"), EfiProjectAdmission.ExpectedCompileItems(profile).Contains(item, StringComparer.Ordinal));
-        string root = HostToolProcess.FindRepositoryRoot();
-        XElement declared = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj")).Descendants("Compile")
-            .Single(element => (string?)element.Attribute("Include") == include);
-        HostCheck.Equal("'$(EnableM10018TimingProbe)' == 'true'", (string)declared.Attribute("Condition")!);
-        HostCheck.True(EfiContracts.ReviewedSourceIncludes.Contains(include, StringComparer.Ordinal));
-        HostCheck.True(EfiContracts.SourceAdmissionReasons.ContainsKey(include) && EfiContracts.SourceIdentities.ContainsKey(include));
-        string source = File.ReadAllText(Path.GetFullPath(include, Path.Combine(root, "src/OS")));
-        HostCheck.True(EfiSourceAdmission.Inspect(source, include).Succeeded);
-        HostCheck.True(!EfiSourceAdmission.Inspect(source + "\n// changed verification model\n", include).Succeeded);
-    }
+        => TimingSources("EnableM10018FullProbe", "EnableM10018TimingProbe",
+            "OS.Kernel.Compatibility.LinuxX64.LinuxThreadServices+DiskVerificationMeasurements");
 
+    private static void TimingSources(string parentFlag, string timingFlag, string modelName)
+    {
+        var parent = EfiOptions.Parse(["--" + parentFlag], true).Profile();
+        var timing = EfiOptions.Parse(["--" + timingFlag], true).Profile();
+        string[] additions = DeclaredItems(timing).Except(DeclaredItems(parent), StringComparer.Ordinal).ToArray();
+        var catalog = HostSourceCatalog.Efi(timing);
+        var family = catalog.TypeSources(modelName);
+        string root = HostToolProcess.FindRepositoryRoot();
+        string projectDirectory = Path.Combine(root, "src", "OS");
+        string Include(string item) => item[..item.IndexOf('|')];
+        string PhysicalPath(string item) => Path.GetFullPath(Include(item), projectDirectory);
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        HostCheck.True(family.Count > 0 && additions.Select(PhysicalPath).SequenceEqual(family.Select(document => document.Path), comparer),
+            "the timing-only Compile delta must be exactly the complete diagnostic type family");
+        HostCheck.True(HostSourceCatalog.Efi(parent).Compilation.GetTypeByMetadataName(modelName) is null);
+        var declared = XDocument.Load(Path.Combine(projectDirectory, "OS.csproj")).Descendants("Compile").ToArray();
+        foreach (string item in additions)
+        {
+            string include = Include(item);
+            var document = family.Single(source => comparer.Equals(source.Path, PhysicalPath(item)));
+            var declaration = declared.Single(element => (string?)element.Attribute("Include") == include);
+            HostCheck.Equal("'$(" + timingFlag + ")' == 'true'", (string)declaration.Attribute("Condition")!);
+            HostCheck.True(EfiContracts.ReviewedSourceIncludes.Contains(include, StringComparer.Ordinal));
+            HostCheck.True(EfiContracts.SourceAdmissionReasons.ContainsKey(include) && EfiContracts.SourceIdentities.ContainsKey(include));
+            HostCheck.True(EfiSourceAdmission.Inspect(document.Text, include).Succeeded, include);
+            HostCheck.True(!EfiSourceAdmission.Inspect(document.Text + "\n// changed timing source\n", include).Succeeded, include);
+            foreach (EfiProfile profile in Profiles())
+                HostCheck.Equal(profile.IsEnabled(timingFlag), DeclaredItems(profile).Contains(item, StringComparer.Ordinal));
+        }
+    }
     private static EfiProfile[] Profiles() =>
     [
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()),
@@ -157,47 +200,19 @@ internal static class EfiCompileInventoryTests
         EfiOptions.Parse(["--EnableM16027TimingProbe"], true).Profile(),
         EfiOptions.Parse(["--EnableM10018Probe"], true).Profile(),
         EfiOptions.Parse(["--EnableM10018FullProbe"], true).Profile(),
-        EfiOptions.Parse(["--EnableM10018TimingProbe"], true).Profile()
+        EfiOptions.Parse(["--EnableM10018TimingProbe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM10018ServingBenchmarkProbe"], true).Profile()
     ];
 
-    // The project declarations are an independent oracle for the shared helper.
-    // Deliberately interpret only reviewed predicates; a new condition
-    // requires an explicit test review instead of being silently treated as true.
+    // Actual MSBuild evaluation supplies ordered items and Link metadata. The
+    // native admission inventory remains an independent reviewed expectation.
+    // This avoids maintaining a second interpreter for project conditions here.
     private static string[] DeclaredItems(EfiProfile profile)
     {
-        var items = XDocument.Load(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/OS.csproj"))
-            .Descendants("Compile").Where(item => item.Attribute("Include") is not null).ToArray();
-        string Key(XElement item) => (string)item.Attribute("Include")! + "|" + ((string?)item.Attribute("Link") ?? "");
-        HostCheck.True(items.Select(Key).SequenceEqual(EfiContracts.CompileItems, StringComparer.Ordinal));
-        int unconditional = EfiProjectAdmission.ExpectedCompileItems(Profiles()[0]).Length;
-        HostCheck.Equal(EfiContracts.CompileItems.Count - unconditional, items.Count(item => item.Attribute("Condition") is not null));
-        return items.Where(item => (string?)item.Attribute("Condition") switch
-        {
-            null => true,
-            "'$(EnableM09004Probe)' == 'true' or '$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true' or '$(EnableM07026Probe)' == 'true'" => profile.IsEnabled("EnableM09004Probe") || profile.IsEnabled("EnableM09005Probe") || profile.IsEnabled("EnableM09006Probe") || profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe") || profile.IsEnabled("EnableM16008Probe") || profile.IsEnabled("EnableM07026Probe"),
-            "'$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true' or '$(EnableM07026Probe)' == 'true'" => profile.IsEnabled("EnableM09005Probe") || profile.IsEnabled("EnableM09006Probe") || profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe") || profile.IsEnabled("EnableM16008Probe") || profile.IsEnabled("EnableM07026Probe"),
-            "'$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true' or '$(EnableM07026Probe)' == 'true'" => profile.IsEnabled("EnableM09006Probe") || profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe") || profile.IsEnabled("EnableM16008Probe") || profile.IsEnabled("EnableM07026Probe"),
-            "'$(EnableM09004Probe)' == 'true' or '$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true'" => profile.IsEnabled("EnableM09004Probe") || profile.IsEnabled("EnableM09005Probe") || profile.IsEnabled("EnableM09006Probe") || profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe") || profile.IsEnabled("EnableM16008Probe"),
-            "'$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true'" => profile.IsEnabled("EnableM09005Probe") || profile.IsEnabled("EnableM09006Probe") || profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe") || profile.IsEnabled("EnableM16008Probe"),
-            "'$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true'" => profile.IsEnabled("EnableM09006Probe") || profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe"),
-            "'$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true'" => profile.IsEnabled("EnableM09006Probe") || profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe") || profile.IsEnabled("EnableM16008Probe"),
-            "'$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true'" => profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe"),
-            "'$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true'" => profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe") || profile.IsEnabled("EnableM16008Probe"),
-            "'$(EnableM16008Probe)' == 'true'" => profile.IsEnabled("EnableM16008Probe"),
-            "'$(EnableM16009Probe)' == 'true'" => profile.IsEnabled("EnableM16009Probe"),
-            "'$(EnableM16011Probe)' == 'true'" => profile.IsEnabled("EnableM16011Probe"),
-            "'$(EnableM10004Probe)' == 'true'" => profile.IsEnabled("EnableM10004Probe"),
-            "'$(EnableM10017Probe)' == 'true'" => profile.IsEnabled("EnableM10017Probe"),
-            "'$(EnableM10017Probe)' == 'true' or '$(EnableM10018Probe)' == 'true'" => profile.IsEnabled("EnableM10017Probe") || profile.IsEnabled("EnableM10018Probe"),
-            "'$(EnableM16025Probe)' == 'true'" => profile.IsEnabled("EnableM16025Probe"),
-            "'$(EnableM16027Probe)' == 'true'" => profile.IsEnabled("EnableM16027Probe"),
-            "'$(EnableM16027TimingProbe)' == 'true'" => profile.IsEnabled("EnableM16027TimingProbe"),
-            "'$(EnableM10018TimingProbe)' == 'true'" => profile.IsEnabled("EnableM10018TimingProbe"),
-            "'$(EnableM07026Probe)' == 'true'" => profile.IsEnabled("EnableM07026Probe"),
-            string condition => throw new InvalidOperationException("Unreviewed compile condition: " + condition)
-        }).Select(Key).ToArray();
+        var evaluation = JsonNode.Parse(HostSourceCatalog.EfiEvaluation(profile).EvaluationJson)!;
+        return evaluation["Items"]!["Compile"]!.AsArray().Select(item =>
+            item!["Identity"]!.GetValue<string>() + "|" + (item["Link"]?.GetValue<string>() ?? "")).ToArray();
     }
-
     private static string Hash(IEnumerable<string> items) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Concat(items.Select(item => item + "\n")))));
 
@@ -206,14 +221,22 @@ internal static class EfiCompileInventoryTests
     private static JsonObject Snapshot(IEnumerable<string> inventory, EfiProfile profile)
     {
         string[] items = inventory.ToArray();
-        JsonObject properties = new() { ["ClrosBootPolicy"] = profile.BootPolicy };
-        foreach (var flag in profile.Flags) properties[flag.Key] = flag.Value.ToString();
+        JsonObject properties = new()
+        {
+            ["ClrosBootPolicy"] = profile.BootPolicy
+        };
+        foreach (var flag in profile.Flags)
+            properties[flag.Key] = flag.Value.ToString();
         return new()
         {
-            ["compileCount"] = items.Length, ["compileSha256"] = Hash(items),
-            ["projectReferenceCount"] = 0, ["projectReferenceSha256"] = Hash([]),
-            ["referenceCount"] = 0, ["referenceSha256"] = Hash([]),
-            ["analyzerCount"] = 2, ["analyzerSha256"] = Hash(["analyzer-a", "analyzer-b"]),
+            ["compileCount"] = items.Length,
+            ["compileSha256"] = Hash(items),
+            ["projectReferenceCount"] = 0,
+            ["projectReferenceSha256"] = Hash([]),
+            ["referenceCount"] = 0,
+            ["referenceSha256"] = Hash([]),
+            ["analyzerCount"] = 2,
+            ["analyzerSha256"] = Hash(["analyzer-a", "analyzer-b"]),
             ["properties"] = properties
         };
     }

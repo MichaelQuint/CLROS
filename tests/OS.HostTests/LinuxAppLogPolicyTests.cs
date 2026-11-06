@@ -8,7 +8,8 @@ internal static unsafe class LinuxAppLogPolicyTests
     private static byte[] Manifest(string environment)
     {
         byte[] package = LinuxThreadProofFixture.CreatePackage("Threads");
-        var view = LinuxElfPackage.Validate(package); HostCheck.True(view.Succeeded);
+        var view = LinuxElfPackage.Validate(package);
+        HostCheck.True(view.Succeeded);
         return Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(package, (int)view.ManifestOffset, (int)view.ManifestBytes) + environment);
     }
 
@@ -37,7 +38,8 @@ internal static unsafe class LinuxAppLogPolicyTests
         })
         {
             byte[] bytes = Manifest(environment), before = (byte[])bytes.Clone();
-            var parsed = NativeManifestParser.ParseLinuxElf(bytes); HostCheck.True(parsed.Succeeded, environment);
+            var parsed = NativeManifestParser.ParseLinuxElf(bytes);
+            HostCheck.True(parsed.Succeeded, environment);
             fixed (byte* source = bytes)
             {
                 uint records = uint.MaxValue;
@@ -52,7 +54,8 @@ internal static unsafe class LinuxAppLogPolicyTests
     private static void Bounds()
     {
         byte[] bytes = Manifest("env.UNRELATED=value\nenv.CLROS_LOG_BUDGET_CASE=records64\n");
-        var parsed = NativeManifestParser.ParseLinuxElf(bytes); HostCheck.True(parsed.Succeeded);
+        var parsed = NativeManifestParser.ParseLinuxElf(bytes);
+        HostCheck.True(parsed.Succeeded);
         fixed (byte* source = bytes)
         {
             HostCheck.True(!LinuxAppLogBudget.TryReadRecordLimit(null, (uint)bytes.Length, parsed, out uint records) && records == 0);
@@ -65,22 +68,49 @@ internal static unsafe class LinuxAppLogPolicyTests
                 var bad = parsed;
                 switch (mutation)
                 {
-                    case 0: bad = default; break;
-                    case 1: bad.Status = LinuxElfStatus.InvalidValue; break;
-                    case 2: bad.ByteCount--; break;
-                    case 3: bad.EnvironmentCount = 17; break;
-                    case 4: bad.EnvironmentRanges[0] = uint.MaxValue; break;
-                    case 5: bad.EnvironmentRanges[1] = uint.MaxValue; break;
-                    case 6: bad.EnvironmentRanges[2] = uint.MaxValue; break;
-                    case 7: bad.EnvironmentRanges[3] = uint.MaxValue; break;
-                    case 8: bad.EnvironmentRanges[1] = 0; break;
+                    case 0:
+                        bad = default;
+                        break;
+                    case 1:
+                        bad.Status = LinuxElfStatus.InvalidValue;
+                        break;
+                    case 2:
+                        bad.ByteCount--;
+                        break;
+                    case 3:
+                        bad.EnvironmentCount = 17;
+                        break;
+                    case 4:
+                        bad.EnvironmentRanges[0] = uint.MaxValue;
+                        break;
+                    case 5:
+                        bad.EnvironmentRanges[1] = uint.MaxValue;
+                        break;
+                    case 6:
+                        bad.EnvironmentRanges[2] = uint.MaxValue;
+                        break;
+                    case 7:
+                        bad.EnvironmentRanges[3] = uint.MaxValue;
+                        break;
+                    case 8:
+                        bad.EnvironmentRanges[1] = 0;
+                        break;
                     case 9:
                         bad.EnvironmentCount = 3;
-                        for (int i = 0; i < 4; i++) bad.EnvironmentRanges[8 + i] = bad.EnvironmentRanges[4 + i];
+                        for (int i = 0; i < 4; i++)
+                            bad.EnvironmentRanges[8 + i] = bad.EnvironmentRanges[4 + i];
                         break;
-                    case 10: bad.EnvironmentRanges[0] = (uint)bytes.Length; bad.EnvironmentRanges[1] = 1; break;
-                    case 11: bad.EnvironmentRanges[2] = (uint)bytes.Length; bad.EnvironmentRanges[3] = 1; break;
-                    default: bad.EnvironmentRanges[7] = 0; break;
+                    case 10:
+                        bad.EnvironmentRanges[0] = (uint)bytes.Length;
+                        bad.EnvironmentRanges[1] = 1;
+                        break;
+                    case 11:
+                        bad.EnvironmentRanges[2] = (uint)bytes.Length;
+                        bad.EnvironmentRanges[3] = 1;
+                        break;
+                    default:
+                        bad.EnvironmentRanges[7] = 0;
+                        break;
                 }
                 records = uint.MaxValue;
                 HostCheck.True(!LinuxAppLogBudget.TryReadRecordLimit(source, (uint)bytes.Length, bad, out records) && records == 0,
@@ -105,7 +135,8 @@ internal static unsafe class LinuxAppLogPolicyTests
             unrelated + "env.EXTRA=value\nenv.CLROS_LOG_BUDGET_CASE=records64\n"
         })
         {
-            bytes = Manifest(environment); parsed = NativeManifestParser.ParseLinuxElf(bytes);
+            bytes = Manifest(environment);
+            parsed = NativeManifestParser.ParseLinuxElf(bytes);
             HostCheck.True(!parsed.Succeeded);
             fixed (byte* source = bytes)
                 HostCheck.True(!LinuxAppLogBudget.TryReadRecordLimit(source, (uint)bytes.Length, parsed, out uint rejected) && rejected == 0);
@@ -117,16 +148,19 @@ internal static unsafe class LinuxAppLogPolicyTests
     {
         foreach (string environment in new[] { "", "env.CLROS_LOG_BUDGET_CASE=records64\n" })
         {
-            byte[] bytes = Manifest(environment); var parsed = NativeManifestParser.ParseLinuxElf(bytes);
+            byte[] bytes = Manifest(environment);
+            var parsed = NativeManifestParser.ParseLinuxElf(bytes);
             uint expected = environment.Length == 0 ? 4096U : 64U;
             fixed (byte* source = bytes)
             {
                 HostCheck.True(LinuxAppLogBudget.TryReadRecordLimit(source, (uint)bytes.Length, parsed, out uint warm) && warm == expected);
-                bool accepted = true; long before = GC.GetAllocatedBytesForCurrentThread();
+                bool accepted = true;
+                long before = GC.GetAllocatedBytesForCurrentThread();
                 for (int i = 0; i < 1000; i++)
                     accepted &= LinuxAppLogBudget.TryReadRecordLimit(source, (uint)bytes.Length, parsed, out uint records) && records == expected;
                 long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-                HostCheck.True(accepted); HostCheck.Equal(0L, allocated);
+                HostCheck.True(accepted);
+                HostCheck.Equal(0L, allocated);
             }
         }
     }

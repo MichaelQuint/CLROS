@@ -22,26 +22,38 @@ public static unsafe partial class LinuxSignalServices
 
     internal static long Queue(State* s, ulong process, OSHostHandle identity, uint signal, LinuxSignalMask mask)
     {
-        if (!Bound(s, process, identity) || signal is < 1 or > 64) return -5;
+        if (!Bound(s, process, identity) || signal is < 1 or > 64)
+            return -5;
         // Linux retains even an ignored signal while blocked: its disposition
         // can change before unmasking. Explicit sigaction(ignore) flushes it.
-        if (!mask.Contains(signal) && Ignored(s, signal)) return 0;
+        if (!mask.Contains(signal) && Ignored(s, signal))
+            return 0;
         ThreadState* t = (ThreadState*)s->Threads + ((uint)identity.Value - 1);
-        if (signal < 32) { QueueStandard(t, signal, false); return 0; }
-        if (t->RealtimeCount > RealtimeQueueCapacity) return -5;
-        if (t->RealtimeCount == RealtimeQueueCapacity) return -11;
-        t->Realtime[t->RealtimeCount++] = signal; return 0;
+        if (signal < 32)
+        {
+            QueueStandard(t, signal, false);
+            return 0;
+        }
+        if (t->RealtimeCount > RealtimeQueueCapacity)
+            return -5;
+        if (t->RealtimeCount == RealtimeQueueCapacity)
+            return -11;
+        t->Realtime[t->RealtimeCount++] = signal;
+        return 0;
     }
 
     // Fixed owner-origin SIGTERM, never a process-kill ABI. The sticky request
     // bit survives consumption/ignore until the actual generation unbinds.
     internal static bool RequestTermination(State* s, ulong process, OSHostHandle identity, LinuxSignalMask mask)
     {
-        if (!Bound(s, process, identity)) return false;
+        if (!Bound(s, process, identity))
+            return false;
         ThreadState* t = (ThreadState*)s->Threads + ((uint)identity.Value - 1);
-        if ((t->Termination & TerminationRequested) != 0) return false;
+        if ((t->Termination & TerminationRequested) != 0)
+            return false;
         t->Termination |= TerminationRequested;
-        if (mask.Contains(15) || !Ignored(s, 15)) QueueStandard(t, 15, true);
+        if (mask.Contains(15) || !Ignored(s, 15))
+            QueueStandard(t, 15, true);
         return true;
     }
 
@@ -57,9 +69,11 @@ public static unsafe partial class LinuxSignalServices
     internal static bool PendingCode(State* s, ulong process, OSHostHandle identity, uint signal, out int code)
     {
         code = -6; // Directed user signals retain SI_TKILL.
-        if (!Bound(s, process, identity) || signal is < 1 or > 64) return false;
+        if (!Bound(s, process, identity) || signal is < 1 or > 64)
+            return false;
         ThreadState* t = (ThreadState*)s->Threads + ((uint)identity.Value - 1);
-        if (signal == 15 && (t->Termination & KernelTerminationPending) != 0) code = 128; // SI_KERNEL.
+        if (signal == 15 && (t->Termination & KernelTerminationPending) != 0)
+            code = 128; // SI_KERNEL.
         return true;
     }
 
@@ -68,42 +82,59 @@ public static unsafe partial class LinuxSignalServices
     internal static long Next(State* s, ulong process, OSHostHandle identity, LinuxSignalMask mask, out uint signal)
     {
         signal = 0;
-        if (!Bound(s, process, identity)) return -5;
+        if (!Bound(s, process, identity))
+            return -5;
         ThreadState* t = (ThreadState*)s->Threads + ((uint)identity.Value - 1);
-        if (t->RealtimeCount > RealtimeQueueCapacity) return -5;
+        if (t->RealtimeCount > RealtimeQueueCapacity)
+            return -5;
         ulong standard = t->PendingStandard & ~mask.Blocked;
         // Linux next_signal prioritizes synchronous-class signal numbers even
         // for a directed SI_TKILL event, then uses the lowest available number.
         const ulong synchronous = 0x400004d8; // ILL,TRAP,BUS,FPE,SEGV,SYS.
-        if ((standard & synchronous) != 0) standard &= synchronous;
+        if ((standard & synchronous) != 0)
+            standard &= synchronous;
         for (uint candidate = 1; candidate < 32; candidate++)
-            if ((standard & (1UL << (int)(candidate - 1))) != 0) { signal = candidate; return 1; }
+            if ((standard & (1UL << (int)(candidate - 1))) != 0)
+            {
+                signal = candidate;
+                return 1;
+            }
         for (ulong i = 0; i < t->RealtimeCount; i++)
         {
-            uint candidate = t->Realtime[i]; if (candidate is < 32 or > 64) return -5;
-            if (!mask.Contains(candidate) && (signal == 0 || candidate < signal)) signal = candidate;
+            uint candidate = t->Realtime[i];
+            if (candidate is < 32 or > 64)
+                return -5;
+            if (!mask.Contains(candidate) && (signal == 0 || candidate < signal))
+                signal = candidate;
         }
         return signal == 0 ? 0 : 1;
     }
 
     internal static bool Consume(State* s, ulong process, OSHostHandle identity, uint signal)
     {
-        if (!Bound(s, process, identity) || signal is < 1 or > 64) return false;
+        if (!Bound(s, process, identity) || signal is < 1 or > 64)
+            return false;
         ThreadState* t = (ThreadState*)s->Threads + ((uint)identity.Value - 1);
         if (signal < 32)
         {
             ulong bit = 1UL << (int)(signal - 1);
-            if ((t->PendingStandard & bit) == 0) return false;
+            if ((t->PendingStandard & bit) == 0)
+                return false;
             t->PendingStandard &= ~bit;
-            if (signal == 15) t->Termination &= ~KernelTerminationPending;
+            if (signal == 15)
+                t->Termination &= ~KernelTerminationPending;
             return true;
         }
-        if (t->RealtimeCount > RealtimeQueueCapacity) return false;
+        if (t->RealtimeCount > RealtimeQueueCapacity)
+            return false;
         for (ulong i = 0; i < t->RealtimeCount; i++)
         {
-            if (t->Realtime[i] != signal) continue;
-            for (ulong j = i + 1; j < t->RealtimeCount; j++) t->Realtime[j - 1] = t->Realtime[j];
-            t->Realtime[--t->RealtimeCount] = 0; return true;
+            if (t->Realtime[i] != signal)
+                continue;
+            for (ulong j = i + 1; j < t->RealtimeCount; j++)
+                t->Realtime[j - 1] = t->Realtime[j];
+            t->Realtime[--t->RealtimeCount] = 0;
+            return true;
         }
         return false;
     }
@@ -117,15 +148,20 @@ public static unsafe partial class LinuxSignalServices
             if (signal < 32)
             {
                 t->PendingStandard &= ~(1UL << (int)(signal - 1));
-                if (signal == 15) t->Termination &= ~KernelTerminationPending;
+                if (signal == 15)
+                    t->Termination &= ~KernelTerminationPending;
                 continue;
             }
             ulong count = t->RealtimeCount;
-            if (count > RealtimeQueueCapacity) continue; // Never walk beyond retained metadata.
+            if (count > RealtimeQueueCapacity)
+                continue; // Never walk beyond retained metadata.
             ulong keep = 0;
-            for (ulong j = 0; j < count; j++) if (t->Realtime[j] != signal) t->Realtime[keep++] = t->Realtime[j];
+            for (ulong j = 0; j < count; j++)
+                if (t->Realtime[j] != signal)
+                    t->Realtime[keep++] = t->Realtime[j];
             t->RealtimeCount = keep;
-            for (; keep < count; keep++) t->Realtime[keep] = 0;
+            for (; keep < count; keep++)
+                t->Realtime[keep] = 0;
         }
     }
 }

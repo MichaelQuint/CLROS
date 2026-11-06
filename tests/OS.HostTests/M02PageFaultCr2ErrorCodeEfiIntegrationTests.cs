@@ -10,43 +10,61 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
-internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
+internal static partial class M02PageFaultCr2ErrorCodeEfiIntegrationTests
 {
-    private const string Flag="EnableM02PageFaultCr2ErrorCodeProbe";
-    private static readonly string Ready=QemuContracts.M02PageFaultCr2ErrorCodeReadyMarker[0];
-    private static readonly string[] Prerequisites=["EnableM01LoadedImageStackProbe","EnableM01LiveAllocatorProbe","EnableM01OwnedPagingProbe","EnableM02SafeStubProbe","EnableM02CheckedPortIoBindingProbe","EnableM02Com1OwnedPortIoProbe","EnableM02OwnedCom1ReadyProbe","EnableM02PanicSafeOwnedCom1Probe"];
-    private static readonly string[] Conflicts=["EnableM02OwnedX64GdtEncodingProbe","EnableM02GuardedIstStackAllocationProbe","EnableM02OwnedGdtTssTerminalProbe","EnableM02NormalizedInterruptFramePageProbe","EnableM02OwnedIdtGatePopulationProbe","EnableM02IdtrContinuedExecutionProbe","EnableM02Ud2VectorStateProbe","EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","EnableM04ArithmeticConformanceProbe","EnableM04LayoutContractProbe","EnableM04ManagedHeapPageRangeProbe"];
+    private const string Flag = "EnableM02PageFaultCr2ErrorCodeProbe";
+    private static readonly string Ready = QemuContracts.M02PageFaultCr2ErrorCodeReadyMarker[0];
+    private static readonly string[] Prerequisites = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableM01OwnedPagingProbe", "EnableM02SafeStubProbe", "EnableM02CheckedPortIoBindingProbe", "EnableM02Com1OwnedPortIoProbe", "EnableM02OwnedCom1ReadyProbe", "EnableM02PanicSafeOwnedCom1Probe"];
+    private static readonly string[] Conflicts = ["EnableM02OwnedX64GdtEncodingProbe", "EnableM02GuardedIstStackAllocationProbe", "EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe", "EnableM02IdtrContinuedExecutionProbe", "EnableM02Ud2VectorStateProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe", "EnableM04ManagedHeapPageRangeProbe"];
     [HostTest("m02.014.efi source closure and terminal ordering", HostLane.Fast, 0)]
     private static void TestProject()
     {
-        string root=Root(); XDocument project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
-        var items=project.Descendants("Compile").ToArray();Require(items.Length==OS.Tooling.EfiContracts.CompileItems.Count,"complete explicit compile inventory");
-        foreach(string name in new[]{"NullPointerProbeAuthority.cs","NullPageFaultProbePlan.cs","SeparateDisabledDefaultPageFaultCR2ErrorCode.cs","SeparateDisabledDefaultPageFaultPageTables.cs","SeparateDisabledDefaultPageFaultTransition.cs"})
-            Require(items.Count(x=>x.Attribute("Include")?.Value=="..\\OS.Kernel\\Diagnostics\\"+name && x.Attribute("Link")?.Value=="Diagnostics\\"+name)==1,"exact new item "+name);
-        Require(BootSequencePlanTests.HasNoStdlibBootAuthorityBoundary(),"guarded EFI boot/probe authority excludes host surfaces");
+        string root = Root();
+        var catalog = PageFaultSources();
+        XDocument project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
+        Require(ContractAudit.Inspect(root).Count == 0, "complete explicit compiler, link and profile contract");
+        foreach (Type owner in new[] { typeof(OS.Kernel.Diagnostics.NullPageFaultProbePlan),
+            typeof(OS.Kernel.Diagnostics.SeparateDisabledDefaultPageFaultCR2ErrorCode),
+            typeof(OS.Kernel.Diagnostics.SeparateDisabledDefaultPageFaultPageTables),
+            typeof(OS.Kernel.Diagnostics.SeparateDisabledDefaultPageFaultTransition) })
+            _ = catalog.TypeSources(owner.FullName!);
+        Require(BootSequencePlanTests.HasNoStdlibBootAuthorityBoundary(), "guarded EFI boot/probe authority excludes host surfaces");
         HostCheck.Registered(typeof(SeparateDisabledDefaultPageFaultTransitionTests));
-        foreach(var pair in new[]{("src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultPageTables.cs",OS.Tooling.EfiContracts.SourceIdentities[@"..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs"]),("src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultTransition.cs",EfiContracts.PageFaultTransitionSourceSha256)})
-            Require(Hash(File.ReadAllText(Path.Combine(root,pair.Item1)).Replace("\r\n","\n",StringComparison.Ordinal))==pair.Item2,"frozen LF source "+pair.Item1);
-        string authority=File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Diagnostics/NullPointerProbeAuthority.cs"));
-        Require(authority.Contains("public const bool EnableNullPointerPanicProbe = false;",StringComparison.Ordinal) && !File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Diagnostics/Probes.cs")).Contains("public const bool EnableNullPointerPanicProbe",StringComparison.Ordinal),"unique false authority");
-        XElement initial=project.Descendants(Flag).Single(x=>x.Attribute("Condition")!=null);Require(initial.Value=="false","default false");
-        string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs"));string adapter=Adapter(entry);
-        Require(!adapter.Contains("TEST_START m02.014",StringComparison.Ordinal),"stream alone emits start");
-        int audit=adapter.IndexOf(".Audit(",StringComparison.Ordinal),rebind=adapter.IndexOf("var fresh =",StringComparison.Ordinal),read=adapter.IndexOf("!ReadBack(c, d, fresh)",StringComparison.Ordinal),publish=adapter.IndexOf("X64InstructionPublication.Serialize()",StringComparison.Ordinal),enter=adapter.IndexOf("enter((byte*)",StringComparison.Ordinal);
-        Require(audit>0 && rebind>audit && read>rebind && publish>read && enter>publish,"fresh backing audit/readback/publication/entry");
-        Require(!adapter.Contains("s_m01InstructionPublicationEpochMask",StringComparison.Ordinal),"historical M01 epoch unchanged");
-        int rangeAllocation=adapter.IndexOf("* ranges = stackalloc",StringComparison.Ordinal),pageAllocation=adapter.IndexOf("* pages = stackalloc",StringComparison.Ordinal),guard=adapter.IndexOf("if (!ScratchBuffers(",StringComparison.Ordinal),query=adapter.IndexOf("if (!Query(",StringComparison.Ordinal),zero=adapter.IndexOf("Zero((byte*)c",StringComparison.Ordinal);
-        Require(rangeAllocation>0 && pageAllocation>rangeAllocation && guard>pageAllocation && query>guard && zero>query,"all caller scratch validated before first query-code/bulk write");
-        Require(adapter.Contains("stackalloc OS.Kernel.Diagnostics.SeparatePageFaultMappingRange[6]",StringComparison.Ordinal)&&adapter.Contains("stackalloc OS.Kernel.Memory.X64PageTableImagePage[43]",StringComparison.Ordinal),"bounded caller stack scratch");
-        int caller=entry.IndexOf("M02PageFaultAdapter.Run(s_console",StringComparison.Ordinal);Require(caller>entry.LastIndexOf("EfiEntry.WriteBootSequencePlan(",caller,StringComparison.Ordinal),"terminal diagnostic continuation");
+        _ = PageFaultPinnedFamily(catalog, PageTableSourceOwners());
+        var transition = PageFaultPinnedFamily(catalog, TransitionSourceOwners());
+        Require(transition.Values.Any(document => Hash(document.Text.Replace("\r\n", "\n", StringComparison.Ordinal))
+            == EfiContracts.PageFaultTransitionSourceSha256), "original transition identity retained");
+        Require(HostSourceText.Contains(PageFaultAuthority(catalog), "public const bool EnableNullPointerPanicProbe = false;"),
+            "unique false authority");
+        XElement initial = project.Descendants(Flag).Single(x => x.Attribute("Condition") != null);
+        Require(initial.Value == "false", "default false");
+        string adapter = HostSourceText.Documents(catalog, AdapterOwner);
+        string run = HostSourceText.Active(PageFaultRun(catalog));
+        Require(!adapter.Contains("TEST_START m02.014", StringComparison.Ordinal), "stream alone emits start");
+        int audit = HostSourceText.IndexOf(run, ".Audit("), rebind = HostSourceText.IndexOf(run, "var fresh ="),
+            read = HostSourceText.IndexOf(run, "!ReadBack(c, d, fresh)"), publish = HostSourceText.IndexOf(run, "X64InstructionPublication.Serialize()"),
+            enter = HostSourceText.IndexOf(run, "enter((byte*)");
+        Require(audit > 0 && rebind > audit && read > rebind && publish > read && enter > publish, "fresh backing audit/readback/publication/entry");
+        Require(!adapter.Contains("s_m01InstructionPublicationEpochMask", StringComparison.Ordinal), "historical M01 epoch unchanged");
+        int rangeAllocation = HostSourceText.IndexOf(run, "* ranges = stackalloc"), pageAllocation = HostSourceText.IndexOf(run, "* pages = stackalloc"),
+            guard = HostSourceText.IndexOf(run, "if (!ScratchBuffers("), query = HostSourceText.IndexOf(run, "if (!Query("),
+            zero = HostSourceText.IndexOf(run, "Zero((byte*)c");
+        Require(rangeAllocation > 0 && pageAllocation > rangeAllocation && guard > pageAllocation && query > guard && zero > query,
+            "all caller scratch validated before first query-code/bulk write");
+        Require(HostSourceText.Contains(run, "stackalloc OS.Kernel.Diagnostics.SeparatePageFaultMappingRange[6]")
+            && HostSourceText.Contains(run, "stackalloc OS.Kernel.Memory.X64PageTableImagePage[43]"), "bounded caller stack scratch");
+        string caller = HostSourceText.Active(PageFaultCaller(catalog));
+        int plan = HostSourceText.IndexOf(caller, "EfiEntry.WriteBootSequencePlan("),
+            invoke = HostSourceText.IndexOf(caller, "M02PageFaultAdapter.Run(s_console");
+        Require(plan >= 0 && invoke > plan, "terminal diagnostic continuation");
     }
+
     [HostTest("m02.014.efi compiled actual adapter controlled backing", HostLane.Native, 1)]
     private static void TestAdapter()
     {
-        string root=Root(),dir=Scratch("adapter");
-        string adapter=Adapter(File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs"))).Replace("private static class M02PageFaultAdapter","internal static class M02PageFaultAdapter",StringComparison.Ordinal)
-            .Replace("private static void FailBeforeEntry(","internal static void FailBeforeEntry(",StringComparison.Ordinal);
-        File.WriteAllText(Path.Combine(dir,"Adapter.cs"),"""
+        string root = Root(), dir = Scratch("adapter");
+        string adapter = PageFaultHostAdapter();
+        File.WriteAllText(Path.Combine(dir, "Adapter.cs"), """
             namespace OS.Boot;
             public static unsafe class EfiEntry
             {
@@ -55,8 +73,8 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
                 public struct EfiBootServices { public delegate* unmanaged<uint,uint,ulong,ulong*,ulong> AllocatePages; public delegate* unmanaged<ulong,ulong,ulong> FreePages; }
                 internal static readonly System.Text.StringBuilder Captured = new();
                 private static void Write(EfiSimpleTextOutputProtocol* c,EfiSerialIoProtocol* s,byte b)=>Captured.Append((char)b);
-            """+adapter+"\n}");
-        File.WriteAllText(Path.Combine(dir,"Program.cs"),"""
+            """ + adapter + "\n}");
+        File.WriteAllText(Path.Combine(dir, "Program.cs"), """
             using System.Runtime.InteropServices;
             using OS.Boot;
             using OS.Kernel.Memory;
@@ -153,140 +171,359 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
                 }
             }
             """);
-        File.WriteAllText(Path.Combine(dir,"Adapter.csproj"),"<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS.Kernel/OS.Kernel.csproj"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Boot/X64InstructionPublication.cs"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Runtime/RuntimeImportAttribute.cs"))+"\"/></ItemGroup></Project>");
-        Result r=Process(root,"dotnet","run","--project",Path.Combine(dir,"Adapter.csproj"),"-c","Release");File.WriteAllText(Path.Combine(dir,"run.log"),r.Output);Require(r.Code==0,r.Output);
+        File.WriteAllText(Path.Combine(dir, "Adapter.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include=\"" + SecurityElement.Escape(Path.Combine(root, "src/OS.Kernel/OS.Kernel.csproj")) + "\"/><Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, "src/OS/Boot/X64InstructionPublication.cs")) + "\"/><Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, "src/OS/Runtime/RuntimeImportAttribute.cs")) + "\"/></ItemGroup></Project>");
+        Result r = Process(root, "dotnet", "run", "--project", Path.Combine(dir, "Adapter.csproj"), "-c", "Release");
+        File.WriteAllText(Path.Combine(dir, "run.log"), r.Output);
+        Require(r.Code == 0, r.Output);
     }
+
     [HostTest("m02.014.efi strict numeric transcript and lifecycle", HostLane.Fast, 2)]
     private static void TestTranscript()
     {
-        string root=Root(),dir=Scratch("transcript");
-        string valid="OVMF firmware\r\nOS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\nTEST_START m02.014\r\nM02_PAGE_FAULT_LAYOUT code=0x0000000000100000 data=0x0000000000200000 tables=0x0000000000300000 faultRip=0x0000000000101B19 codePages=3 dataPages=10 tablePages=43 mappedPages=52\r\nM02_PAGE_FAULT_MODE firmwareCs=0x0000000000000008 cr0=0x0000000080010033 firmwareCr3=0x0000000000400000 cr4Before=0x00000000000000A0 efer=0x0000000000000D00 pat=0x0007040600070406 physicalBits=0x0000000000000030\r\nM02_PAGE_FAULT_ROOT cr3=0x0000000000300000 expectedCr3=0x0000000000300000 cr4=0x0000000000000020 expectedCr4=0x0000000000000020\r\nM02_PAGE_FAULT_ABSENT role=zero linear=0x0000000000000000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000303003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=df linear=0x0000000000202000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=pf linear=0x0000000000204000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=nmi linear=0x0000000000206000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=transition linear=0x0000000000208000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_FRAME vector=0x000000000000000E hasErrorCode=0x0000000000000001 error=0x0000000000000000 cr2=0x0000000000000000 rip=0x0000000000101B19 cs=0x0000000000000008 rflags=0x0000000000010046 savedRsp=0x000000000020A000 savedSs=0x0000000000000010 handlerRsp=0x0000000000205F40 handlerSs=0x0000000000000000 cr3=0x0000000000300000\r\n"+Ready+"\r\nTEST_PASS m02.014\r\n";
-        List<(string Text,bool Accept)> cases=[(valid,true),(valid+"\r\n",true),(valid.Replace("firmwareCs=0x0000000000000008","firmwareCs=0x0000000000000038",StringComparison.Ordinal).Replace(" cs=0x0000000000000008"," cs=0x0000000000000038",StringComparison.Ordinal),true),(valid.Replace("firmwareCs=0x0000000000000008","firmwareCs=0x0000000000000038",StringComparison.Ordinal),false)];
-        foreach(string token in new[]{"TEST_FAIL","OS_SMOKE_FAIL","CLROS_M02_014_HOST_READY","CLROS_M02_014_PAGE_IMAGE_HOST_READY","CLROS_M02_014_TRANSITION_HOST_READY","CLROS_M02_014_EFI_HOST_READY","M02_PAGE_FAULT_CR2_ERROR_CODE_FAILED","M02_PAGE_FAULT_LAYOUT"})
-            for(int split=1;split<token.Length;split++)cases.Add((token[..split]+"\r\n"+token[split..]+"\r\n"+valid,false));
-        foreach(string selector in new[]{"0000000000000000","000000000000000C","000000000000003B","0000000000010008"})
-            cases.Add((valid.Replace("firmwareCs=0x0000000000000008","firmwareCs=0x"+selector,StringComparison.Ordinal).Replace(" cs=0x0000000000000008"," cs=0x"+selector,StringComparison.Ordinal),false));
-        string absentPattern=@"levelsRead=0x[0-9A-F]{16} pml4e=0x[0-9A-F]{16} pdpte=0x[0-9A-F]{16} pde=0x[0-9A-F]{16} pte=0x[0-9A-F]{16}";
-        const string rootAbsent="levelsRead=0x0000000000000001 pml4e=0x0000000000000000 pdpte=0x0000000000000000 pde=0x0000000000000000 pte=0x0000000000000000";
-        cases.Add((Regex.Replace(valid,absentPattern,rootAbsent),false));
-        string far=Regex.Replace(valid,@"0x[0-9A-F]{16}",m=> {
-            ulong value=Convert.ToUInt64(m.Value[2..],16);
-            return value>=0x100000 && value<0x400000 ? "0x"+(value+0x10000000000).ToString("X16",System.Globalization.CultureInfo.InvariantCulture):m.Value;
+        string root = Root(), dir = Scratch("transcript");
+        string valid = "OVMF firmware\r\nOS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\nTEST_START m02.014\r\nM02_PAGE_FAULT_LAYOUT code=0x0000000000100000 data=0x0000000000200000 tables=0x0000000000300000 faultRip=0x0000000000101B19 codePages=3 dataPages=10 tablePages=43 mappedPages=52\r\nM02_PAGE_FAULT_MODE firmwareCs=0x0000000000000008 cr0=0x0000000080010033 firmwareCr3=0x0000000000400000 cr4Before=0x00000000000000A0 efer=0x0000000000000D00 pat=0x0007040600070406 physicalBits=0x0000000000000030\r\nM02_PAGE_FAULT_ROOT cr3=0x0000000000300000 expectedCr3=0x0000000000300000 cr4=0x0000000000000020 expectedCr4=0x0000000000000020\r\nM02_PAGE_FAULT_ABSENT role=zero linear=0x0000000000000000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000303003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=df linear=0x0000000000202000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=pf linear=0x0000000000204000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=nmi linear=0x0000000000206000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=transition linear=0x0000000000208000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_FRAME vector=0x000000000000000E hasErrorCode=0x0000000000000001 error=0x0000000000000000 cr2=0x0000000000000000 rip=0x0000000000101B19 cs=0x0000000000000008 rflags=0x0000000000010046 savedRsp=0x000000000020A000 savedSs=0x0000000000000010 handlerRsp=0x0000000000205F40 handlerSs=0x0000000000000000 cr3=0x0000000000300000\r\n" + Ready + "\r\nTEST_PASS m02.014\r\n";
+        List<(string Text, bool Accept)> cases = [(valid, true), (valid + "\r\n", true), (valid.Replace("firmwareCs=0x0000000000000008", "firmwareCs=0x0000000000000038", StringComparison.Ordinal).Replace(" cs=0x0000000000000008", " cs=0x0000000000000038", StringComparison.Ordinal), true), (valid.Replace("firmwareCs=0x0000000000000008", "firmwareCs=0x0000000000000038", StringComparison.Ordinal), false)];
+        foreach (string token in new[]
+        {
+            "TEST_FAIL",
+            "OS_SMOKE_FAIL",
+            "CLROS_M02_014_HOST_READY",
+            "CLROS_M02_014_PAGE_IMAGE_HOST_READY",
+            "CLROS_M02_014_TRANSITION_HOST_READY",
+            "CLROS_M02_014_EFI_HOST_READY",
+            "M02_PAGE_FAULT_CR2_ERROR_CODE_FAILED",
+            "M02_PAGE_FAULT_LAYOUT"
+        }
+
+        )
+            for (int split = 1; split < token.Length; split++)
+                cases.Add((token[..split] + "\r\n" + token[split..] + "\r\n" + valid, false));
+        foreach (string selector in new[]
+        {
+            "0000000000000000",
+            "000000000000000C",
+            "000000000000003B",
+            "0000000000010008"
+        }
+
+        )
+            cases.Add((valid.Replace("firmwareCs=0x0000000000000008", "firmwareCs=0x" + selector, StringComparison.Ordinal).Replace(" cs=0x0000000000000008", " cs=0x" + selector, StringComparison.Ordinal), false));
+        string absentPattern = @"levelsRead=0x[0-9A-F]{16} pml4e=0x[0-9A-F]{16} pdpte=0x[0-9A-F]{16} pde=0x[0-9A-F]{16} pte=0x[0-9A-F]{16}";
+        const string rootAbsent = "levelsRead=0x0000000000000001 pml4e=0x0000000000000000 pdpte=0x0000000000000000 pde=0x0000000000000000 pte=0x0000000000000000";
+        cases.Add((Regex.Replace(valid, absentPattern, rootAbsent), false));
+        string far = Regex.Replace(valid, @"0x[0-9A-F]{16}", m =>
+        {
+            ulong value = Convert.ToUInt64(m.Value[2..], 16);
+            return value >= 0x100000 && value < 0x400000 ? "0x" + (value + 0x10000000000).ToString("X16", System.Globalization.CultureInfo.InvariantCulture) : m.Value;
         });
-        far=Regex.Replace(far,@"M02_PAGE_FAULT_ABSENT role=zero [^\r\n]*","M02_PAGE_FAULT_ABSENT role=zero linear=0x0000000000000000 "+rootAbsent);
-        cases.Add((far,true));
-        string[] lines=valid.Split("\r\n");
-        for(int i=4;i<16;i++) {
-            var changed=lines.ToList();changed.RemoveAt(i);cases.Add((string.Join("\r\n",changed),false));
-            changed=lines.ToList();changed.Insert(i,lines[i]);cases.Add((string.Join("\r\n",changed),false));
-            changed=lines.ToList();changed[i]+=" ";cases.Add((string.Join("\r\n",changed),false));
-            changed=lines.ToList();changed[i]+="\0";cases.Add((string.Join("\r\n",changed),false));
-            if(i<15){changed=lines.ToList();(changed[i],changed[i+1])=(changed[i+1],changed[i]);cases.Add((string.Join("\r\n",changed),false));}
+        far = Regex.Replace(far, @"M02_PAGE_FAULT_ABSENT role=zero [^\r\n]*", "M02_PAGE_FAULT_ABSENT role=zero linear=0x0000000000000000 " + rootAbsent);
+        cases.Add((far, true));
+        string[] lines = valid.Split("\r\n");
+        for (int i = 4; i < 16; i++)
+        {
+            var changed = lines.ToList();
+            changed.RemoveAt(i);
+            cases.Add((string.Join("\r\n", changed), false));
+            changed = lines.ToList();
+            changed.Insert(i, lines[i]);
+            cases.Add((string.Join("\r\n", changed), false));
+            changed = lines.ToList();
+            changed[i] += " ";
+            cases.Add((string.Join("\r\n", changed), false));
+            changed = lines.ToList();
+            changed[i] += "\0";
+            cases.Add((string.Join("\r\n", changed), false));
+            if (i < 15)
+            {
+                changed = lines.ToList();
+                (changed[i], changed[i + 1]) = (changed[i + 1], changed[i]);
+                cases.Add((string.Join("\r\n", changed), false));
+            }
         }
-        var numeric=Regex.Matches(valid,@"0x[0-9A-F]{16}");Require(numeric.Count==57,"independent 57-field fixture");
-        foreach(Match m in numeric) {
+
+        var numeric = Regex.Matches(valid, @"0x[0-9A-F]{16}");
+        Require(numeric.Count == 57, "independent 57-field fixture");
+        foreach (Match m in numeric)
+        {
             string invalidValue = m.Index == numeric[5].Index || m.Index == numeric[8].Index ? "0x0000000000000000" : "0xFFFFFFFFFFFFFFFF";
-            foreach(string replacement in new[]{invalidValue,"0x000000000000000g","0x0",m.Value+"0"}) cases.Add((valid[..m.Index]+replacement+valid[(m.Index+m.Length)..],false));
+            foreach (string replacement in new[]
+            {
+                invalidValue,
+                "0x000000000000000g",
+                "0x0",
+                m.Value + "0"
+            }
+
+            )
+                cases.Add((valid[..m.Index] + replacement + valid[(m.Index + m.Length)..], false));
         }
-        foreach(string suffix in new[]{"\r","\n"," ","firmware returned\r\n","TEST_FAIL late\r\n","\0"}) cases.Add((valid+suffix,false));
-        cases.Add((valid.Replace("pml4e=0x0000000000301003","pml4e=0x0000000000301023",StringComparison.Ordinal),true));
-        foreach(var mutation in new[]{("pml4e=0x0000000000301003","pml4e=0x0000000000304003",false),("pdpte=0x0000000000302023","pdpte=0x0000000000304023",false),("pml4e=0x0000000000301003","pml4e=0x0000000000301023",true)}) {
-            int index=valid.IndexOf(mutation.Item1,StringComparison.Ordinal);
-            cases.Add((valid[..index]+mutation.Item2+valid[(index+mutation.Item1.Length)..],mutation.Item3));
+
+        foreach (string suffix in new[]
+        {
+            "\r",
+            "\n",
+            " ",
+            "firmware returned\r\n",
+            "TEST_FAIL late\r\n",
+            "\0"
         }
-        foreach(string bad in new[]{"0x0000000000301043","0x0000000000301083","0x8000000000301003","0x0000000000300003","0x0000000000400003"})cases.Add((valid.Replace("pml4e=0x0000000000301003","pml4e="+bad,StringComparison.Ordinal),false));
-        cases.Add((valid.Replace("pte=0x0000000000000000","pte=0x0000000000200063",StringComparison.Ordinal),false));
-        var records=cases.Select((x,i)=>new{Path=Path.Combine(dir,i+".log"),x.Accept}).ToArray();
-        for(int i=0;i<cases.Count;i++)File.WriteAllText(records[i].Path,cases[i].Text,new UTF8Encoding(false));
-        File.WriteAllText(Path.Combine(dir,"cases.json"),JsonSerializer.Serialize(records));
-        foreach(var record in records) {
-            bool accepted=true;string reason=string.Empty;
-            try { QemuTranscripts.AssertM02PageFaultCr2ErrorCodeTranscript(record.Path); }
-            catch(ToolFailure error) { accepted=false;reason=error.Message; }
-            Require(accepted==record.Accept,record.Path+" accepted="+accepted+" "+reason);
+
+        )
+            cases.Add((valid + suffix, false));
+        cases.Add((valid.Replace("pml4e=0x0000000000301003", "pml4e=0x0000000000301023", StringComparison.Ordinal), true));
+        foreach (var mutation in new[]
+        {
+            ("pml4e=0x0000000000301003", "pml4e=0x0000000000304003", false),
+            ("pdpte=0x0000000000302023", "pdpte=0x0000000000304023", false),
+            ("pml4e=0x0000000000301003", "pml4e=0x0000000000301023", true)
         }
-        QemuTerminalControls.Lifecycle(lines=>QemuTranscripts.AssertM02PageFaultRunnerResult(lines.ToArray()),false);
+
+        )
+        {
+            int index = valid.IndexOf(mutation.Item1, StringComparison.Ordinal);
+            cases.Add((valid[..index] + mutation.Item2 + valid[(index + mutation.Item1.Length)..], mutation.Item3));
+        }
+
+        foreach (string bad in new[]
+        {
+            "0x0000000000301043",
+            "0x0000000000301083",
+            "0x8000000000301003",
+            "0x0000000000300003",
+            "0x0000000000400003"
+        }
+
+        )
+            cases.Add((valid.Replace("pml4e=0x0000000000301003", "pml4e=" + bad, StringComparison.Ordinal), false));
+        cases.Add((valid.Replace("pte=0x0000000000000000", "pte=0x0000000000200063", StringComparison.Ordinal), false));
+        var records = cases.Select((x, i) => new { Path = Path.Combine(dir, i + ".log"), x.Accept }).ToArray();
+        for (int i = 0; i < cases.Count; i++)
+            File.WriteAllText(records[i].Path, cases[i].Text, new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(dir, "cases.json"), JsonSerializer.Serialize(records));
+        foreach (var record in records)
+        {
+            bool accepted = true;
+            string reason = string.Empty;
+            try
+            {
+                QemuTranscripts.AssertM02PageFaultCr2ErrorCodeTranscript(record.Path);
+            }
+            catch (ToolFailure error)
+            {
+                accepted = false;
+                reason = error.Message;
+            }
+
+            Require(accepted == record.Accept, record.Path + " accepted=" + accepted + " " + reason);
+        }
+
+        QemuTerminalControls.Lifecycle(lines => QemuTranscripts.AssertM02PageFaultRunnerResult(lines.ToArray()), false);
     }
+
     [HostTest("m02.014.efi default-off profile prerequisites and conflicts", HostLane.Fast, 3)]
     private static void TestProfiles()
     {
-        string root=Root();Result baseline=Qemu();Save("default-dry",baseline);Require(baseline.Code==0&&!baseline.Output.Contains("TEST_START m02.014;",StringComparison.Ordinal),baseline.Output);
-        Result enabled=Qemu("-BuildEfi","-"+Flag);Save("enabled-dry",enabled);Require(enabled.Code==0&&enabled.Output.Contains("M02_PAGE_FAULT_LAYOUT",StringComparison.Ordinal),enabled.Output);
-        foreach(string endpoint in new[]{"qemu","build","verify"}) {
-            foreach(string option in Prerequisites) {
-                Result r=Profile(endpoint,["-"+Flag,"-"+option+"=false"]);
-                Save("explicit-false-"+option,r);Require(r.Code!=0&&r.Output.Contains("explicit_false_prerequisite",StringComparison.Ordinal),r.Output);
+        string root = Root();
+        Result baseline = Qemu();
+        Save("default-dry", baseline);
+        Require(baseline.Code == 0 && !baseline.Output.Contains("TEST_START m02.014;", StringComparison.Ordinal), baseline.Output);
+        Result enabled = Qemu("-BuildEfi", "-" + Flag);
+        Save("enabled-dry", enabled);
+        Require(enabled.Code == 0 && enabled.Output.Contains("M02_PAGE_FAULT_LAYOUT", StringComparison.Ordinal), enabled.Output);
+        foreach (string endpoint in new[]
+        {
+            "qemu",
+            "build",
+            "verify"
+        }
+
+        )
+        {
+            foreach (string option in Prerequisites)
+            {
+                Result r = Profile(endpoint, ["-" + Flag, "-" + option + "=false"]);
+                Save("explicit-false-" + option, r);
+                Require(r.Code != 0 && r.Output.Contains("explicit_false_prerequisite", StringComparison.Ordinal), r.Output);
             }
-            foreach(string option in Conflicts) {
+
+            foreach (string option in Conflicts)
+            {
                 // Supply the opposing M04 profile's own prerequisites so its earlier
                 // prerequisite check cannot mask the intended profile collision.
-                string[] m04=["EnableM04IndependentEndianConformanceProbe","EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","EnableM04ArithmeticConformanceProbe","EnableM04LayoutContractProbe","EnableM04ManagedHeapPageRangeProbe"];
-                int index=Array.IndexOf(m04,option);
-                string opposing=index<0?string.Empty:" "+string.Join(' ',m04.Take(index).Select(x=>"-"+x));
-                if(index==4)opposing+=" -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe";
-                Result r=Profile(endpoint,["-"+Flag,"-"+option,..opposing.Split(' ',StringSplitOptions.RemoveEmptyEntries)]);
-                Save("conflict-"+option,r);Require(r.Code!=0&&r.Output.Contains("m02_page_fault_cr2_error_code_profile_conflict",StringComparison.Ordinal),r.Output);
+                string[] m04 = ["EnableM04IndependentEndianConformanceProbe", "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe", "EnableM04ArithmeticConformanceProbe", "EnableM04LayoutContractProbe", "EnableM04ManagedHeapPageRangeProbe"];
+                int index = Array.IndexOf(m04, option);
+                string opposing = index < 0 ? string.Empty : " " + string.Join(' ', m04.Take(index).Select(x => "-" + x));
+                if (index == 4)
+                    opposing += " -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe";
+                Result r = Profile(endpoint, ["-" + Flag, "-" + option, .. opposing.Split(' ', StringSplitOptions.RemoveEmptyEntries)]);
+                Save("conflict-" + option, r);
+                Require(r.Code != 0 && r.Output.Contains("m02_page_fault_cr2_error_code_profile_conflict", StringComparison.Ordinal), r.Output);
             }
         }
-        Result endian=Qemu("-BuildEfi","-"+Flag,"-EnableM04IndependentEndianConformanceProbe");Require(endian.Code==0,"optional independent endian "+endian.Output);
-        foreach(string[] args in new[]{new[]{"-"+Flag},new[]{"-BuildEfi","-"+Flag,"-SkipImageBuild"},new[]{"-BuildEfi","-"+Flag,"-M01RawObservationLog","artifacts/forbidden.log"},new[]{"-RequireMarker",Ready}}) {Result r=Qemu(args);Save("invalid-profile",r);Require(r.Code!=0,r.Output);}
+
+        Result endian = Qemu("-BuildEfi", "-" + Flag, "-EnableM04IndependentEndianConformanceProbe");
+        Require(endian.Code == 0, "optional independent endian " + endian.Output);
+        foreach (string[] args in new[]
+        {
+            new[]
+            {
+                "-" + Flag
+            },
+            new[]
+            {
+                "-BuildEfi",
+                "-" + Flag,
+                "-SkipImageBuild"
+            },
+            new[]
+            {
+                "-BuildEfi",
+                "-" + Flag,
+                "-M01RawObservationLog",
+                "artifacts/forbidden.log"
+            },
+            new[]
+            {
+                "-RequireMarker",
+                Ready
+            }
+        }
+
+        )
+        {
+            Result r = Qemu(args);
+            Save("invalid-profile", r);
+            Require(r.Code != 0, r.Output);
+        }
     }
+
     [HostTest("m02.014.efi frozen source firewall", HostLane.Fast, 4)]
     private static void TestFirewall()
     {
-        string name=@"..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs";
-        string text=File.ReadAllText(Path.Combine(Root(),"src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultPageTables.cs")).Replace("\r\n","\n",StringComparison.Ordinal);
-        foreach(string value in new[]{text,text.Replace("\n","\r\n",StringComparison.Ordinal)})Require(EfiSourceAdmission.Inspect(value,name).Succeeded,"exact identity rejected");
-        foreach(string value in new[]{text+" ",text+"\r",text.Replace("4096","4095",StringComparison.Ordinal),text+"\n// changed"})Require(!EfiSourceAdmission.Inspect(value,name).Succeeded,"changed content accepted");
-        foreach(string value in new[]{name.ToLowerInvariant(),name+" ",name.Replace('\\','/'),name.Replace(@"Diagnostics\",@"Diagnostics\.\",StringComparison.Ordinal),name.Insert(4,"\0"),"other.cs"})Require(!EfiSourceAdmission.Inspect(text,value).Succeeded,"wrong path accepted");
+        bool numericMutation = false;
+        foreach (var (name, document) in PageFaultPinnedFamily(PageFaultSources(), PageTableSourceOwners()))
+        {
+            string text = document.Text.Replace("\r\n", "\n", StringComparison.Ordinal);
+            foreach (string value in new[] { text, text.Replace("\n", "\r\n", StringComparison.Ordinal) })
+                Require(EfiSourceAdmission.Inspect(value, name).Succeeded, "exact identity rejected " + name);
+            foreach (string value in new[] { text + " ", text + "\r", text + "\n// changed" })
+                Require(!EfiSourceAdmission.Inspect(value, name).Succeeded, "changed content accepted " + name);
+            string changed = text.Replace("4096", "4095", StringComparison.Ordinal);
+            if (changed != text)
+            {
+                numericMutation = true;
+                Require(!EfiSourceAdmission.Inspect(changed, name).Succeeded, "changed numeric content accepted " + name);
+            }
+            foreach (string value in new[]
+            {
+                name.ToLowerInvariant(), name + " ", name.Replace('\\', '/'),
+                name.Replace(@"Diagnostics\", @"Diagnostics\.\", StringComparison.Ordinal),
+                name.Insert(4, "\0"), "other.cs"
+            })
+                Require(!EfiSourceAdmission.Inspect(text, value).Succeeded, "wrong path accepted " + name);
+        }
+        Require(numericMutation, "original numeric firewall control exercised");
     }
+
     [HostTest("m02.014.efi complete default and enabled actual NativeAOT artifact authority", HostLane.Native, 5)]
     private static void TestArtifacts()
     {
-        string root=Root();
-        foreach(bool enabled in new[]{false,true}) {
-            string id="issue517-tests-"+Guid.NewGuid().ToString("N"),dir=Scratch(enabled?"artifact-enabled":"artifact-default");
-            string artifact="artifacts/efi/"+id+".EFI";
-            Result r=Tool(["efi","build","--boot-policy","Diagnostic","-EfiOutputPath",artifact,"-LogPath",Path.Combine(dir,"publish.log"),..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);
-            File.WriteAllText(Path.Combine(dir,"run.log"),r.Output);Require(r.Code==0&&r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),r.Output);
-            string link=Path.ChangeExtension(Path.Combine(root,artifact),"link.json");
-            if(!File.Exists(link))link=Path.Combine(root,artifact)+".link.json";
-            using JsonDocument document=JsonDocument.Parse(File.ReadAllText(link));JsonElement evidence=document.RootElement;
-            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==EfiEvidence.SourceClosurePaths(root).Count,"complete raw authority inputs");
-            foreach(var input in inputs)Require(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))).Equals(input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"raw source identity");
-            string[] expectedCompileItems = OS.Tooling.EfiProjectAdmission.ExpectedCompileItems(
-                OS.Tooling.EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { [Flag] = enabled }));
-            var evaluation=evidence.GetProperty("postRestoreEvaluation");
-            Require(evaluation.GetProperty("compileCount").GetInt32()==expectedCompileItems.Length,"complete evaluated compile inventory");
-            Require(evaluation.GetProperty("compileSha256").GetString()==OS.Tooling.EfiEvidence.HashLines(expectedCompileItems),"ordered evaluated compile inventory");
-            var properties=evaluation.GetProperty("properties");var flags=properties.EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"complete diagnostic switch inventory");
-            foreach(var flag in flags)Require(flag.Value.GetString()==(enabled&&(Prerequisites.Contains(flag.Name,StringComparer.Ordinal)||flag.Name==Flag)?"true":"false"),"actual evaluated "+flag.Name);
-            string assembly=Path.Combine(root,OS.Tooling.EfiContracts.ManagedAssemblyRelativePath("Release"));using var reader=new PEReader(File.OpenRead(assembly));Require(reader.GetMetadataReader().AssemblyReferences.Count==0,"actual no-stdlib metadata");
+        string root = Root();
+        foreach (bool enabled in new[]
+        {
+            false,
+            true
+        }
+
+        )
+        {
+            string id = "issue517-tests-" + Guid.NewGuid().ToString("N"), dir = Scratch(enabled ? "artifact-enabled" : "artifact-default");
+            string artifact = "artifacts/efi/" + id + ".EFI";
+            Result r = Tool(["efi", "build", "--boot-policy", "Diagnostic", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(dir, "publish.log"), .. (enabled ? new[] { "-" + Flag } : Array.Empty<string>())]);
+            File.WriteAllText(Path.Combine(dir, "run.log"), r.Output);
+            Require(r.Code == 0 && r.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), r.Output);
+            string link = Path.ChangeExtension(Path.Combine(root, artifact), "link.json");
+            if (!File.Exists(link))
+                link = Path.Combine(root, artifact) + ".link.json";
+            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(link));
+            JsonElement evidence = document.RootElement;
+            var inputs = evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();
+            Require(inputs.Length == EfiEvidence.SourceClosurePaths(root).Count, "complete raw authority inputs");
+            foreach (var input in inputs)
+                Require(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, input.GetProperty("path").GetString()!)))).Equals(input.GetProperty("sha256").GetString(), StringComparison.OrdinalIgnoreCase), "raw source identity");
+            string[] expectedCompileItems = OS.Tooling.EfiProjectAdmission.ExpectedCompileItems(OS.Tooling.EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { [Flag] = enabled }));
+            var evaluation = evidence.GetProperty("postRestoreEvaluation");
+            Require(evaluation.GetProperty("compileCount").GetInt32() == expectedCompileItems.Length, "complete evaluated compile inventory");
+            Require(evaluation.GetProperty("compileSha256").GetString() == OS.Tooling.EfiEvidence.HashLines(expectedCompileItems), "ordered evaluated compile inventory");
+            var properties = evaluation.GetProperty("properties");
+            var flags = properties.EnumerateObject().Where(x => x.Name.StartsWith("Enable", StringComparison.Ordinal)).ToArray();
+            Require(flags.Length == OS.Tooling.EfiContracts.DiagnosticProbes.Count, "complete diagnostic switch inventory");
+            foreach (var flag in flags)
+                Require(flag.Value.GetString() == (enabled && (Prerequisites.Contains(flag.Name, StringComparer.Ordinal) || flag.Name == Flag) ? "true" : "false"), "actual evaluated " + flag.Name);
+            string assembly = Path.Combine(root, OS.Tooling.EfiContracts.ManagedAssemblyRelativePath("Release"));
+            using var reader = new PEReader(File.OpenRead(assembly));
+            Require(reader.GetMetadataReader().AssemblyReferences.Count == 0, "actual no-stdlib metadata");
         }
     }
-    private static string Adapter(string text) => Between(text,"    private static class M02PageFaultAdapter","#endif");
-    private static string Between(string text,string start,string end) {int i=text.IndexOf(start,StringComparison.Ordinal);Require(i>=0,start);return text[i..text.IndexOf(end,i,StringComparison.Ordinal)];}
-    private static string Hash(string text)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
-    private static string[] Markers(string output,string prefix)=>output.Replace("\r","").Split('\n').Single(x=>x.StartsWith(prefix,StringComparison.Ordinal))[prefix.Length..].Split(';');
-    private static Result Process(string root,string exe,params string[] args)
-    {
-        ProcessStartInfo start=new(exe){WorkingDirectory=root,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
-        foreach(string arg in args)start.ArgumentList.Add(arg);
-        using System.Diagnostics.Process process=System.Diagnostics.Process.Start(start)!;
-        Task<string> stdout=process.StandardOutput.ReadToEndAsync(),stderr=process.StandardError.ReadToEndAsync();
-        if(!process.WaitForExit(600000)){process.Kill(true);throw new TimeoutException(exe);}
-        Task.WaitAll(stdout,stderr);return new(process.ExitCode,stdout.Result+stderr.Result);
-    }
-    private static void Save(string name,Result r)=>File.WriteAllText(Path.Combine(Scratch(name),"run.log"),r.Output);
-    private static string Scratch(string name){string path=Path.Combine(Root(),"artifacts/issue517-tests",name,Guid.NewGuid().ToString("N"));Directory.CreateDirectory(path);return path;}
-    private static string Root(){for(DirectoryInfo? d=new(Environment.CurrentDirectory);d!=null;d=d.Parent)if(File.Exists(Path.Combine(d.FullName,"CLROS.slnx")))return d.FullName;throw new DirectoryNotFoundException();}
-    private static void Require(bool value,string reason){if(!value)throw new InvalidOperationException(reason);}
-    private static Result Qemu(params string[] args)=>Tool(["qemu","smoke","--boot-policy","Diagnostic","--dry-run",..args]);
-    private static Result Tool(params string[] args) { var r=HostToolProcess.RunTool(args);return new(r.ExitCode,r.Output+r.Error); }
-    private static Result Profile(string endpoint,string[] args) {
-        var r=endpoint=="qemu"?HostToolProcess.RunTool(["qemu","smoke","--boot-policy","Diagnostic","--dry-run","--build-efi",..args]):HostToolProcess.ValidateEfiProfile(endpoint=="build",["--boot-policy","Diagnostic",..args]);
-        return new(r.ExitCode,r.Output+r.Error);
-    }
-    private readonly record struct Result(int Code,string Output);
 
+    private static string Hash(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
+    private static string[] Markers(string output, string prefix) => output.Replace("\r", "").Split('\n').Single(x => x.StartsWith(prefix, StringComparison.Ordinal))[prefix.Length..].Split(';');
+    private static Result Process(string root, string exe, params string[] args)
+    {
+        ProcessStartInfo start = new(exe)
+        {
+            WorkingDirectory = root,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        foreach (string arg in args)
+            start.ArgumentList.Add(arg);
+        using System.Diagnostics.Process process = System.Diagnostics.Process.Start(start)!;
+        Task<string> stdout = process.StandardOutput.ReadToEndAsync(), stderr = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(600000))
+        {
+            process.Kill(true);
+            throw new TimeoutException(exe);
+        }
+
+        Task.WaitAll(stdout, stderr);
+        return new(process.ExitCode, stdout.Result + stderr.Result);
+    }
+
+    private static void Save(string name, Result r) => File.WriteAllText(Path.Combine(Scratch(name), "run.log"), r.Output);
+    private static string Scratch(string name)
+    {
+        string path = Path.Combine(Root(), "artifacts/issue517-tests", name, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    private static string Root()
+    {
+        for (DirectoryInfo? d = new(Environment.CurrentDirectory); d != null; d = d.Parent)
+            if (File.Exists(Path.Combine(d.FullName, "CLROS.slnx")))
+                return d.FullName;
+        throw new DirectoryNotFoundException();
+    }
+
+    private static void Require(bool value, string reason)
+    {
+        if (!value)
+            throw new InvalidOperationException(reason);
+    }
+
+    private static Result Qemu(params string[] args) => Tool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. args]);
+    private static Result Tool(params string[] args)
+    {
+        var r = HostToolProcess.RunTool(args);
+        return new(r.ExitCode, r.Output + r.Error);
+    }
+
+    private static Result Profile(string endpoint, string[] args)
+    {
+        var r = endpoint == "qemu" ? HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", "--build-efi", .. args]) : HostToolProcess.ValidateEfiProfile(endpoint == "build", ["--boot-policy", "Diagnostic", .. args]);
+        return new(r.ExitCode, r.Output + r.Error);
+    }
 }

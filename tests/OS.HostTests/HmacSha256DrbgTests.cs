@@ -30,11 +30,13 @@ internal static unsafe class HmacSha256DrbgTests
     {
         byte[] e = Convert.FromHexString(entropy), n = Convert.FromHexString(nonce),
             p = Convert.FromHexString(personalization), r = Convert.FromHexString(reseed);
-        HmacSha256Drbg.State state = default; byte* output = stackalloc byte[128];
+        HmacSha256Drbg.State state = default;
+        byte* output = stackalloc byte[128];
         fixed (byte* ep = e, np = n, pp = p, rp = r)
         {
             HostCheck.True(HmacSha256Drbg.Instantiate(&state, ep, np, pp, (uint)p.Length));
-            if (r.Length != 0) HostCheck.True(HmacSha256Drbg.Reseed(&state, rp));
+            if (r.Length != 0)
+                HostCheck.True(HmacSha256Drbg.Reseed(&state, rp));
             HostCheck.True(HmacSha256Drbg.Generate(&state, output, 128));
             HostCheck.True(HmacSha256Drbg.Generate(&state, output, 128));
             HostCheck.True(new ReadOnlySpan<byte>(output, 128).SequenceEqual(Convert.FromHexString(expected)));
@@ -48,8 +50,10 @@ internal static unsafe class HmacSha256DrbgTests
     private static void Admission()
     {
         HmacSha256Drbg.State state = default;
-        byte* seed = stackalloc byte[48]; new Span<byte>(seed, 48).Fill(0xa5);
-        byte* output = stackalloc byte[64]; new Span<byte>(output, 64).Fill(0xcc);
+        byte* seed = stackalloc byte[48];
+        new Span<byte>(seed, 48).Fill(0xa5);
+        byte* output = stackalloc byte[64];
+        new Span<byte>(output, 64).Fill(0xcc);
         HostCheck.True(!HmacSha256Drbg.Generate(&state, output, 1));
         HostCheck.True(!HmacSha256Drbg.Instantiate(&state, null, seed + 32, null, 0));
         HostCheck.True(!HmacSha256Drbg.Instantiate(&state, seed, seed + 32, null, 1));
@@ -71,7 +75,9 @@ internal static unsafe class HmacSha256DrbgTests
     [HostTest("HMAC DRBG fails closed at the standard reseed interval and explicit fresh reseed restores availability")]
     private static void Exhaustion()
     {
-        HmacSha256Drbg.State state = default; byte* seed = stackalloc byte[48]; new Span<byte>(seed, 48).Fill(0x23);
+        HmacSha256Drbg.State state = default;
+        byte* seed = stackalloc byte[48];
+        new Span<byte>(seed, 48).Fill(0x23);
         byte* output = stackalloc byte[32];
         HostCheck.True(HmacSha256Drbg.Instantiate(&state, seed, seed + 32, null, 0));
         // Deliberately corrupt private metadata to reach an otherwise infeasible boundary.
@@ -83,28 +89,35 @@ internal static unsafe class HmacSha256DrbgTests
         HostCheck.True(!HmacSha256Drbg.Generate(&state, output, 32));
         HostCheck.True(new ReadOnlySpan<byte>(&state, sizeof(HmacSha256Drbg.State)).SequenceEqual(before));
         HostCheck.True(new ReadOnlySpan<byte>(output, 32).ToArray().All(x => x == 0xcc));
-        seed[0] ^= 1; HostCheck.True(HmacSha256Drbg.Reseed(&state, seed) && !state.RequiresReseed);
+        seed[0] ^= 1;
+        HostCheck.True(HmacSha256Drbg.Reseed(&state, seed) && !state.RequiresReseed);
         HostCheck.True(HmacSha256Drbg.Generate(&state, output, 32));
-        *counter = ulong.MaxValue; before = new ReadOnlySpan<byte>(&state, sizeof(HmacSha256Drbg.State)).ToArray();
+        *counter = ulong.MaxValue;
+        before = new ReadOnlySpan<byte>(&state, sizeof(HmacSha256Drbg.State)).ToArray();
         HostCheck.True(!HmacSha256Drbg.Generate(&state, output, 32));
         HostCheck.True(new ReadOnlySpan<byte>(&state, sizeof(HmacSha256Drbg.State)).SequenceEqual(before));
-        *counter = 1; HostCheck.True(HmacSha256Drbg.Erase(&state));
+        *counter = 1;
+        HostCheck.True(HmacSha256Drbg.Erase(&state));
     }
 
     [HostTest("HMAC DRBG supports repeated bounded requests beyond the old entropy pool without allocation or repeated output")]
     private static void Continuing()
     {
-        HmacSha256Drbg.State state = default; byte* seed = stackalloc byte[48]; new Span<byte>(seed, 48).Fill(0x45);
+        HmacSha256Drbg.State state = default;
+        byte* seed = stackalloc byte[48];
+        new Span<byte>(seed, 48).Fill(0x45);
         byte* output = stackalloc byte[8192];
         HostCheck.True(HmacSha256Drbg.Instantiate(&state, seed, seed + 32, null, 0));
         HostCheck.True(HmacSha256Drbg.Generate(&state, output, 8192));
         byte[] first = new ReadOnlySpan<byte>(output, 8192).ToArray();
         long allocated = GC.GetAllocatedBytesForCurrentThread();
         bool success = HmacSha256Drbg.Generate(&state, output, 8192);
-        HostCheck.Equal(allocated, GC.GetAllocatedBytesForCurrentThread()); HostCheck.True(success);
+        HostCheck.Equal(allocated, GC.GetAllocatedBytesForCurrentThread());
+        HostCheck.True(success);
         HostCheck.True(!new ReadOnlySpan<byte>(output, 8192).SequenceEqual(first));
         HostCheck.True(HmacSha256Drbg.Generate(&state, output, 33));
         HostCheck.True(HmacSha256Drbg.Generate(&state, output, 1));
-        HostCheck.Equal(4UL, state.RequestsSinceReseed); HostCheck.True(HmacSha256Drbg.Erase(&state));
+        HostCheck.Equal(4UL, state.RequestsSinceReseed);
+        HostCheck.True(HmacSha256Drbg.Erase(&state));
     }
 }

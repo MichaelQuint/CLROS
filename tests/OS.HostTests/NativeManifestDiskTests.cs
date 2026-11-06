@@ -10,20 +10,20 @@ internal static unsafe class NativeManifestDiskTests
     {
         HostCheck.True(!default(LiveManifestResult).Succeeded);
         foreach (string ending in new[] { "\n", "\r\n" })
-        foreach (bool newline in new[] { false, true })
-        {
-            string text = Valid.TrimEnd('\n').Replace("\n", ending) +
-                ending + "app.kind=package" + ending + "runtime.kind=native-aot" + (newline ? ending : "");
-            byte[] bytes = Encoding.ASCII.GetBytes(text);
-            var parsed = NativeManifestDisk.Validate(bytes);
-            var host = NativeManifestParser.Parse(bytes);
-            HostCheck.True(parsed.Succeeded && host.Succeeded);
-            HostCheck.Equal((uint)bytes.Length, parsed.ByteCount);
-            HostCheck.Equal(host.Manifest.AppPath.Offset, (int)parsed.AppPathOffset);
-            HostCheck.Equal(host.Manifest.AppPath.Length, (int)parsed.AppPathLength);
-            HostCheck.Equal("bin/hello.app", Encoding.ASCII.GetString(bytes.AsSpan((int)parsed.AppPathOffset, (int)parsed.AppPathLength)));
-            HostCheck.Equal((byte)1, parsed.LogMode);
-        }
+            foreach (bool newline in new[] { false, true })
+            {
+                string text = Valid.TrimEnd('\n').Replace("\n", ending) +
+                    ending + "app.kind=package" + ending + "runtime.kind=native-aot" + (newline ? ending : "");
+                byte[] bytes = Encoding.ASCII.GetBytes(text);
+                var parsed = NativeManifestDisk.Validate(bytes);
+                var host = NativeManifestParser.Parse(bytes);
+                HostCheck.True(parsed.Succeeded && host.Succeeded);
+                HostCheck.Equal((uint)bytes.Length, parsed.ByteCount);
+                HostCheck.Equal(host.Manifest.AppPath.Offset, (int)parsed.AppPathOffset);
+                HostCheck.Equal(host.Manifest.AppPath.Length, (int)parsed.AppPathLength);
+                HostCheck.Equal("bin/hello.app", Encoding.ASCII.GetString(bytes.AsSpan((int)parsed.AppPathOffset, (int)parsed.AppPathLength)));
+                HostCheck.Equal((byte)1, parsed.LogMode);
+            }
     }
     [HostTest("m06.manifest rejects duplicates omissions malformed ASCII unsafe paths and unsupported fields")]
     private static void Rejections()
@@ -56,7 +56,8 @@ internal static unsafe class NativeManifestDiskTests
         HostCheck.Equal(LiveManifestStatus.InvalidLength, NativeManifestDisk.Validate(new byte[4097]).Status);
         HostCheck.Equal(LiveManifestStatus.InvalidLength, NativeManifestDisk.Validate(new Span<byte>(null, 10)).Status);
         HostCheck.Equal(LiveManifestStatus.InvalidLength, NativeManifestDisk.Validate(new Span<byte>((void*)unchecked((nuint)(ulong.MaxValue - 8)), 10)).Status);
-        byte[] highBit = Encoding.ASCII.GetBytes(Valid); highBit[highBit.Length - 2] = 0xff;
+        byte[] highBit = Encoding.ASCII.GetBytes(Valid);
+        highBit[highBit.Length - 2] = 0xff;
         HostCheck.Equal(LiveManifestStatus.InvalidCharacter, NativeManifestDisk.Validate(highBit).Status);
     }
     [HostTest("m06.manifest preserves delimiter values and rejects field limits without truncating")]

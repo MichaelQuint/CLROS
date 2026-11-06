@@ -18,14 +18,20 @@ internal static class NativeAotSocketGuestTests
     private static byte[] Raw(string records = "", bool asynchronous = false, bool split = false, string? stdout = null)
     {
         byte[] payload = Encoding.UTF8.GetBytes(stdout ?? NativeAotSocketPayloadTests.FixtureOutput(asynchronous));
-        using MemoryStream raw = new(); raw.Write("TEST_START m16-009\r\n"u8); raw.Write(Encoding.ASCII.GetBytes(records));
-        int[] lengths = split ? [1, 19, payload.Length - 20] : [payload.Length]; int offset = 0;
+        using MemoryStream raw = new();
+        raw.Write("TEST_START m16-009\r\n"u8);
+        raw.Write(Encoding.ASCII.GetBytes(records));
+        int[] lengths = split ? [1, 19, payload.Length - 20] : [payload.Length];
+        int offset = 0;
         foreach (int length in lengths)
         {
             raw.Write(Encoding.ASCII.GetBytes("M16_005_WRITE fd=1 bytes=" + length.ToString(CultureInfo.InvariantCulture) + " data="));
-            raw.Write(payload.AsSpan(offset, length)); raw.Write("\r\n"u8); offset += length;
+            raw.Write(payload.AsSpan(offset, length));
+            raw.Write("\r\n"u8);
+            offset += length;
         }
-        raw.Write("CLROS_M16_009_READY\r\nTEST_PASS m16-009\r\n"u8); return raw.ToArray();
+        raw.Write("CLROS_M16_009_READY\r\nTEST_PASS m16-009\r\n"u8);
+        return raw.ToArray();
     }
 
     [HostTest("socket guest stdout preserves arbitrary write segmentation for both original modes")]
@@ -35,7 +41,8 @@ internal static class NativeAotSocketGuestTests
         {
             var capture = NativeAotSocketGuest.Read(asynchronous, Raw(asynchronous: asynchronous, split: true));
             HostCheck.Equal(NativeAotSocketPayloadTests.FixtureOutput(asynchronous), capture.Output.Stdout);
-            HostCheck.Equal(3, capture.Output.WriteLengths.Count); HostCheck.Equal(0, capture.Readiness.Count);
+            HostCheck.Equal(3, capture.Output.WriteLengths.Count);
+            HostCheck.Equal(0, capture.Readiness.Count);
             HostCheck.Equal(0, capture.PendingWaits);
             Reject(() => NativeAotSocketGuest.Read(!asynchronous, Raw(asynchronous: asynchronous)), "socket_");
         }
@@ -90,7 +97,8 @@ internal static class NativeAotSocketGuestTests
         foreach ((uint completion, long result) in new[] { (1U, 0L), (1U, 2L), (2U, 0L), (2U, 2L), (5U, -4L) })
         {
             var capture = NativeAotSocketGuest.Read(false, Raw(Call(deadline: 5) + Wake(completion) + Complete(completion, result) + Resume(result)));
-            HostCheck.Equal(0, capture.PendingWaits); HostCheck.Equal(unchecked((ulong)result), capture.Readiness[1].ValueBits);
+            HostCheck.Equal(0, capture.PendingWaits);
+            HostCheck.Equal(unchecked((ulong)result), capture.Readiness[1].ValueBits);
         }
         Reject(() => NativeAotSocketGuest.Read(false, Raw(Call() + Wake(2) + Complete(2, 0) + Resume(0))), "wake_deadline");
         Reject(() => NativeAotSocketGuest.Read(false, Raw(Call() + Wake(5) + Complete(5, 0) + Resume(0))), "completion_result");
@@ -104,7 +112,8 @@ internal static class NativeAotSocketGuestTests
         {
             var capture = NativeAotSocketGuest.Read(false, Raw(Call(deadline: deadline) + Wake(completion, state: parking) +
                 Complete(completion, result) + Resume(result)));
-            HostCheck.Equal(0, capture.PendingWaits); HostCheck.Equal(2, capture.Readiness.Count);
+            HostCheck.Equal(0, capture.PendingWaits);
+            HostCheck.Equal(2, capture.Readiness.Count);
             HostCheck.Equal(parking, capture.Readiness[0].State);
             HostCheck.Equal(completion, capture.Readiness[0].Completion);
             HostCheck.Equal(unchecked((ulong)result), capture.Readiness[1].ValueBits);
@@ -138,7 +147,8 @@ internal static class NativeAotSocketGuestTests
             var capture = NativeAotSocketGuest.Read(false, Raw(Call(deadline: deadline) + Wake() + repark +
                 Wake(completion, sequence: 2, clock: clock, state: parking) +
                 Complete(completion, result, sequence: 2, clock: clock + 1) + Resume(result)));
-            HostCheck.Equal(0, capture.PendingWaits); HostCheck.Equal(4, capture.Readiness.Count);
+            HostCheck.Equal(0, capture.PendingWaits);
+            HostCheck.Equal(4, capture.Readiness.Count);
             HostCheck.Equal(1UL, capture.Readiness[1].PreviousSequence);
             HostCheck.Equal(2UL, capture.Readiness[1].Sequence);
             HostCheck.Equal(deadline, capture.Readiness[1].Deadline);
@@ -181,18 +191,26 @@ internal static class NativeAotSocketGuestTests
     [HostTest("socket guest poll observations retain actual context clock and ready count without granting a wake")]
     private static void Poll()
     {
-        string poll="M16_012_POLL identity=0 clock=10 ready=0 idle=1\r\n";
-        var capture=NativeAotSocketGuest.Read(false,Raw(Call()+poll));
-        HostCheck.True(capture.PendingWaits==1 && capture.Readiness.Single().Kind==NativeAotSocketGuest.ObservationKind.Poll);
-        HostCheck.True(capture.Readiness[0].Clock==10 && capture.Readiness[0].Ready==0);
-        foreach(string invalid in new[]{poll.Replace("ready=0","ready=17",StringComparison.Ordinal),
+        string poll = "M16_012_POLL identity=0 clock=10 ready=0 idle=1\r\n";
+        var capture = NativeAotSocketGuest.Read(false, Raw(Call() + poll));
+        HostCheck.True(capture.PendingWaits == 1 && capture.Readiness.Single().Kind == NativeAotSocketGuest.ObservationKind.Poll);
+        HostCheck.True(capture.Readiness[0].Clock == 10 && capture.Readiness[0].Ready == 0);
+        foreach (string invalid in new[]{poll.Replace("ready=0","ready=17",StringComparison.Ordinal),
             poll.Replace("identity=0","identity=1",StringComparison.Ordinal),poll+poll.Replace("clock=10","clock=9",StringComparison.Ordinal)})
-            Reject(()=>NativeAotSocketGuest.Read(false,Raw(invalid)),"poll_state");
+            Reject(() => NativeAotSocketGuest.Read(false, Raw(invalid)), "poll_state");
     }
 
     private static void Reject(Action action, string reason)
     {
-        string? failure = null; try { action(); } catch (Exception error) when (error is ToolFailure or InvalidDataException or ArgumentException) { failure = error.Message; }
+        string? failure = null;
+        try
+        {
+            action();
+        }
+        catch (Exception error) when (error is ToolFailure or InvalidDataException or ArgumentException)
+        {
+            failure = error.Message;
+        }
         HostCheck.True(failure?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + failure);
     }
 }

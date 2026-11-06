@@ -8,9 +8,15 @@ public readonly struct BootResult
         Reason = reason;
     }
 
-    public bool Succeeded { get; }
+    public bool Succeeded
+    {
+        get;
+    }
 
-    public string Reason { get; }
+    public string Reason
+    {
+        get;
+    }
 
     public static BootResult Pass()
     {
