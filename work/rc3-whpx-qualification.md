@@ -2,7 +2,7 @@
 
 ## Candidate results
 
-The frozen candidate is `2e81ee3a`. [Step1788](../done/step1788.md) records
+The last qualified source is `2e81ee3a`. [Step1788](../done/step1788.md) records
 the integrated Windows/WHPX notifier repair and its qualification boundary.
 Fresh unfiltered Full passed 7,789 checks in 996 fixture groups (884 Fast and
 112 Native), with 6,503 selected cases, zero failures and zero reuse. Independent
@@ -247,13 +247,21 @@ with the raw native tuple captured before another publish. The actual COFF/PE
 join covers 2,065 methods and 2,066 runtime records. All 2,064 common frames
 match the retained source2e image; the new private helper has a 64-byte frame
 including return. Two common-method call targets change to that helper. Five
-metadata/data nodes and the added helper GCInfo fragment require current review;
-no historical numeric stack margin or general metadata/noGC admission transfers.
-The current affected disk paths are outside the inspector's 275-method IRQ
-prefix cohort; those paths require their own phase/provider/interrupt proof.
-This is diagnostic emission evidence, not native timing or guest acceptance.
+metadata/data nodes and the added helper GCInfo fragment have bounded current
+review in [step1789](../done/step1789.md). Pinned reference readers resolve the
+same Object/String TypeMap identities and the single added stack-map record;
+all common stack-map semantics match. The new GCInfo describes the actual
+byref Token in RBX across `Find`; it adds no kernel GC capability. Current
+affected stack branches are dominated by retained entry audits, without copying
+historical margins. Independent review joins current providers, selected profile,
+package/toolchain bytes and lifetime/resource sources. Actual phase/interrupt,
+mapping, provider and generated-entry conditions remain mandatory. This is
+conditional diagnostic emission evidence, not native timing or guest acceptance.
 Candidate-local facts: `audit-candidate-native-r01/primary-emission-facts-r01.json`,
 SHA-256 `775418C06302CB59FBD34C0467B965B65989906CEE1AAFD37FE456ED8131279B`.
+The additive conditional review is
+`audit-candidate-metadata-r01/conditional-native-review-r01.json`, SHA-256
+`872A9A8B70761A97CF35BB8B76441B5C6E4792C38051AD2942FD310E4521C5BD`.
 
 The candidate remains separate from the qualified branch. Host JIT cost and
 synthetic occurrence counts cannot establish guest latency improvement or

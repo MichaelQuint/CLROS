@@ -5,6 +5,11 @@ The [PR814 qualification record](../work/rc3-whpx-qualification.md#candidate-res
 tracks the RC3 candidate. The step entries below retain the results at their
 original commits.
 
+[Step1789](../done/step1789.md) records the isolated adjacent disk-audit candidate,
+its guarded host checks, separate host timing screen and current conditional
+native inspection. It preserves observer failures and the remaining integration,
+Full/matrix/guest/browser/performance gates.
+
 [Step1787](../done/step1787.md) joins source35b's accepted Full/compiler29 evidence,
 the failed Hello ancestor original and the scoped ready-child cancellation
 repair. Its67focused checks and retained re-analysis do not qualify the repaired
