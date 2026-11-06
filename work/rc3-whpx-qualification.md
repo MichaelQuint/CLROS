@@ -12,7 +12,7 @@ results. The original failures and their subsequent repairs are recorded in
 | Compiler and application | All 29 compiler contexts passed their expected outcome, including the expected unhandled panic. Eight Linux-native application cases passed their own scope. |
 | Ancestors and quota | 23 of 24 contexts passed. The remaining Smoke original encountered a QEMU/GLib invalid-handle warning before web readiness. |
 | Disk, browser and lifecycle | Six of seven cases passed. Disk A1, Disk A2, Truncated A and the three M16 lifecycle cases have accepted originals. Truncated A verified 120 HTTP and 49 browser bodies (15,931,827 bytes), the empty 404 responses for the malformed target, and natural cleanup. Its earlier Edge-update failure is preserved. Disk B still requires an accepted original. |
-| Matched performance | Two CLROS WHPX benchmark boots completed. The second matched Alpine WHPX boot passed its 88 HTTP samples, then recorded a refused browser connection. The remaining populations and final comparison are pending. |
+| Matched performance | Three CLROS WHPX benchmark boots completed their first-plus-ten-warm HTTP sequences and browser checks. Boot 3 used Edge 157, and its browser timings are kept separate from the earlier Edge 156 results. Its outer coordinator failed a process census after the original owner and children had joined. The second Alpine WHPX boot passed its 88 HTTP samples, then recorded a refused browser connection. Seven distinct boots and the final comparison remain. |
 
 The Truncated A acceptance record is `artifacts/refactor-r01/disk-read-TruncatedA-acceptance-r04.json`
 in the producer checkout (SHA-256 `1915E8FA7AA698E607B71E0F0ABD8D45FE935CCD7759E5900E42CCB2C1F82CC8`).
