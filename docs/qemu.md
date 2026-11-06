@@ -187,13 +187,13 @@ Full018 has a3,600-second browser ceiling using its owned token, separate from t
 
 Full host collection retains128MiB raw serial,256MiB summary and131,072 combined decoded stdout/stderr bytes; ordinary decoded output remains65,536 bytes. The per-write8,192-byte and4,096-write bounds and all guest quotas remain unchanged. Full-only observation and parser corrections grant no new guest resource budget.
 
-The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the original 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
 
 [Step1672](../done/step1672.md) retains prior timeouts, CallLimit/duplicate-ordinal failures, host-observer failures and their exact source/native scopes. Healthy A/B/A, the typed corrupt-file and three M16 lifecycle originals remain distinct. Mechanical59/ExitPending/CloseReuse retain180 seconds, default256MiB, invoke:null and nine controls; Full originals retain21 controls each.
 
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
-The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the original 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
 
 Original recipes retain their recorded default RAM, invocation mode, output/resource bounds, first strict reader rules and healthy-A1 successor gate. The explicit timing and Full-only host observation changes are recorded in [Step1672](../done/step1672.md); guest quotas are unchanged.
 
