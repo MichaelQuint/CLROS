@@ -16,6 +16,7 @@
     <Compile Include="..\OS.Tooling\NativeFile.BY_HANDLE_FILE_INFORMATION.cs" Link="NativeFile.BY_HANDLE_FILE_INFORMATION.cs" />
     <Compile Include="..\OS.Tooling\NativeFile.LinuxStat.cs" Link="NativeFile.LinuxStat.cs" />
     <Compile Include="../OS.QemuRunner/WhpxPrelaunch.cs" Link="WhpxPrelaunch.cs" />
+    <Compile Include="../OS.QemuRunner/WhpxPrelaunch.HostNotifiers.cs" Link="WhpxPrelaunch.HostNotifiers.cs" />
     <Compile Include="../OS.QemuRunner/WhpxPrelaunch.QmpConnection.cs" Link="WhpxPrelaunch.QmpConnection.cs" />
     <Using Include="System" />
     <Using Include="System.Collections.Generic" />

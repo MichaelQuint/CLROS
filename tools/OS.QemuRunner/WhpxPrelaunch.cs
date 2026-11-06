@@ -15,8 +15,9 @@ using OS.Tooling.Native;
 
 namespace OS.Tools.QemuRunner;
 
-// Host-only compatibility policy for one inspected QEMU binary. No guest result
-// is inherited: written raw stderr is retained in a synchronous file, and any
+// Host-only compatibility policy for one inspected QEMU binary. Disable optional
+// virtio host notifier acceleration after the observed Win32 invalid-handle waits.
+// No guest result is inherited: written raw stderr is retained in a synchronous file, and any
 // bytes after the authenticated pre-resume seal fail. The runner owns both QMP endpoints; its
 // existing stdio endpoint is used only for failed-startup capture after resume.
 internal sealed partial class WhpxPrelaunch : IDisposable
@@ -92,6 +93,7 @@ internal sealed partial class WhpxPrelaunch : IDisposable
         string rawPath = Path.Combine(directory, "stderr.raw");
         try
         {
+            ConfigureVirtioNotifiers(process.StartInfo.ArgumentList);
             string? inheritedPath = Environment.GetEnvironmentVariable("CLROS_WHPX_STDERR_PATH");
             if (inheritedPath is null)
             {
