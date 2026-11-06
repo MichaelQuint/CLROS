@@ -181,6 +181,46 @@ with its bytes. No returned-byte corruption or storage-specific fault was
 established. That review preserves the failed marker and its inference limits;
 it grants no cleanup or completed TCG qualification.
 
+### Remaining read-path diagnosis (host controls only)
+
+An offline parser examined the preserved full-asset packet captures. Both the
+WHPX and incomplete TCG originals had at most one outstanding body packet and
+no duplicate TCP payload bytes in the parsed transfers. Median peer ACK delay
+was about 0.016 ms for WHPX and 0.042 ms for TCG; median ACK-to-next-data delay
+was about 1.231 ms and 22.152 ms. More than 99% of the summed body-packet spans
+lay after ACK and before the next packet. Four synthetic parser controls passed.
+These intervals use the capture's own clock. They include guest and QEMU work;
+they do not isolate scheduling, validation, disk or NIC cost.
+
+An unchanged host memory-audit control measured median costs of 15.768 us at
+32 table pages and 37.393 us at 128 pages. Corrupting the final unused PTE was
+rejected, and restoration passed. A separate, instrumented host fixture counted
+100 full page-table audit entries during one 8 KiB fragmented-file read. A
+private-body prototype reduced that count to 67 while preserving the exact
+8,192 bytes, 32 pump steps and 16 submitted/completed/copied physical reads.
+The saved calls repeat an adjacent public admission; public entry audits,
+owner/live-fd/generation checks and callback boundaries are retained.
+
+Both variants passed the same 134 existing selected safety cases through the
+preserved fixture bodies and existing `HostCheck.Run`. New controls rejected a
+foreign owner and unused-PTE corruption at each public Pump/Poll/Complete
+boundary without changing I/O counters or output. Restoring the PTE allowed the
+original 8 KiB read to finish with exact bytes. Both host processes joined with
+exit 0. All 2,545 original kernel-source rows and 26 additional input rows
+rehashed unchanged afterward. These are instrumented host hypothesis controls,
+including managed cases labelled Native, rather than a fresh qualification run.
+
+- Input manifest: `qualification-compat-preparation-r01/disk-audit-host-inputs-r01.json`,
+  SHA-256 `D46E1E508FEAF1541482DED16B4D17566B8637A069C0296DE78D8D4839CC737D`.
+- Paired review: `qualification-compat-preparation-r01/disk-audit-paired-host-review-r01.json`,
+  SHA-256 `BC1795B741B7938E58782DAF6B9BFECF4C0E0ED8970065BB22CE5F2A750A5494`.
+
+The prototype exists only under ignored artifacts. Source remains frozen at
+`2e81ee3a`; no new native or guest performance result is claimed. Host JIT cost
+and synthetic occurrence counts cannot establish guest latency improvement or
+justify removing validation across callbacks. The explicit TCG scope decision
+and final performance disposition remain open.
+
 The already-qualified source was fast-forwarded to draft PR814's existing head
 branch. Canonical Git and PR readback both matched `2e81ee3a`; the PR remained
 draft/open/unmerged. This backup does not approve the pending TCG scope decision
