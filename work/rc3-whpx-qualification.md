@@ -105,9 +105,9 @@ performance qualification remains pending; the final matrix is not yet accepted.
 
 ### Matched performance checkpoint (decision pending)
 
-The current `2e81ee3a` WHPX cohort has three CLROS boots and three Alpine boots,
-each with one first sequence and ten warm sequences: 88 completed, verified HTTP
-samples per boot. The complete asset is 2,009,369 bytes. The table reports
+The current `2e81ee3a` comparison has three CLROS WHPX boots and three Alpine
+boots per backend (WHPX and TCG), each with one first sequence and ten warm
+sequences: 88 completed, verified HTTP samples per boot. The complete asset is 2,009,369 bytes. The table reports
 **per-boot warm medians**, from request start through complete body receipt;
 host body-file writes and flushes are recorded separately.
 
@@ -115,6 +115,7 @@ host body-file writes and flushes are recorded separately.
 | --- | ---: | ---: | ---: |
 | CLROS / WHPX | 7,147.246 ms | 7,161.564 ms | 7,166.262 ms |
 | Alpine / WHPX | 41.810 ms | 40.164 ms | 40.494 ms |
+| Alpine / TCG | 85.614 ms | 86.611 ms | 89.823 ms |
 
 These are retained HTTP observations, not a final production-performance
 acceptance claim. All three CLROS browser checks passed. Alpine browser boots
@@ -123,6 +124,7 @@ followed by the outer Python client's 150-second timeout. The owner found those
 GETs absent from the guest packet capture, with other browser connections
 succeeding; the precise host cause remains unproven. Its browser timing is
 censored, not a passing startup measurement. The failed boot was not retried.
+All three Alpine TCG browser checks passed and their owners joined with exit 0.
 
 The first TCG attempt hit a copied 240-second HTTP-client wrapper limit. Its
 replacement uses the existing 7,200-second absolute parent deadline, reserving
@@ -152,6 +154,9 @@ checkout:
 | `alpine-compat2e-r01/alpine-whpx-256M-population-boot01-r01/http/benchmark.json` | `C8A514E7E7FA22F8F2C22EA552F05F6CD7F2B7E6CAAF09F41FBCFCFA849F1D88` |
 | `alpine-compat2e-r01/alpine-whpx-256M-population-boot02-r01/http/benchmark.json` | `BFFAED681AF1F1976468D3E5FE6CB70D2602CEBEF63C007721CDACBBC9491575` |
 | `alpine-compat2e-r01/alpine-whpx-256M-population-boot03-r01/http/benchmark.json` | `D3FAF8B96974EB4AD364502B382BF0533D4C0E195E47A9921336AFECF7781930` |
+| `alpine-compat2e-r02/alpine-tcg-256M-population-boot01-r01/http/benchmark.json` | `316D34D23CC608F2F6B43011E342B22E15A08AACD0A6FF32146347ED59A4F166` |
+| `alpine-compat2e-r02/alpine-tcg-256M-population-boot02-r01/http/benchmark.json` | `C100D83A37B32166000300C803E0158546A732E889BBC1CF6D35035454D83DC2` |
+| `alpine-compat2e-r02/alpine-tcg-256M-population-boot03-r01/http/benchmark.json` | `4C41F5295F5208F946DE08606DB0A282FC418B778632C53901EC3BFD771C2E8E` |
 | `matched-current2e-tcg-boot01-r02/requests/benchmark.json` | `B58F2ABBDFFE2088E1CF21AD93AE365876ADAE8D68A69B1590F8EFC6EE2133B9` |
 
 ### Retained results on the earlier host recipe
