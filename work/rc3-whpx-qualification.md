@@ -103,6 +103,57 @@ writes or durability.
 All seven disk/lifecycle cases are accepted on the current host recipe. Matched
 performance qualification remains pending; the final matrix is not yet accepted.
 
+### Matched performance checkpoint (decision pending)
+
+The current `2e81ee3a` WHPX cohort has three CLROS boots and three Alpine boots,
+each with one first sequence and ten warm sequences: 88 completed, verified HTTP
+samples per boot. The complete asset is 2,009,369 bytes. The table reports
+**per-boot warm medians**, from request start through complete body receipt;
+host body-file writes and flushes are recorded separately.
+
+| System / backend | Boot 1 | Boot 2 | Boot 3 |
+| --- | ---: | ---: | ---: |
+| CLROS / WHPX | 7,147.246 ms | 7,161.564 ms | 7,166.262 ms |
+| Alpine / WHPX | 41.810 ms | 40.164 ms | 40.494 ms |
+
+These are retained HTTP observations, not a final production-performance
+acceptance claim. All three CLROS browser checks passed. Alpine browser boots
+1 and 3 passed; boot 2 retained two `ERR_CONNECTION_REFUSED` asset requests
+followed by the outer Python client's 150-second timeout. The owner found those
+GETs absent from the guest packet capture, with other browser connections
+succeeding; the precise host cause remains unproven. Its browser timing is
+censored, not a passing startup measurement. The failed boot was not retried.
+
+The first TCG attempt hit a copied 240-second HTTP-client wrapper limit. Its
+replacement uses the existing 7,200-second absolute parent deadline, reserving
+120 seconds for cleanup, with the 3,600-second browser cap and unchanged
+180-second per-request limit. This artifact-only wrapper repair changes neither
+the frozen guest nor its qualification results. The original failed attempt
+remains separate.
+
+The replacement TCG HTTP report is incomplete: 71 completed samples followed
+by a failed health-after request at ordinal 71 / sequence 8. The owner traced
+the stop to the unchanged 1,800-second guest shutdown, before ten warm sequences
+and the browser phase could finish. The completed first asset took 94,391.805 ms;
+that single observation is not a complete TCG population or a browser result.
+Further TCG execution and the final matrix disposition await the human's
+decision between retaining the deadline with explicitly censored results,
+extending only the benchmark guest window, or further performance work.
+No failed original has been relabeled as accepted.
+
+The reports are retained under `artifacts/refactor-r01/` in the main owner's
+checkout:
+
+| Report | SHA-256 |
+| --- | --- |
+| `matched-current2e-whpx-boot01-r01/requests/benchmark.json` | `C98ED15D78D9B4212F4868BC170A0AEBBADA74538D39F0C45A4EFAFC2B2651E6` |
+| `matched-current2e-whpx-boot02-r01/requests/benchmark.json` | `D4B51AF5D91E094A205B2FA7C8DA943295FCF609BCAC446A7E29FACFD839DF95` |
+| `matched-current2e-whpx-boot03-r01/requests/benchmark.json` | `A85E0DE8932E8A894868C3B906F7BAD6A2C0146EBD47D7B84773E9AF8E645416` |
+| `alpine-compat2e-r01/alpine-whpx-256M-population-boot01-r01/http/benchmark.json` | `C8A514E7E7FA22F8F2C22EA552F05F6CD7F2B7E6CAAF09F41FBCFCFA849F1D88` |
+| `alpine-compat2e-r01/alpine-whpx-256M-population-boot02-r01/http/benchmark.json` | `BFFAED681AF1F1976468D3E5FE6CB70D2602CEBEF63C007721CDACBBC9491575` |
+| `alpine-compat2e-r01/alpine-whpx-256M-population-boot03-r01/http/benchmark.json` | `D3FAF8B96974EB4AD364502B382BF0533D4C0E195E47A9921336AFECF7781930` |
+| `matched-current2e-tcg-boot01-r02/requests/benchmark.json` | `B58F2ABBDFFE2088E1CF21AD93AE365876ADAE8D68A69B1590F8EFC6EE2133B9` |
+
 ### Retained results on the earlier host recipe
 
 The following results retain source `3f95496e` and its recorded launch settings.
