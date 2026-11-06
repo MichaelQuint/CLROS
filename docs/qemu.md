@@ -3,7 +3,7 @@
 For PR814, record the QEMU runner exit, guest completion and host verification
 separately. Smoke and Disk B encountered a QEMU/GLib invalid-handle warning
 before web readiness. The bounded host compatibility controls are recorded
-[below](#windows-virtio-notifier-controls). An external browser binary change
+[below](#windows-virtio-notifier-compatibility). An external browser binary change
 also invalidated a Truncated A run after the Ready DOM and 49 browser responses.
 Its replacement held the selected executable read-only through verification and
 passed. Preserve the failed originals alongside the
@@ -17,7 +17,28 @@ sector hex and cannot replace full-byte acceptance. JSON remains slow. Guest
 wall spans overlap and are not CPU measurements. Production repair, ten-warm,
 full/concurrent/browser, matched Alpine and final qualification remain pending.
 
-## Windows virtio notifier controls
+## Windows virtio notifier compatibility
+
+The PR814 host repair applies `ioeventfd=off` automatically to existing
+`virtio-net-pci`, `virtio-blk-pci` and `virtio-rng-pci` arguments when the
+Windows launcher selects WHPX and authenticates QEMU executable SHA-256
+`47D57A6072E0BB3BD98F87926EB129EB1736DFE818C67B3B81EF7CE4EDD0B3CD`.
+It uses the existing `q35,accel=whpx,kernel-irqchip=on` admission path. There is
+no additional CLROS command-line switch. Other QEMU executable hashes and TCG
+keep their existing device arguments.
+
+The policy preserves an existing single `ioeventfd=off` setting. Conflicting,
+empty or duplicate values on those devices fail before argument mutation.
+A trailing `-device` without its value also fails. The guest image, vCPU,
+memory, deadlines, device layout, QMP ownership and native stderr validation
+remain governed by their existing checks. The actual device arguments belong
+in each launch record and in performance comparisons.
+
+This repair is being qualified for PR814. Its current scope is tracked in the
+[candidate results](../work/rc3-whpx-qualification.md#candidate-results).
+The controls below explain its selection and retain their original outcomes.
+
+### Bounded notifier controls
 
 On candidate `3f95496e`, three independent, bounded Disk B diagnostic boots
 disabled `ioeventfd` on the existing `virtio-net-pci`, `virtio-blk-pci` and

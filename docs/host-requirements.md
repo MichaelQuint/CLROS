@@ -640,6 +640,11 @@ follow updates within a run or install from the checksum-failed online catalog.
 Windows QEMU11.1.0 defaults to WHPX; explicit `-Accelerator tcg` remains available.
 Keep Nehalem, one vCPU and the existing x87/SSE context contract. Unavailable
 explicit WHPX fails; no fallback list is used.
+For the inspected Windows QEMU executable, the PR814 host repair disables
+virtio host event notifiers through the authenticated WHPX launcher.
+The [compatibility policy](qemu.md#windows-virtio-notifier-compatibility)
+defines its executable hash, device scope and recorded launch arguments.
+Qualification and benchmark results retain their actual notifier setting.
 
 The Linux musl RC3 SDK archive is verified against Microsoft's release SHA512
 before extraction. The minimal Alpine builder needs

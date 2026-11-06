@@ -21,7 +21,7 @@ independent disk replay and exited with code 0.
 
 Three bounded Disk B controls with virtio host `ioeventfd` disabled completed
 their declared 20-second observation without another GLib warning. They ended
-by deliberate cancellation. The [host compatibility record](../docs/qemu.md#windows-virtio-notifier-controls)
+by deliberate cancellation. The [host compatibility record](../docs/qemu.md#windows-virtio-notifier-compatibility)
 preserves the unchanged guest image, altered diagnostic recipe and remaining
 Smoke/Disk B qualification boundary.
 

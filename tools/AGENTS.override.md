@@ -76,6 +76,12 @@ For QEMU/libvirt/image tooling:
 - Preserve dry-run modes for hosts without QEMU/libvirt.
 - Do not assume OVMF paths; discover or accept explicit configuration.
 
+`OS.QemuCapture` source-links the shared `WhpxPrelaunch` implementation from
+`OS.QemuRunner`. Include new partial files in both consumers and build both
+when changing that boundary. Keep the
+[WHPX compatibility policy](../docs/qemu.md#windows-virtio-notifier-compatibility)
+and actual launch receipts consistent with device argument changes.
+
 ## Manifest Rules
 
 Manifest tooling should:
