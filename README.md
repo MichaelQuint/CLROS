@@ -99,10 +99,10 @@ not additional capabilities claimed by this documentation update.
 <!-- Keep development updates here, below the project introduction. -->
 
 **PR814 qualification.** The candidate at `3f95496e` passed the 7,786-check full
-host suite, all 29 compiler contexts, 23 of 24 ancestor/quota contexts and five
-of seven disk/lifecycle cases. Disk A2 completed all 120 HTTP responses and
-49 browser responses with a Ready DOM and natural guest cleanup. The remaining
-originals are Smoke, Disk B and Truncated A. See the
+host suite, all 29 compiler contexts, 23 of 24 ancestor/quota contexts and six
+of seven disk/lifecycle cases. Disk A2 and Truncated A each completed 120 HTTP and 49 browser
+responses with natural guest cleanup. The remaining originals are Smoke and
+Disk B. See the
 [qualification record](work/rc3-whpx-qualification.md#candidate-results) for
 the benchmark population and the evidence attached to each scope.
 

@@ -11,8 +11,13 @@ results. The original failures and their subsequent repairs are recorded in
 | Host | Unfiltered Full passed 7,786 checks in 996 fixture groups with zero reuse. Source, inputs and all 48 producer binaries passed readback. |
 | Compiler and application | All 29 compiler contexts passed their expected outcome, including the expected unhandled panic. Eight Linux-native application cases passed their own scope. |
 | Ancestors and quota | 23 of 24 contexts passed. The remaining Smoke original encountered a QEMU/GLib invalid-handle warning before web readiness. |
-| Disk, browser and lifecycle | Disk A1, Disk A2 and the three M16 lifecycle cases passed. Disk B and Truncated A still require accepted originals. Truncated A reached the Ready DOM and captured 49 browser responses before the Edge executable changed during the run. |
+| Disk, browser and lifecycle | Six of seven cases passed. Disk A1, Disk A2, Truncated A and the three M16 lifecycle cases have accepted originals. Truncated A verified 120 HTTP and 49 browser bodies (15,931,827 bytes), the empty 404 responses for the malformed target, and natural cleanup. Its earlier Edge-update failure is preserved. Disk B still requires an accepted original. |
 | Matched performance | Two CLROS WHPX benchmark boots completed. The second matched Alpine WHPX boot passed its 88 HTTP samples, then recorded a refused browser connection. The remaining populations and final comparison are pending. |
+
+The Truncated A acceptance record is `artifacts/refactor-r01/disk-read-TruncatedA-acceptance-r04.json`
+in the producer checkout (SHA-256 `1915E8FA7AA698E607B71E0F0ABD8D45FE935CCD7759E5900E42CCB2C1F82CC8`).
+The replacement held the Edge binary read-only through completion, passed the
+independent disk replay and exited with code 0.
 
 The quiet timer/cache pair in [step1748](../done/step1748.md) compared the same
 2,009,369-byte file at 167.45 and 7.17 seconds mean transfer time. Each image
