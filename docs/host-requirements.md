@@ -5,7 +5,8 @@ checks with zero reuse. Source, captured inputs and all 48 producer binaries
 passed independent readback. The solution build succeeded with four compiler
 warnings, and the HostTests graph build succeeded with zero warnings or errors.
 See the [candidate results](../work/rc3-whpx-qualification.md#candidate-results)
-for the accepted host and finite guest receipts and the pending performance scope.
+for the accepted host and finite guest receipts, retained performance observations
+and the human-approved incomplete CLROS TCG report.
 
 [Step1787](../done/step1787.md) preserves source35b's7,784-check Full and29compiler
 originals, plus the later failed Hello host inspection. Repair6b0f56a8 admits

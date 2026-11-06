@@ -1,8 +1,30 @@
 # RC3 and WHPX qualification contract
 
+## Approved closeout scope
+
+On November 6, 2026, the human directed: keep the 30-minute guest limit,
+report TCG as incomplete, finish documentation and review, merge PR814 into
+canonical master, and stop development at a clean boundary.
+
+PR814 therefore closes from the fully qualified runtime `2e81ee3a` with
+documentation and tracker metadata updates. The extended CLROS TCG population
+remains incomplete; its failed originals, unattempted samples and missing
+browser/cleanup qualification remain explicit. The 1,800-second guest limit
+and functional, corruption, ownership and resource checks remain unchanged.
+Further TCG sampling and performance repairs are outside this closeout.
+
+The later adjacent disk-audit optimization `ff96e2bb`, integrated into the
+preserved development branch at `72784936`, is excluded from the release.
+That branch has separate Full, compiler, ancestor and partial disk evidence;
+its incomplete remaining matrix supplies no acceptance for the released source.
+The isolated host decoder extraction is also excluded. Preserve their unique
+commits, working changes and original evidence recoverably, without activating
+either follow-up. After verified merge and cleanup, stop the storage helper,
+pause the broader development goal, and start no next phase.
+
 ## Candidate results
 
-The last qualified source is `2e81ee3a`. [Step1788](../done/step1788.md) records
+The qualified runtime selected for PR814 is `2e81ee3a`. [Step1788](../done/step1788.md) records
 the integrated Windows/WHPX notifier repair and its qualification boundary.
 Fresh unfiltered Full passed 7,789 checks in 996 fixture groups (884 Fast and
 112 Native), with 6,503 selected cases, zero failures and zero reuse. Independent
@@ -103,7 +125,7 @@ writes or durability.
 All seven disk/lifecycle cases are accepted on the current host recipe. Matched
 performance qualification remains pending; the final matrix is not yet accepted.
 
-### Matched performance checkpoint (decision pending)
+### Matched performance observations
 
 The current `2e81ee3a` comparison has three CLROS WHPX boots and three Alpine
 boots per backend (WHPX and TCG), each with one first sequence and ten warm
@@ -141,10 +163,11 @@ and the generic `BENCH_FAIL` marker cannot isolate the failed invariant. This
 original remains failed; it does not prove timer-only causation or qualified
 guest cleanup. The completed first asset took 94,391.805 ms; that single
 observation is not a complete TCG population or a browser result.
-Further TCG execution and the final matrix disposition await the human's
-decision between retaining the deadline with explicitly censored results,
-extending only the benchmark guest window, or further performance work.
-No failed original has been relabeled as accepted.
+The November 6 human decision retains the 1,800-second limit and accepts
+closing this phase with explicitly incomplete CLROS TCG results. No further
+CLROS TCG boots are required for this closeout. The unattempted samples and
+browser phase remain unqualified, and no failed original is relabeled as
+accepted. This reporting decision does not establish timer-only causation.
 
 The reports are retained under `artifacts/refactor-r01/` in the main owner's
 checkout:
@@ -181,7 +204,7 @@ with its bytes. No returned-byte corruption or storage-specific fault was
 established. That review preserves the failed marker and its inference limits;
 it grants no cleanup or completed TCG qualification.
 
-### Remaining read-path diagnosis (host controls only)
+### Deferred read-path investigation (host controls only)
 
 An offline parser examined the preserved full-asset packet captures. Both the
 WHPX and incomplete TCG originals had at most one outstanding body packet and
@@ -234,8 +257,9 @@ The report and all raw samples are retained at
 `disk-audit-release-timing-host-r01/report-r01.json`, SHA-256
 `3DDD8D645F7D4D067EFE3E74EF12A223A68DC9299C4525945578D353D557FE32`.
 
-The runtime candidate and a public-boundary regression are now prepared in the
-isolated `codex/refactor-audit-candidate-r01` checkout at `ff96e2bb`. The complete
+The excluded runtime candidate and a public-boundary regression were prepared
+in the isolated `codex/refactor-audit-candidate-r01` checkout at `ff96e2bb`.
+Its later integration at `72784936` remains a preserved development branch. The complete
 HostTests dependency graph builds without warnings/errors. Six guarded focused
 selections pass 148 checks across seven fixture groups, with unchanged inputs
 and zero reuse; repository style and contracts pass. The source pin for the
@@ -263,15 +287,15 @@ The additive conditional review is
 `audit-candidate-metadata-r01/conditional-native-review-r01.json`, SHA-256
 `872A9A8B70761A97CF35BB8B76441B5C6E4792C38051AD2942FD310E4521C5BD`.
 
-The candidate remains separate from the qualified branch. Host JIT cost and
+This candidate remains outside the selected PR814 release. Host JIT cost and
 synthetic occurrence counts cannot establish guest latency improvement or
-justify removing validation across callbacks. The explicit TCG scope decision
-and final performance disposition remain open.
+justify removing validation across callbacks. Its partial qualification and
+future work remain separate from the approved incomplete-TCG closeout.
 
-The already-qualified source was fast-forwarded to draft PR814's existing head
-branch. Canonical Git and PR readback both matched `2e81ee3a`; the PR remained
-draft/open/unmerged. This backup does not approve the pending TCG scope decision
-or final merge.
+The qualified runtime was backed up to PR814's existing head branch.
+Canonical Git and PR readback matched `2e81ee3a` while the PR was still a draft.
+Final documentation, reviewed evidence, tracker reconciliation and the merge
+require their own closing readback; this earlier backup is not merge proof.
 
 ### Retained results on the earlier host recipe
 

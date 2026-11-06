@@ -1,6 +1,6 @@
 # Repository Audit
 
-PR814's [candidate results](../work/rc3-whpx-qualification.md#candidate-results) identify the source tested by each host, compiler, guest and benchmark run. Use that record for current status. The steps below preserve the results and failures from their respective commits.
+PR814's [release scope and results](../work/rc3-whpx-qualification.md#approved-closeout-scope) select qualified runtime `2e81ee3a` with documentation/metadata updates and an explicitly incomplete CLROS TCG report. The later `72784936` optimization and isolated decoder work are preserved outside the release. The steps below retain the results and failures from their respective commits.
 
 [Step1787](../done/step1787.md) binds the source35b Full/compiler29 originals and
 the subsequent failed Hello original. Host-only6b0f56a8 preserves genuine entry,

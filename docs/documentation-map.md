@@ -2,7 +2,9 @@
 
 For build, evidence and status entry points, see the [documentation index](README.md).
 The [PR814 qualification record](../work/rc3-whpx-qualification.md#candidate-results)
-tracks the RC3 candidate. The step entries below retain the results at their
+tracks the qualified `2e81ee3a` runtime and the approved incomplete-TCG
+closeout. The later `72784936` optimization and isolated decoder work remain
+outside the release. The step entries below retain the results at their
 original commits.
 
 [Step1789](../done/step1789.md) records the isolated adjacent disk-audit candidate,

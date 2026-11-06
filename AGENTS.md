@@ -50,6 +50,11 @@ subsystem updates and release record in a separate checkout. Coordinate the
 integration window before changing any input to a running qualification.
 The [phase contract](work/rc3-whpx-qualification.md) defines the required
 results and the point at which to merge and verify canonical `master`.
+The November 6 closeout selects qualified runtime `2e81ee3a` plus
+documentation/metadata updates and reports CLROS TCG as incomplete under the
+unchanged 30-minute guest limit. Preserve the later optimization and decoder
+work outside the release. After verified delivery and recoverable cleanup,
+stop the helper, pause the broader development goal and start no next phase.
 
 Inspect branch, dirty/untracked files, worktrees and live ownership before edits.
 Use the explicitly assigned producer checkout; `C:/Projects/CLROS` is not proof
@@ -149,7 +154,8 @@ commands/producer identities, results, originals/failures, limitations and next
 dependencies. After each 5–10 issue batch, audit README and all first-party guides
 and docs; update every affected statement, canonical record, parent checklist and
 Gitea summary/comment. Commit, push, review and merge verified scoped work, read
-back remote/master parity, and continue the authorized goal.
+back remote/master parity, and continue only the authorized scope. PR814 ends
+at its explicit clean-stop boundary.
 
 PR812 closed the first-ten read phase at [step1672](done/step1672.md). For PR814,
 finish the agreed checks, reconcile the published evidence and tracker, review

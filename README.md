@@ -106,10 +106,14 @@ and independent review, with sealed evidence on the same candidate. All seven
 disk/lifecycle cases are accepted: healthy A1/B/A2, Truncated and the three finite
 synthetic lifecycle cases. The four Full018 runs each completed 120 HTTP and
 49 browser responses with guest cleanup; A2 restores A1's image and response
-bodies. Matched performance qualification remains pending for this host recipe.
-The earlier `3f95496e` results retain their separate evidence. See the
-[qualification record](work/rc3-whpx-qualification.md#candidate-results) for
-the current results and each original scope.
+bodies. Three matched WHPX boots per system retain completed HTTP observations:
+the per-boot warm medians for the 2,009,369-byte asset are 7.147–7.166 seconds
+for CLROS and 40.164–41.810 milliseconds for Alpine. CLROS TCG remains
+incomplete under the unchanged 30-minute guest limit, as explicitly accepted
+for phase closeout by the human. Failed browser and TCG originals remain failed.
+The later `72784936` optimization and isolated decoder extraction are preserved
+outside this release. See the [qualification record](work/rc3-whpx-qualification.md#approved-closeout-scope)
+for the release boundary, evidence and required clean stop.
 
 Earlier development checkpoints follow in reverse chronological order.
 

@@ -34,8 +34,10 @@ memory, deadlines, device layout, QMP ownership and native stderr validation
 remain governed by their existing checks. The actual device arguments belong
 in each launch record and in performance comparisons.
 
-This repair is being qualified for PR814. Its current scope is tracked in the
-[candidate results](../work/rc3-whpx-qualification.md#candidate-results).
+This repair is qualified on runtime `2e81ee3a` for the finite PR814 scopes in
+the [qualification record](../work/rc3-whpx-qualification.md#candidate-results).
+The extended CLROS TCG benchmark remains incomplete under the unchanged
+30-minute guest limit; the human approved reporting that limitation at closeout.
 The controls below explain its selection and retain their original outcomes.
 
 ### Bounded notifier controls
