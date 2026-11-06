@@ -1,5 +1,10 @@
 # NativeAOT NoStdLib Limits
 
+Current PR814 qualification is tracked in the
+[candidate results](../work/rc3-whpx-qualification.md#candidate-results).
+Historical results below retain their original source, runtime, backend and
+launch settings.
+
 [Step1741](../done/step1741.md) authenticates the post-host-repair Timing image
 as byte-exact to candidate C, including native object, maps and compiler/link
 responses. Managed identity-field changes do not expand runtime support. All

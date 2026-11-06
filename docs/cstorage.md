@@ -1,5 +1,10 @@
 # Storage
 
+Current PR814 qualification is tracked in the
+[candidate results](../work/rc3-whpx-qualification.md#candidate-results).
+Historical results below retain their original source, runtime, backend and
+launch settings.
+
 [Step1781](../done/step1781.md) shares successful DataIo completion updates within
 the existing filesystem owner. All52 filesystem/six admission checks pass. The
 actual changed method shrinks32bytes with unchanged frame; bounded native review
@@ -192,7 +197,7 @@ attribute device latency. No performance improvement is claimed for this move.
 
 [Step1661](../done/step1661.md) refreshes the exact reviewed EFI entry-source hash after seven actual evaluated legacy profiles preserve their active token streams, directives and parse diagnostics. The rebuilt source-pin consumer and source-admission fixtures pass 8 focused Fast checks, with zero reuse. The page-bounded copy remains unchanged.
 
-The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and the current 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
+The finite Full018 disk-backed Minimal API/Standalone Blazor read workload and three M16 lifecycle recipes pass their recorded checks. [Step1672](../done/step1672.md) records seven originals, complete browser/network/cleanup joins and its original 7,464-check, zero-reuse full-host result. Writes, persistent logs/uploads, SQLite and sustained service remain unqualified.
 
 Directory and successful-chain reuse retain their immutable-media, backing-lifetime, invalidation and fresh-data-read contracts; no storage error or capacity check is relaxed.
 
