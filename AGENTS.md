@@ -55,6 +55,7 @@ documentation/metadata updates and reports CLROS TCG as incomplete under the
 unchanged 30-minute guest limit. Preserve the later optimization and decoder
 work outside the release. After verified delivery and recoverable cleanup,
 stop the helper, pause the broader development goal and start no next phase.
+The [closeout record](done/step1790.md) owns the delivery scope and retained work.
 
 Inspect branch, dirty/untracked files, worktrees and live ownership before edits.
 Use the explicitly assigned producer checkout; `C:/Projects/CLROS` is not proof

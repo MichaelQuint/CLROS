@@ -114,6 +114,7 @@ for phase closeout by the human. Failed browser and TCG originals remain failed.
 The later `72784936` optimization and isolated decoder extraction are preserved
 outside this release. See the [qualification record](work/rc3-whpx-qualification.md#approved-closeout-scope)
 for the release boundary, evidence and required clean stop.
+The [closeout record](done/step1790.md) binds the final review and tracker scope.
 
 Earlier development checkpoints follow in reverse chronological order.
 

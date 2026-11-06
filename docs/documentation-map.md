@@ -7,6 +7,10 @@ closeout. The later `72784936` optimization and isolated decoder work remain
 outside the release. The step entries below retain the results at their
 original commits.
 
+[Step1790](../done/step1790.md) records the approved PR814 closeout from
+qualified runtime `2e81ee3a`, incomplete TCG reporting, scoped review and
+recoverable preservation of the excluded development tails.
+
 [Step1789](../done/step1789.md) records the isolated adjacent disk-audit candidate,
 its guarded host checks, separate host timing screen and current conditional
 native inspection. It preserves observer failures and the remaining integration,

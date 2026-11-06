@@ -22,6 +22,12 @@ commits, working changes and original evidence recoverably, without activating
 either follow-up. After verified merge and cleanup, stop the storage helper,
 pause the broader development goal, and start no next phase.
 
+The immutable [closeout record](../done/step1790.md) binds this release boundary,
+the scoped checks and the separate post-merge tracker/parity readback.
+Earlier prospective instructions and pending-work lists below retain their
+historical evidence scope. This November 6 closeout supersedes instructions to
+continue sampling, optimize further or qualify the excluded development tails.
+
 ## Candidate results
 
 The qualified runtime selected for PR814 is `2e81ee3a`. [Step1788](../done/step1788.md) records
@@ -122,8 +128,10 @@ writes or durability.
 | ExitPending | Accepted: seven calls, zero copied data sectors and the outstanding read retired on reset. |
 | CloseReuse | Accepted: 30 calls, ten requests and one cancellation; scheduler replay remains false. |
 
-All seven disk/lifecycle cases are accepted on the current host recipe. Matched
-performance qualification remains pending; the final matrix is not yet accepted.
+All seven disk/lifecycle cases are accepted on the current host recipe. The
+extended matched-performance matrix is explicitly incomplete under the November 6
+closeout disposition. No additional TCG run is required for this release, and no
+failed or unattempted performance/browser result becomes a pass.
 
 ### Matched performance observations
 
@@ -449,7 +457,7 @@ graph/49 focused checks pass. Actual extended guest/browser measurements and
 every final acceptance gate below remain required; API report completion is
 not original-process, native or browser qualification.
 
-## Current diagnostic attribution checkpoint
+## Retained diagnostic attribution checkpoint (before approved closeout)
 
 [Step1732](../done/step1732.md) completes the current-image native Timing review
 and 18 source-bound diagnostic boots: three per Original/Trace/Summary mode and
