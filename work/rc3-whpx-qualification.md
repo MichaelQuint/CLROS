@@ -215,6 +215,25 @@ including managed cases labelled Native, rather than a fresh qualification run.
 - Paired review: `qualification-compat-preparation-r01/disk-audit-paired-host-review-r01.json`,
   SHA-256 `BC1795B741B7938E58782DAF6B9BFECF4C0E0ED8970065BB22CE5F2A750A5494`.
 
+A separate uninstrumented Release host screen used the original mock fixture,
+prebound driver calls and a fixed ABBA sequence repeated three times. Each of
+12 fresh processes performed four warmups and 16 measured 8 KiB preads at
+offset zero. Every output byte was poisoned before each call; exact payload,
+canaries, one copy callback and unchanged I/O counts were checked afterward.
+Both variants used the same driver, with tiering/PGO disabled. Median of the six
+process medians was 0.4445 ms for original code and 0.3083 ms for the prototype,
+a 30.641% reduction. The three ABBA block reductions were 30.721%, 30.596% and
+30.339%; no GC collection was observed in the measured intervals. All 192
+timed reads and 48 warmups passed. The process is the independent sample unit.
+Empty-call controls are reported separately and were not subtracted.
+
+This is a host JIT result for mock preads. The earlier counted read experiment
+and its instrumented kernels are separate. No guest latency, native codegen,
+zero-allocation/noGC or final performance acceptance follows from this screen.
+The report and all raw samples are retained at
+`disk-audit-release-timing-host-r01/report-r01.json`, SHA-256
+`3DDD8D645F7D4D067EFE3E74EF12A223A68DC9299C4525945578D353D557FE32`.
+
 The prototype exists only under ignored artifacts. Source remains frozen at
 `2e81ee3a`; no new native or guest performance result is claimed. Host JIT cost
 and synthetic occurrence counts cannot establish guest latency improvement or
