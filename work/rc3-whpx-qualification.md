@@ -42,25 +42,40 @@ the correct routes. The path-spelling and PID-reuse readback rejections remain
 recorded with the controller split. No completed guest was rerun, and the initial
 controller exit remains distinct from the accepted individual guest results.
 
-The current Disk A1 original is accepted and sealed. It completed 120 HTTP and
-49 browser responses with 16,062,936 verified body bytes, Blazor readiness,
-screenshot inspection and the independent copied-value protocol check. Its
-original owner exited with zero; source, browser and frozen producers remained
-unchanged. Guest application and kernel cleanup completed before the runner
-terminated native QEMU, as recorded in the original receipts.
+The current healthy Disk A1/B/A2 originals are accepted and sealed. Each
+completed 120 HTTP and 49 browser responses with 16,062,936 verified body bytes,
+Blazor readiness, screenshot inspection and the independent copied-value protocol
+check. Each original owner exited with zero; source, browser and frozen producers
+remained unchanged. Guest application and kernel cleanup completed before the
+runner terminated native QEMU, as recorded in the original receipts.
 
-The A1 acceptance receipt is
-`artifacts/refactor-r01/disk-read-DiskA1-acceptance-compat-r01.json`,
-SHA-256 `B3B2FA338FF5ADD174D6D44FE61DC1FF1520A700B87011A6F1527C7AAFFCB96A`.
-Its independent review and original seal were read back against the receipt.
-This Full018 result covers its finite consumer scope; conditional native
-premises remain mandatory.
+The B image differs from A1 by exactly the expected nonce byte. A2 restores every
+image byte to A1, and all 169 A2 response bodies match accepted A1. These image
+comparisons accompany each case's actual guest acceptance.
+
+The acceptance receipts are under `artifacts/refactor-r01/` in the producer
+checkout:
+
+- A1: `disk-read-DiskA1-acceptance-compat-r01.json`,
+  SHA-256 `B3B2FA338FF5ADD174D6D44FE61DC1FF1520A700B87011A6F1527C7AAFFCB96A`.
+- B: `disk-read-DiskB-acceptance-compat-r01.json`,
+  SHA-256 `BD786A57D0D00DE529F87315709EC3C77AA2013988972F21E45709E074E28617`.
+- A2: `disk-read-DiskA2-acceptance-compat-r01.json`,
+  SHA-256 `492A92065C42CAE59F0D07B8D5108340754DEB44FE96DD74E8F2348D14EEDA95`.
+
+Each independent review and original seal was read back against its acceptance
+receipt. The retained B provisional observer failure concerned its HEAD
+empty-body nonce oracle; restricting nonce hash substitution to GET corrected
+the observer on the same captured records, without a guest rerun or source
+change. The earlier `3f95496e` B native failure remains failed. These Full018
+results cover their finite consumer scopes; conditional native premises remain
+mandatory.
 
 | Disk/lifecycle case on `2e81ee3a` | Current host recipe |
 | --- | --- |
 | Disk A1 | Accepted, including HTTP, browser and guest cleanup. |
-| Disk B | Pending. |
-| Disk A2 | Pending. |
+| Disk B | Accepted, including HTTP, browser and guest cleanup. |
+| Disk A2 | Accepted, including restored A image/bodies, browser and guest cleanup. |
 | Truncated A | Pending. |
 | Mechanical59 | Pending. |
 | ExitPending | Pending. |
