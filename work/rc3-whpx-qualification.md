@@ -71,18 +71,37 @@ change. The earlier `3f95496e` B native failure remains failed. These Full018
 results cover their finite consumer scopes; conditional native premises remain
 mandatory.
 
+Truncated A is also accepted and sealed. It completed 120 HTTP and 49 browser
+responses. GET and HEAD for `/fixture/fragmented.bin` both returned empty 404
+responses. All unrelated response bodies match healthy A1.
+The typed whole-image corruption delta and copied-value protocol checks passed,
+along with Blazor readiness and guest cleanup. The receipt is
+`artifacts/refactor-r01/disk-read-TruncatedA-acceptance-compat-r01.json`,
+SHA-256 `6E4897BD97B142115286B26F1E13A26ECD3D6FEC17CA80E5895568C854FBBC24`.
+
+Mechanical59, ExitPending and CloseReuse are accepted within their finite
+synthetic lifecycle scopes. Their original owners joined with exit zero,
+current native tuples were verified before each guest, and strict stderr,
+original assertions and owned cleanup passed. The combined receipt is
+`artifacts/refactor-r01/disk-read-M16-acceptance-compat-r01.json`,
+SHA-256 `EC3097C69AC2B9286BE0A50E91C856EFF217054C4686487A1846B648E5E1BC7C`.
+The initial M16 audit's copied-hash typo remains recorded; the corrected comparison
+uses the already pinned review manifest. It required no guest rerun or source
+change. These cases do not extend acceptance to general scheduler replay,
+writes or durability.
+
 | Disk/lifecycle case on `2e81ee3a` | Current host recipe |
 | --- | --- |
 | Disk A1 | Accepted, including HTTP, browser and guest cleanup. |
 | Disk B | Accepted, including HTTP, browser and guest cleanup. |
 | Disk A2 | Accepted, including restored A image/bodies, browser and guest cleanup. |
-| Truncated A | Pending. |
-| Mechanical59 | Pending. |
-| ExitPending | Pending. |
-| CloseReuse | Pending. |
+| Truncated A | Accepted: exact target-only empty GET/HEAD 404, typed corruption checks, browser and guest cleanup. |
+| Mechanical59 | Accepted: 59 calls, 62 sectors and seven read windows. |
+| ExitPending | Accepted: seven calls, zero copied data sectors and the outstanding read retired on reset. |
+| CloseReuse | Accepted: 30 calls, ten requests and one cancellation; scheduler replay remains false. |
 
-The remaining disk/lifecycle cases and matched performance qualification remain
-pending. The final matrix is not yet accepted.
+All seven disk/lifecycle cases are accepted on the current host recipe. Matched
+performance qualification remains pending; the final matrix is not yet accepted.
 
 ### Retained results on the earlier host recipe
 

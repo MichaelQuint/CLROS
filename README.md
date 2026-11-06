@@ -102,10 +102,11 @@ not additional capabilities claimed by this documentation update.
 Full host suite with unchanged inputs and zero reuse. It includes the scoped
 Windows/WHPX compatibility repair in [step1788](done/step1788.md). All 29 compiler
 guest contexts and all 24 ancestor/quota contexts passed their expected outcome
-and independent review, with sealed evidence on the same candidate. Healthy
-Disk A1/B/A2 are accepted with 120 HTTP and 49 browser responses each and guest
-cleanup; A2 restores A1's image and response bodies. Truncated, three lifecycle
-cases and matched performance qualification remain pending for this host recipe.
+and independent review, with sealed evidence on the same candidate. All seven
+disk/lifecycle cases are accepted: healthy A1/B/A2, Truncated and the three finite
+synthetic lifecycle cases. The four Full018 runs each completed 120 HTTP and
+49 browser responses with guest cleanup; A2 restores A1's image and response
+bodies. Matched performance qualification remains pending for this host recipe.
 The earlier `3f95496e` results retain their separate evidence. See the
 [qualification record](work/rc3-whpx-qualification.md#candidate-results) for
 the current results and each original scope.
