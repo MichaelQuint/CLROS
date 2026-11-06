@@ -1,6 +1,11 @@
 # Host Requirements
 
-The RC3 host suite passed 7,786 checks on `3f95496e` with the rebuilt, frozen toolchain. A host-only validator fix is tested against its affected cases and the retained original before the final unfiltered run. See the [candidate results](../work/rc3-whpx-qualification.md#candidate-results) for the matching guest evidence.
+The rebuilt, frozen RC3 candidate `2e81ee3a` passed 7,789 unfiltered Full
+checks with zero reuse. Source, captured inputs and all 48 producer binaries
+passed independent readback. The solution build succeeded with four compiler
+warnings, and the HostTests graph build succeeded with zero warnings or errors.
+See the [candidate results](../work/rc3-whpx-qualification.md#candidate-results)
+for the accepted host receipt and the remaining guest qualification.
 
 [Step1787](../done/step1787.md) preserves source35b's7,784-check Full and29compiler
 originals, plus the later failed Hello host inspection. Repair6b0f56a8 admits

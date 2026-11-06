@@ -2,11 +2,30 @@
 
 ## Candidate results
 
-The qualification source is `3f95496e`. Use that commit when citing these
-results. The original failures and their subsequent repairs are recorded in
+The frozen candidate is `2e81ee3a`. [Step1788](../done/step1788.md) records
+the integrated Windows/WHPX notifier repair and its qualification boundary.
+Fresh unfiltered Full passed 7,789 checks in 996 fixture groups (884 Fast and
+112 Native), with 6,503 selected cases, zero failures and zero reuse. Independent
+readback confirmed all 7,970 captured source inputs, 48 producer binaries and
+eight runtime pairs. Original worker processes joined, and source remained clean
+at the same commit through completion.
+
+The accepted host review is
+`artifacts/refactor-r01/combined-full-compat-r01/accepted-review-r01.json`
+in the producer checkout, SHA-256
+`2C05A550EDADB6D07828A493EA31182AD9E67B2C6A9999F92D5116AB084BFC2A`.
+It binds the original results, producer freeze, terminal seal and independent
+review. Compiler guest execution has started. The complete guest/browser and
+matched performance matrix remains pending for this host recipe.
+
+### Retained results on the earlier host recipe
+
+The following results retain source `3f95496e` and its recorded launch settings.
+Keep these original receipts when qualifying the changed candidate. The original
+failures and subsequent repairs are recorded in
 [step1786](../done/step1786.md) and [step1787](../done/step1787.md).
 
-| Check | Evidence on this candidate |
+| Check | Retained evidence on `3f95496e` |
 | --- | --- |
 | Host | Unfiltered Full passed 7,786 checks in 996 fixture groups with zero reuse. Source, inputs and all 48 producer binaries passed readback. |
 | Compiler and application | All 29 compiler contexts passed their expected outcome, including the expected unhandled panic. Eight Linux-native application cases passed their own scope. |

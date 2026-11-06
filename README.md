@@ -98,13 +98,13 @@ not additional capabilities claimed by this documentation update.
 
 <!-- Keep development updates here, below the project introduction. -->
 
-**PR814 qualification.** The candidate at `3f95496e` passed the 7,786-check full
-host suite, all 29 compiler contexts, 23 of 24 ancestor/quota contexts and six
-of seven disk/lifecycle cases. Disk A2 and Truncated A each completed 120 HTTP and 49 browser
-responses with natural guest cleanup. The remaining originals are Smoke and
-Disk B. See the
+**PR814 qualification.** Frozen candidate `2e81ee3a` passed the 7,789-check
+Full host suite with unchanged inputs and zero reuse. It includes the scoped
+Windows/WHPX compatibility repair in [step1788](done/step1788.md). The compiler,
+guest, browser and performance matrix is being renewed for its recorded host
+recipe. The earlier `3f95496e` results retain their separate evidence. See the
 [qualification record](work/rc3-whpx-qualification.md#candidate-results) for
-the benchmark population and the evidence attached to each scope.
+the current results and each original scope.
 
 Earlier development checkpoints follow in reverse chronological order.
 
