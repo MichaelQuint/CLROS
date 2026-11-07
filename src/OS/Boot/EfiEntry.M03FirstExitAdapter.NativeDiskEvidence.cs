@@ -6,7 +6,7 @@ using Block = OS.Storage.ContinuingReadOnlyBlockService;
 
 namespace OS.Boot;
 
-#pragma warning disable 649 // Eight contiguous caller-owned records are written through admitted native pointers.
+#pragma warning disable 649 // Contiguous caller-owned records are written through admitted native pointers.
 
 public static unsafe partial class EfiEntry
 {
@@ -16,6 +16,9 @@ public static unsafe partial class EfiEntry
         private struct NativeDiskEvidence
         {
             internal NativeDiskRecord A, B, C, D, E, F, G, H;
+#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
+            internal NativeDiskRecord I, J, K, L, M, N, O, P, Q, R;
+#endif
             internal ulong Generation, CopiedRecords;
             internal uint Count, Total;
             internal bool Enabled, Failed;

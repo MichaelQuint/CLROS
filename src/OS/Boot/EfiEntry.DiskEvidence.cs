@@ -378,7 +378,13 @@ public static unsafe partial class EfiEntry
             return written;
         }
 
-        private const uint NativeDiskEvidenceCapacity = 8, NativeDiskEvidenceLimit = 65536;
+#if M10_018_FULL_PROBE || M10_018_TIMING_PROBE
+        // One submit, one completion and all16 copied sectors fit atomically.
+        private const uint NativeDiskEvidenceCapacity = 18;
+#else
+        private const uint NativeDiskEvidenceCapacity = 8;
+#endif
+        private const uint NativeDiskEvidenceLimit = 65536;
         private static uint SelectedNativeDiskEvidenceLimit => OS.Kernel.Diagnostics.Probes.EnableM10018FullProbe ?
             OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.MaximumDeviceRecords : NativeDiskEvidenceLimit;
 
@@ -402,7 +408,7 @@ public static unsafe partial class EfiEntry
                 return 1;
             bool copy = observation->Kind == Block.ObservationKind.CopyReady;
             uint slots = copy ? observation->Bytes / 512 : 1;
-            if (slots is 0 or > 4 || evidence->Count > NativeDiskEvidenceCapacity - slots ||
+            if (slots == 0 || slots > o->Device.MaximumTransferSectors || evidence->Count > NativeDiskEvidenceCapacity - slots ||
                 evidence->Total > SelectedNativeDiskEvidenceLimit - slots ||
                 (copy ? bytes == null || observation->Bytes != slots * 512 : bytes != null))
             {
@@ -501,7 +507,7 @@ public static unsafe partial class EfiEntry
                     NativeDiskRecord* record = &evidence->A + i;
                     var value = record->Observation;
                     uint slots = value.Kind == Block.ObservationKind.CopyReady ? value.Bytes / 512 : 1;
-                    if (slots is 0 or > 4 || slots > evidence->Count - i ||
+                    if (slots == 0 || slots > o->Device.MaximumTransferSectors || slots > evidence->Count - i ||
                         value.Kind == Block.ObservationKind.CopyReady && value.Bytes != slots * 512)
                     {
                         evidence->Failed = true;

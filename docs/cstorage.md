@@ -1,5 +1,22 @@
 # Storage
 
+PR824's [performance candidate](../work/http-performance-phase.md) adds explicit
+readonly large-read admission: one4KiB control page plus8KiB data, at most16
+sectors per physical request. The legacy one-page/four-sector layout and writable
+path remain selectable. Full/Timing serving profiles select the larger layout;
+filesystem data coalescing still follows the validated cluster map and stops at
+fragmentation, partition/EOF and completion bounds. Metadata/borrowed operations
+stay single-sector; file content is read afresh. Device counters count requests,
+whereas filesystem SectorReads counts sectors. Qualification remains pending.
+
+The existing CLROS coalescing algorithm is retained and independently extended.
+SharpOS `OS/src/Hal/Fat32.cs` at content-identified
+`b80ee3a4175e1522d1a12ba7fe371a49da3207f5` informed the bounded contiguous-run
+comparison (local SHA256
+`5F59D7E524A84EFA7B16EEB1521530AC149CD078259170E91A8B1600F3DC68C1`).
+The SharpOS-specific grant/CC0 evidence is in [the license audit](license-audit.md).
+No reference implementation/native source or reference acceptance is imported.
+
 Current PR814 qualification is tracked in the
 [candidate results](../work/rc3-whpx-qualification.md#candidate-results).
 Historical results below retain their original source, runtime, backend and

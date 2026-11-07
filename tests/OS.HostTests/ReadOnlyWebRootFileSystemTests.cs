@@ -2164,16 +2164,16 @@ internal static unsafe partial class ReadOnlyWebRootFileSystemTests
             return;
         var disk = (Disk)GCHandle.FromIntPtr(h->DiskHandle).Target!;
         uint length = *(uint*)(h->Data + 24);
-        HostCheck.True(length is >= 512 and <= 2048 && length % 512 == 0);
+        HostCheck.True(length >= 512 && length <= (h->DataOffset == 4096 ? 8192U : 2048U) && length % 512 == 0);
         bool failure = false;
         for (uint offset = 0; offset < length; offset += 512)
         {
             ulong lba = h->Sector + offset / 512;
             disk.Reads[lba]++;
             if (disk.Sectors.TryGetValue(lba, out var bytes))
-                bytes.CopyTo(new Span<byte>(h->Data + 512 + offset, 512));
+                bytes.CopyTo(new Span<byte>(h->Data + h->DataOffset + offset, 512));
             else
-                new Span<byte>(h->Data + 512 + offset, 512).Clear();
+                new Span<byte>(h->Data + h->DataOffset + offset, 512).Clear();
             failure |= lba == disk.FailLba;
         }
         h->Data[272] = failure ? (byte)1 : (byte)0;

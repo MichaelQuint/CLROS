@@ -19,7 +19,7 @@ public static partial class QemuTranscripts
         Need(replay.Truncated == (truncated is not null), "disk_static_sector_fault_scope");
         if (truncated is not null)
             truncated.RequireValues(inventory, heldImage);
-        var device = NativeDiskReadObservations.Inspect(replay.DeviceRows.Select(r => r.Text).ToArray(), heldImage, final, diskStaticFull: replay.FullProfile, allowMultiSector: true);
+        var device = NativeDiskReadObservations.Inspect(replay.DeviceRows.Select(r => r.Text).ToArray(), heldImage, final, diskStaticFull: replay.FullProfile, allowMultiSector: true, maximumReadSectors: replay.FullProfile ? 16U : 4U);
         var data = NativeDiskStaticReadWindows.Inspect(inventory, device, replay.DeviceRows.Select(r => r.RecordIndex).ToArray(), replay.Reads);
         var metadata = WebRootDiskInventory.ClassifyMetadata(inventory, heldImage, data.Residual.Select(c => c.Observation.DataSector).ToArray(), truncated);
         var operations = replay.Operations.OrderBy(o => o.BeginRecordIndex).ToArray();

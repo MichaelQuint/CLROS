@@ -1,5 +1,18 @@
 # Drivers
 
+The PR824 readonly DMA candidate uses an explicitly selected three-page lease
+for16-sector reads: queue/request/status occupy the first page, followed by8KiB
+data. Token generation, ownership and the complete CPU/physical/device range
+are checked before use and cleanup. All selected pages stay device-owned until
+actual reset, bus-master disable and fence; changed ownership/extent quarantines
+cleanup before scrub/release. Legacy callers retain their one-page layout.
+Full/Timing native disk arenas reserve the complete DMA extent and separate slot
+metadata. Their retained evidence buffer holds18 records (submit, completion,
+sixteen sector chunks); overall evidence/polling/deadline budgets stay unchanged.
+The byte consumer requires explicit16-sector selection, with exact ordered chunk,
+image, counter and cleanup checks. Current native layout/stack/ownership and guest
+qualification remain required by [the phase](../work/http-performance-phase.md).
+
 [Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
 

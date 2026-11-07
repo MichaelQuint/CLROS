@@ -113,6 +113,21 @@ omitted required close configuration; reusing the configured helper fixes that
 fixture setup. The original failed r01 and successful r02 remain under
 `artifacts/performance-r01/socket-copy-*`. No guest speedup is claimed.
 
-Next: explicit readonly DMA layout/ownership and filesystem batching, scoped
-clock sampling, then bounded congestion-controlled flight and final consumer
-recipes. No Full, native publication/qualification, guest or benchmark has run.
+The readonly DMA candidate now has separate legacy and three-page layouts,
+explicit Full/Timing16-sector selection, complete allocation/domain/ownership
+checks, matching arena/slot/evidence storage and strict ordered16-sector byte
+consumers. The final counter consumer counts requests and sectors separately.
+Affected graph builds have zero warnings/errors. Focused selections pass:
+block30, filesystem53, evidence23, legacy queue5, disk descriptor21, writable
+descriptor47 and profile/source-admission5 checks, zero reuse. Original per-run
+receipts and the14-entry reviewed-source update map are retained under
+`artifacts/performance-r01/dma-*`. The final23-check consumer original follows
+the earlier22-check run and the added16-sector final-counter control; they are
+distinct executions/producers, not one full-host result. No actual DMA hardware,
+emitted frame/stack or guest performance acceptance follows.
+
+Next: scoped clock sampling, then bounded congestion-controlled flight and final
+consumer recipes/impact map. No Full, native publication/qualification, guest or
+benchmark has run. Final native review must account for the larger Full/Timing
+DMA arena and18-record evidence backing, plus every legacy layout consumer
+affected by the added layout fields. Retain the existing guest limits.

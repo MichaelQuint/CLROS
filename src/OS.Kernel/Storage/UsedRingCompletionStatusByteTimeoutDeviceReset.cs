@@ -58,8 +58,14 @@ public static unsafe class UsedRingCompletionStatusByteTimeoutDeviceReset
     /// Error statuses may report a short used length; success requires every
     /// requested data byte and the status byte. Legacy callers still select1.</summary>
     public static VirtioBlkReadStatus Validate(ushort usedIndex, uint id, uint length, byte status, uint sectors)
+        => Validate(usedIndex, id, length, status, sectors, VirtioBlkDmaLayout.MaximumReadSectors);
+
+    /// <summary>Numeric completion check for an authenticated selected layout.
+    /// The caller retains DMA authority and bounds requests by its actual limit;
+    /// this helper admits only the legacy4 or explicit readonly16-sector ceiling.</summary>
+    public static VirtioBlkReadStatus Validate(ushort usedIndex, uint id, uint length, byte status, uint sectors, uint maximumSectors)
     {
-        if (sectors is 0 or > VirtioBlkDmaLayout.MaximumReadSectors)
+        if (maximumSectors != VirtioBlkDmaLayout.MaximumReadSectors && maximumSectors != VirtioBlkDmaLayout.ContinuingReadSectors || sectors == 0 || sectors > maximumSectors)
             return VirtioBlkReadStatus.InvalidCompletion;
         uint expected = sectors * VirtioBlkDmaLayout.DataBytes + 1;
         if (usedIndex != 1 || id != 0 || length == 0 || length > expected)

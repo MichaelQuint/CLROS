@@ -67,13 +67,14 @@ public static unsafe partial class ReadOnlyWebRootFileSystem
     /// through a pump call. Invalid admission has no effects.</summary>
     public static Status Start(Mount* m, in Admission input) => Start(m, input, 1);
 
-    /// <summary>Opt into at most four contiguous data sectors per owned request.
+    /// <summary>Opt into at most16 contiguous data sectors per owned request,
+    /// bounded by the device's explicitly selected DMA layout.
     /// Metadata, partial sectors and borrowed backends retain single-sector I/O.
     /// Uses existing caller range storage; invalid bounds leave admission untouched.</summary>
     public static Status Start(Mount* m, in Admission input, uint maximumDataReadSectors)
     {
         Admission a = input;
-        if (maximumDataReadSectors is 0 or > 4 || !Admit(m, a))
+        if (maximumDataReadSectors is 0 or > VirtioBlkDmaLayout.ContinuingReadSectors || !Admit(m, a) || maximumDataReadSectors > a.Device->MaximumTransferSectors)
             return Status.InvalidAccess;
         m->Self = (ulong)m;
         m->Input = a;

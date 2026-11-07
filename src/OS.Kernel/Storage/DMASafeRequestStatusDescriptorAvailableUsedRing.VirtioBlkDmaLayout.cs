@@ -3,7 +3,7 @@ using OS.Kernel.Platform;
 
 namespace OS.Storage;
 
-/// <summary>Numeric one-page layout. CPU, physical and device bases retain their
+/// <summary>Numeric legacy or explicit continuing-read layout. CPU, physical and device bases retain their
 /// distinct domains; the adapter authenticates coherent WB/RW/NX mappings.</summary>
 public readonly struct VirtioBlkDmaLayout
 {
@@ -13,12 +13,17 @@ public readonly struct VirtioBlkDmaLayout
     // Explicit continuing reads may use more of the same retained data area.
     // DataBytes remains the legacy single-sector wire contract.
     public const uint MaximumReadSectors = 4, MaximumReadBytes = MaximumReadSectors * DataBytes;
+    public const uint ContinuingReadPages = 3, ContinuingReadDataOffset = PageBytes,
+        ContinuingReadSectors = 16, ContinuingReadBytes = ContinuingReadSectors * DataBytes;
     public readonly DmaAddressRange Range;
     public readonly VirtqueueSplitRingPlan Rings;
+    public readonly uint DataByteOffset, ReadSectorLimit;
     public bool IsInitialized => Range.IsInitialized && Rings.QueueSize == QueueSize;
-    internal VirtioBlkDmaLayout(DmaAddressRange range, VirtqueueSplitRingPlan rings)
+    internal VirtioBlkDmaLayout(DmaAddressRange range, VirtqueueSplitRingPlan rings, bool continuingRead = false)
     {
         Range = range;
         Rings = rings;
+        DataByteOffset = continuingRead ? ContinuingReadDataOffset : DataOffset;
+        ReadSectorLimit = continuingRead ? ContinuingReadSectors : MaximumReadSectors;
     }
 }
