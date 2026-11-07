@@ -126,8 +126,22 @@ the earlier22-check run and the added16-sector final-counter control; they are
 distinct executions/producers, not one full-host result. No actual DMA hardware,
 emitted frame/stack or guest performance acceptance follows.
 
-Next: scoped clock sampling, then bounded congestion-controlled flight and final
-consumer recipes/impact map. No Full, native publication/qualification, guest or
+Scoped clock sampling now builds with zero warnings/errors. Focused selections
+pass: TCP send23, retransmission16, termination18, socket network43, socket23,
+block31 and owned clock6 checks, zero reuse, retaining each actual producer.
+The first network selection failed its unchanged backwards-clock control when
+the initial candidate omitted every idle TCP sample. The bounded correction
+retains the normal Pump's independent clock-health observation and omits only
+redundant idle retry/close samples (three calls become one). Receive/ACK parsing
+shares one observation, FIN retry shares its initial observation, and accepted
+device copies still sample afresh for RTO. Block idle polls retain status/index
+checks and defer clock failure/regression to the next actual request; the old
+idle-failure test now checks that precise contract before unchanged fail/cleanup
+assertions. Original failed network r01 and successful r02 remain in
+`artifacts/performance-r01/clock-*`. HPET validation/source is unchanged.
+
+Next: bounded congestion-controlled flight and final consumer recipes/impact map.
+No Full, native publication/qualification, guest or
 benchmark has run. Final native review must account for the larger Full/Timing
 DMA arena and18-record evidence backing, plus every legacy layout consumer
 affected by the added layout fields. Retain the existing guest limits.

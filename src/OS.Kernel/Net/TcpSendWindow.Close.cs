@@ -128,7 +128,7 @@ public static unsafe partial class TcpSendWindow
             var restart = EnterTimeWait(owner, now);
             return restart == Status.Success ? Status.PeerClosed : restart;
         }
-        status = AcknowledgeCore(owner, frame, out _, true);
+        status = AcknowledgeAfterTime(owner, entry, frame, out _, true, now);
         if (status is not (Status.Success or Status.DuplicateAck or Status.WindowUpdated or Status.OldAck))
             return status;
         if (owner->CloseStateValue == TcpConnectionCloseState.Closed)
@@ -179,6 +179,8 @@ public static unsafe partial class TcpSendWindow
             return status;
         if (owner->CloseEnabled == 0)
             return Status.InvalidState;
+        if (NoTimedWork(owner))
+            return Status.NothingToSend;
         status = Time(owner, out ulong now);
         if (status != Status.Success)
             return status;
@@ -189,7 +191,7 @@ public static unsafe partial class TcpSendWindow
             return CloseTable(owner, false);
         }
         if (owner->FinPending != 0)
-            return PumpRetransmission(owner, output, out packet);
+            return PumpRetransmissionAfterTime(owner, entry, output, now, out packet);
         if (owner->WriteShutdown == 0)
             return Status.NothingToSend;
         if (owner->Count != 0 || owner->Sent != 0)

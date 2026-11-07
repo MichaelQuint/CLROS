@@ -557,8 +557,17 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
                 f.Hardware->ClockFailure = true;
             if (mode == 1)
                 f.Hardware->Now = 9;
+            if (mode == 3)
+            {
+                // No deadline exists while idle. The next actual request must
+                // sample and reject the failed clock before publishing anything.
+                uint clocks = f.Hardware->ClockCalls;
+                HostCheck.Equal(Block.Status.Idle, Poll(f.State, out _));
+                HostCheck.Equal(clocks, f.Hardware->ClockCalls);
+                HostCheck.True(f.State->Running && f.State->Submitted == 0);
+            }
             HostCheck.Equal(mode == 1 ? Block.Status.ClockRegressed : Block.Status.ClockFailed,
-                mode == 3 ? Poll(f.State, out _) : Submit(f.State, 1, out _));
+                Submit(f.State, 1, out _));
             HostCheck.True(f.State->RequiresCleanup && !f.State->Running);
             HostCheck.Equal(1UL, f.Pool->AllocatedMask);
             HostCheck.Equal(Block.Status.Success, Block.Stop(f.State));
@@ -1434,6 +1443,7 @@ internal static unsafe partial class ContinuingReadOnlyBlockServiceTests
     private static byte Clock(void* c, ulong* value)
     {
         var h = (Hardware*)c;
+        h->ClockCalls++;
         if (!Enter(h) || h->ClockFailure)
             return 0;
         *value = h->Now;

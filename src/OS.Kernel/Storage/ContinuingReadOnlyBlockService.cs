@@ -224,6 +224,11 @@ public static unsafe partial class ContinuingReadOnlyBlockService
             s->Phase = ReadyPhase;
             return Status.Ready;
         }
+        // Device status and the used index were still checked above. Idle owns
+        // no request deadline or independent watchdog; the next Submit samples
+        // afresh before publication. Pending and ready checks retain fresh time.
+        if (s->Phase == IdlePhase)
+            return Status.Idle;
         status = ReadClock(s, out ulong now);
         if (status != Status.Success)
             return Fault(s, status);

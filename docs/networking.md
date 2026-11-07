@@ -9,6 +9,17 @@ policy ordering, zero/full/partial outcomes and failed-copy ownership remain.
 Fifty focused socket/large-vector/send-window checks pass. This is a copied-byte
 mechanism result; current native/guest and combined HTTP measurement are pending.
 
+The candidate retains HPET and its per-observation validation. TCP receive/ACK
+and FIN-retry parsing share a private validated observation only across adjacent
+internal checks without callbacks/device/ownership transitions. Copied TX still
+samples afresh afterward. Only continuing idle connections with no queued bytes,
+retry/persist/close/TIME-WAIT or independent lifetime timer skip timer-only clock
+work. Finite deadlines, regression/headroom checks on timed operations and original
+RTO anchors remain. No timestamp authority escapes the synchronous private helper.
+The normal send pump retains a fresh sample even when idle, preserving the
+shared network owner's independent backwards-clock failure control; only its
+adjacent idle retry/close timer work omits repeated observations.
+
 [Step1754](../done/step1754.md) reconstructs four original2,009,369-byte bodies
 without payload retransmission. Data-to-ACK p95 is50-111us, while most observed
 delay lies after the covering ACK and before the next captured payload. Original

@@ -222,9 +222,20 @@ public static unsafe partial class TcpSendWindow
             return status;
         if (owner->Timed == 0)
             return Status.InvalidState;
+        if (NoTimedWork(owner))
+            return Status.NothingToSend;
         status = Time(owner, out ulong now);
         if (status != Status.Success)
             return status;
+        return PumpRetransmissionAfterTime(owner, entry, output, now, out packet);
+    }
+
+    // Public PumpRetransmission and PumpClose have validated this exact owner
+    // and sampled its clock. No callback, device operation or ownership change
+    // intervenes. Every accepted copied transmission below still samples afresh.
+    private static Status PumpRetransmissionAfterTime(Owner* owner, TcpConnectionTableEntry entry, Span<byte> output, ulong now, out TcpEstablishedStreamIpv4FramePlanResult packet)
+    {
+        packet = default;
         if (owner->PeerWindow == 0 && (owner->Count != 0 || owner->FinPending != 0 || owner->WriteShutdown != 0 && owner->CloseStateValue is TcpConnectionCloseState.Established or TcpConnectionCloseState.CloseWait))
             return PumpPersist(owner, entry, output, now, out packet);
         owner->PersistAt = 0;
@@ -269,7 +280,7 @@ public static unsafe partial class TcpSendWindow
         owner->RetryCount++;
         owner->Sampling = 0;
         owner->Rto = owner->Rto > owner->MaximumRto / 2 ? owner->MaximumRto : owner->Rto * 2;
-        status = Time(owner, out now);
+        var status = Time(owner, out now);
         if (status != Status.Success)
             return status;
         owner->RetryAt = Deadline(now, owner->Rto);
@@ -352,6 +363,15 @@ public static unsafe partial class TcpSendWindow
         status = Time(owner, out ulong now);
         if (status != Status.Success)
             return status;
+        return AcknowledgeAfterTime(owner, entry, frame, out released, controls, now);
+    }
+
+    // ReceiveFrame owns the same validated entry and observation through this
+    // callback-free ACK parsing boundary. Do not carry this authority across
+    // a receive/send callback, later dispatch, or ownership transition.
+    private static Status AcknowledgeAfterTime(Owner* owner, TcpConnectionTableEntry entry, ReadOnlySpan<byte> frame, out int released, bool controls, ulong now)
+    {
+        released = 0;
         fixed (byte* bytes = frame)
             if (!Outside(owner, bytes, (ulong)frame.Length))
                 return Status.InvalidStorage;
@@ -463,6 +483,14 @@ public static unsafe partial class TcpSendWindow
     }
 
     private static void Commit(Owner* owner, TcpConnectionTableEntry entry) => owner->Table->Entries[owner->Handle.Index] = entry.WithMetadata(entry.State, new TcpConnectionSequenceMetadata(owner->Next, entry.Sequence.RemoteNextSequenceNumber, owner->Una));
+
+    // Only a continuing, idle connection with no queued work or independent
+    // lifetime/close/persist/retry obligation may omit timer-only sampling.
+    // The next data/ACK/control operation takes its own fresh observation.
+    private static bool NoTimedWork(Owner* owner) => owner->Timed != 0 && owner->HardDeadline == 0 &&
+        owner->CloseDeadline == 0 && owner->TimeWaitDeadline == 0 && owner->RetryAt == 0 && owner->PersistAt == 0 &&
+        owner->Count == 0 && owner->Sent == 0 && owner->FinPending == 0 && owner->WriteShutdown == 0;
+
     private static Status Time(Owner* owner, out ulong now)
     {
         now = 0;
