@@ -217,6 +217,26 @@ branch is in `tools/OS.Tooling/QemuSmoke.cs`. It retains native/source/image
 guards and requires a cancelled, joined runner. The retained two-curl owner
 and strict eight-case first-plus-ten client routes are recorded in the impact
 map; do not rediscover startup/PR ownership or restore an archived checkout.
+This initial resume command has now passed. The quiet owner and retained2e
+baseline adapter are implemented; details and artifact identities are in the
+impact map. The quiet client passes17 focused checks, including88 exact
+responses, partial-body cancellation and failure-bearing joined-runner rejection.
+Retained Serving passes4 selector/mapping/binding controls, legacy retained
+Timing passes2, and EFI source inventory passes2; each is a distinct focused
+original with zero reuse. Graph builds have zero warnings/errors. The initial
+quiet CLI guard test incorrectly expected a thrown error rather than the
+existing returned failure/output; the corrected assertion preserves the guard
+and the failed original. The first baseline preparation correctly refused an
+archive junction; an explicit physical-artifacts read mapping fixes that route
+without changing historical records or relaxing plain-path admission.
+
+Recipe preparation r04 passes all22 managed dry-runs and13 source queries,
+with explicit baseline/candidate boot commands and copied retained inputs. No
+native publication or VM occurred. Final scoped checks, commit and clean-tree
+recipe regeneration are the next freeze prerequisites.
+The shared writable layout is included for native review without enabling
+larger writable transfers or claiming new writable workload acceptance.
+
 Final source freeze, unfiltered Full, actual native review, guest/browser/
 fault controls, matched six-boot measurement, final evidence/docs/tracker and
 qualified PR824 delivery/master verification remain outstanding. The durable

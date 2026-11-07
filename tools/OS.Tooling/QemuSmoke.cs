@@ -116,8 +116,10 @@ public static partial class QemuSmoke
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
-            if (plan.IsEnabled("EnableM10018ServingBenchmarkProbe") && !options.DryRun && observeQuietServing is null)
+            if (plan.IsEnabled("EnableM10018ServingBenchmarkProbe") && !options.DryRun && observeQuietServing is null && options.HttpBenchmarkWarmSequences is null)
                 throw new ToolFailure("quiet_serving_requires_explicit_client_owner");
+            if (plan.IsEnabled("EnableM10018ServingBenchmarkProbe") && observeQuietServing is not null && options.HttpBenchmarkWarmSequences is not null)
+                throw new ToolFailure("quiet_serving_duplicate_client_owner");
             // Each admitted race has its own complete original consumer. Never
             // run another variant through the positive59-call consumer.
             if (options.HasDiskRaceSelection && options.LinuxDiskRaceVariant is not ("Progress" or "CloseReuse" or "ExitPending") && !options.DryRun)
@@ -598,16 +600,40 @@ public static partial class QemuSmoke
                         var inventory = diskTruncated?.Baseline ?? WebRootDiskInventory.Inspect(diskImageInput.Path, diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_full_browser_image"), diskImageReceipt);
                         if (plan.IsEnabled("EnableM10018ServingBenchmarkProbe"))
                         {
-                            if (diskTruncated is not null || options.HttpBenchmarkWarmSequences is not null)
+                            if (diskTruncated is not null)
                                 throw new ToolFailure("quiet_serving_requires_separate_full_get_observation");
-                            var observed = await observeQuietServing!(RunSocketRunner, inventory, cancellation);
+                            NativeAotHttpBenchmarkPeer.Completion? matrix = null;
+                            var observed = options.HttpBenchmarkWarmSequences is int quietWarm
+                                ? (matrix = await NativeAotHttpBenchmarkPeer.RunQuietAsync(root, options.SerialLog,
+                                    RunSocketRunner, inventory, new HttpWorkloadBenchmark.Options
+                                    {
+                                        System = "CLROS",
+                                        Backend = options.Accelerator,
+                                        WarmSequences = quietWarm
+                                    }, options.TimeoutSeconds, cancellation)).Runner
+                                : await observeQuietServing!(RunSocketRunner, inventory, cancellation);
                             if (!observed.Cancelled || !observed.TerminationConfirmed || observed.TimedOut
                                 || observed.OutputLimitExceeded || observed.FailureReason.Length != 0)
                                 throw new ToolFailure("quiet_serving_runner_join_required");
                             VerifyDiskDiagnosticInputs();
                             using AuthorityFiles captures = new();
-                            _ = HoldHttpBenchmarkCaptures(root, options, captures);
+                            var held = HoldHttpBenchmarkCaptures(root, options, captures);
                             captures.VerifyUnchanged();
+                            if (matrix is not null)
+                            {
+                                using FileStream receipt = new(Path.Combine(matrix.Directory, "captures.json"),
+                                    FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+                                System.Text.Json.JsonSerializer.Serialize(receipt, new
+                                {
+                                    Schema = "clros-quiet-http-captures-v1",
+                                    Samples = matrix.Observations.Samples.Count,
+                                    matrix.Observations.WarmSequences,
+                                    Files = held.Select(file => new { file.Path, file.Length, file.Sha256 }).ToArray(),
+                                    FullAndCleanupQualified = false,
+                                    BrowserQualified = false
+                                });
+                                receipt.Flush(true);
+                            }
                             output.WriteLine("TEST_PASS qemu.smoke.quiet-serving-inputs runner_joined=true full_and_cleanup_qualified=false");
                             return 0;
                         }

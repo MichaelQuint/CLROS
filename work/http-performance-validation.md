@@ -1,10 +1,11 @@
 # PR824 validation preparation and impact map
 
-Status: preparation, not a frozen candidate or qualification result. The sole
+Status: managed preparation implemented, not a frozen candidate or qualification result. The sole
 producer and finite scope are in [the phase contract](http-performance-phase.md).
 All five runtime slices have focused host evidence. The service packet-control
-consumer is implemented and host-tested. Final launch/measurement owners and
-their immutable input manifests still need preparation before Full/native/VM.
+consumer is implemented and host-tested. The quiet matrix and retained baseline
+owners, typed dry-run recipes and input-copy manifests now have focused checks.
+Complete final scoped checks and commit/freeze before Full/native/VM.
 
 ## Impact and required evidence
 
@@ -92,10 +93,51 @@ Known evidence routes, for read-only reuse rather than development:
   existing180-second per-request ceiling.
 - `HttpWorkloadBenchmark.RunAsync` already provides the strict first-plus-ten
   API/health/HEAD/range/full/concurrent body consumers and180-second ceiling.
-  Final preparation must connect the existing quiet-client/owner workflow to
-  the complete required sample set, preserving exact request order, joined
-  clients, original bodies, quiet profile and unchanged outer budgets. No such
-  final adapter/manifest is claimed ready here.
+  The explicit `-EnableM10018ServingBenchmarkProbe -HttpBenchmarkWarmSequences 10`
+  path now connects that existing client to the quiet profile, preserving its
+  eight-case order, first/ten-warm separation, joined clients, body files and
+  unchanged bounds. It invokes no browser and requires a joined, cancelled,
+  failure-free runner and stopped endpoint. Ordinary Full still requires its
+  original browser/natural-cleanup consumer.
+
+The sole bounded expert consultation identified `RetainedDiskTimingBenchmark`
+as the existing launch-ownership pattern. `RetainedServingBenchmark` now uses
+that pattern with a separate fixed2e authority chain; Timing selection was not
+relaxed, and `EfiVerification` remains unchanged. Its `--prepare` path validates
+and copies the Step1790 readback, accepted population/boot report, pinned launch/
+source/native evidence, all12 native leaves, exact64MiB raw DiskA, EFI, package,
+disassembly, firmware and published assets. It independently checks complete
+image/EFI/package/asset joins. An explicit artifacts-prefix mapping reads the
+physical recovery archive while retaining original historical path strings;
+no old live source/intermediate path is restored. Current host sources and
+producers are bound separately through runner/client join. The installed pinned
+QEMU stays at its original host location; its ELF/PE dependencies are not moved.
+
+Preparation `artifacts/performance-r01/baseline-capsule-preparation-r02` passes,
+binding70 private copies,7 current producer files and3724 current source files.
+Its binding SHA256 is
+`663D00F9128697C0E02D5977BEA86F94A9801FCD6188E250954B5C70FE4FEB06`.
+This is managed preparation only. It explicitly reports no fresh native
+publication or current-source EFI verification. Each actual baseline boot must
+use a new private directory and newly verify its authorities; this prepared
+directory is not a reused execution result.
+
+`work/Prepare-HttpPerformanceRecipes.ps1` imports affected ancestor inputs,
+creates canonical existing M16/network fixture packages, and checks every job
+through managed dry-run only. Successful preparation r04 contains13 native
+profile input snapshots,22 current original/diagnostic guest recipes and three
+explicit fresh retained-baseline commands. Source snapshots query the admitted
+project with the pinned SDK; no emitted/native or guest acceptance follows.
+The earlier recipe original failed at missing M16 WebRootFixture, before any
+activation; the corrected recipe supplies the existing DiskA/assets contract.
+
+The13 native selections are ordinary, legacy block, retained network, sockets,
+epoll, vectors, web, service, mechanical disk, writable layout, Full, Timing and quiet Full.
+Default selection still links five changed DMA files. Actual emitted code/data,
+callers and layouts must therefore be reviewed before treating unrelated
+compiler/GC/EH contexts as retained historical scope. If that review finds
+affected common emission, extend the frozen artifact/guest list with the
+existing cases; do not assert cross-profile native identity from source alone.
 
 Reuse the existing Alpine results as historical context unless current matching
 is demonstrated. Do not reopen TCG qualification or extend its1800-second limit.
@@ -104,10 +146,9 @@ make one bounded expert consultation; do not start another optimization phase.
 
 ## Freeze and execution order
 
-1. Complete the remaining launch/quiet-client adapter, consumer controls and
-   authenticated immutable manifests. Record the exact scoped profile list,
-   baseline/candidate authorities and executable command vectors. Run focused
-   checks and repository/contracts checks; commit source and preparation.
+1. Run final scoped checks and commit source/preparation. Regenerate the recipe
+   manifest with a clean tree, recording exact source and executable/input
+   identities. The script's dirty preparation flag must not be relabeled clean.
 2. Freeze one clean candidate. Build the complete HostTests graph, capture exact
    producer/dependency/input revisions/hashes and run one unfiltered Full with
    zero reuse and before/after guards. No documentation/source/tool mutation

@@ -140,7 +140,7 @@ internal static partial class HttpWorkloadBenchmarkTests
     [HostTest("HTTP benchmark owner rejects failed runner dispositions late guest failures and competing binds")]
     private static void OwnerRunnerFailures() => WithAsset((root, inventory, body) =>
     {
-        foreach (string mode in new[] { "timeout", "output", "unconfirmed", "serial-failure", "bind" })
+        foreach (string mode in new[] { "timeout", "output", "unconfirmed", "failure", "serial-failure", "bind" })
         {
             var host = new BenchmarkHost(root, inventory, "good");
             using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -178,6 +178,7 @@ internal static partial class HttpWorkloadBenchmarkTests
                     "timeout" => result with { TimedOut = true },
                     "output" => result with { OutputLimitExceeded = true },
                     "unconfirmed" => result with { TerminationConfirmed = false },
+                    "failure" => result with { FailureReason = "synthetic-runner-failure" },
                     _ => result
                 };
             }
