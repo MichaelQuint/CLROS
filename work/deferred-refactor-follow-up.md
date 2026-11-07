@@ -3,10 +3,11 @@
 ## Status and scope
 
 This draft preserves existing changes excluded from PR814. Its base is verified
-master `398ad3b895a0a43be384ff0fbddf917b9511fb7f`. Development remains paused.
-Packaging this branch is not resumed implementation, a merge authorization or
-new host/native/guest acceptance. [Step1790](../done/step1790.md) retains the
-release boundary and original failures.
+master `398ad3b895a0a43be384ff0fbddf917b9511fb7f`. The November 6 execution request
+resumes this draft as the [finite HTTP performance phase](http-performance-phase.md),
+with current master incorporated in one new producer checkout. The original
+packaging supplied no new host/native/guest acceptance.
+[Step1790](../done/step1790.md) retains the PR814 release boundary and failures.
 
 The two independent code commits contain:
 
