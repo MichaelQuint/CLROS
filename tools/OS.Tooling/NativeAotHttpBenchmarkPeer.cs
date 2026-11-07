@@ -186,7 +186,8 @@ public static partial class NativeAotHttpBenchmarkPeer
             using var startup = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
             startup.CancelAfter(TimeSpan.FromSeconds(DiskStaticCapturePolicy.HttpReadinessTimeoutSeconds));
             await NativeAotSocketPeer.WaitForSerialAsync(serial,
-                text => text.Contains("M10_018_LISTENING ", StringComparison.Ordinal), startup.Token);
+                text => browser is null ? IsQuietReady(text) :
+                    text.Contains("M10_018_LISTENING ", StringComparison.Ordinal), startup.Token);
             using (var matrix = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token))
             {
                 matrix.CancelAfter(TimeSpan.FromSeconds(DiskStaticCapturePolicy.HttpMatrixTimeoutSeconds));
@@ -208,6 +209,11 @@ public static partial class NativeAotHttpBenchmarkPeer
             using FileStream input = File.OpenRead(serial);
             Need(input.Length is > 0 and <= DiskStaticCapturePolicy.SerialBytes, "serial_extent");
             using StreamReader reader = new(input, new UTF8Encoding(false, true));
+            if (browser is null)
+            {
+                Need(IsQuietReady(reader.ReadToEnd()), "quiet_readiness_lost");
+                return;
+            }
             for (string? line; (line = reader.ReadLine()) is not null;)
                 Need(!line.StartsWith("TEST_FAIL", StringComparison.Ordinal)
                     && !line.StartsWith("OS_SMOKE_FAIL", StringComparison.Ordinal), "guest_failure");

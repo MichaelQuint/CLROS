@@ -416,3 +416,38 @@ checksum wrong octet. Commit/freeze this three-file host-only correction before
 the renewed full-host/native identity and affected-original gates. Retain all
 twelve passed3bdc originals with their exact source and producer identities;
 only the failed Network original needs a fresh functional replacement.
+
+## Bounded quiet startup correction
+
+Frozen80eff Full6 passes7,837 checks with zero reuse. Thirteen fresh native
+publications retain the same runtime component bytes and their reviewed actual
+layout/stack proofs. The corrected Network original passes with80 TCP packets,
+including its unchanged four-minute TIME-WAIT and joined cleanup. The first
+baseline quiet boot then fails before any HTTP request: the owner waits for
+`M10_018_LISTENING`, but quiet serving deliberately suppresses that trace.
+The original serial contains `CLROS_HTTP_BENCH_READY` followed by Kestrel's
+`Now listening on: http://0.0.0.0:8080`. The240-second startup deadline expires;
+the runner joins, with no matrix report or samples. This is a host readiness
+contract defect, not a measured guest transfer timeout. Preserve the failed
+`quiet-baseline-01-r05` original and `quiet-readiness-pre-repair-r01` copies.
+
+The bounded host correction requires the exact quiet marker and a subsequent
+listener message, rejects guest failure markers and forbidden traces after
+readiness, and repeats that check on the stopped original. Full/browser mode
+keeps its existing predicate. Quiet host mocks now emit the real quiet contract;
+focused controls cover missing, partial, out-of-order and false-prefix markers,
+wrong ports, failure markers and forbidden tracing. No kernel code, timeout,
+WHPX configuration or performance acceptance rule changes. Earlier Full/native
+and guest results keep their actual sources. Renew the changed host qualification
+and affected quiet originals before claiming any matched comparison.
+
+Fresh focused originals pass22 checks with zero reuse and unchanged inputs:
+HTTP benchmark18, including the complete88-response quiet loopback observation,
+and retained-serving4. The affected graph builds with zero warnings/errors;
+repository, source style, contracts and diff checks pass. The final artifact
+reader also follows the existing `requests/benchmark.json` and body-file
+location while keeping `owner.json` at the owner root; prior readers remain
+preserved. Freeze this five-file host-only repair, renew the complete host and
+native identity gates, retain nineteen unaffected functional/Timing originals
+at their recorded sources, and run three new baseline/candidate quiet boot pairs.
+No failed original is reused or relabelled as a successful comparison.
