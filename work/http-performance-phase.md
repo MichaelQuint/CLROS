@@ -199,3 +199,25 @@ No Full, native publication/qualification, guest or
 benchmark has run. Final native review must account for the larger Full/Timing
 DMA arena and18-record evidence backing, plus every legacy layout consumer
 affected by the added layout fields. Retain the existing guest limits.
+
+## Resume command and remaining preparation
+
+All implementation and packet-control work is committed through7776210c.
+The next managed command, in this producer only, refreshes the complete graph
+after the final formatting-only tooling rebuild before further focused tests:
+
+```powershell
+dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1 -p:UseSharedCompilation=false
+```
+
+Then finish the quiet matrix owner and authenticated baseline/candidate launch
+manifests. The exact existing integration point is the final
+`observeQuietServing` argument of `QemuSmoke.RunAsync`; its selected-profile
+branch is in `tools/OS.Tooling/QemuSmoke.cs`. It retains native/source/image
+guards and requires a cancelled, joined runner. The retained two-curl owner
+and strict eight-case first-plus-ten client routes are recorded in the impact
+map; do not rediscover startup/PR ownership or restore an archived checkout.
+Final source freeze, unfiltered Full, actual native review, guest/browser/
+fault controls, matched six-boot measurement, final evidence/docs/tracker and
+qualified PR824 delivery/master verification remain outstanding. The durable
+goal remains active; no permission, expert consultation or next phase is pending.
