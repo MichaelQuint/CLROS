@@ -1,5 +1,14 @@
 # Networking
 
+PR824's [finite performance candidate](../work/http-performance-phase.md) bounds
+scalar send and sendmsg payload copies by available retained send-buffer space
+and descriptor scratch. Scalar admission validates the complete original offer,
+including tails beyond either bound; sendmsg retains complete metadata snapshots
+and vector validation before narrowing payload. Existing descriptor/flag/write
+policy ordering, zero/full/partial outcomes and failed-copy ownership remain.
+Fifty focused socket/large-vector/send-window checks pass. This is a copied-byte
+mechanism result; current native/guest and combined HTTP measurement are pending.
+
 [Step1754](../done/step1754.md) reconstructs four original2,009,369-byte bodies
 without payload retransmission. Data-to-ACK p95 is50-111us, while most observed
 delay lies after the covering ACK and before the next captured payload. Original

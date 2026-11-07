@@ -1,5 +1,13 @@
 # App Model
 
+The PR824 performance candidate copies only the accepted bounded prefix of a
+socket send after validating its original ranges. It retains no user pointer:
+sendmsg first snapshots and validates all vectors, then copies the available
+prefix through descriptor scratch into TCP-owned retention. Invalid tails still
+fault before queue mutation; full/zero/error policy order remains explicit.
+The [phase contract](../work/http-performance-phase.md) requires final native,
+guest/body/browser/cleanup and matched HTTP evidence before release acceptance.
+
 PR812 qualified a finite Minimal API and standalone Blazor read workload served from FAT32. PR814 qualifies the RC3 version of that workload and its shutdown behavior. See [step1672](../done/step1672.md) for the released scope and the [candidate results](../work/rc3-whpx-qualification.md#candidate-results) for the current source.
 
 [Step1787](../done/step1787.md) models Hello exit_group cancelling a newly cloned

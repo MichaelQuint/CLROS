@@ -301,7 +301,7 @@ public static partial class EfiContracts
             ["Boot\\EfiEntry.M03FirstExitAdapter.LinuxSocketLifetime.cs"] = "afd9791359a8e0585fba50c35eedbfd8b3f127fefe8ec6b1d275cd73a9a4f041",
             ["Boot\\EfiEntry.M03FirstExitAdapter.LinuxSocketStorage.cs"] = "f5cbb1bdaa8ad420b26c1337098ccfbcca2054c887656025c2a77b2381b60e13",
             ["Boot\\EfiEntry.M03FirstExitAdapter.LinuxSocketIoCarrier.cs"] = "08b963809ea1f275e11d7f0a165d18852245e0089b99fd84edda9809ccc0e77d",
-            ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxSocketServices.cs"] = "3146ec28457fb0b1102e22be34302af8d842149f2e9354b1dfe9c83566cf309a",
+            ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxSocketServices.cs"] = "9fab1369bcca4608253691e143e1cf9a47cc74167e0c19984459fc8e6fad0f43",
             ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxSocketServices.Endpoint.cs"] = "4e16c59df2a6b12b25d61ef9850db24bf93fd4fab6dcca40030117b895494836",
             ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxSocketServices.State.cs"] = "2c00b478ab725521431d6f7dbd6a39f01716b6321165c4a74562747cf3bfc9ff",
             ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxEpollServices.cs"] = "9fae7a710b8cb119a19c3314be13cd86b5caf193ccf07ce3ad3414886e0a72e2",

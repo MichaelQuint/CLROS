@@ -95,3 +95,24 @@ For a concrete bounded blocker only, consult expert chat
 observed result, minimal evidence/reproduction, ruled-out hypotheses and one
 question. If work must continue later, retain a clean commit and exact next
 command; incomplete work and focused mechanisms are not release acceptance.
+
+## Implementation checkpoint
+
+The preserved refactor's affected graph builds with zero warnings/errors.
+Fresh focused Fast originals pass97 checks: disk descriptor21, writable disk
+descriptor47 and writable disk thread29, all with zero reuse. This finishes
+managed integration only; original native/guest approval does not transfer.
+
+Socket-copy preparation builds with zero warnings/errors and passes50 fresh
+focused checks: socket23 (including four new copied-byte/fault controls), large
+message7 and TCP send-window20, zero reuse. The8192-byte scalar/fragmented offers
+copy1460 payload bytes with1460 free, preserving the original invalid-tail
+checks, full/zero/error policy and failure atomicity. Two first-run controls
+failed at socket admission because their newly constructed test transports
+omitted required close configuration; reusing the configured helper fixes that
+fixture setup. The original failed r01 and successful r02 remain under
+`artifacts/performance-r01/socket-copy-*`. No guest speedup is claimed.
+
+Next: explicit readonly DMA layout/ownership and filesystem batching, scoped
+clock sampling, then bounded congestion-controlled flight and final consumer
+recipes. No Full, native publication/qualification, guest or benchmark has run.
