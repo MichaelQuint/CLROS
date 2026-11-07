@@ -241,3 +241,35 @@ Final source freeze, unfiltered Full, actual native review, guest/browser/
 fault controls, matched six-boot measurement, final evidence/docs/tracker and
 qualified PR824 delivery/master verification remain outstanding. The durable
 goal remains active; no permission, expert consultation or next phase is pending.
+
+## November7 qualification and bounded consumer repair
+
+Runtime candidate `cdab7536d825b82570b465d302be86cf02a08681` completed
+one fresh unfiltered Full:7833 checks,999 groups, zero reuse, unchanged
+inputs. Thirteen actual native publications and current emitted stack,
+layout and ownership reviews are retained in
+`artifacts/performance-r01/native-admissions-r01`; eleven admit their
+prepared originals. Ordinary and writable-layout reviews grant no new
+functional guest acceptance.
+
+The first DiskA1 original completed HTTP, browser observations and natural
+guest teardown, but its original consumer failed
+`disk_static_measured_layout`: the stale Full expectation was91 pages;
+the separately compiled layout and live allocation both use93 pages after
+the three-page continuing-read DMA change. Legacy remains90. Correct only
+that exact consumer expectation and reject90/91/92/94 for Full. Preserve
+the failed original, its producer and all inputs. The repaired consumer's
+focused fixture passed8 checks with zero reuse. A separate copied-value
+diagnostic replay passed protocol, device bytes/counters, parent/lifetime,
+full HTTP/packet and49 browser exchange joins; it cannot rescue the failed
+original or grant fresh guest acceptance.
+
+The preparation script now uses admitted flat EFI paths and retains mandatory
+real EFI builds. An execution owner must compare the freshly rebuilt native
+tuple and source closure to the exact reviewed publication before image
+creation or VM activation. Earlier invalid recipes and failed attempts remain
+preserved. Freeze the repaired tooling/tests/recipes, rerun the invalidated
+Full gate, verify current native identities/reviews and rerun the affected
+original with fresh outputs. The remaining guest matrix, matched six quiet
+boots and release reconciliation remain outstanding. No timer, correctness
+guard, resource bound or guest limit changed.

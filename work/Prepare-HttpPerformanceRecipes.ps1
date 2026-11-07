@@ -32,15 +32,38 @@ $selected = @('ancestor-socket-sync','ancestor-socket-async','ancestor-epoll-sto
 $jobs = [Collections.Generic.List[object]]::new()
 function Add-Job([string]$name, [string[]]$arguments, [string]$scope) {
     $directory = Join-Path $output $name
-    $efi = Join-Path $directory 'BOOTX64.EFI'
+    $profile = switch -Wildcard ($name) {
+        'ancestor-socket-sync' {'sockets'}
+        'ancestor-socket-async' {'epoll'}
+        'ancestor-epoll-stolen' {'epoll'}
+        'ancestor-vectors' {'vectors'}
+        'smoke' {'web'}
+        'ancestor-service-v1' {'service'}
+        'quota*' {'service'}
+        'positive-v2' {'service'}
+        'Disk*' {'full'}
+        'TruncatedA' {'full'}
+        'Timing' {'timing'}
+        'QuietCandidate*' {'quiet'}
+        'M16-*' {'disk'}
+        'LegacyBlock' {'legacy-block'}
+        'Network' {'network'}
+        default {throw "unmapped native profile $name"}
+    }
+    # EfiOutputPlan admits direct children of artifacts/efi only. Per-run
+    # captures remain fresh under the recipe directory; native tuples are
+    # separately archived and reviewed before each original build/image join.
+    $efi = Join-Path $producer ('artifacts/efi/performance-r01-'+$profile+'.EFI')
     $actual = [Collections.Generic.List[string]]::new()
     foreach ($value in $arguments) { $actual.Add($value) }
+    if (@($actual | Where-Object { $_.TrimStart('-') -in @('SkipImageBuild','M01RawObservationLog') }).Count -ne 0) { throw "original build/capture required $name" }
+    if (@($actual | Where-Object { $_.TrimStart('-') -ieq 'BuildEfi' }).Count -eq 0) { $actual.Add('-BuildEfi') }
     foreach ($pair in @(@('EfiArtifact',$efi),@('Image',(Join-Path $directory 'disk.raw')),@('SerialLog',(Join-Path $directory 'serial.log')),@('SummaryLog',(Join-Path $directory 'summary.log')))) {
         $at = -1
         for ($i=0; $i -lt $actual.Count; $i++) { if ($actual[$i].TrimStart('-') -ieq $pair[0]) { $at=$i; break } }
         if ($at -ge 0) { $actual[$at+1]=$pair[1] } else { $actual.Add('-'+$pair[0]); $actual.Add($pair[1]) }
     }
-    $jobs.Add([pscustomobject]@{ Name=$name; Scope=$scope; ExpectedExit=0; Arguments=$actual.ToArray(); EfiArtifact=$efi })
+    $jobs.Add([pscustomobject]@{ Name=$name; NativeProfile=$profile; Scope=$scope; ExpectedExit=0; Arguments=$actual.ToArray(); EfiArtifact=$efi; ReviewedNativeTupleJoinBeforeImageAndGuest=$true })
 }
 foreach ($name in $selected) {
     $row = @($template.jobs | Where-Object { $_.name -eq $name })
@@ -100,7 +123,7 @@ $profiles = @(
 foreach ($profile in $profiles) {
     & dotnet $tool efi source-inputs @($profile.Flags) > (Join-Path $output ($profile.Name+'.sources.json'))
     if ($LASTEXITCODE -ne 0) { throw "source selection failed $($profile.Name)" }
-    $profile.NativeArguments = @('efi','build','-EfiOutputPath',(Join-Path $output ('native/'+$profile.Name+'/BOOTX64.EFI'))) + @($profile.Flags | ForEach-Object {'-'+$_})
+    $profile.NativeArguments = @('efi','build','-EfiOutputPath',(Join-Path $producer ('artifacts/efi/performance-r01-'+$profile.Name+'.EFI'))) + @($profile.Flags | ForEach-Object {'-'+$_})
 }
 $manifest = [ordered]@{
     Schema='clros-http-performance-recipes-v1'; PreparationHead=(& git rev-parse HEAD); Dirty=@(& git status --porcelain).Count -ne 0
