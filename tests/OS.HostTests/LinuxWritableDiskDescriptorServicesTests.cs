@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using static LogUploadFixtureDecoder;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Pal;
 using OS.Storage;
@@ -1288,43 +1289,10 @@ internal static unsafe partial class LinuxWritableDiskDescriptorServicesTests
         Console.WriteLine($"LOG_UPLOAD_GLOBAL_HOST frames=40 storageCalls={storageCalls} positionedWrites={writes} explicitFlushes={barriers} logBytes={log.Length} uploadBytes={upload.Length} submitted={f.Storage.Device.State->Submitted} completed={f.Storage.Device.State->Completed} writeBytes={f.Storage.Device.State->SubmittedBytes} flushAcknowledgedBytes={f.Storage.Device.State->DurableBytes}");
     }
 
-    private static ReadOnlySpan<byte> ElfRange(byte[] elf, ulong address, ulong bytes)
-    {
-        const ulong image = OS.Tooling.LinuxWritableDiskProofFixture.ImageBase;
-        HostCheck.True(address >= image && bytes <= (ulong)elf.Length && address - image <= (ulong)elf.Length - bytes);
-        return elf.AsSpan((int)(address - image), (int)bytes);
-    }
-
     private static Span<byte> UserRange(Owner f, ulong address, uint bytes)
     {
         HostCheck.True(bytes > 0 && address >= User + 4096 && bytes <= LinuxThreadServicesTests.UserBytes && address - User <= LinuxThreadServicesTests.UserBytes - bytes);
         return new Span<byte>(f.Thread.At(address), (int)bytes);
-    }
-
-    private static ulong[] DecodeLogUploadFrame(byte[] elf, OS.Tooling.LinuxWritableDiskProofFixture.CallSpec spec)
-    {
-        HostCheck.True(spec.ReturnRip >= OS.Tooling.LinuxWritableDiskProofFixture.ImageBase + 40);
-        ReadOnlySpan<byte> code = ElfRange(elf, spec.ReturnRip - 40, 40);
-        ulong[] actual = new ulong[7];
-        int cursor = 0;
-        byte[] registers = [0xb8, 0xbf, 0xbe, 0xba, 0xba, 0xb8, 0xb9];
-        for (int i = 0; i < actual.Length; i++)
-        {
-            if (i >= 4)
-                HostCheck.Equal((byte)0x41, code[cursor++]);
-            HostCheck.Equal(registers[i], code[cursor++]);
-            actual[i] = BinaryPrimitives.ReadUInt32LittleEndian(code[cursor..]);
-            cursor += 4;
-        }
-
-        HostCheck.True(cursor == 38 && code[cursor] == 0x0f && code[cursor + 1] == 0x05 && actual.SequenceEqual(new[] { spec.Number, spec.A0, spec.A1, spec.A2, spec.A3, spec.A4, spec.A5 }));
-        if (spec.Number != 231)
-        {
-            ReadOnlySpan<byte> check = ElfRange(elf, spec.ReturnRip, 12);
-            HostCheck.True(check[0] == 0x48 && check[1] == 0x3d && BinaryPrimitives.ReadInt32LittleEndian(check[2..]) == spec.Result && check[6] == 0x0f && check[7] == 0x85 && (long)(spec.ReturnRip + 12) + BinaryPrimitives.ReadInt32LittleEndian(check[8..]) == (long)OS.Tooling.LinuxWritableDiskProofFixture.ImageBase + OS.Tooling.LinuxWritableDiskProofFixture.FailureOffset);
-        }
-
-        return actual;
     }
 
     [HostTest("writable x64 single iovec grows a hole from independently verified free FAT entries and preserves copied input and independent cursors")]
