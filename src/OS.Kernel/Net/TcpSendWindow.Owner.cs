@@ -30,6 +30,16 @@ public static unsafe partial class TcpSendWindow
         internal TcpConnectionCloseState CloseStateValue;
         internal ulong CloseLimit, CloseDeadline, TimeWaitDuration, TimeWaitDeadline;
         internal byte Phase, TimeoutError;
+        internal fixed ushort FlightLengths[8];
+        internal uint CongestionWindow, SlowStartThreshold, CongestionCredit;
+        internal uint FlightAmbiguousEnd;
+        internal ulong LastDataTransmit;
+        internal byte FlightEnabled, FlightHead, FlightCount, FlightDuplicates, FastPending, FastRecovery, FlightAmbiguous, FlightHasSent;
+        /// <summary>Configured flight metadata and congestion observations;
+        /// these values grant no transmission, timestamp or buffer authority.</summary>
+        public readonly uint CongestionWindowBytes => CongestionWindow;
+        public readonly uint SlowStartThresholdBytes => SlowStartThreshold;
+        public readonly byte OutstandingSegments => FlightCount;
         public readonly bool Active => Phase == 1;
         public readonly bool RequiresCleanup => Phase == 2;
         /// <summary>Actual retry or configured deadline exhaustion. The owner

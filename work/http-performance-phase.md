@@ -140,7 +140,32 @@ idle-failure test now checks that precise contract before unchanged fail/cleanup
 assertions. Original failed network r01 and successful r02 remain in
 `artifacts/performance-r01/clock-*`. HPET validation/source is unchanged.
 
-Next: bounded congestion-controlled flight and final consumer recipes/impact map.
+Bounded flight now retains eight segment lengths in the TCP owner, preserving
+the existing payload buffers. Explicit Full/Timing selection enables the mode;
+legacy callers remain single-flight. New-data service is bounded to eight
+accepted frames per network pump, including new persist octets, with
+round-robin extra passes after every connection's retry/ACK/close turn. Host
+controls cover congestion avoidance and ACK division, timeout/backoff, exact
+suffix retransmission, three-duplicate fast recovery, backpressure, cumulative/
+partial/stale/future ACKs, wrap, zero windows, FIN/abort/scrub, ring compaction,
+idle restart at clock zero, and clean RTT sampling after the retransmission
+horizon during a continuous stream. Native rings use embedded metadata, not
+stack or separately allocated arrays.
+
+The affected graph builds with zero warnings/errors. The final focused r03
+batch passes151 checks with zero reuse: bounded TCP13, network46, legacy send23,
+retransmission16, termination18, sockets23, large-message7 and source admission5.
+The earlier r01 network and r02 socket failures identified respectively the
+exact project-shape pin and the profile-specific compile-inventory selector
+missing the newly reviewed Flight part. Those admission checks were preserved
+and the exact inventories/pins updated; no runtime assertion was relaxed.
+`flight-project-shape-r02.json` proves that removing only the new Compile line
+reproduces both prior project hashes. The earlier DOM-removal diagnostic is
+retained but is not the pin authority. All originals remain under
+`artifacts/performance-r01/flight-*`.
+
+Next: final packet-control consumers, native/guest recipes and impact map.
+Do not freeze or begin expensive qualification until those preparations pass.
 No Full, native publication/qualification, guest or
 benchmark has run. Final native review must account for the larger Full/Timing
 DMA arena and18-record evidence backing, plus every legacy layout consumer

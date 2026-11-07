@@ -6,8 +6,9 @@ namespace OS.Net;
 /// aliased result outputs are supported. Queue copies application bytes; Pump
 /// advances SND.NXT only after copied TX admission; Acknowledge frees bytes only
 /// after original frame/sequence/ACK validation. Optional timed operation keeps
-/// one segment in flight and borrows a caller-supplied monotonic clock. No NIC,
-/// socket, congestion-window growth or fast retransmit is supplied. Timed pumps
+/// one segment in flight by default; explicit bounded flight retains an owned
+/// eight-segment congestion-controlled ring. It borrows a supplied monotonic clock. No NIC
+/// or socket is supplied. Timed pumps
 /// include separately backed-off zero-window probes without a retry-count timeout.
 /// </summary>
 
@@ -52,7 +53,8 @@ public static unsafe partial class TcpSendWindow
     }
 
     /// <summary>Enable the bounded timed path before any transmission. One
-    /// segment may be outstanding; callers must use PumpRetransmission as well
+    /// segment is outstanding by default; explicit ConfigureBoundedFlight adds
+    /// the owned eight-segment congestion window. Use PumpRetransmission as well
     /// as Pump and Acknowledge. The trusted supplied clock/context must remain
     /// valid through closed cleanup and never reenter. Initial RTO is at least
     /// one second, its cap at least sixty seconds, retries1..16, and the fixed
@@ -61,8 +63,8 @@ public static unsafe partial class TcpSendWindow
     /// budget to its enclosing owner; retry and configured close limits remain.
     /// Zero-window persist uses a separate bounded exponential timer; a closed
     /// peer window alone never exhausts the retransmission count. Invalid
-    /// configuration changes nothing. This is a serialized passive transport,
-    /// without general congestion control or fast recovery.</summary>
+    /// configuration changes nothing. This is a serialized passive transport;
+    /// congestion control and fast recovery require explicit bounded flight.</summary>
 
     public static Status ConfigureRetransmission(Owner* owner, void* clockContext, delegate*<void*, ulong> nowNanoseconds, ulong lifetimeNanoseconds, ulong initialRtoNanoseconds = 1_000_000_000, ulong maximumRtoNanoseconds = 60_000_000_000, byte maximumRetransmissions = 5, bool continuing = false)
     {
@@ -134,7 +136,8 @@ public static unsafe partial class TcpSendWindow
     /// <summary>Attempt one new segment, bounded by queued bytes, MTU, actual
     /// peer MSS, latest advertised right edge and output capacity. Only Send=1
     /// commits SND.NXT/in-flight progress. Full output/TX retains queued state.
-    /// Timed operation permits one outstanding segment; retry pumping is separate.</summary>
+    /// Legacy timing permits one outstanding segment; configured bounded flight
+    /// also applies cwnd and the eight-entry ring. Retry pumping is separate.</summary>
 
     public static Status Pump(Owner* owner, Span<byte> output, out TcpEstablishedStreamIpv4FramePlanResult packet)
     {
@@ -145,7 +148,7 @@ public static unsafe partial class TcpSendWindow
         status = Time(owner, out ulong now);
         if (status != Status.Success)
             return status;
-        if (owner->FinPending != 0 || owner->Timed != 0 && owner->Sent != 0)
+        if (owner->FinPending != 0 || owner->Timed != 0 && owner->FlightEnabled == 0 && owner->Sent != 0)
             return Status.AwaitingAck;
         int count = owner->Count - owner->Sent;
         if (count == 0)
@@ -154,6 +157,16 @@ public static unsafe partial class TcpSendWindow
         int window = unchecked((int)(right - owner->Next));
         if (window <= 0)
             return Status.WindowClosed;
+        bool restart = owner->FlightEnabled != 0 && owner->Sent == 0 && owner->FlightHasSent != 0 && now - owner->LastDataTransmit >= owner->Rto;
+        uint congestion = restart && owner->CongestionWindow > FlightMss(owner) ? FlightMss(owner) : owner->CongestionWindow;
+        if (owner->FlightEnabled != 0)
+        {
+            if (owner->FlightCount == MaximumOutstandingSegments || owner->FastPending != 0 || owner->Sent != 0 && now >= owner->RetryAt || (uint)owner->Sent >= congestion)
+                return Status.AwaitingAck;
+            uint available = congestion - (uint)owner->Sent;
+            if (count > available)
+                count = (int)available;
+        }
         if (output.Length <= TcpEstablishedStreamIpv4FramePlanner.HeaderBytes)
             return Status.OutputTooSmall;
         if (count > window)
@@ -184,6 +197,16 @@ public static unsafe partial class TcpSendWindow
             return Status.SendFailed;
         }
 
+        bool first = owner->Sent == 0;
+        if (owner->FlightEnabled != 0)
+        {
+            if (restart)
+            {
+                owner->CongestionWindow = congestion;
+                owner->CongestionCredit = 0;
+            }
+            FlightAppend(owner, count);
+        }
         owner->Sent += count;
         owner->Next = stream.LocalNextSequenceNumber;
         Commit(owner, entry);
@@ -194,11 +217,22 @@ public static unsafe partial class TcpSendWindow
             status = Time(owner, out now);
             if (status != Status.Success)
                 return status;
-            owner->RetryAt = Deadline(now, owner->Rto);
-            owner->RetryCount = 0;
-            owner->SampleAt = now;
-            owner->SampleEnd = owner->Next;
-            owner->Sampling = 1;
+            if (owner->FlightEnabled == 0 || first)
+            {
+                owner->RetryAt = Deadline(now, owner->Rto);
+                owner->RetryCount = 0;
+            }
+            if (owner->FlightEnabled != 0)
+            {
+                owner->LastDataTransmit = now;
+                owner->FlightHasSent = 1;
+            }
+            if (owner->FlightEnabled == 0 || owner->Sampling == 0 && owner->FlightAmbiguous == 0)
+            {
+                owner->SampleAt = now;
+                owner->SampleEnd = owner->Next;
+                owner->Sampling = 1;
+            }
         }
 
         return Status.Success;
@@ -242,7 +276,8 @@ public static unsafe partial class TcpSendWindow
         owner->PersistDelay = 0;
         if (owner->Sent == 0 && owner->FinPending == 0)
             return Status.NothingToSend;
-        if (now < owner->RetryAt)
+        bool fast = owner->FlightEnabled != 0 && owner->FastPending != 0;
+        if (!fast && now < owner->RetryAt)
             return Status.NotDue;
         if (owner->RetryCount == owner->RetryLimit)
         {
@@ -253,7 +288,7 @@ public static unsafe partial class TcpSendWindow
 
         // Preserve the original segment extent: a shorter retry can make a later
         // combined retry transmit its tail less than one RTO after the last copy.
-        int count = owner->Sent;
+        int count = owner->FlightEnabled != 0 && owner->Sent != 0 ? owner->FlightLengths[owner->FlightHead] : owner->Sent;
         if (output.Length < 54 + count)
             return Status.OutputTooSmall;
         fixed (byte* bytes = output)
@@ -277,12 +312,21 @@ public static unsafe partial class TcpSendWindow
             return Status.SendFailed;
         }
 
-        owner->RetryCount++;
+        if (owner->FlightEnabled != 0 && owner->Sent != 0)
+            FlightRetransmitted(owner, fast);
+        if (!fast)
+            owner->RetryCount++;
         owner->Sampling = 0;
-        owner->Rto = owner->Rto > owner->MaximumRto / 2 ? owner->MaximumRto : owner->Rto * 2;
+        if (!fast)
+            owner->Rto = owner->Rto > owner->MaximumRto / 2 ? owner->MaximumRto : owner->Rto * 2;
         var status = Time(owner, out now);
         if (status != Status.Success)
             return status;
+        if (owner->FlightEnabled != 0 && owner->Sent != 0)
+        {
+            owner->LastDataTransmit = now;
+            owner->FlightHasSent = 1;
+        }
         owner->RetryAt = Deadline(now, owner->Rto);
         return Status.Success;
     }
@@ -327,8 +371,11 @@ public static unsafe partial class TcpSendWindow
             return Status.SendFailed;
         }
 
-        if (count != 0 && owner->Sent == 0)
+        bool first = count != 0 && owner->Sent == 0;
+        if (first)
         {
+            if (owner->FlightEnabled != 0)
+                FlightAppend(owner, 1);
             owner->Sent = 1;
             owner->Next = unchecked(owner->Next + 1);
             Commit(owner, entry);
@@ -342,6 +389,15 @@ public static unsafe partial class TcpSendWindow
         var status = Time(owner, out now);
         if (status != Status.Success)
             return status;
+        if (owner->FlightEnabled != 0 && count != 0)
+        {
+            owner->FlightAmbiguous = 1;
+            owner->FlightAmbiguousEnd = owner->Next;
+            owner->LastDataTransmit = now;
+            owner->FlightHasSent = 1;
+            if (first)
+                owner->RetryAt = Deadline(now, owner->Rto);
+        }
         owner->PersistAt = Deadline(now, owner->PersistDelay);
         return Status.Success;
     }
@@ -414,6 +470,13 @@ public static unsafe partial class TcpSendWindow
         {
             if (!windowChanged && packet.PayloadBytes == 0 && owner->Sent != 0 && owner->DuplicateAcks != ~0UL)
                 owner->DuplicateAcks++;
+            if (owner->FlightEnabled != 0)
+            {
+                if (!windowChanged && packet.PayloadBytes == 0 && !fin && owner->Sent != 0)
+                    FlightDuplicate(owner);
+                else if (windowChanged && owner->FastRecovery == 0)
+                    owner->FastPending = owner->FlightDuplicates = 0;
+            }
             return windowChanged ? Status.WindowUpdated : Status.DuplicateAck;
         }
 
@@ -424,6 +487,8 @@ public static unsafe partial class TcpSendWindow
         owner->Offset += (int)dataAdvance;
         owner->Count -= (int)dataAdvance;
         owner->Sent -= (int)dataAdvance;
+        if (owner->FlightEnabled != 0 && dataAdvance != 0)
+            FlightAcknowledged(owner, dataAdvance);
         if (owner->Count == 0)
             owner->Offset = 0;
         owner->Una = tcp.AcknowledgementNumber;
@@ -432,7 +497,7 @@ public static unsafe partial class TcpSendWindow
             owner->FinPending = 0;
         if (owner->Timed != 0)
         {
-            if (owner->Sampling != 0 && tcp.AcknowledgementNumber == owner->SampleEnd)
+            if (owner->Sampling != 0 && (owner->FlightEnabled == 0 ? tcp.AcknowledgementNumber == owner->SampleEnd : !After(owner->SampleEnd, tcp.AcknowledgementNumber)))
             {
                 Sample(owner, now - owner->SampleAt);
                 owner->Sampling = 0;
@@ -478,6 +543,7 @@ public static unsafe partial class TcpSendWindow
         owner->Offset = 0;
         owner->Count = 0;
         owner->Sent = 0;
+        ClearFlight(owner);
         owner->Phase = 3;
         return Status.Success;
     }
@@ -564,9 +630,9 @@ public static unsafe partial class TcpSendWindow
         }
         else if (TcpReceiveWindow.Validate(receiver, out _, closed || allowFault) != TcpReceiveWindow.Status.Success || receiver->Table != owner->Table || !Same(receiver->Handle, owner->Handle))
             return Status.TableRejected;
-        if (owner->Buffer == null || owner->CapacityValue is < 1 or > 32768 || owner->Offset < 0 || owner->Offset > owner->CapacityValue || owner->Count < 0 || owner->Count > owner->CapacityValue - owner->Offset || owner->Sent < 0 || owner->Sent > owner->Count || unchecked(owner->Next - owner->Una) != (uint)owner->Sent + owner->FinPending || owner->Una != entry.Sequence.LocalAcknowledgedSequenceNumber || owner->Next != entry.Sequence.LocalNextSequenceNumber || owner->PeerMss == 0 || owner->Mtu is < 68 or > 1500 || owner->Send == null || owner->TimeoutError > 1 || owner->TimeoutError != 0 && owner->Phase != 2 || owner->Timed > 1 || owner->Timed != 0 && (owner->Clock == null || owner->MinimumRto < 1_000_000_000 || owner->Rto < owner->MinimumRto || owner->Rto > owner->MaximumRto || owner->RetryLimit is 0 or > 16 || owner->RetryCount > owner->RetryLimit || owner->Sent > owner->PeerMss || owner->Sent > owner->Mtu - 40) || (owner->PersistDelay == 0 ? owner->PersistAt != 0 : owner->Timed == 0 || owner->PersistDelay < owner->MinimumRto || owner->PersistDelay > owner->MaximumRto || owner->PersistAt == 0) || owner->CloseEnabled > 1 || owner->WriteShutdown > 1 || owner->FinPending > 1 || owner->FinPending != 0 && (owner->CloseEnabled == 0 || owner->WriteShutdown == 0 || owner->Sent != 0 || owner->Count != 0 || !closed && owner->CloseStateValue is not (TcpConnectionCloseState.FinWait1 or TcpConnectionCloseState.Closing or TcpConnectionCloseState.LastAck)) || !OutsideReceiver(receiver, (byte*)owner, (ulong)sizeof(Owner)) || !OutsideReceiver(receiver, owner->Buffer, (ulong)owner->CapacityValue) || Overlap((byte*)owner, (ulong)sizeof(Owner), owner->Buffer, (ulong)owner->CapacityValue))
+        if (owner->Buffer == null || owner->CapacityValue is < 1 or > 32768 || owner->Offset < 0 || owner->Offset > owner->CapacityValue || owner->Count < 0 || owner->Count > owner->CapacityValue - owner->Offset || owner->Sent < 0 || owner->Sent > owner->Count || unchecked(owner->Next - owner->Una) != (uint)owner->Sent + owner->FinPending || owner->Una != entry.Sequence.LocalAcknowledgedSequenceNumber || owner->Next != entry.Sequence.LocalNextSequenceNumber || owner->PeerMss == 0 || owner->Mtu is < 68 or > 1500 || owner->Send == null || owner->TimeoutError > 1 || owner->TimeoutError != 0 && owner->Phase != 2 || owner->Timed > 1 || owner->Timed != 0 && (owner->Clock == null || owner->MinimumRto < 1_000_000_000 || owner->Rto < owner->MinimumRto || owner->Rto > owner->MaximumRto || owner->RetryLimit is 0 or > 16 || owner->RetryCount > owner->RetryLimit || owner->FlightEnabled == 0 && (owner->Sent > owner->PeerMss || owner->Sent > owner->Mtu - 40)) || (owner->PersistDelay == 0 ? owner->PersistAt != 0 : owner->Timed == 0 || owner->PersistDelay < owner->MinimumRto || owner->PersistDelay > owner->MaximumRto || owner->PersistAt == 0) || owner->CloseEnabled > 1 || owner->WriteShutdown > 1 || owner->FinPending > 1 || owner->FinPending != 0 && (owner->CloseEnabled == 0 || owner->WriteShutdown == 0 || owner->Sent != 0 || owner->Count != 0 || !closed && owner->CloseStateValue is not (TcpConnectionCloseState.FinWait1 or TcpConnectionCloseState.Closing or TcpConnectionCloseState.LastAck)) || !OutsideReceiver(receiver, (byte*)owner, (ulong)sizeof(Owner)) || !OutsideReceiver(receiver, owner->Buffer, (ulong)owner->CapacityValue) || Overlap((byte*)owner, (ulong)sizeof(Owner), owner->Buffer, (ulong)owner->CapacityValue))
             return Status.InvalidState;
-        return Status.Success;
+        return ValidateFlight(owner) ? Status.Success : Status.InvalidState;
     }
 
     private static bool AcceptableSequence(uint sequence, int bytes, uint next, ushort window)

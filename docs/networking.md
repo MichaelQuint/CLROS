@@ -20,6 +20,35 @@ The normal send pump retains a fresh sample even when idle, preserving the
 shared network owner's independent backwards-clock failure control; only its
 adjacent idle retry/close timer work omits repeated observations.
 
+Explicit bounded flight adds eight embedded segment-length records within each
+retained sender. Sequences derive from SND.UNA and preceding lengths; payload
+remains in the existing32KiB retained buffer. Every admission still validates
+the complete ring. Peer window, cwnd, retained bytes and ring capacity jointly
+bound transmission. Cumulative/partial ACKs release exact prefixes, including
+wrap and compaction; retries transmit only the oldest unacknowledged segment
+suffix. The oldest RTO is not renewed by new data or duplicate ACKs.
+
+The independently written controller follows [RFC5681](https://www.rfc-editor.org/rfc/rfc5681.html)
+and [RFC6298](https://www.rfc-editor.org/rfc/rfc6298.html): conservative one-MSS
+initial/restart window, slow start, byte-counted congestion avoidance, three-
+duplicate fast retransmit, Reno recovery, timeout cwnd reduction/backoff and
+Karn sampling. Original ACK/receive/FIN/persist/ownership controls remain.
+Segment/ring progress commits after copied-frame acceptance. Legacy single
+flight remains the default. Full/Timing serving profiles explicitly select the
+candidate; a network pump submits at most eight new-data frames, counting newly
+sequenced persist octets, with round-robin refill after retry/ACK/close service.
+Existing enclosing polling/time budgets remain. Actual native layout/stack and
+guest loss/window/fairness qualification remain pending.
+
+ProtonOS `src/ddk/Network/Stack/TcpConnection.cs`, pinned
+`c4f6db236c0cf8e979500efecd1d4002b34572c2`, informed only the advertised-right-edge
+comparison (local SHA256
+`D87D0F03F8E121E4C71A5F38AF2896A601C28CC8B85465BA15C2F22A740893C9`).
+Its AGPL implementation is not copied. The retained Nanos snapshot
+`ab823eb4bbcaf0874dc5e15568938bc02346d3d3` supplies clock/queue comparison context;
+its TSC calibration, larger buffers and page cache are not adopted. No native
+reference source or reference-system acceptance enters CLROS.
+
 [Step1754](../done/step1754.md) reconstructs four original2,009,369-byte bodies
 without payload retransmission. Data-to-ACK p95 is50-111us, while most observed
 delay lies after the covering ACK and before the next captured payload. Original

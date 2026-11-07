@@ -40,6 +40,7 @@ public static unsafe partial class LinuxSocketNetwork
         internal uint CompactTimeWait;
         internal fixed ulong TimeWaitEntries[(int)Waits.MaximumEntries * 8];
         internal fixed ulong TimeWaitAcks[(int)Waits.MaximumEntries];
+        internal uint BoundedFlight, NextTransmit;
         public readonly uint CompactTimeWaitConnections => CompactTimeWait == 1 ? (uint)TimeWait.Count : 0;
 
         public readonly uint RetainedConnections
