@@ -16,7 +16,10 @@ public static partial class QemuTranscripts
     /// all joins. No synthetic shortened serial is admitted as a full capture.</summary>
 
     public static ServiceNicAccountingInspection InspectNativeAotServiceQuotaNicForTests(byte[] pcap, WebParentReport parent, ServiceEnvelopeInspection envelope, byte[] raw) => ReadServiceQuotaNic(pcap, parent, envelope, raw);
-    private static ServiceNicAccountingInspection ReadServiceQuotaNic(byte[] pcap, WebParentReport parent, ServiceEnvelopeInspection envelope, byte[] raw)
+    // Host controls isolate the same original-ordinal counter seam. Production
+    // obtains this ordinal only from the complete v3 control/injection proof.
+    internal static ServiceNicAccountingInspection InspectNativeAotServiceStaleAckNicForTests(byte[] pcap, WebParentReport parent, ServiceEnvelopeInspection envelope, byte[] raw, long ignoredStaleAckRecord) => ReadServiceQuotaNic(pcap, parent, envelope, raw, ignoredStaleAckRecord);
+    private static ServiceNicAccountingInspection ReadServiceQuotaNic(byte[] pcap, WebParentReport parent, ServiceEnvelopeInspection envelope, byte[] raw, long ignoredStaleAckRecord = 0)
     {
         if (pcap is null || raw is null)
             throw new ToolFailure("service_quota_nic_input");
@@ -55,6 +58,6 @@ public static partial class QemuTranscripts
         Need(peer["mac"] == parent.Arp.PeerMac && peer["sent"] == 1 && peer["received"] > 0 && peer["start"] == parent.PeerStart && peer["end"] == parent.PeerEnd, "service_quota_nic_parent");
         var wire = ReadRecord(One("M16_011_WIRE "), "M16_011_WIRE", "received:dec", "arp:dec", "accepted:dec", "ignored:dec", "capacity:dec", "arpCopied:dec", "tcpCopied:dec");
         Need(wire["received"] == envelope.Received && wire["arp"] == envelope.Arp && wire["accepted"] == envelope.Accepted && wire["ignored"] == envelope.Ignored && wire["capacity"] == envelope.Capacity && wire["arpCopied"] == envelope.ArpCopied && wire["tcpCopied"] == envelope.TcpCopied, "service_quota_nic_wire");
-        return ReadServiceWireTotals(pcap, parent, envelope, raw, out _);
+        return ReadServiceWireTotals(pcap, parent, envelope, raw, out _, ignoredStaleAckRecord);
     }
 }

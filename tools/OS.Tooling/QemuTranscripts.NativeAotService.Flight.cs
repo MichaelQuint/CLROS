@@ -7,7 +7,7 @@ public static partial class QemuTranscripts
     // The caller has already joined every original PCAP row, checksum and
     // literal injection in order. Recompute the flight proof from those rows,
     // not the driver's completion flag or a filtered/reindexed substitute.
-    private static void ServiceFlightPackets(ServiceControlPacket[] healthy, ServiceControlPacket[] incoming,
+    private static long ServiceFlightPackets(ServiceControlPacket[] healthy, ServiceControlPacket[] incoming,
         ServiceSocketControls.Flight flight, WebFrameControl.ServiceReport frames)
     {
         ServiceControlPacket At(long ordinal)
@@ -59,5 +59,6 @@ public static partial class QemuTranscripts
             partial.Ack == unchecked(start + 16) && stale.Ack == start && partial.Sequence == a.Ack && stale.Sequence == a.Ack &&
             suffix.Sequence == partial.Ack && suffix.Payload.AsSpan().SequenceEqual(a.Payload.AsSpan(16)) &&
             suffix.Microseconds - partial.Microseconds >= 2_000_000 && unchecked(cumulative.Ack - start) >= 64, "service_flight_suffix");
+        return stale.Ordinal;
     }
 }

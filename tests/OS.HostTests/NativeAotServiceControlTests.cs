@@ -11,6 +11,7 @@ internal static class NativeAotServiceControlTests
         var result = Inspect(bytes, JsonSerializer.Serialize(control), JsonSerializer.Serialize(frames));
         HostCheck.True(result.PendingResets == 2 && result.Http.Connections == 3 && result.Http.CompleteCloses == 2 &&
             result.Http.ServerActiveCloses == 2 && result.ControlledRecords == control.Observations.Count && result.Ports.Count == 3);
+        HostCheck.Equal(0L, result.IgnoredStaleAckRecord);
     }
 
     [HostTest("independent service control joins the first reopen ACK when a later identical ACK is forwarded")]

@@ -273,3 +273,39 @@ Full gate, verify current native identities/reviews and rerun the affected
 original with fresh outputs. The remaining guest matrix, matched six quiet
 boots and release reconciliation remain outstanding. No timer, correctness
 guard, resource bound or guest limit changed.
+
+The repaired `45567777` candidate passed a fresh unfiltered Full:7833 checks,
+999 groups, zero reuse, unchanged inputs. Its thirteen fresh native publications
+match all six reviewed binary components per profile. The wide4006-entry source
+receipt changes only the exact host disk consumer;4005 entries remain unchanged.
+All174 referenced native proof files were rehashed before renewing eleven finite
+original admissions. Ordinary/writable reviews still grant no new functional
+guest acceptance.
+
+Fresh DiskA1 then passed169 HTTP/browser responses, Blazor boot, natural
+teardown and endpoint refusal. Socket sync, socket async, epoll stolen-readiness,
+vectors and web smoke also passed at that source. A later preparation stopped
+before VM launch because the mandatory real rebuild regenerated only
+`generatedUtc` in a canonical EFI receipt. Preserve that failed preparation and
+the successful originals. The execution helper now restores authenticated
+sidecars, preserves prior receipts, and records all561 post-original native
+leaves plus every changed byte. The targeted epoll original passed with only
+the timestamped receipt changed. No source or correctness check was weakened.
+
+Service-v1 completed its guest/runner cleanup but its original consumer failed
+`service_packet_nic_join`: the kernel reported24 ignored packets; the aggregate
+verifier counted23. The complete v3 packet proof had already validated the
+deliberately stale ACK. Kernel `Tx.OldAck` correctly returns network `Ignored`,
+but the shared host accounting omitted that exact control record. Carry the
+original one-based ordinal from the complete injection/flight proof; independently
+require a bare older ACK on the same tuple with no receive-sequence progress.
+Keep all aggregate equalities and legacy/default zero-record behavior.
+
+The bounded host-only repair passes25 focused checks with zero reuse. A separate
+copied-value replay identifies original record139 and joins263 received,
+239 accepted and24 ignored, including the existing compact-reuse bound. This
+does not rescue the failed original. Freeze/rebuild the repaired host graph and
+rerun the invalidated unfiltered Full, renew actual native identity joins, and
+run a fresh affected service original before continuing. Retained successful
+originals keep their exact `45567777` source/producers; do not call them new-source
+guest runs. Runtime source and emitted-code identity must remain explicit.

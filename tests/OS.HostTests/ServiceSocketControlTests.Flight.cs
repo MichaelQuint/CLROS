@@ -14,6 +14,12 @@ internal static partial class ServiceSocketControlTests
         var inspected = QemuTranscripts.InspectNativeAotServiceControlsForTests(bytes, fixture.Anchor, fixture.Arp,
             JsonSerializer.Serialize(control), JsonSerializer.Serialize(frames), DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(1));
         HostCheck.True(inspected.BoundedFlight && inspected.Http.Connections == 3 && inspected.Http.CompleteCloses == 2);
+        var forwarded = frames.Injections.Where(row => row.Forwarded).ToArray();
+        int staleIndex = Array.FindIndex(forwarded, row => row.Tag == "flight.stale.ack");
+        string staleHex = forwarded[staleIndex].Hex;
+        var stale = control.Observations.Single(row => row.Hex == staleHex &&
+            row.Ordinal > control.Flight!.Fast && row.Ordinal < control.Flight.Suffix);
+        HostCheck.Equal(stale.Ordinal, inspected.IgnoredStaleAckRecord);
         // Deliberately synthetic timestamps/control I/O: this checks the driver
         // and independent decoder, never an actual guest or native TCP result.
         foreach (var changed in new[]
