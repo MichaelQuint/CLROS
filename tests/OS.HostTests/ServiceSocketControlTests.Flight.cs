@@ -44,6 +44,19 @@ internal static partial class ServiceSocketControlTests
         }
     }
 
+    [HostTest("independent flight capture ignores undefined SYN ACK fields with a high server initial sequence")]
+    private static async Task FlightHighInitialSequence()
+    {
+        var (control, frames, original) = await Exercise("flight-high-isn");
+        var first = control.Observations.Single(row => row.Ordinal == control.Flight!.First);
+        byte[] raw = Convert.FromHexString(first.Hex);
+        HostCheck.True(BinaryPrimitives.ReadUInt32BigEndian(raw.AsSpan(38)) > 0x80000000U);
+        var fixture = NativeAotSocketIntegrationTests.Packets();
+        var inspected = QemuTranscripts.InspectNativeAotServiceControlsForTests(original, fixture.Anchor, fixture.Arp,
+            JsonSerializer.Serialize(control), JsonSerializer.Serialize(frames), DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(1));
+        HostCheck.True(inspected.BoundedFlight && inspected.Http.Connections == 3 && inspected.IgnoredStaleAckRecord > 0);
+    }
+
     [HostTest("service bounded flight control rejects changed original timeout and partial retransmission copies")]
     private static async Task FlightRefusals()
     {
@@ -63,17 +76,23 @@ internal static partial class ServiceSocketControlTests
     }
 
     [HostTest("independent flight capture rejects an early suffix even when the driver timestamp agrees")]
-    private static async Task FlightEarlySuffix()
+    private static Task FlightEarlySuffix() => FlightEarlyRetransmission(suffix: true);
+
+    [HostTest("independent flight capture rejects an early first retry even when the driver timestamp agrees")]
+    private static Task FlightEarlyTimeout() => FlightEarlyRetransmission(suffix: false);
+
+    private static async Task FlightEarlyRetransmission(bool suffix)
     {
         var (control, frames, original) = await Exercise("flight");
         byte[] changed = original.ToArray();
+        long target = suffix ? control.Flight!.Suffix : control.Flight!.Timeout;
         ulong previous = 0, replacement = 0;
         int offset = 24;
         for (long ordinal = 1; offset < changed.Length; ordinal++)
         {
             int length = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(changed.AsSpan(offset + 8)));
             ulong time = (ulong)BinaryPrimitives.ReadUInt32LittleEndian(changed.AsSpan(offset)) * 1_000_000 + BinaryPrimitives.ReadUInt32LittleEndian(changed.AsSpan(offset + 4));
-            if (ordinal == control.Flight!.Suffix)
+            if (ordinal == target)
             {
                 replacement = previous + 1;
                 BinaryPrimitives.WriteUInt32LittleEndian(changed.AsSpan(offset), (uint)(replacement / 1_000_000));
@@ -86,7 +105,7 @@ internal static partial class ServiceSocketControlTests
         HostCheck.True(replacement != 0);
         var copied = control with
         {
-            Observations = control.Observations.Select(row => row.Ordinal == control.Flight!.Suffix ? row with { Microseconds = replacement } : row).ToArray()
+            Observations = control.Observations.Select(row => row.Ordinal == target ? row with { Microseconds = replacement } : row).ToArray()
         };
         var fixture = NativeAotSocketIntegrationTests.Packets();
         string reason = "accepted";
@@ -99,6 +118,6 @@ internal static partial class ServiceSocketControlTests
         {
             reason = error.Reason;
         }
-        HostCheck.Equal("service_flight_suffix", reason);
+        HostCheck.Equal(suffix ? "service_flight_suffix" : "service_flight_timeout", reason);
     }
 }

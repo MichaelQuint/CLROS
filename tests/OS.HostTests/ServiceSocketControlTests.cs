@@ -193,7 +193,8 @@ internal static partial class ServiceSocketControlTests
                     int payloadBytes = BinaryPrimitives.ReadUInt16BigEndian(raw.AsSpan(16)) - 40;
                     if (flags == 2)
                     {
-                        var flow = new Flow(sequence, 10000 + (++syns * 1000), window == 0);
+                        uint server = (mode == "flight-high-isn" ? 0x94000000U : 10000U) + (++syns * 1000);
+                        var flow = new Flow(sequence, server, window == 0);
                         flows.Add(port, flow);
                         Reply(port, flow, flow.Server - 1, 0x12, ack: flow.Client + (mode == "syn-ack" ? 1U : 0U));
                         byte[] reset = ContinuingTcpScenario.Write(new(false, (ushort)port, flow.Client, 0, 4), 0x52550a000202);

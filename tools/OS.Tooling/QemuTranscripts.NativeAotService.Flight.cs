@@ -38,7 +38,7 @@ public static partial class QemuTranscripts
         Need(first.Sequence == unchecked(healthy[1].Sequence + 1) && first.Payload.Length == 32 &&
             timeout.Sequence == first.Sequence && timeout.Payload.AsSpan().SequenceEqual(first.Payload) &&
             timeout.Microseconds - first.Microseconds >= 1_000_000 &&
-            !healthy.Any(packet => !packet.Outgoing && packet.Ordinal < timeout.Ordinal && unchecked(packet.Ack - first.Sequence) is > 0 and < 0x80000000), "service_flight_timeout");
+            !healthy.Any(packet => !packet.Outgoing && (packet.Flags & 0x10) != 0 && packet.Ordinal < timeout.Ordinal && unchecked(packet.Ack - first.Sequence) is > 0 and < 0x80000000), "service_flight_timeout");
         uint start = unchecked(first.Sequence + 32);
         var timeoutAck = Injection("flight.timeout.ack");
         Need(timeoutAck.Ordinal > timeout.Ordinal && timeoutAck.Ordinal < a.Ordinal && timeoutAck.Ack == start &&

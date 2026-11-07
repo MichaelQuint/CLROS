@@ -309,3 +309,35 @@ rerun the invalidated unfiltered Full, renew actual native identity joins, and
 run a fresh affected service original before continuing. Retained successful
 originals keep their exact `45567777` source/producers; do not call them new-source
 guest runs. Runtime source and emitted-code identity must remain explicit.
+
+The `4de9abe1` host repair passed7834 checks across999 groups in a fresh
+unfiltered Full, with zero reuse and unchanged inputs. Independent readback
+rehashes3271 compiler inputs and47 dependency records. All thirteen current
+native publications preserve the six reviewed binary components per profile;
+their4006-entry wide receipt changes only the four exact host consumer files.
+A review-reader attempt incorrectly read per-profile component expectations
+from shared intermediates overwritten by quiet. Its original failure remains;
+the corrected reader hashes each exact authenticated profile archive member,
+retaining202 immutable proof bindings,78 component checks and all prior
+conditions. Full and actual publications were not invalidated by that
+artifact-reader correction.
+
+The next fresh service-v1 original joined its runner and cleaned up, but failed
+`service_flight_timeout`. Its32-byte retry is exact and arrives1,122,717
+microseconds after the first copy. The observer counted the initial SYN's
+undefined ACK field of zero as an advancing ACK when the randomized server
+sequence is in the high half of the sequence space. Require the ACK flag before
+interpreting that field. Keep the exact one-second/two-second wire intervals,
+all sequence/payload/order checks and the45-second control bound unchanged.
+
+The bounded host-only correction builds without warnings/errors and passes27
+focused checks with zero reuse: socket controls9, NIC4, legacy controls4 and
+runner controls10. New controls cover high initial server sequences and early
+first retransmission rejection; the existing early-suffix rejection remains.
+Repository/style and contract checks pass. A copied-value diagnostic of the
+failed original then passes the complete v3 packet and NIC joins: record117,
+262 received,239 accepted,23 ignored and240 TCP copies. This does not rescue the
+failed original. Freeze the corrected host source, rerun invalidated Full and
+current native identity gates, then run a fresh service original and the
+remaining matrix. Runtime implementation remains unchanged since`cdab7536`;
+both failed service originals and every prior producer remain preserved.
