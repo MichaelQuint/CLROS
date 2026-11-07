@@ -1,6 +1,9 @@
 # Documentation Map
 
 For build, evidence and status entry points, see the [documentation index](README.md).
+The [PR824 performance phase](../work/http-performance-phase.md) and its
+[validation preparation](../work/http-performance-validation.md) track the
+separately authorized five-change candidate; qualification remains pending.
 The [PR814 qualification record](../work/rc3-whpx-qualification.md#candidate-results)
 tracks the qualified `2e81ee3a` runtime and the approved incomplete-TCG
 closeout. The later `72784936` optimization and isolated decoder work remain

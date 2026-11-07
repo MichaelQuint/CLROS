@@ -298,7 +298,7 @@ public static partial class EfiContracts
             ["Boot\\EfiEntry.LinuxThreadMemory.cs"] = "63ea051fd8ed52014718f0ee24302d7d1f177b8a378e57988ace91741b07d7b7",
             ["Boot\\EfiEntry.LinuxThreadRun.cs"] = "7360df386d0b257c25ffd9be2a73e90dc7d44e5cc776e7c830ad9bef48de0679",
             ["Boot\\EfiEntry.LinuxThreadTimer.cs"] = "7fba6213c9e632e7b90d237f54923b0c567f0a34f269f452ad0187649dd3c207",
-            ["Boot\\EfiEntry.LinuxSockets.cs"] = "df2e9d176f25e226a34881b8264d88226253c718126722e5d14f69fb3a60ab47",
+            ["Boot\\EfiEntry.LinuxSockets.cs"] = "ab00f25e15764eb16ce9a7c4fab16bbd5adcbdf95a064cbb6f0801108dabc92d",
             ["Boot\\EfiEntry.M03FirstExitAdapter.LinuxSocketLifetime.cs"] = "afd9791359a8e0585fba50c35eedbfd8b3f127fefe8ec6b1d275cd73a9a4f041",
             ["Boot\\EfiEntry.M03FirstExitAdapter.LinuxSocketStorage.cs"] = "f5cbb1bdaa8ad420b26c1337098ccfbcca2054c887656025c2a77b2381b60e13",
             ["Boot\\EfiEntry.M03FirstExitAdapter.LinuxSocketIoCarrier.cs"] = "08b963809ea1f275e11d7f0a165d18852245e0089b99fd84edda9809ccc0e77d",

@@ -13,5 +13,5 @@ public static partial class QemuTranscripts
     /// The view is an internal partition of borrowed bytes, never a replacement
     /// artifact. Process, source, serial and native ownership remain separate.</summary>
 
-    public sealed record ServiceControlInspection(byte[] OrdinaryCapture, IReadOnlyList<int> Ports, ServiceHttpPacketInspection Http, int ControlledRecords, int PendingResets);
+    public sealed record ServiceControlInspection(byte[] OrdinaryCapture, IReadOnlyList<int> Ports, ServiceHttpPacketInspection Http, int ControlledRecords, int PendingResets, bool BoundedFlight = false);
 }

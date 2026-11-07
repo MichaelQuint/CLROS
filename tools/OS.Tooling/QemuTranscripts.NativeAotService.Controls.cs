@@ -56,7 +56,8 @@ public static partial class QemuTranscripts
     {
         var control = ServiceControlJson<ServiceSocketControls.Report>(controlsJson);
         var frames = ServiceControlJson<WebFrameControl.ServiceReport>(framesJson);
-        Need(control.Schema == "clros.nativeaot.service.controls.v2" && control.Persist is not null && control.Healthy is not null && control.Unread is not null && control.Unread.Http is not null && control.Observations is not null && control.Observations.Count is > 20 and <= 512 && frames.Session is not null && frames.ControlledPorts is not null && frames.Injections is not null, "service_control_inputs");
+        bool boundedFlight = control.Schema == "clros.nativeaot.service.controls.v3";
+        Need((boundedFlight ? control.Flight is not null : control.Schema == "clros.nativeaot.service.controls.v2" && control.Flight is null) && control.Persist is not null && control.Healthy is not null && control.Unread is not null && control.Unread.Http is not null && control.Observations is not null && control.Observations.Count is > 20 and <= 512 && frames.Session is not null && frames.ControlledPorts is not null && frames.Injections is not null, "service_control_inputs");
         int[] ports = [control.PendingPort, control.Persist!.Port, control.Healthy!.Port];
         Need(ports.All(port => port is >= 1024 and <= 65535) && ports.Distinct().Count() == 3 && frames.ControlledPorts!.SequenceEqual(ports) && started < ended && control.FirstClientSequence == 0xfffffff0 && control.SecondClientSequence == 0xfffff800, "service_control_selection");
         var session = frames.Session!;
@@ -135,6 +136,8 @@ public static partial class QemuTranscripts
         Need(pending[1].Sequence != pending[4].Sequence, "service_control_pending_isn");
         var persist = packets.Where(packet => packet.Port == control.Persist.Port).ToArray();
         var healthy = packets.Where(packet => packet.Port == control.Healthy.Port).ToArray();
+        if (boundedFlight)
+            ServiceFlightPackets(healthy, incoming, control.Flight!, frames);
         Need(persist.Length > 8 && healthy.Length > 8 && !persist[0].Outgoing && persist[0].Flags == 2 && persist[0].Sequence == 0xffffff00 && !healthy[0].Outgoing && healthy[0].Flags == 2 && healthy[0].Sequence == 0xfffffe00, "service_control_http_syn");
         var firstProbe = persist.SingleOrDefault(packet => packet.Ordinal == control.FirstProbeOrdinal);
         var secondProbe = persist.SingleOrDefault(packet => packet.Ordinal == control.SecondProbeOrdinal);
@@ -193,7 +196,7 @@ public static partial class QemuTranscripts
             RequestBytes = checkedHttp.RequestBytes + ServiceHex(control.Unread!.Http.RequestHex).Length,
             ResponseBytes = checkedHttp.ResponseBytes + ServiceHex(control.Unread!.Http.ResponseHex).Length
         };
-        return new(ordinary.ToArray(), Array.AsReadOnly(ports), checkedHttp, packets.Count, 2);
+        return new(ordinary.ToArray(), Array.AsReadOnly(ports), checkedHttp, packets.Count, 2, boundedFlight);
     }
 
     internal static int InspectServiceRun(string root, QemuSmokeOptions options, QemuSmokePlan plan, ProcessResult runner, TextWriter output, NativeAotServiceProgram program, NativeAotServicePeer.Completion peer, ServiceRunnerContext context)
@@ -227,7 +230,8 @@ public static partial class QemuTranscripts
         ServiceWireTotals(bytes, capture.Parent, capture.Envelope, raw);
         output.WriteLine($"SERVICE_CAPTURE calls={capture.Leaf.Protocol.Calls} clones={capture.Leaf.Protocol.Clones} reaped={capture.Leaf.Protocol.Reaped} connections={connections} pendingResets=2 transfers={capture.Leaf.Transport.Transfers} compactHighWater={capture.Leaf.Transport.CompactHighWater} randomRequests={capture.Leaf.Random.Requests} randomBytes={capture.Leaf.Random.GeneratedBytes} acceptance=pending");
         string counts = options.ServiceLifecycle ? $"ordinary={http.Connections - http.LifecycleConnections} lifecycle={http.LifecycleConnections} clientResets={http.ClientResets} clientFinCancels={http.CompleteCloses - http.ServerActiveCloses}" : $"ordinary={http.Connections}";
-        output.WriteLine($"SERVICE_PACKETS {counts} controlled={controls.ControlledRecords} lostReopen=1 probes=2 activeCloses={activeCloses} processId={process.ProcessId} lifetimeMilliseconds={process.LifetimeMilliseconds} acceptance=pending");
+        Need(controls.BoundedFlight, "service_bounded_flight_required");
+        output.WriteLine($"SERVICE_PACKETS {counts} controlled={controls.ControlledRecords} boundedFlight=true lostReopen=1 probes=2 activeCloses={activeCloses} processId={process.ProcessId} lifetimeMilliseconds={process.LifetimeMilliseconds} acceptance=pending");
         return 0;
     }
 

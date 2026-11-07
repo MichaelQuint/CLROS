@@ -164,7 +164,36 @@ reproduces both prior project hashes. The earlier DOM-removal diagnostic is
 retained but is not the pin authority. All originals remain under
 `artifacts/performance-r01/flight-*`.
 
-Next: final packet-control consumers, native/guest recipes and impact map.
+The service control integration additionally selects bounded flight in
+M16-014. Its v3 driver and independent full-PCAP consumer reuse the original
+three reserved tuples,45-second stimulus budget,512 observed packets and64
+injections. Legacy v2 host fixtures remain available; current production
+inspection requires v3. The healthy32-byte-MSS flow tests initial loss/delayed
+ACK, two unacknowledged segments, raw-peer reassembly reordering, three duplicate
+ACKs, fast retransmit, a16-byte partial ACK, stale ACK and exact suffix RTO.
+Pending resets, unread last-close, lost zero-window reopen and concurrent
+healthy/blocked lifetimes retain their original controls.
+
+The graph builds with zero warnings/errors. Successful r02 selections pass63
+fresh focused checks: driver6, independent controls4, unread owner2, source
+admission5 and network46. After adding the coupled-driver/PCAP early-suffix
+negative, r03 passes23 checks: driver7, runner10, HTTP packet2 and lifecycle
+packet4. Every selection has zero reuse. The initial r01 negative test caught
+IOException, while the correctly rejected corrupt packet throws the existing
+InvalidDataException. It now requires the exact intended rejection message;
+the failed original is retained. Mock I/O and synthetic capture timestamps are
+explicitly host-only. These are distinct executions, not an aggregated Full.
+Repository/style and contracts checks pass after a fresh tooling build. The
+first style original rejected an inline async-lambda block; the correction only
+puts its braces/statements on separate lines. Behavioral focused originals
+retain their pre-format producer identities; the final Full must rebuild all.
+
+The [validation impact map](http-performance-validation.md) records required
+coverage and unresolved owner/quiet-client preparation. All five runtime
+changes and the packet-control integration have focused evidence; final
+validation recipes and authenticated launch manifests are not yet complete.
+Next: finish binding those consumers/recipes to one source and exact retained
+inputs, then freeze. No readiness flag or acceptance has been issued.
 Do not freeze or begin expensive qualification until those preparations pass.
 No Full, native publication/qualification, guest or
 benchmark has run. Final native review must account for the larger Full/Timing

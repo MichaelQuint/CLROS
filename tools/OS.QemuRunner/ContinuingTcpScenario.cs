@@ -40,8 +40,7 @@ public static partial class ContinuingTcpScenario
         {
             tcp[20] = 2;
             tcp[21] = 4;
-            tcp[22] = 0;
-            tcp[23] = 4;
+            BinaryPrimitives.WriteUInt16BigEndian(tcp[22..], packet.MaximumSegmentSize);
         }
 
         Encoding.ASCII.GetBytes(packet.Payload, tcp[(packet.Mss ? 24 : 20)..]);

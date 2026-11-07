@@ -9,5 +9,5 @@ namespace OS.Tools.QemuRunner;
 
 public sealed partial class ServiceSocketControls
 {
-    public sealed record Report(string Schema, int PendingPort, uint FirstClientSequence, uint SecondClientSequence, long FirstSynAckOrdinal, long SecondSynAckOrdinal, long FirstProbeOrdinal, long SecondProbeOrdinal, HttpExchange Persist, HttpExchange Healthy, UnreadClose Unread, IReadOnlyList<PacketObservation> Observations);
+    public sealed record Report(string Schema, int PendingPort, uint FirstClientSequence, uint SecondClientSequence, long FirstSynAckOrdinal, long SecondSynAckOrdinal, long FirstProbeOrdinal, long SecondProbeOrdinal, HttpExchange Persist, HttpExchange Healthy, UnreadClose Unread, IReadOnlyList<PacketObservation> Observations, Flight? Flight = null);
 }

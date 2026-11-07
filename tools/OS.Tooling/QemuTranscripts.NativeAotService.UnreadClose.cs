@@ -113,7 +113,7 @@ public static partial class QemuTranscripts
             rows.Sum(row => (long)row.Length + 2) <= 128L * 1024 * 1024,
             "service_unread_owner_input");
         var control = ServiceControlJson<ServiceSocketControls.Report>(controlsJson);
-        Need(control.Schema == "clros.nativeaot.service.controls.v2" && control.Unread is not null && control.Unread.Http is not null, "service_unread_owner_report");
+        Need((control.Schema == "clros.nativeaot.service.controls.v2" && control.Flight is null || control.Schema == "clros.nativeaot.service.controls.v3" && control.Flight is not null) && control.Unread is not null && control.Unread.Http is not null, "service_unread_owner_report");
         var unread = control.Unread!;
         var close = ServiceUnreadCloseRow(unread.CloseRow);
         int[] literal = Enumerable.Range(0, rows!.Length).Where(at => rows[at] == unread.CloseRow).ToArray();

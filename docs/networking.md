@@ -34,11 +34,23 @@ initial/restart window, slow start, byte-counted congestion avoidance, three-
 duplicate fast retransmit, Reno recovery, timeout cwnd reduction/backoff and
 Karn sampling. Original ACK/receive/FIN/persist/ownership controls remain.
 Segment/ring progress commits after copied-frame acceptance. Legacy single
-flight remains the default. Full/Timing serving profiles explicitly select the
+flight remains the default. Continuing service and Full/Timing profiles select the
 candidate; a network pump submits at most eight new-data frames, counting newly
 sequenced persist octets, with round-robin refill after retry/ACK/close service.
 Existing enclosing polling/time budgets remain. Actual native layout/stack and
 guest loss/window/fairness qualification remain pending.
+
+The service runner selects controls.v3 while legacy host contract fixtures retain
+controls.v2. Its existing three reserved tuples and45-second control budget
+exercise pending resets, unread last-close, two zero-window probes with a lost
+reopen and a concurrent healthy response. The healthy flow advertises32-byte
+MSS, withholds the first ACK through an RTO copy, requires two outstanding
+segments, delivers the later segment to bounded host reassembly first, sends
+three duplicate ACKs, checks fast retransmission, then partially ACKs16 bytes
+and sends a stale ACK before checking the exact remaining suffix after RTO.
+Complete original PCAP and the existing64-injection ledger independently verify
+those transitions and exact HTTP/FIN bytes. A copied report or mock control run
+does not supply native/guest acceptance. Guest execution remains pending.
 
 ProtonOS `src/ddk/Network/Stack/TcpConnection.cs`, pinned
 `c4f6db236c0cf8e979500efecd1d4002b34572c2`, informed only the advertised-right-edge
