@@ -4,25 +4,45 @@
 
 <h1 align="center">CLROS</h1>
 
-CLROS serves the pinned NativeAOT Minimal API and actual Standalone Blazor WebAssembly client from read-only FAT32. Three healthy A/B/A boots across two disk variants, the typed corrupt-file control and three M16 lifecycle originals pass their recorded checks. PR812's recorded unfiltered full-host run passes 7,464 checks with zero reuse; see [Step1672](done/step1672.md) for exact source profiles, evidence and preserved failures. Writes, persistent logs/uploads, SQLite and [#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified and paused.
+CLROS is a small operating system written in C#, built to host one supported
+application. Think of it as a computer dedicated to running a web service:
+the OS supplies memory, disk access and networking, and the application answers
+requests from a browser.
 
-The goal is a **small, fully functioning OS that continuously hosts supported
-applications**. The first integrated workload combines a NativeAOT Minimal API,
-a Blazor Static WebAssembly frontend calling its API endpoints, and persistent
-SQLite data through `Microsoft.Data.Sqlite`, including restart and recovery.
-Finite guest tests verify progress toward that system; they are not the final
-service model. The planned public GitHub update and live cloud demo app will
-showcase the working OS after the corresponding capabilities are qualified.
+**CLROS can already serve a real .NET web application and its browser frontend
+from disk in the tested, time-limited scenarios.** The application uses
+**NativeAOT**: .NET code is compiled into machine code before it starts.
+**Kestrel**, the ASP.NET Core web server, handles the HTTP requests.
+The **Standalone Blazor WebAssembly** frontend is the part downloaded to and run
+by the browser. Its files come from read-only **FAT32**, the filesystem that
+organizes files and folders on the test disk.
 
-**The pinned Hello and bounded .NET runtime workloads already run inside CLROS.
-Real Kestrel also serves external HTTP in qualified finite guest profiles.**
-The complete local single-app Gate 14 remains open; CLROS is not cloud-ready or
-production-ready.
+[PR814](http://192.168.4.35:3000/admin/CLROS/pulls/814) is merged into master at
+`398ad3b8`. It brings the reviewed refactor, toolchain updates and file-serving
+repairs together with their recorded validation. The earlier
+[PR812 read milestone](done/step1672.md) established the finite disk-backed web
+scenarios. The [PR814 closeout](done/step1790.md) records what the later release
+qualifies and what remains unfinished.
 
-## Accepted baseline on October 23, 2026
+**The goal is continuous service, persistent uploads/logs and SQLite data that
+survives a restart. Those capabilities are not yet qualified.** The intended
+integrated app combines the Minimal API backend, Blazor frontend and SQLite
+through `Microsoft.Data.Sqlite`, including recovery after restart. The current
+tests deliberately end; they do not prove an indefinitely running service.
+Writes, persistent logs/uploads, SQLite and
+[#775](http://192.168.4.35:3000/admin/CLROS/issues/775) remain unqualified, and
+development is paused. The complete local single-app Gate 14 remains open;
+CLROS is not cloud-ready or production-ready. A public GitHub update and live
+cloud demo are planned after the corresponding capabilities are qualified.
+
+For the measured speed and the remaining gap to Alpine Linux, expand
+**Development progress, performance and retained evidence** below. It explains
+the latest results in seconds and milliseconds, separately from earlier tests.
+
+## Historical accepted baseline: October 23, 2026
 
 [PR #790](http://192.168.4.35:3000/admin/CLROS/pulls/790) is merged to master at
-`82656076`. The live tracker confirms #748, #225 and the finite #737 integration
+`82656076`. The recorded tracker review confirmed #748, #225 and the finite #737 integration
 closed, following the fourteen predecessor closures reviewed in
 [step1481](done/step1481.md).
 
@@ -53,6 +73,13 @@ Historical .NET 10 receipts retain their original toolchains; the pinned .NET 11
 migration is recorded in [step1225](done/step1225.md).
 
 ## NativeAOT-first architecture
+
+In plain English, the application brings its compiled .NET runtime with it.
+When it asks to read a file, allocate memory or send data, CLROS handles the
+supported operating-system requests. This lets CLROS reuse the upstream .NET
+runtime while keeping its own kernel small. It does not mean every Linux or
+.NET application can run unchanged; compatibility is limited to the behaviors
+implemented and tested here.
 
 The selected route uses the existing **`linux-musl-x64`** target and a controlled
 static publish recipe. CLROS implements the required Linux x64 application
@@ -94,27 +121,173 @@ not additional capabilities claimed by this documentation update.
 ## Current implementation batch
 
 <details>
-<summary>Development progress and retained evidence</summary>
+<summary>Development progress, performance and retained evidence</summary>
 
 <!-- Keep development updates here, below the project introduction. -->
 
-**PR814 qualification.** Frozen candidate `2e81ee3a` passed the 7,789-check
-Full host suite with unchanged inputs and zero reuse. It includes the scoped
-Windows/WHPX compatibility repair in [step1788](done/step1788.md). All 29 compiler
-guest contexts and all 24 ancestor/quota contexts passed their expected outcome
-and independent review, with sealed evidence on the same candidate. All seven
-disk/lifecycle cases are accepted: healthy A1/B/A2, Truncated and the three finite
-synthetic lifecycle cases. The four Full018 runs each completed 120 HTTP and
-49 browser responses with guest cleanup; A2 restores A1's image and response
-bodies. Three matched WHPX boots per system retain completed HTTP observations:
-the per-boot warm medians for the 2,009,369-byte asset are 7.147–7.166 seconds
-for CLROS and 40.164–41.810 milliseconds for Alpine. CLROS TCG remains
-incomplete under the unchanged 30-minute guest limit, as explicitly accepted
-for phase closeout by the human. Failed browser and TCG originals remain failed.
-The later `72784936` optimization and isolated decoder extraction are preserved
-outside this release. See the [qualification record](work/rc3-whpx-qualification.md#approved-closeout-scope)
-for the release boundary, evidence and required clean stop.
-The [closeout record](done/step1790.md) binds the final review and tracker scope.
+### PR814 release and current stopping point
+
+PR814 is merged. Its qualified runtime source, `2e81ee3a`, passed the
+**7,789-check Full host suite** with unchanged inputs and zero reuse. It includes
+the scoped Windows compatibility repair in [Step1788](done/step1788.md).
+All 29 compiler guest contexts and all 24 ancestor/quota contexts passed their
+expected outcomes and independent review on that source.
+
+All seven disk/lifecycle cases are accepted within their recorded scope:
+healthy A1/B/A2, Truncated and three finite synthetic lifecycle cases. A1/B/A2
+means boot disk A, boot a different disk B, then boot A again to check that
+the results return to A's original state. Truncated deliberately damages a
+file to check the expected failure behavior. The four Full018 runs each
+completed 120 HTTP and 49 browser responses with guest cleanup; A2 restores
+A1's image and response bodies.
+
+The later `72784936` optimization and isolated decoder extraction remain
+outside this release. Development stays paused. The
+[qualification record](work/rc3-whpx-qualification.md#approved-closeout-scope)
+and [closeout record](done/step1790.md) define the release boundary, retained
+failures and unfinished work.
+
+### Latest file-serving performance: CLROS versus Alpine
+
+**CLROS takes about seven seconds to deliver the complete test file. Alpine
+takes about four hundredths of a second in the same hardware-accelerated
+comparison.** CLROS is much faster than its earlier timer/cache baseline,
+but there is still a large gap to Alpine.
+
+These are the latest completed measurements retained for PR814, documented at
+the November 6, 2026 closeout. They measure runtime source `2e81ee3a`.
+They were not rerun on the later Visual Studio build-tooling commit
+`2e801e54`, or for this README update.
+
+#### What was compared?
+
+The test uses QEMU, which runs an operating system inside a virtual computer.
+Each system gets **one virtual CPU and 256 MiB of RAM**, with the retained
+Nehalem CPU model, QEMU/UEFI firmware, application payload and read-only FAT32
+file inputs. The shared HTTP client performs the same request sequence.
+Alpine is the Linux reference system; its kernel, filesystem implementation,
+scheduling and instrumentation are different from CLROS.
+
+The main comparison uses **WHPX (Windows Hypervisor Platform)** for both systems.
+This is **hardware acceleration**: QEMU uses the computer's virtualization
+support instead of emulating the CPU entirely in software. It still runs in a
+VM; these are not bare-metal or public-cloud measurements.
+
+Each system has **three independent boots**. In each boot, the client performs
+one first sequence and **ten warm sequences**, giving 88 verified HTTP responses
+per boot. The sequence includes API and health checks, file headers, a partial
+download, a complete download and a complete download alongside an API request.
+
+- **Warm** means repeating the sequence in an already-running VM, after earlier
+  requests may have filled caches. It does not mean every cache must be hot.
+- **Median** means the middle of the sorted timings; with ten results, it is
+  the average of the two middle values. Each boot has its own median.
+- **First sequence** means the first measured sequence in that boot. It is
+  reported separately and is not proof that host or guest disk caches were empty.
+- The times below run **from request start until the complete response body
+  arrives**. Client-side body-file writes and flushes are recorded separately.
+  These are not OS boot times, complete Blazor startup times or Internet
+  download predictions.
+
+#### Complete file: about 2 MB
+
+The file contains exactly **2,009,369 bytes**: about **2.01 MB** in decimal units,
+or **1.92 MiB** in binary units. Every completed body is checked for the expected
+bytes, not merely an HTTP success status.
+
+| System / hardware acceleration | Boot 1 warm median | Boot 2 warm median | Boot 3 warm median |
+| --- | ---: | ---: | ---: |
+| CLROS / WHPX | 7.147 s | 7.162 s | 7.166 s |
+| Alpine / WHPX | 41.810 ms | 40.164 ms | 40.494 ms |
+
+One second is 1,000 milliseconds: **40 ms is 0.04 seconds**. Using the middle
+of the three boot medians for each system, the complete file takes
+7.161564 seconds in CLROS versus 0.040494 seconds in Alpine. That makes
+Alpine approximately **177 times faster for this measured transfer**.
+
+Dividing the file size by those times gives approximately **0.28 MB/s for
+CLROS and 49.62 MB/s for Alpine**. Here, MB means 1,000,000 bytes. These are
+effective transfer rates for this request, including its waiting time;
+they are not the speed rating of the virtual network card or a general
+throughput guarantee. The three boot medians are kept separate rather than
+pooling every request into a single population.
+
+For comparison, the **first-sequence** full-file observations were
+6.885–6.952 seconds for CLROS and 36.007–36.351 milliseconds for Alpine.
+Those are three individual first observations per system, not warm medians.
+A first observation can be faster than a later repeat; this test does not
+guarantee an ordering between them.
+
+#### Smaller requests and serving two requests together
+
+The table below shows the **range of the three per-boot warm medians** under
+WHPX. It is not the fastest-to-slowest individual request or a confidence
+interval. All values in this table are milliseconds.
+
+| Request | What it tells us | CLROS, ms | Alpine, ms |
+| --- | --- | ---: | ---: |
+| Small JSON API response | Time to receive a small structured answer | 54.799–54.929 | 8.597–9.205 |
+| File headers only (HEAD) | Time to receive file information without downloading its body | 146.417–148.711 | 8.651–9.285 |
+| 64 KiB partial download | Time to receive 65,536 bytes of the larger file | 460.994–478.589 | 6.902–7.194 |
+| Complete file alongside an API request | Completion time of the file request when both start together | 7,156.734–7,200.540 | 44.440–44.989 |
+| API request alongside the complete file | Completion time of the accompanying small API response | 52.591–61.359 | 1.072–1.115 |
+
+The paired rows measure each request separately. They show that the small API
+request can complete while the file is still downloading; they are not a
+many-client load test or an aggregate bandwidth result.
+
+#### Earlier improvement: the timer/cache repair
+
+An earlier, separate development experiment reduced the mean time for the same
+complete file from **167.45 seconds to 7.17 seconds**, approximately a
+**23-fold improvement**. In everyday terms, a wait of nearly three minutes
+became a wait of about seven seconds.
+
+That experiment used one WHPX boot per image and two full-file requests per
+image, with the same quiet benchmark settings. Its curl timing included
+body-file writes, unlike the separately reported receive timing in the latest
+comparison. It measured the combined timer/cache repair, not each change in
+isolation, and did not compare against Alpine. The hosts deliberately stopped
+and joined those runs; they did not establish normal guest cleanup or complete
+browser acceptance. See [Step1748](done/step1748.md) for the original values,
+method and limitations. Do not combine this small earlier pair with the later
+three-boot results into a single statistical claim.
+
+#### What these results do and do not prove
+
+The quiet benchmark profile suppresses detailed test tracing, but it is still
+a controlled development profile, **not the finished PROD build** planned by
+the [PROD/DEV milestone](http://192.168.4.35:3000/admin/CLROS/milestone/21).
+Its timing observations are separate from the full functional qualification
+runs and their cleanup evidence.
+
+WHPX is the completed CLROS HTTP comparison above. **TCG**, QEMU's software CPU
+emulation, has an **incomplete CLROS result under the unchanged 30-minute guest
+limit**: 71 completed requests, one failed request, 16 unattempted requests and
+no completed browser/cleanup qualification. It is not a passing comparison,
+and the incomplete run does not prove the exact reason for failure. Alpine's
+three completed TCG HTTP boots have full-file warm medians of
+85.614, 86.611 and 89.823 ms; they cannot supply the missing CLROS result.
+
+Browser checks are also recorded separately from file-transfer timings.
+All three CLROS/WHPX browser checks passed. Alpine/WHPX browser boots 1 and 3
+passed; boot 2 had refused asset connections followed by a timeout, despite
+its completed HTTP benchmark. Its browser startup time is not counted as a
+successful result, and the precise cause remains unproven. All three
+Alpine/TCG browser checks passed. Browser versions are recorded separately;
+their timings are not pooled.
+
+These measurements show a substantial remaining gap. They do **not** determine
+how much is caused by scheduling, validation, caching, disk or networking,
+and they do not prove production readiness, sustained service, writes or
+SQLite durability. No failed run has been turned into a pass.
+
+For the exact runtime source, report hashes, response verification, browser
+outcomes and failure boundaries, see
+[matched performance observations](work/rc3-whpx-qualification.md#matched-performance-observations)
+and [Step1790](done/step1790.md).
+
+### Earlier development checkpoints
 
 Earlier development checkpoints follow in reverse chronological order.
 
