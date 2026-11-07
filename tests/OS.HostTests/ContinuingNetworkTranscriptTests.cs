@@ -5,6 +5,26 @@ using OS.Tools.QemuRunner;
 
 internal static class ContinuingNetworkTranscriptTests
 {
+    [HostTest("m07-026 zero-window corpus requires the retained octet and rejects a full retry", HostLane.Fast, 3)]
+    private static void ZeroWindowCorpus()
+    {
+        ContinuingTcpScenario.Packet[] corpus = [.. ContinuingTcpScenario.Packets];
+        int index = Array.FindIndex(corpus, packet => packet.Tag == "data.retry");
+        HostCheck.True(index > 0 && !corpus[index - 1].FromGuest && corpus[index - 1].Window == 0);
+        var first = corpus.Single(packet => packet.Tag == "data.first");
+        var probe = corpus[index];
+        HostCheck.True(first.Payload == "ABCD" && probe.Payload == "A" && probe.Sequence == first.Sequence && probe.Ack == first.Ack);
+
+        // Literal original3bdc Network frames104/108. These independently pin
+        // the retained octet instead of deriving both sides from the corpus.
+        byte[] original = Convert.FromHexString("02000000000202000000000108004500002C00000000400662BC0A00020F0A0002021F909C40000003E900002721501800042C53000041424344");
+        byte[] retained = Convert.FromHexString("02000000000202000000000108004500002900000000400662BF0A00020F0A0002021F909C40000003E900002721501800046FDC000041");
+        ContinuingTcpScenario.Validate(original, first, 0x020000000002);
+        ContinuingTcpScenario.Validate(retained, probe, 0x020000000002);
+        Reject(() => ContinuingTcpScenario.Validate(original, probe, 0x020000000002));
+        Reject(() => ContinuingTcpScenario.Validate(ContinuingTcpScenario.Write(probe with { Payload = "B" }, 0x020000000002), probe, 0x020000000002));
+    }
+
     [HostTest("m07-026 transcript rejects missing reordered forged and mismatched parent rows", HostLane.Fast, 0)]
     private static void Transcript()
     {

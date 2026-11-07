@@ -370,3 +370,49 @@ configuration or toolchain change. Six fresh focused unwind checks and
 repository/style/contracts checks pass; the graph builds without warnings or
 errors. Freeze this host-test-only correction before another Full. The first
 failure and its causal uncertainty remain part of the final evidence.
+
+## Bounded legacy network corpus correction after current originals
+
+Frozen3bdc Full5 passes7,836 checks with zero reuse. Its thirteen native
+publications and reviewed component joins precede twelve successful current
+originals: service-v1,quota256,quota512,positive-v2,DiskA2,DiskB,TruncatedA,
+Timing,Progress,CloseReuse,ExitPending and LegacyBlock. Timing has five responses
+and64KiB; its intentional stop does not qualify full/browser/natural cleanup.
+Healthy/truncated Full018 originals each pass120 HTTP and49 browser responses
+and their complete original cleanup consumers. Six earlier unaffected originals
+retain their actual455 source and producer identities, never new-source status.
+
+The next Network original fails. The first mismatch is corpus index39 / actual
+PCAP record108: after the peer advertised zero window, the kernel sends the
+retained octet`A` at SND.UNA1001 rather than the corpus's four-byte`ABCD`.
+Record104's original four bytes and record108's one byte have the same sequence
+and ACK10017, with a3,000,101us interval. Existing PumpPersist and focused legacy
+tests specify one retained octet and no ordinary retry-budget consumption. Source
+inspection confirms that policy also existed at accepted2e; this is not evidence
+that an earlier Network original passed or failed. The kernel is unchanged.
+
+The peer stopped after39 accepted corpus packets. Its InvalidDataException is
+appended to inherited stderr, so the strict outer`whpx_raw_after_seal` check also
+fails. The96-byte QEMU interrupt-vector warning exactly matches its sealed
+prelaunch prefix; that warning is not the new post-seal content. The original
+process joins with exit19, no timeout/output-limit failure, and the wrapper joins
+all children with unchanged source/producers. The original remains FAILED.
+
+The bounded host correction changes only that expected payload to`A`. A new
+independent control pins literal original frames104/108, accepts the original
+four-byte send and one-byte probe separately, and rejects a full-segment probe
+or a valid-checksum wrong octet. Packet counts, sequence/ACK/window checks,
+three-second interval, four-minute TIME-WAIT,285-second runner bound and strict
+stderr/cleanup checks remain. Preserve`network-persist-pre-repair-r01`, the raw
+original, packet readback and all current Full/native/guest receipts. Focused
+checks and a new stable host qualification are required; no quiet measurements,
+tracker writes, publication or delivery have happened yet.
+
+The affected graph builds with zero warnings/errors. Fresh focused originals
+pass43 checks with unchanged inputs and zero reuse: continuing transcript4,
+legacy send/persist23 and retransmission16. Repository, source style, contracts
+and diff checks pass. The new literal capture control also rejects a valid-
+checksum wrong octet. Commit/freeze this three-file host-only correction before
+the renewed full-host/native identity and affected-original gates. Retain all
+twelve passed3bdc originals with their exact source and producer identities;
+only the failed Network original needs a fresh functional replacement.
