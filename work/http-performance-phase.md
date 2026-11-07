@@ -341,3 +341,32 @@ failed original. Freeze the corrected host source, rerun invalidated Full and
 current native identity gates, then run a fresh service original and the
 remaining matrix. Runtime implementation remains unchanged since`cdab7536`;
 both failed service originals and every prior producer remain preserved.
+
+Full on`f324725f` stopped after887 Fast groups: the unchanged unwind
+fixture observed7936 allocated bytes with64 expected successes. The Native
+lane correctly stayed blocked. Inputs remained unchanged, reuse was zero,
+all children joined, and the failed producer's17 unique files are preserved.
+The failed result is not a complete Full or a new kernel-allocation finding.
+
+One bounded expert consultation recommended separating empty, successful,
+rejected, alternating and retained-allocation windows before changing the
+measurement. Two fresh single-case diagnostics passed with zero allocation,
+with default tiering and tiering disabled; that does not attribute the failure.
+An artifact-only packet then used the same fixture and immutable binaries,
+512 fixed observations per kind/phase,64 calls per operation window,65 observed
+background collections and a maintained bounded no-GC region. All operation
+and empty windows reported zero; every retained37-byte array reported64 bytes.
+The first unwarmed zero-stack rejection also reported zero with the expected
+status. The original7936-byte event remains unexplained. No successful
+diagnostic rescues it or proves a general native/no-GC property.
+
+The host fixture now follows the existing filesystem allocation measurement
+pattern: take its backing snapshot, require a scoped1MiB no-GC region, keep
+the original64 success/rejection pairs and exact zero-byte assertion, and end
+the region in`finally`. A retained positive control inside the region must
+still report64 bytes. Admission failure or premature region exit fails the
+test. There is no tolerance, subtraction, extra rejection warmup, global GC
+configuration or toolchain change. Six fresh focused unwind checks and
+repository/style/contracts checks pass; the graph builds without warnings or
+errors. Freeze this host-test-only correction before another Full. The first
+failure and its causal uncertainty remain part of the final evidence.
