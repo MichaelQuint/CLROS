@@ -8,6 +8,8 @@ Host tools build, validate, package, run, or inspect OS artifacts. They are not 
 
 Current tools:
 
+- `OS.CompilerReceipts`: the existing host receipt task, compiled for Visual
+  Studio's .NET task host and used inline by `dotnet` MSBuild.
 - `OS.QemuRunner`
 - `OS.QemuCapture`
 - `OS.ManifestTool`

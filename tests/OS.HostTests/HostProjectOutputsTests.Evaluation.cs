@@ -64,9 +64,10 @@ internal static partial class HostProjectOutputsTests
               <Target Name="GetTargetPath" />
             </Project>
             """);
-        async Task<ProcessResult> Query() => await ProcessRunner.RunAsync(new ProcessRequest("dotnet",
+        async Task<ProcessResult> Query(bool designTime = false) => await ProcessRunner.RunAsync(new ProcessRequest("dotnet",
             ["msbuild", project, "-nologo", "-m:1", "-nodeReuse:false", "-noAutoResponse",
-                "-target:CaptureHostProjectOutputs", "-property:SkipCompilerExecution=true"], root)
+                "-target:CaptureHostProjectOutputs", "-property:SkipCompilerExecution=true",
+                "-property:DesignTimeBuild=" + designTime.ToString()], root)
         {
             Timeout = TimeSpan.FromSeconds(30),
             OutputCharacterLimit = 256 * 1024
@@ -76,6 +77,9 @@ internal static partial class HostProjectOutputsTests
             "host_project_outputs_evaluation_requires_built_resources", StringComparison.Ordinal));
         string outputs = Path.Combine(intermediate, "host-project-outputs.txt");
         string self = Path.Combine(intermediate, "host-project-self.txt");
+        var designTimeMissing = await Query(designTime: true);
+        HostCheck.True(designTimeMissing.Succeeded, designTimeMissing.StandardOutput + designTimeMissing.StandardError);
+        HostCheck.True(!File.Exists(outputs) && !File.Exists(self), "design-time queries do not require or create evidence resources");
         File.WriteAllText(outputs, "exact retained output sentinel\r\n");
         var missingSelf = await Query();
         HostCheck.True(!missingSelf.Succeeded && !File.Exists(self) && missingSelf.StandardOutput.Contains(
@@ -84,6 +88,10 @@ internal static partial class HostProjectOutputsTests
         string outputHash = HostRunCheckpoint.HashFile(outputs), selfHash = HostRunCheckpoint.HashFile(self);
         var retained = await Query();
         HostCheck.True(retained.Succeeded, retained.StandardOutput + retained.StandardError);
+        HostCheck.Equal(outputHash, HostRunCheckpoint.HashFile(outputs));
+        HostCheck.Equal(selfHash, HostRunCheckpoint.HashFile(self));
+        var designTimeRetained = await Query(designTime: true);
+        HostCheck.True(designTimeRetained.Succeeded, designTimeRetained.StandardOutput + designTimeRetained.StandardError);
         HostCheck.Equal(outputHash, HostRunCheckpoint.HashFile(outputs));
         HostCheck.Equal(selfHash, HostRunCheckpoint.HashFile(self));
     }

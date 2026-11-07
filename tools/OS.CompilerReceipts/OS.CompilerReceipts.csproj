@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <OutputPath>../../artifacts/compiler-receipts/$(Configuration)/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <_ReceiptSdkDirectory>$(NetCoreRoot)sdk/$(NETCoreSdkVersion)</_ReceiptSdkDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.Build.Framework" HintPath="$(_ReceiptSdkDirectory)/Microsoft.Build.Framework.dll" Private="false" />
+    <Reference Include="Microsoft.Build.Utilities.Core" HintPath="$(_ReceiptSdkDirectory)/Microsoft.Build.Utilities.Core.dll" Private="false" />
+  </ItemGroup>
+</Project>

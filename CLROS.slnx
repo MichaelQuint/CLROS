@@ -7,6 +7,7 @@
     <Project Path="apps/MinimalApiSmoke/MinimalApiSmoke.csproj" />
     <Project Path="apps/MinimalApiStaticFiles/MinimalApiStaticFiles.csproj" />
     <Project Path="apps/MinimalApiService/MinimalApiService.csproj" />
+    <Project Path="apps/NativeAotSocketVectors/NativeAotSocketVectors.csproj" />
     <Project Path="apps/TinyHttpServer/TinyHttpServer.csproj" />
   </Folder>
   <Folder Name="/src/">
@@ -18,6 +19,7 @@
     <Project Path="tests/OS.HostTests/OS.HostTests.csproj" />
   </Folder>
   <Folder Name="/tools/">
+    <Project Path="tools/OS.CompilerReceipts/OS.CompilerReceipts.csproj" />
     <Project Path="tools/OS.ImageBuilder/OS.ImageBuilder.csproj" />
     <Project Path="tools/OS.LibvirtRunner/OS.LibvirtRunner.csproj" />
     <Project Path="tools/OS.ManifestTool/OS.ManifestTool.csproj" />

@@ -8,21 +8,34 @@
   <PropertyGroup>
     <HostReceiptRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../..'))</HostReceiptRoot>
     <HostReceiptTaskSource>$(MSBuildThisFileDirectory)HostCompilationReceiptTask.cs</HostReceiptTaskSource>
+    <HostReceiptTaskAssembly>$(MSBuildThisFileDirectory)../../artifacts/compiler-receipts/$(Configuration)/OS.CompilerReceipts.dll</HostReceiptTaskAssembly>
+    <HostReceiptRoslynDirectory>$(RoslynTargetsPath)</HostReceiptRoslynDirectory>
+    <HostReceiptRoslynDirectory Condition="!Exists('$(HostReceiptRoslynDirectory)/bincore/Microsoft.CodeAnalysis.CSharp.dll')">$(RoslynTargetsPath)/..</HostReceiptRoslynDirectory>
     <HostReceiptEfiProject>$([System.IO.Path]::GetFullPath('$(HostReceiptRoot)/src/OS/OS.csproj'))</HostReceiptEfiProject>
     <HostReceiptEnabled Condition="'$(MSBuildProjectExtension)' == '.csproj' and '$(MSBuildProjectFullPath)' != '$(HostReceiptEfiProject)' and '$(DisableImplicitFrameworkReferences)' != 'true'">true</HostReceiptEnabled>
     <ProvideCommandLineArgs Condition="'$(HostReceiptEnabled)' == 'true'">true</ProvideCommandLineArgs>
     <TargetsTriggeredByCompilation Condition="'$(HostReceiptEnabled)' == 'true'">_MarkHostCompilationExecuted;$(TargetsTriggeredByCompilation)</TargetsTriggeredByCompilation>
   </PropertyGroup>
   <UsingTask TaskName="OS.CompilerReceipts.HostCompilationReceiptTask" TaskFactory="RoslynCodeTaskFactory"
-             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll" Condition="'$(MSBuildRuntimeType)' == 'Core'">
     <Task>
       <Code Type="Class" Language="cs" Source="$(HostReceiptTaskSource)" />
     </Task>
   </UsingTask>
-  <Target Name="_PrepareHostCompilationReceipt" BeforeTargets="CoreCompile"
+  <!-- The SDK compiler/parser requires .NET. Visual Studio's full-framework
+       MSBuild uses the selected SDK's .NET task host for the same receipt task. -->
+  <UsingTask TaskName="OS.CompilerReceipts.HostCompilationReceiptTask" Runtime="NET"
+             AssemblyFile="$(HostReceiptTaskAssembly)" Condition="'$(MSBuildRuntimeType)' != 'Core'" />
+  <Target Name="_BuildHostCompilationReceiptTask"
+          Condition="'$(HostReceiptEnabled)' == 'true' and '$(MSBuildRuntimeType)' != 'Core' and '$(DesignTimeBuild)' != 'true' and '$(SkipCompilerExecution)' != 'true'">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)OS.CompilerReceipts.csproj" Targets="Restore;Build"
+             BuildInParallel="false" Properties="Configuration=$(Configuration)"
+             RemoveProperties="TargetFramework;RuntimeIdentifier;SkipCompilerExecution;NonExistentFile;CustomAfterMicrosoftCommonTargets;IntermediateOutputPath;BaseIntermediateOutputPath;MSBuildProjectExtensionsPath;OutputPath;BaseOutputPath;OutDir" />
+  </Target>
+  <Target Name="_PrepareHostCompilationReceipt" BeforeTargets="CoreCompile" DependsOnTargets="_BuildHostCompilationReceiptTask"
           Condition="'$(HostReceiptEnabled)' == 'true' and '$(DisableImplicitFrameworkReferences)' != 'true' and '$(DesignTimeBuild)' != 'true'">
     <PropertyGroup>
-      <HostCompilationReceiptPath>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)$(TargetName).host-compilation.xml', '$(MSBuildProjectDirectory)'))</HostCompilationReceiptPath>
+      <HostCompilationReceiptPath>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)$(TargetName).host-compilation.xml'))</HostCompilationReceiptPath>
     </PropertyGroup>
     <ItemGroup>
       <_HostReceiptInput Remove="@(_HostReceiptInput)" />
@@ -43,7 +56,9 @@
       <_HostReceiptInput Include="$(Win32Manifest)" Condition="'$(Win32Manifest)' != ''"><ReceiptKind>Win32Manifest</ReceiptKind></_HostReceiptInput>
       <_HostReceiptInput Include="$(AppConfigForCompiler)" Condition="'$(AppConfigForCompiler)' != ''"><ReceiptKind>AppConfig</ReceiptKind></_HostReceiptInput>
       <_HostReceiptInput Include="$(HostReceiptTaskSource)"><ReceiptKind>ReceiptImplementation</ReceiptKind></_HostReceiptInput>
-      <_HostReceiptInput Include="$(MSBuildToolsPath)/Roslyn/Microsoft.Build.Tasks.CodeAnalysis.dll"><ReceiptKind>CompilerTask</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="$(HostReceiptTaskAssembly)" Condition="'$(MSBuildRuntimeType)' != 'Core'"><ReceiptKind>ReceiptImplementation</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="$(MSBuildThisFileDirectory)OS.CompilerReceipts.csproj" Condition="'$(MSBuildRuntimeType)' != 'Core'"><ReceiptKind>ReceiptImplementation</ReceiptKind></_HostReceiptInput>
+      <_HostReceiptInput Include="$(_BuildTasksDirectory)$(_BuildTasksAssemblyName).dll"><ReceiptKind>CompilerTask</ReceiptKind></_HostReceiptInput>
       <_HostReceiptOutput Include="@(IntermediateAssembly)"><ReceiptKind>PE</ReceiptKind></_HostReceiptOutput>
       <_HostReceiptOutput Include="@(_DebugSymbolsIntermediatePath)"><ReceiptKind>PDB</ReceiptKind></_HostReceiptOutput>
     </ItemGroup>
@@ -53,7 +68,7 @@
           Condition="'$(HostReceiptEnabled)' == 'true' and '$(DisableImplicitFrameworkReferences)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(SkipCompilerExecution)' != 'true'">
     <OS.CompilerReceipts.HostCompilationReceiptTask Mode="Begin"
         Root="$(HostReceiptRoot)" Project="$(MSBuildProjectFullPath)" ReceiptPath="$(HostCompilationReceiptPath)"
-        CompilerDirectory="$(MSBuildToolsPath)/Roslyn/bincore" Inputs="@(_HostReceiptInput)"
+        CompilerDirectory="$(HostReceiptRoslynDirectory)/bincore" Inputs="@(_HostReceiptInput)"
         DesignTimeBuild="$(DesignTimeBuild)" SkipCompilerExecution="$(SkipCompilerExecution)" DisableImplicitFrameworkReferences="$(DisableImplicitFrameworkReferences)">
       <Output TaskParameter="Token" PropertyName="_HostReceiptToken" />
     </OS.CompilerReceipts.HostCompilationReceiptTask>
@@ -64,14 +79,14 @@
           Condition="'$(HostReceiptEnabled)' == 'true' and '$(DisableImplicitFrameworkReferences)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(SkipCompilerExecution)' != 'true'">
     <OS.CompilerReceipts.HostCompilationReceiptTask Mode="Mark"
         Root="$(HostReceiptRoot)" Project="$(MSBuildProjectFullPath)" ReceiptPath="$(HostCompilationReceiptPath)"
-        CompilerDirectory="$(MSBuildToolsPath)/Roslyn/bincore" Token="$(_HostReceiptToken)"
+        CompilerDirectory="$(HostReceiptRoslynDirectory)/bincore" Token="$(_HostReceiptToken)"
         DesignTimeBuild="$(DesignTimeBuild)" SkipCompilerExecution="$(SkipCompilerExecution)" DisableImplicitFrameworkReferences="$(DisableImplicitFrameworkReferences)" />
   </Target>
   <Target Name="_CompleteHostCompilationReceipt" AfterTargets="CoreCompile"
           Condition="'$(HostReceiptEnabled)' == 'true' and '$(DisableImplicitFrameworkReferences)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(SkipCompilerExecution)' != 'true'">
     <OS.CompilerReceipts.HostCompilationReceiptTask Mode="Complete"
         Root="$(HostReceiptRoot)" Project="$(MSBuildProjectFullPath)" ReceiptPath="$(HostCompilationReceiptPath)"
-        CompilerDirectory="$(MSBuildToolsPath)/Roslyn/bincore" Inputs="@(_HostReceiptInput)" Outputs="@(_HostReceiptOutput)"
+        CompilerDirectory="$(HostReceiptRoslynDirectory)/bincore" Inputs="@(_HostReceiptInput)" Outputs="@(_HostReceiptOutput)"
         Arguments="@(CscCommandLineArgs)" Token="$(_HostReceiptToken)"
         DesignTimeBuild="$(DesignTimeBuild)" SkipCompilerExecution="$(SkipCompilerExecution)" DisableImplicitFrameworkReferences="$(DisableImplicitFrameworkReferences)" />
     <ItemGroup><FileWrites Include="$(HostCompilationReceiptPath)" /></ItemGroup>
@@ -89,7 +104,7 @@
     <Error Condition="'$(NonExistentFile)' == '' or Exists('$(NonExistentFile)')" Text="host_receipt_evaluation_requires_absent_output_sentinel" />
     <OS.CompilerReceipts.HostCompilationReceiptTask Mode="Evaluate"
         Root="$(HostReceiptRoot)" Project="$(MSBuildProjectFullPath)" ReceiptPath="$(HostCompilationReceiptPath)"
-        CompilerDirectory="$(MSBuildToolsPath)/Roslyn/bincore" Inputs="@(_HostReceiptInput)" Arguments="@(CscCommandLineArgs)"
+        CompilerDirectory="$(HostReceiptRoslynDirectory)/bincore" Inputs="@(_HostReceiptInput)" Arguments="@(CscCommandLineArgs)"
         DesignTimeBuild="$(DesignTimeBuild)" SkipCompilerExecution="$(SkipCompilerExecution)" DisableImplicitFrameworkReferences="$(DisableImplicitFrameworkReferences)">
       <Output TaskParameter="SnapshotXml" PropertyName="HostCompilationReceiptCurrentInputs" />
     </OS.CompilerReceipts.HostCompilationReceiptTask>

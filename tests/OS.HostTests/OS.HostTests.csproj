@@ -136,7 +136,8 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="CaptureHostTestBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="CaptureHostProjectOutputs;ResolveReferences;GenerateGlobalUsings;GenerateTargetFrameworkMonikerAttribute;GenerateAssemblyInfo">
+  <Target Name="CaptureHostTestBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="CaptureHostProjectOutputs;ResolveReferences;GenerateGlobalUsings;GenerateTargetFrameworkMonikerAttribute;GenerateAssemblyInfo"
+          Condition="'$(DesignTimeBuild)' != 'true'">
     <PropertyGroup>
       <!-- Normalize before globbing: parent segments can prevent generated-tree exclusions from matching. -->
       <_HostTestSourceRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\'))</_HostTestSourceRoot>
