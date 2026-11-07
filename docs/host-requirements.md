@@ -925,6 +925,21 @@ both resolve the SDK's `Roslyn/bincore` assemblies. Visual Studio 2026 Insiders
 MSBuild Rebuild and `dotnet build` passed this reference repair. This removes
 the two missing `Microsoft.CodeAnalysis` namespace errors without a new package.
 
+Host compilation receipts also resolve the compiler and its MSBuild task from
+the selected SDK. Visual Studio's full-framework MSBuild builds the small
+`OS.CompilerReceipts` task library and runs it with `Runtime="NET"`, retaining
+the pinned SDK parser and receipt checks. `dotnet` MSBuild uses the same task
+source inline. Paths use MSBuild normalization, including absolute intermediate paths.
+Design-time builds skip host evidence/resource capture; ordinary source queries
+still require the resources from a successful build. `NativeAotSocketVectors`
+is included in `CLROS.slnx` for HostTests restore in Visual Studio.
+See [step1791](../done/step1791.md) for the scoped IDE repair and validation limits.
+
+When switching from Visual Studio builds to `dotnet` source-inspection tests,
+rebuild the complete HostTests graph with `--no-incremental`. An incremental
+build can retain a Visual Studio compiler receipt; the source query correctly
+rejects that different build context with `source_catalog_receipt_inputs rebuild_required`.
+
 ## Implemented Behavior
 
 ### .NET 11 and C# 15 feature choices

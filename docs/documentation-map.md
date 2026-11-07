@@ -7,6 +7,9 @@ closeout. The later `72784936` optimization and isolated decoder work remain
 outside the release. The step entries below retain the results at their
 original commits.
 
+[Step1791](../done/step1791.md) records the scoped Visual Studio host-build and
+design-time repair, with separate restore/build results and retained limitations.
+
 [Step1790](../done/step1790.md) records the approved PR814 closeout from
 qualified runtime `2e81ee3a`, incomplete TCG reporting, scoped review and
 recoverable preservation of the excluded development tails.

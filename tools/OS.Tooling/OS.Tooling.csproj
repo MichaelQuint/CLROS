@@ -44,7 +44,8 @@
     <_ToolingAbsolutePatterns>$(_ToolingRepositoryRoot)$(_ToolingInputPatterns.Replace(';', ';$(_ToolingRepositoryRoot)'))</_ToolingAbsolutePatterns>
     <_ToolingManifestPatterns>GLOB|$(_ToolingInputPatterns.Replace(';', ';GLOB|'))</_ToolingManifestPatterns>
   </PropertyGroup>
-  <Target Name="CaptureToolingBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="CaptureHostProjectOutputs;ResolveReferences">
+  <Target Name="CaptureToolingBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="CaptureHostProjectOutputs;ResolveReferences"
+          Condition="'$(DesignTimeBuild)' != 'true'">
     <ItemGroup>
       <_ToolingInput Include="$([MSBuild]::Unescape('$(_ToolingAbsolutePatterns)'))"
         Exclude="$(_ToolingRepositoryRoot)**/bin/**;$(_ToolingRepositoryRoot)**/obj/**;$(_ToolingRepositoryRoot)**/artifacts/**" />
