@@ -107,7 +107,7 @@ public static partial class EfiContracts
             ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxThreadServices.DiskDispatchMeasurements.cs"] = "9af7ca3f0ee5ec25bc8ef5ee09c5eb72ba0297e9b6a7b1d910615bb0eb074d6f",
             ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxThreadServices.DiskDispatchTotals.cs"] = "0e3767a1830cb3bbb3383cf1bcec0a8e5880ae47e5b1decf10f3b06a7a046055",
             ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxThreadServices.DiskPumpAccess.cs"] = "7cf420cb912d422f57fba5b0256e38402e37f9ab02bb23ae98177bd9dcddec80",
-            ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxDescriptorServices.Disk.cs"] = "72cc1e0ce259090d7cacd59ae73c56b7ae6897122d48de99d8c9097865fe455d",
+            ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxDescriptorServices.Disk.cs"] = "b27f617ddd8186923f11ffd904c750d4320920f1f4bf7d9e1d088f32fd44fa3a",
             ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxDescriptorServices.DiskProgress.cs"] = "0552377f24b52546806289e12ae66985b51ac94c61e7742eff2ad38f39e4efb0",
             ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxDescriptorServices.DiskToken.cs"] = "15c247977369fbdf31161bac0a674f684f37a028bafd66f52c0533820a795272",
             ["..\\OS.Kernel\\Compatibility\\LinuxX64\\LinuxDescriptorServices.DiskResult.cs"] = "779e3a1b97e4b304d4b975815b32cc3815f70df7c820ed864769edb4a1c2d137",
